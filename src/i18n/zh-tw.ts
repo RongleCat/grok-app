@@ -939,8 +939,18 @@ export const zhTW: Record<MessageKey, string> = {
   "ext.plugins.filter.enabled": "已啟用",
   "ext.plugins.filter.disabled": "已停用",
   "ext.plugins.filterEmpty": "沒有符合篩選條件的外掛。",
+  "ext.plugins.installLabel": "安裝外掛",
+  "ext.plugins.installPlaceholder": "本機路徑、git URL 或 owner/repo[@ref]",
+  "ext.plugins.install": "安裝",
+  "ext.plugins.installing": "正在安裝…",
+  "ext.plugins.installHint":
+    "呼叫 `grok plugin install --trust`（路徑、git URL 或 GitHub 簡寫）。不是完整的市集瀏覽介面。",
+  "ext.plugins.installEmpty": "請輸入路徑、git URL 或 owner/repo。",
+  "ext.plugins.update": "更新",
+  "ext.plugins.updateAll": "全部更新",
+  "ext.plugins.updating": "正在更新…",
   "ext.plugins.note":
-    "與 Grok Build 共用同一清單（`grok plugin list`）。啟用/停用寫入 `~/.grok/config.toml`；agent soft-respawn 後下一輪對話重新載入外掛。",
+    "與 Grok Build 共用同一清單（`grok plugin list`）。安裝/更新/啟用/停用走 CLI；啟用狀態寫入 `~/.grok/config.toml`。變更後 agent soft-respawn，下一輪對話重新載入外掛。",
   "ext.skills.title": "技能",
   "ext.skills.loading": "正在載入技能…",
   "ext.skills.empty": "未發現技能",
@@ -955,7 +965,7 @@ export const zhTW: Record<MessageKey, string> = {
   "ext.disabled": "已停用",
   "ext.enableAll": "全部啟用",
   "ext.footnote":
-"開關會寫入應用資料，並在新對話中注入已啟用的 MCP（ACP mcpServers + agent-home 設定）。停用技能仍保留在磁碟，但不會出現在斜線面板。",
+    "開關會寫入應用資料，並在新對話中注入已啟用的 MCP（ACP mcpServers + agent-home 設定）。停用技能仍保留在磁碟，但不會出現在斜線面板。外掛安裝支援路徑/git/GitHub 簡寫；完整市集瀏覽仍僅 CLI。",
   "error.needTauri": "需要在 Tauri 視窗中選擇目錄",
   "common.comingSoon": "即將推出",
   "common.local": "本機",

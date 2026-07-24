@@ -272,3 +272,24 @@ export function filterPluginsByLoadState<T extends { enabled?: boolean }>(
   if (filter === "disabled") return plugins.filter((p) => p.enabled === false);
   return plugins;
 }
+
+/**
+ * Normalize `grok plugin install <source>` input (path, git URL, owner/repo).
+ * Empty / whitespace → null.
+ */
+export function normalizePluginInstallSource(
+  raw: string | null | undefined,
+): string | null {
+  const s = (raw ?? "").trim();
+  return s ? s : null;
+}
+
+/**
+ * Normalize optional update target. Empty → null meaning "update all".
+ */
+export function normalizePluginUpdateName(
+  raw: string | null | undefined,
+): string | null {
+  const s = (raw ?? "").trim();
+  return s ? s : null;
+}

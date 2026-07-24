@@ -1730,6 +1730,8 @@ pub async fn extensions_enable_all_skills(
 // Do not invent a parallel store or rewrite CLI `status` values.
 
 const PLUGIN_CMD_TIMEOUT_SECS: u64 = 30;
+/// Install / update pull git or marketplace cache; allow longer than enable/list.
+const PLUGIN_MUTATE_TIMEOUT_SECS: u64 = 180;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -2321,6 +2323,97 @@ pub async fn plugin_details(name: String) -> Result<serde_json::Value, String> {
     }))
 }
 
+/// Trim install source; reject empty. Accepts path, git URL, or GitHub shorthand.
+pub fn normalize_plugin_install_source(source: &str) -> Result<String, String> {
+    let s = source.trim();
+    if s.is_empty() {
+        return Err("plugin source required".into());
+    }
+    Ok(s.to_string())
+}
+
+/// Optional update target: empty / whitespace → update all (`None`).
+pub fn normalize_plugin_update_name(name: Option<&str>) -> Option<String> {
+    name.map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
+/// Install from path / git URL / GitHub shorthand (`grok plugin install <source> --trust`).
+/// Soft-respawns agent on success. `--trust` is required for non-interactive UI.
+#[tauri::command]
+pub async fn plugin_install(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    source: String,
+) -> Result<serde_json::Value, String> {
+    let source = normalize_plugin_install_source(&source)?;
+    let source_for_cmd = source.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        run_grok_cli_args(
+            &["plugin", "install", &source_for_cmd, "--trust"],
+            PLUGIN_MUTATE_TIMEOUT_SECS,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    let (stdout, stderr, ok) = result;
+    if !ok {
+        let msg = if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            format!("failed to install plugin from {source}")
+        };
+        return Err(msg.chars().take(400).collect());
+    }
+    mgr.soft_respawn(&app).await;
+    Ok(serde_json::json!({
+        "ok": true,
+        "name": source,
+        "message": stdout.chars().take(400).collect::<String>(),
+    }))
+}
+
+/// Update one plugin by name, or all when `name` is null/empty (`grok plugin update [name]`).
+/// Soft-respawns agent on success.
+#[tauri::command]
+pub async fn plugin_update(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    name: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let target = normalize_plugin_update_name(name.as_deref());
+    let target_for_cmd = target.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || match target_for_cmd.as_deref() {
+        Some(n) => run_grok_cli_args(&["plugin", "update", n], PLUGIN_MUTATE_TIMEOUT_SECS),
+        None => run_grok_cli_args(&["plugin", "update"], PLUGIN_MUTATE_TIMEOUT_SECS),
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    let (stdout, stderr, ok) = result;
+    if !ok {
+        let label = target.as_deref().unwrap_or("all");
+        let msg = if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            format!("failed to update plugin(s): {label}")
+        };
+        return Err(msg.chars().take(400).collect());
+    }
+    mgr.soft_respawn(&app).await;
+    Ok(serde_json::json!({
+        "ok": true,
+        "name": target.unwrap_or_default(),
+        "message": stdout.chars().take(400).collect::<String>(),
+    }))
+}
+
 #[cfg(test)]
 mod plugin_config_tests {
     use super::*;
@@ -2429,6 +2522,35 @@ disabled = ["yes"]
         assert_eq!(plugins[0].provides.as_ref().unwrap().skills, 14);
         assert!(plugins[0].provides.as_ref().unwrap().hooks);
         assert!(plugins[0].enabled);
+    }
+
+    #[test]
+    fn normalize_install_source_trims_and_rejects_empty() {
+        assert_eq!(
+            normalize_plugin_install_source("  owner/repo  ").unwrap(),
+            "owner/repo"
+        );
+        assert_eq!(
+            normalize_plugin_install_source("https://github.com/a/b.git").unwrap(),
+            "https://github.com/a/b.git"
+        );
+        assert_eq!(
+            normalize_plugin_install_source("/tmp/my-plugin").unwrap(),
+            "/tmp/my-plugin"
+        );
+        assert!(normalize_plugin_install_source("").is_err());
+        assert!(normalize_plugin_install_source("   ").is_err());
+    }
+
+    #[test]
+    fn normalize_update_name_empty_means_all() {
+        assert_eq!(
+            normalize_plugin_update_name(Some("  chrome-devtools-mcp ")).as_deref(),
+            Some("chrome-devtools-mcp")
+        );
+        assert_eq!(normalize_plugin_update_name(Some("")), None);
+        assert_eq!(normalize_plugin_update_name(Some("   ")), None);
+        assert_eq!(normalize_plugin_update_name(None), None);
     }
 }
 

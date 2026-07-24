@@ -8,6 +8,8 @@ import {
   mergeEnableSet,
   mergeInspectErrors,
   mcpMetaLine,
+  normalizePluginInstallSource,
+  normalizePluginUpdateName,
   normalizeSkillSource,
   pluginLoadLabel,
   pluginMetaLine,
@@ -254,5 +256,20 @@ describe("plugin helpers", () => {
     expect(filterPluginsByLoadState(rows, "disabled").map((p) => p.name)).toEqual([
       "b",
     ]);
+  });
+
+  it("normalizes install source and update name", () => {
+    expect(normalizePluginInstallSource("  owner/repo  ")).toBe("owner/repo");
+    expect(
+      normalizePluginInstallSource("https://github.com/a/b.git"),
+    ).toBe("https://github.com/a/b.git");
+    expect(normalizePluginInstallSource("/tmp/plugin")).toBe("/tmp/plugin");
+    expect(normalizePluginInstallSource("")).toBeNull();
+    expect(normalizePluginInstallSource("   ")).toBeNull();
+    expect(normalizePluginInstallSource(null)).toBeNull();
+
+    expect(normalizePluginUpdateName("  demo ")).toBe("demo");
+    expect(normalizePluginUpdateName("")).toBeNull();
+    expect(normalizePluginUpdateName(undefined)).toBeNull();
   });
 });

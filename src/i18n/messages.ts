@@ -977,8 +977,19 @@ const en = {
   "ext.plugins.filter.enabled": "Enabled",
   "ext.plugins.filter.disabled": "Disabled",
   "ext.plugins.filterEmpty": "No plugins match this filter.",
+  "ext.plugins.installLabel": "Install plugin",
+  "ext.plugins.installPlaceholder":
+    "Local path, git URL, or owner/repo[@ref]",
+  "ext.plugins.install": "Install",
+  "ext.plugins.installing": "Installing…",
+  "ext.plugins.installHint":
+    "Uses `grok plugin install --trust` (path, git URL, or GitHub shorthand). Not a full marketplace browser.",
+  "ext.plugins.installEmpty": "Enter a path, git URL, or owner/repo to install.",
+  "ext.plugins.update": "Update",
+  "ext.plugins.updateAll": "Update all",
+  "ext.plugins.updating": "Updating…",
   "ext.plugins.note":
-    "Same inventory as Grok Build (`grok plugin list`). Enable/disable writes `~/.grok/config.toml`; the agent soft-respawns so the next turn reloads plugins.",
+    "Same inventory as Grok Build (`grok plugin list`). Install/update/enable/disable call the CLI; enable state lives in `~/.grok/config.toml`. The agent soft-respawns after mutations so the next turn reloads plugins.",
   "ext.skills.title": "Skills",
   "ext.skills.loading": "Loading skills…",
   "ext.skills.empty": "No skills discovered",
@@ -993,7 +1004,7 @@ const en = {
   "ext.disabled": "Disabled",
   "ext.enableAll": "Enable all",
   "ext.footnote":
-    "Toggles persist under app data and inject enabled MCP into agent sessions. Disabled skills stay on disk but hide from the slash palette. Plugin marketplace install remains CLI-only.",
+    "Toggles persist under app data and inject enabled MCP into agent sessions. Disabled skills stay on disk but hide from the slash palette. Plugin install accepts path/git/GitHub shorthand; full marketplace browse stays CLI-only.",
 
   // Errors / misc
   "error.needTauri": "Folder picker requires the Tauri window",
@@ -2070,8 +2081,18 @@ const zh: Record<MessageKey, string> = {
   "ext.plugins.filter.enabled": "已启用",
   "ext.plugins.filter.disabled": "已禁用",
   "ext.plugins.filterEmpty": "没有符合筛选条件的插件。",
+  "ext.plugins.installLabel": "安装插件",
+  "ext.plugins.installPlaceholder": "本地路径、git URL 或 owner/repo[@ref]",
+  "ext.plugins.install": "安装",
+  "ext.plugins.installing": "正在安装…",
+  "ext.plugins.installHint":
+    "调用 `grok plugin install --trust`（路径、git URL 或 GitHub 简写）。不是完整的市场浏览界面。",
+  "ext.plugins.installEmpty": "请输入路径、git URL 或 owner/repo。",
+  "ext.plugins.update": "更新",
+  "ext.plugins.updateAll": "全部更新",
+  "ext.plugins.updating": "正在更新…",
   "ext.plugins.note":
-    "与 Grok Build 共用同一清单（`grok plugin list`）。启用/禁用写入 `~/.grok/config.toml`；agent soft-respawn 后下一轮对话重新加载插件。",
+    "与 Grok Build 共用同一清单（`grok plugin list`）。安装/更新/启用/禁用走 CLI；启用状态写入 `~/.grok/config.toml`。变更后 agent soft-respawn，下一轮对话重新加载插件。",
   "ext.skills.title": "技能",
   "ext.skills.loading": "正在加载技能…",
   "ext.skills.empty": "未发现技能",
@@ -2086,7 +2107,7 @@ const zh: Record<MessageKey, string> = {
   "ext.disabled": "已禁用",
   "ext.enableAll": "全部启用",
   "ext.footnote":
-"开关会写入应用数据，并在新会话中注入已启用的 MCP（ACP mcpServers + agent-home 配置）。禁用技能仍保留在磁盘，但不会出现在斜杠面板。",
+    "开关会写入应用数据，并在新会话中注入已启用的 MCP（ACP mcpServers + agent-home 配置）。禁用技能仍保留在磁盘，但不会出现在斜杠面板。插件安装支持路径/git/GitHub 简写；完整市场浏览仍仅 CLI。",
   "error.needTauri": "需要在 Tauri 窗口中选择目录",
   "common.comingSoon": "即将推出",
   "common.local": "本地",

@@ -1058,6 +1058,25 @@ export async function pluginDetails(name: string) {
   return invoke<PluginDetailsResult>("plugin_details", { name });
 }
 
+/**
+ * Install from path, git URL, or GitHub shorthand (`grok plugin install --trust`).
+ * Soft-respawns agent on success.
+ */
+export async function pluginInstall(source: string) {
+  return invoke<PluginActionResult>("plugin_install", { source });
+}
+
+/**
+ * Update one plugin by name, or all when name is omitted/null/empty.
+ * Soft-respawns agent on success.
+ */
+export async function pluginUpdate(name?: string | null) {
+  const n = (name ?? "").trim();
+  return invoke<PluginActionResult>("plugin_update", {
+    name: n ? n : null,
+  });
+}
+
 // ── Official Grok Build account ─────────────────────────────────────────────
 
 export interface AccountProfile {

@@ -1,7 +1,7 @@
 /**
  * Settings → Extensions: Skills + MCP + Plugins.
  * Skills/MCP from `grok inspect` with enable toggles (extensions.json / ACP inject).
- * Plugins from `grok plugin list/enable/…` (config.toml disabled list).
+ * Plugins from `grok plugin list/install/update/…` (config.toml disabled list).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -23,6 +23,7 @@ import {
   isExtensionEnabled,
   mcpMetaLine,
   mergeInspectErrors,
+  normalizePluginInstallSource,
   pluginMetaLine,
   pluginProvidesLine,
   pluginRowKey,
@@ -78,6 +79,7 @@ export function ExtensionsPanel({
   const [detailsLoading, setDetailsLoading] = useState(false);
   /** Grok Build Plugins tab filter: all | enabled | disabled */
   const [pluginFilter, setPluginFilter] = useState<PluginFilter>("all");
+  const [installSource, setInstallSource] = useState("");
 
   const refresh = useCallback(async () => {
     if (!api.isTauri()) {
@@ -268,6 +270,35 @@ export function ExtensionsPanel({
     });
   };
 
+  const installPlugin = async () => {
+    if (!api.isTauri() || actionBusy || cliMissing) return;
+    const source = normalizePluginInstallSource(installSource);
+    if (!source) {
+      setActionError(tr("ext.plugins.installEmpty"));
+      return;
+    }
+    await runPluginAction("install", async () => {
+      await api.pluginInstall(source);
+      setInstallSource("");
+    });
+  };
+
+  const updatePlugin = (p: api.PluginDto) => {
+    const key = `update:${pluginRowKey(p)}`;
+    void runPluginAction(key, async () => {
+      await api.pluginUpdate(p.name);
+    });
+  };
+
+  const updateAllPlugins = () => {
+    if (!api.isTauri() || actionBusy || cliMissing || plugins.length === 0) {
+      return;
+    }
+    void runPluginAction("update:all", async () => {
+      await api.pluginUpdate(null);
+    });
+  };
+
   const showDetails = async (p: api.PluginDto) => {
     setDetailsTitle(p.name);
     setDetailsBody("");
@@ -392,8 +423,59 @@ export function ExtensionsPanel({
         {!loading ? (
           <span className="ext-count">{plugins.length}</span>
         ) : null}
+        {!loading && plugins.length > 0 ? (
+          <button
+            type="button"
+            className="btn btn--ghost ext-bulk-btn"
+            disabled={!!actionBusy || !!busyKey || cliMissing}
+            onClick={() => updateAllPlugins()}
+          >
+            {actionBusy === "update:all"
+              ? tr("ext.plugins.updating")
+              : tr("ext.plugins.updateAll")}
+          </button>
+        ) : null}
       </h2>
       <div className="settings-card ext-card">
+        <div className="ext-plugin-install">
+          <label className="ext-plugin-install__label" htmlFor="ext-plugin-source">
+            {tr("ext.plugins.installLabel")}
+          </label>
+          <div className="ext-plugin-install__row">
+            <input
+              id="ext-plugin-source"
+              type="text"
+              className="settings-input ext-plugin-install__input"
+              value={installSource}
+              placeholder={tr("ext.plugins.installPlaceholder")}
+              disabled={!!actionBusy || cliMissing}
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(e) => setInstallSource(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void installPlugin();
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="btn btn--solid btn--sm"
+              disabled={
+                !!actionBusy ||
+                cliMissing ||
+                !normalizePluginInstallSource(installSource)
+              }
+              onClick={() => void installPlugin()}
+            >
+              {actionBusy === "install"
+                ? tr("ext.plugins.installing")
+                : tr("ext.plugins.install")}
+            </button>
+          </div>
+          <p className="ext-plugin-install__hint">{tr("ext.plugins.installHint")}</p>
+        </div>
         {!loading && plugins.length > 0 ? (
           <div
             className="ext-plugin-filters"
@@ -435,7 +517,9 @@ export function ExtensionsPanel({
           <ul className="ext-list">
             {visiblePlugins.map((p) => {
               const key = pluginRowKey(p);
-              const busy = actionBusy === key;
+              const rowBusy = actionBusy === key;
+              const updating = actionBusy === `update:${key}`;
+              const busy = rowBusy || updating;
               const tone = pluginStatusTone(p.status, p.enabled);
               const meta = pluginMetaLine(p);
               const provides = pluginProvidesLine(p);
@@ -491,11 +575,21 @@ export function ExtensionsPanel({
                       disabled={busy || !!actionBusy}
                       onClick={() => togglePlugin(p)}
                     >
-                      {busy
+                      {rowBusy
                         ? tr("ext.plugins.working")
                         : p.enabled
                           ? tr("ext.plugins.disable")
                           : tr("ext.plugins.enable")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      disabled={busy || !!actionBusy || cliMissing}
+                      onClick={() => updatePlugin(p)}
+                    >
+                      {updating
+                        ? tr("ext.plugins.updating")
+                        : tr("ext.plugins.update")}
                     </button>
                     <button
                       type="button"
@@ -520,7 +614,7 @@ export function ExtensionsPanel({
             })}
           </ul>
         )}
-        {!loading && plugins.length > 0 ? (
+        {!loading ? (
           <p className="ext-section-note">{tr("ext.plugins.note")}</p>
         ) : null}
       </div>
