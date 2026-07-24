@@ -158,6 +158,7 @@ pub fn run() {
             commands::session_delete,
             commands::session_rename,
             commands::session_set_archived,
+            commands::session_set_pinned,
             commands::session_set_project,
             commands::session_set_scheduled,
             commands::session_messages,

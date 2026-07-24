@@ -103,6 +103,9 @@ pub struct SessionMeta {
     /// Archived chats stay on disk but hide from the default tree.
     #[serde(default)]
     pub archived: bool,
+    /// Pinned chats float to the top of the sidebar (within their group).
+    #[serde(default)]
+    pub pinned: bool,
     /// Per-session composer prefs (used when scope = session).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<String>,
@@ -460,11 +463,20 @@ pub fn set_project_permission_policy(
     Ok(clone)
 }
 
+/// Pinned first, then newest `updated_at` (mirrors project pin sort).
+pub fn sort_sessions_by_pin_then_updated(list: &mut [SessionMeta]) {
+    list.sort_by(|a, b| match (b.pinned, a.pinned) {
+        (true, false) => std::cmp::Ordering::Greater,
+        (false, true) => std::cmp::Ordering::Less,
+        _ => b.updated_at.cmp(&a.updated_at),
+    });
+}
+
 pub fn load_sessions_index() -> Vec<SessionMeta> {
     let _ = ensure_app_dirs();
     // Recover from torn/corrupt index (shared CLI+App or crash mid-write).
     let mut list: Vec<SessionMeta> = read_json_recover(&sessions_index_file());
-    list.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    sort_sessions_by_pin_then_updated(&mut list);
     list
 }
 
@@ -488,6 +500,7 @@ pub fn create_session(
         updated_at: now,
         model_id: None,
         archived: false,
+        pinned: false,
         effort: None,
         mode: None,
         permission_policy: None,
@@ -559,6 +572,19 @@ pub fn set_session_archived(id: &str, archived: bool) -> Result<SessionMeta, Str
         .ok_or_else(|| "session not found".to_string())?;
     s.archived = archived;
     s.updated_at = Utc::now();
+    let clone = s.clone();
+    save_sessions_index(&list)?;
+    Ok(clone)
+}
+
+pub fn set_session_pinned(id: &str, pinned: bool) -> Result<SessionMeta, String> {
+    let mut list = load_sessions_index();
+    let s = list
+        .iter_mut()
+        .find(|s| s.id == id)
+        .ok_or_else(|| "session not found".to_string())?;
+    s.pinned = pinned;
+    // Do not bump updated_at — pin is organizational (same as project pin).
     let clone = s.clone();
     save_sessions_index(&list)?;
     Ok(clone)
@@ -1217,6 +1243,7 @@ pub fn save_composer_prefs(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone;
 
     #[test]
     fn redact_scrubs_long_tokenish() {
@@ -1236,5 +1263,50 @@ mod tests {
         assert_eq!(s.max_concurrent_agents, 3);
         assert_eq!(s.agent_idle_minutes, 30);
         assert_eq!(s.stream_stall_seconds, 120);
+    }
+
+    fn sample_session(id: &str, pinned: bool, updated: DateTime<Utc>) -> SessionMeta {
+        SessionMeta {
+            id: id.into(),
+            project_id: None,
+            title: id.into(),
+            agent_session_id: None,
+            created_at: updated,
+            updated_at: updated,
+            model_id: None,
+            archived: false,
+            pinned,
+            effort: None,
+            mode: None,
+            permission_policy: None,
+            scheduled: false,
+        }
+    }
+
+    #[test]
+    fn sessions_sort_pinned_first_then_updated_at() {
+        let t1 = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
+        let t2 = Utc.with_ymd_and_hms(2024, 1, 2, 0, 0, 0).unwrap();
+        let t3 = Utc.with_ymd_and_hms(2024, 1, 3, 0, 0, 0).unwrap();
+        let mut list = vec![
+            sample_session("unpinned-mid", false, t2),
+            sample_session("pinned-old", true, t1),
+            sample_session("unpinned-new", false, t3),
+            sample_session("pinned-new", true, t3),
+        ];
+        sort_sessions_by_pin_then_updated(&mut list);
+        let ids: Vec<&str> = list.iter().map(|s| s.id.as_str()).collect();
+        assert_eq!(ids, vec!["pinned-new", "pinned-old", "unpinned-new", "unpinned-mid"]);
+    }
+
+    #[test]
+    fn session_meta_pinned_defaults_false_on_deserialize() {
+        let raw = r#"{
+            "id":"x","title":"t","createdAt":"2024-01-01T00:00:00Z",
+            "updatedAt":"2024-01-01T00:00:00Z"
+        }"#;
+        let m: SessionMeta = serde_json::from_str(raw).expect("deserialize legacy session");
+        assert!(!m.pinned);
+        assert!(!m.archived);
     }
 }

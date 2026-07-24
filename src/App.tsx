@@ -264,6 +264,8 @@ interface SessionRow {
   projectId: string | null;
   updatedAt: string;
   archived?: boolean;
+  /** Pinned chats float to the top of the sidebar */
+  pinned?: boolean;
   /** Shell scheduled-automation run */
   scheduled?: boolean;
 }
@@ -769,13 +771,20 @@ export default function App() {
       );
       setSessions(
         (
-          s as Array<SessionRow & { archived?: boolean; scheduled?: boolean }>
+          s as Array<
+            SessionRow & {
+              archived?: boolean;
+              pinned?: boolean;
+              scheduled?: boolean;
+            }
+          >
         ).map((x) => ({
           id: x.id,
           title: x.title,
           projectId: x.projectId,
           updatedAt: x.updatedAt,
           archived: !!x.archived,
+          pinned: !!x.pinned,
           scheduled: !!x.scheduled,
         })),
       );
@@ -2189,6 +2198,7 @@ export default function App() {
           projectId: s.projectId,
           updatedAt: s.updatedAt,
           archived: !!s.archived,
+          pinned: !!s.pinned,
           scheduled: !!s.scheduled,
         })),
       );
@@ -2658,6 +2668,17 @@ export default function App() {
       } else if (!archived && s.projectId) {
         setExpandedProjects((e) => ({ ...e, [s.projectId!]: true }));
       }
+    } catch (e) {
+      setLocalError(String(e));
+    }
+  };
+
+  /** Pin / unpin a session (floats to top of its sidebar group). */
+  const pinSession = async (s: SessionRow, pinned = true) => {
+    setCtxMenu(null);
+    try {
+      await api.sessionSetPinned(s.id, pinned);
+      await refreshSessions();
     } catch (e) {
       setLocalError(String(e));
     }
@@ -4074,6 +4095,7 @@ export default function App() {
           projectId: meta.projectId ?? source.projectId,
           updatedAt: meta.updatedAt || new Date().toISOString(),
           archived: meta.archived,
+          pinned: !!(meta as SessionRow).pinned,
           scheduled: meta.scheduled,
         };
         const proj = row.projectId
@@ -6352,6 +6374,18 @@ export default function App() {
                                   }}
                                 >
                                   <span className="tree-l3__title">
+                                    {s.pinned ? (
+                                      <span
+                                        className="tree-l3__kind"
+                                        title={tr("session.pinned")}
+                                        aria-label={tr("session.pinned")}
+                                      >
+                                        <IconPin
+                                          size={12}
+                                          className="tree-l3__pin"
+                                        />
+                                      </span>
+                                    ) : null}
                                     {s.scheduled ? (
                                       <span
                                         className="tree-l3__kind"
@@ -6380,7 +6414,29 @@ export default function App() {
                                       </span>
                                     </Tip>
                                   ) : (
-                                    <span className="tree-l3__actions">
+                                    <span className="tree-l3__actions tree-l3__actions--triple">
+                                      <Tip
+                                        label={
+                                          s.pinned
+                                            ? tr("session.unpin")
+                                            : tr("session.pin")
+                                        }
+                                      >
+                                        <button
+                                          type="button"
+                                          className="tree-icon-btn"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            void pinSession(s, !s.pinned);
+                                          }}
+                                        >
+                                          {s.pinned ? (
+                                            <IconPinOff size={13} />
+                                          ) : (
+                                            <IconPin size={13} />
+                                          )}
+                                        </button>
+                                      </Tip>
                                       <Tip
                                         label={
                                           s.archived
@@ -6481,6 +6537,18 @@ export default function App() {
                       }}
                     >
                       <span className="tree-l3__title">
+                        {s.pinned ? (
+                          <span
+                            className="tree-l3__kind"
+                            title={tr("session.pinned")}
+                            aria-label={tr("session.pinned")}
+                          >
+                            <IconPin
+                              size={12}
+                              className="tree-l3__pin"
+                            />
+                          </span>
+                        ) : null}
                         {s.scheduled ? (
                           <span
                             className="tree-l3__kind"
@@ -6507,7 +6575,29 @@ export default function App() {
                           </span>
                         </Tip>
                       ) : (
-                        <span className="tree-l3__actions">
+                        <span className="tree-l3__actions tree-l3__actions--triple">
+                          <Tip
+                            label={
+                              s.pinned
+                                ? tr("session.unpin")
+                                : tr("session.pin")
+                            }
+                          >
+                            <button
+                              type="button"
+                              className="tree-icon-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void pinSession(s, !s.pinned);
+                              }}
+                            >
+                              {s.pinned ? (
+                                <IconPinOff size={13} />
+                              ) : (
+                                <IconPin size={13} />
+                              )}
+                            </button>
+                          </Tip>
                           <Tip label={tr("sidebar.archive")}>
                             <button
                               type="button"
@@ -8250,6 +8340,18 @@ export default function App() {
               session.sessionId === s.id ||
               viewingSessionIdRef.current === s.id;
             items = [
+              {
+                id: "pin",
+                label: s.pinned ? tr("session.unpin") : tr("session.pin"),
+                icon: s.pinned ? (
+                  <IconPinOff size={16} />
+                ) : (
+                  <IconPin size={16} />
+                ),
+                onClick: () => {
+                  void pinSession(s, !s.pinned);
+                },
+              },
               {
                 id: "rename",
                 label: tr("session.rename"),

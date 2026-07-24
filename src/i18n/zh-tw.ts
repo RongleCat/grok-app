@@ -58,6 +58,9 @@ export const zhTW: Record<MessageKey, string> = {
   "project.permissionSet": "「{name}」權限：{policy}",
   "project.permissionCleared": "「{name}」已恢復應用程式預設權限",
 
+  "session.pin": "置頂對話",
+  "session.unpin": "取消置頂",
+  "session.pinned": "已置頂",
   "session.rename": "重新命名",
   "session.renamePrompt": "重新命名對話",
   "session.renamePlaceholder": "對話標題",

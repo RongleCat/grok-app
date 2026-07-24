@@ -418,6 +418,11 @@ pub async fn session_set_archived(id: String, archived: bool) -> Result<SessionM
     store::set_session_archived(&id, archived)
 }
 
+#[tauri::command]
+pub async fn session_set_pinned(id: String, pinned: bool) -> Result<SessionMeta, String> {
+    store::set_session_pinned(&id, pinned)
+}
+
 /// Move session under a project (or clear project → orphan / 「其他会话」).
 #[tauri::command]
 pub async fn session_set_project(

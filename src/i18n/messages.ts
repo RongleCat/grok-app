@@ -67,6 +67,9 @@ const en = {
   "project.permissionSet": '"{name}" permission: {policy}',
   "project.permissionCleared": '"{name}" uses app permission default',
 
+  "session.pin": "Pin chat",
+  "session.unpin": "Unpin chat",
+  "session.pinned": "Pinned",
   "session.rename": "Rename",
   "session.renamePrompt": "Rename chat",
   "session.renamePlaceholder": "Chat title",
@@ -1188,6 +1191,9 @@ const zh: Record<MessageKey, string> = {
   "project.permissionSet": "「{name}」权限：{policy}",
   "project.permissionCleared": "「{name}」已恢复应用默认权限",
 
+  "session.pin": "置顶会话",
+  "session.unpin": "取消置顶",
+  "session.pinned": "已置顶",
   "session.rename": "重命名",
   "session.renamePrompt": "重命名会话",
   "session.renamePlaceholder": "会话标题",

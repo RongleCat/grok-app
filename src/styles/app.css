@@ -634,7 +634,8 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   gap: 4px;
 }
 
-.tree-l2__pin {
+.tree-l2__pin,
+.tree-l3__pin {
   flex-shrink: 0;
   opacity: 0.85;
 }
@@ -654,6 +655,12 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   opacity: 0;
   pointer-events: none;
   transition: opacity 100ms ease;
+}
+
+/* pin + archive + menu */
+.tree-l3__actions--triple {
+  width: 72px;
+  min-width: 72px;
 }
 
 .tree-l2:hover .tree-l2__actions,

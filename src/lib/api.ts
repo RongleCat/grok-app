@@ -556,6 +556,8 @@ export async function sessionsList() {
       updatedAt: string;
       modelId: string | null;
       archived?: boolean;
+      /** Pinned chats float to the top of the sidebar */
+      pinned?: boolean;
       /** Shell automation run */
       scheduled?: boolean;
     }>
@@ -630,6 +632,10 @@ export async function sessionRename(id: string, title: string) {
 
 export async function sessionSetArchived(id: string, archived: boolean) {
   return invoke("session_set_archived", { id, archived });
+}
+
+export async function sessionSetPinned(id: string, pinned: boolean) {
+  return invoke("session_set_pinned", { id, pinned });
 }
 
 /** Bind session to a project, or clear (`projectId: null`) for orphan / 其他会话. */
