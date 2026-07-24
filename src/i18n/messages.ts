@@ -525,6 +525,7 @@ const en = {
   "prov.officialName": "Official Grok",
   "prov.officialDesc": "Grok Build official login / API key",
   "prov.active": "Active",
+  "prov.customProvider": "Custom provider",
   "prov.useThis": "Use",
   "prov.switchedHotReload":
     "Provider switched. Next message starts a new session with the new config.",
@@ -1526,6 +1527,7 @@ const zh: Record<MessageKey, string> = {
   "prov.officialName": "官方 Grok",
   "prov.officialDesc": "Grok Build 官方登录 / API Key",
   "prov.active": "使用中",
+  "prov.customProvider": "自定义提供商",
   "prov.useThis": "使用",
   "prov.switchedHotReload":
     "已切换服务商。下一条消息会用新配置启动新会话。",

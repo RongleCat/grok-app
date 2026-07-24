@@ -4271,16 +4271,22 @@ export default function App() {
   // welcome logo paints immediately — the SVG itself is inline, not a fetch.
   const [cachedBrandKind, setCachedBrandKind] =
     useState<SuperGrokBrandKind | null>(() => loadCachedSuperGrokBrand());
-  /** Active inference channel: custom relay must not show SuperGrok Heavy. */
-  const [customRouteActive, setCustomRouteActive] = useState(false);
+  /** Active inference channel: custom relay identity replaces official account chrome. */
+  const [activeCustomProvider, setActiveCustomProvider] =
+    useState<api.CustomProvider | null>(null);
+  const customRouteActive = activeCustomProvider != null;
   const refreshProviderRoute = useCallback(async () => {
     if (!api.isTauri()) {
-      setCustomRouteActive(false);
+      setActiveCustomProvider(null);
       return;
     }
     try {
       const list = await api.providersList();
-      setCustomRouteActive(list.activeSource === "custom");
+      const active =
+        list.activeSource === "custom"
+          ? list.providers.find((provider) => provider.id === list.activeProviderId) ?? null
+          : null;
+      setActiveCustomProvider(active);
     } catch {
       /* keep previous */
     }
@@ -5602,6 +5608,7 @@ export default function App() {
                   setSession({ ...IDLE_SNAPSHOT });
                 }
                 await refreshProviderRoute();
+                await refreshAccount({ refreshBilling: false });
                 setToast(tr("prov.switchedHotReload"));
                 window.setTimeout(() => setToast(null), 3200);
               } catch (e) {
@@ -6049,6 +6056,7 @@ export default function App() {
             onClose={() => setShowUserMenu(false)}
             theme={theme}
             account={account}
+            activeProvider={activeCustomProvider}
             accountBusy={accountBusy}
             labels={{
               settings: tr("sidebar.settings"),
@@ -6061,6 +6069,7 @@ export default function App() {
               login: tr("account.login"),
               logout: tr("account.logout"),
               remaining: tr("account.quotaRemaining"),
+              customProvider: tr("prov.customProvider"),
               resetsAt: tr("account.resetsAt"),
             }}
             onSettings={() => navigateSettings("general")}
@@ -6079,23 +6088,31 @@ export default function App() {
               aria-expanded={showUserMenu}
               onClick={() => {
                 setShowUserMenu((v) => !v);
-                if (!showUserMenu) void refreshAccount({ refreshBilling: true });
+                if (!showUserMenu) {
+                  void refreshAccount({ refreshBilling: !customRouteActive });
+                }
               }}
             >
               <div className="user-avatar" aria-hidden>
-                {account?.profile
-                  ? accountInitials(account.profile)
-                  : "G"}
+                {activeCustomProvider
+                  ? Array.from(
+                      activeCustomProvider.name.trim() || activeCustomProvider.id,
+                    )[0]?.toUpperCase() || "P"
+                  : account?.profile
+                    ? accountInitials(account.profile)
+                    : "G"}
               </div>
               <div className="user-meta">
                 <span className="user-meta__name">
-                  {account?.profile
-                    ? accountDisplayName(account.profile, tr("common.local"))
-                    : tr("common.local")}
+                  {activeCustomProvider
+                    ? activeCustomProvider.name.trim() || activeCustomProvider.id
+                    : account?.profile
+                      ? accountDisplayName(account.profile, tr("common.local"))
+                      : tr("common.local")}
                 </span>
                 {(() => {
                   // Only show SuperGrok remaining when officially signed in.
-                  if (!account?.profile?.signedIn) return null;
+                  if (customRouteActive || !account?.profile?.signedIn) return null;
                   const rem = remainingPercent(account);
                   return rem != null ? (
                     <span className="user-meta__quota">{rem.toFixed(0)}%</span>

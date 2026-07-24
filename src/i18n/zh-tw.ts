@@ -498,6 +498,7 @@ export const zhTW: Record<MessageKey, string> = {
   "prov.officialName": "官方 Grok",
   "prov.officialDesc": "Grok Build 官方登入 / API Key",
   "prov.active": "使用中",
+  "prov.customProvider": "自訂供應商",
   "prov.useThis": "使用",
   "prov.switchedHotReload":
     "已切換服務商。下一則訊息會用新設定啟動新對話。",

@@ -11,7 +11,7 @@ import {
 } from "@/components/icons";
 import type { Theme } from "@/lib/theme";
 import { useFloatingMenu } from "@/lib/floatingMenu";
-import type { AccountStatus } from "@/lib/api";
+import type { AccountStatus, CustomProvider } from "@/lib/api";
 import {
   accountDisplayName,
   accountInitials,
@@ -35,10 +35,12 @@ export interface UserMenuProps {
     login: string;
     logout: string;
     remaining: string;
+    customProvider: string;
     /** Prefix for quota refresh time, e.g. 重置 / Resets */
     resetsAt: string;
   };
   account: AccountStatus | null;
+  activeProvider: CustomProvider | null;
   accountBusy: boolean;
   onSettings: () => void;
   onAccountSettings: () => void;
@@ -65,6 +67,7 @@ export function UserMenu({
   theme,
   labels,
   account,
+  activeProvider,
   accountBusy,
   onSettings,
   onAccountSettings,
@@ -92,11 +95,20 @@ export function UserMenu({
   });
 
   const profile = account?.profile;
-  const signedIn = !!profile?.signedIn;
-  const name = profile
-    ? accountDisplayName(profile, labels.local)
-    : labels.local;
-  const initials = profile ? accountInitials(profile) : "G";
+  const isCustomProvider = activeProvider != null;
+  const signedIn = !isCustomProvider && !!profile?.signedIn;
+  const providerName =
+    activeProvider?.name.trim() || activeProvider?.id.trim() || labels.customProvider;
+  const name = isCustomProvider
+    ? providerName
+    : profile
+      ? accountDisplayName(profile, labels.local)
+      : labels.local;
+  const initials = isCustomProvider
+    ? Array.from(providerName)[0]?.toUpperCase() || "P"
+    : profile
+      ? accountInitials(profile)
+      : "G";
   const channel = account?.channel ?? "none";
   const billing = account?.billing;
   const usedPct = billing ? usagePercent(billing) : null;
@@ -139,7 +151,12 @@ export function UserMenu({
                       </span>
                     ) : null}
                   </div>
-                  {!signedIn ? (
+                  {isCustomProvider ? (
+                    <div className="user-menu__account-sub">
+                      {labels.customProvider}
+                      {activeProvider.model ? ` / ${activeProvider.model}` : ""}
+                    </div>
+                  ) : !signedIn ? (
                     <div className="user-menu__account-sub">
                       {labels.signedOut}
                     </div>
@@ -213,7 +230,7 @@ export function UserMenu({
               </span>
             </button>
 
-            {signedIn ? (
+            {isCustomProvider ? null : signedIn ? (
               <button
                 type="button"
                 className="user-menu__item user-menu__item--danger"

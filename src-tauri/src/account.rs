@@ -4,7 +4,7 @@
 //! Billing is best-effort HTTP (same field shape as CLI `/usage` / billing extension).
 //! Heatmap + call logs are derived from local CLI session signals (and optional app journal).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -262,6 +262,15 @@ pub fn clear_agent_home_auth() {
 
 fn sessions_root() -> PathBuf {
     grok_home().join("sessions")
+}
+
+fn session_roots() -> Vec<PathBuf> {
+    let mut roots = vec![sessions_root()];
+    let agent_sessions = paths::agent_home_dir().join("sessions");
+    if !roots.contains(&agent_sessions) {
+        roots.push(agent_sessions);
+    }
+    roots
 }
 
 fn usage_cache_path() -> PathBuf {
@@ -919,16 +928,28 @@ async fn fetch_billing_remote(token: &str) -> BillingSnapshot {
 /// Aggregate local CLI session signals into a heatmap and recent call log.
 /// `days` defaults to ~371 like grok-go contribution graph.
 pub fn local_usage(days: u32, log_limit: usize) -> (Vec<HeatmapDay>, Vec<CallLogEntry>) {
+    local_usage_from_roots(days, log_limit, &session_roots())
+}
+
+fn local_usage_from_roots(
+    days: u32,
+    log_limit: usize,
+    roots: &[PathBuf],
+) -> (Vec<HeatmapDay>, Vec<CallLogEntry>) {
     let days = days.clamp(7, 400);
     let log_limit = log_limit.clamp(5, 100);
-    let root = sessions_root();
-    if !root.is_dir() {
+    if !roots.iter().any(|root| root.is_dir()) {
         return (empty_heatmap(days), vec![]);
     }
 
     let mut day_map: BTreeMap<NaiveDate, DayAgg> = BTreeMap::new();
     let mut logs: Vec<(i64, CallLogEntry)> = Vec::new();
-    walk_sessions(&root, 0, &mut logs, &mut day_map);
+    let mut seen_sessions = HashSet::new();
+    for root in roots {
+        if root.is_dir() {
+            walk_sessions(root, 0, &mut logs, &mut day_map, &mut seen_sessions);
+        }
+    }
 
     logs.sort_by(|a, b| b.0.cmp(&a.0));
     logs.truncate(log_limit);
@@ -970,6 +991,7 @@ fn walk_sessions(
     depth: u32,
     logs: &mut Vec<(i64, CallLogEntry)>,
     day_map: &mut BTreeMap<NaiveDate, DayAgg>,
+    seen_sessions: &mut HashSet<String>,
 ) {
     if depth > 6 {
         return;
@@ -985,9 +1007,15 @@ fn walk_sessions(
         }
         let signals = path.join("signals.json");
         if signals.is_file() {
-            ingest_session(&path, &signals, day_map, logs);
+            let id = path
+                .file_name()
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or_default();
+            if seen_sessions.insert(id) {
+                ingest_session(&path, &signals, day_map, logs);
+            }
         } else {
-            walk_sessions(&path, depth + 1, logs, day_map);
+            walk_sessions(&path, depth + 1, logs, day_map, seen_sessions);
         }
     }
 }
@@ -1601,6 +1629,45 @@ mod tests {
         let h = empty_heatmap(14);
         assert_eq!(h.len(), 14);
         assert!(h.iter().all(|d| d.requests == 0 && d.tokens == 0));
+    }
+
+    #[test]
+    fn local_usage_combines_cli_and_agent_home_sessions() {
+        let temp = std::env::temp_dir().join(format!(
+            "grok-app-account-usage-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let cli_root = temp.join("cli");
+        let agent_root = temp.join("agent");
+        let sessions = [
+            (cli_root.join("project-a").join("session-a"), 120),
+            (agent_root.join("project-b").join("session-b"), 340),
+        ];
+        for (dir, tokens) in &sessions {
+            fs::create_dir_all(dir).unwrap();
+            fs::write(
+                dir.join("signals.json"),
+                serde_json::json!({
+                    "turnCount": 2,
+                    "contextTokensUsed": tokens,
+                    "primaryModelId": "test-model"
+                })
+                .to_string(),
+            )
+            .unwrap();
+        }
+
+        let (heatmap, logs) =
+            local_usage_from_roots(7, 10, &[cli_root.clone(), agent_root.clone()]);
+        assert_eq!(logs.len(), 2);
+        assert_eq!(heatmap.iter().map(|day| day.requests).sum::<u64>(), 2);
+        assert_eq!(heatmap.iter().map(|day| day.tokens).sum::<u64>(), 460);
+
+        fs::remove_dir_all(temp).unwrap();
     }
 
     #[test]
