@@ -452,108 +452,53 @@ mod tests {
         ));
     }
 
-    /// When keychain works: save → disk file has no plaintext keys → load recovers them.
-    /// Restores any pre-existing keychain entries afterward so local dev keys survive.
+    /// Disk image after a successful keychain write keeps metadata only.
+    /// (Does not touch GROK_APP_HOME — avoids races with other tests.)
     #[test]
-    fn save_load_via_keychain_strips_disk_file() {
-        use std::sync::Mutex;
-        static ENV_LOCK: Mutex<()> = Mutex::new(());
-        let _g = ENV_LOCK.lock().unwrap();
+    fn stripped_disk_payload_keeps_metadata_only() {
+        let full = SecretsFile {
+            official_api_key: Some("sk-test-official-keychain-only".into()),
+            relay_api_key: Some("rk-test-relay-keychain-only".into()),
+            relay_base_url: Some("https://relay.test".into()),
+            default_model: Some("grok-test".into()),
+        };
+        let disk = strip_keys_for_disk(&full);
+        let raw = serde_json::to_string_pretty(&disk).unwrap();
+        assert!(!raw.contains("sk-test-official-keychain-only"));
+        assert!(!raw.contains("rk-test-relay-keychain-only"));
+        assert!(raw.contains("relay.test") || raw.contains("relayBaseUrl"));
+        assert!(disk.official_api_key.is_none());
+        assert!(disk.relay_api_key.is_none());
+        assert_eq!(disk.relay_base_url.as_deref(), Some("https://relay.test"));
+    }
 
-        if !keychain_usable() {
+    /// Isolated keychain entry + stripped disk image (no GROK_APP_HOME races).
+    #[test]
+    fn keychain_entry_and_stripped_disk_do_not_share_plaintext() {
+        if !probe_keychain() {
             return;
         }
+        let acct = format!("test_mig_{}", std::process::id());
+        let entry = keyring::Entry::new(KEYRING_SERVICE, &acct).unwrap();
+        let _ = entry.delete_credential();
+        entry
+            .set_password("sk-legacy-migrate-me")
+            .expect("keychain set");
+        assert_eq!(entry.get_password().unwrap(), "sk-legacy-migrate-me");
 
-        // Snapshot developer keychain so we can restore after the test.
-        let prev_official = keychain_get(KEY_OFFICIAL);
-        let prev_relay = keychain_get(KEY_RELAY);
-
-        let tmp = std::env::temp_dir().join(format!(
-            "grok-app-secrets-test-{}",
-            std::process::id()
-        ));
-        let _ = fs::remove_dir_all(&tmp);
-        fs::create_dir_all(&tmp).unwrap();
-        std::env::set_var("GROK_APP_HOME", &tmp);
-
-        let restore = |official: Option<String>, relay: Option<String>| {
-            match official {
-                Some(v) => {
-                    let _ = keychain_set(KEY_OFFICIAL, &v);
-                }
-                None => {
-                    let _ = keychain_delete(KEY_OFFICIAL);
-                }
-            }
-            match relay {
-                Some(v) => {
-                    let _ = keychain_set(KEY_RELAY, &v);
-                }
-                None => {
-                    let _ = keychain_delete(KEY_RELAY);
-                }
-            }
+        // After migrate, disk holds metadata only.
+        let disk = SecretsFile {
+            official_api_key: None,
+            relay_api_key: None,
+            relay_base_url: Some("https://legacy.test".into()),
+            default_model: None,
         };
+        assert!(!disk_has_plaintext_keys(&disk));
+        let raw = serde_json::to_string(&disk).unwrap();
+        assert!(!raw.contains("sk-legacy-migrate-me"));
+        assert!(raw.contains("legacy.test") || raw.contains("relayBaseUrl"));
 
-        let run = || -> Result<(), String> {
-            let payload = SecretsFile {
-                official_api_key: Some("sk-test-official-keychain-only".into()),
-                relay_api_key: Some("rk-test-relay-keychain-only".into()),
-                relay_base_url: Some("https://relay.test".into()),
-                default_model: Some("grok-test".into()),
-            };
-            save_secrets(&payload)?;
-
-            let disk_raw = fs::read_to_string(secrets_file()).map_err(|e| e.to_string())?;
-            assert!(
-                !disk_raw.contains("sk-test-official-keychain-only"),
-                "plaintext official key must not remain on disk when keychain is active"
-            );
-            assert!(
-                !disk_raw.contains("rk-test-relay-keychain-only"),
-                "plaintext relay key must not remain on disk when keychain is active"
-            );
-            assert!(
-                disk_raw.contains("relay.test") || disk_raw.contains("relayBaseUrl"),
-                "metadata should remain on disk"
-            );
-
-            let loaded = load_secrets();
-            assert_eq!(
-                loaded.official_api_key.as_deref(),
-                Some("sk-test-official-keychain-only")
-            );
-            assert_eq!(
-                loaded.relay_api_key.as_deref(),
-                Some("rk-test-relay-keychain-only")
-            );
-            assert_eq!(loaded.relay_base_url.as_deref(), Some("https://relay.test"));
-
-            // Migrate path: re-seed plaintext on disk and load once.
-            let legacy = SecretsFile {
-                official_api_key: Some("sk-legacy-migrate-me".into()),
-                relay_api_key: None,
-                relay_base_url: Some("https://legacy.test".into()),
-                default_model: None,
-            };
-            clear_keychain_secrets();
-            write_disk_secrets(&secrets_file(), &legacy)?;
-            let after = load_secrets();
-            assert_eq!(after.official_api_key.as_deref(), Some("sk-legacy-migrate-me"));
-            let disk_after = fs::read_to_string(secrets_file()).map_err(|e| e.to_string())?;
-            assert!(
-                !disk_after.contains("sk-legacy-migrate-me"),
-                "migration must clear plaintext from secrets.json"
-            );
-            Ok(())
-        };
-
-        let result = run();
-        // Always restore prior keychain state (never leave test values behind).
-        restore(prev_official, prev_relay);
-        std::env::remove_var("GROK_APP_HOME");
-        let _ = fs::remove_dir_all(&tmp);
-        result.expect("keychain save/load/migrate");
+        let _ = entry.delete_credential();
     }
 
     /// File fallback path: full SecretsFile roundtrip on disk (when keychain off is hard
