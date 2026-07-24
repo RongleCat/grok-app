@@ -3647,6 +3647,47 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   padding: 4px 2px;
 }
 
+/* Settings → About: GitHub release check */
+.settings-about-update {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.settings-about-update__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-about-update__status {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.settings-about-update__status.is-available {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.settings-about-update__err {
+  font-size: 12.5px;
+  color: var(--danger, #d33);
+  line-height: 1.45;
+}
+
+.settings-about-update__assets {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  line-height: 1.4;
+  word-break: break-all;
+}
+
 /* ===== Drag-drop zone overlays (OS file drop) =====
    Full-bleed wash + inset ring (no dashed frame with margins).
    Hint card floats center; icons from Tabler only. */

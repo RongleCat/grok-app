@@ -536,6 +536,15 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.doctorDesc": "診斷 CLI、驗證與供應商連通性",
   "settings.runDoctor": "執行 Doctor",
   "settings.aboutApp": "關於 Grok App",
+  "settings.checkUpdate": "檢查更新",
+  "settings.checkUpdateDesc":
+    "查詢 GitHub 最新 Release。安裝包請在發佈頁下載 — 應用程式暫不自動安裝。",
+  "settings.checkUpdateChecking": "檢查中…",
+  "settings.checkUpdateLatest": "已是最新版本（{version}）。",
+  "settings.checkUpdateAvailable":
+    "有新版本 {latest}（目前 {current}）。",
+  "settings.checkUpdateOpen": "開啟發佈頁",
+  "settings.checkUpdateFailed": "檢查失敗：{error}",
   "settings.close": "關閉",
   "settings.sharedConfirm":
     "切換到共用 ~/.grok？資料不會靜默合併，請確認。",

@@ -1445,6 +1445,7 @@ export function SettingsPage({
                 <div className="settings-row__desc">{versionFooter}</div>
               </div>
             </div>
+            <AboutUpdateRow t={t} />
           </div>
         )}
       </main>
@@ -1600,6 +1601,102 @@ function CliSessionsPanel({
             ))}
           </ul>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AboutUpdateRow({
+  t,
+}: {
+  t: (key: MessageKey, vars?: Record<string, string | number>) => string;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<api.AppUpdateCheck | null>(null);
+
+  const check = async () => {
+    if (!api.isTauri()) {
+      setError("not in Tauri");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setResult(null);
+    try {
+      const r = await api.appCheckUpdate();
+      setResult(r);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openRelease = async (url: string) => {
+    try {
+      await api.openExternalUrl(url);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  return (
+    <div className="settings-row settings-row--stack">
+      <div className="settings-row__text">
+        <div className="settings-row__label">{t("settings.checkUpdate")}</div>
+        <div className="settings-row__desc">{t("settings.checkUpdateDesc")}</div>
+      </div>
+      <div className="settings-about-update">
+        <div className="settings-about-update__actions">
+          <button
+            type="button"
+            className="btn btn--solid"
+            disabled={busy}
+            onClick={() => void check()}
+          >
+            {busy
+              ? t("settings.checkUpdateChecking")
+              : t("settings.checkUpdate")}
+          </button>
+          {result?.updateAvailable ? (
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => void openRelease(result.htmlUrl)}
+            >
+              {t("settings.checkUpdateOpen")}
+            </button>
+          ) : null}
+        </div>
+        {error ? (
+          <div className="settings-about-update__err" role="alert">
+            {t("settings.checkUpdateFailed", { error })}
+          </div>
+        ) : null}
+        {result && !error ? (
+          <div
+            className={
+              "settings-about-update__status" +
+              (result.updateAvailable ? " is-available" : "")
+            }
+            role="status"
+          >
+            {result.updateAvailable
+              ? t("settings.checkUpdateAvailable", {
+                  latest: result.latestVersion,
+                  current: result.currentVersion,
+                })
+              : t("settings.checkUpdateLatest", {
+                  version: result.currentVersion,
+                })}
+          </div>
+        ) : null}
+        {result?.updateAvailable && result.assetNames.length > 0 ? (
+          <div className="settings-about-update__assets">
+            {result.assetNames.slice(0, 6).join(" · ")}
+          </div>
+        ) : null}
       </div>
     </div>
   );

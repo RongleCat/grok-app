@@ -4,6 +4,7 @@ mod account;
 mod account_profiles;
 mod acp_client;
 mod agent_prefs;
+mod app_update;
 mod extensions;
 mod supergrok_quota;
 mod cli_probe;
@@ -140,6 +141,7 @@ pub fn run() {
             commands::cli_install_commands,
             commands::pick_cli_binary,
             commands::open_external_url,
+            commands::app_check_update,
             commands::projects_list,
             commands::project_add,
             commands::project_add_dialog,

@@ -213,6 +213,12 @@ pub async fn pick_cli_binary() -> Result<Option<String>, String> {
     Ok(file.map(|p| p.display().to_string()))
 }
 
+/// Query GitHub Releases for a newer App version (Settings → About).
+#[tauri::command]
+pub async fn app_check_update() -> Result<crate::app_update::AppUpdateCheck, String> {
+    crate::app_update::check_app_update().await
+}
+
 /// Open a URL in the system browser (docs, install pages).
 #[tauri::command]
 pub async fn open_external_url(url: String) -> Result<(), String> {

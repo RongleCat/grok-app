@@ -563,6 +563,15 @@ const en = {
   "settings.doctorDesc": "Diagnose CLI, auth, and provider connectivity",
   "settings.runDoctor": "Run Doctor",
   "settings.aboutApp": "About Grok App",
+  "settings.checkUpdate": "Check for updates",
+  "settings.checkUpdateDesc":
+    "Look up the latest GitHub release. Download installers from the release page — this app does not auto-install yet.",
+  "settings.checkUpdateChecking": "Checking…",
+  "settings.checkUpdateLatest": "You are on the latest version ({version}).",
+  "settings.checkUpdateAvailable":
+    "Version {latest} is available (you have {current}).",
+  "settings.checkUpdateOpen": "Open release page",
+  "settings.checkUpdateFailed": "Could not check: {error}",
   "settings.close": "Close",
   "settings.sharedConfirm":
     "Switch to shared ~/.grok? Data will not merge silently. Confirm?",
@@ -1666,6 +1675,15 @@ const zh: Record<MessageKey, string> = {
   "settings.doctorDesc": "诊断 CLI、鉴权与供应商连通性",
   "settings.runDoctor": "运行 Doctor",
   "settings.aboutApp": "关于 Grok App",
+  "settings.checkUpdate": "检查更新",
+  "settings.checkUpdateDesc":
+    "查询 GitHub 最新 Release。安装包请在发布页下载 — 应用暂不自动安装。",
+  "settings.checkUpdateChecking": "检查中…",
+  "settings.checkUpdateLatest": "已是最新版本（{version}）。",
+  "settings.checkUpdateAvailable":
+    "有新版本 {latest}（当前 {current}）。",
+  "settings.checkUpdateOpen": "打开发布页",
+  "settings.checkUpdateFailed": "检查失败：{error}",
   "settings.close": "关闭",
   "settings.sharedConfirm":
     "切换到共享 ~/.grok？数据不会静默合并，请确认。",

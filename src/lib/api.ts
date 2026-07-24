@@ -244,6 +244,22 @@ export async function openExternalUrl(url: string) {
   return invoke<void>("open_external_url", { url });
 }
 
+/** GitHub Releases check (Settings → About). Does not auto-install. */
+export type AppUpdateCheck = {
+  currentVersion: string;
+  latestVersion: string;
+  updateAvailable: boolean;
+  releaseName: string | null;
+  htmlUrl: string;
+  publishedAt: string | null;
+  body: string | null;
+  assetNames: string[];
+};
+
+export async function appCheckUpdate() {
+  return invoke<AppUpdateCheck>("app_check_update");
+}
+
 export async function projectsList() {
   return invoke<
     Array<{
