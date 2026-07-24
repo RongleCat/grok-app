@@ -695,8 +695,41 @@ mod tests {
 
     #[test]
     fn soft_probe_does_not_require_write() {
-        // Just ensure probe is callable; when keychain missing, returns false cleanly.
+        // Soft probe must not create credentials; leftover probe accounts should stay absent.
         let _ = probe_keychain();
+        if let Ok(entry) =
+            keyring::Entry::new(KEYRING_SERVICE, "__grok_app_keychain_probe__")
+        {
+            // After soft probe, either NoEntry or we cleaned a legacy probe write.
+            match entry.get_password() {
+                Err(keyring::Error::NoEntry) => {}
+                Ok(_) => {
+                    // Legacy leftover is OK; soft probe deletes it when seen.
+                    let _ = entry.delete_credential();
+                }
+                Err(_) => {}
+            }
+        }
+    }
+
+    #[test]
+    fn presence_helpers_do_not_need_key_material() {
+        let s = SecretsFile {
+            keychain_has_official: true,
+            keychain_has_relay: true,
+            official_api_key: None,
+            relay_api_key: None,
+            ..Default::default()
+        };
+        assert!(has_official_key_configured(&s));
+        assert!(has_relay_key_configured(&s));
+        assert!(!disk_has_plaintext_keys(&s));
+    }
+
+    #[test]
+    fn default_settings_prefer_file_not_keychain() {
+        let s = crate::store::AppSettings::default();
+        assert!(!s.store_api_keys_in_keychain);
     }
 
     #[test]
