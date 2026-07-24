@@ -1274,6 +1274,18 @@ pub async fn doctor_report() -> Result<serde_json::Value, String> {
         }),
     ));
 
+    // Grok Build CLI `doctor --json` (terminal/clipboard/color findings).
+    // Runs on a blocking pool so slow/hung CLI cannot stall the async runtime.
+    let cli_doctor = tauri::async_runtime::spawn_blocking(run_cli_doctor_json)
+        .await
+        .unwrap_or_else(|e| {
+            serde_json::json!({
+                "available": false,
+                "error": format!("cli doctor worker panicked: {e}"),
+                "report": serde_json::Value::Null,
+            })
+        });
+
     let mut ok = 0u32;
     let mut warn = 0u32;
     let mut fail = 0u32;
@@ -1286,12 +1298,74 @@ pub async fn doctor_report() -> Result<serde_json::Value, String> {
         }
     }
 
+    // Flat snapshot also carries CLI doctor for support zip (no secret values).
+    let mut raw = raw;
+    if let Some(obj) = raw.as_object_mut() {
+        obj.insert("cliDoctor".into(), cli_doctor.clone());
+    }
+
     Ok(serde_json::json!({
         "generatedAt": chrono::Utc::now().to_rfc3339(),
         "summary": { "ok": ok, "warn": warn, "fail": fail },
         "checks": checks,
+        "cliDoctor": cli_doctor,
         "raw": raw,
     }))
+}
+
+/// Timeout for `grok doctor --json` (host env probes; keep short).
+const CLI_DOCTOR_TIMEOUT_SECS: u64 = 15;
+
+/// Run probed CLI `doctor --json`. Returns a stable envelope for the UI parser.
+/// Never includes secret values — only CLI doctor facts/findings/probeNotes.
+fn run_cli_doctor_json() -> serde_json::Value {
+    match run_grok_cli_args(&["doctor", "--json"], CLI_DOCTOR_TIMEOUT_SECS) {
+        Ok((stdout, stderr, status_ok)) => {
+            let trimmed = stdout.trim();
+            if trimmed.is_empty() {
+                let detail = if stderr.trim().is_empty() {
+                    "grok doctor returned no output".to_string()
+                } else {
+                    format!("grok doctor returned no JSON: {}", truncate_cli_err(&stderr, 240))
+                };
+                return serde_json::json!({
+                    "available": false,
+                    "error": detail,
+                    "report": serde_json::Value::Null,
+                    "exitOk": status_ok,
+                });
+            }
+            match serde_json::from_str::<serde_json::Value>(trimmed) {
+                Ok(report) => serde_json::json!({
+                    "available": true,
+                    "error": serde_json::Value::Null,
+                    "report": report,
+                    "exitOk": status_ok,
+                }),
+                Err(e) => serde_json::json!({
+                    "available": false,
+                    "error": format!("Failed to parse grok doctor JSON: {e}"),
+                    "report": serde_json::Value::Null,
+                    "exitOk": status_ok,
+                    "stdoutPreview": truncate_cli_err(trimmed, 200),
+                }),
+            }
+        }
+        Err(e) => serde_json::json!({
+            "available": false,
+            "error": e,
+            "report": serde_json::Value::Null,
+        }),
+    }
+}
+
+fn truncate_cli_err(s: &str, max: usize) -> String {
+    let t = s.trim();
+    if t.chars().count() <= max {
+        return t.to_string();
+    }
+    let head: String = t.chars().take(max).collect();
+    format!("{head}…")
 }
 
 /// Write a redacted support zip (Doctor JSON + logs) and return its path.

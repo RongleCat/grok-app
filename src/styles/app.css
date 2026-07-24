@@ -7141,6 +7141,135 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   word-break: break-word;
 }
 
+.doctor-cli-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.doctor-cli-section__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.doctor-cli-section__title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.doctor-cli-section__hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.doctor-cli-facts {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-main);
+  padding: 0 10px;
+}
+
+.doctor-cli-facts__summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 8px 0;
+  user-select: none;
+}
+
+.doctor-cli-facts__summary::-webkit-details-marker {
+  display: none;
+}
+
+.doctor-cli-facts__summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1em;
+  color: var(--text-tertiary);
+  transition: transform 0.12s ease;
+}
+
+.doctor-cli-facts[open] > .doctor-cli-facts__summary::before {
+  transform: rotate(90deg);
+}
+
+.doctor-cli-facts__list {
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.doctor-cli-facts__row {
+  display: grid;
+  grid-template-columns: minmax(72px, 28%) 1fr;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.doctor-cli-facts__row dt {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.doctor-cli-facts__row dd {
+  margin: 0;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.doctor-cli-probes {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.doctor-cli-probes__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.doctor-cli-probes__name {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.doctor-cli-probes__status {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-tertiary);
+}
+
+.doctor-cli-probes__msg {
+  flex: 1 1 100%;
+  color: var(--text-tertiary);
+}
+
 .doctor-advanced {
   margin-top: 16px;
   padding-top: 12px;

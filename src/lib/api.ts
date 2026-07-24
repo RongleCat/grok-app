@@ -864,12 +864,26 @@ export interface DoctorSummary {
   fail: number;
 }
 
+/**
+ * Host envelope for `grok doctor --json` (see `parseCliDoctorEnvelope`).
+ * `report` is the raw CLI JSON blob when available.
+ */
+export interface CliDoctorPayload {
+  available: boolean;
+  error?: string | null;
+  report?: Record<string, unknown> | null;
+  exitOk?: boolean;
+  stdoutPreview?: string;
+}
+
 export interface DoctorReport {
   generatedAt: string;
   summary: DoctorSummary;
   checks: DoctorCheck[];
   /** Flat snapshot for copy/export (no secrets). */
   raw: Record<string, unknown>;
+  /** Grok Build CLI `doctor --json` envelope (optional for older hosts). */
+  cliDoctor?: CliDoctorPayload | null;
 }
 
 export interface SkillDto {

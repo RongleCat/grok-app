@@ -1,6 +1,6 @@
 /**
  * Structured Doctor health UI — checks with ok/warn/fail, re-run, copy,
- * support zip, and reset app data (double-confirm via in-app dialogs).
+ * support zip, reset app data, and Grok Build CLI `doctor --json` section.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -15,6 +15,14 @@ import {
 import { createT, type Locale, type MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
 import type { DoctorCheck, DoctorLevel, DoctorReport } from "@/lib/api";
+import {
+  CLI_DOCTOR_FACT_KEYS,
+  formatFactValue,
+  hasAnySafeFact,
+  parseCliDoctorEnvelope,
+  type CliDoctorSafeFacts,
+  type CliDoctorView,
+} from "@/lib/cliDoctor";
 import { redact } from "@/lib/redact";
 
 export type DoctorModalProps = {
@@ -79,6 +87,33 @@ function LevelIcon({ level }: { level: DoctorLevel }) {
     return <IconAlertTriangle size={14} className="doctor-check__icon" />;
   }
   return <IconCheck size={14} className="doctor-check__icon" />;
+}
+
+const FACT_LABEL_KEYS: Record<
+  (typeof CLI_DOCTOR_FACT_KEYS)[number],
+  MessageKey
+> = {
+  terminal: "doctor.cliDoctorFact.terminal",
+  clipboard: "doctor.cliDoctorFact.clipboard",
+  color: "doctor.cliDoctorFact.color",
+  multiplexer: "doctor.cliDoctorFact.multiplexer",
+  ssh: "doctor.cliDoctorFact.ssh",
+  voice: "doctor.cliDoctorFact.voice",
+};
+
+function factEntries(
+  facts: CliDoctorSafeFacts,
+): Array<{ key: (typeof CLI_DOCTOR_FACT_KEYS)[number]; value: string }> {
+  const out: Array<{
+    key: (typeof CLI_DOCTOR_FACT_KEYS)[number];
+    value: string;
+  }> = [];
+  for (const key of CLI_DOCTOR_FACT_KEYS) {
+    const raw = facts[key];
+    if (raw === undefined || raw === null || raw === "") continue;
+    out.push({ key, value: formatFactValue(key, raw) });
+  }
+  return out;
 }
 
 export function DoctorModal({
@@ -199,10 +234,16 @@ export function DoctorModal({
     start();
   };
 
+  const cliDoctor: CliDoctorView | null = useMemo(() => {
+    if (!report) return null;
+    return parseCliDoctorEnvelope(report.cliDoctor ?? null);
+  }, [report]);
+
   if (!open) return null;
 
   const summary = report?.summary;
   const checks = report?.checks ?? [];
+  const cliFacts = cliDoctor ? factEntries(cliDoctor.facts) : [];
 
   return (
     <div
@@ -308,6 +349,104 @@ export function DoctorModal({
                 </li>
               ))}
             </ul>
+          )}
+
+          {!loading && cliDoctor && (
+            <section
+              className="doctor-cli-section"
+              aria-label={t("doctor.cliDoctor")}
+            >
+              <div className="doctor-cli-section__head">
+                <h3 className="doctor-cli-section__title">
+                  {t("doctor.cliDoctor")}
+                </h3>
+                <p className="doctor-cli-section__hint">
+                  {t("doctor.cliDoctorHint")}
+                </p>
+              </div>
+
+              {!cliDoctor.available && (
+                <p className="doctor-modal__status doctor-modal__status--error">
+                  {t("doctor.cliDoctorMissing")}
+                  {cliDoctor.error ? `: ${cliDoctor.error}` : ""}
+                </p>
+              )}
+
+              {cliDoctor.available && cliDoctor.checks.length > 0 && (
+                <ul className="doctor-checks">
+                  {cliDoctor.checks.map((c) => (
+                    <li
+                      key={c.id}
+                      className={`doctor-check doctor-check--${c.level}`}
+                    >
+                      <div className="doctor-check__badge" aria-hidden>
+                        <LevelIcon level={c.level} />
+                      </div>
+                      <div className="doctor-check__main">
+                        <div className="doctor-check__row">
+                          <span className="doctor-check__title">
+                            {c.id === "cli-doctor-clean"
+                              ? t("doctor.cliDoctorEmpty")
+                              : c.title}
+                          </span>
+                          <span
+                            className={`doctor-check__level doctor-check__level--${c.level}`}
+                          >
+                            {t(levelLabelKey(c.level))}
+                          </span>
+                        </div>
+                        {c.detail && c.id !== "cli-doctor-clean" ? (
+                          <p className="doctor-check__detail">{c.detail}</p>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {cliDoctor.available &&
+                hasAnySafeFact(cliDoctor.facts) &&
+                cliFacts.length > 0 && (
+                  <details className="doctor-cli-facts">
+                    <summary className="doctor-cli-facts__summary">
+                      {t("doctor.cliDoctorFacts")}
+                    </summary>
+                    <dl className="doctor-cli-facts__list">
+                      {cliFacts.map(({ key, value }) => (
+                        <div key={key} className="doctor-cli-facts__row">
+                          <dt>{t(FACT_LABEL_KEYS[key])}</dt>
+                          <dd>{value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </details>
+                )}
+
+              {cliDoctor.available && cliDoctor.probeNotes.length > 0 && (
+                <details className="doctor-cli-facts">
+                  <summary className="doctor-cli-facts__summary">
+                    {t("doctor.cliDoctorProbeNotes", {
+                      count: cliDoctor.probeNotes.length,
+                    })}
+                  </summary>
+                  <ul className="doctor-cli-probes">
+                    {cliDoctor.probeNotes.map((n) => (
+                      <li key={n.probe} className="doctor-cli-probes__item">
+                        <span className="doctor-cli-probes__name">{n.probe}</span>
+                        <span className="doctor-cli-probes__status">
+                          {n.status}
+                        </span>
+                        {n.message ? (
+                          <span className="doctor-cli-probes__msg">
+                            {n.message}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </section>
           )}
 
           <section className="doctor-advanced" aria-label={t("doctor.advanced")}>
