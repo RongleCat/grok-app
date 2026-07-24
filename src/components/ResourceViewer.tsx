@@ -1630,15 +1630,21 @@ export function ResourceViewer({
           {sideMode === "plan" && plan?.visible ? (
             <PlanReviewPanel
               plan={plan}
+              forceExpandKey={planFocusKey}
               labels={{
                 ready: tr("plan.ready"),
                 waiting: tr("plan.waiting"),
+                progress: tr("planBar.progress"),
+                done: tr("planBar.done"),
                 empty: tr("plan.empty"),
                 approve: tr("plan.approve"),
                 changes: tr("plan.changes"),
                 dismiss: tr("plan.dismiss"),
                 steps: tr("plan.steps"),
                 fraction: tr("planBar.fraction"),
+                expandDetails: tr("plan.expandDetails"),
+                collapseDetails: tr("plan.collapseDetails"),
+                current: tr("planBar.current"),
               }}
               onApprove={onApprovePlan}
               onRequestChanges={onRequestPlanChanges}

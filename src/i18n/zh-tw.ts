@@ -358,6 +358,8 @@ export const zhTW: Record<MessageKey, string> = {
   "plan.phaseLabel": "思考 {n}",
   "plan.steps": "步驟",
   "plan.openInResources": "在資源中開啟",
+  "plan.expandDetails": "展開步驟與詳情",
+  "plan.collapseDetails": "收起步驟與詳情",
 
   // Sticky plan/goal bar
   "planBar.aria": "計劃與目標狀態",

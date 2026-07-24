@@ -44,11 +44,9 @@ import { Thinking } from "./Thinking";
 import { BackBottom } from "./BackBottom";
 import { InlineUserEdit } from "./InlineUserEdit";
 import { SkillChip } from "@/components/SkillChip";
-import { MarkdownBody } from "@/components/MarkdownBody";
 import { hydrateDisplayContent, parseStoredContent } from "@/lib/draftDoc";
 import { parseScheduledUserContent } from "@/lib/automations";
 import { extractAutomationPayload } from "@/lib/automationSetup";
-import { planDisplayMarkdown } from "@/lib/planBody";
 import {
   isToolStepMessage,
   LiveToolText,
@@ -749,49 +747,45 @@ export function ConversationThread({
           ) : null}
 
           {plan?.visible ? (
-            <div className="lobe-chat-plan" data-plan-card>
+            <div className="lobe-chat-plan lobe-chat-plan--chip" data-plan-card>
               <div className="lobe-chat-plan__head">
                 <IconPlan size={14} />
                 <span className="lobe-chat-plan__status">
-                  {plan.waiting && plan.rpcId == null
-                    ? tr("plan.waiting")
-                    : tr("plan.ready")}
+                  {plan.rpcId != null
+                    ? tr("plan.ready")
+                    : Array.isArray(plan.entries) && plan.entries.length > 0
+                      ? tr("planBar.progress")
+                      : plan.waiting
+                        ? tr("plan.waiting")
+                        : tr("plan.ready")}
                 </span>
                 <strong className="lobe-chat-plan__title">{plan.title}</strong>
               </div>
-              <div className="lobe-chat-plan__body">
-                {(() => {
-                  const md = planDisplayMarkdown(plan.body, plan.entries);
-                  if (!md) {
-                    return (
-                      <p className="lobe-chat-plan__empty">{tr("plan.empty")}</p>
-                    );
-                  }
-                  return <MarkdownBody locale={locale}>{md}</MarkdownBody>;
-                })()}
-              </div>
+              {/* Execution list stays out of the transcript — open resources for steps. */}
               <div className="lobe-chat-plan__actions">
                 {onOpenPlanDetails ? (
                   <Button type="button" onClick={onOpenPlanDetails}>
                     {tr("plan.openInResources")}
                   </Button>
                 ) : null}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={plan.rpcId == null}
-                  onClick={onApprovePlan}
-                >
-                  {tr("plan.approve")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={plan.rpcId == null}
-                  onClick={onRequestPlanChanges}
-                >
-                  {tr("plan.changes")}
-                </Button>
+                {plan.rpcId != null ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={onApprovePlan}
+                    >
+                      {tr("plan.approve")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={onRequestPlanChanges}
+                    >
+                      {tr("plan.changes")}
+                    </Button>
+                  </>
+                ) : null}
                 <Button type="button" variant="ghost" onClick={onDismissPlan}>
                   {tr("plan.dismiss")}
                 </Button>

@@ -4552,6 +4552,66 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   gap: 10px;
   min-width: 0;
 }
+.plan-review__title-row--btn {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.plan-review__title-row--btn:disabled {
+  cursor: default;
+}
+.plan-review__title-row--btn:not(:disabled):hover .plan-review__title {
+  color: var(--accent);
+}
+.plan-review__chevron {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.plan-review__current {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 4px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.plan-review__current-label {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+.plan-review__current-step {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plan-review--collapsed {
+  /* Header-only: no scroll region taking empty space */
+  height: auto;
+  min-height: 0;
+}
+.plan-review--collapsed .plan-review__header {
+  border-bottom: none;
+}
+.plan-review__md--after-steps {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+.lobe-chat-plan--chip .lobe-chat-plan__body {
+  display: none;
+}
 .plan-review__icon {
   display: inline-flex;
   align-items: center;

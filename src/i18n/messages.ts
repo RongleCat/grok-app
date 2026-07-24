@@ -382,6 +382,8 @@ const en = {
   "plan.phaseLabel": "Thinking {n}",
   "plan.steps": "Steps",
   "plan.openInResources": "Open in resources",
+  "plan.expandDetails": "Show steps & details",
+  "plan.collapseDetails": "Hide steps & details",
 
   // Sticky plan/goal bar
   "planBar.aria": "Plan and goal status",
@@ -1390,6 +1392,8 @@ const zh: Record<MessageKey, string> = {
   "plan.phaseLabel": "思考 {n}",
   "plan.steps": "步骤",
   "plan.openInResources": "在资源中打开",
+  "plan.expandDetails": "展开步骤与详情",
+  "plan.collapseDetails": "收起步骤与详情",
 
   // Sticky plan/goal bar
   "planBar.aria": "计划与目标状态",
