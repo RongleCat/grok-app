@@ -902,10 +902,15 @@ impl SessionManager {
                 if auto {
                     let acp = self.inner.lock().as_ref().and_then(|s| s.acp.clone());
                     if let Some(acp) = acp {
+                        // Grok Build shell prompts use underscore optionIds (allow_once /
+                        // allow_command_always / reject). Hyphenated ACP-style fallbacks
+                        // are rejected as "unknown permission option".
                         let option_id = pick_option_id(&options, "allow_once")
                             .or_else(|| pick_option_id(&options, "allow_always"))
+                            .or_else(|| pick_option_id(&options, "allow_command_always"))
+                            .or_else(|| pick_option_id(&options, "always_allow_all_sessions"))
                             .or_else(|| pick_option_id(&options, "allow"))
-                            .unwrap_or_else(|| "allow-once".into());
+                            .unwrap_or_else(|| "allow_once".into());
                         let _ = acp
                             .respond_permission(
                                 rpc_id,
@@ -923,9 +928,10 @@ impl SessionManager {
                     let acp = self.inner.lock().as_ref().and_then(|s| s.acp.clone());
                     if let Some(acp) = acp {
                         let option_id = pick_option_id(&options, "reject_once")
+                            .or_else(|| pick_option_id(&options, "reject_always"))
                             .or_else(|| pick_option_id(&options, "reject"))
                             .or_else(|| pick_option_id(&options, "deny"))
-                            .unwrap_or_else(|| "reject-once".into());
+                            .unwrap_or_else(|| "reject".into());
                         let _ = acp
                             .respond_permission(
                                 rpc_id,
@@ -1811,11 +1817,11 @@ impl SessionManager {
             let outcome = match decision.as_str() {
                 "cancel" => PermissionOutcome::Cancelled,
                 "deny" => PermissionOutcome::Selected {
-                    option_id: option_id.unwrap_or_else(|| "reject-once".into()),
+                    option_id: option_id.unwrap_or_else(|| "reject".into()),
                 },
                 _ => PermissionOutcome::Selected {
                     // Prefer client-supplied optionId from Agent options list
-                    option_id: option_id.unwrap_or_else(|| "allow-once".into()),
+                    option_id: option_id.unwrap_or_else(|| "allow_once".into()),
                 },
             };
             acp.respond_permission(rpc_id, outcome)

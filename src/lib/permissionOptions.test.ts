@@ -4,14 +4,14 @@ import { mapPermissionButtons } from "./permissionOptions";
 describe("mapPermissionButtons (shipped)", () => {
   it("maps ACP optionIds from real options list", () => {
     const buttons = mapPermissionButtons([
-      { optionId: "allow-once", name: "Allow once", kind: "allow_once" },
-      { optionId: "allow-always", name: "Allow always", kind: "allow_always" },
-      { optionId: "reject-once", name: "Reject", kind: "reject_once" },
+      { optionId: "allow_once", name: "Allow once", kind: "allow_once" },
+      { optionId: "allow_always", name: "Allow always", kind: "allow_always" },
+      { optionId: "reject", name: "Reject", kind: "reject_once" },
     ]);
     expect(buttons.map((b) => b.optionId)).toEqual([
-      "allow-once",
-      "allow-always",
-      "reject-once",
+      "allow_once",
+      "allow_always",
+      "reject",
     ]);
     expect(buttons.map((b) => b.decision)).toEqual([
       "allow_once",

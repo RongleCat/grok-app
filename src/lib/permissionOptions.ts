@@ -74,7 +74,7 @@ export function mapPermissionButtons(
   } else {
     out.push({
       decision: "allow_once",
-      optionId: "allow-once",
+      optionId: "allow_once",
       label: L.allowOnce,
     });
   }
@@ -88,7 +88,7 @@ export function mapPermissionButtons(
   } else {
     out.push({
       decision: "allow_session",
-      optionId: "allow-always",
+      optionId: "allow_always",
       label: L.allowSession,
     });
   }
@@ -99,7 +99,7 @@ export function mapPermissionButtons(
       label: L.deny,
     });
   } else {
-    out.push({ decision: "deny", optionId: "reject-once", label: L.deny });
+    out.push({ decision: "deny", optionId: "reject", label: L.deny });
   }
   return out;
 }
