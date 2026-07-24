@@ -380,7 +380,7 @@ describe("session projection", () => {
     ).toMatch(/quota|rate/i);
   });
 
-  it("presentErrorBanner shows friendly copy without MCP dumps", () => {
+  it("presentErrorBanner shows friendly deck without MCP dumps", () => {
     const raw =
       'rpc timeout on session/prompt (id=4) after 600s; stderr: ...\nERROR worker quit with fatal: Connection refused';
     const fromAgent = presentErrorBanner(
@@ -388,10 +388,12 @@ describe("session projection", () => {
       null,
       "zh",
     );
-    expect(fromAgent?.summary).toMatch(/超时|中止/);
+    expect(fromAgent?.summary).toMatch(/超时|网络|模型/);
+    expect(fromAgent?.cause).toBeTruthy();
     expect(fromAgent?.summary).not.toMatch(/Connection refused/);
     expect(fromAgent?.summary).not.toMatch(/stderr/i);
     expect(fromAgent?.detail).toBeNull();
+    expect(fromAgent?.primary?.id).toBeTruthy();
     expect(fromAgent?.reconnectHint).toBe(true);
 
     const fromLocal = presentErrorBanner(
@@ -400,12 +402,38 @@ describe("session projection", () => {
       "zh",
     );
     expect(fromLocal?.code).toBe("NETWORK_PROVIDER");
-    expect(fromLocal?.summary).toMatch(/超时|中止/);
+    expect(fromLocal?.summary).toMatch(/超时|网络|模型/);
     expect(fromLocal?.detail).toBeNull();
+    expect(fromLocal?.primary?.label.length).toBeGreaterThan(0);
 
     const short = presentErrorBanner(null, "请先选择项目", "zh");
     expect(short?.summary).toBe("请先选择项目");
     expect(short?.detail).toBeNull();
+    expect(short?.primary?.id).toBe("dismiss");
+  });
+
+  it("presentErrorBanner decks the four product classes", () => {
+    const cli = presentErrorBanner(
+      { code: "CLI_NOT_FOUND", message: "missing" },
+      null,
+      "en",
+    );
+    expect(cli?.primary?.id).toBe("open_doctor");
+    expect(cli?.secondary?.id).toBe("open_runtime");
+
+    const auth = presentErrorBanner(
+      { code: "AUTH_FAILED", message: "401" },
+      null,
+      "en",
+    );
+    expect(auth?.primary?.id).toBe("open_account");
+
+    const crash = presentErrorBanner(
+      { code: "AGENT_CRASHED", message: "exit 1" },
+      null,
+      "en",
+    );
+    expect(crash?.primary?.id).toBe("reconnect");
   });
 
   it("formatTurnErrorBody maps turn_timeout tag", () => {

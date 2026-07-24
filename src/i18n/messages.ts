@@ -126,6 +126,44 @@ const en = {
   "main.retryingWithReason": "Retrying {attempt}/{max}: {reason}",
   "error.details": "Details",
   "error.hideDetails": "Hide details",
+  "error.action.reconnect": "Reconnect",
+  "error.action.retry": "Retry",
+  "error.action.openDoctor": "Open Doctor",
+  "error.action.setCliPath": "Set CLI path",
+  "error.action.openAccount": "Account & keys",
+  "error.action.openProviders": "Providers",
+  "error.action.openRuntime": "Runtime settings",
+  "error.action.dismiss": "Dismiss",
+  "error.deck.cli.problem": "Grok Build CLI not found",
+  "error.deck.cli.cause":
+    "The desktop app needs the local CLI binary. Install it, or point Settings at an existing path.",
+  "error.deck.auth.problem": "Authentication failed",
+  "error.deck.auth.cause":
+    "Login expired, API key invalid, or the provider rejected the request (401).",
+  "error.deck.network.problem": "Network or model provider error",
+  "error.deck.network.cause":
+    "DNS/timeout, relay 5xx, wrong base URL, or the model id is unavailable.",
+  "error.deck.crash.problem": "Agent process crashed",
+  "error.deck.crash.cause":
+    "The agent exited or the protocol broke. Chat history is kept; reconnect to continue.",
+  "error.deck.quota.problem": "Quota or rate limit",
+  "error.deck.quota.cause":
+    "Usage limit, subscription throttle, or the provider returned 429 / insufficient credits.",
+  "error.deck.connect.problem": "Could not connect the agent",
+  "error.deck.connect.cause":
+    "No live agent for this session. CLI may be offline, or custom provider config is incomplete.",
+  "error.deck.limit.problem": "Agent process limit reached",
+  "error.deck.limit.cause":
+    "Too many warm agent processes. Stop another session or raise the limit under Runtime.",
+  "error.deck.timeout.problem": "This turn timed out",
+  "error.deck.timeout.cause":
+    "The agent stopped after a long wait. Retry — image or heavy tools may need more time.",
+  "error.deck.disconnect.problem": "Agent connection interrupted",
+  "error.deck.disconnect.cause":
+    "The RPC channel closed mid-turn. Reconnect and send again.",
+  "error.deck.generic.problem": "Something went wrong",
+  "error.deck.generic.cause":
+    "Check Doctor for CLI/auth status, then retry the last action.",
   "main.startTitle": "Start chatting",
   "main.startHint": "Type a message — CLI connects silently on send.",
   "main.working": "working…",
@@ -1152,6 +1190,43 @@ const zh: Record<MessageKey, string> = {
   "main.retryingWithReason": "重试 {attempt}/{max}：{reason}",
   "error.details": "详情",
   "error.hideDetails": "收起详情",
+  "error.action.reconnect": "重新连接",
+  "error.action.retry": "重试",
+  "error.action.openDoctor": "打开 Doctor",
+  "error.action.setCliPath": "指定 CLI 路径",
+  "error.action.openAccount": "账号与密钥",
+  "error.action.openProviders": "服务商",
+  "error.action.openRuntime": "运行环境设置",
+  "error.action.dismiss": "关闭",
+  "error.deck.cli.problem": "未找到 Grok Build CLI",
+  "error.deck.cli.cause":
+    "桌面端需要本机 CLI 可执行文件。请安装，或在设置中指定已有路径。",
+  "error.deck.auth.problem": "鉴权失败",
+  "error.deck.auth.cause":
+    "登录过期、API Key 无效，或服务商拒绝了请求（401）。",
+  "error.deck.network.problem": "网络或模型服务异常",
+  "error.deck.network.cause":
+    "DNS/超时、中转 5xx、base URL 错误，或模型 ID 不可用。",
+  "error.deck.crash.problem": "Agent 进程异常退出",
+  "error.deck.crash.cause":
+    "Agent 崩溃或协议中断。对话记录仍保留，可重新连接后继续。",
+  "error.deck.quota.problem": "额度不足或触发限流",
+  "error.deck.quota.cause":
+    "用量上限、订阅限流，或服务商返回 429 / 余额不足。",
+  "error.deck.connect.problem": "无法连接本会话的 Agent",
+  "error.deck.connect.cause":
+    "当前没有可用 Agent。CLI 可能未就绪，或自定义中转配置不完整。",
+  "error.deck.limit.problem": "已达到 Agent 进程上限",
+  "error.deck.limit.cause":
+    "并行 Agent 过多。请先结束其他会话，或在运行环境中提高上限。",
+  "error.deck.timeout.problem": "本轮执行超时",
+  "error.deck.timeout.cause":
+    "等待过久已中止。可重试；生图等长任务可能需要更久。",
+  "error.deck.disconnect.problem": "与 Agent 的连接已中断",
+  "error.deck.disconnect.cause":
+    "传输通道在回合中关闭。请重新连接后再发送。",
+  "error.deck.generic.problem": "出了点问题",
+  "error.deck.generic.cause": "可在 Doctor 查看 CLI/鉴权状态，然后重试上一步操作。",
   "main.startTitle": "开始对话",
   "main.startHint": "输入消息后发送，将在后台静默连接 CLI。",
   "main.working": "工作中…",

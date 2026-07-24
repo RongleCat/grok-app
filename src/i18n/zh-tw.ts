@@ -114,6 +114,43 @@ export const zhTW: Record<MessageKey, string> = {
   "main.retryingWithReason": "重試 {attempt}/{max}：{reason}",
   "error.details": "詳情",
   "error.hideDetails": "收合詳情",
+  "error.action.reconnect": "重新連線",
+  "error.action.retry": "重試",
+  "error.action.openDoctor": "開啟 Doctor",
+  "error.action.setCliPath": "指定 CLI 路徑",
+  "error.action.openAccount": "帳號與金鑰",
+  "error.action.openProviders": "服務商",
+  "error.action.openRuntime": "執行環境設定",
+  "error.action.dismiss": "關閉",
+  "error.deck.cli.problem": "找不到 Grok Build CLI",
+  "error.deck.cli.cause":
+    "桌面端需要本機 CLI 可執行檔。請安裝，或在設定中指定既有路徑。",
+  "error.deck.auth.problem": "驗證失敗",
+  "error.deck.auth.cause":
+    "登入過期、API 金鑰無效，或服務商拒絕了請求（401）。",
+  "error.deck.network.problem": "網路或模型服務異常",
+  "error.deck.network.cause":
+    "DNS/逾時、中轉 5xx、base URL 錯誤，或模型 ID 不可用。",
+  "error.deck.crash.problem": "Agent 處理程序異常結束",
+  "error.deck.crash.cause":
+    "Agent 當掉或通訊中斷。對話紀錄仍保留，可重新連線後繼續。",
+  "error.deck.quota.problem": "額度不足或觸發限流",
+  "error.deck.quota.cause":
+    "用量上限、訂閱限流，或服務商回傳 429 / 餘額不足。",
+  "error.deck.connect.problem": "無法連線本對話的 Agent",
+  "error.deck.connect.cause":
+    "目前沒有可用 Agent。CLI 可能未就緒，或自訂中轉設定不完整。",
+  "error.deck.limit.problem": "已達 Agent 處理程序上限",
+  "error.deck.limit.cause":
+    "並行 Agent 過多。請先結束其他對話，或在執行環境中提高上限。",
+  "error.deck.timeout.problem": "本輪執行逾時",
+  "error.deck.timeout.cause":
+    "等待過久已中止。可重試；生圖等長任務可能需要更久。",
+  "error.deck.disconnect.problem": "與 Agent 的連線已中斷",
+  "error.deck.disconnect.cause":
+    "傳輸通道在回合中關閉。請重新連線後再傳送。",
+  "error.deck.generic.problem": "出了點問題",
+  "error.deck.generic.cause": "可在 Doctor 查看 CLI/驗證狀態，然後重試上一步操作。",
   "main.startTitle": "開始對話",
   "main.startHint": "輸入訊息後傳送，將在背景靜默連線 CLI。",
   "main.working": "工作中…",

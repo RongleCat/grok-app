@@ -1,4 +1,6 @@
 import type { Locale } from "../i18n";
+import { buildErrorDeck, deckCodeFromAgent } from "./errorDeck";
+import type { ErrorDeckAction, ErrorDeckCard } from "./errorDeck";
 
 export type SessionState =
   | "idle"
@@ -1177,47 +1179,19 @@ export function isAgentErrorCode(code: string | undefined | null): code is Agent
 }
 
 export function errorCopy(code: AgentErrorCode, locale: Locale = "zh"): string {
-  const zh: Record<AgentErrorCode, string> = {
-    CLI_NOT_FOUND: "未找到 Grok Build CLI。请安装或在设置中指定路径。",
-    AUTH_FAILED: "鉴权失败。请重新登录、更换 Key，或改用设置里的自定义中转。",
-    NETWORK_PROVIDER:
-      "网络或模型服务异常。请检查网络、额度，或切换模型/渠道后重试。",
-    AGENT_CRASHED: "Agent 进程异常退出。可尝试重新连接。",
-    QUOTA_EXCEEDED:
-      "额度不足或订阅已限流。请到 Grok 账户查看用量，或切换模型/等待重置。",
-    CONNECT_FAILED:
-      "无法连接本会话的 Agent。请点重新连接；确认 CLI 已登录或中转配置正确。",
-    PROCESS_LIMIT:
-      "已达到 Agent 进程上限。请先停止或等待其他会话，或在设置 → 运行环境中提高并发上限。",
-  };
-  const en: Record<AgentErrorCode, string> = {
-    CLI_NOT_FOUND: "Grok Build CLI not found. Install or set path in Settings.",
-    AUTH_FAILED:
-      "Authentication failed. Re-login, change key, or use a custom provider in Settings.",
-    NETWORK_PROVIDER:
-      "Network or model provider error. Check connection, quota, or switch model/provider, then retry.",
-    AGENT_CRASHED: "Agent process crashed. Try reconnect.",
-    QUOTA_EXCEEDED:
-      "Quota exceeded or rate-limited. Check Grok usage, switch model, or wait for reset.",
-    CONNECT_FAILED:
-      "Could not connect the agent for this session. Reconnect; confirm CLI login or custom provider.",
-    PROCESS_LIMIT:
-      "Agent process limit reached. Stop or wait for another session, or raise the limit in Settings → Runtime.",
-  };
-  return (locale === "en" ? en : zh)[code];
+  const card = buildErrorDeck(code, locale);
+  return `${card.problem} ${card.cause}`.trim();
 }
 
 /** Turn took too long (Host session/prompt timeout) — more specific than generic network. */
 export function turnTimeoutCopy(locale: Locale = "zh"): string {
-  return locale === "en"
-    ? "This turn timed out and was stopped. You can retry — long tasks (e.g. image generation) may need more time."
-    : "本轮执行超时已中止。可重试；生图等长任务可能需要更久。";
+  const card = buildErrorDeck("TURN_TIMEOUT", locale);
+  return `${card.problem} ${card.cause}`.trim();
 }
 
 export function agentDisconnectedCopy(locale: Locale = "zh"): string {
-  return locale === "en"
-    ? "The agent connection was interrupted. Try reconnecting and send again."
-    : "与 Agent 的连接已中断。请重新连接后再试。";
+  const card = buildErrorDeck("AGENT_DISCONNECTED", locale);
+  return `${card.problem} ${card.cause}`.trim();
 }
 
 const AGENT_ERROR_CODE_RE =
@@ -1321,31 +1295,61 @@ export function formatTurnErrorBody(
   return first.length > 200 ? `${first.slice(0, 200)}…` : first;
 }
 
+export type ErrorBannerView = {
+  code: string | null;
+  /** Headline (deck problem). */
+  summary: string;
+  /** Supporting line (deck cause). */
+  cause: string | null;
+  detail: string | null;
+  reconnectHint: boolean;
+  primary: ErrorDeckAction | null;
+  secondary: ErrorDeckAction | null;
+  deck: ErrorDeckCard | null;
+};
+
+function bannerFromDeck(
+  deck: ErrorDeckCard,
+  code: string | null,
+  detail: string | null,
+): ErrorBannerView {
+  return {
+    code,
+    summary: deck.problem,
+    cause: deck.cause,
+    detail,
+    reconnectHint:
+      deck.primary.id === "reconnect" || deck.secondary?.id === "reconnect",
+    primary: deck.primary,
+    secondary: deck.secondary,
+    deck,
+  };
+}
+
 /**
- * Compact banner copy: short user-facing summary by default;
- * technical detail only when short and non-noisy (no MCP stderr walls).
+ * Compact banner: T04 deck (problem / cause / primary / secondary).
+ * Technical detail only when short and non-noisy (no MCP stderr walls).
  */
 export function presentErrorBanner(
   error: AgentError | null,
   localError: string | null,
   locale: Locale = "zh",
-): {
-  code: string | null;
-  summary: string;
-  detail: string | null;
-  reconnectHint: boolean;
-} | null {
+): ErrorBannerView | null {
   if (error) {
-    const summary = formatTurnErrorBody(
+    const body = formatTurnErrorBody(
       { code: error.code, message: error.message, content: undefined },
       locale,
     );
-    return {
-      code: error.code,
-      summary,
-      detail: null,
-      reconnectHint: true,
-    };
+    const lower = `${error.message}\n${body}`.toLowerCase();
+    const timeout =
+      error.message === "turn_timeout" ||
+      /timeout|超时/.test(lower);
+    const disconnected =
+      error.message === "agent_disconnected" ||
+      /disconnect|中断|rpc channel closed/i.test(lower);
+    const deckCode = deckCodeFromAgent(error.code, { timeout, disconnected });
+    const deck = buildErrorDeck(deckCode, locale);
+    return bannerFromDeck(deck, error.code, null);
   }
   if (!localError?.trim()) return null;
 
@@ -1353,15 +1357,16 @@ export function presentErrorBanner(
   const coded = cleaned.match(AGENT_ERROR_CODE_RE);
   if (coded) {
     const code = coded[1] as AgentErrorCode;
-    return {
-      code,
-      summary: formatTurnErrorBody(
-        { code, message: coded[2] || "", content: undefined },
-        locale,
-      ),
-      detail: null,
-      reconnectHint: true,
-    };
+    const rest = stripErrorNoise(coded[2] || "");
+    const lower = rest.toLowerCase();
+    const timeout = rest === "turn_timeout" || /timeout|超时/.test(lower);
+    const disconnected =
+      rest === "agent_disconnected" || /disconnect|中断/i.test(lower);
+    const deck = buildErrorDeck(
+      deckCodeFromAgent(code, { timeout, disconnected }),
+      locale,
+    );
+    return bannerFromDeck(deck, code, null);
   }
 
   const summary = formatTurnErrorBody(
@@ -1369,10 +1374,26 @@ export function presentErrorBanner(
     locale,
   );
   const isTimeoutish = /timeout|超时|中断|disconnect/i.test(summary);
+  if (isTimeoutish) {
+    const deck = buildErrorDeck(
+      /disconnect|中断/i.test(summary)
+        ? "AGENT_DISCONNECTED"
+        : "TURN_TIMEOUT",
+      locale,
+    );
+    return bannerFromDeck(deck, null, null);
+  }
+
+  // Local UX strings (e.g. "select a project") — show as-is, soft dismiss.
+  const deck = buildErrorDeck("GENERIC", locale);
   return {
     code: null,
-    summary,
+    summary: cleaned.length > 200 ? `${cleaned.slice(0, 200)}…` : cleaned,
+    cause: null,
     detail: null,
-    reconnectHint: isTimeoutish || /AGENT_CRASHED|NETWORK_PROVIDER/i.test(cleaned),
+    reconnectHint: false,
+    primary: { id: "dismiss", label: deck.primary.label },
+    secondary: null,
+    deck: null,
   };
 }

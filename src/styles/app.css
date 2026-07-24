@@ -5150,6 +5150,14 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
 
 .error-banner__summary {
   color: var(--text-primary);
+  font-weight: 600;
+}
+
+.error-banner__cause {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .error-banner__actions {
@@ -5158,6 +5166,16 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   align-items: center;
   gap: 8px;
   margin-top: 8px;
+}
+
+.error-banner__primary {
+  height: 28px;
+  font-size: 12px;
+}
+
+.error-banner__secondary {
+  height: 28px;
+  font-size: 12px;
 }
 
 .error-banner__details-btn {

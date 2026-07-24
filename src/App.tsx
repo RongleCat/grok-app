@@ -45,6 +45,7 @@ import {
   isSessionLiveStreaming,
   preferSessionMessages,
   presentErrorBanner,
+  type ErrorBannerView,
   buildSegmentsFromLegacy,
   splitThoughtPhases,
   truncateBeforeLastUser,
@@ -4701,6 +4702,45 @@ export default function App() {
     setErrorDetailOpen(false);
   }, [errorBanner?.code, errorBanner?.summary, errorBanner?.detail]);
 
+  /** T04 deck buttons: reconnect / Doctor / Settings sections / dismiss. */
+  const runErrorBannerAction = useCallback(
+    (action: NonNullable<ErrorBannerView["primary"]>) => {
+      setErrorDetailOpen(false);
+      switch (action.id) {
+        case "reconnect":
+          setLocalError(null);
+          void ensureConnected(true).then((sid) => {
+            if (sid) setLocalError(null);
+          });
+          break;
+        case "open_doctor":
+          setLocalError(null);
+          openDoctor();
+          break;
+        case "open_runtime":
+          setLocalError(null);
+          navigateSettings("runtime");
+          break;
+        case "open_account":
+          setLocalError(null);
+          navigateSettings("account");
+          break;
+        case "open_providers":
+          setLocalError(null);
+          // Providers live under account / extensions path — account is the
+          // login+key surface; extensions holds MCP. Prefer account for keys.
+          navigateSettings("account");
+          break;
+        case "dismiss":
+          setLocalError(null);
+          break;
+        default:
+          break;
+      }
+    },
+    [ensureConnected, navigateSettings, openDoctor],
+  );
+
   const refreshAccount = useCallback(
     async (opts?: { refreshBilling?: boolean }) => {
       if (!api.isTauri()) return;
@@ -6477,27 +6517,51 @@ export default function App() {
             />
           )}
 
-          {/* One surface only: turn failures live in chat; banner is for pre-turn/local errors */}
+          {/* Pre-turn / host errors: T04 deck (problem · cause · primary · secondary) */}
           {errorBanner && !hasChatTurnError && (
             <div className="error-banner" role="alert">
+              {errorBanner.code ? (
+                <div className="error-banner__code">{errorBanner.code}</div>
+              ) : null}
               <div className="error-banner__summary">{errorBanner.summary}</div>
-              {(errorBanner.detail ||
-                errorBanner.reconnectHint ||
-                session.state === "disconnected") && (
-                <div className="error-banner__actions">
-                  {errorBanner.detail && (
-                    <button
-                      type="button"
-                      className="error-banner__details-btn"
-                      aria-expanded={errorDetailOpen}
-                      onClick={() => setErrorDetailOpen((v) => !v)}
-                    >
-                      {errorDetailOpen
-                        ? tr("error.hideDetails")
-                        : tr("error.details")}
-                    </button>
-                  )}
-                  {(errorBanner.reconnectHint ||
+              {errorBanner.cause ? (
+                <div className="error-banner__cause">{errorBanner.cause}</div>
+              ) : null}
+              <div className="error-banner__actions">
+                {errorBanner.primary ? (
+                  <button
+                    type="button"
+                    className="btn btn--primary error-banner__primary"
+                    disabled={
+                      connecting && errorBanner.primary.id === "reconnect"
+                    }
+                    onClick={() => {
+                      if (errorBanner.primary) {
+                        runErrorBannerAction(errorBanner.primary);
+                      }
+                    }}
+                  >
+                    {errorBanner.primary.label}
+                  </button>
+                ) : null}
+                {errorBanner.secondary ? (
+                  <button
+                    type="button"
+                    className="btn btn--ghost error-banner__secondary"
+                    disabled={
+                      connecting && errorBanner.secondary.id === "reconnect"
+                    }
+                    onClick={() => {
+                      if (errorBanner.secondary) {
+                        runErrorBannerAction(errorBanner.secondary);
+                      }
+                    }}
+                  >
+                    {errorBanner.secondary.label}
+                  </button>
+                ) : null}
+                {!errorBanner.primary &&
+                  (errorBanner.reconnectHint ||
                     session.state === "disconnected") && (
                     <button
                       type="button"
@@ -6514,8 +6578,19 @@ export default function App() {
                       {tr("main.reconnect")}
                     </button>
                   )}
-                </div>
-              )}
+                {errorBanner.detail ? (
+                  <button
+                    type="button"
+                    className="error-banner__details-btn"
+                    aria-expanded={errorDetailOpen}
+                    onClick={() => setErrorDetailOpen((v) => !v)}
+                  >
+                    {errorDetailOpen
+                      ? tr("error.hideDetails")
+                      : tr("error.details")}
+                  </button>
+                ) : null}
+              </div>
               {errorBanner.detail && errorDetailOpen && (
                 <pre className="error-banner__detail">{errorBanner.detail}</pre>
               )}
