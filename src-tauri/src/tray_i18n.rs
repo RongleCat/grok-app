@@ -6,6 +6,7 @@ use crate::store;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Locale {
     Zh,
+    ZhTw,
     En,
 }
 
@@ -13,6 +14,7 @@ impl Locale {
     pub fn parse(raw: &str) -> Self {
         match raw.trim().to_ascii_lowercase().as_str() {
             "en" | "en-us" | "en_us" | "en-gb" => Locale::En,
+            "zh-tw" | "zh_tw" | "zh-hant" | "zh_hant" => Locale::ZhTw,
             // Default product locale is zh (matches AppSettings::default).
             _ => Locale::Zh,
         }
@@ -79,10 +81,28 @@ const ZH: TrayStrings = TrayStrings {
     usage_unknown: "额度  ·  —",
 };
 
+const ZH_TW: TrayStrings = TrayStrings {
+    recent: "最近",
+    no_recent: "尚無最近對話",
+    untitled: "未命名",
+    more: "更多",
+    settings: "設定…",
+    doctor: "Doctor",
+    account: "帳戶",
+    new_chat: "新對話",
+    open_app: "開啟 Grok",
+    quit: "結束 Grok",
+    tooltip: "Grok",
+    usage_with_reset: "額度  ·  剩餘 {pct}%  ·  {time}",
+    usage_pct: "額度  ·  剩餘 {pct}%",
+    usage_unknown: "額度  ·  —",
+};
+
 pub fn strings(locale: Locale) -> &'static TrayStrings {
     match locale {
         Locale::En => &EN,
         Locale::Zh => &ZH,
+        Locale::ZhTw => &ZH_TW,
     }
 }
 
@@ -112,6 +132,9 @@ mod tests {
         assert_eq!(Locale::parse("EN-US"), Locale::En);
         assert_eq!(Locale::parse("zh"), Locale::Zh);
         assert_eq!(Locale::parse(""), Locale::Zh);
+        assert_eq!(Locale::parse("zh-TW"), Locale::ZhTw);
+        assert_eq!(Locale::parse("zh-Hant"), Locale::ZhTw);
+        assert_eq!(strings(Locale::ZhTw).settings, "設定…");
     }
 
     #[test]

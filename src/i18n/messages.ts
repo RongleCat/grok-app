@@ -1,6 +1,8 @@
-/** Canonical UI message catalog. Keys must stay stable; add both locales together. */
+/** Canonical UI message catalog. Keys must stay stable; add all locales together. */
 
-export type Locale = "zh" | "en";
+import { zhTW } from "./zh-tw";
+
+export type Locale = "zh" | "zh-TW" | "en";
 
 export type MessageKey = keyof typeof en;
 
@@ -1449,8 +1451,9 @@ const zh: Record<MessageKey, string> = {
 export const messages: Record<Locale, Record<MessageKey, string>> = {
   en: en as Record<MessageKey, string>,
   zh,
+  "zh-TW": zhTW,
 };
 
 export function isLocale(v: string): v is Locale {
-  return v === "zh" || v === "en";
+  return v === "zh" || v === "zh-TW" || v === "en";
 }

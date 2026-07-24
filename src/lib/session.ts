@@ -1,3 +1,5 @@
+import type { Locale } from "../i18n";
+
 export type SessionState =
   | "idle"
   | "connecting"
@@ -352,7 +354,7 @@ export interface TurnErrorPayload {
 export function applyTurnError(
   messages: ChatMessage[],
   payload: TurnErrorPayload,
-  locale: "zh" | "en" = "zh",
+  locale: Locale = "zh",
 ): ChatMessage[] {
   const content = formatTurnErrorBody(payload, locale);
   const mid = payload.messageId || "";
@@ -826,7 +828,7 @@ export function isAgentErrorCode(code: string | undefined | null): code is Agent
   return !!code && (KNOWN_ERROR_CODES as string[]).includes(code);
 }
 
-export function errorCopy(code: AgentErrorCode, locale: "zh" | "en" = "zh"): string {
+export function errorCopy(code: AgentErrorCode, locale: Locale = "zh"): string {
   const zh: Record<AgentErrorCode, string> = {
     CLI_NOT_FOUND: "未找到 Grok Build CLI。请安装或在设置中指定路径。",
     AUTH_FAILED: "鉴权失败。请重新登录、更换 Key，或改用设置里的自定义中转。",
@@ -854,13 +856,13 @@ export function errorCopy(code: AgentErrorCode, locale: "zh" | "en" = "zh"): str
 }
 
 /** Turn took too long (Host session/prompt timeout) — more specific than generic network. */
-export function turnTimeoutCopy(locale: "zh" | "en" = "zh"): string {
+export function turnTimeoutCopy(locale: Locale = "zh"): string {
   return locale === "en"
     ? "This turn timed out and was stopped. You can retry — long tasks (e.g. image generation) may need more time."
     : "本轮执行超时已中止。可重试；生图等长任务可能需要更久。";
 }
 
-export function agentDisconnectedCopy(locale: "zh" | "en" = "zh"): string {
+export function agentDisconnectedCopy(locale: Locale = "zh"): string {
   return locale === "en"
     ? "The agent connection was interrupted. Try reconnecting and send again."
     : "与 Agent 的连接已中断。请重新连接后再试。";
@@ -892,7 +894,7 @@ export function stripErrorNoise(text: string): string {
  */
 export function formatTurnErrorBody(
   payload: Pick<TurnErrorPayload, "code" | "message" | "content">,
-  locale: "zh" | "en" = "zh",
+  locale: Locale = "zh",
 ): string {
   const rawCombined = [payload.content, payload.message, payload.code]
     .filter(Boolean)
@@ -974,7 +976,7 @@ export function formatTurnErrorBody(
 export function presentErrorBanner(
   error: AgentError | null,
   localError: string | null,
-  locale: "zh" | "en" = "zh",
+  locale: Locale = "zh",
 ): {
   code: string | null;
   summary: string;

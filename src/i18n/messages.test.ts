@@ -8,6 +8,12 @@ describe("i18n catalog", () => {
     expect(zhKeys).toEqual(enKeys);
   });
 
+  it("zh-TW shares the same keys as en", () => {
+    const enKeys = Object.keys(messages.en).sort();
+    const twKeys = Object.keys(messages["zh-TW"]).sort();
+    expect(twKeys).toEqual(enKeys);
+  });
+
   it("interpolates variables", () => {
     expect(t("en", "project.trustFirst", { name: "Demo" })).toContain("Demo");
     expect(t("zh", "project.trustFirst", { name: "演示" })).toContain("演示");
@@ -19,7 +25,7 @@ describe("i18n catalog", () => {
   });
 
   it("every value is a non-empty string", () => {
-    for (const loc of ["en", "zh"] as const) {
+    for (const loc of ["en", "zh", "zh-TW"] as const) {
       for (const [k, v] of Object.entries(messages[loc])) {
         expect(v.trim().length, `${loc}.${k}`).toBeGreaterThan(0);
       }

@@ -383,7 +383,8 @@ export function SettingsPage({
                   value={locale}
                   onChange={onLocale}
                   options={[
-                    { value: "zh", label: "中文" },
+                    { value: "zh", label: "简体中文" },
+                    { value: "zh-TW", label: "繁體中文" },
                     { value: "en", label: "English" },
                   ]}
                 />
