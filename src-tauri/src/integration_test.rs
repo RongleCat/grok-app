@@ -68,12 +68,14 @@ mod integration {
         let factory = AppSettings::default();
         assert_eq!(factory.session_data_mode, "independent");
         assert_eq!(factory.permission_policy, "ask");
+        assert_eq!(factory.sandbox_profile, "off");
         // Disk load + save same content must not corrupt
         let s = load_settings();
         save_settings(&s).expect("save");
         let s2 = load_settings();
         assert_eq!(s2.session_data_mode, s.session_data_mode);
         assert_eq!(s2.permission_policy, s.permission_policy);
+        assert_eq!(s2.sandbox_profile, s.sandbox_profile);
         let root = app_data_root();
         assert!(!root.as_os_str().is_empty());
     }

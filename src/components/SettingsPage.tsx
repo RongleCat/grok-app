@@ -111,6 +111,9 @@ export interface SettingsPageProps {
   /** Store App API keys in OS keychain (default off → secrets.json). */
   storeApiKeysInKeychain?: boolean;
   onStoreApiKeysInKeychain?: (v: boolean) => void;
+  /** OS sandbox for agent spawn: off | workspace | read-only | strict | devbox. */
+  sandboxProfile?: string;
+  onSandboxProfile?: (v: string) => void;
   cliInfo: {
     found: boolean;
     path: string | null;
@@ -412,6 +415,8 @@ export function SettingsPage({
   onStreamStallSeconds,
   storeApiKeysInKeychain = false,
   onStoreApiKeysInKeychain,
+  sandboxProfile = "off",
+  onSandboxProfile,
   cliInfo,
   onDoctor,
   versionFooter,
@@ -845,6 +850,44 @@ export function SettingsPage({
                   }))}
                 />
               </div>
+              {onSandboxProfile ? (
+                <div className="settings-row settings-row--stack">
+                  <div className="settings-row__text">
+                    <div className="settings-row__label">
+                      {t("settings.sandboxProfile")}
+                    </div>
+                    <div className="settings-row__desc">
+                      {t("settings.sandboxProfileDesc")}
+                    </div>
+                  </div>
+                  <Select
+                    value={sandboxProfile || "off"}
+                    onChange={(v) => onSandboxProfile(v)}
+                    options={[
+                      {
+                        value: "off",
+                        label: t("settings.sandbox.off"),
+                      },
+                      {
+                        value: "workspace",
+                        label: t("settings.sandbox.workspace"),
+                      },
+                      {
+                        value: "read-only",
+                        label: t("settings.sandbox.readOnly"),
+                      },
+                      {
+                        value: "strict",
+                        label: t("settings.sandbox.strict"),
+                      },
+                      {
+                        value: "devbox",
+                        label: t("settings.sandbox.devbox"),
+                      },
+                    ]}
+                  />
+                </div>
+              ) : null}
             </div>
 
             <h2 className="settings-page__h2">{t("settings.section.general")}</h2>

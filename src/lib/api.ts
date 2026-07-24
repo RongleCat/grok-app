@@ -720,6 +720,11 @@ export interface AppSettings {
    * Default false: keys stay in secrets.json (0600). Official login uses auth.json.
    */
   storeApiKeysInKeychain?: boolean;
+  /**
+   * OS-level sandbox for spawned agents: off | workspace | read-only | strict | devbox.
+   * Default "off". Passed as `grok --sandbox <profile>` / GROK_SANDBOX on spawn.
+   */
+  sandboxProfile?: string;
 }
 
 export interface AvailableModel {

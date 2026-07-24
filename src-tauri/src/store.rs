@@ -160,6 +160,11 @@ pub struct AppSettings {
     /// trigger system password prompts. Official CLI login still uses `auth.json`.
     #[serde(default)]
     pub store_api_keys_in_keychain: bool,
+    /// OS-level sandbox profile for spawned `grok agent` processes
+    /// (`off` | `workspace` | `read-only` | `strict` | `devbox`). Default off.
+    /// Passed as top-level `grok --sandbox <profile>` / `GROK_SANDBOX` at spawn.
+    #[serde(default = "default_sandbox_profile")]
+    pub sandbox_profile: String,
 }
 
 fn default_composer_prefs_scope() -> String {
@@ -180,6 +185,10 @@ fn default_agent_idle_minutes() -> u32 {
 
 fn default_stream_stall_seconds() -> u32 {
     crate::stream_stall::DEFAULT_STREAM_STALL_SECONDS
+}
+
+fn default_sandbox_profile() -> String {
+    "off".into()
 }
 
 impl Default for AppSettings {
@@ -204,6 +213,7 @@ impl Default for AppSettings {
             agent_idle_minutes: default_agent_idle_minutes(),
             stream_stall_seconds: default_stream_stall_seconds(),
             store_api_keys_in_keychain: false,
+            sandbox_profile: default_sandbox_profile(),
         }
     }
 }
@@ -1236,5 +1246,25 @@ mod tests {
         assert_eq!(s.max_concurrent_agents, 3);
         assert_eq!(s.agent_idle_minutes, 30);
         assert_eq!(s.stream_stall_seconds, 120);
+        assert_eq!(s.sandbox_profile, "off");
+    }
+
+    #[test]
+    fn sandbox_profile_defaults_when_missing_from_json() {
+        // Old settings files without the field must deserialize to "off".
+        let raw = r#"{
+            "theme": "dark",
+            "locale": "en",
+            "sessionDataMode": "independent",
+            "manualCliPath": null,
+            "permissionPolicy": "ask",
+            "modelId": null,
+            "effort": "medium",
+            "mode": "agent",
+            "onboardingDone": true,
+            "setupSkipped": false
+        }"#;
+        let s: AppSettings = serde_json::from_str(raw).expect("deserialize");
+        assert_eq!(s.sandbox_profile, "off");
     }
 }

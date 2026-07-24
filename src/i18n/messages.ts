@@ -546,6 +546,14 @@ const en = {
   "settings.permissionDeep": "Default permission",
   "settings.permissionDeepDesc":
     "Applied to new turns and remembered at the scope chosen above. YOLO auto-approves tools.",
+  "settings.sandboxProfile": "Sandbox profile",
+  "settings.sandboxProfileDesc":
+    "OS-level filesystem/network isolation for the agent process (Landlock/Seatbelt). Applied when a new agent starts — reconnect the session after changing.",
+  "settings.sandbox.off": "Off — unrestricted",
+  "settings.sandbox.workspace": "Workspace — write CWD + temp only",
+  "settings.sandbox.readOnly": "Read-only — no project writes",
+  "settings.sandbox.strict": "Strict — CWD only, block child network",
+  "settings.sandbox.devbox": "Devbox — disposable VM layout",
   "settings.prefsScope": "Remember model & permission at",
   "settings.prefsScopeDesc":
     "Global: all chats. Project: each workspace. Session: only the current chat.",
@@ -1649,6 +1657,14 @@ const zh: Record<MessageKey, string> = {
   "settings.permissionDeep": "默认权限",
   "settings.permissionDeepDesc":
     "对新一轮对话生效，并按上方选择的范围记忆。YOLO 会自动批准工具调用。",
+  "settings.sandboxProfile": "沙箱配置",
+  "settings.sandboxProfileDesc":
+    "对 Agent 进程施加操作系统级文件系统/网络隔离（Linux Landlock / macOS Seatbelt）。在新启动 Agent 时生效——更改后请重连会话。",
+  "settings.sandbox.off": "关闭 — 无限制",
+  "settings.sandbox.workspace": "工作区 — 仅可写 CWD 与临时目录",
+  "settings.sandbox.readOnly": "只读 — 不可写项目文件",
+  "settings.sandbox.strict": "严格 — 仅限 CWD，阻止子进程网络",
+  "settings.sandbox.devbox": "Devbox — 一次性开发机布局",
   "settings.prefsScope": "模型与权限记忆范围",
   "settings.prefsScopeDesc":
     "全局：所有对话共用。项目：按工作区记忆。会话：仅当前聊天。",

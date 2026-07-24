@@ -519,6 +519,14 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.permissionDeep": "預設權限",
   "settings.permissionDeepDesc":
     "對新一輪對話生效，並依上方選擇的範圍記憶。YOLO 會自動核准工具呼叫。",
+  "settings.sandboxProfile": "沙箱設定檔",
+  "settings.sandboxProfileDesc":
+    "對 Agent 行程施加作業系統級檔案系統/網路隔離（Linux Landlock / macOS Seatbelt）。在新啟動 Agent 時生效——變更後請重新連線工作階段。",
+  "settings.sandbox.off": "關閉 — 無限制",
+  "settings.sandbox.workspace": "工作區 — 僅可寫 CWD 與暫存目錄",
+  "settings.sandbox.readOnly": "唯讀 — 不可寫專案檔案",
+  "settings.sandbox.strict": "嚴格 — 僅限 CWD，封鎖子行程網路",
+  "settings.sandbox.devbox": "Devbox — 一次性開發機配置",
   "settings.prefsScope": "模型與權限記憶範圍",
   "settings.prefsScopeDesc":
     "全域：所有對話共用。專案：依工作區記憶。對話：僅目前聊天。",

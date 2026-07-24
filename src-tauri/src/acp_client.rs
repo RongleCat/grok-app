@@ -156,6 +156,45 @@ pub fn cli_permission_mode(policy: &str) -> &'static str {
     }
 }
 
+/// Pure spawn plan for the OS-level sandbox profile.
+///
+/// `--sandbox` is a **top-level** `grok` flag (not under `agent` / `stdio`),
+/// and the CLI also reads `GROK_SANDBOX`. When the profile is off/empty we
+/// apply neither so the agent stays unrestricted (CLI default).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SandboxSpawnSpec {
+    pub profile: String,
+}
+
+impl SandboxSpawnSpec {
+    /// Build from a settings value. `None` means do not pass sandbox flags/env.
+    pub fn from_setting(profile: &str) -> Option<Self> {
+        let p = profile.trim();
+        if p.is_empty() || p.eq_ignore_ascii_case("off") {
+            return None;
+        }
+        Some(Self {
+            profile: p.to_ascii_lowercase(),
+        })
+    }
+
+    /// Top-level CLI args: `["--sandbox", "<profile>"]` (before `agent`).
+    pub fn cli_args(&self) -> [String; 2] {
+        ["--sandbox".into(), self.profile.clone()]
+    }
+
+    /// Env var name + value for `GROK_SANDBOX`.
+    pub fn env_pair(&self) -> (String, String) {
+        ("GROK_SANDBOX".into(), self.profile.clone())
+    }
+}
+
+/// Pure helper used by spawn + unit tests: args + env when sandbox is on.
+pub fn sandbox_spawn_flags(profile: &str) -> Option<(Vec<String>, (String, String))> {
+    let spec = SandboxSpawnSpec::from_setting(profile)?;
+    Some((spec.cli_args().to_vec(), spec.env_pair()))
+}
+
 impl AcpClient {
     pub fn use_mock() -> bool {
         std::env::var("GROK_APP_ACP")
@@ -235,11 +274,21 @@ impl AcpClient {
         );
 
         // Flag placement (CLI 0.2.x):
-        //   top-level: `grok --no-auto-update agent …`
+        //   top-level: `grok --no-auto-update [--sandbox PROFILE] agent …`
         //   agent opts: `--model` / `--reasoning-effort` / `--always-approve` before `stdio`
         // Skip background update checks so ACP handshakes are not delayed on launch.
+        // `--sandbox` is top-level only (not accepted by `grok agent` / `stdio`);
+        // also set GROK_SANDBOX so nested tools inherit the same profile.
+        let settings = crate::store::load_settings();
+        let sandbox = SandboxSpawnSpec::from_setting(&settings.sandbox_profile);
+
         let mut cmd = Command::new(&cli_path);
         cmd.arg("--no-auto-update");
+        if let Some(ref sb) = sandbox {
+            for a in sb.cli_args() {
+                cmd.arg(a);
+            }
+        }
         cmd.arg("agent");
         if !spawn_model.is_empty() {
             cmd.args(["--model", &spawn_model]);
@@ -267,8 +316,12 @@ impl AcpClient {
             cmd.env("PATH", path);
         }
         cmd.env("GROK_HOME", &grok_home);
+        if let Some(ref sb) = sandbox {
+            let (k, v) = sb.env_pair();
+            cmd.env(k, v);
+        }
         tracing::info!(
-            "acp: spawn GROK_HOME={} mode={} auth_present={} route={:?} composer_model={:?} spawn_model={} yolo={}",
+            "acp: spawn GROK_HOME={} mode={} auth_present={} route={:?} composer_model={:?} spawn_model={} yolo={} sandbox={:?}",
             grok_home.display(),
             session_data_mode,
             grok_home.join("auth.json").is_file(),
@@ -278,7 +331,8 @@ impl AcpClient {
             opts.permission_policy
                 .as_deref()
                 .map(cli_permission_mode)
-                == Some("bypassPermissions")
+                == Some("bypassPermissions"),
+            sandbox.as_ref().map(|s| s.profile.as_str())
         );
 
         let mut child = cmd.spawn().map_err(|e| {
@@ -2104,6 +2158,49 @@ mod retry_tests {
     fn respect_lower_agent_max() {
         assert!(!should_abort_provider_retry(1, 3, "retrying"));
         assert!(should_abort_provider_retry(3, 3, "retrying"));
+    }
+}
+
+#[cfg(test)]
+mod sandbox_spawn_tests {
+    use super::*;
+
+    #[test]
+    fn off_and_empty_yield_no_flags() {
+        assert!(SandboxSpawnSpec::from_setting("off").is_none());
+        assert!(SandboxSpawnSpec::from_setting("OFF").is_none());
+        assert!(SandboxSpawnSpec::from_setting("").is_none());
+        assert!(SandboxSpawnSpec::from_setting("   ").is_none());
+        assert!(sandbox_spawn_flags("off").is_none());
+    }
+
+    #[test]
+    fn known_profiles_build_top_level_args_and_env() {
+        for profile in ["workspace", "read-only", "strict", "devbox"] {
+            let spec = SandboxSpawnSpec::from_setting(profile).expect(profile);
+            assert_eq!(spec.profile, profile);
+            assert_eq!(
+                spec.cli_args(),
+                ["--sandbox".to_string(), profile.to_string()]
+            );
+            assert_eq!(
+                spec.env_pair(),
+                ("GROK_SANDBOX".to_string(), profile.to_string())
+            );
+            let (args, env) = sandbox_spawn_flags(profile).unwrap();
+            assert_eq!(args, vec!["--sandbox".to_string(), profile.to_string()]);
+            assert_eq!(env, ("GROK_SANDBOX".to_string(), profile.to_string()));
+        }
+    }
+
+    #[test]
+    fn trims_and_lowercases_profile() {
+        let spec = SandboxSpawnSpec::from_setting("  WorkSpace  ").unwrap();
+        assert_eq!(spec.profile, "workspace");
+        assert_eq!(
+            spec.cli_args(),
+            ["--sandbox".to_string(), "workspace".to_string()]
+        );
     }
 }
 
