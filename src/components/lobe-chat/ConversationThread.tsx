@@ -592,7 +592,11 @@ export function ConversationThread({
                 showAvatar={false}
                 loading={!!m.streaming}
                 message={
-                  <div className="lobe-chat-assistant-timeline">
+                  <div
+                    className="lobe-chat-assistant-timeline"
+                    aria-busy={m.streaming ? true : undefined}
+                    aria-live={m.streaming ? "polite" : undefined}
+                  >
                     {showThinkingPlaceholder ? (
                       <Thinking
                         locale={locale}

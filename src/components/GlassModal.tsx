@@ -17,11 +17,13 @@
 import {
   useEffect,
   useId,
+  useRef,
   type MouseEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import { IconClose } from "@/components/icons";
+import { focusFirst, trapTabKey } from "@/lib/a11yFocus";
 
 export type GlassModalSize = "sm" | "md" | "lg";
 
@@ -71,14 +73,40 @@ export function GlassModal({
 }: GlassModalProps) {
   const autoId = useId();
   const titleId = titleIdProp || autoId;
+  const panelRef = useRef<HTMLDivElement>(null);
+  const prevFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    prevFocusRef.current =
+      typeof document !== "undefined"
+        ? (document.activeElement as HTMLElement | null)
+        : null;
+    // After paint so options/inputs exist.
+    const t = window.setTimeout(() => {
+      focusFirst(panelRef.current);
+    }, 0);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      trapTabKey(e, panelRef.current);
     };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener("keydown", onKey);
+      const prev = prevFocusRef.current;
+      if (prev && typeof prev.focus === "function") {
+        try {
+          prev.focus();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
   }, [open, onClose]);
 
   if (!open || typeof document === "undefined") return null;
@@ -106,6 +134,7 @@ export function GlassModal({
       onMouseDown={onOverlayMouseDown}
     >
       <div
+        ref={panelRef}
         className={cx("modal glass-modal", sizeClass, className)}
         role="dialog"
         aria-modal="true"

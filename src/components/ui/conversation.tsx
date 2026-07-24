@@ -26,6 +26,9 @@ export function Conversation({ className, ...props }: ConversationProps) {
       initial="smooth"
       resize="smooth"
       role="log"
+      aria-live="polite"
+      aria-relevant="additions text"
+      aria-atomic="false"
       {...props}
     />
   );

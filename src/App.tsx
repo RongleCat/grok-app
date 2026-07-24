@@ -218,6 +218,10 @@ import {
   type SessionFileChange,
 } from "@/lib/sessionChanges";
 import { ConversationThread } from "@/components/lobe-chat";
+import {
+  preferPermissionFocus,
+  trapTabKey,
+} from "@/lib/a11yFocus";
 import { Spinner } from "@/components/ui/spinner";
 import { UserMenu, remainingPercent } from "@/components/UserMenu";
 import {
@@ -568,7 +572,11 @@ export default function App() {
   const [savedAccounts, setSavedAccounts] = useState<api.SavedAccount[]>([]);
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
   const [perm, setPerm] = useState<PermissionPayload | null>(null);
+  const permBarRef = useRef<HTMLDivElement | null>(null);
   const [askUser, setAskUser] = useState<AskUserPayload | null>(null);
+  /** Polite SR announce for stream start/stop (not every token). */
+  const [streamA11yNote, setStreamA11yNote] = useState("");
+  const wasStreamingRef = useRef(false);
   const [plan, setPlan] = useState<PlanState & { visible: boolean }>({
     title: "Plan ready for review",
     body: "",
@@ -4943,6 +4951,58 @@ export default function App() {
     setErrorDetailOpen(false);
   }, [errorBanner?.code, errorBanner?.summary, errorBanner?.detail]);
 
+  // T15: announce stream start/end once (avoid token-level noise).
+  useEffect(() => {
+    const streaming =
+      session.state === "streaming" ||
+      messages.some((m) => m.role === "assistant" && m.streaming);
+    if (streaming && !wasStreamingRef.current) {
+      setStreamA11yNote(tr("a11y.assistantStreaming"));
+    } else if (!streaming && wasStreamingRef.current) {
+      setStreamA11yNote(tr("a11y.assistantDone"));
+      const t = window.setTimeout(() => setStreamA11yNote(""), 2500);
+      wasStreamingRef.current = streaming;
+      return () => window.clearTimeout(t);
+    }
+    wasStreamingRef.current = streaming;
+  }, [session.state, messages, tr]);
+
+  // T15: permission bar — focus primary action, Tab trap, Escape → deny.
+  useEffect(() => {
+    if (!perm) return;
+    const t = window.setTimeout(() => {
+      preferPermissionFocus(permBarRef.current);
+    }, 0);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        const deny = mapPermissionButtons(perm.options, {
+          allowOnce: tr("perm.allowOnce"),
+          allowSession: tr("perm.allowSession"),
+          deny: tr("perm.deny"),
+        }).find((b) => b.decision === "deny");
+        if (deny) {
+          void api
+            .sessionResolvePermission({
+              rpcId: perm.rpcId,
+              decision: deny.decision,
+              optionId: deny.optionId,
+              scopeKey: perm.scopeKey,
+            })
+            .then(() => setPerm(null));
+        }
+        return;
+      }
+      trapTabKey(e, permBarRef.current);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [perm, tr]);
+
   /** T04 deck buttons: reconnect / Doctor / Settings sections / dismiss. */
   const runErrorBannerAction = useCallback(
     (action: NonNullable<ErrorBannerView["primary"]>) => {
@@ -6846,6 +6906,9 @@ export default function App() {
               } as CSSProperties
             }
           >
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            {streamA11yNote}
+          </div>
           <ConversationThread
             locale={locale}
             messages={messages}
@@ -6913,17 +6976,25 @@ export default function App() {
             ) : null}
             {perm ? (
               <div
+                ref={permBarRef}
                 className="perm-bar"
                 role="dialog"
-                aria-label={tr("perm.title")}
+                aria-modal="true"
+                aria-labelledby="perm-bar-title"
+                aria-describedby="perm-bar-summary"
               >
+                <div className="sr-only" aria-live="assertive">
+                  {tr("a11y.permissionNeeded")}
+                </div>
                 <div className="perm-bar__head">
-                  <span className="perm-bar__badge">{tr("perm.title")}</span>
+                  <span className="perm-bar__badge" id="perm-bar-title">
+                    {tr("perm.title")}
+                  </span>
                   <span className="perm-bar__tool">
                     {perm.title || perm.toolName}
                   </span>
                 </div>
-                <p className="perm-bar__summary">
+                <p className="perm-bar__summary" id="perm-bar-summary">
                   {formatPermissionSummary({
                     toolName: perm.toolName,
                     title: perm.title,
@@ -6933,7 +7004,7 @@ export default function App() {
                 {perm.preview?.trim() ? (
                   <pre className="perm-bar__preview">{perm.preview.trim()}</pre>
                 ) : null}
-                <div className="perm-bar__actions">
+                <div className="perm-bar__actions" role="group">
                   {mapPermissionButtons(perm.options, {
                     allowOnce: tr("perm.allowOnce"),
                     allowSession: tr("perm.allowSession"),

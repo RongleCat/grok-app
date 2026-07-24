@@ -166,13 +166,26 @@ export function AskUserModal({ payload, labels, onSubmit, onCancel }: Props) {
           const sel = selected[key] || [];
           const text = freeText[key] || "";
           return (
-            <div key={q.id || key} className="ask-user__q">
-              <div className="ask-user__prompt">{q.question}</div>
+            <div
+              key={q.id || key}
+              className="ask-user__q"
+              role="group"
+              aria-labelledby={`ask-user-q-${qi}`}
+            >
+              <div className="ask-user__prompt" id={`ask-user-q-${qi}`}>
+                {q.question}
+              </div>
               {q.multiSelect ? (
-                <div className="ask-user__hint">{labels.multiHint}</div>
+                <div className="ask-user__hint" id={`ask-user-hint-${qi}`}>
+                  {labels.multiHint}
+                </div>
               ) : null}
               {q.options?.length ? (
-                <div className="ask-user__options" role="group">
+                <div
+                  className="ask-user__options"
+                  role="group"
+                  aria-labelledby={`ask-user-q-${qi}`}
+                >
                   {q.options.map((opt) => {
                     const active = sel.includes(opt.id);
                     return (
@@ -183,6 +196,7 @@ export function AskUserModal({ payload, labels, onSubmit, onCancel }: Props) {
                           "ask-user__opt" + (active ? " ask-user__opt--active" : "")
                         }
                         disabled={busy}
+                        aria-pressed={active}
                         onClick={() => {
                           if (quickPick) {
                             void submit({ [key]: opt.label });
@@ -210,6 +224,11 @@ export function AskUserModal({ payload, labels, onSubmit, onCancel }: Props) {
                   value={text}
                   disabled={busy}
                   placeholder={labels.otherPlaceholder}
+                  aria-label={
+                    q.options?.length
+                      ? labels.freeTextHint
+                      : labels.otherPlaceholder
+                  }
                   onChange={(e) => {
                     const v = e.target.value;
                     setFreeText((prev) => ({ ...prev, [key]: v }));

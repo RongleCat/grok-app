@@ -82,6 +82,28 @@ button:disabled {
   outline: none;
 }
 
+/* Screen-reader only (T15 live regions / labels) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Keyboard focus for permission / ask-user (no global outline, but visible here) */
+.perm-bar__btn:focus-visible,
+.ask-user__opt:focus-visible,
+.modal-actions .btn:focus-visible,
+.modal-close:focus-visible {
+  outline: 2px solid var(--border-focus, #6b8cff);
+  outline-offset: 2px;
+}
+
 /* Composer textarea: no focus ring / border flash (Codex-like quiet field) */
 textarea:focus-visible,
 .composer__input:focus,
