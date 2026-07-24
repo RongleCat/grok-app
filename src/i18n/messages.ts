@@ -380,7 +380,7 @@ const en = {
   "plan.reviseFeedback": "Please revise the plan based on user feedback.",
   "plan.phaseLabel": "Thinking {n}",
 
-  // Plan / Goal sticky status bar (L04)
+  // Sticky plan/goal bar
   "planBar.aria": "Plan and goal status",
   "planBar.goal": "Goal mode",
   "planBar.planMode": "Plan mode",
@@ -1385,7 +1385,7 @@ const zh: Record<MessageKey, string> = {
   "plan.reviseFeedback": "请根据反馈修改计划。",
   "plan.phaseLabel": "思考 {n}",
 
-  // Plan / Goal sticky status bar (L04)
+  // Sticky plan/goal bar
   "planBar.aria": "计划与目标状态",
   "planBar.goal": "目标模式",
   "planBar.planMode": "计划模式",

@@ -1,8 +1,4 @@
-/**
- * Sticky Plan / Goal status bar (L04).
- * Always visible while plan mode, goal mode, or live plan entries are active —
- * complements the in-thread plan card which scrolls away.
- */
+/** Sticky plan/goal strip — stays put while the in-thread plan card scrolls away. */
 
 import { useMemo } from "react";
 import { IconCheck, IconPlan, IconClose } from "@/components/icons";

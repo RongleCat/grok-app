@@ -356,7 +356,7 @@ export const zhTW: Record<MessageKey, string> = {
   "plan.reviseFeedback": "請根據回饋修改計劃。",
   "plan.phaseLabel": "思考 {n}",
 
-  // Plan / Goal sticky status bar (L04)
+  // Sticky plan/goal bar
   "planBar.aria": "計劃與目標狀態",
   "planBar.goal": "目標模式",
   "planBar.planMode": "計劃模式",

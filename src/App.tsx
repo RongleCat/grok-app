@@ -3713,6 +3713,64 @@ export default function App() {
     }, ms);
   }, []);
 
+  const approvePlan = useCallback(async () => {
+    try {
+      await api.sessionResolvePlan({
+        decision: "approved",
+        rpcId: plan.rpcId,
+      });
+      setPlan((p) => ({
+        ...p,
+        visible: false,
+        waiting: false,
+        rpcId: null,
+      }));
+      showToast(tr("plan.approvedToast"), 2500);
+    } catch (e) {
+      showToast(String(e), 4500);
+    }
+  }, [plan.rpcId, showToast, tr]);
+
+  const requestPlanChanges = useCallback(async () => {
+    try {
+      await api.sessionResolvePlan({
+        decision: "cancelled",
+        feedback: tr("plan.reviseFeedback"),
+        rpcId: plan.rpcId,
+      });
+      setPlan((p) => ({
+        ...p,
+        visible: false,
+        waiting: false,
+        rpcId: null,
+      }));
+      showToast(tr("plan.reviseToast"), 2800);
+    } catch (e) {
+      showToast(String(e), 4500);
+    }
+  }, [plan.rpcId, showToast, tr]);
+
+  const dismissPlan = useCallback(async () => {
+    if (plan.rpcId != null) {
+      try {
+        await api.sessionResolvePlan({
+          decision: "abandoned",
+          rpcId: plan.rpcId,
+        });
+      } catch {
+        /* hide UI anyway */
+      }
+    }
+    setPlan((p) => ({
+      ...p,
+      visible: false,
+      waiting: true,
+      entries: [],
+      body: "",
+      rpcId: null,
+    }));
+  }, [plan.rpcId]);
+
   const sendQueueLabels = useMemo(
     () => ({
       queued: tr("composer.queued"),
@@ -6314,7 +6372,6 @@ export default function App() {
             </div>
           )}
 
-          {/* L04: Plan / Goal sticky status — visible while mode or live plan steps active */}
           {mainPane === "chat" && (
             <PlanStatusBar
               goalMode={goalMode}
@@ -6337,72 +6394,15 @@ export default function App() {
                 expand: tr("planBar.expand"),
                 aria: tr("planBar.aria"),
               }}
-              onApprove={() => {
-                void (async () => {
-                  try {
-                    await api.sessionResolvePlan({
-                      decision: "approved",
-                      rpcId: plan.rpcId,
-                    });
-                    setPlan((p) => ({
-                      ...p,
-                      visible: false,
-                      waiting: false,
-                      rpcId: null,
-                    }));
-                    showToast(tr("plan.approvedToast"), 2500);
-                  } catch (e) {
-                    showToast(String(e), 4500);
-                  }
-                })();
-              }}
-              onRequestChanges={() => {
-                void (async () => {
-                  try {
-                    await api.sessionResolvePlan({
-                      decision: "cancelled",
-                      feedback: tr("plan.reviseFeedback"),
-                      rpcId: plan.rpcId,
-                    });
-                    setPlan((p) => ({
-                      ...p,
-                      visible: false,
-                      waiting: false,
-                      rpcId: null,
-                    }));
-                    showToast(tr("plan.reviseToast"), 2800);
-                  } catch (e) {
-                    showToast(String(e), 4500);
-                  }
-                })();
-              }}
-              onDismiss={() => {
-                void (async () => {
-                  if (plan.rpcId != null) {
-                    try {
-                      await api.sessionResolvePlan({
-                        decision: "abandoned",
-                        rpcId: plan.rpcId,
-                      });
-                    } catch {
-                      /* still hide UI */
-                    }
-                  }
-                  setPlan((p) => ({
-                    ...p,
-                    visible: false,
-                    waiting: true,
-                    entries: [],
-                    body: "",
-                    rpcId: null,
-                  }));
-                })();
-              }}
+              onApprove={() => void approvePlan()}
+              onRequestChanges={() => void requestPlanChanges()}
+              onDismiss={() => void dismissPlan()}
               onOpenDetails={() => {
-                const el = document.querySelector<HTMLElement>(
-                  ".lobe-chat-plan, .plan-card, [data-plan-card]",
-                );
-                el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                document
+                  .querySelector<HTMLElement>(
+                    ".lobe-chat-plan, .plan-card, [data-plan-card]",
+                  )
+                  ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
               }}
             />
           )}
@@ -6498,67 +6498,9 @@ export default function App() {
               setResourceOpenTarget(target);
             }}
             plan={plan}
-            onApprovePlan={() => {
-              void (async () => {
-                try {
-                  await api.sessionResolvePlan({
-                    decision: "approved",
-                    rpcId: plan.rpcId,
-                  });
-                  setPlan((p) => ({
-                    ...p,
-                    visible: false,
-                    waiting: false,
-                    rpcId: null,
-                  }));
-                  showToast(tr("plan.approvedToast"), 2500);
-                } catch (e) {
-                  showToast(String(e), 4500);
-                }
-              })();
-            }}
-            onRequestPlanChanges={() => {
-              void (async () => {
-                try {
-                  await api.sessionResolvePlan({
-                    decision: "cancelled",
-                    feedback: tr("plan.reviseFeedback"),
-                    rpcId: plan.rpcId,
-                  });
-                  setPlan((p) => ({
-                    ...p,
-                    visible: false,
-                    waiting: false,
-                    rpcId: null,
-                  }));
-                  showToast(tr("plan.reviseToast"), 2800);
-                } catch (e) {
-                  showToast(String(e), 4500);
-                }
-              })();
-            }}
-            onDismissPlan={() => {
-              void (async () => {
-                if (plan.rpcId != null) {
-                  try {
-                    await api.sessionResolvePlan({
-                      decision: "abandoned",
-                      rpcId: plan.rpcId,
-                    });
-                  } catch {
-                    /* still hide UI */
-                  }
-                }
-                setPlan((p) => ({
-                  ...p,
-                  visible: false,
-                  waiting: true,
-                  entries: [],
-                  body: "",
-                  rpcId: null,
-                }));
-              })();
-            }}
+            onApprovePlan={() => void approvePlan()}
+            onRequestPlanChanges={() => void requestPlanChanges()}
+            onDismissPlan={() => void dismissPlan()}
             onAddAttachmentToComposer={(att) =>
               setAttachments((prev) => mergeAttachments(prev, [att]))
             }

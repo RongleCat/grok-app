@@ -1,9 +1,4 @@
-/**
- * Pure helpers for Plan / Goal status bar (L04).
- *
- * Plan entries come from ACP `sessionUpdate: plan` (content + status).
- * Load state / mode chips are separate from the in-thread plan card.
- */
+/** Plan entry parse + progress for the sticky plan/goal bar. */
 
 export type PlanEntryStatus =
   | "pending"

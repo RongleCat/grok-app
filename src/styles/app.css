@@ -4377,7 +4377,7 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   }
 }
 
-/* Plan / Goal sticky status bar (L04) — stays visible while chat scrolls */
+/* Sticky plan/goal bar above the chat stage */
 .plan-bar {
   display: flex;
   flex-wrap: wrap;
