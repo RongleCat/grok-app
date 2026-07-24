@@ -227,6 +227,23 @@ const en = {
   "composer.attachSaved": "Attached {name}",
   "composer.voiceSoon": "Voice (soon)",
   "composer.send": "Send",
+  "composer.queue": "Queue — send after this turn (this chat)",
+  "composer.queued":
+    "Queued for this chat — sends when the turn ends while you stay here",
+  "composer.queueSendFailed":
+    "Not sent — still in this chat’s queue. Stay on the chat or return later to resume.",
+  "composer.queueBlockedPermission":
+    "Resolve the permission prompt first",
+  "composer.queueDroppedOldest":
+    "Queue full ({max}) — dropped {n} oldest",
+  "composer.queueCount": "{n} queued in this chat",
+  "composer.queueHold":
+    "Auto-send paused — retry or send again to resume",
+  "composer.queueHoldRetry": "Retry",
+  "composer.queueClear": "Clear all",
+  "composer.queueRemove": "Remove from queue",
+  "composer.queueEmptyPreview": "(attachment)",
+  "composer.queueFilesCount": "{n} files",
   "composer.stop": "Stop",
   "composer.noProject": "No project",
   "composer.pickProject": "Project folder",
@@ -1152,6 +1169,19 @@ const zh: Record<MessageKey, string> = {
   "composer.attachSaved": "已附加 {name}",
   "composer.voiceSoon": "语音（即将推出）",
   "composer.send": "发送",
+  "composer.queue": "入队 — 本轮结束后发送（当前会话）",
+  "composer.queued": "已入当前会话队列 — 留在本会话且本轮结束后自动发送",
+  "composer.queueSendFailed":
+    "未真正发出，仍在本会话队列。请留在本会话或稍后再回来续发。",
+  "composer.queueBlockedPermission": "请先处理权限请求",
+  "composer.queueDroppedOldest": "队列已满（{max}）— 已丢弃最旧 {n} 条",
+  "composer.queueCount": "本会话队列 {n} 条",
+  "composer.queueHold": "自动发送已暂停 — 点重试或再发送以继续",
+  "composer.queueHoldRetry": "重试",
+  "composer.queueClear": "清空",
+  "composer.queueRemove": "从队列移除",
+  "composer.queueEmptyPreview": "（附件）",
+  "composer.queueFilesCount": "{n} 个文件",
   "composer.stop": "停止",
   "composer.noProject": "未选项目",
   "composer.pickProject": "项目目录",

@@ -65,6 +65,7 @@ import {
   IconShieldCheck as TbShieldCheck,
   IconSparkles as TbSparkles,
   IconSquare as TbSquare,
+  IconStack2 as TbStack2,
   IconSun as TbSun,
   IconTarget as TbTarget,
   IconThumbDown as TbThumbDown,
@@ -212,6 +213,7 @@ export const IconPaperclip = wrap(TbPaperclip);
 export const IconAttach = wrap(TbPaperclip);
 export const IconClose = wrap(TbX);
 export const IconSend = wrap(TbSend);
+export const IconQueue = wrap(TbStack2);
 export const IconMic = wrap(TbMicrophone);
 export const IconPanel = wrap(TbLayoutSidebar);
 /** Right files / context pane (Codex-style top bar). */

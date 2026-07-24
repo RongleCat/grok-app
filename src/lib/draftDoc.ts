@@ -132,6 +132,16 @@ export function serializeStored(segments: DraftSegment[]): string {
 }
 
 /**
+ * Replace `[[skill:name]]` with `/name` in place for one-line previews
+ * (queue strip, titles). Keeps surrounding text order — unlike
+ * {@link serializeForAgent}, which groups skills first.
+ */
+export function previewStoredAsSlash(stored: string): string {
+  if (!stored) return stored;
+  return stored.replace(new RegExp(SKILL_TOKEN_RE.source, "g"), "/$1");
+}
+
+/**
  * Text of text segments only (skills omitted).
  * Do not use alone for "has content" when skills may be present — use `isDraftEmpty`.
  */

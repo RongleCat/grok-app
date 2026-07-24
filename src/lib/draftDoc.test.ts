@@ -11,6 +11,7 @@ import {
   parseStoredContent,
   parseUserMessageContent,
   plainTextOf,
+  previewStoredAsSlash,
   segmentsToPlainEditorText,
   serializeForAgent,
   serializeStored,
@@ -132,6 +133,15 @@ describe("detectSlashQuery", () => {
 describe("detectSlashQueryFromEditor", () => {
   it("returns null for null element", () => {
     expect(detectSlashQueryFromEditor(null)).toBeNull();
+  });
+});
+
+describe("previewStoredAsSlash", () => {
+  it("replaces skill tokens in place (order preserved)", () => {
+    expect(previewStoredAsSlash("hello [[skill:foo]] world")).toBe(
+      "hello /foo world",
+    );
+    expect(previewStoredAsSlash("[[skill:a]][[skill:b]] x")).toBe("/a/b x");
   });
 });
 

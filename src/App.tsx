@@ -120,6 +120,14 @@ import {
   serializeForAgent,
 } from "@/lib/draftDoc";
 import {
+  queuePreviewText,
+  shouldEnqueueSend,
+} from "@/lib/sendQueue";
+import {
+  useSendQueue,
+  type ExecuteSendFromQueue,
+} from "@/hooks/useSendQueue";
+import {
   buildSlashCatalog,
   flattenFilteredCatalog,
   type SlashItem,
@@ -153,6 +161,7 @@ import {
   IconSearch,
   IconAttach,
   IconSend,
+  IconQueue,
   IconStop,
   IconFolder,
   IconFolderPlus,
@@ -302,6 +311,11 @@ export default function App() {
   /** Composer stored form (may include [[skill:name]] tokens). */
   const [draft, setDraft] = useState("");
   const [goalMode, setGoalMode] = useState(false);
+  /** Prevent overlapping executeSend / queue auto-flush races. */
+  const sendInFlightRef = useRef(false);
+  const executeSendFromQueueRef = useRef<ExecuteSendFromQueue>(
+    async () => false,
+  );
   const [skillInfos, setSkillInfos] = useState<SkillInfo[]>([]);
   const [skillsLoading, setSkillsLoading] = useState(false);
   const [slashQuery, setSlashQuery] = useState<{
@@ -1951,6 +1965,7 @@ export default function App() {
     setContextUsage(INITIAL_CONTEXT_USAGE);
     setDraft(opts?.seedDraft ?? "");
     setAttachments([]);
+    sendQueue.clearDraftQueue();
     setPlan({
       title: "Plan ready for review",
       body: "",
@@ -2503,10 +2518,12 @@ export default function App() {
           const viewingRow = wasViewing
             ? rows.find((s) => s.id === openId)
             : null;
+          const deletedIds = new Set(rows.map((s) => s.id));
           for (const s of rows) {
             await api.sessionDelete(s.id);
             messagesBySessionRef.current.delete(s.id);
           }
+          sendQueue.dropSessions(deletedIds);
           await refreshSessions();
           if (wasViewing && viewingRow) {
             const proj = viewingRow.projectId
@@ -2607,24 +2624,58 @@ export default function App() {
    * session that may be wedged (e.g. after a timeout).
    * Returns the live session id when ready, else null.
    *
+   * Prefer `opts.sessionId` (e.g. queue flush target) over the render-time
+   * `session` closure so connect never binds the wrong chat after a switch.
+   *
    * Does not yank the UI if the user already switched to another session while
    * connect is in flight; still updates liveHost so the sidebar spinner tracks work.
    */
-  const ensureConnected = async (force = false): Promise<string | null> => {
+  const ensureConnected = async (
+    forceOrOpts:
+      | boolean
+      | { force?: boolean; sessionId?: string | null } = false,
+  ): Promise<string | null> => {
+    const opts =
+      typeof forceOrOpts === "boolean"
+        ? { force: forceOrOpts, sessionId: undefined as string | null | undefined }
+        : forceOrOpts;
+    const force = !!opts.force;
+    // Explicit target wins; else the session this render is bound to.
+    const preferredId =
+      opts.sessionId !== undefined ? opts.sessionId : session.sessionId;
+
     // Project-less (orphan) sessions are allowed: cwd falls back on Host.
     if (activeProject && !activeProject.trusted) {
       setLocalError(tr("project.trustFirst", { name: activeProject.name }));
       return null;
     }
-    if (!force && session.state === "ready" && !session.lastError && session.sessionId) {
-      return session.sessionId;
+    // Fast path: already ready on the *preferred* session (not merely "any" ready).
+    if (
+      !force &&
+      preferredId &&
+      session.sessionId === preferredId &&
+      session.state === "ready" &&
+      !session.lastError
+    ) {
+      return preferredId;
+    }
+    // Live host may already be on the target even if viewed session differs.
+    if (!force && preferredId) {
+      const live = liveHostRef.current;
+      if (
+        live.sessionId === preferredId &&
+        live.state === "ready" &&
+        !live.lastError
+      ) {
+        return preferredId;
+      }
     }
     if (connecting) return null;
     setConnecting(true);
     // Capture draft identity before awaits (may still be null).
     const viewedBefore = viewingSessionIdRef.current;
     try {
-      let sessionId = session.sessionId;
+      let sessionId = preferredId ?? null;
       // First send: materialize draft into a real session (project or orphan).
       if (!sessionId && api.isTauri()) {
         const meta = (await api.sessionCreate(
@@ -2691,6 +2742,7 @@ export default function App() {
     } catch (e) {
       if (
         viewingSessionIdRef.current === viewedBefore ||
+        viewingSessionIdRef.current === preferredId ||
         viewingSessionIdRef.current === session.sessionId
       ) {
         setLocalError(String(e));
@@ -2735,64 +2787,73 @@ export default function App() {
     !editSubmitting &&
     !rewindBusy;
 
-  const send = async () => {
-    const segments = parseStoredContent(draft);
-    const storedDisplay = draft; // keep skill tokens in UI history
-    const att = attachments;
-    if (
-      (isDraftEmpty(segments) && !att.length) ||
-      !canSend(session.state) ||
-      connecting
-    ) {
-      return;
+  /**
+   * Dispatch one user turn (optimistic UI + connect + session_send).
+   * @param targetSessionId When set (queue flush), bind optimistic UI to this id.
+   * @param fromQueue Drop user+assistant on failure so requeue does not duplicate.
+   */
+  const executeSend = async (opts: {
+    storedDisplay: string;
+    att: Attachment[];
+    goalMode: boolean;
+    fromQueue?: boolean;
+    targetSessionId?: string | null;
+  }): Promise<boolean> => {
+    if (sendInFlightRef.current) return false;
+    sendInFlightRef.current = true;
+    const { storedDisplay, att, goalMode: useGoal, fromQueue } = opts;
+    const segments = parseStoredContent(storedDisplay);
+    if (isDraftEmpty(segments) && !att.length) {
+      sendInFlightRef.current = false;
+      return false;
     }
-    const agentBody = serializeForAgent(segments, { goalMode });
+    const sendTargetId =
+      opts.targetSessionId !== undefined
+        ? opts.targetSessionId
+        : session.sessionId;
+    const cacheKey = sendTargetId ?? "__draft__";
+    const viewingTarget = () =>
+      viewingSessionIdRef.current === sendTargetId ||
+      (sendTargetId == null && viewingSessionIdRef.current == null);
+
+    const agentBody = serializeForAgent(segments, { goalMode: useGoal });
     let agentText = buildAgentPrompt(agentBody, att);
     const scheduleIntent = looksLikeScheduleIntent(agentText);
     const inAutomationSetup =
       automationSetupDraftRef.current ||
       scheduleIntent ||
-      (!!session.sessionId &&
-        automationSetupSessionsRef.current.has(session.sessionId));
+      (!!sendTargetId &&
+        automationSetupSessionsRef.current.has(sendTargetId));
     if (inAutomationSetup) {
       agentText = wrapAutomationSetupAgentText(agentText);
     }
     const titleSeed =
       serializeForAgent(segments).replace(/\n/g, " ").trim() ||
       att.map((a) => a.name).join(", ");
-    const shouldAutoTitle = isPlaceholderTitle(session.title) || !session.sessionId;
-    const pendingAssistantId = `a-pending-${Date.now()}`;
-    const sendTargetId = session.sessionId;
-    const cacheKey = sendTargetId ?? "__draft__";
+    const shouldAutoTitle =
+      isPlaceholderTitle(session.title) || !sendTargetId;
+    const ts = Date.now();
+    const userMessageId = `u-${ts}`;
+    const pendingAssistantId = `a-pending-${ts}`;
+    const dropIds = fromQueue
+      ? new Set([userMessageId, pendingAssistantId])
+      : new Set([pendingAssistantId]);
+    const stripOptimistic = (m: ChatMessage[]) =>
+      m.filter((x) => !dropIds.has(x.id));
 
-    // New composer send is never edit-resend (edit is inline on the message).
     if (editingUserMessageId) {
       setEditingUserMessageId(null);
       setEditAttachments([]);
     }
 
-    setDraft("");
-    setSlashQuery(null);
-    setAttachments([]);
-    setRetryStatus(null);
-    // Reset editor height after clear
-    requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLElement>(".composer__input");
-      if (el) {
-        el.style.height = "auto";
-      }
-    });
-    // Optimistic: user bubble + chat thinking; connection stays silent (no top-bar chip)
-    // Write cache immediately so a fast session switch does not drop the user turn.
-    // Clear any stuck streaming flags on prior turns so the next stream cannot
-    // append onto an old assistant (duplicate-history reports).
+    if (viewingTarget()) setRetryStatus(null);
     const nowIso = new Date().toISOString();
-    setMessages((m) => {
+    const appendOptimistic = (m: ChatMessage[]): ChatMessage[] => {
       const cleaned = clearPriorTurnStreaming(m);
-      const next: ChatMessage[] = [
+      return [
         ...cleaned,
         {
-          id: `u-${Date.now()}`,
+          id: userMessageId,
           role: "user",
           content: storedDisplay,
           attachments: att.length ? att : undefined,
@@ -2805,16 +2866,27 @@ export default function App() {
           streaming: true,
         },
       ];
-      messagesBySessionRef.current.set(cacheKey, next);
-      return next;
-    });
-    setSession((prev) =>
-      prev.state === "streaming" || prev.state === "awaiting_permission"
-        ? prev
-        : { ...prev, state: "streaming", lastError: null },
-    );
-    setTurnStartedAt(Date.now());
-    // Reflect optimistic busy on live host for sidebar spinner (until real state arrives).
+    };
+    if (sendTargetId) {
+      patchSessionMessages(sendTargetId, appendOptimistic);
+    } else if (viewingTarget()) {
+      setMessages((m) => {
+        const next = appendOptimistic(m);
+        messagesBySessionRef.current.set(cacheKey, next);
+        return next;
+      });
+    } else {
+      const prev = messagesBySessionRef.current.get(cacheKey) ?? [];
+      messagesBySessionRef.current.set(cacheKey, appendOptimistic(prev));
+    }
+    if (viewingTarget()) {
+      setSession((prev) =>
+        prev.state === "streaming" || prev.state === "awaiting_permission"
+          ? prev
+          : { ...prev, state: "streaming", lastError: null },
+      );
+      setTurnStartedAt(Date.now());
+    }
     setLiveHost((prev) => {
       if (sendTargetId && prev.sessionId && prev.sessionId !== sendTargetId) {
         return prev;
@@ -2828,36 +2900,78 @@ export default function App() {
       liveHostRef.current = next;
       return next;
     });
-    try {
-      const sessionId = await ensureConnected();
-      if (!sessionId) {
-        // Keep user message; drop optimistic thinking bubble
-        patchSessionMessages(sendTargetId ?? viewingSessionIdRef.current, (m) =>
-          m.filter((x) => x.id !== pendingAssistantId),
-        );
-        // Also clear draft cache key if we never got an id
-        if (!sendTargetId) {
-          const draft = messagesBySessionRef.current.get("__draft__");
-          if (draft) {
-            messagesBySessionRef.current.set(
-              "__draft__",
-              draft.filter((x) => x.id !== pendingAssistantId),
-            );
-          }
-        }
-        if (
-          viewingSessionIdRef.current === sendTargetId ||
-          (!sendTargetId && viewingSessionIdRef.current === null)
-        ) {
-          setSession((prev) =>
-            prev.state === "streaming"
-              ? { ...prev, state: prev.sessionId ? "ready" : prev.state }
-              : prev,
+
+    const failStrip = () => {
+      if (sendTargetId) {
+        patchSessionMessages(sendTargetId, stripOptimistic);
+      } else {
+        const draftMsgs = messagesBySessionRef.current.get("__draft__");
+        if (draftMsgs) {
+          messagesBySessionRef.current.set(
+            "__draft__",
+            stripOptimistic(draftMsgs),
           );
         }
-        return;
+        if (viewingTarget()) setMessages((m) => stripOptimistic(m));
       }
-      // Move draft cache onto the real session id if this was first send.
+      if (viewingTarget()) {
+        setSession((prev) =>
+          prev.state === "streaming"
+            ? { ...prev, state: prev.sessionId ? "ready" : prev.state }
+            : prev,
+        );
+      }
+      // Symmetric rollback of optimistic liveHost streaming — otherwise
+      // useSendQueue.flush sees streaming forever and auto-flush starves.
+      setLiveHost((prev) => {
+        if (
+          sendTargetId &&
+          prev.sessionId &&
+          prev.sessionId !== sendTargetId
+        ) {
+          return prev;
+        }
+        if (prev.state !== "streaming") return prev;
+        const next = {
+          ...prev,
+          state: (prev.sessionId ? "ready" : "idle") as SessionSnapshot["state"],
+        };
+        liveHostRef.current = next;
+        return next;
+      });
+    };
+
+    try {
+      let sessionId: string | null = null;
+      const live = liveHostRef.current;
+      if (
+        sendTargetId &&
+        live.sessionId === sendTargetId &&
+        live.state === "ready" &&
+        !live.lastError
+      ) {
+        sessionId = sendTargetId;
+      } else if (
+        fromQueue &&
+        sendTargetId &&
+        viewingSessionIdRef.current !== sendTargetId
+      ) {
+        failStrip();
+        return false;
+      } else {
+        sessionId = await ensureConnected({ sessionId: sendTargetId });
+      }
+      if (!sessionId) {
+        failStrip();
+        return false;
+      }
+      if (fromQueue && sendTargetId && sessionId !== sendTargetId) {
+        failStrip();
+        return false;
+      }
+      // Bind draft message cache to the real id early (Host already materialized).
+      // Queue migrate waits until sessionSend succeeds so a failed flush can
+      // requeue under the original claim key (`__draft__`) without splitting.
       if (!sendTargetId) {
         const draftMsgs = messagesBySessionRef.current.get("__draft__");
         if (draftMsgs?.length) {
@@ -2865,15 +2979,25 @@ export default function App() {
           messagesBySessionRef.current.delete("__draft__");
         }
       }
-      if (
-        automationSetupDraftRef.current ||
-        inAutomationSetup
-      ) {
+      if (automationSetupDraftRef.current || inAutomationSetup) {
         automationSetupSessionsRef.current.add(sessionId);
         automationSetupDraftRef.current = false;
       }
-      // Journal stores display form (skill chips); agent receives serialized prompt.
+      if (
+        fromQueue &&
+        sendTargetId &&
+        liveHostRef.current.sessionId &&
+        liveHostRef.current.sessionId !== sendTargetId
+      ) {
+        failStrip();
+        return false;
+      }
       await api.sessionSend(agentText, storedDisplay);
+      // Only after a successful send: move remaining draft follow-ups onto the
+      // real session. If this threw, claim requeues under `__draft__` intact.
+      if (!sendTargetId) {
+        sendQueue.migrateDraft(sessionId);
+      }
       if (shouldAutoTitle && api.isTauri()) {
         void api
           .sessionAutoTitle(sessionId, titleSeed)
@@ -2881,29 +3005,73 @@ export default function App() {
             if (meta?.title) applySessionTitle(sessionId, meta.title);
           })
           .catch(() => {
-            /* heuristic may still land; ignore refine errors */
+            /* ignore */
           });
       }
+      return true;
     } catch (e) {
-      const errTarget = sendTargetId ?? viewingSessionIdRef.current;
-      patchSessionMessages(errTarget, (m) =>
-        m.filter((x) => x.id !== pendingAssistantId),
-      );
-      if (
-        viewingSessionIdRef.current === sendTargetId ||
-        viewingSessionIdRef.current === errTarget
-      ) {
-        setSession((prev) =>
-          prev.state === "streaming"
-            ? { ...prev, state: prev.sessionId ? "ready" : prev.state }
-            : prev,
-        );
-        setLocalError(String(e));
-      }
+      failStrip();
+      if (viewingTarget()) setLocalError(String(e));
+      return false;
+    } finally {
+      sendInFlightRef.current = false;
     }
   };
 
+  const clearComposerAfterSubmit = () => {
+    setDraft("");
+    setSlashQuery(null);
+    setAttachments([]);
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(".composer__input");
+      if (el) el.style.height = "auto";
+    });
+  };
+
+  /** Enqueue when agent is busy; otherwise send immediately. */
+  const send = async () => {
+    const segments = parseStoredContent(draft);
+    const storedDisplay = draft;
+    const att = attachments;
+    if (isDraftEmpty(segments) && !att.length) return;
+    if (session.state === "awaiting_permission") {
+      showToast(tr("composer.queueBlockedPermission"), 2800);
+      return;
+    }
+    sendQueue.releaseFlushHold();
+
+    if (shouldEnqueueSend(session.state, connecting)) {
+      sendQueue.enqueue({
+        storedDisplay,
+        attachments: att,
+        goalMode,
+      });
+      clearComposerAfterSubmit();
+      return;
+    }
+
+    clearComposerAfterSubmit();
+    await executeSend({
+      storedDisplay,
+      att,
+      goalMode,
+      targetSessionId: session.sessionId,
+    });
+  };
+
+  executeSendFromQueueRef.current = (opts) => executeSend(opts);
+
+  const queuePreviewLabels = useMemo(
+    () => ({
+      filesCount: (n: number) =>
+        tr("composer.queueFilesCount", { n: String(n) }),
+      empty: tr("composer.queueEmptyPreview"),
+    }),
+    [tr],
+  );
+
   const addAttachmentsFromPaths = useCallback(
+
     async (paths: string[]) => {
       if (!paths.length) {
         setLocalError(tr("attach.droppedNone"));
@@ -3494,6 +3662,30 @@ export default function App() {
       setToast((cur) => (cur === msg ? null : cur));
     }, ms);
   }, []);
+
+  const sendQueueLabels = useMemo(
+    () => ({
+      queued: tr("composer.queued"),
+      sendFailed: tr("composer.queueSendFailed"),
+      droppedOldest: (n: number, max: number) =>
+        tr("composer.queueDroppedOldest", {
+          n: String(n),
+          max: String(max),
+        }),
+    }),
+    [tr],
+  );
+  const sendQueue = useSendQueue({
+    sessionId: session.sessionId,
+    sessionState: session.state,
+    connecting,
+    liveHostRef,
+    viewingSessionIdRef,
+    sendInFlightRef,
+    executeSendRef: executeSendFromQueueRef,
+    showToast,
+    labels: sendQueueLabels,
+  });
 
   /**
    * Fork a session (full history or through a user-prompt index) and open it.
@@ -6281,6 +6473,77 @@ export default function App() {
                 (dragZone === "main" ? " composer--drop-ready" : "")
               }
             >
+              {sendQueue.activeQueue.length > 0 && (
+                <div
+                  className="composer__queue"
+                  aria-label={tr("composer.queueCount", {
+                    n: String(sendQueue.activeQueue.length),
+                  })}
+                >
+                  <div className="composer__queue-head">
+                    <IconClock size={14} aria-hidden />
+                    <span className="composer__queue-title">
+                      {tr("composer.queueCount", {
+                        n: String(sendQueue.activeQueue.length),
+                      })}
+                    </span>
+                    <button
+                      type="button"
+                      className="composer__queue-clear"
+                      onClick={sendQueue.clearQueue}
+                    >
+                      {tr("composer.queueClear")}
+                    </button>
+                  </div>
+                  {sendQueue.flushHold ? (
+                    <div className="composer__queue-hold" role="status">
+                      <span className="composer__queue-hold-text">
+                        {tr("composer.queueHold")}
+                      </span>
+                      <button
+                        type="button"
+                        className="composer__queue-hold-retry"
+                        onClick={() => sendQueue.resumeFlush()}
+                      >
+                        {tr("composer.queueHoldRetry")}
+                      </button>
+                    </div>
+                  ) : null}
+                  <ul className="composer__queue-list">
+                    {sendQueue.activeQueue.map((item, idx) => (
+                      <li key={item.id} className="composer__queue-item">
+                        <span className="composer__queue-idx" aria-hidden>
+                          {idx + 1}
+                        </span>
+                        <span
+                          className="composer__queue-text"
+                          title={queuePreviewText(
+                            item.storedDisplay,
+                            item.attachments,
+                            200,
+                            queuePreviewLabels,
+                          )}
+                        >
+                          {queuePreviewText(
+                            item.storedDisplay,
+                            item.attachments,
+                            72,
+                            queuePreviewLabels,
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          className="composer__queue-remove"
+                          aria-label={tr("composer.queueRemove")}
+                          onClick={() => sendQueue.removeItem(item.id)}
+                        >
+                          <IconClose size={12} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {attachments.length > 0 && (
                 <div
                   className="composer__attachments"
@@ -6410,11 +6673,12 @@ export default function App() {
                   }
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
+                    const hasBody =
+                      !isDraftEmpty(parseStoredContent(draft)) ||
+                      attachments.length > 0;
                     if (
-                      canSend(session.state) &&
-                      (!isDraftEmpty(parseStoredContent(draft)) ||
-                        attachments.length > 0) &&
-                      !connecting
+                      hasBody &&
+                      session.state !== "awaiting_permission"
                     ) {
                       void send();
                     }
@@ -6581,26 +6845,46 @@ export default function App() {
                 />
                 <span className="composer__spacer" />
                 {canStop(session.state) ? (
-                  <Tip label={tr("composer.stop")}>
-                    <button
-                      type="button"
-                      className="icon-btn icon-btn--danger"
-                      onClick={() => void stop()}
-                      aria-label={tr("composer.stop")}
-                    >
-                      <IconStop size={14} />
-                    </button>
-                  </Tip>
+                  <>
+                    {sendQueue.canShowQueueButton(
+                      session.state,
+                      connecting,
+                      !isDraftEmpty(parseStoredContent(draft)) ||
+                        attachments.length > 0,
+                    ) && (
+                      <Tip label={tr("composer.queue")}>
+                        <button
+                          type="button"
+                          className="icon-btn icon-btn--primary"
+                          onClick={() => void send()}
+                          aria-label={tr("composer.queue")}
+                        >
+                          <IconQueue size={16} />
+                        </button>
+                      </Tip>
+                    )}
+                    <Tip label={tr("composer.stop")}>
+                      <button
+                        type="button"
+                        className="icon-btn icon-btn--danger"
+                        onClick={() => void stop()}
+                        aria-label={tr("composer.stop")}
+                      >
+                        <IconStop size={14} />
+                      </button>
+                    </Tip>
+                  </>
                 ) : (
                   <Tip label={tr("composer.send")}>
                     <button
                       type="button"
                       className="icon-btn icon-btn--primary"
                       disabled={
-                        !canSend(session.state) ||
+                        (!canSend(session.state) &&
+                          !shouldEnqueueSend(session.state, connecting)) ||
                         (isDraftEmpty(parseStoredContent(draft)) &&
                           attachments.length === 0) ||
-                        connecting
+                        session.state === "awaiting_permission"
                       }
                       onClick={() => void send()}
                       aria-label={tr("composer.send")}
