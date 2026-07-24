@@ -289,6 +289,11 @@ interface PlanState {
   /** Pending exit_plan_mode JSON-RPC id */
   rpcId?: number | null;
   toolCallId?: string | null;
+  /**
+   * Soft-hide the top PlanStatusBar without clearing progress.
+   * Cleared when new plan events arrive or review gate opens.
+   */
+  barDismissed?: boolean;
 }
 
 export default function App() {
@@ -565,6 +570,7 @@ export default function App() {
     visible: false,
     rpcId: null,
     toolCallId: null,
+    barDismissed: false,
   });
   const [locale, setLocale] = useState<Locale>("zh");
   const localeRef = useRef(locale);
@@ -1512,6 +1518,8 @@ export default function App() {
                     : prev.visible
                       ? (prev.toolCallId ?? null)
                       : null,
+                // New plan activity always resurfaces the top progress bar.
+                barDismissed: false,
               };
             });
           }),
@@ -3767,6 +3775,7 @@ export default function App() {
   }, [plan.rpcId, showToast, tr]);
 
   const dismissPlan = useCallback(async () => {
+    // Review gate: abandon RPC and clear plan UI entirely.
     if (plan.rpcId != null) {
       try {
         await api.sessionResolvePlan({
@@ -3776,14 +3785,21 @@ export default function App() {
       } catch {
         /* hide UI anyway */
       }
+      setPlan((p) => ({
+        ...p,
+        visible: false,
+        waiting: true,
+        entries: [],
+        body: "",
+        rpcId: null,
+        barDismissed: false,
+      }));
+      return;
     }
+    // Execution progress only: soft-hide top bar; keep entries for later updates.
     setPlan((p) => ({
       ...p,
-      visible: false,
-      waiting: true,
-      entries: [],
-      body: "",
-      rpcId: null,
+      barDismissed: true,
     }));
   }, [plan.rpcId]);
 
@@ -6399,7 +6415,7 @@ export default function App() {
             </div>
           )}
 
-          {mainPane === "chat" && (
+          {mainPane === "chat" && !plan.barDismissed && (
             <PlanStatusBar
               goalMode={goalMode}
               mode={mode}
@@ -6518,11 +6534,6 @@ export default function App() {
               });
               setResourceOpenTarget(target);
             }}
-            plan={plan}
-            onApprovePlan={() => void approvePlan()}
-            onRequestPlanChanges={() => void requestPlanChanges()}
-            onDismissPlan={() => void dismissPlan()}
-            onOpenPlanDetails={() => openPlanInResource()}
             onAddAttachmentToComposer={(att) =>
               setAttachments((prev) => mergeAttachments(prev, [att]))
             }

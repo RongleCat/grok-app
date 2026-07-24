@@ -26,7 +26,6 @@ import {
   IconClock,
   IconExportMd,
   IconFork,
-  IconPlan,
   IconRename,
   IconRewind,
 } from "@/components/icons";
@@ -37,7 +36,6 @@ import {
   MessageActionButton,
   MessageCopyButton,
 } from "./MessageAction";
-import { Button } from "@/components/ui/button";
 import { ChatItem } from "./ChatItem";
 import { MarkdownChat } from "./MarkdownChat";
 import { Thinking } from "./Thinking";
@@ -230,19 +228,6 @@ export interface ConversationThreadProps {
   onOpenResource?: (
     target: import("@/components/ResourceViewer").ResourceOpenTarget,
   ) => void;
-  plan?: {
-    visible: boolean;
-    waiting: boolean;
-    title: string;
-    body: string;
-    entries: unknown[];
-    rpcId?: number | null;
-  };
-  onApprovePlan?: () => void;
-  onRequestPlanChanges?: () => void;
-  onDismissPlan?: () => void;
-  /** Open full plan in the resource pane (preferred review surface). */
-  onOpenPlanDetails?: () => void;
   onAddAttachmentToComposer?: (att: Attachment) => void;
   attachLabels: {
     open: string;
@@ -279,11 +264,6 @@ export function ConversationThread({
   onRewindToUserMessage,
   onForkFromUserMessage,
   onOpenResource,
-  plan,
-  onApprovePlan,
-  onRequestPlanChanges,
-  onDismissPlan,
-  onOpenPlanDetails,
   onAddAttachmentToComposer,
   attachLabels,
 }: ConversationThreadProps) {
@@ -352,8 +332,7 @@ export function ConversationThread({
     messages.length === 0 &&
     !showQuietThinking &&
     !liveTool &&
-    !turnBusy &&
-    !plan?.visible;
+    !turnBusy;
 
   return (
     <div className="lobe-chat" data-slot="lobe-chat">
@@ -746,52 +725,7 @@ export function ConversationThread({
             </div>
           ) : null}
 
-          {plan?.visible ? (
-            <div className="lobe-chat-plan lobe-chat-plan--chip" data-plan-card>
-              <div className="lobe-chat-plan__head">
-                <IconPlan size={14} />
-                <span className="lobe-chat-plan__status">
-                  {plan.rpcId != null
-                    ? tr("plan.ready")
-                    : Array.isArray(plan.entries) && plan.entries.length > 0
-                      ? tr("planBar.progress")
-                      : plan.waiting
-                        ? tr("plan.waiting")
-                        : tr("plan.ready")}
-                </span>
-                <strong className="lobe-chat-plan__title">{plan.title}</strong>
-              </div>
-              {/* Execution list stays out of the transcript — open resources for steps. */}
-              <div className="lobe-chat-plan__actions">
-                {onOpenPlanDetails ? (
-                  <Button type="button" onClick={onOpenPlanDetails}>
-                    {tr("plan.openInResources")}
-                  </Button>
-                ) : null}
-                {plan.rpcId != null ? (
-                  <>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={onApprovePlan}
-                    >
-                      {tr("plan.approve")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={onRequestPlanChanges}
-                    >
-                      {tr("plan.changes")}
-                    </Button>
-                  </>
-                ) : null}
-                <Button type="button" variant="ghost" onClick={onDismissPlan}>
-                  {tr("plan.dismiss")}
-                </Button>
-              </div>
-            </div>
-          ) : null}
+          {/* Plan UI lives only in PlanStatusBar (top) + ResourceViewer Plan mode. */}
         </div>
       </div>
 

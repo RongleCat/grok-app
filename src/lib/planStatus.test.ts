@@ -140,11 +140,11 @@ describe("resolvePlanBarModel", () => {
     expect(m.showActions).toBe(false);
   });
 
-  it("shows progress while entries update (card may be dismissed)", () => {
+  it("shows progress while entries update (requires planVisible)", () => {
     const m = resolvePlanBarModel({
       goalMode: false,
       mode: "agent",
-      planVisible: false,
+      planVisible: true,
       planWaiting: true,
       planRpcId: null,
       entries: [
@@ -158,11 +158,26 @@ describe("resolvePlanBarModel", () => {
     expect(formatPlanFraction(m.progress)).toBe("1/2");
   });
 
-  it("marks done when all completed", () => {
+  it("hides progress entries when plan not visible (soft-dismiss)", () => {
     const m = resolvePlanBarModel({
       goalMode: false,
       mode: "agent",
       planVisible: false,
+      planWaiting: true,
+      planRpcId: null,
+      entries: [
+        { content: "a", status: "completed" },
+        { content: "b", status: "in_progress" },
+      ],
+    });
+    expect(m.kind).toBe("hidden");
+  });
+
+  it("marks done when all completed", () => {
+    const m = resolvePlanBarModel({
+      goalMode: false,
+      mode: "agent",
+      planVisible: true,
       planWaiting: true,
       entries: [
         { content: "a", status: "completed" },

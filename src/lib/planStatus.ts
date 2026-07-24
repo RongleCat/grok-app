@@ -169,7 +169,9 @@ export function resolvePlanBarModel(input: {
   }
 
   // Live step list (while planning, after approve, or mid-execution).
-  if (hasEntries) {
+  // Require planVisible so soft-dismiss of the top bar can hide progress without
+  // wiping entries (progress still updates when a new plan event re-shows the bar).
+  if (hasEntries && input.planVisible) {
     const allDone =
       progress.completed + progress.cancelled >= progress.total &&
       progress.inProgress === 0 &&
