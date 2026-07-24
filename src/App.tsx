@@ -68,6 +68,7 @@ import {
   type ContextUsageState,
 } from "@/lib/contextUsage";
 import { ContextUsageChip } from "@/components/ContextUsageChip";
+import { PlanStatusBar } from "@/components/PlanStatusBar";
 import * as api from "@/lib/api";
 import { createT, resolveLocale, type Locale } from "@/i18n";
 import {
@@ -6311,6 +6312,99 @@ export default function App() {
                 </button>
               </div>
             </div>
+          )}
+
+          {/* L04: Plan / Goal sticky status — visible while mode or live plan steps active */}
+          {mainPane === "chat" && (
+            <PlanStatusBar
+              goalMode={goalMode}
+              mode={mode}
+              planVisible={plan.visible}
+              planWaiting={plan.waiting}
+              planRpcId={plan.rpcId}
+              entries={plan.entries}
+              labels={{
+                goal: tr("planBar.goal"),
+                planMode: tr("planBar.planMode"),
+                progress: tr("planBar.progress"),
+                review: tr("planBar.review"),
+                done: tr("planBar.done"),
+                fraction: tr("planBar.fraction"),
+                current: tr("planBar.current"),
+                approve: tr("plan.approve"),
+                changes: tr("plan.changes"),
+                dismiss: tr("plan.dismiss"),
+                expand: tr("planBar.expand"),
+                aria: tr("planBar.aria"),
+              }}
+              onApprove={() => {
+                void (async () => {
+                  try {
+                    await api.sessionResolvePlan({
+                      decision: "approved",
+                      rpcId: plan.rpcId,
+                    });
+                    setPlan((p) => ({
+                      ...p,
+                      visible: false,
+                      waiting: false,
+                      rpcId: null,
+                    }));
+                    showToast(tr("plan.approvedToast"), 2500);
+                  } catch (e) {
+                    showToast(String(e), 4500);
+                  }
+                })();
+              }}
+              onRequestChanges={() => {
+                void (async () => {
+                  try {
+                    await api.sessionResolvePlan({
+                      decision: "cancelled",
+                      feedback: tr("plan.reviseFeedback"),
+                      rpcId: plan.rpcId,
+                    });
+                    setPlan((p) => ({
+                      ...p,
+                      visible: false,
+                      waiting: false,
+                      rpcId: null,
+                    }));
+                    showToast(tr("plan.reviseToast"), 2800);
+                  } catch (e) {
+                    showToast(String(e), 4500);
+                  }
+                })();
+              }}
+              onDismiss={() => {
+                void (async () => {
+                  if (plan.rpcId != null) {
+                    try {
+                      await api.sessionResolvePlan({
+                        decision: "abandoned",
+                        rpcId: plan.rpcId,
+                      });
+                    } catch {
+                      /* still hide UI */
+                    }
+                  }
+                  setPlan((p) => ({
+                    ...p,
+                    visible: false,
+                    waiting: true,
+                    entries: [],
+                    body: "",
+                    rpcId: null,
+                  }));
+                })();
+              }}
+              onOpenDetails={() => {
+                const el = document.querySelector<HTMLElement>(
+                  ".lobe-chat-plan, .plan-card, [data-plan-card]",
+                );
+                el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              }}
+            />
           )}
 
           {/* One surface only: turn failures live in chat; banner is for pre-turn/local errors */}

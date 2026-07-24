@@ -380,6 +380,17 @@ const en = {
   "plan.reviseFeedback": "Please revise the plan based on user feedback.",
   "plan.phaseLabel": "Thinking {n}",
 
+  // Plan / Goal sticky status bar (L04)
+  "planBar.aria": "Plan and goal status",
+  "planBar.goal": "Goal mode",
+  "planBar.planMode": "Plan mode",
+  "planBar.progress": "Plan in progress",
+  "planBar.review": "Plan ready for review",
+  "planBar.done": "Plan complete",
+  "planBar.fraction": "{n}",
+  "planBar.current": "Now",
+  "planBar.expand": "Details",
+
   // Settings / onboarding
   "settings.title": "Settings",
   "settings.backToApp": "Back to app",
@@ -1373,6 +1384,17 @@ const zh: Record<MessageKey, string> = {
   "plan.reviseToast": "已请 Agent 修改计划",
   "plan.reviseFeedback": "请根据反馈修改计划。",
   "plan.phaseLabel": "思考 {n}",
+
+  // Plan / Goal sticky status bar (L04)
+  "planBar.aria": "计划与目标状态",
+  "planBar.goal": "目标模式",
+  "planBar.planMode": "计划模式",
+  "planBar.progress": "计划进行中",
+  "planBar.review": "计划待审阅",
+  "planBar.done": "计划已完成",
+  "planBar.fraction": "{n}",
+  "planBar.current": "当前",
+  "planBar.expand": "详情",
 
   "settings.title": "设置",
   "settings.backToApp": "返回应用",
