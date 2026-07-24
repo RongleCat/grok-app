@@ -587,6 +587,8 @@ export default function App() {
   /** Chat file/url card → open in right resource pane. */
   const [resourceOpenTarget, setResourceOpenTarget] =
     useState<ResourceOpenTarget | null>(null);
+  /** Bump to force ResourceViewer into Plan review mode (详情 / auto-open). */
+  const [planFocusKey, setPlanFocusKey] = useState(0);
   /** Live drag-drop target for zone overlays (null = not dragging). */
   const [dragZone, setDragZone] = useState<"sidebar" | "main" | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -1479,6 +1481,20 @@ export default function App() {
                   : prev.visible
                     ? (prev.rpcId ?? null)
                     : null;
+              const becameReview =
+                rpcId != null && (prev.rpcId == null || !prev.visible);
+              if (becameReview) {
+                // Auto-open resource Plan workbench when gate is ready.
+                queueMicrotask(() => {
+                  setLayout((l) => {
+                    if (!l.asideCollapsed) return l;
+                    const n = { ...l, asideCollapsed: false };
+                    saveLayout(localStorage, n);
+                    return n;
+                  });
+                  setPlanFocusKey((k) => k + 1);
+                });
+              }
               return {
                 title: tr("plan.ready"),
                 body: displayBody || (prev.visible ? prev.body : ""),
@@ -3770,6 +3786,17 @@ export default function App() {
       rpcId: null,
     }));
   }, [plan.rpcId]);
+
+  /** Open resource pane Plan review (replaces scroll-to-card “详情”). */
+  const openPlanInResource = useCallback(() => {
+    setLayout((l) => {
+      if (!l.asideCollapsed) return l;
+      const n = { ...l, asideCollapsed: false };
+      saveLayout(localStorage, n);
+      return n;
+    });
+    setPlanFocusKey((k) => k + 1);
+  }, []);
 
   const sendQueueLabels = useMemo(
     () => ({
@@ -6397,13 +6424,7 @@ export default function App() {
               onApprove={() => void approvePlan()}
               onRequestChanges={() => void requestPlanChanges()}
               onDismiss={() => void dismissPlan()}
-              onOpenDetails={() => {
-                document
-                  .querySelector<HTMLElement>(
-                    ".lobe-chat-plan, .plan-card, [data-plan-card]",
-                  )
-                  ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-              }}
+              onOpenDetails={() => openPlanInResource()}
             />
           )}
 
@@ -6501,6 +6522,7 @@ export default function App() {
             onApprovePlan={() => void approvePlan()}
             onRequestPlanChanges={() => void requestPlanChanges()}
             onDismissPlan={() => void dismissPlan()}
+            onOpenPlanDetails={() => openPlanInResource()}
             onAddAttachmentToComposer={(att) =>
               setAttachments((prev) => mergeAttachments(prev, [att]))
             }
@@ -7067,6 +7089,11 @@ export default function App() {
               sessionChanges={
                 sessionChangesById[session.sessionId || ""] ?? []
               }
+              plan={plan}
+              planFocusKey={planFocusKey}
+              onApprovePlan={() => void approvePlan()}
+              onRequestPlanChanges={() => void requestPlanChanges()}
+              onDismissPlan={() => void dismissPlan()}
               onClose={() =>
                 setLayout((l) => {
                   const n = { ...l, asideCollapsed: true };

@@ -12,6 +12,7 @@
 | **OpenHands Canvas / 通用三栏** | 左会话 / 中对话 / 右资源，侧栏可关 | `sidebar--hidden` / `aside--hidden` + 顶栏 icon |
 | **会话变更审阅（L06）** | Agent 写/改文件列表 + unified diff / 外开编辑器 | `ResourceViewer` Changes 模式 + `sessionChanges` + 可选 `git_file_diff` |
 | **工作区 git 变更** | 项目 `git status` 列表 + 点击看 diff | `git_status` / `git_show_file` + Changes → **Workspace** 段 |
+| **Plan 审阅** | 待审阅计划 Markdown 全文 + 批准/修改 | `ResourceViewer` **Plan** 模式 + sticky `PlanStatusBar` |
 
 ## 交互约定
 
@@ -24,3 +25,8 @@
    - 点击条目：优先工具 payload 的 before/after → 本地 unified diff；否则 `git_file_diff`；再否则 `git_show_file`（HEAD）+ 工作区内容；再否则当前文件内容。  
    - 行操作：打开编辑器 / Reveal / 复制路径（**不做**危险 discard，避免误清工作区）。  
    - 纯 helper：`src/lib/sessionChanges.ts`、`src/lib/workspaceGit.ts`。
+5. **Plan（资源审阅）**：顶条「在资源中打开」/ `exit_plan_mode` 就绪时自动开右栏 **Plan** 模式。  
+   - 正文：`MarkdownBody`（`planContent` 优先，否则 entries 合成 markdown）。  
+   - 操作：批准 / 请求修改 / 关闭（与顶条共用 `sessionResolvePlan`）。  
+   - 线程内保留紧凑预览卡；主审阅面在资源面板。  
+   - helper：`src/lib/planBody.ts`、`PlanReviewPanel`。

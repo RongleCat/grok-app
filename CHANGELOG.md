@@ -14,6 +14,7 @@ See `docs/llm-wiki/release.md`.
 ### Added
 
 - **Sticky Plan/Goal status bar** (L04): progress meter + review actions stay above the chat while the in-thread card scrolls away — community PR #41.
+- **Plan resource review**: 「在资源中打开」opens the right pane Plan workbench with full **Markdown** body, steps, and approve/request-changes; auto-opens when `exit_plan_mode` is ready. Accent-tinted bar (theme-aware) with top spacing under chrome.
 
 ### Fixed
 
@@ -21,6 +22,7 @@ See `docs/llm-wiki/release.md`.
 - **Composer placeholder**: hide overlay as soon as the DOM has typed/IME glyphs (no more “随心输入” showing through input).
 - **Chat scroll flicker**: ignore sub-4px content height noise while stick-to-bottom follows (thinking / reflow thrash).
 - **Dead copy**: remove obsolete `composer.attachLater` (“attachments coming later”) now that paste/file pick ship.
+- **Plan “Details” no-op**: was only scrolling the in-thread card; now opens the resource Plan panel.
 
 ## [0.1.3] - 2026-07-24
 

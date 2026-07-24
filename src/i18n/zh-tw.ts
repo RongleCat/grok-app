@@ -143,6 +143,8 @@ export const zhTW: Record<MessageKey, string> = {
   "resources.needProject": "新增或選擇專案後，即可在此瀏覽檔案。",
   "resources.emptyPreview": "尚未開啟檔案",
   "resources.emptyPreviewHint": "從右側檔案樹選擇檔案進行預覽。",
+  "resources.plan": "計劃",
+  "resources.planEmpty": "目前對話沒有待審閱的計劃。",
   "resources.copyPathShort": "路徑",
   "resources.tabClose": "關閉分頁",
   "resources.tabCloseOthers": "關閉其他分頁",
@@ -354,6 +356,8 @@ export const zhTW: Record<MessageKey, string> = {
   "plan.reviseToast": "已請 Agent 修改計劃",
   "plan.reviseFeedback": "請根據回饋修改計劃。",
   "plan.phaseLabel": "思考 {n}",
+  "plan.steps": "步驟",
+  "plan.openInResources": "在資源中開啟",
 
   // Sticky plan/goal bar
   "planBar.aria": "計劃與目標狀態",
@@ -364,7 +368,7 @@ export const zhTW: Record<MessageKey, string> = {
   "planBar.done": "計劃已完成",
   "planBar.fraction": "{n}",
   "planBar.current": "目前",
-  "planBar.expand": "詳情",
+  "planBar.expand": "在資源中開啟",
 
   "settings.title": "設定",
   "settings.backToApp": "返回應用程式",

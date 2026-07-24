@@ -156,6 +156,8 @@ const en = {
   "resources.emptyPreview": "No file open",
   "resources.emptyPreviewHint":
     "Pick a file from the tree on the right to preview it here.",
+  "resources.plan": "Plan",
+  "resources.planEmpty": "No plan is waiting for review in this session.",
   "resources.copyPathShort": "Path",
   "resources.tabClose": "Close tab",
   "resources.tabCloseOthers": "Close other tabs",
@@ -378,6 +380,8 @@ const en = {
   "plan.reviseToast": "Asked agent to revise the plan",
   "plan.reviseFeedback": "Please revise the plan based on user feedback.",
   "plan.phaseLabel": "Thinking {n}",
+  "plan.steps": "Steps",
+  "plan.openInResources": "Open in resources",
 
   // Sticky plan/goal bar
   "planBar.aria": "Plan and goal status",
@@ -388,7 +392,7 @@ const en = {
   "planBar.done": "Plan complete",
   "planBar.fraction": "{n}",
   "planBar.current": "Now",
-  "planBar.expand": "Details",
+  "planBar.expand": "Open in resources",
 
   // Settings / onboarding
   "settings.title": "Settings",
@@ -1171,6 +1175,8 @@ const zh: Record<MessageKey, string> = {
   "resources.needProject": "添加或选择项目后，即可在此浏览文件。",
   "resources.emptyPreview": "尚未打开文件",
   "resources.emptyPreviewHint": "从右侧文件树选择文件进行预览。",
+  "resources.plan": "计划",
+  "resources.planEmpty": "当前会话没有待审阅的计划。",
   "resources.copyPathShort": "路径",
   "resources.tabClose": "关闭标签",
   "resources.tabCloseOthers": "关闭其他标签",
@@ -1382,6 +1388,8 @@ const zh: Record<MessageKey, string> = {
   "plan.reviseToast": "已请 Agent 修改计划",
   "plan.reviseFeedback": "请根据反馈修改计划。",
   "plan.phaseLabel": "思考 {n}",
+  "plan.steps": "步骤",
+  "plan.openInResources": "在资源中打开",
 
   // Sticky plan/goal bar
   "planBar.aria": "计划与目标状态",
@@ -1392,7 +1400,7 @@ const zh: Record<MessageKey, string> = {
   "planBar.done": "计划已完成",
   "planBar.fraction": "{n}",
   "planBar.current": "当前",
-  "planBar.expand": "详情",
+  "planBar.expand": "在资源中打开",
 
   "settings.title": "设置",
   "settings.backToApp": "返回应用",

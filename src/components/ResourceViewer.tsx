@@ -31,9 +31,12 @@ import {
   IconFolder,
   IconFiles,
   IconListTree,
+  IconPlan,
   IconRefresh,
   IconSearch,
 } from "@/components/icons";
+import { PlanReviewPanel } from "@/components/PlanReviewPanel";
+import type { PlanReviewState } from "@/lib/planBody";
 import { OfficeDocumentPreview } from "@/components/OfficeDocumentPreview";
 import { CodePreview } from "@/components/CodePreview";
 import { isOfficeKind } from "@/lib/filePreviewSrc";
@@ -106,9 +109,18 @@ export interface ResourceViewerProps {
    * Files written/edited by agent tools in the active session (Changes panel).
    */
   sessionChanges?: SessionFileChange[];
+  /**
+   * Live plan snapshot for Plan review mode (exit_plan_mode / progress).
+   */
+  plan?: PlanReviewState | null;
+  /** Increment / change to force switch into Plan mode (详情 / auto-open). */
+  planFocusKey?: number | null;
+  onApprovePlan?: () => void;
+  onRequestPlanChanges?: () => void;
+  onDismissPlan?: () => void;
 }
 
-type SideMode = "files" | "changes";
+type SideMode = "files" | "changes" | "plan";
 
 type DiffViewState = {
   path: string;
@@ -210,6 +222,11 @@ export function ResourceViewer({
   onOpenRequestConsumed,
   paneActive = true,
   sessionChanges = [],
+  plan = null,
+  planFocusKey = null,
+  onApprovePlan,
+  onRequestPlanChanges,
+  onDismissPlan,
 }: ResourceViewerProps) {
   const tr = useMemo(() => createT(locale), [locale]);
   const [root, setRoot] = useState<TreeNode[]>([]);
@@ -224,6 +241,7 @@ export function ResourceViewer({
   // Default closed; session-only — not persisted; reset when pane hides.
   const [treeVisible, setTreeVisible] = useState(false);
   const [sideMode, setSideMode] = useState<SideMode>("files");
+  const lastPlanFocusKey = useRef<number | null>(null);
   const [treeWidth, setTreeWidth] = useState(loadTreeWidth);
   const [resizingTree, setResizingTree] = useState(false);
   const splitRef = useRef<HTMLDivElement>(null);
@@ -637,6 +655,12 @@ export function ResourceViewer({
   }, [tr, workspaceReason]);
 
   const showSidePanel = (mode: SideMode) => {
+    // Plan mode uses full-width review (no side tree).
+    if (mode === "plan") {
+      setSideMode("plan");
+      setTreeVisible(false);
+      return;
+    }
     if (treeVisible && sideMode === mode) {
       setTreeVisible(false);
       return;
@@ -644,6 +668,22 @@ export function ResourceViewer({
     setSideMode(mode);
     setTreeVisible(true);
   };
+
+  // External “open plan in resources” (详情 / auto-open on review).
+  useEffect(() => {
+    if (planFocusKey == null) return;
+    if (lastPlanFocusKey.current === planFocusKey) return;
+    lastPlanFocusKey.current = planFocusKey;
+    setSideMode("plan");
+    setTreeVisible(false);
+  }, [planFocusKey]);
+
+  // Plan dismissed while viewing plan → fall back to files empty preview.
+  useEffect(() => {
+    if (sideMode === "plan" && plan && !plan.visible) {
+      setSideMode("files");
+    }
+  }, [plan, sideMode]);
 
   // Drag-resize preview | file-tree split
   useEffect(() => {
@@ -1486,6 +1526,21 @@ export function ResourceViewer({
               }}
             />
           ) : null}
+          {plan?.visible ? (
+            <Tip label={tr("resources.plan")}>
+              <button
+                type="button"
+                className={
+                  "chrome-btn main__pane-toggle rp-chrome__plan-btn" +
+                  (sideMode === "plan" ? " is-on" : "")
+                }
+                onClick={() => showSidePanel("plan")}
+                aria-label={tr("resources.plan")}
+              >
+                <IconPlan size={16} />
+              </button>
+            </Tip>
+          ) : null}
           <Tip
             label={
               treeVisible && sideMode === "changes"
@@ -1572,7 +1627,29 @@ export function ResourceViewer({
         }
       >
         <div className="rp-split__preview">
-          {sideMode === "changes" && diffView ? (
+          {sideMode === "plan" && plan?.visible ? (
+            <PlanReviewPanel
+              plan={plan}
+              labels={{
+                ready: tr("plan.ready"),
+                waiting: tr("plan.waiting"),
+                empty: tr("plan.empty"),
+                approve: tr("plan.approve"),
+                changes: tr("plan.changes"),
+                dismiss: tr("plan.dismiss"),
+                steps: tr("plan.steps"),
+                fraction: tr("planBar.fraction"),
+              }}
+              onApprove={onApprovePlan}
+              onRequestChanges={onRequestPlanChanges}
+              onDismiss={onDismissPlan}
+            />
+          ) : sideMode === "plan" ? (
+            <div className="rp__empty-state">
+              <div className="rp__empty-title">{tr("resources.plan")}</div>
+              <div className="rp__empty-desc">{tr("resources.planEmpty")}</div>
+            </div>
+          ) : sideMode === "changes" && diffView ? (
             diffView.loading ? (
               <div className="rp__empty-state">
                 <div className="rp__empty-desc">{tr("changes.loadingDiff")}</div>
@@ -1691,6 +1768,20 @@ export function ResourceViewer({
                     </span>
                   ) : null}
                 </button>
+                {plan?.visible ? (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={sideMode === "plan"}
+                    className={
+                      "rp-side-modes__btn" +
+                      (sideMode === "plan" ? " is-active" : "")
+                    }
+                    onClick={() => showSidePanel("plan")}
+                  >
+                    {tr("resources.plan")}
+                  </button>
+                ) : null}
               </div>
               <div className="rp-tree-search">
                 <IconSearch size={14} />

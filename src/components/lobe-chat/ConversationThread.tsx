@@ -44,9 +44,11 @@ import { Thinking } from "./Thinking";
 import { BackBottom } from "./BackBottom";
 import { InlineUserEdit } from "./InlineUserEdit";
 import { SkillChip } from "@/components/SkillChip";
+import { MarkdownBody } from "@/components/MarkdownBody";
 import { hydrateDisplayContent, parseStoredContent } from "@/lib/draftDoc";
 import { parseScheduledUserContent } from "@/lib/automations";
 import { extractAutomationPayload } from "@/lib/automationSetup";
+import { planDisplayMarkdown } from "@/lib/planBody";
 import {
   isToolStepMessage,
   LiveToolText,
@@ -241,6 +243,8 @@ export interface ConversationThreadProps {
   onApprovePlan?: () => void;
   onRequestPlanChanges?: () => void;
   onDismissPlan?: () => void;
+  /** Open full plan in the resource pane (preferred review surface). */
+  onOpenPlanDetails?: () => void;
   onAddAttachmentToComposer?: (att: Attachment) => void;
   attachLabels: {
     open: string;
@@ -281,6 +285,7 @@ export function ConversationThread({
   onApprovePlan,
   onRequestPlanChanges,
   onDismissPlan,
+  onOpenPlanDetails,
   onAddAttachmentToComposer,
   attachLabels,
 }: ConversationThreadProps) {
@@ -744,67 +749,37 @@ export function ConversationThread({
           ) : null}
 
           {plan?.visible ? (
-            <div className="lobe-chat-plan">
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 8,
-                  color: "var(--lobe-color-text-secondary)",
-                  fontSize: 14,
-                }}
-              >
+            <div className="lobe-chat-plan" data-plan-card>
+              <div className="lobe-chat-plan__head">
                 <IconPlan size={14} />
-                <span style={{ fontWeight: 500, color: "var(--lobe-color-text)" }}>
-                  {plan.waiting ? tr("plan.waiting") : tr("plan.ready")}
+                <span className="lobe-chat-plan__status">
+                  {plan.waiting && plan.rpcId == null
+                    ? tr("plan.waiting")
+                    : tr("plan.ready")}
                 </span>
+                <strong className="lobe-chat-plan__title">{plan.title}</strong>
               </div>
-              <h3
-                style={{
-                  margin: "0 0 8px",
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: "var(--lobe-color-text)",
-                }}
-              >
-                {plan.title}
-              </h3>
-              <div
-                className="lobe-chat-plan__body"
-                style={{
-                  margin: "0 0 12px",
-                  maxHeight: "16rem",
-                  overflow: "auto",
-                  padding: 12,
-                  borderRadius: 8,
-                  background: "var(--lobe-color-fill-quaternary)",
-                  border: "1px solid var(--lobe-color-border-secondary)",
-                  fontSize: 13,
-                  lineHeight: 1.5,
-                  color: "var(--lobe-color-text-secondary)",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                }}
-              >
-                {plan.body?.trim()
-                  ? plan.body
-                  : Array.isArray(plan.entries) && plan.entries.length
-                    ? plan.entries
-                        .map((e, i) => {
-                          if (e && typeof e === "object") {
-                            const o = e as Record<string, unknown>;
-                            return `${i + 1}. ${String(o.content ?? o.title ?? o.text ?? "")}`;
-                          }
-                          return `${i + 1}. ${String(e)}`;
-                        })
-                        .join("\n")
-                    : tr("plan.empty")}
+              <div className="lobe-chat-plan__body">
+                {(() => {
+                  const md = planDisplayMarkdown(plan.body, plan.entries);
+                  if (!md) {
+                    return (
+                      <p className="lobe-chat-plan__empty">{tr("plan.empty")}</p>
+                    );
+                  }
+                  return <MarkdownBody locale={locale}>{md}</MarkdownBody>;
+                })()}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <div className="lobe-chat-plan__actions">
+                {onOpenPlanDetails ? (
+                  <Button type="button" onClick={onOpenPlanDetails}>
+                    {tr("plan.openInResources")}
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
-                  disabled={plan.waiting && plan.rpcId == null}
+                  variant="ghost"
+                  disabled={plan.rpcId == null}
                   onClick={onApprovePlan}
                 >
                   {tr("plan.approve")}
@@ -812,7 +787,7 @@ export function ConversationThread({
                 <Button
                   type="button"
                   variant="ghost"
-                  disabled={plan.waiting && plan.rpcId == null}
+                  disabled={plan.rpcId == null}
                   onClick={onRequestPlanChanges}
                 >
                   {tr("plan.changes")}
