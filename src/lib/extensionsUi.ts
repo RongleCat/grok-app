@@ -8,6 +8,7 @@ export type SkillLike = {
   source: string;
   path?: string | null;
   userInvocable?: boolean;
+  enabled?: boolean;
 };
 
 export type McpLike = {
@@ -16,7 +17,55 @@ export type McpLike = {
   target?: string | null;
   vendor?: string | null;
   compatibilityStatus?: string | null;
+  enabled?: boolean;
 };
+
+/** Missing / undefined → enabled (default-on / opt-out). */
+export function isExtensionEnabled(enabled: boolean | null | undefined): boolean {
+  return enabled !== false;
+}
+
+/**
+ * Apply enable overlay map onto a list of named items.
+ * Overlay wins; missing overlay keys stay default-on.
+ */
+export function mergeEnableSet(
+  names: string[],
+  overlay: Record<string, boolean> | null | undefined,
+): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  for (const raw of names) {
+    const name = (raw ?? "").trim();
+    if (!name) continue;
+    out[name] = overlay && name in overlay ? Boolean(overlay[name]) : true;
+  }
+  return out;
+}
+
+/** Filter items by enable map (default-on when key missing). */
+export function filterEnabledByName<T extends { name: string }>(
+  items: T[],
+  enableMap: Record<string, boolean> | null | undefined,
+): T[] {
+  return items.filter((item) => {
+    const name = (item.name ?? "").trim();
+    if (!name) return false;
+    if (!enableMap || !(name in enableMap)) return true;
+    return enableMap[name] !== false;
+  });
+}
+
+/** Count how many of the given names are currently disabled. */
+export function countDisabled(
+  names: string[],
+  enableMap: Record<string, boolean> | null | undefined,
+): number {
+  return names.filter((n) => {
+    const name = (n ?? "").trim();
+    if (!name) return false;
+    return enableMap && name in enableMap && enableMap[name] === false;
+  }).length;
+}
 
 /** True when inspect/skills host error indicates CLI binary missing. */
 export function isCliMissingError(error: string | null | undefined): boolean {

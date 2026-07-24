@@ -188,6 +188,7 @@ pub fn reset_app_data(keep_secrets: bool) -> Result<serde_json::Value, String> {
         "sessions_index.json",
         "automations.json",
         "settings.json",
+        "extensions.json",
     ];
     if !keep_secrets {
         files.push("secrets.json");

@@ -4,6 +4,7 @@ mod account;
 mod account_profiles;
 mod acp_client;
 mod agent_prefs;
+mod extensions;
 mod supergrok_quota;
 mod cli_probe;
 mod cli_install;
@@ -169,6 +170,11 @@ pub fn run() {
             commands::reset_app_data,
             commands::skills_list,
             commands::inspect_mcp,
+            commands::extensions_get,
+            commands::extensions_set_mcp,
+            commands::extensions_set_skill,
+            commands::extensions_enable_all_mcp,
+            commands::extensions_enable_all_skills,
             commands::pick_directory,
             commands::pick_attach_files,
             commands::pick_attach_folder,

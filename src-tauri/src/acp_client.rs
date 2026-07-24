@@ -1114,6 +1114,9 @@ impl AcpClient {
     /// Used for cold connect after `initialize` and for warm process reuse when
     /// switching App sessions without respawning CLI.
     /// Returns `(session_id, resumed)`.
+    ///
+    /// Injects **enabled** MCP servers (App Extensions prefs + `grok mcp list`)
+    /// into `mcpServers` so independent GROK_HOME and shared mode both see tools.
     pub async fn open_session(
         &self,
         resume_session_id: Option<&str>,
@@ -1126,6 +1129,16 @@ impl AcpClient {
             ));
         }
 
+        // Build ACP mcpServers off the async runtime (CLI list / file IO).
+        let project_cwd = cwd.clone();
+        let mcp_servers = tauri::async_runtime::spawn_blocking(move || {
+            crate::extensions::build_session_mcp_servers(Some(project_cwd.as_str()))
+        })
+        .await
+        .unwrap_or_else(|_| serde_json::json!([]));
+        let mcp_count = mcp_servers.as_array().map(|a| a.len()).unwrap_or(0);
+        info!("acp session open injecting mcpServers count={mcp_count}");
+
         // Prefer resuming the previous agent session for full native context.
         if let Some(rid) = resume_session_id.map(str::trim).filter(|s| !s.is_empty()) {
             match self
@@ -1134,7 +1147,7 @@ impl AcpClient {
                     json!({
                         "sessionId": rid,
                         "cwd": cwd,
-                        "mcpServers": []
+                        "mcpServers": mcp_servers.clone()
                     }),
                     HANDSHAKE_TIMEOUT_SECS,
                 )
@@ -1170,7 +1183,7 @@ impl AcpClient {
                 "session/new",
                 json!({
                     "cwd": cwd,
-                    "mcpServers": []
+                    "mcpServers": mcp_servers
                 }),
                 HANDSHAKE_TIMEOUT_SECS,
             )

@@ -2488,7 +2488,8 @@ impl SessionManager {
     /// Soft-drop live agent so next send re-spawns with new spawn flags / config.
     /// Keeps `agent_session_id` so reconnect can `session/load`; if load fails,
     /// journal bootstrap still fills the gap.
-    async fn soft_respawn(&self, app: &AppHandle) {
+    /// Public so Extensions MCP toggles can recycle the process with new mcpServers.
+    pub async fn soft_respawn(&self, app: &AppHandle) {
         let acp = {
             let mut guard = self.inner.lock();
             if let Some(s) = guard.as_mut() {
@@ -2602,6 +2603,19 @@ impl SessionManager {
             }
         }
         Ok(())
+    }
+
+    /// Soft-respawn when MCP enable prefs change so the next connect injects
+    /// the updated `mcpServers` set (and agent-home config is re-read).
+    pub async fn apply_extensions_mcp_change(&self, app: &AppHandle) {
+        let live = {
+            let guard = self.inner.lock();
+            guard.as_ref().map(|s| s.acp.is_some()).unwrap_or(false)
+        };
+        if live {
+            tracing::info!("extensions: MCP prefs changed — soft-respawn live agent");
+            self.soft_respawn(app).await;
+        }
     }
 
     /// Record desired effort. CLI has no mid-session set_effort RPC; soft-drop the

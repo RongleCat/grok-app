@@ -3269,12 +3269,15 @@ export default function App() {
       .then((res) => {
         if (cancelled) return;
         setSkillInfos(
-          (res.skills ?? []).map((s) => ({
-            name: s.name,
-            description: s.description ?? "",
-            source: s.source,
-            userInvocable: s.userInvocable,
-          })),
+          (res.skills ?? [])
+            // Extensions enable flag (default on); hide disabled from slash palette.
+            .filter((s) => s.enabled !== false)
+            .map((s) => ({
+              name: s.name,
+              description: s.description ?? "",
+              source: s.source,
+              userInvocable: s.userInvocable,
+            })),
         );
       })
       .catch(() => {

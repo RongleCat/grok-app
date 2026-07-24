@@ -48,14 +48,23 @@ Full management surface: **Settings → Extensions** (`#/settings/extensions`).
 
 | Surface | Role |
 |---------|------|
-| Settings → Extensions | Skills list + MCP servers (name, source/transport, path/target, vendor, compatibility); refresh; project cwd when a workbench project is active |
+| Settings → Extensions | Skills + MCP list with **per-item enable toggles**, bulk **Enable all**, refresh; project cwd when a workbench project is active |
 | `/mcp` slash | Quick `McpStatusModal`; **Manage in Settings** opens Extensions |
-| Composer `+` / slash skills | Invocable skills only (chips); loaded via `skills_list` |
+| Composer `+` / slash skills | Invocable **and enabled** skills only (chips); loaded via `skills_list` |
 
-Host commands: `skills_list`, `inspect_mcp` (both optional `projectPath` → `grok inspect --json` cwd).  
+### Enable + inject (L03)
+
+- **Prefs:** `{app_data}/extensions.json` — `mcp` / `skills` name → `bool`. Missing name = **enabled** (opt-out).
+- **UI:** Toggle persists immediately (`extensions_set_mcp` / `extensions_set_skill`). Bulk enable via `extensions_enable_all_*`.
+- **MCP inject (session open):** Host builds ACP `mcpServers` from `grok mcp list --json` (full command/args/env or url) filtered by prefs, and passes them on `session/new` / `session/load` (see `acp_client::open_session`).
+- **Dual write:** Independent mode also mirrors `enabled` under agent-home `config.toml` (`[mcp_servers.<name>]`). Shared mode updates `~/.grok/config.toml` enabled flags on user toggle.
+- **Live agent:** MCP pref change → `SessionManager::apply_extensions_mcp_change` soft-respawns so the next connect re-injects.
+- **Skills:** App filter only (slash palette / chips). Agent still discovers skill files on disk.
+
+Host commands: `skills_list`, `inspect_mcp`, `extensions_get`, `extensions_set_mcp`, `extensions_set_skill`, `extensions_enable_all_mcp`, `extensions_enable_all_skills`.  
 CLI missing → actionable error with link to **Settings → CLI / Runtime**.  
 Reveal skill paths / agent-home when paths are available (`path_reveal`).  
-Pure helpers: `src/lib/extensionsUi.ts`. UI: `src/components/ExtensionsPanel.tsx`.
+Pure helpers: `src/lib/extensionsUi.ts` (+ enable-set merge/filter). Host: `src-tauri/src/extensions.rs`. UI: `src/components/ExtensionsPanel.tsx`.
 
 ## Acceptance (Wave A)
 

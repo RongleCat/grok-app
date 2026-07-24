@@ -710,6 +710,8 @@ export interface SkillDto {
   source: string;
   path?: string | null;
   userInvocable: boolean;
+  /** App Extensions enable flag (default true when omitted). */
+  enabled?: boolean;
 }
 
 export interface McpDto {
@@ -718,6 +720,8 @@ export interface McpDto {
   target?: string | null;
   vendor?: string | null;
   compatibilityStatus?: string | null;
+  /** App Extensions enable flag (default true when omitted). */
+  enabled?: boolean;
 }
 
 export interface SkillsListResult {
@@ -728,6 +732,36 @@ export interface SkillsListResult {
 export interface InspectMcpResult {
   servers: McpDto[];
   error?: string;
+}
+
+/** App MCP/Skills enable prefs (`extensions.json`). Missing name = enabled. */
+export interface ExtensionsPrefs {
+  mcp: Record<string, boolean>;
+  skills: Record<string, boolean>;
+}
+
+export async function extensionsGet() {
+  return invoke<ExtensionsPrefs>("extensions_get");
+}
+
+/** Toggle one MCP server; Host persists + injects on next session + soft-respawns. */
+export async function extensionsSetMcp(name: string, enabled: boolean) {
+  return invoke<ExtensionsPrefs>("extensions_set_mcp", { name, enabled });
+}
+
+/** Toggle one skill (slash palette filter). */
+export async function extensionsSetSkill(name: string, enabled: boolean) {
+  return invoke<ExtensionsPrefs>("extensions_set_skill", { name, enabled });
+}
+
+/** Bulk-enable all listed MCP servers. */
+export async function extensionsEnableAllMcp(names: string[]) {
+  return invoke<ExtensionsPrefs>("extensions_enable_all_mcp", { names });
+}
+
+/** Bulk-enable all listed skills. */
+export async function extensionsEnableAllSkills(names: string[]) {
+  return invoke<ExtensionsPrefs>("extensions_enable_all_skills", { names });
 }
 
 export async function doctorReport() {

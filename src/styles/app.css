@@ -10229,6 +10229,61 @@ div.composer__input:empty::before {
   flex-direction: column;
 }
 
+.ext-bulk-btn {
+  margin-left: auto;
+  font-size: 12px;
+  padding: 2px 8px;
+  height: auto;
+}
+
+.ext-switch {
+  margin-left: auto;
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--bg-hover);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ext-switch.is-on {
+  background: color-mix(in srgb, var(--accent, #6b8cff) 55%, transparent);
+  border-color: color-mix(in srgb, var(--accent, #6b8cff) 40%, transparent);
+}
+
+.ext-switch:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ext-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-primary, #fff);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.ext-switch.is-on .ext-switch__thumb {
+  transform: translateX(16px);
+}
+
+.ext-item--off {
+  opacity: 0.62;
+}
+
+.ext-item--off .ext-item__name {
+  text-decoration: none;
+}
+
 .ext-item {
   display: flex;
   flex-direction: column;

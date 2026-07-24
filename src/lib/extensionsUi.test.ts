@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  countDisabled,
+  filterEnabledByName,
   isCliMissingError,
+  isExtensionEnabled,
+  mergeEnableSet,
   mergeInspectErrors,
   mcpMetaLine,
   normalizeSkillSource,
@@ -10,6 +14,43 @@ import {
   sortMcpByName,
   sortSkillsByName,
 } from "./extensionsUi";
+
+describe("enable-set merge / filter", () => {
+  it("defaults to enabled when missing", () => {
+    expect(isExtensionEnabled(undefined)).toBe(true);
+    expect(isExtensionEnabled(null)).toBe(true);
+    expect(isExtensionEnabled(true)).toBe(true);
+    expect(isExtensionEnabled(false)).toBe(false);
+  });
+
+  it("mergeEnableSet builds default-on map with overlay", () => {
+    expect(mergeEnableSet(["a", "b", "c"], { b: false })).toEqual({
+      a: true,
+      b: false,
+      c: true,
+    });
+    expect(mergeEnableSet(["a"], null)).toEqual({ a: true });
+    expect(mergeEnableSet(["  ", "x"], { x: false })).toEqual({ x: false });
+  });
+
+  it("filterEnabledByName drops only explicit false", () => {
+    const items = [{ name: "keep" }, { name: "drop" }, { name: "default" }];
+    expect(filterEnabledByName(items, { drop: false }).map((i) => i.name)).toEqual([
+      "keep",
+      "default",
+    ]);
+    expect(filterEnabledByName(items, undefined).map((i) => i.name)).toEqual([
+      "keep",
+      "drop",
+      "default",
+    ]);
+  });
+
+  it("countDisabled only counts explicit false", () => {
+    expect(countDisabled(["a", "b", "c"], { a: false, b: true })).toBe(1);
+    expect(countDisabled(["a"], {})).toBe(0);
+  });
+});
 
 describe("isCliMissingError", () => {
   it("detects host CLI missing message", () => {

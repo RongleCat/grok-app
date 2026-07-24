@@ -1449,6 +1449,7 @@ fn parse_mcp_servers(v: &serde_json::Value) -> Vec<McpDto> {
 
 /// List invocable skills from `grok inspect --json`.
 /// Always returns Ok; on CLI missing / timeout, `skills` is empty and `error` is set.
+/// Each skill includes `enabled` from App Extensions prefs (default true).
 #[tauri::command]
 pub async fn skills_list(project_path: Option<String>) -> Result<serde_json::Value, String> {
     let path = project_path.clone();
@@ -1459,6 +1460,7 @@ pub async fn skills_list(project_path: Option<String>) -> Result<serde_json::Val
     .map_err(|e| e.to_string())?;
 
     let skills = parsed.as_ref().map(parse_skills).unwrap_or_default();
+    let skills = attach_skill_enabled(skills);
     let mut out = serde_json::json!({ "skills": skills });
     if let Some(err) = error {
         out["error"] = serde_json::Value::String(err);
@@ -1468,6 +1470,7 @@ pub async fn skills_list(project_path: Option<String>) -> Result<serde_json::Val
 
 /// List MCP servers from `grok inspect --json`.
 /// Always returns Ok; on CLI missing / timeout, `servers` is empty and `error` is set.
+/// Each server includes `enabled` from App Extensions prefs (default true).
 #[tauri::command]
 pub async fn inspect_mcp(project_path: Option<String>) -> Result<serde_json::Value, String> {
     let path = project_path.clone();
@@ -1477,12 +1480,110 @@ pub async fn inspect_mcp(project_path: Option<String>) -> Result<serde_json::Val
     .await
     .map_err(|e| e.to_string())?;
 
-    let servers = parsed.as_ref().map(parse_mcp_servers).unwrap_or_default();
-    let mut out = serde_json::json!({ "servers": servers });
+    let mut servers = parsed.as_ref().map(parse_mcp_servers).unwrap_or_default();
+    let prefs = crate::extensions::load_prefs();
+    // Enrich with enable state for UI toggles.
+    let mut server_json = Vec::with_capacity(servers.len());
+    for s in servers.drain(..) {
+        let enabled = crate::extensions::is_enabled(&prefs.mcp, &s.name);
+        server_json.push(serde_json::json!({
+            "name": s.name,
+            "transport": s.transport,
+            "target": s.target,
+            "vendor": s.vendor,
+            "compatibilityStatus": s.compatibility_status,
+            "enabled": enabled,
+        }));
+    }
+    let mut out = serde_json::json!({ "servers": server_json });
     if let Some(err) = error {
         out["error"] = serde_json::Value::String(err);
     }
     Ok(out)
+}
+
+/// List skills from `grok inspect --json`, each with App `enabled` (default true).
+/// (skills_list already exists; this keeps enable flags on the existing shape.)
+fn attach_skill_enabled(skills: Vec<SkillDto>) -> Vec<serde_json::Value> {
+    let prefs = crate::extensions::load_prefs();
+    skills
+        .into_iter()
+        .map(|s| {
+            let enabled = crate::extensions::is_enabled(&prefs.skills, &s.name);
+            serde_json::json!({
+                "name": s.name,
+                "description": s.description,
+                "source": s.source,
+                "path": s.path,
+                "userInvocable": s.user_invocable,
+                "enabled": enabled,
+            })
+        })
+        .collect()
+}
+
+/// Current Extensions enable prefs (`extensions.json`).
+#[tauri::command]
+pub async fn extensions_get() -> Result<crate::extensions::ExtensionsPrefs, String> {
+    Ok(crate::extensions::load_prefs())
+}
+
+/// Toggle one MCP server; persists prefs, syncs agent-home/config, soft-respawns.
+#[tauri::command]
+pub async fn extensions_set_mcp(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    name: String,
+    enabled: bool,
+) -> Result<crate::extensions::ExtensionsPrefs, String> {
+    let prefs = tauri::async_runtime::spawn_blocking(move || {
+        crate::extensions::set_mcp_enabled(&name, enabled)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    mgr.apply_extensions_mcp_change(&app).await;
+    Ok(prefs)
+}
+
+/// Toggle one skill (App filter for slash/composer); persists immediately.
+#[tauri::command]
+pub async fn extensions_set_skill(
+    name: String,
+    enabled: bool,
+) -> Result<crate::extensions::ExtensionsPrefs, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::extensions::set_skill_enabled(&name, enabled)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Bulk-enable all listed MCP servers; soft-respawns when a live agent exists.
+#[tauri::command]
+pub async fn extensions_enable_all_mcp(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    names: Vec<String>,
+) -> Result<crate::extensions::ExtensionsPrefs, String> {
+    let prefs = tauri::async_runtime::spawn_blocking(move || {
+        crate::extensions::enable_all_mcp(&names)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    mgr.apply_extensions_mcp_change(&app).await;
+    Ok(prefs)
+}
+
+/// Bulk-enable all listed skills.
+#[tauri::command]
+pub async fn extensions_enable_all_skills(
+    names: Vec<String>,
+) -> Result<crate::extensions::ExtensionsPrefs, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::extensions::enable_all_skills(&names)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

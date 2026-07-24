@@ -743,14 +743,14 @@ export const zhTW: Record<MessageKey, string> = {
 
   "mcpModal.title": "MCP 伺服器",
   "mcpModal.hint":
-    "由 Grok Build inspect 發現的伺服器。與 Agent 對話是否注入 MCP 是分開的。",
+    "由 Grok Build inspect 發現的伺服器。可在「設定 → 擴充」中啟用/停用；已啟用的伺服器會注入新對話。",
   "mcpModal.loading": "正在載入 MCP…",
   "mcpModal.empty": "未發現 MCP 伺服器",
   "mcpModal.manage": "在設定中管理",
 
   // Settings → Extensions (Skills + MCP)
   "ext.lead":
-    "透過 `grok inspect` 發現的技能與 MCP 伺服器。有目前專案時以該目錄為 cwd；無專案時為全域範圍。",
+    "透過 `grok inspect` 發現的技能與 MCP 伺服器。開關控制對話注入與斜線技能過濾；有目前專案時以該目錄為 cwd。",
   "ext.refresh": "重新整理",
   "ext.refreshing": "重新整理中…",
   "ext.scope.project": "專案",
@@ -774,8 +774,11 @@ export const zhTW: Record<MessageKey, string> = {
   "ext.mcp.empty": "未發現 MCP 伺服器",
   "ext.mcp.emptyCli": "安裝 CLI 後才能查看 MCP 狀態。",
   "ext.mcp.vendor": "供應商",
+  "ext.enabled": "已啟用",
+  "ext.disabled": "已停用",
+  "ext.enableAll": "全部啟用",
   "ext.footnote":
-    "對話內 MCP 注入與此 inspect 清單相互獨立。請在 Grok Build / agent 設定中管理伺服器。",
+    "開關會寫入應用資料，並在新對話中注入已啟用的 MCP（ACP mcpServers + agent-home 設定）。停用技能仍保留在磁碟，但不會出現在斜線面板。",
 
   "error.needTauri": "需要在 Tauri 視窗中選擇目錄",
   "common.comingSoon": "即將推出",

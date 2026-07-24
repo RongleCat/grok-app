@@ -1,6 +1,6 @@
 /**
  * Settings → Extensions: Skills + MCP servers from `grok inspect --json`.
- * Full card layout (not a modal stub). Project cwd when available.
+ * Per-item enable toggles persist to extensions.json and inject into ACP sessions.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -16,6 +16,7 @@ import {
 } from "@/components/icons";
 import {
   isCliMissingError,
+  isExtensionEnabled,
   mcpMetaLine,
   mergeInspectErrors,
   shortPathLabel,
@@ -50,6 +51,7 @@ export function ExtensionsPanel({
   const [agentHome, setAgentHome] = useState<string | null>(null);
   const [configPath, setConfigPath] = useState<string | null>(null);
   const [pathHint, setPathHint] = useState<string | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!api.isTauri()) {
@@ -103,6 +105,15 @@ export function ExtensionsPanel({
     : tr("ext.scope.global");
   const scopePath = projectPath?.trim() || null;
 
+  const mcpOffCount = useMemo(
+    () => servers.filter((s) => !isExtensionEnabled(s.enabled)).length,
+    [servers],
+  );
+  const skillsOffCount = useMemo(
+    () => skills.filter((s) => !isExtensionEnabled(s.enabled)).length,
+    [skills],
+  );
+
   const reveal = async (path: string | null | undefined) => {
     const p = (path ?? "").trim();
     if (!p || !api.isTauri()) return;
@@ -111,6 +122,74 @@ export function ExtensionsPanel({
       setPathHint(null);
     } catch (e) {
       setPathHint(String(e));
+    }
+  };
+
+  const toggleMcp = async (name: string, next: boolean) => {
+    if (!api.isTauri() || busyKey) return;
+    setBusyKey(`mcp:${name}`);
+    // Optimistic UI
+    setServers((prev) =>
+      prev.map((s) => (s.name === name ? { ...s, enabled: next } : s)),
+    );
+    try {
+      await api.extensionsSetMcp(name, next);
+    } catch (e) {
+      setPathHint(String(e));
+      // Revert
+      setServers((prev) =>
+        prev.map((s) => (s.name === name ? { ...s, enabled: !next } : s)),
+      );
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const toggleSkill = async (name: string, next: boolean) => {
+    if (!api.isTauri() || busyKey) return;
+    setBusyKey(`skill:${name}`);
+    setSkills((prev) =>
+      prev.map((s) => (s.name === name ? { ...s, enabled: next } : s)),
+    );
+    try {
+      await api.extensionsSetSkill(name, next);
+    } catch (e) {
+      setPathHint(String(e));
+      setSkills((prev) =>
+        prev.map((s) => (s.name === name ? { ...s, enabled: !next } : s)),
+      );
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const enableAllMcp = async () => {
+    if (!api.isTauri() || busyKey || servers.length === 0) return;
+    setBusyKey("mcp:all");
+    const names = servers.map((s) => s.name);
+    setServers((prev) => prev.map((s) => ({ ...s, enabled: true })));
+    try {
+      await api.extensionsEnableAllMcp(names);
+    } catch (e) {
+      setPathHint(String(e));
+      await refresh();
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const enableAllSkills = async () => {
+    if (!api.isTauri() || busyKey || skills.length === 0) return;
+    setBusyKey("skill:all");
+    const names = skills.map((s) => s.name);
+    setSkills((prev) => prev.map((s) => ({ ...s, enabled: true })));
+    try {
+      await api.extensionsEnableAllSkills(names);
+    } catch (e) {
+      setPathHint(String(e));
+      await refresh();
+    } finally {
+      setBusyKey(null);
     }
   };
 
@@ -203,6 +282,16 @@ export function ExtensionsPanel({
         {!loading ? (
           <span className="ext-count">{skills.length}</span>
         ) : null}
+        {!loading && skills.length > 0 && skillsOffCount > 0 ? (
+          <button
+            type="button"
+            className="btn btn--ghost ext-bulk-btn"
+            disabled={!!busyKey}
+            onClick={() => void enableAllSkills()}
+          >
+            {tr("ext.enableAll")}
+          </button>
+        ) : null}
       </h2>
       <div className="settings-card ext-card">
         {loading && (
@@ -217,8 +306,12 @@ export function ExtensionsPanel({
           <ul className="ext-list">
             {skills.map((s) => {
               const tone = skillSourceTone(s.source);
+              const on = isExtensionEnabled(s.enabled);
               return (
-                <li key={`${s.source}:${s.name}:${s.path ?? ""}`} className="ext-item">
+                <li
+                  key={`${s.source}:${s.name}:${s.path ?? ""}`}
+                  className={"ext-item" + (on ? "" : " ext-item--off")}
+                >
                   <div className="ext-item__head">
                     <strong className="ext-item__name">{s.name}</strong>
                     <span className={`ext-badge ext-badge--${tone}`}>
@@ -229,6 +322,12 @@ export function ExtensionsPanel({
                         {tr("ext.skills.invocable")}
                       </span>
                     ) : null}
+                    <ExtensionToggle
+                      checked={on}
+                      disabled={!!busyKey}
+                      label={on ? tr("ext.enabled") : tr("ext.disabled")}
+                      onChange={(next) => void toggleSkill(s.name, next)}
+                    />
                   </div>
                   {s.description ? (
                     <p className="ext-item__desc">{s.description}</p>
@@ -261,6 +360,16 @@ export function ExtensionsPanel({
         {!loading ? (
           <span className="ext-count">{servers.length}</span>
         ) : null}
+        {!loading && servers.length > 0 && mcpOffCount > 0 ? (
+          <button
+            type="button"
+            className="btn btn--ghost ext-bulk-btn"
+            disabled={!!busyKey}
+            onClick={() => void enableAllMcp()}
+          >
+            {tr("ext.enableAll")}
+          </button>
+        ) : null}
       </h2>
       <div className="settings-card ext-card">
         {loading && <p className="ext-empty">{tr("ext.mcp.loading")}</p>}
@@ -273,8 +382,12 @@ export function ExtensionsPanel({
           <ul className="ext-list">
             {servers.map((s) => {
               const meta = mcpMetaLine(s);
+              const on = isExtensionEnabled(s.enabled);
               return (
-                <li key={s.name} className="ext-item">
+                <li
+                  key={s.name}
+                  className={"ext-item" + (on ? "" : " ext-item--off")}
+                >
                   <div className="ext-item__head">
                     <strong className="ext-item__name">{s.name}</strong>
                     {s.transport ? (
@@ -287,6 +400,12 @@ export function ExtensionsPanel({
                         {s.compatibilityStatus}
                       </span>
                     ) : null}
+                    <ExtensionToggle
+                      checked={on}
+                      disabled={!!busyKey}
+                      label={on ? tr("ext.enabled") : tr("ext.disabled")}
+                      onChange={(next) => void toggleMcp(s.name, next)}
+                    />
                   </div>
                   {meta ? <p className="ext-item__desc">{meta}</p> : null}
                   {s.target ? (
@@ -326,6 +445,33 @@ export function ExtensionsPanel({
         <span>{tr("ext.footnote")}</span>
       </p>
     </div>
+  );
+}
+
+function ExtensionToggle({
+  checked,
+  disabled,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  label: string;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      className={"ext-switch" + (checked ? " is-on" : "")}
+      onClick={() => onChange(!checked)}
+    >
+      <span className="ext-switch__thumb" aria-hidden />
+    </button>
   );
 }
 

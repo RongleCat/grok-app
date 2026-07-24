@@ -775,14 +775,14 @@ const en = {
 
   "mcpModal.title": "MCP servers",
   "mcpModal.hint":
-    "Servers discovered by Grok Build (inspect). Agent session MCP injection is separate.",
+    "Servers discovered by Grok Build (inspect). Enable or disable them under Settings → Extensions; enabled servers inject into new agent sessions.",
   "mcpModal.loading": "Loading MCP servers…",
   "mcpModal.empty": "No MCP servers discovered",
   "mcpModal.manage": "Manage in Settings",
 
   // Settings → Extensions (Skills + MCP)
   "ext.lead":
-    "Skills and MCP servers discovered via `grok inspect`. Project scope uses the active workbench folder as cwd; without a project, inspect runs globally.",
+    "Skills and MCP servers from `grok inspect`. Toggle enable to inject MCP into agent sessions and filter slash skills. Project scope uses the active workbench folder as cwd.",
   "ext.refresh": "Refresh",
   "ext.refreshing": "Refreshing…",
   "ext.scope.project": "Project",
@@ -806,8 +806,11 @@ const en = {
   "ext.mcp.empty": "No MCP servers discovered",
   "ext.mcp.emptyCli": "MCP status is unavailable until the CLI is installed.",
   "ext.mcp.vendor": "Vendor",
+  "ext.enabled": "Enabled",
+  "ext.disabled": "Disabled",
+  "ext.enableAll": "Enable all",
   "ext.footnote":
-    "Session MCP injection is separate from this inspect list. Configure servers in Grok Build / agent config.",
+    "Toggles persist under app data and inject enabled MCP servers into agent sessions (ACP mcpServers + agent-home config). Disabled skills stay on disk but hide from the slash palette.",
 
   // Errors / misc
   "error.needTauri": "Folder picker requires the Tauri window",
@@ -1684,14 +1687,14 @@ const zh: Record<MessageKey, string> = {
 
   "mcpModal.title": "MCP 服务器",
   "mcpModal.hint":
-    "由 Grok Build inspect 发现的服务器。与 Agent 会话是否注入 MCP 是分开的。",
+    "由 Grok Build inspect 发现的服务器。可在「设置 → 扩展」中启用/禁用；已启用的服务器会注入新会话。",
   "mcpModal.loading": "正在加载 MCP…",
   "mcpModal.empty": "未发现 MCP 服务器",
   "mcpModal.manage": "在设置中管理",
 
   // Settings → Extensions (Skills + MCP)
   "ext.lead":
-    "通过 `grok inspect` 发现的技能与 MCP 服务器。有当前项目时以该目录为 cwd；无项目时为全局范围。",
+    "通过 `grok inspect` 发现的技能与 MCP 服务器。开关控制会话注入与斜杠技能过滤；有当前项目时以该目录为 cwd。",
   "ext.refresh": "刷新",
   "ext.refreshing": "刷新中…",
   "ext.scope.project": "项目",
@@ -1715,8 +1718,11 @@ const zh: Record<MessageKey, string> = {
   "ext.mcp.empty": "未发现 MCP 服务器",
   "ext.mcp.emptyCli": "安装 CLI 后才能查看 MCP 状态。",
   "ext.mcp.vendor": "供应商",
+  "ext.enabled": "已启用",
+  "ext.disabled": "已禁用",
+  "ext.enableAll": "全部启用",
   "ext.footnote":
-    "会话内 MCP 注入与此 inspect 列表相互独立。请在 Grok Build / agent 配置中管理服务器。",
+    "开关会写入应用数据，并在新会话中注入已启用的 MCP（ACP mcpServers + agent-home 配置）。禁用技能仍保留在磁盘，但不会出现在斜杠面板。",
 
   "error.needTauri": "需要在 Tauri 窗口中选择目录",
   "common.comingSoon": "即将推出",
