@@ -301,6 +301,7 @@ const en = {
   "settings.nav.appearance": "Appearance",
   "settings.nav.account": "Account",
   "settings.nav.archived": "Archived chats",
+  "settings.nav.extensions": "Extensions",
   "settings.nav.runtime": "CLI / Runtime",
   "settings.nav.about": "About",
   "settings.archived.desc":
@@ -641,6 +642,36 @@ const en = {
     "Servers discovered by Grok Build (inspect). Agent session MCP injection is separate.",
   "mcpModal.loading": "Loading MCP servers…",
   "mcpModal.empty": "No MCP servers discovered",
+  "mcpModal.manage": "Manage in Settings",
+
+  // Settings → Extensions (Skills + MCP)
+  "ext.lead":
+    "Skills and MCP servers discovered via `grok inspect`. Project scope uses the active workbench folder as cwd; without a project, inspect runs globally.",
+  "ext.refresh": "Refresh",
+  "ext.refreshing": "Refreshing…",
+  "ext.scope.project": "Project",
+  "ext.scope.global": "Global",
+  "ext.scope.globalHint": "No active project — listing global / user scope",
+  "ext.openAgentHome": "Reveal agent home",
+  "ext.reveal": "Reveal",
+  "ext.needTauri": "Extensions require the Grok desktop window.",
+  "ext.error.title": "Could not inspect",
+  "ext.error.cliTitle": "Grok Build CLI not found",
+  "ext.error.cliBody":
+    "Install or set the CLI path under Settings → CLI / Runtime, then refresh this page.",
+  "ext.error.openRuntime": "Open CLI / Runtime",
+  "ext.skills.title": "Skills",
+  "ext.skills.loading": "Loading skills…",
+  "ext.skills.empty": "No skills discovered",
+  "ext.skills.emptyCli": "Skills are unavailable until the CLI is installed.",
+  "ext.skills.invocable": "Slash",
+  "ext.mcp.title": "MCP servers",
+  "ext.mcp.loading": "Loading MCP servers…",
+  "ext.mcp.empty": "No MCP servers discovered",
+  "ext.mcp.emptyCli": "MCP status is unavailable until the CLI is installed.",
+  "ext.mcp.vendor": "Vendor",
+  "ext.footnote":
+    "Session MCP injection is separate from this inspect list. Configure servers in Grok Build / agent config.",
 
   // Errors / misc
   "error.needTauri": "Folder picker requires the Tauri window",
@@ -1044,6 +1075,7 @@ const zh: Record<MessageKey, string> = {
   "settings.nav.appearance": "外观",
   "settings.nav.account": "账户",
   "settings.nav.archived": "已归档会话",
+  "settings.nav.extensions": "扩展",
   "settings.nav.runtime": "CLI / 运行时",
   "settings.nav.about": "关于",
   "settings.archived.desc":
@@ -1378,6 +1410,36 @@ const zh: Record<MessageKey, string> = {
     "由 Grok Build inspect 发现的服务器。与 Agent 会话是否注入 MCP 是分开的。",
   "mcpModal.loading": "正在加载 MCP…",
   "mcpModal.empty": "未发现 MCP 服务器",
+  "mcpModal.manage": "在设置中管理",
+
+  // Settings → Extensions (Skills + MCP)
+  "ext.lead":
+    "通过 `grok inspect` 发现的技能与 MCP 服务器。有当前项目时以该目录为 cwd；无项目时为全局范围。",
+  "ext.refresh": "刷新",
+  "ext.refreshing": "刷新中…",
+  "ext.scope.project": "项目",
+  "ext.scope.global": "全局",
+  "ext.scope.globalHint": "当前无活动项目 — 列出全局 / 用户范围",
+  "ext.openAgentHome": "打开 agent-home",
+  "ext.reveal": "在文件管理器中显示",
+  "ext.needTauri": "扩展管理需要在 Grok 桌面窗口中使用。",
+  "ext.error.title": "无法检查",
+  "ext.error.cliTitle": "未找到 Grok Build CLI",
+  "ext.error.cliBody":
+    "请先在「设置 → CLI / 运行时」安装或指定 CLI 路径，然后返回此页刷新。",
+  "ext.error.openRuntime": "打开 CLI / 运行时",
+  "ext.skills.title": "技能",
+  "ext.skills.loading": "正在加载技能…",
+  "ext.skills.empty": "未发现技能",
+  "ext.skills.emptyCli": "安装 CLI 后才能查看技能。",
+  "ext.skills.invocable": "斜杠",
+  "ext.mcp.title": "MCP 服务器",
+  "ext.mcp.loading": "正在加载 MCP…",
+  "ext.mcp.empty": "未发现 MCP 服务器",
+  "ext.mcp.emptyCli": "安装 CLI 后才能查看 MCP 状态。",
+  "ext.mcp.vendor": "供应商",
+  "ext.footnote":
+    "会话内 MCP 注入与此 inspect 列表相互独立。请在 Grok Build / agent 配置中管理服务器。",
 
   "error.needTauri": "需要在 Tauri 窗口中选择目录",
   "common.comingSoon": "即将推出",

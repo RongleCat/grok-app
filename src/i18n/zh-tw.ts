@@ -281,6 +281,7 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.nav.appearance": "外觀",
   "settings.nav.account": "帳戶",
   "settings.nav.archived": "已封存對話",
+  "settings.nav.extensions": "擴充功能",
   "settings.nav.runtime": "CLI / 執行環境",
   "settings.nav.about": "關於",
   "settings.archived.desc":
@@ -615,6 +616,36 @@ export const zhTW: Record<MessageKey, string> = {
     "由 Grok Build inspect 發現的伺服器。與 Agent 對話是否注入 MCP 是分開的。",
   "mcpModal.loading": "正在載入 MCP…",
   "mcpModal.empty": "未發現 MCP 伺服器",
+  "mcpModal.manage": "在設定中管理",
+
+  // Settings → Extensions (Skills + MCP)
+  "ext.lead":
+    "透過 `grok inspect` 發現的技能與 MCP 伺服器。有目前專案時以該目錄為 cwd；無專案時為全域範圍。",
+  "ext.refresh": "重新整理",
+  "ext.refreshing": "重新整理中…",
+  "ext.scope.project": "專案",
+  "ext.scope.global": "全域",
+  "ext.scope.globalHint": "目前無活動專案 — 列出全域 / 使用者範圍",
+  "ext.openAgentHome": "開啟 agent-home",
+  "ext.reveal": "在檔案總管中顯示",
+  "ext.needTauri": "擴充管理需要在 Grok 桌面視窗中使用。",
+  "ext.error.title": "無法檢查",
+  "ext.error.cliTitle": "找不到 Grok Build CLI",
+  "ext.error.cliBody":
+    "請先在「設定 → CLI / 執行環境」安裝或指定 CLI 路徑，然後返回此頁重新整理。",
+  "ext.error.openRuntime": "開啟 CLI / 執行環境",
+  "ext.skills.title": "技能",
+  "ext.skills.loading": "正在載入技能…",
+  "ext.skills.empty": "未發現技能",
+  "ext.skills.emptyCli": "安裝 CLI 後才能查看技能。",
+  "ext.skills.invocable": "斜線指令",
+  "ext.mcp.title": "MCP 伺服器",
+  "ext.mcp.loading": "正在載入 MCP…",
+  "ext.mcp.empty": "未發現 MCP 伺服器",
+  "ext.mcp.emptyCli": "安裝 CLI 後才能查看 MCP 狀態。",
+  "ext.mcp.vendor": "供應商",
+  "ext.footnote":
+    "對話內 MCP 注入與此 inspect 清單相互獨立。請在 Grok Build / agent 設定中管理伺服器。",
 
   "error.needTauri": "需要在 Tauri 視窗中選擇目錄",
   "common.comingSoon": "即將推出",

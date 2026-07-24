@@ -1301,6 +1301,7 @@ export default function App() {
           "appearance",
           "account",
           "archived",
+          "extensions",
           "runtime",
           "about",
         ];
@@ -4106,6 +4107,7 @@ export default function App() {
       "settings.nav.appearance",
       "settings.nav.account",
       "settings.nav.archived",
+      "settings.nav.extensions",
       "settings.nav.runtime",
       "settings.nav.about",
       "settings.archived.desc",
@@ -4448,6 +4450,7 @@ export default function App() {
               .filter((s): s is SessionRow => !!s);
             deleteSessionsConfirm(rows);
           }}
+          projectPath={activeProject?.path ?? null}
           onProviderActivated={() => {
             // Hot-reload Grok Build: drop live ACP so next send re-spawns with new GROK_HOME config.
             void (async () => {
@@ -5763,6 +5766,7 @@ export default function App() {
         error={mcpError}
         loading={mcpLoading}
         onClose={() => setShowMcpModal(false)}
+        onManage={() => navigateSettings("extensions")}
       />
       {showCompactModal && (
         <div

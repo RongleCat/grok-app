@@ -132,6 +132,7 @@ setAppDialog({
 - `src/styles/tokens.css` — `--menu-*` / `--modal-*` / 可选 `--glass-*`  
 - `src/styles/app.css` — modal / menu / cmm 布局  
 - `src/components/ComposerModelMenu.tsx` / `ComposerProjectMenu.tsx` — composer 芯片菜单范例  
-- `src/components/StatusModal.tsx` / `McpStatusModal.tsx` — GlassModal 范例  
+- `src/components/StatusModal.tsx` / `McpStatusModal.tsx` — GlassModal 范例（MCP 弹窗可跳转 Settings → Extensions）
+- `src/components/ExtensionsPanel.tsx` — Settings → Extensions 全页技能 / MCP 管理  
 - `src/components/AutomationsPage.tsx` — 子页面自建删除确认范例  
 - `src/i18n/messages.ts` — `common.cancel` / `common.confirm` / `common.close` 等  

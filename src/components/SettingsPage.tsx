@@ -22,6 +22,7 @@ import {
   IconInfo,
   IconLanguage,
   IconMinimize,
+  IconPuzzle,
   IconSearch,
   IconSettings,
   IconShield,
@@ -42,6 +43,7 @@ import type { AccountStatus, DetectedEditor } from "@/lib/api";
 import * as api from "@/lib/api";
 import { AccountPanel } from "@/components/AccountPanel";
 import { ProvidersPanel } from "@/components/ProvidersPanel";
+import { ExtensionsPanel } from "@/components/ExtensionsPanel";
 import { resolveLocale } from "@/i18n";
 
 export type SettingsSectionId =
@@ -49,6 +51,7 @@ export type SettingsSectionId =
   | "appearance"
   | "account"
   | "archived"
+  | "extensions"
   | "runtime"
   | "about";
 
@@ -127,11 +130,20 @@ export interface SettingsPageProps {
   onRestoreArchivedSessions?: (ids: string[]) => void;
   /** Delete one or more archived sessions after confirm (ids). */
   onDeleteArchivedSessions?: (ids: string[]) => void;
+  /** Active project path for Skills/MCP inspect cwd. */
+  projectPath?: string | null;
 }
 
 const NAV: {
   id: SettingsSectionId;
-  icon: "settings" | "appearance" | "user" | "archive" | "doctor" | "info";
+  icon:
+    | "settings"
+    | "appearance"
+    | "user"
+    | "archive"
+    | "extensions"
+    | "doctor"
+    | "info";
   labelKey: string;
   group: "personal" | "system";
 }[] = [
@@ -139,6 +151,12 @@ const NAV: {
   { id: "appearance", icon: "appearance", labelKey: "settings.nav.appearance", group: "personal" },
   { id: "account", icon: "user", labelKey: "settings.nav.account", group: "personal" },
   { id: "archived", icon: "archive", labelKey: "settings.nav.archived", group: "personal" },
+  {
+    id: "extensions",
+    icon: "extensions",
+    labelKey: "settings.nav.extensions",
+    group: "system",
+  },
   { id: "runtime", icon: "doctor", labelKey: "settings.nav.runtime", group: "system" },
   { id: "about", icon: "info", labelKey: "settings.nav.about", group: "system" },
 ];
@@ -153,6 +171,7 @@ function NavIcon({
   if (name === "appearance") return <IconAppearance size={size} />;
   if (name === "user") return <IconUser size={size} />;
   if (name === "archive") return <IconArchive size={size} />;
+  if (name === "extensions") return <IconPuzzle size={size} />;
   if (name === "doctor") return <IconDoctor size={size} />;
   if (name === "info") return <IconInfo size={size} />;
   return <IconSettings size={size} />;
@@ -291,6 +310,7 @@ export function SettingsPage({
   archivedGroups = [],
   onRestoreArchivedSessions,
   onDeleteArchivedSessions,
+  projectPath = null,
 }: SettingsPageProps) {
   const [query, setQuery] = useState("");
   const [accountTab, setAccountTab] = useState<"official" | "providers">(
@@ -509,9 +529,11 @@ export function SettingsPage({
           ? t("settings.nav.account")
           : section === "archived"
             ? t("settings.nav.archived")
-            : section === "runtime"
-              ? t("settings.nav.runtime")
-              : t("settings.nav.about");
+            : section === "extensions"
+              ? t("settings.nav.extensions")
+              : section === "runtime"
+                ? t("settings.nav.runtime")
+                : t("settings.nav.about");
 
   return (
     <div className="settings-page" data-testid="settings-page">
@@ -1108,6 +1130,15 @@ export function SettingsPage({
               </>
             )}
           </>
+        )}
+
+        {section === "extensions" && (
+          <ExtensionsPanel
+            locale={resolveLocale(locale)}
+            projectPath={projectPath}
+            cliFound={cliInfo.found}
+            onOpenRuntime={() => onSection("runtime")}
+          />
         )}
 
         {section === "runtime" && (
