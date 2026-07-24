@@ -177,6 +177,8 @@ pub fn run() {
             commands::path_open,
             commands::path_reveal,
             commands::git_file_diff,
+            commands::git_status,
+            commands::git_show_file,
             commands::fs_list_dir,
             commands::fs_read_file,
             tray::tray_refresh,

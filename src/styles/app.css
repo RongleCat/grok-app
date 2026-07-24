@@ -8636,6 +8636,110 @@ textarea::-webkit-scrollbar-thumb:active,
   padding: 2px 2px 8px;
 }
 
+.rp-changes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+}
+
+.rp-changes-section + .rp-changes-section {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+.rp-changes-section__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 6px;
+  min-height: 22px;
+}
+
+.rp-changes-section__title {
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.rp-changes-section__count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #6c8cff) 16%, transparent);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 16px;
+  text-align: center;
+}
+
+.rp-changes-section__branch {
+  margin-left: auto;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+}
+
+.rp-changes-section__empty {
+  padding: 6px 12px 10px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.rp-changes-badge {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: color-mix(in srgb, var(--bg-hover) 80%, transparent);
+  color: var(--text-secondary);
+}
+
+.rp-changes-badge--modified,
+.rp-changes-badge--typechange {
+  color: #c9a227;
+  background: color-mix(in srgb, #c9a227 16%, transparent);
+}
+
+.rp-changes-badge--added,
+.rp-changes-badge--untracked {
+  color: #3d9a5f;
+  background: color-mix(in srgb, #3d9a5f 16%, transparent);
+}
+
+.rp-changes-badge--deleted {
+  color: #d45454;
+  background: color-mix(in srgb, #d45454 16%, transparent);
+}
+
+.rp-changes-badge--renamed,
+.rp-changes-badge--copied {
+  color: #6c8cff;
+  background: color-mix(in srgb, #6c8cff 16%, transparent);
+}
+
+.rp-changes-badge--conflict {
+  color: #e67e22;
+  background: color-mix(in srgb, #e67e22 18%, transparent);
+}
+
 .rp-changes-row {
   display: flex;
   align-items: stretch;

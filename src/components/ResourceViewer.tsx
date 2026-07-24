@@ -25,6 +25,7 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconClose,
+  IconCopy,
   IconExternalLink,
   IconFileDiff,
   IconFolder,
@@ -39,6 +40,7 @@ import { isOfficeKind } from "@/lib/filePreviewSrc";
 import { OpenLocationButton } from "@/components/OpenLocationButton";
 import { Tip } from "@/components/ui/tooltip";
 import { ContextMenu, type ContextMenuItem } from "@/components/ContextMenu";
+import type { MessageKey } from "@/i18n";
 import {
   buildUnifiedDiff,
   normalizePath,
@@ -46,6 +48,14 @@ import {
   pathRelativeToProject,
   type SessionFileChange,
 } from "@/lib/sessionChanges";
+import {
+  filterWorkspaceGitEntries,
+  normalizeWorkspaceGitEntries,
+  resolveWorkspaceAbsolutePath,
+  workspaceGitKindBadge,
+  workspaceGitKindMessageKey,
+  type WorkspaceGitFile,
+} from "@/lib/workspaceGit";
 
 const TREE_WIDTH_KEY = "grok-app.resourceTreeWidth";
 const TREE_WIDTH_DEFAULT = 220;
@@ -109,8 +119,10 @@ type DiffViewState = {
   /** Fallback: full after content only. */
   afterOnly: string | null;
   error: string | null;
-  source: "payload" | "git" | "after" | null;
+  source: "payload" | "git" | "head" | "after" | null;
 };
+
+type ChangeSelectionSource = "session" | "workspace";
 
 interface TreeNode {
   name: string;
@@ -218,8 +230,18 @@ export function ResourceViewer({
   const [selectedChangePath, setSelectedChangePath] = useState<string | null>(
     null,
   );
+  const [selectedChangeSource, setSelectedChangeSource] =
+    useState<ChangeSelectionSource | null>(null);
   const [diffView, setDiffView] = useState<DiffViewState | null>(null);
   const diffLoadSeq = useRef(0);
+  const workspaceLoadSeq = useRef(0);
+  /** Workspace git status (project-wide), independent of session tool edits. */
+  const [workspaceFiles, setWorkspaceFiles] = useState<WorkspaceGitFile[]>([]);
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [workspaceAvailable, setWorkspaceAvailable] = useState(false);
+  const [workspaceReason, setWorkspaceReason] = useState<string | null>(null);
+  const [workspaceBranch, setWorkspaceBranch] = useState<string | null>(null);
+  const [pathCopyFlash, setPathCopyFlash] = useState(false);
   /** Open-with target for the location button (finder / editor id). */
   const [openWithTarget, setOpenWithTarget] = useState(() => {
     try {
@@ -231,6 +253,8 @@ export function ResourceViewer({
 
   const activeTab = tabs.find((t) => t.id === activeId) ?? null;
   const changeCount = sessionChanges.length;
+  const workspaceCount = workspaceFiles.length;
+  const totalChangeBadge = changeCount + workspaceCount;
   const filteredChanges = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sessionChanges;
@@ -241,23 +265,77 @@ export function ResourceViewer({
         (c.toolKind || "").toLowerCase().includes(q),
     );
   }, [sessionChanges, query]);
+  const filteredWorkspace = useMemo(
+    () => filterWorkspaceGitEntries(workspaceFiles, query),
+    [workspaceFiles, query],
+  );
 
   // Closing the right pane always collapses the tree (not remembered).
   useEffect(() => {
     if (!paneActive) setTreeVisible(false);
   }, [paneActive]);
 
-  // Drop selection if the change list no longer contains it.
+  const refreshWorkspaceStatus = useCallback(async () => {
+    if (!projectPath || !api.isTauri()) {
+      setWorkspaceFiles([]);
+      setWorkspaceAvailable(false);
+      setWorkspaceBranch(null);
+      setWorkspaceReason(null);
+      setWorkspaceLoading(false);
+      return;
+    }
+    const seq = ++workspaceLoadSeq.current;
+    setWorkspaceLoading(true);
+    try {
+      const res = await api.gitStatus(projectPath);
+      if (seq !== workspaceLoadSeq.current) return;
+      if (!res.available) {
+        setWorkspaceFiles([]);
+        setWorkspaceAvailable(false);
+        setWorkspaceBranch(res.branch ?? null);
+        setWorkspaceReason(res.reason ?? "unavailable");
+      } else {
+        setWorkspaceFiles(
+          normalizeWorkspaceGitEntries(res.files ?? [], projectPath),
+        );
+        setWorkspaceAvailable(true);
+        setWorkspaceBranch(res.branch ?? null);
+        setWorkspaceReason(null);
+      }
+    } catch (e) {
+      if (seq !== workspaceLoadSeq.current) return;
+      setWorkspaceFiles([]);
+      setWorkspaceAvailable(false);
+      setWorkspaceBranch(null);
+      setWorkspaceReason(String(e));
+    } finally {
+      if (seq === workspaceLoadSeq.current) setWorkspaceLoading(false);
+    }
+  }, [projectPath]);
+
+  // Prefetch workspace git status for badge + Changes panel (soft; project change).
+  useEffect(() => {
+    void refreshWorkspaceStatus();
+  }, [projectPath, refreshWorkspaceStatus]);
+
+  // Drop selection if neither session nor workspace still lists the path.
   useEffect(() => {
     if (!selectedChangePath) return;
-    const still = sessionChanges.some(
-      (c) => normalizePath(c.path) === normalizePath(selectedChangePath),
+    const n = normalizePath(selectedChangePath);
+    const inSession = sessionChanges.some(
+      (c) => normalizePath(c.path) === n,
     );
-    if (!still) {
+    const inWorkspace = workspaceFiles.some(
+      (c) =>
+        normalizePath(c.path) === n ||
+        normalizePath(c.absolutePath) === n,
+    );
+    if (!inSession && !inWorkspace) {
       setSelectedChangePath(null);
+      setSelectedChangeSource(null);
       setDiffView(null);
     }
-  }, [sessionChanges, selectedChangePath]);
+  }, [sessionChanges, workspaceFiles, selectedChangePath]);
 
   const loadChangeDiff = useCallback(
     async (change: SessionFileChange) => {
@@ -265,6 +343,7 @@ export function ResourceViewer({
       if (!path) return;
       const seq = ++diffLoadSeq.current;
       setSelectedChangePath(path);
+      setSelectedChangeSource("session");
       setDiffView({
         path,
         name: change.name || pathBaseName(path),
@@ -332,6 +411,35 @@ export function ResourceViewer({
           /* ignore */
         }
       }
+
+      // 3b) HEAD content via git_show_file + after → local unified diff
+      if (
+        afterText != null &&
+        typeof change.before !== "string" &&
+        projectPath &&
+        api.isTauri()
+      ) {
+        try {
+          const head = await api.gitShowFile(projectPath, path);
+          if (seq !== diffLoadSeq.current) return;
+          if (head.available && typeof head.content === "string") {
+            const unified = buildUnifiedDiff(relName, head.content, afterText);
+            setDiffView({
+              path,
+              name: change.name || pathBaseName(path),
+              loading: false,
+              unified,
+              afterOnly: null,
+              error: null,
+              source: "head",
+            });
+            return;
+          }
+        } catch {
+          /* soft-fail */
+        }
+      }
+
       if (seq !== diffLoadSeq.current) return;
 
       if (
@@ -377,6 +485,111 @@ export function ResourceViewer({
     [projectPath],
   );
 
+  const loadWorkspaceDiff = useCallback(
+    async (entry: WorkspaceGitFile) => {
+      const abs =
+        normalizePath(entry.absolutePath) ||
+        resolveWorkspaceAbsolutePath(projectPath, entry.path);
+      const path = abs || normalizePath(entry.path);
+      if (!path) return;
+      const seq = ++diffLoadSeq.current;
+      setSelectedChangePath(path);
+      setSelectedChangeSource("workspace");
+      setDiffView({
+        path,
+        name: entry.name || pathBaseName(path),
+        loading: true,
+        unified: null,
+        afterOnly: null,
+        error: null,
+        source: null,
+      });
+
+      const relName = entry.path || pathBaseName(path);
+
+      // Prefer git unified diff for workspace rows
+      if (projectPath && api.isTauri()) {
+        try {
+          const g = await api.gitFileDiff(projectPath, path);
+          if (seq !== diffLoadSeq.current) return;
+          if (g.available && g.diff?.trim()) {
+            setDiffView({
+              path,
+              name: entry.name || pathBaseName(path),
+              loading: false,
+              unified: g.diff,
+              afterOnly: null,
+              error: null,
+              source: "git",
+            });
+            return;
+          }
+        } catch {
+          /* soft-fail */
+        }
+
+        // HEAD + working tree for local unified when porcelain has no unified text
+        try {
+          const [head, cur] = await Promise.all([
+            api.gitShowFile(projectPath, path).catch(() => null),
+            api.fsOpenPath(path, projectPath).catch(() => null),
+          ]);
+          if (seq !== diffLoadSeq.current) return;
+          const afterText = cur?.text ?? null;
+          if (head?.available && typeof head.content === "string" && afterText != null) {
+            const unified = buildUnifiedDiff(relName, head.content, afterText);
+            setDiffView({
+              path,
+              name: entry.name || pathBaseName(path),
+              loading: false,
+              unified,
+              afterOnly: null,
+              error: null,
+              source: "head",
+            });
+            return;
+          }
+          if (afterText != null) {
+            // Untracked / new: show full file as after-only
+            setDiffView({
+              path,
+              name: entry.name || pathBaseName(path),
+              loading: false,
+              unified:
+                entry.kind === "untracked" || entry.kind === "added"
+                  ? buildUnifiedDiff(relName, "", afterText)
+                  : null,
+              afterOnly:
+                entry.kind === "untracked" || entry.kind === "added"
+                  ? null
+                  : afterText,
+              error: null,
+              source:
+                entry.kind === "untracked" || entry.kind === "added"
+                  ? "git"
+                  : "after",
+            });
+            return;
+          }
+        } catch {
+          /* soft-fail */
+        }
+      }
+
+      if (seq !== diffLoadSeq.current) return;
+      setDiffView({
+        path,
+        name: entry.name || pathBaseName(path),
+        loading: false,
+        unified: null,
+        afterOnly: null,
+        error: null,
+        source: null,
+      });
+    },
+    [projectPath],
+  );
+
   const openChangeInEditor = useCallback(async (path: string) => {
     if (!path || !api.isTauri()) return;
     try {
@@ -394,6 +607,34 @@ export function ResourceViewer({
       setError(String(e));
     }
   }, []);
+
+  const copyChangePath = useCallback(async (path: string) => {
+    if (!path) return;
+    try {
+      await navigator.clipboard.writeText(path);
+      setPathCopyFlash(true);
+      window.setTimeout(() => setPathCopyFlash(false), 1200);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const workspaceKindLabel = useCallback(
+    (kind: string) =>
+      tr(workspaceGitKindMessageKey(kind) as MessageKey),
+    [tr],
+  );
+
+  const workspaceUnavailableLabel = useCallback(() => {
+    const r = (workspaceReason || "").toLowerCase();
+    if (r.includes("not a git") || r.includes("not a git repository")) {
+      return tr("changes.workspace.noRepo");
+    }
+    if (r.includes("git not available") || r.includes("not available")) {
+      return tr("changes.workspace.noGit");
+    }
+    return tr("changes.workspace.unavailable");
+  }, [tr, workspaceReason]);
 
   const showSidePanel = (mode: SideMode) => {
     if (treeVisible && sideMode === mode) {
@@ -878,9 +1119,11 @@ export function ResourceViewer({
         const srcLabel =
           diffView.source === "git"
             ? tr("changes.sourceGit")
-            : diffView.source === "payload"
-              ? tr("changes.sourcePayload")
-              : null;
+            : diffView.source === "head"
+              ? tr("changes.sourceHead")
+              : diffView.source === "payload"
+                ? tr("changes.sourcePayload")
+                : null;
         return (
           <CodePreview
             code={diffView.unified}
@@ -921,6 +1164,18 @@ export function ResourceViewer({
             >
               <IconFolder size={14} />
               <span className="rp-tool-btn__label">{tr("changes.reveal")}</span>
+            </button>
+            <button
+              type="button"
+              className="rp-tool-btn"
+              onClick={() => void copyChangePath(diffView.path)}
+            >
+              <IconCopy size={14} />
+              <span className="rp-tool-btn__label">
+                {pathCopyFlash
+                  ? tr("changes.pathCopied")
+                  : tr("changes.copyPath")}
+              </span>
             </button>
           </div>
         </div>
@@ -1090,6 +1345,8 @@ export function ResourceViewer({
     diffView,
     openChangeInEditor,
     revealChangePath,
+    copyChangePath,
+    pathCopyFlash,
   ]);
 
   // No project and no open tabs → empty; allow absolute/url tabs without a project.
@@ -1246,9 +1503,9 @@ export function ResourceViewer({
               aria-label={tr("changes.title")}
             >
               <IconFileDiff size={16} />
-              {changeCount > 0 ? (
+              {totalChangeBadge > 0 ? (
                 <span className="rp-chrome__badge" aria-hidden>
-                  {changeCount > 99 ? "99+" : changeCount}
+                  {totalChangeBadge > 99 ? "99+" : totalChangeBadge}
                 </span>
               ) : null}
             </button>
@@ -1328,17 +1585,21 @@ export function ResourceViewer({
           ) : !activeTab ? (
             <div className="rp__empty-state">
               <div className="rp__empty-title">
-                {sideMode === "changes" && changeCount === 0
+                {sideMode === "changes" &&
+                changeCount === 0 &&
+                workspaceCount === 0
                   ? tr("changes.empty")
                   : sideMode === "changes"
                     ? tr("changes.title")
                     : tr("resources.emptyPreview")}
               </div>
               <div className="rp__empty-desc">
-                {sideMode === "changes" && changeCount === 0
+                {sideMode === "changes" &&
+                changeCount === 0 &&
+                workspaceCount === 0
                   ? tr("changes.emptyHint")
                   : sideMode === "changes"
-                    ? tr("changes.emptyHint")
+                    ? tr("changes.workspace.emptyHint")
                     : tr("resources.emptyPreviewHint")}
               </div>
             </div>
@@ -1424,8 +1685,10 @@ export function ResourceViewer({
                   onClick={() => setSideMode("changes")}
                 >
                   {tr("changes.title")}
-                  {changeCount > 0 ? (
-                    <span className="rp-side-modes__count">{changeCount}</span>
+                  {totalChangeBadge > 0 ? (
+                    <span className="rp-side-modes__count">
+                      {totalChangeBadge}
+                    </span>
                   ) : null}
                 </button>
               </div>
@@ -1434,11 +1697,7 @@ export function ResourceViewer({
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={
-                    sideMode === "changes"
-                      ? tr("resources.filterPh")
-                      : tr("resources.filterPh")
-                  }
+                  placeholder={tr("resources.filterPh")}
                   aria-label={tr("resources.filterPh")}
                 />
                 {sideMode === "files" ? (
@@ -1451,84 +1710,254 @@ export function ResourceViewer({
                       <IconRefresh size={14} />
                     </button>
                   </Tip>
-                ) : null}
+                ) : (
+                  <Tip label={tr("changes.workspace.refresh")}>
+                    <button
+                      type="button"
+                      className="chrome-btn"
+                      onClick={() => void refreshWorkspaceStatus()}
+                      disabled={workspaceLoading}
+                    >
+                      <IconRefresh size={14} />
+                    </button>
+                  </Tip>
+                )}
               </div>
               <OverlayScroll className="rp-tree-scroll">
                 {sideMode === "changes" ? (
-                  filteredChanges.length === 0 ? (
-                    <div className="rp__empty-state rp__empty-state--sm">
-                      {tr("changes.empty")}
-                    </div>
-                  ) : (
-                    <div className="rp-changes-list" role="list">
-                      {filteredChanges.map((c) => {
-                        const active =
-                          selectedChangePath != null &&
-                          normalizePath(c.path) ===
-                            normalizePath(selectedChangePath);
-                        const rel =
-                          pathRelativeToProject(c.path, projectPath) || c.path;
-                        return (
-                          <div
-                            key={c.path}
-                            className={
-                              "rp-changes-row" + (active ? " is-active" : "")
-                            }
-                            role="listitem"
-                          >
-                            <button
-                              type="button"
-                              className="rp-changes-row__main"
-                              title={c.path}
-                              onClick={() => void loadChangeDiff(c)}
+                  <div className="rp-changes-list" role="list">
+                    {/* ── Session (agent tool edits) ── */}
+                    <div className="rp-changes-section">
+                      <div className="rp-changes-section__head">
+                        <span className="rp-changes-section__title">
+                          {tr("changes.section.session")}
+                        </span>
+                        {changeCount > 0 ? (
+                          <span className="rp-changes-section__count">
+                            {changeCount}
+                          </span>
+                        ) : null}
+                      </div>
+                      {filteredChanges.length === 0 ? (
+                        <div className="rp-changes-section__empty">
+                          {tr("changes.empty")}
+                        </div>
+                      ) : (
+                        filteredChanges.map((c) => {
+                          const active =
+                            selectedChangeSource === "session" &&
+                            selectedChangePath != null &&
+                            normalizePath(c.path) ===
+                              normalizePath(selectedChangePath);
+                          const rel =
+                            pathRelativeToProject(c.path, projectPath) ||
+                            c.path;
+                          return (
+                            <div
+                              key={`session:${c.path}`}
+                              className={
+                                "rp-changes-row" +
+                                (active ? " is-active" : "")
+                              }
+                              role="listitem"
                             >
-                              <FileKindMark name={c.name} isDir={false} />
-                              <span className="rp-changes-row__meta">
-                                <span className="rp-changes-row__name">
-                                  {c.name}
+                              <button
+                                type="button"
+                                className="rp-changes-row__main"
+                                title={c.path}
+                                onClick={() => void loadChangeDiff(c)}
+                              >
+                                <FileKindMark name={c.name} isDir={false} />
+                                <span className="rp-changes-row__meta">
+                                  <span className="rp-changes-row__name">
+                                    {c.name}
+                                  </span>
+                                  <span className="rp-changes-row__path">
+                                    {rel}
+                                  </span>
+                                  <span className="rp-changes-row__kind">
+                                    {c.toolKind}
+                                    {c.status
+                                      ? ` · ${changeStatusLabel(c.status)}`
+                                      : ""}
+                                  </span>
                                 </span>
-                                <span className="rp-changes-row__path">
-                                  {rel}
-                                </span>
-                                <span className="rp-changes-row__kind">
-                                  {c.toolKind}
-                                  {c.status
-                                    ? ` · ${changeStatusLabel(c.status)}`
-                                    : ""}
-                                </span>
-                              </span>
-                            </button>
-                            <div className="rp-changes-row__actions">
-                              <Tip label={tr("changes.openInEditor")}>
-                                <button
-                                  type="button"
-                                  className="chrome-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    void openChangeInEditor(c.path);
-                                  }}
-                                >
-                                  <IconExternalLink size={13} />
-                                </button>
-                              </Tip>
-                              <Tip label={tr("changes.reveal")}>
-                                <button
-                                  type="button"
-                                  className="chrome-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    void revealChangePath(c.path);
-                                  }}
-                                >
-                                  <IconFolder size={13} />
-                                </button>
-                              </Tip>
+                              </button>
+                              <div className="rp-changes-row__actions">
+                                <Tip label={tr("changes.openInEditor")}>
+                                  <button
+                                    type="button"
+                                    className="chrome-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void openChangeInEditor(c.path);
+                                    }}
+                                  >
+                                    <IconExternalLink size={13} />
+                                  </button>
+                                </Tip>
+                                <Tip label={tr("changes.reveal")}>
+                                  <button
+                                    type="button"
+                                    className="chrome-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void revealChangePath(c.path);
+                                    }}
+                                  >
+                                    <IconFolder size={13} />
+                                  </button>
+                                </Tip>
+                                <Tip label={tr("changes.copyPath")}>
+                                  <button
+                                    type="button"
+                                    className="chrome-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void copyChangePath(c.path);
+                                    }}
+                                  >
+                                    <IconCopy size={13} />
+                                  </button>
+                                </Tip>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })
+                      )}
                     </div>
-                  )
+
+                    {/* ── Workspace (git status) ── */}
+                    <div className="rp-changes-section">
+                      <div className="rp-changes-section__head">
+                        <span className="rp-changes-section__title">
+                          {tr("changes.section.workspace")}
+                        </span>
+                        {workspaceCount > 0 ? (
+                          <span className="rp-changes-section__count">
+                            {workspaceCount}
+                          </span>
+                        ) : null}
+                        {workspaceBranch ? (
+                          <span
+                            className="rp-changes-section__branch"
+                            title={tr("changes.workspace.branch", {
+                              branch: workspaceBranch,
+                            })}
+                          >
+                            {workspaceBranch}
+                          </span>
+                        ) : null}
+                      </div>
+                      {workspaceLoading && workspaceFiles.length === 0 ? (
+                        <div className="rp-changes-section__empty">
+                          {tr("changes.workspace.loading")}
+                        </div>
+                      ) : !workspaceAvailable ? (
+                        <div className="rp-changes-section__empty">
+                          {workspaceUnavailableLabel()}
+                        </div>
+                      ) : filteredWorkspace.length === 0 ? (
+                        <div className="rp-changes-section__empty">
+                          {tr("changes.workspace.empty")}
+                        </div>
+                      ) : (
+                        filteredWorkspace.map((w) => {
+                          const abs =
+                            normalizePath(w.absolutePath) ||
+                            resolveWorkspaceAbsolutePath(
+                              projectPath,
+                              w.path,
+                            );
+                          const active =
+                            selectedChangeSource === "workspace" &&
+                            selectedChangePath != null &&
+                            (normalizePath(selectedChangePath) === abs ||
+                              normalizePath(selectedChangePath) ===
+                                normalizePath(w.path));
+                          return (
+                            <div
+                              key={`ws:${w.path}`}
+                              className={
+                                "rp-changes-row" +
+                                (active ? " is-active" : "")
+                              }
+                              role="listitem"
+                            >
+                              <button
+                                type="button"
+                                className="rp-changes-row__main"
+                                title={abs || w.path}
+                                onClick={() => void loadWorkspaceDiff(w)}
+                              >
+                                <span
+                                  className={
+                                    "rp-changes-badge rp-changes-badge--" +
+                                    w.kind
+                                  }
+                                  aria-hidden
+                                >
+                                  {workspaceGitKindBadge(w.kind)}
+                                </span>
+                                <span className="rp-changes-row__meta">
+                                  <span className="rp-changes-row__name">
+                                    {w.name}
+                                  </span>
+                                  <span className="rp-changes-row__path">
+                                    {w.path}
+                                  </span>
+                                  <span className="rp-changes-row__kind">
+                                    {workspaceKindLabel(w.kind)}
+                                    {w.status.trim()
+                                      ? ` · ${w.status}`
+                                      : ""}
+                                  </span>
+                                </span>
+                              </button>
+                              <div className="rp-changes-row__actions">
+                                <Tip label={tr("changes.openInEditor")}>
+                                  <button
+                                    type="button"
+                                    className="chrome-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void openChangeInEditor(abs || w.path);
+                                    }}
+                                  >
+                                    <IconExternalLink size={13} />
+                                  </button>
+                                </Tip>
+                                <Tip label={tr("changes.reveal")}>
+                                  <button
+                                    type="button"
+                                    className="chrome-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void revealChangePath(abs || w.path);
+                                    }}
+                                  >
+                                    <IconFolder size={13} />
+                                  </button>
+                                </Tip>
+                                <Tip label={tr("changes.copyPath")}>
+                                  <button
+                                    type="button"
+                                    className="chrome-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void copyChangePath(abs || w.path);
+                                    }}
+                                  >
+                                    <IconCopy size={13} />
+                                  </button>
+                                </Tip>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
                 ) : loadingTree ? (
                   <div className="rp__empty-state rp__empty-state--sm">
                     {tr("resources.loading")}

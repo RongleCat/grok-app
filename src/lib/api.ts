@@ -336,6 +336,42 @@ export async function gitFileDiff(projectPath: string, path: string) {
   return invoke<GitFileDiffResult>("git_file_diff", { projectPath, path });
 }
 
+/** One workspace file from `git status --porcelain` (Changes → Workspace). */
+export interface GitStatusEntry {
+  path: string;
+  absolutePath: string;
+  status: string;
+  indexStatus: string;
+  worktreeStatus: string;
+  kind: string;
+  name: string;
+  originalPath?: string | null;
+}
+
+export interface GitStatusResult {
+  available: boolean;
+  files: GitStatusEntry[];
+  branch?: string | null;
+  reason?: string | null;
+}
+
+/** Soft-fail workspace git status for the project path. */
+export async function gitStatus(projectPath: string) {
+  return invoke<GitStatusResult>("git_status", { projectPath });
+}
+
+/** File content at HEAD (before snapshot for local unified diffs). */
+export interface GitShowFileResult {
+  available: boolean;
+  content?: string | null;
+  relativePath?: string | null;
+  reason?: string | null;
+}
+
+export async function gitShowFile(projectPath: string, path: string) {
+  return invoke<GitShowFileResult>("git_show_file", { projectPath, path });
+}
+
 export interface FsEntry {
   name: string;
   relativePath: string;

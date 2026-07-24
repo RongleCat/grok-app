@@ -11,6 +11,14 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+
+- **Changes panel — Workspace git status**: Session (agent tool edits) + Workspace (`git status`) sections; click for unified diff via `git_file_diff` / `git_show_file`; refresh, open in editor, reveal, copy path.
+
+### Added (中文)
+
+- **Changes 面板 — 工作区 git 状态**：会话变更 + 工作区 `git status` 分段；点击查看 diff；刷新 / 外开编辑器 / Reveal / 复制路径。
+
 ## [0.1.2] - 2026-07-24
 
 > 中英文对照 / Bilingual notes.

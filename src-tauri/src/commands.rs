@@ -2002,6 +2002,488 @@ pub async fn git_file_diff(
     })
 }
 
+// ── Workspace git status (Changes panel: Session + Workspace) ──────────────
+
+/// Soft-check git on PATH + project is inside a work tree.
+fn git_probe_work_tree(project: &str) -> Result<(), String> {
+    let git_ok = std::process::Command::new("git")
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !git_ok {
+        return Err("git not available".into());
+    }
+    let inside = std::process::Command::new("git")
+        .args(["-C", project, "rev-parse", "--is-inside-work-tree"])
+        .output();
+    let inside_ok = inside
+        .as_ref()
+        .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).trim() == "true")
+        .unwrap_or(false);
+    if !inside_ok {
+        return Err("not a git repository".into());
+    }
+    Ok(())
+}
+
+/// One row from `git status --porcelain=v1` for the Workspace Changes section.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitStatusEntry {
+    /// Repo-relative path (forward slashes).
+    pub path: String,
+    /// Absolute path under the project root when possible.
+    pub absolute_path: String,
+    /// Two-char porcelain code (e.g. ` M`, `M `, `??`, `A `).
+    pub status: String,
+    /// Index (staged) status char, or space.
+    pub index_status: String,
+    /// Worktree status char, or space.
+    pub worktree_status: String,
+    /// Coarse kind: modified | added | deleted | untracked | renamed | copied | typechange | conflict | ignored | unknown
+    pub kind: String,
+    /// Basename for list rows.
+    pub name: String,
+    /// Rename/copy source path when present.
+    pub original_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitStatusResult {
+    pub available: bool,
+    pub files: Vec<GitStatusEntry>,
+    pub branch: Option<String>,
+    pub reason: Option<String>,
+}
+
+/// Classify porcelain XY code into a coarse kind string (mirrors frontend helper).
+fn git_status_kind(x: char, y: char) -> &'static str {
+    if x == '?' && y == '?' {
+        return "untracked";
+    }
+    if x == '!' && y == '!' {
+        return "ignored";
+    }
+    if x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D') {
+        return "conflict";
+    }
+    // Prefer worktree letter, then index
+    for c in [y, x] {
+        match c {
+            'R' => return "renamed",
+            'C' => return "copied",
+            'A' => return "added",
+            'D' => return "deleted",
+            'T' => return "typechange",
+            'M' => return "modified",
+            _ => {}
+        }
+    }
+    if x != ' ' || y != ' ' {
+        return "modified";
+    }
+    "unknown"
+}
+
+fn git_entry_basename(rel: &str) -> String {
+    let n = rel.replace('\\', "/");
+    n.rsplit('/').next().unwrap_or(rel).to_string()
+}
+
+/// Parse one porcelain v1 line into an entry (pure; unit-tested).
+#[cfg(test)]
+fn parse_porcelain_line(line: &str, project: &str) -> Option<GitStatusEntry> {
+    let line = line.trim_end_matches(['\r', '\n']);
+    if line.len() < 3 {
+        return None;
+    }
+    let bytes = line.as_bytes();
+    // Standard: XY SPACE path…  (status is always 2 chars)
+    let x = bytes[0] as char;
+    let y = bytes[1] as char;
+    // Must have a separator after XY
+    if bytes.len() < 4 {
+        return None;
+    }
+    // skip optional space after XY
+    let rest = line[2..].trim_start();
+    if rest.is_empty() {
+        return None;
+    }
+
+    let (path, original_path) = if rest.contains(" -> ") {
+        // rename / copy: "old -> new"
+        let mut parts = rest.splitn(2, " -> ");
+        let old = parts.next().unwrap_or("").trim().to_string();
+        let new = parts.next().unwrap_or("").trim().to_string();
+        if new.is_empty() {
+            return None;
+        }
+        (new, if old.is_empty() { None } else { Some(old) })
+    } else {
+        // Unquoted path (porcelain without -z does not quote unless special chars;
+        // strip surrounding quotes when present).
+        let p = rest.trim().trim_matches('"').to_string();
+        (p, None)
+    };
+
+    let path = path.replace('\\', "/");
+    if path.is_empty() {
+        return None;
+    }
+
+    let abs = join_project_rel(project, &path);
+
+    let status = format!("{x}{y}");
+    Some(GitStatusEntry {
+        path: path.clone(),
+        absolute_path: abs,
+        status,
+        index_status: x.to_string(),
+        worktree_status: y.to_string(),
+        kind: git_status_kind(x, y).to_string(),
+        name: git_entry_basename(&path),
+        original_path,
+    })
+}
+
+/// Join project root + repo-relative path with `/` for UI (platform-neutral).
+fn join_project_rel(project: &str, rel: &str) -> String {
+    let root = project.trim_end_matches(['/', '\\']).replace('\\', "/");
+    let r = rel.trim_start_matches('/').replace('\\', "/");
+    if root.is_empty() {
+        r
+    } else if r.is_empty() {
+        root
+    } else {
+        format!("{root}/{r}")
+    }
+}
+
+/// List modified / untracked / added files under a project (Workspace Changes).
+/// Soft-fails when git is missing or the path is not a repo.
+#[tauri::command]
+pub async fn git_status(project_path: String) -> Result<GitStatusResult, String> {
+    let project = normalize_fs_path(&project_path);
+    if project.is_empty() {
+        return Ok(GitStatusResult {
+            available: false,
+            files: vec![],
+            branch: None,
+            reason: Some("empty path".into()),
+        });
+    }
+    let proj = std::path::PathBuf::from(&project);
+    if !proj.is_dir() {
+        return Ok(GitStatusResult {
+            available: false,
+            files: vec![],
+            branch: None,
+            reason: Some("project not a directory".into()),
+        });
+    }
+
+    if let Err(reason) = git_probe_work_tree(&project) {
+        return Ok(GitStatusResult {
+            available: false,
+            files: vec![],
+            branch: None,
+            reason: Some(reason),
+        });
+    }
+
+    let branch = std::process::Command::new("git")
+        .args(["-C", &project, "rev-parse", "--abbrev-ref", "HEAD"])
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                let b = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                if b.is_empty() || b == "HEAD" {
+                    None
+                } else {
+                    Some(b)
+                }
+            } else {
+                None
+            }
+        });
+
+    // Porcelain v1: untracked as `??`, no ignored noise, relative paths.
+    let out = std::process::Command::new("git")
+        .args([
+            "-C",
+            &project,
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=normal",
+            "-z",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        return Ok(GitStatusResult {
+            available: false,
+            files: vec![],
+            branch,
+            reason: Some(if err.is_empty() {
+                "git status failed".into()
+            } else {
+                err.chars().take(200).collect()
+            }),
+        });
+    }
+
+    // -z: records separated by NUL. Each record is `XY path` or for renames
+    // `XY` + space + old + NUL + new (git uses two NUL fields for rename).
+    // Actually with -z: "XY path\0" and for rename "R  oldpath\0newpath\0".
+    let raw = out.stdout;
+    let mut files: Vec<GitStatusEntry> = Vec::new();
+    let mut i = 0;
+    while i < raw.len() {
+        // find next NUL
+        let end = raw[i..]
+            .iter()
+            .position(|&b| b == 0)
+            .map(|p| i + p)
+            .unwrap_or(raw.len());
+        if end == i {
+            break;
+        }
+        let chunk = String::from_utf8_lossy(&raw[i..end]).into_owned();
+        i = end + 1;
+
+        if chunk.len() < 3 {
+            continue;
+        }
+        let x = chunk.as_bytes()[0] as char;
+        let y = chunk.as_bytes()[1] as char;
+        // After XY there is a space then path (when not rename split).
+        let rest = chunk[2..].trim_start();
+
+        // Rename/copy: first field is "XY oldpath", second field (next NUL record) is newpath.
+        let is_rename = x == 'R' || x == 'C' || y == 'R' || y == 'C';
+        let (path, original_path) = if is_rename && i < raw.len() {
+            let end2 = raw[i..]
+                .iter()
+                .position(|&b| b == 0)
+                .map(|p| i + p)
+                .unwrap_or(raw.len());
+            let newp = String::from_utf8_lossy(&raw[i..end2])
+                .trim()
+                .replace('\\', "/");
+            i = end2 + 1;
+            let old = rest.trim().replace('\\', "/");
+            (newp, if old.is_empty() { None } else { Some(old) })
+        } else {
+            (rest.trim().replace('\\', "/"), None)
+        };
+
+        if path.is_empty() {
+            continue;
+        }
+
+        let abs = join_project_rel(&project, &path);
+
+        files.push(GitStatusEntry {
+            path: path.clone(),
+            absolute_path: abs,
+            status: format!("{x}{y}"),
+            index_status: x.to_string(),
+            worktree_status: y.to_string(),
+            kind: git_status_kind(x, y).to_string(),
+            name: git_entry_basename(&path),
+            original_path,
+        });
+    }
+
+    // Cap for UI responsiveness
+    if files.len() > 2000 {
+        files.truncate(2000);
+    }
+
+    Ok(GitStatusResult {
+        available: true,
+        files,
+        branch,
+        reason: None,
+    })
+}
+
+/// File content at HEAD for a path under a project (before snapshot for diffs).
+/// Soft-fails for untracked files / missing git / binary truncation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitShowFileResult {
+    pub available: bool,
+    pub content: Option<String>,
+    pub relative_path: Option<String>,
+    pub reason: Option<String>,
+}
+
+#[tauri::command]
+pub async fn git_show_file(
+    project_path: String,
+    path: String,
+) -> Result<GitShowFileResult, String> {
+    let project = normalize_fs_path(&project_path);
+    let target = normalize_fs_path(&path);
+    if project.is_empty() || target.is_empty() {
+        return Ok(GitShowFileResult {
+            available: false,
+            content: None,
+            relative_path: None,
+            reason: Some("empty path".into()),
+        });
+    }
+    let proj = std::path::PathBuf::from(&project);
+    if !proj.is_dir() {
+        return Ok(GitShowFileResult {
+            available: false,
+            content: None,
+            relative_path: None,
+            reason: Some("project not a directory".into()),
+        });
+    }
+
+    let rel = {
+        let t = std::path::PathBuf::from(&target);
+        match t.strip_prefix(&proj) {
+            Ok(r) => r.to_string_lossy().replace('\\', "/"),
+            Err(_) => {
+                let p = project.trim_end_matches('/').replace('\\', "/");
+                let a = target.replace('\\', "/");
+                if a.starts_with(&(p.clone() + "/")) {
+                    a[p.len() + 1..].to_string()
+                } else {
+                    // path may already be repo-relative
+                    target.replace('\\', "/")
+                }
+            }
+        }
+    };
+    if rel.is_empty() || rel == "." {
+        return Ok(GitShowFileResult {
+            available: false,
+            content: None,
+            relative_path: None,
+            reason: Some("not a file path".into()),
+        });
+    }
+
+    if let Err(reason) = git_probe_work_tree(&project) {
+        return Ok(GitShowFileResult {
+            available: false,
+            content: None,
+            relative_path: Some(rel),
+            reason: Some(reason),
+        });
+    }
+
+    // `git show HEAD:path` — fails for untracked / missing at HEAD
+    let out = std::process::Command::new("git")
+        .args(["-C", &project, "show", &format!("HEAD:{rel}")])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        return Ok(GitShowFileResult {
+            available: false,
+            content: None,
+            relative_path: Some(rel),
+            reason: Some(if err.is_empty() {
+                "not in HEAD".into()
+            } else {
+                err.chars().take(200).collect()
+            }),
+        });
+    }
+
+    // Reject obvious binary (NUL in first 8k)
+    let sample_end = out.stdout.len().min(8192);
+    if out.stdout[..sample_end].contains(&0) {
+        return Ok(GitShowFileResult {
+            available: false,
+            content: None,
+            relative_path: Some(rel),
+            reason: Some("binary file".into()),
+        });
+    }
+
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    Ok(GitShowFileResult {
+        available: true,
+        content: Some(text.chars().take(400_000).collect()),
+        relative_path: Some(rel),
+        reason: None,
+    })
+}
+
+#[cfg(test)]
+mod git_status_parse_tests {
+    use super::*;
+
+    #[test]
+    fn porcelain_modified_worktree() {
+        let e = parse_porcelain_line(" M src/app.ts", "/proj").expect("entry");
+        assert_eq!(e.path, "src/app.ts");
+        assert_eq!(e.status, " M");
+        assert_eq!(e.kind, "modified");
+        assert_eq!(e.name, "app.ts");
+        assert!(e.absolute_path.ends_with("src/app.ts"));
+    }
+
+    #[test]
+    fn porcelain_untracked() {
+        let e = parse_porcelain_line("?? new.md", "/proj").expect("entry");
+        assert_eq!(e.kind, "untracked");
+        assert_eq!(e.path, "new.md");
+    }
+
+    #[test]
+    fn porcelain_added_staged() {
+        let e = parse_porcelain_line("A  foo/bar.rs", "/repo").expect("entry");
+        assert_eq!(e.kind, "added");
+        assert_eq!(e.index_status, "A");
+    }
+
+    #[test]
+    fn porcelain_rename() {
+        let e = parse_porcelain_line("R  old.ts -> new.ts", "/repo").expect("entry");
+        assert_eq!(e.kind, "renamed");
+        assert_eq!(e.path, "new.ts");
+        assert_eq!(e.original_path.as_deref(), Some("old.ts"));
+    }
+
+    #[test]
+    fn porcelain_conflict() {
+        let e = parse_porcelain_line("UU merge.txt", "/repo").expect("entry");
+        assert_eq!(e.kind, "conflict");
+    }
+
+    #[test]
+    fn porcelain_deleted() {
+        let e = parse_porcelain_line(" D gone.ts", "/repo").expect("entry");
+        assert_eq!(e.kind, "deleted");
+    }
+
+    #[test]
+    fn kind_helpers() {
+        assert_eq!(git_status_kind('?', '?'), "untracked");
+        assert_eq!(git_status_kind('M', ' '), "modified");
+        assert_eq!(git_status_kind(' ', 'M'), "modified");
+        assert_eq!(git_status_kind('A', ' '), "added");
+        assert_eq!(git_status_kind('D', ' '), "deleted");
+    }
+}
+
 /// Reveal a path in the system file manager (Finder / Explorer).
 #[tauri::command]
 pub async fn path_reveal(path: String) -> Result<(), String> {
