@@ -9469,9 +9469,168 @@ textarea::-webkit-scrollbar-thumb:active,
   text-align: center;
 }
 
-.rp-chrome__changes-btn {
+.rp-chrome__changes-btn,
+.rp-chrome__tasks-btn {
   position: relative;
 }
+
+/* Agent tasks panel (L05) — derived from live tool_step / session://tool */
+.rp-tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 2px 8px;
+}
+
+.rp-tasks-row {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  margin: 0 4px;
+}
+
+.rp-tasks-row:hover {
+  background: color-mix(in srgb, var(--bg-hover) 80%, transparent);
+}
+
+.rp-tasks-row.is-running {
+  background: color-mix(in srgb, var(--accent, #6c8cff) 8%, transparent);
+}
+
+.rp-tasks-row.is-failed .rp-tasks-status {
+  color: var(--danger, #e25555);
+}
+
+.rp-tasks-row__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.rp-tasks-row__chevron {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--text-tertiary);
+}
+
+.rp-tasks-row__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.rp-tasks-row__name {
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-tasks-row__sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rp-tasks-row__kind {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.rp-tasks-status {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary);
+}
+
+.rp-tasks-status--running {
+  color: var(--accent, #6c8cff);
+}
+
+.rp-tasks-status--completed {
+  color: var(--text-tertiary);
+}
+
+.rp-tasks-status--failed {
+  color: var(--danger, #e25555);
+}
+
+.rp-tasks-status--cancelled {
+  color: var(--text-tertiary);
+}
+
+.rp-tasks-row__badge {
+  font-size: 9.5px;
+  font-weight: 650;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #6c8cff) 14%, transparent);
+  color: var(--text-secondary);
+}
+
+.rp-tasks-row__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 10px 10px 28px;
+}
+
+.rp-tasks-row__field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rp-tasks-row__label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.rp-tasks-row__value {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  word-break: break-word;
+  white-space: pre-wrap;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+.rp-tasks-footnote {
+  margin: 8px 10px 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.rp-tasks-nokill {
+  margin-top: 8px;
+  max-width: 28rem;
+}
+
 
 .rp-chrome__badge {
   position: absolute;

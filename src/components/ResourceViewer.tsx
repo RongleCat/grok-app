@@ -22,6 +22,7 @@ import { OverlayScroll } from "@/components/OverlayScroll";
 import { FileMediaPlayer } from "@/components/FileMediaPlayer";
 import { ImageUi } from "@/components/ImageUi";
 import {
+  IconActivity,
   IconChevronDown,
   IconChevronRight,
   IconClose,
@@ -53,6 +54,14 @@ import {
   pathRelativeToProject,
   type SessionFileChange,
 } from "@/lib/sessionChanges";
+import {
+  collectSessionTasks,
+  countRunningTasks,
+  filterSessionTasks,
+  taskStatusMessageKey,
+  type AgentTask,
+} from "@/lib/sessionTasks";
+import type { ChatMessage } from "@/lib/session";
 import {
   filterWorkspaceGitEntries,
   normalizeWorkspaceGitEntries,
@@ -118,6 +127,11 @@ export interface ResourceViewerProps {
    */
   sessionChanges?: SessionFileChange[];
   /**
+   * Live + journal messages for the active session — used to derive Tasks
+   * from ACP tool_step rows (no separate task-list protocol).
+   */
+  sessionMessages?: ChatMessage[];
+  /**
    * Live plan snapshot for Plan review mode (exit_plan_mode / progress).
    */
   plan?: PlanReviewState | null;
@@ -128,7 +142,7 @@ export interface ResourceViewerProps {
   onDismissPlan?: () => void;
 }
 
-type SideMode = "files" | "changes" | "plan";
+type SideMode = "files" | "changes" | "plan" | "tasks";
 
 type DiffViewState = {
   path: string;
@@ -238,6 +252,7 @@ export function ResourceViewer({
   onOpenRequestConsumed,
   paneActive = true,
   sessionChanges = [],
+  sessionMessages = [],
   plan = null,
   planFocusKey = null,
   onApprovePlan,
@@ -257,6 +272,9 @@ export function ResourceViewer({
   // Default closed; session-only — not persisted; reset when pane hides.
   const [treeVisible, setTreeVisible] = useState(false);
   const [sideMode, setSideMode] = useState<SideMode>("files");
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Record<string, boolean>>(
+    {},
+  );
   const lastPlanFocusKey = useRef<number | null>(null);
   const [treeWidth, setTreeWidth] = useState(loadTreeWidth);
   const [resizingTree, setResizingTree] = useState(false);
@@ -293,6 +311,121 @@ export function ResourceViewer({
   const changeCount = sessionChanges.length;
   const workspaceCount = workspaceFiles.length;
   const totalChangeBadge = changeCount + workspaceCount;
+  const sessionTasks = useMemo(
+    () => collectSessionTasks(sessionMessages),
+    [sessionMessages],
+  );
+  const runningTaskCount = useMemo(
+    () => countRunningTasks(sessionTasks),
+    [sessionTasks],
+  );
+  const filteredTasks = useMemo(
+    () => filterSessionTasks(sessionTasks, query),
+    [sessionTasks, query],
+  );
+  const activeTasks = useMemo(
+    () => filteredTasks.filter((t) => t.status === "running"),
+    [filteredTasks],
+  );
+  const recentTasks = useMemo(
+    () => filteredTasks.filter((t) => t.status !== "running"),
+    [filteredTasks],
+  );
+
+  const toggleTaskExpanded = useCallback((id: string) => {
+    setExpandedTaskIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  const renderTaskRow = useCallback(
+    (task: AgentTask) => {
+      const open = !!expandedTaskIds[task.id];
+      const statusLabel = tr(taskStatusMessageKey(task.status));
+      return (
+        <div
+          key={task.id}
+          className={
+            "rp-tasks-row" +
+            (task.status === "running" ? " is-running" : "") +
+            (task.status === "failed" ? " is-failed" : "") +
+            (open ? " is-open" : "")
+          }
+          role="listitem"
+        >
+          <button
+            type="button"
+            className="rp-tasks-row__main"
+            aria-expanded={open}
+            title={task.detail || task.path || task.name}
+            onClick={() => toggleTaskExpanded(task.id)}
+          >
+            <span className="rp-tasks-row__chevron" aria-hidden>
+              {open ? (
+                <IconChevronDown size={13} />
+              ) : (
+                <IconChevronRight size={13} />
+              )}
+            </span>
+            <span className="rp-tasks-row__meta">
+              <span className="rp-tasks-row__name">{task.name}</span>
+              <span className="rp-tasks-row__sub">
+                {task.kind ? (
+                  <span className="rp-tasks-row__kind">
+                    {task.kind.replace(/_/g, " ")}
+                  </span>
+                ) : (
+                  <span className="rp-tasks-row__kind">{tr("tasks.kind")}</span>
+                )}
+                <span
+                  className={"rp-tasks-status rp-tasks-status--" + task.status}
+                >
+                  {statusLabel}
+                </span>
+                {task.longRunning ? (
+                  <span className="rp-tasks-row__badge">
+                    {tr("tasks.longRunning")}
+                  </span>
+                ) : null}
+              </span>
+            </span>
+          </button>
+          {open ? (
+            <div className="rp-tasks-row__detail">
+              {task.detail ? (
+                <div className="rp-tasks-row__field">
+                  <span className="rp-tasks-row__label">{tr("tasks.detail")}</span>
+                  <span className="rp-tasks-row__value" title={task.detail}>
+                    {task.detail}
+                  </span>
+                </div>
+              ) : null}
+              {task.path ? (
+                <div className="rp-tasks-row__field">
+                  <span className="rp-tasks-row__label">{tr("tasks.path")}</span>
+                  <span className="rp-tasks-row__value" title={task.path}>
+                    {pathRelativeToProject(task.path, projectPath) || task.path}
+                  </span>
+                </div>
+              ) : null}
+              {task.kind ? (
+                <div className="rp-tasks-row__field">
+                  <span className="rp-tasks-row__label">{tr("tasks.kind")}</span>
+                  <span className="rp-tasks-row__value">{task.kind}</span>
+                </div>
+              ) : null}
+              <div className="rp-tasks-row__field">
+                <span className="rp-tasks-row__label">{tr("tasks.id")}</span>
+                <span className="rp-tasks-row__value" title={task.id}>
+                  {task.id}
+                </span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      );
+    },
+    [expandedTaskIds, projectPath, toggleTaskExpanded, tr],
+  );
+
   const filteredChanges = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sessionChanges;
@@ -1857,6 +1990,30 @@ export function ResourceViewer({
           ) : null}
           <Tip
             label={
+              treeVisible && sideMode === "tasks"
+                ? tr("tasks.hidePanel")
+                : tr("tasks.showPanel")
+            }
+          >
+            <button
+              type="button"
+              className={
+                "chrome-btn main__pane-toggle rp-chrome__tasks-btn" +
+                (treeVisible && sideMode === "tasks" ? " is-on" : "")
+              }
+              onClick={() => showSidePanel("tasks")}
+              aria-label={tr("tasks.title")}
+            >
+              <IconActivity size={16} />
+              {runningTaskCount > 0 ? (
+                <span className="rp-chrome__badge" aria-hidden>
+                  {runningTaskCount > 99 ? "99+" : runningTaskCount}
+                </span>
+              ) : null}
+            </button>
+          </Tip>
+          <Tip
+            label={
               treeVisible && sideMode === "changes"
                 ? tr("changes.hidePanel")
                 : tr("changes.showPanel")
@@ -1982,23 +2139,40 @@ export function ResourceViewer({
           ) : !activeTab ? (
             <div className="rp__empty-state">
               <div className="rp__empty-title">
-                {sideMode === "changes" &&
-                changeCount === 0 &&
-                workspaceCount === 0
-                  ? tr("changes.empty")
-                  : sideMode === "changes"
-                    ? tr("changes.title")
-                    : tr("resources.emptyPreview")}
+                {sideMode === "tasks"
+                  ? sessionTasks.length === 0
+                    ? tr("tasks.empty")
+                    : tr("tasks.title")
+                  : sideMode === "changes" &&
+                      changeCount === 0 &&
+                      workspaceCount === 0
+                    ? tr("changes.empty")
+                    : sideMode === "changes"
+                      ? tr("changes.title")
+                      : tr("resources.emptyPreview")}
               </div>
               <div className="rp__empty-desc">
-                {sideMode === "changes" &&
-                changeCount === 0 &&
-                workspaceCount === 0
-                  ? tr("changes.emptyHint")
-                  : sideMode === "changes"
-                    ? tr("changes.workspace.emptyHint")
-                    : tr("resources.emptyPreviewHint")}
+                {sideMode === "tasks"
+                  ? sessionTasks.length === 0
+                    ? tr("tasks.emptyHint")
+                    : runningTaskCount > 0
+                      ? tr("tasks.runningCount", {
+                          n: String(runningTaskCount),
+                        })
+                      : tr("tasks.emptyHint")
+                  : sideMode === "changes" &&
+                      changeCount === 0 &&
+                      workspaceCount === 0
+                    ? tr("changes.emptyHint")
+                    : sideMode === "changes"
+                      ? tr("changes.workspace.emptyHint")
+                      : tr("resources.emptyPreviewHint")}
               </div>
+              {sideMode === "tasks" && sessionTasks.length > 0 ? (
+                <div className="rp__empty-desc rp-tasks-nokill">
+                  {tr("tasks.noKill")}
+                </div>
+              ) : null}
             </div>
           ) : activeTab.loading ? (
             <div className="rp__empty-state">
@@ -2088,6 +2262,23 @@ export function ResourceViewer({
                     </span>
                   ) : null}
                 </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={sideMode === "tasks"}
+                  className={
+                    "rp-side-modes__btn" +
+                    (sideMode === "tasks" ? " is-active" : "")
+                  }
+                  onClick={() => setSideMode("tasks")}
+                >
+                  {tr("tasks.title")}
+                  {runningTaskCount > 0 ? (
+                    <span className="rp-side-modes__count">
+                      {runningTaskCount}
+                    </span>
+                  ) : null}
+                </button>
                 {plan?.visible ? (
                   <button
                     type="button"
@@ -2121,7 +2312,7 @@ export function ResourceViewer({
                       <IconRefresh size={14} />
                     </button>
                   </Tip>
-                ) : (
+                ) : sideMode === "changes" ? (
                   <Tip label={tr("changes.workspace.refresh")}>
                     <button
                       type="button"
@@ -2132,10 +2323,53 @@ export function ResourceViewer({
                       <IconRefresh size={14} />
                     </button>
                   </Tip>
-                )}
+                ) : null}
               </div>
               <OverlayScroll className="rp-tree-scroll">
-                {sideMode === "changes" ? (
+                {sideMode === "tasks" ? (
+                  <div className="rp-tasks-list" role="list">
+                    {filteredTasks.length === 0 ? (
+                      <div className="rp-changes-empty">
+                        <div className="rp-changes-empty__title">
+                          {tr("tasks.empty")}
+                        </div>
+                        <div className="rp-changes-empty__hint">
+                          {tr("tasks.emptyHint")}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {activeTasks.length > 0 ? (
+                          <div className="rp-changes-section">
+                            <div className="rp-changes-section__head">
+                              <span className="rp-changes-section__title">
+                                {tr("tasks.section.active")}
+                              </span>
+                              <span className="rp-changes-section__count">
+                                {activeTasks.length}
+                              </span>
+                            </div>
+                            {activeTasks.map((t) => renderTaskRow(t))}
+                          </div>
+                        ) : null}
+                        {recentTasks.length > 0 ? (
+                          <div className="rp-changes-section">
+                            <div className="rp-changes-section__head">
+                              <span className="rp-changes-section__title">
+                                {tr("tasks.section.recent")}
+                              </span>
+                              <span className="rp-changes-section__count">
+                                {recentTasks.length}
+                              </span>
+                            </div>
+                            {recentTasks.map((t) => renderTaskRow(t))}
+                          </div>
+                        ) : null}
+                        <div className="rp-tasks-footnote">{tr("tasks.noKill")}</div>
+                      </>
+                    )}
+                  </div>
+                ) : sideMode === "changes" ? (
                   <div className="rp-changes-list" role="list">
                     {/* ── Session (agent tool edits) ── */}
                     <div className="rp-changes-section">

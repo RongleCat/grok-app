@@ -7623,6 +7623,7 @@ export default function App() {
               sessionChanges={
                 sessionChangesById[session.sessionId || ""] ?? []
               }
+              sessionMessages={messages}
               plan={plan}
               planFocusKey={planFocusKey}
               onApprovePlan={() => void approvePlan()}
