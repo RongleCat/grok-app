@@ -34,6 +34,8 @@ export interface ExtensionsPanelProps {
   cliFound?: boolean;
   /** Navigate to Settings → Runtime when CLI is missing. */
   onOpenRuntime?: () => void;
+  /** Fired after skill enable prefs change so slash palette can refresh. */
+  onSkillsPrefsChanged?: () => void;
 }
 
 export function ExtensionsPanel({
@@ -41,6 +43,7 @@ export function ExtensionsPanel({
   projectPath = null,
   cliFound = true,
   onOpenRuntime,
+  onSkillsPrefsChanged,
 }: ExtensionsPanelProps) {
   const tr = useMemo(() => createT(locale), [locale]);
   const [skills, setSkills] = useState<api.SkillDto[]>([]);
@@ -153,6 +156,7 @@ export function ExtensionsPanel({
     );
     try {
       await api.extensionsSetSkill(name, next);
+      onSkillsPrefsChanged?.();
     } catch (e) {
       setPathHint(String(e));
       setSkills((prev) =>
@@ -185,6 +189,7 @@ export function ExtensionsPanel({
     setSkills((prev) => prev.map((s) => ({ ...s, enabled: true })));
     try {
       await api.extensionsEnableAllSkills(names);
+      onSkillsPrefsChanged?.();
     } catch (e) {
       setPathHint(String(e));
       await refresh();

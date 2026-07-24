@@ -3259,6 +3259,9 @@ export default function App() {
     });
   }, []);
 
+  /** Bumped when Extensions skill toggles change so slash palette refilters. */
+  const [skillsReloadToken, setSkillsReloadToken] = useState(0);
+
   // Load skills catalog for slash palette (Grok inspect).
   useEffect(() => {
     if (!api.isTauri()) return;
@@ -3289,7 +3292,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [activeProject?.path]);
+  }, [activeProject?.path, skillsReloadToken]);
 
   const slashCatalog = useMemo(
     () => buildSlashCatalog(skillInfos),
@@ -5270,6 +5273,9 @@ export default function App() {
             deleteSessionsConfirm(rows);
           }}
           projectPath={activeProject?.path ?? null}
+          onSkillsPrefsChanged={() =>
+            setSkillsReloadToken((n) => n + 1)
+          }
           onProviderActivated={() => {
             // Hot-reload Grok Build: drop live ACP so next send re-spawns with new GROK_HOME config.
             void (async () => {

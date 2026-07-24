@@ -145,6 +145,8 @@ export interface SettingsPageProps {
   onDeleteArchivedSessions?: (ids: string[]) => void;
   /** Active project path for Skills/MCP inspect cwd. */
   projectPath?: string | null;
+  /** After skill enable toggle — refresh slash palette in App. */
+  onSkillsPrefsChanged?: () => void;
 }
 
 const NAV: {
@@ -425,6 +427,7 @@ export function SettingsPage({
   onRestoreArchivedSessions,
   onDeleteArchivedSessions,
   projectPath = null,
+  onSkillsPrefsChanged,
 }: SettingsPageProps) {
   const [query, setQuery] = useState("");
   const [accountTab, setAccountTab] = useState<"official" | "providers">(
@@ -1259,6 +1262,7 @@ export function SettingsPage({
             projectPath={projectPath}
             cliFound={cliInfo.found}
             onOpenRuntime={() => onSection("runtime")}
+            onSkillsPrefsChanged={onSkillsPrefsChanged}
           />
         )}
 

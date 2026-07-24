@@ -256,10 +256,16 @@ pub fn list_mcp_server_defs(project_cwd: Option<&str>) -> Vec<McpServerDef> {
         }
     }
 
-    let defs = fetch_mcp_list_json(project_cwd).unwrap_or_else(|| {
-        // Fallback: parse inspect + lightweight config hints.
-        fetch_mcp_from_inspect(project_cwd)
-    });
+    // Prefer `grok mcp list --json` (full command/args/env/url).
+    // Fall back to config.toml (stdio args survive; inspect often drops them),
+    // then inspect names/targets as last resort.
+    let mut defs = fetch_mcp_list_json(project_cwd).unwrap_or_default();
+    if defs.is_empty() {
+        defs = load_mcp_defs_from_configs(&settings.session_data_mode);
+    }
+    if defs.is_empty() {
+        defs = fetch_mcp_from_inspect(project_cwd);
+    }
 
     if let Ok(mut guard) = MCP_CACHE.lock() {
         *guard = Some(McpCache {
@@ -270,6 +276,236 @@ pub fn list_mcp_server_defs(project_cwd: Option<&str>) -> Vec<McpServerDef> {
         });
     }
     defs
+}
+
+/// Read MCP server defs from agent-home + user `~/.grok/config.toml`.
+/// Later files do not override earlier names (agent-home wins over user when
+/// independent mode has mirrored sections; otherwise user config is the source).
+fn load_mcp_defs_from_configs(session_data_mode: &str) -> Vec<McpServerDef> {
+    let mut by_name: HashMap<String, McpServerDef> = HashMap::new();
+    // User config first, then agent-home (independent) so App-managed home wins.
+    let user_cfg = crate::process_util::user_home()
+        .join(".grok")
+        .join("config.toml");
+    if let Ok(raw) = fs::read_to_string(&user_cfg) {
+        for d in parse_mcp_servers_from_toml(&raw) {
+            by_name.insert(d.name.clone(), d);
+        }
+    }
+    let agent_cfg = resolve_agent_grok_home(session_data_mode).join("config.toml");
+    if agent_cfg != user_cfg {
+        if let Ok(raw) = fs::read_to_string(&agent_cfg) {
+            for d in parse_mcp_servers_from_toml(&raw) {
+                by_name.insert(d.name.clone(), d);
+            }
+        }
+    }
+    let mut out: Vec<McpServerDef> = by_name.into_values().collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+/// Parse `[mcp_servers.<name>]` tables (and nested `.env`) from config.toml text.
+/// Lightweight — no full TOML dependency; covers command/args/url/enabled/env.
+/// Supports multi-line `args = [ ... ]` arrays used by Grok config.
+pub fn parse_mcp_servers_from_toml(text: &str) -> Vec<McpServerDef> {
+    let mut by_name: HashMap<String, McpServerDef> = HashMap::new();
+    let mut current: Option<String> = None;
+    let mut in_env = false;
+    // Accumulator for multi-line `args = [` … `]`
+    let mut args_buf: Option<String> = None;
+
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if let Some(ref mut buf) = args_buf {
+            buf.push(' ');
+            buf.push_str(trimmed);
+            if trimmed.contains(']') {
+                let joined = args_buf.take().unwrap_or_default();
+                if let Some(name) = current.as_ref() {
+                    if let Some(def) = by_name.get_mut(name) {
+                        if let Some(arr) = parse_toml_string_array(&joined) {
+                            def.args = Some(arr);
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            let inner = trimmed[1..trimmed.len() - 1].trim();
+            if let Some(rest) = inner.strip_prefix("mcp_servers.") {
+                if let Some(name) = rest.strip_suffix(".env") {
+                    let name = name.trim();
+                    if !name.is_empty() {
+                        ensure_mcp_def(&mut by_name, name);
+                        current = Some(name.to_string());
+                        in_env = true;
+                    } else {
+                        current = None;
+                        in_env = false;
+                    }
+                } else {
+                    let name = rest.trim();
+                    if !name.is_empty() {
+                        ensure_mcp_def(&mut by_name, name);
+                        current = Some(name.to_string());
+                        in_env = false;
+                    } else {
+                        current = None;
+                        in_env = false;
+                    }
+                }
+            } else {
+                current = None;
+                in_env = false;
+            }
+            continue;
+        }
+        let Some(name) = current.as_ref() else {
+            continue;
+        };
+        let Some(eq) = trimmed.find('=') else {
+            continue;
+        };
+        let key = trimmed[..eq].trim();
+        let val_raw = trimmed[eq + 1..].trim();
+        if key.is_empty() {
+            continue;
+        }
+        let Some(def) = by_name.get_mut(name) else {
+            continue;
+        };
+        if in_env {
+            if let Some(v) = parse_toml_string(val_raw) {
+                def.env
+                    .get_or_insert_with(HashMap::new)
+                    .insert(key.to_string(), v);
+            }
+            continue;
+        }
+        match key {
+            "command" => {
+                if let Some(v) = parse_toml_string(val_raw) {
+                    def.command = Some(v);
+                    if def.transport.is_none() {
+                        def.transport = Some("stdio".into());
+                    }
+                }
+            }
+            "url" => {
+                if let Some(v) = parse_toml_string(val_raw) {
+                    def.url = Some(v);
+                    if def.transport.is_none() {
+                        def.transport = Some("http".into());
+                    }
+                }
+            }
+            "enabled" => {
+                def.enabled = parse_toml_bool(val_raw);
+            }
+            "args" => {
+                if val_raw.contains('[') && !val_raw.contains(']') {
+                    args_buf = Some(val_raw.to_string());
+                } else if let Some(arr) = parse_toml_string_array(val_raw) {
+                    def.args = Some(arr);
+                }
+            }
+            "transport" => {
+                if let Some(v) = parse_toml_string(val_raw) {
+                    def.transport = Some(v);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut out: Vec<McpServerDef> = by_name.into_values().collect();
+    out.retain(|d| !d.name.is_empty() && (d.command.is_some() || d.url.is_some()));
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+fn ensure_mcp_def(map: &mut HashMap<String, McpServerDef>, name: &str) {
+    map.entry(name.to_string()).or_insert_with(|| McpServerDef {
+        name: name.to_string(),
+        command: None,
+        args: None,
+        env: None,
+        url: None,
+        headers: None,
+        transport: None,
+        enabled: None,
+        scope: None,
+    });
+}
+
+fn parse_toml_string(raw: &str) -> Option<String> {
+    let s = raw.trim();
+    if s.len() >= 2 {
+        let b = s.as_bytes()[0];
+        if (b == b'"' || b == b'\'') && s.as_bytes()[s.len() - 1] == b {
+            return Some(s[1..s.len() - 1].to_string());
+        }
+    }
+    // Bare token (rare)
+    if !s.is_empty() && !s.starts_with('[') && !s.starts_with('{') {
+        return Some(s.trim_end_matches(',').to_string());
+    }
+    None
+}
+
+fn parse_toml_bool(raw: &str) -> Option<bool> {
+    match raw.trim().trim_end_matches(',').to_ascii_lowercase().as_str() {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
+    }
+}
+
+/// Parse a single-line or multi-line-joined TOML string array: `["a", "b"]`.
+fn parse_toml_string_array(raw: &str) -> Option<Vec<String>> {
+    let s = raw.trim();
+    let start = s.find('[')?;
+    let end = s.rfind(']')?;
+    if end <= start {
+        return None;
+    }
+    let inner = &s[start + 1..end];
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut in_str: Option<char> = None;
+    let mut escape = false;
+    for ch in inner.chars() {
+        if escape {
+            cur.push(ch);
+            escape = false;
+            continue;
+        }
+        if let Some(q) = in_str {
+            if ch == '\\' {
+                escape = true;
+                continue;
+            }
+            if ch == q {
+                out.push(cur.clone());
+                cur.clear();
+                in_str = None;
+            } else {
+                cur.push(ch);
+            }
+            continue;
+        }
+        match ch {
+            '"' | '\'' => in_str = Some(ch),
+            ',' | ' ' | '\t' | '\n' | '\r' => {}
+            _ => {}
+        }
+    }
+    Some(out)
 }
 
 /// Invalidate in-process MCP list cache (after toggle / config write).
@@ -852,5 +1088,61 @@ enabled = true
         set_enabled(&mut prefs.skills, "imagine", false);
         let f = filter_enabled_skill_names(&names, &prefs);
         assert_eq!(f, vec!["help".to_string(), "code-review".to_string()]);
+    }
+
+    #[test]
+    fn parse_mcp_servers_from_toml_stdio_and_http() {
+        let raw = r#"
+[ui]
+yolo = false
+
+[mcp_servers.chrome-devtools]
+command = "/usr/local/bin/npx"
+args = [
+    "-y",
+    "chrome-devtools-mcp@1.5.0",
+    "--isolated",
+]
+enabled = true
+
+[mcp_servers.chrome-devtools.env]
+PATH = "/usr/local/bin:/usr/bin"
+
+[mcp_servers.cloudflare-api]
+url = "https://mcp.cloudflare.com/mcp"
+enabled = true
+"#;
+        let defs = parse_mcp_servers_from_toml(raw);
+        assert_eq!(defs.len(), 2, "{defs:?}");
+        let chrome = defs.iter().find(|d| d.name == "chrome-devtools").unwrap();
+        assert_eq!(chrome.command.as_deref(), Some("/usr/local/bin/npx"));
+        assert_eq!(
+            chrome.args.as_ref().map(|a| a.as_slice()),
+            Some(
+                [
+                    "-y".to_string(),
+                    "chrome-devtools-mcp@1.5.0".to_string(),
+                    "--isolated".to_string()
+                ]
+                .as_slice()
+            )
+        );
+        assert_eq!(
+            chrome.env.as_ref().and_then(|e| e.get("PATH")).map(|s| s.as_str()),
+            Some("/usr/local/bin:/usr/bin")
+        );
+        let http = defs.iter().find(|d| d.name == "cloudflare-api").unwrap();
+        assert_eq!(
+            http.url.as_deref(),
+            Some("https://mcp.cloudflare.com/mcp")
+        );
+
+        // ACP mapping must not yield empty array when prefs default-on.
+        let prefs = ExtensionsPrefs::default();
+        let arr = build_acp_mcp_servers(&defs, &prefs);
+        let a = arr.as_array().unwrap();
+        assert_eq!(a.len(), 2);
+        assert!(a.iter().any(|v| v["name"] == "chrome-devtools"));
+        assert!(a.iter().any(|v| v["name"] == "cloudflare-api" && v["type"] == "http"));
     }
 }
