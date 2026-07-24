@@ -42,6 +42,7 @@ import {
   canType,
   clearPriorTurnStreaming,
   isSessionBusy,
+  isSessionLiveStreaming,
   preferSessionMessages,
   presentErrorBanner,
   buildSegmentsFromLegacy,
@@ -1120,6 +1121,15 @@ export default function App() {
             if (cancelled) return;
             // Ignore empty terminal ticks that only flip done
             if (!chunk.text && !chunk.done) return;
+            // Defense-in-depth: drop stream chunks that arrive while no live turn
+            // is active (the host already gates this on FSM Streaming, but stale
+            // or replayed chunks must never re-type history on session switch).
+            if (
+              chunk.text &&
+              !isSessionLiveStreaming(liveHostRef.current.state)
+            ) {
+              return;
+            }
             if (
               chunk.text &&
               chunk.sessionId === viewingSessionIdRef.current

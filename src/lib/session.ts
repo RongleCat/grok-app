@@ -701,6 +701,15 @@ export function isSessionBusy(state: SessionState): boolean {
 }
 
 /**
+ * Whether a live LLM turn is actually producing output right now.
+ * Stricter than {@link isSessionBusy}: excludes `connecting`, so replayed or
+ * stale stream chunks arriving mid-connect cannot re-type history.
+ */
+export function isSessionLiveStreaming(state: SessionState): boolean {
+  return state === "streaming" || state === "awaiting_permission";
+}
+
+/**
  * Drop the last user message and everything after it (assistant reply, errors, tools).
  * Used by edit-resend so the prior turn is fully replaced, not stacked.
  */

@@ -1356,6 +1356,21 @@ impl SessionManager {
                     let mut guard = self.inner.lock();
                     if let Some(s) = guard.as_mut() {
                         Self::touch_activity_locked(s);
+                        // Drop stream chunks that arrive while no turn is in flight.
+                        // On session resume (session/load) the CLI may replay the past
+                        // transcript as agent_message_chunk notifications; without this
+                        // guard they'd be re-emitted as live session://stream and the
+                        // UI would re-type the whole history on every session switch.
+                        if !matches!(
+                            s.fsm.state(),
+                            SessionState::Streaming | SessionState::AwaitingPermission
+                        ) {
+                            tracing::debug!(
+                                "acp stream dropped: fsm={:?} (not in a live turn)",
+                                s.fsm.state()
+                            );
+                            return;
+                        }
                         // Prefer agent-supplied messageId; otherwise keep the turn id.
                         if let Some(ref mid_in) = message_id {
                             if s.streaming_message_id.as_ref() != Some(mid_in) {
