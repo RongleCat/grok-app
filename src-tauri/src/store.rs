@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::paths::{
-    automations_file, ensure_app_dirs, projects_file, secrets_file, session_dir,
-    sessions_index_file, settings_file,
+    automations_file, ensure_app_dirs, projects_file, session_dir, sessions_index_file,
+    settings_file,
 };
 
 /// Where composer model / effort / mode / permission choices are remembered.
@@ -194,10 +194,16 @@ impl Default for AppSettings {
     }
 }
 
+/// App-owned secrets surface (backend-agnostic).
+///
+/// Sensitive fields (`official_api_key`, `relay_api_key`) prefer the OS keychain
+/// (macOS Keychain / Windows Credential Manager / Linux Secret Service) with a
+/// `secrets.json` (0600) fallback. See [`crate::secrets`].
+///
+/// Never log these fields.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SecretsFile {
-    /// Never log these fields.
     pub official_api_key: Option<String>,
     pub relay_base_url: Option<String>,
     pub relay_api_key: Option<String>,
@@ -815,21 +821,15 @@ pub fn delete_automation(id: &str) -> Result<(), String> {
     save_automations(&list)
 }
 
+/// Load app secrets (API keys). Backend-agnostic: OS keychain preferred, file fallback.
+/// See [`crate::secrets`] for migration and storage details. Callers must not log values.
 pub fn load_secrets() -> SecretsFile {
-    let _ = ensure_app_dirs();
-    read_json(&secrets_file())
+    crate::secrets::load_secrets()
 }
 
+/// Persist app secrets. Prefer OS keychain for API keys; metadata may remain in secrets.json.
 pub fn save_secrets(s: &SecretsFile) -> Result<(), String> {
-    let _ = ensure_app_dirs();
-    let path = secrets_file();
-    write_json(&path, s)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
-    }
-    Ok(())
+    crate::secrets::save_secrets(s)
 }
 
 /// Redact secrets from a string for logs/Doctor export.

@@ -77,8 +77,9 @@ pub fn settings_file() -> PathBuf {
     app_data_root().join("settings.json")
 }
 
+/// On-disk secrets metadata (+ API-key fallback when OS keychain is unavailable).
+/// Sensitive keys prefer the OS keychain; see [`crate::secrets`].
 pub fn secrets_file() -> PathBuf {
-    // Plain file with 0600; production may move to Keychain later.
     app_data_root().join("secrets.json")
 }
 

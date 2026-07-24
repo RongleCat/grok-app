@@ -177,13 +177,17 @@ Default data root (override with **`GROK_APP_HOME`**):
   projects.json
   sessions_index.json
   settings.json
-  secrets.json          # 0600; do not commit
+  secrets.json          # metadata (+ API-key fallback); keys prefer OS keychain
   automations.json
   projects/
   sessions/
   logs/
   agent-home/           # independent-mode GROK_HOME
 ```
+
+API keys prefer the OS secret store (macOS Keychain / Windows Credential Manager /
+Linux Secret Service) with a `secrets.json` (mode `0600`) fallback when the OS store
+is unavailable. Do not commit secrets.
 
 Grok Build’s own config remains under **`~/.grok`** (CLI login, `auth.json`, …).  
 **shared** session mode can use `~/.grok`; **independent** mode uses `agent-home/`.

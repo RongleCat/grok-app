@@ -15,8 +15,8 @@ Product rules for **official login, membership, quota, and usage** in Grok App.
 | Channel | Source | Notes |
 |---------|--------|--------|
 | `official_oauth` | `~/.grok/auth.json` via `grok login --oauth` / `--device-auth` | Preferred for membership + billing |
-| `official_key` | App secrets `officialApiKey` | CI / paste key; limited billing |
-| `relay` | App secrets relay base + key | Custom OpenAI-compatible |
+| `official_key` | App secrets `officialApiKey` (OS keychain preferred; `secrets.json` fallback) | CI / paste key; limited billing |
+| `relay` | App secrets relay base + key (key in OS keychain preferred) | Custom OpenAI-compatible |
 | `none` | — | Prompt login |
 
 CLI auth is shared with Grok Build TUI (hot-reload of `auth.json` is CLI-side).

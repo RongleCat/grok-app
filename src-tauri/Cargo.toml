@@ -42,6 +42,14 @@ hex = "0.4"
 rfd = "0.15"
 window-vibrancy = "0.6"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+# OS secret store: macOS Keychain / Windows Credential Manager / Linux Secret Service.
+# No default features — enable platform stores explicitly; file fallback lives in secrets.rs.
+keyring = { version = "3.6", features = [
+    "apple-native",
+    "windows-native",
+    "sync-secret-service",
+    "crypto-rust",
+] }
 
 [profile.release]
 codegen-units = 1

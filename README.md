@@ -177,13 +177,16 @@ open /Applications/Grok.app
   projects.json
   sessions_index.json
   settings.json
-  secrets.json          # 0600；请勿提交
+  secrets.json          # 元数据（+ API key 回退）；密钥优先系统钥匙串
   automations.json
   projects/
   sessions/
   logs/
   agent-home/           # 独立模式 GROK_HOME（providers / config.toml）
 ```
+
+API 密钥优先写入系统钥匙串（macOS Keychain / Windows Credential Manager /
+Linux Secret Service）；不可用时回退到 `secrets.json`（mode `0600`）。请勿提交密钥。
 
 Grok Build 自身配置仍在 **`~/.grok`**（CLI 登录、`auth.json` 等）。  
 **shared** 会话模式可与 CLI 共用 `~/.grok`；**independent** 模式使用 `agent-home/`。

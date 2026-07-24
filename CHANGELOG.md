@@ -11,6 +11,10 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Security
+
+- **API keys in OS keychain** (C07): `officialApiKey` / `relayApiKey` prefer macOS Keychain, Windows Credential Manager, or Linux Secret Service via `keyring`, with `secrets.json` (0600) fallback when the OS store is unavailable. One-time migration imports plaintext keys from disk and clears them; `load_secrets` / `save_secrets` API unchanged for callers. Support zip and reset continue to avoid leaking keys.
+
 ## [0.1.2] - 2026-07-24
 
 > 中英文对照 / Bilingual notes.

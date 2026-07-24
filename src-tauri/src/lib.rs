@@ -20,6 +20,7 @@ mod process_util;
 mod process_limits;
 mod permission;
 mod providers;
+mod secrets;
 mod session_import;
 mod session_title;
 #[cfg(test)]

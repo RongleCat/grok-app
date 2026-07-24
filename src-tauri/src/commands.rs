@@ -987,6 +987,11 @@ pub async fn doctor_report() -> Result<serde_json::Value, String> {
     };
     let has_official_key = secrets.official_api_key.is_some();
     let has_relay = secrets.relay_base_url.is_some() && secrets.relay_api_key.is_some();
+    // Never include secret values — only which backend holds them.
+    let secrets_backend = match crate::secrets::active_backend() {
+        crate::secrets::SecretsBackendKind::Keychain => "keychain",
+        crate::secrets::SecretsBackendKind::File => "file",
+    };
 
     // Flat snapshot for clipboard / legacy consumers (no secret values).
     let raw = serde_json::json!({
@@ -1001,6 +1006,7 @@ pub async fn doctor_report() -> Result<serde_json::Value, String> {
             "authPath": auth_path,
             "hasOfficialKey": has_official_key,
             "hasRelay": has_relay,
+            "secretsBackend": secrets_backend,
         },
         "workspace": {
             "projectCount": projects.len(),

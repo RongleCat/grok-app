@@ -23,7 +23,13 @@ Do **not** open a public issue for sensitive vulnerabilities until a fix is avai
 
 ## Local security notes
 
-- App secrets live under the app data root (`secrets.json`, mode `0600` when possible) — keep that directory private.
-- Custom provider keys may also be written to the independent agent home (`agent-home/config.toml`); do not commit them.
+- **API keys** (`officialApiKey`, `relayApiKey`) prefer the **OS secret store**:
+  - macOS: Keychain
+  - Windows: Credential Manager
+  - Linux: FreeDesktop Secret Service (when available)
+  - Fallback: `secrets.json` under the app data root with mode `0600` when the OS store is unavailable
+- Non-secret metadata (`relayBaseUrl`, `defaultModel`) may remain in `secrets.json`. On first load after upgrade, any plaintext keys still on disk are **migrated into the OS store** and cleared from the file (logged without values).
+- Custom provider keys may also be written to the independent agent home (`agent-home/config.toml`); they are **not** moved into the OS keychain by this path — do not commit them.
 - Prefer official Grok login / local CLI auth over pasting long-lived keys into chats.
 - Automations and YOLO permission mode can run agent actions without per-step prompts — enable only if you trust the session.
+- Support zip / Doctor export never include `secrets.json`, OS keychain material, or raw API keys (redacted logs only).

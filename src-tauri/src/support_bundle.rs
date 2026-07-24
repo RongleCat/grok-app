@@ -1,5 +1,5 @@
 //! Support zip: Doctor snapshot + redacted logs for bug reports.
-//! Never includes secrets.json, auth tokens, or raw API keys.
+//! Never includes secrets.json, OS keychain material, auth tokens, or raw API keys.
 
 use std::fs;
 use std::io::{Read, Write};
@@ -145,7 +145,7 @@ fn read_capped_text(path: &Path, max_bytes: u64) -> Result<String, String> {
 
 /// Wipe App-owned data under the data root. Does not touch ~/.grok (CLI home).
 ///
-/// `keep_secrets`: when true, leave secrets.json and accounts/ in place.
+/// `keep_secrets`: when true, leave secrets.json, OS keychain app secrets, and accounts/ in place.
 pub fn reset_app_data(keep_secrets: bool) -> Result<serde_json::Value, String> {
     let root = paths::app_data_root();
     if !root.exists() {
@@ -190,7 +190,14 @@ pub fn reset_app_data(keep_secrets: bool) -> Result<serde_json::Value, String> {
         "settings.json",
     ];
     if !keep_secrets {
-        files.push("secrets.json");
+        // Wipe OS keychain entries + secrets.json (no-op parts when missing).
+        match crate::secrets::wipe_all_secrets() {
+            Ok(()) => {
+                removed.push("secrets.json".into());
+                removed.push("keychain:app-secrets".into());
+            }
+            Err(e) => errors.push(format!("secrets wipe: {e}")),
+        }
     }
     for name in files {
         let p = root.join(name);
