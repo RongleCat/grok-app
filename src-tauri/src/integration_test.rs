@@ -10,7 +10,13 @@ mod integration {
         trust_project, AppSettings,
     };
     use std::fs;
+    use std::sync::Mutex;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    /// Host store uses a single on-disk projects index. Serialize tests that
+    /// mutate it so parallel `cargo test` workers cannot clobber each other
+    /// (macOS CI saw `project_relocate` lose its row mid-test).
+    static PROJECTS_STORE_LOCK: Mutex<()> = Mutex::new(());
 
     fn unique_dir() -> std::path::PathBuf {
         let n = SystemTime::now()
@@ -46,6 +52,9 @@ mod integration {
 
     #[test]
     fn project_add_trust_remove_roundtrip() {
+        let _guard = PROJECTS_STORE_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let dir = unique_dir();
         let path = dir.display().to_string();
         let p = add_project(path.clone(), false).expect("add");
@@ -64,6 +73,9 @@ mod integration {
 
     #[test]
     fn project_relocate_updates_path_and_path_ok() {
+        let _guard = PROJECTS_STORE_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let old_dir = unique_dir();
         let new_dir = unique_dir();
         let old_path = old_dir.display().to_string();
@@ -74,8 +86,15 @@ mod integration {
 
         // Simulate deleted folder: list re-check marks path_ok false.
         let _ = fs::remove_dir_all(&old_dir);
+        assert!(
+            !std::path::Path::new(&old_path).is_dir(),
+            "old path should be gone"
+        );
         let listed = load_projects();
-        let stale = listed.iter().find(|x| x.id == p.id).expect("still listed");
+        let stale = listed
+            .iter()
+            .find(|x| x.id == p.id)
+            .expect("project row must remain after folder delete");
         assert!(!stale.path_ok);
 
         let moved = relocate_project(&p.id, new_path.clone()).expect("relocate");
