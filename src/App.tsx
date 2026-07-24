@@ -92,7 +92,11 @@ import {
 } from "@/lib/permissionOptions";
 import { AskUserModal } from "@/components/AskUserModal";
 import { DoctorModal } from "@/components/DoctorModal";
-import { filterSessionSearch } from "@/lib/sessionSearch";
+import {
+  filterSessionSearch,
+  mergeSessionSearchHits,
+  type SessionContentHit,
+} from "@/lib/sessionSearch";
 import {
   sessionExportFilename,
   sessionToMarkdown,
@@ -402,6 +406,12 @@ export default function App() {
   appDialogRef.current = appDialog;
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  /** Debounced journal content hits from `sessions_search`. */
+  const [contentSearchHits, setContentSearchHits] = useState<
+    SessionContentHit[]
+  >([]);
+  const [contentSearchLoading, setContentSearchLoading] = useState(false);
+  const contentSearchSeq = useRef(0);
   const [showComposerPlus, setShowComposerPlus] = useState(false);
   showComposerPlusRef.current = showComposerPlus;
   const composerPlusTriggerRef = useRef<HTMLButtonElement>(null);
@@ -508,6 +518,50 @@ export default function App() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [showSearch]);
+
+  // Debounced content search over App journals (title filter stays instant).
+  useEffect(() => {
+    if (!showSearch) {
+      setContentSearchHits([]);
+      setContentSearchLoading(false);
+      return;
+    }
+    const q = searchQuery.trim();
+    if (!q) {
+      setContentSearchHits([]);
+      setContentSearchLoading(false);
+      return;
+    }
+    setContentSearchLoading(true);
+    const seq = ++contentSearchSeq.current;
+    const t = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const hits = await api.sessionsSearch(q, 20);
+          if (contentSearchSeq.current !== seq) return;
+          setContentSearchHits(
+            hits.map((h) => ({
+              id: h.id,
+              title: h.title,
+              projectId: h.projectId,
+              snippet: h.snippet,
+              matchCount: h.matchCount,
+              updatedAt: h.updatedAt,
+              archived: h.archived,
+            })),
+          );
+        } catch {
+          if (contentSearchSeq.current !== seq) return;
+          setContentSearchHits([]);
+        } finally {
+          if (contentSearchSeq.current === seq) {
+            setContentSearchLoading(false);
+          }
+        }
+      })();
+    }, 280);
+    return () => window.clearTimeout(t);
+  }, [searchQuery, showSearch]);
 
   // Global shortcuts: search, help, doctor, new chat, settings.
   // Handlers go through refs so we don't re-bind every render.
@@ -2796,6 +2850,16 @@ export default function App() {
         projects.map((p) => ({ id: p.id, name: p.name, path: p.path })),
       ),
     [searchQuery, sessions, projects],
+  );
+
+  const mergedSessionHits = useMemo(
+    () =>
+      mergeSessionSearchHits(
+        searchQuery,
+        searchHits.matchedSessions,
+        contentSearchHits,
+      ),
+    [searchQuery, searchHits.matchedSessions, contentSearchHits],
   );
 
   const connPill = useMemo(
@@ -7970,33 +8034,58 @@ export default function App() {
             )}
             <div className="search-panel__section">
               {tr("search.chats")}
+              {contentSearchLoading && searchQuery.trim()
+                ? ` · ${tr("search.searchingContent")}`
+                : null}
             </div>
-            {searchHits.matchedSessions.length === 0 && (
+            {mergedSessionHits.length === 0 && !contentSearchLoading && (
               <div className="sidebar-empty" style={{ padding: 12 }}>
                 {tr("search.noMatches")}
               </div>
             )}
-            {searchHits.matchedSessions.map((hit, i) => {
+            {mergedSessionHits.map((hit, i) => {
               const s = sessions.find((x) => x.id === hit.id);
-              if (!s) return null;
-              const proj = projects.find((p) => p.id === s.projectId);
+              // Content-only hits may lack a live row if the list is stale; still open by id.
+              const row: SessionRow = s ?? {
+                id: hit.id,
+                title: hit.title,
+                projectId: hit.projectId ?? null,
+                updatedAt: "",
+              };
+              const proj = projects.find(
+                (p) => p.id === (row.projectId ?? hit.projectId),
+              );
+              const metaParts: string[] = [];
+              if (proj?.name) metaParts.push(proj.name);
+              if (hit.contentMatch && hit.matchCount && hit.matchCount > 0) {
+                metaParts.push(
+                  tr("search.matchCount", { n: String(hit.matchCount) }),
+                );
+              }
+              if (i < 9) metaParts.push(`⌘${i + 1}`);
               return (
                 <button
-                  key={s.id}
+                  key={hit.id}
                   type="button"
                   className="search-panel__row"
                   onClick={() => {
                     setShowSearch(false);
-                    void openSession(s, proj ?? null);
+                    void openSession(row, proj ?? null);
                   }}
                 >
                   <IconSquarePen size={15} />
-                  <span className="search-panel__title">
-                    {s.title || "Untitled"}
+                  <span className="search-panel__body">
+                    <span className="search-panel__title">
+                      {hit.title || s?.title || "Untitled"}
+                    </span>
+                    {hit.snippet ? (
+                      <span className="search-panel__snippet">
+                        {hit.snippet}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="search-panel__meta">
-                    {proj?.name ?? "—"}
-                    {i < 9 ? `  ⌘${i + 1}` : ""}
+                    {metaParts.join(" · ") || "—"}
                   </span>
                 </button>
               );

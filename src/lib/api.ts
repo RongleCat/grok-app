@@ -562,6 +562,30 @@ export async function sessionsList() {
   >("sessions_list");
 }
 
+/** Journal content hit from `sessions_search`. */
+export type SessionContentSearchHit = {
+  id: string;
+  title: string;
+  projectId?: string | null;
+  snippet: string;
+  matchCount: number;
+  updatedAt: string;
+  archived?: boolean;
+};
+
+/**
+ * Scan App session journals for case-insensitive content matches.
+ * Empty query returns []. Caps scan work on the host.
+ */
+export async function sessionsSearch(query: string, limit = 20) {
+  if (!query.trim()) return [] as SessionContentSearchHit[];
+  if (!isTauri()) return [] as SessionContentSearchHit[];
+  return invoke<SessionContentSearchHit[]>("sessions_search", {
+    query,
+    limit,
+  });
+}
+
 /** CLI sessions under GROK_HOME (shared-mode discovery). */
 export type CliSessionSummary = {
   agentSessionId: string;

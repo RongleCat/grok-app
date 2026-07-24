@@ -347,6 +347,23 @@ pub async fn sessions_list() -> Result<Vec<SessionMeta>, String> {
     Ok(store::load_sessions_index())
 }
 
+/// Scan App journal messages for case-insensitive content matches.
+/// Returns session id, title, snippet, match count (capped work).
+#[tauri::command]
+pub async fn sessions_search(
+    query: String,
+    limit: Option<u32>,
+) -> Result<Vec<crate::session_content_search::SessionContentHit>, String> {
+    let lim = limit.unwrap_or(20).min(50) as usize;
+    // Blocking disk scan — run off the async runtime.
+    let q = query;
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::session_content_search::search_sessions(&q, lim)
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
 /// List Grok Build CLI sessions under GROK_HOME (shared-mode discovery, E03).
 #[tauri::command]
 pub async fn cli_sessions_list() -> Result<Vec<crate::cli_sessions::CliSessionSummary>, String> {

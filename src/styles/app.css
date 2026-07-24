@@ -882,6 +882,14 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   color: var(--text-primary);
 }
 
+.search-panel__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .search-panel__title {
   flex: 1;
   min-width: 0;
@@ -891,6 +899,15 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   color: inherit;
 }
 
+.search-panel__snippet {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .search-panel__meta {
   font-size: 11px;
   color: var(--text-tertiary);
@@ -898,6 +915,7 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .search-panel__foot {

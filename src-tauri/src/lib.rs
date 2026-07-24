@@ -28,6 +28,7 @@ mod permission;
 mod providers;
 mod secrets;
 mod session_import;
+mod session_content_search;
 mod session_title;
 #[cfg(test)]
 mod permission_host_test;
@@ -151,6 +152,7 @@ pub fn run() {
             commands::project_reveal,
             commands::project_archive_sessions,
             commands::sessions_list,
+            commands::sessions_search,
             commands::cli_sessions_list,
             commands::cli_session_import,
             commands::cli_sessions_import_all,
