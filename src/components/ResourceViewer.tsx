@@ -26,6 +26,7 @@ import {
   IconChevronRight,
   IconClose,
   IconCopy,
+  IconEdit,
   IconExternalLink,
   IconFileDiff,
   IconFolder,
@@ -43,6 +44,7 @@ import { isOfficeKind } from "@/lib/filePreviewSrc";
 import { OpenLocationButton } from "@/components/OpenLocationButton";
 import { Tip } from "@/components/ui/tooltip";
 import { ContextMenu, type ContextMenuItem } from "@/components/ContextMenu";
+import { GlassModal } from "@/components/GlassModal";
 import type { MessageKey } from "@/i18n";
 import {
   buildUnifiedDiff,
@@ -59,6 +61,12 @@ import {
   workspaceGitKindMessageKey,
   type WorkspaceGitFile,
 } from "@/lib/workspaceGit";
+import {
+  defaultResourceEditMode,
+  isFsWriteConflict,
+  isResourceDraftDirty,
+  isResourceTextEditable,
+} from "@/lib/resourceEdit";
 
 const TREE_WIDTH_KEY = "grok-app.resourceTreeWidth";
 const TREE_WIDTH_DEFAULT = 220;
@@ -158,6 +166,14 @@ interface FileTab {
   /** External URL tab (web page). */
   url?: string;
   tabKind?: "file" | "url";
+  /** Editable buffer (text kinds only). */
+  draftText?: string | null;
+  /** Last loaded/saved text — dirty = draft !== baseline. */
+  baselineText?: string | null;
+  mtimeMs?: number | null;
+  /** true = textarea editor; false = preview (markdown default). */
+  editMode?: boolean;
+  saving?: boolean;
 }
 
 function formatSize(n: number): string {
@@ -248,6 +264,10 @@ export function ResourceViewer({
   const [selectedChangePath, setSelectedChangePath] = useState<string | null>(
     null,
   );
+  /** Tab id waiting for conflict resolve (reload vs overwrite). */
+  const [conflictTabId, setConflictTabId] = useState<string | null>(null);
+  /** Close tab while dirty — confirm discard. */
+  const [discardTabId, setDiscardTabId] = useState<string | null>(null);
   const [selectedChangeSource, setSelectedChangeSource] =
     useState<ChangeSelectionSource | null>(null);
   const [diffView, setDiffView] = useState<DiffViewState | null>(null);
@@ -787,6 +807,13 @@ export function ResourceViewer({
     src: string | null,
     relativePath: string,
   ) => {
+    const editable = isResourceTextEditable({
+      kind: r.kind,
+      text: r.text,
+      truncated: r.truncated,
+      error: r.error,
+    });
+    const text = r.text ?? null;
     setTabs((prev) =>
       prev.map((t) =>
         t.id === id
@@ -799,11 +826,172 @@ export function ResourceViewer({
               name: r.name || baseName(relativePath || r.absolutePath || "file"),
               loading: false,
               tabKind: "file" as const,
+              draftText: editable ? text : null,
+              baselineText: editable ? text : null,
+              mtimeMs: typeof r.mtimeMs === "number" ? r.mtimeMs : null,
+              editMode: editable ? defaultResourceEditMode(r.kind) : false,
+              saving: false,
             }
           : t,
       ),
     );
   };
+
+  const activeTabDirty = useMemo(() => {
+    if (!activeTab || activeTab.tabKind === "url") return false;
+    return isResourceDraftDirty(activeTab.draftText, activeTab.baselineText);
+  }, [activeTab]);
+
+  const activeTabEditable = useMemo(() => {
+    if (!activeTab?.preview || activeTab.tabKind === "url") return false;
+    return isResourceTextEditable({
+      kind: activeTab.preview.kind,
+      text: activeTab.baselineText ?? activeTab.preview.text,
+      truncated: activeTab.preview.truncated,
+      error: activeTab.preview.error,
+    });
+  }, [activeTab]);
+
+  const updateActiveDraft = useCallback((text: string) => {
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.id === activeId ? { ...t, draftText: text } : t,
+      ),
+    );
+  }, [activeId]);
+
+  const revertActiveDraft = useCallback(() => {
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.id === activeId && t.baselineText != null
+          ? { ...t, draftText: t.baselineText }
+          : t,
+      ),
+    );
+  }, [activeId]);
+
+  const reloadActiveFile = useCallback(async () => {
+    const tab = tabs.find((t) => t.id === activeId);
+    if (!tab || tab.tabKind === "url" || !api.isTauri()) return;
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.id === tab.id ? { ...t, loading: true, error: null } : t,
+      ),
+    );
+    try {
+      let r: api.FsReadResult;
+      if (projectPath && tab.relativePath && !tab.relativePath.startsWith("/") && !/^[A-Za-z]:[\\/]/.test(tab.relativePath)) {
+        r = await api.fsReadFile(projectPath, tab.relativePath);
+      } else if (tab.absolutePath) {
+        r = await api.fsReadAbsolute(tab.absolutePath);
+      } else {
+        r = await api.fsOpenPath(tab.relativePath, projectPath);
+      }
+      const src = await resolvePreviewSrc(r);
+      applyReadResult(tab.id, r, src, tab.relativePath);
+    } catch (e) {
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.id === tab.id
+            ? {
+                ...t,
+                loading: false,
+                error: `${tr("resources.openFailed")}: ${String(e)}`,
+              }
+            : t,
+        ),
+      );
+    }
+  }, [activeId, projectPath, tabs, tr]);
+
+  const saveActiveFile = useCallback(
+    async (opts?: { force?: boolean }) => {
+      const tab = tabs.find((t) => t.id === activeId);
+      if (!tab || tab.tabKind === "url" || tab.draftText == null) return;
+      if (!api.isTauri()) {
+        setError(tr("resources.saveFailed"));
+        return;
+      }
+      if (!isResourceDraftDirty(tab.draftText, tab.baselineText) && !opts?.force) {
+        return;
+      }
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.id === tab.id ? { ...t, saving: true, error: null } : t,
+        ),
+      );
+      setError(null);
+      try {
+        const expected = opts?.force ? null : tab.mtimeMs ?? null;
+        const underProject =
+          !!projectPath &&
+          tab.relativePath &&
+          !tab.relativePath.startsWith("/") &&
+          !/^[A-Za-z]:[\\/]/.test(tab.relativePath) &&
+          (tab.absolutePath
+            ? normalizePath(tab.absolutePath).startsWith(
+                normalizePath(projectPath) + "/",
+              ) ||
+              normalizePath(tab.absolutePath) === normalizePath(projectPath)
+            : true);
+
+        let w: api.FsWriteResult;
+        if (underProject && projectPath) {
+          w = await api.fsWriteFile(
+            projectPath,
+            tab.relativePath,
+            tab.draftText,
+            expected,
+          );
+        } else if (tab.absolutePath) {
+          w = await api.fsWriteAbsolute(
+            tab.absolutePath,
+            tab.draftText,
+            expected,
+          );
+        } else {
+          throw new Error(tr("resources.saveNoPath"));
+        }
+
+        const savedText = tab.draftText ?? "";
+        setTabs((prev) =>
+          prev.map((t) =>
+            t.id === tab.id
+              ? {
+                  ...t,
+                  saving: false,
+                  baselineText: savedText,
+                  draftText: savedText,
+                  mtimeMs: w.mtimeMs,
+                  absolutePath: w.absolutePath || t.absolutePath,
+                  preview: t.preview
+                    ? {
+                        ...t.preview,
+                        text: savedText,
+                        size: w.size,
+                        mtimeMs: w.mtimeMs,
+                        truncated: false,
+                      }
+                    : t.preview,
+                }
+              : t,
+          ),
+        );
+      } catch (e) {
+        setTabs((prev) =>
+          prev.map((t) =>
+            t.id === tab.id ? { ...t, saving: false } : t,
+          ),
+        );
+        if (isFsWriteConflict(e)) {
+          setConflictTabId(tab.id);
+        } else {
+          setError(String(e) || tr("resources.saveFailed"));
+        }
+      }
+    },
+    [activeId, projectPath, tabs, tr],
+  );
 
   const openFile = async (relativePath: string) => {
     if (!projectPath) {
@@ -985,7 +1173,7 @@ export function ResourceViewer({
     [onClose],
   );
 
-  const closeTab = useCallback(
+  const closeTabForced = useCallback(
     (id: string) => {
       let remaining = -1;
       setTabs((prev) => {
@@ -1006,6 +1194,18 @@ export function ResourceViewer({
       if (remaining === 0) closePaneIfNoTabs(0);
     },
     [activeId, closePaneIfNoTabs],
+  );
+
+  const closeTab = useCallback(
+    (id: string) => {
+      const tab = tabs.find((t) => t.id === id);
+      if (tab && isResourceDraftDirty(tab.draftText, tab.baselineText)) {
+        setDiscardTabId(id);
+        return;
+      }
+      closeTabForced(id);
+    },
+    [closeTabForced, tabs],
   );
 
   /** Chrome-style: close every tab except `id`. */
@@ -1244,6 +1444,48 @@ export function ResourceViewer({
         : null;
     const src = mediaSrc || dataUrl;
 
+    // Text edit mode (Save writes disk; conflict if mtime changed).
+    const canEdit = isResourceTextEditable({
+      kind: preview.kind,
+      text: activeTab?.baselineText ?? preview.text,
+      truncated: preview.truncated,
+      error: preview.error,
+    });
+    const showEditor =
+      canEdit &&
+      !!activeTab &&
+      (activeTab.editMode || preview.kind !== "markdown");
+    if (showEditor && activeTab.draftText != null) {
+      return (
+        <div className="rp-editor">
+          {preview.truncated ? (
+            <div className="rp-editor__banner" role="status">
+              {tr("resources.truncated")}
+            </div>
+          ) : null}
+          <textarea
+            className="rp-editor__textarea"
+            value={activeTab.draftText}
+            spellCheck={preview.kind === "markdown" || preview.kind === "text"}
+            disabled={!!activeTab.saving}
+            aria-label={tr("resources.editorAria", { name: preview.name })}
+            onChange={(e) => updateActiveDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+                e.preventDefault();
+                void saveActiveFile();
+              }
+            }}
+          />
+          {isResourceDraftDirty(activeTab.draftText, activeTab.baselineText) ? (
+            <div className="rp-editor__status" role="status">
+              {tr("resources.unsaved")}
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
     // Word / Excel / PDF rich preview
     if (
       isOfficeKind(preview.kind) &&
@@ -1325,7 +1567,9 @@ export function ResourceViewer({
       case "markdown":
         return (
           <div className="rp-preview__md">
-            <MarkdownBody>{preview.text ?? ""}</MarkdownBody>
+            <MarkdownBody>
+              {activeTab?.draftText ?? preview.text ?? ""}
+            </MarkdownBody>
           </div>
         );
       case "html":
@@ -1387,6 +1631,8 @@ export function ResourceViewer({
     revealChangePath,
     copyChangePath,
     pathCopyFlash,
+    updateActiveDraft,
+    saveActiveFile,
   ]);
 
   // No project and no open tabs → empty; allow absolute/url tabs without a project.
@@ -1473,7 +1719,11 @@ export function ResourceViewer({
                       />
                       {active ? (
                         <>
-                          <span className="rp-tab__name">{t.name}</span>
+                          <span className="rp-tab__name">
+                            {isResourceDraftDirty(t.draftText, t.baselineText)
+                              ? `• ${t.name}`
+                              : t.name}
+                          </span>
                           <span
                             className="rp-tab__x"
                             role="button"
@@ -1493,6 +1743,10 @@ export function ResourceViewer({
                             ×
                           </span>
                         </>
+                      ) : isResourceDraftDirty(t.draftText, t.baselineText) ? (
+                        <span className="rp-tab__dirty" aria-hidden>
+                          •
+                        </span>
                       ) : null}
                     </button>
                   </Tip>
@@ -1502,6 +1756,66 @@ export function ResourceViewer({
           </div>
         </div>
         <div className="rp-chrome__actions">
+          {activeTabEditable && activeTab ? (
+            <>
+              {activeTab.preview?.kind === "markdown" ? (
+                <Tip
+                  label={
+                    activeTab.editMode
+                      ? tr("resources.previewMode")
+                      : tr("resources.editMode")
+                  }
+                >
+                  <button
+                    type="button"
+                    className={
+                      "chrome-btn" + (activeTab.editMode ? " is-on" : "")
+                    }
+                    disabled={!!activeTab.saving}
+                    onClick={() => {
+                      setTabs((prev) =>
+                        prev.map((t) =>
+                          t.id === activeTab.id
+                            ? { ...t, editMode: !t.editMode }
+                            : t,
+                        ),
+                      );
+                    }}
+                    aria-label={tr("resources.editMode")}
+                  >
+                    <IconEdit size={14} />
+                  </button>
+                </Tip>
+              ) : null}
+              {activeTabDirty ? (
+                <Tip label={tr("resources.revert")}>
+                  <button
+                    type="button"
+                    className="chrome-btn"
+                    disabled={!!activeTab.saving}
+                    onClick={() => revertActiveDraft()}
+                  >
+                    {tr("resources.revert")}
+                  </button>
+                </Tip>
+              ) : null}
+              <Tip label={tr("resources.save")}>
+                <button
+                  type="button"
+                  className={
+                    "chrome-btn chrome-btn--save" +
+                    (activeTabDirty ? " is-dirty" : "")
+                  }
+                  disabled={!!activeTab.saving || !activeTabDirty}
+                  onClick={() => void saveActiveFile()}
+                >
+                  {activeTab.saving
+                    ? tr("resources.saving")
+                    : tr("resources.save")}
+                </button>
+              </Tip>
+            </>
+          ) : null}
           {absPath ? (
             <OpenLocationButton
               path={absPath}
@@ -2122,6 +2436,72 @@ export function ResourceViewer({
           />
         );
       })()}
+
+      <GlassModal
+        open={!!conflictTabId}
+        onClose={() => setConflictTabId(null)}
+        title={tr("resources.conflictTitle")}
+        size="sm"
+        closeLabel={tr("common.close")}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => {
+                setConflictTabId(null);
+                void reloadActiveFile();
+              }}
+            >
+              {tr("resources.conflictReload")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--solid"
+              onClick={() => {
+                setConflictTabId(null);
+                void saveActiveFile({ force: true });
+              }}
+            >
+              {tr("resources.conflictOverwrite")}
+            </button>
+          </>
+        }
+      >
+        <p className="rp-modal-copy">{tr("resources.conflictBody")}</p>
+      </GlassModal>
+
+      <GlassModal
+        open={!!discardTabId}
+        onClose={() => setDiscardTabId(null)}
+        title={tr("resources.discardTitle")}
+        size="sm"
+        closeLabel={tr("common.close")}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setDiscardTabId(null)}
+            >
+              {tr("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--solid"
+              onClick={() => {
+                const id = discardTabId;
+                setDiscardTabId(null);
+                if (id) closeTabForced(id);
+              }}
+            >
+              {tr("resources.discardConfirm")}
+            </button>
+          </>
+        }
+      >
+        <p className="rp-modal-copy">{tr("resources.discardBody")}</p>
+      </GlassModal>
     </div>
   );
 }

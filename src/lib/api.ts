@@ -394,6 +394,15 @@ export interface FsReadResult {
   stream: boolean;
   truncated: boolean;
   error: string | null;
+  /** Last modified (ms since epoch) for edit conflict checks. */
+  mtimeMs?: number;
+}
+
+export interface FsWriteResult {
+  relativePath: string;
+  absolutePath: string;
+  size: number;
+  mtimeMs: number;
 }
 
 /** List directory under a trusted project root (relative path, "" = root). */
@@ -409,6 +418,34 @@ export async function fsReadFile(projectPath: string, relative: string) {
   return invoke<FsReadResult>("fs_read_file", {
     projectPath,
     relative,
+  });
+}
+
+/** Save UTF-8 text under project root. Pass mtime from last read to detect conflicts. */
+export async function fsWriteFile(
+  projectPath: string,
+  relative: string,
+  content: string,
+  expectedMtimeMs?: number | null,
+) {
+  return invoke<FsWriteResult>("fs_write_file", {
+    projectPath,
+    relative,
+    content,
+    expectedMtimeMs: expectedMtimeMs ?? null,
+  });
+}
+
+/** Save UTF-8 text to an absolute path open in the resource pane. */
+export async function fsWriteAbsolute(
+  path: string,
+  content: string,
+  expectedMtimeMs?: number | null,
+) {
+  return invoke<FsWriteResult>("fs_write_absolute", {
+    path,
+    content,
+    expectedMtimeMs: expectedMtimeMs ?? null,
   });
 }
 

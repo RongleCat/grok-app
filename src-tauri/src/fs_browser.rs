@@ -4,6 +4,7 @@
 use std::fs;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
+use std::time::UNIX_EPOCH;
 
 use base64::Engine;
 use serde::Serialize;
@@ -39,6 +40,28 @@ pub struct FsReadResult {
     pub stream: bool,
     pub truncated: bool,
     pub error: Option<String>,
+    /// Last modified time (ms since UNIX epoch) for dirty/conflict checks when editing.
+    #[serde(default)]
+    pub mtime_ms: u64,
+}
+
+/// Result of writing a text file from the resource pane.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FsWriteResult {
+    pub relative_path: String,
+    pub absolute_path: String,
+    pub size: u64,
+    pub mtime_ms: u64,
+}
+
+fn file_mtime_ms(path: &Path) -> u64 {
+    fs::metadata(path)
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 fn ok_result(
@@ -66,6 +89,7 @@ fn ok_result(
         stream,
         truncated,
         error,
+        mtime_ms: file_mtime_ms(path),
     }
 }
 
@@ -437,6 +461,107 @@ pub fn read_file(project_root: &str, relative: &str) -> Result<FsReadResult, Str
         return Err(format!("not a file: {rel_in}"));
     }
     read_path(path, rel_in)
+}
+
+/// Write UTF-8 text under a project root (resource pane Save).
+///
+/// When `expected_mtime_ms` is `Some` and the on-disk mtime differs, returns
+/// `Err` starting with `CONFLICT:` so the UI can offer reload vs overwrite
+/// (agent or external editor may have written the same path).
+pub fn write_text_file(
+    project_root: &str,
+    relative: &str,
+    content: &str,
+    expected_mtime_ms: Option<u64>,
+) -> Result<FsWriteResult, String> {
+    let root = PathBuf::from(project_root);
+    if !root.is_dir() {
+        return Err(format!("project root is not a directory: {project_root}"));
+    }
+    let rel_in = normalize_rel(relative);
+    if rel_in.is_empty() {
+        return Err("empty relative path".into());
+    }
+    let path = lexical_join(&root, &rel_in)?;
+    write_text_at_path(path, rel_in, content, expected_mtime_ms)
+}
+
+/// Write UTF-8 text to an absolute path opened in the resource pane.
+pub fn write_text_absolute(
+    absolute: &str,
+    content: &str,
+    expected_mtime_ms: Option<u64>,
+) -> Result<FsWriteResult, String> {
+    let raw = absolute.trim();
+    if raw.is_empty() {
+        return Err("empty path".into());
+    }
+    if raw.contains('\0') {
+        return Err("invalid path".into());
+    }
+    let path = PathBuf::from(raw);
+    if !path.is_file() {
+        return Err(format!("not a file: {raw}"));
+    }
+    let name = path
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| raw.to_string());
+    write_text_at_path(path, name, content, expected_mtime_ms)
+}
+
+fn write_text_at_path(
+    path: PathBuf,
+    relative_path: String,
+    content: &str,
+    expected_mtime_ms: Option<u64>,
+) -> Result<FsWriteResult, String> {
+    if !path.is_file() {
+        return Err(format!("not a file: {}", path.display()));
+    }
+    let bytes = content.as_bytes();
+    if bytes.len() as u64 > MAX_TEXT_BYTES {
+        return Err(format!(
+            "file too large to save in-app (max {MAX_TEXT_BYTES} bytes)"
+        ));
+    }
+
+    if let Some(expected) = expected_mtime_ms {
+        if expected > 0 {
+            let actual = file_mtime_ms(&path);
+            if actual > 0 && actual != expected {
+                return Err(format!(
+                    "CONFLICT: file changed on disk (mtime {actual}, expected {expected})"
+                ));
+            }
+        }
+    }
+
+    // Atomic-ish: write temp then rename within same directory.
+    let parent = path
+        .parent()
+        .ok_or_else(|| "invalid parent directory".to_string())?;
+    let tmp_name = format!(
+        ".{}.grok-save-{}",
+        path.file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("file"),
+        std::process::id()
+    );
+    let tmp = parent.join(tmp_name);
+    fs::write(&tmp, bytes).map_err(|e| format!("write temp: {e}"))?;
+    fs::rename(&tmp, &path).map_err(|e| {
+        let _ = fs::remove_file(&tmp);
+        format!("rename into place: {e}")
+    })?;
+
+    let meta = fs::metadata(&path).map_err(|e| format!("stat after write: {e}"))?;
+    Ok(FsWriteResult {
+        relative_path,
+        absolute_path: path.to_string_lossy().to_string(),
+        size: meta.len(),
+        mtime_ms: file_mtime_ms(&path),
+    })
 }
 
 /// Read any absolute filesystem path for chat → resource pane preview.
@@ -1301,6 +1426,59 @@ mod tests {
             "{:?}",
             r.text
         );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn write_text_roundtrip_and_mtime() {
+        let dir = tempfile_dir();
+        let rel = "notes/hello.md";
+        fs::create_dir_all(dir.join("notes")).unwrap();
+        fs::write(dir.join(rel), b"v1\n").unwrap();
+        let r = read_file(dir.to_str().unwrap(), rel).unwrap();
+        assert!(r.mtime_ms > 0 || cfg!(target_os = "windows"));
+        let w = write_text_file(
+            dir.to_str().unwrap(),
+            rel,
+            "v2\n",
+            Some(r.mtime_ms),
+        )
+        .unwrap();
+        assert_eq!(fs::read_to_string(dir.join(rel)).unwrap(), "v2\n");
+        assert_eq!(w.size, 3);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn write_text_conflict_when_mtime_differs() {
+        let dir = tempfile_dir();
+        let rel = "a.txt";
+        fs::write(dir.join(rel), b"disk\n").unwrap();
+        let r = read_file(dir.to_str().unwrap(), rel).unwrap();
+        // Stale expected mtime (not equal to on-disk) → conflict without sleeping.
+        let stale = if r.mtime_ms == 0 {
+            1
+        } else {
+            r.mtime_ms.wrapping_add(1_000_000)
+        };
+        let err = write_text_file(dir.to_str().unwrap(), rel, "mine\n", Some(stale))
+            .unwrap_err();
+        assert!(
+            err.starts_with("CONFLICT:"),
+            "expected conflict, got {err}"
+        );
+        assert_eq!(fs::read_to_string(dir.join(rel)).unwrap(), "disk\n");
+        // Force overwrite without expected mtime.
+        write_text_file(dir.to_str().unwrap(), rel, "mine\n", None).unwrap();
+        assert_eq!(fs::read_to_string(dir.join(rel)).unwrap(), "mine\n");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn write_text_rejects_escape() {
+        let dir = tempfile_dir();
+        let err = write_text_file(dir.to_str().unwrap(), "../x.txt", "nope", None).unwrap_err();
+        assert!(err.contains("escape") || err.contains("absolute"), "{err}");
         let _ = fs::remove_dir_all(&dir);
     }
 

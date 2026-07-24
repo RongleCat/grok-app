@@ -199,6 +199,8 @@ pub fn run() {
             commands::git_show_file,
             commands::fs_list_dir,
             commands::fs_read_file,
+            commands::fs_write_file,
+            commands::fs_write_absolute,
             tray::tray_refresh,
             commands::fs_read_absolute,
             commands::fs_open_path,

@@ -696,6 +696,33 @@ pub async fn fs_read_file(
     crate::fs_browser::read_file(&project_path, &relative)
 }
 
+/// Write UTF-8 text under the project root (resource pane Save).
+/// Pass `expected_mtime_ms` from the last read to detect agent/external overwrites.
+#[tauri::command]
+pub async fn fs_write_file(
+    project_path: String,
+    relative: String,
+    content: String,
+    expected_mtime_ms: Option<u64>,
+) -> Result<crate::fs_browser::FsWriteResult, String> {
+    crate::fs_browser::write_text_file(
+        &project_path,
+        &relative,
+        &content,
+        expected_mtime_ms,
+    )
+}
+
+/// Write UTF-8 text to an absolute path already open in the resource pane.
+#[tauri::command]
+pub async fn fs_write_absolute(
+    path: String,
+    content: String,
+    expected_mtime_ms: Option<u64>,
+) -> Result<crate::fs_browser::FsWriteResult, String> {
+    crate::fs_browser::write_text_absolute(&path, &content, expected_mtime_ms)
+}
+
 /// Read an absolute path for resource-pane preview (chat file cards, agent outputs).
 #[tauri::command]
 pub async fn fs_read_absolute(
