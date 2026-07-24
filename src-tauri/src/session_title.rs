@@ -8,6 +8,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::cli_probe;
 use crate::store::{self, SessionMeta};
+use crate::tray_i18n::{self, Locale};
 
 const PLACEHOLDERS: &[&str] = &[
     "New chat",
@@ -55,7 +56,12 @@ fn clean_llm_title(raw: &str) -> Option<String> {
             t = t[1..t.len() - 1].trim().to_string();
         }
     }
-    if let Some(rest) = t.strip_prefix("标题：").or_else(|| t.strip_prefix("标题:")) {
+    if let Some(rest) = t
+        .strip_prefix("标题：")
+        .or_else(|| t.strip_prefix("标题:"))
+        .or_else(|| t.strip_prefix("Title:"))
+        .or_else(|| t.strip_prefix("Title："))
+    {
         t = rest.trim().to_string();
     }
     if let Some(line) = t.lines().next() {
@@ -67,14 +73,24 @@ fn clean_llm_title(raw: &str) -> Option<String> {
     Some(truncate_chars(&t, 32))
 }
 
+/// Prompt for the headless title LLM, matching the app UI locale.
+fn title_prompt(snippet: &str, locale: Locale) -> String {
+    match locale {
+        Locale::En => format!(
+            "Write a short session title for the user message below.\nRequirements: at most 8 English words (or match the message language if it is not English); output the title only; no quotes, prefixes, or explanation.\n\nUser message:\n{snippet}"
+        ),
+        Locale::Zh => format!(
+            "为下面这条用户消息起一个简短会话标题。要求：最多16个汉字或8个英文单词；只输出标题；不要引号、标点前缀、解释。\n\n用户消息：\n{snippet}"
+        ),
+    }
+}
+
 /// Call Grok CLI headless with low effort.
 fn llm_title_via_cli(message: &str) -> Option<String> {
     let probe = cli_probe::probe_cli(None);
     let path = probe.path?;
     let snippet: String = message.chars().take(400).collect();
-    let prompt = format!(
-        "为下面这条用户消息起一个简短会话标题。要求：最多16个汉字或8个英文单词；只输出标题；不要引号、标点前缀、解释。\n\n用户消息：\n{snippet}"
-    );
+    let prompt = title_prompt(&snippet, tray_i18n::app_locale());
 
     let mut cmd = Command::new(&path);
     cmd.arg("-p")
@@ -190,5 +206,26 @@ mod tests {
             clean_llm_title("  \"修复登录样式\" \n"),
             Some("修复登录样式".into())
         );
+    }
+
+    #[test]
+    fn clean_strips_english_title_prefix() {
+        assert_eq!(
+            clean_llm_title("Title: List open PRs\n"),
+            Some("List open PRs".into())
+        );
+    }
+
+    #[test]
+    fn title_prompt_follows_locale() {
+        let en = title_prompt("list open prs", Locale::En);
+        assert!(en.contains("User message:"));
+        assert!(en.contains("list open prs"));
+        assert!(!en.contains("用户消息"));
+
+        let zh = title_prompt("list open prs", Locale::Zh);
+        assert!(zh.contains("用户消息："));
+        assert!(zh.contains("list open prs"));
+        assert!(!zh.contains("User message:"));
     }
 }
