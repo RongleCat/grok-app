@@ -4668,6 +4668,49 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   line-height: 1.5;
 }
 
+/* Stream stall banner (I06) — warning surface with cancel / keep waiting */
+.stall-banner {
+  margin: 0 var(--space-5) var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--warning-muted);
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.stall-banner__summary {
+  flex: 1 1 220px;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.stall-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.stall-banner__btn {
+  height: 28px;
+  font-size: 12px;
+}
+
+.stall-banner__btn--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.stall-banner__btn--danger:hover {
+  filter: brightness(1.05);
+}
+
 /* Error banner — compact summary; full dump behind Details */
 .error-banner {
   margin: 0 var(--space-5) var(--space-2);

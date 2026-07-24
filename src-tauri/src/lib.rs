@@ -18,6 +18,8 @@ mod models_catalog;
 mod paths;
 mod process_util;
 mod process_limits;
+mod journal_throttle;
+mod stream_stall;
 mod permission;
 mod providers;
 mod session_import;
@@ -106,10 +108,12 @@ pub fn run() {
                 tracing::warn!("tray setup: {e}");
             }
             // I03: recycle idle agent processes; session metadata stays on disk.
+            // I06: surface cancel UI when a stream is pure-silent for too long.
             {
                 use tauri::Manager;
                 let mgr = app.state::<Arc<SessionManager>>().inner().clone();
                 mgr.start_idle_watchdog(app.handle().clone());
+                mgr.start_stream_stall_watchdog(app.handle().clone());
             }
             Ok(())
         })

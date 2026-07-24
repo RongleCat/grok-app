@@ -587,6 +587,12 @@ export default function App() {
   const [acpServerAddr, setAcpServerAddr] = useState("");
   const [maxConcurrentAgents, setMaxConcurrentAgents] = useState(3);
   const [agentIdleMinutes, setAgentIdleMinutes] = useState(30);
+  const [streamStallSeconds, setStreamStallSeconds] = useState(120);
+  /** Host stream-stall prompt (I06); null when dismissed or not stalled. */
+  const [streamStall, setStreamStall] = useState<{
+    sessionId?: string;
+    stallSeconds: number;
+  } | null>(null);
   const [connecting, setConnecting] = useState(false);
   /** Live provider retry progress (session://retry); cleared on success/stop/error. */
   const [retryStatus, setRetryStatus] = useState<{
@@ -783,6 +789,12 @@ export default function App() {
           settings.agentIdleMinutes >= 1
           ? Math.min(1440, Math.round(settings.agentIdleMinutes))
           : 30,
+      );
+      setStreamStallSeconds(
+        typeof settings.streamStallSeconds === "number" &&
+          settings.streamStallSeconds >= 15
+          ? Math.min(900, Math.round(settings.streamStallSeconds))
+          : 120,
       );
       setCliInfo({
         found: cli.found,
@@ -1041,9 +1053,10 @@ export default function App() {
               s.sessionId === viewingSessionIdRef.current
             ) {
               setSession(s);
-              // Clear retry chip / turn timer when turn ends or errors out
+              // Clear retry chip / turn timer / stall banner when turn ends or errors out
               if (s.state !== "streaming" && s.state !== "awaiting_permission") {
                 setRetryStatus(null);
+                setStreamStall(null);
                 setTurnStartedAt(null);
                 // Ensure no assistant is left with streaming=true after the turn
                 // (missed done chunk) — otherwise the next send can bind to it.
@@ -1125,6 +1138,8 @@ export default function App() {
               chunk.sessionId === viewingSessionIdRef.current
             ) {
               setRetryStatus(null);
+              // Progress clears stall banner (I06).
+              setStreamStall(null);
             }
             patchSessionMessages(chunk.sessionId, (prev) => {
               const next = applyStreamChunk(prev, chunk);
@@ -1222,6 +1237,8 @@ export default function App() {
             });
             if (sid === viewingSessionIdRef.current) {
               setTurnStartedAt((t) => t ?? Date.now());
+              // Tool activity counts as progress — clear stall banner (I06).
+              setStreamStall(null);
             }
           }),
         );
@@ -1239,6 +1256,7 @@ export default function App() {
             patchSessionMessages(sid, (prev) => applyTurnMarker(prev, p));
             if (sid === viewingSessionIdRef.current) {
               setTurnStartedAt(null);
+              setStreamStall(null);
               if (p.marker === "turn_cancelled") {
                 setToast(tr("activity.cancelledToast"));
                 window.setTimeout(() => setToast(null), 2800);
@@ -1287,6 +1305,31 @@ export default function App() {
                   : "PROCESS_LIMIT",
               );
             }
+          }),
+        );
+        await track(
+          api.listen<{
+            sessionId?: string;
+            stallSeconds?: number;
+            code?: string;
+            message?: string;
+          }>("session://stream_stall", (p) => {
+            if (cancelled || !p) return;
+            // Only prompt for the viewed session (or unknown id).
+            if (
+              p.sessionId &&
+              p.sessionId !== viewingSessionIdRef.current
+            ) {
+              return;
+            }
+            const secs =
+              typeof p.stallSeconds === "number" && p.stallSeconds > 0
+                ? Math.round(p.stallSeconds)
+                : 120;
+            setStreamStall({
+              sessionId: p.sessionId,
+              stallSeconds: secs,
+            });
           }),
         );
         await track(
@@ -4034,6 +4077,7 @@ export default function App() {
     try {
       await api.sessionStop();
       setRetryStatus(null);
+      setStreamStall(null);
       setTurnStartedAt(null);
       setTurnStartedAt(null);
       const liveId = liveHostRef.current.sessionId;
@@ -5225,6 +5269,13 @@ export default function App() {
               api.settingsSet({ ...s, agentIdleMinutes: v }),
             );
           }}
+          streamStallSeconds={streamStallSeconds}
+          onStreamStallSeconds={(v) => {
+            setStreamStallSeconds(v);
+            void api.settingsGet().then((s) =>
+              api.settingsSet({ ...s, streamStallSeconds: v }),
+            );
+          }}
           cliInfo={cliInfo}
           onDoctor={() => void openDoctor()}
           versionFooter={tr("app.versionFooter")}
@@ -5970,6 +6021,36 @@ export default function App() {
               <span style={{ fontSize: 12, opacity: 0.85 }}>
                 {tr("automations.emptySession")}
               </span>
+            </div>
+          )}
+
+          {/* I06: pure stream silence — cancel or keep waiting */}
+          {streamStall && mainPane === "chat" && (
+            <div className="stall-banner" role="status">
+              <div className="stall-banner__summary">
+                {tr("agent.streamStallBanner", {
+                  seconds: String(streamStall.stallSeconds),
+                })}
+              </div>
+              <div className="stall-banner__actions">
+                <button
+                  type="button"
+                  className="btn btn--ghost stall-banner__btn"
+                  onClick={() => setStreamStall(null)}
+                >
+                  {tr("agent.streamStallKeepWaiting")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--primary stall-banner__btn stall-banner__btn--danger"
+                  onClick={() => {
+                    setStreamStall(null);
+                    void stop();
+                  }}
+                >
+                  {tr("agent.streamStallCancel")}
+                </button>
+              </div>
             </div>
           )}
 

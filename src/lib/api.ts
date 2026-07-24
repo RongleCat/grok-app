@@ -551,6 +551,8 @@ export interface AppSettings {
   maxConcurrentAgents?: number;
   /** Recycle idle agent processes after N minutes (default 30). */
   agentIdleMinutes?: number;
+  /** Pure stream silence before cancel prompt, seconds (default 120). */
+  streamStallSeconds?: number;
 }
 
 export interface AvailableModel {

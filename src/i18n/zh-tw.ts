@@ -366,10 +366,17 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.agentIdleMinutes": "閒置回收（分鐘）",
   "settings.agentIdleMinutesDesc":
     "超過該分鐘數無活動後回收 Agent 行程。對話紀錄保留，下次傳送會自動重連。",
+  "settings.streamStallSeconds": "串流停滯逾時（秒）",
+  "settings.streamStallSecondsDesc":
+    "若一輪對話在該時間內無任何串流片段或工具活動，將提示「取消本輪 / 繼續等待」（預設 120）。仍有工具事件的長任務不會誤判為停滯。",
   "agent.idleRecycledToast":
     "Agent 行程因閒置已回收 — 工作階段仍在；下次傳送將重新連線。",
   "agent.processLimitToast":
     "已達 Agent 行程上限。請先停止其他工作階段，或在設定 → 執行環境中提高上限。",
+  "agent.streamStallBanner":
+    "約 {seconds} 秒無串流片段或工具活動。可取消本輪或繼續等待。",
+  "agent.streamStallCancel": "取消本輪",
+  "agent.streamStallKeepWaiting": "繼續等待",
   "settings.permissionDeep": "預設權限",
   "settings.permissionDeepDesc":
     "對新一輪對話生效，並依上方選擇的範圍記憶。YOLO 會自動核准工具呼叫。",

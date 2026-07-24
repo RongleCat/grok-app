@@ -152,6 +152,9 @@ pub struct AppSettings {
     /// Recycle idle agent processes after this many minutes (I03). Default 30.
     #[serde(default = "default_agent_idle_minutes")]
     pub agent_idle_minutes: u32,
+    /// Pure stream silence before cancel prompt (I06). Default 120 seconds.
+    #[serde(default = "default_stream_stall_seconds")]
+    pub stream_stall_seconds: u32,
 }
 
 fn default_composer_prefs_scope() -> String {
@@ -168,6 +171,10 @@ fn default_max_concurrent_agents() -> u32 {
 
 fn default_agent_idle_minutes() -> u32 {
     crate::process_limits::DEFAULT_AGENT_IDLE_MINUTES
+}
+
+fn default_stream_stall_seconds() -> u32 {
+    crate::stream_stall::DEFAULT_STREAM_STALL_SECONDS
 }
 
 impl Default for AppSettings {
@@ -190,6 +197,7 @@ impl Default for AppSettings {
             acp_server_addr: None,
             max_concurrent_agents: default_max_concurrent_agents(),
             agent_idle_minutes: default_agent_idle_minutes(),
+            stream_stall_seconds: default_stream_stall_seconds(),
         }
     }
 }
@@ -1137,5 +1145,6 @@ mod tests {
         assert_eq!(s.theme, "dark");
         assert_eq!(s.max_concurrent_agents, 3);
         assert_eq!(s.agent_idle_minutes, 30);
+        assert_eq!(s.stream_stall_seconds, 120);
     }
 }

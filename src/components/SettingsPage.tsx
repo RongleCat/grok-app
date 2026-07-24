@@ -103,6 +103,9 @@ export interface SettingsPageProps {
   /** Idle recycle minutes (I03). */
   agentIdleMinutes?: number;
   onAgentIdleMinutes?: (v: number) => void;
+  /** Stream stall silence timeout seconds (I06). */
+  streamStallSeconds?: number;
+  onStreamStallSeconds?: (v: number) => void;
   cliInfo: {
     found: boolean;
     path: string | null;
@@ -397,6 +400,8 @@ export function SettingsPage({
   onMaxConcurrentAgents,
   agentIdleMinutes = 30,
   onAgentIdleMinutes,
+  streamStallSeconds = 120,
+  onStreamStallSeconds,
   cliInfo,
   onDoctor,
   versionFooter,
@@ -1342,6 +1347,31 @@ export function SettingsPage({
                   if (!Number.isFinite(n)) return;
                   onAgentIdleMinutes?.(
                     Math.min(1440, Math.max(1, Math.round(n))),
+                  );
+                }}
+              />
+            </div>
+            <div className="settings-row settings-row--stack">
+              <div className="settings-row__text">
+                <div className="settings-row__label">
+                  {t("settings.streamStallSeconds")}
+                </div>
+                <div className="settings-row__desc">
+                  {t("settings.streamStallSecondsDesc")}
+                </div>
+              </div>
+              <input
+                className="settings-input"
+                type="number"
+                min={15}
+                max={900}
+                step={15}
+                value={streamStallSeconds}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (!Number.isFinite(n)) return;
+                  onStreamStallSeconds?.(
+                    Math.min(900, Math.max(15, Math.round(n))),
                   );
                 }}
               />

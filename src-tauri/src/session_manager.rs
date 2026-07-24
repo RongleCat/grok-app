@@ -4,6 +4,10 @@
 //! - One ACP process per live/parked App session (up to `maxConcurrentAgents`, default 3).
 //! - Switching chats parks a Ready process instead of killing it (when under the cap).
 //! - Idle processes are soft-recycled after `agentIdleMinutes` (default 30); session meta stays.
+//!
+//! Streaming performance (I04 / I06):
+//! - Mid-stream journal upserts are throttled (≥500ms or paragraph / force).
+//! - Pure stream silence past `streamStallSeconds` emits `session://stream_stall`.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -20,6 +24,7 @@ use crate::acp_client::{
 };
 use crate::cli_probe;
 use crate::error::{AgentError, AgentErrorCode};
+use crate::journal_throttle::{is_paragraph_break, JournalWriteThrottle};
 use crate::mock_acp::{self, MockConnectMode, MockStreamHandle, StreamChunk};
 use crate::permission::{
     extract_path_target, extract_shell_command, may_auto_allow, may_auto_deny, pick_option_id,
@@ -31,6 +36,9 @@ use crate::process_limits::{
 };
 use crate::session_fsm::{SessionFsm, SessionState};
 use crate::store::{self, ChatMessageStored, MessageAttachmentStored, SessionMeta};
+use crate::stream_stall::{
+    normalize_stream_stall_seconds, should_emit_stall, stream_stall_message,
+};
 
 /// Strip bulky MCP/RPC dumps so chat errors stay human-readable.
 /// Full stderr is still logged via `tracing` on the ACP client side.
@@ -172,6 +180,12 @@ struct LiveSession {
     pending_ask_user_rpc_id: Option<u64>,
     /// Last user/agent activity (send, stream, permission, connect).
     last_activity: Instant,
+    /// Last stream chunk or tool event (I06 stall watchdog). Permission waits do not update this.
+    last_stream_progress: Instant,
+    /// Last time we emitted `session://stream_stall` for the current silence window.
+    last_stall_emit: Option<Instant>,
+    /// Throttle mid-stream assistant journal upserts (I04).
+    journal_throttle: JournalWriteThrottle,
 }
 
 /// Ready agent process parked while another App session is focused (I01/I02).
@@ -506,8 +520,124 @@ impl SessionManager {
         });
     }
 
+    /// Background stream stall detector (I06). Safe to call once from app setup.
+    pub fn start_stream_stall_watchdog(self: &Arc<Self>, app: AppHandle) {
+        let mgr = Arc::clone(self);
+        tauri::async_runtime::spawn(async move {
+            let mut ticker = tokio::time::interval(Duration::from_secs(5));
+            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                ticker.tick().await;
+                mgr.tick_stream_stall(&app);
+            }
+        });
+    }
+
     fn touch_activity_locked(s: &mut LiveSession) {
         s.last_activity = Instant::now();
+    }
+
+    /// Stream chunk or tool activity — advances stall deadline (I06).
+    fn touch_stream_progress_locked(s: &mut LiveSession) {
+        let now = Instant::now();
+        s.last_activity = now;
+        s.last_stream_progress = now;
+        s.last_stall_emit = None;
+    }
+
+    fn stream_stall_seconds_from_settings() -> u32 {
+        normalize_stream_stall_seconds(store::load_settings().stream_stall_seconds)
+    }
+
+    fn emit_stream_stall(app: &AppHandle, session_id: &str, stall_seconds: u32) {
+        let _ = app.emit(
+            "session://stream_stall",
+            serde_json::json!({
+                "sessionId": session_id,
+                "stallSeconds": stall_seconds,
+                "code": "STREAM_STALL",
+                "message": stream_stall_message(stall_seconds),
+            }),
+        );
+    }
+
+    /// Persist accumulated assistant stream (I04). `force` bypasses the throttle.
+    fn maybe_flush_stream_journal(s: &mut LiveSession, force: bool, paragraph_break: bool) {
+        let has_content = !s.stream_buf.is_empty()
+            || !s.stream_thought.is_empty()
+            || !s.stream_attachments.is_empty();
+        if !has_content {
+            return;
+        }
+        let now = Instant::now();
+        if !s
+            .journal_throttle
+            .should_flush(now, force, paragraph_break)
+        {
+            return;
+        }
+        let mid = s
+            .streaming_message_id
+            .clone()
+            .unwrap_or_else(|| Uuid::new_v4().to_string());
+        if s.streaming_message_id.is_none() {
+            s.streaming_message_id = Some(mid.clone());
+        }
+        let atts = if s.stream_attachments.is_empty() {
+            None
+        } else {
+            Some(s.stream_attachments.clone())
+        };
+        let _ = store::append_message(
+            &s.app_session_id,
+            ChatMessageStored {
+                id: mid,
+                role: "assistant".into(),
+                content: s.stream_buf.clone(),
+                thought: if s.stream_thought.is_empty() {
+                    None
+                } else {
+                    Some(s.stream_thought.clone())
+                },
+                created_at: chrono::Utc::now(),
+                is_error: false,
+                attachments: atts,
+                marker: None,
+            },
+        );
+        s.meta.updated_at = chrono::Utc::now();
+        let _ = store::update_session_meta(&s.meta);
+        s.journal_throttle.mark_flushed(now);
+        if force {
+            s.journal_throttle.reset();
+        }
+    }
+
+    /// I06: if live session is Streaming with pure silence, emit cancel prompt.
+    fn tick_stream_stall(&self, app: &AppHandle) {
+        let stall_secs = Self::stream_stall_seconds_from_settings();
+        let now = Instant::now();
+        let mut guard = self.inner.lock();
+        let Some(s) = guard.as_mut() else {
+            return;
+        };
+        // Only pure streaming silence — not permission / plan / ask-user waits.
+        if s.fsm.state() != SessionState::Streaming {
+            return;
+        }
+        if s.streaming_message_id.is_none() {
+            return;
+        }
+        if !should_emit_stall(s.last_stream_progress, s.last_stall_emit, stall_secs, now) {
+            return;
+        }
+        s.last_stall_emit = Some(now);
+        let sid = s.app_session_id.clone();
+        drop(guard);
+        tracing::warn!(
+            "stream stall: session={sid} silence≥{stall_secs}s — emitting cancel prompt"
+        );
+        Self::emit_stream_stall(app, &sid, stall_secs);
     }
 
     /// Live + parked processes that still have a living ACP child.
@@ -631,6 +761,7 @@ impl SessionManager {
         // Parked agents were Ready; restore Ready without connect handshake.
         let _ = fsm.start_connect();
         let _ = fsm.handshake_ok();
+        let now = Instant::now();
         Some(LiveSession {
             app_session_id: parked.app_session_id,
             process_id: parked.process_id,
@@ -655,7 +786,10 @@ impl SessionManager {
             needs_history_bootstrap: parked.needs_history_bootstrap,
             pending_plan_rpc_id: None,
             pending_ask_user_rpc_id: None,
-            last_activity: Instant::now(),
+            last_activity: now,
+            last_stream_progress: now,
+            last_stall_emit: None,
+            journal_throttle: JournalWriteThrottle::with_default_interval(),
         })
     }
 
@@ -845,7 +979,10 @@ impl SessionManager {
         s.stream_buf.clear();
         s.stream_thought.clear();
         s.stream_last_was_assistant = false;
+        s.stream_attachments.clear();
         s.streaming_message_id = None;
+        s.journal_throttle.reset();
+        s.last_stall_emit = None;
 
         let _ = app.emit(
             "session://turn_error",
@@ -1040,6 +1177,7 @@ impl SessionManager {
         {
             let mut fsm = SessionFsm::new();
             fsm.start_connect().map_err(|e| e.to_string())?;
+            let now = Instant::now();
             *self.inner.lock() = Some(LiveSession {
                 app_session_id: meta.id.clone(),
                 process_id: process_id.clone(),
@@ -1064,7 +1202,10 @@ impl SessionManager {
                 needs_history_bootstrap: false,
                 pending_plan_rpc_id: None,
                 pending_ask_user_rpc_id: None,
-                last_activity: Instant::now(),
+                last_activity: now,
+                last_stream_progress: now,
+                last_stall_emit: None,
+                journal_throttle: JournalWriteThrottle::with_default_interval(),
             });
         }
         Self::emit_state(&app, &self.snapshot());
@@ -1355,7 +1496,8 @@ impl SessionManager {
                 let (app_sid, mid, thought_phase) = {
                     let mut guard = self.inner.lock();
                     if let Some(s) = guard.as_mut() {
-                        Self::touch_activity_locked(s);
+                        // Stream chunk = progress (I06); not pure silence.
+                        Self::touch_stream_progress_locked(s);
                         // Prefer agent-supplied messageId; otherwise keep the turn id.
                         if let Some(ref mid_in) = message_id {
                             if s.streaming_message_id.as_ref() != Some(mid_in) {
@@ -1395,6 +1537,9 @@ impl SessionManager {
                                 "none"
                             }
                         };
+                        // I04: throttled mid-stream journal (force on terminal done chunk).
+                        let para = is_paragraph_break(&text);
+                        Self::maybe_flush_stream_journal(s, done, para);
                         (
                             s.app_session_id.clone(),
                             s.streaming_message_id.clone().unwrap_or_default(),
@@ -1421,49 +1566,21 @@ impl SessionManager {
                 {
                     let mut guard = self.inner.lock();
                     if let Some(s) = guard.as_mut() {
-                        Self::touch_activity_locked(s);
-                        // Persist assistant turn to independent session store
-                        let has_atts = !s.stream_attachments.is_empty();
-                        if !s.stream_buf.is_empty() || !s.stream_thought.is_empty() || has_atts {
-                            let mid = s
-                                .streaming_message_id
-                                .clone()
-                                .unwrap_or_else(|| Uuid::new_v4().to_string());
-                            let atts = if has_atts {
-                                Some(std::mem::take(&mut s.stream_attachments))
-                            } else {
-                                None
-                            };
-                            let _ = store::append_message(
-                                &s.app_session_id,
-                                ChatMessageStored {
-                                    id: mid,
-                                    role: "assistant".into(),
-                                    content: s.stream_buf.clone(),
-                                    thought: if s.stream_thought.is_empty() {
-                                        None
-                                    } else {
-                                        Some(s.stream_thought.clone())
-                                    },
-                                    created_at: chrono::Utc::now(),
-                                    is_error: false,
-                                    attachments: atts,
-                                    marker: None,
-                                },
-                            );
-                            s.meta.updated_at = chrono::Utc::now();
-                            let _ = store::update_session_meta(&s.meta);
-                        }
+                        Self::touch_stream_progress_locked(s);
+                        // Force-flush assistant turn (I04 end-of-turn path).
+                        Self::maybe_flush_stream_journal(s, true, false);
                         s.stream_buf.clear();
                         s.stream_thought.clear();
                         s.stream_last_was_assistant = false;
                         s.stream_attachments.clear();
+                        s.journal_throttle.reset();
                         if s.fsm.state() == SessionState::Streaming
                             || s.fsm.state() == SessionState::AwaitingPermission
                         {
                             let _ = s.fsm.end_stream();
                         }
                         s.streaming_message_id = None;
+                        s.last_stall_emit = None;
                     }
                 }
                 Self::emit_state(app, &self.snapshot());
@@ -1603,6 +1720,7 @@ impl SessionManager {
                     let (app_sid, mid) = {
                         let mut guard = self.inner.lock();
                         if let Some(s) = guard.as_mut() {
+                            Self::touch_stream_progress_locked(s);
                             if !s.stream_attachments.iter().any(|a| a.path == att.path) {
                                 s.stream_attachments.push(att.clone());
                             }
@@ -1629,11 +1747,14 @@ impl SessionManager {
                 }
 
                 let app_sid = {
-                    let guard = self.inner.lock();
-                    guard
-                        .as_ref()
-                        .map(|s| s.app_session_id.clone())
-                        .unwrap_or_default()
+                    let mut guard = self.inner.lock();
+                    if let Some(s) = guard.as_mut() {
+                        // Tool events count as progress so long tools never false-stall (I06).
+                        Self::touch_stream_progress_locked(s);
+                        s.app_session_id.clone()
+                    } else {
+                        String::new()
+                    }
                 };
 
                 // Live tool activity for UI — prefer human call text over bare "tool".
@@ -1789,6 +1910,8 @@ impl SessionManager {
                             st,
                             SessionState::Streaming | SessionState::AwaitingPermission
                         ) {
+                            // I04: flush partial assistant before cancel marker.
+                            Self::maybe_flush_stream_journal(s, true, false);
                             let mid = Uuid::new_v4().to_string();
                             let content = "turn_cancelled|agent_exit".to_string();
                             let _ = store::append_message(
@@ -2276,13 +2399,15 @@ impl SessionManager {
             let mut guard = self.inner.lock();
             let s = guard.as_mut().ok_or("no active session")?;
             s.fsm.begin_stream().map_err(|e| e.to_string())?;
-            Self::touch_activity_locked(s);
+            Self::touch_stream_progress_locked(s);
             let mid = Uuid::new_v4().to_string();
             s.streaming_message_id = Some(mid.clone());
             s.stream_buf.clear();
             s.stream_thought.clear();
             s.stream_last_was_assistant = false;
             s.stream_attachments.clear();
+            s.journal_throttle.reset();
+            s.last_stall_emit = None;
             s.provider_retry_attempt = 0;
             s.provider_retry_aborted = false;
 
@@ -2352,42 +2477,26 @@ impl SessionManager {
                             "kind": "assistant"
                         }),
                     );
-                    if chunk.done {
-                        let mut guard = mgr.inner.lock();
-                        if let Some(s) = guard.as_mut() {
-                            s.stream_buf.push_str(&chunk.text);
-                            if !s.stream_buf.is_empty() {
-                                let mid = s
-                                    .streaming_message_id
-                                    .clone()
-                                    .unwrap_or_else(|| Uuid::new_v4().to_string());
-                                let _ = store::append_message(
-                                    &s.app_session_id,
-                                    ChatMessageStored {
-                                        id: mid,
-                                        role: "assistant".into(),
-                                        content: s.stream_buf.clone(),
-                                        thought: None,
-                                        created_at: chrono::Utc::now(),
-                                        is_error: false,
-                                        attachments: None,
-                                        marker: None,
-                                    },
-                                );
-                            }
+                    let mut guard = mgr.inner.lock();
+                    if let Some(s) = guard.as_mut() {
+                        SessionManager::touch_stream_progress_locked(s);
+                        s.stream_buf.push_str(&chunk.text);
+                        // I04: throttle mid-stream; force on terminal done.
+                        let para = is_paragraph_break(&chunk.text);
+                        SessionManager::maybe_flush_stream_journal(s, chunk.done, para);
+                        if chunk.done {
                             s.stream_buf.clear();
+                            s.journal_throttle.reset();
+                            s.last_stall_emit = None;
                             if s.fsm.state() == SessionState::Streaming {
                                 let _ = s.fsm.end_stream();
                                 s.streaming_message_id = None;
                             }
                         }
-                        drop(guard);
+                    }
+                    drop(guard);
+                    if chunk.done {
                         SessionManager::emit_state(&app_done, &mgr.snapshot());
-                    } else {
-                        let mut guard = mgr.inner.lock();
-                        if let Some(s) = guard.as_mut() {
-                            s.stream_buf.push_str(&chunk.text);
-                        }
                     }
                 },
             );
@@ -2431,6 +2540,8 @@ impl SessionManager {
             let partial = s.stream_buf.trim().to_string();
             // Journal a cancel marker so UI history is not left as user-only silence.
             if was_busy {
+                // I04: force-flush partial assistant before cancel marker.
+                Self::maybe_flush_stream_journal(s, true, false);
                 let mid = Uuid::new_v4().to_string();
                 let content = if partial.is_empty() {
                     "turn_cancelled|user_stop".to_string()
@@ -2468,6 +2579,9 @@ impl SessionManager {
             s.stream_buf.clear();
             s.stream_thought.clear();
             s.stream_last_was_assistant = false;
+            s.stream_attachments.clear();
+            s.journal_throttle.reset();
+            s.last_stall_emit = None;
             s.acp.clone()
         };
         if let Some(acp) = acp {
@@ -2754,6 +2868,8 @@ impl SessionManager {
                 if let Some(h) = s.mock_stream.take() {
                     h.request_stop();
                 }
+                // I04: flush any in-flight stream before dropping the process.
+                Self::maybe_flush_stream_journal(&mut s, true, false);
                 s.acp.take()
             } else {
                 None

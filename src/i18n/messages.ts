@@ -388,10 +388,17 @@ const en = {
   "settings.agentIdleMinutes": "Idle recycle (minutes)",
   "settings.agentIdleMinutesDesc":
     "After this many minutes without activity, the agent process is recycled. Chat history is kept; the next message reconnects.",
+  "settings.streamStallSeconds": "Stream stall timeout (seconds)",
+  "settings.streamStallSecondsDesc":
+    "If a turn has no stream chunks or tool activity for this long, show a Cancel / Keep waiting prompt (default 120). Long-running tools that still emit events do not count as stalled.",
   "agent.idleRecycledToast":
     "Agent process recycled after idle — session kept; next message will reconnect.",
   "agent.processLimitToast":
     "Agent process limit reached. Stop another session or raise the limit in Settings → Runtime.",
+  "agent.streamStallBanner":
+    "No stream or tool progress for about {seconds}s. Cancel this turn or keep waiting.",
+  "agent.streamStallCancel": "Cancel turn",
+  "agent.streamStallKeepWaiting": "Keep waiting",
   "settings.permissionDeep": "Default permission",
   "settings.permissionDeepDesc":
     "Applied to new turns and remembered at the scope chosen above. YOLO auto-approves tools.",
@@ -1307,10 +1314,17 @@ const zh: Record<MessageKey, string> = {
   "settings.agentIdleMinutes": "闲置回收（分钟）",
   "settings.agentIdleMinutesDesc":
     "超过该分钟数无活动后回收 Agent 进程。对话记录保留，下次发送会自动重连。",
+  "settings.streamStallSeconds": "流式卡顿超时（秒）",
+  "settings.streamStallSecondsDesc":
+    "若一轮对话在该时间内无任何流式片段或工具活动，将提示「取消本轮 / 继续等待」（默认 120）。仍有工具事件的长任务不会误判为卡顿。",
   "agent.idleRecycledToast":
     "Agent 进程因闲置已回收 — 会话仍在；下次发送将重新连接。",
   "agent.processLimitToast":
     "已达 Agent 进程上限。请先停止其他会话，或在设置 → 运行环境中提高上限。",
+  "agent.streamStallBanner":
+    "约 {seconds} 秒无流式片段或工具活动。可取消本轮或继续等待。",
+  "agent.streamStallCancel": "取消本轮",
+  "agent.streamStallKeepWaiting": "继续等待",
   "settings.permissionDeep": "默认权限",
   "settings.permissionDeepDesc":
     "对新一轮对话生效，并按上方选择的范围记忆。YOLO 会自动批准工具调用。",
