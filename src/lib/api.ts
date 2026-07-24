@@ -261,6 +261,28 @@ export async function projectAdd(path: string, trust: boolean) {
   return invoke("project_add", { path, trust });
 }
 
+/** One linked git worktree from `git worktree list --porcelain`. */
+export interface GitWorktreeEntry {
+  path: string;
+  head?: string | null;
+  branch?: string | null;
+  detached: boolean;
+  isMain: boolean;
+  locked: boolean;
+  prunable: boolean;
+}
+
+export interface GitWorktreesResult {
+  available: boolean;
+  worktrees: GitWorktreeEntry[];
+  reason?: string | null;
+}
+
+/** List worktrees for a project folder. Soft-fails when git/repo missing. */
+export async function gitWorktreesList(projectPath: string) {
+  return invoke<GitWorktreesResult>("git_worktrees_list", { projectPath });
+}
+
 /** Native folder dialog → add project. Returns null if user cancels. */
 export async function projectAddDialog(trust: boolean) {
   return invoke<{

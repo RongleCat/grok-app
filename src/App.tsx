@@ -147,6 +147,7 @@ import { GrokLogo } from "@/components/GrokLogo";
 import { SetupWizard, type SetupCliInfo } from "@/components/SetupWizard";
 import { ComposerEditor } from "@/components/ComposerEditor";
 import { ComposerProjectMenu } from "@/components/ComposerProjectMenu";
+import { pathsEqual } from "@/lib/gitWorktree";
 import {
   ComposerPlusPanel,
   buildComposerPlusEntries,
@@ -618,6 +619,11 @@ export default function App() {
   const [agentIdleMinutes, setAgentIdleMinutes] = useState(30);
   const [streamStallSeconds, setStreamStallSeconds] = useState(120);
   const [storeApiKeysInKeychain, setStoreApiKeysInKeychain] = useState(false);
+  const [gitWorktrees, setGitWorktrees] = useState<api.GitWorktreeEntry[]>([]);
+  const [gitWorktreesLoading, setGitWorktreesLoading] = useState(false);
+  const [gitWorktreesReason, setGitWorktreesReason] = useState<string | null>(
+    null,
+  );
   /** Host stream-stall prompt (I06); null when dismissed or not stalled. */
   const [streamStall, setStreamStall] = useState<{
     sessionId?: string;
@@ -4421,7 +4427,7 @@ export default function App() {
    * workspace context. Untrusted projects refuse bind when a session exists.
    */
   const bindSessionProject = useCallback(
-    async (proj: Project | null) => {
+    async (proj: Project | null, opts?: { silent?: boolean }) => {
       const sid = session.sessionId;
       if (!sid || !api.isTauri()) {
         setActiveProject(proj);
@@ -4461,10 +4467,14 @@ export default function App() {
         );
         if (proj) {
           setExpandedProjects((e) => ({ ...e, [proj.id]: true }));
-          showToast(tr("composer.projectBound", { name: proj.name }), 2500);
+          if (!opts?.silent) {
+            showToast(tr("composer.projectBound", { name: proj.name }), 2500);
+          }
         } else {
           setHistoryOpen(true);
-          showToast(tr("composer.projectCleared"), 2200);
+          if (!opts?.silent) {
+            showToast(tr("composer.projectCleared"), 2200);
+          }
         }
         setLocalError(null);
       } catch (e) {
@@ -4473,6 +4483,36 @@ export default function App() {
     },
     [session.sessionId, showToast, tr],
   );
+
+  const refreshGitWorktrees = useCallback(async () => {
+    const path = activeProject?.path?.trim();
+    if (!path || !api.isTauri()) {
+      setGitWorktrees([]);
+      setGitWorktreesReason(null);
+      setGitWorktreesLoading(false);
+      return;
+    }
+    setGitWorktreesLoading(true);
+    try {
+      const res = await api.gitWorktreesList(path);
+      if (!res.available) {
+        setGitWorktrees([]);
+        setGitWorktreesReason(res.reason?.trim() || "unavailable");
+      } else {
+        setGitWorktrees(res.worktrees ?? []);
+        setGitWorktreesReason(null);
+      }
+    } catch (e) {
+      setGitWorktrees([]);
+      setGitWorktreesReason(String(e));
+    } finally {
+      setGitWorktreesLoading(false);
+    }
+  }, [activeProject?.path]);
+
+  useEffect(() => {
+    void refreshGitWorktrees();
+  }, [refreshGitWorktrees]);
 
   /**
    * After a project is created/updated: refresh list, expand, optionally trust
@@ -4521,6 +4561,56 @@ export default function App() {
       await apply(p);
     },
     [bindSessionProject, showToast, tr],
+  );
+
+  /** Open a linked worktree as project cwd (reuse existing project if path matches). */
+  const switchToWorktree = useCallback(
+    async (wt: api.GitWorktreeEntry) => {
+      if (!api.isTauri()) return;
+      const path = wt.path?.trim();
+      if (!path) return;
+      try {
+        const existing = projects.find((p) => pathsEqual(p.path, path));
+        if (existing) {
+          await bindSessionProject(existing, { silent: true });
+          showToast(
+            tr("composer.worktreeSwitched", {
+              name: existing.name,
+              branch: wt.branch || tr("composer.worktreeDetached"),
+            }),
+            2500,
+          );
+          return;
+        }
+        const trust = !!activeProject?.trusted;
+        const added = (await api.projectAdd(path, trust)) as Project;
+        const list = (await api.projectsList()) as Project[];
+        setProjects(list);
+        const proj = list.find((p) => p.id === added.id) ?? added;
+        if (!proj.trusted) {
+          await finalizeAddedProject(proj, { bindSession: true });
+        } else {
+          await bindSessionProject(proj, { silent: true });
+          showToast(
+            tr("composer.worktreeSwitched", {
+              name: proj.name,
+              branch: wt.branch || tr("composer.worktreeDetached"),
+            }),
+            2500,
+          );
+        }
+      } catch (e) {
+        showToast(String(e), 4500);
+      }
+    },
+    [
+      activeProject?.trusted,
+      bindSessionProject,
+      finalizeAddedProject,
+      projects,
+      showToast,
+      tr,
+    ],
   );
 
   /**
@@ -6905,7 +6995,17 @@ export default function App() {
                     noProject: tr("composer.noProject"),
                     pickProject: tr("composer.pickProject"),
                     addProject: tr("composer.addProject"),
+                    worktrees: tr("composer.worktrees"),
+                    worktreesEmpty: tr("composer.worktreesEmpty"),
+                    worktreesUnavailable: tr("composer.worktreesUnavailable"),
+                    worktreeCurrent: tr("composer.worktreeCurrent"),
+                    worktreeSwitch: tr("composer.worktreeSwitch"),
+                    worktreeMain: tr("composer.worktreeMain"),
+                    worktreeDetached: tr("composer.worktreeDetached"),
                   }}
+                  worktrees={gitWorktrees}
+                  worktreesLoading={gitWorktreesLoading}
+                  worktreesReason={gitWorktreesReason}
                   disabled={
                     session.state === "streaming" ||
                     session.state === "awaiting_permission"
@@ -6915,6 +7015,12 @@ export default function App() {
                   }}
                   onAdd={() => {
                     void addProjectFromPicker({ bindSession: true });
+                  }}
+                  onSwitchWorktree={(wt) => {
+                    void switchToWorktree(wt);
+                  }}
+                  onOpen={() => {
+                    void refreshGitWorktrees();
                   }}
                 />
                 {goalMode ? (

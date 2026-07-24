@@ -3326,6 +3326,191 @@ mod git_status_parse_tests {
     }
 }
 
+// ── Git worktrees (issue #42) ──────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitWorktreeEntry {
+    pub path: String,
+    pub head: Option<String>,
+    pub branch: Option<String>,
+    pub detached: bool,
+    pub is_main: bool,
+    pub locked: bool,
+    pub prunable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitWorktreesResult {
+    pub available: bool,
+    pub worktrees: Vec<GitWorktreeEntry>,
+    pub reason: Option<String>,
+}
+
+/// Parse `git worktree list --porcelain` (pure; unit-tested).
+pub fn parse_worktree_porcelain(raw: &str) -> Vec<GitWorktreeEntry> {
+    let text = raw.replace("\r\n", "\n");
+    if text.trim().is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for block in text.split("\n\n") {
+        let block = block.trim();
+        if block.is_empty() {
+            continue;
+        }
+        let mut path = String::new();
+        let mut head: Option<String> = None;
+        let mut branch: Option<String> = None;
+        let mut detached = false;
+        let mut locked = false;
+        let mut prunable = false;
+
+        for line in block.lines() {
+            let t = line.trim_end();
+            if let Some(rest) = t.strip_prefix("worktree ") {
+                path = rest.trim().replace('\\', "/");
+                while path.ends_with('/') && path.len() > 1 {
+                    path.pop();
+                }
+            } else if let Some(rest) = t.strip_prefix("HEAD ") {
+                let h = rest.trim();
+                head = if h.is_empty() {
+                    None
+                } else {
+                    Some(h.to_string())
+                };
+            } else if let Some(rest) = t.strip_prefix("branch ") {
+                let r = rest.trim();
+                branch = if let Some(name) = r.strip_prefix("refs/heads/") {
+                    Some(name.to_string())
+                } else if r.is_empty() {
+                    None
+                } else {
+                    Some(r.to_string())
+                };
+            } else if t == "detached" {
+                detached = true;
+            } else if t.starts_with("locked") {
+                locked = true;
+            } else if t.starts_with("prunable") {
+                prunable = true;
+            }
+        }
+
+        if path.is_empty() {
+            continue;
+        }
+        if detached {
+            branch = None;
+        }
+        out.push(GitWorktreeEntry {
+            path,
+            head,
+            branch,
+            detached,
+            is_main: out.is_empty(),
+            locked,
+            prunable,
+        });
+    }
+    // First entry is main
+    for (i, w) in out.iter_mut().enumerate() {
+        w.is_main = i == 0;
+    }
+    out
+}
+
+/// List linked git worktrees for a project folder. Soft-fails without git / non-repo.
+#[tauri::command]
+pub async fn git_worktrees_list(project_path: String) -> Result<GitWorktreesResult, String> {
+    let project = normalize_fs_path(&project_path);
+    if project.is_empty() {
+        return Ok(GitWorktreesResult {
+            available: false,
+            worktrees: vec![],
+            reason: Some("empty path".into()),
+        });
+    }
+    let proj = std::path::PathBuf::from(&project);
+    if !proj.is_dir() {
+        return Ok(GitWorktreesResult {
+            available: false,
+            worktrees: vec![],
+            reason: Some("project not a directory".into()),
+        });
+    }
+    if let Err(reason) = git_probe_work_tree(&project) {
+        return Ok(GitWorktreesResult {
+            available: false,
+            worktrees: vec![],
+            reason: Some(reason),
+        });
+    }
+
+    let out = std::process::Command::new("git")
+        .args(["-C", &project, "worktree", "list", "--porcelain"])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        return Ok(GitWorktreesResult {
+            available: false,
+            worktrees: vec![],
+            reason: Some(if err.is_empty() {
+                "git worktree list failed".into()
+            } else {
+                err.chars().take(200).collect()
+            }),
+        });
+    }
+
+    let raw = String::from_utf8_lossy(&out.stdout);
+    let worktrees = parse_worktree_porcelain(&raw);
+    Ok(GitWorktreesResult {
+        available: true,
+        worktrees,
+        reason: None,
+    })
+}
+
+#[cfg(test)]
+mod git_worktree_parse_tests {
+    use super::*;
+
+    #[test]
+    fn parses_main_and_linked() {
+        let raw = "\
+worktree /Users/me/repo
+HEAD abcdef
+branch refs/heads/main
+
+worktree /Users/me/repo-feat
+HEAD fedcba
+branch refs/heads/feat/x
+
+worktree /Users/me/repo-d
+HEAD 112233
+detached
+";
+        let list = parse_worktree_porcelain(raw);
+        assert_eq!(list.len(), 3);
+        assert!(list[0].is_main);
+        assert_eq!(list[0].branch.as_deref(), Some("main"));
+        assert_eq!(list[1].branch.as_deref(), Some("feat/x"));
+        assert!(!list[1].is_main);
+        assert!(list[2].detached);
+        assert!(list[2].branch.is_none());
+    }
+
+    #[test]
+    fn empty_input() {
+        assert!(parse_worktree_porcelain("").is_empty());
+    }
+}
+
 /// Reveal a path in the system file manager (Finder / Explorer).
 #[tauri::command]
 pub async fn path_reveal(path: String) -> Result<(), String> {

@@ -2516,6 +2516,49 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   margin-top: 0;
 }
 
+.cpm__worktrees {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.cpm__worktrees-head {
+  padding: 4px 10px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.cpm__worktrees-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.cpm__worktrees-empty {
+  margin: 0;
+  padding: 6px 10px 10px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.cpm__worktree:disabled {
+  opacity: 0.85;
+  cursor: default;
+}
+
+.cpm__worktree-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
 .account-link:hover {
   color: var(--accent-hover, var(--accent));
   text-decoration: underline;
