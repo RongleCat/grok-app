@@ -19,6 +19,13 @@ import {
   type Ref,
 } from "react";
 import {
+  clipboardLooksLikeMedia,
+  clipboardPlainText,
+  collectFilesFromDataTransfer,
+  isFileUrlOnlyText,
+  readClipboardMediaFiles,
+} from "@/lib/clipboardPaste";
+import {
   detectSlashQuery,
   parseStoredContent,
   serializeStored,
@@ -180,6 +187,14 @@ export type ComposerEditorProps = {
   ) => void;
   editorRef?: Ref<HTMLDivElement | null>;
   onPasteFiles?: (files: File[]) => void;
+  /**
+   * When the paste event looks like media but has no File objects (and async
+   * Clipboard API also fails), parent should try native OS clipboard.
+   * `expectMedia: true` → show a failure toast if nothing was attached.
+   */
+  onPasteMediaFallback?: (opts?: {
+    expectMedia?: boolean;
+  }) => void | Promise<void>;
 };
 
 export function ComposerEditor({
@@ -192,6 +207,7 @@ export function ComposerEditor({
   onSlashQueryChange,
   editorRef,
   onPasteFiles,
+  onPasteMediaFallback,
 }: ComposerEditorProps) {
   const elRef = useRef<HTMLDivElement | null>(null);
   const lastValue = useRef(value);
@@ -320,35 +336,45 @@ export function ComposerEditor({
     e.preventDefault();
     e.stopPropagation();
 
-    const filesFromList = e.clipboardData?.files
-      ? Array.from(e.clipboardData.files)
-      : [];
-    const filesFromItems: File[] = [];
-    const items = e.clipboardData?.items;
-    if (items) {
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (!item || item.kind !== "file") continue;
-        const f = item.getAsFile();
-        if (f) filesFromItems.push(f);
-      }
-    }
-    const fileMap = new Map<string, File>();
-    for (const f of [...filesFromList, ...filesFromItems]) {
-      const key = `${f.name}:${f.size}:${f.type}:${f.lastModified}`;
-      if (!fileMap.has(key)) fileMap.set(key, f);
-    }
-    const files = Array.from(fileMap.values());
+    // Prefer nativeEvent — React's synthetic clipboardData is empty on some WebViews.
+    const cd =
+      e.clipboardData ??
+      (e.nativeEvent as globalThis.ClipboardEvent | undefined)?.clipboardData ??
+      null;
+
+    const files = collectFilesFromDataTransfer(cd);
     if (files.length && onPasteFiles) {
       onPasteFiles(files);
+    } else if (onPasteFiles && clipboardLooksLikeMedia(cd)) {
+      // Screenshot paste: event often has image/* types but no File objects.
+      void (async () => {
+        const asyncFiles = await readClipboardMediaFiles();
+        if (asyncFiles.length) {
+          onPasteFiles(asyncFiles);
+          return;
+        }
+        await onPasteMediaFallback?.({ expectMedia: true });
+      })();
+    } else if (!files.length && onPasteMediaFallback) {
+      // Empty-looking paste on Mac can still be a pure bitmap clipboard.
+      // Only run native fallback when no text is about to be inserted.
+      const plainProbe = clipboardPlainText(cd);
+      if (!plainProbe.trim()) {
+        void (async () => {
+          const asyncFiles = await readClipboardMediaFiles();
+          if (asyncFiles.length) {
+            onPasteFiles?.(asyncFiles);
+            return;
+          }
+          // Soft try — no error toast if clipboard has no image.
+          await onPasteMediaFallback({ expectMedia: false });
+        })();
+      }
     }
 
-    const plain =
-      e.clipboardData?.getData("text/plain") ??
-      e.clipboardData?.getData("text") ??
-      "";
+    const plain = clipboardPlainText(cd);
     if (!plain) return;
-    if (files.length && /^file:\/\//i.test(plain.trim())) return;
+    if (files.length && isFileUrlOnlyText(plain)) return;
     insertPlainTextAtSelection(plain);
     const el = elRef.current;
     if (el) commitFromDom(el);

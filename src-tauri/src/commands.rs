@@ -2432,6 +2432,104 @@ pub async fn save_temp_attachment(
     })
 }
 
+/// Read an image from the OS clipboard (screenshots) and save under attachments/paste.
+/// Used when the WebView paste event has no File objects (common on macOS WKWebView).
+/// Returns `None` when the clipboard has no image.
+#[tauri::command]
+pub async fn clipboard_paste_image() -> Result<Option<PathEntry>, String> {
+    tauri::async_runtime::spawn_blocking(|| clipboard_paste_image_sync())
+        .await
+        .map_err(|e| format!("clipboard task: {e}"))?
+}
+
+fn clipboard_paste_image_sync() -> Result<Option<PathEntry>, String> {
+    use arboard::Clipboard;
+
+    let mut cb = Clipboard::new().map_err(|e| format!("clipboard open: {e}"))?;
+    let img = match cb.get_image() {
+        Ok(img) => img,
+        Err(arboard::Error::ContentNotAvailable) => return Ok(None),
+        Err(e) => return Err(format!("clipboard image: {e}")),
+    };
+
+    let w = img.width;
+    let h = img.height;
+    if w == 0 || h == 0 {
+        return Ok(None);
+    }
+    let expected = w.saturating_mul(h).saturating_mul(4);
+    if img.bytes.len() < expected {
+        return Err(format!(
+            "clipboard image truncated ({} < {})",
+            img.bytes.len(),
+            expected
+        ));
+    }
+
+    let png = rgba_to_png_bytes(w, h, &img.bytes[..expected])?;
+    if png.len() > 40 * 1024 * 1024 {
+        return Err("attachment too large (max 40 MiB)".into());
+    }
+
+    let dir = crate::paths::attachments_paste_dir();
+    let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S-%3f");
+    let file_name = format!("{stamp}-paste.png");
+    let path = dir.join(&file_name);
+    std::fs::write(&path, &png).map_err(|e| format!("write attachment: {e}"))?;
+
+    Ok(Some(PathEntry {
+        path: path.display().to_string(),
+        name: file_name,
+        is_dir: false,
+        exists: true,
+    }))
+}
+
+/// Encode raw RGBA8 pixels as PNG (clipboard / paste path).
+fn rgba_to_png_bytes(width: usize, height: usize, rgba: &[u8]) -> Result<Vec<u8>, String> {
+    use image::ImageEncoder;
+    if width == 0 || height == 0 {
+        return Err("empty image".into());
+    }
+    let expected = width.saturating_mul(height).saturating_mul(4);
+    if rgba.len() < expected {
+        return Err("rgba buffer too short".into());
+    }
+    let mut png = Vec::new();
+    let encoder = image::codecs::png::PngEncoder::new(&mut png);
+    encoder
+        .write_image(
+            &rgba[..expected],
+            width as u32,
+            height as u32,
+            image::ExtendedColorType::Rgba8,
+        )
+        .map_err(|e| format!("png encode: {e}"))?;
+    if png.is_empty() {
+        return Err("png encode produced empty buffer".into());
+    }
+    Ok(png)
+}
+
+#[cfg(test)]
+mod clipboard_paste_tests {
+    use super::rgba_to_png_bytes;
+
+    #[test]
+    fn rgba_one_pixel_encodes_png_signature() {
+        // 1×1 opaque red
+        let rgba = [255u8, 0, 0, 255];
+        let png = rgba_to_png_bytes(1, 1, &rgba).expect("encode");
+        assert!(png.len() > 8);
+        assert_eq!(&png[..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
+    }
+
+    #[test]
+    fn rgba_rejects_short_buffer() {
+        assert!(rgba_to_png_bytes(2, 2, &[0u8; 4]).is_err());
+    }
+}
+
 fn mime_to_ext(mime: &str) -> Option<String> {
     let m = mime.split(';').next().unwrap_or(mime).trim();
     Some(

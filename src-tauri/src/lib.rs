@@ -191,6 +191,7 @@ pub fn run() {
             commands::pick_attach_files,
             commands::pick_attach_folder,
             commands::save_temp_attachment,
+            commands::clipboard_paste_image,
             commands::paths_classify,
             commands::path_open,
             commands::path_reveal,

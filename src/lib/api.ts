@@ -302,6 +302,16 @@ export async function saveTempAttachment(
   });
 }
 
+/**
+ * Read an image from the OS clipboard (native) and save under attachments/paste.
+ * Fallback when the WebView paste event has no File objects (macOS screenshots).
+ * Returns null when the clipboard has no image.
+ */
+export async function clipboardPasteImage() {
+  if (!isTauri()) return null;
+  return invoke<PathEntry | null>("clipboard_paste_image");
+}
+
 export interface PathEntry {
   path: string;
   name: string;

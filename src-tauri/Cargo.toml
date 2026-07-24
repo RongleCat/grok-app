@@ -50,6 +50,8 @@ keyring = { version = "3.6", features = [
     "sync-secret-service",
     "crypto-rust",
 ] }
+arboard = "3"
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [profile.release]
 codegen-units = 1

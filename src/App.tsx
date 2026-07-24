@@ -3207,6 +3207,7 @@ export default function App() {
       const intoEdit = !!editingUserMessageIdRef.current;
       const mergeInto = intoEdit ? setEditAttachments : setAttachments;
       try {
+        let lastName = "";
         for (const f of withoutPath) {
           const buf = await f.arrayBuffer();
           const bytes = new Uint8Array(buf);
@@ -3226,6 +3227,7 @@ export default function App() {
                 ? `paste.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`
                 : f.name || "paste.bin";
           const entry = await api.saveTempAttachment(b64, name, f.type || null);
+          lastName = entry.name;
           mergeInto((prev) =>
             mergeAttachments(prev, [
               {
@@ -3237,6 +3239,49 @@ export default function App() {
           );
         }
         setLocalError(null);
+        if (lastName) {
+          const msg = tr("composer.attachSaved", { name: lastName });
+          setToast(msg);
+          window.setTimeout(
+            () => setToast((cur) => (cur === msg ? null : cur)),
+            2200,
+          );
+        }
+      } catch (e) {
+        setLocalError(String(e) || tr("composer.attachPasteFailed"));
+      }
+    },
+    [addAttachmentsFromPaths, tr],
+  );
+
+  /**
+   * Native OS clipboard image (arboard) when WebView paste has no File objects.
+   * Used for macOS screenshots / system image clipboard.
+   */
+  const pasteMediaFromNativeClipboard = useCallback(
+    async (opts?: { expectMedia?: boolean }) => {
+      if (!api.isTauri()) {
+        if (opts?.expectMedia) {
+          setLocalError(tr("composer.attachPasteFailed"));
+        }
+        return;
+      }
+      try {
+        const entry = await api.clipboardPasteImage();
+        if (!entry?.path) {
+          if (opts?.expectMedia) {
+            setLocalError(tr("composer.attachPasteFailed"));
+          }
+          return;
+        }
+        await addAttachmentsFromPaths([entry.path]);
+        setLocalError(null);
+        const msg = tr("composer.attachSaved", { name: entry.name });
+        setToast(msg);
+        window.setTimeout(
+          () => setToast((cur) => (cur === msg ? null : cur)),
+          2200,
+        );
       } catch (e) {
         setLocalError(String(e) || tr("composer.attachPasteFailed"));
       }
@@ -3283,10 +3328,27 @@ export default function App() {
     }
     try {
       const paths = await api.pickAttachFiles();
-      if (!paths.length) return;
+      if (!paths.length) {
+        // Cancelled — no error.
+        return;
+      }
       await addAttachmentsFromPaths(paths);
+      setLocalError(null);
+      const label =
+        paths.length === 1
+          ? paths[0]!.split(/[/\\]/).pop() || paths[0]!
+          : tr("composer.attachCount", { n: String(paths.length) });
+      const msg =
+        paths.length === 1
+          ? tr("composer.attachSaved", { name: label })
+          : tr("composer.attachSaved", { name: label });
+      setToast(msg);
+      window.setTimeout(
+        () => setToast((cur) => (cur === msg ? null : cur)),
+        2200,
+      );
     } catch (e) {
-      setLocalError(String(e));
+      setLocalError(String(e) || tr("composer.attachPasteFailed"));
     }
   }, [addAttachmentsFromPaths, closeComposerMenu, tr]);
 
@@ -6805,6 +6867,9 @@ export default function App() {
                 onChange={setDraft}
                 onPasteFiles={(files) => {
                   void addAttachmentsFromFiles(files);
+                }}
+                onPasteMediaFallback={(opts) => {
+                  void pasteMediaFromNativeClipboard(opts);
                 }}
                 onSlashQueryChange={onSlashQueryChange}
                 onKeyDown={(e) => {
