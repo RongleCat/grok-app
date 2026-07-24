@@ -140,6 +140,12 @@ pub struct AppSettings {
     /// Remember model / effort / mode / permission at global | project | session.
     #[serde(default = "default_composer_prefs_scope")]
     pub composer_prefs_scope: String,
+    /// **API mode.** When set (`host:port`), sessions connect to a remote ACP
+    /// server over TCP instead of spawning the local `grok agent stdio` — the
+    /// agent can run in WSL, a container, or on another host. Empty/unset uses
+    /// the normal local-CLI spawn path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acp_server_addr: Option<String>,
 }
 
 fn default_composer_prefs_scope() -> String {
@@ -167,6 +173,7 @@ impl Default for AppSettings {
             auth_setup_deferred: false,
             default_open_target: default_open_target(),
             composer_prefs_scope: default_composer_prefs_scope(),
+            acp_server_addr: None,
         }
     }
 }

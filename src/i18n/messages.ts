@@ -302,6 +302,9 @@ const en = {
   "settings.cliPath": "CLI path",
   "settings.cliPathDesc": "Path to the Grok Build CLI binary",
   "settings.cliNotFound": "(not found)",
+  "settings.acpServer": "ACP server (API mode)",
+  "settings.acpServerDesc":
+    "Connect to a remote ACP agent over TCP (host:port) instead of spawning the local CLI — e.g. an agent in WSL, a container, or another host. Leave empty for local spawn.",
   "settings.permissionDeep": "Default permission",
   "settings.permissionDeepDesc":
     "Applied to new turns and remembered at the scope chosen above. YOLO auto-approves tools.",
@@ -1021,6 +1024,9 @@ const zh: Record<MessageKey, string> = {
   "settings.cliPath": "CLI 路径",
   "settings.cliPathDesc": "Grok Build CLI 可执行文件路径",
   "settings.cliNotFound": "（未找到）",
+  "settings.acpServer": "ACP 服务器（API 模式）",
+  "settings.acpServerDesc":
+    "通过 TCP（host:port）连接远程 ACP Agent，替代启动本地 CLI —— 例如运行在 WSL、容器或另一台主机上的 Agent。留空则使用本地启动。",
   "settings.permissionDeep": "默认权限",
   "settings.permissionDeepDesc":
     "对新一轮对话生效，并按上方选择的范围记忆。YOLO 会自动批准工具调用。",

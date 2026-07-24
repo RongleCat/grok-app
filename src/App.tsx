@@ -453,6 +453,7 @@ export default function App() {
     cliAuthPresent: boolean;
   }>({ found: false, path: null, version: null, source: "", cliAuthPresent: false });
   const [manualCliPath, setManualCliPath] = useState("");
+  const [acpServerAddr, setAcpServerAddr] = useState("");
   const [connecting, setConnecting] = useState(false);
   /** Live provider retry progress (session://retry); cleared on success/stop/error. */
   const [retryStatus, setRetryStatus] = useState<{
@@ -637,6 +638,7 @@ export default function App() {
           "finder",
       );
       setManualCliPath(settings.manualCliPath || cli.path || "");
+      setAcpServerAddr(settings.acpServerAddr || "");
       setCliInfo({
         found: cli.found,
         path: cli.path,
@@ -4005,6 +4007,13 @@ export default function App() {
                 auth: prev.auth || !!cli.cliAuthPresent,
               }));
             });
+          }}
+          acpServerAddr={acpServerAddr}
+          onAcpServerAddr={(v) => {
+            setAcpServerAddr(v);
+            void api.settingsGet().then((s) =>
+              api.settingsSet({ ...s, acpServerAddr: v.trim() || null }),
+            );
           }}
           cliInfo={cliInfo}
           onDoctor={() => void openDoctor()}

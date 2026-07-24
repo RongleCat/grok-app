@@ -9,8 +9,9 @@ use std::sync::Arc;
 
 use parking_lot::Mutex as ParkingMutex;
 use serde_json::{json, Value};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStdin, Command};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
+use tokio::net::TcpStream;
+use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, oneshot, Mutex as AsyncMutex};
 use tracing::{debug, error, info, warn};
 
@@ -106,8 +107,12 @@ const PROMPT_TIMEOUT_SECS: u64 = 600;
 const PROMPT_COMPLETE_FALLBACK_GRACE_MS: u64 = 3000;
 
 pub struct AcpClient {
+    /// The spawned CLI process, or `None` in API mode (connected to a remote
+    /// ACP server over TCP instead of spawning `grok agent stdio`).
     child: AsyncMutex<Option<Child>>,
-    stdin: AsyncMutex<Option<ChildStdin>>,
+    /// Write half of the transport (child stdin, or the TCP write half). Both
+    /// impl `AsyncWrite`, so the JSON-RPC line protocol is transport-agnostic.
+    stdin: AsyncMutex<Option<Box<dyn AsyncWrite + Unpin + Send>>>,
     next_id: AtomicU64,
     pending: ParkingMutex<HashMap<u64, Pending>>,
     event_tx: mpsc::UnboundedSender<AcpEvent>,
@@ -174,6 +179,18 @@ impl AcpClient {
         session_data_mode: &str,
         opts: SpawnOptions,
     ) -> Result<(Arc<Self>, mpsc::UnboundedReceiver<AcpEvent>), AgentError> {
+        // API mode: if an ACP server address is configured, connect over TCP
+        // instead of spawning a local CLI. The server drives an agent running
+        // elsewhere (WSL/SSH/container) but speaks the identical ACP protocol.
+        if let Some(addr) = crate::store::load_settings()
+            .acp_server_addr
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            return Self::connect_tcp(addr, cwd);
+        }
+
         if !cli_path.exists() {
             return Err(AgentError::new(
                 AgentErrorCode::CliNotFound,
@@ -276,7 +293,7 @@ impl AcpClient {
 
         let client = Arc::new(Self {
             child: AsyncMutex::new(Some(child)),
-            stdin: AsyncMutex::new(Some(stdin)),
+            stdin: AsyncMutex::new(Some(Box::new(stdin) as Box<dyn AsyncWrite + Unpin + Send>)),
             next_id: AtomicU64::new(1),
             pending: ParkingMutex::new(HashMap::new()),
             event_tx: event_tx.clone(),
@@ -288,36 +305,7 @@ impl AcpClient {
             stderr_tail: ParkingMutex::new(Vec::new()),
         });
 
-        // stdout reader
-        {
-            let c = Arc::clone(&client);
-            tokio::spawn(async move {
-                // Large session/update lines (available_commands) can be multi-MB.
-                let mut reader = BufReader::with_capacity(8 * 1024 * 1024, stdout);
-                let mut line = String::new();
-                loop {
-                    line.clear();
-                    match reader.read_line(&mut line).await {
-                        Ok(0) => break,
-                        Ok(_) => {
-                            let trimmed = line.trim();
-                            if trimmed.is_empty() {
-                                continue;
-                            }
-                            Arc::clone(&c).handle_line(trimmed).await;
-                        }
-                        Err(e) => {
-                            error!("acp stdout read error: {e}");
-                            break;
-                        }
-                    }
-                }
-                c.reader_alive.store(false, Ordering::SeqCst);
-                let detail = c.format_exit_detail("Agent process exited (stdout EOF)");
-                c.fail_all_pending(&detail);
-                let _ = c.event_tx.send(AcpEvent::ProcessExited { code: None });
-            });
-        }
+        client.start_read_loop(Box::new(stdout));
 
         // stderr reader (separate tee + ring buffer)
         {
@@ -343,6 +331,87 @@ impl AcpClient {
         }
 
         Ok((client, event_rx))
+    }
+
+    /// **API mode.** Connect to a remote ACP server over TCP (host:port)
+    /// instead of spawning `grok agent stdio`. The server speaks the exact
+    /// same newline-delimited JSON-RPC ACP protocol on the socket — this lets
+    /// the app drive an agent running elsewhere (a WSL/SSH/container agent, a
+    /// shared build host, or a `socat`-fronted CLI). No child process, no
+    /// stderr stream; the read half is wired to the same line reader.
+    ///
+    /// Sync (uses a blocking connect + `from_std`) to match `spawn_with_home`;
+    /// must be called from within the Tokio runtime.
+    pub fn connect_tcp(
+        addr: &str,
+        cwd: PathBuf,
+    ) -> Result<(Arc<Self>, mpsc::UnboundedReceiver<AcpEvent>), AgentError> {
+        let std_stream = std::net::TcpStream::connect(addr).map_err(|e| {
+            AgentError::new(
+                AgentErrorCode::CliNotFound,
+                format!("failed to connect ACP server {addr}: {e}"),
+            )
+        })?;
+        std_stream.set_nonblocking(true).map_err(|e| {
+            AgentError::new(AgentErrorCode::AgentCrashed, format!("socket setup: {e}"))
+        })?;
+        let stream = TcpStream::from_std(std_stream).map_err(|e| {
+            AgentError::new(AgentErrorCode::AgentCrashed, format!("socket adopt: {e}"))
+        })?;
+        let _ = stream.set_nodelay(true);
+        let (read_half, write_half) = stream.into_split();
+
+        let (event_tx, event_rx) = mpsc::unbounded_channel();
+        let client = Arc::new(Self {
+            child: AsyncMutex::new(None),
+            stdin: AsyncMutex::new(Some(
+                Box::new(write_half) as Box<dyn AsyncWrite + Unpin + Send>
+            )),
+            next_id: AtomicU64::new(1),
+            pending: ParkingMutex::new(HashMap::new()),
+            event_tx,
+            agent_session_id: ParkingMutex::new(None),
+            cli_path: PathBuf::from(format!("tcp://{addr}")),
+            cwd,
+            stopped: AtomicBool::new(false),
+            reader_alive: AtomicBool::new(true),
+            stderr_tail: ParkingMutex::new(Vec::new()),
+        });
+        client.start_read_loop(Box::new(read_half));
+        Ok((client, event_rx))
+    }
+
+    /// Spawn the transport read loop over any `AsyncRead` (child stdout or the
+    /// TCP read half). Each newline-delimited JSON-RPC line is dispatched to
+    /// [`handle_line`]; EOF fails pending requests and emits `ProcessExited`.
+    fn start_read_loop(self: &Arc<Self>, reader: Box<dyn AsyncRead + Unpin + Send>) {
+        let c = Arc::clone(self);
+        tokio::spawn(async move {
+            // Large session/update lines (available_commands) can be multi-MB.
+            let mut reader = BufReader::with_capacity(8 * 1024 * 1024, reader);
+            let mut line = String::new();
+            loop {
+                line.clear();
+                match reader.read_line(&mut line).await {
+                    Ok(0) => break,
+                    Ok(_) => {
+                        let trimmed = line.trim();
+                        if trimmed.is_empty() {
+                            continue;
+                        }
+                        Arc::clone(&c).handle_line(trimmed).await;
+                    }
+                    Err(e) => {
+                        error!("acp read error: {e}");
+                        break;
+                    }
+                }
+            }
+            c.reader_alive.store(false, Ordering::SeqCst);
+            let detail = c.format_exit_detail("Agent stream closed (EOF)");
+            c.fail_all_pending(&detail);
+            let _ = c.event_tx.send(AcpEvent::ProcessExited { code: None });
+        });
     }
 
     fn push_stderr(&self, line: &str) {

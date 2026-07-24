@@ -60,6 +60,9 @@ export interface SettingsPageProps {
   manualCliPath: string;
   onManualCliPath: (v: string) => void;
   onCliBlur: (v: string) => void;
+  /** API mode: remote ACP server `host:port` (empty = local CLI spawn). */
+  acpServerAddr: string;
+  onAcpServerAddr: (v: string) => void;
   cliInfo: {
     found: boolean;
     path: string | null;
@@ -139,6 +142,8 @@ export function SettingsPage({
   manualCliPath,
   onManualCliPath,
   onCliBlur,
+  acpServerAddr,
+  onAcpServerAddr,
   cliInfo,
   onDoctor,
   versionFooter,
@@ -632,6 +637,22 @@ export function SettingsPage({
                     : ` · ${t("account.cliAuthMissing")}`}
                 </div>
               )}
+            </div>
+            <div className="settings-row settings-row--stack">
+              <div className="settings-row__text">
+                <div className="settings-row__label">
+                  {t("settings.acpServer")}
+                </div>
+                <div className="settings-row__desc">
+                  {t("settings.acpServerDesc")}
+                </div>
+              </div>
+              <input
+                className="settings-input"
+                value={acpServerAddr}
+                placeholder="e.g. 127.0.0.1:8799"
+                onChange={(e) => onAcpServerAddr(e.target.value)}
+              />
             </div>
             <div className="settings-row">
               <div className="settings-row__text">

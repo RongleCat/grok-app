@@ -443,6 +443,9 @@ export interface AppSettings {
   defaultOpenTarget?: string;
   /** global | project | session — where model/permission chips are remembered */
   composerPrefsScope?: ComposerPrefsScope | string;
+  /** API mode: `host:port` of a remote ACP server. When set, sessions connect
+   *  over TCP instead of spawning the local CLI. Empty/unset = local spawn. */
+  acpServerAddr?: string | null;
 }
 
 export interface AvailableModel {
