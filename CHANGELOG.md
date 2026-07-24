@@ -13,6 +13,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- Composer **context usage chip** (L09): shows known tokens after compact, or an honest `~` estimate / `—` when unknown; click for last compact summary + Compact action.
 - Composer **file picker** (+ menu → Files / Folder) and **clipboard paste** for images/files (screenshot → temp path → `@path` attach).
 - Open-source **maintenance playbook** (`docs/llm-wiki/maintain.md`): triage labels, PR review, community intake, ship loop.
 - **Single-instance** plugin: second launch focuses the existing window (macOS Dock multi-open).

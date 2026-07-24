@@ -29,6 +29,7 @@ import {
   IconRename,
 } from "@/components/icons";
 import { formatMessageTime } from "@/lib/accountUi";
+import { formatTokenCount } from "@/lib/contextUsage";
 import { useStickToBottom } from "@/hooks/useStickToBottom";
 import {
   MessageActionButton,
@@ -51,14 +52,6 @@ import {
   TurnCancelledRow,
 } from "./AgentActivity";
 import "./lobe-chat.css";
-
-function formatTokenCount(n: number): string {
-  if (!Number.isFinite(n) || n < 0) return "—";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 10_000) return `${Math.round(n / 1000)}k`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
-}
 
 type AttachLabels = {
   open: string;

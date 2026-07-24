@@ -5498,6 +5498,122 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   color: var(--text-secondary);
 }
 
+/* Context usage chip (composer row) */
+.chip--context {
+  font-variant-numeric: tabular-nums;
+  max-width: 96px;
+}
+
+.chip--context .chip__label--nums {
+  font-feature-settings: "tnum";
+  letter-spacing: 0.01em;
+}
+
+.chip--context.is-open,
+.ctx-chip.is-open .chip--context {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.ctx-chip {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.ctx-chip__pop {
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ctx-chip__head {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 2px 6px 4px;
+}
+
+.ctx-chip__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.ctx-chip__k {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.ctx-chip__v {
+  color: var(--text-primary);
+  text-align: right;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.ctx-chip__tokens {
+  font-variant-numeric: tabular-nums;
+  font-weight: 560;
+}
+
+.ctx-chip__src {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.ctx-chip__summary {
+  margin: 0;
+  padding: 4px 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  max-height: 72px;
+  overflow: auto;
+}
+
+.ctx-chip__note {
+  margin: 0;
+  padding: 2px 6px 4px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--text-tertiary);
+}
+
+.ctx-chip__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ctx-chip__action:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .composer__spacer {
   flex: 1;
   min-width: 8px;
