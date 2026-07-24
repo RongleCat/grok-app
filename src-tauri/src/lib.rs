@@ -185,6 +185,7 @@ pub fn run() {
             commands::reset_app_data,
             commands::skills_list,
             commands::inspect_mcp,
+            commands::project_inspect,
             commands::extensions_get,
             commands::extensions_set_mcp,
             commands::extensions_set_skill,

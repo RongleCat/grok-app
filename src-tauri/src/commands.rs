@@ -1637,6 +1637,353 @@ pub async fn inspect_mcp(project_path: Option<String>) -> Result<serde_json::Val
     Ok(out)
 }
 
+// ── Project inspect summary (Settings → Runtime) ─────────────────────────────
+
+const PROJECT_INSPECT_SKILL_SAMPLE: usize = 12;
+
+/// Detect `<project>/.grok` when the path is a real directory.
+fn project_grok_dir(project_path: Option<&str>) -> (bool, Option<String>) {
+    let Some(raw) = project_path.map(str::trim).filter(|s| !s.is_empty()) else {
+        return (false, None);
+    };
+    let p = std::path::Path::new(raw).join(".grok");
+    if p.is_dir() {
+        (true, Some(p.to_string_lossy().to_string()))
+    } else {
+        (false, Some(p.to_string_lossy().to_string()))
+    }
+}
+
+fn json_str(v: Option<&serde_json::Value>) -> Option<String> {
+    v.and_then(|x| x.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
+fn skill_source_label(source: &serde_json::Value) -> String {
+    if let Some(s) = source.as_str() {
+        return s.trim().to_lowercase();
+    }
+    if let Some(obj) = source.as_object() {
+        if let Some(t) = obj.get("type").and_then(|x| x.as_str()) {
+            return t.trim().to_lowercase();
+        }
+    }
+    "unknown".into()
+}
+
+/// Build a secret-safe summary DTO from `grok inspect --json`.
+/// Only known safe fields are copied — never forward raw env/headers/secrets.
+fn build_project_inspect_summary(
+    parsed: Option<&serde_json::Value>,
+    project_path: Option<&str>,
+    error: Option<String>,
+    models_hints: Vec<String>,
+) -> serde_json::Value {
+    let (has_grok, grok_path) = project_grok_dir(project_path);
+    let path_trim = project_path
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+
+    let mut models_hints = models_hints;
+    let mut seen_models: std::collections::HashSet<String> =
+        models_hints.iter().cloned().collect();
+    let mut push_model = |s: String| {
+        let t = s.trim().to_string();
+        if t.is_empty() || seen_models.contains(&t) {
+            return;
+        }
+        seen_models.insert(t.clone());
+        models_hints.push(t);
+    };
+
+    let Some(v) = parsed else {
+        return serde_json::json!({
+            "projectPath": path_trim,
+            "projectRoot": null,
+            "projectTrusted": null,
+            "cwd": null,
+            "grokVersion": null,
+            "channel": null,
+            "hasProjectGrokDir": has_grok,
+            "projectGrokPath": if has_grok { grok_path } else { None::<String> },
+            "rules": [],
+            "plugins": [],
+            "skills": {
+                "total": 0,
+                "userInvocable": 0,
+                "bySource": {},
+                "sample": [],
+            },
+            "mcp": [],
+            "agents": [],
+            "hooksCount": 0,
+            "configLayers": [],
+            "modelsHints": models_hints,
+            "permissions": {
+                "loaded": 0,
+                "sourcesCount": 0,
+                "managedSettingsActive": false,
+            },
+            "error": error,
+        });
+    };
+
+    let project_root = json_str(v.get("projectRoot"));
+    let project_path_out = path_trim
+        .clone()
+        .or_else(|| project_root.clone());
+
+    // Rules / project instructions — paths only.
+    let mut rules = Vec::new();
+    let instr = v
+        .get("projectInstructions")
+        .or_else(|| v.get("rules"))
+        .and_then(|x| x.as_array());
+    if let Some(arr) = instr {
+        for item in arr {
+            let path = json_str(item.get("path"));
+            let Some(path) = path else { continue };
+            rules.push(serde_json::json!({
+                "path": path,
+                "scope": json_str(item.get("scope")),
+                "fileType": json_str(item.get("fileType"))
+                    .or_else(|| json_str(item.get("file_type"))),
+                "sizeBytes": item.get("sizeBytes").and_then(|x| x.as_u64())
+                    .or_else(|| item.get("size_bytes").and_then(|x| x.as_u64())),
+            }));
+        }
+    }
+
+    // Plugins — no free-form blobs.
+    let mut plugins = Vec::new();
+    if let Some(arr) = v.get("plugins").and_then(|x| x.as_array()) {
+        for item in arr {
+            let name = json_str(item.get("name"));
+            let Some(name) = name else { continue };
+            let provides = item.get("provides").map(|p| {
+                serde_json::json!({
+                    "skills": p.get("skills").and_then(|x| x.as_u64()).unwrap_or(0),
+                    "agents": p.get("agents").and_then(|x| x.as_u64()).unwrap_or(0),
+                    "hooks": p.get("hooks").and_then(|x| x.as_bool()).unwrap_or(false),
+                    "mcpServers": p.get("mcpServers")
+                        .or_else(|| p.get("mcp_servers"))
+                        .and_then(|x| x.as_u64())
+                        .unwrap_or(0),
+                })
+            });
+            plugins.push(serde_json::json!({
+                "name": name,
+                "scope": json_str(item.get("scope")),
+                "enabled": item.get("enabled").and_then(|x| x.as_bool()),
+                "path": json_str(item.get("path")),
+                "provides": provides,
+            }));
+        }
+    }
+
+    // Skills — counts + short invocable sample (no descriptions).
+    let mut by_source: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
+    let mut user_invocable: u64 = 0;
+    let mut sample_names: Vec<String> = Vec::new();
+    let skill_arr = v.get("skills").and_then(|x| x.as_array());
+    let skill_total = skill_arr.map(|a| a.len()).unwrap_or(0);
+    if let Some(arr) = skill_arr {
+        for item in arr {
+            let name = json_str(item.get("name"));
+            let Some(name) = name else { continue };
+            let src = skill_source_label(
+                item.get("source").unwrap_or(&serde_json::Value::Null),
+            );
+            let count = by_source
+                .get(&src)
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0);
+            by_source.insert(src, serde_json::json!(count + 1));
+            let inv = item
+                .get("userInvocable")
+                .or_else(|| item.get("user_invocable"))
+                .and_then(|x| x.as_bool())
+                .unwrap_or(false);
+            if inv {
+                user_invocable += 1;
+                sample_names.push(name);
+            }
+        }
+    }
+    sample_names.sort();
+    sample_names.truncate(PROJECT_INSPECT_SKILL_SAMPLE);
+
+    // MCP — name/transport/target only (never env/headers).
+    let mut mcp = Vec::new();
+    let mcp_arr = v
+        .get("mcpServers")
+        .or_else(|| v.get("mcp"))
+        .and_then(|x| x.as_array());
+    if let Some(arr) = mcp_arr {
+        for item in arr {
+            let name = json_str(item.get("name"));
+            let Some(name) = name else { continue };
+            mcp.push(serde_json::json!({
+                "name": name,
+                "transport": json_str(item.get("transport")),
+                "target": json_str(item.get("target")),
+            }));
+        }
+    }
+
+    // Agents
+    let mut agents = Vec::new();
+    if let Some(arr) = v.get("agents").and_then(|x| x.as_array()) {
+        for item in arr {
+            let name = json_str(item.get("name"));
+            let Some(name) = name else { continue };
+            let source = skill_source_label(
+                item.get("source").unwrap_or(&serde_json::Value::Null),
+            );
+            agents.push(serde_json::json!({
+                "name": name,
+                "source": source,
+            }));
+        }
+    }
+
+    // Config layers — paths only.
+    let mut config_layers = Vec::new();
+    if let Some(layers) = v
+        .get("configSources")
+        .and_then(|x| x.get("layers"))
+        .and_then(|x| x.as_array())
+    {
+        for item in layers {
+            config_layers.push(serde_json::json!({
+                "role": json_str(item.get("role")),
+                "path": json_str(item.get("path")),
+            }));
+        }
+    }
+
+    // Permissions — counts/flags only (no allowlist bodies that might embed tokens).
+    let perm = v.get("permissions");
+    let sources_count = perm
+        .and_then(|p| p.get("sources"))
+        .and_then(|x| x.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+    let loaded = perm
+        .and_then(|p| p.get("loaded"))
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let managed_active = perm
+        .and_then(|p| p.get("managedSettingsActive"))
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+
+    // Models hints from inspect when present.
+    if let Some(arr) = v.get("models").and_then(|x| x.as_array()) {
+        for m in arr {
+            if let Some(s) = m.as_str() {
+                push_model(s.to_string());
+            } else if let Some(id) = json_str(m.get("id"))
+                .or_else(|| json_str(m.get("name")))
+                .or_else(|| json_str(m.get("model")))
+            {
+                push_model(id);
+            }
+        }
+    }
+    if let Some(ch) = json_str(v.get("channel")) {
+        if ch != "unknown" {
+            push_model(format!("channel:{ch}"));
+        }
+    }
+    if let Some(dm) = json_str(v.get("defaultModel"))
+        .or_else(|| json_str(v.get("default_model")))
+    {
+        push_model(dm);
+    }
+
+    let hooks_count = v
+        .get("hooks")
+        .and_then(|x| x.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+
+    let mut out = serde_json::json!({
+        "projectPath": project_path_out,
+        "projectRoot": project_root,
+        "projectTrusted": v.get("projectTrusted").and_then(|x| x.as_bool()),
+        "cwd": json_str(v.get("cwd")),
+        "grokVersion": json_str(v.get("grokVersion"))
+            .or_else(|| json_str(v.get("grok_version"))),
+        "channel": json_str(v.get("channel")),
+        "hasProjectGrokDir": has_grok,
+        "projectGrokPath": if has_grok { grok_path } else { None::<String> },
+        "rules": rules,
+        "plugins": plugins,
+        "skills": {
+            "total": skill_total,
+            "userInvocable": user_invocable,
+            "bySource": by_source,
+            "sample": sample_names,
+        },
+        "mcp": mcp,
+        "agents": agents,
+        "hooksCount": hooks_count,
+        "configLayers": config_layers,
+        "modelsHints": models_hints,
+        "permissions": {
+            "loaded": loaded,
+            "sourcesCount": sources_count,
+            "managedSettingsActive": managed_active,
+        },
+    });
+    if let Some(err) = error {
+        // Scrub any token-shaped substrings in error text.
+        out["error"] = serde_json::Value::String(crate::store::redact_text(&err));
+    } else {
+        out["error"] = serde_json::Value::Null;
+    }
+    out
+}
+
+/// Full project inspect summary for Settings → Runtime.
+/// Runs `grok inspect --json` with optional project cwd; returns a sanitized DTO
+/// (plugins / skills counts / MCP / rules paths / model hints). Never includes secrets.
+#[tauri::command]
+pub async fn project_inspect(project_path: Option<String>) -> Result<serde_json::Value, String> {
+    let path = project_path.clone();
+    let (parsed, error) = tauri::async_runtime::spawn_blocking(move || {
+        run_grok_inspect(path.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // Model ids from local cache (hints only — not secrets).
+    let models_hints: Vec<String> = {
+        let catalog = crate::models_catalog::list_available_models();
+        let mut hints = Vec::new();
+        if !catalog.default_model_id.trim().is_empty() {
+            hints.push(catalog.default_model_id.clone());
+        }
+        for m in catalog.models.iter().take(8) {
+            if !hints.iter().any(|h| h == &m.id) {
+                hints.push(m.id.clone());
+            }
+        }
+        hints
+    };
+
+    Ok(build_project_inspect_summary(
+        parsed.as_ref(),
+        project_path.as_deref(),
+        error,
+        models_hints,
+    ))
+}
+
 /// List skills from `grok inspect --json`, each with App `enabled` (default true).
 /// (skills_list already exists; this keeps enable flags on the existing shape.)
 fn attach_skill_enabled(skills: Vec<SkillDto>) -> Vec<serde_json::Value> {
@@ -4083,4 +4430,67 @@ pub async fn open_in_editor(
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| settings.default_open_target.clone());
     crate::editors::open_in_editor(&path, line, Some(target.as_str()))
+}
+
+#[cfg(test)]
+mod project_inspect_tests {
+    use super::build_project_inspect_summary;
+
+    #[test]
+    fn summary_strips_mcp_env_and_skill_descriptions() {
+        let raw = serde_json::json!({
+            "grokVersion": "0.2.0",
+            "projectRoot": "/tmp/p/",
+            "projectTrusted": true,
+            "skills": [{
+                "name": "help",
+                "description": "secret sk-abcdefghijklmnopqrstuvwxyz",
+                "source": { "type": "user" },
+                "userInvocable": true
+            }],
+            "mcpServers": [{
+                "name": "ctx",
+                "transport": "stdio",
+                "target": "/bin/npx",
+                "env": { "API_KEY": "sk-secretsecretsecret" }
+            }],
+            "plugins": [{ "name": "p1", "scope": "user", "enabled": true }],
+            "projectInstructions": [{ "path": "/tmp/p/AGENTS.md", "scope": "project" }],
+            "hooks": [1],
+            "permissions": { "loaded": 0, "sources": [], "managedSettingsActive": false }
+        });
+        let out = build_project_inspect_summary(
+            Some(&raw),
+            Some("/tmp/p"),
+            None,
+            vec!["grok-4".into()],
+        );
+        let s = out.to_string();
+        assert!(s.contains("\"help\""));
+        assert!(s.contains("\"ctx\""));
+        assert!(s.contains("AGENTS.md"));
+        assert!(!s.contains("sk-secret"));
+        assert!(!s.contains("API_KEY"));
+        assert!(!s.contains("sk-abcdefghijklmnopqrstuvwxyz"));
+        assert_eq!(out["skills"]["total"], 1);
+        assert_eq!(out["mcp"][0]["name"], "ctx");
+        assert!(out["mcp"][0].get("env").is_none());
+        assert!(out["modelsHints"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v.as_str() == Some("grok-4")));
+    }
+
+    #[test]
+    fn summary_handles_missing_inspect() {
+        let out = build_project_inspect_summary(
+            None,
+            Some("/tmp/p"),
+            Some("Grok Build CLI not found".into()),
+            vec![],
+        );
+        assert_eq!(out["skills"]["total"], 0);
+        assert_eq!(out["error"], "Grok Build CLI not found");
+    }
 }

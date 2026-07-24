@@ -44,6 +44,7 @@ import * as api from "@/lib/api";
 import { AccountPanel } from "@/components/AccountPanel";
 import { ProvidersPanel } from "@/components/ProvidersPanel";
 import { ExtensionsPanel } from "@/components/ExtensionsPanel";
+import { ProjectInspectPanel } from "@/components/ProjectInspectPanel";
 import {
   createT,
   resolveLocale,
@@ -1430,6 +1431,13 @@ export function SettingsPage({
               >
                 {t("settings.runDoctor")}
               </button>
+            </div>
+            <div className="settings-card settings-card--nested pi-settings-block">
+              <ProjectInspectPanel
+                locale={resolveLocale(locale)}
+                projectPath={projectPath}
+                cliFound={cliInfo.found}
+              />
             </div>
           </div>
         )}

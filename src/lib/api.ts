@@ -991,6 +991,28 @@ export async function inspectMcp(projectPath?: string | null) {
   });
 }
 
+// ── Project inspect summary (`grok inspect --json`, secret-safe DTO) ────────
+
+export type {
+  ProjectInspectSummary,
+  ProjectInspectPlugin,
+  ProjectInspectMcp,
+  ProjectInspectRule,
+  ProjectInspectAgent,
+  ProjectInspectSkills,
+  ProjectInspectPermissions,
+} from "./projectInspect";
+
+/**
+ * Sanitized project inspect summary for Settings → Runtime.
+ * Optional `projectPath` is used as CLI cwd; secrets never leave the host.
+ */
+export async function projectInspect(projectPath?: string | null) {
+  return invoke<import("./projectInspect").ProjectInspectSummary>("project_inspect", {
+    projectPath: projectPath ?? null,
+  });
+}
+
 // ── Plugins via `grok plugin …` ─────────────────────────────────────────────
 
 /** Component counts from `grok inspect` plugins[].provides — Grok Build shape. */
