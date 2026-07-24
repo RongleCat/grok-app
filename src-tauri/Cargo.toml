@@ -52,6 +52,7 @@ keyring = { version = "3.6", features = [
 ] }
 arboard = "3"
 image = { version = "0.25", default-features = false, features = ["png"] }
+fs2 = "0.4"
 
 [profile.release]
 codegen-units = 1

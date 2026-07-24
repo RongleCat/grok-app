@@ -269,12 +269,32 @@ fn read_json<T: for<'de> Deserialize<'de> + Default>(path: &PathBuf) -> T {
     }
 }
 
-fn write_json<T: Serialize>(path: &PathBuf, value: &T) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+/// Read JSON; if the file exists but is corrupt, quarantine it and return default.
+fn read_json_recover<T: for<'de> Deserialize<'de> + Default>(path: &PathBuf) -> T {
+    match fs::read_to_string(path) {
+        Ok(s) if s.trim().is_empty() => T::default(),
+        Ok(s) => match serde_json::from_str(&s) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!(
+                    "corrupt store file {} ({e}); quarantining and starting empty",
+                    path.display()
+                );
+                let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
+                let bak = path.with_extension(format!("corrupt-{stamp}.json"));
+                let _ = fs::rename(path, &bak);
+                T::default()
+            }
+        },
+        Err(_) => T::default(),
     }
+}
+
+fn write_json<T: Serialize>(path: &PathBuf, value: &T) -> Result<(), String> {
     let s = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
-    fs::write(path, s).map_err(|e| e.to_string())
+    // Exclusive lock + temp rename so shared-mode / dual-instance writes do not
+    // leave a half-written index (E06).
+    crate::store_lock::write_bytes_atomic(path, s.as_bytes())
 }
 
 pub fn load_settings() -> AppSettings {
@@ -299,7 +319,7 @@ pub fn save_settings(s: &AppSettings) -> Result<(), String> {
 
 pub fn load_projects() -> Vec<Project> {
     let _ = ensure_app_dirs();
-    let mut list: Vec<Project> = read_json(&projects_file());
+    let mut list: Vec<Project> = read_json_recover(&projects_file());
     for p in &mut list {
         p.path_ok = PathBuf::from(&p.path).is_dir();
     }
@@ -442,7 +462,8 @@ pub fn set_project_permission_policy(
 
 pub fn load_sessions_index() -> Vec<SessionMeta> {
     let _ = ensure_app_dirs();
-    let mut list: Vec<SessionMeta> = read_json(&sessions_index_file());
+    // Recover from torn/corrupt index (shared CLI+App or crash mid-write).
+    let mut list: Vec<SessionMeta> = read_json_recover(&sessions_index_file());
     list.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
     list
 }
@@ -587,7 +608,7 @@ pub fn archive_project_sessions(project_id: &str) -> Result<usize, String> {
 }
 
 pub fn load_messages(session_id: &str) -> Vec<ChatMessageStored> {
-    read_json(&session_dir(session_id).join("messages.json"))
+    read_json_recover(&session_dir(session_id).join("messages.json"))
 }
 
 pub fn save_messages(session_id: &str, messages: &[ChatMessageStored]) -> Result<(), String> {
