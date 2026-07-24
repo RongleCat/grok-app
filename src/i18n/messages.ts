@@ -421,6 +421,9 @@ const en = {
   "settings.sessionDataMode": "Session data mode",
   "settings.sessionDataModeDesc":
     "Where chat history is stored (independent app dir or shared with CLI)",
+  "settings.storeApiKeysInKeychain": "Store API keys in system keychain",
+  "settings.storeApiKeysInKeychainDesc":
+    "Off by default: keys stay in the app data folder (mode 0600). Turn on to use the OS keychain — the system may ask once. Official login still uses Grok Build auth.",
   "settings.cliPath": "CLI path",
   "settings.cliPathDesc": "Path to the Grok Build CLI binary",
   "settings.cliNotFound": "(not found)",
@@ -1423,6 +1426,9 @@ const zh: Record<MessageKey, string> = {
   "settings.languageDesc": "应用界面语言",
   "settings.sessionDataMode": "会话数据模式",
   "settings.sessionDataModeDesc": "会话历史存储位置（应用独立目录或与 CLI 共享）",
+  "settings.storeApiKeysInKeychain": "用系统钥匙串保存 API Key",
+  "settings.storeApiKeysInKeychainDesc":
+    "默认关闭：密钥写在应用数据目录（0600）。开启后写入系统钥匙串，系统可能要求一次授权。官方登录仍走 Grok Build 鉴权，不受此项影响。",
   "settings.cliPath": "CLI 路径",
   "settings.cliPathDesc": "Grok Build CLI 可执行文件路径",
   "settings.cliNotFound": "（未找到）",

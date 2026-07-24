@@ -395,6 +395,9 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.languageDesc": "應用程式介面語言",
   "settings.sessionDataMode": "對話資料模式",
   "settings.sessionDataModeDesc": "對話歷史儲存位置（應用程式獨立目錄或與 CLI 共用）",
+  "settings.storeApiKeysInKeychain": "以系統鑰匙圈儲存 API Key",
+  "settings.storeApiKeysInKeychainDesc":
+    "預設關閉：金鑰寫在應用資料目錄（0600）。開啟後寫入系統鑰匙圈，系統可能要求一次授權。官方登入仍走 Grok Build 驗證，不受此項影響。",
   "settings.cliPath": "CLI 路徑",
   "settings.cliPathDesc": "Grok Build CLI 可執行檔路徑",
   "settings.cliNotFound": "（未找到）",

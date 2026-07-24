@@ -609,6 +609,7 @@ export default function App() {
   const [maxConcurrentAgents, setMaxConcurrentAgents] = useState(3);
   const [agentIdleMinutes, setAgentIdleMinutes] = useState(30);
   const [streamStallSeconds, setStreamStallSeconds] = useState(120);
+  const [storeApiKeysInKeychain, setStoreApiKeysInKeychain] = useState(false);
   /** Host stream-stall prompt (I06); null when dismissed or not stalled. */
   const [streamStall, setStreamStall] = useState<{
     sessionId?: string;
@@ -817,6 +818,7 @@ export default function App() {
           ? Math.min(900, Math.round(settings.streamStallSeconds))
           : 120,
       );
+      setStoreApiKeysInKeychain(!!settings.storeApiKeysInKeychain);
       setCliInfo({
         found: cli.found,
         path: cli.path,
@@ -5547,6 +5549,20 @@ export default function App() {
             void api.settingsGet().then((s) =>
               api.settingsSet({ ...s, streamStallSeconds: v }),
             );
+          }}
+          storeApiKeysInKeychain={storeApiKeysInKeychain}
+          onStoreApiKeysInKeychain={(v) => {
+            const prev = storeApiKeysInKeychain;
+            setStoreApiKeysInKeychain(v);
+            void api
+              .settingsGet()
+              .then((s) =>
+                api.settingsSet({ ...s, storeApiKeysInKeychain: v }),
+              )
+              .catch((e) => {
+                setStoreApiKeysInKeychain(prev);
+                showToast(String(e), 4500);
+              });
           }}
           cliInfo={cliInfo}
           onDoctor={() => void openDoctor()}

@@ -539,7 +539,24 @@ pub async fn settings_set(
     mgr: State<'_, Arc<SessionManager>>,
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
+    let prev = store::load_settings();
+    let keychain_flip =
+        prev.store_api_keys_in_keychain != settings.store_api_keys_in_keychain;
+
     store::save_settings(&settings)?;
+
+    if keychain_flip {
+        if let Err(e) =
+            crate::secrets::apply_keychain_preference(settings.store_api_keys_in_keychain)
+        {
+            // Revert flag so UI and storage stay consistent.
+            let mut rolled = settings.clone();
+            rolled.store_api_keys_in_keychain = prev.store_api_keys_in_keychain;
+            let _ = store::save_settings(&rolled);
+            return Err(e);
+        }
+    }
+
     // Full permission apply: Host + agent-home + soft-respawn if needed
     if let Err(e) = mgr
         .apply_permission_policy(&app, &settings.permission_policy)
@@ -715,7 +732,8 @@ pub async fn session_auto_title(
 
 #[tauri::command]
 pub async fn secrets_get_masked() -> Result<serde_json::Value, String> {
-    let s = store::load_secrets();
+    // Disk + presence flags only — do not unlock Keychain on app open.
+    let s = crate::secrets::load_secrets_disk_only();
     let providers = crate::providers::list_custom_providers().unwrap_or_else(|_| {
         crate::providers::ProvidersListResult {
             providers: vec![],
@@ -735,13 +753,19 @@ pub async fn secrets_get_masked() -> Result<serde_json::Value, String> {
         .map(|p| p.base_url.clone())
         .or(s.relay_base_url.clone());
     Ok(serde_json::json!({
-        "hasOfficialKey": s.official_api_key.as_ref().map(|k| !k.is_empty()).unwrap_or(false),
+        "hasOfficialKey": crate::secrets::has_official_key_configured(&s),
         "hasRelayKey": has_provider_key
-            || s.relay_api_key.as_ref().map(|k| !k.is_empty()).unwrap_or(false),
+            || crate::secrets::has_relay_key_configured(&s),
         "relayBaseUrl": relay_base,
         "defaultModel": providers.default_model.or(s.default_model),
         "providerCount": providers.providers.len(),
         "agentHome": providers.agent_home,
+        // Report user preference — do not soft-probe Keychain on cold start.
+        "secretsBackend": match crate::secrets::configured_backend() {
+            crate::secrets::SecretsBackendKind::Keychain => "keychain",
+            crate::secrets::SecretsBackendKind::File => "file",
+        },
+        "storeApiKeysInKeychain": store::load_settings().store_api_keys_in_keychain,
     }))
 }
 

@@ -589,6 +589,11 @@ export interface AppSettings {
   agentIdleMinutes?: number;
   /** Pure stream silence before cancel prompt, seconds (default 120). */
   streamStallSeconds?: number;
+  /**
+   * When true, App API keys go in the OS keychain.
+   * Default false: keys stay in secrets.json (0600). Official login uses auth.json.
+   */
+  storeApiKeysInKeychain?: boolean;
 }
 
 export interface AvailableModel {

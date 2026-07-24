@@ -106,6 +106,9 @@ export interface SettingsPageProps {
   /** Stream stall silence timeout seconds (I06). */
   streamStallSeconds?: number;
   onStreamStallSeconds?: (v: number) => void;
+  /** Store App API keys in OS keychain (default off → secrets.json). */
+  storeApiKeysInKeychain?: boolean;
+  onStoreApiKeysInKeychain?: (v: boolean) => void;
   cliInfo: {
     found: boolean;
     path: string | null;
@@ -404,6 +407,8 @@ export function SettingsPage({
   onAgentIdleMinutes,
   streamStallSeconds = 120,
   onStreamStallSeconds,
+  storeApiKeysInKeychain = false,
+  onStoreApiKeysInKeychain,
   cliInfo,
   onDoctor,
   versionFooter,
@@ -882,6 +887,25 @@ export function SettingsPage({
                   ]}
                 />
               </div>
+              {onStoreApiKeysInKeychain ? (
+                <div className="settings-row">
+                  <div className="settings-row__text">
+                    <div className="settings-row__label">
+                      {t("settings.storeApiKeysInKeychain")}
+                    </div>
+                    <div className="settings-row__desc">
+                      {t("settings.storeApiKeysInKeychainDesc")}
+                    </div>
+                  </div>
+                  <UiCheck
+                    checked={storeApiKeysInKeychain}
+                    onChange={() =>
+                      onStoreApiKeysInKeychain(!storeApiKeysInKeychain)
+                    }
+                    ariaLabel={t("settings.storeApiKeysInKeychain")}
+                  />
+                </div>
+              ) : null}
               {onDefaultOpenTarget && (
                 <div className="settings-row">
                   <div className="settings-row__text">

@@ -155,6 +155,11 @@ pub struct AppSettings {
     /// Pure stream silence before cancel prompt (I06). Default 120 seconds.
     #[serde(default = "default_stream_stall_seconds")]
     pub stream_stall_seconds: u32,
+    /// Store App API keys in the OS keychain (macOS Keychain / Win Cred / Secret Service).
+    /// Default **false**: keys stay in `secrets.json` (0600) so cold start does not
+    /// trigger system password prompts. Official CLI login still uses `auth.json`.
+    #[serde(default)]
+    pub store_api_keys_in_keychain: bool,
 }
 
 fn default_composer_prefs_scope() -> String {
@@ -198,6 +203,7 @@ impl Default for AppSettings {
             max_concurrent_agents: default_max_concurrent_agents(),
             agent_idle_minutes: default_agent_idle_minutes(),
             stream_stall_seconds: default_stream_stall_seconds(),
+            store_api_keys_in_keychain: false,
         }
     }
 }
@@ -209,6 +215,9 @@ impl Default for AppSettings {
 /// `secrets.json` (0600) fallback. See [`crate::secrets`].
 ///
 /// Never log these fields.
+///
+/// `keychain_has_*` are non-secret booleans written to `secrets.json` so the UI
+/// can report "has a key" without unlocking the OS keychain on every launch.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SecretsFile {
@@ -216,6 +225,12 @@ pub struct SecretsFile {
     pub relay_base_url: Option<String>,
     pub relay_api_key: Option<String>,
     pub default_model: Option<String>,
+    /// Official API key lives in OS keychain (value not on disk).
+    #[serde(default)]
+    pub keychain_has_official: bool,
+    /// Relay API key lives in OS keychain (value not on disk).
+    #[serde(default)]
+    pub keychain_has_relay: bool,
 }
 
 /// File/image card persisted with a chat message (user attach or agent image_gen).
@@ -264,7 +279,17 @@ fn write_json<T: Serialize>(path: &PathBuf, value: &T) -> Result<(), String> {
 
 pub fn load_settings() -> AppSettings {
     let _ = ensure_app_dirs();
-    read_json(&settings_file())
+    let mut s: AppSettings = read_json(&settings_file());
+    // One-time: installs that already stored keys in keychain before the opt-in
+    // keep keychain mode so keys remain reachable without a silent loss.
+    if !s.store_api_keys_in_keychain {
+        let disk = crate::secrets::load_secrets_disk_only();
+        if disk.keychain_has_official || disk.keychain_has_relay {
+            s.store_api_keys_in_keychain = true;
+            let _ = write_json(&settings_file(), &s);
+        }
+    }
+    s
 }
 
 pub fn save_settings(s: &AppSettings) -> Result<(), String> {
