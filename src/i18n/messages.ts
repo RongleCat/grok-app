@@ -94,6 +94,8 @@ const en = {
     "Create a new chat with messages up to this point? Later turns are not copied.",
   "session.forkOk": "Forked · opened new chat",
   "session.forkFailed": "Could not fork chat",
+  "session.backgroundPermission":
+    "Another chat needs permission — switch to it to approve or deny.",
   "session.rewind": "Rewind timeline",
   "session.rewindTitle": "Rewind conversation",
   "session.rewindHint":
@@ -1188,6 +1190,8 @@ const zh: Record<MessageKey, string> = {
   "session.forkConfirmPartial":
     "复制到此为止的消息并新建会话？之后的回合不会复制。",
   "session.forkOk": "已分叉 · 已打开新会话",
+  "session.backgroundPermission":
+    "另一个会话需要权限批准 — 请切换过去以允许或拒绝。",
   "session.forkFailed": "分叉会话失败",
   "session.rewind": "回退时间线",
   "session.rewindTitle": "回退对话",

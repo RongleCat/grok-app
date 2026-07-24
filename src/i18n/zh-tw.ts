@@ -83,6 +83,8 @@ export const zhTW: Record<MessageKey, string> = {
     "複製到此為止的訊息並建立新對話？之後的回合不會複製。",
   "session.forkOk": "已分叉 · 已開啟新對話",
   "session.forkFailed": "分叉對話失敗",
+  "session.backgroundPermission":
+    "另一個對話需要權限批准 — 請切換過去以允許或拒絕。",
   "session.rewind": "回退時間線",
   "session.rewindTitle": "回退對話",
   "session.rewindHint":

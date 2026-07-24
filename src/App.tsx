@@ -1437,6 +1437,15 @@ export default function App() {
               p.sessionId &&
               p.sessionId !== viewingSessionIdRef.current
             ) {
+              // Multi-session stream: another chat needs approval — nudge user.
+              setToast(trRef.current("session.backgroundPermission"));
+              window.setTimeout(() => setToast(null), 4200);
+              showDesktopNotification({
+                title: trRef.current("notify.permissionTitle"),
+                body: trRef.current("session.backgroundPermission"),
+                tag: `perm-bg-${p.rpcId}`,
+                force: true,
+              });
               return;
             }
             setPerm(p);
