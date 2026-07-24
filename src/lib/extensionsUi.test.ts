@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  filterPluginsByLoadState,
   isCliMissingError,
   mergeInspectErrors,
   mcpMetaLine,
   normalizeSkillSource,
+  pluginLoadLabel,
+  pluginMetaLine,
+  pluginProvidesLine,
+  pluginRowKey,
+  pluginStatusTone,
   shortPathLabel,
   skillMetaLine,
   skillSourceTone,
   sortMcpByName,
+  sortPluginsByName,
   sortSkillsByName,
 } from "./extensionsUi";
 
@@ -128,5 +135,83 @@ describe("mergeInspectErrors", () => {
 
   it("joins distinct non-cli errors", () => {
     expect(mergeInspectErrors("a", "b")).toBe("a · b");
+  });
+
+  it("includes plugins error and prefers CLI missing across three", () => {
+    expect(mergeInspectErrors("a", "b", "c")).toBe("a · b · c");
+    expect(
+      mergeInspectErrors("timeout", null, "Grok Build CLI not found"),
+    ).toBe("Grok Build CLI not found");
+  });
+});
+
+describe("plugin helpers", () => {
+  it("sorts plugins by name", () => {
+    expect(
+      sortPluginsByName([{ name: "zeta" }, { name: "Alpha" }]).map((p) => p.name),
+    ).toEqual(["Alpha", "zeta"]);
+  });
+
+  it("maps load state separately from CLI install status", () => {
+    expect(pluginLoadLabel(true)).toBe("enabled");
+    expect(pluginLoadLabel(false)).toBe("disabled");
+    expect(pluginStatusTone("installed", false)).toBe("disabled");
+    expect(pluginStatusTone("installed", true)).toBe("enabled");
+  });
+
+  it("builds plugin meta, provides, and row key like Grok Build", () => {
+    expect(
+      pluginMetaLine({
+        name: "demo",
+        scope: "user",
+        version: "1.5.0",
+        marketplace: "xAI Official",
+      }),
+    ).toBe("user · v1.5.0 · xAI Official");
+    expect(
+      pluginMetaLine({
+        name: "demo",
+        source: "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+      }),
+    ).toContain("ChromeDevTools/chrome-devtools-mcp");
+    expect(
+      pluginProvidesLine({
+        name: "superpowers",
+        provides: { skills: 14, agents: 0, hooks: true, mcpServers: 0 },
+      }),
+    ).toBe("14 skills · hooks");
+    expect(
+      pluginProvidesLine({
+        name: "github",
+        provides: { skills: 0, agents: 0, hooks: false, mcpServers: 1 },
+      }),
+    ).toBe("1 MCP");
+    expect(
+      pluginRowKey({
+        name: "cloudflare",
+        repoKey: "skills-39968d19",
+      }),
+    ).toBe("skills-39968d19:cloudflare");
+    expect(pluginRowKey({ name: "solo" })).toBe("solo");
+  });
+
+  it("filters by load state (Grok Build f key)", () => {
+    const rows = [
+      { name: "a", enabled: true },
+      { name: "b", enabled: false },
+      { name: "c", enabled: true },
+    ];
+    expect(filterPluginsByLoadState(rows, "all").map((p) => p.name)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+    expect(filterPluginsByLoadState(rows, "enabled").map((p) => p.name)).toEqual([
+      "a",
+      "c",
+    ]);
+    expect(filterPluginsByLoadState(rows, "disabled").map((p) => p.name)).toEqual([
+      "b",
+    ]);
   });
 });

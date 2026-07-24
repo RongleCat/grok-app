@@ -2488,7 +2488,10 @@ impl SessionManager {
     /// Soft-drop live agent so next send re-spawns with new spawn flags / config.
     /// Keeps `agent_session_id` so reconnect can `session/load`; if load fails,
     /// journal bootstrap still fills the gap.
-    async fn soft_respawn(&self, app: &AppHandle) {
+    ///
+    /// Public for settings mutations that change agent-visible state (plugins,
+    /// prefs) without a full disconnect toast.
+    pub async fn soft_respawn(&self, app: &AppHandle) {
         let acp = {
             let mut guard = self.inner.lock();
             if let Some(s) = guard.as_mut() {

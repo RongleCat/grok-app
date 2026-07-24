@@ -780,9 +780,9 @@ const en = {
   "mcpModal.empty": "No MCP servers discovered",
   "mcpModal.manage": "Manage in Settings",
 
-  // Settings → Extensions (Skills + MCP)
+  // Settings → Extensions (Plugins + Skills + MCP)
   "ext.lead":
-    "Skills and MCP servers discovered via `grok inspect`. Project scope uses the active workbench folder as cwd; without a project, inspect runs globally.",
+    "Plugins managed via `grok plugin`, plus skills and MCP servers from `grok inspect`. Project scope uses the active workbench folder as cwd for inspect; plugins are user-global.",
   "ext.refresh": "Refresh",
   "ext.refreshing": "Refreshing…",
   "ext.scope.project": "Project",
@@ -796,6 +796,32 @@ const en = {
   "ext.error.cliBody":
     "Install or set the CLI path under Settings → CLI / Runtime, then refresh this page.",
   "ext.error.openRuntime": "Open CLI / Runtime",
+  "ext.plugins.title": "Plugins",
+  "ext.plugins.loading": "Loading plugins…",
+  "ext.plugins.empty": "No plugins installed",
+  "ext.plugins.emptyCli": "Plugins are unavailable until the CLI is installed.",
+  "ext.plugins.status.enabled": "Enabled",
+  "ext.plugins.status.disabled": "Disabled",
+  "ext.plugins.enable": "Enable",
+  "ext.plugins.disable": "Disable",
+  "ext.plugins.details": "Details",
+  "ext.plugins.uninstall": "Uninstall",
+  "ext.plugins.uninstallTitle": "Uninstall plugin",
+  "ext.plugins.uninstallConfirm":
+    "Uninstall “{name}”? Skills, MCP servers, and hooks from this plugin will stop loading.",
+  "ext.plugins.detailsTitle": "{name}",
+  "ext.plugins.detailsLoading": "Loading details…",
+  "ext.plugins.detailsEmpty": "No details returned.",
+  "ext.plugins.marketplace": "Marketplace",
+  "ext.plugins.working": "Working…",
+  "ext.plugins.actionError": "Plugin action failed",
+  "ext.plugins.filterLabel": "Filter plugins",
+  "ext.plugins.filter.all": "All",
+  "ext.plugins.filter.enabled": "Enabled",
+  "ext.plugins.filter.disabled": "Disabled",
+  "ext.plugins.filterEmpty": "No plugins match this filter.",
+  "ext.plugins.note":
+    "Same inventory as Grok Build (`grok plugin list`). Enable/disable writes `~/.grok/config.toml`; the agent soft-respawns so the next turn reloads plugins.",
   "ext.skills.title": "Skills",
   "ext.skills.loading": "Loading skills…",
   "ext.skills.empty": "No skills discovered",
@@ -807,7 +833,7 @@ const en = {
   "ext.mcp.emptyCli": "MCP status is unavailable until the CLI is installed.",
   "ext.mcp.vendor": "Vendor",
   "ext.footnote":
-    "Session MCP injection is separate from this inspect list. Configure servers in Grok Build / agent config.",
+    "Plugin install from marketplace is still CLI-only. Session MCP injection is separate from the inspect list.",
 
   // Errors / misc
   "error.needTauri": "Folder picker requires the Tauri window",
@@ -1689,9 +1715,9 @@ const zh: Record<MessageKey, string> = {
   "mcpModal.empty": "未发现 MCP 服务器",
   "mcpModal.manage": "在设置中管理",
 
-  // Settings → Extensions (Skills + MCP)
+  // Settings → Extensions (Plugins + Skills + MCP)
   "ext.lead":
-    "通过 `grok inspect` 发现的技能与 MCP 服务器。有当前项目时以该目录为 cwd；无项目时为全局范围。",
+    "通过 `grok plugin` 管理插件，以及 `grok inspect` 发现的技能与 MCP 服务器。inspect 有当前项目时以该目录为 cwd；插件为用户全局范围。",
   "ext.refresh": "刷新",
   "ext.refreshing": "刷新中…",
   "ext.scope.project": "项目",
@@ -1705,6 +1731,32 @@ const zh: Record<MessageKey, string> = {
   "ext.error.cliBody":
     "请先在「设置 → CLI / 运行时」安装或指定 CLI 路径，然后返回此页刷新。",
   "ext.error.openRuntime": "打开 CLI / 运行时",
+  "ext.plugins.title": "插件",
+  "ext.plugins.loading": "正在加载插件…",
+  "ext.plugins.empty": "尚未安装插件",
+  "ext.plugins.emptyCli": "安装 CLI 后才能管理插件。",
+  "ext.plugins.status.enabled": "已启用",
+  "ext.plugins.status.disabled": "已禁用",
+  "ext.plugins.enable": "启用",
+  "ext.plugins.disable": "禁用",
+  "ext.plugins.details": "详情",
+  "ext.plugins.uninstall": "卸载",
+  "ext.plugins.uninstallTitle": "卸载插件",
+  "ext.plugins.uninstallConfirm":
+    "确定卸载「{name}」？该插件提供的技能、MCP 与 hooks 将不再加载。",
+  "ext.plugins.detailsTitle": "{name}",
+  "ext.plugins.detailsLoading": "正在加载详情…",
+  "ext.plugins.detailsEmpty": "未返回详情。",
+  "ext.plugins.marketplace": "市场",
+  "ext.plugins.working": "处理中…",
+  "ext.plugins.actionError": "插件操作失败",
+  "ext.plugins.filterLabel": "筛选插件",
+  "ext.plugins.filter.all": "全部",
+  "ext.plugins.filter.enabled": "已启用",
+  "ext.plugins.filter.disabled": "已禁用",
+  "ext.plugins.filterEmpty": "没有符合筛选条件的插件。",
+  "ext.plugins.note":
+    "与 Grok Build 共用同一清单（`grok plugin list`）。启用/禁用写入 `~/.grok/config.toml`；agent soft-respawn 后下一轮对话重新加载插件。",
   "ext.skills.title": "技能",
   "ext.skills.loading": "正在加载技能…",
   "ext.skills.empty": "未发现技能",
@@ -1716,7 +1768,7 @@ const zh: Record<MessageKey, string> = {
   "ext.mcp.emptyCli": "安装 CLI 后才能查看 MCP 状态。",
   "ext.mcp.vendor": "供应商",
   "ext.footnote":
-    "会话内 MCP 注入与此 inspect 列表相互独立。请在 Grok Build / agent 配置中管理服务器。",
+    "从 marketplace 安装插件仍请使用 CLI。会话内 MCP 注入与 inspect 列表相互独立。",
 
   "error.needTauri": "需要在 Tauri 窗口中选择目录",
   "common.comingSoon": "即将推出",

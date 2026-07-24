@@ -1485,6 +1485,717 @@ pub async fn inspect_mcp(project_path: Option<String>) -> Result<serde_json::Val
     Ok(out)
 }
 
+// ── Plugins via Grok Build CLI (`grok plugin …` + `inspect` + config.toml) ──
+//
+// Keep field semantics aligned with Grok Build:
+// - install inventory: `grok plugin list --json` (status/name/version/source/…)
+// - enable/disable: `~/.grok/config.toml` `[plugins].disabled` / CLI enable|disable
+// - scope + component counts: `grok inspect --json` → `plugins[]`
+// Do not invent a parallel store or rewrite CLI `status` values.
+
+const PLUGIN_CMD_TIMEOUT_SECS: u64 = 30;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginProvidesDto {
+    #[serde(default)]
+    pub skills: u32,
+    #[serde(default)]
+    pub agents: u32,
+    #[serde(default)]
+    pub hooks: bool,
+    #[serde(default)]
+    pub mcp_servers: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginDto {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub marketplace: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    /// Install status from `plugin list --json` (usually `"installed"`). Not enable/disable.
+    pub status: String,
+    /// Load state from Grok Build config (`[plugins].disabled` / enable CLI).
+    pub enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repo_key: Option<String>,
+    /// Grok Build scope: user / project / cli / custom path / marketplace name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    /// Component inventory from `grok inspect` (skills / agents / hooks / mcp).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provides: Option<PluginProvidesDto>,
+}
+
+/// Run probed CLI with the given args. Returns (stdout, stderr, ok).
+fn run_grok_cli_args(args: &[&str], timeout_secs: u64) -> Result<(String, String, bool), String> {
+    let settings = store::load_settings();
+    let probe = cli_probe::probe_cli(settings.manual_cli_path.as_deref());
+    let Some(cli_path) = probe.path.filter(|_| probe.found) else {
+        return Err("Grok Build CLI not found".into());
+    };
+
+    let args_owned: Vec<String> = args.iter().map(|s| (*s).to_string()).collect();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut cmd = std::process::Command::new(&cli_path);
+        cmd.args(&args_owned);
+        crate::process_util::apply_no_window_std(&mut cmd);
+        if let Some(path_env) = crate::process_util::enriched_path_env() {
+            cmd.env("PATH", path_env);
+        }
+        let result = cmd.output();
+        let _ = tx.send(result);
+    });
+
+    match rx.recv_timeout(std::time::Duration::from_secs(timeout_secs)) {
+        Ok(Ok(output)) => {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            Ok((stdout, stderr, output.status.success()))
+        }
+        Ok(Err(e)) => Err(format!("Failed to run grok: {e}")),
+        Err(_) => Err(format!("grok command timed out after {timeout_secs}s")),
+    }
+}
+
+/// Path to the user-level Grok config that tracks plugin enable/disable.
+/// Same file Grok Build reads for `[plugins].enabled` / `[plugins].disabled`.
+fn user_grok_config_toml() -> std::path::PathBuf {
+    crate::process_util::user_home().join(".grok").join("config.toml")
+}
+
+/// Parse a string-array key under `[plugins]` (single- or multi-line).
+pub fn parse_plugins_toml_string_array(toml_text: &str, key: &str) -> std::collections::HashSet<String> {
+    let mut out = std::collections::HashSet::new();
+    let mut in_plugins = false;
+    let mut collecting = false;
+    let mut buf = String::new();
+    let key_prefix = key;
+
+    for line in toml_text.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            if collecting {
+                break;
+            }
+            in_plugins = trimmed == "[plugins]";
+            continue;
+        }
+        if !in_plugins {
+            continue;
+        }
+        if collecting {
+            buf.push(' ');
+            buf.push_str(trimmed);
+            if trimmed.contains(']') {
+                collecting = false;
+                for name in extract_toml_string_array(&buf) {
+                    out.insert(name);
+                }
+                buf.clear();
+            }
+            continue;
+        }
+        if let Some(rest) = trimmed
+            .strip_prefix(key_prefix)
+            .map(str::trim)
+            .and_then(|s| s.strip_prefix('='))
+            .map(str::trim)
+        {
+            if rest.contains('[') && rest.contains(']') {
+                for name in extract_toml_string_array(rest) {
+                    out.insert(name);
+                }
+            } else if rest.contains('[') {
+                collecting = true;
+                buf = rest.to_string();
+            }
+        }
+    }
+    out
+}
+
+/// Grok Build config: plugin IDs or plain names listed under `[plugins].disabled`.
+pub fn parse_plugins_disabled_names(toml_text: &str) -> std::collections::HashSet<String> {
+    parse_plugins_toml_string_array(toml_text, "disabled")
+}
+
+fn extract_toml_string_array(s: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '"' || c == '\'' {
+            let quote = c;
+            let mut name = String::new();
+            while let Some(ch) = chars.next() {
+                if ch == quote {
+                    break;
+                }
+                if ch == '\\' {
+                    if let Some(escaped) = chars.next() {
+                        name.push(escaped);
+                    }
+                } else {
+                    name.push(ch);
+                }
+            }
+            let n = name.trim();
+            if !n.is_empty() {
+                names.push(n.to_string());
+            }
+        }
+    }
+    names
+}
+
+fn load_disabled_plugin_entries() -> std::collections::HashSet<String> {
+    let path = user_grok_config_toml();
+    match std::fs::read_to_string(&path) {
+        Ok(text) => parse_plugins_disabled_names(&text),
+        Err(_) => std::collections::HashSet::new(),
+    }
+}
+
+/// Match Grok Build disabled entries: plain name or full id `scope/hash/name`.
+pub fn plugin_matches_disabled(
+    name: &str,
+    repo_key: Option<&str>,
+    disabled: &std::collections::HashSet<String>,
+) -> bool {
+    if disabled.is_empty() {
+        return false;
+    }
+    if disabled.contains(name) {
+        return true;
+    }
+    for entry in disabled {
+        let e = entry.trim();
+        if e.is_empty() {
+            continue;
+        }
+        // Full plugin id: <scope>/<hash>/<name>
+        if let Some((head, tail)) = e.rsplit_once('/') {
+            if tail == name {
+                // Optional: also match hash against repo_key suffix
+                if let Some(rk) = repo_key {
+                    if head.ends_with(rk) || rk.ends_with(head.rsplit_once('/').map(|(_, h)| h).unwrap_or(head)) {
+                        return true;
+                    }
+                }
+                return true;
+            }
+        }
+        if let Some(rk) = repo_key {
+            if e == rk || e.ends_with(&format!("/{rk}")) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+#[derive(Debug, Clone, Default)]
+struct InspectPluginExtra {
+    scope: Option<String>,
+    provides: Option<PluginProvidesDto>,
+}
+
+fn parse_inspect_plugins_map(
+    inspect_json: &serde_json::Value,
+) -> std::collections::HashMap<String, InspectPluginExtra> {
+    let mut map = std::collections::HashMap::new();
+    let Some(arr) = inspect_json.get("plugins").and_then(|x| x.as_array()) else {
+        return map;
+    };
+    for item in arr {
+        let name = item
+            .get("name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        if name.is_empty() {
+            continue;
+        }
+        let path = item
+            .get("path")
+            .and_then(|x| x.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let scope = item
+            .get("scope")
+            .and_then(|x| x.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let provides = item.get("provides").map(|p| PluginProvidesDto {
+            skills: p
+                .get("skills")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0) as u32,
+            agents: p
+                .get("agents")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0) as u32,
+            hooks: p.get("hooks").and_then(|x| x.as_bool()).unwrap_or(false),
+            mcp_servers: p
+                .get("mcpServers")
+                .or_else(|| p.get("mcp_servers"))
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0) as u32,
+        });
+        let extra = InspectPluginExtra { scope, provides };
+        // Key by name and path so duplicate names (e.g. two cloudflare installs) can match path.
+        map.insert(name.clone(), extra.clone());
+        if let Some(p) = path {
+            map.insert(format!("path:{p}"), extra);
+        }
+    }
+    map
+}
+
+fn parse_plugin_list_json(
+    raw: &str,
+    disabled: &std::collections::HashSet<String>,
+    inspect_extra: &std::collections::HashMap<String, InspectPluginExtra>,
+) -> Result<Vec<PluginDto>, String> {
+    let value: serde_json::Value =
+        serde_json::from_str(raw).map_err(|e| format!("Failed to parse plugin list JSON: {e}"))?;
+    let arr = value
+        .as_array()
+        .ok_or_else(|| "plugin list JSON is not an array".to_string())?;
+    let mut out = Vec::with_capacity(arr.len());
+    for item in arr {
+        let name = item
+            .get("name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        if name.is_empty() {
+            continue;
+        }
+        let version = item
+            .get("version")
+            .and_then(|x| x.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let source = item
+            .get("source")
+            .and_then(|x| x.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let marketplace = item
+            .get("marketplace")
+            .and_then(|x| {
+                if x.is_null() {
+                    None
+                } else {
+                    x.as_str()
+                }
+            })
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let path = item
+            .get("path")
+            .and_then(|x| x.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let repo_key = item
+            .get("repo_key")
+            .or_else(|| item.get("repoKey"))
+            .and_then(|x| x.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        // Preserve CLI install status verbatim (do not invent "disabled" status).
+        let status = item
+            .get("status")
+            .and_then(|x| x.as_str())
+            .unwrap_or("installed")
+            .trim()
+            .to_string();
+        let status = if status.is_empty() {
+            "installed".to_string()
+        } else {
+            status
+        };
+        let enabled = !plugin_matches_disabled(&name, repo_key.as_deref(), disabled);
+
+        // Prefer path-keyed inspect row, then name.
+        let extra = path
+            .as_ref()
+            .and_then(|p| inspect_extra.get(&format!("path:{p}")))
+            .or_else(|| inspect_extra.get(&name));
+
+        // Scope: inspect first, else marketplace name, else "user" for installed-plugins paths.
+        let scope = extra
+            .and_then(|e| e.scope.clone())
+            .or_else(|| marketplace.clone())
+            .or_else(|| {
+                path.as_ref().and_then(|p| {
+                    if p.contains("installed-plugins") {
+                        Some("user".into())
+                    } else {
+                        None
+                    }
+                })
+            });
+
+        out.push(PluginDto {
+            name,
+            version,
+            source,
+            marketplace,
+            path,
+            status,
+            enabled,
+            repo_key,
+            scope,
+            provides: extra.and_then(|e| e.provides.clone()),
+        });
+    }
+    out.sort_by(|a, b| {
+        a.name
+            .to_lowercase()
+            .cmp(&b.name.to_lowercase())
+            .then_with(|| {
+                a.repo_key
+                    .as_deref()
+                    .unwrap_or("")
+                    .cmp(b.repo_key.as_deref().unwrap_or(""))
+            })
+    });
+    Ok(out)
+}
+
+fn collect_plugins_list() -> Result<Vec<PluginDto>, String> {
+    // Parallel: install inventory + inspect enrich (scope/provides).
+    let list_handle = std::thread::spawn(|| {
+        run_grok_cli_args(&["plugin", "list", "--json"], PLUGIN_CMD_TIMEOUT_SECS)
+    });
+    let inspect_handle =
+        std::thread::spawn(|| run_grok_cli_args(&["inspect", "--json"], INSPECT_TIMEOUT_SECS));
+
+    let list_result = list_handle
+        .join()
+        .map_err(|_| "plugin list worker panicked".to_string())?;
+    let (stdout, stderr, ok) = list_result?;
+    if !ok {
+        let msg: String = if !stderr.is_empty() {
+            stderr.chars().take(400).collect()
+        } else if !stdout.is_empty() {
+            stdout.chars().take(400).collect()
+        } else {
+            "grok plugin list failed".into()
+        };
+        return Err(msg);
+    }
+    if stdout.is_empty() {
+        return Ok(Vec::new());
+    }
+    let disabled = load_disabled_plugin_entries();
+    // Best-effort inspect enrich. Failures leave scope/provides empty.
+    let inspect_extra = match inspect_handle.join() {
+        Ok(Ok((body, _, true))) if !body.is_empty() => {
+            match serde_json::from_str::<serde_json::Value>(&body) {
+                Ok(v) => parse_inspect_plugins_map(&v),
+                Err(_) => std::collections::HashMap::new(),
+            }
+        }
+        _ => std::collections::HashMap::new(),
+    };
+    parse_plugin_list_json(&stdout, &disabled, &inspect_extra)
+}
+
+/// List installed plugins (Grok Build inventory + enable state + inspect extras).
+/// Always returns Ok; on CLI missing / failure, `plugins` is empty and `error` is set.
+#[tauri::command]
+pub async fn plugins_list() -> Result<serde_json::Value, String> {
+    let result = tauri::async_runtime::spawn_blocking(collect_plugins_list)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    match result {
+        Ok(plugins) => Ok(serde_json::json!({ "plugins": plugins })),
+        Err(e) => Ok(serde_json::json!({
+            "plugins": [],
+            "error": e,
+        })),
+    }
+}
+
+/// Enable a plugin by name (`grok plugin enable <name>`). Soft-respawns agent.
+#[tauri::command]
+pub async fn plugin_enable(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    name: String,
+) -> Result<serde_json::Value, String> {
+    let name = name.trim().to_string();
+    if name.is_empty() {
+        return Err("plugin name required".into());
+    }
+    let name_for_cmd = name.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        run_grok_cli_args(
+            &["plugin", "enable", &name_for_cmd],
+            PLUGIN_CMD_TIMEOUT_SECS,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    let (stdout, stderr, ok) = result;
+    if !ok {
+        let msg = if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            format!("failed to enable plugin {name}")
+        };
+        return Err(msg.chars().take(400).collect());
+    }
+    mgr.soft_respawn(&app).await;
+    Ok(serde_json::json!({
+        "ok": true,
+        "name": name,
+        "message": stdout.chars().take(200).collect::<String>(),
+    }))
+}
+
+/// Disable a plugin by name (`grok plugin disable <name>`). Soft-respawns agent.
+#[tauri::command]
+pub async fn plugin_disable(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    name: String,
+) -> Result<serde_json::Value, String> {
+    let name = name.trim().to_string();
+    if name.is_empty() {
+        return Err("plugin name required".into());
+    }
+    let name_for_cmd = name.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        run_grok_cli_args(
+            &["plugin", "disable", &name_for_cmd],
+            PLUGIN_CMD_TIMEOUT_SECS,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    let (stdout, stderr, ok) = result;
+    if !ok {
+        let msg = if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            format!("failed to disable plugin {name}")
+        };
+        return Err(msg.chars().take(400).collect());
+    }
+    mgr.soft_respawn(&app).await;
+    Ok(serde_json::json!({
+        "ok": true,
+        "name": name,
+        "message": stdout.chars().take(200).collect::<String>(),
+    }))
+}
+
+/// Uninstall a plugin by name. Soft-respawns agent on success.
+#[tauri::command]
+pub async fn plugin_uninstall(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    name: String,
+) -> Result<serde_json::Value, String> {
+    let name = name.trim().to_string();
+    if name.is_empty() {
+        return Err("plugin name required".into());
+    }
+    let name_for_cmd = name.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        run_grok_cli_args(
+            &["plugin", "uninstall", &name_for_cmd, "--confirm"],
+            PLUGIN_CMD_TIMEOUT_SECS,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    let (stdout, stderr, ok) = result;
+    if !ok {
+        let msg = if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            format!("failed to uninstall plugin {name}")
+        };
+        return Err(msg.chars().take(400).collect());
+    }
+    mgr.soft_respawn(&app).await;
+    Ok(serde_json::json!({
+        "ok": true,
+        "name": name,
+        "message": stdout.chars().take(200).collect::<String>(),
+    }))
+}
+
+/// Plugin component inventory text (`grok plugin details <name>`).
+#[tauri::command]
+pub async fn plugin_details(name: String) -> Result<serde_json::Value, String> {
+    let name = name.trim().to_string();
+    if name.is_empty() {
+        return Err("plugin name required".into());
+    }
+    let name_for_cmd = name.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        run_grok_cli_args(
+            &["plugin", "details", &name_for_cmd],
+            PLUGIN_CMD_TIMEOUT_SECS,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    let (stdout, stderr, ok) = result;
+    if !ok {
+        let msg = if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            format!("failed to load details for {name}")
+        };
+        return Err(msg.chars().take(400).collect());
+    }
+    Ok(serde_json::json!({
+        "name": name,
+        "details": stdout,
+    }))
+}
+
+#[cfg(test)]
+mod plugin_config_tests {
+    use super::*;
+
+    #[test]
+    fn parse_disabled_single_line() {
+        let toml = r#"
+[plugins]
+enabled = ["a", "b"]
+disabled = ["chrome-devtools-mcp", "x"]
+"#;
+        let set = parse_plugins_disabled_names(toml);
+        assert!(set.contains("chrome-devtools-mcp"));
+        assert!(set.contains("x"));
+        assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn parse_disabled_multiline() {
+        let toml = r#"
+[plugins]
+enabled = [
+    "cloudflare",
+]
+disabled = [
+    "chrome-devtools-mcp",
+    "playwright",
+]
+
+[marketplace]
+foo = 1
+"#;
+        let set = parse_plugins_disabled_names(toml);
+        assert!(set.contains("chrome-devtools-mcp"));
+        assert!(set.contains("playwright"));
+        assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn parse_disabled_empty() {
+        let set = parse_plugins_disabled_names("[plugins]\ndisabled = []\n");
+        assert!(set.is_empty());
+    }
+
+    #[test]
+    fn parse_disabled_ignores_other_sections() {
+        let toml = r#"
+[other]
+disabled = ["nope"]
+
+[plugins]
+disabled = ["yes"]
+"#;
+        let set = parse_plugins_disabled_names(toml);
+        assert!(set.contains("yes"));
+        assert!(!set.contains("nope"));
+    }
+
+    #[test]
+    fn matches_full_plugin_id_like_grok_build() {
+        let mut disabled = std::collections::HashSet::new();
+        disabled.insert("user/a0b23c68/chrome-devtools-mcp".into());
+        assert!(plugin_matches_disabled(
+            "chrome-devtools-mcp",
+            Some("chrome-devtools-mcp-a0b23c68"),
+            &disabled
+        ));
+        assert!(!plugin_matches_disabled("other", None, &disabled));
+    }
+
+    #[test]
+    fn list_json_keeps_cli_status_and_config_enabled() {
+        let raw = r#"[
+          {"status":"installed","name":"demo","repo_key":"demo-abc","version":"1.0.0","path":"/tmp/demo","source":"https://example.com/demo","marketplace":null}
+        ]"#;
+        let mut disabled = std::collections::HashSet::new();
+        disabled.insert("demo".into());
+        let empty = std::collections::HashMap::new();
+        let plugins = parse_plugin_list_json(raw, &disabled, &empty).unwrap();
+        assert_eq!(plugins.len(), 1);
+        assert_eq!(plugins[0].status, "installed"); // CLI install status preserved
+        assert!(!plugins[0].enabled); // config disabled
+    }
+
+    #[test]
+    fn merges_inspect_scope_and_provides() {
+        let raw = r#"[
+          {"status":"installed","name":"superpowers","repo_key":"superpowers-599","version":"6.1.1","path":"/p/superpowers","source":"https://github.com/obra/superpowers","marketplace":null}
+        ]"#;
+        let disabled = std::collections::HashSet::new();
+        let mut extra = std::collections::HashMap::new();
+        extra.insert(
+            "path:/p/superpowers".into(),
+            InspectPluginExtra {
+                scope: Some("user".into()),
+                provides: Some(PluginProvidesDto {
+                    skills: 14,
+                    agents: 0,
+                    hooks: true,
+                    mcp_servers: 0,
+                }),
+            },
+        );
+        let plugins = parse_plugin_list_json(raw, &disabled, &extra).unwrap();
+        assert_eq!(plugins[0].scope.as_deref(), Some("user"));
+        assert_eq!(plugins[0].provides.as_ref().unwrap().skills, 14);
+        assert!(plugins[0].provides.as_ref().unwrap().hooks);
+        assert!(plugins[0].enabled);
+    }
+}
+
 #[tauri::command]
 pub async fn pick_directory() -> Result<Option<String>, String> {
     // rfd must run off the async runtime (main-thread dialog on macOS via spawn_blocking)

@@ -777,6 +777,73 @@ export async function inspectMcp(projectPath?: string | null) {
   });
 }
 
+// ── Plugins via `grok plugin …` ─────────────────────────────────────────────
+
+/** Component counts from `grok inspect` plugins[].provides — Grok Build shape. */
+export interface PluginProvidesDto {
+  skills: number;
+  agents: number;
+  hooks: boolean;
+  mcpServers: number;
+}
+
+export interface PluginDto {
+  name: string;
+  version?: string | null;
+  source?: string | null;
+  marketplace?: string | null;
+  path?: string | null;
+  /** Install status from `plugin list --json` (usually "installed"). */
+  status: string;
+  /** Load state from Grok Build config / enable|disable CLI. */
+  enabled: boolean;
+  repoKey?: string | null;
+  /** Grok Build scope: user / project / cli / marketplace name. */
+  scope?: string | null;
+  provides?: PluginProvidesDto | null;
+}
+
+export interface PluginsListResult {
+  plugins: PluginDto[];
+  error?: string;
+}
+
+export interface PluginActionResult {
+  ok: boolean;
+  name: string;
+  message?: string;
+}
+
+export interface PluginDetailsResult {
+  name: string;
+  details: string;
+}
+
+/** List installed plugins via `grok plugin list --json`. */
+export async function pluginsList() {
+  return invoke<PluginsListResult>("plugins_list");
+}
+
+/** Enable plugin (`grok plugin enable`) and soft-respawn agent. */
+export async function pluginEnable(name: string) {
+  return invoke<PluginActionResult>("plugin_enable", { name });
+}
+
+/** Disable plugin (`grok plugin disable`) and soft-respawn agent. */
+export async function pluginDisable(name: string) {
+  return invoke<PluginActionResult>("plugin_disable", { name });
+}
+
+/** Uninstall plugin (`grok plugin uninstall --confirm`) and soft-respawn agent. */
+export async function pluginUninstall(name: string) {
+  return invoke<PluginActionResult>("plugin_uninstall", { name });
+}
+
+/** Plugin component inventory text (`grok plugin details`). */
+export async function pluginDetails(name: string) {
+  return invoke<PluginDetailsResult>("plugin_details", { name });
+}
+
 // ── Official Grok Build account ─────────────────────────────────────────────
 
 export interface AccountProfile {
