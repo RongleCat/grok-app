@@ -1,0 +1,75 @@
+{
+  "_comment": "session/update wire samples for assistant + thought chunks. Host decoder: decode_session_update().",
+  "inbound": [
+    {
+      "jsonrpc": "2.0",
+      "method": "session/update",
+      "params": {
+        "sessionId": "agent-sess-1",
+        "update": {
+          "sessionUpdate": "agent_thought_chunk",
+          "content": { "type": "text", "text": "Thinking about the answer…" },
+          "messageId": "msg-thought-1"
+        }
+      }
+    },
+    {
+      "jsonrpc": "2.0",
+      "method": "session/update",
+      "params": {
+        "sessionId": "agent-sess-1",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": { "type": "text", "text": "Hello " },
+          "messageId": "msg-1"
+        }
+      }
+    },
+    {
+      "jsonrpc": "2.0",
+      "method": "session/update",
+      "params": {
+        "sessionId": "agent-sess-1",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": { "type": "text", "text": "world." },
+          "messageId": "msg-1"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "events": [
+      {
+        "kind": "thought",
+        "text": "Thinking about the answer…",
+        "messageId": "msg-thought-1",
+        "done": false
+      },
+      {
+        "kind": "assistant",
+        "text": "Hello ",
+        "messageId": "msg-1",
+        "done": false
+      },
+      {
+        "kind": "assistant",
+        "text": "world.",
+        "messageId": "msg-1",
+        "done": false
+      }
+    ],
+    "joinedAssistantText": "Hello world."
+  },
+  "promptComplete": {
+    "jsonrpc": "2.0",
+    "method": "_x.ai/session/prompt_complete",
+    "params": {
+      "sessionId": "agent-sess-1",
+      "stopReason": "end_turn"
+    }
+  },
+  "sessionPromptResult": {
+    "stopReason": "end_turn"
+  }
+}

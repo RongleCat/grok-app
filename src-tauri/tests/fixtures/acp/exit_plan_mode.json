@@ -1,0 +1,55 @@
+{
+  "_comment": "_x.ai/exit_plan_mode reverse-request + Host replies. Builder: wire_exit_plan_mode_result().",
+  "inbound": {
+    "jsonrpc": "2.0",
+    "id": 9,
+    "method": "_x.ai/exit_plan_mode",
+    "params": {
+      "sessionId": "agent-sess-1",
+      "toolCallId": "call-plan-1",
+      "planContent": "## Plan\n1. Touch fixtures\n2. Run cargo test\n"
+    }
+  },
+  "expect": {
+    "rpcId": 9,
+    "toolCallId": "call-plan-1",
+    "planContentStartsWith": "## Plan"
+  },
+  "hostReplyApproved": {
+    "jsonrpc": "2.0",
+    "id": 9,
+    "result": {
+      "outcome": "approved"
+    }
+  },
+  "hostReplyCancelledWithFeedback": {
+    "jsonrpc": "2.0",
+    "id": 9,
+    "result": {
+      "outcome": "cancelled",
+      "feedback": "Please add tests first"
+    }
+  },
+  "hostReplyAbandoned": {
+    "jsonrpc": "2.0",
+    "id": 9,
+    "result": {
+      "outcome": "abandoned"
+    }
+  },
+  "sessionUpdatePlan": {
+    "jsonrpc": "2.0",
+    "method": "session/update",
+    "params": {
+      "sessionId": "agent-sess-1",
+      "update": {
+        "sessionUpdate": "plan",
+        "entries": [
+          { "content": "Touch fixtures", "status": "pending" },
+          { "content": "Run cargo test", "status": "pending" }
+        ],
+        "planContent": "## Plan\n1. Touch fixtures\n2. Run cargo test\n"
+      }
+    }
+  }
+}

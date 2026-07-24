@@ -11,7 +11,7 @@
 | T03 | Host FSM + 事件契约一页纸 | 防双 SoT | S | P0 |
 | T04 | 错误文案 Deck zh/en | 可行动诊断 | S | P0 |
 | T05 | Permission scope_key 单测 | 默认安全可证明 | S | P0 |
-| T06 | ACP stub CI + golden fixtures | 协议回归 | M | P0 |
+| T06 | ACP stub CI + golden fixtures | 协议回归 | M | P0 ✅ (`tests/fixtures/acp` + `acp_golden_test`) |
 | T07 | redact 单测门禁 | 密钥泄漏 | S | P0 |
 | T08 | README 暖路径 + Gatekeeper/SmartScreen | 首跑 | S | P0 |
 

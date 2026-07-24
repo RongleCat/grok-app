@@ -1,0 +1,80 @@
+{
+  "_comment": "session/request_permission wire sample + Host optionId mapping (pick_option_id).",
+  "inbound": {
+    "jsonrpc": "2.0",
+    "id": 42,
+    "method": "session/request_permission",
+    "params": {
+      "sessionId": "agent-sess-1",
+      "toolCall": {
+        "toolCallId": "call-write-1",
+        "title": "Write SPIKE_PERM.txt",
+        "kind": "write",
+        "rawInput": {
+          "file_path": "/tmp/proj/SPIKE_PERM.txt",
+          "content": "PERM_OK\n"
+        }
+      },
+      "options": [
+        {
+          "optionId": "allow-once",
+          "name": "Allow once",
+          "kind": "allow_once"
+        },
+        {
+          "optionId": "allow-always",
+          "name": "Allow always for this session",
+          "kind": "allow_always"
+        },
+        {
+          "optionId": "reject-once",
+          "name": "Reject",
+          "kind": "reject_once"
+        }
+      ]
+    }
+  },
+  "expect": {
+    "rpcId": 42,
+    "toolCallId": "call-write-1",
+    "toolName": "write",
+    "title": "Write SPIKE_PERM.txt",
+    "optionMap": {
+      "allow_once": "allow-once",
+      "allow_always": "allow-always",
+      "reject_once": "reject-once"
+    }
+  },
+  "hostReplySelected": {
+    "jsonrpc": "2.0",
+    "id": 42,
+    "result": {
+      "outcome": {
+        "outcome": "selected",
+        "optionId": "allow-once"
+      }
+    }
+  },
+  "hostReplyCancelled": {
+    "jsonrpc": "2.0",
+    "id": 42,
+    "result": {
+      "outcome": {
+        "outcome": "cancelled"
+      }
+    }
+  },
+  "underscoreOptionIds": {
+    "_comment": "Grok Build shell prompts sometimes use underscore optionIds",
+    "options": [
+      { "optionId": "allow_once", "name": "Allow once", "kind": "allow_once" },
+      { "optionId": "allow_always", "name": "Allow always", "kind": "allow_always" },
+      { "optionId": "reject_once", "name": "Reject", "kind": "reject_once" }
+    ],
+    "expect": {
+      "allow_once": "allow_once",
+      "allow_always": "allow_always",
+      "reject_once": "reject_once"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "_comment": "Host → agent initialize request params + sample agent result. Locked by wire_initialize_params().",
+  "hostRequest": {
+    "jsonrpc": "2.0",
+    "method": "initialize",
+    "params": {
+      "protocolVersion": 1,
+      "clientInfo": {
+        "name": "grok-app",
+        "version": "0.1.0"
+      },
+      "capabilities": {}
+    }
+  },
+  "sampleAgentResult": {
+    "protocolVersion": 1,
+    "agentCapabilities": {
+      "loadSession": true
+    },
+    "authMethods": [
+      { "id": "cached_token", "name": "Cached token" },
+      { "id": "grok.com", "name": "grok.com OAuth" }
+    ],
+    "_meta": {
+      "agentVersion": "0.2.106"
+    }
+  },
+  "expect": {
+    "protocolVersion": 1,
+    "clientName": "grok-app",
+    "capabilitiesIsObject": true
+  }
+}

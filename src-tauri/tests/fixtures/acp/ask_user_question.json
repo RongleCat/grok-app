@@ -1,0 +1,50 @@
+{
+  "_comment": "_x.ai/ask_user_question reverse-request + Host replies. Parser: parse_ask_user_question_params().",
+  "inbound": {
+    "jsonrpc": "2.0",
+    "id": 7,
+    "method": "_x.ai/ask_user_question",
+    "params": {
+      "sessionId": "agent-sess-1",
+      "toolCallId": "call-ask-1",
+      "questions": [
+        {
+          "question": "Which store?",
+          "multiSelect": false,
+          "options": [
+            { "label": "SQLite", "description": "Local file" },
+            { "label": "Postgres", "description": "Server" }
+          ]
+        }
+      ]
+    }
+  },
+  "expect": {
+    "toolCallId": "call-ask-1",
+    "questions": [
+      {
+        "question": "Which store?",
+        "multiSelect": false,
+        "optionLabels": ["SQLite", "Postgres"]
+      }
+    ]
+  },
+  "hostReplyAccepted": {
+    "jsonrpc": "2.0",
+    "id": 7,
+    "result": {
+      "outcome": "accepted",
+      "answers": {
+        "Which store?": "SQLite"
+      },
+      "partial_answers": {}
+    }
+  },
+  "hostReplyCancelled": {
+    "jsonrpc": "2.0",
+    "id": 7,
+    "result": {
+      "outcome": "cancelled"
+    }
+  }
+}

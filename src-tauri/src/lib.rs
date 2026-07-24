@@ -26,6 +26,8 @@ mod session_title;
 mod permission_host_test;
 #[cfg(test)]
 mod integration_test;
+#[cfg(test)]
+mod acp_golden_test;
 mod session_fsm;
 mod session_manager;
 mod store;

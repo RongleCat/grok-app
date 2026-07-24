@@ -1,0 +1,20 @@
+{
+  "_comment": "Host stop → session/cancel notification params. Locked by wire_session_cancel_params().",
+  "hostNotification": {
+    "jsonrpc": "2.0",
+    "method": "session/cancel",
+    "params": {
+      "sessionId": "agent-sess-stop-1"
+    }
+  },
+  "expect": {
+    "method": "session/cancel",
+    "sessionId": "agent-sess-stop-1"
+  },
+  "mockStopDoneChunk": {
+    "sessionId": "s-stop",
+    "messageId": "m-stop",
+    "text": "",
+    "done": true
+  }
+}

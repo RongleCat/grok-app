@@ -73,3 +73,33 @@ Agent reverse-request when the `ask_user_question` tool needs answers. Wire meth
 - Tool write: `.spike-proj/SPIKE_PERM*.txt`.
 - Host permission unit/integration: `cargo test permission` / `permission_host_test`.
 - Host ask_user parse unit tests: `cargo test ask_user_question`.
+
+## Golden fixtures (T06 · required for ACP changes)
+
+Protocol regression samples live under:
+
+```text
+src-tauri/tests/fixtures/acp/
+```
+
+| Fixture | Asserts |
+|---------|---------|
+| `handshake_initialize.json` | Host `initialize` params (`wire_initialize_params`) |
+| `stream_chunks.json` | `session/update` thought + assistant → `decode_session_update` |
+| `stop_cancel.json` | `session/cancel` params + mock mid-stream stop done chunk |
+| `permission_request.json` | `decode_permission_request` + `pick_option_id` + reply envelopes |
+| `ask_user_question.json` | `parse_ask_user_question_params` + Host replies |
+| `exit_plan_mode.json` | plan update decode + `wire_exit_plan_mode_result` |
+| `mock_stream.json` | `mock_acp` deterministic chunks for prompt `hi` |
+
+**CI:** `.github/workflows/ci.yml` `cargo test` runs the suite on every PR (macOS / Windows / Linux). Any ACP wire or mock change **must** keep `cargo test --lib acp_golden` green.
+
+**Regenerate** when the protocol or mock reply drifts — see  
+[`src-tauri/tests/fixtures/acp/README.md`](../src-tauri/tests/fixtures/acp/README.md):
+
+```bash
+cd src-tauri
+cargo test --lib acp_golden
+# mock chunks only:
+cargo test --lib acp_golden::print_mock_stream_chunks -- --ignored --nocapture
+```

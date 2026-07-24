@@ -514,33 +514,9 @@ impl AcpClient {
             if method == "session/request_permission" {
                 let rpc_id = req_id.unwrap_or(0);
                 let params = msg.get("params").cloned().unwrap_or(Value::Null);
-                let tool_call = params.get("toolCall").cloned().unwrap_or(Value::Null);
-                let tool_call_id = tool_call
-                    .get("toolCallId")
-                    .or_else(|| tool_call.get("tool_call_id"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let title = tool_call
-                    .get("title")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("Tool permission")
-                    .to_string();
-                let tool_name = tool_call
-                    .get("kind")
-                    .or_else(|| tool_call.get("name"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("tool")
-                    .to_string();
-                let options = params.get("options").cloned().unwrap_or(json!([]));
-                let _ = self.event_tx.send(AcpEvent::PermissionRequest {
-                    rpc_id,
-                    tool_call_id,
-                    tool_name,
-                    title,
-                    options,
-                    raw: params,
-                });
+                let _ = self
+                    .event_tx
+                    .send(decode_permission_request(rpc_id, &params));
                 return;
             }
 
@@ -681,213 +657,41 @@ impl AcpClient {
     }
 
     fn handle_session_update(&self, params: &Value) {
-        let update = params.get("update").unwrap_or(params);
-        let kind = update
-            .get("sessionUpdate")
-            .or_else(|| update.get("session_update"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-
-        match kind {
-            "agent_message_chunk" => {
-                let text = update
-                    .pointer("/content/text")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let message_id = update
-                    .get("messageId")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let _ = self.event_tx.send(AcpEvent::Stream {
-                    kind: StreamKind::Assistant,
-                    text,
-                    message_id,
-                    done: false,
-                });
-            }
-            // Grok/Gemini emit agent_thought_chunk; some paths also use "thought".
-            "agent_thought_chunk" | "thought" => {
-                let text = update
-                    .pointer("/content/text")
-                    .and_then(|v| v.as_str())
-                    .or_else(|| update.get("text").and_then(|v| v.as_str()))
-                    .unwrap_or("")
-                    .to_string();
-                // Prefer explicit messageId (minos-style); host fills from turn if missing.
-                let message_id = update
-                    .get("messageId")
-                    .or_else(|| update.get("message_id"))
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                if text.is_empty() {
-                    return;
-                }
-                let _ = self.event_tx.send(AcpEvent::Stream {
-                    kind: StreamKind::Thought,
-                    text,
-                    message_id,
-                    done: false,
-                });
-            }
-            "plan" => {
-                let entries = update.get("entries").cloned().unwrap_or(json!([]));
-                let body = update
-                    .get("planContent")
-                    .or_else(|| update.get("plan_content"))
-                    .or_else(|| update.get("content"))
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let _ = self.event_tx.send(AcpEvent::Plan {
-                    entries,
-                    body,
-                    rpc_id: None,
-                    tool_call_id: None,
-                });
-            }
-            "tool_call" | "tool_call_update" => {
-                let tool_call_id = update
-                    .get("toolCallId")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let title = update
-                    .get("title")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let k = update
-                    .get("kind")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let status = update
-                    .get("status")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                // compact_conversation / similar tools
-                let title_l = title.to_ascii_lowercase();
-                let kind_l = k.to_ascii_lowercase();
-                if status == "completed"
-                    && (title_l.contains("compact")
-                        || kind_l.contains("compact")
-                        || tool_call_id.to_ascii_lowercase().contains("compact"))
-                {
-                    let _ = self.event_tx.send(AcpEvent::ContextCompact {
-                        trigger: "manual".into(),
-                        tokens_before: None,
-                        tokens_after: None,
-                        summary_preview: None,
-                        note: Some(title.clone()),
-                    });
-                }
-                let _ = self.event_tx.send(AcpEvent::ToolCall {
-                    tool_call_id,
-                    title,
-                    kind: k,
-                    status,
-                    raw: update.clone(),
-                });
-            }
-            "retry_state" => {
-                let attempt = update
-                    .get("attempt")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u32;
-                let max_retries = update
-                    .get("max_retries")
-                    .or_else(|| update.get("maxRetries"))
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(HOST_PROVIDER_MAX_RETRIES as u64)
-                    as u32;
-                let reason = update
-                    .get("reason")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let status = update
-                    .get("type")
-                    .or_else(|| update.get("status"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("retrying")
-                    .to_string();
+        let events = decode_session_update(params);
+        if events.is_empty() {
+            let update = params.get("update").unwrap_or(params);
+            let kind = update
+                .get("sessionUpdate")
+                .or_else(|| update.get("session_update"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            debug!("acp session/update ignored kind={kind}");
+        }
+        for ev in events {
+            if let AcpEvent::RetryState {
+                attempt,
+                max_retries,
+                reason,
+                status,
+            } = &ev
+            {
                 info!(
                     "acp retry_state attempt={attempt}/{max_retries} status={status} reason={}",
                     reason.chars().take(160).collect::<String>()
                 );
-                let _ = self.event_tx.send(AcpEvent::RetryState {
-                    attempt,
-                    max_retries,
-                    reason,
-                    status,
-                });
             }
-            // Grok auto/manual context compaction
-            "tokens_used"
-            | "compaction"
-            | "compaction_completed"
-            | "context_compact"
-            | "auto_compact"
-            | "compaction_checkpoint" => {
-                if let Some((trigger, before, after, summary, note)) =
-                    parse_context_compact_update(kind, update)
-                {
-                    info!(
-                        "acp context compact trigger={trigger} before={before:?} after={after:?}"
-                    );
-                    let _ = self.event_tx.send(AcpEvent::ContextCompact {
-                        trigger,
-                        tokens_before: before,
-                        tokens_after: after,
-                        summary_preview: summary,
-                        note,
-                    });
-                }
+            if let AcpEvent::ContextCompact {
+                trigger,
+                tokens_before,
+                tokens_after,
+                ..
+            } = &ev
+            {
+                info!(
+                    "acp context compact trigger={trigger} before={tokens_before:?} after={tokens_after:?}"
+                );
             }
-            _ => {
-                if update.get("tokens_before").is_some()
-                    || update.get("tokensBefore").is_some()
-                    || update.get("tokens_after").is_some()
-                    || update.get("tokensAfter").is_some()
-                {
-                    if let Some((trigger, before, after, summary, note)) =
-                        parse_context_compact_update(kind, update)
-                    {
-                        let _ = self.event_tx.send(AcpEvent::ContextCompact {
-                            trigger,
-                            tokens_before: before,
-                            tokens_after: after,
-                            summary_preview: summary,
-                            note,
-                        });
-                        return;
-                    }
-                }
-                let title = update
-                    .get("title")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_ascii_lowercase();
-                if title.contains("compact") {
-                    let _ = self.event_tx.send(AcpEvent::ContextCompact {
-                        trigger: if title.contains("auto") {
-                            "auto".into()
-                        } else {
-                            "manual".into()
-                        },
-                        tokens_before: None,
-                        tokens_after: None,
-                        summary_preview: None,
-                        note: update
-                            .get("title")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string()),
-                    });
-                    return;
-                }
-                debug!("acp session/update ignored kind={kind}");
-            }
+            let _ = self.event_tx.send(ev);
         }
     }
 
@@ -1076,11 +880,7 @@ impl AcpClient {
         let init = self
             .request_timeout(
                 "initialize",
-                json!({
-                    "protocolVersion": 1,
-                    "clientInfo": { "name": "grok-app", "version": "0.1.0" },
-                    "capabilities": {}
-                }),
+                wire_initialize_params(),
                 HANDSHAKE_TIMEOUT_SECS,
             )
             .await
@@ -1319,11 +1119,7 @@ impl AcpClient {
         self.stopped.store(false, Ordering::SeqCst);
 
         // Fire and wait for completion in background via request future
-        let text = text.to_string();
-        let this_params = json!({
-            "sessionId": sid,
-            "prompt": [{ "type": "text", "text": text }]
-        });
+        let this_params = wire_session_prompt_params(&sid, text);
 
         let result = self
             .request_timeout("session/prompt", this_params, PROMPT_TIMEOUT_SECS)
@@ -1356,7 +1152,7 @@ impl AcpClient {
             .clone()
             .ok_or_else(|| "no session".to_string())?;
         self.stopped.store(true, Ordering::SeqCst);
-        self.notify("session/cancel", json!({ "sessionId": sid }))
+        self.notify("session/cancel", wire_session_cancel_params(&sid))
             .await
     }
 
@@ -1423,22 +1219,7 @@ impl AcpClient {
         rpc_id: u64,
         outcome: PermissionOutcome,
     ) -> Result<(), String> {
-        let result = match outcome {
-            PermissionOutcome::Selected { option_id } => json!({
-                "outcome": {
-                    "outcome": "selected",
-                    "optionId": option_id
-                }
-            }),
-            PermissionOutcome::Cancelled => json!({
-                "outcome": { "outcome": "cancelled" }
-            }),
-        };
-        let msg = json!({
-            "jsonrpc": "2.0",
-            "id": rpc_id,
-            "result": result,
-        });
+        let msg = wire_jsonrpc_result(rpc_id, wire_permission_result(&outcome));
         self.write_line(&msg).await
     }
 
@@ -1450,27 +1231,14 @@ impl AcpClient {
         outcome: &str,
         feedback: Option<String>,
     ) -> Result<(), String> {
-        let outcome = match outcome {
-            "approved" | "cancelled" | "abandoned" => outcome,
-            "approve" | "yes" | "accept" => "approved",
-            "abandon" | "quit" => "abandoned",
-            _ => "cancelled",
-        };
-        let mut result = json!({ "outcome": outcome });
-        if outcome == "cancelled" {
-            if let Some(fb) = feedback.filter(|s| !s.trim().is_empty()) {
-                result
-                    .as_object_mut()
-                    .unwrap()
-                    .insert("feedback".into(), Value::String(fb));
-            }
-        }
-        let msg = json!({
-            "jsonrpc": "2.0",
-            "id": rpc_id,
-            "result": result,
-        });
-        info!("acp → exit_plan_mode reply id={rpc_id} outcome={outcome}");
+        let result = wire_exit_plan_mode_result(outcome, feedback);
+        let outcome_s = result
+            .get("outcome")
+            .and_then(|v| v.as_str())
+            .unwrap_or("cancelled")
+            .to_string();
+        let msg = wire_jsonrpc_result(rpc_id, result);
+        info!("acp → exit_plan_mode reply id={rpc_id} outcome={outcome_s}");
         self.write_line(&msg).await
     }
 
@@ -1484,21 +1252,8 @@ impl AcpClient {
         rpc_id: u64,
         outcome: AskUserOutcome,
     ) -> Result<(), String> {
-        let result = match outcome {
-            AskUserOutcome::Accepted { answers } => {
-                json!({
-                    "outcome": "accepted",
-                    "answers": answers,
-                    "partial_answers": {},
-                })
-            }
-            AskUserOutcome::Cancelled => json!({ "outcome": "cancelled" }),
-        };
-        let msg = json!({
-            "jsonrpc": "2.0",
-            "id": rpc_id,
-            "result": result,
-        });
+        let result = wire_ask_user_result(&outcome);
+        let msg = wire_jsonrpc_result(rpc_id, result.clone());
         info!(
             "acp → ask_user_question reply id={rpc_id} outcome={}",
             if matches!(result.get("outcome").and_then(|v| v.as_str()), Some("accepted")) {
@@ -1534,6 +1289,318 @@ pub enum AskUserOutcome {
     /// Map of question text → selected label(s) and/or free-text answer.
     Accepted { answers: Value },
     Cancelled,
+}
+
+// ── Wire builders / pure decoders (locked by tests/fixtures/acp/) ────────────
+
+/// Host → agent `initialize` params. Golden: `handshake_initialize.json`.
+pub fn wire_initialize_params() -> Value {
+    json!({
+        "protocolVersion": 1,
+        "clientInfo": { "name": "grok-app", "version": "0.1.0" },
+        "capabilities": {}
+    })
+}
+
+/// Host → agent `session/prompt` params.
+pub fn wire_session_prompt_params(session_id: &str, text: &str) -> Value {
+    json!({
+        "sessionId": session_id,
+        "prompt": [{ "type": "text", "text": text }]
+    })
+}
+
+/// Host → agent `session/cancel` notification params.
+pub fn wire_session_cancel_params(session_id: &str) -> Value {
+    json!({ "sessionId": session_id })
+}
+
+/// Permission RPC result body (inside JSON-RPC `result`).
+pub fn wire_permission_result(outcome: &PermissionOutcome) -> Value {
+    match outcome {
+        PermissionOutcome::Selected { option_id } => json!({
+            "outcome": {
+                "outcome": "selected",
+                "optionId": option_id
+            }
+        }),
+        PermissionOutcome::Cancelled => json!({
+            "outcome": { "outcome": "cancelled" }
+        }),
+    }
+}
+
+/// Normalize + build `_x.ai/exit_plan_mode` reply body.
+pub fn wire_exit_plan_mode_result(outcome: &str, feedback: Option<String>) -> Value {
+    let outcome = match outcome {
+        "approved" | "cancelled" | "abandoned" => outcome,
+        "approve" | "yes" | "accept" => "approved",
+        "abandon" | "quit" => "abandoned",
+        _ => "cancelled",
+    };
+    let mut result = json!({ "outcome": outcome });
+    if outcome == "cancelled" {
+        if let Some(fb) = feedback.filter(|s| !s.trim().is_empty()) {
+            result
+                .as_object_mut()
+                .unwrap()
+                .insert("feedback".into(), Value::String(fb));
+        }
+    }
+    result
+}
+
+/// `_x.ai/ask_user_question` reply body.
+pub fn wire_ask_user_result(outcome: &AskUserOutcome) -> Value {
+    match outcome {
+        AskUserOutcome::Accepted { answers } => json!({
+            "outcome": "accepted",
+            "answers": answers,
+            "partial_answers": {},
+        }),
+        AskUserOutcome::Cancelled => json!({ "outcome": "cancelled" }),
+    }
+}
+
+/// Full JSON-RPC success envelope for a server→client request reply.
+pub fn wire_jsonrpc_result(rpc_id: u64, result: Value) -> Value {
+    json!({
+        "jsonrpc": "2.0",
+        "id": rpc_id,
+        "result": result,
+    })
+}
+
+/// Decode `session/request_permission` params into a host event.
+pub fn decode_permission_request(rpc_id: u64, params: &Value) -> AcpEvent {
+    let tool_call = params.get("toolCall").cloned().unwrap_or(Value::Null);
+    let tool_call_id = tool_call
+        .get("toolCallId")
+        .or_else(|| tool_call.get("tool_call_id"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let title = tool_call
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Tool permission")
+        .to_string();
+    let tool_name = tool_call
+        .get("kind")
+        .or_else(|| tool_call.get("name"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("tool")
+        .to_string();
+    let options = params.get("options").cloned().unwrap_or(json!([]));
+    AcpEvent::PermissionRequest {
+        rpc_id,
+        tool_call_id,
+        tool_name,
+        title,
+        options,
+        raw: params.clone(),
+    }
+}
+
+/// Pure decode of `session/update` params → host events (no I/O).
+/// Used by the live client and golden fixture tests.
+pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
+    let update = params.get("update").unwrap_or(params);
+    let kind = update
+        .get("sessionUpdate")
+        .or_else(|| update.get("session_update"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    let mut out = Vec::new();
+    match kind {
+        "agent_message_chunk" => {
+            let text = update
+                .pointer("/content/text")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let message_id = update
+                .get("messageId")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            out.push(AcpEvent::Stream {
+                kind: StreamKind::Assistant,
+                text,
+                message_id,
+                done: false,
+            });
+        }
+        // Grok/Gemini emit agent_thought_chunk; some paths also use "thought".
+        "agent_thought_chunk" | "thought" => {
+            let text = update
+                .pointer("/content/text")
+                .and_then(|v| v.as_str())
+                .or_else(|| update.get("text").and_then(|v| v.as_str()))
+                .unwrap_or("")
+                .to_string();
+            let message_id = update
+                .get("messageId")
+                .or_else(|| update.get("message_id"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            if !text.is_empty() {
+                out.push(AcpEvent::Stream {
+                    kind: StreamKind::Thought,
+                    text,
+                    message_id,
+                    done: false,
+                });
+            }
+        }
+        "plan" => {
+            let entries = update.get("entries").cloned().unwrap_or(json!([]));
+            let body = update
+                .get("planContent")
+                .or_else(|| update.get("plan_content"))
+                .or_else(|| update.get("content"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            out.push(AcpEvent::Plan {
+                entries,
+                body,
+                rpc_id: None,
+                tool_call_id: None,
+            });
+        }
+        "tool_call" | "tool_call_update" => {
+            let tool_call_id = update
+                .get("toolCallId")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let title = update
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let k = update
+                .get("kind")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let status = update
+                .get("status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let title_l = title.to_ascii_lowercase();
+            let kind_l = k.to_ascii_lowercase();
+            if status == "completed"
+                && (title_l.contains("compact")
+                    || kind_l.contains("compact")
+                    || tool_call_id.to_ascii_lowercase().contains("compact"))
+            {
+                out.push(AcpEvent::ContextCompact {
+                    trigger: "manual".into(),
+                    tokens_before: None,
+                    tokens_after: None,
+                    summary_preview: None,
+                    note: Some(title.clone()),
+                });
+            }
+            out.push(AcpEvent::ToolCall {
+                tool_call_id,
+                title,
+                kind: k,
+                status,
+                raw: update.clone(),
+            });
+        }
+        "retry_state" => {
+            let attempt = update
+                .get("attempt")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32;
+            let max_retries = update
+                .get("max_retries")
+                .or_else(|| update.get("maxRetries"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(HOST_PROVIDER_MAX_RETRIES as u64) as u32;
+            let reason = update
+                .get("reason")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let status = update
+                .get("type")
+                .or_else(|| update.get("status"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("retrying")
+                .to_string();
+            out.push(AcpEvent::RetryState {
+                attempt,
+                max_retries,
+                reason,
+                status,
+            });
+        }
+        "tokens_used"
+        | "compaction"
+        | "compaction_completed"
+        | "context_compact"
+        | "auto_compact"
+        | "compaction_checkpoint" => {
+            if let Some((trigger, before, after, summary, note)) =
+                parse_context_compact_update(kind, update)
+            {
+                out.push(AcpEvent::ContextCompact {
+                    trigger,
+                    tokens_before: before,
+                    tokens_after: after,
+                    summary_preview: summary,
+                    note,
+                });
+            }
+        }
+        _ => {
+            if update.get("tokens_before").is_some()
+                || update.get("tokensBefore").is_some()
+                || update.get("tokens_after").is_some()
+                || update.get("tokensAfter").is_some()
+            {
+                if let Some((trigger, before, after, summary, note)) =
+                    parse_context_compact_update(kind, update)
+                {
+                    out.push(AcpEvent::ContextCompact {
+                        trigger,
+                        tokens_before: before,
+                        tokens_after: after,
+                        summary_preview: summary,
+                        note,
+                    });
+                    return out;
+                }
+            }
+            let title = update
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            if title.contains("compact") {
+                out.push(AcpEvent::ContextCompact {
+                    trigger: if title.contains("auto") {
+                        "auto".into()
+                    } else {
+                        "manual".into()
+                    },
+                    tokens_before: None,
+                    tokens_after: None,
+                    summary_preview: None,
+                    note: update
+                        .get("title")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                });
+            }
+        }
+    }
+    out
 }
 
 /// One choice inside an ask-user question.
