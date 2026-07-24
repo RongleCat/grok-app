@@ -510,6 +510,8 @@ export const zhTW: Record<MessageKey, string> = {
     "若一輪對話在該時間內無任何串流片段或工具活動，將提示「取消本輪 / 繼續等待」（預設 120）。仍有工具事件的長任務不會誤判為停滯。",
   "agent.idleRecycledToast":
     "Agent 行程因閒置已回收 — 工作階段仍在；下次傳送將重新連線。",
+  "agent.dataModeRecycledToast":
+    "資料模式切換後已重啟 Agent — 下次傳送將在新目錄下重連。",
   "agent.processLimitToast":
     "已達 Agent 行程上限。請先停止其他工作階段，或在設定 → 執行環境中提高上限。",
   "agent.streamStallBanner":

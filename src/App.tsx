@@ -1352,6 +1352,22 @@ export default function App() {
           ),
         );
         await track(
+          api.listen<{ reason?: string; killed?: number }>(
+            "session://agents_recycled",
+            (p) => {
+              if (cancelled || !p) return;
+              // session_data_mode flip (and any future full recycle).
+              if (
+                p.reason === "session_data_mode" ||
+                (p.killed != null && p.killed > 0)
+              ) {
+                setToast(tr("agent.dataModeRecycledToast"));
+                window.setTimeout(() => setToast(null), 4800);
+              }
+            },
+          ),
+        );
+        await track(
           api.listen<{
             sessionId?: string;
             stopReason?: string;

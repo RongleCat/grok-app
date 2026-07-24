@@ -597,6 +597,8 @@ pub async fn settings_set(
     let prev = store::load_settings();
     let keychain_flip =
         prev.store_api_keys_in_keychain != settings.store_api_keys_in_keychain;
+    let session_data_mode_changed =
+        prev.session_data_mode != settings.session_data_mode;
 
     store::save_settings(&settings)?;
 
@@ -610,6 +612,12 @@ pub async fn settings_set(
             let _ = store::save_settings(&rolled);
             return Err(e);
         }
+    }
+
+    // independent↔shared changes GROK_HOME — kill live/background/parked agents
+    // so the next connect spawns under the new data root (E04).
+    if session_data_mode_changed {
+        mgr.recycle_all_agents(&app, "session_data_mode").await;
     }
 
     // Full permission apply: Host + agent-home + soft-respawn if needed
@@ -967,6 +975,12 @@ pub async fn provider_ping() -> Result<serde_json::Value, String> {
     }
 }
 
+/// Mark onboarding complete after a config import. Never flips `session_data_mode`
+/// (E05: import ≠ shared — user must switch mode explicitly).
+fn apply_import_onboarding_done(settings: &mut AppSettings) {
+    settings.onboarding_done = true;
+}
+
 #[tauri::command]
 pub async fn import_grok_cli_config() -> Result<serde_json::Value, String> {
     let home = crate::process_util::user_home();
@@ -982,7 +996,7 @@ pub async fn import_grok_cli_config() -> Result<serde_json::Value, String> {
         msg.push("Found ~/.grok/config.toml".to_string());
     }
     let mut settings = store::load_settings();
-    settings.onboarding_done = true;
+    apply_import_onboarding_done(&mut settings);
     store::save_settings(&settings)?;
     Ok(serde_json::json!({
         "ok": auth.is_file(),
@@ -1030,7 +1044,7 @@ pub async fn import_grok_go_config() -> Result<serde_json::Value, String> {
             }
             store::save_secrets(&secrets)?;
             let mut settings = store::load_settings();
-            settings.onboarding_done = true;
+            apply_import_onboarding_done(&mut settings);
             store::save_settings(&settings)?;
             return Ok(serde_json::json!({
                 "ok": true,
@@ -1040,6 +1054,27 @@ pub async fn import_grok_go_config() -> Result<serde_json::Value, String> {
         }
     }
     Err("grok-go config not found in known locations".into())
+}
+
+#[cfg(test)]
+mod import_settings_tests {
+    use super::*;
+
+    #[test]
+    fn import_onboarding_does_not_force_shared_mode() {
+        // E05: import_grok_* must not flip session_data_mode to shared.
+        let mut s = AppSettings::default();
+        assert_eq!(s.session_data_mode, "independent");
+        s.onboarding_done = false;
+        apply_import_onboarding_done(&mut s);
+        assert!(s.onboarding_done);
+        assert_eq!(s.session_data_mode, "independent");
+
+        // If user already chose shared, import still leaves it alone.
+        s.session_data_mode = "shared".into();
+        apply_import_onboarding_done(&mut s);
+        assert_eq!(s.session_data_mode, "shared");
+    }
 }
 
 /// Structured Doctor check row (UI consumes `checks`; `raw` is for copy/export).

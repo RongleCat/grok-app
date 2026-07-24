@@ -11,6 +11,10 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Session data mode switch**: flipping independent↔shared recycles live, background, and parked agents so none keep the old `GROK_HOME`; toast when agents restart. Import still never forces shared mode (E04/E05).
+
 ## [0.1.6] - 2026-07-24
 
 > **Highlight:** early-turn fix (#52), multi-session stream, shared-mode CLI import, store write locks.

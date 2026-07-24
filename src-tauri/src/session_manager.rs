@@ -3230,6 +3230,124 @@ impl SessionManager {
         }
     }
 
+    /// Counts of tracked live shell / background / parked entries (alive or not).
+    /// Used by diagnostics and unit tests — not the same as `active_process_count`.
+    pub fn tracked_agent_map_counts(&self) -> (usize, usize, usize) {
+        let live = self.inner.lock().is_some() as usize;
+        let background = self.background.lock().len();
+        let parked = self.parked.lock().len();
+        (live, background, parked)
+    }
+
+    /// Drop every warm agent process (live + background + parked).
+    ///
+    /// Used when `session_data_mode` flips independent↔shared so no process keeps
+    /// the previous `GROK_HOME`. App session meta + journals stay; live shell is
+    /// soft-disconnected and its `agent_session_id` is cleared (old agent dirs are
+    /// under a different data root — reconnect should `session/new` + bootstrap).
+    /// Emits `session://agents_recycled` for UI toasts.
+    pub async fn recycle_all_agents(&self, app: &AppHandle, reason: &str) {
+        let drained = self.drain_all_agent_slots();
+        let total = drained.acps.len();
+        for acp in drained.acps {
+            acp.kill().await;
+        }
+        tracing::info!(
+            "recycle_all_agents reason={reason} killed={total} (live_shell={} bg={} parked={})",
+            drained.had_live_shell as u8,
+            drained.background_count,
+            drained.parked_count
+        );
+        let _ = app.emit(
+            "session://agents_recycled",
+            serde_json::json!({
+                "reason": reason,
+                "killed": total,
+                "background": drained.background_count,
+                "parked": drained.parked_count,
+            }),
+        );
+        Self::emit_state(app, &self.snapshot());
+    }
+
+    /// Take live ACP + all background/parked agents out of maps (no kill).
+    /// Live shell stays (soft-disconnected, agent_session_id cleared when present).
+    /// Background/parked maps are emptied.
+    fn drain_all_agent_slots(&self) -> DrainedAgents {
+        let mut acps: Vec<Arc<AcpClient>> = Vec::new();
+        let mut had_live_shell = false;
+
+        // Live
+        {
+            let mut guard = self.inner.lock();
+            if let Some(s) = guard.as_mut() {
+                had_live_shell = true;
+                if let Some(h) = s.mock_stream.take() {
+                    h.request_stop();
+                }
+                // Persist any in-flight assistant text before we drop the process.
+                Self::maybe_flush_stream_journal(s, true, false);
+                s.stream_buf.clear();
+                s.stream_thought.clear();
+                s.stream_last_was_assistant = false;
+                s.stream_attachments.clear();
+                s.journal_throttle.reset();
+                s.streaming_message_id = None;
+                s.open_tool_ids.clear();
+                s.deferred_prompt_complete = None;
+                s.tools_this_turn = 0;
+                s.pending_plan_rpc_id = None;
+                s.pending_ask_user_rpc_id = None;
+                s.provider_retry_attempt = 0;
+                s.provider_retry_aborted = false;
+                if let Some(acp) = s.acp.take() {
+                    acps.push(acp);
+                }
+                s.fsm.soft_disconnect();
+                s.process_id = String::new();
+                // Old agent session lives under previous GROK_HOME — do not resume.
+                if s.meta.agent_session_id.take().is_some() {
+                    let _ = store::update_session_meta(&s.meta);
+                }
+                // Connect will set bootstrap from journal when session/new runs.
+                s.needs_history_bootstrap = false;
+            }
+        }
+
+        // Background busy streams
+        let background: HashMap<String, LiveSession> = {
+            let mut bg = self.background.lock();
+            std::mem::take(&mut *bg)
+        };
+        let background_count = background.len();
+        for (_, mut s) in background {
+            if let Some(h) = s.mock_stream.take() {
+                h.request_stop();
+            }
+            Self::maybe_flush_stream_journal(&mut s, true, false);
+            if let Some(acp) = s.acp.take() {
+                acps.push(acp);
+            }
+        }
+
+        // Parked warm agents
+        let parked: HashMap<String, ParkedAgent> = {
+            let mut p = self.parked.lock();
+            std::mem::take(&mut *p)
+        };
+        let parked_count = parked.len();
+        for (_, p) in parked {
+            acps.push(p.acp);
+        }
+
+        DrainedAgents {
+            acps,
+            had_live_shell,
+            background_count,
+            parked_count,
+        }
+    }
+
     /// Apply permission: Host policy + agent-home config + respawn when process flags change.
     pub async fn apply_permission_policy(
         &self,
@@ -3537,5 +3655,39 @@ impl SessionManager {
             }
         };
         self.connect(app, project, sid, None).await
+    }
+}
+
+/// Result of taking agent processes out of live / background / parked maps.
+struct DrainedAgents {
+    acps: Vec<Arc<AcpClient>>,
+    had_live_shell: bool,
+    background_count: usize,
+    parked_count: usize,
+}
+
+#[cfg(test)]
+mod recycle_tests {
+    use super::*;
+
+    #[test]
+    fn drain_all_agent_slots_clears_empty_maps() {
+        let mgr = SessionManager::new();
+        assert_eq!(mgr.tracked_agent_map_counts(), (0, 0, 0));
+        assert_eq!(mgr.active_process_count(), 0);
+
+        let drained = mgr.drain_all_agent_slots();
+        assert!(drained.acps.is_empty());
+        assert!(!drained.had_live_shell);
+        assert_eq!(drained.background_count, 0);
+        assert_eq!(drained.parked_count, 0);
+
+        // Maps stay empty; safe to call again (idempotent).
+        assert_eq!(mgr.tracked_agent_map_counts(), (0, 0, 0));
+        assert_eq!(mgr.active_process_count(), 0);
+        let again = mgr.drain_all_agent_slots();
+        assert!(again.acps.is_empty());
+        assert_eq!(again.background_count, 0);
+        assert_eq!(again.parked_count, 0);
     }
 }

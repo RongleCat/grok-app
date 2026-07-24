@@ -35,6 +35,10 @@ This covers load failure, wiped agent dirs, or agent version mismatches.
 
 Permission / mode soft-respawn **keeps** `agentSessionId` so the next connect prefers `session/load`. Bootstrap runs only if load fails.
 
+### 3b. Session data mode switch (E04)
+
+When Settings flips `session_data_mode` independent↔shared, Host calls `recycle_all_agents` on live + background + parked processes (same kill/soft-disconnect paths as idle recycle). Live `agentSessionId` is cleared so reconnect does not `session/load` against the previous `GROK_HOME`. Journals stay. Emits `session://agents_recycled` for a short toast.
+
 ### 4. Process limits & idle recycle (I01–I03)
 
 | Setting | Default | Behavior |

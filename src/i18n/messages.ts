@@ -537,6 +537,8 @@ const en = {
     "If a turn has no stream chunks or tool activity for this long, show a Cancel / Keep waiting prompt (default 120). Long-running tools that still emit events do not count as stalled.",
   "agent.idleRecycledToast":
     "Agent process recycled after idle — session kept; next message will reconnect.",
+  "agent.dataModeRecycledToast":
+    "Agents restarted after data mode change — next message reconnects under the new home.",
   "agent.processLimitToast":
     "Agent process limit reached. Stop another session or raise the limit in Settings → Runtime.",
   "agent.streamStallBanner":
@@ -1640,6 +1642,8 @@ const zh: Record<MessageKey, string> = {
     "若一轮对话在该时间内无任何流式片段或工具活动，将提示「取消本轮 / 继续等待」（默认 120）。仍有工具事件的长任务不会误判为卡顿。",
   "agent.idleRecycledToast":
     "Agent 进程因闲置已回收 — 会话仍在；下次发送将重新连接。",
+  "agent.dataModeRecycledToast":
+    "数据模式切换后已重启 Agent — 下次发送将在新目录下重连。",
   "agent.processLimitToast":
     "已达 Agent 进程上限。请先停止其他会话，或在设置 → 运行环境中提高上限。",
   "agent.streamStallBanner":
