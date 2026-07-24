@@ -270,6 +270,30 @@ pub async fn project_trust(id: String) -> Result<Project, String> {
     store::trust_project(&id)
 }
 
+/// Set or clear the project-level permission tier (L10).
+/// `policy = null` / empty / `"inherit"` → fall back to app default.
+/// When this project is the live Host context, sync agent policy immediately.
+#[tauri::command]
+pub async fn project_set_permission_policy(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    id: String,
+    policy: Option<String>,
+) -> Result<Project, String> {
+    let p = store::set_project_permission_policy(&id, policy)?;
+    let (live_proj, live_sess) = mgr.current_context_ids();
+    if live_proj.as_deref() == Some(id.as_str()) {
+        let prefs = store::resolve_composer_prefs(Some(&id), live_sess.as_deref());
+        if let Err(e) = mgr
+            .apply_permission_policy(&app, &prefs.permission_policy)
+            .await
+        {
+            tracing::warn!("project_set_permission_policy apply live: {e}");
+        }
+    }
+    Ok(p)
+}
+
 #[tauri::command]
 pub async fn project_rename(id: String, name: String) -> Result<Project, String> {
     store::rename_project(&id, &name)

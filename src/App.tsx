@@ -75,6 +75,7 @@ import {
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
   GROK_BUILD_MODELS,
+  PERMISSION_POLICIES,
   isValidEffort,
   isValidModelId,
   isValidPolicy,
@@ -183,6 +184,8 @@ import {
   IconExternalLink,
   IconFork,
   IconRewind,
+  IconShield,
+  IconCheck,
 } from "@/components/icons";
 import { AutomationsPage } from "@/components/AutomationsPage";
 import { OpenLocationButton } from "@/components/OpenLocationButton";
@@ -245,6 +248,8 @@ interface Project {
   trusted: boolean;
   pathOk: boolean;
   pinned?: boolean;
+  /** Project-level permission tier (L10). Null/undefined → app default. */
+  permissionPolicy?: string | null;
 }
 
 interface SessionRow {
@@ -259,6 +264,7 @@ interface SessionRow {
 
 type ContextMenuState =
   | { kind: "project"; id: string; x: number; y: number }
+  | { kind: "project-policy"; id: string; x: number; y: number }
   | { kind: "session"; id: string; x: number; y: number }
   | null;
 
@@ -917,10 +923,11 @@ export default function App() {
     void refreshLists();
   }, [refreshLists]);
 
-  // Re-resolve model/permission when project or chat changes (project/session scope).
+  // Re-resolve model/permission when project or chat changes.
+  // Permission always cascades project/session tiers (L10), even when model
+  // memory scope is global — so project-level tiers apply after a switch.
   useEffect(() => {
     if (!api.isTauri()) return;
-    if (prefsScope === "global") return;
     let cancelled = false;
     void api
       .composerPrefsResolve({
@@ -2447,6 +2454,88 @@ export default function App() {
         }
       },
     });
+  };
+
+  /**
+   * Apply a project-level permission tier (L10).
+   * `null` clears the override so the app default is used again.
+   * YOLO still requires the same two-step confirm as the composer chip.
+   */
+  const applyProjectPermissionPolicy = (
+    proj: Project,
+    next: PermissionPolicyId | null,
+  ) => {
+    setCtxMenu(null);
+
+    const commit = async () => {
+      try {
+        const updated = (await api.projectSetPermissionPolicy(
+          proj.id,
+          next,
+        )) as Project;
+        await refreshProjects();
+        if (activeProject?.id === proj.id) {
+          setActiveProject((p) =>
+            p
+              ? {
+                  ...p,
+                  permissionPolicy: updated.permissionPolicy ?? null,
+                }
+              : p,
+          );
+          const prefs = await api.composerPrefsResolve({
+            projectId: proj.id,
+            sessionId: session.sessionId ?? null,
+          });
+          applyComposerPrefs(prefs, availableModels);
+        }
+        const msg = next
+          ? tr("project.permissionSet", {
+              name: proj.name,
+              policy: tr(
+                (
+                  {
+                    ask: "policy.short.ask",
+                    accept_edits: "policy.short.accept_edits",
+                    allow_for_session: "policy.short.allow_for_session",
+                    dont_ask: "policy.short.dont_ask",
+                    always_approve: "policy.short.always_approve",
+                  } as const
+                )[next],
+              ),
+            })
+          : tr("project.permissionCleared", { name: proj.name });
+        setToast(msg);
+        window.setTimeout(() => setToast((cur) => (cur === msg ? null : cur)), 2800);
+      } catch (e) {
+        setLocalError(String(e));
+      }
+    };
+
+    if (next === "always_approve") {
+      setAppDialog({
+        kind: "confirm",
+        title: tr("policy.always_approve"),
+        message: tr("policy.yoloConfirm"),
+        confirmLabel: tr("common.confirm"),
+        danger: true,
+        onConfirm: () => {
+          setAppDialog({
+            kind: "confirm",
+            title: tr("policy.always_approve"),
+            message: tr("policy.yoloConfirm2"),
+            confirmLabel: tr("policy.short.always_approve"),
+            danger: true,
+            onConfirm: () => {
+              void commit();
+            },
+          });
+        },
+      });
+      return;
+    }
+
+    void commit();
   };
 
   /** Remove project from app list only (disk folder + chats kept). */
@@ -7683,6 +7772,23 @@ export default function App() {
                 icon: <IconRename size={16} />,
                 onClick: () => renameProject(proj),
               },
+              ...(proj.trusted
+                ? [
+                    {
+                      id: "permission",
+                      label: tr("project.permission"),
+                      icon: <IconShield size={16} />,
+                      onClick: () => {
+                        setCtxMenu({
+                          kind: "project-policy",
+                          id: proj.id,
+                          x: ctxMenu.x,
+                          y: ctxMenu.y,
+                        });
+                      },
+                    } satisfies ContextMenuItem,
+                  ]
+                : []),
               {
                 id: "archive-chats",
                 label: tr("project.archiveChats"),
@@ -7698,6 +7804,42 @@ export default function App() {
                 danger: true,
                 onClick: () => removeProjectFromApp(proj),
               },
+            ];
+          }
+        } else if (ctxMenu?.kind === "project-policy") {
+          const proj = projects.find((p) => p.id === ctxMenu.id);
+          if (proj && proj.trusted) {
+            const current = proj.permissionPolicy?.trim() || null;
+            const policyLabel = (id: PermissionPolicyId) =>
+              tr(
+                (
+                  {
+                    ask: "policy.ask",
+                    accept_edits: "policy.accept_edits",
+                    allow_for_session: "policy.allow_for_session",
+                    dont_ask: "policy.dont_ask",
+                    always_approve: "policy.always_approve",
+                  } as const
+                )[id],
+              );
+            items = [
+              {
+                id: "inherit",
+                label: tr("project.permissionInherit"),
+                icon: !current ? <IconCheck size={16} /> : undefined,
+                onClick: () => applyProjectPermissionPolicy(proj, null),
+              },
+              ...PERMISSION_POLICIES.map(
+                (p) =>
+                  ({
+                    id: `policy-${p.id}`,
+                    label: policyLabel(p.id),
+                    icon:
+                      current === p.id ? <IconCheck size={16} /> : undefined,
+                    danger: !!p.dangerous,
+                    onClick: () => applyProjectPermissionPolicy(proj, p.id),
+                  }) satisfies ContextMenuItem,
+              ),
             ];
           }
         } else if (ctxMenu?.kind === "session") {
@@ -7775,6 +7917,9 @@ export default function App() {
             y={ctxMenu?.y ?? 0}
             onClose={() => setCtxMenu(null)}
             items={items}
+            estimatedHeight={
+              ctxMenu?.kind === "project-policy" ? 280 : 240
+            }
           />
         );
       })()}

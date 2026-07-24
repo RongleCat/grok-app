@@ -494,6 +494,34 @@ pub fn may_auto_deny(policy: PermissionPolicy) -> bool {
     matches!(policy, PermissionPolicy::DontAsk | PermissionPolicy::Deny)
 }
 
+/// Resolve effective permission tier for a project/session context (L10).
+///
+/// Cascade (most specific wins): session override → project tier → global default.
+/// Untrusted projects always force **Ask** so a stored relaxed tier cannot apply
+/// before the user trusts the folder.
+pub fn effective_permission_policy(
+    global: &str,
+    project_trusted: Option<bool>,
+    project_policy: Option<&str>,
+    session_policy: Option<&str>,
+) -> PermissionPolicy {
+    if project_trusted == Some(false) {
+        return PermissionPolicy::Ask;
+    }
+    if let Some(s) = session_policy.map(str::trim).filter(|s| !s.is_empty()) {
+        return PermissionPolicy::parse(s);
+    }
+    if let Some(p) = project_policy.map(str::trim).filter(|s| !s.is_empty()) {
+        return PermissionPolicy::parse(p);
+    }
+    let g = global.trim();
+    if g.is_empty() {
+        PermissionPolicy::Ask
+    } else {
+        PermissionPolicy::parse(g)
+    }
+}
+
 /// Pick optionId from ACP permission options by preferred kind.
 pub fn pick_option_id(options: &serde_json::Value, prefer: &str) -> Option<String> {
     let arr = options.as_array()?;
@@ -568,6 +596,68 @@ mod tests {
     #[test]
     fn default_policy_is_ask_not_always() {
         assert_eq!(PermissionPolicy::default(), PermissionPolicy::Ask);
+    }
+
+    #[test]
+    fn effective_permission_defaults_to_ask() {
+        assert_eq!(
+            effective_permission_policy("", None, None, None),
+            PermissionPolicy::Ask
+        );
+        assert_eq!(
+            effective_permission_policy("always_approve", None, None, None),
+            PermissionPolicy::AlwaysApprove
+        );
+    }
+
+    #[test]
+    fn effective_permission_cascades_session_over_project_over_global() {
+        assert_eq!(
+            effective_permission_policy(
+                "ask",
+                Some(true),
+                Some("accept_edits"),
+                Some("always_approve"),
+            ),
+            PermissionPolicy::AlwaysApprove
+        );
+        assert_eq!(
+            effective_permission_policy("ask", Some(true), Some("accept_edits"), None),
+            PermissionPolicy::AcceptEdits
+        );
+        assert_eq!(
+            effective_permission_policy("dont_ask", Some(true), None, None),
+            PermissionPolicy::DontAsk
+        );
+    }
+
+    #[test]
+    fn untrusted_project_forces_ask_despite_relaxed_tiers() {
+        assert_eq!(
+            effective_permission_policy(
+                "always_approve",
+                Some(false),
+                Some("always_approve"),
+                Some("always_approve"),
+            ),
+            PermissionPolicy::Ask
+        );
+        assert_eq!(
+            effective_permission_policy("accept_edits", Some(false), Some("accept_edits"), None),
+            PermissionPolicy::Ask
+        );
+    }
+
+    #[test]
+    fn empty_session_or_project_tier_falls_through() {
+        assert_eq!(
+            effective_permission_policy("ask", Some(true), Some(""), Some("  ")),
+            PermissionPolicy::Ask
+        );
+        assert_eq!(
+            effective_permission_policy("accept_edits", Some(true), Some(""), None),
+            PermissionPolicy::AcceptEdits
+        );
     }
 
     #[test]

@@ -53,6 +53,10 @@ export const zhTW: Record<MessageKey, string> = {
   "project.selectFirst": "請先選擇一個專案。",
   "project.addSelectFirst": "請先在左側新增並選擇一個專案。",
   "project.trustFirst": "請先信任專案「{name}」。",
+  "project.permission": "專案權限檔",
+  "project.permissionInherit": "使用應用程式預設",
+  "project.permissionSet": "「{name}」權限：{policy}",
+  "project.permissionCleared": "「{name}」已恢復應用程式預設權限",
 
   "session.rename": "重新命名",
   "session.renamePrompt": "重新命名對話",

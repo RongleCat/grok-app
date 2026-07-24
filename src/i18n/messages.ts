@@ -62,6 +62,10 @@ const en = {
   "project.addSelectFirst": "Add and select a project in the sidebar first.",
   "project.trustFirst": 'Trust project "{name}" first.',
   "project.trustTitle": "Trust project",
+  "project.permission": "Permission default",
+  "project.permissionInherit": "Use app default",
+  "project.permissionSet": '"{name}" permission: {policy}',
+  "project.permissionCleared": '"{name}" uses app permission default',
 
   "session.rename": "Rename",
   "session.renamePrompt": "Rename chat",
@@ -1091,6 +1095,10 @@ const zh: Record<MessageKey, string> = {
   "project.addSelectFirst": "请先在左侧添加并选择一个项目。",
   "project.trustFirst": "请先信任项目「{name}」。",
   "project.trustTitle": "信任项目",
+  "project.permission": "项目权限档",
+  "project.permissionInherit": "使用应用默认",
+  "project.permissionSet": "「{name}」权限：{policy}",
+  "project.permissionCleared": "「{name}」已恢复应用默认权限",
 
   "session.rename": "重命名",
   "session.renamePrompt": "重命名会话",

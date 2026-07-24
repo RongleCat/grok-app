@@ -442,6 +442,21 @@ export async function projectTrust(id: string) {
   return invoke("project_trust", { id });
 }
 
+/**
+ * Set or clear a project-level permission tier (L10).
+ * Pass `null` / `"inherit"` to fall back to the app default.
+ * When the project is the live Host context, agent policy is synced.
+ */
+export async function projectSetPermissionPolicy(
+  id: string,
+  policy: string | null,
+) {
+  return invoke("project_set_permission_policy", {
+    id,
+    policy,
+  });
+}
+
 /** Remove project from app list only (no disk / session wipe). */
 export async function projectRemove(id: string) {
   return invoke("project_remove", { id });

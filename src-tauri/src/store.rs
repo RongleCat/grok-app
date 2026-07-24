@@ -400,6 +400,46 @@ pub fn trust_project(id: &str) -> Result<Project, String> {
     Ok(clone)
 }
 
+/// Set or clear a project-level permission tier (L10).
+///
+/// `policy = None` / empty / `"inherit"` clears the override so the app default
+/// applies. Untrusted projects cannot store a relaxed tier.
+pub fn set_project_permission_policy(
+    id: &str,
+    policy: Option<String>,
+) -> Result<Project, String> {
+    use crate::permission::PermissionPolicy;
+
+    let mut list = load_projects();
+    let p = list
+        .iter_mut()
+        .find(|p| p.id == id)
+        .ok_or_else(|| "project not found".to_string())?;
+    if !p.trusted {
+        return Err("trust this project before setting a permission tier".into());
+    }
+
+    let next = match policy {
+        None => None,
+        Some(raw) => {
+            let t = raw.trim();
+            if t.is_empty()
+                || t.eq_ignore_ascii_case("inherit")
+                || t.eq_ignore_ascii_case("app_default")
+                || t.eq_ignore_ascii_case("default")
+            {
+                None
+            } else {
+                Some(PermissionPolicy::parse(t).as_str().to_string())
+            }
+        }
+    };
+    p.permission_policy = next;
+    let clone = p.clone();
+    save_projects(&list)?;
+    Ok(clone)
+}
+
 pub fn load_sessions_index() -> Vec<SessionMeta> {
     let _ = ensure_app_dirs();
     let mut list: Vec<SessionMeta> = read_json(&sessions_index_file());
@@ -923,35 +963,59 @@ fn global_prefs(settings: &AppSettings) -> (String, String, String, String) {
 }
 
 /// Resolve effective composer prefs for the active project/session + configured scope.
+///
+/// Model / effort / mode follow `composer_prefs_scope`.
+/// Permission always cascades session → project → global (L10), and untrusted
+/// projects force Ask regardless of stored tiers.
 pub fn resolve_composer_prefs(
     project_id: Option<&str>,
     session_id: Option<&str>,
 ) -> ComposerPrefs {
+    use crate::permission::effective_permission_policy;
+
     let settings = load_settings();
     let scope = ComposerPrefsScope::parse(&settings.composer_prefs_scope);
     let (g_model, g_effort, g_mode, g_policy) = global_prefs(&settings);
+
+    let sess = session_id.and_then(|id| {
+        load_sessions_index()
+            .into_iter()
+            .find(|s| s.id == id)
+    });
+    let proj = sess
+        .as_ref()
+        .and_then(|s| s.project_id.as_deref())
+        .or(project_id)
+        .and_then(|id| load_projects().into_iter().find(|p| p.id == id));
+
+    // Permission: always cascade (independent of model/effort memory scope).
+    let permission_policy = effective_permission_policy(
+        &g_policy,
+        proj.as_ref().map(|p| p.trusted),
+        proj.as_ref()
+            .and_then(|p| p.permission_policy.as_deref()),
+        sess.as_ref()
+            .and_then(|s| s.permission_policy.as_deref()),
+    )
+    .as_str()
+    .to_string();
 
     match scope {
         ComposerPrefsScope::Global => ComposerPrefs {
             model_id: g_model,
             effort: g_effort,
             mode: g_mode,
-            permission_policy: g_policy,
+            permission_policy,
             scope: scope.as_str().into(),
             source: "global".into(),
         },
         ComposerPrefsScope::Project => {
-            let proj = project_id
-                .and_then(|id| load_projects().into_iter().find(|p| p.id == id));
             if let Some(p) = proj {
                 ComposerPrefs {
                     model_id: p.model_id.filter(|s| !s.is_empty()).unwrap_or(g_model),
                     effort: p.effort.filter(|s| !s.is_empty()).unwrap_or(g_effort),
                     mode: p.mode.filter(|s| !s.is_empty()).unwrap_or(g_mode),
-                    permission_policy: p
-                        .permission_policy
-                        .filter(|s| !s.is_empty())
-                        .unwrap_or(g_policy),
+                    permission_policy,
                     scope: scope.as_str().into(),
                     source: "project".into(),
                 }
@@ -960,25 +1024,13 @@ pub fn resolve_composer_prefs(
                     model_id: g_model,
                     effort: g_effort,
                     mode: g_mode,
-                    permission_policy: g_policy,
+                    permission_policy,
                     scope: scope.as_str().into(),
                     source: "global".into(),
                 }
             }
         }
         ComposerPrefsScope::Session => {
-            let sess = session_id.and_then(|id| {
-                load_sessions_index()
-                    .into_iter()
-                    .find(|s| s.id == id)
-            });
-            let proj = sess
-                .as_ref()
-                .and_then(|s| s.project_id.as_deref())
-                .or(project_id)
-                .and_then(|id| load_projects().into_iter().find(|p| p.id == id));
-
-            // Fallback chain: session → project → global
             let p_model = proj
                 .as_ref()
                 .and_then(|p| p.model_id.clone())
@@ -994,21 +1046,13 @@ pub fn resolve_composer_prefs(
                 .and_then(|p| p.mode.clone())
                 .filter(|s| !s.is_empty())
                 .unwrap_or(g_mode.clone());
-            let p_policy = proj
-                .as_ref()
-                .and_then(|p| p.permission_policy.clone())
-                .filter(|s| !s.is_empty())
-                .unwrap_or(g_policy.clone());
 
             if let Some(s) = sess {
                 ComposerPrefs {
                     model_id: s.model_id.filter(|x| !x.is_empty()).unwrap_or(p_model),
                     effort: s.effort.filter(|x| !x.is_empty()).unwrap_or(p_effort),
                     mode: s.mode.filter(|x| !x.is_empty()).unwrap_or(p_mode),
-                    permission_policy: s
-                        .permission_policy
-                        .filter(|x| !x.is_empty())
-                        .unwrap_or(p_policy),
+                    permission_policy,
                     scope: scope.as_str().into(),
                     source: "session".into(),
                 }
@@ -1017,7 +1061,7 @@ pub fn resolve_composer_prefs(
                     model_id: p_model,
                     effort: p_effort,
                     mode: p_mode,
-                    permission_policy: p_policy,
+                    permission_policy,
                     scope: scope.as_str().into(),
                     source: if proj.is_some() { "project" } else { "global" }.into(),
                 }
