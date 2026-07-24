@@ -14,6 +14,7 @@ use std::time::Duration;
 use chrono::{DateTime, Duration as ChronoDuration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tokio::io::AsyncBufReadExt;
 use tracing::{info, warn};
 
 use crate::cli_probe;
@@ -1257,8 +1258,10 @@ pub async fn account_login(method: &str, manual_cli: Option<&str>) -> LoginResul
         "--oauth"
     };
 
-    // Spawn CLI login; for OAuth the CLI opens the browser.
-    // Uses tokio::process so we can select between completion and Cancel.
+    // Spawn CLI login. The CLI prints the OAuth/device URL to stdout but does
+    // NOT open a browser itself, so we read stdout line-by-line and open the
+    // URL the moment it appears — otherwise the user is stuck on "Working…".
+    // tokio::process lets us race this against the Cancel notifier.
     let mut cmd = tokio::process::Command::new(&cli);
     cmd.arg("login")
         .arg(&arg)
@@ -1281,52 +1284,81 @@ pub async fn account_login(method: &str, manual_cli: Option<&str>) -> LoginResul
         }
     };
 
-    // Race the CLI output against the cancel notifier. On cancel we kill the
-    // child ourselves; either way the process is reaped (no zombie).
-    // Wrap in Option so each select branch can take() ownership independently.
-    let mut child = Some(child);
+    // Take the piped streams so we can read stdout WHILE the CLI blocks waiting
+    // for the browser callback. stderr is read too so it appears in diagnostics.
+    let stdout_handle = child.stdout.take();
+    let stderr_handle = child.stderr.take();
+
+    // Drain stdout: open the browser on the first URL we see, and collect
+    // everything for later message/diagnostics parsing.
+    let stdout_collect = async {
+        let mut buf = String::new();
+        let mut url_opened = false;
+        if let Some(h) = stdout_handle {
+            let mut reader = tokio::io::BufReader::new(h).lines();
+            while let Ok(Some(line)) = reader.next_line().await {
+                let t = line.trim();
+                // First URL => open the browser immediately (OAuth + device).
+                if !url_opened
+                    && (t.starts_with("http://") || t.starts_with("https://"))
+                {
+                    url_opened = true;
+                    if let Err(e) = open_url(t) {
+                        warn!("account: open login URL failed: {e}");
+                    }
+                }
+                buf.push_str(&line);
+                buf.push('\n');
+            }
+        }
+        buf
+    };
+    let stderr_collect = async {
+        let mut buf = String::new();
+        if let Some(h) = stderr_handle {
+            let mut reader = tokio::io::BufReader::new(h).lines();
+            while let Ok(Some(line)) = reader.next_line().await {
+                buf.push_str(&line);
+                buf.push('\n');
+            }
+        }
+        buf
+    };
+
+    // Drive stdout+stderr drain concurrently with process exit, and race the
+    // whole thing against Cancel. stdout/stderr reach EOF when the CLI exits,
+    // so join! naturally completes alongside wait().
     let cancelled;
-    let output = tokio::select! {
+    let (stdout, stderr, status) = tokio::select! {
         biased;
         _ = login_proc().cancel.notified() => {
-            if let Some(mut c) = child.take() {
-                let _ = c.kill().await;
-            }
+            let _ = child.kill().await;
             cancelled = true;
-            Err(std::io::Error::new(std::io::ErrorKind::Other, "login cancelled"))
+            (String::new(), String::new(), None)
         }
-        out = async {
-            match child.take() {
-                Some(c) => c.wait_with_output().await,
-                None => Err(std::io::Error::new(std::io::ErrorKind::Other, "no child")),
-            }
+        joined = async {
+            let (so, se) = tokio::join!(stdout_collect, stderr_collect);
+            // Pipes are EOF; wait reaps the child.
+            let st = child.wait().await.ok();
+            (so, se, st)
         } => {
             cancelled = false;
-            out
+            joined
         }
     };
 
-    let output = match output {
-        Ok(o) => o,
-        Err(e) => {
-            let message = if cancelled {
-                "Login cancelled. Try another sign-in method.".to_string()
-            } else {
-                format!("Login did not complete: {e}")
-            };
-            return LoginResult {
-                ok: false,
-                method: method.into(),
-                message,
-                device_url: None,
-                device_code: None,
-                profile: None,
-            };
-        }
-    };
+    if cancelled {
+        return LoginResult {
+            ok: false,
+            method: method.into(),
+            message: "Login cancelled. Try another sign-in method.".to_string(),
+            device_url: None,
+            device_code: None,
+            profile: None,
+        };
+    }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    let exit_success = status.map(|s| s.success()).unwrap_or(false);
     let combined = format!("{stdout}\n{stderr}");
 
     let mut device_url = None;
@@ -1348,18 +1380,12 @@ pub async fn account_login(method: &str, manual_cli: Option<&str>) -> LoginResul
         }
     }
 
-    // Device-code login: open the verification URL so the user is not stuck with a toast only.
-    if method == "device" {
-        if let Some(ref url) = device_url {
-            if let Err(e) = open_url(url) {
-                warn!("account: open device URL failed: {e}");
-            }
-        }
-    }
+    // NOTE: the OAuth/device URL is opened live while stdout streams (see spawn
+    // block above), for both methods — the old device-only fallback is gone.
 
     // Wait briefly for auth.json to update if process returned quickly after browser flow.
     // OAuth/device can take longer; poll up to ~30s for credentials.
-    if output.status.success() || before_mtime.is_some() || device_url.is_some() {
+    if exit_success || before_mtime.is_some() || device_url.is_some() {
         for _ in 0..60 {
             tokio::time::sleep(Duration::from_millis(500)).await;
             let after = auth_json_path()
@@ -1396,7 +1422,7 @@ pub async fn account_login(method: &str, manual_cli: Option<&str>) -> LoginResul
                 .or(profile.display_name.clone())
                 .unwrap_or_else(|| "account".into())
         )
-    } else if !output.status.success() {
+    } else if !exit_success {
         let detail = combined
             .lines()
             .rev()
