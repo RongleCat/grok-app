@@ -307,6 +307,14 @@ const en = {
   "settings.acpServer": "ACP server (API mode)",
   "settings.acpServerDesc":
     "Connect to a remote ACP agent over TCP (host:port) instead of spawning the local CLI — e.g. an agent in WSL, a container, or another host. Leave empty for local spawn.",
+  "settings.acpTest": "Test",
+  "settings.acpTesting": "Testing…",
+  "settings.acpTestOk": "Connected · Grok Build {version} · {model}",
+  "settings.acpTestFail": "Failed: {error}",
+  "settings.acpSetupHint":
+    "The agent must already be listening on that port. To expose a local Grok Build over TCP, run this on the server:",
+  "settings.acpCopy": "Copy command",
+  "settings.acpCopied": "Copied",
   "settings.permissionDeep": "Default permission",
   "settings.permissionDeepDesc":
     "Applied to new turns and remembered at the scope chosen above. YOLO auto-approves tools.",
@@ -1031,6 +1039,14 @@ const zh: Record<MessageKey, string> = {
   "settings.acpServer": "ACP 服务器（API 模式）",
   "settings.acpServerDesc":
     "通过 TCP（host:port）连接远程 ACP Agent，替代启动本地 CLI —— 例如运行在 WSL、容器或另一台主机上的 Agent。留空则使用本地启动。",
+  "settings.acpTest": "测试",
+  "settings.acpTesting": "测试中…",
+  "settings.acpTestOk": "已连接 · Grok Build {version} · {model}",
+  "settings.acpTestFail": "失败：{error}",
+  "settings.acpSetupHint":
+    "该端口上必须已有 Agent 在监听。要把本地 Grok Build 通过 TCP 暴露出来，在服务器端运行：",
+  "settings.acpCopy": "复制命令",
+  "settings.acpCopied": "已复制",
   "settings.permissionDeep": "默认权限",
   "settings.permissionDeepDesc":
     "对新一轮对话生效，并按上方选择的范围记忆。YOLO 会自动批准工具调用。",

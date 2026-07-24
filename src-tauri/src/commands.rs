@@ -122,6 +122,18 @@ pub async fn probe_cli(manual_path: Option<String>) -> Result<CliProbeResult, St
     Ok(cli_probe::probe_cli(manual_path.as_deref()))
 }
 
+/// API mode: test-connect to a remote ACP server and report the handshake.
+#[tauri::command]
+pub async fn acp_test_connection(
+    addr: String,
+) -> Result<crate::acp_client::AcpProbeResult, String> {
+    let addr = addr.trim();
+    if addr.is_empty() {
+        return Err("empty address".into());
+    }
+    Ok(crate::acp_client::probe_acp_server(addr).await)
+}
+
 /// Download + install latest Grok Build (multi-mirror, progress via `setup://cli-install-progress`).
 #[tauri::command]
 pub async fn cli_install_latest(app: tauri::AppHandle) -> Result<crate::cli_install::CliInstallResult, String> {

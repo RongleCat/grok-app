@@ -882,6 +882,80 @@ impl AcpClient {
     }
 }
 
+/// Result of an API-mode connectivity probe (see [`probe_acp_server`]).
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AcpProbeResult {
+    /// The server accepted a TCP connection and returned a valid ACP
+    /// `initialize` result.
+    pub ok: bool,
+    pub agent_version: Option<String>,
+    pub model: Option<String>,
+    pub error: Option<String>,
+}
+
+impl AcpProbeResult {
+    fn fail(error: impl Into<String>) -> Self {
+        Self {
+            ok: false,
+            agent_version: None,
+            model: None,
+            error: Some(error.into()),
+        }
+    }
+}
+
+/// Lightweight connectivity check for **API mode**: TCP-connect to an ACP
+/// server (`host:port`), perform the `initialize` handshake, and report the
+/// agent version / current model. Creates no client and no session — just
+/// confirms the address is reachable and speaks ACP. Bounded by timeouts so
+/// a wrong address / silent port fails fast.
+pub async fn probe_acp_server(addr: &str) -> AcpProbeResult {
+    use tokio::time::{timeout, Duration};
+
+    let stream = match timeout(Duration::from_secs(5), TcpStream::connect(addr)).await {
+        Ok(Ok(s)) => s,
+        Ok(Err(e)) => return AcpProbeResult::fail(format!("connect failed: {e}")),
+        Err(_) => return AcpProbeResult::fail("connect timed out (5s)"),
+    };
+    let _ = stream.set_nodelay(true);
+    let (rd, mut wr) = stream.into_split();
+
+    let req = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientInfo":{"name":"grok-app-probe","version":"0"},"capabilities":{}}}"#;
+    let write = async {
+        wr.write_all(req.as_bytes()).await?;
+        wr.write_all(b"\n").await?;
+        wr.flush().await
+    };
+    if let Err(e) = write.await {
+        return AcpProbeResult::fail(format!("write failed: {e}"));
+    }
+
+    let mut reader = BufReader::new(rd);
+    let mut line = String::new();
+    match timeout(Duration::from_secs(20), reader.read_line(&mut line)).await {
+        Ok(Ok(n)) if n > 0 => {
+            let v: Value = serde_json::from_str(line.trim()).unwrap_or(Value::Null);
+            let result = &v["result"];
+            if !result.is_object() {
+                return AcpProbeResult::fail("connected, but no ACP initialize result in response");
+            }
+            let meta = &result["_meta"];
+            AcpProbeResult {
+                ok: true,
+                agent_version: meta["agentVersion"].as_str().map(String::from),
+                model: meta["modelState"]["currentModelId"]
+                    .as_str()
+                    .map(String::from),
+                error: None,
+            }
+        }
+        Ok(Ok(_)) => AcpProbeResult::fail("server closed the connection (EOF) before responding"),
+        Ok(Err(e)) => AcpProbeResult::fail(format!("read failed: {e}")),
+        Err(_) => AcpProbeResult::fail("connected, but no ACP response within 20s"),
+    }
+}
+
 /// Parse compact-related sessionUpdate → (trigger, before, after, summary, note)
 fn parse_context_compact_update(
     kind: &str,

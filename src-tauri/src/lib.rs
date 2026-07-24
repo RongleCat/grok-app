@@ -115,6 +115,7 @@ pub fn run() {
             commands::session_resolve_permission,
             commands::session_resolve_plan,
             commands::probe_cli,
+            commands::acp_test_connection,
             commands::cli_install_latest,
             commands::cli_install_commands,
             commands::pick_cli_binary,

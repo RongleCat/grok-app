@@ -124,6 +124,124 @@ function NavIcon({
   return <IconSettings size={size} />;
 }
 
+/**
+ * API-mode server field: address input + a "Test" button (TCP + ACP
+ * initialize handshake) and a copy-able server-side setup command. The remote
+ * agent could run anywhere (WSL, container, another host), so the app can't
+ * auto-configure it — but it can verify reachability and hand you the exact
+ * `socat` one-liner to expose a local `grok agent stdio` on the chosen port.
+ */
+function AcpServerField({
+  value,
+  onChange,
+  t,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  t: (k: string) => string;
+}) {
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<api.AcpProbeResult | null>(null);
+  const [copied, setCopied] = useState(false);
+  const addr = value.trim();
+  const port = (addr.split(":")[1] || "").replace(/[^0-9]/g, "") || "8799";
+  const setupCmd = `socat TCP-LISTEN:${port},reuseaddr,fork EXEC:'grok agent --no-leader stdio'`;
+
+  const runTest = async () => {
+    if (!addr || !api.isTauri()) return;
+    setTesting(true);
+    setResult(null);
+    try {
+      setResult(await api.acpTestConnection(addr));
+    } catch (e) {
+      setResult({ ok: false, error: String(e) });
+    } finally {
+      setTesting(false);
+    }
+  };
+  const copyCmd = async () => {
+    try {
+      await navigator.clipboard.writeText(setupCmd);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable — ignore */
+    }
+  };
+  const fill = (k: string, vars: Record<string, string>) =>
+    Object.entries(vars).reduce(
+      (s, [key, val]) => s.replace(`{${key}}`, val),
+      t(k),
+    );
+
+  return (
+    <div className="settings-row settings-row--stack">
+      <div className="settings-row__text">
+        <div className="settings-row__label">{t("settings.acpServer")}</div>
+        <div className="settings-row__desc">{t("settings.acpServerDesc")}</div>
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input
+          className="settings-input"
+          style={{ flex: 1 }}
+          value={value}
+          placeholder="e.g. 127.0.0.1:8799"
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          className="btn btn--ghost"
+          disabled={!addr || testing}
+          onClick={() => void runTest()}
+        >
+          {testing ? t("settings.acpTesting") : t("settings.acpTest")}
+        </button>
+      </div>
+      {result && (
+        <div
+          className="settings-row__hint"
+          style={{ color: result.ok ? undefined : "var(--danger, #d33)" }}
+        >
+          {result.ok
+            ? fill("settings.acpTestOk", {
+                version: result.agentVersion || "?",
+                model: result.model || "?",
+              })
+            : fill("settings.acpTestFail", { error: result.error || "unknown" })}
+        </div>
+      )}
+      {addr && (
+        <div className="settings-row__hint">
+          <div>{t("settings.acpSetupHint")}</div>
+          <code
+            style={{
+              display: "block",
+              marginTop: 4,
+              padding: "6px 8px",
+              borderRadius: 6,
+              background: "var(--surface-2, rgba(127,127,127,0.12))",
+              fontFamily: "var(--mono, monospace)",
+              fontSize: 12,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-all",
+            }}
+          >
+            {setupCmd}
+          </code>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            style={{ marginTop: 6 }}
+            onClick={() => void copyCmd()}
+          >
+            {copied ? t("settings.acpCopied") : t("settings.acpCopy")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SettingsPage({
   section,
   onSection,
@@ -643,22 +761,11 @@ export function SettingsPage({
                 </div>
               )}
             </div>
-            <div className="settings-row settings-row--stack">
-              <div className="settings-row__text">
-                <div className="settings-row__label">
-                  {t("settings.acpServer")}
-                </div>
-                <div className="settings-row__desc">
-                  {t("settings.acpServerDesc")}
-                </div>
-              </div>
-              <input
-                className="settings-input"
-                value={acpServerAddr}
-                placeholder="e.g. 127.0.0.1:8799"
-                onChange={(e) => onAcpServerAddr(e.target.value)}
-              />
-            </div>
+            <AcpServerField
+              value={acpServerAddr}
+              onChange={onAcpServerAddr}
+              t={t}
+            />
             <div className="settings-row">
               <div className="settings-row__text">
                 <div className="settings-row__label">

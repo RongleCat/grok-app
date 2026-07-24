@@ -113,6 +113,18 @@ export async function probeCli(manualPath?: string) {
   }>("probe_cli", { manualPath: manualPath ?? null });
 }
 
+export interface AcpProbeResult {
+  ok: boolean;
+  agentVersion?: string | null;
+  model?: string | null;
+  error?: string | null;
+}
+
+/** API mode: TCP-connect to an ACP server and run the initialize handshake. */
+export async function acpTestConnection(addr: string) {
+  return invoke<AcpProbeResult>("acp_test_connection", { addr });
+}
+
 export interface CliInstallProgress {
   phase: string;
   message: string;
