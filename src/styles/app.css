@@ -610,6 +610,26 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   color: var(--text-primary);
 }
 
+/* Folder gone / not a directory (D05) — keep row usable for relocate/remove. */
+.tree-l2--path-missing {
+  color: var(--warning);
+}
+.tree-l2--path-missing:hover {
+  color: var(--warning);
+}
+.tree-l2--path-missing .tree-l2__icon {
+  color: var(--warning);
+  opacity: 1;
+}
+.project-row__badge--path-missing {
+  color: var(--warning);
+  background: var(--warning-muted);
+  border-radius: 4px;
+  padding: 0 5px;
+  line-height: 16px;
+  flex-shrink: 0;
+}
+
 /* Project rows are expand/collapse only — never selected. Selection is tree-l3 sessions. */
 
 .tree-l2__icon {
@@ -2450,6 +2470,28 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 }
 .chip--project.is-open {
   background: var(--bg-active, rgba(255, 255, 255, 0.08));
+}
+.chip--project-path-missing {
+  color: var(--warning);
+  background: var(--warning-muted);
+}
+.chip--project-path-missing.is-open {
+  background: var(--warning-muted);
+}
+.cpm__item--path-missing .cmm__opt-title {
+  color: var(--warning);
+}
+.cpm__path-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--warning);
+  background: var(--warning-muted);
+  border-radius: 4px;
+  padding: 0 5px;
+  line-height: 16px;
+  vertical-align: middle;
 }
 .cpm {
   position: relative;

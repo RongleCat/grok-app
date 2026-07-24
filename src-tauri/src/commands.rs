@@ -265,6 +265,13 @@ pub async fn project_remove(id: String) -> Result<(), String> {
     store::remove_project(&id)
 }
 
+/// Update project folder path after the directory moved or was renamed.
+/// Verifies the new path is a directory and sets `path_ok` true.
+#[tauri::command]
+pub async fn project_relocate(id: String, path: String) -> Result<Project, String> {
+    store::relocate_project(&id, path)
+}
+
 #[tauri::command]
 pub async fn project_trust(id: String) -> Result<Project, String> {
     store::trust_project(&id)

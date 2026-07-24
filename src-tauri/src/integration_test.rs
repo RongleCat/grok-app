@@ -6,8 +6,8 @@ mod integration {
     use crate::cli_probe::{cli_auth_json_present, probe_cli};
     use crate::paths::{app_data_root, ensure_app_dirs};
     use crate::store::{
-        add_project, load_projects, load_settings, remove_project, save_settings, trust_project,
-        AppSettings,
+        add_project, load_projects, load_settings, relocate_project, remove_project, save_settings,
+        trust_project, AppSettings,
     };
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -51,6 +51,7 @@ mod integration {
         let p = add_project(path.clone(), false).expect("add");
         assert!(!p.trusted);
         assert_eq!(p.path, path);
+        assert!(p.path_ok);
         let trusted = trust_project(&p.id).expect("trust");
         assert!(trusted.trusted);
         let list = load_projects();
@@ -59,6 +60,36 @@ mod integration {
         let list2 = load_projects();
         assert!(!list2.iter().any(|x| x.id == p.id));
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn project_relocate_updates_path_and_path_ok() {
+        let old_dir = unique_dir();
+        let new_dir = unique_dir();
+        let old_path = old_dir.display().to_string();
+        let new_path = new_dir.display().to_string();
+        let p = add_project(old_path.clone(), true).expect("add");
+        assert_eq!(p.path, old_path);
+        assert!(p.path_ok);
+
+        // Simulate deleted folder: list re-check marks path_ok false.
+        let _ = fs::remove_dir_all(&old_dir);
+        let listed = load_projects();
+        let stale = listed.iter().find(|x| x.id == p.id).expect("still listed");
+        assert!(!stale.path_ok);
+
+        let moved = relocate_project(&p.id, new_path.clone()).expect("relocate");
+        assert_eq!(moved.path, new_path);
+        assert!(moved.path_ok);
+
+        let listed2 = load_projects();
+        let again = listed2.iter().find(|x| x.id == p.id).expect("listed");
+        assert_eq!(again.path, new_path);
+        assert!(again.path_ok);
+
+        assert!(relocate_project(&p.id, "/no/such/dir-xyz".into()).is_err());
+        remove_project(&p.id).expect("remove");
+        let _ = fs::remove_dir_all(&new_dir);
     }
 
     #[test]

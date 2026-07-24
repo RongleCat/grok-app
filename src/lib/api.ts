@@ -531,6 +531,21 @@ export async function projectRemove(id: string) {
   return invoke("project_remove", { id });
 }
 
+/**
+ * Point project at a new directory (folder moved/renamed).
+ * Host re-checks is_dir and sets pathOk true.
+ */
+export async function projectRelocate(id: string, path: string) {
+  return invoke<{
+    id: string;
+    name: string;
+    path: string;
+    trusted: boolean;
+    pathOk: boolean;
+    pinned?: boolean;
+  }>("project_relocate", { id, path });
+}
+
 export async function projectRename(id: string, name: string) {
   return invoke("project_rename", { id, name });
 }

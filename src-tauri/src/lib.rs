@@ -144,6 +144,7 @@ pub fn run() {
             commands::project_add,
             commands::project_add_dialog,
             commands::project_remove,
+            commands::project_relocate,
             commands::project_trust,
             commands::project_set_permission_policy,
             commands::project_rename,

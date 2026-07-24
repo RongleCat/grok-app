@@ -150,6 +150,7 @@ import { SetupWizard, type SetupCliInfo } from "@/components/SetupWizard";
 import { ComposerEditor } from "@/components/ComposerEditor";
 import { ComposerProjectMenu } from "@/components/ComposerProjectMenu";
 import { pathsEqual } from "@/lib/gitWorktree";
+import { isProjectPathMissing } from "@/lib/projectPath";
 import {
   ComposerPlusPanel,
   buildComposerPlusEntries,
@@ -1961,9 +1962,10 @@ export default function App() {
     // Warm ACP: connect while the user reads history (trusted project or orphan).
     // Host serializes connect; first send no-ops if already ready, or waits if
     // still handshaking. Process is reused across sessions when cwd/effort match.
+    // Skip when project folder is missing (D05) — user must relocate first.
     if (
       api.isTauri() &&
-      (!proj || proj.trusted) &&
+      (!proj || (proj.trusted && !isProjectPathMissing(proj.pathOk))) &&
       !(live.sessionId === s.id && live.state === "ready")
     ) {
       const warmId = s.id;
@@ -2061,6 +2063,10 @@ export default function App() {
     }
     if (proj && !proj.trusted) {
       setLocalError(tr("project.trustFirst", { name: proj.name }));
+      return;
+    }
+    if (proj && isProjectPathMissing(proj.pathOk)) {
+      setLocalError(tr("project.pathMissing", { name: proj.name }));
       return;
     }
     automationSetupDraftRef.current = !!opts?.automationSetup;
@@ -2220,6 +2226,10 @@ export default function App() {
           : null;
         if (proj && !proj.trusted) {
           setLocalError(tr("project.trustFirst", { name: proj.name }));
+          return false;
+        }
+        if (proj && isProjectPathMissing(proj.pathOk)) {
+          setLocalError(tr("project.pathMissing", { name: proj.name }));
           return false;
         }
         setMainPane("chat");
@@ -2454,12 +2464,16 @@ export default function App() {
   const refreshProjects = async () => {
     try {
       const list = await api.projectsList();
-      setProjects(
-        list.map((p) => ({
-          ...p,
-          pinned: !!p.pinned,
-        })),
-      );
+      const mapped = list.map((p) => ({
+        ...p,
+        pinned: !!p.pinned,
+      })) as Project[];
+      setProjects(mapped);
+      // Keep active project pathOk/path in sync with Host re-check.
+      setActiveProject((prev) => {
+        if (!prev) return prev;
+        return mapped.find((x) => x.id === prev.id) ?? prev;
+      });
     } catch {
       /* ignore */
     }
@@ -2499,6 +2513,55 @@ export default function App() {
         }
       },
     });
+  };
+
+  /**
+   * Pick a new folder for a project whose path is gone or moved (D05).
+   * Host persists path and re-checks is_dir → pathOk true.
+   */
+  const relocateProject = async (proj: Project) => {
+    setCtxMenu(null);
+    if (!api.isTauri()) {
+      setLocalError(tr("error.needTauri"));
+      return;
+    }
+    try {
+      const dir = await api.pickDirectory();
+      if (!dir) return;
+      const updated = (await api.projectRelocate(proj.id, dir)) as Project;
+      await refreshProjects();
+      void api.trayRefresh();
+      if (activeProject?.id === proj.id) {
+        setActiveProject(updated);
+        // Force reconnect on next send — cwd changed.
+        setSession((prev) =>
+          prev.sessionId
+            ? {
+                ...IDLE_SNAPSHOT,
+                sessionId: prev.sessionId,
+                title: prev.title,
+                state: "idle",
+                backend: prev.backend || "grok_agent_stdio",
+              }
+            : prev,
+        );
+        setLiveHost((prev) =>
+          prev.sessionId ? { ...IDLE_SNAPSHOT } : prev,
+        );
+      }
+      setLocalError(null);
+      const msg = tr("project.relocateOk", {
+        name: updated.name,
+        path: updated.path,
+      });
+      setToast(msg);
+      window.setTimeout(
+        () => setToast((cur) => (cur === msg ? null : cur)),
+        3200,
+      );
+    } catch (e) {
+      setLocalError(String(e));
+    }
   };
 
   /**
@@ -2851,6 +2914,12 @@ export default function App() {
     // Project-less (orphan) sessions are allowed: cwd falls back on Host.
     if (activeProject && !activeProject.trusted) {
       setLocalError(tr("project.trustFirst", { name: activeProject.name }));
+      return null;
+    }
+    if (activeProject && isProjectPathMissing(activeProject.pathOk)) {
+      setLocalError(
+        tr("project.pathMissing", { name: activeProject.name }),
+      );
       return null;
     }
     // Fast path: already ready on the *preferred* session (not merely "any" ready).
@@ -4641,6 +4710,10 @@ export default function App() {
         setLocalError(tr("project.trustFirst", { name: proj.name }));
         return;
       }
+      if (proj && isProjectPathMissing(proj.pathOk)) {
+        setLocalError(tr("project.pathMissing", { name: proj.name }));
+        return;
+      }
       try {
         await api.sessionSetProject(sid, proj?.id ?? null);
         setActiveProject(proj);
@@ -6240,7 +6313,12 @@ export default function App() {
                   <div key={proj.id} className="tree-project">
                     {/* L2 — project folder: expand/collapse only (not selectable) */}
                     <div
-                      className="tree-l2"
+                      className={
+                        "tree-l2" +
+                        (isProjectPathMissing(proj.pathOk)
+                          ? " tree-l2--path-missing"
+                          : "")
+                      }
                       role="button"
                       tabIndex={0}
                       aria-expanded={open}
@@ -6264,7 +6342,13 @@ export default function App() {
                       <span className="tree-l2__icon">
                         <IconFolder size={15} />
                       </span>
-                      <Tip label={proj.path}>
+                      <Tip
+                        label={
+                          isProjectPathMissing(proj.pathOk)
+                            ? tr("project.pathMissing", { name: proj.name })
+                            : proj.path
+                        }
+                      >
                         <span className="tree-l2__name">
                           {proj.pinned ? (
                             <IconPin size={12} className="tree-l2__pin" />
@@ -6272,17 +6356,24 @@ export default function App() {
                           {proj.name}
                         </span>
                       </Tip>
-                      {!proj.trusted && (
+                      {isProjectPathMissing(proj.pathOk) ? (
+                        <span className="project-row__badge project-row__badge--path-missing">
+                          {tr("sidebar.pathMissing")}
+                        </span>
+                      ) : !proj.trusted ? (
                         <span className="project-row__badge">
                           {tr("sidebar.untrusted")}
                         </span>
-                      )}
+                      ) : null}
                       <span className="tree-l2__actions">
                         <Tip label={tr("sidebar.newConversation")}>
                           <button
                             type="button"
                             className="tree-icon-btn"
-                            disabled={!proj.trusted}
+                            disabled={
+                              !proj.trusted ||
+                              isProjectPathMissing(proj.pathOk)
+                            }
                             onClick={(e) => {
                               e.stopPropagation();
                               void newChat(proj);
@@ -6305,7 +6396,19 @@ export default function App() {
 
                     {open && (
                       <div className="tree-l3-list-wrap">
-                        {!proj.trusted && (
+                        {isProjectPathMissing(proj.pathOk) && (
+                          <button
+                            type="button"
+                            className="tree-l3 tree-l3--hint"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void relocateProject(proj);
+                            }}
+                          >
+                            {tr("sidebar.relocateProject")}
+                          </button>
+                        )}
+                        {!proj.trusted && !isProjectPathMissing(proj.pathOk) && (
                           <button
                             type="button"
                             className="tree-l3 tree-l3--hint"
@@ -6823,7 +6926,24 @@ export default function App() {
             />
           ) : (
           <>
-          {activeProject && !activeProject.trusted && (
+          {activeProject && isProjectPathMissing(activeProject.pathOk) && (
+            <div className="conn-bar">
+              <span style={{ fontSize: 12, opacity: 0.9, marginRight: 8 }}>
+                {tr("project.pathMissingShort")}
+              </span>
+              <button
+                type="button"
+                className="btn btn--primary"
+                style={{ height: 24, fontSize: 11 }}
+                onClick={() => void relocateProject(activeProject)}
+              >
+                {tr("project.relocateToSend")}
+              </button>
+            </div>
+          )}
+          {activeProject &&
+            !isProjectPathMissing(activeProject.pathOk) &&
+            !activeProject.trusted && (
             <div className="conn-bar">
               <button
                 type="button"
@@ -7387,6 +7507,7 @@ export default function App() {
                     worktreeSwitch: tr("composer.worktreeSwitch"),
                     worktreeMain: tr("composer.worktreeMain"),
                     worktreeDetached: tr("composer.worktreeDetached"),
+                    pathMissing: tr("project.pathMissingShort"),
                   }}
                   worktrees={gitWorktrees}
                   worktreesAvailable={gitWorktreesAvailable}
@@ -8165,6 +8286,14 @@ export default function App() {
                   void api
                     .projectReveal(proj.id)
                     .catch((e) => setLocalError(String(e)));
+                },
+              },
+              {
+                id: "relocate",
+                label: tr("project.relocate"),
+                icon: <IconFolderPlus size={16} />,
+                onClick: () => {
+                  void relocateProject(proj);
                 },
               },
               {

@@ -379,6 +379,29 @@ pub fn remove_project(id: &str) -> Result<(), String> {
     save_projects(&list)
 }
 
+/// Point a project at a new directory (folder moved / renamed on disk).
+/// Requires the path to exist as a directory; re-checks and sets `path_ok`.
+pub fn relocate_project(id: &str, new_path: String) -> Result<Project, String> {
+    let path_buf = PathBuf::from(&new_path);
+    if !path_buf.is_dir() {
+        return Err("path is not a directory".into());
+    }
+    let mut list = load_projects();
+    if list.iter().any(|p| p.id != id && p.path == new_path) {
+        return Err("another project already uses this path".into());
+    }
+    let p = list
+        .iter_mut()
+        .find(|p| p.id == id)
+        .ok_or_else(|| "project not found".to_string())?;
+    p.path = new_path;
+    p.path_ok = true;
+    p.last_opened_at = Utc::now();
+    let clone = p.clone();
+    save_projects(&list)?;
+    Ok(clone)
+}
+
 pub fn rename_project(id: &str, name: &str) -> Result<Project, String> {
     let name = name.trim();
     if name.is_empty() {

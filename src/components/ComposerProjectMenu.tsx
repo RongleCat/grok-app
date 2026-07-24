@@ -39,6 +39,8 @@ type Props = {
     worktreeSwitch: string;
     worktreeMain: string;
     worktreeDetached: string;
+    /** Badge when project folder is missing on disk. */
+    pathMissing?: string;
   };
   /** Linked worktrees for the active project (loaded by parent). */
   worktrees?: GitWorktreeEntry[];
@@ -114,7 +116,12 @@ export function ComposerProjectMenu({
   }, [open]);
 
   const label = activeProject?.name ?? labels.noProject;
-  const tip = activeProject?.path || labels.pickProject;
+  const activeMissing = activeProject?.pathOk === false;
+  const tip = activeMissing
+    ? (labels.pathMissing
+        ? `${labels.pathMissing}: ${activeProject?.path || ""}`.trim()
+        : activeProject?.path) || labels.pickProject
+    : activeProject?.path || labels.pickProject;
 
   return (
     <div ref={rootRef} className={`cpm${open ? " is-open" : ""}`}>
@@ -125,7 +132,8 @@ export function ComposerProjectMenu({
           className={
             "chip chip--project" +
             (open ? " is-open" : "") +
-            (!activeProject ? " chip--muted" : "")
+            (!activeProject ? " chip--muted" : "") +
+            (activeMissing ? " chip--project-path-missing" : "")
           }
           disabled={disabled}
           aria-haspopup="menu"
@@ -185,15 +193,22 @@ export function ComposerProjectMenu({
               >
                 {projects.map((p) => {
                   const active = activeProject?.id === p.id;
+                  const missing = p.pathOk === false;
                   return (
                     <button
                       key={p.id}
                       type="button"
                       role="menuitem"
                       className={
-                        "cmm__opt cpm__item" + (active ? " is-active" : "")
+                        "cmm__opt cpm__item" +
+                        (active ? " is-active" : "") +
+                        (missing ? " cpm__item--path-missing" : "")
                       }
-                      title={p.path}
+                      title={
+                        missing && labels.pathMissing
+                          ? `${labels.pathMissing}: ${p.path}`
+                          : p.path
+                      }
                       onClick={() => {
                         onSelect(p);
                         setOpen(false);
@@ -201,6 +216,11 @@ export function ComposerProjectMenu({
                     >
                       <span className="cmm__opt-main">
                         <span className="cmm__opt-title">{p.name}</span>
+                        {missing && labels.pathMissing ? (
+                          <span className="cpm__path-badge">
+                            {labels.pathMissing}
+                          </span>
+                        ) : null}
                       </span>
                       {active ? (
                         <span className="cmm__opt-check" aria-hidden>
