@@ -659,11 +659,30 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   color: var(--text-primary);
 }
 
-.tree-l3-list {
+/* Outer wrap keeps trust hint / empty state outside the windowed list. */
+.tree-l3-list-wrap {
   padding: 2px 0 6px 12px;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.tree-l3-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Orphan sessions under “Other sessions” (same row metrics as project L3). */
+.tree-orphan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.virtual-list__spacer {
+  flex-shrink: 0;
+  pointer-events: none;
 }
 
 .tree-l3 {

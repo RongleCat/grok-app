@@ -11,6 +11,10 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+
+- **Sidebar session list virtualization** (F07): windowed rendering for large project/orphan session groups (100+ rows) without new dependencies; short lists unchanged.
+
 ## [0.1.2] - 2026-07-24
 
 > 中英文对照 / Bilingual notes.

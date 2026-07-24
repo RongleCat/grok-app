@@ -128,6 +128,11 @@ import type { MessageKey } from "@/i18n";
 import { AttachmentCard } from "@/components/AttachmentCard";
 import { ImageViewerProvider } from "@/components/ImageViewer";
 import { OverlayScroll } from "@/components/OverlayScroll";
+import { VirtualList } from "@/components/VirtualList";
+import {
+  SIDEBAR_SESSION_ROW_GAP,
+  SIDEBAR_SESSION_ROW_HEIGHT,
+} from "@/lib/virtualList";
 import { GrokLogo } from "@/components/GrokLogo";
 import { SetupWizard, type SetupCliInfo } from "@/components/SetupWizard";
 import { ComposerEditor } from "@/components/ComposerEditor";
@@ -5486,7 +5491,7 @@ export default function App() {
                     </div>
 
                     {open && (
-                      <div className="tree-l3-list">
+                      <div className="tree-l3-list-wrap">
                         {!proj.trusted && (
                           <button
                             type="button"
@@ -5499,87 +5504,109 @@ export default function App() {
                             {tr("sidebar.trustProject")}
                           </button>
                         )}
-                        {projSessions.map((s) => {
-                          const working = busySessionId === s.id;
-                          return (
-                          <div
-                            key={s.id}
-                            className={
-                              "tree-l3" +
-                              (session.sessionId === s.id
-                                ? " tree-l3--active"
-                                : "") +
-                              (s.archived ? " tree-l3--archived" : "") +
-                              (working ? " tree-l3--working" : "")
+                        {projSessions.length > 0 ? (
+                          <VirtualList
+                            className="tree-l3-list"
+                            items={projSessions}
+                            getKey={(s) => s.id}
+                            rowHeight={SIDEBAR_SESSION_ROW_HEIGHT}
+                            gap={SIDEBAR_SESSION_ROW_GAP}
+                            scrollToKey={
+                              session.sessionId &&
+                              projSessions.some((x) => x.id === session.sessionId)
+                                ? session.sessionId
+                                : null
                             }
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => void openSession(s, proj)}
-                            onContextMenu={(e) => openSessionMenu(e, s)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") void openSession(s, proj);
-                            }}
-                          >
-                            <span className="tree-l3__title">
-                              {s.scheduled ? (
-                                <span
-                                  className="tree-l3__kind"
-                                  title={tr("automations.msgTag")}
-                                  aria-label={tr("automations.msgTag")}
-                                >
-                                  <IconClock size={13} />
-                                </span>
-                              ) : null}
-                              <span className="tree-l3__name">
-                                {s.title || "Untitled"}
-                              </span>
-                            </span>
-                            {working ? (
-                              <Tip label={tr("sidebar.sessionWorking")}>
-                                <span
-                                  className="tree-l3__status"
-                                  aria-label={tr("sidebar.sessionWorking")}
-                                >
-                                  <Spinner
-                                    size={14}
-                                    className="tree-l3__spinner"
-                                  />
-                                </span>
-                              </Tip>
-                            ) : (
-                            <span className="tree-l3__actions">
-                              <Tip
-                                label={
-                                  s.archived
-                                    ? tr("sidebar.unarchive")
-                                    : tr("sidebar.archive")
-                                }
-                              >
-                                <button
-                                  type="button"
-                                  className="tree-icon-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    void archiveSession(s, !s.archived);
+                            renderItem={(s) => {
+                              const working = busySessionId === s.id;
+                              return (
+                                <div
+                                  className={
+                                    "tree-l3" +
+                                    (session.sessionId === s.id
+                                      ? " tree-l3--active"
+                                      : "") +
+                                    (s.archived ? " tree-l3--archived" : "") +
+                                    (working ? " tree-l3--working" : "")
+                                  }
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => void openSession(s, proj)}
+                                  onContextMenu={(e) => openSessionMenu(e, s)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      void openSession(s, proj);
                                   }}
                                 >
-                                  <IconArchive size={13} />
-                                </button>
-                              </Tip>
-                              <Tip label={tr("sidebar.menu")}>
-                                <button
-                                  type="button"
-                                  className="tree-icon-btn"
-                                  onClick={(e) => openSessionMenu(e, s)}
-                                >
-                                  <IconMore size={13} />
-                                </button>
-                              </Tip>
-                            </span>
-                            )}
-                          </div>
-                          );
-                        })}
+                                  <span className="tree-l3__title">
+                                    {s.scheduled ? (
+                                      <span
+                                        className="tree-l3__kind"
+                                        title={tr("automations.msgTag")}
+                                        aria-label={tr("automations.msgTag")}
+                                      >
+                                        <IconClock size={13} />
+                                      </span>
+                                    ) : null}
+                                    <span className="tree-l3__name">
+                                      {s.title || "Untitled"}
+                                    </span>
+                                  </span>
+                                  {working ? (
+                                    <Tip label={tr("sidebar.sessionWorking")}>
+                                      <span
+                                        className="tree-l3__status"
+                                        aria-label={tr(
+                                          "sidebar.sessionWorking",
+                                        )}
+                                      >
+                                        <Spinner
+                                          size={14}
+                                          className="tree-l3__spinner"
+                                        />
+                                      </span>
+                                    </Tip>
+                                  ) : (
+                                    <span className="tree-l3__actions">
+                                      <Tip
+                                        label={
+                                          s.archived
+                                            ? tr("sidebar.unarchive")
+                                            : tr("sidebar.archive")
+                                        }
+                                      >
+                                        <button
+                                          type="button"
+                                          className="tree-icon-btn"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            void archiveSession(
+                                              s,
+                                              !s.archived,
+                                            );
+                                          }}
+                                        >
+                                          <IconArchive size={13} />
+                                        </button>
+                                      </Tip>
+                                      <Tip label={tr("sidebar.menu")}>
+                                        <button
+                                          type="button"
+                                          className="tree-icon-btn"
+                                          onClick={(e) =>
+                                            openSessionMenu(e, s)
+                                          }
+                                        >
+                                          <IconMore size={13} />
+                                        </button>
+                                      </Tip>
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            }}
+                          />
+                        ) : null}
                         {projSessions.length === 0 && proj.trusted && (
                           <div className="sidebar-empty" style={{ padding: "4px 10px" }}>
                             {tr("sidebar.noChats")}
@@ -5608,71 +5635,92 @@ export default function App() {
                 </span>
               </button>
             </div>
-            {historyOpen &&
-              orphanSessions.map((s) => {
-                const working = busySessionId === s.id;
-                return (
-                <div
-                  key={s.id}
-                  className={
-                    "tree-l3 tree-l3--orphan" +
-                    (session.sessionId === s.id ? " tree-l3--active" : "") +
-                    (working ? " tree-l3--working" : "")
-                  }
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => void openSession(s)}
-                  onContextMenu={(e) => openSessionMenu(e, s)}
-                >
-                  <span className="tree-l3__title">
-                    {s.scheduled ? (
-                      <span
-                        className="tree-l3__kind"
-                        title={tr("automations.msgTag")}
-                        aria-label={tr("automations.msgTag")}
-                      >
-                        <IconClock size={13} />
-                      </span>
-                    ) : null}
-                    <span className="tree-l3__name">
-                      {s.title || "Untitled"}
-                    </span>
-                  </span>
-                  {working ? (
-                    <Tip label={tr("sidebar.sessionWorking")}>
-                      <span
-                        className="tree-l3__status"
-                        aria-label={tr("sidebar.sessionWorking")}
-                      >
-                        <Spinner size={14} className="tree-l3__spinner" />
-                      </span>
-                    </Tip>
-                  ) : (
-                  <span className="tree-l3__actions">
-                    <Tip label={tr("sidebar.archive")}>
-                      <button
-                        type="button"
-                        className="tree-icon-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void archiveSession(s, !s.archived);
-                        }}
-                      >
-                        <IconArchive size={13} />
-                      </button>
-                    </Tip>
-                    <button
-                      type="button"
-                      className="tree-icon-btn"
-                      onClick={(e) => openSessionMenu(e, s)}
+            {historyOpen && orphanSessions.length > 0 ? (
+              <VirtualList
+                className="tree-orphan-list"
+                items={orphanSessions}
+                getKey={(s) => s.id}
+                rowHeight={SIDEBAR_SESSION_ROW_HEIGHT}
+                gap={SIDEBAR_SESSION_ROW_GAP}
+                scrollToKey={
+                  session.sessionId &&
+                  orphanSessions.some((x) => x.id === session.sessionId)
+                    ? session.sessionId
+                    : null
+                }
+                renderItem={(s) => {
+                  const working = busySessionId === s.id;
+                  return (
+                    <div
+                      className={
+                        "tree-l3 tree-l3--orphan" +
+                        (session.sessionId === s.id
+                          ? " tree-l3--active"
+                          : "") +
+                        (working ? " tree-l3--working" : "")
+                      }
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => void openSession(s)}
+                      onContextMenu={(e) => openSessionMenu(e, s)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void openSession(s);
+                      }}
                     >
-                      <IconMore size={13} />
-                    </button>
-                  </span>
-                  )}
-                </div>
-                );
-              })}
+                      <span className="tree-l3__title">
+                        {s.scheduled ? (
+                          <span
+                            className="tree-l3__kind"
+                            title={tr("automations.msgTag")}
+                            aria-label={tr("automations.msgTag")}
+                          >
+                            <IconClock size={13} />
+                          </span>
+                        ) : null}
+                        <span className="tree-l3__name">
+                          {s.title || "Untitled"}
+                        </span>
+                      </span>
+                      {working ? (
+                        <Tip label={tr("sidebar.sessionWorking")}>
+                          <span
+                            className="tree-l3__status"
+                            aria-label={tr("sidebar.sessionWorking")}
+                          >
+                            <Spinner
+                              size={14}
+                              className="tree-l3__spinner"
+                            />
+                          </span>
+                        </Tip>
+                      ) : (
+                        <span className="tree-l3__actions">
+                          <Tip label={tr("sidebar.archive")}>
+                            <button
+                              type="button"
+                              className="tree-icon-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void archiveSession(s, !s.archived);
+                              }}
+                            >
+                              <IconArchive size={13} />
+                            </button>
+                          </Tip>
+                          <button
+                            type="button"
+                            className="tree-icon-btn"
+                            onClick={(e) => openSessionMenu(e, s)}
+                          >
+                            <IconMore size={13} />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  );
+                }}
+              />
+            ) : null}
           </OverlayScroll>
 
           <UserMenu
