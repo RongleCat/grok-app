@@ -496,6 +496,9 @@ export function SettingsPage({
   onStoreApiKeysInKeychain,
   sandboxProfile = "off",
   onSandboxProfile,
+  preferredAgent = "",
+  onPreferredAgent,
+  agentCatalog = [],
   cliInfo,
   onDoctor,
   versionFooter,
@@ -1013,7 +1016,48 @@ export function SettingsPage({
               ) : null}
             </div>
 
-            <h2 className="settings-page__h2">{t("settings.section.general")}</h2>
+                        <h2 className="settings-page__h2">{t("settings.section.agent")}</h2>
+            <div className="settings-card" id="settings-agent-card">
+              {onPreferredAgent ? (
+                <div className="settings-row settings-row--stack">
+                  <div className="settings-row__text">
+                    <div className="settings-row__label">
+                      {t("settings.preferredAgent")}
+                    </div>
+                    <div className="settings-row__desc">
+                      {t("settings.preferredAgentDesc")}
+                    </div>
+                  </div>
+                  <Select
+                    value={preferredAgent || ""}
+                    onChange={(v) => onPreferredAgent(v)}
+                    options={[
+                      {
+                        value: "",
+                        label: t("settings.preferredAgent.default"),
+                      },
+                      ...agentCatalog.map((a) => {
+                        const srcKey = (
+                          {
+                            builtin: "settings.preferredAgent.source.builtin",
+                            bundled: "settings.preferredAgent.source.bundled",
+                            user: "settings.preferredAgent.source.user",
+                            project: "settings.preferredAgent.source.project",
+                          } as const
+                        )[a.source as "builtin" | "bundled" | "user" | "project"];
+                        const srcLabel = srcKey ? t(srcKey) : a.source || "other";
+                        return {
+                          value: a.name,
+                          label: `${a.name} · ${srcLabel}`,
+                        };
+                      }),
+                    ]}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+<h2 className="settings-page__h2">{t("settings.section.general")}</h2>
             <div className="settings-card">
               <div className="settings-row">
                 <div className="settings-row__text">
