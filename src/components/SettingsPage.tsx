@@ -62,6 +62,7 @@ import { ProvidersPanel } from "@/components/ProvidersPanel";
 import { ExtensionsPanel } from "@/components/ExtensionsPanel";
 import { ProjectInspectPanel } from "@/components/ProjectInspectPanel";
 import { RemoteImLayout } from "@/components/RemoteImLayout";
+import { GlassModal } from "@/components/GlassModal";
 import {
   createT,
   resolveLocale,
@@ -496,6 +497,8 @@ export function SettingsPage({
   onStoreApiKeysInKeychain,
   sandboxProfile = "off",
   onSandboxProfile,
+  experimentalMemory = false,
+  onExperimentalMemory,
   cliInfo,
   onDoctor,
   versionFooter,
@@ -533,6 +536,10 @@ export function SettingsPage({
     "official",
   );
   const [editors, setEditors] = useState<DetectedEditor[]>([]);
+  /** Confirm + run `grok memory clear --workspace` for the active project. */
+  const [clearMemoryOpen, setClearMemoryOpen] = useState(false);
+  const [clearMemoryBusy, setClearMemoryBusy] = useState(false);
+  const [settingsToast, setSettingsToast] = useState<string | null>(null);
   /** Selected archived session ids (settings → archived multi-select). */
   const [archivedSelected, setArchivedSelected] = useState<Set<string>>(
     () => new Set(),
@@ -588,6 +595,30 @@ export function SettingsPage({
     },
     [onWallpaper, wallpaperErrorMessage],
   );
+
+  const showSettingsToast = useCallback((msg: string, ms = 3500) => {
+    setSettingsToast(msg);
+    window.setTimeout(
+      () => setSettingsToast((cur) => (cur === msg ? null : cur)),
+      ms,
+    );
+  }, []);
+
+  const workspaceCwd = (projectPath ?? "").trim() || null;
+
+  const runClearWorkspaceMemory = useCallback(async () => {
+    if (!workspaceCwd || clearMemoryBusy) return;
+    setClearMemoryBusy(true);
+    try {
+      await api.memoryClear({ cwd: workspaceCwd, scope: "workspace" });
+      setClearMemoryOpen(false);
+      showSettingsToast(t("settings.clearWorkspaceMemoryDone"), 3500);
+    } catch (e) {
+      showSettingsToast(String(e), 4500);
+    } finally {
+      setClearMemoryBusy(false);
+    }
+  }, [workspaceCwd, clearMemoryBusy, showSettingsToast, t]);
 
   useEffect(() => {
     if (!api.isTauri()) return;
@@ -1079,6 +1110,45 @@ export function SettingsPage({
                     }
                     ariaLabel={t("settings.storeApiKeysInKeychain")}
                   />
+                </div>
+              ) : null}
+              {onExperimentalMemory ? (
+                <div className="settings-row">
+                  <div className="settings-row__text">
+                    <div className="settings-row__label">
+                      {t("settings.experimentalMemory")}
+                    </div>
+                    <div className="settings-row__desc">
+                      {t("settings.experimentalMemoryDesc")}
+                    </div>
+                  </div>
+                  <UiCheck
+                    checked={!!experimentalMemory}
+                    onChange={() => onExperimentalMemory(!experimentalMemory)}
+                    ariaLabel={t("settings.experimentalMemory")}
+                  />
+                </div>
+              ) : null}
+              {workspaceCwd ? (
+                <div className="settings-row">
+                  <div className="settings-row__text">
+                    <div className="settings-row__label">
+                      {t("settings.clearWorkspaceMemory")}
+                    </div>
+                    <div className="settings-row__desc">
+                      {t("settings.clearWorkspaceMemoryDesc")}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--danger settings-row__action"
+                    disabled={clearMemoryBusy}
+                    onClick={() => setClearMemoryOpen(true)}
+                  >
+                    {clearMemoryBusy
+                      ? t("settings.clearWorkspaceMemoryBusy")
+                      : t("settings.clearWorkspaceMemory")}
+                  </button>
                 </div>
               ) : null}
               {onDefaultOpenTarget && (
@@ -1829,6 +1899,49 @@ export function SettingsPage({
         )}
       </main>
       </div>
+
+      {settingsToast ? (
+        <div className="app-toast" role="status">
+          {settingsToast}
+        </div>
+      ) : null}
+
+      <GlassModal
+        open={clearMemoryOpen}
+        onClose={() => {
+          if (!clearMemoryBusy) setClearMemoryOpen(false);
+        }}
+        title={t("settings.clearWorkspaceMemoryConfirmTitle")}
+        size="sm"
+        closeLabel={t("common.close")}
+        closeOnOverlay={!clearMemoryBusy}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={clearMemoryBusy}
+              onClick={() => setClearMemoryOpen(false)}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--danger"
+              disabled={clearMemoryBusy || !workspaceCwd}
+              onClick={() => void runClearWorkspaceMemory()}
+            >
+              {clearMemoryBusy
+                ? t("settings.clearWorkspaceMemoryBusy")
+                : t("settings.clearWorkspaceMemory")}
+            </button>
+          </>
+        }
+      >
+        <p className="settings-row__desc" style={{ margin: 0 }}>
+          {t("settings.clearWorkspaceMemoryConfirmMsg")}
+        </p>
+      </GlassModal>
     </div>
   );
 }
