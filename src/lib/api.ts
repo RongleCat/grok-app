@@ -794,6 +794,12 @@ export interface AppSettings {
   planEnabled?: boolean;
   subagentsEnabled?: boolean;
   useLeader?: boolean;
+  /** Reopen last active chat once after launch (default true). */
+  reopenLastSession?: boolean;
+  /** Last successfully opened session id (startup restore). */
+  lastSessionId?: string | null;
+  /** Project of lastSessionId when it belonged to one (hint only). */
+  lastProjectId?: string | null;
   voiceId?: string;
   voiceDictationAutoSend?: boolean;
   voiceKeepAgentsOnEnd?: boolean;
@@ -1872,6 +1878,17 @@ export async function gitWorktreeRemove(opts: {
     projectPath: opts.projectPath,
     worktreePath: opts.worktreePath,
     force: opts.force ?? false,
+  });
+}
+
+/** Persist last active chat without full settings_set side-effects. */
+export async function settingsRememberLastSession(
+  sessionId?: string | null,
+  projectId?: string | null,
+) {
+  return invoke<void>("settings_remember_last_session", {
+    sessionId: sessionId ?? null,
+    projectId: projectId ?? null,
   });
 }
 
