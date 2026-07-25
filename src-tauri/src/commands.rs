@@ -654,6 +654,8 @@ pub async fn settings_set(
     // so the next connect spawns under the new data root (E04).
     if session_data_mode_changed {
         mgr.recycle_all_agents(&app, "session_data_mode").await;
+    }
+
     if subagents_flip {
         if let Err(e) = crate::agent_subagents::sync_subagents_to_agent_profile(
             &settings.session_data_mode,
