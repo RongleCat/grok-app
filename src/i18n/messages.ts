@@ -331,7 +331,8 @@ const en = {
   "tasks.noKill": "Per-tool kill is not available over ACP — stop the turn to cancel work.",
   "tasks.expand": "Show details",
   "tasks.collapse": "Hide details",
-  "media.loadError": "Could not load this media in the app preview.",
+    "tasks.searchPlaceholder": "Filter tasks…",
+"media.loadError": "Could not load this media in the app preview.",
   "media.openExternal": "Open with system player",
   "media.loading": "Loading media…",
 
@@ -2023,7 +2024,8 @@ const zh: Record<MessageKey, string> = {
   "tasks.noKill": "ACP 不支持按工具终止 — 如需取消请停止本轮。",
   "tasks.expand": "展开详情",
   "tasks.collapse": "收起详情",
-  "media.loadError": "应用内无法加载此媒体。",
+    "tasks.searchPlaceholder": "筛选任务…",
+"media.loadError": "应用内无法加载此媒体。",
   "media.openExternal": "用系统播放器打开",
   "media.loading": "正在加载媒体…",
 

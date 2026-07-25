@@ -315,7 +315,8 @@ export const zhTW: Record<MessageKey, string> = {
   "tasks.noKill": "ACP 不支援依工具終止 — 如需取消請停止本輪。",
   "tasks.expand": "展開詳情",
   "tasks.collapse": "收合詳情",
-  "media.loadError": "應用程式內無法載入此媒體。",
+    "tasks.searchPlaceholder": "篩選任務…",
+"media.loadError": "應用程式內無法載入此媒體。",
   "media.openExternal": "以系統播放器開啟",
   "media.loading": "正在載入媒體…",
 
