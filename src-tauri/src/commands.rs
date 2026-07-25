@@ -4758,6 +4758,9 @@ mod project_inspect_tests {
         );
         assert_eq!(out["skills"]["total"], 0);
         assert_eq!(out["error"], "Grok Build CLI not found");
+    }
+}
+
 // ── Managed configuration (`grok setup` / `grok setup --json`) ──────────────
 //
 // Team-managed policy for enterprises. Requires team sign-in or GROK_DEPLOYMENT_KEY.

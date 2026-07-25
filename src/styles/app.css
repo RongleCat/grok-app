@@ -12024,6 +12024,8 @@ div.composer__input:empty::before {
   font-size: 12px;
   line-height: 1.4;
   color: var(--text-tertiary);
+}
+
 /* ── Managed setup (Settings → Runtime) ─────────────────────────────────── */
 .managed-setup {
   border-top: 1px solid var(--border-subtle);
