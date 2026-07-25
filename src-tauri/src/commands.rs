@@ -654,6 +654,8 @@ pub async fn settings_set(
     // so the next connect spawns under the new data root (E04).
     if session_data_mode_changed {
         mgr.recycle_all_agents(&app, "session_data_mode").await;
+    }
+
     if web_search_flip {
         // Spawn flag changes — soft-respawn so the next turn drops/restores web tools.
         mgr.soft_respawn(&app).await;
