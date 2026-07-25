@@ -343,8 +343,7 @@ impl AcpClient {
             cmd.env(k, v);
         }
         tracing::info!(
-            "acp: spawn GROK_HOME={} mode={} auth_present={} route={:?} composer_model={:?} spawn_model={} yolo={} sandbox={:?}",
-            "acp: spawn GROK_HOME={} mode={} auth_present={} route={:?} composer_model={:?} spawn_model={} yolo={} disable_web_search={}",
+            "acp: spawn GROK_HOME={} mode={} auth_present={} route={:?} composer_model={:?} spawn_model={} yolo={} sandbox={:?} disable_web_search={}",
             grok_home.display(),
             session_data_mode,
             grok_home.join("auth.json").is_file(),
@@ -355,7 +354,7 @@ impl AcpClient {
                 .as_deref()
                 .map(cli_permission_mode)
                 == Some("bypassPermissions"),
-            sandbox.as_ref().map(|s| s.profile.as_str())
+            sandbox.as_ref().map(|s| s.profile.as_str()),
             disable_web_search
         );
 
