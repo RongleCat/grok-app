@@ -2819,6 +2819,10 @@ pub fn normalize_plugin_install_source(source: &str) -> Result<String, String> {
     let s = source.trim();
     if s.is_empty() {
         return Err("plugin source required".into());
+    }
+    Ok(s.to_string())
+}
+
 // ── Plugin marketplace (`grok plugin marketplace …` + available list) ───────
 //
 // Marketplace list --json currently returns sources only (no nested plugins).
