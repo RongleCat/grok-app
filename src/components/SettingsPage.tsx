@@ -61,6 +61,7 @@ import { AccountPanel } from "@/components/AccountPanel";
 import { ProvidersPanel } from "@/components/ProvidersPanel";
 import { ExtensionsPanel } from "@/components/ExtensionsPanel";
 import { ProjectInspectPanel } from "@/components/ProjectInspectPanel";
+import { ManagedSetupPanel } from "@/components/ManagedSetupPanel";
 import { RemoteImLayout } from "@/components/RemoteImLayout";
 import {
   createT,
@@ -1801,6 +1802,13 @@ export function SettingsPage({
                 locale={resolveLocale(locale)}
                 projectPath={projectPath}
                 cliFound={cliInfo.found}
+              />
+            </div>
+            <div className="settings-card settings-card--nested pi-settings-block">
+              <ManagedSetupPanel
+                locale={resolveLocale(locale)}
+                cliFound={cliInfo.found}
+                onOpenAccount={() => onSection("account")}
               />
             </div>
           </div>
