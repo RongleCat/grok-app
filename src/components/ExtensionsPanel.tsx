@@ -38,6 +38,7 @@ import {
   sortSkillsByName,
   type PluginFilter,
 } from "@/lib/extensionsUi";
+import { ExtensionsBuildExtras } from "@/components/ExtensionsBuildExtras";
 
 export interface ExtensionsPanelProps {
   locale: Locale;
@@ -936,6 +937,15 @@ export function ExtensionsPanel({
           <p className="ext-section-note">{tr("ext.mcp.note")}</p>
         ) : null}
       </div>
+
+      <ExtensionsBuildExtras
+        locale={locale}
+        projectPath={projectPath}
+        cliFound={cliFound && !cliMissing}
+        onPluginsChanged={() => {
+          void refresh();
+        }}
+      />
 
       <p className="ext-footnote">
         <IconPuzzle size={13} />

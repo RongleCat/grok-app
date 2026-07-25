@@ -1890,6 +1890,57 @@ export async function memoryClear(opts?: {
   });
 }
 
+export type HookDto = {
+  name: string;
+  path: string;
+  scope: string;
+  kind: string;
+  ext?: string;
+  size: number;
+  mtimeMs: number;
+};
+
+export type HooksListResult = {
+  hooks: HookDto[];
+  userDir: string;
+  userDirExists: boolean;
+  projectDir?: string | null;
+  projectDirExists?: boolean | null;
+  docsPath?: string | null;
+};
+
+export async function hooksList(projectPath?: string | null) {
+  return invoke<HooksListResult>("hooks_list", {
+    projectPath: projectPath ?? null,
+  });
+}
+
+export async function hooksReveal(path: string) {
+  return invoke<void>("hooks_reveal", { path });
+}
+
+export async function hooksOpenDir(opts?: {
+  scope?: "user" | "project" | string;
+  projectPath?: string | null;
+  create?: boolean;
+}) {
+  return invoke<{ path: string; scope: string }>("hooks_open_dir", {
+    scope: opts?.scope ?? "user",
+    projectPath: opts?.projectPath ?? null,
+    create: opts?.create ?? false,
+  });
+}
+
+export async function hooksEnsureDir(opts?: {
+  scope?: "user" | "project" | string;
+  projectPath?: string | null;
+}) {
+  return invoke<{ path: string }>("hooks_ensure_dir", {
+    scope: opts?.scope ?? "user",
+    projectPath: opts?.projectPath ?? null,
+  });
+}
+
 export type SetupPreviewResult = {
   ok: boolean;
   payload?: unknown;
