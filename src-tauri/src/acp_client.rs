@@ -193,6 +193,8 @@ impl SandboxSpawnSpec {
 pub fn sandbox_spawn_flags(profile: &str) -> Option<(Vec<String>, (String, String))> {
     let spec = SandboxSpawnSpec::from_setting(profile)?;
     Some((spec.cli_args().to_vec(), spec.env_pair()))
+}
+
 /// Pure helper: top-level CLI flags for the plan_enabled setting.
 ///
 /// When `plan_enabled` is false, returns `["--no-plan"]` (before `agent`).
