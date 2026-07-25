@@ -496,6 +496,8 @@ export function SettingsPage({
   onStoreApiKeysInKeychain,
   sandboxProfile = "off",
   onSandboxProfile,
+  disableWebSearch = false,
+  onDisableWebSearch,
   cliInfo,
   onDoctor,
   versionFooter,
@@ -1013,7 +1015,28 @@ export function SettingsPage({
               ) : null}
             </div>
 
-            <h2 className="settings-page__h2">{t("settings.section.general")}</h2>
+                        <h2 className="settings-page__h2">{t("settings.section.agent")}</h2>
+            <div className="settings-card" id="settings-agent-card">
+              {onDisableWebSearch ? (
+                <div className="settings-row">
+                  <div className="settings-row__text">
+                    <div className="settings-row__label">
+                      {t("settings.disableWebSearch")}
+                    </div>
+                    <div className="settings-row__desc">
+                      {t("settings.disableWebSearchDesc")}
+                    </div>
+                  </div>
+                  <UiCheck
+                    checked={!!disableWebSearch}
+                    onChange={() => onDisableWebSearch(!disableWebSearch)}
+                    ariaLabel={t("settings.disableWebSearch")}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+<h2 className="settings-page__h2">{t("settings.section.general")}</h2>
             <div className="settings-card">
               <div className="settings-row">
                 <div className="settings-row__text">
