@@ -105,6 +105,9 @@ export const zhTW: Record<MessageKey, string> = {
   "session.rewindConfirm":
     "回退到此回合並捨棄之後的全部內容？此操作對目前對話無法復原。",
   "session.rewindConfirmLabel": "回退",
+  "session.rewindRestoreFiles": "同時將工作區檔案還原到此節點",
+  "session.rewindRestoreFilesHint":
+    "回退此回合之後的檔案變更（需 Agent 支援）。預設關閉，更安全。",
   "session.rewindOk": "對話已回退",
   "session.rewindLocalOnly":
     "已在本機回退對話。Agent 歷史未更新（不支援或未連線）。",

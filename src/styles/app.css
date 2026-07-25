@@ -12258,6 +12258,44 @@ div.composer__input:empty::before {
   -webkit-box-orient: vertical;
 }
 
+/* Rewind confirm (optional file restore) */
+.rewind-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rewind-confirm__msg {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.rewind-confirm__restore {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.rewind-confirm__restore input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.rewind-confirm__hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
 /* Compact confirm */
 .compact-modal {
   width: min(var(--modal-width-sm, 420px), 100%);

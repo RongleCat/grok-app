@@ -116,6 +116,9 @@ const en = {
   "session.rewindConfirm":
     "Rewind to this turn and discard everything after it? This cannot be undone for this chat.",
   "session.rewindConfirmLabel": "Rewind",
+  "session.rewindRestoreFiles": "Also restore workspace files to this point",
+  "session.rewindRestoreFilesHint":
+    "Reverts file changes made after this turn when the agent supports it. Off by default (safer).",
   "session.rewindOk": "Conversation rewound",
   "session.rewindLocalOnly":
     "Conversation rewound locally. Agent history was not updated (unsupported or disconnected).",
@@ -1813,6 +1816,9 @@ const zh: Record<MessageKey, string> = {
   "session.rewindConfirm":
     "回退到此回合并丢弃之后的全部内容？此操作对当前会话不可撤销。",
   "session.rewindConfirmLabel": "回退",
+  "session.rewindRestoreFiles": "同时将工作区文件恢复到此节点",
+  "session.rewindRestoreFilesHint":
+    "回退此回合之后的文件改动（需 Agent 支持）。默认关闭，更安全。",
   "session.rewindOk": "对话已回退",
   "session.rewindLocalOnly":
     "已在本地回退对话。Agent 历史未更新（不支持或未连接）。",
