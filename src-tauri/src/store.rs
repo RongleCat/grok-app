@@ -1359,8 +1359,11 @@ mod tests {
     fn redact_scrubs_long_tokenish() {
         let s = "header Bearer sk-abcdefghijklmnopqrstuvwxyz123456 tail";
         let r = redact_text(s);
-        assert!(!r.contains("sk-abcdefghijklmnopqrstuvwxyz123456") || r.contains("REDACTED") || r.contains("sk-"));
-        // at least function is callable
+        assert!(
+            !r.contains("sk-abcdefghijklmnopqrstuvwxyz123456")
+                || r.contains("REDACTED")
+                || r.contains("sk-")
+        );
         assert!(!r.is_empty());
     }
 
@@ -1375,52 +1378,20 @@ mod tests {
         assert_eq!(s.agent_idle_minutes, 30);
         assert_eq!(s.stream_stall_seconds, 120);
         assert_eq!(s.sandbox_profile, "off");
-    }
-
-    #[test]
-    fn sandbox_profile_defaults_when_missing_from_json() {
-        // Old settings files without the field must deserialize to "off".
+        assert!(!s.experimental_memory);
         assert_eq!(s.max_agent_turns, None);
-    }
-
-    #[test]
-    fn max_agent_turns_defaults_when_missing_from_json() {
-        // Old settings files without the field must deserialize to None.
+        assert!(!s.disable_web_search);
+        assert!(s.plan_enabled);
+        assert!(s.subagents_enabled);
         assert_eq!(s.preferred_agent, "");
-    }
-
-    #[test]
-    fn preferred_agent_defaults_when_missing_from_json() {
         assert!(!s.use_leader);
     }
 
-    #[test]
-    fn use_leader_defaults_when_missing_from_json() {
-        // Old settings files without the field must deserialize to false.
-        let raw = r#"{
+    /// Minimal legacy settings JSON (pre-batch fields omitted).
+    fn legacy_settings_json() -> &'static str {
+        r#"{
             "theme": "dark",
             "locale": "en",
-        assert!(!s.disable_web_search);
-    }
-
-    #[test]
-    fn disable_web_search_defaults_when_missing_from_json() {
-        // Older settings files omit the field — serde default keeps web tools on.
-        assert!(s.plan_enabled);
-    }
-
-    #[test]
-    fn plan_enabled_defaults_true_when_missing_from_json() {
-        // Older settings files omit the field — keep plan mode on (CLI default).
-        assert!(s.subagents_enabled);
-    }
-
-    #[test]
-    fn subagents_enabled_defaults_true_when_missing_from_json() {
-        // Older settings files omit the field — serde default keeps subagents on.
-        let raw = r#"{
-            "theme": "dark",
-            "locale": "zh",
             "sessionDataMode": "independent",
             "manualCliPath": null,
             "permissionPolicy": "ask",
@@ -1429,9 +1400,55 @@ mod tests {
             "mode": "agent",
             "onboardingDone": true,
             "setupSkipped": false
-        }"#;
-        let s: AppSettings = serde_json::from_str(raw).expect("deserialize");
+        }"#
+    }
+
+    #[test]
+    fn sandbox_profile_defaults_when_missing_from_json() {
+        let s: AppSettings = serde_json::from_str(legacy_settings_json()).expect("deserialize");
         assert_eq!(s.sandbox_profile, "off");
+    }
+
+    #[test]
+    fn max_agent_turns_defaults_when_missing_from_json() {
+        let s: AppSettings = serde_json::from_str(legacy_settings_json()).expect("deserialize");
+        assert_eq!(s.max_agent_turns, None);
+    }
+
+    #[test]
+    fn preferred_agent_defaults_when_missing_from_json() {
+        let s: AppSettings = serde_json::from_str(legacy_settings_json()).expect("deserialize");
+        assert_eq!(s.preferred_agent, "");
+    }
+
+    #[test]
+    fn use_leader_defaults_when_missing_from_json() {
+        let s: AppSettings = serde_json::from_str(legacy_settings_json()).expect("deserialize");
+        assert!(!s.use_leader);
+    }
+
+    #[test]
+    fn disable_web_search_defaults_when_missing_from_json() {
+        let s: AppSettings = serde_json::from_str(legacy_settings_json()).expect("deserialize");
+        assert!(!s.disable_web_search);
+    }
+
+    #[test]
+    fn plan_enabled_defaults_true_when_missing_from_json() {
+        let s: AppSettings = serde_json::from_str(legacy_settings_json()).expect("deserialize");
+        assert!(s.plan_enabled);
+    }
+
+    #[test]
+    fn subagents_enabled_defaults_true_when_missing_from_json() {
+        let s: AppSettings = serde_json::from_str(legacy_settings_json()).expect("deserialize");
+        assert!(s.subagents_enabled);
+    }
+
+    #[test]
+    fn experimental_memory_defaults_false_when_missing_from_json() {
+        let s: AppSettings = serde_json::from_str(legacy_settings_json()).expect("deserialize");
+        assert!(!s.experimental_memory);
     }
 
     fn sample_session(id: &str, pinned: bool, updated: DateTime<Utc>) -> SessionMeta {
@@ -1465,7 +1482,10 @@ mod tests {
         ];
         sort_sessions_by_pin_then_updated(&mut list);
         let ids: Vec<&str> = list.iter().map(|s| s.id.as_str()).collect();
-        assert_eq!(ids, vec!["pinned-new", "pinned-old", "unpinned-new", "unpinned-mid"]);
+        assert_eq!(
+            ids,
+            vec!["pinned-new", "pinned-old", "unpinned-new", "unpinned-mid"]
+        );
     }
 
     #[test]
@@ -1477,12 +1497,5 @@ mod tests {
         let m: SessionMeta = serde_json::from_str(raw).expect("deserialize legacy session");
         assert!(!m.pinned);
         assert!(!m.archived);
-        assert!(!s.experimental_memory);
-        assert_eq!(s.max_agent_turns, None);
-        assert!(!s.disable_web_search);
-        assert!(s.plan_enabled);
-        assert!(s.subagents_enabled);
-        assert_eq!(s.preferred_agent, "");
-        assert!(!s.use_leader);
     }
 }

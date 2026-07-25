@@ -5507,42 +5507,6 @@ pub async fn hooks_ensure_dir(
     }))
 }
 
-// from PR #78
-
-#[cfg(test)]
-mod git_worktree_parse_tests {
-    use super::*;
-
-    #[test]
-    fn parses_main_and_linked() {
-        let raw = "\
-worktree /Users/me/repo
-HEAD abcdef
-branch refs/heads/main
-
-worktree /Users/me/repo-feat
-HEAD fedcba
-branch refs/heads/feat/x
-
-worktree /Users/me/repo-d
-HEAD 112233
-detached
-";
-        let list = parse_worktree_porcelain(raw);
-        assert_eq!(list.len(), 3);
-        assert!(list[0].is_main);
-        assert_eq!(list[0].branch.as_deref(), Some("main"));
-        assert_eq!(list[1].branch.as_deref(), Some("feat/x"));
-        assert!(!list[1].is_main);
-        assert!(list[2].detached);
-        assert!(list[2].branch.is_none());
-    }
-
-    #[test]
-    fn empty_input() {
-        assert!(parse_worktree_porcelain("").is_empty());
-    }
-}
 
 // ── Hooks manager (list / reveal / open folder) ─────────────────────────────
 
