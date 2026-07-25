@@ -193,6 +193,8 @@ impl SandboxSpawnSpec {
 pub fn sandbox_spawn_flags(profile: &str) -> Option<(Vec<String>, (String, String))> {
     let spec = SandboxSpawnSpec::from_setting(profile)?;
     Some((spec.cli_args().to_vec(), spec.env_pair()))
+}
+
 /// Pure spawn flag for Settings → Runtime leader mode.
 ///
 /// Always returns an explicit agent-level flag so App settings win over

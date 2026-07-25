@@ -654,6 +654,8 @@ pub async fn settings_set(
     // so the next connect spawns under the new data root (E04).
     if session_data_mode_changed {
         mgr.recycle_all_agents(&app, "session_data_mode").await;
+    }
+
     // Leader mode is a spawn-time flag — soft-respawn so the next connect uses
     // `--leader` / `--no-leader` matching the new setting.
     if use_leader_changed {
