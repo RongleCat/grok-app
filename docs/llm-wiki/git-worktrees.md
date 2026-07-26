@@ -43,7 +43,7 @@ Example: main `/Users/me/repo` + name `feat` → `/Users/me/repo-feat`.
 
 Name rules: letters, digits, `.` `_` `-` only; max 64; no path separators; must not start with `-` (so it cannot look like a git flag).
 
-Errors when the folder is not a git repository, `git` is missing, the path already exists, or `git worktree add` fails (message surfaced in the dialog).
+Errors are shown when the folder is not a git repository, `git` is missing, the path already exists, or `git worktree add` fails (message surfaced in the dialog).
 
 ### GC / prune
 
