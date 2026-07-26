@@ -65,7 +65,7 @@ Agent reverse-request when the `ask_user_question` tool needs answers. Wire meth
 
 - `session/prompt` can drive a real **write** tool; files under cwd are created (`SPIKE_PERM*.txt`).
 - This host’s `~/.grok/config.toml` has `permission_mode = "always-approve"` / session `yolo` often true → Agent **may not emit** `session/request_permission` and auto-executes tools.
-- With isolated `GROK_HOME` + `permission_mode = "ask"` + `yolo = false`, writes still completed **without** `session/request_permission` on CLI 0.2.106 (Agent-side policy). Host still implements full request_permission respond path + optionId mapping (`allow_once` / `allow_always` / `reject_once`) for when the Agent does emit it.
+- With isolated `GROK_HOME` + `permission_mode = "ask"` + `yolo = false`, writes still completed **without** `session/request_permission` on CLI 0.2.106 (Agent-side policy). Host still implements full request_permission response path + optionId mapping (`allow_once` / `allow_always` / `reject_once`) for when the Agent does emit it.
 - Host **must** still gate session-allow via `is_outside_project` (wired in `may_auto_allow`).
 
 ## Evidence
