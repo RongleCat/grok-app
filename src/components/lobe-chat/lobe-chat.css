@@ -164,6 +164,27 @@
   box-shadow: none;
 }
 
+.lobe-chat-bubble--interjection {
+  border: 1px solid color-mix(in srgb, var(--chat-link) 24%, transparent);
+  background: color-mix(in srgb, var(--chat-link) 8%, var(--chat-bubble));
+}
+
+.lobe-chat-interjection-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-block-end: 6px;
+  color: color-mix(in srgb, var(--chat-link) 78%, var(--chat-text));
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.lobe-chat-interjection-tag svg {
+  flex: 0 0 auto;
+}
+
 /* Scheduled automation user card: clock tag + body */
 .lobe-chat-user-msg {
   display: flex;

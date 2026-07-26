@@ -396,6 +396,12 @@ const en = {
   "composer.queueDroppedOldest":
     "Queue full ({max}) — dropped {n} oldest",
   "composer.queueCount": "{n} queued in this chat",
+  "composer.queueGuide": "Steer",
+  "composer.queueGuiding": "Steering…",
+  "composer.queueGuideUnavailable":
+    "Steer is available only while the agent is generating",
+  "composer.queueGuideFailed":
+    "Could not steer the current task. The follow-up remains queued.",
   "composer.queueHold":
     "Auto-send paused — retry or send again to resume",
   "composer.queueHoldRetry": "Retry",
@@ -1438,6 +1444,7 @@ const en = {
   "askUser.freeTextHint": "Or type a custom answer",
   "askUser.multiHint": "Select one or more options",
 
+  "message.interjectionTag": "Steer",
   "message.copy": "Copy",
   "message.copied": "Copied",
   "message.edit": "Edit",
@@ -2177,6 +2184,10 @@ const zh: Record<MessageKey, string> = {
   "composer.queueBlockedPermission": "请先处理权限请求",
   "composer.queueDroppedOldest": "队列已满（{max}）— 已丢弃最旧 {n} 条",
   "composer.queueCount": "本会话队列 {n} 条",
+  "composer.queueGuide": "引导",
+  "composer.queueGuiding": "正在引导…",
+  "composer.queueGuideUnavailable": "仅在 Agent 正在生成时可引导",
+  "composer.queueGuideFailed": "引导当前任务失败，消息仍保留在队列中。",
   "composer.queueHold": "自动发送已暂停 — 点重试或再发送以继续",
   "composer.queueHoldRetry": "重试",
   "composer.queueClear": "清空",
@@ -3193,6 +3204,7 @@ const zh: Record<MessageKey, string> = {
   "askUser.freeTextHint": "或输入自定义回答",
   "askUser.multiHint": "可多选",
 
+  "message.interjectionTag": "引导",
   "message.copy": "复制",
   "message.copied": "已复制",
   "message.edit": "编辑",

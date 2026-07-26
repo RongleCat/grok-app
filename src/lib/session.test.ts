@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyContextCompact,
   applyGeneratedImage,
+  applyInterjection,
   applyStreamChunk,
   applyToolEvent,
   applyTurnError,
@@ -112,6 +113,24 @@ describe("session projection", () => {
     expect(countUserPrompts(msgs)).toBe(2);
   });
 
+  it("keeps interjections inside the surrounding rewind turn", () => {
+    const messages: ChatMessage[] = [
+      { id: "u1", role: "user", content: "first" },
+      { id: "a1", role: "assistant", content: "working" },
+      {
+        id: "i1",
+        role: "user",
+        content: "steer",
+        marker: "interjection",
+      },
+      { id: "u2", role: "user", content: "next" },
+    ];
+
+    expect(countUserPrompts(messages)).toBe(2);
+    expect(userPromptIndexOf(messages, "i1")).toBe(-1);
+    expect(endIndexThroughUserPrompt(messages, 0)).toBe(3);
+  });
+
   it("localRewindPoints lists one entry per user prompt", () => {
     const msgs: ChatMessage[] = [
       { id: "u1", role: "user", content: "  hello   world  " },
@@ -215,6 +234,101 @@ describe("session projection", () => {
     expect(messages).toHaveLength(1);
     expect(messages[0]!.content).toBe("Hello");
     expect(messages[0]!.streaming).toBe(false);
+  });
+
+  it("starts a new assistant row after a mid-turn interjection", () => {
+    let messages: ChatMessage[] = [
+      { id: "u1", role: "user", content: "build it" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "Working",
+        streaming: true,
+      },
+    ];
+
+    messages = applyInterjection(messages, {
+      id: "i1",
+      role: "user",
+      content: "Use the existing component",
+      marker: "interjection",
+    });
+
+    messages = applyStreamChunk(messages, {
+      sessionId: "s",
+      messageId: "a2",
+      text: " on it",
+      done: false,
+      kind: "assistant",
+    });
+
+    expect(messages.map((message) => message.id)).toEqual([
+      "u1",
+      "a1",
+      "i1",
+      "a2",
+    ]);
+    expect(messages[1]).toMatchObject({
+      id: "a1",
+      content: "Working",
+      streaming: false,
+    });
+    expect(messages[3]).toMatchObject({
+      id: "a2",
+      content: " on it",
+      streaming: true,
+    });
+  });
+
+  it("drops an empty optimistic assistant when interjected before output", () => {
+    const messages = applyInterjection(
+      [
+        { id: "u1", role: "user", content: "build it" },
+        {
+          id: "a-pending-1",
+          role: "assistant",
+          content: "",
+          streaming: true,
+        },
+      ],
+      {
+        id: "i1",
+        role: "user",
+        content: "Use the existing component",
+        marker: "interjection",
+      },
+    );
+
+    expect(messages.map((message) => message.id)).toEqual(["u1", "i1"]);
+  });
+
+  it("does not freeze post-interjection output when the event is replayed", () => {
+    const messages = applyInterjection(
+      [
+        { id: "u1", role: "user", content: "build it" },
+        { id: "a1", role: "assistant", content: "Working" },
+        {
+          id: "i1",
+          role: "user",
+          content: "Use the existing component",
+          marker: "interjection",
+        },
+        {
+          id: "a2",
+          role: "assistant",
+          content: "Continuing",
+          streaming: true,
+        },
+      ],
+      {
+        id: "i1",
+        role: "user",
+        content: "Use the existing component",
+        marker: "interjection",
+      },
+    );
+
+    expect(messages[3]).toMatchObject({ id: "a2", streaming: true });
   });
 
   it("does not double-append when same sequence applied once", () => {

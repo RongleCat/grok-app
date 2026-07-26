@@ -160,6 +160,41 @@ describe("collectSessionTasks", () => {
     expect(tasks.find((t) => t.id === "old")).toBeUndefined();
   });
 
+  it("keeps completed tools before a mid-turn interjection", () => {
+    const msgs: ChatMessage[] = [
+      { id: "u1", role: "user", content: "build a form" },
+      tool({
+        id: "tool-before",
+        toolCallId: "before",
+        content: "inspect components",
+        toolKind: "read_file",
+        toolStatus: "completed",
+        streaming: false,
+        createdAt: "2026-01-02T00:00:01.000Z",
+      }),
+      {
+        id: "i1",
+        role: "user",
+        content: "use existing components",
+        marker: "interjection",
+      },
+      tool({
+        id: "tool-after",
+        toolCallId: "after",
+        content: "update form",
+        toolKind: "write_file",
+        toolStatus: "completed",
+        streaming: false,
+        createdAt: "2026-01-02T00:00:02.000Z",
+      }),
+    ];
+
+    expect(collectSessionTasks(msgs).map((task) => task.id)).toEqual([
+      "after",
+      "before",
+    ]);
+  });
+
   it("keeps a still-running tool from before the last user message", () => {
     const msgs: ChatMessage[] = [
       { id: "u0", role: "user", content: "start" },

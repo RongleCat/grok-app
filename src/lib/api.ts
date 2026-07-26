@@ -58,6 +58,19 @@ export async function sessionSend(
   });
 }
 
+/** Inject guidance into the active turn without cancelling it. */
+export async function sessionInterject(
+  text: string,
+  displayText?: string | null,
+  attachments?: Array<{ path: string; name: string; isDir: boolean }>,
+): Promise<SessionSnapshot> {
+  return invoke("session_interject", {
+    text,
+    displayText: displayText ?? null,
+    attachments: attachments?.length ? attachments : null,
+  });
+}
+
 /** Drop last user turn (agent rewind + local journal) before edit-resend. */
 export async function sessionRewindDropLastUser(): Promise<SessionSnapshot> {
   return invoke("session_rewind_drop_last_user");

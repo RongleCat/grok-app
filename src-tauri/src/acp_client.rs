@@ -1321,6 +1321,27 @@ impl AcpClient {
         Ok(())
     }
 
+    /// Inject guidance into the active prompt without cancelling the turn.
+    /// Grok Build extension: `_x.ai/interject`.
+    pub async fn interject(&self, text: &str) -> Result<(), String> {
+        let text = text.trim();
+        if text.is_empty() {
+            return Err("empty interjection".into());
+        }
+        let sid = self
+            .agent_session_id
+            .lock()
+            .clone()
+            .ok_or_else(|| "no agent session".to_string())?;
+        self.request(
+            "_x.ai/interject",
+            wire_session_interject_params(&sid, text),
+        )
+        .await
+        .map(|_| ())
+        .map_err(|e| format!("_x.ai/interject: {e}"))
+    }
+
     /// Cancel in-flight prompt (ACP notification — no id).
     pub async fn cancel(&self) -> Result<(), String> {
         let sid = self
@@ -1484,6 +1505,14 @@ pub fn wire_session_prompt_params(session_id: &str, text: &str) -> Value {
     json!({
         "sessionId": session_id,
         "prompt": [{ "type": "text", "text": text }]
+    })
+}
+
+/// Host → agent `_x.ai/interject` params.
+pub fn wire_session_interject_params(session_id: &str, text: &str) -> Value {
+    json!({
+        "sessionId": session_id,
+        "text": text,
     })
 }
 

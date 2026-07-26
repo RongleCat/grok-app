@@ -407,6 +407,10 @@ export const zhTW: Record<MessageKey, string> = {
   "composer.queueBlockedPermission": "請先處理權限請求",
   "composer.queueDroppedOldest": "佇列已滿（{max}）— 已丟棄最舊 {n} 則",
   "composer.queueCount": "此對話佇列 {n} 則",
+  "composer.queueGuide": "引導",
+  "composer.queueGuiding": "正在引導…",
+  "composer.queueGuideUnavailable": "僅在 Agent 正在生成時可引導",
+  "composer.queueGuideFailed": "引導目前任務失敗，訊息仍保留在佇列中。",
   "composer.queueHold": "自動傳送已暫停 — 點重試或再傳送以繼續",
   "composer.queueHoldRetry": "重試",
   "composer.queueClear": "清空",
@@ -1391,6 +1395,7 @@ export const zhTW: Record<MessageKey, string> = {
   "askUser.freeTextHint": "或輸入自訂回答",
   "askUser.multiHint": "可多選",
 
+  "message.interjectionTag": "引導",
   "message.copy": "複製",
   "message.copied": "已複製",
   "message.edit": "編輯",

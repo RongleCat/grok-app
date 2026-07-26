@@ -158,6 +158,7 @@ pub fn run() {
             commands::session_get_state,
             commands::session_connect,
             commands::session_send,
+            commands::session_interject,
             commands::session_stop,
             commands::session_disconnect,
             commands::session_reattach,

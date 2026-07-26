@@ -12,8 +12,8 @@ use serde_json::{json, Value};
 use crate::acp_client::{
     decode_permission_request, decode_session_update, parse_ask_user_question_params,
     wire_ask_user_result, wire_exit_plan_mode_result, wire_initialize_params, wire_jsonrpc_result,
-    wire_permission_result, wire_session_cancel_params, wire_session_prompt_params, AcpEvent,
-    AskUserOutcome, PermissionOutcome, StreamKind,
+    wire_permission_result, wire_session_cancel_params, wire_session_interject_params,
+    wire_session_prompt_params, AcpEvent, AskUserOutcome, PermissionOutcome, StreamKind,
 };
 use crate::mock_acp::{chunk_text, mock_reply_for, spawn_fake_stream_channel};
 use crate::permission::pick_option_id;
@@ -75,6 +75,13 @@ fn session_prompt_and_cancel_wire_shapes() {
     assert_eq!(
         prompt["prompt"],
         json!([{ "type": "text", "text": "hello" }])
+    );
+    assert_eq!(
+        wire_session_interject_params("sess-a", "use the existing component"),
+        json!({
+            "sessionId": "sess-a",
+            "text": "use the existing component"
+        })
     );
 }
 

@@ -29,6 +29,22 @@ describe("collectUserPromptHistory", () => {
     expect(history).toEqual(["keep"]);
   });
 
+  it("skips mid-turn interjections", () => {
+    const history = collectUserPromptHistory([
+      { role: "user", content: "build a form" },
+      { role: "assistant", content: "working" },
+      {
+        role: "user",
+        content: "use existing components",
+        marker: "interjection",
+      },
+      { role: "assistant", content: "done" },
+      { role: "user", content: "add validation" },
+    ]);
+
+    expect(history).toEqual(["add validation", "build a form"]);
+  });
+
   it("preserves stored skill tokens", () => {
     const history = collectUserPromptHistory([
       { role: "user", content: "[[skill:foo]] hello" },

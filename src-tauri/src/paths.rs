@@ -5,6 +5,9 @@ use std::path::{Path, PathBuf};
 
 use directories::ProjectDirs;
 
+#[cfg(test)]
+pub(crate) static APP_HOME_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 pub fn app_data_root() -> PathBuf {
     if let Ok(custom) = std::env::var("GROK_APP_HOME") {
         return PathBuf::from(custom);

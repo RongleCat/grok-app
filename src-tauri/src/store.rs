@@ -777,6 +777,12 @@ pub fn append_message(session_id: &str, msg: ChatMessageStored) -> Result<(), St
     save_messages(session_id, &msgs)
 }
 
+/// True for a normal user prompt turn. Mid-turn interjections belong to the
+/// surrounding turn and are excluded from rewind prompt indexes.
+pub fn is_user_prompt_message(message: &ChatMessageStored) -> bool {
+    message.role == "user" && message.marker.as_deref() != Some("interjection")
+}
+
 /// End index (exclusive) of the full turn for `user_prompt_index` (0-based).
 /// Turn = that user message + following non-user rows until the next user.
 pub fn end_index_through_user_prompt(
@@ -785,12 +791,12 @@ pub fn end_index_through_user_prompt(
 ) -> Option<usize> {
     let mut user_i = 0u32;
     for (i, m) in messages.iter().enumerate() {
-        if m.role != "user" {
+        if !is_user_prompt_message(m) {
             continue;
         }
         if user_i == user_prompt_index {
             let mut j = i + 1;
-            while j < messages.len() && messages[j].role != "user" {
+            while j < messages.len() && !is_user_prompt_message(&messages[j]) {
                 j += 1;
             }
             return Some(j);
@@ -1493,6 +1499,47 @@ mod tests {
             permission_policy: None,
             scheduled: false,
         }
+    }
+
+    fn sample_message(
+        id: &str,
+        role: &str,
+        marker: Option<&str>,
+    ) -> ChatMessageStored {
+        ChatMessageStored {
+            id: id.into(),
+            role: role.into(),
+            content: id.into(),
+            thought: None,
+            created_at: Utc::now(),
+            is_error: false,
+            attachments: None,
+            marker: marker.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn interjection_stays_inside_surrounding_rewind_turn() {
+        let messages = vec![
+            sample_message("u1", "user", None),
+            sample_message("a1", "assistant", None),
+            sample_message("i1", "user", Some("interjection")),
+            sample_message("u2", "user", None),
+        ];
+
+        assert_eq!(
+            messages.iter().filter(|m| is_user_prompt_message(m)).count(),
+            2
+        );
+        assert_eq!(end_index_through_user_prompt(&messages, 0), Some(3));
+        assert_eq!(
+            truncate_through_user_prompt(&messages, 0)
+                .expect("truncate first turn")
+                .iter()
+                .map(|m| m.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["u1", "a1", "i1"]
+        );
     }
 
     #[test]

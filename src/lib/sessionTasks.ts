@@ -9,6 +9,7 @@
 import type { ChatMessage } from "./session";
 import {
   isToolStepMessage,
+  isTurnPromptMessage,
   parseToolStepContent,
   toolStepDisplayTitle,
 } from "./session";
@@ -174,7 +175,7 @@ export interface CollectSessionTasksOptions {
   /** Cap on non-running rows (default SESSION_TASKS_RECENT_LIMIT). */
   recentLimit?: number;
   /**
-   * When true (default), prefer tools after the last user message.
+   * When true (default), prefer tools after the last real turn prompt.
    * Still-running tools from earlier in the list are always kept.
    */
   currentTurnOnly?: boolean;
@@ -194,7 +195,7 @@ export function collectSessionTasks(
   let from = 0;
   if (currentTurnOnly) {
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i]!.role === "user") {
+      if (isTurnPromptMessage(messages[i])) {
         from = i + 1;
         break;
       }

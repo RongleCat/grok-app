@@ -46,6 +46,7 @@ import {
 import {
   applyContextCompact,
   applyGeneratedImage,
+  applyInterjection,
   applyStreamChunk,
   applyToolEvent,
   applyTurnError,
@@ -58,6 +59,7 @@ import {
   clearPriorTurnStreaming,
   isSessionBusy,
   isSessionLiveStreaming,
+  isTurnPromptMessage,
   preferSessionMessages,
   presentErrorBanner,
   type ErrorBannerView,
@@ -168,10 +170,7 @@ import {
   shouldHandlePromptHistoryKey,
   stepPromptHistory,
 } from "@/lib/composerPromptHistory";
-import {
-  queuePreviewText,
-  shouldEnqueueSend,
-} from "@/lib/sendQueue";
+import { shouldEnqueueSend, type QueuedSend } from "@/lib/sendQueue";
 import {
   useSendQueue,
   type ExecuteSendFromQueue,
@@ -198,6 +197,7 @@ import {
   getComposerCaretOffset,
 } from "@/components/ComposerEditor";
 import { ComposerProjectMenu } from "@/components/ComposerProjectMenu";
+import { ComposerQueue } from "@/components/ComposerQueue";
 import {
   buildWorktreeSiblingPath,
   mainWorktreePath,
@@ -241,9 +241,9 @@ import {
   IconSearch,
   IconAttach,
   IconSend,
+  IconQueue,
   IconMic,
   IconLiveVoice,
-  IconQueue,
   IconStop,
   IconFolder,
   IconFolderPlus,
@@ -411,6 +411,8 @@ export default function App() {
   >({});
   /** Composer stored form (may include [[skill:name]] tokens). */
   const [draft, setDraft] = useState("");
+  const [guidingQueueItemId, setGuidingQueueItemId] = useState<string | null>(null);
+  const queueGuideInFlightRef = useRef(false);
   /**
    * CLI-like prompt history browse index (0 = newest user msg).
    * null = not browsing; only engaged when draft empty (or already browsing).
@@ -1558,6 +1560,19 @@ export default function App() {
               void tryApplyAutomationFromSession(chunk.sessionId);
             }
           }),
+        );
+        await track(
+          api.listen<{ sessionId: string; message: ChatMessage }>(
+            "session://interjection",
+            (payload) => {
+              if (cancelled || !payload?.sessionId || !payload.message?.id) {
+                return;
+              }
+              patchSessionMessages(payload.sessionId, (prev) =>
+                applyInterjection(prev, payload.message),
+              );
+            },
+          ),
         );
         await track(
           api.listen<GeneratedImagePayload>(
@@ -3585,7 +3600,7 @@ export default function App() {
 
   const lastUserMessageId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i]?.role === "user") return messages[i]!.id;
+      if (isTurnPromptMessage(messages[i])) return messages[i]!.id;
     }
     return null;
   }, [messages]);
@@ -3888,15 +3903,6 @@ export default function App() {
   };
 
   executeSendFromQueueRef.current = (opts) => executeSend(opts);
-
-  const queuePreviewLabels = useMemo(
-    () => ({
-      filesCount: (n: number) =>
-        tr("composer.queueFilesCount", { n: String(n) }),
-      empty: tr("composer.queueEmptyPreview"),
-    }),
-    [tr],
-  );
 
   const addAttachmentsFromPaths = useCallback(
 
@@ -4946,10 +4952,58 @@ export default function App() {
     liveHostRef,
     viewingSessionIdRef,
     sendInFlightRef,
+    flushPaused: guidingQueueItemId !== null,
+    flushPauseRef: queueGuideInFlightRef,
     executeSendRef: executeSendFromQueueRef,
     showToast,
     labels: sendQueueLabels,
   });
+
+  const canGuideQueuedMessage =
+    session.state === "streaming" &&
+    !connecting &&
+    !!session.sessionId &&
+    liveHost.sessionId === session.sessionId &&
+    liveHost.state === "streaming";
+
+  const guideQueuedMessage = useCallback(
+    async (item: QueuedSend) => {
+      if (guidingQueueItemId || !canGuideQueuedMessage) return;
+      const segments = parseStoredContent(item.storedDisplay);
+      const agentBody = serializeForAgent(segments, { goalMode: item.goalMode });
+      const agentText = buildAgentPrompt(agentBody, item.attachments);
+      if (!agentText.trim()) return;
+
+      queueGuideInFlightRef.current = true;
+      setGuidingQueueItemId(item.id);
+      try {
+        await api.sessionInterject(
+          agentText,
+          item.storedDisplay,
+          item.attachments.map((attachment) => ({
+            path: attachment.path,
+            name: attachment.name,
+            isDir: attachment.isDir,
+          })),
+        );
+        sendQueue.removeItem(item.id);
+      } catch {
+        showToast(tr("composer.queueGuideFailed"), 3600);
+      } finally {
+        queueGuideInFlightRef.current = false;
+        setGuidingQueueItemId((current) =>
+          current === item.id ? null : current,
+        );
+      }
+    },
+    [
+      canGuideQueuedMessage,
+      guidingQueueItemId,
+      sendQueue.removeItem,
+      showToast,
+      tr,
+    ],
+  );
 
   /**
    * Fork a session (full history or through a user-prompt index) and open it.
@@ -8710,77 +8764,17 @@ export default function App() {
                 (dragZone === "main" ? " composer--drop-ready" : "")
               }
             >
-              {sendQueue.activeQueue.length > 0 && (
-                <div
-                  className="composer__queue"
-                  aria-label={tr("composer.queueCount", {
-                    n: String(sendQueue.activeQueue.length),
-                  })}
-                >
-                  <div className="composer__queue-head">
-                    <IconClock size={14} aria-hidden />
-                    <span className="composer__queue-title">
-                      {tr("composer.queueCount", {
-                        n: String(sendQueue.activeQueue.length),
-                      })}
-                    </span>
-                    <button
-                      type="button"
-                      className="composer__queue-clear"
-                      onClick={sendQueue.clearQueue}
-                    >
-                      {tr("composer.queueClear")}
-                    </button>
-                  </div>
-                  {sendQueue.flushHold ? (
-                    <div className="composer__queue-hold" role="status">
-                      <span className="composer__queue-hold-text">
-                        {tr("composer.queueHold")}
-                      </span>
-                      <button
-                        type="button"
-                        className="composer__queue-hold-retry"
-                        onClick={() => sendQueue.resumeFlush()}
-                      >
-                        {tr("composer.queueHoldRetry")}
-                      </button>
-                    </div>
-                  ) : null}
-                  <ul className="composer__queue-list">
-                    {sendQueue.activeQueue.map((item, idx) => (
-                      <li key={item.id} className="composer__queue-item">
-                        <span className="composer__queue-idx" aria-hidden>
-                          {idx + 1}
-                        </span>
-                        <span
-                          className="composer__queue-text"
-                          title={queuePreviewText(
-                            item.storedDisplay,
-                            item.attachments,
-                            200,
-                            queuePreviewLabels,
-                          )}
-                        >
-                          {queuePreviewText(
-                            item.storedDisplay,
-                            item.attachments,
-                            72,
-                            queuePreviewLabels,
-                          )}
-                        </span>
-                        <button
-                          type="button"
-                          className="composer__queue-remove"
-                          aria-label={tr("composer.queueRemove")}
-                          onClick={() => sendQueue.removeItem(item.id)}
-                        >
-                          <IconClose size={12} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <ComposerQueue
+                items={sendQueue.activeQueue}
+                flushHold={sendQueue.flushHold}
+                guidingItemId={guidingQueueItemId}
+                canGuide={canGuideQueuedMessage}
+                tr={tr}
+                onClear={sendQueue.clearQueue}
+                onRemove={sendQueue.removeItem}
+                onGuide={guideQueuedMessage}
+                onRetry={sendQueue.resumeFlush}
+              />
               {attachments.length > 0 && (
                 <div
                   className="composer__attachments"

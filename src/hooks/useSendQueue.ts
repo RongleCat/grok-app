@@ -34,6 +34,59 @@ export type ExecuteSendFromQueue = (opts: {
   targetSessionId: string | null;
 }) => Promise<boolean>;
 
+export type QueueFlushClaim = {
+  head: QueuedSend;
+  byKey: Record<string, QueuedSend[]>;
+  claimKey: string;
+  targetSessionId: string | null;
+};
+
+/**
+ * Atomically apply the latest flush guards before claiming a queue head.
+ * Keeping the synchronous pause ref in this final gate closes the window before
+ * React re-renders `flushPaused` after a Steer starts.
+ */
+export function claimQueueHeadForFlush(input: {
+  byKey: Record<string, QueuedSend[]>;
+  liveState: SessionState;
+  liveSessionId: string | null;
+  viewingSessionId: string | null;
+  sendInFlight: boolean;
+  connecting: boolean;
+  flushPaused: boolean;
+  flushPauseCurrent: boolean;
+  flushHeld: boolean;
+}): QueueFlushClaim | null {
+  if (
+    input.sendInFlight ||
+    input.connecting ||
+    input.flushPaused ||
+    input.flushPauseCurrent ||
+    input.flushHeld
+  ) {
+    return null;
+  }
+  if (
+    input.liveSessionId &&
+    input.viewingSessionId &&
+    input.liveSessionId !== input.viewingSessionId
+  ) {
+    return null;
+  }
+  if (shouldEnqueueSend(input.liveState, false)) return null;
+
+  const claimKey = queueSessionKey(
+    input.viewingSessionId ?? input.liveSessionId,
+  );
+  const claimed = claimQueueHead(input.byKey, claimKey);
+  if (!claimed) return null;
+  return {
+    ...claimed,
+    claimKey,
+    targetSessionId: claimKey === "__draft__" ? null : claimKey,
+  };
+}
+
 export type UseSendQueueOptions = {
   sessionId: string | null;
   sessionState: SessionState;
@@ -41,6 +94,10 @@ export type UseSendQueueOptions = {
   liveHostRef: RefObject<SessionSnapshot>;
   viewingSessionIdRef: MutableRefObject<string | null>;
   sendInFlightRef: MutableRefObject<boolean>;
+  /** Pause auto-flush while a queued item is being steered into the active turn. */
+  flushPaused: boolean;
+  /** Synchronous guard for state-transition races before `flushPaused` re-renders. */
+  flushPauseRef: RefObject<boolean>;
   /** Always call via ref so flush sees the latest executeSend. */
   executeSendRef: MutableRefObject<ExecuteSendFromQueue>;
   showToast: (msg: string, ms?: number) => void;
@@ -62,6 +119,8 @@ export function useSendQueue({
   liveHostRef,
   viewingSessionIdRef,
   sendInFlightRef,
+  flushPaused,
+  flushPauseRef,
   executeSendRef,
   showToast,
   labels,
@@ -170,19 +229,20 @@ export function useSendQueue({
   );
 
   const flush = useCallback(() => {
-    if (sendInFlightRef.current) return;
-    if (connecting) return;
-    if (queueFlushHoldRef.current) return;
     const live = liveHostRef.current;
-    const viewId = viewingSessionIdRef.current;
-    if (live.sessionId && viewId && live.sessionId !== viewId) return;
-    if (shouldEnqueueSend(live.state, false)) return;
-
-    const claimKey = queueSessionKey(viewId ?? live.sessionId);
-    const claimed = claimQueueHead(sendQueueByKeyRef.current, claimKey);
+    const claimed = claimQueueHeadForFlush({
+      byKey: sendQueueByKeyRef.current,
+      liveState: live.state,
+      liveSessionId: live.sessionId,
+      viewingSessionId: viewingSessionIdRef.current,
+      sendInFlight: sendInFlightRef.current,
+      connecting,
+      flushPaused,
+      flushPauseCurrent: flushPauseRef.current,
+      flushHeld: queueFlushHoldRef.current,
+    });
     if (!claimed) return;
-    const { head } = claimed;
-    const targetSessionId = claimKey === "__draft__" ? null : claimKey;
+    const { head, claimKey, targetSessionId } = claimed;
     writeMap(claimed.byKey);
 
     void (async () => {
@@ -212,6 +272,8 @@ export function useSendQueue({
     liveHostRef,
     viewingSessionIdRef,
     sendInFlightRef,
+    flushPaused,
+    flushPauseRef,
     executeSendRef,
     showToast,
     labels,
@@ -232,7 +294,13 @@ export function useSendQueue({
   // Auto-send next queued follow-up when the agent becomes idle.
   useEffect(() => {
     if (sessionState !== "ready" && sessionState !== "idle") return;
-    if (connecting || sendInFlightRef.current || queueFlushHoldRef.current) {
+    if (
+      connecting ||
+      flushPaused ||
+      flushPauseRef.current ||
+      sendInFlightRef.current ||
+      queueFlushHoldRef.current
+    ) {
       return;
     }
     const key = queueSessionKey(sessionId);
@@ -247,6 +315,8 @@ export function useSendQueue({
     sessionState,
     sessionId,
     connecting,
+    flushPaused,
+    flushPauseRef,
     sendQueueByKey,
     flush,
     cancelFlushTimer,

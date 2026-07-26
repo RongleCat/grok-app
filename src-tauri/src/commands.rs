@@ -7,7 +7,7 @@ use tauri::State;
 
 use crate::cli_probe::{self, CliProbeResult};
 use crate::session_manager::{SessionManager, SessionSnapshot};
-use crate::store::{self, AppSettings, Project, SessionMeta};
+use crate::store::{self, AppSettings, MessageAttachmentStored, Project, SessionMeta};
 
 fn windows_grok_go_config_candidates() -> Option<Vec<String>> {
     #[cfg(target_os = "windows")]
@@ -57,6 +57,19 @@ pub async fn session_send(
     display_text: Option<String>,
 ) -> Result<SessionSnapshot, String> {
     mgr.send_message(app, text, display_text).await
+}
+
+/// Inject guidance into the active turn without cancelling the running prompt.
+#[tauri::command]
+pub async fn session_interject(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    text: String,
+    display_text: Option<String>,
+    attachments: Option<Vec<MessageAttachmentStored>>,
+) -> Result<SessionSnapshot, String> {
+    mgr.interject_message(app, text, display_text, attachments)
+        .await
 }
 
 /// Drop last user turn on agent + local journal (edit & resend).

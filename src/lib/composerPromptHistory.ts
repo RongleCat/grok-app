@@ -14,16 +14,20 @@ export type PromptHistoryStep = {
 
 /**
  * Extract prior user prompt strings from session messages, newest first.
- * Skips empty / whitespace-only content. Keeps stored display form
+ * Skips mid-turn interjections and empty / whitespace-only content. Keeps stored display form
  * (`[[skill:…]]` tokens) so the composer can re-render chips.
  */
 export function collectUserPromptHistory(
-  messages: ReadonlyArray<{ role: string; content?: string | null }>,
+  messages: ReadonlyArray<{
+    role: string;
+    content?: string | null;
+    marker?: string;
+  }>,
 ): string[] {
   const out: string[] = [];
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
-    if (!m || m.role !== "user") continue;
+    if (!m || m.role !== "user" || m.marker === "interjection") continue;
     const c = m.content ?? "";
     if (!c.trim()) continue;
     out.push(c);

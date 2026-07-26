@@ -687,13 +687,9 @@ pub fn reset_app_data(keep_secrets: bool) -> Result<serde_json::Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
-
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
-
     #[test]
     fn reset_keeps_secrets_when_requested() {
-        let _g = ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-reset-test-{}",
             std::process::id()
@@ -716,7 +712,7 @@ mod tests {
 
     #[test]
     fn support_bundle_creates_zip_without_secrets() {
-        let _g = ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-bundle-test-{}",
             std::process::id()
@@ -742,7 +738,7 @@ mod tests {
 
     #[test]
     fn session_bundle_includes_messages_without_secrets() {
-        let _g = ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-session-bundle-test-{}",
             std::process::id()
