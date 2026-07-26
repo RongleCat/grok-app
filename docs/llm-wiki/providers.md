@@ -48,7 +48,7 @@ Left / right split (`ProvidersPanel`):
 | Left | **Add provider** on top; list of cards. Official Grok card first **only if** signed in / CLI auth / official key; otherwise list starts empty. |
 | Right | Create/edit form when adding or selecting a custom card; official detail when selecting the official card; empty placeholder otherwise. |
 
-Each card has **Use** to activate that route (`providers_activate`). Click card opens detail/edit. No long intro copy, agent-home path, or separate “active route” switcher.
+Each card has **Use** to activate that route (`providers_activate`). Clicking a card opens detail/edit. No long intro copy, agent-home path, or separate “active route” switcher.
 
 ## Route switching (auth isolation)
 
