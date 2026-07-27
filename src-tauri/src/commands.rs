@@ -788,14 +788,14 @@ pub async fn composer_prefs_set(
         }
     }
     if let Some(mid) = model_id {
-        if let Err(e) = mgr.set_model(mid).await {
-            tracing::warn!("composer_prefs_set set_model soft-fail: {e}");
-        }
+        mgr.set_model(mid)
+            .await
+            .map_err(|e| format!("model switch failed: {e}"))?;
     }
     if let Some(eff) = effort {
-        if let Err(e) = mgr.set_effort_and_respawn_needed(&app, eff).await {
-            tracing::warn!("composer_prefs_set set_effort soft-fail: {e}");
-        }
+        mgr.set_effort_and_respawn_needed(&app, eff)
+            .await
+            .map_err(|e| format!("effort switch failed: {e}"))?;
     }
     if let Some(m) = mode {
         if let Err(e) = mgr.apply_product_mode(&app, m).await {
@@ -843,9 +843,8 @@ pub async fn session_set_model(
         None,
         None,
     )?;
-    if let Err(e) = mgr.set_model(model_id).await {
-        tracing::warn!("session_set_model soft-fail: {e}");
-    }
+    // Surface ACP failures so the composer can show a toast instead of silent miss.
+    mgr.set_model(model_id).await.map_err(|e| format!("model switch failed: {e}"))?;
     Ok(prefs)
 }
 
