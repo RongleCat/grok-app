@@ -1700,6 +1700,7 @@ dependencies = [
  "fs2",
  "futures-util",
  "hex",
+ "hmac",
  "image",
  "keyring",
  "parking_lot",
