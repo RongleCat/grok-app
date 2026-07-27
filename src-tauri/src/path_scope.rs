@@ -135,26 +135,35 @@ mod tests {
 
     static TEST_LOCK: Mutex<()> = Mutex::new(());
 
-    fn with_temp_roots(project: &Path, app: &Path, f: impl FnOnce()) {
-        let _g = TEST_LOCK.lock().unwrap();
-        // Isolate app home so refresh_from_store does not pick up real projects.
+    fn with_isolated_roots(project: &Path, app: &Path, include_temp: bool, f: impl FnOnce()) {
+        let _g = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let prev = std::env::var("GROK_APP_HOME").ok();
         std::env::set_var("GROK_APP_HOME", app);
         let _ = fs::create_dir_all(app);
         let _ = fs::create_dir_all(project);
-        // Empty projects file → only app + temp roots.
         let projects_file = app.join("projects.json");
         let _ = fs::write(&projects_file, "[]");
-        refresh_from_store();
-        // Manually inject the project root as if trusted.
-        {
-            let mut r = roots().write();
-            if let Ok(c) = project.canonicalize() {
-                r.push(c);
+        // Install a deterministic root set (optional temp) so tests do not depend on the
+        // real machine project list or always-on temp allow.
+        let mut next = Vec::new();
+        if let Ok(c) = project.canonicalize() {
+            next.push(c);
+        }
+        if let Ok(c) = app.canonicalize() {
+            next.push(c);
+        } else {
+            next.push(app.to_path_buf());
+        }
+        if include_temp {
+            if let Ok(c) = std::env::temp_dir().canonicalize() {
+                next.push(c);
             }
         }
+        *roots().write() = next;
+        *extra_grants().write() = Vec::new();
         f();
         *extra_grants().write() = Vec::new();
+        *roots().write() = Vec::new();
         match prev {
             Some(v) => std::env::set_var("GROK_APP_HOME", v),
             None => std::env::remove_var("GROK_APP_HOME"),
@@ -169,7 +178,7 @@ mod tests {
         let _ = fs::create_dir_all(&project);
         let file = project.join("readme.md");
         fs::write(&file, "hi").unwrap();
-        with_temp_roots(&project, &app, || {
+        with_isolated_roots(&project, &app, false, || {
             assert!(is_allowed(&file));
             assert!(require_allowed(&file).is_ok());
         });
@@ -181,14 +190,12 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("grok-scope-out-{}", std::process::id()));
         let project = tmp.join("proj");
         let app = tmp.join("app");
-        let outside = tmp.join("secret.txt");
         let _ = fs::create_dir_all(&project);
         let _ = fs::create_dir_all(tmp.join("other"));
-        fs::write(&outside, "secret").unwrap();
-        // Put outside next to project but not under it.
         let outside = tmp.join("other").join("secret.txt");
         fs::write(&outside, "secret").unwrap();
-        with_temp_roots(&project, &app, || {
+        // No global temp root — sibling of project must be denied.
+        with_isolated_roots(&project, &app, false, || {
             assert!(!is_allowed(&outside));
             assert!(require_allowed(&outside).is_err());
         });
@@ -201,10 +208,11 @@ mod tests {
         let project = tmp.join("proj");
         let app = tmp.join("app");
         let other = tmp.join("picked");
+        let _ = fs::create_dir_all(&project);
         let _ = fs::create_dir_all(&other);
         let file = other.join("picked.md");
         fs::write(&file, "x").unwrap();
-        with_temp_roots(&project, &app, || {
+        with_isolated_roots(&project, &app, false, || {
             assert!(!is_allowed(&file));
             grant_path(&file);
             assert!(is_allowed(&file));
