@@ -101,6 +101,58 @@ export function projectHostIntoLiveMap(
 }
 
 /**
+ * Settle one stopped turn without disturbing other live sessions.
+ *
+ * `sessionStop` can resolve before (or without) a final Host state event. The
+ * message view already stops locally in that case, so the sidebar projection
+ * must also leave its busy state instead of spinning indefinitely.
+ */
+export function settleStoppedSessionInLiveMap(
+  map: SessionLiveMap,
+  sessionId: string,
+  nowMs: number = Date.now(),
+): SessionLiveMap {
+  const snapshot = map[sessionId];
+  if (
+    !snapshot ||
+    (!snapshot.awaitingPermission &&
+      !isSessionLiveStreaming(snapshot.state))
+  ) {
+    return map;
+  }
+  return projectHostIntoLiveMap(
+    map,
+    {
+      sessionId,
+      state: "ready",
+      streamingMessageId: null,
+    },
+    nowMs,
+  );
+}
+
+/** Settle a matching focused/workbench snapshot after Stop succeeds. */
+export function settleStoppedSessionSnapshot<
+  T extends {
+    sessionId: string | null;
+    state: SessionState;
+    streamingMessageId?: string | null;
+  },
+>(snapshot: T, sessionId: string): T {
+  if (
+    snapshot.sessionId !== sessionId ||
+    !isSessionLiveStreaming(snapshot.state)
+  ) {
+    return snapshot;
+  }
+  return {
+    ...snapshot,
+    state: "ready",
+    streamingMessageId: null,
+  };
+}
+
+/**
  * State to project when (re)opening `sessionId`.
  *
  * The Host live slot wins. Otherwise a *background* turn's snapshot is used, so

@@ -8,6 +8,8 @@ import {
   mergeTurnProgressFromMessages,
   projectHostIntoLiveMap,
   resumeStateForSession,
+  settleStoppedSessionInLiveMap,
+  settleStoppedSessionSnapshot,
   upsertLiveSnapshot,
 } from "./sessionLiveStore";
 import type { ChatMessage } from "./session";
@@ -48,6 +50,69 @@ describe("sessionLiveStore", () => {
     map = projectHostIntoLiveMap(map, { sessionId: "a", state: "ready" });
     expect(map.a!.liveToolTitle).toBeNull();
     expect(map.a!.state).toBe("ready");
+  });
+
+  it("settles only the stopped session so its sidebar busy state clears", () => {
+    let map = projectHostIntoLiveMap(
+      {},
+      {
+        sessionId: "a",
+        state: "awaiting_permission",
+        streamingMessageId: "m1",
+      },
+      1,
+    );
+    map = projectHostIntoLiveMap(
+      map,
+      { sessionId: "b", state: "streaming", streamingMessageId: "m2" },
+      2,
+    );
+
+    map = settleStoppedSessionInLiveMap(map, "a", 3);
+
+    expect(busySessionIds(map).has("a")).toBe(false);
+    expect(busySessionIds(map).has("b")).toBe(true);
+    expect(map.a).toMatchObject({
+      state: "ready",
+      streamingMessageId: null,
+      awaitingPermission: false,
+      startedAt: null,
+    });
+  });
+
+  it("does not create or rewrite entries when the session is not busy", () => {
+    const empty = {};
+    expect(settleStoppedSessionInLiveMap(empty, "missing", 2)).toBe(empty);
+    expect(empty).not.toHaveProperty("missing");
+
+    const ready = projectHostIntoLiveMap(
+      {},
+      { sessionId: "done", state: "ready" },
+      1,
+    );
+    expect(settleStoppedSessionInLiveMap(ready, "done", 2)).toBe(ready);
+    expect(ready.done!.updatedAt).toBe(1);
+  });
+
+  it("settles matching snapshots but preserves a foreign live host", () => {
+    const viewed = {
+      sessionId: "a",
+      state: "streaming" as const,
+      streamingMessageId: "m1",
+      title: "A",
+    };
+    const foreignHost = {
+      sessionId: "b",
+      state: "streaming" as const,
+      streamingMessageId: "m2",
+    };
+
+    expect(settleStoppedSessionSnapshot(viewed, "a")).toEqual({
+      ...viewed,
+      state: "ready",
+      streamingMessageId: null,
+    });
+    expect(settleStoppedSessionSnapshot(foreignHost, "a")).toBe(foreignHost);
   });
 
   it("empty snapshot defaults", () => {
