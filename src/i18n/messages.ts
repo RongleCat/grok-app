@@ -931,6 +931,9 @@ const en = {
     "Switch to shared ~/.grok? Data will not merge silently. Confirm?",
   "settings.modeIndependent": "independent (~/.grok-app)",
   "settings.modeShared": "shared (~/.grok)",
+  "settings.sessionModeHelp": "Independent keeps chats in the app data dir. Shared uses the CLI home so App and terminal see the same sessions.",
+  "settings.sessionModeImportHint": "Import CLI sessions is only available in shared mode.",
+  "settings.sessionModeImportBlocked": "Switch to shared session data mode to import CLI sessions.",
   "settings.tabOfficial": "Official account",
   "settings.tabProviders": "Custom providers",
   "settings.tabOfficialHint":

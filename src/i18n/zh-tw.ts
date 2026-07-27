@@ -892,6 +892,9 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.sharedConfirm":
     "切換到共用 ~/.grok？資料不會靜默合併，請確認。",
   "settings.modeIndependent": "獨立（~/.grok-app）",
+  "settings.sessionModeHelp": "獨立模式把對話存在 App 資料目錄。共通模式使用 CLI 主目錄，App 與終端共享工作階段。",
+  "settings.sessionModeImportHint": "僅在共通模式下可匯入 CLI 工作階段。",
+  "settings.sessionModeImportBlocked": "請先切換到共通工作階段資料模式，再匯入 CLI 工作階段。",
   "settings.modeShared": "共用（~/.grok）",
   "settings.tabOfficial": "官方帳戶",
   "settings.tabProviders": "自訂供應商",

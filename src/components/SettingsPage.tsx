@@ -1705,6 +1705,7 @@ export function SettingsPage({
                   ]}
                 />
               </div>
+              <p className="settings-page__hint">{t("settings.sessionModeHelp")}</p>
               {sessionDataMode === "shared" ? (
                 <CliSessionsPanel
                   t={t}
