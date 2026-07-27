@@ -950,18 +950,21 @@ const en = {
   "settings.aboutApp": "About Grok App",
   "settings.checkUpdate": "Check for updates",
   "settings.checkUpdateDesc":
-    "Look up the latest GitHub release. Download installers from the release page — this app does not auto-install yet.",
+    "Look up the latest GitHub release. Download the installer for this OS when available — silent in-app install is not enabled yet.",
   "settings.checkUpdateChecking": "Checking…",
   "settings.checkUpdateLatest": "You are on the latest version ({version}).",
   "settings.checkUpdateAvailable":
     "Version {latest} is available (you have {current}).",
   "settings.checkUpdateOpen": "Open release page",
+  "settings.checkUpdateDownload": "Download installer",
   "settings.checkUpdateFailed": "Could not check: {error}",
   "settings.close": "Close",
   "settings.sharedConfirm":
     "Switch to shared ~/.grok? Data will not merge silently. Confirm?",
   "settings.modeIndependent": "independent (~/.grok-app)",
   "settings.modeShared": "shared (~/.grok)",
+  "settings.sessionModeHelp":
+    "Independent keeps chats in the app data dir. Shared uses the CLI home so App and terminal see the same sessions. CLI import requires shared mode.",
   "settings.tabOfficial": "Official account",
   "settings.tabProviders": "Custom providers",
   "settings.tabOfficialHint":
@@ -1890,6 +1893,8 @@ const en = {
   "settings.remoteIm.err.pairPaste": "Could not parse id:secret pair.",
   "settings.remoteIm.err.missingFields": "Missing required fields: {fields}",
   "settings.remoteIm.err.needSecrets": "Enter credentials before saving.",
+  "settings.remoteIm.err.allowFromRequired":
+    "Add at least one allow-from user id (or * for any) before enabling this channel.",
   "settings.remoteIm.test.ok": "Connection test succeeded.",
   "settings.remoteIm.test.fail": "Connection test failed: {error}",
   "settings.remoteIm.status.connected": "Connected",
@@ -2931,18 +2936,21 @@ const zh: Record<MessageKey, string> = {
   "settings.aboutApp": "关于 Grok App",
   "settings.checkUpdate": "检查更新",
   "settings.checkUpdateDesc":
-    "查询 GitHub 最新 Release。安装包请在发布页下载 — 应用暂不自动安装。",
+    "查询 GitHub 最新 Release。有新版本时可下载本机安装包 — 应用暂不静默安装。",
   "settings.checkUpdateChecking": "检查中…",
   "settings.checkUpdateLatest": "已是最新版本（{version}）。",
   "settings.checkUpdateAvailable":
     "有新版本 {latest}（当前 {current}）。",
   "settings.checkUpdateOpen": "打开发布页",
+  "settings.checkUpdateDownload": "下载安装包",
   "settings.checkUpdateFailed": "检查失败：{error}",
   "settings.close": "关闭",
   "settings.sharedConfirm":
     "切换到共享 ~/.grok？数据不会静默合并，请确认。",
   "settings.modeIndependent": "独立（~/.grok-app）",
   "settings.modeShared": "共享（~/.grok）",
+  "settings.sessionModeHelp":
+    "独立模式会话存在应用目录；共享模式使用 CLI 主目录，与终端共用会话。导入 CLI 会话仅共享模式可用。",
   "settings.tabOfficial": "官方账户",
   "settings.tabProviders": "自定义提供商",
   "settings.tabOfficialHint":
@@ -3850,6 +3858,8 @@ const zh: Record<MessageKey, string> = {
   "settings.remoteIm.err.pairPaste": "无法解析 id:secret 格式。",
   "settings.remoteIm.err.missingFields": "缺少必填字段：{fields}",
   "settings.remoteIm.err.needSecrets": "请先填写凭证再保存。",
+  "settings.remoteIm.err.allowFromRequired":
+    "启用前请至少填写一个 allow-from 用户 ID（或 * 表示允许任意）。",
   "settings.remoteIm.test.ok": "连接测试成功。",
   "settings.remoteIm.test.fail": "连接测试失败：{error}",
   "settings.remoteIm.status.connected": "已连接",

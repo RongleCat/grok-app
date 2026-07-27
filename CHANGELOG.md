@@ -11,6 +11,45 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-07-27
+
+> **Highlight:** Windows no more cmd flashes; LINE webhook actually listens on the documented port; installers downloadable from About.
+>
+> **中文 · 亮点：** Windows 不再狂闪 cmd；LINE Webhook 与文档端口一致；关于页可下载本机安装包。
+
+### Added
+- Settings → About: **Download installer** for the current OS when GitHub Release lists a matching asset (L08 tier B)
+- LINE webhook: HMAC `X-Line-Signature` verification; loopback bind by default
+- Remote IM: require non-empty allow-from before enable (`*` still allowed)
+- Session data mode help copy; CLI session import only in shared mode
+- Broader effort tokens for live switch (catalog-aligned)
+
+### Fixed
+- **Windows (#162):** hide console for git/CLI/open-url child processes (`CREATE_NO_WINDOW` / rundll32)
+- **LINE (#161):** default webhook port **8081** (was 8082) matching UI cloudflared hint; bind errors write `lastError`
+- Windows http(s) open no longer splits query `&` via `cmd /C start`
+- Secrets writes use atomic lock + rename
+- Sidebar busy settles when stop resolves without a final host event (#134, already on main)
+
+### Changed
+- CLI install: optional `GROK_CLI_REQUIRE_CHECKSUM=1` refuse unverified downloads
+
+**中文 · 新增**
+- 关于页：可下载本机对应安装包（L08 档 B）
+- LINE：签名校验；默认仅本机回环监听
+- 远程 IM：启用前必须填写 allow-from
+- 会话数据模式说明；CLI 会话导入仅共享模式
+- 思考力度取值与 CLI 目录对齐
+
+**中文 · 修复**
+- **Windows (#162)：** 子进程不再弹黑框
+- **LINE (#161)：** 默认端口 8081；监听失败写入 lastError
+- Windows 外链 `&` 不再被 cmd 截断
+- 密钥文件原子写入
+
+**中文 · 变更**
+- CLI 安装可选强制校验和
+
 ## [0.1.8] - 2026-07-26
 
 > **Highlight:** Multi-session chats keep running in the background; stabler replies; cleaner launch.

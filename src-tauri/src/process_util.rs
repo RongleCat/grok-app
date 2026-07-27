@@ -72,6 +72,20 @@ pub fn apply_no_window_tokio(cmd: &mut tokio::process::Command) {
     let _ = cmd;
 }
 
+/// Build a `std::process::Command` with Windows console hidden (Fixes #162).
+pub fn command(program: impl AsRef<std::ffi::OsStr>) -> StdCommand {
+    let mut cmd = StdCommand::new(program);
+    apply_no_window_std(&mut cmd);
+    cmd
+}
+
+/// Build a `tokio::process::Command` with Windows console hidden.
+pub fn tokio_command(program: impl AsRef<std::ffi::OsStr>) -> tokio::process::Command {
+    let mut cmd = tokio::process::Command::new(program);
+    apply_no_window_tokio(&mut cmd);
+    cmd
+}
+
 /// Whether a path looks runnable as a CLI binary on this OS.
 ///
 /// Follows symlinks (`is_file` / metadata). On Windows accepts `.exe`/`.cmd`/`.bat`/`.com`

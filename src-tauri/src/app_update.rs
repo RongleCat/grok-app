@@ -36,6 +36,9 @@ pub struct AppUpdateCheck {
     pub body: Option<String>,
     /// Download asset names on the release (for UI hints; not auto-fetched).
     pub asset_names: Vec<String>,
+    /// Best-effort direct installer URL for this platform (if assets list one).
+    pub download_url: Option<String>,
+    pub download_name: Option<String>,
 }
 
 /// Strip optional `v` / `V` prefix and parse `major.minor.patch` (extra suffix ignored).
@@ -58,6 +61,66 @@ pub fn is_remote_newer(current: &str, remote: &str) -> bool {
     match (parse_semver(current), parse_semver(remote)) {
         (Some(a), Some(b)) => b > a,
         _ => false,
+    }
+}
+
+fn pick_platform_asset(assets: Option<&Vec<Value>>) -> (Option<String>, Option<String>) {
+    let Some(arr) = assets else {
+        return (None, None);
+    };
+    // Prefer exact installers first (setup.exe / dmg / AppImage), then arch tokens.
+    let prefer: &[&str] = if cfg!(target_os = "macos") {
+        if cfg!(target_arch = "aarch64") {
+            &["aarch64", "arm64", "apple-silicon", ".dmg", "macos"]
+        } else {
+            &["x64", "x86_64", ".dmg", "macos"]
+        }
+    } else if cfg!(target_os = "windows") {
+        &["-setup.exe", "setup.exe", ".msi", "x64", "windows", ".exe"]
+    } else {
+        &[".appimage", "appimage", ".deb", "linux"]
+    };
+    let mut best: Option<(usize, String, String)> = None; // score, name, url
+    for a in arr {
+        let name = match a.get("name").and_then(|n| n.as_str()) {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+        let url = match a.get("browser_download_url").and_then(|u| u.as_str()) {
+            Some(u) if u.starts_with("https://") => u.to_string(),
+            _ => continue,
+        };
+        let lower = name.to_ascii_lowercase();
+        // Skip checksum / signature sidecars.
+        if lower.ends_with(".sig")
+            || lower == "sha256sums"
+            || lower.contains("sha256")
+            || lower.ends_with(".json")
+        {
+            continue;
+        }
+        let mut score = 0usize;
+        for (i, token) in prefer.iter().enumerate() {
+            if lower.contains(token) {
+                score += 100 - i;
+            }
+        }
+        // Prefer non-portable on Windows when both match.
+        if cfg!(target_os = "windows") && lower.contains("portable") {
+            score = score.saturating_sub(30);
+        }
+        if score == 0 {
+            continue;
+        }
+        match &best {
+            None => best = Some((score, name, url)),
+            Some((s, _, _)) if score > *s => best = Some((score, name, url)),
+            _ => {}
+        }
+    }
+    match best {
+        Some((_, n, u)) => (Some(u), Some(n)),
+        None => (None, None),
     }
 }
 
@@ -91,15 +154,15 @@ pub fn parse_github_release(current_version: &str, v: &Value) -> Result<AppUpdat
         .and_then(|x| x.as_str())
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    let asset_names = v
-        .get("assets")
-        .and_then(|a| a.as_array())
+    let assets = v.get("assets").and_then(|a| a.as_array());
+    let asset_names = assets
         .map(|arr| {
             arr.iter()
                 .filter_map(|a| a.get("name").and_then(|n| n.as_str()).map(|s| s.to_string()))
-                .collect()
+                .collect::<Vec<_>>()
         })
         .unwrap_or_default();
+    let (download_url, download_name) = pick_platform_asset(assets);
 
     let latest_version = tag.trim_start_matches(['v', 'V']).to_string();
     let update_available = is_remote_newer(current_version, tag);
@@ -113,6 +176,8 @@ pub fn parse_github_release(current_version: &str, v: &Value) -> Result<AppUpdat
         published_at,
         body,
         asset_names,
+        download_url,
+        download_name,
     })
 }
 
@@ -157,6 +222,8 @@ fn build_check_from_tag(current_version: &str, tag: &str, html_url: &str) -> App
         published_at: None,
         body: None,
         asset_names: vec![],
+        download_url: None,
+        download_name: None,
     }
 }
 
@@ -396,6 +463,8 @@ mod tests {
         assert_eq!(up.current_version, "0.1.5");
         assert_eq!(up.asset_names.len(), 2);
         assert!(up.body.as_deref().unwrap().contains("hello"));
+        // Platform pick is compile-time; at least one of name/url fields is set or both None.
+        assert_eq!(up.download_url.is_some(), up.download_name.is_some());
 
         let same = parse_github_release("0.2.0", &sample).unwrap();
         assert!(!same.update_available);

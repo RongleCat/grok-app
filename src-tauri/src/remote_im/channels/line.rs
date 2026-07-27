@@ -7,6 +7,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
 
+/// Default local webhook port (must match Settings UI / cloudflared callout).
+pub const DEFAULT_WEBHOOK_PORT: u16 = 8081;
+
 pub async fn run(
     inst: ChannelInstance,
     tx: mpsc::Sender<IncomingMessage>,
@@ -14,7 +17,6 @@ pub async fn run(
 ) -> Result<(), String> {
     let channel_secret = secret_or_opt(&inst.secrets, &inst.options, "channel_secret")
         .ok_or_else(|| "line: missing channel_secret".to_string())?;
-    let _ = channel_secret; // signature verification can be added
     let access_token = secret_or_opt(&inst.secrets, &inst.options, "channel_access_token")
         .ok_or_else(|| "line: missing channel_access_token".to_string())?;
     let _ = access_token;
@@ -27,21 +29,45 @@ pub async fn run(
                 .and_then(|x| x.as_u64())
                 .map(|n| n as u16)
         })
-        .unwrap_or(8082);
+        .unwrap_or(DEFAULT_WEBHOOK_PORT);
     let path = secret_or_opt(&inst.secrets, &inst.options, "callback_path")
         .unwrap_or_else(|| "/line/callback".into());
 
-    tracing::info!(instance = %inst.id, port, %path, "line webhook server starting");
+    // Default loopback; opt-in LAN bind only with allow_external=true.
+    let allow_external = inst
+        .options
+        .get("allow_external")
+        .or_else(|| inst.options.get("allowExternal"))
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+    let bind_ip = if allow_external {
+        [0, 0, 0, 0]
+    } else {
+        [127, 0, 0, 1]
+    };
+    tracing::info!(
+        instance = %inst.id,
+        port,
+        %path,
+        allow_external,
+        "line webhook server starting"
+    );
 
-    // Minimal raw TCP HTTP server to avoid new deps — use hyper via reqwest not available.
-    // Use tokio TcpListener + very small request parser.
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let addr = SocketAddr::from((bind_ip, port));
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .map_err(|e| format!("line bind {port}: {e}"))?;
+    // Clear prior bind errors once the listener is up (UI green only if bridge + no lastError).
+    let _ = super::super::config::set_instance_last_error(&inst.id, None);
+    tracing::info!(
+        instance = %inst.id,
+        %addr,
+        "line webhook listening"
+    );
 
     let inst = Arc::new(inst);
     let path = Arc::new(path);
+    let channel_secret = Arc::new(channel_secret);
 
     loop {
         tokio::select! {
@@ -53,6 +79,7 @@ pub async fn run(
                 let tx = tx.clone();
                 let inst = inst.clone();
                 let path = path.clone();
+                let channel_secret = channel_secret.clone();
                 tokio::spawn(async move {
                     use tokio::io::{AsyncReadExt, AsyncWriteExt};
                     let mut buf = vec![0u8; 65536];
@@ -64,6 +91,20 @@ pub async fn run(
                     let body = req.split("\r\n\r\n").nth(1).unwrap_or("");
                     if !req.contains(path.as_str()) {
                         let _ = socket.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n").await;
+                        return;
+                    }
+                    // require X-Line-Signature (HMAC-SHA256 of raw body).
+                    let sig = req
+                        .lines()
+                        .find(|l| l.to_ascii_lowercase().starts_with("x-line-signature:"))
+                        .and_then(|l| l.split_once(':'))
+                        .map(|(_, v)| v.trim().to_string());
+                    if !line_signature_ok(channel_secret.as_str(), body.as_bytes(), sig.as_deref())
+                    {
+                        tracing::warn!(instance = %inst.id, "line: bad or missing X-Line-Signature");
+                        let _ = socket
+                            .write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n")
+                            .await;
                         return;
                     }
                     if let Ok(v) = serde_json::from_str::<Value>(body) {
@@ -118,11 +159,66 @@ pub async fn send_text(
         .await
         .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
-        return Err(format!("line push: {}", res.status()));
+        let body = res.text().await.unwrap_or_default();
+        return Err(format!("line push failed: {body}"));
     }
     Ok(())
 }
 
 pub fn protocol_name() -> &'static str {
     "line-webhook"
+}
+
+fn const_time_eq(a: &str, b: &str) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.as_bytes().iter().zip(b.as_bytes().iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
+
+/// LINE: `X-Line-Signature` = Base64(HMAC-SHA256(channel_secret, raw_body)).
+fn line_signature_ok(channel_secret: &str, body: &[u8], header_sig: Option<&str>) -> bool {
+    use base64::Engine;
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+
+    let Some(sig) = header_sig.map(str::trim).filter(|s| !s.is_empty()) else {
+        return false;
+    };
+    let mut mac = match Hmac::<Sha256>::new_from_slice(channel_secret.as_bytes()) {
+        Ok(m) => m,
+        Err(_) => return false,
+    };
+    mac.update(body);
+    let expected = base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes());
+    const_time_eq(&expected, sig)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn line_signature_accepts_valid() {
+        use base64::Engine;
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+        let secret = "test_secret";
+        let body = br#"{"events":[]}"#;
+        let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
+        mac.update(body);
+        let sig = base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes());
+        assert!(line_signature_ok(secret, body, Some(&sig)));
+        assert!(!line_signature_ok(secret, body, Some("bad")));
+        assert!(!line_signature_ok(secret, body, None));
+    }
+
+    #[test]
+    fn default_port_matches_ui_callout() {
+        assert_eq!(DEFAULT_WEBHOOK_PORT, 8081);
+    }
 }

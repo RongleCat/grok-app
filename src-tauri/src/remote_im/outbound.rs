@@ -217,6 +217,11 @@ pub fn secret_or_opt(
         .or_else(|| opt_str(options, key))
 }
 
+/// Parse allow-from ACL.
+///
+/// - `*` or missing → open (None)
+/// - empty string → fail-closed empty list
+/// - comma list → allow only those senders
 pub fn allow_from_list(acl: &serde_json::Value) -> Option<Vec<String>> {
     let raw = acl
         .get("allowFrom")
@@ -224,8 +229,11 @@ pub fn allow_from_list(acl: &serde_json::Value) -> Option<Vec<String>> {
         .and_then(|x| x.as_str())
         .unwrap_or("*")
         .trim();
-    if raw.is_empty() || raw == "*" {
+    if raw == "*" {
         return None;
+    }
+    if raw.is_empty() {
+        return Some(vec![]);
     }
     Some(
         raw.split(',')
@@ -238,8 +246,14 @@ pub fn allow_from_list(acl: &serde_json::Value) -> Option<Vec<String>> {
 pub fn sender_allowed(acl: &serde_json::Value, sender_id: &str) -> bool {
     match allow_from_list(acl) {
         None => true,
+        Some(list) if list.is_empty() => false,
         Some(list) => list.iter().any(|x| x == sender_id || x == "*"),
     }
+}
+
+/// True when enable should be refused (empty allow list, not `*`).
+pub fn allow_from_blocks_enable(acl: &serde_json::Value) -> bool {
+    matches!(allow_from_list(acl), Some(list) if list.is_empty())
 }
 
 pub fn require_mention(options: &serde_json::Value, acl: &serde_json::Value) -> bool {

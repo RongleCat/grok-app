@@ -96,6 +96,8 @@ pub fn spawn_instance(
         };
         if let Err(e) = result {
             tracing::error!(instance = %id, channel = %channel, "channel connector exited: {e}");
+            // Surface bind/auth failures so Settings does not keep a green "connected".
+            let _ = super::config::set_instance_last_error(&id, Some(e));
         }
     })
 }

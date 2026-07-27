@@ -229,6 +229,13 @@ export function RemoteImChannelPanel({
         options.allow_from = acl.allowFrom;
       }
 
+      // Fail-closed: empty allow list cannot enable (security default).
+      const allowRaw = String(acl.allowFrom ?? "").trim();
+      if (!allowRaw) {
+        setFormError(t("settings.remoteIm.err.allowFromRequired"));
+        return false;
+      }
+
       const nextAcl: AclConfig = {
         ...acl,
         shareSessionInChannel:
@@ -815,7 +822,9 @@ export function RemoteImChannelPanel({
             </div>
             <p>{t("settings.remoteIm.publicUrl.body")}</p>
             <code className="rim-callout__code">
-              cloudflared tunnel --url http://127.0.0.1:8081
+              {`cloudflared tunnel --url http://127.0.0.1:${
+                String(values.port ?? secrets.port ?? "").trim() || "8081"
+              }`}
             </code>
           </div>
         ) : null}

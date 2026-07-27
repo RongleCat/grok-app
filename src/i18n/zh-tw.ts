@@ -918,12 +918,15 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.checkUpdateAvailable":
     "有新版本 {latest}（目前 {current}）。",
   "settings.checkUpdateOpen": "開啟發佈頁",
+  "settings.checkUpdateDownload": "下載安裝包",
   "settings.checkUpdateFailed": "檢查失敗：{error}",
   "settings.close": "關閉",
   "settings.sharedConfirm":
     "切換到共用 ~/.grok？資料不會靜默合併，請確認。",
   "settings.modeIndependent": "獨立（~/.grok-app）",
   "settings.modeShared": "共用（~/.grok）",
+  "settings.sessionModeHelp":
+    "獨立模式會話存在應用目錄；共享模式使用 CLI 主目錄，與終端共用會話。匯入 CLI 會話僅共享模式可用。",
   "settings.tabOfficial": "官方帳戶",
   "settings.tabProviders": "自訂供應商",
   "settings.tabOfficialHint":
@@ -1831,6 +1834,8 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.remoteIm.err.pairPaste": "無法解析 id:secret 格式。",
   "settings.remoteIm.err.missingFields": "缺少必填欄位：{fields}",
   "settings.remoteIm.err.needSecrets": "請先填寫憑證再儲存。",
+  "settings.remoteIm.err.allowFromRequired":
+    "啟用前請至少填寫一個 allow-from 使用者 ID（或 * 表示允許任意）。",
   "settings.remoteIm.test.ok": "連線測試成功。",
   "settings.remoteIm.test.fail": "連線測試失敗：{error}",
   "settings.remoteIm.status.connected": "已連線",

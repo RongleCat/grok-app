@@ -1788,6 +1788,7 @@ export function SettingsPage({
                   ]}
                 />
               </div>
+              <p className="settings-page__hint">{t("settings.sessionModeHelp")}</p>
               {sessionDataMode === "shared" ? (
                 <CliSessionsPanel
                   t={t}
@@ -3375,13 +3376,24 @@ function AboutUpdateRow({
               : t("settings.checkUpdate")}
           </button>
           {result?.updateAvailable ? (
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => void openRelease(result.htmlUrl)}
-            >
-              {t("settings.checkUpdateOpen")}
-            </button>
+            <>
+              {result.downloadUrl ? (
+                <button
+                  type="button"
+                  className="btn btn--solid"
+                  onClick={() => void openRelease(result.downloadUrl!)}
+                >
+                  {t("settings.checkUpdateDownload")}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => void openRelease(result.htmlUrl)}
+              >
+                {t("settings.checkUpdateOpen")}
+              </button>
+            </>
           ) : null}
         </div>
         {error ? (

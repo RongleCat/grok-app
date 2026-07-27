@@ -146,6 +146,22 @@ pub fn delete_instance(instance_id: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Persist connector exit / bind errors so UI does not show a false "connected".
+pub fn set_instance_last_error(instance_id: &str, err: Option<String>) -> Result<(), String> {
+    let mut list = list_instances();
+    let Some(row) = list.iter_mut().find(|x| x.id == instance_id) else {
+        return Ok(());
+    };
+    row.last_error = err.clone();
+    if err.is_some() {
+        row.status = "error".into();
+    } else if row.has_credentials {
+        row.status = "configured".into();
+    }
+    write_instances(&list)?;
+    Ok(())
+}
+
 /// Legacy path kept for doctor/docs; Rust runtime does not require Node config.toml.
 pub fn bridge_data_dir() -> PathBuf {
     let dir = app_data_root().join("remote").join("bridge-data");

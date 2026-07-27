@@ -251,6 +251,14 @@ pub async fn app_check_update() -> Result<crate::app_update::AppUpdateCheck, Str
 /// Open a URL in the system browser (docs, install pages).
 #[tauri::command]
 pub async fn open_external_url(url: String) -> Result<(), String> {
+    open_http_url(url.trim())
+}
+
+/// Shared http(s) open helper (also used by account login).
+///
+/// Windows uses `rundll32 url.dll,FileProtocolHandler` so query `&` is not
+/// split by `cmd /C start`, and no console window flashes (Fixes #162).
+pub fn open_http_url(url: &str) -> Result<(), String> {
     let url = url.trim();
     if url.is_empty() {
         return Err("empty url".into());
@@ -258,9 +266,13 @@ pub async fn open_external_url(url: String) -> Result<(), String> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err("only http(s) URLs allowed".into());
     }
+    // Reject control characters that could smuggle extra commands.
+    if url.bytes().any(|b| b == 0 || b == b'\n' || b == b'\r') {
+        return Err("invalid url".into());
+    }
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("open")
+        crate::process_util::command("open")
             .arg(url)
             .status()
             .map_err(|e| e.to_string())?;
@@ -268,15 +280,16 @@ pub async fn open_external_url(url: String) -> Result<(), String> {
     }
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", url])
+        // Avoid `cmd /C start` — it re-parses `&` in query strings as command separators.
+        crate::process_util::command("rundll32")
+            .args(["url.dll,FileProtocolHandler", url])
             .status()
             .map_err(|e| e.to_string())?;
         return Ok(());
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        std::process::Command::new("xdg-open")
+        crate::process_util::command("xdg-open")
             .arg(url)
             .status()
             .map_err(|e| e.to_string())?;
@@ -357,21 +370,21 @@ pub async fn project_reveal(id: String) -> Result<(), String> {
     let path = p.path.clone();
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("open")
+        crate::process_util::command("open")
             .arg(&path)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("explorer")
+        crate::process_util::command("explorer")
             .arg(&path)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        std::process::Command::new("xdg-open")
+        crate::process_util::command("xdg-open")
             .arg(&path)
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -1827,13 +1840,13 @@ fn save_and_reveal_file(
     let path_s = final_path.display().to_string();
     #[cfg(target_os = "macos")]
     {
-        let _ = std::process::Command::new("open")
+        let _ = crate::process_util::command("open")
             .args(["-R", &path_s])
             .status();
     }
     #[cfg(target_os = "windows")]
     {
-        let _ = std::process::Command::new("explorer")
+        let _ = crate::process_util::command("explorer")
             .args(["/select,", &path_s])
             .status();
     }
@@ -3901,21 +3914,21 @@ pub async fn path_open(path: String) -> Result<(), String> {
     }
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("open")
+        crate::process_util::command("open")
             .arg(&p)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("cmd")
+        crate::process_util::command("cmd")
             .args(["/C", "start", "", &p])
             .spawn()
             .map_err(|e| e.to_string())?;
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        std::process::Command::new("xdg-open")
+        crate::process_util::command("xdg-open")
             .arg(&p)
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -3987,7 +4000,7 @@ pub async fn git_file_diff(
     }
 
     // Soft check: is git on PATH?
-    let git_ok = std::process::Command::new("git")
+    let git_ok = crate::process_util::command("git")
         .arg("--version")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -4004,7 +4017,7 @@ pub async fn git_file_diff(
     }
 
     // Confirm we are inside a work tree
-    let inside = std::process::Command::new("git")
+    let inside = crate::process_util::command("git")
         .args(["-C", &project, "rev-parse", "--is-inside-work-tree"])
         .output();
     let inside_ok = inside
@@ -4021,7 +4034,7 @@ pub async fn git_file_diff(
     }
 
     // Working tree + index vs HEAD (covers staged and unstaged edits).
-    let out = std::process::Command::new("git")
+    let out = crate::process_util::command("git")
         .args([
             "-C",
             &project,
@@ -4037,7 +4050,7 @@ pub async fn git_file_diff(
 
     if !out.status.success() {
         // Untracked new file: try against empty tree
-        let untracked = std::process::Command::new("git")
+        let untracked = crate::process_util::command("git")
             .args([
                 "-C",
                 &project,
@@ -4078,7 +4091,7 @@ pub async fn git_file_diff(
     let text = String::from_utf8_lossy(&out.stdout).to_string();
     if text.trim().is_empty() {
         // Maybe untracked
-        let untracked = std::process::Command::new("git")
+        let untracked = crate::process_util::command("git")
             .args([
                 "-C",
                 &project,
@@ -4093,7 +4106,7 @@ pub async fn git_file_diff(
             // Show full file as addition via --no-index when possible
             let abs = proj.join(&rel);
             if abs.is_file() {
-                let u = std::process::Command::new("git")
+                let u = crate::process_util::command("git")
                     .args([
                         "-C",
                         &project,
@@ -4139,7 +4152,7 @@ pub async fn git_file_diff(
 
 /// Soft-check git on PATH + project is inside a work tree.
 fn git_probe_work_tree(project: &str) -> Result<(), String> {
-    let git_ok = std::process::Command::new("git")
+    let git_ok = crate::process_util::command("git")
         .arg("--version")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -4149,7 +4162,7 @@ fn git_probe_work_tree(project: &str) -> Result<(), String> {
     if !git_ok {
         return Err("git not available".into());
     }
-    let inside = std::process::Command::new("git")
+    let inside = crate::process_util::command("git")
         .args(["-C", project, "rev-parse", "--is-inside-work-tree"])
         .output();
     let inside_ok = inside
@@ -4329,7 +4342,7 @@ pub async fn git_status(project_path: String) -> Result<GitStatusResult, String>
         });
     }
 
-    let branch = std::process::Command::new("git")
+    let branch = crate::process_util::command("git")
         .args(["-C", &project, "rev-parse", "--abbrev-ref", "HEAD"])
         .output()
         .ok()
@@ -4347,7 +4360,7 @@ pub async fn git_status(project_path: String) -> Result<GitStatusResult, String>
         });
 
     // Porcelain v1: untracked as `??`, no ignored noise, relative paths.
-    let out = std::process::Command::new("git")
+    let out = crate::process_util::command("git")
         .args([
             "-C",
             &project,
@@ -4520,7 +4533,7 @@ pub async fn git_show_file(
     }
 
     // `git show HEAD:path` — fails for untracked / missing at HEAD
-    let out = std::process::Command::new("git")
+    let out = crate::process_util::command("git")
         .args(["-C", &project, "show", &format!("HEAD:{rel}")])
         .output()
         .map_err(|e| e.to_string())?;
@@ -4740,7 +4753,7 @@ pub async fn git_worktrees_list(project_path: String) -> Result<GitWorktreesResu
         });
     }
 
-    let out = std::process::Command::new("git")
+    let out = crate::process_util::command("git")
         .args(["-C", &project, "worktree", "list", "--porcelain"])
         .output()
         .map_err(|e| e.to_string())?;
@@ -4815,7 +4828,7 @@ pub async fn path_reveal(path: String) -> Result<(), String> {
     }
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("open")
+        crate::process_util::command("open")
             .args(["-R", &p])
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -4823,7 +4836,7 @@ pub async fn path_reveal(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         // explorer /select,<path> — works with spaces on modern Windows.
-        std::process::Command::new("explorer")
+        crate::process_util::command("explorer")
             .arg(format!("/select,{p}"))
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -4835,7 +4848,7 @@ pub async fn path_reveal(path: String) -> Result<(), String> {
             .parent()
             .map(|x| x.to_path_buf())
             .unwrap_or(pb.clone());
-        std::process::Command::new("xdg-open")
+        crate::process_util::command("xdg-open")
             .arg(parent)
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -5635,7 +5648,7 @@ pub async fn git_worktree_add(
     let start = sanitize_worktree_ref(start_point.as_deref())?;
 
     // Resolve main worktree path (first porcelain entry) for sibling placement.
-    let list_out = std::process::Command::new("git")
+    let list_out = crate::process_util::command("git")
         .args(["-C", &project, "worktree", "list", "--porcelain"])
         .output()
         .map_err(|e| e.to_string())?;
@@ -5682,7 +5695,7 @@ pub async fn git_worktree_add(
         args.push(sp.clone());
     }
 
-    let out = std::process::Command::new("git")
+    let out = crate::process_util::command("git")
         .args(&args)
         .output()
         .map_err(|e| e.to_string())?;
@@ -5702,7 +5715,7 @@ pub async fn git_worktree_add(
 
     // Best-effort: re-list to pick up branch field for the new path.
     let branch = {
-        let re = std::process::Command::new("git")
+        let re = crate::process_util::command("git")
             .args(["-C", &project, "worktree", "list", "--porcelain"])
             .output()
             .ok();
@@ -5759,7 +5772,7 @@ pub async fn git_worktree_gc(
 
     // Snapshot prunable entries before prune for UI preview / summary.
     let prunable = {
-        let list_out = std::process::Command::new("git")
+        let list_out = crate::process_util::command("git")
             .args(["-C", &project, "worktree", "list", "--porcelain"])
             .output()
             .map_err(|e| e.to_string())?;
@@ -5781,7 +5794,7 @@ pub async fn git_worktree_gc(
         age.as_deref(),
     )?;
 
-    let out = std::process::Command::new("git")
+    let out = crate::process_util::command("git")
         .args(&args)
         .output()
         .map_err(|e| e.to_string())?;
@@ -5864,7 +5877,7 @@ pub async fn git_worktree_remove(
         return Err("invalid worktree path".into());
     }
 
-    let list_out = std::process::Command::new("git")
+    let list_out = crate::process_util::command("git")
         .args(["-C", &project, "worktree", "list", "--porcelain"])
         .output()
         .map_err(|e| e.to_string())?;
@@ -5909,7 +5922,7 @@ pub async fn git_worktree_remove(
     }
     args.push(remove_path.clone());
 
-    let out = std::process::Command::new("git")
+    let out = crate::process_util::command("git")
         .args(&args)
         .output()
         .map_err(|e| e.to_string())?;

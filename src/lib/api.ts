@@ -359,6 +359,9 @@ export type AppUpdateCheck = {
   publishedAt: string | null;
   body: string | null;
   assetNames: string[];
+  /** Best-effort platform installer URL from the release assets. */
+  downloadUrl: string | null;
+  downloadName: string | null;
 };
 
 export async function appCheckUpdate() {

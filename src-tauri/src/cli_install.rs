@@ -721,8 +721,20 @@ pub async fn install_cli_latest(app: AppHandle) -> Result<CliInstallResult, Stri
             true
         }
         None => {
-            // Official mirrors do not publish sidecars today. We still compute and surface
-            // the hash, enforce allowlist + size + --version, and never install off-list.
+            // Prefer published sidecars. Without one we still enforce URL allowlist +
+            // size + binary --version, and mark the install as unverified.
+            let require = std::env::var("GROK_CLI_REQUIRE_CHECKSUM")
+                .map(|v| {
+                    let v = v.trim().to_ascii_lowercase();
+                    matches!(v.as_str(), "1" | "true" | "yes" | "on")
+                })
+                .unwrap_or(false);
+            if require {
+                let _ = fs::remove_file(&tmp_path);
+                return Err(format!(
+                    "No published SHA-256 for {artifact_name}. Refusing install because GROK_CLI_REQUIRE_CHECKSUM is set. hash={digest}"
+                ));
+            }
             warn!(
                 "cli_install: no published checksum for {artifact_name}; \
                  continuing with allowlist + binary probe (hash={digest})"

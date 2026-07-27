@@ -422,8 +422,8 @@ pub fn open_in_editor(
         } else {
             args.push(abs.clone());
         }
-        Command::new(&cmd)
-            .args(&args)
+        let mut c = crate::process_util::command(&cmd);
+        c.args(&args)
             .spawn()
             .map_err(|e| format!("failed to open editor `{cmd}`: {e}"))?;
         return Ok(());
@@ -432,21 +432,22 @@ pub fn open_in_editor(
     // Fallback: OS default open
     #[cfg(target_os = "macos")]
     {
-        Command::new("open")
+        crate::process_util::command("open")
             .arg(&abs)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd")
-            .args(["/C", "start", "", &abs])
+        // rundll32 avoids cmd console flash and handles paths with spaces.
+        crate::process_util::command("rundll32")
+            .args(["url.dll,FileProtocolHandler", &abs])
             .spawn()
             .map_err(|e| e.to_string())?;
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        Command::new("xdg-open")
+        crate::process_util::command("xdg-open")
             .arg(&abs)
             .spawn()
             .map_err(|e| e.to_string())?;
