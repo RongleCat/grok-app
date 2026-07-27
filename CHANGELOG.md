@@ -13,6 +13,20 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- Trust sandbox: `path_scope` allowlist for absolute fs / `media://` (trusted projects, app data, grants)
+- CSP enabled; asset protocol denies common secret paths
+- Phone mirror: default **read-only**, regenerate link (token rotate), allow-write toggle
+- Error deck: free-form message classification (CLI / auth / network / crash)
+
+### Fixed
+
+- SVG resource preview no longer injects raw HTML
+- Resource absolute open/save grants path for re-open
+
+### Security
+
+- media:// CORS limited to main-window origins; path allowlist enforced
+
 - Desktop in-app auto-update (Tauri updater): signed release builds can check,
   download, install, and relaunch from Settings → About. Local / unsigned
   builds keep the GitHub “open release page” path. Adds

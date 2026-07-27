@@ -1782,17 +1782,7 @@ export function ResourceViewer({
 
     switch (preview.kind) {
       case "image":
-        if (
-          preview.text &&
-          (preview.mime.includes("svg") || preview.name.endsWith(".svg"))
-        ) {
-          return (
-            <div
-              className="rp-preview__svg"
-              dangerouslySetInnerHTML={{ __html: preview.text }}
-            />
-          );
-        }
+        // Render SVG via <img>/media URL so the webview image sandbox blocks scripts.
         return src ? (
           <ImageUi
             layout="pane"

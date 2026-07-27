@@ -2638,6 +2638,11 @@ export function SettingsPage({
                       errorGeneric: t("mirror.errorGeneric"),
                       qrAlt: t("mirror.qrAlt"),
                       linkLabel: t("mirror.linkLabel"),
+                      rotate: t("mirror.rotate"),
+                      rotateDone: t("mirror.rotateDone"),
+                      allowWrite: t("mirror.allowWrite"),
+                      readOnlyOn: t("mirror.readOnlyOn"),
+                      readOnlyHint: t("mirror.readOnlyHint"),
                     }}
                     onConfirmStop={(opts) => setMirrorStopConfirm(opts)}
                     showToast={showSettingsToast}

@@ -3543,7 +3543,10 @@ pub async fn pick_directory() -> Result<Option<String>, String> {
     })
     .await
     .map_err(|e| e.to_string())?;
-    Ok(folder.map(|p| p.display().to_string()))
+    Ok(folder.map(|p| {
+        crate::path_scope::grant_path(&p);
+        p.display().to_string()
+    }))
 }
 
 /// Native multi-file picker for composer attachments. Returns empty vec if cancelled.
@@ -3559,7 +3562,10 @@ pub async fn pick_attach_files() -> Result<Vec<String>, String> {
     Ok(files
         .unwrap_or_default()
         .into_iter()
-        .map(|p| p.display().to_string())
+        .map(|p| {
+            crate::path_scope::grant_path(&p);
+            p.display().to_string()
+        })
         .collect())
 }
 
@@ -3573,7 +3579,7 @@ pub async fn pick_attach_folder() -> Result<Option<String>, String> {
     })
     .await
     .map_err(|e| e.to_string())?;
-    Ok(folder.map(|p| p.display().to_string()))
+    Ok(folder.map(|p| { crate::path_scope::grant_path(&p); p.display().to_string() }))
 }
 
 /// Save clipboard / webview File bytes into app attachments dir; return classified path.

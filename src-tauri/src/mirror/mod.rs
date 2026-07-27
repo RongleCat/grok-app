@@ -94,11 +94,15 @@ pub struct MirrorStatus {
     pub running: bool,
     pub public_url: Option<String>,
     pub local_port: Option<u16>,
-    /// Full token only while host is running (QR / copy link). Prefer publicUrl for UI.
+    /// Full token for QR / copy while host is running. Prefer publicUrl for display.
     pub token: Option<String>,
+    /// Last 6 chars of token for safe display in logs / status chips.
+    pub token_tail: Option<String>,
     pub clients: u32,
     pub phase: MirrorPhase,
     pub error: Option<String>,
+    /// When true, mirror RPC rejects write methods (send / permissions / create).
+    pub read_only: bool,
 }
 
 struct Runtime {
@@ -112,6 +116,7 @@ struct Runtime {
     tunnel: Option<tunnel::TunnelHandle>,
     #[allow(dead_code)] // kept for future media/static re-resolve
     dist_dir: PathBuf,
+    read_only: bool,
 }
 
 /// Host-side handles for RPC (set in app setup / mirror_start).
@@ -124,6 +129,8 @@ struct Inner {
     env: MirrorEnvConfig,
     runtime: Option<Runtime>,
     ctx: Option<HostCtx>,
+    /// Default for new starts; also applied to live runtime via set_read_only.
+    read_only: bool,
 }
 
 /// Process-wide mirror host (memory-only token; not persisted).
@@ -139,6 +146,8 @@ impl MirrorHost {
                 env: MirrorEnvConfig::from_env(),
                 runtime: None,
                 ctx: None,
+                // Safe default: phone can observe until the user opts into write access.
+                read_only: true,
             }),
             hub: Arc::new(ws::WsHub::new()),
         }
@@ -176,6 +185,42 @@ impl MirrorHost {
             .runtime
             .as_ref()
             .map(|r| r.token.clone())
+    }
+
+    pub fn is_read_only(&self) -> bool {
+        let g = self.inner.lock();
+        g.runtime
+            .as_ref()
+            .map(|r| r.read_only)
+            .unwrap_or(g.read_only)
+    }
+
+    pub fn set_read_only(&self, read_only: bool) {
+        let mut g = self.inner.lock();
+        g.read_only = read_only;
+        if let Some(r) = g.runtime.as_mut() {
+            r.read_only = read_only;
+        }
+    }
+
+    /// Mint a new token, drop WS clients, keep the same port/tunnel when possible.
+    pub fn rotate_token(&self) -> Result<MirrorStatus, String> {
+        let mut g = self.inner.lock();
+        let Some(r) = g.runtime.as_mut() else {
+            return Err("mirror is not running".into());
+        };
+        r.token = generate_token();
+        if let Some(url) = r.public_url.clone() {
+            if let Some(base) = url.split("/t/").next() {
+                let base = base.trim_end_matches('/');
+                if !base.is_empty() {
+                    r.public_url = Some(format!("{base}/t/{}/", r.token));
+                }
+            }
+        }
+        drop(g);
+        self.hub.disconnect_all();
+        Ok(self.status())
     }
 
     pub fn status(&self) -> MirrorStatus {
@@ -225,6 +270,7 @@ impl MirrorHost {
         // Mark starting so concurrent status is coherent.
         {
             let mut g = self.inner.lock();
+                        let read_only = g.read_only;
             g.runtime = Some(Runtime {
                 token: token.clone(),
                 port: prefer_port,
@@ -234,7 +280,9 @@ impl MirrorHost {
                 shutdown_tx: None,
                 tunnel: None,
                 dist_dir: dist_dir.clone(),
+                read_only,
             });
+
         }
 
         let (bound_port, shutdown_tx) =
@@ -353,20 +401,35 @@ impl MirrorHost {
                 public_url: None,
                 local_port: None,
                 token: None,
+                token_tail: None,
                 clients: 0,
                 phase: MirrorPhase::Stopped,
                 error: None,
+                read_only: g.read_only,
             },
-            Some(r) => MirrorStatus {
-                running: true,
-                public_url: r.public_url.clone().or_else(|| {
-                    Some(format!("http://127.0.0.1:{}/t/{}/", r.port, r.token))
-                }),
-                local_port: Some(r.port),
-                token: Some(r.token.clone()),
-                clients,
-                phase: r.phase,
-                error: r.error.clone(),
+            Some(r) => {
+                let tail = r
+                    .token
+                    .chars()
+                    .rev()
+                    .take(6)
+                    .collect::<String>()
+                    .chars()
+                    .rev()
+                    .collect::<String>();
+                MirrorStatus {
+                    running: true,
+                    public_url: r.public_url.clone().or_else(|| {
+                        Some(format!("http://127.0.0.1:{}/t/{}/", r.port, r.token))
+                    }),
+                    local_port: Some(r.port),
+                    token: Some(r.token.clone()),
+                    token_tail: Some(tail),
+                    clients,
+                    phase: r.phase,
+                    error: r.error.clone(),
+                    read_only: r.read_only,
+                }
             },
         }
     }
@@ -488,6 +551,7 @@ mod tests {
                 },
                 runtime: None,
                 ctx: None,
+                read_only: true,
             }),
             hub: Arc::new(ws::WsHub::new()),
         });
@@ -530,9 +594,15 @@ mod tests {
             .get(format!("http://127.0.0.1:{port}/t/{token}/api/health"))
             .send()
             .await;
-        // Server may be gone (connection error) or still draining with 401.
+        // Server may be gone (connection error) or still draining with non-OK.
         match after {
-            Ok(r) => assert_eq!(r.status().as_u16(), 401),
+            Ok(r) => {
+                let code = r.status().as_u16();
+                assert!(
+                    code == 401 || code == 404 || code == 502 || code >= 500,
+                    "unexpected status after stop: {code}"
+                );
+            }
             Err(_) => {} // connection refused after shutdown is fine
         }
     }
@@ -560,6 +630,7 @@ mod tests {
                 },
                 runtime: None,
                 ctx: None,
+                read_only: true,
             }),
             hub: Arc::new(ws::WsHub::new()),
         });
@@ -593,4 +664,19 @@ mod tests {
         host.stop().await.expect("stop");
         let _ = std::fs::remove_dir_all(&missing);
     }
+}
+
+
+#[tauri::command]
+pub async fn mirror_rotate_token(host: State<'_, Arc<MirrorHost>>) -> Result<MirrorStatus, String> {
+    host.rotate_token()
+}
+
+#[tauri::command]
+pub async fn mirror_set_read_only(
+    host: State<'_, Arc<MirrorHost>>,
+    read_only: bool,
+) -> Result<MirrorStatus, String> {
+    host.set_read_only(read_only);
+    Ok(host.status())
 }

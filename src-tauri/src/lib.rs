@@ -21,6 +21,7 @@ mod editors;
 mod error;
 mod fs_browser;
 mod media_protocol;
+mod path_scope;
 mod mirror;
 mod mock_acp;
 mod models_catalog;
@@ -139,6 +140,7 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            crate::path_scope::refresh_from_store();
             use tauri::Manager;
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(target_os = "macos")]
@@ -360,6 +362,8 @@ pub fn run() {
             commands::editors_list,
             commands::open_in_editor,
             mirror::mirror_status,
+            mirror::mirror_rotate_token,
+            mirror::mirror_set_read_only,
             mirror::mirror_start,
             mirror::mirror_stop,
             voice_host::voice_state,

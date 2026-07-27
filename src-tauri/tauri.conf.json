@@ -27,12 +27,11 @@
     ],
     "macOSPrivateApi": true,
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; img-src 'self' asset: media: http://asset.localhost https://asset.localhost http://media.localhost https://media.localhost asset://localhost media://localhost data: blob:; media-src 'self' asset: media: http://asset.localhost https://asset.localhost http://media.localhost https://media.localhost asset://localhost media://localhost blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://ipc.localhost https://api.x.ai https://x.ai https://auth.x.ai https://accounts.x.ai https://cli-chat-proxy.grok.com https://api.github.com https://github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com ws: wss:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
       "assetProtocol": {
         "enable": true,
         "scope": {
           "allow": [
-            "**",
             "$HOME/**",
             "$DOCUMENT/**",
             "$DOWNLOAD/**",
@@ -42,7 +41,14 @@
             "$TEMP/**",
             "$CACHE/**"
           ],
-          "deny": []
+          "deny": [
+            "$HOME/.ssh/**",
+            "$HOME/.aws/**",
+            "$HOME/.gnupg/**",
+            "$HOME/.config/gh/**",
+            "$HOME/.grok/auth.json",
+            "$APPDATA/**/secrets.json"
+          ]
         }
       }
     }

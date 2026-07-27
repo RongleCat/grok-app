@@ -1,5 +1,5 @@
 import type { Locale } from "../i18n";
-import { buildErrorDeck, deckCodeFromAgent } from "./errorDeck";
+import { buildErrorDeck, deckCodeFromAgent, resolveErrorDeckCode } from "./errorDeck";
 import type { ErrorDeckAction, ErrorDeckCard } from "./errorDeck";
 
 export type SessionState =
@@ -2049,7 +2049,10 @@ export function presentErrorBanner(
     const disconnected =
       error.message === "agent_disconnected" ||
       /disconnect|中断|rpc channel closed/i.test(lower);
-    const deckCode = deckCodeFromAgent(error.code, { timeout, disconnected });
+    const deckCode = resolveErrorDeckCode(error.code, error.message, {
+      timeout,
+      disconnected,
+    });
     const deck = buildErrorDeck(deckCode, locale);
     return bannerFromDeck(deck, error.code, null);
   }

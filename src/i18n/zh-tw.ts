@@ -1699,6 +1699,12 @@ export const zhTW: Record<MessageKey, string> = {
   "mirror.errorGeneric": "出了點問題",
   "mirror.qrAlt": "手機鏡像網址的 QR 碼",
   "mirror.linkLabel": "公開網址",
+  "mirror.rotate": "重新產生連結",
+  "mirror.rotateDone": "新連結已就緒 — 舊 QR 失效。",
+  "mirror.allowWrite": "允許手機傳送",
+  "mirror.readOnlyOn": "唯讀（安全）",
+  "mirror.readOnlyHint":
+    "唯讀模式：手機可檢視會話，但不能傳送訊息或核准工具，直到你允許寫入。",
   "mirror.chrome.connected": "已連線主機",
   "mirror.chrome.reconnecting": "重新連線中…",
   "mirror.chrome.accountHost": "主機帳戶",

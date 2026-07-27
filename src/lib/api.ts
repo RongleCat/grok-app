@@ -1821,9 +1821,13 @@ export type MirrorStatus = {
   publicUrl: string | null;
   localPort: number | null;
   token: string | null;
+  /** Last 6 chars of token for safe display. */
+  tokenTail?: string | null;
   clients: number;
   phase: MirrorPhase;
   error: string | null;
+  /** When true, phone cannot send / resolve permissions. Default true. */
+  readOnly?: boolean;
 };
 
 /** Desktop host status for Connect panel. Not available on phone mirror. */
@@ -1834,9 +1838,11 @@ export async function mirrorStatus(): Promise<MirrorStatus> {
       publicUrl: null,
       localPort: null,
       token: null,
+      tokenTail: null,
       clients: 0,
       phase: "stopped",
       error: null,
+      readOnly: true,
     };
   }
   return invoke<MirrorStatus>("mirror_status");
@@ -1854,6 +1860,20 @@ export async function mirrorStop(): Promise<MirrorStatus> {
     throw new Error("mirror host requires desktop app");
   }
   return invoke<MirrorStatus>("mirror_stop");
+}
+
+export async function mirrorRotateToken(): Promise<MirrorStatus> {
+  if (!isDesktopHost()) {
+    throw new Error("mirror host requires desktop app");
+  }
+  return invoke<MirrorStatus>("mirror_rotate_token");
+}
+
+export async function mirrorSetReadOnly(readOnly: boolean): Promise<MirrorStatus> {
+  if (!isDesktopHost()) {
+    throw new Error("mirror host requires desktop app");
+  }
+  return invoke<MirrorStatus>("mirror_set_read_only", { readOnly });
 }
 
 // ── Automations (scheduled tasks) ───────────────────────────────────────────

@@ -206,6 +206,96 @@ export function deckCodeFromAgent(
   return "GENERIC";
 }
 
+/**
+ * Map free-form error text to a deck code when the host did not emit a stable code.
+ * Keeps the four product classes (CLI / auth / network / crash) from collapsing to GENERIC.
+ */
+export function classifyErrorMessage(raw: string | null | undefined): ErrorDeckCode {
+  const s = (raw ?? "").toLowerCase();
+  if (!s.trim()) return "GENERIC";
+  if (
+    s.includes("cli_not_found") ||
+    s.includes("command not found") ||
+    s.includes("no such file") ||
+    s.includes("not found in path") ||
+    s.includes("grok build not found") ||
+    s.includes("cli not found") ||
+    (s.includes("executable") && s.includes("not"))
+  ) {
+    return "CLI_NOT_FOUND";
+  }
+  if (
+    s.includes("auth_failed") ||
+    s.includes("unauthorized") ||
+    s.includes("401") ||
+    s.includes("invalid api key") ||
+    s.includes("not logged in") ||
+    s.includes("authentication") ||
+    s.includes("login required")
+  ) {
+    return "AUTH_FAILED";
+  }
+  if (
+    s.includes("quota") ||
+    s.includes("rate limit") ||
+    s.includes("429") ||
+    s.includes("insufficient")
+  ) {
+    return "QUOTA_EXCEEDED";
+  }
+  if (
+    s.includes("network_provider") ||
+    s.includes("timed out") ||
+    s.includes("timeout") ||
+    s.includes("econnrefused") ||
+    s.includes("enotfound") ||
+    s.includes("dns") ||
+    s.includes("proxy") ||
+    s.includes("502") ||
+    s.includes("503") ||
+    s.includes("provider") ||
+    s.includes("fetch failed")
+  ) {
+    return "NETWORK_PROVIDER";
+  }
+  if (
+    s.includes("process_limit") ||
+    s.includes("too many agent") ||
+    s.includes("concurrent agent")
+  ) {
+    return "PROCESS_LIMIT";
+  }
+  if (
+    s.includes("connect_failed") ||
+    s.includes("failed to connect") ||
+    s.includes("attach failed")
+  ) {
+    return "CONNECT_FAILED";
+  }
+  if (
+    s.includes("agent_crashed") ||
+    s.includes("exited") ||
+    s.includes("panic") ||
+    s.includes("segfault") ||
+    s.includes("broken pipe") ||
+    s.includes("protocol error")
+  ) {
+    return "AGENT_CRASHED";
+  }
+  return "GENERIC";
+}
+
+/** Prefer a host code; otherwise classify the message text. */
+export function resolveErrorDeckCode(
+  code: string | null | undefined,
+  message?: string | null,
+  opts?: { timeout?: boolean; disconnected?: boolean },
+): ErrorDeckCode {
+  const fromCode = deckCodeFromAgent(code, opts);
+  if (fromCode !== "GENERIC") return fromCode;
+  return classifyErrorMessage(message ?? code);
+}
+
 /** Whether the primary/secondary action should re-open the agent. */
 export function isReconnectAction(id: ErrorDeckActionId): boolean {
   return id === "reconnect";

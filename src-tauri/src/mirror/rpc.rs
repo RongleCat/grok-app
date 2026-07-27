@@ -52,10 +52,27 @@ impl RpcError {
 pub async fn dispatch(
     method: &str,
     params: Value,
-    _host: &MirrorHost,
+    host: &MirrorHost,
     app: Option<&AppHandle>,
     mgr: Option<&Arc<SessionManager>>,
 ) -> Result<Value, RpcError> {
+    // Read-only sessions can observe but not drive the agent.
+    if host.is_read_only() {
+        const WRITE: &[&str] = &[
+            "session.send",
+            "session.stop",
+            "session.create",
+            "session.resolvePermission",
+            "session.answerAskUser",
+            "session.reviewPlan",
+            "session.delete",
+            "session.rename",
+        ];
+        if WRITE.iter().any(|m| *m == method) {
+            return Err(RpcError::unsupported("mirror is in read-only mode"));
+        }
+    }
+
     match method {
         // ── Read path (Slice 3) ───────────────────────────────────────────
         "projects.list" => {

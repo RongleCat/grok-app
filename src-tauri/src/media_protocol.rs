@@ -122,57 +122,132 @@ fn parse_range(header: &str, len: u64) -> Option<(u64, u64)> {
     Some((start, end))
 }
 
-fn error_response(status: StatusCode, msg: &str) -> Response<Vec<u8>> {
-    Response::builder()
+/// Origins allowed to read media:// (main window only — not embedded browsers).
+fn allowed_origins() -> &'static [&'static str] {
+    &[
+        "http://localhost:1421",
+        "https://localhost:1421",
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+        "http://localhost",
+        "https://localhost",
+    ]
+}
+
+fn request_origin_allowed(request: &Request<Vec<u8>>) -> bool {
+    let Some(origin) = request
+        .headers()
+        .get(header::ORIGIN)
+        .and_then(|v| v.to_str().ok())
+    else {
+        // No Origin: same-document / <img>/<video> loads from the main webview.
+        return true;
+    };
+    allowed_origins().iter().any(|o| *o == origin)
+}
+
+fn cors_origin_header(request: &Request<Vec<u8>>) -> Option<&'static str> {
+    let origin = request
+        .headers()
+        .get(header::ORIGIN)
+        .and_then(|v| v.to_str().ok())?;
+    allowed_origins()
+        .iter()
+        .find(|o| **o == origin)
+        .copied()
+}
+
+fn error_response(
+    request: &Request<Vec<u8>>,
+    status: StatusCode,
+    msg: &str,
+) -> Response<Vec<u8>> {
+    let mut builder = Response::builder()
         .status(status)
-        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8");
+    if let Some(o) = cors_origin_header(request) {
+        builder = builder.header(header::ACCESS_CONTROL_ALLOW_ORIGIN, o);
+    }
+    builder
         .body(msg.as_bytes().to_vec())
         .unwrap_or_else(|_| Response::new(Vec::new()))
 }
 
 /// Handle one media protocol request (sync).
 pub fn handle_request(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
-    // CORS preflight
+    // CORS preflight — only for allowlisted main-window origins.
     if request.method() == Method::OPTIONS {
+        let Some(origin) = cors_origin_header(&request) else {
+            return error_response(&request, StatusCode::FORBIDDEN, "origin not allowed");
+        };
         return Response::builder()
             .status(StatusCode::NO_CONTENT)
-            .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+            .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin)
             .header(header::ACCESS_CONTROL_ALLOW_METHODS, "GET, HEAD, OPTIONS")
             .header(
                 header::ACCESS_CONTROL_ALLOW_HEADERS,
                 "range, content-type, accept, origin",
             )
-            .header(header::ACCESS_CONTROL_EXPOSE_HEADERS, "content-range, accept-ranges, content-length, content-type")
+            .header(
+                header::ACCESS_CONTROL_EXPOSE_HEADERS,
+                "content-range, accept-ranges, content-length, content-type",
+            )
             .header(header::ACCEPT_RANGES, "bytes")
+            .header(header::VARY, "Origin")
             .body(Vec::new())
             .unwrap_or_else(|_| Response::new(Vec::new()));
     }
 
+    if !request_origin_allowed(&request) {
+        tracing::warn!("media protocol: rejected disallowed Origin");
+        return error_response(&request, StatusCode::FORBIDDEN, "origin not allowed");
+    }
+
     let Some(path) = path_from_request(&request) else {
-        return error_response(StatusCode::BAD_REQUEST, "missing path");
+        return error_response(&request, StatusCode::BAD_REQUEST, "missing path");
+    };
+
+    // canonicalize + path_scope allowlist (trusted projects / app data / grants).
+    let path = match crate::path_scope::require_allowed(&path) {
+        Ok(p) => p,
+        Err(_) => {
+            tracing::warn!(path = %path.display(), "media protocol: path not allowed");
+            return error_response(&request, StatusCode::FORBIDDEN, "path not allowed");
+        }
     };
 
     if !path.is_file() {
         tracing::warn!(path = %path.display(), "media protocol: file not found");
-        return error_response(StatusCode::NOT_FOUND, "file not found");
+        return error_response(&request, StatusCode::NOT_FOUND, "file not found");
     }
 
     let mut file = match File::open(&path) {
         Ok(f) => f,
         Err(e) => {
             tracing::warn!(path = %path.display(), error = %e, "media protocol: open failed");
-            return error_response(StatusCode::FORBIDDEN, &format!("open failed: {e}"));
+            return error_response(
+                &request,
+                StatusCode::FORBIDDEN,
+                &format!("open failed: {e}"),
+            );
         }
     };
 
     let len = match file.metadata() {
         Ok(m) => m.len(),
-        Err(e) => return error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("stat: {e}")),
+        Err(e) => {
+            return error_response(
+                &request,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                &format!("stat: {e}"),
+            )
+        }
     };
 
     let mime = mime_from_path(&path.to_string_lossy());
     let path_str = path.to_string_lossy().to_string();
+    let acao = cors_origin_header(&request);
 
     let range_hdr = request
         .headers()
@@ -185,11 +260,14 @@ pub fn handle_request(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
         match parse_range(rh, len) {
             Some((s, e)) => (s, e, true),
             None => {
-                return Response::builder()
+                let mut builder = Response::builder()
                     .status(StatusCode::RANGE_NOT_SATISFIABLE)
                     .header(header::CONTENT_RANGE, format!("bytes */{len}"))
-                    .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                    .header(header::ACCEPT_RANGES, "bytes")
+                    .header(header::ACCEPT_RANGES, "bytes");
+                if let Some(o) = acao {
+                    builder = builder.header(header::ACCESS_CONTROL_ALLOW_ORIGIN, o);
+                }
+                return builder
                     .body(Vec::new())
                     .unwrap_or_else(|_| Response::new(Vec::new()));
             }
@@ -220,11 +298,13 @@ pub fn handle_request(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
             .header(header::CONTENT_TYPE, mime)
             .header(header::ACCEPT_RANGES, "bytes")
             .header(header::CONTENT_LENGTH, nbytes)
-            .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
             .header(
                 header::ACCESS_CONTROL_EXPOSE_HEADERS,
                 "content-range, accept-ranges, content-length, content-type",
             );
+        if let Some(o) = acao {
+            builder = builder.header(header::ACCESS_CONTROL_ALLOW_ORIGIN, o);
+        }
         if partial && len > 0 {
             builder = builder.header(header::CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
         }
@@ -236,13 +316,21 @@ pub fn handle_request(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
     let mut buf = vec![0u8; nbytes as usize];
     if nbytes > 0 {
         if let Err(e) = file.seek(SeekFrom::Start(start)) {
-            return error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("seek: {e}"));
+            return error_response(
+                &request,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                &format!("seek: {e}"),
+            );
         }
         if let Err(e) = file.read_exact(&mut buf) {
             // Short read near EOF is ok for last chunk
             if e.kind() != std::io::ErrorKind::UnexpectedEof {
                 tracing::warn!(path = %path_str, error = %e, "media protocol: read failed");
-                return error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("read: {e}"));
+                return error_response(
+                    &request,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    &format!("read: {e}"),
+                );
             }
         }
     }
@@ -256,12 +344,15 @@ pub fn handle_request(request: Request<Vec<u8>>) -> Response<Vec<u8>> {
         .header(header::CONTENT_TYPE, mime)
         .header(header::ACCEPT_RANGES, "bytes")
         .header(header::CONTENT_LENGTH, buf.len())
-        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
         .header(
             header::ACCESS_CONTROL_EXPOSE_HEADERS,
             "content-range, accept-ranges, content-length, content-type",
         )
         .header(header::CACHE_CONTROL, "no-cache");
+
+    if let Some(o) = acao {
+        builder = builder.header(header::ACCESS_CONTROL_ALLOW_ORIGIN, o);
+    }
 
     if partial && len > 0 {
         builder = builder.header(

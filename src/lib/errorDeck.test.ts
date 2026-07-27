@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildErrorDeck,
+  classifyErrorMessage,
   deckCodeFromAgent,
   isReconnectAction,
+  resolveErrorDeckCode,
 } from "./errorDeck";
 
 describe("buildErrorDeck", () => {
@@ -62,5 +64,25 @@ describe("buildErrorDeck", () => {
     expect(stall.primary.label.toLowerCase()).toMatch(/wait/);
     // Copy changed from "Cancel" to "End turn"; assert intent, not wording.
     expect(stall.secondary?.label.toLowerCase()).toMatch(/cancel|end/);
+  });
+
+  it("classifies free-form messages into product classes", () => {
+    expect(classifyErrorMessage("CLI not found in PATH")).toBe("CLI_NOT_FOUND");
+    expect(classifyErrorMessage("401 unauthorized invalid api key")).toBe(
+      "AUTH_FAILED",
+    );
+    expect(classifyErrorMessage("network timeout via proxy")).toBe(
+      "NETWORK_PROVIDER",
+    );
+    expect(classifyErrorMessage("agent process exited")).toBe("AGENT_CRASHED");
+  });
+
+  it("resolveErrorDeckCode prefers host code then message", () => {
+    expect(resolveErrorDeckCode("AUTH_FAILED", "something else")).toBe(
+      "AUTH_FAILED",
+    );
+    expect(resolveErrorDeckCode(null, "command not found: grok")).toBe(
+      "CLI_NOT_FOUND",
+    );
   });
 });
