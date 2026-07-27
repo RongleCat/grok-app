@@ -491,7 +491,9 @@ pub fn load_projects() -> Vec<Project> {
 }
 
 pub fn save_projects(list: &[Project]) -> Result<(), String> {
-    write_json(&projects_file(), &list)
+    write_json(&projects_file(), &list)?;
+    crate::path_scope::refresh_from_store();
+    Ok(())
 }
 
 pub fn add_project(path: String, trust: bool) -> Result<Project, String> {

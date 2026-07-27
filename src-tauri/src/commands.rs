@@ -906,7 +906,12 @@ pub async fn fs_open_path(
     path: String,
     project_path: Option<String>,
 ) -> Result<crate::fs_browser::FsReadResult, String> {
-    crate::fs_browser::open_path_smart(project_path.as_deref(), &path)
+    let result = crate::fs_browser::open_path_smart(project_path.as_deref(), &path)?;
+    // Remember user-initiated opens so later absolute re-reads stay in scope.
+    if !result.absolute_path.is_empty() {
+        crate::path_scope::grant_path(std::path::Path::new(&result.absolute_path));
+    }
+    Ok(result)
 }
 
 /// Auto-name a session from the first user message.
