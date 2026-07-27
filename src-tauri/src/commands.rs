@@ -251,12 +251,21 @@ pub async fn app_check_update() -> Result<crate::app_update::AppUpdateCheck, Str
 /// Open a URL in the system browser (docs, install pages).
 #[tauri::command]
 pub async fn open_external_url(url: String) -> Result<(), String> {
+    open_http_url(url.trim())
+}
+
+/// Shared http(s) open helper (also used by account login).
+pub fn open_http_url(url: &str) -> Result<(), String> {
     let url = url.trim();
     if url.is_empty() {
         return Err("empty url".into());
     }
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err("only http(s) URLs allowed".into());
+    }
+    // Reject control characters that could smuggle extra commands.
+    if url.bytes().any(|b| b == 0 || b == b'\n' || b == b'\r') {
+        return Err("invalid url".into());
     }
     #[cfg(target_os = "macos")]
     {
@@ -268,8 +277,9 @@ pub async fn open_external_url(url: String) -> Result<(), String> {
     }
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", url])
+        // Avoid `cmd /C start` — it re-parses `&` in query strings as command separators.
+        std::process::Command::new("rundll32")
+            .args(["url.dll,FileProtocolHandler", url])
             .status()
             .map_err(|e| e.to_string())?;
         return Ok(());
