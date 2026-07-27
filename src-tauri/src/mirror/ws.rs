@@ -34,6 +34,11 @@ impl std::fmt::Debug for WsHub {
 }
 
 impl WsHub {
+    /// Ask every open socket loop to exit (used after token rotate).
+    pub fn disconnect_all(&self) {
+        let _ = self.tx.send("__mirror_close_all__".into());
+    }
+
     pub fn new() -> Self {
         // Capacity for bursty stream events; lagging clients drop old frames.
         let (tx, _) = broadcast::channel(512);
@@ -107,6 +112,7 @@ pub async fn handle_socket(
             // Outbound fan-out events
             evt = event_rx.recv() => {
                 match evt {
+                    Ok(text) if text == "__mirror_close_all__" => break,
                     Ok(text) => {
                         if sender.send(Message::Text(text.into())).await.is_err() {
                             break;

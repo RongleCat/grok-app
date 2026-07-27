@@ -169,10 +169,29 @@ async fn run_webhook(
     let path = secret_or_opt(&inst.secrets, &inst.options, "callback_path")
         .unwrap_or_else(|| "/wecom/callback".into());
 
-    tracing::info!(instance = %inst.id, port, %path, "wecom webhook server starting");
+    // default loopback only. Opt in to LAN/public with allow_external=true
+    // (real public callbacks should use a tunnel, not a wide bind).
+    let allow_external = inst
+        .options
+        .get("allow_external")
+        .or_else(|| inst.options.get("allowExternal"))
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+    let bind_ip = if allow_external {
+        [0, 0, 0, 0]
+    } else {
+        [127, 0, 0, 1]
+    };
+    tracing::info!(
+        instance = %inst.id,
+        port,
+        %path,
+        allow_external,
+        "wecom webhook server starting"
+    );
 
     // Bind first so the connector is reachable even if remote gettoken is slow.
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let addr = SocketAddr::from((bind_ip, port));
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .map_err(|e| format!("wecom bind: {e}"))?;

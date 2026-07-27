@@ -37,7 +37,13 @@ export type MirrorConnectLabels = {
   errorGeneric: string;
   qrAlt: string;
   linkLabel: string;
+  rotate: string;
+  rotateDone: string;
+  allowWrite: string;
+  readOnlyOn: string;
+  readOnlyHint: string;
 };
+
 
 export type MirrorConnectPanelProps = {
   /**
@@ -94,9 +100,11 @@ function emptyStatus(): MirrorStatus {
     publicUrl: null,
     localPort: null,
     token: null,
+    tokenTail: null,
     clients: 0,
     phase: "stopped",
     error: null,
+    readOnly: true,
   };
 }
 
@@ -109,6 +117,8 @@ function MirrorConnectBody({
   onCopy,
   onStart,
   onStop,
+  onRotate,
+  onToggleReadOnly,
 }: {
   labels: MirrorConnectLabels;
   status: MirrorStatus;
@@ -118,6 +128,8 @@ function MirrorConnectBody({
   onCopy: () => void;
   onStart: () => void;
   onStop: () => void;
+  onRotate: () => void;
+  onToggleReadOnly: () => void;
 }) {
   const phase = status.phase;
   const showQr = !!status.publicUrl && (phase === "live" || phase === "local");
@@ -213,7 +225,30 @@ function MirrorConnectBody({
             {labels.start}
           </button>
         )}
+        {status.running ? (
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={busy}
+              onClick={onRotate}
+            >
+              {labels.rotate}
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={busy}
+              onClick={onToggleReadOnly}
+            >
+              {status.readOnly ? labels.allowWrite : labels.readOnlyOn}
+            </button>
+          </>
+        ) : null}
       </div>
+      {status.running && status.readOnly ? (
+        <p className="mirror-connect__hint">{labels.readOnlyHint}</p>
+      ) : null}
     </>
   );
 }
@@ -304,7 +339,31 @@ export function MirrorConnectPanel({
     };
   }, [status.publicUrl]);
 
-  const handleCopy = async () => {
+  
+  const handleRotate = () => {
+    void (async () => {
+      try {
+        const st = await api.mirrorRotateToken();
+        setStatus(st);
+        showToast?.(labels.rotateDone);
+      } catch (e) {
+        setErr(String(e));
+      }
+    })();
+  };
+
+  const handleToggleReadOnly = () => {
+    void (async () => {
+      try {
+        const st = await api.mirrorSetReadOnly(!status.readOnly);
+        setStatus(st);
+      } catch (e) {
+        setErr(String(e));
+      }
+    })();
+  };
+
+const handleCopy = async () => {
     const url = status.publicUrl;
     if (!url) return;
     try {
@@ -357,6 +416,8 @@ export function MirrorConnectPanel({
       onCopy={() => void handleCopy()}
       onStart={handleStart}
       onStop={handleStop}
+      onRotate={handleRotate}
+      onToggleReadOnly={handleToggleReadOnly}
     />
   );
 

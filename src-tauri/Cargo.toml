@@ -38,6 +38,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 futures-util = "0.3"
 base64 = "0.22"
 sha2 = "0.10"
+hmac = "0.12"
 hex = "0.4"
 rfd = "0.15"
 window-vibrancy = "0.6"

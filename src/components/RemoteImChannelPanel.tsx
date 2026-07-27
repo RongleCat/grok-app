@@ -215,6 +215,12 @@ export function RemoteImChannelPanel({
         return false;
       }
 
+      const allowFromTrimmed = (acl.allowFrom ?? "").trim();
+      if (!allowFromTrimmed) {
+        setFormError(t("settings.remoteIm.err.needAllowFrom"));
+        return false;
+      }
+
       const ref = credentialsRefFor(channelId, instance.id);
       if (hasNewSecrets) {
         await remoteImSecretsPut({
@@ -841,7 +847,8 @@ export function RemoteImChannelPanel({
               {t("settings.remoteIm.field.allowFrom")}
             </div>
             <div className="settings-row__desc">
-              {t("settings.remoteIm.field.allowFromHelp")}
+{t("settings.remoteIm.field.allowFromHelp")}
+            <span className="settings-page__hint">{t("settings.remoteIm.field.allowFromRequired")}</span>
             </div>
           </div>
           <input

@@ -34,12 +34,33 @@ pub fn list_instances() -> Vec<ChannelInstanceDto> {
     if !path.exists() {
         return vec![];
     }
-    match fs::read_to_string(&path) {
+    let mut list = match fs::read_to_string(&path) {
         Ok(raw) => serde_json::from_str::<ChannelsFile>(&raw)
             .map(|f| f.instances)
             .unwrap_or_default(),
         Err(_) => vec![],
+    };
+    // Fail-closed migration: enabled instances without allow_from must not run.
+    let mut changed = false;
+    for inst in &mut list {
+        if inst.enabled && crate::remote_im::outbound::allow_from_list(&inst.acl).is_none() {
+            tracing::warn!(
+                id = %inst.id,
+                channel = %inst.channel,
+                "remote_im: disabling instance with empty allow_from"
+            );
+            inst.enabled = false;
+            inst.status = "configured".into();
+            inst.last_error = Some(
+                "Disabled: add allow_from (allowed sender IDs) before enabling.".into(),
+            );
+            changed = true;
+        }
     }
+    if changed {
+        let _ = write_instances(&list);
+    }
+    list
 }
 
 fn write_instances(list: &[ChannelInstanceDto]) -> Result<(), String> {
@@ -115,6 +136,11 @@ pub fn save_instance(
     write_secrets_map(&all)?;
 
     saved.has_credentials = has || inst.has_credentials;
+    if saved.enabled && crate::remote_im::outbound::allow_from_list(&saved.acl).is_none() {
+        return Err(
+            "allow_from is required before enabling a Remote IM channel".into(),
+        );
+    }
     if saved.has_credentials && saved.enabled {
         saved.status = "configured".into();
     } else if saved.has_credentials {
