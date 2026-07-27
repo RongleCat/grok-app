@@ -217,27 +217,39 @@ pub fn secret_or_opt(
         .or_else(|| opt_str(options, key))
 }
 
+/// Parse ACL allow-list.
+///
+/// - Missing / empty → `None` (fail-closed; see [`sender_allowed`]).
+/// - Explicit `"*"` → allow everyone (opt-in only).
+/// - Comma-separated ids → allow those senders (and `"*"` if present).
 pub fn allow_from_list(acl: &serde_json::Value) -> Option<Vec<String>> {
     let raw = acl
         .get("allowFrom")
         .or_else(|| acl.get("allow_from"))
         .and_then(|x| x.as_str())
-        .unwrap_or("*")
-        .trim();
-    if raw.is_empty() || raw == "*" {
+        .map(|s| s.trim())?;
+    if raw.is_empty() {
         return None;
     }
-    Some(
-        raw.split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect(),
-    )
+    if raw == "*" {
+        return Some(vec!["*".into()]);
+    }
+    let list: Vec<String> = raw
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if list.is_empty() {
+        None
+    } else {
+        Some(list)
+    }
 }
 
+/// Fail closed: channels without an allow list must not drive the agent.
 pub fn sender_allowed(acl: &serde_json::Value, sender_id: &str) -> bool {
     match allow_from_list(acl) {
-        None => true,
+        None => false,
         Some(list) => list.iter().any(|x| x == sender_id || x == "*"),
     }
 }
@@ -269,4 +281,15 @@ mod tests {
         assert_eq!(got.get("_instance_id").map(|s| s.as_str()), Some("inst-42"));
         assert_eq!(got.get("token").map(|s| s.as_str()), Some("t"));
     }
+    #[test]
+    fn sender_allowed_fail_closed_without_list() {
+        assert!(!sender_allowed(&json!({}), "u1"));
+        assert!(!sender_allowed(&json!({"allowFrom": ""}), "u1"));
+        assert!(!sender_allowed(&json!({"allowFrom": "  "}), "u1"));
+        assert!(!sender_allowed(&json!({"allowFrom": "u1"}), "u2"));
+        assert!(sender_allowed(&json!({"allowFrom": "u1"}), "u1"));
+        assert!(sender_allowed(&json!({"allowFrom": "*"}), "anyone"));
+        assert!(sender_allowed(&json!({"allowFrom": "u1, u2"}), "u2"));
+    }
+
 }

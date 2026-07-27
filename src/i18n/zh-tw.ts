@@ -1791,6 +1791,8 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.remoteIm.err.pairPaste": "無法解析 id:secret 格式。",
   "settings.remoteIm.err.missingFields": "缺少必填欄位：{fields}",
   "settings.remoteIm.err.needSecrets": "請先填寫憑證再儲存。",
+  "settings.remoteIm.err.needAllowFrom": "啟用前請至少填寫一個允許的傳送者 ID。",
+  "settings.remoteIm.field.allowFromRequired": "必填 — 未設定時其他人的訊息會被拒絕。",
   "settings.remoteIm.test.ok": "連線測試成功。",
   "settings.remoteIm.test.fail": "連線測試失敗：{error}",
   "settings.remoteIm.status.connected": "已連線",
