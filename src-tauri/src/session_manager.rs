@@ -4686,7 +4686,13 @@ impl SessionManager {
         effort: String,
     ) -> Result<(), String> {
         let effort = effort.trim().to_string();
-        if !matches!(effort.as_str(), "high" | "medium" | "low") {
+        // Accept CLI catalog values; unknown efforts still fail closed with a clear error.
+        let ok = matches!(
+            effort.as_str(),
+            "low" | "medium" | "high" | "xhigh" | "max" | "none"
+        ) || effort.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            && (2..=32).contains(&effort.len());
+        if !ok {
             return Err(format!("invalid effort: {effort}"));
         }
         let need = {
