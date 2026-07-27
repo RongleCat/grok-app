@@ -158,6 +158,18 @@ pub fn protocol_name() -> &'static str {
     "line-webhook"
 }
 
+
+fn const_time_eq(a: &str, b: &str) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.as_bytes().iter().zip(b.as_bytes().iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
+
 /// LINE: `X-Line-Signature` = Base64(HMAC-SHA256(channel_secret, raw_body)).
 fn line_signature_ok(channel_secret: &str, body: &[u8], header_sig: Option<&str>) -> bool {
     use base64::Engine;
@@ -173,7 +185,7 @@ fn line_signature_ok(channel_secret: &str, body: &[u8], header_sig: Option<&str>
     };
     mac.update(body);
     let expected = base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes());
-    crate::mirror::auth::tokens_equal(&expected, sig)
+    const_time_eq(&expected, sig)
 }
 
 #[cfg(test)]
