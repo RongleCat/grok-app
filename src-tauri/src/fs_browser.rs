@@ -1260,8 +1260,8 @@ fn read_path(path: PathBuf, rel_in: String) -> Result<FsReadResult, String> {
 
     // Image / PDF — stream path for large files; small images may embed as base64
     if matches!(kind.as_str(), "image" | "pdf") {
-        if ext == "svg" && size <= MAX_TEXT_BYTES {
-            let text = fs::read_to_string(&path).unwrap_or_default();
+        // Never return raw SVG markup for innerHTML — stream as image.
+        if ext == "svg" {
             return Ok(ok_result(
                 &path,
                 rel_in,
@@ -1269,9 +1269,9 @@ fn read_path(path: PathBuf, rel_in: String) -> Result<FsReadResult, String> {
                 size,
                 "image".into(),
                 mime,
-                Some(text),
                 None,
-                false,
+                None,
+                true,
                 false,
                 None,
             ));
