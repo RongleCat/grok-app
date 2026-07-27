@@ -136,6 +136,27 @@ fn lexical_join(root: &Path, relative: &str) -> Result<PathBuf, String> {
     Ok(out)
 }
 
+
+/// Project-relative APIs must target a registered trusted project (or a grant).
+fn require_project_root(project_root: &str) -> Result<PathBuf, String> {
+    let raw = project_root.trim();
+    if raw.is_empty() {
+        return Err("empty project root".into());
+    }
+    let path = PathBuf::from(raw);
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| format!("project root not found: {e}"))?;
+    if !canonical.is_dir() {
+        return Err(format!("project root is not a directory: {project_root}"));
+    }
+    // Trusted project roots live in path_scope; also accept exact match via is_allowed.
+    if !crate::path_scope::is_allowed(&canonical) {
+        return Err("project root is not a trusted project".into());
+    }
+    Ok(canonical)
+}
+
 fn ext_of(name: &str) -> String {
     Path::new(name)
         .extension()
@@ -405,10 +426,7 @@ fn extract_office_text(path: &Path, kind: &str) -> Result<String, String> {
 }
 
 pub fn list_dir(project_root: &str, relative: &str) -> Result<Vec<FsEntry>, String> {
-    let root = PathBuf::from(project_root);
-    if !root.is_dir() {
-        return Err(format!("project root is not a directory: {project_root}"));
-    }
+    let root = require_project_root(project_root)?;
     let parent_rel = normalize_rel(relative);
     let dir = lexical_join(&root, &parent_rel)?;
     if !dir.is_dir() {
@@ -446,10 +464,7 @@ pub fn list_dir(project_root: &str, relative: &str) -> Result<Vec<FsEntry>, Stri
 }
 
 pub fn read_file(project_root: &str, relative: &str) -> Result<FsReadResult, String> {
-    let root = PathBuf::from(project_root);
-    if !root.is_dir() {
-        return Err(format!("project root is not a directory: {project_root}"));
-    }
+    let root = require_project_root(project_root)?;
     let rel_in = normalize_rel(relative);
     if rel_in.is_empty() {
         return Err("empty relative path".into());
@@ -472,10 +487,7 @@ pub fn write_text_file(
     content: &str,
     expected_mtime_ms: Option<u64>,
 ) -> Result<FsWriteResult, String> {
-    let root = PathBuf::from(project_root);
-    if !root.is_dir() {
-        return Err(format!("project root is not a directory: {project_root}"));
-    }
+    let root = require_project_root(project_root)?;
     let rel_in = normalize_rel(relative);
     if rel_in.is_empty() {
         return Err("empty relative path".into());
@@ -497,7 +509,7 @@ pub fn write_text_absolute(
     if raw.contains('\0') {
         return Err("invalid path".into());
     }
-    let path = PathBuf::from(raw);
+    let path = crate::path_scope::require_allowed(Path::new(raw))?;
     if !path.is_file() {
         return Err(format!("not a file: {raw}"));
     }
@@ -572,10 +584,7 @@ pub fn read_absolute_file(absolute: &str) -> Result<FsReadResult, String> {
     if raw.contains('\0') {
         return Err("invalid path".into());
     }
-    let path = PathBuf::from(raw);
-    let path = path
-        .canonicalize()
-        .map_err(|e| format!("path not found: {e}"))?;
+    let path = crate::path_scope::require_allowed(Path::new(raw))?;
     if !path.is_file() {
         return Err(format!("not a file: {raw}"));
     }
@@ -1260,8 +1269,7 @@ fn read_path(path: PathBuf, rel_in: String) -> Result<FsReadResult, String> {
 
     // Image / PDF — stream path for large files; small images may embed as base64
     if matches!(kind.as_str(), "image" | "pdf") {
-        if ext == "svg" && size <= MAX_TEXT_BYTES {
-            let text = fs::read_to_string(&path).unwrap_or_default();
+        if ext == "svg" {
             return Ok(ok_result(
                 &path,
                 rel_in,
@@ -1269,9 +1277,9 @@ fn read_path(path: PathBuf, rel_in: String) -> Result<FsReadResult, String> {
                 size,
                 "image".into(),
                 mime,
-                Some(text),
                 None,
-                false,
+                None,
+                true,
                 false,
                 None,
             ));

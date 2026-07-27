@@ -58,7 +58,7 @@ export function OfficeDocumentPreview({
   const [pdfScale, setPdfScale] = useState(1.05);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [activeSheet, setActiveSheet] = useState(0);
-  const [sheetHtml, setSheetHtml] = useState("");
+  const [sheetRows, setSheetRows] = useState<string[][]>([]);
   const docxRef = useRef<HTMLDivElement>(null);
   const docxScrollRef = useRef<HTMLDivElement>(null);
 
@@ -90,7 +90,7 @@ export function OfficeDocumentPreview({
     setPdfPage(1);
     setSheetNames([]);
     setActiveSheet(0);
-    setSheetHtml("");
+    setSheetRows([]);
 
     if (errorFromHost && !absolutePath) {
       setLoad({ status: "error", message: errorFromHost });
@@ -201,7 +201,16 @@ export function OfficeDocumentPreview({
       const idx = 0;
       setActiveSheet(idx);
       const ws = wb.Sheets[names[idx]];
-      setSheetHtml(ws ? XLSX.utils.sheet_to_html(ws, { id: "office-sheet" }) : "");
+      if (ws) {
+        const rows = XLSX.utils.sheet_to_json<string[]>(ws, {
+          header: 1,
+          defval: "",
+          raw: false,
+        }) as string[][];
+        setSheetRows(rows.map((r) => r.map((c) => (c == null ? "" : String(c)))));
+      } else {
+        setSheetRows([]);
+      }
     } catch (e) {
       setLoad({
         status: "error",
@@ -217,7 +226,16 @@ export function OfficeDocumentPreview({
       const name = wb.SheetNames[idx];
       const ws = wb.Sheets[name];
       setActiveSheet(idx);
-      setSheetHtml(ws ? XLSX.utils.sheet_to_html(ws, { id: "office-sheet" }) : "");
+      if (ws) {
+        const rows = XLSX.utils.sheet_to_json<string[]>(ws, {
+          header: 1,
+          defval: "",
+          raw: false,
+        }) as string[][];
+        setSheetRows(rows.map((r) => r.map((c) => (c == null ? "" : String(c)))));
+      } else {
+        setSheetRows([]);
+      }
     } catch (e) {
       setLoad({
         status: "error",
@@ -442,10 +460,19 @@ export function OfficeDocumentPreview({
             ))}
           </div>
         )}
-        <div
-          className="office-preview__sheet-scroll"
-          dangerouslySetInnerHTML={{ __html: sheetHtml }}
-        />
+        <div className="office-preview__sheet-scroll">
+          <table className="office-preview__sheet-table">
+            <tbody>
+              {sheetRows.map((row, ri) => (
+                <tr key={ri}>
+                  {row.map((cell, ci) => (
+                    <td key={ci}>{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }

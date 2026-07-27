@@ -20,6 +20,7 @@ mod editors;
 mod error;
 mod fs_browser;
 mod media_protocol;
+mod path_scope;
 mod mirror;
 mod mock_acp;
 mod models_catalog;
@@ -64,6 +65,8 @@ use session_manager::SessionManager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = paths::ensure_app_dirs();
+    // Keep absolute-path allowlist in sync with trusted projects.
+    path_scope::refresh_from_store();
 
     tracing_subscriber::fmt()
         .with_env_filter(
