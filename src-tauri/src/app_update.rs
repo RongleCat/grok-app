@@ -1,8 +1,11 @@
-//! Check for newer App releases on GitHub (L08 first slice).
+//! Check for newer App releases on GitHub (manual fallback path).
 //!
-//! Does **not** auto-install: unsigned community builds and missing
-//! `TAURI_SIGNING_*` secrets make silent Tauri updater unreliable. Users get a
-//! clear "newer version / open release page" path from Settings → About.
+//! Prefer the Tauri updater plugin (`updater` module) when the binary was built
+//! with `GROK_UPDATER_*` secrets — that path downloads, verifies, installs, and
+//! relaunches. This module remains for:
+//! - Local / unsigned builds (plugin not registered)
+//! - Linux `.deb` / `.rpm` installs (in-place update unsupported)
+//! - Settings → About "open release page" fallback
 //!
 //! Strategy:
 //! 1. GitHub REST `GET /repos/.../releases/latest` (rich payload: body, assets).

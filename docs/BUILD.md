@@ -163,7 +163,12 @@ cp src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/* dist-installer
 | Secret | 用途 |
 |--------|------|
 | `APPLE_CERTIFICATE` 等 | Apple 公证 / 签名（见 [Tauri macOS signing](https://v2.tauri.app/distribute/sign/macos/)） |
-| `TAURI_SIGNING_PRIVATE_KEY` | Tauri updater 签名（若启用） |
+| `GROK_UPDATER_PUBLIC_KEY` | 应用内自动更新公钥（与 endpoint 一起嵌入 release 构建） |
+| `TAURI_SIGNING_PRIVATE_KEY` | Tauri updater 签名私钥（启用自动更新时必需） |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | 私钥密码（可为空） |
+
+应用内自动更新详情见 [desktop-auto-update.md](./desktop-auto-update.md)。  
+Release CI 在 secrets 齐全时会生成 `tauri.release.conf.json` 并注入 `GROK_UPDATER_*`。
 
 **注意：** 不要在 workflow 里传入**空**的 `APPLE_*` secrets，否则 codesign 导入会失败。
 

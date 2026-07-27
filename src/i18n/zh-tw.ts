@@ -912,7 +912,7 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.aboutApp": "關於 Grok App",
   "settings.checkUpdate": "檢查更新",
   "settings.checkUpdateDesc":
-    "查詢 GitHub 最新 Release。安裝包請在發佈頁下載 — 應用程式暫不自動安裝。",
+    "已簽名的正式版可在應用程式內下載並安裝更新。本機或未簽名建置會改為開啟 GitHub 發佈頁。",
   "settings.checkUpdateChecking": "檢查中…",
   "settings.checkUpdateLatest": "已是最新版本（{version}）。",
   "settings.checkUpdateAvailable":
@@ -920,6 +920,16 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.checkUpdateOpen": "開啟發佈頁",
   "settings.checkUpdateDownload": "下載安裝包",
   "settings.checkUpdateFailed": "檢查失敗：{error}",
+  "settings.autoUpdateChecking": "正在檢查更新…",
+  "settings.autoUpdateUpToDate": "已是最新版本。",
+  "settings.autoUpdateAvailable": "有新版本 {version}。",
+  "settings.autoUpdateDownloading": "正在下載更新…",
+  "settings.autoUpdateReady": "更新已下載 — 重新啟動以安裝。",
+  "settings.autoUpdateInstall": "安裝並重新啟動",
+  "settings.autoUpdateInstalling": "正在安裝…",
+  "settings.autoUpdateManualRequired":
+    "有新版本 {version}。目前安裝方式不支援應用程式內更新 — 請到發佈頁下載。",
+  "settings.autoUpdateError": "更新失敗：{error}",
   "settings.close": "關閉",
   "settings.sharedConfirm":
     "切換到共用 ~/.grok？資料不會靜默合併，請確認。",

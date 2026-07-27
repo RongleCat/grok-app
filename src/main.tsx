@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { UpdaterProvider } from "./hooks/UpdaterProvider";
 import "./styles/tokens.css";
 import "./styles/skins.css";
 import "./styles/tailwind.css";
@@ -38,6 +39,8 @@ void applyNativeWindowTheme(bootPref === "system" ? null : bootTheme);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <UpdaterProvider>
+      <App />
+    </UpdaterProvider>
   </StrictMode>,
 );

@@ -10,7 +10,12 @@
 # Optional signing secrets (unsigned builds still work; macOS may warn):
 #   - Apple: APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
 #            APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID  (see Tauri macOS signing docs)
-#   - Windows: TAURI_SIGNING_PRIVATE_KEY (+ PASSWORD) if using Tauri updater signing
+# Auto-update (optional — without these, installers still publish; in-app
+# update stays on the GitHub "open release page" path):
+#   - GROK_UPDATER_PUBLIC_KEY          minisign public key (embedded in app)
+#   - TAURI_SIGNING_PRIVATE_KEY        minisign private key (sign archives)
+#   - TAURI_SIGNING_PRIVATE_KEY_PASSWORD  (empty string OK)
+# See docs/desktop-auto-update.md
 name: release
 
 on:
@@ -121,14 +126,43 @@ jobs:
             echo "GROKAPP_EOF"
           } >> "$GITHUB_ENV"
 
-      # NOTE: Do NOT pass empty APPLE_* / TAURI_SIGNING_* secrets.
+      # Detect updater secrets without failing unsigned community builds.
+      - name: Detect updater secrets
+        id: updater
+        shell: bash
+        env:
+          GROK_UPDATER_PUBLIC_KEY: ${{ secrets.GROK_UPDATER_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${GROK_UPDATER_PUBLIC_KEY:-}" && -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Updater secrets present — enabling in-app auto-update artifacts"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Updater secrets missing — building without createUpdaterArtifacts"
+          fi
+
+      - name: Write release config (updater)
+        if: steps.updater.outputs.enabled == 'true'
+        shell: bash
+        env:
+          GROK_UPDATER_PUBLIC_KEY: ${{ secrets.GROK_UPDATER_PUBLIC_KEY }}
+          GROK_UPDATER_ENDPOINT: https://github.com/${{ github.repository }}/releases/download/grok-desktop-latest/latest.json
+        run: node scripts/build-release-config.mjs
+
+      # NOTE: Do NOT pass empty APPLE_* secrets.
       # Empty APPLE_CERTIFICATE makes `tauri build` try codesign import and fail with:
       #   "failed to import keychain certificate"
-      # When you have real signing material, add those env vars back (only if non-empty).
+      # TAURI_SIGNING_* are only set when updater is enabled (non-empty).
       - name: Build Tauri app & attach to GitHub Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GROK_UPDATER_PUBLIC_KEY: ${{ secrets.GROK_UPDATER_PUBLIC_KEY }}
+          GROK_UPDATER_ENDPOINT: https://github.com/${{ github.repository }}/releases/download/grok-desktop-latest/latest.json
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           # Root package.json + src-tauri/ layout (create-tauri-app style)
           projectPath: .
@@ -138,7 +172,10 @@ jobs:
           releaseBody: ${{ env.RELEASE_BODY }}
           releaseDraft: false
           prerelease: false
-          args: ${{ matrix.args }}
+          # --config injects pubkey/endpoint + createUpdaterArtifacts.
+          # GROK_UPDATER_* env (above) enables build.rs registration cfg.
+          args: ${{ matrix.args }}${{ steps.updater.outputs.enabled == 'true' && ' --config src-tauri/tauri.release.conf.json' || '' }}
+          # We assemble a multi-platform latest.json in assemble-updater-manifest.
           includeUpdaterJson: false
 
       # 绿色版：免安装 zip（单文件 exe + 说明）。WebView2 仍由系统提供。
@@ -157,10 +194,43 @@ jobs:
           fi
           bash scripts/package-windows-portable.sh "$TAG"
 
+  # After all platform builds: merge .sig + archives into rolling latest.json.
+  # Skips cleanly when updater secrets were never used (no .sig on the release).
+  assemble-updater:
+    needs: publish
+    runs-on: ubuntu-22.04
+    name: Assemble updater latest.json
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble rolling grok-desktop-latest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GROK_UPDATER_PUBLIC_KEY: ${{ secrets.GROK_UPDATER_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GROK_UPDATER_PUBLIC_KEY:-}" || -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then
+            echo "Updater secrets not configured — skip assemble-updater-manifest"
+            exit 0
+          fi
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="v$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')"
+          fi
+          # Fail soft if this tag has no updater archives (partial rebuild).
+          if ! TAG="$TAG" REPO="$GITHUB_REPOSITORY" bash scripts/assemble-updater-manifest.sh; then
+            echo "::warning::assemble-updater-manifest failed — release installers are still published"
+            exit 0
+          fi
+
   # Supply-chain floor (NEW-06): one SHA256SUMS over every published asset so
   # users can verify downloads. Runs after all platform builds have uploaded.
   checksums:
-    needs: publish
+    needs: [publish, assemble-updater]
     runs-on: ubuntu-22.04
     name: Publish SHA256SUMS
     steps:

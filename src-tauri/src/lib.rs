@@ -7,6 +7,7 @@ mod agent_memory;
 mod agents_catalog;
 mod agent_prefs;
 mod app_update;
+mod updater;
 mod agent_subagents;
 mod extensions;
 mod hooks;
@@ -80,7 +81,21 @@ pub fn run() {
         inner: tokio::sync::Mutex::new(remote_im::BridgeRuntime::default()),
     });
 
-    tauri::Builder::default()
+    // Attach `tauri-plugin-updater` only when release CI injected GROK_UPDATER_*
+    // (build.rs → cfg) and this is a non-debug binary. Crate is always linked for ACL.
+    fn maybe_register_updater(
+        builder: tauri::Builder<tauri::Wry>,
+    ) -> tauri::Builder<tauri::Wry> {
+        #[cfg(grok_updater_enabled)]
+        {
+            if !cfg!(debug_assertions) {
+                return builder.plugin(tauri_plugin_updater::Builder::new().build());
+            }
+        }
+        builder
+    }
+
+    let builder = tauri::Builder::default()
         // Must be registered first so a second process exits and focuses the primary window.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             use tauri::Manager;
@@ -91,6 +106,14 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_store::Builder::new().build())
+        // Always register process so release builds can relaunch after install.
+        .plugin(tauri_plugin_process::init());
+
+    // Register the updater only in configured release builds; omit it locally.
+    // Requires GROK_UPDATER_* env at compile time (build.rs) + non-debug binary.
+    let builder = maybe_register_updater(builder);
+
+    builder
         .manage(session_mgr)
         .manage(mirror_host)
         .manage(voice_host)
@@ -190,6 +213,9 @@ pub fn run() {
             commands::pick_cli_binary,
             commands::open_external_url,
             commands::app_check_update,
+            updater::is_auto_update_supported,
+            updater::is_updater_plugin_enabled,
+            updater::prepare_for_app_update,
             commands::voice_status,
             commands::voice_transcribe,
             commands::projects_list,

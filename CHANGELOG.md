@@ -11,6 +11,19 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+
+- Desktop in-app auto-update (Tauri updater): signed release builds can check,
+  download, install, and relaunch from Settings → About. Local / unsigned
+  builds keep the GitHub “open release page” path. Adds
+  `tauri-plugin-updater` / `process` (ACL + relaunch; ~1–3 MB when fully wired
+  with signing secrets in CI).
+
+### Changed
+
+- `prepare_for_app_update` runs only after a successful `install()`, so a failed
+  update never kills agents / remote IM / mirror.
+
 ## [0.1.9] - 2026-07-27
 
 > **Highlight:** Windows no more cmd flashes; LINE webhook actually listens on the documented port; installers downloadable from About.

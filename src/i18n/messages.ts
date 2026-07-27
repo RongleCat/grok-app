@@ -950,7 +950,7 @@ const en = {
   "settings.aboutApp": "About Grok App",
   "settings.checkUpdate": "Check for updates",
   "settings.checkUpdateDesc":
-    "Look up the latest GitHub release. Download the installer for this OS when available — silent in-app install is not enabled yet.",
+    "Signed release builds can download and install updates in-app. Local or unsigned builds open the GitHub release page instead.",
   "settings.checkUpdateChecking": "Checking…",
   "settings.checkUpdateLatest": "You are on the latest version ({version}).",
   "settings.checkUpdateAvailable":
@@ -958,6 +958,16 @@ const en = {
   "settings.checkUpdateOpen": "Open release page",
   "settings.checkUpdateDownload": "Download installer",
   "settings.checkUpdateFailed": "Could not check: {error}",
+  "settings.autoUpdateChecking": "Checking for updates…",
+  "settings.autoUpdateUpToDate": "You are on the latest version.",
+  "settings.autoUpdateAvailable": "Version {version} is available.",
+  "settings.autoUpdateDownloading": "Downloading update…",
+  "settings.autoUpdateReady": "Update downloaded — restart to install.",
+  "settings.autoUpdateInstall": "Install and restart",
+  "settings.autoUpdateInstalling": "Installing…",
+  "settings.autoUpdateManualRequired":
+    "Version {version} is available. This install type cannot auto-update — download from the release page.",
+  "settings.autoUpdateError": "Update failed: {error}",
   "settings.close": "Close",
   "settings.sharedConfirm":
     "Switch to shared ~/.grok? Data will not merge silently. Confirm?",
@@ -2936,7 +2946,7 @@ const zh: Record<MessageKey, string> = {
   "settings.aboutApp": "关于 Grok App",
   "settings.checkUpdate": "检查更新",
   "settings.checkUpdateDesc":
-    "查询 GitHub 最新 Release。有新版本时可下载本机安装包 — 应用暂不静默安装。",
+    "已签名的正式版可在应用内下载并安装更新。本地或未签名构建会改为打开 GitHub 发布页。",
   "settings.checkUpdateChecking": "检查中…",
   "settings.checkUpdateLatest": "已是最新版本（{version}）。",
   "settings.checkUpdateAvailable":
@@ -2944,6 +2954,16 @@ const zh: Record<MessageKey, string> = {
   "settings.checkUpdateOpen": "打开发布页",
   "settings.checkUpdateDownload": "下载安装包",
   "settings.checkUpdateFailed": "检查失败：{error}",
+  "settings.autoUpdateChecking": "正在检查更新…",
+  "settings.autoUpdateUpToDate": "已是最新版本。",
+  "settings.autoUpdateAvailable": "有新版本 {version}。",
+  "settings.autoUpdateDownloading": "正在下载更新…",
+  "settings.autoUpdateReady": "更新已下载 — 重启以安装。",
+  "settings.autoUpdateInstall": "安装并重启",
+  "settings.autoUpdateInstalling": "正在安装…",
+  "settings.autoUpdateManualRequired":
+    "有新版本 {version}。当前安装方式不支持应用内更新 — 请到发布页下载。",
+  "settings.autoUpdateError": "更新失败：{error}",
   "settings.close": "关闭",
   "settings.sharedConfirm":
     "切换到共享 ~/.grok？数据不会静默合并，请确认。",

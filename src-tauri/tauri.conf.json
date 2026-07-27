@@ -95,5 +95,10 @@
     "macOS": {
       "infoPlist": "Info.plist"
     }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": []
+    }
   }
 }

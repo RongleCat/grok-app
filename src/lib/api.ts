@@ -368,6 +368,21 @@ export async function appCheckUpdate() {
   return invoke<AppUpdateCheck>("app_check_update");
 }
 
+/** True when this install can apply Tauri in-app updates (Linux: AppImage only). */
+export async function isAutoUpdateSupported() {
+  return invoke<boolean>("is_auto_update_supported");
+}
+
+/** True when the binary was built with updater pubkey + endpoint (release CI). */
+export async function isUpdaterPluginEnabled() {
+  return invoke<boolean>("is_updater_plugin_enabled");
+}
+
+/** Stop agents / mirror / voice / IM before install + relaunch. */
+export async function prepareForAppUpdate() {
+  return invoke<void>("prepare_for_app_update");
+}
+
 export async function projectsList() {
   return invoke<
     Array<{

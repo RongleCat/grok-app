@@ -82,6 +82,7 @@ import {
   type MessageKey,
   type Vars,
 } from "@/i18n";
+import { useUpdaterContext } from "@/hooks/UpdaterProvider";
 import {
   SETTINGS_NAV,
   buildSettingsHash,
@@ -3327,35 +3328,67 @@ function AboutUpdateRow({
 }: {
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<api.AppUpdateCheck | null>(null);
-
-  const check = async () => {
-    if (!api.isTauri()) {
-      setError("not in Tauri");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    setResult(null);
-    try {
-      const r = await api.appCheckUpdate();
-      setResult(r);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
+  // Single authority: useUpdater (plugin path or GitHub fallback).
+  const { status, checkForUpdate, installAndRelaunch, githubReleasesUrl } =
+    useUpdaterContext();
+  const [openError, setOpenError] = useState<string | null>(null);
 
   const openRelease = async (url: string) => {
     try {
+      setOpenError(null);
       await api.openExternalUrl(url);
     } catch (e) {
-      setError(String(e));
+      setOpenError(String(e));
     }
   };
+
+  const statusText = (() => {
+    switch (status.state) {
+      case "checking":
+        return t("settings.autoUpdateChecking");
+      case "up-to-date":
+        return status.version
+          ? t("settings.checkUpdateLatest", { version: status.version })
+          : t("settings.autoUpdateUpToDate");
+      case "available":
+        return t("settings.autoUpdateAvailable", { version: status.version });
+      case "downloading":
+        return t("settings.autoUpdateDownloading");
+      case "ready":
+        return t("settings.autoUpdateReady");
+      case "installing":
+        return t("settings.autoUpdateInstalling");
+      case "manual-required":
+        return t("settings.autoUpdateManualRequired", {
+          version: status.version,
+        });
+      case "error":
+        return null;
+      default:
+        return null;
+    }
+  })();
+
+  const busy =
+    status.state === "checking" ||
+    status.state === "downloading" ||
+    status.state === "installing";
+
+  // Only show install when download finished (ready), never on available.
+  const showInstall = status.state === "ready";
+  const showInstalling = status.state === "installing";
+  const showOpenRelease = status.state === "manual-required";
+  const releaseUrl =
+    status.state === "manual-required" ? status.releaseUrl : githubReleasesUrl;
+  const downloadUrl =
+    status.state === "manual-required" ? status.downloadUrl : null;
+  const assetNames =
+    status.state === "manual-required" ? status.assetNames : undefined;
+  const highlight =
+    status.state === "available" ||
+    status.state === "ready" ||
+    status.state === "downloading" ||
+    status.state === "manual-required";
 
   return (
     <div className="settings-row settings-row--stack">
@@ -3369,59 +3402,68 @@ function AboutUpdateRow({
             type="button"
             className="btn btn--solid"
             disabled={busy}
-            onClick={() => void check()}
+            onClick={() => void checkForUpdate()}
           >
             {busy
               ? t("settings.checkUpdateChecking")
               : t("settings.checkUpdate")}
           </button>
-          {result?.updateAvailable ? (
-            <>
-              {result.downloadUrl ? (
-                <button
-                  type="button"
-                  className="btn btn--solid"
-                  onClick={() => void openRelease(result.downloadUrl!)}
-                >
-                  {t("settings.checkUpdateDownload")}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={() => void openRelease(result.htmlUrl)}
-              >
-                {t("settings.checkUpdateOpen")}
-              </button>
-            </>
+          {showInstalling ? (
+            <button type="button" className="btn btn--solid" disabled>
+              {t("settings.autoUpdateInstalling")}
+            </button>
+          ) : showInstall ? (
+            <button
+              type="button"
+              className="btn btn--solid"
+              disabled={busy}
+              onClick={() => void installAndRelaunch()}
+            >
+              {t("settings.autoUpdateInstall")}
+            </button>
+          ) : null}
+          {showOpenRelease && downloadUrl ? (
+            <button
+              type="button"
+              className="btn btn--solid"
+              onClick={() => void openRelease(downloadUrl)}
+            >
+              {t("settings.checkUpdateDownload")}
+            </button>
+          ) : null}
+          {showOpenRelease ? (
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => void openRelease(releaseUrl)}
+            >
+              {t("settings.checkUpdateOpen")}
+            </button>
           ) : null}
         </div>
-        {error ? (
-          <div className="settings-about-update__err" role="alert">
-            {t("settings.checkUpdateFailed", { error })}
-          </div>
-        ) : null}
-        {result && !error ? (
+        {statusText ? (
           <div
             className={
-              "settings-about-update__status" +
-              (result.updateAvailable ? " is-available" : "")
+              "settings-about-update__status" + (highlight ? " is-available" : "")
             }
             role="status"
           >
-            {result.updateAvailable
-              ? t("settings.checkUpdateAvailable", {
-                  latest: result.latestVersion,
-                  current: result.currentVersion,
-                })
-              : t("settings.checkUpdateLatest", {
-                  version: result.currentVersion,
-                })}
+            {statusText}
           </div>
         ) : null}
-        {result?.updateAvailable && result.assetNames.length > 0 ? (
+        {status.state === "error" ? (
+          <div className="settings-about-update__err" role="alert">
+            {t("settings.autoUpdateError", { error: status.message })}
+          </div>
+        ) : null}
+        {openError ? (
+          <div className="settings-about-update__err" role="alert">
+            {t("settings.checkUpdateFailed", { error: openError })}
+          </div>
+        ) : null}
+        {assetNames && assetNames.length > 0 ? (
           <div className="settings-about-update__assets">
-            {result.assetNames.slice(0, 6).join(" · ")}
+            {assetNames.slice(0, 6).join(" · ")}
           </div>
         ) : null}
       </div>
