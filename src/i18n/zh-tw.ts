@@ -886,6 +886,7 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.checkUpdateLatest": "已是最新版本（{version}）。",
   "settings.checkUpdateAvailable":
     "有新版本 {latest}（目前 {current}）。",
+  "settings.checkUpdateDownload": "下載安裝包",
   "settings.checkUpdateOpen": "開啟發佈頁",
   "settings.checkUpdateFailed": "檢查失敗：{error}",
   "settings.close": "關閉",

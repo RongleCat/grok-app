@@ -336,6 +336,8 @@ export type AppUpdateCheck = {
   publishedAt: string | null;
   body: string | null;
   assetNames: string[];
+  downloadUrl: string | null;
+  downloadName: string | null;
 };
 
 export async function appCheckUpdate() {

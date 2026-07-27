@@ -925,6 +925,7 @@ const en = {
   "settings.checkUpdateAvailable":
     "Version {latest} is available (you have {current}).",
   "settings.checkUpdateOpen": "Open release page",
+  "settings.checkUpdateDownload": "Download installer",
   "settings.checkUpdateFailed": "Could not check: {error}",
   "settings.close": "Close",
   "settings.sharedConfirm":
@@ -2866,6 +2867,7 @@ const zh: Record<MessageKey, string> = {
   "settings.checkUpdateAvailable":
     "有新版本 {latest}（当前 {current}）。",
   "settings.checkUpdateOpen": "打开发布页",
+  "settings.checkUpdateDownload": "下载安装包",
   "settings.checkUpdateFailed": "检查失败：{error}",
   "settings.close": "关闭",
   "settings.sharedConfirm":
