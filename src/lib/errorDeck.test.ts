@@ -56,8 +56,6 @@ describe("buildErrorDeck", () => {
   });
 });
 
-import { classifyErrorMessage, resolveErrorDeckCode } from "./errorDeck";
-
 describe("classifyErrorMessage", () => {
   it("maps cli / auth / network / crash without collapsing", () => {
     expect(classifyErrorMessage("CLI not found on PATH")).toBe("CLI_NOT_FOUND");
