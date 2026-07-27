@@ -215,6 +215,12 @@ export function RemoteImChannelPanel({
         return false;
       }
 
+      const allowFromTrimmed = (acl.allowFrom ?? "").trim();
+      if (!allowFromTrimmed) {
+        setFormError(t("settings.remoteIm.err.needAllowFrom"));
+        return false;
+      }
+
       const ref = credentialsRefFor(channelId, instance.id);
       if (hasNewSecrets) {
         await remoteImSecretsPut({
@@ -841,7 +847,8 @@ export function RemoteImChannelPanel({
               {t("settings.remoteIm.field.allowFrom")}
             </div>
             <div className="settings-row__desc">
-              {t("settings.remoteIm.field.allowFromHelp")}
+{t("settings.remoteIm.field.allowFromHelp")}
+            <span className="settings-page__hint">{t("settings.remoteIm.field.allowFromRequired")}</span>
             </div>
           </div>
           <input
@@ -849,6 +856,27 @@ export function RemoteImChannelPanel({
             value={acl.allowFrom}
             onChange={(e) => setAcl({ ...acl, allowFrom: e.target.value })}
           />
+
+          {(channelId === "wecom" || channelId === "line") && (
+            <label className="settings-page__check">
+              <input
+                type="checkbox"
+                checked={!!values.allow_external || !!values.allowExternal}
+                onChange={(e) =>
+                  setValues((v) => ({
+                    ...v,
+                    allow_external: e.target.checked,
+                  }))
+                }
+              />
+              <span>
+                {t("settings.remoteIm.allowExternal")}
+                <span className="settings-page__hint">
+                  {t("settings.remoteIm.allowExternalHelp")}
+                </span>
+              </span>
+            </label>
+          )}
         </div>
       </div>
 
