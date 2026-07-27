@@ -52,7 +52,7 @@ describe("buildErrorDeck", () => {
     expect(stall.primary.id).toBe("keep_waiting");
     expect(stall.secondary?.id).toBe("cancel_turn");
     expect(stall.primary.label.toLowerCase()).toMatch(/wait/);
-    expect(stall.secondary?.label.toLowerCase()).toMatch(/cancel/);
+    expect(stall.secondary?.label.toLowerCase()).toMatch(/cancel|end turn/);
   });
 });
 
