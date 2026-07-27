@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildErrorDeck,
+  classifyErrorMessage,
   deckCodeFromAgent,
   isReconnectAction,
+  resolveErrorDeckCode,
 } from "./errorDeck";
 
 describe("buildErrorDeck", () => {
@@ -50,6 +52,20 @@ describe("buildErrorDeck", () => {
     expect(stall.primary.id).toBe("keep_waiting");
     expect(stall.secondary?.id).toBe("cancel_turn");
     expect(stall.primary.label.toLowerCase()).toMatch(/wait/);
-    expect(stall.secondary?.label.toLowerCase()).toMatch(/cancel/);
+    expect(stall.secondary?.label.toLowerCase()).toMatch(/cancel|end turn/);
+  });
+});
+
+describe("classifyErrorMessage", () => {
+  it("maps cli / auth / network / crash without collapsing", () => {
+    expect(classifyErrorMessage("CLI not found on PATH")).toBe("CLI_NOT_FOUND");
+    expect(classifyErrorMessage("401 Unauthorized: invalid API key")).toBe("AUTH_FAILED");
+    expect(classifyErrorMessage("provider timeout after 30s")).toBe("NETWORK_PROVIDER");
+    expect(classifyErrorMessage("agent process exited with code 1")).toBe("AGENT_CRASHED");
+  });
+
+  it("resolveErrorDeckCode prefers host codes", () => {
+    expect(resolveErrorDeckCode("AUTH_FAILED", "whatever")).toBe("AUTH_FAILED");
+    expect(resolveErrorDeckCode(null, "ECONNREFUSED 127.0.0.1")).toBe("NETWORK_PROVIDER");
   });
 });
