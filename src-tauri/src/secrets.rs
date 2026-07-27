@@ -215,10 +215,12 @@ fn write_disk_secrets(path: &PathBuf, value: &SecretsFile) -> Result<(), String>
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let s = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
-    fs::write(path, s).map_err(|e| e.to_string())?;
+    // Same exclusive-lock + temp-rename path as the session store.
+    crate::store_lock::write_bytes_atomic(path, s.as_bytes())?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
+        // write_bytes_atomic creates the final file; ensure mode is private.
         let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
     }
     Ok(())

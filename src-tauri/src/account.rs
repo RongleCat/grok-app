@@ -1550,30 +1550,7 @@ pub fn open_browser_url(url: &str) -> Result<(), String> {
 }
 
 fn open_url(url: &str) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("open")
-            .arg(url)
-            .status()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-    #[cfg(target_os = "windows")]
-    {
-        Command::new("cmd")
-            .args(["/C", "start", "", url])
-            .status()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    {
-        Command::new("xdg-open")
-            .arg(url)
-            .status()
-            .map_err(|e| e.to_string())?;
-        Ok(())
-    }
+    crate::commands::open_http_url(url)
 }
 
 #[cfg(test)]
