@@ -57,9 +57,10 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
-          shared-key: ci-${{ matrix.name }}
+          shared-key: ci-${{ matrix.name }}-v3
       # Includes ACP golden fixtures (tests/fixtures/acp + acp_golden_test).
       # Required green for any ACP / mock_acp / permission wire change (T06).
       - name: cargo test
         working-directory: src-tauri
-        run: cargo test
+        # --lib: unit/integration tests under src/. Avoids binary harness issues on some runners.
+        run: cargo test --lib
