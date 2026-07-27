@@ -3782,6 +3782,8 @@ const zh: Record<MessageKey, string> = {
   "settings.remoteIm.err.pairPaste": "无法解析 id:secret 格式。",
   "settings.remoteIm.err.missingFields": "缺少必填字段：{fields}",
   "settings.remoteIm.err.needSecrets": "请先填写凭证再保存。",
+  "settings.remoteIm.err.needAllowFrom": "启用前请至少填写一个允许的发送者 ID。",
+  "settings.remoteIm.field.allowFromRequired": "必填 — 未配置时其他人的消息会被拒绝。",
   "settings.remoteIm.test.ok": "连接测试成功。",
   "settings.remoteIm.test.fail": "连接测试失败：{error}",
   "settings.remoteIm.status.connected": "已连接",
