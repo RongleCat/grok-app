@@ -3773,6 +3773,8 @@ const zh: Record<MessageKey, string> = {
   "settings.remoteIm.weixin.presenterHint": "微信个人默认强制文本菜单（无交互卡片）。",
   "settings.remoteIm.err.pairPaste": "无法解析 id:secret 格式。",
   "settings.remoteIm.err.missingFields": "缺少必填字段：{fields}",
+  "settings.remoteIm.allowExternal": "允许局域网/公网监听",
+  "settings.remoteIm.allowExternalHelp": "默认仅本机。公网回调请用隧道；开启后将监听所有网卡。",
   "settings.remoteIm.err.needSecrets": "请先填写凭证再保存。",
   "settings.remoteIm.err.needAllowFrom": "启用前请至少填写一个允许的发送者 ID。",
   "settings.remoteIm.field.allowFromRequired": "必填 — 未配置时其他人的消息会被拒绝。",
