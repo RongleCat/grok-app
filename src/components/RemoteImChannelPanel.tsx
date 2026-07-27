@@ -858,24 +858,26 @@ export function RemoteImChannelPanel({
           />
 
           {(channelId === "wecom" || channelId === "line") && (
-            <label className="settings-page__check">
-              <input
-                type="checkbox"
+            <div className="settings-row">
+              <div className="settings-row__text">
+                <div className="settings-row__label">
+                  {t("settings.remoteIm.allowExternal")}
+                </div>
+                <div className="settings-row__desc">
+                  {t("settings.remoteIm.allowExternalHelp")}
+                </div>
+              </div>
+              <RimSwitch
                 checked={!!values.allow_external || !!values.allowExternal}
-                onChange={(e) =>
+                label={t("settings.remoteIm.allowExternal")}
+                onChange={(next) =>
                   setValues((v) => ({
                     ...v,
-                    allow_external: e.target.checked,
+                    allow_external: next,
                   }))
                 }
               />
-              <span>
-                {t("settings.remoteIm.allowExternal")}
-                <span className="settings-page__hint">
-                  {t("settings.remoteIm.allowExternalHelp")}
-                </span>
-              </span>
-            </label>
+            </div>
           )}
         </div>
       </div>
