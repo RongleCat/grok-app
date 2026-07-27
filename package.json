@@ -60,7 +60,7 @@
     "tailwind-merge": "^3.6.0",
     "tiptap-markdown": "^0.9.0",
     "use-stick-to-bottom": "^1.1.6",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yet-another-react-lightbox": "^3.32.1"
   },
   "devDependencies": {
