@@ -278,6 +278,11 @@ pub fn import_cli_session(
     project_id: Option<String>,
     session_data_mode: &str,
 ) -> Result<SessionMeta, String> {
+    if session_data_mode != "shared" {
+        return Err(
+            "CLI session import requires shared session data mode (Settings → General)".into(),
+        );
+    }
     let dir = if let Some(d) = dir.filter(|s| !s.is_empty()) {
         PathBuf::from(d)
     } else {
