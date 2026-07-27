@@ -2875,6 +2875,9 @@ const zh: Record<MessageKey, string> = {
     "切换到共享 ~/.grok？数据不会静默合并，请确认。",
   "settings.modeIndependent": "独立（~/.grok-app）",
   "settings.modeShared": "共享（~/.grok）",
+  "settings.sessionModeHelp": "独立模式把对话存在 App 数据目录。共通模式使用 CLI 主目录，App 与终端共享会话列表。",
+  "settings.sessionModeImportHint": "仅在共通模式下可导入 CLI 会话。",
+  "settings.sessionModeImportBlocked": "请先切换到共通会话数据模式，再导入 CLI 会话。",
   "settings.tabOfficial": "官方账户",
   "settings.tabProviders": "自定义提供商",
   "settings.tabOfficialHint":
