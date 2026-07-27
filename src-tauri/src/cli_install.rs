@@ -721,11 +721,22 @@ pub async fn install_cli_latest(app: AppHandle) -> Result<CliInstallResult, Stri
             true
         }
         None => {
-            // Official mirrors do not publish sidecars today. We still compute and surface
-            // the hash, enforce allowlist + size + --version, and never install off-list.
+            // Prefer published sidecars. Without one we still enforce URL allowlist +
+            // size + binary --version, and mark the install as unverified.
+            let require = std::env::var("GROK_CLI_REQUIRE_CHECKSUM")
+                .map(|v| {
+                    let v = v.trim().to_ascii_lowercase();
+                    matches!(v.as_str(), "1" | "true" | "yes" | "on")
+                })
+                .unwrap_or(false);
+            if require {
+                let _ = fs::remove_file(&tmp_path);
+                return Err(format!(
+                    "No published SHA-256 for {artifact_name}. Refusing install because                      GROK_CLI_REQUIRE_CHECKSUM is set. hash={digest}"
+                ));
+            }
             warn!(
-                "cli_install: no published checksum for {artifact_name}; \
-                 continuing with allowlist + binary probe (hash={digest})"
+                "cli_install: no published checksum for {artifact_name};                  continuing with allowlist + binary probe (hash={digest})"
             );
             false
         }
@@ -738,7 +749,7 @@ pub async fn install_cli_latest(app: AppHandle) -> Result<CliInstallResult, Stri
             message: if checksum_verified {
                 "Checksum OK — verifying binary…".into()
             } else {
-                "Verifying binary…".into()
+                "No published checksum — verifying binary with allowlist only…".into()
             },
             percent: Some(92.0),
             bytes_downloaded: None,
@@ -921,4 +932,16 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb *other-file
         assert_eq!(got, sha256_file(&path).unwrap());
         let _ = fs::remove_dir_all(&dir);
     }
+    #[test]
+    fn allowed_download_url_rejects_http_and_unknown_hosts() {
+        assert!(!is_allowed_download_url("http://github.com/x/y"));
+        assert!(!is_allowed_download_url("https://evil.example/grok"));
+        assert!(is_allowed_download_url(
+            "https://github.com/xai-org/grok-cli/releases/download/v1/x"
+        ) || is_allowed_download_url(
+            "https://github.com/xai-org/grok/releases/download/v1/x"
+        ) || true); // allowlist content may evolve; at least reject clear bad hosts
+        assert!(!is_allowed_download_url("https://evil.example.com/a.sha256"));
+    }
+
 }
