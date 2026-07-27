@@ -331,6 +331,8 @@ pub fn run() {
             commands::editors_list,
             commands::open_in_editor,
             mirror::mirror_status,
+            mirror::mirror_rotate_token,
+            mirror::mirror_set_read_only,
             mirror::mirror_start,
             mirror::mirror_stop,
             voice_host::voice_state,

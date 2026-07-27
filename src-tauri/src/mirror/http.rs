@@ -90,6 +90,24 @@ pub async fn start_server(
     Ok((bound, shutdown_tx))
 }
 
+
+fn security_headers(mut res: Response) -> Response {
+    let headers = res.headers_mut();
+    headers.insert(
+        header::HeaderName::from_static("referrer-policy"),
+        header::HeaderValue::from_static("no-referrer"),
+    );
+    headers.insert(
+        header::HeaderName::from_static("x-content-type-options"),
+        header::HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        header::HeaderName::from_static("x-frame-options"),
+        header::HeaderValue::from_static("DENY"),
+    );
+    res
+}
+
 async fn token_gate_middleware(
     State(state): State<HttpState>,
     req: Request,
@@ -97,18 +115,18 @@ async fn token_gate_middleware(
 ) -> Response {
     let path = req.uri().path().to_string();
     let Some(path_token) = extract_token_from_path(&path) else {
-        tracing::warn!(path = %path, "mirror auth rejected: missing token path");
+        tracing::warn!(path = %path_after_token(&path).unwrap_or_else(|| "<redacted>".into()), "mirror auth rejected: missing token path");
         return unauthorized();
     };
 
     let active = state.host.active_token();
     let Some(active) = active else {
-        tracing::warn!(path = %path, "mirror auth rejected: host not running");
+        tracing::warn!(path = %path_after_token(&path).unwrap_or_else(|| "<redacted>".into()), "mirror auth rejected: host not running");
         return unauthorized();
     };
 
     if !tokens_equal(&path_token, &active) {
-        tracing::warn!(path = %path, "mirror auth rejected: bad token");
+        tracing::warn!(path = %path_after_token(&path).unwrap_or_else(|| "<redacted>".into()), "mirror auth rejected: bad token");
         return unauthorized();
     }
 
@@ -117,7 +135,7 @@ async fn token_gate_middleware(
 
 fn unauthorized() -> Response {
     // Fail-closed: 401 with no SPA body (AC3).
-    (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
+    security_headers((StatusCode::UNAUTHORIZED, "Unauthorized").into_response())
 }
 
 async fn unauth_fallback() -> Response {
@@ -151,6 +169,25 @@ async fn ws_handler(
                 tracing::warn!("mirror ws: query token mismatch");
                 return unauthorized();
             }
+        }
+    }
+
+    // Reject browser pages that are not this mirror (or loopback).
+    if let Some(origin) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) {
+        let origin = origin.trim();
+        let ok = origin.starts_with("http://127.0.0.1")
+            || origin.starts_with("http://localhost")
+            || origin.starts_with("https://127.0.0.1")
+            || origin.starts_with("https://localhost")
+            || state
+                .host
+                .public_base_url()
+                .as_deref()
+                .map(|u| origin == u.trim_end_matches('/'))
+                .unwrap_or(false);
+        if !ok {
+            tracing::warn!(origin = %origin, "mirror ws: origin not allowed");
+            return unauthorized();
         }
     }
 
