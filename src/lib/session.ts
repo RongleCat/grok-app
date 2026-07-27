@@ -2063,7 +2063,7 @@ export function presentErrorBanner(
     const disconnected =
       rest === "agent_disconnected" || /disconnect|中断/i.test(lower);
     const deck = buildErrorDeck(
-      resolveErrorDeckCode(code, raw, { timeout, disconnected }),
+      resolveErrorDeckCode(code, rest || cleaned, { timeout, disconnected }),
       locale,
     );
     return bannerFromDeck(deck, code, null);
