@@ -90,3 +90,18 @@ jobs:
             Get-WinEvent -FilterHashtable @{LogName='Application'; Level=2; StartTime=(Get-Date).AddMinutes(-10)} `
               -ErrorAction SilentlyContinue | Select-Object -First 5 TimeCreated, Id, Message | Format-List
           } catch { Write-Host "event log query failed: $_" }
+          Write-Host "=== Check each dep DLL resolves + has the imported entry points ==="
+          $importedDlls = @('advapi32','kernel32','oleaut32','bcryptprimitives','ntdll','api-ms-win-core-synch-l1-2-0','user32','ole32','shell32','gdi32','dwmapi','comctl32','ws2_32','bcrypt','userenv','VCRUNTIME140')
+          foreach ($d in $importedDlls) {
+            $found = Get-Command "$d.dll" -ErrorAction SilentlyContinue
+            if ($found) { Write-Host "  $d.dll -> $($found.Source)" }
+            else {
+              $sys = Join-Path $env:SystemRoot "System32\$d.dll"
+              if (Test-Path $sys) { Write-Host "  $d.dll -> $sys (in System32)" }
+              else { Write-Host "  $d.dll -> NOT FOUND" }
+            }
+          }
+          Write-Host "=== dumpbin /exports on api-ms-win-core-synch-l1-2-0.dll (WaitOnAddress family) ==="
+          $synch = Join-Path $env:SystemRoot "System32\api-ms-win-core-synch-l1-2-0.dll"
+          if (Test-Path $synch) { & $dumpbin /exports $synch 2>&1 | Select-String -Pattern "WaitOnAddress|WakeByAddress|InitOnce" | Select-Object -First 10 }
+          else { Write-Host "api-ms-win-core-synch-l1-2-0.dll MISSING from System32" }
