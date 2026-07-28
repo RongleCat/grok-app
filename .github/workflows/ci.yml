@@ -34,7 +34,10 @@ jobs:
         include:
           - os: macos-latest
             name: macOS
-          - os: windows-latest
+          # windows-2022: long-stable image. windows-latest/2025 currently ship
+          # VS 2026 + Temurin JDK bins that poison API-set DLL resolution for
+          # cargo test binaries (STATUS_ENTRYPOINT_NOT_FOUND / 0xc0000139).
+          - os: windows-2022
             name: Windows
           - os: ubuntu-latest
             name: Linux
@@ -57,54 +60,70 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
-          # Bump key when Windows DLL PATH fix lands so we never re-run a stale
-          # test binary that was linked under a poisoned PATH.
-          shared-key: ci-${{ matrix.name }}-v2
+          # Bump when Windows runner/PATH policy changes so we never re-run a
+          # stale test binary linked under a poisoned environment.
+          shared-key: ci-${{ matrix.name }}-v3
       # Includes ACP golden fixtures (tests/fixtures/acp + acp_golden_test).
       # Required green for any ACP / mock_acp / permission wire change (T06).
-      #
-      # Windows: GitHub-hosted runners put Temurin JDK on PATH. That bin dir
-      # ships physical api-ms-win-*.dll forwarders. Modern Windows has no real
-      # System32 copies of those API-set names (resolution is virtual), so the
-      # loader binds the test binary's WaitOnAddress import to the JDK copy and
-      # aborts with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) before any test
-      # runs. Drop any PATH entry that ships those DLLs *in this shell* —
-      # GITHUB_PATH only prepends and cannot remove entries.
       - name: cargo test
         if: matrix.name != 'Windows'
         working-directory: src-tauri
         run: cargo test
+      # Windows: Temurin JDK on PATH ships physical api-ms-win-*.dll forwarders.
+      # Modern Windows has no real System32 copies of those API-set names, so the
+      # loader can bind WaitOnAddress (etc.) to the stale JDK copy and abort with
+      # STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) before any test runs.
+      #
+      # Compile needs the full PATH (MSVC link.exe, Windows SDK). Run the tests
+      # under a scrubbed PATH: drop any dir that ships api-ms-win-*.dll, and put
+      # System32 first. GITHUB_PATH only prepends and cannot remove entries.
       - name: cargo test
         if: matrix.name == 'Windows'
         working-directory: src-tauri
         shell: pwsh
         run: |
-          $sep = [IO.Path]::PathSeparator
-          $dropped = [System.Collections.Generic.List[string]]::new()
-          $kept = foreach ($d in ($env:Path -split $sep)) {
-            if (-not $d) { continue }
-            $shipsApiSet = $false
-            if (Test-Path -LiteralPath $d -PathType Container -ErrorAction SilentlyContinue) {
-              $shipsApiSet = [bool](Get-ChildItem -LiteralPath $d -Filter 'api-ms-win-*.dll' -ErrorAction SilentlyContinue | Select-Object -First 1)
+          function Get-ScrubbedPath {
+            $sep = [IO.Path]::PathSeparator
+            $dropped = [System.Collections.Generic.List[string]]::new()
+            $kept = foreach ($d in ($env:Path -split $sep)) {
+              if (-not $d) { continue }
+              $shipsApiSet = $false
+              if (Test-Path -LiteralPath $d -PathType Container -ErrorAction SilentlyContinue) {
+                $shipsApiSet = [bool](Get-ChildItem -LiteralPath $d -Filter 'api-ms-win-*.dll' -ErrorAction SilentlyContinue | Select-Object -First 1)
+              }
+              if ($shipsApiSet) {
+                [void]$dropped.Add($d)
+                continue
+              }
+              $d
             }
-            if ($shipsApiSet) {
-              [void]$dropped.Add($d)
-              continue
+            if ($dropped.Count) {
+              Write-Host "Dropping PATH entries that ship api-ms-win-*.dll:"
+              foreach ($b in $dropped) { Write-Host "  - $b" }
+            } else {
+              Write-Host "No PATH entry ships api-ms-win-*.dll"
             }
-            $d
+            $system32 = Join-Path $env:SystemRoot 'System32'
+            $windows = $env:SystemRoot
+            # System32 first so OS resolution wins over any remaining shadow.
+            $ordered = @($system32, $windows) + @($kept | Where-Object {
+              $_ -and ($_ -ne $system32) -and ($_ -ne $windows)
+            })
+            return ($ordered -join $sep)
           }
-          if ($dropped.Count) {
-            Write-Host "Dropping PATH entries that ship api-ms-win-*.dll (poison Windows API-set resolution):"
-            foreach ($b in $dropped) { Write-Host "  - $b" }
-            $env:Path = ($kept -join $sep)
-          } else {
-            Write-Host "No PATH entry ships api-ms-win-*.dll"
-          }
-          # Prove resolution no longer prefers the JDK copy.
+
+          Write-Host "=== cargo test --no-run (full PATH for MSVC link) ==="
+          cargo test --no-run
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $env:Path = Get-ScrubbedPath
           $resolved = Get-Command 'api-ms-win-core-synch-l1-2-0.dll' -ErrorAction SilentlyContinue
           if ($resolved) {
-            Write-Host "Get-Command api-ms-win-core-synch-l1-2-0.dll -> $($resolved.Source)"
+            Write-Host "WARNING: Get-Command still resolves api-ms-win-core-synch-l1-2-0.dll -> $($resolved.Source)"
           } else {
             Write-Host "Get-Command api-ms-win-core-synch-l1-2-0.dll -> (not on PATH; OS API-set schema will resolve)"
           }
+
+          Write-Host "=== cargo test (scrubbed PATH) ==="
           cargo test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
