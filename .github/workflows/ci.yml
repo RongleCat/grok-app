@@ -34,7 +34,13 @@ jobs:
         include:
           - os: macos-latest
             name: macOS
-          - os: windows-latest
+          # windows-2022, not windows-latest (windows-2025-vs2026): on the
+          # VS2026 image, a fresh full rebuild of the test binary aborts at
+          # startup with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) before any
+          # test runs. The previous "green" main runs were cache hits that
+          # executed a stale binary. Pin to the long-stable windows-2022 image
+          # until the upstream regression is understood.
+          - os: windows-2022
             name: Windows
           - os: ubuntu-latest
             name: Linux
