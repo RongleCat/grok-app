@@ -58,50 +58,42 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
           shared-key: ci-${{ matrix.name }}
+      # The windows-2025 runner image ships a stale copy of the Windows API
+      # set `api-ms-win-core-synch-l1-2-0.dll` inside the preinstalled JDK's
+      # bin dir (Temurin). That dir is on PATH ahead of System32, so the loader
+      # binds the test binary to the JDK copy instead of resolving the API set
+      # to kernel32 — and the stale copy is missing entry points the test
+      # binary needs (tokio's WaitOnAddress family), producing
+      # STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) before any test runs.
+      # Prune any PATH entry that shadows a System32 API-set DLL, for the
+      # whole job via GITHUB_PATH.
+      - name: Prune shadowing Windows API-set DLLs from PATH
+        if: matrix.name == 'Windows'
+        shell: pwsh
+        run: |
+          $apisets = Get-ChildItem "$env:SystemRoot\System32" -Filter "api-ms-win-*.dll" -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty Name
+          $shadowed = [System.Collections.Generic.HashSet[string]]::new()
+          foreach ($d in ($env:Path -split [IO.Path]::PathSeparator)) {
+            if (-not $d -or -not (Test-Path $d)) { continue }
+            foreach ($name in $apisets) {
+              if (Test-Path (Join-Path $d $name)) { [void]$shadowed.Add($d); break }
+            }
+          }
+          if ($shadowed.Count) {
+            Write-Host "Pruning PATH entries that shadow a Windows API set:"
+            foreach ($b in $shadowed) { Write-Host "  - $b" }
+            # GITHUB_PATH prepends each line to PATH for subsequent steps.
+            # Re-emit the surviving entries so the shadowing dirs are gone.
+            $kept = ($env:Path -split [IO.Path]::PathSeparator) |
+              Where-Object { $_ -and -not $shadowed.Contains($_) }
+            Set-Content -Path $env:GITHUB_PATH -Value $kept
+            Write-Host "Wrote $($kept.Count) surviving PATH entries to GITHUB_PATH."
+          } else {
+            Write-Host "No PATH entry shadows a Windows API set — nothing to prune."
+          }
       # Includes ACP golden fixtures (tests/fixtures/acp + acp_golden_test).
       # Required green for any ACP / mock_acp / permission wire change (T06).
       - name: cargo test
         working-directory: src-tauri
         run: cargo test
-      # ── DIAGNOSTIC (temporary): find the missing DLL behind the Windows
-      # STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) test-binary crash. Remove
-      # once the root cause is identified and fixed. ──────────────────────
-      - name: Diagnose Windows test-binary DLL deps
-        if: always() && matrix.name == 'Windows'
-        working-directory: src-tauri
-        shell: pwsh
-        run: |
-          $dumpbin = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -latest -find "VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Select-Object -First 1
-          $deps = "target/debug/deps"
-          if (-not (Test-Path $deps)) { Write-Host "No deps/"; exit 0 }
-          $exe = Get-ChildItem $deps -Filter "grok_app_lib-*.exe" | Select-Object -First 1
-          if (-not $exe) { Write-Host "No exe"; exit 0 }
-          Write-Host "=== Test binary: $($exe.FullName) ==="
-          Write-Host "=== rustc version ===" ; rustc --version --verbose
-          Write-Host "=== dumpbin /imports (function-level imports per DLL) ==="
-          & $dumpbin /imports $exe.FullName
-          Write-Host "=== ntldd-style recursive dep check (if gflags/ntldd present) ==="
-          $ntldd = Get-Command ntldd -ErrorAction SilentlyContinue
-          if ($ntldd) { & ntldd -R $($exe.FullName) 2>&1 | Select-Object -First 80 }
-          else { Write-Host "ntldd not available" }
-          Write-Host "=== Application event log: recent loader errors ==="
-          try {
-            Get-WinEvent -FilterHashtable @{LogName='Application'; Level=2; StartTime=(Get-Date).AddMinutes(-10)} `
-              -ErrorAction SilentlyContinue | Select-Object -First 5 TimeCreated, Id, Message | Format-List
-          } catch { Write-Host "event log query failed: $_" }
-          Write-Host "=== Check each dep DLL resolves + has the imported entry points ==="
-          $importedDlls = @('advapi32','kernel32','oleaut32','bcryptprimitives','ntdll','api-ms-win-core-synch-l1-2-0','user32','ole32','shell32','gdi32','dwmapi','comctl32','ws2_32','bcrypt','userenv','VCRUNTIME140')
-          foreach ($d in $importedDlls) {
-            $found = Get-Command "$d.dll" -ErrorAction SilentlyContinue
-            if ($found) { Write-Host "  $d.dll -> $($found.Source)" }
-            else {
-              $sys = Join-Path $env:SystemRoot "System32\$d.dll"
-              if (Test-Path $sys) { Write-Host "  $d.dll -> $sys (in System32)" }
-              else { Write-Host "  $d.dll -> NOT FOUND" }
-            }
-          }
-          Write-Host "=== dumpbin /exports on api-ms-win-core-synch-l1-2-0.dll (WaitOnAddress family) ==="
-          $synch = Join-Path $env:SystemRoot "System32\api-ms-win-core-synch-l1-2-0.dll"
-          if (Test-Path $synch) { & $dumpbin /exports $synch 2>&1 | Select-String -Pattern "WaitOnAddress|WakeByAddress|InitOnce" | Select-Object -First 10 }
-          else { Write-Host "api-ms-win-core-synch-l1-2-0.dll MISSING from System32" }
