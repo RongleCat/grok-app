@@ -147,7 +147,9 @@ fn ensure_hwnd_shell_integration(hwnd: HWND, register_taskbar: bool) {
 }
 
 fn taskbar_set_tab(hwnd: HWND, present: bool) {
-    let _ = com_scope(|| {
+    // COM calls are unsafe; the closure body is not covered by `com_scope`'s
+    // outer `unsafe` block (only the call site of `f()` is).
+    let _ = com_scope(|| unsafe {
         let taskbar: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER)?;
         taskbar.HrInit()?;
         if present {
