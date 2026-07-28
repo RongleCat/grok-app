@@ -3,7 +3,16 @@
  * Replaces AI Elements / previous ConversationThread.
  */
 
-import { memo, useCallback, useEffect, useMemo, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type UIEvent,
+} from "react";
 import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
 import {
@@ -14,6 +23,16 @@ import {
   type ChatMessage,
   type SessionState,
 } from "@/lib/session";
+import {
+  adjacentNode,
+  buildSessionMessageNodes,
+  estimateMessageIndexAtY,
+  estimateStartScrollTop,
+  nearestNodeForMessageIndex,
+  pickActiveNodeIdFromRects,
+  type SessionMessageNode,
+} from "@/lib/sessionMessageNodes";
+import { MessageNodeRail } from "./MessageNodeRail";
 import { isEndOfTurnMarker } from "@/lib/endOfTurn";
 import type { Attachment } from "@/lib/attachments";
 import {
@@ -417,6 +436,213 @@ export function ConversationThread({
   void _onOpenSessionChanges;
   void _onOpenModifiedPath;
 
+  // Re-pin when user sends (even if they had scrolled up to read history).
+  const forceStickKey = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]?.role === "user") return messages[i]!.id;
+    }
+    return null;
+  }, [messages]);
+
+  const {
+    viewportRef: scrollRef,
+    contentRef,
+    onScroll: onStickScroll,
+    scrollToBottom,
+    isPinnedRef,
+    showBack,
+  } = useStickToBottom({
+    conversationKey: sessionKey ?? "chat",
+    forceStickKey,
+  });
+
+  const messageNodes = useMemo(
+    () => buildSessionMessageNodes(messages),
+    [messages],
+  );
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  const [locateTargetId, setLocateTargetId] = useState<string | null>(null);
+  const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
+  const focusClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const locateClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const locateRafRef = useRef<number | null>(null);
+  /** While set, scroll-sync must not overwrite the rail cursor (nav in flight). */
+  const navLockUntilRef = useRef(0);
+  /** Authoritative cursor for prev/next — survives brief active-id flicker. */
+  const railCursorRef = useRef<string | null>(null);
+
+  const syncActiveNodeFromScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || messageNodes.length === 0) return;
+    // Programmatic next/prev owns the highlight until the jump settles.
+    if (performance.now() < navLockUntilRef.current) return;
+
+    const viewportRect = el.getBoundingClientRect();
+    const focusY = viewportRect.top + el.clientHeight * 0.28;
+
+    const rects: { id: string; top: number; bottom: number }[] = [];
+    for (const node of messageNodes) {
+      const row = el.querySelector(
+        `[data-message-id="${CSS.escape(node.id)}"]`,
+      ) as HTMLElement | null;
+      if (!row) continue;
+      const r = row.getBoundingClientRect();
+      rects.push({ id: node.id, top: r.top, bottom: r.bottom });
+    }
+
+    let bestId = pickActiveNodeIdFromRects(rects, focusY);
+
+    if (!bestId) {
+      const y = el.scrollTop + el.clientHeight * 0.28;
+      const msgIdx = estimateMessageIndexAtY(messages, y);
+      bestId = nearestNodeForMessageIndex(messageNodes, msgIdx)?.id ?? null;
+    }
+
+    if (bestId) railCursorRef.current = bestId;
+    setActiveNodeId((prev) => (prev === bestId ? prev : bestId));
+  }, [messageNodes, messages, scrollRef]);
+
+  const onScroll = useCallback(
+    (e: UIEvent<HTMLDivElement>) => {
+      onStickScroll(e);
+      syncActiveNodeFromScroll();
+    },
+    [onStickScroll, syncActiveNodeFromScroll],
+  );
+
+  // Keep rail highlight in sync on mount / message growth / session switch.
+  useEffect(() => {
+    const t = window.requestAnimationFrame(() => syncActiveNodeFromScroll());
+    return () => window.cancelAnimationFrame(t);
+  }, [syncActiveNodeFromScroll, sessionKey, messages.length]);
+
+  const applyScrollToNodeDom = useCallback(
+    (node: SessionMessageNode, attempt = 0) => {
+      const viewport = scrollRef.current;
+      if (!viewport) return;
+
+      const root = viewport.querySelector(
+        `[data-message-id="${CSS.escape(node.id)}"]`,
+      ) as HTMLElement | null;
+
+      if (!root) {
+        // Virtual window may still be mounting the forced row.
+        if (attempt < 8) {
+          locateRafRef.current = window.requestAnimationFrame(() => {
+            locateRafRef.current = null;
+            applyScrollToNodeDom(node, attempt + 1);
+          });
+        }
+        return;
+      }
+
+      // Align to the upper band so tall previous messages leave the focus line.
+      // Instant first — smooth often no-ops when the row is already partially on screen.
+      root.scrollIntoView({ block: "start", behavior: "instant" });
+      // Nudge: keep a small top inset so the bubble isn't under chrome.
+      const vr = viewport.getBoundingClientRect();
+      const rr = root.getBoundingClientRect();
+      const desiredTop = vr.top + Math.min(48, viewport.clientHeight * 0.1);
+      const delta = rr.top - desiredTop;
+      if (Math.abs(delta) > 2) {
+        viewport.scrollTop += delta;
+      }
+
+      if (locateClearTimerRef.current) clearTimeout(locateClearTimerRef.current);
+      // Keep force-mount until layout + scroll settle (virtual list).
+      locateClearTimerRef.current = setTimeout(() => {
+        setLocateTargetId((cur) => (cur === node.id ? null : cur));
+        locateClearTimerRef.current = null;
+        // Release nav lock shortly after so free scroll can update the rail.
+        navLockUntilRef.current = performance.now() + 120;
+        syncActiveNodeFromScroll();
+      }, 700);
+    },
+    [scrollRef, syncActiveNodeFromScroll],
+  );
+
+  const scrollToMessageNode = useCallback(
+    (node: SessionMessageNode) => {
+      const viewport = scrollRef.current;
+      if (!viewport) return;
+
+      // Leave stick-to-bottom so programmatic jumps are not yanked back.
+      isPinnedRef.current = false;
+
+      railCursorRef.current = node.id;
+      navLockUntilRef.current = performance.now() + 1200;
+      setLocateTargetId(node.id);
+      setActiveNodeId(node.id);
+      setFocusMessageId(node.id);
+      if (focusClearTimerRef.current) clearTimeout(focusClearTimerRef.current);
+      focusClearTimerRef.current = setTimeout(() => {
+        setFocusMessageId((cur) => (cur === node.id ? null : cur));
+        focusClearTimerRef.current = null;
+      }, 1600);
+
+      // Coarse jump via estimates so the virtual window moves near the target
+      // even before the row is mounted.
+      const approx = estimateStartScrollTop(
+        messages,
+        node.messageIndex,
+        viewport.clientHeight,
+      );
+      const prevBehavior = viewport.style.scrollBehavior;
+      viewport.style.scrollBehavior = "auto";
+      viewport.scrollTop = approx;
+      if (prevBehavior) viewport.style.scrollBehavior = prevBehavior;
+      else viewport.style.removeProperty("scroll-behavior");
+
+      if (locateRafRef.current != null) {
+        window.cancelAnimationFrame(locateRafRef.current);
+      }
+      // Wait a frame for React to apply forceIndices + virtual recompute.
+      locateRafRef.current = window.requestAnimationFrame(() => {
+        locateRafRef.current = window.requestAnimationFrame(() => {
+          locateRafRef.current = null;
+          applyScrollToNodeDom(node, 0);
+        });
+      });
+    },
+    [applyScrollToNodeDom, isPinnedRef, messages, scrollRef],
+  );
+
+  // After force-mount state commits, finish the jump (virtual list needs a paint).
+  useEffect(() => {
+    if (!locateTargetId) return;
+    const node = messageNodes.find((n) => n.id === locateTargetId);
+    if (!node) return;
+    const t = window.requestAnimationFrame(() => applyScrollToNodeDom(node, 0));
+    return () => window.cancelAnimationFrame(t);
+  }, [locateTargetId, messageNodes, applyScrollToNodeDom]);
+
+  const onNodePrev = useCallback(() => {
+    const cur = railCursorRef.current ?? activeNodeId;
+    const next = adjacentNode(messageNodes, cur, -1);
+    if (next) scrollToMessageNode(next);
+  }, [messageNodes, activeNodeId, scrollToMessageNode]);
+
+  const onNodeNext = useCallback(() => {
+    const cur = railCursorRef.current ?? activeNodeId;
+    const next = adjacentNode(messageNodes, cur, 1);
+    if (next) scrollToMessageNode(next);
+  }, [messageNodes, activeNodeId, scrollToMessageNode]);
+
+  const railLabels = useMemo(
+    () => ({
+      aria: tr("message.nodes.aria"),
+      prev: tr("message.nodes.prev"),
+      next: tr("message.nodes.next"),
+      userRole: tr("message.nodes.user"),
+      assistantRole: tr("message.nodes.assistant"),
+      count: (current: number, total: number) =>
+        tr("message.nodes.count", { current, total }),
+    }),
+    [tr],
+  );
+
   // Scroll the current find match into view (mark if present, else message).
   useEffect(() => {
     if (!findActive?.messageId) return;
@@ -437,25 +663,15 @@ export function ConversationThread({
     return () => window.cancelAnimationFrame(t);
   }, [findActive?.messageId, findActive?.occurrence, findQuery]);
 
-  // Re-pin when user sends (even if they had scrolled up to read history).
-  const forceStickKey = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i]?.role === "user") return messages[i]!.id;
-    }
-    return null;
-  }, [messages]);
-
-  const {
-    viewportRef: scrollRef,
-    contentRef,
-    onScroll,
-    scrollToBottom,
-    isPinnedRef,
-    showBack,
-  } = useStickToBottom({
-    conversationKey: sessionKey ?? "chat",
-    forceStickKey,
-  });
+  useEffect(() => {
+    return () => {
+      if (focusClearTimerRef.current) clearTimeout(focusClearTimerRef.current);
+      if (locateClearTimerRef.current) clearTimeout(locateClearTimerRef.current);
+      if (locateRafRef.current != null) {
+        window.cancelAnimationFrame(locateRafRef.current);
+      }
+    };
+  }, []);
 
   const turnBusy =
     sessionState === "streaming" || sessionState === "awaiting_permission";
@@ -523,6 +739,7 @@ export function ConversationThread({
       if (i >= 0) out.push(i);
     };
     pushId(findActive?.messageId);
+    pushId(locateTargetId);
     pushId(activeAssistantId);
     // While following the live turn, keep the last user + tail mounted.
     if (turnBusy) {
@@ -534,6 +751,7 @@ export function ConversationThread({
   }, [
     messages,
     findActive?.messageId,
+    locateTargetId,
     activeAssistantId,
     lastUserMessageId,
     turnBusy,
@@ -738,6 +956,7 @@ export function ConversationThread({
               const timeLabel = formatMessageTime(m.createdAt, locale);
               const isFindHit = !!findHitMessageIds?.has(m.id);
               const isFindCurrent = findActive?.messageId === m.id;
+              const isNodeFocus = focusMessageId === m.id;
               return wrap(
                 <ChatItem
                   key={m.id}
@@ -747,7 +966,8 @@ export function ConversationThread({
                   showTitle={false}
                   className={
                     (isFindHit ? " lobe-chat-item--find-hit" : "") +
-                    (isFindCurrent ? " lobe-chat-item--find-current" : "")
+                    (isFindCurrent ? " lobe-chat-item--find-current" : "") +
+                    (isNodeFocus ? " lobe-chat-item--node-focus" : "")
                   }
                   message={
                     <div
@@ -887,13 +1107,15 @@ export function ConversationThread({
               );
               const isFindHit = !!findHitMessageIds?.has(m.id);
               const isFindCurrent = findActive?.messageId === m.id;
+              const isNodeFocus = focusMessageId === m.id;
               return wrap(
                 <div
                   key={m.id}
                   className={
                     "lobe-chat-error" +
                     (isFindHit ? " lobe-chat-item--find-hit" : "") +
-                    (isFindCurrent ? " lobe-chat-item--find-current" : "")
+                    (isFindCurrent ? " lobe-chat-item--find-current" : "") +
+                    (isNodeFocus ? " lobe-chat-item--node-focus" : "")
                   }
                   role="alert"
                   data-testid="chat-turn-error"
@@ -947,6 +1169,7 @@ export function ConversationThread({
 
             const isFindHit = !!findHitMessageIds?.has(m.id);
             const isFindCurrent = findActive?.messageId === m.id;
+            const isNodeFocus = focusMessageId === m.id;
             // Phase projection: thought+tools collapse when phase ends (content
             // / next thought), not only when the full answer is done.
             const timelineUnits = buildTimelineUnits(segs, {
@@ -962,7 +1185,8 @@ export function ConversationThread({
                 loading={!!m.streaming}
                 className={
                   (isFindHit ? " lobe-chat-item--find-hit" : "") +
-                  (isFindCurrent ? " lobe-chat-item--find-current" : "")
+                  (isFindCurrent ? " lobe-chat-item--find-current" : "") +
+                  (isNodeFocus ? " lobe-chat-item--node-focus" : "")
                 }
                 message={
                   <div
@@ -1166,6 +1390,15 @@ export function ConversationThread({
           {/* Plan UI lives only in PlanStatusBar (top) + ResourceViewer Plan mode. */}
         </div>
       </div>
+
+      <MessageNodeRail
+        nodes={messageNodes}
+        activeId={activeNodeId}
+        onSelect={scrollToMessageNode}
+        onPrev={onNodePrev}
+        onNext={onNodeNext}
+        labels={railLabels}
+      />
 
       <BackBottom
         visible={showBack}

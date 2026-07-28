@@ -130,6 +130,12 @@ const en = {
   "session.rewindNoop": "Already at this point — nothing to discard",
   "message.rewindHere": "Rewind to here",
   "message.forkHere": "Fork from here",
+  "message.nodes.aria": "Message nodes in this conversation",
+  "message.nodes.prev": "Previous message",
+  "message.nodes.next": "Next message",
+  "message.nodes.user": "You",
+  "message.nodes.assistant": "Grok",
+  "message.nodes.count": "{current} / {total}",
 
   // Main
   "main.rightPane": "Files pane",
@@ -2232,6 +2238,12 @@ const zh: Record<MessageKey, string> = {
   "session.rewindNoop": "已在此位置，没有可丢弃的内容",
   "message.rewindHere": "回退到此处",
   "message.forkHere": "从此处分叉",
+  "message.nodes.aria": "本会话消息节点",
+  "message.nodes.prev": "上一条消息",
+  "message.nodes.next": "下一条消息",
+  "message.nodes.user": "你",
+  "message.nodes.assistant": "Grok",
+  "message.nodes.count": "{current} / {total}",
 
   "main.rightPane": "文件栏",
   "main.leftPane": "侧栏",

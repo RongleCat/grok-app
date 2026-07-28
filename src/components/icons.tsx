@@ -25,6 +25,7 @@ import {
   IconChevronDown as TbChevronDown,
   IconChevronLeft as TbChevronLeft,
   IconChevronRight as TbChevronRight,
+  IconChevronUp as TbChevronUp,
   IconChevronsLeft as TbChevronsLeft,
   IconCircleDashed as TbCircleDashed,
   IconCopy as TbCopy,
@@ -233,6 +234,7 @@ export const IconHooks = wrap(TbBolt);
 export const IconChevronDown = wrap(TbChevronDown);
 export const IconChevronLeft = wrap(TbChevronLeft);
 export const IconChevronRight = wrap(TbChevronRight);
+export const IconChevronUp = wrap(TbChevronUp);
 export const IconFolderPlus = wrap(TbFolderPlus);
 export const IconPlus = wrap(TbPlus);
 export const IconMore = wrap(TbDots);

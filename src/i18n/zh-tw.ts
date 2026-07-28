@@ -119,6 +119,12 @@ export const zhTW: Record<MessageKey, string> = {
   "session.rewindNoop": "已在此位置，沒有可捨棄的內容",
   "message.rewindHere": "回退到此處",
   "message.forkHere": "從此處分叉",
+  "message.nodes.aria": "本對話訊息節點",
+  "message.nodes.prev": "上一則訊息",
+  "message.nodes.next": "下一則訊息",
+  "message.nodes.user": "你",
+  "message.nodes.assistant": "Grok",
+  "message.nodes.count": "{current} / {total}",
 
   "main.rightPane": "檔案欄",
   "main.leftPane": "側邊欄",
