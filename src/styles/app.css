@@ -3110,15 +3110,16 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 
 .gh-heatmap__cell {
   border-radius: 2px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  /* Soft inset edge like GitHub cells — not a hard black frame */
+  border: 1px solid color-mix(in srgb, var(--text-primary) 9%, transparent);
   padding: 0;
   outline: none;
   cursor: pointer;
   background: var(--heatmap-0);
   transition:
-    box-shadow 0.08s ease,
-    filter 0.08s ease,
-    transform 0.08s ease;
+    box-shadow 0.1s ease,
+    border-color 0.1s ease,
+    outline-color 0.1s ease;
 }
 
 .gh-heatmap__cell.is-empty {
@@ -3128,15 +3129,31 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   cursor: default;
 }
 
+/*
+ * Selected: GitHub-style focus ring — canvas gap + soft accent outline.
+ * Avoids heavy black `text-primary` stroke which felt harsh on dense grids.
+ */
 .gh-heatmap__cell.is-selected {
-  box-shadow: 0 0 0 2px var(--text-primary);
-  filter: brightness(1.06);
+  z-index: 2;
+  border-color: transparent;
+  box-shadow:
+    0 0 0 2px var(--bg-elevated, var(--surface-1, var(--bg, #fff))),
+    0 0 0 3.5px color-mix(in srgb, var(--heatmap-3, #30a14e) 88%, transparent);
 }
 
-.gh-heatmap__cell:not(.is-empty):hover {
-  box-shadow: 0 0 0 1px var(--text-tertiary);
-  filter: brightness(1.08);
+.gh-heatmap__cell:not(.is-empty):hover:not(.is-selected) {
   z-index: 1;
+  border-color: color-mix(in srgb, var(--text-primary) 22%, transparent);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--text-primary) 14%, transparent);
+}
+
+.gh-heatmap__cell:not(.is-empty):focus-visible {
+  z-index: 2;
+  border-color: transparent;
+  box-shadow:
+    0 0 0 2px var(--bg-elevated, var(--surface-1, var(--bg, #fff))),
+    0 0 0 3.5px color-mix(in srgb, var(--heatmap-3, #30a14e) 88%, transparent);
 }
 
 .account-section__title--row {
