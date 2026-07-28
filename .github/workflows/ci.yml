@@ -106,12 +106,34 @@ jobs:
           cargo test --no-run
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          $mt = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -latest -find "VC\Tools\MSVC\*\bin\Hostx64\x64\mt.exe" |
-            Select-Object -First 1
+          # Locate mt.exe (Windows SDK or MSVC host tools). Prefer Windows Kits —
+          # VS 2026 images sometimes omit mt next to dumpbin under VC\Tools\MSVC.
+          $mt = $null
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path -LiteralPath $vswhere) {
+            $candidates = @(
+              & $vswhere -latest -find "VC\Tools\MSVC\*\bin\Hostx64\x64\mt.exe" 2>$null
+              & $vswhere -latest -find "VC\Tools\MSVC\*\bin\HostX64\x64\mt.exe" 2>$null
+              & $vswhere -latest -find "**\mt.exe" 2>$null
+            ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+            if ($candidates.Count) { $mt = $candidates[0] }
+          }
           if (-not $mt) {
-            Write-Host "mt.exe not found via vswhere; trying PATH"
-            $mt = (Get-Command mt.exe -ErrorAction SilentlyContinue)?.Source
+            $kitRoots = @(
+              (Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10\bin"),
+              (Join-Path $env:ProgramFiles "Windows Kits\10\bin")
+            )
+            foreach ($root in $kitRoots) {
+              if (-not (Test-Path -LiteralPath $root)) { continue }
+              $hit = Get-ChildItem -Path $root -Recurse -Filter "mt.exe" -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -match '\\x64\\mt\.exe$' } |
+                Select-Object -First 1
+              if ($hit) { $mt = $hit.FullName; break }
+            }
+          }
+          if (-not $mt) {
+            $cmd = Get-Command mt.exe -ErrorAction SilentlyContinue
+            if ($cmd) { $mt = $cmd.Source }
           }
           if (-not $mt) { throw "mt.exe not found — cannot embed Common Controls v6 test manifest" }
           Write-Host "mt.exe: $mt"
