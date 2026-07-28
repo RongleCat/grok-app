@@ -1090,8 +1090,9 @@ pub fn fork_session(
 
 // ─── Automations (scheduled tasks shell) ───────────────────────────────────
 
-/// Host-side scheduled automation. Execution is driven by the UI when the app is open
-/// (or later by CLI headless); this store is the source of truth for the list.
+/// Host-side scheduled automation. Execution is driven by the host scheduler
+/// (`automation_runner`) while the process is alive (including tray-hidden UI);
+/// this store is the source of truth for the list.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Automation {

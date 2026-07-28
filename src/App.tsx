@@ -359,7 +359,7 @@ import { ContextMenu, type ContextMenuItem } from "@/components/ContextMenu";
 import {
   aiCreateSeedPrompt,
   computeNextRunAt,
-  isDue,
+
   parseScheduledUserContent,
   type Automation,
 } from "@/lib/automations";
@@ -3959,42 +3959,53 @@ export default function App() {
     [projects, session.state, connecting, tr],
   );
 
-  // Shell scheduler: poll enabled automations while app is open.
+  // Host automation_runner ticks while the process is alive (including tray).
+  // UI only surfaces toasts / refreshes list — do not double-fire from WebView.
   useEffect(() => {
-    if (!api.isTauri() && typeof window === "undefined") return;
-    const tick = async () => {
-      if (automationRunLock.current || connecting) return;
-      if (session.state === "streaming") return;
+    if (!api.isTauri()) return;
+    let cancelled = false;
+    const unsubs: Array<() => void> = [];
+    const track = async (p: Promise<() => void>) => {
       try {
-        const rows = await api.automationsList();
-        const due = rows.find(
-          (r) =>
-            r.enabled &&
-            isDue(r as Automation) &&
-            !firedAutomationIds.current.has(`${r.id}:${r.nextRunAt ?? ""}`),
-        );
-        if (!due) return;
-        const fireKey = `${due.id}:${due.nextRunAt ?? ""}`;
-        // Claim only after we know we will attempt; release on failure so due tasks retry.
-        firedAutomationIds.current.add(fireKey);
-        const ok = await runAutomation(due as Automation, {
-          fromScheduler: true,
-        });
-        if (!ok) {
-          firedAutomationIds.current.delete(fireKey);
-        }
+        const u = await p;
+        if (cancelled) u();
+        else unsubs.push(u);
       } catch {
-        /* ignore tick errors */
+        /* ignore */
       }
     };
-    const id = window.setInterval(() => void tick(), 30_000);
-    // First check shortly after mount.
-    const boot = window.setTimeout(() => void tick(), 8_000);
+    void track(
+      api.listen<{ title?: string; sessionId?: string }>(
+        "automation://ran",
+        (p) => {
+          if (cancelled) return;
+          const title = (p?.title || "").trim() || "automation";
+          setToast(tr("automations.runningToast", { title }));
+          window.setTimeout(() => setToast(null), 3200);
+          void refreshSessions();
+        },
+      ),
+    );
+    void track(
+      api.listen<{ title?: string; error?: string }>(
+        "automation://error",
+        (p) => {
+          if (cancelled) return;
+          const title = (p?.title || "").trim() || "automation";
+          const err = (p?.error || "").trim() || "failed";
+          setLocalError(
+            tr("automations.hostRunFailed", { title, detail: err }),
+          );
+        },
+      ),
+    );
     return () => {
-      window.clearInterval(id);
-      window.clearTimeout(boot);
+      cancelled = true;
+      for (const u of unsubs) u();
     };
-  }, [runAutomation, connecting, session.state]);
+    // refreshSessions is stable enough via closure for mount-only listen
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tr]);
 
   const refreshProjects = async () => {
     try {

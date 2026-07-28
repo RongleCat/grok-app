@@ -374,6 +374,9 @@ export function AutomationsPage({
         <div className="auto-page__titles">
           <h1 className="auto-page__title">{t("automations.title")}</h1>
           <p className="auto-page__subtitle">{t("automations.subtitle")}</p>
+          <p className="auto-page__subtitle auto-page__subtitle--hint">
+            {t("automations.trayHint")}
+          </p>
         </div>
         <div className="auto-page__create-wrap">
           <button

@@ -1775,6 +1775,9 @@ const en = {
   "automations.next.inDays": "Next run in {n} d",
   "automations.next.unknown": "Not scheduled",
   "automations.runningToast": "Started scheduled task: {title}",
+  "automations.hostRunFailed": "Scheduled “{title}” failed: {detail}",
+  "automations.trayHint":
+    "Scheduled tasks run while Grok App is open or in the tray. Fully quitting the app pauses them.",
   "automations.aiComposerHint":
     "Describe what to run and how often — Grok will schedule it for you when ready.",
   "automations.createdToast": "Scheduled: {title}",
@@ -3836,6 +3839,9 @@ const zh: Record<MessageKey, string> = {
   "automations.next.inDays": "下次运行 {n} 天后",
   "automations.next.unknown": "未排程",
   "automations.runningToast": "已启动已安排任务：{title}",
+  "automations.hostRunFailed": "已安排任务「{title}」失败：{detail}",
+  "automations.trayHint":
+    "应用打开或收起到托盘时都会执行已安排任务；完全退出应用后暂停。",
   "automations.aiComposerHint":
     "用自然语言描述要做什么、多久一次——准备好后 Grok 会自动创建已安排任务。",
   "automations.createdToast": "已安排：{title}",

@@ -1717,6 +1717,9 @@ export const zhTW: Record<MessageKey, string> = {
   "automations.next.inDays": "下次執行 {n} 天後",
   "automations.next.unknown": "未排程",
   "automations.runningToast": "已啟動已排程任務：{title}",
+  "automations.hostRunFailed": "已排程任務「{title}」失敗：{detail}",
+  "automations.trayHint":
+    "應用開啟或收進選單列時都會執行已排程任務；完全結束應用後暫停。",
   "automations.aiComposerHint":
     "用自然語言描述要做什麼、多久一次——準備好後 Grok 會自動建立已排程任務。",
   "automations.createdToast": "已排程：{title}",

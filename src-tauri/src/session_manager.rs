@@ -588,6 +588,42 @@ impl SessionManager {
         }
     }
 
+    /// True when any live or background session is mid-turn (streaming / tools / connect).
+    /// Used by the host automation scheduler to avoid stealing agent slots.
+    pub fn any_turn_busy(&self) -> bool {
+        {
+            let guard = self.inner.lock();
+            if let Some(s) = guard.as_ref() {
+                if s.prompt_in_flight
+                    || matches!(
+                        s.fsm.state(),
+                        SessionState::Streaming
+                            | SessionState::AwaitingPermission
+                            | SessionState::Connecting
+                    )
+                    || !s.open_tool_ids.is_empty()
+                {
+                    return true;
+                }
+            }
+        }
+        let bg = self.background.lock();
+        for s in bg.values() {
+            if s.prompt_in_flight
+                || matches!(
+                    s.fsm.state(),
+                    SessionState::Streaming
+                        | SessionState::AwaitingPermission
+                        | SessionState::Connecting
+                )
+                || !s.open_tool_ids.is_empty()
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Background idle recycle loop (I03). Safe to call once from app setup.
     pub fn start_idle_watchdog(self: &Arc<Self>, app: AppHandle) {
         let mgr = Arc::clone(self);

@@ -38,12 +38,12 @@
 
 ## 执行
 
-1. 壳层每 30s 检查 `enabled` 且 `nextRunAt` 到期的任务。
-2. 不打断 `streaming` / 连接中会话；**busy 时不标记 fired**，空闲后可补跑。
-3. 触发时：`session_create` → 写 session prefs（model/effort）→ `session_connect` → `session_send` prompt。
-4. **connect 失败**：删除空壳 session，避免侧栏「空 SuperGrok」幽灵会话；不 `mark_run`。
-5. **send 失败**：在会话内留下 user + error 气泡；不 `mark_run`。
-6. 成功：`lastRunAt` / `nextRunAt`；`once` 跑完后 `enabled=false`。
+1. **Host 调度**（`automation_runner`）：进程存活期间每 30s 检查 `enabled` 且 `nextRunAt` 到期的任务（**含窗口收起到托盘**）。
+2. 任一会话 mid-turn（streaming / permission / connecting / open tools）时不抢跑；空闲后下一 tick 补跑。
+3. 触发：Host `session_create(scheduled)` → `connect` → `send_message`；成功 `mark_run`；`once` 后 `enabled=false`。
+4. **connect 失败**：删除空壳 session；发 `automation://error`。
+5. UI 监听 `automation://ran` / `automation://error` 做 toast；**不再**用 WebView `setInterval` 双触发。
+6. 手动「立即执行」仍走前端 `runAutomation`。
 
 与 Build 的 `/loop`、`scheduler_*` 可并存：用户也可在会话里让 Agent 直接调度；壳层清单是独立 SoT。
 
@@ -70,5 +70,6 @@
 - [x] 助手 fence 自动 `automation_create`，气泡不展示配置块
 - [x] 应用打开时到期可触发（不阻塞主对话架构）
 - [x] connect 失败不留空壳会话；已有空会话不伪装成新建页
-- [ ] 后台无窗口常驻触发（可选 P2：系统服务 / headless CLI）
+- [x] 托盘收起时 Host 仍可触发（进程常驻；完全退出则暂停）
 - [ ] 与 CLI scheduler 双向同步（可选 P2）
+- [ ] 登录项 / 系统服务无 UI 进程（可选 P2）

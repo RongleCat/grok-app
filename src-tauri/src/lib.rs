@@ -37,6 +37,7 @@ mod tool_heartbeat;
 mod cli_sessions;
 mod turn_complete;
 mod store_lock;
+mod automation_runner;
 mod permission;
 mod project_rules;
 mod permission_rules;
@@ -179,6 +180,8 @@ pub fn run() {
                 let mgr = app.state::<Arc<SessionManager>>().inner().clone();
                 mgr.start_idle_watchdog(app.handle().clone());
                 mgr.start_stream_stall_watchdog(app.handle().clone());
+                // Scheduled automations: host tick works while window is in tray.
+                automation_runner::start(app.handle().clone(), mgr);
             }
             // Remote IM: restore Feishu/Weixin connectors after App restart so
             // already-bound channels keep receiving messages without a manual Start.
