@@ -57,29 +57,30 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
-          # Bump when Windows test-manifest / PATH policy changes.
-          shared-key: ci-${{ matrix.name }}-v4
+          shared-key: ci-${{ matrix.name }}-v5
       # Includes ACP golden fixtures (tests/fixtures/acp + acp_golden_test).
       # Required green for any ACP / mock_acp / permission wire change (T06).
       - name: cargo test
         if: matrix.name != 'Windows'
         working-directory: src-tauri
         run: cargo test
-      # Windows MSVC lib tests link Tauri/WebView2/comctl32. Without Common
-      # Controls v6 the test exe aborts at process start with
-      # STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139). Release embeds its own
-      # manifest via tauri_build — we only opt-in here via env (see build.rs).
-      #
-      # Also drop PATH dirs that ship physical api-ms-win-*.dll (Temurin JDK on
-      # GitHub runners); those stale forwarders can poison API-set resolution.
+      # Windows MSVC lib tests link Tauri/WebView2/comctl32 and abort at process
+      # start with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) unless Common
+      # Controls v6 is activated. We cannot pass a second /MANIFESTINPUT through
+      # build.rs (CVT1100 vs tauri_build). Instead:
+      #   1) cargo test --no-run
+      #   2) mt.exe embeds windows-test-manifest.xml into each test harness
+      #   3) run harnesses directly (avoids cargo re-link wiping the resource)
+      # Also scrub PATH dirs that ship stale api-ms-win-*.dll (Temurin JDK).
       - name: cargo test
         if: matrix.name == 'Windows'
         working-directory: src-tauri
         shell: pwsh
-        env:
-          GROK_EMBED_WIN_TEST_MANIFEST: "1"
         run: |
+          $ErrorActionPreference = 'Stop'
           $sep = [IO.Path]::PathSeparator
+
+          # --- scrub PATH (Temurin ships stale api-ms-win-*.dll forwarders) ---
           $dropped = [System.Collections.Generic.List[string]]::new()
           $kept = foreach ($d in ($env:Path -split $sep)) {
             if (-not $d) { continue }
@@ -100,5 +101,47 @@ jobs:
           } else {
             Write-Host "No PATH entry ships api-ms-win-*.dll"
           }
-          Write-Host "GROK_EMBED_WIN_TEST_MANIFEST=$env:GROK_EMBED_WIN_TEST_MANIFEST"
-          cargo test
+
+          Write-Host "=== cargo test --no-run ==="
+          cargo test --no-run
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $mt = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -latest -find "VC\Tools\MSVC\*\bin\Hostx64\x64\mt.exe" |
+            Select-Object -First 1
+          if (-not $mt) {
+            Write-Host "mt.exe not found via vswhere; trying PATH"
+            $mt = (Get-Command mt.exe -ErrorAction SilentlyContinue)?.Source
+          }
+          if (-not $mt) { throw "mt.exe not found — cannot embed Common Controls v6 test manifest" }
+          Write-Host "mt.exe: $mt"
+
+          $manifest = Join-Path (Get-Location) "windows-test-manifest.xml"
+          if (-not (Test-Path -LiteralPath $manifest)) { throw "missing $manifest" }
+
+          $exes = @(Get-ChildItem -Path "target\debug\deps" -Filter "grok_app_lib-*.exe" -ErrorAction SilentlyContinue)
+          if (-not $exes.Count) {
+            # Fallback: any freshly built test harness under deps
+            $exes = @(Get-ChildItem -Path "target\debug\deps" -Filter "*-*.exe" -ErrorAction SilentlyContinue |
+              Where-Object { $_.Name -notmatch 'build_script|deps_dir' })
+          }
+          if (-not $exes.Count) { throw "no test harness exe found under target\debug\deps" }
+
+          foreach ($exe in $exes) {
+            Write-Host "Embedding Common Controls v6 manifest into $($exe.Name)"
+            # ;#1 = RT_MANIFEST. Overwrites any prior MANIFEST resource in the PE.
+            & $mt -nologo -manifest $manifest -outputresource:"$($exe.FullName);#1"
+            if ($LASTEXITCODE -ne 0) { throw "mt.exe failed for $($exe.Name) (exit $LASTEXITCODE)" }
+          }
+
+          Write-Host "=== run test harness(es) directly ==="
+          $failed = $false
+          foreach ($exe in $exes) {
+            Write-Host ">> $($exe.FullName)"
+            & $exe.FullName
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "harness failed: $($exe.Name) exit=$LASTEXITCODE"
+              $failed = $true
+            }
+          }
+          if ($failed) { exit 1 }
