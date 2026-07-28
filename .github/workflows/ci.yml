@@ -34,13 +34,7 @@ jobs:
         include:
           - os: macos-latest
             name: macOS
-          # windows-2022, not windows-latest (windows-2025-vs2026): on the
-          # VS2026 image, a fresh full rebuild of the test binary aborts at
-          # startup with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) before any
-          # test runs. The previous "green" main runs were cache hits that
-          # executed a stale binary. Pin to the long-stable windows-2022 image
-          # until the upstream regression is understood.
-          - os: windows-2022
+          - os: windows-latest
             name: Windows
           - os: ubuntu-latest
             name: Linux
@@ -48,7 +42,14 @@ jobs:
     name: Rust ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
+      # Pin to 1.96.0: rustc 1.97.x produces a test binary that aborts on
+      # Windows with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) before any test
+      # runs. The "green" main runs before 2026-07-26 were rust-cache hits
+      # executing a stale binary; the first full rebuild exposed the crash.
+      # macOS/Linux are unaffected, but we pin all three for consistency.
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.96.0
       - name: Install Linux WebKit deps
         if: matrix.os == 'ubuntu-latest'
         run: |
