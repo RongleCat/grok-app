@@ -336,12 +336,10 @@ export function DoctorModal({
     [cliFixes],
   );
 
-  if (!open) return null;
-
-  const summary = report?.summary;
-  const checks = report?.checks ?? [];
-
   /** App-resolved CLI path/version/source (probe), separate from `grok doctor` JSON. */
+  // Hooks must run unconditionally — do not place below `if (!open) return null`
+  // or opening Doctor throws "Rendered more hooks than during the previous render"
+  // and white-screens the whole app (DoctorModal sits outside UiErrorBoundary).
   const cliResolved = useMemo(() => {
     const raw = report?.raw as
       | { cli?: { found?: boolean; path?: string | null; version?: string | null; source?: string | null } }
@@ -374,6 +372,11 @@ export function DoctorModal({
     },
     [t],
   );
+
+  if (!open) return null;
+
+  const summary = report?.summary;
+  const checks = report?.checks ?? [];
   const cliFacts = cliDoctor ? factEntries(cliDoctor.facts) : [];
 
   return (
