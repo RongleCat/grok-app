@@ -3,6 +3,7 @@ import {
   formatMessageTime,
   formatQuotaResetTime,
   loadCachedSuperGrokBrand,
+  localDateKeyFromIso,
   resolveWelcomeBrandKind,
   saveCachedSuperGrokBrand,
   superGrokBrandKind,
@@ -155,5 +156,14 @@ describe("formatQuotaResetTime", () => {
     expect(formatQuotaResetTime(iso)).toBe("04-15 09:05");
     expect(formatQuotaResetTime(null)).toBe("");
     expect(formatQuotaResetTime("not-a-date")).toBe("");
+  });
+});
+
+describe("localDateKeyFromIso", () => {
+  it("maps ISO to local YYYY-MM-DD", () => {
+    const d = new Date(2026, 3, 15, 23, 30);
+    expect(localDateKeyFromIso(d.toISOString())).toBe("2026-04-15");
+    expect(localDateKeyFromIso(null)).toBeNull();
+    expect(localDateKeyFromIso("bad")).toBeNull();
   });
 });

@@ -191,6 +191,20 @@ export function formatCompactNumber(n: number | null | undefined): string {
   return n.toFixed(1);
 }
 
+/** Local calendar day `YYYY-MM-DD` for an ISO timestamp (heatmap / call-log filter). */
+export function localDateKeyFromIso(
+  iso: string | null | undefined,
+): string | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  const d = new Date(t);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function formatDuration(secs: number | null | undefined): string {
   if (secs == null || secs <= 0) return "—";
   if (secs < 60) return `${secs}s`;

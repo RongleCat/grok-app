@@ -5,7 +5,7 @@
  * Hero layout: identity | actions on top; plan/quota full width below (not mixed).
  */
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { AccountStatus, SavedAccount } from "@/lib/api";
 import {
   accountDisplayName,
@@ -14,6 +14,7 @@ import {
   formatDuration,
   formatQuotaResetTime,
   formatRelativeTime,
+  localDateKeyFromIso,
   tierLabel,
   usagePercent,
 } from "@/lib/accountUi";
@@ -65,6 +66,10 @@ export interface AccountPanelLabels {
   heatmapAria: string;
   heatmapRequests: string;
   heatmapTokens: string;
+  /** Day filter title: "{date} · {count} sessions" */
+  callLogsDayFilter: string;
+  callLogsClearDay: string;
+  callLogsDayEmpty: string;
   weeklyTitle: string;
   loginHelpTitle: string;
   loginHelpBody: string;
@@ -91,7 +96,7 @@ export interface AccountPanelProps {
   loading: boolean;
   busy: boolean;
   locale: string;
-  t: (key: string) => string;
+  t: (key: string, vars?: Record<string, string | number>) => string;
   labels: AccountPanelLabels;
   compact?: boolean;
   loginHint?: string | null;
@@ -148,6 +153,9 @@ export function AccountPanel({
   onImportChat,
 }: AccountPanelProps) {
   const [accountsOpen, setAccountsOpen] = useState(false);
+  /** Heatmap day → filter recent call logs (YYYY-MM-DD local). */
+  const [selectedHeatDay, setSelectedHeatDay] = useState<string | null>(null);
+  const logsSectionRef = useRef<HTMLElement | null>(null);
 
   const profile = status?.profile;
   const signedIn = !!profile?.signedIn;
@@ -160,6 +168,27 @@ export function AccountPanel({
   const usedPct = billing ? usagePercent(billing) : null;
   /** Same absolute clock as sidebar UserMenu (`MM-DD HH:mm`). */
   const resetTime = formatQuotaResetTime(billing?.resetsAt);
+
+  const heatByDate = useMemo(() => {
+    const m = new Map<string, { requests: number; tokens: number }>();
+    for (const d of status?.heatmap ?? []) {
+      m.set(d.date, { requests: d.requests, tokens: d.tokens });
+    }
+    return m;
+  }, [status?.heatmap]);
+
+  const daySessionCount = selectedHeatDay
+    ? (heatByDate.get(selectedHeatDay)?.requests ?? 0)
+    : null;
+
+  const filteredCallLogs = useMemo(() => {
+    const logs = status?.callLogs ?? [];
+    if (!selectedHeatDay) return logs;
+    return logs.filter(
+      (row) => localDateKeyFromIso(row.startedAt) === selectedHeatDay,
+    );
+  }, [status?.callLogs, selectedHeatDay]);
+
   const remaining =
     billing?.remainingPercent != null
       ? billing.remainingPercent
@@ -531,8 +560,21 @@ export function AccountPanel({
             <div className="account-section__body account-section__body--heat">
               <Heatmap
                 days={status?.heatmap ?? []}
-                metric="requests"
+                metric="tokens"
                 locale={locale}
+                selectedDate={selectedHeatDay}
+                onSelectDate={(date) => {
+                  setSelectedHeatDay(date);
+                  if (date) {
+                    // Link to logs: scroll after paint so filter header is visible.
+                    requestAnimationFrame(() => {
+                      logsSectionRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "nearest",
+                      });
+                    });
+                  }
+                }}
                 labels={{
                   less: labels.less,
                   more: labels.more,
@@ -545,12 +587,33 @@ export function AccountPanel({
             </div>
           </section>
 
-          <section className="account-section">
-            <div className="account-section__title">{labels.callLogs}</div>
+          <section className="account-section" ref={logsSectionRef}>
+            <div className="account-section__title account-section__title--row">
+              <span>
+                {selectedHeatDay && daySessionCount != null
+                  ? labels.callLogsDayFilter
+                      .replace("{date}", selectedHeatDay)
+                      .replace("{count}", String(daySessionCount))
+                  : labels.callLogs}
+              </span>
+              {selectedHeatDay ? (
+                <button
+                  type="button"
+                  className="account-link"
+                  onClick={() => setSelectedHeatDay(null)}
+                >
+                  {labels.callLogsClearDay}
+                </button>
+              ) : null}
+            </div>
             <div className="account-section__body account-logs-scroll">
               {!status?.callLogs?.length ? (
                 <div className="account-logs__empty">
                   {labels.callLogsEmpty}
+                </div>
+              ) : selectedHeatDay && filteredCallLogs.length === 0 ? (
+                <div className="account-logs__empty">
+                  {labels.callLogsDayEmpty}
                 </div>
               ) : (
                 <div className="account-logs">
@@ -562,8 +625,14 @@ export function AccountPanel({
                     <span>{labels.colDuration}</span>
                     <span>{labels.colWhen}</span>
                   </div>
-                  {status.callLogs.map((row) => (
-                    <div key={row.id} className="account-logs__row">
+                  {filteredCallLogs.map((row) => (
+                    <div
+                      key={row.id}
+                      className={
+                        "account-logs__row" +
+                        (selectedHeatDay ? " is-day-hit" : "")
+                      }
+                    >
                       <Tip label={row.projectPath ?? row.title}>
                         <span className="account-logs__title">
                           {row.title}

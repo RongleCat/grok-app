@@ -1,13 +1,15 @@
 /**
  * Contribution-style activity heatmap — adapted from sister project grok-go.
  * Levels use GitHub-green palette; layout stretches cells to fill width.
- * Day detail tip is portaled (fixed) so overflow parents cannot clip it.
+ *
+ * Hover: instant portaled tip (token usage) — no Tip delay.
+ * Click: select a day for parent (call-log filter); toggle off same day.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { HeatmapDay } from "@/lib/api";
-import { Tip } from "@/components/ui/tooltip";
+import { formatCompactNumber } from "@/lib/accountUi";
 
 type Metric = "requests" | "tokens";
 
@@ -79,6 +81,25 @@ function weekdaySun0(d: Date): number {
   return d.getDay();
 }
 
+function tipPosFromRect(rect: DOMRect): {
+  left: number;
+  top: number;
+  placeAbove: boolean;
+} {
+  const tipW = 168;
+  const tipH = 52;
+  const gap = 6;
+  const pad = 8;
+  const placeAbove = rect.top - tipH - gap >= pad;
+  let left = rect.left + rect.width / 2 - tipW / 2;
+  left = Math.min(
+    Math.max(pad, left),
+    Math.max(pad, window.innerWidth - tipW - pad),
+  );
+  const top = placeAbove ? rect.top - gap : rect.bottom + gap;
+  return { left, top, placeAbove };
+}
+
 function buildGrid(
   days: HeatmapDay[],
   metric: Metric,
@@ -143,9 +164,12 @@ function buildGrid(
 
 export function Heatmap({
   days,
-  metric = "requests",
+  /** Color scale metric — default tokens (activity intensity). */
+  metric = "tokens",
   locale = "en",
   labels,
+  selectedDate = null,
+  onSelectDate,
 }: {
   days: HeatmapDay[];
   metric?: Metric;
@@ -158,13 +182,15 @@ export function Heatmap({
     requests: string;
     tokens: string;
   };
+  /** Controlled day selection (YYYY-MM-DD); null = none. */
+  selectedDate?: string | null;
+  onSelectDate?: (date: string | null) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  /** Viewport coords for fixed portal tip (not clipped by overflow parents). */
-  const [tip, setTip] = useState<{
+  /** Instant hover tip (tokens) — follows cell, no delay. */
+  const [hover, setHover] = useState<{
     date: string;
-    requests: number;
     tokens: number;
     left: number;
     top: number;
@@ -189,31 +215,21 @@ export function Heatmap({
   }, []);
 
   useEffect(() => {
-    if (!tip) return;
-    const onDown = (e: PointerEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t?.closest("[data-heatmap-tip]") || t?.closest("button[role='gridcell']"))
-        return;
-      setTip(null);
-    };
+    if (!hover) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setTip(null);
+      if (e.key === "Escape") setHover(null);
     };
-    const onScroll = () => setTip(null);
-    document.addEventListener("pointerdown", onDown, true);
+    const onScroll = () => setHover(null);
     document.addEventListener("keydown", onKey);
-    // Any scroll (heatmap body / modal / window) can move the anchor — dismiss.
     window.addEventListener("scroll", onScroll, true);
     return () => {
-      document.removeEventListener("pointerdown", onDown, true);
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("scroll", onScroll, true);
     };
-  }, [tip]);
+  }, [hover]);
 
   const cell = useMemo(() => {
     if (weeks.length === 0) return MIN_CELL;
-    // Reserve a little right padding so the last month label ("7月") is not clipped.
     const rightPad = 12;
     if (containerWidth <= 0) return MIN_CELL;
     const available = Math.max(0, containerWidth - LABEL_COL - rightPad);
@@ -224,13 +240,14 @@ export function Heatmap({
   }, [containerWidth, weeks.length]);
 
   const dayLabels = useMemo(() => {
-    if (locale === "zh") return ["日", "一", "二", "三", "四", "五", "六"];
+    if (locale === "zh" || locale === "zh-TW")
+      return ["日", "一", "二", "三", "四", "五", "六"];
     return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   }, [locale]);
 
   const monthName = (mm: string) => {
     const idx = Number(mm) - 1;
-    if (locale === "zh") return `${idx + 1}月`;
+    if (locale === "zh" || locale === "zh-TW") return `${idx + 1}月`;
     return (
       ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][
         idx
@@ -244,7 +261,6 @@ export function Heatmap({
 
   const graphWidth = weeks.length * (cell + GAP) - GAP;
   const graphHeight = 7 * (cell + GAP) - GAP;
-  // Extra trailing space so the last month label is not cut at the card edge.
   const monthTrail = 16;
   const totalWidth = LABEL_COL + graphWidth + monthTrail;
 
@@ -297,71 +313,62 @@ export function Heatmap({
               width: graphWidth,
               height: graphHeight,
             }}
+            onPointerLeave={() => setHover(null)}
           >
             {weeks.map((week, wi) =>
               week.map((cellItem, di) => {
-                const hoverLabel = cellItem.date
-                  ? `${cellItem.date}: ${cellItem.value}`
-                  : "";
                 return (
-                  <Tip
+                  <button
                     key={`${wi}-${di}`}
-                    label={hoverLabel}
-                    disabled={!hoverLabel}
-                  >
-                    <button
-                      type="button"
-                      role="gridcell"
-                      disabled={cellItem.empty || !cellItem.date}
-                      className={
-                        "gh-heatmap__cell" +
-                        (cellItem.empty ? " is-empty" : "") +
-                        (tip?.date === cellItem.date ? " is-selected" : "")
+                    type="button"
+                    role="gridcell"
+                    disabled={cellItem.empty || !cellItem.date}
+                    aria-label={
+                      cellItem.date
+                        ? `${cellItem.date}, ${labels.tokens} ${formatCompactNumber(cellItem.day?.tokens ?? 0)}`
+                        : undefined
+                    }
+                    aria-pressed={
+                      cellItem.date != null && selectedDate === cellItem.date
+                    }
+                    className={
+                      "gh-heatmap__cell" +
+                      (cellItem.empty ? " is-empty" : "") +
+                      (cellItem.date && selectedDate === cellItem.date
+                        ? " is-selected"
+                        : "")
+                    }
+                    style={{
+                      gridColumn: wi + 1,
+                      gridRow: di + 1,
+                      width: cell,
+                      height: cell,
+                      backgroundColor: cellItem.empty
+                        ? "transparent"
+                        : LEVEL_COLORS[cellItem.level],
+                    }}
+                    onPointerEnter={(e) => {
+                      if (!cellItem.date || cellItem.empty) return;
+                      const rect = (
+                        e.currentTarget as HTMLElement
+                      ).getBoundingClientRect();
+                      const pos = tipPosFromRect(rect);
+                      setHover({
+                        date: cellItem.date,
+                        tokens: cellItem.day?.tokens ?? 0,
+                        ...pos,
+                      });
+                    }}
+                    onClick={() => {
+                      if (!cellItem.date || cellItem.empty) return;
+                      if (!onSelectDate) return;
+                      if (selectedDate === cellItem.date) {
+                        onSelectDate(null);
+                      } else {
+                        onSelectDate(cellItem.date);
                       }
-                      style={{
-                        gridColumn: wi + 1,
-                        gridRow: di + 1,
-                        width: cell,
-                        height: cell,
-                        backgroundColor: cellItem.empty
-                          ? "transparent"
-                          : LEVEL_COLORS[cellItem.level],
-                      }}
-                      onClick={(e) => {
-                        if (!cellItem.date || cellItem.empty) return;
-                        // Toggle off if same cell already open
-                        if (tip?.date === cellItem.date) {
-                          setTip(null);
-                          return;
-                        }
-                        const rect = (
-                          e.currentTarget as HTMLElement
-                        ).getBoundingClientRect();
-                        const tipW = 200;
-                        const tipH = 78; // approx date + 2 rows
-                        const gap = 8;
-                        const pad = 8;
-                        // Prefer above the cell; flip below if not enough room
-                        const placeAbove = rect.top - tipH - gap >= pad;
-                        let left = rect.left + rect.width / 2 - tipW / 2;
-                        left = Math.min(
-                          Math.max(pad, left),
-                          Math.max(pad, window.innerWidth - tipW - pad),
-                        );
-                        const top = placeAbove
-                          ? rect.top - gap
-                          : rect.bottom + gap;
-                        setTip({
-                          date: cellItem.date,
-                          requests: cellItem.day?.requests ?? 0,
-                          tokens: cellItem.day?.tokens ?? 0,
-                          left,
-                          top,
-                          placeAbove,
-                        });
-                      }}
-                    />
-                  </Tip>
+                    }}
+                  />
                 );
               }),
             )}
@@ -385,31 +392,27 @@ export function Heatmap({
         </div>
       </div>
 
-      {tip &&
+      {hover &&
         typeof document !== "undefined" &&
         createPortal(
           <div
             data-heatmap-tip
             className={
-              "gh-heatmap__tip" +
-              (tip.placeAbove
+              "gh-heatmap__tip gh-heatmap__tip--hover" +
+              (hover.placeAbove
                 ? " gh-heatmap__tip--above"
                 : " gh-heatmap__tip--below")
             }
             role="tooltip"
             style={{
-              left: tip.left,
-              top: tip.top,
+              left: hover.left,
+              top: hover.top,
             }}
           >
-            <div className="gh-heatmap__tip-date">{tip.date}</div>
-            <div className="gh-heatmap__tip-row">
-              <span>{labels.requests}</span>
-              <span>{tip.requests}</span>
-            </div>
+            <div className="gh-heatmap__tip-date">{hover.date}</div>
             <div className="gh-heatmap__tip-row">
               <span>{labels.tokens}</span>
-              <span>{tip.tokens.toLocaleString()}</span>
+              <span>{formatCompactNumber(hover.tokens)}</span>
             </div>
           </div>,
           document.body,
