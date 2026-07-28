@@ -63,3 +63,26 @@ jobs:
       - name: cargo test
         working-directory: src-tauri
         run: cargo test
+      # ── DIAGNOSTIC (temporary): find the missing DLL behind the Windows
+      # STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) test-binary crash. Remove
+      # once the root cause is identified and fixed. ──────────────────────
+      - name: Diagnose Windows test-binary DLL deps
+        if: always() && matrix.name == 'Windows'
+        working-directory: src-tauri
+        shell: pwsh
+        run: |
+          Write-Host "=== Locate dumpbin ==="
+          $dumpbin = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -latest -find "VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Select-Object -First 1
+          Write-Host "dumpbin: $dumpbin"
+          $deps = "target/debug/deps"
+          if (-not (Test-Path $deps)) { Write-Host "No deps/ — build failed earlier"; exit 0 }
+          $exe = Get-ChildItem $deps -Filter "grok_app_lib-*.exe" | Select-Object -First 1
+          if (-not $exe) { Write-Host "No grok_app_lib-*.exe in deps/"; exit 0 }
+          Write-Host "=== Test binary: $($exe.FullName) ==="
+          Write-Host "=== dumpbin /dependents ==="
+          & $dumpbin /dependents $exe.FullName
+          Write-Host "=== Try running test binary directly (capture loader error) ==="
+          $proc = Start-Process -FilePath $exe.FullName -ArgumentList "--list" `
+            -NoNewWindow -Wait -PassThru -ErrorAction SilentlyContinue
+          Write-Host "Direct run exit code: 0x$('{0:X}' -f $proc.ExitCode)"
