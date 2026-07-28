@@ -593,6 +593,8 @@ export default function App() {
   );
   const [skillInfos, setSkillInfos] = useState<SkillInfo[]>([]);
   const [skillsLoading, setSkillsLoading] = useState(false);
+  /** Host `skills_list` error (CLI missing / inspect fail); empty when ok. */
+  const [skillsLoadError, setSkillsLoadError] = useState<string | null>(null);
   const [slashQuery, setSlashQuery] = useState<{
     start: number;
     query: string;
@@ -5446,7 +5448,7 @@ export default function App() {
     };
   }, [activeProject?.path]);
 
-  // Load skills catalog for slash palette (Grok inspect).
+  // Load skills catalog for slash / + palette (Grok inspect + Extensions enable).
   useEffect(() => {
     if (!api.isTauri()) return;
     let cancelled = false;
@@ -5455,20 +5457,23 @@ export default function App() {
       .skillsList(activeProject?.path ?? null)
       .then((res) => {
         if (cancelled) return;
+        const err = (res.error ?? "").trim();
+        setSkillsLoadError(err || null);
         setSkillInfos(
-          (res.skills ?? [])
-            // Extensions enable flag (default on); hide disabled from slash palette.
-            .filter((s) => s.enabled !== false)
-            .map((s) => ({
-              name: s.name,
-              description: s.description ?? "",
-              source: s.source,
-              userInvocable: s.userInvocable,
-            })),
+          (res.skills ?? []).map((s) => ({
+            name: s.name,
+            description: s.description ?? "",
+            source: s.source,
+            // Host omits or defaults invocable; explicit false stays false.
+            userInvocable: s.userInvocable !== false,
+            enabled: s.enabled !== false,
+          })),
         );
       })
-      .catch(() => {
-        if (!cancelled) setSkillInfos([]);
+      .catch((e) => {
+        if (cancelled) return;
+        setSkillInfos([]);
+        setSkillsLoadError(String(e));
       })
       .finally(() => {
         if (!cancelled) setSkillsLoading(false);
@@ -10610,6 +10615,8 @@ export default function App() {
                       liveSlash.present ? slashFilterQuery : undefined
                     }
                     skillsLoading={skillsLoading}
+                    skillsError={skillsLoadError}
+                    skillCount={slashCatalog.skills.length}
                     activeIndex={slashActiveIndex}
                     onActiveIndexChange={setSlashActiveIndex}
                     onSelectUpload={() => {

@@ -2045,11 +2045,14 @@ fn parse_skills(v: &serde_json::Value) -> Vec<SkillDto> {
             .and_then(|x| x.as_str())
             .map(|s| s.to_string())
             .or(path_from_source);
+        // Missing field ⇒ treat as invocable. Only explicit `false` hides a skill
+        // from the composer/slash picker (agent-only / disable-model-invocation).
         let user_invocable = item
             .get("userInvocable")
             .or_else(|| item.get("user_invocable"))
+            .or_else(|| item.get("user-invocable"))
             .and_then(|x| x.as_bool())
-            .unwrap_or(false);
+            .unwrap_or(true);
         out.push(SkillDto {
             name,
             description,

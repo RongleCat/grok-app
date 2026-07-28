@@ -398,8 +398,10 @@ export const zhTW: Record<MessageKey, string> = {
   "composer.planMode": "計劃模式",
   "composer.planModeHint": "開啟計劃模式",
   "composer.skills": "技能",
-  "composer.skillsSoon": "即將推出",
   "composer.skillsEmpty": "未發現可呼叫的技能",
+  "composer.skillsEmptyHint":
+    "可在「擴充 → 插件市集」安裝，或在「擴充 → 技能」中啟用。",
+  "composer.skillsLoadError": "無法載入技能",
   "composer.skillsLoading": "正在載入技能…",
   "composer.goal": "目標",
   "composer.goalHint": "設定要持續追求的目標",

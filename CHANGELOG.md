@@ -11,6 +11,10 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Composer skills picker**: skills missing `userInvocable` in `grok inspect` are treated as invocable (only explicit `false` hides them). Extensions-disabled skills stay hidden. Empty / CLI-error states replace the old “Coming soon” dead end.
+
 ### Added
 
 - **Import providers from CC Switch** (#167): Settings → Account → Custom providers → scan local `cc-switch.db` (Grok Build tab), multi-select preview, import into agent-home (macOS / Windows / Linux path resolution + optional override)

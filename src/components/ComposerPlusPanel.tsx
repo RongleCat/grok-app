@@ -177,6 +177,8 @@ export function ComposerPlusPanel({
   entries,
   filterQuery,
   skillsLoading,
+  skillsError,
+  skillCount,
   activeIndex,
   onActiveIndexChange,
   onSelectUpload,
@@ -193,6 +195,10 @@ export function ComposerPlusPanel({
   /** Live filter string (shown in header when non-empty). */
   filterQuery?: string;
   skillsLoading?: boolean;
+  /** Host skills_list error (CLI missing / inspect fail). */
+  skillsError?: string | null;
+  /** Number of invocable skills after enable filter (0 when empty catalog). */
+  skillCount?: number;
   activeIndex: number;
   onActiveIndexChange: (i: number) => void;
   onSelectUpload: () => void;
@@ -358,10 +364,53 @@ export function ComposerPlusPanel({
       {empty && (
         <div className="composer-plus__item composer-plus__item--muted">
           <span className="composer-plus__title">
-            {q ? tr("slash.empty") : tr("composer.skillsEmpty")}
+            {q
+              ? tr("slash.empty")
+              : skillsError
+                ? tr("composer.skillsLoadError")
+                : tr("slash.empty")}
           </span>
+          {!q && skillsError ? (
+            <span className="composer-plus__desc" title={skillsError}>
+              {skillsError}
+            </span>
+          ) : null}
         </div>
       )}
+
+      {/* Skills section empty hint when commands exist but no invocable skills */}
+      {!empty &&
+      !skillsLoading &&
+      !q &&
+      (skillCount ?? 0) === 0 &&
+      !entries.some((e) => e.kind === "slash" && e.item.kind === "skill") ? (
+        <div className="composer-plus__section">{tr("composer.skills")}</div>
+      ) : null}
+      {!empty &&
+      !skillsLoading &&
+      !q &&
+      (skillCount ?? 0) === 0 &&
+      !entries.some((e) => e.kind === "slash" && e.item.kind === "skill") ? (
+        <div className="composer-plus__item composer-plus__item--muted">
+          <span className="composer-plus__ico" aria-hidden>
+            <IconSkills size={ICON_SIZE} />
+          </span>
+          <span className="composer-plus__title">
+            {skillsError
+              ? tr("composer.skillsLoadError")
+              : tr("composer.skillsEmpty")}
+          </span>
+          {skillsError ? (
+            <span className="composer-plus__desc" title={skillsError}>
+              {skillsError}
+            </span>
+          ) : (
+            <span className="composer-plus__desc">
+              {tr("composer.skillsEmptyHint")}
+            </span>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

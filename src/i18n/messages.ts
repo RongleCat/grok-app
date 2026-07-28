@@ -382,8 +382,10 @@ const en = {
   "composer.planMode": "Plan mode",
   "composer.planModeHint": "Turn on plan mode",
   "composer.skills": "Skills",
-  "composer.skillsSoon": "Coming soon",
   "composer.skillsEmpty": "No invocable skills found",
+  "composer.skillsEmptyHint":
+    "Install from Extensions → Marketplace, or enable skills under Extensions → Skills.",
+  "composer.skillsLoadError": "Could not load skills",
   "composer.skillsLoading": "Loading skills…",
   "composer.goal": "Goal",
   "composer.goalHint": "Set a goal to pursue continuously",
@@ -2444,8 +2446,10 @@ const zh: Record<MessageKey, string> = {
   "composer.planMode": "计划模式",
   "composer.planModeHint": "开启计划模式",
   "composer.skills": "技能",
-  "composer.skillsSoon": "即将推出",
   "composer.skillsEmpty": "未发现可调用的技能",
+  "composer.skillsEmptyHint":
+    "可在「扩展 → 插件市场」安装，或在「扩展 → 技能」中启用。",
+  "composer.skillsLoadError": "无法加载技能",
   "composer.skillsLoading": "正在加载技能…",
   "composer.goal": "目标",
   "composer.goalHint": "设置要持续追求的目标",

@@ -23,8 +23,35 @@ export type SkillInfo = {
   name: string;
   description: string;
   source?: string;
+  /** Explicit false = agent-only / not slash-invocable. Missing ⇒ invocable. */
   userInvocable?: boolean;
+  /** App Extensions toggle. Explicit false hides from picker. Missing ⇒ on. */
+  enabled?: boolean;
 };
+
+/**
+ * Skills shown in composer `+` / `/` pickers.
+ * Keeps only enabled + user-invocable skills with a non-empty name.
+ */
+export function filterPickerSkills(skills: SkillInfo[]): SkillInfo[] {
+  const seen = new Set<string>();
+  const out: SkillInfo[] = [];
+  for (const s of skills) {
+    if (s.enabled === false) continue;
+    if (s.userInvocable === false) continue;
+    const name = (s.name ?? "").trim();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    out.push({
+      name,
+      description: (s.description ?? "").trim(),
+      source: s.source,
+      userInvocable: true,
+      enabled: true,
+    });
+  }
+  return out;
+}
 
 /** Built-in slash commands (modes, prompts, host actions). */
 export function builtinSlashItems(): SlashItem[] {
@@ -160,27 +187,18 @@ export function builtinSlashItems(): SlashItem[] {
   ];
 }
 
-/** Map skill metadata to slash items (skips `userInvocable: false`). */
+/** Map skill metadata to slash items (enabled + invocable only). */
 export function skillsToSlashItems(skills: SkillInfo[]): SlashItem[] {
   // Dedupe by name — duplicate ids (`skill:foo`) break React keys and leave
   // ghost rows that ignore filter updates (always visible, not keyboard-navable).
-  const seen = new Set<string>();
-  const out: SlashItem[] = [];
-  for (const s of skills) {
-    if (s.userInvocable === false) continue;
-    const name = (s.name ?? "").trim();
-    if (!name || seen.has(name)) continue;
-    seen.add(name);
-    out.push({
-      id: `skill:${name}`,
-      kind: "skill" as const,
-      name,
-      displayTitle: name,
-      displayDescription: s.description,
-      source: s.source,
-    });
-  }
-  return out;
+  return filterPickerSkills(skills).map((s) => ({
+    id: `skill:${s.name}`,
+    kind: "skill" as const,
+    name: s.name,
+    displayTitle: s.name,
+    displayDescription: s.description,
+    source: s.source,
+  }));
 }
 
 /** Optional resolved UI strings (i18n titles / descriptions) for search. */

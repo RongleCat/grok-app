@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildSlashCatalog,
   builtinSlashItems,
+  filterPickerSkills,
   filterSlashItems,
   skillsToSlashItems,
   type SkillInfo,
@@ -118,6 +119,31 @@ describe("skillsToSlashItems", () => {
     expect(
       skillsToSlashItems([{ name: "x", description: "d" }]),
     ).toHaveLength(1);
+  });
+
+  it("hides Extension-disabled skills", () => {
+    const skills: SkillInfo[] = [
+      { name: "on", description: "yes", enabled: true },
+      { name: "off", description: "no", enabled: false },
+      { name: "default", description: "yes" },
+    ];
+    expect(skillsToSlashItems(skills).map((i) => i.name)).toEqual([
+      "on",
+      "default",
+    ]);
+  });
+});
+
+describe("filterPickerSkills", () => {
+  it("keeps only enabled + invocable named skills", () => {
+    const got = filterPickerSkills([
+      { name: "a", description: "A", userInvocable: true, enabled: true },
+      { name: "b", description: "B", userInvocable: false },
+      { name: "c", description: "C", enabled: false },
+      { name: "  ", description: "blank" },
+      { name: "d", description: "D" },
+    ]);
+    expect(got.map((s) => s.name)).toEqual(["a", "d"]);
   });
 });
 
