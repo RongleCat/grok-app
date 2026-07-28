@@ -71,18 +71,22 @@ jobs:
         working-directory: src-tauri
         shell: pwsh
         run: |
-          Write-Host "=== Locate dumpbin ==="
           $dumpbin = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
             -latest -find "VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Select-Object -First 1
-          Write-Host "dumpbin: $dumpbin"
           $deps = "target/debug/deps"
-          if (-not (Test-Path $deps)) { Write-Host "No deps/ — build failed earlier"; exit 0 }
+          if (-not (Test-Path $deps)) { Write-Host "No deps/"; exit 0 }
           $exe = Get-ChildItem $deps -Filter "grok_app_lib-*.exe" | Select-Object -First 1
-          if (-not $exe) { Write-Host "No grok_app_lib-*.exe in deps/"; exit 0 }
+          if (-not $exe) { Write-Host "No exe"; exit 0 }
           Write-Host "=== Test binary: $($exe.FullName) ==="
-          Write-Host "=== dumpbin /dependents ==="
-          & $dumpbin /dependents $exe.FullName
-          Write-Host "=== Try running test binary directly (capture loader error) ==="
-          $proc = Start-Process -FilePath $exe.FullName -ArgumentList "--list" `
-            -NoNewWindow -Wait -PassThru -ErrorAction SilentlyContinue
-          Write-Host "Direct run exit code: 0x$('{0:X}' -f $proc.ExitCode)"
+          Write-Host "=== rustc version ===" ; rustc --version --verbose
+          Write-Host "=== dumpbin /imports (function-level imports per DLL) ==="
+          & $dumpbin /imports $exe.FullName
+          Write-Host "=== ntldd-style recursive dep check (if gflags/ntldd present) ==="
+          $ntldd = Get-Command ntldd -ErrorAction SilentlyContinue
+          if ($ntldd) { & ntldd -R $($exe.FullName) 2>&1 | Select-Object -First 80 }
+          else { Write-Host "ntldd not available" }
+          Write-Host "=== Application event log: recent loader errors ==="
+          try {
+            Get-WinEvent -FilterHashtable @{LogName='Application'; Level=2; StartTime=(Get-Date).AddMinutes(-10)} `
+              -ErrorAction SilentlyContinue | Select-Object -First 5 TimeCreated, Id, Message | Format-List
+          } catch { Write-Host "event log query failed: $_" }
