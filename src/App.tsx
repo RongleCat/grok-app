@@ -771,7 +771,6 @@ export default function App() {
   );
   /** Prevent overlapping automation runs. */
   const automationRunLock = useRef(false);
-  const firedAutomationIds = useRef<Set<string>>(new Set());
   /** Conversation is guiding the user to create a scheduled task. */
   const automationSetupDraftRef = useRef(false);
   const automationSetupSessionsRef = useRef<Set<string>>(new Set());
