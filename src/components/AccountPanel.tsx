@@ -12,6 +12,7 @@ import {
   accountInitials,
   formatCompactNumber,
   formatDuration,
+  formatQuotaResetTime,
   formatRelativeTime,
   tierLabel,
   usagePercent,
@@ -157,6 +158,8 @@ export function AccountPanel({
   const channel = status?.channel ?? "none";
   const billing = status?.billing;
   const usedPct = billing ? usagePercent(billing) : null;
+  /** Same absolute clock as sidebar UserMenu (`MM-DD HH:mm`). */
+  const resetTime = formatQuotaResetTime(billing?.resetsAt);
   const remaining =
     billing?.remainingPercent != null
       ? billing.remainingPercent
@@ -442,8 +445,8 @@ export function AccountPanel({
                 <div className="account-hero__plan-meta">
                   <span>
                     {labels.quotaUsed} {(usedPct ?? 0).toFixed(0)}%
-                    {billing?.resetsAt
-                      ? ` · ${labels.resetsAt} ${formatRelativeTime(billing.resetsAt, locale)}`
+                    {resetTime
+                      ? ` · ${labels.resetsAt} ${resetTime}`
                       : ""}
                   </span>
                   {products.length > 0 ? (
