@@ -1076,9 +1076,12 @@ export const zhTW: Record<MessageKey, string> = {
   "account.callLogs": "近期呼叫日誌",
   "account.callLogsEmpty": "在 ~/.grok/sessions 下未發現本機對話活動。",
   "account.callLogs.dayFilter": "{date} · {count} 個對話",
+  "account.callLogs.weekFilter": "{start} – {end} · {count} 個對話",
   "account.callLogs.clearDay": "顯示全部",
   "account.callLogs.dayEmpty":
-    "近期日誌沒有這一天的列。上方對話數仍來自完整熱力圖統計。",
+    "近期日誌沒有該時段的列。上方對話數仍來自完整熱力圖統計。",
+  "account.heatmap.day": "每日",
+  "account.heatmap.week": "每週",
   "account.col.session": "對話",
   "account.col.model": "模型",
   "account.col.turns": "回合",

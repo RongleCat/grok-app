@@ -3146,6 +3146,46 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   gap: 12px;
 }
 
+.account-heat-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.12));
+  border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.2));
+  gap: 2px;
+}
+
+.account-heat-toggle__btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 0.1s ease,
+    color 0.1s ease;
+}
+
+.account-heat-toggle__btn:hover {
+  color: var(--text-primary);
+}
+
+.account-heat-toggle__btn.is-active {
+  background: var(--bg-elevated, var(--surface-1, #fff));
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.gh-heatmap__cell--week {
+  border-radius: 3px;
+}
+
 .gh-heatmap__legend {
   display: flex;
   align-items: center;

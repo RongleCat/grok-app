@@ -18,7 +18,13 @@ import {
   tierLabel,
   usagePercent,
 } from "@/lib/accountUi";
-import { Heatmap } from "@/components/Heatmap";
+import {
+  Heatmap,
+  dateInHeatRange,
+  sumHeatInRange,
+  type HeatGranularity,
+  type HeatRange,
+} from "@/components/Heatmap";
 import { GlassModal } from "@/components/GlassModal";
 import { Tip } from "@/components/ui/tooltip";
 import { IconPlus, IconTrash, IconUser } from "@/components/icons";
@@ -68,8 +74,12 @@ export interface AccountPanelLabels {
   heatmapTokens: string;
   /** Day filter title: "{date} · {count} sessions" */
   callLogsDayFilter: string;
+  /** Week filter title: "{start} – {end} · {count} sessions" */
+  callLogsWeekFilter: string;
   callLogsClearDay: string;
   callLogsDayEmpty: string;
+  heatmapDay: string;
+  heatmapWeek: string;
   weeklyTitle: string;
   loginHelpTitle: string;
   loginHelpBody: string;
@@ -153,8 +163,12 @@ export function AccountPanel({
   onImportChat,
 }: AccountPanelProps) {
   const [accountsOpen, setAccountsOpen] = useState(false);
-  /** Heatmap day → filter recent call logs (YYYY-MM-DD local). */
-  const [selectedHeatDay, setSelectedHeatDay] = useState<string | null>(null);
+  /** Day or week range → filter recent call logs. */
+  const [heatGranularity, setHeatGranularity] =
+    useState<HeatGranularity>("day");
+  const [selectedHeatRange, setSelectedHeatRange] = useState<HeatRange | null>(
+    null,
+  );
   const logsSectionRef = useRef<HTMLElement | null>(null);
 
   const profile = status?.profile;
@@ -169,25 +183,54 @@ export function AccountPanel({
   /** Same absolute clock as sidebar UserMenu (`MM-DD HH:mm`). */
   const resetTime = formatQuotaResetTime(billing?.resetsAt);
 
-  const heatByDate = useMemo(() => {
-    const m = new Map<string, { requests: number; tokens: number }>();
-    for (const d of status?.heatmap ?? []) {
-      m.set(d.date, { requests: d.requests, tokens: d.tokens });
-    }
-    return m;
-  }, [status?.heatmap]);
-
-  const daySessionCount = selectedHeatDay
-    ? (heatByDate.get(selectedHeatDay)?.requests ?? 0)
+  const rangeSessionCount = selectedHeatRange
+    ? sumHeatInRange(status?.heatmap ?? [], selectedHeatRange).requests
     : null;
 
   const filteredCallLogs = useMemo(() => {
     const logs = status?.callLogs ?? [];
-    if (!selectedHeatDay) return logs;
-    return logs.filter(
-      (row) => localDateKeyFromIso(row.startedAt) === selectedHeatDay,
-    );
-  }, [status?.callLogs, selectedHeatDay]);
+    if (!selectedHeatRange) return logs;
+    return logs.filter((row) => {
+      const key = localDateKeyFromIso(row.startedAt);
+      return key != null && dateInHeatRange(key, selectedHeatRange);
+    });
+  }, [status?.callLogs, selectedHeatRange]);
+
+  const callLogsTitle = (() => {
+    if (!selectedHeatRange || rangeSessionCount == null) return labels.callLogs;
+    if (selectedHeatRange.start === selectedHeatRange.end) {
+      return labels.callLogsDayFilter
+        .replace("{date}", selectedHeatRange.start)
+        .replace("{count}", String(rangeSessionCount));
+    }
+    const endShort =
+      selectedHeatRange.start.slice(0, 4) === selectedHeatRange.end.slice(0, 4)
+        ? selectedHeatRange.end.slice(5)
+        : selectedHeatRange.end;
+    return labels.callLogsWeekFilter
+      .replace("{start}", selectedHeatRange.start)
+      .replace("{end}", endShort)
+      .replace("{count}", String(rangeSessionCount));
+  })();
+
+  const onHeatSelect = (range: HeatRange | null) => {
+    setSelectedHeatRange(range);
+    if (range) {
+      requestAnimationFrame(() => {
+        logsSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      });
+    }
+  };
+
+  const setGranularity = (g: HeatGranularity) => {
+    if (g === heatGranularity) return;
+    setHeatGranularity(g);
+    // Day/week cells are different shapes — drop stale selection.
+    setSelectedHeatRange(null);
+  };
 
   const remaining =
     billing?.remainingPercent != null
@@ -556,25 +599,45 @@ export function AccountPanel({
       {!compact && (
         <>
           <section className="account-section">
-            <div className="account-section__title">{labels.heatmap}</div>
+            <div className="account-section__title account-section__title--row">
+              <span>{labels.heatmap}</span>
+              <div
+                className="account-heat-toggle"
+                role="group"
+                aria-label={labels.heatmap}
+              >
+                <button
+                  type="button"
+                  className={
+                    "account-heat-toggle__btn" +
+                    (heatGranularity === "day" ? " is-active" : "")
+                  }
+                  aria-pressed={heatGranularity === "day"}
+                  onClick={() => setGranularity("day")}
+                >
+                  {labels.heatmapDay}
+                </button>
+                <button
+                  type="button"
+                  className={
+                    "account-heat-toggle__btn" +
+                    (heatGranularity === "week" ? " is-active" : "")
+                  }
+                  aria-pressed={heatGranularity === "week"}
+                  onClick={() => setGranularity("week")}
+                >
+                  {labels.heatmapWeek}
+                </button>
+              </div>
+            </div>
             <div className="account-section__body account-section__body--heat">
               <Heatmap
                 days={status?.heatmap ?? []}
                 metric="tokens"
+                granularity={heatGranularity}
                 locale={locale}
-                selectedDate={selectedHeatDay}
-                onSelectDate={(date) => {
-                  setSelectedHeatDay(date);
-                  if (date) {
-                    // Link to logs: scroll after paint so filter header is visible.
-                    requestAnimationFrame(() => {
-                      logsSectionRef.current?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "nearest",
-                      });
-                    });
-                  }
-                }}
+                selectedRange={selectedHeatRange}
+                onSelectRange={onHeatSelect}
                 labels={{
                   less: labels.less,
                   more: labels.more,
@@ -589,18 +652,12 @@ export function AccountPanel({
 
           <section className="account-section" ref={logsSectionRef}>
             <div className="account-section__title account-section__title--row">
-              <span>
-                {selectedHeatDay && daySessionCount != null
-                  ? labels.callLogsDayFilter
-                      .replace("{date}", selectedHeatDay)
-                      .replace("{count}", String(daySessionCount))
-                  : labels.callLogs}
-              </span>
-              {selectedHeatDay ? (
+              <span>{callLogsTitle}</span>
+              {selectedHeatRange ? (
                 <button
                   type="button"
                   className="account-link"
-                  onClick={() => setSelectedHeatDay(null)}
+                  onClick={() => setSelectedHeatRange(null)}
                 >
                   {labels.callLogsClearDay}
                 </button>
@@ -611,7 +668,7 @@ export function AccountPanel({
                 <div className="account-logs__empty">
                   {labels.callLogsEmpty}
                 </div>
-              ) : selectedHeatDay && filteredCallLogs.length === 0 ? (
+              ) : selectedHeatRange && filteredCallLogs.length === 0 ? (
                 <div className="account-logs__empty">
                   {labels.callLogsDayEmpty}
                 </div>
@@ -630,7 +687,7 @@ export function AccountPanel({
                       key={row.id}
                       className={
                         "account-logs__row" +
-                        (selectedHeatDay ? " is-day-hit" : "")
+                        (selectedHeatRange ? " is-day-hit" : "")
                       }
                     >
                       <Tip label={row.projectPath ?? row.title}>
