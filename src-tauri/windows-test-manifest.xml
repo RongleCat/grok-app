@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Common Controls v6 for Windows MSVC *test* binaries only.
+
+  Without this, the lib unit-test exe can abort at process start with
+  STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) — WebView2 / comctl32 entry points
+  do not resolve under the default v5 common-controls binding.
+
+  Do NOT embed this into release/app binaries: tauri_build already ships a
+  Windows app manifest via resource.lib; a second MANIFESTINPUT causes
+  CVT1100 "duplicate resource" (see f151064 / v0.1.9 release).
+
+  Opt-in via build.rs env GROK_EMBED_WIN_TEST_MANIFEST=1 (CI cargo test).
+-->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity
+        type="win32"
+        name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0"
+        processorArchitecture="*"
+        publicKeyToken="6595b64144ccf1df"
+        language="*"
+      />
+    </dependentAssembly>
+  </dependency>
+</assembly>

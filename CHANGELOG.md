@@ -26,7 +26,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 
-- **Windows CI `cargo test`**: drop PATH dirs that ship stale `api-ms-win-*.dll` (Temurin JDK on GitHub runners), which poisoned API-set resolution for `WaitOnAddress` and aborted the test binary with `STATUS_ENTRYPOINT_NOT_FOUND` (`0xc0000139`) before any test ran
+- **Windows CI `cargo test`**: embed Common Controls v6 for test binaries only (`GROK_EMBED_WIN_TEST_MANIFEST=1` → `windows-test-manifest.xml`) so the Tauri/WebView2-linked test harness starts; also drop PATH dirs that ship stale `api-ms-win-*.dll` (Temurin JDK). Fixes `STATUS_ENTRYPOINT_NOT_FOUND` (`0xc0000139`) without re-breaking release (no second MANIFEST on app link)
 - Drop `tauri::test::mock_app()` from unit tests (pure `pick_interjection_target`); avoid Windows-only Tauri test harness crash class
 - Windows `win_shell` COM taskbar helpers: mark `CoCreateInstance` / `ITaskbarList` calls `unsafe` so cold CI rebuilds compile
 - SVG resource preview no longer injects raw HTML
