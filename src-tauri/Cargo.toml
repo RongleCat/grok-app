@@ -85,9 +85,6 @@ windows = { version = "0.61", features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 
-[dev-dependencies]
-tauri = { version = "2", features = ["test"] }
-
 [profile.release]
 codegen-units = 1
 lto = true

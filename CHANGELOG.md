@@ -26,6 +26,8 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 
+- **Windows CI `cargo test`**: drop PATH dirs that ship stale `api-ms-win-*.dll` (Temurin JDK on GitHub runners), which poisoned API-set resolution for `WaitOnAddress` and aborted the test binary with `STATUS_ENTRYPOINT_NOT_FOUND` (`0xc0000139`) before any test ran
+- Drop `tauri::test::mock_app()` from unit tests (pure `pick_interjection_target`); avoid Windows-only Tauri test harness crash class
 - SVG resource preview no longer injects raw HTML
 - Resource absolute open/save grants path for re-open
 - Long multi-tool turns no longer hit a fixed **10-minute wall** on `session/prompt` — wait is idle-based (600s silence) with a 4h absolute ceiling

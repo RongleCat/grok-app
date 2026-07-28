@@ -57,9 +57,54 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
-          shared-key: ci-${{ matrix.name }}
+          # Bump key when Windows DLL PATH fix lands so we never re-run a stale
+          # test binary that was linked under a poisoned PATH.
+          shared-key: ci-${{ matrix.name }}-v2
       # Includes ACP golden fixtures (tests/fixtures/acp + acp_golden_test).
       # Required green for any ACP / mock_acp / permission wire change (T06).
+      #
+      # Windows: GitHub-hosted runners put Temurin JDK on PATH. That bin dir
+      # ships physical api-ms-win-*.dll forwarders. Modern Windows has no real
+      # System32 copies of those API-set names (resolution is virtual), so the
+      # loader binds the test binary's WaitOnAddress import to the JDK copy and
+      # aborts with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) before any test
+      # runs. Drop any PATH entry that ships those DLLs *in this shell* —
+      # GITHUB_PATH only prepends and cannot remove entries.
       - name: cargo test
+        if: matrix.name != 'Windows'
         working-directory: src-tauri
         run: cargo test
+      - name: cargo test
+        if: matrix.name == 'Windows'
+        working-directory: src-tauri
+        shell: pwsh
+        run: |
+          $sep = [IO.Path]::PathSeparator
+          $dropped = [System.Collections.Generic.List[string]]::new()
+          $kept = foreach ($d in ($env:Path -split $sep)) {
+            if (-not $d) { continue }
+            $shipsApiSet = $false
+            if (Test-Path -LiteralPath $d -PathType Container -ErrorAction SilentlyContinue) {
+              $shipsApiSet = [bool](Get-ChildItem -LiteralPath $d -Filter 'api-ms-win-*.dll' -ErrorAction SilentlyContinue | Select-Object -First 1)
+            }
+            if ($shipsApiSet) {
+              [void]$dropped.Add($d)
+              continue
+            }
+            $d
+          }
+          if ($dropped.Count) {
+            Write-Host "Dropping PATH entries that ship api-ms-win-*.dll (poison Windows API-set resolution):"
+            foreach ($b in $dropped) { Write-Host "  - $b" }
+            $env:Path = ($kept -join $sep)
+          } else {
+            Write-Host "No PATH entry ships api-ms-win-*.dll"
+          }
+          # Prove resolution no longer prefers the JDK copy.
+          $resolved = Get-Command 'api-ms-win-core-synch-l1-2-0.dll' -ErrorAction SilentlyContinue
+          if ($resolved) {
+            Write-Host "Get-Command api-ms-win-core-synch-l1-2-0.dll -> $($resolved.Source)"
+          } else {
+            Write-Host "Get-Command api-ms-win-core-synch-l1-2-0.dll -> (not on PATH; OS API-set schema will resolve)"
+          }
+          cargo test
