@@ -3116,6 +3116,8 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   outline: none;
   cursor: pointer;
   background: var(--heatmap-0);
+  /* Keep selection/hover paint inside the cell so neighbors stay clean */
+  box-sizing: border-box;
   transition:
     box-shadow 0.1s ease,
     border-color 0.1s ease,
@@ -3130,30 +3132,29 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 }
 
 /*
- * Selected: GitHub-style focus ring — canvas gap + soft accent outline.
- * Avoids heavy black `text-primary` stroke which felt harsh on dense grids.
+ * Selected / focus: inset ring only (no outer halo).
+ * Outer box-shadows spill into the 3px gutters and “weld” to neighbors —
+ * GitHub keeps feedback inside the square so the grid stays even.
  */
 .gh-heatmap__cell.is-selected {
-  z-index: 2;
-  border-color: transparent;
-  box-shadow:
-    0 0 0 2px var(--bg-elevated, var(--surface-1, var(--bg, #fff))),
-    0 0 0 3.5px color-mix(in srgb, var(--heatmap-3, #30a14e) 88%, transparent);
+  z-index: 1;
+  border-color: color-mix(in srgb, var(--heatmap-4, #216e39) 55%, transparent);
+  box-shadow: inset 0 0 0 1.5px
+    color-mix(in srgb, var(--heatmap-3, #30a14e) 92%, #fff 8%);
 }
 
 .gh-heatmap__cell:not(.is-empty):hover:not(.is-selected) {
   z-index: 1;
-  border-color: color-mix(in srgb, var(--text-primary) 22%, transparent);
-  box-shadow: 0 0 0 1px
-    color-mix(in srgb, var(--text-primary) 14%, transparent);
+  border-color: color-mix(in srgb, var(--text-primary) 28%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--text-primary) 18%, transparent);
 }
 
 .gh-heatmap__cell:not(.is-empty):focus-visible {
-  z-index: 2;
-  border-color: transparent;
-  box-shadow:
-    0 0 0 2px var(--bg-elevated, var(--surface-1, var(--bg, #fff))),
-    0 0 0 3.5px color-mix(in srgb, var(--heatmap-3, #30a14e) 88%, transparent);
+  z-index: 1;
+  border-color: color-mix(in srgb, var(--heatmap-4, #216e39) 55%, transparent);
+  box-shadow: inset 0 0 0 1.5px
+    color-mix(in srgb, var(--heatmap-3, #30a14e) 92%, #fff 8%);
 }
 
 .account-section__title--row {
