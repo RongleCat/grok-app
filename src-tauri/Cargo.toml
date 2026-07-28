@@ -76,9 +76,6 @@ tracing-appender = "0.2"
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
 
-[dev-dependencies]
-tauri = { version = "2", features = ["test"] }
-
 [profile.release]
 codegen-units = 1
 lto = true

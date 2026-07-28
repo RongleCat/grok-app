@@ -1193,6 +1193,31 @@ impl SessionManager {
                 ))
     }
 
+    /// Select the active interjection target (backend, app session id, turn id,
+    /// optional ACP client) from a live session, validating that a streaming
+    /// turn is in progress.
+    ///
+    /// Pure (no `AppHandle`) so the rejection path is unit-testable on all
+    /// platforms, including Windows where `tauri::test::mock_app()` crashes the
+    /// test binary with `STATUS_ENTRYPOINT_NOT_FOUND` (tauri #14580 / #13419).
+    fn pick_interjection_target(
+        s: &LiveSession,
+    ) -> Result<(String, String, String, Option<Arc<AcpClient>>), String> {
+        if !(s.prompt_in_flight || s.fsm.state() == SessionState::Streaming) {
+            return Err("interjection requires a streaming turn".into());
+        }
+        let turn_id = s
+            .active_turn_id
+            .clone()
+            .ok_or("interjection requires an active turn")?;
+        Ok((
+            s.backend.clone(),
+            s.app_session_id.clone(),
+            turn_id,
+            s.acp.clone(),
+        ))
+    }
+
     /// Persist an interjection at the current stream boundary while holding the
     /// session lock. Emitting before unlock guarantees UI order vs stream chunks.
     fn commit_interjection_boundary<R: tauri::Runtime>(
@@ -4499,39 +4524,23 @@ impl SessionManager {
         let attachments = attachments.filter(|items| !items.is_empty());
         let target = session_id.as_deref();
 
-        let pick = |s: &LiveSession| -> Result<(String, String, String, Option<Arc<AcpClient>>), String> {
-            if !(s.prompt_in_flight || s.fsm.state() == SessionState::Streaming) {
-                return Err("interjection requires a streaming turn".into());
-            }
-            let turn_id = s
-                .active_turn_id
-                .clone()
-                .ok_or("interjection requires an active turn")?;
-            Ok((
-                s.backend.clone(),
-                s.app_session_id.clone(),
-                turn_id,
-                s.acp.clone(),
-            ))
-        };
-
         let (backend, app_sid, turn_id, acp) = {
             if let Some(t) = target {
                 let guard = self.inner.lock();
                 if let Some(s) = guard.as_ref().filter(|s| s.app_session_id == t) {
-                    pick(s)?
+                    Self::pick_interjection_target(s)?
                 } else {
                     drop(guard);
                     let background = self.background.lock();
                     let s = background
                         .get(t)
                         .ok_or_else(|| format!("interjection: chat {t} is not active"))?;
-                    pick(s)?
+                    Self::pick_interjection_target(s)?
                 }
             } else {
                 let guard = self.inner.lock();
                 let s = guard.as_ref().ok_or("no active session")?;
-                pick(s)?
+                Self::pick_interjection_target(s)?
             }
         };
 
@@ -5508,8 +5517,8 @@ mod session_routing_tests {
         let _ = mgr; // keep manager constructed for parity with other tests
     }
 
-    #[tokio::test]
-    async fn interject_message_rejects_non_streaming_session() {
+    #[test]
+    fn pick_interjection_target_rejects_non_streaming_session() {
         let mgr = SessionManager::new();
         let mut fsm = SessionFsm::new();
         let _ = fsm.start_connect();
@@ -5571,18 +5580,17 @@ mod session_routing_tests {
             stream_emit_flush_gen: 0,
             last_tool_heartbeat_emit: None,
         });
-        let app = tauri::test::mock_app();
-        let err = mgr
-            .interject_message(
-                app.handle().clone(),
-                "Use the existing component".into(),
-                None,
-                None,
-                Some("session-1".into()),
-            )
-            .await
-            .expect_err("ready session must reject interjection");
-        assert_eq!(err, "interjection requires a streaming turn");
+        // Exercise the same validation `interject_message` runs first, without
+        // an `AppHandle`. `tauri::test::mock_app()` is the only thing in this
+        // crate that needs the `test` feature, and it crashes the test binary
+        // on Windows (STATUS_ENTRYPOINT_NOT_FOUND, tauri #14580 / #13419).
+        let guard = mgr.inner.lock();
+        match SessionManager::pick_interjection_target(
+            guard.as_ref().expect("live session set"),
+        ) {
+            Ok(_) => panic!("ready session must reject interjection"),
+            Err(err) => assert_eq!(err, "interjection requires a streaming turn"),
+        }
     }
 }
 
