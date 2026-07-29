@@ -49,6 +49,8 @@ type Props = {
   labels: ContextUsageChipLabels;
   disabled?: boolean;
   onCompact: () => void;
+  /** For 万/億 vs 萬/億 on menu breakdown rows. Chip label already resolved. */
+  locale?: string;
 };
 
 function tipFor(
@@ -72,6 +74,7 @@ function sourceLabel(
 function formatLastCompactDetail(
   last: LastCompactSummary,
   labels: ContextUsageChipLabels,
+  locale: string,
 ): string {
   if (
     last.tokensBefore != null &&
@@ -80,24 +83,26 @@ function formatLastCompactDetail(
     Number.isFinite(last.tokensAfter)
   ) {
     return labels.tokensRange
-      .replace("{before}", formatTokenCount(last.tokensBefore))
-      .replace("{after}", formatTokenCount(last.tokensAfter));
+      .replace("{before}", formatTokenCount(last.tokensBefore, locale))
+      .replace("{after}", formatTokenCount(last.tokensAfter, locale));
   }
   if (last.note?.trim()) return last.note.trim();
   return last.trigger === "manual" ? labels.manual : labels.auto;
 }
 
 /** Breakdown values are always heuristic — show with ~ prefix. */
-function formatBreakdownValue(n: number): string {
-  return `~${formatTokenCount(n)}`;
+function formatBreakdownValue(n: number, locale: string): string {
+  return `~${formatTokenCount(n, locale)}`;
 }
 
 function BreakdownRows({
   breakdown,
   labels,
+  locale,
 }: {
   breakdown: ContextUsageBreakdown;
   labels: ContextUsageChipLabels;
+  locale: string;
 }) {
   return (
     <>
@@ -105,7 +110,7 @@ function BreakdownRows({
         <span className="ctx-chip__k">{labels.breakdownUser}</span>
         <span className="ctx-chip__v">
           <span className="ctx-chip__tokens">
-            {formatBreakdownValue(breakdown.userTokens)}
+            {formatBreakdownValue(breakdown.userTokens, locale)}
           </span>
         </span>
       </div>
@@ -113,7 +118,7 @@ function BreakdownRows({
         <span className="ctx-chip__k">{labels.breakdownAssistant}</span>
         <span className="ctx-chip__v">
           <span className="ctx-chip__tokens">
-            {formatBreakdownValue(breakdown.assistantTokens)}
+            {formatBreakdownValue(breakdown.assistantTokens, locale)}
           </span>
         </span>
       </div>
@@ -121,7 +126,7 @@ function BreakdownRows({
         <span className="ctx-chip__k">{labels.breakdownThought}</span>
         <span className="ctx-chip__v">
           <span className="ctx-chip__tokens">
-            {formatBreakdownValue(breakdown.thoughtTokens)}
+            {formatBreakdownValue(breakdown.thoughtTokens, locale)}
           </span>
         </span>
       </div>
@@ -137,6 +142,7 @@ export function ContextUsageChip({
   labels,
   disabled,
   onCompact,
+  locale = "zh",
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -164,7 +170,7 @@ export function ContextUsageChip({
   const tip = useMemo(() => tipFor(display, labels), [display, labels]);
   const source = sourceLabel(display.source, labels);
   const lastDetail = display.lastCompact
-    ? formatLastCompactDetail(display.lastCompact, labels)
+    ? formatLastCompactDetail(display.lastCompact, labels, locale)
     : null;
 
   return (
@@ -220,7 +226,10 @@ export function ContextUsageChip({
                     <span className="ctx-chip__k">{labels.knownInput}</span>
                     <span className="ctx-chip__v">
                       <span className="ctx-chip__tokens">
-                        {formatTokenCount(display.knownUsage.inputTokens)}
+                        {formatTokenCount(
+                          display.knownUsage.inputTokens,
+                          locale,
+                        )}
                       </span>
                     </span>
                   </div>
@@ -230,7 +239,10 @@ export function ContextUsageChip({
                     <span className="ctx-chip__k">{labels.knownOutput}</span>
                     <span className="ctx-chip__v">
                       <span className="ctx-chip__tokens">
-                        {formatTokenCount(display.knownUsage.outputTokens)}
+                        {formatTokenCount(
+                          display.knownUsage.outputTokens,
+                          locale,
+                        )}
                       </span>
                     </span>
                   </div>
@@ -240,7 +252,10 @@ export function ContextUsageChip({
                     <span className="ctx-chip__k">{labels.knownTotal}</span>
                     <span className="ctx-chip__v">
                       <span className="ctx-chip__tokens">
-                        {formatTokenCount(display.knownUsage.totalTokens)}
+                        {formatTokenCount(
+                          display.knownUsage.totalTokens,
+                          locale,
+                        )}
                       </span>
                     </span>
                   </div>
@@ -248,7 +263,11 @@ export function ContextUsageChip({
               </>
             ) : null}
             {display.breakdown ? (
-              <BreakdownRows breakdown={display.breakdown} labels={labels} />
+              <BreakdownRows
+                breakdown={display.breakdown}
+                labels={labels}
+                locale={locale}
+              />
             ) : null}
             <div className="ctx-chip__row">
               <span className="ctx-chip__k">{labels.lastCompact}</span>

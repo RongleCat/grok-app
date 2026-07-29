@@ -213,9 +213,11 @@ export function PhoneComposerToolsSheet({
 
   if (!open || typeof document === "undefined") return null;
 
+  // Prefer pre-resolved chip label (already locale-aware Chinese units).
   const contextValue =
     contextDisplay.tokens != null
-      ? formatTokenCount(contextDisplay.tokens)
+      ? contextDisplay.label.replace(/^~/, "") ||
+        formatTokenCount(contextDisplay.tokens)
       : labels.contextUnknown;
 
   const headerTitle =

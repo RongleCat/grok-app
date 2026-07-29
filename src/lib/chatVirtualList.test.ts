@@ -91,6 +91,14 @@ describe("estimateChatRowHeight", () => {
     const h = estimateChatRowHeight({ contentLength: 40, role: "user" });
     expect(h).toBeLessThan(200);
   });
+
+  it("collapsed / empty tool rows estimate 0 (no blank pin tail)", () => {
+    expect(estimateChatRowHeight({ role: "tool", collapsed: true })).toBe(0);
+    expect(estimateChatRowHeight({ role: "tool", contentLength: 0 })).toBe(0);
+    expect(
+      estimateChatRowHeight({ role: "tool", contentLength: 20 }),
+    ).toBeLessThan(50);
+  });
 });
 
 describe("shouldCommitRowHeight", () => {
@@ -102,6 +110,12 @@ describe("shouldCommitRowHeight", () => {
   it("ignores tiny flicker and small shrink thrash", () => {
     expect(shouldCommitRowHeight(400, 401)).toBe(false);
     expect(shouldCommitRowHeight(400, 390)).toBe(false);
+  });
+
+  it("commits zero height so collapsed spacers correct estimates", () => {
+    expect(shouldCommitRowHeight(undefined, 0)).toBe(true);
+    expect(shouldCommitRowHeight(120, 0)).toBe(true);
+    expect(shouldCommitRowHeight(0, 0)).toBe(false);
   });
 });
 

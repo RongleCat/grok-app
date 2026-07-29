@@ -3179,6 +3179,22 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   gap: 12px;
 }
 
+.account-heatmap-title-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.account-heatmap-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .account-heat-toggle {
   display: inline-flex;
   align-items: center;

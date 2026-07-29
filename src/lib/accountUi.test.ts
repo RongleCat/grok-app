@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
+  formatChineseCount,
   formatMessageTime,
   formatQuotaResetTime,
   loadCachedSuperGrokBrand,
@@ -165,5 +166,29 @@ describe("localDateKeyFromIso", () => {
     expect(localDateKeyFromIso(d.toISOString())).toBe("2026-04-15");
     expect(localDateKeyFromIso(null)).toBeNull();
     expect(localDateKeyFromIso("bad")).toBeNull();
+  });
+});
+
+describe("formatChineseCount", () => {
+  it("uses 百 / 千 / 万 / 亿 (simplified)", () => {
+    expect(formatChineseCount(0)).toBe("0");
+    expect(formatChineseCount(42)).toBe("42");
+    expect(formatChineseCount(100)).toBe("1百");
+    expect(formatChineseCount(500)).toBe("5百");
+    expect(formatChineseCount(1_000)).toBe("1千");
+    expect(formatChineseCount(12_500)).toBe("1.3万");
+    expect(formatChineseCount(123_456)).toBe("12.3万");
+    expect(formatChineseCount(10_000)).toBe("1万");
+    expect(formatChineseCount(100_000_000)).toBe("1亿");
+  });
+
+  it("uses 萬 / 億 for zh-TW", () => {
+    expect(formatChineseCount(12_500, "zh-TW")).toBe("1.3萬");
+    expect(formatChineseCount(100_000_000, "zh-TW")).toBe("1億");
+  });
+
+  it("handles null / non-finite", () => {
+    expect(formatChineseCount(null)).toBe("—");
+    expect(formatChineseCount(Number.NaN)).toBe("—");
   });
 });

@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Chat blank at bottom on long tool-heavy threads**: virtual list no longer inflates height for inlined tool steps; pin window force-mounts last user/assistant
+- **Bottom scroll bounce / flash**: stick-to-bottom requires a clear upward gesture to unlock; clamp while pinned; ignore micro trackpad jitter and elastic overscroll; quieter virtual spacer remeasure while pinned
+- **Token counts use Chinese units** (百 / 千 / 万·萬 / 亿·億) instead of English k/M; zh-TW uses 萬/億; account heatmap total uses the same formatter
+
 ## [0.2.0] - 2026-07-29
 
 > **Highlight:** Wallpaper from X / Imagine; Appearance Theme · Interface; stabler long runs and chat prefs.

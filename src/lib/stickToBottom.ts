@@ -22,8 +22,31 @@ export const STICK_HARD_BOTTOM_PX = 2;
 /**
  * Sub-pixel / font / thought-stream reflows under this delta should not
  * force a scroll follow (avoids up-down flicker while thinking grows).
+ * Slightly higher than 1–2px so virtual-list spacer remeasure does not thrash.
  */
-export const STICK_HEIGHT_NOISE_PX = 4;
+export const STICK_HEIGHT_NOISE_PX = 8;
+
+/**
+ * Minimum upward scroll (px) to leave stick-lock.
+ * Trackpad jitter, elastic overscroll, and 1–2px virtual height corrections
+ * used to "unlock" the bottom then yank back — felt like bounce + flash.
+ */
+export const STICK_ESCAPE_MIN_DELTA_PX = 14;
+
+/**
+ * Wheel deltaY (negative = read history) must exceed this to escape pin.
+ * Tiny trackpad ticks at the bottom otherwise unstick then re-snap.
+ */
+export const STICK_ESCAPE_WHEEL_DELTA = 10;
+
+/** True when the upward scroll is large enough to intentionally leave the bottom. */
+export function isMeaningfulScrollUp(
+  scrollTop: number,
+  previousScrollTop: number,
+  minDeltaPx: number = STICK_ESCAPE_MIN_DELTA_PX,
+): boolean {
+  return previousScrollTop - scrollTop >= minDeltaPx;
+}
 
 export function distanceFromBottom(
   scrollTop: number,

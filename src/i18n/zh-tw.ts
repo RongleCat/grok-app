@@ -1181,6 +1181,7 @@ export const zhTW: Record<MessageKey, string> = {
   "account.heatmap.aria": "Token 活動熱力圖",
   "account.heatmap.requests": "對話數",
   "account.heatmap.tokens": "已用 Token",
+  "account.heatmap.totalTokens": "總 Token：{count}",
   "account.callLogs": "近期呼叫日誌",
   "account.callLogsEmpty": "在 ~/.grok/sessions 下未發現本機對話活動。",
   "account.callLogs.dayFilter": "{date} · {count} 個對話",

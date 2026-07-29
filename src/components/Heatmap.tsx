@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { HeatmapDay } from "@/lib/api";
-import { formatCompactNumber } from "@/lib/accountUi";
+import { formatLocaleCount } from "@/lib/accountUi";
 
 export type HeatGranularity = "day" | "week";
 
@@ -480,7 +480,7 @@ export function Heatmap({
                     disabled={cellItem.empty || !cellItem.range}
                     aria-label={
                       cellItem.date
-                        ? `${cellItem.date}, ${labels.tokens} ${formatCompactNumber(cellItem.tokens)}`
+                        ? `${cellItem.date}, ${labels.tokens} ${formatLocaleCount(cellItem.tokens, locale)}`
                         : undefined
                     }
                     aria-pressed={
@@ -544,7 +544,7 @@ export function Heatmap({
                   type="button"
                   role="gridcell"
                   disabled={w.empty}
-                  aria-label={`${formatRangeLabel(w.range)}, ${labels.tokens} ${formatCompactNumber(w.tokens)}`}
+                  aria-label={`${formatRangeLabel(w.range)}, ${labels.tokens} ${formatLocaleCount(w.tokens, locale)}`}
                   aria-pressed={heatRangesEqual(selectedRange, w.range)}
                   className={
                     "gh-heatmap__cell gh-heatmap__cell--week" +
@@ -621,7 +621,7 @@ export function Heatmap({
             <div className="gh-heatmap__tip-date">{hover.label}</div>
             <div className="gh-heatmap__tip-row">
               <span>{labels.tokens}</span>
-              <span>{formatCompactNumber(hover.tokens)}</span>
+              <span>{formatLocaleCount(hover.tokens, locale)}</span>
             </div>
           </div>,
           document.body,

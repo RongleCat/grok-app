@@ -106,7 +106,10 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  /* none: kill elastic rubber-band at the locked bottom (macOS trackpad
+   * overscroll looked like "can pull a little then snap back + flash"). */
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
   /* We manage stick-to-bottom ourselves; browser anchoring fights
    * programmatic scrollTop during stream growth and feels like bounce. */
   overflow-anchor: none;

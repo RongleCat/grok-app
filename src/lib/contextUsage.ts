@@ -303,27 +303,47 @@ export function estimateContextBreakdown(
   };
 }
 
-/** Compact token display: 999 / 1.2k / 12k / 1.5M */
-export function formatTokenCount(n: number): string {
+/** Strip trailing `.0` from one-decimal forms (`1.0万` → `1万`). */
+function trimTrailingDotZero(s: string): string {
+  return s.endsWith(".0") ? s.slice(0, -2) : s;
+}
+
+/**
+ * Compact token display — Chinese units only (百 / 千 / 万·萬 / 亿·億).
+ * Never English k/M. Pass locale for 萬/億 (zh-TW) vs 万/亿.
+ * Example: 500 → 5百 · 1500 → 1.5千 · 12500 → 1.3万 · 1e6 → 100万
+ */
+export function formatTokenCount(n: number, locale: string = "zh"): string {
   if (!Number.isFinite(n) || n < 0) return "—";
-  if (n >= 1_000_000) {
-    const v = n / 1_000_000;
-    return `${v >= 10 ? Math.round(v) : v.toFixed(1).replace(/\.0$/, "")}M`;
+  const whole = Math.round(n);
+  const isTw =
+    locale === "zh-TW" ||
+    locale.toLowerCase() === "zh-hant" ||
+    locale.toLowerCase().startsWith("zh-hant");
+  const wan = isTw ? "萬" : "万";
+  const yi = isTw ? "億" : "亿";
+  if (whole >= 100_000_000) {
+    return `${trimTrailingDotZero((whole / 100_000_000).toFixed(1))}${yi}`;
   }
-  if (n >= 10_000) return `${Math.round(n / 1000)}k`;
-  if (n >= 1000) {
-    const v = n / 1000;
-    return `${v.toFixed(1).replace(/\.0$/, "")}k`;
+  if (whole >= 10_000) {
+    return `${trimTrailingDotZero((whole / 10_000).toFixed(1))}${wan}`;
   }
-  return String(Math.round(n));
+  if (whole >= 1_000) {
+    return `${trimTrailingDotZero((whole / 1_000).toFixed(1))}千`;
+  }
+  if (whole >= 100) {
+    return `${trimTrailingDotZero((whole / 100).toFixed(1))}百`;
+  }
+  return String(whole);
 }
 
 export function formatContextChipLabel(
   tokens: number | null,
   source: ContextUsageSource,
+  locale: string = "zh",
 ): string {
   if (tokens == null || source === "unknown") return "—";
-  const f = formatTokenCount(tokens);
+  const f = formatTokenCount(tokens, locale);
   return source === "estimated" ? `~${f}` : f;
 }
 
@@ -352,10 +372,12 @@ function breakdownOrNull(
 
 /**
  * Resolve what the chip should show from reducer state + live messages.
+ * `locale` selects 万/亿 vs 萬/億 (and 百/千) for the chip label.
  */
 export function resolveContextUsageDisplay(
   state: ContextUsageState,
   messages: ContextUsageMessage[],
+  locale: string = "zh",
 ): ContextUsageDisplay {
   const lastCompact = state.lastCompact;
   const knownUsage = state.knownUsage;
@@ -370,7 +392,7 @@ export function resolveContextUsageDisplay(
     return {
       tokens: knownUsage.totalTokens,
       source: "known",
-      label: formatContextChipLabel(knownUsage.totalTokens, "known"),
+      label: formatContextChipLabel(knownUsage.totalTokens, "known", locale),
       lastCompact,
       breakdown,
       knownUsage,
@@ -395,7 +417,7 @@ export function resolveContextUsageDisplay(
     return {
       tokens,
       source,
-      label: formatContextChipLabel(tokens, source),
+      label: formatContextChipLabel(tokens, source, locale),
       lastCompact,
       breakdown,
       knownUsage,
@@ -407,7 +429,7 @@ export function resolveContextUsageDisplay(
     return {
       tokens: null,
       source: "unknown",
-      label: formatContextChipLabel(null, "unknown"),
+      label: formatContextChipLabel(null, "unknown", locale),
       lastCompact,
       // Still surface visible role split as estimated (honest ~).
       breakdown,
@@ -421,7 +443,7 @@ export function resolveContextUsageDisplay(
     return {
       tokens: null,
       source: "unknown",
-      label: formatContextChipLabel(null, "unknown"),
+      label: formatContextChipLabel(null, "unknown", locale),
       lastCompact: null,
       breakdown: null,
       knownUsage,
@@ -430,7 +452,7 @@ export function resolveContextUsageDisplay(
   return {
     tokens: estimated,
     source: "estimated",
-    label: formatContextChipLabel(estimated, "estimated"),
+    label: formatContextChipLabel(estimated, "estimated", locale),
     lastCompact: null,
     breakdown,
     knownUsage,

@@ -770,6 +770,19 @@ export function ConversationThread({
       const n = messages.length;
       for (let i = Math.max(0, n - 2); i < n; i++) out.push(i);
     }
+    // Even when idle, pin-window must include the last user + last assistant
+    // (not only trailing tool_step zeros), or reopening a long tool-heavy
+    // thread can paint an empty viewport at the bottom.
+    if (!turnBusy && messages.length > 0) {
+      pushId(lastUserMessageId);
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const row = messages[i]!;
+        if (row.role === "assistant" && !row.isError) {
+          out.push(i);
+          break;
+        }
+      }
+    }
     return out;
   }, [
     messages,
@@ -784,10 +797,28 @@ export function ConversationThread({
     (i: number) => {
       const m = messages[i];
       if (!m) return 120;
+      // Tool steps already woven into an assistant timeline render as 0-height
+      // spacers — estimate 0 so virtualization does not invent a blank pin tail.
+      const toolInlined =
+        isToolStepMessage(m) &&
+        (() => {
+          const tcid =
+            (m.toolCallId || "").trim() ||
+            (m.id.startsWith("tool-") ? m.id.slice(5) : "");
+          return !!tcid && isToolInlinedInAssistants(messages, tcid);
+        })();
+      const collapsedTool =
+        toolInlined ||
+        (m.role === "tool" &&
+          !isToolStepMessage(m) &&
+          !isEndOfTurnMarker(m.marker) &&
+          m.marker !== "context_compact" &&
+          !(m.content?.startsWith("context_compact") || m.compactMeta));
       return estimateChatRowHeight({
         contentLength: m.content?.length ?? 0,
         thoughtLength: m.thought?.length ?? 0,
         role: m.role,
+        collapsed: collapsedTool,
       });
     },
     [messages],
@@ -926,8 +957,8 @@ export function ConversationThread({
                 Number.isFinite(meta.tokensAfter)
               ) {
                 detail = tr("compact.tokensRange", {
-                  before: formatTokenCount(meta.tokensBefore),
-                  after: formatTokenCount(meta.tokensAfter),
+                  before: formatTokenCount(meta.tokensBefore, locale),
+                  after: formatTokenCount(meta.tokensAfter, locale),
                 });
               } else if (meta?.note) {
                 detail = meta.note;

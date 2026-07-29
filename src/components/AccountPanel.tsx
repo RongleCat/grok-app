@@ -10,6 +10,7 @@ import type { AccountStatus, SavedAccount } from "@/lib/api";
 import {
   accountDisplayName,
   accountInitials,
+  formatChineseCount,
   formatCompactNumber,
   formatDuration,
   formatQuotaResetTime,
@@ -80,6 +81,8 @@ export interface AccountPanelLabels {
   callLogsDayEmpty: string;
   heatmapDay: string;
   heatmapWeek: string;
+  /** Total tokens across heatmap (or selected range). Includes `{count}`. */
+  heatmapTotalTokens: string;
   weeklyTitle: string;
   loginHelpTitle: string;
   loginHelpBody: string;
@@ -186,6 +189,17 @@ export function AccountPanel({
   const rangeSessionCount = selectedHeatRange
     ? sumHeatInRange(status?.heatmap ?? [], selectedHeatRange).requests
     : null;
+
+  /** Full heatmap total, or tokens in the selected day/week range. */
+  const heatTokenTotal = useMemo(() => {
+    const days = status?.heatmap ?? [];
+    if (selectedHeatRange) {
+      return sumHeatInRange(days, selectedHeatRange).tokens;
+    }
+    let tokens = 0;
+    for (const d of days) tokens += d.tokens;
+    return tokens;
+  }, [status?.heatmap, selectedHeatRange]);
 
   const filteredCallLogs = useMemo(() => {
     const logs = status?.callLogs ?? [];
@@ -601,33 +615,52 @@ export function AccountPanel({
           <section className="account-section">
             <div className="account-section__title account-section__title--row">
               <span>{labels.heatmap}</span>
-              <div
-                className="account-heat-toggle"
-                role="group"
-                aria-label={labels.heatmap}
-              >
-                <button
-                  type="button"
-                  className={
-                    "account-heat-toggle__btn" +
-                    (heatGranularity === "day" ? " is-active" : "")
+              <div className="account-heatmap-title-meta">
+                <span
+                  className="account-heatmap-total"
+                  title={
+                    Number.isFinite(heatTokenTotal)
+                      ? String(Math.round(heatTokenTotal))
+                      : undefined
                   }
-                  aria-pressed={heatGranularity === "day"}
-                  onClick={() => setGranularity("day")}
                 >
-                  {labels.heatmapDay}
-                </button>
-                <button
-                  type="button"
-                  className={
-                    "account-heat-toggle__btn" +
-                    (heatGranularity === "week" ? " is-active" : "")
-                  }
-                  aria-pressed={heatGranularity === "week"}
-                  onClick={() => setGranularity("week")}
+                  {labels.heatmapTotalTokens.replace(
+                    "{count}",
+                    // Always Chinese units (千 / 万·萬 / 亿·億), not English k/M.
+                    formatChineseCount(
+                      heatTokenTotal,
+                      locale === "zh-TW" ? "zh-TW" : "zh",
+                    ),
+                  )}
+                </span>
+                <div
+                  className="account-heat-toggle"
+                  role="group"
+                  aria-label={labels.heatmap}
                 >
-                  {labels.heatmapWeek}
-                </button>
+                  <button
+                    type="button"
+                    className={
+                      "account-heat-toggle__btn" +
+                      (heatGranularity === "day" ? " is-active" : "")
+                    }
+                    aria-pressed={heatGranularity === "day"}
+                    onClick={() => setGranularity("day")}
+                  >
+                    {labels.heatmapDay}
+                  </button>
+                  <button
+                    type="button"
+                    className={
+                      "account-heat-toggle__btn" +
+                      (heatGranularity === "week" ? " is-active" : "")
+                    }
+                    aria-pressed={heatGranularity === "week"}
+                    onClick={() => setGranularity("week")}
+                  >
+                    {labels.heatmapWeek}
+                  </button>
+                </div>
               </div>
             </div>
             <div className="account-section__body account-section__body--heat">
@@ -699,7 +732,12 @@ export function AccountPanel({
                         {row.model || "—"}
                       </span>
                       <span>{row.turns}</span>
-                      <span>{formatCompactNumber(row.contextTokens)}</span>
+                      <span>
+                        {formatCompactNumber(
+                          row.contextTokens,
+                          locale === "zh-TW" ? "zh-TW" : "zh",
+                        )}
+                      </span>
                       <span>{formatDuration(row.durationSecs)}</span>
                       <span>
                         {formatRelativeTime(row.startedAt, locale)}

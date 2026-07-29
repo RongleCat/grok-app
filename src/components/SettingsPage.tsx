@@ -2816,6 +2816,7 @@ export function SettingsPage({
               callLogsDayEmpty: t("account.callLogs.dayEmpty"),
               heatmapDay: t("account.heatmap.day"),
               heatmapWeek: t("account.heatmap.week"),
+              heatmapTotalTokens: t("account.heatmap.totalTokens"),
               weeklyTitle: t("account.weeklyTitle"),
               loginHelpTitle: t("account.loginHelpTitle"),
               loginHelpBody: t("account.loginHelpBody"),

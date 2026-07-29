@@ -183,12 +183,67 @@ export function usagePercent(billing: BillingSnapshot): number | null {
   return null;
 }
 
-export function formatCompactNumber(n: number | null | undefined): string {
+/**
+ * Compact counts for account / heatmap / call logs.
+ * Always Chinese units (千 / 万 / 亿) — never English k/M.
+ * Pass locale for 萬/億 (zh-TW) vs 万/亿.
+ */
+export function formatCompactNumber(
+  n: number | null | undefined,
+  locale: string = "zh",
+): string {
+  return formatChineseCount(n, locale);
+}
+
+/** Strip trailing `.0` from one-decimal compact forms (`1.0万` → `1万`). */
+function trimTrailingDotZero(s: string): string {
+  return s.endsWith(".0") ? s.slice(0, -2) : s;
+}
+
+/**
+ * Chinese compact count: 百 / 千 / 万·萬 / 亿·億 (not English k/M).
+ * `zh-TW` uses 萬/億; simplified (default) uses 万/亿.
+ * Bands: ≥1e8 亿, ≥1e4 万, ≥1e3 千, ≥100 百, else integer/1dp.
+ */
+export function formatChineseCount(
+  n: number | null | undefined,
+  locale: string = "zh",
+): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  if (Number.isInteger(n)) return String(n);
-  return n.toFixed(1);
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  const whole = Math.round(abs);
+  const isTw =
+    locale === "zh-TW" ||
+    locale.toLowerCase() === "zh-hant" ||
+    locale.toLowerCase().startsWith("zh-hant");
+  const wan = isTw ? "萬" : "万";
+  const yi = isTw ? "億" : "亿";
+
+  if (whole >= 100_000_000) {
+    return `${sign}${trimTrailingDotZero((whole / 100_000_000).toFixed(1))}${yi}`;
+  }
+  if (whole >= 10_000) {
+    return `${sign}${trimTrailingDotZero((whole / 10_000).toFixed(1))}${wan}`;
+  }
+  if (whole >= 1_000) {
+    return `${sign}${trimTrailingDotZero((whole / 1_000).toFixed(1))}千`;
+  }
+  if (whole >= 100) {
+    return `${sign}${trimTrailingDotZero((whole / 100).toFixed(1))}百`;
+  }
+  if (Number.isInteger(abs) || Math.abs(abs - whole) < 1e-9) {
+    return `${sign}${whole}`;
+  }
+  return `${sign}${abs.toFixed(1)}`;
+}
+
+/** Locale-aware compact number (Chinese units for all locales in this product). */
+export function formatLocaleCount(
+  n: number | null | undefined,
+  locale: string = "zh",
+): string {
+  return formatChineseCount(n, locale);
 }
 
 /** Local calendar day `YYYY-MM-DD` for an ISO timestamp (heatmap / call-log filter). */

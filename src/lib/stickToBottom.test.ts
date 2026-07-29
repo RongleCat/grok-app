@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  STICK_ESCAPE_MIN_DELTA_PX,
   STICK_HEIGHT_NOISE_PX,
   STICK_HARD_BOTTOM_PX,
   STICK_TO_BOTTOM_THRESHOLD_PX,
@@ -7,6 +8,7 @@ import {
   distanceFromBottom,
   isHardBottom,
   isHeightDeltaNoise,
+  isMeaningfulScrollUp,
   isNearBottom,
   nextStickPinState,
 } from "./stickToBottom";
@@ -69,13 +71,27 @@ describe("isHeightDeltaNoise", () => {
     expect(isHeightDeltaNoise(1)).toBe(true);
     expect(isHeightDeltaNoise(3)).toBe(true);
     expect(isHeightDeltaNoise(-2)).toBe(true);
-    expect(STICK_HEIGHT_NOISE_PX).toBe(4);
+    expect(isHeightDeltaNoise(7)).toBe(true);
+    expect(STICK_HEIGHT_NOISE_PX).toBe(8);
   });
 
   it("passes real growth / collapse through", () => {
-    expect(isHeightDeltaNoise(4)).toBe(false);
+    expect(isHeightDeltaNoise(8)).toBe(false);
     expect(isHeightDeltaNoise(24)).toBe(false);
     expect(isHeightDeltaNoise(-40)).toBe(false);
+  });
+});
+
+describe("isMeaningfulScrollUp", () => {
+  it("ignores micro jitter at the locked bottom", () => {
+    expect(isMeaningfulScrollUp(595, 600)).toBe(false); // 5px
+    expect(isMeaningfulScrollUp(590, 600)).toBe(false); // 10px
+    expect(STICK_ESCAPE_MIN_DELTA_PX).toBe(14);
+  });
+
+  it("accepts a clear upward drag", () => {
+    expect(isMeaningfulScrollUp(580, 600)).toBe(true); // 20px
+    expect(isMeaningfulScrollUp(586, 600)).toBe(true); // 14px
   });
 });
 

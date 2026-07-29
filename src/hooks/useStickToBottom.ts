@@ -20,10 +20,13 @@ import {
   type UIEvent,
 } from "react";
 import {
+  STICK_ESCAPE_MIN_DELTA_PX,
+  STICK_ESCAPE_WHEEL_DELTA,
   STICK_TO_BOTTOM_THRESHOLD_PX,
   bottomScrollTop,
   isHardBottom,
   isHeightDeltaNoise,
+  isMeaningfulScrollUp,
   isNearBottom,
   nextStickPinState,
 } from "@/lib/stickToBottom";
@@ -191,12 +194,32 @@ export function useStickToBottom(
         lastScrollTop = ignore;
       }
 
-      // Capture direction now; re-read geometry in the deferred tick
-      // (content may grow a frame later during streaming).
-      const scrollingUp = scrollTop < lastScrollTop;
-      const scrollingDown = scrollTop > lastScrollTop;
-      if (scrollingUp) userIntentDownRef.current = false;
-      if (scrollingDown) userIntentDownRef.current = true;
+      const maxTop = bottomScrollTop(el.scrollHeight, el.clientHeight);
+      const meaningfulUp = isMeaningfulScrollUp(scrollTop, lastScrollTop);
+      const meaningfulDown =
+        scrollTop - lastScrollTop >= STICK_ESCAPE_MIN_DELTA_PX;
+
+      // While locked at bottom: ignore micro jitter / rubber-band / phantom
+      // spacer play. Only a real upward drag releases the lock.
+      if (isPinnedRef.current && !escapedRef.current && !meaningfulUp) {
+        if (Math.abs(scrollTop - maxTop) > 0.5) {
+          applyScrollTop(maxTop);
+        }
+        return;
+      }
+
+      // Clear intentional leave — escape immediately so stream growth cannot
+      // yank the reader back during the same gesture.
+      if (meaningfulUp && isPinnedRef.current) {
+        userIntentDownRef.current = false;
+        isPinnedRef.current = false;
+        escapedRef.current = true;
+        syncShowBack();
+        return;
+      }
+
+      if (meaningfulUp) userIntentDownRef.current = false;
+      if (meaningfulDown) userIntentDownRef.current = true;
 
       // ResizeObserver scroll races: suppress ambiguous resize-only events.
       // Never drop a clear scroll-down / intent-down hard-bottom landing —
@@ -204,6 +227,14 @@ export function useStickToBottom(
       // @see https://github.com/WICG/resize-observer/issues/25
       window.setTimeout(() => {
         if (ignore != null && scrollTop === ignore) return;
+
+        // Still locked (e.g. no escape this frame)? Keep clamped after layout.
+        if (isPinnedRef.current && !escapedRef.current) {
+          const top = bottomScrollTop(el.scrollHeight, el.clientHeight);
+          if (Math.abs(el.scrollTop - top) > 0.5) applyScrollTop(top);
+          syncShowBack();
+          return;
+        }
 
         const near = isNearBottom(
           el.scrollTop,
@@ -217,6 +248,8 @@ export function useStickToBottom(
           el.clientHeight,
         );
         const intentDown = userIntentDownRef.current;
+        const scrollingUp = meaningfulUp;
+        const scrollingDown = meaningfulDown;
 
         if (
           resizeDifferenceRef.current !== 0 &&
@@ -241,15 +274,31 @@ export function useStickToBottom(
         );
         isPinnedRef.current = next.pinned;
         escapedRef.current = next.escaped;
-        if (next.pinned) userIntentDownRef.current = false;
+        if (next.pinned) {
+          userIntentDownRef.current = false;
+          applyScrollTop(
+            bottomScrollTop(el.scrollHeight, el.clientHeight),
+          );
+        }
         syncShowBack();
       }, 1);
     };
 
     const handleWheel = (e: WheelEvent) => {
-      // deltaY < 0 → user reading history. Escape immediately so a concurrent
-      // content-growth follow cannot yank the viewport back down.
-      if (e.deltaY < 0 && el.scrollHeight > el.clientHeight) {
+      // Small ticks at the locked bottom (trackpad / elastic) — stay pinned.
+      if (
+        isPinnedRef.current &&
+        !escapedRef.current &&
+        Math.abs(e.deltaY) < STICK_ESCAPE_WHEEL_DELTA
+      ) {
+        return;
+      }
+      // deltaY < 0 → user reading history. Escape only on a clear gesture
+      // so concurrent content-growth follow cannot yank the viewport back.
+      if (
+        e.deltaY <= -STICK_ESCAPE_WHEEL_DELTA &&
+        el.scrollHeight > el.clientHeight
+      ) {
         userIntentDownRef.current = false;
         if (isPinnedRef.current) {
           escapedRef.current = true;
@@ -260,7 +309,7 @@ export function useStickToBottom(
       }
       // deltaY > 0 → scrolling toward latest. Mark intent so a no-delta
       // hard-bottom landing (max scrollTop) still re-pins.
-      if (e.deltaY > 0) {
+      if (e.deltaY >= STICK_ESCAPE_WHEEL_DELTA) {
         userIntentDownRef.current = true;
         if (escapedRef.current) {
           requestAnimationFrame(() => {
@@ -277,6 +326,9 @@ export function useStickToBottom(
               escapedRef.current = false;
               isPinnedRef.current = true;
               userIntentDownRef.current = false;
+              applyScrollTop(
+                bottomScrollTop(v.scrollHeight, v.clientHeight),
+              );
               syncShowBack();
             }
           });
@@ -292,15 +344,17 @@ export function useStickToBottom(
       const y = e.touches[0]?.clientY;
       if (touchY == null || y == null) return;
       const dy = y - touchY;
-      // Finger moves down → content moves up (reading history)
-      if (dy > 6) {
+      // Finger moves down → content moves up (reading history).
+      // Require a clear drag so a light touch at the locked bottom does not
+      // unstick and then snap back (bounce + flash).
+      if (dy > STICK_ESCAPE_MIN_DELTA_PX) {
         userIntentDownRef.current = false;
         if (isPinnedRef.current) {
           escapedRef.current = true;
           isPinnedRef.current = false;
           syncShowBack();
         }
-      } else if (dy < -6) {
+      } else if (dy < -STICK_ESCAPE_MIN_DELTA_PX) {
         // Finger moves up → content moves down (toward latest)
         userIntentDownRef.current = true;
       }
@@ -347,7 +401,7 @@ export function useStickToBottom(
       el.removeEventListener("touchend", onTouchEnd);
       el.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [enabled, conversationKey, syncShowBack]);
+  }, [enabled, conversationKey, syncShowBack, applyScrollTop]);
 
   // Conversation switch → re-pin and jump to bottom.
   useEffect(() => {

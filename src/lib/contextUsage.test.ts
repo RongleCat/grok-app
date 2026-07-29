@@ -12,26 +12,35 @@ import {
 } from "./contextUsage";
 
 describe("formatTokenCount", () => {
-  it("handles edge and scale bands", () => {
+  it("handles edge and Chinese scale bands (百/千/万/亿)", () => {
     expect(formatTokenCount(-1)).toBe("—");
     expect(formatTokenCount(NaN)).toBe("—");
     expect(formatTokenCount(0)).toBe("0");
     expect(formatTokenCount(42)).toBe("42");
-    expect(formatTokenCount(999)).toBe("999");
-    expect(formatTokenCount(1000)).toBe("1k");
-    expect(formatTokenCount(1500)).toBe("1.5k");
-    expect(formatTokenCount(10_000)).toBe("10k");
-    expect(formatTokenCount(12_400)).toBe("12k");
-    expect(formatTokenCount(1_000_000)).toBe("1M");
-    expect(formatTokenCount(1_500_000)).toBe("1.5M");
+    expect(formatTokenCount(100)).toBe("1百");
+    expect(formatTokenCount(500)).toBe("5百");
+    expect(formatTokenCount(999)).toBe("10百");
+    expect(formatTokenCount(1000)).toBe("1千");
+    expect(formatTokenCount(1500)).toBe("1.5千");
+    expect(formatTokenCount(10_000)).toBe("1万");
+    expect(formatTokenCount(12_400)).toBe("1.2万");
+    expect(formatTokenCount(1_000_000)).toBe("100万");
+    expect(formatTokenCount(1_500_000)).toBe("150万");
+  });
+
+  it("uses 萬/億 for zh-TW", () => {
+    expect(formatTokenCount(12_400, "zh-TW")).toBe("1.2萬");
+    expect(formatTokenCount(100_000_000, "zh-TW")).toBe("1億");
+    expect(formatTokenCount(1_000_000, "zh-TW")).toBe("100萬");
   });
 });
 
 describe("formatContextChipLabel", () => {
   it("prefixes estimate and uses em dash when unknown", () => {
     expect(formatContextChipLabel(null, "unknown")).toBe("—");
-    expect(formatContextChipLabel(1200, "known")).toBe("1.2k");
-    expect(formatContextChipLabel(1200, "estimated")).toBe("~1.2k");
+    expect(formatContextChipLabel(1200, "known")).toBe("1.2千");
+    expect(formatContextChipLabel(1200, "estimated")).toBe("~1.2千");
+    expect(formatContextChipLabel(12_000, "known", "zh-TW")).toBe("1.2萬");
   });
 });
 
@@ -252,7 +261,7 @@ describe("resolveContextUsageDisplay", () => {
     ]);
     expect(d.source).toBe("known");
     expect(d.tokens).toBe(40_000);
-    expect(d.label).toBe("40k");
+    expect(d.label).toBe("4万");
     // No visible user/assistant content → no breakdown rows
     expect(d.breakdown).toBeNull();
   });
