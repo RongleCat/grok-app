@@ -11,6 +11,10 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+
+- Desktop notification when the agent asks a question (`session://ask_user`), gated by the existing “Notify on permission” setting
+
 ## [0.2.1] - 2026-07-29
 
 > **Highlight:** Per-project draft memory, video covers, durable relay retries, and calmer chat errors.

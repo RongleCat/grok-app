@@ -14,7 +14,8 @@ export type DesktopNotifyOptions = {
 
 export type NotifyPermission = "granted" | "denied" | "default" | "unsupported";
 
-export type DesktopNotifyKind = "turn_done" | "permission";
+/** `ask_user` shares the permission toggle (agent is blocked either way). */
+export type DesktopNotifyKind = "turn_done" | "permission" | "ask_user";
 
 export type DesktopNotifyPrefs = {
   notifyOnTurnDone?: boolean;
@@ -24,6 +25,7 @@ export type DesktopNotifyPrefs = {
 /**
  * Whether user prefs allow a desktop notification of this kind.
  * Missing / undefined prefs default to **on** (product default).
+ * `permission` and `ask_user` both use `notifyOnPermission`.
  */
 export function shouldShowDesktopNotify(
   kind: DesktopNotifyKind,

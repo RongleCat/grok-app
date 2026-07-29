@@ -1427,6 +1427,8 @@ export const zhTW: Record<MessageKey, string> = {
   "notify.turnDoneBody": "對話已就緒，可繼續輸入。",
   "notify.permissionTitle": "需要授權",
   "notify.permissionBody": "Agent 正在等待你的批准。",
+  "notify.askUserTitle": "Agent 提問",
+  "notify.askUserBody": "Agent 正在等待你的回答。",
 
   "slash.section.commands": "指令",
   "slash.section.skills": "技能",

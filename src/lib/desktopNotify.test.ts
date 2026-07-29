@@ -132,11 +132,13 @@ describe("desktopNotify", () => {
 });
 
 describe("shouldShowDesktopNotify", () => {
-  it("defaults both kinds to on when prefs missing", () => {
+  it("defaults all kinds to on when prefs missing", () => {
     expect(shouldShowDesktopNotify("turn_done", undefined)).toBe(true);
     expect(shouldShowDesktopNotify("permission", null)).toBe(true);
+    expect(shouldShowDesktopNotify("ask_user", null)).toBe(true);
     expect(shouldShowDesktopNotify("turn_done", {})).toBe(true);
     expect(shouldShowDesktopNotify("permission", {})).toBe(true);
+    expect(shouldShowDesktopNotify("ask_user", {})).toBe(true);
   });
 
   it("respects explicit false prefs", () => {
@@ -145,6 +147,9 @@ describe("shouldShowDesktopNotify", () => {
     ).toBe(false);
     expect(
       shouldShowDesktopNotify("permission", { notifyOnPermission: false }),
+    ).toBe(false);
+    expect(
+      shouldShowDesktopNotify("ask_user", { notifyOnPermission: false }),
     ).toBe(false);
     expect(
       shouldShowDesktopNotify("turn_done", {
@@ -158,6 +163,12 @@ describe("shouldShowDesktopNotify", () => {
         notifyOnPermission: true,
       }),
     ).toBe(true);
+    expect(
+      shouldShowDesktopNotify("ask_user", {
+        notifyOnTurnDone: false,
+        notifyOnPermission: true,
+      }),
+    ).toBe(true);
   });
 
   it("treats true as on", () => {
@@ -167,5 +178,21 @@ describe("shouldShowDesktopNotify", () => {
     expect(
       shouldShowDesktopNotify("permission", { notifyOnPermission: true }),
     ).toBe(true);
+    expect(
+      shouldShowDesktopNotify("ask_user", { notifyOnPermission: true }),
+    ).toBe(true);
+  });
+
+  it("ask_user shares notifyOnPermission with permission", () => {
+    expect(
+      shouldShowDesktopNotify("ask_user", { notifyOnPermission: false }),
+    ).toBe(
+      shouldShowDesktopNotify("permission", { notifyOnPermission: false }),
+    );
+    expect(
+      shouldShowDesktopNotify("ask_user", { notifyOnPermission: true }),
+    ).toBe(
+      shouldShowDesktopNotify("permission", { notifyOnPermission: true }),
+    );
   });
 });

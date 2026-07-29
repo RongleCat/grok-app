@@ -3019,9 +3019,30 @@ export default function App() {
               // Background chat asked a question — answer it on reopen.
               setToast(trRef.current("session.backgroundPermission"));
               window.setTimeout(() => setToast(null), 4200);
+              if (
+                shouldShowDesktopNotify("ask_user", notifyPrefsRef.current)
+              ) {
+                showDesktopNotification({
+                  title: trRef.current("notify.askUserTitle"),
+                  body: trRef.current("notify.askUserBody"),
+                  tag: `ask-bg-${p.rpcId}`,
+                  force: true,
+                });
+              }
               return;
             }
             setAskUser(p);
+            // Agent is blocked on an answer — same as permission bar.
+            if (
+              shouldShowDesktopNotify("ask_user", notifyPrefsRef.current)
+            ) {
+              showDesktopNotification({
+                title: trRef.current("notify.askUserTitle"),
+                body: trRef.current("notify.askUserBody"),
+                tag: `ask-${p.rpcId}`,
+                force: true,
+              });
+            }
           }),
         );
         await track(

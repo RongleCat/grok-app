@@ -1481,6 +1481,8 @@ const en = {
   "notify.turnDoneBody": "Session is ready for the next message.",
   "notify.permissionTitle": "Permission needed",
   "notify.permissionBody": "The agent is waiting for your approval.",
+  "notify.askUserTitle": "Question from agent",
+  "notify.askUserBody": "The agent is waiting for your answer.",
 
   // Slash palette
   "slash.section.commands": "Commands",
@@ -3656,6 +3658,8 @@ const zh: Record<MessageKey, string> = {
   "notify.turnDoneBody": "会话已就绪，可继续输入。",
   "notify.permissionTitle": "需要授权",
   "notify.permissionBody": "Agent 正在等待你的批准。",
+  "notify.askUserTitle": "Agent 提问",
+  "notify.askUserBody": "Agent 正在等待你的回答。",
 
   "slash.section.commands": "命令",
   "slash.section.skills": "技能",
