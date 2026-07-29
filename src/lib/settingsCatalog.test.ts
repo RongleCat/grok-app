@@ -105,6 +105,7 @@ describe("settingsCatalog", () => {
     expect(appearance).toContain("settings.messageTimestamps");
     expect(appearance).toContain("settings.messageTimeFormat");
     expect(appearance).toContain("settings.sidebarShowRelativeTime");
+    expect(appearance).toContain("settings.backBottomAlways");
     const rim = keywordKeysForSection("remote_im");
     expect(rim).toContain("settings.nav.remoteIm");
     expect(rim).toContain("settings.tab.remoteIm");
@@ -218,6 +219,14 @@ describe("settingsCatalog", () => {
       relativeZh.some(
         (h) => h.entry.id === "appearance.sidebarShowRelativeTime",
       ),
+    ).toBe(true);
+    const backBottom = searchSettingsEntries("back to bottom", tZh, tEn);
+    expect(
+      backBottom.some((h) => h.entry.id === "appearance.backBottomAlways"),
+    ).toBe(true);
+    const backBottomZh = searchSettingsEntries("回到底部", tZh, tEn);
+    expect(
+      backBottomZh.some((h) => h.entry.id === "appearance.backBottomAlways"),
     ).toBe(true);
     const cli = searchSettingsEntries("CLI", tZh, tEn);
     expect(cli.some((h) => h.entry.section === "runtime")).toBe(true);

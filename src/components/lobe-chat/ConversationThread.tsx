@@ -98,6 +98,11 @@ import {
 } from "./TimelineToolRow";
 import { TimelinePhaseBlock } from "./TimelinePhaseBlock";
 import { buildTimelineUnits } from "@/lib/timelinePhases";
+import {
+  BACK_BOTTOM_ALWAYS_CHANGE_EVENT,
+  loadBackBottomAlwaysPref,
+  shouldShowBackBottom,
+} from "@/lib/backBottomAlwaysPref";
 import "./lobe-chat.css";
 
 type AttachLabels = {
@@ -531,6 +536,21 @@ export function ConversationThread({
     conversationKey: sessionKey ?? "chat",
     forceStickKey,
   });
+
+  const [backBottomAlways, setBackBottomAlways] = useState(() =>
+    loadBackBottomAlwaysPref(),
+  );
+  useEffect(() => {
+    const onPref = (ev: Event) => {
+      const detail = (ev as CustomEvent).detail;
+      if (typeof detail === "boolean") setBackBottomAlways(detail);
+      else setBackBottomAlways(loadBackBottomAlwaysPref());
+    };
+    window.addEventListener(BACK_BOTTOM_ALWAYS_CHANGE_EVENT, onPref);
+    return () =>
+      window.removeEventListener(BACK_BOTTOM_ALWAYS_CHANGE_EVENT, onPref);
+  }, []);
+  const backBottomVisible = shouldShowBackBottom(backBottomAlways, showBack);
 
   const messageNodes = useMemo(
     () => buildSessionMessageNodes(messages),
@@ -1556,7 +1576,7 @@ export function ConversationThread({
       />
 
       <BackBottom
-        visible={showBack}
+        visible={backBottomVisible}
         label={tr("chat.scrollBottom")}
         onClick={() => scrollToBottom("smooth")}
       />

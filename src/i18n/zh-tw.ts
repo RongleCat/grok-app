@@ -914,6 +914,9 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.codeLineNumbers": "程式碼區塊顯示行號",
   "settings.codeLineNumbersDesc":
     "在聊天中的圍欄程式碼區塊左側顯示行號欄。預設關閉。",
+  "settings.backBottomAlways": "始終顯示回到底部",
+  "settings.backBottomAlwaysDesc":
+    "即使已在底部也保留「回到最新」按鈕。預設關閉（僅在上滾後顯示）。",
   "settings.confirmExternalLinks": "開啟連結前確認",
   "settings.confirmExternalLinksDesc":
     "從聊天開啟 http(s) 連結前先詢問。預設關閉，減少打擾。",

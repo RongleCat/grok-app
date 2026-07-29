@@ -953,6 +953,9 @@ const en = {
   "settings.codeLineNumbers": "Show line numbers on code blocks",
   "settings.codeLineNumbersDesc":
     "Display a line-number gutter on the left of fenced code in chat. Off by default.",
+  "settings.backBottomAlways": "Always show back-to-bottom",
+  "settings.backBottomAlwaysDesc":
+    "Keep the scroll-to-latest control visible even when already at the bottom. Off by default (shows only after you scroll up).",
   "settings.confirmExternalLinks": "Confirm before opening links",
   "settings.confirmExternalLinksDesc":
     "Ask before opening http(s) links from chat in your browser. Off by default.",
@@ -3229,6 +3232,9 @@ const zh: Record<MessageKey, string> = {
   "settings.codeLineNumbers": "代码块显示行号",
   "settings.codeLineNumbersDesc":
     "在聊天中的围栏代码块左侧显示行号栏。默认关闭。",
+  "settings.backBottomAlways": "始终显示回到底部",
+  "settings.backBottomAlwaysDesc":
+    "即使已在底部也保留「回到最新」按钮。默认关闭（仅在上滚后显示）。",
   "settings.confirmExternalLinks": "打开链接前确认",
   "settings.confirmExternalLinksDesc":
     "从聊天打开 http(s) 链接前先询问。默认关闭，减少打扰。",

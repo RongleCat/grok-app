@@ -128,6 +128,10 @@ import {
   saveCodeLineNumbersPref,
 } from "@/lib/codeLineNumbersPref";
 import {
+  loadBackBottomAlwaysPref,
+  saveBackBottomAlwaysPref,
+} from "@/lib/backBottomAlwaysPref";
+import {
   loadCodeWrapPref,
   saveCodeWrapPref,
 } from "@/lib/codeWrapPref";
@@ -949,6 +953,10 @@ export function SettingsPage({
   /** Chat code-block line numbers — frontend-only localStorage. */
   const [codeLineNumbers, setCodeLineNumbers] = useState(() =>
     loadCodeLineNumbersPref(),
+  );
+  /** Always-show back-to-bottom control — frontend-only localStorage. */
+  const [backBottomAlways, setBackBottomAlways] = useState(() =>
+    loadBackBottomAlwaysPref(),
   );
   const [confirmExternalLinks, setConfirmExternalLinks] = useState(() =>
     loadConfirmExternalLinksPref(),
@@ -3107,6 +3115,31 @@ export function SettingsPage({
                         saveCodeLineNumbersPref(next);
                       }}
                       ariaLabel={t("settings.codeLineNumbers")}
+                    />
+                  </div>
+                </div>
+                <div
+                  className={
+                    "settings-card" +
+                    rowHighlight("settings-anchor-backBottomAlways")
+                  }
+                  id="settings-anchor-backBottomAlways"
+                >
+                  <div className="settings-row">
+                    <div className="settings-row__text">
+                      <SettingsLabelWithTip
+                        label={t("settings.backBottomAlways")}
+                        tip={t("settings.backBottomAlwaysDesc")}
+                      />
+                    </div>
+                    <UiCheck
+                      checked={backBottomAlways}
+                      onChange={() => {
+                        const next = !backBottomAlways;
+                        setBackBottomAlways(next);
+                        saveBackBottomAlwaysPref(next);
+                      }}
+                      ariaLabel={t("settings.backBottomAlways")}
                     />
                   </div>
                 </div>
