@@ -1081,13 +1081,14 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [searchQuery, showSearch]);
 
-  // Global shortcuts: search, find-in-chat, help, doctor, copy last reply, new chat, settings, voice, Esc-stop.
+  // Global shortcuts: search, find-in-chat, help, doctor, copy last reply, toggle sidebar, new chat, settings, voice, Esc-stop.
   // Handlers go through refs so we don't re-bind every render.
   const shortcutHandlersRef = useRef({
     newChat: () => {},
     openSettings: () => {},
     openChatFind: () => {},
     copyLastReply: () => {},
+    toggleSidebar: () => {},
     toggleVoice: () => {},
     cancelVoice: () => {},
     startLiveVoice: () => {},
@@ -1179,6 +1180,12 @@ export default function App() {
       if (key === "c" && e.shiftKey) {
         e.preventDefault();
         shortcutHandlersRef.current.copyLastReply();
+        return;
+      }
+      // Toggle left session sidebar (desktop rail / phone drawer): Cmd/Ctrl+B.
+      if (key === "b" && !e.shiftKey) {
+        e.preventDefault();
+        shortcutHandlersRef.current.toggleSidebar();
         return;
       }
       // Live Voice: Cmd/Ctrl+Shift+V (works while typing in composer).
@@ -8759,6 +8766,19 @@ export default function App() {
     },
     copyLastReply: () => {
       void copyLastAssistantReply();
+    },
+    toggleSidebar: () => {
+      // Same layout flag as phone drawer open/close and desktop rail hide/show.
+      if (layoutRef.current.sidebarCollapsed) {
+        openSidebarPane();
+        return;
+      }
+      setLayout((l) => {
+        if (l.sidebarCollapsed) return l;
+        const n = { ...l, sidebarCollapsed: true };
+        saveLayout(localStorage, n);
+        return n;
+      });
     },
     toggleVoice: () => {
       toggleVoice();

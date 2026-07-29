@@ -76,4 +76,13 @@ describe("shortcuts catalog", () => {
     expect(row!.mac).toBe("⌘ ⇧ C");
     expect(row!.win).toBe("Ctrl Shift C");
   });
+
+  it("lists toggle sidebar (Cmd/Ctrl+B) in navigation", () => {
+    const row = SHORTCUTS.find((s) => s.id === "toggleSidebar");
+    expect(row).toBeDefined();
+    expect(row!.labelKey).toBe("shortcuts.toggleSidebar");
+    expect(row!.group).toBe("navigation");
+    expect(row!.mac).toBe("⌘ B");
+    expect(row!.win).toBe("Ctrl B");
+  });
 });
