@@ -265,7 +265,10 @@ import {
   type ChatFindMatch,
 } from "@/lib/chatFind";
 import { connPillForState } from "@/lib/connStatus";
-import { shortcutsForPlatform } from "@/lib/shortcuts";
+import {
+  matchGlobalShortcut,
+  shortcutsForPlatform,
+} from "@/lib/shortcuts";
 import {
   ensureNotifyPermission,
   shouldShowDesktopNotify,
@@ -1129,63 +1132,57 @@ export default function App() {
         }
       }
       // Ctrl+Space toggles voice (not Cmd+Space — Spotlight on macOS).
+      // Stays outside matchGlobalShortcut (ctrl-only; order before mod branch).
       if (isVoiceToggleKey(e)) {
         e.preventDefault();
         e.stopPropagation();
         shortcutHandlersRef.current.toggleVoice();
         return;
       }
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
+      // Mod-based catalog actions — single registry in lib/shortcuts.ts.
+      // Esc-stop stays special-cased above (order vs voice cancel / overlays).
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName?.toLowerCase();
       const typing =
         tag === "input" ||
         tag === "textarea" ||
         !!target?.isContentEditable;
-      const key = e.key.toLowerCase();
-      // In-chat find — open even while typing in the composer.
-      if (key === "f" && !e.shiftKey) {
-        e.preventDefault();
-        shortcutHandlersRef.current.openChatFind();
-        return;
-      }
-      if (key === "k") {
-        e.preventDefault();
-        setShowSearch(true);
-        return;
-      }
-      if (key === "/") {
-        e.preventDefault();
-        setShowShortcuts((v) => !v);
-        return;
-      }
-      if (key === "," && !typing) {
-        e.preventDefault();
-        shortcutHandlersRef.current.openSettings();
-        return;
-      }
-      if (key === "n" && !typing) {
-        e.preventDefault();
-        shortcutHandlersRef.current.newChat();
-        return;
-      }
-      if (key === "d" && e.shiftKey) {
-        e.preventDefault();
-        setShowDoctor(true);
-        return;
-      }
-      // Copy last assistant reply: Cmd/Ctrl+Shift+C (always; not plain Cmd+C).
-      if (key === "c" && e.shiftKey) {
-        e.preventDefault();
-        shortcutHandlersRef.current.copyLastReply();
-        return;
-      }
-      // Live Voice: Cmd/Ctrl+Shift+V (works while typing in composer).
-      if (key === "v" && e.shiftKey) {
-        e.preventDefault();
-        shortcutHandlersRef.current.startLiveVoice();
-        return;
+      const matched = matchGlobalShortcut({
+        key: e.key.toLowerCase(),
+        mod: e.metaKey || e.ctrlKey,
+        shift: e.shiftKey,
+        alt: e.altKey,
+        typing,
+      });
+      if (!matched) return;
+      e.preventDefault();
+      switch (matched) {
+        case "findInChat":
+          shortcutHandlersRef.current.openChatFind();
+          return;
+        case "search":
+          setShowSearch(true);
+          return;
+        case "help":
+          setShowShortcuts((v) => !v);
+          return;
+        case "settings":
+          shortcutHandlersRef.current.openSettings();
+          return;
+        case "newChat":
+          shortcutHandlersRef.current.newChat();
+          return;
+        case "doctor":
+          setShowDoctor(true);
+          return;
+        case "copyLastReply":
+          shortcutHandlersRef.current.copyLastReply();
+          return;
+        case "liveVoice":
+          shortcutHandlersRef.current.startLiveVoice();
+          return;
+        default:
+          return;
       }
     };
     document.addEventListener("keydown", onKey, true);
