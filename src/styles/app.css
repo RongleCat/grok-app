@@ -7290,6 +7290,16 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   white-space: nowrap;
 }
 
+.perm-bar__countdown {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .perm-bar__preview {
   margin: 0;
   padding: 8px 10px;

@@ -336,6 +336,26 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     labelKey: "settings.section.permissions",
     keywords: ["rules", "permission rules"],
   },
+  {
+    id: "general.permissionTimeout",
+    section: "general",
+    tab: "permissions",
+    anchorId: "settings-anchor-permissionTimeout",
+    labelKey: "settings.permissionTimeout",
+    descKeys: [
+      "settings.permissionTimeoutDesc",
+      "settings.permissionTimeout.off",
+      "settings.section.permissions",
+    ],
+    keywords: [
+      "auto-deny",
+      "timeout",
+      "permission timeout",
+      "auto deny",
+      "自动拒绝",
+      "超时",
+    ],
+  },
   // ── general / agent ──
   {
     id: "general.maxAgentTurns",

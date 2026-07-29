@@ -814,6 +814,14 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.permissionDeep": "預設權限",
   "settings.permissionDeepDesc":
     "對新一輪對話生效，並依上方選擇的範圍記憶。YOLO 會自動核准工具呼叫。",
+  "settings.permissionTimeout": "逾時自動拒絕",
+  "settings.permissionTimeoutDesc":
+    "若在時限內未回應權限請求，將自動拒絕。預設關閉。",
+  "settings.permissionTimeout.off": "關閉",
+  "settings.permissionTimeout.30": "30 秒",
+  "settings.permissionTimeout.60": "1 分鐘",
+  "settings.permissionTimeout.120": "2 分鐘",
+  "settings.permissionTimeout.300": "5 分鐘",
   "settings.sandboxProfile": "沙箱設定檔",
   "settings.sandboxProfileDesc":
     "對 Agent 行程施加作業系統級檔案系統/網路隔離（Linux Landlock / macOS Seatbelt）。在新啟動 Agent 時生效——變更後請重新連線工作階段。",
@@ -1772,6 +1780,7 @@ export const zhTW: Record<MessageKey, string> = {
   "perm.hintOnce": "僅執行這一次，下次仍會詢問。",
   "perm.hintSession": "本對話內同類操作不再詢問。",
   "perm.hintDeny": "阻止本次操作並告知 Agent。",
+  "perm.autoDenyCountdown": "{seconds} 秒後自動拒絕",
 
   "askUser.title": "Agent 提問",
   "askUser.submit": "提交",

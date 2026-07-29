@@ -849,6 +849,14 @@ const en = {
   "settings.permissionDeep": "Default permission",
   "settings.permissionDeepDesc":
     "Applied to new turns and remembered at the scope chosen above. YOLO auto-approves tools.",
+  "settings.permissionTimeout": "Auto-deny after",
+  "settings.permissionTimeoutDesc":
+    "If you don't respond, automatically deny the permission request after this time. Off by default.",
+  "settings.permissionTimeout.off": "Off",
+  "settings.permissionTimeout.30": "30 seconds",
+  "settings.permissionTimeout.60": "1 minute",
+  "settings.permissionTimeout.120": "2 minutes",
+  "settings.permissionTimeout.300": "5 minutes",
   "settings.sandboxProfile": "Sandbox profile",
   "settings.sandboxProfileDesc":
     "OS-level filesystem/network isolation for the agent process (Landlock/Seatbelt). Applied when a new agent starts — reconnect the session after changing.",
@@ -1833,6 +1841,7 @@ const en = {
   "perm.hintOnce": "Run this once; ask again next time.",
   "perm.hintSession": "Allow similar actions for the rest of this chat.",
   "perm.hintDeny": "Block this action and tell the agent.",
+  "perm.autoDenyCountdown": "Auto-deny in {seconds}s",
 
   // Agent ask_user_question
   "askUser.title": "Agent question",
@@ -3113,6 +3122,14 @@ const zh: Record<MessageKey, string> = {
   "settings.permissionDeep": "默认权限",
   "settings.permissionDeepDesc":
     "对新一轮对话生效，并按上方选择的范围记忆。YOLO 会自动批准工具调用。",
+  "settings.permissionTimeout": "超时自动拒绝",
+  "settings.permissionTimeoutDesc":
+    "若在时限内未响应权限请求，将自动拒绝。默认关闭。",
+  "settings.permissionTimeout.off": "关闭",
+  "settings.permissionTimeout.30": "30 秒",
+  "settings.permissionTimeout.60": "1 分钟",
+  "settings.permissionTimeout.120": "2 分钟",
+  "settings.permissionTimeout.300": "5 分钟",
   "settings.sandboxProfile": "沙箱配置",
   "settings.sandboxProfileDesc":
     "对 Agent 进程施加操作系统级文件系统/网络隔离（Linux Landlock / macOS Seatbelt）。在新启动 Agent 时生效——更改后请重连会话。",
@@ -4071,6 +4088,7 @@ const zh: Record<MessageKey, string> = {
   "perm.hintOnce": "仅执行这一次，下次仍会询问。",
   "perm.hintSession": "本会话内同类操作不再询问。",
   "perm.hintDeny": "阻止本次操作并告知 Agent。",
+  "perm.autoDenyCountdown": "{seconds} 秒后自动拒绝",
 
   "askUser.title": "Agent 提问",
   "askUser.submit": "提交",

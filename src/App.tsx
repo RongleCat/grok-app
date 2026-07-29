@@ -59,6 +59,12 @@ import {
   NOTIFY_SOUND_CHANGE_EVENT,
   saveNotifySoundPref,
 } from "@/lib/notifySound";
+import {
+  loadPermissionTimeoutSec,
+  PERMISSION_TIMEOUT_CHANGE_EVENT,
+  permissionTimeoutRemainingSec,
+  savePermissionTimeoutSec,
+} from "@/lib/permissionTimeout";
 import { WallpaperMediaLayer } from "@/components/WallpaperMediaLayer";
 import {
   ASIDE_WIDTH_MIN,
@@ -1166,6 +1172,11 @@ export default function App() {
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
   const [perm, setPerm] = useState<PermissionPayload | null>(null);
   const permBarRef = useRef<HTMLDivElement | null>(null);
+  /** Seconds until auto-deny (null when off / no active timer). */
+  const [permCountdownSec, setPermCountdownSec] = useState<number | null>(null);
+  const [permissionTimeoutSec, setPermissionTimeoutSec] = useState(() =>
+    loadPermissionTimeoutSec(localStorage),
+  );
   const [askUser, setAskUser] = useState<AskUserPayload | null>(null);
   /**
    * Unanswered gates per session (`sessionId` → payload).
@@ -2315,6 +2326,21 @@ export default function App() {
     window.addEventListener(NOTIFY_SOUND_CHANGE_EVENT, onChange);
     return () =>
       window.removeEventListener(NOTIFY_SOUND_CHANGE_EVENT, onChange);
+  }, []);
+
+  // Permission auto-deny timeout (localStorage; Settings dispatches change event).
+  useEffect(() => {
+    const onChange = (ev: Event) => {
+      const detail = (ev as CustomEvent<unknown>).detail;
+      if (typeof detail === "number" && Number.isFinite(detail)) {
+        setPermissionTimeoutSec(detail);
+        return;
+      }
+      setPermissionTimeoutSec(loadPermissionTimeoutSec(localStorage));
+    };
+    window.addEventListener(PERMISSION_TIMEOUT_CHANGE_EVENT, onChange);
+    return () =>
+      window.removeEventListener(PERMISSION_TIMEOUT_CHANGE_EVENT, onChange);
   }, []);
 
   // Phone layout flag: mirror client + ≤820px only (desktop ≥821px unchanged).
@@ -8825,6 +8851,55 @@ export default function App() {
     wasStreamingRef.current = streaming;
   }, [session.state, messages, tr]);
 
+  /** Same path as Deny button / Escape / optional auto-deny timeout. */
+  const resolvePermission = useCallback(
+    (
+      p: PermissionPayload,
+      decision: "allow_once" | "allow_session" | "deny",
+      optionId: string,
+    ) => {
+      void api
+        .sessionResolvePermission({
+          rpcId: p.rpcId,
+          decision,
+          optionId,
+          scopeKey: p.scopeKey,
+          // Background turns raise permissions on their own ACP child.
+          sessionId: p.sessionId,
+        })
+        .then(() => {
+          clearPendingGates(p.sessionId);
+          setPerm(null);
+        })
+        .catch((e) => {
+          const code =
+            e && typeof e === "object" && "code" in e
+              ? String((e as { code?: string }).code)
+              : "";
+          showToast(
+            code === "UNSUPPORTED"
+              ? tr("mirror.unsupported")
+              : String(e),
+            4000,
+          );
+        });
+    },
+    [clearPendingGates, showToast, tr],
+  );
+
+  const denyActivePermission = useCallback(
+    (p: PermissionPayload) => {
+      const deny = mapPermissionButtons(p.options, {
+        allowOnce: tr("perm.allowOnce"),
+        allowSession: tr("perm.allowSession"),
+        deny: tr("perm.deny"),
+      }).find((b) => b.decision === "deny");
+      if (!deny) return;
+      resolvePermission(p, deny.decision, deny.optionId);
+    },
+    [resolvePermission, tr],
+  );
+
   // T15: permission bar — focus primary action, Tab trap, Escape → deny.
   useEffect(() => {
     if (!perm) return;
@@ -8835,26 +8910,7 @@ export default function App() {
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
-        const deny = mapPermissionButtons(perm.options, {
-          allowOnce: tr("perm.allowOnce"),
-          allowSession: tr("perm.allowSession"),
-          deny: tr("perm.deny"),
-        }).find((b) => b.decision === "deny");
-        if (deny) {
-          void api
-            .sessionResolvePermission({
-              rpcId: perm.rpcId,
-              decision: deny.decision,
-              optionId: deny.optionId,
-              scopeKey: perm.scopeKey,
-              // Background turns raise permissions on their own ACP child.
-              sessionId: perm.sessionId,
-            })
-            .then(() => {
-              clearPendingGates(perm.sessionId);
-              setPerm(null);
-            });
-        }
+        denyActivePermission(perm);
         return;
       }
       trapTabKey(e, permBarRef.current);
@@ -8864,7 +8920,36 @@ export default function App() {
       window.clearTimeout(t);
       document.removeEventListener("keydown", onKey, true);
     };
-  }, [perm, tr]);
+  }, [perm, denyActivePermission]);
+
+  // Optional auto-deny after N seconds (Settings → Permissions; 0 = off).
+  useEffect(() => {
+    if (!perm || permissionTimeoutSec <= 0) {
+      setPermCountdownSec(null);
+      return;
+    }
+    const startedAt = Date.now();
+    setPermCountdownSec(
+      permissionTimeoutRemainingSec(startedAt, permissionTimeoutSec, startedAt),
+    );
+    const tick = window.setInterval(() => {
+      setPermCountdownSec(
+        permissionTimeoutRemainingSec(
+          startedAt,
+          permissionTimeoutSec,
+          Date.now(),
+        ),
+      );
+    }, 250);
+    const t = window.setTimeout(() => {
+      denyActivePermission(perm);
+    }, permissionTimeoutSec * 1000);
+    return () => {
+      window.clearTimeout(t);
+      window.clearInterval(tick);
+      setPermCountdownSec(null);
+    };
+  }, [perm, permissionTimeoutSec, denyActivePermission]);
 
   /** T04 deck buttons: reconnect / Doctor / Settings sections / dismiss. */
   const runErrorBannerAction = useCallback(
@@ -10323,6 +10408,11 @@ export default function App() {
           onNotifySound={(v) => {
             saveNotifySoundPref(v, localStorage);
             setNotifySound(v);
+          }}
+          permissionTimeoutSec={permissionTimeoutSec}
+          onPermissionTimeoutSec={(v) => {
+            savePermissionTimeoutSec(v, localStorage);
+            setPermissionTimeoutSec(v);
           }}
           cliInfo={cliInfo}
           onDoctor={() => void openDoctor()}
@@ -11894,6 +11984,13 @@ export default function App() {
                   <span className="perm-bar__tool">
                     {perm.title || perm.toolName}
                   </span>
+                  {permCountdownSec != null && permCountdownSec > 0 ? (
+                    <span className="perm-bar__countdown" aria-live="polite">
+                      {tr("perm.autoDenyCountdown", {
+                        seconds: String(permCountdownSec),
+                      })}
+                    </span>
+                  ) : null}
                 </div>
                 <p className="perm-bar__summary" id="perm-bar-summary">
                   {formatPermissionSummary({
@@ -11930,30 +12027,7 @@ export default function App() {
                             : tr("perm.hintDeny")
                       }
                       onClick={() =>
-                        void api
-                          .sessionResolvePermission({
-                            rpcId: perm.rpcId,
-                            decision: btn.decision,
-                            optionId: btn.optionId,
-                            scopeKey: perm.scopeKey,
-                            sessionId: perm.sessionId,
-                          })
-                          .then(() => {
-                            clearPendingGates(perm.sessionId);
-                            setPerm(null);
-                          })
-                          .catch((e) => {
-                            const code =
-                              e && typeof e === "object" && "code" in e
-                                ? String((e as { code?: string }).code)
-                                : "";
-                            showToast(
-                              code === "UNSUPPORTED"
-                                ? tr("mirror.unsupported")
-                                : String(e),
-                              4000,
-                            );
-                          })
+                        resolvePermission(perm, btn.decision, btn.optionId)
                       }
                     >
                       {btn.label}
