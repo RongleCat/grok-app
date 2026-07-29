@@ -13,6 +13,7 @@ import { IconChevronDown } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { MarkdownChat } from "./MarkdownChat";
 import type { Locale } from "@/i18n";
+import { COLLAPSE_ALL_ACTIVITY_EVENT } from "@/lib/collapseAllActivity";
 import {
   loadThinkingExpandPref,
   saveThinkingExpandPref,
@@ -98,6 +99,19 @@ export function Thinking({
       window.removeEventListener("storage", onStorage);
     };
   }, [expandPref]);
+
+  // Collapse all activity: force closed finished blocks only (leave streaming open).
+  useEffect(() => {
+    const onCollapseAll = () => {
+      if (thinkingRef.current) return;
+      userToggled.current = true;
+      setOpen(false);
+    };
+    window.addEventListener(COLLAPSE_ALL_ACTIVITY_EVENT, onCollapseAll);
+    return () => {
+      window.removeEventListener(COLLAPSE_ALL_ACTIVITY_EVENT, onCollapseAll);
+    };
+  }, []);
 
   useEffect(() => {
     if (thinking) {

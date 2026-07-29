@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
+import { COLLAPSE_ALL_ACTIVITY_EVENT } from "@/lib/collapseAllActivity";
 import type { TimelinePhase } from "@/lib/timelinePhases";
 import { phaseTitleModel } from "@/lib/timelinePhases";
 import { IconChevronRight } from "@/components/icons";
@@ -71,6 +72,15 @@ export function TimelinePhaseBlock({
     }
   }, [shouldExpand, phase.id]);
 
+  // One-click collapse all tool phases in the current chat.
+  useEffect(() => {
+    const onCollapseAll = () => setOpen(false);
+    window.addEventListener(COLLAPSE_ALL_ACTIVITY_EVENT, onCollapseAll);
+    return () => {
+      window.removeEventListener(COLLAPSE_ALL_ACTIVITY_EVENT, onCollapseAll);
+    };
+  }, []);
+
   const toolDisplay = useMemo(() => {
     const segs: MessageSegment[] = phase.tools.map((t) => t);
     return buildTimelineDisplayItems(segs);
@@ -96,7 +106,9 @@ export function TimelinePhaseBlock({
         className="lobe-timeline-phase__trigger"
         aria-expanded={open}
         onClick={() => {
-          if (phase.live && phase.runningCount > 0) return;
+          // While tools are running, block click-to-collapse (auto-expand stays
+          // the default). Still allow expand if collapse-all forced us closed.
+          if (open && phase.live && phase.runningCount > 0) return;
           setOpen((v) => !v);
         }}
       >

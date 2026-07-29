@@ -395,6 +395,7 @@ import {
   IconFolder,
   IconFolderPlus,
   IconArrowsVerticalCollapse,
+  IconArrowsMinimize,
   IconClock,
   IconClose,
   IconNewChat as IconSquarePen,
@@ -458,6 +459,7 @@ import {
   type SessionFileChange,
 } from "@/lib/sessionChanges";
 import { ConversationThread } from "@/components/lobe-chat";
+import { dispatchCollapseAllActivity } from "@/lib/collapseAllActivity";
 import {
   preferPermissionFocus,
   trapTabKey,
@@ -11396,6 +11398,19 @@ export default function App() {
                     />
                   )}
                   {mainPane === "chat" && session.sessionId ? (
+                    <Tip label={tr("session.collapseAllActivityHint")}>
+                      <button
+                        type="button"
+                        className="chrome-btn main__pane-toggle"
+                        onClick={() => dispatchCollapseAllActivity()}
+                        aria-label={tr("session.collapseAllActivity")}
+                        data-testid="collapse-all-activity"
+                      >
+                        <IconArrowsMinimize size={16} />
+                      </button>
+                    </Tip>
+                  ) : null}
+                  {mainPane === "chat" && session.sessionId ? (
                     <Tip
                       label={
                         tasksPanelOpen
@@ -14061,6 +14076,15 @@ export default function App() {
                 disabled: !isOpen || !canRewindSession,
                 onClick: () => {
                   void openRewindTimeline(s.id);
+                },
+              },
+              {
+                id: "collapse-all-activity",
+                label: tr("session.collapseAllActivity"),
+                icon: <IconArrowsMinimize size={16} />,
+                disabled: !isOpen,
+                onClick: () => {
+                  dispatchCollapseAllActivity();
                 },
               },
               // Export group — not at top of menu (after edit/rename-style actions)

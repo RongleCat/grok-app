@@ -107,6 +107,9 @@ const en = {
   "session.deleteManyConfirm":
     "Delete {n} chats permanently? This cannot be undone.",
   "session.menu": "Session menu",
+  "session.collapseAllActivity": "Collapse all activity",
+  "session.collapseAllActivityHint":
+    "Collapse expanded tool phases and finished thinking blocks",
   "session.new": "New chat",
   "session.newShort": "New",
   "session.placeholderTitle": "New chat",
@@ -2395,6 +2398,8 @@ const zh: Record<MessageKey, string> = {
   "session.deleteManyTitle": "删除会话",
   "session.deleteManyConfirm": "确定永久删除 {n} 个会话？此操作不可撤销。",
   "session.menu": "会话菜单",
+  "session.collapseAllActivity": "收起全部活动",
+  "session.collapseAllActivityHint": "收起已展开的工具阶段与已完成的思考块",
   "session.new": "新会话",
   "session.newShort": "新建",
   "session.placeholderTitle": "新会话",

@@ -96,6 +96,8 @@ export const zhTW: Record<MessageKey, string> = {
   "session.deleteManyTitle": "刪除對話",
   "session.deleteManyConfirm": "確定永久刪除 {n} 個對話？此操作無法復原。",
   "session.menu": "對話選單",
+  "session.collapseAllActivity": "收合全部活動",
+  "session.collapseAllActivityHint": "收合已展開的工具階段與已完成的思考塊",
   "session.new": "新對話",
   "session.newShort": "新增",
   "session.placeholderTitle": "新對話",

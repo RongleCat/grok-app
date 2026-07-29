@@ -13,6 +13,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- **Collapse all activity** in the current chat: top-bar control and session menu item collapse expanded tool phases and finished thinking blocks (streaming thoughts stay open)
 - **Stop all** busy sessions from the Tasks panel (confirm, then cancel every streaming / awaiting-permission / connecting session; toast with success count)
 - **Quiet hours** for desktop notifications (Settings → General → App): optional local start/end window that suppresses system notifies overnight or any range; in-app toasts unchanged
 - **Clear composer draft**: small clear control on the input row when text or attachments are present; long drafts (>200 characters) confirm first
@@ -36,6 +37,7 @@ See `docs/llm-wiki/release.md`.
 
 **中文 · 新增**
 
+- 当前对话「收起全部活动」：顶栏按钮与会话菜单可收起已展开的工具阶段与已完成思考（流式思考保持展开）
 - 任务面板「全部停止」忙碌会话（确认后批量取消； toast 成功数）
 - 桌面通知免打扰时段（设置 → 通用 → 应用；本地起止时间）
 - 输入框清空草稿（有内容时显示；超过 200 字需确认）
