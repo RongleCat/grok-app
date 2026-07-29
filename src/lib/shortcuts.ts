@@ -27,6 +27,13 @@ export const SHORTCUTS: ShortcutRow[] = [
     win: "Ctrl K",
   },
   {
+    id: "findInChat",
+    labelKey: "shortcuts.findInChat",
+    group: "workbench",
+    mac: "⌘ F",
+    win: "Ctrl F",
+  },
+  {
     id: "newChat",
     labelKey: "shortcuts.newChat",
     group: "workbench",
@@ -37,8 +44,9 @@ export const SHORTCUTS: ShortcutRow[] = [
     id: "send",
     labelKey: "shortcuts.send",
     group: "workbench",
-    mac: "⌘ ↵",
-    win: "Ctrl Enter",
+    // Product default: plain Enter (mod-enter only when Settings → Composer pref is set).
+    mac: "↵",
+    win: "Enter",
   },
   {
     id: "stop",
@@ -74,6 +82,14 @@ export const SHORTCUTS: ShortcutRow[] = [
     group: "input",
     mac: "⌘ ⇧ V",
     win: "Ctrl Shift V",
+  },
+  {
+    // Global Ctrl+Space (not Cmd+Space — Spotlight on macOS). See isVoiceToggleKey.
+    id: "dictation",
+    labelKey: "shortcuts.voice",
+    group: "input",
+    mac: "Ctrl Space",
+    win: "Ctrl Space",
   },
 ];
 

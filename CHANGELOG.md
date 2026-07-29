@@ -14,6 +14,19 @@ See `docs/llm-wiki/release.md`.
 ### Added
 
 - Desktop notification when the agent asks a question (`session://ask_user`), gated by the existing “Notify on permission” setting
+- **Shortcuts catalog**: list **Find in conversation** (⌘/Ctrl+F) and **voice dictation** (Ctrl+Space; not Cmd)
+
+### Changed
+
+- **Shortcuts catalog**: default **Send** shows plain Enter (not ⌘/Ctrl+Enter); note points to Settings → Composer for mod-enter
+
+**中文 · 新增**
+
+- 快捷键列表：对话内查找（⌘/Ctrl+F）、语音输入（Ctrl+Space）
+
+**中文 · 变更**
+
+- 默认发送键展示为 Enter；说明可在设置 → 对话偏好改用 ⌘/Ctrl+Enter
 
 ## [0.2.1] - 2026-07-29
 

@@ -668,7 +668,7 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.shortcuts.group.diagnostics": "診斷",
   "settings.shortcuts.group.input": "輸入",
   "settings.shortcuts.note":
-    "部分組合鍵可能被系統占用（如輸入法切換）。輸入區按鈕仍可作為後備。",
+    "預設 Enter 傳送；可在 設定 → 對話偏好 改為 ⌘/Ctrl+Enter。部分組合鍵可能被系統占用（如輸入法切換）。",
   "settings.shortcuts.openHelp": "開啟快捷鍵說明",
   "settings.archived.desc":
     "已封存的對話依專案分組。可多選後批次還原或刪除。",

@@ -699,7 +699,7 @@ const en = {
   "settings.shortcuts.group.diagnostics": "Diagnostics",
   "settings.shortcuts.group.input": "Input",
   "settings.shortcuts.note":
-    "Some chords may be taken by the OS (e.g. input sources). Composer buttons stay available as a fallback.",
+    "Default send is Enter; switch to ⌘/Ctrl+Enter in Settings → Composer. Some chords may be taken by the OS (e.g. input sources).",
   "settings.shortcuts.openHelp": "Open shortcuts help",
   "settings.archived.desc":
     "Chats you archived are listed by project. Select multiple to restore or delete.",
@@ -2899,7 +2899,7 @@ const zh: Record<MessageKey, string> = {
   "settings.shortcuts.group.diagnostics": "诊断",
   "settings.shortcuts.group.input": "输入",
   "settings.shortcuts.note":
-    "部分组合键可能被系统占用（如输入法切换）。输入区按钮仍可作为后备。",
+    "默认 Enter 发送；可在 设置 → 对话偏好 改为 ⌘/Ctrl+Enter。部分组合键可能被系统占用（如输入法切换）。",
   "settings.shortcuts.openHelp": "打开快捷键帮助",
   "settings.archived.desc":
     "已归档的会话按项目分组。可多选后批量还原或删除。",
