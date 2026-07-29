@@ -920,6 +920,9 @@ export const zhTW: Record<MessageKey, string> = {
     "絕對時間顯示星期與鐘點；相對時間為「2 分鐘前」，約每分鐘刷新。",
   "settings.messageTimeFormat.absolute": "絕對",
   "settings.messageTimeFormat.relative": "相對",
+  "settings.sidebarShowRelativeTime": "會話相對時間",
+  "settings.sidebarShowRelativeTimeDesc":
+    "在側欄會話列顯示上次更新時間（如「2 小時前」）。約每分鐘刷新。",
   "settings.skin": "配色皮膚",
   "settings.skinDesc": "強調色與表面色板（可與淺/深色疊加）",
   "settings.skin.default": "預設",

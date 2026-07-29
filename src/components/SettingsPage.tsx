@@ -213,6 +213,9 @@ export interface SettingsPageProps {
   /** Absolute vs relative message time labels (localStorage). */
   messageTimeFormat?: MessageTimeFormat;
   onMessageTimeFormat?: (v: MessageTimeFormat) => void;
+  /** Sidebar session-row relative updated time (localStorage). */
+  sidebarShowRelativeTime?: boolean;
+  onSidebarShowRelativeTime?: (v: boolean) => void;
   /** Color skin pack on top of light/dark (optional for older callers). */
   skin?: ThemeSkinId;
   onSkin?: (v: ThemeSkinId) => void;
@@ -734,6 +737,8 @@ export function SettingsPage({
   onShowMessageTimestamps,
   messageTimeFormat = "absolute",
   onMessageTimeFormat,
+  sidebarShowRelativeTime = true,
+  onSidebarShowRelativeTime,
   skin = "default",
   onSkin,
   wallpaperUrl = null,
@@ -3124,6 +3129,31 @@ export function SettingsPage({
                           </button>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                ) : null}
+                {onSidebarShowRelativeTime ? (
+                  <div
+                    className={
+                      "settings-card" +
+                      rowHighlight("settings-anchor-sidebarShowRelativeTime")
+                    }
+                    id="settings-anchor-sidebarShowRelativeTime"
+                  >
+                    <div className="settings-row">
+                      <div className="settings-row__text">
+                        <SettingsLabelWithTip
+                          label={t("settings.sidebarShowRelativeTime")}
+                          tip={t("settings.sidebarShowRelativeTimeDesc")}
+                        />
+                      </div>
+                      <UiCheck
+                        checked={!!sidebarShowRelativeTime}
+                        onChange={() =>
+                          onSidebarShowRelativeTime(!sidebarShowRelativeTime)
+                        }
+                        ariaLabel={t("settings.sidebarShowRelativeTime")}
+                      />
                     </div>
                   </div>
                 ) : null}

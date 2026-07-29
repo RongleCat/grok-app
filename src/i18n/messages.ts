@@ -958,6 +958,9 @@ const en = {
     "Absolute shows weekday and clock time; relative shows \"2 minutes ago\" and refreshes about once a minute.",
   "settings.messageTimeFormat.absolute": "Absolute",
   "settings.messageTimeFormat.relative": "Relative",
+  "settings.sidebarShowRelativeTime": "Session relative time",
+  "settings.sidebarShowRelativeTimeDesc":
+    "Show when each chat was last updated on the sidebar (e.g. \"2 hours ago\"). Labels refresh about once a minute.",
   "settings.skin": "Color skin",
   "settings.skinDesc": "Accent and surface palette (works with light/dark)",
   "settings.skin.default": "Default",
@@ -3219,6 +3222,9 @@ const zh: Record<MessageKey, string> = {
     "绝对时间显示星期与钟点；相对时间为「2 分钟前」，约每分钟刷新。",
   "settings.messageTimeFormat.absolute": "绝对",
   "settings.messageTimeFormat.relative": "相对",
+  "settings.sidebarShowRelativeTime": "会话相对时间",
+  "settings.sidebarShowRelativeTimeDesc":
+    "在侧栏会话行显示上次更新时间（如「2 小时前」）。约每分钟刷新。",
   "settings.skin": "配色皮肤",
   "settings.skinDesc": "强调色与表面色板（可与浅/深色叠加）",
   "settings.skin.default": "默认",

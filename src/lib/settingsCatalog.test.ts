@@ -104,6 +104,7 @@ describe("settingsCatalog", () => {
     expect(appearance).toContain("settings.messageActions");
     expect(appearance).toContain("settings.messageTimestamps");
     expect(appearance).toContain("settings.messageTimeFormat");
+    expect(appearance).toContain("settings.sidebarShowRelativeTime");
     const rim = keywordKeysForSection("remote_im");
     expect(rim).toContain("settings.nav.remoteIm");
     expect(rim).toContain("settings.tab.remoteIm");
@@ -204,9 +205,19 @@ describe("settingsCatalog", () => {
     expect(
       relativeTime.some((h) => h.entry.id === "appearance.messageTimeFormat"),
     ).toBe(true);
+    expect(
+      relativeTime.some(
+        (h) => h.entry.id === "appearance.sidebarShowRelativeTime",
+      ),
+    ).toBe(true);
     const relativeZh = searchSettingsEntries("相对时间", tZh, tEn);
     expect(
       relativeZh.some((h) => h.entry.id === "appearance.messageTimeFormat"),
+    ).toBe(true);
+    expect(
+      relativeZh.some(
+        (h) => h.entry.id === "appearance.sidebarShowRelativeTime",
+      ),
     ).toBe(true);
     const cli = searchSettingsEntries("CLI", tZh, tEn);
     expect(cli.some((h) => h.entry.section === "runtime")).toBe(true);

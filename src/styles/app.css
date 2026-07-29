@@ -865,6 +865,21 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   white-space: nowrap;
 }
 
+/* Relative updated time — one-line muted meta (does not change VirtualList row height). */
+.tree-l3__time {
+  flex-shrink: 0;
+  max-width: 7.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-tertiary);
+  opacity: 0.9;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
 /* In-progress session: always-visible spinner on the right (replaces hover actions). */
 .tree-l3__status {
   display: inline-flex;
@@ -1861,6 +1876,11 @@ html[data-sidebar-density="compact"] .tree-l3-list-wrap {
 html[data-sidebar-density="compact"] .tree-l3-list,
 html[data-sidebar-density="compact"] .tree-orphan-list {
   gap: 0;
+}
+
+html[data-sidebar-density="compact"] .tree-l3__time {
+  max-width: 6.5em;
+  font-size: 10px;
 }
 
 html[data-sidebar-density="compact"] .tree-l3__status {

@@ -53,6 +53,15 @@ import {
   saveMessageTimeFormatPref,
   type MessageTimeFormat,
 } from "@/lib/messageTimeFormatPref";
+import {
+  loadSidebarShowRelativeTimePref,
+  saveSidebarShowRelativeTimePref,
+  SIDEBAR_SHOW_RELATIVE_TIME_CHANGE_EVENT,
+} from "@/lib/sidebarShowRelativeTimePref";
+import {
+  formatMessageTime,
+  formatRelativeTime,
+} from "@/lib/accountUi";
 import { loadConfirmExternalLinksPref } from "@/lib/externalLinkPref";
 import {
   loadNotifySoundPref,
@@ -648,6 +657,28 @@ export default function App() {
   const [messageTimeFormat, setMessageTimeFormat] = useState<MessageTimeFormat>(
     () => loadMessageTimeFormatPref(localStorage),
   );
+  const [sidebarShowRelativeTime, setSidebarShowRelativeTime] = useState(() =>
+    loadSidebarShowRelativeTimePref(localStorage),
+  );
+  /** Shared tick so relative session labels recompute ~once a minute. */
+  const [sidebarRelativeTick, setSidebarRelativeTick] = useState(0);
+  useEffect(() => {
+    if (!sidebarShowRelativeTime) return;
+    const id = window.setInterval(() => {
+      setSidebarRelativeTick((n) => n + 1);
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [sidebarShowRelativeTime]);
+  useEffect(() => {
+    const reload = () =>
+      setSidebarShowRelativeTime(loadSidebarShowRelativeTimePref(localStorage));
+    window.addEventListener(SIDEBAR_SHOW_RELATIVE_TIME_CHANGE_EVENT, reload);
+    return () =>
+      window.removeEventListener(
+        SIDEBAR_SHOW_RELATIVE_TIME_CHANGE_EVENT,
+        reload,
+      );
+  }, []);
   const [notifySound, setNotifySound] = useState(() =>
     loadNotifySoundPref(localStorage),
   );
@@ -5112,6 +5143,21 @@ export default function App() {
     } catch (e) {
       setLocalError(String(e));
     }
+  };
+
+  /** One-line muted relative updated time for sidebar session rows. */
+  const renderSessionRelativeTime = (updatedAt: string | undefined) => {
+    // Keep tick in the render graph so the shared 60s interval refreshes labels.
+    void sidebarRelativeTick;
+    if (!sidebarShowRelativeTime || !updatedAt) return null;
+    const label = formatRelativeTime(updatedAt, locale);
+    if (!label || label === "—") return null;
+    const absolute = formatMessageTime(updatedAt, locale);
+    return (
+      <span className="tree-l3__time" title={absolute || undefined}>
+        {label}
+      </span>
+    );
   };
 
   const copySessionId = async (s: SessionRow) => {
@@ -10044,6 +10090,11 @@ export default function App() {
             saveMessageTimeFormatPref(v, localStorage);
             setMessageTimeFormat(v);
           }}
+          sidebarShowRelativeTime={sidebarShowRelativeTime}
+          onSidebarShowRelativeTime={(v) => {
+            saveSidebarShowRelativeTimePref(v, localStorage);
+            setSidebarShowRelativeTime(v);
+          }}
           skin={skin}
           onSkin={applySkinChoice}
           wallpaperUrl={wallpaperUrl}
@@ -10810,6 +10861,7 @@ export default function App() {
                                       {s.title || "Untitled"}
                                     </span>
                                   </span>
+                                  {renderSessionRelativeTime(s.updatedAt)}
                                   {sessionSelectMode ? null : working ? (
                                     <Tip label={tr("sidebar.sessionWorking")}>
                                       <span
@@ -11006,6 +11058,7 @@ export default function App() {
                           {s.title || "Untitled"}
                         </span>
                       </span>
+                      {renderSessionRelativeTime(s.updatedAt)}
                       {sessionSelectMode ? null : working ? (
                         <Tip label={tr("sidebar.sessionWorking")}>
                           <span
