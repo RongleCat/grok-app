@@ -695,6 +695,8 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.shortcuts.note":
     "預設 Enter 傳送；可在 設定 → 對話偏好 改為 ⌘/Ctrl+Enter。部分組合鍵可能被系統占用（如輸入法切換）。",
   "settings.shortcuts.openHelp": "開啟快捷鍵說明",
+  "settings.shortcuts.filterPlaceholder": "篩選快捷鍵…",
+  "settings.shortcuts.filterEmpty": "沒有符合篩選條件的快捷鍵。",
   "settings.archived.desc":
     "已封存的對話依專案分組。可多選後批次還原或刪除。",
   "settings.archived.empty": "尚無已封存對話。",

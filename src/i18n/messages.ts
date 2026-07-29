@@ -728,6 +728,8 @@ const en = {
   "settings.shortcuts.note":
     "Default send is Enter; switch to ⌘/Ctrl+Enter in Settings → Composer. Some chords may be taken by the OS (e.g. input sources).",
   "settings.shortcuts.openHelp": "Open shortcuts help",
+  "settings.shortcuts.filterPlaceholder": "Filter shortcuts…",
+  "settings.shortcuts.filterEmpty": "No shortcuts match this filter.",
   "settings.archived.desc":
     "Chats you archived are listed by project. Select multiple to restore or delete.",
   "settings.archived.empty": "No archived chats.",
@@ -3010,6 +3012,8 @@ const zh: Record<MessageKey, string> = {
   "settings.shortcuts.note":
     "默认 Enter 发送；可在 设置 → 对话偏好 改为 ⌘/Ctrl+Enter。部分组合键可能被系统占用（如输入法切换）。",
   "settings.shortcuts.openHelp": "打开快捷键帮助",
+  "settings.shortcuts.filterPlaceholder": "筛选快捷键…",
+  "settings.shortcuts.filterEmpty": "没有符合筛选条件的快捷键。",
   "settings.archived.desc":
     "已归档的会话按项目分组。可多选后批量还原或删除。",
   "settings.archived.empty": "暂无已归档会话。",

@@ -37,6 +37,7 @@ import {
 import { Tip } from "@/components/ui/tooltip";
 import {
   detectShortcutPlatform,
+  filterShortcutGroups,
   shortcutsByGroup,
   type ShortcutGroup,
 } from "@/lib/shortcuts";
@@ -4141,8 +4142,16 @@ function ShortcutsSettingsPanel({
   t: (key: MessageKey, vars?: Vars) => string;
   onOpenHelp?: () => void;
 }) {
+  const [filterQuery, setFilterQuery] = useState("");
   const platform = useMemo(() => detectShortcutPlatform(), []);
   const groups = useMemo(() => shortcutsByGroup(), []);
+  const filteredGroups = useMemo(
+    () =>
+      filterShortcutGroups(filterQuery, groups, (key) =>
+        t(key as MessageKey),
+      ),
+    [filterQuery, groups, t],
+  );
 
   const groupLabel = (g: ShortcutGroup) =>
     t(`settings.shortcuts.group.${g}` as MessageKey);
@@ -4167,49 +4176,67 @@ function ShortcutsSettingsPanel({
           </button>
         ) : null}
       </div>
-      {groups.map(({ group, rows }) => (
-        <div key={group} className="settings-shortcuts-group">
-          <div className="settings-shortcuts-group__title">{groupLabel(group)}</div>
-          <table className="settings-shortcuts-table">
-            <thead>
-              <tr>
-                <th scope="col">{t("settings.shortcuts.colAction")}</th>
-                <th
-                  scope="col"
-                  className={
-                    platform === "mac" ? "is-platform-active" : undefined
-                  }
-                >
-                  {t("settings.shortcuts.colMac")}
-                </th>
-                <th
-                  scope="col"
-                  className={
-                    platform === "win" || platform === "other"
-                      ? "is-platform-active"
-                      : undefined
-                  }
-                >
-                  {t("settings.shortcuts.colWin")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td>{t(row.labelKey as MessageKey)}</td>
-                  <td>
-                    <kbd className="settings-shortcuts-kbd">{row.mac}</kbd>
-                  </td>
-                  <td>
-                    <kbd className="settings-shortcuts-kbd">{row.win}</kbd>
-                  </td>
+      <div className="settings-shortcuts-filter">
+        <IconSearch size={14} />
+        <input
+          type="search"
+          value={filterQuery}
+          onChange={(e) => setFilterQuery(e.target.value)}
+          placeholder={t("settings.shortcuts.filterPlaceholder")}
+          aria-label={t("settings.shortcuts.filterPlaceholder")}
+        />
+      </div>
+      {filteredGroups.length === 0 ? (
+        <p className="settings-shortcuts-empty" role="status">
+          {t("settings.shortcuts.filterEmpty")}
+        </p>
+      ) : (
+        filteredGroups.map(({ group, rows }) => (
+          <div key={group} className="settings-shortcuts-group">
+            <div className="settings-shortcuts-group__title">
+              {groupLabel(group)}
+            </div>
+            <table className="settings-shortcuts-table">
+              <thead>
+                <tr>
+                  <th scope="col">{t("settings.shortcuts.colAction")}</th>
+                  <th
+                    scope="col"
+                    className={
+                      platform === "mac" ? "is-platform-active" : undefined
+                    }
+                  >
+                    {t("settings.shortcuts.colMac")}
+                  </th>
+                  <th
+                    scope="col"
+                    className={
+                      platform === "win" || platform === "other"
+                        ? "is-platform-active"
+                        : undefined
+                    }
+                  >
+                    {t("settings.shortcuts.colWin")}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <td>{t(row.labelKey as MessageKey)}</td>
+                    <td>
+                      <kbd className="settings-shortcuts-kbd">{row.mac}</kbd>
+                    </td>
+                    <td>
+                      <kbd className="settings-shortcuts-kbd">{row.win}</kbd>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))
+      )}
       <p className="settings-shortcuts-note">{t("settings.shortcuts.note")}</p>
     </div>
   );

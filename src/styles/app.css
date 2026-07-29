@@ -4125,6 +4125,43 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
 }
 
 /* Settings → Keyboard (read-only shortcut catalog) */
+.settings-shortcuts-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  margin: 0 16px 8px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+}
+
+.settings-shortcuts-filter input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.settings-shortcuts-filter input[type="search"]::-webkit-search-decoration,
+.settings-shortcuts-filter input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.settings-shortcuts-empty {
+  margin: 0;
+  padding: 20px 16px 24px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
 .settings-shortcuts-group {
   padding: 8px 16px 14px;
   border-bottom: 1px solid var(--border-subtle);

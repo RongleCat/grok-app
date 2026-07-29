@@ -140,3 +140,62 @@ export function shortcutsByGroup(): Array<{
     rows: SHORTCUTS.filter((s) => s.group === group),
   })).filter((g) => g.rows.length > 0);
 }
+
+/**
+ * Append Latin aliases for display glyphs (cmd for ⌘, shift for ⇧, …).
+ * Original key strings stay intact so queries like "⌘ k" still match.
+ */
+function keySearchExtra(keys: string): string {
+  const parts: string[] = [];
+  if (keys.includes("⌘")) parts.push("cmd", "command", "meta");
+  if (keys.includes("⇧")) parts.push("shift");
+  if (keys.includes("↵")) parts.push("enter", "return");
+  if (keys.includes("⌥")) parts.push("option", "alt");
+  if (keys.includes("⌃")) parts.push("control", "ctrl");
+  return parts.join(" ");
+}
+
+/**
+ * Filter shortcut rows by free-text query.
+ * Case-insensitive match on id, localized label (via `t`), and mac/win key strings
+ * (including expanded tokens like "cmd" for ⌘). Empty/whitespace query → all rows.
+ */
+export function filterShortcutRows(
+  query: string,
+  rows: ShortcutRow[],
+  t: (key: string) => string,
+): ShortcutRow[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return rows;
+  return rows.filter((row) => {
+    const label = t(row.labelKey).toLowerCase();
+    const haystack = [
+      row.id,
+      label,
+      row.mac,
+      row.win,
+      keySearchExtra(row.mac),
+      keySearchExtra(row.win),
+    ]
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(q);
+  });
+}
+
+/**
+ * Apply {@link filterShortcutRows} per group and drop empty groups.
+ * Preserves {@link SHORTCUT_GROUP_ORDER}.
+ */
+export function filterShortcutGroups(
+  query: string,
+  groups: Array<{ group: ShortcutGroup; rows: ShortcutRow[] }>,
+  t: (key: string) => string,
+): Array<{ group: ShortcutGroup; rows: ShortcutRow[] }> {
+  return groups
+    .map(({ group, rows }) => ({
+      group,
+      rows: filterShortcutRows(query, rows, t),
+    }))
+    .filter((g) => g.rows.length > 0);
+}
