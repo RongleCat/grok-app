@@ -1745,7 +1745,19 @@ mod tests {
 
     #[test]
     fn migrate_legacy_general_project_rehomes_sessions() {
+        // Isolate app home — parallel tests share the default data dir and can
+        // wipe sessions_index between seed and assert (Linux CI flake).
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-migrate-general-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp home");
+        std::env::set_var("GROK_APP_HOME", &tmp);
         let _ = ensure_app_dirs();
+
         // Seed a legacy system:general row + bound session.
         let mut projects: Vec<Project> = read_json_recover(&projects_file());
         projects.retain(|p| p.id != GENERAL_PROJECT_ID);
@@ -1793,7 +1805,9 @@ mod tests {
         let reloaded = load_sessions_index();
         let hit = reloaded.iter().find(|s| s.id == sid).expect("session");
         assert!(hit.project_id.is_none(), "got {:?}", hit.project_id);
-        let _ = delete_session(&sid);
+
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
     }
 
     #[test]
