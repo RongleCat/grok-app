@@ -240,6 +240,8 @@ export type ComposerEditorProps = {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  /** Browser spellcheck on the contenteditable root. Default false. */
+  spellCheck?: boolean;
   onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
   onSlashQueryChange?: (
     q: { start: number; query: string; end: number } | null,
@@ -262,6 +264,7 @@ export function ComposerEditor({
   disabled,
   placeholder,
   className,
+  spellCheck,
   onKeyDown,
   onSlashQueryChange,
   editorRef,
@@ -541,6 +544,7 @@ export function ComposerEditor({
         ref={setRefs}
         className={className ?? "composer__input"}
         contentEditable={!disabled}
+        spellCheck={spellCheck ?? false}
         role="textbox"
         aria-multiline
         aria-placeholder={placeholder}

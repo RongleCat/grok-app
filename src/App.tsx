@@ -270,6 +270,10 @@ import {
   type ComposerSendKeyPref,
 } from "@/lib/composerSendKey";
 import {
+  COMPOSER_SPELLCHECK_CHANGED_EVENT,
+  loadComposerSpellcheck,
+} from "@/lib/composerSpellcheck";
+import {
   clearComposerProjectDraft,
   loadComposerProjectDraft,
   projectDraftKey,
@@ -1173,6 +1177,16 @@ export default function App() {
     window.addEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, reload);
     return () =>
       window.removeEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, reload);
+  }, []);
+  /** Browser spellcheck on main composer (localStorage; Settings → Composer). */
+  const [composerSpellcheck, setComposerSpellcheck] = useState(() =>
+    loadComposerSpellcheck(),
+  );
+  useEffect(() => {
+    const reload = () => setComposerSpellcheck(loadComposerSpellcheck());
+    window.addEventListener(COMPOSER_SPELLCHECK_CHANGED_EVENT, reload);
+    return () =>
+      window.removeEventListener(COMPOSER_SPELLCHECK_CHANGED_EVENT, reload);
   }, []);
   /** Files/folders attached for next send (@path to agent). */
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -11692,6 +11706,7 @@ export default function App() {
                 className="composer__input"
                 value={draft}
                 disabled={!canType(session.state)}
+                spellCheck={composerSpellcheck}
                 placeholder={
                   goalMode
                     ? tr("composer.goalPlaceholder")

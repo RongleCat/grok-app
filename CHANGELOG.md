@@ -14,6 +14,7 @@ See `docs/llm-wiki/release.md`.
 ### Added
 
 - Desktop notification when the agent asks a question (`session://ask_user`), gated by the existing “Notify on permission” setting
+- **Composer spellcheck** (Settings → General → Composer): optional browser spellcheck on the main chat input (off by default)
 
 ## [0.2.1] - 2026-07-29
 

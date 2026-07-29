@@ -261,6 +261,25 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
       "keyboard",
     ],
   },
+  {
+    id: "general.composerSpellcheck",
+    section: "general",
+    tab: "composer",
+    anchorId: "settings-anchor-composerSpellcheck",
+    labelKey: "settings.composerSpellcheck",
+    descKeys: [
+      "settings.composerSpellcheckDesc",
+      "settings.section.composer",
+    ],
+    keywords: [
+      "composer",
+      "spellcheck",
+      "spell check",
+      "spelling",
+      "typo",
+      "autocorrect",
+    ],
+  },
   // ── general / permissions ──
   {
     id: "general.permissionPolicy",

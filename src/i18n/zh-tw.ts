@@ -835,6 +835,9 @@ export const zhTW: Record<MessageKey, string> = {
     "選擇 Enter 直接傳送，或 Enter 換行、⌘/Ctrl+Enter 傳送。僅作用於對話輸入框。",
   "settings.composerSendKey.enter": "Enter 傳送（Shift+Enter 換行）",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter 傳送（Enter 換行）",
+  "settings.composerSpellcheck": "拼字檢查",
+  "settings.composerSpellcheckDesc":
+    "在對話輸入框用系統辭典標出拼字錯誤。預設關閉。",
   "settings.theme": "主題",
   "settings.themeDesc": "跟隨系統，或固定淺色 / 深色",
   "settings.themeSystem": "跟隨系統",

@@ -869,6 +869,9 @@ const en = {
     "Choose whether plain Enter sends, or inserts a newline (⌘/Ctrl+Enter sends instead). Applies to the chat composer.",
   "settings.composerSendKey.enter": "Enter to send (Shift+Enter for newline)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter to send (Enter for newline)",
+  "settings.composerSpellcheck": "Spellcheck",
+  "settings.composerSpellcheckDesc":
+    "Underline misspelled words in the chat input using the system dictionary. Off by default.",
   "settings.theme": "Theme",
   "settings.themeDesc": "Follow the system, or lock light / dark",
   "settings.themeSystem": "System",
@@ -3066,6 +3069,9 @@ const zh: Record<MessageKey, string> = {
     "选择 Enter 直接发送，还是 Enter 换行、⌘/Ctrl+Enter 发送。仅作用于对话输入框。",
   "settings.composerSendKey.enter": "Enter 发送（Shift+Enter 换行）",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter 发送（Enter 换行）",
+  "settings.composerSpellcheck": "拼写检查",
+  "settings.composerSpellcheckDesc":
+    "在对话输入框用系统词典标出拼写错误。默认关闭。",
   "settings.theme": "主题",
   "settings.themeDesc": "跟随系统，或固定浅色 / 深色",
   "settings.themeSystem": "跟随系统",

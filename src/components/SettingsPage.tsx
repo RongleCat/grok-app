@@ -83,6 +83,10 @@ import {
   saveComposerSendKeyPref,
   type ComposerSendKeyPref,
 } from "@/lib/composerSendKey";
+import {
+  loadComposerSpellcheck,
+  saveComposerSpellcheck,
+} from "@/lib/composerSpellcheck";
 import type { AccountStatus, DetectedEditor } from "@/lib/api";
 import * as api from "@/lib/api";
 import { AccountPanel } from "@/components/AccountPanel";
@@ -792,6 +796,10 @@ export function SettingsPage({
   /** Composer Enter vs ⌘/Ctrl+Enter — localStorage only (no Host settings). */
   const [composerSendKeyPref, setComposerSendKeyPref] =
     useState<ComposerSendKeyPref>(() => loadComposerSendKeyPref());
+  /** Browser spellcheck on main composer — localStorage only. */
+  const [composerSpellcheck, setComposerSpellcheck] = useState(() =>
+    loadComposerSpellcheck(),
+  );
   /** Pending scroll target after search jump / deep link. */
   const pendingAnchorRef = useRef<string | null>(null);
   const [highlightAnchor, setHighlightAnchor] = useState<string | null>(null);
@@ -1555,6 +1563,31 @@ export function SettingsPage({
                       label: t("settings.composerSendKey.modEnter"),
                     },
                   ]}
+                />
+              </div>
+              <div
+                className={
+                  "settings-row" +
+                  rowHighlight("settings-anchor-composerSpellcheck")
+                }
+                id="settings-anchor-composerSpellcheck"
+              >
+                <div className="settings-row__text">
+                  <div className="settings-row__label">
+                    {t("settings.composerSpellcheck")}
+                  </div>
+                  <div className="settings-row__desc">
+                    {t("settings.composerSpellcheckDesc")}
+                  </div>
+                </div>
+                <UiCheck
+                  checked={composerSpellcheck}
+                  onChange={() => {
+                    const next = !composerSpellcheck;
+                    setComposerSpellcheck(next);
+                    saveComposerSpellcheck(next);
+                  }}
+                  ariaLabel={t("settings.composerSpellcheck")}
                 />
               </div>
             </div>
