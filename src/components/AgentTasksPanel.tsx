@@ -20,7 +20,10 @@ import {
   buildTurnActivity,
   tasksFromTurnActivity,
 } from "@/lib/turnActivity";
-import type { ActivitySessionRow } from "@/lib/agentActivity";
+import {
+  stoppableActivitySessions,
+  type ActivitySessionRow,
+} from "@/lib/agentActivity";
 import { IconClose, IconList } from "@/components/icons";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
@@ -35,6 +38,8 @@ export type AgentTasksPanelProps = {
   activitySessions?: ActivitySessionRow[];
   onSelectSession?: (sessionId: string) => void;
   onStopSession?: (sessionId: string) => void;
+  /** Stop every stoppable busy session (confirm lives in App). */
+  onStopAllSessions?: () => void;
 };
 
 function TaskRow({
@@ -200,6 +205,7 @@ export function AgentTasksPanel({
   activitySessions = [],
   onSelectSession,
   onStopSession,
+  onStopAllSessions,
 }: AgentTasksPanelProps) {
   const [query, setQuery] = useState("");
   const tasks = useMemo(() => {
@@ -222,7 +228,13 @@ export function AgentTasksPanel({
     () => activitySessions.filter((r) => !r.isCurrent),
     [activitySessions],
   );
+  const stoppableSessions = useMemo(
+    () => stoppableActivitySessions(activitySessions),
+    [activitySessions],
+  );
   const totalBusy = running + otherSessions.length;
+  const showStopAll =
+    !!onStopAllSessions && stoppableSessions.length > 0;
 
   return (
     <section className="agent-tasks" aria-label={t("tasks.title")}>
@@ -237,6 +249,16 @@ export function AgentTasksPanel({
           ) : null}
         </div>
         <div className="agent-tasks__head-actions">
+          {showStopAll ? (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={onStopAllSessions}
+              title={t("tasks.activity.stopAll")}
+            >
+              {t("tasks.activity.stopAll")}
+            </button>
+          ) : null}
           {onClose ? (
             <button
               type="button"

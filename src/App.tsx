@@ -137,7 +137,10 @@ import {
   type SessionPlanState,
 } from "@/lib/planSession";
 import { AgentTasksPanel } from "@/components/AgentTasksPanel";
-import { collectActivitySessions } from "@/lib/agentActivity";
+import {
+  collectActivitySessions,
+  stoppableActivitySessions,
+} from "@/lib/agentActivity";
 import * as api from "@/lib/api";
 import { shouldRestoreLastSession } from "@/lib/sessionRestore";
 import {
@@ -6545,6 +6548,62 @@ export default function App() {
     }, ms);
   }, []);
 
+  /** Confirm then stop every stoppable busy session from the Tasks panel. */
+  const stopAllBusySessions = useCallback(() => {
+    const rows = stoppableActivitySessions(
+      collectActivitySessions({
+        liveMap: liveMapRef.current,
+        sessions,
+        currentSessionId: session.sessionId,
+        untitledLabel: tr("session.untitled"),
+      }),
+    );
+    if (!rows.length) return;
+    const n = rows.length;
+    const ids = rows.map((r) => r.sessionId);
+    setAppDialog({
+      kind: "confirm",
+      title: tr("tasks.activity.stopAllTitle"),
+      message: tr("tasks.activity.stopAllConfirm", { n: String(n) }),
+      confirmLabel: tr("tasks.activity.stopAll"),
+      danger: true,
+      onConfirm: async () => {
+        const results = await Promise.allSettled(
+          ids.map((id) => api.sessionStop(id)),
+        );
+        let ok = 0;
+        let fail = 0;
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i]!;
+          const id = ids[i]!;
+          if (r.status === "fulfilled") {
+            ok += 1;
+            settleStoppedSessionUi(id);
+          } else {
+            fail += 1;
+          }
+        }
+        if (fail === 0) {
+          showToast(tr("tasks.activity.stopAllDone", { n: String(ok) }), 3200);
+        } else {
+          showToast(
+            tr("tasks.activity.stopAllPartial", {
+              ok: String(ok),
+              fail: String(fail),
+            }),
+            4000,
+          );
+        }
+      },
+    });
+  }, [
+    sessions,
+    session.sessionId,
+    settleStoppedSessionUi,
+    showToast,
+    tr,
+  ]);
+
   /**
    * Open current-session prompt history picker (Build `/history`).
    * @param focusFilter — true for slash `/history` (search box); false for empty ↑.
@@ -11544,6 +11603,7 @@ export default function App() {
                   }
                 })();
               }}
+              onStopAllSessions={stopAllBusySessions}
             />
           ) : null}
 

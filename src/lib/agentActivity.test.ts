@@ -3,6 +3,7 @@ import {
   collectActivitySessions,
   isActiveSessionSnapshot,
   otherBusySessions,
+  stoppableActivitySessions,
 } from "./agentActivity";
 import { emptyLiveSnapshot, type SessionLiveMap } from "./sessionLiveStore";
 
@@ -54,5 +55,42 @@ describe("collectActivitySessions", () => {
     expect(rows[0]!.liveToolTitle).toBe("bash");
     expect(rows[1]!.status).toBe("awaiting_permission");
     expect(otherBusySessions(rows).map((r) => r.sessionId)).toEqual(["b"]);
+    expect(stoppableActivitySessions(rows).map((r) => r.sessionId)).toEqual([
+      "a",
+      "b",
+    ]);
+  });
+
+  it("stoppableActivitySessions keeps only stream / permission / connecting", () => {
+    const rows = [
+      {
+        sessionId: "a",
+        title: "A",
+        status: "streaming" as const,
+        liveToolTitle: null,
+        isCurrent: false,
+        updatedAt: 1,
+      },
+      {
+        sessionId: "b",
+        title: "B",
+        status: "ready" as const,
+        liveToolTitle: null,
+        isCurrent: false,
+        updatedAt: 2,
+      },
+      {
+        sessionId: "c",
+        title: "C",
+        status: "connecting" as const,
+        liveToolTitle: null,
+        isCurrent: true,
+        updatedAt: 3,
+      },
+    ];
+    expect(stoppableActivitySessions(rows).map((r) => r.sessionId)).toEqual([
+      "a",
+      "c",
+    ]);
   });
 });

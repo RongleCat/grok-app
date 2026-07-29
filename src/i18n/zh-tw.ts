@@ -361,6 +361,12 @@ export const zhTW: Record<MessageKey, string> = {
   "tasks.activity.current": "（目前）",
   "tasks.activity.open": "開啟",
   "tasks.activity.stop": "停止",
+  "tasks.activity.stopAll": "全部停止",
+  "tasks.activity.stopAllTitle": "停止全部忙碌對話？",
+  "tasks.activity.stopAllConfirm":
+    "將停止 {n} 個執行中的對話，進行中的回合會被取消。",
+  "tasks.activity.stopAllDone": "已停止 {n} 個對話",
+  "tasks.activity.stopAllPartial": "已停止 {ok} 個；{fail} 個失敗",
   "tasks.section.recent": "最近",
   "tasks.runningCount": "{n} 個進行中",
   "tasks.kind": "工具",

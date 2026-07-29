@@ -102,3 +102,21 @@ export function otherBusySessions(
 ): ActivitySessionRow[] {
   return rows.filter((r) => !r.isCurrent);
 }
+
+/** True when a Tasks-panel activity row can be stopped via `sessionStop`. */
+export function isStoppableActivityStatus(
+  status: ActivitySessionStatus,
+): boolean {
+  return (
+    status === "streaming" ||
+    status === "awaiting_permission" ||
+    status === "connecting"
+  );
+}
+
+/** Activity rows that accept Stop / Stop all (busy stream / permission / connect). */
+export function stoppableActivitySessions(
+  rows: ActivitySessionRow[],
+): ActivitySessionRow[] {
+  return rows.filter((r) => isStoppableActivityStatus(r.status));
+}
