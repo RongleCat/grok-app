@@ -262,6 +262,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     ],
   },
   {
+<<<<<<< ours
     id: "general.composerSpellcheck",
     section: "general",
     tab: "composer",
@@ -269,15 +270,34 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     labelKey: "settings.composerSpellcheck",
     descKeys: [
       "settings.composerSpellcheckDesc",
+=======
+    id: "general.composerDraftStats",
+    section: "general",
+    tab: "composer",
+    anchorId: "settings-anchor-composerDraftStats",
+    labelKey: "settings.composerDraftStats",
+    descKeys: [
+      "settings.composerDraftStatsDesc",
+>>>>>>> theirs
       "settings.section.composer",
     ],
     keywords: [
       "composer",
+<<<<<<< ours
       "spellcheck",
       "spell check",
       "spelling",
       "typo",
       "autocorrect",
+=======
+      "draft",
+      "stats",
+      "character",
+      "char count",
+      "word count",
+      "words",
+      "length",
+>>>>>>> theirs
     ],
   },
   // ── general / permissions ──

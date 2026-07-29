@@ -9178,6 +9178,20 @@ button.composer__context-item {
   min-width: 8px;
 }
 
+/* Muted draft char/word count (Settings → Composer; non-empty only). */
+.composer__draft-stats {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 0 6px;
+  user-select: none;
+  pointer-events: none;
+}
+
 .icon-btn {
   box-sizing: border-box;
   width: 32px;

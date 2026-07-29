@@ -455,6 +455,8 @@ export const zhTW: Record<MessageKey, string> = {
   "composer.voiceErr.auth": "語音驗證失敗，請在帳戶中重新登入。",
   "composer.voiceErr.timeout": "轉寫逾時，請縮短說話時長後重試。",
   "composer.voiceErr.unknown": "語音輸入失敗。",
+  "composer.draftStats": "{words} 詞 · {chars} 字",
+  "composer.draftStatsAria": "草稿長度：{words} 詞，{chars} 字",
   "composer.send": "傳送",
   "composer.queue": "入佇列 — 本輪結束後傳送（目前對話）",
   "composer.queued": "已入目前對話佇列 — 留在此對話且本輪結束後自動傳送",
@@ -846,9 +848,15 @@ export const zhTW: Record<MessageKey, string> = {
     "選擇 Enter 直接傳送，或 Enter 換行、⌘/Ctrl+Enter 傳送。僅作用於對話輸入框。",
   "settings.composerSendKey.enter": "Enter 傳送（Shift+Enter 換行）",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter 傳送（Enter 換行）",
+<<<<<<< ours
   "settings.composerSpellcheck": "拼字檢查",
   "settings.composerSpellcheckDesc":
     "在對話輸入框用系統辭典標出拼字錯誤。預設關閉。",
+=======
+  "settings.composerDraftStats": "草稿字數",
+  "settings.composerDraftStatsDesc":
+    "輸入框有內容時以低調樣式顯示字元數與詞數。",
+>>>>>>> theirs
   "settings.theme": "主題",
   "settings.themeDesc": "跟隨系統，或固定淺色 / 深色",
   "settings.themeSystem": "跟隨系統",

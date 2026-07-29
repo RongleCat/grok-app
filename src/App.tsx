@@ -277,9 +277,16 @@ import {
   type ComposerSendKeyPref,
 } from "@/lib/composerSendKey";
 import {
+<<<<<<< ours
   COMPOSER_SPELLCHECK_CHANGED_EVENT,
   loadComposerSpellcheck,
 } from "@/lib/composerSpellcheck";
+=======
+  COMPOSER_DRAFT_STATS_CHANGED_EVENT,
+  computeDraftStats,
+  loadComposerDraftStatsPref,
+} from "@/lib/draftStats";
+>>>>>>> theirs
 import {
   clearComposerProjectDraft,
   loadComposerProjectDraft,
@@ -1203,6 +1210,7 @@ export default function App() {
     return () =>
       window.removeEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, reload);
   }, []);
+<<<<<<< ours
   /** Browser spellcheck on main composer (localStorage; Settings → Composer). */
   const [composerSpellcheck, setComposerSpellcheck] = useState(() =>
     loadComposerSpellcheck(),
@@ -1212,6 +1220,17 @@ export default function App() {
     window.addEventListener(COMPOSER_SPELLCHECK_CHANGED_EVENT, reload);
     return () =>
       window.removeEventListener(COMPOSER_SPELLCHECK_CHANGED_EVENT, reload);
+=======
+  /** Muted char/word count on non-empty drafts (localStorage; Settings → Composer). */
+  const [showComposerDraftStats, setShowComposerDraftStats] = useState(() =>
+    loadComposerDraftStatsPref(),
+  );
+  useEffect(() => {
+    const reload = () => setShowComposerDraftStats(loadComposerDraftStatsPref());
+    window.addEventListener(COMPOSER_DRAFT_STATS_CHANGED_EVENT, reload);
+    return () =>
+      window.removeEventListener(COMPOSER_DRAFT_STATS_CHANGED_EVENT, reload);
+>>>>>>> theirs
   }, []);
   /** Files/folders attached for next send (@path to agent). */
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -7525,6 +7544,12 @@ export default function App() {
     [contextUsage, messages],
   );
 
+  /** Char/word counts for the muted composer counter (hidden when empty). */
+  const composerDraftStats = useMemo(
+    () => computeDraftStats(draft),
+    [draft],
+  );
+
   const sessionTasks = useMemo(
     () => collectSessionTasks(messages),
     [messages],
@@ -12444,6 +12469,21 @@ export default function App() {
                       }}
                     />
                   </>
+                ) : null}
+                {showComposerDraftStats &&
+                !composerDraftStats.empty ? (
+                  <span
+                    className="composer__draft-stats"
+                    aria-label={tr("composer.draftStatsAria", {
+                      words: String(composerDraftStats.words),
+                      chars: String(composerDraftStats.chars),
+                    })}
+                  >
+                    {tr("composer.draftStats", {
+                      words: String(composerDraftStats.words),
+                      chars: String(composerDraftStats.chars),
+                    })}
+                  </span>
                 ) : null}
                 <span className="composer__spacer" />
                 {/* Dictation (mic) + Live Voice (headphones): official auth only. */}

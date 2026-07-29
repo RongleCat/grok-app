@@ -91,9 +91,15 @@ import {
   type ComposerSendKeyPref,
 } from "@/lib/composerSendKey";
 import {
+<<<<<<< ours
   loadComposerSpellcheck,
   saveComposerSpellcheck,
 } from "@/lib/composerSpellcheck";
+=======
+  loadComposerDraftStatsPref,
+  saveComposerDraftStatsPref,
+} from "@/lib/draftStats";
+>>>>>>> theirs
 import type { AccountStatus, DetectedEditor } from "@/lib/api";
 import * as api from "@/lib/api";
 import { AccountPanel } from "@/components/AccountPanel";
@@ -811,9 +817,15 @@ export function SettingsPage({
   /** Composer Enter vs ⌘/Ctrl+Enter — localStorage only (no Host settings). */
   const [composerSendKeyPref, setComposerSendKeyPref] =
     useState<ComposerSendKeyPref>(() => loadComposerSendKeyPref());
+<<<<<<< ours
   /** Browser spellcheck on main composer — localStorage only. */
   const [composerSpellcheck, setComposerSpellcheck] = useState(() =>
     loadComposerSpellcheck(),
+=======
+  /** Show muted char/word count on non-empty drafts — localStorage only. */
+  const [composerDraftStats, setComposerDraftStats] = useState(() =>
+    loadComposerDraftStatsPref(),
+>>>>>>> theirs
   );
   /** Pending scroll target after search jump / deep link. */
   const pendingAnchorRef = useRef<string | null>(null);
@@ -1602,6 +1614,7 @@ export function SettingsPage({
               <div
                 className={
                   "settings-row" +
+<<<<<<< ours
                   rowHighlight("settings-anchor-composerSpellcheck")
                 }
                 id="settings-anchor-composerSpellcheck"
@@ -1622,6 +1635,28 @@ export function SettingsPage({
                     saveComposerSpellcheck(next);
                   }}
                   ariaLabel={t("settings.composerSpellcheck")}
+=======
+                  rowHighlight("settings-anchor-composerDraftStats")
+                }
+                id="settings-anchor-composerDraftStats"
+              >
+                <div className="settings-row__text">
+                  <div className="settings-row__label">
+                    {t("settings.composerDraftStats")}
+                  </div>
+                  <div className="settings-row__desc">
+                    {t("settings.composerDraftStatsDesc")}
+                  </div>
+                </div>
+                <UiCheck
+                  checked={composerDraftStats}
+                  onChange={() => {
+                    const next = !composerDraftStats;
+                    setComposerDraftStats(next);
+                    saveComposerDraftStatsPref(next);
+                  }}
+                  ariaLabel={t("settings.composerDraftStats")}
+>>>>>>> theirs
                 />
               </div>
             </div>
