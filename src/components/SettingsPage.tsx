@@ -93,6 +93,7 @@ import {
   PERMISSION_POLICIES,
 } from "@/lib/grokCatalog";
 import {
+  COMPOSER_SEND_KEY_CHANGED_EVENT,
   loadComposerSendKeyPref,
   saveComposerSendKeyPref,
   type ComposerSendKeyPref,
@@ -4142,7 +4143,23 @@ function ShortcutsSettingsPanel({
   onOpenHelp?: () => void;
 }) {
   const platform = useMemo(() => detectShortcutPlatform(), []);
-  const groups = useMemo(() => shortcutsByGroup(), []);
+  /** Live send chord from Composer pref (same-tab + storage). */
+  const [sendPref, setSendPref] = useState<ComposerSendKeyPref>(() =>
+    loadComposerSendKeyPref(),
+  );
+  useEffect(() => {
+    const reload = () => setSendPref(loadComposerSendKeyPref());
+    window.addEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, reload);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "grok.composerSendKey" || e.key === null) reload();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, reload);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+  const groups = useMemo(() => shortcutsByGroup(sendPref), [sendPref]);
 
   const groupLabel = (g: ShortcutGroup) =>
     t(`settings.shortcuts.group.${g}` as MessageKey);

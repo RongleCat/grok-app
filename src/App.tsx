@@ -13380,6 +13380,7 @@ export default function App() {
         <ul className="shortcuts-list">
           {shortcutsForPlatform(
             platform === "mac" ? "mac" : platform === "win" ? "win" : "other",
+            composerSendKeyPref,
           ).map((row) => (
             <li key={row.id} className="shortcuts-list__row">
               <span className="shortcuts-list__label">

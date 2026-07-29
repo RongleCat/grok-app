@@ -36,6 +36,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Changed
 
+- **Shortcuts catalog / help**: **Send** row reflects the Composer send-key preference (Enter vs ⌘/Ctrl+Enter) and updates live when the pref changes
 - **Shortcuts catalog**: default **Send** shows plain Enter (not ⌘/Ctrl+Enter); note points to Settings → Composer for mod-enter
 
 **中文 · 新增**
@@ -63,6 +64,7 @@ See `docs/llm-wiki/release.md`.
 
 **中文 · 变更**
 
+- 快捷键列表 / 帮助：发送键随对话偏好（Enter 或 ⌘/Ctrl+Enter）实时更新
 - 默认发送键展示为 Enter；说明可在设置 → 对话偏好改用 ⌘/Ctrl+Enter
 
 ## [0.2.1] - 2026-07-29
