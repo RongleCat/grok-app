@@ -141,8 +141,8 @@ export function sessionToMarkdown(input: SessionExportInput): string {
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
 }
 
-/** Safe download filename from a session title. */
-export function sessionExportFilename(title: string, sessionId?: string | null): string {
+/** Safe download basename from a session title (no extension). */
+function sessionExportBasename(title: string, sessionId?: string | null): string {
   const base = (title || "session")
     .trim()
     .toLowerCase()
@@ -151,5 +151,95 @@ export function sessionExportFilename(title: string, sessionId?: string | null):
     .slice(0, 48);
   const id = (sessionId || "").slice(0, 8);
   const name = base || "session";
-  return id ? `grok-${name}-${id}.md` : `grok-${name}.md`;
+  return id ? `grok-${name}-${id}` : `grok-${name}`;
+}
+
+/** Safe download filename from a session title (Markdown). */
+export function sessionExportFilename(title: string, sessionId?: string | null): string {
+  return `${sessionExportBasename(title, sessionId)}.md`;
+}
+
+/** Safe download filename for JSON session export. */
+export function sessionExportJsonFilename(title: string, sessionId?: string | null): string {
+  return `${sessionExportBasename(title, sessionId)}.json`;
+}
+
+export type SessionJsonMessage = {
+  role: "user" | "assistant";
+  content: string;
+  /** Present only when includeThoughts and thought is non-empty. Import ignores unknown fields. */
+  thought?: string;
+};
+
+export type SessionJsonExport = {
+  title: string;
+  sessionId?: string;
+  exportedAt: string;
+  messages: SessionJsonMessage[];
+};
+
+/**
+ * Render a session as pretty-printed JSON for re-import.
+ *
+ * Shape matches `session_import` object form (`messages: [{role,content}]`).
+ * Defaults omit tools and thoughts for a clean round-trip. Tools are never
+ * re-importable as user/assistant, so they are omitted unless
+ * `includeToolSummary` is true (then emitted as assistant `[tool] …` lines).
+ * Set `includeThoughts` to attach optional `thought` fields (import ignores them).
+ */
+export function sessionToJson(input: SessionExportInput): string {
+  const opts = input.options ?? {};
+  // Prefer clean re-import: tools/thoughts off unless explicitly requested.
+  const includeThoughts = opts.includeThoughts === true;
+  const includeToolSummary = opts.includeToolSummary === true;
+
+  const title = (input.title || "Untitled").trim() || "Untitled";
+  const exportedAt = input.exportedAt || new Date().toISOString();
+  const messages: SessionJsonMessage[] = [];
+
+  for (const m of input.messages) {
+    if (isToolish(m)) {
+      if (!includeToolSummary) continue;
+      const line = formatToolSummaryLine((m.content || "").trim(), m.marker);
+      if (!line) continue;
+      // Import only keeps user/assistant; surface tool summary as assistant text.
+      messages.push({ role: "assistant", content: `[tool] ${line}` });
+      continue;
+    }
+
+    const roleRaw = (m.role || "").trim().toLowerCase();
+    const role: "user" | "assistant" | null =
+      roleRaw === "user" || roleRaw === "human" || roleRaw === "me" || roleRaw === "prompt"
+        ? "user"
+        : roleRaw === "assistant" ||
+            roleRaw === "ai" ||
+            roleRaw === "bot" ||
+            roleRaw === "model" ||
+            roleRaw === "grok" ||
+            roleRaw === "agent"
+          ? "assistant"
+          : null;
+    if (!role) continue;
+
+    const content = (m.content || "").trim();
+    if (!content) continue; // import requires non-empty content
+
+    const row: SessionJsonMessage = { role, content };
+    const thought = (m.thought || "").trim();
+    if (includeThoughts && thought) {
+      row.thought = thought;
+    }
+    messages.push(row);
+  }
+
+  const out: SessionJsonExport = {
+    title,
+    exportedAt,
+    messages,
+  };
+  if (input.sessionId) {
+    out.sessionId = input.sessionId;
+  }
+
+  return `${JSON.stringify(out, null, 2)}\n`;
 }

@@ -14,6 +14,11 @@ See `docs/llm-wiki/release.md`.
 ### Added
 
 - Desktop notification when the agent asks a question (`session://ask_user`), gated by the existing “Notify on permission” setting
+- **Session JSON export**: download chat as import-friendly JSON (`{ title, sessionId, exportedAt, messages: [{role,content}] }`) from the session menu; round-trips with existing transcript import
+
+**中文 · 新增**
+
+- **会话 JSON 导出**：会话菜单下载可再导入的 JSON（仅 user/assistant，与现有 transcript 导入兼容）
 
 ## [0.2.1] - 2026-07-29
 

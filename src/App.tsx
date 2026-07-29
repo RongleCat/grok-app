@@ -221,6 +221,8 @@ import {
 } from "@/lib/paletteActions";
 import {
   sessionExportFilename,
+  sessionExportJsonFilename,
+  sessionToJson,
   sessionToMarkdown,
 } from "@/lib/sessionExport";
 import {
@@ -8779,6 +8781,68 @@ export default function App() {
     [openExportSessionMd],
   );
 
+  /**
+   * Download session as import-friendly JSON (user/assistant only; no modal).
+   * Reuses the same message loading path as Markdown export.
+   */
+  const exportSessionJson = useCallback(
+    async (sessionMeta?: {
+      id: string;
+      title: string;
+      projectId?: string | null;
+    }) => {
+      const id = sessionMeta?.id ?? session.sessionId;
+      if (!id) {
+        showToast(tr("session.exportFail"));
+        return;
+      }
+      const title =
+        sessionMeta?.title ||
+        sessions.find((s) => s.id === id)?.title ||
+        session.title ||
+        tr("session.untitled");
+      try {
+        let msgs = messages;
+        if (id !== session.sessionId) {
+          msgs = (await api.sessionMessages(id)) as ChatMessage[];
+        }
+        const json = sessionToJson({
+          title,
+          sessionId: id,
+          // Clean re-import: omit thoughts/tools by default.
+          options: { includeThoughts: false, includeToolSummary: false },
+          messages: msgs.map((m) => ({
+            role: m.role,
+            content: m.content,
+            thought: m.thought,
+            createdAt: m.createdAt,
+            marker: m.marker,
+          })),
+        });
+        const blob = new Blob([json], {
+          type: "application/json;charset=utf-8",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = sessionExportJsonFilename(title, id);
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast(tr("session.exportDone"));
+      } catch (e) {
+        showToast(`${tr("session.exportFail")}: ${String(e)}`);
+      }
+    },
+    [
+      session.sessionId,
+      session.title,
+      sessions,
+      messages,
+      showToast,
+      tr,
+    ],
+  );
+
   /** Full diagnostic zip (messages + agent trail + logs) for bug reports. */
   const exportSessionDiagnostic = useCallback(
     async (sessionId?: string | null) => {
@@ -13468,6 +13532,18 @@ export default function App() {
                 icon: <IconCopy size={16} />,
                 onClick: () => {
                   openExportSessionMd({
+                    id: s.id,
+                    title: s.title,
+                    projectId: s.projectId,
+                  });
+                },
+              },
+              {
+                id: "export-json",
+                label: tr("session.exportJson"),
+                icon: <IconCopy size={16} />,
+                onClick: () => {
+                  void exportSessionJson({
                     id: s.id,
                     title: s.title,
                     projectId: s.projectId,
