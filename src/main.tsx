@@ -39,6 +39,10 @@ import {
   applyMessageActionsVisibility,
   loadMessageActionsVisibility,
 } from "./lib/messageActionsPref";
+import {
+  applyWindowAlwaysOnTop,
+  loadWindowAlwaysOnTopPref,
+} from "./lib/windowAlwaysOnTop";
 
 // Apply persisted theme preference (default: system) before first React paint.
 const bootPref = loadThemePreference(localStorage);
@@ -61,6 +65,8 @@ applyWallpaperFlag(loadWallpaperMeta(localStorage) !== null);
 applyWallpaperScrimToDocument(loadWallpaperScrim(localStorage));
 // Native: null = follow OS (required for live system theme); light/dark locks chrome.
 void applyNativeWindowTheme(bootPref === "system" ? null : bootTheme);
+// Desktop always-on-top (localStorage; fail-closed outside Tauri).
+void applyWindowAlwaysOnTop(loadWindowAlwaysOnTopPref(localStorage));
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

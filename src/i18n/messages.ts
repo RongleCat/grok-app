@@ -884,6 +884,9 @@ const en = {
   "settings.launchAtLogin": "Launch at login",
   "settings.launchAtLoginDesc":
     "Start Grok automatically when you log into this computer. Uses the OS login items list (Launch Agent on macOS).",
+  "settings.windowAlwaysOnTop": "Keep window on top",
+  "settings.windowAlwaysOnTopDesc":
+    "Keep the Grok window above other apps. Off by default. Desktop only.",
   "settings.reopenLastSession": "Reopen last chat on startup",
   "settings.reopenLastSessionDesc": "Off by default (start on a new chat). When on, open the chat you were last viewing if it still exists and is not archived.",
   "settings.notifyOnTurnDone": "Notify when a turn finishes",
@@ -3163,6 +3166,9 @@ const zh: Record<MessageKey, string> = {
   "settings.launchAtLogin": "登录时启动",
   "settings.launchAtLoginDesc":
     "在你登录此电脑时自动启动 Grok。使用系统登录项（macOS 为 Launch Agent）。",
+  "settings.windowAlwaysOnTop": "窗口置顶",
+  "settings.windowAlwaysOnTopDesc":
+    "保持 Grok 窗口在其他应用之上。默认关闭。仅桌面端有效。",
   "settings.reopenLastSession": "启动时恢复上次对话",
   "settings.reopenLastSessionDesc": "默认关闭（启动进入新建会话页）。开启后，若上次打开的对话仍存在且未归档，则自动打开。",
   "settings.notifyOnTurnDone": "回合完成时桌面通知",

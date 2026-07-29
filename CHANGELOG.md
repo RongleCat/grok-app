@@ -13,6 +13,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- **Always-on-top window** (Settings → General → App): keep the desktop window above other apps (`localStorage` `grok.windowAlwaysOnTop`, default off; Tauri `setAlwaysOnTop`)
 - **Copy last assistant reply** shortcut: ⌘/Ctrl+Shift+C (same action as slash `/copy`; listed in shortcuts catalog)
 - **Collapse all activity** in the current chat: top-bar control and session menu item collapse expanded tool phases and finished thinking blocks (streaming thoughts stay open)
 - **Sidebar session relative time** (Settings → Appearance → Interface; on by default): muted “2 hours ago” meta on session rows from `updatedAt`, refreshed about once a minute (`localStorage` `grok.sidebarShowRelativeTime`)
@@ -40,6 +41,7 @@ See `docs/llm-wiki/release.md`.
 
 **中文 · 新增**
 
+- 窗口置顶（设置 → 通用 → 应用；`localStorage` `grok.windowAlwaysOnTop`，默认关）
 - 复制上一条助手回复快捷键：⌘/Ctrl+Shift+C（与 `/copy` 相同；快捷键列表已收录）
 - 当前对话「收起全部活动」：顶栏按钮与会话菜单可收起已展开的工具阶段与已完成思考（流式思考保持展开）
 - 侧栏会话相对更新时间（设置 → 外观 → 界面；默认开；约每分钟刷新）
