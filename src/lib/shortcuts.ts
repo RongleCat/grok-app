@@ -56,6 +56,13 @@ export const SHORTCUTS: ShortcutRow[] = [
     win: "Esc",
   },
   {
+    id: "copyLastReply",
+    labelKey: "shortcuts.copyLastReply",
+    group: "workbench",
+    mac: "⌘ ⇧ C",
+    win: "Ctrl Shift C",
+  },
+  {
     id: "settings",
     labelKey: "shortcuts.settings",
     group: "navigation",

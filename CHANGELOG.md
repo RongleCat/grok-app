@@ -13,6 +13,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- **Copy last assistant reply** shortcut: ⌘/Ctrl+Shift+C (same action as slash `/copy`; listed in shortcuts catalog)
 - **Stop all** busy sessions from the Tasks panel (confirm, then cancel every streaming / awaiting-permission / connecting session; toast with success count)
 - **Quiet hours** for desktop notifications (Settings → General → App): optional local start/end window that suppresses system notifies overnight or any range; in-app toasts unchanged
 - **Clear composer draft**: small clear control on the input row when text or attachments are present; long drafts (>200 characters) confirm first
@@ -36,6 +37,7 @@ See `docs/llm-wiki/release.md`.
 
 **中文 · 新增**
 
+- 复制上一条助手回复快捷键：⌘/Ctrl+Shift+C（与 `/copy` 相同；快捷键列表已收录）
 - 任务面板「全部停止」忙碌会话（确认后批量取消； toast 成功数）
 - 桌面通知免打扰时段（设置 → 通用 → 应用；本地起止时间）
 - 输入框清空草稿（有内容时显示；超过 200 字需确认）

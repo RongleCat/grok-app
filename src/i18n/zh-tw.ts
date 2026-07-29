@@ -1445,6 +1445,7 @@ export const zhTW: Record<MessageKey, string> = {
   "shortcuts.search": "搜尋對話 / 專案",
   "shortcuts.findInChat": "在對話中尋找",
   "shortcuts.newChat": "新增對話",
+  "shortcuts.copyLastReply": "複製上一條助手回覆",
   "shortcuts.settings": "設定",
   "shortcuts.doctor": "Doctor",
   "shortcuts.liveVoice": "開始即時語音",

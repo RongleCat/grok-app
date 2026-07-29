@@ -67,4 +67,13 @@ describe("shortcuts catalog", () => {
     expect(row!.mac.toLowerCase()).toContain("space");
     expect(row!.win.toLowerCase()).toContain("space");
   });
+
+  it("lists copy last reply (Cmd/Ctrl+Shift+C) in workbench", () => {
+    const row = SHORTCUTS.find((s) => s.id === "copyLastReply");
+    expect(row).toBeDefined();
+    expect(row!.labelKey).toBe("shortcuts.copyLastReply");
+    expect(row!.group).toBe("workbench");
+    expect(row!.mac).toBe("⌘ ⇧ C");
+    expect(row!.win).toBe("Ctrl Shift C");
+  });
 });

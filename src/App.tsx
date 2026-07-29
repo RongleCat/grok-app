@@ -1042,12 +1042,13 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [searchQuery, showSearch]);
 
-  // Global shortcuts: search, find-in-chat, help, doctor, new chat, settings, voice, Esc-stop.
+  // Global shortcuts: search, find-in-chat, help, doctor, copy last reply, new chat, settings, voice, Esc-stop.
   // Handlers go through refs so we don't re-bind every render.
   const shortcutHandlersRef = useRef({
     newChat: () => {},
     openSettings: () => {},
     openChatFind: () => {},
+    copyLastReply: () => {},
     toggleVoice: () => {},
     cancelVoice: () => {},
     startLiveVoice: () => {},
@@ -1133,6 +1134,12 @@ export default function App() {
       if (key === "d" && e.shiftKey) {
         e.preventDefault();
         setShowDoctor(true);
+        return;
+      }
+      // Copy last assistant reply: Cmd/Ctrl+Shift+C (always; not plain Cmd+C).
+      if (key === "c" && e.shiftKey) {
+        e.preventDefault();
+        shortcutHandlersRef.current.copyLastReply();
         return;
       }
       // Live Voice: Cmd/Ctrl+Shift+V (works while typing in composer).
@@ -8675,6 +8682,9 @@ export default function App() {
     },
     openChatFind: () => {
       openChatFind();
+    },
+    copyLastReply: () => {
+      void copyLastAssistantReply();
     },
     toggleVoice: () => {
       toggleVoice();
