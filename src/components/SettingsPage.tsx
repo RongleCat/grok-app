@@ -132,6 +132,10 @@ import {
   type MessageActionsVisibility,
 } from "@/lib/messageActionsPref";
 import {
+  MESSAGE_TIME_FORMATS,
+  type MessageTimeFormat,
+} from "@/lib/messageTimeFormatPref";
+import {
   SETTINGS_NAV,
   buildSettingsHash,
   defaultTabFor,
@@ -189,6 +193,9 @@ export interface SettingsPageProps {
   /** Show message timestamps in chat action rows (localStorage). */
   showMessageTimestamps?: boolean;
   onShowMessageTimestamps?: (v: boolean) => void;
+  /** Absolute vs relative message time labels (localStorage). */
+  messageTimeFormat?: MessageTimeFormat;
+  onMessageTimeFormat?: (v: MessageTimeFormat) => void;
   /** Color skin pack on top of light/dark (optional for older callers). */
   skin?: ThemeSkinId;
   onSkin?: (v: ThemeSkinId) => void;
@@ -702,6 +709,8 @@ export function SettingsPage({
   onTheme,
   showMessageTimestamps = true,
   onShowMessageTimestamps,
+  messageTimeFormat = "absolute",
+  onMessageTimeFormat,
   skin = "default",
   onSkin,
   wallpaperUrl = null,
@@ -2837,6 +2846,84 @@ export function SettingsPage({
                         }
                         ariaLabel={t("settings.messageTimestamps")}
                       />
+                    </div>
+                  </div>
+                ) : null}
+                {onMessageTimeFormat ? (
+                  <div
+                    className={
+                      "settings-card" +
+                      rowHighlight("settings-anchor-messageTimeFormat")
+                    }
+                    id="settings-anchor-messageTimeFormat"
+                  >
+                    <div className="settings-row">
+                      <div className="settings-row__text">
+                        <SettingsLabelWithTip
+                          label={t("settings.messageTimeFormat")}
+                          tip={t("settings.messageTimeFormatDesc")}
+                        />
+                      </div>
+                      <div
+                        className="settings-seg"
+                        role="radiogroup"
+                        aria-label={t("settings.messageTimeFormat")}
+                      >
+                        {MESSAGE_TIME_FORMATS.map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            role="radio"
+                            aria-checked={messageTimeFormat === mode}
+                            className={
+                              "settings-seg__btn" +
+                              (messageTimeFormat === mode ? " is-on" : "")
+                            }
+                            onClick={() => onMessageTimeFormat(mode)}
+                          >
+                            {t(`settings.messageTimeFormat.${mode}`)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+                {onMessageTimeFormat ? (
+                  <div
+                    className={
+                      "settings-card" +
+                      rowHighlight("settings-anchor-messageTimeFormat")
+                    }
+                    id="settings-anchor-messageTimeFormat"
+                  >
+                    <div className="settings-row">
+                      <div className="settings-row__text">
+                        <SettingsLabelWithTip
+                          label={t("settings.messageTimeFormat")}
+                          tip={t("settings.messageTimeFormatDesc")}
+                        />
+                      </div>
+                      <div
+                        className="settings-seg"
+                        role="radiogroup"
+                        aria-label={t("settings.messageTimeFormat")}
+                      >
+                        {MESSAGE_TIME_FORMATS.map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            role="radio"
+                            aria-checked={messageTimeFormat === mode}
+                            className={
+                              "settings-seg__btn" +
+                              (messageTimeFormat === mode ? " is-on" : "")
+                            }
+                            onClick={() => onMessageTimeFormat(mode)}
+                          >
+                            {t(`settings.messageTimeFormat.${mode}`)}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ) : null}

@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import {
   formatMessageTime,
   formatQuotaResetTime,
+  formatRelativeTime,
   loadCachedSuperGrokBrand,
   localDateKeyFromIso,
   resolveWelcomeBrandKind,
@@ -145,6 +146,44 @@ describe("formatMessageTime", () => {
     expect(zh.length).toBeGreaterThan(4);
     expect(en.length).toBeGreaterThan(4);
     expect(formatMessageTime(null, "zh")).toBe("");
+  });
+});
+
+describe("formatRelativeTime", () => {
+  it("returns em dash for empty/invalid", () => {
+    expect(formatRelativeTime(null, "en")).toBe("—");
+    expect(formatRelativeTime(undefined, "zh")).toBe("—");
+    expect(formatRelativeTime("not-a-date", "en")).toBe("—");
+  });
+
+  it("formats recent times with relative units", () => {
+    const now = Date.now();
+    const twoMinAgo = new Date(now - 2 * 60 * 1000).toISOString();
+    const en = formatRelativeTime(twoMinAgo, "en");
+    const zh = formatRelativeTime(twoMinAgo, "zh");
+    expect(en.length).toBeGreaterThan(1);
+    expect(zh.length).toBeGreaterThan(1);
+    // English uses minute/minutes or "2 minutes ago" / "2 min. ago" depending on engine
+    expect(/minute|min/i.test(en) || /\d/.test(en)).toBe(true);
+  });
+});
+
+describe("formatRelativeTime", () => {
+  it("returns em dash for empty/invalid", () => {
+    expect(formatRelativeTime(null, "en")).toBe("—");
+    expect(formatRelativeTime(undefined, "zh")).toBe("—");
+    expect(formatRelativeTime("not-a-date", "en")).toBe("—");
+  });
+
+  it("formats recent times with relative units", () => {
+    const now = Date.now();
+    const twoMinAgo = new Date(now - 2 * 60 * 1000).toISOString();
+    const en = formatRelativeTime(twoMinAgo, "en");
+    const zh = formatRelativeTime(twoMinAgo, "zh");
+    expect(en.length).toBeGreaterThan(1);
+    expect(zh.length).toBeGreaterThan(1);
+    // English uses minute/minutes or "2 minutes ago" / "2 min. ago" depending on engine
+    expect(/minute|min/i.test(en) || /\d/.test(en)).toBe(true);
   });
 });
 

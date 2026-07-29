@@ -14,6 +14,7 @@ See `docs/llm-wiki/release.md`.
 ### Added
 
 - Desktop notification when the agent asks a question (`session://ask_user`), gated by the existing “Notify on permission” setting
+<<<<<<< ours
 - **Shortcuts catalog**: list **Find in conversation** (⌘/Ctrl+F) and **voice dictation** (Ctrl+Space; not Cmd)
 - **Composer spellcheck** (Settings → General → Composer): optional browser spellcheck on the main chat input (off by default)
 - **Session JSON export**: download chat as import-friendly JSON (`{ title, sessionId, exportedAt, messages: [{role,content}] }`) from the session menu; round-trips with existing transcript import
@@ -40,6 +41,9 @@ See `docs/llm-wiki/release.md`.
 **中文 · 变更**
 
 - 默认发送键展示为 Enter；说明可在设置 → 对话偏好改用 ⌘/Ctrl+Enter
+=======
+- **Relative message timestamps** (Settings → Appearance → Interface): absolute weekday+clock or relative (“2 minutes ago”); relative labels refresh about once a minute
+>>>>>>> theirs
 
 ## [0.2.1] - 2026-07-29
 

@@ -921,6 +921,11 @@ const en = {
   "settings.messageTimestamps": "Show message timestamps",
   "settings.messageTimestampsDesc":
     "Show the send time next to message actions. Turn off for a cleaner transcript.",
+  "settings.messageTimeFormat": "Timestamp format",
+  "settings.messageTimeFormatDesc":
+    "Absolute shows weekday and clock time; relative shows “2 minutes ago” and refreshes about once a minute.",
+  "settings.messageTimeFormat.absolute": "Absolute",
+  "settings.messageTimeFormat.relative": "Relative",
   "settings.skin": "Color skin",
   "settings.skinDesc": "Accent and surface palette (works with light/dark)",
   "settings.skin.default": "Default",
@@ -3147,6 +3152,11 @@ const zh: Record<MessageKey, string> = {
   "settings.messageTimestamps": "显示消息时间戳",
   "settings.messageTimestampsDesc":
     "在消息操作区显示发送时间。关闭后对话更简洁。",
+  "settings.messageTimeFormat": "时间戳格式",
+  "settings.messageTimeFormatDesc":
+    "绝对时间显示星期与时钟；相对时间如「2 分钟前」，约每分钟刷新。",
+  "settings.messageTimeFormat.absolute": "绝对时间",
+  "settings.messageTimeFormat.relative": "相对时间",
   "settings.skin": "配色皮肤",
   "settings.skinDesc": "强调色与表面色板（可与浅/深色叠加）",
   "settings.skin.default": "默认",
