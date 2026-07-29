@@ -2,9 +2,13 @@
  * Path / code block — Cursor-style soft chrome (label + wrap + copy).
  */
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { IconCheck, IconCopy } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
+import {
+  CODE_LINE_NUMBERS_PREF_EVENT,
+  loadCodeLineNumbersPref,
+} from "@/lib/codeLineNumbersPref";
 import { loadCodeWrapPref } from "@/lib/codeWrapPref";
 import { cn } from "@/lib/utils";
 
@@ -25,17 +29,36 @@ export function CodeBlock({
   wrapLabel = "Wrap",
   unwrapLabel = "No wrap",
   copyLabel = "Copy",
+  showLineNumbers: showLineNumbersProp,
 }: {
   language?: string;
   children: ReactNode;
   wrapLabel?: string;
   unwrapLabel?: string;
   copyLabel?: string;
+  /** Override global line-numbers pref when set. */
+  showLineNumbers?: boolean;
 }) {
   const [wrap, setWrap] = useState(() => loadCodeWrapPref());
+  const [prefLineNumbers, setPrefLineNumbers] = useState(() =>
+    loadCodeLineNumbersPref(),
+  );
   const [copied, setCopied] = useState(false);
   const lang = (language || "text").replace(/^language-/, "") || "text";
   const text = extractText(children).replace(/\n$/, "");
+  const showLineNumbers = showLineNumbersProp ?? prefLineNumbers;
+  const lineCount = Math.max(1, text.split("\n").length);
+
+  useEffect(() => {
+    if (showLineNumbersProp !== undefined) return;
+    const onPref = (ev: Event) => {
+      const detail = (ev as CustomEvent).detail;
+      if (typeof detail === "boolean") setPrefLineNumbers(detail);
+      else setPrefLineNumbers(loadCodeLineNumbersPref());
+    };
+    window.addEventListener(CODE_LINE_NUMBERS_PREF_EVENT, onPref);
+    return () => window.removeEventListener(CODE_LINE_NUMBERS_PREF_EVENT, onPref);
+  }, [showLineNumbersProp]);
 
   const onCopy = async () => {
     try {
@@ -48,7 +71,7 @@ export function CodeBlock({
   };
 
   return (
-    <div className="chat-code">
+    <div className={cn("chat-code", showLineNumbers && "chat-code--lines")}>
       <div className="chat-code__bar">
         <span className="chat-code__lang">{lang}</span>
         <div className="chat-code__bar-actions">
@@ -77,9 +100,20 @@ export function CodeBlock({
           </Tip>
         </div>
       </div>
-      <pre className={cn("chat-code__pre", wrap && "is-wrap")}>
-        <code>{children}</code>
-      </pre>
+      <div className="chat-code__body">
+        {showLineNumbers ? (
+          <div className="chat-code__gutter" aria-hidden>
+            {Array.from({ length: lineCount }, (_, i) => (
+              <span key={i} className="chat-code__ln">
+                {i + 1}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <pre className={cn("chat-code__pre", wrap && "is-wrap")}>
+          <code>{children}</code>
+        </pre>
+      </div>
     </div>
   );
 }

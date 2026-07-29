@@ -586,6 +586,23 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     ],
   },
   {
+    id: "appearance.codeLineNumbers",
+    section: "appearance",
+    tab: "interface",
+    anchorId: "settings-anchor-codeLineNumbers",
+    labelKey: "settings.codeLineNumbers",
+    descKeys: ["settings.codeLineNumbersDesc"],
+    keywords: [
+      "line numbers",
+      "code lines",
+      "gutter",
+      "行号",
+      "行號",
+      "代码行号",
+      "程式碼行號",
+    ],
+  },
+  {
     id: "appearance.messageActions",
     section: "appearance",
     tab: "interface",

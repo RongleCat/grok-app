@@ -102,6 +102,10 @@ import {
 } from "@/i18n";
 import { useUpdaterContext } from "@/hooks/UpdaterProvider";
 import {
+  loadCodeLineNumbersPref,
+  saveCodeLineNumbersPref,
+} from "@/lib/codeLineNumbersPref";
+import {
   loadCodeWrapPref,
   saveCodeWrapPref,
 } from "@/lib/codeWrapPref";
@@ -845,6 +849,10 @@ export function SettingsPage({
 /** Chat code-block wrap default — frontend-only localStorage. */
   const [codeWrapDefault, setCodeWrapDefault] = useState(() =>
     loadCodeWrapPref(),
+  );
+  /** Chat code-block line numbers — frontend-only localStorage. */
+  const [codeLineNumbers, setCodeLineNumbers] = useState(() =>
+    loadCodeLineNumbersPref(),
   );
   /** Message action buttons: hover vs always visible. */
   const [messageActionsVisibility, setMessageActionsVisibilityState] =
@@ -2658,6 +2666,31 @@ export function SettingsPage({
                         saveCodeWrapPref(next);
                       }}
                       ariaLabel={t("settings.codeWrapDefault")}
+                    />
+                  </div>
+                </div>
+                <div
+                  className={
+                    "settings-card" +
+                    rowHighlight("settings-anchor-codeLineNumbers")
+                  }
+                  id="settings-anchor-codeLineNumbers"
+                >
+                  <div className="settings-row">
+                    <div className="settings-row__text">
+                      <SettingsLabelWithTip
+                        label={t("settings.codeLineNumbers")}
+                        tip={t("settings.codeLineNumbersDesc")}
+                      />
+                    </div>
+                    <UiCheck
+                      checked={codeLineNumbers}
+                      onChange={() => {
+                        const next = !codeLineNumbers;
+                        setCodeLineNumbers(next);
+                        saveCodeLineNumbersPref(next);
+                      }}
+                      ariaLabel={t("settings.codeLineNumbers")}
                     />
                   </div>
                 </div>
