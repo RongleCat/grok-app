@@ -23,6 +23,7 @@ See `docs/llm-wiki/release.md`.
 - **Chat density** (Settings → Appearance → Interface): comfortable (default) or compact transcript spacing — tighter message padding and gaps (`localStorage` `grok.chatDensity`)
 - **Optional confirm before opening external links** from chat markdown (Settings → Appearance → Interface; default off). Desktop opens http(s) via the system browser (`openExternalUrl`) instead of only `target=_blank`.
 - **Sidebar multi-select archive**: Select several chats in the tree and archive them in one confirm (restore remains in Settings → Archived)
+- **Launch at login** (Settings → General → App): OS login item via `tauri-plugin-autostart`; opt-in, persisted in AppSettings and synced on change
 
 ### Changed
 
@@ -40,6 +41,7 @@ See `docs/llm-wiki/release.md`.
 - 对话密度：舒适 / 紧凑
 - 聊天外链可选确认后在系统浏览器打开
 - 侧栏多选归档会话
+- **登录时启动**（设置 → 通用 → 应用）：系统登录项（`tauri-plugin-autostart`），默认关，写入 AppSettings 并在变更/启动时同步
 
 **中文 · 变更**
 

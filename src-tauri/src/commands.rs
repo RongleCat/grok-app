@@ -715,6 +715,7 @@ pub async fn settings_set(
         prev.preferred_agent.trim() != settings.preferred_agent.trim();
     let max_turns_flip = prev.max_agent_turns != settings.max_agent_turns;
     let sandbox_flip = prev.sandbox_profile.trim() != settings.sandbox_profile.trim();
+    let launch_at_login_flip = prev.launch_at_login != settings.launch_at_login;
 
     store::save_settings(&settings)?;
 
@@ -726,6 +727,22 @@ pub async fn settings_set(
             rolled.store_api_keys_in_keychain = prev.store_api_keys_in_keychain;
             let _ = store::save_settings(&rolled);
             return Err(e);
+        }
+    }
+
+    if launch_at_login_flip {
+        use tauri_plugin_autostart::ManagerExt;
+        let autolaunch = app.autolaunch();
+        let res = if settings.launch_at_login {
+            autolaunch.enable()
+        } else {
+            autolaunch.disable()
+        };
+        if let Err(e) = res {
+            let mut rolled = settings.clone();
+            rolled.launch_at_login = prev.launch_at_login;
+            let _ = store::save_settings(&rolled);
+            return Err(format!("launch at login: {e}"));
         }
     }
 

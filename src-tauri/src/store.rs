@@ -245,6 +245,10 @@ pub struct AppSettings {
     /// When true, window close hides to tray. When false, close quits the app.
     #[serde(default = "default_close_to_tray")]
     pub close_to_tray: bool,
+    /// Register an OS login item so the app starts at user login (default off).
+    /// Synced to the OS via tauri-plugin-autostart on change / setup.
+    #[serde(default)]
+    pub launch_at_login: bool,
     /// Desktop notification when an agent turn finishes (default on).
     #[serde(default = "default_true")]
     pub notify_on_turn_done: bool,
@@ -367,6 +371,7 @@ impl Default for AppSettings {
             voice_dictation_auto_send: false,
             voice_keep_agents_on_end: true,
             close_to_tray: default_close_to_tray(),
+            launch_at_login: false,
             notify_on_turn_done: true,
             notify_on_permission: true,
             proxy_mode: default_proxy_mode(),
@@ -1696,6 +1701,13 @@ mod tests {
         let d = AppSettings::default();
         assert!(d.notify_on_turn_done);
         assert!(d.notify_on_permission);
+    }
+
+    #[test]
+    fn launch_at_login_defaults_false_when_missing_from_json() {
+        let s: AppSettings = serde_json::from_str(legacy_settings_json()).expect("deserialize");
+        assert!(!s.launch_at_login);
+        assert!(!AppSettings::default().launch_at_login);
     }
 
     #[test]

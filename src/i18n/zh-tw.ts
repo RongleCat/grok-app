@@ -825,6 +825,9 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.closeToTray": "關閉視窗時縮到系統匣",
   "settings.closeToTrayDesc":
     "開啟後，關閉按鈕會隱藏到選單列/系統匣。關閉此項則關閉視窗即結束（系統匣「結束」始終可用）。",
+  "settings.launchAtLogin": "登入時啟動",
+  "settings.launchAtLoginDesc":
+    "在你登入此電腦時自動啟動 Grok。使用系統登入項目（macOS 為 Launch Agent）。",
   "settings.reopenLastSession": "啟動時還原上次對話",
   "settings.reopenLastSessionDesc": "預設關閉（啟動進入新對話頁）。開啟後，若上次開啟的對話仍存在且未封存，則自動開啟。",
   "settings.notifyOnTurnDone": "回合完成時桌面通知",

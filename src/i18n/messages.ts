@@ -859,6 +859,9 @@ const en = {
   "settings.closeToTray": "Close window to tray",
   "settings.closeToTrayDesc":
     "When on, the red close button hides the app to the menu bar / system tray. Turn off to quit the app on close (Quit from the tray still works either way).",
+  "settings.launchAtLogin": "Launch at login",
+  "settings.launchAtLoginDesc":
+    "Start Grok automatically when you log into this computer. Uses the OS login items list (Launch Agent on macOS).",
   "settings.reopenLastSession": "Reopen last chat on startup",
   "settings.reopenLastSessionDesc": "Off by default (start on a new chat). When on, open the chat you were last viewing if it still exists and is not archived.",
   "settings.notifyOnTurnDone": "Notify when a turn finishes",
@@ -3097,6 +3100,9 @@ const zh: Record<MessageKey, string> = {
   "settings.closeToTray": "关闭窗口时最小化到托盘",
   "settings.closeToTrayDesc":
     "开启后，关闭按钮会隐藏到菜单栏/系统托盘。关闭此项则关闭窗口即退出（托盘「退出」始终可用）。",
+  "settings.launchAtLogin": "登录时启动",
+  "settings.launchAtLoginDesc":
+    "在你登录此电脑时自动启动 Grok。使用系统登录项（macOS 为 Launch Agent）。",
   "settings.reopenLastSession": "启动时恢复上次对话",
   "settings.reopenLastSessionDesc": "默认关闭（启动进入新建会话页）。开启后，若上次打开的对话仍存在且未归档，则自动打开。",
   "settings.notifyOnTurnDone": "回合完成时桌面通知",

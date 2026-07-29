@@ -276,6 +276,9 @@ export interface SettingsPageProps {
   onReopenLastSession?: (v: boolean) => void;
   closeToTray?: boolean;
   onCloseToTray?: (v: boolean) => void;
+  /** Start app at OS login (default off). */
+  launchAtLogin?: boolean;
+  onLaunchAtLogin?: (v: boolean) => void;
   /** Desktop notification when an agent turn finishes (default on). */
   notifyOnTurnDone?: boolean;
   onNotifyOnTurnDone?: (v: boolean) => void;
@@ -784,6 +787,8 @@ export function SettingsPage({
   onReopenLastSession,
   closeToTray = true,
   onCloseToTray,
+  launchAtLogin = false,
+  onLaunchAtLogin,
   notifyOnTurnDone = true,
   onNotifyOnTurnDone,
   notifyOnPermission = true,
@@ -2147,7 +2152,12 @@ export function SettingsPage({
                 </div>
               ) : null}
               {onCloseToTray ? (
-                <div className="settings-row">
+                <div
+                  className={
+                    "settings-row" + rowHighlight("settings-anchor-closeToTray")
+                  }
+                  id="settings-anchor-closeToTray"
+                >
                   <div className="settings-row__text">
                     <div className="settings-row__label">
                       {t("settings.closeToTray")}
@@ -2160,6 +2170,29 @@ export function SettingsPage({
                     checked={!!closeToTray}
                     onChange={() => onCloseToTray(!closeToTray)}
                     ariaLabel={t("settings.closeToTray")}
+                  />
+                </div>
+              ) : null}
+              {onLaunchAtLogin ? (
+                <div
+                  className={
+                    "settings-row" +
+                    rowHighlight("settings-anchor-launchAtLogin")
+                  }
+                  id="settings-anchor-launchAtLogin"
+                >
+                  <div className="settings-row__text">
+                    <div className="settings-row__label">
+                      {t("settings.launchAtLogin")}
+                    </div>
+                    <div className="settings-row__desc">
+                      {t("settings.launchAtLoginDesc")}
+                    </div>
+                  </div>
+                  <UiCheck
+                    checked={!!launchAtLogin}
+                    onChange={() => onLaunchAtLogin(!launchAtLogin)}
+                    ariaLabel={t("settings.launchAtLogin")}
                   />
                 </div>
               ) : null}

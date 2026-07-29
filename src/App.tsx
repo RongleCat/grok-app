@@ -1302,6 +1302,7 @@ export default function App() {
   /** Default off → launch on draft new-chat page. */
   const [reopenLastSession, setReopenLastSession] = useState(false);
   const [closeToTray, setCloseToTray] = useState(true);
+  const [launchAtLogin, setLaunchAtLogin] = useState(false);
   /** Desktop notification prefs (default on). Refs keep event listeners fresh. */
   const [notifyOnTurnDone, setNotifyOnTurnDone] = useState(true);
   const [notifyOnPermission, setNotifyOnPermission] = useState(true);
@@ -1932,6 +1933,7 @@ export default function App() {
       // Opt-in only (missing key / false → draft new chat on launch).
       setReopenLastSession(settings.reopenLastSession === true);
       setCloseToTray(settings.closeToTray !== false);
+      setLaunchAtLogin(settings.launchAtLogin === true);
       setNotifyOnTurnDone(settings.notifyOnTurnDone !== false);
       setNotifyOnPermission(settings.notifyOnPermission !== false);
       setLastSessionId(
@@ -10161,6 +10163,16 @@ export default function App() {
             setCloseToTray(v);
             void api.settingsGet().then((s) =>
               api.settingsSet({ ...s, closeToTray: v }),
+            );
+          }}
+          launchAtLogin={launchAtLogin}
+          onLaunchAtLogin={(v) => {
+            setLaunchAtLogin(v);
+            void api.settingsGet().then((s) =>
+              api.settingsSet({ ...s, launchAtLogin: v }).catch(() => {
+                // Host rolls back AppSettings when OS login-item update fails.
+                setLaunchAtLogin(!v);
+              }),
             );
           }}
           notifyOnTurnDone={notifyOnTurnDone}

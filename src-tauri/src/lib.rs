@@ -111,7 +111,11 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_store::Builder::new().build())
         // Always register process so release builds can relaunch after install.
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_process::init())
+        // Login-item plugin only; never auto-enable. Enable/disable is driven by
+        // AppSettings.launch_at_login in setup + settings_set. Safe for `cargo test`
+        // (tests never call run(); init does not touch the OS login list).
+        .plugin(tauri_plugin_autostart::Builder::new().build());
 
     // Register the updater only in configured release builds; omit it locally.
     // Requires GROK_UPDATER_* env at compile time (build.rs) + non-debug binary.
@@ -204,6 +208,27 @@ pub fn run() {
                 let host = app.state::<Arc<MirrorHost>>().inner().clone();
                 let mgr = app.state::<Arc<SessionManager>>().inner().clone();
                 mirror::maybe_autostart(host, app.handle().clone(), mgr);
+            }
+            // Re-apply OS login item from AppSettings (default off). Does not enable
+            // unless the user opted in; repairs drift if the OS entry was removed.
+            {
+                use tauri_plugin_autostart::ManagerExt;
+                let want = store::load_settings().launch_at_login;
+                let autolaunch = app.autolaunch();
+                match autolaunch.is_enabled() {
+                    Ok(on) if on != want => {
+                        let res = if want {
+                            autolaunch.enable()
+                        } else {
+                            autolaunch.disable()
+                        };
+                        if let Err(e) = res {
+                            tracing::warn!("launch-at-login sync: {e}");
+                        }
+                    }
+                    Ok(_) => {}
+                    Err(e) => tracing::warn!("launch-at-login is_enabled: {e}"),
+                }
             }
             Ok(())
         })

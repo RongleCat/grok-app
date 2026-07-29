@@ -1019,6 +1019,8 @@ export interface AppSettings {
   voiceKeepAgentsOnEnd?: boolean;
   /** Window close hides to tray when true (default). */
   closeToTray?: boolean;
+  /** Start the app when the user logs into the OS (default false). */
+  launchAtLogin?: boolean;
   /** Desktop notification when an agent turn finishes (default true). */
   notifyOnTurnDone?: boolean;
   /** Desktop notification when the agent requests permission (default true). */
