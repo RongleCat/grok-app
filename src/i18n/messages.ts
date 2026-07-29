@@ -867,6 +867,11 @@ const en = {
   "settings.notifyOnPermission": "Notify on permission requests",
   "settings.notifyOnPermissionDesc":
     "Show a desktop notification when the agent needs your approval (including background chats).",
+  "settings.notifyQuietHours": "Quiet hours",
+  "settings.notifyQuietHoursDesc":
+    "Suppress desktop notifications during this local time window (for example overnight). In-app toasts are unchanged.",
+  "settings.notifyQuietHoursStart": "Start",
+  "settings.notifyQuietHoursEnd": "End",
   "settings.prefsScope": "Remember model & permission at",
   "settings.prefsScopeDesc":
     "Global: all chats. Project: each workspace. Session: only the current chat.",
@@ -3105,6 +3110,11 @@ const zh: Record<MessageKey, string> = {
   "settings.notifyOnPermission": "需要授权时桌面通知",
   "settings.notifyOnPermissionDesc":
     "Agent 需要你批准时显示系统通知（含后台会话）。",
+  "settings.notifyQuietHours": "免打扰时段",
+  "settings.notifyQuietHoursDesc":
+    "在本地时间窗口内不发送桌面通知（例如夜间）。应用内提示不受影响。",
+  "settings.notifyQuietHoursStart": "开始",
+  "settings.notifyQuietHoursEnd": "结束",
   "settings.prefsScope": "模型与权限记忆范围",
   "settings.prefsScopeDesc":
     "全局：所有对话共用。项目：按工作区记忆。会话：仅当前聊天。",

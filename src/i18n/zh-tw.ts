@@ -833,6 +833,11 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.notifyOnPermission": "需要授權時桌面通知",
   "settings.notifyOnPermissionDesc":
     "Agent 需要你批准時顯示系統通知（含背景對話）。",
+  "settings.notifyQuietHours": "免打擾時段",
+  "settings.notifyQuietHoursDesc":
+    "在本地時間窗口內不發送桌面通知（例如夜間）。應用程式內提示不受影響。",
+  "settings.notifyQuietHoursStart": "開始",
+  "settings.notifyQuietHoursEnd": "結束",
   "settings.prefsScope": "模型與權限記憶範圍",
   "settings.prefsScopeDesc":
     "全域：所有對話共用。專案：依工作區記憶。對話：僅目前聊天。",

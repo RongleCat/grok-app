@@ -13,6 +13,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- **Quiet hours** for desktop notifications (Settings → General → App): optional local start/end window that suppresses system notifies overnight or any range; in-app toasts unchanged
 - **Composer draft stats**: muted character and word count when the input is non-empty (Settings → General → Composer; on by default)
 - **Relative message timestamps** (Settings → Appearance → Interface): absolute weekday+clock or relative (“2 minutes ago”); relative labels refresh about once a minute
 - Desktop notification when the agent asks a question (`session://ask_user`), gated by the existing “Notify on permission” setting
@@ -30,6 +31,7 @@ See `docs/llm-wiki/release.md`.
 
 **中文 · 新增**
 
+- 桌面通知免打扰时段（设置 → 通用 → 应用；本地起止时间）
 - 输入框草稿字数/词数（可关，默认开）
 - 消息时间戳可选相对时间（约每分钟刷新）
 - Agent 提问桌面通知（复用「需要授权时通知」开关）

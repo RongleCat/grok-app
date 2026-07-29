@@ -4581,6 +4581,33 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   font-size: 13px;
 }
 
+/* Settings → General → App · quiet hours start/end */
+.settings-quiet-hours__times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  width: 100%;
+}
+
+.settings-quiet-hours__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+  flex: 1 1 140px;
+}
+
+.settings-quiet-hours__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.settings-quiet-hours__input {
+  max-width: 180px;
+  font-variant-numeric: tabular-nums;
+}
+
 .settings-seg {
   display: inline-flex;
   padding: 3px;

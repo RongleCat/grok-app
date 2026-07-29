@@ -129,6 +129,12 @@ import {
   saveConfirmExternalLinksPref,
 } from "@/lib/externalLinkPref";
 import {
+  loadNotifyQuietHoursPref,
+  normalizeHHmm,
+  saveNotifyQuietHoursPref,
+  type NotifyQuietHoursPref,
+} from "@/lib/notifyQuietHours";
+import {
   MESSAGE_ACTIONS_VISIBILITIES,
   applyMessageActionsVisibility,
   loadMessageActionsVisibility,
@@ -905,6 +911,13 @@ export function SettingsPage({
   const [confirmExternalLinks, setConfirmExternalLinks] = useState(() =>
     loadConfirmExternalLinksPref(),
   );
+  /** Desktop notification quiet hours — localStorage only. */
+  const [notifyQuietHours, setNotifyQuietHours] =
+    useState<NotifyQuietHoursPref>(() => loadNotifyQuietHoursPref());
+  const onNotifyQuietHours = useCallback((next: NotifyQuietHoursPref) => {
+    setNotifyQuietHours(next);
+    saveNotifyQuietHoursPref(next);
+  }, []);
   /** Message action buttons: hover vs always visible. */
   const [messageActionsVisibility, setMessageActionsVisibilityState] =
     useState<MessageActionsVisibility>(() => loadMessageActionsVisibility());
@@ -2207,6 +2220,78 @@ export function SettingsPage({
                     onChange={() => onNotifyOnPermission(!notifyOnPermission)}
                     ariaLabel={t("settings.notifyOnPermission")}
                   />
+                </div>
+              ) : null}
+              <div
+                className={
+                  "settings-row" +
+                  rowHighlight("settings-anchor-notifyQuietHours")
+                }
+                id="settings-anchor-notifyQuietHours"
+              >
+                <div className="settings-row__text">
+                  <div className="settings-row__label">
+                    {t("settings.notifyQuietHours")}
+                  </div>
+                  <div className="settings-row__desc">
+                    {t("settings.notifyQuietHoursDesc")}
+                  </div>
+                </div>
+                <UiCheck
+                  checked={!!notifyQuietHours.enabled}
+                  onChange={() =>
+                    onNotifyQuietHours({
+                      ...notifyQuietHours,
+                      enabled: !notifyQuietHours.enabled,
+                    })
+                  }
+                  ariaLabel={t("settings.notifyQuietHours")}
+                />
+              </div>
+              {notifyQuietHours.enabled ? (
+                <div className="settings-row settings-row--stack settings-quiet-hours">
+                  <div className="settings-quiet-hours__times">
+                    <label className="settings-quiet-hours__field">
+                      <span className="settings-quiet-hours__label">
+                        {t("settings.notifyQuietHoursStart")}
+                      </span>
+                      <input
+                        type="time"
+                        className="settings-input settings-quiet-hours__input"
+                        value={notifyQuietHours.start}
+                        onChange={(e) => {
+                          const next =
+                            normalizeHHmm(e.target.value) ??
+                            notifyQuietHours.start;
+                          onNotifyQuietHours({
+                            ...notifyQuietHours,
+                            start: next,
+                          });
+                        }}
+                        aria-label={t("settings.notifyQuietHoursStart")}
+                      />
+                    </label>
+                    <label className="settings-quiet-hours__field">
+                      <span className="settings-quiet-hours__label">
+                        {t("settings.notifyQuietHoursEnd")}
+                      </span>
+                      <input
+                        type="time"
+                        className="settings-input settings-quiet-hours__input"
+                        value={notifyQuietHours.end}
+                        onChange={(e) => {
+                          const next =
+                            normalizeHHmm(e.target.value) ??
+                            notifyQuietHours.end;
+                          onNotifyQuietHours({
+                            ...notifyQuietHours,
+                            end: next,
+                          });
+                        }}
+                        aria-label={t("settings.notifyQuietHoursEnd")}
+                      />
+                    </label>
+                  </div>
                 </div>
               ) : null}
               {onDefaultOpenTarget && (
