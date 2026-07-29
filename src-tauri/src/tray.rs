@@ -265,10 +265,8 @@ fn handle_menu_event(app: &AppHandle, event: MenuEvent) {
         }
         "more_settings" => {
             show_main_window(app);
-            let _ = app.emit(
-                "tray://open-settings",
-                serde_json::json!({ "section": "general" }),
-            );
+            // No section → frontend restores last settings route (or general).
+            let _ = app.emit("tray://open-settings", serde_json::json!({}));
         }
         "more_doctor" => {
             show_main_window(app);
