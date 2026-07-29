@@ -122,6 +122,7 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
   /** Session-level token→abs map (tool-touched files + unique tails). */
   sessionPathMap,
   onOpenResource,
+  onOpenExternalLink,
   onAddAttachmentToComposer,
   attachLabels,
   findQuery,
@@ -135,6 +136,7 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
   projectPath?: string | null;
   sessionPathMap?: Record<string, string>;
   onOpenResource?: (target: ResourceOpenTarget) => void;
+  onOpenExternalLink?: (url: string) => void;
   onAddAttachmentToComposer?: (att: Attachment) => void;
   attachLabels: AttachLabels;
   findQuery?: string;
@@ -182,6 +184,7 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
           imagePathMap={pathMapProp}
           projectPath={projectPath}
           onOpenResource={onOpenResource}
+          onOpenExternalLink={onOpenExternalLink}
           findQuery={findQuery}
           findActiveOccurrence={findActiveOccurrence}
           findOccurrenceBase={findOccurrenceBase}
@@ -392,6 +395,8 @@ export interface ConversationThreadProps {
   onOpenResource?: (
     target: import("@/components/ResourceViewer").ResourceOpenTarget,
   ) => void;
+  /** Open external http(s) chat links (desktop shell + optional confirm). */
+  onOpenExternalLink?: (url: string) => void;
   onAddAttachmentToComposer?: (att: Attachment) => void;
   attachLabels: {
     open: string;
@@ -446,6 +451,7 @@ export function ConversationThread({
   onRewindToUserMessage,
   onForkFromUserMessage,
   onOpenResource,
+  onOpenExternalLink,
   onAddAttachmentToComposer,
   attachLabels,
   findQuery = "",
@@ -1353,6 +1359,7 @@ export function ConversationThread({
                                 thoughtForLabel={(n) =>
                                   tr("chat.thoughtFor", { n })
                                 }
+                                onOpenExternalLink={onOpenExternalLink}
                               />
                             </div>
                           );
@@ -1382,6 +1389,7 @@ export function ConversationThread({
                             projectPath={projectPath}
                             sessionPathMap={sessionPathMap}
                             onOpenResource={onOpenResource}
+                            onOpenExternalLink={onOpenExternalLink}
                             onAddAttachmentToComposer={
                               onAddAttachmentToComposer
                             }
@@ -1407,6 +1415,7 @@ export function ConversationThread({
                         projectPath={projectPath}
                         sessionPathMap={sessionPathMap}
                         onOpenResource={onOpenResource}
+                        onOpenExternalLink={onOpenExternalLink}
                         onAddAttachmentToComposer={onAddAttachmentToComposer}
                         attachLabels={attachLabels}
                         findQuery={findQuery}

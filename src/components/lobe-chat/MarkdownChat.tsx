@@ -27,6 +27,7 @@ import {
   normalizePathToken,
   resolveFileToken,
 } from "@/lib/pathRefs";
+import { isExternalHttpUrl } from "@/lib/externalLinkPref";
 import { useSmoothStream } from "@/hooks/useSmoothStream";
 import {
   createSoftBufferState,
@@ -118,6 +119,7 @@ export const MarkdownChat = memo(function MarkdownChat({
   imagePathMap,
   projectPath,
   onOpenResource,
+  onOpenExternalLink,
   findQuery = "",
   findActiveOccurrence = null,
   findOccurrenceBase = 0,
@@ -132,6 +134,11 @@ export const MarkdownChat = memo(function MarkdownChat({
   imagePathMap?: Record<string, string>;
   projectPath?: string | null;
   onOpenResource?: (target: ResourceOpenTarget) => void;
+  /**
+   * When set, http(s) markdown links call this instead of target=_blank /
+   * URL path cards. Parent may confirm then open via desktop shell.
+   */
+  onOpenExternalLink?: (url: string) => void;
   /** In-chat find query — highlights string leaves in markdown. */
   findQuery?: string;
   findActiveOccurrence?: number | null;
@@ -389,6 +396,23 @@ export const MarkdownChat = memo(function MarkdownChat({
           a: ({ href, children: c }) => {
             const text = textFromChildren(c).trim();
             const hrefStr = typeof href === "string" ? href : "";
+            // Prefer app-controlled external open (Tauri shell + optional confirm)
+            // over path cards / target=_blank for absolute http(s) links.
+            if (onOpenExternalLink && isExternalHttpUrl(hrefStr)) {
+              return (
+                <a
+                  className="chat-md__link"
+                  href={hrefStr}
+                  rel="noreferrer noopener"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onOpenExternalLink(hrefStr);
+                  }}
+                >
+                  {paint(c)}
+                </a>
+              );
+            }
             const card =
               (hrefStr && renderPathOrUrl(hrefStr, text)) ||
               (text && text !== hrefStr ? renderPathOrUrl(text) : null);

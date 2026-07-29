@@ -14,6 +14,11 @@ See `docs/llm-wiki/release.md`.
 ### Added
 
 - Desktop notification when the agent asks a question (`session://ask_user`), gated by the existing “Notify on permission” setting
+- **Optional confirm before opening external links** from chat markdown (Settings → Appearance → Interface; default off). Desktop opens http(s) via the system browser (`openExternalUrl`) instead of only `target=_blank`.
+
+**中文 · 新增**
+
+- **聊天外链可选确认**：打开 http(s) 链接前可先询问（外观 · 界面；默认关）。桌面端经系统浏览器打开，不再只靠 `target=_blank`。
 
 ## [0.2.1] - 2026-07-29
 

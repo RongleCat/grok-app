@@ -888,6 +888,9 @@ const en = {
   "settings.codeWrapDefault": "Wrap code lines by default",
   "settings.codeWrapDefaultDesc":
     "New chat code blocks start with soft wrap on. You can still toggle wrap on each block.",
+  "settings.confirmExternalLinks": "Confirm before opening links",
+  "settings.confirmExternalLinksDesc":
+    "Ask before opening http(s) links from chat in your browser. Off by default.",
   "settings.messageActions": "Message actions",
   "settings.messageActionsDesc":
     "Show Copy, Export, Regenerate, and Edit on hover, or keep them always visible (better for trackpads and accessibility)",
@@ -1811,6 +1814,10 @@ const en = {
   "chat.scrollBottom": "Scroll to latest",
   "chat.codeWrap": "Wrap lines",
   "chat.codeUnwrap": "No wrap",
+  "chat.externalLinkConfirmTitle": "Open external link?",
+  "chat.externalLinkConfirmMessage":
+    "You are about to open this link in your browser:\n{url}",
+  "chat.externalLinkOpen": "Open link",
   "composer.effortPanelHint": "Drag to set reasoning depth",
   "automations.menu": "Create automation",
   "automations.menuHint": "Schedule a recurring task",
@@ -3084,6 +3091,9 @@ const zh: Record<MessageKey, string> = {
   "settings.codeWrapDefault": "默认自动换行代码",
   "settings.codeWrapDefaultDesc":
     "新的聊天代码块默认开启软换行。仍可在每个代码块上单独切换。",
+  "settings.confirmExternalLinks": "打开链接前确认",
+  "settings.confirmExternalLinksDesc":
+    "从聊天打开 http(s) 链接前先询问。默认关闭，减少打扰。",
   "settings.messageActions": "消息操作按钮",
   "settings.messageActionsDesc":
     "复制、导出、重新生成、编辑：悬停显示，或始终可见（触控板与无障碍更友好）",
@@ -3979,6 +3989,9 @@ const zh: Record<MessageKey, string> = {
   "chat.scrollBottom": "回到最新",
   "chat.codeWrap": "启用自动换行",
   "chat.codeUnwrap": "取消自动换行",
+  "chat.externalLinkConfirmTitle": "打开外部链接？",
+  "chat.externalLinkConfirmMessage": "即将在浏览器中打开：\n{url}",
+  "chat.externalLinkOpen": "打开链接",
   "composer.effortPanelHint": "拖动设置思考深度",
   "automations.menu": "创建自动化",
   "automations.menuHint": "安排周期任务",

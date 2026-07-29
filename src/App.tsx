@@ -47,6 +47,7 @@ import {
   MESSAGE_TIMESTAMPS_CHANGE_EVENT,
   saveMessageTimestampsPref,
 } from "@/lib/messageTimestampsPref";
+import { loadConfirmExternalLinksPref } from "@/lib/externalLinkPref";
 import { WallpaperMediaLayer } from "@/components/WallpaperMediaLayer";
 import {
   ASIDE_WIDTH_MIN,
@@ -4493,6 +4494,39 @@ export default function App() {
       void api.trayRefresh();
     },
     [],
+  );
+
+  /** Open chat markdown http(s) links via desktop shell; optional confirm pref. */
+  const openExternalLinkFromChat = useCallback(
+    (url: string) => {
+      const doOpen = () => {
+        if (api.isTauri()) {
+          void api.openExternalUrl(url).catch((e) => {
+            console.error("[chat] openExternalUrl failed", e);
+            // Fallback for hosts that reject shell open.
+            try {
+              window.open(url, "_blank", "noopener,noreferrer");
+            } catch {
+              /* ignore */
+            }
+          });
+        } else {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
+      };
+      if (loadConfirmExternalLinksPref()) {
+        setAppDialog({
+          kind: "confirm",
+          title: tr("chat.externalLinkConfirmTitle"),
+          message: tr("chat.externalLinkConfirmMessage", { url }),
+          confirmLabel: tr("chat.externalLinkOpen"),
+          onConfirm: doOpen,
+        });
+        return;
+      }
+      doOpen();
+    },
+    [tr],
   );
 
   const renameProject = (proj: Project) => {
@@ -11269,6 +11303,7 @@ export default function App() {
               openAsidePane();
               setResourceOpenTarget(target);
             }}
+            onOpenExternalLink={openExternalLinkFromChat}
             onAddAttachmentToComposer={(att) =>
               setAttachments((prev) => mergeAttachments(prev, [att]))
             }

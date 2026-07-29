@@ -106,6 +106,10 @@ import {
   saveCodeWrapPref,
 } from "@/lib/codeWrapPref";
 import {
+  loadConfirmExternalLinksPref,
+  saveConfirmExternalLinksPref,
+} from "@/lib/externalLinkPref";
+import {
   MESSAGE_ACTIONS_VISIBILITIES,
   applyMessageActionsVisibility,
   loadMessageActionsVisibility,
@@ -845,6 +849,9 @@ export function SettingsPage({
 /** Chat code-block wrap default — frontend-only localStorage. */
   const [codeWrapDefault, setCodeWrapDefault] = useState(() =>
     loadCodeWrapPref(),
+  );
+  const [confirmExternalLinks, setConfirmExternalLinks] = useState(() =>
+    loadConfirmExternalLinksPref(),
   );
   /** Message action buttons: hover vs always visible. */
   const [messageActionsVisibility, setMessageActionsVisibilityState] =
@@ -2658,6 +2665,31 @@ export function SettingsPage({
                         saveCodeWrapPref(next);
                       }}
                       ariaLabel={t("settings.codeWrapDefault")}
+                    />
+                  </div>
+                </div>
+                <div
+                  className={
+                    "settings-card" +
+                    rowHighlight("settings-anchor-confirmExternalLinks")
+                  }
+                  id="settings-anchor-confirmExternalLinks"
+                >
+                  <div className="settings-row">
+                    <div className="settings-row__text">
+                      <SettingsLabelWithTip
+                        label={t("settings.confirmExternalLinks")}
+                        tip={t("settings.confirmExternalLinksDesc")}
+                      />
+                    </div>
+                    <UiCheck
+                      checked={confirmExternalLinks}
+                      onChange={() => {
+                        const next = !confirmExternalLinks;
+                        setConfirmExternalLinks(next);
+                        saveConfirmExternalLinksPref(next);
+                      }}
+                      ariaLabel={t("settings.confirmExternalLinks")}
                     />
                   </div>
                 </div>

@@ -853,6 +853,9 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.codeWrapDefault": "預設自動換行程式碼",
   "settings.codeWrapDefaultDesc":
     "新的聊天程式碼區塊預設開啟軟換行。仍可在每個區塊上單獨切換。",
+  "settings.confirmExternalLinks": "開啟連結前確認",
+  "settings.confirmExternalLinksDesc":
+    "從聊天開啟 http(s) 連結前先詢問。預設關閉，減少打擾。",
   "settings.messageActions": "訊息操作按鈕",
   "settings.messageActionsDesc":
     "複製、匯出、重新生成、編輯：懸停顯示，或始終可見（觸控板與無障礙更友善）",
@@ -1748,6 +1751,9 @@ export const zhTW: Record<MessageKey, string> = {
   "chat.scrollBottom": "回到最新",
   "chat.codeWrap": "啟用自動換行",
   "chat.codeUnwrap": "取消自動換行",
+  "chat.externalLinkConfirmTitle": "開啟外部連結？",
+  "chat.externalLinkConfirmMessage": "即將在瀏覽器中開啟：\n{url}",
+  "chat.externalLinkOpen": "開啟連結",
   "composer.effortPanelHint": "拖動設定思考深度",
   "automations.menu": "建立自動化",
   "automations.menuHint": "排程週期任務",

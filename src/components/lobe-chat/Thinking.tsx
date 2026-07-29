@@ -32,6 +32,7 @@ export function Thinking({
   locale = "en",
   expandPref,
   onExpandPrefChange,
+  onOpenExternalLink,
 }: {
   content?: string | ReactNode;
   thinking?: boolean;
@@ -45,6 +46,8 @@ export function Thinking({
   /** Override stored preference (tests / parent). */
   expandPref?: ThinkingExpandPref;
   onExpandPrefChange?: (pref: ThinkingExpandPref) => void;
+  /** Open external http(s) links from thinking markdown. */
+  onOpenExternalLink?: (url: string) => void;
 }) {
   const [pref, setPref] = useState<ThinkingExpandPref>(
     () => expandPref ?? loadThinkingExpandPref(),
@@ -198,7 +201,12 @@ export function Thinking({
       {open && hasBody ? (
         <div className="lobe-chat-thinking__body">
           {typeof content === "string" ? (
-            <MarkdownChat locale={locale} muted pathCards={false}>
+            <MarkdownChat
+              locale={locale}
+              muted
+              pathCards={false}
+              onOpenExternalLink={onOpenExternalLink}
+            >
               {content}
             </MarkdownChat>
           ) : (
