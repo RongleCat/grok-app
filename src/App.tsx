@@ -285,6 +285,7 @@ import {
 import {
   COMPOSER_DRAFT_STATS_CHANGED_EVENT,
   computeDraftStats,
+  countDraftChars,
   loadComposerDraftStatsPref,
 } from "@/lib/draftStats";
 import {
@@ -5690,6 +5691,41 @@ export default function App() {
       if (el) el.style.height = "auto";
     });
   };
+
+  /**
+   * Wipe the main composer (text + attachments). Also leaves inline edit mode
+   * and drops the per-project new-chat buffer when on a draft page.
+   */
+  const applyClearComposerDraft = useCallback(() => {
+    clearComposerAfterSubmit({
+      clearProjectDraft:
+        session.sessionId == null && viewingSessionIdRef.current == null,
+    });
+    if (!editSubmitting) {
+      setEditingUserMessageId(null);
+      setEditAttachments([]);
+    }
+    requestComposerFocus();
+  }, [editSubmitting, requestComposerFocus, session.sessionId]);
+
+  /** Clear immediately, or confirm first when the draft is long (>200 chars). */
+  const requestClearComposerDraft = useCallback(() => {
+    const hasBody =
+      !isDraftEmpty(parseStoredContent(draft)) || attachments.length > 0;
+    if (!hasBody) return;
+    if (countDraftChars(draft) > 200) {
+      setAppDialog({
+        kind: "confirm",
+        title: tr("composer.clearDraftConfirmTitle"),
+        message: tr("composer.clearDraftConfirmMessage"),
+        confirmLabel: tr("composer.clearDraftConfirm"),
+        danger: true,
+        onConfirm: () => applyClearComposerDraft(),
+      });
+      return;
+    }
+    applyClearComposerDraft();
+  }, [applyClearComposerDraft, attachments.length, draft, tr]);
 
   /** Enqueue when agent is busy; otherwise send immediately. */
   const send = async () => {
@@ -12510,6 +12546,19 @@ export default function App() {
                       chars: String(composerDraftStats.chars),
                     })}
                   </span>
+                ) : null}
+                {!isDraftEmpty(parseStoredContent(draft)) ||
+                attachments.length > 0 ? (
+                  <Tip label={tr("composer.clearDraft")}>
+                    <button
+                      type="button"
+                      className="icon-btn composer__clear-draft"
+                      aria-label={tr("composer.clearDraft")}
+                      onClick={() => requestClearComposerDraft()}
+                    >
+                      <IconClose size={14} />
+                    </button>
+                  </Tip>
                 ) : null}
                 <span className="composer__spacer" />
                 {/* Dictation (mic) + Live Voice (headphones): official auth only. */}

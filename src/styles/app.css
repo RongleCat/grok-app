@@ -9179,7 +9179,6 @@ button.composer__context-item {
 }
 
 /* Muted draft char/word count (Settings → Composer; non-empty only). */
-/* Muted draft char/word count (Settings → Composer; non-empty only). */
 .composer__draft-stats {
   font-size: 11px;
   line-height: 1;
@@ -9191,6 +9190,19 @@ button.composer__context-item {
   padding: 0 6px;
   user-select: none;
   pointer-events: none;
+}
+
+/* Clear draft — quieter than plus/send so it does not compete with primary actions. */
+.composer__clear-draft {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  color: var(--text-tertiary);
+}
+
+.composer__clear-draft:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .icon-btn {

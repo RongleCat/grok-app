@@ -442,6 +442,11 @@ const en = {
   "composer.voiceErr.unknown": "Voice dictation failed.",
   "composer.draftStats": "{words} words · {chars} chars",
   "composer.draftStatsAria": "Draft length: {words} words, {chars} characters",
+  "composer.clearDraft": "Clear draft",
+  "composer.clearDraftConfirmTitle": "Clear draft?",
+  "composer.clearDraftConfirmMessage":
+    "This will remove the current text and attachments from the composer.",
+  "composer.clearDraftConfirm": "Clear",
   "composer.send": "Send",
   "composer.queue": "Queue — send after this turn (this chat)",
   "composer.queued":
@@ -2696,6 +2701,10 @@ const zh: Record<MessageKey, string> = {
   "composer.voiceErr.unknown": "语音输入失败。",
   "composer.draftStats": "{words} 词 · {chars} 字",
   "composer.draftStatsAria": "草稿长度：{words} 词，{chars} 字",
+  "composer.clearDraft": "清空草稿",
+  "composer.clearDraftConfirmTitle": "清空草稿？",
+  "composer.clearDraftConfirmMessage": "将清除输入框中的文字和附件。",
+  "composer.clearDraftConfirm": "清空",
   "composer.send": "发送",
   "composer.queue": "入队 — 本轮结束后发送（当前会话）",
   "composer.queued": "已入当前会话队列 — 留在本会话且本轮结束后自动发送",
