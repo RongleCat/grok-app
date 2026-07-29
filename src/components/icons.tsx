@@ -11,6 +11,7 @@ import {
   IconArrowBackUp as TbArrowBackUp,
   IconArrowLeft as TbArrowLeft,
   IconArrowsMinimize as TbArrowsMinimize,
+  IconFocus2 as TbFocus2,
   IconBlockquote as TbBlockquote,
   IconBold as TbBold,
   IconBolt as TbBolt,
@@ -316,6 +317,8 @@ export const IconKeyboard = wrap(TbKeyboard);
 export const IconTarget = wrap(TbTarget);
 export const IconClipboardList = wrap(TbClipboardList);
 export const IconArrowsMinimize = wrap(TbArrowsMinimize);
+/** Zen mode — hide side panes and focus the chat. */
+export const IconZen = wrap(TbFocus2);
 
 /**
  * Two chevrons facing each other (∨ above ∧) — collapse all project folders.

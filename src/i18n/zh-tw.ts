@@ -145,6 +145,8 @@ export const zhTW: Record<MessageKey, string> = {
   "main.leftPaneHide": "隱藏側邊欄",
   "main.rightPaneShow": "顯示檔案",
   "main.rightPaneHide": "隱藏檔案",
+  "main.zenModeEnter": "禪模式 — 隱藏兩側欄",
+  "main.zenModeExit": "退出禪模式",
   "main.openLocation": "開啟位置",
   "main.openLocationHint": "以上次選擇的應用程式開啟",
   "main.openLocationMenu": "選擇應用程式",
@@ -895,6 +897,9 @@ export const zhTW: Record<MessageKey, string> = {
     "回覆完成後，思考/推理區塊保持展開，或自動摺疊。串流生成時仍會即時展開。",
   "settings.thinkingExpand.autoCollapse": "完成後自動摺疊",
   "settings.thinkingExpand.keepOpen": "保持展開",
+  "settings.zenMode": "禪模式",
+  "settings.zenModeDesc":
+    "隱藏左側會話欄與右側檔案欄，最大化對話區域。關閉時恢復進入前的欄狀態。Esc 仍用於停止生成，不會退出禪模式。",
   "settings.chatFontScale": "對話字號",
   "settings.chatFontScaleDesc": "會話訊息區文字大小（訊息、工具摘要、說明）",
   "settings.chatFontScale.sm": "小",

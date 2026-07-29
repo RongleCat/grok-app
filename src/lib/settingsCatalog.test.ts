@@ -101,6 +101,7 @@ describe("settingsCatalog", () => {
     expect(appearance).toContain("settings.chatFontScale");
     expect(appearance).toContain("settings.chatDensity");
     expect(appearance).toContain("settings.sidebarDensity");
+    expect(appearance).toContain("settings.zenMode");
     expect(appearance).toContain("settings.messageActions");
     expect(appearance).toContain("settings.messageTimestamps");
     expect(appearance).toContain("settings.messageTimeFormat");
@@ -163,6 +164,10 @@ describe("settingsCatalog", () => {
     expect(fontEn.some((h) => h.entry.id === "appearance.chatFontScale")).toBe(
       true,
     );
+    const zen = searchSettingsEntries("zen", tZh, tEn);
+    expect(zen.some((h) => h.entry.id === "appearance.zenMode")).toBe(true);
+    const zenZh = searchSettingsEntries("禅", tZh, tEn);
+    expect(zenZh.some((h) => h.entry.id === "appearance.zenMode")).toBe(true);
     const density = searchSettingsEntries("密度", tZh, tEn);
     expect(density.some((h) => h.entry.id === "appearance.chatDensity")).toBe(
       true,

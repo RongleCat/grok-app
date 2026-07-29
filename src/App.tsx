@@ -90,6 +90,15 @@ import {
   type AsideLayoutHint,
 } from "@/lib/layout";
 import {
+  ZEN_MODE_CHANGE_EVENT,
+  applyZenModeLayoutTransition,
+  clearZenModePrior,
+  loadZenMode,
+  loadZenModePrior,
+  saveZenMode,
+  saveZenModePrior,
+} from "@/lib/zenMode";
+import {
   ensureWindowFitsLayout,
   isWindowFitSuppressed,
 } from "@/lib/windowFit";
@@ -411,6 +420,7 @@ import {
   IconFolderPlus,
   IconArrowsVerticalCollapse,
   IconArrowsMinimize,
+  IconZen,
   IconClock,
   IconClose,
   IconNewChat as IconSquarePen,
@@ -706,7 +716,15 @@ export default function App() {
             viewportWidth: window.innerWidth,
           }
         : undefined;
-    const base = loadLayout(localStorage, clampOpts);
+    let base = loadLayout(localStorage, clampOpts);
+    // Zen mode maximizes chat: force both side panes collapsed on cold start.
+    if (loadZenMode(localStorage)) {
+      base = {
+        ...base,
+        sidebarCollapsed: true,
+        asideCollapsed: true,
+      };
+    }
     // Mirror phone: drawer starts collapsed so chat is not covered on first paint.
     if (typeof window !== "undefined" && isMirrorClient()) {
       return withMirrorPhoneDrawerDefault(base, {
@@ -716,6 +734,10 @@ export default function App() {
     }
     return base;
   });
+  /** Hide left + right chrome to maximize chat (localStorage `grok.zenMode`). */
+  const [zenMode, setZenModeState] = useState(() => loadZenMode(localStorage));
+  const zenModeRef = useRef(zenMode);
+  zenModeRef.current = zenMode;
 
   const [session, setSession] = useState<SessionSnapshot>(IDLE_SNAPSHOT);
   /** Host live agent (may differ from the session currently viewed in the UI). */
@@ -1614,6 +1636,54 @@ export default function App() {
 
   const openAsidePaneRef = useRef(openAsidePane);
   openAsidePaneRef.current = openAsidePane;
+
+  /**
+   * Enter/exit zen mode: remember prior collapse, force both panes hidden,
+   * restore on disable. Escape is not bound (Esc→stop must keep working).
+   */
+  const setZenModeEnabled = useCallback((enabled: boolean) => {
+    if (zenModeRef.current === enabled) return;
+    const cur = layoutRef.current;
+    const prior = enabled ? null : loadZenModePrior(localStorage);
+    const { layout: nextCollapse, nextPrior } = applyZenModeLayoutTransition(
+      enabled,
+      {
+        sidebarCollapsed: cur.sidebarCollapsed,
+        asideCollapsed: cur.asideCollapsed,
+      },
+      prior,
+    );
+    if (enabled) {
+      if (nextPrior) saveZenModePrior(nextPrior, localStorage);
+    } else {
+      clearZenModePrior(localStorage);
+    }
+    setLayout((l) => {
+      const n = {
+        ...l,
+        sidebarCollapsed: nextCollapse.sidebarCollapsed,
+        asideCollapsed: nextCollapse.asideCollapsed,
+      };
+      saveLayout(localStorage, n);
+      return n;
+    });
+    // Sync ref before saveZenMode dispatches, so the change listener is a no-op.
+    zenModeRef.current = enabled;
+    setZenModeState(enabled);
+    saveZenMode(enabled, localStorage);
+  }, []);
+
+  // Settings (or another surface) may flip zen via localStorage + event.
+  useEffect(() => {
+    const onChange = (ev: Event) => {
+      const detail = (ev as CustomEvent<boolean>).detail;
+      const next =
+        typeof detail === "boolean" ? detail : loadZenMode(localStorage);
+      setZenModeEnabled(next);
+    };
+    window.addEventListener(ZEN_MODE_CHANGE_EVENT, onChange);
+    return () => window.removeEventListener(ZEN_MODE_CHANGE_EVENT, onChange);
+  }, [setZenModeEnabled]);
 
   // Keep data-theme + native chrome in sync with the resolved theme.
   // When preference is "system", native must stay unlocked (null) so the
@@ -10192,6 +10262,8 @@ export default function App() {
             saveSidebarShowRelativeTimePref(v, localStorage);
             setSidebarShowRelativeTime(v);
           }}
+          zenMode={zenMode}
+          onZenMode={setZenModeEnabled}
           skin={skin}
           onSkin={applySkinChoice}
           wallpaperUrl={wallpaperUrl}
@@ -11550,6 +11622,33 @@ export default function App() {
                       }}
                     />
                   )}
+                  {mainPane === "chat" ? (
+                    <Tip
+                      label={
+                        zenMode
+                          ? tr("main.zenModeExit")
+                          : tr("main.zenModeEnter")
+                      }
+                    >
+                      <button
+                        type="button"
+                        className={
+                          "chrome-btn main__pane-toggle" +
+                          (zenMode ? " is-on" : "")
+                        }
+                        onClick={() => setZenModeEnabled(!zenMode)}
+                        aria-pressed={zenMode}
+                        aria-label={
+                          zenMode
+                            ? tr("main.zenModeExit")
+                            : tr("main.zenModeEnter")
+                        }
+                        data-testid="zen-mode-toggle"
+                      >
+                        <IconZen size={16} />
+                      </button>
+                    </Tip>
+                  ) : null}
                   {mainPane === "chat" && session.sessionId ? (
                     <Tip label={tr("session.collapseAllActivityHint")}>
                       <button

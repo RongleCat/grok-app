@@ -216,6 +216,9 @@ export interface SettingsPageProps {
   /** Sidebar session-row relative updated time (localStorage). */
   sidebarShowRelativeTime?: boolean;
   onSidebarShowRelativeTime?: (v: boolean) => void;
+  /** Zen mode — hide left + right panes (localStorage `grok.zenMode`). */
+  zenMode?: boolean;
+  onZenMode?: (v: boolean) => void;
   /** Color skin pack on top of light/dark (optional for older callers). */
   skin?: ThemeSkinId;
   onSkin?: (v: ThemeSkinId) => void;
@@ -745,6 +748,8 @@ export function SettingsPage({
   onMessageTimeFormat,
   sidebarShowRelativeTime = true,
   onSidebarShowRelativeTime,
+  zenMode = false,
+  onZenMode,
   skin = "default",
   onSkin,
   wallpaperUrl = null,
@@ -2876,6 +2881,28 @@ export function SettingsPage({
                 <h2 className="settings-page__h2">
                   {t("settings.tab.interface")}
                 </h2>
+                {onZenMode ? (
+                  <div
+                    className={
+                      "settings-card" + rowHighlight("settings-anchor-zenMode")
+                    }
+                    id="settings-anchor-zenMode"
+                  >
+                    <div className="settings-row">
+                      <div className="settings-row__text">
+                        <SettingsLabelWithTip
+                          label={t("settings.zenMode")}
+                          tip={t("settings.zenModeDesc")}
+                        />
+                      </div>
+                      <UiCheck
+                        checked={!!zenMode}
+                        onChange={() => onZenMode(!zenMode)}
+                        ariaLabel={t("settings.zenMode")}
+                      />
+                    </div>
+                  </div>
+                ) : null}
                 <div
                   className={
                     "settings-card" +

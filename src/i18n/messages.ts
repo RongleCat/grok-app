@@ -158,6 +158,8 @@ const en = {
   "main.leftPaneHide": "Hide sidebar",
   "main.rightPaneShow": "Show files",
   "main.rightPaneHide": "Hide files",
+  "main.zenModeEnter": "Zen mode — hide side panes",
+  "main.zenModeExit": "Exit zen mode",
   "main.openLocation": "Open location",
   "main.openLocationHint": "Open with last used app",
   "main.openLocationMenu": "Choose app",
@@ -931,6 +933,9 @@ const en = {
     "After a reply finishes, keep reasoning expanded or collapse it automatically. Streaming still opens live.",
   "settings.thinkingExpand.autoCollapse": "Auto-collapse when done",
   "settings.thinkingExpand.keepOpen": "Keep expanded",
+  "settings.zenMode": "Zen mode",
+  "settings.zenModeDesc":
+    "Hide the left sidebar and right files pane to maximize the chat. Turning off restores the panes as they were. Escape still stops generation — it does not exit zen.",
   "settings.chatFontScale": "Chat text size",
   "settings.chatFontScaleDesc":
     "Font size for the conversation transcript (messages, tools, captions)",
@@ -2460,6 +2465,8 @@ const zh: Record<MessageKey, string> = {
   "main.leftPaneHide": "隐藏侧栏",
   "main.rightPaneShow": "显示文件",
   "main.rightPaneHide": "隐藏文件",
+  "main.zenModeEnter": "禅模式 — 隐藏两侧栏",
+  "main.zenModeExit": "退出禅模式",
   "main.openLocation": "打开位置",
   "main.openLocationHint": "用上次选择的应用打开",
   "main.openLocationMenu": "选择应用",
@@ -3210,6 +3217,9 @@ const zh: Record<MessageKey, string> = {
     "回复完成后，思考/推理块保持展开，或自动折叠。流式生成时仍会实时展开。",
   "settings.thinkingExpand.autoCollapse": "完成后自动折叠",
   "settings.thinkingExpand.keepOpen": "保持展开",
+  "settings.zenMode": "禅模式",
+  "settings.zenModeDesc":
+    "隐藏左侧会话栏与右侧文件栏，最大化对话区域。关闭时恢复进入前的栏状态。Esc 仍用于停止生成，不会退出禅模式。",
   "settings.chatFontScale": "对话字号",
   "settings.chatFontScaleDesc": "会话消息区文字大小（消息、工具摘要、说明）",
   "settings.chatFontScale.sm": "小",
