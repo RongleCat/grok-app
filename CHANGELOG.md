@@ -15,6 +15,7 @@ See `docs/llm-wiki/release.md`.
 
 - **Composer draft stats**: muted character and word count when the input is non-empty (Settings → General → Composer; on by default)
 - **Relative message timestamps** (Settings → Appearance → Interface): absolute weekday+clock or relative (“2 minutes ago”); relative labels refresh about once a minute
+- Optional short notification sound when a desktop notification is shown (Settings → General → App; default off)
 - Desktop notification when the agent asks a question (`session://ask_user`), gated by the existing “Notify on permission” setting
 - **Shortcuts catalog**: list **Find in conversation** (⌘/Ctrl+F) and **voice dictation** (Ctrl+Space; not Cmd)
 - **Composer spellcheck** (Settings → General → Composer): optional browser spellcheck on the main chat input (off by default)
@@ -32,6 +33,7 @@ See `docs/llm-wiki/release.md`.
 
 - 输入框草稿字数/词数（可关，默认开）
 - 消息时间戳可选相对时间（约每分钟刷新）
+- 可选通知提示音（桌面通知时轻柔短音，默认关）
 - Agent 提问桌面通知（复用「需要授权时通知」开关）
 - 快捷键列表：对话内查找（⌘/Ctrl+F）、语音输入（Ctrl+Space）
 - 输入框可选拼写检查（默认关）

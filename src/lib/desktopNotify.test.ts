@@ -6,6 +6,7 @@ import {
   shouldShowDesktopNotify,
   showDesktopNotification,
 } from "./desktopNotify";
+import * as notifySound from "./notifySound";
 
 const originalNotification = globalThis.Notification;
 
@@ -124,6 +125,44 @@ describe("desktopNotify", () => {
     const { ctor } = mockNotification("denied");
     expect(showDesktopNotification({ title: "x", force: true })).toBe(false);
     expect(ctor).not.toHaveBeenCalled();
+  });
+
+  it("plays sound when opts.sound is true", () => {
+    mockNotification("granted");
+    const play = vi.spyOn(notifySound, "playNotifySound").mockReturnValue(true);
+    expect(
+      showDesktopNotification({ title: "x", force: true, sound: true }),
+    ).toBe(true);
+    expect(play).toHaveBeenCalledOnce();
+  });
+
+  it("does not play sound when opts.sound is false", () => {
+    mockNotification("granted");
+    const play = vi.spyOn(notifySound, "playNotifySound").mockReturnValue(true);
+    vi.spyOn(notifySound, "loadNotifySoundPref").mockReturnValue(true);
+    expect(
+      showDesktopNotification({ title: "x", force: true, sound: false }),
+    ).toBe(true);
+    expect(play).not.toHaveBeenCalled();
+  });
+
+  it("uses notifySound pref when sound option is omitted", () => {
+    mockNotification("granted");
+    const play = vi.spyOn(notifySound, "playNotifySound").mockReturnValue(true);
+    const load = vi
+      .spyOn(notifySound, "loadNotifySoundPref")
+      .mockReturnValue(true);
+    expect(showDesktopNotification({ title: "x", force: true })).toBe(true);
+    expect(load).toHaveBeenCalled();
+    expect(play).toHaveBeenCalledOnce();
+  });
+
+  it("skips sound by default when pref is off", () => {
+    mockNotification("granted");
+    const play = vi.spyOn(notifySound, "playNotifySound").mockReturnValue(true);
+    vi.spyOn(notifySound, "loadNotifySoundPref").mockReturnValue(false);
+    expect(showDesktopNotification({ title: "x", force: true })).toBe(true);
+    expect(play).not.toHaveBeenCalled();
   });
 
   it("focusAppFromNotification does not throw without Tauri", () => {

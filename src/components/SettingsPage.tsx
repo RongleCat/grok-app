@@ -282,6 +282,9 @@ export interface SettingsPageProps {
   /** Desktop notification when the agent requests permission (default on). */
   notifyOnPermission?: boolean;
   onNotifyOnPermission?: (v: boolean) => void;
+  /** Play a short beep with desktop notifications (localStorage; default off). */
+  notifySound?: boolean;
+  onNotifySound?: (v: boolean) => void;
   planEnabled?: boolean;
   onPlanEnabled?: (v: boolean) => void;
   subagentsEnabled?: boolean;
@@ -788,6 +791,8 @@ export function SettingsPage({
   onNotifyOnTurnDone,
   notifyOnPermission = true,
   onNotifyOnPermission,
+  notifySound = false,
+  onNotifySound,
   cliInfo,
   onDoctor,
   versionFooter,
@@ -2206,6 +2211,29 @@ export function SettingsPage({
                     checked={!!notifyOnPermission}
                     onChange={() => onNotifyOnPermission(!notifyOnPermission)}
                     ariaLabel={t("settings.notifyOnPermission")}
+                  />
+                </div>
+              ) : null}
+              {onNotifySound ? (
+                <div
+                  className={
+                    "settings-row" +
+                    rowHighlight("settings-anchor-notifySound")
+                  }
+                  id="settings-anchor-notifySound"
+                >
+                  <div className="settings-row__text">
+                    <div className="settings-row__label">
+                      {t("settings.notifySound")}
+                    </div>
+                    <div className="settings-row__desc">
+                      {t("settings.notifySoundDesc")}
+                    </div>
+                  </div>
+                  <UiCheck
+                    checked={!!notifySound}
+                    onChange={() => onNotifySound(!notifySound)}
+                    ariaLabel={t("settings.notifySound")}
                   />
                 </div>
               ) : null}

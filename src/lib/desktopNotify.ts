@@ -4,12 +4,19 @@
  * Always safe to call — fails closed to `false` without throwing.
  */
 
+import { loadNotifySoundPref, playNotifySound } from "./notifySound";
+
 export type DesktopNotifyOptions = {
   title: string;
   body?: string;
   /** When false, skip if document has focus (default true = always try). */
   force?: boolean;
   tag?: string;
+  /**
+   * Play the optional notify beep after a successful show.
+   * `undefined` → use localStorage `grok.notifySound` pref (default off).
+   */
+  sound?: boolean;
 };
 
 export type NotifyPermission = "granted" | "denied" | "default" | "unsupported";
@@ -136,6 +143,13 @@ export function showDesktopNotification(opts: DesktopNotifyOptions): boolean {
       }
     } catch {
       /* ignore onclick assignment failures */
+    }
+    // Optional soft beep (pref default off). Fail-closed inside playNotifySound.
+    try {
+      const wantSound = opts.sound ?? loadNotifySoundPref();
+      if (wantSound) playNotifySound();
+    } catch {
+      /* ignore */
     }
     return true;
   } catch {

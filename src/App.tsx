@@ -54,6 +54,11 @@ import {
   type MessageTimeFormat,
 } from "@/lib/messageTimeFormatPref";
 import { loadConfirmExternalLinksPref } from "@/lib/externalLinkPref";
+import {
+  loadNotifySoundPref,
+  NOTIFY_SOUND_CHANGE_EVENT,
+  saveNotifySoundPref,
+} from "@/lib/notifySound";
 import { WallpaperMediaLayer } from "@/components/WallpaperMediaLayer";
 import {
   ASIDE_WIDTH_MIN,
@@ -636,6 +641,9 @@ export default function App() {
   );
   const [messageTimeFormat, setMessageTimeFormat] = useState<MessageTimeFormat>(
     () => loadMessageTimeFormatPref(localStorage),
+  );
+  const [notifySound, setNotifySound] = useState(() =>
+    loadNotifySoundPref(localStorage),
   );
   const [layout, setLayout] = useState(() => {
     // Platform UA is available at first paint; reserve window-control inset on Win.
@@ -2274,6 +2282,21 @@ export default function App() {
     window.addEventListener(MESSAGE_TIME_FORMAT_CHANGE_EVENT, onChange);
     return () =>
       window.removeEventListener(MESSAGE_TIME_FORMAT_CHANGE_EVENT, onChange);
+  }, []);
+
+  // Optional notify beep (localStorage; Settings dispatches change event).
+  useEffect(() => {
+    const onChange = (ev: Event) => {
+      const detail = (ev as CustomEvent<unknown>).detail;
+      if (typeof detail === "boolean") {
+        setNotifySound(detail);
+        return;
+      }
+      setNotifySound(loadNotifySoundPref(localStorage));
+    };
+    window.addEventListener(NOTIFY_SOUND_CHANGE_EVENT, onChange);
+    return () =>
+      window.removeEventListener(NOTIFY_SOUND_CHANGE_EVENT, onChange);
   }, []);
 
   // Phone layout flag: mirror client + ≤820px only (desktop ≥821px unchanged).
@@ -10176,6 +10199,11 @@ export default function App() {
             void api.settingsGet().then((s) =>
               api.settingsSet({ ...s, notifyOnPermission: v }),
             );
+          }}
+          notifySound={notifySound}
+          onNotifySound={(v) => {
+            saveNotifySoundPref(v, localStorage);
+            setNotifySound(v);
           }}
           cliInfo={cliInfo}
           onDoctor={() => void openDoctor()}

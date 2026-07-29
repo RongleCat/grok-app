@@ -867,6 +867,9 @@ const en = {
   "settings.notifyOnPermission": "Notify on permission requests",
   "settings.notifyOnPermissionDesc":
     "Show a desktop notification when the agent needs your approval (including background chats).",
+  "settings.notifySound": "Play a sound with notifications",
+  "settings.notifySoundDesc":
+    "Play a short soft beep when a desktop notification is shown. Off by default.",
   "settings.prefsScope": "Remember model & permission at",
   "settings.prefsScopeDesc":
     "Global: all chats. Project: each workspace. Session: only the current chat.",
@@ -3105,6 +3108,9 @@ const zh: Record<MessageKey, string> = {
   "settings.notifyOnPermission": "需要授权时桌面通知",
   "settings.notifyOnPermissionDesc":
     "Agent 需要你批准时显示系统通知（含后台会话）。",
+  "settings.notifySound": "通知时播放提示音",
+  "settings.notifySoundDesc":
+    "显示桌面通知时播放一声轻柔短音。默认关闭。",
   "settings.prefsScope": "模型与权限记忆范围",
   "settings.prefsScopeDesc":
     "全局：所有对话共用。项目：按工作区记忆。会话：仅当前聊天。",
