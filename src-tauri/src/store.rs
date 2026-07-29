@@ -1737,14 +1737,36 @@ mod tests {
 
     #[test]
     fn create_session_defaults_to_orphan() {
+        // Isolated home: parallel tests share default data dir and can race
+        // atomic renames into sessions_index (macOS CI flake).
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-create-orphan-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp home");
+        std::env::set_var("GROK_APP_HOME", &tmp);
         let _ = ensure_app_dirs();
         let meta = create_session(None, Some("t".into()), false).expect("create");
         assert!(meta.project_id.is_none(), "got {:?}", meta.project_id);
         let _ = delete_session(&meta.id);
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
     }
 
     #[test]
     fn migrate_legacy_general_project_rehomes_sessions() {
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-migrate-general-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp home");
+        std::env::set_var("GROK_APP_HOME", &tmp);
         let _ = ensure_app_dirs();
         // Seed a legacy system:general row + bound session.
         let mut projects: Vec<Project> = read_json_recover(&projects_file());
@@ -1793,7 +1815,9 @@ mod tests {
         let reloaded = load_sessions_index();
         let hit = reloaded.iter().find(|s| s.id == sid).expect("session");
         assert!(hit.project_id.is_none(), "got {:?}", hit.project_id);
-        let _ = delete_session(&sid);
+
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
     }
 
     #[test]
