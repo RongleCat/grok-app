@@ -18,6 +18,14 @@
   --chat-lh: 1.65;
   --chat-lh-sm: 1.5;
 
+  /* Density = comfortable; overridden by html[data-chat-density] (Appearance). */
+  --chat-list-gap: 4px;
+  --chat-item-pad-block: 10px;
+  --chat-item-gap: 8px;
+  --chat-item-body-gap: 10px;
+  --chat-bubble-pad-y: 10px;
+  --chat-bubble-pad-x: 14px;
+
   --chat-r: 10px;
   --chat-r-lg: 12px;
   --chat-r-sm: 8px;
@@ -122,7 +130,7 @@
   padding: 20px 20px 32px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--chat-list-gap, 4px);
 }
 
 /* ── Message rows ── */
@@ -131,8 +139,8 @@
   display: flex;
   flex-direction: column;
   max-width: 100%;
-  padding-block: 10px;
-  gap: 8px;
+  padding-block: var(--chat-item-pad-block, 10px);
+  gap: var(--chat-item-gap, 8px);
 }
 
 .lobe-chat-item--user {
@@ -152,7 +160,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--chat-item-body-gap, 10px);
   max-width: 100%;
   min-width: 0;
   overflow: hidden;
@@ -165,7 +173,7 @@
 /* User bubble — soft fill, 12px radius; keep input newlines / blank lines */
 .lobe-chat-bubble {
   max-width: min(100%, 36rem);
-  padding: 10px 14px;
+  padding: var(--chat-bubble-pad-y, 10px) var(--chat-bubble-pad-x, 14px);
   border-radius: 14px;
   background: var(--chat-bubble);
   color: var(--chat-text);
@@ -1845,4 +1853,28 @@ html[data-chat-font="lg"] .lobe-chat,
   --chat-fs: 16px;
   --chat-fs-sm: 14px;
   --chat-fs-xs: 12.5px;
+}
+
+/*
+ * Chat density (Settings → Appearance). Prefer html[data-chat-density] so every
+ * .lobe-chat root picks it up without prop drilling. Comfortable = defaults above.
+ */
+html[data-chat-density="compact"] .lobe-chat,
+.lobe-chat[data-chat-density="compact"] {
+  --chat-list-gap: 2px;
+  --chat-item-pad-block: 6px;
+  --chat-item-gap: 4px;
+  --chat-item-body-gap: 6px;
+  --chat-bubble-pad-y: 6px;
+  --chat-bubble-pad-x: 12px;
+}
+
+html[data-chat-density="comfortable"] .lobe-chat,
+.lobe-chat[data-chat-density="comfortable"] {
+  --chat-list-gap: 4px;
+  --chat-item-pad-block: 10px;
+  --chat-item-gap: 8px;
+  --chat-item-body-gap: 10px;
+  --chat-bubble-pad-y: 10px;
+  --chat-bubble-pad-x: 14px;
 }

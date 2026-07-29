@@ -61,6 +61,13 @@ import {
   type ChatFontScale,
 } from "@/lib/chatFontScale";
 import {
+  CHAT_DENSITIES,
+  applyChatDensity,
+  loadChatDensity,
+  saveChatDensity,
+  type ChatDensity,
+} from "@/lib/chatDensity";
+import {
   WallpaperFocusEditor,
   type WallpaperFocusApplyResult,
 } from "@/components/WallpaperFocusEditor";
@@ -842,7 +849,19 @@ export function SettingsPage({
     saveChatFontScale(next);
     applyChatFontScale(next);
   }, []);
-/** Chat code-block wrap default — frontend-only localStorage. */
+  /** Chat transcript density — localStorage only (no AppSettings). */
+  const [chatDensity, setChatDensityState] = useState<ChatDensity>(() =>
+    loadChatDensity(),
+  );
+  useEffect(() => {
+    applyChatDensity(loadChatDensity());
+  }, []);
+  const onChatDensity = useCallback((next: ChatDensity) => {
+    setChatDensityState(next);
+    saveChatDensity(next);
+    applyChatDensity(next);
+  }, []);
+  /** Chat code-block wrap default — frontend-only localStorage. */
   const [codeWrapDefault, setCodeWrapDefault] = useState(() =>
     loadCodeWrapPref(),
   );
@@ -2594,6 +2613,43 @@ export function SettingsPage({
                           onClick={() => onChatFontScale(scale)}
                         >
                           {t(`settings.chatFontScale.${scale}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className={
+                    "settings-card" +
+                    rowHighlight("settings-anchor-chatDensity")
+                  }
+                  id="settings-anchor-chatDensity"
+                >
+                  <div className="settings-row">
+                    <div className="settings-row__text">
+                      <SettingsLabelWithTip
+                        label={t("settings.chatDensity")}
+                        tip={t("settings.chatDensityDesc")}
+                      />
+                    </div>
+                    <div
+                      className="settings-seg"
+                      role="radiogroup"
+                      aria-label={t("settings.chatDensity")}
+                    >
+                      {CHAT_DENSITIES.map((density) => (
+                        <button
+                          key={density}
+                          type="button"
+                          role="radio"
+                          aria-checked={chatDensity === density}
+                          className={
+                            "settings-seg__btn" +
+                            (chatDensity === density ? " is-on" : "")
+                          }
+                          onClick={() => onChatDensity(density)}
+                        >
+                          {t(`settings.chatDensity.${density}`)}
                         </button>
                       ))}
                     </div>

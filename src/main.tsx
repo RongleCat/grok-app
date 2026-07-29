@@ -28,6 +28,10 @@ import {
   loadChatFontScale,
 } from "./lib/chatFontScale";
 import {
+  applyChatDensity,
+  loadChatDensity,
+} from "./lib/chatDensity";
+import {
   applyMessageActionsVisibility,
   loadMessageActionsVisibility,
 } from "./lib/messageActionsPref";
@@ -39,6 +43,8 @@ applyThemeToDocument(bootTheme);
 applySkinToDocument(loadSkin(localStorage));
 // Chat transcript font scale (Appearance) — html[data-chat-font].
 applyChatFontScale(loadChatFontScale(localStorage));
+// Chat transcript density (Appearance) — html[data-chat-density].
+applyChatDensity(loadChatDensity(localStorage));
 // Message action buttons (Appearance) — html[data-msg-actions].
 applyMessageActionsVisibility(loadMessageActionsVisibility(localStorage));
 // Only the data-wallpaper flag is set synchronously (so the shell flips to

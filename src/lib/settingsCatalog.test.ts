@@ -99,6 +99,7 @@ describe("settingsCatalog", () => {
     expect(appearance).toContain("settings.wallpaper");
     expect(appearance).toContain("settings.thinkingExpand");
     expect(appearance).toContain("settings.chatFontScale");
+    expect(appearance).toContain("settings.chatDensity");
     expect(appearance).toContain("settings.messageActions");
     expect(appearance).toContain("settings.messageTimestamps");
     const rim = keywordKeysForSection("remote_im");
@@ -159,6 +160,14 @@ describe("settingsCatalog", () => {
     expect(fontEn.some((h) => h.entry.id === "appearance.chatFontScale")).toBe(
       true,
     );
+    const density = searchSettingsEntries("密度", tZh, tEn);
+    expect(density.some((h) => h.entry.id === "appearance.chatDensity")).toBe(
+      true,
+    );
+    const densityEn = searchSettingsEntries("compact", tZh, tEn);
+    expect(
+      densityEn.some((h) => h.entry.id === "appearance.chatDensity"),
+    ).toBe(true);
     const actions = searchSettingsEntries("操作", tZh, tEn);
     expect(
       actions.some((h) => h.entry.id === "appearance.messageActions"),

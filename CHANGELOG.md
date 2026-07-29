@@ -14,6 +14,11 @@ See `docs/llm-wiki/release.md`.
 ### Added
 
 - Desktop notification when the agent asks a question (`session://ask_user`), gated by the existing “Notify on permission” setting
+- **Chat density** (Settings → Appearance → Interface): comfortable (default) or compact transcript spacing — tighter message padding and gaps (`localStorage` `grok.chatDensity`)
+
+**中文 · 新增**
+
+- **对话密度**（设置 → 外观 → 界面）：舒适（默认）/ 紧凑，调整消息区内边距与间距
 
 ## [0.2.1] - 2026-07-29
 

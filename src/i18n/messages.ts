@@ -885,6 +885,11 @@ const en = {
   "settings.chatFontScale.sm": "Small",
   "settings.chatFontScale.md": "Medium",
   "settings.chatFontScale.lg": "Large",
+  "settings.chatDensity": "Chat density",
+  "settings.chatDensityDesc":
+    "Vertical spacing of the conversation transcript (message padding and gaps)",
+  "settings.chatDensity.comfortable": "Comfortable",
+  "settings.chatDensity.compact": "Compact",
   "settings.codeWrapDefault": "Wrap code lines by default",
   "settings.codeWrapDefaultDesc":
     "New chat code blocks start with soft wrap on. You can still toggle wrap on each block.",
@@ -3081,6 +3086,10 @@ const zh: Record<MessageKey, string> = {
   "settings.chatFontScale.sm": "小",
   "settings.chatFontScale.md": "中",
   "settings.chatFontScale.lg": "大",
+  "settings.chatDensity": "对话密度",
+  "settings.chatDensityDesc": "会话消息区间距（气泡内边距与行距）",
+  "settings.chatDensity.comfortable": "舒适",
+  "settings.chatDensity.compact": "紧凑",
   "settings.codeWrapDefault": "默认自动换行代码",
   "settings.codeWrapDefaultDesc":
     "新的聊天代码块默认开启软换行。仍可在每个代码块上单独切换。",
