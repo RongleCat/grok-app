@@ -873,6 +873,10 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.chatDensityDesc": "會話訊息區間距（氣泡內邊距與行距）",
   "settings.chatDensity.comfortable": "舒適",
   "settings.chatDensity.compact": "緊湊",
+  "settings.sidebarDensity": "側欄密度",
+  "settings.sidebarDensityDesc": "側欄會話列表間距（行高與間隙）",
+  "settings.sidebarDensity.comfortable": "舒適",
+  "settings.sidebarDensity.compact": "緊湊",
   "settings.codeWrapDefault": "預設自動換行程式碼",
   "settings.codeWrapDefaultDesc":
     "新的聊天程式碼區塊預設開啟軟換行。仍可在每個區塊上單獨切換。",

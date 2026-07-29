@@ -1827,6 +1827,73 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   color: var(--text-tertiary);
 }
 
+/*
+ * Sidebar session list density (Settings → Appearance → Interface).
+ * Prefer html[data-sidebar-density] so VirtualList CSS + metrics stay aligned.
+ * Comfortable = defaults above (.tree-l3 30px / gap 2; .session-row padding 6×8).
+ * Keep row heights in sync with sidebarSessionRowMetrics() / SIDEBAR_DENSITY_METRICS.
+ */
+html[data-sidebar-density="compact"] .tree-l3 {
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  gap: 4px;
+  padding: 0 4px 0 10px;
+  font-size: 12px;
+}
+
+html[data-sidebar-density="compact"] .tree-l3__title {
+  line-height: 24px;
+  gap: 4px;
+}
+
+html[data-sidebar-density="compact"] .tree-l3--hint {
+  height: 22px;
+  min-height: 22px;
+  font-size: 11px;
+}
+
+html[data-sidebar-density="compact"] .tree-l3-list-wrap {
+  padding: 1px 0 4px 12px;
+  gap: 0;
+}
+
+html[data-sidebar-density="compact"] .tree-l3-list,
+html[data-sidebar-density="compact"] .tree-orphan-list {
+  gap: 0;
+}
+
+html[data-sidebar-density="compact"] .tree-l3__status {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+}
+
+html[data-sidebar-density="compact"] .tree-l3__actions {
+  height: 20px;
+}
+
+html[data-sidebar-density="compact"] .tree-l3 .tree-icon-btn {
+  width: 20px;
+  height: 20px;
+}
+
+html[data-sidebar-density="compact"] .session-list {
+  gap: 0;
+  margin-bottom: 2px;
+}
+
+html[data-sidebar-density="compact"] .session-row {
+  padding: 3px 6px;
+  gap: 0;
+  font-size: 12px;
+}
+
+html[data-sidebar-density="compact"] .session-row__meta {
+  font-size: 9px;
+}
+
+
 .sidebar-empty {
   padding: 12px 10px;
   font-size: 12px;

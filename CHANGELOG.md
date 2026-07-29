@@ -21,6 +21,7 @@ See `docs/llm-wiki/release.md`.
 - **Session JSON export**: download chat as import-friendly JSON (`{ title, sessionId, exportedAt, messages: [{role,content}] }`) from the session menu; round-trips with existing transcript import
 - **Optional line numbers** on chat fenced code blocks (Settings → Appearance → Interface; default off)
 - **Chat density** (Settings → Appearance → Interface): comfortable (default) or compact transcript spacing — tighter message padding and gaps (`localStorage` `grok.chatDensity`)
+- **Sidebar density** (Settings → Appearance → Interface): comfortable (default) or compact session-list spacing — tighter row height and gaps (`localStorage` `grok.sidebarDensity`)
 - **Optional confirm before opening external links** from chat markdown (Settings → Appearance → Interface; default off). Desktop opens http(s) via the system browser (`openExternalUrl`) instead of only `target=_blank`.
 - **Sidebar multi-select archive**: Select several chats in the tree and archive them in one confirm (restore remains in Settings → Archived)
 
@@ -38,6 +39,7 @@ See `docs/llm-wiki/release.md`.
 - 会话 JSON 导出（可再导入）
 - 代码块可选行号（默认关）
 - 对话密度：舒适 / 紧凑
+- 侧栏会话列表密度：舒适 / 紧凑
 - 聊天外链可选确认后在系统浏览器打开
 - 侧栏多选归档会话
 

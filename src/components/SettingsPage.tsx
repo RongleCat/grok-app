@@ -68,6 +68,13 @@ import {
   type ChatDensity,
 } from "@/lib/chatDensity";
 import {
+  SIDEBAR_DENSITIES,
+  applySidebarDensity,
+  loadSidebarDensity,
+  saveSidebarDensity,
+  type SidebarDensity,
+} from "@/lib/sidebarDensity";
+import {
   WallpaperFocusEditor,
   type WallpaperFocusApplyResult,
 } from "@/components/WallpaperFocusEditor";
@@ -893,6 +900,18 @@ export function SettingsPage({
     setChatDensityState(next);
     saveChatDensity(next);
     applyChatDensity(next);
+  }, []);
+  /** Sidebar session list density — localStorage only (no AppSettings). */
+  const [sidebarDensity, setSidebarDensityState] = useState<SidebarDensity>(
+    () => loadSidebarDensity(),
+  );
+  useEffect(() => {
+    applySidebarDensity(loadSidebarDensity());
+  }, []);
+  const onSidebarDensity = useCallback((next: SidebarDensity) => {
+    setSidebarDensityState(next);
+    saveSidebarDensity(next);
+    applySidebarDensity(next);
   }, []);
   /** Chat code-block wrap default — frontend-only localStorage. */
   const [codeWrapDefault, setCodeWrapDefault] = useState(() =>
@@ -2740,6 +2759,43 @@ export function SettingsPage({
                           onClick={() => onChatDensity(density)}
                         >
                           {t(`settings.chatDensity.${density}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className={
+                    "settings-card" +
+                    rowHighlight("settings-anchor-sidebarDensity")
+                  }
+                  id="settings-anchor-sidebarDensity"
+                >
+                  <div className="settings-row">
+                    <div className="settings-row__text">
+                      <SettingsLabelWithTip
+                        label={t("settings.sidebarDensity")}
+                        tip={t("settings.sidebarDensityDesc")}
+                      />
+                    </div>
+                    <div
+                      className="settings-seg"
+                      role="radiogroup"
+                      aria-label={t("settings.sidebarDensity")}
+                    >
+                      {SIDEBAR_DENSITIES.map((density) => (
+                        <button
+                          key={density}
+                          type="button"
+                          role="radio"
+                          aria-checked={sidebarDensity === density}
+                          className={
+                            "settings-seg__btn" +
+                            (sidebarDensity === density ? " is-on" : "")
+                          }
+                          onClick={() => onSidebarDensity(density)}
+                        >
+                          {t(`settings.sidebarDensity.${density}`)}
                         </button>
                       ))}
                     </div>

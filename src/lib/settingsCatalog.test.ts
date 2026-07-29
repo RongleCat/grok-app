@@ -100,6 +100,7 @@ describe("settingsCatalog", () => {
     expect(appearance).toContain("settings.thinkingExpand");
     expect(appearance).toContain("settings.chatFontScale");
     expect(appearance).toContain("settings.chatDensity");
+    expect(appearance).toContain("settings.sidebarDensity");
     expect(appearance).toContain("settings.messageActions");
     expect(appearance).toContain("settings.messageTimestamps");
     expect(appearance).toContain("settings.messageTimeFormat");
@@ -165,9 +166,23 @@ describe("settingsCatalog", () => {
     expect(density.some((h) => h.entry.id === "appearance.chatDensity")).toBe(
       true,
     );
+    expect(
+      density.some((h) => h.entry.id === "appearance.sidebarDensity"),
+    ).toBe(true);
     const densityEn = searchSettingsEntries("compact", tZh, tEn);
     expect(
       densityEn.some((h) => h.entry.id === "appearance.chatDensity"),
+    ).toBe(true);
+    expect(
+      densityEn.some((h) => h.entry.id === "appearance.sidebarDensity"),
+    ).toBe(true);
+    const sidebar = searchSettingsEntries("侧栏", tZh, tEn);
+    const sidebarHits =
+      sidebar.length > 0
+        ? sidebar
+        : searchSettingsEntries("sidebar", tZh, tEn);
+    expect(
+      sidebarHits.some((h) => h.entry.id === "appearance.sidebarDensity"),
     ).toBe(true);
     const actions = searchSettingsEntries("操作", tZh, tEn);
     expect(

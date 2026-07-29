@@ -320,9 +320,11 @@ import { ImageViewerProvider } from "@/components/ImageViewer";
 import { OverlayScroll } from "@/components/OverlayScroll";
 import { VirtualList } from "@/components/VirtualList";
 import {
-  SIDEBAR_SESSION_ROW_GAP,
-  SIDEBAR_SESSION_ROW_HEIGHT,
-} from "@/lib/virtualList";
+  SIDEBAR_DENSITY_EVENT,
+  loadSidebarDensity,
+  sidebarSessionRowMetrics,
+  type SidebarDensity,
+} from "@/lib/sidebarDensity";
 import { GrokLogo } from "@/components/GrokLogo";
 import { SetupWizard, type SetupCliInfo } from "@/components/SetupWizard";
 import {
@@ -1237,6 +1239,16 @@ export default function App() {
     return () =>
       window.removeEventListener(COMPOSER_SPELLCHECK_CHANGED_EVENT, reload);
   }, []);
+  /** Sidebar session-list density (localStorage; Settings → Appearance). */
+  const [sidebarDensity, setSidebarDensity] = useState<SidebarDensity>(() =>
+    loadSidebarDensity(),
+  );
+  useEffect(() => {
+    const reload = () => setSidebarDensity(loadSidebarDensity());
+    window.addEventListener(SIDEBAR_DENSITY_EVENT, reload);
+    return () => window.removeEventListener(SIDEBAR_DENSITY_EVENT, reload);
+  }, []);
+  const sidebarRowMetrics = sidebarSessionRowMetrics(sidebarDensity);
   /** Files/folders attached for next send (@path to agent). */
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   /** Chat file/url card → open in right resource pane. */
@@ -10574,8 +10586,8 @@ export default function App() {
                             className="tree-l3-list"
                             items={projSessions}
                             getKey={(s) => s.id}
-                            rowHeight={SIDEBAR_SESSION_ROW_HEIGHT}
-                            gap={SIDEBAR_SESSION_ROW_GAP}
+                            rowHeight={sidebarRowMetrics.rowHeight}
+                            gap={sidebarRowMetrics.gap}
                             scrollToKey={
                               session.sessionId &&
                               projSessions.some((x) => x.id === session.sessionId)
@@ -10773,8 +10785,8 @@ export default function App() {
                 className="tree-orphan-list"
                 items={orphanSessions}
                 getKey={(s) => s.id}
-                rowHeight={SIDEBAR_SESSION_ROW_HEIGHT}
-                gap={SIDEBAR_SESSION_ROW_GAP}
+                rowHeight={sidebarRowMetrics.rowHeight}
+                gap={sidebarRowMetrics.gap}
                 scrollToKey={
                   session.sessionId &&
                   orphanSessions.some((x) => x.id === session.sessionId)
