@@ -605,7 +605,8 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 }
 
 .tree-l1:hover .tree-l1__actions,
-.tree-l1:focus-within .tree-l1__actions {
+.tree-l1:focus-within .tree-l1__actions,
+.tree-l1__actions--always {
   opacity: 1;
   pointer-events: auto;
 }
@@ -622,6 +623,25 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 }
 
 .tree-l1__action:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* Multi-select entry ("Select" / "Cancel") next to Projects header */
+.tree-l1__text-btn {
+  height: 28px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.tree-l1__text-btn:hover {
   background: var(--bg-active);
   color: var(--text-primary);
 }
@@ -864,6 +884,72 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 
 .tree-l3--working .tree-l3__title {
   color: var(--text-primary);
+}
+
+/* Sidebar multi-select: checkbox + selected row */
+.tree-l3__check {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong, var(--border-subtle));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.tree-l3__check.is-on {
+  background: var(--accent, var(--text-primary));
+  border-color: var(--accent, var(--text-primary));
+}
+
+.tree-l3--select-mode {
+  padding-left: 8px;
+}
+
+.tree-l3--checked {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.tree-l3--select-mode:hover {
+  background: var(--bg-hover);
+}
+
+.tree-l3--select-mode.tree-l3--checked:hover {
+  background: var(--bg-active);
+}
+
+/* Sticky strip above user footer while multi-select is on */
+.sidebar-select-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-sidebar, var(--bg-elevated, var(--bg-primary)));
+}
+
+.sidebar-select-bar__count {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-select-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .tree-check {

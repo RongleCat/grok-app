@@ -14,6 +14,11 @@ See `docs/llm-wiki/release.md`.
 ### Added
 
 - Desktop notification when the agent asks a question (`session://ask_user`), gated by the existing “Notify on permission” setting
+- **Sidebar multi-select archive**: Select several chats in the tree and archive them in one confirm (restore remains in Settings → Archived)
+
+**中文 · 新增**
+
+- 侧栏多选归档：一次确认归档多个会话（恢复仍在「设置 → 已归档」）
 
 ## [0.2.1] - 2026-07-29
 

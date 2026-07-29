@@ -139,6 +139,10 @@ import {
   sameCollapsedIdSet,
 } from "@/lib/sidebarExpand";
 import {
+  pruneSelectedIds,
+  toggleIdInSet,
+} from "@/lib/sessionSelect";
+import {
   collectSessionTasks,
   countRunningTasks,
 } from "@/lib/sessionTasks";
@@ -812,6 +816,11 @@ export default function App() {
   const expandedProjectsHydratedRef = useRef(false);
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(true);
+  /** Sidebar multi-select: archive / restore several sessions at once. */
+  const [sessionSelectMode, setSessionSelectMode] = useState(false);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState>(null);
   /** Project rules dialog (from project context menu). */
   const [projectRulesTarget, setProjectRulesTarget] = useState<{
@@ -940,6 +949,19 @@ export default function App() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [showSearch]);
+
+  useEffect(() => {
+    if (!sessionSelectMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (appDialogRef.current) return;
+      e.preventDefault();
+      setSessionSelectMode(false);
+      setSelectedSessionIds(new Set());
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [sessionSelectMode]);
 
   // Debounced content search over App journals (title filter stays instant).
   useEffect(() => {
@@ -4057,6 +4079,35 @@ export default function App() {
       !s.archived,
   );
 
+  /** Active (non-archived) session ids visible in the sidebar tree. */
+  const selectableSessionIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const s of sessions) {
+      if (!s.archived) ids.add(s.id);
+    }
+    return ids;
+  }, [sessions]);
+  const selectableSessionCount = selectableSessionIds.size;
+
+  // Drop selection for sessions that left the active list.
+  useEffect(() => {
+    setSelectedSessionIds((prev) => pruneSelectedIds(prev, selectableSessionIds));
+  }, [selectableSessionIds]);
+
+  const exitSessionSelectMode = useCallback(() => {
+    setSessionSelectMode(false);
+    setSelectedSessionIds(new Set());
+  }, []);
+
+  const enterSessionSelectMode = useCallback(() => {
+    setSessionSelectMode(true);
+    setSelectedSessionIds(new Set());
+  }, []);
+
+  const toggleSessionSelected = useCallback((id: string) => {
+    setSelectedSessionIds((prev) => toggleIdInSet(prev, id));
+  }, []);
+
   /** Archived chats grouped by project for Settings → Archived. */
   const archivedGroups = useMemo(() => {
     const archived = sessions
@@ -4772,6 +4823,90 @@ export default function App() {
     } catch (e) {
       setLocalError(String(e));
     }
+  };
+
+  /**
+   * Multi-select archive / restore with one confirm.
+   * Sidebar select mode lists active chats → archive; restore path kept for
+   * selected archived rows if that view is shown later.
+   */
+  const confirmBulkSetArchived = (archived: boolean) => {
+    const rows = sessions.filter((s) => selectedSessionIds.has(s.id));
+    if (!rows.length) return;
+    const n = rows.length;
+    setAppDialog({
+      kind: "confirm",
+      title: archived
+        ? tr("sidebar.archiveSelectedTitle")
+        : tr("sidebar.restoreSelectedTitle"),
+      message: archived
+        ? tr("sidebar.archiveSelectedConfirm", { n: String(n) })
+        : tr("sidebar.restoreSelectedConfirm", { n: String(n) }),
+      confirmLabel: archived
+        ? tr("sidebar.archiveSelected", { n: String(n) })
+        : tr("sidebar.restoreSelected", { n: String(n) }),
+      onConfirm: async () => {
+        try {
+          if (!api.isTauri()) {
+            setLocalError(tr("error.needTauri"));
+            return;
+          }
+          const openId =
+            session.sessionId ?? viewingSessionIdRef.current ?? null;
+          const wasViewing =
+            archived && !!openId && rows.some((s) => s.id === openId);
+          const viewingRow = wasViewing
+            ? rows.find((s) => s.id === openId) ?? null
+            : null;
+
+          const results = await Promise.allSettled(
+            rows.map((s) => api.sessionSetArchived(s.id, archived)),
+          );
+          const ok = results.filter((r) => r.status === "fulfilled").length;
+          const firstFail = results.find(
+            (r): r is PromiseRejectedResult => r.status === "rejected",
+          );
+
+          if (!archived) {
+            for (const s of rows) {
+              if (s.projectId) {
+                setExpandedProjects((e) => ({
+                  ...e,
+                  [s.projectId!]: true,
+                }));
+              }
+            }
+          }
+
+          await refreshSessions();
+          exitSessionSelectMode();
+
+          if (wasViewing && viewingRow) {
+            const proj = viewingRow.projectId
+              ? projects.find((p) => p.id === viewingRow.projectId) ?? null
+              : null;
+            if (proj) await newChat(proj, { switchToChat: true });
+            else await newChat(null, { switchToChat: true });
+          }
+
+          if (ok > 0) {
+            setToast(
+              archived
+                ? tr("sidebar.archivedToast", { n: String(ok) })
+                : tr("sidebar.restoredToast", { n: String(ok) }),
+            );
+            window.setTimeout(() => setToast(null), 3200);
+          }
+          if (firstFail) {
+            setLocalError(String(firstFail.reason));
+          } else {
+            setLocalError(null);
+          }
+        } catch (e) {
+          setLocalError(String(e));
+        }
+      },
+    });
   };
 
   /** Bulk permanent delete with one confirm. */
@@ -10084,8 +10219,38 @@ export default function App() {
                   {tr("sidebar.projects")}
                 </span>
               </button>
-              <div className="tree-l1__actions">
-                {projects.length > 0 ? (
+              <div
+                className={
+                  "tree-l1__actions" +
+                  (sessionSelectMode || selectableSessionCount > 0
+                    ? " tree-l1__actions--always"
+                    : "")
+                }
+              >
+                {sessionSelectMode ? (
+                  <button
+                    type="button"
+                    className="tree-l1__text-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      exitSessionSelectMode();
+                    }}
+                  >
+                    {tr("common.cancel")}
+                  </button>
+                ) : selectableSessionCount > 0 ? (
+                  <button
+                    type="button"
+                    className="tree-l1__text-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      enterSessionSelectMode();
+                    }}
+                  >
+                    {tr("sidebar.select")}
+                  </button>
+                ) : null}
+                {projects.length > 0 && !sessionSelectMode ? (
                   <Tip label={tr("sidebar.collapseAllProjects")}>
                     <button
                       type="button"
@@ -10107,7 +10272,7 @@ export default function App() {
                     </button>
                   </Tip>
                 ) : null}
-                {!isMirrorClient() ? (
+                {!isMirrorClient() && !sessionSelectMode ? (
                   <Tip label={tr("sidebar.addProject")}>
                     <button
                       type="button"
@@ -10257,6 +10422,7 @@ export default function App() {
                             }
                             renderItem={(s) => {
                               const working = busyIds.has(s.id);
+                              const checked = selectedSessionIds.has(s.id);
                               return (
                                 <div
                                   className={
@@ -10265,17 +10431,50 @@ export default function App() {
                                       ? " tree-l3--active"
                                       : "") +
                                     (s.archived ? " tree-l3--archived" : "") +
-                                    (working ? " tree-l3--working" : "")
+                                    (working ? " tree-l3--working" : "") +
+                                    (sessionSelectMode
+                                      ? " tree-l3--select-mode"
+                                      : "") +
+                                    (checked ? " tree-l3--checked" : "")
                                   }
                                   role="button"
                                   tabIndex={0}
-                                  onClick={() => void openSession(s, proj)}
+                                  aria-checked={
+                                    sessionSelectMode ? checked : undefined
+                                  }
+                                  onClick={() => {
+                                    if (sessionSelectMode) {
+                                      toggleSessionSelected(s.id);
+                                      return;
+                                    }
+                                    void openSession(s, proj);
+                                  }}
                                   onContextMenu={(e) => openSessionMenu(e, s)}
                                   onKeyDown={(e) => {
-                                    if (e.key === "Enter")
-                                      void openSession(s, proj);
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      if (sessionSelectMode) {
+                                        e.preventDefault();
+                                        toggleSessionSelected(s.id);
+                                        return;
+                                      }
+                                      if (e.key === "Enter")
+                                        void openSession(s, proj);
+                                    }
                                   }}
                                 >
+                                  {sessionSelectMode ? (
+                                    <span
+                                      className={
+                                        "tree-l3__check" +
+                                        (checked ? " is-on" : "")
+                                      }
+                                      aria-hidden
+                                    >
+                                      {checked ? (
+                                        <IconCheck size={11} stroke={2.4} />
+                                      ) : null}
+                                    </span>
+                                  ) : null}
                                   <span className="tree-l3__title">
                                     {s.pinned ? (
                                       <span
@@ -10302,7 +10501,7 @@ export default function App() {
                                       {s.title || "Untitled"}
                                     </span>
                                   </span>
-                                  {working ? (
+                                  {sessionSelectMode ? null : working ? (
                                     <Tip label={tr("sidebar.sessionWorking")}>
                                       <span
                                         className="tree-l3__status"
@@ -10422,6 +10621,7 @@ export default function App() {
                 }
                 renderItem={(s) => {
                   const working = busyIds.has(s.id);
+                  const checked = selectedSessionIds.has(s.id);
                   return (
                     <div
                       className={
@@ -10429,16 +10629,48 @@ export default function App() {
                         (session.sessionId === s.id
                           ? " tree-l3--active"
                           : "") +
-                        (working ? " tree-l3--working" : "")
+                        (working ? " tree-l3--working" : "") +
+                        (sessionSelectMode
+                          ? " tree-l3--select-mode"
+                          : "") +
+                        (checked ? " tree-l3--checked" : "")
                       }
                       role="button"
                       tabIndex={0}
-                      onClick={() => void openSession(s)}
+                      aria-checked={
+                        sessionSelectMode ? checked : undefined
+                      }
+                      onClick={() => {
+                        if (sessionSelectMode) {
+                          toggleSessionSelected(s.id);
+                          return;
+                        }
+                        void openSession(s);
+                      }}
                       onContextMenu={(e) => openSessionMenu(e, s)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") void openSession(s);
+                        if (e.key === "Enter" || e.key === " ") {
+                          if (sessionSelectMode) {
+                            e.preventDefault();
+                            toggleSessionSelected(s.id);
+                            return;
+                          }
+                          if (e.key === "Enter") void openSession(s);
+                        }
                       }}
                     >
+                      {sessionSelectMode ? (
+                        <span
+                          className={
+                            "tree-l3__check" + (checked ? " is-on" : "")
+                          }
+                          aria-hidden
+                        >
+                          {checked ? (
+                            <IconCheck size={11} stroke={2.4} />
+                          ) : null}
+                        </span>
+                      ) : null}
                       <span className="tree-l3__title">
                         {s.pinned ? (
                           <span
@@ -10465,7 +10697,7 @@ export default function App() {
                           {s.title || "Untitled"}
                         </span>
                       </span>
-                      {working ? (
+                      {sessionSelectMode ? null : working ? (
                         <Tip label={tr("sidebar.sessionWorking")}>
                           <span
                             className="tree-l3__status"
@@ -10528,6 +10760,35 @@ export default function App() {
               />
             ) : null}
           </OverlayScroll>
+
+          {sessionSelectMode ? (
+            <div className="sidebar-select-bar" role="toolbar">
+              <span className="sidebar-select-bar__count">
+                {tr("sidebar.selectedCount", {
+                  n: selectedSessionIds.size,
+                })}
+              </span>
+              <div className="sidebar-select-bar__actions">
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={exitSessionSelectMode}
+                >
+                  {tr("common.cancel")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  disabled={selectedSessionIds.size === 0}
+                  onClick={() => confirmBulkSetArchived(true)}
+                >
+                  {tr("sidebar.archiveSelected", {
+                    n: selectedSessionIds.size,
+                  })}
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <UserMenu
             open={showUserMenu}
