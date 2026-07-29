@@ -710,6 +710,29 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
       "時間戳",
     ],
   },
+  {
+    id: "appearance.messageTimeFormat",
+    section: "appearance",
+    tab: "interface",
+    anchorId: "settings-anchor-messageTimeFormat",
+    labelKey: "settings.messageTimeFormat",
+    descKeys: [
+      "settings.messageTimeFormatDesc",
+      "settings.messageTimeFormat.absolute",
+      "settings.messageTimeFormat.relative",
+    ],
+    keywords: [
+      "relative time",
+      "absolute time",
+      "time format",
+      "minutes ago",
+      "相对时间",
+      "绝对时间",
+      "相對時間",
+      "絕對時間",
+      "多久前",
+    ],
+  },
   // ── account ──
   {
     id: "account.official",

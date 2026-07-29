@@ -885,6 +885,11 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.messageTimestamps": "顯示訊息時間戳",
   "settings.messageTimestampsDesc":
     "在訊息操作區顯示傳送時間。關閉後對話更簡潔。",
+  "settings.messageTimeFormat": "時間戳格式",
+  "settings.messageTimeFormatDesc":
+    "絕對時間顯示星期與時鐘；相對時間如「2 分鐘前」，約每分鐘重新整理。",
+  "settings.messageTimeFormat.absolute": "絕對時間",
+  "settings.messageTimeFormat.relative": "相對時間",
   "settings.skin": "配色皮膚",
   "settings.skinDesc": "強調色與表面色板（可與淺/深色疊加）",
   "settings.skin.default": "預設",

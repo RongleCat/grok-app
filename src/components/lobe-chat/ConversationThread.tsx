@@ -60,7 +60,8 @@ import {
   IconRewind,
   IconTarget,
 } from "@/components/icons";
-import { formatMessageTime } from "@/lib/accountUi";
+import { formatMessageTime, formatRelativeTime } from "@/lib/accountUi";
+import type { MessageTimeFormat } from "@/lib/messageTimeFormatPref";
 import { formatTokenCount } from "@/lib/contextUsage";
 import { useStickToBottom } from "@/hooks/useStickToBottom";
 import { useChatMessageVirtualizer } from "@/hooks/useChatMessageVirtualizer";
@@ -427,6 +428,11 @@ export interface ConversationThreadProps {
    * Default true.
    */
   showTimestamps?: boolean;
+  /**
+   * Absolute (weekday + clock) vs relative (“2 minutes ago”).
+   * Relative mode re-renders on a 60s tick so labels stay fresh.
+   */
+  messageTimeFormat?: MessageTimeFormat;
 }
 
 export function ConversationThread({
@@ -460,10 +466,23 @@ export function ConversationThread({
   onOpenSessionChanges: _onOpenSessionChanges,
   onOpenModifiedPath: _onOpenModifiedPath,
   showTimestamps = true,
+  messageTimeFormat = "absolute",
 }: ConversationThreadProps) {
   const tr = useMemo(() => createT(locale), [locale]);
   void _onOpenSessionChanges;
   void _onOpenModifiedPath;
+
+  /** Re-render relative labels roughly once a minute. */
+  const [relativeTick, setRelativeTick] = useState(0);
+  useEffect(() => {
+    if (!showTimestamps || messageTimeFormat !== "relative") return;
+    const id = window.setInterval(() => {
+      setRelativeTick((n) => n + 1);
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [showTimestamps, messageTimeFormat]);
+  // Keep tick in the render graph so interval updates recompute labels.
+  void relativeTick;
 
   /**
    * Force stick-to-bottom when a new user turn starts **and** when the turn
@@ -1041,9 +1060,12 @@ export function ConversationThread({
               const isInterjection = m.marker === "interjection";
               const isLastUser = !isInterjection && lastUserMessageId === m.id;
               const isEditing = editingUserMessageId === m.id;
-              const timeLabel = showTimestamps
-                ? formatMessageTime(m.createdAt, locale)
-                : null;
+              const timeLabel =
+                showTimestamps && m.createdAt
+                  ? messageTimeFormat === "relative"
+                    ? formatRelativeTime(m.createdAt, locale)
+                    : formatMessageTime(m.createdAt, locale)
+                  : null;
               const isFindHit = !!findHitMessageIds?.has(m.id);
               const isFindCurrent = findActive?.messageId === m.id;
               const isNodeFocus = focusMessageId === m.id;

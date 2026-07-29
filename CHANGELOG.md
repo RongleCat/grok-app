@@ -21,6 +21,7 @@ See `docs/llm-wiki/release.md`.
 - **Chat density** (Settings → Appearance → Interface): comfortable (default) or compact transcript spacing — tighter message padding and gaps (`localStorage` `grok.chatDensity`)
 - **Optional confirm before opening external links** from chat markdown (Settings → Appearance → Interface; default off). Desktop opens http(s) via the system browser (`openExternalUrl`) instead of only `target=_blank`.
 - **Sidebar multi-select archive**: Select several chats in the tree and archive them in one confirm (restore remains in Settings → Archived)
+- **Relative message timestamps** (Settings → Appearance → Interface): absolute weekday+clock or relative (“2 minutes ago”); relative labels refresh about once a minute
 
 ### Changed
 
@@ -36,6 +37,7 @@ See `docs/llm-wiki/release.md`.
 - 对话密度：舒适 / 紧凑
 - 聊天外链可选确认后在系统浏览器打开
 - 侧栏多选归档会话
+- 消息时间戳可选相对时间（约每分钟刷新）
 
 **中文 · 变更**
 

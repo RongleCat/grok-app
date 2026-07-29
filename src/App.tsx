@@ -47,6 +47,12 @@ import {
   MESSAGE_TIMESTAMPS_CHANGE_EVENT,
   saveMessageTimestampsPref,
 } from "@/lib/messageTimestampsPref";
+import {
+  loadMessageTimeFormatPref,
+  MESSAGE_TIME_FORMAT_CHANGE_EVENT,
+  saveMessageTimeFormatPref,
+  type MessageTimeFormat,
+} from "@/lib/messageTimeFormatPref";
 import { loadConfirmExternalLinksPref } from "@/lib/externalLinkPref";
 import { WallpaperMediaLayer } from "@/components/WallpaperMediaLayer";
 import {
@@ -622,6 +628,9 @@ export default function App() {
   );
   const [showMessageTimestamps, setShowMessageTimestamps] = useState(() =>
     loadMessageTimestampsPref(localStorage),
+  );
+  const [messageTimeFormat, setMessageTimeFormat] = useState<MessageTimeFormat>(
+    () => loadMessageTimeFormatPref(localStorage),
   );
   const [layout, setLayout] = useState(() => {
     // Platform UA is available at first paint; reserve window-control inset on Win.
@@ -2235,6 +2244,21 @@ export default function App() {
     window.addEventListener(MESSAGE_TIMESTAMPS_CHANGE_EVENT, onChange);
     return () =>
       window.removeEventListener(MESSAGE_TIMESTAMPS_CHANGE_EVENT, onChange);
+  }, []);
+
+  // Message time format absolute/relative (localStorage; Settings change event).
+  useEffect(() => {
+    const onChange = (ev: Event) => {
+      const detail = (ev as CustomEvent<unknown>).detail;
+      if (detail === "absolute" || detail === "relative") {
+        setMessageTimeFormat(detail);
+        return;
+      }
+      setMessageTimeFormat(loadMessageTimeFormatPref(localStorage));
+    };
+    window.addEventListener(MESSAGE_TIME_FORMAT_CHANGE_EVENT, onChange);
+    return () =>
+      window.removeEventListener(MESSAGE_TIME_FORMAT_CHANGE_EVENT, onChange);
   }, []);
 
   // Phone layout flag: mirror client + ≤820px only (desktop ≥821px unchanged).
@@ -9862,6 +9886,11 @@ export default function App() {
             saveMessageTimestampsPref(v, localStorage);
             setShowMessageTimestamps(v);
           }}
+          messageTimeFormat={messageTimeFormat}
+          onMessageTimeFormat={(v) => {
+            saveMessageTimeFormatPref(v, localStorage);
+            setMessageTimeFormat(v);
+          }}
           skin={skin}
           onSkin={applySkinChoice}
           wallpaperUrl={wallpaperUrl}
@@ -11651,6 +11680,7 @@ export default function App() {
             findHitMessageIds={showChatFind ? chatFindHitIds : undefined}
             findActive={showChatFind ? chatFindActive : null}
             showTimestamps={showMessageTimestamps}
+            messageTimeFormat={messageTimeFormat}
           />
           </UiErrorBoundary>
 
