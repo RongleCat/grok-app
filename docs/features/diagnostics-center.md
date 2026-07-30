@@ -2,6 +2,20 @@
 
 Free-form host errors are classified into product decks (CLI / auth / network / crash) via `classifyErrorMessage` / `resolveErrorDeckCode`.
 
+## Reliability / Observability panel
+
+UI entry points: command palette (`reliability` / observability), Settings → Runtime → Tools, Doctor → Advanced.
+
+Pure assembly: `src/lib/reliabilityCenter.ts` (`buildReliabilityCenter` / `assembleReliabilityCenter`) from:
+
+| Card | Source |
+|------|--------|
+| Busy sessions | `liveMap` via activity rules (titles from session list) |
+| Stall signals | Active soft stall, liveMap `terminalReason: stall`, in-memory hard_end ring |
+| Recent errors | Current error-deck banner + in-memory ring of prior cards |
+
+Actions reuse Host APIs: `exportSupportBundle`, open Doctor. Does **not** scrape secrets from logs into the UI. Empty states are explicit when no signals are present.
+
 ## Host file logs
 
 On startup the Host enables dual-sink tracing:

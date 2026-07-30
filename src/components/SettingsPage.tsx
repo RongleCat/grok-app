@@ -369,6 +369,8 @@ export interface SettingsPageProps {
     cliAuthPresent: boolean;
   };
   onDoctor: () => void;
+  /** Open Reliability / Observability center (busy · stalls · error deck). */
+  onOpenReliability?: () => void;
   versionFooter: string;
   /** Official Grok Build account (membership / usage). */
   account: AccountStatus | null;
@@ -862,6 +864,7 @@ export function SettingsPage({
   onPermissionTimeoutSec,
   cliInfo,
   onDoctor,
+  onOpenReliability,
   versionFooter,
   account,
   accountLoading,
@@ -4161,6 +4164,32 @@ export function SettingsPage({
                         showSettingsToast(t("session.tracesCopied"), 2000)
                       }
                     />
+                  </div>
+                </div>
+                <div
+                  className={
+                    "settings-card" +
+                    rowHighlight("settings-anchor-reliability")
+                  }
+                  id="settings-anchor-reliability"
+                >
+                  <div className="settings-row">
+                    <div className="settings-row__text">
+                      <div className="settings-row__label">
+                        {t("reliability.title")}
+                      </div>
+                      <div className="settings-row__desc">
+                        {t("reliability.settingsDesc")}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn--ghost settings-row__action"
+                      onClick={() => onOpenReliability?.()}
+                      disabled={!onOpenReliability}
+                    >
+                      {t("reliability.openFromSettings")}
+                    </button>
                   </div>
                 </div>
                 <div

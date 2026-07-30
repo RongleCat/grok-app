@@ -1614,6 +1614,37 @@ const en = {
   "doctor.cliDoctorFixDone": "Applied fix “{id}”. Doctor re-ran.",
   "doctor.cliDoctorFixDoneDetail": "Applied fix “{id}”. {detail}",
   "doctor.cliDoctorFixFail": "Could not apply CLI doctor fix",
+  "doctor.openReliability": "Reliability center",
+  "doctor.openReliabilityHint":
+    "Busy sessions, stall signals, and recent error cards.",
+
+  // Reliability / Observability center (long-task signals)
+  "reliability.title": "Reliability",
+  "reliability.close": "Close reliability center",
+  "reliability.lead":
+    "Live busy sessions, stall signals, and recent structured errors — no secrets from logs.",
+  "reliability.empty.title": "No reliability signals yet",
+  "reliability.empty.body":
+    "When chats are busy, stall, or hit an error deck card, they show up here. Export a support zip or open Doctor if you need deeper diagnostics.",
+  "reliability.busy.title": "Busy sessions",
+  "reliability.busy.count": "{count}",
+  "reliability.busy.empty": "No busy sessions right now.",
+  "reliability.stalls.title": "Stall signals",
+  "reliability.stalls.count": "{count}",
+  "reliability.stalls.empty": "No recent stall or end-of-turn stall signals.",
+  "reliability.stall.kind.active": "Active stall",
+  "reliability.stall.kind.hardEnd": "Hard-ended stall",
+  "reliability.stall.kind.terminal": "Turn ended (stall)",
+  "reliability.stall.kind.endOfTurn": "End of turn (stall)",
+  "reliability.stall.seconds": "{seconds}s quiet",
+  "reliability.stall.unknownSession": "Unknown session",
+  "reliability.errors.title": "Recent errors",
+  "reliability.errors.count": "{count}",
+  "reliability.errors.empty": "No recent error-deck cards in memory.",
+  "reliability.openDoctor": "Open Doctor",
+  "reliability.openFromSettings": "Open reliability center",
+  "reliability.settingsDesc":
+    "Aggregate busy chats, stall signals, and recent error cards; export support zip.",
 
   // Connection status pill
   "conn.idle": "Idle",
@@ -4079,6 +4110,35 @@ const zh: Record<MessageKey, string> = {
   "doctor.cliDoctorFixDone": "已应用修复「{id}」。Doctor 已重新运行。",
   "doctor.cliDoctorFixDoneDetail": "已应用修复「{id}」。{detail}",
   "doctor.cliDoctorFixFail": "无法应用 CLI doctor 修复",
+  "doctor.openReliability": "可靠性中心",
+  "doctor.openReliabilityHint": "忙碌会话、卡顿信号与最近错误卡片。",
+
+  "reliability.title": "可靠性",
+  "reliability.close": "关闭可靠性中心",
+  "reliability.lead":
+    "实时忙碌会话、卡顿信号与最近结构化错误 — 不会从日志抓取密钥。",
+  "reliability.empty.title": "暂无可靠性信号",
+  "reliability.empty.body":
+    "当会话忙碌、卡顿或出现错误卡片时会显示在这里。需要更深诊断时可导出支持包或打开 Doctor。",
+  "reliability.busy.title": "忙碌会话",
+  "reliability.busy.count": "{count}",
+  "reliability.busy.empty": "当前没有忙碌会话。",
+  "reliability.stalls.title": "卡顿信号",
+  "reliability.stalls.count": "{count}",
+  "reliability.stalls.empty": "暂无近期卡顿或 end-of-turn 卡顿信号。",
+  "reliability.stall.kind.active": "进行中卡顿",
+  "reliability.stall.kind.hardEnd": "硬结束卡顿",
+  "reliability.stall.kind.terminal": "回合结束（卡顿）",
+  "reliability.stall.kind.endOfTurn": "回合结束（卡顿）",
+  "reliability.stall.seconds": "静默 {seconds} 秒",
+  "reliability.stall.unknownSession": "未知会话",
+  "reliability.errors.title": "最近错误",
+  "reliability.errors.count": "{count}",
+  "reliability.errors.empty": "内存中暂无错误卡片。",
+  "reliability.openDoctor": "打开 Doctor",
+  "reliability.openFromSettings": "打开可靠性中心",
+  "reliability.settingsDesc":
+    "汇总忙碌会话、卡顿信号与最近错误卡片；可导出支持包。",
 
   "conn.idle": "空闲",
   "conn.connecting": "连接中",

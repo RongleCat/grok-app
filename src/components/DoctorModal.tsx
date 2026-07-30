@@ -46,6 +46,8 @@ export type DoctorModalProps = {
   }) => void;
   /** After a successful reset — reload lists / hard refresh. */
   onResetDone?: () => void;
+  /** Open Reliability / Observability center (busy · stalls · errors). */
+  onOpenReliability?: () => void;
 };
 
 const CHECK_TITLE_KEYS: Record<string, MessageKey> = {
@@ -126,6 +128,7 @@ export function DoctorModal({
   locale,
   onConfirm,
   onResetDone,
+  onOpenReliability,
 }: DoctorModalProps) {
   const t = useMemo(() => createT(locale), [locale]);
   const [report, setReport] = useState<DoctorReport | null>(null);
@@ -707,6 +710,29 @@ export function DoctorModal({
                 compact
               />
             </div>
+            {onOpenReliability ? (
+              <div className="doctor-advanced__row">
+                <div className="doctor-advanced__text">
+                  <div className="doctor-advanced__label">
+                    {t("doctor.openReliability")}
+                  </div>
+                  <p className="doctor-advanced__hint">
+                    {t("doctor.openReliabilityHint")}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  disabled={!!busy || loading}
+                  onClick={() => {
+                    onClose();
+                    onOpenReliability();
+                  }}
+                >
+                  {t("doctor.openReliability")}
+                </button>
+              </div>
+            ) : null}
             <div className="doctor-advanced__row">
               <div className="doctor-advanced__text">
                 <div className="doctor-advanced__label">{t("doctor.supportZip")}</div>

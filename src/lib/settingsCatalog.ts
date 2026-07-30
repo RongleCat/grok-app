@@ -1203,6 +1203,25 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     ],
   },
   {
+    id: "runtime.reliability",
+    section: "runtime",
+    tab: "tools",
+    anchorId: "settings-anchor-reliability",
+    labelKey: "reliability.title",
+    descKeys: [
+      "reliability.settingsDesc",
+      "reliability.openFromSettings",
+    ],
+    keywords: [
+      "reliability",
+      "observability",
+      "busy",
+      "stall",
+      "error deck",
+      "support zip",
+    ],
+  },
+  {
     id: "runtime.inspect",
     section: "runtime",
     tab: "tools",

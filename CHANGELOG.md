@@ -13,6 +13,8 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- **Reliability center** (Doctor / Settings → Runtime → Tools / command palette): aggregate busy sessions, stall / end-of-turn stall signals, and recent error-deck cards; export support zip or open Doctor. Honest empty states when nothing is in flight.
+- **可靠性中心**（Doctor / 设置 → 运行环境 → 工具 / 命令面板）：汇总忙碌会话、卡顿与 end-of-turn 卡顿信号、最近错误卡片；可导出支持包或打开 Doctor。无信号时显示诚实空态。
 - **Remappable keyboard shortcuts** (Settings → Keyboard): Record / Reset per action, Reset all, conflict detection; custom chords stored in `localStorage` (`grok.shortcutRemap`). Global mod actions (palette, settings, new chat, toggle sidebar, help, doctor, copy last reply, find in chat, live voice) honor remaps; help table shows effective bindings
 - **可自定义快捷键**（设置 → 键盘）：逐项录制 / 重置、全部重置、冲突检测；全局组合键（搜索面板、设置、新建会话、侧栏等）即时生效
 - **Trace center**: after a successful session trace export (`grok trace --local`), keep a local history (paths only, max ~20) with Open in folder / Copy path from the session menu, command palette, and Settings → Runtime → Diagnostics

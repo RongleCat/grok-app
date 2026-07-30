@@ -10601,6 +10601,192 @@ button.composer__context-item {
   flex: 1;
 }
 
+/* Reliability / Observability center (long-task signals) */
+.modal.reliab-modal {
+  width: min(var(--modal-width-lg, 560px), 100%);
+  max-height: min(88vh, 720px);
+  display: flex;
+  flex-direction: column;
+}
+
+.reliab-modal__lead {
+  margin: 0;
+  padding: 0 var(--space-4, 16px);
+  font-size: var(--text-sm, 13px);
+  color: var(--text-secondary);
+  line-height: 1.45;
+  flex-shrink: 0;
+}
+
+.reliab-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reliab-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in srgb, var(--border, #444) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-2, rgba(0, 0, 0, 0.2)) 70%, transparent);
+}
+
+.reliab-empty__icon {
+  opacity: 0.55;
+}
+
+.reliab-empty__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.reliab-empty__body {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.reliab-card {
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border, #444) 75%, transparent);
+  background: color-mix(in srgb, var(--surface-1, rgba(0, 0, 0, 0.12)) 80%, transparent);
+  padding: 10px 12px;
+}
+
+.reliab-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.reliab-card__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.reliab-card__count {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  opacity: 0.85;
+}
+
+.reliab-card__empty {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  opacity: 0.85;
+}
+
+.reliab-card__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reliab-card__row {
+  border-radius: 8px;
+  padding: 6px 4px;
+}
+
+.reliab-card__row-main {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.reliab-card__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.reliab-card__dot--busy {
+  background: var(--accent, #5b8def);
+  opacity: 1;
+}
+
+.reliab-card__dot--warn {
+  background: var(--warn, #d4a017);
+  opacity: 1;
+}
+
+.reliab-card__dot--err {
+  background: var(--danger, #e35d5d);
+  opacity: 1;
+}
+
+.reliab-card__name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reliab-card__tag {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.reliab-card__meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.reliab-card__code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+.reliab-card__sub {
+  margin: 2px 0 0 18px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reliab-card__sub--muted {
+  opacity: 0.75;
+}
+
+.reliab-card__actions {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0 0 18px;
+}
+
+.reliab-modal__foot {
+  flex-shrink: 0;
+}
+
 /* Compact confirm / rename dialogs (project remove, session rename, …) */
 .app-dialog-overlay {
   z-index: 14000;

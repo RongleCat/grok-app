@@ -174,6 +174,7 @@ import {
 } from "@/lib/planSession";
 import { AgentTasksPanel } from "@/components/AgentTasksPanel";
 import { AgentDashboardModal } from "@/components/AgentDashboardModal";
+import { ReliabilityCenterModal } from "@/components/ReliabilityCenterModal";
 import {
   collectActivitySessions,
   stoppableActivitySessions,
@@ -182,6 +183,16 @@ import {
   collectAgentDashboardRows,
   countBusyDashboardRows,
 } from "@/lib/agentDashboard";
+import {
+  buildReliabilityCenter,
+  DEFAULT_RELIABILITY_MAX_ERRORS,
+  DEFAULT_RELIABILITY_MAX_STALLS,
+  prependReliabilityRing,
+  reliabilityErrorFromDeck,
+  reliabilityStallFromEvent,
+  type ReliabilityErrorEntry,
+  type ReliabilityStallSignal,
+} from "@/lib/reliabilityCenter";
 import * as api from "@/lib/api";
 import {
   SANDBOX_PROFILES,
@@ -591,6 +602,8 @@ function paletteActionIcon(id: string) {
       return <IconDoctor size={size} />;
     case "traces":
       return <IconArchive size={size} />;
+    case "reliability":
+      return <IconActivity size={size} />;
     case "shortcuts-help":
     case "settings-shortcuts":
       return <IconKeyboard size={size} />;
@@ -1372,6 +1385,16 @@ export default function App() {
   const [setupCliSeed, setSetupCliSeed] = useState<SetupCliInfo | null>(null);
   const [showDoctor, setShowDoctor] = useState(false);
   const [showTraces, setShowTraces] = useState(false);
+  /** Reliability / Observability center (busy · stalls · error deck). */
+  const [showReliability, setShowReliability] = useState(false);
+  /** In-session ring of recent stall events (soft/hard); no secrets. */
+  const [recentStallSignals, setRecentStallSignals] = useState<
+    ReliabilityStallSignal[]
+  >([]);
+  /** In-session ring of recent error-deck cards. */
+  const [recentErrorEntries, setRecentErrorEntries] = useState<
+    ReliabilityErrorEntry[]
+  >([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
   /** Optional product tour (not first-run account setup). */
   const [showProductTutorial, setShowProductTutorial] = useState(false);
@@ -3363,6 +3386,20 @@ export default function App() {
               sawModelOutput: p.sawModelOutput,
               sawToolActivity: p.sawToolActivity,
             });
+            // Reliability center ring — title resolved at view assembly time.
+            setRecentStallSignals((prev) =>
+              prependReliabilityRing(
+                prev,
+                reliabilityStallFromEvent({
+                  kind: "active",
+                  sessionId: p.sessionId ?? null,
+                  stallSeconds: secs,
+                  tier: p.tier ?? null,
+                  reason: "stall",
+                }),
+                DEFAULT_RELIABILITY_MAX_STALLS,
+              ),
+            );
           }),
         );
         // Long-tool heartbeat: Host re-armed stall; clear soft banner for this chat.
@@ -3388,6 +3425,19 @@ export default function App() {
           }>("session://stream_stall_hard_end", (p) => {
             if (cancelled || !p) return;
             setStreamStall(null);
+            setRecentStallSignals((prev) =>
+              prependReliabilityRing(
+                prev,
+                reliabilityStallFromEvent({
+                  kind: "hard_end",
+                  sessionId: p.sessionId ?? null,
+                  stallSeconds:
+                    typeof p.stallSeconds === "number" ? p.stallSeconds : null,
+                  reason: "stall",
+                }),
+                DEFAULT_RELIABILITY_MAX_STALLS,
+              ),
+            );
             // Host force-ended the turn (runtime Ready already emitted). Settle
             // client projection so the sidebar cannot stay spinning if a late
             // stream token races after this event (issue #225).
@@ -9433,6 +9483,10 @@ export default function App() {
     setShowDoctor(true);
   };
 
+  const openReliability = () => {
+    setShowReliability(true);
+  };
+
   const runPaletteAction = (action: PaletteActionDef) => {
     setShowSearch(false);
     setSearchQuery("");
@@ -9472,6 +9526,9 @@ export default function App() {
         break;
       case "traces":
         setShowTraces(true);
+        break;
+      case "reliability":
+        setShowReliability(true);
         break;
       case "shortcuts-help":
         setShowShortcuts(true);
@@ -9674,6 +9731,82 @@ export default function App() {
   useEffect(() => {
     setErrorDetailOpen(false);
   }, [errorBanner?.code, errorBanner?.summary, errorBanner?.detail]);
+
+  // Reliability center: keep a short in-memory ring of structured error cards.
+  useEffect(() => {
+    if (!errorBanner?.summary) return;
+    const entry = reliabilityErrorFromDeck({
+      code: errorBanner.code,
+      problem: errorBanner.summary,
+      cause: errorBanner.cause,
+      sessionId: session.sessionId,
+      source: error ? "session" : "local",
+    });
+    setRecentErrorEntries((prev) =>
+      prependReliabilityRing(prev, entry, DEFAULT_RELIABILITY_MAX_ERRORS),
+    );
+  }, [
+    errorBanner?.code,
+    errorBanner?.summary,
+    errorBanner?.cause,
+    error,
+    session.sessionId,
+  ]);
+
+  const reliabilityView = useMemo(() => {
+    const titleById = new Map(
+      sessions.map((s) => [s.id, (s.title || "").trim()] as const),
+    );
+    const untitled = tr("session.untitled");
+    const currentErrors = errorBanner?.summary
+      ? [
+          reliabilityErrorFromDeck({
+            code: errorBanner.code,
+            problem: errorBanner.summary,
+            cause: errorBanner.cause,
+            sessionId: session.sessionId,
+            title: session.sessionId
+              ? titleById.get(session.sessionId) || untitled
+              : null,
+            source: error ? "session" : "local",
+            at: Date.now(),
+          }),
+        ]
+      : [];
+    // Attach session titles to ring stalls when known.
+    const recentStalls = recentStallSignals.map((s) => ({
+      ...s,
+      title:
+        s.title ||
+        (s.sessionId ? titleById.get(s.sessionId) || untitled : null),
+    }));
+    const recentErrors = recentErrorEntries.map((e) => ({
+      ...e,
+      title:
+        e.title ||
+        (e.sessionId ? titleById.get(e.sessionId) || untitled : null),
+    }));
+    return buildReliabilityCenter({
+      liveMap,
+      sessions,
+      currentSessionId: session.sessionId,
+      untitledLabel: untitled,
+      activeStreamStall: streamStall,
+      recentStalls,
+      recentErrors,
+      currentErrors,
+    });
+  }, [
+    liveMap,
+    sessions,
+    session.sessionId,
+    streamStall,
+    recentStallSignals,
+    recentErrorEntries,
+    errorBanner,
+    error,
+    tr,
+  ]);
 
   // T15: announce stream start/end once (avoid token-level noise).
   useEffect(() => {
@@ -11275,6 +11408,7 @@ export default function App() {
           }}
           cliInfo={cliInfo}
           onDoctor={() => void openDoctor()}
+          onOpenReliability={() => openReliability()}
           onOpenShortcutsHelp={() => setShowShortcuts(true)}
           onOpenProductTutorial={() => setShowProductTutorial(true)}
           versionFooter={tr("app.versionFooter")}
@@ -14084,6 +14218,18 @@ export default function App() {
         }}
         onResetDone={() => {
           void refreshLists();
+        }}
+        onOpenReliability={() => openReliability()}
+      />
+      <ReliabilityCenterModal
+        open={showReliability}
+        onClose={() => setShowReliability(false)}
+        locale={locale}
+        view={reliabilityView}
+        onOpenDoctor={() => void openDoctor()}
+        onSelectSession={(id) => {
+          setShowReliability(false);
+          trayHandlersRef.current.openSessionById(id);
         }}
       />
       <ProjectRulesModal

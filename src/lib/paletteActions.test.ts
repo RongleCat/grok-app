@@ -18,6 +18,7 @@ describe("defaultPaletteActions", () => {
       "open-agent-dashboard",
       "doctor",
       "traces",
+      "reliability",
       "shortcuts-help",
       "product-tutorial",
       "settings-general",
@@ -64,11 +65,21 @@ describe("filterPaletteActions", () => {
   });
 
   it("matches by keyword", () => {
-    const doctor = filterPaletteActions("diagnostics", catalog);
+    const doctor = filterPaletteActions("cli check", catalog);
     expect(doctor.map((h) => h.id)).toEqual(["doctor"]);
 
     const traces = filterPaletteActions("session trace", catalog);
     expect(traces.map((h) => h.id)).toContain("traces");
+
+    const reliability = filterPaletteActions("observability", catalog);
+    expect(reliability.map((h) => h.id)).toEqual(["reliability"]);
+
+    // Shared keyword "diagnostics" hits doctor + reliability (diagnose group).
+    const diagnose = filterPaletteActions("diagnostics", catalog).map(
+      (h) => h.id,
+    );
+    expect(diagnose).toContain("doctor");
+    expect(diagnose).toContain("reliability");
 
     const theme = filterPaletteActions("wallpaper", catalog);
     expect(theme.map((h) => h.id)).toEqual(["settings-appearance"]);

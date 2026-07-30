@@ -91,6 +91,21 @@ export function defaultPaletteActions(): PaletteActionDef[] {
       group: "diagnose",
     },
     {
+      id: "reliability",
+      labelKey: "reliability.title",
+      keywords: [
+        "reliability",
+        "observability",
+        "busy sessions",
+        "stall",
+        "error deck",
+        "support zip",
+        "diagnostics",
+        "long task",
+      ],
+      group: "diagnose",
+    },
+    {
       id: "shortcuts-help",
       labelKey: "shortcuts.help",
       keywords: ["shortcuts", "keyboard", "hotkeys", "keymap", "help", "?"],
