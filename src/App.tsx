@@ -1465,6 +1465,10 @@ export default function App() {
   } | null>(null);
   /** Queue item currently being steered into the live turn. */
   const [guidingQueueItemId, setGuidingQueueItemId] = useState<string | null>(null);
+  /** Queue item open in the edit dialog (`null` when closed). */
+  const [queueEditItemId, setQueueEditItemId] = useState<string | null>(null);
+  const [queueEditText, setQueueEditText] = useState("");
+  const queueEditTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [connecting, setConnecting] = useState(false);
   /** Sync gate for ensureConnected (React state alone races two rapid sends). */
@@ -7432,6 +7436,51 @@ export default function App() {
       ? liveHost.state === "streaming"
       : session.state === "streaming");
 
+  const closeQueueEdit = useCallback(() => {
+    setQueueEditItemId(null);
+    setQueueEditText("");
+    // Resume auto-flush after edit dialog (hold was set while open).
+    sendQueue.releaseFlushHold();
+  }, [sendQueue.releaseFlushHold]);
+
+  const openQueueEdit = useCallback(
+    (item: QueuedSend) => {
+      // Pause auto-flush so the item is not claimed while the dialog is open.
+      sendQueue.pauseFlush();
+      setQueueEditItemId(item.id);
+      setQueueEditText(item.storedDisplay);
+      window.setTimeout(() => {
+        queueEditTextareaRef.current?.focus();
+        queueEditTextareaRef.current?.select();
+      }, 0);
+    },
+    [sendQueue.pauseFlush],
+  );
+
+  const saveQueueEdit = useCallback(() => {
+    if (!queueEditItemId) return;
+    const item = sendQueue.activeQueue.find((q) => q.id === queueEditItemId);
+    if (!item) {
+      closeQueueEdit();
+      return;
+    }
+    const trimmed = queueEditText.trim();
+    if (!trimmed && item.attachments.length === 0) {
+      showToast(tr("composer.queueEditEmpty"), 2800);
+      return;
+    }
+    sendQueue.updateItem(queueEditItemId, { storedDisplay: trimmed });
+    closeQueueEdit();
+  }, [
+    queueEditItemId,
+    queueEditText,
+    sendQueue.activeQueue,
+    sendQueue.updateItem,
+    closeQueueEdit,
+    showToast,
+    tr,
+  ]);
+
   const guideQueuedMessage = useCallback(
     async (item: QueuedSend) => {
       if (guidingQueueItemId || !canGuideQueuedMessage || !session.sessionId) {
@@ -12547,6 +12596,20 @@ export default function App() {
                         </span>
                         <button
                           type="button"
+                          className="composer__queue-edit"
+                          data-testid="queue-edit"
+                          aria-label={tr("composer.queueEdit")}
+                          title={tr("composer.queueEdit")}
+                          disabled={
+                            guidingQueueItemId === item.id ||
+                            queueEditItemId !== null
+                          }
+                          onClick={() => openQueueEdit(item)}
+                        >
+                          {tr("composer.queueEdit")}
+                        </button>
+                        <button
+                          type="button"
                           className="composer__queue-guide"
                           data-testid="queue-guide"
                           aria-label={
@@ -14209,6 +14272,62 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Edit queued follow-up (textarea; not window.prompt) */}
+      <GlassModal
+        open={queueEditItemId !== null}
+        onClose={closeQueueEdit}
+        title={tr("composer.queueEditTitle")}
+        size="md"
+        closeLabel={tr("common.close")}
+        wrapBody
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={closeQueueEdit}
+            >
+              {tr("composer.queueEditCancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--solid"
+              onClick={saveQueueEdit}
+            >
+              {tr("composer.queueEditSave")}
+            </button>
+          </>
+        }
+      >
+        <label className="composer__queue-edit-field">
+          <span className="sr-only">{tr("composer.queueEditTitle")}</span>
+          <textarea
+            ref={queueEditTextareaRef}
+            className="composer__queue-edit-textarea settings-input"
+            value={queueEditText}
+            onChange={(e) => setQueueEditText(e.target.value)}
+            rows={6}
+            spellCheck={false}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                closeQueueEdit();
+              }
+              // ⌘/Ctrl+Enter saves (Enter alone inserts newline).
+              if (
+                e.key === "Enter" &&
+                (e.metaKey || e.ctrlKey) &&
+                !e.shiftKey &&
+                !e.altKey
+              ) {
+                e.preventDefault();
+                saveQueueEdit();
+              }
+            }}
+          />
+        </label>
+      </GlassModal>
 
       {/* In-app confirm / prompt (Tauri WebView has no reliable window.prompt/confirm) */}
       {appDialog &&

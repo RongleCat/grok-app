@@ -8354,6 +8354,30 @@ button.composer__context-item {
 }
 
 
+.composer__queue-edit {
+  flex: 0 0 auto;
+  min-width: 40px;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.composer__queue-edit:hover:not(:disabled) {
+  background: var(--bg-elevated, var(--bg-hover));
+  color: var(--text-primary);
+}
+
+.composer__queue-edit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .composer__queue-guide {
   flex: 0 0 auto;
   min-width: 48px;
@@ -8375,6 +8399,21 @@ button.composer__context-item {
 .composer__queue-guide:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+.composer__queue-edit-field {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.composer__queue-edit-textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+  line-height: 1.45;
 }
 
 .composer__queue-remove {

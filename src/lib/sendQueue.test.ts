@@ -17,6 +17,7 @@ import {
   setQueueForKey,
   shouldEnqueueSend,
   shouldHoldFlushForLive,
+  updateQueuedSend,
   SEND_QUEUE_MAX,
 } from "./sendQueue";
 
@@ -106,6 +107,93 @@ describe("sendQueue", () => {
     expect(head?.id).toBe(a.id);
     expect(rest).toHaveLength(1);
     expect(removeQueuedSend(rest, b.id)).toEqual([]);
+  });
+
+  it("updateQueuedSend patches text and goalMode", () => {
+    const a = makeQueuedSend({
+      storedDisplay: "old",
+      attachments: [],
+      goalMode: false,
+      now: 1,
+    });
+    const b = makeQueuedSend({
+      storedDisplay: "keep",
+      attachments: [],
+      goalMode: false,
+      now: 2,
+    });
+    const q = [a, b];
+    const next = updateQueuedSend(q, a.id, {
+      storedDisplay: "new text",
+      goalMode: true,
+    });
+    expect(next).not.toBe(q);
+    expect(next[0]!.storedDisplay).toBe("new text");
+    expect(next[0]!.goalMode).toBe(true);
+    expect(next[0]!.id).toBe(a.id);
+    expect(next[1]).toBe(b);
+  });
+
+  it("updateQueuedSend returns same ref for missing id", () => {
+    const a = makeQueuedSend({
+      storedDisplay: "x",
+      attachments: [],
+      goalMode: false,
+    });
+    const q = [a];
+    expect(updateQueuedSend(q, "missing", { storedDisplay: "y" })).toBe(q);
+  });
+
+  it("updateQueuedSend returns same ref for no-op patch", () => {
+    const a = makeQueuedSend({
+      storedDisplay: "same",
+      attachments: [],
+      goalMode: true,
+    });
+    const q = [a];
+    expect(
+      updateQueuedSend(q, a.id, {
+        storedDisplay: "same",
+        goalMode: true,
+      }),
+    ).toBe(q);
+  });
+
+  it("updateQueuedSend rejects empty text with no attachments", () => {
+    const a = makeQueuedSend({
+      storedDisplay: "hello",
+      attachments: [],
+      goalMode: false,
+    });
+    const q = [a];
+    expect(updateQueuedSend(q, a.id, { storedDisplay: "   " })).toBe(q);
+    expect(updateQueuedSend(q, a.id, { storedDisplay: "" })).toBe(q);
+  });
+
+  it("updateQueuedSend allows empty text when attachments remain", () => {
+    const a = makeQueuedSend({
+      storedDisplay: "caption",
+      attachments: [{ path: "/a", name: "a.png", isDir: false }],
+      goalMode: false,
+    });
+    const q = [a];
+    const next = updateQueuedSend(q, a.id, { storedDisplay: "" });
+    expect(next).not.toBe(q);
+    expect(next[0]!.storedDisplay).toBe("");
+    expect(next[0]!.attachments).toHaveLength(1);
+  });
+
+  it("updateQueuedSend can replace attachments", () => {
+    const a = makeQueuedSend({
+      storedDisplay: "x",
+      attachments: [{ path: "/old", name: "old", isDir: false }],
+      goalMode: false,
+    });
+    const q = [a];
+    const nextAtt = [{ path: "/new", name: "new.png", isDir: false }];
+    const next = updateQueuedSend(q, a.id, { attachments: nextAtt });
+    expect(next[0]!.attachments).toEqual(nextAtt);
+    expect(next[0]!.attachments).not.toBe(nextAtt);
   });
 
   it("requeueAtFront restores claimed head without dup", () => {

@@ -152,6 +152,69 @@ export function removeQueuedSend(
   return queue.filter((q) => q.id !== id);
 }
 
+export type QueuedSendPatch = {
+  storedDisplay?: string;
+  attachments?: Attachment[];
+  goalMode?: boolean;
+};
+
+/**
+ * Patch a queued item by id.
+ * Returns the same array ref when id is missing, the patch is a no-op, or
+ * the result would be empty (no text and no attachments).
+ */
+export function updateQueuedSend(
+  queue: QueuedSend[],
+  id: string,
+  patch: QueuedSendPatch,
+): QueuedSend[] {
+  const idx = queue.findIndex((q) => q.id === id);
+  if (idx < 0) return queue;
+
+  const cur = queue[idx]!;
+  const nextDisplay =
+    patch.storedDisplay !== undefined ? patch.storedDisplay : cur.storedDisplay;
+  const nextAttachments =
+    patch.attachments !== undefined
+      ? patch.attachments.map((a) => ({ ...a }))
+      : cur.attachments;
+  const nextGoal =
+    patch.goalMode !== undefined ? patch.goalMode : cur.goalMode;
+
+  // Reject empty body with no attachments (caller may also validate).
+  if (!nextDisplay.trim() && nextAttachments.length === 0) {
+    return queue;
+  }
+
+  const displayChanged = nextDisplay !== cur.storedDisplay;
+  const goalChanged = nextGoal !== cur.goalMode;
+  const attChanged =
+    patch.attachments !== undefined &&
+    (nextAttachments.length !== cur.attachments.length ||
+      nextAttachments.some((a, i) => {
+        const b = cur.attachments[i];
+        return (
+          !b ||
+          a.path !== b.path ||
+          a.name !== b.name ||
+          a.isDir !== b.isDir
+        );
+      }));
+
+  if (!displayChanged && !goalChanged && !attChanged) {
+    return queue;
+  }
+
+  const next = queue.slice();
+  next[idx] = {
+    ...cur,
+    storedDisplay: nextDisplay,
+    attachments: nextAttachments,
+    goalMode: nextGoal,
+  };
+  return next;
+}
+
 /** Pop head; returns [head | null, rest]. */
 export function dequeueSend(
   queue: QueuedSend[],

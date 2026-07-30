@@ -14,6 +14,7 @@ See `docs/llm-wiki/release.md`.
 ### Added
 
 - **Desktop notification click opens the session** that fired turn-done / permission / ask_user (falls back to focusing the app when the session is unknown)
+- **Edit queued follow-ups** in the composer send queue (text before auto-send)
 
 ## [0.2.2] - 2026-07-30
 

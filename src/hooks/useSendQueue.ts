@@ -23,7 +23,9 @@ import {
   setQueueForKey,
   shouldEnqueueSend,
   shouldHoldFlushForLive,
+  updateQueuedSend,
   type QueuedSend,
+  type QueuedSendPatch,
 } from "@/lib/sendQueue";
 
 export type ExecuteSendFromQueue = (opts: {
@@ -141,6 +143,18 @@ export function useSendQueue({
       if (!getQueueForKey(next, key).length) cancelFlushTimer();
     },
     [sessionId, writeMap, cancelFlushTimer],
+  );
+
+  const updateItem = useCallback(
+    (id: string, patch: QueuedSendPatch) => {
+      const key = queueSessionKey(sessionId);
+      const prev = getQueueForKey(sendQueueByKeyRef.current, key);
+      const updated = updateQueuedSend(prev, id, patch);
+      if (updated === prev) return false;
+      writeMap(setQueueForKey(sendQueueByKeyRef.current, key, updated));
+      return true;
+    },
+    [sessionId, writeMap],
   );
 
   const clearQueue = useCallback(() => {
@@ -279,16 +293,23 @@ export function useSendQueue({
     window.setTimeout(() => flush(), 0);
   }, [setHold, flush]);
 
+  /** Pause auto-flush (e.g. while editing a queued item). */
+  const pauseFlush = useCallback(() => {
+    setHold(true);
+  }, [setHold]);
+
   return {
     activeQueue,
     flushHold,
     enqueue,
     removeItem,
+    updateItem,
     clearQueue,
     clearDraftQueue,
     dropSessions,
     migrateDraft,
     releaseFlushHold,
+    pauseFlush,
     resumeFlush,
     shouldEnqueue: (state: SessionState, conn: boolean) =>
       shouldEnqueueSend(state, conn),
