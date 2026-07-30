@@ -235,6 +235,21 @@ pub struct SpawnOptions {
     /// When set, the model is constrained to produce matching JSON. Safe with
     /// `agent stdio` (verified: process stays up; ACP framing intact).
     pub json_schema: Option<String>,
+    /// Session-only plugin directories → `grok agent --plugin-dir <DIR>` (repeatable).
+    pub plugin_dirs: Vec<String>,
+}
+
+/// Pure helper: agent-option CLI args for session plugin dirs (before `stdio`).
+///
+/// `["--plugin-dir", path, …]` — empty when no dirs. Trims, drops empty, dedupes.
+pub fn plugin_dir_spawn_flags(dirs: &[String]) -> Vec<String> {
+    let paths = crate::store::normalize_plugin_dirs(dirs.iter().cloned());
+    let mut out = Vec::with_capacity(paths.len() * 2);
+    for p in paths {
+        out.push("--plugin-dir".into());
+        out.push(p);
+    }
+    out
 }
 
 /// Map App policy → CLI `--permission-mode` value.
@@ -549,6 +564,11 @@ impl AcpClient {
             if cli_permission_mode(pol) == "bypassPermissions" {
                 cmd.arg("--always-approve");
             }
+        }
+        // Session-only plugins (Agent SDKs / App): process-scoped, always trusted.
+        // Does not write global Extensions or `~/.grok` install state.
+        for a in plugin_dir_spawn_flags(&opts.plugin_dirs) {
+            cmd.arg(a);
         }
         cmd.arg("stdio");
         cmd.current_dir(&cwd)
@@ -3019,6 +3039,35 @@ mod prompt_wait_timeout_tests {
         assert_eq!(
             prompt_wait_should_timeout(Some(last), started, now, idle(), absolute()),
             Some("absolute")
+        );
+    }
+}
+
+#[cfg(test)]
+mod plugin_dir_spawn_tests {
+    use super::*;
+
+    #[test]
+    fn empty_yields_no_flags() {
+        assert!(plugin_dir_spawn_flags(&[]).is_empty());
+        assert!(plugin_dir_spawn_flags(&["".into(), "  ".into()]).is_empty());
+    }
+
+    #[test]
+    fn builds_repeatable_plugin_dir_pairs() {
+        let args = plugin_dir_spawn_flags(&[
+            "  /tmp/p1  ".into(),
+            "/tmp/p2".into(),
+            "/tmp/p1".into(),
+        ]);
+        assert_eq!(
+            args,
+            vec![
+                "--plugin-dir".to_string(),
+                "/tmp/p1".to_string(),
+                "--plugin-dir".to_string(),
+                "/tmp/p2".to_string(),
+            ]
         );
     }
 }

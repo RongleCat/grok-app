@@ -151,6 +151,10 @@ pub struct SessionMeta {
     /// Explicit worktree-bound chat flag. Default false for older index rows.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_worktree_session: bool,
+    /// Session-only plugin directories passed as CLI `--plugin-dir` on spawn
+    /// (repeatable). Does not change global Extensions / `~/.grok` plugins.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plugin_dirs: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -902,6 +906,7 @@ pub fn create_session(
         worktree_path: None,
         worktree_branch: None,
         is_worktree_session: false,
+        plugin_dirs: Vec::new(),
     };
     let mut list = load_sessions_index();
     list.insert(0, meta.clone());
@@ -1062,6 +1067,41 @@ pub fn set_session_json_schema(
     Ok(clone)
 }
 
+/// Normalize session plugin dirs: trim, drop empty, dedupe (first wins).
+pub fn normalize_plugin_dirs(dirs: impl IntoIterator<Item = String>) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for d in dirs {
+        let t = d.trim().to_string();
+        if t.is_empty() {
+            continue;
+        }
+        if !seen.insert(t.clone()) {
+            continue;
+        }
+        out.push(t);
+    }
+    out
+}
+
+/// Set session-only `--plugin-dir` paths (empty clears). Does not touch global plugins.
+pub fn set_session_plugin_dirs(
+    id: &str,
+    plugin_dirs: Vec<String>,
+) -> Result<SessionMeta, String> {
+    let dirs = normalize_plugin_dirs(plugin_dirs);
+    let mut list = load_sessions_index();
+    let s = list
+        .iter_mut()
+        .find(|s| s.id == id)
+        .ok_or_else(|| "session not found".to_string())?;
+    s.plugin_dirs = dirs;
+    s.updated_at = Utc::now();
+    let clone = s.clone();
+    save_sessions_index(&list)?;
+    Ok(clone)
+}
+
 /// Bind (or clear) a session's project folder. Used to attach orphan / legacy
 /// chats to a project added later. Clearing (`None`) returns the chat to
 /// "其他会话"; agent cwd still uses the general workspace directory.
@@ -1208,6 +1248,7 @@ pub fn fork_session(
     meta.worktree_path = source.worktree_path.clone();
     meta.worktree_branch = source.worktree_branch.clone();
     meta.is_worktree_session = source.is_worktree_session;
+    meta.plugin_dirs = source.plugin_dirs.clone();
     meta.updated_at = Utc::now();
     update_session_meta(&meta)?;
 
@@ -1919,6 +1960,22 @@ mod tests {
         assert!(!s.experimental_memory);
     }
 
+    #[test]
+    fn session_plugin_dirs_default_empty_and_normalize() {
+        let raw = r#"{"id":"s1","projectId":null,"title":"t","agentSessionId":null,"createdAt":"2020-01-01T00:00:00Z","updatedAt":"2020-01-01T00:00:00Z"}"#;
+        let m: SessionMeta = serde_json::from_str(raw).expect("legacy session without pluginDirs");
+        assert!(m.plugin_dirs.is_empty());
+        assert_eq!(
+            normalize_plugin_dirs(vec![
+                "  /a  ".into(),
+                "".into(),
+                "/a".into(),
+                "/b".into()
+            ]),
+            vec!["/a".to_string(), "/b".to_string()]
+        );
+    }
+
     fn sample_session(id: &str, pinned: bool, updated: DateTime<Utc>) -> SessionMeta {
         SessionMeta {
             id: id.into(),
@@ -1938,6 +1995,7 @@ mod tests {
             worktree_path: None,
             worktree_branch: None,
             is_worktree_session: false,
+            plugin_dirs: Vec::new(),
         }
     }
 
@@ -2077,6 +2135,7 @@ mod tests {
                 worktree_path: None,
                 worktree_branch: None,
                 is_worktree_session: false,
+                plugin_dirs: Vec::new(),
             },
         );
         write_json(&sessions_index_file(), &sessions).expect("seed sessions");

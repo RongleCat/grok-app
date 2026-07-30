@@ -287,6 +287,7 @@ pub fn run() {
             commands::session_set_worktree,
             commands::session_set_json_schema,
             commands::session_set_project,
+            commands::session_set_plugin_dirs,
             commands::session_set_scheduled,
             commands::session_messages,
             commands::session_media_root,

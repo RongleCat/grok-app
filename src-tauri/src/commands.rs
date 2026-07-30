@@ -579,6 +579,24 @@ pub async fn session_set_project(
     Ok(meta)
 }
 
+/// Set session-only plugin directories (`--plugin-dir` at next spawn).
+/// Empty clears. Does not change global Extensions / installed plugins.
+/// Soft-respawns the live agent when this chat is the active shell.
+#[tauri::command]
+pub async fn session_set_plugin_dirs(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    id: String,
+    plugin_dirs: Vec<String>,
+) -> Result<SessionMeta, String> {
+    let meta = store::set_session_plugin_dirs(&id, plugin_dirs)?;
+    let snap = mgr.snapshot();
+    if snap.session_id.as_deref() == Some(meta.id.as_str()) {
+        mgr.soft_respawn_with_reason(&app, "session_plugin_dirs").await;
+    }
+    Ok(meta)
+}
+
 #[tauri::command]
 pub async fn session_messages(
     id: String,

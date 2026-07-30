@@ -149,6 +149,13 @@ const en = {
   "session.forkRestoreFailed": "Could not create a worktree for restore",
   "session.forkRestoreBindFailed":
     "Forked the chat, but could not bind it to the new worktree",
+  "session.pluginDirsAdd": "Add session plugin folder…",
+  "session.pluginDirsAddCount": "Add session plugin folder… ({n})",
+  "session.pluginDirsClear": "Clear session plugins",
+  "session.pluginDirsAdded":
+    "Session plugin folder attached — next agent spawn uses --plugin-dir for this chat only",
+  "session.pluginDirsCleared":
+    "Session plugins cleared — Extensions / global plugins unchanged",
   "session.backgroundPermission":
     "Another chat needs permission — switch to it to approve or deny.",
   "session.rewind": "Rewind timeline",
@@ -2738,6 +2745,12 @@ const zh: Record<MessageKey, string> = {
   "session.forkRestoreUnavailable": "恢复代码需要该项目是 git 仓库。",
   "session.forkRestoreFailed": "无法为恢复创建 worktree",
   "session.forkRestoreBindFailed": "会话已分叉，但未能绑定到新 worktree",
+  "session.pluginDirsAdd": "添加会话插件目录…",
+  "session.pluginDirsAddCount": "添加会话插件目录…（{n}）",
+  "session.pluginDirsClear": "清除会话插件",
+  "session.pluginDirsAdded":
+    "已附加会话插件目录 — 下次启动仅本会话使用 --plugin-dir，不影响扩展中的全局插件",
+  "session.pluginDirsCleared": "已清除会话插件 — 扩展/全局插件未更改",
   "session.rewind": "回退时间线",
   "session.rewindTitle": "回退对话",
   "session.rewindHint":

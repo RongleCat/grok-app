@@ -133,6 +133,12 @@ export const zhTW: Record<MessageKey, string> = {
   "session.forkRestoreUnavailable": "還原程式碼需要此專案是 git 儲存庫。",
   "session.forkRestoreFailed": "無法為還原建立 worktree",
   "session.forkRestoreBindFailed": "對話已分叉，但未能繫結到新 worktree",
+  "session.pluginDirsAdd": "新增工作階段外掛目錄…",
+  "session.pluginDirsAddCount": "新增工作階段外掛目錄…（{n}）",
+  "session.pluginDirsClear": "清除工作階段外掛",
+  "session.pluginDirsAdded":
+    "已附加工作階段外掛目錄 — 下次啟動僅本對話使用 --plugin-dir，不影響擴充功能中的全域外掛",
+  "session.pluginDirsCleared": "已清除工作階段外掛 — 擴充功能/全域外掛未變更",
   "session.backgroundPermission":
     "另一個對話需要權限批准 — 請切換過去以允許或拒絕。",
   "session.rewind": "回退時間線",

@@ -437,6 +437,7 @@ import {
   canRestoreCodeOnFork,
 } from "@/lib/sessionFork";
 import { isProjectPathMissing } from "@/lib/projectPath";
+import { appendPluginDir } from "@/lib/sessionPluginDirs";
 import {
   classifyVoiceError,
   initialVoiceState,
@@ -516,6 +517,7 @@ import {
   IconInfo,
   IconHelp,
   IconPlug,
+  IconPuzzle,
 } from "@/components/icons";
 import { PhoneAccountSheet } from "@/components/PhoneAccountSheet";
 import { PhoneComposerToolsSheet } from "@/components/PhoneComposerToolsSheet";
@@ -705,6 +707,8 @@ interface SessionRow {
   isWorktreeSession?: boolean;
   /** Optional JSON Schema for structured model output */
   jsonSchema?: string | null;
+  /** Session-only plugin dirs (`--plugin-dir` at spawn) */
+  pluginDirs?: string[];
 }
 
 /** Normalize sessions_list / create rows into sidebar/dashboard SessionRow. */
@@ -723,6 +727,9 @@ function normalizeSessionRow(
     typeof x.jsonSchema === "string" && x.jsonSchema.trim()
       ? x.jsonSchema
       : null;
+  const pluginDirs = Array.isArray(x.pluginDirs)
+    ? x.pluginDirs.map((d) => String(d).trim()).filter(Boolean)
+    : [];
   return {
     id: x.id,
     title: x.title || "",
@@ -737,6 +744,7 @@ function normalizeSessionRow(
     worktreeBranch,
     isWorktreeSession,
     jsonSchema: schema,
+    pluginDirs: pluginDirs.length ? pluginDirs : undefined,
   };
 }
 
@@ -746,7 +754,6 @@ function mapSessionListRow(
 ): SessionRow {
   return normalizeSessionRow(x);
 }
-
 
 type ContextMenuState =
   | { kind: "project"; id: string; x: number; y: number }
@@ -5510,6 +5517,46 @@ export default function App() {
     try {
       await api.sessionSetPinned(s.id, pinned);
       await refreshSessions();
+    } catch (e) {
+      setLocalError(String(e));
+    }
+  };
+
+  /**
+   * Attach a folder as a session-only `--plugin-dir` (does not change Extensions).
+   * Soft-respawns when this chat is the live agent.
+   */
+  const addSessionPluginDir = async (s: SessionRow) => {
+    setCtxMenu(null);
+    try {
+      if (!api.isTauri()) {
+        setLocalError(tr("error.needTauri"));
+        return;
+      }
+      const folder = await api.pickAttachFolder();
+      if (!folder) return;
+      const next = appendPluginDir(s.pluginDirs, folder);
+      await api.sessionSetPluginDirs(s.id, next);
+      await refreshSessions();
+      setToast(tr("session.pluginDirsAdded"));
+      window.setTimeout(() => setToast(null), 3200);
+    } catch (e) {
+      setLocalError(String(e));
+    }
+  };
+
+  /** Clear session-only plugin dirs (global Extensions unchanged). */
+  const clearSessionPluginDirs = async (s: SessionRow) => {
+    setCtxMenu(null);
+    try {
+      if (!api.isTauri()) {
+        setLocalError(tr("error.needTauri"));
+        return;
+      }
+      await api.sessionSetPluginDirs(s.id, []);
+      await refreshSessions();
+      setToast(tr("session.pluginDirsCleared"));
+      window.setTimeout(() => setToast(null), 3200);
     } catch (e) {
       setLocalError(String(e));
     }
@@ -15859,6 +15906,31 @@ export default function App() {
                 icon: <IconFork size={16} />,
                 onClick: () => confirmForkSession(s),
               },
+              {
+                id: "session-plugin-add",
+                label:
+                  (s.pluginDirs?.length ?? 0) > 0
+                    ? tr("session.pluginDirsAddCount", {
+                        n: String(s.pluginDirs!.length),
+                      })
+                    : tr("session.pluginDirsAdd"),
+                icon: <IconPuzzle size={16} />,
+                onClick: () => {
+                  void addSessionPluginDir(s);
+                },
+              },
+              ...((s.pluginDirs?.length ?? 0) > 0
+                ? [
+                    {
+                      id: "session-plugin-clear",
+                      label: tr("session.pluginDirsClear"),
+                      icon: <IconPuzzle size={16} />,
+                      onClick: () => {
+                        void clearSessionPluginDirs(s);
+                      },
+                    } satisfies ContextMenuItem,
+                  ]
+                : []),
               {
                 id: "rewind",
                 label: tr("session.rewind"),
