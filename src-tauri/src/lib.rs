@@ -67,6 +67,7 @@ mod voice_stt;
 mod voice_tools;
 mod remote_im;
 mod wallpaper_source;
+mod leader;
 
 use std::sync::Arc;
 
@@ -351,8 +352,11 @@ pub fn run() {
             commands::marketplace_add,
             commands::marketplace_remove,
             commands::marketplace_update,
-            commands::leader_list,
-            commands::leader_kill_all,
+            leader::leader_status,
+            leader::leader_list,
+            leader::leader_start,
+            leader::leader_stop,
+            leader::leader_kill_all,
             commands::pick_directory,
             commands::pick_attach_files,
             commands::pick_attach_folder,

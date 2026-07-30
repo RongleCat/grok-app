@@ -13,6 +13,9 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- **Agent leader / serve panel** (Settings → Runtime → Connection): probe `~/.grok/leader.sock` (or `GROK_LEADER_SOCKET`), show stopped/running/error, copy socket path, start `grok agent leader` in the background, stop via `grok leader kill` + tracked PID; honest message when CLI lacks leader commands; never shows serve secrets. Link to General → Agent “use leader” toggle.
+**中文 · 新增**
+- **Agent leader / serve 面板**（设置 → 运行时 → 连接）：探测 leader socket、状态与复制路径、后台启动/停止共享后端；CLI 不支持时如实提示；不展示 serve 密钥；链到「共享 Agent 后端」开关
 - **Reliability center** (Doctor / Settings → Runtime → Tools / command palette): aggregate busy sessions, stall / end-of-turn stall signals, and recent error-deck cards; export support zip or open Doctor. Honest empty states when nothing is in flight.
 - **可靠性中心**（Doctor / 设置 → 运行环境 → 工具 / 命令面板）：汇总忙碌会话、卡顿与 end-of-turn 卡顿信号、最近错误卡片；可导出支持包或打开 Doctor。无信号时显示诚实空态。
 - **Remappable keyboard shortcuts** (Settings → Keyboard): Record / Reset per action, Reset all, conflict detection; custom chords stored in `localStorage` (`grok.shortcutRemap`). Global mod actions (palette, settings, new chat, toggle sidebar, help, doctor, copy last reply, find in chat, live voice) honor remaps; help table shows effective bindings

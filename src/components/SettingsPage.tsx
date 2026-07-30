@@ -136,6 +136,7 @@ import { GlassModal } from "@/components/GlassModal";
 import { MemoryBrowserPanel } from "@/components/MemoryBrowserPanel";
 import { RemoteImLayout } from "@/components/RemoteImLayout";
 import { MirrorConnectPanel } from "@/components/MirrorConnectPanel";
+import { LeaderServePanel } from "@/components/LeaderServePanel";
 import {
   createT,
   resolveLocale,
@@ -3907,16 +3908,27 @@ export function SettingsPage({
               </div>
             )}
             {activeTab === "connection" && (
-              <div
-                className={"settings-card" + rowHighlight("settings-anchor-acpServer")}
-                id="settings-anchor-acpServer"
-              >
-                <AcpServerField
-                  value={acpServerAddr}
-                  onChange={onAcpServerAddr}
-                  t={t}
-                />
-              </div>
+              <>
+                <div
+                  className={"settings-card" + rowHighlight("settings-anchor-acpServer")}
+                  id="settings-anchor-acpServer"
+                >
+                  <AcpServerField
+                    value={acpServerAddr}
+                    onChange={onAcpServerAddr}
+                    t={t}
+                  />
+                </div>
+                <h2 className="settings-page__h2">{t("settings.leader.title")}</h2>
+                <div className={rowHighlight("settings-anchor-leaderServe")}>
+                  <LeaderServePanel
+                    t={t}
+                    onOpenUseLeader={() =>
+                      navigateTo("general", "agent", "settings-anchor-useLeader")
+                    }
+                  />
+                </div>
+              </>
             )}
             {activeTab === "network" && (
               <div

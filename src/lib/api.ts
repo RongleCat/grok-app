@@ -2677,6 +2677,51 @@ export async function projectRulesEnsureTemplate(projectPath: string) {
   });
 }
 
+// ── Agent leader / serve (Runtime) ──────────────────────────────────────────
+
+export type LeaderProcess = {
+  pid?: number | null;
+  socketPath?: string | null;
+  version?: string | null;
+  classification?: string | null;
+  raw?: unknown;
+};
+
+export type LeaderStatus = {
+  state: "stopped" | "running" | "error" | "unsupported" | string;
+  socketPath: string;
+  socketExists: boolean;
+  socketAgeSecs?: number | null;
+  pid?: number | null;
+  version?: string | null;
+  classification?: string | null;
+  trackedPid?: number | null;
+  cliFound: boolean;
+  cliSupportsLeader: boolean;
+  message?: string | null;
+  leaders?: LeaderProcess[];
+  serveHint?: string | null;
+};
+
+export async function leaderStatus(): Promise<LeaderStatus> {
+  return invoke<LeaderStatus>("leader_status");
+}
+
+export async function leaderStart(): Promise<LeaderStatus> {
+  return invoke<LeaderStatus>("leader_start");
+}
+
+export async function leaderStop(): Promise<LeaderStatus> {
+  return invoke<LeaderStatus>("leader_stop");
+}
+
+export async function leaderList(): Promise<{
+  leaders: LeaderProcess[];
+  error?: string;
+}> {
+  return invoke("leader_list");
+}
+
 // ── Wallpaper sources (X search + Imagine) ──────────────────────────────────
 
 export async function wallpaperXSearch(
