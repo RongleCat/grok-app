@@ -270,6 +270,7 @@ import {
 } from "@/lib/permissionOptions";
 import { AskUserModal } from "@/components/AskUserModal";
 import { DoctorModal } from "@/components/DoctorModal";
+import { TraceHistoryList } from "@/components/TraceHistoryList";
 import { VoiceOverlay } from "@/components/VoiceOverlay";
 import {
   filterSessionSearch,
@@ -287,6 +288,7 @@ import {
   sessionToJson,
   sessionToMarkdown,
 } from "@/lib/sessionExport";
+import { recordTraceExport } from "@/lib/traceHistory";
 import {
   findChatMatches,
   stepChatFindIndex,
@@ -580,6 +582,8 @@ function paletteActionIcon(id: string) {
       return <IconActivity size={size} />;
     case "doctor":
       return <IconDoctor size={size} />;
+    case "traces":
+      return <IconArchive size={size} />;
     case "shortcuts-help":
     case "settings-shortcuts":
       return <IconKeyboard size={size} />;
@@ -1336,6 +1340,7 @@ export default function App() {
   }, [appGate]);
   const [setupCliSeed, setSetupCliSeed] = useState<SetupCliInfo | null>(null);
   const [showDoctor, setShowDoctor] = useState(false);
+  const [showTraces, setShowTraces] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   /** Optional product tour (not first-run account setup). */
   const [showProductTutorial, setShowProductTutorial] = useState(false);
@@ -9434,6 +9439,9 @@ export default function App() {
       case "doctor":
         setShowDoctor(true);
         break;
+      case "traces":
+        setShowTraces(true);
+        break;
       case "shortcuts-help":
         setShowShortcuts(true);
         break;
@@ -10122,6 +10130,12 @@ export default function App() {
       try {
         const res = await api.sessionTraceExport(id);
         if (res?.ok && res.path) {
+          const row = sessions.find((s) => s.id === id);
+          recordTraceExport({
+            sessionId: id,
+            path: res.path,
+            title: row?.title ?? null,
+          });
           showToast(tr("session.exportTraceDone"), 4200);
         } else {
           showToast(tr("session.exportTraceFail"));
@@ -10135,7 +10149,7 @@ export default function App() {
         }
       }
     },
-    [session.sessionId, showToast, tr],
+    [session.sessionId, sessions, showToast, tr],
   );
 
   const beginEditLastUser = useCallback(
@@ -10790,6 +10804,7 @@ export default function App() {
       appDialog ||
         showSearch ||
         showDoctor ||
+        showTraces ||
         showShortcuts ||
         showProductTutorial ||
         showStatusModal ||
@@ -14631,6 +14646,38 @@ export default function App() {
       </GlassModal>
 
       <GlassModal
+        open={showTraces}
+        onClose={() => setShowTraces(false)}
+        title={tr("session.tracesTitle")}
+        size="md"
+        closeLabel={tr("common.close")}
+        wrapBody
+        className="trace-history-modal"
+        footer={
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => setShowTraces(false)}
+          >
+            {tr("common.close")}
+          </button>
+        }
+      >
+        <p className="trace-history-modal__desc">{tr("session.tracesDesc")}</p>
+        <TraceHistoryList
+          labels={{
+            empty: tr("session.tracesEmpty"),
+            reveal: tr("session.tracesReveal"),
+            copyPath: tr("session.tracesCopyPath"),
+            copied: tr("session.tracesCopied"),
+            listAria: tr("session.tracesTitle"),
+          }}
+          onCopied={() => showToast(tr("session.tracesCopied"), 2000)}
+          onError={(msg) => showToast(msg, 4000)}
+        />
+      </GlassModal>
+
+      <GlassModal
         open={!!exportMdTarget}
         onClose={() => {
           if (exportMdBusy) return;
@@ -15480,6 +15527,14 @@ export default function App() {
                 icon: <IconArchive size={16} />,
                 onClick: () => {
                   void exportSessionTrace(s.id);
+                },
+              },
+              {
+                id: "traces",
+                label: tr("session.traces"),
+                icon: <IconFolder size={16} />,
+                onClick: () => {
+                  setShowTraces(true);
                 },
               },
               {

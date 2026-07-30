@@ -1186,6 +1186,23 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     keywords: ["doctor", "diagnose"],
   },
   {
+    id: "runtime.traces",
+    section: "runtime",
+    tab: "tools",
+    anchorId: "settings-anchor-traces",
+    labelKey: "session.tracesTitle",
+    descKeys: ["session.tracesDesc", "session.exportTrace"],
+    keywords: [
+      "trace",
+      "traces",
+      "session trace",
+      "grok trace",
+      "export history",
+      "诊断",
+      "追踪",
+    ],
+  },
+  {
     id: "runtime.inspect",
     section: "runtime",
     tab: "tools",

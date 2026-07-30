@@ -1684,6 +1684,15 @@ const en = {
   "session.exportTraceFail": "Trace export failed",
   "session.exportTraceNoAgent":
     "No agent session linked yet. Start a conversation first, then export the trace.",
+  "session.traces": "Traces",
+  "session.tracesTitle": "Recent traces",
+  "session.tracesDesc":
+    "Local history of session trace exports (paths only). Open the folder or copy the path — large archives are not loaded into the app.",
+  "session.tracesEmpty":
+    "No traces exported yet. Use Export trace from a chat menu after a conversation has an agent session.",
+  "session.tracesReveal": "Reveal in folder",
+  "session.tracesCopyPath": "Copy path",
+  "session.tracesCopied": "Path copied",
   "session.exportBundle": "Export diagnostic package…",
   "session.exportBundleDone": "Diagnostic package saved",
   "session.exportBundleFail": "Diagnostic export failed",
@@ -4123,6 +4132,15 @@ const zh: Record<MessageKey, string> = {
   "session.exportTraceFail": "trace 导出失败",
   "session.exportTraceNoAgent":
     "尚未关联 agent 会话。请先发起对话，再导出 trace。",
+  "session.traces": "Traces",
+  "session.tracesTitle": "最近的 trace",
+  "session.tracesDesc":
+    "会话 trace 导出的本地历史（仅路径）。可在文件夹中显示或复制路径 — 大文件不会加载进应用。",
+  "session.tracesEmpty":
+    "还没有导出过 trace。在有 agent 会话的对话菜单中选择「导出 trace」。",
+  "session.tracesReveal": "在文件夹中显示",
+  "session.tracesCopyPath": "复制路径",
+  "session.tracesCopied": "路径已复制",
   "session.exportBundle": "导出完整诊断包…",
   "session.exportBundleDone": "诊断包已保存",
   "session.exportBundleFail": "诊断包导出失败",

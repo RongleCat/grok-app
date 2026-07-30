@@ -115,6 +115,7 @@ import { ExtensionsPanel } from "@/components/ExtensionsPanel";
 import { ProjectInspectPanel } from "@/components/ProjectInspectPanel";
 import { PermissionRulesPanel } from "@/components/PermissionRulesPanel";
 import { ManagedSetupPanel } from "@/components/ManagedSetupPanel";
+import { TraceHistoryList } from "@/components/TraceHistoryList";
 import { GlassModal } from "@/components/GlassModal";
 import { MemoryBrowserPanel } from "@/components/MemoryBrowserPanel";
 import { RemoteImLayout } from "@/components/RemoteImLayout";
@@ -4112,6 +4113,38 @@ export function SettingsPage({
                     >
                       {t("settings.runDoctor")}
                     </button>
+                  </div>
+                </div>
+                <div
+                  className={
+                    "settings-card" + rowHighlight("settings-anchor-traces")
+                  }
+                  id="settings-anchor-traces"
+                >
+                  <div className="settings-row settings-row--stack">
+                    <div className="settings-row__text">
+                      <div className="settings-row__label">
+                        <IconArchive size={16} />
+                        {t("session.tracesTitle")}
+                      </div>
+                      <div className="settings-row__desc">
+                        {t("session.tracesDesc")}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="trace-history-settings">
+                    <TraceHistoryList
+                      labels={{
+                        empty: t("session.tracesEmpty"),
+                        reveal: t("session.tracesReveal"),
+                        copyPath: t("session.tracesCopyPath"),
+                        copied: t("session.tracesCopied"),
+                        listAria: t("session.tracesTitle"),
+                      }}
+                      onCopied={() =>
+                        showSettingsToast(t("session.tracesCopied"), 2000)
+                      }
+                    />
                   </div>
                 </div>
                 <div

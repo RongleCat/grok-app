@@ -17,6 +17,7 @@ describe("defaultPaletteActions", () => {
       "open-tasks",
       "open-agent-dashboard",
       "doctor",
+      "traces",
       "shortcuts-help",
       "product-tutorial",
       "settings-general",
@@ -65,6 +66,9 @@ describe("filterPaletteActions", () => {
   it("matches by keyword", () => {
     const doctor = filterPaletteActions("diagnostics", catalog);
     expect(doctor.map((h) => h.id)).toEqual(["doctor"]);
+
+    const traces = filterPaletteActions("session trace", catalog);
+    expect(traces.map((h) => h.id)).toContain("traces");
 
     const theme = filterPaletteActions("wallpaper", catalog);
     expect(theme.map((h) => h.id)).toEqual(["settings-appearance"]);

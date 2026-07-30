@@ -1622,6 +1622,15 @@ export const zhTW: Record<MessageKey, string> = {
   "session.exportTraceFail": "trace 匯出失敗",
   "session.exportTraceNoAgent":
     "尚未關聯 agent 對話。請先發起對話，再匯出 trace。",
+  "session.traces": "Traces",
+  "session.tracesTitle": "最近的 trace",
+  "session.tracesDesc":
+    "對話 trace 匯出的本機歷史（僅路徑）。可在資料夾中顯示或複製路徑 — 大檔不會載入應用。",
+  "session.tracesEmpty":
+    "還沒有匯出過 trace。在有 agent 對話的選單中選擇「匯出 trace」。",
+  "session.tracesReveal": "在資料夾中顯示",
+  "session.tracesCopyPath": "複製路徑",
+  "session.tracesCopied": "路徑已複製",
   "session.exportBundle": "匯出完整診斷包…",
   "session.exportBundleDone": "診斷包已儲存",
   "session.exportBundleFail": "診斷包匯出失敗",

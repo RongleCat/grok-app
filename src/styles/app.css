@@ -15246,6 +15246,92 @@ div.composer__input:empty::before {
   border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
 }
 
+/* Session trace export history (paths only — never file contents) */
+.trace-history-modal__desc {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.trace-history-settings {
+  margin-top: 8px;
+  padding-top: 4px;
+}
+.trace-history-empty {
+  padding: 12px 4px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+.trace-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: min(360px, 50vh);
+  overflow: auto;
+}
+.trace-history-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+  border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.12));
+}
+.trace-history-row__text {
+  min-width: 0;
+  flex: 1;
+}
+.trace-history-row__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trace-history-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+.trace-history-row__file {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.trace-history-row__actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.trace-history-row__actions .btn {
+  gap: 4px;
+}
+.trace-history-row__action-label {
+  font-size: 12px;
+}
+@media (max-width: 520px) {
+  .trace-history-row {
+    flex-direction: column;
+  }
+  .trace-history-row__actions {
+    width: 100%;
+  }
+}
+
 .rewind-confirm__hint,
 .fork-confirm__hint {
   margin: 0;

@@ -13,6 +13,8 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- **Trace center**: after a successful session trace export (`grok trace --local`), keep a local history (paths only, max ~20) with Open in folder / Copy path from the session menu, command palette, and Settings → Runtime → Diagnostics
+- **Trace 中心**：成功导出会话 trace 后写入本地历史（仅路径，约 20 条）；会话菜单 / 命令面板 / 设置 · 运行时 · 诊断 可打开文件夹或复制路径
 - **Agent dashboard**: cross-session status panel (title, project/cwd, model, effort, busy/idle/error, last activity). Open from Tasks, command palette, or the top-bar control; click a row to focus that chat; **Stop all busy** reuses the existing confirm flow. Distinct from the per-turn Tasks tools panel.
 **中文 · 新增**
 - **Agent 仪表盘**：跨会话状态面板（标题、项目/路径、模型、推理强度、忙碌/空闲/错误、最近活动）。可从任务区、命令面板或顶栏打开；点击行聚焦会话；**全部停止忙碌**复用现有确认。与当前回合的「任务」工具面板不同。
