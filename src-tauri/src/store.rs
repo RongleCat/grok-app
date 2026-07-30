@@ -137,6 +137,16 @@ pub struct SessionMeta {
     /// Created by shell scheduled automation (`runAutomation`).
     #[serde(default)]
     pub scheduled: bool,
+    /// Absolute path of a linked git worktree this chat was opened against.
+    /// Empty/missing on normal project sessions (migration-safe).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worktree_path: Option<String>,
+    /// Branch name (no `refs/heads/`) when known for [`Self::worktree_path`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worktree_branch: Option<String>,
+    /// Explicit worktree-bound chat flag. Default false for older index rows.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_worktree_session: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -884,6 +894,9 @@ pub fn create_session(
         mode: None,
         permission_policy: None,
         scheduled,
+        worktree_path: None,
+        worktree_branch: None,
+        is_worktree_session: false,
     };
     let mut list = load_sessions_index();
     list.insert(0, meta.clone());
@@ -964,6 +977,38 @@ pub fn set_session_pinned(id: &str, pinned: bool) -> Result<SessionMeta, String>
         .ok_or_else(|| "session not found".to_string())?;
     s.pinned = pinned;
     // Do not bump updated_at — pin is organizational (same as project pin).
+    let clone = s.clone();
+    save_sessions_index(&list)?;
+    Ok(clone)
+}
+
+/// Attach or clear worktree linkage on a session (path/branch/badge flag).
+/// Empty path clears all three fields. Does not bump `updated_at` (organizational).
+pub fn set_session_worktree(
+    id: &str,
+    worktree_path: Option<String>,
+    worktree_branch: Option<String>,
+) -> Result<SessionMeta, String> {
+    let path = worktree_path
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let branch = worktree_branch
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let mut list = load_sessions_index();
+    let s = list
+        .iter_mut()
+        .find(|s| s.id == id)
+        .ok_or_else(|| "session not found".to_string())?;
+    if let Some(p) = path {
+        s.worktree_path = Some(p);
+        s.worktree_branch = branch;
+        s.is_worktree_session = true;
+    } else {
+        s.worktree_path = None;
+        s.worktree_branch = None;
+        s.is_worktree_session = false;
+    }
     let clone = s.clone();
     save_sessions_index(&list)?;
     Ok(clone)
@@ -1111,6 +1156,10 @@ pub fn fork_session(
     meta.effort = source.effort.clone();
     meta.mode = source.mode.clone();
     meta.permission_policy = source.permission_policy.clone();
+    // Worktree linkage follows the source project/cwd story.
+    meta.worktree_path = source.worktree_path.clone();
+    meta.worktree_branch = source.worktree_branch.clone();
+    meta.is_worktree_session = source.is_worktree_session;
     meta.updated_at = Utc::now();
     update_session_meta(&meta)?;
 
@@ -1837,6 +1886,9 @@ mod tests {
             mode: None,
             permission_policy: None,
             scheduled: false,
+            worktree_path: None,
+            worktree_branch: None,
+            is_worktree_session: false,
         }
     }
 
@@ -1872,6 +1924,53 @@ mod tests {
         let _ = delete_session(&meta.id);
         std::env::remove_var("GROK_APP_HOME");
         let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn set_session_worktree_marks_and_clears() {
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-wt-meta-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp home");
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let _ = ensure_app_dirs();
+        let meta = create_session(None, Some("wt".into()), false).expect("create");
+        assert!(!meta.is_worktree_session);
+        assert!(meta.worktree_path.is_none());
+        let marked = set_session_worktree(
+            &meta.id,
+            Some("/tmp/repo-feat".into()),
+            Some("feat/x".into()),
+        )
+        .expect("set");
+        assert!(marked.is_worktree_session);
+        assert_eq!(marked.worktree_path.as_deref(), Some("/tmp/repo-feat"));
+        assert_eq!(marked.worktree_branch.as_deref(), Some("feat/x"));
+        let cleared = set_session_worktree(&meta.id, None, None).expect("clear");
+        assert!(!cleared.is_worktree_session);
+        assert!(cleared.worktree_path.is_none());
+        let _ = delete_session(&meta.id);
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn session_meta_deserializes_without_worktree_fields() {
+        let raw = r#"{
+            "id":"s1","projectId":null,"title":"t",
+            "agentSessionId":null,
+            "createdAt":"2020-01-01T00:00:00Z",
+            "updatedAt":"2020-01-01T00:00:00Z",
+            "modelId":null,"archived":false,"pinned":false,"scheduled":false
+        }"#;
+        let m: SessionMeta = serde_json::from_str(raw).expect("legacy meta");
+        assert!(!m.is_worktree_session);
+        assert!(m.worktree_path.is_none());
+        assert!(m.worktree_branch.is_none());
     }
 
     #[test]
@@ -1925,6 +2024,9 @@ mod tests {
                 mode: None,
                 permission_policy: None,
                 scheduled: false,
+                worktree_path: None,
+                worktree_branch: None,
+                is_worktree_session: false,
             },
         );
         write_json(&sessions_index_file(), &sessions).expect("seed sessions");

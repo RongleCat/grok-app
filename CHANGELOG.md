@@ -13,16 +13,22 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+### Added
+
 - **Desktop notification click opens the session** that fired turn-done / permission / ask_user (falls back to focusing the app when the session is unknown)
 - **Edit queued follow-ups** in the composer send queue (text before auto-send)
+- **Worktree session badge**: sidebar **WT** chip for chats bound to a linked git worktree (meta from “New worktree & chat”, or auto when the project path matches `git worktree list`); tooltip shows branch + path
+- **Worktree session manage**: session context menu → reveal worktree folder, copy path, remove worktree (in-app confirm + force retry; never main)
 ### Changed
 - **Compact dialog**: shows current context usage (known or estimated), a short explanation of what compact does, optional keep-note chips (empty note still allowed), and disables Compact while the session is busy. Manual compact stores a UI-side before estimate so the post-compact banner can still show `{before} → {after}` when the agent omits `tokensBefore`
+- Session index stores optional `worktreePath` / `worktreeBranch` / `isWorktreeSession` (migration-safe defaults); forks inherit linkage
 **中文 · 变更**
 - **压缩对话框**：展示当前上下文用量、简要说明与可选保留备注 chips；会话忙碌时禁用压缩；手动压缩时用 UI 估算补全 banner 的 before tokens
 - **Fork chat · optional restore-code**: confirm dialog checkbox (default off) creates a sibling git worktree at the source project’s HEAD and binds the new chat there; refuses when the working tree is dirty so uncommitted work is never destroyed
 
 ### 中文 · 新增
 - **分叉会话 · 可选恢复代码**：确认框可勾选（默认关）在源项目 HEAD 创建关联 worktree 并绑定新会话；工作区有未提交改动时拒绝，不破坏本地工作
+- 侧栏 worktree 会话 **WT** 标记；右键可打开/复制路径/移除 worktree（应用内确认）
 - **In-app product tour**: optional multi-step walkthrough (projects, permissions/YOLO, worktrees, send queue, context compact, shortcuts, extensions). Replay from account menu, Settings → About, command palette, or `/tutorial`. Soft one-time offer after first-run setup (`localStorage` `grok.productTutorial.v1`)
 **中文 · 新增**
 - **应用内产品导览**：可选多步介绍（项目、权限/YOLO、工作树、发送队列、上下文压缩、快捷键、扩展）；账户菜单 / 设置 → 关于 / 命令面板 / `/tutorial` 可重播；完成首次设置后软提示一次
@@ -33,6 +39,7 @@ See `docs/llm-wiki/release.md`.
 - **上下文用量芯片**：补充系统 / 工具 / 历史拆分（有信号时估算；Agent 上报时优先精确值、不加 `~`）
 - **Sandbox presets (productized)**: longer per-profile help in Settings → Permissions; in-app danger confirm when switching to **Off** or **Devbox**; optional **per-project sandbox override** (project context menu; Host spawn prefers project over global Settings via `resolveSandboxProfile`)
 - **沙箱预设产品化**：设置中各档位说明；切换到关闭/Devbox 需应用内确认；项目级沙箱覆盖（spawn 优先项目设置）
+
 
 ## [0.2.2] - 2026-07-30
 

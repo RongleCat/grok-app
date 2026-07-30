@@ -534,6 +534,16 @@ pub async fn session_set_pinned(id: String, pinned: bool) -> Result<SessionMeta,
     store::set_session_pinned(&id, pinned)
 }
 
+/// Attach or clear worktree path/branch on a session (sidebar WT badge).
+#[tauri::command]
+pub async fn session_set_worktree(
+    id: String,
+    worktree_path: Option<String>,
+    worktree_branch: Option<String>,
+) -> Result<SessionMeta, String> {
+    store::set_session_worktree(&id, worktree_path, worktree_branch)
+}
+
 /// Move session under a project (or clear project → orphan / 「其他会话」).
 #[tauri::command]
 pub async fn session_set_project(

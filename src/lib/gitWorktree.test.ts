@@ -5,12 +5,16 @@ import {
   canRemoveWorktree,
   countWorktreePruneLines,
   findWorktreeAt,
+  isLinkedWorktreeEntry,
   mainWorktreePath,
   normalizeWorktreePath,
   parseWorktreePorcelain,
   pathsEqual,
+  resolveSessionWorktreeBadge,
   sanitizeWorktreeGcMaxAge,
   sanitizeWorktreeName,
+  sessionWorktreeBadgeLabel,
+  sessionWorktreeTooltip,
   siblingWorktrees,
   worktreeLabel,
   worktreeRemoveErrorSuggestsForce,
@@ -111,6 +115,73 @@ describe("canRemoveWorktree", () => {
     expect(canRemoveWorktree(list[2])).toBe(true);
     expect(canRemoveWorktree(null)).toBe(false);
     expect(canRemoveWorktree(undefined)).toBe(false);
+  });
+});
+
+describe("session worktree badge helpers", () => {
+  it("labels compact badge as WT", () => {
+    expect(sessionWorktreeBadgeLabel()).toBe("WT");
+  });
+
+  it("detects linked (non-main) worktree entries", () => {
+    const list = parseWorktreePorcelain(SAMPLE);
+    expect(isLinkedWorktreeEntry(list[0])).toBe(false);
+    expect(isLinkedWorktreeEntry(list[1])).toBe(true);
+    expect(isLinkedWorktreeEntry(null)).toBe(false);
+  });
+
+  it("badges from session meta even without git list", () => {
+    const badge = resolveSessionWorktreeBadge(
+      {
+        isWorktreeSession: true,
+        worktreePath: "/Users/me/repo-feat",
+        worktreeBranch: "feat/x",
+      },
+      "/Users/me/repo-feat",
+      [],
+    );
+    expect(badge).not.toBeNull();
+    expect(badge!.label).toBe("WT");
+    expect(badge!.path).toBe("/Users/me/repo-feat");
+    expect(badge!.branch).toBe("feat/x");
+    expect(badge!.fromMeta).toBe(true);
+    expect(badge!.fromGitList).toBe(false);
+  });
+
+  it("falls back to git list when project path is a linked worktree", () => {
+    const list = parseWorktreePorcelain(SAMPLE);
+    const badge = resolveSessionWorktreeBadge(
+      {},
+      "/Users/me/repo-feat/",
+      list,
+    );
+    expect(badge).not.toBeNull();
+    expect(badge!.label).toBe("WT");
+    expect(pathsEqual(badge!.path, "/Users/me/repo-feat")).toBe(true);
+    expect(badge!.branch).toBe("feat/x");
+    expect(badge!.fromMeta).toBe(false);
+    expect(badge!.fromGitList).toBe(true);
+  });
+
+  it("does not badge main worktree path without meta", () => {
+    const list = parseWorktreePorcelain(SAMPLE);
+    expect(
+      resolveSessionWorktreeBadge({}, "/Users/me/repo", list),
+    ).toBeNull();
+    expect(resolveSessionWorktreeBadge({}, "/other", list)).toBeNull();
+    expect(resolveSessionWorktreeBadge(null, null, list)).toBeNull();
+  });
+
+  it("builds tooltip with branch and path", () => {
+    expect(
+      sessionWorktreeTooltip({ path: "/Users/me/repo-feat", branch: "feat/x" }),
+    ).toBe("feat/x\n/Users/me/repo-feat");
+    expect(
+      sessionWorktreeTooltip(
+        { path: "/Users/me/repo-feat", branch: null },
+        { detachedLabel: "detached" },
+      ),
+    ).toBe("detached\n/Users/me/repo-feat");
   });
 });
 

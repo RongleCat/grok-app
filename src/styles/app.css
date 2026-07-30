@@ -838,6 +838,26 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   opacity: 0.9;
 }
 
+/* Compact worktree-bound session badge (sidebar). */
+.tree-l3__wt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-tertiary) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-tertiary) 28%, transparent);
+  opacity: 0.95;
+}
+
 .tree-l3__name {
   min-width: 0;
   overflow: hidden;

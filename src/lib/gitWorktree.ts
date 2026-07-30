@@ -311,3 +311,94 @@ export function worktreeRemoveErrorSuggestsForce(
     m.includes("locked")
   );
 }
+
+/** Session index fields that mark a chat as worktree-bound. */
+export type SessionWorktreeMeta = {
+  worktreePath?: string | null;
+  worktreeBranch?: string | null;
+  isWorktreeSession?: boolean;
+};
+
+/** Compact sidebar badge + path/branch for tooltip and manage actions. */
+export type SessionWorktreeBadge = {
+  /** Always `"WT"` for the compact sidebar chip. */
+  label: string;
+  /** Absolute worktree path when known. */
+  path: string;
+  /** Branch name without refs/heads/, or null if detached / unknown. */
+  branch: string | null;
+  /** True when meta marks the session or path matches a non-main linked worktree. */
+  fromMeta: boolean;
+  /** True when path matched a non-main entry in the porcelain list. */
+  fromGitList: boolean;
+};
+
+/** Linked (non-main) worktrees only — main checkout is not a "WT session". */
+export function isLinkedWorktreeEntry(
+  wt: GitWorktreeEntry | null | undefined,
+): boolean {
+  return !!wt && !wt.isMain;
+}
+
+/**
+ * Resolve whether a session should show a worktree badge.
+ *
+ * Prefer explicit session meta; fall back to project path matching a non-main
+ * entry from `git worktree list` when meta was never written.
+ */
+export function resolveSessionWorktreeBadge(
+  meta: SessionWorktreeMeta | null | undefined,
+  projectPath: string | null | undefined,
+  worktrees: GitWorktreeEntry[] | null | undefined,
+): SessionWorktreeBadge | null {
+  const metaPath = normalizeWorktreePath(meta?.worktreePath);
+  const fromMeta = !!(meta?.isWorktreeSession || metaPath);
+  const list = worktrees ?? [];
+  const atMeta = metaPath ? findWorktreeAt(list, metaPath) : null;
+  const atProject = findWorktreeAt(list, projectPath);
+  const linkedList =
+    (atMeta && isLinkedWorktreeEntry(atMeta) ? atMeta : null) ||
+    (isLinkedWorktreeEntry(atProject) ? atProject : null);
+  const fromGitList = !!linkedList;
+
+  if (!fromMeta && !fromGitList) return null;
+
+  const path =
+    metaPath ||
+    normalizeWorktreePath(linkedList?.path) ||
+    normalizeWorktreePath(projectPath);
+  if (!path && !fromMeta) return null;
+
+  const branch =
+    (meta?.worktreeBranch || "").trim() ||
+    linkedList?.branch?.trim() ||
+    atProject?.branch?.trim() ||
+    null;
+
+  return {
+    label: sessionWorktreeBadgeLabel(),
+    path,
+    branch: branch || null,
+    fromMeta,
+    fromGitList,
+  };
+}
+
+/** Compact badge text for the session list. */
+export function sessionWorktreeBadgeLabel(): string {
+  return "WT";
+}
+
+/**
+ * Tooltip / aria body: branch + path on two lines when both exist.
+ */
+export function sessionWorktreeTooltip(
+  badge: Pick<SessionWorktreeBadge, "path" | "branch">,
+  opts?: { detachedLabel?: string },
+): string {
+  const detached = (opts?.detachedLabel || "detached").trim() || "detached";
+  const branch = (badge.branch || "").trim() || detached;
+  const path = normalizeWorktreePath(badge.path);
+  if (path) return `${branch}\n${path}`;
+  return branch;
+}

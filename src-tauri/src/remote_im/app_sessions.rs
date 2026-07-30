@@ -206,6 +206,9 @@ mod tests {
             effort: None,
             permission_policy: None,
             scheduled: false,
+            worktree_path: None,
+            worktree_branch: None,
+            is_worktree_session: false,
         }
     }
 

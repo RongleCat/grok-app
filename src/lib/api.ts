@@ -818,6 +818,10 @@ export async function sessionsList() {
       pinned?: boolean;
       /** Shell automation run */
       scheduled?: boolean;
+      /** Linked worktree path when this chat is worktree-bound */
+      worktreePath?: string | null;
+      worktreeBranch?: string | null;
+      isWorktreeSession?: boolean;
     }>
   >("sessions_list");
 }
@@ -918,6 +922,30 @@ export async function sessionSetArchived(id: string, archived: boolean) {
 
 export async function sessionSetPinned(id: string, pinned: boolean) {
   return invoke("session_set_pinned", { id, pinned });
+}
+
+/**
+ * Attach or clear worktree linkage on a session (path/branch + WT badge flag).
+ * Pass empty/null path to clear.
+ */
+export async function sessionSetWorktree(
+  id: string,
+  opts?: {
+    worktreePath?: string | null;
+    worktreeBranch?: string | null;
+  },
+) {
+  return invoke<{
+    id: string;
+    title: string;
+    worktreePath?: string | null;
+    worktreeBranch?: string | null;
+    isWorktreeSession?: boolean;
+  }>("session_set_worktree", {
+    id,
+    worktreePath: opts?.worktreePath ?? null,
+    worktreeBranch: opts?.worktreeBranch ?? null,
+  });
 }
 
 /** Bind session to a project, or clear (`projectId: null`) for orphan / 其他会话. */
