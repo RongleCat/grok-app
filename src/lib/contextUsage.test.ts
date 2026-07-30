@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCompactSlashCommand,
   estimateContextBreakdown,
   estimateTokensFromMessages,
   estimateTokensFromText,
@@ -7,6 +8,7 @@ import {
   formatTokenCount,
   hydrateContextUsageFromMessages,
   INITIAL_CONTEXT_USAGE,
+  mergeCompactTokensBefore,
   reduceContextUsage,
   resolveContextUsageDisplay,
 } from "./contextUsage";
@@ -310,5 +312,36 @@ describe("hydrateContextUsageFromMessages", () => {
         { id: "u", role: "user", content: "hi" },
       ]),
     ).toEqual(INITIAL_CONTEXT_USAGE);
+  });
+});
+
+describe("mergeCompactTokensBefore", () => {
+  it("prefers agent-reported tokensBefore over UI estimate", () => {
+    expect(mergeCompactTokensBefore(120_000, 99_000)).toBe(120_000);
+    expect(mergeCompactTokensBefore(0, 50)).toBe(0);
+  });
+
+  it("falls back to UI estimate when agent omits before", () => {
+    expect(mergeCompactTokensBefore(undefined, 42_000)).toBe(42_000);
+    expect(mergeCompactTokensBefore(null, 100)).toBe(100);
+    expect(mergeCompactTokensBefore(NaN, 10)).toBe(10);
+  });
+
+  it("returns undefined when both missing or invalid", () => {
+    expect(mergeCompactTokensBefore(undefined, null)).toBeUndefined();
+    expect(mergeCompactTokensBefore(-1, -5)).toBeUndefined();
+  });
+});
+
+describe("buildCompactSlashCommand", () => {
+  it("omits note when empty or whitespace", () => {
+    expect(buildCompactSlashCommand("")).toBe("/compact");
+    expect(buildCompactSlashCommand("   ")).toBe("/compact");
+  });
+
+  it("appends trimmed note", () => {
+    expect(buildCompactSlashCommand(" keep decisions ")).toBe(
+      "/compact keep decisions",
+    );
   });
 });

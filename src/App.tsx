@@ -157,7 +157,9 @@ import {
 import { StreamCoalescer } from "@/lib/streamCoalesce";
 import { UiErrorBoundary } from "@/components/UiErrorBoundary";
 import {
+  buildCompactSlashCommand,
   INITIAL_CONTEXT_USAGE,
+  mergeCompactTokensBefore,
   reduceContextUsage,
   resolveContextUsageDisplay,
   type ContextUsageState,
@@ -865,6 +867,15 @@ export default function App() {
   const [showCompactModal, setShowCompactModal] = useState(false);
   const [compactNote, setCompactNote] = useState("");
   const compactNoteRef = useRef<HTMLInputElement>(null);
+  /**
+   * UI estimate of tokens-before captured when the user confirms manual compact.
+   * Fills banner range when the agent omits `tokensBefore`.
+   */
+  const pendingCompactBeforeRef = useRef<{
+    sessionId: string;
+    tokensBefore: number | null;
+    at: number;
+  } | null>(null);
   const [mcpServers, setMcpServers] = useState<api.McpDto[]>([]);
   const [mcpError, setMcpError] = useState<string | null>(null);
   const [mcpLoading, setMcpLoading] = useState(false);
@@ -2928,20 +2939,41 @@ export default function App() {
             if (cancelled || !p) return;
             const sid = p.sessionId;
             if (!sid) return;
-            patchSessionMessages(sid, (prev) => applyContextCompact(prev, p));
+            const trigger = (p.trigger || "auto").toLowerCase();
+            const isManual = trigger === "manual";
+            const pending = pendingCompactBeforeRef.current;
+            const pendingFresh =
+              pending &&
+              pending.sessionId === sid &&
+              Date.now() - pending.at < 120_000
+                ? pending
+                : null;
+            // Prefer agent tokensBefore; for manual compact, fall back to the
+            // estimate captured in the confirm dialog so the banner can show a range.
+            const tokensBefore = mergeCompactTokensBefore(
+              p.tokensBefore,
+              isManual ? pendingFresh?.tokensBefore : null,
+            );
+            if (pendingFresh && isManual) {
+              pendingCompactBeforeRef.current = null;
+            }
+            const payload = { ...p, tokensBefore };
+            patchSessionMessages(sid, (prev) =>
+              applyContextCompact(prev, payload),
+            );
             if (sid === viewingSessionIdRef.current) {
               setContextUsage((prev) =>
                 reduceContextUsage(prev, {
                   type: "compact",
                   trigger: p.trigger,
-                  tokensBefore: p.tokensBefore,
+                  tokensBefore,
                   tokensAfter: p.tokensAfter,
                   summaryPreview: p.summaryPreview,
                   note: p.note,
                   messageId: p.messageId,
                 }),
               );
-              const auto = (p.trigger || "auto").toLowerCase() !== "manual";
+              const auto = !isManual;
               setToast(
                 auto
                   ? tr("compact.toastAuto")
@@ -5666,32 +5698,13 @@ export default function App() {
   };
 
   /**
-   * `/compact [note]` — in-app prompt for optional keep-note (CLI supports a
-   * context note of what to retain). Empty → `/compact`; non-empty → `/compact {note}`.
+   * `/compact [note]` — richer compact dialog (current usage + optional keep-note).
+   * Empty note → `/compact`; non-empty → `/compact {note}`.
    * Never uses window.prompt (unreliable in Tauri WebView).
    */
   const openCompactWithNote = () => {
-    setAppDialog({
-      kind: "prompt",
-      title: tr("slash.compact"),
-      message: tr("slash.compactConfirm"),
-      initial: "",
-      placeholder: tr("slash.compactNote"),
-      submitLabel: tr("slash.compactConfirmOk"),
-      onSubmit: (value) => {
-        void (async () => {
-          const note = value.trim();
-          const cmd = note ? `/compact ${note}` : "/compact";
-          try {
-            const sid = await ensureConnected();
-            if (!sid) return;
-            await api.sessionSend(cmd, null, sid);
-          } catch (err) {
-            setLocalError(String(err));
-          }
-        })();
-      },
-    });
+    setCompactNote("");
+    setShowCompactModal(true);
   };
 
   const attachLabels = useMemo(
@@ -14071,18 +14084,32 @@ export default function App() {
             aria-labelledby="compact-modal-title"
             onSubmit={(e) => {
               e.preventDefault();
+              if (
+                session.state === "streaming" ||
+                session.state === "awaiting_permission"
+              ) {
+                return;
+              }
               const note = compactNote;
+              const uiBefore = contextUsageDisplay.tokens;
               setShowCompactModal(false);
               setCompactNote("");
               void (async () => {
-                const cmd = note.trim()
-                  ? `/compact ${note.trim()}`
-                  : "/compact";
+                const cmd = buildCompactSlashCommand(note);
                 try {
                   const sid = await ensureConnected();
                   if (!sid) return;
+                  pendingCompactBeforeRef.current = {
+                    sessionId: sid,
+                    tokensBefore:
+                      uiBefore != null && Number.isFinite(uiBefore)
+                        ? Math.floor(uiBefore)
+                        : null,
+                    at: Date.now(),
+                  };
                   await api.sessionSend(cmd, null, sid);
                 } catch (err) {
+                  pendingCompactBeforeRef.current = null;
                   setLocalError(String(err));
                 }
               })();
@@ -14105,17 +14132,85 @@ export default function App() {
               </button>
             </header>
             <p className="compact-modal__msg">
-              {tr("slash.compactConfirm")}
+              {tr("slash.compactExplain")}
             </p>
+            <div className="compact-modal__usage" aria-live="polite">
+              <span className="compact-modal__usage-k">
+                {tr("slash.compactCurrent")}
+              </span>
+              <span className="compact-modal__usage-v">
+                <span className="compact-modal__usage-tokens">
+                  {contextUsageDisplay.tokens != null
+                    ? contextUsageDisplay.label
+                    : tr("slash.compactCurrentUnknown")}
+                </span>
+                {contextUsageDisplay.tokens != null ? (
+                  <span className="compact-modal__usage-src">
+                    {contextUsageDisplay.source === "known"
+                      ? tr("context.sourceKnown")
+                      : contextUsageDisplay.source === "estimated"
+                        ? tr("context.sourceEstimated")
+                        : tr("context.sourceUnknown")}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+            <p className="compact-modal__hint">
+              {tr("slash.compactNoteHint")}
+            </p>
+            <label className="compact-modal__field-label" htmlFor="compact-note">
+              {tr("slash.compactNote")}
+            </label>
             <input
+              id="compact-note"
               ref={compactNoteRef}
               className="compact-modal__field"
               value={compactNote}
               onChange={(e) => setCompactNote(e.target.value)}
-              placeholder={tr("slash.compactNote")}
+              placeholder={tr("slash.compactNoteOptional")}
               autoFocus
               autoComplete="off"
             />
+            <div
+              className="compact-modal__chips"
+              role="group"
+              aria-label={tr("slash.compactNote")}
+            >
+              {(
+                [
+                  "slash.compactNoteChipDecisions",
+                  "slash.compactNoteChipErrors",
+                  "slash.compactNoteChipFiles",
+                  "slash.compactNoteChipTodos",
+                ] as const
+              ).map((key) => {
+                const label = tr(key);
+                const active = compactNote.trim() === label;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={
+                      "compact-modal__chip" + (active ? " is-active" : "")
+                    }
+                    aria-pressed={active}
+                    onClick={() =>
+                      setCompactNote((prev) =>
+                        prev.trim() === label ? "" : label,
+                      )
+                    }
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            {(session.state === "streaming" ||
+              session.state === "awaiting_permission") && (
+              <p className="compact-modal__busy" role="status">
+                {tr("slash.compactBusy")}
+              </p>
+            )}
             <div className="modal-actions">
               <button
                 type="button"
@@ -14127,7 +14222,14 @@ export default function App() {
               >
                 {tr("slash.compactConfirmCancel")}
               </button>
-              <button type="submit" className="btn btn--solid">
+              <button
+                type="submit"
+                className="btn btn--solid"
+                disabled={
+                  session.state === "streaming" ||
+                  session.state === "awaiting_permission"
+                }
+              >
                 {tr("slash.compactConfirmOk")}
               </button>
             </div>

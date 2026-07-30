@@ -15187,6 +15187,57 @@ div.composer__input:empty::before {
   line-height: 1.5;
 }
 
+.compact-modal__usage {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--menu-item-radius, 8px);
+  border: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-code) 55%, transparent);
+}
+
+.compact-modal__usage-k {
+  font-size: 12px;
+  color: var(--text-tertiary, var(--text-secondary));
+  flex-shrink: 0;
+}
+
+.compact-modal__usage-v {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  text-align: right;
+}
+
+.compact-modal__usage-tokens {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.compact-modal__usage-src {
+  font-size: 11px;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+.compact-modal__hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+.compact-modal__field-label {
+  margin: 0 0 -8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
 .compact-modal__field {
   width: 100%;
   margin: 0;
@@ -15204,6 +15255,42 @@ div.composer__input:empty::before {
 .compact-modal__field:focus-visible {
   border-color: color-mix(in srgb, var(--text-primary) 28%, var(--border-subtle));
   outline: none;
+}
+
+.compact-modal__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.compact-modal__chip {
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.compact-modal__chip:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.compact-modal__chip.is-active {
+  border-color: color-mix(in srgb, var(--text-primary) 28%, var(--border-subtle));
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  color: var(--text-primary);
+}
+
+.compact-modal__busy {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-warn, var(--text-secondary));
 }
 
 /* Search palette sits at top of overlay (not vertically centered) */

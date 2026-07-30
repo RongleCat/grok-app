@@ -15,6 +15,10 @@ See `docs/llm-wiki/release.md`.
 
 - **Desktop notification click opens the session** that fired turn-done / permission / ask_user (falls back to focusing the app when the session is unknown)
 - **Edit queued follow-ups** in the composer send queue (text before auto-send)
+### Changed
+- **Compact dialog**: shows current context usage (known or estimated), a short explanation of what compact does, optional keep-note chips (empty note still allowed), and disables Compact while the session is busy. Manual compact stores a UI-side before estimate so the post-compact banner can still show `{before} → {after}` when the agent omits `tokensBefore`
+**中文 · 变更**
+- **压缩对话框**：展示当前上下文用量、简要说明与可选保留备注 chips；会话忙碌时禁用压缩；手动压缩时用 UI 估算补全 banner 的 before tokens
 
 ## [0.2.2] - 2026-07-30
 

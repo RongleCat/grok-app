@@ -458,3 +458,22 @@ export function resolveContextUsageDisplay(
     knownUsage,
   };
 }
+
+/**
+ * Prefer agent-reported `tokensBefore`; fall back to the UI estimate captured
+ * when the user confirmed manual compact (so the banner can still show a range).
+ */
+export function mergeCompactTokensBefore(
+  agentTokensBefore: number | undefined | null,
+  uiTokensBefore: number | undefined | null,
+): number | undefined {
+  const agent = finiteToken(agentTokensBefore);
+  if (agent != null) return agent;
+  return finiteToken(uiTokensBefore);
+}
+
+/** Build `/compact` slash command; empty/whitespace note → bare `/compact`. */
+export function buildCompactSlashCommand(note: string): string {
+  const n = note.trim();
+  return n ? `/compact ${n}` : "/compact";
+}
