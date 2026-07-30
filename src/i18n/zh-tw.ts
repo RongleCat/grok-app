@@ -111,8 +111,19 @@ export const zhTW: Record<MessageKey, string> = {
     "基於目前對話複製並建立新對話？原對話保持不變。",
   "session.forkConfirmPartial":
     "複製到此為止的訊息並建立新對話？之後的回合不會複製。",
+  "session.forkRestoreCode": "同時將工作區檔案還原到本對話最近的 git 狀態",
+  "session.forkRestoreCodeHint":
+    "在專案目前 HEAD 建立關聯 git worktree，並在該目錄開啟分叉對話。工作區有未提交變更時會拒絕。預設關閉，更安全。",
+  "session.forkWorking": "正在分叉…",
   "session.forkOk": "已分叉 · 已開啟新對話",
+  "session.forkOkRestore": "已分叉 · 已在乾淨 worktree 中開啟新對話",
   "session.forkFailed": "分叉對話失敗",
+  "session.forkRestoreDirty":
+    "工作區有未提交變更。請取消勾選「還原工作區檔案」僅分叉對話，或先提交/暫存變更。",
+  "session.forkRestoreNoProject": "還原程式碼需要此對話已繫結專案資料夾。",
+  "session.forkRestoreUnavailable": "還原程式碼需要此專案是 git 儲存庫。",
+  "session.forkRestoreFailed": "無法為還原建立 worktree",
+  "session.forkRestoreBindFailed": "對話已分叉，但未能繫結到新 worktree",
   "session.backgroundPermission":
     "另一個對話需要權限批准 — 請切換過去以允許或拒絕。",
   "session.rewind": "回退時間線",

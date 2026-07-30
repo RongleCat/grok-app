@@ -19,6 +19,10 @@ See `docs/llm-wiki/release.md`.
 - **Compact dialog**: shows current context usage (known or estimated), a short explanation of what compact does, optional keep-note chips (empty note still allowed), and disables Compact while the session is busy. Manual compact stores a UI-side before estimate so the post-compact banner can still show `{before} → {after}` when the agent omits `tokensBefore`
 **中文 · 变更**
 - **压缩对话框**：展示当前上下文用量、简要说明与可选保留备注 chips；会话忙碌时禁用压缩；手动压缩时用 UI 估算补全 banner 的 before tokens
+- **Fork chat · optional restore-code**: confirm dialog checkbox (default off) creates a sibling git worktree at the source project’s HEAD and binds the new chat there; refuses when the working tree is dirty so uncommitted work is never destroyed
+
+### 中文 · 新增
+- **分叉会话 · 可选恢复代码**：确认框可勾选（默认关）在源项目 HEAD 创建关联 worktree 并绑定新会话；工作区有未提交改动时拒绝，不破坏本地工作
 
 ## [0.2.2] - 2026-07-30
 

@@ -15101,14 +15101,16 @@ div.composer__input:empty::before {
   -webkit-box-orient: vertical;
 }
 
-/* Rewind confirm (optional file restore) */
-.rewind-confirm {
+/* Rewind / fork confirm (optional file restore) */
+.rewind-confirm,
+.fork-confirm {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.rewind-confirm__msg {
+.rewind-confirm__msg,
+.fork-confirm__msg {
   margin: 0;
   color: var(--text-secondary);
   font-size: 13px;
@@ -15116,7 +15118,8 @@ div.composer__input:empty::before {
   white-space: pre-wrap;
 }
 
-.rewind-confirm__restore {
+.rewind-confirm__restore,
+.fork-confirm__restore {
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -15127,7 +15130,8 @@ div.composer__input:empty::before {
   user-select: none;
 }
 
-.rewind-confirm__restore input {
+.rewind-confirm__restore input,
+.fork-confirm__restore input {
   margin-top: 2px;
   flex-shrink: 0;
 }
@@ -15167,7 +15171,8 @@ div.composer__input:empty::before {
   border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
 }
 
-.rewind-confirm__hint {
+.rewind-confirm__hint,
+.fork-confirm__hint {
   margin: 0;
   font-size: 12px;
   line-height: 1.45;

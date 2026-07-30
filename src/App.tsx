@@ -387,6 +387,10 @@ import {
   worktreeLabel,
   worktreeRemoveErrorSuggestsForce,
 } from "@/lib/gitWorktree";
+import {
+  buildForkWorktreeName,
+  canRestoreCodeOnFork,
+} from "@/lib/sessionFork";
 import { isProjectPathMissing } from "@/lib/projectPath";
 import {
   classifyVoiceError,
@@ -892,6 +896,13 @@ export default function App() {
     preview?: string;
   } | null>(null);
   const [rewindRestoreFiles, setRewindRestoreFiles] = useState(false);
+  /** Fork chat confirm + optional restore-code (default off). */
+  const [forkConfirm, setForkConfirm] = useState<{
+    source: SessionRow;
+    throughUserPromptIndex?: number | null;
+  } | null>(null);
+  const [forkRestoreCode, setForkRestoreCode] = useState(false);
+  const [forkBusy, setForkBusy] = useState(false);
   /** Last user message open in inline edit (not main composer). */
   const [editingUserMessageId, setEditingUserMessageId] = useState<
     string | null
@@ -7549,17 +7560,117 @@ export default function App() {
 
   /**
    * Fork a session (full history or through a user-prompt index) and open it.
+   * Optional restore-code: when clean git work tree, create a sibling worktree
+   * at HEAD and bind the forked session to that path (never force on dirty).
    */
   const runForkSession = useCallback(
     async (
       source: SessionRow,
-      opts?: { throughUserPromptIndex?: number | null },
+      opts?: {
+        throughUserPromptIndex?: number | null;
+        restoreCode?: boolean;
+      },
     ) => {
       if (!api.isTauri()) {
         showToast(tr("error.needTauri"));
         return;
       }
+      const restoreCode = !!opts?.restoreCode;
+      setForkBusy(true);
       try {
+        const sourceProjectId = normalizeProjectId(source.projectId);
+        const sourceProject = sourceProjectId
+          ? projects.find((p) => p.id === sourceProjectId) ?? null
+          : null;
+
+        let bindProject: Project | null = sourceProject;
+        let restoredWorktree = false;
+
+        if (restoreCode) {
+          const projectPath = sourceProject?.path?.trim() || "";
+          if (!projectPath) {
+            showToast(tr("session.forkRestoreNoProject"), 4500);
+            return;
+          }
+          let status: api.GitStatusResult;
+          try {
+            status = await api.gitStatus(projectPath);
+          } catch (e) {
+            showToast(
+              tr("session.forkRestoreUnavailable") + ": " + String(e),
+              4500,
+            );
+            return;
+          }
+          const gate = canRestoreCodeOnFork(projectPath, status);
+          if (!gate.ok) {
+            if (gate.reason === "dirty") {
+              showToast(tr("session.forkRestoreDirty"), 5200);
+            } else if (gate.reason === "no_project") {
+              showToast(tr("session.forkRestoreNoProject"), 4500);
+            } else {
+              showToast(tr("session.forkRestoreUnavailable"), 4500);
+            }
+            // Keep dialog open so the user can uncheck restore and fork journal-only.
+            return;
+          }
+
+          // Create sibling worktree at current HEAD of the source project.
+          let created: api.GitWorktreeAddResult | null = null;
+          let lastErr: unknown = null;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const name = buildForkWorktreeName(source.id, {
+              attempt,
+              now: Date.now() + attempt,
+            });
+            try {
+              created = await api.gitWorktreeAdd(projectPath, name, null);
+              break;
+            } catch (e) {
+              lastErr = e;
+              const msg = String(e).toLowerCase();
+              // Retry only on path/branch collision; other errors are fatal.
+              if (
+                !msg.includes("already exists") &&
+                !msg.includes("already registered") &&
+                !msg.includes("already checked out")
+              ) {
+                break;
+              }
+            }
+          }
+          if (!created) {
+            showToast(
+              tr("session.forkRestoreFailed") +
+                (lastErr ? ": " + String(lastErr) : ""),
+              5200,
+            );
+            return;
+          }
+
+          const trust = !!sourceProject?.trusted;
+          const existing = projects.find((p) =>
+            pathsEqual(p.path, created!.path),
+          );
+          if (existing) {
+            bindProject = existing;
+          } else {
+            const added = (await api.projectAdd(
+              created.path,
+              trust,
+            )) as Project;
+            const list = mapProjectsList(
+              (await api.projectsList()) as Project[],
+            );
+            setProjects(list);
+            bindProject =
+              list.find((p) => p.id === added.id) ??
+              list.find((p) => pathsEqual(p.path, created!.path)) ??
+              normalizeProject(added);
+          }
+          restoredWorktree = true;
+        }
+
         const base = (source.title || tr("session.untitled")).trim();
         // Avoid double-prefix when forking a fork (any locale).
         const title = /^(fork of|分叉：|分叉:)\s*/i.test(base)
@@ -7569,28 +7680,66 @@ export default function App() {
           throughUserPromptIndex: opts?.throughUserPromptIndex ?? null,
           title,
         });
+
+        // Rebind fork to the worktree project when restore-code succeeded.
+        let projectId = meta.projectId ?? source.projectId;
+        if (restoredWorktree && bindProject?.id) {
+          try {
+            const updated = await api.sessionSetProject(
+              meta.id,
+              bindProject.id,
+            );
+            projectId = updated.projectId ?? bindProject.id;
+          } catch (e) {
+            showToast(
+              tr("session.forkRestoreBindFailed") + ": " + String(e),
+              4500,
+            );
+            // Fall through: journal fork still exists on source project.
+            bindProject = sourceProject;
+            projectId = meta.projectId ?? source.projectId;
+            restoredWorktree = false;
+          }
+        }
+
+        setForkConfirm(null);
+        setForkRestoreCode(false);
         await refreshSessions();
         const row: SessionRow = {
           id: meta.id,
           title: meta.title || title,
-          projectId: meta.projectId ?? source.projectId,
+          projectId,
           updatedAt: meta.updatedAt || new Date().toISOString(),
           archived: meta.archived,
           pinned: !!(meta as SessionRow).pinned,
           scheduled: meta.scheduled,
         };
-        const proj = row.projectId
-          ? projects.find((p) => p.id === row.projectId) ?? null
-          : null;
+        const proj =
+          (projectId
+            ? projects.find((p) => p.id === projectId) ?? null
+            : null) ??
+          bindProject;
+        // Prefer bindProject when we just added it (may not be in stale projects).
+        const openProj =
+          restoredWorktree && bindProject
+            ? bindProject
+            : proj ?? bindProject;
         if (row.projectId) {
           setExpandedProjects((e) => ({ ...e, [row.projectId!]: true }));
         } else {
           setHistoryOpen(true);
         }
-        await openSession(row, proj);
-        showToast(tr("session.forkOk"), 2800);
+        await openSession(row, openProj);
+        showToast(
+          restoredWorktree
+            ? tr("session.forkOkRestore")
+            : tr("session.forkOk"),
+          2800,
+        );
       } catch (e) {
         showToast(tr("session.forkFailed") + ": " + String(e), 4500);
+      } finally {
+        setForkBusy(false);
       }
     },
     // openSession / refreshSessions via closure
@@ -7601,23 +7750,13 @@ export default function App() {
   const confirmForkSession = useCallback(
     (source: SessionRow, throughUserPromptIndex?: number | null) => {
       setCtxMenu(null);
-      const partial =
-        throughUserPromptIndex != null && throughUserPromptIndex !== undefined;
-      setAppDialog({
-        kind: "confirm",
-        title: tr("session.forkTitle"),
-        message: partial
-          ? tr("session.forkConfirmPartial")
-          : tr("session.forkConfirm"),
-        confirmLabel: tr("session.fork"),
-        onConfirm: () => {
-          void runForkSession(source, {
-            throughUserPromptIndex: throughUserPromptIndex ?? null,
-          });
-        },
+      setForkRestoreCode(false);
+      setForkConfirm({
+        source,
+        throughUserPromptIndex: throughUserPromptIndex ?? null,
       });
     },
-    [runForkSession, tr],
+    [],
   );
 
   /**
@@ -10339,6 +10478,7 @@ export default function App() {
         showCompactModal ||
         exportMdTarget ||
         rewindConfirm ||
+        forkConfirm ||
         worktreeCreateOpen ||
         projectRulesTarget,
     ),
@@ -13994,6 +14134,73 @@ export default function App() {
           </label>
           <p className="rewind-confirm__hint">
             {tr("session.rewindRestoreFilesHint")}
+          </p>
+        </div>
+      </GlassModal>
+
+      <GlassModal
+        open={!!forkConfirm}
+        onClose={() => {
+          if (forkBusy) return;
+          setForkConfirm(null);
+          setForkRestoreCode(false);
+        }}
+        title={tr("session.forkTitle")}
+        size="sm"
+        closeLabel={tr("common.close")}
+        closeOnOverlay={!forkBusy}
+        showClose={!forkBusy}
+        wrapBody
+        className="fork-confirm-modal"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={forkBusy}
+              onClick={() => {
+                setForkConfirm(null);
+                setForkRestoreCode(false);
+              }}
+            >
+              {tr("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={forkBusy || !forkConfirm}
+              onClick={() => {
+                if (!forkConfirm) return;
+                void runForkSession(forkConfirm.source, {
+                  throughUserPromptIndex:
+                    forkConfirm.throughUserPromptIndex ?? null,
+                  restoreCode: forkRestoreCode,
+                });
+              }}
+            >
+              {forkBusy ? tr("session.forkWorking") : tr("session.fork")}
+            </button>
+          </>
+        }
+      >
+        <div className="fork-confirm">
+          <p className="fork-confirm__msg">
+            {forkConfirm?.throughUserPromptIndex != null &&
+            forkConfirm.throughUserPromptIndex !== undefined
+              ? tr("session.forkConfirmPartial")
+              : tr("session.forkConfirm")}
+          </p>
+          <label className="fork-confirm__restore">
+            <input
+              type="checkbox"
+              checked={forkRestoreCode}
+              disabled={forkBusy}
+              onChange={(e) => setForkRestoreCode(e.target.checked)}
+            />
+            <span>{tr("session.forkRestoreCode")}</span>
+          </label>
+          <p className="fork-confirm__hint">
+            {tr("session.forkRestoreCodeHint")}
           </p>
         </div>
       </GlassModal>

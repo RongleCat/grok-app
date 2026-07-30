@@ -123,8 +123,23 @@ const en = {
     "Create a new chat with a copy of this conversation? The original stays unchanged.",
   "session.forkConfirmPartial":
     "Create a new chat with messages up to this point? Later turns are not copied.",
+  "session.forkRestoreCode":
+    "Also restore workspace files to this chat’s last known git state",
+  "session.forkRestoreCodeHint":
+    "Creates a linked git worktree at the project’s current HEAD and opens the fork there. Refuses if the working tree has uncommitted changes. Off by default (safer).",
+  "session.forkWorking": "Forking…",
   "session.forkOk": "Forked · opened new chat",
+  "session.forkOkRestore": "Forked · opened new chat on a clean worktree",
   "session.forkFailed": "Could not fork chat",
+  "session.forkRestoreDirty":
+    "Working tree has uncommitted changes. Uncheck “restore workspace files” to fork the chat only, or commit/stash first.",
+  "session.forkRestoreNoProject":
+    "Restore code needs a project folder bound to this chat.",
+  "session.forkRestoreUnavailable":
+    "Restore code needs a git repository for this project.",
+  "session.forkRestoreFailed": "Could not create a worktree for restore",
+  "session.forkRestoreBindFailed":
+    "Forked the chat, but could not bind it to the new worktree",
   "session.backgroundPermission":
     "Another chat needs permission — switch to it to approve or deny.",
   "session.rewind": "Rewind timeline",
@@ -2458,10 +2473,21 @@ const zh: Record<MessageKey, string> = {
     "基于当前对话复制新建一个会话？原会话保持不变。",
   "session.forkConfirmPartial":
     "复制到此为止的消息并新建会话？之后的回合不会复制。",
+  "session.forkRestoreCode": "同时将工作区文件恢复到本会话最近的 git 状态",
+  "session.forkRestoreCodeHint":
+    "在项目当前 HEAD 创建关联 git worktree，并在该目录打开分叉会话。工作区有未提交改动时会拒绝。默认关闭，更安全。",
+  "session.forkWorking": "正在分叉…",
   "session.forkOk": "已分叉 · 已打开新会话",
+  "session.forkOkRestore": "已分叉 · 已在干净 worktree 中打开新会话",
   "session.backgroundPermission":
     "另一个会话需要权限批准 — 请切换过去以允许或拒绝。",
   "session.forkFailed": "分叉会话失败",
+  "session.forkRestoreDirty":
+    "工作区有未提交改动。请取消勾选「恢复工作区文件」仅分叉对话，或先提交/暂存改动。",
+  "session.forkRestoreNoProject": "恢复代码需要该会话已绑定项目文件夹。",
+  "session.forkRestoreUnavailable": "恢复代码需要该项目是 git 仓库。",
+  "session.forkRestoreFailed": "无法为恢复创建 worktree",
+  "session.forkRestoreBindFailed": "会话已分叉，但未能绑定到新 worktree",
   "session.rewind": "回退时间线",
   "session.rewindTitle": "回退对话",
   "session.rewindHint":
