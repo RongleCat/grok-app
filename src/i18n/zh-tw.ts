@@ -780,6 +780,30 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.clearWorkspaceMemoryConfirmMsg":
     "將刪除目前專案的 Grok Build 工作區記憶。應用程式內聊天紀錄會保留。此操作無法復原。",
   "settings.clearWorkspaceMemoryDone": "已清除工作區記憶",
+  "settings.memoryBrowser": "工作區記憶檔案",
+  "settings.memoryBrowserDesc":
+    "瀏覽目前專案在磁碟上的 Grok Build 記憶（{GROK_HOME}/memory）。預覽會脫敏疑似 API Key。不會改動應用程式內聊天紀錄。",
+  "settings.memoryBrowser.off": "記憶已關閉。請先開啟上方的「跨工作階段記憶」後再瀏覽檔案。",
+  "settings.memoryBrowser.loading": "正在載入記憶檔案…",
+  "settings.memoryBrowser.empty": "目前專案找不到記憶檔案。",
+  "settings.memoryBrowser.error": "無法載入記憶檔案",
+  "settings.memoryBrowser.searchPlaceholder": "依名稱或預覽內容篩選…",
+  "settings.memoryBrowser.refresh": "重新整理",
+  "settings.memoryBrowser.expand": "預覽",
+  "settings.memoryBrowser.collapse": "收起預覽",
+  "settings.memoryBrowser.delete": "刪除",
+  "settings.memoryBrowser.deleting": "刪除中…",
+  "settings.memoryBrowser.deleteConfirmTitle": "刪除記憶檔案？",
+  "settings.memoryBrowser.deleteConfirmMsg":
+    "從 Grok Build 記憶庫刪除「{name}」？此操作無法復原。",
+  "settings.memoryBrowser.noProject":
+    "開啟專案以匹配工作區記憶。若存在全域 MEMORY.md 仍會顯示。",
+  "settings.memoryBrowser.root": "記憶目錄：{path}",
+  "settings.memoryBrowser.kind.global": "全域",
+  "settings.memoryBrowser.kind.workspace": "工作區",
+  "settings.memoryBrowser.kind.session": "工作階段",
+  "settings.memoryBrowser.kind.index": "索引",
+  "settings.memoryBrowser.kind.other": "其他",
   "settings.allowUnverifiedCli": "允許未校驗的 CLI 安裝",
   "settings.allowUnverifiedCliDesc":
     "關閉時（預設）若官方鏡像沒有發佈 SHA-256 則拒絕安裝。僅在校驗檔暫時不可用時開啟。校驗和不一致一律拒絕。",

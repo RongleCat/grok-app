@@ -13,8 +13,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
-### Added
-
+- **Workspace memory browser** (Settings → General → Agent): list / preview / search on-disk Grok Build memory under `{GROK_HOME}/memory` (MEMORY.md, session logs, index); single-file delete with in-app confirm; empty state when experimental memory is off. Host `memory_list` / `memory_delete_file` with path-scope safety + preview redaction
 - **Desktop notification click opens the session** that fired turn-done / permission / ask_user (falls back to focusing the app when the session is unknown)
 - **Edit queued follow-ups** in the composer send queue (text before auto-send)
 - **Worktree session badge**: sidebar **WT** chip for chats bound to a linked git worktree (meta from “New worktree & chat”, or auto when the project path matches `git worktree list`); tooltip shows branch + path

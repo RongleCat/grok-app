@@ -15992,6 +15992,56 @@ div.composer__input:empty::before {
   color: #e05a5a;
 }
 
+/* Settings → Agent: workspace memory browser */
+.settings-memory-browser {
+  gap: 10px;
+}
+
+.settings-memory-browser__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.settings-memory-browser__search {
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+
+.settings-memory-browser__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-memory-browser__list {
+  width: 100%;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.settings-memory-browser__preview {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow: auto;
+  color: var(--text-secondary);
+}
+
+.settings-memory-browser__empty {
+  margin: 0;
+}
+
 .ext-badge--plugin-enabled {
   background: color-mix(in srgb, #6bcf8e 16%, transparent);
   border-color: color-mix(in srgb, #6bcf8e 30%, transparent);

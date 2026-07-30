@@ -819,6 +819,31 @@ const en = {
   "settings.clearWorkspaceMemoryConfirmMsg":
     "This deletes Grok Build workspace memory for the current project. Chat history in the app is kept. This cannot be undone.",
   "settings.clearWorkspaceMemoryDone": "Workspace memory cleared",
+  "settings.memoryBrowser": "Workspace memory files",
+  "settings.memoryBrowserDesc":
+    "Browse on-disk Grok Build memory for the current project ({GROK_HOME}/memory). Previews redact likely API keys. Does not change chat history in the app.",
+  "settings.memoryBrowser.off":
+    "Memory is off. Turn on Cross-session memory above to browse files.",
+  "settings.memoryBrowser.loading": "Loading memory files…",
+  "settings.memoryBrowser.empty": "No memory files found for this project.",
+  "settings.memoryBrowser.error": "Could not load memory files",
+  "settings.memoryBrowser.searchPlaceholder": "Filter by name or preview…",
+  "settings.memoryBrowser.refresh": "Refresh",
+  "settings.memoryBrowser.expand": "Preview",
+  "settings.memoryBrowser.collapse": "Hide preview",
+  "settings.memoryBrowser.delete": "Delete",
+  "settings.memoryBrowser.deleting": "Deleting…",
+  "settings.memoryBrowser.deleteConfirmTitle": "Delete memory file?",
+  "settings.memoryBrowser.deleteConfirmMsg":
+    "Delete “{name}” from the Grok Build memory store? This cannot be undone.",
+  "settings.memoryBrowser.noProject":
+    "Open a project to match workspace-scoped memory. Global MEMORY.md still appears when present.",
+  "settings.memoryBrowser.root": "Memory root: {path}",
+  "settings.memoryBrowser.kind.global": "global",
+  "settings.memoryBrowser.kind.workspace": "workspace",
+  "settings.memoryBrowser.kind.session": "session",
+  "settings.memoryBrowser.kind.index": "index",
+  "settings.memoryBrowser.kind.other": "other",
   "settings.allowUnverifiedCli": "Allow unverified CLI install",
   "settings.allowUnverifiedCliDesc":
     "When off (default), install fails if the official mirror has no published SHA-256. Turn on only if checksums are temporarily unavailable. A mismatched checksum always fails.",
@@ -3236,6 +3261,30 @@ const zh: Record<MessageKey, string> = {
   "settings.clearWorkspaceMemoryConfirmMsg":
     "将删除当前项目的 Grok Build 工作区记忆。应用内聊天记录会保留。此操作不可撤销。",
   "settings.clearWorkspaceMemoryDone": "已清除工作区记忆",
+  "settings.memoryBrowser": "工作区记忆文件",
+  "settings.memoryBrowserDesc":
+    "浏览当前项目在磁盘上的 Grok Build 记忆（{GROK_HOME}/memory）。预览会脱敏疑似 API Key。不会改动应用内聊天记录。",
+  "settings.memoryBrowser.off": "记忆已关闭。请先打开上方的「跨会话记忆」后再浏览文件。",
+  "settings.memoryBrowser.loading": "正在加载记忆文件…",
+  "settings.memoryBrowser.empty": "当前项目未找到记忆文件。",
+  "settings.memoryBrowser.error": "无法加载记忆文件",
+  "settings.memoryBrowser.searchPlaceholder": "按名称或预览内容筛选…",
+  "settings.memoryBrowser.refresh": "刷新",
+  "settings.memoryBrowser.expand": "预览",
+  "settings.memoryBrowser.collapse": "收起预览",
+  "settings.memoryBrowser.delete": "删除",
+  "settings.memoryBrowser.deleting": "删除中…",
+  "settings.memoryBrowser.deleteConfirmTitle": "删除记忆文件？",
+  "settings.memoryBrowser.deleteConfirmMsg":
+    "从 Grok Build 记忆库删除「{name}」？此操作不可撤销。",
+  "settings.memoryBrowser.noProject":
+    "打开项目以匹配工作区记忆。若存在全局 MEMORY.md 仍会显示。",
+  "settings.memoryBrowser.root": "记忆目录：{path}",
+  "settings.memoryBrowser.kind.global": "全局",
+  "settings.memoryBrowser.kind.workspace": "工作区",
+  "settings.memoryBrowser.kind.session": "会话",
+  "settings.memoryBrowser.kind.index": "索引",
+  "settings.memoryBrowser.kind.other": "其他",
   "settings.allowUnverifiedCli": "允许未校验的 CLI 安装",
   "settings.allowUnverifiedCliDesc":
     "关闭时（默认）若官方镜像没有发布 SHA-256 则拒绝安装。仅在校验文件暂时不可用时开启。校验和不一致始终拒绝。",

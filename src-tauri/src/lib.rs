@@ -293,6 +293,8 @@ pub fn run() {
             commands::store_take_quarantine,
             commands::settings_set,
             commands::memory_clear,
+            commands::memory_list,
+            commands::memory_delete_file,
             commands::settings_remember_last_session,
             commands::models_list_available,
             commands::agents_catalog,

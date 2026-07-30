@@ -116,6 +116,7 @@ import { ProjectInspectPanel } from "@/components/ProjectInspectPanel";
 import { PermissionRulesPanel } from "@/components/PermissionRulesPanel";
 import { ManagedSetupPanel } from "@/components/ManagedSetupPanel";
 import { GlassModal } from "@/components/GlassModal";
+import { MemoryBrowserPanel } from "@/components/MemoryBrowserPanel";
 import { RemoteImLayout } from "@/components/RemoteImLayout";
 import { MirrorConnectPanel } from "@/components/MirrorConnectPanel";
 import {
@@ -898,6 +899,8 @@ export function SettingsPage({
   const [editors, setEditors] = useState<DetectedEditor[]>([]);
   const [clearMemoryOpen, setClearMemoryOpen] = useState(false);
   const [clearMemoryBusy, setClearMemoryBusy] = useState(false);
+  /** Bump to remount MemoryBrowserPanel after clear-all. */
+  const [memoryBrowserEpoch, setMemoryBrowserEpoch] = useState(0);
   const [settingsToast, setSettingsToast] = useState<string | null>(null);
   /** Phone-mirror stop confirm (settings → remote control → mirror tab). */
   const [mirrorStopConfirm, setMirrorStopConfirm] = useState<{
@@ -1028,6 +1031,7 @@ export function SettingsPage({
     try {
       await api.memoryClear({ cwd: workspaceCwd, scope: "workspace" });
       setClearMemoryOpen(false);
+      setMemoryBrowserEpoch((n) => n + 1);
       showSettingsToast(t("settings.clearWorkspaceMemoryDone"), 3500);
     } catch (e) {
       showSettingsToast(String(e), 4500);
@@ -2000,6 +2004,27 @@ export function SettingsPage({
                     checked={!!experimentalMemory}
                     onChange={() => onExperimentalMemory(!experimentalMemory)}
                     ariaLabel={t("settings.experimentalMemory")}
+                  />
+                </div>
+              ) : null}
+              {onExperimentalMemory ? (
+                <div
+                  className={
+                    "settings-memory-browser-wrap" +
+                    rowHighlight("settings-anchor-memoryBrowser")
+                  }
+                >
+                  <MemoryBrowserPanel
+                    key={memoryBrowserEpoch}
+                    locale={resolveLocale(locale)}
+                    projectPath={workspaceCwd}
+                    experimentalMemory={!!experimentalMemory}
+                    onClearAll={
+                      workspaceCwd
+                        ? () => setClearMemoryOpen(true)
+                        : undefined
+                    }
+                    clearAllBusy={clearMemoryBusy}
                   />
                 </div>
               ) : null}

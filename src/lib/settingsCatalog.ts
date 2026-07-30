@@ -410,6 +410,27 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     keywords: ["memory"],
   },
   {
+    id: "general.memoryBrowser",
+    section: "general",
+    tab: "agent",
+    anchorId: "settings-anchor-memoryBrowser",
+    labelKey: "settings.memoryBrowser",
+    descKeys: [
+      "settings.memoryBrowserDesc",
+      "settings.memoryBrowser.off",
+      "settings.clearWorkspaceMemory",
+    ],
+    keywords: [
+      "memory browser",
+      "MEMORY.md",
+      "workspace memory",
+      "browse memory",
+      "记忆",
+      "記憶",
+      "memory files",
+    ],
+  },
+  {
     id: "general.subagents",
     section: "general",
     tab: "agent",

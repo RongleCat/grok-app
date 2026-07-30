@@ -7092,6 +7092,44 @@ pub async fn memory_clear(
     .map_err(|e| format!("memory clear task failed: {e}"))?
 }
 
+/// List / inspect on-disk workspace memory files under agent GROK_HOME.
+#[tauri::command]
+pub async fn memory_list(
+    cwd: Option<String>,
+) -> Result<crate::agent_memory::MemoryListResult, String> {
+    let settings = store::load_settings();
+    let path = cwd
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(std::path::PathBuf::from);
+    tokio::task::spawn_blocking(move || {
+        Ok(crate::agent_memory::list_workspace_memory(
+            path.as_deref(),
+            &settings.session_data_mode,
+        ))
+    })
+    .await
+    .map_err(|e| format!("memory list task failed: {e}"))?
+}
+
+/// Delete a single memory file (must live under the known memory root).
+#[tauri::command]
+pub async fn memory_delete_file(
+    path: String,
+) -> Result<crate::agent_memory::MemoryDeleteResult, String> {
+    let settings = store::load_settings();
+    let p = std::path::PathBuf::from(path.trim());
+    if p.as_os_str().is_empty() {
+        return Err("path is required".into());
+    }
+    tokio::task::spawn_blocking(move || {
+        crate::agent_memory::delete_memory_file(&p, &settings.session_data_mode)
+    })
+    .await
+    .map_err(|e| format!("memory delete task failed: {e}"))?
+}
+
 /// List agent definitions available for session agent selection.
 #[tauri::command]
 pub async fn agents_catalog(

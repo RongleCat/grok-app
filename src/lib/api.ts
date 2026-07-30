@@ -2341,6 +2341,43 @@ export async function memoryClear(opts?: {
   });
 }
 
+/** On-disk Grok Build memory artifact under `{GROK_HOME}/memory`. */
+export type MemoryFileEntry = {
+  path: string;
+  name: string;
+  relativePath: string;
+  size: number;
+  mtimeMs: number;
+  preview: string;
+  /** global | workspace | session | index | other */
+  kind: string;
+  workspaceSlug?: string | null;
+  matched: boolean;
+};
+
+export type MemoryListResult = {
+  entries: MemoryFileEntry[];
+  memoryRoot: string;
+  memoryRootExists: boolean;
+  grokHome: string;
+  cwd?: string | null;
+  workspaceSlugs: string[];
+};
+
+/** List workspace (+ global) memory files for a project cwd. */
+export async function memoryList(opts?: { cwd?: string | null }) {
+  return invoke<MemoryListResult>("memory_list", {
+    cwd: opts?.cwd ?? null,
+  });
+}
+
+/** Delete a single memory file (host enforces path under memory root). */
+export async function memoryDeleteFile(path: string) {
+  return invoke<{ ok: boolean; path: string }>("memory_delete_file", {
+    path,
+  });
+}
+
 export type HookDto = {
   name: string;
   path: string;
