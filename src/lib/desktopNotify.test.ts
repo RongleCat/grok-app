@@ -3,6 +3,7 @@ import {
   ensureNotifyPermission,
   focusAppFromNotification,
   notificationSupport,
+  setDesktopNotifySessionFocusHandler,
   shouldShowDesktopNotify,
   showDesktopNotification,
 } from "./desktopNotify";
@@ -15,6 +16,7 @@ import {
 const originalNotification = globalThis.Notification;
 
 afterEach(() => {
+  setDesktopNotifySessionFocusHandler(null);
   if (originalNotification) {
     globalThis.Notification = originalNotification;
   } else {
@@ -118,6 +120,150 @@ describe("desktopNotify", () => {
       instances[0]!.onclick?.call({} as Notification, {} as Event);
       expect(focus).toHaveBeenCalled();
       expect(instances[0]!.close).toHaveBeenCalled();
+    } finally {
+      if (prevWindow === undefined) {
+        // @ts-expect-error cleanup stub
+        delete globalThis.window;
+      } else {
+        Object.defineProperty(globalThis, "window", {
+          value: prevWindow,
+          configurable: true,
+          writable: true,
+        });
+      }
+    }
+  });
+
+  it("onclick invokes session focus handler with sessionId after app focus", () => {
+    const { instances } = mockNotification("granted");
+    const focus = vi.fn();
+    const onSession = vi.fn();
+    const prevWindow = globalThis.window;
+    Object.defineProperty(globalThis, "window", {
+      value: { focus },
+      configurable: true,
+      writable: true,
+    });
+    setDesktopNotifySessionFocusHandler(onSession);
+    try {
+      expect(
+        showDesktopNotification({
+          title: "done",
+          force: true,
+          tag: "turn-done-sess-1",
+          sessionId: "sess-1",
+        }),
+      ).toBe(true);
+      instances[0]!.onclick?.call({} as Notification, {} as Event);
+      expect(focus).toHaveBeenCalled();
+      expect(onSession).toHaveBeenCalledWith("sess-1");
+      expect(instances[0]!.close).toHaveBeenCalled();
+    } finally {
+      if (prevWindow === undefined) {
+        // @ts-expect-error cleanup stub
+        delete globalThis.window;
+      } else {
+        Object.defineProperty(globalThis, "window", {
+          value: prevWindow,
+          configurable: true,
+          writable: true,
+        });
+      }
+    }
+  });
+
+  it("onclick focuses app without throwing when sessionId set but no handler", () => {
+    const { instances } = mockNotification("granted");
+    const focus = vi.fn();
+    const prevWindow = globalThis.window;
+    Object.defineProperty(globalThis, "window", {
+      value: { focus },
+      configurable: true,
+      writable: true,
+    });
+    setDesktopNotifySessionFocusHandler(null);
+    try {
+      expect(
+        showDesktopNotification({
+          title: "done",
+          force: true,
+          sessionId: "sess-2",
+        }),
+      ).toBe(true);
+      expect(() =>
+        instances[0]!.onclick?.call({} as Notification, {} as Event),
+      ).not.toThrow();
+      expect(focus).toHaveBeenCalled();
+    } finally {
+      if (prevWindow === undefined) {
+        // @ts-expect-error cleanup stub
+        delete globalThis.window;
+      } else {
+        Object.defineProperty(globalThis, "window", {
+          value: prevWindow,
+          configurable: true,
+          writable: true,
+        });
+      }
+    }
+  });
+
+  it("onclick does not call session handler when sessionId is missing", () => {
+    const { instances } = mockNotification("granted");
+    const focus = vi.fn();
+    const onSession = vi.fn();
+    const prevWindow = globalThis.window;
+    Object.defineProperty(globalThis, "window", {
+      value: { focus },
+      configurable: true,
+      writable: true,
+    });
+    setDesktopNotifySessionFocusHandler(onSession);
+    try {
+      expect(
+        showDesktopNotification({ title: "x", force: true }),
+      ).toBe(true);
+      instances[0]!.onclick?.call({} as Notification, {} as Event);
+      expect(focus).toHaveBeenCalled();
+      expect(onSession).not.toHaveBeenCalled();
+    } finally {
+      if (prevWindow === undefined) {
+        // @ts-expect-error cleanup stub
+        delete globalThis.window;
+      } else {
+        Object.defineProperty(globalThis, "window", {
+          value: prevWindow,
+          configurable: true,
+          writable: true,
+        });
+      }
+    }
+  });
+
+  it("swallows session handler errors so focus still works", () => {
+    const { instances } = mockNotification("granted");
+    const focus = vi.fn();
+    const prevWindow = globalThis.window;
+    Object.defineProperty(globalThis, "window", {
+      value: { focus },
+      configurable: true,
+      writable: true,
+    });
+    setDesktopNotifySessionFocusHandler(() => {
+      throw new Error("open failed");
+    });
+    try {
+      expect(
+        showDesktopNotification({
+          title: "x",
+          force: true,
+          sessionId: "sess-err",
+        }),
+      ).toBe(true);
+      expect(() =>
+        instances[0]!.onclick?.call({} as Notification, {} as Event),
+      ).not.toThrow();
+      expect(focus).toHaveBeenCalled();
     } finally {
       if (prevWindow === undefined) {
         // @ts-expect-error cleanup stub

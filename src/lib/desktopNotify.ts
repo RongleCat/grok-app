@@ -14,11 +14,32 @@ export type DesktopNotifyOptions = {
   force?: boolean;
   tag?: string;
   /**
+   * Session that fired this notification (turn_done / permission / ask_user).
+   * On click, after focusing the app, the registered session focus handler is
+   * invoked when this is a non-empty string. Missing id still focuses the app.
+   */
+  sessionId?: string | null;
+  /**
    * Play the optional notify beep after a successful show.
    * `undefined` → use localStorage `grok.notifySound` pref (default off).
    */
   sound?: boolean;
 };
+
+/** Focus a session when the user clicks a desktop notification. */
+export type DesktopNotifySessionFocusHandler = (sessionId: string) => void;
+
+let sessionFocusHandler: DesktopNotifySessionFocusHandler | null = null;
+
+/**
+ * Register (or clear) the App-level handler used when a notification with
+ * `sessionId` is clicked. Module-level so App can wire without circular imports.
+ */
+export function setDesktopNotifySessionFocusHandler(
+  handler: DesktopNotifySessionFocusHandler | null,
+): void {
+  sessionFocusHandler = handler;
+}
 
 export type NotifyPermission = "granted" | "denied" | "default" | "unsupported";
 
@@ -114,7 +135,8 @@ export function focusAppFromNotification(): void {
 /**
  * Show a system notification when permission is granted.
  * Returns true only when a Notification object was constructed.
- * Click focuses the app window when possible.
+ * Click focuses the app window when possible, then deep-links to
+ * `sessionId` via the registered session focus handler (if any).
  * Suppressed entirely during quiet hours (localStorage pref).
  */
 export function showDesktopNotification(opts: DesktopNotifyOptions): boolean {
@@ -127,6 +149,10 @@ export function showDesktopNotification(opts: DesktopNotifyOptions): boolean {
   const N = notificationCtor();
   if (!N) return false;
   try {
+    const focusSessionId =
+      typeof opts.sessionId === "string" && opts.sessionId.trim()
+        ? opts.sessionId.trim()
+        : null;
     const n = new N(opts.title, {
       body: opts.body,
       tag: opts.tag,
@@ -142,6 +168,13 @@ export function showDesktopNotification(opts: DesktopNotifyOptions): boolean {
             /* ignore */
           }
           focusAppFromNotification();
+          if (focusSessionId && sessionFocusHandler) {
+            try {
+              sessionFocusHandler(focusSessionId);
+            } catch {
+              /* fail closed — window already focused */
+            }
+          }
         };
       }
     } catch {

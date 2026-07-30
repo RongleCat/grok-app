@@ -286,6 +286,7 @@ import {
 } from "@/lib/shortcuts";
 import {
   ensureNotifyPermission,
+  setDesktopNotifySessionFocusHandler,
   shouldShowDesktopNotify,
   showDesktopNotification,
 } from "@/lib/desktopNotify";
@@ -2696,10 +2697,12 @@ export default function App() {
                     notifyPrefsRef.current,
                   )
                 ) {
+                  const turnSid = s.sessionId || null;
                   showDesktopNotification({
                     title: trRef.current("notify.turnDoneTitle"),
                     body: trRef.current("notify.turnDoneBody"),
-                    tag: `turn-${s.sessionId || "x"}`,
+                    tag: `turn-done-${turnSid || "x"}`,
+                    sessionId: turnSid,
                   });
                 }
               } else if (
@@ -3325,8 +3328,9 @@ export default function App() {
                 showDesktopNotification({
                   title: trRef.current("notify.permissionTitle"),
                   body: trRef.current("session.backgroundPermission"),
-                  tag: `perm-bg-${p.rpcId}`,
+                  tag: `perm-bg-${p.sessionId || p.rpcId}`,
                   force: true,
+                  sessionId: p.sessionId ?? null,
                 });
               }
               return;
@@ -3338,8 +3342,9 @@ export default function App() {
               showDesktopNotification({
                 title: trRef.current("notify.permissionTitle"),
                 body: trRef.current("notify.permissionBody"),
-                tag: `perm-${p.rpcId}`,
+                tag: `perm-${p.sessionId || p.rpcId}`,
                 force: true,
+                sessionId: p.sessionId ?? null,
               });
             }
           }),
@@ -3366,8 +3371,9 @@ export default function App() {
                 showDesktopNotification({
                   title: trRef.current("notify.askUserTitle"),
                   body: trRef.current("notify.askUserBody"),
-                  tag: `ask-bg-${p.rpcId}`,
+                  tag: `ask-bg-${p.sessionId || p.rpcId}`,
                   force: true,
+                  sessionId: p.sessionId ?? null,
                 });
               }
               return;
@@ -3380,8 +3386,9 @@ export default function App() {
               showDesktopNotification({
                 title: trRef.current("notify.askUserTitle"),
                 body: trRef.current("notify.askUserBody"),
-                tag: `ask-${p.rpcId}`,
+                tag: `ask-${p.sessionId || p.rpcId}`,
                 force: true,
+                sessionId: p.sessionId ?? null,
               });
             }
           }),
@@ -9034,6 +9041,16 @@ export default function App() {
       void openDoctor();
     },
   };
+
+  // Desktop notification click → open the session that fired the notify.
+  useEffect(() => {
+    setDesktopNotifySessionFocusHandler((sessionId) => {
+      trayHandlersRef.current.openSessionById(sessionId);
+    });
+    return () => {
+      setDesktopNotifySessionFocusHandler(null);
+    };
+  }, []);
 
   // System tray / menu-bar (Codex-style): Recent · More · Usage · New Chat · Open · Quit
   useEffect(() => {
