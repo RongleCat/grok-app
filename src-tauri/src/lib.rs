@@ -41,6 +41,7 @@ mod store_lock;
 mod automation_runner;
 mod permission;
 mod project_rules;
+mod skill_edit;
 mod permission_rules;
 mod providers;
 mod cc_switch_import;
@@ -325,6 +326,9 @@ pub fn run() {
             commands::session_trace_export,
             commands::reset_app_data,
             commands::skills_list,
+            commands::skill_read,
+            commands::skill_write,
+            commands::skill_roots,
             commands::agents_list,
             commands::inspect_mcp,
             commands::project_inspect,

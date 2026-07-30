@@ -16557,6 +16557,74 @@ div.composer__input:empty::before {
   margin: 0;
 }
 
+.ext-skill-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.ext-skill-editor__note {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, #e0b44a 36%, var(--border-subtle));
+  background: color-mix(in srgb, #e0b44a 10%, var(--bg-card));
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.ext-skill-editor__path {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  word-break: break-all;
+  line-height: 1.35;
+}
+
+.ext-skill-editor__textarea {
+  width: 100%;
+  min-height: 280px;
+  max-height: min(56vh, 520px);
+  resize: vertical;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input, var(--bg-card));
+  color: var(--text-primary);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12.5px;
+  line-height: 1.45;
+  tab-size: 2;
+}
+
+.ext-skill-editor__textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent, #6b8cff) 55%, var(--border-subtle));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #6b8cff) 18%, transparent);
+}
+
+.ext-skill-editor__textarea:disabled {
+  opacity: 0.72;
+}
+
+.ext-skill-editor__error {
+  margin: 0;
+  font-size: 12.5px;
+  color: #e05a5a;
+  line-height: 1.4;
+}
+
+.ext-skill-editor__saved {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+
+
 .ext-badge--plugin-enabled {
   background: color-mix(in srgb, #6bcf8e 16%, transparent);
   border-color: color-mix(in srgb, #6bcf8e 30%, transparent);

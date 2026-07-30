@@ -1317,7 +1317,26 @@ export interface McpDto {
 
 export interface SkillsListResult {
   skills: SkillDto[];
+  /** Absolute allowlisted skill roots for in-app SKILL.md editing. */
+  skillRoots?: string[];
   error?: string;
+}
+
+/** Result of Host `skill_read` (allowlisted SKILL.md only). */
+export interface SkillReadResult {
+  path: string;
+  name: string;
+  content: string;
+  size: number;
+  mtimeMs: number;
+  truncated: boolean;
+}
+
+/** Result of Host `skill_write`. */
+export interface SkillWriteResult {
+  path: string;
+  size: number;
+  mtimeMs: number;
 }
 
 export interface InspectMcpResult {
@@ -1430,6 +1449,36 @@ export async function resetAppData(keepSecrets = true) {
 /** List skills via `grok inspect --json` (optional project cwd). */
 export async function skillsList(projectPath?: string | null) {
   return invoke<SkillsListResult>("skills_list", {
+    projectPath: projectPath ?? null,
+  });
+}
+
+/** Absolute allowlisted skill roots (user / agent-home / project). */
+export async function skillRoots(projectPath?: string | null) {
+  return invoke<string[]>("skill_roots", {
+    projectPath: projectPath ?? null,
+  });
+}
+
+/** Read a user-editable SKILL.md (path must sit under known skills roots). */
+export async function skillRead(path: string, projectPath?: string | null) {
+  return invoke<SkillReadResult>("skill_read", {
+    path,
+    projectPath: projectPath ?? null,
+  });
+}
+
+/** Write a user-editable SKILL.md (path must sit under known skills roots). */
+export async function skillWrite(
+  path: string,
+  content: string,
+  expectedMtimeMs?: number | null,
+  projectPath?: string | null,
+) {
+  return invoke<SkillWriteResult>("skill_write", {
+    path,
+    content,
+    expectedMtimeMs: expectedMtimeMs ?? null,
     projectPath: projectPath ?? null,
   });
 }

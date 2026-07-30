@@ -2227,11 +2227,59 @@ pub async fn skills_list(project_path: Option<String>) -> Result<serde_json::Val
 
     let skills = parsed.as_ref().map(parse_skills).unwrap_or_default();
     let skills = attach_skill_enabled(skills);
-    let mut out = serde_json::json!({ "skills": skills });
+    let skill_roots = crate::skill_edit::skill_roots_list(project_path.as_deref());
+    let mut out = serde_json::json!({
+        "skills": skills,
+        "skillRoots": skill_roots,
+    });
     if let Some(err) = error {
         out["error"] = serde_json::Value::String(err);
     }
     Ok(out)
+}
+
+/// Read a user-editable SKILL.md (allowlisted skills roots only).
+#[tauri::command]
+pub async fn skill_read(
+    path: String,
+    project_path: Option<String>,
+) -> Result<crate::skill_edit::SkillReadResult, String> {
+    let path = path.clone();
+    let project_path = project_path.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::skill_edit::skill_read(&path, project_path.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Write a user-editable SKILL.md (allowlisted skills roots only).
+#[tauri::command]
+pub async fn skill_write(
+    path: String,
+    content: String,
+    expected_mtime_ms: Option<u64>,
+    project_path: Option<String>,
+) -> Result<crate::skill_edit::SkillWriteResult, String> {
+    let path = path.clone();
+    let content = content.clone();
+    let project_path = project_path.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::skill_edit::skill_write(
+            &path,
+            &content,
+            expected_mtime_ms,
+            project_path.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Absolute paths of allowlisted skill roots (for UI edit affordances).
+#[tauri::command]
+pub async fn skill_roots(project_path: Option<String>) -> Result<Vec<String>, String> {
+    Ok(crate::skill_edit::skill_roots_list(project_path.as_deref()))
 }
 
 /// List MCP servers from `grok inspect --json`.

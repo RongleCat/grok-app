@@ -4,12 +4,13 @@
  * Plugins from `grok plugin list/install/update/…` (config.toml disabled list).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "@/lib/api";
 import { createT, type Locale, type MessageKey } from "@/i18n";
 import { GlassModal } from "@/components/GlassModal";
 import {
   IconDoctor,
+  IconEdit,
   IconExternalLink,
   IconFolder,
   IconPlus,
@@ -48,7 +49,27 @@ import {
   type McpServerStatus,
   type McpStatusIndex,
 } from "@/lib/mcpStatus";
+import {
+  isSkillEditable,
+  resolveSkillMdPath,
+} from "@/lib/skillEditPath";
+import {
+  isFsWriteConflict,
+  isResourceDraftDirty,
+} from "@/lib/resourceEdit";
 import { ExtensionsBuildExtras } from "@/components/ExtensionsBuildExtras";
+
+type SkillEditorState = {
+  skill: api.SkillDto;
+  path: string;
+  baselineText: string;
+  draftText: string;
+  mtimeMs: number | null;
+  loading: boolean;
+  saving: boolean;
+  error: string | null;
+  savedHint: string | null;
+};
 
 export type ExtensionsTabId =
   | "plugins"
@@ -83,6 +104,7 @@ export function ExtensionsPanel({
 }: ExtensionsPanelProps) {
   const tr = useMemo(() => createT(locale), [locale]);
   const [skills, setSkills] = useState<api.SkillDto[]>([]);
+  const [skillRoots, setSkillRoots] = useState<string[]>([]);
   const [servers, setServers] = useState<api.McpDto[]>([]);
   const [plugins, setPlugins] = useState<api.PluginDto[]>([]);
   const [skillsError, setSkillsError] = useState<string | null>(null);
@@ -108,6 +130,11 @@ export function ExtensionsPanel({
   /** Grok Build Plugins tab filter: all | enabled | disabled */
   const [pluginFilter, setPluginFilter] = useState<PluginFilter>("all");
   const [installSource, setInstallSource] = useState("");
+  /** In-app SKILL.md light editor (Settings → Extensions → Skills). */
+  const [skillEditor, setSkillEditor] = useState<SkillEditorState | null>(null);
+  const [skillDiscardOpen, setSkillDiscardOpen] = useState(false);
+  const [skillConflictOpen, setSkillConflictOpen] = useState(false);
+  const skillEditorSeq = useRef(0);
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState("");
   const [addCommand, setAddCommand] = useState("");
@@ -138,6 +165,7 @@ export function ExtensionsPanel({
   const refresh = useCallback(async () => {
     if (!api.isTauri()) {
       setSkills([]);
+      setSkillRoots([]);
       setServers([]);
       setPlugins([]);
       setSkillsError(tr("ext.needTauri"));
@@ -155,6 +183,7 @@ export function ExtensionsPanel({
     const [skillsRes, mcpRes, pluginsRes, providersRes] = await Promise.all([
       api.skillsList(cwd).catch((e) => ({
         skills: [] as api.SkillDto[],
+        skillRoots: [] as string[],
         error: String(e),
       })),
       api.inspectMcp(cwd).catch((e) => ({
@@ -168,6 +197,11 @@ export function ExtensionsPanel({
       api.providersList().catch(() => null),
     ]);
     setSkills(sortSkillsByName(skillsRes.skills ?? []));
+    setSkillRoots(
+      Array.isArray(skillsRes.skillRoots)
+        ? skillsRes.skillRoots.filter((r) => typeof r === "string" && r.trim())
+        : [],
+    );
     setServers(sortMcpByName(mcpRes.servers ?? []));
     setPlugins(sortPluginsByName(pluginsRes.plugins ?? []));
     setSkillsError(skillsRes.error?.trim() ? skillsRes.error : null);
@@ -286,6 +320,149 @@ export function ExtensionsPanel({
       setBusyKey(null);
     }
   };
+
+  const skillEditorDirty = isResourceDraftDirty(
+    skillEditor?.draftText,
+    skillEditor?.baselineText,
+  );
+
+  const closeSkillEditor = useCallback(() => {
+    skillEditorSeq.current += 1;
+    setSkillEditor(null);
+    setSkillDiscardOpen(false);
+    setSkillConflictOpen(false);
+  }, []);
+
+  const requestCloseSkillEditor = useCallback(() => {
+    if (skillEditor?.saving) return;
+    if (skillEditorDirty) {
+      setSkillDiscardOpen(true);
+      return;
+    }
+    closeSkillEditor();
+  }, [closeSkillEditor, skillEditor?.saving, skillEditorDirty]);
+
+  const openSkillEditor = useCallback(
+    async (skill: api.SkillDto) => {
+      if (!api.isTauri()) {
+        setPathHint(tr("ext.needTauri"));
+        return;
+      }
+      if (!isSkillEditable(skill, skillRoots)) return;
+      const mdPath = resolveSkillMdPath(skill.path) ?? skill.path?.trim() ?? "";
+      if (!mdPath) return;
+      const seq = ++skillEditorSeq.current;
+      setSkillDiscardOpen(false);
+      setSkillConflictOpen(false);
+      setSkillEditor({
+        skill,
+        path: mdPath,
+        baselineText: "",
+        draftText: "",
+        mtimeMs: null,
+        loading: true,
+        saving: false,
+        error: null,
+        savedHint: null,
+      });
+      try {
+        const res = await api.skillRead(mdPath, projectPath);
+        if (seq !== skillEditorSeq.current) return;
+        setSkillEditor({
+          skill,
+          path: res.path || mdPath,
+          baselineText: res.content ?? "",
+          draftText: res.content ?? "",
+          mtimeMs:
+            typeof res.mtimeMs === "number" && Number.isFinite(res.mtimeMs)
+              ? res.mtimeMs
+              : null,
+          loading: false,
+          saving: false,
+          error: null,
+          savedHint: null,
+        });
+      } catch (e) {
+        if (seq !== skillEditorSeq.current) return;
+        setSkillEditor({
+          skill,
+          path: mdPath,
+          baselineText: "",
+          draftText: "",
+          mtimeMs: null,
+          loading: false,
+          saving: false,
+          error: String(e) || tr("ext.skills.editLoadError"),
+          savedHint: null,
+        });
+      }
+    },
+    [projectPath, skillRoots, tr],
+  );
+
+  const saveSkillEditor = useCallback(
+    async (opts?: { force?: boolean }) => {
+      if (!skillEditor || skillEditor.loading || skillEditor.saving) return;
+      if (!api.isTauri()) {
+        setSkillEditor((s) =>
+          s ? { ...s, error: tr("ext.needTauri") } : s,
+        );
+        return;
+      }
+      if (
+        !isResourceDraftDirty(skillEditor.draftText, skillEditor.baselineText) &&
+        !opts?.force
+      ) {
+        return;
+      }
+      setSkillEditor((s) =>
+        s ? { ...s, saving: true, error: null, savedHint: null } : s,
+      );
+      try {
+        const expected = opts?.force ? null : skillEditor.mtimeMs;
+        const w = await api.skillWrite(
+          skillEditor.path,
+          skillEditor.draftText,
+          expected,
+          projectPath,
+        );
+        const saved = skillEditor.draftText;
+        setSkillEditor((s) =>
+          s
+            ? {
+                ...s,
+                saving: false,
+                baselineText: saved,
+                draftText: saved,
+                mtimeMs: w.mtimeMs,
+                path: w.path || s.path,
+                error: null,
+                savedHint: tr("ext.skills.editSaved"),
+              }
+            : s,
+        );
+        // Reload Extensions list + composer skills picker.
+        await refresh();
+        onSkillsPrefsChanged?.();
+      } catch (e) {
+        if (isFsWriteConflict(e)) {
+          setSkillEditor((s) => (s ? { ...s, saving: false } : s));
+          setSkillConflictOpen(true);
+          return;
+        }
+        setSkillEditor((s) =>
+          s
+            ? {
+                ...s,
+                saving: false,
+                error: String(e) || tr("ext.skills.editSaveError"),
+              }
+            : s,
+        );
+      }
+    },
+    [onSkillsPrefsChanged, projectPath, refresh, skillEditor, tr],
+  );
 
   const runPluginAction = async (
     key: string,
@@ -881,6 +1058,7 @@ export function ExtensionsPanel({
             {skills.map((s) => {
               const tone = skillSourceTone(s.source);
               const on = isExtensionEnabled(s.enabled);
+              const editable = isSkillEditable(s, skillRoots);
               return (
                 <li
                   key={`${s.source}:${s.name}:${s.path ?? ""}`}
@@ -920,6 +1098,19 @@ export function ExtensionsPanel({
                       </button>
                     ) : null}
                   </div>
+                  {editable ? (
+                    <div className="ext-item__actions">
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        disabled={!!busyKey || !!skillEditor}
+                        onClick={() => void openSkillEditor(s)}
+                      >
+                        <IconEdit size={13} />
+                        <span>{tr("ext.skills.edit")}</span>
+                      </button>
+                    </div>
+                  ) : null}
                 </li>
               );
             })}
@@ -1560,6 +1751,169 @@ export function ExtensionsPanel({
           <li>{tr("ext.mcp.auth.stepDoctor")}</li>
         </ol>
         <p className="ext-field-hint">{tr("ext.mcp.auth.noAutoRefresh")}</p>
+      </GlassModal>
+
+      <GlassModal
+        open={!!skillEditor}
+        onClose={requestCloseSkillEditor}
+        title={
+          skillEditor
+            ? tr("ext.skills.editTitle", { name: skillEditor.skill.name })
+            : tr("ext.skills.edit")
+        }
+        size="lg"
+        closeLabel={tr("common.close")}
+        closeOnOverlay={!skillEditor?.saving}
+        wrapBody
+        bodyClassName="ext-skill-editor"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={!!skillEditor?.saving}
+              onClick={requestCloseSkillEditor}
+            >
+              {tr("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--solid"
+              disabled={
+                !skillEditor ||
+                skillEditor.loading ||
+                skillEditor.saving ||
+                !!skillEditor.error ||
+                !skillEditorDirty
+              }
+              onClick={() => void saveSkillEditor()}
+            >
+              {skillEditor?.saving
+                ? tr("ext.skills.editSaving")
+                : tr("common.save")}
+            </button>
+          </>
+        }
+      >
+        {skillEditor ? (
+          <>
+            {!isExtensionEnabled(skillEditor.skill.enabled) ? (
+              <p className="ext-skill-editor__note" role="status">
+                {tr("ext.skills.editDisabledNote")}
+              </p>
+            ) : null}
+            {skillEditor.path ? (
+              <p className="ext-skill-editor__path" title={skillEditor.path}>
+                {shortPathLabel(skillEditor.path, 72) || skillEditor.path}
+              </p>
+            ) : null}
+            {skillEditor.loading ? (
+              <p className="ext-empty">{tr("ext.skills.editLoading")}</p>
+            ) : skillEditor.error && !skillEditor.baselineText ? (
+              <p className="ext-alert ext-alert--error" role="alert">
+                <span className="ext-alert__body">{skillEditor.error}</span>
+              </p>
+            ) : (
+              <textarea
+                className="ext-skill-editor__textarea"
+                value={skillEditor.draftText}
+                onChange={(e) =>
+                  setSkillEditor((s) =>
+                    s
+                      ? {
+                          ...s,
+                          draftText: e.target.value,
+                          savedHint: null,
+                          error: null,
+                        }
+                      : s,
+                  )
+                }
+                spellCheck={false}
+                disabled={skillEditor.saving}
+                aria-label={tr("ext.skills.editAria", {
+                  name: skillEditor.skill.name,
+                })}
+                rows={18}
+              />
+            )}
+            {skillEditor.error && skillEditor.baselineText ? (
+              <p className="ext-skill-editor__error" role="alert">
+                {skillEditor.error}
+              </p>
+            ) : null}
+            {skillEditor.savedHint ? (
+              <p className="ext-skill-editor__saved" role="status">
+                {skillEditor.savedHint}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+      </GlassModal>
+
+      <GlassModal
+        open={skillDiscardOpen}
+        onClose={() => setSkillDiscardOpen(false)}
+        title={tr("ext.skills.editDiscardTitle")}
+        size="sm"
+        closeLabel={tr("common.close")}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setSkillDiscardOpen(false)}
+            >
+              {tr("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--danger"
+              onClick={() => {
+                setSkillDiscardOpen(false);
+                closeSkillEditor();
+              }}
+            >
+              {tr("ext.skills.editDiscard")}
+            </button>
+          </>
+        }
+      >
+        <p className="app-dialog__msg">{tr("ext.skills.editDiscardBody")}</p>
+      </GlassModal>
+
+      <GlassModal
+        open={skillConflictOpen}
+        onClose={() => setSkillConflictOpen(false)}
+        title={tr("ext.skills.editConflictTitle")}
+        size="sm"
+        closeLabel={tr("common.close")}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => {
+                setSkillConflictOpen(false);
+                if (skillEditor) void openSkillEditor(skillEditor.skill);
+              }}
+            >
+              {tr("ext.skills.editConflictReload")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--solid"
+              onClick={() => {
+                setSkillConflictOpen(false);
+                void saveSkillEditor({ force: true });
+              }}
+            >
+              {tr("ext.skills.editConflictOverwrite")}
+            </button>
+          </>
+        }
+      >
+        <p className="app-dialog__msg">{tr("ext.skills.editConflictBody")}</p>
       </GlassModal>
     </div>
   );

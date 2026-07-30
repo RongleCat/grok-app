@@ -1114,7 +1114,16 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     tab: "skills",
     anchorId: "settings-anchor-ext-skills",
     labelKey: "ext.skills.title",
-    keywords: ["skill", "skills", "slash"],
+    descKeys: ["ext.skills.edit", "ext.skills.editDisabledNote"],
+    keywords: [
+      "skill",
+      "skills",
+      "slash",
+      "SKILL.md",
+      "edit skill",
+      "技能",
+      "编辑技能",
+    ],
   },
   {
     id: "ext.mcp",
