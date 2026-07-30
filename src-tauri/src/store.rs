@@ -98,6 +98,10 @@ pub struct Project {
     pub mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permission_policy: Option<String>,
+    /// Per-project OS sandbox profile override (`off` / `workspace` / …).
+    /// `None` → use app Settings `sandboxProfile`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox_profile: Option<String>,
 }
 
 impl Project {
@@ -636,6 +640,7 @@ pub fn add_project(path: String, trust: bool) -> Result<Project, String> {
         effort: None,
         mode: None,
         permission_policy: None,
+        sandbox_profile: None,
     };
     list.push(p.clone());
     save_projects(&list)?;
@@ -753,6 +758,79 @@ pub fn set_project_permission_policy(
         }
     };
     p.permission_policy = next;
+    let clone = p.clone();
+    save_projects(&list)?;
+    Ok(clone)
+}
+
+/// Known OS sandbox profiles (align with `SandboxSpawnSpec` / frontend helper).
+pub const SANDBOX_PROFILES: &[&str] = &["off", "workspace", "read-only", "strict", "devbox"];
+
+/// Normalize a sandbox profile string. Empty / inherit → `None`.
+/// Unknown values → `None` (caller may fall back to default).
+pub fn normalize_sandbox_profile(raw: &str) -> Option<String> {
+    let t = raw.trim().to_ascii_lowercase();
+    if t.is_empty()
+        || t == "inherit"
+        || t == "app_default"
+        || t == "app-default"
+        || t == "default"
+        || t == "none"
+    {
+        return None;
+    }
+    if SANDBOX_PROFILES.iter().any(|p| *p == t) {
+        Some(t)
+    } else {
+        None
+    }
+}
+
+/// Effective sandbox for spawn: project override (when set) wins over global.
+pub fn resolve_sandbox_profile(global: &str, project_override: Option<&str>) -> String {
+    if let Some(raw) = project_override {
+        if let Some(p) = normalize_sandbox_profile(raw) {
+            return p;
+        }
+    }
+    normalize_sandbox_profile(global).unwrap_or_else(default_sandbox_profile)
+}
+
+/// Set or clear a project-level OS sandbox profile.
+///
+/// `profile = None` / empty / `"inherit"` clears the override so Settings apply.
+/// Requires a trusted project (same gate as permission tier).
+pub fn set_project_sandbox_profile(
+    id: &str,
+    profile: Option<String>,
+) -> Result<Project, String> {
+    let mut list = load_projects();
+    let p = list
+        .iter_mut()
+        .find(|p| p.id == id)
+        .ok_or_else(|| "project not found".to_string())?;
+    if !p.trusted {
+        return Err("trust this project before setting a sandbox profile".into());
+    }
+
+    let next = match profile {
+        None => None,
+        Some(raw) => {
+            let t = raw.trim();
+            if t.is_empty()
+                || t.eq_ignore_ascii_case("inherit")
+                || t.eq_ignore_ascii_case("app_default")
+                || t.eq_ignore_ascii_case("default")
+            {
+                None
+            } else {
+                Some(normalize_sandbox_profile(t).ok_or_else(|| {
+                    format!("unknown sandbox profile: {t}")
+                })?)
+            }
+        }
+    };
+    p.sandbox_profile = next;
     let clone = p.clone();
     save_projects(&list)?;
     Ok(clone)
@@ -1652,6 +1730,34 @@ mod tests {
     }
 
     #[test]
+    fn resolve_sandbox_profile_prefers_project_override() {
+        assert_eq!(
+            resolve_sandbox_profile("workspace", Some("strict")),
+            "strict"
+        );
+        assert_eq!(
+            resolve_sandbox_profile("strict", Some("off")),
+            "off"
+        );
+        assert_eq!(
+            resolve_sandbox_profile("workspace", Some("inherit")),
+            "workspace"
+        );
+        assert_eq!(
+            resolve_sandbox_profile("workspace", None),
+            "workspace"
+        );
+        assert_eq!(
+            resolve_sandbox_profile("bogus", Some("")),
+            "off"
+        );
+        assert_eq!(
+            resolve_sandbox_profile("  WorkSpace  ", Some("  DEVBOX  ")),
+            "devbox"
+        );
+    }
+
+    #[test]
     fn sandbox_profile_defaults_when_missing_from_json() {
         let s: AppSettings = serde_json::from_str(legacy_settings_json()).expect("deserialize");
         assert_eq!(s.sandbox_profile, "off");
@@ -1798,6 +1904,7 @@ mod tests {
             effort: None,
             mode: None,
             permission_policy: None,
+            sandbox_profile: None,
         });
         write_json(&projects_file(), &projects).expect("seed projects");
         let mut sessions: Vec<SessionMeta> = read_json_recover(&sessions_index_file());

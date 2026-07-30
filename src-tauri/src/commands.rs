@@ -370,6 +370,24 @@ pub async fn project_set_permission_policy(
     Ok(p)
 }
 
+/// Set or clear the project-level OS sandbox profile.
+/// `profile = null` / empty / `"inherit"` → fall back to app Settings.
+/// When this project is the live Host context, soft-respawn so the flag applies.
+#[tauri::command]
+pub async fn project_set_sandbox_profile(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    id: String,
+    profile: Option<String>,
+) -> Result<Project, String> {
+    let p = store::set_project_sandbox_profile(&id, profile)?;
+    let (live_proj, _) = mgr.current_context_ids();
+    if live_proj.as_deref() == Some(id.as_str()) {
+        mgr.soft_respawn_with_reason(&app, "project_sandbox").await;
+    }
+    Ok(p)
+}
+
 #[tauri::command]
 pub async fn project_rename(id: String, name: String) -> Result<Project, String> {
     store::rename_project(&id, &name)

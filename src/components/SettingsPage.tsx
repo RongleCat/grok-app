@@ -1826,6 +1826,21 @@ export function SettingsPage({
                       },
                     ]}
                   />
+                  <div className="settings-row__desc" style={{ marginTop: 8 }}>
+                    {(() => {
+                      const helpByProfile: Record<string, string> = {
+                        off: "settings.sandbox.off.help",
+                        workspace: "settings.sandbox.workspace.help",
+                        "read-only": "settings.sandbox.readOnly.help",
+                        strict: "settings.sandbox.strict.help",
+                        devbox: "settings.sandbox.devbox.help",
+                      };
+                      return t(
+                        helpByProfile[sandboxProfile || "off"] ??
+                          "settings.sandbox.off.help",
+                      );
+                    })()}
+                  </div>
                 </div>
               ) : null}
               {onPermissionTimeoutSec ? (

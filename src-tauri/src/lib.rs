@@ -266,6 +266,7 @@ pub fn run() {
             commands::project_relocate,
             commands::project_trust,
             commands::project_set_permission_policy,
+            commands::project_set_sandbox_profile,
             commands::project_rename,
             commands::project_set_pinned,
             commands::project_reveal,

@@ -90,6 +90,10 @@ const en = {
   "project.permissionInherit": "Use app default",
   "project.permissionSet": '"{name}" permission: {policy}',
   "project.permissionCleared": '"{name}" uses app permission default',
+  "project.sandbox": "Sandbox profile",
+  "project.sandboxInherit": "Use app default",
+  "project.sandboxSet": '"{name}" sandbox: {profile}',
+  "project.sandboxCleared": '"{name}" uses app sandbox default',
   "project.rules": "Project rules",
 
   "session.pin": "Pin chat",
@@ -888,12 +892,27 @@ const en = {
   "settings.permissionTimeout.300": "5 minutes",
   "settings.sandboxProfile": "Sandbox profile",
   "settings.sandboxProfileDesc":
-    "OS-level filesystem/network isolation for the agent process (Landlock/Seatbelt). Applied when a new agent starts — reconnect the session after changing.",
+    "OS-level filesystem/network isolation for the agent process (Landlock/Seatbelt). Applied when a new agent starts — reconnect the session after changing. Projects can override this from the project menu.",
   "settings.sandbox.off": "Off — unrestricted",
   "settings.sandbox.workspace": "Workspace — write CWD + temp only",
   "settings.sandbox.readOnly": "Read-only — no project writes",
   "settings.sandbox.strict": "Strict — CWD only, block child network",
   "settings.sandbox.devbox": "Devbox — disposable VM layout",
+  "settings.sandbox.off.help":
+    "No OS sandbox flags. The agent process can read/write the filesystem and use the network freely (still subject to in-app permission prompts). Use only on trusted machines and codebases.",
+  "settings.sandbox.workspace.help":
+    "Write access limited to the session working directory and system temp. Broader reads and network are typically allowed. Recommended default for day-to-day coding.",
+  "settings.sandbox.readOnly.help":
+    "Blocks writes into the project/workspace. Useful for review-only sessions or untrusted trees. Temp may still be writable depending on the platform.",
+  "settings.sandbox.strict.help":
+    "Tightest local isolation: agent is confined to the current working directory more strictly, and child-process network is blocked where the OS supports it.",
+  "settings.sandbox.devbox.help":
+    "Disposable development-box layout with relaxed isolation (closer to a throwaway VM profile). Treat as elevated trust — not a hard security boundary.",
+  "settings.sandbox.dangerConfirmOff":
+    "Turn off the OS sandbox? The agent process will have unrestricted filesystem and network access (subject only to permission prompts).",
+  "settings.sandbox.dangerConfirmDevbox":
+    "Enable Devbox sandbox? This is a relaxed disposable layout with reduced isolation. Continue only if you trust this environment.",
+  "settings.sandbox.dangerConfirmTitle": "Confirm sandbox change",
   "settings.disableWebSearch": "Disable web search & fetch",
   "settings.disableWebSearchDesc":
     "Spawn agents with --disable-web-search so web_search and web_fetch tools are unavailable. Live agents soft-respawn when this changes.",
@@ -2513,6 +2532,10 @@ const zh: Record<MessageKey, string> = {
   "project.permissionInherit": "使用应用默认",
   "project.permissionSet": "「{name}」权限：{policy}",
   "project.permissionCleared": "「{name}」已恢复应用默认权限",
+  "project.sandbox": "沙箱配置",
+  "project.sandboxInherit": "使用应用默认",
+  "project.sandboxSet": "「{name}」沙箱：{profile}",
+  "project.sandboxCleared": "「{name}」已恢复应用默认沙箱",
   "project.rules": "项目规则",
 
   "session.pin": "置顶会话",
@@ -3280,12 +3303,27 @@ const zh: Record<MessageKey, string> = {
   "settings.permissionTimeout.300": "5 分钟",
   "settings.sandboxProfile": "沙箱配置",
   "settings.sandboxProfileDesc":
-    "对 Agent 进程施加操作系统级文件系统/网络隔离（Linux Landlock / macOS Seatbelt）。在新启动 Agent 时生效——更改后请重连会话。",
+    "对 Agent 进程施加操作系统级文件系统/网络隔离（Linux Landlock / macOS Seatbelt）。在新启动 Agent 时生效——更改后请重连会话。可在项目菜单中为单个项目覆盖。",
   "settings.sandbox.off": "关闭 — 无限制",
   "settings.sandbox.workspace": "工作区 — 仅可写 CWD 与临时目录",
   "settings.sandbox.readOnly": "只读 — 不可写项目文件",
   "settings.sandbox.strict": "严格 — 仅限 CWD，阻止子进程网络",
   "settings.sandbox.devbox": "Devbox — 一次性开发机布局",
+  "settings.sandbox.off.help":
+    "不启用 OS 沙箱标志。Agent 进程可自由读写文件系统与使用网络（仍受应用内权限弹窗约束）。仅建议在可信机器与代码库使用。",
+  "settings.sandbox.workspace.help":
+    "写入范围限制为会话工作目录与系统临时目录；读取与网络通常仍可用。日常编程推荐默认。",
+  "settings.sandbox.readOnly.help":
+    "禁止写入项目/工作区。适合只读审查或不可信仓库。临时目录是否可写取决于平台。",
+  "settings.sandbox.strict.help":
+    "本地隔离最严格：更紧地限制在当前工作目录，并在系统支持时阻止子进程网络访问。",
+  "settings.sandbox.devbox.help":
+    "一次性开发机布局，隔离较松（接近可丢弃的虚拟机配置）。视为高信任场景，不是硬安全边界。",
+  "settings.sandbox.dangerConfirmOff":
+    "关闭 OS 沙箱？Agent 进程将拥有不受限制的文件系统与网络访问（仅受权限弹窗约束）。",
+  "settings.sandbox.dangerConfirmDevbox":
+    "启用 Devbox 沙箱？这是隔离较弱的一次性布局。仅在信任当前环境时继续。",
+  "settings.sandbox.dangerConfirmTitle": "确认沙箱变更",
   "settings.disableWebSearch": "禁用网页搜索与抓取",
   "settings.disableWebSearchDesc":
     "启动 Agent 时加上 --disable-web-search，移除 web_search / web_fetch 工具。更改后会 soft-respawn 已连接的 Agent。",

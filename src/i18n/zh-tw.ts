@@ -81,6 +81,10 @@ export const zhTW: Record<MessageKey, string> = {
   "project.permissionInherit": "使用應用程式預設",
   "project.permissionSet": "「{name}」權限：{policy}",
   "project.permissionCleared": "「{name}」已恢復應用程式預設權限",
+  "project.sandbox": "沙箱設定檔",
+  "project.sandboxInherit": "使用應用程式預設",
+  "project.sandboxSet": "「{name}」沙箱：{profile}",
+  "project.sandboxCleared": "「{name}」已恢復應用程式預設沙箱",
   "project.rules": "專案規則",
 
   "session.pin": "置頂對話",
@@ -848,12 +852,27 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.permissionTimeout.300": "5 分鐘",
   "settings.sandboxProfile": "沙箱設定檔",
   "settings.sandboxProfileDesc":
-    "對 Agent 行程施加作業系統級檔案系統/網路隔離（Linux Landlock / macOS Seatbelt）。在新啟動 Agent 時生效——變更後請重新連線工作階段。",
+    "對 Agent 行程施加作業系統級檔案系統/網路隔離（Linux Landlock / macOS Seatbelt）。在新啟動 Agent 時生效——變更後請重新連線工作階段。可在專案選單中為單一專案覆寫。",
   "settings.sandbox.off": "關閉 — 無限制",
   "settings.sandbox.workspace": "工作區 — 僅可寫 CWD 與暫存目錄",
   "settings.sandbox.readOnly": "唯讀 — 不可寫專案檔案",
   "settings.sandbox.strict": "嚴格 — 僅限 CWD，封鎖子行程網路",
   "settings.sandbox.devbox": "Devbox — 一次性開發機配置",
+  "settings.sandbox.off.help":
+    "不啟用 OS 沙箱旗標。Agent 行程可自由讀寫檔案系統與使用網路（仍受應用內權限彈窗約束）。僅建議在可信機器與程式庫使用。",
+  "settings.sandbox.workspace.help":
+    "寫入範圍限制為工作階段工作目錄與系統暫存目錄；讀取與網路通常仍可用。日常程式設計推薦預設。",
+  "settings.sandbox.readOnly.help":
+    "禁止寫入專案/工作區。適合唯讀審查或不可信儲存庫。暫存目錄是否可寫取決於平台。",
+  "settings.sandbox.strict.help":
+    "本機隔離最嚴格：更緊地限制在目前工作目錄，並在系統支援時封鎖子行程網路存取。",
+  "settings.sandbox.devbox.help":
+    "一次性開發機配置，隔離較鬆（接近可丟棄的虛擬機設定）。視為高信任情境，不是硬性安全邊界。",
+  "settings.sandbox.dangerConfirmOff":
+    "關閉 OS 沙箱？Agent 行程將擁有不受限制的檔案系統與網路存取（僅受權限彈窗約束）。",
+  "settings.sandbox.dangerConfirmDevbox":
+    "啟用 Devbox 沙箱？這是隔離較弱的一次性配置。僅在信任目前環境時繼續。",
+  "settings.sandbox.dangerConfirmTitle": "確認沙箱變更",
   "settings.disableWebSearch": "停用網頁搜尋與抓取",
   "settings.disableWebSearchDesc":
     "啟動 Agent 時加上 --disable-web-search，移除 web_search / web_fetch 工具。變更後會 soft-respawn 已連線的 Agent。",

@@ -178,6 +178,12 @@ import {
   stoppableActivitySessions,
 } from "@/lib/agentActivity";
 import * as api from "@/lib/api";
+import {
+  SANDBOX_PROFILES,
+  isDangerousSandboxProfile,
+  normalizeSandboxProfile,
+  type SandboxProfileId,
+} from "@/lib/sandboxProfile";
 import { shouldRestoreLastSession } from "@/lib/sessionRestore";
 import {
   collapsedIdsFromExpandMap,
@@ -597,6 +603,8 @@ interface Project {
   system?: boolean;
   /** Project-level permission tier (L10). Null/undefined → app default. */
   permissionPolicy?: string | null;
+  /** Project-level OS sandbox profile. Null/undefined → app Settings. */
+  sandboxProfile?: string | null;
 }
 
 /** Retired sidebar project id — sessions rehomed to orphan ("其他会话"). */
@@ -651,6 +659,7 @@ interface SessionRow {
 type ContextMenuState =
   | { kind: "project"; id: string; x: number; y: number }
   | { kind: "project-policy"; id: string; x: number; y: number }
+  | { kind: "project-sandbox"; id: string; x: number; y: number }
   | { kind: "session"; id: string; x: number; y: number }
   | null;
 
@@ -5163,6 +5172,118 @@ export default function App() {
     }
 
     void commit();
+  };
+
+  const sandboxProfileLabel = (id: SandboxProfileId) =>
+    tr(
+      (
+        {
+          off: "settings.sandbox.off",
+          workspace: "settings.sandbox.workspace",
+          "read-only": "settings.sandbox.readOnly",
+          strict: "settings.sandbox.strict",
+          devbox: "settings.sandbox.devbox",
+        } as const
+      )[id],
+    );
+
+  /**
+   * Apply a project-level OS sandbox profile.
+   * `null` clears the override so app Settings apply.
+   * Switching to off/devbox requires the same danger confirm as Settings.
+   */
+  const applyProjectSandboxProfile = (
+    proj: Project,
+    next: SandboxProfileId | null,
+  ) => {
+    setCtxMenu(null);
+
+    const commit = async () => {
+      try {
+        const updated = (await api.projectSetSandboxProfile(
+          proj.id,
+          next,
+        )) as Project;
+        await refreshProjects();
+        if (activeProject?.id === proj.id) {
+          setActiveProject((p) =>
+            p
+              ? {
+                  ...p,
+                  sandboxProfile: updated.sandboxProfile ?? null,
+                }
+              : p,
+          );
+        }
+        const msg = next
+          ? tr("project.sandboxSet", {
+              name: proj.name,
+              profile: sandboxProfileLabel(next),
+            })
+          : tr("project.sandboxCleared", { name: proj.name });
+        setToast(msg);
+        window.setTimeout(() => setToast((cur) => (cur === msg ? null : cur)), 2800);
+      } catch (e) {
+        setLocalError(String(e));
+      }
+    };
+
+    if (next && isDangerousSandboxProfile(next)) {
+      setAppDialog({
+        kind: "confirm",
+        title: tr("settings.sandbox.dangerConfirmTitle"),
+        message:
+          next === "devbox"
+            ? tr("settings.sandbox.dangerConfirmDevbox")
+            : tr("settings.sandbox.dangerConfirmOff"),
+        confirmLabel: tr("common.confirm"),
+        danger: true,
+        onConfirm: () => {
+          void commit();
+        },
+      });
+      return;
+    }
+
+    void commit();
+  };
+
+  /** Persist global sandbox Settings; confirm when switching to off/devbox. */
+  const applyGlobalSandboxProfile = (nextRaw: string) => {
+    const next =
+      normalizeSandboxProfile(nextRaw) ?? ("off" as SandboxProfileId);
+    const prev = sandboxProfile;
+    if (next === prev) return;
+
+    const commit = () => {
+      setSandboxProfile(next);
+      void api
+        .settingsGet()
+        .then((s) => api.settingsSet({ ...s, sandboxProfile: next }))
+        .catch((e) => {
+          setSandboxProfile(prev);
+          showToast(String(e), 4500);
+        });
+    };
+
+    if (isDangerousSandboxProfile(next) && next !== prev) {
+      setAppDialog({
+        kind: "confirm",
+        title: tr("settings.sandbox.dangerConfirmTitle"),
+        message:
+          next === "devbox"
+            ? tr("settings.sandbox.dangerConfirmDevbox")
+            : tr("settings.sandbox.dangerConfirmOff"),
+        confirmLabel: tr("common.confirm"),
+        danger: true,
+        onConfirm: () => {
+          commit();
+        },
+      });
+      return;
+    }
+
+    commit();
   };
 
   /** Remove project from app list only (disk folder + chats kept). */
@@ -10825,10 +10946,7 @@ export default function App() {
           }}
           sandboxProfile={sandboxProfile}
           onSandboxProfile={(v) => {
-            setSandboxProfile(v);
-            void api.settingsGet().then((s) =>
-              api.settingsSet({ ...s, sandboxProfile: v }),
-            );
+            applyGlobalSandboxProfile(v);
           }}
           preferredAgent={preferredAgent}
           onPreferredAgent={(v) => {
@@ -14879,6 +14997,19 @@ export default function App() {
                         });
                       },
                     } satisfies ContextMenuItem,
+                    {
+                      id: "sandbox",
+                      label: tr("project.sandbox"),
+                      icon: <IconShield size={16} />,
+                      onClick: () => {
+                        setCtxMenu({
+                          kind: "project-sandbox",
+                          id: proj.id,
+                          x: ctxMenu.x,
+                          y: ctxMenu.y,
+                        });
+                      },
+                    } satisfies ContextMenuItem,
                   ]
                 : []),
               {
@@ -14934,6 +15065,30 @@ export default function App() {
                       current === p.id ? <IconCheck size={16} /> : undefined,
                     danger: !!p.dangerous,
                     onClick: () => applyProjectPermissionPolicy(proj, p.id),
+                  }) satisfies ContextMenuItem,
+              ),
+            ];
+          }
+        } else if (ctxMenu?.kind === "project-sandbox") {
+          const proj = projects.find((p) => p.id === ctxMenu.id);
+          if (proj && proj.trusted) {
+            const current =
+              normalizeSandboxProfile(proj.sandboxProfile) ?? null;
+            items = [
+              {
+                id: "sandbox-inherit",
+                label: tr("project.sandboxInherit"),
+                icon: !current ? <IconCheck size={16} /> : undefined,
+                onClick: () => applyProjectSandboxProfile(proj, null),
+              },
+              ...SANDBOX_PROFILES.map(
+                (id) =>
+                  ({
+                    id: `sandbox-${id}`,
+                    label: sandboxProfileLabel(id),
+                    icon: current === id ? <IconCheck size={16} /> : undefined,
+                    danger: isDangerousSandboxProfile(id),
+                    onClick: () => applyProjectSandboxProfile(proj, id),
                   }) satisfies ContextMenuItem,
               ),
             ];

@@ -228,6 +228,9 @@ pub struct SpawnOptions {
     pub effort: Option<String>,
     /// App permission policy id (ask / accept_edits / …).
     pub permission_policy: Option<String>,
+    /// Effective OS sandbox profile (`off` / `workspace` / …).
+    /// When set, overrides `AppSettings.sandbox_profile` for this spawn.
+    pub sandbox_profile: Option<String>,
 }
 
 /// Map App policy → CLI `--permission-mode` value.
@@ -465,7 +468,14 @@ impl AcpClient {
         // `--sandbox` is top-level only (not accepted by `grok agent` / `stdio`);
         // also set GROK_SANDBOX so nested tools inherit the same profile.
         let settings = crate::store::load_settings();
-        let sandbox = SandboxSpawnSpec::from_setting(&settings.sandbox_profile);
+        // Project override (via SpawnOptions) wins over global Settings.
+        let sandbox_raw = opts
+            .sandbox_profile
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or(settings.sandbox_profile.as_str());
+        let sandbox = SandboxSpawnSpec::from_setting(sandbox_raw);
         let max_turns = MaxTurnsSpawnSpec::from_setting(settings.max_agent_turns);
         let preferred_agent = AgentSpawnSpec::from_setting(&settings.preferred_agent);
         let subagents_enabled = settings.subagents_enabled;

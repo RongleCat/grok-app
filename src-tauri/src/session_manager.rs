@@ -2764,10 +2764,22 @@ impl SessionManager {
         }
 
         let cli_path = std::path::PathBuf::from(probe.path.unwrap());
+        // Effective sandbox: project override > app Settings (affects --sandbox / GROK_SANDBOX).
+        let project_sandbox = meta.project_id.as_deref().and_then(|pid| {
+            store::load_projects()
+                .into_iter()
+                .find(|p| p.id == pid)
+                .and_then(|p| p.sandbox_profile)
+        });
+        let effective_sandbox = store::resolve_sandbox_profile(
+            &settings.sandbox_profile,
+            project_sandbox.as_deref(),
+        );
         let spawn_opts = crate::acp_client::SpawnOptions {
             model_id: Some(agent_model.clone()),
             effort: Some(prefs.effort.clone()),
             permission_policy: Some(prefs.permission_policy.clone()),
+            sandbox_profile: Some(effective_sandbox),
         };
 
         let (client, mut events) = match AcpClient::spawn_with_options(cli_path, cwd, spawn_opts)

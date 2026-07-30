@@ -31,6 +31,8 @@ See `docs/llm-wiki/release.md`.
 - **Context usage chip**: fuller breakdown with System / Tools / History rows (estimated from journal when possible; agent-reported buckets preferred without `~`). User / assistant / thought remain estimated with honest `~`
 ### Added (中文)
 - **上下文用量芯片**：补充系统 / 工具 / 历史拆分（有信号时估算；Agent 上报时优先精确值、不加 `~`）
+- **Sandbox presets (productized)**: longer per-profile help in Settings → Permissions; in-app danger confirm when switching to **Off** or **Devbox**; optional **per-project sandbox override** (project context menu; Host spawn prefers project over global Settings via `resolveSandboxProfile`)
+- **沙箱预设产品化**：设置中各档位说明；切换到关闭/Devbox 需应用内确认；项目级沙箱覆盖（spawn 优先项目设置）
 
 ## [0.2.2] - 2026-07-30
 

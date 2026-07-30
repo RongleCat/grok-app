@@ -754,6 +754,21 @@ export async function projectSetPermissionPolicy(
   });
 }
 
+/**
+ * Set or clear a project-level OS sandbox profile.
+ * Pass `null` / `"inherit"` to fall back to app Settings.
+ * When the project is the live Host context, soft-respawns the agent.
+ */
+export async function projectSetSandboxProfile(
+  id: string,
+  profile: string | null,
+) {
+  return invoke("project_set_sandbox_profile", {
+    id,
+    profile,
+  });
+}
+
 /** Remove project from app list only (no disk / session wipe). */
 export async function projectRemove(id: string) {
   return invoke("project_remove", { id });
