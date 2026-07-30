@@ -18350,3 +18350,168 @@ html[data-theme="light"] .rim-sidebar {
   opacity: 0.7;
   line-height: 1.45;
 }
+
+/* —— Agent dashboard (cross-session status modal) —— */
+.agent-dash-modal {
+  width: min(640px, 100%);
+  max-height: min(78vh, 640px);
+}
+.agent-dash-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  max-height: min(56vh, 480px);
+}
+.agent-dash-modal__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  width: 100%;
+}
+.agent-dash__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.45;
+  flex-shrink: 0;
+}
+.agent-dash__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.agent-dash__search {
+  flex: 1;
+  min-width: 0;
+}
+.agent-dash__badge {
+  font-size: 11px;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+.agent-dash__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.agent-dash__row {
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: var(--bg-hover, rgba(127, 127, 127, 0.06));
+}
+.agent-dash__row.is-busy {
+  border-color: color-mix(in srgb, var(--accent, #5b8def) 28%, transparent);
+  background: color-mix(in srgb, var(--accent, #5b8def) 8%, transparent);
+}
+.agent-dash__row.is-current {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #5b8def) 35%, transparent);
+}
+.agent-dash__row-main {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.agent-dash__row-main:hover {
+  background: var(--hover-bg, rgba(127, 127, 127, 0.1));
+}
+.agent-dash__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+  background: var(--muted, #888);
+  flex-shrink: 0;
+}
+.agent-dash__dot--busy {
+  background: var(--accent, #5b8def);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #5b8def) 28%, transparent);
+}
+.agent-dash__dot--perm {
+  background: var(--warning, #d4a017);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning, #d4a017) 28%, transparent);
+}
+.agent-dash__dot--error {
+  background: var(--danger, #e35d5d);
+}
+.agent-dash__dot--idle {
+  background: var(--muted, #888);
+}
+.agent-dash__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.agent-dash__title-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.agent-dash__title {
+  font-size: 13px;
+  font-weight: 560;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+.agent-dash__current {
+  font-size: 11px;
+  opacity: 0.7;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.agent-dash__status {
+  font-size: 11px;
+  opacity: 0.75;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.agent-dash__meta,
+.agent-dash__cwd,
+.agent-dash__tool,
+.agent-dash__activity {
+  font-size: 11px;
+  opacity: 0.72;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agent-dash__cwd {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  opacity: 0.6;
+}
+.agent-dash__empty {
+  padding: 16px 4px 8px;
+}
+.agent-dash__empty-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.agent-dash__empty-hint {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.7;
+  line-height: 1.45;
+}

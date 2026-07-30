@@ -57,6 +57,21 @@ export function defaultPaletteActions(): PaletteActionDef[] {
       group: "navigate",
     },
     {
+      id: "open-agent-dashboard",
+      labelKey: "dashboard.open",
+      keywords: [
+        "dashboard",
+        "agent dashboard",
+        "sessions",
+        "multi session",
+        "busy sessions",
+        "stop all",
+        "activity monitor",
+        "cross session",
+      ],
+      group: "navigate",
+    },
+    {
       id: "doctor",
       labelKey: "doctor.title",
       keywords: ["doctor", "diagnostics", "health", "cli check", "troubleshoot"],

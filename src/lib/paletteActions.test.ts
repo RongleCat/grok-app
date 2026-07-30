@@ -15,6 +15,7 @@ describe("defaultPaletteActions", () => {
       "add-project",
       "open-automations",
       "open-tasks",
+      "open-agent-dashboard",
       "doctor",
       "shortcuts-help",
       "product-tutorial",

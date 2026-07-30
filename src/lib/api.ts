@@ -813,6 +813,8 @@ export async function sessionsList() {
       title: string;
       updatedAt: string;
       modelId: string | null;
+      /** Per-session reasoning effort when stored on meta. */
+      effort?: string | null;
       archived?: boolean;
       /** Pinned chats float to the top of the sidebar */
       pinned?: boolean;

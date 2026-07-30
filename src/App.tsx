@@ -173,10 +173,15 @@ import {
   type SessionPlanState,
 } from "@/lib/planSession";
 import { AgentTasksPanel } from "@/components/AgentTasksPanel";
+import { AgentDashboardModal } from "@/components/AgentDashboardModal";
 import {
   collectActivitySessions,
   stoppableActivitySessions,
 } from "@/lib/agentActivity";
+import {
+  collectAgentDashboardRows,
+  countBusyDashboardRows,
+} from "@/lib/agentDashboard";
 import * as api from "@/lib/api";
 import {
   SANDBOX_PROFILES,
@@ -476,6 +481,7 @@ import {
   IconShield,
   IconCheck,
   IconList,
+  IconActivity,
   IconFileText,
   IconSettings,
   IconDoctor,
@@ -570,6 +576,8 @@ function paletteActionIcon(id: string) {
       return <IconScheduled size={size} />;
     case "open-tasks":
       return <IconList size={size} />;
+    case "open-agent-dashboard":
+      return <IconActivity size={size} />;
     case "doctor":
       return <IconDoctor size={size} />;
     case "shortcuts-help":
@@ -652,6 +660,10 @@ interface SessionRow {
   title: string;
   projectId: string | null;
   updatedAt: string;
+  /** Last known model on session meta (from sessions_list). */
+  modelId?: string | null;
+  /** Last known effort on session meta when stored. */
+  effort?: string | null;
   archived?: boolean;
   /** Pinned chats float to the top of the sidebar */
   pinned?: boolean;
@@ -663,7 +675,7 @@ interface SessionRow {
   isWorktreeSession?: boolean;
 }
 
-/** Normalize sessions_list / create rows into sidebar SessionRow shape. */
+/** Normalize sessions_list / create rows into sidebar/dashboard SessionRow. */
 function normalizeSessionRow(
   x: Partial<SessionRow> & {
     id: string;
@@ -680,6 +692,8 @@ function normalizeSessionRow(
     title: x.title || "",
     projectId: normalizeProjectId(x.projectId),
     updatedAt: x.updatedAt || "",
+    modelId: x.modelId ?? null,
+    effort: x.effort ?? null,
     archived: !!x.archived,
     pinned: !!x.pinned,
     scheduled: !!x.scheduled,
@@ -687,6 +701,13 @@ function normalizeSessionRow(
     worktreeBranch,
     isWorktreeSession,
   };
+}
+
+/** Map host session index rows into sidebar/dashboard SessionRow. */
+function mapSessionListRow(
+  x: Parameters<typeof normalizeSessionRow>[0],
+): SessionRow {
+  return normalizeSessionRow(x);
 }
 
 type ContextMenuState =
@@ -1517,6 +1538,7 @@ export default function App() {
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const didRestoreLastRef = useRef(false);
   const [tasksPanelOpen, setTasksPanelOpen] = useState(false);
+  const [agentDashboardOpen, setAgentDashboardOpen] = useState(false);
   const [gitWorktrees, setGitWorktrees] = useState<api.GitWorktreeEntry[]>([]);
   /** null = unknown/loading; true = git work tree; false = not a git repo. */
   const [gitWorktreesAvailable, setGitWorktreesAvailable] = useState<
@@ -1955,9 +1977,9 @@ export default function App() {
         ]);
         setProjects(mapProjectsList(p as Project[]));
         setSessions(
-          (
-            s as Array<SessionRow & { archived?: boolean; scheduled?: boolean }>
-          ).map((x) => normalizeSessionRow(x)),
+          (s as Array<Parameters<typeof mapSessionListRow>[0]>).map(
+            mapSessionListRow,
+          ),
         );
         void api
           .generalWorkspacePath()
@@ -2021,15 +2043,9 @@ export default function App() {
       ]);
       setProjects(mapProjectsList(p as Project[]));
       setSessions(
-        (
-          s as Array<
-            SessionRow & {
-              archived?: boolean;
-              pinned?: boolean;
-              scheduled?: boolean;
-            }
-          >
-        ).map((x) => normalizeSessionRow(x)),
+        (s as Array<Parameters<typeof mapSessionListRow>[0]>).map(
+          mapSessionListRow,
+        ),
       );
       void api
         .generalWorkspacePath()
@@ -3597,9 +3613,7 @@ export default function App() {
                 try {
                   const list = await api.sessionsList();
                   if (cancelled) return;
-                  setSessions(
-                    list.map((s) => normalizeSessionRow(s)),
-                  );
+                  setSessions(list.map(mapSessionListRow));
                   const sid = p?.sessionId;
                   if (
                     !sid ||
@@ -4639,9 +4653,7 @@ export default function App() {
   const refreshSessions = async () => {
     try {
       const list = await api.sessionsList();
-      setSessions(
-        list.map((s) => normalizeSessionRow(s)),
-      );
+      setSessions(list.map(mapSessionListRow));
       void api.trayRefresh();
     } catch {
       /* ignore */
@@ -5641,6 +5653,35 @@ export default function App() {
   const paletteActionHits = useMemo(
     () => filterPaletteActions(searchQuery, defaultPaletteActions(), tr),
     [searchQuery, tr],
+  );
+
+  const agentDashboardRows = useMemo(
+    () =>
+      collectAgentDashboardRows({
+        sessions,
+        projects: projects.map((p) => ({
+          id: p.id,
+          name: p.name,
+          path: p.path,
+        })),
+        liveMap,
+        currentSessionId: session.sessionId,
+        untitledLabel: tr("session.untitled"),
+        generalWorkspacePath,
+        unboundProjectLabel: tr("sidebar.otherSessions"),
+      }),
+    [
+      sessions,
+      projects,
+      liveMap,
+      session.sessionId,
+      tr,
+      generalWorkspacePath,
+    ],
+  );
+  const agentDashboardBusyCount = useMemo(
+    () => countBusyDashboardRows(agentDashboardRows),
+    [agentDashboardRows],
   );
 
   const connPill = useMemo(
@@ -7884,6 +7925,8 @@ export default function App() {
           title: meta.title || title,
           projectId,
           updatedAt: meta.updatedAt || new Date().toISOString(),
+          modelId: meta.modelId ?? source.modelId ?? null,
+          effort: source.effort ?? null,
           archived: meta.archived,
           pinned: !!(meta as SessionRow).pinned,
           scheduled: meta.scheduled,
@@ -9378,6 +9421,16 @@ export default function App() {
           window.location.hash = "#/workbench";
         }
         break;
+      case "open-agent-dashboard":
+        setAppView("workbench");
+        setAgentDashboardOpen(true);
+        if (
+          typeof window !== "undefined" &&
+          window.location.hash.includes("settings")
+        ) {
+          window.location.hash = "#/workbench";
+        }
+        break;
       case "doctor":
         setShowDoctor(true);
         break;
@@ -10746,7 +10799,8 @@ export default function App() {
         rewindConfirm ||
         forkConfirm ||
         worktreeCreateOpen ||
-        projectRulesTarget,
+        projectRulesTarget ||
+        agentDashboardOpen,
     ),
     permOpen: !!perm,
     askUserOpen: !!askUser,
@@ -12386,6 +12440,28 @@ export default function App() {
                       </button>
                     </Tip>
                   ) : null}
+                  {mainPane === "chat" ? (
+                    <Tip label={tr("dashboard.open")}>
+                      <button
+                        type="button"
+                        className={
+                          "chrome-btn main__pane-toggle" +
+                          (agentDashboardOpen ? " is-on" : "")
+                        }
+                        onClick={() => setAgentDashboardOpen(true)}
+                        aria-pressed={agentDashboardOpen}
+                        aria-label={tr("dashboard.open")}
+                        data-testid="agent-dashboard-open"
+                      >
+                        <IconActivity size={16} />
+                        {agentDashboardBusyCount > 0 ? (
+                          <span className="rp-chrome__badge" aria-hidden>
+                            {Math.min(99, agentDashboardBusyCount)}
+                          </span>
+                        ) : null}
+                      </button>
+                    </Tip>
+                  ) : null}
                   <Tip
                     label={
                       layout.asideCollapsed
@@ -12652,6 +12728,7 @@ export default function App() {
                 })();
               }}
               onStopAllSessions={stopAllBusySessions}
+              onOpenDashboard={() => setAgentDashboardOpen(true)}
             />
           ) : null}
 
@@ -14312,6 +14389,19 @@ export default function App() {
         projectPath={effectiveProjectPath}
         messageCount={messages.length}
         onClose={() => setShowStatusModal(false)}
+      />
+      <AgentDashboardModal
+        open={agentDashboardOpen}
+        locale={locale}
+        rows={agentDashboardRows}
+        onClose={() => setAgentDashboardOpen(false)}
+        onSelectSession={(id) => {
+          const row = sessions.find((s) => s.id === id);
+          if (!row) return;
+          const proj = projects.find((p) => p.id === row.projectId) || null;
+          void openSession(row, proj);
+        }}
+        onStopAllBusy={stopAllBusySessions}
       />
       <McpStatusModal
         open={showMcpModal}
