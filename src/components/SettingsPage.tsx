@@ -36,11 +36,27 @@ import {
 } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import {
+  SHORTCUTS,
   detectShortcutPlatform,
   filterShortcutGroups,
   shortcutsByGroup,
   type ShortcutGroup,
+  type ShortcutId,
 } from "@/lib/shortcuts";
+import {
+  SHORTCUT_REMAP_CHANGED_EVENT,
+  SHORTCUT_REMAP_STORAGE_KEY,
+  buildEffectiveChordMap,
+  chordFromKeyboardEvent,
+  clearAllShortcutRemaps,
+  findChordConflict,
+  hasAnyShortcutRemaps,
+  isRemappableShortcutId,
+  loadShortcutRemaps,
+  setShortcutRecordingActive,
+  setShortcutRemap,
+  type ShortcutRemapMap,
+} from "@/lib/shortcutRemap";
 import type { Theme, ThemePreference } from "@/lib/theme";
 import {
   DEFAULT_WALLPAPER_FOCUS,
@@ -4350,19 +4366,81 @@ function ShortcutsSettingsPanel({
   const [sendPref, setSendPref] = useState<ComposerSendKeyPref>(() =>
     loadComposerSendKeyPref(),
   );
+  const [remaps, setRemaps] = useState<ShortcutRemapMap>(() =>
+    loadShortcutRemaps(),
+  );
+  const [recordingId, setRecordingId] = useState<ShortcutId | null>(null);
+  const [recordError, setRecordError] = useState<string | null>(null);
+
   useEffect(() => {
-    const reload = () => setSendPref(loadComposerSendKeyPref());
-    window.addEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, reload);
+    const reloadSend = () => setSendPref(loadComposerSendKeyPref());
+    const reloadRemaps = () => setRemaps(loadShortcutRemaps());
+    window.addEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, reloadSend);
+    window.addEventListener(SHORTCUT_REMAP_CHANGED_EVENT, reloadRemaps);
     const onStorage = (e: StorageEvent) => {
-      if (e.key === "grok.composerSendKey" || e.key === null) reload();
+      if (e.key === "grok.composerSendKey" || e.key === null) reloadSend();
+      if (e.key === SHORTCUT_REMAP_STORAGE_KEY || e.key === null) {
+        reloadRemaps();
+      }
     };
     window.addEventListener("storage", onStorage);
     return () => {
-      window.removeEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, reload);
+      window.removeEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, reloadSend);
+      window.removeEventListener(SHORTCUT_REMAP_CHANGED_EVENT, reloadRemaps);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
-  const groups = useMemo(() => shortcutsByGroup(sendPref), [sendPref]);
+
+  // Capture chord while recording; cancel with Escape.
+  useEffect(() => {
+    if (!recordingId) {
+      setShortcutRecordingActive(false);
+      return;
+    }
+    setShortcutRecordingActive(true);
+    setRecordError(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.isComposing) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // Escape cancels recording (does not bind Escape unless already escape chord via other path).
+      if (e.key === "Escape") {
+        setRecordingId(null);
+        setRecordError(null);
+        return;
+      }
+      const chord = chordFromKeyboardEvent(e);
+      if (!chord) return;
+      const effective = buildEffectiveChordMap(remaps);
+      const conflict = findChordConflict(recordingId, chord, effective);
+      if (conflict) {
+        const conflictRow = SHORTCUTS.find((s) => s.id === conflict);
+        const action = conflictRow
+          ? t(conflictRow.labelKey as MessageKey)
+          : conflict;
+        setRecordError(
+          t("settings.shortcuts.conflict", {
+            action,
+          }),
+        );
+        return;
+      }
+      const next = setShortcutRemap(recordingId, chord);
+      setRemaps(next);
+      setRecordingId(null);
+      setRecordError(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      setShortcutRecordingActive(false);
+    };
+  }, [recordingId, remaps, t]);
+
+  const groups = useMemo(
+    () => shortcutsByGroup(sendPref, remaps),
+    [sendPref, remaps],
+  );
   const filteredGroups = useMemo(
     () =>
       filterShortcutGroups(filterQuery, groups, (key) =>
@@ -4374,6 +4452,27 @@ function ShortcutsSettingsPanel({
   const groupLabel = (g: ShortcutGroup) =>
     t(`settings.shortcuts.group.${g}` as MessageKey);
 
+  const canResetAll = hasAnyShortcutRemaps(remaps);
+
+  const startRecord = (id: ShortcutId) => {
+    if (!isRemappableShortcutId(id)) return;
+    setRecordError(null);
+    setRecordingId((cur) => (cur === id ? null : id));
+  };
+
+  const resetOne = (id: ShortcutId) => {
+    if (!isRemappableShortcutId(id)) return;
+    setRemaps(setShortcutRemap(id, null));
+    if (recordingId === id) setRecordingId(null);
+    setRecordError(null);
+  };
+
+  const resetAll = () => {
+    setRemaps(clearAllShortcutRemaps());
+    setRecordingId(null);
+    setRecordError(null);
+  };
+
   return (
     <div className="settings-card">
       <div className="settings-row settings-row--stack">
@@ -4384,15 +4483,25 @@ function ShortcutsSettingsPanel({
           </div>
           <div className="settings-row__desc">{t("settings.shortcuts.desc")}</div>
         </div>
-        {onOpenHelp ? (
+        <div className="settings-shortcuts-header-actions">
+          {onOpenHelp ? (
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => onOpenHelp()}
+            >
+              {t("settings.shortcuts.openHelp")}
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn--ghost"
-            onClick={() => onOpenHelp()}
+            disabled={!canResetAll}
+            onClick={() => resetAll()}
           >
-            {t("settings.shortcuts.openHelp")}
+            {t("settings.shortcuts.resetAll")}
           </button>
-        ) : null}
+        </div>
       </div>
       <div className="settings-shortcuts-filter">
         <IconSearch size={14} />
@@ -4402,8 +4511,18 @@ function ShortcutsSettingsPanel({
           onChange={(e) => setFilterQuery(e.target.value)}
           placeholder={t("settings.shortcuts.filterPlaceholder")}
           aria-label={t("settings.shortcuts.filterPlaceholder")}
+          disabled={!!recordingId}
         />
       </div>
+      {recordError ? (
+        <p className="settings-shortcuts-error" role="alert">
+          {recordError}
+        </p>
+      ) : recordingId ? (
+        <p className="settings-shortcuts-recording-hint" role="status">
+          {t("settings.shortcuts.recordingHint")}
+        </p>
+      ) : null}
       {filteredGroups.length === 0 ? (
         <p className="settings-shortcuts-empty" role="status">
           {t("settings.shortcuts.filterEmpty")}
@@ -4436,20 +4555,94 @@ function ShortcutsSettingsPanel({
                   >
                     {t("settings.shortcuts.colWin")}
                   </th>
+                  <th scope="col" className="settings-shortcuts-col-actions">
+                    {t("settings.shortcuts.colEdit")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr key={row.id}>
-                    <td>{t(row.labelKey as MessageKey)}</td>
-                    <td>
-                      <kbd className="settings-shortcuts-kbd">{row.mac}</kbd>
-                    </td>
-                    <td>
-                      <kbd className="settings-shortcuts-kbd">{row.win}</kbd>
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((row) => {
+                  const remappable = isRemappableShortcutId(row.id);
+                  const isCustom = remappable && !!remaps[row.id];
+                  const isRecording = recordingId === row.id;
+                  return (
+                    <tr
+                      key={row.id}
+                      className={
+                        isRecording
+                          ? "settings-shortcuts-row--recording"
+                          : isCustom
+                            ? "settings-shortcuts-row--custom"
+                            : undefined
+                      }
+                    >
+                      <td>
+                        {t(row.labelKey as MessageKey)}
+                        {isCustom ? (
+                          <span className="settings-shortcuts-custom-dot" title={t("settings.shortcuts.customBadge")}>
+                            ·
+                          </span>
+                        ) : null}
+                      </td>
+                      <td>
+                        <kbd
+                          className={
+                            "settings-shortcuts-kbd" +
+                            (isRecording ? " is-recording" : "")
+                          }
+                        >
+                          {isRecording
+                            ? t("settings.shortcuts.pressKeys")
+                            : row.mac}
+                        </kbd>
+                      </td>
+                      <td>
+                        <kbd
+                          className={
+                            "settings-shortcuts-kbd" +
+                            (isRecording ? " is-recording" : "")
+                          }
+                        >
+                          {isRecording
+                            ? t("settings.shortcuts.pressKeys")
+                            : row.win}
+                        </kbd>
+                      </td>
+                      <td className="settings-shortcuts-col-actions">
+                        <div className="settings-shortcuts-actions">
+                          {remappable ? (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn--ghost btn--sm"
+                                aria-pressed={isRecording}
+                                onClick={() => startRecord(row.id)}
+                              >
+                                {isRecording
+                                  ? t("settings.shortcuts.cancelRecord")
+                                  : t("settings.shortcuts.record")}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn--ghost btn--sm"
+                                disabled={!isCustom || isRecording}
+                                onClick={() => resetOne(row.id)}
+                              >
+                                {t("settings.shortcuts.reset")}
+                              </button>
+                            </>
+                          ) : (
+                            <span className="settings-shortcuts-fixed">
+                              {row.id === "send"
+                                ? t("settings.shortcuts.fixedSend")
+                                : t("settings.shortcuts.fixed")}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -13,6 +13,8 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- **Remappable keyboard shortcuts** (Settings → Keyboard): Record / Reset per action, Reset all, conflict detection; custom chords stored in `localStorage` (`grok.shortcutRemap`). Global mod actions (palette, settings, new chat, toggle sidebar, help, doctor, copy last reply, find in chat, live voice) honor remaps; help table shows effective bindings
+- **可自定义快捷键**（设置 → 键盘）：逐项录制 / 重置、全部重置、冲突检测；全局组合键（搜索面板、设置、新建会话、侧栏等）即时生效
 - **Trace center**: after a successful session trace export (`grok trace --local`), keep a local history (paths only, max ~20) with Open in folder / Copy path from the session menu, command palette, and Settings → Runtime → Diagnostics
 - **Trace 中心**：成功导出会话 trace 后写入本地历史（仅路径，约 20 条）；会话菜单 / 命令面板 / 设置 · 运行时 · 诊断 可打开文件夹或复制路径
 - **Agent dashboard**: cross-session status panel (title, project/cwd, model, effort, busy/idle/error, last activity). Open from Tasks, command palette, or the top-bar control; click a row to focus that chat; **Stop all busy** reuses the existing confirm flow. Distinct from the per-turn Tasks tools panel.

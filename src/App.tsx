@@ -300,6 +300,13 @@ import {
   shortcutsForPlatform,
 } from "@/lib/shortcuts";
 import {
+  isShortcutRecordingActive,
+  loadShortcutRemaps,
+  SHORTCUT_REMAP_CHANGED_EVENT,
+  SHORTCUT_REMAP_STORAGE_KEY,
+  type ShortcutRemapMap,
+} from "@/lib/shortcutRemap";
+import {
   ensureNotifyPermission,
   setDesktopNotifySessionFocusHandler,
   shouldShowDesktopNotify,
@@ -1242,9 +1249,30 @@ export default function App() {
     slashOrMenuOpen: false,
     promptHistoryOpen: false,
   });
+  /** Live user remaps for capture-phase matching + help table. */
+  const [shortcutRemaps, setShortcutRemaps] = useState<ShortcutRemapMap>(() =>
+    typeof localStorage !== "undefined" ? loadShortcutRemaps() : {},
+  );
+  const shortcutRemapsRef = useRef<ShortcutRemapMap>(shortcutRemaps);
+  shortcutRemapsRef.current = shortcutRemaps;
+  useEffect(() => {
+    const reload = () => setShortcutRemaps(loadShortcutRemaps());
+    window.addEventListener(SHORTCUT_REMAP_CHANGED_EVENT, reload);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === SHORTCUT_REMAP_STORAGE_KEY || e.key === null) reload();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(SHORTCUT_REMAP_CHANGED_EVENT, reload);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.isComposing) return;
+      // Settings is capturing a new binding — do not run global actions.
+      if (isShortcutRecordingActive()) return;
       // Esc cancels in-progress dictation (steal before other Esc handlers).
       if (e.key === "Escape" && voiceStealsEscape(voiceRef.current.phase)) {
         e.preventDefault();
@@ -1283,14 +1311,17 @@ export default function App() {
         tag === "input" ||
         tag === "textarea" ||
         !!target?.isContentEditable;
-      // Catalog mod chords — single registry in shortcuts.ts (keep Esc / Ctrl+Space special-cased above).
-      const matched = matchGlobalShortcut({
-        key: e.key.toLowerCase(),
-        mod: e.metaKey || e.ctrlKey,
-        shift: e.shiftKey,
-        alt: e.altKey,
-        typing,
-      });
+      // Catalog mod chords — defaults + user remaps (keep Esc / Ctrl+Space special-cased above).
+      const matched = matchGlobalShortcut(
+        {
+          key: e.key.toLowerCase(),
+          mod: e.metaKey || e.ctrlKey,
+          shift: e.shiftKey,
+          alt: e.altKey,
+          typing,
+        },
+        shortcutRemapsRef.current,
+      );
       if (!matched) return;
       e.preventDefault();
       switch (matched) {
@@ -14283,6 +14314,7 @@ export default function App() {
           {shortcutsForPlatform(
             platform === "mac" ? "mac" : platform === "win" ? "win" : "other",
             composerSendKeyPref,
+            shortcutRemaps,
           ).map((row) => (
             <li key={row.id} className="shortcuts-list__row">
               <span className="shortcuts-list__label">

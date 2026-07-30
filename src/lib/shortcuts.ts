@@ -4,6 +4,15 @@ import {
   loadComposerSendKeyPref,
   type ComposerSendKeyPref,
 } from "@/lib/composerSendKey";
+import {
+  DEFAULT_SHORTCUT_CHORDS,
+  buildEffectiveChordMap,
+  chordMatchesContext,
+  effectiveShortcutChord,
+  formatChordDisplay,
+  loadShortcutRemaps,
+  type ShortcutRemapMap,
+} from "@/lib/shortcutRemap";
 
 export type ShortcutGroup = "workbench" | "navigation" | "diagnostics" | "input";
 
@@ -185,7 +194,11 @@ export type ShortcutChordContext = {
  * Esc-stop and Ctrl+Space dictation stay special-cased in App (handler order /
  * non-mod-or-ctrl-only semantics). See comment on {@link GLOBAL_MOD_SHORTCUT_IDS}.
  *
- * Behavior preserved from the previous inline App handler:
+ * Effective chords come from catalog defaults + optional user remaps
+ * ({@link loadShortcutRemaps}). Pass `remaps` explicitly in tests; runtime
+ * loads from localStorage when omitted.
+ *
+ * Behavior preserved from the previous inline App handler (with defaults):
  * - findInChat works while typing
  * - newChat / settings skip when typing
  * - search / help / doctor / copyLastReply / liveVoice / toggleSidebar work while typing
@@ -193,27 +206,36 @@ export type ShortcutChordContext = {
  */
 export function matchGlobalShortcut(
   ctx: ShortcutChordContext,
+  remaps?: ShortcutRemapMap | null,
 ): GlobalModShortcutId | null {
-  if (!ctx.mod) return null;
-  // Alt chords are left to the OS / browser (not used by catalog mod actions).
-  if (ctx.alt) return null;
+  const map =
+    remaps !== undefined && remaps !== null
+      ? remaps
+      : typeof localStorage !== "undefined"
+        ? loadShortcutRemaps()
+        : {};
 
-  const key = ctx.key;
-  const shift = ctx.shift;
-  const typing = ctx.typing;
+  // Default catalog chords never use Alt; reject Alt unless a remap includes it.
+  // (Bare OS/browser Alt chords stay unclaimed.)
 
-  // findInChat: mod+f without shift (even while typing).
-  if (key === "f" && !shift) return "findInChat";
-  // search / help: same as prior App handler (no shift gate).
-  if (key === "k") return "search";
-  if (key === "/") return "help";
-  if (key === "," && !typing) return "settings";
-  if (key === "n" && !typing) return "newChat";
-  if (key === "d" && shift) return "doctor";
-  if (key === "c" && shift) return "copyLastReply";
-  if (key === "v" && shift) return "liveVoice";
-  // Toggle sidebar: mod+b without shift.
-  if (key === "b" && !shift) return "toggleSidebar";
+  for (const id of GLOBAL_MOD_SHORTCUT_IDS) {
+    const chord = effectiveShortcutChord(id, map);
+    if (
+      !chordMatchesContext(chord, {
+        key: ctx.key,
+        mod: ctx.mod,
+        shift: ctx.shift,
+        alt: ctx.alt,
+      })
+    ) {
+      continue;
+    }
+    // newChat / settings: skip while typing (same as pre-remap handler).
+    if ((id === "newChat" || id === "settings") && ctx.typing) {
+      continue;
+    }
+    return id;
+  }
 
   return null;
 }
@@ -258,18 +280,52 @@ function withSendPref(
   return { ...row, mac: keys.mac, win: keys.win };
 }
 
+/** Apply user remaps (and send pref) to a catalog row for display. */
+export function withEffectiveBindings(
+  row: ShortcutRow,
+  opts?: {
+    sendPref?: ComposerSendKeyPref;
+    remaps?: ShortcutRemapMap | null;
+  },
+): ShortcutRow {
+  const pref = resolveSendPref(opts?.sendPref);
+  let next = withSendPref(row, pref);
+  const remaps =
+    opts?.remaps !== undefined
+      ? opts.remaps
+      : typeof localStorage !== "undefined"
+        ? loadShortcutRemaps()
+        : {};
+  if (!remaps || !remaps[row.id]) return next;
+  const chord = effectiveShortcutChord(row.id, remaps);
+  // Prefer formatChordDisplay so remapped rows stay consistent across platforms.
+  // Keep send row owned by Composer pref (not remappable).
+  if (row.id === "send") return next;
+  return {
+    ...next,
+    mac: formatChordDisplay(chord, "mac"),
+    win: formatChordDisplay(chord, "win"),
+  };
+}
+
 export function shortcutsForPlatform(
   platform: "mac" | "win" | "other",
   sendPref?: ComposerSendKeyPref,
+  remaps?: ShortcutRemapMap | null,
 ): Array<{
   id: ShortcutId;
   labelKey: string;
   keys: string;
   group: ShortcutGroup;
 }> {
-  const pref = resolveSendPref(sendPref);
+  const map =
+    remaps !== undefined
+      ? remaps
+      : typeof localStorage !== "undefined"
+        ? loadShortcutRemaps()
+        : {};
   return SHORTCUTS.map((s) => {
-    const row = withSendPref(s, pref);
+    const row = withEffectiveBindings(s, { sendPref, remaps: map });
     return {
       id: row.id,
       labelKey: row.labelKey,
@@ -293,15 +349,29 @@ export function detectShortcutPlatform(): "mac" | "win" | "other" {
 
 export function shortcutsByGroup(
   sendPref?: ComposerSendKeyPref,
+  remaps?: ShortcutRemapMap | null,
 ): Array<{ group: ShortcutGroup; rows: ShortcutRow[] }> {
-  const pref = resolveSendPref(sendPref);
+  const map =
+    remaps !== undefined
+      ? remaps
+      : typeof localStorage !== "undefined"
+        ? loadShortcutRemaps()
+        : {};
   return SHORTCUT_GROUP_ORDER.map((group) => ({
     group,
     rows: SHORTCUTS.filter((s) => s.group === group).map((s) =>
-      withSendPref(s, pref),
+      withEffectiveBindings(s, { sendPref, remaps: map }),
     ),
   }));
 }
+
+/** Re-export remap types/helpers used by Settings / App. */
+export type { ShortcutRemapMap };
+export {
+  DEFAULT_SHORTCUT_CHORDS,
+  buildEffectiveChordMap,
+  loadShortcutRemaps,
+};
 
 /** Normalize catalog key glyphs for free-text search (⌘ → cmd, etc.). */
 function keySearchExtra(keys: string): string {

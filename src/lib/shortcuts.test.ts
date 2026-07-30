@@ -102,6 +102,8 @@ describe("shortcuts catalog", () => {
 });
 
 describe("matchGlobalShortcut", () => {
+  const noRemaps = {};
+
   it("matches catalog mod chords", () => {
     const cases: Array<{
       id: GlobalModShortcutId;
@@ -122,57 +124,116 @@ describe("matchGlobalShortcut", () => {
       expect(
         matchGlobalShortcut(
           chord({ key: c.key, shift: c.shift ?? false }),
+          noRemaps,
         ),
       ).toBe(c.id);
     }
   });
 
-  it("allows find/search/help/doctor/copy/live/sidebar while typing", () => {
-    expect(matchGlobalShortcut(chord({ key: "f", typing: true }))).toBe(
-      "findInChat",
-    );
-    expect(matchGlobalShortcut(chord({ key: "k", typing: true }))).toBe(
-      "search",
-    );
-    expect(matchGlobalShortcut(chord({ key: "/", typing: true }))).toBe("help");
+  it("honors user remaps for palette / settings / new chat / sidebar", () => {
+    const remaps = {
+      search: "mod+p",
+      settings: "mod+shift+,",
+      newChat: "mod+shift+n",
+      toggleSidebar: "mod+\\",
+    };
     expect(
-      matchGlobalShortcut(chord({ key: "d", shift: true, typing: true })),
+      matchGlobalShortcut(chord({ key: "p" }), remaps),
+    ).toBe("search");
+    expect(
+      matchGlobalShortcut(chord({ key: "k" }), remaps),
+    ).toBeNull();
+    expect(
+      matchGlobalShortcut(
+        chord({ key: ",", shift: true }),
+        remaps,
+      ),
+    ).toBe("settings");
+    expect(
+      matchGlobalShortcut(
+        chord({ key: "n", shift: true }),
+        remaps,
+      ),
+    ).toBe("newChat");
+    expect(
+      matchGlobalShortcut(chord({ key: "\\" }), remaps),
+    ).toBe("toggleSidebar");
+  });
+
+  it("allows find/search/help/doctor/copy/live/sidebar while typing", () => {
+    expect(
+      matchGlobalShortcut(chord({ key: "f", typing: true }), noRemaps),
+    ).toBe("findInChat");
+    expect(
+      matchGlobalShortcut(chord({ key: "k", typing: true }), noRemaps),
+    ).toBe("search");
+    expect(
+      matchGlobalShortcut(chord({ key: "/", typing: true }), noRemaps),
+    ).toBe("help");
+    expect(
+      matchGlobalShortcut(
+        chord({ key: "d", shift: true, typing: true }),
+        noRemaps,
+      ),
     ).toBe("doctor");
     expect(
-      matchGlobalShortcut(chord({ key: "c", shift: true, typing: true })),
+      matchGlobalShortcut(
+        chord({ key: "c", shift: true, typing: true }),
+        noRemaps,
+      ),
     ).toBe("copyLastReply");
     expect(
-      matchGlobalShortcut(chord({ key: "v", shift: true, typing: true })),
+      matchGlobalShortcut(
+        chord({ key: "v", shift: true, typing: true }),
+        noRemaps,
+      ),
     ).toBe("liveVoice");
-    expect(matchGlobalShortcut(chord({ key: "b", typing: true }))).toBe(
-      "toggleSidebar",
-    );
+    expect(
+      matchGlobalShortcut(chord({ key: "b", typing: true }), noRemaps),
+    ).toBe("toggleSidebar");
   });
 
   it("skips newChat and settings while typing", () => {
-    expect(matchGlobalShortcut(chord({ key: "n", typing: true }))).toBeNull();
-    expect(matchGlobalShortcut(chord({ key: ",", typing: true }))).toBeNull();
+    expect(
+      matchGlobalShortcut(chord({ key: "n", typing: true }), noRemaps),
+    ).toBeNull();
+    expect(
+      matchGlobalShortcut(chord({ key: ",", typing: true }), noRemaps),
+    ).toBeNull();
   });
 
   it("does not match without mod", () => {
-    expect(matchGlobalShortcut(chord({ key: "k", mod: false }))).toBeNull();
     expect(
-      matchGlobalShortcut(chord({ key: "d", mod: false, shift: true })),
+      matchGlobalShortcut(chord({ key: "k", mod: false }), noRemaps),
+    ).toBeNull();
+    expect(
+      matchGlobalShortcut(
+        chord({ key: "d", mod: false, shift: true }),
+        noRemaps,
+      ),
     ).toBeNull();
   });
 
   it("does not match plain keys or unrelated chords", () => {
-    expect(matchGlobalShortcut(chord({ key: "a" }))).toBeNull();
-    expect(matchGlobalShortcut(chord({ key: "f", shift: true }))).toBeNull();
-    expect(matchGlobalShortcut(chord({ key: "c" }))).toBeNull();
-    expect(matchGlobalShortcut(chord({ key: "v" }))).toBeNull();
-    expect(matchGlobalShortcut(chord({ key: "d" }))).toBeNull();
-    expect(matchGlobalShortcut(chord({ key: "escape" }))).toBeNull();
-    expect(matchGlobalShortcut(chord({ key: " ", mod: false }))).toBeNull();
+    expect(matchGlobalShortcut(chord({ key: "a" }), noRemaps)).toBeNull();
+    expect(
+      matchGlobalShortcut(chord({ key: "f", shift: true }), noRemaps),
+    ).toBeNull();
+    expect(matchGlobalShortcut(chord({ key: "c" }), noRemaps)).toBeNull();
+    expect(matchGlobalShortcut(chord({ key: "v" }), noRemaps)).toBeNull();
+    expect(matchGlobalShortcut(chord({ key: "d" }), noRemaps)).toBeNull();
+    expect(
+      matchGlobalShortcut(chord({ key: "escape" }), noRemaps),
+    ).toBeNull();
+    expect(
+      matchGlobalShortcut(chord({ key: " ", mod: false }), noRemaps),
+    ).toBeNull();
   });
 
   it("does not match with alt held", () => {
-    expect(matchGlobalShortcut(chord({ key: "k", alt: true }))).toBeNull();
+    expect(
+      matchGlobalShortcut(chord({ key: "k", alt: true }), noRemaps),
+    ).toBeNull();
   });
 
   it("does not claim send / stop / dictation (special-cased elsewhere)", () => {

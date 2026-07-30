@@ -4140,7 +4140,14 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   align-items: stretch;
 }
 
-/* Settings → Keyboard (read-only shortcut catalog) */
+/* Settings → Keyboard (remappable shortcut catalog) */
+.settings-shortcuts-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
 .settings-shortcuts-filter {
   display: flex;
   align-items: center;
@@ -4176,6 +4183,25 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   line-height: 1.45;
   color: var(--text-tertiary);
   text-align: center;
+}
+
+.settings-shortcuts-recording-hint,
+.settings-shortcuts-error {
+  margin: 0 16px 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.settings-shortcuts-recording-hint {
+  background: color-mix(in srgb, var(--accent, #6b8afd) 12%, transparent);
+  color: var(--text-secondary);
+}
+
+.settings-shortcuts-error {
+  background: color-mix(in srgb, var(--danger, #e55) 14%, transparent);
+  color: var(--text-primary);
 }
 
 .settings-shortcuts-group {
@@ -4226,6 +4252,29 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   border-bottom: none;
 }
 
+.settings-shortcuts-col-actions {
+  text-align: right;
+  white-space: nowrap;
+  padding-right: 0;
+}
+
+.settings-shortcuts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.settings-shortcuts-row--recording td {
+  background: color-mix(in srgb, var(--accent, #6b8afd) 8%, transparent);
+}
+
+.settings-shortcuts-custom-dot {
+  margin-left: 4px;
+  color: var(--accent, #6b8afd);
+  font-weight: 700;
+}
+
 .settings-shortcuts-kbd {
   display: inline-block;
   font-family: var(--font-mono, ui-monospace, monospace);
@@ -4236,6 +4285,23 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   background: var(--bg-elevated, var(--bg-input));
   color: var(--text-secondary);
   white-space: nowrap;
+}
+
+.settings-shortcuts-kbd.is-recording {
+  border-color: var(--accent, #6b8afd);
+  color: var(--text-primary);
+  animation: settings-shortcuts-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes settings-shortcuts-pulse {
+  50% {
+    opacity: 0.65;
+  }
+}
+
+.settings-shortcuts-fixed {
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 
 .settings-shortcuts-note {

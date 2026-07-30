@@ -1274,8 +1274,20 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
       "settings.shortcuts.group.navigation",
       "settings.shortcuts.group.diagnostics",
       "settings.shortcuts.group.input",
+      "settings.shortcuts.record",
+      "settings.shortcuts.resetAll",
     ],
-    keywords: ["keyboard", "hotkey", "shortcut"],
+    keywords: [
+      "keyboard",
+      "hotkey",
+      "shortcut",
+      "remap",
+      "binding",
+      "record",
+      "改键",
+      "快捷键",
+      "录制",
+    ],
   },
   // ── about ──
   {
