@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as api from "@/lib/api";
-import { createT, type Locale } from "@/i18n";
+import { createT, type Locale, type MessageKey } from "@/i18n";
 import { GlassModal } from "@/components/GlassModal";
 import {
   IconDoctor,
@@ -38,6 +38,16 @@ import {
   sortSkillsByName,
   type PluginFilter,
 } from "@/lib/extensionsUi";
+import {
+  indexDoctorServerStatuses,
+  lookupServerStatus,
+  mcpAuthGuidanceKey,
+  mcpStatusBadgeMod,
+  mcpStatusLabelKey,
+  redactMcpText,
+  type McpServerStatus,
+  type McpStatusIndex,
+} from "@/lib/mcpStatus";
 import { ExtensionsBuildExtras } from "@/components/ExtensionsBuildExtras";
 
 export type ExtensionsTabId =
@@ -110,6 +120,20 @@ export function ExtensionsPanel({
     useState<any>(null);
   const [doctorError, setDoctorError] = useState<string | null>(null);
   const [doctorFocus, setDoctorFocus] = useState<string | null>(null);
+  /** Last successful doctor run (ms) — shown as lightweight timestamp. */
+  const [doctorLastAt, setDoctorLastAt] = useState<number | null>(null);
+  /**
+   * Cumulative per-server status from doctor runs.
+   * Focused doctor re-runs merge in so other servers keep their last tone.
+   */
+  const [doctorStatusIndex, setDoctorStatusIndex] = useState<McpStatusIndex>(
+    () => new Map(),
+  );
+  /** In-app “How to refresh” guidance for auth-expired / auth-required. */
+  const [authHelpTarget, setAuthHelpTarget] = useState<{
+    name: string;
+    status: McpServerStatus;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     if (!api.isTauri()) {
@@ -416,6 +440,15 @@ export function ExtensionsPanel({
       try {
         const report = await api.mcpDoctor(focusName?.trim() || null);
         setDoctorReport(report);
+        setDoctorLastAt(Date.now());
+        const next = indexDoctorServerStatuses(report);
+        setDoctorStatusIndex((prev) => {
+          // Full doctor (no focus): replace. Focused: merge into previous.
+          if (!focusName?.trim()) return next;
+          const merged = new Map(prev);
+          for (const [k, v] of next) merged.set(k, v);
+          return merged;
+        });
       } catch (e) {
         setDoctorReport(null);
         setDoctorError(String(e));
@@ -425,6 +458,21 @@ export function ExtensionsPanel({
     },
     [],
   );
+
+  /** Live index for the open doctor modal (may be a focused subset). */
+  const doctorReportStatusIndex = useMemo(
+    () => indexDoctorServerStatuses(doctorReport),
+    [doctorReport],
+  );
+
+  const doctorLastLabel = useMemo(() => {
+    if (!doctorLastAt) return null;
+    try {
+      return new Date(doctorLastAt).toLocaleString();
+    } catch {
+      return null;
+    }
+  }, [doctorLastAt]);
 
   const visiblePlugins = useMemo(
     () => filterPluginsByLoadState(plugins, pluginFilter),
@@ -922,6 +970,11 @@ export function ExtensionsPanel({
         </span>
       </h2>
       <div className="settings-card ext-card">
+        {doctorLastLabel ? (
+          <p className="ext-mcp-last-doctor" role="status">
+            {tr("ext.mcp.doctorLastAt", { time: doctorLastLabel })}
+          </p>
+        ) : null}
         {loading && <p className="ext-empty">{tr("ext.mcp.loading")}</p>}
         {!loading && servers.length === 0 && (
           <p className="ext-empty">
@@ -934,6 +987,9 @@ export function ExtensionsPanel({
               const meta = mcpMetaLine(s);
               const on = isExtensionEnabled(s.enabled);
               const rmBusy = actionBusy === `mcp:rm:${s.name}`;
+              const st = lookupServerStatus(doctorStatusIndex, s.name);
+              const badgeMod = st ? mcpStatusBadgeMod(st.tone) : null;
+              const guidanceKey = st ? mcpAuthGuidanceKey(st.tone) : null;
               return (
                 <li
                   key={s.name}
@@ -941,6 +997,24 @@ export function ExtensionsPanel({
                 >
                   <div className="ext-item__head">
                     <strong className="ext-item__name">{s.name}</strong>
+                    {st && badgeMod ? (
+                      <span
+                        className={
+                          "ext-mcp-status ext-mcp-status--" + badgeMod
+                        }
+                        title={st.reason ?? undefined}
+                      >
+                        <span
+                          className="ext-mcp-status__lamp"
+                          aria-hidden
+                        />
+                        <span
+                          className={"ext-badge ext-badge--" + badgeMod}
+                        >
+                          {tr(mcpStatusLabelKey(st.tone) as MessageKey)}
+                        </span>
+                      </span>
+                    ) : null}
                     {s.transport ? (
                       <span className="ext-badge ext-badge--muted">
                         {s.transport}
@@ -959,6 +1033,27 @@ export function ExtensionsPanel({
                     />
                   </div>
                   {meta ? <p className="ext-item__desc">{meta}</p> : null}
+                  {st?.reason && st.tone !== "ok" ? (
+                    <p className="ext-item__desc ext-mcp-status-reason">
+                      {redactMcpText(st.reason)}
+                    </p>
+                  ) : null}
+                  {st?.needsAuthRefresh && guidanceKey ? (
+                    <div className="ext-mcp-auth-row">
+                      <p className="ext-mcp-auth-hint">
+                        {tr(guidanceKey as MessageKey)}
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        onClick={() =>
+                          setAuthHelpTarget({ name: s.name, status: st })
+                        }
+                      >
+                        {tr("ext.mcp.auth.howToRefresh")}
+                      </button>
+                    </div>
+                  ) : null}
                   {s.target ? (
                     <div className="ext-item__meta">
                       <em className="ext-item__target" title={s.target}>
@@ -1295,78 +1390,176 @@ export function ExtensionsPanel({
             ) : null}
             {(doctorReport.servers?.length ?? 0) === 0 ? (
               <p className="ext-empty">
-                {doctorReport.rawText?.trim() || tr("ext.mcp.doctorEmpty")}
+                {redactMcpText(doctorReport.rawText)?.trim() ||
+                  tr("ext.mcp.doctorEmpty")}
               </p>
             ) : (
               <ul className="ext-list ext-doctor__servers">
-                {doctorReport.servers.map((s: any) => (
-                  <li
-                    key={s.name}
-                    className={
-                      "ext-item" + (s.healthy ? "" : " ext-item--off")
-                    }
-                  >
-                    <div className="ext-item__head">
-                      <strong className="ext-item__name">{s.name}</strong>
-                      <span
-                        className={
-                          "ext-badge " +
-                          (s.healthy
-                            ? "ext-badge--ok"
-                            : "ext-badge--fail")
-                        }
-                      >
-                        {s.healthy
-                          ? tr("ext.mcp.doctorHealthy")
-                          : tr("ext.mcp.doctorUnhealthy")}
-                      </span>
-                      {s.transport ? (
-                        <span className="ext-badge ext-badge--muted">
-                          {s.transport}
+                {doctorReport.servers.map((s: any) => {
+                  const st =
+                    lookupServerStatus(doctorReportStatusIndex, s.name) ??
+                    lookupServerStatus(doctorStatusIndex, s.name);
+                  const badgeMod = st
+                    ? mcpStatusBadgeMod(st.tone)
+                    : s.healthy
+                      ? "ok"
+                      : "fail";
+                  const label = st
+                    ? tr(mcpStatusLabelKey(st.tone) as MessageKey)
+                    : s.healthy
+                      ? tr("ext.mcp.doctorHealthy")
+                      : tr("ext.mcp.doctorUnhealthy");
+                  const guidanceKey = st
+                    ? mcpAuthGuidanceKey(st.tone)
+                    : null;
+                  return (
+                    <li
+                      key={s.name}
+                      className={
+                        "ext-item" + (s.healthy ? "" : " ext-item--off")
+                      }
+                    >
+                      <div className="ext-item__head">
+                        <strong className="ext-item__name">{s.name}</strong>
+                        <span
+                          className={
+                            "ext-mcp-status ext-mcp-status--" + badgeMod
+                          }
+                        >
+                          <span
+                            className="ext-mcp-status__lamp"
+                            aria-hidden
+                          />
+                          <span
+                            className={"ext-badge ext-badge--" + badgeMod}
+                          >
+                            {label}
+                          </span>
                         </span>
+                        {s.transport ? (
+                          <span className="ext-badge ext-badge--muted">
+                            {s.transport}
+                          </span>
+                        ) : null}
+                      </div>
+                      {s.target ? (
+                        <p className="ext-item__desc" title={s.target}>
+                          {shortPathLabel(s.target, 72) || s.target}
+                        </p>
                       ) : null}
-                    </div>
-                    {s.target ? (
-                      <p className="ext-item__desc" title={s.target}>
-                        {shortPathLabel(s.target, 72) || s.target}
-                      </p>
-                    ) : null}
-                    {s.checks.length > 0 ? (
-                      <ul className="ext-doctor__checks">
-                        {s.checks.map((c: any, i: any) => (
-                          <li
-                            key={`${s.name}:${c.label}:${i}`}
-                            className={
-                              "ext-doctor__check" +
-                              (c.passed ? " is-pass" : " is-fail")
+                      {st?.needsAuthRefresh && guidanceKey ? (
+                        <div className="ext-mcp-auth-row">
+                          <p className="ext-mcp-auth-hint">
+                            {tr(guidanceKey as MessageKey)}
+                          </p>
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            onClick={() =>
+                              setAuthHelpTarget({
+                                name: s.name,
+                                status: st,
+                              })
                             }
                           >
-                            <span className="ext-doctor__check-label">
-                              {c.passed ? "✓" : "✗"} {c.label}
-                            </span>
-                            {c.detail ? (
-                              <span className="ext-doctor__check-detail">
-                                {c.detail}
+                            {tr("ext.mcp.auth.howToRefresh")}
+                          </button>
+                        </div>
+                      ) : null}
+                      {Array.isArray(s.checks) && s.checks.length > 0 ? (
+                        <ul className="ext-doctor__checks">
+                          {s.checks.map((c: any, i: any) => (
+                            <li
+                              key={`${s.name}:${c.label}:${i}`}
+                              className={
+                                "ext-doctor__check" +
+                                (c.passed ? " is-pass" : " is-fail")
+                              }
+                            >
+                              <span className="ext-doctor__check-label">
+                                {c.passed ? "✓" : "✗"} {c.label}
                               </span>
-                            ) : null}
-                            {c.hint ? (
-                              <span className="ext-doctor__check-hint">
-                                {tr("ext.mcp.doctorHint", { hint: c.hint })}
-                              </span>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </li>
-                ))}
+                              {c.detail ? (
+                                <span className="ext-doctor__check-detail">
+                                  {redactMcpText(c.detail)}
+                                </span>
+                              ) : null}
+                              {c.hint ? (
+                                <span className="ext-doctor__check-hint">
+                                  {tr("ext.mcp.doctorHint", {
+                                    hint: redactMcpText(c.hint),
+                                  })}
+                                </span>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             )}
             {doctorReport.rawText ? (
-              <pre className="ext-details-pre">{doctorReport.rawText}</pre>
+              <pre className="ext-details-pre">
+                {redactMcpText(doctorReport.rawText)}
+              </pre>
             ) : null}
           </div>
         )}
+      </GlassModal>
+
+      <GlassModal
+        open={!!authHelpTarget}
+        onClose={() => setAuthHelpTarget(null)}
+        title={tr("ext.mcp.auth.refreshTitle", {
+          name: authHelpTarget?.name ?? "",
+        })}
+        size="md"
+        closeLabel={tr("common.close")}
+        wrapBody
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={doctorLoading || cliMissing}
+              onClick={() => {
+                const name = authHelpTarget?.name;
+                setAuthHelpTarget(null);
+                if (name) void runDoctor(name);
+              }}
+            >
+              <IconDoctor size={14} />
+              <span>{tr("ext.mcp.doctorRerun")}</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn--solid"
+              onClick={() => setAuthHelpTarget(null)}
+            >
+              {tr("common.close")}
+            </button>
+          </>
+        }
+      >
+        <p className="app-dialog__msg">
+          {authHelpTarget?.status.tone === "auth_expired"
+            ? tr("ext.mcp.auth.refreshLeadExpired")
+            : tr("ext.mcp.auth.refreshLeadRequired")}
+        </p>
+        {authHelpTarget?.status.reason ? (
+          <p className="ext-mcp-status-reason">
+            {redactMcpText(authHelpTarget.status.reason)}
+          </p>
+        ) : null}
+        <ol className="ext-mcp-auth-steps">
+          <li>{tr("ext.mcp.auth.stepReauth")}</li>
+          <li>{tr("ext.mcp.auth.stepReadd")}</li>
+          <li>{tr("ext.mcp.auth.stepRemoteUrl")}</li>
+          <li>{tr("ext.mcp.auth.stepDoctor")}</li>
+        </ol>
+        <p className="ext-field-hint">{tr("ext.mcp.auth.noAutoRefresh")}</p>
       </GlassModal>
     </div>
   );

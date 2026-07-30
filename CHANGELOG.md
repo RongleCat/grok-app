@@ -26,6 +26,8 @@ See `docs/llm-wiki/release.md`.
 - **In-app product tour**: optional multi-step walkthrough (projects, permissions/YOLO, worktrees, send queue, context compact, shortcuts, extensions). Replay from account menu, Settings → About, command palette, or `/tutorial`. Soft one-time offer after first-run setup (`localStorage` `grok.productTutorial.v1`)
 **中文 · 新增**
 - **应用内产品导览**：可选多步介绍（项目、权限/YOLO、工作树、发送队列、上下文压缩、快捷键、扩展）；账户菜单 / 设置 → 关于 / 命令面板 / `/tutorial` 可重播；完成首次设置后软提示一次
+- **MCP auth / health status** (Settings → Extensions → MCP): after Doctor runs, each server shows a status lamp (OK / warn / error / auth expired / auth required); auth issues get short guidance and an in-app **How to refresh** modal (re-auth, re-add, check remote URL — no fake auto-refresh). Secrets stay redacted.
+- **MCP 认证/健康状态**：诊断后在列表显示状态灯；过期/需认证提供「如何刷新」引导（无假自动刷新）；密钥脱敏
 
 ## [0.2.2] - 2026-07-30
 

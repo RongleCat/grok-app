@@ -1802,6 +1802,33 @@ export const zhTW: Record<MessageKey, string> = {
   "ext.mcp.doctorUnhealthy": "異常",
   "ext.mcp.doctorSources": "設定來源",
   "ext.mcp.doctorHint": "提示：{hint}",
+  "ext.mcp.doctorLastAt": "上次診斷：{time}",
+  "ext.mcp.status.ok": "正常",
+  "ext.mcp.status.warn": "警告",
+  "ext.mcp.status.error": "錯誤",
+  "ext.mcp.status.unknown": "未知",
+  "ext.mcp.status.authExpired": "憑證過期",
+  "ext.mcp.status.authRequired": "需要認證",
+  "ext.mcp.auth.expiredHint":
+    "憑證似乎已過期。請重新認證或重新新增該伺服器 — 應用無法自動重新整理 MCP 權杖。",
+  "ext.mcp.auth.requiredHint":
+    "此伺服器需要認證。請重新認證、重新新增，或檢查遠端 URL。",
+  "ext.mcp.auth.howToRefresh": "如何重新整理",
+  "ext.mcp.auth.refreshTitle": "重新整理 MCP 憑證 · {name}",
+  "ext.mcp.auth.refreshLeadExpired":
+    "診斷顯示該 MCP 伺服器憑證已過期。請在應用外更新憑證後，再執行診斷確認。",
+  "ext.mcp.auth.refreshLeadRequired":
+    "診斷顯示該 MCP 伺服器缺少或拒絕認證。請恢復存取後，再執行診斷確認。",
+  "ext.mcp.auth.stepReauth":
+    "使用該 MCP 提供方自己的流程重新認證（OAuth / API 權杖）。",
+  "ext.mcp.auth.stepReadd":
+    "或在此移除該伺服器，再用新的命令 / 環境變數重新新增（請勿貼上無法輪替的長期密鑰）。",
+  "ext.mcp.auth.stepRemoteUrl":
+    "對於 HTTP/SSE 伺服器，確認遠端 URL 正確且本機可連線。",
+  "ext.mcp.auth.stepDoctor":
+    "更新憑證後再次對該伺服器執行診斷以確認健康狀態。",
+  "ext.mcp.auth.noAutoRefresh":
+    "應用內沒有 MCP 權杖自動重新整理 — CLI 未提供此能力。",
   "ext.mcp.actionError": "MCP 操作失敗",
   "ext.enabled": "已啟用",
   "ext.disabled": "已停用",

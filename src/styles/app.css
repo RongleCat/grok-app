@@ -15672,10 +15672,107 @@ div.composer__input:empty::before {
   color: var(--text-primary);
 }
 
+.ext-badge--warn {
+  background: color-mix(in srgb, #e0b44a 14%, transparent);
+  border-color: color-mix(in srgb, #e0b44a 28%, transparent);
+  color: var(--text-primary);
+}
+
 .ext-badge--fail {
   background: color-mix(in srgb, #e05a5a 14%, transparent);
   border-color: color-mix(in srgb, #e05a5a 28%, transparent);
   color: var(--text-primary);
+}
+
+.ext-badge--auth {
+  background: color-mix(in srgb, #e08a4a 16%, transparent);
+  border-color: color-mix(in srgb, #e08a4a 32%, transparent);
+  color: var(--text-primary);
+}
+
+/* MCP status lamp + badge cluster (list + doctor) */
+.ext-mcp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ext-mcp-status__lamp {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: color-mix(in srgb, #9aa0a6 70%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #9aa0a6 35%, transparent);
+}
+
+.ext-mcp-status--ok .ext-mcp-status__lamp {
+  background: #6bcf8e;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #6bcf8e 40%, transparent);
+}
+
+.ext-mcp-status--warn .ext-mcp-status__lamp {
+  background: #e0b44a;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #e0b44a 40%, transparent);
+}
+
+.ext-mcp-status--fail .ext-mcp-status__lamp {
+  background: #e05a5a;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #e05a5a 40%, transparent);
+}
+
+.ext-mcp-status--auth .ext-mcp-status__lamp {
+  background: #e08a4a;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #e08a4a 40%, transparent);
+}
+
+.ext-mcp-status--muted .ext-mcp-status__lamp {
+  background: color-mix(in srgb, #9aa0a6 70%, transparent);
+}
+
+.ext-mcp-last-doctor {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.ext-mcp-status-reason {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.ext-mcp-auth-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 6px;
+}
+
+.ext-mcp-auth-hint {
+  margin: 0;
+  flex: 1 1 12rem;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.ext-mcp-auth-steps {
+  margin: 10px 0 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.ext-mcp-auth-steps li {
+  padding-left: 2px;
 }
 
 .ext-switch {

@@ -1867,6 +1867,33 @@ const en = {
   "ext.mcp.doctorUnhealthy": "Unhealthy",
   "ext.mcp.doctorSources": "Config sources",
   "ext.mcp.doctorHint": "Hint: {hint}",
+  "ext.mcp.doctorLastAt": "Last doctor run: {time}",
+  "ext.mcp.status.ok": "OK",
+  "ext.mcp.status.warn": "Warn",
+  "ext.mcp.status.error": "Error",
+  "ext.mcp.status.unknown": "Unknown",
+  "ext.mcp.status.authExpired": "Auth expired",
+  "ext.mcp.status.authRequired": "Auth required",
+  "ext.mcp.auth.expiredHint":
+    "Credentials look expired. Re-auth or re-add this server — the app cannot auto-refresh MCP tokens.",
+  "ext.mcp.auth.requiredHint":
+    "This server needs authentication. Re-auth, re-add the server, or check its remote URL.",
+  "ext.mcp.auth.howToRefresh": "How to refresh",
+  "ext.mcp.auth.refreshTitle": "Refresh MCP credentials · {name}",
+  "ext.mcp.auth.refreshLeadExpired":
+    "Doctor reports expired credentials for this MCP server. Refresh them outside the app, then re-run Doctor.",
+  "ext.mcp.auth.refreshLeadRequired":
+    "Doctor reports missing or rejected authentication for this MCP server. Restore access, then re-run Doctor.",
+  "ext.mcp.auth.stepReauth":
+    "Re-authenticate with the MCP provider (OAuth / API token) using that product’s own flow.",
+  "ext.mcp.auth.stepReadd":
+    "Or remove this server here and add it again with a fresh command / env (never paste long-lived secrets you cannot rotate).",
+  "ext.mcp.auth.stepRemoteUrl":
+    "For HTTP/SSE servers, confirm the remote URL is correct and reachable from this machine.",
+  "ext.mcp.auth.stepDoctor":
+    "Run Doctor again on this server to confirm health after credentials are updated.",
+  "ext.mcp.auth.noAutoRefresh":
+    "There is no in-app auto-refresh for MCP tokens — the CLI does not expose one.",
   "ext.mcp.actionError": "MCP action failed",
   "ext.enabled": "Enabled",
   "ext.disabled": "Disabled",
@@ -4204,6 +4231,33 @@ const zh: Record<MessageKey, string> = {
   "ext.mcp.doctorUnhealthy": "异常",
   "ext.mcp.doctorSources": "配置来源",
   "ext.mcp.doctorHint": "提示：{hint}",
+  "ext.mcp.doctorLastAt": "上次诊断：{time}",
+  "ext.mcp.status.ok": "正常",
+  "ext.mcp.status.warn": "警告",
+  "ext.mcp.status.error": "错误",
+  "ext.mcp.status.unknown": "未知",
+  "ext.mcp.status.authExpired": "凭证过期",
+  "ext.mcp.status.authRequired": "需要认证",
+  "ext.mcp.auth.expiredHint":
+    "凭证似乎已过期。请重新认证或重新添加该服务器 — 应用无法自动刷新 MCP 令牌。",
+  "ext.mcp.auth.requiredHint":
+    "此服务器需要认证。请重新认证、重新添加，或检查远程 URL。",
+  "ext.mcp.auth.howToRefresh": "如何刷新",
+  "ext.mcp.auth.refreshTitle": "刷新 MCP 凭证 · {name}",
+  "ext.mcp.auth.refreshLeadExpired":
+    "诊断显示该 MCP 服务器凭证已过期。请在应用外更新凭证后，再运行诊断确认。",
+  "ext.mcp.auth.refreshLeadRequired":
+    "诊断显示该 MCP 服务器缺少或拒绝认证。请恢复访问后，再运行诊断确认。",
+  "ext.mcp.auth.stepReauth":
+    "使用该 MCP 提供方自己的流程重新认证（OAuth / API 令牌）。",
+  "ext.mcp.auth.stepReadd":
+    "或在此移除该服务器，再用新的命令 / 环境变量重新添加（请勿粘贴无法轮换的长期密钥）。",
+  "ext.mcp.auth.stepRemoteUrl":
+    "对于 HTTP/SSE 服务器，确认远程 URL 正确且本机可访问。",
+  "ext.mcp.auth.stepDoctor":
+    "更新凭证后再次对该服务器运行诊断以确认健康状态。",
+  "ext.mcp.auth.noAutoRefresh":
+    "应用内没有 MCP 令牌自动刷新 — CLI 未提供该能力。",
   "ext.mcp.actionError": "MCP 操作失败",
   "ext.enabled": "已启用",
   "ext.disabled": "已禁用",
