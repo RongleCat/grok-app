@@ -363,6 +363,11 @@ import {
   type PromptHistoryEntry,
 } from "@/lib/composerPromptHistory";
 import {
+  ingestHookLogLine,
+  ingestHostHookPayload,
+  ingestToolHookSignal,
+} from "@/lib/hooksDebug";
+import {
   COMPOSER_SEND_KEY_CHANGED_EVENT,
   loadComposerSendKeyPref,
   shouldSendOnKeydown,
@@ -3193,6 +3198,15 @@ export default function App() {
             if (cancelled || !p?.toolCallId) return;
             const sid = p.sessionId || viewingSessionIdRef.current;
             if (!sid) return;
+            // Hooks debug: tool failures / hookSpecificOutput (Extensions → Hooks).
+            ingestToolHookSignal({
+              title: p.title,
+              kind: p.kind,
+              status: p.status,
+              detail: p.detail,
+              path: p.path,
+              toolCallId: p.toolCallId,
+            });
             patchSessionMessages(sid, (prev) => {
               const next = applyToolEvent(prev, p);
               setLiveMap((lm) => {
@@ -3223,6 +3237,28 @@ export default function App() {
               // Tool activity counts as progress — clear stall banner (I06).
               setStreamStall(null);
             }
+          }),
+        );
+        await track(
+          api.listen<{
+            sessionId?: string;
+            kind?: string;
+            eventName?: string;
+            toolName?: string;
+            ok?: boolean | null;
+            detail?: string;
+            update?: unknown;
+          }>("session://hook", (p) => {
+            if (cancelled || !p) return;
+            // Structured ACP hook_execution / hook_annotation from Host.
+            ingestHostHookPayload(p);
+          }),
+        );
+        await track(
+          api.listen<{ line?: string }>("session://stderr", (p) => {
+            if (cancelled || !p?.line) return;
+            // Fallback: agent log lines that mention hooks (fail-open, timeouts, …).
+            ingestHookLogLine(p.line);
           }),
         );
         await track(

@@ -1,5 +1,5 @@
 /**
- * Settings → Extensions → Hooks: list and open hook folders.
+ * Settings → Extensions → Hooks: list and open hook folders + recent activity.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as api from "@/lib/api";
@@ -13,6 +13,13 @@ import {
 } from "@/components/icons";
 import { isCliMissingError } from "@/lib/extensionsUi";
 import {
+  formatHookActivityTime,
+  listHookActivities,
+  subscribeHookActivities,
+  type HookActivityOutcome,
+  type HookActivityRecord,
+} from "@/lib/hooksDebug";
+import {
   formatHookMtime,
   formatHookSize,
   hookMetaLine,
@@ -21,6 +28,22 @@ import {
   sortHooksByScopeName,
   type HookLike,
 } from "@/lib/hooksUi";
+
+function outcomeBadgeClass(outcome: HookActivityOutcome): string {
+  if (outcome === "ok") return "ext-badge ext-badge--ok";
+  if (outcome === "fail") return "ext-badge ext-badge--fail";
+  return "ext-badge ext-badge--muted";
+}
+
+function outcomeLabel(
+  outcome: HookActivityOutcome,
+  tr: ReturnType<typeof createT>,
+): string {
+  if (outcome === "ok") return tr("ext.hooks.activity.ok");
+  if (outcome === "fail") return tr("ext.hooks.activity.fail");
+  if (outcome === "skip") return tr("ext.hooks.activity.skip");
+  return tr("ext.hooks.activity.info");
+}
 
 export function ExtensionsHooksPanel({
   locale,
@@ -39,7 +62,15 @@ export function ExtensionsHooksPanel({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [activity, setActivity] = useState<HookActivityRecord[]>(() => [
+    ...listHookActivities(),
+  ]);
   const cliMissing = !cliFound;
+
+  useEffect(() => {
+    setActivity([...listHookActivities()]);
+    return subscribeHookActivities((recs) => setActivity([...recs]));
+  }, []);
 
   const load = useCallback(async () => {
     if (!api.isTauri()) {
@@ -176,6 +207,37 @@ export function ExtensionsHooksPanel({
         {docsPath ? (
           <p className="ext-section-note">{tr("ext.hooks.docs")}: <code>{docsPath}</code></p>
         ) : null}
+      </div>
+
+      <div className="settings-card ext-card ext-hooks-activity">
+        <h3 className="settings-page__h2 ext-hooks-activity__title">
+          {tr("ext.hooks.activity.title")}
+        </h3>
+        <p className="ext-section-note">{tr("ext.hooks.activity.desc")}</p>
+        {activity.length === 0 ? (
+          <p className="ext-field-hint">{tr("ext.hooks.activity.empty")}</p>
+        ) : (
+          <ul className="ext-list ext-hooks-activity__list">
+            {activity.map((row) => (
+              <li key={row.id} className="ext-item ext-hooks-activity__item">
+                <div className="ext-item__head">
+                  <span className="ext-item__name">{row.type}</span>
+                  <span className={outcomeBadgeClass(row.outcome)}>
+                    {outcomeLabel(row.outcome, tr)}
+                  </span>
+                  <span className="ext-badge ext-badge--muted">
+                    {formatHookActivityTime(row.atMs, locale)}
+                  </span>
+                </div>
+                {row.detail ? (
+                  <div className="ext-item__meta ext-hooks-activity__detail" title={row.detail}>
+                    {row.detail}
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </>
   );

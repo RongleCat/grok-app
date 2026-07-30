@@ -115,6 +115,21 @@ pub enum AcpEvent {
     Stderr {
         line: String,
     },
+    /// Hook lifecycle activity from ACP (`hook_execution` / `hook_annotation`).
+    /// Forwarded to the UI for Settings → Extensions → Hooks “Recent activity”.
+    HookActivity {
+        /// Wire kind: `hook_execution` | `hook_annotation` | other.
+        kind: String,
+        /// Best-effort event name (PreToolUse, SessionStart, …).
+        event_name: String,
+        tool_name: Option<String>,
+        /// True/false when status is known; None = info / annotation.
+        ok: Option<bool>,
+        /// Short detail (may still contain secrets — UI redacts).
+        detail: String,
+        /// Raw update object for richer client-side parsing (runs list, etc.).
+        raw: Value,
+    },
     ProcessExited {
         code: Option<i32>,
     },
@@ -2042,6 +2057,114 @@ pub fn decode_permission_request(rpc_id: u64, params: &Value) -> AcpEvent {
     }
 }
 
+/// Best-effort decode of ACP hook session updates → a single UI event.
+/// Field names vary across CLI builds; we accept both snake_case and camelCase.
+pub fn parse_hook_activity_update(kind: &str, update: &Value) -> Option<AcpEvent> {
+    let event_name = update
+        .get("event_name")
+        .or_else(|| update.get("eventName"))
+        .or_else(|| update.get("hook_event_name"))
+        .or_else(|| update.get("hookEventName"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let tool_name = update
+        .get("tool_name")
+        .or_else(|| update.get("toolName"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .filter(|s| !s.is_empty());
+    let detail = update
+        .get("detail")
+        .or_else(|| update.get("message"))
+        .or_else(|| update.get("text"))
+        .or_else(|| update.get("reason"))
+        .or_else(|| update.get("additional_context"))
+        .or_else(|| update.get("additionalContext"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .chars()
+        .take(500)
+        .collect::<String>();
+    let status = update
+        .get("status")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let ok = if let Some(b) = update.get("ok").and_then(|v| v.as_bool()) {
+        Some(b)
+    } else if status.is_empty() {
+        // Aggregate from runs/hooks when present.
+        let runs = update
+            .get("hooks")
+            .or_else(|| update.get("runs"))
+            .or_else(|| update.get("entries"));
+        if let Some(arr) = runs.and_then(|v| v.as_array()) {
+            if arr.is_empty() {
+                None
+            } else {
+                let any_fail = arr.iter().any(|e| {
+                    let st = e
+                        .get("status")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_ascii_lowercase();
+                    st.contains("fail")
+                        || st.contains("error")
+                        || st.contains("denied")
+                        || st.contains("timeout")
+                        || e.get("status")
+                            .and_then(|v| v.get("Failed"))
+                            .is_some()
+                        || e.get("ok") == Some(&Value::Bool(false))
+                });
+                Some(!any_fail)
+            }
+        } else {
+            None
+        }
+    } else if matches!(
+        status.as_str(),
+        "ok" | "success" | "succeeded" | "completed" | "allow" | "allowed"
+    ) {
+        Some(true)
+    } else if matches!(
+        status.as_str(),
+        "fail"
+            | "failed"
+            | "error"
+            | "denied"
+            | "deny"
+            | "block"
+            | "blocked"
+            | "timeout"
+            | "timed_out"
+            | "timedout"
+    ) {
+        Some(false)
+    } else {
+        None
+    };
+
+    // Annotation-only text: still surface when non-empty or known kind.
+    let kind_l = kind.to_ascii_lowercase();
+    if event_name.is_empty() && detail.is_empty() && tool_name.is_none() && ok.is_none() {
+        // Keep a breadcrumb so the UI can show *something* for empty shells.
+        if !kind_l.contains("hook") {
+            return None;
+        }
+    }
+
+    Some(AcpEvent::HookActivity {
+        kind: kind.to_string(),
+        event_name,
+        tool_name,
+        ok,
+        detail,
+        raw: update.clone(),
+    })
+}
+
 /// Pure decode of `session/update` params → host events (no I/O).
 /// Used by the live client and golden fixture tests.
 pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
@@ -2238,6 +2361,12 @@ pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
         | "turn_usage"
         | "turnUsage" => {
             if let Some(ev) = parse_usage_update(kind, update) {
+                out.push(ev);
+            }
+        }
+        // Grok Build lifecycle hooks (scrollback annotations + execution status).
+        "hook_execution" | "hook_annotation" | "hookExecution" | "hookAnnotation" => {
+            if let Some(ev) = parse_hook_activity_update(kind, update) {
                 out.push(ev);
             }
         }
@@ -2557,6 +2686,51 @@ mod session_update_decode_tests {
                 status,
                 ..
             }] if tool_call_id == "call-1" && status == "in_progress"
+        ));
+    }
+
+    #[test]
+    fn hook_execution_decodes_with_runs() {
+        let evs = decode_session_update(&json!({
+            "update": {
+                "sessionUpdate": "hook_execution",
+                "event_name": "PreToolUse",
+                "tool_name": "Bash",
+                "hooks": [
+                    { "name": "guard.sh", "status": "success" },
+                    { "name": "bad", "status": "failed", "detail": "exit 1" }
+                ]
+            }
+        }));
+        assert!(matches!(
+            &evs[..],
+            [AcpEvent::HookActivity {
+                kind,
+                event_name,
+                tool_name: Some(tool),
+                ok: Some(false),
+                ..
+            }] if kind == "hook_execution"
+                && event_name == "PreToolUse"
+                && tool == "Bash"
+        ));
+    }
+
+    #[test]
+    fn hook_annotation_decodes_text() {
+        let evs = decode_session_update(&json!({
+            "update": {
+                "sessionUpdate": "hook_annotation",
+                "text": "Hook annotation: stop_failure"
+            }
+        }));
+        assert!(matches!(
+            &evs[..],
+            [AcpEvent::HookActivity {
+                kind,
+                detail,
+                ..
+            }] if kind == "hook_annotation" && detail.contains("stop_failure")
         ));
     }
 }

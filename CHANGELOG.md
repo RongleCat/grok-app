@@ -13,6 +13,8 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- **Hooks recent activity** (Settings → Extensions → Hooks): session-local last runs from ACP `hook_execution` / `hook_annotation`, tool failures mentioning hooks, and agent log lines — type, ok/fail, time, redacted detail
+- **Hooks 最近活动**（设置 → 扩展 → Hooks）：本会话内最近运行记录（ACP 通知 / 工具失败 / agent 日志），脱敏展示
 - **CLI sessions bridge** (Settings → General → App): search/filter by title or agent id, show + copy agent session id, one-click **Import & open** / **Open in app** for linked sessions, clearer linked badge; available in independent mode with an honest note that agent-home may differ from terminal `~/.grok`
 - CLI session import no longer requires shared mode (already-linked rows skip re-import and open the existing app session)
 - **Session plugin folders**: attach one or more plugin directories to a single chat (session context menu → Add session plugin folder). Spawn passes CLI `--plugin-dir` for that session only; clear leaves global Extensions / installed plugins unchanged. Changing dirs soft-respawns a live agent when idle.

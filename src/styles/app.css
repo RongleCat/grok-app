@@ -16068,6 +16068,22 @@ div.composer__input:empty::before {
   margin-bottom: 4px;
 }
 
+.ext-hooks-activity {
+  margin-top: 12px;
+}
+
+.ext-hooks-activity__title {
+  margin-bottom: 4px;
+}
+
+.ext-hooks-activity__list {
+  margin-top: 6px;
+}
+
+.ext-hooks-activity__detail {
+  word-break: break-word;
+}
+
 .ext-list {
   list-style: none;
   margin: 0;

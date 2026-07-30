@@ -3051,6 +3051,7 @@ impl SessionManager {
             AcpEvent::Error { .. } => "error",
             AcpEvent::ProcessExited { .. } => "process_exited",
             AcpEvent::Stderr { .. } => "stderr",
+            AcpEvent::HookActivity { .. } => "hook_activity",
         }
     }
 
@@ -3759,6 +3760,34 @@ impl SessionManager {
                 tracing::warn!(target: "acp_stderr", "{line}");
                 let _ = app.emit("session://stderr", serde_json::json!({ "line": line }));
             }
+            AcpEvent::HookActivity {
+                kind,
+                event_name,
+                tool_name,
+                ok,
+                detail,
+                raw,
+            } => {
+                let app_sid = {
+                    let guard = self.inner.lock();
+                    guard
+                        .as_ref()
+                        .map(|s| s.app_session_id.clone())
+                        .unwrap_or_default()
+                };
+                let _ = app.emit(
+                    "session://hook",
+                    serde_json::json!({
+                        "sessionId": app_sid,
+                        "kind": kind,
+                        "eventName": event_name,
+                        "toolName": tool_name,
+                        "ok": ok,
+                        "detail": detail,
+                        "update": raw,
+                    }),
+                );
+            }
             AcpEvent::RetryState {
                 attempt,
                 max_retries,
@@ -4425,6 +4454,27 @@ impl SessionManager {
                         "toolsTokens": tools_tokens,
                         "historyTokens": history_tokens,
                         "source": source,
+                    }),
+                );
+            }
+            AcpEvent::HookActivity {
+                kind,
+                event_name,
+                tool_name,
+                ok,
+                detail,
+                raw,
+            } => {
+                let _ = app.emit(
+                    "session://hook",
+                    serde_json::json!({
+                        "sessionId": app_session_id,
+                        "kind": kind,
+                        "eventName": event_name,
+                        "toolName": tool_name,
+                        "ok": ok,
+                        "detail": detail,
+                        "update": raw,
                     }),
                 );
             }
