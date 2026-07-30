@@ -11250,6 +11250,12 @@ export default function App() {
           onCliSessionsImported={() => {
             void refreshSessions();
           }}
+          onOpenCliSession={(appSessionId) => {
+            void (async () => {
+              await refreshSessions();
+              trayHandlersRef.current.openSessionById(appSessionId);
+            })();
+          }}
           onSessionDataMode={(v) => {
             const commit = () => {
               setSessionDataMode(v);

@@ -91,7 +91,7 @@ The `grok` CLI is powerful in a terminal. Day-to-day work still needs multi-proj
 | Area | What you get |
 |------|----------------|
 | **Real Build sessions** | Default `grok agent stdio` (ACP); host-owned session FSM; optional remote ACP |
-| **Projects & sessions** | Trusted dirs, virtualized sidebar, archive / orphan, fork & rewind; **import CLI sessions** in shared mode |
+| **Projects & sessions** | Trusted dirs, virtualized sidebar, archive / orphan, fork & rewind; **import / open CLI sessions** (path clarity in independent mode) |
 | **Multi-session stream** | Keep busy turns streaming after switching chats; process limits & idle recycle |
 | **Git worktrees** | Project chip lists linked worktrees; switch cwd in one click (hidden for non-git) |
 | **Permissions** | Default Ask; allow once / session / deny; YOLO; **per-project** permission tier |

@@ -1,4 +1,5 @@
-//! Discover / import Grok Build CLI sessions from GROK_HOME (shared mode E03).
+//! Discover / import Grok Build CLI sessions from active GROK_HOME
+//! (shared `~/.grok` or independent agent-home).
 //!
 //! Layout: `{GROK_HOME}/sessions/{percent-encoded-cwd}/{agent_session_id}/`
 //!   - summary.json — title, timestamps, cwd
@@ -26,6 +27,11 @@ pub struct CliSessionSummary {
     pub num_messages: u32,
     /// App already has a session row pointing at this agent id.
     pub already_linked: bool,
+    /// App session id when already linked (for one-click open / resume).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app_session_id: Option<String>,
+    /// GROK_HOME used for discovery (path clarity independent vs shared).
+    pub source_home: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -59,14 +65,19 @@ struct SummaryInfo {
 /// List CLI agent sessions under the active GROK_HOME (respects session_data_mode).
 pub fn list_cli_sessions(session_data_mode: &str) -> Result<Vec<CliSessionSummary>, String> {
     let home = resolve_agent_grok_home(session_data_mode);
+    let source_home = home.display().to_string();
     let sessions = home.join("sessions");
     if !sessions.is_dir() {
         return Ok(Vec::new());
     }
 
-    let linked: std::collections::HashSet<String> = store::load_sessions_index()
+    // agent_session_id → app session id (first match wins).
+    let linked: std::collections::HashMap<String, String> = store::load_sessions_index()
         .into_iter()
-        .filter_map(|s| s.agent_session_id)
+        .filter_map(|s| {
+            let aid = s.agent_session_id.filter(|id| !id.is_empty())?;
+            Some((aid, s.id))
+        })
         .collect();
 
     let mut out = Vec::new();
@@ -103,14 +114,17 @@ pub fn list_cli_sessions(session_data_mode: &str) -> Result<Vec<CliSessionSummar
                 continue;
             }
             let (title, cwd, updated, n) = read_summary_bits(&summary_path, &cwd_decoded, &agent_id);
+            let app_session_id = linked.get(&agent_id).cloned();
             out.push(CliSessionSummary {
-                already_linked: linked.contains(&agent_id),
+                already_linked: app_session_id.is_some(),
+                app_session_id,
                 agent_session_id: agent_id,
                 title,
                 cwd,
                 updated_at: updated,
                 dir: dir.display().to_string(),
                 num_messages: n,
+                source_home: source_home.clone(),
             });
         }
     }
@@ -416,16 +430,23 @@ pub fn try_reconcile_linked_session(app_session_id: &str) -> u32 {
 }
 
 /// Import one CLI session into the App journal (independent App session row).
+///
+/// Allowed in both shared and independent mode. In independent mode the scan
+/// path is the app agent-home (not terminal `~/.grok`); callers should surface
+/// path clarity in the UI. Already-linked agent ids return the existing row
+/// without re-importing history.
 pub fn import_cli_session(
     agent_session_id: &str,
     dir: Option<&str>,
     project_id: Option<String>,
     session_data_mode: &str,
 ) -> Result<SessionMeta, String> {
-    if session_data_mode != "shared" {
-        return Err(
-            "CLI session import requires shared session data mode (Settings → General)".into(),
-        );
+    // Already linked? Skip re-import and return the existing app session.
+    if let Some(existing) = store::load_sessions_index()
+        .into_iter()
+        .find(|s| s.agent_session_id.as_deref() == Some(agent_session_id))
+    {
+        return Ok(existing);
     }
 
     let dir = if let Some(d) = dir.filter(|s| !s.is_empty()) {
@@ -436,14 +457,6 @@ pub fn import_cli_session(
     };
     if !dir.is_dir() {
         return Err(format!("not a directory: {}", dir.display()));
-    }
-
-    // Already linked?
-    if let Some(existing) = store::load_sessions_index()
-        .into_iter()
-        .find(|s| s.agent_session_id.as_deref() == Some(agent_session_id))
-    {
-        return Ok(existing);
     }
 
     let summary_path = dir.join("summary.json");

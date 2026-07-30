@@ -491,6 +491,26 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     keywords: ["session data", "shared", "independent", "cli sessions"],
   },
   {
+    id: "general.cliSessions",
+    section: "general",
+    tab: "app",
+    anchorId: "settings-anchor-cliSessions",
+    labelKey: "settings.cliSessions",
+    descKeys: [
+      "settings.cliSessionsDesc",
+      "settings.cliSessionsIndependentNote",
+      "settings.cliSessionsImportOpen",
+    ],
+    keywords: [
+      "cli sessions",
+      "import session",
+      "agent session id",
+      "resume",
+      "CLI 会话",
+      "导入会话",
+    ],
+  },
+  {
     id: "general.voiceId",
     section: "general",
     tab: "app",

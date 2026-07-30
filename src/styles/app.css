@@ -5764,13 +5764,33 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   color: var(--text-tertiary);
 }
 
-/* Shared-mode: discover / import Grok Build CLI sessions */
+/* Discover / import / open Grok Build CLI sessions */
 .settings-cli-sessions {
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: 100%;
   margin-top: 4px;
+}
+
+.settings-cli-sessions__note {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid
+    color-mix(in srgb, var(--accent, #6b8afd) 28%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent, #6b8afd) 8%, transparent);
+}
+
+.settings-cli-sessions__path {
+  font-size: 11.5px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-cli-sessions__actions {
@@ -5780,6 +5800,33 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   align-items: center;
 }
 
+.settings-cli-sessions__filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+}
+
+.settings-cli-sessions__filter input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.settings-cli-sessions__filter input[type="search"]::-webkit-search-decoration,
+.settings-cli-sessions__filter input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
 .settings-cli-sessions__list {
   list-style: none;
   margin: 0;
@@ -5787,7 +5834,7 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 280px;
+  max-height: 320px;
   overflow: auto;
 }
 
@@ -5802,9 +5849,25 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   min-width: 0;
 }
 
+.settings-cli-sessions__item--linked {
+  border-color: color-mix(in srgb, var(--accent, #6b8afd) 36%, var(--border-subtle));
+  background: color-mix(
+    in srgb,
+    var(--accent, #6b8afd) 6%,
+    var(--bg-elevated, var(--bg-input))
+  );
+}
+
 .settings-cli-sessions__meta {
   min-width: 0;
   flex: 1;
+}
+
+.settings-cli-sessions__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .settings-cli-sessions__title {
@@ -5814,16 +5877,61 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .settings-cli-sessions__sub {
   margin-top: 2px;
   font-size: 11.5px;
   color: var(--text-tertiary);
-  font-family: var(--font-mono, ui-monospace, monospace);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.settings-cli-sessions__id-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.settings-cli-sessions__id {
+  font-size: 11px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.settings-cli-sessions__copy {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.settings-cli-sessions__copy:hover {
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  color: var(--text-secondary);
+}
+
+.settings-cli-sessions__row-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .settings-cli-sessions__badge {
@@ -5831,8 +5939,9 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent, #6b8afd) 16%, transparent);
+  background: color-mix(in srgb, var(--accent, #6b8afd) 18%, transparent);
   color: var(--text-secondary);
+  font-weight: 560;
 }
 
 .settings-cli-sessions__empty {

@@ -27,6 +27,7 @@ import {
   IconKeyboard,
   IconLanguage,
   IconMinimize,
+  IconCopy,
   IconPuzzle,
   IconSearch,
   IconSettings,
@@ -35,6 +36,10 @@ import {
   IconUser,
 } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
+import {
+  countUnlinkedCliSessions,
+  filterCliSessions,
+} from "@/lib/cliSessionsFilter";
 import {
   SHORTCUTS,
   detectShortcutPlatform,
@@ -267,8 +272,10 @@ export interface SettingsPageProps {
   onWallpaperScrim?: (value: number) => void;
   sessionDataMode: string;
   onSessionDataMode: (v: string) => void;
-  /** After importing CLI sessions (shared mode) — refresh sidebar. */
+  /** After importing CLI sessions — refresh sidebar. */
   onCliSessionsImported?: () => void;
+  /** Open an app session (after import or when already linked). */
+  onOpenCliSession?: (appSessionId: string) => void;
   policy: string;
   onPolicy: (v: PermissionPolicyId) => void;
   /** Where model / permission choices are remembered. */
@@ -797,6 +804,7 @@ export function SettingsPage({
   sessionDataMode,
   onSessionDataMode,
   onCliSessionsImported,
+  onOpenCliSession,
   policy,
   onPolicy,
   prefsScope = "global",
@@ -2276,12 +2284,12 @@ export function SettingsPage({
                   ]}
                 />
               </div>
-              {sessionDataMode === "shared" ? (
-                <CliSessionsPanel
-                  t={t}
-                  onImported={onCliSessionsImported}
-                />
-              ) : null}
+              <CliSessionsPanel
+                t={t}
+                sessionDataMode={sessionDataMode}
+                onImported={onCliSessionsImported}
+                onOpenSession={onOpenCliSession}
+              />
               {onStoreApiKeysInKeychain ? (
                 <div
                   className={
@@ -4694,19 +4702,26 @@ function ShortcutsSettingsPanel({
   );
 }
 
-/** Shared-mode: list / import Grok Build CLI sessions from GROK_HOME. */
+/** List / import / open Grok Build CLI sessions from active GROK_HOME. */
 function CliSessionsPanel({
   t,
+  sessionDataMode,
   onImported,
+  onOpenSession,
 }: {
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
+  sessionDataMode: string;
   onImported?: () => void;
+  onOpenSession?: (appSessionId: string) => void;
 }) {
   const [rows, setRows] = useState<api.CliSessionSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [filterQuery, setFilterQuery] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const isIndependent = sessionDataMode !== "shared";
 
   const refresh = useCallback(async () => {
     if (!api.isTauri()) return;
@@ -4725,17 +4740,54 @@ function CliSessionsPanel({
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, sessionDataMode]);
 
-  const importOne = async (row: api.CliSessionSummary) => {
+  const filtered = useMemo(
+    () => filterCliSessions(rows, filterQuery),
+    [rows, filterQuery],
+  );
+  /** Bulk import always targets the full list (not the filter). */
+  const pending = countUnlinkedCliSessions(rows);
+  const sourceHome =
+    rows.find((r) => r.sourceHome)?.sourceHome ??
+    (isIndependent ? "~/.grok-app/agent-home" : "~/.grok");
+
+  const copyAgentId = async (agentSessionId: string) => {
+    try {
+      await navigator.clipboard.writeText(agentSessionId);
+      setCopiedId(agentSessionId);
+      window.setTimeout(() => {
+        setCopiedId((cur) => (cur === agentSessionId ? null : cur));
+      }, 1500);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const openAppSession = (appSessionId: string) => {
+    onOpenSession?.(appSessionId);
+  };
+
+  /** Import if needed, then open the app session (skip re-import when linked). */
+  const resumeOrImportOpen = async (row: api.CliSessionSummary) => {
     setBusyId(row.agentSessionId);
     setError(null);
     setStatus(null);
     try {
-      await api.cliSessionImport(row.agentSessionId, { dir: row.dir });
-      setStatus(t("settings.cliSessionsImportedOne", { title: row.title }));
+      if (row.alreadyLinked && row.appSessionId) {
+        setStatus(t("settings.cliSessionsOpened", { title: row.title }));
+        openAppSession(row.appSessionId);
+        return;
+      }
+      const meta = await api.cliSessionImport(row.agentSessionId, {
+        dir: row.dir,
+      });
+      setStatus(
+        t("settings.cliSessionsImportedOpen", { title: row.title }),
+      );
       await refresh();
       onImported?.();
+      if (meta?.id) openAppSession(meta.id);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -4761,15 +4813,24 @@ function CliSessionsPanel({
     }
   };
 
-  const pending = rows.filter((r) => !r.alreadyLinked).length;
-
   return (
-    <div className="settings-row settings-row--stack">
+    <div
+      className="settings-row settings-row--stack"
+      id="settings-anchor-cliSessions"
+    >
       <div className="settings-row__text">
         <div className="settings-row__label">{t("settings.cliSessions")}</div>
         <div className="settings-row__desc">{t("settings.cliSessionsDesc")}</div>
       </div>
       <div className="settings-cli-sessions">
+        {isIndependent ? (
+          <div className="settings-cli-sessions__note" role="note">
+            {t("settings.cliSessionsIndependentNote")}
+          </div>
+        ) : null}
+        <div className="settings-cli-sessions__path" title={sourceHome}>
+          {t("settings.cliSessionsSource", { path: sourceHome })}
+        </div>
         <div className="settings-cli-sessions__actions">
           <button
             type="button"
@@ -4790,6 +4851,18 @@ function CliSessionsPanel({
               : t("settings.cliSessionsImportAll", { n: String(pending) })}
           </button>
         </div>
+        {rows.length > 0 ? (
+          <div className="settings-cli-sessions__filter">
+            <IconSearch size={14} />
+            <input
+              type="search"
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              placeholder={t("settings.cliSessionsFilterPlaceholder")}
+              aria-label={t("settings.cliSessionsFilterPlaceholder")}
+            />
+          </div>
+        ) : null}
         {error ? (
           <div className="settings-cli-sessions__err" role="alert">
             {error}
@@ -4808,37 +4881,98 @@ function CliSessionsPanel({
           <div className="settings-cli-sessions__empty">
             {t("settings.cliSessionsEmpty")}
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="settings-cli-sessions__empty">
+            {t("settings.cliSessionsFilterEmpty")}
+          </div>
         ) : (
           <ul className="settings-cli-sessions__list">
-            {rows.slice(0, 40).map((r) => (
-              <li key={r.agentSessionId} className="settings-cli-sessions__item">
-                <div className="settings-cli-sessions__meta">
-                  <div className="settings-cli-sessions__title">{r.title}</div>
-                  <div className="settings-cli-sessions__sub">
-                    {r.cwd || r.agentSessionId.slice(0, 12)}
-                    {r.numMessages
-                      ? ` · ${t("settings.cliSessionsMsgs", { n: String(r.numMessages) })}`
-                      : ""}
+            {filtered.slice(0, 40).map((r) => {
+              const busy = busyId === r.agentSessionId;
+              const shortId =
+                r.agentSessionId.length > 14
+                  ? `${r.agentSessionId.slice(0, 8)}…${r.agentSessionId.slice(-4)}`
+                  : r.agentSessionId;
+              return (
+                <li
+                  key={r.agentSessionId}
+                  className={
+                    "settings-cli-sessions__item" +
+                    (r.alreadyLinked
+                      ? " settings-cli-sessions__item--linked"
+                      : "")
+                  }
+                >
+                  <div className="settings-cli-sessions__meta">
+                    <div className="settings-cli-sessions__title-row">
+                      <div className="settings-cli-sessions__title">
+                        {r.title}
+                      </div>
+                      {r.alreadyLinked ? (
+                        <span className="settings-cli-sessions__badge">
+                          {t("settings.cliSessionsLinked")}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="settings-cli-sessions__sub">
+                      {r.cwd ? `${r.cwd} · ` : ""}
+                      {r.numMessages
+                        ? t("settings.cliSessionsMsgs", {
+                            n: String(r.numMessages),
+                          })
+                        : null}
+                    </div>
+                    <div className="settings-cli-sessions__id-row">
+                      <span
+                        className="settings-cli-sessions__id"
+                        title={r.agentSessionId}
+                      >
+                        {t("settings.cliSessionsAgentId", { id: shortId })}
+                      </span>
+                      <button
+                        type="button"
+                        className="settings-cli-sessions__copy"
+                        title={t("settings.cliSessionsCopyId")}
+                        aria-label={t("settings.cliSessionsCopyId")}
+                        onClick={() => void copyAgentId(r.agentSessionId)}
+                      >
+                        <IconCopy size={12} />
+                        <span>
+                          {copiedId === r.agentSessionId
+                            ? t("settings.cliSessionsCopied")
+                            : t("settings.cliSessionsCopyId")}
+                        </span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-                {r.alreadyLinked ? (
-                  <span className="settings-cli-sessions__badge">
-                    {t("settings.cliSessionsLinked")}
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    disabled={!!busyId}
-                    onClick={() => void importOne(r)}
-                  >
-                    {busyId === r.agentSessionId
-                      ? t("settings.cliSessionsImporting")
-                      : t("settings.cliSessionsImport")}
-                  </button>
-                )}
-              </li>
-            ))}
+                  <div className="settings-cli-sessions__row-actions">
+                    {r.alreadyLinked ? (
+                      <button
+                        type="button"
+                        className="btn btn--solid"
+                        disabled={!!busyId || !r.appSessionId}
+                        onClick={() => void resumeOrImportOpen(r)}
+                      >
+                        {busy
+                          ? t("settings.cliSessionsImporting")
+                          : t("settings.cliSessionsOpen")}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn--solid"
+                        disabled={!!busyId}
+                        onClick={() => void resumeOrImportOpen(r)}
+                      >
+                        {busy
+                          ? t("settings.cliSessionsImporting")
+                          : t("settings.cliSessionsImportOpen")}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

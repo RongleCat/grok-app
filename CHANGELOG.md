@@ -13,6 +13,8 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- **CLI sessions bridge** (Settings → General → App): search/filter by title or agent id, show + copy agent session id, one-click **Import & open** / **Open in app** for linked sessions, clearer linked badge; available in independent mode with an honest note that agent-home may differ from terminal `~/.grok`
+- CLI session import no longer requires shared mode (already-linked rows skip re-import and open the existing app session)
 - **Session plugin folders**: attach one or more plugin directories to a single chat (session context menu → Add session plugin folder). Spawn passes CLI `--plugin-dir` for that session only; clear leaves global Extensions / installed plugins unchanged. Changing dirs soft-respawns a live agent when idle.
 - **会话级插件目录**：在会话右键菜单附加插件文件夹；仅该会话 spawn 时传入 `--plugin-dir`，不影响扩展/全局已装插件；变更后会 soft-respawn 空闲中的 Agent。
 - **Structured JSON Schema output** (composer Advanced): paste a JSON Schema for the current chat; client-side JSON validation with toast on errors; clear control; persists on `SessionMeta.jsonSchema`. When set, spawns agent with top-level `grok --json-schema` and prefixes prompts with a labeled experimental instruction. Matching assistant JSON replies show a copyable structured JSON panel
