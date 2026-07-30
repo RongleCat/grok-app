@@ -102,6 +102,10 @@ pub enum AcpEvent {
         total_tokens: Option<u64>,
         input_tokens: Option<u64>,
         output_tokens: Option<u64>,
+        /// Optional structured buckets (system / tools / history) when reported.
+        system_tokens: Option<u64>,
+        tools_tokens: Option<u64>,
+        history_tokens: Option<u64>,
         /// Optional raw kind for debugging (not shown to users).
         source: String,
     },
@@ -1103,9 +1107,34 @@ pub fn parse_usage_update(kind: &str, update: &Value) -> Option<AcpEvent> {
         (Some(i), Some(o)) => Some(i.saturating_add(o)),
         _ => None,
     });
+    let system = json_token_u64(
+        root,
+        &["systemTokens", "system_tokens", "system"],
+    );
+    let tools = json_token_u64(
+        root,
+        &["toolsTokens", "tools_tokens", "toolTokens", "tool_tokens", "tools"],
+    );
+    let history = json_token_u64(
+        root,
+        &[
+            "historyTokens",
+            "history_tokens",
+            "messagesTokens",
+            "messages_tokens",
+            "history",
+        ],
+    );
 
     // Kind hints alone are not enough — need at least one number.
-    if total.is_none() && input.is_none() && output.is_none() {
+    // Do not invent zeros for missing structured buckets.
+    if total.is_none()
+        && input.is_none()
+        && output.is_none()
+        && system.is_none()
+        && tools.is_none()
+        && history.is_none()
+    {
         return None;
     }
 
@@ -1124,6 +1153,9 @@ pub fn parse_usage_update(kind: &str, update: &Value) -> Option<AcpEvent> {
         total_tokens: total,
         input_tokens: input,
         output_tokens: output,
+        system_tokens: system,
+        tools_tokens: tools,
+        history_tokens: history,
         source: kind.to_string(),
     })
 }
@@ -2504,11 +2536,17 @@ mod usage_parse_tests {
                 total_tokens,
                 input_tokens,
                 output_tokens,
+                system_tokens,
+                tools_tokens,
+                history_tokens,
                 ..
             } => {
                 assert_eq!(total_tokens, Some(1540));
                 assert_eq!(input_tokens, Some(1200));
                 assert_eq!(output_tokens, Some(340));
+                assert_eq!(system_tokens, None);
+                assert_eq!(tools_tokens, None);
+                assert_eq!(history_tokens, None);
             }
             _ => panic!("expected UsageReported"),
         }
@@ -2531,6 +2569,34 @@ mod usage_parse_tests {
                 assert_eq!(input_tokens, Some(10));
                 assert_eq!(output_tokens, Some(5));
                 assert_eq!(total_tokens, Some(15));
+            }
+            _ => panic!("expected UsageReported"),
+        }
+    }
+
+    #[test]
+    fn parse_structured_system_tools_history() {
+        let update = json!({
+            "usage": {
+                "totalTokens": 9000,
+                "systemTokens": 800,
+                "toolsTokens": 1200,
+                "historyTokens": 7000
+            }
+        });
+        let ev = parse_usage_update("contextUsage", &update).expect("usage");
+        match ev {
+            AcpEvent::UsageReported {
+                total_tokens,
+                system_tokens,
+                tools_tokens,
+                history_tokens,
+                ..
+            } => {
+                assert_eq!(total_tokens, Some(9000));
+                assert_eq!(system_tokens, Some(800));
+                assert_eq!(tools_tokens, Some(1200));
+                assert_eq!(history_tokens, Some(7000));
             }
             _ => panic!("expected UsageReported"),
         }

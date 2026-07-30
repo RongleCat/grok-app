@@ -9,6 +9,9 @@ import {
   hydrateContextUsageFromMessages,
   INITIAL_CONTEXT_USAGE,
   mergeCompactTokensBefore,
+  isSystemLikeMessage,
+  isToolActivityMessage,
+  mergeKnownBucketsIntoBreakdown,
   reduceContextUsage,
   resolveContextUsageDisplay,
 } from "./contextUsage";
@@ -82,27 +85,172 @@ describe("estimateContextBreakdown", () => {
       {
         id: "t",
         role: "tool",
-        content: "ignored".repeat(20),
+        content: "d".repeat(8), // tools: 2
         marker: "tool_step",
       },
     ]);
     expect(b.userTokens).toBe(2);
     expect(b.assistantTokens).toBe(3);
     expect(b.thoughtTokens).toBe(1);
-    expect(b.totalTokens).toBe(6);
+    expect(b.toolsTokens).toBe(2);
+    expect(b.systemTokens).toBe(0);
+    expect(b.historyTokens).toBe(6); // user+assistant+thought rollup
+    expect(b.totalTokens).toBe(8); // + tools; history not double-counted
     expect(b.estimated).toBe(true);
   });
 
-  it("returns zeros for empty / tools-only", () => {
+  it("classifies system-like and tool/activity messages", () => {
     const b = estimateContextBreakdown([
-      { id: "t", role: "tool", content: "x", marker: "tool_step" },
+      { id: "sys", role: "system", content: "a".repeat(8) }, // system 2
+      { id: "u", role: "user", content: "b".repeat(4) }, // user 1
+      {
+        id: "a",
+        role: "assistant",
+        content: "c".repeat(4), // assistant 1
+        thought: "d".repeat(8), // thought 2
+      },
+      {
+        id: "t",
+        role: "tool",
+        content: "e".repeat(12), // tools 3
+        marker: "tool_step",
+      },
+      {
+        id: "act",
+        role: "activity",
+        content: "f".repeat(4), // tools 1
+      },
+      {
+        id: "c",
+        role: "tool",
+        marker: "context_compact",
+        content: "ignored".repeat(50),
+      },
+      {
+        id: "x",
+        role: "tool",
+        marker: "turn_cancelled",
+        content: "ignored".repeat(50),
+      },
     ]);
-    expect(b).toEqual({
+    expect(b.systemTokens).toBe(2);
+    expect(b.userTokens).toBe(1);
+    expect(b.assistantTokens).toBe(1);
+    expect(b.thoughtTokens).toBe(2);
+    expect(b.toolsTokens).toBe(4);
+    expect(b.historyTokens).toBe(4); // 1+1+2
+    expect(b.totalTokens).toBe(10); // 1+1+2+2+4
+    expect(b.estimated).toBe(true);
+  });
+
+  it("returns zeros for empty transcript (tools-only still counts tools)", () => {
+    const empty = estimateContextBreakdown([]);
+    expect(empty).toEqual({
       userTokens: 0,
       assistantTokens: 0,
       thoughtTokens: 0,
+      systemTokens: 0,
+      toolsTokens: 0,
+      historyTokens: 0,
       totalTokens: 0,
       estimated: true,
+    });
+
+    const toolsOnly = estimateContextBreakdown([
+      { id: "t", role: "tool", content: "abcd", marker: "tool_step" },
+    ]);
+    expect(toolsOnly.toolsTokens).toBe(1);
+    expect(toolsOnly.userTokens).toBe(0);
+    expect(toolsOnly.totalTokens).toBe(1);
+    expect(toolsOnly.historyTokens).toBe(0);
+  });
+});
+
+describe("isToolActivityMessage / isSystemLikeMessage", () => {
+  it("identifies tool_step, tool role, activity; excludes compact chrome", () => {
+    expect(
+      isToolActivityMessage({
+        id: "1",
+        role: "tool",
+        marker: "tool_step",
+        content: "x",
+      }),
+    ).toBe(true);
+    expect(
+      isToolActivityMessage({ id: "2", role: "activity", content: "y" }),
+    ).toBe(true);
+    expect(
+      isToolActivityMessage({
+        id: "3",
+        role: "tool",
+        marker: "context_compact",
+        content: "z",
+      }),
+    ).toBe(false);
+    expect(
+      isSystemLikeMessage({ id: "4", role: "system", content: "sys" }),
+    ).toBe(true);
+    expect(
+      isSystemLikeMessage({
+        id: "5",
+        role: "assistant",
+        marker: "system_prompt",
+        content: "p",
+      }),
+    ).toBe(true);
+    expect(
+      isSystemLikeMessage({ id: "6", role: "user", content: "hi" }),
+    ).toBe(false);
+  });
+});
+
+describe("mergeKnownBucketsIntoBreakdown", () => {
+  it("prefers agent system/tools/history without inventing missing fields", () => {
+    const est = estimateContextBreakdown([
+      { id: "u", role: "user", content: "abcd" }, // 1
+      {
+        id: "t",
+        role: "tool",
+        content: "efgh",
+        marker: "tool_step",
+      }, // tools 1
+    ]);
+    const merged = mergeKnownBucketsIntoBreakdown(est, {
+      inputTokens: 100,
+      outputTokens: 20,
+      totalTokens: 120,
+      systemTokens: 50,
+      toolsTokens: 30,
+      historyTokens: null,
+    });
+    expect(merged?.systemTokens).toBe(50);
+    expect(merged?.toolsTokens).toBe(30);
+    // history stays estimated rollup when agent did not report it
+    expect(merged?.historyTokens).toBe(1);
+    expect(merged?.knownBuckets).toEqual({
+      system: true,
+      tools: true,
+      history: undefined,
+    });
+    expect(merged?.userTokens).toBe(1);
+  });
+
+  it("builds breakdown from known buckets alone", () => {
+    const merged = mergeKnownBucketsIntoBreakdown(null, {
+      inputTokens: null,
+      outputTokens: null,
+      totalTokens: 9000,
+      systemTokens: 800,
+      toolsTokens: 1200,
+      historyTokens: 7000,
+    });
+    expect(merged).toMatchObject({
+      systemTokens: 800,
+      toolsTokens: 1200,
+      historyTokens: 7000,
+      totalTokens: 9000, // history + system + tools when no role sum
+      estimated: false,
+      knownBuckets: { system: true, tools: true, history: true },
     });
   });
 });
@@ -127,6 +275,9 @@ describe("reduceContextUsage", () => {
       inputTokens: 100,
       outputTokens: 50,
       totalTokens: 150,
+      systemTokens: 10,
+      toolsTokens: 20,
+      historyTokens: 120,
       source: "usage",
     });
     expect(s.knownTokens).toBe(150);
@@ -134,6 +285,9 @@ describe("reduceContextUsage", () => {
       inputTokens: 100,
       outputTokens: 50,
       totalTokens: 150,
+      systemTokens: 10,
+      toolsTokens: 20,
+      historyTokens: 120,
       source: "usage",
     });
     expect(s.lastCompactMessageId).toBeNull();
@@ -224,6 +378,9 @@ describe("resolveContextUsageDisplay", () => {
       userTokens: 10,
       assistantTokens: 0,
       thoughtTokens: 0,
+      systemTokens: 0,
+      toolsTokens: 0,
+      historyTokens: 10,
       totalTokens: 10,
       estimated: true,
     });
@@ -243,7 +400,33 @@ describe("resolveContextUsageDisplay", () => {
     expect(d.breakdown?.userTokens).toBe(1);
     expect(d.breakdown?.assistantTokens).toBe(1);
     expect(d.breakdown?.thoughtTokens).toBe(1);
+    expect(d.breakdown?.historyTokens).toBe(3);
+    expect(d.breakdown?.systemTokens).toBe(0);
+    expect(d.breakdown?.toolsTokens).toBe(0);
     expect(d.breakdown?.estimated).toBe(true);
+  });
+
+  it("surfaces agent-reported system/tools/history without tilde path", () => {
+    const state = reduceContextUsage(INITIAL_CONTEXT_USAGE, {
+      type: "usage",
+      totalTokens: 9000,
+      systemTokens: 800,
+      toolsTokens: 1200,
+      historyTokens: 7000,
+      source: "usage",
+    });
+    const d = resolveContextUsageDisplay(state, []);
+    expect(d.source).toBe("known");
+    expect(d.tokens).toBe(9000);
+    expect(d.breakdown?.systemTokens).toBe(800);
+    expect(d.breakdown?.toolsTokens).toBe(1200);
+    expect(d.breakdown?.historyTokens).toBe(7000);
+    expect(d.breakdown?.knownBuckets).toEqual({
+      system: true,
+      tools: true,
+      history: true,
+    });
+    expect(d.breakdown?.estimated).toBe(false);
   });
 
   it("uses known tokens after compact with no further messages", () => {

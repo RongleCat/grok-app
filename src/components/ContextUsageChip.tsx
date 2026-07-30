@@ -35,6 +35,9 @@ export type ContextUsageChipLabels = {
   breakdownUser: string;
   breakdownAssistant: string;
   breakdownThought: string;
+  breakdownSystem: string;
+  breakdownTools: string;
+  breakdownHistory: string;
   /** Shown under role rows when breakdown is estimated-only. */
   breakdownEstimatedNote: string;
   /** Agent-reported input / output rows. */
@@ -90,8 +93,23 @@ function formatLastCompactDetail(
   return last.trigger === "manual" ? labels.manual : labels.auto;
 }
 
-/** Breakdown values are always heuristic — show with ~ prefix. */
-function formatBreakdownValue(n: number, locale: string): string {
+/** Heuristic role rows always use ~ (not a model tokenizer). */
+function formatEstimatedValue(n: number, locale: string): string {
+  return `~${formatTokenCount(n, locale)}`;
+}
+
+/**
+ * system / tools / history: known → exact; estimated > 0 → ~n; else —.
+ * Do not fake precision for empty/unknown buckets.
+ */
+function formatOptionalBucket(
+  n: number | null | undefined,
+  known: boolean | undefined,
+  locale: string,
+): string {
+  if (n == null) return "—";
+  if (known) return formatTokenCount(n, locale);
+  if (n <= 0) return "—";
   return `~${formatTokenCount(n, locale)}`;
 }
 
@@ -104,13 +122,50 @@ function BreakdownRows({
   labels: ContextUsageChipLabels;
   locale: string;
 }) {
+  const known = breakdown.knownBuckets;
   return (
     <>
+      <div className="ctx-chip__row">
+        <span className="ctx-chip__k">{labels.breakdownSystem}</span>
+        <span className="ctx-chip__v">
+          <span className="ctx-chip__tokens">
+            {formatOptionalBucket(
+              breakdown.systemTokens,
+              known?.system,
+              locale,
+            )}
+          </span>
+        </span>
+      </div>
+      <div className="ctx-chip__row">
+        <span className="ctx-chip__k">{labels.breakdownTools}</span>
+        <span className="ctx-chip__v">
+          <span className="ctx-chip__tokens">
+            {formatOptionalBucket(
+              breakdown.toolsTokens,
+              known?.tools,
+              locale,
+            )}
+          </span>
+        </span>
+      </div>
+      <div className="ctx-chip__row">
+        <span className="ctx-chip__k">{labels.breakdownHistory}</span>
+        <span className="ctx-chip__v">
+          <span className="ctx-chip__tokens">
+            {formatOptionalBucket(
+              breakdown.historyTokens,
+              known?.history,
+              locale,
+            )}
+          </span>
+        </span>
+      </div>
       <div className="ctx-chip__row">
         <span className="ctx-chip__k">{labels.breakdownUser}</span>
         <span className="ctx-chip__v">
           <span className="ctx-chip__tokens">
-            {formatBreakdownValue(breakdown.userTokens, locale)}
+            {formatEstimatedValue(breakdown.userTokens, locale)}
           </span>
         </span>
       </div>
@@ -118,7 +173,7 @@ function BreakdownRows({
         <span className="ctx-chip__k">{labels.breakdownAssistant}</span>
         <span className="ctx-chip__v">
           <span className="ctx-chip__tokens">
-            {formatBreakdownValue(breakdown.assistantTokens, locale)}
+            {formatEstimatedValue(breakdown.assistantTokens, locale)}
           </span>
         </span>
       </div>
@@ -126,7 +181,7 @@ function BreakdownRows({
         <span className="ctx-chip__k">{labels.breakdownThought}</span>
         <span className="ctx-chip__v">
           <span className="ctx-chip__tokens">
-            {formatBreakdownValue(breakdown.thoughtTokens, locale)}
+            {formatEstimatedValue(breakdown.thoughtTokens, locale)}
           </span>
         </span>
       </div>
@@ -158,7 +213,7 @@ export function ContextUsageChip({
     placement: "up",
     fitContent: true,
     minWidth: 220,
-    estHeight: 280,
+    estHeight: 360,
     gap: 8,
     deps: [
       display.label,

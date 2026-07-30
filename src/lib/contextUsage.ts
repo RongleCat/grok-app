@@ -3,8 +3,11 @@
  *
  * Token estimate heuristic (when the agent has not reported counts):
  *   tokens ≈ ceil(visibleChars / 4)
- * where visibleChars sums user + assistant body (+ thought) only.
- * Tool / marker rows are skipped.
+ * Chip total sums user + assistant body (+ thought) only (tools skipped).
+ * Menu breakdown classifies further:
+ *   user / assistant / thought / tools (tool_step & activity) / system-like,
+ *   plus history = user+assistant+thought rollup.
+ * Agent-reported system/tools/history buckets win without a `~` tilde.
  *
  * Host journal is **not** rewritten on compact (UI history stays full).
  * After a compact without `tokensAfter`, we therefore show "—" rather than
@@ -29,6 +32,10 @@ export interface KnownUsageBreakdown {
   inputTokens: number | null;
   outputTokens: number | null;
   totalTokens: number | null;
+  /** Optional structured buckets when the agent reports them. */
+  systemTokens?: number | null;
+  toolsTokens?: number | null;
+  historyTokens?: number | null;
   /** ACP sessionUpdate kind / source string. */
   source?: string;
 }
@@ -84,6 +91,9 @@ export type ContextUsageAction =
       totalTokens?: number;
       inputTokens?: number;
       outputTokens?: number;
+      systemTokens?: number;
+      toolsTokens?: number;
+      historyTokens?: number;
       source?: string;
     }
   | { type: "hydrate"; messages: ContextUsageMessage[] };
@@ -131,6 +141,9 @@ export function reduceContextUsage(
               inputTokens: null,
               outputTokens: null,
               totalTokens: tokensAfter,
+              systemTokens: null,
+              toolsTokens: null,
+              historyTokens: null,
               source: "compact",
             }
           : null,
@@ -139,6 +152,9 @@ export function reduceContextUsage(
     case "usage": {
       const inputTokens = finiteToken(action.inputTokens) ?? null;
       const outputTokens = finiteToken(action.outputTokens) ?? null;
+      const systemTokens = finiteToken(action.systemTokens) ?? null;
+      const toolsTokens = finiteToken(action.toolsTokens) ?? null;
+      const historyTokens = finiteToken(action.historyTokens) ?? null;
       let totalTokens = finiteToken(action.totalTokens) ?? null;
       if (
         totalTokens == null &&
@@ -150,7 +166,10 @@ export function reduceContextUsage(
       if (
         totalTokens == null &&
         inputTokens == null &&
-        outputTokens == null
+        outputTokens == null &&
+        systemTokens == null &&
+        toolsTokens == null &&
+        historyTokens == null
       ) {
         return state;
       }
@@ -165,6 +184,9 @@ export function reduceContextUsage(
           inputTokens,
           outputTokens,
           totalTokens,
+          systemTokens,
+          toolsTokens,
+          historyTokens,
           source: action.source,
         },
       };
@@ -213,6 +235,9 @@ export function hydrateContextUsageFromMessages(
               inputTokens: null,
               outputTokens: null,
               totalTokens: tokensAfter,
+              systemTokens: null,
+              toolsTokens: null,
+              historyTokens: null,
               source: "compact",
             }
           : null,
@@ -231,14 +256,39 @@ export function estimateTokensFromText(text: string): number {
   return Math.ceil(n / 4);
 }
 
-/** True for rows excluded from visible-chat token estimates. */
-function isSkippedContextMessage(m: ContextUsageMessage): boolean {
+/** Markers that are host journal chrome, not model context content. */
+function isJournalChromeMessage(m: ContextUsageMessage): boolean {
   return (
     m.marker === "context_compact" ||
-    m.marker === "tool_step" ||
     m.marker === "turn_cancelled" ||
+    m.marker === "turn_end"
+  );
+}
+
+/** True for rows excluded from the chip total estimate (tools stay out of total). */
+function isSkippedContextMessage(m: ContextUsageMessage): boolean {
+  return (
+    isJournalChromeMessage(m) ||
+    m.marker === "tool_step" ||
     m.role === "tool"
   );
+}
+
+/** Tool / activity rows identifiable in the host journal. */
+export function isToolActivityMessage(m: ContextUsageMessage): boolean {
+  if (isJournalChromeMessage(m)) return false;
+  if (m.marker === "tool_step") return true;
+  if (m.role === "tool") return true;
+  if (m.role === "activity") return true;
+  return false;
+}
+
+/** System-prompt / system-marker style rows (rare in host journal). */
+export function isSystemLikeMessage(m: ContextUsageMessage): boolean {
+  if (isJournalChromeMessage(m) || isToolActivityMessage(m)) return false;
+  if (m.role === "system") return true;
+  if (m.marker === "system" || m.marker === "system_prompt") return true;
+  return false;
 }
 
 /** Sum visible chat text (user/assistant content + thought); skip tools/markers. */
@@ -257,17 +307,49 @@ export function estimateTokensFromMessages(
 
 /**
  * Rough role breakdown of visible chat (same ~4 chars/token heuristic).
- * Always estimated — never model tokenizer output.
- * User content → user; assistant body → assistant; thought/reasoning → thought.
+ * Classification:
+ *   user → user; assistant text → assistant; thought → thought;
+ *   tool/activity → tools; system-like → system.
+ * historyTokens is the conversation rollup (user+assistant+thought), not
+ * double-counted in totalTokens.
+ *
+ * `null` optional buckets mean unknown (no signal). Heuristic path always
+ * produces numbers for buckets it can attribute (0 when empty).
+ * Never model tokenizer output — use ~ in the UI when estimated.
  */
 export interface ContextUsageBreakdown {
   userTokens: number;
   assistantTokens: number;
   thoughtTokens: number;
-  /** Sum of the three role estimates (each ceil'd independently). */
+  /** System-like content; null when unknown. */
+  systemTokens: number | null;
+  /** Tool / activity message content; null when unknown. */
+  toolsTokens: number | null;
+  /**
+   * Conversation history rollup (user+assistant+thought) or agent-reported.
+   * Not added again into totalTokens (already covered by role rows).
+   */
+  historyTokens: number | null;
+  /**
+   * Sum of user + assistant + thought + system + tools
+   * (history is a rollup, not additive).
+   */
   totalTokens: number;
-  /** Always true for this heuristic path. */
-  estimated: true;
+  /** True when any bucket is heuristic. */
+  estimated: boolean;
+  /**
+   * Which system/tools/history buckets came from agent reports (no tilde).
+   * Role rows (user/assistant/thought) stay estimated unless noted later.
+   */
+  knownBuckets?: {
+    system?: boolean;
+    tools?: boolean;
+    history?: boolean;
+  };
+}
+
+function ceilTokensFromChars(chars: number): number {
+  return chars <= 0 ? 0 : Math.ceil(chars / 4);
 }
 
 export function estimateContextBreakdown(
@@ -276,10 +358,23 @@ export function estimateContextBreakdown(
   let userChars = 0;
   let assistantChars = 0;
   let thoughtChars = 0;
+  let systemChars = 0;
+  let toolsChars = 0;
   for (const m of messages) {
-    if (isSkippedContextMessage(m)) continue;
+    if (isJournalChromeMessage(m)) continue;
     const contentLen = (m.content || "").length;
     const thoughtLen = (m.thought || "").length;
+    if (isToolActivityMessage(m)) {
+      toolsChars += contentLen;
+      // Tool rows rarely carry thought; attribute if present.
+      thoughtChars += thoughtLen;
+      continue;
+    }
+    if (isSystemLikeMessage(m)) {
+      systemChars += contentLen;
+      thoughtChars += thoughtLen;
+      continue;
+    }
     if (m.role === "user") {
       userChars += contentLen;
       // Rare thought on user rows still counts as thought if present.
@@ -290,16 +385,76 @@ export function estimateContextBreakdown(
       thoughtChars += thoughtLen;
     }
   }
-  const userTokens = userChars <= 0 ? 0 : Math.ceil(userChars / 4);
-  const assistantTokens =
-    assistantChars <= 0 ? 0 : Math.ceil(assistantChars / 4);
-  const thoughtTokens = thoughtChars <= 0 ? 0 : Math.ceil(thoughtChars / 4);
+  const userTokens = ceilTokensFromChars(userChars);
+  const assistantTokens = ceilTokensFromChars(assistantChars);
+  const thoughtTokens = ceilTokensFromChars(thoughtChars);
+  const systemTokens = ceilTokensFromChars(systemChars);
+  const toolsTokens = ceilTokensFromChars(toolsChars);
+  const historyTokens = userTokens + assistantTokens + thoughtTokens;
   return {
     userTokens,
     assistantTokens,
     thoughtTokens,
-    totalTokens: userTokens + assistantTokens + thoughtTokens,
+    systemTokens,
+    toolsTokens,
+    historyTokens,
+    totalTokens:
+      userTokens + assistantTokens + thoughtTokens + systemTokens + toolsTokens,
     estimated: true,
+  };
+}
+
+/**
+ * Merge agent-reported system/tools/history into an estimated breakdown.
+ * Prefer known numbers without inventing zeros for missing fields.
+ */
+export function mergeKnownBucketsIntoBreakdown(
+  breakdown: ContextUsageBreakdown | null,
+  knownUsage: KnownUsageBreakdown | null,
+): ContextUsageBreakdown | null {
+  if (!knownUsage) return breakdown;
+  const knownSystem = finiteToken(knownUsage.systemTokens ?? undefined);
+  const knownTools = finiteToken(knownUsage.toolsTokens ?? undefined);
+  const knownHistory = finiteToken(knownUsage.historyTokens ?? undefined);
+  if (knownSystem == null && knownTools == null && knownHistory == null) {
+    return breakdown;
+  }
+  const base: ContextUsageBreakdown = breakdown ?? {
+    userTokens: 0,
+    assistantTokens: 0,
+    thoughtTokens: 0,
+    systemTokens: null,
+    toolsTokens: null,
+    historyTokens: null,
+    totalTokens: 0,
+    // Pure agent-reported path — no char heuristic.
+    estimated: false,
+  };
+  const systemTokens =
+    knownSystem != null ? knownSystem : base.systemTokens;
+  const toolsTokens = knownTools != null ? knownTools : base.toolsTokens;
+  const historyTokens =
+    knownHistory != null ? knownHistory : base.historyTokens;
+  // Recompute total: known system/tools replace estimates; history is rollup.
+  const systemPart = systemTokens ?? 0;
+  const toolsPart = toolsTokens ?? 0;
+  // When role rows are empty and only known history exists, use history in total.
+  const roleSum = base.userTokens + base.assistantTokens + base.thoughtTokens;
+  const conversationPart =
+    roleSum > 0 ? roleSum : (historyTokens ?? 0);
+  return {
+    ...base,
+    systemTokens,
+    toolsTokens,
+    historyTokens,
+    totalTokens: conversationPart + systemPart + toolsPart,
+    // Keep estimated when any heuristic role content is present.
+    estimated: breakdown != null ? breakdown.estimated : false,
+    knownBuckets: {
+      system: knownSystem != null ? true : base.knownBuckets?.system,
+      tools: knownTools != null ? true : base.knownBuckets?.tools,
+      history: knownHistory != null ? true : base.knownBuckets?.history,
+    },
   };
 }
 
@@ -364,9 +519,20 @@ export interface ContextUsageDisplay {
 
 function breakdownOrNull(
   messages: ContextUsageMessage[],
+  knownUsage: KnownUsageBreakdown | null = null,
 ): ContextUsageBreakdown | null {
-  const b = estimateContextBreakdown(messages);
-  if (b.totalTokens <= 0) return null;
+  const estimated = estimateContextBreakdown(messages);
+  const b = mergeKnownBucketsIntoBreakdown(
+    estimated.totalTokens > 0 ? estimated : null,
+    knownUsage,
+  );
+  if (!b) return null;
+  // Drop empty pure-zero estimates with no known buckets.
+  const hasKnown =
+    b.knownBuckets?.system ||
+    b.knownBuckets?.tools ||
+    b.knownBuckets?.history;
+  if (b.totalTokens <= 0 && !hasKnown) return null;
   return b;
 }
 
@@ -381,8 +547,8 @@ export function resolveContextUsageDisplay(
 ): ContextUsageDisplay {
   const lastCompact = state.lastCompact;
   const knownUsage = state.knownUsage;
-  // Breakdown always from full visible transcript (host history not rewritten).
-  const breakdown = breakdownOrNull(messages);
+  // Breakdown from full visible transcript + any agent-reported buckets.
+  const breakdown = breakdownOrNull(messages, knownUsage);
 
   // Prefer agent-reported total with no post-compact delta ambiguity.
   if (

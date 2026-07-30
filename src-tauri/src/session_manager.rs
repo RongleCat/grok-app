@@ -3889,6 +3889,9 @@ impl SessionManager {
                 total_tokens,
                 input_tokens,
                 output_tokens,
+                system_tokens,
+                tools_tokens,
+                history_tokens,
                 source,
             } => {
                 let app_sid = {
@@ -3908,6 +3911,9 @@ impl SessionManager {
                         "totalTokens": total_tokens,
                         "inputTokens": input_tokens,
                         "outputTokens": output_tokens,
+                        "systemTokens": system_tokens,
+                        "toolsTokens": tools_tokens,
+                        "historyTokens": history_tokens,
                         "source": source,
                     }),
                 );
@@ -4385,6 +4391,9 @@ impl SessionManager {
                 total_tokens,
                 input_tokens,
                 output_tokens,
+                system_tokens,
+                tools_tokens,
+                history_tokens,
                 source,
             } => {
                 let _ = app.emit(
@@ -4394,6 +4403,9 @@ impl SessionManager {
                         "totalTokens": total_tokens,
                         "inputTokens": input_tokens,
                         "outputTokens": output_tokens,
+                        "systemTokens": system_tokens,
+                        "toolsTokens": tools_tokens,
+                        "historyTokens": history_tokens,
                         "source": source,
                     }),
                 );

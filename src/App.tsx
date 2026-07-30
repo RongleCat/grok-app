@@ -3025,6 +3025,9 @@ export default function App() {
             totalTokens?: number;
             inputTokens?: number;
             outputTokens?: number;
+            systemTokens?: number;
+            toolsTokens?: number;
+            historyTokens?: number;
             source?: string;
           }>("session://usage", (p) => {
             if (cancelled || !p) return;
@@ -3036,6 +3039,9 @@ export default function App() {
                 totalTokens: p.totalTokens,
                 inputTokens: p.inputTokens,
                 outputTokens: p.outputTokens,
+                systemTokens: p.systemTokens,
+                toolsTokens: p.toolsTokens,
+                historyTokens: p.historyTokens,
                 source: p.source,
               }),
             );
@@ -13306,6 +13312,9 @@ export default function App() {
                         breakdownUser: tr("context.breakdownUser"),
                         breakdownAssistant: tr("context.breakdownAssistant"),
                         breakdownThought: tr("context.breakdownThought"),
+                        breakdownSystem: tr("context.breakdownSystem"),
+                        breakdownTools: tr("context.breakdownTools"),
+                        breakdownHistory: tr("context.breakdownHistory"),
                         breakdownEstimatedNote: tr(
                           "context.breakdownEstimatedNote",
                         ),
