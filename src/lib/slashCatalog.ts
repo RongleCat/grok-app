@@ -113,6 +113,14 @@ export function builtinSlashItems(): SlashItem[] {
       action: "doctor",
     },
     {
+      id: "tutorial",
+      kind: "action",
+      name: "tutorial",
+      titleKey: "slash.tutorial",
+      descriptionKey: "slash.tutorialDesc",
+      action: "tutorial",
+    },
+    {
       id: "newChat",
       kind: "action",
       name: "new",

@@ -1558,6 +1558,46 @@ const en = {
   "shortcuts.help": "Show shortcuts",
   "shortcuts.voice": "Toggle voice dictation",
 
+  // Product tour (optional; not first-run account setup)
+  "tutorial.menu": "Product tour",
+  "tutorial.replay": "Replay product tour",
+  "tutorial.replayDesc":
+    "Walk through projects, permissions, worktrees, send queue, and more.",
+  "tutorial.skip": "Skip tour",
+  "tutorial.back": "Back",
+  "tutorial.next": "Next",
+  "tutorial.done": "Get started",
+  "tutorial.stepOf": "Step {current} of {total}",
+  "tutorial.step.welcome.title": "Welcome to Grok App",
+  "tutorial.step.welcome.body":
+    "Grok App is a desktop workbench for the Grok Build CLI. This short tour covers the main workflows — you can skip anytime and replay it later from Settings → About or the account menu.",
+  "tutorial.step.project.title": "Projects & trust",
+  "tutorial.step.project.body":
+    "Add a local folder as a project from the sidebar. Trust a project before the agent can read or write there. Untrusted projects stay visible but blocked for agent work until you confirm.",
+  "tutorial.step.permissions.title": "Permissions & YOLO",
+  "tutorial.step.permissions.body":
+    "By default the agent asks before risky tools. Use the permission bar to allow once or for the session. YOLO (always-approve) skips prompts for power users — toggle carefully from the composer or /yolo.",
+  "tutorial.step.worktree.title": "Git worktrees",
+  "tutorial.step.worktree.body":
+    "When the project is a git repo, the composer worktree menu can create or switch linked worktrees so the agent works on an isolated branch without touching your main checkout.",
+  "tutorial.step.send-queue.title": "Send queue",
+  "tutorial.step.send-queue.body":
+    "If a turn is still running, new messages can queue and send when the agent is free. Review or drop queued items from the composer so you stay in control of multi-step work.",
+  "tutorial.step.context-compact.title": "Context & compact",
+  "tutorial.step.context-compact.body":
+    "Long chats fill the model context. Watch the context chip, then use /compact (or the chip menu) to summarize history and free space while keeping important notes.",
+  "tutorial.step.shortcuts.title": "Keyboard shortcuts",
+  "tutorial.step.shortcuts.body":
+    "⌘/Ctrl+K searches chats and projects; ⌘/Ctrl+/ shows the shortcuts list; ⌘/Ctrl+, opens Settings. More chords live under Settings → Keyboard — filter the list anytime.",
+  "tutorial.step.extensions.title": "Extensions & skills",
+  "tutorial.step.extensions.body":
+    "Settings → Extensions manages plugins, skills, MCP servers, and hooks. Skills also appear in the composer + / slash palette when enabled and user-invocable.",
+  "tutorial.step.done.title": "You're ready",
+  "tutorial.step.done.body":
+    "Pick a trusted project, start a chat, and send a goal. Replay this tour anytime from the account menu, Settings → About, the command palette, or /tutorial.",
+  "slash.tutorial": "Product tour",
+  "slash.tutorialDesc": "Open the optional in-app product tour",
+
   // Session export
   "session.exportMd": "Export chat as Markdown",
   "session.exportMdTitle": "Export Markdown",
@@ -3861,6 +3901,45 @@ const zh: Record<MessageKey, string> = {
   "shortcuts.send": "发送消息",
   "shortcuts.help": "显示快捷键",
   "shortcuts.voice": "开关语音输入",
+
+  "tutorial.menu": "产品导览",
+  "tutorial.replay": "重新播放产品导览",
+  "tutorial.replayDesc":
+    "快速了解项目、权限、工作树、发送队列等核心能力。",
+  "tutorial.skip": "跳过导览",
+  "tutorial.back": "上一步",
+  "tutorial.next": "下一步",
+  "tutorial.done": "开始使用",
+  "tutorial.stepOf": "第 {current} / {total} 步",
+  "tutorial.step.welcome.title": "欢迎使用 Grok App",
+  "tutorial.step.welcome.body":
+    "Grok App 是 Grok Build CLI 的桌面工作台。本导览介绍主要工作流 — 可随时跳过，之后可在「设置 → 关于」或账户菜单中重播。",
+  "tutorial.step.project.title": "项目与信任",
+  "tutorial.step.project.body":
+    "在侧栏将本地文件夹添加为项目。信任项目后，代理才能在该目录读写。未信任的项目仍可见，但在确认前无法让代理执行工作。",
+  "tutorial.step.permissions.title": "权限与 YOLO",
+  "tutorial.step.permissions.body":
+    "默认会在危险工具前询问。可用权限条允许一次或本会话。YOLO（始终批准）会跳过确认 — 请在输入区或 /yolo 谨慎开启。",
+  "tutorial.step.worktree.title": "Git 工作树",
+  "tutorial.step.worktree.body":
+    "若项目是 git 仓库，输入区的工作树菜单可创建或切换关联 worktree，让代理在独立分支上工作，而不动你的主检出。",
+  "tutorial.step.send-queue.title": "发送队列",
+  "tutorial.step.send-queue.body":
+    "若当前轮次仍在运行，新消息可排队，待代理空闲后发送。可在输入区查看或丢弃队列项，以便掌控多步任务。",
+  "tutorial.step.context-compact.title": "上下文与压缩",
+  "tutorial.step.context-compact.body":
+    "长对话会占满模型上下文。留意上下文芯片，可用 /compact（或芯片菜单）摘要历史、腾出空间，并保留重要备注。",
+  "tutorial.step.shortcuts.title": "键盘快捷键",
+  "tutorial.step.shortcuts.body":
+    "⌘/Ctrl+K 搜索会话与项目；⌘/Ctrl+/ 打开快捷键列表；⌘/Ctrl+, 打开设置。更多组合键见「设置 → 键盘」，列表可随时筛选。",
+  "tutorial.step.extensions.title": "扩展与技能",
+  "tutorial.step.extensions.body":
+    "「设置 → 扩展」管理插件、技能、MCP 与 hooks。启用且可调用的技能也会出现在输入区 + / 斜杠面板中。",
+  "tutorial.step.done.title": "可以开始了",
+  "tutorial.step.done.body":
+    "选择已信任的项目，新建对话并发起目标。可随时从账户菜单、「设置 → 关于」、命令面板或 /tutorial 重播本导览。",
+  "slash.tutorial": "产品导览",
+  "slash.tutorialDesc": "打开可选的应用内产品导览",
 
   "session.exportMd": "导出会话为 Markdown",
   "session.exportMdTitle": "导出 Markdown",

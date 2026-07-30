@@ -1222,6 +1222,21 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
     labelKey: "settings.aboutApp",
     keywords: ["about", "version", "update"],
   },
+  {
+    id: "about.tutorial",
+    section: "about",
+    anchorId: "settings-anchor-tutorial",
+    labelKey: "tutorial.replay",
+    descKeys: ["tutorial.replayDesc", "tutorial.menu"],
+    keywords: [
+      "tutorial",
+      "product tour",
+      "onboarding",
+      "walkthrough",
+      "help",
+      "guide",
+    ],
+  },
 ];
 
 export type SettingsLocation = {

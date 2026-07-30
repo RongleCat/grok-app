@@ -1500,6 +1500,45 @@ export const zhTW: Record<MessageKey, string> = {
   "shortcuts.help": "顯示快捷鍵",
   "shortcuts.voice": "開關語音輸入",
 
+  "tutorial.menu": "產品導覽",
+  "tutorial.replay": "重新播放產品導覽",
+  "tutorial.replayDesc":
+    "快速了解專案、權限、工作樹、傳送佇列等核心能力。",
+  "tutorial.skip": "略過導覽",
+  "tutorial.back": "上一步",
+  "tutorial.next": "下一步",
+  "tutorial.done": "開始使用",
+  "tutorial.stepOf": "第 {current} / {total} 步",
+  "tutorial.step.welcome.title": "歡迎使用 Grok App",
+  "tutorial.step.welcome.body":
+    "Grok App 是 Grok Build CLI 的桌面工作台。本導覽介紹主要工作流程 — 可隨時略過，之後可在「設定 → 關於」或帳戶選單中重播。",
+  "tutorial.step.project.title": "專案與信任",
+  "tutorial.step.project.body":
+    "在側欄將本機資料夾新增為專案。信任專案後，代理才能在該目錄讀寫。未信任的專案仍可見，但在確認前無法讓代理執行工作。",
+  "tutorial.step.permissions.title": "權限與 YOLO",
+  "tutorial.step.permissions.body":
+    "預設會在危險工具前詢問。可用權限列允許一次或本工作階段。YOLO（一律核准）會略過確認 — 請在輸入區或 /yolo 謹慎開啟。",
+  "tutorial.step.worktree.title": "Git 工作樹",
+  "tutorial.step.worktree.body":
+    "若專案是 git 儲存庫，輸入區的工作樹選單可建立或切換關聯 worktree，讓代理在獨立分支上工作，而不動你的主要工作目錄。",
+  "tutorial.step.send-queue.title": "傳送佇列",
+  "tutorial.step.send-queue.body":
+    "若目前回合仍在執行，新訊息可排隊，待代理空閒後傳送。可在輸入區檢視或丟棄佇列項目，以便掌控多步任務。",
+  "tutorial.step.context-compact.title": "上下文與壓縮",
+  "tutorial.step.context-compact.body":
+    "長對話會佔滿模型上下文。留意上下文晶片，可用 /compact（或晶片選單）摘要歷史、騰出空間，並保留重要備註。",
+  "tutorial.step.shortcuts.title": "鍵盤快捷鍵",
+  "tutorial.step.shortcuts.body":
+    "⌘/Ctrl+K 搜尋工作階段與專案；⌘/Ctrl+/ 開啟快捷鍵清單；⌘/Ctrl+, 開啟設定。更多組合鍵見「設定 → 鍵盤」，清單可隨時篩選。",
+  "tutorial.step.extensions.title": "擴充與技能",
+  "tutorial.step.extensions.body":
+    "「設定 → 擴充」管理外掛、技能、MCP 與 hooks。啟用且可呼叫的技能也會出現在輸入區 + / 斜線面板中。",
+  "tutorial.step.done.title": "可以開始了",
+  "tutorial.step.done.body":
+    "選擇已信任的專案，新增對話並發起目標。可隨時從帳戶選單、「設定 → 關於」、命令面板或 /tutorial 重播本導覽。",
+  "slash.tutorial": "產品導覽",
+  "slash.tutorialDesc": "開啟可選的應用內產品導覽",
+
   "session.exportMd": "匯出對話為 Markdown",
   "session.exportMdTitle": "匯出 Markdown",
   "session.exportMdHint": "選擇要包含的內容，然後下載 .md 檔或複製到剪貼簿。",

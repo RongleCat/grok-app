@@ -389,6 +389,8 @@ export interface SettingsPageProps {
   onSkillsPrefsChanged?: () => void;
   /** Open the same shortcuts help modal as ⌘/ / Ctrl+/. */
   onOpenShortcutsHelp?: () => void;
+  /** Open optional product tour (replay). */
+  onOpenProductTutorial?: () => void;
   /** Trusted projects for Remote IM project-scope chips (no free paths). */
   trustedProjects?: Array<{ id: string; name: string; path: string }>;
 }
@@ -870,6 +872,7 @@ export function SettingsPage({
   projectPath = null,
   onSkillsPrefsChanged,
   onOpenShortcutsHelp,
+  onOpenProductTutorial,
   trustedProjects = [],
 }: SettingsPageProps) {
   const [query, setQuery] = useState("");
@@ -4133,21 +4136,50 @@ export function SettingsPage({
         )}
 
         {section === "about" && (
-          <div
-            className={"settings-card" + rowHighlight("settings-anchor-about")}
-            id="settings-anchor-about"
-          >
-            <div className="settings-row settings-row--stack">
-              <div className="settings-row__text">
-                <div className="settings-row__label">
-                  <IconInfo size={16} />
-                  {t("settings.aboutApp")}
+          <>
+            <div
+              className={"settings-card" + rowHighlight("settings-anchor-about")}
+              id="settings-anchor-about"
+            >
+              <div className="settings-row settings-row--stack">
+                <div className="settings-row__text">
+                  <div className="settings-row__label">
+                    <IconInfo size={16} />
+                    {t("settings.aboutApp")}
+                  </div>
+                  <div className="settings-row__desc">{versionFooter}</div>
                 </div>
-                <div className="settings-row__desc">{versionFooter}</div>
               </div>
+              <AboutUpdateRow t={t} />
             </div>
-            <AboutUpdateRow t={t} />
-          </div>
+            {onOpenProductTutorial ? (
+              <div
+                className={
+                  "settings-card" + rowHighlight("settings-anchor-tutorial")
+                }
+                id="settings-anchor-tutorial"
+              >
+                <div className="settings-row">
+                  <div className="settings-row__text">
+                    <div className="settings-row__label">
+                      <IconHelp size={16} />
+                      {t("tutorial.replay")}
+                    </div>
+                    <div className="settings-row__desc">
+                      {t("tutorial.replayDesc")}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={() => onOpenProductTutorial()}
+                  >
+                    {t("tutorial.menu")}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </>
         )}
       </main>
       </div>

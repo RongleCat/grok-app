@@ -21,6 +21,7 @@ describe("builtinSlashItems", () => {
       "status",
       "mcp",
       "doctor",
+      "tutorial",
       "new",
       "automations",
       "live-voice",
@@ -56,6 +57,12 @@ describe("builtinSlashItems", () => {
     const doctor = items.find((i) => i.name === "doctor")!;
     expect(doctor.kind).toBe("action");
     expect(doctor.action).toBe("doctor");
+
+    const tutorial = items.find((i) => i.name === "tutorial")!;
+    expect(tutorial.kind).toBe("action");
+    expect(tutorial.action).toBe("tutorial");
+    expect(tutorial.titleKey).toBe("slash.tutorial");
+    expect(tutorial.descriptionKey).toBe("slash.tutorialDesc");
 
     const exportItem = items.find((i) => i.id === "export")!;
     expect(exportItem.kind).toBe("action");

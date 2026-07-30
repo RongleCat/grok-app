@@ -5,6 +5,7 @@
 import { useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
+  IconHelp,
   IconSettings,
   IconThemeMoon,
   IconThemeSun,
@@ -26,6 +27,8 @@ export interface UserMenuProps {
   theme: Theme;
   labels: {
     settings: string;
+    /** Optional product tour entry label */
+    tutorial?: string;
     theme: string;
     themeLight: string;
     themeDark: string;
@@ -44,6 +47,8 @@ export interface UserMenuProps {
   accountBusy: boolean;
   onSettings: () => void;
   onAccountSettings: () => void;
+  /** Open optional in-app product tour */
+  onTutorial?: () => void;
   onToggleTheme: () => void;
   onLogin: () => void;
   onLogout: () => void;
@@ -71,6 +76,7 @@ export function UserMenu({
   accountBusy,
   onSettings,
   onAccountSettings,
+  onTutorial,
   onToggleTheme,
   onLogin,
   onLogout,
@@ -208,6 +214,21 @@ export function UserMenu({
               <IconSettings size={16} />
               <span>{labels.settings}</span>
             </button>
+
+            {onTutorial && labels.tutorial ? (
+              <button
+                type="button"
+                className="user-menu__item"
+                role="menuitem"
+                onClick={() => {
+                  onClose();
+                  onTutorial();
+                }}
+              >
+                <IconHelp size={16} />
+                <span>{labels.tutorial}</span>
+              </button>
+            ) : null}
 
             <button
               type="button"

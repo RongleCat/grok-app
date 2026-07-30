@@ -69,6 +69,20 @@ export function defaultPaletteActions(): PaletteActionDef[] {
       group: "help",
     },
     {
+      id: "product-tutorial",
+      labelKey: "tutorial.menu",
+      keywords: [
+        "tutorial",
+        "product tour",
+        "tour",
+        "onboarding",
+        "walkthrough",
+        "guide",
+        "help",
+      ],
+      group: "help",
+    },
+    {
       id: "settings-general",
       labelKey: "settings.nav.general",
       keywords: ["settings", "general", "preferences", "prefs", "composer"],

@@ -10429,6 +10429,61 @@ button.composer__context-item {
   background: color-mix(in srgb, var(--bg-main) 70%, transparent);
 }
 
+/* Optional product tour (GlassModal) */
+.product-tutorial .modal-actions {
+  justify-content: flex-end;
+}
+
+.product-tutorial__skip {
+  margin-right: auto;
+}
+
+.product-tutorial__body-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  min-width: 0;
+}
+
+.product-tutorial__progress {
+  margin: 0;
+  font-size: var(--text-xs, 12px);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.product-tutorial__dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.product-tutorial__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-tertiary) 55%, transparent);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.product-tutorial__dot.is-done {
+  background: color-mix(in srgb, var(--accent, #6b8afd) 55%, var(--text-tertiary));
+}
+
+.product-tutorial__dot.is-active {
+  background: var(--accent, #6b8afd);
+  transform: scale(1.2);
+}
+
+.product-tutorial__body {
+  margin: 0;
+  font-size: var(--text-sm, 13px);
+  line-height: 1.55;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
 .perm-bar__hint {
   margin: 0 0 8px;
   font-size: 11px;

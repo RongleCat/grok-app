@@ -17,6 +17,7 @@ describe("defaultPaletteActions", () => {
       "open-tasks",
       "doctor",
       "shortcuts-help",
+      "product-tutorial",
       "settings-general",
       "settings-appearance",
       "settings-account",
