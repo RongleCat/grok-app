@@ -205,6 +205,7 @@ mod tests {
             mode: None,
             effort: None,
             permission_policy: None,
+            json_schema: None,
             scheduled: false,
             worktree_path: None,
             worktree_branch: None,

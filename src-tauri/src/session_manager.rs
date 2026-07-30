@@ -2780,6 +2780,11 @@ impl SessionManager {
             effort: Some(prefs.effort.clone()),
             permission_policy: Some(prefs.permission_policy.clone()),
             sandbox_profile: Some(effective_sandbox),
+            json_schema: meta
+                .json_schema
+                .as_ref()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
         };
 
         let (client, mut events) = match AcpClient::spawn_with_options(cli_path, cwd, spawn_opts)
@@ -5754,6 +5759,7 @@ mod connect_preserve_tests {
                 effort: None,
                 mode: None,
                 permission_policy: None,
+                json_schema: None,
                 scheduled: false,
                 worktree_path: None,
                 worktree_branch: None,
@@ -5935,6 +5941,7 @@ mod session_routing_tests {
                 effort: None,
                 mode: Some(mode.into()),
                 permission_policy: None,
+                json_schema: None,
                 scheduled: false,
                 worktree_path: None,
                 worktree_branch: None,
@@ -6097,6 +6104,7 @@ mod session_routing_tests {
                 effort: None,
                 mode: None,
                 permission_policy: None,
+                json_schema: None,
                 scheduled: false,
                 worktree_path: None,
                 worktree_branch: None,
@@ -6196,6 +6204,7 @@ mod session_routing_tests {
                 effort: None,
                 mode: None,
                 permission_policy: None,
+                json_schema: None,
                 scheduled: false,
                 worktree_path: None,
                 worktree_branch: None,

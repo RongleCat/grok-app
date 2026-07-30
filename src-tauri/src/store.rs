@@ -134,6 +134,10 @@ pub struct SessionMeta {
     pub mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permission_policy: Option<String>,
+    /// Optional JSON Schema for structured model output (`grok --json-schema`).
+    /// Empty / unset → no constraint. Validated on the client before save.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub json_schema: Option<String>,
     /// Created by shell scheduled automation (`runAutomation`).
     #[serde(default)]
     pub scheduled: bool,
@@ -893,6 +897,7 @@ pub fn create_session(
         effort: None,
         mode: None,
         permission_policy: None,
+        json_schema: None,
         scheduled,
         worktree_path: None,
         worktree_branch: None,
@@ -1009,6 +1014,49 @@ pub fn set_session_worktree(
         s.worktree_branch = None;
         s.is_worktree_session = false;
     }
+    let clone = s.clone();
+    save_sessions_index(&list)?;
+    Ok(clone)
+}
+
+/// Soft cap aligned with the frontend helper (~256 KiB).
+const JSON_SCHEMA_MAX_CHARS: usize = 256 * 1024;
+
+/// Persist optional structured-output JSON Schema for a session.
+/// Pass `None` or empty string to clear. Host re-parses lightly (object JSON).
+pub fn set_session_json_schema(
+    id: &str,
+    json_schema: Option<String>,
+) -> Result<SessionMeta, String> {
+    let normalized = match json_schema {
+        None => None,
+        Some(raw) => {
+            let t = raw.trim();
+            if t.is_empty() {
+                None
+            } else {
+                if t.len() > JSON_SCHEMA_MAX_CHARS {
+                    return Err("json schema too large".into());
+                }
+                let v: serde_json::Value = serde_json::from_str(t)
+                    .map_err(|e| format!("invalid json schema: {e}"))?;
+                if !v.is_object() {
+                    return Err("json schema must be a JSON object".into());
+                }
+                Some(
+                    serde_json::to_string_pretty(&v)
+                        .map_err(|e| format!("invalid json schema: {e}"))?,
+                )
+            }
+        }
+    };
+    let mut list = load_sessions_index();
+    let s = list
+        .iter_mut()
+        .find(|s| s.id == id)
+        .ok_or_else(|| "session not found".to_string())?;
+    s.json_schema = normalized;
+    s.updated_at = Utc::now();
     let clone = s.clone();
     save_sessions_index(&list)?;
     Ok(clone)
@@ -1885,6 +1933,7 @@ mod tests {
             effort: None,
             mode: None,
             permission_policy: None,
+            json_schema: None,
             scheduled: false,
             worktree_path: None,
             worktree_branch: None,
@@ -2023,6 +2072,7 @@ mod tests {
                 effort: None,
                 mode: None,
                 permission_policy: None,
+                json_schema: None,
                 scheduled: false,
                 worktree_path: None,
                 worktree_branch: None,

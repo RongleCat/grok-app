@@ -13,6 +13,8 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
+- **Structured JSON Schema output** (composer Advanced): paste a JSON Schema for the current chat; client-side JSON validation with toast on errors; clear control; persists on `SessionMeta.jsonSchema`. When set, spawns agent with top-level `grok --json-schema` and prefixes prompts with a labeled experimental instruction. Matching assistant JSON replies show a copyable structured JSON panel
+- **结构化 JSON Schema 输出**（输入框高级）：为本对话粘贴 Schema、客户端校验与 Toast、清除、持久化；启动 agent 时传 `--json-schema`，提示词附实验性说明；助手 JSON 回复下显示可复制面板
 - **Agent leader / serve panel** (Settings → Runtime → Connection): probe `~/.grok/leader.sock` (or `GROK_LEADER_SOCKET`), show stopped/running/error, copy socket path, start `grok agent leader` in the background, stop via `grok leader kill` + tracked PID; honest message when CLI lacks leader commands; never shows serve secrets. Link to General → Agent “use leader” toggle.
 **中文 · 新增**
 - **Agent leader / serve 面板**（设置 → 运行时 → 连接）：探测 leader socket、状态与复制路径、后台启动/停止共享后端；CLI 不支持时如实提示；不展示 serve 密钥；链到「共享 Agent 后端」开关

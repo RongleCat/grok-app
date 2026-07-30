@@ -66,6 +66,7 @@ import { formatTokenCount } from "@/lib/contextUsage";
 import { useStickToBottom } from "@/hooks/useStickToBottom";
 import { useChatMessageVirtualizer } from "@/hooks/useChatMessageVirtualizer";
 import { estimateChatRowHeight } from "@/lib/chatVirtualList";
+import { StructuredJsonPanel } from "./StructuredJsonPanel";
 import {
   MessageActionButton,
   MessageCopyButton,
@@ -438,6 +439,16 @@ export interface ConversationThreadProps {
    * Relative mode re-renders on a 60s tick so labels stay fresh.
    */
   messageTimeFormat?: MessageTimeFormat;
+  /**
+   * When true, completed assistant replies that look like JSON get a
+   * copyable structured-output panel (session JSON Schema mode).
+   */
+  structuredOutputActive?: boolean;
+  structuredOutputLabels?: {
+    title: string;
+    copy: string;
+    copied: string;
+  };
 }
 
 export function ConversationThread({
@@ -472,6 +483,8 @@ export function ConversationThread({
   onOpenModifiedPath: _onOpenModifiedPath,
   showTimestamps = true,
   messageTimeFormat = "absolute",
+  structuredOutputActive = false,
+  structuredOutputLabels,
 }: ConversationThreadProps) {
   const tr = useMemo(() => createT(locale), [locale]);
   void _onOpenSessionChanges;
@@ -1497,6 +1510,17 @@ export function ConversationThread({
                             ? (findActive?.occurrence ?? null)
                             : null
                         }
+                      />
+                    ) : null}
+                    {structuredOutputActive &&
+                    !m.streaming &&
+                    !!m.content.trim() &&
+                    structuredOutputLabels ? (
+                      <StructuredJsonPanel
+                        content={m.content}
+                        title={structuredOutputLabels.title}
+                        copyLabel={structuredOutputLabels.copy}
+                        copiedLabel={structuredOutputLabels.copied}
                       />
                     ) : null}
                   </div>

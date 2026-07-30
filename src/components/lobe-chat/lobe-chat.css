@@ -1925,3 +1925,64 @@ html[data-chat-density="comfortable"] .lobe-chat,
   --chat-bubble-pad-y: 10px;
   --chat-bubble-pad-x: 14px;
 }
+
+/* Structured JSON output panel (optional session JSON Schema) */
+.struct-json {
+  margin-top: 10px;
+  border: 1px solid var(--chat-border, var(--border-subtle, rgba(255, 255, 255, 0.08)));
+  border-radius: var(--chat-r-sm, 8px);
+  background: var(--chat-code-bg, var(--bg-elevated, rgba(0, 0, 0, 0.25)));
+  overflow: hidden;
+  max-width: 100%;
+}
+.struct-json__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid
+    var(--chat-border, var(--border-subtle, rgba(255, 255, 255, 0.08)));
+  font-size: var(--chat-fs-xs, 11.5px);
+  color: var(--chat-text-2, var(--text-secondary));
+}
+.struct-json__title {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  opacity: 0.9;
+}
+.struct-json__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.struct-json__copy:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  color: var(--chat-text, var(--text-primary));
+}
+.struct-json__copy.is-copied {
+  color: var(--accent, #7aa2ff);
+}
+.struct-json__pre {
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  max-height: 320px;
+  font-family: var(--chat-mono);
+  font-size: var(--chat-fs-sm, 12.5px);
+  line-height: 1.45;
+  color: var(--chat-text, var(--text-primary));
+  white-space: pre;
+}
+.struct-json__pre code {
+  font: inherit;
+}

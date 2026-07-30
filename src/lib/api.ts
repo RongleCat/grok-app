@@ -824,8 +824,25 @@ export async function sessionsList() {
       worktreePath?: string | null;
       worktreeBranch?: string | null;
       isWorktreeSession?: boolean;
+      /** Optional JSON Schema for structured model output */
+      jsonSchema?: string | null;
     }>
   >("sessions_list");
+}
+
+/** Set or clear per-session JSON Schema structured output. */
+export async function sessionSetJsonSchema(
+  id: string,
+  jsonSchema: string | null,
+) {
+  return invoke<{
+    id: string;
+    title: string;
+    jsonSchema?: string | null;
+  }>("session_set_json_schema", {
+    id,
+    jsonSchema: jsonSchema && jsonSchema.trim() ? jsonSchema : null,
+  });
 }
 
 /** Journal content hit from `sessions_search`. */

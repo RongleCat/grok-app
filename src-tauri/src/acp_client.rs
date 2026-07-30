@@ -231,6 +231,10 @@ pub struct SpawnOptions {
     /// Effective OS sandbox profile (`off` / `workspace` / …).
     /// When set, overrides `AppSettings.sandbox_profile` for this spawn.
     pub sandbox_profile: Option<String>,
+    /// Optional JSON Schema for structured output (`grok --json-schema` top-level).
+    /// When set, the model is constrained to produce matching JSON. Safe with
+    /// `agent stdio` (verified: process stays up; ACP framing intact).
+    pub json_schema: Option<String>,
 }
 
 /// Map App policy → CLI `--permission-mode` value.
@@ -505,6 +509,16 @@ impl AcpClient {
         if let Some(ref mt) = max_turns {
             for a in mt.cli_args() {
                 cmd.arg(a);
+            }
+        }
+        // Top-level `grok --json-schema <SCHEMA>` (before `agent`). Constrains
+        // model output; headless docs mention --output-format json, but ACP
+        // stdio still accepts the flag and keeps the process alive.
+        if let Some(ref schema) = opts.json_schema {
+            let s = schema.trim();
+            if !s.is_empty() {
+                cmd.arg("--json-schema");
+                cmd.arg(s);
             }
         }
         for f in disable_web_search_spawn_flags(disable_web) {
