@@ -1568,20 +1568,52 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.cliSessionsImportedN": "已匯入 {n} 個工作階段",
   "settings.cliSessionsLoading": "正在尋找 CLI 工作階段…",
   "settings.cliSessionsEmpty": "在目前 home 下找不到 CLI 工作階段。",
+  "settings.cliSessionsEmptyHint":
+    "在此 home 下執行 Grok Build，或若預期是終端機 CLI 工作階段，請切換對話資料模式。",
+  "settings.cliSessionsEmptyCliMissing":
+    "找不到 Grok Build CLI — 暫無 CLI 工作階段可列出。",
+  "settings.cliSessionsEmptyCliMissingHint":
+    "請在「設定 → 執行階段」安裝或定位 CLI。安裝後重新整理可顯示本機磁碟工作階段。",
+  "settings.cliSessionsEmptyError": "無法載入 CLI 工作階段。",
+  "settings.cliSessionsEmptyErrorHint":
+    "請檢查 GROK_HOME 路徑與 CLI 安裝，然後重新整理。",
   "settings.cliSessionsMsgs": "{n} 則訊息",
   "settings.cliSessionsLinked": "已關聯",
   "settings.cliSessionsAgentId": "id {id}",
   "settings.cliSessionsCopyId": "複製 id",
   "settings.cliSessionsCopied": "已複製",
   "settings.cliSessionsFilterPlaceholder": "搜尋摘要與首則提示…",
+  "settings.cliSessions.filterAll": "全部",
+  "settings.cliSessions.filterLinked": "已關聯",
+  "settings.cliSessions.filterUnlinked": "未關聯",
   "settings.cliSessionsFilterEmpty": "沒有符合篩選條件的工作階段。",
+  "settings.cliSessionsFilterEmptyHint": "嘗試其他關聯篩選，或清除篩選。",
   "settings.cliSessionsSearching": "正在搜尋 CLI 工作階段…",
   "settings.cliSessionsSearchEmpty": "沒有符合搜尋條件的 CLI 工作階段。",
+  "settings.cliSessionsSearchEmptyHint": "換個關鍵字，或清除搜尋。",
+  "settings.cliSessions.clearFilters": "清除篩選",
   "settings.cliSessionsSearchViaCli":
     "來自 grok sessions search（摘要 + 首則提示）",
   "settings.cliSessionsSearchViaLocal":
     "本機磁碟搜尋（標題、id、路徑、首則提示）",
   "settings.cliSessionsSearchFallback": "CLI 搜尋不可用 — 正在篩選本機列表",
+  "settings.cliSessions.err.cli_missing": "CLI 缺失",
+  "settings.cliSessions.err.cli_missingHint":
+    "請安裝 Grok Build CLI，然後重新整理列表。",
+  "settings.cliSessions.err.cli_unsupported": "CLI 不支援搜尋",
+  "settings.cliSessions.err.cli_unsupportedHint":
+    "目前 CLI 可能沒有 sessions search — 已改為篩選本機列表。",
+  "settings.cliSessions.err.timeout": "搜尋逾時",
+  "settings.cliSessions.err.timeoutHint": "請縮小關鍵字或重新整理本機列表。",
+  "settings.cliSessions.err.host_only": "需要桌面應用程式",
+  "settings.cliSessions.err.host_onlyHint":
+    "CLI 工作階段探索僅在桌面應用程式中可用。",
+  "settings.cliSessions.err.permission": "權限不足",
+  "settings.cliSessions.err.permissionHint": "請檢查 GROK_HOME 下的檔案權限。",
+  "settings.cliSessions.err.other": "搜尋失敗",
+  "settings.cliSessions.err.otherHint": "請重新整理後再試。",
+  "settings.cliSessionsImportPlan":
+    "將匯入 {importable} / {selected}（略過已關聯 {skipped}）",
   "settings.cliSessionsDeleteRemoteOnly":
     "此結果在 GROK_HOME 下沒有本機目錄（僅遠端）",
   "settings.cliSessionsSource": "掃描路徑 {path}",

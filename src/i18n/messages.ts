@@ -1649,6 +1649,15 @@ const en = {
   "settings.cliSessionsImportedN": "Imported {n} session(s)",
   "settings.cliSessionsLoading": "Looking for CLI sessions…",
   "settings.cliSessionsEmpty": "No CLI sessions found under the active home.",
+  "settings.cliSessionsEmptyHint":
+    "Run Grok Build in this home, or switch session data mode if you expected terminal CLI sessions.",
+  "settings.cliSessionsEmptyCliMissing":
+    "Grok Build CLI not found — no CLI sessions to list.",
+  "settings.cliSessionsEmptyCliMissingHint":
+    "Install or locate the CLI under Settings → Runtime. Local disk may still show sessions after install.",
+  "settings.cliSessionsEmptyError": "Could not load CLI sessions.",
+  "settings.cliSessionsEmptyErrorHint":
+    "Check GROK_HOME path and CLI install, then refresh.",
   "settings.cliSessionsMsgs": "{n} messages",
   "settings.cliSessionsLinked": "Linked",
   "settings.cliSessionsAgentId": "id {id}",
@@ -1656,15 +1665,42 @@ const en = {
   "settings.cliSessionsCopied": "Copied",
   "settings.cliSessionsFilterPlaceholder":
     "Search summaries and first prompts…",
+  "settings.cliSessions.filterAll": "All",
+  "settings.cliSessions.filterLinked": "Linked",
+  "settings.cliSessions.filterUnlinked": "Unlinked",
   "settings.cliSessionsFilterEmpty": "No sessions match this filter.",
+  "settings.cliSessionsFilterEmptyHint":
+    "Try another link chip or clear filters.",
   "settings.cliSessionsSearching": "Searching CLI sessions…",
   "settings.cliSessionsSearchEmpty": "No CLI sessions match this search.",
+  "settings.cliSessionsSearchEmptyHint":
+    "Try a different query or clear the search.",
+  "settings.cliSessions.clearFilters": "Clear filters",
   "settings.cliSessionsSearchViaCli":
     "Results from grok sessions search (summaries + first prompts)",
   "settings.cliSessionsSearchViaLocal":
     "Local disk search (title, id, cwd, first prompt)",
   "settings.cliSessionsSearchFallback":
     "CLI search unavailable — filtering the local list",
+  "settings.cliSessions.err.cli_missing": "CLI missing",
+  "settings.cliSessions.err.cli_missingHint":
+    "Install Grok Build CLI, then refresh this list.",
+  "settings.cliSessions.err.cli_unsupported": "CLI search unsupported",
+  "settings.cliSessions.err.cli_unsupportedHint":
+    "This CLI build may lack sessions search — filtering the local list instead.",
+  "settings.cliSessions.err.timeout": "Search timed out",
+  "settings.cliSessions.err.timeoutHint":
+    "Try a narrower query or refresh the local list.",
+  "settings.cliSessions.err.host_only": "Desktop app required",
+  "settings.cliSessions.err.host_onlyHint":
+    "CLI session discovery runs in the desktop app only.",
+  "settings.cliSessions.err.permission": "Permission denied",
+  "settings.cliSessions.err.permissionHint":
+    "Check file permissions under GROK_HOME.",
+  "settings.cliSessions.err.other": "Search failed",
+  "settings.cliSessions.err.otherHint": "Refresh and try again.",
+  "settings.cliSessionsImportPlan":
+    "Import {importable} of {selected} (skip {skipped} already linked)",
   "settings.cliSessionsDeleteRemoteOnly":
     "No on-disk folder under GROK_HOME for this hit (remote-only)",
   "settings.cliSessionsSource": "Scanning {path}",
@@ -7806,20 +7842,51 @@ const zh: Record<MessageKey, string> = {
   "settings.cliSessionsImportedN": "已导入 {n} 个会话",
   "settings.cliSessionsLoading": "正在查找 CLI 会话…",
   "settings.cliSessionsEmpty": "在当前 home 下未找到 CLI 会话。",
+  "settings.cliSessionsEmptyHint":
+    "在此 home 下运行 Grok Build，或若预期是终端 CLI 会话，请切换会话数据模式。",
+  "settings.cliSessionsEmptyCliMissing":
+    "未找到 Grok Build CLI — 暂无 CLI 会话可列出。",
+  "settings.cliSessionsEmptyCliMissingHint":
+    "请在「设置 → 运行时」安装或定位 CLI。安装后刷新可显示本地磁盘会话。",
+  "settings.cliSessionsEmptyError": "无法加载 CLI 会话。",
+  "settings.cliSessionsEmptyErrorHint": "请检查 GROK_HOME 路径与 CLI 安装，然后刷新。",
   "settings.cliSessionsMsgs": "{n} 条消息",
   "settings.cliSessionsLinked": "已关联",
   "settings.cliSessionsAgentId": "id {id}",
   "settings.cliSessionsCopyId": "复制 id",
   "settings.cliSessionsCopied": "已复制",
   "settings.cliSessionsFilterPlaceholder": "搜索摘要与首条提示…",
+  "settings.cliSessions.filterAll": "全部",
+  "settings.cliSessions.filterLinked": "已关联",
+  "settings.cliSessions.filterUnlinked": "未关联",
   "settings.cliSessionsFilterEmpty": "没有符合筛选条件的会话。",
+  "settings.cliSessionsFilterEmptyHint": "尝试其他关联筛选，或清除筛选。",
   "settings.cliSessionsSearching": "正在搜索 CLI 会话…",
   "settings.cliSessionsSearchEmpty": "没有符合搜索条件的 CLI 会话。",
+  "settings.cliSessionsSearchEmptyHint": "换个关键词，或清除搜索。",
+  "settings.cliSessions.clearFilters": "清除筛选",
   "settings.cliSessionsSearchViaCli":
     "来自 grok sessions search（摘要 + 首条提示）",
   "settings.cliSessionsSearchViaLocal":
     "本地磁盘搜索（标题、id、路径、首条提示）",
   "settings.cliSessionsSearchFallback": "CLI 搜索不可用 — 正在筛选本地列表",
+  "settings.cliSessions.err.cli_missing": "CLI 缺失",
+  "settings.cliSessions.err.cli_missingHint":
+    "请安装 Grok Build CLI，然后刷新列表。",
+  "settings.cliSessions.err.cli_unsupported": "CLI 不支持搜索",
+  "settings.cliSessions.err.cli_unsupportedHint":
+    "当前 CLI 可能没有 sessions search — 已改为筛选本地列表。",
+  "settings.cliSessions.err.timeout": "搜索超时",
+  "settings.cliSessions.err.timeoutHint": "请缩小关键词或刷新本地列表。",
+  "settings.cliSessions.err.host_only": "需要桌面应用",
+  "settings.cliSessions.err.host_onlyHint":
+    "CLI 会话发现仅在桌面应用中可用。",
+  "settings.cliSessions.err.permission": "权限不足",
+  "settings.cliSessions.err.permissionHint": "请检查 GROK_HOME 下的文件权限。",
+  "settings.cliSessions.err.other": "搜索失败",
+  "settings.cliSessions.err.otherHint": "请刷新后重试。",
+  "settings.cliSessionsImportPlan":
+    "将导入 {importable} / {selected}（跳过已关联 {skipped}）",
   "settings.cliSessionsDeleteRemoteOnly":
     "此结果在 GROK_HOME 下没有本地目录（仅远程）",
   "settings.cliSessionsSource": "扫描路径 {path}",

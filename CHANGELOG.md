@@ -11,6 +11,10 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+
+- **CLI sessions search pro** (Settings → Agent / CLI sessions): linked · unlinked filter chips with counts; ranked free-text hits (title → id → first prompt → cwd); honest empty states (loading · searching · CLI missing soft-fail · empty catalog · filter/search empty + **Clear filters**); classified search/list error chips (`cli_missing` · `cli_unsupported` · `timeout` · `host_only` · `permission` · `other`); import/delete bulk buttons use honesty counts (skip already linked; delete only on-disk unlinked). Never invents sessions when CLI is missing. Pure `cliSessionsSearchPro` helpers + tests; en/zh/zh-TW; `settingsCatalog`. Delete still uses GlassModal (no `window.confirm`).
+
 ## [0.2.3] - 2026-07-31
 
 > **Highlight:** Composer model picker with custom multi-model providers (DeepSeek / Amux / Yun presets); large pro-honesty batch across settings, Remote IM, MCP, and sessions.

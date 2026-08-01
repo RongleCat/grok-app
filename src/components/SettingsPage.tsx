@@ -39,9 +39,16 @@ import {
 } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import {
-  countUnlinkedCliSessions,
-  filterCliSessions,
-} from "@/lib/cliSessionsFilter";
+  CLI_SESSIONS_LINK_FILTERS,
+  classifyCliSessionsSearchError,
+  cliSessionsLinkFilterLabelKey,
+  countCliSessionsByLink,
+  filterCliSessionHits,
+  hasActiveCliSessionsFilters,
+  planImportSelection,
+  resolveCliSessionsEmptyState,
+  type CliSessionsLinkFilter,
+} from "@/lib/cliSessionsSearchPro";
 import {
   listArchiveAgeOptionPreviews,
   hasAnyArchiveAgeMatches,
@@ -4154,6 +4161,7 @@ export function SettingsPage({
               <CliSessionsPanel
                 t={t}
                 sessionDataMode={sessionDataMode}
+                cliFound={cliInfo.found}
                 onImported={onCliSessionsImported}
                 onOpenSession={onOpenCliSession}
               />
@@ -8057,11 +8065,14 @@ function ShortcutsSettingsPanel({
 function CliSessionsPanel({
   t,
   sessionDataMode,
+  cliFound = true,
   onImported,
   onOpenSession,
 }: {
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
   sessionDataMode: string;
+  /** Whether Grok Build CLI is on PATH — soft-fail empty when missing. */
+  cliFound?: boolean;
   onImported?: () => void;
   onOpenSession?: (appSessionId: string) => void;
 }) {
@@ -8071,12 +8082,15 @@ function CliSessionsPanel({
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [filterQuery, setFilterQuery] = useState("");
+  const [linkFilter, setLinkFilter] =
+    useState<CliSessionsLinkFilter>("all");
   /** Host CLI search results when query is non-empty; null = show local list/filter. */
   const [searchHits, setSearchHits] = useState<api.CliSessionSearchHit[] | null>(
     null,
   );
   const [searching, setSearching] = useState(false);
   const [searchNote, setSearchNote] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<
     | null
@@ -8116,6 +8130,7 @@ function CliSessionsPanel({
       setSearchHits(null);
       setSearching(false);
       setSearchNote(null);
+      setSearchError(null);
       return;
     }
     if (!api.isTauri()) {
@@ -8124,6 +8139,7 @@ function CliSessionsPanel({
     }
     const seq = ++searchSeq.current;
     setSearching(true);
+    setSearchError(null);
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
@@ -8136,11 +8152,13 @@ function CliSessionsPanel({
               ? t("settings.cliSessionsSearchViaCli")
               : t("settings.cliSessionsSearchViaLocal"),
           );
-        } catch {
+          setSearchError(null);
+        } catch (e) {
           if (searchSeq.current !== seq) return;
-          // Host failed — fall back to client-side title/id/cwd/firstPrompt filter.
+          // Host failed — soft-fail: fall back to client-side filter; surface chip.
           setSearchHits(null);
           setSearchNote(t("settings.cliSessionsSearchFallback"));
+          setSearchError(String(e));
         } finally {
           if (searchSeq.current === seq) setSearching(false);
         }
@@ -8151,15 +8169,70 @@ function CliSessionsPanel({
     };
   }, [filterQuery, sessionDataMode, listEpoch, t]);
 
+  const linkCounts = useMemo(() => countCliSessionsByLink(rows), [rows]);
+
   const filtered = useMemo(() => {
     const q = filterQuery.trim();
-    if (!q) return rows;
-    if (searchHits) return searchHits;
-    // Host still loading or failed → local filter (incl. firstPrompt when present).
-    return filterCliSessions(rows, q);
-  }, [rows, filterQuery, searchHits]);
+    // Host search hits (when present) already match the free-text query;
+    // still apply link chip + rank. When host fails/still loading, pure filter.
+    const base = q && searchHits ? searchHits : rows;
+    return filterCliSessionHits(base, { query: q, link: linkFilter });
+  }, [rows, filterQuery, searchHits, linkFilter]);
+
   /** Bulk import / delete unlinked always targets the full list (not the filter). */
-  const pending = countUnlinkedCliSessions(rows);
+  const importPlan = useMemo(() => planImportSelection(rows), [rows]);
+  const pending = importPlan.importable;
+  const deletableUnlinked = importPlan.deletable;
+
+  const emptyState = useMemo(
+    () =>
+      resolveCliSessionsEmptyState({
+        loading,
+        searching,
+        cliFound,
+        query: filterQuery,
+        resultCount: filtered.length,
+        totalCount: rows.length,
+        linkFilter,
+        error,
+      }),
+    [
+      loading,
+      searching,
+      cliFound,
+      filterQuery,
+      filtered.length,
+      rows.length,
+      linkFilter,
+      error,
+    ],
+  );
+
+  const filtersActive = hasActiveCliSessionsFilters({
+    query: filterQuery,
+    link: linkFilter,
+  });
+
+  const searchErrorView = useMemo(
+    () =>
+      searchError ? classifyCliSessionsSearchError(searchError) : null,
+    [searchError],
+  );
+
+  const listErrorView = useMemo(
+    () => (error && rows.length === 0 ? classifyCliSessionsSearchError(error) : null),
+    [error, rows.length],
+  );
+
+  const clearFilters = () => {
+    setFilterQuery("");
+    setLinkFilter("all");
+    setSearchHits(null);
+    setSearchError(null);
+    setSearchNote(null);
+    if (error) setError(null);
+  };
+
   const sourceHome =
     rows.find((r) => r.sourceHome)?.sourceHome ??
     (isIndependent ? "~/.grok-app/agent-home" : "~/.grok");
@@ -8242,7 +8315,10 @@ function CliSessionsPanel({
   };
 
   const runDeleteUnlinked = async () => {
-    const targets = rows.filter((r) => !r.alreadyLinked);
+    // Only delete unlinked rows with a local dir (remote-only soft-skipped).
+    const targets = rows.filter(
+      (r) => !r.alreadyLinked && !!(r.dir ?? "").trim(),
+    );
     if (targets.length === 0) {
       setDeleteConfirm(null);
       return;
@@ -8309,7 +8385,16 @@ function CliSessionsPanel({
           <button
             type="button"
             className="btn btn--solid"
-            disabled={loading || !!busyId || pending === 0}
+            disabled={loading || !!busyId || !importPlan.hasImportable}
+            title={
+              importPlan.selected > 0
+                ? t("settings.cliSessionsImportPlan", {
+                    importable: String(importPlan.importable),
+                    selected: String(importPlan.selected),
+                    skipped: String(importPlan.skipped),
+                  })
+                : undefined
+            }
             onClick={() => void importAll()}
           >
             {busyId === "__all__"
@@ -8319,18 +8404,59 @@ function CliSessionsPanel({
           <button
             type="button"
             className="btn btn--ghost btn--danger"
-            disabled={loading || !!busyId || pending === 0}
+            disabled={loading || !!busyId || !importPlan.hasDeletable}
             onClick={() =>
-              setDeleteConfirm({ kind: "unlinked", count: pending })
+              setDeleteConfirm({
+                kind: "unlinked",
+                count: deletableUnlinked,
+              })
             }
           >
             {busyId === "__delete_unlinked__"
               ? t("settings.cliSessionsDeleting")
               : t("settings.cliSessionsDeleteUnlinked", {
-                  n: String(pending),
+                  n: String(deletableUnlinked),
                 })}
           </button>
         </div>
+
+        <div
+          className="settings-cli-sessions__chips"
+          role="tablist"
+          aria-label={t("settings.cliSessions")}
+        >
+          {CLI_SESSIONS_LINK_FILTERS.map((id) => {
+            const n = linkCounts[id];
+            // Hide zero-count chips except "all" and the active selection.
+            if (id !== "all" && n === 0 && linkFilter !== id) return null;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={linkFilter === id}
+                className={
+                  "settings-cli-sessions__chip" +
+                  (linkFilter === id ? " is-active" : "")
+                }
+                onClick={() => setLinkFilter(id)}
+              >
+                <span>{t(cliSessionsLinkFilterLabelKey(id))}</span>
+                <span className="settings-cli-sessions__chip-count">{n}</span>
+              </button>
+            );
+          })}
+          {filtersActive ? (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm settings-cli-sessions__clear"
+              onClick={clearFilters}
+            >
+              {t("settings.cliSessions.clearFilters")}
+            </button>
+          ) : null}
+        </div>
+
         <div className="settings-cli-sessions__filter">
           <IconSearch size={14} />
           <input
@@ -8340,6 +8466,7 @@ function CliSessionsPanel({
               setFilterQuery(e.target.value);
               // Clear stale host error when the user edits the query.
               if (error) setError(null);
+              if (searchError) setSearchError(null);
             }}
             placeholder={t("settings.cliSessionsFilterPlaceholder")}
             aria-label={t("settings.cliSessionsFilterPlaceholder")}
@@ -8356,7 +8483,42 @@ function CliSessionsPanel({
             {t("settings.cliSessionsSearching")}
           </div>
         ) : null}
-        {error ? (
+        {searchErrorView ? (
+          <div
+            className={
+              "settings-cli-sessions__err-chip" +
+              (searchErrorView.softFail
+                ? " settings-cli-sessions__err-chip--soft"
+                : "")
+            }
+            role="status"
+          >
+            <span className="settings-cli-sessions__err-kind">
+              {t(searchErrorView.titleKey as MessageKey)}
+            </span>
+            <span className="settings-cli-sessions__err-hint">
+              {t(searchErrorView.hintKey as MessageKey)}
+            </span>
+          </div>
+        ) : null}
+        {listErrorView && emptyState?.kind === "error" ? (
+          <div
+            className={
+              "settings-cli-sessions__err-chip" +
+              (listErrorView.softFail
+                ? " settings-cli-sessions__err-chip--soft"
+                : "")
+            }
+            role="alert"
+          >
+            <span className="settings-cli-sessions__err-kind">
+              {t(listErrorView.titleKey as MessageKey)}
+            </span>
+            <span className="settings-cli-sessions__err-hint">
+              {t(listErrorView.hintKey as MessageKey)}
+            </span>
+          </div>
+        ) : error && rows.length > 0 ? (
           <div className="settings-cli-sessions__err" role="alert">
             {error}
           </div>
@@ -8366,23 +8528,25 @@ function CliSessionsPanel({
             {status}
           </div>
         ) : null}
-        {loading && rows.length === 0 && !filterQuery.trim() ? (
+        {emptyState ? (
           <div className="settings-cli-sessions__empty">
-            {t("settings.cliSessionsLoading")}
-          </div>
-        ) : rows.length === 0 && !filterQuery.trim() ? (
-          <div className="settings-cli-sessions__empty">
-            {t("settings.cliSessionsEmpty")}
-          </div>
-        ) : searching && filtered.length === 0 ? (
-          <div className="settings-cli-sessions__empty">
-            {t("settings.cliSessionsSearching")}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="settings-cli-sessions__empty">
-            {filterQuery.trim()
-              ? t("settings.cliSessionsSearchEmpty")
-              : t("settings.cliSessionsFilterEmpty")}
+            <p className="settings-cli-sessions__empty-title">
+              {t(emptyState.titleKey)}
+            </p>
+            {emptyState.hintKey ? (
+              <p className="settings-cli-sessions__empty-hint">
+                {t(emptyState.hintKey)}
+              </p>
+            ) : null}
+            {emptyState.showClearFilters ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={clearFilters}
+              >
+                {t("settings.cliSessions.clearFilters")}
+              </button>
+            ) : null}
           </div>
         ) : (
           <ul className="settings-cli-sessions__list">
@@ -8396,7 +8560,7 @@ function CliSessionsPanel({
                 "firstPrompt" in r
                   ? (r as { firstPrompt?: string | null }).firstPrompt
                   : undefined;
-              const remoteOnly = !r.dir;
+              const remoteOnly = !(r.dir ?? "").trim();
               return (
                 <li
                   key={r.agentSessionId}

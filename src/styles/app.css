@@ -7399,15 +7399,108 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
 }
 
 .settings-cli-sessions__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   font-size: 12.5px;
   color: var(--text-tertiary);
   padding: 6px 2px;
+}
+
+.settings-cli-sessions__empty-title {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.settings-cli-sessions__empty-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.settings-cli-sessions__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  align-items: center;
+}
+
+.settings-cli-sessions__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.settings-cli-sessions__chip:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-cli-sessions__chip.is-active {
+  border-color: color-mix(in srgb, var(--accent, #6b8cff) 30%, transparent);
+  background: color-mix(in srgb, var(--accent, #6b8cff) 14%, transparent);
+  color: var(--text-primary);
+  font-weight: 560;
+}
+
+.settings-cli-sessions__chip-count {
+  font-size: 11px;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-cli-sessions__chip.is-active .settings-cli-sessions__chip-count {
+  opacity: 0.9;
+}
+
+.settings-cli-sessions__clear {
+  margin-left: 2px;
 }
 
 .settings-cli-sessions__err {
   font-size: 12.5px;
   color: var(--danger, #d33);
   padding: 4px 2px;
+}
+
+.settings-cli-sessions__err-chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--danger, #d33) 32%, var(--border-subtle));
+  background: color-mix(in srgb, var(--danger, #d33) 8%, transparent);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.settings-cli-sessions__err-chip--soft {
+  border-color: color-mix(in srgb, var(--warning, #c90) 36%, var(--border-subtle));
+  background: color-mix(in srgb, var(--warning, #c90) 10%, transparent);
+}
+
+.settings-cli-sessions__err-kind {
+  font-weight: 560;
+  color: var(--text-primary);
+}
+
+.settings-cli-sessions__err-hint {
+  color: var(--text-secondary);
 }
 
 .settings-cli-sessions__ok {
