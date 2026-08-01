@@ -22,7 +22,8 @@
         "decorations": true,
         "transparent": false,
         "center": true,
-        "shadow": true
+        "shadow": true,
+        "zoomHotkeysEnabled": true
       }
     ],
     "macOSPrivateApi": true,

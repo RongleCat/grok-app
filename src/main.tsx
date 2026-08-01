@@ -60,6 +60,7 @@ import {
   applyWindowAlwaysOnTop,
   loadWindowAlwaysOnTopPref,
 } from "./lib/windowAlwaysOnTop";
+import { installZoomHotkeys } from "./lib/zoomHotkeys";
 
 // Apply persisted theme preference (default: system) before first React paint.
 // Optional clock schedule (under System) wins over OS scheme when enabled.
@@ -97,6 +98,15 @@ void applyNativeWindowTheme(
 );
 // Desktop always-on-top (localStorage; fail-closed outside Tauri).
 void applyWindowAlwaysOnTop(loadWindowAlwaysOnTopPref(localStorage));
+
+// The app has document-level capture handlers. Install the zoom handler on
+// window capture so Command +/- is handled before those shortcuts.
+if (
+  typeof window !== "undefined" &&
+  ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
+) {
+  installZoomHotkeys(window);
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
