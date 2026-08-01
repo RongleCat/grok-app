@@ -4702,6 +4702,20 @@ const en = {
     "Remove {count} recent hook activity row(s) stored on this device. This cannot be undone.",
   "ext.hooks.activity.clearConfirmOk": "Clear",
   "ext.hooks.activity.sourceDebug": "dry-run",
+  "ext.hooks.activity.export": "Export redacted…",
+  "ext.hooks.activity.exportHint":
+    "Download the filtered activity list as redacted JSON (no secrets)",
+  "ext.hooks.activity.copySummary": "Copy summary",
+  "ext.hooks.activity.copySummaryHint":
+    "Copy the filtered activity list as redacted plain text",
+  "ext.hooks.activity.exportCopied": "Copied {count} redacted row(s)",
+  "ext.hooks.activity.exportDownloaded": "Downloaded {count} redacted row(s)",
+  "ext.hooks.activity.exportEmpty": "No activity to export for this filter.",
+  "ext.hooks.activity.exportCopyFailed":
+    "Could not copy summary (clipboard blocked)",
+  "ext.hooks.activity.exportDownloadFailed":
+    "Could not download activity export",
+  "ext.hooks.activity.exportFailed": "Activity export failed",
   "ext.hooks.try.hookName": "Hook name",
   "ext.hooks.try.hookNamePlaceholder": "Optional — pick or type a file name",
   "ext.hooks.try.eventType": "Event type",
@@ -10754,6 +10768,18 @@ const zh: Record<MessageKey, string> = {
     "将移除本机保存的 {count} 条最近 hook 活动记录，此操作不可撤销。",
   "ext.hooks.activity.clearConfirmOk": "清空",
   "ext.hooks.activity.sourceDebug": "试跑",
+  "ext.hooks.activity.export": "导出脱敏…",
+  "ext.hooks.activity.exportHint":
+    "将当前筛选的活动列表下载为脱敏 JSON（不含密钥）",
+  "ext.hooks.activity.copySummary": "复制摘要",
+  "ext.hooks.activity.copySummaryHint":
+    "将当前筛选的活动列表复制为脱敏纯文本",
+  "ext.hooks.activity.exportCopied": "已复制 {count} 条脱敏记录",
+  "ext.hooks.activity.exportDownloaded": "已下载 {count} 条脱敏记录",
+  "ext.hooks.activity.exportEmpty": "当前筛选下没有可导出的活动。",
+  "ext.hooks.activity.exportCopyFailed": "无法复制摘要（剪贴板被拦截）",
+  "ext.hooks.activity.exportDownloadFailed": "无法下载活动导出",
+  "ext.hooks.activity.exportFailed": "活动导出失败",
   "ext.hooks.try.hookName": "Hook 名称",
   "ext.hooks.try.hookNamePlaceholder": "可选 — 选择或输入文件名",
   "ext.hooks.try.eventType": "事件类型",

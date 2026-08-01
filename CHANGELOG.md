@@ -11,6 +11,10 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+
+- **Hooks activity redacted export** (Settings → Extensions → Hooks → Recent activity): **Export redacted…** downloads filtered rows as JSON and **Copy summary** copies a plain-text dump; every free-form field is re-redacted (no secrets). Soft-fail honesty for empty filter · clipboard blocked · download failure · other. Pure `hooksActivityExport` helpers (`planHooksActivityExport` / `formatHooksActivityExportText` / `classifyHooksExportError`) + tests; en/zh/zh-TW. No `window.confirm`.
+
 ## [0.2.3] - 2026-07-31
 
 > **Highlight:** Composer model picker with custom multi-model providers (DeepSeek / Amux / Yun presets); large pro-honesty batch across settings, Remote IM, MCP, and sessions.

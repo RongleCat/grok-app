@@ -4516,6 +4516,18 @@ export const zhTW: Record<MessageKey, string> = {
     "將移除本機保存的 {count} 條最近 hook 活動記錄，此操作無法復原。",
   "ext.hooks.activity.clearConfirmOk": "清空",
   "ext.hooks.activity.sourceDebug": "試跑",
+  "ext.hooks.activity.export": "匯出脫敏…",
+  "ext.hooks.activity.exportHint":
+    "將目前篩選的活動列表下載為脫敏 JSON（不含密鑰）",
+  "ext.hooks.activity.copySummary": "複製摘要",
+  "ext.hooks.activity.copySummaryHint":
+    "將目前篩選的活動列表複製為脫敏純文字",
+  "ext.hooks.activity.exportCopied": "已複製 {count} 條脫敏紀錄",
+  "ext.hooks.activity.exportDownloaded": "已下載 {count} 條脫敏紀錄",
+  "ext.hooks.activity.exportEmpty": "目前篩選下沒有可匯出的活動。",
+  "ext.hooks.activity.exportCopyFailed": "無法複製摘要（剪貼簿被攔截）",
+  "ext.hooks.activity.exportDownloadFailed": "無法下載活動匯出",
+  "ext.hooks.activity.exportFailed": "活動匯出失敗",
   "ext.hooks.try.hookName": "Hook 名稱",
   "ext.hooks.try.hookNamePlaceholder": "選填 — 選擇或輸入檔名",
   "ext.hooks.try.eventType": "事件類型",

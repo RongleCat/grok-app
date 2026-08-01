@@ -21007,6 +21007,14 @@ div.composer__input:empty::before {
   margin-top: 12px;
 }
 
+.ext-hooks-activity__head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
 .ext-hooks-activity__head {
   display: flex;
   align-items: center;

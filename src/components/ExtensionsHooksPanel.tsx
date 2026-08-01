@@ -28,6 +28,12 @@ import {
   type HookActivityRecord,
 } from "@/lib/hooksDebug";
 import {
+  classifyHooksExportError,
+  hooksExportOutcomeMessageKey,
+  planHooksActivityExport,
+  resolveHooksExportOutcome,
+} from "@/lib/hooksActivityExport";
+import {
   countHookActivityOutcomes,
   filterHookActivitiesByOutcome,
   resolveHookActivityEmptyState,
@@ -136,6 +142,10 @@ export function ExtensionsHooksPanel({
   const [outcomeFilter, setOutcomeFilter] =
     useState<HookActivityOutcomeFilter>("all");
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [exportMsg, setExportMsg] = useState<{
+    kind: "ok" | "err" | "info";
+    text: string;
+  } | null>(null);
 
   // Real try-run panel
   const [tryOpen, setTryOpen] = useState(true);
@@ -260,7 +270,113 @@ export function ExtensionsHooksPanel({
     clearHookActivities();
     setClearConfirmOpen(false);
     setOutcomeFilter("all");
+    setExportMsg(null);
   };
+
+  const showExportOutcome = useCallback(
+    (
+      outcome: ReturnType<typeof resolveHooksExportOutcome>,
+      count = 0,
+    ) => {
+      const key = hooksExportOutcomeMessageKey(outcome);
+      setExportMsg({
+        kind: outcome.ok ? "ok" : "err",
+        text: tr(key, { count: String(count) }),
+      });
+    },
+    [tr],
+  );
+
+  const onCopyActivitySummary = useCallback(async () => {
+    const plan = planHooksActivityExport(filteredActivity, {
+      outcomeFilter,
+    });
+    if (plan.empty || !plan.text) {
+      showExportOutcome(
+        resolveHooksExportOutcome({
+          channel: "copy",
+          empty: true,
+        }),
+        0,
+      );
+      return;
+    }
+    let copyOk = false;
+    let error: unknown;
+    try {
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === "function"
+      ) {
+        await navigator.clipboard.writeText(plan.text);
+        copyOk = true;
+      } else {
+        error = Object.assign(new Error("clipboard unavailable"), {
+          code: "clipboard",
+        });
+      }
+    } catch (e) {
+      error = e;
+    }
+    showExportOutcome(
+      resolveHooksExportOutcome({
+        channel: "copy",
+        empty: false,
+        copyOk,
+        error,
+      }),
+      plan.count,
+    );
+  }, [filteredActivity, outcomeFilter, showExportOutcome]);
+
+  const onExportActivityJson = useCallback(() => {
+    const plan = planHooksActivityExport(filteredActivity, {
+      outcomeFilter,
+    });
+    if (plan.empty) {
+      showExportOutcome(
+        resolveHooksExportOutcome({
+          channel: "download",
+          empty: true,
+        }),
+        0,
+      );
+      return;
+    }
+    let error: unknown;
+    try {
+      const blob = new Blob([plan.json], {
+        type: "application/json;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      try {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = plan.filenameJson;
+        a.click();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) {
+      error = e;
+      // Normalize unknown throws to download soft-fail when message is vague.
+      if (classifyHooksExportError(e) === "other") {
+        error = Object.assign(
+          e instanceof Error ? e : new Error(String(e)),
+          { code: "download" },
+        );
+      }
+    }
+    showExportOutcome(
+      resolveHooksExportOutcome({
+        channel: "download",
+        empty: false,
+        error,
+      }),
+      plan.count,
+    );
+  }, [filteredActivity, outcomeFilter, showExportOutcome]);
 
   const load = useCallback(async () => {
     if (!api.isTauri()) {
@@ -856,15 +972,33 @@ export function ExtensionsHooksPanel({
           <h3 className="settings-page__h2 ext-hooks-activity__title">
             {tr("ext.hooks.activity.title")}
           </h3>
-          {!clearPlan.empty ? (
+          <div className="ext-hooks-activity__head-actions">
             <button
               type="button"
               className="btn btn--ghost btn--sm"
-              onClick={() => setClearConfirmOpen(true)}
+              title={tr("ext.hooks.activity.exportHint")}
+              onClick={onExportActivityJson}
             >
-              {tr("ext.hooks.activity.clear")}
+              {tr("ext.hooks.activity.export")}
             </button>
-          ) : null}
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              title={tr("ext.hooks.activity.copySummaryHint")}
+              onClick={() => void onCopyActivitySummary()}
+            >
+              {tr("ext.hooks.activity.copySummary")}
+            </button>
+            {!clearPlan.empty ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => setClearConfirmOpen(true)}
+              >
+                {tr("ext.hooks.activity.clear")}
+              </button>
+            ) : null}
+          </div>
         </div>
         <p className="ext-section-note">{tr("ext.hooks.activity.desc")}</p>
         {activity.length > 0 ? (
@@ -882,7 +1016,10 @@ export function ExtensionsHooksPanel({
                 className={
                   "settings-seg__btn" + (outcomeFilter === id ? " is-on" : "")
                 }
-                onClick={() => setOutcomeFilter(id)}
+                onClick={() => {
+                  setOutcomeFilter(id);
+                  setExportMsg(null);
+                }}
               >
                 {filterChipLabel(id, tr)}
                 <span className="ext-hooks-activity__count" aria-hidden>
@@ -891,6 +1028,21 @@ export function ExtensionsHooksPanel({
               </button>
             ))}
           </div>
+        ) : null}
+        {exportMsg ? (
+          <p
+            className={
+              "ext-field-hint ext-hooks-try__msg" +
+              (exportMsg.kind === "ok"
+                ? " ext-hooks-try__msg--ok"
+                : exportMsg.kind === "err"
+                  ? " ext-hooks-try__msg--err"
+                  : "")
+            }
+            role="status"
+          >
+            {exportMsg.text}
+          </p>
         ) : null}
         {activityEmptyState === "empty" ? (
           <p className="ext-field-hint" role="status">
