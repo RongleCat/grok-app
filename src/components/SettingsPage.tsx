@@ -7074,13 +7074,17 @@ export function SettingsPage({
                     <TraceHistoryList
                       labels={{
                         empty: t("session.tracesEmpty"),
+                        emptyHint: t("session.tracesEmptyHint"),
                         emptyFilter: t("session.tracesEmptyFilter"),
+                        emptyFilterHint: t("session.tracesEmptyFilterHint"),
+                        clearFilters: t("session.tracesClearFilters"),
                         reveal: t("session.tracesReveal"),
                         copyPath: t("session.tracesCopyPath"),
                         copied: t("session.tracesCopied"),
                         remove: t("session.tracesRemove"),
                         clearAll: t("session.tracesClearAll"),
                         clearConfirmTitle: t("session.tracesClearConfirmTitle"),
+                        // Leave {count} for TraceHistoryList (planClearTraceHistory).
                         clearConfirmMessage: t(
                           "session.tracesClearConfirmMessage",
                         ),
@@ -7088,9 +7092,17 @@ export function SettingsPage({
                           "session.tracesClearConfirmAction",
                         ),
                         cancel: t("common.cancel"),
+                        closeLabel: t("common.close"),
                         searchPlaceholder: t("session.tracesSearch"),
                         listAria: t("session.tracesTitle"),
                         uploadedBadge: t("session.tracesUploadedBadge"),
+                        uploadedBadgeTitle: t(
+                          "session.tracesUploadedBadgeTitle",
+                        ),
+                        filterAll: t("session.tracesFilter.all"),
+                        filterLocal: t("session.tracesFilter.local"),
+                        filterUploaded: t("session.tracesFilter.uploaded"),
+                        filterAria: t("session.tracesFilterAria"),
                       }}
                       onCopied={() =>
                         showSettingsToast(t("session.tracesCopied"), 2000)

@@ -3990,8 +3990,9 @@ const en = {
   "session.tracesTitle": "Recent traces",
   "session.tracesDesc":
     "Local history of session trace exports (paths only). Open the folder or copy the path — large archives are not loaded into the app.",
-  "session.tracesEmpty":
-    "No traces exported yet. Use Export local or Export and upload from a chat menu after a conversation has an agent session.",
+  "session.tracesEmpty": "No traces exported yet",
+  "session.tracesEmptyHint":
+    "Use Export local or Export and upload from a chat menu after a conversation has an agent session. Paths only — archives are never loaded into the app.",
   "session.tracesReveal": "Reveal in folder",
   "session.tracesCopyPath": "Copy path",
   "session.tracesCopied": "Path copied",
@@ -3999,11 +4000,20 @@ const en = {
   "session.tracesClearAll": "Clear all",
   "session.tracesClearConfirmTitle": "Clear trace history?",
   "session.tracesClearConfirmMessage":
-    "Remove all recent trace export paths from this list. Archive files on disk are not deleted.",
+    "Remove {count} recent trace export path(s) from this list. Archive files on disk are not deleted.",
   "session.tracesClearConfirmAction": "Clear all",
   "session.tracesSearch": "Filter by title or path…",
   "session.tracesEmptyFilter": "No traces match this filter",
+  "session.tracesEmptyFilterHint":
+    "Try another search, or switch the All / Local / Uploaded chip.",
+  "session.tracesClearFilters": "Clear filters",
+  "session.tracesFilterAria": "Trace export scope",
+  "session.tracesFilter.all": "All",
+  "session.tracesFilter.local": "Local",
+  "session.tracesFilter.uploaded": "Uploaded",
   "session.tracesUploadedBadge": "Uploaded",
+  "session.tracesUploadedBadgeTitle":
+    "Upload reported by export (path only — no remote URL stored)",
   "session.exportBundle": "Export diagnostic package",
   "session.exportBundleDone": "Diagnostic package saved",
   "session.exportBundleFail": "Diagnostic export failed",
@@ -10067,8 +10077,9 @@ const zh: Record<MessageKey, string> = {
   "session.tracesTitle": "最近的 trace",
   "session.tracesDesc":
     "会话 trace 导出的本地历史（仅路径）。可在文件夹中显示或复制路径 — 大文件不会加载进应用。",
-  "session.tracesEmpty":
-    "还没有导出过 trace。在有 agent 会话的对话菜单中选择「仅本地导出」或「导出并上传」。",
+  "session.tracesEmpty": "还没有导出过 trace",
+  "session.tracesEmptyHint":
+    "在有 agent 会话的对话菜单中选择「仅本地导出」或「导出并上传」。仅保存路径 — 不会把归档加载进应用。",
   "session.tracesReveal": "在文件夹中显示",
   "session.tracesCopyPath": "复制路径",
   "session.tracesCopied": "路径已复制",
@@ -10076,11 +10087,19 @@ const zh: Record<MessageKey, string> = {
   "session.tracesClearAll": "全部清除",
   "session.tracesClearConfirmTitle": "清除 trace 历史？",
   "session.tracesClearConfirmMessage":
-    "将从列表中移除全部最近的 trace 导出路径。磁盘上的归档文件不会被删除。",
+    "将从列表中移除 {count} 条最近的 trace 导出路径。磁盘上的归档文件不会被删除。",
   "session.tracesClearConfirmAction": "全部清除",
   "session.tracesSearch": "按标题或路径筛选…",
   "session.tracesEmptyFilter": "没有匹配的 trace",
+  "session.tracesEmptyFilterHint": "试试其他关键词，或切换「全部 / 本地 / 已上传」筛选。",
+  "session.tracesClearFilters": "清除筛选",
+  "session.tracesFilterAria": "Trace 导出范围",
+  "session.tracesFilter.all": "全部",
+  "session.tracesFilter.local": "本地",
+  "session.tracesFilter.uploaded": "已上传",
   "session.tracesUploadedBadge": "已上传",
+  "session.tracesUploadedBadgeTitle":
+    "导出所报告的上传状态（仅路径 — 不保存远程 URL）",
   "session.exportBundle": "导出完整诊断包",
   "session.exportBundleDone": "诊断包已保存",
   "session.exportBundleFail": "诊断包导出失败",

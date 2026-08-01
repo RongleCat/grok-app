@@ -3829,8 +3829,9 @@ export const zhTW: Record<MessageKey, string> = {
   "session.tracesTitle": "最近的 trace",
   "session.tracesDesc":
     "對話 trace 匯出的本機歷史（僅路徑）。可在資料夾中顯示或複製路徑 — 大檔不會載入應用。",
-  "session.tracesEmpty":
-    "還沒有匯出過 trace。在有 agent 對話的選單中選擇「僅本機匯出」或「匯出並上傳」。",
+  "session.tracesEmpty": "還沒有匯出過 trace",
+  "session.tracesEmptyHint":
+    "在有 agent 對話的選單中選擇「僅本機匯出」或「匯出並上傳」。僅儲存路徑 — 不會把封存載入應用。",
   "session.tracesReveal": "在資料夾中顯示",
   "session.tracesCopyPath": "複製路徑",
   "session.tracesCopied": "路徑已複製",
@@ -3838,11 +3839,19 @@ export const zhTW: Record<MessageKey, string> = {
   "session.tracesClearAll": "全部清除",
   "session.tracesClearConfirmTitle": "清除 trace 歷史？",
   "session.tracesClearConfirmMessage":
-    "將從列表中移除全部最近的 trace 匯出路徑。磁碟上的封存檔不會被刪除。",
+    "將從列表中移除 {count} 條最近的 trace 匯出路徑。磁碟上的封存檔不會被刪除。",
   "session.tracesClearConfirmAction": "全部清除",
   "session.tracesSearch": "依標題或路徑篩選…",
   "session.tracesEmptyFilter": "沒有相符的 trace",
+  "session.tracesEmptyFilterHint": "試試其他關鍵詞，或切換「全部 / 本機 / 已上傳」篩選。",
+  "session.tracesClearFilters": "清除篩選",
+  "session.tracesFilterAria": "Trace 匯出範圍",
+  "session.tracesFilter.all": "全部",
+  "session.tracesFilter.local": "本機",
+  "session.tracesFilter.uploaded": "已上傳",
   "session.tracesUploadedBadge": "已上傳",
+  "session.tracesUploadedBadgeTitle":
+    "匯出所報告的上傳狀態（僅路徑 — 不儲存遠端 URL）",
   "session.exportBundle": "匯出完整診斷包",
   "session.exportBundleDone": "診斷包已儲存",
   "session.exportBundleFail": "診斷包匯出失敗",

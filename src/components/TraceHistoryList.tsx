@@ -2,35 +2,53 @@
  * Recent session-trace exports — paths only (never file contents).
  * Used in Settings → Runtime → Diagnostics and the Traces modal.
  *
- * Manage: search filter · remove row · clear all (in-app confirm) · size if known.
+ * Manage: scope chips (all/local/uploaded) · search · remove row ·
+ * clear all (GlassModal confirm with count) · size if known ·
+ * uploaded badge only when history flag is true.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-import { IconClose, IconCopy, IconFolder, IconTrash } from "@/components/icons";
+import { GlassModal } from "@/components/GlassModal";
+import { IconCopy, IconFolder, IconTrash } from "@/components/icons";
 import * as api from "@/lib/api";
 import {
   TRACE_HISTORY_CHANGE_EVENT,
   TRACE_HISTORY_STORAGE_KEY,
   clearTraceHistory,
-  filterTraceHistory,
-  formatTraceHistorySize,
   loadTraceHistory,
   removeTraceHistory,
   traceHistoryFileName,
   traceHistoryLabel,
   type TraceHistoryEntry,
 } from "@/lib/traceHistory";
+import {
+  TRACE_HISTORY_SCOPES,
+  countTraceHistoryMeta,
+  filterTraceHistory,
+  formatTraceSize,
+  hasActiveTraceHistoryFilters,
+  planClearTraceHistory,
+  resolveTraceHistoryEmptyState,
+  shouldShowTraceUploadedBadge,
+  traceHistoryScopeLabelKey,
+  type TraceHistoryScope,
+} from "@/lib/traceHistoryPro";
 
 export type TraceHistoryListLabels = {
   empty: string;
+  /** Optional secondary empty hint (export prompt). */
+  emptyHint?: string;
   emptyFilter: string;
+  /** Optional filter-empty hint. */
+  emptyFilterHint?: string;
+  clearFilters?: string;
   reveal: string;
   copyPath: string;
   copied: string;
   remove: string;
   clearAll: string;
   clearConfirmTitle: string;
+  /** Prefer with `{count}` — plan count is interpolated by caller when provided. */
   clearConfirmMessage: string;
   clearConfirmAction: string;
   cancel: string;
@@ -39,6 +57,14 @@ export type TraceHistoryListLabels = {
   listAria?: string;
   /** Optional badge when history notes uploaded=true (no URLs). */
   uploadedBadge?: string;
+  /** Honest tooltip: upload reported by export, no remote URL stored. */
+  uploadedBadgeTitle?: string;
+  /** Filter chip labels */
+  filterAll?: string;
+  filterLocal?: string;
+  filterUploaded?: string;
+  filterAria?: string;
+  closeLabel?: string;
 };
 
 export type TraceHistoryListProps = {
@@ -68,6 +94,17 @@ function formatExportedAt(iso: string): string {
   }
 }
 
+function scopeLabel(
+  scope: TraceHistoryScope,
+  labels: TraceHistoryListLabels,
+): string {
+  if (scope === "local" && labels.filterLocal) return labels.filterLocal;
+  if (scope === "uploaded" && labels.filterUploaded) return labels.filterUploaded;
+  if (scope === "all" && labels.filterAll) return labels.filterAll;
+  // Fallback keys are only for aria when labels omitted (tests).
+  return traceHistoryScopeLabelKey(scope);
+}
+
 export function TraceHistoryList({
   labels,
   onCopied,
@@ -79,6 +116,7 @@ export function TraceHistoryList({
     loadTraceHistory(),
   );
   const [query, setQuery] = useState("");
+  const [scope, setScope] = useState<TraceHistoryScope>("all");
   const [confirmClear, setConfirmClear] = useState(false);
 
   useEffect(() => {
@@ -97,10 +135,35 @@ export function TraceHistoryList({
     };
   }, []);
 
+  const meta = useMemo(() => countTraceHistoryMeta(entries), [entries]);
+
   const filtered = useMemo(
-    () => filterTraceHistory(entries, query),
-    [entries, query],
+    () => filterTraceHistory(entries, { query, scope }),
+    [entries, query, scope],
   );
+
+  const emptyState = useMemo(
+    () =>
+      resolveTraceHistoryEmptyState({
+        total: entries.length,
+        filtered: filtered.length,
+        query,
+        scope,
+      }),
+    [entries.length, filtered.length, query, scope],
+  );
+
+  const clearPlan = useMemo(() => planClearTraceHistory(entries), [entries]);
+
+  const filtersActive = useMemo(
+    () => hasActiveTraceHistoryFilters({ query, scope }),
+    [query, scope],
+  );
+
+  const clearFilters = useCallback(() => {
+    setQuery("");
+    setScope("all");
+  }, []);
 
   const reveal = useCallback(
     async (path: string) => {
@@ -131,105 +194,132 @@ export function TraceHistoryList({
   }, []);
 
   const doClearAll = useCallback(() => {
+    if (!clearPlan.confirmNeeded) {
+      setConfirmClear(false);
+      return;
+    }
     const next = clearTraceHistory();
     setEntries(next);
     setQuery("");
+    setScope("all");
     setConfirmClear(false);
-  }, []);
+  }, [clearPlan.confirmNeeded]);
 
   const rootClass =
     "trace-history" +
     (compact ? " trace-history--compact" : "") +
     (className ? ` ${className}` : "");
 
+  const chipCounts: Record<TraceHistoryScope, number> = {
+    all: meta.total,
+    local: meta.local,
+    uploaded: meta.uploaded,
+  };
+
   const toolbar =
     entries.length > 0 ? (
-      <div className="trace-history-toolbar">
-        <input
-          type="search"
-          className="trace-history-search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={labels.searchPlaceholder}
-          aria-label={labels.searchPlaceholder}
-        />
-        <button
-          type="button"
-          className="btn btn--ghost btn--sm"
-          onClick={() => setConfirmClear(true)}
-          title={labels.clearAll}
-          aria-label={labels.clearAll}
+      <div className="trace-history-toolbar-block">
+        <div
+          className="trace-history-chips"
+          role="toolbar"
+          aria-label={labels.filterAria ?? labels.listAria}
         >
-          <IconTrash size={14} />
-          <span className="trace-history-row__action-label">
-            {labels.clearAll}
-          </span>
-        </button>
+          {TRACE_HISTORY_SCOPES.map((id) => {
+            const n = chipCounts[id];
+            // Hide zero-count chips except "all" and the active selection.
+            if (id !== "all" && n === 0 && scope !== id) return null;
+            return (
+              <button
+                key={id}
+                type="button"
+                className={
+                  "trace-history-chip" + (scope === id ? " is-active" : "")
+                }
+                aria-pressed={scope === id}
+                onClick={() => setScope(id)}
+              >
+                <span>{scopeLabel(id, labels)}</span>
+                <span className="trace-history-chip__count">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="trace-history-toolbar">
+          <input
+            type="search"
+            className="trace-history-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={labels.searchPlaceholder}
+            aria-label={labels.searchPlaceholder}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => {
+              if (clearPlan.confirmNeeded) setConfirmClear(true);
+            }}
+            disabled={!clearPlan.confirmNeeded}
+            title={labels.clearAll}
+            aria-label={labels.clearAll}
+          >
+            <IconTrash size={14} />
+            <span className="trace-history-row__action-label">
+              {labels.clearAll}
+            </span>
+          </button>
+        </div>
       </div>
     ) : null;
 
-  const confirmPortal =
-    confirmClear &&
-    typeof document !== "undefined" &&
-    createPortal(
-      <div
-        className="overlay app-dialog-overlay"
-        role="presentation"
-        onMouseDown={(e) => {
-          if (e.target === e.currentTarget) setConfirmClear(false);
-        }}
-      >
-        <div
-          className="modal app-dialog"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="trace-history-clear-title"
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <header className="modal-head">
-            <h2 id="trace-history-clear-title" className="modal-title">
-              {labels.clearConfirmTitle}
-            </h2>
-            <button
-              type="button"
-              className="icon-btn modal-close"
-              onClick={() => setConfirmClear(false)}
-              aria-label={labels.cancel}
-            >
-              <IconClose size={16} />
-            </button>
-          </header>
-          <div className="app-dialog__form">
-            <p className="app-dialog__msg">{labels.clearConfirmMessage}</p>
-            <div className="app-dialog__actions modal-actions">
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={() => setConfirmClear(false)}
-              >
-                {labels.cancel}
-              </button>
-              <button
-                type="button"
-                className="btn btn--danger"
-                onClick={doClearAll}
-              >
-                {labels.clearConfirmAction}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>,
-      document.body,
-    );
+  const clearModal = (
+    <GlassModal
+      open={confirmClear}
+      onClose={() => setConfirmClear(false)}
+      title={labels.clearConfirmTitle}
+      size="sm"
+      closeLabel={labels.closeLabel ?? labels.cancel}
+      footer={
+        <>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => setConfirmClear(false)}
+          >
+            {labels.cancel}
+          </button>
+          <button
+            type="button"
+            className="btn btn--danger"
+            onClick={doClearAll}
+            disabled={!clearPlan.confirmNeeded}
+          >
+            {labels.clearConfirmAction}
+          </button>
+        </>
+      }
+    >
+      <p className="trace-history-clear-msg" style={{ margin: 0 }}>
+        {labels.clearConfirmMessage.replace(
+          /\{count\}/g,
+          String(clearPlan.count),
+        )}
+      </p>
+    </GlassModal>
+  );
 
-  if (entries.length === 0) {
+  if (emptyState && emptyState.kind === "empty" && entries.length === 0) {
     return (
       <div className={rootClass}>
         <div className="trace-history-empty" role="status">
-          {labels.empty}
+          <div className="trace-history-empty__title">{labels.empty}</div>
+          {labels.emptyHint ? (
+            <div className="trace-history-empty__hint">{labels.emptyHint}</div>
+          ) : null}
         </div>
-        {confirmPortal}
+        {clearModal}
       </div>
     );
   }
@@ -237,9 +327,34 @@ export function TraceHistoryList({
   return (
     <div className={rootClass}>
       {toolbar}
-      {filtered.length === 0 ? (
-        <div className="trace-history-empty" role="status">
-          {labels.emptyFilter}
+      {emptyState ? (
+        <div
+          className="trace-history-empty"
+          role="status"
+          data-kind={emptyState.kind}
+        >
+          <div className="trace-history-empty__title">
+            {emptyState.kind === "filter_empty"
+              ? labels.emptyFilter
+              : labels.empty}
+          </div>
+          {emptyState.kind === "filter_empty" && labels.emptyFilterHint ? (
+            <div className="trace-history-empty__hint">
+              {labels.emptyFilterHint}
+            </div>
+          ) : null}
+          {emptyState.kind === "empty" && labels.emptyHint ? (
+            <div className="trace-history-empty__hint">{labels.emptyHint}</div>
+          ) : null}
+          {emptyState.showClearFilters && filtersActive && labels.clearFilters ? (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm trace-history-clear-filters"
+              onClick={clearFilters}
+            >
+              {labels.clearFilters}
+            </button>
+          ) : null}
         </div>
       ) : (
         <ul
@@ -252,7 +367,10 @@ export function TraceHistoryList({
           {filtered.map((e) => {
             const file = traceHistoryFileName(e.path);
             const label = traceHistoryLabel(e);
-            const sizeLabel = formatTraceHistorySize(e.sizeBytes);
+            // Size only when known — never invent from path.
+            const sizeLabel = formatTraceSize(e.sizeBytes);
+            const showUploaded =
+              shouldShowTraceUploadedBadge(e) && Boolean(labels.uploadedBadge);
             return (
               <li
                 key={`${e.path}|${e.exportedAt}`}
@@ -269,10 +387,12 @@ export function TraceHistoryList({
                         {sizeLabel}
                       </span>
                     ) : null}
-                    {e.uploaded && labels.uploadedBadge ? (
+                    {showUploaded ? (
                       <span
                         className="trace-history-row__uploaded"
-                        title={labels.uploadedBadge}
+                        title={
+                          labels.uploadedBadgeTitle ?? labels.uploadedBadge
+                        }
                       >
                         {labels.uploadedBadge}
                       </span>
@@ -327,7 +447,7 @@ export function TraceHistoryList({
           })}
         </ul>
       )}
-      {confirmPortal}
+      {clearModal}
     </div>
   );
 }

@@ -11,6 +11,10 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+
+- **Trace history pro**: session trace export list gains All / Local / Uploaded filter chips with counts, search, honest empty states (no exports · filter empty + clear filters), size display when known, uploaded badge only when the export flag is true (no remote URLs), and clear-all via **GlassModal** with count honesty (no `window.confirm`). Paths-only — never loads archive contents. Pure `traceHistoryPro` helpers + tests; en/zh/zh-TW.
+
 ## [0.2.3] - 2026-07-31
 
 > **Highlight:** Composer model picker with custom multi-model providers (DeepSeek / Amux / Yun presets); large pro-honesty batch across settings, Remote IM, MCP, and sessions.

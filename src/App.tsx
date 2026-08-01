@@ -21941,19 +21941,29 @@ export default function App() {
         <TraceHistoryList
           labels={{
             empty: tr("session.tracesEmpty"),
+            emptyHint: tr("session.tracesEmptyHint"),
             emptyFilter: tr("session.tracesEmptyFilter"),
+            emptyFilterHint: tr("session.tracesEmptyFilterHint"),
+            clearFilters: tr("session.tracesClearFilters"),
             reveal: tr("session.tracesReveal"),
             copyPath: tr("session.tracesCopyPath"),
             copied: tr("session.tracesCopied"),
             remove: tr("session.tracesRemove"),
             clearAll: tr("session.tracesClearAll"),
             clearConfirmTitle: tr("session.tracesClearConfirmTitle"),
+            // Leave {count} for TraceHistoryList (planClearTraceHistory).
             clearConfirmMessage: tr("session.tracesClearConfirmMessage"),
             clearConfirmAction: tr("session.tracesClearConfirmAction"),
             cancel: tr("common.cancel"),
+            closeLabel: tr("common.close"),
             searchPlaceholder: tr("session.tracesSearch"),
             listAria: tr("session.tracesTitle"),
             uploadedBadge: tr("session.tracesUploadedBadge"),
+            uploadedBadgeTitle: tr("session.tracesUploadedBadgeTitle"),
+            filterAll: tr("session.tracesFilter.all"),
+            filterLocal: tr("session.tracesFilter.local"),
+            filterUploaded: tr("session.tracesFilter.uploaded"),
+            filterAria: tr("session.tracesFilterAria"),
           }}
           onCopied={() => showToast(tr("session.tracesCopied"), 2000)}
           onError={(msg) => showToast(msg, 4000)}
