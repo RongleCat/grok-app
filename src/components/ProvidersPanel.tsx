@@ -29,6 +29,15 @@ import {
   withProviderSaveTimeout,
 } from "@/lib/providerSave";
 import {
+  buildProviderApplyToastKey,
+  classifyProviderPingError,
+  classifyProviderSaveError,
+  providerPingErrorMessageKey,
+  providerSaveErrorMessageKey,
+  resolveProviderApplyEffect,
+  resolveProvidersEmptyState,
+} from "@/lib/providerRouteHonesty";
+import {
   PROVIDER_PRESETS,
   defaultCustomChannelEfforts,
   resolveProviderApiKeyUrl,
@@ -637,9 +646,16 @@ export function ProvidersPanel({
         activeSource: r.activeSource,
         activeProviderId: r.activeProviderId,
       });
-      if (needsReload) {
-        setHint(tr("prov.savedHotReload"));
+      // Apply-path honesty: soft_respawn | saved_disk_only | host_only.
+      const effect = resolveProviderApplyEffect({
+        needsReload,
+        isTauri: api.isTauri(),
+      });
+      const toastKey = buildProviderApplyToastKey(effect) as MessageKey;
+      if (effect === "soft_respawn") {
+        setHint(tr(toastKey));
         setHintTone("ok");
+        onToast?.(tr(toastKey), 3200);
         try {
           // Fire-and-forget UI refresh; host already recycled agents on upsert.
           onProviderActivated?.();
@@ -647,17 +663,34 @@ export function ProvidersPanel({
           // Soft-fail: config is on disk; next message / restart still works.
           setHint(tr("prov.savedApplyFailed", { detail: String(e) }));
           setHintTone("err");
+          onToast?.(
+            tr("prov.savedApplyFailed", { detail: String(e) }),
+            4800,
+          );
         }
-      } else if (replacedExisting) {
+      } else if (replacedExisting && effect === "saved_disk_only") {
         setHint(tr("prov.savedReplaced"));
         setHintTone("ok");
+        onToast?.(tr("prov.savedReplaced"), 3200);
       } else {
-        setHint(tr("prov.saved"));
-        setHintTone("ok");
+        setHint(tr(toastKey));
+        setHintTone(effect === "host_only" ? "err" : "ok");
+        onToast?.(tr(toastKey), effect === "host_only" ? 4000 : 2800);
       }
     } catch (e) {
-      setHint(String(e));
+      // Classified soft-fail — never invent success or leave raw Error dumps only.
+      const kind = classifyProviderSaveError(e);
+      const key = providerSaveErrorMessageKey(kind) as MessageKey;
+      // Prefer classified copy for known kinds; keep detail for generic other.
+      const msg =
+        kind === "other"
+          ? tr("prov.err.other", { detail: String(e) })
+          : kind === "timeout"
+            ? tr("prov.err.saveTimeout")
+            : tr(key);
+      setHint(msg);
       setHintTone("err");
+      onToast?.(msg, 4000);
     } finally {
       // Always leave “Saving…” — never leave busy latched on hung apply.
       setBusy(false);
@@ -722,6 +755,11 @@ export function ProvidersPanel({
       onToast?.(tr("prov.err.needBase"), 3200);
       return;
     }
+    if (!api.isTauri()) {
+      const key = providerPingErrorMessageKey("host_only") as MessageKey;
+      onToast?.(tr(key), 4000);
+      return;
+    }
     setFetchingModels(true);
     try {
       const r = await api.providersListModels({
@@ -736,7 +774,14 @@ export function ProvidersPanel({
         onToast?.(tr("prov.emptyList"), 2800);
       }
     } catch (e) {
-      onToast?.(String(e), 4000);
+      // Soft-fail: classify ping / list-models errors (never invent reachability).
+      const kind = classifyProviderPingError(e);
+      const key = providerPingErrorMessageKey(kind) as MessageKey;
+      const msg =
+        kind === "other"
+          ? tr("prov.ping.err.other", { detail: String(e) })
+          : tr(key);
+      onToast?.(msg, 4000);
     } finally {
       setFetchingModels(false);
     }
@@ -750,7 +795,15 @@ export function ProvidersPanel({
     );
   }
 
-  const listEmpty = !showOfficialRow && providers.length === 0;
+  const emptyState = resolveProvidersEmptyState({
+    isTauri: api.isTauri(),
+    customCount: providers.length,
+    loadError: error,
+  });
+  const listEmpty =
+    emptyState.kind === "no_custom" &&
+    !showOfficialRow &&
+    providers.length === 0;
 
   return (
     <div className="prov-panel" data-testid="providers-panel">
@@ -766,6 +819,16 @@ export function ProvidersPanel({
           </button>
         </div>
       )}
+
+      {emptyState.kind === "host_only" && emptyState.messageKey ? (
+        <div
+          className="prov-alert"
+          role="status"
+          data-testid="prov-empty-host-only"
+        >
+          <span>{tr(emptyState.messageKey as MessageKey)}</span>
+        </div>
+      ) : null}
 
       <div className="prov-split">
         {/* ── Left: list ───────────────────────────────────────────── */}
@@ -915,6 +978,16 @@ export function ProvidersPanel({
             {listEmpty && (
               <div className="prov-rail-empty">{tr("prov.emptyTitle")}</div>
             )}
+            {emptyState.kind === "no_custom" &&
+            emptyState.messageKey &&
+            showOfficialRow ? (
+              <div
+                className="prov-rail-empty"
+                data-testid="prov-empty-no-custom"
+              >
+                {tr(emptyState.messageKey as MessageKey)}
+              </div>
+            ) : null}
           </div>
         </aside>
 

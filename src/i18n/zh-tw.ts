@@ -2951,6 +2951,11 @@ export const zhTW: Record<MessageKey, string> = {
   "settings.openFinder": "Finder / 檔案總管",
 
   "prov.emptyTitle": "尚無供應商",
+  "prov.empty.hostOnly":
+    "自訂供應商需要桌面端應用程式（Tauri）。請在 Grok App 中新增中轉。",
+  "prov.empty.noCustom":
+    "尚無自訂中轉 — 可新增 OpenAI 相容供應商，或使用上方的官方 Grok。",
+  "prov.empty.loadError": "無法載入供應商列表。請先修復上方宿主錯誤後重試。",
   "prov.detailEmpty": "選擇左側供應商，或新增一個。",
   "prov.new": "新增供應商",
   "prov.edit": "編輯",
@@ -3024,8 +3029,27 @@ export const zhTW: Record<MessageKey, string> = {
     "供應商已儲存，Agent 已重載 — 下一則訊息使用新設定（無需重新啟動應用程式）。",
   "prov.savedApplyFailed":
     "供應商已寫入磁碟，但即時套用失敗（{detail}）。可先傳送一則訊息；若對話仍不可用再重新啟動應用程式。",
+  "prov.apply.softRespawn":
+    "供應商已儲存，Agent 已重載 — 下一則訊息使用新設定（無需重新啟動應用程式）。",
+  "prov.apply.savedDiskOnly":
+    "供應商已寫入磁碟。用「使用」啟用（或在輸入框選擇）後才會切換路由。",
+  "prov.apply.hostOnly":
+    "修改供應商需要桌面端應用程式。請在 Grok App 中儲存中轉。",
   "prov.err.saveTimeout":
     "儲存耗時過長。設定可能已寫入 — 請關閉後重新開啟此面板；若對話不可用再重新啟動應用程式。",
+  "prov.err.validation":
+    "無法儲存：供應商欄位無效（id、URL、Key 或模型）。請檢查表單後重試。",
+  "prov.err.network": "無法儲存：網路或宿主 IPC 錯誤。請檢查連線後重試。",
+  "prov.err.hostOnly": "儲存供應商需要桌面端應用程式（Tauri）。",
+  "prov.err.other": "無法儲存供應商（{detail}）。",
+  "prov.ping.err.timeout": "探測逾時。請檢查 Base URL 與網路後重試。",
+  "prov.ping.err.network":
+    "無法連線供應商端點（網路/DNS/TLS）。請檢查 Base URL。",
+  "prov.ping.err.auth": "供應商拒絕了金鑰（401/403）。請更新 API Key 後重試。",
+  "prov.ping.err.hostOnly": "擷取模型 / 探測需要桌面端應用程式。",
+  "prov.ping.err.invalidUrl":
+    "Base URL 無效。請使用完整的 https://…/v1 根位址。",
+  "prov.ping.err.other": "無法探測供應商（{detail}）。",
   "prov.confirmDelete": "刪除供應商「{id}」？",
   "prov.loading": "載入中…",
   "prov.err.needBase": "請填寫 Base URL。",

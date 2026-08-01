@@ -11,6 +11,10 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+
+- **Custom provider apply-path honesty** (Settings → Account → Providers): after save, toasts/banners distinguish **soft-respawn** (active route reloaded — next message uses new config, no app restart), **disk-only** (inactive provider saved until Use/composer activate), and **host-only** (browser/non-Tauri). Classified save soft-fails (timeout · validation · network · host-only · other) and fetch-models/ping soft-fails (timeout · network · auth · invalid URL · host-only · other). Empty-state honesty for no custom relays / host-only / load error. Pure `providerRouteHonesty` helpers + tests; en/zh/zh-TW; `settingsCatalog` keywords. No `window.confirm`.
+
 ## [0.2.3] - 2026-07-31
 
 > **Highlight:** Composer model picker with custom multi-model providers (DeepSeek / Amux / Yun presets); large pro-honesty batch across settings, Remote IM, MCP, and sessions.

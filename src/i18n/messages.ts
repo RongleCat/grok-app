@@ -3086,6 +3086,12 @@ const en = {
   "settings.openFinder": "Finder / Explorer",
 
   "prov.emptyTitle": "No providers yet",
+  "prov.empty.hostOnly":
+    "Custom providers need the desktop app (Tauri). Open Grok App to add relays.",
+  "prov.empty.noCustom":
+    "No custom relays yet — add an OpenAI-compatible provider, or use Official Grok above.",
+  "prov.empty.loadError":
+    "Could not load providers. Fix the host error above, then retry.",
   "prov.detailEmpty": "Select a provider or add a new one.",
   "prov.new": "Add provider",
   "prov.edit": "Edit",
@@ -3160,8 +3166,32 @@ const en = {
     "Provider saved. Agents reloaded — next message uses the new config (no app restart).",
   "prov.savedApplyFailed":
     "Provider saved on disk, but live apply failed ({detail}). Try sending a message, or restart the app if chat stays offline.",
+  "prov.apply.softRespawn":
+    "Provider saved. Agents reloaded — next message uses the new config (no app restart).",
+  "prov.apply.savedDiskOnly":
+    "Provider saved on disk. Activate with Use (or pick it in the composer) to apply the route.",
+  "prov.apply.hostOnly":
+    "Provider changes need the desktop app. Open Grok App to save relays.",
   "prov.err.saveTimeout":
     "Save is taking too long. Config may still have been written — close and reopen this panel, or restart if chat does not work.",
+  "prov.err.validation":
+    "Could not save: invalid provider fields (id, URL, key, or models). Check the form and try again.",
+  "prov.err.network":
+    "Could not save: network or host IPC error. Check connectivity and retry.",
+  "prov.err.hostOnly":
+    "Saving providers needs the desktop app (Tauri).",
+  "prov.err.other": "Could not save provider ({detail}).",
+  "prov.ping.err.timeout":
+    "Probe timed out. Check base URL and network, then retry.",
+  "prov.ping.err.network":
+    "Could not reach the provider endpoint (network/DNS/TLS). Check base URL.",
+  "prov.ping.err.auth":
+    "Provider rejected the key (401/403). Update the API key and retry.",
+  "prov.ping.err.hostOnly":
+    "Fetch models / ping needs the desktop app.",
+  "prov.ping.err.invalidUrl":
+    "Base URL is invalid. Use a full https://…/v1 style root.",
+  "prov.ping.err.other": "Could not probe provider ({detail}).",
   "prov.confirmDelete": "Delete provider “{id}”?",
   "prov.loading": "Loading…",
   "prov.err.needBase": "Base URL is required.",
@@ -9189,6 +9219,11 @@ const zh: Record<MessageKey, string> = {
   "settings.openFinder": "访达 / 资源管理器",
 
   "prov.emptyTitle": "暂无提供商",
+  "prov.empty.hostOnly":
+    "自定义提供商需要桌面端应用（Tauri）。请在 Grok App 中添加中转。",
+  "prov.empty.noCustom":
+    "暂无自定义中转 — 可添加 OpenAI 兼容提供商，或使用上方的官方 Grok。",
+  "prov.empty.loadError": "无法加载提供商列表。请先修复上方宿主错误后重试。",
   "prov.detailEmpty": "选择左侧提供商，或添加新的。",
   "prov.new": "添加提供商",
   "prov.edit": "编辑",
@@ -9262,8 +9297,26 @@ const zh: Record<MessageKey, string> = {
     "提供商已保存，Agent 已重载 — 下一条消息使用新配置（无需重启应用）。",
   "prov.savedApplyFailed":
     "提供商已写入磁盘，但即时应用失败（{detail}）。可先发一条消息；若对话仍不可用再重启应用。",
+  "prov.apply.softRespawn":
+    "提供商已保存，Agent 已重载 — 下一条消息使用新配置（无需重启应用）。",
+  "prov.apply.savedDiskOnly":
+    "提供商已写入磁盘。用「使用」激活（或在输入框选择）后才会切换路由。",
+  "prov.apply.hostOnly": "修改提供商需要桌面端应用。请在 Grok App 中保存中转。",
   "prov.err.saveTimeout":
     "保存耗时过长。配置可能已写入 — 请关闭后重新打开此面板；若对话不可用再重启应用。",
+  "prov.err.validation":
+    "无法保存：提供商字段无效（id、URL、Key 或模型）。请检查表单后重试。",
+  "prov.err.network": "无法保存：网络或宿主 IPC 错误。请检查连接后重试。",
+  "prov.err.hostOnly": "保存提供商需要桌面端应用（Tauri）。",
+  "prov.err.other": "无法保存提供商（{detail}）。",
+  "prov.ping.err.timeout": "探测超时。请检查 Base URL 与网络后重试。",
+  "prov.ping.err.network":
+    "无法连接提供商端点（网络/DNS/TLS）。请检查 Base URL。",
+  "prov.ping.err.auth": "提供商拒绝了密钥（401/403）。请更新 API Key 后重试。",
+  "prov.ping.err.hostOnly": "拉取模型 / 探测需要桌面端应用。",
+  "prov.ping.err.invalidUrl":
+    "Base URL 无效。请使用完整的 https://…/v1 根地址。",
+  "prov.ping.err.other": "无法探测提供商（{detail}）。",
   "prov.confirmDelete": "删除提供商「{id}」？",
   "prov.loading": "加载中…",
   "prov.err.needBase": "请填写 Base URL。",
