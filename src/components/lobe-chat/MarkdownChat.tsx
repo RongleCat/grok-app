@@ -2,7 +2,16 @@
  * Chat markdown — path/url → cards (image/video/file); open in resource pane.
  */
 
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  lazy,
+  memo,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Locale } from "@/i18n";
@@ -34,9 +43,16 @@ import {
   stepSoftBuffer,
   type SoftBufferState,
 } from "@/lib/softStreamBuffer";
+import {
+  shouldUsePlainStreamBody,
+  STREAM_MARKDOWN_PARSE_MS,
+} from "@/lib/streamRenderPolicy";
 import { revealInOsLabel } from "@/lib/appPlatform";
 import { cn } from "@/lib/utils";
-import { CodeBlock } from "./CodeBlock";
+
+const CodeBlock = lazy(() =>
+  import("./CodeBlock").then((m) => ({ default: m.CodeBlock })),
+);
 
 /** Highlight string leaves for in-chat find (markdown-safe). */
 function highlightChildren(
@@ -219,11 +235,34 @@ export const MarkdownChat = memo(function MarkdownChat({
   }, [children, streaming]);
 
   const buffered = streaming ? softDisplayed : children || "";
-  const smoothChildren = useSmoothStream(buffered, streaming && !!buffered);
-  const source = softCloseMarkdown(
-    smoothChildren || (streaming ? " " : ""),
+  const longStream = shouldUsePlainStreamBody(
+    (buffered || children || "").length,
     streaming,
   );
+  const smoothChildren = useSmoothStream(
+    buffered,
+    streaming && !!buffered && !longStream,
+  );
+  const liveText =
+    (longStream ? buffered : smoothChildren) || (streaming ? " " : "");
+  const source = softCloseMarkdown(liveText, streaming);
+
+  /**
+   * Throttle ReactMarkdown input while streaming so we re-parse ~6×/s instead
+   * of every smooth-stream tick. Final (non-streaming) content always syncs.
+   */
+  const [mdSource, setMdSource] = useState(source);
+  useEffect(() => {
+    if (!streaming) {
+      setMdSource(source);
+      return;
+    }
+    if (longStream) return;
+    const id = window.setTimeout(() => {
+      setMdSource(source);
+    }, STREAM_MARKDOWN_PARSE_MS);
+    return () => window.clearTimeout(id);
+  }, [source, streaming, longStream]);
 
   const renderPathOrUrl = (token: string, linkText?: string) => {
     const rawIn = token.trim().replace(/^<|>$/g, "");
@@ -376,6 +415,25 @@ export const MarkdownChat = memo(function MarkdownChat({
       ? highlightChildren(node, qFind, findActiveOccurrence, findCounter)
       : node;
 
+  // Long streaming bodies: plain pre-wrap (no remark parse) until the turn
+  // settles — one full markdown pass on done. Prevents O(n) parse storms.
+  if (longStream) {
+    return (
+      <div
+        className={cn(
+          "chat-md",
+          "chat-md--streaming",
+          "chat-md--plain-stream",
+          muted && "chat-md--muted",
+          className,
+        )}
+        data-stream-mode="plain"
+      >
+        <pre className="chat-md__plain-stream">{liveText}</pre>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -452,14 +510,22 @@ export const MarkdownChat = memo(function MarkdownChat({
               );
             }
             return (
-              <CodeBlock
-                language={match?.[1] || "text"}
-                wrapLabel={tr("chat.codeWrap")}
-                unwrapLabel={tr("chat.codeUnwrap")}
-                copyLabel={tr("message.copy")}
+              <Suspense
+                fallback={
+                  <pre className="chat-code__pre">
+                    <code>{c as ReactNode}</code>
+                  </pre>
+                }
               >
-                {c as ReactNode}
-              </CodeBlock>
+                <CodeBlock
+                  language={match?.[1] || "text"}
+                  wrapLabel={tr("chat.codeWrap")}
+                  unwrapLabel={tr("chat.codeUnwrap")}
+                  copyLabel={tr("message.copy")}
+                >
+                  {c as ReactNode}
+                </CodeBlock>
+              </Suspense>
             );
           },
           table: ({ children: c }) => (
@@ -486,7 +552,7 @@ export const MarkdownChat = memo(function MarkdownChat({
           },
         }}
       >
-        {source}
+        {mdSource}
       </ReactMarkdown>
     </div>
   );

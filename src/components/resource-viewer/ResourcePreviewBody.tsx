@@ -3,7 +3,7 @@
  * Presentational: all actions/state come from props (behavior freeze).
  */
 
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import * as api from "@/lib/api";
 import type { Locale, MessageKey } from "@/i18n";
 import {
@@ -30,7 +30,6 @@ import {
   IconRewind,
 } from "@/components/icons";
 import { OfficeDocumentPreview } from "@/components/OfficeDocumentPreview";
-import { CodePreview } from "@/components/CodePreview";
 import { isOfficeKind } from "@/lib/filePreviewSrc";
 import { Tip } from "@/components/ui/tooltip";
 import { normalizePath } from "@/lib/sessionChanges";
@@ -42,6 +41,36 @@ import {
 } from "@/lib/resourceEdit";
 import type { DiffLayout, DiffViewState, FileTab, SideMode } from "./types";
 import { formatSize, guessOfficeKind } from "./helpers";
+
+const CodePreview = lazy(() =>
+  import("@/components/CodePreview").then((m) => ({ default: m.CodePreview })),
+);
+
+/** Plain pre while highlight.js / CodePreview chunk loads. */
+function CodePreviewFallback({
+  code,
+  className,
+}: {
+  code: string;
+  className?: string;
+}) {
+  return (
+    <pre
+      className={className}
+      style={{
+        margin: 0,
+        padding: "12px 14px",
+        whiteSpace: "pre",
+        overflow: "auto",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+        fontSize: 12.5,
+        lineHeight: 1.55,
+      }}
+    >
+      {code}
+    </pre>
+  );
+}
 
 export type ResourcePreviewBodyProps = {
   tr: (key: MessageKey, vars?: Record<string, string>) => string;
@@ -386,21 +415,39 @@ export function ResourcePreviewBody({
               <div className="rp-diff-split__label">
                 {tr("changes.split.before")}
               </div>
-              <CodePreview
-                code={diffView.beforeText ?? ""}
-                fileName={diffView.name}
-                className="rp-diff-split__code"
-              />
+              <Suspense
+                fallback={
+                  <CodePreviewFallback
+                    code={diffView.beforeText ?? ""}
+                    className="rp-diff-split__code"
+                  />
+                }
+              >
+                <CodePreview
+                  code={diffView.beforeText ?? ""}
+                  fileName={diffView.name}
+                  className="rp-diff-split__code"
+                />
+              </Suspense>
             </div>
             <div className="rp-diff-split__pane">
               <div className="rp-diff-split__label">
                 {tr("changes.split.after")}
               </div>
-              <CodePreview
-                code={diffView.afterText ?? ""}
-                fileName={diffView.name}
-                className="rp-diff-split__code"
-              />
+              <Suspense
+                fallback={
+                  <CodePreviewFallback
+                    code={diffView.afterText ?? ""}
+                    className="rp-diff-split__code"
+                  />
+                }
+              >
+                <CodePreview
+                  code={diffView.afterText ?? ""}
+                  fileName={diffView.name}
+                  className="rp-diff-split__code"
+                />
+              </Suspense>
             </div>
           </div>
         </div>
@@ -412,12 +459,16 @@ export function ResourcePreviewBody({
         <div className="rp-diff-host">
           {toolbar}
           {hunkBar}
-          <CodePreview
-            code={diffView.unified}
-            fileName={`${diffView.name}.diff`}
-            language="diff"
-            footer={srcLabel}
-          />
+          <Suspense
+            fallback={<CodePreviewFallback code={diffView.unified} />}
+          >
+            <CodePreview
+              code={diffView.unified}
+              fileName={`${diffView.name}.diff`}
+              language="diff"
+              footer={srcLabel}
+            />
+          </Suspense>
         </div>
       );
     }
@@ -425,11 +476,15 @@ export function ResourcePreviewBody({
       return (
         <div className="rp-diff-host">
           {toolbar}
-          <CodePreview
-            code={diffView.afterOnly}
-            fileName={diffView.name}
-            footer={tr("changes.afterOnly")}
-          />
+          <Suspense
+            fallback={<CodePreviewFallback code={diffView.afterOnly} />}
+          >
+            <CodePreview
+              code={diffView.afterOnly}
+              fileName={diffView.name}
+              footer={tr("changes.afterOnly")}
+            />
+          </Suspense>
         </div>
       );
     }
@@ -784,26 +839,30 @@ export function ResourcePreviewBody({
         /* keep raw */
       }
       return (
-        <CodePreview
-          code={body}
-          fileName={preview.name.endsWith(".json") ? preview.name : "data.json"}
-          language="json"
-          footer={
-            preview.truncated ? tr("resources.truncated") : null
-          }
-        />
+        <Suspense fallback={<CodePreviewFallback code={body} />}>
+          <CodePreview
+            code={body}
+            fileName={preview.name.endsWith(".json") ? preview.name : "data.json"}
+            language="json"
+            footer={
+              preview.truncated ? tr("resources.truncated") : null
+            }
+          />
+        </Suspense>
       );
     }
     default:
       if (preview.text) {
         return (
-          <CodePreview
-            code={preview.text}
-            fileName={preview.name}
-            footer={
-              preview.truncated ? tr("resources.truncated") : null
-            }
-          />
+          <Suspense fallback={<CodePreviewFallback code={preview.text} />}>
+            <CodePreview
+              code={preview.text}
+              fileName={preview.name}
+              footer={
+                preview.truncated ? tr("resources.truncated") : null
+              }
+            />
+          </Suspense>
         );
       }
       return (

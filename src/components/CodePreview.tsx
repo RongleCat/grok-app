@@ -1,40 +1,13 @@
 /**
  * Resource-pane code preview — highlight.js (same stack as Grok Desktop)
  * with light/dark themes bound to `data-theme` on documentElement.
+ *
+ * highlight.js core + languages load on first mount via a cached dynamic
+ * import so ResourceViewer / chat cold path never pay language-pack cost at
+ * module eval. While loading, plain escaped text is shown immediately.
  */
 
 import { useEffect, useMemo, useState } from "react";
-import hljs from "highlight.js/lib/core";
-
-import javascript from "highlight.js/lib/languages/javascript";
-import typescript from "highlight.js/lib/languages/typescript";
-import json from "highlight.js/lib/languages/json";
-import markdown from "highlight.js/lib/languages/markdown";
-import rust from "highlight.js/lib/languages/rust";
-import python from "highlight.js/lib/languages/python";
-import go from "highlight.js/lib/languages/go";
-import java from "highlight.js/lib/languages/java";
-import kotlin from "highlight.js/lib/languages/kotlin";
-import c from "highlight.js/lib/languages/c";
-import cpp from "highlight.js/lib/languages/cpp";
-import csharp from "highlight.js/lib/languages/csharp";
-import ruby from "highlight.js/lib/languages/ruby";
-import php from "highlight.js/lib/languages/php";
-import swift from "highlight.js/lib/languages/swift";
-import sql from "highlight.js/lib/languages/sql";
-import bash from "highlight.js/lib/languages/bash";
-import yaml from "highlight.js/lib/languages/yaml";
-import ini from "highlight.js/lib/languages/ini";
-import css from "highlight.js/lib/languages/css";
-import scss from "highlight.js/lib/languages/scss";
-import xml from "highlight.js/lib/languages/xml";
-import dockerfile from "highlight.js/lib/languages/dockerfile";
-import makefile from "highlight.js/lib/languages/makefile";
-import diff from "highlight.js/lib/languages/diff";
-import graphql from "highlight.js/lib/languages/graphql";
-import lua from "highlight.js/lib/languages/lua";
-import r from "highlight.js/lib/languages/r";
-import plaintext from "highlight.js/lib/languages/plaintext";
 
 import { languageFromFileName } from "@/lib/codeLang";
 import { cn } from "@/lib/utils";
@@ -42,46 +15,125 @@ import { cn } from "@/lib/utils";
 // Themes: Atom One Dark / One Light (scoped in code-preview.css)
 import "@/styles/code-preview.css";
 
-let registered = false;
-function ensureLangs() {
-  if (registered) return;
-  registered = true;
-  const langs: [string, typeof javascript][] = [
-    ["javascript", javascript],
-    ["typescript", typescript],
-    ["json", json],
-    ["markdown", markdown],
-    ["rust", rust],
-    ["python", python],
-    ["go", go],
-    ["java", java],
-    ["kotlin", kotlin],
-    ["c", c],
-    ["cpp", cpp],
-    ["csharp", csharp],
-    ["ruby", ruby],
-    ["php", php],
-    ["swift", swift],
-    ["sql", sql],
-    ["bash", bash],
-    ["shell", bash],
-    ["yaml", yaml],
-    ["ini", ini],
-    ["css", css],
-    ["scss", scss],
-    ["xml", xml],
-    ["html", xml],
-    ["dockerfile", dockerfile],
-    ["makefile", makefile],
-    ["diff", diff],
-    ["graphql", graphql],
-    ["lua", lua],
-    ["r", r],
-    ["plaintext", plaintext],
-  ];
-  for (const [name, def] of langs) {
-    if (!hljs.getLanguage(name)) hljs.registerLanguage(name, def);
+type HljsCore = typeof import("highlight.js/lib/core").default;
+
+/** Module-level cached promise — languages register exactly once. */
+let hljsLoadPromise: Promise<HljsCore> | null = null;
+
+function loadHljs(): Promise<HljsCore> {
+  if (!hljsLoadPromise) {
+    hljsLoadPromise = (async () => {
+      const [
+        { default: hljs },
+        { default: javascript },
+        { default: typescript },
+        { default: json },
+        { default: markdown },
+        { default: rust },
+        { default: python },
+        { default: go },
+        { default: java },
+        { default: kotlin },
+        { default: c },
+        { default: cpp },
+        { default: csharp },
+        { default: ruby },
+        { default: php },
+        { default: swift },
+        { default: sql },
+        { default: bash },
+        { default: yaml },
+        { default: ini },
+        { default: css },
+        { default: scss },
+        { default: xml },
+        { default: dockerfile },
+        { default: makefile },
+        { default: diff },
+        { default: graphql },
+        { default: lua },
+        { default: r },
+        { default: plaintext },
+      ] = await Promise.all([
+        import("highlight.js/lib/core"),
+        import("highlight.js/lib/languages/javascript"),
+        import("highlight.js/lib/languages/typescript"),
+        import("highlight.js/lib/languages/json"),
+        import("highlight.js/lib/languages/markdown"),
+        import("highlight.js/lib/languages/rust"),
+        import("highlight.js/lib/languages/python"),
+        import("highlight.js/lib/languages/go"),
+        import("highlight.js/lib/languages/java"),
+        import("highlight.js/lib/languages/kotlin"),
+        import("highlight.js/lib/languages/c"),
+        import("highlight.js/lib/languages/cpp"),
+        import("highlight.js/lib/languages/csharp"),
+        import("highlight.js/lib/languages/ruby"),
+        import("highlight.js/lib/languages/php"),
+        import("highlight.js/lib/languages/swift"),
+        import("highlight.js/lib/languages/sql"),
+        import("highlight.js/lib/languages/bash"),
+        import("highlight.js/lib/languages/yaml"),
+        import("highlight.js/lib/languages/ini"),
+        import("highlight.js/lib/languages/css"),
+        import("highlight.js/lib/languages/scss"),
+        import("highlight.js/lib/languages/xml"),
+        import("highlight.js/lib/languages/dockerfile"),
+        import("highlight.js/lib/languages/makefile"),
+        import("highlight.js/lib/languages/diff"),
+        import("highlight.js/lib/languages/graphql"),
+        import("highlight.js/lib/languages/lua"),
+        import("highlight.js/lib/languages/r"),
+        import("highlight.js/lib/languages/plaintext"),
+      ]);
+
+      const langs: [string, typeof javascript][] = [
+        ["javascript", javascript],
+        ["typescript", typescript],
+        ["json", json],
+        ["markdown", markdown],
+        ["rust", rust],
+        ["python", python],
+        ["go", go],
+        ["java", java],
+        ["kotlin", kotlin],
+        ["c", c],
+        ["cpp", cpp],
+        ["csharp", csharp],
+        ["ruby", ruby],
+        ["php", php],
+        ["swift", swift],
+        ["sql", sql],
+        ["bash", bash],
+        ["shell", bash],
+        ["yaml", yaml],
+        ["ini", ini],
+        ["css", css],
+        ["scss", scss],
+        ["xml", xml],
+        ["html", xml],
+        ["dockerfile", dockerfile],
+        ["makefile", makefile],
+        ["diff", diff],
+        ["graphql", graphql],
+        ["lua", lua],
+        ["r", r],
+        ["plaintext", plaintext],
+      ];
+      for (const [name, def] of langs) {
+        if (!hljs.getLanguage(name)) hljs.registerLanguage(name, def);
+      }
+      return hljs;
+    })();
   }
+  return hljsLoadPromise;
+}
+
+function escapeCodeHtml(code: string): string {
+  return code
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 export interface CodePreviewProps {
@@ -108,9 +160,8 @@ export function CodePreview({
   className,
   footer,
 }: CodePreviewProps) {
-  ensureLangs();
-
   const [theme, setTheme] = useState<"light" | "dark">(readDocTheme);
+  const [hljs, setHljs] = useState<HljsCore | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -121,6 +172,16 @@ export function CodePreview({
     return () => mo.disconnect();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void loadHljs().then((mod) => {
+      if (!cancelled) setHljs(mod);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const lang = useMemo(() => {
     if (language && language !== "auto") return language;
     if (fileName) return languageFromFileName(fileName);
@@ -128,6 +189,8 @@ export function CodePreview({
   }, [language, fileName]);
 
   const html = useMemo(() => {
+    // Show plain escaped text immediately while highlight.js loads (no empty flash).
+    if (!hljs) return escapeCodeHtml(code);
     try {
       if (lang && hljs.getLanguage(lang)) {
         return hljs.highlight(code, { language: lang, ignoreIllegals: true })
@@ -135,13 +198,9 @@ export function CodePreview({
       }
       return hljs.highlightAuto(code).value;
     } catch {
-      // Escape minimal HTML if highlight fails
-      return code
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+      return escapeCodeHtml(code);
     }
-  }, [code, lang]);
+  }, [code, lang, hljs]);
 
   const lines = useMemo(() => {
     // Keep trailing newline as empty last line for gutter count

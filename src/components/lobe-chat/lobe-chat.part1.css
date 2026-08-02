@@ -704,6 +704,22 @@ html[data-msg-actions="always"] .lobe-chat-item__actions {
   display: none;
 }
 
+/* Long stream: skip ReactMarkdown — plain pre-wrap until turn settles */
+.chat-md--plain-stream {
+  white-space: normal;
+}
+.chat-md__plain-stream {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 /* Muted prose only — do not paint code blocks with secondary/low-contrast ink */
 .chat-md--muted {
   color: var(--chat-text-2);
