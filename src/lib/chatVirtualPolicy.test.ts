@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   CHAT_VIRTUALIZE_THRESHOLD_PERF,
   resolveStreamOverscanScale,
-} from "./streamRenderPolicy";
+} from "./chatVirtualPolicy";
 
-describe("streamRenderPolicy", () => {
+describe("chatVirtualPolicy", () => {
   it("virtualize threshold is early enough for multi-turn agent chats", () => {
     expect(CHAT_VIRTUALIZE_THRESHOLD_PERF).toBe(16);
   });

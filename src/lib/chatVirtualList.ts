@@ -14,7 +14,7 @@
  * - Multi-turn agent chats (tool/phase rows) virtualize earlier than pure Q&A.
  */
 
-import { CHAT_VIRTUALIZE_THRESHOLD_PERF } from "./streamRenderPolicy";
+import { CHAT_VIRTUALIZE_THRESHOLD_PERF } from "./chatVirtualPolicy";
 
 /**
  * Only virtualize longer threads — short chats keep full DOM.

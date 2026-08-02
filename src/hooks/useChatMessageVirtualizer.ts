@@ -37,7 +37,7 @@ import {
   shouldCommitRowHeight,
   type ChatVirtualWindow,
 } from "@/lib/chatVirtualList";
-import { resolveStreamOverscanScale } from "@/lib/streamRenderPolicy";
+import { resolveStreamOverscanScale } from "@/lib/chatVirtualPolicy";
 
 export type UseChatMessageVirtualizerArgs = {
   itemCount: number;
