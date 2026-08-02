@@ -52,6 +52,26 @@ html[data-wallpaper="1"] .app-shell::after {
   transition: opacity 120ms ease-out;
 }
 
+/*
+ * Stream-perf mode (html[data-stream-perf="1"]): cut GPU composite thrash on
+ * Intel Retina while tokens stream — dim/static wallpaper, hide video layer,
+ * drop backdrop-filter on heavy chrome. Toggled from AppWorkbench.
+ */
+html[data-stream-perf="1"] .app-wallpaper-media {
+  opacity: 0.25;
+  filter: none;
+  pointer-events: none;
+}
+html[data-stream-perf="1"] .app-wallpaper-media video {
+  visibility: hidden;
+}
+html[data-stream-perf="1"] .glass-surface,
+html[data-stream-perf="1"] .sidebar,
+html[data-stream-perf="1"] .composer-wrap--float {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Lift real chrome above the media + scrim.
  * Excludes .window-controls (must keep position: fixed; right:0; z:10040 —
  * otherwise the buttons jump to the left and the drag strip is clobbered)

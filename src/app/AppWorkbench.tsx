@@ -920,6 +920,7 @@ import { useSessionRuntime } from "@/hooks/useSessionRuntime";
 import { useComposerController } from "@/hooks/useComposerController";
 import { useAppDialogs } from "@/hooks/useAppDialogs";
 import { useSessionHostEvents } from "@/hooks/useSessionHostEvents";
+import { useStreamPerfMode } from "@/hooks/useStreamPerfMode";
 
 /** App-local plan chrome state (session-scoped via planBySessionRef). */
 type PlanState = SessionPlanState;
@@ -12335,6 +12336,25 @@ export function AppWorkbench() {
     }
     wasStreamingRef.current = streaming;
   }, [session.state, messages, tr]);
+
+  /**
+   * Stream-perf mode: dim wallpaper / hide video / drop backdrop-filter while
+   * tokens stream (cuts Intel Retina composite thrash). Always on during stream
+   * for consistent cost; CSS is cheap on high-power GPUs.
+   */
+  const streamPerfActive = useMemo(() => {
+    if (session.state === "streaming" || isSessionLiveStreaming(liveHost.state)) {
+      return true;
+    }
+    if (messages.some((m) => m.role === "assistant" && m.streaming)) {
+      return true;
+    }
+    if (session.sessionId && busyIds.has(session.sessionId)) {
+      return true;
+    }
+    return false;
+  }, [session.state, session.sessionId, liveHost.state, messages, busyIds]);
+  useStreamPerfMode(streamPerfActive);
 
   /** Same path as Deny button / Escape / optional auto-deny timeout. */
   const resolvePermission = useCallback(

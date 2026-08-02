@@ -495,15 +495,34 @@ export function useStickToBottom(
       return el.scrollHeight;
     };
 
-    const ro = new ResizeObserver(() => {
-      // Coalesce multi-node notifications to one frame. Always read the
-      // content column height from the DOM — viewport RO entries report
-      // client box size, which is not what we want for grow/shrink.
+    /** Extra throttle while stream-perf mode is on (token growth is dense). */
+    let throttleTimer = 0;
+
+    const scheduleMeasure = () => {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
         onHeightChange(measureContentHeight());
       });
+    };
+
+    const ro = new ResizeObserver(() => {
+      // Coalesce multi-node notifications to one frame. Always read the
+      // content column height from the DOM — viewport RO entries report
+      // client box size, which is not what we want for grow/shrink.
+      // During stream-perf, further throttle to ~100ms to cut layout thrash
+      // without dropping pin-to-bottom (follow still runs on each fire).
+      if (
+        document.documentElement.getAttribute("data-stream-perf") === "1"
+      ) {
+        if (throttleTimer || raf) return;
+        throttleTimer = window.setTimeout(() => {
+          throttleTimer = 0;
+          scheduleMeasure();
+        }, 100);
+        return;
+      }
+      scheduleMeasure();
     });
 
     const content = contentRef.current ?? el.firstElementChild;
@@ -513,6 +532,7 @@ export function useStickToBottom(
 
     return () => {
       if (raf) cancelAnimationFrame(raf);
+      if (throttleTimer) window.clearTimeout(throttleTimer);
       ro.disconnect();
     };
   }, [enabled, conversationKey, applyScrollTop, followIfPinned]);
