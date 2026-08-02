@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -189,10 +191,6 @@ import {
   emptySessionPlan,
   type SessionPlanState
 } from "@/lib/planSession";
-import { AgentTasksPanel } from "@/components/AgentTasksPanel";
-import { AgentDashboardModal } from "@/components/AgentDashboardModal";
-import { BatchAgentsModal } from "@/components/BatchAgentsModal";
-import { ReliabilityCenterModal } from "@/components/ReliabilityCenterModal";
 import {
   collectActivitySessions,
   countBusyLiveMapSessions,
@@ -339,11 +337,9 @@ import {
   mapPermissionButtons
 } from "@/lib/permissionOptions";
 import { AskUserModal } from "@/components/AskUserModal";
-import { DoctorModal } from "@/components/DoctorModal";
 import { TraceHistoryList } from "@/components/TraceHistoryList";
 import { PlanHistoryList } from "@/components/PlanHistoryList";
 import { MarkdownBody } from "@/components/MarkdownBody";
-import { VoiceOverlay } from "@/components/VoiceOverlay";
 import {
   clearSessionSearchFilters,
   filterSessionSearch,
@@ -512,7 +508,6 @@ import {
 } from "@/lib/cliUpdateNotice";
 import { GlassModal } from "@/components/GlassModal";
 import { Select } from "@/components/Select";
-import { ProductTutorial } from "@/components/ProductTutorial";
 import {
   loadDone as loadProductTutorialDone,
   markDone as markProductTutorialDone,
@@ -654,7 +649,7 @@ import {
 } from "@/lib/sidebarDensity";
 import { sortSessionsForSidebar } from "@/lib/sidebarDateGroups";
 import { GrokLogo } from "@/components/GrokLogo";
-import { SetupWizard, type SetupCliInfo } from "@/components/SetupWizard";
+import type { SetupCliInfo } from "@/components/SetupWizard";
 import {
   buildAuthDeferredFlags,
   formatCliTooOldDetail,
@@ -752,7 +747,6 @@ import {
   uploadMatchesQuery
 } from "@/components/ComposerPlusPanel";
 import { StatusModal } from "@/components/StatusModal";
-import { McpStatusModal } from "@/components/McpStatusModal";
 import {
   IconChevronDown,
   IconChevronUp,
@@ -817,7 +811,6 @@ import {
 } from "@/components/icons";
 import { PhoneAccountSheet } from "@/components/PhoneAccountSheet";
 import { PhoneComposerToolsSheet } from "@/components/PhoneComposerToolsSheet";
-import { AutomationsPage } from "@/components/AutomationsPage";
 import { OpenLocationButton } from "@/components/OpenLocationButton";
 import { ContextMenu, type ContextMenuItem } from "@/components/ContextMenu";
 import {
@@ -844,10 +837,7 @@ import {
   ProviderBrandIcon,
   providerAvatarLetter
 } from "@/components/ProviderBrandIcon";
-import {
-  ResourceViewer,
-  type ResourceOpenTarget
-} from "@/components/ResourceViewer";
+import type { ResourceOpenTarget } from "@/components/ResourceViewer";
 import { ProjectRulesModal } from "@/components/ProjectRulesModal";
 import {
   mergeSessionChange,
@@ -869,10 +859,7 @@ import {
 } from "@/lib/a11yFocus";
 import { Spinner } from "@/components/ui/spinner";
 import { UserMenu, remainingPercent } from "@/components/UserMenu";
-import {
-  SettingsPage,
-  type SettingsSectionId
-} from "@/components/SettingsPage";
+import type { SettingsSectionId } from "@/components/SettingsPage";
 import {
   buildSettingsHash,
   isSettingsSectionId,
@@ -920,6 +907,55 @@ import { useSessionRuntime } from "@/hooks/useSessionRuntime";
 import { useComposerController } from "@/hooks/useComposerController";
 import { useAppDialogs } from "@/hooks/useAppDialogs";
 import { useSessionHostEvents } from "@/hooks/useSessionHostEvents";
+
+const SettingsPage = lazy(async () => {
+  const m = await import("@/components/SettingsPage");
+  return { default: m.SettingsPage };
+});
+const AutomationsPage = lazy(async () => {
+  const m = await import("@/components/AutomationsPage");
+  return { default: m.AutomationsPage };
+});
+const ResourceViewer = lazy(async () => {
+  const m = await import("@/components/ResourceViewer");
+  return { default: m.ResourceViewer };
+});
+const AgentTasksPanel = lazy(async () => {
+  const m = await import("@/components/AgentTasksPanel");
+  return { default: m.AgentTasksPanel };
+});
+const AgentDashboardModal = lazy(async () => {
+  const m = await import("@/components/AgentDashboardModal");
+  return { default: m.AgentDashboardModal };
+});
+const BatchAgentsModal = lazy(async () => {
+  const m = await import("@/components/BatchAgentsModal");
+  return { default: m.BatchAgentsModal };
+});
+const ReliabilityCenterModal = lazy(async () => {
+  const m = await import("@/components/ReliabilityCenterModal");
+  return { default: m.ReliabilityCenterModal };
+});
+const DoctorModal = lazy(async () => {
+  const m = await import("@/components/DoctorModal");
+  return { default: m.DoctorModal };
+});
+const VoiceOverlay = lazy(async () => {
+  const m = await import("@/components/VoiceOverlay");
+  return { default: m.VoiceOverlay };
+});
+const ProductTutorial = lazy(async () => {
+  const m = await import("@/components/ProductTutorial");
+  return { default: m.ProductTutorial };
+});
+const McpStatusModal = lazy(async () => {
+  const m = await import("@/components/McpStatusModal");
+  return { default: m.McpStatusModal };
+});
+const SetupWizard = lazy(async () => {
+  const m = await import("@/components/SetupWizard");
+  return { default: m.SetupWizard };
+});
 
 /** App-local plan chrome state (session-scoped via planBySessionRef). */
 type PlanState = SessionPlanState;
@@ -14689,42 +14725,45 @@ export function AppWorkbench() {
       )}
 
       {appGate === "setup" && (
-        <SetupWizard
-          tr={tr}
-          platform={platform}
-          useCustomWindowChrome={useCustomWindowChrome}
-          initialCli={
-            setupCliSeed ?? {
-              found: false,
-              path: null,
-              version: null,
-              source: "",
-              cliAuthPresent: false,
+        <Suspense fallback={null}>
+          <SetupWizard
+            tr={tr}
+            platform={platform}
+            useCustomWindowChrome={useCustomWindowChrome}
+            initialCli={
+              setupCliSeed ?? {
+                found: false,
+                path: null,
+                version: null,
+                source: "",
+                cliAuthPresent: false,
+              }
             }
-          }
-          onAccountLoginOauth={() => runAccountLogin("oauth")}
-          onComplete={(cli) => {
-            setCliInfo({
-              found: cli.found,
-              path: cli.path,
-              version: cli.version,
-              source: cli.source,
-              cliAuthPresent: cli.cliAuthPresent,
-            });
-            if (cli.path) setManualCliPath(cli.path);
-            setSetup((s) => ({
-              ...s,
-              cli: cli.found,
-              auth: s.auth || cli.cliAuthPresent,
-            }));
-            setAppGate("ready");
-            void refreshLists();
-            void refreshAccount({ refreshBilling: false });
-          }}
-        />
+            onAccountLoginOauth={() => runAccountLogin("oauth")}
+            onComplete={(cli) => {
+              setCliInfo({
+                found: cli.found,
+                path: cli.path,
+                version: cli.version,
+                source: cli.source,
+                cliAuthPresent: cli.cliAuthPresent,
+              });
+              if (cli.path) setManualCliPath(cli.path);
+              setSetup((s) => ({
+                ...s,
+                cli: cli.found,
+                auth: s.auth || cli.cliAuthPresent,
+              }));
+              setAppGate("ready");
+              void refreshLists();
+              void refreshAccount({ refreshBilling: false });
+            }}
+          />
+        </Suspense>
       )}
 
       {appGate === "ready" && (appView === "settings" ? (
+        <Suspense fallback={null}>
         <SettingsPage
           section={settingsSection}
           tab={settingsTab}
@@ -15353,6 +15392,7 @@ export function AppWorkbench() {
             })();
           }}
         />
+        </Suspense>
       ) : (
       <div className={"workbench" + (phoneLayout ? " workbench--phone" : "")}>
         {/* Phone drawer scrim — tap closes without resizing the conversation */}
@@ -16819,67 +16859,69 @@ export function AppWorkbench() {
           </div>
 
           {mainPane === "automations" ? (
-            <AutomationsPage
-              t={(k, vars) =>
-                tr(k as Parameters<typeof tr>[0], vars as Record<string, string | number>)
-              }
-              projects={projects.map((p) => ({ id: p.id, name: p.name }))}
-              defaultModelId={modelId}
-              defaultEffort={effort}
-              models={availableModels}
-              openAtLogin={launchAtLogin}
-              onOpenLaunchAtLogin={() => {
-                navigateSettings("general", "app");
-                // Scroll/highlight Launch at login after Settings mounts.
-                window.setTimeout(() => {
-                  const el = document.getElementById(
-                    "settings-anchor-launchAtLogin",
-                  );
-                  if (el) {
-                    el.scrollIntoView({ block: "center", behavior: "smooth" });
-                    el.classList.add("is-search-hit");
-                    window.setTimeout(
-                      () => el.classList.remove("is-search-hit"),
-                      1600,
+            <Suspense fallback={null}>
+              <AutomationsPage
+                t={(k, vars) =>
+                  tr(k as Parameters<typeof tr>[0], vars as Record<string, string | number>)
+                }
+                projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+                defaultModelId={modelId}
+                defaultEffort={effort}
+                models={availableModels}
+                openAtLogin={launchAtLogin}
+                onOpenLaunchAtLogin={() => {
+                  navigateSettings("general", "app");
+                  // Scroll/highlight Launch at login after Settings mounts.
+                  window.setTimeout(() => {
+                    const el = document.getElementById(
+                      "settings-anchor-launchAtLogin",
                     );
-                  }
-                }, 120);
-              }}
-              closeToTray={closeToTray}
-              keepTrayForSchedules={keepTrayForSchedules}
-              onKeepTrayForSchedules={(v) => {
-                setKeepTrayForSchedules(v);
-                void api.settingsGet().then((s) =>
-                  api.settingsSet({ ...s, keepTrayForSchedules: v }),
-                );
-              }}
-              onOpenKeepTraySetting={() => {
-                navigateSettings("general", "app");
-                window.setTimeout(() => {
-                  const el = document.getElementById(
-                    "settings-anchor-keepTrayForSchedules",
+                    if (el) {
+                      el.scrollIntoView({ block: "center", behavior: "smooth" });
+                      el.classList.add("is-search-hit");
+                      window.setTimeout(
+                        () => el.classList.remove("is-search-hit"),
+                        1600,
+                      );
+                    }
+                  }, 120);
+                }}
+                closeToTray={closeToTray}
+                keepTrayForSchedules={keepTrayForSchedules}
+                onKeepTrayForSchedules={(v) => {
+                  setKeepTrayForSchedules(v);
+                  void api.settingsGet().then((s) =>
+                    api.settingsSet({ ...s, keepTrayForSchedules: v }),
                   );
-                  if (el) {
-                    el.scrollIntoView({ block: "center", behavior: "smooth" });
-                    el.classList.add("is-search-hit");
-                    window.setTimeout(
-                      () => el.classList.remove("is-search-hit"),
-                      1600,
+                }}
+                onOpenKeepTraySetting={() => {
+                  navigateSettings("general", "app");
+                  window.setTimeout(() => {
+                    const el = document.getElementById(
+                      "settings-anchor-keepTrayForSchedules",
                     );
-                  }
-                }, 120);
-              }}
-              onAiCreate={() => {
-                void newChat(null, {
-                  seedDraft: aiCreateSeedPrompt("Grok"),
-                  switchToChat: true,
-                  automationSetup: true,
-                });
-                setToast(tr("automations.aiComposerHint"));
-                window.setTimeout(() => setToast(null), 4200);
-              }}
-              onRunNow={(auto) => void runAutomation(auto)}
-            />
+                    if (el) {
+                      el.scrollIntoView({ block: "center", behavior: "smooth" });
+                      el.classList.add("is-search-hit");
+                      window.setTimeout(
+                        () => el.classList.remove("is-search-hit"),
+                        1600,
+                      );
+                    }
+                  }, 120);
+                }}
+                onAiCreate={() => {
+                  void newChat(null, {
+                    seedDraft: aiCreateSeedPrompt("Grok"),
+                    switchToChat: true,
+                    automationSetup: true,
+                  });
+                  setToast(tr("automations.aiComposerHint"));
+                  window.setTimeout(() => setToast(null), 4200);
+                }}
+                onRunNow={(auto) => void runAutomation(auto)}
+              />
+            </Suspense>
           ) : (
           <>
           {activeProject && isProjectPathMissing(activeProject.pathOk) && (
@@ -17205,77 +17247,79 @@ export function AppWorkbench() {
             />
           )}
           {mainPane === "chat" && tasksPanelOpen && session.sessionId ? (
-            <AgentTasksPanel
-              messages={messages}
-              t={(k, vars) => tr(k, vars)}
-              onClose={() => setTasksPanelOpen(false)}
-              subagentWorktreeSnapshotEnabled={
-                subagentWorktreeSnapshotEnabled
-              }
-              activitySessions={collectActivitySessions({
-                liveMap,
-                sessions,
-                currentSessionId: session.sessionId,
-                untitledLabel: tr("session.untitled"),
-              })}
-              onSelectSession={(id) => {
-                const row = sessions.find((s) => s.id === id);
-                if (!row) return;
-                const proj =
-                  projects.find((p) => p.id === row.projectId) || null;
-                void openSession(row, proj);
-              }}
-              onStopSession={async (id) => {
-                try {
-                  await api.sessionStop(id);
-                  setLiveMap((lm) => settleStoppedSessionInLiveMap(lm, id));
-                } catch (e) {
-                  const view = classifyTasksStopError(e);
-                  showToast(tr(view.titleKey as MessageKey), 4000);
-                  // Re-throw so the panel can also show an inline soft-fail hint.
-                  throw e;
+            <Suspense fallback={null}>
+              <AgentTasksPanel
+                messages={messages}
+                t={(k, vars) => tr(k, vars)}
+                onClose={() => setTasksPanelOpen(false)}
+                subagentWorktreeSnapshotEnabled={
+                  subagentWorktreeSnapshotEnabled
                 }
-              }}
-              onStopAllSessions={stopAllBusySessions}
-              onOpenDashboard={() => setAgentDashboardOpen(true)}
-              activeCwd={activeProject?.path ?? null}
-              onOpenCwd={async (cwd): Promise<TasksBindCwdResult> => {
-                const path = (cwd || "").trim();
-                if (!path) {
-                  return { ok: false, kind: "empty_path" };
-                }
-                if (!api.isTauri()) {
-                  return { ok: false, kind: "host_only" };
-                }
-                if (
-                  activeProject?.path &&
-                  pathsEqual(path, activeProject.path)
-                ) {
-                  return { ok: false, kind: "already_active" };
-                }
-                const wt = worktreeEntryForPath(path, gitWorktrees);
-                if (!wt) {
-                  return { ok: false, kind: "not_worktree" };
-                }
-                try {
-                  await switchToWorktree(wt);
-                  const liveId =
-                    viewingSessionIdRef.current || session.sessionId || null;
-                  if (liveId) {
-                    await markSessionWorktree(liveId, wt.path, wt.branch);
+                activitySessions={collectActivitySessions({
+                  liveMap,
+                  sessions,
+                  currentSessionId: session.sessionId,
+                  untitledLabel: tr("session.untitled"),
+                })}
+                onSelectSession={(id) => {
+                  const row = sessions.find((s) => s.id === id);
+                  if (!row) return;
+                  const proj =
+                    projects.find((p) => p.id === row.projectId) || null;
+                  void openSession(row, proj);
+                }}
+                onStopSession={async (id) => {
+                  try {
+                    await api.sessionStop(id);
+                    setLiveMap((lm) => settleStoppedSessionInLiveMap(lm, id));
+                  } catch (e) {
+                    const view = classifyTasksStopError(e);
+                    showToast(tr(view.titleKey as MessageKey), 4000);
+                    // Re-throw so the panel can also show an inline soft-fail hint.
+                    throw e;
                   }
-                  return { ok: true };
-                } catch (e) {
-                  const view = classifyTasksBindCwdError(e);
-                  showToast(tr(view.titleKey as MessageKey), 4000);
-                  return {
-                    ok: false,
-                    kind: view.kind,
-                    detail: view.detail || undefined,
-                  };
-                }
-              }}
-            />
+                }}
+                onStopAllSessions={stopAllBusySessions}
+                onOpenDashboard={() => setAgentDashboardOpen(true)}
+                activeCwd={activeProject?.path ?? null}
+                onOpenCwd={async (cwd): Promise<TasksBindCwdResult> => {
+                  const path = (cwd || "").trim();
+                  if (!path) {
+                    return { ok: false, kind: "empty_path" };
+                  }
+                  if (!api.isTauri()) {
+                    return { ok: false, kind: "host_only" };
+                  }
+                  if (
+                    activeProject?.path &&
+                    pathsEqual(path, activeProject.path)
+                  ) {
+                    return { ok: false, kind: "already_active" };
+                  }
+                  const wt = worktreeEntryForPath(path, gitWorktrees);
+                  if (!wt) {
+                    return { ok: false, kind: "not_worktree" };
+                  }
+                  try {
+                    await switchToWorktree(wt);
+                    const liveId =
+                      viewingSessionIdRef.current || session.sessionId || null;
+                    if (liveId) {
+                      await markSessionWorktree(liveId, wt.path, wt.branch);
+                    }
+                    return { ok: true };
+                  } catch (e) {
+                    const view = classifyTasksBindCwdError(e);
+                    showToast(tr(view.titleKey as MessageKey), 4000);
+                    return {
+                      ok: false,
+                      kind: view.kind,
+                      detail: view.detail || undefined,
+                    };
+                  }
+                }}
+              />
+            </Suspense>
           ) : null}
 
           {/* Pre-turn / host errors: T04 deck (problem · cause · primary · secondary) */}
@@ -18783,45 +18827,49 @@ export function AppWorkbench() {
             />
           )}
           <div className="aside__inner">
-            <ResourceViewer
-              projectPath={effectiveProjectPath}
-              projectName={
-                activeProject
-                  ? projectDisplayName(activeProject, tr)
-                  : tr("composer.noProject")
-              }
-              locale={locale}
-              paneActive={!layout.asideCollapsed}
-              openRequest={resourceOpenTarget}
-              onOpenRequestConsumed={() => setResourceOpenTarget(null)}
-              sessionChanges={
-                sessionChangesById[session.sessionId || ""] ?? []
-              }
-              sessionMessages={messages}
-              plan={plan}
-              planFocusKey={planFocusKey}
-              planChrome={{
-                composerMode: mode,
-                planEnabled,
-                userClosed: plan.userClosed,
-                hasHistory: planHistoryNonEmpty,
-              }}
-              onApprovePlan={() => void approvePlan()}
-              onRequestPlanChanges={() => openRequestPlanChanges()}
-              onDismissPlan={() => void dismissPlan()}
-              onOpenPlanHistory={() => setShowPlanHistory(true)}
-              onShip={openShipFlow}
-              onAsideLayoutHint={applyAsideLayoutHint}
-              onClose={() => {
-                // Manual close — do not treat as plan-owned pane on later dismiss.
-                planOpenedAsideRef.current = false;
-                setLayout((l) => {
-                  const n = { ...l, asideCollapsed: true };
-                  saveLayout(localStorage, n);
-                  return n;
-                });
-              }}
-            />
+            {!layout.asideCollapsed ? (
+              <Suspense fallback={null}>
+                <ResourceViewer
+                  projectPath={effectiveProjectPath}
+                  projectName={
+                    activeProject
+                      ? projectDisplayName(activeProject, tr)
+                      : tr("composer.noProject")
+                  }
+                  locale={locale}
+                  paneActive={!layout.asideCollapsed}
+                  openRequest={resourceOpenTarget}
+                  onOpenRequestConsumed={() => setResourceOpenTarget(null)}
+                  sessionChanges={
+                    sessionChangesById[session.sessionId || ""] ?? []
+                  }
+                  sessionMessages={messages}
+                  plan={plan}
+                  planFocusKey={planFocusKey}
+                  planChrome={{
+                    composerMode: mode,
+                    planEnabled,
+                    userClosed: plan.userClosed,
+                    hasHistory: planHistoryNonEmpty,
+                  }}
+                  onApprovePlan={() => void approvePlan()}
+                  onRequestPlanChanges={() => openRequestPlanChanges()}
+                  onDismissPlan={() => void dismissPlan()}
+                  onOpenPlanHistory={() => setShowPlanHistory(true)}
+                  onShip={openShipFlow}
+                  onAsideLayoutHint={applyAsideLayoutHint}
+                  onClose={() => {
+                    // Manual close — do not treat as plan-owned pane on later dismiss.
+                    planOpenedAsideRef.current = false;
+                    setLayout((l) => {
+                      const n = { ...l, asideCollapsed: true };
+                      saveLayout(localStorage, n);
+                      return n;
+                    });
+                  }}
+                />
+              </Suspense>
+            ) : null}
           </div>
         </aside>
       </div>
@@ -18975,40 +19023,48 @@ export function AppWorkbench() {
         </>
       ) : null}
 
-      <DoctorModal
-        open={showDoctor}
-        onClose={() => setShowDoctor(false)}
-        locale={locale}
-        onConfirm={({ title, message, confirmLabel, danger, onConfirm }) => {
-          setAppDialog({
-            kind: "confirm",
-            title,
-            message,
-            confirmLabel,
-            danger,
-            onConfirm,
-          });
-        }}
-        onResetDone={() => {
-          void refreshLists();
-        }}
-        onOpenReliability={() => openReliability()}
-      />
-      <ReliabilityCenterModal
-        open={showReliability}
-        onClose={() => setShowReliability(false)}
-        locale={locale}
-        view={reliabilityView}
-        goalOrchUiEnabled={goalOrchUiEnabled}
-        goalOrchEvents={goalOrchEvents}
-        lastProcessLimit={lastProcessLimit}
-        existingSessionIds={sessions.map((s) => s.id)}
-        onOpenDoctor={() => void openDoctor()}
-        onSelectSession={(id) => {
-          setShowReliability(false);
-          trayHandlersRef.current.openSessionById(id);
-        }}
-      />
+      {showDoctor ? (
+        <Suspense fallback={null}>
+          <DoctorModal
+            open={showDoctor}
+            onClose={() => setShowDoctor(false)}
+            locale={locale}
+            onConfirm={({ title, message, confirmLabel, danger, onConfirm }) => {
+              setAppDialog({
+                kind: "confirm",
+                title,
+                message,
+                confirmLabel,
+                danger,
+                onConfirm,
+              });
+            }}
+            onResetDone={() => {
+              void refreshLists();
+            }}
+            onOpenReliability={() => openReliability()}
+          />
+        </Suspense>
+      ) : null}
+      {showReliability ? (
+        <Suspense fallback={null}>
+          <ReliabilityCenterModal
+            open={showReliability}
+            onClose={() => setShowReliability(false)}
+            locale={locale}
+            view={reliabilityView}
+            goalOrchUiEnabled={goalOrchUiEnabled}
+            goalOrchEvents={goalOrchEvents}
+            lastProcessLimit={lastProcessLimit}
+            existingSessionIds={sessions.map((s) => s.id)}
+            onOpenDoctor={() => void openDoctor()}
+            onSelectSession={(id) => {
+              setShowReliability(false);
+              trayHandlersRef.current.openSessionById(id);
+            }}
+          />
+        </Suspense>
+      ) : null}
       <ProjectRulesModal
         open={!!projectRulesTarget}
         onClose={() => setProjectRulesTarget(null)}
@@ -19572,80 +19628,88 @@ export function AppWorkbench() {
           ))}
         </ul>
       </GlassModal>
-      <ProductTutorial
-        open={showProductTutorial}
-        locale={locale}
-        onClose={() => {
-          markProductTutorialDone();
-          setShowProductTutorial(false);
-        }}
-        onSkip={() => {
-          markProductTutorialDone();
-          setShowProductTutorial(false);
-        }}
-        onDone={() => {
-          markProductTutorialDone();
-          setShowProductTutorial(false);
-        }}
-      />
-      <VoiceOverlay
-        locale={resolveLocale(locale)}
-        open={liveVoiceOpen}
-        projectPath={effectiveProjectPath}
-        projectId={activeProject?.id ?? null}
-        projectName={
-          activeProject
-            ? projectDisplayName(activeProject, tr)
-            : tr("composer.noProject")
-        }
-        voiceId={voiceId}
-        keepAgentsOnEnd={voiceKeepAgentsOnEnd}
-        hasActiveSession={Boolean(session.sessionId)}
-        onClose={() => setLiveVoiceOpen(false)}
-        onSendTranscriptAsPrompt={
-          session.sessionId
-            ? async (prompt) => {
-                const ok = await executeSend({
-                  storedDisplay: prompt,
-                  att: [],
-                  goalMode: false,
-                  targetSessionId: session.sessionId,
-                });
-                if (ok) {
-                  showToast(tr("voice.transcriptSent"), 2800);
-                }
-              }
-            : undefined
-        }
-        onOpenSession={(id) => {
-          setLiveVoiceOpen(false);
-          void (async () => {
-            await refreshSessions();
-            let row = sessions.find((s) => s.id === id) ?? null;
-            if (!row) {
-              try {
-                const list = await api.sessionsList();
-                const hit = list.find((s) => s.id === id);
-                if (hit) {
-                  row = normalizeSessionRow({
-                    ...hit,
-                    title: hit.title || tr("session.untitled"),
-                  });
-                }
-              } catch {
-                /* ignore */
-              }
+      {showProductTutorial ? (
+        <Suspense fallback={null}>
+          <ProductTutorial
+            open={showProductTutorial}
+            locale={locale}
+            onClose={() => {
+              markProductTutorialDone();
+              setShowProductTutorial(false);
+            }}
+            onSkip={() => {
+              markProductTutorialDone();
+              setShowProductTutorial(false);
+            }}
+            onDone={() => {
+              markProductTutorialDone();
+              setShowProductTutorial(false);
+            }}
+          />
+        </Suspense>
+      ) : null}
+      {liveVoiceOpen ? (
+        <Suspense fallback={null}>
+          <VoiceOverlay
+            locale={resolveLocale(locale)}
+            open={liveVoiceOpen}
+            projectPath={effectiveProjectPath}
+            projectId={activeProject?.id ?? null}
+            projectName={
+              activeProject
+                ? projectDisplayName(activeProject, tr)
+                : tr("composer.noProject")
             }
-            if (row) {
-              const proj =
-                projects.find((p) => p.id === row!.projectId) ?? activeProject;
-              void openSession(row, proj ?? undefined);
-            } else {
-              showToast(tr("voice.sessionMissing"), 3500);
+            voiceId={voiceId}
+            keepAgentsOnEnd={voiceKeepAgentsOnEnd}
+            hasActiveSession={Boolean(session.sessionId)}
+            onClose={() => setLiveVoiceOpen(false)}
+            onSendTranscriptAsPrompt={
+              session.sessionId
+                ? async (prompt) => {
+                    const ok = await executeSend({
+                      storedDisplay: prompt,
+                      att: [],
+                      goalMode: false,
+                      targetSessionId: session.sessionId,
+                    });
+                    if (ok) {
+                      showToast(tr("voice.transcriptSent"), 2800);
+                    }
+                  }
+                : undefined
             }
-          })();
-        }}
-      />
+            onOpenSession={(id) => {
+              setLiveVoiceOpen(false);
+              void (async () => {
+                await refreshSessions();
+                let row = sessions.find((s) => s.id === id) ?? null;
+                if (!row) {
+                  try {
+                    const list = await api.sessionsList();
+                    const hit = list.find((s) => s.id === id);
+                    if (hit) {
+                      row = normalizeSessionRow({
+                        ...hit,
+                        title: hit.title || tr("session.untitled"),
+                      });
+                    }
+                  } catch {
+                    /* ignore */
+                  }
+                }
+                if (row) {
+                  const proj =
+                    projects.find((p) => p.id === row!.projectId) ?? activeProject;
+                  void openSession(row, proj ?? undefined);
+                } else {
+                  showToast(tr("voice.sessionMissing"), 3500);
+                }
+              })();
+            }}
+          />
+        </Suspense>
+      ) : null}
       <AskUserModal
         payload={askUser}
         timeoutSec={askUserTimeoutSec}
@@ -19702,63 +19766,75 @@ export function AppWorkbench() {
         messageCount={messages.length}
         onClose={() => setShowStatusModal(false)}
       />
-      <AgentDashboardModal
-        open={agentDashboardOpen}
-        locale={locale}
-        rows={agentDashboardRows}
-        onClose={() => setAgentDashboardOpen(false)}
-        onSelectSession={(id) => {
-          const row = sessions.find((s) => s.id === id);
-          if (!row) return;
-          const proj = projects.find((p) => p.id === row.projectId) || null;
-          void openSession(row, proj);
-        }}
-        onStopAllBusy={stopAllBusySessions}
-        onStopSessions={(ids) => {
-          const n = ids.length;
-          stopBusySessionsByIds(ids, {
-            title: tr("dashboard.stopSelectedTitle", { n }),
-            message: tr("dashboard.stopSelectedConfirm", { n: String(n) }),
-            confirmLabel: tr("dashboard.stopSelected", { n }),
-          });
-        }}
-        onOpenBatchAgents={() => {
-          setAgentDashboardOpen(false);
-          openBatchAgents();
-        }}
-      />
-      <BatchAgentsModal
-        open={batchAgentsOpen}
-        locale={locale}
-        projects={projects.map(
-          (p): BatchProjectInput => ({
-            id: p.id,
-            name: p.name,
-            path: p.path,
-            trusted: p.trusted,
-            pathOk: p.pathOk,
-            system: p.system,
-          }),
-        )}
-        onClose={() => setBatchAgentsOpen(false)}
-        onDispatch={runBatchAgentsDispatch}
-      />
-      <McpStatusModal
-        open={showMcpModal}
-        locale={locale}
-        servers={mcpServers}
-        error={mcpError}
-        loading={mcpLoading}
-        onClose={() => setShowMcpModal(false)}
-        onManage={() => navigateSettings("extensions")}
-        onRefresh={() => void refreshMcpModal()}
-        doctorReport={mcpDoctorReport}
-        doctorError={mcpDoctorError}
-        doctorLoading={mcpDoctorLoading}
-        doctorFocus={mcpDoctorFocus}
-        onRunDoctor={(name) => void runMcpDoctor(name)}
-        onRefreshDoctor={(name) => runMcpDoctor(name)}
-      />
+      {agentDashboardOpen ? (
+        <Suspense fallback={null}>
+          <AgentDashboardModal
+            open={agentDashboardOpen}
+            locale={locale}
+            rows={agentDashboardRows}
+            onClose={() => setAgentDashboardOpen(false)}
+            onSelectSession={(id) => {
+              const row = sessions.find((s) => s.id === id);
+              if (!row) return;
+              const proj = projects.find((p) => p.id === row.projectId) || null;
+              void openSession(row, proj);
+            }}
+            onStopAllBusy={stopAllBusySessions}
+            onStopSessions={(ids) => {
+              const n = ids.length;
+              stopBusySessionsByIds(ids, {
+                title: tr("dashboard.stopSelectedTitle", { n }),
+                message: tr("dashboard.stopSelectedConfirm", { n: String(n) }),
+                confirmLabel: tr("dashboard.stopSelected", { n }),
+              });
+            }}
+            onOpenBatchAgents={() => {
+              setAgentDashboardOpen(false);
+              openBatchAgents();
+            }}
+          />
+        </Suspense>
+      ) : null}
+      {batchAgentsOpen ? (
+        <Suspense fallback={null}>
+          <BatchAgentsModal
+            open={batchAgentsOpen}
+            locale={locale}
+            projects={projects.map(
+              (p): BatchProjectInput => ({
+                id: p.id,
+                name: p.name,
+                path: p.path,
+                trusted: p.trusted,
+                pathOk: p.pathOk,
+                system: p.system,
+              }),
+            )}
+            onClose={() => setBatchAgentsOpen(false)}
+            onDispatch={runBatchAgentsDispatch}
+          />
+        </Suspense>
+      ) : null}
+      {showMcpModal ? (
+        <Suspense fallback={null}>
+          <McpStatusModal
+            open={showMcpModal}
+            locale={locale}
+            servers={mcpServers}
+            error={mcpError}
+            loading={mcpLoading}
+            onClose={() => setShowMcpModal(false)}
+            onManage={() => navigateSettings("extensions")}
+            onRefresh={() => void refreshMcpModal()}
+            doctorReport={mcpDoctorReport}
+            doctorError={mcpDoctorError}
+            doctorLoading={mcpDoctorLoading}
+            doctorFocus={mcpDoctorFocus}
+            onRunDoctor={(name) => void runMcpDoctor(name)}
+            onRefreshDoctor={(name) => runMcpDoctor(name)}
+          />
+        </Suspense>
+      ) : null}
       {rewindTimeline && (
         <div
           className="overlay"
