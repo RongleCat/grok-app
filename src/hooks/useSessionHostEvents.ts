@@ -87,7 +87,12 @@ import {
 } from "@/lib/hooksDebug";
 import { recordCostUsageSample, sampleFromUsageEvent } from "@/lib/costRollup";
 import { mapSessionListRow } from "@/lib/app/sidebarModels";
-import { StreamCoalescer } from "@/lib/streamCoalesce";
+import {
+  StreamCoalescer,
+  TimedBatchQueue,
+  resolveStreamFlushMs,
+  toolEventNeedsImmediateFlush,
+} from "@/lib/streamCoalesce";
 
 /** Mutable bag of AppWorkbench bindings used by Host event handlers. */
 export type SessionHostEventsCtx = {
@@ -124,6 +129,24 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
 
     void (async () => {
       try {
+        // Populated before stream/tool listeners; flushed on turn end for honesty.
+        let streamCoalescer: StreamCoalescer | null = null;
+        let toolEventCoalescer: TimedBatchQueue<{
+          sessionId?: string;
+          toolCallId?: string;
+          title?: string;
+          kind?: string;
+          status?: string;
+          path?: string | null;
+          detail?: string | null;
+          before?: string | null;
+          after?: string | null;
+        }> | null = null;
+        const flushHostCoalescers = () => {
+          toolEventCoalescer?.flushAll();
+          streamCoalescer?.flushAll();
+        };
+
         const snap = await api.sessionGetState();
         if (!cancelled) {
           c.setLiveHost(snap);
@@ -214,6 +237,8 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
               }));
               // Clear retry chip / turn timer / stall banner when turn ends or errors out
               if (s.state !== "streaming" && s.state !== "awaiting_permission") {
+                // Drain coalesced stream/tool so final tokens land before streaming=false.
+                flushHostCoalescers();
                 c.setRetryStatus(null);
                 c.setStreamStall(null);
                 c.setTurnStartedAt(null);
@@ -402,6 +427,83 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
             }
           }),
         );
+        // Adaptive flush: longer on ≤8-core (Intel) laptops, snappier on high-core.
+        const streamFlushMs = resolveStreamFlushMs();
+
+        type HostToolEvent = {
+          sessionId?: string;
+          toolCallId?: string;
+          title?: string;
+          kind?: string;
+          status?: string;
+          path?: string | null;
+          detail?: string | null;
+          before?: string | null;
+          after?: string | null;
+        };
+
+        // Batch high-frequency tool progress/detail into one setMessages apply.
+        // Terminal statuses flush immediately so the Tasks panel stays honest.
+        const applyToolBatchToUi = (events: HostToolEvent[]) => {
+          if (cancelled || !events.length) return;
+          // Group by session so multi-session tool traffic stays correct.
+          const bySid = new Map<string, HostToolEvent[]>();
+          for (const p of events) {
+            const sid = p.sessionId || c.viewingSessionIdRef.current;
+            if (!sid || !p.toolCallId) continue;
+            const list = bySid.get(sid);
+            if (list) list.push(p);
+            else bySid.set(sid, [p]);
+          }
+          for (const [sid, list] of bySid) {
+            c.patchSessionMessages(sid, (prev) => {
+              let next = prev;
+              for (const p of list) {
+                next = applyToolEvent(next, p);
+              }
+              c.setLiveMap((lm) => {
+                let m = projectLiveToolFromMessages(lm, sid, next);
+                m = markSawToolActivity(m, sid);
+                return m;
+              });
+              return next;
+            });
+            c.setSessionChangesById((prev) => {
+              let listChanges = prev[sid] ?? [];
+              let changed = false;
+              for (const p of list) {
+                const next = mergeSessionChange(listChanges, {
+                  toolCallId: p.toolCallId,
+                  title: p.title,
+                  kind: p.kind,
+                  status: p.status,
+                  path: p.path,
+                  detail: p.detail,
+                  before: p.before,
+                  after: p.after,
+                });
+                if (next !== listChanges) {
+                  listChanges = next;
+                  changed = true;
+                }
+              }
+              if (!changed) return prev;
+              return { ...prev, [sid]: listChanges };
+            });
+            if (sid === c.viewingSessionIdRef.current) {
+              c.setTurnStartedAt((t) => t ?? Date.now());
+              // Tool activity counts as progress — clear stall banner (I06).
+              c.setStreamStall(null);
+            }
+          }
+        };
+        toolEventCoalescer = new TimedBatchQueue<HostToolEvent>({
+          flushMs: streamFlushMs,
+          shouldFlushImmediate: (p) => toolEventNeedsImmediateFlush(p.status),
+          onFlush: applyToolBatchToUi,
+        });
+        cleanups.push(() => toolEventCoalescer?.dispose());
+
         // Batch high-frequency stream tokens before React setState (long turns).
         const applyStreamToUi = (chunk: StreamPayload) => {
           if (cancelled) return;
@@ -483,8 +585,8 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
             void c.tryApplyAutomationFromSession(chunk.sessionId);
           }
         };
-        const streamCoalescer = new StreamCoalescer({
-          flushMs: 48,
+        streamCoalescer = new StreamCoalescer({
+          flushMs: streamFlushMs,
           onFlush: (raw) => {
             applyStreamToUi({
               sessionId: raw.sessionId ?? "",
@@ -496,11 +598,13 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
             });
           },
         });
-        cleanups.push(() => streamCoalescer.dispose());
+        cleanups.push(() => streamCoalescer?.dispose());
         await track(
           api.listen<StreamPayload>("session://stream", (chunk) => {
             if (cancelled) return;
-            streamCoalescer.push(chunk);
+            // Turn-end honesty: drain pending tool progress before applying done.
+            if (chunk.done) toolEventCoalescer?.flushAll();
+            streamCoalescer?.push(chunk);
           }),
         );
         await track(
@@ -650,21 +754,12 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
           }),
         );
         await track(
-          api.listen<{
-            sessionId?: string;
-            toolCallId?: string;
-            title?: string;
-            kind?: string;
-            status?: string;
-            path?: string | null;
-            detail?: string | null;
-            before?: string | null;
-            after?: string | null;
-          }>("session://tool", (p) => {
+          api.listen<HostToolEvent>("session://tool", (p) => {
             if (cancelled || !p?.toolCallId) return;
             const sid = p.sessionId || c.viewingSessionIdRef.current;
             if (!sid) return;
             // Hooks debug: tool failures / hookSpecificOutput (Extensions → Hooks).
+            // Keep immediate — not a React message path; failures should surface now.
             ingestToolHookSignal({
               title: p.title,
               kind: p.kind,
@@ -673,36 +768,7 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
               path: p.path,
               toolCallId: p.toolCallId,
             });
-            c.patchSessionMessages(sid, (prev) => {
-              const next = applyToolEvent(prev, p);
-              c.setLiveMap((lm) => {
-                let m = projectLiveToolFromMessages(lm, sid, next);
-                m = markSawToolActivity(m, sid);
-                return m;
-              });
-              return next;
-            });
-            // Track write/edit tools for the session Changes panel.
-            c.setSessionChangesById((prev) => {
-              const list = prev[sid] ?? [];
-              const next = mergeSessionChange(list, {
-                toolCallId: p.toolCallId,
-                title: p.title,
-                kind: p.kind,
-                status: p.status,
-                path: p.path,
-                detail: p.detail,
-                before: p.before,
-                after: p.after,
-              });
-              if (next === list) return prev;
-              return { ...prev, [sid]: next };
-            });
-            if (sid === c.viewingSessionIdRef.current) {
-              c.setTurnStartedAt((t) => t ?? Date.now());
-              // Tool activity counts as progress — clear stall banner (I06).
-              c.setStreamStall(null);
-            }
+            toolEventCoalescer?.push({ ...p, sessionId: sid });
           }),
         );
         await track(
@@ -749,6 +815,8 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
             if (cancelled || !p) return;
             const sid = p.sessionId;
             if (!sid) return;
+            // Drain coalesced tool/stream so marker sees final rows.
+            flushHostCoalescers();
             c.patchSessionMessages(sid, (prev) => applyTurnMarker(prev, p));
             // Turn is over — any gate it raised can no longer be answered.
             c.clearPendingGatesRef.current(sid);
