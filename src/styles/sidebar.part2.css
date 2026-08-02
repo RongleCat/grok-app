@@ -202,6 +202,10 @@ html[data-sidebar-density="compact"] .tree-date-group__head {
   font-size: 13px;
   cursor: pointer;
   text-align: left;
+  /* Offscreen rows skip paint work in long virtualized lists. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 36px;
+  contain: layout style;
 }
 
 .tree-l3:hover {

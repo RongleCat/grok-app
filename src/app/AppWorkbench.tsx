@@ -37,10 +37,7 @@ import {
   saveSidebarShowRelativeTimePref,
   SIDEBAR_SHOW_RELATIVE_TIME_CHANGE_EVENT
 } from "@/lib/sidebarShowRelativeTimePref";
-import {
-  formatMessageTime,
-  formatRelativeTime
-} from "@/lib/accountUi";
+import { formatRelativeTime } from "@/lib/accountUi";
 import { loadConfirmExternalLinksPref } from "@/lib/externalLinkPref";
 import { loadStopAllSkipConfirmPref } from "@/lib/stopAllSkipConfirmPref";
 import { detectAppPlatform, revealInOsLabel } from "@/lib/appPlatform";
@@ -645,7 +642,11 @@ import { AttachmentCard } from "@/components/AttachmentCard";
 import { ImageViewerProvider } from "@/components/ImageViewer";
 import { OverlayScroll } from "@/components/OverlayScroll";
 import { VirtualList } from "@/components/VirtualList";
-import { SidebarSessionName } from "@/components/SidebarSessionName";
+import {
+  SidebarSessionRow,
+  type SidebarSessionRowLabels,
+  type SidebarSessionWorktreeBadgeProp,
+} from "@/components/SidebarSessionRow";
 import {
   SIDEBAR_DENSITY_EVENT,
   loadSidebarDensity,
@@ -867,7 +868,6 @@ import {
   preferPermissionFocus,
   trapTabKey
 } from "@/lib/a11yFocus";
-import { Spinner } from "@/components/ui/spinner";
 import { UserMenu, remainingPercent } from "@/components/UserMenu";
 import {
   SettingsPage,
@@ -963,8 +963,6 @@ export function AppWorkbench() {
   const [sidebarShowRelativeTime, setSidebarShowRelativeTime] = useState(() =>
     loadSidebarShowRelativeTimePref(localStorage),
   );
-  /** Shared tick so relative session labels recompute ~once a minute. */
-  const [sidebarRelativeTick, setSidebarRelativeTick] = useState(0);
   // Warm loopback media HTTP endpoint ASAP so chat images resolve to
   // http://127.0.0.1 (not media://) before the first history paint.
   useEffect(() => {
@@ -974,13 +972,6 @@ export function AppWorkbench() {
         /* non-Tauri / server down */
       });
   }, []);
-  useEffect(() => {
-    if (!sidebarShowRelativeTime) return;
-    const id = window.setInterval(() => {
-      setSidebarRelativeTick((n) => n + 1);
-    }, 60_000);
-    return () => window.clearInterval(id);
-  }, [sidebarShowRelativeTime]);
   useEffect(() => {
     const reload = () =>
       setSidebarShowRelativeTime(loadSidebarShowRelativeTimePref(localStorage));
@@ -5946,21 +5937,6 @@ export function AppWorkbench() {
     }
   };
 
-  /** One-line muted relative updated time for sidebar session rows. */
-  const renderSessionRelativeTime = (updatedAt: string | undefined) => {
-    // Keep tick in the render graph so the shared 60s interval refreshes labels.
-    void sidebarRelativeTick;
-    if (!sidebarShowRelativeTime || !updatedAt) return null;
-    const label = formatRelativeTime(updatedAt, locale);
-    if (!label || label === "—") return null;
-    const absolute = formatMessageTime(updatedAt, locale);
-    return (
-      <span className="tree-l3__time" title={absolute || undefined}>
-        {label}
-      </span>
-    );
-  };
-
   const copySessionId = async (s: SessionRow) => {
     setCtxMenu(null);
     try {
@@ -5975,6 +5951,75 @@ export function AppWorkbench() {
     e.stopPropagation();
     setCtxMenu({ kind: "session", id: s.id, x: e.clientX, y: e.clientY });
   };
+
+  // Stable refs so memoized SidebarSessionRow does not re-render on App stream ticks.
+  const pinSessionRef = useRef(pinSession);
+  pinSessionRef.current = pinSession;
+  const archiveSessionRef = useRef(archiveSession);
+  archiveSessionRef.current = archiveSession;
+  const openSessionMenuRef = useRef(openSessionMenu);
+  openSessionMenuRef.current = openSessionMenu;
+
+  const resolveSidebarSession = useCallback(
+    (partial: { id: string }): SessionRow =>
+      sessionsRef.current.find((x) => x.id === partial.id) ??
+      (partial as SessionRow),
+    [],
+  );
+
+  const onSidebarSessionOpen = useCallback(
+    (s: { id: string }) => {
+      void openSessionRef.current(resolveSidebarSession(s));
+    },
+    [resolveSidebarSession],
+  );
+
+  const onSidebarSessionContextMenu = useCallback(
+    (e: ReactMouseEvent, s: { id: string }) => {
+      openSessionMenuRef.current(e, resolveSidebarSession(s));
+    },
+    [resolveSidebarSession],
+  );
+
+  const onSidebarSessionPin = useCallback(
+    (s: { id: string; pinned?: boolean }) => {
+      const full = resolveSidebarSession(s);
+      void pinSessionRef.current(full, !full.pinned);
+    },
+    [resolveSidebarSession],
+  );
+
+  const onSidebarSessionArchive = useCallback(
+    (s: { id: string; archived?: boolean }) => {
+      const full = resolveSidebarSession(s);
+      void archiveSessionRef.current(full, !full.archived);
+    },
+    [resolveSidebarSession],
+  );
+
+  const onSidebarSessionMenu = useCallback(
+    (e: ReactMouseEvent, s: { id: string }) => {
+      openSessionMenuRef.current(e, resolveSidebarSession(s));
+    },
+    [resolveSidebarSession],
+  );
+
+  const sidebarSessionLabels = useMemo<SidebarSessionRowLabels>(
+    () => ({
+      unreadAria: tr("session.unreadAria"),
+      pinned: tr("session.pinned"),
+      muted: tr("session.muted"),
+      noteAria: tr("session.noteAria"),
+      automationsTag: tr("automations.msgTag"),
+      working: tr("sidebar.sessionWorking"),
+      pin: tr("session.pin"),
+      unpin: tr("session.unpin"),
+      archive: tr("sidebar.archive"),
+      unarchive: tr("sidebar.unarchive"),
+      menu: tr("sidebar.menu"),
+    }),
+    [tr],
+  );
 
   const handleToggleSessionMute = useCallback((sessionId: string) => {
     toggleSessionMute(sessionId);
@@ -11377,6 +11422,34 @@ export function AppWorkbench() {
     [cliGrokHome, gitWorktrees, projects],
   );
 
+  /** Pre-translated worktree chip for memoized SidebarSessionRow. */
+  const buildSidebarWorktreeBadge = useCallback(
+    (s: SessionRow): SidebarSessionWorktreeBadgeProp | null => {
+      const wtBadge = sessionWorktreeBadgeFor(s);
+      if (!wtBadge) return null;
+      const title = sessionWorktreeTooltip(wtBadge, {
+        detachedLabel: tr("composer.worktreeDetached"),
+        cliLayoutLabel: tr("session.worktreeLayoutCli"),
+        siblingLayoutLabel: tr("session.worktreeLayoutSibling"),
+        otherLayoutLabel: tr("session.worktreeBadge"),
+      });
+      const ariaKey =
+        wtBadge.layoutKind === "cli"
+          ? "session.worktreeBadgeCliAria"
+          : "session.worktreeBadgeAria";
+      return {
+        label: wtBadge.label,
+        branch: wtBadge.branch,
+        layoutKind: wtBadge.layoutKind,
+        title,
+        ariaLabel: tr(ariaKey, {
+          branch: wtBadge.branch || tr("composer.worktreeDetached"),
+        }),
+      };
+    },
+    [sessionWorktreeBadgeFor, tr],
+  );
+
   /**
    * Create worktree → refresh list → add as project (trust inherited) →
    * either bind current session or start a draft chat on that path.
@@ -15781,258 +15854,41 @@ export function AppWorkbench() {
                                     const checked =
                                       selectedSessionIds.has(s.id);
                                     const unread = unreadSessionIds.has(s.id);
+                                    const noteRaw =
+                                      sessionNotesMap[s.id]?.trim() || "";
                                     return (
-                                      <div
-                                        className={
-                                          "tree-l3" +
-                                          (session.sessionId === s.id
-                                            ? " tree-l3--active"
-                                            : "") +
-                                          (s.archived
-                                            ? " tree-l3--archived"
-                                            : "") +
-                                          (working ? " tree-l3--working" : "") +
-                                          (unread ? " tree-l3--unread" : "") +
-                                          (sessionSelectMode
-                                            ? " tree-l3--select-mode"
-                                            : "") +
-                                          (checked ? " tree-l3--checked" : "")
+                                      <SidebarSessionRow
+                                        session={s}
+                                        variant="project"
+                                        active={session.sessionId === s.id}
+                                        working={working}
+                                        unread={unread}
+                                        checked={checked}
+                                        selectMode={sessionSelectMode}
+                                        muted={mutedSessionIds.has(s.id)}
+                                        noteTitle={
+                                          noteRaw
+                                            ? notePreview(noteRaw) ||
+                                              sidebarSessionLabels.noteAria
+                                            : null
                                         }
-                                        role="button"
-                                        tabIndex={0}
-                                        aria-checked={
-                                          sessionSelectMode
-                                            ? checked
-                                            : undefined
-                                        }
-                                        onClick={() => {
-                                          if (sessionSelectMode) {
-                                            toggleSessionSelected(s.id);
-                                            return;
-                                          }
-                                          void openSession(s, proj);
-                                        }}
-                                        onContextMenu={(e) =>
-                                          openSessionMenu(e, s)
-                                        }
-                                        onKeyDown={(e) => {
-                                          if (
-                                            e.key === "Enter" ||
-                                            e.key === " "
-                                          ) {
-                                            if (sessionSelectMode) {
-                                              e.preventDefault();
-                                              toggleSessionSelected(s.id);
-                                              return;
-                                            }
-                                            if (e.key === "Enter")
-                                              void openSession(s, proj);
-                                          }
-                                        }}
-                                      >
-                                        {sessionSelectMode ? (
-                                          <span
-                                            className={
-                                              "tree-l3__check" +
-                                              (checked ? " is-on" : "")
-                                            }
-                                            aria-hidden
-                                          >
-                                            {checked ? (
-                                              <IconCheck
-                                                size={11}
-                                                stroke={2.4}
-                                              />
-                                            ) : null}
-                                          </span>
-                                        ) : null}
-                                        <span className="tree-l3__title">
-                                          {unread ? (
-                                            <span
-                                              className="tree-l3__unread"
-                                              title={tr("session.unreadAria")}
-                                              aria-label={tr(
-                                                "session.unreadAria",
-                                              )}
-                                            />
-                                          ) : null}
-                                          {s.pinned ? (
-                                            <span
-                                              className="tree-l3__kind"
-                                              title={tr("session.pinned")}
-                                              aria-label={tr("session.pinned")}
-                                            >
-                                              <IconPin
-                                                size={12}
-                                                className="tree-l3__pin"
-                                              />
-                                            </span>
-                                          ) : null}
-                                          {mutedSessionIds.has(s.id) ? (
-                                            <span
-                                              className="tree-l3__kind tree-l3__muted"
-                                              title={tr("session.muted")}
-                                              aria-label={tr("session.muted")}
-                                            >
-                                              <IconBellOff size={12} />
-                                            </span>
-                                          ) : null}
-                                          {sessionNotesMap[s.id]?.trim() ? (
-                                            <span
-                                              className="tree-l3__kind"
-                                              title={
-                                                notePreview(
-                                                  sessionNotesMap[s.id],
-                                                ) || tr("session.noteAria")
-                                              }
-                                              aria-label={tr("session.noteAria")}
-                                            >
-                                              <IconNotes size={12} />
-                                            </span>
-                                          ) : null}
-                                          {s.scheduled ? (
-                                            <span
-                                              className="tree-l3__kind"
-                                              title={tr("automations.msgTag")}
-                                              aria-label={tr(
-                                                "automations.msgTag",
-                                              )}
-                                            >
-                                              <IconClock size={13} />
-                                            </span>
-                                          ) : null}
-                                          {(() => {
-                                            const wtBadge =
-                                              sessionWorktreeBadgeFor(s);
-                                            if (!wtBadge) return null;
-                                            const tip = sessionWorktreeTooltip(
-                                              wtBadge,
-                                              {
-                                                detachedLabel: tr(
-                                                  "composer.worktreeDetached",
-                                                ),
-                                                cliLayoutLabel: tr(
-                                                  "session.worktreeLayoutCli",
-                                                ),
-                                                siblingLayoutLabel: tr(
-                                                  "session.worktreeLayoutSibling",
-                                                ),
-                                                otherLayoutLabel: tr(
-                                                  "session.worktreeBadge",
-                                                ),
-                                              },
-                                            );
-                                            const ariaKey =
-                                              wtBadge.layoutKind === "cli"
-                                                ? "session.worktreeBadgeCliAria"
-                                                : "session.worktreeBadgeAria";
-                                            return (
-                                              <span
-                                                className={
-                                                  "tree-l3__wt" +
-                                                  (wtBadge.layoutKind === "cli"
-                                                    ? " tree-l3__wt--cli"
-                                                    : wtBadge.layoutKind ===
-                                                        "sibling"
-                                                      ? " tree-l3__wt--sibling"
-                                                      : "")
-                                                }
-                                                title={tip}
-                                                aria-label={tr(ariaKey, {
-                                                  branch:
-                                                    wtBadge.branch ||
-                                                    tr(
-                                                      "composer.worktreeDetached",
-                                                    ),
-                                                })}
-                                              >
-                                                {wtBadge.label}
-                                              </span>
-                                            );
-                                          })()}
-                                          <SidebarSessionName
-                                            title={s.title || "Untitled"}
-                                          />
-                                        </span>
-                                        {renderSessionRelativeTime(s.updatedAt)}
-                                        {sessionSelectMode ? null : working ? (
-                                          <Tip
-                                            label={tr("sidebar.sessionWorking")}
-                                          >
-                                            <span
-                                              className="tree-l3__status"
-                                              aria-label={tr(
-                                                "sidebar.sessionWorking",
-                                              )}
-                                            >
-                                              <Spinner
-                                                size={14}
-                                                className="tree-l3__spinner"
-                                              />
-                                            </span>
-                                          </Tip>
-                                        ) : (
-                                          <span className="tree-l3__actions tree-l3__actions--triple">
-                                            <Tip
-                                              label={
-                                                s.pinned
-                                                  ? tr("session.unpin")
-                                                  : tr("session.pin")
-                                              }
-                                            >
-                                              <button
-                                                type="button"
-                                                className="tree-icon-btn"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  void pinSession(
-                                                    s,
-                                                    !s.pinned,
-                                                  );
-                                                }}
-                                              >
-                                                {s.pinned ? (
-                                                  <IconPinOff size={13} />
-                                                ) : (
-                                                  <IconPin size={13} />
-                                                )}
-                                              </button>
-                                            </Tip>
-                                            <Tip
-                                              label={
-                                                s.archived
-                                                  ? tr("sidebar.unarchive")
-                                                  : tr("sidebar.archive")
-                                              }
-                                            >
-                                              <button
-                                                type="button"
-                                                className="tree-icon-btn"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  void archiveSession(
-                                                    s,
-                                                    !s.archived,
-                                                  );
-                                                }}
-                                              >
-                                                <IconArchive size={13} />
-                                              </button>
-                                            </Tip>
-                                            <Tip label={tr("sidebar.menu")}>
-                                              <button
-                                                type="button"
-                                                className="tree-icon-btn"
-                                                onClick={(e) =>
-                                                  openSessionMenu(e, s)
-                                                }
-                                              >
-                                                <IconMore size={13} />
-                                              </button>
-                                            </Tip>
-                                          </span>
+                                        worktreeBadge={buildSidebarWorktreeBadge(
+                                          s,
                                         )}
-                                      </div>
+                                        labels={sidebarSessionLabels}
+                                        locale={locale}
+                                        showRelativeTime={
+                                          sidebarShowRelativeTime
+                                        }
+                                        onOpen={onSidebarSessionOpen}
+                                        onContextMenu={
+                                          onSidebarSessionContextMenu
+                                        }
+                                        onToggleSelect={toggleSessionSelected}
+                                        onPin={onSidebarSessionPin}
+                                        onArchive={onSidebarSessionArchive}
+                                        onMenu={onSidebarSessionMenu}
+                                      />
                                     );
                                   }}
                                 />
@@ -16089,212 +15945,35 @@ export function AppWorkbench() {
                           const working = busyIds.has(s.id);
                           const checked = selectedSessionIds.has(s.id);
                           const unread = unreadSessionIds.has(s.id);
+                          const noteRaw =
+                            sessionNotesMap[s.id]?.trim() || "";
                           return (
-                            <div
-                              className={
-                                "tree-l3 tree-l3--orphan" +
-                                (session.sessionId === s.id
-                                  ? " tree-l3--active"
-                                  : "") +
-                                (working ? " tree-l3--working" : "") +
-                                (unread ? " tree-l3--unread" : "") +
-                                (sessionSelectMode
-                                  ? " tree-l3--select-mode"
-                                  : "") +
-                                (checked ? " tree-l3--checked" : "")
+                            <SidebarSessionRow
+                              session={s}
+                              variant="orphan"
+                              active={session.sessionId === s.id}
+                              working={working}
+                              unread={unread}
+                              checked={checked}
+                              selectMode={sessionSelectMode}
+                              muted={mutedSessionIds.has(s.id)}
+                              noteTitle={
+                                noteRaw
+                                  ? notePreview(noteRaw) ||
+                                    sidebarSessionLabels.noteAria
+                                  : null
                               }
-                              role="button"
-                              tabIndex={0}
-                              aria-checked={
-                                sessionSelectMode ? checked : undefined
-                              }
-                              onClick={() => {
-                                if (sessionSelectMode) {
-                                  toggleSessionSelected(s.id);
-                                  return;
-                                }
-                                void openSession(s);
-                              }}
-                              onContextMenu={(e) => openSessionMenu(e, s)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  if (sessionSelectMode) {
-                                    e.preventDefault();
-                                    toggleSessionSelected(s.id);
-                                    return;
-                                  }
-                                  if (e.key === "Enter") void openSession(s);
-                                }
-                              }}
-                            >
-                              {sessionSelectMode ? (
-                                <span
-                                  className={
-                                    "tree-l3__check" +
-                                    (checked ? " is-on" : "")
-                                  }
-                                  aria-hidden
-                                >
-                                  {checked ? (
-                                    <IconCheck size={11} stroke={2.4} />
-                                  ) : null}
-                                </span>
-                              ) : null}
-                              <span className="tree-l3__title">
-                                {unread ? (
-                                  <span
-                                    className="tree-l3__unread"
-                                    title={tr("session.unreadAria")}
-                                    aria-label={tr("session.unreadAria")}
-                                  />
-                                ) : null}
-                                {s.pinned ? (
-                                  <span
-                                    className="tree-l3__kind"
-                                    title={tr("session.pinned")}
-                                    aria-label={tr("session.pinned")}
-                                  >
-                                    <IconPin
-                                      size={12}
-                                      className="tree-l3__pin"
-                                    />
-                                  </span>
-                                ) : null}
-                                {mutedSessionIds.has(s.id) ? (
-                                  <span
-                                    className="tree-l3__kind tree-l3__muted"
-                                    title={tr("session.muted")}
-                                    aria-label={tr("session.muted")}
-                                  >
-                                    <IconBellOff size={12} />
-                                  </span>
-                                ) : null}
-                                {sessionNotesMap[s.id]?.trim() ? (
-                                  <span
-                                    className="tree-l3__kind"
-                                    title={
-                                      notePreview(sessionNotesMap[s.id]) ||
-                                      tr("session.noteAria")
-                                    }
-                                    aria-label={tr("session.noteAria")}
-                                  >
-                                    <IconNotes size={12} />
-                                  </span>
-                                ) : null}
-                                {s.scheduled ? (
-                                  <span
-                                    className="tree-l3__kind"
-                                    title={tr("automations.msgTag")}
-                                    aria-label={tr("automations.msgTag")}
-                                  >
-                                    <IconClock size={13} />
-                                  </span>
-                                ) : null}
-                                {(() => {
-                                  const wtBadge = sessionWorktreeBadgeFor(s);
-                                  if (!wtBadge) return null;
-                                  const tip = sessionWorktreeTooltip(wtBadge, {
-                                    detachedLabel: tr(
-                                      "composer.worktreeDetached",
-                                    ),
-                                    cliLayoutLabel: tr(
-                                      "session.worktreeLayoutCli",
-                                    ),
-                                    siblingLayoutLabel: tr(
-                                      "session.worktreeLayoutSibling",
-                                    ),
-                                    otherLayoutLabel: tr(
-                                      "session.worktreeBadge",
-                                    ),
-                                  });
-                                  const ariaKey =
-                                    wtBadge.layoutKind === "cli"
-                                      ? "session.worktreeBadgeCliAria"
-                                      : "session.worktreeBadgeAria";
-                                  return (
-                                    <span
-                                      className={
-                                        "tree-l3__wt" +
-                                        (wtBadge.layoutKind === "cli"
-                                          ? " tree-l3__wt--cli"
-                                          : wtBadge.layoutKind === "sibling"
-                                            ? " tree-l3__wt--sibling"
-                                            : "")
-                                      }
-                                      title={tip}
-                                      aria-label={tr(ariaKey, {
-                                        branch:
-                                          wtBadge.branch ||
-                                          tr("composer.worktreeDetached"),
-                                      })}
-                                    >
-                                      {wtBadge.label}
-                                    </span>
-                                  );
-                                })()}
-                                <SidebarSessionName
-                                  title={s.title || "Untitled"}
-                                />
-                              </span>
-                              {renderSessionRelativeTime(s.updatedAt)}
-                              {sessionSelectMode ? null : working ? (
-                                <Tip label={tr("sidebar.sessionWorking")}>
-                                  <span
-                                    className="tree-l3__status"
-                                    aria-label={tr("sidebar.sessionWorking")}
-                                  >
-                                    <Spinner
-                                      size={14}
-                                      className="tree-l3__spinner"
-                                    />
-                                  </span>
-                                </Tip>
-                              ) : (
-                                <span className="tree-l3__actions tree-l3__actions--triple">
-                                  <Tip
-                                    label={
-                                      s.pinned
-                                        ? tr("session.unpin")
-                                        : tr("session.pin")
-                                    }
-                                  >
-                                    <button
-                                      type="button"
-                                      className="tree-icon-btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        void pinSession(s, !s.pinned);
-                                      }}
-                                    >
-                                      {s.pinned ? (
-                                        <IconPinOff size={13} />
-                                      ) : (
-                                        <IconPin size={13} />
-                                      )}
-                                    </button>
-                                  </Tip>
-                                  <Tip label={tr("sidebar.archive")}>
-                                    <button
-                                      type="button"
-                                      className="tree-icon-btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        void archiveSession(s, !s.archived);
-                                      }}
-                                    >
-                                      <IconArchive size={13} />
-                                    </button>
-                                  </Tip>
-                                  <button
-                                    type="button"
-                                    className="tree-icon-btn"
-                                    onClick={(e) => openSessionMenu(e, s)}
-                                  >
-                                    <IconMore size={13} />
-                                  </button>
-                                </span>
-                              )}
-                            </div>
+                              worktreeBadge={buildSidebarWorktreeBadge(s)}
+                              labels={sidebarSessionLabels}
+                              locale={locale}
+                              showRelativeTime={sidebarShowRelativeTime}
+                              onOpen={onSidebarSessionOpen}
+                              onContextMenu={onSidebarSessionContextMenu}
+                              onToggleSelect={toggleSessionSelected}
+                              onPin={onSidebarSessionPin}
+                              onArchive={onSidebarSessionArchive}
+                              onMenu={onSidebarSessionMenu}
+                            />
                           );
                         }}
                       />
