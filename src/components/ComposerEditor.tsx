@@ -7,6 +7,7 @@
  */
 
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -260,7 +261,7 @@ export type ComposerEditorProps = {
   }) => void | Promise<void>;
 };
 
-export function ComposerEditor({
+export const ComposerEditor = memo(function ComposerEditor({
   value,
   onChange,
   disabled,
@@ -625,7 +626,7 @@ export function ComposerEditor({
       />
     </div>
   );
-}
+});
 
 export function focusComposerEnd(el: HTMLDivElement | null) {
   placeCaretAtEnd(el!);

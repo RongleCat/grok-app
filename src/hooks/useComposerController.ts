@@ -1,6 +1,9 @@
 /**
  * Composer domain controller (slash / draft / attachments / @ / + panels).
  * Extracted from AppWorkbench; onSend / session boundary stays in workbench.
+ *
+ * Draft text lives in `composerDraftStore` so keystrokes do not re-render the
+ * workbench shell. Consumers use setDraft/getDraft (no draft value in return).
  */
 import {
   useMemo,
@@ -17,6 +20,10 @@ import {
   loadRecentPromptHistory,
   type RecentPromptEntry,
 } from "@/lib/recentPromptHistory";
+import {
+  getDraft,
+  setDraft as storeSetDraft,
+} from "@/lib/composerDraftStore";
 
 export type LiveTokenQuery = {
   present: boolean;
@@ -40,10 +47,19 @@ const EMPTY_LIVE: LiveTokenQuery = {
 
 /**
  * Local composer UI state. Send path and Host wiring remain in AppWorkbench.
+ * Draft is external-store only — never returned as React state.
  */
 export function useComposerController(initialDraft = "") {
-  /** Composer stored form (may include [[skill:name]] tokens). */
-  const [draft, setDraft] = useState(initialDraft);
+  /** Seed store once when a non-empty initial is passed (tests / rare). */
+  const seededRef = useRef(false);
+  if (!seededRef.current) {
+    seededRef.current = true;
+    if (initialDraft) storeSetDraft(initialDraft);
+  }
+
+  /** Stable store actions (identity never changes). */
+  const setDraft = storeSetDraft;
+
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
   /**
@@ -133,7 +149,8 @@ export function useComposerController(initialDraft = "") {
 
   return useMemo(
     () => ({
-      draft,
+      /** Call-time read; does not subscribe (safe in event handlers / send). */
+      getDraft,
       setDraft,
       attachments,
       setAttachments: setAttachments as Dispatch<
@@ -212,7 +229,6 @@ export function useComposerController(initialDraft = "") {
       setPlusOpen: setShowComposerPlus,
     }),
     [
-      draft,
       attachments,
       promptHistoryIndex,
       promptHistoryOpen,

@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent
 } from "react";
 import { useThemeShell } from "@/providers/ThemeProvider";
@@ -604,10 +605,13 @@ import {
 } from "@/lib/composerSendKey";
 import {
   COMPOSER_DRAFT_STATS_CHANGED_EVENT,
-  computeDraftStats,
   countDraftChars,
   loadComposerDraftStatsPref
 } from "@/lib/draftStats";
+import {
+  composerDraftStore,
+  getDraft as getComposerDraft,
+} from "@/lib/composerDraftStore";
 import {
   COMPOSER_SPELLCHECK_CHANGED_EVENT,
   loadComposerSpellcheck
@@ -661,10 +665,13 @@ import {
   isCliVersionUnsupported,
   resolveSetupGateBoot
 } from "@/lib/setupGatePro";
+import { getComposerCaretOffset } from "@/components/ComposerEditor";
+import { ComposerDraftEditor } from "@/components/ComposerDraftEditor";
 import {
-  ComposerEditor,
-  getComposerCaretOffset
-} from "@/components/ComposerEditor";
+  ComposerClearDraftButton,
+  ComposerDraftStats,
+  ComposerSendCluster,
+} from "@/components/ComposerDraftChrome";
 import { ComposerProjectMenu } from "@/components/ComposerProjectMenu";
 import { ComposerWorktreeMenu } from "@/components/ComposerWorktreeMenu";
 import {
@@ -761,11 +768,8 @@ import {
   IconPlus,
   IconSearch,
   IconAttach,
-  IconSend,
   IconMic,
   IconLiveVoice,
-  IconQueue,
-  IconStop,
   IconFolder,
   IconFolderPlus,
   IconArrowsVerticalCollapse,
@@ -1211,7 +1215,7 @@ export function AppWorkbench() {
   const [gitDirtySummary, setGitDirtySummary] =
     useState<GitDirtySummary | null>(null);
   const {
-    draft,
+    getDraft,
     setDraft,
     attachments,
     setAttachments,
@@ -3661,7 +3665,7 @@ export function AppWorkbench() {
     // Leaving a new-chat page: stash composer under the project so newChat can restore.
     if (viewingSessionIdRef.current == null) {
       saveComposerProjectDraft(projectDraftKey(activeProject?.id ?? null), {
-        text: draft,
+        text: getDraft(),
         attachments,
         goalMode,
       });
@@ -4018,27 +4022,38 @@ export function AppWorkbench() {
   /**
    * While on a new-chat page, keep the per-project buffer in sync so a crash
    * or hard switch mid-type still restores on next newChat.
+   * Subscribes to the external draft store so AppWorkbench does not re-render on type.
    */
   useEffect(() => {
-    if (suppressProjectDraftPersistRef.current) return;
-    // Real session follow-ups must not overwrite the new-task buffer.
-    if (session.sessionId != null || viewingSessionIdRef.current != null) {
-      return;
-    }
-    const key = projectDraftKey(activeProject?.id ?? null);
-    const t = window.setTimeout(() => {
+    let t: number | undefined;
+    const persist = () => {
+      if (suppressProjectDraftPersistRef.current) return;
+      // Real session follow-ups must not overwrite the new-task buffer.
+      if (session.sessionId != null || viewingSessionIdRef.current != null) {
+        return;
+      }
+      const key = projectDraftKey(activeProject?.id ?? null);
+      saveComposerProjectDraft(key, {
+        text: getComposerDraft(),
+        attachments,
+        goalMode,
+      });
+    };
+    const schedule = () => {
       if (suppressProjectDraftPersistRef.current) return;
       if (session.sessionId != null || viewingSessionIdRef.current != null) {
         return;
       }
-      saveComposerProjectDraft(key, {
-        text: draft,
-        attachments,
-        goalMode,
-      });
-    }, 280);
-    return () => window.clearTimeout(t);
-  }, [draft, attachments, goalMode, activeProject?.id, session.sessionId]);
+      window.clearTimeout(t);
+      t = window.setTimeout(persist, 280);
+    };
+    schedule();
+    const unsub = composerDraftStore.subscribe(schedule);
+    return () => {
+      window.clearTimeout(t);
+      unsub();
+    };
+  }, [attachments, goalMode, activeProject?.id, session.sessionId]);
 
   useEffect(() => {
     if (appGate !== "ready") return;
@@ -4220,7 +4235,7 @@ export function AppWorkbench() {
     const wasDraftPage = viewingSessionIdRef.current == null;
     if (wasDraftPage) {
       saveComposerProjectDraft(prevKey, {
-        text: draft,
+        text: getDraft(),
         attachments,
         goalMode,
       });
@@ -6837,6 +6852,7 @@ export function AppWorkbench() {
 
   /** Clear immediately, or confirm first when the draft is long (>200 chars). */
   const requestClearComposerDraft = useCallback(() => {
+    const draft = getDraft();
     const hasBody =
       !isDraftEmpty(parseStoredContent(draft)) || attachments.length > 0;
     if (!hasBody) return;
@@ -6852,7 +6868,7 @@ export function AppWorkbench() {
       return;
     }
     applyClearComposerDraft();
-  }, [applyClearComposerDraft, attachments.length, draft, tr]);
+  }, [applyClearComposerDraft, attachments.length, getDraft, tr]);
 
   /** Enqueue when agent is busy; otherwise send immediately. */
   const send = async () => {
@@ -6860,6 +6876,7 @@ export function AppWorkbench() {
       showToast(tr("session.secondaryLiveBanner"), 4000);
       return;
     }
+    const draft = getDraft();
     const segments = parseStoredContent(draft);
     const storedDisplay = draft;
     const att = attachments;
@@ -10062,14 +10079,19 @@ export function AppWorkbench() {
 
   // Seed draft / clear / pane switch: grow textarea. If a focus request is still
   // pending (e.g. textarea just remounted), retry focus here as a backstop.
+  // Also re-run on external draft store changes without re-rendering AppWorkbench.
   useEffect(() => {
     if (mainPane !== "chat") return;
-    if (pendingComposerFocus.current) {
-      requestComposerFocus();
-      return;
-    }
-    syncComposerHeight();
-  }, [draft, mainPane, session.sessionId, requestComposerFocus, syncComposerHeight]);
+    const run = () => {
+      if (pendingComposerFocus.current) {
+        requestComposerFocus();
+        return;
+      }
+      syncComposerHeight();
+    };
+    run();
+    return composerDraftStore.subscribe(run);
+  }, [mainPane, session.sessionId, requestComposerFocus, syncComposerHeight]);
 
   /** Context usage chip label/state from compact events + message estimate. */
   const contextUsageDisplay = useMemo(
@@ -10083,12 +10105,6 @@ export function AppWorkbench() {
     const list = sid ? (sessionChangesById[sid] ?? []) : [];
     return summarizeSessionChanges(list);
   }, [session.sessionId, sessionChangesById]);
-
-  /** Char/word counts for the muted composer counter (hidden when empty). */
-  const composerDraftStats = useMemo(
-    () => computeDraftStats(draft),
-    [draft],
-  );
 
   const sessionTasks = useMemo(
     () => collectSessionTasks(messages),
@@ -10458,6 +10474,7 @@ export function AppWorkbench() {
   );
 
   // Floating composer height → chat bottom pad so messages can scroll under it.
+  // ResizeObserver covers typing growth; no draft subscription (would thrash shell).
   useEffect(() => {
     if (mainPane !== "chat") return;
     const el = composerWrapRef.current;
@@ -10476,7 +10493,6 @@ export function AppWorkbench() {
   }, [
     mainPane,
     attachments.length,
-    draft,
     showComposerPlus,
     messages.length,
     welcomeSession,
@@ -14634,6 +14650,248 @@ export function AppWorkbench() {
     promptHistoryOpen,
   };
 
+  /**
+   * Stable composer editor callbacks so memo(ComposerEditor) can skip
+   * stream-driven shell re-renders when draft/value props are unchanged.
+   */
+  const onComposerDraftChange = useCallback((next: string) => {
+    // Manual edit exits history browse; same text (DOM re-sync) keeps it.
+    const idx = promptHistoryIndexRef.current;
+    if (idx !== null) {
+      const hist = collectUserPromptHistory(messagesRef.current);
+      if (next !== hist[idx]) {
+        promptHistoryIndexRef.current = null;
+        setPromptHistoryIndex(null);
+      }
+    }
+  }, []);
+
+  const onComposerPasteFiles = useCallback(
+    (files: File[]) => {
+      void addAttachmentsFromFiles(files);
+    },
+    [addAttachmentsFromFiles],
+  );
+
+  const onComposerPasteMediaFallback = useCallback(
+    (opts?: { expectMedia?: boolean }) => {
+      void pasteMediaFromNativeClipboard(opts);
+    },
+    [pasteMediaFromNativeClipboard],
+  );
+
+  const composerKeyDownRef = useRef<
+    (e: ReactKeyboardEvent<HTMLDivElement>) => void
+  >(() => {});
+  composerKeyDownRef.current = (e) => {
+    if (
+      e.nativeEvent.isComposing ||
+      (e.nativeEvent as KeyboardEvent).keyCode === 229
+    ) {
+      return;
+    }
+    if (atMenuOpen) {
+      const n = atEntries.length;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (!n) return;
+        setAtActiveIndex((i) => (i + 1) % n);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!n) return;
+        setAtActiveIndex((i) => (i - 1 + n) % n);
+        return;
+      }
+      if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey) {
+        e.preventDefault();
+        if (!n) return;
+        const entry =
+          atEntries[
+            Math.min(Math.max(0, atActiveIndex), Math.max(0, n - 1))
+          ];
+        if (entry) applyAtFile(entry);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeAtMenu();
+        return;
+      }
+    }
+    if (composerMenuOpen) {
+      // Ref = same array the panel renders (never desync).
+      const flat = composerMenuEntriesRef.current;
+      const n = flat.length;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (!n) return;
+        setSlashActiveIndex((i) => (i + 1) % n);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!n) return;
+        setSlashActiveIndex((i) => (i - 1 + n) % n);
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        const entry =
+          flat[
+            Math.min(Math.max(0, slashActiveIndex), Math.max(0, n - 1))
+          ];
+        if (!entry) return;
+        if (entry.kind === "upload") void pickComposerFiles();
+        else if (entry.kind === "json-schema") {
+          closeComposerMenu();
+          setJsonSchemaDraft(sessionJsonSchema ?? "");
+          setShowJsonSchemaModal(true);
+        } else applySlashItem(entry.item);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeComposerMenu();
+        return;
+      }
+      if (e.key === "Tab" && n > 0) {
+        e.preventDefault();
+        const entry =
+          flat[Math.min(Math.max(0, slashActiveIndex), n - 1)]!;
+        if (entry.kind === "upload") void pickComposerFiles();
+        else if (entry.kind === "json-schema") {
+          closeComposerMenu();
+          setJsonSchemaDraft(sessionJsonSchema ?? "");
+          setShowJsonSchemaModal(true);
+        } else applySlashItem(entry.item);
+        return;
+      }
+    }
+    // Prompt history picker open: ↑/↓/Home/End/Page move selection;
+    // Enter/Tab apply; Esc closes (Build `/history` + empty-↑).
+    if (promptHistoryOpenRef.current && !composerMenuOpen) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closePromptHistory();
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        const entry = promptHistoryEntries[promptHistoryActive];
+        if (entry) {
+          e.preventDefault();
+          applyPromptHistoryEntry(entry, {
+            listIndex: promptHistoryActive,
+          });
+          return;
+        }
+      }
+      const listNav = promptHistoryListNavFromKey(e.key);
+      if (listNav) {
+        e.preventDefault();
+        if (promptHistoryEntries.length === 0) return;
+        const liveSeed =
+          !promptHistoryFocusFilter && promptHistoryScope === "session";
+        // ArrowDown past newest on live session browse: clear + close.
+        if (listNav === "down" && promptHistoryActive <= 0 && liveSeed) {
+          promptHistoryIndexRef.current = null;
+          setPromptHistoryIndex(null);
+          setDraft("");
+          closePromptHistory();
+          return;
+        }
+        const next = stepPromptHistoryListIndex(
+          promptHistoryActive,
+          promptHistoryEntries.length,
+          listNav,
+        );
+        setPromptHistoryActive(next);
+        const entry = promptHistoryEntries[next];
+        if (entry && liveSeed) {
+          applyPromptHistoryEntry(entry, {
+            close: false,
+            listIndex: next,
+            scope: "session",
+          });
+        }
+        return;
+      }
+    }
+    // CLI-like prompt history: ↑ on empty draft opens picker + seeds newest.
+    // Only when slash palette is closed so palette ↑/↓ is untouched.
+    if (
+      (e.key === "ArrowUp" || e.key === "ArrowDown") &&
+      !composerMenuOpen &&
+      !promptHistoryOpenRef.current
+    ) {
+      const history = collectUserPromptHistory(messagesRef.current);
+      const draftEmpty = isDraftEmpty(parseStoredContent(getDraft()));
+      const browsing = promptHistoryIndexRef.current !== null;
+      if (
+        shouldHandlePromptHistoryKey({
+          key: e.key,
+          draftEmpty,
+          browsing,
+          historyLength: history.length,
+        })
+      ) {
+        e.preventDefault();
+        if (e.key === "ArrowUp" && !browsing) {
+          openPromptHistory({
+            focusFilter: false,
+            seedDraft: true,
+          });
+          return;
+        }
+        const step = stepPromptHistory(
+          history,
+          promptHistoryIndexRef.current,
+          e.key === "ArrowUp" ? "up" : "down",
+        );
+        promptHistoryIndexRef.current = step.index;
+        setPromptHistoryIndex(step.index);
+        setDraft(step.text);
+        if (step.index == null) {
+          closePromptHistory();
+        } else if (!promptHistoryOpenRef.current) {
+          openPromptHistory({
+            focusFilter: false,
+            seedDraft: false,
+          });
+          setPromptHistoryActive(step.index);
+        } else {
+          setPromptHistoryActive(step.index);
+        }
+        return;
+      }
+    }
+    if (shouldSendOnKeydown(e, composerSendKeyPref)) {
+      e.preventDefault();
+      const draftNow = getDraft();
+      const hasBody =
+        !isDraftEmpty(parseStoredContent(draftNow)) ||
+        attachments.length > 0;
+      if (hasBody && session.state !== "awaiting_permission") {
+        void send();
+      }
+    }
+    if (e.key === "Escape") {
+      if (promptHistoryOpenRef.current) {
+        closePromptHistory();
+        return;
+      }
+      closeComposerMenu();
+    }
+  };
+
+  const onComposerKeyDown = useCallback(
+    (e: ReactKeyboardEvent<HTMLDivElement>) => {
+      composerKeyDownRef.current(e);
+    },
+    [],
+  );
+
   return (
     <ImageViewerProvider locale={locale}>
     <div
@@ -18133,10 +18391,9 @@ export function AppWorkbench() {
                   />,
                   document.body,
                 )}
-              <ComposerEditor
+              <ComposerDraftEditor
                 editorRef={composerInputRef}
                 className="composer__input"
-                value={draft}
                 disabled={!canType(session.state)}
                 spellCheck={composerSpellcheck}
                 aria-label={tr("a11y.composerInput")}
@@ -18145,245 +18402,11 @@ export function AppWorkbench() {
                     ? tr("composer.goalPlaceholder")
                     : tr("composer.placeholder")
                 }
-                onChange={(next) => {
-                  setDraft(next);
-                  // Manual edit exits history browse; same text (DOM re-sync) keeps it.
-                  const idx = promptHistoryIndexRef.current;
-                  if (idx !== null) {
-                    const hist = collectUserPromptHistory(messages);
-                    if (next !== hist[idx]) {
-                      promptHistoryIndexRef.current = null;
-                      setPromptHistoryIndex(null);
-                      // Keep the picker open so the user can re-pick; only leave browse index.
-                    }
-                  }
-                }}
-                onPasteFiles={(files) => {
-                  void addAttachmentsFromFiles(files);
-                }}
-                onPasteMediaFallback={(opts) => {
-                  void pasteMediaFromNativeClipboard(opts);
-                }}
+                onDraftChange={onComposerDraftChange}
+                onPasteFiles={onComposerPasteFiles}
+                onPasteMediaFallback={onComposerPasteMediaFallback}
                 onSlashQueryChange={onSlashQueryChange}
-                onKeyDown={(e) => {
-                  if (
-                    e.nativeEvent.isComposing ||
-                    (e.nativeEvent as KeyboardEvent).keyCode === 229
-                  ) {
-                    return;
-                  }
-                  if (atMenuOpen) {
-                    const n = atEntries.length;
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      if (!n) return;
-                      setAtActiveIndex((i) => (i + 1) % n);
-                      return;
-                    }
-                    if (e.key === "ArrowUp") {
-                      e.preventDefault();
-                      if (!n) return;
-                      setAtActiveIndex((i) => (i - 1 + n) % n);
-                      return;
-                    }
-                    if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey) {
-                      e.preventDefault();
-                      if (!n) return;
-                      const entry =
-                        atEntries[
-                          Math.min(
-                            Math.max(0, atActiveIndex),
-                            Math.max(0, n - 1),
-                          )
-                        ];
-                      if (entry) applyAtFile(entry);
-                      return;
-                    }
-                    if (e.key === "Escape") {
-                      e.preventDefault();
-                      closeAtMenu();
-                      return;
-                    }
-                  }
-                  if (composerMenuOpen) {
-                    // Ref = same array the panel renders (never desync).
-                    const flat = composerMenuEntriesRef.current;
-                    const n = flat.length;
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      if (!n) return;
-                      setSlashActiveIndex((i) => (i + 1) % n);
-                      return;
-                    }
-                    if (e.key === "ArrowUp") {
-                      e.preventDefault();
-                      if (!n) return;
-                      setSlashActiveIndex((i) => (i - 1 + n) % n);
-                      return;
-                    }
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      const entry =
-                        flat[
-                          Math.min(
-                            Math.max(0, slashActiveIndex),
-                            Math.max(0, n - 1),
-                          )
-                        ];
-                      if (!entry) return;
-                      if (entry.kind === "upload") void pickComposerFiles();
-                      else if (entry.kind === "json-schema") {
-                        closeComposerMenu();
-                        setJsonSchemaDraft(sessionJsonSchema ?? "");
-                        setShowJsonSchemaModal(true);
-                      } else applySlashItem(entry.item);
-                      return;
-                    }
-                    if (e.key === "Escape") {
-                      e.preventDefault();
-                      closeComposerMenu();
-                      return;
-                    }
-                    if (e.key === "Tab" && n > 0) {
-                      e.preventDefault();
-                      const entry =
-                        flat[
-                          Math.min(
-                            Math.max(0, slashActiveIndex),
-                            n - 1,
-                          )
-                        ]!;
-                      if (entry.kind === "upload") void pickComposerFiles();
-                      else if (entry.kind === "json-schema") {
-                        closeComposerMenu();
-                        setJsonSchemaDraft(sessionJsonSchema ?? "");
-                        setShowJsonSchemaModal(true);
-                      } else applySlashItem(entry.item);
-                      return;
-                    }
-                  }
-                  // Prompt history picker open: ↑/↓/Home/End/Page move selection;
-                  // Enter/Tab apply; Esc closes (Build `/history` + empty-↑).
-                  if (promptHistoryOpenRef.current && !composerMenuOpen) {
-                    if (e.key === "Escape") {
-                      e.preventDefault();
-                      closePromptHistory();
-                      return;
-                    }
-                    if (e.key === "Enter" || e.key === "Tab") {
-                      const entry = promptHistoryEntries[promptHistoryActive];
-                      if (entry) {
-                        e.preventDefault();
-                        applyPromptHistoryEntry(entry, {
-                          listIndex: promptHistoryActive,
-                        });
-                        return;
-                      }
-                    }
-                    const listNav = promptHistoryListNavFromKey(e.key);
-                    if (listNav) {
-                      e.preventDefault();
-                      if (promptHistoryEntries.length === 0) return;
-                      const liveSeed =
-                        !promptHistoryFocusFilter &&
-                        promptHistoryScope === "session";
-                      // ArrowDown past newest on live session browse: clear + close.
-                      if (
-                        listNav === "down" &&
-                        promptHistoryActive <= 0 &&
-                        liveSeed
-                      ) {
-                        promptHistoryIndexRef.current = null;
-                        setPromptHistoryIndex(null);
-                        setDraft("");
-                        closePromptHistory();
-                        return;
-                      }
-                      const next = stepPromptHistoryListIndex(
-                        promptHistoryActive,
-                        promptHistoryEntries.length,
-                        listNav,
-                      );
-                      setPromptHistoryActive(next);
-                      const entry = promptHistoryEntries[next];
-                      if (entry && liveSeed) {
-                        applyPromptHistoryEntry(entry, {
-                          close: false,
-                          listIndex: next,
-                          scope: "session",
-                        });
-                      }
-                      return;
-                    }
-                  }
-                  // CLI-like prompt history: ↑ on empty draft opens picker + seeds newest.
-                  // Only when slash palette is closed so palette ↑/↓ is untouched.
-                  if (
-                    (e.key === "ArrowUp" || e.key === "ArrowDown") &&
-                    !composerMenuOpen &&
-                    !promptHistoryOpenRef.current
-                  ) {
-                    const history = collectUserPromptHistory(messages);
-                    const draftEmpty = isDraftEmpty(parseStoredContent(draft));
-                    const browsing = promptHistoryIndexRef.current !== null;
-                    if (
-                      shouldHandlePromptHistoryKey({
-                        key: e.key,
-                        draftEmpty,
-                        browsing,
-                        historyLength: history.length,
-                      })
-                    ) {
-                      e.preventDefault();
-                      if (e.key === "ArrowUp" && !browsing) {
-                        openPromptHistory({
-                          focusFilter: false,
-                          seedDraft: true,
-                        });
-                        return;
-                      }
-                      const step = stepPromptHistory(
-                        history,
-                        promptHistoryIndexRef.current,
-                        e.key === "ArrowUp" ? "up" : "down",
-                      );
-                      promptHistoryIndexRef.current = step.index;
-                      setPromptHistoryIndex(step.index);
-                      setDraft(step.text);
-                      if (step.index == null) {
-                        closePromptHistory();
-                      } else if (!promptHistoryOpenRef.current) {
-                        openPromptHistory({
-                          focusFilter: false,
-                          seedDraft: false,
-                        });
-                        setPromptHistoryActive(step.index);
-                      } else {
-                        setPromptHistoryActive(step.index);
-                      }
-                      return;
-                    }
-                  }
-                  if (shouldSendOnKeydown(e, composerSendKeyPref)) {
-                    e.preventDefault();
-                    const hasBody =
-                      !isDraftEmpty(parseStoredContent(draft)) ||
-                      attachments.length > 0;
-                    if (
-                      hasBody &&
-                      session.state !== "awaiting_permission"
-                    ) {
-                      void send();
-                    }
-                  }
-                  if (e.key === "Escape") {
-                    if (promptHistoryOpenRef.current) {
-                      closePromptHistory();
-                      return;
-                    }
-                    closeComposerMenu();
-                  }
-                }}
+                onKeyDown={onComposerKeyDown}
               />
               <div
                 className={
@@ -18600,34 +18623,12 @@ export function AppWorkbench() {
                     />
                   </>
                 ) : null}
-                {showComposerDraftStats &&
-                !composerDraftStats.empty ? (
-                  <span
-                    className="composer__draft-stats"
-                    aria-label={tr("composer.draftStatsAria", {
-                      words: String(composerDraftStats.words),
-                      chars: String(composerDraftStats.chars),
-                    })}
-                  >
-                    {tr("composer.draftStats", {
-                      words: String(composerDraftStats.words),
-                      chars: String(composerDraftStats.chars),
-                    })}
-                  </span>
-                ) : null}
-                {!isDraftEmpty(parseStoredContent(draft)) ||
-                attachments.length > 0 ? (
-                  <Tip label={tr("composer.clearDraft")}>
-                    <button
-                      type="button"
-                      className="icon-btn composer__clear-draft"
-                      aria-label={tr("composer.clearDraft")}
-                      onClick={() => requestClearComposerDraft()}
-                    >
-                      <IconClose size={14} />
-                    </button>
-                  </Tip>
-                ) : null}
+                <ComposerDraftStats show={showComposerDraftStats} tr={tr} />
+                <ComposerClearDraftButton
+                  attachmentsLength={attachments.length}
+                  onClear={() => requestClearComposerDraft()}
+                  label={tr("composer.clearDraft")}
+                />
                 <span className="composer__spacer" />
                 {/* Dictation (mic) + Live Voice (headphones): official auth only. */}
                 {(voiceGate.available || voiceIsActive(voice.phase)) && (
@@ -18691,55 +18692,20 @@ export function AppWorkbench() {
                     </button>
                   </Tip>
                 ) : null}
-                {effectiveCanStop ? (
-                  <>
-                    {sendQueue.canShowQueueButton(
-                      session.state,
-                      connecting,
-                      !isDraftEmpty(parseStoredContent(draft)) ||
-                        attachments.length > 0,
-                    ) && (
-                      <Tip label={tr("composer.queue")}>
-                        <button
-                          type="button"
-                          className="icon-btn icon-btn--primary"
-                          onClick={() => void send()}
-                          aria-label={tr("composer.queue")}
-                        >
-                          <IconQueue size={16} />
-                        </button>
-                      </Tip>
-                    )}
-                    <Tip label={tr("composer.stop")}>
-                      <button
-                        type="button"
-                        className="icon-btn icon-btn--danger"
-                        onClick={() => void stop()}
-                        aria-label={tr("composer.stop")}
-                      >
-                        <IconStop size={14} />
-                      </button>
-                    </Tip>
-                  </>
-                ) : (
-                  <Tip label={tr("composer.send")}>
-                    <button
-                      type="button"
-                      className="icon-btn icon-btn--primary"
-                      disabled={
-                        (!effectiveCanSend &&
-                          !shouldEnqueueSend(session.state, connecting)) ||
-                        (isDraftEmpty(parseStoredContent(draft)) &&
-                          attachments.length === 0) ||
-                        session.state === "awaiting_permission"
-                      }
-                      onClick={() => void send()}
-                      aria-label={tr("composer.send")}
-                    >
-                      <IconSend size={16} />
-                    </button>
-                  </Tip>
-                )}
+                <ComposerSendCluster
+                  attachmentsLength={attachments.length}
+                  effectiveCanStop={effectiveCanStop}
+                  connecting={connecting}
+                  sessionState={session.state}
+                  effectiveCanSend={effectiveCanSend}
+                  shouldEnqueue={shouldEnqueueSend(session.state, connecting)}
+                  canShowQueueButton={(state, conn, hasBody) =>
+                    sendQueue.canShowQueueButton(state, conn, hasBody)
+                  }
+                  onSend={() => void send()}
+                  onStop={() => void stop()}
+                  tr={tr}
+                />
               </div>
             </div>
             </div>
