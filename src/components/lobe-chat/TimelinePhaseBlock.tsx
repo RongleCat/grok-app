@@ -17,7 +17,7 @@
  * Live: steps + “Working for …s” footer
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
 import { COLLAPSE_ALL_ACTIVITY_EVENT } from "@/lib/collapseAllActivity";
@@ -118,7 +118,7 @@ function StepMainText({
   }
 }
 
-export function GrokActivitySteps({
+export const GrokActivitySteps = memo(function GrokActivitySteps({
   steps,
   tr,
 }: {
@@ -187,9 +187,9 @@ export function GrokActivitySteps({
       })}
     </div>
   );
-}
+});
 
-export function TimelinePhaseBlock({
+export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
   phase,
   locale,
   messageStreaming,
@@ -364,4 +364,4 @@ export function TimelinePhaseBlock({
       {open ? <GrokActivitySteps steps={stepsResolved} tr={tr} /> : null}
     </div>
   );
-}
+});

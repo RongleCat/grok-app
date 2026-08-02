@@ -3,13 +3,13 @@
  * Default collapsed; expands when any tool failed.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
 import type { TurnActivity, TurnActivitySegment } from "@/lib/turnActivity";
 import { IconChevronDown, IconChevronRight } from "@/components/icons";
 
-export function TurnActivityBlock({
+export const TurnActivityBlock = memo(function TurnActivityBlock({
   activity,
   locale,
   onOpenChanges,
@@ -103,7 +103,7 @@ export function TurnActivityBlock({
       ) : null}
     </div>
   );
-}
+});
 
 function SegmentRow({
   seg,

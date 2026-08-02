@@ -1132,6 +1132,7 @@ export function ConversationThread({
     isPinnedRef,
     conversationKey: sessionKey ?? "chat",
     forceIndices: forceVirtualIndices,
+    streaming: turnBusy || hasStreamingAssistant,
   });
 
   const visibleMessages = useMemo(() => {

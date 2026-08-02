@@ -11,10 +11,17 @@
  * - Adaptive overscan scales with viewport (not fixed multi-screen mounts).
  * - Force-indices expand only nearby when escaped — distant tail force must
  *   not mount the entire remainder of a long chat (history-browse jank).
+ * - Multi-turn agent chats (tool/phase rows) virtualize earlier than pure Q&A.
  */
 
-/** Only virtualize long threads — short chats keep full DOM (identical UX). */
-export const CHAT_VIRTUALIZE_THRESHOLD = 48;
+import { CHAT_VIRTUALIZE_THRESHOLD_PERF } from "./streamRenderPolicy";
+
+/**
+ * Only virtualize longer threads — short chats keep full DOM.
+ * Multi-turn agent sessions grow row count quickly (tools/phases), so the
+ * threshold is intentionally lower than a pure chat transcript (was 48).
+ */
+export const CHAT_VIRTUALIZE_THRESHOLD = CHAT_VIRTUALIZE_THRESHOLD_PERF;
 
 /** Fallback height before a row is measured (px). */
 export const CHAT_DEFAULT_ROW_ESTIMATE_PX = 120;
@@ -120,35 +127,50 @@ export function cumulativeOffsets(
  * Adaptive overscan in px.
  * Scales with viewport so large monitors do not mount multi-screen markdown
  * windows, while short viewports still get enough runway for fling.
+ * Optional `scale` multiplies after clamp (stream tail shrinks mounts).
  */
 export function resolveChatOverscanPx(input: {
   viewportHeight: number;
   pinToBottom?: boolean;
-  /** Explicit override (tests / callers). */
+  /** Explicit override (tests / callers). When set, `scale` still applies. */
   overscanPx?: number;
+  /**
+   * Multiplier after adaptive/override value (default 1).
+   * Streaming callers pass resolveStreamOverscanScale (~0.55–0.75).
+   */
+  scale?: number;
 }): number {
+  let base: number;
   if (input.overscanPx != null && Number.isFinite(input.overscanPx)) {
-    return Math.max(0, input.overscanPx);
+    base = Math.max(0, input.overscanPx);
+  } else {
+    const vh = Math.max(0, input.viewportHeight);
+    if (input.pinToBottom) {
+      // ~1.5 viewports above the tail + small baseline, clamped.
+      const raw = vh * 1.5 + 200;
+      base = Math.round(
+        Math.min(
+          CHAT_PIN_OVERSCAN_MAX_PX,
+          Math.max(CHAT_PIN_OVERSCAN_MIN_PX, raw, CHAT_PIN_OVERSCAN_PX * 0.75),
+        ),
+      );
+    } else {
+      // History browse: ~1 viewport of runway.
+      const raw = vh * 1.1 + 100;
+      base = Math.round(
+        Math.min(
+          CHAT_OVERSCAN_MAX_PX,
+          Math.max(CHAT_OVERSCAN_MIN_PX, raw, CHAT_OVERSCAN_PX * 0.6),
+        ),
+      );
+    }
   }
-  const vh = Math.max(0, input.viewportHeight);
-  if (input.pinToBottom) {
-    // ~1.5 viewports above the tail + small baseline, clamped.
-    const raw = vh * 1.5 + 200;
-    return Math.round(
-      Math.min(
-        CHAT_PIN_OVERSCAN_MAX_PX,
-        Math.max(CHAT_PIN_OVERSCAN_MIN_PX, raw, CHAT_PIN_OVERSCAN_PX * 0.75),
-      ),
-    );
-  }
-  // History browse: ~1 viewport of runway.
-  const raw = vh * 1.1 + 100;
-  return Math.round(
-    Math.min(
-      CHAT_OVERSCAN_MAX_PX,
-      Math.max(CHAT_OVERSCAN_MIN_PX, raw, CHAT_OVERSCAN_PX * 0.6),
-    ),
-  );
+  const scale =
+    input.scale != null && Number.isFinite(input.scale)
+      ? Math.max(0, input.scale)
+      : 1;
+  if (scale === 1) return base;
+  return Math.round(base * scale);
 }
 
 /**

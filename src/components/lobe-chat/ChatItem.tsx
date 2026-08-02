@@ -1,11 +1,12 @@
 /**
  * Lobe ChatItem layout shell — 1:1 structure of lobe-chat ChatItem.tsx.
+ * Memoized so stream-tail updates do not re-render sibling rows.
  */
 
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function ChatItem({
+export const ChatItem = memo(function ChatItem({
   id,
   placement = "left",
   avatar,
@@ -84,4 +85,4 @@ export function ChatItem({
       {actions ? <div className="lobe-chat-item__actions">{actions}</div> : null}
     </div>
   );
-}
+});

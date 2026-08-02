@@ -117,8 +117,10 @@ describe("computeChatVirtualWindow", () => {
     expect(w.start).toBe(0);
   });
 
-  it("threshold constant is high enough to skip short chats", () => {
-    expect(CHAT_VIRTUALIZE_THRESHOLD).toBeGreaterThanOrEqual(40);
+  it("threshold virtualizes multi-turn agent chats earlier (was 48)", () => {
+    expect(CHAT_VIRTUALIZE_THRESHOLD).toBe(16);
+    expect(CHAT_VIRTUALIZE_THRESHOLD).toBeGreaterThanOrEqual(12);
+    expect(CHAT_VIRTUALIZE_THRESHOLD).toBeLessThanOrEqual(24);
   });
 
   it("accepts precomputed offsets (scroll-path cache)", () => {
@@ -195,6 +197,26 @@ describe("resolveChatOverscanPx", () => {
     expect(pin).toBeGreaterThan(browse);
     expect(pin).toBeGreaterThanOrEqual(CHAT_PIN_OVERSCAN_MIN_PX);
     expect(pin).toBeLessThanOrEqual(CHAT_PIN_OVERSCAN_MAX_PX);
+  });
+
+  it("optional scale multiplies after clamp without breaking overrides", () => {
+    const base = resolveChatOverscanPx({
+      viewportHeight: 900,
+      pinToBottom: true,
+    });
+    const scaled = resolveChatOverscanPx({
+      viewportHeight: 900,
+      pinToBottom: true,
+      scale: 0.6,
+    });
+    expect(scaled).toBe(Math.round(base * 0.6));
+    expect(
+      resolveChatOverscanPx({
+        viewportHeight: 800,
+        overscanPx: 1000,
+        scale: 0.5,
+      }),
+    ).toBe(500);
   });
 });
 

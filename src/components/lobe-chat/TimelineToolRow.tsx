@@ -3,7 +3,7 @@
  * Phase interior uses GrokActivitySteps inside TimelinePhaseBlock.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
 import type { ChatMessage, MessageSegment, MessageToolSegment } from "@/lib/session";
@@ -88,7 +88,7 @@ function ToolKindIcon({ tool }: { tool: MessageToolSegment }) {
   return <IconCircle size={size} stroke={1.5} />;
 }
 
-export function TimelineToolRow({
+export const TimelineToolRow = memo(function TimelineToolRow({
   tool,
   autoCollapse: autoCollapseProp,
   defaultExpanded,
@@ -237,10 +237,10 @@ export function TimelineToolRow({
       ) : null}
     </div>
   );
-}
+});
 
 /** ≥3 consecutive context tools → collapsible group. */
-export function TimelineContextGroup({
+export const TimelineContextGroup = memo(function TimelineContextGroup({
   tools,
   locale,
   autoCollapse: autoCollapseProp,
@@ -362,7 +362,7 @@ export function TimelineContextGroup({
       ) : null}
     </div>
   );
-}
+});
 
 export type TimelineDisplayItem =
   | { type: "segment"; seg: MessageSegment; si: number }

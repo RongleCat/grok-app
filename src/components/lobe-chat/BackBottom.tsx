@@ -1,8 +1,9 @@
+import { memo } from "react";
 import { IconChevronDown } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export function BackBottom({
+export const BackBottom = memo(function BackBottom({
   visible,
   onClick,
   label,
@@ -23,4 +24,4 @@ export function BackBottom({
       </button>
     </Tip>
   );
-}
+});

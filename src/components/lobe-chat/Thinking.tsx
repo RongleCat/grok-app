@@ -12,7 +12,14 @@
  * Tool bursts use TimelinePhaseBlock (“Worked for Ns”) instead.
  */
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { IconBulb, IconChevronDown, IconChevronRight } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { MarkdownChat } from "./MarkdownChat";
@@ -27,7 +34,7 @@ import {
 } from "@/lib/thinkingPref";
 import { extractThinkingSummary } from "@/lib/thinkingSummary";
 
-export function Thinking({
+export const Thinking = memo(function Thinking({
   content,
   thinking,
   durationMs,
@@ -229,4 +236,4 @@ export function Thinking({
       ) : null}
     </div>
   );
-}
+});

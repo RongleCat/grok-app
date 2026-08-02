@@ -2,7 +2,7 @@
  * Unified end-of-turn marker (stop / stall / error / permission).
  */
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { Locale } from "@/i18n";
 import { createT, type MessageKey } from "@/i18n";
 import {
@@ -13,7 +13,7 @@ import {
 import { IconStop } from "@/components/icons";
 import type { ChatMessage } from "@/lib/session";
 
-export function EndOfTurnChip({
+export const EndOfTurnChip = memo(function EndOfTurnChip({
   message,
   locale,
   reasonOverride,
@@ -44,4 +44,4 @@ export function EndOfTurnChip({
       <span className="lobe-end-turn__title">{label}</span>
     </div>
   );
-}
+});

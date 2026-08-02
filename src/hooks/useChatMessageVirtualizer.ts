@@ -37,6 +37,7 @@ import {
   shouldCommitRowHeight,
   type ChatVirtualWindow,
 } from "@/lib/chatVirtualList";
+import { resolveStreamOverscanScale } from "@/lib/streamRenderPolicy";
 
 export type UseChatMessageVirtualizerArgs = {
   itemCount: number;
@@ -53,6 +54,11 @@ export type UseChatMessageVirtualizerArgs = {
   /** Below this count, render everything (no spacers). */
   threshold?: number;
   enabled?: boolean;
+  /**
+   * When true, shrink adaptive overscan so stream-tail updates mount fewer
+   * off-screen markdown/tool siblings (low-power friendly).
+   */
+  streaming?: boolean;
 };
 
 export type UseChatMessageVirtualizerResult = {
@@ -89,9 +95,11 @@ export function useChatMessageVirtualizer(
     forceIndices = [],
     threshold = CHAT_VIRTUALIZE_THRESHOLD,
     enabled = true,
+    streaming = false,
   } = args;
 
   const virtualized = enabled && itemCount >= threshold;
+  const overscanScale = resolveStreamOverscanScale(streaming);
   const heightsRef = useRef<Map<string, number>>(new Map());
   const getKeyRef = useRef(getKey);
   getKeyRef.current = getKey;
@@ -186,6 +194,7 @@ export function useChatMessageVirtualizer(
       overscanPx: resolveChatOverscanPx({
         viewportHeight: el.clientHeight,
         pinToBottom: pin,
+        scale: overscanScale,
       }),
       pinToBottom: pin,
       forceIndices: forceRef.current,
@@ -215,7 +224,15 @@ export function useChatMessageVirtualizer(
       }
       return next;
     });
-  }, [virtualized, itemCount, viewportRef, isPinnedRef, getHeight, getOffsets]);
+  }, [
+    virtualized,
+    itemCount,
+    viewportRef,
+    isPinnedRef,
+    getHeight,
+    getOffsets,
+    overscanScale,
+  ]);
 
   const recompute = useCallback(() => {
     // Coalesce measure storms (tall markdown + table reflow) into one window update.
