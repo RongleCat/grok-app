@@ -17,7 +17,7 @@
  * Live: steps + “Working for …s” footer
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
 import { COLLAPSE_ALL_ACTIVITY_EVENT } from "@/lib/collapseAllActivity";
@@ -35,6 +35,12 @@ import {
   buildGrokActivitySteps,
   type GrokActivityStep,
 } from "@/lib/grokActivitySteps";
+import {
+  GROK_ACTIVITY_STEP_ROW_PX,
+  grokActivityVirtualMaxHeightPx,
+  shouldVirtualizeGrokActivitySteps,
+} from "@/lib/grokActivityVirtualize";
+import { VirtualList } from "@/components/VirtualList";
 import {
   IconBulb,
   IconChevronDown,
@@ -118,73 +124,133 @@ function StepMainText({
   }
 }
 
+const GrokActivityStepRow = memo(function GrokActivityStepRow({
+  step,
+  isLast,
+  tr,
+}: {
+  step: GrokActivityStep;
+  isLast: boolean;
+  tr: ReturnType<typeof createT>;
+}) {
+  const failed =
+    step.type !== "thought" && "failed" in step ? !!step.failed : false;
+  const running =
+    step.type === "thought"
+      ? !!step.streaming
+      : "running" in step
+        ? !!step.running
+        : false;
+  const resultCount =
+    step.type === "web-search" ? step.resultCount : undefined;
+  const domains =
+    step.type === "web-search" ? step.resultDomains : undefined;
+
+  return (
+    <div
+      className={
+        "grok-act__step" +
+        (failed ? " is-error" : "") +
+        (running ? " is-running" : "") +
+        (isLast ? " is-last" : "")
+      }
+      role="listitem"
+      data-step-type={step.type}
+    >
+      <div className="grok-act__icon-col" aria-hidden>
+        <span className="grok-act__icon">
+          <StepIcon step={step} />
+        </span>
+        {!isLast ? <span className="grok-act__rail" /> : null}
+      </div>
+      <div className="grok-act__main">
+        <div className="grok-act__label-row">
+          <StepMainText step={step} tr={tr} />
+          {resultCount != null || (domains && domains.length > 0) ? (
+            <span className="grok-act__meta">
+              {resultCount != null ? (
+                <span className="grok-act__meta-count">
+                  {tr("chat.searchResults", { n: String(resultCount) })}
+                </span>
+              ) : null}
+              {domains && domains.length > 0 ? (
+                <span className="grok-act__favicons">
+                  {domains.slice(0, 3).map((d) => (
+                    <FaviconChip key={d} domain={d} />
+                  ))}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+/**
+ * Grok activity step list. Short lists map fully; long lists window via
+ * VirtualList so multi-turn phases with 20–100+ steps stay light.
+ * Live phases pin the scroller to the tail (last step key).
+ */
 export function GrokActivitySteps({
   steps,
   tr,
+  live = false,
 }: {
   steps: GrokActivityStep[];
   tr: ReturnType<typeof createT>;
+  /** When true, prefer showing the tail of a virtualized list. */
+  live?: boolean;
 }) {
-  if (!steps.length) return null;
-  return (
-    <div className="grok-act__steps" role="list">
-      {steps.map((step, idx) => {
-        const failed =
-          step.type !== "thought" && "failed" in step ? !!step.failed : false;
-        const running =
-          step.type === "thought"
-            ? !!step.streaming
-            : "running" in step
-              ? !!step.running
-              : false;
-        const isLast = idx === steps.length - 1;
-        const resultCount =
-          step.type === "web-search" ? step.resultCount : undefined;
-        const domains =
-          step.type === "web-search" ? step.resultDomains : undefined;
+  const total = steps.length;
+  const virtualize = shouldVirtualizeGrokActivitySteps(total);
+  const lastKey = total > 0 ? steps[total - 1]!.key : null;
 
-        return (
-          <div
+  const getKey = useCallback((step: GrokActivityStep) => step.key, []);
+  const renderItem = useCallback(
+    (step: GrokActivityStep, idx: number) => (
+      <GrokActivityStepRow
+        step={step}
+        isLast={idx === total - 1}
+        tr={tr}
+      />
+    ),
+    [total, tr],
+  );
+
+  if (!total) return null;
+
+  if (!virtualize) {
+    return (
+      <div className="grok-act__steps" role="list">
+        {steps.map((step, idx) => (
+          <GrokActivityStepRow
             key={step.key}
-            className={
-              "grok-act__step" +
-              (failed ? " is-error" : "") +
-              (running ? " is-running" : "") +
-              (isLast ? " is-last" : "")
-            }
-            role="listitem"
-            data-step-type={step.type}
-          >
-            <div className="grok-act__icon-col" aria-hidden>
-              <span className="grok-act__icon">
-                <StepIcon step={step} />
-              </span>
-              {!isLast ? <span className="grok-act__rail" /> : null}
-            </div>
-            <div className="grok-act__main">
-              <div className="grok-act__label-row">
-                <StepMainText step={step} tr={tr} />
-                {resultCount != null || (domains && domains.length > 0) ? (
-                  <span className="grok-act__meta">
-                    {resultCount != null ? (
-                      <span className="grok-act__meta-count">
-                        {tr("chat.searchResults", { n: String(resultCount) })}
-                      </span>
-                    ) : null}
-                    {domains && domains.length > 0 ? (
-                      <span className="grok-act__favicons">
-                        {domains.slice(0, 3).map((d) => (
-                          <FaviconChip key={d} domain={d} />
-                        ))}
-                      </span>
-                    ) : null}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        );
-      })}
+            step={step}
+            isLast={idx === total - 1}
+            tr={tr}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="grok-act__steps grok-act__steps--virtual"
+      role="list"
+      style={{ maxHeight: grokActivityVirtualMaxHeightPx(total) }}
+    >
+      <VirtualList
+        items={steps}
+        getKey={getKey}
+        renderItem={renderItem}
+        rowHeight={GROK_ACTIVITY_STEP_ROW_PX}
+        gap={0}
+        threshold={0}
+        scrollToKey={live ? lastKey : null}
+      />
     </div>
   );
 }
@@ -324,7 +390,7 @@ export function TimelinePhaseBlock({
         data-phase-id={phase.id}
         data-live="1"
       >
-        <GrokActivitySteps steps={stepsResolved} tr={tr} />
+        <GrokActivitySteps steps={stepsResolved} tr={tr} live />
         <div className="grok-act__working" role="status" aria-live="polite">
           <span className="grok-act__working-icon" aria-hidden>
             <IconGridDots size={14} stroke={1.5} />

@@ -41,6 +41,33 @@
   padding: 0;
 }
 
+/* Long step lists: fixed max-height scroller for VirtualList windowing.
+   Row height must stay in sync with GROK_ACTIVITY_STEP_ROW_PX (30). */
+.grok-act__steps--virtual {
+  max-height: 360px; /* fallback; inline style sets min(12, n) * 30 */
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* VirtualList root is the only child; stretch full width */
+  min-height: 0;
+}
+.grok-act__steps--virtual .grok-act__step {
+  height: 30px;
+  min-height: 30px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.grok-act__steps--virtual .grok-act__main {
+  padding-bottom: 0;
+  justify-content: center;
+}
+.grok-act__steps--virtual .grok-act__icon-col {
+  padding-top: 7px; /* center 16px icon in 30px row */
+}
+.grok-act__steps--virtual .grok-act__step.is-last .grok-act__main {
+  padding-bottom: 0;
+}
+
 /* One step row — icon | continuous rail + label */
 .grok-act__step {
   display: flex;
