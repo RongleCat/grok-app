@@ -4,25 +4,26 @@
  *
  * Activity chrome: Grok.com Worked-for / tool rail (TimelinePhaseBlock + lobe-chat.css .grok-act).
  * Hard-reload the webview if CSS HMR misses a bulk style rewrite.
+ *
+ * Perf islands:
+ * - TranscriptMessageRow (memo + custom equality) — history rows skip stream ticks
+ * - ChatMessageTime — relative 60s tick is row-local (relativeTimeTickStore)
+ * - ConversationStickyTail — bottom live tool / quiet thinking chrome
  */
 
 import {
-  memo,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ReactNode,
   type UIEvent,
 } from "react";
 import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
 import {
-  formatTurnErrorBody,
   isToolInlinedInAssistants,
   lastRegenerableAssistantId,
-  messageSegments,
   isTurnPromptMessage,
   weaveToolsIntoAssistantSegments,
   type ChatMessage,
@@ -36,78 +37,24 @@ import {
   type SessionMessageNode,
 } from "@/lib/sessionMessageNodes";
 import {
-  formatMessageDeepLink,
   planScrollToMessage,
 } from "@/lib/messageNodeDeepLink";
 import { MessageNodeRail } from "./MessageNodeRail";
-import { isEndOfTurnMarker } from "@/lib/endOfTurn";
 import type { Attachment } from "@/lib/attachments";
 import {
-  buildInlineMediaPathMap,
-  filterAttachmentsNotInlined,
-  isImagePath,
-  isMediaPath,
-} from "@/lib/attachments";
-import {
   buildSessionFilePathMap,
-  mergePathMaps,
 } from "@/lib/sessionPathMap";
-import { AttachmentCard } from "@/components/AttachmentCard";
-import type { ResourceOpenTarget } from "@/components/ResourceViewer";
-import {
-  IconArrowsMinimize,
-  IconBulb,
-  IconChat,
-  IconClock,
-  IconExportMd,
-  IconFork,
-  IconLink,
-  IconRename,
-  IconRewind,
-  IconTarget,
-} from "@/components/icons";
-import { formatMessageTime, formatRelativeTime } from "@/lib/accountUi";
 import type { MessageTimeFormat } from "@/lib/messageTimeFormatPref";
-import { computeMessageLength } from "@/lib/messageLength";
-import { formatTokenCount } from "@/lib/contextUsage";
 import type { ModelOption } from "@/lib/grokCatalog";
 import { useStickToBottom } from "@/hooks/useStickToBottom";
 import { useChatMessageVirtualizer } from "@/hooks/useChatMessageVirtualizer";
 import { estimateChatRowHeight } from "@/lib/chatVirtualList";
-import { StructuredJsonPanel } from "./StructuredJsonPanel";
-import {
-  MessageActionButton,
-  MessageCopyButton,
-  MessageRegenerateButton,
-} from "./MessageAction";
-import { ChatItem } from "./ChatItem";
-import { MarkdownChat } from "./MarkdownChat";
-import { Thinking } from "./Thinking";
 import { BackBottom } from "./BackBottom";
-import { InlineUserEdit } from "./InlineUserEdit";
-import { SkillChip } from "@/components/SkillChip";
-import { HighlightedText } from "@/components/HighlightedText";
-import { findChatMatches } from "@/lib/chatFind";
-import { hydrateDisplayContent, parseStoredContent } from "@/lib/draftDoc";
-import { parseScheduledUserContent } from "@/lib/automations";
-import {
-  parseRemoteImUserContent,
-  remoteImChannelLabel,
-} from "@/lib/remoteImUserContent";
-import { extractAutomationPayload } from "@/lib/automationSetup";
 import {
   isToolStepMessage,
-  LiveToolText,
   pickRunningTurnTool,
 } from "./AgentActivity";
-import { EndOfTurnChip } from "./EndOfTurnChip";
-import {
-  TimelineToolRow,
-  toolSegmentFromMessage,
-  toolSegmentIsRunning,
-} from "./TimelineToolRow";
-import { TimelinePhaseBlock } from "./TimelinePhaseBlock";
-import { buildTimelineUnits } from "@/lib/timelinePhases";
+import { isEndOfTurnMarker } from "@/lib/endOfTurn";
 import {
   BACK_BOTTOM_ALWAYS_CHANGE_EVENT,
   loadBackBottomAlwaysPref,
@@ -124,269 +71,9 @@ import {
   shouldShowTranscriptToolChrome,
   type TranscriptFilterMode,
 } from "@/lib/transcriptFilterPref";
+import { TranscriptMessageRow } from "./TranscriptMessageRow";
+import { ConversationStickyTail } from "./ConversationStickyTail";
 import "./lobe-chat.css";
-
-type AttachLabels = {
-  open: string;
-  reveal: string;
-  copyPath: string;
-  copyImage: string;
-  addToComposer: string;
-  remove: string;
-};
-
-/**
- * Assistant markdown + attachment cards.
- * Memoized so parent re-renders (showBack, live tool pulse, etc.) do not
- * rebuild imagePathMap / remount ImageUi frames mid-scroll.
- */
-const AssistantMessageBody = memo(function AssistantMessageBody({
-  content,
-  attachments,
-  streaming,
-  locale,
-  projectPath,
-  /** Session-level token→abs map (tool-touched files + unique tails). */
-  sessionPathMap,
-  onOpenResource,
-  onOpenExternalLink,
-  onAddAttachmentToComposer,
-  attachLabels,
-  findQuery,
-  findActiveOccurrence,
-  findOccurrenceBase = 0,
-}: {
-  content: string;
-  attachments?: Attachment[];
-  streaming?: boolean;
-  locale: Locale;
-  projectPath?: string | null;
-  sessionPathMap?: Record<string, string>;
-  onOpenResource?: (target: ResourceOpenTarget) => void;
-  onOpenExternalLink?: (url: string) => void;
-  onAddAttachmentToComposer?: (att: Attachment) => void;
-  attachLabels: AttachLabels;
-  findQuery?: string;
-  findActiveOccurrence?: number | null;
-  /** Offset into the message-level occurrence index for multi-segment bodies. */
-  findOccurrenceBase?: number;
-}) {
-  // Never show silent grok-automation fences in the transcript.
-  const displayContent = content?.trim()
-    ? extractAutomationPayload(content).cleanText
-    : content;
-  const imagePathMap = useMemo(
-    () => buildInlineMediaPathMap(attachments),
-    [attachments],
-  );
-  const bottomAtts = useMemo(
-    () =>
-      filterAttachmentsNotInlined(displayContent || content, attachments),
-    [displayContent, content, attachments],
-  );
-  const pathMapProp = useMemo(() => {
-    // Session tool paths first so short relatives (04-正文/正文.md) beat media
-    // basename collisions; media map fills in image/video short tokens.
-    const merged = mergePathMaps(imagePathMap, sessionPathMap);
-    return Object.keys(merged).length ? merged : undefined;
-  }, [imagePathMap, sessionPathMap]);
-  const galleryPaths = useMemo(
-    () =>
-      (bottomAtts ?? [])
-        .filter((x) => !x.isDir && isImagePath(x.path))
-        .map((x) => x.path),
-    [bottomAtts],
-  );
-
-  if (!(displayContent || "").trim() && !(bottomAtts && bottomAtts.length)) {
-    return null;
-  }
-
-  return (
-    <>
-      {(displayContent || "").trim() ? (
-        <MarkdownChat
-          locale={locale}
-          streaming={!!streaming}
-          imagePathMap={pathMapProp}
-          projectPath={projectPath}
-          onOpenResource={onOpenResource}
-          onOpenExternalLink={onOpenExternalLink}
-          findQuery={findQuery}
-          findActiveOccurrence={findActiveOccurrence}
-          findOccurrenceBase={findOccurrenceBase}
-        >
-          {displayContent}
-        </MarkdownChat>
-      ) : null}
-      {bottomAtts && bottomAtts.length > 0 ? (
-        <div className="lobe-chat-atts">
-          {bottomAtts.map((a) => (
-            <AttachmentCard
-              key={a.path}
-              attachment={a}
-              variant={!a.isDir && isMediaPath(a.path) ? "card" : "chip"}
-              labels={attachLabels}
-              galleryPaths={galleryPaths}
-              onAddToComposer={onAddAttachmentToComposer}
-            />
-          ))}
-        </div>
-      ) : null}
-    </>
-  );
-});
-
-/** Render skill chips / plain text for the user bubble body. */
-function UserPlainOrSkills({
-  content,
-  findQuery,
-  findActiveOccurrence,
-}: {
-  content: string;
-  findQuery?: string;
-  findActiveOccurrence?: number | null;
-}) {
-  const hydrated = hydrateDisplayContent(content);
-  const segs = parseStoredContent(hydrated);
-  // Always use a pre-wrap host so input newlines / blank lines match the bubble.
-  if (!segs.some((s) => s.type === "skill")) {
-    if (findQuery?.trim()) {
-      return (
-        <span className="user-msg-body">
-          <HighlightedText
-            text={content}
-            query={findQuery}
-            activeOccurrence={findActiveOccurrence ?? null}
-          />
-        </span>
-      );
-    }
-    return <span className="user-msg-body">{content}</span>;
-  }
-  return (
-    <span className="user-msg-body">
-      {segs.map((s, i) =>
-        s.type === "skill" ? (
-          <SkillChip key={`sk-${i}-${s.name}`} name={s.name} size="sm" />
-        ) : findQuery?.trim() && s.text ? (
-          <HighlightedText
-            key={`t-${i}`}
-            text={s.text}
-            query={findQuery}
-            activeOccurrence={findActiveOccurrence ?? null}
-          />
-        ) : (
-          <span key={`t-${i}`} className="user-msg-body__text">
-            {s.text}
-          </span>
-        ),
-      )}
-    </span>
-  );
-}
-
-/**
- * User bubble: skill chips + scheduled / Remote IM headers as pill tags
- * (`[Scheduled: title]` / `[Remote IM · feishu]` → label, not raw brackets).
- */
-function UserMessageBody({
-  content,
-  scheduledLabel,
-  remoteImLabel,
-  locale,
-  findQuery,
-  findActiveOccurrence,
-}: {
-  content: string;
-  /** Short badge word, e.g. 已安排 / Scheduled */
-  scheduledLabel: string;
-  /** Short badge word, e.g. 远程 IM / Remote IM */
-  remoteImLabel: string;
-  locale: Locale;
-  findQuery?: string;
-  findActiveOccurrence?: number | null;
-}) {
-  const scheduled = parseScheduledUserContent(content);
-  if (scheduled) {
-    return (
-      <div className="lobe-chat-user-msg">
-        <span className="lobe-scheduled-tag" title={scheduled.title}>
-          <IconClock size={13} className="lobe-scheduled-tag__icon" />
-          <span className="lobe-scheduled-tag__kind">{scheduledLabel}</span>
-          <span className="lobe-scheduled-tag__sep" aria-hidden>
-            ·
-          </span>
-          <span className="lobe-scheduled-tag__title">
-            {findQuery?.trim() ? (
-              <HighlightedText
-                text={scheduled.title}
-                query={findQuery}
-                activeOccurrence={null}
-              />
-            ) : (
-              scheduled.title
-            )}
-          </span>
-        </span>
-        {scheduled.body.trim() ? (
-          <div className="lobe-chat-user-msg__body">
-            <UserPlainOrSkills
-              content={scheduled.body}
-              findQuery={findQuery}
-              findActiveOccurrence={findActiveOccurrence}
-            />
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  const remoteIm = parseRemoteImUserContent(content);
-  if (remoteIm) {
-    const channelTitle = remoteImChannelLabel(remoteIm.channel, locale);
-    const tip = `${remoteImLabel} · ${channelTitle}`;
-    return (
-      <div className="lobe-chat-user-msg">
-        <span className="lobe-scheduled-tag lobe-remote-im-tag" title={tip}>
-          <IconChat size={13} className="lobe-scheduled-tag__icon" />
-          <span className="lobe-scheduled-tag__kind">{remoteImLabel}</span>
-          <span className="lobe-scheduled-tag__sep" aria-hidden>
-            ·
-          </span>
-          <span className="lobe-scheduled-tag__title">
-            {findQuery?.trim() ? (
-              <HighlightedText
-                text={channelTitle}
-                query={findQuery}
-                activeOccurrence={null}
-              />
-            ) : (
-              channelTitle
-            )}
-          </span>
-        </span>
-        {remoteIm.body.trim() ? (
-          <div className="lobe-chat-user-msg__body">
-            <UserPlainOrSkills
-              content={remoteIm.body}
-              findQuery={findQuery}
-              findActiveOccurrence={findActiveOccurrence}
-            />
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  return (
-    <UserPlainOrSkills
-      content={content}
-      findQuery={findQuery}
-      findActiveOccurrence={findActiveOccurrence}
-    />
-  );
-}
 
 export interface ConversationThreadProps {
   locale: Locale;
@@ -483,7 +170,8 @@ export interface ConversationThreadProps {
   showTimestamps?: boolean;
   /**
    * Absolute (weekday + clock) vs relative (“2 minutes ago”).
-   * Relative mode re-renders on a 60s tick so labels stay fresh.
+   * Relative mode refreshes via ChatMessageTime + relativeTimeTickStore
+   * (does not re-render the whole thread).
    */
   messageTimeFormat?: MessageTimeFormat;
   /**
@@ -575,18 +263,6 @@ export function ConversationThread({
   const tr = useMemo(() => createT(locale), [locale]);
   void _onOpenSessionChanges;
   void _onOpenModifiedPath;
-
-  /** Re-render relative labels roughly once a minute. */
-  const [relativeTick, setRelativeTick] = useState(0);
-  useEffect(() => {
-    if (!showTimestamps || messageTimeFormat !== "relative") return;
-    const id = window.setInterval(() => {
-      setRelativeTick((n) => n + 1);
-    }, 60_000);
-    return () => window.clearInterval(id);
-  }, [showTimestamps, messageTimeFormat]);
-  // Keep tick in the render graph so interval updates recompute labels.
-  void relativeTick;
 
   /**
    * Force stick-to-bottom when a new user turn starts **and** when the turn
@@ -1114,7 +790,7 @@ export function ConversationThread({
         collapsed: collapsedTool,
       });
     },
-    [transcriptMessages],
+    [transcriptMessages, wovenMessages],
   );
 
   const {
@@ -1146,6 +822,33 @@ export function ConversationThread({
     return slice;
   }, [transcriptMessages, virtualized, virtStart, virtEnd]);
 
+  /** Precompute standalone live tool (before any assistant owns the line). */
+  const showStandaloneLiveTool = useMemo(() => {
+    if (!showToolChrome || !liveTool || activeAssistantId) return false;
+    if (
+      liveTool.toolCallId &&
+      isToolInlinedInAssistants(messages, liveTool.toolCallId)
+    ) {
+      return false;
+    }
+    if (
+      messages.some(
+        (x) =>
+          isToolStepMessage(x) &&
+          (x.toolCallId === liveTool.toolCallId ||
+            x.id === `tool-${liveTool.toolCallId}`),
+      )
+    ) {
+      return false;
+    }
+    return true;
+  }, [showToolChrome, liveTool, activeAssistantId, messages]);
+
+  const thinkingLabel = useMemo(() => tr("chat.thinkingLabel"), [tr]);
+
+  // Stable no-op measure when not needed is unnecessary — measureRef is stable
+  // from the virtualizer. Callbacks from parent should be useCallback-stable.
+
   return (
     <div className="lobe-chat" data-slot="lobe-chat">
       <div
@@ -1170,705 +873,75 @@ export function ConversationThread({
           ) : null}
 
           {visibleMessages.map(({ m, index: msgIndex }) => {
-            const wrap = (node: ReactNode) =>
-              virtualized ? (
-                <div
-                  key={m.id}
-                  ref={measureRef(msgIndex)}
-                  data-virt-index={msgIndex}
-                >
-                  {node}
-                </div>
-              ) : (
-                node
-              );
-
-            if (
-              isEndOfTurnMarker(m.marker) ||
-              m.marker === "turn_cancelled" ||
-              (m.role === "tool" &&
-                (m.content?.startsWith("turn_cancelled") ||
-                  m.content?.startsWith("turn_end|")))
-            ) {
-              return wrap(
-                <EndOfTurnChip key={m.id} message={m} locale={locale} />,
-              );
-            }
-
-            // Standalone tool_step only when not already woven into an assistant
-            // timeline (tools before first assistant bubble, edge cases).
-            // Conversation filter hides tool chrome entirely.
-            if (isToolStepMessage(m)) {
-              if (!showToolChrome) {
-                return virtualized ? (
-                  <div
-                    key={m.id}
-                    ref={measureRef(msgIndex)}
-                    data-virt-index={msgIndex}
-                    style={{ height: 0, overflow: "hidden" }}
-                    aria-hidden
-                  />
-                ) : null;
-              }
-              const tcid =
-                (m.toolCallId || "").trim() ||
-                (m.id.startsWith("tool-") ? m.id.slice(5) : "");
-              // Use woven list — parent `messages` may lag display-layer weave.
-              if (tcid && isToolInlinedInAssistants(wovenMessages, tcid)) {
-                return virtualized ? (
-                  <div
-                    key={m.id}
-                    ref={measureRef(msgIndex)}
-                    data-virt-index={msgIndex}
-                    style={{ height: 0, overflow: "hidden" }}
-                    aria-hidden
-                  />
-                ) : null;
-              }
-              const toolSeg = toolSegmentFromMessage(m);
-              if (!toolSeg) {
-                return virtualized ? (
-                  <div
-                    key={m.id}
-                    ref={measureRef(msgIndex)}
-                    data-virt-index={msgIndex}
-                    style={{ height: 0, overflow: "hidden" }}
-                    aria-hidden
-                  />
-                ) : null;
-              }
-              return wrap(
-                <div key={m.id} className="lobe-chat-assistant-timeline">
-                  <div className="lobe-timeline-rail">
-                    <TimelineToolRow
-                      tool={toolSeg}
-                      autoCollapse={toolStepsAutoCollapse}
-                      locale={locale}
-                    />
-                  </div>
-                </div>,
-              );
-            }
-
-            if (
-              m.marker === "context_compact" ||
-              (m.role === "tool" &&
-                (m.content?.startsWith("context_compact") ||
-                  m.compactMeta))
-            ) {
-              const meta = m.compactMeta;
-              const auto = (meta?.trigger || "auto") !== "manual";
-              const title = auto
-                ? tr("compact.bannerAuto")
-                : tr("compact.bannerManual");
-              let detail = "";
-              if (
-                meta?.tokensBefore != null &&
-                meta?.tokensAfter != null &&
-                Number.isFinite(meta.tokensBefore) &&
-                Number.isFinite(meta.tokensAfter)
-              ) {
-                detail = tr("compact.tokensRange", {
-                  before: formatTokenCount(meta.tokensBefore, locale),
-                  after: formatTokenCount(meta.tokensAfter, locale),
-                });
-              } else if (meta?.note) {
-                detail = meta.note;
-              }
-              const summary = meta?.summaryPreview?.trim();
-              return wrap(
-                <div
-                  key={m.id}
-                  className="lobe-chat-compact"
-                  role="status"
-                  data-trigger={meta?.trigger || "auto"}
-                >
-                  <span className="lobe-chat-compact__icon" aria-hidden>
-                    <IconArrowsMinimize size={15} />
-                  </span>
-                  <div className="lobe-chat-compact__body">
-                    <div className="lobe-chat-compact__title">{title}</div>
-                    {detail ? (
-                      <div className="lobe-chat-compact__detail">{detail}</div>
-                    ) : null}
-                    {summary ? (
-                      <details className="lobe-chat-compact__summary">
-                        <summary>{tr("compact.summaryToggle")}</summary>
-                        <p>{summary}</p>
-                      </details>
-                    ) : null}
-                  </div>
-                </div>,
-              );
-            }
-
-            // Generic tool rows (non marker) — keep quiet; no history stack.
-            if (m.role === "tool") {
-              return virtualized ? (
-                <div
-                  key={m.id}
-                  ref={measureRef(msgIndex)}
-                  data-virt-index={msgIndex}
-                  style={{ height: 0, overflow: "hidden" }}
-                  aria-hidden
-                />
-              ) : null;
-            }
-
-            if (m.role === "user") {
-              const isInterjection = m.marker === "interjection";
-              const isLastUser = !isInterjection && lastUserMessageId === m.id;
-              const isEditing = editingUserMessageId === m.id;
-              const timeLabel =
-                showTimestamps && m.createdAt
-                  ? messageTimeFormat === "relative"
-                    ? formatRelativeTime(m.createdAt, locale)
-                    : formatMessageTime(m.createdAt, locale)
-                  : null;
-              const isFindHit = !!findHitMessageIds?.has(m.id);
-              const isFindCurrent = findActive?.messageId === m.id;
-              const isNodeFocus = focusMessageId === m.id;
-              return wrap(
-                <ChatItem
-                  key={m.id}
-                  id={m.id}
-                  placement="right"
-                  showAvatar={false}
-                  showTitle={false}
-                  className={
-                    (isFindHit ? " lobe-chat-item--find-hit" : "") +
-                    (isFindCurrent ? " lobe-chat-item--find-current" : "") +
-                    (isNodeFocus ? " lobe-chat-item--node-focus" : "")
-                  }
-                  message={
-                    <div
-                      className={
-                        "lobe-chat-user-stack" +
-                        (isEditing ? " lobe-chat-user-stack--editing" : "")
-                      }
-                    >
-                      {/* Read-only attachments above bubble; edit mode reloads them inside the form */}
-                      {!isEditing &&
-                      m.attachments &&
-                      m.attachments.length > 0 ? (
-                        <div className="lobe-chat-atts lobe-chat-atts--user">
-                          {m.attachments.map((a) => (
-                            <AttachmentCard
-                              key={a.path}
-                              attachment={a}
-                              variant="card"
-                              labels={attachLabels}
-                              galleryPaths={m.attachments
-                                ?.filter((x) => !x.isDir && isImagePath(x.path))
-                                .map((x) => x.path)}
-                              onAddToComposer={onAddAttachmentToComposer}
-                            />
-                          ))}
-                        </div>
-                      ) : null}
-                      {isEditing ? (
-                        <InlineUserEdit
-                          content={m.content}
-                          attachments={editAttachments}
-                          attachLabels={attachLabels}
-                          busy={editSubmitting}
-                          cancelLabel={tr("message.editCancel")}
-                          resendLabel={tr("message.editResend")}
-                          placeholder={tr("message.editPlaceholder")}
-                          onCancel={() => onCancelEditUserMessage?.()}
-                          onSubmit={(stored) =>
-                            onSubmitEditUserMessage?.(m, stored)
-                          }
-                          onRemoveAttachment={onRemoveEditAttachment}
-                        />
-                      ) : m.content.trim() ? (
-                        <div
-                          className={
-                            "lobe-chat-bubble" +
-                            (isInterjection
-                              ? " lobe-chat-bubble--interjection"
-                              : "")
-                          }
-                          data-message-marker={m.marker}
-                        >
-                          {isInterjection ? (
-                            <div className="lobe-chat-interjection-tag">
-                              <IconTarget size={12} aria-hidden />
-                              <span>{tr("message.interjectionTag")}</span>
-                            </div>
-                          ) : null}
-                          <UserMessageBody
-                            content={m.content}
-                            scheduledLabel={tr("automations.msgTag")}
-                            remoteImLabel={tr("remoteIm.msgTag")}
-                            locale={locale}
-                            findQuery={findQuery}
-                            findActiveOccurrence={
-                              isFindCurrent
-                                ? (findActive?.occurrence ?? null)
-                                : null
-                            }
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-                  }
-                  actions={
-                    isEditing ? null : (
-                      <>
-                        {timeLabel ? (
-                          <span className="lobe-chat-action-time">
-                            {timeLabel}
-                          </span>
-                        ) : null}
-                        {m.content.trim() ? (
-                          <MessageCopyButton
-                            text={m.content}
-                            copyLabel={tr("message.copy")}
-                            copiedLabel={tr("message.copied")}
-                          />
-                        ) : null}
-                        {sessionId
-                          ? (() => {
-                              const link = formatMessageDeepLink(
-                                sessionId,
-                                m.id,
-                              );
-                              if (!link) return null;
-                              return (
-                                <MessageCopyButton
-                                  text={link}
-                                  copyLabel={tr("message.copyLink")}
-                                  copiedLabel={tr("message.linkCopied")}
-                                  idleIcon={<IconLink size={15} />}
-                                />
-                              );
-                            })()
-                          : null}
-                        {isLastUser ? (
-                          <MessageActionButton
-                            label={tr("message.edit")}
-                            disabled={!canEditLastUser}
-                            onClick={() => {
-                              if (!canEditLastUser) return;
-                              onEditUserMessage?.(m);
-                            }}
-                          >
-                            <IconRename size={15} />
-                          </MessageActionButton>
-                        ) : null}
-                        {onRewindToUserMessage && !isInterjection ? (
-                          <MessageActionButton
-                            label={tr("message.rewindHere")}
-                            disabled={!canRewindSession}
-                            onClick={() => {
-                              if (!canRewindSession) return;
-                              onRewindToUserMessage(m);
-                            }}
-                          >
-                            <IconRewind size={15} />
-                          </MessageActionButton>
-                        ) : null}
-                        {onForkFromUserMessage && !isInterjection ? (
-                          <MessageActionButton
-                            label={tr("message.forkHere")}
-                            disabled={!canRewindSession}
-                            onClick={() => {
-                              if (!canRewindSession) return;
-                              onForkFromUserMessage(m);
-                            }}
-                          >
-                            <IconFork size={15} />
-                          </MessageActionButton>
-                        ) : null}
-                      </>
-                    )
-                  }
-                />,
-              );
-            }
-
-            if (m.isError) {
-              const friendly = formatTurnErrorBody(
-                { content: m.content, code: undefined, message: undefined },
-                locale === "en" ? "en" : "zh",
-              );
-              const isFindHit = !!findHitMessageIds?.has(m.id);
-              const isFindCurrent = findActive?.messageId === m.id;
-              const isNodeFocus = focusMessageId === m.id;
-              const canRegenError =
-                !!onRegenerateAssistant && regenerableAssistantId === m.id;
-              // Codex-style soft notice — muted pill, no red box.
-              return wrap(
-                <div
-                  key={m.id}
-                  className={
-                    "lobe-chat-error" +
-                    (isFindHit ? " lobe-chat-item--find-hit" : "") +
-                    (isFindCurrent ? " lobe-chat-item--find-current" : "") +
-                    (isNodeFocus ? " lobe-chat-item--node-focus" : "")
-                  }
-                  role="status"
-                  data-testid="chat-turn-error"
-                  data-message-id={m.id}
-                >
-                  <div className="lobe-chat-error__pill">
-                    <span className="lobe-chat-error__icon" aria-hidden>
-                      ℹ
-                    </span>
-                    <span className="lobe-chat-error__text">
-                      {findQuery.trim() ? (
-                        <HighlightedText
-                          text={friendly}
-                          query={findQuery}
-                          activeOccurrence={
-                            isFindCurrent
-                              ? (findActive?.occurrence ?? null)
-                              : null
-                          }
-                        />
-                      ) : (
-                        friendly
-                      )}
-                    </span>
-                    {canRegenError ? (
-                      <span className="lobe-chat-error__actions">
-                        <MessageRegenerateButton
-                          label={tr("message.regenerate")}
-                          sameModelLabel={tr("message.regenerateSameModel")}
-                          pickModelLabel={tr("message.regeneratePickModel")}
-                          disabled={!canRegenerate}
-                          models={regenerateModels}
-                          currentModelId={regenerateModelId}
-                          iconSize={14}
-                          onRegenerate={(modelId) => {
-                            if (!canRegenerate) return;
-                            onRegenerateAssistant?.(
-                              m,
-                              modelId ? { modelId } : undefined,
-                            );
-                          }}
-                        />
-                      </span>
-                    ) : null}
-                  </div>
-                </div>,
-              );
-            }
-
-            // Assistant — thought / tool / body in true stream order.
-            const segs = messageSegments(m);
+            const tcid =
+              (m.toolCallId || "").trim() ||
+              (m.id.startsWith("tool-") ? m.id.slice(5) : "");
+            const toolInlined =
+              isToolStepMessage(m) &&
+              !!tcid &&
+              isToolInlinedInAssistants(wovenMessages, tcid);
+            const isInterjection = m.marker === "interjection";
+            const isLastUser =
+              !isInterjection && lastUserMessageId === m.id;
             const isActiveAssistant = activeAssistantId === m.id;
-            const hasInlinedRunningTool = segs.some(
-              (s) => s.kind === "tool" && toolSegmentIsRunning(s),
-            );
-            // Fallback live line only when tool not yet woven into segments.
-            // Conversation filter hides tool chrome (including live tool text).
-            const showLiveToolBelow =
-              showToolChrome &&
-              !!liveTool &&
-              isActiveAssistant &&
-              !hasInlinedRunningTool;
-            const showThinkingPlaceholder =
-              !!m.streaming &&
-              segs.length === 0 &&
-              !showLiveToolBelow;
 
-            const contentSegCount = segs.filter((s) => s.kind === "content")
-              .length;
-            let lastContentSi = -1;
-            for (let i = segs.length - 1; i >= 0; i--) {
-              if (segs[i]!.kind === "content") {
-                lastContentSi = i;
-                break;
-              }
-            }
-
-            const isFindHit = !!findHitMessageIds?.has(m.id);
-            const isFindCurrent = findActive?.messageId === m.id;
-            const isNodeFocus = focusMessageId === m.id;
-            // Phase projection: thought+tools collapse when phase ends (content
-            // / next thought), not only when the full answer is done.
-            const timelineUnits = buildTimelineUnits(segs, {
-              streaming: !!m.streaming,
-            });
-
-            return wrap(
-              <ChatItem
+            return (
+              <TranscriptMessageRow
                 key={m.id}
-                id={m.id}
-                placement="left"
-                showAvatar={false}
-                loading={!!m.streaming}
-                className={
-                  (isFindHit ? " lobe-chat-item--find-hit" : "") +
-                  (isFindCurrent ? " lobe-chat-item--find-current" : "") +
-                  (isNodeFocus ? " lobe-chat-item--node-focus" : "")
+                message={m}
+                msgIndex={msgIndex}
+                virtualized={virtualized}
+                measureRef={measureRef}
+                locale={locale}
+                toolInlined={toolInlined}
+                showToolChrome={showToolChrome}
+                toolStepsAutoCollapse={toolStepsAutoCollapse}
+                isLastUser={isLastUser}
+                isEditing={editingUserMessageId === m.id}
+                editSubmitting={editSubmitting}
+                editAttachments={editAttachments}
+                canEditLastUser={canEditLastUser}
+                canRegenerate={canRegenerate}
+                canRegenThis={
+                  !!onRegenerateAssistant && regenerableAssistantId === m.id
                 }
-                message={
-                  <div
-                    className="lobe-chat-assistant-timeline"
-                    aria-busy={m.streaming ? true : undefined}
-                    aria-live={m.streaming ? "polite" : undefined}
-                    data-find-assistant={isFindCurrent ? "current" : undefined}
-                  >
-                    {showThinkingPlaceholder ? (
-                      <Thinking
-                        locale={locale}
-                        thinking
-                        streamingLabel={tr("chat.thinkingLabel")}
-                        doneLabel={tr("chat.thoughtDone")}
-                        thoughtForLabel={(n) => tr("chat.thoughtFor", { n })}
-                      />
-                    ) : null}
-                    {(() => {
-                      // Running occurrence base across content segments so
-                      // find marks stay aligned with message-level match index.
-                      let contentOccBase = 0;
-                      return timelineUnits.map((unit) => {
-                        if (unit.kind === "phase") {
-                          // Always paint Grok Worked-for rail (tools + thought steps).
-                          // “Conversation only” only hides standalone tool_step rows,
-                          // not this official activity summary.
-                          return (
-                            <TimelinePhaseBlock
-                              key={`${m.id}-${unit.id}`}
-                              phase={unit}
-                              locale={locale}
-                              messageStreaming={!!m.streaming}
-                              autoCollapse={toolStepsAutoCollapse}
-                              historyTimestamps={[
-                                m.createdAt,
-                                ...unit.tools.map((t) => t.createdAt),
-                              ]}
-                            />
-                          );
-                        }
-                        if (unit.kind === "tool") {
-                          // Bare tool outside a phase — respect hide-tools filter.
-                          if (!showToolChrome) return null;
-                          return (
-                            <div
-                              key={`${m.id}-tool-${unit.tool.toolCallId || unit.si}`}
-                              className="lobe-timeline-rail"
-                            >
-                              <TimelineToolRow
-                                tool={unit.tool}
-                                autoCollapse={toolStepsAutoCollapse}
-                                locale={locale}
-                              />
-                            </div>
-                          );
-                        }
-                        // Adjacent bare thoughts are coalesced into thought-group.
-                        if (
-                          unit.kind === "thought" ||
-                          unit.kind === "thought-group"
-                        ) {
-                          const texts =
-                            unit.kind === "thought-group"
-                              ? unit.texts
-                              : [unit.text];
-                          const joined = texts
-                            .map((t) => t.trim())
-                            .filter(Boolean)
-                            .join("\n\n");
-                          const streaming = unit.streaming;
-                          if (
-                            !joined &&
-                            !(m.streaming && streaming)
-                          ) {
-                            return null;
-                          }
-                          return (
-                            <div
-                              key={`${m.id}-th-${unit.si}`}
-                              className="lobe-timeline-rail"
-                            >
-                              <Thinking
-                                locale={locale}
-                                thinking={streaming}
-                                content={joined}
-                                streamingLabel={tr("chat.thinkingLabel")}
-                                doneLabel={tr("chat.thoughtDone")}
-                                thoughtForLabel={(n) =>
-                                  tr("chat.thoughtFor", { n })
-                                }
-                                onOpenExternalLink={onOpenExternalLink}
-                              />
-                            </div>
-                          );
-                        }
-                        // content — never folded into a work phase
-                        const segBase = contentOccBase;
-                        if (findQuery.trim()) {
-                          contentOccBase += findChatMatches(findQuery, [
-                            {
-                              id: `${m.id}-seg-${unit.si}`,
-                              role: "assistant",
-                              content: unit.text,
-                            },
-                          ]).length;
-                        }
-                        return (
-                          <AssistantMessageBody
-                            key={`${m.id}-c-${unit.si}`}
-                            content={unit.text}
-                            attachments={
-                              unit.si === lastContentSi
-                                ? m.attachments
-                                : undefined
-                            }
-                            streaming={unit.streaming}
-                            locale={locale}
-                            projectPath={projectPath}
-                            sessionPathMap={sessionPathMap}
-                            onOpenResource={onOpenResource}
-                            onOpenExternalLink={onOpenExternalLink}
-                            onAddAttachmentToComposer={
-                              onAddAttachmentToComposer
-                            }
-                            attachLabels={attachLabels}
-                            findQuery={findQuery}
-                            findActiveOccurrence={
-                              isFindCurrent
-                                ? (findActive?.occurrence ?? null)
-                                : null
-                            }
-                            findOccurrenceBase={segBase}
-                          />
-                        );
-                      });
-                    })()}
-                    {/* Body-less turn with only attachments */}
-                    {!contentSegCount && m.attachments?.length ? (
-                      <AssistantMessageBody
-                        content=""
-                        attachments={m.attachments}
-                        streaming={!!m.streaming}
-                        locale={locale}
-                        projectPath={projectPath}
-                        sessionPathMap={sessionPathMap}
-                        onOpenResource={onOpenResource}
-                        onOpenExternalLink={onOpenExternalLink}
-                        onAddAttachmentToComposer={onAddAttachmentToComposer}
-                        attachLabels={attachLabels}
-                        findQuery={findQuery}
-                        findActiveOccurrence={
-                          isFindCurrent
-                            ? (findActive?.occurrence ?? null)
-                            : null
-                        }
-                      />
-                    ) : null}
-                    {structuredOutputActive &&
-                    structuredOutputLabels &&
-                    (m.streaming || !!m.content.trim()) ? (
-                      <StructuredJsonPanel
-                        content={m.content}
-                        schemaText={structuredOutputSchema}
-                        labels={structuredOutputLabels}
-                        streaming={!!m.streaming}
-                        usage={
-                          m.id === structuredUsageMessageId
-                            ? structuredOutputUsage
-                            : null
-                        }
-                      />
-                    ) : null}
-                    {(() => {
-                      if (m.streaming || !showReplyLength) return null;
-                      const stats = computeMessageLength(m.content);
-                      if (stats.empty) return null;
-                      const words = String(stats.words);
-                      const chars = String(stats.chars);
-                      return (
-                        <div
-                          className="lobe-chat-reply-length"
-                          aria-label={tr("message.replyLengthAria", {
-                            words,
-                            chars,
-                          })}
-                        >
-                          {tr("message.replyLength", { words, chars })}
-                        </div>
-                      );
-                    })()}
-                  </div>
+                regenerateModels={regenerateModels}
+                regenerateModelId={regenerateModelId}
+                canRewindSession={canRewindSession}
+                sessionId={sessionId}
+                projectPath={projectPath}
+                sessionPathMap={sessionPathMap}
+                showTimestamps={showTimestamps}
+                messageTimeFormat={messageTimeFormat}
+                showReplyLength={showReplyLength}
+                structuredOutputActive={structuredOutputActive}
+                structuredOutputSchema={structuredOutputSchema}
+                structuredOutputUsage={structuredOutputUsage}
+                structuredOutputLabels={structuredOutputLabels}
+                showStructuredUsage={m.id === structuredUsageMessageId}
+                isActiveAssistant={isActiveAssistant}
+                liveTool={isActiveAssistant ? liveTool : null}
+                findQuery={findQuery}
+                isFindHit={!!findHitMessageIds?.has(m.id)}
+                isFindCurrent={findActive?.messageId === m.id}
+                findActiveOccurrence={
+                  findActive?.messageId === m.id
+                    ? (findActive.occurrence ?? null)
+                    : null
                 }
-                belowMessage={
-                  showLiveToolBelow && liveTool ? (
-                    <LiveToolText message={liveTool} locale={locale} />
-                  ) : null
-                }
-                actions={(() => {
-                  if (m.streaming) return null;
-                  const showCopy = !!m.content.trim();
-                  const showRegen =
-                    !!onRegenerateAssistant && regenerableAssistantId === m.id;
-                  if (!showCopy && !showRegen) return null;
-                  const deepLink =
-                    sessionId != null
-                      ? formatMessageDeepLink(sessionId, m.id)
-                      : "";
-                  const showCopyLink = !!deepLink;
-                  if (!showCopy && !showRegen && !showCopyLink) return null;
-                  return (
-                    <>
-                      {showCopy ? (
-                        <>
-                          <MessageCopyButton
-                            text={m.content}
-                            copyLabel={tr("message.copy")}
-                            copiedLabel={tr("message.copied")}
-                          />
-                          <MessageActionButton
-                            label={tr("message.exportMd")}
-                            onClick={() => {
-                              const blob = new Blob([m.content], {
-                                type: "text/markdown;charset=utf-8",
-                              });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement("a");
-                              a.href = url;
-                              a.download = `grok-${m.id.slice(0, 8)}.md`;
-                              a.click();
-                              URL.revokeObjectURL(url);
-                            }}
-                          >
-                            <IconExportMd size={15} />
-                          </MessageActionButton>
-                        </>
-                      ) : null}
-                      {showCopyLink ? (
-                        <MessageCopyButton
-                          text={deepLink}
-                          copyLabel={tr("message.copyLink")}
-                          copiedLabel={tr("message.linkCopied")}
-                          idleIcon={<IconLink size={15} />}
-                        />
-                      ) : null}
-                      {showRegen ? (
-                        <MessageRegenerateButton
-                          label={tr("message.regenerate")}
-                          sameModelLabel={tr("message.regenerateSameModel")}
-                          pickModelLabel={tr("message.regeneratePickModel")}
-                          disabled={!canRegenerate}
-                          models={regenerateModels}
-                          currentModelId={regenerateModelId}
-                          onRegenerate={(modelId) => {
-                            if (!canRegenerate) return;
-                            onRegenerateAssistant?.(
-                              m,
-                              modelId ? { modelId } : undefined,
-                            );
-                          }}
-                        />
-                      ) : null}
-                    </>
-                  );
-                })()}
-              />,
+                isNodeFocus={focusMessageId === m.id}
+                attachLabels={attachLabels}
+                onEditUserMessage={onEditUserMessage}
+                onCancelEditUserMessage={onCancelEditUserMessage}
+                onSubmitEditUserMessage={onSubmitEditUserMessage}
+                onRemoveEditAttachment={onRemoveEditAttachment}
+                onRegenerateAssistant={onRegenerateAssistant}
+                onRewindToUserMessage={onRewindToUserMessage}
+                onForkFromUserMessage={onForkFromUserMessage}
+                onOpenResource={onOpenResource}
+                onOpenExternalLink={onOpenExternalLink}
+                onAddAttachmentToComposer={onAddAttachmentToComposer}
+              />
             );
           })}
 
@@ -1880,39 +953,13 @@ export function ConversationThread({
             />
           ) : null}
 
-          {/* Tool before any assistant bubble — only if not already a message row. */}
-          {showToolChrome &&
-          liveTool &&
-          !activeAssistantId &&
-          !(
-            liveTool.toolCallId &&
-            isToolInlinedInAssistants(messages, liveTool.toolCallId)
-          ) &&
-          !messages.some(
-            (x) =>
-              isToolStepMessage(x) &&
-              (x.toolCallId === liveTool.toolCallId ||
-                x.id === `tool-${liveTool.toolCallId}`),
-          ) ? (
-            <LiveToolText message={liveTool} locale={locale} />
-          ) : null}
-
-          {showQuietThinking ? (
-            <div
-              className="grok-act__step is-running is-last"
-              role="status"
-              data-testid="quiet-thinking"
-            >
-              <div className="grok-act__icon-col" aria-hidden>
-                <span className="grok-act__icon">
-                  <IconBulb size={16} stroke={1.5} />
-                </span>
-              </div>
-              <span className="grok-act__label grok-act__label--live">
-                {tr("chat.thinkingLabel")}
-              </span>
-            </div>
-          ) : null}
+          <ConversationStickyTail
+            locale={locale}
+            showStandaloneLiveTool={showStandaloneLiveTool}
+            liveTool={liveTool}
+            showQuietThinking={showQuietThinking}
+            thinkingLabel={thinkingLabel}
+          />
 
           {/* Plan UI lives only in PlanStatusBar (top) + ResourceViewer Plan mode. */}
         </div>
@@ -1938,3 +985,4 @@ export function ConversationThread({
     </div>
   );
 }
+
