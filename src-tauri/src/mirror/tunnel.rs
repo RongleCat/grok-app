@@ -25,6 +25,10 @@ const TUNNEL_READY_TIMEOUT: Duration = Duration::from_secs(90);
 /// First Docker run can pull the official image before cloudflared starts.
 const DOCKER_TUNNEL_READY_TIMEOUT: Duration = Duration::from_secs(180);
 const DOCKER_DAEMON_TIMEOUT: Duration = Duration::from_secs(8);
+/// A single QUIC disconnect can be transient. Two failures before registration
+/// are enough to prove the default transport is not becoming usable, while
+/// keeping the HTTP/2 retry well below the normal Docker readiness timeout.
+const QUIC_FAILURES_BEFORE_HTTP2_RETRY: usize = 2;
 const DEFAULT_CLOUDFLARED_IMAGE: &str = "cloudflare/cloudflared:latest";
 const DOCKER_CONTAINER_PREFIX: &str = "grok-mirror-cloudflared-";
 const DOCKER_MIRROR_LABEL: &str = "com.grokapp.mirror=1";
@@ -57,8 +61,45 @@ struct TunnelCommandSpec {
     docker_cleanup: Option<DockerCleanup>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TunnelProtocol {
+    Auto,
+    Http2,
+}
+
+impl TunnelProtocol {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Http2 => "http2",
+        }
+    }
+}
+
+#[derive(Debug)]
+struct TunnelAttemptError {
+    message: String,
+    retry_with_http2: bool,
+}
+
+impl TunnelAttemptError {
+    fn other(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            retry_with_http2: false,
+        }
+    }
+
+    fn quic_unavailable() -> Self {
+        Self {
+            message: "cloudflared QUIC transport failed repeatedly before registration".into(),
+            retry_with_http2: true,
+        }
+    }
+}
+
 impl TunnelAdapter {
-    fn command_spec(&self, local_port: u16) -> TunnelCommandSpec {
+    fn command_spec(&self, local_port: u16, protocol: TunnelProtocol) -> TunnelCommandSpec {
         match self {
             Self::HostBinary { bin } => TunnelCommandSpec {
                 program: bin.clone(),
@@ -92,8 +133,11 @@ impl TunnelAdapter {
                     "tunnel".into(),
                     "--url".into(),
                     docker_tunnel_origin(local_port),
-                    "--no-autoupdate".into(),
                 ]);
+                if protocol == TunnelProtocol::Http2 {
+                    args.extend(["--protocol".into(), "http2".into()]);
+                }
+                args.push("--no-autoupdate".into());
                 TunnelCommandSpec {
                     program: bin.clone(),
                     args,
@@ -186,7 +230,34 @@ pub struct TunnelStart {
 /// `Registered tunnel connection` (or errors out).
 pub async fn start_quick_tunnel(local_port: u16) -> Result<TunnelStart, String> {
     let adapter = select_tunnel_adapter(local_port).await?;
-    let spec = adapter.command_spec(local_port);
+    match start_tunnel_attempt(&adapter, local_port, TunnelProtocol::Auto).await {
+        Ok(start) => Ok(start),
+        Err(primary)
+            if matches!(adapter, TunnelAdapter::Docker { .. }) && primary.retry_with_http2 =>
+        {
+            tracing::warn!(
+                error = %primary.message,
+                "mirror Docker tunnel retrying with HTTP/2 transport"
+            );
+            start_tunnel_attempt(&adapter, local_port, TunnelProtocol::Http2)
+                .await
+                .map_err(|fallback| {
+                    format!(
+                        "{}; HTTP/2 retry failed: {}",
+                        primary.message, fallback.message
+                    )
+                })
+        }
+        Err(error) => Err(error.message),
+    }
+}
+
+async fn start_tunnel_attempt(
+    adapter: &TunnelAdapter,
+    local_port: u16,
+    protocol: TunnelProtocol,
+) -> Result<TunnelStart, TunnelAttemptError> {
+    let spec = adapter.command_spec(local_port, protocol);
     let mut cmd = Command::new(&spec.program);
     cmd.args(&spec.args)
         .stdin(Stdio::null())
@@ -215,10 +286,10 @@ pub async fn start_quick_tunnel(local_port: u16) -> Result<TunnelStart, String> 
     }
 
     let mut child = cmd.spawn().map_err(|e| {
-        format!(
+        TunnelAttemptError::other(format!(
             "failed to spawn {} cloudflared adapter: {e}",
             spec.adapter_name
-        )
+        ))
     })?;
     let pid = child.id();
     let pgid = pid.map(|p| p as i32);
@@ -227,20 +298,22 @@ pub async fn start_quick_tunnel(local_port: u16) -> Result<TunnelStart, String> 
         Some(stdout) => stdout,
         None => {
             terminate_failed_tunnel(&mut child, pid, pgid, spec.docker_cleanup.clone());
-            return Err("cloudflared stdout missing".into());
+            return Err(TunnelAttemptError::other("cloudflared stdout missing"));
         }
     };
     let stderr = match child.stderr.take() {
         Some(stderr) => stderr,
         None => {
             terminate_failed_tunnel(&mut child, pid, pgid, spec.docker_cleanup.clone());
-            return Err("cloudflared stderr missing".into());
+            return Err(TunnelAttemptError::other("cloudflared stderr missing"));
         }
     };
 
-    let (tx, rx) = oneshot::channel::<Result<(String, bool), String>>();
+    let detect_quic_failure =
+        matches!(adapter, TunnelAdapter::Docker { .. }) && protocol == TunnelProtocol::Auto;
+    let (tx, rx) = oneshot::channel::<Result<(String, bool), TunnelAttemptError>>();
     tauri::async_runtime::spawn(async move {
-        let result = pump_tunnel_logs(stdout, stderr).await;
+        let result = pump_tunnel_logs(stdout, stderr, detect_quic_failure).await;
         let _ = tx.send(result);
     });
 
@@ -253,25 +326,35 @@ pub async fn start_quick_tunnel(local_port: u16) -> Result<TunnelStart, String> 
         }
         Ok(Err(_)) => {
             terminate_failed_tunnel(&mut child, pid, pgid, spec.docker_cleanup.clone());
-            return Err("cloudflared log pump closed without ready signal".into());
+            return Err(TunnelAttemptError::other(
+                "cloudflared log pump closed without ready signal",
+            ));
         }
         Err(_) => {
             terminate_failed_tunnel(&mut child, pid, pgid, spec.docker_cleanup.clone());
-            return Err(format!(
+            return Err(TunnelAttemptError::other(format!(
                 "cloudflared did not become ready within {}s",
                 spec.ready_timeout.as_secs()
-            ));
+            )));
         }
     };
 
     if !registered {
         terminate_failed_tunnel(&mut child, pid, pgid, spec.docker_cleanup.clone());
-        return Err("cloudflared printed URL but never 'Registered tunnel connection'".into());
+        return Err(TunnelAttemptError::other(
+            "cloudflared printed URL but never 'Registered tunnel connection'",
+        ));
     }
 
     let public_url = public_url.trim_end_matches('/').to_string();
 
-    tracing::info!(%public_url, ?pid, adapter = spec.adapter_name, "mirror cloudflared tunnel registered");
+    tracing::info!(
+        %public_url,
+        ?pid,
+        adapter = spec.adapter_name,
+        protocol = protocol.label(),
+        "mirror cloudflared tunnel registered"
+    );
 
     Ok(TunnelStart {
         handle: TunnelHandle {
@@ -485,7 +568,8 @@ fn cleanup_docker_container_in_background(cleanup: Option<DockerCleanup>) {
 async fn pump_tunnel_logs(
     stdout: impl tokio::io::AsyncRead + Unpin + Send + 'static,
     stderr: impl tokio::io::AsyncRead + Unpin + Send + 'static,
-) -> Result<(String, bool), String> {
+    detect_quic_failure: bool,
+) -> Result<(String, bool), TunnelAttemptError> {
     let (line_tx, mut line_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
 
     let tx_out = line_tx.clone();
@@ -505,6 +589,7 @@ async fn pump_tunnel_logs(
 
     let mut public_url: Option<String> = None;
     let mut registered = false;
+    let mut quic_failures = 0usize;
 
     while let Some(line) = line_rx.recv().await {
         tracing::debug!(target: "mirror_tunnel", "{line}");
@@ -516,6 +601,12 @@ async fn pump_tunnel_logs(
         if line.contains("Registered tunnel connection") {
             registered = true;
         }
+        if detect_quic_failure && is_quic_connectivity_failure(&line) {
+            quic_failures += 1;
+            if quic_failures >= QUIC_FAILURES_BEFORE_HTTP2_RETRY {
+                return Err(TunnelAttemptError::quic_unavailable());
+            }
+        }
         if let Some(ref u) = public_url {
             if registered {
                 return Ok((u.clone(), true));
@@ -526,8 +617,18 @@ async fn pump_tunnel_logs(
     match public_url {
         Some(u) if registered => Ok((u, true)),
         Some(u) => Ok((u, false)),
-        None => Err("cloudflared exited before printing a public URL".into()),
+        None => Err(TunnelAttemptError::other(
+            "cloudflared exited before printing a public URL",
+        )),
     }
+}
+
+fn is_quic_connectivity_failure(line: &str) -> bool {
+    let line = line.to_ascii_lowercase();
+    line.contains("quic")
+        && (line.contains("failed")
+            || line.contains("timeout")
+            || line.contains("no recent network activity"))
 }
 
 /// Extract first `https://*.trycloudflare.com` (or similar quick-tunnel host) from a log line.
@@ -614,6 +715,7 @@ fn libc_kill(pid: i32, sig: i32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::io::AsyncWriteExt;
 
     #[test]
     fn extracts_trycloudflare_url() {
@@ -644,7 +746,7 @@ mod tests {
         let adapter = TunnelAdapter::HostBinary {
             bin: PathBuf::from("/usr/local/bin/cloudflared"),
         };
-        let spec = adapter.command_spec(52770);
+        let spec = adapter.command_spec(52770, TunnelProtocol::Auto);
         assert_eq!(spec.adapter_name, "host_binary");
         assert_eq!(spec.program, PathBuf::from("/usr/local/bin/cloudflared"));
         assert!(spec.args.iter().any(|arg| arg == "http://127.0.0.1:52770"));
@@ -658,7 +760,7 @@ mod tests {
             image: DEFAULT_CLOUDFLARED_IMAGE.into(),
             container_name: "grok-mirror-test".into(),
         };
-        let spec = adapter.command_spec(52770);
+        let spec = adapter.command_spec(52770, TunnelProtocol::Auto);
         assert_eq!(spec.adapter_name, "docker");
         assert!(spec.args.iter().any(|arg| arg == DEFAULT_CLOUDFLARED_IMAGE));
         assert!(spec
@@ -689,5 +791,68 @@ mod tests {
             .args
             .iter()
             .any(|arg| arg == "http://host.docker.internal:52770"));
+    }
+
+    #[test]
+    fn docker_http2_retry_adds_transport_override() {
+        let adapter = TunnelAdapter::Docker {
+            bin: PathBuf::from("/usr/local/bin/docker"),
+            image: DEFAULT_CLOUDFLARED_IMAGE.into(),
+            container_name: "grok-mirror-test".into(),
+        };
+
+        let automatic = adapter.command_spec(52770, TunnelProtocol::Auto);
+        assert!(!automatic
+            .args
+            .windows(2)
+            .any(|pair| pair[0] == "--protocol"));
+
+        let http2 = adapter.command_spec(52770, TunnelProtocol::Http2);
+        assert!(http2
+            .args
+            .windows(2)
+            .any(|pair| pair[0] == "--protocol" && pair[1] == "http2"));
+    }
+
+    #[test]
+    fn identifies_real_quic_failures_but_ignores_successful_prechecks() {
+        assert!(is_quic_connectivity_failure(
+            "ERR Failed to dial a quic connection error=timeout: no recent network activity"
+        ));
+        assert!(is_quic_connectivity_failure(
+            "ERR failed to accept QUIC stream: timeout: no recent network activity"
+        ));
+        assert!(!is_quic_connectivity_failure(
+            "UDP Connectivity region1.v2.argotunnel.com PASS QUIC connection successful"
+        ));
+        assert!(!is_quic_connectivity_failure(
+            "INF Registered tunnel connection protocol=http2"
+        ));
+    }
+
+    #[tokio::test]
+    async fn repeated_quic_failures_request_http2_retry() {
+        let (mut stdout_writer, stdout_reader) = tokio::io::duplex(2048);
+        let (mut stderr_writer, stderr_reader) = tokio::io::duplex(2048);
+
+        stdout_writer
+            .write_all(b"INF https://retry-me.trycloudflare.com\n")
+            .await
+            .unwrap();
+        stderr_writer
+            .write_all(
+                b"ERR failed to accept QUIC stream: timeout: no recent network activity\n\
+                  ERR Failed to dial a quic connection: timeout: no recent network activity\n",
+            )
+            .await
+            .unwrap();
+        stdout_writer.shutdown().await.unwrap();
+        stderr_writer.shutdown().await.unwrap();
+
+        let error = pump_tunnel_logs(stdout_reader, stderr_reader, true)
+            .await
+            .unwrap_err();
+        assert!(error.retry_with_http2);
+        assert!(error.message.contains("QUIC"));
     }
 }
