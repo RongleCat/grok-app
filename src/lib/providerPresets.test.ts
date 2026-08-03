@@ -37,7 +37,12 @@ describe("providerPresets", () => {
     expect(amux!.apiBackend).toBe("responses");
     expect(AMUX_MODELS).toEqual([{ id: "grok-4.5", name: "Grok 4.5" }]);
     expect(amux!.models).toEqual(AMUX_MODELS);
-    expect(amux!.efforts.map((e) => e.id)).toEqual(["low", "medium", "high"]);
+    expect(amux!.efforts.map((e) => e.id)).toEqual([
+      "low",
+      "medium",
+      "high",
+      "max",
+    ]);
     expect(amux!.apiKeyUrl).toContain("api.amux.ai/register");
   });
 
@@ -91,11 +96,12 @@ describe("providerPresets", () => {
     expect(resolveProviderBrandId({ providerId: "yun-api" })).toBe(null);
   });
 
-  it("defaults blank custom channels to Grok low/medium/high (ladder order)", () => {
+  it("defaults blank custom channels to Grok low/medium/high/max (ladder order)", () => {
     expect(defaultCustomChannelEfforts().map((e) => e.id)).toEqual([
       "low",
       "medium",
       "high",
+      "max",
     ]);
   });
 });

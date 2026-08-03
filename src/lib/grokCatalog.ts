@@ -188,16 +188,18 @@ export function pickDefaultEffort(
 /** Classify an effort catalog for cross-channel / UI-ladder mapping. */
 export function effortCatalogKind(
   efforts?: EffortOption[] | null,
-): "grok3" | "deepseek4" | "other" {
+): "grok3" | "tier4" | "deepseek4" | "other" {
   const list = efforts?.length ? efforts : [];
   const ids = new Set(list.map((e) => e.id.trim().toLowerCase()));
   const hasMedium = ids.has("medium");
   const hasDsTop = ids.has("xhigh") || ids.has("max");
   // DeepSeek-style: low/high/xhigh/max (no medium).
   if (hasDsTop && !hasMedium) return "deepseek4";
-  // Grok-style: low/medium/high (no xhigh/max).
-  if (hasMedium && !hasDsTop) return "grok3";
-  if (hasDsTop) return "deepseek4";
+  // Custom-channel 4-tier: low/medium/high + max/xhigh (medium + a top tier).
+  // Official Grok stays grok3 (low/medium/high); this kind is only for
+  // custom-provider channels that add a max tier mapped to the 极高 slot.
+  if (hasDsTop && hasMedium) return "tier4";
+  // Grok 3-tier: low/medium/high (no xhigh/max).
   if (hasMedium) return "grok3";
   return "other";
 }
@@ -220,6 +222,14 @@ function spawnMapForCatalog(
       low: byLower.get("low"),
       medium: byLower.get("medium"),
       high: byLower.get("high"),
+    };
+  }
+  if (kind === "tier4") {
+    return {
+      low: byLower.get("low"),
+      medium: byLower.get("medium"),
+      high: byLower.get("high"),
+      xhigh: byLower.get("max") ?? byLower.get("xhigh"),
     };
   }
   if (kind === "deepseek4") {

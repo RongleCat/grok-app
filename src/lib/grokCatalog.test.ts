@@ -173,6 +173,29 @@ describe("effort UI ladder", () => {
       mapEffortToTargetCatalog("high", deepseek, GROK_BUILD_EFFORTS),
     ).toBe("xhigh");
   });
+
+  it("orders custom 4-tier (low/medium/high/max) onto all 4 UI slots", () => {
+    const tier4: EffortOption[] = [
+      { id: "low" },
+      { id: "medium" },
+      { id: "high" },
+      { id: "max" },
+    ];
+    expect(effortUiOptionsForCatalog(tier4).map((o) => o.uiId)).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+    ]);
+    expect(effortUiOptionsForCatalog(tier4).map((o) => o.spawnId)).toEqual([
+      "low",
+      "medium",
+      "high",
+      "max",
+    ]);
+    expect(spawnIdToEffortUiSlot("max", tier4)).toBe("xhigh");
+    expect(spawnIdToEffortUiSlot("medium", tier4)).toBe("medium");
+  });
 });
 
 describe("effortDisplayLabel", () => {

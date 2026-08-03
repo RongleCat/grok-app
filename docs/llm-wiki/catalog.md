@@ -28,18 +28,20 @@ CLI `models_cache.json` 每模型可带 `info.reasoning_efforts: [{id,value,labe
 Composer **UI 阶梯**统一为 4 档（低 → 高）：**低 / 中 / 高 / 极高**。  
 3 档模型（Grok）不展示「极高」；选中后映射为该模型真实 spawn / `reasoning_effort` 值。
 
-| UI 阶梯 | Grok spawn | DeepSeek spawn |
-|---------|------------|----------------|
-| 低 | `low` | `low` |
-| 中 | `medium` | `high` |
-| 高 | `high` | `xhigh` |
-| 极高 | —（不展示） | `max` |
+| UI 阶梯 | Grok spawn | Grok 自定义(4档) | DeepSeek spawn |
+|---------|------------|------------------|----------------|
+| 低 | `low` | `low` | `low` |
+| 中 | `medium` | `medium` | `high` |
+| 高 | `high` | `high` | `xhigh` |
+| 极高 | —（不展示） | `max` | `max` |
 
 解析顺序（真实可选值）：
 
 1. **自定义通道 active** → 该提供商的 `efforts`（`app_efforts`）
 2. 否则官方 catalog 的 `reasoningEfforts`
 3. 再回退 `GROK_BUILD_EFFORTS`（`low` · `medium` · `high`，默认 medium）
+
+自定义通道默认档（`GROK_CHANNEL_EFFORTS`，点「恢复 Grok 默认」得到）：`low` · `medium` · `high` · `max`——4 档，`max` 映射极高 UI 槽（catalog kind `tier4`）。官方 `GROK_BUILD_EFFORTS` 仍为 3 档。
 
 展示标签走 UI 阶梯 i18n（`effort.low|medium|high|xhigh`），不直接用上游 id 文案。
 

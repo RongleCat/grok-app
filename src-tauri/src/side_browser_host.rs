@@ -301,8 +301,7 @@ pub fn create(
 pub fn close(app: &AppHandle, label: String) -> Result<(), String> {
     validate_side_label(&label)?;
     if let Some(wv) = app.get_webview(&label) {
-        wv.close()
-            .map_err(|e| format!("side browser close: {e}"))?;
+        wv.close().map_err(|e| format!("side browser close: {e}"))?;
     }
     Ok(())
 }

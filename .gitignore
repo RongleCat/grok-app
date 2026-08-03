@@ -58,6 +58,7 @@ temp/
 
 # Local agent / IDE workspaces
 .claude/
+.zcode/
 
 # Playwright MCP local dumps
 .playwright-mcp/

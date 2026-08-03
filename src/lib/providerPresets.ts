@@ -4,7 +4,6 @@
  */
 
 import type { ProviderEffortEntry, ProviderModelEntry } from "@/lib/api";
-import { GROK_BUILD_EFFORTS } from "@/lib/grokCatalog";
 
 /** Known brand marks with dedicated logos (see ProviderBrandIcon). */
 export type ProviderBrandId = "deepseek" | "amux" | "opencode-go";
@@ -27,14 +26,16 @@ export type ProviderPreset = {
   brandId?: ProviderBrandId;
 };
 
-/** Grok / official default reasoning tiers (low · medium · high). */
-export const GROK_CHANNEL_EFFORTS: ProviderEffortEntry[] = GROK_BUILD_EFFORTS.map(
-  (e) => ({
-    id: e.id,
-    name: e.id,
-    isDefault: e.id === "medium",
-  }),
-);
+/**
+ * Default reasoning tiers for custom Grok-compatible channels:
+ * low · medium · high · max (max maps to the 极高 UI slot via `tier4` kind).
+ */
+export const GROK_CHANNEL_EFFORTS: ProviderEffortEntry[] = [
+  { id: "low", name: "low" },
+  { id: "medium", name: "medium", isDefault: true },
+  { id: "high", name: "high" },
+  { id: "max", name: "max" },
+];
 
 /**
  * DeepSeek thinking-mode efforts (OpenAI `reasoning_effort` mapping table):
