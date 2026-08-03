@@ -685,6 +685,48 @@
   cursor: default;
 }
 
+.prov-models__remote-count {
+  margin-left: 6px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.prov-models__remote-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.prov-models__search-input {
+  width: 100%;
+  padding-right: 30px;
+  font-size: 12.5px;
+}
+
+.prov-models__search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+
+.prov-models__search-clear:hover {
+  color: var(--text-primary);
+}
+
+.prov-models__remote-empty {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
 @media (max-width: 560px) {
   .prov-models__head {
     display: none;

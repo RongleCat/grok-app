@@ -153,30 +153,21 @@ fn freeform_scans_okay_output_when_no_structured_path() {
 #[test]
 fn prepare_rejects_missing_and_single_segment() {
     assert!(prepare_media_attachment_path("/img_001.png", None, true).is_none());
-    assert!(prepare_media_attachment_path(
-        "/no/such/path/definitely-missing-xyz.png",
-        None,
-        true
-    )
-    .is_none());
+    assert!(
+        prepare_media_attachment_path("/no/such/path/definitely-missing-xyz.png", None, true)
+            .is_none()
+    );
     // Remote always ok without disk.
     assert_eq!(
-        prepare_media_attachment_path(
-            "https://cdn.example.com/a/b/thumb.jpg",
-            None,
-            false
-        )
-        .as_deref(),
+        prepare_media_attachment_path("https://cdn.example.com/a/b/thumb.jpg", None, false)
+            .as_deref(),
         Some("https://cdn.example.com/a/b/thumb.jpg")
     );
 }
 
 #[test]
 fn prepare_force_grants_existing_temp_media() {
-    let dir = std::env::temp_dir().join(format!(
-        "grok-media-attach-test-{}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("grok-media-attach-test-{}", std::process::id()));
     let _ = std::fs::create_dir_all(&dir);
     let file = dir.join("shot.png");
     std::fs::write(&file, b"fake").expect("write");

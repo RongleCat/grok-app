@@ -198,6 +198,8 @@ export function ProvidersPanel({
   const [busy, setBusy] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [remoteModels, setRemoteModels] = useState<string[]>([]);
+  /** Frontend substring filter for the fetched model list. */
+  const [modelSearch, setModelSearch] = useState("");
   /** Busy flag for fetch-models only (disables button while in flight). */
   const [fetchingModels, setFetchingModels] = useState(false);
   /** Draft row for manually adding a model. */
@@ -237,6 +239,12 @@ export function ProvidersPanel({
     ],
     [tr],
   );
+
+  const filteredRemoteModels = useMemo(() => {
+    const q = modelSearch.trim().toLowerCase();
+    if (!q) return remoteModels;
+    return remoteModels.filter((mid) => mid.toLowerCase().includes(q));
+  }, [remoteModels, modelSearch]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -768,6 +776,7 @@ export function ProvidersPanel({
         providerId: editingId ?? undefined,
       });
       setRemoteModels(r.models.map((m) => m.id));
+      setModelSearch("");
       if (r.models.length) {
         onToast?.(tr("prov.loaded", { n: r.models.length }), 2800);
       } else {
@@ -1320,27 +1329,69 @@ export function ProvidersPanel({
                     <div className="prov-models__remote">
                       <div className="prov-models__remote-label">
                         {tr("prov.remoteModels")}
+                        {modelSearch.trim() ? (
+                          <span className="prov-models__remote-count">
+                            {tr("prov.remoteModelsCount", {
+                              matched: String(filteredRemoteModels.length),
+                              total: String(remoteModels.length),
+                            })}
+                          </span>
+                        ) : null}
                       </div>
-                      <div className="prov-models__chips">
-                        {remoteModels.map((mid) => {
-                          const added = form.models.some((m) => m.id === mid);
-                          return (
+                      {remoteModels.length >= 8 ? (
+                        <div className="prov-models__remote-search">
+                          <input
+                            className="settings-input prov-models__search-input"
+                            value={modelSearch}
+                            onChange={(e) => setModelSearch(e.target.value)}
+                            placeholder={tr("prov.searchModelsPh")}
+                            aria-label={tr("prov.searchModelsPh")}
+                            autoComplete="off"
+                            spellCheck={false}
+                          />
+                          {modelSearch ? (
                             <button
-                              key={mid}
                               type="button"
-                              className={
-                                "prov-models__chip" +
-                                (added ? " is-added" : "")
-                              }
-                              disabled={busy || added}
-                              onClick={() => addModelToForm(mid, mid)}
-                              title={mid}
+                              className="icon-btn prov-models__search-clear"
+                              onClick={() => setModelSearch("")}
+                              aria-label={tr("prov.clearSearch")}
+                              title={tr("prov.clearSearch")}
                             >
-                              {mid}
+                              <IconClose size={14} />
                             </button>
-                          );
-                        })}
-                      </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {filteredRemoteModels.length > 0 ? (
+                        <div className="prov-models__chips">
+                          {filteredRemoteModels.map((mid) => {
+                            const added = form.models.some(
+                              (m) => m.id === mid,
+                            );
+                            return (
+                              <button
+                                key={mid}
+                                type="button"
+                                className={
+                                  "prov-models__chip" +
+                                  (added ? " is-added" : "")
+                                }
+                                disabled={busy || added}
+                                onClick={() => addModelToForm(mid, mid)}
+                                title={mid}
+                              >
+                                {mid}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="prov-models__remote-empty">
+                          {tr("prov.remoteModelsNoMatch", {
+                            q: modelSearch.trim(),
+                          })}
+                        </p>
+                      )}
                     </div>
                   ) : null}
 

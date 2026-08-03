@@ -131,10 +131,18 @@ pub fn spawn(
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| "en_US.UTF-8".into());
     cmd.env("LANG", &lang);
-    if std::env::var("LC_ALL").ok().filter(|s| !s.trim().is_empty()).is_none() {
+    if std::env::var("LC_ALL")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .is_none()
+    {
         cmd.env("LC_ALL", &lang);
     }
-    if std::env::var("LC_CTYPE").ok().filter(|s| !s.trim().is_empty()).is_none() {
+    if std::env::var("LC_CTYPE")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .is_none()
+    {
         cmd.env("LC_CTYPE", &lang);
     }
     // macOS `ls` colors + common CLI color defaults for themed shells.
