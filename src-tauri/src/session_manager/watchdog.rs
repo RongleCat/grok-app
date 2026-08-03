@@ -7,7 +7,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::session_fsm::SessionState;
 use crate::stream_stall::{
-    is_stream_stalled, is_maybe_done_candidate, should_emit_soft_stall, stall_tier_from_evidence,
+    is_maybe_done_candidate, is_stream_stalled, should_emit_soft_stall, stall_tier_from_evidence,
 };
 
 use super::*;

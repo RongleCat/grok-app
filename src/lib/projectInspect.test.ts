@@ -12,11 +12,28 @@ import {
   inspectSectionPaths,
   inspectSectionSlice,
   isSensitiveKey,
+  normalizeProjectInspectSummary,
   redactSensitiveValue,
   sliceInspectList,
   summarizeInspectJson,
   INSPECT_SECTION_IDS,
 } from "./projectInspect";
+
+describe("normalizeProjectInspectSummary", () => {
+  it("fills list fields and derives names/hooks for older host payloads", () => {
+    const base = emptyProjectInspectSummary();
+    const normalized = normalizeProjectInspectSummary({
+      ...base,
+      skills: { ...base.skills, names: [], sample: ["fallback-skill"] },
+      hooks: [{ event: "stop" }],
+      hooksCount: 0,
+    });
+
+    expect(normalized.skills.names).toEqual(["fallback-skill"]);
+    expect(normalized.hooksCount).toBe(1);
+    expect(normalized.plugins).toEqual([]);
+  });
+});
 
 const SAMPLE_INSPECT = {
   grokVersion: "0.2.111",

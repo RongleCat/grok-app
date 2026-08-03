@@ -1935,9 +1935,9 @@ x-chatcut-mcp-surface = "codex"
         assert_eq!(entry["type"], "http");
         assert_eq!(entry["url"], "https://api.chatcut.io/api/external-mcp/mcp");
         let headers = entry["headers"].as_array().unwrap();
-        assert!(headers.iter().any(|h| {
-            h["name"] == "x-chatcut-mcp-surface" && h["value"] == "codex"
-        }));
+        assert!(headers
+            .iter()
+            .any(|h| { h["name"] == "x-chatcut-mcp-surface" && h["value"] == "codex" }));
     }
 
     #[test]

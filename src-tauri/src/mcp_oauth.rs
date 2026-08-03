@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use base64::engine::general_purpose::{URL_SAFE_NO_PAD, STANDARD};
+use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use base64::Engine;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -59,8 +59,12 @@ enum FlowPhase {
         auth_url: String,
         started: Instant,
     },
-    Success { message: String },
-    Error { message: String },
+    Success {
+        message: String,
+    },
+    Error {
+        message: String,
+    },
 }
 
 struct FlowState {
@@ -217,19 +221,18 @@ fn http_post_json(url: &str, body: &Value) -> Result<Value, String> {
             text.chars().take(200).collect::<String>()
         ));
     }
-    serde_json::from_str(&text).map_err(|e| format!("JSON parse: {e}; body={}", text.chars().take(120).collect::<String>()))
+    serde_json::from_str(&text).map_err(|e| {
+        format!(
+            "JSON parse: {e}; body={}",
+            text.chars().take(120).collect::<String>()
+        )
+    })
 }
 
 fn form_encode(pairs: &[(&str, &str)]) -> String {
     pairs
         .iter()
-        .map(|(k, v)| {
-            format!(
-                "{}={}",
-                urlencoding_encode(k),
-                urlencoding_encode(v)
-            )
-        })
+        .map(|(k, v)| format!("{}={}", urlencoding_encode(k), urlencoding_encode(v)))
         .collect::<Vec<_>>()
         .join("&")
 }
@@ -247,13 +250,13 @@ fn urlencoding_encode(s: &str) -> String {
     out
 }
 
-fn discover_for_mcp_url(mcp_url: &str) -> Result<(ProtectedResourceMeta, AuthServerMeta, String), String> {
+fn discover_for_mcp_url(
+    mcp_url: &str,
+) -> Result<(ProtectedResourceMeta, AuthServerMeta, String), String> {
     let mcp_url = mcp_url.trim().trim_end_matches('/');
     // RFC 9728 style path under well-known
     let resource_meta_urls = [
-        format!(
-            "https://api.chatcut.io/.well-known/oauth-protected-resource/api/external-mcp/mcp"
-        ),
+        format!("https://api.chatcut.io/.well-known/oauth-protected-resource/api/external-mcp/mcp"),
         // Generic: origin + /.well-known/oauth-protected-resource + path
         {
             if let Ok(u) = reqwest::Url::parse(mcp_url) {
@@ -308,27 +311,20 @@ fn discover_for_mcp_url(mcp_url: &str) -> Result<(ProtectedResourceMeta, AuthSer
     let as_val = http_get_json(&as_meta_url)?;
     let as_meta: AuthServerMeta =
         serde_json::from_value(as_val).map_err(|e| format!("auth server meta: {e}"))?;
-    let resource = pr
-        .resource
-        .clone()
-        .unwrap_or_else(|| mcp_url.to_string());
+    let resource = pr.resource.clone().unwrap_or_else(|| mcp_url.to_string());
     Ok((pr, as_meta, resource))
 }
 
 fn bind_loopback() -> Result<(TcpListener, String, u16), String> {
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
-    listener
-        .set_nonblocking(false)
-        .map_err(|e| e.to_string())?;
+    listener.set_nonblocking(false).map_err(|e| e.to_string())?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
     let redirect = format!("http://127.0.0.1:{port}/callback");
     Ok((listener, redirect, port))
 }
 
 fn wait_for_code(listener: TcpListener, expect_state: &str) -> Result<String, String> {
-    listener
-        .set_nonblocking(true)
-        .map_err(|e| e.to_string())?;
+    listener.set_nonblocking(true).map_err(|e| e.to_string())?;
     let deadline = Instant::now() + Duration::from_secs(OAUTH_WAIT_SECS);
     let (mut stream, _) = loop {
         match listener.accept() {
@@ -472,7 +468,11 @@ fn exchange_token(
     serde_json::from_str(&text).map_err(|e| format!("token JSON: {e}"))
 }
 
-fn persist_bearer(server: &str, access_token: &str, extra_headers: Option<&HashMap<String, String>>) -> Result<(), String> {
+fn persist_bearer(
+    server: &str,
+    access_token: &str,
+    extra_headers: Option<&HashMap<String, String>>,
+) -> Result<(), String> {
     let settings = store::load_settings();
     let _ = mirror_user_http_mcp_into_agent_home(&settings.session_data_mode);
 
@@ -500,10 +500,7 @@ fn persist_bearer(server: &str, access_token: &str, extra_headers: Option<&HashM
             .entry("x-chatcut-mcp-surface".into())
             .or_insert_with(|| "codex".into());
     }
-    headers.insert(
-        "Authorization".into(),
-        format!("Bearer {access_token}"),
-    );
+    headers.insert("Authorization".into(), format!("Bearer {access_token}"));
 
     // Write agent-home (independent) + user ~/.grok so doctor/CLI both see it.
     let paths: Vec<PathBuf> = {
@@ -542,7 +539,11 @@ fn persist_bearer(server: &str, access_token: &str, extra_headers: Option<&HashM
     Ok(())
 }
 
-fn write_mcp_credentials_best_effort(server: &str, access_token: &str, resource: &str) -> Result<(), String> {
+fn write_mcp_credentials_best_effort(
+    server: &str,
+    access_token: &str,
+    resource: &str,
+) -> Result<(), String> {
     let settings = store::load_settings();
     let homes = [
         crate::paths::resolve_agent_grok_home(&settings.session_data_mode),
@@ -605,15 +606,12 @@ pub fn mcp_oauth_start(server_name: &str) -> Result<McpOauthStartResult, String>
     let settings = store::load_settings();
     let _ = mirror_user_http_mcp_into_agent_home(&settings.session_data_mode);
     let defs = list_mcp_server_defs(None);
-    let def = defs
-        .iter()
-        .find(|d| d.name == server)
-        .ok_or_else(|| {
-            format!(
-                "MCP server '{server}' not found under App agent-home / ~/.grok. \
+    let def = defs.iter().find(|d| d.name == server).ok_or_else(|| {
+        format!(
+            "MCP server '{server}' not found under App agent-home / ~/.grok. \
                  Add it first (Settings → MCP or grok mcp add)."
-            )
-        })?;
+        )
+    })?;
     let mcp_url = def
         .url
         .as_deref()
@@ -692,11 +690,7 @@ pub fn mcp_oauth_start(server_name: &str) -> Result<McpOauthStartResult, String>
                 &verifier,
                 &resource_owned,
             )?;
-            persist_bearer(
-                &server_owned,
-                &tok.access_token,
-                existing_headers.as_ref(),
-            )?;
+            persist_bearer(&server_owned, &tok.access_token, existing_headers.as_ref())?;
             // keep refresh_token in credentials file if present
             if let Some(rt) = tok.refresh_token.as_deref() {
                 let _ = rt; // already stored access; refresh optional later
@@ -724,8 +718,9 @@ pub fn mcp_oauth_start(server_name: &str) -> Result<McpOauthStartResult, String>
         server: server.to_string(),
         auth_url,
         redirect_uri,
-        message: "Open the URL, sign in to the provider, then wait for App to capture the callback."
-            .into(),
+        message:
+            "Open the URL, sign in to the provider, then wait for App to capture the callback."
+                .into(),
     })
 }
 

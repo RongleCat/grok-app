@@ -260,7 +260,13 @@ mod tests {
         let stall_at = t0 + Duration::from_secs(180);
         assert!(should_emit_soft_stall(t0, None, 180, 0, stall_at));
         // Same moment as last emit — do not re-spam.
-        assert!(!should_emit_soft_stall(t0, Some(stall_at), 180, 1, stall_at));
+        assert!(!should_emit_soft_stall(
+            t0,
+            Some(stall_at),
+            180,
+            1,
+            stall_at
+        ));
         // Another full soft window of silence → re-prompt (never auto-end).
         assert!(should_emit_soft_stall(
             t0,

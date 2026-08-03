@@ -51,9 +51,7 @@ fn normalizes_chatcut_protocol_relative_s3_url() {
         )
     );
     assert!(!is_local_media_fs_path(raw));
-    assert!(is_media_fs_path(
-        &normalize_media_ref(raw).unwrap()
-    ));
+    assert!(is_media_fs_path(&normalize_media_ref(raw).unwrap()));
 }
 
 #[test]

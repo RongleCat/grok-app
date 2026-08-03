@@ -21,6 +21,7 @@ import {
   inspectSectionCounts,
   inspectSectionDocsUrl,
   inspectSectionPaths,
+  normalizeProjectInspectSummary,
   sliceInspectList,
   type InspectSectionId,
   type ProjectInspectSummary,
@@ -93,51 +94,6 @@ function sectionChipLabel(
   }
 }
 
-/** Normalize host payload so older shapes (missing names/hooks) still render. */
-function normalizeSummary(raw: ProjectInspectSummary): ProjectInspectSummary {
-  const skills = raw.skills ?? {
-    total: 0,
-    userInvocable: 0,
-    bySource: {},
-    sample: [],
-    names: [],
-  };
-  const names =
-    Array.isArray(skills.names) && skills.names.length > 0
-      ? skills.names
-      : Array.isArray(skills.sample)
-        ? [...skills.sample]
-        : [];
-  const hooks = Array.isArray(raw.hooks) ? raw.hooks : [];
-  const hooksCount =
-    typeof raw.hooksCount === "number" && raw.hooksCount > 0
-      ? raw.hooksCount
-      : hooks.length;
-  return {
-    ...raw,
-    skills: {
-      total: skills.total ?? names.length,
-      userInvocable: skills.userInvocable ?? 0,
-      bySource: skills.bySource ?? {},
-      sample: skills.sample ?? [],
-      names,
-    },
-    hooks,
-    hooksCount,
-    plugins: raw.plugins ?? [],
-    mcp: raw.mcp ?? [],
-    agents: raw.agents ?? [],
-    rules: raw.rules ?? [],
-    configLayers: raw.configLayers ?? [],
-    modelsHints: raw.modelsHints ?? [],
-    permissions: raw.permissions ?? {
-      loaded: 0,
-      sourcesCount: 0,
-      managedSettingsActive: false,
-    },
-  };
-}
-
 export function ProjectInspectPanel({
   locale,
   projectPath = null,
@@ -176,7 +132,7 @@ export function ProjectInspectPanel({
     setHint(null);
     try {
       const res = await api.projectInspect(cwd);
-      setSummary(normalizeSummary(res));
+      setSummary(normalizeProjectInspectSummary(res));
       if (res.error?.trim()) {
         setError(res.error.trim());
       }
