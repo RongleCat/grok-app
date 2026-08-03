@@ -74,7 +74,6 @@ export function AppearanceSection() {
     onSection,
     onShowMessageTimestamps,
     onShowReplyLength,
-    onShowUsageEstimates,
     onSidebarDensity,
     onSidebarShowRelativeTime,
     onSkin,
@@ -104,7 +103,6 @@ export function AppearanceSection() {
     setWallpaperSourceOpen,
     showMessageTimestamps,
     showReplyLength,
-    showUsageEstimates,
     sidebarDensity,
     sidebarShowRelativeTime,
     skin,
@@ -1133,31 +1131,6 @@ export function AppearanceSection() {
                           onShowMessageTimestamps(!showMessageTimestamps)
                         }
                         ariaLabel={t("settings.messageTimestamps")}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-                {onShowUsageEstimates ? (
-                  <div
-                    className={
-                      "settings-card" +
-                      rowHighlight("settings-anchor-showUsageEstimates")
-                    }
-                    id="settings-anchor-showUsageEstimates"
-                  >
-                    <div className="settings-row">
-                      <div className="settings-row__text">
-                        <SettingsLabelWithTip
-                          label={t("settings.showUsageEstimates")}
-                          tip={t("settings.showUsageEstimatesDesc")}
-                        />
-                      </div>
-                      <UiCheck
-                        checked={!!showUsageEstimates}
-                        onChange={() =>
-                          onShowUsageEstimates(!showUsageEstimates)
-                        }
-                        ariaLabel={t("settings.showUsageEstimates")}
                       />
                     </div>
                   </div>

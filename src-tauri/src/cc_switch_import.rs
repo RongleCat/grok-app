@@ -408,6 +408,7 @@ pub fn import_cc_switch_providers(
                 },
             }]),
             efforts: None,
+            context_window: None,
         }) {
             Ok(list) => {
                 existing.insert(id);

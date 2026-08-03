@@ -2,16 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   breakdownHasSignal,
   buildCompactSlashCommand,
-  buildContextBreakdownRows,
   COMPACT_PRESET_CLI_INTENSITY,
   COMPACT_PRESET_IDS,
-  contextBreakdownRowLabelKey,
   DEFAULT_COMPACT_PRESET,
   estimateCompactAfterTokens,
   estimateContextBreakdown,
   estimateTokensFromMessages,
   estimateTokensFromText,
-  formatBreakdownBucketValue,
   formatCompactBeforeAfterRange,
   formatContextChipLabel,
   formatTokenCount,
@@ -27,7 +24,6 @@ import {
   reduceContextUsage,
   resolveCompactNoteBody,
   resolveContextUsageDisplay,
-  resolveContextUsageEmptyState,
   resolveContextUsageSurface,
 } from "./contextUsage";
 
@@ -304,6 +300,10 @@ describe("reduceContextUsage", () => {
       toolsTokens: 20,
       historyTokens: 120,
       source: "usage",
+      cachedReadTokens: null,
+      cacheCreationTokens: null,
+      reasoningTokens: null,
+      costUsdTicks: null,
     });
     expect(s.lastCompactMessageId).toBeNull();
   });
@@ -378,7 +378,6 @@ describe("hasContextUsageData / resolveContextUsageSurface", () => {
     const d = resolveContextUsageDisplay(INITIAL_CONTEXT_USAGE, []);
     expect(hasContextUsageData(d)).toBe(false);
     expect(resolveContextUsageSurface(d)).toBe("hidden");
-    expect(resolveContextUsageEmptyState(d).kind).toBe("new_session");
   });
 
   it("is visible once estimated or known tokens exist", () => {
@@ -414,10 +413,6 @@ describe("hasContextUsageData / resolveContextUsageSurface", () => {
     // Soft-fail honesty: show muted chip so user can re-compact / read detail.
     expect(hasContextUsageData(d)).toBe(true);
     expect(resolveContextUsageSurface(d)).toBe("soft_unknown");
-    expect(resolveContextUsageEmptyState(d)).toEqual({
-      kind: "unknown_after_compact",
-      bodyKey: "context.softFailUnknownNote",
-    });
   });
 
   it("soft-fails on partial agent usage without a total", () => {
@@ -435,48 +430,8 @@ describe("hasContextUsageData / resolveContextUsageSurface", () => {
   });
 });
 
-describe("formatBreakdownBucketValue / buildContextBreakdownRows", () => {
-  it("never invents ~0 for empty buckets", () => {
-    expect(formatBreakdownBucketValue(null)).toBe("—");
-    expect(formatBreakdownBucketValue(0)).toBe("—");
-    expect(formatBreakdownBucketValue(0, { known: true })).toBe("0");
-    expect(formatBreakdownBucketValue(1200, { known: true })).toBe("1.2千");
-    expect(formatBreakdownBucketValue(1200)).toBe("~1.2千");
-  });
-
-  it("builds six stable labelled rows with — for empty", () => {
-    const rows = buildContextBreakdownRows({
-      userTokens: 10,
-      assistantTokens: 0,
-      thoughtTokens: 0,
-      systemTokens: null,
-      toolsTokens: 2,
-      historyTokens: 10,
-      totalTokens: 12,
-      estimated: true,
-      knownBuckets: { tools: true },
-    });
-    expect(rows).toHaveLength(6);
-    expect(rows.map((r) => r.id)).toEqual([
-      "system",
-      "tools",
-      "history",
-      "user",
-      "assistant",
-      "thought",
-    ]);
-    expect(rows.find((r) => r.id === "system")?.value).toBe("—");
-    expect(rows.find((r) => r.id === "tools")?.value).toBe("2");
-    expect(rows.find((r) => r.id === "tools")?.known).toBe(true);
-    expect(rows.find((r) => r.id === "user")?.value).toBe("~10");
-    expect(rows.find((r) => r.id === "assistant")?.value).toBe("—");
-    expect(contextBreakdownRowLabelKey("user")).toBe("context.breakdownUser");
-    expect(contextBreakdownRowLabelKey("system")).toBe(
-      "context.breakdownSystem",
-    );
-  });
-
-  it("breakdownHasSignal is false for pure-zero estimates", () => {
+describe("breakdownHasSignal", () => {
+  it("is false for pure-zero estimates", () => {
     expect(
       breakdownHasSignal({
         userTokens: 0,
@@ -641,7 +596,7 @@ describe("resolveContextUsageDisplay", () => {
     expect(hasContextUsageData(d)).toBe(true);
   });
 
-  it("empty state is no_breakdown when known total has no role split", () => {
+  it("known total without role split has null breakdown", () => {
     const state = reduceContextUsage(INITIAL_CONTEXT_USAGE, {
       type: "usage",
       totalTokens: 9000,
@@ -649,10 +604,6 @@ describe("resolveContextUsageDisplay", () => {
     const d = resolveContextUsageDisplay(state, []);
     expect(d.source).toBe("known");
     expect(d.breakdown).toBeNull();
-    expect(resolveContextUsageEmptyState(d)).toEqual({
-      kind: "no_breakdown",
-      bodyKey: "context.breakdownEmpty",
-    });
   });
 });
 

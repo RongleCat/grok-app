@@ -43,6 +43,12 @@ export interface KnownUsageBreakdown {
   systemTokens?: number | null;
   toolsTokens?: number | null;
   historyTokens?: number | null;
+  /** Prompt-caching / reasoning / cost signals (ClaudeCode / Claude plans). */
+  cachedReadTokens?: number | null;
+  cacheCreationTokens?: number | null;
+  reasoningTokens?: number | null;
+  /** USD cost in 1e-6 ticks (1 tick = 1 micro-dollar); avoids float drift. */
+  costUsdTicks?: number | null;
   /** ACP sessionUpdate kind / source string. */
   source?: string;
 }
@@ -101,6 +107,10 @@ export type ContextUsageAction =
       systemTokens?: number;
       toolsTokens?: number;
       historyTokens?: number;
+      cachedReadTokens?: number;
+      cacheCreationTokens?: number;
+      reasoningTokens?: number;
+      costUsdTicks?: number;
       source?: string;
     }
   | { type: "hydrate"; messages: ContextUsageMessage[] };
@@ -194,6 +204,10 @@ export function reduceContextUsage(
           systemTokens,
           toolsTokens,
           historyTokens,
+          cachedReadTokens: finiteToken(action.cachedReadTokens) ?? null,
+          cacheCreationTokens: finiteToken(action.cacheCreationTokens) ?? null,
+          reasoningTokens: finiteToken(action.reasoningTokens) ?? null,
+          costUsdTicks: finiteToken(action.costUsdTicks) ?? null,
           source: action.source,
         },
       };
@@ -522,6 +536,14 @@ export interface ContextUsageDisplay {
   breakdown: ContextUsageBreakdown | null;
   /** Agent-reported input/output/total when available. */
   knownUsage: KnownUsageBreakdown | null;
+  /** Effective context window (tokens). Null when unknown (chip hides %). */
+  windowSize: number | null;
+  /** `tokens / windowSize` capped at 100, or null when either is unknown. */
+  percent: number | null;
+  /** Cache hit rate (%) = cachedReadTokens / inputTokens. Null when unknown. */
+  cacheHitRate: number | null;
+  /** Agent-reported cached-read tokens (mirror of knownUsage for the chip). */
+  cachedReadTokens: number | null;
 }
 
 /**
@@ -598,162 +620,6 @@ export function hasContextUsageData(display: ContextUsageDisplay): boolean {
   return resolveContextUsageSurface(display) !== "hidden";
 }
 
-/**
- * Menu empty-state kinds for breakdown / no-data honesty.
- * Components map keys → i18n; pure helper never invents copy strings.
- */
-export type ContextUsageEmptyKind =
-  | "none"
-  | "new_session"
-  | "unknown_after_compact"
-  | "no_breakdown"
-  | "partial_agent";
-
-export type ContextUsageEmptyState = {
-  kind: ContextUsageEmptyKind;
-  /**
-   * i18n key for body copy (when not `none`).
-   * Title always uses `context.menuTitle` / chip aria.
-   */
-  bodyKey:
-    | "context.emptyNewSession"
-    | "context.softFailUnknownNote"
-    | "context.breakdownEmpty"
-    | "context.partialAgentNote"
-    | null;
-};
-
-/**
- * Resolve honest empty / soft-fail copy for the chip menu body.
- * Does not decide visibility (use {@link resolveContextUsageSurface}).
- */
-export function resolveContextUsageEmptyState(
-  display: ContextUsageDisplay,
-): ContextUsageEmptyState {
-  const surface = resolveContextUsageSurface(display);
-  if (surface === "hidden") {
-    return { kind: "new_session", bodyKey: "context.emptyNewSession" };
-  }
-  if (
-    display.source === "unknown" ||
-    (display.tokens == null && display.lastCompact)
-  ) {
-    return {
-      kind: "unknown_after_compact",
-      bodyKey: "context.softFailUnknownNote",
-    };
-  }
-  if (
-    display.tokens == null &&
-    knownUsageHasSignal(display.knownUsage) &&
-    !breakdownHasSignal(display.breakdown)
-  ) {
-    return { kind: "partial_agent", bodyKey: "context.partialAgentNote" };
-  }
-  if (!breakdownHasSignal(display.breakdown)) {
-    return { kind: "no_breakdown", bodyKey: "context.breakdownEmpty" };
-  }
-  return { kind: "none", bodyKey: null };
-}
-
-/**
- * Format one breakdown bucket for UI.
- * - known agent buckets → exact count (no tilde)
- * - estimated &gt; 0 → `~n`
- * - null / 0 / missing → "—" (never invent "~0")
- */
-export function formatBreakdownBucketValue(
-  n: number | null | undefined,
-  opts?: { known?: boolean; locale?: string },
-): string {
-  if (n == null || !Number.isFinite(n)) return "—";
-  const known = Boolean(opts?.known);
-  if (known) return formatTokenCount(n, opts?.locale ?? "zh");
-  if (n <= 0) return "—";
-  return `~${formatTokenCount(n, opts?.locale ?? "zh")}`;
-}
-
-/** Stable breakdown row ids for menus (labels are i18n elsewhere). */
-export type ContextBreakdownRowId =
-  | "system"
-  | "tools"
-  | "history"
-  | "user"
-  | "assistant"
-  | "thought";
-
-export type ContextBreakdownRow = {
-  id: ContextBreakdownRowId;
-  /** Pre-formatted value (`—`, `~1.2千`, `4万`). */
-  value: string;
-  /** True when value is agent-reported (no estimate tilde). */
-  known: boolean;
-  /** Raw token count when numeric; null when shown as "—". */
-  tokens: number | null;
-};
-
-/**
- * Build labelled breakdown rows from a display breakdown.
- * Always returns the six stable rows (system → thought) so menus stay consistent;
- * empty/unknown buckets are "—".
- */
-export function buildContextBreakdownRows(
-  breakdown: ContextUsageBreakdown | null | undefined,
-  locale: string = "zh",
-): ContextBreakdownRow[] {
-  const b = breakdown;
-  const known = b?.knownBuckets;
-  const row = (
-    id: ContextBreakdownRowId,
-    n: number | null | undefined,
-    isKnown?: boolean,
-  ): ContextBreakdownRow => {
-    const knownFlag = Boolean(isKnown);
-    const value = formatBreakdownBucketValue(n, {
-      known: knownFlag,
-      locale,
-    });
-    const tokens =
-      n != null && Number.isFinite(n) && (knownFlag || n > 0) ? Math.floor(n) : null;
-    return { id, value, known: knownFlag, tokens };
-  };
-  return [
-    row("system", b?.systemTokens ?? null, known?.system),
-    row("tools", b?.toolsTokens ?? null, known?.tools),
-    row("history", b?.historyTokens ?? null, known?.history),
-    // Role rows are always heuristic when present (never agent-tokenized).
-    row("user", b?.userTokens ?? 0, false),
-    row("assistant", b?.assistantTokens ?? 0, false),
-    row("thought", b?.thoughtTokens ?? 0, false),
-  ];
-}
-
-/** i18n key for a breakdown row id. */
-export function contextBreakdownRowLabelKey(
-  id: ContextBreakdownRowId,
-):
-  | "context.breakdownSystem"
-  | "context.breakdownTools"
-  | "context.breakdownHistory"
-  | "context.breakdownUser"
-  | "context.breakdownAssistant"
-  | "context.breakdownThought" {
-  switch (id) {
-    case "system":
-      return "context.breakdownSystem";
-    case "tools":
-      return "context.breakdownTools";
-    case "history":
-      return "context.breakdownHistory";
-    case "user":
-      return "context.breakdownUser";
-    case "assistant":
-      return "context.breakdownAssistant";
-    case "thought":
-      return "context.breakdownThought";
-  }
-}
-
 function breakdownOrNull(
   messages: ContextUsageMessage[],
   knownUsage: KnownUsageBreakdown | null = null,
@@ -773,19 +639,48 @@ function breakdownOrNull(
   return b;
 }
 
+/** Context-window usage percentage, capped at 100. Null when unknown. */
+export function contextPercent(
+  tokens: number | null,
+  windowSize: number | null,
+): number | null {
+  if (tokens == null || tokens <= 0) return null;
+  if (windowSize == null || windowSize <= 0) return null;
+  return Math.min(100, Math.round((tokens / windowSize) * 100));
+}
+
+/** Prompt-cache hit rate (%) = cachedReadTokens / inputTokens. Null when unknown. */
+export function cacheHitRate(usage: KnownUsageBreakdown | null): {
+  rate: number | null;
+  cachedReadTokens: number | null;
+} {
+  if (!usage) return { rate: null, cachedReadTokens: null };
+  const cached = usage.cachedReadTokens ?? null;
+  const input = usage.inputTokens ?? null;
+  if (input == null || input <= 0) {
+    return { rate: null, cachedReadTokens: cached };
+  }
+  const hit = cached ?? 0;
+  return { rate: Math.round((hit / input) * 100), cachedReadTokens: cached };
+}
+
 /**
  * Resolve what the chip should show from reducer state + live messages.
  * `locale` selects 万/亿 vs 萬/億 (and 百/千) for the chip label.
+ * `windowSize` is the effective context window (tokens) for the "% used" row;
+ * null hides the percent row.
  */
 export function resolveContextUsageDisplay(
   state: ContextUsageState,
   messages: ContextUsageMessage[],
   locale: string = "zh",
+  windowSize: number | null = null,
 ): ContextUsageDisplay {
   const lastCompact = state.lastCompact;
   const knownUsage = state.knownUsage;
   // Breakdown from full visible transcript + any agent-reported buckets.
   const breakdown = breakdownOrNull(messages, knownUsage);
+  const cache = cacheHitRate(knownUsage);
 
   // Prefer agent-reported total with no post-compact delta ambiguity.
   if (
@@ -799,6 +694,10 @@ export function resolveContextUsageDisplay(
       lastCompact,
       breakdown,
       knownUsage,
+      windowSize,
+      percent: contextPercent(knownUsage.totalTokens, windowSize),
+      cacheHitRate: cache.rate,
+      cachedReadTokens: cache.cachedReadTokens,
     };
   }
 
@@ -824,6 +723,10 @@ export function resolveContextUsageDisplay(
       lastCompact,
       breakdown,
       knownUsage,
+      windowSize,
+      percent: contextPercent(tokens, windowSize),
+      cacheHitRate: cache.rate,
+      cachedReadTokens: cache.cachedReadTokens,
     };
   }
 
@@ -838,6 +741,10 @@ export function resolveContextUsageDisplay(
       // Still surface visible role split as estimated (honest ~).
       breakdown,
       knownUsage,
+      windowSize,
+      percent: null,
+      cacheHitRate: cache.rate,
+      cachedReadTokens: cache.cachedReadTokens,
     };
   }
 
@@ -858,6 +765,10 @@ export function resolveContextUsageDisplay(
         lastCompact: null,
         breakdown,
         knownUsage,
+        windowSize,
+        percent: contextPercent(breakdown.totalTokens, windowSize),
+        cacheHitRate: cache.rate,
+        cachedReadTokens: cache.cachedReadTokens,
       };
     }
     // Partial agent I/O without total — soft-unknown surface, no invented sum.
@@ -869,6 +780,10 @@ export function resolveContextUsageDisplay(
         lastCompact: null,
         breakdown,
         knownUsage,
+        windowSize,
+        percent: null,
+        cacheHitRate: cache.rate,
+        cachedReadTokens: cache.cachedReadTokens,
       };
     }
     return {
@@ -878,6 +793,10 @@ export function resolveContextUsageDisplay(
       lastCompact: null,
       breakdown: null,
       knownUsage,
+      windowSize,
+      percent: null,
+      cacheHitRate: cache.rate,
+      cachedReadTokens: cache.cachedReadTokens,
     };
   }
   return {
@@ -887,6 +806,10 @@ export function resolveContextUsageDisplay(
     lastCompact: null,
     breakdown,
     knownUsage,
+    windowSize,
+    percent: contextPercent(estimated, windowSize),
+    cacheHitRate: cache.rate,
+    cachedReadTokens: cache.cachedReadTokens,
   };
 }
 

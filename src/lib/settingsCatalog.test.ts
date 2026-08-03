@@ -155,7 +155,6 @@ describe("settingsCatalog", () => {
     expect(appearance).toContain("settings.messageActions");
     expect(appearance).toContain("settings.messageTimestamps");
     expect(appearance).toContain("settings.showReplyLength");
-    expect(appearance).toContain("settings.showUsageEstimates");
     expect(appearance).toContain("settings.messageTimeFormat");
     expect(appearance).toContain("settings.sidebarShowRelativeTime");
     expect(appearance).toContain("settings.sessionMuteSummary");

@@ -55,8 +55,6 @@ export interface SettingsPageProps {
   onShowMessageTimestamps?: (v: boolean) => void;
   showReplyLength?: boolean;
   onShowReplyLength?: (v: boolean) => void;
-  showUsageEstimates?: boolean;
-  onShowUsageEstimates?: (v: boolean) => void;
   goalOrchUiEnabled?: boolean;
   onGoalOrchUiEnabled?: (v: boolean) => void;
   messageTimeFormat?: MessageTimeFormat;

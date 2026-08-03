@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_CUSTOM_CONTEXT_WINDOW,
   DEFAULT_EFFORT,
   GROK_BUILD_EFFORTS,
   effortDisplayLabel,
@@ -8,6 +9,7 @@ import {
   isValidEffort,
   mapEffortToTargetCatalog,
   pickDefaultEffort,
+  resolveContextWindow,
   spawnIdToEffortUiSlot,
   type EffortOption,
   type ModelOption,
@@ -256,5 +258,59 @@ describe("effortDisplayLabel", () => {
 
   it("falls back to raw id", () => {
     expect(effortDisplayLabel("custom-tier")).toBe("custom-tier");
+  });
+});
+
+describe("resolveContextWindow", () => {
+  it("returns custom provider contextWindow when set", () => {
+    expect(
+      resolveContextWindow({
+        activeCustomProvider: { contextWindow: 128000 },
+        modelId: "any",
+      }),
+    ).toBe(128000);
+  });
+
+  it("falls back to DEFAULT_CUSTOM_CONTEXT_WINDOW for custom provider without window", () => {
+    expect(
+      resolveContextWindow({
+        activeCustomProvider: { contextWindow: null },
+        modelId: "any",
+      }),
+    ).toBe(DEFAULT_CUSTOM_CONTEXT_WINDOW);
+    expect(
+      resolveContextWindow({
+        activeCustomProvider: {},
+        modelId: "any",
+      }),
+    ).toBe(DEFAULT_CUSTOM_CONTEXT_WINDOW);
+  });
+
+  it("returns official model contextWindow from catalog", () => {
+    const models: ModelOption[] = [
+      { id: "grok-4", label: "Grok 4", contextWindow: 256000 },
+    ];
+    expect(
+      resolveContextWindow({ activeCustomProvider: null, modelId: "grok-4", models }),
+    ).toBe(256000);
+  });
+
+  it("returns null for official model without contextWindow", () => {
+    const models: ModelOption[] = [
+      { id: "grok-4", label: "Grok 4" },
+    ];
+    expect(
+      resolveContextWindow({ activeCustomProvider: null, modelId: "grok-4", models }),
+    ).toBeNull();
+  });
+
+  it("returns null for unknown model", () => {
+    expect(
+      resolveContextWindow({
+        activeCustomProvider: null,
+        modelId: "nonexistent",
+        models: [],
+      }),
+    ).toBeNull();
   });
 });

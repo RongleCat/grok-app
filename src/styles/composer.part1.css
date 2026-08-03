@@ -92,6 +92,41 @@
   -webkit-appearance: none;
 }
 
+.cmm__inline-edit {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px;
+}
+.cmm__inline-edit input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 13px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: inherit;
+  outline: none;
+}
+.cmm__inline-edit input:focus {
+  border-color: var(--border-focus, var(--accent, #6b8cff));
+}
+.cmm__inline-save {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 13px;
+  background: var(--accent, #6b8cff);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cmm__inline-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .cmm__back {
   padding: 8px 12px;
   text-align: left;

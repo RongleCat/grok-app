@@ -34,6 +34,7 @@ import {
   type ComposerProviderInput,
 } from "@/lib/composerModelGroups";
 import { composerModelChipLabel } from "@/lib/effectiveModel";
+import { formatTokenCount } from "@/lib/contextUsage";
 import { Tip } from "@/components/ui/tooltip";
 import {
   IconAlertTriangle,
@@ -49,7 +50,7 @@ import {
 } from "@/components/icons";
 import { useFloatingMenu, type FloatingPos } from "@/lib/floatingMenu";
 
-type Nested = "model" | "effort" | null;
+type Nested = "model" | "effort" | "window" | null;
 
 function usePortalMenu(
   estHeight = 220,
@@ -220,7 +221,20 @@ export interface ComposerModelMenuProps {
     modelGroupOfficial: string;
     /** @deprecated Prefer real custom groups via `providers`. */
     modelViaProvider?: string;
+    /** Context window sub-menu labels. */
+    contextWindow: string;
+    contextWindowOfficial: string;
+    contextWindowCustom: string;
+    contextWindowPlaceholder: string;
+    contextWindowSave: string;
+    contextWindowOfficialHint: string;
   };
+  /** Effective context window (tokens) for the active route. */
+  contextWindow?: number | null;
+  /** True for custom routes (editable); false for official (read-only). */
+  contextWindowEditable?: boolean;
+  /** Save a new context window (custom channels only). */
+  onContextWindow?: (tokens: number) => void;
   /**
    * When custom route is active, use channel-configured efforts
    * (e.g. DeepSeek low/high/xhigh/max) instead of official catalog.
@@ -273,9 +287,13 @@ export function ComposerModelMenu({
   onModel,
   onEffort,
   applyNotes,
+  contextWindow = null,
+  contextWindowEditable = false,
+  onContextWindow,
 }: ComposerModelMenuProps) {
   const [nested, setNested] = useState<Nested>(null);
   const [modelQuery, setModelQuery] = useState("");
+  const [windowDraft, setWindowDraft] = useState("");
   const modelSearchRef = useRef<HTMLInputElement>(null);
   /* Wider min so long custom model ids render fully in the root rows. */
   const menu = usePortalMenu(240, 300, nested ?? "root");
@@ -429,6 +447,26 @@ export function ComposerModelMenu({
               <IconChevronRight size={14} />
             </span>
           </button>
+          <button
+            type="button"
+            className="cmm__row"
+            onClick={() => {
+              setWindowDraft(
+                contextWindowEditable && contextWindow
+                  ? String(contextWindow)
+                  : "",
+              );
+              setNested("window");
+            }}
+          >
+            <span>{labels.contextWindow}</span>
+            <span className="cmm__row-val">
+              <span className="cmm__row-val-text">
+                {contextWindow ? formatTokenCount(contextWindow) : "—"}
+              </span>
+              <IconChevronRight size={14} />
+            </span>
+          </button>
         </>
       ) : (
         <div className="cmm__nested">
@@ -437,7 +475,11 @@ export function ComposerModelMenu({
             className="cmm__back"
             onClick={() => setNested(null)}
           >
-            {nested === "model" ? labels.model : labels.effort}
+            {nested === "model"
+              ? labels.model
+              : nested === "window"
+                ? labels.contextWindow
+                : labels.effort}
           </button>
           {nested === "model" &&
             (groups.length === 0 ? (
@@ -542,6 +584,66 @@ export function ComposerModelMenu({
                 </button>
               );
             })}
+          {nested === "window" && (
+            <div className="cmm__opt cmm__opt--muted">
+              {contextWindowEditable ? (
+                <>
+                  <span className="cmm__opt-main">
+                    <span className="cmm__opt-title">
+                      {labels.contextWindowCustom}
+                    </span>
+                  </span>
+                  <div className="cmm__inline-edit">
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      value={windowDraft}
+                      placeholder={labels.contextWindowPlaceholder}
+                      onChange={(e) => setWindowDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const n = parseInt(windowDraft, 10);
+                          if (Number.isFinite(n) && n > 0) {
+                            onContextWindow?.(n);
+                            setNested(null);
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="cmm__inline-save"
+                      disabled={!Number.isFinite(parseInt(windowDraft, 10))}
+                      onClick={() => {
+                        const n = parseInt(windowDraft, 10);
+                        if (Number.isFinite(n) && n > 0) {
+                          onContextWindow?.(n);
+                          setNested(null);
+                        }
+                      }}
+                    >
+                      {labels.contextWindowSave}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <span className="cmm__opt-main">
+                  <span className="cmm__opt-title">
+                    {contextWindow
+                      ? formatTokenCount(contextWindow)
+                      : "—"}
+                  </span>
+                  <span className="cmm__opt-desc">
+                    {contextWindow
+                      ? labels.contextWindowOfficial
+                      : labels.contextWindowOfficialHint}
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
           {nested === "model" && applyNotes?.model ? (
             <div className="cmm__apply-note" role="note">
               {applyNotes.model}

@@ -1016,6 +1016,10 @@ impl SessionManager {
                 system_tokens,
                 tools_tokens,
                 history_tokens,
+                cached_read_tokens,
+                cache_creation_tokens,
+                reasoning_tokens,
+                cost_usd_ticks,
                 source,
             } => {
                 let app_sid = {
@@ -1038,6 +1042,10 @@ impl SessionManager {
                         "systemTokens": system_tokens,
                         "toolsTokens": tools_tokens,
                         "historyTokens": history_tokens,
+                        "cachedReadTokens": cached_read_tokens,
+                        "cacheCreationTokens": cache_creation_tokens,
+                        "reasoningTokens": reasoning_tokens,
+                        "costUsdTicks": cost_usd_ticks,
                         "source": source,
                     }),
                 );

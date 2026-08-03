@@ -819,6 +819,10 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
             systemTokens?: number;
             toolsTokens?: number;
             historyTokens?: number;
+            cachedReadTokens?: number;
+            cacheCreationTokens?: number;
+            reasoningTokens?: number;
+            costUsdTicks?: number;
             source?: string;
           }>("session://usage", (p) => {
             if (cancelled || !p) return;
@@ -851,6 +855,10 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
                 systemTokens: p.systemTokens,
                 toolsTokens: p.toolsTokens,
                 historyTokens: p.historyTokens,
+                cachedReadTokens: p.cachedReadTokens,
+                cacheCreationTokens: p.cacheCreationTokens,
+                reasoningTokens: p.reasoningTokens,
+                costUsdTicks: p.costUsdTicks,
                 source: p.source,
               }),
             );

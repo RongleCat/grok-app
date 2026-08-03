@@ -25,6 +25,8 @@ export interface ModelOption {
   source?: string;
   /** Per-model reasoning efforts from CLI cache; empty/undefined → static fallback. */
   reasoningEfforts?: EffortOption[];
+  /** Model context window in tokens (live-merged from `initialize`). */
+  contextWindow?: number | null;
 }
 
 export interface SessionModeOption {
@@ -72,6 +74,12 @@ export const GROK_BUILD_MODELS: ModelOption[] = [
 
 export const DEFAULT_MODEL_ID =
   GROK_BUILD_MODELS.find((m) => m.isDefault)?.id ?? "grok-4.5";
+
+/**
+ * Fallback context window (tokens) for custom providers that have not set one.
+ * Official models prefer the live `contextWindow` from `initialize` / cache.
+ */
+export const DEFAULT_CUSTOM_CONTEXT_WINDOW = 200000;
 
 /**
  * Static fallback when the selected model has no `reasoning_efforts` in cache.
@@ -440,4 +448,26 @@ export function findModel(
   catalog: ModelOption[] = GROK_BUILD_MODELS,
 ): ModelOption | undefined {
   return catalog.find((m) => m.id === id);
+}
+
+/**
+ * Resolve the effective context window (tokens) for the composer context.
+ *
+ * - Custom provider route: prefer the channel's `contextWindow`, else
+ *   `DEFAULT_CUSTOM_CONTEXT_WINDOW` (channels without an explicit window
+ *   still get a sensible cap for the "% used" chip).
+ * - Official route: prefer the live model `contextWindow` from
+ *   `initialize` / cache; `null` when unknown (chip hides the % row).
+ */
+export function resolveContextWindow(opts: {
+  activeCustomProvider?: { contextWindow?: number | null } | null;
+  modelId: string;
+  models?: ModelOption[];
+}): number | null {
+  const { activeCustomProvider, modelId, models = GROK_BUILD_MODELS } = opts;
+  if (activeCustomProvider) {
+    return activeCustomProvider.contextWindow ?? DEFAULT_CUSTOM_CONTEXT_WINDOW;
+  }
+  const m = findModel(modelId, models);
+  return m?.contextWindow ?? null;
 }

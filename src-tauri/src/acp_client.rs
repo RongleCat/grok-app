@@ -107,6 +107,12 @@ pub enum AcpEvent {
         system_tokens: Option<u64>,
         tools_tokens: Option<u64>,
         history_tokens: Option<u64>,
+        /// Prompt-caching / reasoning / cost signals (ClaudeCode / Claude plans).
+        cached_read_tokens: Option<u64>,
+        cache_creation_tokens: Option<u64>,
+        reasoning_tokens: Option<u64>,
+        /// USD cost in 1e-6 ticks (1 tick = 1 micro-dollar) — avoids float drift.
+        cost_usd_ticks: Option<u64>,
         /// Optional raw kind for debugging (not shown to users).
         source: String,
     },
@@ -1578,6 +1584,41 @@ impl AcpClient {
                         authoritative: true,
                     });
                 }
+                // The session/prompt RPC result also carries authoritative per-turn
+                // usage (inputTokens, cachedReadTokens, …) under result.usage or
+                // result._meta. Parse it so the context chip shows real totals +
+                // cache hit instead of the chars/4 estimate.
+                if let Some(usage) = msg
+                    .pointer("/result/usage")
+                    .or_else(|| msg.pointer("/result/_meta/usage"))
+                {
+                    let u64_field = |camel: &str, snake: &str| {
+                        usage
+                            .get(camel)
+                            .or_else(|| usage.get(snake))
+                            .and_then(|v| v.as_u64())
+                            .filter(|n| *n > 0)
+                    };
+                    let _ = self.event_tx.send(AcpEvent::UsageReported {
+                        total_tokens: u64_field("totalTokens", "total_tokens"),
+                        input_tokens: u64_field("inputTokens", "input_tokens"),
+                        output_tokens: u64_field("outputTokens", "output_tokens"),
+                        system_tokens: None,
+                        tools_tokens: None,
+                        history_tokens: None,
+                        cached_read_tokens: u64_field(
+                            "cachedReadTokens",
+                            "cache_read_input_tokens",
+                        ),
+                        cache_creation_tokens: u64_field(
+                            "cacheCreationTokens",
+                            "cache_creation_input_tokens",
+                        ),
+                        reasoning_tokens: u64_field("reasoningTokens", "reasoning_tokens"),
+                        cost_usd_ticks: u64_field("costUsdTicks", "cost_usd_ticks"),
+                        source: "turn_completed".to_string(),
+                    });
+                }
                 return;
             }
         }
@@ -1658,7 +1699,10 @@ impl AcpClient {
             // True notifications: no id. (If id is present, must reply — never swallow.)
             if req_id.is_none() {
                 // Official + xAI-extended session updates (retry_state, chunks, tools…).
-                if method == "session/update" || method == "_x.ai/session/update" {
+                if method == "session/update"
+                    || method == "_x.ai/session/update"
+                    || method == "_x.ai/session_notification"
+                {
                     self.handle_session_update(msg.get("params").unwrap_or(&Value::Null));
                 } else if method == "_x.ai/session/prompt_complete" {
                     // UI signal only — do NOT immediately Ok-complete session/prompt.
@@ -1923,6 +1967,26 @@ pub fn parse_usage_update(kind: &str, update: &Value) -> Option<AcpEvent> {
             "history",
         ],
     );
+    // Prompt-caching / reasoning / cost signals (ClaudeCode / Claude plans).
+    let cached_read = json_token_u64(
+        root,
+        &[
+            "cachedReadTokens",
+            "cached_read_tokens",
+            "cache_read_input_tokens",
+            "cachedTokens",
+        ],
+    );
+    let cache_creation = json_token_u64(
+        root,
+        &[
+            "cacheCreationTokens",
+            "cache_creation_tokens",
+            "cache_creation_input_tokens",
+        ],
+    );
+    let reasoning = json_token_u64(root, &["reasoningTokens", "reasoning_tokens"]);
+    let cost_usd_ticks = json_token_u64(root, &["costUsdTicks", "cost_usd_ticks"]);
 
     // Kind hints alone are not enough — need at least one number.
     // Do not invent zeros for missing structured buckets.
@@ -1932,6 +1996,10 @@ pub fn parse_usage_update(kind: &str, update: &Value) -> Option<AcpEvent> {
         && system.is_none()
         && tools.is_none()
         && history.is_none()
+        && cached_read.is_none()
+        && cache_creation.is_none()
+        && reasoning.is_none()
+        && cost_usd_ticks.is_none()
     {
         return None;
     }
@@ -1954,6 +2022,10 @@ pub fn parse_usage_update(kind: &str, update: &Value) -> Option<AcpEvent> {
         system_tokens: system,
         tools_tokens: tools,
         history_tokens: history,
+        cached_read_tokens: cached_read,
+        cache_creation_tokens: cache_creation,
+        reasoning_tokens: reasoning,
+        cost_usd_ticks,
         source: kind.to_string(),
     })
 }
@@ -2238,6 +2310,15 @@ impl AcpClient {
                 .or_else(|| init.pointer("/capabilities/loadSession")),
             fork_session
         );
+
+        // Live per-model context windows (ClaudeCode `_meta.modelState`).
+        // Soft-fail silently when absent — Grok CLI does not expose this yet.
+        let live_windows = parse_model_context_tokens(&init);
+        if !live_windows.is_empty() {
+            let n = live_windows.len();
+            crate::models_catalog::merge_live_context_windows(live_windows);
+            debug!("acp initialize merged {n} live context window(s)");
+        }
 
         // Best-effort cached auth — short timeout so a hung auth cannot burn 120s.
         match self
@@ -2789,6 +2870,34 @@ pub fn wire_initialize_params() -> Value {
     })
 }
 
+/// Extract per-model context window sizes from the `initialize` result's
+/// `_meta.modelState.availableModels[].totalContextTokens` array.
+///
+/// ClaudeCode exposes live windows there; Grok CLI may not (soft-fail → empty).
+/// Returned map is merged into `models_catalog` so the UI can show
+/// "% of context used" without hardcoding per-model sizes.
+pub fn parse_model_context_tokens(init: &Value) -> HashMap<String, u64> {
+    let mut out = HashMap::new();
+    let Some(models) = init
+        .pointer("/_meta/modelState/availableModels")
+        .and_then(|v| v.as_array())
+    else {
+        return out;
+    };
+    for m in models {
+        let Some(id) = m.get("modelId").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        if let Some(tokens) = m
+            .pointer("/_meta/totalContextTokens")
+            .and_then(|v| v.as_u64())
+        {
+            out.insert(id.to_string(), tokens);
+        }
+    }
+    out
+}
+
 /// Host → agent `session/prompt` params.
 pub fn wire_session_prompt_params(session_id: &str, text: &str) -> Value {
     json!({
@@ -3261,7 +3370,7 @@ pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
             }
         }
         "usage" | "token_usage" | "tokenUsage" | "context_usage" | "contextUsage"
-        | "turn_usage" | "turnUsage" => {
+        | "turn_usage" | "turnUsage" | "turn_completed" | "response_completed" => {
             if let Some(ev) = parse_usage_update(kind, update) {
                 out.push(ev);
             }
@@ -3776,6 +3885,142 @@ mod usage_parse_tests {
     fn parse_usage_empty_returns_none() {
         assert!(parse_usage_update("usage", &json!({})).is_none());
         assert!(parse_usage_update("other", &json!({ "title": "hi" })).is_none());
+    }
+}
+
+#[cfg(test)]
+mod context_tokens_tests {
+    use super::*;
+
+    #[test]
+    fn parse_real_model_state_shape() {
+        // Mirrors ClaudeCode `initialize` `_meta.modelState.availableModels`.
+        let init = json!({
+            "_meta": {
+                "agentVersion": "claudecode 1.0.0",
+                "modelState": {
+                    "availableModels": [
+                        {
+                            "modelId": "claude-sonnet-4",
+                            "_meta": { "totalContextTokens": 200000 }
+                        },
+                        {
+                            "modelId": "claude-opus-4",
+                            "_meta": { "totalContextTokens": 200000 }
+                        }
+                    ]
+                }
+            }
+        });
+        let windows = parse_model_context_tokens(&init);
+        assert_eq!(windows.len(), 2);
+        assert_eq!(windows.get("claude-sonnet-4"), Some(&200000));
+        assert_eq!(windows.get("claude-opus-4"), Some(&200000));
+    }
+
+    #[test]
+    fn empty_when_model_state_absent() {
+        // Grok CLI does not expose `_meta.modelState` — must soft-fail to empty.
+        assert!(parse_model_context_tokens(&json!({})).is_empty());
+        assert!(parse_model_context_tokens(&json!({ "_meta": {} })).is_empty());
+        assert!(parse_model_context_tokens(
+            &json!({ "_meta": { "agentVersion": "grok 0.2.117" } })
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn skips_models_without_window() {
+        // Models lacking `_meta.totalContextTokens` are skipped (no zero invent).
+        let init = json!({
+            "_meta": {
+                "modelState": {
+                    "availableModels": [
+                        { "modelId": "has-window", "_meta": { "totalContextTokens": 128000 } },
+                        { "modelId": "no-window", "_meta": {} },
+                        { "modelId": "no-meta" },
+                        { "_meta": { "totalContextTokens": 999 } }
+                    ]
+                }
+            }
+        });
+        let windows = parse_model_context_tokens(&init);
+        assert_eq!(windows.len(), 1);
+        assert_eq!(windows.get("has-window"), Some(&128000));
+        assert!(windows.get("no-window").is_none());
+        assert!(windows.get("no-meta").is_none());
+    }
+
+    #[test]
+    fn parse_usage_extracts_cache_reasoning_cost_fields() {
+        // ClaudeCode-style usage with prompt-caching + reasoning + cost.
+        let update = json!({
+            "usage": {
+                "inputTokens": 10000,
+                "outputTokens": 100,
+                "totalTokens": 10100,
+                "cachedReadTokens": 6000,
+                "cacheCreationTokens": 1500,
+                "reasoningTokens": 800,
+                "costUsdTicks": 25
+            }
+        });
+        let ev = parse_usage_update("usage", &update).expect("usage");
+        match ev {
+            AcpEvent::UsageReported {
+                cached_read_tokens,
+                cache_creation_tokens,
+                reasoning_tokens,
+                cost_usd_ticks,
+                ..
+            } => {
+                assert_eq!(cached_read_tokens, Some(6000));
+                assert_eq!(cache_creation_tokens, Some(1500));
+                assert_eq!(reasoning_tokens, Some(800));
+                assert_eq!(cost_usd_ticks, Some(25));
+            }
+            _ => panic!("expected UsageReported"),
+        }
+    }
+
+    #[test]
+    fn parse_usage_cache_only_still_fires() {
+        // A payload carrying only cache stats must still emit (no token buckets).
+        let update = json!({
+            "usage": {
+                "cachedReadTokens": 4000,
+                "reasoningTokens": 200
+            }
+        });
+        let ev = parse_usage_update("usage", &update).expect("usage");
+        match ev {
+            AcpEvent::UsageReported {
+                input_tokens,
+                cached_read_tokens,
+                reasoning_tokens,
+                ..
+            } => {
+                assert_eq!(input_tokens, None);
+                assert_eq!(cached_read_tokens, Some(4000));
+                assert_eq!(reasoning_tokens, Some(200));
+            }
+            _ => panic!("expected UsageReported"),
+        }
+    }
+
+    #[test]
+    fn parse_turn_completed_routes_to_usage() {
+        // `turn_completed` / `response_completed` now route to parse_usage_update.
+        let update = json!({
+            "usage": { "totalTokens": 500, "inputTokens": 400, "outputTokens": 100 }
+        });
+        let ev = parse_usage_update("turn_completed", &update).expect("usage");
+        match ev {
+            AcpEvent::UsageReported { total_tokens, .. } => {
+                assert_eq!(total_tokens, Some(500));
+            }
+            _ => panic!("expected UsageReported"),
+        }
     }
 }
 

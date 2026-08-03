@@ -216,6 +216,8 @@ export interface AvailableModel {
   isDefault?: boolean;
   /** Per-model efforts from CLI models_cache; omit/empty → static fallback. */
   reasoningEfforts?: ReasoningEffort[];
+  /** Model context window in tokens (live-merged from `initialize` first). */
+  contextWindow?: number | null;
 }
 
 export interface AvailableModelsResult {

@@ -801,5 +801,5 @@ html[data-composer-min-rows="8"] .composer__input {
 /* Context usage chip (composer row) */
 .chip--context {
   font-variant-numeric: tabular-nums;
-  max-width: 96px;
+  max-width: 128px;
 }

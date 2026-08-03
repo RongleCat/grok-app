@@ -49,6 +49,10 @@ pub struct CustomProvider {
     /// Reasoning efforts for this channel (App-managed). Empty → App falls back to Grok 3.
     #[serde(default)]
     pub efforts: Vec<ProviderEffortEntry>,
+    /// Optional per-channel context window (tokens). None → App falls back to
+    /// the model catalog window, then `DEFAULT_CUSTOM_CONTEXT_WINDOW`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_window: Option<u64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -67,6 +71,10 @@ pub struct UpsertProviderInput {
     pub models: Option<Vec<ProviderModelEntry>>,
     /// Optional effort catalog; when omitted on edit, keep previous `app_efforts`.
     pub efforts: Option<Vec<ProviderEffortEntry>>,
+    /// Context window (tokens). `Some(0)` clears; `Some(n>0)` sets;
+    /// `None` keeps the existing value on edit. Written to TOML as a string.
+    #[serde(default)]
+    pub context_window: Option<u64>,
 }
 
 /// TOML field (ignored by Grok Build) storing JSON array of `{id,name}`.
@@ -307,6 +315,7 @@ pub fn rewrite_section_base_urls(
         "api_backend",
         APP_MODELS_KEY,
         APP_EFFORTS_KEY,
+        "context_window",
         upstream_key,
     ];
     let mut fields: Vec<(String, String)> = Vec::new();
@@ -690,6 +699,7 @@ pub fn maybe_migrate_legacy_relay(
         create_only: Some(true),
         models: None,
         efforts: None,
+        context_window: None,
     })?;
     Ok(())
 }
@@ -824,6 +834,11 @@ fn build_list_result(home: PathBuf, path: PathBuf, text: &str) -> ProvidersListR
             &model,
         );
         let efforts = decode_app_efforts(s.fields.get(APP_EFFORTS_KEY).map(|x| x.as_str()));
+        let context_window = s
+            .fields
+            .get("context_window")
+            .and_then(|v| v.parse::<u64>().ok())
+            .filter(|n| *n > 0);
         providers.push(CustomProvider {
             id: s.id,
             model,
@@ -834,6 +849,7 @@ fn build_list_result(home: PathBuf, path: PathBuf, text: &str) -> ProvidersListR
             is_default,
             models,
             efforts,
+            context_window,
         });
     }
     let (active_source, active_provider_id) = route_from_default(def.as_deref(), &providers);
@@ -1082,6 +1098,17 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
     };
     let app_efforts_json = encode_app_efforts(&efforts);
 
+    // Context window: `Some(0)` clears → None; `Some(n>0)` sets;
+    // `None` keeps the existing value on edit (create-only → None).
+    let resolved_context_window: Option<u64> = match input.context_window {
+        Some(0) => None,
+        Some(n) => Some(n),
+        None => existing
+            .and_then(|s| s.fields.get("context_window"))
+            .and_then(|v| v.parse::<u64>().ok())
+            .filter(|n| *n > 0),
+    };
+
     text = remove_section(&text, &id);
     let mut fields = vec![
         ("model".into(), model),
@@ -1093,6 +1120,9 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
     ];
     if !app_efforts_json.is_empty() && app_efforts_json != "[]" {
         fields.push((APP_EFFORTS_KEY.into(), app_efforts_json));
+    }
+    if let Some(n) = resolved_context_window {
+        fields.push(("context_window".into(), n.to_string()));
     }
     if let Some(up) = app_upstream {
         fields.push((
@@ -1369,6 +1399,7 @@ mod tests {
                     name: "m".into(),
                 }],
                 efforts: vec![],
+                context_window: None,
             }],
             default_model: Some("relay".into()),
             active_source: "custom".into(),
@@ -1624,5 +1655,54 @@ api_backend = \"responses\"";
         let json = encode_app_efforts(&list);
         let decoded = decode_app_efforts(Some(&json));
         assert_eq!(decoded, list);
+    }
+
+    #[test]
+    fn context_window_roundtrips_through_toml() {
+        // Write a context_window field, parse back, and verify the same
+        // parse logic `build_list_result` uses (string → u64, filtered > 0).
+        let text = append_section(
+            "",
+            "demo",
+            &[
+                ("model".into(), "m1".into()),
+                ("base_url".into(), "https://ex/v1".into()),
+                ("name".into(), "Demo".into()),
+                ("api_key".into(), "sk-test".into()),
+                ("api_backend".into(), "chat_completions".into()),
+                ("context_window".into(), "200000".into()),
+            ],
+        );
+        let sections = parse_model_sections(&text);
+        assert_eq!(sections.len(), 1);
+        let s = &sections[0];
+        assert!(is_custom(&s.fields));
+        let cw = s
+            .fields
+            .get("context_window")
+            .and_then(|v| v.parse::<u64>().ok())
+            .filter(|n| *n > 0);
+        assert_eq!(cw, Some(200000));
+
+        // Zero / missing → filtered to None (mirrors build_list_result semantics).
+        let text0 = append_section(
+            "",
+            "demo0",
+            &[
+                ("model".into(), "m0".into()),
+                ("base_url".into(), "https://ex/v1".into()),
+                ("name".into(), "Demo0".into()),
+                ("api_key".into(), "sk-test".into()),
+                ("api_backend".into(), "chat_completions".into()),
+                ("context_window".into(), "0".into()),
+            ],
+        );
+        let s0 = parse_model_sections(&text0)[0].clone();
+        let cw0 = s0
+            .fields
+            .get("context_window")
+            .and_then(|v| v.parse::<u64>().ok())
+            .filter(|n| *n > 0);
+        assert_eq!(cw0, None);
     }
 }

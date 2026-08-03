@@ -143,6 +143,13 @@ export const enComposer = {
   "composer.modelGroupOfficial": "Official",
   "composer.modelSearchPlaceholder": "Search models…",
   "composer.modelSearchEmpty": "No models match",
+  "composer.contextWindow": "Context window",
+  "composer.contextWindowOfficial": "Provided by Grok CLI",
+  "composer.contextWindowCustom": "Custom (tokens)",
+  "composer.contextWindowPlaceholder": "e.g. 20000",
+  "composer.contextWindowSave": "Save",
+  "composer.contextWindowOfficialHint":
+    "This value comes from the Grok CLI and cannot be changed here.",
   "composer.effort": "Reasoning",
   "composer.mode": "Mode",
   "composer.permission": "Permission",

@@ -25,11 +25,6 @@ import {
   SHOW_REPLY_LENGTH_CHANGE_EVENT
 } from "@/lib/messageLength";
 import {
-  loadShowUsageEstimatesPref,
-  saveShowUsageEstimatesPref,
-  USAGE_ESTIMATES_CHANGE_EVENT
-} from "@/lib/usageEstimatesPref";
-import {
   loadMessageTimeFormatPref,
   MESSAGE_TIME_FORMAT_CHANGE_EVENT,
   saveMessageTimeFormatPref,
@@ -321,6 +316,7 @@ import {
   mapEffortToTargetCatalog,
   pickDefaultEffort,
   pickDefaultModelId,
+  resolveContextWindow,
   type ComposerPrefsScope,
   type EffortOption,
   type ModelOption,
@@ -999,9 +995,6 @@ export function AppWorkbench() {
   );
   const [showReplyLength, setShowReplyLength] = useState(() =>
     loadShowReplyLengthPref(localStorage),
-  );
-  const [showUsageEstimates, setShowUsageEstimates] = useState(() =>
-    loadShowUsageEstimatesPref(localStorage),
   );
   /** Display-only: Reliability “Goal orchestration” section (default on). */
   const [goalOrchUiEnabled, setGoalOrchUiEnabled] = useState(() =>
@@ -2775,6 +2768,7 @@ export function AppWorkbench() {
                 label: m.label || m.id,
                 source: m.source,
                 isDefault: m.isDefault,
+                contextWindow: m.contextWindow ?? null,
               }))
             : GROK_BUILD_MODELS;
         setAvailableModels(catalog);
@@ -2849,6 +2843,7 @@ export function AppWorkbench() {
                 source: m.source,
                 isDefault: m.isDefault,
                 reasoningEfforts: efforts,
+                contextWindow: m.contextWindow ?? null,
               };
             })
           : GROK_BUILD_MODELS;
@@ -3367,21 +3362,6 @@ export function AppWorkbench() {
     window.addEventListener(SHOW_REPLY_LENGTH_CHANGE_EVENT, onChange);
     return () =>
       window.removeEventListener(SHOW_REPLY_LENGTH_CHANGE_EVENT, onChange);
-  }, []);
-
-  // Context chip usage / optional cost estimates (localStorage; Settings event).
-  useEffect(() => {
-    const onChange = (ev: Event) => {
-      const detail = (ev as CustomEvent<unknown>).detail;
-      if (typeof detail === "boolean") {
-        setShowUsageEstimates(detail);
-        return;
-      }
-      setShowUsageEstimates(loadShowUsageEstimatesPref(localStorage));
-    };
-    window.addEventListener(USAGE_ESTIMATES_CHANGE_EVENT, onChange);
-    return () =>
-      window.removeEventListener(USAGE_ESTIMATES_CHANGE_EVENT, onChange);
   }, []);
 
   // Message time format absolute/relative (localStorage; Settings change event).
@@ -10312,12 +10292,6 @@ export function AppWorkbench() {
     return composerDraftStore.subscribe(run);
   }, [mainPane, session.sessionId, requestComposerFocus, syncComposerHeight]);
 
-  /** Context usage chip label/state from compact events + message estimate. */
-  const contextUsageDisplay = useMemo(
-    () => resolveContextUsageDisplay(contextUsage, messages, locale),
-    [contextUsage, messages, locale],
-  );
-
   /** Session file-changes chip (+/− or N files); hidden when empty. */
   const sessionChangesSummary = useMemo(() => {
     const sid = session.sessionId || "";
@@ -10486,6 +10460,50 @@ export function AppWorkbench() {
   /** Active inference channel: custom relay identity replaces official account chrome. */
   const [activeCustomProvider, setActiveCustomProvider] =
     useState<api.CustomProvider | null>(null);
+  /** Guards a one-time-per-session re-fetch of live model context windows. */
+  const refreshedModelsSidRef = useRef<string | null>(null);
+  const currentModelWindow = useMemo(
+    () =>
+      resolveContextWindow({
+        activeCustomProvider,
+        modelId,
+        models: availableModels,
+      }),
+    [activeCustomProvider, modelId, availableModels],
+  );
+  useEffect(() => {
+    if (
+      session.state === "ready" &&
+      session.sessionId &&
+      refreshedModelsSidRef.current !== session.sessionId
+    ) {
+      refreshedModelsSidRef.current = session.sessionId;
+      api.modelsListAvailable()
+        .then((res) => {
+          if (!res?.models?.length) return;
+          setAvailableModels((prev) =>
+            prev.map((model) => {
+              const live = res.models.find((m) => m.id === model.id);
+              return live?.contextWindow != null
+                ? { ...model, contextWindow: live.contextWindow }
+                : model;
+            }),
+          );
+        })
+        .catch(() => {});
+    }
+  }, [session.state, session.sessionId]);
+  /** Context usage chip label/state from compact events + message estimate. */
+  const contextUsageDisplay = useMemo(
+    () =>
+      resolveContextUsageDisplay(
+        contextUsage,
+        messages,
+        locale,
+        currentModelWindow,
+      ),
+    [contextUsage, messages, locale, currentModelWindow],
+  );
   /** Full provider list for composer model menu groups. */
   const [customProviders, setCustomProviders] = useState<api.CustomProvider[]>(
     [],
@@ -10667,6 +10685,28 @@ export function AppWorkbench() {
       tr,
       channelEffortOptions,
     ],
+  );
+  const handleContextWindow = useCallback(
+    async (tokens: number) => {
+      if (!api.isTauri() || !activeCustomProvider) return;
+      try {
+        await api.providersUpsert({
+          id: activeCustomProvider.id,
+          model: activeCustomProvider.model,
+          baseUrl: activeCustomProvider.baseUrl,
+          name: activeCustomProvider.name,
+          apiBackend: activeCustomProvider.apiBackend,
+          models: activeCustomProvider.models,
+          efforts: activeCustomProvider.efforts,
+          setAsDefault: false,
+          contextWindow: tokens,
+        });
+        await refreshProviderRoute();
+      } catch (e) {
+        showToast(String(e), 4000);
+      }
+    },
+    [activeCustomProvider, refreshProviderRoute, showToast],
   );
   const liveBrandKind = useMemo(
     () =>
@@ -15397,11 +15437,6 @@ export function AppWorkbench() {
           saveShowReplyLengthPref(v, localStorage);
           setShowReplyLength(v);
           }}
-          showUsageEstimates={showUsageEstimates}
-          onShowUsageEstimates={(v) => {
-          saveShowUsageEstimatesPref(v, localStorage);
-          setShowUsageEstimates(v);
-          }}
           goalOrchUiEnabled={goalOrchUiEnabled}
           onGoalOrchUiEnabled={(v) => {
           saveGoalOrchUiEnabled(v, localStorage);
@@ -18434,6 +18469,9 @@ export function AppWorkbench() {
                       activeSource={providerActiveSource}
                       activeProviderId={providerActiveId}
                       channelEfforts={channelEffortOptions}
+                      contextWindow={currentModelWindow}
+                      contextWindowEditable={customRouteActive}
+                      onContextWindow={handleContextWindow}
                       labels={{
                         model: tr("composer.model"),
                         modelGroupOfficial: tr("composer.modelGroupOfficial"),
@@ -18448,6 +18486,18 @@ export function AppWorkbench() {
                           "composer.modelSearchPlaceholder",
                         ),
                         modelSearchEmpty: tr("composer.modelSearchEmpty"),
+                        contextWindow: tr("composer.contextWindow"),
+                        contextWindowOfficial: tr(
+                          "composer.contextWindowOfficial",
+                        ),
+                        contextWindowCustom: tr("composer.contextWindowCustom"),
+                        contextWindowPlaceholder: tr(
+                          "composer.contextWindowPlaceholder",
+                        ),
+                        contextWindowSave: tr("composer.contextWindowSave"),
+                        contextWindowOfficialHint: tr(
+                          "composer.contextWindowOfficialHint",
+                        ),
                       }}
                       onModelPick={(pick) => {
                         void handleModelPick(pick);
@@ -18525,8 +18575,6 @@ export function AppWorkbench() {
                     <ContextUsageChip
                       display={contextUsageDisplay}
                       locale={locale}
-                      showUsageEstimates={showUsageEstimates}
-                      modelId={modelId}
                       labels={{
                         aria: tr("context.chipAria"),
                         tipUnknown: tr("context.chipTipUnknown"),
@@ -18544,29 +18592,15 @@ export function AppWorkbench() {
                         heuristicNote: tr("context.heuristicNote"),
                         auto: tr("context.triggerAuto"),
                         manual: tr("context.triggerManual"),
-                        breakdownSection: tr("context.breakdownSection"),
                         breakdownUser: tr("context.breakdownUser"),
                         breakdownAssistant: tr("context.breakdownAssistant"),
                         breakdownThought: tr("context.breakdownThought"),
-                        breakdownSystem: tr("context.breakdownSystem"),
-                        breakdownTools: tr("context.breakdownTools"),
-                        breakdownHistory: tr("context.breakdownHistory"),
                         breakdownEstimatedNote: tr(
                           "context.breakdownEstimatedNote",
                         ),
-                        breakdownEmpty: tr("context.breakdownEmpty"),
-                        softFailUnknownNote: tr("context.softFailUnknownNote"),
-                        partialAgentNote: tr("context.partialAgentNote"),
-                        knownInput: tr("context.knownInput"),
-                        knownOutput: tr("context.knownOutput"),
-                        knownTotal: tr("context.knownTotal"),
-                        knownFromAgent: tr("context.knownFromAgent"),
-                        costSection: tr("context.costSection"),
-                        costInput: tr("context.costInput"),
-                        costOutput: tr("context.costOutput"),
-                        costTotal: tr("context.costTotal"),
-                        costDisclaimer: tr("context.costDisclaimer"),
-                        costUnavailable: tr("context.costUnavailable"),
+                        window: tr("context.window"),
+                        percentUsed: tr("context.percentLabel"),
+                        cacheHit: tr("context.cacheHit"),
                       }}
                       onCompact={() => {
                         setCompactNote("");
@@ -18777,15 +18811,12 @@ export function AppWorkbench() {
               sourceKnown: tr("context.sourceKnown"),
               sourceEstimated: tr("context.sourceEstimated"),
               sourceUnknown: tr("context.sourceUnknown"),
-              breakdownSection: tr("context.breakdownSection"),
+              contextWindow: tr("context.window"),
+              contextPercentUsed: tr("context.percentLabel"),
+              contextCacheHit: tr("context.cacheHit"),
               breakdownUser: tr("context.breakdownUser"),
               breakdownAssistant: tr("context.breakdownAssistant"),
               breakdownThought: tr("context.breakdownThought"),
-              breakdownSystem: tr("context.breakdownSystem"),
-              breakdownTools: tr("context.breakdownTools"),
-              breakdownHistory: tr("context.breakdownHistory"),
-              breakdownEmpty: tr("context.breakdownEmpty"),
-              softFailUnknownNote: tr("context.softFailUnknownNote"),
               back: tr("phone.toolsBack"),
             }}
             activeProject={activeProject}

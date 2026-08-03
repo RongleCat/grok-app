@@ -33,6 +33,8 @@ export interface CustomProvider {
   models?: ProviderModelEntry[];
   /** Reasoning efforts for this channel (App-managed). Empty → Grok 3-tier fallback. */
   efforts?: ProviderEffortEntry[];
+  /** Per-channel context window (tokens). None → catalog window, then default. */
+  contextWindow?: number | null;
 }
 
 export interface ProvidersListResult {
@@ -274,6 +276,7 @@ export async function providersUpsert(body: {
   createOnly?: boolean;
   models?: ProviderModelEntry[];
   efforts?: ProviderEffortEntry[];
+  contextWindow?: number | null;
 }) {
   return invoke<ProvidersListResult>("providers_upsert", {
     id: body.id,
@@ -286,6 +289,7 @@ export async function providersUpsert(body: {
     createOnly: body.createOnly ?? null,
     models: body.models ?? null,
     efforts: body.efforts ?? null,
+    contextWindow: body.contextWindow ?? null,
   });
 }
 

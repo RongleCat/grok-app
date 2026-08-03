@@ -3,14 +3,33 @@
 //! Providers / relays are **channels** managed on the Providers settings page —
 //! they must never appear as selectable model chips.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{LazyLock, Mutex};
 
 use serde::{Deserialize, Serialize};
 
 use crate::paths::resolve_agent_grok_home;
 use crate::store;
+
+/// Live per-model context windows reported by the agent during `initialize`
+/// (ClaudeCode `_meta.modelState.availableModels[].totalContextTokens`).
+/// Merged on top of cache-derived windows at read time. Grok CLI does not
+/// populate this yet (soft-fail → empty).
+static LIVE_CONTEXT_WINDOWS: LazyLock<Mutex<BTreeMap<String, u64>>> =
+    LazyLock::new(|| Mutex::new(BTreeMap::new()));
+
+/// Merge live context windows discovered during `initialize`.
+/// Called from `acp_client` after the handshake. Idempotent; latest wins.
+pub fn merge_live_context_windows(windows: HashMap<String, u64>) {
+    let mut guard = LIVE_CONTEXT_WINDOWS
+        .lock()
+        .expect("LIVE_CONTEXT_WINDOWS poisoned");
+    for (id, tokens) in windows {
+        guard.insert(id, tokens);
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -36,6 +55,10 @@ pub struct AvailableModel {
     /// Per-model reasoning efforts from CLI `info.reasoning_efforts` (may be empty).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reasoning_efforts: Vec<ReasoningEffort>,
+    /// Model context window in tokens (live-merged from `initialize` first,
+    /// then cache `info.totalContextTokens` / `info.context_window`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_window: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +73,7 @@ pub struct AvailableModelsResult {
 struct ParsedCacheModel {
     label: String,
     reasoning_efforts: Vec<ReasoningEffort>,
+    context_window: Option<u64>,
 }
 
 fn user_grok_home() -> PathBuf {
@@ -138,11 +162,19 @@ fn read_models_cache(
             .unwrap_or(id)
             .to_string();
         let reasoning_efforts = parse_reasoning_efforts(body);
+        let context_window = body
+            .pointer("/info/totalContextTokens")
+            .and_then(|v| v.as_u64())
+            .or_else(|| {
+                body.pointer("/info/context_window")
+                    .and_then(|v| v.as_u64())
+            });
         map.insert(
             id.clone(),
             ParsedCacheModel {
                 label,
                 reasoning_efforts,
+                context_window,
             },
         );
     }
@@ -190,6 +222,7 @@ pub fn list_available_models() -> AvailableModelsResult {
                     source: "official".into(),
                     is_default: false,
                     reasoning_efforts: parsed.reasoning_efforts,
+                    context_window: parsed.context_window,
                 });
             }
             if !by_id.is_empty() {
@@ -208,8 +241,22 @@ pub fn list_available_models() -> AvailableModelsResult {
                 source: "official".into(),
                 is_default: true,
                 reasoning_efforts: Vec::new(),
+                context_window: None,
             },
         );
+    }
+
+    // Overlay live windows discovered during `initialize` (ClaudeCode).
+    // Live values win over cache-derived windows; absent entries stay as-is.
+    {
+        let live = LIVE_CONTEXT_WINDOWS
+            .lock()
+            .expect("LIVE_CONTEXT_WINDOWS poisoned");
+        for (id, tokens) in live.iter() {
+            if let Some(m) = by_id.get_mut(id) {
+                m.context_window = Some(*tokens);
+            }
+        }
     }
 
     // Prefer catalog default over a stale settings.model_id that might be a
@@ -377,5 +424,66 @@ mod tests {
         assert_eq!(m.reasoning_efforts[0].id, "high");
         assert!(m.reasoning_efforts[0].is_default);
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_cache_parses_context_window_total_tokens() {
+        let dir = std::env::temp_dir().join(format!(
+            "grok-app-models-cw-total-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = fs::create_dir_all(&dir);
+        let path = dir.join("models_cache.json");
+        fs::write(
+            &path,
+            r#"{
+              "models": {
+                "grok-4.5": {
+                  "info": { "name": "Grok 4.5", "totalContextTokens": 256000 }
+                },
+                "grok-4": {
+                  "info": { "name": "Grok 4", "context_window": 128000 }
+                },
+                "grok-mini": {
+                  "info": { "name": "Grok Mini" }
+                }
+              }
+            }"#,
+        )
+        .unwrap();
+        let (map, _, _) = read_models_cache(&path).expect("cache");
+        assert_eq!(
+            map.get("grok-4.5").and_then(|m| m.context_window),
+            Some(256000)
+        );
+        assert_eq!(
+            map.get("grok-4").and_then(|m| m.context_window),
+            Some(128000)
+        );
+        assert_eq!(map.get("grok-mini").and_then(|m| m.context_window), None);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn merge_live_context_windows_inserts_without_panic() {
+        // Use a unique id to avoid interfering with other tests / list_available_models.
+        let unique = format!(
+            "test-merge-live-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let mut windows = HashMap::new();
+        windows.insert(unique.clone(), 999999);
+        merge_live_context_windows(windows);
+
+        let guard = LIVE_CONTEXT_WINDOWS.lock().expect("not poisoned");
+        assert_eq!(guard.get(&unique), Some(&999999));
     }
 }
