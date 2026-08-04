@@ -7,7 +7,6 @@ allowBuilds:
   "@swc/core": true
   esbuild: true
   canvas: true
-  core-js: set this to true or false
 
 onlyBuiltDependencies:
   - esbuild
