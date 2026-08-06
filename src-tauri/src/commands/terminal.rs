@@ -80,7 +80,7 @@ pub async fn terminal_pty_kill(session_id: String) -> Result<(), String> {
 /// Create/replace a side-browser child webview with download save-dialog wiring.
 /// Prefer this over frontend `new Webview()` so WKWebView downloads can prompt.
 #[tauri::command]
-pub fn side_browser_create(
+pub async fn side_browser_create(
     app: AppHandle,
     label: String,
     url: String,
@@ -90,7 +90,16 @@ pub fn side_browser_create(
     width: f64,
     height: f64,
 ) -> Result<(), String> {
-    side_browser_host::create(&app, label, url, window_label, x, y, width, height)
+    // `Window::add_child` dispatches work to the platform event loop and waits
+    // for completion. Running it inside a synchronous IPC command can occupy
+    // that same loop on Windows, leaving WebView2 half-created (renderer starts,
+    // but the command never returns). Match Tauri's own async create_webview
+    // command and keep the blocking wait off the UI/invoke thread.
+    tauri::async_runtime::spawn_blocking(move || {
+        side_browser_host::create(&app, label, url, window_label, x, y, width, height)
+    })
+    .await
+    .map_err(|e| format!("side_browser_create join: {e}"))?
 }
 
 #[tauri::command]

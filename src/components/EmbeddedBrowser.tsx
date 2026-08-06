@@ -107,6 +107,51 @@ function hostRectForWebview(hostEl: HTMLElement): HostRectPx {
 
 const WEBVIEW_LABEL_DEFAULT = "resource-browser";
 const DOWNLOAD_EVENT = "side-browser://download";
+const CREATE_TIMEOUT_MS = 15_000;
+const CLOSE_GRACE_MS = 150;
+
+// React StrictMode and quick pane remounts run effect cleanup immediately
+// before mounting the same label again. Closing the native WebView in that
+// gap can overlap the next WebView2 add_child call on Windows. Delay the close
+// briefly and cancel it when the same label is mounted again.
+const pendingCloseTimers = new Map<string, number>();
+
+function cancelPendingClose(label: string) {
+  const timer = pendingCloseTimers.get(label);
+  if (timer === undefined) return;
+  window.clearTimeout(timer);
+  pendingCloseTimers.delete(label);
+}
+
+function scheduleClose(label: string) {
+  cancelPendingClose(label);
+  const timer = window.setTimeout(() => {
+    if (pendingCloseTimers.get(label) !== timer) return;
+    pendingCloseTimers.delete(label);
+    void sideBrowserClose(label).catch((e) => {
+      console.warn("[EmbeddedBrowser] delayed close failed", e);
+    });
+  }, CLOSE_GRACE_MS);
+  pendingCloseTimers.set(label, timer);
+}
+
+async function withTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  let timer = 0;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
 
 /** How many parent elements to observe so pane/splitter moves re-sync position. */
 const ANCESTOR_OBSERVE_DEPTH = 6;
@@ -405,6 +450,7 @@ export function EmbeddedBrowser({
     lastVisibleRef.current = null;
 
     const boot = async () => {
+      cancelPendingClose(webviewLabel);
       setError(null);
       setReady(false);
       try {
@@ -415,12 +461,8 @@ export function EmbeddedBrowser({
         const { LogicalPosition, LogicalSize } = await loadDpi();
         const win = getCurrentWindow();
 
-        // Prefer host close only — avoids double-close races with getByLabel.
-        try {
-          await sideBrowserClose(webviewLabel);
-        } catch {
-          /* ignore */
-        }
+        // Do not close before create. The host reuses a live label, which avoids
+        // overlapping WebView2 controller teardown with a new add_child call.
         webviewRef.current = null;
         currentUrlRef.current = "";
         lastVisibleRef.current = null;
@@ -436,15 +478,19 @@ export function EmbeddedBrowser({
         // Use latest desired URL in case props changed while we awaited imports.
         const target = bootUrlRef.current || initialUrl;
 
-        await sideBrowserCreate({
-          label: webviewLabel,
-          url: target,
-          windowLabel: win.label,
-          x,
-          y,
-          width: w,
-          height: h,
-        });
+        await withTimeout(
+          sideBrowserCreate({
+            label: webviewLabel,
+            url: target,
+            windowLabel: win.label,
+            x,
+            y,
+            width: w,
+            height: h,
+          }),
+          CREATE_TIMEOUT_MS,
+          `side browser create timed out after ${CREATE_TIMEOUT_MS / 1000}s (${webviewLabel})`,
+        );
 
         if (cancelled) {
           try {
@@ -548,9 +594,10 @@ export function EmbeddedBrowser({
       currentUrlRef.current = "";
       lastBoundsRef.current = null;
       lastVisibleRef.current = null;
-      // Single host close path (do not also call frontend Webview.close).
+      // Single delayed host close path (do not also call frontend Webview.close).
+      // A same-label remount cancels this timer and reuses the existing WebView.
       if (isTauri()) {
-        void sideBrowserClose(webviewLabel).catch(() => undefined);
+        scheduleClose(webviewLabel);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

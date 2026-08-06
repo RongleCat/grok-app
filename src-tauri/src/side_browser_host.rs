@@ -273,15 +273,45 @@ pub fn create(
     let width = width.max(40.0);
     let height = height.max(40.0);
 
-    if let Some(existing) = app.get_webview(&label) {
-        existing
-            .close()
-            .map_err(|e| format!("close existing side browser: {e}"))?;
-    }
-
     let window = app
         .get_window(win_label)
         .ok_or_else(|| format!("window not found: {win_label}"))?;
+
+    // A quick React remount (including development StrictMode) can ask for the
+    // same label while its native WebView is still alive. Reuse it instead of
+    // synchronously destroying and recreating a WebView2 controller. On
+    // Windows, close -> add_child overlap can re-enter controller teardown and
+    // leave the create command waiting forever.
+    if let Some(existing) = app.get_webview(&label) {
+        tracing::info!(
+            target: "side_browser",
+            webview_label = %label,
+            window = %win_label,
+            url = %url,
+            "reusing existing side browser webview"
+        );
+        existing
+            .set_position(LogicalPosition::new(x, y))
+            .map_err(|e| format!("reuse side browser position: {e}"))?;
+        existing
+            .set_size(LogicalSize::new(width, height))
+            .map_err(|e| format!("reuse side browser size: {e}"))?;
+        let should_navigate = existing
+            .url()
+            .map(|current| current != parsed)
+            .unwrap_or(true);
+        if should_navigate {
+            existing
+                .navigate(parsed)
+                .map_err(|e| format!("reuse side browser navigate: {e}"))?;
+        }
+        tracing::info!(
+            target: "side_browser",
+            webview_label = %label,
+            "existing side browser webview ready"
+        );
+        return Ok(());
+    }
 
     let webview_label = label.clone();
     // Polyfill blob:/data: `<a download>` (ChatCut etc.) — WKWebView skips on_download.
@@ -290,8 +320,7 @@ pub fn create(
     let polyfill_reload = polyfill.clone();
     let title_label = label.clone();
     // Do not steal keyboard focus from the main chat/composer on create —
-    // focused(true) made panel open + first load feel frozen while WKWebView
-    // took the key view. Users click the page when they want to type there.
+    // users click the page when they want to type there.
     let builder = WebviewBuilder::new(label.clone(), WebviewUrl::External(parsed))
         .accept_first_mouse(true)
         .focused(false)
@@ -535,6 +564,18 @@ pub fn create(
                 _ => true,
             }
         });
+
+    tracing::info!(
+        target: "side_browser",
+        %webview_label,
+        window = %win_label,
+        url = %url,
+        x,
+        y,
+        width,
+        height,
+        "creating side browser child webview"
+    );
 
     window
         .add_child(
