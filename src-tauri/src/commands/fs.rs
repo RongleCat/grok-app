@@ -132,13 +132,22 @@ pub async fn clipboard_write_image(bytes_base64: String) -> Result<(), String> {
         .map_err(|e| format!("clipboard write task: {e}"))?
 }
 
-fn clipboard_write_image_sync(bytes_base64: &str) -> Result<(), String> {
-    use arboard::{Clipboard, ImageData};
-    use base64::Engine;
+/// Write a local image file to the OS clipboard (arboard).
+/// Prefer this over WebView fetch + ClipboardItem for chat cards with a known path.
+#[tauri::command]
+pub async fn clipboard_write_image_path(path: String) -> Result<(), String> {
+    let raw = path.trim().to_string();
+    if raw.is_empty() {
+        return Err("clipboard image path is empty".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || clipboard_write_image_path_sync(&raw))
+        .await
+        .map_err(|e| format!("clipboard write path task: {e}"))?
+}
 
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(bytes_base64.trim())
-        .map_err(|e| format!("invalid base64: {e}"))?;
+fn clipboard_write_image_bytes(bytes: &[u8]) -> Result<(), String> {
+    use arboard::{Clipboard, ImageData};
+
     if bytes.is_empty() {
         return Err("clipboard image payload is empty".into());
     }
@@ -146,8 +155,7 @@ fn clipboard_write_image_sync(bytes_base64: &str) -> Result<(), String> {
         return Err("clipboard image too large (max 40 MiB)".into());
     }
 
-    let dyn_img = image::load_from_memory(&bytes)
-        .map_err(|e| format!("decode image: {e}"))?;
+    let dyn_img = image::load_from_memory(bytes).map_err(|e| format!("decode image: {e}"))?;
     let rgba = dyn_img.to_rgba8();
     let (w, h) = rgba.dimensions();
     if w == 0 || h == 0 {
@@ -163,6 +171,44 @@ fn clipboard_write_image_sync(bytes_base64: &str) -> Result<(), String> {
     cb.set_image(data)
         .map_err(|e| format!("clipboard set image: {e}"))?;
     Ok(())
+}
+
+fn clipboard_write_image_sync(bytes_base64: &str) -> Result<(), String> {
+    use base64::Engine;
+
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(bytes_base64.trim())
+        .map_err(|e| format!("invalid base64: {e}"))?;
+    clipboard_write_image_bytes(&bytes)
+}
+
+fn clipboard_write_image_path_sync(path: &str) -> Result<(), String> {
+    use std::path::Path;
+
+    let raw = path.trim();
+    if raw.is_empty() {
+        return Err("clipboard image path is empty".into());
+    }
+    if raw.contains('\0') {
+        return Err("invalid path".into());
+    }
+    let candidate = Path::new(raw);
+    // Chat images are often outside the initial trusted-project roots but were
+    // already granted when media/thumb loaded. User-initiated copy should re-grant
+    // the on-disk file (same as attach pickers) so path_scope matches display.
+    if candidate.is_file() {
+        crate::path_scope::grant_path(candidate);
+    }
+    let p = crate::path_scope::require_allowed(candidate)?;
+    if !p.is_file() {
+        return Err(format!("not a file: {raw}"));
+    }
+    let meta = std::fs::metadata(&p).map_err(|e| format!("stat image: {e}"))?;
+    if meta.len() > 40 * 1024 * 1024 {
+        return Err("clipboard image too large (max 40 MiB)".into());
+    }
+    let bytes = std::fs::read(&p).map_err(|e| format!("read image: {e}"))?;
+    clipboard_write_image_bytes(&bytes)
 }
 
 fn clipboard_paste_image_sync() -> Result<Option<PathEntry>, String> {

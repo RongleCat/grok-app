@@ -18,7 +18,11 @@ import {
 } from "react";
 import * as api from "@/lib/api";
 import { isTauri } from "@/lib/api";
-import { copyImageFromSrc } from "@/lib/copyImage";
+import {
+  copyImageFromHtmlImage,
+  copyImageFromPath,
+  copyImageFromSrc,
+} from "@/lib/copyImage";
 import {
   ensureMediaEndpoint,
   isMediaEndpointReady,
@@ -389,8 +393,28 @@ export function ImageUi({
   };
 
   const copyImage = async () => {
+    // Prefer painted <img> + Host file path (WebView ClipboardItem / fetch often fail).
+    const el = imgRef.current;
+    if (el && el.naturalWidth > 0) {
+      const r = await copyImageFromHtmlImage(el, { localPath });
+      if (r.ok) return;
+      console.warn("[ImageUi] copy from img failed:", r.reason, {
+        localPath,
+        resolvedSrc,
+      });
+    }
+    if (localPath) {
+      const r = await copyImageFromPath(localPath);
+      if (r.ok) return;
+    }
     if (!resolvedSrc) return;
-    await copyImageFromSrc(resolvedSrc);
+    const r = await copyImageFromSrc(resolvedSrc);
+    if (!r.ok) {
+      console.warn("[ImageUi] copy image failed:", r.reason, {
+        localPath,
+        resolvedSrc,
+      });
+    }
   };
 
   const copyPath = async () => {
@@ -527,6 +551,12 @@ export function ImageUi({
             src={resolvedSrc}
             alt={alt}
             draggable={draggable}
+            // Allow canvas read for copy when media is loopback HTTP (CORS-enabled).
+            crossOrigin={
+              /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/)/i.test(resolvedSrc)
+                ? "anonymous"
+                : undefined
+            }
             // Eager: lazy + nested chat scroller unloads/reloads and collapses
             // height mid-scroll (especially WKWebView / Tauri).
             loading="eager"

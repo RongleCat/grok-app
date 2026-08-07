@@ -24,7 +24,7 @@ import Counter from "yet-another-react-lightbox/plugins/counter";
 import "yet-another-react-lightbox/styles.css";
 import "yet-another-react-lightbox/plugins/counter.css";
 import { resolveImageSrc, resolveImageSrcs } from "@/lib/imageSrc";
-import { copyImageFromSrc } from "@/lib/copyImage";
+import { copyImageFromPath, copyImageFromSrc } from "@/lib/copyImage";
 import {
   lightboxSlideDimensions,
   lightboxSlideRect,
@@ -164,10 +164,12 @@ export function ImageViewerProvider({
   );
 
   const copyImage = useCallback(async (pathOrUrl: string) => {
+    // Prefer Host path write for absolute files; then URL/fetch path.
+    const r = await copyImageFromPath(pathOrUrl);
+    if (r.ok) return true;
     const src = await resolveImageSrc(pathOrUrl);
     if (!src) return false;
-    const r = await copyImageFromSrc(src);
-    return r.ok;
+    return (await copyImageFromSrc(src)).ok;
   }, []);
 
   const api = useMemo<ImageViewerApi>(

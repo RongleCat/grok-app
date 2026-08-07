@@ -315,6 +315,14 @@ export async function clipboardWriteImage(bytesBase64: string) {
 }
 
 /**
+ * Put a local image file on the OS clipboard via arboard (Host reads the path).
+ * Prefer this for chat cards with a known absolute path — avoids WebView fetch.
+ */
+export async function clipboardWriteImagePath(path: string) {
+  return invoke<void>("clipboard_write_image_path", { path });
+}
+
+/**
  * Export Grok Build CLI session trace via `grok trace <agentSessionId>`.
  * Export Grok Build CLI session transcript via `grok export <agentSessionId> [OUTPUT]`.
  * Requires a linked agent session id. Returns markdown text for blob download.
