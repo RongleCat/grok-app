@@ -9,6 +9,7 @@ export const zhTWSession = {
   "session.unreadAria": "未讀 — 背景回合已完成",
   "session.planPendingAria": "計劃待你審閱",
   "session.clearUnread": "標為已讀",
+  "session.markUnread": "標為未讀",
   "session.clearAllUnread": "清除全部未讀",
   "session.clearAllUnreadTitle": "清除全部未讀？",
   "session.clearAllUnreadBody": "將從 {n} 個對話移除未讀標記。不會變更靜音設定。",

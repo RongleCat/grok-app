@@ -484,6 +484,7 @@ import {
   clearAllUnread as clearAllSessionUnread,
   clearUnread as clearSessionUnread,
   loadUnreadSessionIds,
+  markUnread as markSessionUnread,
   SESSION_UNREAD_CHANGE_EVENT,
   shouldConfirmClearAllUnread,
 } from "@/lib/sessionUnread";
@@ -799,6 +800,7 @@ import {
   IconDeviceMobile,
   IconShield,
   IconCheck,
+  IconCircle,
   IconList,
   IconListNumbers,
   IconRobot,
@@ -1072,6 +1074,28 @@ export function AppWorkbench() {
         next.delete(id);
         return next;
       });
+    },
+    [],
+  );
+  /**
+   * Manual "mark as unread" while the chat is still open: hold the badge until
+   * the user leaves and re-opens the thread (auto clear-on-view still applies).
+   */
+  const manualUnreadHoldIdsRef = useRef<Set<string>>(new Set());
+  const applyMarkSessionUnread = useCallback(
+    (sessionId: string | null | undefined) => {
+      const id = typeof sessionId === "string" ? sessionId.trim() : "";
+      if (!id) return;
+      markSessionUnread(id);
+      setUnreadSessionIds((prev) => {
+        if (prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      if (viewingSessionIdRef.current === id) {
+        manualUnreadHoldIdsRef.current.add(id);
+      }
     },
     [],
   );
@@ -6400,6 +6424,7 @@ export function AppWorkbench() {
 
   const applyClearAllSessionUnread = useCallback(() => {
     clearAllSessionUnread();
+    manualUnreadHoldIdsRef.current.clear();
     setUnreadSessionIds(loadUnreadSessionIds());
   }, []);
 
@@ -6450,15 +6475,26 @@ export function AppWorkbench() {
 
   const handleClearSessionUnread = useCallback(
     (sessionId: string) => {
+      // Explicit "mark as read" also drops any manual hold.
+      manualUnreadHoldIdsRef.current.delete(sessionId);
       applyClearSessionUnread(sessionId);
     },
     [applyClearSessionUnread],
   );
 
+  const handleMarkSessionUnread = useCallback(
+    (sessionId: string) => {
+      applyMarkSessionUnread(sessionId);
+    },
+    [applyMarkSessionUnread],
+  );
+
   // Any path that binds the workbench to a session clears its unread marker
   // (sidebar + dock/tray badge). Covers openSession, deep links, tray Recent.
+  // Also ends a manual "mark as unread" hold when the user re-opens the chat.
   useEffect(() => {
     if (session.sessionId) {
+      manualUnreadHoldIdsRef.current.delete(session.sessionId);
       applyClearSessionUnread(session.sessionId);
     }
   }, [session.sessionId, applyClearSessionUnread]);
@@ -6468,7 +6504,10 @@ export function AppWorkbench() {
   useEffect(() => {
     const clearViewingIfPresent = () => {
       const id = viewingSessionIdRef.current;
-      if (id) applyClearSessionUnread(id);
+      if (!id) return;
+      // Keep manual "mark as unread" until the user leaves this thread.
+      if (manualUnreadHoldIdsRef.current.has(id)) return;
+      applyClearSessionUnread(id);
     };
     const onVis = () => {
       if (
@@ -23010,16 +23049,21 @@ export function AppWorkbench() {
                 ),
                 onClick: () => handleToggleSessionMute(s.id),
               },
-              ...(sessionUnread
-                ? [
-                    {
-                      id: "clear-unread",
-                      label: tr("session.clearUnread"),
-                      icon: <IconCheck size={16} />,
-                      onClick: () => handleClearSessionUnread(s.id),
-                    } satisfies ContextMenuItem,
-                  ]
-                : []),
+              {
+                id: sessionUnread ? "clear-unread" : "mark-unread",
+                label: sessionUnread
+                  ? tr("session.clearUnread")
+                  : tr("session.markUnread"),
+                icon: sessionUnread ? (
+                  <IconCheck size={16} />
+                ) : (
+                  <IconCircle size={16} />
+                ),
+                onClick: () => {
+                  if (sessionUnread) handleClearSessionUnread(s.id);
+                  else handleMarkSessionUnread(s.id);
+                },
+              },
               ...(unreadSessionIds.size > 0
                 ? [
                     {

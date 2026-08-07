@@ -9,6 +9,7 @@ export const enSession = {
   "session.unreadAria": "Unread — reply finished in background",
   "session.planPendingAria": "Plan awaiting your review",
   "session.clearUnread": "Mark as read",
+  "session.markUnread": "Mark as unread",
   "session.clearAllUnread": "Clear all unread",
   "session.clearAllUnreadTitle": "Clear all unread?",
   "session.clearAllUnreadBody": "Remove the unread marker from {n} chats. Mute settings are not changed.",

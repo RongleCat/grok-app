@@ -9,6 +9,7 @@ export const zhSession = {
   "session.unreadAria": "未读 — 后台回合已完成",
   "session.planPendingAria": "计划待你审阅",
   "session.clearUnread": "标为已读",
+  "session.markUnread": "标为未读",
   "session.clearAllUnread": "清除全部未读",
   "session.clearAllUnreadTitle": "清除全部未读？",
   "session.clearAllUnreadBody": "将从 {n} 个会话移除未读标记。不会更改静音设置。",
