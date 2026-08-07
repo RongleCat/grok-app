@@ -1217,6 +1217,8 @@ pub fn run() {
 
             commands::providers_list_models,
 
+            commands::providers_balance,
+
             commands::providers_cc_switch_scan,
 
             commands::providers_cc_switch_import,

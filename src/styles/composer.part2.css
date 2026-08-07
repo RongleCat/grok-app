@@ -827,6 +827,63 @@
   min-width: 0;
 }
 
+.prov-balance {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prov-balance__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.prov-balance__total {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, var(--text));
+}
+
+.prov-balance__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prov-balance__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 12px;
+  color: var(--text-secondary, var(--text));
+  font-variant-numeric: tabular-nums;
+}
+
+.prov-balance__cur {
+  font-weight: 600;
+  color: var(--text);
+  min-width: 2.5em;
+}
+
+.prov-balance__err {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--danger, #e11d48);
+}
+
 @media (max-width: 640px) {
   .prov-form__grid {
     grid-template-columns: 1fr;

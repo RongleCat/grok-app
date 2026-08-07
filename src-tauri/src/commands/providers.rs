@@ -261,6 +261,16 @@ pub async fn providers_list_models(
     crate::providers::list_remote_models(base_url, api_key, provider_id).await
 }
 
+/// Probe provider account balance (Phase 1: DeepSeek `GET /user/balance` only).
+#[tauri::command]
+pub async fn providers_balance(
+    base_url: Option<String>,
+    api_key: Option<String>,
+    provider_id: Option<String>,
+) -> Result<crate::providers::ProviderBalanceResult, String> {
+    crate::providers::query_provider_balance(base_url, api_key, provider_id).await
+}
+
 // ── Model auxiliary routing (`[models]` side-task slots) ─────────────────────
 
 #[tauri::command]

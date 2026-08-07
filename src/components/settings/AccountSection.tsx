@@ -34,6 +34,7 @@ export function AccountSection() {
     onImportChat,
     onProviderActivated,
     onProvidersChanged,
+    onProviderBalanceLoaded,
     onRemoveAccount,
     onSaveAccount,
     onSwitchAccount,
@@ -134,6 +135,7 @@ export function AccountSection() {
                 }
                 onProvidersChanged={onProvidersChanged}
                 onProviderActivated={onProviderActivated}
+                onBalanceLoaded={onProviderBalanceLoaded}
               />
             ) : activeTab === "extras" ? (
               <OfficialAuxPanel

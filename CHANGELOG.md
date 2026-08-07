@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- **DeepSeek balance probe**: Host `providers_balance` calls `GET https://api.deepseek.com/user/balance` (Bearer key; amounts stay strings). Settings → Custom providers shows **Check balance**; active DeepSeek route shows `110.00 CNY` on the sidebar footer and in UserMenu (5 min session cache, no invented zeros). Other providers unsupported for now.
+
+**中文 · 新增**
+- **DeepSeek 余额查询**：Host `providers_balance` 请求官方 `/user/balance`；设置页可查完整明细，激活 DeepSeek 时侧栏左下角与个人菜单显示 `110.00 CNY` 一行（会话内 5 分钟缓存，失败不编造 0）。
+
 ### Fixed
 - **Per-session composer drafts**: Switching threads no longer drops a half-typed follow-up. Each real session keeps text / attachments / goal mode in `localStorage` (`grok.composerSessionDrafts`); restore on open, debounced persist while typing, clear on send or explicit clear. New-chat still uses the existing per-project buffer.
 

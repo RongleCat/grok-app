@@ -848,6 +848,16 @@ import {
   ProviderBrandIcon,
   providerAvatarLetter
 } from "@/components/ProviderBrandIcon";
+import {
+  classifyProviderBalanceError,
+  providerBalanceErrorMessageKey,
+  supportsProviderBalance,
+} from "@/lib/providerBalanceHonesty";
+import {
+  formatProviderBalanceLine,
+  isProviderBalanceCacheFresh,
+  type ProviderBalanceCache,
+} from "@/lib/providerBalanceFormat";
 import type { ResourceOpenTarget } from "@/components/ResourceViewer";
 import { EnvInfoButton } from "@/components/side-workbench/EnvInfoButton";
 import {
@@ -10831,6 +10841,13 @@ export function AppWorkbench() {
   /** Active inference channel: custom relay identity replaces official account chrome. */
   const [activeCustomProvider, setActiveCustomProvider] =
     useState<api.CustomProvider | null>(null);
+  /** Session-memory DeepSeek (etc.) balance for sidebar footer / UserMenu. */
+  const [providerBalanceCache, setProviderBalanceCache] =
+    useState<ProviderBalanceCache | null>(null);
+  const [providerBalanceBusy, setProviderBalanceBusy] = useState(false);
+  const [providerBalanceError, setProviderBalanceError] = useState<
+    string | null
+  >(null);
   /** Guards a one-time-per-session re-fetch of live model context windows. */
   const refreshedModelsSidRef = useRef<string | null>(null);
   const currentModelWindow = useMemo(
@@ -10924,6 +10941,112 @@ export function AppWorkbench() {
   useEffect(() => {
     void refreshProviderRoute();
   }, [refreshProviderRoute]);
+
+  const loadProviderBalance = useCallback(
+    async (opts?: { force?: boolean; provider?: api.CustomProvider | null }) => {
+      const p = opts?.provider ?? activeCustomProvider;
+      if (!p || !api.isTauri()) {
+        setProviderBalanceCache(null);
+        setProviderBalanceError(null);
+        return;
+      }
+      if (
+        !supportsProviderBalance({
+          providerId: p.id,
+          baseUrl: p.baseUrl,
+        })
+      ) {
+        setProviderBalanceCache(null);
+        setProviderBalanceError(null);
+        return;
+      }
+      if (
+        !opts?.force &&
+        isProviderBalanceCacheFresh(providerBalanceCache, p.id)
+      ) {
+        return;
+      }
+      setProviderBalanceBusy(true);
+      setProviderBalanceError(null);
+      try {
+        const result = await api.providersBalance({
+          providerId: p.id,
+          baseUrl: p.baseUrl,
+        });
+        if (result.ok) {
+          setProviderBalanceCache({
+            providerId: p.id,
+            fetchedAt: Date.now(),
+            result,
+          });
+        } else {
+          setProviderBalanceCache((prev) =>
+            prev?.providerId === p.id ? null : prev,
+          );
+          const kind = classifyProviderBalanceError({
+            errorKind: result.errorKind,
+            error: result.error,
+            isTauri: true,
+          });
+          const key = providerBalanceErrorMessageKey(kind) as MessageKey;
+          setProviderBalanceError(
+            kind === "other"
+              ? tr("prov.balance.err.other", {
+                  detail: result.error ?? "unknown",
+                })
+              : tr(key),
+          );
+        }
+      } catch (e) {
+        setProviderBalanceCache((prev) =>
+          prev?.providerId === p.id ? null : prev,
+        );
+        const kind = classifyProviderBalanceError({
+          error: String(e),
+          isTauri: api.isTauri(),
+        });
+        const key = providerBalanceErrorMessageKey(kind) as MessageKey;
+        setProviderBalanceError(
+          kind === "other"
+            ? tr("prov.balance.err.other", { detail: String(e) })
+            : tr(key),
+        );
+      } finally {
+        setProviderBalanceBusy(false);
+      }
+    },
+    [activeCustomProvider, providerBalanceCache, tr],
+  );
+
+  // Prefetch balance when active custom route is DeepSeek.
+  useEffect(() => {
+    if (!activeCustomProvider) {
+      setProviderBalanceCache(null);
+      setProviderBalanceError(null);
+      return;
+    }
+    if (
+      !supportsProviderBalance({
+        providerId: activeCustomProvider.id,
+        baseUrl: activeCustomProvider.baseUrl,
+      })
+    ) {
+      setProviderBalanceCache(null);
+      setProviderBalanceError(null);
+      return;
+    }
+    // Drop stale cache from another provider id.
+    if (
+      providerBalanceCache &&
+      providerBalanceCache.providerId !== activeCustomProvider.id
+    ) {
+      setProviderBalanceCache(null);
+    }
+    void loadProviderBalance({ provider: activeCustomProvider });
+    // Intentionally depend on route identity, not the whole load callback (TTL).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- prefetch on route switch only
+  }, [activeCustomProvider?.id, activeCustomProvider?.baseUrl]);
+
   // Re-evaluate composer mic when switching official ↔ custom provider.
   useEffect(() => {
     void refreshVoiceGate();
@@ -16353,6 +16476,14 @@ export function AppWorkbench() {
           // CRUD on provider list / models / efforts — keep composer menu in sync.
           void refreshProviderRoute();
           }}
+          onProviderBalanceLoaded={(providerId, result) => {
+            if (!result.ok) return;
+            setProviderBalanceCache({
+              providerId,
+              fetchedAt: Date.now(),
+              result,
+            });
+          }}
           onProviderActivated={() => {
           // Host already recycled warm agents on upsert/activate. Refresh UI
           // chrome only — never park (sessionDisconnect) a live process: that
@@ -17110,6 +17241,33 @@ export function AppWorkbench() {
             account={account}
             activeProvider={activeCustomProvider}
             accountBusy={accountBusy}
+            providerBalance={
+              providerBalanceCache != null &&
+              providerBalanceCache.providerId === activeCustomProvider?.id
+                ? providerBalanceCache.result
+                : null
+            }
+            providerBalanceBusy={providerBalanceBusy}
+            providerBalanceError={
+              activeCustomProvider &&
+              supportsProviderBalance({
+                providerId: activeCustomProvider.id,
+                baseUrl: activeCustomProvider.baseUrl,
+              })
+                ? providerBalanceError
+                : null
+            }
+            onRefreshProviderBalance={
+              activeCustomProvider &&
+              supportsProviderBalance({
+                providerId: activeCustomProvider.id,
+                baseUrl: activeCustomProvider.baseUrl,
+              })
+                ? () => {
+                    void loadProviderBalance({ force: true });
+                  }
+                : undefined
+            }
             labels={{
               settings: tr("sidebar.settings"),
               tutorial: tr("tutorial.menu"),
@@ -17125,6 +17283,12 @@ export function AppWorkbench() {
               remaining: tr("account.quotaRemaining"),
               customProvider: tr("prov.customProvider"),
               resetsAt: tr("account.resetsAt"),
+              balanceAvailable: tr("prov.balance.available"),
+              balanceUnavailable: tr("prov.balance.unavailable"),
+              balanceGranted: tr("prov.balance.granted"),
+              balanceToppedUp: tr("prov.balance.toppedUp"),
+              balanceRefresh: tr("prov.balance.refresh"),
+              balanceChecking: tr("prov.balance.checking"),
             }}
             onSettings={() => navigateSettings()}
             onAccountSettings={() => navigateSettings("account")}
@@ -17145,6 +17309,15 @@ export function AppWorkbench() {
                 setShowUserMenu((v) => !v);
                 if (!showUserMenu) {
                   void refreshAccount({ refreshBilling: !customRouteActive });
+                  if (
+                    activeCustomProvider &&
+                    supportsProviderBalance({
+                      providerId: activeCustomProvider.id,
+                      baseUrl: activeCustomProvider.baseUrl,
+                    })
+                  ) {
+                    void loadProviderBalance();
+                  }
                 }
               }}
             >
@@ -17196,8 +17369,29 @@ export function AppWorkbench() {
                       : tr("common.local")}
                 </span>
                 {(() => {
-                  // Only show SuperGrok remaining when officially signed in.
-                  if (customRouteActive || !account?.profile?.signedIn) return null;
+                  // Custom DeepSeek: show total balance when we have an honest cache.
+                  if (customRouteActive && activeCustomProvider) {
+                    if (
+                      !supportsProviderBalance({
+                        providerId: activeCustomProvider.id,
+                        baseUrl: activeCustomProvider.baseUrl,
+                      })
+                    ) {
+                      return null;
+                    }
+                    const line =
+                      providerBalanceCache?.providerId ===
+                      activeCustomProvider.id
+                        ? formatProviderBalanceLine(
+                            providerBalanceCache.result,
+                          )
+                        : null;
+                    return line ? (
+                      <span className="user-meta__quota">{line}</span>
+                    ) : null;
+                  }
+                  // Official SuperGrok remaining only when signed in.
+                  if (!account?.profile?.signedIn) return null;
                   const rem = remainingPercent(account);
                   return rem != null ? (
                     <span className="user-meta__quota">{rem.toFixed(0)}%</span>

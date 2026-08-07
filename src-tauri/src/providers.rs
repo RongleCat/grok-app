@@ -1411,6 +1411,347 @@ pub async fn list_remote_models(
     Ok(RemoteModelsResult { endpoint, models })
 }
 
+// ── Provider balance probe (DeepSeek first; extensible adapters) ─────────────
+
+/// One currency row from a balance/plan probe (amounts stay strings).
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderBalanceLine {
+    pub currency: String,
+    pub total_balance: String,
+    pub granted_balance: String,
+    pub topped_up_balance: String,
+}
+
+/// Normalized balance / plan probe result for the UI.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderBalanceResult {
+    /// `balance` | `plan` | `unsupported`
+    pub kind: String,
+    pub provider: String,
+    pub endpoint: String,
+    pub ok: bool,
+    pub latency_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    /// `auth` | `network` | `timeout` | `unsupported` | `other`
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_available: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub balances: Option<Vec<ProviderBalanceLine>>,
+}
+
+const DEEPSEEK_BALANCE_HOST: &str = "api.deepseek.com";
+const DEEPSEEK_BALANCE_FIXED: &str = "https://api.deepseek.com/user/balance";
+
+/// Host component of a URL (lowercase), empty if unparseable.
+pub fn url_host_lower(raw: &str) -> String {
+    let t = raw.trim();
+    if t.is_empty() {
+        return String::new();
+    }
+    // Prefer full URL parse; fall back to stripping scheme manually.
+    if let Ok(u) = url::Url::parse(t) {
+        return u.host_str().unwrap_or("").to_ascii_lowercase();
+    }
+    let rest = t
+        .strip_prefix("https://")
+        .or_else(|| t.strip_prefix("http://"))
+        .unwrap_or(t);
+    rest.split('/')
+        .next()
+        .unwrap_or("")
+        .split('@')
+        .next_back()
+        .unwrap_or("")
+        .to_ascii_lowercase()
+}
+
+/// Whether this channel can use DeepSeek's official balance API.
+pub fn is_deepseek_balance_target(provider_id: Option<&str>, base_url: &str) -> bool {
+    let host = url_host_lower(base_url);
+    if host == DEEPSEEK_BALANCE_HOST || host.ends_with(&format!(".{DEEPSEEK_BALANCE_HOST}")) {
+        return true;
+    }
+    let id = provider_id.unwrap_or("").trim().to_ascii_lowercase();
+    if id.is_empty() {
+        return false;
+    }
+    id == "deepseek" || id.starts_with("deepseek-") || id.ends_with("-deepseek")
+}
+
+/// Build DeepSeek balance URL from a stored OpenAI-compatible base.
+///
+/// Balance lives at origin root (`/user/balance`), **not** under `/v1`.
+pub fn deepseek_balance_endpoint(base_url: &str) -> Result<String, String> {
+    let t = base_url.trim();
+    if t.is_empty() {
+        return Ok(DEEPSEEK_BALANCE_FIXED.to_string());
+    }
+    let host = url_host_lower(t);
+    if !host.is_empty()
+        && host != DEEPSEEK_BALANCE_HOST
+        && !host.ends_with(&format!(".{DEEPSEEK_BALANCE_HOST}"))
+    {
+        // Id-matched DeepSeek with a non-DeepSeek host → still hit official API.
+        return Ok(DEEPSEEK_BALANCE_FIXED.to_string());
+    }
+    if let Ok(u) = url::Url::parse(t) {
+        let mut origin = format!(
+            "{}://{}",
+            u.scheme(),
+            u.host_str().unwrap_or(DEEPSEEK_BALANCE_HOST)
+        );
+        if let Some(port) = u.port() {
+            origin.push(':');
+            origin.push_str(&port.to_string());
+        }
+        return Ok(format!("{origin}/user/balance"));
+    }
+    // Manual strip: remove path after host, especially trailing /v1.
+    let rest = t
+        .strip_prefix("https://")
+        .or_else(|| t.strip_prefix("http://"))
+        .unwrap_or(t);
+    let scheme = if t.starts_with("http://") {
+        "http"
+    } else {
+        "https"
+    };
+    let host_part = rest.split('/').next().unwrap_or(DEEPSEEK_BALANCE_HOST);
+    Ok(format!("{scheme}://{host_part}/user/balance"))
+}
+
+/// Parse DeepSeek `GET /user/balance` JSON. Amounts stay strings.
+pub fn parse_deepseek_balance_json(body: &str) -> Result<(bool, Vec<ProviderBalanceLine>), String> {
+    let data: serde_json::Value =
+        serde_json::from_str(body).map_err(|_| "balance response is not JSON".to_string())?;
+    let is_available = data
+        .get("is_available")
+        .and_then(|v| v.as_bool())
+        .ok_or_else(|| "balance response missing is_available".to_string())?;
+    let mut lines = Vec::new();
+    if let Some(arr) = data.get("balance_infos").and_then(|v| v.as_array()) {
+        for item in arr {
+            let currency = item
+                .get("currency")
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .unwrap_or("")
+                .to_string();
+            // Amounts may arrive as string or number — always store as string.
+            let as_str = |key: &str| -> Option<String> {
+                let v = item.get(key)?;
+                if let Some(s) = v.as_str() {
+                    let t = s.trim();
+                    if t.is_empty() {
+                        return None;
+                    }
+                    return Some(t.to_string());
+                }
+                if let Some(n) = v.as_f64() {
+                    // Avoid inventing trailing zeros; keep compact display.
+                    return Some(n.to_string());
+                }
+                if let Some(n) = v.as_i64() {
+                    return Some(n.to_string());
+                }
+                None
+            };
+            let Some(total) = as_str("total_balance") else {
+                continue;
+            };
+            lines.push(ProviderBalanceLine {
+                currency,
+                total_balance: total,
+                granted_balance: as_str("granted_balance").unwrap_or_default(),
+                topped_up_balance: as_str("topped_up_balance").unwrap_or_default(),
+            });
+        }
+    }
+    Ok((is_available, lines))
+}
+
+fn resolve_provider_fields(provider_id: Option<&str>) -> Option<std::collections::HashMap<String, String>> {
+    let pid = provider_id.map(str::trim).filter(|s| !s.is_empty())?;
+    let sid = sanitize_id(pid).ok()?;
+    let text = read_text(&agent_config_toml());
+    parse_model_sections(&text)
+        .into_iter()
+        .find(|s| s.id == sid)
+        .map(|s| s.fields)
+}
+
+fn resolve_balance_base(base_url: Option<&str>, provider_id: Option<&str>) -> String {
+    let mut base = base_url.unwrap_or("").trim().to_string();
+    if base.is_empty() {
+        if let Some(fields) = resolve_provider_fields(provider_id) {
+            base = crate::relay_stream_proxy::effective_upstream_base(&fields);
+        }
+    } else if crate::relay_stream_proxy::is_local_sanitize_proxy_url(&base) {
+        if let Some(fields) = resolve_provider_fields(provider_id) {
+            let up = crate::relay_stream_proxy::effective_upstream_base(&fields);
+            if !up.is_empty() {
+                base = up;
+            }
+        }
+    }
+    base
+}
+
+/// Query provider balance (Phase 1: DeepSeek only).
+pub async fn query_provider_balance(
+    base_url: Option<String>,
+    api_key: Option<String>,
+    provider_id: Option<String>,
+) -> Result<ProviderBalanceResult, String> {
+    let base = resolve_balance_base(base_url.as_deref(), provider_id.as_deref());
+    let pid = provider_id.as_deref();
+
+    if !is_deepseek_balance_target(pid, &base) {
+        return Ok(ProviderBalanceResult {
+            kind: "unsupported".into(),
+            provider: "unknown".into(),
+            endpoint: String::new(),
+            ok: false,
+            latency_ms: 0,
+            status: None,
+            error: Some("Balance probe is only supported for DeepSeek (api.deepseek.com)".into()),
+            error_kind: Some("unsupported".into()),
+            is_available: None,
+            balances: None,
+        });
+    }
+
+    let mut key = api_key.unwrap_or_default().trim().to_string();
+    if key.is_empty() {
+        key = resolve_stored_key(pid);
+    }
+    if key.is_empty() {
+        return Ok(ProviderBalanceResult {
+            kind: "balance".into(),
+            provider: "deepseek".into(),
+            endpoint: deepseek_balance_endpoint(&base).unwrap_or_else(|_| DEEPSEEK_BALANCE_FIXED.into()),
+            ok: false,
+            latency_ms: 0,
+            status: None,
+            error: Some("api_key is required to query balance".into()),
+            error_kind: Some("auth".into()),
+            is_available: None,
+            balances: None,
+        });
+    }
+
+    let endpoint = deepseek_balance_endpoint(&base)?;
+    let client = crate::proxy::apply_to_reqwest(reqwest::Client::builder())
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let t0 = Instant::now();
+    let req = client
+        .get(&endpoint)
+        .header("Authorization", format!("Bearer {key}"))
+        .header("Accept", "application/json");
+
+    match req.send().await {
+        Ok(res) => {
+            let status = res.status();
+            let code = status.as_u16();
+            let text = res.text().await.unwrap_or_default();
+            let latency_ms = t0.elapsed().as_millis() as u64;
+            if code == 401 || code == 403 {
+                return Ok(ProviderBalanceResult {
+                    kind: "balance".into(),
+                    provider: "deepseek".into(),
+                    endpoint,
+                    ok: false,
+                    latency_ms,
+                    status: Some(code),
+                    error: Some(format!(
+                        "balance HTTP {}: {}",
+                        code,
+                        text.chars().take(200).collect::<String>()
+                    )),
+                    error_kind: Some("auth".into()),
+                    is_available: None,
+                    balances: None,
+                });
+            }
+            if !status.is_success() {
+                return Ok(ProviderBalanceResult {
+                    kind: "balance".into(),
+                    provider: "deepseek".into(),
+                    endpoint,
+                    ok: false,
+                    latency_ms,
+                    status: Some(code),
+                    error: Some(format!(
+                        "balance HTTP {}: {}",
+                        code,
+                        text.chars().take(200).collect::<String>()
+                    )),
+                    error_kind: Some("other".into()),
+                    is_available: None,
+                    balances: None,
+                });
+            }
+            match parse_deepseek_balance_json(&text) {
+                Ok((is_available, balances)) => Ok(ProviderBalanceResult {
+                    kind: "balance".into(),
+                    provider: "deepseek".into(),
+                    endpoint,
+                    ok: true,
+                    latency_ms,
+                    status: Some(code),
+                    error: None,
+                    error_kind: None,
+                    is_available: Some(is_available),
+                    balances: Some(balances),
+                }),
+                Err(e) => Ok(ProviderBalanceResult {
+                    kind: "balance".into(),
+                    provider: "deepseek".into(),
+                    endpoint,
+                    ok: false,
+                    latency_ms,
+                    status: Some(code),
+                    error: Some(e),
+                    error_kind: Some("other".into()),
+                    is_available: None,
+                    balances: None,
+                }),
+            }
+        }
+        Err(e) => {
+            let latency_ms = t0.elapsed().as_millis() as u64;
+            let msg = e.to_string();
+            let kind = if e.is_timeout() || msg.to_ascii_lowercase().contains("timed out") {
+                "timeout"
+            } else {
+                "network"
+            };
+            Ok(ProviderBalanceResult {
+                kind: "balance".into(),
+                provider: "deepseek".into(),
+                endpoint,
+                ok: false,
+                latency_ms,
+                status: None,
+                error: Some(msg),
+                error_kind: Some(kind.into()),
+                is_available: None,
+                balances: None,
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1421,6 +1762,85 @@ mod tests {
         assert!(models_list_endpoint("https://x.example/v1")
             .unwrap()
             .ends_with("/v1/models"));
+    }
+
+    #[test]
+    fn deepseek_balance_endpoint_strips_v1() {
+        assert_eq!(
+            deepseek_balance_endpoint("https://api.deepseek.com/v1").unwrap(),
+            "https://api.deepseek.com/user/balance"
+        );
+        assert_eq!(
+            deepseek_balance_endpoint("https://api.deepseek.com/v1/").unwrap(),
+            "https://api.deepseek.com/user/balance"
+        );
+        assert_eq!(
+            deepseek_balance_endpoint("https://api.deepseek.com").unwrap(),
+            "https://api.deepseek.com/user/balance"
+        );
+        // Id-only path with non-DeepSeek host still uses official endpoint.
+        assert_eq!(
+            deepseek_balance_endpoint("https://relay.example.com/v1").unwrap(),
+            "https://api.deepseek.com/user/balance"
+        );
+    }
+
+    #[test]
+    fn deepseek_balance_target_detect() {
+        assert!(is_deepseek_balance_target(
+            Some("deepseek"),
+            "https://api.deepseek.com/v1"
+        ));
+        assert!(is_deepseek_balance_target(
+            None,
+            "https://api.deepseek.com/v1"
+        ));
+        assert!(is_deepseek_balance_target(
+            Some("deepseek"),
+            ""
+        ));
+        assert!(!is_deepseek_balance_target(
+            Some("amux"),
+            "https://api.amux.ai/v1"
+        ));
+        assert!(!is_deepseek_balance_target(
+            Some("opencode-go"),
+            "https://opencode.ai/zen/go/v1"
+        ));
+        assert!(!is_deepseek_balance_target(
+            Some("volcano-ark"),
+            "https://ark.cn-beijing.volces.com/api/plan/v3"
+        ));
+    }
+
+    #[test]
+    fn parse_deepseek_balance_cny_fixture() {
+        let body = r#"{
+            "is_available": true,
+            "balance_infos": [
+                {
+                    "currency": "CNY",
+                    "total_balance": "110.00",
+                    "granted_balance": "10.00",
+                    "topped_up_balance": "100.00"
+                }
+            ]
+        }"#;
+        let (avail, lines) = parse_deepseek_balance_json(body).unwrap();
+        assert!(avail);
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].currency, "CNY");
+        assert_eq!(lines[0].total_balance, "110.00");
+        assert_eq!(lines[0].granted_balance, "10.00");
+        assert_eq!(lines[0].topped_up_balance, "100.00");
+    }
+
+    #[test]
+    fn parse_deepseek_balance_empty_infos() {
+        let body = r#"{"is_available": false, "balance_infos": []}"#;
+        let (avail, lines) = parse_deepseek_balance_json(body).unwrap();
+        assert!(!avail);
+        assert!(lines.is_empty());
     }
 
     #[test]

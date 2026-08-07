@@ -252,6 +252,11 @@ export interface SettingsPageProps {
   onDefaultOpenTarget?: (v: string) => void;
   onProvidersChanged?: () => void;
   onProviderActivated?: () => void;
+  /** DeepSeek (etc.) balance probe from ProvidersPanel → sidebar cache. */
+  onProviderBalanceLoaded?: (
+    providerId: string,
+    result: import("@/lib/api").ProviderBalanceResult,
+  ) => void;
   archivedGroups?: ArchivedProjectGroup[];
   onRestoreArchivedSessions?: (ids: string[]) => void;
   onDeleteArchivedSessions?: (ids: string[]) => void;

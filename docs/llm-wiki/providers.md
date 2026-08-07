@@ -124,8 +124,38 @@ Host must rebind both sides on every switch and before each ACP spawn (`prepare_
 | `providers_activate` | Switch official/custom route + rebind auth; recycles warm agents |
 | `providers_ping` | `GET {base}/models` RTT |
 | `providers_list_models` | Fetch remote model ids |
+| `providers_balance` | Account balance / plan probe (Phase 1: **DeepSeek only**) |
 | `providers_cc_switch_scan` | Read-only scan of local **CC Switch** Grok Build providers |
 | `providers_cc_switch_import` | Import selected CC Switch rows into custom providers |
+
+### Balance probe (Phase 1: DeepSeek)
+
+| Item | Detail |
+|------|--------|
+| When | Channel id/host is DeepSeek (`deepseek` / `api.deepseek.com`) — **not** DeepSeek models on OpenCode Go / 火山方舟 |
+| Endpoint | `GET https://api.deepseek.com/user/balance` (origin root; strip `/v1` from stored base) |
+| Auth | Bearer `api_key` from agent-home (or form draft) |
+| UI | Settings → Custom providers **Check balance** (full lines); sidebar footer + UserMenu one-liner `110.00 CNY` when active |
+| Cache | Session memory, 5 min TTL; refresh on UserMenu open / explicit button; no disk, no polling |
+| Honesty | Never invent `0.00` on failure; amounts stay **strings** |
+
+Wire shape (confirmed):
+
+```json
+{
+  "is_available": true,
+  "balance_infos": [
+    {
+      "currency": "CNY",
+      "total_balance": "110.00",
+      "granted_balance": "10.00",
+      "topped_up_balance": "100.00"
+    }
+  ]
+}
+```
+
+Future providers (Coding Plan quotas, etc.) add adapters under the same `providers_balance` command.
 | `editors_list` | Detected local IDEs |
 | `open_in_editor` | Open path in chosen editor |
 

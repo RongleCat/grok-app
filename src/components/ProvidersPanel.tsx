@@ -48,6 +48,12 @@ import {
   ProviderBrandIcon,
   providerAvatarLetter,
 } from "@/components/ProviderBrandIcon";
+import {
+  classifyProviderBalanceError,
+  providerBalanceErrorMessageKey,
+  supportsProviderBalance,
+} from "@/lib/providerBalanceHonesty";
+import { formatProviderBalanceLine } from "@/lib/providerBalanceFormat";
 
 export interface ProvidersPanelProps {
   locale: Locale;
@@ -62,6 +68,14 @@ export interface ProvidersPanelProps {
   onProviderActivated?: () => void;
   /** Ephemeral feedback (e.g. fetch models result). */
   onToast?: (msg: string, ms?: number) => void;
+  /**
+   * When the edited channel is the active DeepSeek route and balance loads,
+   * parent can refresh sidebar / UserMenu cache.
+   */
+  onBalanceLoaded?: (
+    providerId: string,
+    result: api.ProviderBalanceResult,
+  ) => void;
 }
 
 type FormModel = {
@@ -191,6 +205,7 @@ export function ProvidersPanel({
   onProvidersChanged,
   onProviderActivated,
   onToast,
+  onBalanceLoaded,
 }: ProvidersPanelProps) {
   const tr = useMemo(() => createT(locale), [locale]);
   const [list, setList] = useState<api.ProvidersListResult | null>(null);
@@ -207,6 +222,10 @@ export function ProvidersPanel({
   const [modelSearch, setModelSearch] = useState("");
   /** Busy flag for fetch-models only (disables button while in flight). */
   const [fetchingModels, setFetchingModels] = useState(false);
+  const [balanceBusy, setBalanceBusy] = useState(false);
+  const [balanceResult, setBalanceResult] =
+    useState<api.ProviderBalanceResult | null>(null);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
   /** Draft row for manually adding a model. */
   const [draftModelId, setDraftModelId] = useState("");
   const [draftModelName, setDraftModelName] = useState("");
@@ -801,6 +820,70 @@ export function ProvidersPanel({
     }
   };
 
+  const showBalanceAction = supportsProviderBalance({
+    providerId: editingId ?? form.id,
+    baseUrl: form.baseUrl,
+  });
+
+  // Clear balance card when switching channel / form id.
+  useEffect(() => {
+    setBalanceResult(null);
+    setBalanceError(null);
+  }, [editingId, form.id, form.baseUrl]);
+
+  const checkBalance = async () => {
+    if (!api.isTauri()) {
+      const key = providerBalanceErrorMessageKey("host_only") as MessageKey;
+      setBalanceError(tr(key));
+      onToast?.(tr(key), 4000);
+      return;
+    }
+    const pid = (editingId ?? form.id).trim();
+    setBalanceBusy(true);
+    setBalanceError(null);
+    try {
+      const r = await api.providersBalance({
+        baseUrl: form.baseUrl.trim() || undefined,
+        apiKey: form.apiKey.trim() || undefined,
+        providerId: pid || undefined,
+      });
+      setBalanceResult(r);
+      if (!r.ok) {
+        const kind = classifyProviderBalanceError({
+          errorKind: r.errorKind,
+          error: r.error,
+          isTauri: true,
+        });
+        const key = providerBalanceErrorMessageKey(kind) as MessageKey;
+        const msg =
+          kind === "other"
+            ? tr("prov.balance.err.other", {
+                detail: r.error ?? "unknown",
+              })
+            : tr(key);
+        setBalanceError(msg);
+        onToast?.(msg, 4000);
+        return;
+      }
+      if (pid) onBalanceLoaded?.(pid, r);
+    } catch (e) {
+      const kind = classifyProviderBalanceError({
+        error: String(e),
+        isTauri: api.isTauri(),
+      });
+      const key = providerBalanceErrorMessageKey(kind) as MessageKey;
+      const msg =
+        kind === "other"
+          ? tr("prov.balance.err.other", { detail: String(e) })
+          : tr(key);
+      setBalanceError(msg);
+      setBalanceResult(null);
+      onToast?.(msg, 4000);
+    } finally {
+      setBalanceBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="prov-panel" data-testid="providers-panel">
@@ -1347,6 +1430,82 @@ export function ProvidersPanel({
                     </button>
                   </div>
                 </div>
+
+                {showBalanceAction ? (
+                  <div className="prov-field prov-field--full">
+                    <span className="prov-field__label-row">
+                      <span className="prov-field__label">
+                        {tr("prov.balance.check")}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => void checkBalance()}
+                        disabled={busy || balanceBusy}
+                      >
+                        <IconRefresh size={14} />
+                        {balanceBusy
+                          ? tr("prov.balance.checking")
+                          : tr("prov.balance.check")}
+                      </button>
+                    </span>
+                    <p className="prov-field__hint">{tr("prov.balance.hint")}</p>
+                    {balanceError ? (
+                      <p className="prov-balance__err" role="status">
+                        {balanceError}
+                      </p>
+                    ) : null}
+                    {balanceResult?.ok ? (
+                      <div className="prov-balance" role="status">
+                        <div className="prov-balance__status">
+                          {balanceResult.isAvailable === false
+                            ? tr("prov.balance.unavailable")
+                            : tr("prov.balance.available")}
+                          {formatProviderBalanceLine(balanceResult) ? (
+                            <span className="prov-balance__total">
+                              {formatProviderBalanceLine(balanceResult)}
+                            </span>
+                          ) : null}
+                        </div>
+                        {balanceResult.balances &&
+                        balanceResult.balances.length > 0 ? (
+                          <ul className="prov-balance__list">
+                            {balanceResult.balances.map((row, i) => (
+                              <li
+                                key={`${row.currency}-${i}`}
+                                className="prov-balance__row"
+                              >
+                                <span className="prov-balance__cur">
+                                  {row.currency || "—"}
+                                </span>
+                                <span>
+                                  {tr("prov.balance.total")}{" "}
+                                  {row.totalBalance}
+                                </span>
+                                {row.grantedBalance ? (
+                                  <span>
+                                    {tr("prov.balance.granted")}{" "}
+                                    {row.grantedBalance}
+                                  </span>
+                                ) : null}
+                                {row.toppedUpBalance ? (
+                                  <span>
+                                    {tr("prov.balance.toppedUp")}{" "}
+                                    {row.toppedUpBalance}
+                                  </span>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="prov-field__hint">
+                            {tr("prov.balance.noLines")}
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 {/* Models — full-width section, 2 equal columns inside */}
                 <div className="prov-field prov-field--full prov-section">

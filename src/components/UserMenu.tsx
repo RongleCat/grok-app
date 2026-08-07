@@ -26,7 +26,11 @@ import {
   FLOATING_MENU_Z_INDEX,
   useFloatingMenu,
 } from "@/lib/floatingMenu";
-import type { AccountStatus, CustomProvider } from "@/lib/api";
+import type {
+  AccountStatus,
+  CustomProvider,
+  ProviderBalanceResult,
+} from "@/lib/api";
 import {
   accountDisplayName,
   accountInitials,
@@ -34,6 +38,10 @@ import {
   tierLabel,
   usagePercent,
 } from "@/lib/accountUi";
+import {
+  formatProviderBalanceDetailParts,
+  formatProviderBalanceLine,
+} from "@/lib/providerBalanceFormat";
 
 export interface UserMenuProps {
   open: boolean;
@@ -59,10 +67,22 @@ export interface UserMenuProps {
     customProvider: string;
     /** Prefix for quota refresh time, e.g. 重置 / Resets */
     resetsAt: string;
+    /** DeepSeek balance (optional) */
+    balanceAvailable?: string;
+    balanceUnavailable?: string;
+    balanceGranted?: string;
+    balanceToppedUp?: string;
+    balanceRefresh?: string;
+    balanceChecking?: string;
   };
   account: AccountStatus | null;
   activeProvider: CustomProvider | null;
   accountBusy: boolean;
+  /** Active custom provider balance (DeepSeek); null when N/A or failed. */
+  providerBalance?: ProviderBalanceResult | null;
+  providerBalanceBusy?: boolean;
+  providerBalanceError?: string | null;
+  onRefreshProviderBalance?: () => void;
   onSettings: () => void;
   onAccountSettings: () => void;
   /** Open optional in-app product tour */
@@ -130,6 +150,10 @@ export function UserMenu({
   account,
   activeProvider,
   accountBusy,
+  providerBalance = null,
+  providerBalanceBusy = false,
+  providerBalanceError = null,
+  onRefreshProviderBalance,
   onSettings,
   onAccountSettings,
   onTutorial,
@@ -329,10 +353,85 @@ export function UserMenu({
                     ) : null}
                   </div>
                   {isCustomProvider ? (
-                    <div className="user-menu__account-sub">
-                      {labels.customProvider}
-                      {activeProvider.model ? ` / ${activeProvider.model}` : ""}
-                    </div>
+                    <>
+                      <div className="user-menu__account-sub">
+                        {labels.customProvider}
+                        {activeProvider.model
+                          ? ` / ${activeProvider.model}`
+                          : ""}
+                      </div>
+                      {(() => {
+                        const line = formatProviderBalanceLine(providerBalance);
+                        const detail =
+                          formatProviderBalanceDetailParts(providerBalance);
+                        const showBalanceBlock =
+                          onRefreshProviderBalance != null ||
+                          line != null ||
+                          providerBalanceError != null ||
+                          providerBalanceBusy;
+                        if (!showBalanceBlock) return null;
+                        return (
+                          <div className="user-menu__balance">
+                            <div className="user-menu__quota-row">
+                              <span className="user-menu__remain">
+                                {line
+                                  ? line
+                                  : providerBalanceBusy
+                                    ? (labels.balanceChecking ?? "…")
+                                    : "—"}
+                              </span>
+                              {providerBalance?.ok &&
+                              providerBalance.isAvailable === false &&
+                              labels.balanceUnavailable ? (
+                                <span className="user-menu__balance-warn">
+                                  {labels.balanceUnavailable}
+                                </span>
+                              ) : providerBalance?.ok &&
+                                labels.balanceAvailable ? (
+                                <span className="user-menu__tier">
+                                  {labels.balanceAvailable}
+                                </span>
+                              ) : null}
+                            </div>
+                            {detail &&
+                            (detail.granted || detail.toppedUp) ? (
+                              <div className="user-menu__account-sub user-menu__balance-detail">
+                                {[
+                                  detail.granted && labels.balanceGranted
+                                    ? `${labels.balanceGranted} ${detail.granted}`
+                                    : null,
+                                  detail.toppedUp && labels.balanceToppedUp
+                                    ? `${labels.balanceToppedUp} ${detail.toppedUp}`
+                                    : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </div>
+                            ) : null}
+                            {providerBalanceError ? (
+                              <div className="user-menu__balance-err">
+                                {providerBalanceError}
+                              </div>
+                            ) : null}
+                            {onRefreshProviderBalance ? (
+                              <button
+                                type="button"
+                                className="user-menu__balance-refresh"
+                                disabled={providerBalanceBusy}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRefreshProviderBalance();
+                                }}
+                              >
+                                {providerBalanceBusy
+                                  ? (labels.balanceChecking ?? "…")
+                                  : (labels.balanceRefresh ?? "Refresh")}
+                              </button>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
+                    </>
                   ) : !signedIn ? (
                     <div className="user-menu__account-sub">
                       {labels.signedOut}

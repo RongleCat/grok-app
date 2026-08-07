@@ -342,6 +342,41 @@ export async function providersListModels(opts: {
   });
 }
 
+/** One currency row from a provider balance probe (amounts stay strings). */
+export interface ProviderBalanceLine {
+  currency: string;
+  totalBalance: string;
+  grantedBalance: string;
+  toppedUpBalance: string;
+}
+
+/** Normalized balance / plan probe (DeepSeek first; plan reserved). */
+export interface ProviderBalanceResult {
+  kind: "balance" | "plan" | "unsupported" | string;
+  provider: string;
+  endpoint: string;
+  ok: boolean;
+  latencyMs: number;
+  status?: number;
+  error?: string;
+  errorKind?: "auth" | "network" | "timeout" | "unsupported" | "other" | string;
+  isAvailable?: boolean;
+  balances?: ProviderBalanceLine[];
+}
+
+/** Probe account balance (Phase 1: DeepSeek `GET /user/balance` only). */
+export async function providersBalance(opts?: {
+  baseUrl?: string;
+  apiKey?: string;
+  providerId?: string;
+}) {
+  return invoke<ProviderBalanceResult>("providers_balance", {
+    baseUrl: opts?.baseUrl ?? null,
+    apiKey: opts?.apiKey ?? null,
+    providerId: opts?.providerId ?? null,
+  });
+}
+
 // ── Editors ─────────────────────────────────────────────────────────────────
 
 export interface DetectedEditor {
