@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- **Per-session composer drafts**: Switching threads no longer drops a half-typed follow-up. Each real session keeps text / attachments / goal mode in `localStorage` (`grok.composerSessionDrafts`); restore on open, debounced persist while typing, clear on send or explicit clear. New-chat still uses the existing per-project buffer.
+
+**中文 · 修复**
+- **按线程保留输入框草稿**：切换会话不再丢掉半截 follow-up。真实线程的文字/附件/Goal 模式写入 `localStorage`（`grok.composerSessionDrafts`），打开时恢复、输入防抖持久化、发送或清空时清除；新对话页仍用原有按项目草稿。
+
 ## [0.2.10] - 2026-08-07
 
 > **Highlight:** Align the desktop workbench with **Grok Build CLI 1.0** — default effort/workflows match the CLI, CLI version & agent-binary skew are visible and repairable, Ops (tasks/dashboard/board) is reachable from the command palette, workflow runs stream live logs, and `/goal` shows an honest session chip.

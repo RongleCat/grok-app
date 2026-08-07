@@ -616,6 +616,11 @@ import {
   type ComposerProjectDraft
 } from "@/lib/composerProjectDraft";
 import {
+  clearComposerSessionDraft,
+  loadComposerSessionDraft,
+  saveComposerSessionDraft,
+} from "@/lib/composerSessionDraft";
+import {
   PromptHistoryPanel,
   type PromptHistoryScope
 } from "@/components/PromptHistoryPanel";
@@ -3983,8 +3988,16 @@ export function AppWorkbench() {
     if (phoneLayout) closePhoneDrawer();
 
     // Leaving a new-chat page: stash composer under the project so newChat can restore.
-    if (viewingSessionIdRef.current == null) {
+    // Leaving a real thread: stash per-session so switching back restores the follow-up.
+    const leavingBeforeOpen = viewingSessionIdRef.current;
+    if (leavingBeforeOpen == null) {
       saveComposerProjectDraft(projectDraftKey(activeProject?.id ?? null), {
+        text: getDraft(),
+        attachments,
+        goalMode,
+      });
+    } else {
+      saveComposerSessionDraft(leavingBeforeOpen, {
         text: getDraft(),
         attachments,
         goalMode,
@@ -3994,7 +4007,7 @@ export function AppWorkbench() {
     // User navigation: invalidate any in-flight work that wants the workbench.
     bumpViewEpoch();
     // Snapshot the outgoing thread so a mid-turn switch does not lose the user bubble.
-    const leavingId = viewingSessionIdRef.current;
+    const leavingId = leavingBeforeOpen;
     if (leavingId) {
       messagesBySessionRef.current.set(
         leavingId,
@@ -4010,6 +4023,26 @@ export function AppWorkbench() {
     // Point viewing id immediately so late stream chunks land in the right cache.
     openingSessionIdRef.current = s.id;
     viewingSessionIdRef.current = s.id;
+    // Restore this thread's follow-up draft immediately (sync localStorage) so
+    // the composer matches the session before journal load, and mid-load typing
+    // is attributed to the right thread on the next switch.
+    {
+      const saved = loadComposerSessionDraft(s.id);
+      suppressProjectDraftPersistRef.current = true;
+      if (saved) {
+        setDraft(saved.text || "");
+        setAttachments(saved.attachments ?? []);
+        if (typeof saved.goalMode === "boolean") {
+          setGoalMode(saved.goalMode);
+        }
+      } else {
+        setDraft("");
+        setAttachments([]);
+      }
+      requestAnimationFrame(() => {
+        suppressProjectDraftPersistRef.current = false;
+      });
+    }
     // P0 (#529): immediately paint this session's cache (or empty) so stream /
     // rehydrate / clear-streaming never reduce against the previous chat while
     // viewing id has already moved. Disk load below may replace with prefer().
@@ -4237,14 +4270,7 @@ export function AppWorkbench() {
     }
     // Orphan sessions clear project context; project sessions select their folder.
     setActiveProject(proj);
-    // Existing session: clear composer UI (project buffer already saved above).
-    // Follow-ups start empty; new-chat buffers stay in per-project storage.
-    suppressProjectDraftPersistRef.current = true;
-    setDraft("");
-    setAttachments([]);
-    requestAnimationFrame(() => {
-      suppressProjectDraftPersistRef.current = false;
-    });
+    // Composer follow-up draft was restored at switch time (per-session buffer).
     // Reattach live host snapshot when reopening the session that is still running.
     const live = liveHostRef.current;
     if (live.sessionId === s.id) {
@@ -4455,6 +4481,38 @@ export function AppWorkbench() {
     };
   }, [attachments, goalMode, activeProject?.id, session.sessionId]);
 
+  /**
+   * While viewing a real thread, keep the per-session follow-up buffer in sync
+   * so crash / hard switch mid-type still restores when reopening that thread.
+   */
+  useEffect(() => {
+    let t: number | undefined;
+    const sessionKey = () =>
+      viewingSessionIdRef.current ?? session.sessionId ?? null;
+    const persist = () => {
+      if (suppressProjectDraftPersistRef.current) return;
+      const id = sessionKey();
+      if (!id) return;
+      saveComposerSessionDraft(id, {
+        text: getComposerDraft(),
+        attachments,
+        goalMode,
+      });
+    };
+    const schedule = () => {
+      if (suppressProjectDraftPersistRef.current) return;
+      if (!sessionKey()) return;
+      window.clearTimeout(t);
+      t = window.setTimeout(persist, 280);
+    };
+    schedule();
+    const unsub = composerDraftStore.subscribe(schedule);
+    return () => {
+      window.clearTimeout(t);
+      unsub();
+    };
+  }, [attachments, goalMode, session.sessionId]);
+
   useEffect(() => {
     if (appGate !== "ready") return;
     if (didRestoreLastRef.current) return;
@@ -4605,8 +4663,9 @@ export function AppWorkbench() {
    * Pass `null` for a project-less session (listed under “其他会话”).
    * Omit / pass undefined to use the active project (requires one).
    *
-   * Composer text/attachments are restored from per-project memory so a
-   * half-typed task survives switching to another chat and back.
+   * Composer text/attachments: leaving a real thread stashes per-session
+   * follow-ups; the new-chat page restores the per-project buffer so a
+   * half-typed new task survives switching away and back.
    */
   const newChat = async (
     project?: Project | null,
@@ -4629,11 +4688,18 @@ export function AppWorkbench() {
       return;
     }
 
-    // Snapshot outgoing new-chat buffer under the *previous* project before switch.
+    // Snapshot outgoing composer: new-chat → per-project; real thread → per-session.
     const prevKey = projectDraftKey(activeProject?.id ?? null);
     const wasDraftPage = viewingSessionIdRef.current == null;
+    const leavingId = viewingSessionIdRef.current;
     if (wasDraftPage) {
       saveComposerProjectDraft(prevKey, {
+        text: getDraft(),
+        attachments,
+        goalMode,
+      });
+    } else if (leavingId) {
+      saveComposerSessionDraft(leavingId, {
         text: getDraft(),
         attachments,
         goalMode,
@@ -4658,7 +4724,6 @@ export function AppWorkbench() {
     // Preserve outgoing thread in cache before clearing the draft UI.
     // Always snapshot current messages (not only if already cached) so a mid-send
     // switch does not drop the optimistic user/assistant bubbles.
-    const leavingId = viewingSessionIdRef.current;
     if (leavingId) {
       messagesBySessionRef.current.set(
         leavingId,
@@ -7292,6 +7357,9 @@ export function AppWorkbench() {
   const clearComposerAfterSubmit = (opts?: {
     /** Drop the per-project new-chat buffer (only when leaving a draft send). */
     clearProjectDraft?: boolean;
+    /** Drop the per-session follow-up buffer (send / clear on a real thread). */
+    clearSessionDraft?: boolean;
+    sessionDraftId?: string | null;
   }) => {
     setDraft("");
     promptHistoryIndexRef.current = null;
@@ -7306,6 +7374,14 @@ export function AppWorkbench() {
     if (opts?.clearProjectDraft) {
       clearComposerProjectDraft(projectDraftKey(activeProject?.id ?? null));
     }
+    if (opts?.clearSessionDraft) {
+      const sid =
+        opts.sessionDraftId ??
+        viewingSessionIdRef.current ??
+        session.sessionId ??
+        null;
+      if (sid) clearComposerSessionDraft(sid);
+    }
     requestAnimationFrame(() => {
       const el = document.querySelector<HTMLElement>(".composer__input");
       if (el) el.style.height = "auto";
@@ -7314,12 +7390,15 @@ export function AppWorkbench() {
 
   /**
    * Wipe the main composer (text + attachments). Also leaves inline edit mode
-   * and drops the per-project new-chat buffer when on a draft page.
+   * and drops the per-project new-chat buffer when on a draft page, or the
+   * per-session follow-up buffer when on a real thread.
    */
   const applyClearComposerDraft = useCallback(() => {
+    const onDraftPage =
+      session.sessionId == null && viewingSessionIdRef.current == null;
     clearComposerAfterSubmit({
-      clearProjectDraft:
-        session.sessionId == null && viewingSessionIdRef.current == null,
+      clearProjectDraft: onDraftPage,
+      clearSessionDraft: !onDraftPage,
     });
     if (!editSubmitting) {
       setEditingUserMessageId(null);
@@ -7367,8 +7446,13 @@ export function AppWorkbench() {
     sendQueue.releaseFlushHold();
 
     // New-chat page → after send, forget the project buffer so restore is empty.
-    // Existing-session follow-ups must not wipe a half-typed new-task draft.
+    // Existing-session follow-ups clear the per-session buffer only (not project).
     const fromNewChatPage = session.sessionId == null;
+    const clearDraftOpts = {
+      clearProjectDraft: fromNewChatPage,
+      clearSessionDraft: !fromNewChatPage,
+      sessionDraftId: viewingSessionIdRef.current ?? session.sessionId,
+    };
 
     // Enqueue only when *this viewed chat* FSM is busy (streaming/connecting).
     // Host mid-turn on another session → executeSend demotes + spawns concurrent
@@ -7382,11 +7466,11 @@ export function AppWorkbench() {
         attachments: att,
         goalMode,
       });
-      clearComposerAfterSubmit({ clearProjectDraft: fromNewChatPage });
+      clearComposerAfterSubmit(clearDraftOpts);
       return;
     }
 
-    clearComposerAfterSubmit({ clearProjectDraft: fromNewChatPage });
+    clearComposerAfterSubmit(clearDraftOpts);
     await executeSend({
       storedDisplay,
       att,
