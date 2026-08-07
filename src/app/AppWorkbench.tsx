@@ -952,7 +952,7 @@ import {
 import { Tip } from "@/components/ui/tooltip";
 import {
   WindowControls,
-  toggleMaximizeFromTitlebar
+  titlebarMaximizeHandlers
 } from "@/components/WindowControls";
 
 import { paletteActionIcon } from "@/app/paletteActionIcon";
@@ -2379,6 +2379,10 @@ export function AppWorkbench() {
   const platform = useMemo(() => detectAppPlatform(), []);
   /** Self-drawn chrome when OS title bar is disabled (Windows release config). */
   const useCustomWindowChrome = platform === "win" || platform === "other";
+  /** Titlebar / chrome-strip double-click → maximize on mac + win. */
+  const titlebarMax = titlebarMaximizeHandlers({
+    enabled: !phoneLayout && !isMirrorClient(),
+  });
   /** Right inset so resource chrome icons clear min/max/close. */
   const windowControlsInset = useCustomWindowChrome ? WINDOW_CONTROLS_INSET : 0;
   const [windowMaximized, setWindowMaximized] = useState(false);
@@ -2696,9 +2700,12 @@ export function AppWorkbench() {
     if (platform === "other") document.documentElement.classList.add("platform-other");
   }, [platform]);
 
+  // Track maximized on every desktop host (mac Overlay + Win frameless) so
+  // .is-maximized chrome + layout reclamp stay honest after titlebar dblclick.
   useEffect(() => {
-    if (!useCustomWindowChrome || !api.isTauri()) return;
-    let unlisten: (() => void) | undefined;
+    if (!api.isDesktopHost() || !api.isTauri()) return;
+    let unlistenResize: (() => void) | undefined;
+    let unlistenScale: (() => void) | undefined;
     let cancelled = false;
     void (async () => {
       try {
@@ -2712,19 +2719,30 @@ export function AppWorkbench() {
           }
         };
         await sync();
-        unlisten = await w.onResized(() => {
+        unlistenResize = await w.onResized(() => {
           void sync();
         });
-        if (cancelled) unlisten?.();
+        try {
+          unlistenScale = await w.onScaleChanged(() => {
+            void sync();
+          });
+        } catch {
+          /* older API */
+        }
+        if (cancelled) {
+          unlistenResize?.();
+          unlistenScale?.();
+        }
       } catch {
         /* ignore */
       }
     })();
     return () => {
       cancelled = true;
-      unlisten?.();
+      unlistenResize?.();
+      unlistenScale?.();
     };
-  }, [useCustomWindowChrome]);
+  }, []);
 
   // Apply always-on-top from localStorage on boot (and whenever state is set).
   useEffect(() => {
@@ -15451,7 +15469,11 @@ export function AppWorkbench() {
 
       {appGate === "loading" && (
         <div className="setup-gate" data-testid="setup-booting">
-          <div className="setup-gate__drag" data-tauri-drag-region />
+          <div
+            className="setup-gate__drag"
+            data-tauri-drag-region
+            {...titlebarMax}
+          />
           <div className="setup-gate__center">
             <div className="setup-hero">
               <div
@@ -16257,9 +16279,7 @@ export function AppWorkbench() {
           <div
             className="sidebar-chrome"
             data-tauri-drag-region
-            onDoubleClick={() => {
-              if (useCustomWindowChrome) void toggleMaximizeFromTitlebar();
-            }}
+            {...titlebarMax}
           >
             <Tip label={tr("main.leftPaneHide")}>
               <button
@@ -16277,7 +16297,11 @@ export function AppWorkbench() {
                 <IconPanel size={16} />
               </button>
             </Tip>
-            <div className="sidebar-chrome__drag" data-tauri-drag-region />
+            <div
+              className="sidebar-chrome__drag"
+              data-tauri-drag-region
+              {...titlebarMax}
+            />
           </div>
 
           {/* Row 2: brand + search (Codex: title left, search right) */}
@@ -17030,9 +17054,7 @@ export function AppWorkbench() {
               "main__top" + (phoneLayout ? " main__top--phone" : "")
             }
             data-tauri-drag-region
-            onDoubleClick={() => {
-              if (useCustomWindowChrome) void toggleMaximizeFromTitlebar();
-            }}
+            {...titlebarMax}
           >
             <div className="main__title-row" data-tauri-drag-region>
               {/* Phone: always-visible hamburger (≥44px). Desktop: reopen when rail hidden. */}

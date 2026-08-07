@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GrokLogo } from "@/components/GrokLogo";
 import { Select } from "@/components/Select";
 import { Spinner } from "@/components/ui/spinner";
+import { titlebarMaximizeHandlers } from "@/components/WindowControls";
 import * as api from "@/lib/api";
 import type { createT } from "@/i18n";
 import type { MessageKey } from "@/i18n";
@@ -469,7 +470,11 @@ export function SetupWizard({
       data-platform={platform}
       data-testid="setup-wizard"
     >
-      <div className="setup-gate__drag" data-tauri-drag-region />
+      <div
+        className="setup-gate__drag"
+        data-tauri-drag-region
+        {...titlebarMaximizeHandlers()}
+      />
 
       <div className="setup-gate__center">
         <div className="setup-hero">

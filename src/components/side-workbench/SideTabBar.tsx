@@ -40,6 +40,7 @@ import {
   type SidePickerKind,
 } from "@/lib/sideWorkbench";
 import { SidePicker } from "./SidePicker";
+import { titlebarMaximizeHandlers } from "@/components/WindowControls";
 
 export type SideTabBarProps = {
   locale: Locale | string;
@@ -105,6 +106,7 @@ export function SideTabBar({
   onToggleSide,
 }: SideTabBarProps) {
   const tr = useMemo(() => createT(locale as Locale), [locale]);
+  const titlebarMax = titlebarMaximizeHandlers();
   const [plusOpen, setPlusOpen] = useState(false);
   const plusRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -259,7 +261,11 @@ export function SideTabBar({
   ]);
 
   return (
-    <div className="rp-chrome sw-chrome" data-testid="side-tab-bar">
+    <div
+      className="rp-chrome sw-chrome"
+      data-testid="side-tab-bar"
+      {...titlebarMax}
+    >
       {/* Cluster: tabs + + stick together on the left; expand/side stay flush right */}
       <div
         className={
@@ -347,7 +353,12 @@ export function SideTabBar({
       </div>
 
       {/* Empty strip between tabs/+ and right actions — window drag (titlebar). */}
-      <div className="sw-chrome__drag" data-tauri-drag-region aria-hidden />
+      <div
+        className="sw-chrome__drag"
+        data-tauri-drag-region
+        aria-hidden
+        {...titlebarMax}
+      />
 
       <div className="rp-chrome__actions">
         {/* Dock input: only when side is expanded (icon toggle, default off). */}

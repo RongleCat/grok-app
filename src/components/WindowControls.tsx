@@ -113,12 +113,68 @@ export function WindowControls({ visible, labels }: Props) {
   );
 }
 
-/** Double-click titlebar strip → maximize/restore (Win habit). */
+/**
+ * Double-click titlebar / chrome drag strip → maximize/restore.
+ * Used on every desktop host (mac Overlay drag regions do not always get
+ * native zoom; Win frameless has no system caption). Prefer true maximize
+ * over macOS "zoom" so the workbench can use the full work area.
+ *
+ * Debounced: drag regions may emit both mousedown(detail=2) and dblclick;
+ * without a guard that would toggleMaximize twice (no-op).
+ */
+let lastTitlebarMaximizeMs = 0;
+
 export async function toggleMaximizeFromTitlebar(): Promise<void> {
+  const now = Date.now();
+  if (now - lastTitlebarMaximizeMs < 400) return;
+  lastTitlebarMaximizeMs = now;
   try {
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     await getCurrentWindow().toggleMaximize();
   } catch {
-    /* ignore */
+    /* browser / no window API */
   }
+}
+
+/** True when the event target is chrome that should not start window chrome actions. */
+export function isTitlebarInteractiveTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el?.closest) return false;
+  return !!el.closest(
+    "button, a, input, textarea, select, [role='button'], [role='tab'], [role='menuitem'], [role='option'], [contenteditable='true']",
+  );
+}
+
+/**
+ * Props for titlebar / drag strips: maximize on double-click even when
+ * `-webkit-app-region: drag` swallows the synthetic dblclick (mac Overlay).
+ * Pair with `data-tauri-drag-region` for native drag.
+ */
+export function titlebarMaximizeHandlers(opts?: {
+  enabled?: boolean;
+}): {
+  onDoubleClick: (e: { target: EventTarget | null; button?: number }) => void;
+  onMouseDown: (e: {
+    target: EventTarget | null;
+    button: number;
+    detail: number;
+    preventDefault: () => void;
+  }) => void;
+} {
+  const enabled = opts?.enabled !== false;
+  return {
+    onDoubleClick: (e) => {
+      if (!enabled) return;
+      if (isTitlebarInteractiveTarget(e.target)) return;
+      void toggleMaximizeFromTitlebar();
+    },
+    onMouseDown: (e) => {
+      if (!enabled) return;
+      if (e.button !== 0 || e.detail < 2) return;
+      if (isTitlebarInteractiveTarget(e.target)) return;
+      // Second click of a double-click pair.
+      e.preventDefault();
+      void toggleMaximizeFromTitlebar();
+    },
+  };
 }

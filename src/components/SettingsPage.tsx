@@ -80,6 +80,7 @@ import {
   type SidebarDensity,
 } from "@/lib/sidebarDensity";
 import type { WallpaperSourceTab } from "@/components/WallpaperSourceModal";
+import { titlebarMaximizeHandlers } from "@/components/WindowControls";
 import {
   loadComposerSendKeyPref,
   type ComposerSendKeyPref,
@@ -1592,11 +1593,7 @@ export function SettingsPage({
         className="settings-page__chrome"
         data-tauri-drag-region
         aria-hidden
-        onDoubleClick={() => {
-          void import("@tauri-apps/api/window")
-            .then(({ getCurrentWindow }) => getCurrentWindow().toggleMaximize())
-            .catch(() => {});
-        }}
+        {...titlebarMaximizeHandlers()}
       />
       <aside
         className="settings-page__nav"
