@@ -1,8 +1,13 @@
 /**
  * Copy an image (from URL / data URL / asset protocol) onto the system clipboard.
  * ClipboardItem typically requires image/png — we convert when needed.
+ *
+ * In Tauri, prefer the native `clipboard_write_image` command (arboard). WebView
+ * `navigator.clipboard.write(image/png)` is unreliable on macOS WKWebView and
+ * often fails silently so paste into Feishu / other apps gets nothing.
  */
 
+import { clipboardWriteImage, isTauri } from "@/lib/api";
 import { resolveImageSrc } from "@/lib/imageSrc";
 
 export type CopyImageResult =
@@ -15,6 +20,18 @@ function canWriteImage(): boolean {
     !!navigator.clipboard &&
     typeof ClipboardItem !== "undefined"
   );
+}
+
+/** Blob → base64 (no data: prefix) for Host `clipboard_write_image`. */
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  const chunk = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
 }
 
 /** Draw arbitrary image blob into a PNG blob (clipboard-friendly). */
@@ -43,8 +60,6 @@ async function blobToPng(blob: Blob): Promise<Blob> {
  * Copy image at `src` (viewable URL) to clipboard as PNG.
  */
 export async function copyImageFromSrc(src: string): Promise<CopyImageResult> {
-  if (!canWriteImage()) return { ok: false, reason: "unsupported" };
-
   let blob: Blob;
   try {
     const res = await fetch(src);
@@ -60,6 +75,19 @@ export async function copyImageFromSrc(src: string): Promise<CopyImageResult> {
   } catch {
     return { ok: false, reason: "encode" };
   }
+
+  // Prefer native OS clipboard (arboard). WebView ClipboardItem often fails.
+  if (isTauri()) {
+    try {
+      const b64 = await blobToBase64(png);
+      await clipboardWriteImage(b64);
+      return { ok: true };
+    } catch {
+      /* fall through to web clipboard */
+    }
+  }
+
+  if (!canWriteImage()) return { ok: false, reason: "unsupported" };
 
   try {
     await navigator.clipboard.write([
