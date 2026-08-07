@@ -275,4 +275,18 @@ describe("layout prefs", () => {
       false,
     );
   });
+
+  it("squeezed non-maximized frame prefers chat floor over chrome min", () => {
+    // sidebar 268 + chat 360 + preferred 400 = 1028 > 1000 viewport
+    // → aside max = 1000 - 268 - 360 = 372 (< chrome min 400)
+    const w = clampAsideWidth(400, {
+      viewportWidth: 1000,
+      sidebarOccupiedWidth: 268,
+    });
+    expect(w).toBe(1000 - 268 - MAIN_CHAT_MIN_WIDTH);
+    expect(w).toBeLessThan(ASIDE_WIDTH_MIN);
+    // Close control must still be reachable via main toggle when this happens;
+    // clamp itself only guarantees chat floor, not chrome min.
+    expect(w).toBeGreaterThan(0);
+  });
 });

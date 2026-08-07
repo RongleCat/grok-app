@@ -134,6 +134,48 @@ async function growWindowTo(
     // Suppress cascade before setSize so the resize event is ignored.
     markSuppressed();
     await win.setSize(new LogicalSize(capped, curH));
+
+    // Growing width alone can push the right edge off-monitor when the
+    // window sits near the right of the work area (common for non-maximized
+    // frames). Nudge left so the side-pane chrome (close control) stays on
+    // screen.
+    try {
+      const mon = await currentMonitor();
+      if (mon?.workArea && mon.scaleFactor > 0) {
+        const { LogicalPosition } = await import("@tauri-apps/api/dpi");
+        const outer = await win.outerPosition();
+        const outerSize = await win.outerSize();
+        const sf = mon.scaleFactor;
+        const work = mon.workArea;
+        const workX = work.position.x / sf;
+        const workY = work.position.y / sf;
+        const workW = work.size.width / sf;
+        const workH = work.size.height / sf;
+        const winX = outer.x / sf;
+        const winY = outer.y / sf;
+        const winW = outerSize.width / sf;
+        const winH = outerSize.height / sf;
+        let nextX = winX;
+        let nextY = winY;
+        if (winX + winW > workX + workW) {
+          nextX = workX + workW - winW;
+        }
+        if (nextX < workX) nextX = workX;
+        if (winY + winH > workY + workH) {
+          nextY = workY + workH - winH;
+        }
+        if (nextY < workY) nextY = workY;
+        if (
+          Math.abs(nextX - winX) > 0.5 ||
+          Math.abs(nextY - winY) > 0.5
+        ) {
+          await win.setPosition(new LogicalPosition(nextX, nextY));
+        }
+      }
+    } catch {
+      /* position clamp is best-effort */
+    }
+
     markSuppressed();
     return capped;
   } catch (e) {

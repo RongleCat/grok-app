@@ -2468,14 +2468,31 @@ export function AppWorkbench() {
     const preferredAside = Math.max(
       cur.asideWidth || 0,
       DEFAULT_LAYOUT.asideWidth,
+      ASIDE_WIDTH_MIN,
     );
-    // Paint the pane first — do not block UI on window grow.
+    // Sync-clamp to the *current* viewport before paint. Opening at preferred
+    // width first (old path) made sidebar + main min + aside overflow narrow
+    // non-maximized windows, clipping the side chrome close control off-screen.
+    const syncWidth = clampAsideWidth(preferredAside, {
+      ...asideClampOpts(),
+      viewportWidth:
+        typeof window !== "undefined" ? window.innerWidth : undefined,
+      sidebarOccupiedWidth: cur.sidebarCollapsed
+        ? 0
+        : cur.sidebarWidth || SIDEBAR_DEFAULT_WIDTH,
+    });
+    // If the frame is too tight for any aside (syncWidth 0), still paint a
+    // small pane and let window fit / expand try to recover.
+    const paintWidth =
+      syncWidth > 0
+        ? syncWidth
+        : Math.min(preferredAside, ASIDE_WIDTH_MIN);
     setLayout((l) => {
-      if (!l.asideCollapsed && (l.asideWidth || 0) >= preferredAside) return l;
+      if (!l.asideCollapsed && (l.asideWidth || 0) === paintWidth) return l;
       const n = {
         ...l,
         asideCollapsed: false,
-        asideWidth: Math.max(l.asideWidth || 0, preferredAside),
+        asideWidth: paintWidth,
       };
       saveLayout(localStorage, n);
       return n;
@@ -2496,7 +2513,20 @@ export function AppWorkbench() {
         return n;
       });
     });
-  }, [fitWindowThenClampAside, phoneLayout]);
+  }, [asideClampOpts, fitWindowThenClampAside, phoneLayout]);
+
+  /** Collapse the right Side Workbench (and exit expand / dock composer). */
+  const closeAsidePane = useCallback(() => {
+    planOpenedAsideRef.current = false;
+    setSideWorkbench((s) => (s.expanded ? { ...s, expanded: false } : s));
+    setSideDockComposer(false);
+    setLayout((l) => {
+      if (l.asideCollapsed) return l;
+      const n = { ...l, asideCollapsed: true };
+      saveLayout(localStorage, n);
+      return n;
+    });
+  }, []);
 
   /** Route chat context opens into Side Workbench tabs (Phase 6). */
   useEffect(() => {
@@ -12548,15 +12578,7 @@ export function AppWorkbench() {
         openAsidePane();
         return;
       }
-      setLayout((l) => {
-        if (l.asideCollapsed) return l;
-        const n = { ...l, asideCollapsed: true };
-        saveLayout(localStorage, n);
-        return n;
-      });
-      setSideWorkbench((s) =>
-        s.expanded ? { ...s, expanded: false } : s,
-      );
+      closeAsidePane();
     },
     openSidePicker: (kind: SidePickerKind) => {
       setSideWorkbench((s) => {
@@ -17160,7 +17182,9 @@ export function AppWorkbench() {
                       stay as no-op cleanup. */}
                   {/* Codex Side Workbench chrome:
                       collapsed → open-with · env · side
-                      open      → open-with · env  (side/expand on side bar) */}
+                      open      → open-with · env · side (also on side bar)
+                      Main keeps a toggle when open so narrow/non-maximized
+                      windows can still close if side chrome is clipped. */}
                   {mainPane === "chat" &&
                     activeProject &&
                     !isMirrorClient() && (
@@ -17240,6 +17264,9 @@ export function AppWorkbench() {
                       }}
                     />
                   ) : null}
+                  {/* Always keep a main-chrome toggle: when the window is not
+                      maximized, the side pane can clip its own close control
+                      past the right edge — main column stays reachable. */}
                   {layout.asideCollapsed ? (
                     <Tip label={tr("main.rightPaneShow")}>
                       <button
@@ -17253,7 +17280,20 @@ export function AppWorkbench() {
                         <IconPanelRight size={16} />
                       </button>
                     </Tip>
-                  ) : null}
+                  ) : (
+                    <Tip label={tr("main.rightPaneHide")}>
+                      <button
+                        type="button"
+                        className="chrome-btn main__pane-toggle is-on"
+                        aria-label={tr("main.rightPaneHide")}
+                        aria-pressed
+                        data-testid="main-side-toggle"
+                        onClick={() => closeAsidePane()}
+                      >
+                        <IconPanelRight size={16} />
+                      </button>
+                    </Tip>
+                  )}
                 </>
               )}
             </div>
@@ -18965,18 +19005,7 @@ export function AppWorkbench() {
                 onDismissPlan={() => void dismissPlan()}
                 openRequest={resourceOpenTarget}
                 onOpenRequestConsumed={() => setResourceOpenTarget(null)}
-                onCloseSide={() => {
-                  planOpenedAsideRef.current = false;
-                  setSideWorkbench((s) =>
-                    s.expanded ? { ...s, expanded: false } : s,
-                  );
-                  setSideDockComposer(false);
-                  setLayout((l) => {
-                    const n = { ...l, asideCollapsed: true };
-                    saveLayout(localStorage, n);
-                    return n;
-                  });
-                }}
+                onCloseSide={closeAsidePane}
                 onExpandedChange={(expanded) => {
                   if (phoneLayout) return;
                   if (!expanded) setSideDockComposer(false);

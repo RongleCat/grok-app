@@ -187,7 +187,9 @@ html[data-wallpaper="1"].platform-mac[data-theme="light"]
   position: relative;
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 100%;
+  /* Leave room for expand + side-toggle (~72px) so close stays on-screen when
+   * the pane is squeezed on a non-maximized window. */
+  max-width: calc(100% - 72px);
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -1483,3 +1485,35 @@ html[data-theme="light"] .sw-terminal--pty {
   color: var(--text-tertiary);
 }
 
+
+
+/* aside-close-clip-fix
+ * When the right pane is narrower than ideal (non-maximized / tight frame),
+ * keep expand + side-toggle on screen: never let the tab cluster push them
+ * past the chrome edge. Empty picker also shrinks cleanly.
+ */
+.sw-chrome.rp-chrome {
+  min-width: 0;
+  overflow: hidden;
+}
+
+
+.sw-picker--empty {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sw-picker--empty .sw-picker__item {
+  min-width: 0;
+}
+
+.sw-picker--empty .sw-picker__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 1100px) {
+  .sw-picker--empty .sw-picker__shortcut {
+    display: none;
+  }
+}
