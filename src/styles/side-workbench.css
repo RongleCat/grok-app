@@ -289,6 +289,187 @@ html[data-wallpaper="1"].platform-mac[data-theme="light"]
   display: none !important;
 }
 
+/* Find skills — docked right panel (live rank from composer draft) */
+.sw-skills {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.sw-skills__head {
+  flex: 0 0 auto;
+  padding: 12px 12px 8px;
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sw-skills__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.sw-skills__count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+}
+.sw-skills__hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted, #6b7280);
+}
+.sw-skills__filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.1));
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--bg-input, var(--bg-elevated, #fff));
+}
+.sw-skills__filter input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+.sw-skills__section {
+  flex: 0 0 auto;
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+}
+.sw-skills__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sw-skills__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+.sw-skills__item:hover {
+  background: color-mix(in srgb, var(--accent, #6b8cff) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent, #6b8cff) 22%, transparent);
+}
+.sw-skills__item--matched {
+  border-left: 3px solid color-mix(in srgb, var(--accent, #16a34a) 50%, transparent);
+}
+.sw-skills__item--top {
+  background: color-mix(in srgb, var(--accent, #16a34a) 7%, transparent);
+}
+.sw-skills__item-ico {
+  flex-shrink: 0;
+  margin-top: 2px;
+  opacity: 0.75;
+}
+.sw-skills__item-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sw-skills__item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.sw-skills__item-name {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sw-skills__score {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #16a34a) 14%, transparent);
+  color: var(--accent, #15803d);
+}
+.sw-skills__item-desc {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-muted, #6b7280);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sw-skills__tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.sw-skills__token {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent, #6b8cff) 28%, transparent);
+  background: color-mix(in srgb, var(--accent, #6b8cff) 8%, transparent);
+}
+.sw-skills__empty {
+  padding: 16px 12px;
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sw-skills__empty-title {
+  font-weight: 600;
+  color: var(--text-primary, inherit);
+}
+.sw-skills__empty-hint {
+  font-size: 11px;
+  line-height: 1.4;
+}
+.sw-skills__empty-error {
+  font-size: 11px;
+  color: #b91c1c;
+  word-break: break-word;
+}
+.sw-skills__clear {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
 /* Files workspace must fill host so .rp-split can grow.
  * Solid theme surfaces — not transparent glass (wallpaper would show through). */
 .sw__files-host,

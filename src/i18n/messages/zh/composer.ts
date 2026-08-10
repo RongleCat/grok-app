@@ -316,5 +316,5 @@ export const zhComposer = {
   "composer.apply.error.disconnected": "Agent 未连接",
   "composer.apply.error.busy": "Agent 回合进行中 — 本轮结束后生效",
   "composer.apply.error.other": "无法应用模型或推理强度变更",
-  "composer.skillsPicker": "技能",
+  "composer.skillsPicker": "查找技能",
 };

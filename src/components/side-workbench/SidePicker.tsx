@@ -14,6 +14,7 @@ import { createT, type Locale } from "@/i18n";
 import {
   IconFileDiff,
   IconFolder,
+  IconSkills,
   IconTerminal,
   IconWorld,
 } from "@/components/icons";
@@ -48,6 +49,8 @@ function kindIcon(kind: SidePickerKind) {
       return <IconWorld size={16} />;
     case "terminal":
       return <IconTerminal size={16} />;
+    case "skills":
+      return <IconSkills size={16} />;
     case "review":
       return <IconFileDiff size={16} />;
   }

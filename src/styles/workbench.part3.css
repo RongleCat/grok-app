@@ -1,5 +1,41 @@
 /* domain CSS chunk (move-only split; selectors unchanged) */
 
+.skills-task-picker__item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.skills-task-picker__score {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #16a34a) 16%, transparent);
+  color: var(--accent, #15803d);
+}
+.skills-task-picker__item--matched {
+  border-left: 3px solid color-mix(in srgb, var(--accent, #16a34a) 55%, transparent);
+}
+.skills-task-picker__item--top {
+  background: color-mix(in srgb, var(--accent, #16a34a) 8%, transparent);
+}
+.skills-task-picker__tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.skills-task-picker__token {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent, #6b8cff) 30%, transparent);
+  background: color-mix(in srgb, var(--accent, #6b8cff) 8%, transparent);
+  color: var(--text-muted, inherit);
+}
 .skills-task-picker__list {
   flex: 1 1 auto;
   min-height: 0;
@@ -50,17 +86,6 @@
 .skills-task-picker__item-name {
   font-size: 13px;
   font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  max-width: 100%;
-}
-
-.skills-task-picker__item-name-text {
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -6,7 +6,12 @@
 export const SIDE_TABS_MAX = 24;
 
 /** User-creatable kinds via empty state / `+` picker. */
-export type SidePickerKind = "file" | "browser" | "terminal" | "review";
+export type SidePickerKind =
+  | "file"
+  | "browser"
+  | "terminal"
+  | "review"
+  | "skills";
 
 /** All tab kinds including process-only plan. */
 export type SideTabKind = SidePickerKind | "plan";
@@ -16,6 +21,7 @@ export type SideTab =
   | { id: string; kind: "browser"; url?: string; title?: string; name: string }
   | { id: string; kind: "terminal"; sessionKey: string; name: string }
   | { id: string; kind: "review"; name: string }
+  | { id: string; kind: "skills"; name: string }
   | { id: string; kind: "plan"; planRef?: string; name: string };
 
 export type SideWorkbenchState = {
@@ -78,6 +84,10 @@ const PICKER_BASE: SidePickerOption[] = [
     shortcutKey: "side.picker.terminalShortcut",
   },
   {
+    kind: "skills",
+    labelKey: "side.picker.skills",
+  },
+  {
     kind: "review",
     labelKey: "side.picker.review",
   },
@@ -116,7 +126,12 @@ export function isPickerCreatableKind(
 ): boolean {
   if (kind === "plan") return false;
   if (kind === "review") return !!opts.isGitProject;
-  return kind === "file" || kind === "browser" || kind === "terminal";
+  return (
+    kind === "file" ||
+    kind === "browser" ||
+    kind === "terminal" ||
+    kind === "skills"
+  );
 }
 
 function newTabId(): string {
@@ -142,6 +157,7 @@ export const SIDE_TAB_DEFAULT_NAME_KEYS: Record<SideTabKind, string> = {
   browser: "side.tab.browser",
   terminal: "side.tab.terminal",
   review: "side.tab.review",
+  skills: "side.tab.skills",
   plan: "side.tab.plan",
 };
 
@@ -187,6 +203,8 @@ function buildTab(kind: SideTabKind, meta?: CreateSideTabMeta): SideTab {
       };
     case "review":
       return { id, kind, name };
+    case "skills":
+      return { id, kind, name };
     case "plan":
       return { id, kind, planRef: meta?.planRef, name };
   }
@@ -226,7 +244,10 @@ export function openSideTab(
         (t.url || "").trim().replace(/\/+$/, "") === u,
     );
   }
-  if (existingIdx < 0 && (kind === "review" || kind === "plan")) {
+  if (
+    existingIdx < 0 &&
+    (kind === "review" || kind === "plan" || kind === "skills")
+  ) {
     existingIdx = tabs.findIndex((t) => t.kind === kind);
   }
   // Files workspace: single shared tree container (not one tab per file).
@@ -289,33 +310,6 @@ export function closeSideTab(
     activeId = tabs[0]?.id ?? null;
   }
   return { ...state, tabs, activeId };
-}
-
-/**
- * Close the active side tab (falls back to the first tab).
- * No-op when the strip is empty.
- */
-export function closeActiveSideTab(
-  state: SideWorkbenchState,
-): SideWorkbenchState {
-  const id = state.activeId ?? state.tabs[0]?.id;
-  if (!id) return state;
-  return closeSideTab(state, id);
-}
-
-/**
- * ⌘W / Ctrl+W — close the active side tab when the strip has tabs
- * (browser-style; empty strip leaves the chord for window close).
- */
-export function isCloseSideTabChord(e: {
-  key: string;
-  metaKey: boolean;
-  ctrlKey: boolean;
-  altKey: boolean;
-  shiftKey: boolean;
-}): boolean {
-  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return false;
-  return e.key === "w" || e.key === "W";
 }
 
 /**

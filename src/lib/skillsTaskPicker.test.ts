@@ -126,6 +126,41 @@ describe("rankSkillsForTask", () => {
       rankSkillsForTask({ skills: CATALOG }).map((s) => s.name),
     ).toEqual(["alpha-skill", "media-gen", "zebra-tool"]);
   });
+
+  it("ranks by live prompt and returns only matches", () => {
+    const ranked = rankSkillsForTask({
+      skills: CATALOG,
+      prompt: "generate media images please",
+      recentIds: ["zebra-tool"],
+    });
+    expect(ranked.length).toBeGreaterThan(0);
+    expect(ranked[0]!.name).toBe("media-gen");
+    expect((ranked[0]!.matchScore ?? 0) > 0).toBe(true);
+    // Only prompt hits — not full catalog
+    expect(ranked.every((s) => (s.matchScore ?? 0) > 0)).toBe(true);
+  });
+
+  it("strips skill tokens before prompt match", () => {
+    const ranked = rankSkillsForTask({
+      skills: CATALOG,
+      prompt: "[[skill:zebra-tool]] generate media images",
+    });
+    expect(ranked.map((s) => s.name)).toContain("media-gen");
+  });
+
+  it("does not dump A-Z catalog when prompt has no skill fit", () => {
+    const ranked = rankSkillsForTask({
+      skills: CATALOG,
+      prompt: "toi muon an com hom nay nhe ban oi",
+      recentIds: ["zebra-tool"],
+    });
+    // Prompt active → match-only mode (empty or weak hits), never full alpha list
+    expect(ranked.every((s) => (s.matchScore ?? 0) > 0)).toBe(true);
+    // Must not force-include recent when nothing matched purpose
+    if (ranked.length === 0) {
+      expect(ranked).toEqual([]);
+    }
+  });
 });
 
 describe("formatSkillToken / planInsertSkill", () => {

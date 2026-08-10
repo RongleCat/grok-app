@@ -316,5 +316,5 @@ export const zhTWComposer = {
   "composer.apply.error.disconnected": "Agent 未連線",
   "composer.apply.error.busy": "Agent 回合進行中 — 本輪結束後生效",
   "composer.apply.error.other": "無法套用模型或推理強度變更",
-  "composer.skillsPicker": "技能",
+  "composer.skillsPicker": "尋找技能",
 };

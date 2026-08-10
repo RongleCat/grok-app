@@ -317,5 +317,5 @@ export const enComposer = {
   "composer.apply.error.disconnected": "Agent is not connected",
   "composer.apply.error.busy": "Agent is mid-turn — change applies after this turn",
   "composer.apply.error.other": "Could not apply model or reasoning change",
-  "composer.skillsPicker": "Skills",
+  "composer.skillsPicker": "Find skills",
 } as const;

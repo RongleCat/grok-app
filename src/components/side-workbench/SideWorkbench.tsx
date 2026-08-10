@@ -10,14 +10,12 @@ import type { PlanReviewState } from "@/lib/planBody";
 import type { SessionFileChange } from "@/lib/sessionChanges";
 import {
   activeSideTab,
-  closeActiveSideTab,
   closeAllSideTabs,
   closeOtherSideTabs,
   closeSideTab,
   closeSideTabsToLeft,
   closeSideTabsToRight,
   emptySideWorkbenchState,
-  isCloseSideTabChord,
   openSideTab,
   openSideTabFromPicker,
   setActiveSideTab,
@@ -26,12 +24,13 @@ import {
   type SidePickerKind,
   type SideWorkbenchState,
 } from "@/lib/sideWorkbench";
-import { isShortcutRecordingActive } from "@/lib/shortcutRemap";
-import * as api from "@/lib/api";
 import type { ResourceOpenTarget } from "@/components/ResourceViewer";
+import type { SkillInfo } from "@/lib/slashCatalog";
+import type { SkillsPickerSkill } from "@/lib/skillsTaskPicker";
 import { FilesWorkspace } from "./FilesWorkspace";
 import { PlanTab } from "./PlanTab";
 import { ReviewTab } from "./ReviewTab";
+import { SkillsTab } from "./SkillsTab";
 import { SidePicker } from "./SidePicker";
 import { SideTabBar } from "./SideTabBar";
 import { SideTabBody } from "./SideTabBody";
@@ -58,6 +57,11 @@ export type SideWorkbenchProps = {
   openRequest?: ResourceOpenTarget | null;
   onOpenRequestConsumed?: () => void;
   autoOpenPlanTab?: boolean;
+  /** Host skills catalog for Find skills side tab. */
+  skillInfos?: readonly SkillInfo[];
+  skillsLoading?: boolean;
+  skillsLoadError?: string | null;
+  onSelectSkill?: (skill: SkillsPickerSkill) => void;
 };
 
 export function SideWorkbench({
@@ -81,6 +85,10 @@ export function SideWorkbench({
   openRequest = null,
   onOpenRequestConsumed,
   autoOpenPlanTab = true,
+  skillInfos = [],
+  skillsLoading = false,
+  skillsLoadError = null,
+  onSelectSkill,
 }: SideWorkbenchProps) {
   const [internal, setInternal] = useState(emptySideWorkbenchState);
   const state = controlled ?? internal;
@@ -107,27 +115,6 @@ export function SideWorkbench({
     },
     [setState, onCloseSide],
   );
-
-  /**
-   * Browser / non-Tauri preview: ⌘W closes the active side tab.
-   * In the desktop host, File → Close (⌘W) is owned by the native app menu
-   * and routed via `app://close-tab-or-window` (see AppWorkbench) so the OS
-   * does not close the window before JS can run.
-   */
-  useEffect(() => {
-    if (!paneActive || api.isTauri()) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.isComposing) return;
-      if (isShortcutRecordingActive()) return;
-      if (!isCloseSideTabChord(e)) return;
-      if (state.tabs.length === 0) return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      applyCloseState(closeActiveSideTab(state));
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [paneActive, state, applyCloseState]);
 
   const active = useMemo(() => activeSideTab(state), [state]);
   const hasFileTabs = state.tabs.some((t) => t.kind === "file");
@@ -272,6 +259,16 @@ export function SideWorkbench({
               />
             ) : null}
 
+            {active.kind === "skills" ? (
+              <SkillsTab
+                locale={locale}
+                skills={skillInfos}
+                loading={skillsLoading}
+                hostError={skillsLoadError}
+                onSelectSkill={(skill) => onSelectSkill?.(skill)}
+              />
+            ) : null}
+
             {/* Keep browser/terminal instances mounted so PTY/xterm sessions
                 survive tab switches (VS Code-style). */}
             {state.tabs
@@ -323,4 +320,10 @@ export function openSideWorkbenchReview(
   state: SideWorkbenchState,
 ): SideWorkbenchState {
   return openSideTab(state, "review");
+}
+
+export function openSideWorkbenchSkills(
+  state: SideWorkbenchState,
+): SideWorkbenchState {
+  return openSideTab(state, "skills");
 }

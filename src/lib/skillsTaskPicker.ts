@@ -2,11 +2,15 @@
  * Pure helpers for the composer task-level skills picker.
  *
  * Catalog rows come only from host `skills_list` (via App state) — never invent
- * skill names. Ranking is recency + alpha only (no fake recommendations).
- * Storage / chips use stable tokens `[[skill:name]]` (see draftDoc).
+ * skill names. Ranking: prompt match (when draft/prompt provided) → recency →
+ * alpha. Storage / chips use stable tokens `[[skill:name]]` (see draftDoc).
  */
 
 import { SKILL_NAME_RE } from "@/lib/draftDoc";
+import {
+  rankSkillsForPrompt,
+  type SkillMatchHit,
+} from "@/lib/skillPromptMatch";
 
 /** Catalog row for the task picker (host skills only). */
 export type SkillsPickerSkill = {
@@ -17,7 +21,22 @@ export type SkillsPickerSkill = {
   userInvocable?: boolean;
   /** App Extensions toggle. Explicit false hides from picker. Missing ⇒ on. */
   enabled?: boolean;
+  /** Prompt-match score (only when ranked against draft/prompt). */
+  matchScore?: number;
+  /** Tokens from the prompt that hit this skill. */
+  matchedTokens?: string[];
 };
+
+/**
+ * Strip skill chips / slash skill refs so ranking uses natural-language text.
+ */
+export function stripSkillTokensForMatch(text: string): string {
+  return (text ?? "")
+    .replace(/\[\[skill:[^\]]+\]\]/gi, " ")
+    .replace(/(^|\s)\/[a-zA-Z0-9_.:-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 /** localStorage key for the recent skill-id ring. */
 export const SKILLS_RECENT_STORAGE_KEY = "grok.skillsTaskPicker.recent";
@@ -124,15 +143,25 @@ export function filterSkillsCatalog(
 
 /**
  * Rank skills for the next prompt:
- * 1. Recent ids first (order preserved; only ids that exist in catalog)
- * 2. Remaining catalog skills alphabetically by name
+ * 1. When `prompt` (composer draft) has tokens — prompt-match score (high first)
+ * 2. Else / for non-matches: recent ids first (order preserved)
+ * 3. Remaining catalog skills alphabetically by name
  *
- * Optional `query` filters before ranking. No fake recommendations beyond recency.
+ * Optional `query` is an extra filter box (name/desc substring) applied first.
+ * Never invents skill names — inventory only.
  */
 export function rankSkillsForTask(input: {
   skills: readonly SkillsPickerSkill[];
   recentIds?: readonly string[];
+  /** Manual filter box (name/desc substring). */
   query?: string;
+  /**
+   * Live composer draft / user prompt for continuous match.
+   * Skill tokens are stripped before ranking.
+   */
+  prompt?: string;
+  /** Max prompt-matched rows to surface first (default 40). */
+  promptLimit?: number;
 }): SkillsPickerSkill[] {
   const filtered = filterSkillsCatalog(
     input.skills,
@@ -143,6 +172,46 @@ export function rankSkillsForTask(input: {
   const byName = new Map(filtered.map((s) => [s.name, s]));
   const out: SkillsPickerSkill[] = [];
   const used = new Set<string>();
+
+  const promptText = stripSkillTokensForMatch(input.prompt ?? "");
+  // Live find-skills mode: rank by prompt purpose (not A–Z catalog dump).
+  // Avoid thrash on 1–3 chars; require real prompt body.
+  const promptActive = promptText.length >= 4;
+  if (promptActive) {
+    // Large catalogs: rank invocable first for speed (still host inventory only).
+    const rankSource =
+      filtered.length > 400
+        ? filtered.filter(
+            (s) => s.userInvocable !== false && s.enabled !== false,
+          )
+        : filtered;
+    const pool = rankSource.length > 0 ? rankSource : filtered;
+    const hits: SkillMatchHit[] = rankSkillsForPrompt({
+      skills: pool.map((s) => ({
+        name: s.name,
+        description: s.description,
+        source: s.source,
+        enabled: s.enabled,
+        userInvocable: s.userInvocable,
+      })),
+      prompt: promptText,
+      limit: input.promptLimit ?? 40,
+      minScore: 6,
+    });
+    for (const h of hits) {
+      const base = byName.get(h.name);
+      if (!base || used.has(h.name)) continue;
+      out.push({
+        ...base,
+        matchScore: h.score,
+        matchedTokens: h.matchedTokens,
+      });
+      used.add(h.name);
+    }
+    // Always return match list when user has a prompt — empty means "no fit",
+    // never fall back to full alphabetical catalog (that hides purpose ranking).
+    return out;
+  }
 
   for (const raw of input.recentIds ?? []) {
     const id = normalizeSkillRef(raw);
