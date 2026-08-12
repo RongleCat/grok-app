@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- **Delayed post-turn history flush (#554)**: Journal reconciliation now retries over a short bounded window after a successful prompt RPC, so final assistant/tool rows that reach CLI history slightly late are recovered without reopening the session. Per-session locking prevents races with an immediate next send; disk reads run off the async executor and remain platform-neutral.
+
+**中文 · 修复**
+- **回合结束历史稍晚落盘（#554）**：prompt RPC 成功后在短时有界窗口内重试 journal 对账，无需重开会话即可补回稍晚写入 CLI 历史的最终回复/工具记录；会话级锁避免与紧接着的下一次发送竞争，磁盘读取移出异步执行线程，且不依赖平台特性。
+
 ## [0.2.15] - 2026-08-12
 
 > **Highlight:** Tool/activity timeline shows real expandable output and explore groups; session open never hangs on MCP/OAuth; ask-user with rpcId 0 works; sticky composer target and optimistic Stop; project drag-reorder.

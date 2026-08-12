@@ -79,6 +79,11 @@ impl SessionManager {
             return Err("no active session".into());
         };
 
+        // A delayed reconcile from the preceding turn performs a journal
+        // read-modify-write. Keep this user append mutually exclusive with
+        // each reconcile attempt so neither can overwrite the other's rows.
+        let journal_lock = self.post_turn_journal_lock(&app_sid);
+        let journal_guard = journal_lock.lock().await;
         let open = self.with_session_mut(&app_sid, |s| {
             if let Some(target) = session_id.as_deref() {
                 if s.app_session_id != target {
@@ -167,6 +172,7 @@ impl SessionManager {
                 turn_id,
             ))
         });
+        drop(journal_guard);
         let (backend, app_sid, acp, agent_sid, agent_prompt, message_id, turn_id) = match open {
             Some(Ok(v)) => v,
             Some(Err(e)) => return Err(e),
@@ -524,16 +530,16 @@ impl SessionManager {
                             }
                         }
                     });
-                    // Always best-effort pull missing assistant/tool rows from
-                    // agent chat_history after the prompt RPC completes. Stream
-                    // path can leave App journal on a partial mid-sentence while
-                    // the CLI already has the full turn (user: stuck thinking,
-                    // no final result — agent finished, UI never got body).
-                    let changed =
-                        crate::cli_sessions::try_reconcile_linked_session(&turn_sid);
                     if need_emit {
                         mgr.emit_for_session(&app2, &turn_sid);
                     }
+                    // Always best-effort pull missing assistant/tool rows from
+                    // agent chat_history after the prompt RPC completes. The
+                    // CLI's final disk flush can trail the RPC response, so use
+                    // a short bounded retry window off the async worker thread.
+                    let changed =
+                        post_turn_reconcile::reconcile_linked_session(&mgr, &turn_sid, &turn_id)
+                            .await;
                     if changed > 0 {
                         let _ = app2.emit(
                             "session://journal_reconciled",

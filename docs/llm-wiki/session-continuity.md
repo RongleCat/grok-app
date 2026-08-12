@@ -85,10 +85,14 @@ gates) as forever-busy, or demote/focus for other chats stays blocked.
 
 **Turn end journal heal (P0):** after every successful `session/prompt` Ok, Host
 force-finishes sticky Streaming (#522) **and** runs
-`try_reconcile_linked_session` to pull missing assistant/tool rows from agent
-`chat_history`. Emits `session://journal_reconciled` so the viewed chat rehydrates
-even when stream chunks never painted the final body (user saw endless thinking
-while CLI already had the full answer).
+`try_reconcile_linked_session` over a short bounded retry window to pull missing
+assistant/tool rows from agent `chat_history`. Filesystem reads run off the async
+executor; every idempotent pass is aggregated before one
+`session://journal_reconciled` event. This covers both dropped stream chunks and
+a CLI history flush that becomes visible just after the prompt RPC returns
+(user saw endless thinking while CLI already had the full answer). A per-session
+journal lock prevents read-modify-write loss against an immediate next send; if
+that newer turn is already running, the previous turn's remaining retries stop.
 
 **UI transcript ownership (P0, #529):** `openSession` points `viewingSessionId`
 at the target **before** disk journal load. Until messages swap, stream /

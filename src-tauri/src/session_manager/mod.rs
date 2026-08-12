@@ -24,6 +24,7 @@ mod control;
 mod events;
 mod events_bg;
 mod journal;
+mod post_turn_reconcile;
 mod process;
 mod stream;
 mod turn;
@@ -40,7 +41,7 @@ mod routing_tests;
 #[cfg(test)]
 mod stall_tests;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use parking_lot::Mutex;
 
@@ -70,6 +71,10 @@ pub struct SessionManager {
         std::sync::Mutex<std::collections::HashMap<String, std::collections::HashMap<String, ToolIdentity>>>,
     /// Serialize connect / park / unpark so openSession prefetch cannot race first send.
     pub(super) connect_lock: tokio::sync::Mutex<()>,
+    /// Per-session locks that serialize a prompt's user-journal append with
+    /// post-turn reconciliation. Retry sleeps never hold these locks, and one
+    /// chat never delays another chat's send.
+    pub(super) post_turn_journal_locks: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
 }
 
 impl Default for SessionManager {
@@ -87,7 +92,20 @@ impl SessionManager {
             prewarm: Mutex::new(PrewarmState::None),
             tool_identities: std::sync::Mutex::new(std::collections::HashMap::new()),
             connect_lock: tokio::sync::Mutex::new(()),
+            post_turn_journal_locks: Mutex::new(HashMap::new()),
         }
+    }
+
+    pub(super) fn post_turn_journal_lock(
+        &self,
+        app_session_id: &str,
+    ) -> Arc<tokio::sync::Mutex<()>> {
+        let mut locks = self.post_turn_journal_locks.lock();
+        Arc::clone(
+            locks
+                .entry(app_session_id.to_string())
+                .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))),
+        )
     }
 
     /// True when any live or background session is mid-turn (streaming / tools / connect).
