@@ -104,30 +104,115 @@ fn cred_get<'a>(creds: &'a HashMap<String, String>, keys: &[&str]) -> &'a str {
     ""
 }
 
+/// Soft App ID shape (aligned with pure feishuConfig). Empty = missing, not invalid.
+fn is_feishu_app_id_format(raw: &str) -> bool {
+    let t = raw.trim();
+    if t.is_empty() || t.len() < 3 || t.len() > 128 {
+        return false;
+    }
+    if t.chars().any(|c| c.is_whitespace()) {
+        return false;
+    }
+    let mut chars = t.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !first.is_ascii_alphanumeric() {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+/// Soft pre-checks for Feishu/Lark (shape + presence only). Live tenant token is separate.
+fn feishu_credential_posture(
+    creds: &HashMap<String, String>,
+    channel: &str,
+    options: &serde_json::Value,
+) -> Option<TestConnectionDto> {
+    let app_id = cred_get(creds, &["app_id", "appId"]);
+    let app_secret = cred_get(creds, &["app_secret", "appSecret"]);
+
+    let mut missing: Vec<&str> = Vec::new();
+    if app_id.is_empty() {
+        missing.push("app_id");
+    }
+    if app_secret.is_empty() {
+        missing.push("app_secret");
+    }
+
+    let domain_raw = options
+        .get("domain")
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .trim();
+    if domain_raw == "custom" {
+        let custom = options
+            .get("custom_domain")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .trim();
+        if custom.is_empty() {
+            return Some(TestConnectionDto {
+                ok: false,
+                message: "missing_feishu_custom_domain".into(),
+                mock: false,
+            });
+        }
+    }
+
+    if !app_id.is_empty() && !is_feishu_app_id_format(app_id) {
+        return Some(TestConnectionDto {
+            ok: false,
+            message: "invalid_feishu_app_id_format".into(),
+            mock: false,
+        });
+    }
+
+    if !missing.is_empty() {
+        let msg = if missing.len() == 2 {
+            "missing_feishu_credentials".to_string()
+        } else {
+            format!("missing_feishu_fields:{}", missing.join(","))
+        };
+        return Some(TestConnectionDto {
+            ok: false,
+            message: msg,
+            mock: false,
+        });
+    }
+
+    // Posture ok — live tenant_access_token runs next. channel reserved for messages.
+    let _ = channel;
+    None
+}
+
 async fn test_feishu(
     creds: &HashMap<String, String>,
     channel: &str,
     options: &serde_json::Value,
 ) -> Result<TestConnectionDto, String> {
+    if let Some(soft) = feishu_credential_posture(creds, channel, options) {
+        return Ok(soft);
+    }
+
     let app_id = cred_get(creds, &["app_id", "appId"]);
     let app_secret = cred_get(creds, &["app_secret", "appSecret"]);
-    if app_id.is_empty() || app_secret.is_empty() {
-        return Ok(TestConnectionDto {
-            ok: false,
-            message: format!(
-                "missing_app_id_or_secret (app_id={}, app_secret={})",
-                if app_id.is_empty() { "empty" } else { "ok" },
-                if app_secret.is_empty() { "empty" } else { "ok" }
-            ),
-            mock: false,
-        });
-    }
 
     // Prefer configured domain (options.domain) then channel defaults.
     let domain = options
         .get("domain")
         .and_then(|x| x.as_str())
-        .filter(|s| !s.is_empty() && *s != "custom")
+        .filter(|s| !s.is_empty() && *s != "custom" && *s != "feishu" && *s != "lark")
+        .or_else(|| {
+            let d = options.get("domain").and_then(|x| x.as_str()).unwrap_or("");
+            if d == "lark" {
+                Some("open.larksuite.com")
+            } else if d == "feishu" {
+                Some("open.feishu.cn")
+            } else {
+                None
+            }
+        })
         .or_else(|| {
             options
                 .get("custom_domain")
@@ -143,9 +228,6 @@ async fn test_feishu(
     let mut candidates: Vec<String> = vec![format!("https://{domain}")];
     if channel != "lark" && domain != "open.larksuite.com" {
         candidates.push("https://open.larksuite.com".into());
-    }
-    if domain != "open.feishu.cn" && channel != "lark" {
-        // already primary; ensure feishu is tried if custom failed
     }
 
     let client = crate::proxy::apply_to_reqwest(reqwest::Client::builder())
@@ -170,9 +252,10 @@ async fn test_feishu(
                 let v: serde_json::Value = res.json().await.unwrap_or_default();
                 let code = v.get("code").and_then(|c| c.as_i64()).unwrap_or(-1);
                 if code == 0 && v.get("tenant_access_token").is_some() {
+                    // Honest: tenant token only — does not prove WS long-connection is up.
                     return Ok(TestConnectionDto {
                         ok: true,
-                        message: format!("tenant_token_ok:{base}"),
+                        message: format!("feishu_tenant_token_ok:{base}"),
                         mock: false,
                     });
                 }
@@ -1045,6 +1128,47 @@ mod tests {
         secrets2.insert("app_id".into(), "from_secret".into());
         let m2 = merge_creds(&secrets2, &options);
         assert_eq!(m2.get("app_id").map(|s| s.as_str()), Some("from_secret"));
+    }
+
+    #[test]
+    fn feishu_app_id_format_soft_fail() {
+        assert!(!is_feishu_app_id_format(""));
+        assert!(!is_feishu_app_id_format("ab"));
+        assert!(!is_feishu_app_id_format("has space"));
+        assert!(is_feishu_app_id_format("cli_a1b2c3d4"));
+
+        let mut c = HashMap::new();
+        let opts = serde_json::json!({});
+        let r = feishu_credential_posture(&c, "feishu", &opts).unwrap();
+        assert!(!r.ok);
+        assert_eq!(r.message, "missing_feishu_credentials");
+
+        c.insert("app_id".into(), "bad id".into());
+        c.insert("app_secret".into(), "sec".into());
+        let r2 = feishu_credential_posture(&c, "feishu", &opts).unwrap();
+        assert!(!r2.ok);
+        assert_eq!(r2.message, "invalid_feishu_app_id_format");
+
+        c.insert("app_id".into(), "cli_aaa".into());
+        let opts_custom = serde_json::json!({ "domain": "custom" });
+        let r3 = feishu_credential_posture(&c, "feishu", &opts_custom).unwrap();
+        assert!(!r3.ok);
+        assert_eq!(r3.message, "missing_feishu_custom_domain");
+
+        let opts_ok = serde_json::json!({ "domain": "open.feishu.cn" });
+        assert!(feishu_credential_posture(&c, "feishu", &opts_ok).is_none());
+    }
+
+    #[test]
+    fn feishu_missing_secret_only() {
+        let mut c = HashMap::new();
+        c.insert("app_id".into(), "cli_aaa".into());
+        let opts = serde_json::json!({});
+        let r = feishu_credential_posture(&c, "feishu", &opts).unwrap();
+        assert!(!r.ok);
+        assert!(r.message.contains("missing_feishu_fields"));
+        assert!(r.message.contains("app_secret"));
+        assert!(!r.mock);
     }
 
     #[test]

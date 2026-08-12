@@ -123,8 +123,51 @@ export function feishuOptionalKeys(): readonly string[] {
     "done_emoji",
     "image_batch_window_ms",
     "resolve_mentions",
+    "mention_map",
     "allow_from",
+    "allow_chat",
+    "require_mention",
   ];
+}
+
+/**
+ * Parse Feishu mention_map advanced text: lines of `name=open_id` or `name:open_id`.
+ * Empty / invalid lines skipped. Pure — no I/O.
+ */
+export function parseFeishuMentionMap(
+  raw: string | null | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (raw == null) return out;
+  const s = String(raw).trim();
+  if (!s) return out;
+  // JSON object paste
+  if (s.startsWith("{")) {
+    try {
+      const obj = JSON.parse(s) as unknown;
+      if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+        for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+          const name = String(k).trim();
+          const id = String(v ?? "").trim();
+          if (name && id) out[name] = id;
+        }
+        return out;
+      }
+    } catch {
+      // fall through to line parser
+    }
+  }
+  for (const line of s.split(/[\n,;]+/)) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const sep = t.includes("=") ? "=" : t.includes(":") ? ":" : null;
+    if (!sep) continue;
+    const idx = t.indexOf(sep);
+    const name = t.slice(0, idx).trim();
+    const id = t.slice(idx + 1).trim();
+    if (name && id) out[name] = id;
+  }
+  return out;
 }
 
 export type ValidateFeishuConfigInput = {

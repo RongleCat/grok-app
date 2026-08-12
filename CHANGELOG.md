@@ -48,6 +48,7 @@ See `docs/llm-wiki/release.md`.
 - **Goal 会话指示菜单**：有真实 `goal_updated` 显示阶段 chip，仅 `/goal` 无事件时虚线等待态；点击打开菜单（可靠性中心 / 复制摘要 / 清除本机时间线）。仍不虚构进度。
 
 ### Fixed
+- **Remote IM Feishu/Lark MVP product loop**: host `test_connection` soft-fails restore (`missing_feishu_*` / invalid App ID / custom domain) before live tenant token; success is `feishu_tenant_token_ok` (token only, never claims WS online). Engine `/p` menus and card/text picks honor GUI project_scope whitelist (`"all_trusted"` | `{ allow: [] }`, plus legacy mode/projectIds). ACL require-@ syncs `group_reply_all` / `require_mention` on save; §6.1 `mention_map` advanced field + pure parser. Pure project-scope filter tests + feishu soft-fail unit tests.
 - **App update channel honesty**: Settings → About restores full path honesty after the settings split — signed in-app vs GitHub download vs unsupported package type (Linux non-AppImage note), soft-fail error classes, idle/empty and check-failed copy. Never claims silent update on unsigned builds. Host `updater_status` reports `unsupported` when the plugin is on but the package cannot auto-update.
 - **CI baseline**: `cargo fmt` drift and ESLint non-null optional-chain in `session.test.ts`.
 - **Custom providers without official login (#557)**: Custom route always spawns with agent-home `GROK_HOME` (even in shared mode); activating custom also forces independent mode so session paths stay aligned.
@@ -60,6 +61,7 @@ See `docs/llm-wiki/release.md`.
 
 **中文 · 修复**
 - **应用更新通道诚实**：设置 → 关于 在设置拆分后恢复完整路径说明 — 已签名应用内 / GitHub 下载 / 不支持的安装包类型（Linux 非 AppImage 提示）、软失败错误分类、空闲与检查失败文案；未签名构建不宣称静默更新。Host `updater_status` 在插件开启但包类型不可自动更新时返回 `unsupported`。
+- **远程 IM 飞书/Lark MVP 产品闭环**：恢复测试连接 soft-fail；`/p` 与卡片选项目遵守 GUI 项目白名单；ACL 群聊需要 @ 与 `group_reply_all` 同步；§6.1 `mention_map` 高级字段；纯 helper + 单测。
 - **CI 基线**：`cargo fmt` 漂移与 `session.test.ts` ESLint optional-chain 非空断言。
 - **无官方登录的第三方通道 (#557)**：自定义路由 spawn 强制 agent-home；激活时亦切换独立模式以对齐会话路径。
 - **回合后 journal 延迟对账 (#554 / #555)**：prompt 成功后在有界窗口内重试对账，并与下一次用户写入互斥。

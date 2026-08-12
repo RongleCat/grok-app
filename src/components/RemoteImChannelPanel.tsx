@@ -359,6 +359,10 @@ export function RemoteImChannelPanel({
         return false;
       }
 
+      // §3.2 / §6.1: group_reply_all is inverse of require @mention (ACL control).
+      options.group_reply_all = !acl.requireMention;
+      options.require_mention = acl.requireMention;
+
       const nextAcl: AclConfig = {
         ...acl,
         shareSessionInChannel:

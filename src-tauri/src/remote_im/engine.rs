@@ -13,13 +13,13 @@ use super::control_plane::{
 };
 use super::grok_agent;
 use super::outbound::{self, OutboundRouter};
-use super::projects::{self, load_trusted_projects};
+use super::projects;
 use super::resilience::{
     agent_error_user_message, classify_rim_error, rate_limit_user_message, InboundRateLimiter,
 };
 use super::session::SessionStore;
 use super::slash::{self, BuiltinCommand};
-use super::types::{ChannelInstance, IncomingMessage};
+use super::types::{ChannelInstance, IncomingMessage, TrustedProject};
 use crate::account_profiles::{self, SavedAccount};
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -99,6 +99,17 @@ impl Engine {
 
     pub fn remove_instance(&self, id: &str) {
         self.instances.lock().remove(id);
+    }
+
+    /// Trusted projects limited by instance project_scope (GUI whitelist or all).
+    fn scoped_projects_for(&self, instance_id: &str) -> Vec<TrustedProject> {
+        let scope = self
+            .instances
+            .lock()
+            .get(instance_id)
+            .map(|i| i.project_scope.clone())
+            .unwrap_or_else(|| serde_json::json!("all_trusted"));
+        projects::load_scoped_projects(&scope)
     }
 
     pub async fn handle(&self, msg: IncomingMessage) {
@@ -293,7 +304,7 @@ impl Engine {
                 let _ = self.reply_msg(msg, t).await;
             }
             CardAction::Project { id } => {
-                let projects = load_trusted_projects();
+                let projects = self.scoped_projects_for(&msg.instance_id);
                 match apply_project_pick(&binding, &projects, &id) {
                     Ok(next) => {
                         // Persist under both chat and sender scopes so next IM messages find it.
@@ -385,7 +396,7 @@ impl Engine {
         }
         let card = match menu {
             "project" => {
-                let projects = load_trusted_projects();
+                let projects = self.scoped_projects_for(&msg.instance_id);
                 if projects.is_empty() {
                     let _ = self
                         .reply_msg(msg, &format_project_menu(&projects, &self.lang))
@@ -481,7 +492,7 @@ impl Engine {
         let binding = self.store.get_or_create(scope, default_wd);
         match pending.kind {
             PickKind::Project => {
-                let projects = load_trusted_projects();
+                let projects = self.scoped_projects_for(&msg.instance_id);
                 match apply_project_pick(&binding, &projects, content) {
                     Ok(next) => {
                         self.pending.lock().remove(scope);
@@ -1022,12 +1033,12 @@ impl Engine {
         msg: &IncomingMessage,
         default_wd: &str,
     ) {
-        let projects = load_trusted_projects();
+        let projects = self.scoped_projects_for(&msg.instance_id);
         if projects.is_empty() {
             let t = if self.lang == "en" {
-                "No trusted projects. Trust a folder in Grok App first."
+                "No trusted projects in scope. Trust a folder in Grok App, or widen project scope in Remote control settings."
             } else {
-                "没有已信任项目。请先在 Grok App 中信任项目目录。"
+                "当前范围内没有已信任项目。请先在 Grok App 中信任项目，或在远程控制设置中放宽项目范围。"
             };
             let _ = self.reply_msg(msg, t).await;
             return;
@@ -1120,8 +1131,8 @@ impl Engine {
     ) {
         let binding = self.store.get_or_create(scope, default_wd);
         if binding.project_id.is_none() {
-            // Try match work_dir to a trusted project
-            let projects = load_trusted_projects();
+            // Try match work_dir to a scoped trusted project
+            let projects = self.scoped_projects_for(&msg.instance_id);
             if let Some(p) = projects.iter().find(|p| p.path == binding.work_dir) {
                 let mut b = binding.clone();
                 b.project_id = Some(p.id.clone());

@@ -287,12 +287,22 @@ pub fn allow_from_blocks_enable(acl: &serde_json::Value) -> bool {
     matches!(allow_from_list(acl), Some(list) if list.is_empty())
 }
 
+/// Whether group chats require @bot.
+///
+/// Priority: explicit `require_mention` / ACL `requireMention`, else invert
+/// options `group_reply_all` (§6.1 / §3.2). Default true (need @).
 pub fn require_mention(options: &serde_json::Value, acl: &serde_json::Value) -> bool {
-    options
+    if let Some(b) = options
         .get("require_mention")
         .or_else(|| acl.get("requireMention"))
         .and_then(|x| x.as_bool())
-        .unwrap_or(true)
+    {
+        return b;
+    }
+    if let Some(all) = options.get("group_reply_all").and_then(|x| x.as_bool()) {
+        return !all;
+    }
+    true
 }
 
 /// Helper for telegram-style JSON APIs
@@ -313,5 +323,29 @@ mod tests {
         let got = r.secrets_for_test("inst-42").unwrap();
         assert_eq!(got.get("_instance_id").map(|s| s.as_str()), Some("inst-42"));
         assert_eq!(got.get("token").map(|s| s.as_str()), Some("t"));
+    }
+
+    #[test]
+    fn require_mention_honors_acl_and_group_reply_all() {
+        // ACL requireMention wins
+        assert!(!require_mention(
+            &json!({}),
+            &json!({ "requireMention": false }),
+        ));
+        assert!(require_mention(
+            &json!({}),
+            &json!({ "requireMention": true }),
+        ));
+        // group_reply_all is inverse when no explicit require_*
+        assert!(!require_mention(
+            &json!({ "group_reply_all": true }),
+            &json!({}),
+        ));
+        assert!(require_mention(
+            &json!({ "group_reply_all": false }),
+            &json!({}),
+        ));
+        // default need @
+        assert!(require_mention(&json!({}), &json!({})));
     }
 }

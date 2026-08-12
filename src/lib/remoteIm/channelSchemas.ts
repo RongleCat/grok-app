@@ -143,13 +143,7 @@ const FEISHU_FIELDS: ChannelSchema["fields"] = [
     defaultValue: true,
     helpKey: "settings.remoteIm.feishu.enableCardHelp",
   },
-  {
-    key: "group_reply_all",
-    labelKey: "settings.remoteIm.field.groupReplyAll",
-    control: "checkbox",
-    section: "options",
-    defaultValue: false,
-  },
+  // group_reply_all is inverse of ACL requireMention (§3.2 / §6.1) — not dual-rendered
   {
     key: "group_only",
     labelKey: "settings.remoteIm.field.groupOnly",
@@ -182,6 +176,14 @@ const FEISHU_FIELDS: ChannelSchema["fields"] = [
     control: "checkbox",
     section: "advanced",
     defaultValue: false,
+  },
+  {
+    key: "mention_map",
+    labelKey: "settings.remoteIm.field.mentionMap",
+    control: "text",
+    section: "advanced",
+    helpKey: "settings.remoteIm.feishu.mentionMapHelp",
+    placeholderKey: "settings.remoteIm.feishu.mentionMapPlaceholder",
   },
 ];
 

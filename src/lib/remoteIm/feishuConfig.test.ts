@@ -6,6 +6,7 @@ import {
   feishuSoftStatusMessage,
   isFeishuAppIdFormat,
   normalizeFeishuDomain,
+  parseFeishuMentionMap,
   validateFeishuConfig,
 } from "./feishuConfig";
 
@@ -179,6 +180,18 @@ describe("validateFeishuConfig", () => {
     });
     expect(r.needsPublicUrl).toBe(false);
     expect(r.transport).toBe("websocket");
+  });
+});
+
+describe("parseFeishuMentionMap", () => {
+  it("parses name=open_id lines and JSON object", () => {
+    expect(parseFeishuMentionMap("alice=ou_1\nbob:ou_2")).toEqual({
+      alice: "ou_1",
+      bob: "ou_2",
+    });
+    expect(parseFeishuMentionMap('{"alice":"ou_1"}')).toEqual({ alice: "ou_1" });
+    expect(parseFeishuMentionMap("")).toEqual({});
+    expect(parseFeishuMentionMap("# comment\n")).toEqual({});
   });
 });
 
