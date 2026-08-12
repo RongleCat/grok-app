@@ -4,6 +4,7 @@ import {
   formatVoiceSessionChipLabel,
   formatVoiceToolStatus,
   hasRunningVoiceDelegates,
+  mapSessionsToVoiceChipInputs,
   mergeVoiceSessionsForChips,
   normalizeVoiceChipStatus,
   planVoiceEnd,
@@ -109,6 +110,33 @@ describe("mergeVoiceSessionsForChips", () => {
     expect(d2?.isDelegated).toBe(true);
     expect(d2?.title).toBeNull();
     expect(side?.isDelegated).toBe(false);
+  });
+});
+
+describe("mapSessionsToVoiceChipInputs", () => {
+  it("maps real sessions + liveMap status; drops empty ids", () => {
+    const rows = mapSessionsToVoiceChipInputs({
+      sessions: [
+        { id: "a", title: "Fix tests" },
+        { id: "  ", title: "skip" },
+        { id: "b", title: "" },
+      ],
+      liveStates: { a: "streaming", b: undefined },
+      untitledLabel: "Untitled",
+    });
+    expect(rows).toEqual([
+      { id: "a", title: "Fix tests", status: "streaming" },
+      { id: "b", title: "Untitled", status: "idle" },
+    ]);
+  });
+
+  it("never invents streaming without liveMap", () => {
+    const rows = mapSessionsToVoiceChipInputs({
+      sessions: [{ id: "x", title: "Chat" }],
+      liveStates: null,
+      untitledLabel: "Untitled",
+    });
+    expect(rows[0].status).toBe("idle");
   });
 });
 

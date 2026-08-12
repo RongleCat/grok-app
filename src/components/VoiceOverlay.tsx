@@ -41,6 +41,7 @@ import {
   formatTranscriptAsPrompt,
   hasDelegatedSessions,
   initialToolLoopState,
+  isClassifiedSoftFailNotice,
   isPermissionDenyDecision,
   isPermissionForDelegatedSession,
   isPermissionPending,
@@ -93,6 +94,11 @@ export type VoiceOverlayProps = {
    * session. Omit when host/app does not support it — control stays hidden.
    */
   onSendTranscriptAsPrompt?: (prompt: string) => void | Promise<void>;
+  /**
+   * Optional toast for classified soft-fail notices (mic / auth / network).
+   * Overlay still shows inline warn/error; toast is for workbench discoverability.
+   */
+  onClassifiedNotice?: (message: string) => void;
 };
 
 function phaseMessageKey(phase: VoiceDelegatePhase): MessageKey {
@@ -145,11 +151,22 @@ export function VoiceOverlay({
   onFocusSession,
   onOpenSession,
   onSendTranscriptAsPrompt,
+  onClassifiedNotice,
 }: VoiceOverlayProps) {
   const focusSession = onFocusSession ?? onOpenSession;
   const tt = useCallback(
     (key: MessageKey, vars?: Record<string, string | number>) => t(locale, key, vars),
     [locale],
+  );
+  /** Toast mic/auth/network/cli soft-fail classes (inline UI still primary). */
+  const noticeClassified = useCallback(
+    (raw: string | null | undefined, errorClass?: string | null) => {
+      if (!onClassifiedNotice) return;
+      const cls = classifyLiveVoiceError(raw, errorClass);
+      if (!isClassifiedSoftFailNotice(cls)) return;
+      onClassifiedNotice(formatLiveError(tt, raw, errorClass));
+    },
+    [onClassifiedNotice, tt],
   );
   const [state, setState] = useState<VoiceSessionState | null>(null);
   const [lines, setLines] = useState<VoiceTranscriptLine[]>([]);
@@ -367,8 +384,10 @@ export function VoiceOverlay({
           if (isSoftMicFailure(cls)) {
             setSoftMicWarning(cls);
             appendLine("system", tt(liveVoiceErrorMessageKey(cls) as MessageKey), true);
+            noticeClassified(String(micErr), cls);
           } else {
             setError(formatLiveError(tt, String(micErr)));
+            noticeClassified(String(micErr), cls);
           }
         }
 
@@ -435,9 +454,11 @@ export function VoiceOverlay({
               tt(liveVoiceErrorMessageKey(cls) as MessageKey),
               true,
             );
+            noticeClassified(e.payload.message, e.payload.errorClass);
             return;
           }
           setError(formatLiveError(tt, e.payload.message, e.payload.errorClass));
+          noticeClassified(e.payload.message, e.payload.errorClass);
         });
         unsubs.push(u4);
 
@@ -491,6 +512,7 @@ export function VoiceOverlay({
         unsubs.push(u7);
       } catch (e) {
         setError(formatLiveError(tt, String(e)));
+        noticeClassified(String(e));
       } finally {
         setBusy(false);
       }
@@ -514,6 +536,7 @@ export function VoiceOverlay({
     keepAgentsOnEnd,
     appendLine,
     applyToolEvent,
+    noticeClassified,
     tt,
   ]);
 

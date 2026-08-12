@@ -757,6 +757,34 @@ export function hasDelegatedSessions(
 }
 
 /**
+ * Non-empty session id for delegated tracking.
+ * Never invents — empty / whitespace → null.
+ */
+export function recordableDelegatedSessionId(
+  sessionId: string | null | undefined,
+): string | null {
+  const s = (sessionId ?? "").trim();
+  return s || null;
+}
+
+/**
+ * Soft-fail classes that surface as classified toasts/banners without
+ * inventing tool success (mic / auth / network / CLI).
+ */
+export function isClassifiedSoftFailNotice(
+  cls: VoiceLiveErrorClass | null | undefined,
+): boolean {
+  return (
+    cls === "mic_denied" ||
+    cls === "mic_missing" ||
+    cls === "auth" ||
+    cls === "network" ||
+    cls === "cli_missing" ||
+    cls === "not_available"
+  );
+}
+
+/**
  * Normalize a host tool event name. Returns null when absent — never invents.
  */
 export function toolEventName(payload: {

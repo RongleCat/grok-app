@@ -6,6 +6,7 @@ import {
   formatTranscriptAsPrompt,
   hasDelegatedSessions,
   initialToolLoopState,
+  isClassifiedSoftFailNotice,
   isConversationalRole,
   isFatalLiveVoiceError,
   isPermissionDenyDecision,
@@ -20,6 +21,7 @@ import {
   parseToolLoopEvent,
   parseVoicePermissionPrompt,
   permissionPendingToolLoopState,
+  recordableDelegatedSessionId,
   reduceToolLoopState,
   shouldCancelDelegatedAgentsOnVoiceStop,
   softFailFromPermissionBlocked,
@@ -492,5 +494,23 @@ describe("transcriptEmptyKind / delegated / tools", () => {
   it("recognizes conversational roles", () => {
     expect(isConversationalRole("User")).toBe(true);
     expect(isConversationalRole("system")).toBe(false);
+  });
+
+  it("never invents delegated session ids", () => {
+    expect(recordableDelegatedSessionId(null)).toBeNull();
+    expect(recordableDelegatedSessionId("")).toBeNull();
+    expect(recordableDelegatedSessionId("   ")).toBeNull();
+    expect(recordableDelegatedSessionId("  sid-9  ")).toBe("sid-9");
+  });
+
+  it("marks mic/auth/network/cli as classified soft-fail notices", () => {
+    expect(isClassifiedSoftFailNotice("mic_denied")).toBe(true);
+    expect(isClassifiedSoftFailNotice("mic_missing")).toBe(true);
+    expect(isClassifiedSoftFailNotice("auth")).toBe(true);
+    expect(isClassifiedSoftFailNotice("network")).toBe(true);
+    expect(isClassifiedSoftFailNotice("cli_missing")).toBe(true);
+    expect(isClassifiedSoftFailNotice("not_available")).toBe(true);
+    expect(isClassifiedSoftFailNotice("timeout")).toBe(false);
+    expect(isClassifiedSoftFailNotice("unknown")).toBe(false);
   });
 });

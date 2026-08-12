@@ -12,11 +12,13 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- **Live Voice delegate session honesty**: Overlay restores delegated/active session chips with real titles + liveMap progress while Live Voice is open; keep-agents default stays on (opt-out cancels turns). Soft-fail mic/auth/network/cli surfaces classified toasts in addition to overlay copy. Host never records blank delegated ids. Pure helpers + tests; existing en/zh/zh-TW `voice.err.*` / `voice.center.*`.
 - **Appearance fonts (#553)**: Settings → Appearance can set UI font family and side-terminal font family/size (localStorage; terminal prefers Nerd Fonts for Starship glyphs).
 - **Preferred agent apply honesty (#564)**: Settings preferred-agent and Agents & Personas console document spawn-time `--agent` apply paths — live agent soft-respawns on change; idle waits for next connect. Soft-fail when the saved name is missing from the catalog or has invalid characters. Pure `preferredAgentApply` helpers + tests; en/zh/zh-TW.
 - **Memory clear scopes + dream honesty**: Memory ops center GlassModal clear for host scopes **workspace / global / all** (real `grok memory clear` flags; no `window.confirm`). Dream/watcher chips remain config-presence only — never a live “running” status. Experimental memory stays **off** by default with `--no-memory` force-disable honesty.
 
 **中文 · 新增**
+- **实时语音委派会话诚实**：叠加层恢复委派/活动会话芯片（真实标题 + liveMap 进度）；结束后默认保留 Agent（关闭则取消回合）。麦克风/鉴权/网络/CLI 软失败额外 toast 分类文案。Host 不记录空委派 id。纯 helper + 测试；沿用三语 `voice.err.*` / `voice.center.*`。
 - **外观字体 (#553)**：设置 → 外观 可配置界面字体与内置终端字体/字号（本机偏好；终端优先 Nerd Font 以显示 Starship 图标）。
 - **首选 agent 生效路径诚实 (#564)**：设置与 Agents & Personas 控制台标明 spawn `--agent` 路径 — 已连接 soft-respawn、空闲下次连接；目录缺失/非法名称 soft-fail。纯 helper + 测试；三语文案。
 - **记忆清除范围 + Dream 诚实**：操作中心 GlassModal 清除 host 作用域 **workspace / global / all**（真实 CLI 参数，不用 `window.confirm`）。Dream/Watcher 仅表示配置存在性，绝不伪造「运行中」。跨会话记忆默认关闭并强制 `--no-memory`。

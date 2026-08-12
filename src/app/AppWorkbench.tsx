@@ -2445,13 +2445,15 @@ export function AppWorkbench() {
     sawToolActivity?: boolean;
   } | null>(null);
 
-  // Full multi-session liveMap only while chrome that needs every row is open.
+  // Full multi-session liveMap only while chrome that needs every row is open
+  // (Reliability / Agents dashboard / task board / stall / Live Voice chips).
   const liveMap = useLiveMapWhen(
     showReliability ||
       agentDashboardOpen ||
       taskBoardOpen ||
       tasksPanelOpen ||
-      streamStall != null,
+      streamStall != null ||
+      liveVoiceOpen,
   );
   /** Queue item currently being steered into the live turn. */
   const [guidingQueueItemId, setGuidingQueueItemId] = useState<string | null>(null);
@@ -21066,7 +21068,14 @@ export function AppWorkbench() {
         voiceId={voiceId}
         keepAgentsOnEnd={voiceKeepAgentsOnEnd}
         hasActiveSession={Boolean(session.sessionId)}
+        hasVoiceAuth={voiceGate.available}
+        sessions={sessions.map((s) => ({
+          id: s.id,
+          title: s.title || tr("session.untitled"),
+          status: liveMap[s.id]?.state ?? "idle",
+        }))}
         onClose={() => setLiveVoiceOpen(false)}
+        onClassifiedNotice={(message) => showToast(message, 4800)}
         onSendTranscriptAsPrompt={
           session.sessionId
             ? async (prompt) => {
@@ -21079,7 +21088,7 @@ export function AppWorkbench() {
               }
             : undefined
         }
-        onOpenSession={(id) => {
+        onFocusSession={(id) => {
           setLiveVoiceOpen(false);
           void (async () => {
             await refreshSessions();

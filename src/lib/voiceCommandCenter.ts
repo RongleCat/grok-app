@@ -177,6 +177,28 @@ export function buildVoiceSessionChips(
 }
 
 /**
+ * Map App session rows + liveMap states into chip inputs.
+ * Only real session ids; status from liveMap when present (else idle).
+ * Never invents sessions or streaming state.
+ */
+export function mapSessionsToVoiceChipInputs(opts: {
+  sessions: readonly { id: string; title?: string | null }[] | null | undefined;
+  /** sessionId → host live state token (streaming · idle · …). */
+  liveStates?: Record<string, string | undefined | null> | null;
+  untitledLabel: string;
+}): VoiceSessionChipInput[] {
+  const out: VoiceSessionChipInput[] = [];
+  for (const s of opts.sessions ?? []) {
+    const id = (s.id ?? "").trim();
+    if (!id) continue;
+    const title = (s.title ?? "").trim() || opts.untitledLabel;
+    const status = (opts.liveStates?.[id] ?? "").trim() || "idle";
+    out.push({ id, title, status });
+  }
+  return out;
+}
+
+/**
  * Merge host delegated ids with sidebar session summaries for chips.
  * Host ids without a title stay as short-id labels (honest).
  */

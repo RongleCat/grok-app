@@ -316,14 +316,13 @@ impl VoiceHost {
     }
 
     fn push_delegated(&self, session_id: &str) {
+        // Never invent / store blank ids from incomplete tool results.
+        let Some(sid) = voice_tools::recordable_delegated_session_id(Some(session_id)) else {
+            return;
+        };
         let mut g = self.inner.lock();
-        if !g
-            .state
-            .delegated_session_ids
-            .iter()
-            .any(|s| s == session_id)
-        {
-            g.state.delegated_session_ids.push(session_id.to_string());
+        if !g.state.delegated_session_ids.iter().any(|s| s == &sid) {
+            g.state.delegated_session_ids.push(sid);
         }
     }
 }
@@ -558,8 +557,10 @@ async fn execute_tool_inner(
 ) -> Result<Value, String> {
     if VoiceHost::is_mock_env() {
         let out = voice_tools::mock_execute_tool(name, args_json)?;
-        if let Some(sid) = out.get("session_id").and_then(|x| x.as_str()) {
-            host.push_delegated(sid);
+        if let Some(sid) = voice_tools::recordable_delegated_session_id(
+            out.get("session_id").and_then(|x| x.as_str()),
+        ) {
+            host.push_delegated(&sid);
             host.emit_state(app);
         }
         return Ok(out);

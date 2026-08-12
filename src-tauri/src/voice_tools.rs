@@ -293,6 +293,15 @@ pub fn should_cancel_delegated_agents_on_voice_stop(keep_agents_on_end: bool) ->
     !keep_agents_on_end
 }
 
+/// Non-empty session id suitable for delegated tracking.
+/// Never invents ids — empty / whitespace → None.
+pub fn recordable_delegated_session_id(session_id: Option<&str>) -> Option<String> {
+    session_id
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
 /// Canonical tool-loop status tokens emitted on `voice://tool` (VOX-BUILD-FULL).
 pub fn normalize_tool_status(raw: &str) -> &'static str {
     match raw.trim().to_lowercase().as_str() {
@@ -459,6 +468,34 @@ mod tests {
     fn cancel_agents_only_when_keep_false() {
         assert!(!should_cancel_delegated_agents_on_voice_stop(true));
         assert!(should_cancel_delegated_agents_on_voice_stop(false));
+    }
+
+    #[test]
+    fn recordable_delegated_id_never_invents() {
+        assert_eq!(recordable_delegated_session_id(None), None);
+        assert_eq!(recordable_delegated_session_id(Some("")), None);
+        assert_eq!(recordable_delegated_session_id(Some("   ")), None);
+        assert_eq!(
+            recordable_delegated_session_id(Some("  abc-1  ")).as_deref(),
+            Some("abc-1")
+        );
+    }
+
+    #[test]
+    fn classifies_mic_missing_and_soft_vs_fatal() {
+        assert_eq!(
+            classify_tool_error("No microphone device found"),
+            "mic_missing"
+        );
+        assert_eq!(
+            classify_tool_error("NotAllowedError: Permission denied"),
+            "mic_denied"
+        );
+        // Soft tool loop classes keep voice open; mic/auth/network are classified
+        // for UI toasts but are not agent soft-fail tool results.
+        assert!(!is_soft_tool_error("mic_denied"));
+        assert!(!is_soft_tool_error("auth"));
+        assert!(!is_soft_tool_error("network"));
     }
 
     #[test]
