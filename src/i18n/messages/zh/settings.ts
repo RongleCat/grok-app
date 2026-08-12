@@ -235,7 +235,7 @@ export const zhSettings = {
   "settings.reopenLastSession": "启动时恢复上次对话",
   "settings.reopenLastSessionDesc": "默认关闭（启动进入新建会话页）。开启后，若上次打开的对话仍存在且未归档，则自动打开。",
   "settings.stopAllSkipConfirm": "全部停止时跳过确认",
-  "settings.stopAllSkipConfirmDesc": "开启后，任务面板 / Agent 总览中的「全部停止」不再弹出确认对话框，立即执行。默认关闭。",
+  "settings.stopAllSkipConfirmDesc": "开启后，任务面板 / Agent 仪表盘的「停止全部忙碌会话」（应用全局）不再弹出确认，立即执行。不影响输入框停止（仅当前聊天）。默认关闭。",
   "settings.alwaysQuitWithoutAsking": "退出时不再询问",
   "settings.alwaysQuitWithoutAskingDesc": "开启后，即使仍有 Agent 忙碌也立即退出（关闭到托盘关闭时，或托盘「退出」）。默认关闭——有忙碌会话时会弹出确认。",
   "settings.prefsScope": "模型与权限记忆范围",

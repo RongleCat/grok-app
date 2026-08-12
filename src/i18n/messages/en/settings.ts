@@ -235,7 +235,7 @@ export const enSettings = {
   "settings.reopenLastSession": "Reopen last chat on startup",
   "settings.reopenLastSessionDesc": "Off by default (start on a new chat). When on, open the chat you were last viewing if it still exists and is not archived.",
   "settings.stopAllSkipConfirm": "Skip confirm when stopping all",
-  "settings.stopAllSkipConfirmDesc": "When on, Stop all on Tasks / Agent dashboard runs immediately without a confirmation dialog. Off by default.",
+  "settings.stopAllSkipConfirmDesc": "When on, Stop all busy sessions (app-wide) on Tasks / Agent dashboard runs immediately without a confirmation dialog. Does not affect composer Stop (current chat only). Off by default.",
   "settings.alwaysQuitWithoutAsking": "Always quit without asking",
   "settings.alwaysQuitWithoutAskingDesc": "When on, quit immediately even if agents are still busy (window close with close-to-tray off, or Quit from the tray). Off by default — you get a confirmation dialog while sessions are running.",
   "settings.prefsScope": "Remember model & permission at",

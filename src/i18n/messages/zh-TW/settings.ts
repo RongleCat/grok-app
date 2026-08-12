@@ -236,7 +236,7 @@ export const zhTWSettings = {
   "settings.reopenLastSession": "啟動時還原上次對話",
   "settings.reopenLastSessionDesc": "預設關閉（啟動進入新對話頁）。開啟後，若上次開啟的對話仍存在且未封存，則自動開啟。",
   "settings.stopAllSkipConfirm": "全部停止時跳過確認",
-  "settings.stopAllSkipConfirmDesc": "開啟後，任務面板 / Agent 總覽中的「全部停止」不再彈出確認對話框，立即執行。預設關閉。",
+  "settings.stopAllSkipConfirmDesc": "開啟後，任務面板 / Agent 儀表板的「停止全部忙碌對話」（應用全域）不再彈出確認，立即執行。不影響輸入框停止（僅目前聊天）。預設關閉。",
   "settings.alwaysQuitWithoutAsking": "結束時不再詢問",
   "settings.alwaysQuitWithoutAskingDesc": "開啟後，即使仍有 Agent 忙碌也立即結束（關閉到系統匣關閉時，或系統匣「結束」）。預設關閉——有忙碌對話時會彈出確認。",
   "settings.prefsScope": "模型與權限記憶範圍",

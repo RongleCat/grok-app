@@ -39,6 +39,7 @@ See `docs/llm-wiki/release.md`.
 - **Custom providers without official login (#557)**: Custom route always spawns with agent-home `GROK_HOME` (even in shared mode); activating custom also forces independent mode so session paths stay aligned.
 - **Post-turn journal retry (#554 / #555)**: After a successful prompt RPC, journal reconciliation retries over a short bounded window (0/125/375/750 ms) via `spawn_blocking`, with per-session locking against the next user append.
 - **Heatmap token usage (#556)**: Prefer sum of `turn_completed` usage from session `updates.jsonl` (covers tool-loop spend); fall back to signals occupancy; scan both `~/.grok` and agent-home session roots.
+- **Tasks / dashboard Stop-all honesty**: Stop all is app-wide busy **sessions** (not tools in one chat); Tasks vs Dashboard confirm copy matches; empty / full-success / all-failed toasts; nested tool tree never invents subagent rows without CLI/tool signals.
 - **Support zip honesty (#561)**: Restore redacted section checklist + soft-fail copy on Reliability/Doctor export (dropped during a multi-PR integrate). Host `meta.json` now includes a soft CLI probe (app + CLI versions) without inventing secrets or chat journals.
 - **CLI vs ACP agentVersion skew (#563)**: Doctor/Runtime soft-warn when probed `grok --version` disagrees with the last live ACP `agentVersion` (never blocks sessions).
 
@@ -50,6 +51,7 @@ See `docs/llm-wiki/release.md`.
 - **热力图 Token 用量 (#556)**：优先汇总 `turn_completed` usage；回退 signals 上下文占用；同时扫描 `~/.grok` 与 agent-home 会话根。
 - **支持包诚实导出 (#561)**：恢复可靠性中心/Doctor 脱敏清单与软失败提示；`meta.json` 增加软探测 CLI 版本（不包含密钥或完整会话记录）。
 - **CLI 与 ACP agentVersion 漂移 (#563)**：Doctor/Runtime 软警告探测版与在线 agent 版本不一致（不阻断会话）。
+- **任务面板 / 仪表盘「停止全部」诚实**：作用域为应用内忙碌**会话**（非单聊工具）；Tasks 与 Dashboard 确认文案对齐；空目标 / 全成功 / 全失败 toast；子代理树不在无 CLI/工具信号时编造节点。
 
 ## [0.2.15] - 2026-08-12
 

@@ -47,6 +47,13 @@ import {
   resolveChatcutLinkClick,
 } from "@/lib/chatcutHandoff";
 import { loadStopAllSkipConfirmPref } from "@/lib/stopAllSkipConfirmPref";
+import {
+  planStopAllBusySessions,
+  stopAllDialogKeys,
+  stopAllEmptyMessageKey,
+  stopAllResultToast,
+  type StopAllSurface,
+} from "@/lib/stopAllHonesty";
 import { detectAppPlatform, revealInOsLabel } from "@/lib/appPlatform";
 import {
   APP_CLOSE_REQUESTED_EVENT,
@@ -9332,7 +9339,7 @@ export function AppWorkbench() {
     forceCloseSessionNoteModal();
   }, [sessionNoteTarget, forceCloseSessionNoteModal]);
 
-  /** Confirm then stop the given session ids (dashboard / multi-select). */
+  /** Confirm then stop the given session ids (dashboard / multi-select / stop-all). */
   const stopBusySessionsByIds = useCallback(
     (
       idsIn: string[],
@@ -9369,14 +9376,14 @@ export function AppWorkbench() {
             fail += 1;
           }
         }
-        if (fail > 0) {
-          showToast(
-            tr("tasks.activity.stopAllPartial", {
-              ok: String(ok),
-              fail: String(fail),
-            }),
-            4000,
-          );
+        // Honest outcome toast: done / partial / all-failed (never silent fail).
+        const outcome = stopAllResultToast(ok, fail);
+        if (outcome.kind === "done") {
+          showToast(tr(outcome.messageKey as MessageKey, outcome.vars), 3200);
+        } else if (outcome.kind === "partial") {
+          showToast(tr(outcome.messageKey as MessageKey, outcome.vars), 4000);
+        } else if (outcome.kind === "all_failed") {
+          showToast(tr(outcome.messageKey as MessageKey, outcome.vars), 4000);
         }
       };
       if (loadStopAllSkipConfirmPref()) {
@@ -9401,32 +9408,49 @@ export function AppWorkbench() {
   );
 
   /**
-   * Global Stop-all (Tasks / dashboard): every stoppable busy session.
-   * Distinct from composer Stop, which targets only the viewed chat
-   * (`resolveStopTargets({ scope: "current" })`).
+   * Global Stop-all (Tasks / dashboard): every stoppable busy **session**
+   * app-wide via Host sessionStop. Distinct from:
+   * - composer / Escape Stop → current chat only
+   * - per-tool kill → not available over ACP
+   * Surface selects confirm copy; action scope is always app busy sessions.
    */
-  const stopAllBusySessions = useCallback(() => {
-    const rows = stoppableActivitySessions(
-      collectActivitySessions({
-        liveMap: liveMapRef.current,
-        sessions,
+  const stopAllBusySessions = useCallback(
+    (surface: StopAllSurface = "tasks") => {
+      const rows = stoppableActivitySessions(
+        collectActivitySessions({
+          liveMap: liveMapRef.current,
+          sessions,
+          currentSessionId: session.sessionId,
+          untitledLabel: tr("session.untitled"),
+        }),
+      );
+      const resolved = resolveStopTargets({
+        scope: "all_busy",
         currentSessionId: session.sessionId,
-        untitledLabel: tr("session.untitled"),
-      }),
-    );
-    const ids = resolveStopTargets({
-      scope: "all_busy",
-      currentSessionId: session.sessionId,
-      busySessionIds: rows.map((r) => r.sessionId),
-    });
-    if (!ids.length) return;
-    stopBusySessionsByIds(ids);
-  }, [
-    sessions,
-    session.sessionId,
-    stopBusySessionsByIds,
-    tr,
-  ]);
+        busySessionIds: rows.map((r) => r.sessionId),
+      });
+      const plan = planStopAllBusySessions(resolved);
+      if (plan.kind === "empty") {
+        showToast(tr(stopAllEmptyMessageKey() as MessageKey), 2400);
+        return;
+      }
+      const keys = stopAllDialogKeys(surface);
+      stopBusySessionsByIds(plan.sessionIds, {
+        title: tr(keys.titleKey as MessageKey),
+        message: tr(keys.messageKey as MessageKey, {
+          n: String(plan.count),
+        }),
+        confirmLabel: tr(keys.confirmKey as MessageKey),
+      });
+    },
+    [
+      sessions,
+      session.sessionId,
+      stopBusySessionsByIds,
+      showToast,
+      tr,
+    ],
+  );
 
   /**
    * Open prompt history picker (Build `/history` + cross-session recent).
@@ -19100,7 +19124,7 @@ export function AppWorkbench() {
                   throw e;
                 }
               }}
-              onStopAllSessions={stopAllBusySessions}
+              onStopAllSessions={() => stopAllBusySessions("tasks")}
               onOpenDashboard={() => setAgentDashboardOpen(true)}
               activeCwd={activeProject?.path ?? null}
               onOpenCwd={async (cwd): Promise<TasksBindCwdResult> => {
@@ -21346,7 +21370,7 @@ export function AppWorkbench() {
           const proj = projects.find((p) => p.id === row.projectId) || null;
           void openSession(row, proj);
         }}
-        onStopAllBusy={stopAllBusySessions}
+        onStopAllBusy={() => stopAllBusySessions("dashboard")}
         onStopSessions={(ids) => {
           const n = ids.length;
           stopBusySessionsByIds(ids, {

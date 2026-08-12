@@ -399,10 +399,13 @@ export function taskFromToolMessage(m: ChatMessage): AgentTask | null {
 /**
  * Fill missing parentId via stream-order inference.
  *
- * Explicit `parentId` values are kept when the parent exists in the list.
- * Otherwise: tools after a longRunning spawn_subagent nest under that spawn
- * until the next top-level longRunning spawn_subagent. ACP often omits parent
- * linkage — this is a best-effort UI heuristic, not protocol truth.
+ * Honesty rules:
+ * - Never invent tool / subagent **rows** — only optional parent links.
+ * - Explicit `parentId` is kept when that parent exists in the list.
+ * - Inference only under a long-running **spawn_subagent** (CLI/tool signal),
+ *   for tools after that spawn until the next top-level spawn. Non-spawn
+ *   long-running tools (shell, monitor) do **not** open a nest.
+ * - ACP often omits parent linkage — inference is best-effort UI, not protocol.
  *
  * Pure; does not mutate input. Returns the same array reference when nothing changes.
  */
@@ -423,6 +426,7 @@ export function assignInferredParentIds(tasks: AgentTask[]): AgentTask[] {
         : undefined;
 
     let parentId = explicit;
+    // Only spawn_subagent (and spawn-like kinds) open a nest — never shell/monitor alone.
     const isSpawn = isSubagentSpawnKind(task.kind) && task.longRunning;
 
     if (!parentId && openSpawnId && task.id !== openSpawnId && !isSpawn) {

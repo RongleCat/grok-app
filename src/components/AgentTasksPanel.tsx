@@ -24,11 +24,15 @@ import {
   countRunningTasks,
   formatTaskCwdLabel,
   taskStatusMessageKey,
-  taskTreeHasNesting,
   taskTreeHasRunning,
   type AgentTask,
   type TaskTreeNode,
 } from "@/lib/sessionTasks";
+import { shouldShowTaskTreeChrome } from "@/lib/taskTreeHonesty";
+import {
+  stopAllButtonLabelKey,
+  stopAllButtonTitleKey,
+} from "@/lib/stopAllHonesty";
 import {
   buildTurnActivity,
   tasksFromTurnActivity,
@@ -658,7 +662,8 @@ export function AgentTasksPanel({
   const showStopAll =
     !isRail && !!onStopAllSessions && stoppableSessions.length > 0;
   const hasTaskRows = activeTree.length > 0 || recentTree.length > 0;
-  const showTreeChrome = taskTreeHasNesting(tree);
+  // Tree chrome only when nesting data exists — never fake indent without parents.
+  const showTreeChrome = shouldShowTaskTreeChrome(tree);
 
   const emptyState = useMemo(() => {
     if (isRail) {
@@ -735,9 +740,9 @@ export function AgentTasksPanel({
               type="button"
               className="btn btn--ghost btn--sm"
               onClick={onStopAllSessions}
-              title={t("tasks.activity.stopAll")}
+              title={t(stopAllButtonTitleKey("tasks") as MessageKey)}
             >
-              {t("tasks.activity.stopAll")}
+              {t(stopAllButtonLabelKey("tasks") as MessageKey)}
             </button>
           ) : null}
           {!isRail && onClose ? (
