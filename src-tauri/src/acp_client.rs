@@ -1134,14 +1134,10 @@ impl AcpClient {
         //   `--permission-mode` is top-level `grok` only — not under `grok agent`.
         let empty_mcp_servers = opts.empty_mcp_servers;
         let home_override = opts.grok_home_override.clone();
-        let grok_home = if let Some(ref h) = home_override {
-            h.clone()
-        } else {
-            crate::paths::resolve_agent_grok_home(session_data_mode)
-        };
-        let _ = std::fs::create_dir_all(&grok_home);
         // Route class is process-scoped (auth material + config.toml). Official
         // aux override home is always OIDC-side; main home follows active_route.
+        // Custom relays live only in agent-home — force that GROK_HOME even when
+        // session_data_mode=shared so third-party keys work without official login (#557).
         let custom_route = if home_override.is_some() {
             false
         } else {
@@ -1150,13 +1146,28 @@ impl AcpClient {
                 crate::providers::ActiveRoute::Custom { .. }
             )
         };
+        let grok_home = if let Some(ref h) = home_override {
+            h.clone()
+        } else {
+            crate::paths::resolve_inference_grok_home(session_data_mode, custom_route)
+        };
+        let _ = std::fs::create_dir_all(&grok_home);
+        // Prep agent-home when independent *or* custom (shared+custom still uses agent-home).
         // Side-channel with explicit home: never touch main agent-home auth.
-        if home_override.is_none() && session_data_mode != "shared" {
+        let agent_home_prep = home_override.is_none()
+            && crate::paths::needs_agent_home_spawn_prep(session_data_mode, custom_route);
+        // Preference syncs write independent-only; for shared+custom force independent
+        // so agent-home receives permission / feature pins the relay process needs.
+        let prep_mode = if custom_route {
+            "independent"
+        } else {
+            session_data_mode
+        };
+        if agent_home_prep {
             // Official → sync OIDC; custom → strip auth.json (api_key only).
             crate::providers::prepare_route_auth_for_agent();
             if let Some(ref pol) = opts.permission_policy {
-                let _ =
-                    crate::agent_prefs::sync_permission_to_agent_profile(session_data_mode, pol);
+                let _ = crate::agent_prefs::sync_permission_to_agent_profile(prep_mode, pol);
             }
         }
 
@@ -1238,40 +1249,36 @@ impl AcpClient {
         // Soft-fail older CLIs for GROK_SUBAGENT_WORKTREE_SNAPSHOT env.
         let cli_ver = version_raw.clone();
 
-        if session_data_mode != "shared" {
+        if agent_home_prep {
             let _ = crate::agent_subagents::sync_subagents_to_agent_profile(
-                session_data_mode,
+                prep_mode,
                 subagents_enabled,
             );
-            let _ = crate::agent_memory::sync_memory_to_agent_profile(
-                session_data_mode,
-                memory_enabled,
-            );
+            let _ = crate::agent_memory::sync_memory_to_agent_profile(prep_mode, memory_enabled);
             let _ = crate::agent_todo_gate::sync_todo_gate_to_agent_profile(
-                session_data_mode,
+                prep_mode,
                 todo_gate_enabled,
                 todo_gate_max_fires,
             );
             let _ = crate::agent_subagent_wt_snap::sync_subagent_wt_snap_to_agent_profile(
-                session_data_mode,
+                prep_mode,
                 subagent_wt_snap,
             );
             let _ = crate::agent_auto_wake::sync_auto_wake_to_agent_profile(
-                session_data_mode,
+                prep_mode,
                 auto_wake_enabled,
             );
             let _ = crate::agent_two_pass_compaction::sync_two_pass_compaction_to_agent_profile(
-                session_data_mode,
+                prep_mode,
                 two_pass_compaction,
             );
             // Custom + inject: PreToolUse hook blocks native Imagine (ACP ignores
             // --disallowed-tools which is headless-only). Official route / inject
             // off removes the managed hook file.
-            let _ =
-                crate::official_aux::sync_native_media_block_hook_for_current(session_data_mode);
+            let _ = crate::official_aux::sync_native_media_block_hook_for_current(prep_mode);
             // Heal duplicate keys left by older upsert bugs (e.g. yolo vs yolo_mode).
             // Valid configs are never rewritten. Soft-fail so spawn still attempts.
-            match crate::agent_home_config::ensure_agent_home_config_sane(session_data_mode) {
+            match crate::agent_home_config::ensure_agent_home_config_sane(prep_mode) {
                 Ok(report) if report.changed => {
                     tracing::info!(
                         target: "acp_client",

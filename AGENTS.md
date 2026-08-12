@@ -35,7 +35,7 @@
 
 3. When adding models or permission modes, update `src/lib/grokCatalog.ts` **and** `docs/llm-wiki/catalog.md`.
 
-3b. Default `session_data_mode` is **shared** (`GROK_HOME=~/.grok`, same as terminal Grok Build). **Independent** mode uses `~/.grok-app/agent-home` and is where App rewrites agent `config.toml` (custom providers, privacy, workflows, …). Shared mode refuses rewriting `~/.grok`. Do not leave relay keys only in App secrets.
+3b. Default `session_data_mode` is **shared** (`GROK_HOME=~/.grok` for **official** route, same as terminal Grok Build). **Independent** mode uses `~/.grok-app/agent-home` and is where App rewrites agent `config.toml` (custom providers, privacy, workflows, …). **Custom route always spawns with agent-home** even when session mode is shared (relay keys never require official login). Shared mode refuses rewriting `~/.grok`. Do not leave relay keys only in App secrets.
 
 4. Prefer real Grok Build CLI behavior (`grok models`, `--always-approve`, `--effort`).
 

@@ -94,11 +94,33 @@ pub fn agent_config_toml() -> PathBuf {
 
 /// Resolve GROK_HOME for a spawned agent process.
 pub fn resolve_agent_grok_home(session_data_mode: &str) -> PathBuf {
-    if session_data_mode == "shared" {
+    if session_data_mode.trim().eq_ignore_ascii_case("shared") {
         return crate::process_util::user_home().join(".grok");
     }
     let _ = ensure_app_dirs();
     agent_home_dir()
+}
+
+/// Whether the active inference route is a custom OpenAI-compatible relay.
+///
+/// Custom providers always live in App `agent-home/config.toml` (never written
+/// into shared `~/.grok`). Spawn must point `GROK_HOME` there even when
+/// `session_data_mode=shared` so third-party keys work without official login.
+pub fn resolve_inference_grok_home(session_data_mode: &str, custom_route: bool) -> PathBuf {
+    if custom_route {
+        let _ = ensure_app_dirs();
+        return agent_home_dir();
+    }
+    resolve_agent_grok_home(session_data_mode)
+}
+
+/// Whether spawn prep must touch App agent-home (auth strip/sync, config heal).
+///
+/// - Independent mode always uses agent-home.
+/// - Shared + official uses `~/.grok` and skips agent-home rewrites.
+/// - Shared + custom still uses agent-home (relay `config.toml` + api_key).
+pub fn needs_agent_home_spawn_prep(session_data_mode: &str, custom_route: bool) -> bool {
+    custom_route || !session_data_mode.trim().eq_ignore_ascii_case("shared")
 }
 
 pub fn projects_file() -> PathBuf {
@@ -251,5 +273,47 @@ mod tests {
         let root = PathBuf::from("/tmp/session");
         assert!(resolve_session_relative_media(&root, "../etc/passwd").is_none());
         assert!(resolve_session_relative_media(&root, "/etc/passwd").is_none());
+    }
+
+    #[test]
+    fn inference_home_custom_route_uses_agent_home_even_when_shared() {
+        let shared_official = resolve_inference_grok_home("shared", false);
+        assert!(
+            shared_official.ends_with(".grok"),
+            "shared+official → ~/.grok, got {}",
+            shared_official.display()
+        );
+
+        let shared_custom = resolve_inference_grok_home("shared", true);
+        assert!(
+            shared_custom.ends_with("agent-home"),
+            "shared+custom → agent-home, got {}",
+            shared_custom.display()
+        );
+
+        let indep_custom = resolve_inference_grok_home("independent", true);
+        assert!(
+            indep_custom.ends_with("agent-home"),
+            "independent+custom → agent-home, got {}",
+            indep_custom.display()
+        );
+
+        let indep_official = resolve_inference_grok_home("independent", false);
+        assert!(
+            indep_official.ends_with("agent-home"),
+            "independent+official → agent-home, got {}",
+            indep_official.display()
+        );
+    }
+
+    #[test]
+    fn agent_home_spawn_prep_gate() {
+        assert!(needs_agent_home_spawn_prep("shared", true));
+        assert!(!needs_agent_home_spawn_prep("shared", false));
+        assert!(needs_agent_home_spawn_prep("independent", false));
+        assert!(needs_agent_home_spawn_prep("independent", true));
+        // Case-insensitive shared.
+        assert!(!needs_agent_home_spawn_prep("Shared", false));
+        assert!(needs_agent_home_spawn_prep("SHARED", true));
     }
 }

@@ -177,10 +177,14 @@ pub fn run_batch_headless(
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         process_util::apply_cli_env_std(&mut cmd);
-        let grok_home = crate::paths::resolve_agent_grok_home(&mode);
+        let custom_route = matches!(
+            crate::providers::active_route(),
+            crate::providers::ActiveRoute::Custom { .. }
+        );
+        let grok_home = crate::paths::resolve_inference_grok_home(&mode, custom_route);
         let _ = std::fs::create_dir_all(&grok_home);
         cmd.env("GROK_HOME", &grok_home);
-        if mode != "shared" {
+        if crate::paths::needs_agent_home_spawn_prep(&mode, custom_route) {
             crate::providers::prepare_route_auth_for_agent();
         }
         proxy::apply_to_std_command(&mut cmd);

@@ -26,8 +26,9 @@ CLI auth is shared with Grok Build TUI (hot-reload of `auth.json` is CLI-side).
 | Step | Path |
 |------|------|
 | `grok login` / App login | writes `~/.grok/auth.json` |
-| Agent spawn (`session_data_mode=shared`, product default) | `GROK_HOME=~/.grok` |
-| Agent spawn (`session_data_mode=independent`) | `GROK_HOME=~/.grok-app/agent-home` |
+| Agent spawn (`shared` + official) | `GROK_HOME=~/.grok` |
+| Agent spawn (`shared` + custom route) | `GROK_HOME=~/.grok-app/agent-home` (relay config; no official login required) |
+| Agent spawn (`independent`) | `GROK_HOME=~/.grok-app/agent-home` |
 
 Host **must** sync `auth.json` into agent-home on login and before each ACP spawn; otherwise the UI shows signed-in while the agent reports `auth_kind=none` → HTTP 401. Logout clears both copies.
 

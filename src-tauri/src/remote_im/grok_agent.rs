@@ -33,21 +33,30 @@ pub fn resolve_grok_binary() -> PathBuf {
     PathBuf::from("grok")
 }
 
-/// Same GROK_HOME the App uses for ACP (independent → agent-home, shared → ~/.grok).
+/// Same GROK_HOME the App uses for ACP inference.
+/// Independent / custom route → agent-home; shared + official → ~/.grok.
 /// Without this, `/r` resumes with an agent session id that only exists under agent-home
 /// and the CLI reports "Session not found locally" + remote 404.
 pub fn resolve_remote_grok_home() -> PathBuf {
     let mode = crate::store::load_settings().session_data_mode;
-    crate::paths::resolve_agent_grok_home(&mode)
+    let custom_route = matches!(
+        crate::providers::active_route(),
+        crate::providers::ActiveRoute::Custom { .. }
+    );
+    crate::paths::resolve_inference_grok_home(&mode, custom_route)
 }
 
 fn apply_agent_env(cmd: &mut Command) {
     let grok_home = resolve_remote_grok_home();
     let _ = std::fs::create_dir_all(&grok_home);
     cmd.env("GROK_HOME", &grok_home);
-    // Independent mode may need App-synced auth/providers (same as ACP spawn path).
+    // Independent / custom: App-synced auth/providers (same as ACP spawn path).
     let mode = crate::store::load_settings().session_data_mode;
-    if mode != "shared" {
+    let custom_route = matches!(
+        crate::providers::active_route(),
+        crate::providers::ActiveRoute::Custom { .. }
+    );
+    if crate::paths::needs_agent_home_spawn_prep(&mode, custom_route) {
         crate::providers::prepare_route_auth_for_agent();
     }
     // GUI-spawned processes often lack ~/.grok/bin on PATH.
@@ -404,16 +413,20 @@ mod tests {
     }
 
     #[test]
-    fn remote_grok_home_matches_app_session_data_mode() {
+    fn remote_grok_home_matches_app_inference_home() {
         let mode = crate::store::load_settings().session_data_mode;
+        let custom_route = matches!(
+            crate::providers::active_route(),
+            crate::providers::ActiveRoute::Custom { .. }
+        );
         let home = resolve_remote_grok_home();
-        let expected = crate::paths::resolve_agent_grok_home(&mode);
+        let expected = crate::paths::resolve_inference_grok_home(&mode, custom_route);
         assert_eq!(home, expected);
-        // Independent default: must NOT be bare ~/.grok when App stores sessions in agent-home.
-        if mode != "shared" {
+        // Independent or custom route: agent-home (not bare ~/.grok).
+        if mode != "shared" || custom_route {
             assert!(
                 home.ends_with("agent-home") || home.to_string_lossy().contains("agent-home"),
-                "independent GROK_HOME should be agent-home, got {}",
+                "inference GROK_HOME should be agent-home when independent/custom, got {}",
                 home.display()
             );
         }

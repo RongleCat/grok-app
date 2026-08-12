@@ -17,12 +17,13 @@ Desktop never reimplements tools/sampling. It is an ACP client + UI shell.
 
 ## Agent profile (`GROK_HOME`)
 
-| Session data mode | `GROK_HOME` for spawned agent |
-|-------------------|-------------------------------|
-| `shared` (default) | `~/.grok` (same home as terminal Grok Build CLI) |
-| `independent` | `~/.grok-app/agent-home` (or `$GROK_APP_HOME/agent-home`) |
+| Session data mode | Active route | `GROK_HOME` for spawned agent |
+|-------------------|--------------|-------------------------------|
+| `shared` (default) | official | `~/.grok` (same home as terminal Grok Build CLI) |
+| `shared` (default) | **custom** | `~/.grok-app/agent-home` (App-owned; never rewrites `~/.grok`) |
+| `independent` | official or custom | `~/.grok-app/agent-home` (or `$GROK_APP_HOME/agent-home`) |
 
-Custom providers are written to **`$GROK_HOME/config.toml`** as `[model.<id>]` sections so the agent can use `base_url` + `api_key` without OAuth fallback.
+Custom providers are always written to **App agent-home `config.toml`** as `[model.<id>]` sections (`base_url` + `api_key`). When a custom route is active, spawn forces that agent-home even if session data mode is `shared`, so a third-party key alone is enough — official OAuth / API key is **not** required (#557). Shared mode still refuses rewriting the user's personal `~/.grok`.
 
 ## Provider model (L2)
 
@@ -109,12 +110,12 @@ Grok Build 0.2.x will send **OIDC** when `auth.json` is present — even if the 
 
 Verified working combinations:
 
-| Route | `[models].default` | agent `--model` | agent-home `auth.json` |
-|-------|--------------------|-----------------|------------------------|
-| Custom relay | provider id (`yunyi`) | **provider id** | **removed** (api_key only) |
-| Official | `grok` | catalog id (`grok-4.5`) | **synced** from `~/.grok` |
+| Route | `[models].default` | agent `--model` | `GROK_HOME` | agent-home `auth.json` |
+|-------|--------------------|-----------------|-------------|------------------------|
+| Custom relay | provider id (`yunyi`) | **provider id** | **agent-home** (even if session mode is shared) | **removed** (api_key only) |
+| Official | `grok` | catalog id (`grok-4.5`) | shared → `~/.grok`; independent → agent-home | **synced** from `~/.grok` when using agent-home |
 
-Host must rebind both sides on every switch and before each ACP spawn (`prepare_route_auth_for_agent` + `agent_spawn_model_id`). Composer catalog `modelId` remains the official selection preference; spawn resolves the channel id separately. **Alternate activate entry:** picking a custom provider row in the composer model menu also calls `providers_activate` (same Host path as Settings **Use**).
+Host must rebind both sides on every switch and before each ACP spawn (`prepare_route_auth_for_agent` + `agent_spawn_model_id` + `resolve_inference_grok_home`). Composer catalog `modelId` remains the official selection preference; spawn resolves the channel id separately. **Alternate activate entry:** picking a custom provider row in the composer model menu also calls `providers_activate` (same Host path as Settings **Use**).
 
 ## Host commands
 
