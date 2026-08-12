@@ -14,6 +14,20 @@ import {
 } from "@/lib/themeSkin";
 import { CHAT_FONT_SCALES } from "@/lib/chatFontScale";
 import { CODE_FONT_SCALES } from "@/lib/codeFontScalePref";
+import {
+  UI_FONT_CUSTOM_VALUE,
+  UI_FONT_PRESETS,
+  resolveUiFontStack,
+  uiFontSelectValue,
+} from "@/lib/uiFontPref";
+import {
+  TERMINAL_FONT_CUSTOM_VALUE,
+  TERMINAL_FONT_PRESETS,
+  TERMINAL_FONT_PREVIEW_SAMPLE,
+  TERMINAL_FONT_SIZES,
+  resolveTerminalFontFamily,
+  terminalFontSelectValue,
+} from "@/lib/terminalFontPref";
 import { CHAT_DENSITIES } from "@/lib/chatDensity";
 import { CHAT_WIDTHS } from "@/lib/chatWidthPref";
 import { SIDEBAR_DENSITIES } from "@/lib/sidebarDensity";
@@ -52,6 +66,9 @@ export function AppearanceSection() {
     chatFontScale,
     chatWidth,
     codeFontScale,
+    uiFontFamily,
+    terminalFontFamily,
+    terminalFontSize,
     codeLineNumbers,
     codeWrapDefault,
     confirmExternalLinks,
@@ -67,6 +84,9 @@ export function AppearanceSection() {
     onClearAllSessionUnread,
     onClearExportLogo,
     onCodeFontScale,
+    onUiFontFamily,
+    onTerminalFontFamily,
+    onTerminalFontSize,
     onExportLogoFile,
     onGoalOrchUiEnabled,
     onMessageActionsVisibility,
@@ -826,6 +846,156 @@ export function AppearanceSection() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                </div>
+                <div
+                  className={
+                    "settings-card" + rowHighlight("settings-anchor-uiFont")
+                  }
+                  id="settings-anchor-uiFont"
+                >
+                  <div className="settings-row settings-row--stack">
+                    <div className="settings-row__text">
+                      <SettingsLabelWithTip
+                        label={t("settings.uiFont")}
+                        tip={t("settings.uiFontDesc")}
+                      />
+                    </div>
+                    <Select
+                      className="settings-select"
+                      aria-label={t("settings.uiFont")}
+                      value={uiFontSelectValue(uiFontFamily ?? "")}
+                      onChange={(v) => {
+                        if (v === UI_FONT_CUSTOM_VALUE) {
+                          if (!uiFontFamily) onUiFontFamily("Inter");
+                          return;
+                        }
+                        onUiFontFamily(v);
+                      }}
+                      options={[
+                        ...UI_FONT_PRESETS.map((p) => ({
+                          value: p.id,
+                          label:
+                            p.id === ""
+                              ? t("settings.uiFont.default")
+                              : p.label,
+                        })),
+                        {
+                          value: UI_FONT_CUSTOM_VALUE,
+                          label: t("settings.uiFont.custom"),
+                        },
+                      ]}
+                    />
+                    <input
+                      type="text"
+                      className="settings-input"
+                      id="settings-ui-font-family"
+                      spellCheck={false}
+                      autoComplete="off"
+                      placeholder={t("settings.uiFont.placeholder")}
+                      value={uiFontFamily ?? ""}
+                      onChange={(e) => onUiFontFamily(e.target.value)}
+                      aria-label={t("settings.uiFont.family")}
+                    />
+                    <div
+                      className="settings-font-preview"
+                      style={{
+                        fontFamily: resolveUiFontStack(uiFontFamily ?? ""),
+                      }}
+                      aria-hidden
+                    >
+                      {t("settings.uiFont.preview")}
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className={
+                    "settings-card" +
+                    rowHighlight("settings-anchor-terminalFont")
+                  }
+                  id="settings-anchor-terminalFont"
+                >
+                  <div className="settings-row settings-row--stack">
+                    <div className="settings-row__text">
+                      <SettingsLabelWithTip
+                        label={t("settings.terminalFont")}
+                        tip={t("settings.terminalFontDesc")}
+                      />
+                    </div>
+                    <Select
+                      className="settings-select"
+                      aria-label={t("settings.terminalFont")}
+                      value={terminalFontSelectValue(terminalFontFamily ?? "")}
+                      onChange={(v) => {
+                        if (v === TERMINAL_FONT_CUSTOM_VALUE) {
+                          if (!terminalFontFamily) {
+                            onTerminalFontFamily("JetBrainsMono Nerd Font");
+                          }
+                          return;
+                        }
+                        onTerminalFontFamily(v);
+                      }}
+                      options={[
+                        ...TERMINAL_FONT_PRESETS.map((p) => ({
+                          value: p.id,
+                          label:
+                            p.id === ""
+                              ? t("settings.terminalFont.default")
+                              : p.label,
+                        })),
+                        {
+                          value: TERMINAL_FONT_CUSTOM_VALUE,
+                          label: t("settings.terminalFont.custom"),
+                        },
+                      ]}
+                    />
+                    <input
+                      type="text"
+                      className="settings-input"
+                      id="settings-terminal-font-family"
+                      spellCheck={false}
+                      autoComplete="off"
+                      placeholder={t("settings.terminalFont.placeholder")}
+                      value={terminalFontFamily ?? ""}
+                      onChange={(e) => onTerminalFontFamily(e.target.value)}
+                      aria-label={t("settings.terminalFont.family")}
+                    />
+                    <div
+                      className="settings-seg"
+                      role="radiogroup"
+                      aria-label={t("settings.terminalFont.size")}
+                    >
+                      {TERMINAL_FONT_SIZES.map((size) => (
+                        <button
+                          key={size}
+                          type="button"
+                          role="radio"
+                          aria-checked={terminalFontSize === size}
+                          className={
+                            "settings-seg__btn" +
+                            (terminalFontSize === size ? " is-on" : "")
+                          }
+                          onClick={() => onTerminalFontSize(size)}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                    <div
+                      className="settings-font-preview settings-font-preview--mono"
+                      style={{
+                        fontFamily: resolveTerminalFontFamily(
+                          terminalFontFamily ?? "",
+                        ),
+                        fontSize: `${terminalFontSize ?? 13}px`,
+                      }}
+                      aria-hidden
+                    >
+                      {TERMINAL_FONT_PREVIEW_SAMPLE}
+                    </div>
+                    <p className="settings-row__hint">
+                      {t("settings.terminalFont.hint")}
+                    </p>
                   </div>
                 </div>
                 <div

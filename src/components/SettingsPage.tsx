@@ -50,6 +50,16 @@ import {
   type CodeFontScale,
 } from "@/lib/codeFontScalePref";
 import {
+  applyUiFont,
+  loadUiFontFamily,
+  setUiFontFamily,
+} from "@/lib/uiFontPref";
+import {
+  loadTerminalFontFamily,
+  loadTerminalFontSize,
+  setTerminalFontPrefs,
+} from "@/lib/terminalFontPref";
+import {
   applyChatDensity,
   loadChatDensity,
   saveChatDensity,
@@ -528,6 +538,40 @@ export function SettingsPage({
     setCodeFontScaleState(next);
     saveCodeFontScale(next);
     applyCodeFontScale(next);
+  }, []);
+  /** UI font family — localStorage only (no AppSettings). */
+  const [uiFontFamily, setUiFontFamilyState] = useState(() =>
+    loadUiFontFamily(),
+  );
+  useEffect(() => {
+    applyUiFont(loadUiFontFamily());
+  }, []);
+  const onUiFontFamily = useCallback((next: string) => {
+    setUiFontFamily(next);
+    setUiFontFamilyState(loadUiFontFamily());
+  }, []);
+  /** Terminal font family + size — localStorage; TerminalTab listens. */
+  const [terminalFontFamily, setTerminalFontFamilyState] = useState(() =>
+    loadTerminalFontFamily(),
+  );
+  const [terminalFontSize, setTerminalFontSizeState] = useState(() =>
+    loadTerminalFontSize(),
+  );
+  const onTerminalFontFamily = useCallback((next: string) => {
+    const prefs = setTerminalFontPrefs({
+      family: next,
+      size: loadTerminalFontSize(),
+    });
+    setTerminalFontFamilyState(prefs.family);
+    setTerminalFontSizeState(prefs.size);
+  }, []);
+  const onTerminalFontSize = useCallback((next: number) => {
+    const prefs = setTerminalFontPrefs({
+      family: loadTerminalFontFamily(),
+      size: next,
+    });
+    setTerminalFontFamilyState(prefs.family);
+    setTerminalFontSizeState(prefs.size);
   }, []);
   /** Chat transcript density — localStorage only (no AppSettings). */
   const [chatDensity, setChatDensityState] = useState<ChatDensity>(() =>
@@ -1592,6 +1636,12 @@ export function SettingsPage({
     onChatFontScale,
     codeFontScale,
     onCodeFontScale,
+    uiFontFamily,
+    onUiFontFamily,
+    terminalFontFamily,
+    terminalFontSize,
+    onTerminalFontFamily,
+    onTerminalFontSize,
     chatDensity,
     onChatDensity,
     chatWidth,

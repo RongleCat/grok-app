@@ -666,6 +666,31 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   width: 100%;
 }
 
+.settings-row--stack > .settings-input {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* Font family / terminal glyph sample under Appearance font pickers */
+.settings-font-preview {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated, var(--bg-input));
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.settings-font-preview--mono {
+  font-variant-ligatures: none;
+  white-space: pre-wrap;
+}
+
 /* Settings → Runtime → Network: connectivity probe results */
 .settings-netprobe {
   display: flex;

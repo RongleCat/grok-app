@@ -15,10 +15,13 @@ import type {
   TerminalPtyDataEvent,
   TerminalPtyExitEvent,
 } from "@/lib/api/system";
+import { buildSideTerminalTheme } from "@/lib/sideTerminalTheme";
 import {
-  TERMINAL_FONT_FAMILY,
-  buildSideTerminalTheme,
-} from "@/lib/sideTerminalTheme";
+  TERMINAL_FONT_CHANGE_EVENT,
+  loadTerminalFontPrefs,
+  resolveTerminalFontFamily,
+  type TerminalFontPrefs,
+} from "@/lib/terminalFontPref";
 
 export type TerminalTabProps = {
   locale: Locale | string;
@@ -59,16 +62,17 @@ export function TerminalTab({
     L.unlistenExit = null;
   }, []);
 
-  // Create xterm once per mount.
+  // Create xterm once per mount; font follows Appearance → Terminal font prefs.
   useEffect(() => {
     const el = hostRef.current;
     if (!el) return;
 
+    const bootFont = loadTerminalFontPrefs();
     const term = new Terminal({
       cursorBlink: true,
       cursorStyle: "block",
-      fontSize: 13,
-      fontFamily: TERMINAL_FONT_FAMILY,
+      fontSize: bootFont.size,
+      fontFamily: resolveTerminalFontFamily(bootFont.family),
       // lineHeight > 1 leaves a fractional-cell gap (looks like a bottom black bar).
       lineHeight: 1,
       letterSpacing: 0,
@@ -80,6 +84,15 @@ export function TerminalTab({
     });
     const applyTheme = () => {
       term.options.theme = buildSideTerminalTheme(el);
+    };
+    const applyFont = (prefs: TerminalFontPrefs) => {
+      term.options.fontFamily = resolveTerminalFontFamily(prefs.family);
+      term.options.fontSize = prefs.size;
+      try {
+        fitRef.current?.fit();
+      } catch {
+        /* ignore */
+      }
     };
     const fit = new FitAddon();
     term.loadAddon(fit);
@@ -113,7 +126,24 @@ export function TerminalTab({
       attributeFilter: ["data-theme", "data-wallpaper", "class", "style"],
     });
 
+    const onFontChange = (ev: Event) => {
+      const detail = (ev as CustomEvent<TerminalFontPrefs>).detail;
+      if (detail && typeof detail === "object") {
+        applyFont({
+          family: typeof detail.family === "string" ? detail.family : "",
+          size:
+            typeof detail.size === "number"
+              ? detail.size
+              : loadTerminalFontPrefs().size,
+        });
+      } else {
+        applyFont(loadTerminalFontPrefs());
+      }
+    };
+    window.addEventListener(TERMINAL_FONT_CHANGE_EVENT, onFontChange);
+
     return () => {
+      window.removeEventListener(TERMINAL_FONT_CHANGE_EVENT, onFontChange);
       mo?.disconnect();
       term.dispose();
       termRef.current = null;
