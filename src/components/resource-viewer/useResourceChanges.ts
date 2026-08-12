@@ -43,6 +43,18 @@ import {
   type WorkspaceGitFile,
 } from "@/lib/workspaceGit";
 import {
+  classifyWorkspaceGitUnavailable,
+  countWorkspaceKinds,
+  filterWorkspaceByKind,
+  normalizeChangesKindFilter,
+  presentWorkspaceKindFilters,
+  shouldShowKindFilters,
+  workspaceGitUnavailableHintKey,
+  workspaceGitUnavailableTitleKey,
+  type ChangesKindFilter,
+  type WorkspaceGitUnavailableKind,
+} from "@/lib/resourceChangesHonesty";
+import {
   emptyDiffView,
 } from "./helpers";
 import type {
@@ -87,6 +99,11 @@ const [workspaceLoading, setWorkspaceLoading] = useState(false);
 const [workspaceAvailable, setWorkspaceAvailable] = useState(false);
 const [workspaceReason, setWorkspaceReason] = useState<string | null>(null);
 const [workspaceBranch, setWorkspaceBranch] = useState<string | null>(null);
+/** Workspace kind chip filter (all / modified / untracked / …). */
+const [kindFilter, setKindFilterRaw] = useState<ChangesKindFilter>("all");
+const setKindFilter = useCallback((raw: string) => {
+  setKindFilterRaw(normalizeChangesKindFilter(raw));
+}, []);
 const [pathCopyFlash, setPathCopyFlash] = useState(false);
 /** Accept / reject / restore in flight. */
 const [diffActionBusy, setDiffActionBusy] = useState(false);
@@ -145,10 +162,39 @@ const filteredChanges = useMemo(() => {
       (c.toolKind || "").toLowerCase().includes(q),
   );
 }, [sessionChanges, query]);
-const filteredWorkspace = useMemo(
-  () => filterWorkspaceGitEntries(workspaceFiles, query),
-  [workspaceFiles, query],
+const workspaceKindCounts = useMemo(
+  () => countWorkspaceKinds(workspaceFiles),
+  [workspaceFiles],
 );
+const showKindFilters = useMemo(
+  () => shouldShowKindFilters(workspaceKindCounts),
+  [workspaceKindCounts],
+);
+const presentKindFilters = useMemo(
+  () => presentWorkspaceKindFilters(workspaceKindCounts, kindFilter),
+  [workspaceKindCounts, kindFilter],
+);
+const filteredWorkspace = useMemo(() => {
+  const byQuery = filterWorkspaceGitEntries(workspaceFiles, query);
+  return filterWorkspaceByKind(byQuery, kindFilter);
+}, [workspaceFiles, query, kindFilter]);
+const workspaceUnavailableKind: WorkspaceGitUnavailableKind | null =
+  useMemo(
+    () =>
+      classifyWorkspaceGitUnavailable({
+        projectPath,
+        isTauri: api.isTauri(),
+        available: workspaceAvailable,
+        reason: workspaceReason,
+        loading: workspaceLoading,
+      }),
+    [
+      projectPath,
+      workspaceAvailable,
+      workspaceReason,
+      workspaceLoading,
+    ],
+  );
 
 /** Flat j/k order: session rows then workspace rows (filtered). */
 const changeNavKeys = useMemo(() => {
@@ -551,15 +597,31 @@ const workspaceKindLabel = useCallback(
 );
 
 const workspaceUnavailableLabel = useCallback(() => {
-  const r = (workspaceReason || "").toLowerCase();
-  if (r.includes("not a git") || r.includes("not a git repository")) {
-    return tr("changes.workspace.noRepo");
-  }
-  if (r.includes("git not available") || r.includes("not available")) {
-    return tr("changes.workspace.noGit");
-  }
-  return tr("changes.workspace.unavailable");
-}, [tr, workspaceReason]);
+  const kind =
+    workspaceUnavailableKind ??
+    classifyWorkspaceGitUnavailable({
+      projectPath,
+      isTauri: api.isTauri(),
+      available: false,
+      reason: workspaceReason,
+    }) ??
+    "unavailable";
+  return tr(workspaceGitUnavailableTitleKey(kind) as MessageKey);
+}, [tr, workspaceUnavailableKind, projectPath, workspaceReason]);
+
+const workspaceUnavailableHint = useCallback(() => {
+  const kind =
+    workspaceUnavailableKind ??
+    classifyWorkspaceGitUnavailable({
+      projectPath,
+      isTauri: api.isTauri(),
+      available: false,
+      reason: workspaceReason,
+    }) ??
+    "unavailable";
+  const key = workspaceGitUnavailableHintKey(kind);
+  return key ? tr(key as MessageKey) : null;
+}, [tr, workspaceUnavailableKind, projectPath, workspaceReason]);
 
 /** Resolve workspace kind for a path (session-only → modified). */
 
@@ -630,7 +692,13 @@ const workspaceUnavailableLabel = useCallback(() => {
     workspaceLoading,
     workspaceAvailable,
     workspaceReason,
+    workspaceUnavailableKind,
     workspaceBranch,
+    kindFilter,
+    setKindFilter,
+    workspaceKindCounts,
+    showKindFilters,
+    presentKindFilters,
     pathCopyFlash,
     diffActionBusy,
     batchProgress,
@@ -667,6 +735,7 @@ const workspaceUnavailableLabel = useCallback(() => {
     copyChangePath,
     workspaceKindLabel,
     workspaceUnavailableLabel,
+    workspaceUnavailableHint,
     kindForPath,
     rememberRestorable,
     markDecision,

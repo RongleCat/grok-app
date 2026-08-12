@@ -20,6 +20,7 @@ import {
   resolveOpenEditorError,
   writeOpenTargetStorage,
 } from "@/lib/openEditorHonesty";
+import { resolveChangesPreviewEmptyState } from "@/lib/resourceChangesHonesty";
 import { EmbeddedBrowser } from "@/components/EmbeddedBrowser";
 import { OverlayScroll } from "@/components/OverlayScroll";
 import { detectAppPlatform, revealInOsLabel } from "@/lib/appPlatform";
@@ -91,6 +92,78 @@ import { ResourceChangesList } from "./ResourceChangesList";
 import { ResourceViewerDialogs } from "./ResourceViewerDialogs";
 import { useResourceChanges } from "./useResourceChanges";
 import { useResourceFileTabs } from "./useResourceFileTabs";
+
+function ChangesOrFilesEmpty({
+  sideMode,
+  tr,
+  projectPath,
+  changeCount,
+  workspaceCount,
+  workspaceLoading,
+  workspaceAvailable,
+  workspaceReason,
+  filesTabsEmpty,
+}: {
+  sideMode: string;
+  tr: (key: import("@/i18n").MessageKey, vars?: Record<string, string>) => string;
+  projectPath: string | null;
+  changeCount: number;
+  workspaceCount: number;
+  workspaceLoading: boolean;
+  workspaceAvailable: boolean;
+  workspaceReason: string | null;
+  filesTabsEmpty: { titleKey?: string; hintKey?: string } | null | undefined;
+}) {
+  if (sideMode === "changes") {
+    const empty = resolveChangesPreviewEmptyState({
+      projectPath,
+      sessionCount: changeCount,
+      workspaceCount,
+      workspaceLoading,
+      workspaceAvailable,
+      workspaceReason,
+      isTauri: api.isTauri(),
+      hasSelection: false,
+    });
+    return (
+      <div
+        className="rp__empty-state"
+        data-testid="changes-preview-empty"
+        data-empty-kind={empty.kind}
+      >
+        <div className="rp__empty-title">
+          {tr(empty.titleKey as import("@/i18n").MessageKey)}
+        </div>
+        {empty.hintKey ? (
+          <div className="rp__empty-desc">
+            {tr(empty.hintKey as import("@/i18n").MessageKey)}
+          </div>
+        ) : null}
+        {empty.kind === "pick" ? (
+          <div className="rp__empty-desc rp__empty-desc--muted">
+            {tr("changes.navHint")}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <div className="rp__empty-state">
+      <div className="rp__empty-title">
+        {tr(
+          (filesTabsEmpty?.titleKey ??
+            "resources.emptyPreview") as import("@/i18n").MessageKey,
+        )}
+      </div>
+      <div className="rp__empty-desc">
+        {tr(
+          (filesTabsEmpty?.hintKey ??
+            "resources.emptyPreviewHint") as import("@/i18n").MessageKey,
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function ResourceViewer({
   projectPath,
@@ -219,7 +292,13 @@ export function ResourceViewer({
     workspaceFiles,
     workspaceLoading,
     workspaceAvailable,
+    workspaceReason,
     workspaceBranch,
+    kindFilter,
+    setKindFilter,
+    workspaceKindCounts,
+    showKindFilters,
+    presentKindFilters,
     pathCopyFlash,
     diffActionBusy,
     batchProgress,
@@ -255,6 +334,7 @@ export function ResourceViewer({
     copyChangePath,
     workspaceKindLabel,
     workspaceUnavailableLabel,
+    workspaceUnavailableHint,
     rememberRestorable,
     runAcceptFile,
     executeRejectFile,
@@ -1258,37 +1338,17 @@ export function ResourceViewer({
               <div className="rp__empty-state">{previewBody}</div>
             )
           ) : !activeTab ? (
-            <div className="rp__empty-state">
-              <div className="rp__empty-title">
-                {sideMode === "changes" &&
-                changeCount === 0 &&
-                workspaceCount === 0
-                  ? tr("changes.empty")
-                  : sideMode === "changes"
-                    ? tr("changes.pickTitle")
-                    : tr(
-                        filesTabsEmpty?.titleKey ?? "resources.emptyPreview",
-                      )}
-              </div>
-              <div className="rp__empty-desc">
-                {sideMode === "changes" &&
-                changeCount === 0 &&
-                workspaceCount === 0
-                  ? tr("changes.emptyHint")
-                  : sideMode === "changes"
-                    ? tr("changes.pickHint")
-                    : tr(
-                        filesTabsEmpty?.hintKey ??
-                          "resources.emptyPreviewHint",
-                      )}
-              </div>
-              {sideMode === "changes" &&
-              (changeCount > 0 || workspaceCount > 0) ? (
-                <div className="rp__empty-desc rp__empty-desc--muted">
-                  {tr("changes.navHint")}
-                </div>
-              ) : null}
-            </div>
+            <ChangesOrFilesEmpty
+              sideMode={sideMode}
+              tr={tr}
+              projectPath={projectPath}
+              changeCount={changeCount}
+              workspaceCount={workspaceCount}
+              workspaceLoading={workspaceLoading}
+              workspaceAvailable={workspaceAvailable}
+              workspaceReason={workspaceReason}
+              filesTabsEmpty={filesTabsEmpty}
+            />
           ) : activeTab.loading ? (
             <div className="rp__empty-state">
               <div className="rp__empty-desc">{tr("resources.loading")}</div>
@@ -1491,6 +1551,12 @@ export function ResourceViewer({
                     changeStatusLabel={changeStatusLabel}
                     workspaceKindLabel={workspaceKindLabel}
                     workspaceUnavailableLabel={workspaceUnavailableLabel}
+                    workspaceUnavailableHint={workspaceUnavailableHint}
+                    kindFilter={kindFilter}
+                    onKindFilterChange={setKindFilter}
+                    showKindFilters={showKindFilters}
+                    presentKindFilters={presentKindFilters}
+                    workspaceKindCounts={workspaceKindCounts}
                     loadChangeDiff={loadChangeDiff}
                     loadWorkspaceDiff={loadWorkspaceDiff}
                     runAcceptFile={runAcceptFile}

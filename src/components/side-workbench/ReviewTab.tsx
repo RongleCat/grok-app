@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import * as api from "@/lib/api";
-import { createT, type Locale, type MessageKey } from "@/i18n";
+import { createT, type Locale } from "@/i18n";
 import {
   IconArrowsMinimize,
   IconCode,
@@ -46,14 +46,25 @@ import {
   type ReviewTreeNode,
 } from "@/lib/reviewDiff";
 import {
+  classifyWorkspaceGitUnavailable,
+  countWorkspaceKinds,
+  filterEntriesByKind,
+  normalizeChangesKindFilter,
+  presentWorkspaceKindFilters,
+  resolveReviewEmptyState,
+  shouldShowKindFilters,
+  type ChangesKindFilter,
+  type WorkspaceGitUnavailableKind,
+} from "@/lib/resourceChangesHonesty";
+import {
   formatOpenEditorErrorMessage,
-  formatRevealErrorMessage,
   isOsOpenTarget,
   planOpenInEditor,
   readOpenTargetStorage,
   resolveOpenEditorError,
-  resolveRevealError,
 } from "@/lib/openEditorHonesty";
+import type { WorkspaceGitFile, WorkspaceGitKind } from "@/lib/workspaceGit";
+import type { MessageKey } from "@/i18n";
 
 export type ReviewTabProps = {
   locale: Locale | string;
@@ -330,6 +341,10 @@ export function ReviewTab({
     totalRemoved: 0,
   });
   const [loading, setLoading] = useState(false);
+  const [loadErrorKind, setLoadErrorKind] =
+    useState<WorkspaceGitUnavailableKind | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [kindFilter, setKindFilter] = useState<ChangesKindFilter>("all");
   const [moreOpen, setMoreOpen] = useState(false);
   const [sideCollapsed, setSideCollapsed] = useState(false);
   const stackRef = useRef<HTMLDivElement>(null);
@@ -373,6 +388,7 @@ export function ReviewTab({
     const seq = ++loadSeq.current;
     const path = (projectPath || "").trim();
     setLoading(true);
+    setLoadErrorKind(null);
 
     const sessionEntries = buildSessionEntries();
     const byRel = new Map<string, ReviewFileEntry>();
@@ -392,6 +408,7 @@ export function ReviewTab({
       totalAdded: 0,
       totalRemoved: 0,
     };
+    let nextLoadError: WorkspaceGitUnavailableKind | null = null;
 
     if (includeWorkspace && path && api.isTauri()) {
       try {
@@ -443,13 +460,30 @@ export function ReviewTab({
             }
             byRel.set(key, entry);
           }
+        } else {
+          nextLoadError = classifyWorkspaceGitUnavailable({
+            projectPath: path,
+            isTauri: true,
+            available: false,
+            reason: res?.reason ?? "unavailable",
+          });
         }
-      } catch {
-        /* soft-fail — still show session rows */
+      } catch (e) {
+        nextLoadError = classifyWorkspaceGitUnavailable({
+          projectPath: path,
+          isTauri: true,
+          available: false,
+          reason: String(e),
+        });
       }
+    } else if (includeWorkspace && path && !api.isTauri()) {
+      nextLoadError = "host_only";
+    } else if (includeWorkspace && !path) {
+      nextLoadError = "no_project";
     }
 
     if (seq !== loadSeq.current) return;
+    setLoadErrorKind(nextLoadError);
 
     const list = Array.from(byRel.values()).sort((a, b) =>
       a.relPath.localeCompare(b.relPath),
@@ -523,25 +557,15 @@ export function ReviewTab({
     }
   }, [selectedFile]);
 
-  const [openErr, setOpenErr] = useState<string | null>(null);
-
   const revealSelected = useCallback(async () => {
     const p = selectedFile?.path;
-    if (!p) return;
-    if (!api.isTauri()) {
-      const resolved = resolveRevealError({ code: "host_only" });
-      setOpenErr(formatRevealErrorMessage(resolved, tr));
-      return;
-    }
+    if (!p || !api.isTauri()) return;
     try {
       await api.pathReveal(p);
-      setOpenErr(null);
-    } catch (e) {
-      const resolved = resolveRevealError(e);
-      if (resolved.silent) return;
-      setOpenErr(formatRevealErrorMessage(resolved, tr));
+    } catch {
+      /* soft-fail */
     }
-  }, [selectedFile, tr]);
+  }, [selectedFile]);
 
   const openSelectedInEditor = useCallback(async () => {
     const p = selectedFile?.path;
@@ -555,7 +579,7 @@ export function ReviewTab({
     });
     if (!plan.ok) {
       if (plan.kind === "cancelled") return;
-      setOpenErr(tr(plan.messageKey as MessageKey));
+      setActionError(tr(plan.messageKey as MessageKey));
       return;
     }
     try {
@@ -563,25 +587,79 @@ export function ReviewTab({
         path: plan.path,
         editor: plan.editorId ?? undefined,
       });
-      setOpenErr(null);
+      setActionError(null);
     } catch (e) {
       const resolved = resolveOpenEditorError(e);
       if (resolved.silent) return;
-      setOpenErr(formatOpenEditorErrorMessage(resolved, tr));
+      setActionError(formatOpenEditorErrorMessage(resolved, tr));
     }
   }, [selectedFile, tr]);
 
-
+  const openFilePreview = useCallback(
+    (path: string, name: string) => {
+      if (!onOpenFile) return;
+      const hit = files.find(
+        (f) => f.relPath === path || f.path === path || f.name === name,
+      );
+      onOpenFile(hit?.path || path, name || pathBaseName(path));
+    },
+    [onOpenFile, files],
+  );
 
   const q = filter.trim().toLowerCase();
+  const kindCounts = useMemo(() => {
+    // Reuse workspace counter shape for review kinds.
+    const asWorkspace: WorkspaceGitFile[] = files.map((f) => ({
+      path: f.relPath,
+      absolutePath: f.path,
+      status: "  ",
+      indexStatus: " ",
+      worktreeStatus: " ",
+      kind: (f.kind || "modified") as WorkspaceGitKind,
+      name: f.name,
+    }));
+    return countWorkspaceKinds(asWorkspace);
+  }, [files]);
+  const showKinds = shouldShowKindFilters(kindCounts);
+  const presentKinds = useMemo(
+    () => presentWorkspaceKindFilters(kindCounts, kindFilter),
+    [kindCounts, kindFilter],
+  );
+
   const visibleFiles = useMemo(() => {
-    if (!q) return files;
-    return files.filter(
+    let list = filterEntriesByKind(files, kindFilter);
+    if (!q) return list;
+    return list.filter(
       (f) =>
         f.name.toLowerCase().includes(q) ||
         f.relPath.toLowerCase().includes(q),
     );
-  }, [files, q]);
+  }, [files, q, kindFilter]);
+
+  const emptyState = useMemo(
+    () =>
+      resolveReviewEmptyState({
+        isGitProject,
+        sessionCount: sessionChanges.length,
+        projectPath,
+        loading,
+        loadErrorKind,
+        fileCount: files.length,
+        visibleCount: visibleFiles.length,
+        hasActiveFilter: !!q || kindFilter !== "all",
+      }),
+    [
+      isGitProject,
+      sessionChanges.length,
+      projectPath,
+      loading,
+      loadErrorKind,
+      files.length,
+      visibleFiles.length,
+      q,
+      kindFilter,
+    ],
+  );
 
   const tree = useMemo(
     () =>
@@ -667,14 +745,20 @@ export function ReviewTab({
     ? tr("side.review.collapseAll")
     : tr("side.review.expandAll");
 
-  const hasAny = files.length > 0 || loading;
-
-  if (!isGitProject && sessionChanges.length === 0) {
+  if (emptyState.kind === "not_git") {
     return (
       <div className="sw-review" data-testid="side-review-tab">
-        <div className="rp__empty-state">
-          <div className="rp__empty-title">{tr("side.review.notGit")}</div>
-          <div className="rp__empty-desc">{tr("side.review.notGitHint")}</div>
+        <div
+          className="rp__empty-state"
+          data-testid="review-empty"
+          data-empty-kind="not_git"
+        >
+          <div className="rp__empty-title">{tr(emptyState.titleKey as MessageKey)}</div>
+          {emptyState.hintKey ? (
+            <div className="rp__empty-desc">
+              {tr(emptyState.hintKey as MessageKey)}
+            </div>
+          ) : null}
         </div>
       </div>
     );
@@ -682,6 +766,19 @@ export function ReviewTab({
 
   return (
     <div className="sw-review" data-testid="side-review-tab">
+      {actionError ? (
+        <div className="rp__error" role="alert" data-testid="review-action-error">
+          {actionError}
+          <button
+            type="button"
+            className="chrome-btn"
+            aria-label={tr("common.dismiss")}
+            onClick={() => setActionError(null)}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
       <div className="sw-review__header" data-testid="review-toolbar">
         <div className="sw-review__header-main">
           <div className="sw-review__scope-wrap" ref={scopeMenuRef}>
@@ -766,15 +863,6 @@ export function ReviewTab({
             ) : null}
           </div>
         )}
-        {openErr ? (
-          <div
-            className="sw-review__open-err"
-            role="status"
-            data-testid="review-open-err"
-          >
-            {openErr}
-          </div>
-        ) : null}
         <div className="sw-review__header-actions">
           <div className="sw-review__more-wrap" ref={moreMenuRef}>
             <button
@@ -876,18 +964,20 @@ export function ReviewTab({
           data-testid="review-diff"
           ref={stackRef}
         >
-          {!hasAny ? (
-            <div className="rp__empty-state rp__empty-state--sm">
-              <div className="rp__empty-title">{tr("changes.pickTitle")}</div>
-              <div className="rp__empty-desc">
-                {projectPath
-                  ? tr("changes.empty")
-                  : tr("main.noProject")}
+          {emptyState.kind !== "ok" ? (
+            <div
+              className="rp__empty-state rp__empty-state--sm"
+              data-testid="review-empty"
+              data-empty-kind={emptyState.kind}
+            >
+              <div className="rp__empty-title">
+                {tr(emptyState.titleKey as MessageKey)}
               </div>
-            </div>
-          ) : visibleFiles.length === 0 ? (
-            <div className="rp__empty-state rp__empty-state--sm">
-              <div className="rp__empty-desc">{tr("changes.filterEmpty")}</div>
+              {emptyState.hintKey ? (
+                <div className="rp__empty-desc">
+                  {tr(emptyState.hintKey as MessageKey)}
+                </div>
+              ) : null}
             </div>
           ) : (
             visibleFiles.map((f) => {
@@ -906,25 +996,43 @@ export function ReviewTab({
                     else fileEls.current.delete(f.key);
                   }}
                 >
-                  <button
-                    type="button"
-                    className="sw-review-file__head"
-                    onClick={() => {
-                      setSelectedKey(f.key);
-                      toggleExpand(f.key);
-                    }}
-                    title={f.relPath}
-                    data-testid={`review-file-head-${f.key}`}
-                  >
-                    <ReviewKindChip name={f.name} />
-                    <span className="sw-review-file__name">
-                      {truncateMiddle(f.name, 36)}
-                    </span>
-                    <span className="sw-review-file__stats">
-                      <span className="sw-review__add">+{f.added}</span>
-                      <span className="sw-review__del">-{f.removed}</span>
-                    </span>
-                  </button>
+                  <div className="sw-review-file__head-row">
+                    <button
+                      type="button"
+                      className="sw-review-file__head"
+                      onClick={() => {
+                        setSelectedKey(f.key);
+                        toggleExpand(f.key);
+                      }}
+                      title={f.relPath}
+                      data-testid={`review-file-head-${f.key}`}
+                    >
+                      <ReviewKindChip name={f.name} />
+                      <span className="sw-review-file__name">
+                        {truncateMiddle(f.name, 36)}
+                      </span>
+                      <span className="sw-review-file__stats">
+                        <span className="sw-review__add">+{f.added}</span>
+                        <span className="sw-review__del">-{f.removed}</span>
+                      </span>
+                    </button>
+                    {onOpenFile ? (
+                      <button
+                        type="button"
+                        className="sw-review-file__path-link"
+                        title={tr("side.review.openPreview")}
+                        aria-label={tr("side.review.openPreview")}
+                        data-testid="review-path-link"
+                        onClick={() => openFilePreview(f.path, f.name)}
+                      >
+                        {truncateMiddle(f.relPath, 42)}
+                      </button>
+                    ) : (
+                      <span className="sw-review-file__path-link is-static">
+                        {truncateMiddle(f.relPath, 42)}
+                      </span>
+                    )}
+                  </div>
                   {isOpen ? (
                     <div className="sw-review-file__body">
                       {f.binary ? (
@@ -986,16 +1094,65 @@ export function ReviewTab({
                 data-testid="review-filter"
               />
             </div>
+            {showKinds && presentKinds.length > 0 ? (
+              <div
+                className="sw-review__kind-filters"
+                role="tablist"
+                aria-label={tr("changes.kindFilterLabel")}
+                data-testid="review-kind-filters"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={kindFilter === "all"}
+                  className={
+                    "sw-review__kind-chip" +
+                    (kindFilter === "all" ? " is-active" : "")
+                  }
+                  onClick={() => setKindFilter("all")}
+                >
+                  <span>{tr("changes.kindFilterAll")}</span>
+                  <span className="sw-review__kind-chip-count">
+                    {files.length}
+                  </span>
+                </button>
+                {presentKinds.map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={kindFilter === k}
+                    className={
+                      "sw-review__kind-chip" +
+                      (kindFilter === k ? " is-active" : "")
+                    }
+                    onClick={() =>
+                      setKindFilter(normalizeChangesKindFilter(k))
+                    }
+                  >
+                    <span>
+                      {tr(
+                        `changes.workspace.kind.${k}` as MessageKey,
+                      )}
+                    </span>
+                    <span className="sw-review__kind-chip-count">
+                      {kindCounts[k] ?? 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <div className="sw-review__tree-scroll">
-              {loading && files.length === 0 ? (
+              {emptyState.kind === "loading" ? (
                 <div className="sw-review-file__msg">
                   {tr("resources.loading")}
                 </div>
               ) : tree.length === 0 ? (
-                <div className="sw-review-file__msg">
-                  {projectPath
-                    ? tr("changes.filterEmpty")
-                    : tr("main.noProject")}
+                <div
+                  className="sw-review-file__msg"
+                  data-empty-kind={emptyState.kind}
+                >
+                  {tr(emptyState.titleKey as MessageKey)}
                 </div>
               ) : (
                 <TreeNodes
@@ -1005,17 +1162,8 @@ export function ReviewTab({
                   collapsedDirs={collapsedDirs}
                   onToggleDir={toggleDir}
                   onSelect={scrollToFile}
-                  onOpenFile={
-                    onOpenFile
-                      ? (path, name) => {
-                          const hit = files.find(
-                            (f) => f.relPath === path || f.path === path,
-                          );
-                          onOpenFile(hit?.path || path, name);
-                        }
-                      : undefined
-                  }
-                  openFileLabel={tr("changes.openFile")}
+                  onOpenFile={onOpenFile ? openFilePreview : undefined}
+                  openFileLabel={tr("side.review.openPreview")}
                 />
               )}
             </div>

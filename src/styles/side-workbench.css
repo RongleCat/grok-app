@@ -1121,6 +1121,14 @@ html[data-theme="light"] .sw-terminal--pty {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, #6c8cff) 12%, transparent);
 }
 
+.sw-review-file__head-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  background: color-mix(in srgb, var(--bg-hover, #222) 70%, var(--bg-elevated, #1a1a1a));
+}
+
 .sw-review-file__head {
   appearance: none;
   width: 100%;
@@ -1128,17 +1136,82 @@ html[data-theme="light"] .sw-terminal--pty {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
-  background: color-mix(in srgb, var(--bg-hover, #222) 70%, var(--bg-elevated, #1a1a1a));
+  padding: 7px 10px 4px;
+  background: transparent;
   color: var(--text-primary, #e8e8e8);
   cursor: pointer;
   text-align: left;
   font-size: 12.5px;
-  min-height: 32px;
+  min-height: 28px;
 }
 
 .sw-review-file__head:hover {
   background: var(--bg-hover, #282828);
+}
+
+.sw-review-file__path-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  display: block;
+  width: 100%;
+  padding: 0 10px 7px 34px;
+  margin: 0;
+  text-align: left;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-tertiary, #888);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sw-review-file__path-link:hover:not(.is-static) {
+  color: var(--accent, #6c8cff);
+  text-decoration: underline;
+}
+
+.sw-review-file__path-link.is-static {
+  cursor: default;
+}
+
+.sw-review__kind-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.sw-review__kind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: transparent;
+  color: var(--text-secondary, #aaa);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sw-review__kind-chip:hover {
+  color: var(--text-primary, #e8e8e8);
+}
+
+.sw-review__kind-chip.is-active {
+  border-color: color-mix(in srgb, var(--accent, #6c8cff) 50%, transparent);
+  background: color-mix(in srgb, var(--accent, #6c8cff) 14%, transparent);
+  color: var(--text-primary, #e8e8e8);
+}
+
+.sw-review__kind-chip-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+  font-size: 10px;
 }
 
 .sw-review-file__name {
