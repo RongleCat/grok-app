@@ -64,6 +64,15 @@ impl Locale {
             _ => Locale::En,
         }
     }
+
+    /// Canonical catalog id shared with the frontend (`en` / `zh` / `zh-TW`).
+    pub fn as_tag(self) -> &'static str {
+        match self {
+            Locale::En => "en",
+            Locale::Zh => "zh",
+            Locale::ZhTw => "zh-TW",
+        }
+    }
 }
 
 /// Current app locale from durable settings.
@@ -192,6 +201,9 @@ mod tests {
         assert_eq!(Locale::from_lang_tag("zh-HK"), Locale::ZhTw);
         assert_eq!(Locale::from_lang_tag("fr_FR.UTF-8"), Locale::En);
         assert_eq!(Locale::from_lang_tag(""), Locale::En);
+        assert_eq!(Locale::En.as_tag(), "en");
+        assert_eq!(Locale::Zh.as_tag(), "zh");
+        assert_eq!(Locale::ZhTw.as_tag(), "zh-TW");
     }
 
     #[test]

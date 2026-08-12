@@ -79,6 +79,10 @@ impl ActiveTurnRegistration {
         self.remove()
     }
 
+    fn turn_id(&self) -> u64 {
+        self.id
+    }
+
     fn remove(&mut self) -> bool {
         let mut turns = self.turns.lock();
         let Some(scope_turns) = turns.get_mut(&self.scope) else {
@@ -101,7 +105,8 @@ pub struct Engine {
     next_turn_id: AtomicU64,
     /// Soft inbound rate limit (agent turns only; slash/control exempt).
     rate_limiter: Mutex<InboundRateLimiter>,
-    lang: String,
+    /// Cached catalog id (`en` / `zh` / `zh-TW`), refreshed per inbound message.
+    reply_lang: Mutex<String>,
     allow_remote_yolo: bool,
 }
 
@@ -115,7 +120,7 @@ impl Engine {
             active_turns: Arc::new(Mutex::new(HashMap::new())),
             next_turn_id: AtomicU64::new(1),
             rate_limiter: Mutex::new(InboundRateLimiter::default()),
-            lang: "zh".into(),
+            reply_lang: Mutex::new(i18n::resolve_engine_lang()),
             allow_remote_yolo,
         }
     }
@@ -130,9 +135,24 @@ impl Engine {
             active_turns: Arc::new(Mutex::new(HashMap::new())),
             next_turn_id: AtomicU64::new(1),
             rate_limiter: Mutex::new(InboundRateLimiter::default()),
-            lang: "zh".into(),
+            reply_lang: Mutex::new(i18n::resolve_engine_lang()),
             allow_remote_yolo,
         }
+    }
+
+    fn refresh_lang(&self) {
+        *self.reply_lang.lock() = i18n::resolve_engine_lang();
+    }
+
+    fn lang(&self) -> String {
+        self.reply_lang.lock().clone()
+    }
+
+    fn scope_has_earlier_turn(&self, scope: &str, self_id: u64) -> bool {
+        self.active_turns
+            .lock()
+            .get(scope)
+            .is_some_and(|turns| turns.keys().any(|&id| id < self_id))
     }
 
     pub fn upsert_instance(&self, inst: ChannelInstance) {
@@ -172,9 +192,15 @@ impl Engine {
 
     fn agent_error_message(&self, error: &str) -> String {
         if error == grok_agent::PROCESS_SUPERVISION_ERROR_CODE {
-            return i18n::t(&self.lang, MessageKey::ProcessSupervisionFailed).into();
+            return i18n::t(&self.lang(), MessageKey::ProcessSupervisionFailed).into();
         }
-        agent_error_user_message(&self.lang, classify_rim_error(error), error)
+        if error == grok_agent::PROCESS_LIMIT_ERROR_CODE {
+            return i18n::process_limit_user_message(
+                &self.lang(),
+                grok_agent::current_process_limit(),
+            );
+        }
+        agent_error_user_message(&self.lang(), classify_rim_error(error), error)
     }
 
     /// Trusted projects limited by instance project_scope (GUI whitelist or all).
@@ -205,6 +231,7 @@ impl Engine {
     }
 
     async fn handle_inner(&self, msg: IncomingMessage, mut registered: Option<RegisteredTurn>) {
+        self.refresh_lang();
         tracing::info!(
             channel = %msg.channel,
             instance = %msg.instance_id,
@@ -220,7 +247,7 @@ impl Engine {
                     content = %msg.content.chars().take(200).collect::<String>(),
                     "remote_im: unparseable card action payload"
                 );
-                let t = if self.lang == "en" {
+                let t = if self.lang() == "en" {
                     "Could not read that card button. Send /p again, or reply with the number."
                 } else {
                     "无法识别卡片按钮。请重新发送 /p，或直接回复序号（如 2）。"
@@ -262,7 +289,7 @@ impl Engine {
         }
 
         if !outbound::sender_allowed(&inst.acl, &msg.sender_id) {
-            let text = if self.lang == "en" {
+            let text = if self.lang() == "en" {
                 "You are not on the allow_from list."
             } else {
                 "你不在 allow_from 白名单中。请管理员把你的 open_id 加入配置。"
@@ -310,7 +337,7 @@ impl Engine {
                     g.remove(&scope);
                     g.remove(&alt_scope);
                 }
-                let t = if self.lang == "en" {
+                let t = if self.lang() == "en" {
                     "Cancelled."
                 } else {
                     "已取消。"
@@ -331,7 +358,7 @@ impl Engine {
             lim.try_acquire(&scope).err()
         };
         if let Some(retry_after) = rate_block {
-            let t = rate_limit_user_message(&self.lang, retry_after);
+            let t = rate_limit_user_message(&self.lang(), retry_after);
             tracing::warn!(
                 scope = %scope,
                 retry_secs = retry_after.as_secs(),
@@ -357,7 +384,7 @@ impl Engine {
         // Interactive callback payloads are user-controlled too. Apply the same ACL
         // gate as ordinary messages before binding projects/sessions or switching auth.
         if !outbound::sender_allowed(&inst.acl, &msg.sender_id) {
-            let text = if self.lang == "en" {
+            let text = if self.lang() == "en" {
                 "You are not on the allow_from list."
             } else {
                 "你不在 allow_from 白名单中。"
@@ -389,7 +416,7 @@ impl Engine {
 
         match action {
             CardAction::Cancel => {
-                let t = if self.lang == "en" {
+                let t = if self.lang() == "en" {
                     "Cancelled."
                 } else {
                     "已取消。"
@@ -408,7 +435,7 @@ impl Engine {
                             .find(|p| Some(p.id.as_str()) == next.project_id.as_deref())
                             .map(|p| p.name.as_str())
                             .unwrap_or(next.project_id.as_deref().unwrap_or(""));
-                        let t = if self.lang == "en" {
+                        let t = if self.lang() == "en" {
                             format!(
                                 "Bound **{name}**\n`{}`\nNext message starts a **new** session.",
                                 next.work_dir
@@ -422,7 +449,7 @@ impl Engine {
                         let _ = self.reply_msg(msg, &t).await;
                     }
                     Err(_) => {
-                        let t = if self.lang == "en" {
+                        let t = if self.lang() == "en" {
                             "Project not found. Send /p again."
                         } else {
                             "未找到项目。请重新发送 /p。"
@@ -437,7 +464,7 @@ impl Engine {
                     Ok(next) => {
                         let aid = next.agent_session_id.clone().unwrap_or_default();
                         self.store.set(&scope, next);
-                        let t = if self.lang == "en" {
+                        let t = if self.lang() == "en" {
                             format!("Resumed session `{aid}`. Continue chatting.")
                         } else {
                             format!("已恢复会话 `{aid}`。继续对话即可。")
@@ -445,7 +472,7 @@ impl Engine {
                         let _ = self.reply_msg(msg, &t).await;
                     }
                     Err(_) => {
-                        let t = if self.lang == "en" {
+                        let t = if self.lang() == "en" {
                             "Session not found. Send /r again."
                         } else {
                             "未找到会话。请重新发送 /r。"
@@ -461,7 +488,7 @@ impl Engine {
                 if listed.profiles.iter().any(|account| account.id == id) {
                     self.do_switch_account(&id, msg).await;
                 } else {
-                    let t = if self.lang == "en" {
+                    let t = if self.lang() == "en" {
                         "Account not found. Send /account again."
                     } else {
                         "未找到账号。请重新发送 /account。"
@@ -492,7 +519,7 @@ impl Engine {
                 let projects = self.scoped_projects_for(&msg.instance_id);
                 if projects.is_empty() {
                     let _ = self
-                        .reply_msg(msg, &format_project_menu(&projects, &self.lang))
+                        .reply_msg(msg, &format_project_menu(&projects, &self.lang()))
                         .await;
                     return;
                 }
@@ -505,13 +532,13 @@ impl Engine {
                         accounts: vec![],
                     },
                 );
-                control_plane::build_telegram_project_card(&projects, &self.lang, page)
+                control_plane::build_telegram_project_card(&projects, &self.lang(), page)
             }
             "session" => {
                 let sessions = app_sessions::sessions_for_project(binding.project_id.as_deref());
                 if sessions.is_empty() {
                     let _ = self
-                        .reply_msg(msg, &format_session_menu(&sessions, &self.lang))
+                        .reply_msg(msg, &format_session_menu(&sessions, &self.lang()))
                         .await;
                     return;
                 }
@@ -524,14 +551,14 @@ impl Engine {
                         accounts: vec![],
                     },
                 );
-                control_plane::build_telegram_session_card(&sessions, &self.lang, page)
+                control_plane::build_telegram_session_card(&sessions, &self.lang(), page)
             }
             "account" => {
                 let listed = account_profiles::list_accounts();
                 let active_id = listed.active_id;
                 let profiles = listed.profiles;
                 if profiles.is_empty() {
-                    let t = if self.lang == "en" {
+                    let t = if self.lang() == "en" {
                         "No saved accounts yet. Add accounts in Grok App first."
                     } else {
                         "尚无已保存账号。请先在 Grok App 中添加账号。"
@@ -542,7 +569,7 @@ impl Engine {
                 let lines = self
                     .load_account_quota_lines(&profiles, active_id.as_deref())
                     .await;
-                let text = format_account_menu(&lines, &self.lang);
+                let text = format_account_menu(&lines, &self.lang());
                 let choices: Vec<(String, String)> = profiles
                     .iter()
                     .map(|account| (account.id.clone(), account.label.clone()))
@@ -556,7 +583,7 @@ impl Engine {
                         accounts: profiles,
                     },
                 );
-                control_plane::build_telegram_account_card(&text, &choices, &self.lang, page)
+                control_plane::build_telegram_account_card(&text, &choices, &self.lang(), page)
             }
             _ => return,
         };
@@ -603,7 +630,7 @@ impl Engine {
                             .find(|p| Some(p.id.as_str()) == next.project_id.as_deref())
                             .map(|p| p.name.as_str())
                             .unwrap_or(next.project_id.as_deref().unwrap_or(""));
-                        let t = if self.lang == "en" {
+                        let t = if self.lang() == "en" {
                             format!(
                                 "Bound **{name}**\n`{}`\nNext message starts a **new** session.",
                                 next.work_dir
@@ -623,7 +650,7 @@ impl Engine {
                             n_projects = projects.len(),
                             "remote_im: project text pick failed"
                         );
-                        let t = if self.lang == "en" {
+                        let t = if self.lang() == "en" {
                             format!(
                                 "Invalid pick `{content}`. Send number (1–{}) or name, or 0 to cancel.",
                                 projects.len()
@@ -647,7 +674,7 @@ impl Engine {
                         .clone()
                         .unwrap_or_else(|| next.local_session_id.clone());
                     self.store.set(scope, next);
-                    let t = if self.lang == "en" {
+                    let t = if self.lang() == "en" {
                         format!("Resumed session `{aid}`. Continue chatting.")
                     } else {
                         format!("已恢复会话 `{aid}`。继续对话即可。")
@@ -655,7 +682,7 @@ impl Engine {
                     let _ = self.reply_msg(msg, &t).await;
                 }
                 Err(_) => {
-                    let t = if self.lang == "en" {
+                    let t = if self.lang() == "en" {
                         "Invalid pick. Send number, or 0 to cancel. (No session was bound.)"
                     } else {
                         "无效选择。请发送序号，或 0 取消。（未绑定任何会话）"
@@ -670,7 +697,7 @@ impl Engine {
                         self.do_switch_account(&id, msg).await;
                     }
                     Err(_) => {
-                        let t = if self.lang == "en" {
+                        let t = if self.lang() == "en" {
                             format!(
                                 "Invalid pick `{content}`. Send number (1–{}) or label, or 0 to cancel.",
                                 pending.accounts.len()
@@ -707,7 +734,7 @@ impl Engine {
 
         if let Some(q) = query {
             if profiles.is_empty() {
-                let t = if self.lang == "en" {
+                let t = if self.lang() == "en" {
                     "No saved accounts yet. Sign in / add accounts in Grok App → Settings → Account, then try again."
                 } else {
                     "尚无已保存账号。请先在 Grok App「设置 → 账号」登录或添加账号后再试。"
@@ -721,7 +748,7 @@ impl Engine {
                     self.do_switch_account(&id, msg).await;
                 }
                 Err(_) => {
-                    let t = if self.lang == "en" {
+                    let t = if self.lang() == "en" {
                         format!("Account not found: `{q}`. Send `/account` to list.")
                     } else {
                         format!("未找到账号：`{q}`。发送 `/account` 查看列表。")
@@ -733,7 +760,7 @@ impl Engine {
         }
 
         // List + quota (best-effort network per snapshot).
-        let thinking = if self.lang == "en" {
+        let thinking = if self.lang() == "en" {
             "Loading accounts & quota…"
         } else {
             "正在拉取账号与额度…"
@@ -743,7 +770,7 @@ impl Engine {
         let lines = self
             .load_account_quota_lines(&profiles, listed.active_id.as_deref())
             .await;
-        let text = format_account_menu(&lines, &self.lang);
+        let text = format_account_menu(&lines, &self.lang());
         if !profiles.is_empty() {
             self.insert_pending(
                 scope,
@@ -760,7 +787,7 @@ impl Engine {
                 .iter()
                 .map(|account| (account.id.clone(), account.label.clone()))
                 .collect();
-            let card = control_plane::build_telegram_account_card(&text, &choices, &self.lang, 0);
+            let card = control_plane::build_telegram_account_card(&text, &choices, &self.lang(), 0);
             let _ = self
                 .outbound
                 .reply_card(&msg.instance_id, &msg.chat_id, Some(&msg.message_id), &card)
@@ -815,7 +842,7 @@ impl Engine {
                 }
             } else {
                 line.quota_note = Some(
-                    if self.lang == "en" {
+                    if self.lang() == "en" {
                         "not signed in / no token"
                     } else {
                         "未登录或无 token"
@@ -827,7 +854,7 @@ impl Engine {
         }
 
         // Parallel quota fetch — each snapshot uses its own token (order preserved).
-        let lang_en = self.lang == "en";
+        let lang_en = self.lang() == "en";
         let futs: Vec<_> = profiles
             .iter()
             .map(|p| {
@@ -886,8 +913,8 @@ impl Engine {
 
                 // Refresh quota for the newly active account (also warms billing cache).
                 let status = crate::account::account_status(None, true).await;
-                let quota_line = format_quota_brief(&status.billing, &self.lang);
-                let t = if self.lang == "en" {
+                let quota_line = format_quota_brief(&status.billing, &self.lang());
+                let t = if self.lang() == "en" {
                     format!(
                         "Switched to **{label}**\n{quota_line}\nNext Remote IM / App turns use this account."
                     )
@@ -899,7 +926,7 @@ impl Engine {
                 let _ = self.reply_msg(msg, &t).await;
             }
             Err(e) => {
-                let t = if self.lang == "en" {
+                let t = if self.lang() == "en" {
                     format!("Switch failed: {e}")
                 } else {
                     format!("切换失败：{e}")
@@ -919,7 +946,7 @@ impl Engine {
     ) {
         match cmd {
             BuiltinCommand::Help => {
-                let _ = self.reply_msg(msg, &slash::help_text(&self.lang)).await;
+                let _ = self.reply_msg(msg, &slash::help_text(&self.lang())).await;
             }
             BuiltinCommand::Whoami => {
                 let text = format!(
@@ -934,7 +961,7 @@ impl Engine {
                 let mut s = ScopeBinding::fresh(&wd);
                 s.project_id = cur.project_id;
                 self.store.set(scope, s.clone());
-                let t = if self.lang == "en" {
+                let t = if self.lang() == "en" {
                     format!("New session: `{}`", s.local_session_id)
                 } else {
                     format!("已开启新会话：`{}`", s.local_session_id)
@@ -970,7 +997,7 @@ impl Engine {
                 } else {
                     MessageKey::NoInFlightTurn
                 };
-                let _ = self.reply_msg(msg, i18n::t(&self.lang, key)).await;
+                let _ = self.reply_msg(msg, i18n::t(&self.lang(), key)).await;
             }
             BuiltinCommand::Project { query } => {
                 self.handle_project(query.as_deref(), scope, msg, default_wd)
@@ -984,7 +1011,7 @@ impl Engine {
                 self.handle_account(query.as_deref(), scope, msg).await;
             }
             BuiltinCommand::Unknown { raw } => {
-                let t = if self.lang == "en" {
+                let t = if self.lang() == "en" {
                     format!("Unknown command `/{raw}`. Send `/help`.")
                 } else {
                     format!("未知命令 `/{raw}`。发送 `/help` 查看。")
@@ -997,7 +1024,7 @@ impl Engine {
     async fn handle_context(&self, scope: &str, msg: &IncomingMessage, default_wd: &str) {
         let binding = self.store.get_or_create(scope, default_wd);
         let messages = crate::store::load_messages(&binding.local_session_id);
-        let text = format_context_report(&binding, &messages, &self.lang);
+        let text = format_context_report(&binding, &messages, &self.lang());
         let _ = self.reply_msg(msg, &text).await;
     }
 
@@ -1017,7 +1044,7 @@ impl Engine {
             .filter(|id| !id.is_empty())
             .map(str::to_string)
         else {
-            let text = if self.lang == "en" {
+            let text = if self.lang() == "en" {
                 "No active agent session. Send a message or use /r first."
             } else {
                 "当前没有可压缩的 agent 会话。请先发送一条消息，或使用 /r 恢复会话。"
@@ -1029,15 +1056,25 @@ impl Engine {
             Some(note) => format!("/compact {note}"),
             None => "/compact".to_string(),
         };
-        let working = if self.lang == "en" {
+
+        let (mut active_turn, cancel_rx) =
+            registered.unwrap_or_else(|| self.register_active_turn(scope));
+        if self.scope_has_earlier_turn(scope, active_turn.turn_id()) {
+            let _ = self
+                .reply_msg(
+                    msg,
+                    i18n::t(&self.lang(), MessageKey::TurnAlreadyInProgress),
+                )
+                .await;
+            return;
+        }
+
+        let working = if self.lang() == "en" {
             "Compacting current session…"
         } else {
             "正在压缩当前会话…"
         };
         let _ = self.reply_msg(msg, working).await;
-
-        let (mut active_turn, cancel_rx) =
-            registered.unwrap_or_else(|| self.register_active_turn(scope));
 
         let before = binding
             .context_usage
@@ -1115,7 +1152,7 @@ impl Engine {
         app_sessions::sync_compact_to_app(&next, &compact);
 
         let span = format_compact_span(compact.tokens_before, compact.tokens_after);
-        let text = if self.lang == "en" {
+        let text = if self.lang() == "en" {
             if event_confirmed {
                 format!("Compaction completed.{span}\nUse /context to inspect the current size.")
             } else {
@@ -1138,7 +1175,7 @@ impl Engine {
     ) {
         let projects = self.scoped_projects_for(&msg.instance_id);
         if projects.is_empty() {
-            let t = if self.lang == "en" {
+            let t = if self.lang() == "en" {
                 "No trusted projects in scope. Trust a folder in Grok App, or widen project scope in Remote control settings."
             } else {
                 "当前范围内没有已信任项目。请先在 Grok App 中信任项目，或在远程控制设置中放宽项目范围。"
@@ -1152,7 +1189,7 @@ impl Engine {
             match apply_project_pick(&binding, &projects, q) {
                 Ok(next) => {
                     self.store.set(scope, next.clone());
-                    let t = if self.lang == "en" {
+                    let t = if self.lang() == "en" {
                         format!(
                             "Bound **{}**\n`{}`\nNext message starts a **new** session.",
                             next.project_id.as_deref().unwrap_or(""),
@@ -1168,7 +1205,7 @@ impl Engine {
                     let _ = self.reply_msg(msg, &t).await;
                 }
                 Err(_) => {
-                    let t = if self.lang == "en" {
+                    let t = if self.lang() == "en" {
                         format!("Not found: {q}. Send /p again.")
                     } else {
                         format!("未找到：{q}。请重新发送 /p。")
@@ -1182,9 +1219,11 @@ impl Engine {
         // Menu: native cards/buttons where supported, text otherwise.
         if channel_uses_cards(&msg.channel) {
             let card = match msg.channel.as_str() {
-                "dingtalk" => control_plane::build_dingtalk_project_card(&projects, &self.lang),
-                "telegram" => control_plane::build_telegram_project_card(&projects, &self.lang, 0),
-                _ => control_plane::build_feishu_project_card(&projects, &self.lang),
+                "dingtalk" => control_plane::build_dingtalk_project_card(&projects, &self.lang()),
+                "telegram" => {
+                    control_plane::build_telegram_project_card(&projects, &self.lang(), 0)
+                }
+                _ => control_plane::build_feishu_project_card(&projects, &self.lang()),
             };
             let _ = self
                 .outbound
@@ -1199,7 +1238,7 @@ impl Engine {
             };
             self.insert_pending(scope, msg, pick);
         } else {
-            let text = format_project_menu(&projects, &self.lang);
+            let text = format_project_menu(&projects, &self.lang());
             self.insert_pending(
                 scope,
                 msg,
@@ -1241,7 +1280,7 @@ impl Engine {
                 b.project_id = Some(p.id.clone());
                 self.store.set(scope, b.clone());
             } else {
-                let t = if self.lang == "en" {
+                let t = if self.lang() == "en" {
                     "No project bound. Send /p first."
                 } else {
                     "尚未绑定项目。请先发送 /p 选择项目。"
@@ -1258,7 +1297,7 @@ impl Engine {
                 Ok(next) => {
                     let aid = next.agent_session_id.clone().unwrap_or_default();
                     self.store.set(scope, next);
-                    let t = if self.lang == "en" {
+                    let t = if self.lang() == "en" {
                         format!("Resumed session `{aid}`. Continue chatting.")
                     } else {
                         format!("已恢复会话 `{aid}`。继续对话即可。")
@@ -1266,7 +1305,7 @@ impl Engine {
                     let _ = self.reply_msg(msg, &t).await;
                 }
                 Err(_) => {
-                    let t = if self.lang == "en" {
+                    let t = if self.lang() == "en" {
                         format!("Not found: {q}. Send /r again. (No session was bound.)")
                     } else {
                         format!("未找到：{q}。请重新发送 /r。（未绑定任何会话）")
@@ -1278,16 +1317,18 @@ impl Engine {
         }
 
         if sessions.is_empty() {
-            let t = format_session_menu(&sessions, &self.lang);
+            let t = format_session_menu(&sessions, &self.lang());
             let _ = self.reply_msg(msg, &t).await;
             return;
         }
 
         if channel_uses_cards(&msg.channel) {
             let card = match msg.channel.as_str() {
-                "dingtalk" => control_plane::build_dingtalk_session_card(&sessions, &self.lang),
-                "telegram" => control_plane::build_telegram_session_card(&sessions, &self.lang, 0),
-                _ => control_plane::build_feishu_session_card(&sessions, &self.lang),
+                "dingtalk" => control_plane::build_dingtalk_session_card(&sessions, &self.lang()),
+                "telegram" => {
+                    control_plane::build_telegram_session_card(&sessions, &self.lang(), 0)
+                }
+                _ => control_plane::build_feishu_session_card(&sessions, &self.lang()),
             };
             let _ = self
                 .outbound
@@ -1303,7 +1344,7 @@ impl Engine {
                 },
             );
         } else {
-            let text = format_session_menu(&sessions, &self.lang);
+            let text = format_session_menu(&sessions, &self.lang());
             self.insert_pending(
                 scope,
                 msg,
@@ -1327,7 +1368,7 @@ impl Engine {
     ) {
         let binding = self.store.get_or_create(scope, default_wd);
         if binding.project_id.is_none() && binding.work_dir.is_empty() {
-            let t = if self.lang == "en" {
+            let t = if self.lang() == "en" {
                 "No project bound. Send /p first."
             } else {
                 "尚未绑定项目。请先发送 /p。"
@@ -1338,8 +1379,17 @@ impl Engine {
 
         let (mut active_turn, cancel_rx) =
             registered.unwrap_or_else(|| self.register_active_turn(scope));
+        if self.scope_has_earlier_turn(scope, active_turn.turn_id()) {
+            let _ = self
+                .reply_msg(
+                    msg,
+                    i18n::t(&self.lang(), MessageKey::TurnAlreadyInProgress),
+                )
+                .await;
+            return;
+        }
 
-        let thinking = if self.lang == "en" {
+        let thinking = if self.lang() == "en" {
             "Working…"
         } else {
             "处理中…"
@@ -1416,13 +1466,13 @@ impl Engine {
                 // Prefer model text when present; still honest if it looks like a rate limit.
                 let kind = classify_rim_error(&err);
                 if matches!(kind, super::resilience::RimErrorKind::RateLimit) {
-                    agent_error_user_message(&self.lang, kind, &err)
+                    agent_error_user_message(&self.lang(), kind, &err)
                 } else {
                     result.text
                 }
             }
         } else if result.text.is_empty() {
-            if self.lang == "en" {
+            if self.lang() == "en" {
                 "(empty reply)".into()
             } else {
                 "（空回复）".into()
@@ -1882,6 +1932,27 @@ mod tests {
         other_rx
             .await
             .expect("other scope did not remain cancellable");
+    }
+
+    #[test]
+    fn later_turn_in_same_scope_is_busy() {
+        let engine = Engine::new_ephemeral(OutboundRouter::new(), false);
+        let (first, _first_rx) = engine.register_active_turn("scope-busy");
+        let (second, _second_rx) = engine.register_active_turn("scope-busy");
+        assert!(!engine.scope_has_earlier_turn("scope-busy", first.turn_id()));
+        assert!(engine.scope_has_earlier_turn("scope-busy", second.turn_id()));
+        assert!(!engine.scope_has_earlier_turn("scope-other", second.turn_id()));
+    }
+
+    #[test]
+    fn engine_lang_follows_product_locale_not_hardcoded_zh() {
+        let engine = Engine::new_ephemeral(OutboundRouter::new(), false);
+        let lang = engine.lang();
+        assert!(
+            matches!(lang.as_str(), "en" | "zh" | "zh-TW"),
+            "unexpected catalog id {lang}"
+        );
+        assert_eq!(lang, i18n::resolve_engine_lang());
     }
 
     #[test]
