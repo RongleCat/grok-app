@@ -202,6 +202,8 @@ export interface SettingsPageProps {
   onStoreApiKeysInKeychain?: (v: boolean) => void;
   sandboxProfile?: string;
   onSandboxProfile?: (v: string) => void;
+  /** Open SandboxWizard in info mode (Settings guide CTA). */
+  onOpenSandboxWizard?: () => void;
   cliInfo: {
     found: boolean;
     path: string | null;

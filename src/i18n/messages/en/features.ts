@@ -487,6 +487,8 @@ export const enFeatures = {
   "sandboxWizard.reason.workspace": "Recommended for daily coding: Workspace — read anywhere; write limited to the session working directory, ~/.grok/, and system temp. Network allowed.",
   "sandboxWizard.honesty.platform": "On this platform, kernel OS sandbox enforcement is not documented (macOS Seatbelt / Linux Landlock only). The CLI may accept the profile but soft-fail without enforcement — not a hard security boundary.",
   "sandboxWizard.honesty.cliUnsupported": "This CLI is too old for --sandbox (needs ≥ {min}). The profile can be saved, but the flag is omitted (soft-fail) until you upgrade Grok Build.",
+  "sandboxWizard.honesty.linuxUserns": "Linux: Workspace uses bubblewrap. If unprivileged user namespaces are restricted (Ubuntu 24.04+ AppArmor), the agent may fail with SANDBOX_BLOCKED — enable userns via sysctl or pick Off. The app does not change host kernel settings.",
+  "sandboxWizard.appDefaultNote": "App product default is Workspace (stricter than terminal CLI Off). This guide only changes App settings.",
   "sandboxWizard.pick.lead": "Select a sandbox profile. Workspace is recommended for everyday use.",
   "sandboxWizard.recommendedBadge": "Recommended",
   "sandboxWizard.confirm.lead": "Apply “{profile}” as the app sandbox profile?",

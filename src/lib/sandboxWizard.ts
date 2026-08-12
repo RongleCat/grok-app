@@ -19,6 +19,7 @@ import {
   platformEnforcesOsSandbox,
   sandboxDangerConfirmKey,
   sandboxIsolationActive,
+  sandboxLinuxUsernsNoteKey,
   sandboxProfileHelpKey,
   sandboxProfileLabelKey,
   type SandboxProfileId,
@@ -106,7 +107,7 @@ export type SandboxWizardStepPlan = {
 /**
  * Recommend a sandbox profile when trusting a project.
  * Always prefers {@link RECOMMENDED_SANDBOX_PROFILE}; honesty keys when
- * platform/CLI cannot enforce isolation.
+ * platform/CLI cannot enforce isolation (or Linux userns may block bwrap).
  */
 export function recommendSandboxForTrust(opts: {
   platform?: string | null;
@@ -132,6 +133,15 @@ export function recommendSandboxForTrust(opts: {
       profile,
       reasonKey,
       honestyKey: "sandboxWizard.honesty.platform",
+    };
+  }
+
+  // Linux: Landlock/bwrap possible, but userns may still SANDBOX_BLOCKED.
+  if (sandboxLinuxUsernsNoteKey(opts.platform, profile) != null) {
+    return {
+      profile,
+      reasonKey,
+      honestyKey: "sandboxWizard.honesty.linuxUserns",
     };
   }
 
@@ -249,8 +259,9 @@ export function shouldOfferSandboxWizard(opts: {
 }
 
 /**
- * Honesty banner for the wizard body (Windows / old CLI soft-fail).
+ * Honesty banner for the wizard body (Windows / old CLI / Linux userns).
  * Independent of soft-fail Settings banners; returns wizard-scoped keys.
+ * Priority: cli_unsupported → platform (non-mac/linux) → linux_userns → null.
  * `null` when no banner is needed.
  */
 export function resolveSandboxWizardBanner(opts: {
@@ -272,6 +283,10 @@ export function resolveSandboxWizardBanner(opts: {
     !platformEnforcesOsSandbox(opts.platform)
   ) {
     return "sandboxWizard.honesty.platform";
+  }
+
+  if (sandboxLinuxUsernsNoteKey(opts.platform, opts.profile ?? "workspace") != null) {
+    return "sandboxWizard.honesty.linuxUserns";
   }
 
   return null;

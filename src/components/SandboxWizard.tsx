@@ -205,6 +205,9 @@ export function SandboxWizard({
           <p className="sandbox-wizard__recommend">
             {tr(recommendation.reasonKey)}
           </p>
+          <p className="sandbox-wizard__hint" role="note">
+            {tr("sandboxWizard.appDefaultNote")}
+          </p>
           {bannerKey ? (
             <p
               className="sandbox-wizard__banner settings-row__hint is-danger"

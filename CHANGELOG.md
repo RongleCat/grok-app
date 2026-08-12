@@ -12,6 +12,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- **Sandbox product path honesty (F4)**: Settings → Permissions surfaces App **Workspace** default vs terminal CLI **Off**, Open sandbox guide wizard CTA, disabled-off soft-empty note, Linux userns / `SANDBOX_BLOCKED` platform note, and leader ↔ non-off sandbox mutual exclusion (also on Runtime → Leader). Wizard re-wired after project trust (when global profile is Off) and from project sandbox menu. Pure helpers + en/zh/zh-TW + tests.
 - **Export path honesty**: Session export menu shows clear format labels (name + extension) with **Journal** / **CLI export** badges. Markdown full-transcript download prefers `grok export` when an agent session is linked (soft-fails to local journal); other formats and copy stay journal-only. Pure path-resolution helpers + tests; en/zh/zh-TW.
 - **Live Voice delegate session honesty**: Overlay restores delegated/active session chips with real titles + liveMap progress while Live Voice is open; keep-agents default stays on (opt-out cancels turns). Soft-fail mic/auth/network/cli surfaces classified toasts in addition to overlay copy. Host never records blank delegated ids. Pure helpers + tests; existing en/zh/zh-TW `voice.err.*` / `voice.center.*`.
 - **Composer voice dictation honesty**: Mic always visible with insert-vs-send tips (Settings auto-send), cancel mid-stream during requesting/transcribing (not hard-disabled), empty speech / auth soft-fail toasts without sticky error chrome, auto-send blocked soft-fail when permission-gated. Pure `voiceDictation` helpers + tests; en/zh/zh-TW. No Live Voice S2S in this residual.
@@ -20,6 +21,7 @@ See `docs/llm-wiki/release.md`.
 - **Memory clear scopes + dream honesty**: Memory ops center GlassModal clear for host scopes **workspace / global / all** (real `grok memory clear` flags; no `window.confirm`). Dream/watcher chips remain config-presence only — never a live “running” status. Experimental memory stays **off** by default with `--no-memory` force-disable honesty.
 
 **中文 · 新增**
+- **沙箱产品路径诚实说明**：设置标明 App 默认 Workspace 严于 CLI Off；打开沙箱指南；Off 空态 soft 说明；Linux userns 提示；leader 与非 Off 沙箱互斥；信任项目后/项目菜单可再次打开向导。
 - **导出路径诚实徽章**：导出会话菜单显示格式名+扩展名，并标注 **会话记录 / CLI 导出**。完整 Markdown 下载在已关联 agent 时优先 `grok export`（失败回退本地记录）；其他格式与复制仅用会话记录。纯路径解析 + 测试；中英繁。
 - **实时语音委派会话诚实**：叠加层恢复委派/活动会话芯片（真实标题 + liveMap 进度）；结束后默认保留 Agent（关闭则取消回合）。麦克风/鉴权/网络/CLI 软失败额外 toast 分类文案。Host 不记录空委派 id。纯 helper + 测试；沿用三语 `voice.err.*` / `voice.center.*`。
 - **Composer 口述诚实性**：麦克风始终可见并标明插入/发送；转写中可取消；空语音/鉴权 soft-fail；自动发送被权限挡住时提示已插入。纯 helper + 测试；三语文案。不含 Live Voice S2S。

@@ -27,10 +27,19 @@ export type SandboxProfileId = (typeof SANDBOX_PROFILES)[number];
  * New-install / missing-field default. Matches the everyday CLI recommendation
  * (`workspace`) so first-run agents are isolated under the project tree.
  * Existing settings.json that already stored `"off"` keep that value.
+ *
+ * Product honesty: App default is **stricter** than CLI default (`off`).
+ * See {@link CLI_DEFAULT_SANDBOX_PROFILE} and Settings product-default note.
  */
 export const DEFAULT_SANDBOX_PROFILE: SandboxProfileId = "workspace";
 
-/** Everyday coding recommendation (CLI docs) — same as default. */
+/**
+ * Grok Build CLI default when no `--sandbox` / `GROK_SANDBOX` is set
+ * (unrestricted). App intentionally defaults to {@link DEFAULT_SANDBOX_PROFILE}.
+ */
+export const CLI_DEFAULT_SANDBOX_PROFILE: SandboxProfileId = "off";
+
+/** Everyday coding recommendation (CLI docs) — same as App default. */
 export const RECOMMENDED_SANDBOX_PROFILE: SandboxProfileId = "workspace";
 
 /** Profiles that disable isolation or use a relaxed disposable layout. */
@@ -90,7 +99,11 @@ export const SANDBOX_PROFILE_HELP_KEYS: Record<SandboxProfileId, MessageKey> = {
 
 /**
  * Soft-fail / honesty reasons for Settings banners.
- * `null` = no banner (off, or isolation likely applied).
+ * `null` = no hard soft-fail (isolation may apply; still show product notes).
+ *
+ * Priority for {@link sandboxSoftFailKind}:
+ * cli_missing → cli_unsupported → platform_soft → null
+ * (disabled/off is not a soft-fail kind — use {@link sandboxDisabledSoftNoteKey}).
  */
 export type SandboxSoftFailKind =
   | "cli_missing"
@@ -110,6 +123,16 @@ export type SandboxSoftFailInput = {
    */
   platform?: string | null;
 };
+
+/**
+ * Product-path honesty notes (always-on / contextual).
+ * Separate from soft-fail kinds so disabled and Linux userns stay informative.
+ */
+export type SandboxProductNoteKind =
+  | "app_default"
+  | "disabled"
+  | "linux_userns"
+  | "leader_mutex";
 
 /**
  * Normalize a raw settings / project value to a known profile id.
@@ -377,4 +400,94 @@ export function sandboxSoftFailMessageKey(kind: SandboxSoftFailKind): MessageKey
 /** True when two raw profiles normalize equal (soft-respawn flip detection). */
 export function sandboxProfileEqual(a: unknown, b: unknown): boolean {
   return resolveSandboxProfile(a, null) === resolveSandboxProfile(b, null);
+}
+
+/**
+ * Always-on product default explanation:
+ * App new-install default is {@link DEFAULT_SANDBOX_PROFILE} (`workspace`);
+ * CLI bare default is {@link CLI_DEFAULT_SANDBOX_PROFILE} (`off`).
+ */
+export function sandboxAppDefaultNoteKey(): MessageKey {
+  return "settings.sandbox.appDefaultNote";
+}
+
+/**
+ * Soft honesty when isolation is intentionally **off** (empty/disabled path).
+ * Not a failure — states that no OS sandbox flags will be applied.
+ * `null` when isolation is requested.
+ */
+export function sandboxDisabledSoftNoteKey(profile: unknown): MessageKey | null {
+  if (sandboxIsolationActive(profile)) return null;
+  return "settings.sandbox.softFail.disabled";
+}
+
+/**
+ * Linux unprivileged userns / bubblewrap honesty when isolation is requested.
+ * Ubuntu 24.04+ may set `kernel.apparmor_restrict_unprivileged_userns=1` and
+ * surface `SANDBOX_BLOCKED` — never invents kernel state without a host probe.
+ * `null` when not Linux or isolation is off.
+ */
+export function sandboxLinuxUsernsNoteKey(
+  platform: string | null | undefined,
+  profile?: unknown,
+): MessageKey | null {
+  if (profile != null && !sandboxIsolationActive(profile)) return null;
+  if (platform == null) return null;
+  const p = String(platform).trim().toLowerCase();
+  if (p !== "linux") return null;
+  return "settings.sandbox.linuxUserns";
+}
+
+/**
+ * CLI refuses shared leader when a non-`off` sandbox profile is requested
+ * (tools stay in-process). Honest when both controls are on.
+ */
+export function sandboxLeaderMutexActive(
+  profile: unknown,
+  useLeader: boolean,
+): boolean {
+  return !!useLeader && sandboxIsolationActive(profile);
+}
+
+/** i18n key for leader ↔ sandbox mutual exclusion (caller checks active). */
+export function sandboxLeaderMutexMessageKey(): MessageKey {
+  return "settings.sandbox.leaderMutex";
+}
+
+/**
+ * Ordered product honesty notes for Settings / Runtime surfaces.
+ * Soft-fail kinds (cli/platform) stay via {@link sandboxSoftFailKind}.
+ * Never invents Landlock/userns enforcement results.
+ */
+export function sandboxProductHonestyNotes(input: {
+  profile?: unknown;
+  useLeader?: boolean;
+  platform?: string | null;
+}): Array<{ kind: SandboxProductNoteKind; messageKey: MessageKey }> {
+  const notes: Array<{ kind: SandboxProductNoteKind; messageKey: MessageKey }> =
+    [];
+
+  notes.push({
+    kind: "app_default",
+    messageKey: sandboxAppDefaultNoteKey(),
+  });
+
+  const disabled = sandboxDisabledSoftNoteKey(input.profile);
+  if (disabled) {
+    notes.push({ kind: "disabled", messageKey: disabled });
+  }
+
+  const userns = sandboxLinuxUsernsNoteKey(input.platform, input.profile);
+  if (userns) {
+    notes.push({ kind: "linux_userns", messageKey: userns });
+  }
+
+  if (sandboxLeaderMutexActive(input.profile, !!input.useLeader)) {
+    notes.push({
+      kind: "leader_mutex",
+      messageKey: sandboxLeaderMutexMessageKey(),
+    });
+  }
+
+  return notes;
 }

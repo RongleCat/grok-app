@@ -487,6 +487,8 @@ export const zhTWFeatures = {
   "sandboxWizard.reason.workspace": "日常程式設計推薦：工作區 — 可讀任意路徑；寫入限制為工作階段工作目錄、~/.grok/ 與系統暫存目錄。網路允許。",
   "sandboxWizard.honesty.platform": "目前平台未文件化核心級 OS 沙箱強制（僅 macOS Seatbelt / Linux Landlock）。CLI 可能接受設定但 soft-fail 且無強制執行 — 請勿當作硬性安全邊界。",
   "sandboxWizard.honesty.cliUnsupported": "目前 CLI 過舊，不支援 --sandbox（需要 ≥ {min}）。設定可儲存，但會 soft-fail（省略 flag）直至升級 Grok Build。",
+  "sandboxWizard.honesty.linuxUserns": "Linux：「工作區」使用 bubblewrap。若非特權使用者命名空間被限制（Ubuntu 24.04+ AppArmor），Agent 可能以 SANDBOX_BLOCKED 失敗 — 請透過 sysctl 開放 userns 或選擇 Off。應用程式不會修改主機核心設定。",
+  "sandboxWizard.appDefaultNote": "應用程式產品預設為「工作區」（嚴於終端機 CLI 的 Off）。本指南僅變更應用程式設定。",
   "sandboxWizard.pick.lead": "選擇沙箱設定檔。日常使用推薦「工作區」。",
   "sandboxWizard.recommendedBadge": "推薦",
   "sandboxWizard.confirm.lead": "將「{profile}」套用為應用程式級沙箱設定檔？",

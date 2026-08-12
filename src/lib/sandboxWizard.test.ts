@@ -38,8 +38,8 @@ function memoryStorage(seed: Record<string, string> = {}): SandboxWizardStorage 
 }
 
 describe("recommendSandboxForTrust", () => {
-  it("recommends workspace for everyday use on mac/linux", () => {
-    for (const platform of ["mac", "macos", "darwin", "linux"]) {
+  it("recommends workspace for everyday use on mac without honesty", () => {
+    for (const platform of ["mac", "macos", "darwin"]) {
       const r = recommendSandboxForTrust({
         platform,
         cliSupportsSandbox: true,
@@ -83,6 +83,15 @@ describe("recommendSandboxForTrust", () => {
       cliSupportsSandbox: null,
     });
     expect(r.honestyKey).toBeNull();
+  });
+
+  it("linux userns honesty when isolation recommended", () => {
+    const r = recommendSandboxForTrust({
+      platform: "linux",
+      cliSupportsSandbox: true,
+    });
+    expect(r.profile).toBe("workspace");
+    expect(r.honestyKey).toBe("sandboxWizard.honesty.linuxUserns");
   });
 });
 
@@ -228,7 +237,7 @@ describe("resolveSandboxWizardBanner", () => {
     ).toBe("sandboxWizard.honesty.cliUnsupported");
   });
 
-  it("returns null when isolation likely applies", () => {
+  it("returns null when isolation likely applies on mac", () => {
     expect(
       resolveSandboxWizardBanner({
         platform: "mac",
@@ -236,6 +245,16 @@ describe("resolveSandboxWizardBanner", () => {
         profile: "workspace",
       }),
     ).toBeNull();
+  });
+
+  it("returns linux userns honesty when isolating on Linux", () => {
+    expect(
+      resolveSandboxWizardBanner({
+        platform: "linux",
+        cliSupportsSandbox: true,
+        profile: "workspace",
+      }),
+    ).toBe("sandboxWizard.honesty.linuxUserns");
   });
 });
 

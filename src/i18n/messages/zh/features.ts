@@ -487,6 +487,8 @@ export const zhFeatures = {
   "sandboxWizard.reason.workspace": "日常编程推荐：工作区 — 可读任意路径；写入限制为会话工作目录、~/.grok/ 与系统临时目录。网络允许。",
   "sandboxWizard.honesty.platform": "当前平台未文档化内核级 OS 沙箱强制（仅 macOS Seatbelt / Linux Landlock）。CLI 可能接受配置但 soft-fail 且无强制执行 — 请勿当作硬安全边界。",
   "sandboxWizard.honesty.cliUnsupported": "当前 CLI 过旧，不支持 --sandbox（需要 ≥ {min}）。配置可保存，但会 soft-fail（省略 flag）直至升级 Grok Build。",
+  "sandboxWizard.honesty.linuxUserns": "Linux：「工作区」使用 bubblewrap。若非特权用户命名空间被限制（Ubuntu 24.04+ AppArmor），Agent 可能以 SANDBOX_BLOCKED 失败 — 请通过 sysctl 放开 userns 或选择 Off。应用不会修改主机内核设置。",
+  "sandboxWizard.appDefaultNote": "应用产品默认为「工作区」（严于终端 CLI 的 Off）。本指南仅更改应用设置。",
   "sandboxWizard.pick.lead": "选择沙箱配置。日常使用推荐「工作区」。",
   "sandboxWizard.recommendedBadge": "推荐",
   "sandboxWizard.confirm.lead": "将「{profile}」应用为应用级沙箱配置？",

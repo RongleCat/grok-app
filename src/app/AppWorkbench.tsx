@@ -268,12 +268,19 @@ import * as api from "@/lib/api";
 import {
   DEFAULT_SANDBOX_PROFILE,
   SANDBOX_PROFILES,
+  cliSupportsSandbox,
   isDangerousSandboxProfile,
   normalizeSandboxProfile,
   sandboxDangerConfirmKey,
   sandboxProfileLabelKey,
   type SandboxProfileId
 } from "@/lib/sandboxProfile";
+import {
+  loadSandboxWizardDismissed,
+  markSandboxWizardDismissed,
+  shouldOfferSandboxWizard,
+  type SandboxWizardMode,
+} from "@/lib/sandboxWizard";
 import { shouldRestoreLastSession } from "@/lib/sessionRestore";
 import {
   listArchiveAgeOptionPreviews,
@@ -982,6 +989,10 @@ const VoiceOverlay = lazy(async () => {
 const ProductTutorial = lazy(async () => {
   const m = await import("@/components/ProductTutorial");
   return { default: m.ProductTutorial };
+});
+const SandboxWizard = lazy(async () => {
+  const m = await import("@/components/SandboxWizard");
+  return { default: m.SandboxWizard };
 });
 const McpStatusModal = lazy(async () => {
   const m = await import("@/components/McpStatusModal");
@@ -2144,6 +2155,10 @@ export function AppWorkbench() {
   /** Optional product tour (not first-run account setup). */
   const [showProductTutorial, setShowProductTutorial] = useState(false);
   const productTutorialAutoOfferedRef = useRef(false);
+  /** Sandbox profile wizard after trust / Settings guide. */
+  const [sandboxWizardOpen, setSandboxWizardOpen] = useState(false);
+  const [sandboxWizardMode, setSandboxWizardMode] =
+    useState<SandboxWizardMode>("trust");
   // Soft one-time product tour after setup gate — never blocks setup wizard.
   useEffect(() => {
     if (appGate !== "ready") return;
@@ -12390,6 +12405,30 @@ export function AppWorkbench() {
     };
   }, [activeProject?.path, refreshGitDirtyStatus]);
 
+  /** Soft offer sandbox guide after a successful project trust. */
+  const maybeOfferSandboxWizardAfterTrust = useCallback(() => {
+    try {
+      if (
+        !shouldOfferSandboxWizard({
+          justTrusted: true,
+          currentProfile: sandboxProfile,
+          dismissed: loadSandboxWizardDismissed(),
+        })
+      ) {
+        return;
+      }
+      setSandboxWizardMode("trust");
+      window.setTimeout(() => setSandboxWizardOpen(true), 0);
+    } catch {
+      /* private storage / ignore */
+    }
+  }, [sandboxProfile]);
+
+  const openSandboxWizardGuide = useCallback(() => {
+    setSandboxWizardMode("info");
+    setSandboxWizardOpen(true);
+  }, []);
+
   /**
    * After a project is created/updated: refresh list, expand, optionally trust
    * via in-app confirm, then set active (+ bind session when requested).
@@ -12426,6 +12465,7 @@ export function AppWorkbench() {
             try {
               const trusted = (await api.projectTrust(p.id)) as Project;
               await apply(trusted);
+              maybeOfferSandboxWizardAfterTrust();
             } catch (e) {
               setLocalError(String(e));
             }
@@ -12435,7 +12475,7 @@ export function AppWorkbench() {
       }
       await apply(p);
     },
-    [bindSessionProject, showToast, tr],
+    [bindSessionProject, maybeOfferSandboxWizardAfterTrust, showToast, tr],
   );
 
   /** Open gc dialog and run dry-run preview. */
@@ -13089,6 +13129,7 @@ export function AppWorkbench() {
       setActiveProject(p);
       setProjects(mapProjectsList((await api.projectsList()) as Project[]));
       setLocalError(null);
+      maybeOfferSandboxWizardAfterTrust();
       // CLI connects on first send only.
     } catch (e) {
       setLocalError(String(e));
@@ -17074,6 +17115,7 @@ export function AppWorkbench() {
           onSandboxProfile={(v) => {
           applyGlobalSandboxProfile(v);
           }}
+          onOpenSandboxWizard={openSandboxWizardGuide}
           preferredAgent={preferredAgent}
           onPreferredAgent={(v) => {
           setPreferredAgent(v);
@@ -21235,6 +21277,31 @@ export function AppWorkbench() {
       />
       </Suspense>
       ) : null}
+      {(sandboxWizardOpen) ? (
+      <Suspense fallback={null}>
+      <SandboxWizard
+        open={sandboxWizardOpen}
+        locale={locale}
+        mode={sandboxWizardMode}
+        platform={platform}
+        cliSupportsSandbox={cliSupportsSandbox(cliInfo.version)}
+        onClose={() => setSandboxWizardOpen(false)}
+        onSkip={({ dontOfferAgain }) => {
+          if (sandboxWizardMode === "trust" && dontOfferAgain) {
+            markSandboxWizardDismissed();
+          }
+          setSandboxWizardOpen(false);
+        }}
+        onApply={(profile, { dontOfferAgain }) => {
+          if (dontOfferAgain) {
+            markSandboxWizardDismissed();
+          }
+          setSandboxWizardOpen(false);
+          applyGlobalSandboxProfile(profile);
+        }}
+      />
+      </Suspense>
+      ) : null}
       {(liveVoiceOpen) ? (
       <Suspense fallback={null}>
       <VoiceOverlay
@@ -24036,6 +24103,11 @@ export function AppWorkbench() {
                     onClick: () => applyProjectSandboxProfile(proj, id),
                   }) satisfies ContextMenuItem,
               ),
+              {
+                id: "sandbox-open-guide",
+                label: tr("settings.sandbox.openGuide"),
+                onClick: () => openSandboxWizardGuide(),
+              },
             ];
           }
         } else if (ctxMenu?.kind === "project-color") {

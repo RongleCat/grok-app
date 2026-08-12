@@ -87,6 +87,7 @@ export function RuntimeSection() {
     proxyNoProxy,
     proxyUrl = "",
     rowHighlight,
+    sandboxProfile,
     sectionNav,
     setSectionTab,
     sessionDataMode,
@@ -331,8 +332,12 @@ export function RuntimeSection() {
                   <LeaderServePanel
                     t={t}
                     useLeader={!!useLeader}
+                    sandboxProfile={sandboxProfile}
                     onOpenUseLeader={() =>
                       navigateTo("general", "agent", "settings-anchor-useLeader")
+                    }
+                    onOpenSandbox={() =>
+                      navigateTo("general", "permissions", "settings-anchor-sandbox")
                     }
                   />
                 </div>

@@ -27,6 +27,10 @@ import {
   leaderRowKey,
   normalizeLeaderClassification,
 } from "@/lib/leaderFleet";
+import {
+  sandboxLeaderMutexActive,
+  sandboxLeaderMutexMessageKey,
+} from "@/lib/sandboxProfile";
 
 function formatAge(
   secs: number | null | undefined,
@@ -53,12 +57,21 @@ export function LeaderServePanel({
   t,
   onOpenUseLeader,
   useLeader = false,
+  sandboxProfile = null,
+  onOpenSandbox,
 }: {
   t: (k: MessageKey, vars?: Vars) => string;
   /** Deep-link to General → Agent → useLeader toggle. */
   onOpenUseLeader?: () => void;
   /** Current AppSettings.useLeader — for honesty banner only. */
   useLeader?: boolean;
+  /**
+   * Effective app sandbox profile (for leader ↔ sandbox mutual exclusion).
+   * When isolation is on with useLeader, CLI refuses shared leader.
+   */
+  sandboxProfile?: string | null;
+  /** Deep-link to General → Permissions → sandbox. */
+  onOpenSandbox?: () => void;
 }) {
   const [status, setStatus] = useState<LeaderStatus | null>(null);
   const [serve, setServe] = useState<ServeStatus | null>(null);
@@ -395,6 +408,26 @@ export function LeaderServePanel({
                 onClick={() => void onStart()}
               >
                 {busy === "start" ? t("settings.leader.starting") : t("settings.leader.start")}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {sandboxLeaderMutexActive(sandboxProfile, !!useLeader) ? (
+        <div className="settings-row settings-row--stack">
+          <div className="settings-row__hint is-danger" role="status">
+            {t(sandboxLeaderMutexMessageKey())}
+          </div>
+          <div className="rim-btn-row">
+            {onOpenSandbox ? (
+              <button type="button" className="btn btn--ghost" onClick={onOpenSandbox}>
+                {t("settings.sandboxProfile")}
+              </button>
+            ) : null}
+            {onOpenUseLeader ? (
+              <button type="button" className="btn btn--ghost" onClick={onOpenUseLeader}>
+                {t("settings.leader.openUseLeader")}
               </button>
             ) : null}
           </div>

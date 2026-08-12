@@ -33,6 +33,9 @@ import {
   SANDBOX_MIN_CLI,
   childNetworkRestrictApplies,
   sandboxIsolationActive,
+  sandboxLeaderMutexActive,
+  sandboxLeaderMutexMessageKey,
+  sandboxProductHonestyNotes,
   sandboxProfileSelectOptions,
   sandboxProfileHelpKey,
   sandboxSoftFailKind,
@@ -161,6 +164,7 @@ export function GeneralSection() {
     onPreferredAgent,
     onPrefsScope,
     onReopenLastSession,
+    onOpenSandboxWizard,
     onSandboxProfile,
     onSessionDataMode,
     onStoreApiKeysInKeychain,
@@ -548,45 +552,97 @@ export function GeneralSection() {
                       ),
                     )}
                   </div>
-                  {sandboxProfile === RECOMMENDED_SANDBOX_PROFILE ? (
-                    <div className="settings-row__hint">
-                      {t("settings.sandbox.recommendedNote")}
-                    </div>
-                  ) : null}
                   {(() => {
                     const platform = detectAppPlatform();
-                    const soft = sandboxSoftFailKind({
+                    const productNotes = sandboxProductHonestyNotes({
                       profile: sandboxProfile,
-                      cliFound: cliInfo.found,
-                      cliVersion: cliInfo.version,
+                      useLeader: !!useLeader,
                       platform,
                     });
-                    if (!soft) {
-                      // Linux-only network note when isolation is on but soft-fail is clear.
-                      if (
-                        sandboxIsolationActive(sandboxProfile) &&
-                        !childNetworkRestrictApplies(sandboxProfile, platform) &&
-                        (sandboxProfile === "read-only" ||
-                          sandboxProfile === "strict") &&
-                        (platform === "mac" || platform === "other")
-                      ) {
-                        return (
-                          <div className="settings-row__hint">
-                            {t("settings.sandbox.networkLinuxOnly")}
-                          </div>
-                        );
-                      }
-                      return null;
-                    }
                     return (
-                      <div
-                        className="settings-row__hint is-danger"
-                        role="status"
-                      >
-                        {t(sandboxSoftFailMessageKey(soft), {
-                          min: SANDBOX_MIN_CLI,
-                        })}
-                      </div>
+                      <>
+                        {productNotes.map((note) => (
+                          <div
+                            key={note.kind}
+                            className={
+                              "settings-row__hint" +
+                              (note.kind === "leader_mutex" ||
+                              note.kind === "disabled"
+                                ? " is-danger"
+                                : "")
+                            }
+                            role="status"
+                          >
+                            {note.kind === "app_default" ? (
+                              <>
+                                <strong>
+                                  {t("settings.sandbox.recommendedDaily")}
+                                </strong>
+                                {" — "}
+                                {t(note.messageKey)}
+                              </>
+                            ) : (
+                              t(note.messageKey)
+                            )}
+                          </div>
+                        ))}
+                        {sandboxProfile === RECOMMENDED_SANDBOX_PROFILE ? (
+                          <div className="settings-row__hint">
+                            {t("settings.sandbox.recommendedNote")}
+                          </div>
+                        ) : null}
+                        {onOpenSandboxWizard ? (
+                          <div className="rim-btn-row" style={{ marginTop: 6 }}>
+                            <button
+                              type="button"
+                              className="btn btn--ghost btn--sm"
+                              onClick={onOpenSandboxWizard}
+                            >
+                              {t("settings.sandbox.openGuide")}
+                            </button>
+                            <span className="settings-row__desc">
+                              {t("settings.sandbox.openGuide.desc")}
+                            </span>
+                          </div>
+                        ) : null}
+                        {(() => {
+                          const soft = sandboxSoftFailKind({
+                            profile: sandboxProfile,
+                            cliFound: cliInfo.found,
+                            cliVersion: cliInfo.version,
+                            platform,
+                          });
+                          if (soft) {
+                            return (
+                              <div
+                                className="settings-row__hint is-danger"
+                                role="status"
+                              >
+                                {t(sandboxSoftFailMessageKey(soft), {
+                                  min: SANDBOX_MIN_CLI,
+                                })}
+                              </div>
+                            );
+                          }
+                          if (
+                            sandboxIsolationActive(sandboxProfile) &&
+                            !childNetworkRestrictApplies(
+                              sandboxProfile,
+                              platform,
+                            ) &&
+                            (sandboxProfile === "read-only" ||
+                              sandboxProfile === "strict") &&
+                            (platform === "mac" || platform === "other")
+                          ) {
+                            return (
+                              <div className="settings-row__hint">
+                                {t("settings.sandbox.networkLinuxOnly")}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </>
                     );
                   })()}
                 </div>
@@ -1716,22 +1772,38 @@ export function GeneralSection() {
               ) : null}
               {onUseLeader ? (
                 <div
-                  className={"settings-row" + rowHighlight("settings-anchor-useLeader")}
+                  className={
+                    "settings-row settings-row--stack" +
+                    rowHighlight("settings-anchor-useLeader")
+                  }
                   id="settings-anchor-useLeader"
                 >
-                  <div className="settings-row__text">
-                    <div className="settings-row__label">
-                      {t("settings.useLeader")}
+                  <div className="settings-row" style={{ padding: 0 }}>
+                    <div className="settings-row__text">
+                      <div className="settings-row__label">
+                        {t("settings.useLeader")}
+                      </div>
+                      <div className="settings-row__desc">
+                        {t("settings.useLeaderDesc")}
+                      </div>
                     </div>
-                    <div className="settings-row__desc">
-                      {t("settings.useLeaderDesc")}
-                    </div>
+                    <UiCheck
+                      checked={!!useLeader}
+                      onChange={() => onUseLeader(!useLeader)}
+                      ariaLabel={t("settings.useLeader")}
+                    />
                   </div>
-                  <UiCheck
-                    checked={!!useLeader}
-                    onChange={() => onUseLeader(!useLeader)}
-                    ariaLabel={t("settings.useLeader")}
-                  />
+                  {sandboxLeaderMutexActive(
+                    sandboxProfile || DEFAULT_SANDBOX_PROFILE,
+                    !!useLeader,
+                  ) ? (
+                    <div
+                      className="settings-row__hint is-danger"
+                      role="status"
+                    >
+                      {t(sandboxLeaderMutexMessageKey())}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
               <div className={rowHighlight("settings-anchor-configTomlEdit")}>

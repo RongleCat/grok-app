@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CLI_DEFAULT_SANDBOX_PROFILE,
   DEFAULT_SANDBOX_PROFILE,
   DANGEROUS_SANDBOX_PROFILES,
   NETWORK_RESTRICT_SANDBOX_PROFILES,
@@ -17,8 +18,14 @@ import {
   normalizeSandboxProfile,
   platformEnforcesOsSandbox,
   resolveSandboxProfile,
+  sandboxAppDefaultNoteKey,
   sandboxDangerConfirmKey,
+  sandboxDisabledSoftNoteKey,
   sandboxIsolationActive,
+  sandboxLeaderMutexActive,
+  sandboxLeaderMutexMessageKey,
+  sandboxLinuxUsernsNoteKey,
+  sandboxProductHonestyNotes,
   sandboxProfileEqual,
   sandboxProfileHelpKey,
   sandboxProfileLabelKey,
@@ -329,5 +336,65 @@ describe("sandboxProfileEqual", () => {
 describe("recommended profile", () => {
   it("is workspace (CLI everyday default recommendation)", () => {
     expect(RECOMMENDED_SANDBOX_PROFILE).toBe("workspace");
+  });
+});
+
+describe("product path honesty", () => {
+  it("App default is workspace; CLI bare default is off", () => {
+    expect(DEFAULT_SANDBOX_PROFILE).toBe("workspace");
+    expect(CLI_DEFAULT_SANDBOX_PROFILE).toBe("off");
+    expect(DEFAULT_SANDBOX_PROFILE).not.toBe(CLI_DEFAULT_SANDBOX_PROFILE);
+    expect(sandboxAppDefaultNoteKey()).toBe("settings.sandbox.appDefaultNote");
+  });
+
+  it("disabled soft note only when isolation is off", () => {
+    expect(sandboxDisabledSoftNoteKey("off")).toBe(
+      "settings.sandbox.softFail.disabled",
+    );
+    expect(sandboxDisabledSoftNoteKey("workspace")).toBeNull();
+    expect(sandboxDisabledSoftNoteKey(null)).toBeNull(); // resolves to workspace
+  });
+
+  it("linux userns note only on linux with isolation", () => {
+    expect(sandboxLinuxUsernsNoteKey("linux", "workspace")).toBe(
+      "settings.sandbox.linuxUserns",
+    );
+    expect(sandboxLinuxUsernsNoteKey("linux", "off")).toBeNull();
+    expect(sandboxLinuxUsernsNoteKey("mac", "workspace")).toBeNull();
+    expect(sandboxLinuxUsernsNoteKey("win", "strict")).toBeNull();
+  });
+
+  it("leader mutex when useLeader + non-off sandbox", () => {
+    expect(sandboxLeaderMutexActive("workspace", true)).toBe(true);
+    expect(sandboxLeaderMutexActive("off", true)).toBe(false);
+    expect(sandboxLeaderMutexActive("workspace", false)).toBe(false);
+    expect(sandboxLeaderMutexMessageKey()).toBe("settings.sandbox.leaderMutex");
+  });
+
+  it("product honesty notes include app_default always and leader when both on", () => {
+    const base = sandboxProductHonestyNotes({
+      profile: "workspace",
+      useLeader: false,
+      platform: "mac",
+    });
+    expect(base.map((n) => n.kind)).toEqual(["app_default"]);
+
+    const off = sandboxProductHonestyNotes({
+      profile: "off",
+      useLeader: false,
+      platform: "mac",
+    });
+    expect(off.map((n) => n.kind)).toEqual(["app_default", "disabled"]);
+
+    const linux = sandboxProductHonestyNotes({
+      profile: "workspace",
+      useLeader: true,
+      platform: "linux",
+    });
+    expect(linux.map((n) => n.kind)).toEqual([
+      "app_default",
+      "linux_userns",
+      "leader_mutex",
+    ]);
   });
 });

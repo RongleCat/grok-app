@@ -483,6 +483,7 @@ export const RUNTIME_ENTRIES: readonly SettingsEntry[] = [
       "settings.leader.info",
       "settings.leader.honesty.useLeaderNotRunning",
       "settings.leader.err.socketStale",
+      "settings.sandbox.leaderMutex",
       "settings.useLeader",
       "settings.serve.title",
       "settings.serve.desc",
