@@ -529,8 +529,15 @@ impl SessionManager {
                     // path can leave App journal on a partial mid-sentence while
                     // the CLI already has the full turn (user: stuck thinking,
                     // no final result — agent finished, UI never got body).
-                    let changed =
-                        crate::cli_sessions::try_reconcile_linked_session(&turn_sid);
+                    //
+                    // Retry over a short bounded window: the CLI may flush
+                    // chat_history.jsonl just after the RPC returns Ok (#554).
+                    // Route by turn_sid (original App session), not live focus.
+                    // One aggregated journal_reconciled emit after the window.
+                    let changed = crate::cli_sessions::try_reconcile_linked_session_with_retries(
+                        &turn_sid,
+                    )
+                    .await;
                     if need_emit {
                         mgr.emit_for_session(&app2, &turn_sid);
                     }

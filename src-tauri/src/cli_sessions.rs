@@ -1697,6 +1697,77 @@ pub fn try_reconcile_linked_session(app_session_id: &str) -> u32 {
         .unwrap_or(0)
 }
 
+/// Post-prompt reconcile window: 1 immediate attempt + 3 delayed retries.
+/// Covers the race where the CLI finishes writing `chat_history.jsonl` just
+/// after the prompt RPC returns Ok (issue #554).
+pub const POST_TURN_RECONCILE_ATTEMPTS: u32 = 4;
+/// Delay between post-turn reconcile attempts (milliseconds).
+pub const POST_TURN_RECONCILE_DELAY_MS: u64 = 80;
+
+/// Aggregate change counts over a bounded attempt window.
+///
+/// `attempt` must be idempotent (reconcile already is). `sleep_between` runs
+/// before every attempt after the first — unit tests pass a no-op or counter.
+/// Always runs the full budget so a partial first flush can still grow on a
+/// later pass; total wall time is `(attempts-1) * delay`.
+pub fn run_reconcile_attempts(
+    max_attempts: u32,
+    mut attempt: impl FnMut() -> u32,
+    mut sleep_between: impl FnMut(),
+) -> u32 {
+    let attempts = max_attempts.max(1);
+    let mut total = 0u32;
+    for i in 0..attempts {
+        if i > 0 {
+            sleep_between();
+        }
+        total = total.saturating_add(attempt());
+    }
+    total
+}
+
+/// Post-turn reconcile with short delayed retries.
+///
+/// Each filesystem pass runs on a blocking thread pool worker. Always routes by
+/// the given App session id (callers must pass the turn's original id, not the
+/// live focus slot). Returns the aggregated change count across attempts so
+/// callers can emit a single `session://journal_reconciled` notification.
+pub async fn try_reconcile_linked_session_with_retries(app_session_id: &str) -> u32 {
+    let sid = app_session_id.to_string();
+    let mut total = 0u32;
+    let attempts = POST_TURN_RECONCILE_ATTEMPTS.max(1);
+    for i in 0..attempts {
+        if i > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(
+                POST_TURN_RECONCILE_DELAY_MS,
+            ))
+            .await;
+        }
+        let sid_clone = sid.clone();
+        match tokio::task::spawn_blocking(move || try_reconcile_linked_session(&sid_clone)).await {
+            Ok(n) => total = total.saturating_add(n),
+            Err(e) => {
+                tracing::warn!(
+                    target: "session",
+                    session = %sid,
+                    error = %e,
+                    "post-turn journal reconcile task failed"
+                );
+            }
+        }
+    }
+    if total > 0 {
+        tracing::info!(
+            target: "session",
+            session = %sid,
+            changed = total,
+            attempts,
+            "post-turn journal reconcile finished"
+        );
+    }
+    total
+}
+
 /// Import one CLI session into the App journal (independent App session row).
 ///
 /// Allowed in both shared and independent mode. In independent mode the scan
@@ -2406,6 +2477,172 @@ mod tests {
         );
         assert_eq!(normalize_cwd_path("  /a/b  "), "/a/b");
         assert!(normalize_cwd_path("   ").is_empty());
+    }
+
+    /// Delayed CLI flush: first attempts see no history change; a later pass
+    /// imports the final assistant body once (subsequent passes are no-ops).
+    #[test]
+    fn reconcile_retry_delayed_success() {
+        let mut phase = 0u32;
+        let mut sleeps = 0u32;
+        let total = run_reconcile_attempts(
+            POST_TURN_RECONCILE_ATTEMPTS,
+            || {
+                phase += 1;
+                // Visible only on attempt 3; later attempts stay 0 (idempotent).
+                if phase == 3 {
+                    2
+                } else {
+                    0
+                }
+            },
+            || {
+                sleeps += 1;
+            },
+        );
+        assert_eq!(total, 2);
+        assert_eq!(phase, POST_TURN_RECONCILE_ATTEMPTS);
+        assert_eq!(sleeps, POST_TURN_RECONCILE_ATTEMPTS - 1);
+    }
+
+    /// Partial flush then growth: early attempts import some rows, later ones
+    /// import more; totals aggregate and the full budget is still spent so a
+    /// late extension is not missed.
+    #[test]
+    fn reconcile_retry_incremental_changes() {
+        let mut phase = 0u32;
+        let total = run_reconcile_attempts(
+            POST_TURN_RECONCILE_ATTEMPTS,
+            || {
+                phase += 1;
+                match phase {
+                    1 => 1, // partial assistant
+                    2 => 1, // extended body / extra tool
+                    _ => 0,
+                }
+            },
+            || {},
+        );
+        assert_eq!(total, 2);
+        assert_eq!(phase, POST_TURN_RECONCILE_ATTEMPTS);
+    }
+
+    /// History never appears: every attempt returns 0 and the loop still
+    /// exhausts the fixed budget (bounded no-change wait).
+    #[test]
+    fn reconcile_retry_no_change_exhaustion() {
+        let mut calls = 0u32;
+        let mut sleeps = 0u32;
+        let total = run_reconcile_attempts(
+            POST_TURN_RECONCILE_ATTEMPTS,
+            || {
+                calls += 1;
+                0
+            },
+            || {
+                sleeps += 1;
+            },
+        );
+        assert_eq!(total, 0);
+        assert_eq!(calls, POST_TURN_RECONCILE_ATTEMPTS);
+        assert_eq!(sleeps, POST_TURN_RECONCILE_ATTEMPTS - 1);
+    }
+
+    /// Real journal reconcile across an incremental history write: delayed
+    /// final assistant lands once; a third pass is a pure no-op (idempotent).
+    #[test]
+    fn reconcile_journal_incremental_history_idempotent() {
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let app_home = std::env::temp_dir().join(format!(
+            "grok-app-rec-retry-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&app_home);
+        fs::create_dir_all(&app_home).unwrap();
+        std::env::set_var("GROK_APP_HOME", &app_home);
+        let _ = crate::paths::ensure_app_dirs();
+
+        let agent_id = "agent-retry-hist";
+        let cwd = "/Users/me/proj";
+        let dir = crate::paths::agent_home_dir()
+            .join("sessions")
+            .join(percent_encode_path_component(cwd))
+            .join(agent_id);
+        fs::create_dir_all(&dir).unwrap();
+        let history = dir.join("chat_history.jsonl");
+        // Partial: user + short assistant (CLI still flushing).
+        {
+            let mut f = fs::File::create(&history).unwrap();
+            writeln!(
+                f,
+                r#"{{"type":"user","content":[{{"type":"text","text":"<user_query>\nhi\n</user_query>"}}]}}"#
+            )
+            .unwrap();
+            writeln!(f, r#"{{"type":"assistant","content":"partial…"}}"#).unwrap();
+        }
+
+        let app_sid = format!("app-{}", Uuid::new_v4());
+        store::save_messages(
+            &app_sid,
+            &[ChatMessageStored {
+                id: "u1".into(),
+                role: "user".into(),
+                content: "hi".into(),
+                thought: None,
+                created_at: Utc::now(),
+                is_error: false,
+                attachments: None,
+                marker: None,
+            }],
+        )
+        .unwrap();
+
+        let mut phases: Vec<u32> = Vec::new();
+        let total = run_reconcile_attempts(
+            3,
+            || {
+                let n = phases.len();
+                if n == 1 {
+                    // Mid-window: CLI rewrites with the full final answer.
+                    let mut f = fs::File::create(&history).unwrap();
+                    writeln!(
+                        f,
+                        r#"{{"type":"user","content":[{{"type":"text","text":"<user_query>\nhi\n</user_query>"}}]}}"#
+                    )
+                    .unwrap();
+                    writeln!(
+                        f,
+                        r#"{{"type":"assistant","content":"partial… final answer."}}"#
+                    )
+                    .unwrap();
+                }
+                let changed = reconcile_journal_from_chat_history(
+                    &app_sid,
+                    agent_id,
+                    Some(cwd),
+                    "independent",
+                )
+                .unwrap_or(0);
+                phases.push(changed);
+                changed
+            },
+            || {},
+        );
+
+        assert!(total >= 2, "partial + extend should both count: {phases:?}");
+        assert_eq!(phases.len(), 3);
+        assert!(phases[0] >= 1, "first pass imports partial: {phases:?}");
+        assert!(phases[1] >= 1, "second pass extends body: {phases:?}");
+        assert_eq!(phases[2], 0, "third pass is stable/idempotent: {phases:?}");
+
+        let journal = store::load_messages(&app_sid);
+        let assistants: Vec<_> = journal.iter().filter(|m| m.role == "assistant").collect();
+        assert_eq!(assistants.len(), 1, "no duplicate assistants: {journal:?}");
+        assert_eq!(assistants[0].content, "partial… final answer.");
+
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&app_home);
     }
 
     #[test]
