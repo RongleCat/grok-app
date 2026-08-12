@@ -103,6 +103,13 @@ export function SideWorkbench({
   const [internal, setInternal] = useState(emptySideWorkbenchState);
   const state = controlled ?? internal;
   const lastPlanFocusKey = useRef<number | null>(null);
+  const [dirtyPaths, setDirtyPaths] = useState<string[]>([]);
+  const [closePathRequest, setClosePathRequest] = useState<{
+    path: string;
+    token: number;
+    sideTabId: string;
+  } | null>(null);
+  const closeTokenRef = useRef(0);
 
   const setState = useCallback(
     (next: SideWorkbenchState) => {
@@ -127,6 +134,52 @@ export function SideWorkbench({
     [setState, onCloseSide],
   );
 
+  const isFilePathDirty = useCallback(
+    (path: string | undefined) => {
+      const p = (path || "").trim();
+      if (!p) return false;
+      const norm = p.replace(/\\/g, "/");
+      return dirtyPaths.some((d) => {
+        const dn = d.replace(/\\/g, "/");
+        return dn === norm || dn.endsWith("/" + norm) || norm.endsWith("/" + dn);
+      });
+    },
+    [dirtyPaths],
+  );
+
+  /** Close a side tab; file tabs with dirty buffers go through FilesWorkspace. */
+  const requestCloseSideTab = useCallback(
+    (id: string) => {
+      const tab = state.tabs.find((t) => t.id === id);
+      if (tab?.kind === "file" && tab.path && isFilePathDirty(tab.path)) {
+        closeTokenRef.current += 1;
+        setClosePathRequest({
+          path: tab.path,
+          token: closeTokenRef.current,
+          sideTabId: id,
+        });
+        return;
+      }
+      applyCloseState(closeSideTab(state, id));
+    },
+    [applyCloseState, isFilePathDirty, state],
+  );
+
+  const onClosePathResult = useCallback(
+    (path: string, closed: boolean) => {
+      const req = closePathRequest;
+      if (!req || req.path !== path) {
+        setClosePathRequest(null);
+        return;
+      }
+      setClosePathRequest(null);
+      if (closed) {
+        applyCloseState(closeSideTab(state, req.sideTabId));
+      }
+    },
+    [applyCloseState, closePathRequest, state],
+  );
+
   /**
    * Browser / non-Tauri preview: ⌘W closes the active side tab first
    * (same pure target as the desktop menu path). Empty strip is a no-op
@@ -144,11 +197,12 @@ export function SideWorkbench({
       if (result.closeWindow || result.needsConfirm) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      applyCloseState(result.state);
+      const id = state.activeId ?? state.tabs[0]?.id;
+      if (id) requestCloseSideTab(id);
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [paneActive, state, applyCloseState]);
+  }, [paneActive, state, requestCloseSideTab]);
 
   const active = useMemo(() => activeSideTab(state), [state]);
   const hasFileTabs = state.tabs.some((t) => t.kind === "file");
@@ -240,8 +294,9 @@ export function SideWorkbench({
         projectPath={projectPath}
         expanded={state.expanded}
         dockComposer={dockComposer}
+        dirtyFilePaths={dirtyPaths}
         onActivate={(id) => setState(setActiveSideTab(state, id))}
-        onCloseTab={(id) => applyCloseState(closeSideTab(state, id))}
+        onCloseTab={requestCloseSideTab}
         onCloseOtherTabs={(id) => setState(closeOtherSideTabs(state, id))}
         onCloseAllTabs={() => applyCloseState(closeAllSideTabs(state))}
         onCloseTabsToLeft={(id) => setState(closeSideTabsToLeft(state, id))}
@@ -281,6 +336,16 @@ export function SideWorkbench({
                   activeLine={activeFileLine}
                   activeColumn={activeFileColumn}
                   onFileOpen={onTreeFileOpen}
+                  onDirtyPathsChange={setDirtyPaths}
+                  closePathRequest={
+                    closePathRequest
+                      ? {
+                          path: closePathRequest.path,
+                          token: closePathRequest.token,
+                        }
+                      : null
+                  }
+                  onClosePathResult={onClosePathResult}
                   paneActive={paneActive && active.kind === "file"}
                 />
               </div>

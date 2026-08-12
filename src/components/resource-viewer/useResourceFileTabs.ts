@@ -19,9 +19,13 @@ import {
   isResourceTextEditable,
 } from "@/lib/resourceEdit";
 import {
+  RESOURCE_TABS_MAX,
+  closeActiveResourceTab,
   closeResourceTab,
   openResourceTab,
+  resolveResourceTabsCapSoftFail,
   resolveResourceTabsEmptyState,
+  shouldConfirmCloseResourceTab,
 } from "@/lib/resourceTabs";
 import { normalizePath, pathBaseName } from "@/lib/sessionChanges";
 import {
@@ -68,6 +72,57 @@ export function useResourceFileTabs({
     setTabs([]);
     setActiveId(null);
   }, []);
+
+  /** Soft-fail honesty when LRU drops tabs at the cap (never invents success). */
+  const notifyCapSoftFail = useCallback(
+    (open: {
+      droppedIds: string[];
+      droppedDirty?: boolean;
+    }) => {
+      const notice = resolveResourceTabsCapSoftFail({
+        droppedIds: open.droppedIds,
+        droppedDirty: open.droppedDirty,
+        max: RESOURCE_TABS_MAX,
+      });
+      if (!notice) return;
+      const key = notice.droppedDirty
+        ? notice.dirtyMessageKey
+        : notice.messageKey;
+      setError(
+        tr(key, {
+          max: String(notice.max),
+          count: String(notice.droppedCount),
+        }),
+      );
+    },
+    [setError, tr],
+  );
+
+  /** Dirty path keys for side-tab honesty (absolute or relative). */
+  const dirtyPaths = useMemo(() => {
+    const out: string[] = [];
+    for (const t of tabs) {
+      if (t.tabKind === "url") continue;
+      if (!isResourceDraftDirty(t.draftText, t.baselineText)) continue;
+      if (t.absolutePath) out.push(t.absolutePath);
+      if (t.relativePath) out.push(t.relativePath);
+    }
+    return out;
+  }, [tabs]);
+
+  const isPathDirty = useCallback(
+    (path: string) => {
+      const p = (path || "").trim();
+      if (!p) return false;
+      return tabs.some(
+        (t) =>
+          t.tabKind !== "url" &&
+          fileTabMatchesPath(t, p) &&
+          isResourceDraftDirty(t.draftText, t.baselineText),
+      );
+    },
+    [tabs],
+  );
 
 const applyReadResult = (
   id: string,
@@ -295,6 +350,7 @@ const openFile = async (relativePath: string) => {
     setActiveId(open.activeId);
     return;
   }
+  notifyCapSoftFail(open);
   const id = open.activeId;
   const tab: FileTab = {
     id,
@@ -389,6 +445,7 @@ const openAbsoluteFile = useCallback(
       setActiveId(open.activeId);
       return;
     }
+    notifyCapSoftFail(open);
     const id = open.activeId;
     const tab: FileTab = {
       id,
@@ -455,7 +512,7 @@ const openAbsoluteFile = useCallback(
       );
     }
   },
-  [projectPath, tabs, tr],
+  [notifyCapSoftFail, projectPath, tabs, tr],
 );
 
 const openChangeInPane = useCallback(
@@ -493,6 +550,7 @@ const openUrl = useCallback(
       setActiveId(open.activeId);
       return;
     }
+    notifyCapSoftFail(open);
     const id = open.activeId;
     const tab: FileTab = {
       id,
@@ -509,7 +567,7 @@ const openUrl = useCallback(
     setTabs((prev) => mergeFileTabsFromOpen(prev, open, tab));
     setActiveId(id);
   },
-  [tabs],
+  [notifyCapSoftFail, tabs],
 );
 
 const closePaneIfNoTabs = useCallback(
@@ -545,8 +603,8 @@ const closeTabForced = useCallback(
 
 const closeTab = useCallback(
   (id: string) => {
-    const tab = tabs.find((t) => t.id === id);
-    if (tab && isResourceDraftDirty(tab.draftText, tab.baselineText)) {
+    const slim = tabs.map(fileTabToResourceTab);
+    if (shouldConfirmCloseResourceTab(slim, id)) {
       setDiscardTabId(id);
       return;
     }
@@ -555,26 +613,53 @@ const closeTab = useCallback(
   [closeTabForced, tabs],
 );
 
-/** Chrome-style: close every tab except `id`. */
+/** Close active tab (dirty → discard modal). */
+const closeActiveTab = useCallback(() => {
+  const slim = tabs.map(fileTabToResourceTab);
+  const next = closeActiveResourceTab(slim, activeId);
+  const closingId = activeId ?? tabs[0]?.id;
+  if (!closingId || next.tabs.length === slim.length) return;
+  closeTab(closingId);
+}, [activeId, closeTab, tabs]);
+
+/** Chrome-style: close every tab except `id` (dirty others → first discard). */
 const closeOtherTabs = useCallback(
   (id: string) => {
+    const dirtyOther = tabs.find(
+      (t) =>
+        t.id !== id && isResourceDraftDirty(t.draftText, t.baselineText),
+    );
+    if (dirtyOther) {
+      setDiscardTabId(dirtyOther.id);
+      return;
+    }
     setTabs((prev) => prev.filter((t) => t.id === id));
     setActiveId(id);
   },
-  [],
+  [tabs],
 );
 
 /** Close tabs visually to the right of `id` (higher index; older tabs). */
 const closeTabsToRight = useCallback(
   (id: string) => {
+    const idx = tabs.findIndex((t) => t.id === id);
+    if (idx < 0) return;
+    const victims = tabs.slice(idx + 1);
+    const dirty = victims.find((t) =>
+      isResourceDraftDirty(t.draftText, t.baselineText),
+    );
+    if (dirty) {
+      setDiscardTabId(dirty.id);
+      return;
+    }
     let remaining = -1;
     setTabs((prev) => {
-      const idx = prev.findIndex((t) => t.id === id);
-      if (idx < 0) {
+      const i = prev.findIndex((t) => t.id === id);
+      if (i < 0) {
         remaining = prev.length;
         return prev;
       }
-      const next = prev.slice(0, idx + 1);
+      const next = prev.slice(0, i + 1);
       remaining = next.length;
       if (activeId && !next.some((t) => t.id === activeId)) {
         setActiveId(id);
@@ -583,20 +668,30 @@ const closeTabsToRight = useCallback(
     });
     if (remaining === 0) closePaneIfNoTabs(0);
   },
-  [activeId, closePaneIfNoTabs],
+  [activeId, closePaneIfNoTabs, tabs],
 );
 
 /** Close tabs visually to the left of `id` (lower index; newer tabs). */
 const closeTabsToLeft = useCallback(
   (id: string) => {
+    const idx = tabs.findIndex((t) => t.id === id);
+    if (idx < 0) return;
+    const victims = tabs.slice(0, idx);
+    const dirty = victims.find((t) =>
+      isResourceDraftDirty(t.draftText, t.baselineText),
+    );
+    if (dirty) {
+      setDiscardTabId(dirty.id);
+      return;
+    }
     let remaining = -1;
     setTabs((prev) => {
-      const idx = prev.findIndex((t) => t.id === id);
-      if (idx < 0) {
+      const i = prev.findIndex((t) => t.id === id);
+      if (i < 0) {
         remaining = prev.length;
         return prev;
       }
-      const next = prev.slice(idx);
+      const next = prev.slice(i);
       remaining = next.length;
       if (activeId && !next.some((t) => t.id === activeId)) {
         setActiveId(id);
@@ -605,14 +700,41 @@ const closeTabsToLeft = useCallback(
     });
     if (remaining === 0) closePaneIfNoTabs(0);
   },
-  [activeId, closePaneIfNoTabs],
+  [activeId, closePaneIfNoTabs, tabs],
 );
 
 const closeAllTabs = useCallback(() => {
+  const dirty = tabs.find((t) =>
+    isResourceDraftDirty(t.draftText, t.baselineText),
+  );
+  if (dirty) {
+    setDiscardTabId(dirty.id);
+    return;
+  }
   setTabs([]);
   setActiveId(null);
   closePaneIfNoTabs(0);
-}, [closePaneIfNoTabs]);
+}, [closePaneIfNoTabs, tabs]);
+
+/** Close by path (side-tab bridge); dirty → discard modal. Returns whether closed now. */
+const closeByPath = useCallback(
+  (path: string): boolean => {
+    const p = (path || "").trim();
+    if (!p) return true;
+    const tab = tabs.find(
+      (t) => t.tabKind !== "url" && fileTabMatchesPath(t, p),
+    );
+    if (!tab) return true;
+    if (isResourceDraftDirty(tab.draftText, tab.baselineText)) {
+      setDiscardTabId(tab.id);
+      return false;
+    }
+    closeTabForced(tab.id);
+    return true;
+  },
+  [closeTabForced, tabs],
+);
+
   return {
     tabs,
     setTabs,
@@ -625,6 +747,8 @@ const closeAllTabs = useCallback(() => {
     activeTab,
     filesTabsEmpty,
     activeTabEditable,
+    dirtyPaths,
+    isPathDirty,
     resetTabs,
     updateActiveDraft,
     revertActiveDraft,
@@ -637,6 +761,8 @@ const closeAllTabs = useCallback(() => {
     openChangeInPane,
     closeTabForced,
     closeTab,
+    closeActiveTab,
+    closeByPath,
     closeOtherTabs,
     closeTabsToRight,
     closeTabsToLeft,

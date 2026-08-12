@@ -80,10 +80,10 @@ import {
   type TreeNode,
 } from "./types";
 import {
-  TREE_WIDTH_KEY,
   TREE_WIDTH_MIN,
   loadTreeWidth,
   clampTreeWidth,
+  persistTreeWidth,
   fileTabToResourceTab,
 } from "./helpers";
 import { FileKindMark } from "./FileKindMark";
@@ -492,12 +492,8 @@ export function ResourceViewer({
     const onUp = () => {
       setResizingTree(false);
       setTreeWidth((w) => {
-        try {
-          localStorage.setItem(TREE_WIDTH_KEY, String(w));
-        } catch {
-          /* ignore */
-        }
-        return w;
+        const box = splitRef.current?.getBoundingClientRect();
+        return persistTreeWidth(w, box?.width ?? 800);
       });
       document.body.style.cursor = "";
       document.body.style.userSelect = "";

@@ -8,34 +8,36 @@ import {
   type OpenResourceTabResult,
   type ResourceTab,
 } from "@/lib/resourceTabs";
+import {
+  TREE_WIDTH_DEFAULT,
+  TREE_WIDTH_KEY,
+  TREE_WIDTH_MAX,
+  TREE_WIDTH_MIN,
+  clampTreeWidth as clampTreeWidthCore,
+  loadTreeWidth as loadTreeWidthCore,
+  persistTreeWidth as persistTreeWidthCore,
+} from "@/lib/resourceTree";
 import type { MessageKey } from "@/i18n";
 import type { DiffViewState, FileTab } from "./types";
 
-export const TREE_WIDTH_KEY = "grok-app.resourceTreeWidth";
-export const TREE_WIDTH_DEFAULT = 220;
-export const TREE_WIDTH_MIN = 140;
-export const TREE_WIDTH_MAX = 420;
+export {
+  TREE_WIDTH_DEFAULT,
+  TREE_WIDTH_KEY,
+  TREE_WIDTH_MAX,
+  TREE_WIDTH_MIN,
+};
 
 export function loadTreeWidth(): number {
-  try {
-    const n = Number(localStorage.getItem(TREE_WIDTH_KEY));
-    if (Number.isFinite(n) && n >= TREE_WIDTH_MIN && n <= TREE_WIDTH_MAX) {
-      return Math.round(n);
-    }
-  } catch {
-    /* ignore */
-  }
-  return TREE_WIDTH_DEFAULT;
+  return loadTreeWidthCore();
 }
 
 export function clampTreeWidth(w: number, containerWidth: number): number {
-  const maxByContainer = Math.max(
-    TREE_WIDTH_MIN,
-    Math.floor(containerWidth * 0.55),
-  );
-  const max = Math.min(TREE_WIDTH_MAX, maxByContainer);
-  if (!Number.isFinite(w)) return TREE_WIDTH_DEFAULT;
-  return Math.min(max, Math.max(TREE_WIDTH_MIN, Math.round(w)));
+  return clampTreeWidthCore(w, containerWidth);
+}
+
+/** Clamp + persist; use on tree resize pointerup (avoids stale width). */
+export function persistTreeWidth(w: number, containerWidth: number): number {
+  return persistTreeWidthCore(w, containerWidth);
 }
 
 export function emptyDiffView(

@@ -54,6 +54,8 @@ export type SideTabBarProps = {
   expanded: boolean;
   /** Bottom-docked compressed composer (only when expanded). */
   dockComposer?: boolean;
+  /** File paths with unsaved edit buffers (dirty honesty markers). */
+  dirtyFilePaths?: readonly string[];
   onActivate: (id: string) => void;
   onCloseTab: (id: string) => void;
   onCloseOtherTabs: (id: string) => void;
@@ -65,6 +67,18 @@ export type SideTabBarProps = {
   onToggleDockComposer?: () => void;
   onToggleSide: () => void;
 };
+
+function pathLooksDirty(
+  path: string | undefined,
+  dirty: readonly string[] | undefined,
+): boolean {
+  const p = (path || "").trim().replace(/\\/g, "/");
+  if (!p || !dirty?.length) return false;
+  return dirty.some((d) => {
+    const dn = d.replace(/\\/g, "/");
+    return dn === p || dn.endsWith("/" + p) || p.endsWith("/" + dn);
+  });
+}
 
 function tabIcon(tab: SideTab): ReactNode {
   switch (tab.kind) {
@@ -98,6 +112,7 @@ export function SideTabBar({
   projectPath = null,
   expanded,
   dockComposer = false,
+  dirtyFilePaths,
   onActivate,
   onCloseTab,
   onCloseOtherTabs,
@@ -292,17 +307,25 @@ export function SideTabBar({
             tabs.map((tab) => {
               const active = tab.id === activeId;
               const label = resolveSideTabLabel(tab, (k) => tr(k as never));
+              const dirty =
+                tab.kind === "file" &&
+                pathLooksDirty(tab.path, dirtyFilePaths);
               return (
                 <button
                   key={tab.id}
                   type="button"
                   role="tab"
                   aria-selected={active}
-                  title={label}
+                  title={
+                    dirty ? `${label} · ${tr("resources.unsaved")}` : label
+                  }
                   className={
-                    "rp-tab" + (active ? " is-active" : " is-inactive")
+                    "rp-tab" +
+                    (active ? " is-active" : " is-inactive") +
+                    (dirty ? " is-dirty" : "")
                   }
                   data-testid={`side-tab-${tab.kind}`}
+                  data-dirty={dirty ? "true" : undefined}
                   onClick={() => onActivate(tab.id)}
                   onAuxClick={(e) => {
                     // Browser-style middle-click closes the *clicked* tab
@@ -322,6 +345,11 @@ export function SideTabBar({
                   {active ? (
                     <>
                       <span className="rp-tab__name">{label}</span>
+                      {dirty ? (
+                        <span className="rp-tab__dirty" aria-hidden>
+                          ●
+                        </span>
+                      ) : null}
                       <span
                         className="rp-tab__x"
                         role="button"
@@ -353,6 +381,10 @@ export function SideTabBar({
                         <IconClose size={12} />
                       </span>
                     </>
+                  ) : dirty ? (
+                    <span className="rp-tab__dirty" aria-hidden>
+                      ●
+                    </span>
                   ) : null}
                 </button>
               );

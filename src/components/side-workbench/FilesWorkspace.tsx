@@ -1,7 +1,7 @@
 /**
  * Files workbench (Phase 1): dual-row chrome under shared SideTabBar —
  * breadcrumb + tree toggle +「打开」; one shared tree; multi-file preview
- * driven by parent SideTab file paths.
+ * driven by parent SideTab file paths. Preview | tree split (not exclusive stack).
  */
 
 import {
@@ -24,12 +24,13 @@ import {
 import { OpenLocationButton } from "@/components/OpenLocationButton";
 import { OverlayScroll } from "@/components/OverlayScroll";
 import { Tip } from "@/components/ui/tooltip";
+import { GlassModal } from "@/components/GlassModal";
 import { FileKindMark } from "@/components/resource-viewer/FileKindMark";
 import { ResourcePreviewBody } from "@/components/resource-viewer/ResourcePreviewBody";
 import {
   clampTreeWidth,
   loadTreeWidth,
-  TREE_WIDTH_KEY,
+  persistTreeWidth,
   TREE_WIDTH_MIN,
 } from "@/components/resource-viewer/helpers";
 import type { FileTab, TreeNode } from "@/components/resource-viewer/types";
@@ -40,6 +41,14 @@ import {
   resolveOpenEditorError,
   writeOpenTargetStorage,
 } from "@/lib/openEditorHonesty";
+import { resolveFilesWorkbenchSplitLayout } from "@/lib/resourceTabs";
+import {
+  expandKeysForResourceTreeFilter,
+  filterResourceTreeNodes,
+  loadTreeExpanded,
+  mergeTreeExpandedForFilter,
+  saveTreeExpanded,
+} from "@/lib/resourceTree";
 import { pathBaseName } from "@/lib/sessionChanges";
 
 export type FilesWorkspaceProps = {
@@ -59,6 +68,14 @@ export type FilesWorkspaceProps = {
   activeColumn?: number | null;
   /** Report file open from tree so parent can create/focus a SideTab. */
   onFileOpen?: (path: string, name: string) => void;
+  /** Dirty path keys for side-tab dirty markers / close honesty. */
+  onDirtyPathsChange?: (paths: string[]) => void;
+  /**
+   * Parent asks to close a path (side tab ×). Returns false when discard
+   * modal is shown instead of closing immediately.
+   */
+  closePathRequest?: { path: string; token: number } | null;
+  onClosePathResult?: (path: string, closed: boolean) => void;
   paneActive?: boolean;
 };
 
@@ -75,17 +92,24 @@ export function FilesWorkspace({
   activeLine = null,
   activeColumn = null,
   onFileOpen,
+  onDirtyPathsChange,
+  closePathRequest,
+  onClosePathResult,
   paneActive = true,
 }: FilesWorkspaceProps) {
   const tr = useMemo(() => createT(locale as Locale), [locale]);
   const [root, setRoot] = useState<TreeNode[]>([]);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ "": true });
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
+    loadTreeExpanded(projectPath || ""),
+  );
   const [loadingTree, setLoadingTree] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [treeWidth, setTreeWidth] = useState(loadTreeWidth);
   const [resizingTree, setResizingTree] = useState(false);
   const splitRef = useRef<HTMLDivElement>(null);
+  const lastCloseToken = useRef<number | null>(null);
+  const pendingSideClosePath = useRef<string | null>(null);
   const [openWithTarget, setOpenWithTarget] = useState(() =>
     readOpenTargetStorage("finder"),
   );
@@ -116,7 +140,36 @@ export function FilesWorkspace({
     saveActiveFile,
     revertActiveDraft,
     toggleActiveEditMode,
+    filesTabsEmpty,
+    dirtyPaths,
+    closeByPath,
+    discardTabId,
+    setDiscardTabId,
+    closeTabForced,
+    conflictTabId,
+    setConflictTabId,
+    reloadActiveFile,
   } = fileTabs;
+
+  const splitLayout = resolveFilesWorkbenchSplitLayout({ treeVisible });
+
+  useEffect(() => {
+    onDirtyPathsChange?.(dirtyPaths);
+  }, [dirtyPaths, onDirtyPathsChange]);
+
+  useEffect(() => {
+    if (!closePathRequest) return;
+    if (lastCloseToken.current === closePathRequest.token) return;
+    lastCloseToken.current = closePathRequest.token;
+    const closed = closeByPath(closePathRequest.path);
+    if (closed) {
+      pendingSideClosePath.current = null;
+      onClosePathResult?.(closePathRequest.path, true);
+    } else {
+      // Discard modal open — remember path for confirm.
+      pendingSideClosePath.current = closePathRequest.path;
+    }
+  }, [closePathRequest, closeByPath, onClosePathResult]);
 
   const loadDir = useCallback(
     async (relative: string): Promise<TreeNode[]> => {
@@ -153,9 +206,15 @@ export function FilesWorkspace({
 
   useEffect(() => {
     void refresh();
-    setExpanded({ "": true });
+    setExpanded(loadTreeExpanded(projectPath || ""));
     setQuery("");
   }, [projectPath]); // eslint-disable-line react-hooks/exhaustive-deps -- refresh on path only
+
+  // Persist expand map when it changes (per project).
+  useEffect(() => {
+    if (!projectPath) return;
+    saveTreeExpanded(projectPath, expanded);
+  }, [expanded, projectPath]);
 
   // Focus/open when Side Workbench active file path changes.
   // Directories (project root / folder tab) stay on empty preview — never "not a file".
@@ -231,22 +290,20 @@ export function FilesWorkspace({
     [expanded, loadDir],
   );
 
-  const filterMatch = useCallback(
-    (n: TreeNode): boolean => {
-      const q = query.trim().toLowerCase();
-      if (!q) return true;
-      if (n.name.toLowerCase().includes(q)) return true;
-      if (n.relativePath.toLowerCase().includes(q)) return true;
-      if (n.isDir && n.children?.length) {
-        return n.children.some(filterMatch);
-      }
-      return false;
-    },
-    [query],
+  const filteredRoot = useMemo(
+    () => filterResourceTreeNodes(root, query) as TreeNode[],
+    [root, query],
   );
+
+  const displayExpanded = useMemo(() => {
+    if (!query.trim()) return expanded;
+    const force = expandKeysForResourceTreeFilter(root, query);
+    return mergeTreeExpandedForFilter(expanded, force);
+  }, [expanded, query, root]);
 
   const onTreeFileClick = useCallback(
     async (relativePath: string, name: string) => {
+      // Opening a file never flips tree off — split stays preview | tree.
       await openFile(relativePath);
       onFileOpen?.(relativePath, name || pathBaseName(relativePath));
     },
@@ -254,8 +311,8 @@ export function FilesWorkspace({
   );
 
   const renderTree = (nodes: TreeNode[], depth: number): ReactNode =>
-    nodes.filter(filterMatch).map((n) => {
-      const open = !!expanded[n.relativePath];
+    nodes.map((n) => {
+      const open = !!displayExpanded[n.relativePath];
       const selected =
         activeTab &&
         (activeTab.relativePath === n.relativePath ||
@@ -289,14 +346,14 @@ export function FilesWorkspace({
           </button>
           {n.isDir && open && n.children?.length ? (
             <div className="rp-tree__kids">
-              {renderTree(n.children, depth + 1)}
+              {renderTree(n.children as TreeNode[], depth + 1)}
             </div>
           ) : null}
         </div>
       );
     });
 
-  // Tree resize
+  // Tree resize — persist final width via functional update (no stale width).
   useEffect(() => {
     if (!resizingTree) return;
     const onMove = (e: PointerEvent) => {
@@ -309,11 +366,10 @@ export function FilesWorkspace({
     };
     const onUp = () => {
       setResizingTree(false);
-      try {
-        localStorage.setItem(TREE_WIDTH_KEY, String(treeWidth));
-      } catch {
-        /* ignore */
-      }
+      setTreeWidth((w) => {
+        const box = splitRef.current?.getBoundingClientRect();
+        return persistTreeWidth(w, box?.width ?? 800);
+      });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -321,7 +377,7 @@ export function FilesWorkspace({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [resizingTree, treeWidth]);
+  }, [resizingTree]);
 
   const absPath =
     activeTab?.absolutePath ||
@@ -438,9 +494,10 @@ export function FilesWorkspace({
         ref={splitRef}
         className={
           "rp-split" +
-          (treeVisible ? "" : " rp-split--solo") +
+          (splitLayout.mode === "solo" ? " rp-split--solo" : "") +
           (resizingTree ? " is-resizing" : "")
         }
+        data-split-mode={splitLayout.mode}
       >
         <div className="rp-split__preview">
           {(() => {
@@ -448,8 +505,11 @@ export function FilesWorkspace({
             const isDirOpenError =
               !!activeTab?.error &&
               /not a file/i.test(activeTab.error);
+            const emptyPres = filesTabsEmpty;
             const showEmpty =
-              !activeTab || isDirOpenError || (!activeTab.loading && !activeTab.preview && !activeTab.error);
+              !activeTab ||
+              isDirOpenError ||
+              (!activeTab.loading && !activeTab.preview && !activeTab.error);
             if (showEmpty && !activeTab?.loading) {
               return (
                 <div
@@ -457,10 +517,10 @@ export function FilesWorkspace({
                   data-testid="files-preview-empty"
                 >
                   <div className="rp__empty-title">
-                    {tr("resources.preview")}
+                    {tr(emptyPres?.titleKey ?? "resources.emptyPreview")}
                   </div>
                   <div className="rp__empty-desc">
-                    {tr("resources.emptyPreviewHint")}
+                    {tr(emptyPres?.hintKey ?? "resources.emptyPreviewHint")}
                   </div>
                 </div>
               );
@@ -510,13 +570,14 @@ export function FilesWorkspace({
             );
           })()}
         </div>
-        {treeVisible ? (
+        {splitLayout.mode === "split" ? (
           <>
             <div
               className="rp-split__resizer"
               role="separator"
               aria-orientation="vertical"
               aria-valuenow={treeWidth}
+              aria-label={tr("resources.resizeTree")}
               onPointerDown={(e) => {
                 e.preventDefault();
                 setResizingTree(true);
@@ -545,18 +606,99 @@ export function FilesWorkspace({
                   <div className="rp__empty-desc" style={{ padding: 12 }}>
                     {tr("resources.loading")}
                   </div>
-                ) : root.length === 0 ? (
+                ) : filteredRoot.length === 0 ? (
                   <div className="rp__empty-desc" style={{ padding: 12 }}>
-                    {tr("resources.empty")}
+                    {query.trim()
+                      ? tr("resources.filterEmpty")
+                      : tr("resources.empty")}
                   </div>
                 ) : (
-                  renderTree(root, 0)
+                  renderTree(filteredRoot, 0)
                 )}
               </OverlayScroll>
             </div>
           </>
         ) : null}
       </div>
+
+      <GlassModal
+        open={!!discardTabId}
+        onClose={() => {
+          const sidePath = pendingSideClosePath.current;
+          setDiscardTabId(null);
+          pendingSideClosePath.current = null;
+          if (sidePath) onClosePathResult?.(sidePath, false);
+        }}
+        title={tr("resources.discardTitle")}
+        size="sm"
+        closeLabel={tr("common.close")}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => {
+                const sidePath = pendingSideClosePath.current;
+                setDiscardTabId(null);
+                pendingSideClosePath.current = null;
+                if (sidePath) onClosePathResult?.(sidePath, false);
+              }}
+            >
+              {tr("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--danger"
+              onClick={() => {
+                const id = discardTabId;
+                const sidePath = pendingSideClosePath.current;
+                setDiscardTabId(null);
+                pendingSideClosePath.current = null;
+                if (id) closeTabForced(id);
+                if (sidePath) onClosePathResult?.(sidePath, true);
+              }}
+            >
+              {tr("resources.discardConfirm")}
+            </button>
+          </>
+        }
+      >
+        <p className="modal__body-text">{tr("resources.discardBody")}</p>
+      </GlassModal>
+
+      <GlassModal
+        open={!!conflictTabId}
+        onClose={() => setConflictTabId(null)}
+        title={tr("resources.conflictTitle")}
+        size="sm"
+        closeLabel={tr("common.close")}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => {
+                setConflictTabId(null);
+                void reloadActiveFile();
+              }}
+            >
+              {tr("resources.conflictReload")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => {
+                setConflictTabId(null);
+                void saveActiveFile({ force: true });
+              }}
+            >
+              {tr("resources.conflictOverwrite")}
+            </button>
+          </>
+        }
+      >
+        <p className="modal__body-text">{tr("resources.conflictBody")}</p>
+      </GlassModal>
     </div>
   );
 }

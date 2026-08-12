@@ -40,6 +40,8 @@ export type OpenResourceTabResult = ResourceTabsState & {
   created: boolean;
   /** Tab ids dropped by LRU when over max. */
   droppedIds: string[];
+  /** True when at least one dropped tab was dirty (soft-fail honesty). */
+  droppedDirty: boolean;
 };
 
 export type ResourceTabsEmptyKind = "no_tabs";
@@ -52,6 +54,95 @@ export type ResourceTabsEmptyPresentation = {
   titleKey: ResourceTabsEmptyTitleKey;
   hintKey: ResourceTabsEmptyHintKey;
 };
+
+/** Soft-fail notice when open exceeds {@link RESOURCE_TABS_MAX}. */
+export type ResourceTabsCapSoftFail = {
+  kind: "cap";
+  messageKey: "resources.tabsMaxSoftFail";
+  dirtyMessageKey: "resources.tabsMaxSoftFailDirty";
+  max: number;
+  droppedCount: number;
+  droppedDirty: boolean;
+};
+
+/**
+ * Files workbench layout: preview and tree are simultaneous when the tree is
+ * visible — never an exclusive stack flip for normal open.
+ */
+export type FilesWorkbenchSplitLayout =
+  | { mode: "split"; treeVisible: true }
+  | { mode: "solo"; treeVisible: false };
+
+export function resolveFilesWorkbenchSplitLayout(input: {
+  treeVisible: boolean;
+}): FilesWorkbenchSplitLayout {
+  if (input.treeVisible) return { mode: "split", treeVisible: true };
+  return { mode: "solo", treeVisible: false };
+}
+
+/**
+ * Soft-fail presentation when open drops LRU tabs. Returns null when nothing
+ * was dropped (under cap).
+ */
+export function resolveResourceTabsCapSoftFail(input: {
+  droppedIds: readonly string[];
+  droppedDirty?: boolean;
+  max?: number;
+}): ResourceTabsCapSoftFail | null {
+  const n = Array.isArray(input.droppedIds) ? input.droppedIds.length : 0;
+  if (n <= 0) return null;
+  const max = clampMax(input.max);
+  return {
+    kind: "cap",
+    messageKey: "resources.tabsMaxSoftFail",
+    dirtyMessageKey: "resources.tabsMaxSoftFailDirty",
+    max,
+    droppedCount: n,
+    droppedDirty: !!input.droppedDirty,
+  };
+}
+
+/**
+ * Pick LRU drop index (end of list = oldest). Prefer clean tabs so dirty
+ * buffers are not silently discarded; fall back to any non-protected tab.
+ */
+export function pickResourceTabLruDropIndex(
+  tabs: readonly ResourceTab[],
+  protectId: string,
+): number {
+  const list = Array.isArray(tabs) ? tabs : [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    const t = list[i]!;
+    if (t.id === protectId) continue;
+    if (!t.dirty) return i;
+  }
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i]!.id !== protectId) return i;
+  }
+  return -1;
+}
+
+/** True when closing `id` should confirm discard (dirty honesty). */
+export function shouldConfirmCloseResourceTab(
+  tabs: readonly ResourceTab[],
+  id: string,
+): boolean {
+  const t = (Array.isArray(tabs) ? tabs : []).find((x) => x.id === id);
+  return !!t?.dirty;
+}
+
+/**
+ * Close the active tab (or first tab when activeId is null). Pure strip model.
+ */
+export function closeActiveResourceTab(
+  tabs: ResourceTab[],
+  activeId: string | null,
+): ResourceTabsState {
+  const list = Array.isArray(tabs) ? tabs : [];
+  const id = activeId ?? list[0]?.id;
+  if (!id) return { tabs: list, activeId: null };
+  return closeResourceTab(list, activeId, id);
+}
 
 /**
  * Normalize a tab path key for equality.
@@ -90,8 +181,9 @@ function clampMax(max: number | undefined): number {
 
 /**
  * Open or focus a path. Dedupes by normalized path (or explicit meta.id),
- * moves the hit to the front (MRU), and drops LRU entries from the end
- * when over `max` (default {@link RESOURCE_TABS_MAX}).
+ * moves the hit to the front (MRU), and drops LRU entries when over `max`
+ * (default {@link RESOURCE_TABS_MAX}). Clean tabs are dropped before dirty
+ * ones so unsaved buffers are not discarded silently.
  */
 export function openResourceTab(
   tabs: ResourceTab[],
@@ -129,6 +221,7 @@ export function openResourceTab(
       activeId: updated.id,
       created: false,
       droppedIds: [],
+      droppedDirty: false,
     };
   }
 
@@ -139,6 +232,7 @@ export function openResourceTab(
       activeId: list[0]?.id ?? "",
       created: false,
       droppedIds: [],
+      droppedDirty: false,
     };
   }
 
@@ -152,20 +246,21 @@ export function openResourceTab(
   };
   let next = [tab, ...list];
   const droppedIds: string[] = [];
+  let droppedDirty = false;
   while (next.length > cap) {
-    const drop = next[next.length - 1]!;
-    if (drop.id === id) {
-      // Cap of 1 with only the new tab — keep it.
-      break;
-    }
+    const dropIdx = pickResourceTabLruDropIndex(next, id);
+    if (dropIdx < 0) break;
+    const drop = next[dropIdx]!;
+    if (drop.dirty) droppedDirty = true;
     droppedIds.push(drop.id);
-    next = next.slice(0, -1);
+    next = next.filter((_, i) => i !== dropIdx);
   }
   return {
     tabs: next,
     activeId: id,
     created: true,
     droppedIds,
+    droppedDirty,
   };
 }
 

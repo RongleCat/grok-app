@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   RESOURCE_TABS_MAX,
+  closeActiveResourceTab,
   closeResourceTab,
   markTabDirty,
   normalizeResourceTabPath,
   openResourceTab,
+  pickResourceTabLruDropIndex,
+  resolveFilesWorkbenchSplitLayout,
+  resolveResourceTabsCapSoftFail,
   resolveResourceTabsEmptyState,
   resourceTabPathsEqual,
   setActiveTab,
+  shouldConfirmCloseResourceTab,
   type ResourceTab,
 } from "./resourceTabs";
 
@@ -85,11 +90,6 @@ describe("openResourceTab", () => {
   });
 
   it("drops LRU tabs when over max", () => {
-    const tabs: ResourceTab[] = [];
-    for (let i = 0; i < RESOURCE_TABS_MAX; i++) {
-      tabs.push(tab({ id: `t${i}`, path: `f${i}.ts` }));
-    }
-    // MRU front … LRU end: t0 is MRU, t11 is LRU when filled by sequential open.
     // Build MRU order explicitly: index 0 = newest.
     const filled = Array.from({ length: RESOURCE_TABS_MAX }, (_, i) =>
       tab({ id: `id${i}`, path: `p${i}.ts` }),
@@ -100,9 +100,34 @@ describe("openResourceTab", () => {
     expect(r.tabs[0]!.path).toBe("new.ts");
     // Last (LRU) of previous list should be dropped.
     expect(r.droppedIds).toEqual([`id${RESOURCE_TABS_MAX - 1}`]);
+    expect(r.droppedDirty).toBe(false);
     expect(r.tabs.some((t) => t.id === `id${RESOURCE_TABS_MAX - 1}`)).toBe(
       false,
     );
+  });
+
+  it("prefers dropping clean LRU over dirty when over max", () => {
+    const tabs = [
+      tab({ id: "newish", path: "n.ts" }),
+      tab({ id: "dirty-old", path: "d.ts", dirty: true }),
+      tab({ id: "clean-old", path: "c.ts", dirty: false }),
+    ];
+    const r = openResourceTab(tabs, "x.ts", { name: "x.ts" }, 3);
+    expect(r.tabs).toHaveLength(3);
+    expect(r.droppedIds).toEqual(["clean-old"]);
+    expect(r.droppedDirty).toBe(false);
+    expect(r.tabs.some((t) => t.id === "dirty-old")).toBe(true);
+  });
+
+  it("soft-fails dirty drop only when every LRU candidate is dirty", () => {
+    const tabs = [
+      tab({ id: "a", path: "a.ts", dirty: true }),
+      tab({ id: "b", path: "b.ts", dirty: true }),
+    ];
+    const r = openResourceTab(tabs, "c.ts", undefined, 2);
+    expect(r.tabs).toHaveLength(2);
+    expect(r.droppedIds).toEqual(["b"]);
+    expect(r.droppedDirty).toBe(true);
   });
 
   it("respects a custom max of 1", () => {
@@ -118,6 +143,7 @@ describe("openResourceTab", () => {
     const r = openResourceTab([a], "   ");
     expect(r.created).toBe(false);
     expect(r.tabs).toEqual([a]);
+    expect(r.droppedDirty).toBe(false);
   });
 });
 
@@ -201,5 +227,77 @@ describe("resolveResourceTabsEmptyState", () => {
   it("returns null when tabs are open", () => {
     expect(resolveResourceTabsEmptyState({ tabCount: 1 })).toBeNull();
     expect(resolveResourceTabsEmptyState({ tabCount: 3, sideMode: "files" })).toBeNull();
+  });
+});
+
+describe("closeActiveResourceTab / dirty honesty helpers", () => {
+  it("closes active and activates left neighbor", () => {
+    const tabs = [
+      tab({ id: "a", path: "a.ts" }),
+      tab({ id: "b", path: "b.ts" }),
+    ];
+    expect(closeActiveResourceTab(tabs, "a")).toEqual({
+      tabs: [tab({ id: "b", path: "b.ts" })],
+      activeId: "b",
+    });
+  });
+
+  it("no-ops empty strip", () => {
+    expect(closeActiveResourceTab([], null)).toEqual({
+      tabs: [],
+      activeId: null,
+    });
+  });
+
+  it("shouldConfirmCloseResourceTab only for dirty", () => {
+    const tabs = [
+      tab({ id: "a", path: "a.ts", dirty: true }),
+      tab({ id: "b", path: "b.ts", dirty: false }),
+    ];
+    expect(shouldConfirmCloseResourceTab(tabs, "a")).toBe(true);
+    expect(shouldConfirmCloseResourceTab(tabs, "b")).toBe(false);
+    expect(shouldConfirmCloseResourceTab(tabs, "missing")).toBe(false);
+  });
+
+  it("pickResourceTabLruDropIndex prefers clean", () => {
+    const tabs = [
+      tab({ id: "keep", path: "k.ts" }),
+      tab({ id: "d", path: "d.ts", dirty: true }),
+      tab({ id: "c", path: "c.ts", dirty: false }),
+    ];
+    expect(pickResourceTabLruDropIndex(tabs, "keep")).toBe(2);
+  });
+});
+
+describe("resolveResourceTabsCapSoftFail / split layout", () => {
+  it("null when nothing dropped", () => {
+    expect(resolveResourceTabsCapSoftFail({ droppedIds: [] })).toBeNull();
+  });
+
+  it("returns soft-fail presentation with dirty flag", () => {
+    const p = resolveResourceTabsCapSoftFail({
+      droppedIds: ["a", "b"],
+      droppedDirty: true,
+      max: 12,
+    });
+    expect(p).toEqual({
+      kind: "cap",
+      messageKey: "resources.tabsMaxSoftFail",
+      dirtyMessageKey: "resources.tabsMaxSoftFailDirty",
+      max: 12,
+      droppedCount: 2,
+      droppedDirty: true,
+    });
+  });
+
+  it("split layout is simultaneous when tree visible", () => {
+    expect(resolveFilesWorkbenchSplitLayout({ treeVisible: true })).toEqual({
+      mode: "split",
+      treeVisible: true,
+    });
+    expect(resolveFilesWorkbenchSplitLayout({ treeVisible: false })).toEqual({
+      mode: "solo",
+      treeVisible: false,
+    });
   });
 });

@@ -12,6 +12,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- **Resources multi-tab + split tree polish**: Files workbench keeps preview | tree simultaneous when the tree is open (no stack flip on open). Multi-file tabs: close-active, dirty discard honesty (side-tab markers + confirm), max-tab soft-fail (prefer drop clean LRU; i18n notice). Tree filter / expand persist / width persist residual fixes. Pure helpers + vitest (`resourceTabs`, `resourceTree`).
 - **Review / Changes empty honesty**: Classify no-repo · no-git · load-error · empty · filter-empty for Resources → Changes and Side Review (never pretends a clean tree on Host/git failure). Kind chips when workspace has mixed kinds; path deep-link opens Resources preview; open-in-editor uses default Host editor with honesty errors. Pure `resourceChangesHonesty` helpers + tests; en/zh/zh-TW.
 - **Changes accept/reject/restore honesty**: File and hunk actions show honest disabled reasons when snapshots are missing; git checkout soft-fails are classified (`not_a_git_repo` / `git_not_available` / path / checkout…); batch accept/reject reports partial success and untracked wipe confirm stays on GlassModal (never `window.confirm`).
 - **Default open target / open-with honesty**: Settings → Open files with lists probed editors (unavailable preferred soft-disabled + empty/preferred-missing honesty); Open Location menus put the preferred editor first with icons; Resource/Review open-in-editor uses session/global default and soft-fails with i18n copy when the editor is missing. Pure selection helpers + tests; en/zh/zh-TW.
@@ -31,6 +32,7 @@ See `docs/llm-wiki/release.md`.
 - **默认打开目标 / 打开方式诚实提示**：设置「打开文件方式」列出探测到的编辑器（缺失首选软禁用 + 空/缺失诚实文案）；打开位置菜单优先默认编辑器并显示图标；资源/审查「在编辑器中打开」跟随会话/全局默认，缺失时 i18n 软失败。纯选择助手 + 测试；en/zh/zh-TW。
 - **Changes 接受/拒绝/还原诚实态**：内容缺失时按钮给出禁用原因；git checkout 失败分类 soft-fail；批量接受/拒绝诚实汇总部分成功；未跟踪删除确认走 GlassModal（不用 `window.confirm`）。
 - **审阅 / 变更空状态诚实**：区分非仓库 · 无 git · 加载失败 · 无变更 · 筛选无结果；混合类型时显示 kind 筛选；路径可点开预览；默认编辑器打开走诚实错误。纯 helper + 测试；三语文案。
+- **资源多标签 + 分栏树打磨**：文件工作台在树可见时保持「预览 | 树」并排；多文件标签关闭/脏标记/上限 soft-fail；树筛选·展开·宽度残留修复；纯函数 + 测试。
 - **外观字体 (#553)**：设置 → 外观 可配置界面字体与内置终端字体/字号（本机偏好；终端优先 Nerd Font 以显示 Starship 图标）。
 - **首选 agent 生效路径诚实 (#564)**：设置与 Agents & Personas 控制台标明 spawn `--agent` 路径 — 已连接 soft-respawn、空闲下次连接；目录缺失/非法名称 soft-fail。纯 helper + 测试；三语文案。
 - **记忆清除范围 + Dream 诚实**：操作中心 GlassModal 清除 host 作用域 **workspace / global / all**（真实 CLI 参数，不用 `window.confirm`）。Dream/Watcher 仅表示配置存在性，绝不伪造「运行中」。跨会话记忆默认关闭并强制 `--no-memory`。
