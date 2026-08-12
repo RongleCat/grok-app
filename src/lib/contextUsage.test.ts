@@ -31,6 +31,9 @@ import {
   resolveContextUsageDisplay,
   resolveContextUsageSurface,
   resolveOccupancyPercent,
+  resolveOccupancyWindow,
+  isContextCompactContent,
+  isContextCompactMessage,
   saveSessionUsageSnapshot,
   loadSessionUsageSnapshot,
   clearSessionUsageSnapshot,
@@ -941,6 +944,113 @@ describe("occupancy vs billing classification", () => {
         source: "turn_completed",
       }),
     ).toBe(false);
+  });
+});
+
+describe("isContextCompactContent / isContextCompactMessage", () => {
+  it("accepts structured journal markers only", () => {
+    expect(isContextCompactContent("context_compact")).toBe(true);
+    expect(isContextCompactContent("context_compact|manual")).toBe(true);
+    expect(
+      isContextCompactContent("context_compact|auto|tokens:100->40\nkept"),
+    ).toBe(true);
+    expect(isContextCompactContent("context_compact\nsummary")).toBe(true);
+  });
+
+  it("rejects tool titles that merely contain the word compact", () => {
+    expect(
+      isContextCompactContent("Execute print('ALL POSTS compact') finished"),
+    ).toBe(false);
+    expect(isContextCompactContent("context_compaction_report")).toBe(false);
+    expect(isContextCompactContent("run compact now")).toBe(false);
+    expect(
+      isContextCompactMessage({
+        role: "tool",
+        content: "python print('compact')",
+      }),
+    ).toBe(false);
+  });
+
+  it("honors explicit marker even without content prefix", () => {
+    expect(
+      isContextCompactMessage({
+        marker: "context_compact",
+        role: "tool",
+        content: "ignored",
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("window resolve + display surface (500k honesty)", () => {
+  it("resolveOccupancyWindow prefers agent 500k over catalog 200k", () => {
+    const state = reduceContextUsage(INITIAL_CONTEXT_USAGE, {
+      type: "usage",
+      totalTokens: 100_000,
+      contextWindow: 500_000,
+      source: "auto_compact_started",
+    });
+    expect(resolveOccupancyWindow(state, 200_000)).toBe(500_000);
+    expect(resolveOccupancyWindow(state, null)).toBe(500_000);
+  });
+
+  it("catalog 500k is the ring denominator when agent window unset", () => {
+    const state = reduceContextUsage(INITIAL_CONTEXT_USAGE, {
+      type: "usage",
+      totalTokens: 156_385,
+      source: "context_size",
+    });
+    expect(resolveOccupancyWindow(state, 500_000)).toBe(500_000);
+    const d = resolveContextUsageDisplay(state, [], "zh", 500_000);
+    expect(d.windowSize).toBe(500_000);
+    expect(d.percent).toBe(31);
+    expect(d.source).toBe("known");
+    expect(resolveContextUsageSurface(d)).toBe("visible");
+  });
+
+  it("empty session surface stays hidden; soft-unknown after compact without counts", () => {
+    const empty = resolveContextUsageDisplay(INITIAL_CONTEXT_USAGE, [], "zh", 500_000);
+    expect(resolveContextUsageSurface(empty)).toBe("hidden");
+    expect(empty.windowSize).toBe(500_000);
+
+    const soft = resolveContextUsageDisplay(
+      reduceContextUsage(INITIAL_CONTEXT_USAGE, {
+        type: "compact",
+        trigger: "manual",
+        messageId: "c1",
+      }),
+      [{ id: "c1", role: "tool", marker: "context_compact" }],
+      "zh",
+      500_000,
+    );
+    expect(soft.source).toBe("unknown");
+    expect(soft.label).toBe("—");
+    expect(resolveContextUsageSurface(soft)).toBe("soft_unknown");
+  });
+
+  it("estimated vs known labels stay honest on the display surface", () => {
+    const estimated = resolveContextUsageDisplay(
+      INITIAL_CONTEXT_USAGE,
+      [{ id: "u", role: "user", content: "a".repeat(40) }],
+      "zh",
+      500_000,
+    );
+    expect(estimated.source).toBe("estimated");
+    expect(estimated.label.startsWith("~")).toBe(true);
+    expect(estimated.windowSize).toBe(500_000);
+
+    const known = resolveContextUsageDisplay(
+      reduceContextUsage(INITIAL_CONTEXT_USAGE, {
+        type: "usage",
+        totalTokens: 12_000,
+        source: "context_size",
+      }),
+      [],
+      "zh",
+      500_000,
+    );
+    expect(known.source).toBe("known");
+    expect(known.label.startsWith("~")).toBe(false);
   });
 });
 

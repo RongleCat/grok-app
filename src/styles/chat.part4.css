@@ -144,6 +144,10 @@
   font-size: 12px;
 }
 
+.ctx-chip__row--wrap {
+  align-items: flex-start;
+}
+
 .ctx-chip__k {
   color: var(--text-tertiary);
   flex-shrink: 0;
@@ -160,6 +164,16 @@
   align-items: baseline;
   justify-content: flex-end;
   gap: 6px;
+}
+
+/* Last-compact range / long notes must wrap, not clip the menu. */
+.ctx-chip__v--wrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: unset;
+  overflow: visible;
+  display: block;
 }
 
 .ctx-chip__tokens {

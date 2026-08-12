@@ -1424,7 +1424,12 @@ export function parseToolStepContent(content: string): {
 export function parseCompactContent(
   content: string,
 ): ContextCompactMeta | null {
-  if (!content.startsWith("context_compact|") && !content.startsWith("context_compact")) {
+  // Structured journal only — not free-text titles containing "compact".
+  if (
+    content !== "context_compact" &&
+    !content.startsWith("context_compact|") &&
+    !content.startsWith("context_compact\n")
+  ) {
     return null;
   }
   const [header, ...rest] = content.split("\n");

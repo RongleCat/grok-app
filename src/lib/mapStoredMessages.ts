@@ -66,7 +66,10 @@ export function mapStoredMessageToChat(
   const rawMarker = m.marker || undefined;
   const marker =
     rawMarker ||
-    (m.role === "tool" && content.startsWith("context_compact")
+    (m.role === "tool" &&
+    (content === "context_compact" ||
+      content.startsWith("context_compact|") ||
+      content.startsWith("context_compact\n"))
       ? "context_compact"
       : m.role === "tool" && content.startsWith("tool_step|")
         ? "tool_step"

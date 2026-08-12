@@ -414,11 +414,7 @@ export function hydrateContextUsageFromMessages(
 ): ContextUsageState {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]!;
-    const isCompact =
-      m.marker === "context_compact" ||
-      (m.role === "tool" &&
-        (m.content?.startsWith("context_compact") || !!m.compactMeta));
-    if (!isCompact) continue;
+    if (!isContextCompactMessage(m)) continue;
     const meta = m.compactMeta;
     const tokensAfter = finiteToken(meta?.tokensAfter);
     const tokensBefore = finiteToken(meta?.tokensBefore);
@@ -486,10 +482,42 @@ function isCjkCodePoint(code: number): boolean {
   );
 }
 
+/**
+ * True for host journal compact marker content (not free-text tool titles).
+ * Matches bare `context_compact`, `context_compact|…`, or multiline header.
+ * Does **not** match titles that merely contain the word "compact".
+ */
+export function isContextCompactContent(
+  content: string | null | undefined,
+): boolean {
+  if (!content) return false;
+  return (
+    content === "context_compact" ||
+    content.startsWith("context_compact|") ||
+    content.startsWith("context_compact\n")
+  );
+}
+
+/**
+ * Whether a chat/journal row is a real context-compact marker.
+ * Prefer explicit `marker`; fall back only to structured content prefix.
+ * Never treats tool titles containing "compact" as compaction.
+ */
+export function isContextCompactMessage(m: {
+  marker?: string | null;
+  role?: string | null;
+  content?: string | null;
+  compactMeta?: unknown;
+}): boolean {
+  if (m.marker === "context_compact") return true;
+  if (m.role === "tool" && isContextCompactContent(m.content)) return true;
+  return false;
+}
+
 /** Markers that are host journal chrome, not model context content. */
 function isJournalChromeMessage(m: ContextUsageMessage): boolean {
   return (
-    m.marker === "context_compact" ||
+    isContextCompactMessage(m) ||
     m.marker === "turn_cancelled" ||
     m.marker === "turn_end"
   );

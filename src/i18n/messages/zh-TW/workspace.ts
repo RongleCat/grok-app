@@ -307,7 +307,7 @@ export const zhTWWorkspace = {
   "context.chipAria": "上下文用量",
   "context.chipTipUnknown": "代理尚未回報用量；壓縮後可顯示 token 數",
   "context.chipTipEstimated": "依可見對話粗估（約 4 字元/token），非模型精確分詞",
-  "context.chipTipKnown": "上次壓縮後回報的 token 數",
+  "context.chipTipKnown": "CLI 回報的上下文佔用（非多輪計費合計）",
   "context.menuTitle": "上下文用量",
   "context.current": "目前",
   "context.sourceKnown": "已回報",

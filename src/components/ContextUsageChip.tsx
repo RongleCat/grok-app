@@ -12,6 +12,7 @@ import { IconArrowsMinimize } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import { useFloatingMenu } from "@/lib/floatingMenu";
 import {
+  formatCompactBeforeAfterRange,
   formatTokenCount,
   hasContextUsageData,
   resolveContextUsageSurface,
@@ -71,18 +72,24 @@ function formatLastCompactDetail(
   labels: ContextUsageChipLabels,
   locale: string,
 ): string {
-  if (
-    last.tokensBefore != null &&
-    last.tokensAfter != null &&
-    Number.isFinite(last.tokensBefore) &&
-    Number.isFinite(last.tokensAfter)
-  ) {
-    return labels.tokensRange
-      .replace("{before}", formatTokenCount(last.tokensBefore, locale))
-      .replace("{after}", formatTokenCount(last.tokensAfter, locale));
-  }
+  // Honest partial range when only before or after is known (no invented pair).
+  const range = formatCompactBeforeAfterRange(
+    last.tokensBefore,
+    last.tokensAfter,
+    { locale, template: labels.tokensRange },
+  );
+  if (range) return range;
   if (last.note?.trim()) return last.note.trim();
   return last.trigger === "manual" ? labels.manual : labels.auto;
+}
+
+function sourceLabel(
+  source: ContextUsageDisplay["source"],
+  labels: ContextUsageChipLabels,
+): string {
+  if (source === "known") return labels.sourceKnown;
+  if (source === "estimated") return labels.sourceEstimated;
+  return labels.sourceUnknown;
 }
 
 /**
@@ -268,6 +275,9 @@ export function ContextUsageChip({
               <span className="ctx-chip__k">{labels.current}</span>
               <span className="ctx-chip__v">
                 <span className="ctx-chip__tokens">{display.label}</span>
+                <span className="ctx-chip__src">
+                  {sourceLabel(display.source, labels)}
+                </span>
               </span>
             </div>
             {display.windowSize != null && display.windowSize > 0 ? (
@@ -307,9 +317,9 @@ export function ContextUsageChip({
                 locale={locale}
               />
             ) : null}
-            <div className="ctx-chip__row">
+            <div className="ctx-chip__row ctx-chip__row--wrap">
               <span className="ctx-chip__k">{labels.lastCompact}</span>
-              <span className="ctx-chip__v">
+              <span className="ctx-chip__v ctx-chip__v--wrap">
                 {lastDetail ?? labels.lastCompactNone}
               </span>
             </div>

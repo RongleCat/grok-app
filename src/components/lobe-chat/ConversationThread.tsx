@@ -77,7 +77,10 @@ import { setDraft } from "@/lib/composerDraftStore";
 import { formatMessageTime, formatRelativeTime } from "@/lib/accountUi";
 import type { MessageTimeFormat } from "@/lib/messageTimeFormatPref";
 import { computeMessageLength } from "@/lib/messageLength";
-import { formatTokenCount } from "@/lib/contextUsage";
+import {
+  formatCompactBeforeAfterRange,
+  isContextCompactMessage,
+} from "@/lib/contextUsage";
 import type { ModelOption } from "@/lib/grokCatalog";
 import { useStickToBottom } from "@/hooks/useStickToBottom";
 import { useChatMessageVirtualizer } from "@/hooks/useChatMessageVirtualizer";
@@ -891,29 +894,19 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
     );
   }
 
-  if (
-    m.marker === "context_compact" ||
-    (m.role === "tool" &&
-      (m.content?.startsWith("context_compact") ||
-        m.compactMeta))
-  ) {
+  if (isContextCompactMessage(m)) {
     const meta = m.compactMeta;
     const auto = (meta?.trigger || "auto") !== "manual";
     const title = auto
       ? tr("compact.bannerAuto")
       : tr("compact.bannerManual");
-    let detail = "";
-    if (
-      meta?.tokensBefore != null &&
-      meta?.tokensAfter != null &&
-      Number.isFinite(meta.tokensBefore) &&
-      Number.isFinite(meta.tokensAfter)
-    ) {
-      detail = tr("compact.tokensRange", {
-        before: formatTokenCount(meta.tokensBefore, locale),
-        after: formatTokenCount(meta.tokensAfter, locale),
-      });
-    } else if (meta?.note) {
+    // Honest before→after when either side is known; never invent a pair.
+    let detail =
+      formatCompactBeforeAfterRange(meta?.tokensBefore, meta?.tokensAfter, {
+        locale,
+        template: tr("compact.tokensRange"),
+      }) ?? "";
+    if (!detail && meta?.note) {
       detail = meta.note;
     }
     const summary = meta?.summaryPreview?.trim();
@@ -2294,8 +2287,7 @@ export function ConversationThread({
         (m.role === "tool" &&
           !isToolStepMessage(m) &&
           !isEndOfTurnMarker(m.marker) &&
-          m.marker !== "context_compact" &&
-          !(m.content?.startsWith("context_compact") || m.compactMeta));
+          !isContextCompactMessage(m));
       return estimateChatRowHeight({
         contentLength: body.length,
         thoughtLength: m.thought?.length ?? 0,

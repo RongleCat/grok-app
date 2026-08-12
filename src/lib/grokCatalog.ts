@@ -76,8 +76,10 @@ export const DEFAULT_MODEL_ID =
   GROK_BUILD_MODELS.find((m) => m.isDefault)?.id ?? "grok-4.5";
 
 /**
- * Fallback context window (tokens) for custom providers that have not set one.
- * Official models prefer the live `contextWindow` from `initialize` / cache.
+ * Fallback context window (tokens) for **custom provider** channels only.
+ * Never use this for the official Grok route — official windows come from
+ * live catalog / `initialize` / agent occupancy (`context_window`, often
+ * 500_000 on Grok Build 1.0). Unknown official → `null` (chip hides %).
  */
 export const DEFAULT_CUSTOM_CONTEXT_WINDOW = 200000;
 
@@ -467,21 +469,51 @@ export function findModel(
 /**
  * Resolve the effective context window (tokens) for the composer context.
  *
- * - Custom provider route: prefer the channel's `contextWindow`, else
- *   `DEFAULT_CUSTOM_CONTEXT_WINDOW` (channels without an explicit window
- *   still get a sensible cap for the "% used" chip).
- * - Official route: prefer the live model `contextWindow` from
- *   `initialize` / cache; `null` when unknown (chip hides the % row).
+ * Precedence:
+ * 1. Agent-reported CLI denominator (`auto_compact_started.context_window` /
+ *    occupancy usage) when positive — matches `/session-info`.
+ * 2. Custom provider route: channel `contextWindow`, else
+ *    {@link DEFAULT_CUSTOM_CONTEXT_WINDOW} (200k). **Custom only.**
+ * 3. Official route: live model `contextWindow` from `models_cache` /
+ *    `initialize` merge. Never invent 200k when live says 500k (or any
+ *    other catalog value). `null` when unknown (chip hides the % row).
  */
 export function resolveContextWindow(opts: {
   activeCustomProvider?: { contextWindow?: number | null } | null;
   modelId: string;
   models?: ModelOption[];
+  /**
+   * Agent-reported context window (tokens). When set and positive, wins
+   * over catalog so Grok Build 1.0 occupancy (500k) is never replaced by a
+   * stale catalog or the custom-channel 200k default.
+   */
+  agentContextWindow?: number | null;
 }): number | null {
-  const { activeCustomProvider, modelId, models = GROK_BUILD_MODELS } = opts;
+  const {
+    activeCustomProvider,
+    modelId,
+    models = GROK_BUILD_MODELS,
+    agentContextWindow,
+  } = opts;
+  if (
+    agentContextWindow != null &&
+    Number.isFinite(agentContextWindow) &&
+    agentContextWindow > 0
+  ) {
+    return Math.floor(agentContextWindow);
+  }
   if (activeCustomProvider) {
-    return activeCustomProvider.contextWindow ?? DEFAULT_CUSTOM_CONTEXT_WINDOW;
+    const custom = activeCustomProvider.contextWindow;
+    if (custom != null && Number.isFinite(custom) && custom > 0) {
+      return Math.floor(custom);
+    }
+    return DEFAULT_CUSTOM_CONTEXT_WINDOW;
   }
   const m = findModel(modelId, models);
-  return m?.contextWindow ?? null;
+  const catalog = m?.contextWindow;
+  if (catalog != null && Number.isFinite(catalog) && catalog > 0) {
+    return Math.floor(catalog);
+  }
+  // Official / unknown: never fall back to DEFAULT_CUSTOM_CONTEXT_WINDOW.
+  return null;
 }

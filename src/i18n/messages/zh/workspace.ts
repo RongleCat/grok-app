@@ -307,7 +307,7 @@ export const zhWorkspace = {
   "context.chipAria": "上下文用量",
   "context.chipTipUnknown": "代理尚未上报用量；压缩后可显示 token 数",
   "context.chipTipEstimated": "按可见对话粗估（约 4 字符/token），非模型精确分词",
-  "context.chipTipKnown": "上次压缩后上报的 token 数",
+  "context.chipTipKnown": "CLI 上报的上下文占用（非多轮计费合计）",
   "context.menuTitle": "上下文用量",
   "context.current": "当前",
   "context.sourceKnown": "已上报",

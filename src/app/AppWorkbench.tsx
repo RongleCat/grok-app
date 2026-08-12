@@ -11458,8 +11458,15 @@ export function AppWorkbench() {
         activeCustomProvider,
         modelId,
         models: availableModels,
+        // Prefer live agent occupancy denominator (Grok Build 1.0 → 500k).
+        agentContextWindow: contextUsage.agentContextWindow,
       }),
-    [activeCustomProvider, modelId, availableModels],
+    [
+      activeCustomProvider,
+      modelId,
+      availableModels,
+      contextUsage.agentContextWindow,
+    ],
   );
   useEffect(() => {
     if (
@@ -11471,14 +11478,34 @@ export function AppWorkbench() {
       api.modelsListAvailable()
         .then((res) => {
           if (!res?.models?.length) return;
-          setAvailableModels((prev) =>
-            prev.map((model) => {
-              const live = res.models.find((m) => m.id === model.id);
-              return live?.contextWindow != null
-                ? { ...model, contextWindow: live.contextWindow }
-                : model;
-            }),
-          );
+          // Full merge so official live windows (500k) replace cold-start null
+          // / stale catalog values — never leave a silent 200k official default.
+          setAvailableModels((prev) => {
+            const prevById = new Map(prev.map((m) => [m.id, m]));
+            return res.models.map((m) => {
+              const prior = prevById.get(m.id);
+              return {
+                id: m.id,
+                label: m.label || m.id,
+                source: m.source,
+                isDefault: m.isDefault,
+                reasoningEfforts:
+                  m.reasoningEfforts?.length
+                    ? m.reasoningEfforts.map((e) => ({
+                        id: e.id,
+                        value: e.value,
+                        label: e.label,
+                        description: e.description,
+                        isDefault: e.isDefault,
+                      }))
+                    : prior?.reasoningEfforts,
+                contextWindow:
+                  m.contextWindow != null && m.contextWindow > 0
+                    ? m.contextWindow
+                    : (prior?.contextWindow ?? null),
+              };
+            });
+          });
         })
         .catch(() => {});
     }

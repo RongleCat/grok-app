@@ -307,7 +307,7 @@ export const enWorkspace = {
   "context.chipAria": "Context usage",
   "context.chipTipUnknown": "Context tokens unknown until the agent reports usage or you compact",
   "context.chipTipEstimated": "Estimated from visible chat (~4 chars/token). Not model tokenizer output",
-  "context.chipTipKnown": "Tokens reported after last compaction",
+  "context.chipTipKnown": "Context occupancy reported by the CLI (not a multi-call billing total)",
   "context.menuTitle": "Context usage",
   "context.current": "Current",
   "context.sourceKnown": "Reported",

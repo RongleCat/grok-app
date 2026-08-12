@@ -313,6 +313,57 @@ describe("resolveContextWindow", () => {
     ).toBe(256000);
   });
 
+  it("returns live official 500k from catalog (Grok Build 1.0)", () => {
+    const models: ModelOption[] = [
+      { id: "grok-4.5", label: "Grok 4.5", contextWindow: 500_000 },
+    ];
+    expect(
+      resolveContextWindow({
+        activeCustomProvider: null,
+        modelId: "grok-4.5",
+        models,
+      }),
+    ).toBe(500_000);
+  });
+
+  it("prefers agent-reported window over catalog (occupancy honesty)", () => {
+    const models: ModelOption[] = [
+      { id: "grok-4.5", label: "Grok 4.5", contextWindow: 128_000 },
+    ];
+    expect(
+      resolveContextWindow({
+        activeCustomProvider: null,
+        modelId: "grok-4.5",
+        models,
+        agentContextWindow: 500_000,
+      }),
+    ).toBe(500_000);
+  });
+
+  it("agent window wins even on custom route (CLI denominator)", () => {
+    expect(
+      resolveContextWindow({
+        activeCustomProvider: { contextWindow: 200_000 },
+        modelId: "custom-model",
+        agentContextWindow: 500_000,
+      }),
+    ).toBe(500_000);
+  });
+
+  it("never uses custom 200k default for official when catalog/agent unknown", () => {
+    const models: ModelOption[] = [
+      { id: "grok-4.5", label: "Grok 4.5" },
+    ];
+    expect(
+      resolveContextWindow({
+        activeCustomProvider: null,
+        modelId: "grok-4.5",
+        models,
+      }),
+    ).toBeNull();
+    expect(DEFAULT_CUSTOM_CONTEXT_WINDOW).toBe(200_000);
+  });
+
   it("returns null for official model without contextWindow", () => {
     const models: ModelOption[] = [
       { id: "grok-4", label: "Grok 4" },
