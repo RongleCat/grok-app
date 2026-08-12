@@ -126,9 +126,22 @@ Signature UI status (pure `deriveSignatureStatus` / `buildSignatureView`):
 
 The App **does not re-verify cryptographic signatures**; path presence and `managedSettingsActive` never invent `verify_ok`. CLI rejects bad signatures before writing. Soft-fail when CLI/inspect is missing.
 
+## OS install caveats (before the wizard)
+
+The setup gate assumes the **desktop package already launches**. OS blocks and update-channel honesty are documented for users in the README — do not invent signature / SmartScreen status in the wizard:
+
+| Topic | Source of truth |
+|-------|-----------------|
+| macOS Gatekeeper / “damaged” / `xattr -cr` | README → *macOS “damaged” / Gatekeeper* (中文：*macOS 无法打开 / 提示已损坏*) |
+| Windows SmartScreen (unsigned / unknown publisher) | README → *Install* → Windows SmartScreen |
+| In-app auto-update needs **signed** production builds | [desktop-auto-update.md](../desktop-auto-update.md); unsigned / dev stay on GitHub manual download |
+
+Doctor / Windows day-use checklist may surface related rows but **must not invent** notarization or SmartScreen state.
+
 ## Non-goals
 
 - Embedding the CLI binary in the app package (B04).
 - Silent download without multi-mirror retry.
 - Forcing project selection before home.
 - App-side re-implementation of managed-config crypto verification.
+- Claiming silent auto-update for unsigned / local builds (see [desktop-auto-update.md](../desktop-auto-update.md)).

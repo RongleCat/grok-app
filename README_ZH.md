@@ -128,6 +128,14 @@
 
 **Arch / Manjaro / EndeavourOS 等：** **AppImage** 不依赖发行版打包格式（`chmod +x` 后运行）。官方 CI 不单独发布 AUR 包。在 **Wayland（如 Hyprland）+ AMD** 上，部分主机的 AppImage 会黑屏——可改用 **`.deb` / `.rpm`**（系统 WebKit），或见 [Linux 黑屏 / 空白窗](#linux-黑屏--空白窗webkit)。
 
+#### Windows SmartScreen
+
+社区 / 未 Authenticode 签名的 Windows 安装包首次运行时，SmartScreen 可能提示「Windows 已保护你的电脑 / 未知发布者」——点 **更多信息 → 仍要运行**；有疑虑时请对照 Release 中的 `SHA256SUMS` 校验哈希。CI 在配置了 `WINDOWS_CERTIFICATE` + `WINDOWS_CERTIFICATE_PASSWORD` 时可对安装包签名（见 `docs/BUILD.md`）；已签名包显示证书上的发布者名称。
+
+#### 应用内自动更新
+
+**设置 → 关于** 中的静默更新**仅**在**已签名的生产构建**上可用（嵌入 Tauri updater 公钥 + 滚动 Release 上对应签名包）。未签名社区包、本地 `pnpm dev` / debug 构建，以及部分包类型（如 Linux 非 AppImage）仍走 **打开 GitHub Release / 下载安装包** 路径——**不会**静默自动更新。完整矩阵与维护清单见 [docs/desktop-auto-update.md](./docs/desktop-auto-update.md)。
+
 ### 2. 首次使用
 
 1. 启动 App → **Setup 向导** 确认 CLI 已安装（可一键多镜像安装）  

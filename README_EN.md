@@ -147,6 +147,10 @@ Compare the PowerShell hash against the matching line in `SHA256SUMS`.
 
 Community / unsigned Windows builds show SmartScreen “Windows protected your PC / Unknown publisher” on first run — click **More info → Run anyway** and verify the checksum above if in doubt. Release CI can Authenticode-sign installers when `WINDOWS_CERTIFICATE` + `WINDOWS_CERTIFICATE_PASSWORD` secrets are configured (see `docs/BUILD.md`); signed builds use the publisher name on the certificate.
 
+#### In-app auto-update
+
+Silent updates from **Settings → About** only work on **signed production builds** (Tauri updater key embedded + matching signed archives on the rolling release). Unsigned community builds, local `pnpm dev` / debug binaries, and some package types (e.g. non-AppImage on Linux) stay on the **GitHub open-release / download installer** path — they will not receive silent in-app updates. Full matrix and maintainer checklist: [docs/desktop-auto-update.md](./docs/desktop-auto-update.md).
+
 ### 2. First run
 
 1. Launch → **Setup wizard** ensures CLI is installed (multi-mirror install supported)  
