@@ -261,6 +261,28 @@ pub async fn providers_list_models(
     crate::providers::list_remote_models(base_url, api_key, provider_id).await
 }
 
+/// Test whether a specific model id is usable on a custom provider.
+/// Sends one tiny non-streaming inference request; success = HTTP 2xx.
+#[tauri::command]
+pub async fn providers_test_model(
+    base_url: Option<String>,
+    api_key: Option<String>,
+    provider_id: Option<String>,
+    model: String,
+    api_backend: Option<String>,
+    base_url_full_path: Option<bool>,
+) -> Result<crate::providers::ProviderTestResult, String> {
+    crate::providers::test_model_connection(
+        base_url,
+        api_key,
+        provider_id,
+        model,
+        api_backend,
+        base_url_full_path,
+    )
+    .await
+}
+
 /// Probe provider account balance (Phase 1: DeepSeek `GET /user/balance` only).
 #[tauri::command]
 pub async fn providers_balance(
