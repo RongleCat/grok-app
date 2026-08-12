@@ -3,6 +3,7 @@ import {
   SESSION_EXPORT_FORMATS,
   buildSessionExportFormatRows,
   canSessionExportActions,
+  classifySessionExportCliError,
   classifySessionExportError,
   defaultSessionExportOptions,
   estimateSessionExportSizeClass,
@@ -10,12 +11,18 @@ import {
   formatSessionExportBytes,
   isSessionExportFormat,
   isSessionExportJournalEmpty,
+  joinSessionExportMenuSuffix,
+  resolveSessionExportPath,
   resolveSessionExportSoftFail,
   sanitizeSessionExportBasename,
   sanitizeSessionExportSlug,
+  sessionExportCliSoftFailsToJournal,
+  sessionExportDoneMessageKey,
   sessionExportFormatExt,
   sessionExportFormatLabelKey,
   sessionExportFormatNameKey,
+  sessionExportMenuSuffixKeys,
+  sessionExportPathBadgeKey,
   sessionExportSafeFilename,
   sessionExportSizeClass,
   sessionExportSizeClassLabelKey,
@@ -333,6 +340,11 @@ describe("canSessionExportActions / format rows", () => {
     expect(ok).toHaveLength(4);
     expect(ok.every((r) => !r.disabled)).toBe(true);
     expect(ok.map((r) => r.ext)).toEqual([".md", ".txt", ".json", ".html"]);
+    // No agent → journal-only badges on every row.
+    expect(ok.every((r) => r.badgeKeys.includes("session.exportPath.journal"))).toBe(
+      true,
+    );
+    expect(ok.every((r) => !r.path.preferCli)).toBe(true);
 
     const empty = buildSessionExportFormatRows({
       hasTarget: true,
@@ -344,5 +356,163 @@ describe("canSessionExportActions / format rows", () => {
     const noTarget = buildSessionExportFormatRows({ hasTarget: false });
     expect(noTarget.every((r) => r.disabled)).toBe(true);
     expect(noTarget[0]?.disabledReasonKey).toBe("session.exportNoTarget");
+  });
+
+  it("badges CLI + Journal on markdown when agent linked", () => {
+    const rows = buildSessionExportFormatRows({
+      hasTarget: true,
+      journalEmpty: false,
+      hasAgentSession: "agent-sid-1",
+      cliHostAvailable: true,
+      cliExportAvailable: true,
+    });
+    const md = rows.find((r) => r.format === "markdown");
+    expect(md?.path.path).toBe("cli_preferred");
+    expect(md?.badgeKeys).toEqual([
+      "session.exportPath.cli",
+      "session.exportPath.journal",
+    ]);
+    const json = rows.find((r) => r.format === "json");
+    expect(json?.path.path).toBe("journal");
+    expect(json?.badgeKeys).toEqual(["session.exportPath.journal"]);
+  });
+});
+
+describe("resolveSessionExportPath / badges", () => {
+  it("journal-only for plain/json/html and for copy", () => {
+    for (const format of ["plain", "json", "html"] as const) {
+      const r = resolveSessionExportPath({
+        format,
+        hasAgentSession: true,
+        cliHostAvailable: true,
+      });
+      expect(r.path).toBe("journal");
+      expect(r.preferCli).toBe(false);
+      expect(r.badges).toEqual(["journal"]);
+      expect(r.cliSkipReason).toBe("format");
+    }
+    const copy = resolveSessionExportPath({
+      format: "markdown",
+      mode: "copy",
+      hasAgentSession: true,
+    });
+    expect(copy.path).toBe("journal");
+    expect(copy.preferCli).toBe(false);
+    expect(copy.cliSkipReason).toBe("mode");
+  });
+
+  it("CLI preferred when full markdown download + agent + host", () => {
+    const r = resolveSessionExportPath({
+      format: "markdown",
+      mode: "download",
+      hasAgentSession: "019f-agent",
+      cliHostAvailable: true,
+      cliExportAvailable: true,
+      options: { includeThoughts: true, includeToolSummary: true },
+    });
+    expect(r.path).toBe("cli_preferred");
+    expect(r.preferCli).toBe(true);
+    expect(r.softFailCliToJournal).toBe(true);
+    expect(r.badges).toEqual(["cli", "journal"]);
+    expect(r.badgeKeys).toEqual([
+      "session.exportPath.cli",
+      "session.exportPath.journal",
+    ]);
+    expect(r.cliSkipReason).toBeNull();
+  });
+
+  it("partial options force journal (CLI cannot honor toggles)", () => {
+    const r = resolveSessionExportPath({
+      format: "markdown",
+      hasAgentSession: true,
+      options: { includeThoughts: false, includeToolSummary: true },
+    });
+    expect(r.path).toBe("journal");
+    expect(r.preferCli).toBe(false);
+    expect(r.badges).toEqual(["journal"]);
+    expect(r.cliSkipReason).toBe("options");
+    expect(r.cliSkipReasonKey).toBe("session.exportPath.cliOptions");
+  });
+
+  it("no agent → journal badge only", () => {
+    const r = resolveSessionExportPath({
+      format: "markdown",
+      hasAgentSession: null,
+    });
+    expect(r.path).toBe("journal");
+    expect(r.badges).toEqual(["journal"]);
+    expect(r.cliSkipReason).toBe("no_agent");
+    expect(r.cliSkipReasonKey).toBe("session.exportPath.cliNoAgent");
+  });
+
+  it("host / CLI unavailable soft-path keeps journal badge", () => {
+    const host = resolveSessionExportPath({
+      format: "markdown",
+      hasAgentSession: true,
+      cliHostAvailable: false,
+    });
+    expect(host.path).toBe("cli_unavailable");
+    expect(host.preferCli).toBe(false);
+    expect(host.badges).toEqual(["journal"]);
+    expect(host.cliSkipReason).toBe("host");
+
+    const cli = resolveSessionExportPath({
+      format: "markdown",
+      hasAgentSession: true,
+      cliHostAvailable: true,
+      cliExportAvailable: false,
+    });
+    expect(cli.path).toBe("cli_unavailable");
+    expect(cli.preferCli).toBe(false);
+    expect(cli.badges).toEqual(["journal"]);
+    expect(cli.cliSkipReason).toBe("cli");
+    expect(cli.cliSkipReasonKey).toBe("session.exportPath.cliUnavailable");
+  });
+
+  it("badge keys and menu suffix helpers", () => {
+    expect(sessionExportPathBadgeKey("journal")).toBe(
+      "session.exportPath.journal",
+    );
+    expect(sessionExportPathBadgeKey("cli")).toBe("session.exportPath.cli");
+
+    const path = resolveSessionExportPath({
+      format: "markdown",
+      hasAgentSession: "a",
+    });
+    expect(sessionExportMenuSuffixKeys({ path, journalEmpty: true })).toEqual([
+      "session.exportEmptyShort",
+      "session.exportPath.cli",
+      "session.exportPath.journal",
+    ]);
+    expect(sessionExportMenuSuffixKeys({ journalEmpty: false, path: null })).toEqual(
+      [],
+    );
+    expect(joinSessionExportMenuSuffix(["CLI export", "Journal"])).toBe(
+      " · CLI export · Journal",
+    );
+    expect(joinSessionExportMenuSuffix(["", null, "empty"])).toBe(" · empty");
+    expect(joinSessionExportMenuSuffix([])).toBe("");
+  });
+
+  it("done toast key is honest about source", () => {
+    expect(sessionExportDoneMessageKey("cli")).toBe("session.exportDoneCli");
+    expect(sessionExportDoneMessageKey("journal")).toBe("session.exportDone");
+    expect(sessionExportDoneMessageKey(null)).toBe("session.exportDone");
+  });
+
+  it("CLI errors always soft-fail to journal", () => {
+    expect(classifySessionExportCliError(new Error("No agent session linked"))).toBe(
+      "no_agent",
+    );
+    expect(
+      classifySessionExportCliError(new Error("Grok Build CLI not found")),
+    ).toBe("cli_missing");
+    expect(
+      classifySessionExportCliError(new Error("grok export timed out after 60s")),
+    ).toBe("timeout");
+    expect(classifySessionExportCliError(new Error("empty"))).toBe("empty");
+    expect(classifySessionExportCliError(new Error("boom"))).toBe("other");
+    expect(sessionExportCliSoftFailsToJournal("cli_missing")).toBe(true);
+    expect(sessionExportCliSoftFailsToJournal("other")).toBe(true);
   });
 });

@@ -10,6 +10,7 @@
 
 import {
   formatToolSummaryLine,
+  shouldPreferCliMarkdownExport,
   type ExportableMessage,
   type SessionExportFormat,
   type SessionExportOptions,
@@ -550,6 +551,273 @@ export function canSessionExportActions(input: {
   return true;
 }
 
+// ── Path honesty: Journal vs CLI export ──────────────────────────────────
+
+/**
+ * Where a transcript export will read from.
+ * - `journal` — local App journal only (honest single path).
+ * - `cli_preferred` — try `grok export` first; soft-fail → journal.
+ * - `cli_unavailable` — CLI would be ideal but host/link/version blocks it;
+ *   falls back to journal without inventing a CLI path.
+ */
+export type SessionExportSourcePath =
+  | "journal"
+  | "cli_preferred"
+  | "cli_unavailable";
+
+/** Short badge id for menu / dialog chips. */
+export type SessionExportPathBadge = "journal" | "cli";
+
+/** Why CLI was not selected (when path is not `cli_preferred`). */
+export type SessionExportCliSkipReason =
+  | "format" // plain/json/html — journal-only formats
+  | "mode" // copy always uses local journal
+  | "options" // partial include toggles need local render
+  | "no_agent" // no linked agent session id
+  | "host" // browser / non-Tauri — no `session_cli_export`
+  | "cli" // host says CLI binary / export subcommand unavailable
+  | null;
+
+export type SessionExportPathResolution = {
+  path: SessionExportSourcePath;
+  /** Download should attempt CLI first. */
+  preferCli: boolean;
+  /** CLI errors soft-fail to journal (true whenever preferCli). */
+  softFailCliToJournal: boolean;
+  /**
+   * Badges in display order.
+   * - journal only → `["journal"]`
+   * - CLI preferred → `["cli", "journal"]` (CLI first, journal fallback honesty)
+   * - CLI unavailable → `["journal"]` (never badge CLI when it will not run)
+   */
+  badges: SessionExportPathBadge[];
+  /** i18n keys for {@link badges} (`session.exportPath.journal` / `.cli`). */
+  badgeKeys: string[];
+  /** Why CLI was skipped; null when `cli_preferred` or not applicable. */
+  cliSkipReason: SessionExportCliSkipReason;
+  /** i18n key for skip / unavailable hint (null when silent). */
+  cliSkipReasonKey: string | null;
+};
+
+/** i18n key for a path badge chip. */
+export function sessionExportPathBadgeKey(
+  badge: SessionExportPathBadge,
+): string {
+  return badge === "cli"
+    ? "session.exportPath.cli"
+    : "session.exportPath.journal";
+}
+
+/** i18n key for a CLI skip / unavailable reason (null when none). */
+export function sessionExportCliSkipReasonKey(
+  reason: SessionExportCliSkipReason,
+): string | null {
+  switch (reason) {
+    case "no_agent":
+      return "session.exportPath.cliNoAgent";
+    case "host":
+      return "session.exportPath.cliHostOnly";
+    case "cli":
+      return "session.exportPath.cliUnavailable";
+    case "options":
+      return "session.exportPath.cliOptions";
+    case "mode":
+    case "format":
+    case null:
+      return null;
+  }
+}
+
+/**
+ * Resolve honest export path + badges for a transcript format.
+ *
+ * Product truth:
+ * - Only **Markdown download** with full-transcript options may prefer
+ *   `grok export` (CLI has no thought/tool toggles).
+ * - Copy, partial options, plain/json/html → local journal only.
+ * - Missing agent link / non-Tauri host / CLI unavailable → journal with
+ *   honest skip reason (never badge CLI when it will not run).
+ * - CLI attempt always soft-fails to journal at runtime.
+ */
+export function resolveSessionExportPath(input: {
+  format: SessionExportFormat;
+  /** download (default) vs copy — copy is always journal. */
+  mode?: "download" | "copy";
+  /**
+   * Linked Grok Build agent session: `true`, non-empty id string, or false/null.
+   */
+  hasAgentSession?: boolean | string | null;
+  /**
+   * Desktop host can invoke `session_cli_export` (`api.isTauri()`).
+   * Default true (optimistic); pass false for browser / web preview.
+   */
+  cliHostAvailable?: boolean | null;
+  /**
+   * CLI binary / `grok export` subcommand known usable.
+   * Default true when unknown (attempt + soft-fail). Pass false when
+   * probe/version/shared mode already knows export cannot run.
+   */
+  cliExportAvailable?: boolean | null;
+  options?: SessionExportOptions | null;
+}): SessionExportPathResolution {
+  const format = input.format;
+  const mode = input.mode ?? "download";
+  const agentLinked = (() => {
+    const v = input.hasAgentSession;
+    if (v == null || v === false) return false;
+    if (typeof v === "string") return v.trim().length > 0;
+    return !!v;
+  })();
+  const hostOk = input.cliHostAvailable !== false;
+  const cliOk = input.cliExportAvailable !== false;
+  const optionsOk = shouldPreferCliMarkdownExport(input.options);
+
+  const journalOnly = (
+    reason: SessionExportCliSkipReason,
+    path: SessionExportSourcePath = "journal",
+  ): SessionExportPathResolution => {
+    const badges: SessionExportPathBadge[] = ["journal"];
+    return {
+      path,
+      preferCli: false,
+      softFailCliToJournal: false,
+      badges,
+      badgeKeys: badges.map(sessionExportPathBadgeKey),
+      cliSkipReason: reason,
+      cliSkipReasonKey: sessionExportCliSkipReasonKey(reason),
+    };
+  };
+
+  // Non-markdown formats never hit CLI.
+  if (format !== "markdown") {
+    return journalOnly("format");
+  }
+  // Clipboard always renders from the local journal (options apply).
+  if (mode === "copy") {
+    return journalOnly("mode");
+  }
+  // Partial thought/tool toggles cannot be honored by `grok export`.
+  if (!optionsOk) {
+    return journalOnly("options");
+  }
+  if (!agentLinked) {
+    return journalOnly("no_agent");
+  }
+  if (!hostOk) {
+    return journalOnly("host", "cli_unavailable");
+  }
+  if (!cliOk) {
+    return journalOnly("cli", "cli_unavailable");
+  }
+
+  const badges: SessionExportPathBadge[] = ["cli", "journal"];
+  return {
+    path: "cli_preferred",
+    preferCli: true,
+    softFailCliToJournal: true,
+    badges,
+    badgeKeys: badges.map(sessionExportPathBadgeKey),
+    cliSkipReason: null,
+    cliSkipReasonKey: null,
+  };
+}
+
+/**
+ * Menu / dialog label suffix keys for empty + path badges.
+ * Callers join with ` · ` after translating each key.
+ */
+export function sessionExportMenuSuffixKeys(input: {
+  journalEmpty?: boolean | null;
+  path?: SessionExportPathResolution | null;
+}): string[] {
+  const keys: string[] = [];
+  if (input.journalEmpty === true) {
+    keys.push("session.exportEmptyShort");
+  }
+  const badges = input.path?.badgeKeys ?? [];
+  for (const k of badges) {
+    if (!keys.includes(k)) keys.push(k);
+  }
+  return keys;
+}
+
+/**
+ * Join translated suffix parts with a middle-dot separator.
+ * Empty parts are skipped; leading separator never emitted.
+ */
+export function joinSessionExportMenuSuffix(
+  parts: Array<string | null | undefined>,
+): string {
+  const clean = parts.map((p) => (p || "").trim()).filter(Boolean);
+  if (!clean.length) return "";
+  return ` · ${clean.join(" · ")}`;
+}
+
+/**
+ * Success toast key after a completed export.
+ * Never claims CLI when the body came from the local journal.
+ */
+export function sessionExportDoneMessageKey(
+  source: "cli" | "journal" | null | undefined,
+): string {
+  return source === "cli" ? "session.exportDoneCli" : "session.exportDone";
+}
+
+/**
+ * Classify a CLI `session_cli_export` failure for soft-fail handling.
+ * All kinds soft-fail to journal — never hard-block the local path.
+ */
+export type SessionExportCliSoftFailKind =
+  | "no_agent"
+  | "cli_missing"
+  | "timeout"
+  | "empty"
+  | "other";
+
+export function classifySessionExportCliError(
+  err: unknown,
+): SessionExportCliSoftFailKind {
+  if (err == null || err === "") return "other";
+  const s = errText(err).toLowerCase();
+  if (
+    s.includes("no agent session") ||
+    s.includes("no agent") ||
+    s.includes("agent session linked") ||
+    s.includes("agent session id")
+  ) {
+    return "no_agent";
+  }
+  if (
+    s.includes("cli not found") ||
+    s.includes("grok build cli not found") ||
+    s.includes("command not found") ||
+    s.includes("no such file")
+  ) {
+    return "cli_missing";
+  }
+  if (s.includes("timed out") || s.includes("timeout")) {
+    return "timeout";
+  }
+  if (
+    s.includes("empty") ||
+    s.includes("nothing to export") ||
+    s.includes("no content")
+  ) {
+    return "empty";
+  }
+  return "other";
+}
+
+/**
+ * Whether a CLI export error should soft-fail to the local journal.
+ * Always true today — kept as a named policy for callers / tests.
+ */
+export function sessionExportCliSoftFailsToJournal(
+  _kind?: SessionExportCliSoftFailKind | null,
+): boolean {
+  return true;
+}
+
 export type SessionExportFormatRow = {
   format: SessionExportFormat;
   labelKey: string;
@@ -558,17 +826,29 @@ export type SessionExportFormatRow = {
   disabled: boolean;
   /** i18n key explaining why the row is disabled (null when enabled). */
   disabledReasonKey: string | null;
+  /** Resolved path honesty for this row. */
+  path: SessionExportPathResolution;
+  /** Badge i18n keys (`session.exportPath.*`). */
+  badgeKeys: string[];
 };
 
 /**
  * Build honest format-picker / submenu rows for md/txt/json/html.
  * Empty journal → all transcript formats disabled with empty reason.
  * Missing target → disabled with no-target reason.
+ * Path badges: Journal only, or CLI + Journal when CLI preferred.
  */
 export function buildSessionExportFormatRows(input?: {
   hasTarget?: boolean;
   journalEmpty?: boolean | null;
   busy?: boolean;
+  /** Linked agent session for CLI path honesty. */
+  hasAgentSession?: boolean | string | null;
+  cliHostAvailable?: boolean | null;
+  cliExportAvailable?: boolean | null;
+  /** Per-row mode (default download). */
+  mode?: "download" | "copy";
+  options?: SessionExportOptions | null;
 }): SessionExportFormatRow[] {
   const hasTarget = input?.hasTarget !== false;
   const journalEmpty = input?.journalEmpty === true;
@@ -587,6 +867,14 @@ export function buildSessionExportFormatRows(input?: {
       disabled = true;
       disabledReasonKey = "session.exportMdWorking";
     }
+    const path = resolveSessionExportPath({
+      format,
+      mode: input?.mode ?? "download",
+      hasAgentSession: input?.hasAgentSession,
+      cliHostAvailable: input?.cliHostAvailable,
+      cliExportAvailable: input?.cliExportAvailable,
+      options: input?.options,
+    });
     return {
       format,
       labelKey: sessionExportFormatLabelKey(format),
@@ -594,6 +882,8 @@ export function buildSessionExportFormatRows(input?: {
       ext: sessionExportFormatExt(format),
       disabled,
       disabledReasonKey,
+      path,
+      badgeKeys: path.badgeKeys,
     };
   });
 }

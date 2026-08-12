@@ -402,8 +402,7 @@ import {
   sessionToHtml,
   sessionToJson,
   sessionToMarkdown,
-  sessionToPlain,
-  shouldPreferCliMarkdownExport
+  sessionToPlain
 } from "@/lib/sessionExport";
 import {
   buildStreamSessionNdjson,
@@ -413,11 +412,17 @@ import {
 } from "@/lib/streamSessionExport";
 import {
   canSessionExportActions,
+  classifySessionExportCliError,
   estimateSessionExportSizeClass,
   formatSessionExportBytes,
   isSessionExportJournalEmpty,
+  joinSessionExportMenuSuffix,
+  resolveSessionExportPath,
   resolveSessionExportSoftFail,
+  sessionExportCliSoftFailsToJournal,
+  sessionExportDoneMessageKey,
   sessionExportFormatNameKey,
+  sessionExportMenuSuffixKeys,
   sessionExportSafeFilename,
   sessionExportSizeClassLabelKey
 } from "@/lib/sessionExportPro";
@@ -14428,19 +14433,45 @@ export function AppWorkbench() {
   );
 
   /**
-   * Honest empty + size estimate for the open Markdown export dialog when the
-   * target is the live session (options toggle updates emptiness).
+   * Honest empty + size estimate + path badges for the open Markdown export
+   * dialog (options toggle updates emptiness and Journal vs CLI path).
    */
   const exportMdHonesty = useMemo(() => {
+    const options = {
+      includeThoughts: exportMdIncludeThoughts,
+      includeToolSummary: exportMdIncludeTools,
+    };
+    const resolveAgent = (sessionId: string | null | undefined) => {
+      const id = (sessionId || "").trim();
+      if (!id) return null as string | null;
+      if (id === session.sessionId) {
+        const live = (session.agentSessionId || "").trim();
+        if (live) return live;
+      }
+      const row = sessions.find((x) => x.id === id);
+      const linked = (row?.agentSessionId || "").trim();
+      return linked || null;
+    };
+    const pathFor = (sessionId: string | null | undefined) =>
+      resolveSessionExportPath({
+        format: "markdown",
+        mode: "download",
+        hasAgentSession: resolveAgent(sessionId),
+        cliHostAvailable: api.isTauri(),
+        options,
+      });
+
     if (!exportMdTarget) {
       return {
         journalEmpty: null as boolean | null,
         sizeClassKey: null as string | null,
         sizeBytesLabel: null as string | null,
         canAct: false,
+        path: null as ReturnType<typeof resolveSessionExportPath> | null,
       };
     }
     if (exportMdTarget.id !== session.sessionId) {
+      const path = pathFor(exportMdTarget.id);
       return {
         journalEmpty: null as boolean | null,
         sizeClassKey: null as string | null,
@@ -14450,6 +14481,7 @@ export function AppWorkbench() {
           journalEmpty: null,
           busy: exportMdBusy,
         }),
+        path,
       };
     }
     const exportable = messages.map((m) => ({
@@ -14459,10 +14491,6 @@ export function AppWorkbench() {
       createdAt: m.createdAt,
       marker: m.marker,
     }));
-    const options = {
-      includeThoughts: exportMdIncludeThoughts,
-      includeToolSummary: exportMdIncludeTools,
-    };
     const journalEmpty = isSessionExportJournalEmpty(exportable, {
       format: "markdown",
       options,
@@ -14474,6 +14502,7 @@ export function AppWorkbench() {
       messages: exportable,
     });
     const est = estimateSessionExportSizeClass(journalEmpty ? "" : md);
+    const path = pathFor(exportMdTarget.id);
     return {
       journalEmpty,
       sizeClassKey: sessionExportSizeClassLabelKey(est.sizeClass),
@@ -14483,6 +14512,7 @@ export function AppWorkbench() {
         journalEmpty,
         busy: exportMdBusy,
       }),
+      path,
     };
   }, [
     exportMdTarget,
@@ -14490,6 +14520,8 @@ export function AppWorkbench() {
     exportMdIncludeTools,
     exportMdBusy,
     session.sessionId,
+    session.agentSessionId,
+    sessions,
     messages,
     tr,
   ]);
@@ -14503,12 +14535,25 @@ export function AppWorkbench() {
           includeThoughts: exportMdIncludeThoughts,
           includeToolSummary: exportMdIncludeTools,
         };
-        // Prefer CLI `grok export` for full-transcript download when linked;
+        const agentLinked = (() => {
+          const id = exportMdTarget.id;
+          if (id === session.sessionId) {
+            const live = (session.agentSessionId || "").trim();
+            if (live) return live;
+          }
+          const row = sessions.find((x) => x.id === id);
+          return (row?.agentSessionId || "").trim() || null;
+        })();
+        const path = resolveSessionExportPath({
+          format: "markdown",
+          mode,
+          hasAgentSession: agentLinked,
+          cliHostAvailable: api.isTauri(),
+          options: exportOpts,
+        });
+        // Prefer CLI `grok export` for full-transcript download when path says so;
         // soft-fail to local journal (thoughts/tools options always apply locally).
-        if (
-          mode === "download" &&
-          shouldPreferCliMarkdownExport(exportOpts)
-        ) {
+        if (mode === "download" && path.preferCli) {
           try {
             const cli = await api.sessionCliExport(exportMdTarget.id);
             const md = typeof cli?.markdown === "string" ? cli.markdown : "";
@@ -14526,11 +14571,23 @@ export function AppWorkbench() {
               );
               a.click();
               URL.revokeObjectURL(url);
+              showToast(
+                tr(
+                  sessionExportDoneMessageKey(
+                    "cli",
+                  ) as Parameters<typeof tr>[0],
+                ),
+              );
               setExportMdTarget(null);
               return;
             }
-          } catch {
-            // Soft-fail: local journal below.
+          } catch (e) {
+            // Soft-fail policy: classify then always fall through to journal.
+            const kind = classifySessionExportCliError(e);
+            if (!sessionExportCliSoftFailsToJournal(kind)) {
+              toastSessionExportSoftFail(e);
+              return;
+            }
           }
         }
         const { id, title, md, journalEmpty } = await buildSessionMarkdown(
@@ -14550,6 +14607,7 @@ export function AppWorkbench() {
             toastSessionExportSoftFail(err);
             return;
           }
+          showToast(tr("session.exportCopied"));
         } else {
           try {
             const blob = new Blob([md], {
@@ -14567,6 +14625,13 @@ export function AppWorkbench() {
             toastSessionExportSoftFail(err);
             return;
           }
+          showToast(
+            tr(
+              sessionExportDoneMessageKey(
+                "journal",
+              ) as Parameters<typeof tr>[0],
+            ),
+          );
         }
         setExportMdTarget(null);
       } catch (e) {
@@ -14580,6 +14645,9 @@ export function AppWorkbench() {
       exportMdIncludeThoughts,
       exportMdIncludeTools,
       buildSessionMarkdown,
+      session.sessionId,
+      session.agentSessionId,
+      sessions,
       showToast,
       toastSessionExportSoftFail,
       tr,
@@ -22576,7 +22644,20 @@ export function AppWorkbench() {
                   "markdown",
                 ) as Parameters<typeof tr>[0],
               )}
+              {" · .md"}
             </span>
+            {exportMdHonesty.path?.badgeKeys.map((key) => (
+              <span
+                key={key}
+                className={
+                  key === "session.exportPath.cli"
+                    ? "export-md-options__chip export-md-options__chip--cli"
+                    : "export-md-options__chip"
+                }
+              >
+                {tr(key as Parameters<typeof tr>[0])}
+              </span>
+            ))}
             {exportMdHonesty.sizeClassKey ? (
               <span className="export-md-options__chip">
                 {tr("session.exportSizeHint", {
@@ -22591,6 +22672,15 @@ export function AppWorkbench() {
               </span>
             ) : null}
           </div>
+          {exportMdHonesty.path?.cliSkipReasonKey ? (
+            <p className="export-md-options__path-hint" role="status">
+              {tr(
+                exportMdHonesty.path.cliSkipReasonKey as Parameters<
+                  typeof tr
+                >[0],
+              )}
+            </p>
+          ) : null}
           {exportMdHonesty.journalEmpty === true ? (
             <p className="export-md-options__empty" role="status">
               {tr("session.exportEmpty")}
@@ -24083,8 +24173,49 @@ export function AppWorkbench() {
                     format: "html",
                   })
                 : null;
-            const emptySuffix = (empty: boolean | null) =>
-              empty === true ? ` · ${tr("session.exportEmptyShort")}` : "";
+            const menuAgentLinked = (() => {
+              if (s.id === session.sessionId) {
+                const live = (session.agentSessionId || "").trim();
+                if (live) return live;
+              }
+              return (s.agentSessionId || "").trim() || null;
+            })();
+            const pathSuffix = (
+              format: "markdown" | "plain" | "json" | "html",
+              empty: boolean | null,
+            ) => {
+              const path = resolveSessionExportPath({
+                format,
+                mode: "download",
+                hasAgentSession: menuAgentLinked,
+                cliHostAvailable: api.isTauri(),
+              });
+              const keys = sessionExportMenuSuffixKeys({
+                journalEmpty: empty,
+                path,
+              });
+              return joinSessionExportMenuSuffix(
+                keys.map((k) => tr(k as Parameters<typeof tr>[0])),
+              );
+            };
+            // Clearer format labels: short name + extension + path badges.
+            const formatMenuLabel = (
+              format: "markdown" | "plain" | "json" | "html",
+              empty: boolean | null,
+            ) => {
+              const name = tr(
+                sessionExportFormatNameKey(format) as Parameters<typeof tr>[0],
+              );
+              const ext =
+                format === "markdown"
+                  ? ".md"
+                  : format === "plain"
+                    ? ".txt"
+                    : format === "json"
+                      ? ".json"
+                      : ".html";
+              return `${name} (${ext})${pathSuffix(format, empty)}`;
+            };
 
             const exportChildren: ContextMenuItem[] = [
               {
@@ -24101,7 +24232,7 @@ export function AppWorkbench() {
               },
               {
                 id: "export-md",
-                label: `${tr("session.exportMd")}${emptySuffix(liveJournalEmptyMd)}`,
+                label: formatMenuLabel("markdown", liveJournalEmptyMd),
                 icon: <IconCopy size={16} />,
                 disabled: liveJournalEmptyMd === true,
                 onClick: () => {
@@ -24118,7 +24249,7 @@ export function AppWorkbench() {
               },
               {
                 id: "export-plain",
-                label: `${tr("session.exportPlain")}${emptySuffix(liveJournalEmptyPlain)}`,
+                label: formatMenuLabel("plain", liveJournalEmptyPlain),
                 icon: <IconCopy size={16} />,
                 disabled: liveJournalEmptyPlain === true,
                 onClick: () => {
@@ -24131,7 +24262,7 @@ export function AppWorkbench() {
               },
               {
                 id: "export-json",
-                label: `${tr("session.exportJson")}${emptySuffix(liveJournalEmptyJson)}`,
+                label: formatMenuLabel("json", liveJournalEmptyJson),
                 icon: <IconCopy size={16} />,
                 disabled: liveJournalEmptyJson === true,
                 onClick: () => {
@@ -24144,7 +24275,7 @@ export function AppWorkbench() {
               },
               {
                 id: "export-html",
-                label: `${tr("session.exportHtml")}${emptySuffix(liveJournalEmptyHtml)}`,
+                label: formatMenuLabel("html", liveJournalEmptyHtml),
                 icon: <IconCopy size={16} />,
                 disabled: liveJournalEmptyHtml === true,
                 onClick: () => {

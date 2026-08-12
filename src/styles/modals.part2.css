@@ -586,6 +586,16 @@
   background: var(--surface-muted, rgba(255, 255, 255, 0.06));
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
 }
+.export-md-options__chip--cli {
+  color: var(--accent, #6cb6ff);
+  border-color: color-mix(in srgb, var(--accent, #6cb6ff) 35%, transparent);
+}
+.export-md-options__path-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.55));
+}
 .export-md-options__empty {
   margin: 0;
   font-size: 13px;
