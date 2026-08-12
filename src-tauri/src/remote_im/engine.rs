@@ -79,10 +79,6 @@ impl ActiveTurnRegistration {
         self.remove()
     }
 
-    fn turn_id(&self) -> u64 {
-        self.id
-    }
-
     fn remove(&mut self) -> bool {
         let mut turns = self.turns.lock();
         let Some(scope_turns) = turns.get_mut(&self.scope) else {
@@ -148,13 +144,6 @@ impl Engine {
         self.reply_lang.lock().clone()
     }
 
-    fn scope_has_earlier_turn(&self, scope: &str, self_id: u64) -> bool {
-        self.active_turns
-            .lock()
-            .get(scope)
-            .is_some_and(|turns| turns.keys().any(|&id| id < self_id))
-    }
-
     pub fn upsert_instance(&self, inst: ChannelInstance) {
         self.instances.lock().insert(inst.id.clone(), inst);
     }
@@ -191,15 +180,6 @@ impl Engine {
     }
 
     fn agent_error_message(&self, error: &str) -> String {
-        if error == grok_agent::PROCESS_SUPERVISION_ERROR_CODE {
-            return i18n::t(&self.lang(), MessageKey::ProcessSupervisionFailed).into();
-        }
-        if error == grok_agent::PROCESS_LIMIT_ERROR_CODE {
-            return i18n::process_limit_user_message(
-                &self.lang(),
-                grok_agent::current_process_limit(),
-            );
-        }
         agent_error_user_message(&self.lang(), classify_rim_error(error), error)
     }
 
@@ -1057,15 +1037,9 @@ impl Engine {
             None => "/compact".to_string(),
         };
 
-        let (mut active_turn, cancel_rx) =
+        let (mut active_turn, mut cancel_rx) =
             registered.unwrap_or_else(|| self.register_active_turn(scope));
-        if self.scope_has_earlier_turn(scope, active_turn.turn_id()) {
-            let _ = self
-                .reply_msg(
-                    msg,
-                    i18n::t(&self.lang(), MessageKey::TurnAlreadyInProgress),
-                )
-                .await;
+        if grok_agent::cancellation_signaled(&mut cancel_rx) {
             return;
         }
 
@@ -1377,15 +1351,9 @@ impl Engine {
             return;
         }
 
-        let (mut active_turn, cancel_rx) =
+        let (mut active_turn, mut cancel_rx) =
             registered.unwrap_or_else(|| self.register_active_turn(scope));
-        if self.scope_has_earlier_turn(scope, active_turn.turn_id()) {
-            let _ = self
-                .reply_msg(
-                    msg,
-                    i18n::t(&self.lang(), MessageKey::TurnAlreadyInProgress),
-                )
-                .await;
+        if grok_agent::cancellation_signaled(&mut cancel_rx) {
             return;
         }
 
@@ -1935,13 +1903,12 @@ mod tests {
     }
 
     #[test]
-    fn later_turn_in_same_scope_is_busy() {
+    fn stop_marks_registered_turn_so_thinking_reply_is_skipped() {
         let engine = Engine::new_ephemeral(OutboundRouter::new(), false);
-        let (first, _first_rx) = engine.register_active_turn("scope-busy");
-        let (second, _second_rx) = engine.register_active_turn("scope-busy");
-        assert!(!engine.scope_has_earlier_turn("scope-busy", first.turn_id()));
-        assert!(engine.scope_has_earlier_turn("scope-busy", second.turn_id()));
-        assert!(!engine.scope_has_earlier_turn("scope-other", second.turn_id()));
+        let (_turn, mut cancel_rx) = engine.register_active_turn("scope-stop");
+        assert!(!grok_agent::cancellation_signaled(&mut cancel_rx));
+        assert_eq!(engine.cancel_active_turns("scope-stop"), 1);
+        assert!(grok_agent::cancellation_signaled(&mut cancel_rx));
     }
 
     #[test]

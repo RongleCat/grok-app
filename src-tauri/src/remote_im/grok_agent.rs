@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::atomic::{AtomicU32, Ordering};
+#[cfg(unix)]
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::{Child, Command};
@@ -12,82 +12,7 @@ use super::context::{extract_context_signals, ContextCompactSnapshot, ContextUsa
 
 #[cfg(unix)]
 const PROCESS_TREE_GRACE: Duration = Duration::from_millis(200);
-const VERSION_PROBE_TIMEOUT: Duration = Duration::from_secs(3);
-const STDIO_DRAIN_AFTER_EXIT: Duration = Duration::from_millis(250);
 type ConfigureCommand = fn(&mut Command);
-pub const PROCESS_SUPERVISION_ERROR_CODE: &str = "remote_im_process_supervision_failed";
-pub const PROCESS_LIMIT_ERROR_CODE: &str = "remote_im_process_limit";
-
-static LIVE_GROK_TURNS: AtomicU32 = AtomicU32::new(0);
-
-pub fn current_process_limit() -> u32 {
-    crate::process_limits::normalize_max_concurrent(
-        crate::store::load_settings().max_concurrent_agents,
-    )
-}
-
-struct ProcessSlot;
-
-impl ProcessSlot {
-    fn try_acquire() -> Option<Self> {
-        try_acquire_counter(&LIVE_GROK_TURNS, current_process_limit()).then_some(Self)
-    }
-}
-
-impl Drop for ProcessSlot {
-    fn drop(&mut self) {
-        LIVE_GROK_TURNS.fetch_sub(1, Ordering::SeqCst);
-    }
-}
-
-fn try_acquire_counter(counter: &AtomicU32, max: u32) -> bool {
-    let max = max.max(1);
-    loop {
-        let current = counter.load(Ordering::SeqCst);
-        if current >= max {
-            return false;
-        }
-        if counter
-            .compare_exchange(current, current + 1, Ordering::SeqCst, Ordering::SeqCst)
-            .is_ok()
-        {
-            return true;
-        }
-    }
-}
-
-fn process_limit_result() -> GrokTurnResult {
-    GrokTurnResult {
-        text: String::new(),
-        session_id: None,
-        error: Some(PROCESS_LIMIT_ERROR_CODE.into()),
-        usage: None,
-        compact: None,
-        cancelled: false,
-    }
-}
-
-async fn finish_stdio_after_leader_exit<T: Default>(
-    task: &mut tokio::task::JoinHandle<T>,
-    cancel: &mut Option<oneshot::Receiver<()>>,
-    child: &mut Child,
-    process_tree: &ProcessTree,
-) -> Result<T, GrokTurnResult> {
-    tokio::select! {
-        biased;
-        _ = wait_for_cancellation(cancel) => {
-            terminate_and_reap(child, process_tree).await;
-            task.abort();
-            let _ = task.await;
-            Err(cancelled_result())
-        }
-        result = &mut *task => Ok(result.unwrap_or_default()),
-        _ = tokio::time::sleep(STDIO_DRAIN_AFTER_EXIT) => {
-            task.abort();
-            Ok(task.await.unwrap_or_default())
-        }
-    }
-}
 
 pub struct GrokTurnResult {
     pub text: String,
@@ -110,10 +35,18 @@ fn cancelled_result() -> GrokTurnResult {
 }
 
 fn cancellation_requested(cancel: &mut Option<oneshot::Receiver<()>>) -> bool {
-    match cancel.as_mut().map(oneshot::Receiver::try_recv) {
-        Some(Ok(())) | Some(Err(oneshot::error::TryRecvError::Closed)) => true,
-        Some(Err(oneshot::error::TryRecvError::Empty)) | None => false,
+    match cancel.as_mut() {
+        Some(cancel_rx) => cancellation_signaled(cancel_rx),
+        None => false,
     }
+}
+
+/// True when `/stop` already fired this oneshot (or the sender was dropped).
+pub fn cancellation_signaled(cancel_rx: &mut oneshot::Receiver<()>) -> bool {
+    !matches!(
+        cancel_rx.try_recv(),
+        Err(oneshot::error::TryRecvError::Empty)
+    )
 }
 
 async fn wait_for_cancellation(cancel: &mut Option<oneshot::Receiver<()>>) {
@@ -177,106 +110,23 @@ async fn terminate_and_reap(child: &mut Child, process_tree: &ProcessTree) {
     }
 }
 
-async fn read_version_cancellable(
-    binary: &Path,
+/// Wait for a stdio reader. `/stop` can still unstick a hung pipe; a successful
+/// turn waits for EOF the same way as before this change.
+async fn await_stdio_or_cancel<T: Default>(
+    task: &mut tokio::task::JoinHandle<T>,
     cancel: &mut Option<oneshot::Receiver<()>>,
-) -> Result<Option<String>, ()> {
-    if cancellation_requested(cancel) {
-        return Err(());
-    }
-
-    let mut cmd = Command::new(binary);
-    cmd.arg("--version")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
-    crate::process_util::apply_cli_env_tokio(&mut cmd);
-    configure_process_tree(&mut cmd);
-
-    let mut child = match cmd.spawn() {
-        Ok(child) => child,
-        Err(_) => return Ok(None),
-    };
-    let process_tree = ProcessTree::capture(&child);
-    let stdout = child.stdout.take();
-    let stderr = child.stderr.take();
-    let mut output_task = tokio::spawn(async move {
-        let stdout = async move {
-            let mut bytes = Vec::new();
-            if let Some(mut stdout) = stdout {
-                let _ = stdout.read_to_end(&mut bytes).await;
-            }
-            bytes
-        };
-        let stderr = async move {
-            let mut bytes = Vec::new();
-            if let Some(mut stderr) = stderr {
-                let _ = stderr.read_to_end(&mut bytes).await;
-            }
-            bytes
-        };
-        tokio::join!(stdout, stderr)
-    });
-    let deadline = tokio::time::sleep(VERSION_PROBE_TIMEOUT);
-    tokio::pin!(deadline);
-
-    let status = tokio::select! {
+    child: &mut Child,
+    process_tree: &ProcessTree,
+) -> Result<T, GrokTurnResult> {
+    tokio::select! {
         biased;
         _ = wait_for_cancellation(cancel) => {
-            terminate_and_reap(&mut child, &process_tree).await;
-            output_task.abort();
-            let _ = output_task.await;
-            return Err(());
+            terminate_and_reap(child, process_tree).await;
+            task.abort();
+            let _ = task.await;
+            Err(cancelled_result())
         }
-        _ = &mut deadline => {
-            tracing::warn!(
-                path = %binary.display(),
-                "remote_im: cli --version timed out after {}s",
-                VERSION_PROBE_TIMEOUT.as_secs()
-            );
-            terminate_and_reap(&mut child, &process_tree).await;
-            output_task.abort();
-            let _ = output_task.await;
-            return Ok(None);
-        }
-        status = child.wait() => status,
-    };
-
-    let (stdout, stderr) = tokio::select! {
-        biased;
-        _ = wait_for_cancellation(cancel) => {
-            terminate_and_reap(&mut child, &process_tree).await;
-            output_task.abort();
-            let _ = output_task.await;
-            return Err(());
-        }
-        _ = &mut deadline => {
-            tracing::warn!(
-                path = %binary.display(),
-                "remote_im: cli --version pipes timed out after {}s",
-                VERSION_PROBE_TIMEOUT.as_secs()
-            );
-            terminate_and_reap(&mut child, &process_tree).await;
-            output_task.abort();
-            let _ = output_task.await;
-            return Ok(None);
-        }
-        result = &mut output_task => result.unwrap_or_default(),
-    };
-
-    let first_line = |bytes: &[u8]| {
-        String::from_utf8_lossy(bytes)
-            .lines()
-            .next()
-            .map(str::trim)
-            .filter(|line| !line.is_empty())
-            .map(str::to_string)
-    };
-    match status {
-        Ok(status) if status.success() => Ok(first_line(&stdout)),
-        Ok(_) => Ok(first_line(&stderr).filter(|line| line.to_ascii_lowercase().contains("grok"))),
-        Err(_) => Ok(None),
+        result = &mut *task => Ok(result.unwrap_or_default()),
     }
 }
 
@@ -396,10 +246,7 @@ async fn run_turn_with_binary_and_env(
     }
     // Soft-fail older CLIs for bg-wait flags and partial stream format upgrade.
     let settings = crate::store::load_settings();
-    let cli_ver = match read_version_cancellable(binary, &mut cancel).await {
-        Ok(version) => version,
-        Err(()) => return cancelled_result(),
-    };
+    let cli_ver = crate::cli_probe::read_version_of(binary);
     let bg_wait =
         crate::acp_client::background_wait_spawn_flags_from_settings(&settings, cli_ver.as_deref());
     let (fmt, partial) =
@@ -416,10 +263,6 @@ async fn run_turn_with_binary_and_env(
     if cancellation_requested(&mut cancel) {
         return cancelled_result();
     }
-
-    let Some(_slot) = ProcessSlot::try_acquire() else {
-        return process_limit_result();
-    };
 
     let mut cmd = Command::new(binary);
     cmd.args(&args)
@@ -477,7 +320,6 @@ async fn run_turn_with_binary_and_env(
     });
 
     let mut cancelled = false;
-    let mut status = None;
     if let Some(out) = stdout {
         let mut lines = BufReader::new(out).lines();
         loop {
@@ -485,10 +327,6 @@ async fn run_turn_with_binary_and_env(
                 biased;
                 _ = wait_for_cancellation(&mut cancel) => {
                     cancelled = true;
-                    None
-                }
-                wait = child.wait(), if status.is_none() => {
-                    status = Some(wait);
                     None
                 }
                 line = lines.next_line() => Some(line),
@@ -553,39 +391,35 @@ async fn run_turn_with_binary_and_env(
         }
     }
 
-    if cancelled {
+    let status = if cancelled {
         terminate_and_reap(&mut child, &process_tree).await;
-        stderr_task.abort();
-        let _ = stderr_task.await;
-        return cancelled_result();
-    }
-    if status.is_none() {
+        None
+    } else {
         let wait_result = tokio::select! {
             biased;
             _ = wait_for_cancellation(&mut cancel) => None,
             wait = child.wait() => Some(wait),
         };
         match wait_result {
-            Some(wait) => status = Some(wait),
+            Some(wait) => Some(wait),
             None => {
+                cancelled = true;
                 terminate_and_reap(&mut child, &process_tree).await;
-                stderr_task.abort();
-                let _ = stderr_task.await;
-                return cancelled_result();
+                None
             }
         }
-    }
-    let stderr_text = match finish_stdio_after_leader_exit(
-        &mut stderr_task,
-        &mut cancel,
-        &mut child,
-        &process_tree,
-    )
-    .await
-    {
-        Ok(text) => text,
-        Err(cancelled) => return cancelled,
     };
+    if cancelled {
+        stderr_task.abort();
+        let _ = stderr_task.await;
+        return cancelled_result();
+    }
+    let stderr_text =
+        match await_stdio_or_cancel(&mut stderr_task, &mut cancel, &mut child, &process_tree).await
+        {
+            Ok(text) => text,
+            Err(cancelled) => return cancelled,
+        };
     if let Some(Ok(st)) = status {
         if !st.success() && acc.trim().is_empty() {
             let se = stderr_text.trim();
@@ -775,9 +609,7 @@ async fn run_turn_simple(
         }
     };
     let (stdout, stderr) =
-        match finish_stdio_after_leader_exit(&mut output_task, cancel, &mut child, &process_tree)
-            .await
-        {
+        match await_stdio_or_cancel(&mut output_task, cancel, &mut child, &process_tree).await {
             Ok(pair) => pair,
             Err(cancelled) => return cancelled,
         };
@@ -870,13 +702,11 @@ mod tests {
     }
 
     #[test]
-    fn process_slot_counter_respects_cap() {
-        let counter = AtomicU32::new(0);
-        assert!(try_acquire_counter(&counter, 1));
-        assert!(!try_acquire_counter(&counter, 1));
-        assert_eq!(counter.load(Ordering::SeqCst), 1);
-        counter.fetch_sub(1, Ordering::SeqCst);
-        assert!(try_acquire_counter(&counter, 1));
+    fn cancellation_signaled_after_stop() {
+        let (tx, mut rx) = oneshot::channel();
+        assert!(!cancellation_signaled(&mut rx));
+        tx.send(()).expect("receiver still alive");
+        assert!(cancellation_signaled(&mut rx));
     }
 
     #[test]
@@ -1068,151 +898,6 @@ mod tests {
         assert!(
             !process_exists(descendant_pid),
             "descendant holding stderr survived cancellation"
-        );
-
-        let _ = std::fs::remove_file(parent_pid_file);
-        let _ = std::fs::remove_file(descendant_pid_file);
-        let _ = std::fs::remove_file(fake_grok);
-        let _ = std::fs::remove_dir(test_dir);
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn successful_turn_returns_while_descendant_holds_stderr() {
-        use std::os::unix::fs::PermissionsExt;
-
-        let test_dir = std::env::temp_dir().join(format!(
-            "grok-app-remote-im-no-wait-{}",
-            uuid::Uuid::new_v4()
-        ));
-        std::fs::create_dir(&test_dir).expect("create no_wait test directory");
-        let fake_grok = test_dir.join("grok");
-        let parent_pid_file = test_dir.join("grok.pid");
-        let descendant_pid_file = test_dir.join("descendant.pid");
-        std::fs::write(
-            &fake_grok,
-            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then\n  echo 'grok 1.0.0'\n  exit 0\nfi\nprintf '%s' \"$$\" > \"$(dirname \"$0\")/grok.pid\"\nsleep 600 >&2 &\ndescendant=$!\nprintf '%s' \"$descendant\" > \"$(dirname \"$0\")/descendant.pid\"\nexit 0\n",
-        )
-        .expect("write fake grok executable");
-        let mut permissions = std::fs::metadata(&fake_grok)
-            .expect("stat fake grok executable")
-            .permissions();
-        permissions.set_mode(0o755);
-        std::fs::set_permissions(&fake_grok, permissions).expect("make fake grok executable");
-
-        let fake_grok_for_turn = fake_grok.clone();
-        let work_dir = test_dir.clone();
-        let turn = tokio::spawn(async move {
-            run_turn_with_binary_and_env(
-                &fake_grok_for_turn,
-                &work_dir,
-                "return while background holds stderr",
-                None,
-                false,
-                None,
-                None,
-                |_| {},
-            )
-            .await
-        });
-
-        let result = tokio::time::timeout(std::time::Duration::from_secs(2), turn)
-            .await
-            .expect("successful no_wait turn hung waiting for inherited stderr")
-            .expect("turn task panicked");
-        assert!(!result.cancelled, "successful turn was marked cancelled");
-        assert!(
-            result.error.is_none(),
-            "successful turn returned an error: {:?}",
-            result.error
-        );
-
-        let descendant_pid = std::fs::read_to_string(&descendant_pid_file)
-            .ok()
-            .and_then(|raw| raw.trim().parse::<u32>().ok())
-            .expect("descendant pid was not recorded");
-        assert!(
-            process_exists(descendant_pid),
-            "background process holding stderr was killed on successful return"
-        );
-        let _ = std::process::Command::new("kill")
-            .args(["-9", &descendant_pid.to_string()])
-            .status();
-
-        let _ = std::fs::remove_file(parent_pid_file);
-        let _ = std::fs::remove_file(descendant_pid_file);
-        let _ = std::fs::remove_file(fake_grok);
-        let _ = std::fs::remove_dir(test_dir);
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn cancellation_kills_version_probe_descendants_holding_pipes() {
-        use std::os::unix::fs::PermissionsExt;
-
-        let test_dir = std::env::temp_dir().join(format!(
-            "grok-app-remote-im-version-cancel-{}",
-            uuid::Uuid::new_v4()
-        ));
-        std::fs::create_dir(&test_dir).expect("create version cancellation test directory");
-        let fake_grok = test_dir.join("grok");
-        let parent_pid_file = test_dir.join("version.pid");
-        let descendant_pid_file = test_dir.join("version-descendant.pid");
-        std::fs::write(
-            &fake_grok,
-            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then\n  printf '%s' \"$$\" > \"$(dirname \"$0\")/version.pid\"\n  sleep 600 >&2 &\n  descendant=$!\n  printf '%s' \"$descendant\" > \"$(dirname \"$0\")/version-descendant.pid\"\n  exit 0\nfi\nexit 1\n",
-        )
-        .expect("write fake grok executable");
-        let mut permissions = std::fs::metadata(&fake_grok)
-            .expect("stat fake grok executable")
-            .permissions();
-        permissions.set_mode(0o755);
-        std::fs::set_permissions(&fake_grok, permissions).expect("make fake grok executable");
-
-        let (cancel_tx, cancel_rx) = oneshot::channel();
-        let fake_grok_for_probe = fake_grok.clone();
-        let probe = tokio::spawn(async move {
-            let mut cancel = Some(cancel_rx);
-            read_version_cancellable(&fake_grok_for_probe, &mut cancel).await
-        });
-
-        let (parent_pid, descendant_pid) =
-            tokio::time::timeout(std::time::Duration::from_secs(2), async {
-                loop {
-                    if let (Ok(parent), Ok(descendant)) = (
-                        std::fs::read_to_string(&parent_pid_file),
-                        std::fs::read_to_string(&descendant_pid_file),
-                    ) {
-                        if let (Ok(parent), Ok(descendant)) = (
-                            parent.trim().parse::<u32>(),
-                            descendant.trim().parse::<u32>(),
-                        ) {
-                            if !process_exists(parent) && process_exists(descendant) {
-                                break (parent, descendant);
-                            }
-                        }
-                    }
-                    tokio::task::yield_now().await;
-                }
-            })
-            .await
-            .expect("version leader did not exit while its descendant kept stderr open");
-
-        cancel_tx
-            .send(())
-            .expect("version probe dropped its cancellation receiver");
-        let result = tokio::time::timeout(std::time::Duration::from_secs(2), probe)
-            .await
-            .expect("version probe did not return after cancellation")
-            .expect("version probe task panicked");
-        assert!(result.is_err(), "version probe did not report cancellation");
-        assert!(
-            !process_exists(parent_pid),
-            "version leader unexpectedly returned"
-        );
-        assert!(
-            !process_exists(descendant_pid),
-            "version descendant holding stderr survived cancellation"
         );
 
         let _ = std::fs::remove_file(parent_pid_file);
