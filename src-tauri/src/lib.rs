@@ -1273,6 +1273,8 @@ pub fn run() {
 
             commands::providers_list_models,
 
+            commands::providers_test_model,
+
             commands::providers_balance,
 
             commands::providers_cc_switch_scan,

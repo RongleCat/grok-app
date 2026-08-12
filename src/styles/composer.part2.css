@@ -617,7 +617,7 @@
 .prov-models__row,
 .prov-models__add-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 36px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
@@ -658,6 +658,33 @@
 
 .prov-models__remove:hover:not(:disabled) {
   color: var(--danger, #e07040);
+}
+
+/* Action cluster per model row: test-connection + remove. */
+.prov-models__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: end;
+}
+
+/* Per-model "test connection" button (mirrors ZCode "测试模型"). */
+.prov-models__test {
+  width: 32px;
+  height: 32px;
+  color: var(--text-tertiary);
+}
+.prov-models__test:hover:not(:disabled) {
+  color: var(--text-secondary);
+}
+.prov-models__test.is-ok {
+  color: var(--success, #3fb950);
+}
+.prov-models__test.is-error {
+  color: var(--danger, #e07040);
+}
+.prov-models__test.is-testing .g-icon {
+  animation: spin 0.8s linear infinite;
 }
 
 .prov-models__empty {
@@ -798,6 +825,10 @@
   }
 
   .prov-models__remove {
+    justify-self: end;
+  }
+
+  .prov-models__actions {
     justify-self: end;
   }
 

@@ -21,6 +21,8 @@ import {
   IconPlus,
   IconRefresh,
   IconTrash,
+  IconPlug,
+  IconAlertTriangle,
 } from "@/components/icons";
 import {
   PROVIDER_SAVE_TIMEOUT_MS,
@@ -226,6 +228,10 @@ export function ProvidersPanel({
   const [balanceResult, setBalanceResult] =
     useState<api.ProviderBalanceResult | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  /** Per-model connection-test status, keyed by request model id. */
+  const [modelTestStatus, setModelTestStatus] = useState<
+    Record<string, { state: "idle" | "testing" | "ok" | "error"; reason?: string }>
+  >({});
   /** Draft row for manually adding a model. */
   const [draftModelId, setDraftModelId] = useState("");
   const [draftModelName, setDraftModelName] = useState("");
@@ -838,6 +844,7 @@ export function ProvidersPanel({
   useEffect(() => {
     setBalanceResult(null);
     setBalanceError(null);
+    setModelTestStatus({});
   }, [editingId, form.id, form.baseUrl]);
 
   const checkBalance = async () => {
@@ -890,6 +897,69 @@ export function ProvidersPanel({
       onToast?.(msg, 4000);
     } finally {
       setBalanceBusy(false);
+    }
+  };
+
+  // Test a single model id by sending one tiny inference request (mirrors ZCode).
+  const testModelConnection = async (modelId: string) => {
+    const id = modelId.trim();
+    if (!id) return;
+    if (!form.baseUrl.trim()) {
+      const msg = tr("prov.err.needBase");
+      setModelTestStatus((s) => ({ ...s, [id]: { state: "error", reason: msg } }));
+      onToast?.(msg, 3200);
+      return;
+    }
+    if (!api.isTauri()) {
+      const msg = tr("prov.testModel.err.hostOnly");
+      setModelTestStatus((s) => ({ ...s, [id]: { state: "error", reason: msg } }));
+      onToast?.(msg, 4000);
+      return;
+    }
+    setModelTestStatus((s) => ({ ...s, [id]: { state: "testing" } }));
+    try {
+      const r = await api.providersTestModel({
+        model: id,
+        baseUrl: form.baseUrl.trim() || undefined,
+        apiKey: form.apiKey.trim() || undefined,
+        providerId: editingId ?? undefined,
+        apiBackend: form.apiBackend,
+        baseUrlFullPath: form.baseUrlFullPath,
+      });
+      if (r.ok) {
+        setModelTestStatus((s) => ({ ...s, [id]: { state: "ok" } }));
+        return;
+      }
+      // Infra failures → localized message; otherwise surface the server reason.
+      let reason: string;
+      switch (r.errorKind) {
+        case "auth":
+          reason = tr("prov.ping.err.auth");
+          break;
+        case "network":
+          reason = tr("prov.ping.err.network");
+          break;
+        case "timeout":
+          reason = tr("prov.ping.err.timeout");
+          break;
+        default:
+          reason = r.error?.trim() || tr("prov.testModel.failed");
+          break;
+      }
+      setModelTestStatus((s) => ({ ...s, [id]: { state: "error", reason } }));
+    } catch (e) {
+      const kind = classifyProviderPingError(e);
+      let reason: string;
+      if (kind === "host_only") {
+        reason = tr("prov.testModel.err.hostOnly");
+      } else if (kind === "invalid_url") {
+        reason = tr("prov.testModel.err.invalidUrl");
+      } else if (kind === "other") {
+        reason = tr("prov.ping.err.other", { detail: String(e) });
+      } else {
+        reason = tr(providerPingErrorMessageKey(kind) as MessageKey);
+      }
+      setModelTestStatus((s) => ({ ...s, [id]: { state: "error", reason } }));
     }
   };
 
@@ -1667,20 +1737,67 @@ export function ProvidersPanel({
                             autoComplete="off"
                             spellCheck={false}
                           />
-                          <button
-                            type="button"
-                            className="icon-btn prov-models__remove"
-                            onClick={() =>
-                              setForm((f) => ({
-                                ...f,
-                                models: f.models.filter((_, i) => i !== index),
-                              }))
-                            }
-                            aria-label={tr("prov.removeModel")}
-                            disabled={busy}
-                          >
-                            <IconTrash size={15} />
-                          </button>
+                          <div className="prov-models__actions">
+                            {(() => {
+                              const ts = modelTestStatus[m.id.trim()];
+                              const testState = ts?.state ?? "idle";
+                              const testCls =
+                                "icon-btn prov-models__test" +
+                                (testState === "testing"
+                                  ? " is-testing"
+                                  : testState === "ok"
+                                    ? " is-ok"
+                                    : testState === "error"
+                                      ? " is-error"
+                                      : "");
+                              const testTitle =
+                                testState === "testing"
+                                  ? tr("prov.testModel.testing")
+                                  : testState === "ok"
+                                    ? tr("prov.testModel.success")
+                                    : testState === "error"
+                                      ? ts?.reason
+                                        ? tr("prov.testModel.failedWithReason", {
+                                            reason: ts.reason,
+                                          })
+                                        : tr("prov.testModel.failed")
+                                      : tr("prov.testModel");
+                              return (
+                                <button
+                                  type="button"
+                                  className={testCls}
+                                  onClick={() => void testModelConnection(m.id)}
+                                  aria-label={tr("prov.testModel")}
+                                  title={testTitle}
+                                  disabled={busy || testState === "testing"}
+                                >
+                                  {testState === "ok" ? (
+                                    <IconCheck size={15} />
+                                  ) : testState === "error" ? (
+                                    <IconAlertTriangle size={15} />
+                                  ) : testState === "testing" ? (
+                                    <IconRefresh size={15} />
+                                  ) : (
+                                    <IconPlug size={15} />
+                                  )}
+                                </button>
+                              );
+                            })()}
+                            <button
+                              type="button"
+                              className="icon-btn prov-models__remove"
+                              onClick={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  models: f.models.filter((_, i) => i !== index),
+                                }))
+                              }
+                              aria-label={tr("prov.removeModel")}
+                              disabled={busy}
+                            >
+                              <IconTrash size={15} />
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}

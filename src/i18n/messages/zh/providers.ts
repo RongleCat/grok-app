@@ -160,6 +160,13 @@ export const zhProviders = {
   "prov.ping.err.hostOnly": "拉取模型 / 探测需要桌面端应用。",
   "prov.ping.err.invalidUrl": "Base URL 无效。请使用完整的 https://…/v1 根地址。",
   "prov.ping.err.other": "无法探测提供商（{detail}）。",
+  "prov.testModel": "测试模型",
+  "prov.testModel.testing": "测试中…",
+  "prov.testModel.success": "连接成功",
+  "prov.testModel.failed": "连接失败",
+  "prov.testModel.failedWithReason": "连接失败：{reason}",
+  "prov.testModel.err.hostOnly": "测试模型需要桌面端应用。",
+  "prov.testModel.err.invalidUrl": "Base URL 无效。请使用完整的 https://…/v1 根地址。",
   "prov.switchedToIndependent":
     "已自动切换到独立会话数据模式，以便在无官方登录时使用该第三方通道（写入 agent-home 配置）。可在 设置 → 通用 → 会话数据 查看。",
 };

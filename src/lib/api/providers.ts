@@ -347,6 +347,46 @@ export async function providersListModels(opts: {
   });
 }
 
+/** Per-model connection probe result (success = HTTP 2xx). */
+export interface ProviderTestResult {
+  ok: boolean;
+  latencyMs: number;
+  endpoint: string;
+  status?: number;
+  errorKind?:
+    | "auth"
+    | "model_not_found"
+    | "rate_limit"
+    | "server"
+    | "network"
+    | "timeout"
+    | "unknown"
+    | string;
+  error?: string;
+}
+
+/**
+ * Test whether a specific model id is usable on a custom provider by sending
+ * one tiny non-streaming inference request. Mirrors ZCode's "测试模型" probe.
+ */
+export async function providersTestModel(opts: {
+  model: string;
+  baseUrl?: string;
+  apiKey?: string;
+  providerId?: string;
+  apiBackend?: string;
+  baseUrlFullPath?: boolean;
+}) {
+  return invoke<ProviderTestResult>("providers_test_model", {
+    baseUrl: opts.baseUrl ?? null,
+    apiKey: opts.apiKey ?? null,
+    providerId: opts.providerId ?? null,
+    model: opts.model,
+    apiBackend: opts.apiBackend ?? null,
+    baseUrlFullPath: opts.baseUrlFullPath ?? null,
+  });
+}
+
 /** One currency row from a provider balance probe (amounts stay strings). */
 export interface ProviderBalanceLine {
   currency: string;

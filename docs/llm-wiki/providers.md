@@ -139,6 +139,7 @@ Host must rebind both sides on every switch and before each ACP spawn (`prepare_
 | `providers_activate` | Switch official/custom route + rebind auth; recycles warm agents |
 | `providers_ping` | `GET {base}/models` RTT |
 | `providers_list_models` | Fetch remote model ids |
+| `providers_test_model` | Per-model probe: one tiny non-streaming inference request to `{base}/chat/completions` (\| `/responses` \| `/v1/messages` by `api_backend`); success = HTTP 2xx |
 | `providers_balance` | Account balance / plan probe (Phase 1: **DeepSeek only**) |
 | `providers_cc_switch_scan` | Read-only scan of local **CC Switch** Grok Build providers |
 | `providers_cc_switch_import` | Import selected CC Switch rows into custom providers |

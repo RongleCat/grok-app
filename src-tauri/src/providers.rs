@@ -133,6 +133,20 @@ pub struct ProviderPingResult {
     pub error: Option<String>,
 }
 
+/// Result of a per-model connection probe (mirrors ZCode's connectivity test):
+/// sends one tiny non-streaming inference request and reports success = HTTP 2xx.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderTestResult {
+    pub ok: bool,
+    pub latency_ms: u64,
+    pub endpoint: String,
+    pub status: Option<u16>,
+    /// `auth` | `model_not_found` | `rate_limit` | `server` | `network` | `timeout` | `unknown`
+    pub error_kind: Option<String>,
+    pub error: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteModelsResult {
@@ -1559,6 +1573,228 @@ pub async fn list_remote_models(
     }
     models.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(RemoteModelsResult { endpoint, models })
+}
+
+// ── Per-model connection probe (mirrors ZCode "测试模型") ─────────────────────
+
+fn classify_test_status(status: u16) -> &'static str {
+    match status {
+        401 | 403 => "auth",
+        404 => "model_not_found",
+        429 => "rate_limit",
+        s if s >= 500 => "server",
+        _ => "unknown",
+    }
+}
+
+/// Pull a human-readable reason out of an error response body.
+///
+/// Mirrors ZCode's `readHttpErrorMessage`: tries JSON `error` / `error.message`
+/// / `message` / `detail`, strips HTML tags, collapses whitespace, truncates to
+/// 240 chars. Falls back to `None` when nothing usable is present.
+fn extract_http_error_message(body: &str) -> Option<String> {
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let candidate = if let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed) {
+        v.get("error")
+            .and_then(|e| {
+                e.as_str().map(str::to_string).or_else(|| {
+                    e.get("message")
+                        .and_then(|m| m.as_str())
+                        .map(str::to_string)
+                })
+            })
+            .or_else(|| {
+                v.get("message")
+                    .and_then(|m| m.as_str())
+                    .map(str::to_string)
+            })
+            .or_else(|| v.get("detail").and_then(|d| d.as_str()).map(str::to_string))
+    } else {
+        None
+    };
+    let raw = candidate.unwrap_or_else(|| trimmed.to_string());
+    // strip HTML tags
+    let no_tags = raw
+        .chars()
+        .fold((String::new(), false), |(mut out, mut in_tag), c| {
+            match c {
+                '<' => in_tag = true,
+                '>' => in_tag = false,
+                _ if !in_tag => out.push(c),
+                _ => {}
+            }
+            (out, in_tag)
+        })
+        .0;
+    // collapse whitespace
+    let collapsed: String = no_tags.split_whitespace().collect::<Vec<_>>().join(" ");
+    if collapsed.is_empty() {
+        None
+    } else {
+        Some(collapsed.chars().take(240).collect())
+    }
+}
+
+/// Test whether a specific model id is usable on a custom provider by sending
+/// one tiny non-streaming inference request. Success = HTTP 2xx (mirrors ZCode).
+///
+/// Honors each channel's `api_backend` (`chat_completions` | `responses` |
+/// `messages`) so a responses-only relay is not falsely flagged as failing.
+/// Probes the **real upstream**, unwrapping the loopback SSE-sanitize proxy
+/// the same way the balance probe does.
+pub async fn test_model_connection(
+    base_url: Option<String>,
+    api_key: Option<String>,
+    provider_id: Option<String>,
+    model: String,
+    api_backend: Option<String>,
+    base_url_full_path: Option<bool>,
+) -> Result<ProviderTestResult, String> {
+    let model = model.trim().to_string();
+    if model.is_empty() {
+        return Err("model id is required to test connection".into());
+    }
+
+    // Resolve base URL; unwrap loopback SSE-sanitize proxy → real upstream.
+    let mut base = base_url.unwrap_or_default().trim().to_string();
+    let mut fields_opt: Option<std::collections::HashMap<String, String>> = None;
+    if base.is_empty() {
+        fields_opt = resolve_provider_fields(provider_id.as_deref());
+        if let Some(ref fields) = fields_opt {
+            base = crate::relay_stream_proxy::effective_upstream_base(fields);
+        }
+    } else if crate::relay_stream_proxy::is_local_sanitize_proxy_url(&base) {
+        fields_opt = resolve_provider_fields(provider_id.as_deref());
+        if let Some(ref fields) = fields_opt {
+            let up = crate::relay_stream_proxy::effective_upstream_base(fields);
+            if !up.is_empty() {
+                base = up;
+            }
+        }
+    }
+    if !(base.starts_with("http://") || base.starts_with("https://")) {
+        return Err("base_url must start with http:// or https://".into());
+    }
+
+    // Resolve api key (form value wins; else stored config).
+    let mut key = api_key.unwrap_or_default().trim().to_string();
+    if key.is_empty() {
+        key = resolve_stored_key(provider_id.as_deref());
+    }
+
+    // Resolve backend + full_path (form value wins; else stored config).
+    let caller_backend = api_backend
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let mut backend = normalize_backend(caller_backend);
+    let mut full_path = base_url_full_path.unwrap_or(false);
+    if let Some(ref fields) = fields_opt {
+        if caller_backend.is_none() {
+            if let Some(b) = fields.get("api_backend") {
+                backend = normalize_backend(Some(b));
+            }
+        }
+        if !full_path {
+            full_path = base_url_full_path_from_fields(fields);
+        }
+    }
+
+    let root = normalize_openai_base_url(&base, &backend, full_path);
+    // Per-backend endpoint path + minimal body (matches ZCode connectivity probe).
+    let (path, body) = match backend.as_str() {
+        "responses" => (
+            "/responses",
+            serde_json::json!({ "model": model, "input": "hi", "max_output_tokens": 1 })
+                .to_string(),
+        ),
+        "messages" => (
+            // Anthropic-style: normalize_openai_base_url already ensured `/v1`.
+            "/messages",
+            serde_json::json!({
+                "model": model,
+                "max_tokens": 1,
+                "messages": [{ "role": "user", "content": "hi" }]
+            })
+            .to_string(),
+        ),
+        _ => (
+            // chat_completions (default)
+            "/chat/completions",
+            serde_json::json!({
+                "model": model,
+                "max_tokens": 1,
+                "messages": [{ "role": "user", "content": "hi" }]
+            })
+            .to_string(),
+        ),
+    };
+    let endpoint = format!("{root}{path}");
+
+    let client = crate::proxy::apply_to_reqwest(reqwest::Client::builder())
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let t0 = Instant::now();
+    let mut req = client
+        .post(&endpoint)
+        .header("content-type", "application/json")
+        .header("accept", "application/json")
+        .header("Authorization", format!("Bearer {key}"));
+    // Anthropic-style channels need the version header + x-api-key (ZCode sends both).
+    if backend == "messages" {
+        req = req
+            .header("anthropic-version", "2023-06-01")
+            .header("x-api-key", &key);
+    }
+
+    match req.body(body).send().await {
+        Ok(res) => {
+            let status_code = res.status().as_u16();
+            let text = res.text().await.unwrap_or_default();
+            let latency_ms = t0.elapsed().as_millis() as u64;
+            if res_is_success(status_code) {
+                return Ok(ProviderTestResult {
+                    ok: true,
+                    latency_ms,
+                    endpoint,
+                    status: Some(status_code),
+                    error_kind: None,
+                    error: None,
+                });
+            }
+            let error_kind = classify_test_status(status_code).to_string();
+            let error =
+                extract_http_error_message(&text).unwrap_or_else(|| format!("HTTP {status_code}"));
+            Ok(ProviderTestResult {
+                ok: false,
+                latency_ms,
+                endpoint,
+                status: Some(status_code),
+                error_kind: Some(error_kind),
+                error: Some(error),
+            })
+        }
+        Err(e) => {
+            let latency_ms = t0.elapsed().as_millis() as u64;
+            let error_kind = if e.is_timeout() { "timeout" } else { "network" };
+            Ok(ProviderTestResult {
+                ok: false,
+                latency_ms,
+                endpoint,
+                status: None,
+                error_kind: Some(error_kind.into()),
+                error: Some(e.to_string()),
+            })
+        }
+    }
+}
+
+fn res_is_success(status: u16) -> bool {
+    (200..300).contains(&status)
 }
 
 // ── Provider balance probe (DeepSeek first; extensible adapters) ─────────────
