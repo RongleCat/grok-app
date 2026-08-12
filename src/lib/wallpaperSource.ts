@@ -66,21 +66,34 @@ export function parseWallpaperSourceError(err: unknown): WallpaperSourceErrorCod
   const s = raw.toLowerCase();
   if (s.includes("auth_required")) return "auth_required";
   if (s.includes("cli_missing")) return "cli_missing";
-  if (s.includes("url_blocked")) return "url_blocked";
+  if (
+    s.includes("url_blocked") ||
+    s.includes("path_not_allowed") ||
+    s.includes("path_denied")
+  ) {
+    return "url_blocked";
+  }
   // Local media:// / path reads used when applying Imagine / library items
   if (
     s.includes("download_failed") ||
-    s.includes("download") ||
     s.includes("read_failed") ||
-    s.includes("short read")
+    s.includes("short read") ||
+    (s.includes("download") && !s.includes("delete"))
   ) {
     return "download_failed";
   }
   if (s.includes("desktop_only")) return "generic";
-  if (s.includes("imagine_failed") || s.includes("imagine")) return "imagine_failed";
-  if (s.includes("timeout")) return "timeout";
+  // timeout before imagine so "imagine timeout" is not swallowed as imagine_failed
+  if (s.includes("timeout") || s.includes("timed out")) return "timeout";
+  if (s.includes("imagine_failed")) return "imagine_failed";
+  // wallpaper_imagine command path failures (not every string with "imagine")
+  if (s.includes("wallpaper_imagine") || /\bimagine\b/.test(s)) {
+    return "imagine_failed";
+  }
   if (s.includes("empty")) return "empty";
   if (s.includes("search_failed") || s.includes("search")) return "search_failed";
+  // delete soft-fail stays generic — UI shows warn without inventing success
+  if (s.includes("delete_failed")) return "generic";
   return "generic";
 }
 
@@ -279,3 +292,102 @@ export function resolveApplySource(
   }
   return { kind: "url", url: item.fullUrl };
 }
+
+// ── Library (x / imagine disk cache) ─────────────────────────────────────────
+
+/** Stable id for a library disk row (path + mtime). */
+export function libraryEntryId(entry: WallpaperLibraryEntry): string {
+  const path = (entry.path || "").trim();
+  const name = (entry.name || path.split(/[/\\]/).pop() || "file").trim();
+  return `library-${entry.modifiedMs}-${name}-${shortHash(path || name)}`;
+}
+
+function shortHash(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
+
+/** True when library entry is a still image (static-first library apply). */
+export function isStaticImageLibraryEntry(
+  entry: Pick<WallpaperLibraryEntry, "kind" | "name">,
+): boolean {
+  const kind = String(entry.kind || "").toLowerCase();
+  if (kind === "video" || kind.startsWith("video/")) return false;
+  const name = String(entry.name || "").toLowerCase();
+  if (/\.(mp4|m4v|webm|mov)(\?|$)/i.test(name)) return false;
+  return true;
+}
+
+/**
+ * Sort library rows with static images first (then by modifiedMs desc).
+ * Does not invent rows — only reorders / optionally drops video.
+ */
+export function sortLibraryEntriesStaticFirst(
+  entries: readonly WallpaperLibraryEntry[],
+  opts?: { imagesOnly?: boolean },
+): WallpaperLibraryEntry[] {
+  const imagesOnly = opts?.imagesOnly === true;
+  const list = imagesOnly
+    ? entries.filter(isStaticImageLibraryEntry)
+    : [...entries];
+  return list.sort((a, b) => {
+    const av = isStaticImageLibraryEntry(a) ? 0 : 1;
+    const bv = isStaticImageLibraryEntry(b) ? 0 : 1;
+    if (av !== bv) return av - bv;
+    return (b.modifiedMs || 0) - (a.modifiedMs || 0);
+  });
+}
+
+/** Map a host library row to a gallery card (local path only). */
+export function libraryEntryToGalleryItem(
+  entry: WallpaperLibraryEntry,
+): WallpaperGalleryItem {
+  const path = (entry.path || "").trim();
+  const abs = path.startsWith("file://")
+    ? decodeURIComponent(path.replace(/^file:\/\//, ""))
+    : path;
+  const fileUrl = abs ? `file://${abs}` : "";
+  const kind =
+    String(entry.kind || "").toLowerCase() === "video" ||
+    /\.(mp4|m4v|webm|mov)$/i.test(entry.name || abs)
+      ? "video"
+      : "image";
+  const source = (entry.source || "library").trim() || "library";
+  return {
+    id: libraryEntryId(entry),
+    thumbUrl: fileUrl,
+    fullUrl: fileUrl,
+    kind,
+    source,
+    localPath: abs || null,
+    textPreview: entry.name || null,
+    username: null,
+    postUrl: null,
+    prompt: null,
+    likes: null,
+    width: null,
+    height: null,
+  };
+}
+
+/**
+ * Convert host library list → gallery items.
+ * `staticFirst` (default true): images before video, no invented CDN rows.
+ * `imagesOnly`: drop video rows entirely (static-first library apply path).
+ */
+export function libraryEntriesToGalleryItems(
+  entries: readonly WallpaperLibraryEntry[],
+  opts?: { staticFirst?: boolean; imagesOnly?: boolean },
+): WallpaperGalleryItem[] {
+  const staticFirst = opts?.staticFirst !== false;
+  const ordered = staticFirst
+    ? sortLibraryEntriesStaticFirst(entries, { imagesOnly: opts?.imagesOnly })
+    : opts?.imagesOnly
+      ? entries.filter(isStaticImageLibraryEntry)
+      : [...entries];
+  return dedupeGalleryItems(ordered.map(libraryEntryToGalleryItem));
+}
+

@@ -3,11 +3,16 @@ import {
   dedupeGalleryItems,
   errorCodeFromSearchResult,
   fetchEntireMediaBlob,
+  isStaticImageLibraryEntry,
+  libraryEntriesToGalleryItems,
+  libraryEntryToGalleryItem,
   MEDIA_PROTO_CHUNK,
   parseContentRangeTotal,
   parseWallpaperSourceError,
   resolveApplySource,
+  sortLibraryEntriesStaticFirst,
   type WallpaperGalleryItem,
+  type WallpaperLibraryEntry,
 } from "./wallpaperSource";
 
 function item(
@@ -28,6 +33,13 @@ describe("wallpaperSource", () => {
       "download_failed",
     );
     expect(parseWallpaperSourceError("url_blocked")).toBe("url_blocked");
+    expect(parseWallpaperSourceError("path_not_allowed")).toBe("url_blocked");
+    expect(parseWallpaperSourceError("timeout")).toBe("timeout");
+    expect(parseWallpaperSourceError("imagine_failed")).toBe("imagine_failed");
+    expect(parseWallpaperSourceError("wallpaper_imagine: boom")).toBe(
+      "imagine_failed",
+    );
+    expect(parseWallpaperSourceError("delete_failed: EPERM")).toBe("generic");
     expect(parseWallpaperSourceError("something else")).toBe("generic");
   });
 
@@ -35,6 +47,12 @@ describe("wallpaperSource", () => {
     expect(
       errorCodeFromSearchResult({ items: [], errorCode: "auth_required" }),
     ).toBe("auth_required");
+    expect(
+      errorCodeFromSearchResult({ items: [], errorCode: "imagine_failed" }),
+    ).toBe("imagine_failed");
+    expect(
+      errorCodeFromSearchResult({ items: [], errorCode: "timeout" }),
+    ).toBe("timeout");
     expect(errorCodeFromSearchResult({ items: [], errorCode: null })).toBe("empty");
     expect(
       errorCodeFromSearchResult({
@@ -144,5 +162,58 @@ describe("wallpaperSource", () => {
     expect(spy.mock.calls.length).toBeGreaterThanOrEqual(3);
     // production default remains 2 MiB
     expect(MEDIA_PROTO_CHUNK).toBe(2 * 1024 * 1024);
+  });
+
+  it("maps library entries to gallery items (static first)", () => {
+    const entries: WallpaperLibraryEntry[] = [
+      {
+        path: "/w/imagine/2026-08-01/b.mp4",
+        name: "b.mp4",
+        source: "imagine",
+        kind: "video",
+        bytes: 10,
+        modifiedMs: 200,
+      },
+      {
+        path: "/w/x/2026-08-01/a.jpg",
+        name: "a.jpg",
+        source: "x",
+        kind: "image",
+        bytes: 5,
+        modifiedMs: 100,
+      },
+      {
+        path: "/w/imagine/2026-08-01/c.png",
+        name: "c.png",
+        source: "imagine",
+        kind: "image",
+        bytes: 8,
+        modifiedMs: 300,
+      },
+    ];
+    expect(isStaticImageLibraryEntry(entries[0]!)).toBe(false);
+    expect(isStaticImageLibraryEntry(entries[1]!)).toBe(true);
+
+    const sorted = sortLibraryEntriesStaticFirst(entries);
+    expect(sorted.map((e) => e.name)).toEqual(["c.png", "a.jpg", "b.mp4"]);
+
+    const imagesOnly = sortLibraryEntriesStaticFirst(entries, {
+      imagesOnly: true,
+    });
+    expect(imagesOnly.map((e) => e.name)).toEqual(["c.png", "a.jpg"]);
+
+    const items = libraryEntriesToGalleryItems(entries);
+    expect(items.map((i) => i.localPath)).toEqual([
+      "/w/imagine/2026-08-01/c.png",
+      "/w/x/2026-08-01/a.jpg",
+      "/w/imagine/2026-08-01/b.mp4",
+    ]);
+    expect(items[0]!.source).toBe("imagine");
+    expect(items[0]!.kind).toBe("image");
+    expect(items[2]!.kind).toBe("video");
+
+    const one = libraryEntryToGalleryItem(entries[1]!);
+    expect(one.localPath).toBe("/w/x/2026-08-01/a.jpg");
+    expect(one.fullUrl).toBe("file:///w/x/2026-08-01/a.jpg");
   });
 });

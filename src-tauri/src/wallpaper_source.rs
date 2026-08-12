@@ -539,17 +539,21 @@ pub(crate) fn run_grok_headless(
         .map_err(|_| "search_failed".to_string())?
         .map_err(|e| format!("cli spawn: {e}"))?;
 
-    if started.elapsed() > timeout {
-        // Process already finished; still flag if it was slow — real kill needs
-        // async child which we skip for v1 simplicity.
-        tracing::warn!(
-            "wallpaper source: headless grok took {:?}",
-            started.elapsed()
-        );
-    }
-
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let over_budget = started.elapsed() > timeout;
+    if over_budget {
+        // v1: process is not killed mid-flight; still surface timeout honesty
+        // when the budget is exceeded and we have nothing usable.
+        tracing::warn!(
+            "wallpaper source: headless grok took {:?} (budget {:?})",
+            started.elapsed(),
+            timeout
+        );
+        if stdout.trim().is_empty() || !output.status.success() {
+            return Err("timeout".into());
+        }
+    }
     if !output.status.success() && stdout.trim().is_empty() {
         tracing::warn!("wallpaper source cli failed: {stderr}");
         return Err("search_failed".into());
@@ -1081,11 +1085,11 @@ Requirements:
     ) {
         Ok(s) => s,
         Err(code) => {
-            // Map search_failed → imagine_failed for UI.
-            let code = if code == "search_failed" {
-                "imagine_failed".into()
-            } else {
-                code
+            // Honest codes for UI: keep auth_required / cli_missing / timeout;
+            // map generic search_failed → imagine_failed.
+            let code = match code.as_str() {
+                "search_failed" => "imagine_failed".into(),
+                other => other.to_string(),
             };
             return WallpaperSearchResult {
                 items: vec![],
@@ -1296,6 +1300,54 @@ fn collect_library(root: &Path, dir: &Path, out: &mut Vec<WallpaperLibraryEntry>
     }
 }
 
+/// True when `path` resolves under `root` (canonical when possible).
+/// Pure helper for library delete allowlist tests and host checks.
+pub fn is_path_under_dir(path: &Path, root: &Path) -> bool {
+    let root_c = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let candidate = if path.exists() {
+        path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+    } else if let Some(parent) = path.parent() {
+        let parent_c = parent
+            .canonicalize()
+            .unwrap_or_else(|_| parent.to_path_buf());
+        parent_c.join(path.file_name().unwrap_or_default())
+    } else {
+        path.to_path_buf()
+    };
+    candidate.starts_with(&root_c)
+}
+
+/// Soft-delete a file under the app wallpapers root.
+///
+/// - Path outside wallpapers root → `path_not_allowed`
+/// - Missing file → Ok (idempotent soft success)
+/// - IO failure → `delete_failed: …` (caller soft-fails in UI)
+pub fn library_delete(path: &str) -> Result<(), String> {
+    let raw = path.trim();
+    if raw.is_empty() {
+        return Err("path_not_allowed".into());
+    }
+    let p = PathBuf::from(raw);
+    if !p.is_absolute() {
+        return Err("path_not_allowed".into());
+    }
+    let root = wallpapers_root();
+    if !is_path_under_dir(&p, &root) {
+        return Err("path_not_allowed".into());
+    }
+    if !p.exists() {
+        return Ok(());
+    }
+    if p.is_dir() {
+        return Err("path_not_allowed".into());
+    }
+    match fs::remove_file(&p) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(format!("delete_failed: {e}")),
+    }
+}
+
 // Ensure wallpapers dir exists on module use.
 pub fn ensure_wallpaper_dirs() {
     let _ = paths::ensure_app_dirs();
@@ -1437,5 +1489,92 @@ and https://pbs.twimg.com/media/HNccFG2X0AE8gQ6.jpg?format=jpg&name=small
         let items = parse_gallery_items(&v, "x");
         assert_eq!(items.len(), 2);
         assert!(items[1].full_url.contains("name=orig") || items[1].full_url.contains("HNccFG2"));
+    }
+
+    fn test_tmp_home(label: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("grok-app-wp-lib-{}-{}", label, std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn is_path_under_dir_accepts_nested() {
+        let tmp = test_tmp_home("under");
+        let root = tmp.join("wallpapers");
+        fs::create_dir_all(root.join("x").join("2026-08-01")).unwrap();
+        let file = root.join("x").join("2026-08-01").join("a.jpg");
+        fs::write(&file, b"hi").unwrap();
+        assert!(is_path_under_dir(&file, &root));
+        assert!(!is_path_under_dir(&tmp.join("other.jpg"), &root));
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn library_delete_soft_and_scoped() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = test_tmp_home("del");
+        // SAFETY: test-only, mutex-serialized GROK_APP_HOME mutation.
+        unsafe {
+            std::env::set_var("GROK_APP_HOME", &tmp);
+        }
+        ensure_wallpaper_dirs();
+        let root = wallpapers_root();
+        let file = root.join("imagine").join("2026-08-01");
+        fs::create_dir_all(&file).unwrap();
+        let img = file.join("w.png");
+        fs::write(&img, b"png").unwrap();
+
+        library_delete(&img.display().to_string()).expect("delete ok");
+        assert!(!img.exists());
+        // Idempotent soft success when already gone
+        library_delete(&img.display().to_string()).expect("missing ok");
+
+        let outside = tmp.join("escape.jpg");
+        fs::write(&outside, b"x").unwrap();
+        let err = library_delete(&outside.display().to_string()).unwrap_err();
+        assert_eq!(err, "path_not_allowed");
+        assert!(outside.exists());
+
+        unsafe {
+            std::env::remove_var("GROK_APP_HOME");
+        }
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn library_list_collects_x_and_imagine() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = test_tmp_home("list");
+        unsafe {
+            std::env::set_var("GROK_APP_HOME", &tmp);
+        }
+        ensure_wallpaper_dirs();
+        let root = wallpapers_root();
+        let xdir = root.join("x").join("2026-08-01");
+        let idir = root.join("imagine").join("2026-08-01");
+        fs::create_dir_all(&xdir).unwrap();
+        fs::create_dir_all(&idir).unwrap();
+        fs::write(xdir.join("a.jpg"), b"a").unwrap();
+        fs::write(idir.join("b.png"), b"b").unwrap();
+        fs::write(idir.join("skip.txt"), b"no").unwrap();
+
+        let list = library_list(Some(10)).expect("list");
+        assert_eq!(list.len(), 2);
+        let sources: std::collections::HashSet<_> =
+            list.iter().map(|e| e.source.as_str()).collect();
+        assert!(sources.contains("x"));
+        assert!(sources.contains("imagine"));
+        assert!(list.iter().all(|e| e.kind == "image"));
+
+        unsafe {
+            std::env::remove_var("GROK_APP_HOME");
+        }
+        let _ = fs::remove_dir_all(&tmp);
     }
 }

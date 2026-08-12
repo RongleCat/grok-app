@@ -531,6 +531,14 @@ export function AppearanceSection() {
                               >
                                 {t("settings.wallpaperImagine")}
                               </button>
+                              <button
+                                type="button"
+                                className="btn btn--ghost btn--sm"
+                                disabled={wallpaperBusy}
+                                onClick={() => openWallpaperSource("library")}
+                              >
+                                {t("settings.wallpaperLibrary")}
+                              </button>
                             </div>
                             <WallpaperSourceModal
                               open={wallpaperSourceOpen}

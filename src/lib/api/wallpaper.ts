@@ -138,3 +138,8 @@ export interface XEvidenceStats {
 export async function xEvidenceStats(): Promise<XEvidenceStats> {
   return invoke<XEvidenceStats>("x_evidence_stats");
 }
+
+export async function wallpaperLibraryDelete(path: string): Promise<void> {
+  await invoke<void>("wallpaper_library_delete", { path });
+}
+

@@ -1369,6 +1369,8 @@ pub fn run() {
 
             commands::wallpaper_library_list,
 
+            commands::wallpaper_library_delete,
+
             commands::streaming_messages_json_probe,
 
             commands::batch_agents_headless,

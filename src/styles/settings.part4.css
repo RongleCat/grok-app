@@ -294,7 +294,8 @@
 .wallpaper-source-modal__body > .wallpaper-source-tabs,
 .wallpaper-source-modal__body > .wallpaper-source-form,
 .wallpaper-source-modal__body > .wallpaper-source-status,
-.wallpaper-source-modal__body > .wallpaper-source-error {
+.wallpaper-source-modal__body > .wallpaper-source-error,
+.wallpaper-source-modal__body > .wallpaper-source-filters {
   flex: 0 0 auto;
 }
 
@@ -803,4 +804,56 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   color: var(--text-tertiary);
+}
+
+
+/* Library card wrap: delete sits outside the preview button */
+.wallpaper-masonry__card-wrap {
+  position: relative;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 10px;
+  vertical-align: top;
+}
+
+.wallpaper-masonry--full .wallpaper-masonry__card-wrap {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.wallpaper-masonry__card-wrap .wallpaper-masonry__card {
+  display: block;
+  width: 100%;
+  margin: 0;
+}
+
+.wallpaper-masonry__delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-elevated) 88%, #000);
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 3px color-mix(in srgb, #000 25%, transparent);
+}
+
+.wallpaper-masonry__delete:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger, #e11d48) 85%, var(--bg-elevated));
+  color: #fff;
+}
+
+.wallpaper-masonry__delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

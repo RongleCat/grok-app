@@ -1150,6 +1150,14 @@ pub async fn wallpaper_library_list(
         .map_err(|e| format!("wallpaper_library_list: {e}"))?
 }
 
+#[tauri::command]
+pub async fn wallpaper_library_delete(path: String) -> Result<(), String> {
+    crate::wallpaper_source::ensure_wallpaper_dirs();
+    tauri::async_runtime::spawn_blocking(move || crate::wallpaper_source::library_delete(&path))
+        .await
+        .map_err(|e| format!("wallpaper_library_delete: {e}"))?
+}
+
 /// Headless probe: `grok -p … --output-format streaming-messages-json` (CLI 0.2.117+).
 /// Soft-fails older CLIs without spawning. Raw NDJSON returned to UI only — never logged.
 #[tauri::command]
