@@ -718,6 +718,7 @@ export function ResourceViewer({
       diffDecisionByPath={diffDecisionByPath}
       restorableAfterByPath={restorableAfterByPath}
       diffActionBusy={diffActionBusy}
+      workspaceAvailable={workspaceAvailable}
       diffHunks={diffHunks}
       remainingHunkCount={remainingHunkCount}
       onDiffCommentToChat={onDiffCommentToChat}

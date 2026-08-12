@@ -765,3 +765,469 @@ export function batchSummaryVars(summary: BatchDiffSummary): {
     total: String(summary.total),
   };
 }
+
+// ─── Action gates (honest disabled reasons) ────────────────────────────────
+
+/**
+ * Stable reasons a Changes accept/reject/restore/hunk control is disabled.
+ * UI maps via {@link diffActionDisabledMessageKey}; null reason → enabled.
+ */
+export type DiffActionDisabledReason =
+  | "need_project"
+  | "need_tauri"
+  | "busy"
+  | "no_after_snapshot"
+  | "no_before_snapshot"
+  | "no_reject_path"
+  | "conflict"
+  | "already_accepted"
+  | "already_rejected"
+  | "no_remaining"
+  | "no_hunks";
+
+export type DiffActionGate = {
+  disabled: boolean;
+  /** Present only when disabled. */
+  reason: DiffActionDisabledReason | null;
+};
+
+export type DiffFileActionGates = {
+  accept: DiffActionGate;
+  reject: DiffActionGate;
+  restore: DiffActionGate;
+};
+
+export type DiffHunkActionGates = {
+  accept: DiffActionGate;
+  reject: DiffActionGate;
+  acceptAll: DiffActionGate;
+  rejectAll: DiffActionGate;
+};
+
+function enabledGate(): DiffActionGate {
+  return { disabled: false, reason: null };
+}
+
+function disabledGate(reason: DiffActionDisabledReason): DiffActionGate {
+  return { disabled: true, reason };
+}
+
+/**
+ * File-level accept / reject / restore availability.
+ *
+ * - Accept stays enabled when `after` is missing (keep working tree / mark accepted).
+ * - Restore requires a session (or remembered) after snapshot.
+ * - Reject needs git checkout path, delete plan, or a before snapshot.
+ */
+export function planFileActionGates(opts: {
+  hasProject: boolean;
+  isTauri: boolean;
+  busy?: boolean;
+  hasGitRepo?: boolean;
+  kind?: string | null;
+  after?: string | null;
+  before?: string | null;
+  decision?: "accepted" | "rejected" | null;
+  fileExists?: boolean;
+}): DiffFileActionGates {
+  if (!opts.hasProject) {
+    const g = disabledGate("need_project");
+    return { accept: g, reject: g, restore: g };
+  }
+  if (!opts.isTauri) {
+    const g = disabledGate("need_tauri");
+    return { accept: g, reject: g, restore: g };
+  }
+  if (opts.busy) {
+    const g = disabledGate("busy");
+    return { accept: g, reject: g, restore: g };
+  }
+
+  let accept = enabledGate();
+  let reject = enabledGate();
+  let restore = enabledGate();
+
+  if (isConflictKind(opts.kind)) {
+    accept = disabledGate("conflict");
+    reject = disabledGate("conflict");
+  } else if (opts.decision === "accepted") {
+    accept = disabledGate("already_accepted");
+  }
+
+  if (opts.decision === "rejected" && !isConflictKind(opts.kind)) {
+    reject = disabledGate("already_rejected");
+  }
+
+  if (!isConflictKind(opts.kind) && reject.reason == null) {
+    const plan = planFileReject({
+      hasGitRepo: !!opts.hasGitRepo,
+      kind: opts.kind,
+      before: opts.before,
+      fileExists: opts.fileExists,
+    });
+    if (plan.mode === "unavailable") {
+      reject = disabledGate("no_reject_path");
+    }
+  }
+
+  if (!canRestoreAfter(opts.after)) {
+    restore = disabledGate("no_after_snapshot");
+  }
+
+  return { accept, reject, restore };
+}
+
+/**
+ * Hunk-level gates. Accept needs before + hunks; reject needs after + hunks.
+ * Batch “all remaining” additionally needs remaining count > 0.
+ */
+export function planHunkActionGates(opts: {
+  hasProject: boolean;
+  isTauri: boolean;
+  busy?: boolean;
+  hunkCount: number;
+  remainingCount?: number;
+  before?: string | null;
+  after?: string | null;
+}): DiffHunkActionGates {
+  if (!opts.hasProject) {
+    const g = disabledGate("need_project");
+    return { accept: g, reject: g, acceptAll: g, rejectAll: g };
+  }
+  if (!opts.isTauri) {
+    const g = disabledGate("need_tauri");
+    return { accept: g, reject: g, acceptAll: g, rejectAll: g };
+  }
+  if (opts.busy) {
+    const g = disabledGate("busy");
+    return { accept: g, reject: g, acceptAll: g, rejectAll: g };
+  }
+
+  const n = Math.max(0, Math.floor(opts.hunkCount));
+  if (n === 0) {
+    const g = disabledGate("no_hunks");
+    return { accept: g, reject: g, acceptAll: g, rejectAll: g };
+  }
+
+  const remaining =
+    opts.remainingCount != null
+      ? Math.max(0, Math.floor(opts.remainingCount))
+      : n;
+
+  let accept = enabledGate();
+  let reject = enabledGate();
+  if (!canRejectWithBefore(opts.before)) {
+    accept = disabledGate("no_before_snapshot");
+  }
+  if (!canRestoreAfter(opts.after)) {
+    reject = disabledGate("no_after_snapshot");
+  }
+
+  let acceptAll = accept.disabled
+    ? accept
+    : remaining === 0
+      ? disabledGate("no_remaining")
+      : enabledGate();
+  let rejectAll = reject.disabled
+    ? reject
+    : remaining === 0
+      ? disabledGate("no_remaining")
+      : enabledGate();
+
+  return { accept, reject, acceptAll, rejectAll };
+}
+
+/** i18n key for a disabled-reason gate (stable; add strings in workspace.ts). */
+export function diffActionDisabledMessageKey(
+  reason: DiffActionDisabledReason,
+): string {
+  switch (reason) {
+    case "need_project":
+      return "changes.needProject";
+    case "need_tauri":
+      return "changes.needTauri";
+    case "busy":
+      return "changes.actionBusy";
+    case "no_after_snapshot":
+      return "changes.disabled.noAfterSnapshot";
+    case "no_before_snapshot":
+      return "changes.disabled.noBeforeSnapshot";
+    case "no_reject_path":
+      return "changes.disabled.noRejectPath";
+    case "conflict":
+      return "changes.disabled.conflict";
+    case "already_accepted":
+      return "changes.disabled.alreadyAccepted";
+    case "already_rejected":
+      return "changes.disabled.alreadyRejected";
+    case "no_remaining":
+      return "changes.batchNothingRemaining";
+    case "no_hunks":
+      return "changes.disabled.noHunks";
+  }
+}
+
+/** Tip label: disabled reason when gated, otherwise the normal tip key. */
+export function diffActionTip(
+  gate: DiffActionGate,
+  enabledTipKey: string,
+): { messageKey: string; disabled: boolean } {
+  if (gate.disabled && gate.reason) {
+    return {
+      messageKey: diffActionDisabledMessageKey(gate.reason),
+      disabled: true,
+    };
+  }
+  return { messageKey: enabledTipKey, disabled: false };
+}
+
+// ─── Git checkout soft-fail classification ─────────────────────────────────
+
+/**
+ * Host `git_checkout_file` / `delete_project_file` failure kinds.
+ * Soft kinds may fall back to writing the before snapshot when present.
+ */
+export type GitCheckoutFailKind =
+  | "needs_untracked_confirm"
+  | "not_a_git_repo"
+  | "git_not_available"
+  | "path_denied"
+  | "path_not_found"
+  | "untracked_dir"
+  | "checkout_failed"
+  | "delete_failed"
+  | "other";
+
+function checkoutReasonText(reason: string | null | undefined): string {
+  return (reason || "").trim().toLowerCase();
+}
+
+/**
+ * Classify a Host checkout/delete result. Returns null when `ok` and no
+ * untracked confirm is required. Never invents success.
+ */
+export function classifyGitCheckoutFailure(res: {
+  ok?: boolean;
+  needsUntrackedConfirm?: boolean;
+  reason?: string | null;
+  action?: string | null;
+}): GitCheckoutFailKind | null {
+  if (res.needsUntrackedConfirm) return "needs_untracked_confirm";
+  if (res.ok) return null;
+
+  const r = checkoutReasonText(res.reason);
+  if (!r) return "other";
+
+  if (
+    r.includes("untracked file requires confirm") ||
+    r.includes("requires confirm")
+  ) {
+    return "needs_untracked_confirm";
+  }
+  if (r.includes("not a git") || r.includes("not a git repository")) {
+    return "not_a_git_repo";
+  }
+  if (
+    r.includes("git not available") ||
+    r === "git not available" ||
+    r.includes("git binary") ||
+    r.includes("no git")
+  ) {
+    return "git_not_available";
+  }
+  if (
+    r.includes("path not allowed") ||
+    r.includes("outside project") ||
+    r.includes("escapes project") ||
+    r.includes("not under project")
+  ) {
+    return "path_denied";
+  }
+  if (
+    r.includes("path not found") ||
+    r.includes("no such file") ||
+    r.includes("empty path") ||
+    r.includes("file already absent")
+  ) {
+    return "path_not_found";
+  }
+  if (
+    r.includes("refusing to delete untracked directory") ||
+    r.includes("untracked directory")
+  ) {
+    return "untracked_dir";
+  }
+  if (r.includes("delete untracked") || r.startsWith("delete ")) {
+    return "delete_failed";
+  }
+  if (
+    r.includes("git checkout") ||
+    r.includes("checkout failed") ||
+    r.includes("git restore") ||
+    r.includes("did not match") ||
+    r.includes("pathspec")
+  ) {
+    return "checkout_failed";
+  }
+  return "other";
+}
+
+/** Soft kinds where writing the before snapshot is a safe fallback. */
+export function canFallbackToBeforeWrite(
+  kind: GitCheckoutFailKind | null,
+): boolean {
+  return kind === "not_a_git_repo" || kind === "git_not_available";
+}
+
+/** i18n key for a classified checkout failure (detail still in `{reason}` when needed). */
+export function gitCheckoutFailMessageKey(kind: GitCheckoutFailKind): string {
+  switch (kind) {
+    case "needs_untracked_confirm":
+      return "changes.gitFail.needsUntrackedConfirm";
+    case "not_a_git_repo":
+      return "changes.gitFail.notAGitRepo";
+    case "git_not_available":
+      return "changes.gitFail.gitNotAvailable";
+    case "path_denied":
+      return "changes.gitFail.pathDenied";
+    case "path_not_found":
+      return "changes.gitFail.pathNotFound";
+    case "untracked_dir":
+      return "changes.gitFail.untrackedDir";
+    case "checkout_failed":
+      return "changes.gitFail.checkoutFailed";
+    case "delete_failed":
+      return "changes.gitFail.deleteFailed";
+    case "other":
+      return "changes.gitFail.other";
+  }
+}
+
+/**
+ * Human-facing reason string for reject soft-fail: prefer classified copy
+ * via message key; callers that only have `tr` resolve the key.
+ * When kind is `other` / checkout_failed, include host detail.
+ */
+export function formatGitCheckoutFailReason(
+  kind: GitCheckoutFailKind,
+  hostReason: string | null | undefined,
+  tr: (key: string, vars?: Record<string, string>) => string,
+): string {
+  const key = gitCheckoutFailMessageKey(kind);
+  const detail = (hostReason || "").trim();
+  if (
+    kind === "other" ||
+    kind === "checkout_failed" ||
+    kind === "delete_failed"
+  ) {
+    return tr(key, { reason: detail || kind });
+  }
+  return tr(key, { reason: detail });
+}
+
+// ─── Batch plan honesty ────────────────────────────────────────────────────
+
+/** i18n key for a batch skip reason (tooltips / summary detail). */
+export function batchSkipReasonMessageKey(reason: BatchFileSkipReason): string {
+  switch (reason) {
+    case "already_decided":
+      return "changes.batchSkip.alreadyDecided";
+    case "conflict":
+      return "changes.disabled.conflict";
+    case "unavailable":
+      return "changes.batchSkip.unavailable";
+    case "empty_path":
+      return "changes.batchSkip.emptyPath";
+    case "no_remaining":
+      return "changes.batchNothingRemaining";
+  }
+}
+
+/**
+ * Pre-run honesty for a batch plan: whether confirm is required and why
+ * empty / partial. Never claims full success when only a subset can run.
+ */
+export type BatchPlanHonesty = {
+  canRun: boolean;
+  runCount: number;
+  skipCount: number;
+  untrackedConfirmCount: number;
+  /** When true, open GlassModal before reject (never window.confirm). */
+  needsUntrackedConfirm: boolean;
+  /** Partial: some files run, some skip. */
+  partial: boolean;
+  /** When !canRun, stable empty reason key. */
+  emptyReasonKey: string | null;
+  /** Short status key when canRun (optional chip). */
+  readyKey: string | null;
+};
+
+export function describeBatchPlanHonesty(plan: BatchDiffPlan): BatchPlanHonesty {
+  const partial = plan.runCount > 0 && plan.skipCount > 0;
+  if (!plan.canRun) {
+    return {
+      canRun: false,
+      runCount: 0,
+      skipCount: plan.skipCount,
+      untrackedConfirmCount: 0,
+      needsUntrackedConfirm: false,
+      partial: false,
+      emptyReasonKey: "changes.batchNothingRemaining",
+      readyKey: null,
+    };
+  }
+  return {
+    canRun: true,
+    runCount: plan.runCount,
+    skipCount: plan.skipCount,
+    untrackedConfirmCount: plan.untrackedConfirmCount,
+    needsUntrackedConfirm: plan.untrackedConfirmCount > 0,
+    partial,
+    emptyReasonKey: null,
+    readyKey: partial
+      ? "changes.batchPartialReady"
+      : "changes.batchAllReady",
+  };
+}
+
+/**
+ * Map a reject Host result into a batch item status using classified kinds.
+ * Untracked confirm → skipped (caller should have confirmed already).
+ */
+export function batchItemFromCheckoutFailure(
+  path: string,
+  name: string,
+  res: {
+    ok?: boolean;
+    needsUntrackedConfirm?: boolean;
+    reason?: string | null;
+  },
+): BatchDiffResultItem {
+  const kind = classifyGitCheckoutFailure(res);
+  if (kind == null) {
+    return { path, name, status: "ok" };
+  }
+  if (kind === "needs_untracked_confirm") {
+    return {
+      path,
+      name,
+      status: "skipped",
+      reason: "needs untracked confirm",
+    };
+  }
+  if (canFallbackToBeforeWrite(kind)) {
+    // Caller may still try before-write; mark soft_fail only if they do not.
+    return {
+      path,
+      name,
+      status: "soft_fail",
+      reason: kind,
+    };
+  }
+  return {
+    path,
+    name,
+    status: "soft_fail",
+    reason: res.reason || kind,
+  };
+}

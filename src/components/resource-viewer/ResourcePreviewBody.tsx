@@ -31,7 +31,12 @@ import { isOfficeKind } from "@/lib/filePreviewSrc";
 import { Tip } from "@/components/ui/tooltip";
 import { normalizePath } from "@/lib/sessionChanges";
 import { formatHunkSnippet } from "@/lib/diffComment";
-import type { UnifiedHunk } from "@/lib/diffAccept";
+import {
+  diffActionTip,
+  planFileActionGates,
+  planHunkActionGates,
+  type UnifiedHunk,
+} from "@/lib/diffAccept";
 import {
   isResourceDraftDirty,
   isResourceTextEditable,
@@ -69,6 +74,8 @@ export type ResourcePreviewBodyProps = {
   diffDecisionByPath: Record<string, "accepted" | "rejected">;
   restorableAfterByPath: Record<string, string>;
   diffActionBusy: boolean;
+  /** Workspace git probe available (reject prefers checkout). */
+  workspaceAvailable?: boolean;
   diffHunks: UnifiedHunk[];
   remainingHunkCount: number;
   onDiffCommentToChat?: (prompt: string) => void;
@@ -115,6 +122,7 @@ export function ResourcePreviewBody({
   diffDecisionByPath,
   restorableAfterByPath,
   diffActionBusy,
+  workspaceAvailable = false,
   diffHunks,
   remainingHunkCount,
   onDiffCommentToChat,
@@ -162,11 +170,34 @@ export function ResourcePreviewBody({
 
     const pathKey = normalizePath(diffView.path);
     const decision = pathKey ? diffDecisionByPath[pathKey] : undefined;
-    const canRestore =
-      !!pathKey &&
-      (typeof restorableAfterByPath[pathKey] === "string" ||
-        typeof diffView.afterText === "string");
-    const tauriReady = !!projectPath && api.isTauri();
+    const afterSnapshot =
+      (pathKey && typeof restorableAfterByPath[pathKey] === "string"
+        ? restorableAfterByPath[pathKey]
+        : null) ??
+      (typeof diffView.afterText === "string" ? diffView.afterText : null);
+    const beforeSnapshot =
+      typeof diffView.beforeText === "string" ? diffView.beforeText : null;
+    const fileGates = planFileActionGates({
+      hasProject: !!projectPath,
+      isTauri: api.isTauri(),
+      busy: diffActionBusy,
+      hasGitRepo: workspaceAvailable,
+      after: afterSnapshot,
+      before: beforeSnapshot,
+      decision: decision ?? null,
+    });
+    const hunkGates = planHunkActionGates({
+      hasProject: !!projectPath,
+      isTauri: api.isTauri(),
+      busy: diffActionBusy,
+      hunkCount: diffHunks.length,
+      remainingCount: remainingHunkCount,
+      before: beforeSnapshot,
+      after: afterSnapshot,
+    });
+    const acceptTip = diffActionTip(fileGates.accept, "changes.acceptTip");
+    const rejectTip = diffActionTip(fileGates.reject, "changes.rejectTip");
+    const restoreTip = diffActionTip(fileGates.restore, "changes.restoreTip");
 
     const toolbar = (
       <div className="rp-diff-toolbar" role="toolbar" aria-label={tr("changes.title")}>
@@ -214,11 +245,11 @@ export function ResourcePreviewBody({
           </div>
         ) : null}
         <div className="rp-diff-toolbar__actions" role="group">
-          <Tip label={tr("changes.acceptTip")}>
+          <Tip label={tr(acceptTip.messageKey as MessageKey)}>
             <button
               type="button"
               className="chrome-btn rp-diff-action rp-diff-action--accept"
-              disabled={!tauriReady || diffActionBusy}
+              disabled={fileGates.accept.disabled}
               onClick={() => void runAcceptFile(diffView.path)}
               aria-label={tr("changes.accept")}
               data-testid="changes-accept"
@@ -226,11 +257,11 @@ export function ResourcePreviewBody({
               <IconCheck size={14} />
             </button>
           </Tip>
-          <Tip label={tr("changes.rejectTip")}>
+          <Tip label={tr(rejectTip.messageKey as MessageKey)}>
             <button
               type="button"
               className="chrome-btn rp-diff-action rp-diff-action--reject"
-              disabled={!tauriReady || diffActionBusy}
+              disabled={fileGates.reject.disabled}
               onClick={() => requestRejectFile(diffView.path)}
               aria-label={tr("changes.reject")}
               data-testid="changes-reject"
@@ -238,11 +269,11 @@ export function ResourcePreviewBody({
               <IconClose size={14} />
             </button>
           </Tip>
-          <Tip label={tr("changes.restoreTip")}>
+          <Tip label={tr(restoreTip.messageKey as MessageKey)}>
             <button
               type="button"
               className="chrome-btn rp-diff-action rp-diff-action--restore"
-              disabled={!tauriReady || diffActionBusy || !canRestore}
+              disabled={fileGates.restore.disabled}
               onClick={() => void runRestoreFile(diffView.path)}
               aria-label={tr("changes.restore")}
               data-testid="changes-restore"
@@ -294,10 +325,27 @@ export function ResourcePreviewBody({
       </div>
     );
 
+    const hunkAcceptTip = diffActionTip(
+      hunkGates.accept,
+      "changes.acceptHunkTip",
+    );
+    const hunkRejectTip = diffActionTip(
+      hunkGates.reject,
+      "changes.rejectHunkTip",
+    );
+    const hunkAcceptAllTip = diffActionTip(
+      hunkGates.acceptAll,
+      "changes.acceptAllHunksTip",
+    );
+    const hunkRejectAllTip = diffActionTip(
+      hunkGates.rejectAll,
+      "changes.rejectAllHunksTip",
+    );
+
+    // Show hunk bar whenever we have parseable hunks so disabled reasons
+    // surface when before/after snapshots are missing (honest residual).
     const hunkBar =
-      diffHunks.length > 0 &&
-      typeof diffView.beforeText === "string" &&
-      typeof diffView.afterText === "string" ? (
+      diffHunks.length > 0 ? (
         <div
           className="rp-diff-hunks"
           role="toolbar"
@@ -306,11 +354,11 @@ export function ResourcePreviewBody({
           <span className="rp-diff-hunks__label">{tr("changes.hunks")}</span>
           {remainingHunkCount > 1 ? (
             <div className="rp-diff-hunks__batch" role="group">
-              <Tip label={tr("changes.acceptAllHunksTip")}>
+              <Tip label={tr(hunkAcceptAllTip.messageKey as MessageKey)}>
                 <button
                   type="button"
                   className="chrome-btn rp-diff-action rp-diff-action--accept rp-changes-batch-btn"
-                  disabled={!tauriReady || diffActionBusy}
+                  disabled={hunkGates.acceptAll.disabled}
                   data-testid="changes-accept-all-hunks"
                   onClick={() => requestBatchAcceptHunks()}
                   aria-label={tr("changes.acceptAllHunks")}
@@ -319,11 +367,11 @@ export function ResourcePreviewBody({
                   <span>{tr("changes.acceptAllRemainingShort")}</span>
                 </button>
               </Tip>
-              <Tip label={tr("changes.rejectAllHunksTip")}>
+              <Tip label={tr(hunkRejectAllTip.messageKey as MessageKey)}>
                 <button
                   type="button"
                   className="chrome-btn rp-diff-action rp-diff-action--reject rp-changes-batch-btn"
-                  disabled={!tauriReady || diffActionBusy}
+                  disabled={hunkGates.rejectAll.disabled}
                   data-testid="changes-reject-all-hunks"
                   onClick={() => requestBatchRejectHunks()}
                   aria-label={tr("changes.rejectAllHunks")}
@@ -339,22 +387,22 @@ export function ResourcePreviewBody({
               <span className="rp-diff-hunks__name" title={h.header}>
                 {tr("changes.hunkLabel", { n: String(idx + 1) })}
               </span>
-              <Tip label={tr("changes.acceptHunkTip")}>
+              <Tip label={tr(hunkAcceptTip.messageKey as MessageKey)}>
                 <button
                   type="button"
                   className="chrome-btn rp-diff-action rp-diff-action--accept"
-                  disabled={!tauriReady || diffActionBusy}
+                  disabled={hunkGates.accept.disabled}
                   onClick={() => void runAcceptHunk(idx)}
                   aria-label={tr("changes.acceptHunk")}
                 >
                   <IconCheck size={12} />
                 </button>
               </Tip>
-              <Tip label={tr("changes.rejectHunkTip")}>
+              <Tip label={tr(hunkRejectTip.messageKey as MessageKey)}>
                 <button
                   type="button"
                   className="chrome-btn rp-diff-action rp-diff-action--reject"
-                  disabled={!tauriReady || diffActionBusy}
+                  disabled={hunkGates.reject.disabled}
                   onClick={() => void runRejectHunk(idx)}
                   aria-label={tr("changes.rejectHunk")}
                 >

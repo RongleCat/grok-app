@@ -27,6 +27,10 @@ import {
   workspaceGitKindBadge,
   type WorkspaceGitFile,
 } from "@/lib/workspaceGit";
+import {
+  diffActionTip,
+  planFileActionGates,
+} from "@/lib/diffAccept";
 import type { ChangeSelectionSource } from "./types";
 import { FileKindMark } from "./FileKindMark";
 
@@ -176,6 +180,16 @@ export function ResourceChangesList({
           pathRelativeToProject(c.path, projectPath) ||
           c.path;
         const delta = sessionFileLineDelta(c);
+        const rowGates = planFileActionGates({
+          hasProject: !!projectPath,
+          isTauri: api.isTauri(),
+          busy: diffActionBusy,
+          hasGitRepo: workspaceAvailable,
+          after: typeof c.after === "string" ? c.after : null,
+          before: typeof c.before === "string" ? c.before : null,
+        });
+        const acceptTip = diffActionTip(rowGates.accept, "changes.acceptTip");
+        const rejectTip = diffActionTip(rowGates.reject, "changes.rejectTip");
         return (
           <div
             key={changeListKey("session", c.path)}
@@ -227,15 +241,11 @@ export function ResourceChangesList({
               </span>
             </button>
             <div className="rp-changes-row__actions">
-              <Tip label={tr("changes.acceptTip")}>
+              <Tip label={tr(acceptTip.messageKey as MessageKey)}>
                 <button
                   type="button"
                   className="chrome-btn rp-diff-action rp-diff-action--accept"
-                  disabled={
-                    !projectPath ||
-                    !api.isTauri() ||
-                    diffActionBusy
-                  }
+                  disabled={rowGates.accept.disabled}
                   onClick={(e) => {
                     e.stopPropagation();
                     void runAcceptFile(
@@ -250,15 +260,11 @@ export function ResourceChangesList({
                   <IconCheck size={13} />
                 </button>
               </Tip>
-              <Tip label={tr("changes.rejectTip")}>
+              <Tip label={tr(rejectTip.messageKey as MessageKey)}>
                 <button
                   type="button"
                   className="chrome-btn rp-diff-action rp-diff-action--reject"
-                  disabled={
-                    !projectPath ||
-                    !api.isTauri() ||
-                    diffActionBusy
-                  }
+                  disabled={rowGates.reject.disabled}
                   onClick={(e) => {
                     e.stopPropagation();
                     // Prefer session after snapshot for restore later
@@ -391,6 +397,18 @@ export function ResourceChangesList({
           (normalizePath(selectedChangePath) === abs ||
             normalizePath(selectedChangePath) ===
               normalizePath(w.path));
+        const wsGates = planFileActionGates({
+          hasProject: !!projectPath,
+          isTauri: api.isTauri(),
+          busy: diffActionBusy,
+          hasGitRepo: workspaceAvailable,
+          kind: w.kind,
+          // Workspace accept keeps working tree; restore needs session after.
+          after: null,
+          before: null,
+        });
+        const wsAcceptTip = diffActionTip(wsGates.accept, "changes.acceptTip");
+        const wsRejectTip = diffActionTip(wsGates.reject, "changes.rejectTip");
         return (
           <div
             key={changeListKey(
@@ -435,15 +453,11 @@ export function ResourceChangesList({
               </span>
             </button>
             <div className="rp-changes-row__actions">
-              <Tip label={tr("changes.acceptTip")}>
+              <Tip label={tr(wsAcceptTip.messageKey as MessageKey)}>
                 <button
                   type="button"
                   className="chrome-btn rp-diff-action rp-diff-action--accept"
-                  disabled={
-                    !projectPath ||
-                    !api.isTauri() ||
-                    diffActionBusy
-                  }
+                  disabled={wsGates.accept.disabled}
                   onClick={(e) => {
                     e.stopPropagation();
                     void runAcceptFile(abs || w.path);
@@ -453,15 +467,11 @@ export function ResourceChangesList({
                   <IconCheck size={13} />
                 </button>
               </Tip>
-              <Tip label={tr("changes.rejectTip")}>
+              <Tip label={tr(wsRejectTip.messageKey as MessageKey)}>
                 <button
                   type="button"
                   className="chrome-btn rp-diff-action rp-diff-action--reject"
-                  disabled={
-                    !projectPath ||
-                    !api.isTauri() ||
-                    diffActionBusy
-                  }
+                  disabled={wsGates.reject.disabled}
                   onClick={(e) => {
                     e.stopPropagation();
                     requestRejectFile(abs || w.path);

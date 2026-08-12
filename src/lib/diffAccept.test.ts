@@ -3,10 +3,18 @@ import {
   applyHunks,
   applySelectedHunks,
   applyUnifiedPatch,
+  batchItemFromCheckoutFailure,
+  batchSkipReasonMessageKey,
   batchSummaryVars,
   canAcceptWithContent,
+  canFallbackToBeforeWrite,
   canRejectWithBefore,
   canRestoreAfter,
+  classifyGitCheckoutFailure,
+  describeBatchPlanHonesty,
+  diffActionDisabledMessageKey,
+  diffActionTip,
+  gitCheckoutFailMessageKey,
   isAlreadyDecided,
   isConflictKind,
   needsUntrackedWipeConfirm,
@@ -17,8 +25,10 @@ import {
   planBatchReject,
   planBatchRemainingHunks,
   planFileAccept,
+  planFileActionGates,
   planFileReject,
   planFileRestore,
+  planHunkActionGates,
   preferGitCheckoutReject,
   rejectSelectedHunks,
   remainingHunkIndices,
@@ -408,5 +418,239 @@ describe("batch plan", () => {
       skipped: "1",
       total: "4",
     });
+  });
+
+  it("describeBatchPlanHonesty partial + empty", () => {
+    const empty = describeBatchPlanHonesty(
+      planBatchAccept([{ path: "a.ts", decision: "accepted" }], {
+        scope: "session",
+      }),
+    );
+    expect(empty.canRun).toBe(false);
+    expect(empty.emptyReasonKey).toBe("changes.batchNothingRemaining");
+
+    const partial = describeBatchPlanHonesty(
+      planBatchAccept(
+        [
+          { path: "ok.ts", after: "x" },
+          { path: "done.ts", decision: "accepted", after: "y" },
+          { path: "c.ts", kind: "conflict" },
+        ],
+        { scope: "session" },
+      ),
+    );
+    expect(partial.canRun).toBe(true);
+    expect(partial.partial).toBe(true);
+    expect(partial.runCount).toBe(1);
+    expect(partial.skipCount).toBe(2);
+    expect(partial.readyKey).toBe("changes.batchPartialReady");
+
+    const wipe = describeBatchPlanHonesty(
+      planBatchReject([{ path: "u.ts", kind: "untracked" }], {
+        hasGitRepo: true,
+      }),
+    );
+    expect(wipe.needsUntrackedConfirm).toBe(true);
+    expect(wipe.untrackedConfirmCount).toBe(1);
+  });
+
+  it("batchSkipReasonMessageKey", () => {
+    expect(batchSkipReasonMessageKey("conflict")).toBe(
+      "changes.disabled.conflict",
+    );
+    expect(batchSkipReasonMessageKey("already_decided")).toBe(
+      "changes.batchSkip.alreadyDecided",
+    );
+  });
+});
+
+describe("action gates honesty", () => {
+  it("planFileActionGates need project / tauri / busy", () => {
+    expect(
+      planFileActionGates({ hasProject: false, isTauri: true }).restore
+        .reason,
+    ).toBe("need_project");
+    expect(
+      planFileActionGates({ hasProject: true, isTauri: false }).accept
+        .reason,
+    ).toBe("need_tauri");
+    expect(
+      planFileActionGates({
+        hasProject: true,
+        isTauri: true,
+        busy: true,
+      }).reject.reason,
+    ).toBe("busy");
+  });
+
+  it("restore disabled without after; accept still enabled", () => {
+    const g = planFileActionGates({
+      hasProject: true,
+      isTauri: true,
+      hasGitRepo: true,
+      after: null,
+      before: "old",
+    });
+    expect(g.restore).toEqual({
+      disabled: true,
+      reason: "no_after_snapshot",
+    });
+    expect(g.accept.disabled).toBe(false);
+    expect(g.reject.disabled).toBe(false);
+  });
+
+  it("reject disabled without git and without before", () => {
+    const g = planFileActionGates({
+      hasProject: true,
+      isTauri: true,
+      hasGitRepo: false,
+      kind: "modified",
+      before: null,
+    });
+    expect(g.reject).toEqual({
+      disabled: true,
+      reason: "no_reject_path",
+    });
+  });
+
+  it("conflict and already decided", () => {
+    const c = planFileActionGates({
+      hasProject: true,
+      isTauri: true,
+      hasGitRepo: true,
+      kind: "conflict",
+      after: "x",
+    });
+    expect(c.accept.reason).toBe("conflict");
+    expect(c.reject.reason).toBe("conflict");
+    expect(c.restore.disabled).toBe(false);
+
+    const a = planFileActionGates({
+      hasProject: true,
+      isTauri: true,
+      hasGitRepo: true,
+      decision: "accepted",
+      after: "x",
+    });
+    expect(a.accept.reason).toBe("already_accepted");
+  });
+
+  it("planHunkActionGates needs before/after snapshots", () => {
+    const noBefore = planHunkActionGates({
+      hasProject: true,
+      isTauri: true,
+      hunkCount: 2,
+      before: null,
+      after: "new",
+    });
+    expect(noBefore.accept.reason).toBe("no_before_snapshot");
+    expect(noBefore.reject.disabled).toBe(false);
+    expect(noBefore.acceptAll.reason).toBe("no_before_snapshot");
+
+    const noAfter = planHunkActionGates({
+      hasProject: true,
+      isTauri: true,
+      hunkCount: 2,
+      before: "old",
+      after: null,
+    });
+    expect(noAfter.reject.reason).toBe("no_after_snapshot");
+
+    const none = planHunkActionGates({
+      hasProject: true,
+      isTauri: true,
+      hunkCount: 0,
+    });
+    expect(none.accept.reason).toBe("no_hunks");
+  });
+
+  it("diffActionDisabledMessageKey + tip", () => {
+    expect(diffActionDisabledMessageKey("no_after_snapshot")).toBe(
+      "changes.disabled.noAfterSnapshot",
+    );
+    expect(
+      diffActionTip(
+        { disabled: true, reason: "busy" },
+        "changes.restoreTip",
+      ),
+    ).toEqual({ messageKey: "changes.actionBusy", disabled: true });
+    expect(
+      diffActionTip(
+        { disabled: false, reason: null },
+        "changes.acceptTip",
+      ),
+    ).toEqual({ messageKey: "changes.acceptTip", disabled: false });
+  });
+});
+
+describe("git checkout soft-fail classification", () => {
+  it("classifies host reasons", () => {
+    expect(
+      classifyGitCheckoutFailure({
+        ok: false,
+        needsUntrackedConfirm: true,
+      }),
+    ).toBe("needs_untracked_confirm");
+    expect(
+      classifyGitCheckoutFailure({
+        ok: false,
+        reason: "not a git repository",
+      }),
+    ).toBe("not_a_git_repo");
+    expect(
+      classifyGitCheckoutFailure({
+        ok: false,
+        reason: "git not available",
+      }),
+    ).toBe("git_not_available");
+    expect(
+      classifyGitCheckoutFailure({
+        ok: false,
+        reason: "path not allowed: ../x",
+      }),
+    ).toBe("path_denied");
+    expect(
+      classifyGitCheckoutFailure({
+        ok: false,
+        reason: "refusing to delete untracked directory",
+      }),
+    ).toBe("untracked_dir");
+    expect(
+      classifyGitCheckoutFailure({
+        ok: false,
+        reason: "git checkout failed",
+      }),
+    ).toBe("checkout_failed");
+    expect(
+      classifyGitCheckoutFailure({
+        ok: false,
+        reason: "delete untracked: EACCES",
+      }),
+    ).toBe("delete_failed");
+    expect(classifyGitCheckoutFailure({ ok: true })).toBeNull();
+  });
+
+  it("canFallbackToBeforeWrite only for missing git", () => {
+    expect(canFallbackToBeforeWrite("not_a_git_repo")).toBe(true);
+    expect(canFallbackToBeforeWrite("git_not_available")).toBe(true);
+    expect(canFallbackToBeforeWrite("checkout_failed")).toBe(false);
+    expect(canFallbackToBeforeWrite(null)).toBe(false);
+  });
+
+  it("gitCheckoutFailMessageKey + batchItemFromCheckoutFailure", () => {
+    expect(gitCheckoutFailMessageKey("not_a_git_repo")).toBe(
+      "changes.gitFail.notAGitRepo",
+    );
+    const soft = batchItemFromCheckoutFailure("a.ts", "a.ts", {
+      ok: false,
+      reason: "not a git repository",
+    });
+    expect(soft.status).toBe("soft_fail");
+    expect(soft.reason).toBe("not_a_git_repo");
+    const skip = batchItemFromCheckoutFailure("u.ts", "u.ts", {
+      ok: false,
+      needsUntrackedConfirm: true,
+    });
+    expect(skip.status).toBe("skipped");
   });
 });

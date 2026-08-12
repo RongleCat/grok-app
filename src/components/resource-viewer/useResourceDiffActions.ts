@@ -17,6 +17,10 @@ import {
 import {
   applySelectedHunks,
   batchSummaryVars,
+  canFallbackToBeforeWrite,
+  classifyGitCheckoutFailure,
+  describeBatchPlanHonesty,
+  formatGitCheckoutFailReason,
   needsUntrackedWipeConfirm,
   planBatchAccept,
   planBatchReject,
@@ -233,13 +237,13 @@ export function useResourceDiffActions({
             return;
           }
           if (!res.ok) {
-            // Soft-fail non-git / checkout errors → try before write when available
-            const reason = (res.reason || "").toLowerCase();
-            const softGit =
-              reason.includes("not a git") ||
-              reason.includes("git not available") ||
-              reason.includes("not available");
-            if (softGit && typeof before === "string") {
+            // Soft-fail classified: missing git → try before write when available
+            const failKind = classifyGitCheckoutFailure(res);
+            if (
+              failKind &&
+              canFallbackToBeforeWrite(failKind) &&
+              typeof before === "string"
+            ) {
               const w = await api.applyFilePatch(projectPath, path, before);
               if (!w.ok) {
                 setError(
@@ -249,6 +253,13 @@ export function useResourceDiffActions({
                 );
                 return;
               }
+            } else if (failKind) {
+              setError(
+                formatGitCheckoutFailReason(failKind, res.reason, (k, v) =>
+                  tr(k as MessageKey, v),
+                ),
+              );
+              return;
             } else {
               setError(
                 tr("changes.actionFailed", {
@@ -291,10 +302,15 @@ export function useResourceDiffActions({
           }
           const res = await api.deleteProjectFile(projectPath, path, true);
           if (!res.ok) {
+            const failKind = classifyGitCheckoutFailure(res);
             setError(
-              tr("changes.actionFailed", {
-                reason: res.reason || "delete failed",
-              }),
+              failKind
+                ? formatGitCheckoutFailReason(failKind, res.reason, (k, v) =>
+                    tr(k as MessageKey, v),
+                  )
+                : tr("changes.actionFailed", {
+                    reason: res.reason || "delete failed",
+                  }),
             );
             return;
           }
@@ -610,19 +626,19 @@ export function useResourceDiffActions({
             };
           }
           if (!res.ok) {
-            const reason = (res.reason || "").toLowerCase();
-            const softGit =
-              reason.includes("not a git") ||
-              reason.includes("git not available") ||
-              reason.includes("not available");
-            if (softGit && typeof opts.before === "string") {
+            const failKind = classifyGitCheckoutFailure(res);
+            if (
+              failKind &&
+              canFallbackToBeforeWrite(failKind) &&
+              typeof opts.before === "string"
+            ) {
               const w = await api.applyFilePatch(
                 projectPath!,
                 path,
                 opts.before,
               );
               if (!w.ok) {
-  return {
+                return {
                   path,
                   name,
                   status: "soft_fail",
@@ -630,11 +646,11 @@ export function useResourceDiffActions({
                 };
               }
             } else {
-  return {
+              return {
                 path,
                 name,
                 status: "soft_fail",
-                reason: res.reason || "reject failed",
+                reason: failKind || res.reason || "reject failed",
               };
             }
           }
@@ -645,7 +661,7 @@ export function useResourceDiffActions({
             plan.content,
           );
           if (!res.ok) {
-  return {
+            return {
               path,
               name,
               status: "soft_fail",
@@ -654,7 +670,7 @@ export function useResourceDiffActions({
           }
         } else if (plan.mode === "delete") {
           if (!opts.confirmed) {
-  return {
+            return {
               path,
               name,
               status: "skipped",
@@ -663,11 +679,12 @@ export function useResourceDiffActions({
           }
           const res = await api.deleteProjectFile(projectPath!, path, true);
           if (!res.ok) {
-  return {
+            const failKind = classifyGitCheckoutFailure(res);
+            return {
               path,
               name,
               status: "soft_fail",
-              reason: res.reason || "delete failed",
+              reason: failKind || res.reason || "delete failed",
             };
           }
         } else {
@@ -816,10 +833,17 @@ export function useResourceDiffActions({
     const plan = planBatchAccept(buildSessionBatchInputs(), {
       scope: "session",
     });
-    if (!plan.canRun) {
-      setBatchStatus(tr("changes.batchNothingRemaining"));
+    const honesty = describeBatchPlanHonesty(plan);
+    if (!honesty.canRun) {
+      setBatchStatus(
+        tr(
+          (honesty.emptyReasonKey ||
+            "changes.batchNothingRemaining") as MessageKey,
+        ),
+      );
       return;
     }
+    // Partial success is expected: execute only `plan.run`, then summarize.
     void executeBatchAccept(plan);
   }, [
     projectPath,
@@ -835,14 +859,20 @@ export function useResourceDiffActions({
       hasGitRepo: workspaceAvailable,
       scope: "session",
     });
-    if (!plan.canRun) {
-      setBatchStatus(tr("changes.batchNothingRemaining"));
+    const honesty = describeBatchPlanHonesty(plan);
+    if (!honesty.canRun) {
+      setBatchStatus(
+        tr(
+          (honesty.emptyReasonKey ||
+            "changes.batchNothingRemaining") as MessageKey,
+        ),
+      );
       return;
     }
-    // Always confirm batch reject; stronger copy when untracked wipes included.
+    // Always GlassModal confirm (never window.confirm); stronger untracked copy.
     setBatchRejectConfirm({
       plan,
-      untracked: plan.untrackedConfirmCount > 0,
+      untracked: honesty.needsUntrackedConfirm,
     });
   }, [
     projectPath,
