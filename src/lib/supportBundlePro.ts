@@ -11,7 +11,10 @@
  * - Tool audit ledger is a separate export — never claimed inside the zip
  *
  * Host write path (`export_support_bundle` / `write_support_bundle`):
- * doctor.json, settings.json?, meta.json, stall-timeline.json?, logs/*?, README.txt
+ * doctor.json, settings.json?, meta.json (app + soft CLI probe),
+ * stall-timeline.json?, logs/*?, README.txt
+ *
+ * Full chat journals are a separate session diagnostic export — never claimed here.
  *
  * No DOM / Tauri side effects. Callers own dialogs and toasts.
  */

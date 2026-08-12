@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- **Support zip honesty**: Restore redacted section checklist + soft-fail copy on Reliability/Doctor export (dropped during a multi-PR integrate). Host `meta.json` now includes a soft CLI probe (app + CLI versions) without inventing secrets or chat journals.
+
+**中文 · 修复**
+- **支持包诚实导出**：恢复可靠性中心/Doctor 脱敏清单与软失败提示；`meta.json` 增加软探测 CLI 版本（不包含密钥或完整会话记录）。
+
 ## [0.2.15] - 2026-08-12
 
 > **Highlight:** Tool/activity timeline shows real expandable output and explore groups; session open never hangs on MCP/OAuth; ask-user with rpcId 0 works; sticky composer target and optimistic Stop; project drag-reorder.

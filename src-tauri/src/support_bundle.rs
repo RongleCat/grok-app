@@ -84,6 +84,9 @@ pub fn write_support_bundle(
     }
 
     // 3) Environment / versions (no home path expansion of secrets)
+    // Soft CLI probe: app + CLI version for community bug reports; never blocks.
+    let settings = store::load_settings();
+    let cli = soft_cli_probe_for_export(settings.manual_cli_path.as_deref());
     let meta = serde_json::json!({
         "appVersion": env!("CARGO_PKG_VERSION"),
         "generatedAt": Utc::now().to_rfc3339(),
@@ -95,6 +98,7 @@ pub fn write_support_bundle(
         "hasStallTimeline": stall_timeline_json
             .map(|s| !s.trim().is_empty())
             .unwrap_or(false),
+        "cli": cli,
     });
     let meta_s = serde_json::to_string_pretty(&meta).map_err(|e| e.to_string())?;
     zip.start_file("meta.json", opts)
@@ -159,11 +163,12 @@ pub fn write_support_bundle(
 Contents:\n\
 - doctor.json — health checks (paths only, no keys)\n\
 - settings.json — app settings with secrets redacted\n\
-- meta.json — app/OS versions and counts\n\
+- meta.json — app/OS/CLI versions and counts (CLI probe may be skipped on timeout)\n\
 - stall-timeline.json — optional Reliability-center stall snapshot (redacted)\n\
 - logs/ — recent log files (redacted, size-capped)\n\
 \n\
 This archive never includes secrets.json or account auth snapshots.\n\
+Full chat journals use session → Export diagnostic package (separate zip).\n\
 ";
     zip.start_file("README.txt", opts)
         .map_err(|e| format!("zip readme: {e}"))?;
@@ -759,9 +764,35 @@ mod tests {
         assert!(!as_str.contains("secrets.json"));
         assert!(!as_str.contains("sk-secret"));
         assert!(!as_str.contains("stall-timeline.json"));
+
+        // meta.json always present with appVersion + cli probe object (honest empty ok).
+        let file = fs::File::open(&zip_path).unwrap();
+        let mut archive = zip::ZipArchive::new(file).expect("open zip");
+        let mut meta_entry = archive.by_name("meta.json").expect("meta.json entry");
+        let mut meta_body = String::new();
+        meta_entry.read_to_string(&mut meta_body).expect("read meta");
+        assert!(meta_body.contains("appVersion"), "meta must include appVersion");
+        assert!(
+            meta_body.contains("\"cli\""),
+            "meta must include cli probe object: {meta_body}"
+        );
+        assert!(!meta_body.contains("sk-secret"));
+
         let _ = fs::remove_file(&zip_path);
         std::env::remove_var("GROK_APP_HOME");
         let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn redact_text_scrubs_api_keys_from_doctor_payload() {
+        // Prove support-bundle redaction path for doctor JSON (no secrets leak).
+        let raw = r#"{"msg":"token sk-doctor-secret-value-long","ok":true}"#;
+        let scrubbed = store::redact_text(raw);
+        assert!(
+            !scrubbed.contains("sk-doctor-secret-value-long"),
+            "api key must be redacted: {scrubbed}"
+        );
+        assert!(scrubbed.contains("[REDACTED]") || !scrubbed.contains("sk-doctor"));
     }
 
     #[test]

@@ -63,6 +63,15 @@ import {
   planOpenStallSession,
   resolveStallTimelineEmptyState,
 } from "@/lib/stallTimelinePro";
+import {
+  canSupportBundleExport,
+  formatSupportBundleManifest,
+  planSupportBundleExport,
+  resolveSupportBundleEmptyState,
+  resolveSupportBundleSoftFail,
+  resolveSupportBundleStallJson,
+  type SupportBundleExportPlan,
+} from "@/lib/supportBundlePro";
 
 export type ReliabilityCenterModalProps = {
   open: boolean;
@@ -439,6 +448,7 @@ export function ReliabilityCenterModal({
   const [historyQuery, setHistoryQuery] = useState("");
   const [historyKind, setHistoryKind] = useState<StallKindFilter>("all");
   const [confirmClearHistory, setConfirmClearHistory] = useState(false);
+  const [confirmSupportZip, setConfirmSupportZip] = useState(false);
 
   const [auditEntries, setAuditEntries] = useState<AuditLedgerEntry[]>([]);
   const [auditQuery, setAuditQuery] = useState("");
@@ -473,6 +483,7 @@ export function ReliabilityCenterModal({
     setHistoryQuery("");
     setHistoryKind("all");
     setConfirmClearHistory(false);
+    setConfirmSupportZip(false);
     setStallHistory(loadStallHistory());
     setAuditQuery("");
     setAuditEvent("all");
@@ -503,6 +514,10 @@ export function ReliabilityCenterModal({
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (confirmSupportZip) {
+          setConfirmSupportZip(false);
+          return;
+        }
         if (confirmClearHistory) {
           setConfirmClearHistory(false);
           return;
@@ -516,7 +531,7 @@ export function ReliabilityCenterModal({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose, confirmClearHistory, confirmClearAudit]);
+  }, [open, onClose, confirmClearHistory, confirmClearAudit, confirmSupportZip]);
 
   const filteredHistory = useMemo(
     () =>
@@ -610,22 +625,80 @@ export function ReliabilityCenterModal({
     }
   }, [goalOrchView.events, t]);
 
-  const onSupportZip = useCallback(async () => {
+  /** Honest support-zip plan (never invents stall/logs/secrets). */
+  const supportPlan: SupportBundleExportPlan = useMemo(() => {
+    const hasStall = view.stalls.signals.length > 0;
+    return planSupportBundleExport({
+      // Host always collects a Doctor report when UI passes null.
+      hasDoctor: true,
+      hasStallTimeline: hasStall,
+      // Audit ledger is a separate export — mark omitted when rows exist.
+      hasAudit: auditEntries.length > 0,
+      isHost: api.isTauri(),
+    });
+  }, [view.stalls.signals.length, auditEntries.length]);
+
+  const supportManifestText = useMemo(
+    () => formatSupportBundleManifest(supportPlan),
+    [supportPlan],
+  );
+
+  const supportEmpty = useMemo(
+    () =>
+      resolveSupportBundleEmptyState({
+        isHost: api.isTauri(),
+        hasDoctor: supportPlan.hasDoctor,
+        hasStallTimeline: supportPlan.hasStallTimeline,
+        hasAudit: supportPlan.auditOmitted,
+      }),
+    [supportPlan],
+  );
+
+  const onSupportZipRequest = useCallback(() => {
+    setStatusMsg(null);
+    setErrorMsg(null);
+    if (supportEmpty) {
+      setErrorMsg(
+        `${t(supportEmpty.titleKey as MessageKey)}. ${t(supportEmpty.hintKey as MessageKey)}`,
+      );
+      return;
+    }
+    if (
+      !canSupportBundleExport({
+        isHost: api.isTauri(),
+        busy: !!busy,
+      })
+    ) {
+      return;
+    }
+    setConfirmSupportZip(true);
+  }, [supportEmpty, t, busy]);
+
+  const doSupportZip = useCallback(async () => {
+    setConfirmSupportZip(false);
     setBusy("zip");
     setStatusMsg(null);
     setErrorMsg(null);
     try {
-      // Structured stall timeline only (titles/kinds/seconds) — host redacts secrets.
+      // Structured stall timeline only when signals exist — never invent rows.
       const timeline = buildStallTimelineSnapshot(view.stalls.signals);
-      const stallJson = serializeStallTimelineSnapshot(timeline);
+      const stallJson = resolveSupportBundleStallJson({
+        hasStallTimeline: supportPlan.hasStallTimeline,
+        stallJson: serializeStallTimelineSnapshot(timeline),
+        signalCount: timeline.count,
+      });
+      // Host builds Doctor when null; UI does not invent a doctor payload.
       const res = await api.exportSupportBundle(null, stallJson);
       setStatusMsg(`${t("doctor.supportZipDone")}: ${res.path}`);
     } catch (e) {
-      setErrorMsg(`${t("doctor.supportZipFail")}: ${String(e)}`);
+      const soft = resolveSupportBundleSoftFail(e);
+      if (soft.silent) return;
+      const base = t(soft.messageKey as MessageKey);
+      setErrorMsg(soft.detail ? `${base}: ${soft.detail}` : base);
     } finally {
       setBusy(null);
     }
-  }, [t, view.stalls.signals]);
+  }, [t, view.stalls.signals, supportPlan.hasStallTimeline]);
 
   const onExportStallHistory = useCallback(() => {
     setBusy("stall-export");
@@ -1397,9 +1470,12 @@ export function ReliabilityCenterModal({
           <button
             type="button"
             className="btn btn--ghost btn--sm"
-            disabled={!!busy}
-            onClick={() => void onSupportZip()}
+            disabled={
+              !!busy || !canSupportBundleExport({ isHost: api.isTauri() })
+            }
+            onClick={onSupportZipRequest}
             title={t("reliability.supportZipHint")}
+            data-testid="reliab-support-zip"
           >
             {busy === "zip" ? "…" : t("doctor.supportZip")}
           </button>
@@ -1453,6 +1529,115 @@ export function ReliabilityCenterModal({
             count: clearHistoryPlan.count,
           })}
         </p>
+      </GlassModal>
+      <GlassModal
+        open={confirmSupportZip}
+        onClose={() => setConfirmSupportZip(false)}
+        title={t("reliability.supportZip.confirmTitle")}
+        size="md"
+        closeLabel={t("common.cancel")}
+        titleId="reliab-support-zip-confirm-title"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setConfirmSupportZip(false)}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--solid"
+              onClick={() => void doSupportZip()}
+              disabled={!!busy}
+              data-testid="reliab-support-zip-confirm"
+            >
+              {t("reliability.supportZip.confirmAction")}
+            </button>
+          </>
+        }
+      >
+        <div
+          className="app-dialog__msg"
+          style={{ margin: 0, padding: "12px 16px" }}
+          data-testid="reliab-support-zip-checklist"
+        >
+          <p style={{ margin: "0 0 8px" }}>
+            {t("reliability.supportZip.confirmMessage")}
+          </p>
+          <p
+            className="reliab-card__sub reliab-card__sub--muted"
+            style={{ margin: "0 0 10px" }}
+          >
+            {t("reliability.supportZip.secretsNever")}
+          </p>
+          <p style={{ margin: "0 0 6px", fontWeight: 600 }}>
+            {t("reliability.supportZip.checklistTitle")}
+          </p>
+          <ul
+            className="reliab-support-checklist"
+            style={{
+              margin: "0 0 10px",
+              padding: "0 0 0 1.1em",
+              listStyle: "disc",
+            }}
+          >
+            {supportPlan.sections.map((s) => (
+              <li
+                key={s.id}
+                data-section={s.id}
+                data-included={s.included ? "1" : "0"}
+                style={{
+                  marginBottom: 4,
+                  opacity: s.included ? 1 : 0.55,
+                }}
+              >
+                <span aria-hidden>{s.included ? "✓ " : "– "}</span>
+                {t(s.labelKey as MessageKey)}
+                {s.included && s.redacted
+                  ? ` · ${t("reliability.supportZip.redacted")}`
+                  : null}
+                {!s.included
+                  ? ` · ${t("reliability.supportZip.sectionOmitted")}`
+                  : s.availability === "when_available"
+                    ? ` · ${t("reliability.supportZip.whenAvailable")}`
+                    : null}
+              </li>
+            ))}
+          </ul>
+          {supportPlan.auditOmitted ? (
+            <p
+              className="reliab-card__sub reliab-card__sub--muted"
+              style={{ margin: "0 0 8px" }}
+            >
+              {t("reliability.supportZip.auditNotIncluded")}
+            </p>
+          ) : null}
+          <details style={{ marginTop: 4 }}>
+            <summary style={{ cursor: "pointer" }}>
+              {t("reliability.supportZip.manifestPreview")}
+            </summary>
+            <pre
+              className="reliab-support-manifest"
+              style={{
+                margin: "8px 0 0",
+                padding: 8,
+                fontSize: 11,
+                lineHeight: 1.4,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                maxHeight: 160,
+                overflow: "auto",
+                borderRadius: 6,
+                background: "var(--surface-2, rgba(0,0,0,0.06))",
+              }}
+              data-testid="reliab-support-manifest"
+            >
+              {supportManifestText}
+            </pre>
+          </details>
+        </div>
       </GlassModal>
       {clearAuditPortal}
     </div>

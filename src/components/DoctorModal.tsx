@@ -86,6 +86,14 @@ import {
   type LinuxDayuseLinkTarget,
 } from "@/lib/linuxDayuseChecklist";
 import { redact } from "@/lib/redact";
+import {
+  canSupportBundleExport,
+  formatSupportBundleManifest,
+  planSupportBundleExport,
+  resolveSupportBundleEmptyState,
+  resolveSupportBundleSoftFail,
+  type SupportBundleExportPlan,
+} from "@/lib/supportBundlePro";
 
 /** Client download for redacted findings JSON (no host round-trip). */
 function downloadDoctorFindingsJson(filename: string, body: string) {
@@ -266,6 +274,7 @@ export function DoctorModal({
   const [fixingId, setFixingId] = useState<string | null>(null);
   const [keepSecrets, setKeepSecrets] = useState(true);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [confirmSupportZip, setConfirmSupportZip] = useState(false);
 
   // Triage filters
   const [levelFilter, setLevelFilter] =
@@ -372,6 +381,7 @@ export function DoctorModal({
     setIssuesOnly(false);
     setDetailKey(null);
     setCopiedFindingKey(null);
+    setConfirmSupportZip(false);
     setDayuseProbe({
       hasTrustedProject: null,
       pathHasSpaces: null,
@@ -394,16 +404,69 @@ export function DoctorModal({
     }
   };
 
-  const onSupportZip = async () => {
+  /** Honest support-zip plan — never invents stall/logs/secrets. */
+  const supportPlan: SupportBundleExportPlan = useMemo(
+    () =>
+      planSupportBundleExport({
+        // Host always writes doctor.json (uses live report when present).
+        hasDoctor: true,
+        // Doctor path does not attach Reliability stall timeline.
+        hasStallTimeline: false,
+        isHost: api.isTauri(),
+      }),
+    [],
+  );
+
+  const supportManifestText = useMemo(
+    () => formatSupportBundleManifest(supportPlan),
+    [supportPlan],
+  );
+
+  const supportEmpty = useMemo(
+    () =>
+      resolveSupportBundleEmptyState({
+        isHost: api.isTauri(),
+        hasDoctor: supportPlan.hasDoctor,
+      }),
+    [supportPlan],
+  );
+
+  const onSupportZipRequest = () => {
+    setStatusMsg(null);
+    setError(null);
+    if (supportEmpty) {
+      setError(
+        `${t(supportEmpty.titleKey as MessageKey)}. ${t(supportEmpty.hintKey as MessageKey)}`,
+      );
+      return;
+    }
+    if (
+      !canSupportBundleExport({
+        isHost: api.isTauri(),
+        busy: !!busy || loading,
+      })
+    ) {
+      return;
+    }
+    setConfirmSupportZip(true);
+  };
+
+  const doSupportZip = async () => {
+    setConfirmSupportZip(false);
     setBusy("zip");
     setStatusMsg(null);
     setError(null);
     try {
-      const payload = report ? JSON.stringify(report.raw ?? report, null, 2) : null;
+      const payload = report
+        ? JSON.stringify(report.raw ?? report, null, 2)
+        : null;
       const res = await api.exportSupportBundle(payload);
       setStatusMsg(`${t("doctor.supportZipDone")}: ${res.path}`);
     } catch (e) {
-      setError(`${t("doctor.supportZipFail")}: ${String(e)}`);
+      const soft = resolveSupportBundleSoftFail(e);
+      if (soft.silent) return;
+      const base = t(soft.messageKey as MessageKey);
+      setError(soft.detail ? `${base}: ${soft.detail}` : base);
     } finally {
       setBusy(null);
     }
@@ -1885,8 +1948,14 @@ export function DoctorModal({
               <button
                 type="button"
                 className="btn btn--ghost btn--sm"
-                disabled={!!busy || loading}
-                onClick={() => void onSupportZip()}
+                disabled={
+                  !!busy ||
+                  loading ||
+                  !canSupportBundleExport({ isHost: api.isTauri() })
+                }
+                onClick={onSupportZipRequest}
+                title={t("doctor.supportZipHint")}
+                data-testid="doctor-support-zip"
               >
                 {busy === "zip" ? "…" : t("doctor.supportZip")}
               </button>
@@ -2059,6 +2128,107 @@ export function DoctorModal({
             )}
           </div>
         ) : null}
+      </GlassModal>
+      <GlassModal
+        open={confirmSupportZip}
+        onClose={() => setConfirmSupportZip(false)}
+        title={t("reliability.supportZip.confirmTitle")}
+        size="md"
+        closeLabel={t("common.cancel")}
+        titleId="doctor-support-zip-confirm-title"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setConfirmSupportZip(false)}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--solid"
+              onClick={() => void doSupportZip()}
+              disabled={!!busy || loading}
+              data-testid="doctor-support-zip-confirm"
+            >
+              {t("reliability.supportZip.confirmAction")}
+            </button>
+          </>
+        }
+      >
+        <div
+          className="app-dialog__msg"
+          style={{ margin: 0, padding: "12px 16px" }}
+          data-testid="doctor-support-zip-checklist"
+        >
+          <p style={{ margin: "0 0 8px" }}>
+            {t("reliability.supportZip.confirmMessage")}
+          </p>
+          <p
+            className="doctor-advanced__hint"
+            style={{ margin: "0 0 10px" }}
+          >
+            {t("reliability.supportZip.secretsNever")}
+          </p>
+          <p style={{ margin: "0 0 6px", fontWeight: 600 }}>
+            {t("reliability.supportZip.checklistTitle")}
+          </p>
+          <ul
+            className="doctor-support-checklist"
+            style={{
+              margin: "0 0 10px",
+              padding: "0 0 0 1.1em",
+              listStyle: "disc",
+            }}
+          >
+            {supportPlan.sections.map((s) => (
+              <li
+                key={s.id}
+                data-section={s.id}
+                data-included={s.included ? "1" : "0"}
+                style={{
+                  marginBottom: 4,
+                  opacity: s.included ? 1 : 0.55,
+                }}
+              >
+                <span aria-hidden>{s.included ? "✓ " : "– "}</span>
+                {t(s.labelKey as MessageKey)}
+                {s.included && s.redacted
+                  ? ` · ${t("reliability.supportZip.redacted")}`
+                  : null}
+                {!s.included
+                  ? ` · ${t("reliability.supportZip.sectionOmitted")}`
+                  : s.availability === "when_available"
+                    ? ` · ${t("reliability.supportZip.whenAvailable")}`
+                    : null}
+              </li>
+            ))}
+          </ul>
+          <details style={{ marginTop: 4 }}>
+            <summary style={{ cursor: "pointer" }}>
+              {t("reliability.supportZip.manifestPreview")}
+            </summary>
+            <pre
+              className="doctor-support-manifest"
+              style={{
+                margin: "8px 0 0",
+                padding: 8,
+                fontSize: 11,
+                lineHeight: 1.4,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                maxHeight: 160,
+                overflow: "auto",
+                borderRadius: 6,
+                background: "var(--surface-2, rgba(0,0,0,0.06))",
+              }}
+              data-testid="doctor-support-manifest"
+            >
+              {supportManifestText}
+            </pre>
+          </details>
+        </div>
       </GlassModal>
     </div>
   );
