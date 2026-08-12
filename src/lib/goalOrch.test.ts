@@ -7,6 +7,7 @@ import {
   DEFAULT_GOAL_ORCH_UI_ENABLED,
   filterGoalOrchByPhaseAndRole,
   filterGoalOrchEvents,
+  formatGoalOrchChipDetail,
   formatGoalOrchSummaryText,
   goalEventFromHostPayload,
   goalOrchPhaseLabelKey,
@@ -594,9 +595,12 @@ describe("pickLatestGoalOrchEvent / session indicator", () => {
       events: [],
       sessionId: "s1",
       goalMode: true,
+      nowMs: 42_000,
     });
     expect(waiting?.kind).toBe("waiting");
     expect(waiting?.phase).toBe("status");
+    expect(waiting?.progress).toBeNull();
+    expect(waiting?.at).toBe(42_000);
     const ind = resolveGoalOrchSessionIndicator({
       uiEnabled: true,
       events,
@@ -606,6 +610,14 @@ describe("pickLatestGoalOrchEvent / session indicator", () => {
     expect(ind?.kind).toBe("active");
     expect(ind?.phase).toBe("strategist");
     expect(ind?.progress).toBe("0/2");
+  });
+
+  it("formats chip detail without inventing progress", () => {
+    expect(formatGoalOrchChipDetail(null)).toBeNull();
+    expect(formatGoalOrchChipDetail("")).toBeNull();
+    expect(formatGoalOrchChipDetail("  short  ")).toBe("short");
+    expect(formatGoalOrchChipDetail("x".repeat(60))?.endsWith("…")).toBe(true);
+    expect(formatGoalOrchChipDetail("x".repeat(60))?.length).toBe(48);
   });
 
   it("maps phase to i18n key", () => {

@@ -189,6 +189,7 @@ import {
   type CompactionModeId
 } from "@/lib/compactionMode";
 import { ContextUsageChip } from "@/components/ContextUsageChip";
+import { GoalOrchSessionChip } from "@/components/GoalOrchSessionChip";
 import { PlanStatusBar } from "@/components/PlanStatusBar";
 import {
   applyPlanPendingMembership,
@@ -243,10 +244,14 @@ import {
   type ReliabilityStallSignal
 } from "@/lib/reliabilityCenter";
 import {
+  buildGoalControlSummary,
+  filterGoalOrchEvents,
   goalOrchPhaseLabelKey,
   loadGoalOrchUiEnabled,
+  planClearGoalOrchEvents,
   resolveGoalOrchSessionIndicator,
   saveGoalOrchUiEnabled,
+  shouldConfirmClearGoalOrch,
   type GoalOrchEvent
 } from "@/lib/goalOrch";
 import * as api from "@/lib/api";
@@ -13849,6 +13854,54 @@ export function AppWorkbench() {
     [goalOrchUiEnabled, goalOrchEvents, session.sessionId, goalMode],
   );
 
+  /** Session-scoped observed events for chip copy (never invents rows). */
+  const goalOrchSessionEvents = useMemo(
+    () => filterGoalOrchEvents(goalOrchEvents, session.sessionId ?? null),
+    [goalOrchEvents, session.sessionId],
+  );
+
+  const clearLocalGoalOrchTimeline = useCallback(() => {
+    const plan = planClearGoalOrchEvents(goalOrchEvents);
+    setGoalOrchEvents(plan.next);
+    if (plan.cleared > 0) {
+      showToast(
+        tr("reliability.goal.clearDone", { count: plan.cleared }),
+        2400,
+      );
+    }
+  }, [goalOrchEvents, showToast, tr]);
+
+  const requestClearLocalGoalOrchTimeline = useCallback(() => {
+    const plan = planClearGoalOrchEvents(goalOrchEvents);
+    if (plan.cleared <= 0) return;
+    if (shouldConfirmClearGoalOrch(plan.cleared)) {
+      setAppDialog({
+        kind: "confirm",
+        title: tr("reliability.goal.clearConfirmTitle"),
+        message: tr("reliability.goal.clearConfirmMessage", {
+          count: plan.cleared,
+        }),
+        confirmLabel: tr("reliability.goal.clearConfirmAction"),
+        onConfirm: () => clearLocalGoalOrchTimeline(),
+      });
+      return;
+    }
+    clearLocalGoalOrchTimeline();
+  }, [goalOrchEvents, clearLocalGoalOrchTimeline, setAppDialog, tr]);
+
+  const copyGoalOrchControlSummary = useCallback(async () => {
+    try {
+      const text = buildGoalControlSummary(goalOrchSessionEvents, {
+        title: tr("reliability.goal.title"),
+        generatedAt: new Date().toISOString(),
+      });
+      await navigator.clipboard.writeText(text);
+      showToast(tr("reliability.goal.copied"), 2200);
+    } catch {
+      showToast(tr("reliability.goal.copyFail"), 3200);
+    }
+  }, [goalOrchSessionEvents, showToast, tr]);
+
   // T15: announce stream start/end once (avoid token-level noise).
   useEffect(() => {
     const streaming =
@@ -18762,61 +18815,42 @@ export function AppWorkbench() {
           )}
 
           {mainPane === "chat" && goalOrchSessionChip ? (
-            <div className="goal-orch-session-chip-wrap">
-              <button
-                type="button"
-                className={
-                  "goal-orch-session-chip" +
-                  (goalOrchSessionChip.kind === "waiting"
-                    ? " goal-orch-session-chip--waiting"
-                    : "")
-                }
-                data-testid="goal-orch-session-chip"
-                data-kind={goalOrchSessionChip.kind}
-                title={[
+            <GoalOrchSessionChip
+              indicator={goalOrchSessionChip}
+              phaseLabel={tr(
+                goalOrchPhaseLabelKey(goalOrchSessionChip.phase),
+              )}
+              canClear={goalOrchEvents.length > 0}
+              labels={{
+                chipLabel:
                   goalOrchSessionChip.kind === "waiting"
-                    ? tr("reliability.goal.sessionChipWaitingTitle")
-                    : tr(goalOrchPhaseLabelKey(goalOrchSessionChip.phase)),
-                  goalOrchSessionChip.label,
-                  goalOrchSessionChip.progress,
-                  goalOrchSessionChip.detail,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-                aria-label={
+                    ? tr("reliability.goal.sessionChipWaiting")
+                    : tr("reliability.goal.sessionChip", {
+                        phase: tr(
+                          goalOrchPhaseLabelKey(goalOrchSessionChip.phase),
+                        ),
+                      }),
+                aria:
                   goalOrchSessionChip.kind === "waiting"
                     ? tr("reliability.goal.sessionChipWaitingAria")
                     : tr("reliability.goal.sessionChipAria", {
                         phase: tr(
                           goalOrchPhaseLabelKey(goalOrchSessionChip.phase),
                         ),
-                      })
-                }
-                onClick={() => openReliability()}
-              >
-                <span className="goal-orch-session-chip__dot" aria-hidden />
-                <span className="goal-orch-session-chip__label">
-                  {goalOrchSessionChip.kind === "waiting"
-                    ? tr("reliability.goal.sessionChipWaiting")
-                    : tr("reliability.goal.sessionChip", {
-                        phase: tr(
-                          goalOrchPhaseLabelKey(goalOrchSessionChip.phase),
-                        ),
-                      })}
-                  {goalOrchSessionChip.kind === "active" &&
-                  goalOrchSessionChip.detail
-                    ? ` · ${goalOrchSessionChip.detail.slice(0, 48)}${
-                        goalOrchSessionChip.detail.length > 48 ? "…" : ""
-                      }`
-                    : ""}
-                </span>
-                {goalOrchSessionChip.progress ? (
-                  <span className="goal-orch-session-chip__meta">
-                    {goalOrchSessionChip.progress}
-                  </span>
-                ) : null}
-              </button>
-            </div>
+                      }),
+                title:
+                  goalOrchSessionChip.kind === "waiting"
+                    ? tr("reliability.goal.sessionChipWaitingTitle")
+                    : tr(goalOrchPhaseLabelKey(goalOrchSessionChip.phase)),
+                menuAria: tr("reliability.goal.sessionMenuAria"),
+                openReliability: tr("reliability.goal.openReliability"),
+                copySummary: tr("reliability.goal.copySummary"),
+                clearTimeline: tr("reliability.goal.clearTimeline"),
+              }}
+              onOpenReliability={() => openReliability()}
+              onCopySummary={() => void copyGoalOrchControlSummary()}
+              onClearTimeline={requestClearLocalGoalOrchTimeline}
+            />
           ) : null}
 
           {mainPane === "chat" && showChatFind && (

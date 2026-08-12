@@ -19,6 +19,12 @@ See `docs/llm-wiki/release.md`.
 - **外观字体 (#553)**：设置 → 外观 可配置界面字体与内置终端字体/字号（本机偏好；终端优先 Nerd Font 以显示 Starship 图标）。
 - **首选 agent 生效路径诚实 (#564)**：设置与 Agents & Personas 控制台标明 spawn `--agent` 路径 — 已连接 soft-respawn、空闲下次连接；目录缺失/非法名称 soft-fail。纯 helper + 测试；三语文案。
 
+### Changed
+- **Goal session chrome menu**: Chat Goal chip (active on real `goal_updated`, dashed waiting when `/goal` is on with no harness events) opens a solid menu — Open Reliability · Copy summary · Clear local timeline (in-app confirm). Extracted `GoalOrchSessionChip`; still never invents progress.
+
+**中文 · 变更**
+- **Goal 会话指示菜单**：有真实 `goal_updated` 显示阶段 chip，仅 `/goal` 无事件时虚线等待态；点击打开菜单（可靠性中心 / 复制摘要 / 清除本机时间线）。仍不虚构进度。
+
 ### Fixed
 - **App update channel honesty**: Settings → About restores full path honesty after the settings split — signed in-app vs GitHub download vs unsupported package type (Linux non-AppImage note), soft-fail error classes, idle/empty and check-failed copy. Never claims silent update on unsigned builds. Host `updater_status` reports `unsupported` when the plugin is on but the package cannot auto-update.
 - **CI baseline**: `cargo fmt` drift and ESLint non-null optional-chain in `session.test.ts`.

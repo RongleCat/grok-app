@@ -891,6 +891,9 @@ export function pickLatestGoalOrchEvent(
   return filtered[0] ?? null;
 }
 
+/** Max chars for session-chrome detail snippet (after redaction). */
+export const GOAL_ORCH_CHIP_DETAIL_MAX = 48;
+
 /** Compact session-chrome indicator (soft; no fake progress meter). */
 export type GoalOrchSessionIndicator = {
   show: true;
@@ -908,6 +911,22 @@ export type GoalOrchSessionIndicator = {
 };
 
 /**
+ * Truncate an already-redacted detail line for the session chip label.
+ * Returns null when empty — never invents progress text.
+ */
+export function formatGoalOrchChipDetail(
+  detail: string | null | undefined,
+  max: number = GOAL_ORCH_CHIP_DETAIL_MAX,
+): string | null {
+  if (detail == null) return null;
+  const t = detail.replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  const cap = Math.max(1, Math.floor(max));
+  if (t.length <= cap) return t;
+  return `${t.slice(0, Math.max(1, cap - 1))}…`;
+}
+
+/**
  * Soft session indicator:
  * - real `goal_updated` → active chip with phase / progress / detail
  * - composer `goalMode` on but no events yet → waiting chip (never fake progress)
@@ -919,6 +938,8 @@ export function resolveGoalOrchSessionIndicator(input: {
   sessionId?: string | null;
   /** Product composer /goal mode — waiting chip only when true and no events. */
   goalMode?: boolean | null;
+  /** Clock for waiting-chip `at` (pure/tests). Defaults to Date.now(). */
+  nowMs?: number;
 }): GoalOrchSessionIndicator | null {
   if (!input.uiEnabled && !input.goalMode) return null;
   const latest = pickLatestGoalOrchEvent(input.events, input.sessionId);
@@ -935,6 +956,10 @@ export function resolveGoalOrchSessionIndicator(input: {
     };
   }
   if (input.goalMode && input.uiEnabled) {
+    const at =
+      typeof input.nowMs === "number" && Number.isFinite(input.nowMs)
+        ? input.nowMs
+        : Date.now();
     return {
       show: true,
       kind: "waiting",
@@ -943,7 +968,7 @@ export function resolveGoalOrchSessionIndicator(input: {
       detail: null,
       progress: null,
       goalId: null,
-      at: Date.now(),
+      at,
     };
   }
   return null;
