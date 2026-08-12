@@ -38,6 +38,13 @@ import {
   WALLPAPER_GALLERY_KIND_FILTERS,
   type WallpaperGalleryKindFilter,
 } from "@/lib/wallpaperGalleryPro";
+import {
+  countWallpaperXCitations,
+  recordWallpaperXEvidencePick,
+  resolveWallpaperXCitation,
+  wallpaperXEvidenceFromGalleryItem,
+  wallpaperXSearchCitationSummaryKey,
+} from "@/lib/xEvidenceCitation";
 import { WallpaperPrepareError } from "@/lib/themeSkin";
 import { resolveImageSrcSync } from "@/lib/imageSrc";
 import type { MessageKey } from "@/i18n";
@@ -131,6 +138,8 @@ export function WallpaperSourceModal({
     null,
   );
   const [statusHint, setStatusHint] = useState<string | null>(null);
+  /** Soft citation honesty after an X search (verified / unverified counts). */
+  const [citeSummary, setCiteSummary] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -138,6 +147,7 @@ export function WallpaperSourceModal({
     setError(null);
     setErrorCode(null);
     setStatusHint(null);
+    setCiteSummary(null);
     setSelectedId(null);
     setPreviewingId(null);
     setGalleryFilter("");
@@ -244,16 +254,19 @@ export function WallpaperSourceModal({
     if (!q) {
       setErrorCode("empty");
       setError(errorMessage(t, "empty"));
+      setCiteSummary(null);
       return;
     }
     if (!isDesktopHost()) {
       setErrorCode("generic");
       setError(t("settings.wallpaperSource.err.desktopOnly"));
+      setCiteSummary(null);
       return;
     }
     setBusy(true);
     setError(null);
     setErrorCode(null);
+    setCiteSummary(null);
     setStatusHint(t("settings.wallpaperSource.searching"));
     setSelectedId(null);
     setGalleryFilter("");
@@ -268,14 +281,40 @@ export function WallpaperSourceModal({
         setItems([]);
         setErrorCode(code);
         setError(errorMessage(t, code));
+        const emptyKey = wallpaperXSearchCitationSummaryKey({
+          itemCount: 0,
+          verified: 0,
+          unverified: 0,
+          errorCode: code,
+        });
+        setCiteSummary(
+          emptyKey
+            ? t(emptyKey as MessageKey, { verified: 0, unverified: 0 })
+            : null,
+        );
       } else {
         setItems(list);
         setError(null);
         setErrorCode(null);
+        const counts = countWallpaperXCitations(list);
+        const sumKey = wallpaperXSearchCitationSummaryKey({
+          itemCount: counts.total,
+          verified: counts.verified,
+          unverified: counts.unverified,
+        });
+        setCiteSummary(
+          sumKey
+            ? t(sumKey as MessageKey, {
+                verified: counts.verified,
+                unverified: counts.unverified,
+              })
+            : null,
+        );
       }
     } catch (e) {
       setHasSearched(true);
       setItems([]);
+      setCiteSummary(null);
       const code = parseWallpaperSourceError(e);
       setErrorCode(code);
       setError(errorMessage(t, code));
@@ -300,6 +339,7 @@ export function WallpaperSourceModal({
     setBusy(true);
     setError(null);
     setErrorCode(null);
+    setCiteSummary(null);
     setStatusHint(t("settings.wallpaperSource.generating"));
     setSelectedId(null);
     setGalleryFilter("");
@@ -488,6 +528,12 @@ export function WallpaperSourceModal({
     [busy, applying, previewingId, visibleItems, t, viewer, dropItem],
   );
 
+  const openXStatus = useCallback((url: string) => {
+    void api.openExternalUrl(url).catch(() => {
+      /* soft-fail: citation open is best-effort */
+    });
+  }, []);
+
   const applySelected = useCallback(async () => {
     if (!selected) return;
     if (!isDesktopHost()) {
@@ -501,6 +547,11 @@ export function WallpaperSourceModal({
     setStatusHint(t("settings.wallpaperSource.applying"));
     try {
       const local = await ensureLocalMedia(selected);
+      // Local evidence ring for X picks only (path + status url meta; no cloud).
+      if ((selected.source || "x") === "x") {
+        const pick = wallpaperXEvidenceFromGalleryItem(selected, local.path);
+        if (pick) recordWallpaperXEvidencePick(pick);
+      }
       const file = await fileFromAbsolutePath(local.path, {
         name: local.name,
         mime: local.mime,
@@ -741,6 +792,16 @@ export function WallpaperSourceModal({
         </p>
       ) : null}
 
+      {citeSummary && tab === "x" ? (
+        <p
+          className="wallpaper-source-cite-summary"
+          role="status"
+          data-soft-fail="1"
+        >
+          {citeSummary}
+        </p>
+      ) : null}
+
       {error ? (
         <div
           className={
@@ -885,6 +946,10 @@ export function WallpaperSourceModal({
             const active = item.id === selectedId;
             const loadingThis = previewingId === item.id;
             const src = itemThumbSrc(item);
+            const cite =
+              item.source === "x" || (!item.source && tab === "x")
+                ? resolveWallpaperXCitation(item)
+                : null;
             return (
               <div
                 key={item.id}
@@ -940,6 +1005,38 @@ export function WallpaperSourceModal({
                       : null}
                   </span>
                 </button>
+                {cite && !loadingThis ? (
+                  <div
+                    className={
+                      "wallpaper-masonry__cite" +
+                      (cite.state === "verified"
+                        ? " wallpaper-masonry__cite--verified"
+                        : " wallpaper-masonry__cite--unverified")
+                    }
+                    title={t(cite.hintKey as MessageKey)}
+                  >
+                    {cite.state === "verified" && cite.statusUrl ? (
+                      <button
+                        type="button"
+                        className="wallpaper-masonry__cite-btn"
+                        disabled={locked}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openXStatus(cite.statusUrl!);
+                        }}
+                        title={t("settings.wallpaperSource.cite.openPost")}
+                        aria-label={t("settings.wallpaperSource.cite.openPost")}
+                      >
+                        {t(cite.labelKey as MessageKey)}
+                      </button>
+                    ) : (
+                      <span className="wallpaper-masonry__cite-badge">
+                        {t(cite.labelKey as MessageKey)}
+                      </span>
+                    )}
+                  </div>
+                ) : null}
                 {isLibraryTab ? (
                   <button
                     type="button"

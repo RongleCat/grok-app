@@ -284,6 +284,77 @@
   border: none;
 }
 
+/* X citation honesty (status URL / unverified) — outside card button */
+.wallpaper-masonry__cell {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 10px;
+  vertical-align: top;
+}
+
+.wallpaper-masonry__cell .wallpaper-masonry__card {
+  margin-bottom: 0;
+}
+
+.wallpaper-masonry__cite {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 6px;
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: var(--text-tertiary);
+}
+
+.wallpaper-masonry__cite--verified {
+  color: color-mix(in srgb, var(--accent) 75%, var(--text-secondary));
+}
+
+.wallpaper-masonry__cite--unverified {
+  color: var(--text-tertiary);
+  opacity: 0.9;
+}
+
+.wallpaper-masonry__cite-btn {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wallpaper-masonry__cite-btn:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.wallpaper-masonry__cite-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.wallpaper-masonry__cite-badge {
+  font-style: italic;
+}
+
+.wallpaper-source-cite-summary {
+  flex: 0 0 auto;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-hover) 70%, transparent);
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 80%, transparent);
+}
+
 @media (max-width: 640px) {
   .wallpaper-masonry:not(.wallpaper-masonry--full) {
     column-count: 2;
@@ -294,6 +365,7 @@
 .wallpaper-source-modal__body > .wallpaper-source-tabs,
 .wallpaper-source-modal__body > .wallpaper-source-form,
 .wallpaper-source-modal__body > .wallpaper-source-status,
+.wallpaper-source-modal__body > .wallpaper-source-cite-summary,
 .wallpaper-source-modal__body > .wallpaper-source-error,
 .wallpaper-source-modal__body > .wallpaper-source-filters {
   flex: 0 0 auto;

@@ -167,6 +167,66 @@ pub fn is_allowed_media_url(url: &str) -> bool {
         || host == "x.ai"
 }
 
+/// Extract a numeric X/Twitter status snowflake from a URL (or bare id).
+/// Short digit runs are noise — real snowflakes are long.
+fn extract_status_id_from_url(url: &str) -> Option<String> {
+    let u = url.trim();
+    if u.is_empty() {
+        return None;
+    }
+    if u.chars().all(|c| c.is_ascii_digit()) && u.len() >= 8 {
+        return Some(u.to_string());
+    }
+    let lower = u.to_ascii_lowercase();
+    if !(lower.contains("x.com/") || lower.contains("twitter.com/")) {
+        return None;
+    }
+    for marker in ["/status/", "/statuses/"] {
+        if let Some(idx) = lower.find(marker) {
+            let after = &u[idx + marker.len()..];
+            let id: String = after.chars().take_while(|c| c.is_ascii_digit()).collect();
+            if id.len() >= 8 {
+                return Some(id);
+            }
+        }
+    }
+    None
+}
+
+/// Normalize to `https://x.com/<user>/status/<id>` when a real status id is present.
+/// Returns `None` when the URL is not a citable status page (never invents ids).
+fn normalize_status_url(url: &str, username: Option<&str>) -> Option<String> {
+    let status_id = extract_status_id_from_url(url)?;
+    let mut handle = String::new();
+    if let Ok(parsed) = url::Url::parse(url.trim()) {
+        let host = parsed
+            .host_str()
+            .unwrap_or("")
+            .trim_start_matches("www.")
+            .to_ascii_lowercase();
+        if host == "x.com" || host == "twitter.com" || host == "mobile.twitter.com" {
+            let segs: Vec<&str> = parsed.path().split('/').filter(|s| !s.is_empty()).collect();
+            if let Some(first) = segs.first() {
+                if !first.eq_ignore_ascii_case("i")
+                    && !first.eq_ignore_ascii_case("status")
+                    && !first.eq_ignore_ascii_case("statuses")
+                {
+                    handle = first.trim_start_matches('@').to_string();
+                }
+            }
+        }
+    }
+    if handle.is_empty() {
+        if let Some(u) = username.map(str::trim).filter(|s| !s.is_empty()) {
+            handle = u.trim_start_matches('@').to_string();
+        }
+    }
+    if handle.is_empty() {
+        handle = "i".into();
+    }
+    Some(format!("https://x.com/{handle}/status/{status_id}"))
+}
+
 /// Stricter gallery candidate: real stills suitable as wallpaper, not avatars/emoji.
 pub fn is_gallery_media_url(url: &str) -> bool {
     if !is_allowed_media_url(url) {
@@ -622,11 +682,18 @@ fn parse_gallery_items(value: &serde_json::Value, source: &str) -> Vec<Wallpaper
                 .get("username")
                 .and_then(|v| v.as_str())
                 .map(|s| s.trim_start_matches('@').to_string()),
-            post_url: raw
-                .get("postUrl")
-                .or_else(|| raw.get("post_url"))
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+            post_url: {
+                let username = raw
+                    .get("username")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.trim_start_matches('@'));
+                raw.get("postUrl")
+                    .or_else(|| raw.get("post_url"))
+                    .or_else(|| raw.get("statusUrl"))
+                    .or_else(|| raw.get("status_url"))
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| normalize_status_url(s, username))
+            },
             text_preview: raw
                 .get("textPreview")
                 .or_else(|| raw.get("text_preview"))
@@ -671,8 +738,9 @@ Search strategy (use X tools; sort = {sort}):
 2. Always require media: use filter:images (or media). Prefer higher engagement (likes/reposts) when sort is Top.
 3. Prefer posts that include BOTH the prompt text and attached images; if none, fall back to high-quality image posts about the topic.
 4. Skip low quality: memes with heavy text overlays, screenshots of chat UI, profile avatars, emoji packs, ads, pure text cards, blurry thumbs, broken/placeholder links.
-5. Collect distinct direct IMAGE CDN URLs only — prefer https://pbs.twimg.com/media/… (name=orig or full size). Never return x.com status page URLs.
-6. Return exactly ONE JSON object matching the schema (items array, 12–28 when possible). No prose, no second JSON object, no placeholder.jpg.
+5. Collect distinct direct IMAGE CDN URLs only for fullUrl — prefer https://pbs.twimg.com/media/… (name=orig or full size). Never put status page URLs in fullUrl.
+6. Always set postUrl to the real canonical status link `https://x.com/<user>/status/<id>` when the post is known. Never invent or guess a status id. If you cannot confirm the status URL, omit postUrl (client will mark the tile Unverified).
+7. Return exactly ONE JSON object matching the schema (items array, 12–28 when possible). No prose, no second JSON object, no placeholder.jpg.
 
 Do not download files — metadata only.
 "#
@@ -1576,5 +1644,52 @@ and https://pbs.twimg.com/media/HNccFG2X0AE8gQ6.jpg?format=jpg&name=small
             std::env::remove_var("GROK_APP_HOME");
         }
         let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn normalize_status_url_canonicalizes_and_drops_non_status() {
+        assert_eq!(
+            normalize_status_url(
+                "https://twitter.com/FooBar/status/1234567890123456789?s=20",
+                None
+            )
+            .as_deref(),
+            Some("https://x.com/FooBar/status/1234567890123456789")
+        );
+        assert_eq!(
+            normalize_status_url("https://x.com/i/status/1234567890123456789", Some("alice"))
+                .as_deref(),
+            Some("https://x.com/alice/status/1234567890123456789")
+        );
+        assert_eq!(
+            normalize_status_url("https://x.com/i/status/1234567890123456789", None).as_deref(),
+            Some("https://x.com/i/status/1234567890123456789")
+        );
+        assert!(normalize_status_url("https://pbs.twimg.com/media/a.jpg", Some("u")).is_none());
+        assert!(normalize_status_url("https://x.com/alice", Some("alice")).is_none());
+    }
+
+    #[test]
+    fn parse_gallery_items_normalizes_post_url() {
+        let v = json!({
+            "items": [
+                {
+                    "fullUrl": "https://pbs.twimg.com/media/a.jpg",
+                    "username": "alice",
+                    "postUrl": "https://twitter.com/alice/status/1234567890123456789"
+                },
+                {
+                    "fullUrl": "https://pbs.twimg.com/media/b.jpg",
+                    "username": "bob"
+                }
+            ]
+        });
+        let items = parse_gallery_items(&v, "x");
+        assert_eq!(items.len(), 2);
+        assert_eq!(
+            items[0].post_url.as_deref(),
+            Some("https://x.com/alice/status/1234567890123456789")
+        );
+        assert!(items[1].post_url.is_none());
     }
 }
