@@ -522,10 +522,15 @@ impl SessionManager {
 
     /// Record desired effort. CLI has no mid-session set_effort RPC; soft-drop the
     /// live agent so the next connect re-spawns with `--reasoning-effort`.
+    ///
+    /// `session_id` is the chat the change belongs to. A draft chat (`None`) or a
+    /// background chat owns no agent here, and applying its effort to the live
+    /// slot used to retune — and soft-respawn — an unrelated conversation.
     pub async fn set_effort_and_respawn_needed(
         &self,
         app: &AppHandle,
         effort: String,
+        session_id: Option<&str>,
     ) -> Result<(), String> {
         let effort = effort.trim().to_string();
         // Accept CLI catalog values; unknown efforts still fail closed with a clear error.
@@ -541,14 +546,15 @@ impl SessionManager {
         }
         let need = {
             let mut guard = self.inner.lock();
-            if let Some(s) = guard.as_mut() {
-                let same = s.effort.as_deref() == Some(effort.as_str());
-                s.effort = Some(effort.clone());
-                s.meta.effort = Some(effort);
-                let _ = store::update_session_meta(&s.meta);
-                !same && s.acp.is_some()
-            } else {
-                false
+            match guard.as_mut() {
+                Some(s) if session_id.is_some_and(|id| id == s.app_session_id) => {
+                    let same = s.effort.as_deref() == Some(effort.as_str());
+                    s.effort = Some(effort.clone());
+                    s.meta.effort = Some(effort);
+                    let _ = store::update_session_meta(&s.meta);
+                    !same && s.acp.is_some()
+                }
+                _ => false,
             }
         };
         if need {

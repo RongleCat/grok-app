@@ -330,7 +330,15 @@ pub async fn composer_prefs_set(
     // Prefer explicit ids; fall back to live session context.
     let (live_proj, live_sess) = mgr.current_context_ids();
     let project_id = project_id.or(live_proj);
-    let session_id = session_id.or(live_sess);
+    // Effort is per-chat, so a draft (`sessionId: null`) must keep its `None`:
+    // falling back to the live session wrote the draft's effort into whichever
+    // chat was still running and soft-respawned that agent. Drafts seed the
+    // global default instead, and the row is written once the chat exists.
+    let session_id = if effort.is_some() {
+        session_id
+    } else {
+        session_id.or(live_sess)
+    };
 
     let prefs = store::save_composer_prefs(
         project_id.as_deref(),
@@ -352,7 +360,10 @@ pub async fn composer_prefs_set(
         }
     }
     if let Some(eff) = effort {
-        if let Err(e) = mgr.set_effort_and_respawn_needed(&app, eff).await {
+        if let Err(e) = mgr
+            .set_effort_and_respawn_needed(&app, eff, session_id.as_deref())
+            .await
+        {
             tracing::warn!("composer_prefs_set set_effort soft-fail: {e}");
         }
     }

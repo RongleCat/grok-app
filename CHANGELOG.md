@@ -29,6 +29,8 @@ See `docs/llm-wiki/release.md`.
 - **Remote IM CN channels honesty**: DingTalk / WeCom / Weixin deep health always soft-fails incomplete bind fields and never shows **Connected** without Bridge running **and** instance linked; Weixin locks project/session picker to text menus (§6.9); no-live-claim hints + §6 field help polish. WPS xiezuo/agentspace stay retired.
 - **Memory clear scopes + dream honesty**: Memory ops center GlassModal clear for host scopes **workspace / global / all** (real `grok memory clear` flags; no `window.confirm`). Dream/watcher chips remain config-presence only — never a live “running” status. Experimental memory stays **off** by default with `--no-memory` force-disable honesty.
 
+- **Reasoning effort is remembered per chat**: Effort now cascades session → project → global like permission, instead of following the `composer_prefs_scope` setting (which only ever promised “model & permission”). Under the default global scope one `settings.effort` served every chat, so raising effort in one conversation silently rewrote every other one that had already chosen its own; `settings.effort` is now only the seed for chats that never picked one.
+- **A draft chat no longer retunes the live one**: Changing effort before the first message kept its `sessionId: null` instead of falling back to the running session, which had been writing the draft's effort into that conversation's row and soft-respawning its agent. `set_effort_and_respawn_needed` now only touches the live slot when the change belongs to it.
 **中文 · 新增**
 - **「思考中 N 秒」不再因切换会话归零**：回合计时改为按会话保存，不再是一个全局值。此前 `session://state` 处理里清空计时那一支**没有判断事件属于哪个会话**（其余几处都判断了），于是任意后台会话变空闲就会清掉你正在看的那个会话的计时；切回仍在进行中的会话时也无从恢复，只能从零重数。现在打开会话会恢复它自己的计时。
 - **闸门倒计时不再因切换会话重置**：工具权限的自动拒绝与问卷的自动取消，都从各自 UI 挂载的那一刻开始计时。离开会话会卸载它们（新建对话会清空待处理请求，切换会话同样），于是返回时又拿到一个完整超时，期限永远不会到来。现在两者都按请求（`sessionId:rpcId`）恢复计时，共用 `lib/gateClock`。
@@ -50,6 +52,8 @@ See `docs/llm-wiki/release.md`.
 - **Goal session chrome menu**: Chat Goal chip (active on real `goal_updated`, dashed waiting when `/goal` is on with no harness events) opens a solid menu — Open Reliability · Copy summary · Clear local timeline (in-app confirm). Extracted `GoalOrchSessionChip`; still never invents progress.
 
 **中文 · 变更**
+- **思考等级改为按会话记忆**：effort 与权限一样按 会话 → 项目 → 全局 级联，不再跟随「模型与权限记忆范围」设置（该设置本就只承诺模型与权限）。此前默认全局范围下所有会话共用一个 `settings.effort`，在某个会话调高等级会静默改写其他所有已自选等级的会话；现在 `settings.effort` 只作为「从未选过」的会话的初始值。
+- **草稿会话不再改动正在运行的会话**：首次发送前修改思考等级会保留 `sessionId: null`，不再回退到当前活跃会话——此前会把草稿的等级写进那个会话并软重启其 agent。`set_effort_and_respawn_needed` 现在仅在改动确属该会话时才作用于活跃槽位。
 - **远程 IM 国内渠道诚实态**：钉钉 / 企微 / 微信个人 缺字段 soft-fail，未关联 Bridge 不显示「已连接」；微信强制文本菜单；无在线断言提示 + §6 字段帮助。WPS 协作/数字员工保持退役。
 - **Goal 会话指示菜单**：有真实 `goal_updated` 显示阶段 chip，仅 `/goal` 无事件时虚线等待态；点击打开菜单（可靠性中心 / 复制摘要 / 清除本机时间线）。仍不虚构进度。
 

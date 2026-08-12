@@ -2140,9 +2140,9 @@ fn global_prefs(settings: &AppSettings) -> (String, String, String, String) {
 
 /// Resolve effective composer prefs for the active project/session + configured scope.
 ///
-/// Model / effort / mode follow `composer_prefs_scope`.
-/// Permission always cascades session → project → global (L10), and untrusted
-/// projects force Ask regardless of stored tiers.
+/// Model / mode follow `composer_prefs_scope`.
+/// Permission and effort always cascade session → project → global (L10), and
+/// untrusted projects force Ask regardless of stored tiers.
 pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>) -> ComposerPrefs {
     use crate::permission::effective_permission_policy;
 
@@ -2157,7 +2157,7 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
         .or(project_id)
         .and_then(|id| load_projects().into_iter().find(|p| p.id == id));
 
-    // Permission: always cascade (independent of model/effort memory scope).
+    // Permission: always cascade (independent of model memory scope).
     let permission_policy = effective_permission_policy(
         &g_policy,
         proj.as_ref().map(|p| p.trusted),
@@ -2167,10 +2167,26 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
     .as_str()
     .to_string();
 
+    // Effort: always cascade session → project → global, like permission and
+    // unlike model. Reasoning effort is a per-chat decision — under the default
+    // global scope a single `settings.effort` served every chat, so raising
+    // effort in a new chat silently rewrote every older chat on that model.
+    // `settings.effort` now only seeds chats that never chose one.
+    let effort = sess
+        .as_ref()
+        .and_then(|s| s.effort.clone())
+        .filter(|x| !x.trim().is_empty())
+        .or_else(|| {
+            proj.as_ref()
+                .and_then(|p| p.effort.clone())
+                .filter(|x| !x.trim().is_empty())
+        })
+        .unwrap_or(g_effort);
+
     match scope {
         ComposerPrefsScope::Global => ComposerPrefs {
             model_id: g_model,
-            effort: g_effort,
+            effort,
             mode: g_mode,
             permission_policy,
             scope: scope.as_str().into(),
@@ -2180,7 +2196,7 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
             if let Some(p) = proj {
                 ComposerPrefs {
                     model_id: p.model_id.filter(|s| !s.is_empty()).unwrap_or(g_model),
-                    effort: p.effort.filter(|s| !s.is_empty()).unwrap_or(g_effort),
+                    effort,
                     mode: p
                         .mode
                         .filter(|s| !s.is_empty())
@@ -2194,7 +2210,7 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
             } else {
                 ComposerPrefs {
                     model_id: g_model,
-                    effort: g_effort,
+                    effort,
                     mode: g_mode,
                     permission_policy,
                     scope: scope.as_str().into(),
@@ -2208,11 +2224,6 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
                 .and_then(|p| p.model_id.clone())
                 .filter(|s| !s.is_empty())
                 .unwrap_or(g_model.clone());
-            let p_effort = proj
-                .as_ref()
-                .and_then(|p| p.effort.clone())
-                .filter(|s| !s.is_empty())
-                .unwrap_or(g_effort.clone());
             let p_mode = proj
                 .as_ref()
                 .and_then(|p| p.mode.clone())
@@ -2224,7 +2235,7 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
             if let Some(s) = sess {
                 ComposerPrefs {
                     model_id: s.model_id.filter(|x| !x.is_empty()).unwrap_or(p_model),
-                    effort: s.effort.filter(|x| !x.is_empty()).unwrap_or(p_effort),
+                    effort,
                     mode: s.mode.filter(|x| !x.is_empty()).unwrap_or(p_mode),
                     permission_policy,
                     scope: scope.as_str().into(),
@@ -2233,7 +2244,7 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
             } else {
                 ComposerPrefs {
                     model_id: p_model,
-                    effort: p_effort,
+                    effort,
                     mode: p_mode,
                     permission_policy,
                     scope: scope.as_str().into(),
@@ -2266,6 +2277,28 @@ pub(crate) fn non_plan_mode(mode: &str) -> String {
     m.to_string()
 }
 
+/// Persist `effort` on the session row.
+///
+/// Returns the value back when there is no row to write to (draft chat that has
+/// not been created yet, or an unknown id) so the caller can seed the global
+/// default instead of dropping the choice.
+fn save_effort_on_session(
+    session_id: Option<&str>,
+    effort: String,
+) -> Result<Option<String>, String> {
+    let Some(sid) = session_id.filter(|s| !s.is_empty()) else {
+        return Ok(Some(effort));
+    };
+    let mut list = load_sessions_index();
+    let Some(sess) = list.iter_mut().find(|s| s.id == sid) else {
+        return Ok(Some(effort));
+    };
+    sess.effort = Some(effort);
+    sess.updated_at = Utc::now();
+    save_sessions_index(&list)?;
+    Ok(None)
+}
+
 /// Persist a partial composer prefs update at the configured scope.
 pub fn save_composer_prefs(
     project_id: Option<&str>,
@@ -2277,6 +2310,19 @@ pub fn save_composer_prefs(
 ) -> Result<ComposerPrefs, String> {
     let settings = load_settings();
     let scope = ComposerPrefsScope::parse(&settings.composer_prefs_scope);
+
+    // Effort is remembered per chat (see `resolve_composer_prefs`). Under the
+    // global / project scope it must not land in `settings.effort`, or raising
+    // effort in one chat rewrites every other chat that never chose its own.
+    // Session scope already writes the row further down.
+    let effort = if matches!(scope, ComposerPrefsScope::Session) {
+        effort
+    } else {
+        match effort {
+            Some(v) => save_effort_on_session(session_id, v)?,
+            None => None,
+        }
+    };
 
     match scope {
         ComposerPrefsScope::Global => {
@@ -3261,5 +3307,81 @@ mod tests {
         let m: SessionMeta = serde_json::from_str(raw).expect("deserialize legacy session");
         assert!(!m.pinned);
         assert!(!m.archived);
+    }
+
+    #[test]
+    fn effort_stays_per_session_under_global_scope() {
+        // Effort is a per-chat decision even when model/mode memory is global:
+        // raising it in one chat used to rewrite `settings.effort` and therefore
+        // every other chat that had already picked its own.
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-effort-scope-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp home");
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let _ = ensure_app_dirs();
+
+        let a = create_session(None, Some("a".into()), false).expect("create a");
+        let b = create_session(None, Some("b".into()), false).expect("create b");
+        save_composer_prefs(None, Some(&a.id), None, Some("low".into()), None, None)
+            .expect("a low");
+        save_composer_prefs(None, Some(&b.id), None, Some("max".into()), None, None)
+            .expect("b max");
+
+        assert_eq!(resolve_composer_prefs(None, Some(&a.id)).effort, "low");
+        assert_eq!(resolve_composer_prefs(None, Some(&b.id)).effort, "max");
+        // The global seed for future chats is left untouched by a per-chat change.
+        assert_eq!(load_settings().effort.as_deref(), Some("high"));
+
+        let _ = delete_session(&a.id);
+        let _ = delete_session(&b.id);
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn draft_effort_seeds_global_without_touching_existing_sessions() {
+        // A draft chat has no row yet, so its effort seeds the default for the
+        // next chat — it must not leak into a chat that already chose one.
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-effort-draft-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp home");
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let _ = ensure_app_dirs();
+
+        let existing = create_session(None, Some("kept".into()), false).expect("create");
+        save_composer_prefs(
+            None,
+            Some(&existing.id),
+            None,
+            Some("max".into()),
+            None,
+            None,
+        )
+        .expect("existing max");
+
+        save_composer_prefs(None, None, None, Some("low".into()), None, None).expect("draft low");
+
+        assert_eq!(
+            resolve_composer_prefs(None, Some(&existing.id)).effort,
+            "max",
+            "an existing chat keeps its own effort"
+        );
+        assert_eq!(load_settings().effort.as_deref(), Some("low"));
+        // A brand-new chat inherits the seed.
+        assert_eq!(resolve_composer_prefs(None, None).effort, "low");
+
+        let _ = delete_session(&existing.id);
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
     }
 }
