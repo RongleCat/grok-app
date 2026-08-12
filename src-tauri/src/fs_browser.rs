@@ -1,16 +1,16 @@
 //! Project-scoped filesystem browser for the right-pane resource viewer.
 //! All paths are resolved under an explicit project root (no escape).
 
-#![allow(dead_code)] // residual-clippy: MAX_BINARY_BYTES const
+#![allow(dead_code)] // Legacy Office text-extraction helpers remain available.
 use serde::Serialize;
 use std::fs;
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 
 const MAX_TEXT_BYTES: u64 = 2 * 1024 * 1024; // 2 MiB text preview
-const MAX_BINARY_BYTES: u64 = 8 * 1024 * 1024; // 8 MiB image / pdf
 /// Office packages streamed to the UI for rich render (docx-preview / xlsx / pdf).
 const MAX_OFFICE_STREAM_BYTES: u64 = 40 * 1024 * 1024;
+const MAX_PDF_STREAM_BYTES: u64 = 40 * 1024 * 1024;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1213,7 +1213,7 @@ fn read_path(path: PathBuf, rel_in: String) -> Result<FsReadResult, String> {
                 mime,
                 None,
                 None,
-                true,
+                false,
                 true,
                 Some(format!(
                     "file too large for in-app office preview (>{MAX_OFFICE_STREAM_BYTES} bytes)"
@@ -1256,7 +1256,27 @@ fn read_path(path: PathBuf, rel_in: String) -> Result<FsReadResult, String> {
         ));
     }
 
-    // Image / PDF — always stream via loopback media HTTP (no base64 IPC).
+    // PDF rich preview loads the full file in the WebView, so apply the same
+    // explicit memory budget as Office packages before exposing a stream URL.
+    if kind == "pdf" && size > MAX_PDF_STREAM_BYTES {
+        return Ok(ok_result(
+            &path,
+            rel_in,
+            name,
+            size,
+            kind,
+            mime,
+            None,
+            None,
+            false,
+            true,
+            Some(format!(
+                "file too large for in-app pdf preview (>{MAX_PDF_STREAM_BYTES} bytes)"
+            )),
+        ));
+    }
+
+    // Image / PDF — stream via loopback media HTTP (no base64 IPC).
     if matches!(kind.as_str(), "image" | "pdf") {
         return Ok(ok_result(
             &path, rel_in, name, size, kind, mime, None, None, true, false, None,
@@ -1354,6 +1374,34 @@ mod tests {
         assert_eq!(r.kind, "markdown");
         assert!(r.text.unwrap().contains("# hi"));
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn rich_document_preview_limits_are_enforced() {
+        for (name, label, max_bytes) in [
+            ("large.docx", "office", MAX_OFFICE_STREAM_BYTES),
+            ("large.pdf", "pdf", MAX_PDF_STREAM_BYTES),
+        ] {
+            let dir = tempfile_dir();
+            let path = dir.join(name);
+            let file = fs::File::create(&path).unwrap();
+            file.set_len(max_bytes + 1).unwrap();
+
+            let result = read_path(path, name.to_string()).unwrap();
+            assert!(
+                !result.stream,
+                "{label} preview must not stream over the cap"
+            );
+            assert!(
+                result
+                    .error
+                    .as_deref()
+                    .is_some_and(|error| error.contains("too large")),
+                "{label} preview should explain the size limit: {:?}",
+                result.error
+            );
+            let _ = fs::remove_dir_all(&dir);
+        }
     }
 
     #[test]

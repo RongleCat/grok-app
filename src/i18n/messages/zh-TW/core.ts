@@ -19,6 +19,7 @@ export const zhTWCore = {
   "media.err.hostOnly": "本機媒體預覽需要桌面應用程式。",
   "media.err.brokenBlob": "預覽失敗 — 檔案可能已損毀或無法讀取。",
   "media.err.timeout": "載入此媒體逾時。",
+  "media.err.tooLarge": "此檔案過大，無法在應用程式內預覽。請改用外部應用程式開啟。",
   "media.err.unsupportedType": "此媒體類型尚無應用程式內預覽。",
   "media.err.mediaServerUnavailable": "本機媒體服務無法使用 — 請稍後再試。",
   "media.err.other": "應用程式內無法載入此媒體。",

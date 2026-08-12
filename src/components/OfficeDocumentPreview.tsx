@@ -97,7 +97,7 @@ export function OfficeDocumentPreview({
     setActiveSheet(0);
     setSheetHtml("");
 
-    if (errorFromHost && !absolutePath) {
+    if (errorFromHost) {
       const resolved = resolveMediaLoadError(errorFromHost, "office");
       setLoad({
         status: "error",
@@ -115,9 +115,14 @@ export function OfficeDocumentPreview({
       return;
     }
 
+    const controller = new AbortController();
     void (async () => {
       try {
-        const buf = await fetchPreviewArrayBuffer(absolutePath, kind);
+        const buf = await fetchPreviewArrayBuffer(
+          absolutePath,
+          kind,
+          controller.signal,
+        );
         if (cancelled) return;
         setLoad({ status: "ready", buffer: buf });
       } catch (e) {
@@ -133,6 +138,7 @@ export function OfficeDocumentPreview({
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [absolutePath, kind, errorFromHost, tr]);
 

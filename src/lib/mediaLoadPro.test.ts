@@ -48,6 +48,16 @@ describe("classifyMediaLoadError", () => {
     expect(classifyMediaLoadError({ status: 504 })).toBe("timeout");
   });
 
+  it("classifies files that exceed the preview budget", () => {
+    expect(classifyMediaLoadError("file too large for in-app pdf preview")).toBe(
+      "too_large",
+    );
+    expect(classifyMediaLoadError({ status: 413 })).toBe("too_large");
+    expect(classifyMediaLoadError({ code: "payload_too_large" })).toBe(
+      "too_large",
+    );
+  });
+
   it("classifies unsupported type", () => {
     expect(classifyMediaLoadError("unsupported")).toBe("unsupported_type");
     expect(classifyMediaLoadError("format has no in-app preview")).toBe(
@@ -177,6 +187,7 @@ describe("mediaLoadErrorMessageKey / resolve", () => {
       "media.err.brokenBlob",
     );
     expect(mediaLoadErrorMessageKey("timeout")).toBe("media.err.timeout");
+    expect(mediaLoadErrorMessageKey("too_large")).toBe("media.err.tooLarge");
     expect(mediaLoadErrorMessageKey("unsupported_type")).toBe(
       "media.err.unsupportedType",
     );

@@ -18,6 +18,7 @@ export type MediaLoadErrorKind =
   | "host_only"
   | "broken_blob"
   | "timeout"
+  | "too_large"
   | "unsupported_type"
   | "media_server_unavailable"
   | "other";
@@ -163,6 +164,13 @@ export function classifyMediaLoadError(err: unknown): MediaLoadErrorKind {
     return "timeout";
   }
   if (
+    code === "too_large" ||
+    code === "file_too_large" ||
+    code === "payload_too_large"
+  ) {
+    return "too_large";
+  }
+  if (
     code === "unsupported_type" ||
     code === "unsupported-type" ||
     code === "unsupported" ||
@@ -189,6 +197,7 @@ export function classifyMediaLoadError(err: unknown): MediaLoadErrorKind {
   if (status === 404) return "missing_path";
   if (status === 403 || status === 401) return "untrusted";
   if (status === 408 || status === 504) return "timeout";
+  if (status === 413) return "too_large";
   if (status === 415) return "unsupported_type";
   if (status === 502 || status === 503 || status === 0) {
     return "media_server_unavailable";
@@ -200,6 +209,9 @@ export function classifyMediaLoadError(err: unknown): MediaLoadErrorKind {
   // HTMLMediaElement / FileMediaPlayer short codes
   if (s === "timeout" || s.includes("timed out") || s.includes("timeout")) {
     return "timeout";
+  }
+  if (s.includes("too large") || s.includes("payload too large")) {
+    return "too_large";
   }
   if (
     s === "unsupported" ||
@@ -409,6 +421,8 @@ export function mediaLoadErrorMessageKey(kind: MediaLoadErrorKind): string {
       return "media.err.brokenBlob";
     case "timeout":
       return "media.err.timeout";
+    case "too_large":
+      return "media.err.tooLarge";
     case "unsupported_type":
       return "media.err.unsupportedType";
     case "media_server_unavailable":
@@ -541,6 +555,7 @@ export const MEDIA_LOAD_ERROR_KINDS: readonly MediaLoadErrorKind[] = [
   "host_only",
   "broken_blob",
   "timeout",
+  "too_large",
   "unsupported_type",
   "media_server_unavailable",
   "other",

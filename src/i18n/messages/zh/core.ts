@@ -19,6 +19,7 @@ export const zhCore = {
   "media.err.hostOnly": "本地媒体预览需要桌面应用。",
   "media.err.brokenBlob": "预览失败 — 文件可能已损坏或无法读取。",
   "media.err.timeout": "加载此媒体超时。",
+  "media.err.tooLarge": "此文件过大，无法在应用内预览。请改用外部应用打开。",
   "media.err.unsupportedType": "此媒体类型暂无应用内预览。",
   "media.err.mediaServerUnavailable": "本地媒体服务不可用 — 请稍后重试。",
   "media.err.other": "应用内无法加载此媒体。",

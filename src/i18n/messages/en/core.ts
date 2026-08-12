@@ -19,6 +19,7 @@ export const enCore = {
   "media.err.hostOnly": "Local media preview requires the desktop app.",
   "media.err.brokenBlob": "Preview failed — the file may be corrupt or unreadable.",
   "media.err.timeout": "Timed out while loading this media.",
+  "media.err.tooLarge": "This file is too large for an in-app preview. Open it externally instead.",
   "media.err.unsupportedType": "This media type has no in-app preview.",
   "media.err.mediaServerUnavailable": "Local media server is unavailable — try again in a moment.",
   "media.err.other": "Could not load this media in the app preview.",

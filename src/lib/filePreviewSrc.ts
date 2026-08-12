@@ -121,72 +121,175 @@ export async function resolvePreviewSrc(
 export async function fetchPreviewArrayBuffer(
   absolutePath: string,
   kind?: string,
+  signal?: AbortSignal,
 ): Promise<ArrayBuffer> {
+  throwIfAborted(signal);
   const url = await pathToPreviewUrl(absolutePath, kind);
   if (!url) {
     throw new Error("cannot resolve local file URL");
   }
   // Large files: assemble Range chunks (server caps each response at 2 MiB).
-  return fetchViaRange(url);
+  return fetchViaRange(url, { kind, signal });
 }
 
-/** Fetch full body, following Range windowing when the server returns 206. */
-async function fetchViaRange(url: string): Promise<ArrayBuffer> {
-  const first = await fetch(url);
-  if (!first.ok && first.status !== 206) {
+export const OFFICE_PREVIEW_MAX_BYTES = 40 * 1024 * 1024;
+export const PDF_PREVIEW_MAX_BYTES = 40 * 1024 * 1024;
+const PREVIEW_RANGE_CHUNK_BYTES = 2 * 1024 * 1024;
+
+interface FetchViaRangeOptions {
+  kind?: string;
+  signal?: AbortSignal;
+  /** Test seam; production uses the browser's fetch. */
+  fetchImpl?: typeof fetch;
+  /** Test seam; production always uses the media server's 2 MiB window. */
+  chunkSize?: number;
+}
+
+interface ParsedContentRange {
+  start: number;
+  end: number;
+  total: number;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  if (signal.reason !== undefined) throw signal.reason;
+  throw new DOMException("The operation was aborted", "AbortError");
+}
+
+function previewBudget(kind?: string): { maxBytes: number; label: "office" | "pdf" } {
+  return kind === "pdf"
+    ? { maxBytes: PDF_PREVIEW_MAX_BYTES, label: "pdf" }
+    : { maxBytes: OFFICE_PREVIEW_MAX_BYTES, label: "office" };
+}
+
+function parseContentRange(header: string | null): ParsedContentRange | null {
+  if (!header) return null;
+  const match = /^bytes\s+(\d+)-(\d+)\/(\d+)$/i.exec(header.trim());
+  if (!match) return null;
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+  const total = Number(match[3]);
+  if (
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(end) ||
+    !Number.isSafeInteger(total) ||
+    start < 0 ||
+    end < start ||
+    total <= end
+  ) {
+    return null;
+  }
+  return { start, end, total };
+}
+
+function validateContentLength(response: Response, expected: number): void {
+  const raw = response.headers.get("content-length");
+  if (raw == null) return;
+  const length = Number(raw);
+  if (!Number.isSafeInteger(length) || length !== expected) {
+    throw new Error("invalid Content-Length for preview range");
+  }
+}
+
+function tooLargeError(label: "office" | "pdf", maxBytes: number): Error {
+  return new Error(
+    `file too large for in-app ${label} preview (max ${maxBytes} bytes)`,
+  );
+}
+
+/**
+ * Fetch a full rich-document body using bounded, validated Range windows.
+ * Exported for deterministic regression tests.
+ */
+export async function fetchViaRange(
+  url: string,
+  options: FetchViaRangeOptions = {},
+): Promise<ArrayBuffer> {
+  const { maxBytes, label } = previewBudget(options.kind);
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const chunkSize = options.chunkSize ?? PREVIEW_RANGE_CHUNK_BYTES;
+  if (!Number.isSafeInteger(chunkSize) || chunkSize <= 0) {
+    throw new Error("invalid preview range chunk size");
+  }
+  throwIfAborted(options.signal);
+  const first = await fetchImpl(url, { signal: options.signal });
+  if (!first.ok) {
     throw new Error(`failed to load file (${first.status})`);
   }
 
   // Full body available
   if (first.status === 200) {
-    return first.arrayBuffer();
+    const announcedLength = Number(first.headers.get("content-length"));
+    if (Number.isFinite(announcedLength) && announcedLength > maxBytes) {
+      throw tooLargeError(label, maxBytes);
+    }
+    const full = await first.arrayBuffer();
+    if (full.byteLength > maxBytes) throw tooLargeError(label, maxBytes);
+    return full;
   }
 
-  // 206: assemble remaining ranges
-  const contentRange = first.headers.get("content-range") || "";
-  // bytes start-end/total
-  const m = /bytes\s+(\d+)-(\d+)\/(\d+|\*)/i.exec(contentRange);
+  if (first.status !== 206) {
+    throw new Error(`failed to load file (${first.status})`);
+  }
+
+  // Validate the advertised total before reading or allocating the response.
+  const initialRange = parseContentRange(first.headers.get("content-range"));
+  if (!initialRange || initialRange.start !== 0) {
+    throw new Error("invalid Content-Range for preview response");
+  }
+  if (initialRange.total > maxBytes) {
+    throw tooLargeError(label, maxBytes);
+  }
+  const expectedInitialEnd =
+    Math.min(initialRange.total, chunkSize) - 1;
+  if (initialRange.end !== expectedInitialEnd) {
+    throw new Error("invalid Content-Range for preview response");
+  }
+  const initialLength = expectedInitialEnd + 1;
+  validateContentLength(first, initialLength);
   const firstBuf = new Uint8Array(await first.arrayBuffer());
-  if (!m) {
-    return firstBuf.buffer;
-  }
-  const end = Number(m[2]);
-  const total = m[3] === "*" ? NaN : Number(m[3]);
-  if (!Number.isFinite(total) || total <= end + 1) {
-    return firstBuf.buffer;
+  if (firstBuf.byteLength !== initialLength) {
+    throw new Error("invalid preview range body length");
   }
 
-  const chunks: Uint8Array[] = [firstBuf];
-  let next = end + 1;
-  while (next < total) {
-    const res = await fetch(url, {
-      headers: { Range: `bytes=${next}-` },
+  // Allocate once after the strict budget check, then copy one bounded chunk at
+  // a time. This avoids retaining the whole file in chunks plus a second copy.
+  const out = new Uint8Array(initialRange.total);
+  out.set(firstBuf, 0);
+  let next = initialRange.end + 1;
+
+  while (next < initialRange.total) {
+    throwIfAborted(options.signal);
+    const requestedEnd = Math.min(
+      next + chunkSize - 1,
+      initialRange.total - 1,
+    );
+    const res = await fetchImpl(url, {
+      headers: { Range: `bytes=${next}-${requestedEnd}` },
+      signal: options.signal,
     });
-    if (!res.ok && res.status !== 206) {
+    if (!res.ok || res.status !== 206) {
       throw new Error(`failed to load file range (${res.status})`);
     }
+    const range = parseContentRange(res.headers.get("content-range"));
+    if (
+      !range ||
+      range.start !== next ||
+      range.end !== requestedEnd ||
+      range.total !== initialRange.total
+    ) {
+      throw new Error("invalid Content-Range for preview response");
+    }
+    const expectedLength = range.end - range.start + 1;
+    validateContentLength(res, expectedLength);
     const buf = new Uint8Array(await res.arrayBuffer());
-    if (!buf.byteLength) break;
-    chunks.push(buf);
-    const cr = res.headers.get("content-range") || "";
-    const rm = /bytes\s+(\d+)-(\d+)\//i.exec(cr);
-    if (rm) {
-      next = Number(rm[2]) + 1;
-    } else {
-      next += buf.byteLength;
+    if (buf.byteLength !== expectedLength) {
+      throw new Error("invalid preview range body length");
     }
-    // Safety: prevent infinite loops
-    if (chunks.length > 10_000) {
-      throw new Error("file too large to reassemble");
-    }
+    out.set(buf, range.start);
+    next = range.end + 1;
   }
 
-  const size = chunks.reduce((n, c) => n + c.byteLength, 0);
-  const out = new Uint8Array(size);
-  let off = 0;
-  for (const c of chunks) {
-    out.set(c, off);
-    off += c.byteLength;
-  }
   return out.buffer;
 }
