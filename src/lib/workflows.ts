@@ -458,3 +458,143 @@ export function formatWorkflowRunStatusLine(
   }
   return base;
 }
+
+/**
+ * How Settings received the headless log.
+ * Never claim "live" unless progressive host events actually arrived.
+ */
+export type WorkflowRunLogDelivery =
+  | "awaiting"
+  | "live"
+  | "batch"
+  | "none";
+
+function hasLogText(text: string | null | undefined): boolean {
+  return !!(text && String(text).trim());
+}
+
+/**
+ * Resolve progressive vs batch log honesty for the Settings run panel.
+ *
+ * | busy | sawProgress | final/live log | delivery |
+ * | true | false       | *              | awaiting |
+ * | true | true        | *              | live     |
+ * | false| true        | *              | live     |
+ * | false| false       | has final log  | batch    |
+ * | false| false       | empty          | none     |
+ */
+export function resolveWorkflowRunLogDelivery(input: {
+  busy: boolean;
+  /** True when ≥1 host `workflows://run-progress` event was applied. */
+  sawProgress: boolean;
+  liveLog?: string | null;
+  finalLog?: string | null;
+}): WorkflowRunLogDelivery {
+  if (input.busy) {
+    return input.sawProgress ? "live" : "awaiting";
+  }
+  if (input.sawProgress) return "live";
+  if (hasLogText(input.finalLog) || hasLogText(input.liveLog)) return "batch";
+  return "none";
+}
+
+/** i18n key for the log delivery label (after `t()`). */
+export function workflowRunLogDeliveryMessageKey(
+  delivery: WorkflowRunLogDelivery,
+): string {
+  switch (delivery) {
+    case "awaiting":
+      return "settings.workflows.run.logAwaiting";
+    case "live":
+      return "settings.workflows.run.liveLogHint";
+    case "batch":
+      return "settings.workflows.run.batchLogHint";
+    case "none":
+      return "settings.workflows.run.noLog";
+  }
+}
+
+/** Extra soft-fail honesty beyond the short reason chip. */
+export type WorkflowRunHonestyNoteKind =
+  | "none"
+  | "empty_log"
+  | "cli_missing"
+  | "shared_mode_no_rewrite";
+
+export type WorkflowRunHonestyNote = {
+  kind: WorkflowRunHonestyNoteKind;
+  /** i18n key; null when kind is `none`. */
+  messageKey: string | null;
+};
+
+/**
+ * Soft-fail empty log / CLI missing / shared-mode rewrite refusal notes.
+ * Pure — UI translates `messageKey` via `t()`.
+ *
+ * Priority: cli_missing → empty (reason or missing capture) → shared rewrite
+ * (soft-fail only). Success / covered by status line → none.
+ */
+export function resolveWorkflowRunHonestyNote(input: {
+  busy: boolean;
+  ok?: boolean | null;
+  reason?: string | null;
+  hasLog?: boolean | null;
+  /** App `session_data_mode`: shared never rewrites `~/.grok`. */
+  sessionDataMode?: string | null;
+}): WorkflowRunHonestyNote {
+  if (input.busy) {
+    return { kind: "none", messageKey: null };
+  }
+  const reason = workflowRunReasonKey(input.reason);
+  const ok = input.ok === true || reason === "ok";
+  if (ok) {
+    return { kind: "none", messageKey: null };
+  }
+  const hasLog = !!input.hasLog;
+  const shared =
+    String(input.sessionDataMode ?? "")
+      .trim()
+      .toLowerCase() === "shared";
+
+  if (reason === "cli_missing") {
+    return {
+      kind: "cli_missing",
+      messageKey: "settings.workflows.run.honesty.cliMissing",
+    };
+  }
+  if (reason === "empty" || (!hasLog && reason !== "invalid_name")) {
+    return {
+      kind: "empty_log",
+      messageKey: "settings.workflows.run.honesty.emptyLog",
+    };
+  }
+  if (shared) {
+    return {
+      kind: "shared_mode_no_rewrite",
+      messageKey: "settings.workflows.run.honesty.sharedNoRewrite",
+    };
+  }
+  return { kind: "none", messageKey: null };
+}
+
+/**
+ * Prefer progressive buffer when live events arrived; else final host blob.
+ * Returns redacted+truncated text for copy / display.
+ */
+export function resolveWorkflowRunCopyText(input: {
+  sawProgress: boolean;
+  liveLog?: string | null;
+  finalLog?: string | null;
+  max?: number;
+}): string {
+  const raw =
+    input.sawProgress && hasLogText(input.liveLog)
+      ? String(input.liveLog)
+      : hasLogText(input.finalLog)
+        ? String(input.finalLog)
+        : hasLogText(input.liveLog)
+          ? String(input.liveLog)
+          : "";
+  if (!raw.trim()) return "";
+  return prepareWorkflowRunLogForDisplay(raw, input.max).text;
+}

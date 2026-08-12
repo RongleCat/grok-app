@@ -17,10 +17,14 @@ import {
   prepareWorkflowRunLogForDisplay,
   redactWorkflowRunLog,
   resolveWorkflowDirs,
+  resolveWorkflowRunCopyText,
+  resolveWorkflowRunHonestyNote,
+  resolveWorkflowRunLogDelivery,
   truncateWorkflowRunLog,
   workflowMetaLine,
   workflowNameFromFileName,
   workflowNamesFromFileList,
+  workflowRunLogDeliveryMessageKey,
   workflowRunReasonKey,
   workflowsEnabledEqual,
 } from "./workflows";
@@ -204,5 +208,133 @@ describe("workflow run helpers", () => {
     expect(log).toContain("[stderr] warn");
     expect(formatWorkflowRunElapsed(1500)).toBe("1s");
     expect(formatWorkflowRunElapsed(65_000)).toBe("1m 05s");
+  });
+});
+
+describe("workflow run log delivery honesty", () => {
+  it("never claims live without progress events", () => {
+    expect(
+      resolveWorkflowRunLogDelivery({
+        busy: true,
+        sawProgress: false,
+      }),
+    ).toBe("awaiting");
+    expect(
+      resolveWorkflowRunLogDelivery({
+        busy: true,
+        sawProgress: true,
+        liveLog: "line",
+      }),
+    ).toBe("live");
+    expect(
+      resolveWorkflowRunLogDelivery({
+        busy: false,
+        sawProgress: false,
+        finalLog: "only final blob",
+      }),
+    ).toBe("batch");
+    expect(
+      resolveWorkflowRunLogDelivery({
+        busy: false,
+        sawProgress: true,
+        liveLog: "streamed",
+        finalLog: "final",
+      }),
+    ).toBe("live");
+    expect(
+      resolveWorkflowRunLogDelivery({
+        busy: false,
+        sawProgress: false,
+        finalLog: "",
+      }),
+    ).toBe("none");
+  });
+
+  it("maps delivery to i18n keys", () => {
+    expect(workflowRunLogDeliveryMessageKey("awaiting")).toBe(
+      "settings.workflows.run.logAwaiting",
+    );
+    expect(workflowRunLogDeliveryMessageKey("live")).toBe(
+      "settings.workflows.run.liveLogHint",
+    );
+    expect(workflowRunLogDeliveryMessageKey("batch")).toBe(
+      "settings.workflows.run.batchLogHint",
+    );
+    expect(workflowRunLogDeliveryMessageKey("none")).toBe(
+      "settings.workflows.run.noLog",
+    );
+  });
+
+  it("soft-fail honesty for empty log, CLI missing, shared rewrite", () => {
+    expect(
+      resolveWorkflowRunHonestyNote({
+        busy: false,
+        ok: false,
+        reason: "cli_missing",
+        hasLog: false,
+      }).kind,
+    ).toBe("cli_missing");
+    expect(
+      resolveWorkflowRunHonestyNote({
+        busy: false,
+        ok: false,
+        reason: "empty",
+        hasLog: false,
+      }).messageKey,
+    ).toBe("settings.workflows.run.honesty.emptyLog");
+    expect(
+      resolveWorkflowRunHonestyNote({
+        busy: false,
+        ok: false,
+        reason: "timeout",
+        hasLog: false,
+      }).kind,
+    ).toBe("empty_log");
+    expect(
+      resolveWorkflowRunHonestyNote({
+        busy: false,
+        ok: false,
+        reason: "nonzero_exit",
+        hasLog: true,
+        sessionDataMode: "shared",
+      }).kind,
+    ).toBe("shared_mode_no_rewrite");
+    expect(
+      resolveWorkflowRunHonestyNote({
+        busy: false,
+        ok: true,
+        reason: "ok",
+        hasLog: true,
+        sessionDataMode: "shared",
+      }).kind,
+    ).toBe("none");
+    expect(
+      resolveWorkflowRunHonestyNote({
+        busy: true,
+        ok: false,
+        reason: "cli_missing",
+      }).kind,
+    ).toBe("none");
+  });
+
+  it("prefers progressive buffer for copy text when live", () => {
+    const live = resolveWorkflowRunCopyText({
+      sawProgress: true,
+      liveLog: "streamed line",
+      finalLog: "final blob",
+    });
+    expect(live).toContain("streamed line");
+    const batch = resolveWorkflowRunCopyText({
+      sawProgress: false,
+      liveLog: "",
+      finalLog: "Bearer zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+    });
+    expect(batch).toContain("[REDACTED]");
+    expect(
+      resolveWorkflowRunCopyText({
+        sawProgress: false,
+        finalLog: null,
+      }),
+    ).toBe("");
   });
 });

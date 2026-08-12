@@ -23,6 +23,13 @@
   border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.2));
 }
 
+.settings-workflows-run-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
 /* --- merged --- */
 
 .rp-diff-comment-modal__desc {

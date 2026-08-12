@@ -150,7 +150,7 @@ CLI enum（`grok --help`）：`default | acceptEdits | auto | dontAsk | bypassPe
 
 | 面 | 行为 |
 |----|------|
-| Workflows Settings smoke/run | Host 边跑边 emit `workflows://run-progress`；面板展示 live log + 已用时 |
+| Workflows Settings smoke/run | Host 边跑边 emit `workflows://run-progress` → **live** log + 已用时；若仅有最终 blob → 诚实标 **batch log**（不假 live）；空日志 / CLI 缺失 / shared 不改写 `~/.grok` 有 soft-fail 说明；可复制日志 |
 | Goal 会话 chip | 有 `goal_updated` 时显示阶段/进度/摘要；Composer `/goal` 已开但无事件 → **waiting** 虚线 chip（不发明进度） |
 
 ### CLI 版本芯片与 binary skew（1.0）

@@ -89,6 +89,7 @@ export function RuntimeSection() {
     rowHighlight,
     sectionNav,
     setSectionTab,
+    sessionDataMode,
     showSettingsToast,
     streamStallSeconds,
     t,
@@ -684,6 +685,7 @@ export function RuntimeSection() {
                       <WorkflowsDiscoveryBlock
                         locale={resolveLocale(locale)}
                         projectPath={projectPath}
+                        sessionDataMode={sessionDataMode}
                         showToast={showSettingsToast}
                       />
                     </div>

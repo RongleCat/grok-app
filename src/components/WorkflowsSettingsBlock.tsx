@@ -17,6 +17,10 @@ import {
   isValidWorkflowName,
   isWorkflowRunOk,
   prepareWorkflowRunLogForDisplay,
+  resolveWorkflowRunCopyText,
+  resolveWorkflowRunHonestyNote,
+  resolveWorkflowRunLogDelivery,
+  workflowRunLogDeliveryMessageKey,
   workflowRunReasonKey,
   type WorkflowDefLike,
   type WorkflowRunMode,
@@ -60,6 +64,8 @@ const EMPTY_LIST_KEYS: Record<string, MessageKey> = {
 export type WorkflowsDiscoveryBlockProps = {
   locale: Locale;
   projectPath?: string | null;
+  /** App session data mode — shared never rewrites `~/.grok`. */
+  sessionDataMode?: string | null;
   showToast?: (msg: string, ms?: number) => void;
 };
 
@@ -76,6 +82,8 @@ type RunState = {
   error: string | null;
   /** Progressive headless log while busy (host `workflows://run-progress`). */
   liveLog: string;
+  /** True when ≥1 host progress event was applied (honest live label). */
+  sawProgress: boolean;
   /** Last elapsedMs from progress events. */
   elapsedMs: number;
 };
@@ -93,6 +101,7 @@ function formatHistoryWhen(at: string, locale: Locale): string {
 export function WorkflowsDiscoveryBlock({
   locale,
   projectPath,
+  sessionDataMode,
   showToast,
 }: WorkflowsDiscoveryBlockProps) {
   const t = createT(locale);
@@ -284,6 +293,7 @@ export function WorkflowsDiscoveryBlock({
         },
         error: null,
         liveLog: "",
+        sawProgress: false,
         elapsedMs: 0,
       });
       recordWorkflowRunHistory({
@@ -302,6 +312,7 @@ export function WorkflowsDiscoveryBlock({
       result: null,
       error: null,
       liveLog: "",
+      sawProgress: false,
       elapsedMs: 0,
     });
     let unlisten: (() => void) | undefined;
@@ -318,6 +329,7 @@ export function WorkflowsDiscoveryBlock({
               return {
                 ...prev,
                 liveLog: appendWorkflowRunLiveLog(prev.liveLog, p),
+                sawProgress: true,
                 elapsedMs:
                   typeof p.elapsedMs === "number" && p.elapsedMs >= 0
                     ? p.elapsedMs
@@ -350,6 +362,7 @@ export function WorkflowsDiscoveryBlock({
         result,
         error: null,
         liveLog: prev?.liveLog ?? "",
+        sawProgress: prev?.sawProgress ?? false,
         elapsedMs: result.durationMs ?? prev?.elapsedMs ?? 0,
       }));
       recordWorkflowRunHistory({
@@ -377,6 +390,7 @@ export function WorkflowsDiscoveryBlock({
         },
         error: log,
         liveLog: prev?.liveLog ?? "",
+        sawProgress: prev?.sawProgress ?? false,
         elapsedMs: prev?.elapsedMs ?? 0,
       }));
       recordWorkflowRunHistory({
@@ -451,13 +465,62 @@ export function WorkflowsDiscoveryBlock({
     }
   };
 
-  const displayLog = runState?.result
-    ? prepareWorkflowRunLogForDisplay(runState.result.log)
+  // Prefer host final blob; fall back to progressive buffer so a streamed run
+  // is never blank after complete when the final field is empty.
+  const displayLog = runState
+    ? prepareWorkflowRunLogForDisplay(
+        runState.result?.log ||
+          (!runState.busy && runState.sawProgress ? runState.liveLog : "") ||
+          null,
+      )
     : null;
   const liveLogDisplay =
     runState?.busy && runState.liveLog
       ? prepareWorkflowRunLogForDisplay(runState.liveLog)
       : null;
+
+  const logDelivery = runState
+    ? resolveWorkflowRunLogDelivery({
+        busy: runState.busy,
+        sawProgress: runState.sawProgress,
+        liveLog: runState.liveLog,
+        finalLog: runState.result?.log,
+      })
+    : null;
+  const logDeliveryKey = logDelivery
+    ? workflowRunLogDeliveryMessageKey(logDelivery)
+    : null;
+
+  const honestyNote = runState
+    ? resolveWorkflowRunHonestyNote({
+        busy: runState.busy,
+        ok: runState.result ? isWorkflowRunOk(runState.result) : null,
+        reason: runState.result?.reason,
+        hasLog: !!(displayLog?.text || runState.liveLog?.trim()),
+        sessionDataMode,
+      })
+    : null;
+
+  const copyLogText = runState
+    ? resolveWorkflowRunCopyText({
+        sawProgress: runState.sawProgress,
+        liveLog: runState.liveLog,
+        finalLog: runState.result?.log,
+      })
+    : "";
+
+  const copyRunLog = async () => {
+    if (!copyLogText) {
+      showToast?.(t("settings.workflows.run.noLog"), 2200);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(copyLogText);
+      showToast?.(t("settings.workflows.run.copyLogDone"), 1800);
+    } catch {
+      showToast?.(t("settings.workflows.run.copyLogFailed"), 2800);
+    }
+  };
 
   const statusLine = runState?.result
     ? formatWorkflowRunStatusLine(runState.result, {
@@ -590,14 +653,21 @@ export function WorkflowsDiscoveryBlock({
                   : t("settings.workflows.run.mode.validate"),
             })}
           </div>
-          {runState.busy ? (
+          {runState.busy ||
+          (logDeliveryKey && logDelivery !== "none") ? (
             <div className="settings-row__hint">
-              {t("settings.workflows.run.running")}
-              {runState.elapsedMs > 0
-                ? ` · ${formatWorkflowRunElapsed(runState.elapsedMs)}`
-                : ""}
-              {" · "}
-              {t("settings.workflows.run.liveLogHint")}
+              {runState.busy ? (
+                <>
+                  {t("settings.workflows.run.running")}
+                  {runState.elapsedMs > 0
+                    ? ` · ${formatWorkflowRunElapsed(runState.elapsedMs)}`
+                    : ""}
+                  {" · "}
+                </>
+              ) : null}
+              {logDeliveryKey
+                ? t(logDeliveryKey as MessageKey)
+                : null}
             </div>
           ) : null}
           {liveLogDisplay?.text ? (
@@ -621,19 +691,49 @@ export function WorkflowsDiscoveryBlock({
               })}
             </div>
           ) : null}
+          {honestyNote?.messageKey ? (
+            <div
+              className="settings-row__hint"
+              data-testid="workflows-run-honesty"
+            >
+              {t(honestyNote.messageKey as MessageKey)}
+            </div>
+          ) : null}
           {displayLog?.text ? (
             <pre
-              className="settings-workflows-run-result__log"
+              className={
+                "settings-workflows-run-result__log" +
+                (logDelivery === "batch"
+                  ? " settings-workflows-run-result__log--batch"
+                  : "")
+              }
               tabIndex={0}
+              data-testid={
+                logDelivery === "batch"
+                  ? "workflows-run-batch-log"
+                  : "workflows-run-final-log"
+              }
             >
               {displayLog.text}
               {displayLog.truncated || runState.result?.truncated
                 ? `\n${t("settings.workflows.run.logTruncated")}`
                 : ""}
             </pre>
-          ) : !runState.busy ? (
+          ) : !runState.busy && logDelivery === "none" ? (
             <div className="settings-row__hint">
               {t("settings.workflows.run.noLog")}
+            </div>
+          ) : null}
+          {copyLogText ? (
+            <div className="settings-workflows-run-result__actions">
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                data-testid="workflows-run-copy-log"
+                onClick={() => void copyRunLog()}
+              >
+                {t("settings.workflows.run.copyLog")}
+              </button>
             </div>
           ) : null}
         </div>
