@@ -350,32 +350,42 @@ const WEIXIN_FIELDS: ChannelSchema["fields"] = [
     section: "bind",
     required: true,
     secret: true,
+    helpKey: "settings.remoteIm.weixin.tokenHelp",
+    placeholderKey: "settings.remoteIm.weixin.tokenPlaceholder",
   },
   {
     key: "base_url",
     labelKey: "settings.remoteIm.field.baseUrl",
     control: "text",
     section: "advanced",
+    helpKey: "settings.remoteIm.weixin.baseUrlHelp",
+    placeholderKey: "settings.remoteIm.weixin.baseUrlPlaceholder",
   },
   {
     key: "cdn_base_url",
     labelKey: "settings.remoteIm.field.cdnBaseUrl",
     control: "text",
     section: "advanced",
+    helpKey: "settings.remoteIm.weixin.cdnBaseHelp",
   },
-  ACL_ALLOW_FROM,
+  {
+    ...ACL_ALLOW_FROM,
+    helpKey: "settings.remoteIm.weixin.allowFromHelp",
+  },
   {
     key: "account_id",
     labelKey: "settings.remoteIm.field.accountId",
     control: "text",
     section: "options",
     defaultValue: "default",
+    helpKey: "settings.remoteIm.weixin.accountIdHelp",
   },
   {
     key: "route_tag",
     labelKey: "settings.remoteIm.field.routeTag",
     control: "text",
     section: "advanced",
+    helpKey: "settings.remoteIm.weixin.routeTagHelp",
   },
   {
     key: "long_poll_timeout_ms",
@@ -383,14 +393,20 @@ const WEIXIN_FIELDS: ChannelSchema["fields"] = [
     control: "number",
     section: "advanced",
     defaultValue: 35000,
+    helpKey: "settings.remoteIm.weixin.longPollHelp",
   },
   {
     key: "chat_id",
     labelKey: "settings.remoteIm.field.chatId",
     control: "text",
     section: "options",
+    helpKey: "settings.remoteIm.weixin.chatIdHelp",
   },
-  PROXY,
+  {
+    ...PROXY,
+    helpKey: "settings.remoteIm.weixin.proxyHelp",
+    placeholderKey: "settings.remoteIm.weixin.proxyPlaceholder",
+  },
 ];
 
 const TELEGRAM_FIELDS: ChannelSchema["fields"] = [

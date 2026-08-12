@@ -194,8 +194,15 @@ export function RemoteImLayout({
       if (list.length === 0) return "unconfigured";
       const running =
         bridge?.state === "running" || bridge?.state === "listening";
+      const linkedIds = new Set(
+        (bridge?.connectedChannels ?? []).map((c) => c.instanceId),
+      );
       const tones = list.map((i) =>
-        deriveStatus({ ...i, status: i.status }, !!running),
+        deriveStatus(
+          { ...i, status: i.status },
+          !!running,
+          linkedIds.has(i.id),
+        ),
       );
       if (tones.includes("error")) return "error";
       if (tones.includes("connected")) return "connected";
@@ -233,11 +240,15 @@ export function RemoteImLayout({
           }
           const st = await bridgeReloadInstance(inst);
           setBridge(st);
+          const linked = st.connectedChannels.some(
+            (c) => c.instanceId === inst.id,
+          );
           saved = {
             ...saved,
             status: deriveStatus(
               saved,
               st.state === "running" || st.state === "listening",
+              linked,
             ),
           };
           recordRimBridgeEvent({

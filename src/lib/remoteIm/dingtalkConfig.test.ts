@@ -121,6 +121,7 @@ describe("dingtalkHealthHintKeys", () => {
     });
     const hints = dingtalkHealthHintKeys(v);
     expect(hints.some((k) => k.includes("dingtalkStream"))).toBe(true);
+    expect(hints.some((k) => k.includes("dingtalkNoLiveClaim"))).toBe(true);
     expect(hints.some((k) => k.includes("PublicUrl") || k.includes("public"))).toBe(
       false,
     );

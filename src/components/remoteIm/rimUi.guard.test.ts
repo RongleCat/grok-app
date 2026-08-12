@@ -147,4 +147,15 @@ describe("Remote IM UI chrome guard", () => {
     expect(src).toContain('channelId === "qqbot"');
     expect(src).not.toMatch(/window\.confirm/);
   });
+
+  it("ChannelPanel CN channels: guides + weixin presenter lock + no native chrome", () => {
+    const src = readFileSync(join(ROOT, "RemoteImChannelPanel.tsx"), "utf8");
+    expect(src).toContain("data-dingtalk-guide");
+    expect(src).toContain("data-wecom-guide");
+    expect(src).toContain("data-weixin-guide");
+    expect(src).toContain("data-weixin-presenter-locked");
+    expect(src).toContain("resolvePresenterForChannel");
+    expect(src).toContain("isPresenterLocked");
+    expect(src).not.toMatch(/window\.confirm/);
+  });
 });

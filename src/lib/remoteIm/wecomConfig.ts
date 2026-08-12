@@ -151,6 +151,8 @@ export function wecomHealthHintKeys(
     keys.push("settings.remoteIm.health.hint.wecomWebhook");
     keys.push("settings.remoteIm.health.hint.wecomPublicUrl");
   }
+  // Credentials / mode readiness ≠ live WS or reachable public webhook
+  keys.push("settings.remoteIm.health.hint.wecomNoLiveClaim");
   if (validation.softStatus === "mode_switch_needs_secrets") {
     keys.push("settings.remoteIm.health.hint.wecomModeSwitch");
   }

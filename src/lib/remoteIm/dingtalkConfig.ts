@@ -124,6 +124,8 @@ export function dingtalkHealthHintKeys(
 ): string[] {
   const keys: string[] = [];
   keys.push("settings.remoteIm.health.hint.dingtalkStream");
+  // Never claim Stream gateway is live from credentials alone
+  keys.push("settings.remoteIm.health.hint.dingtalkNoLiveClaim");
   if (
     validation.softStatus === "incomplete" ||
     validation.softStatus === "missing_credentials"

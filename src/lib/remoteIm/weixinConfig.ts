@@ -204,6 +204,8 @@ export function weixinHealthHintKeys(
   // Always state long-poll / no public URL (honest vs webhook products)
   keys.push("settings.remoteIm.health.hint.weixinPoll");
   keys.push("settings.remoteIm.health.hint.weixinNoPublicUrl");
+  // Token presence ≠ live getUpdates long-poll
+  keys.push("settings.remoteIm.health.hint.weixinNoLiveClaim");
 
   if (validation.softStatus === "missing_token") {
     keys.push("settings.remoteIm.health.hint.weixinMissingToken");
@@ -234,6 +236,7 @@ export function weixinHealthHintKeys(
     keys.push("settings.remoteIm.health.hint.weixinTimeout");
   }
 
+  // Spec §6.9: force text menus (no interactive cards)
   keys.push("settings.remoteIm.health.hint.weixinTextMenu");
 
   if (extras?.openAcl) {

@@ -173,6 +173,38 @@ describe("remoteIm channelSchemas", () => {
     expect(wecom.fields.some((f) => f.key === "enable_markdown")).toBe(true);
   });
 
+  it("dingtalk schema is paste-first Stream §6.2", () => {
+    const ding = getChannelSchema("dingtalk")!;
+    expect(ding.implemented).toBe(true);
+    expect(ding.scanSupport).toBe(false);
+    expect(ding.pasteSupport).toBe(true);
+    expect(ding.connectionKey).toContain("stream");
+    expect(ding.fields.some((f) => f.key === "client_id" && f.required)).toBe(
+      true,
+    );
+    expect(
+      ding.fields.some((f) => f.key === "client_secret" && f.secret),
+    ).toBe(true);
+    expect(ding.fields.some((f) => f.key === "enable_ai_card")).toBe(true);
+  });
+
+  it("weixin schema is scan+paste long-poll §6.9 with field help", () => {
+    const wx = getChannelSchema("weixin")!;
+    expect(wx.implemented).toBe(true);
+    expect(wx.scanSupport).toBe(true);
+    expect(wx.pasteSupport).toBe(true);
+    const token = wx.fields.find((f) => f.key === "token");
+    expect(token?.secret).toBe(true);
+    expect(token?.helpKey).toBe("settings.remoteIm.weixin.tokenHelp");
+    expect(wx.fields.some((f) => f.key === "long_poll_timeout_ms")).toBe(true);
+    expect(wx.fields.some((f) => f.key === "chat_id")).toBe(true);
+  });
+
+  it("soft-retired WPS channels stay non-implemented", () => {
+    expect(getChannelSchema("wps-xiezuo")?.implemented).toBe(false);
+    expect(getChannelSchema("wps-agentspace")?.implemented).toBe(false);
+  });
+
   it("LINE always shows public-URL callout when flagged", () => {
     const line = getChannelSchema("line")!;
     expect(showsPublicUrlCallout(line, {})).toBe(true);

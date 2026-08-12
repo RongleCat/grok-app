@@ -22,11 +22,13 @@ import {
   credentialsRefFor,
   defaultAcl,
   getChannelSchema,
+  isPresenterLocked,
   isRetiredChannel,
   isSecretControl,
   parseIdSecretPair,
   primaryBindFields,
   remoteImSecretsPut,
+  resolvePresenterForChannel,
   secretFormValue,
   secretPlaceholderWhenStored,
   showsPublicUrlCallout,
@@ -128,7 +130,7 @@ export function RemoteImChannelPanel({
       : [],
   );
   const [presenter, setPresenter] = useState<PresenterMode>(
-    instance.presenter ?? (channelId === "weixin" ? "text_only" : "auto"),
+    resolvePresenterForChannel(channelId, instance.presenter),
   );
   const [name, setName] = useState(instance.name);
   const [formError, setFormError] = useState<string | null>(null);
@@ -160,9 +162,7 @@ export function RemoteImChannelPanel({
         ? instance.projectScope.allow
         : [],
     );
-    setPresenter(
-      instance.presenter ?? (channelId === "weixin" ? "text_only" : "auto"),
-    );
+    setPresenter(resolvePresenterForChannel(channelId, instance.presenter));
     setName(instance.name);
     setFormError(null);
     setTestResult(null);
@@ -274,6 +274,8 @@ export function RemoteImChannelPanel({
           !!options.share_session_in_channel || acl.shareSessionInChannel,
       };
 
+      // Weixin §6.9: force text-menu presenter even if UI state drifted to auto
+      const presenterToSave = resolvePresenterForChannel(channelId, presenter);
       const saved = applySaveInstance({
         channel: channelId,
         instanceId: instance.id,
@@ -281,7 +283,7 @@ export function RemoteImChannelPanel({
         options,
         acl: nextAcl,
         projectScope: scope,
-        presenter,
+        presenter: presenterToSave,
         enabled: true,
         hasCredentials: true,
         existing: instance,
@@ -1283,8 +1285,11 @@ export function RemoteImChannelPanel({
               <div className="settings-row__label">
                 {t("settings.remoteIm.field.presenter")}
               </div>
-              {channelId === "weixin" ? (
-                <div className="settings-row__desc">
+              {isPresenterLocked(channelId) ? (
+                <div
+                  className="settings-row__desc"
+                  data-weixin-presenter-locked="1"
+                >
                   {t("settings.remoteIm.weixin.presenterHint")}
                 </div>
               ) : null}
@@ -1469,19 +1474,36 @@ export function RemoteImChannelPanel({
         </div>
       ) : null}
               <RimSelect
-                value={presenter}
+                value={
+                  isPresenterLocked(channelId) ? "text_only" : presenter
+                }
                 ariaLabel={t("settings.remoteIm.field.presenter")}
-                onChange={(v) => setPresenter(v as PresenterMode)}
-                options={[
-                  {
-                    value: "auto",
-                    label: t("settings.remoteIm.presenter.auto"),
-                  },
-                  {
-                    value: "text_only",
-                    label: t("settings.remoteIm.presenter.textOnly"),
-                  },
-                ]}
+                onChange={(v) => {
+                  if (isPresenterLocked(channelId)) {
+                    setPresenter("text_only");
+                    return;
+                  }
+                  setPresenter(v as PresenterMode);
+                }}
+                options={
+                  isPresenterLocked(channelId)
+                    ? [
+                        {
+                          value: "text_only",
+                          label: t("settings.remoteIm.presenter.textOnly"),
+                        },
+                      ]
+                    : [
+                        {
+                          value: "auto",
+                          label: t("settings.remoteIm.presenter.auto"),
+                        },
+                        {
+                          value: "text_only",
+                          label: t("settings.remoteIm.presenter.textOnly"),
+                        },
+                      ]
+                }
               />
             </div>
           </div>

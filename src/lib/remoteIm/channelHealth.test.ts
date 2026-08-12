@@ -208,6 +208,7 @@ describe("classifyChannelHealth", () => {
     expect(h0.modeLabel).toBe("mode=websocket");
     expect(h0.credentialsReady).toBe(false);
     expect(h0.hintKeys.some((k) => k.includes("wecomWs"))).toBe(true);
+    expect(h0.hintKeys.some((k) => k.includes("wecomNoLiveClaim"))).toBe(true);
     expect(h0.hintKeys.some((k) => k.includes("wecomPublicUrl"))).toBe(false);
 
     const wsReady = inst("wecom", {
@@ -251,6 +252,77 @@ describe("classifyChannelHealth", () => {
     expect(h2.hintKeys.some((k) => k.includes("wecomPublicUrl"))).toBe(true);
   });
 
+  it("dingtalk: stream deep health · never connected without Bridge link", () => {
+    expect(channelHasDeepHealth("dingtalk")).toBe(true);
+    expect(transportForChannel("dingtalk")).toBe("stream");
+
+    const bare = inst("dingtalk", {
+      hasCredentials: false,
+      enabled: false,
+      options: {},
+    });
+    const h0 = classifyChannelHealth({
+      instance: bare,
+      bridgeRunning: false,
+    });
+    expect(h0.tone).toBe("unconfigured");
+    expect(h0.transport).toBe("stream");
+    expect(h0.credentialsReady).toBe(false);
+    expect(h0.hintKeys.some((k) => k.includes("dingtalkStream"))).toBe(true);
+    expect(h0.hintKeys.some((k) => k.includes("dingtalkNoLiveClaim"))).toBe(
+      true,
+    );
+    expect(h0.hintKeys.some((k) => k.includes("dingtalkMissingKeys"))).toBe(
+      true,
+    );
+
+    const ready = inst("dingtalk", {
+      hasCredentials: true,
+      enabled: true,
+      options: { client_id: "dingxxx", enable_ai_card: true },
+      acl: {
+        allowFrom: "*",
+        requireMention: true,
+        groupOnly: false,
+        shareSessionInChannel: false,
+      },
+    });
+    const h1 = classifyChannelHealth({
+      instance: ready,
+      bridgeRunning: true,
+      bridgeLinked: true,
+    });
+    expect(h1.credentialsReady).toBe(true);
+    expect(h1.tone).toBe("connected");
+    expect(h1.modeLabel).toBe("mode=stream");
+    expect(h1.hintKeys.some((k) => k.includes("dingtalkAiCard"))).toBe(true);
+    expect(h1.openAcl).toBe(true);
+
+    // Bridge running but not linked → never "connected"
+    const hNotLinked = classifyChannelHealth({
+      instance: ready,
+      bridgeRunning: true,
+      bridgeLinked: false,
+    });
+    expect(hNotLinked.tone).toBe("configured");
+    expect(hNotLinked.tone).not.toBe("connected");
+
+    // Missing client_id with vault → soft-fail, not connected even if linked
+    const incomplete = inst("dingtalk", {
+      hasCredentials: true,
+      enabled: true,
+      options: { client_id: "" },
+    });
+    const h2 = classifyChannelHealth({
+      instance: incomplete,
+      bridgeRunning: true,
+      bridgeLinked: true,
+    });
+    expect(h2.credentialsReady).toBe(false);
+    expect(h2.tone).not.toBe("connected");
+    expect(h2.missingKeys).toContain("client_id");
+  });
+
   it("wecom credentialReadiness ignores corp secrets in websocket mode", () => {
     const i = inst("wecom", {
       hasCredentials: false,
@@ -279,9 +351,11 @@ describe("classifyChannelHealth", () => {
     expect(h0.credentialsReady).toBe(false);
     expect(h0.hintKeys.some((k) => k.includes("weixinPoll"))).toBe(true);
     expect(h0.hintKeys.some((k) => k.includes("weixinNoPublicUrl"))).toBe(true);
+    expect(h0.hintKeys.some((k) => k.includes("weixinNoLiveClaim"))).toBe(true);
     expect(h0.hintKeys.some((k) => k.includes("weixinMissingToken"))).toBe(
       true,
     );
+    expect(h0.hintKeys.some((k) => k.includes("weixinTextMenu"))).toBe(true);
 
     const ready = inst("weixin", {
       hasCredentials: true,
@@ -305,6 +379,28 @@ describe("classifyChannelHealth", () => {
     expect(h1.modeLabel).toContain("proxy=set");
     expect(h1.hintKeys.some((k) => k.includes("weixinTextMenu"))).toBe(true);
     expect(h1.openAcl).toBe(true);
+
+    // Invalid draft base_url soft-fail — not connected even if Bridge linked
+    const hBad = classifyChannelHealth({
+      instance: ready,
+      bridgeRunning: true,
+      bridgeLinked: true,
+      draftOptions: { base_url: "not-a-url" },
+    });
+    expect(hBad.credentialsReady).toBe(false);
+    expect(hBad.tone).not.toBe("connected");
+    expect(hBad.hintKeys.some((k) => k.includes("weixinBaseUrlInvalid"))).toBe(
+      true,
+    );
+
+    // Bridge not linked → never "connected"
+    const hNotLinked = classifyChannelHealth({
+      instance: ready,
+      bridgeRunning: true,
+      bridgeLinked: false,
+    });
+    expect(hNotLinked.tone).toBe("configured");
+    expect(hNotLinked.tone).not.toBe("connected");
   });
 
   it("weixin credentialReadiness needs token or vault", () => {

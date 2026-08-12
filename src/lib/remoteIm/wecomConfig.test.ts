@@ -144,6 +144,7 @@ describe("wecomHealthHintKeys", () => {
     });
     const hints = wecomHealthHintKeys(v);
     expect(hints.some((k) => k.includes("wecomWs"))).toBe(true);
+    expect(hints.some((k) => k.includes("wecomNoLiveClaim"))).toBe(true);
     expect(hints.some((k) => k.includes("wecomPublicUrl"))).toBe(false);
   });
 
@@ -159,6 +160,7 @@ describe("wecomHealthHintKeys", () => {
     const hints = wecomHealthHintKeys(v, { openAcl: true });
     expect(hints.some((k) => k.includes("wecomWebhook"))).toBe(true);
     expect(hints.some((k) => k.includes("wecomPublicUrl"))).toBe(true);
+    expect(hints.some((k) => k.includes("wecomNoLiveClaim"))).toBe(true);
     expect(hints.some((k) => k.includes("openAcl"))).toBe(true);
   });
 });

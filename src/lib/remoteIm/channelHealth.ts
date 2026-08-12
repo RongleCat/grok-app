@@ -592,9 +592,10 @@ export function classifyChannelHealth(
     input.accessTokenValue,
   );
 
-  // Honest status: incomplete mode-switch / missing keys cannot look "connected".
-  const credsUsable =
-    !!instance.hasCredentials && (credentialsReady || channel !== "wecom");
+  // Honest status: never "connected" without vault + complete bind + Bridge link.
+  // Incomplete drafts (WeCom mode switch, bad URL shapes, missing keys) stay
+  // at most "configured" — soft-fail, never a live claim.
+  const credsUsable = !!instance.hasCredentials && credentialsReady;
 
   let tone: ChannelStatusTone = "unconfigured";
   if (instance.lastError) {
@@ -608,11 +609,11 @@ export function classifyChannelHealth(
     tone = "connected";
   } else if (credsUsable && instance.enabled && bridgeRunning) {
     // Enabled + bridge up but not yet linked — "configured" until linked
-    tone = bridgeLinked ? "connected" : "configured";
+    tone = "configured";
   } else if (credsUsable) {
     tone = "configured";
   } else if (instance.hasCredentials && !credentialsReady) {
-    // Saved vault but current mode incomplete (e.g. WeCom mode switch)
+    // Saved vault but current mode incomplete (e.g. WeCom mode switch / bad draft)
     tone = "configured";
   }
 

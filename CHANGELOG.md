@@ -23,6 +23,7 @@ See `docs/llm-wiki/release.md`.
 - **Composer voice dictation honesty**: Mic always visible with insert-vs-send tips (Settings auto-send), cancel mid-stream during requesting/transcribing (not hard-disabled), empty speech / auth soft-fail toasts without sticky error chrome, auto-send blocked soft-fail when permission-gated. Pure `voiceDictation` helpers + tests; en/zh/zh-TW. No Live Voice S2S in this residual.
 - **Appearance fonts (#553)**: Settings → Appearance can set UI font family and side-terminal font family/size (localStorage; terminal prefers Nerd Fonts for Starship glyphs).
 - **Preferred agent apply honesty (#564)**: Settings preferred-agent and Agents & Personas console document spawn-time `--agent` apply paths — live agent soft-respawns on change; idle waits for next connect. Soft-fail when the saved name is missing from the catalog or has invalid characters. Pure `preferredAgentApply` helpers + tests; en/zh/zh-TW.
+- **Remote IM CN channels honesty**: DingTalk / WeCom / Weixin deep health always soft-fails incomplete bind fields and never shows **Connected** without Bridge running **and** instance linked; Weixin locks project/session picker to text menus (§6.9); no-live-claim hints + §6 field help polish. WPS xiezuo/agentspace stay retired.
 - **Memory clear scopes + dream honesty**: Memory ops center GlassModal clear for host scopes **workspace / global / all** (real `grok memory clear` flags; no `window.confirm`). Dream/watcher chips remain config-presence only — never a live “running” status. Experimental memory stays **off** by default with `--no-memory` force-disable honesty.
 
 **中文 · 新增**
@@ -43,6 +44,7 @@ See `docs/llm-wiki/release.md`.
 - **Goal session chrome menu**: Chat Goal chip (active on real `goal_updated`, dashed waiting when `/goal` is on with no harness events) opens a solid menu — Open Reliability · Copy summary · Clear local timeline (in-app confirm). Extracted `GoalOrchSessionChip`; still never invents progress.
 
 **中文 · 变更**
+- **远程 IM 国内渠道诚实态**：钉钉 / 企微 / 微信个人 缺字段 soft-fail，未关联 Bridge 不显示「已连接」；微信强制文本菜单；无在线断言提示 + §6 字段帮助。WPS 协作/数字员工保持退役。
 - **Goal 会话指示菜单**：有真实 `goal_updated` 显示阶段 chip，仅 `/goal` 无事件时虚线等待态；点击打开菜单（可靠性中心 / 复制摘要 / 清除本机时间线）。仍不虚构进度。
 
 ### Fixed
@@ -54,6 +56,7 @@ See `docs/llm-wiki/release.md`.
 - **Tasks / dashboard Stop-all honesty**: Stop all is app-wide busy **sessions** (not tools in one chat); Tasks vs Dashboard confirm copy matches; empty / full-success / all-failed toasts; nested tool tree never invents subagent rows without CLI/tool signals.
 - **Support zip honesty (#561)**: Restore redacted section checklist + soft-fail copy on Reliability/Doctor export (dropped during a multi-PR integrate). Host `meta.json` now includes a soft CLI probe (app + CLI versions) without inventing secrets or chat journals.
 - **CLI vs ACP agentVersion skew (#563)**: Doctor/Runtime soft-warn when probed `grok --version` disagrees with the last live ACP `agentVersion` (never blocks sessions).
+- **Remote IM status lights**: Sidebar `deriveStatus` no longer treats Bridge running alone as connected (requires `connectedChannels` link). Incomplete drafts (any channel) cannot show Connected.
 
 **中文 · 修复**
 - **应用更新通道诚实**：设置 → 关于 在设置拆分后恢复完整路径说明 — 已签名应用内 / GitHub 下载 / 不支持的安装包类型（Linux 非 AppImage 提示）、软失败错误分类、空闲与检查失败文案；未签名构建不宣称静默更新。Host `updater_status` 在插件开启但包类型不可自动更新时返回 `unsupported`。
@@ -64,6 +67,7 @@ See `docs/llm-wiki/release.md`.
 - **支持包诚实导出 (#561)**：恢复可靠性中心/Doctor 脱敏清单与软失败提示；`meta.json` 增加软探测 CLI 版本（不包含密钥或完整会话记录）。
 - **CLI 与 ACP agentVersion 漂移 (#563)**：Doctor/Runtime 软警告探测版与在线 agent 版本不一致（不阻断会话）。
 - **任务面板 / 仪表盘「停止全部」诚实**：作用域为应用内忙碌**会话**（非单聊工具）；Tasks 与 Dashboard 确认文案对齐；空目标 / 全成功 / 全失败 toast；子代理树不在无 CLI/工具信号时编造节点。
+- **远程 IM 状态灯**：侧栏仅在 Bridge 运行且实例已关联时显示「已连接」；绑定草稿不完整时不显示已连接。
 
 ## [0.2.15] - 2026-08-12
 

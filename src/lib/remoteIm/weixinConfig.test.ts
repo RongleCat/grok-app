@@ -183,6 +183,7 @@ describe("weixinHealthHintKeys", () => {
     const hints = weixinHealthHintKeys(v);
     expect(hints.some((k) => k.includes("weixinPoll"))).toBe(true);
     expect(hints.some((k) => k.includes("weixinNoPublicUrl"))).toBe(true);
+    expect(hints.some((k) => k.includes("weixinNoLiveClaim"))).toBe(true);
     expect(hints.some((k) => k.includes("weixinTextMenu"))).toBe(true);
     expect(hints.some((k) => k.includes("PublicUrl") && k.includes("wecom"))).toBe(
       false,

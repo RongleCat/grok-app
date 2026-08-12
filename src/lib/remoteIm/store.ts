@@ -32,6 +32,23 @@ export function defaultAcl(): AclConfig {
   };
 }
 
+/**
+ * Spec §6.9: Weixin personal has no interactive cards — always force text menus.
+ * Other channels keep requested auto/text_only (default auto).
+ */
+export function resolvePresenterForChannel(
+  channel: RemoteChannelId,
+  requested?: PresenterMode | null,
+): PresenterMode {
+  if (channel === "weixin") return "text_only";
+  return requested === "text_only" ? "text_only" : "auto";
+}
+
+/** True when the UI must lock the presenter control (Weixin text-menu only). */
+export function isPresenterLocked(channel: RemoteChannelId): boolean {
+  return channel === "weixin";
+}
+
 export function createDefaultInstance(
   channel: RemoteChannelId,
   name = "default",
@@ -47,7 +64,7 @@ export function createDefaultInstance(
     options: schema ? defaultOptionsFor(schema) : {},
     acl: defaultAcl(),
     projectScope: "all_trusted",
-    presenter: channel === "weixin" ? "text_only" : "auto",
+    presenter: resolvePresenterForChannel(channel),
     hasCredentials: false,
     lastError: null,
     status: "unconfigured",
@@ -180,9 +197,25 @@ export function instancesForChannel(
   return list.filter((x) => x.channel === channel);
 }
 
-export function deriveStatus(inst: ChannelInstance, bridgeRunning: boolean): ChannelStatusTone {
+/**
+ * Sidebar / instance status light.
+ * Never reports "connected" without Bridge running **and** this instance linked.
+ * `bridgeLinked` defaults to false when omitted (honest soft-fail).
+ */
+export function deriveStatus(
+  inst: ChannelInstance,
+  bridgeRunning: boolean,
+  bridgeLinked = false,
+): ChannelStatusTone {
   if (inst.lastError) return "error";
-  if (inst.hasCredentials && inst.enabled && bridgeRunning) return "connected";
+  if (
+    inst.hasCredentials &&
+    inst.enabled &&
+    bridgeRunning &&
+    bridgeLinked
+  ) {
+    return "connected";
+  }
   if (inst.hasCredentials) return "configured";
   return "unconfigured";
 }
@@ -211,11 +244,11 @@ export function applySaveInstance(input: {
     options: input.options,
     acl: input.acl,
     projectScope: input.projectScope,
-    presenter: input.presenter,
+    presenter: resolvePresenterForChannel(input.channel, input.presenter),
     hasCredentials: input.hasCredentials,
     lastError: null,
     status: "unconfigured",
   };
-  base.status = deriveStatus(base, false);
+  base.status = deriveStatus(base, false, false);
   return base;
 }

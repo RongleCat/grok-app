@@ -12,9 +12,14 @@ import {
   remoteImSecretsPut,
 } from "./secretsApi";
 import {
+  applySaveInstance,
   createDefaultInstance,
+  defaultAcl,
   deleteChannelInstance,
+  deriveStatus,
+  isPresenterLocked,
   removeInstance,
+  resolvePresenterForChannel,
 } from "./store";
 
 describe("remoteIm deleteChannelInstance", () => {
@@ -96,5 +101,47 @@ describe("remoteIm deleteChannelInstance", () => {
     expect(r.deleted).toBeNull();
     expect(r.secretsCleared).toBe(false);
     expect(r.disconnected).toBe(false);
+  });
+});
+
+describe("Weixin text-menu presenter honesty", () => {
+  it("defaults weixin to text_only and locks presenter", () => {
+    expect(createDefaultInstance("weixin").presenter).toBe("text_only");
+    expect(createDefaultInstance("dingtalk").presenter).toBe("auto");
+    expect(isPresenterLocked("weixin")).toBe(true);
+    expect(isPresenterLocked("wecom")).toBe(false);
+    expect(resolvePresenterForChannel("weixin", "auto")).toBe("text_only");
+    expect(resolvePresenterForChannel("dingtalk", "text_only")).toBe(
+      "text_only",
+    );
+  });
+
+  it("applySaveInstance forces weixin text_only even if auto requested", () => {
+    const saved = applySaveInstance({
+      channel: "weixin",
+      instanceId: "weixin-default",
+      name: "default",
+      options: {},
+      acl: defaultAcl(),
+      projectScope: "all_trusted",
+      presenter: "auto",
+      enabled: true,
+      hasCredentials: true,
+    });
+    expect(saved.presenter).toBe("text_only");
+  });
+});
+
+describe("deriveStatus Bridge honesty", () => {
+  it("never reports connected without bridgeLinked", () => {
+    const base = {
+      ...createDefaultInstance("dingtalk"),
+      hasCredentials: true,
+      enabled: true,
+    };
+    expect(deriveStatus(base, true, false)).toBe("configured");
+    expect(deriveStatus(base, true)).toBe("configured");
+    expect(deriveStatus(base, true, true)).toBe("connected");
+    expect(deriveStatus(base, false, true)).toBe("configured");
   });
 });
