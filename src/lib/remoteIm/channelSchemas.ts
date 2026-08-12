@@ -460,6 +460,8 @@ const SLACK_FIELDS: ChannelSchema["fields"] = [
     section: "bind",
     required: true,
     secret: true,
+    helpKey: "settings.remoteIm.slack.botTokenHelp",
+    placeholderKey: "settings.remoteIm.slack.botTokenPlaceholder",
   },
   {
     key: "app_token",
@@ -468,8 +470,13 @@ const SLACK_FIELDS: ChannelSchema["fields"] = [
     section: "bind",
     required: true,
     secret: true,
+    helpKey: "settings.remoteIm.slack.appTokenHelp",
+    placeholderKey: "settings.remoteIm.slack.appTokenPlaceholder",
   },
-  ACL_ALLOW_FROM,
+  {
+    ...ACL_ALLOW_FROM,
+    helpKey: "settings.remoteIm.slack.allowFromHelp",
+  },
 ];
 
 const DISCORD_FIELDS: ChannelSchema["fields"] = [
@@ -480,10 +487,21 @@ const DISCORD_FIELDS: ChannelSchema["fields"] = [
     section: "bind",
     required: true,
     secret: true,
+    helpKey: "settings.remoteIm.discord.tokenHelp",
+    placeholderKey: "settings.remoteIm.discord.tokenPlaceholder",
   },
-  ACL_ALLOW_FROM,
-  THREAD_ISOLATION,
-  PROGRESS_STYLE,
+  {
+    ...ACL_ALLOW_FROM,
+    helpKey: "settings.remoteIm.discord.allowFromHelp",
+  },
+  {
+    ...THREAD_ISOLATION,
+    helpKey: "settings.remoteIm.discord.threadHelp",
+  },
+  {
+    ...PROGRESS_STYLE,
+    helpKey: "settings.remoteIm.discord.progressHelp",
+  },
 ];
 
 const MATRIX_FIELDS: ChannelSchema["fields"] = [
@@ -493,6 +511,8 @@ const MATRIX_FIELDS: ChannelSchema["fields"] = [
     control: "text",
     section: "bind",
     required: true,
+    helpKey: "settings.remoteIm.matrix.homeserverHelp",
+    placeholderKey: "settings.remoteIm.matrix.homeserverPlaceholder",
   },
   {
     key: "access_token",
@@ -501,26 +521,35 @@ const MATRIX_FIELDS: ChannelSchema["fields"] = [
     section: "bind",
     required: true,
     secret: true,
+    helpKey: "settings.remoteIm.matrix.tokenHelp",
+    placeholderKey: "settings.remoteIm.matrix.tokenPlaceholder",
   },
   {
     key: "user_id",
     labelKey: "settings.remoteIm.field.userId",
     control: "text",
     section: "options",
+    helpKey: "settings.remoteIm.matrix.userIdHelp",
+    placeholderKey: "settings.remoteIm.matrix.userIdPlaceholder",
   },
   {
     key: "device_id",
     labelKey: "settings.remoteIm.field.deviceId",
     control: "text",
     section: "advanced",
+    helpKey: "settings.remoteIm.matrix.deviceIdHelp",
   },
-  ACL_ALLOW_FROM,
+  {
+    ...ACL_ALLOW_FROM,
+    helpKey: "settings.remoteIm.matrix.allowFromHelp",
+  },
   {
     key: "auto_join",
     labelKey: "settings.remoteIm.field.autoJoin",
     control: "checkbox",
     section: "options",
     defaultValue: true,
+    helpKey: "settings.remoteIm.matrix.autoJoinHelp",
   },
   {
     key: "auto_verify",
@@ -528,6 +557,7 @@ const MATRIX_FIELDS: ChannelSchema["fields"] = [
     control: "checkbox",
     section: "options",
     defaultValue: true,
+    helpKey: "settings.remoteIm.matrix.autoVerifyHelp",
   },
   {
     key: "cross_signing_password",
@@ -535,16 +565,25 @@ const MATRIX_FIELDS: ChannelSchema["fields"] = [
     control: "password",
     section: "advanced",
     secret: true,
+    helpKey: "settings.remoteIm.matrix.crossSigningHelp",
   },
-  SHARED_SESSION,
+  {
+    ...SHARED_SESSION,
+    helpKey: "settings.remoteIm.matrix.shareSessionHelp",
+  },
   {
     key: "group_reply_all",
     labelKey: "settings.remoteIm.field.groupReplyAll",
     control: "checkbox",
     section: "options",
     defaultValue: false,
+    helpKey: "settings.remoteIm.matrix.groupReplyHelp",
   },
-  PROXY,
+  {
+    ...PROXY,
+    helpKey: "settings.remoteIm.matrix.proxyHelp",
+    placeholderKey: "settings.remoteIm.matrix.proxyPlaceholder",
+  },
 ];
 
 const QQ_FIELDS: ChannelSchema["fields"] = [
@@ -693,6 +732,8 @@ const LINE_FIELDS: ChannelSchema["fields"] = [
     section: "bind",
     required: true,
     secret: true,
+    helpKey: "settings.remoteIm.line.channelSecretHelp",
+    placeholderKey: "settings.remoteIm.line.channelSecretPlaceholder",
   },
   {
     key: "channel_access_token",
@@ -701,18 +742,24 @@ const LINE_FIELDS: ChannelSchema["fields"] = [
     section: "bind",
     required: true,
     secret: true,
+    helpKey: "settings.remoteIm.line.accessTokenHelp",
+    placeholderKey: "settings.remoteIm.line.accessTokenPlaceholder",
   },
   {
     key: "port",
     labelKey: "settings.remoteIm.field.port",
     control: "number",
     section: "advanced",
+    helpKey: "settings.remoteIm.line.portHelp",
+    placeholderKey: "settings.remoteIm.line.portPlaceholder",
   },
   {
     key: "callback_path",
     labelKey: "settings.remoteIm.field.callbackPath",
     control: "text",
     section: "advanced",
+    helpKey: "settings.remoteIm.line.callbackPathHelp",
+    placeholderKey: "settings.remoteIm.line.callbackPathPlaceholder",
   },
 ];
 

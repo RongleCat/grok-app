@@ -170,6 +170,8 @@ describe("slackHealthHintKeys", () => {
     expect(hints.some((k) => k.includes("slackSocketMode"))).toBe(true);
     expect(hints.some((k) => k.includes("slackNoPublicUrl"))).toBe(true);
     expect(hints.some((k) => k.includes("slackDualToken"))).toBe(true);
+    // Ready dual tokens never claim Socket Mode live without Bridge
+    expect(hints.some((k) => k.includes("slackNoLiveClaim"))).toBe(true);
   });
 
   it("missing tokens + open ACL + format hints", () => {

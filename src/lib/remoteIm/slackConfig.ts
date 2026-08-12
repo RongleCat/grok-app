@@ -206,6 +206,8 @@ export function slackHealthHintKeys(
   // Dual-token reminder when ready (Socket Mode needs both)
   if (validation.softStatus === "ready_socket_mode") {
     keys.push("settings.remoteIm.health.hint.slackDualToken");
+    // auth.test / dual tokens never prove Socket Mode until Bridge links
+    keys.push("settings.remoteIm.health.hint.slackNoLiveClaim");
   }
 
   if (extras?.openAcl) {

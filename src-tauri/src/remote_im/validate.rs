@@ -305,7 +305,23 @@ async fn test_telegram(secrets: &HashMap<String, String>) -> Result<TestConnecti
     if token.is_empty() {
         return Ok(TestConnectionDto {
             ok: false,
-            message: "missing_token".into(),
+            message: "missing_telegram_token".into(),
+            mock: false,
+        });
+    }
+    // Soft-fail bad paste shape before live getMe (never claims getUpdates).
+    if !is_telegram_bot_token_format(token) {
+        return Ok(TestConnectionDto {
+            ok: false,
+            message: "invalid_telegram_token_format".into(),
+            mock: false,
+        });
+    }
+    let proxy = cred_get(secrets, &["proxy"]);
+    if !proxy.is_empty() && !is_telegram_proxy_url(proxy) {
+        return Ok(TestConnectionDto {
+            ok: false,
+            message: "invalid_telegram_proxy".into(),
             mock: false,
         });
     }
@@ -330,13 +346,14 @@ async fn test_telegram(secrets: &HashMap<String, String>) -> Result<TestConnecti
                     .to_string()
             };
             // On successful getMe, push native BotFather-style command menu.
+            // Honest: getMe / menu registration ≠ getUpdates long-poll live.
             if ok {
                 if let Err(e) =
                     super::channels::telegram::register_native_commands(&client, token).await
                 {
                     message = format!("{message} (commands_menu: {e})");
                 } else {
-                    message = format!("{message} · commands_menu=ok");
+                    message = format!("{message} · commands_menu=ok · getUpdates_needs_bridge");
                 }
             }
             Ok(TestConnectionDto {
@@ -354,11 +371,19 @@ async fn test_telegram(secrets: &HashMap<String, String>) -> Result<TestConnecti
 }
 
 async fn test_discord(secrets: &HashMap<String, String>) -> Result<TestConnectionDto, String> {
-    let token = cred_get(secrets, &["token"]);
+    let token = cred_get(secrets, &["token", "bot_token"]);
     if token.is_empty() {
         return Ok(TestConnectionDto {
             ok: false,
-            message: "missing_token".into(),
+            message: "missing_discord_token".into(),
+            mock: false,
+        });
+    }
+    // Soft-fail bad paste shape before live REST @me (never claims Gateway).
+    if !is_discord_bot_token_format(token) {
+        return Ok(TestConnectionDto {
+            ok: false,
+            message: "invalid_discord_token_format".into(),
             mock: false,
         });
     }
@@ -375,8 +400,9 @@ async fn test_discord(secrets: &HashMap<String, String>) -> Result<TestConnectio
             let ok = res.status().is_success();
             Ok(TestConnectionDto {
                 ok,
+                // Honest: REST bot identity only — Gateway needs Bridge link.
                 message: if ok {
-                    "discord_bot_ok".into()
+                    "discord_bot_identity_ok · gateway_needs_bridge".into()
                 } else {
                     format!("http_{}", res.status().as_u16())
                 },
@@ -392,14 +418,13 @@ async fn test_discord(secrets: &HashMap<String, String>) -> Result<TestConnectio
 }
 
 async fn test_slack(secrets: &HashMap<String, String>) -> Result<TestConnectionDto, String> {
-    let token = cred_get(secrets, &["bot_token", "token"]);
-    if token.is_empty() {
-        return Ok(TestConnectionDto {
-            ok: false,
-            message: "missing_bot_token".into(),
-            mock: false,
-        });
+    // Dual-token posture first (Socket Mode needs bot + app); format soft-fail
+    // before any live auth.test. Never claims apps.connections.open / Socket Mode.
+    let posture = slack_credential_posture(secrets);
+    if !posture.ok {
+        return Ok(posture);
     }
+    let token = cred_get(secrets, &["bot_token", "token"]);
     let client = crate::proxy::apply_to_reqwest(reqwest::Client::builder())
         .build()
         .map_err(|e| e.to_string())?;
@@ -415,10 +440,9 @@ async fn test_slack(secrets: &HashMap<String, String>) -> Result<TestConnectionD
             Ok(TestConnectionDto {
                 ok,
                 message: if ok {
-                    v.get("user")
-                        .and_then(|u| u.as_str())
-                        .unwrap_or("ok")
-                        .to_string()
+                    let user = v.get("user").and_then(|u| u.as_str()).unwrap_or("ok");
+                    // Honest: bot auth.test only — Socket Mode needs Bridge.
+                    format!("{user} · socket_mode_needs_bridge")
                 } else {
                     v.get("error")
                         .and_then(|e| e.as_str())
@@ -769,6 +793,49 @@ fn is_discord_bot_token_format(raw: &str) -> bool {
     })
 }
 
+/// BotFather tokens: digits:secret body (optional leading "bot").
+fn is_telegram_bot_token_format(raw: &str) -> bool {
+    let t = raw.trim();
+    if t.is_empty() {
+        return false;
+    }
+    let body = t
+        .strip_prefix("bot")
+        .or_else(|| t.strip_prefix("Bot"))
+        .unwrap_or(t);
+    let Some((id, secret)) = body.split_once(':') else {
+        return false;
+    };
+    id.len() >= 5
+        && id.chars().all(|c| c.is_ascii_digit())
+        && secret.len() >= 20
+        && secret
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+/// Optional Telegram proxy: http(s) / socks5(h) with a host.
+fn is_telegram_proxy_url(raw: &str) -> bool {
+    let t = raw.trim();
+    if t.is_empty() {
+        return true;
+    }
+    if let Ok(u) = url::Url::parse(t) {
+        let scheme = u.scheme().to_ascii_lowercase();
+        if !matches!(scheme.as_str(), "http" | "https" | "socks5" | "socks5h") {
+            return false;
+        }
+        return u.host_str().map(|h| !h.is_empty()).unwrap_or(false);
+    }
+    // socks5:// may fail Url parse on some inputs — loose fallback
+    let lower = t.to_ascii_lowercase();
+    (lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.starts_with("socks5://")
+        || lower.starts_with("socks5h://"))
+        && t.len() > 10
+}
+
 fn slack_credential_posture(creds: &HashMap<String, String>) -> TestConnectionDto {
     let bot = cred_get(creds, &["bot_token", "token"]);
     let app = cred_get(creds, &["app_token", "app_level_token"]);
@@ -1086,6 +1153,81 @@ mod tests {
         assert!(!is_discord_bot_token_format(
             "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
         ));
+    }
+
+    #[test]
+    fn telegram_token_and_proxy_format() {
+        assert!(is_telegram_bot_token_format(
+            "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
+        ));
+        assert!(is_telegram_bot_token_format(
+            "bot123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
+        ));
+        assert!(!is_telegram_bot_token_format(""));
+        assert!(!is_telegram_bot_token_format("not-a-token"));
+        assert!(!is_telegram_bot_token_format("123:short"));
+        assert!(is_telegram_proxy_url(""));
+        assert!(is_telegram_proxy_url("socks5://127.0.0.1:1080"));
+        assert!(is_telegram_proxy_url("http://proxy.example:8080"));
+        assert!(!is_telegram_proxy_url("ftp://bad"));
+        assert!(!is_telegram_proxy_url("garbage"));
+    }
+
+    #[tokio::test]
+    async fn telegram_soft_fails_invalid_token_before_live() {
+        let mut c = HashMap::new();
+        c.insert("token".into(), "not-a-bot-token".into());
+        let r = test_telegram(&c).await.unwrap();
+        assert!(!r.ok);
+        assert_eq!(r.message, "invalid_telegram_token_format");
+        assert!(!r.mock);
+        // Never claims getUpdates live
+        assert!(!r.message.contains("getUpdates"));
+        assert!(!r.message.contains("connected"));
+    }
+
+    #[tokio::test]
+    async fn telegram_soft_fails_invalid_proxy() {
+        let mut c = HashMap::new();
+        c.insert(
+            "token".into(),
+            "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw".into(),
+        );
+        c.insert("proxy".into(), "ftp://bad".into());
+        let r = test_telegram(&c).await.unwrap();
+        assert!(!r.ok);
+        assert_eq!(r.message, "invalid_telegram_proxy");
+    }
+
+    #[tokio::test]
+    async fn discord_soft_fails_invalid_token_before_live() {
+        let mut c = HashMap::new();
+        c.insert("token".into(), "not-a-discord-token".into());
+        let r = test_discord(&c).await.unwrap();
+        assert!(!r.ok);
+        assert_eq!(r.message, "invalid_discord_token_format");
+        assert!(!r.mock);
+        assert!(!r.message.contains("gateway"));
+        assert!(!r.message.contains("connected"));
+    }
+
+    #[tokio::test]
+    async fn slack_test_requires_dual_token_posture_before_live() {
+        // Only bot token — must soft-fail missing app token (no auth.test claim).
+        let mut c = HashMap::new();
+        c.insert(
+            "bot_token".into(),
+            "xoxb-123456789012-123456789012-abcdefghij".into(),
+        );
+        let r = test_slack(&c).await.unwrap();
+        assert!(!r.ok);
+        assert_eq!(r.message, "missing_slack_app_token");
+        assert!(!r.mock);
+
+        c.insert("app_token".into(), "not-xapp".into());
+        let r2 = test_slack(&c).await.unwrap();
+        assert!(!r2.ok);
+        assert_eq!(r2.message, "invalid_slack_app_token_format");
     }
 
     #[test]

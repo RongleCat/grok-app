@@ -198,6 +198,9 @@ export function discordHealthHintKeys(
       validation.missing.includes("token"))
   ) {
     keys.push("settings.remoteIm.health.hint.discordMissingToken");
+  } else if (validation.softStatus === "ready_gateway") {
+    // REST @me never proves Gateway until Bridge links the instance
+    keys.push("settings.remoteIm.health.hint.discordNoLiveClaim");
   }
   if (validation.threadIsolation) {
     keys.push("settings.remoteIm.health.hint.discordThreadIso");

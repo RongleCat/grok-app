@@ -310,6 +310,8 @@ export function matrixHealthHintKeys(
   // Always state long-poll /sync / no public URL
   keys.push("settings.remoteIm.health.hint.matrixSync");
   keys.push("settings.remoteIm.health.hint.matrixNoWebhook");
+  // Homeserver must be the Client-Server base (not a pure federation name)
+  keys.push("settings.remoteIm.health.hint.matrixHomeserverNote");
 
   if (validation.softStatus === "invalid_homeserver") {
     keys.push("settings.remoteIm.health.hint.matrixHomeserverInvalid");
@@ -333,6 +335,9 @@ export function matrixHealthHintKeys(
       validation.missing.includes("access_token"))
   ) {
     keys.push("settings.remoteIm.health.hint.matrixMissingToken");
+  } else if (validation.softStatus === "ready_long_poll") {
+    // Shape checks never prove /sync until Bridge links the instance
+    keys.push("settings.remoteIm.health.hint.matrixNoLiveClaim");
   }
 
   if (validation.softStatus === "invalid_user_id") {

@@ -211,6 +211,9 @@ export function telegramHealthHintKeys(
       validation.missing.includes("token"))
   ) {
     keys.push("settings.remoteIm.health.hint.telegramMissingToken");
+  } else if (validation.softStatus === "ready_long_poll") {
+    // Shape / getMe never prove getUpdates until Bridge links the instance
+    keys.push("settings.remoteIm.health.hint.telegramNoLiveClaim");
   }
   const proxyInvalid =
     validation.softStatus === "invalid_proxy" ||

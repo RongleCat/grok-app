@@ -247,7 +247,10 @@ describe("matrixHealthHintKeys", () => {
     const hints = matrixHealthHintKeys(v);
     expect(hints.some((k) => k.includes("matrixSync"))).toBe(true);
     expect(hints.some((k) => k.includes("matrixNoWebhook"))).toBe(true);
+    expect(hints.some((k) => k.includes("matrixHomeserverNote"))).toBe(true);
     expect(hints.some((k) => k.includes("matrixAutoJoin"))).toBe(true);
+    // Ready shape never claims /sync live without Bridge
+    expect(hints.some((k) => k.includes("matrixNoLiveClaim"))).toBe(true);
   });
 
   it("token format + open ACL + proxy hints", () => {

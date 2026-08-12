@@ -657,6 +657,53 @@ describe("classifyChannelHealth", () => {
     expect(r.missingKeys).not.toContain("token");
   });
 
+  it("overseas: never connected without Bridge link", () => {
+    for (const channel of [
+      "telegram",
+      "slack",
+      "discord",
+      "matrix",
+      "line",
+    ] as const) {
+      const opts =
+        channel === "matrix"
+          ? { homeserver: "https://matrix.example.com" }
+          : channel === "line"
+            ? { port: 8081 }
+            : {};
+      const ready = inst(channel, {
+        hasCredentials: true,
+        enabled: true,
+        options: opts,
+      });
+      const stopped = classifyChannelHealth({
+        instance: ready,
+        bridgeRunning: false,
+        bridgeLinked: false,
+      });
+      expect(stopped.tone, channel).not.toBe("connected");
+      expect(stopped.tone, channel).toBe("configured");
+
+      const unlinked = classifyChannelHealth({
+        instance: ready,
+        bridgeRunning: true,
+        bridgeLinked: false,
+      });
+      expect(unlinked.tone, channel).not.toBe("connected");
+      expect(unlinked.tone, channel).toBe("configured");
+      expect(unlinked.hintKeys.some((k) => k.includes("notLinked"))).toBe(
+        true,
+      );
+
+      const live = classifyChannelHealth({
+        instance: ready,
+        bridgeRunning: true,
+        bridgeLinked: true,
+      });
+      expect(live.tone, channel).toBe("connected");
+    }
+  });
+
   it("matrix: long-poll deep health with homeserver + ACL hints", () => {
     expect(channelHasDeepHealth("matrix")).toBe(true);
     const bare = inst("matrix", {
@@ -673,6 +720,9 @@ describe("classifyChannelHealth", () => {
     expect(h0.credentialsReady).toBe(false);
     expect(h0.hintKeys.some((k) => k.includes("matrixSync"))).toBe(true);
     expect(h0.hintKeys.some((k) => k.includes("matrixNoWebhook"))).toBe(true);
+    expect(h0.hintKeys.some((k) => k.includes("matrixHomeserverNote"))).toBe(
+      true,
+    );
 
     const ready = inst("matrix", {
       hasCredentials: true,

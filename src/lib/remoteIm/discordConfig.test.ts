@@ -144,6 +144,8 @@ describe("discordHealthHintKeys", () => {
     expect(hints.some((k) => k.includes("discordGateway"))).toBe(true);
     expect(hints.some((k) => k.includes("discordNoWebhook"))).toBe(true);
     expect(hints.some((k) => k.includes("discordIntent"))).toBe(true);
+    // Ready token never claims Gateway live without Bridge
+    expect(hints.some((k) => k.includes("discordNoLiveClaim"))).toBe(true);
   });
 
   it("token format + open ACL + thread isolation hints", () => {

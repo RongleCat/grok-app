@@ -23,8 +23,16 @@ import {
   defaultAcl,
   getChannelSchema,
   isPresenterLocked,
+  isDiscordBotTokenFormat,
+  isMatrixAccessTokenFormat,
+  isMatrixHomeserverUrl,
+  isMatrixUserIdFormat,
   isRetiredChannel,
   isSecretControl,
+  isSlackAppTokenFormat,
+  isSlackBotTokenFormat,
+  isTelegramBotTokenFormat,
+  isTelegramProxyUrl,
   parseIdSecretPair,
   primaryBindFields,
   remoteImSecretsPut,
@@ -76,6 +84,81 @@ export interface RemoteImChannelPanelProps {
 }
 
 type BindTab = "scan" | "paste";
+
+/**
+ * Soft-fail bind shape for overseas channels before vault write.
+ * Returns an i18n MessageKey, or null when format is OK / not applicable.
+ * Empty secret fields are ignored (vault reuse path).
+ */
+function overseasBindFormatError(
+  channelId: RemoteChannelId,
+  secrets: Record<string, string>,
+  values: Record<string, unknown>,
+): MessageKey | null {
+  const sec = (k: string) => (secrets[k] ?? "").trim();
+  const opt = (k: string) => {
+    const v = values[k];
+    if (v == null) return "";
+    return String(v).trim();
+  };
+
+  if (channelId === "telegram") {
+    const token = sec("token") || sec("bot_token");
+    if (token && !isTelegramBotTokenFormat(token)) {
+      return "settings.remoteIm.telegram.err.tokenFormat";
+    }
+    const proxy = opt("proxy");
+    if (proxy && !isTelegramProxyUrl(proxy)) {
+      return "settings.remoteIm.telegram.err.proxy";
+    }
+    return null;
+  }
+
+  if (channelId === "slack") {
+    const bot = sec("bot_token") || sec("token");
+    const app = sec("app_token") || sec("app_level_token");
+    if (bot && !isSlackBotTokenFormat(bot)) {
+      return "settings.remoteIm.slack.err.botTokenFormat";
+    }
+    if (app && !isSlackAppTokenFormat(app)) {
+      return "settings.remoteIm.slack.err.appTokenFormat";
+    }
+    return null;
+  }
+
+  if (channelId === "discord") {
+    const token = sec("token") || sec("bot_token");
+    if (token && !isDiscordBotTokenFormat(token)) {
+      return "settings.remoteIm.discord.err.tokenFormat";
+    }
+    return null;
+  }
+
+  if (channelId === "matrix") {
+    const hs = opt("homeserver");
+    if (hs && !isMatrixHomeserverUrl(hs)) {
+      return "settings.remoteIm.matrix.err.homeserver";
+    }
+    const tok = sec("access_token") || sec("token");
+    if (tok && !isMatrixAccessTokenFormat(tok)) {
+      return "settings.remoteIm.matrix.err.tokenFormat";
+    }
+    const uid = opt("user_id");
+    if (uid && !isMatrixUserIdFormat(uid)) {
+      return "settings.remoteIm.matrix.err.userId";
+    }
+    const proxy = opt("proxy");
+    if (proxy) {
+      // Reuse telegram proxy URL rules (http(s)/socks5(h))
+      if (!isTelegramProxyUrl(proxy)) {
+        return "settings.remoteIm.matrix.err.proxy";
+      }
+    }
+    return null;
+  }
+
+  return null;
+}
 
 /** Coerce bind form `port` for LINE cloudflared helper (values is Record unknown). */
 function lineWebhookPortArg(
@@ -216,6 +299,14 @@ export function RemoteImChannelPanel({
             fields: v.missing.join(", "),
           }),
         );
+        return false;
+      }
+
+      // Overseas channels: soft-fail obvious paste/shape errors before vault write.
+      // Never claims live transport — only format honesty for Save & connect.
+      const formatErr = overseasBindFormatError(channelId, nextSecrets, nextValues);
+      if (formatErr) {
+        setFormError(t(formatErr));
         return false;
       }
 

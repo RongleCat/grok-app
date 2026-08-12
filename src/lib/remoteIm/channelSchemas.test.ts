@@ -257,4 +257,85 @@ describe("remoteIm channelSchemas", () => {
       }
     }
   });
+
+  it("overseas §6 schemas wire help + placeholders and transport honesty", () => {
+    const tg = getChannelSchema("telegram")!;
+    expect(tg.group).toBe("overseas");
+    expect(tg.implemented).toBe(true);
+    expect(tg.connectionKey).toContain("longPoll");
+    expect(showsPublicUrlCallout(tg, {})).toBe(false);
+    const token = tg.fields.find((f) => f.key === "token")!;
+    expect(token.helpKey).toBe("settings.remoteIm.telegram.tokenHelp");
+    expect(token.placeholderKey).toBe(
+      "settings.remoteIm.telegram.tokenPlaceholder",
+    );
+    expect(tg.fields.some((f) => f.key === "proxy")).toBe(true);
+    expect(tg.fields.some((f) => f.key === "proxy_username")).toBe(true);
+    expect(tg.fields.some((f) => f.key === "thread_isolation")).toBe(true);
+    expect(
+      validateBindFields(tg, { token: "12345:AAAAAAAAAAAAAAAAAAAA" }).ok,
+    ).toBe(true);
+
+    const slack = getChannelSchema("slack")!;
+    expect(slack.connectionKey).toContain("socketMode");
+    expect(showsPublicUrlCallout(slack, {})).toBe(false);
+    expect(slack.fields.find((f) => f.key === "bot_token")?.helpKey).toBe(
+      "settings.remoteIm.slack.botTokenHelp",
+    );
+    expect(slack.fields.find((f) => f.key === "app_token")?.placeholderKey).toBe(
+      "settings.remoteIm.slack.appTokenPlaceholder",
+    );
+    expect(
+      validateBindFields(slack, {
+        bot_token: "xoxb-test",
+        app_token: "xapp-test",
+      }).ok,
+    ).toBe(true);
+    expect(validateBindFields(slack, { bot_token: "xoxb-only" }).ok).toBe(
+      false,
+    );
+
+    const discord = getChannelSchema("discord")!;
+    expect(discord.connectionKey).toContain("gateway");
+    expect(discord.fields.find((f) => f.key === "token")?.helpKey).toBe(
+      "settings.remoteIm.discord.tokenHelp",
+    );
+    expect(
+      discord.fields.find((f) => f.key === "thread_isolation")?.helpKey,
+    ).toBe("settings.remoteIm.discord.threadHelp");
+    expect(
+      validateBindFields(discord, { token: "a.b.c" }).ok,
+    ).toBe(true);
+
+    const matrix = getChannelSchema("matrix")!;
+    expect(matrix.connectionKey).toContain("longPoll");
+    expect(showsPublicUrlCallout(matrix, {})).toBe(false);
+    expect(matrix.fields.find((f) => f.key === "homeserver")?.helpKey).toBe(
+      "settings.remoteIm.matrix.homeserverHelp",
+    );
+    expect(matrix.fields.find((f) => f.key === "access_token")?.secret).toBe(
+      true,
+    );
+    expect(matrix.fields.find((f) => f.key === "auto_join")?.defaultValue).toBe(
+      true,
+    );
+    expect(
+      validateBindFields(matrix, {
+        homeserver: "https://matrix.example.com",
+        access_token: "syt_xxx",
+      }).ok,
+    ).toBe(true);
+    expect(
+      validateBindFields(matrix, { access_token: "syt_xxx" }).missing,
+    ).toContain("homeserver");
+
+    const line = getChannelSchema("line")!;
+    expect(line.needsPublicUrl).toBe(true);
+    expect(line.fields.find((f) => f.key === "channel_secret")?.helpKey).toBe(
+      "settings.remoteIm.line.channelSecretHelp",
+    );
+    expect(
+      line.fields.find((f) => f.key === "channel_access_token")?.placeholderKey,
+    ).toBe("settings.remoteIm.line.accessTokenPlaceholder");
+  });
 });

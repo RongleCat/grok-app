@@ -148,6 +148,8 @@ describe("telegramHealthHintKeys", () => {
     expect(hints.some((k) => k.includes("telegramPoll"))).toBe(true);
     expect(hints.some((k) => k.includes("telegramNoWebhook"))).toBe(true);
     expect(hints.some((k) => k.includes("telegramProxy"))).toBe(false);
+    // Ready credentials never claim getUpdates live without Bridge
+    expect(hints.some((k) => k.includes("telegramNoLiveClaim"))).toBe(true);
   });
 
   it("proxy + open ACL + format hints", () => {
