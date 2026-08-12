@@ -759,6 +759,11 @@ html[data-composer-min-rows="8"] .composer__input {
   opacity: 0.65;
 }
 
+/* Auth / provider gate soft-unavailable — still clickable for toast honesty. */
+.composer__voice.composer__voice--unavailable {
+  opacity: 0.45;
+}
+
 .composer__voice-live.is-on {
   color: var(--accent, #5b8def);
 }

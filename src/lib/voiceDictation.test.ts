@@ -4,11 +4,17 @@ import {
   initialVoiceState,
   insertTranscriptIntoDraft,
   isVoiceToggleKey,
+  planTranscriptInsert,
   reduceVoice,
+  resolveDictationCommit,
+  resolveDictationPartialPreview,
   resolveVoiceErrorClass,
+  resolveVoiceMicChrome,
   voiceAvailabilityFromAuth,
   voiceIsActive,
+  voiceMicLabelMessageKey,
   voiceResultStillCurrent,
+  voiceSoftFailResetsIdle,
   voiceStealsEscape,
   VOICE_MAX_RECORD_MS,
   VOICE_NO_SPEECH_MS,
@@ -197,5 +203,147 @@ describe("isVoiceToggleKey", () => {
         shiftKey: false,
       }),
     ).toBe(false);
+  });
+});
+
+describe("resolveDictationPartialPreview", () => {
+  it("never invents partial text", () => {
+    expect(resolveDictationPartialPreview(null)).toBeNull();
+    expect(resolveDictationPartialPreview("")).toBeNull();
+    expect(resolveDictationPartialPreview("   ")).toBeNull();
+  });
+
+  it("returns trimmed interim when present", () => {
+    expect(resolveDictationPartialPreview("  hello  ")).toBe("hello");
+  });
+});
+
+describe("planTranscriptInsert", () => {
+  it("returns null for empty speech", () => {
+    expect(planTranscriptInsert("keep", "  ")).toBeNull();
+  });
+
+  it("returns insert plan for real speech", () => {
+    expect(planTranscriptInsert("", "hi")).toEqual({ text: "hi", caret: 2 });
+  });
+});
+
+describe("resolveDictationCommit", () => {
+  it("empty transcript is empty kind (soft-fail no_speech)", () => {
+    expect(
+      resolveDictationCommit({
+        transcript: "  ",
+        autoSend: true,
+        canAutoSend: true,
+      }).kind,
+    ).toBe("empty");
+  });
+
+  it("default inserts only", () => {
+    expect(
+      resolveDictationCommit({
+        transcript: "hello",
+        autoSend: false,
+        canAutoSend: true,
+      }),
+    ).toEqual({ kind: "insert", text: "hello" });
+  });
+
+  it("auto-send when free", () => {
+    expect(
+      resolveDictationCommit({
+        transcript: "hello",
+        autoSend: true,
+        canAutoSend: true,
+      }),
+    ).toEqual({ kind: "send", text: "hello" });
+  });
+
+  it("auto-send blocked still inserts (honesty soft-fail)", () => {
+    expect(
+      resolveDictationCommit({
+        transcript: "hello",
+        autoSend: true,
+        canAutoSend: false,
+      }),
+    ).toEqual({ kind: "send_blocked", text: "hello" });
+  });
+});
+
+describe("voiceSoftFailResetsIdle", () => {
+  it("treats empty speech and auth as non-sticky", () => {
+    expect(voiceSoftFailResetsIdle("no_speech")).toBe(true);
+    expect(voiceSoftFailResetsIdle("auth")).toBe(true);
+    expect(voiceSoftFailResetsIdle("not_available")).toBe(true);
+    expect(voiceSoftFailResetsIdle("network")).toBe(false);
+    expect(voiceSoftFailResetsIdle("timeout")).toBe(false);
+  });
+});
+
+describe("resolveVoiceMicChrome", () => {
+  const base = {
+    gateAvailable: true,
+    autoSend: false,
+    liveVoiceOpen: false,
+    canType: true,
+  };
+
+  it("idle insert vs send honesty", () => {
+    expect(resolveVoiceMicChrome({ ...base, phase: "idle" }).labelKind).toBe(
+      "idle_insert",
+    );
+    expect(
+      resolveVoiceMicChrome({ ...base, phase: "idle", autoSend: true })
+        .labelKind,
+    ).toBe("idle_send");
+    expect(voiceMicLabelMessageKey("idle_insert")).toBe("composer.voiceInsert");
+    expect(voiceMicLabelMessageKey("idle_send")).toBe("composer.voiceSend");
+  });
+
+  it("keeps cancel interactive mid-stream (transcribing / requesting)", () => {
+    for (const phase of ["transcribing", "requesting_mic"] as const) {
+      const c = resolveVoiceMicChrome({ ...base, phase });
+      expect(c.interactive, phase).toBe(true);
+      expect(c.busyClass, phase).toBe(true);
+    }
+    const t = resolveVoiceMicChrome({ ...base, phase: "transcribing" });
+    expect(t.labelKind).toBe("transcribing_cancel");
+    expect(voiceMicLabelMessageKey(t.labelKind)).toBe(
+      "composer.voiceTranscribing",
+    );
+  });
+
+  it("recording is stoppable live chrome", () => {
+    const c = resolveVoiceMicChrome({ ...base, phase: "recording" });
+    expect(c.labelKind).toBe("listening");
+    expect(c.ariaPressed).toBe(true);
+    expect(c.liveClass).toBe(true);
+    expect(c.interactive).toBe(true);
+  });
+
+  it("auth-unavailable still shows mic for soft-fail click", () => {
+    const c = resolveVoiceMicChrome({
+      ...base,
+      phase: "idle",
+      gateAvailable: false,
+    });
+    expect(c.labelKind).toBe("unavailable");
+    expect(c.unavailableClass).toBe(true);
+    expect(c.interactive).toBe(true);
+  });
+
+  it("live voice overlay blocks start but not mid-dictation cancel", () => {
+    const idle = resolveVoiceMicChrome({
+      ...base,
+      phase: "idle",
+      liveVoiceOpen: true,
+    });
+    expect(idle.interactive).toBe(false);
+    const rec = resolveVoiceMicChrome({
+      ...base,
+      phase: "recording",
+      liveVoiceOpen: true,
+    });
+    expect(rec.interactive).toBe(true);
   });
 });

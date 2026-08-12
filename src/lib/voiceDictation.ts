@@ -310,3 +310,195 @@ export function voiceResultStillCurrent(
 ): boolean {
   return attemptGen === activeGen;
 }
+
+/**
+ * Honest interim/partial transcript for composer preview.
+ * Never invents speech: empty/whitespace → null (show status phase only).
+ * When streaming STT exists, pass real interim text; one-shot STT stays null.
+ */
+export function resolveDictationPartialPreview(
+  partial: string | null | undefined,
+): string | null {
+  const t = (partial ?? "").trim();
+  return t.length > 0 ? t : null;
+}
+
+/**
+ * Merge a final (or interim) transcript into draft text at caret.
+ * Returns null when there is nothing to insert (empty speech honesty).
+ */
+export function planTranscriptInsert(
+  draft: string,
+  transcript: string,
+  caret: number = draft.length,
+): { text: string; caret: number } | null {
+  const t = transcript.trim();
+  if (!t) return null;
+  return insertTranscriptIntoDraft(draft, t, caret);
+}
+
+/** Post-STT disposition: insert only vs auto-send vs soft-fail. */
+export type DictationCommitKind =
+  | "empty"
+  | "insert"
+  | "send"
+  | "send_blocked";
+
+export type DictationCommit =
+  | { kind: "empty" }
+  | { kind: "insert"; text: string }
+  | { kind: "send"; text: string }
+  | { kind: "send_blocked"; text: string };
+
+/**
+ * Classify how a finished transcript should land.
+ * - empty → soft-fail no_speech (caller toast); never send blank
+ * - insert → draft only (default)
+ * - send → insert then send when auto-send is on and send path is free
+ * - send_blocked → insert + soft-fail toast (auto-send wanted but can't send)
+ */
+export function resolveDictationCommit(opts: {
+  transcript: string;
+  autoSend: boolean;
+  /** False when session cannot accept a send (permission gate, etc.). */
+  canAutoSend: boolean;
+}): DictationCommit {
+  const text = opts.transcript.trim();
+  if (!text) return { kind: "empty" };
+  if (!opts.autoSend) return { kind: "insert", text };
+  if (!opts.canAutoSend) return { kind: "send_blocked", text };
+  return { kind: "send", text };
+}
+
+/** Soft-fail classes: toast is enough; leave FSM idle (not sticky error chrome). */
+export function voiceSoftFailResetsIdle(cls: VoiceErrorClass): boolean {
+  return (
+    cls === "no_speech" ||
+    cls === "auth" ||
+    cls === "not_available" ||
+    cls === "mic_denied" ||
+    cls === "mic_missing"
+  );
+}
+
+/** Mic tip / aria label kind for insert·send·cancel honesty. */
+export type VoiceMicLabelKind =
+  | "idle_insert"
+  | "idle_send"
+  | "listening"
+  | "transcribing_cancel"
+  | "requesting"
+  | "unavailable";
+
+export type VoiceMicChrome = {
+  labelKind: VoiceMicLabelKind;
+  /** Click starts, stops, cancels, or soft-fails auth — never hard-disabled mid-stream. */
+  interactive: boolean;
+  ariaPressed: boolean;
+  liveClass: boolean;
+  busyClass: boolean;
+  unavailableClass: boolean;
+};
+
+/**
+ * Pure mic button chrome for composer dictation.
+ * Cancel mid-stream (requesting / recording stop / transcribing cancel) stays interactive.
+ * Auth-unavailable still shows the mic so soft-fail toast can explain why.
+ */
+export function resolveVoiceMicChrome(opts: {
+  phase: VoicePhase;
+  gateAvailable: boolean;
+  autoSend: boolean;
+  liveVoiceOpen: boolean;
+  canType: boolean;
+}): VoiceMicChrome {
+  const active = voiceIsActive(opts.phase);
+  if (opts.liveVoiceOpen && !active) {
+    return {
+      labelKind: opts.gateAvailable
+        ? opts.autoSend
+          ? "idle_send"
+          : "idle_insert"
+        : "unavailable",
+      interactive: false,
+      ariaPressed: false,
+      liveClass: false,
+      busyClass: false,
+      unavailableClass: !opts.gateAvailable,
+    };
+  }
+  if (opts.phase === "recording") {
+    return {
+      labelKind: "listening",
+      interactive: true,
+      ariaPressed: true,
+      liveClass: true,
+      busyClass: false,
+      unavailableClass: false,
+    };
+  }
+  if (opts.phase === "transcribing") {
+    return {
+      labelKind: "transcribing_cancel",
+      interactive: true,
+      ariaPressed: false,
+      liveClass: false,
+      busyClass: true,
+      unavailableClass: false,
+    };
+  }
+  if (opts.phase === "requesting_mic") {
+    return {
+      labelKind: "requesting",
+      interactive: true,
+      ariaPressed: false,
+      liveClass: false,
+      busyClass: true,
+      unavailableClass: false,
+    };
+  }
+  if (!opts.gateAvailable) {
+    return {
+      labelKind: "unavailable",
+      interactive: opts.canType,
+      ariaPressed: false,
+      liveClass: false,
+      busyClass: false,
+      unavailableClass: true,
+    };
+  }
+  return {
+    labelKind: opts.autoSend ? "idle_send" : "idle_insert",
+    interactive: opts.canType,
+    ariaPressed: false,
+    liveClass: false,
+    busyClass: false,
+    unavailableClass: false,
+  };
+}
+
+/** Map mic label kind → i18n MessageKey (caller passes through `tr`). */
+export function voiceMicLabelMessageKey(
+  kind: VoiceMicLabelKind,
+):
+  | "composer.voiceInsert"
+  | "composer.voiceSend"
+  | "composer.voiceListening"
+  | "composer.voiceTranscribing"
+  | "composer.voiceRequesting"
+  | "composer.voiceUnavailable" {
+  switch (kind) {
+    case "idle_insert":
+      return "composer.voiceInsert";
+    case "idle_send":
+      return "composer.voiceSend";
+    case "listening":
+      return "composer.voiceListening";
+    case "transcribing_cancel":
+      return "composer.voiceTranscribing";
+    case "requesting":
+      return "composer.voiceRequesting";
+    case "unavailable":
+      return "composer.voiceUnavailable";
+  }
+}

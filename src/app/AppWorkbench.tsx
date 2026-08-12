@@ -765,13 +765,17 @@ import { appendPluginDir } from "@/lib/sessionPluginDirs";
 import {
   classifyVoiceError,
   initialVoiceState,
-  insertTranscriptIntoDraft,
   isVoiceToggleKey,
+  planTranscriptInsert,
   reduceVoice,
+  resolveDictationCommit,
   resolveVoiceErrorClass,
+  resolveVoiceMicChrome,
   voiceAvailabilityFromAuth,
   voiceIsActive,
+  voiceMicLabelMessageKey,
   voiceResultStillCurrent,
+  voiceSoftFailResetsIdle,
   voiceStealsEscape,
   VOICE_MAX_RECORD_MS,
   type VoiceErrorClass,
@@ -9553,6 +9557,21 @@ export function AppWorkbench() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Soft-fail toast + idle for empty speech / auth; sticky error for network/timeout. */
+  const applyVoiceFail = useCallback(
+    (cls: VoiceErrorClass, toastMs = 4800) => {
+      showToast(voiceErrorMessage(cls), toastMs);
+      if (voiceSoftFailResetsIdle(cls)) {
+        setVoice(initialVoiceState());
+      } else {
+        setVoice((s) =>
+          reduceVoice(s, { type: "transcribe_fail", error: cls }),
+        );
+      }
+    },
+    [showToast, voiceErrorMessage],
+  );
+
   const finishVoiceTranscribe = useCallback(
     async (blob: Blob, gen: number) => {
       if (!voiceResultStillCurrent(gen, voiceGenRef.current)) return;
@@ -9560,13 +9579,7 @@ export function AppWorkbench() {
       try {
         if (blob.size < 256) {
           if (!voiceResultStillCurrent(gen, voiceGenRef.current)) return;
-          setVoice((s) =>
-            reduceVoice(s, {
-              type: "transcribe_fail",
-              error: "no_speech",
-            }),
-          );
-          showToast(voiceErrorMessage("no_speech"), 4200);
+          applyVoiceFail("no_speech", 4200);
           return;
         }
         const b64 = await blobToBase64(blob);
@@ -9581,37 +9594,42 @@ export function AppWorkbench() {
         if (!voiceResultStillCurrent(gen, voiceGenRef.current)) return;
         if (!res.ok || !res.text?.trim()) {
           const cls = resolveVoiceErrorClass(res.errorClass, res.error);
-          setVoice((s) =>
-            reduceVoice(s, { type: "transcribe_fail", error: cls }),
-          );
-          showToast(voiceErrorMessage(cls), 4800);
+          applyVoiceFail(cls, 4800);
           return;
         }
         if (!voiceResultStillCurrent(gen, voiceGenRef.current)) return;
         const caret = voiceCaretRef.current;
+        const commit = resolveDictationCommit({
+          transcript: res.text!,
+          autoSend: voiceDictationAutoSendRef.current,
+          // Permission gate blocks auto-send; busy sessions still enqueue via send().
+          canAutoSend: session.state !== "awaiting_permission",
+        });
+        if (commit.kind === "empty") {
+          applyVoiceFail("no_speech", 4200);
+          return;
+        }
         let inserted = "";
         setDraft((d) => {
           const at =
             caret == null ? d.length : Math.max(0, Math.min(caret, d.length));
-          inserted = insertTranscriptIntoDraft(d, res.text!, at).text;
-          return inserted;
+          const plan = planTranscriptInsert(d, commit.text, at);
+          if (!plan) return d;
+          inserted = plan.text;
+          return plan.text;
         });
         setVoice((s) => reduceVoice(s, { type: "transcribe_ok" }));
-        if (
-          voiceDictationAutoSendRef.current &&
-          inserted.trim().length > 0
-        ) {
+        if (commit.kind === "send" && inserted.trim().length > 0) {
           window.setTimeout(() => {
             void sendRef.current?.();
           }, 0);
+        } else if (commit.kind === "send_blocked") {
+          showToast(tr("composer.voiceErr.sendBlocked"), 4800);
         }
       } catch (e) {
         if (!voiceResultStillCurrent(gen, voiceGenRef.current)) return;
         const cls = classifyVoiceError(String(e));
-        setVoice((s) =>
-          reduceVoice(s, { type: "transcribe_fail", error: cls }),
-        );
-        showToast(voiceErrorMessage(cls), 4800);
+        applyVoiceFail(cls, 4800);
       } finally {
         if (voiceResultStillCurrent(gen, voiceGenRef.current)) {
           voiceCaptureRef.current = null;
@@ -9620,7 +9638,13 @@ export function AppWorkbench() {
         }
       }
     },
-    [clearVoiceTimers, showToast, voiceErrorMessage],
+    [
+      applyVoiceFail,
+      clearVoiceTimers,
+      session.state,
+      showToast,
+      tr,
+    ],
   );
 
   const startVoice = useCallback(async () => {
@@ -9661,11 +9685,7 @@ export function AppWorkbench() {
             await finishVoiceTranscribe(blob, gen);
           } catch (e) {
             if (!voiceResultStillCurrent(gen, voiceGenRef.current)) return;
-            const cls = classifyVoiceError(String(e));
-            setVoice((s) =>
-              reduceVoice(s, { type: "transcribe_fail", error: cls }),
-            );
-            showToast(voiceErrorMessage(cls), 4200);
+            applyVoiceFail(classifyVoiceError(String(e)), 4200);
           }
         })();
       };
@@ -9680,21 +9700,16 @@ export function AppWorkbench() {
           ? String((e as { code?: string }).code)
           : "";
       if (code === "mic_denied") {
-        setVoice((s) => reduceVoice(s, { type: "mic_denied" }));
-        showToast(voiceErrorMessage("mic_denied"), 5200);
+        applyVoiceFail("mic_denied", 5200);
       } else if (code === "mic_missing") {
-        setVoice((s) => reduceVoice(s, { type: "mic_missing" }));
-        showToast(voiceErrorMessage("mic_missing"), 4200);
+        applyVoiceFail("mic_missing", 4200);
       } else {
-        const cls = classifyVoiceError(String(e));
-        setVoice((s) =>
-          reduceVoice(s, { type: "transcribe_fail", error: cls }),
-        );
-        showToast(voiceErrorMessage(cls), 4200);
+        applyVoiceFail(classifyVoiceError(String(e)), 4200);
       }
       voiceCaptureRef.current = null;
     }
   }, [
+    applyVoiceFail,
     clearVoiceTimers,
     finishVoiceTranscribe,
     showToast,
@@ -9719,14 +9734,14 @@ export function AppWorkbench() {
       await finishVoiceTranscribe(blob, gen);
     } catch (e) {
       if (gen !== voiceGenRef.current) return;
-      const cls = classifyVoiceError(String(e));
-      setVoice((s) =>
-        reduceVoice(s, { type: "transcribe_fail", error: cls }),
-      );
-      showToast(voiceErrorMessage(cls), 4200);
+      applyVoiceFail(classifyVoiceError(String(e)), 4200);
       voiceCaptureRef.current = null;
     }
-  }, [clearVoiceTimers, finishVoiceTranscribe, showToast, voiceErrorMessage]);
+  }, [
+    applyVoiceFail,
+    clearVoiceTimers,
+    finishVoiceTranscribe,
+  ]);
 
   const toggleVoice = useCallback(() => {
     const phase = voiceRef.current.phase;
@@ -20122,46 +20137,44 @@ export function AppWorkbench() {
                   label={tr("composer.clearDraft")}
                 />
                 <span className="composer__spacer" />
-                {/* Dictation (mic): official auth only. Live Voice icon entry hidden. */}
-                {(voiceGate.available || voiceIsActive(voice.phase)) && (
-                  <Tip
-                    label={
-                      voice.phase === "recording"
-                        ? tr("composer.voiceListening")
-                        : voice.phase === "transcribing"
-                          ? tr("composer.voiceTranscribing")
-                          : tr("composer.voice")
-                    }
-                  >
-                    <button
-                      type="button"
-                      className={
-                        "icon-btn composer__voice" +
-                        (voice.phase === "recording"
-                          ? " composer__voice--live"
-                          : "") +
-                        (voice.phase === "transcribing"
-                          ? " composer__voice--busy"
-                          : "")
-                      }
-                      disabled={
-                        voice.phase === "transcribing" ||
-                        voice.phase === "requesting_mic" ||
-                        liveVoiceOpen ||
-                        !canType(session.state)
-                      }
-                      aria-pressed={voice.phase === "recording"}
-                      aria-label={
-                        voice.phase === "recording"
-                          ? tr("composer.voiceListening")
-                          : tr("composer.voice")
-                      }
-                      onClick={() => toggleVoice()}
-                    >
-                      <IconMic size={16} />
-                    </button>
-                  </Tip>
-                )}
+                {/* Dictation (mic): always visible for auth soft-fail; Live Voice entry separate. */}
+                {(() => {
+                  const micChrome = resolveVoiceMicChrome({
+                    phase: voice.phase,
+                    gateAvailable: voiceGate.available,
+                    autoSend: voiceDictationAutoSend,
+                    liveVoiceOpen,
+                    canType: canType(session.state),
+                  });
+                  const micLabel = tr(
+                    voiceMicLabelMessageKey(micChrome.labelKind),
+                  );
+                  return (
+                    <Tip label={micLabel}>
+                      <button
+                        type="button"
+                        className={
+                          "icon-btn composer__voice" +
+                          (micChrome.liveClass
+                            ? " composer__voice--live"
+                            : "") +
+                          (micChrome.busyClass
+                            ? " composer__voice--busy"
+                            : "") +
+                          (micChrome.unavailableClass
+                            ? " composer__voice--unavailable"
+                            : "")
+                        }
+                        disabled={!micChrome.interactive}
+                        aria-pressed={micChrome.ariaPressed}
+                        aria-label={micLabel}
+                        onClick={() => toggleVoice()}
+                      >
+                        <IconMic size={16} />
+                      </button>
+                    </Tip>
+                  );
+                })()}
                 <ComposerSendCluster
                   attachmentsLength={attachments.length}
                   effectiveCanStop={effectiveCanStop}
