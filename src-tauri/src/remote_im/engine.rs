@@ -12,6 +12,7 @@ use super::control_plane::{
     resolve_turn_intent, AppSessionEntry, CardAction, PendingMode, ScopeBinding, TurnIntent,
 };
 use super::grok_agent;
+use super::i18n::{self, MessageKey};
 use super::outbound::{self, OutboundRouter};
 use super::projects;
 use super::resilience::{
@@ -24,8 +25,11 @@ use crate::account_profiles::{self, SavedAccount};
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
+use tokio::sync::oneshot;
+use tokio::task::JoinHandle;
 
 #[derive(Clone)]
 struct PendingPick {
@@ -53,12 +57,48 @@ struct AccountQuotaLine {
     quota_note: Option<String>,
 }
 
+type ActiveTurnSenders = Arc<Mutex<HashMap<String, HashMap<u64, oneshot::Sender<()>>>>>;
+type RegisteredTurn = (ActiveTurnRegistration, oneshot::Receiver<()>);
+
+struct ActiveTurnRegistration {
+    turns: ActiveTurnSenders,
+    scope: String,
+    id: u64,
+}
+
+impl Drop for ActiveTurnRegistration {
+    fn drop(&mut self) {
+        self.remove();
+    }
+}
+
+impl ActiveTurnRegistration {
+    /// Atomically mark this turn complete. If `/stop` removed it first, the
+    /// completed CLI result must not be persisted or sent.
+    fn complete(&mut self) -> bool {
+        self.remove()
+    }
+
+    fn remove(&mut self) -> bool {
+        let mut turns = self.turns.lock();
+        let Some(scope_turns) = turns.get_mut(&self.scope) else {
+            return false;
+        };
+        let removed = scope_turns.remove(&self.id).is_some();
+        if scope_turns.is_empty() {
+            turns.remove(&self.scope);
+        }
+        removed
+    }
+}
+
 pub struct Engine {
     store: SessionStore,
     outbound: OutboundRouter,
     instances: Arc<Mutex<HashMap<String, ChannelInstance>>>,
     pending: Arc<Mutex<HashMap<String, PendingPick>>>,
-    aborts: Arc<Mutex<HashMap<String, bool>>>,
+    active_turns: ActiveTurnSenders,
+    next_turn_id: AtomicU64,
     /// Soft inbound rate limit (agent turns only; slash/control exempt).
     rate_limiter: Mutex<InboundRateLimiter>,
     lang: String,
@@ -72,7 +112,8 @@ impl Engine {
             outbound,
             instances: Arc::new(Mutex::new(HashMap::new())),
             pending: Arc::new(Mutex::new(HashMap::new())),
-            aborts: Arc::new(Mutex::new(HashMap::new())),
+            active_turns: Arc::new(Mutex::new(HashMap::new())),
+            next_turn_id: AtomicU64::new(1),
             rate_limiter: Mutex::new(InboundRateLimiter::default()),
             lang: "zh".into(),
             allow_remote_yolo,
@@ -86,7 +127,8 @@ impl Engine {
             outbound,
             instances: Arc::new(Mutex::new(HashMap::new())),
             pending: Arc::new(Mutex::new(HashMap::new())),
-            aborts: Arc::new(Mutex::new(HashMap::new())),
+            active_turns: Arc::new(Mutex::new(HashMap::new())),
+            next_turn_id: AtomicU64::new(1),
             rate_limiter: Mutex::new(InboundRateLimiter::default()),
             lang: "zh".into(),
             allow_remote_yolo,
@@ -101,6 +143,40 @@ impl Engine {
         self.instances.lock().remove(id);
     }
 
+    fn register_active_turn(&self, scope: &str) -> RegisteredTurn {
+        let id = self.next_turn_id.fetch_add(1, Ordering::Relaxed);
+        let (cancel_tx, cancel_rx) = oneshot::channel();
+        self.active_turns
+            .lock()
+            .entry(scope.to_string())
+            .or_default()
+            .insert(id, cancel_tx);
+        (
+            ActiveTurnRegistration {
+                turns: self.active_turns.clone(),
+                scope: scope.to_string(),
+                id,
+            },
+            cancel_rx,
+        )
+    }
+
+    fn cancel_active_turns(&self, scope: &str) -> usize {
+        let senders = self.active_turns.lock().remove(scope).unwrap_or_default();
+        let count = senders.len();
+        for (_, cancel_tx) in senders {
+            let _ = cancel_tx.send(());
+        }
+        count
+    }
+
+    fn agent_error_message(&self, error: &str) -> String {
+        if error == grok_agent::PROCESS_SUPERVISION_ERROR_CODE {
+            return i18n::t(&self.lang, MessageKey::ProcessSupervisionFailed).into();
+        }
+        agent_error_user_message(&self.lang, classify_rim_error(error), error)
+    }
+
     /// Trusted projects limited by instance project_scope (GUI whitelist or all).
     fn scoped_projects_for(&self, instance_id: &str) -> Vec<TrustedProject> {
         let scope = self
@@ -113,6 +189,22 @@ impl Engine {
     }
 
     pub async fn handle(&self, msg: IncomingMessage) {
+        self.handle_inner(msg, None).await;
+    }
+
+    /// Register before spawning so a following `/stop` cannot overtake an
+    /// inbound free-form message that Tokio has not polled yet.
+    pub(super) fn spawn_cancellable(self: &Arc<Self>, msg: IncomingMessage) -> JoinHandle<()> {
+        let scope =
+            SessionStore::scope_key(&msg.channel, &msg.instance_id, &msg.chat_id, &msg.sender_id);
+        let registered = self.register_active_turn(&scope);
+        let engine = self.clone();
+        tokio::spawn(async move {
+            engine.handle_inner(msg, Some(registered)).await;
+        })
+    }
+
+    async fn handle_inner(&self, msg: IncomingMessage, mut registered: Option<RegisteredTurn>) {
         tracing::info!(
             channel = %msg.channel,
             instance = %msg.instance_id,
@@ -205,7 +297,8 @@ impl Engine {
                 g.remove(&alt_scope);
             }
             tracing::info!(?cmd, "remote_im: slash command");
-            self.handle_slash(cmd, &msg, &scope, &default_wd).await;
+            self.handle_slash(cmd, &msg, &scope, &default_wd, registered.take())
+                .await;
             tracing::info!("remote_im: slash done");
             return;
         }
@@ -248,7 +341,7 @@ impl Engine {
             return;
         }
         tracing::info!("remote_im: agent turn");
-        self.run_agent_turn(&msg, &scope, &default_wd, &content)
+        self.run_agent_turn(&msg, &scope, &default_wd, &content, registered.take())
             .await;
         tracing::info!("remote_im: agent turn done");
     }
@@ -822,6 +915,7 @@ impl Engine {
         msg: &IncomingMessage,
         scope: &str,
         default_wd: &str,
+        registered: Option<RegisteredTurn>,
     ) {
         match cmd {
             BuiltinCommand::Help => {
@@ -866,17 +960,17 @@ impl Engine {
                 self.handle_context(scope, msg, default_wd).await;
             }
             BuiltinCommand::Compact { note } => {
-                self.handle_compact(note.as_deref(), scope, msg, default_wd)
+                self.handle_compact(note.as_deref(), scope, msg, default_wd, registered)
                     .await;
             }
             BuiltinCommand::Stop => {
-                self.aborts.lock().insert(scope.to_string(), true);
-                let t = if self.lang == "en" {
-                    "Stop signal sent (best-effort)."
+                let cancelled = self.cancel_active_turns(scope);
+                let key = if cancelled > 0 {
+                    MessageKey::StopSignalSent
                 } else {
-                    "已发送中断信号（尽力而为）。"
+                    MessageKey::NoInFlightTurn
                 };
-                let _ = self.reply_msg(msg, t).await;
+                let _ = self.reply_msg(msg, i18n::t(&self.lang, key)).await;
             }
             BuiltinCommand::Project { query } => {
                 self.handle_project(query.as_deref(), scope, msg, default_wd)
@@ -913,6 +1007,7 @@ impl Engine {
         scope: &str,
         msg: &IncomingMessage,
         default_wd: &str,
+        registered: Option<RegisteredTurn>,
     ) {
         let binding = self.store.get_or_create(scope, default_wd);
         let Some(agent_session_id) = binding
@@ -941,6 +1036,9 @@ impl Engine {
         };
         let _ = self.reply_msg(msg, working).await;
 
+        let (mut active_turn, cancel_rx) =
+            registered.unwrap_or_else(|| self.register_active_turn(scope));
+
         let before = binding
             .context_usage
             .as_ref()
@@ -956,11 +1054,16 @@ impl Engine {
             &compact_prompt,
             Some(&agent_session_id),
             self.allow_remote_yolo,
+            Some(cancel_rx),
             None,
         )
         .await;
+        if result.cancelled || !active_turn.complete() {
+            tracing::info!(scope = %scope, "remote_im: compact turn cancelled");
+            return;
+        }
         if let Some(error) = result.error.as_deref() {
-            let text = agent_error_user_message(&self.lang, classify_rim_error(error), error);
+            let text = self.agent_error_message(error);
             let _ = self.reply_msg(msg, &text).await;
             return;
         }
@@ -1220,6 +1323,7 @@ impl Engine {
         scope: &str,
         default_wd: &str,
         prompt: &str,
+        registered: Option<RegisteredTurn>,
     ) {
         let binding = self.store.get_or_create(scope, default_wd);
         if binding.project_id.is_none() && binding.work_dir.is_empty() {
@@ -1232,7 +1336,8 @@ impl Engine {
             return;
         }
 
-        self.aborts.lock().insert(scope.to_string(), false);
+        let (mut active_turn, cancel_rx) =
+            registered.unwrap_or_else(|| self.register_active_turn(scope));
 
         let thinking = if self.lang == "en" {
             "Working…"
@@ -1255,9 +1360,15 @@ impl Engine {
             prompt,
             resume_id.as_deref(),
             self.allow_remote_yolo,
+            Some(cancel_rx),
             None,
         )
         .await;
+
+        if result.cancelled || !active_turn.complete() {
+            tracing::info!(scope = %scope, "remote_im: grok turn cancelled");
+            return;
+        }
 
         let usage = result.usage.clone();
         let compact = result.compact.clone();
@@ -1300,8 +1411,7 @@ impl Engine {
         let had_error = result.error.is_some();
         let text = if let Some(err) = result.error {
             if result.text.is_empty() {
-                let kind = classify_rim_error(&err);
-                agent_error_user_message(&self.lang, kind, &err)
+                self.agent_error_message(&err)
             } else {
                 // Prefer model text when present; still honest if it looks like a rate limit.
                 let kind = classify_rim_error(&err);
@@ -1739,6 +1849,56 @@ fn _use_list() {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[tokio::test]
+    async fn stop_cancels_all_active_turns_in_the_scope_only() {
+        let engine = Engine::new_ephemeral(OutboundRouter::new(), false);
+        let (_first, first_rx) = engine.register_active_turn("scope-a");
+        let (_second, second_rx) = engine.register_active_turn("scope-a");
+        let (_other, mut other_rx) = engine.register_active_turn("scope-b");
+
+        let stop_message = IncomingMessage {
+            channel: "test".into(),
+            instance_id: "test-instance".into(),
+            message_id: "stop-message".into(),
+            chat_id: "chat".into(),
+            chat_type: "p2p".into(),
+            sender_id: "sender".into(),
+            content: "/stop".into(),
+            mentioned_bot: true,
+        };
+        engine
+            .handle_slash(BuiltinCommand::Stop, &stop_message, "scope-a", "", None)
+            .await;
+
+        first_rx.await.expect("first turn was not cancelled");
+        second_rx.await.expect("second turn was not cancelled");
+        assert!(matches!(
+            other_rx.try_recv(),
+            Err(oneshot::error::TryRecvError::Empty)
+        ));
+        assert_eq!(engine.cancel_active_turns("scope-a"), 0);
+        assert_eq!(engine.cancel_active_turns("scope-b"), 1);
+        other_rx
+            .await
+            .expect("other scope did not remain cancellable");
+    }
+
+    #[test]
+    fn completion_and_stop_have_a_single_atomic_winner() {
+        let engine = Engine::new_ephemeral(OutboundRouter::new(), false);
+
+        let (mut completed_first, completed_rx) = engine.register_active_turn("completed-first");
+        drop(completed_rx);
+        assert!(completed_first.complete());
+        assert_eq!(engine.cancel_active_turns("completed-first"), 0);
+
+        let (mut stopped_first, stopped_rx) = engine.register_active_turn("stopped-first");
+        drop(stopped_rx);
+        assert_eq!(engine.cancel_active_turns("stopped-first"), 1);
+        assert!(!stopped_first.complete());
+    }
+
     use std::time::Duration;
 
     #[test]

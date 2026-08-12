@@ -1864,6 +1864,7 @@ dependencies = [
  "which",
  "window-vibrancy",
  "windows",
+ "windows-sys 0.61.2",
  "winreg 0.55.0",
  "zip 2.4.2",
 ]

@@ -5,6 +5,7 @@ use super::channels;
 use super::config;
 use super::engine::Engine;
 use super::outbound::OutboundRouter;
+use super::slash::{self, BuiltinCommand};
 use super::types::{ChannelInstance, ConnectedChannel, IncomingMessage};
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,6 +20,17 @@ pub struct RuntimeHandle {
     _keepalive_tx: mpsc::Sender<IncomingMessage>,
     outbound: OutboundRouter,
     engine: Arc<Engine>,
+}
+
+fn should_handle_inline(content: &str) -> bool {
+    let trimmed = content.trim();
+    if matches!(
+        slash::parse_slash(trimmed),
+        Some(BuiltinCommand::Compact { .. })
+    ) {
+        return false;
+    }
+    trimmed.starts_with('/') || trimmed.starts_with("__card_action__:")
 }
 
 impl RuntimeHandle {
@@ -117,19 +129,13 @@ pub async fn start_runtime(
                 "remote_im: engine recv"
             );
             let e = eng.clone();
-            let trimmed = msg.content.trim();
             // Control-plane messages are awaited inline (must not be dropped).
-            // Free-form chat is detached so a long Grok turn does not block others.
-            let quick = trimmed.starts_with('/')
-                || trimmed.starts_with("__card_action__:")
-                || trimmed == "0"
-                || trimmed.eq_ignore_ascii_case("cancel");
-            if quick {
+            // Agent turns, including `/compact`, are detached so `/stop` can
+            // always reach the pump and cancel them.
+            if should_handle_inline(&msg.content) {
                 e.handle(msg).await;
             } else {
-                tokio::spawn(async move {
-                    e.handle(msg).await;
-                });
+                drop(e.spawn_cancellable(msg));
             }
         }
         tracing::warn!("remote_im: message pump exited (all senders dropped)");
@@ -154,4 +160,20 @@ pub async fn start_runtime(
         },
         active,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compact_is_detached_while_stop_stays_inline() {
+        assert!(!should_handle_inline("/compact"));
+        assert!(!should_handle_inline("/compact keep decisions"));
+        assert!(!should_handle_inline("/compact@GrokBot keep decisions"));
+        assert!(!should_handle_inline("0"));
+        assert!(!should_handle_inline("cancel"));
+        assert!(should_handle_inline("/stop"));
+        assert!(should_handle_inline("/help"));
+    }
 }

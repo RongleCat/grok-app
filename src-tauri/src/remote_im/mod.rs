@@ -13,6 +13,7 @@ mod feishu_reg;
 #[cfg(test)]
 mod fixture_http;
 mod grok_agent;
+mod i18n;
 mod outbound;
 mod pb_frame;
 mod projects;
