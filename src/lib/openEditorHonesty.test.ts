@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildOpenTargetSelectOptions,
   classifyOpenEditorError,
   classifyRevealError,
   formatOpenEditorErrorMessage,
+  isOsOpenTarget,
+  normalizeOpenTargetId,
   openEditorErrorMessageKey,
+  orderOpenWithEditors,
   planOpenInEditor,
+  resolveEffectiveOpenTarget,
+  resolveLegacyEditorTarget,
   resolveOpenEditorEmptyState,
   resolveOpenEditorError,
   resolveRevealError,
@@ -286,5 +292,161 @@ describe("planOpenInEditor", () => {
       editorsFound: 3,
     });
     expect(p).toEqual({ ok: true, path: "/a.ts", editorId: "code" });
+  });
+
+  it("soft-fails no_editor when editorId missing from availableIds", () => {
+    const p = planOpenInEditor({
+      path: "/a.ts",
+      editorId: "cursor",
+      availableIds: ["code", "zed"],
+      isTauri: true,
+    });
+    expect(p.ok).toBe(false);
+    if (!p.ok) expect(p.kind).toBe("no_editor");
+  });
+
+  it("allows when editorId is among availableIds", () => {
+    const p = planOpenInEditor({
+      path: "/a.ts",
+      editorId: "Cursor",
+      availableIds: ["code", "cursor"],
+    });
+    expect(p).toEqual({ ok: true, path: "/a.ts", editorId: "cursor" });
+  });
+});
+
+describe("normalizeOpenTargetId / isOsOpenTarget", () => {
+  it("normalizes and defaults empty to finder", () => {
+    expect(normalizeOpenTargetId(" Code ")).toBe("code");
+    expect(normalizeOpenTargetId("")).toBe("finder");
+    expect(normalizeOpenTargetId(null)).toBe("finder");
+  });
+
+  it("classifies OS vs editor targets", () => {
+    expect(isOsOpenTarget("finder")).toBe(true);
+    expect(isOsOpenTarget("explorer")).toBe(true);
+    expect(isOsOpenTarget("system")).toBe(true);
+    expect(isOsOpenTarget("default")).toBe(true);
+    expect(isOsOpenTarget("cursor")).toBe(false);
+    expect(isOsOpenTarget("code")).toBe(false);
+  });
+});
+
+describe("buildOpenTargetSelectOptions", () => {
+  it("lists finder + available editors only", () => {
+    const opts = buildOpenTargetSelectOptions({
+      finderLabel: "Finder",
+      editors: [
+        { id: "code", label: "VS Code", available: true },
+        { id: "missing", label: "Gone", available: false },
+      ],
+    });
+    expect(opts).toEqual([
+      { value: "finder", label: "Finder" },
+      { value: "code", label: "VS Code" },
+    ]);
+  });
+
+  it("soft-disables preferred when missing from probe", () => {
+    const opts = buildOpenTargetSelectOptions({
+      finderLabel: "Finder",
+      preferred: "cursor",
+      unavailableSuffix: " (not detected)",
+      editors: [{ id: "code", label: "VS Code", available: true }],
+    });
+    expect(opts).toContainEqual({
+      value: "cursor",
+      label: "cursor (not detected)",
+      disabled: true,
+    });
+    expect(opts.find((o) => o.value === "code")?.disabled).toBeUndefined();
+  });
+
+  it("does not duplicate preferred when available", () => {
+    const opts = buildOpenTargetSelectOptions({
+      finderLabel: "Finder",
+      preferred: "code",
+      editors: [{ id: "code", label: "VS Code", available: true }],
+    });
+    expect(opts.filter((o) => o.value === "code")).toHaveLength(1);
+    expect(opts.find((o) => o.value === "code")?.disabled).toBeUndefined();
+  });
+});
+
+describe("resolveEffectiveOpenTarget / orderOpenWithEditors", () => {
+  it("keeps available preferred editor", () => {
+    expect(
+      resolveEffectiveOpenTarget({
+        preferred: "Cursor",
+        availableIds: ["code", "cursor"],
+      }),
+    ).toBe("cursor");
+  });
+
+  it("falls back to OS target when preferred missing", () => {
+    expect(
+      resolveEffectiveOpenTarget({
+        preferred: "cursor",
+        availableIds: ["code"],
+        osTarget: "finder",
+      }),
+    ).toBe("finder");
+  });
+
+  it("keeps finder/system even with empty scan", () => {
+    expect(
+      resolveEffectiveOpenTarget({
+        preferred: "finder",
+        availableIds: [],
+      }),
+    ).toBe("finder");
+    expect(
+      resolveEffectiveOpenTarget({
+        preferred: "system",
+        availableIds: [],
+      }),
+    ).toBe("system");
+  });
+
+  it("resolves legacy editor to cursor > code > first", () => {
+    expect(resolveLegacyEditorTarget(["code", "cursor", "zed"])).toBe(
+      "cursor",
+    );
+    expect(resolveLegacyEditorTarget(["code", "zed"])).toBe("code");
+    expect(resolveLegacyEditorTarget(["zed", "sublime"])).toBe("zed");
+    expect(resolveLegacyEditorTarget([])).toBeNull();
+    expect(
+      resolveEffectiveOpenTarget({
+        preferred: "editor",
+        availableIds: ["code", "cursor"],
+      }),
+    ).toBe("cursor");
+  });
+
+  it("orders preferred editor first in open-with menus", () => {
+    const ordered = orderOpenWithEditors(
+      [
+        { id: "code", label: "VS Code" },
+        { id: "cursor", label: "Cursor" },
+        { id: "zed", label: "Zed" },
+      ],
+      "cursor",
+    );
+    expect(ordered.map((e) => e.id)).toEqual(["cursor", "code", "zed"]);
+  });
+
+  it("leaves order unchanged when preferred is OS or missing", () => {
+    const eds = [
+      { id: "code" },
+      { id: "cursor" },
+    ];
+    expect(orderOpenWithEditors(eds, "finder").map((e) => e.id)).toEqual([
+      "code",
+      "cursor",
+    ]);
+    expect(orderOpenWithEditors(eds, "windsurf").map((e) => e.id)).toEqual([
+      "code",
+      "cursor",
+    ]);
   });
 });

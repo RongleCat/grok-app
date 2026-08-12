@@ -55,6 +55,7 @@ import {
   type StopAllSurface,
 } from "@/lib/stopAllHonesty";
 import { detectAppPlatform, revealInOsLabel } from "@/lib/appPlatform";
+import { writeOpenTargetStorage } from "@/lib/openEditorHonesty";
 import {
   APP_CLOSE_REQUESTED_EVENT,
   APP_CLOSE_TAB_OR_WINDOW_EVENT,
@@ -3259,10 +3260,14 @@ export function AppWorkbench() {
           settings.sessionDataMode || DEFAULT_SESSION_DATA_MODE,
         ),
       );
-      setDefaultOpenTarget(
-        (settings as { defaultOpenTarget?: string }).defaultOpenTarget ||
-          "finder",
-      );
+      {
+        const openTarget =
+          (settings as { defaultOpenTarget?: string }).defaultOpenTarget ||
+          "finder";
+        setDefaultOpenTarget(openTarget);
+        // Keep Resource/Review session storage aligned with Host settings.
+        writeOpenTargetStorage(openTarget);
+      }
       setAcpServerAddr(settings.acpServerAddr || "");
       {
         const st = settings as {
@@ -4097,11 +4102,7 @@ export function AppWorkbench() {
 
   const persistOpenTarget = useCallback((target: string) => {
     setDefaultOpenTarget(target);
-    try {
-      localStorage.setItem("grok-app.openTarget", target);
-    } catch {
-      /* ignore */
-    }
+    writeOpenTargetStorage(target);
     void api.settingsGet().then((s) =>
       api.settingsSet({ ...s, defaultOpenTarget: target }),
     );
@@ -17428,10 +17429,11 @@ export function AppWorkbench() {
           onImportChat={() => void importChatTranscript()}
           defaultOpenTarget={defaultOpenTarget}
           onDefaultOpenTarget={(v) => {
-          setDefaultOpenTarget(v);
-          void api.settingsGet().then((s) =>
-          api.settingsSet({ ...s, defaultOpenTarget: v }),
-          );
+            setDefaultOpenTarget(v);
+            writeOpenTargetStorage(v);
+            void api.settingsGet().then((s) =>
+              api.settingsSet({ ...s, defaultOpenTarget: v }),
+            );
           }}
           archivedGroups={archivedGroups}
           onRestoreArchivedSessions={(ids) => {

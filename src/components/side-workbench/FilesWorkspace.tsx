@@ -36,7 +36,9 @@ import type { FileTab, TreeNode } from "@/components/resource-viewer/types";
 import { useResourceFileTabs } from "@/components/resource-viewer/useResourceFileTabs";
 import {
   formatOpenEditorErrorMessage,
+  readOpenTargetStorage,
   resolveOpenEditorError,
+  writeOpenTargetStorage,
 } from "@/lib/openEditorHonesty";
 import { pathBaseName } from "@/lib/sessionChanges";
 
@@ -84,13 +86,20 @@ export function FilesWorkspace({
   const [treeWidth, setTreeWidth] = useState(loadTreeWidth);
   const [resizingTree, setResizingTree] = useState(false);
   const splitRef = useRef<HTMLDivElement>(null);
-  const [openWithTarget, setOpenWithTarget] = useState(() => {
-    try {
-      return localStorage.getItem("grok-app.openTarget") || "finder";
-    } catch {
-      return "finder";
-    }
-  });
+  const [openWithTarget, setOpenWithTarget] = useState(() =>
+    readOpenTargetStorage("finder"),
+  );
+
+  const persistOpenWithTarget = useCallback((t: string) => {
+    setOpenWithTarget(t);
+    writeOpenTargetStorage(t);
+    void api
+      .settingsGet()
+      .then((s) => api.settingsSet({ ...s, defaultOpenTarget: t }))
+      .catch(() => {
+        /* soft-fail — localStorage still holds session default */
+      });
+  }, []);
 
   const fileTabs = useResourceFileTabs({
     projectPath,
@@ -398,14 +407,7 @@ export function FilesWorkspace({
               path={absPath}
               line={activeTab?.focusLine ?? activeLine}
               target={openWithTarget}
-              onTargetChange={(t) => {
-                setOpenWithTarget(t);
-                try {
-                  localStorage.setItem("grok-app.openTarget", t);
-                } catch {
-                  /* ignore */
-                }
-              }}
+              onTargetChange={persistOpenWithTarget}
               onOpenError={(e) => {
                 const resolved = resolveOpenEditorError(e);
                 if (resolved.silent) return;

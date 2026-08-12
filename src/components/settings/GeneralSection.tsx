@@ -81,7 +81,12 @@ import { AgentConfigTomlPanel } from "@/components/AgentConfigTomlPanel";
 import { CliSessionsPanel } from "./CliSessionsPanel";
 import { SettingsTabStrip, UiCheck } from "./shared";
 import { resolveLocale } from "@/i18n";
+import type { MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
+import {
+  buildOpenTargetSelectOptions,
+  resolveOpenEditorEmptyState,
+} from "@/lib/openEditorHonesty";
 
 
 export function GeneralSection() {
@@ -2465,7 +2470,10 @@ export function GeneralSection() {
               </div>
               {onDefaultOpenTarget && (
                 <div
-                  className={"settings-row" + rowHighlight("settings-anchor-openTarget")}
+                  className={
+                    "settings-row settings-row--stack" +
+                    rowHighlight("settings-anchor-openTarget")
+                  }
                   id="settings-anchor-openTarget"
                 >
                   <div className="settings-row__text">
@@ -2479,14 +2487,43 @@ export function GeneralSection() {
                   <Select
                     value={defaultOpenTarget}
                     onChange={onDefaultOpenTarget}
-                    options={[
-                      { value: "finder", label: t("settings.openFinder") },
-                      ...editors.map((e: { id: string; label: string }) => ({
-                        value: e.id,
-                        label: e.label,
-                      })),
-                    ]}
+                    aria-label={t("settings.openTarget")}
+                    options={buildOpenTargetSelectOptions({
+                      finderLabel: t("settings.openFinder"),
+                      preferred: defaultOpenTarget,
+                      unavailableSuffix: t("settings.openTargetUnavailable"),
+                      editors: (editors ?? []) as {
+                        id: string;
+                        label: string;
+                        available?: boolean;
+                      }[],
+                    })}
                   />
+                  {(() => {
+                    const available = (
+                      (editors ?? []) as {
+                        id: string;
+                        available?: boolean;
+                      }[]
+                    ).filter((e) => e.available !== false);
+                    const empty = resolveOpenEditorEmptyState({
+                      editorsFound: available.length,
+                      preferred: defaultOpenTarget,
+                      availableIds: available.map((e) => e.id),
+                    });
+                    if (!empty.messageKey) return null;
+                    return (
+                      <div
+                        className={
+                          "settings-row__hint" +
+                          (empty.severity === "warn" ? " is-danger" : "")
+                        }
+                        role="status"
+                      >
+                        {t(empty.messageKey as MessageKey)}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

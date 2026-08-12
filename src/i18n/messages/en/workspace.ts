@@ -13,6 +13,7 @@ export const enWorkspace = {
   "resources.back": "Back to files",
   "resources.openFailed": "Failed to open file",
   "resources.openInEditor": "Open in editor",
+  "resources.openInEditorNamed": "Open in {name}",
   "resources.open": "Open",
   "resources.openDefault": "Open with system default",
   "resources.revealFolder": "Reveal in file manager",

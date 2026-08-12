@@ -1011,6 +1011,16 @@ html[data-theme="light"] .sw-terminal--pty {
   opacity: 0.55;
 }
 
+.sw-review__open-err {
+  margin: 0 10px 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--danger, #f87171);
+  background: color-mix(in srgb, var(--danger, #f87171) 12%, transparent);
+}
+
 .sw-review__header-actions {
   position: absolute;
   top: 6px;

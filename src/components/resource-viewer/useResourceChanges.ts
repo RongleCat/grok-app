@@ -16,7 +16,9 @@ import type { MessageKey } from "@/i18n";
 import {
   formatOpenEditorErrorMessage,
   formatRevealErrorMessage,
+  isOsOpenTarget,
   planOpenInEditor,
+  readOpenTargetStorage,
   resolveOpenEditorError,
   resolveRevealError,
 } from "@/lib/openEditorHonesty";
@@ -484,8 +486,13 @@ const loadWorkspaceDiff = useCallback(
 
 const openChangeInEditor = useCallback(
   async (path: string) => {
+    // Prefer session/global default open target when it is a code editor.
+    // OS targets fall through so Host uses settings.defaultOpenTarget.
+    const preferred = readOpenTargetStorage("finder");
+    const editorId = isOsOpenTarget(preferred) ? null : preferred;
     const plan = planOpenInEditor({
       path,
+      editorId,
       isTauri: api.isTauri(),
     });
     if (!plan.ok) {
@@ -494,7 +501,10 @@ const openChangeInEditor = useCallback(
       return;
     }
     try {
-      await api.openInEditor({ path: plan.path });
+      await api.openInEditor({
+        path: plan.path,
+        editor: plan.editorId ?? undefined,
+      });
     } catch (e) {
       const resolved = resolveOpenEditorError(e);
       if (resolved.silent) return;

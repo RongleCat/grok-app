@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import * as api from "@/lib/api";
-import { createT, type Locale } from "@/i18n";
+import { createT, type Locale, type MessageKey } from "@/i18n";
 import {
   IconArrowsMinimize,
   IconCode,
@@ -45,6 +45,15 @@ import {
   type ReviewDiffRow,
   type ReviewTreeNode,
 } from "@/lib/reviewDiff";
+import {
+  formatOpenEditorErrorMessage,
+  formatRevealErrorMessage,
+  isOsOpenTarget,
+  planOpenInEditor,
+  readOpenTargetStorage,
+  resolveOpenEditorError,
+  resolveRevealError,
+} from "@/lib/openEditorHonesty";
 
 export type ReviewTabProps = {
   locale: Locale | string;
@@ -514,25 +523,53 @@ export function ReviewTab({
     }
   }, [selectedFile]);
 
+  const [openErr, setOpenErr] = useState<string | null>(null);
+
   const revealSelected = useCallback(async () => {
     const p = selectedFile?.path;
-    if (!p || !api.isTauri()) return;
+    if (!p) return;
+    if (!api.isTauri()) {
+      const resolved = resolveRevealError({ code: "host_only" });
+      setOpenErr(formatRevealErrorMessage(resolved, tr));
+      return;
+    }
     try {
       await api.pathReveal(p);
-    } catch {
-      /* soft-fail */
+      setOpenErr(null);
+    } catch (e) {
+      const resolved = resolveRevealError(e);
+      if (resolved.silent) return;
+      setOpenErr(formatRevealErrorMessage(resolved, tr));
     }
-  }, [selectedFile]);
+  }, [selectedFile, tr]);
 
   const openSelectedInEditor = useCallback(async () => {
     const p = selectedFile?.path;
-    if (!p || !api.isTauri()) return;
-    try {
-      await api.openInEditor({ path: p });
-    } catch {
-      /* soft-fail */
+    if (!p) return;
+    const preferred = readOpenTargetStorage("finder");
+    const editorId = isOsOpenTarget(preferred) ? null : preferred;
+    const plan = planOpenInEditor({
+      path: p,
+      editorId,
+      isTauri: api.isTauri(),
+    });
+    if (!plan.ok) {
+      if (plan.kind === "cancelled") return;
+      setOpenErr(tr(plan.messageKey as MessageKey));
+      return;
     }
-  }, [selectedFile]);
+    try {
+      await api.openInEditor({
+        path: plan.path,
+        editor: plan.editorId ?? undefined,
+      });
+      setOpenErr(null);
+    } catch (e) {
+      const resolved = resolveOpenEditorError(e);
+      if (resolved.silent) return;
+      setOpenErr(formatOpenEditorErrorMessage(resolved, tr));
+    }
+  }, [selectedFile, tr]);
 
 
 
@@ -729,6 +766,15 @@ export function ReviewTab({
             ) : null}
           </div>
         )}
+        {openErr ? (
+          <div
+            className="sw-review__open-err"
+            role="status"
+            data-testid="review-open-err"
+          >
+            {openErr}
+          </div>
+        ) : null}
         <div className="sw-review__header-actions">
           <div className="sw-review__more-wrap" ref={moreMenuRef}>
             <button

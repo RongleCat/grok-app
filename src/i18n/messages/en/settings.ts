@@ -456,6 +456,7 @@ export const enSettings = {
   "settings.permissionRulesSimCopyFailed": "Could not copy match summary",
   "settings.openTargetEmpty": "No code editors detected — Finder/Explorer still works. Install VS Code, Cursor, or another editor to open files there.",
   "settings.openTargetPreferredMissing": "Preferred editor is not installed or not detected. Finder/Explorer will be used until you pick another.",
+  "settings.openTargetUnavailable": " (not detected)",
   "settings.compactionApply.softRespawn": "Changing mode or detail soft-respawns a live agent so the next message reloads --compaction-mode / --compaction-detail.",
   "settings.compactionApply.nextSpawn": "No live agent — mode and detail apply on the next connect / spawn.",
   "settings.compactionApply.unsupported": "This CLI version does not take compaction flags (need 0.2.117+). Env may still be set; older CLIs soft-fail and ignore unknown flags.",

@@ -457,6 +457,7 @@ export const zhTWSettings = {
   "settings.permissionRulesSimCopyFailed": "無法複製符合摘要",
   "settings.openTargetEmpty": "未偵測到程式碼編輯器 — Finder／檔案總管仍可用。安裝 VS Code、Cursor 等編輯器後即可在此開啟檔案。",
   "settings.openTargetPreferredMissing": "偏好的編輯器未安裝或未偵測到。在重新選擇之前將使用 Finder／檔案總管。",
+  "settings.openTargetUnavailable": "（未偵測到）",
   "settings.compactionApply.softRespawn": "變更模式或細節會 soft-respawn 已連線的 Agent，使下一則訊息重新載入 --compaction-mode / --compaction-detail。",
   "settings.compactionApply.nextSpawn": "目前無 live Agent — 模式與細節在下次連線 / 啟動時生效。",
   "settings.compactionApply.unsupported": "此 CLI 版本不接受壓縮相關 flags（需要 0.2.117+）。仍可能設定環境變數；舊版 CLI soft-fail 並忽略未知 flags。",

@@ -456,6 +456,7 @@ export const zhSettings = {
   "settings.permissionRulesSimCopyFailed": "无法复制匹配摘要",
   "settings.openTargetEmpty": "未检测到代码编辑器 — 访达/资源管理器仍可用。安装 VS Code、Cursor 等编辑器后即可在此打开文件。",
   "settings.openTargetPreferredMissing": "首选编辑器未安装或未检测到。在重新选择之前将使用访达/资源管理器。",
+  "settings.openTargetUnavailable": "（未检测到）",
   "settings.compactionApply.softRespawn": "更改模式或细节会 soft-respawn 已连接的 Agent，使下一条消息重新加载 --compaction-mode / --compaction-detail。",
   "settings.compactionApply.nextSpawn": "当前无 live Agent — 模式与细节在下次连接 / 启动时生效。",
   "settings.compactionApply.unsupported": "此 CLI 版本不接受压缩相关 flags（需要 0.2.117+）。仍可能设置环境变量；旧版 CLI soft-fail 并忽略未知 flags。",

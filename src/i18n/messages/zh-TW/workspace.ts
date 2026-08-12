@@ -13,6 +13,7 @@ export const zhTWWorkspace = {
   "resources.back": "返回檔案清單",
   "resources.openFailed": "無法開啟檔案",
   "resources.openInEditor": "在編輯器中開啟",
+  "resources.openInEditorNamed": "在 {name} 中開啟",
   "resources.open": "開啟",
   "resources.openDefault": "以系統預設應用程式開啟",
   "resources.revealFolder": "在檔案管理員中顯示",

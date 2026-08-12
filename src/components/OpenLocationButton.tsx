@@ -15,6 +15,14 @@ import {
   isGitGuiEditorId,
 } from "@/lib/openApps";
 import {
+  isOsOpenTarget,
+  normalizeOpenTargetId,
+  orderOpenWithEditors,
+  planOpenInEditor,
+  resolveEffectiveOpenTarget,
+  writeOpenTargetStorage,
+} from "@/lib/openEditorHonesty";
+import {
   IconChevronDown,
   IconCopy,
   IconExternalLink,
@@ -57,8 +65,7 @@ export interface OpenLocationButtonProps {
 }
 
 function normalizeTarget(t: string | undefined | null): string {
-  const v = (t || "finder").trim().toLowerCase();
-  return v || "finder";
+  return normalizeOpenTargetId(t);
 }
 
 export function OpenLocationButton({
@@ -161,28 +168,24 @@ export function OpenLocationButton({
     };
   }, [path]);
 
-  const visibleEditors = useMemo(
-    () => filterEditorsForGitContext(editors, isGitRepo),
-    [editors, isGitRepo],
-  );
+  const visibleEditors = useMemo(() => {
+    const filtered = filterEditorsForGitContext(editors, isGitRepo);
+    // Prefer default open target first in the open-with list.
+    return orderOpenWithEditors(filtered, target);
+  }, [editors, isGitRepo, target]);
 
   const finderTarget = platform === "win" ? "explorer" : "finder";
   // linux/other also use path_reveal; target id stays "finder" for persistence.
 
   const active = normalizeTarget(target);
-  // If last-used target was a git GUI but this project is not a repo, fall back.
+  // Prefer default when available; soft-fall back to Finder when missing.
   const effectiveActive = useMemo(() => {
     if (isGitGuiEditorId(active) && !isGitRepo) return finderTarget;
-    if (
-      active !== "finder" &&
-      active !== "explorer" &&
-      active !== "system" &&
-      active !== "default" &&
-      !visibleEditors.some((e) => e.id === active)
-    ) {
-      return finderTarget;
-    }
-    return active;
+    return resolveEffectiveOpenTarget({
+      preferred: active,
+      availableIds: visibleEditors.map((e) => e.id),
+      osTarget: finderTarget,
+    });
   }, [active, isGitRepo, finderTarget, visibleEditors]);
 
   const currentIcon = useMemo(() => {
@@ -204,7 +207,18 @@ export function OpenLocationButton({
       if (isGitGuiEditorId(t) && !isGitRepo) {
         t = finderTarget;
       }
-      if (remember) onTargetChange(t);
+      // Soft-resolve preferred → available / OS fallback before Host call.
+      if (!isOsOpenTarget(t)) {
+        t = resolveEffectiveOpenTarget({
+          preferred: t,
+          availableIds: editors.map((e) => e.id),
+          osTarget: finderTarget,
+        });
+      }
+      if (remember) {
+        writeOpenTargetStorage(t);
+        onTargetChange(t);
+      }
       const gotoLine =
         line != null && Number.isInteger(line) && line >= 1 ? line : undefined;
       try {
@@ -213,13 +227,38 @@ export function OpenLocationButton({
         } else if (t === "system" || t === "default") {
           await api.pathOpen(path);
         } else {
-          await api.openInEditor({ path, editor: t, line: gotoLine });
+          const plan = planOpenInEditor({
+            path,
+            editorId: t,
+            isTauri: api.isTauri(),
+            availableIds: editors.map((e) => e.id),
+            editorsFound: editors.length,
+          });
+          if (!plan.ok) {
+            if (plan.kind === "cancelled") return;
+            onOpenError?.(plan.kind);
+            return;
+          }
+          await api.openInEditor({
+            path: plan.path,
+            editor: plan.editorId ?? t,
+            line: gotoLine,
+          });
         }
       } catch (e) {
         onOpenError?.(String(e));
       }
     },
-    [path, line, disabled, onTargetChange, onOpenError, isGitRepo, finderTarget],
+    [
+      path,
+      line,
+      disabled,
+      onTargetChange,
+      onOpenError,
+      isGitRepo,
+      finderTarget,
+      editors,
+    ],
   );
 
   if (!path) return null;

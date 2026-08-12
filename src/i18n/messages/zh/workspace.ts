@@ -13,6 +13,7 @@ export const zhWorkspace = {
   "resources.back": "返回文件列表",
   "resources.openFailed": "无法打开文件",
   "resources.openInEditor": "在编辑器中打开",
+  "resources.openInEditorNamed": "在 {name} 中打开",
   "resources.open": "打开",
   "resources.openDefault": "用系统默认应用打开",
   "resources.revealFolder": "在文件管理器中显示",

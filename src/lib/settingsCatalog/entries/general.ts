@@ -1454,6 +1454,7 @@ export const GENERAL_ENTRIES: readonly SettingsEntry[] = [
       "settings.openFinder",
       "settings.openTargetEmpty",
       "settings.openTargetPreferredMissing",
+      "settings.openTargetUnavailable",
     ],
     keywords: ["open in", "finder", "editor", "no editors", "preferred editor"],
   },

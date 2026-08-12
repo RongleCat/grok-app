@@ -16,7 +16,9 @@ import * as api from "@/lib/api";
 import { createT } from "@/i18n";
 import {
   formatOpenEditorErrorMessage,
+  readOpenTargetStorage,
   resolveOpenEditorError,
+  writeOpenTargetStorage,
 } from "@/lib/openEditorHonesty";
 import { EmbeddedBrowser } from "@/components/EmbeddedBrowser";
 import { OverlayScroll } from "@/components/OverlayScroll";
@@ -183,13 +185,21 @@ export function ResourceViewer({
   const [resizingTree, setResizingTree] = useState(false);
   const splitRef = useRef<HTMLDivElement>(null);
   /** Open-with target for the location button (finder / editor id). */
-  const [openWithTarget, setOpenWithTarget] = useState(() => {
-    try {
-      return localStorage.getItem("grok-app.openTarget") || "finder";
-    } catch {
-      return "finder";
-    }
-  });
+  const [openWithTarget, setOpenWithTarget] = useState(() =>
+    readOpenTargetStorage("finder"),
+  );
+
+  const persistOpenWithTarget = useCallback((t: string) => {
+    setOpenWithTarget(t);
+    writeOpenTargetStorage(t);
+    // Keep Host settings.defaultOpenTarget in sync with session UI default.
+    void api
+      .settingsGet()
+      .then((s) => api.settingsSet({ ...s, defaultOpenTarget: t }))
+      .catch(() => {
+        /* soft-fail — localStorage still holds session default */
+      });
+  }, []);
 
   const changes = useResourceChanges({
     projectPath,
@@ -885,14 +895,7 @@ export function ResourceViewer({
               path={absPath}
               line={activeTab?.focusLine}
               target={openWithTarget}
-              onTargetChange={(t) => {
-                setOpenWithTarget(t);
-                try {
-                  localStorage.setItem("grok-app.openTarget", t);
-                } catch {
-                  /* ignore */
-                }
-              }}
+              onTargetChange={persistOpenWithTarget}
               onOpenError={(e) => {
                 // OpenLocationButton may reveal, system-open, or open-in-editor.
                 // Prefer open-editor classifier (superset); reveal-only phrases map fine.
@@ -1097,14 +1100,7 @@ export function ResourceViewer({
                 path={absPath}
                 line={activeTab?.focusLine}
                 target={openWithTarget}
-                onTargetChange={(t) => {
-                  setOpenWithTarget(t);
-                  try {
-                    localStorage.setItem("grok-app.openTarget", t);
-                  } catch {
-                    /* ignore */
-                  }
-                }}
+                onTargetChange={persistOpenWithTarget}
                 onOpenError={(e) => {
                   const resolved = resolveOpenEditorError(e);
                   if (resolved.silent) return;

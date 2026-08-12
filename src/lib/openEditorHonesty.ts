@@ -437,13 +437,9 @@ export function resolveOpenEditorEmptyState(input: {
   availableIds?: readonly string[] | null;
 }): OpenEditorEmptyState {
   const n = Math.max(0, Math.floor(Number(input.editorsFound) || 0));
-  const preferred = (input.preferred ?? "").trim().toLowerCase();
-  const isOsTarget =
-    !preferred ||
-    preferred === "finder" ||
-    preferred === "explorer" ||
-    preferred === "system" ||
-    preferred === "default";
+  const preferred = normalizeOpenTargetId(input.preferred);
+  // Empty preferred normalizes to finder → OS target (never preferred_missing).
+  const isOsTarget = isOsOpenTarget(input.preferred) || !String(input.preferred ?? "").trim();
 
   if (n === 0) {
     return {
@@ -454,7 +450,7 @@ export function resolveOpenEditorEmptyState(input: {
   }
 
   if (!isOsTarget && input.availableIds) {
-    const ids = input.availableIds.map((x) => String(x).trim().toLowerCase());
+    const ids = input.availableIds.map((x) => normalizeOpenTargetId(x));
     if (preferred && !ids.includes(preferred)) {
       return {
         kind: "preferred_missing",
@@ -475,6 +471,210 @@ function normalizeOpenPath(path: string | null | undefined): string {
   return String(path ?? "").trim();
 }
 
+/** localStorage key shared by Settings + Open Location + Resource/Review. */
+export const OPEN_TARGET_STORAGE_KEY = "grok-app.openTarget";
+
+/** Normalize open-target id (`Finder` → `finder`). Empty → `finder`. */
+export function normalizeOpenTargetId(
+  id: string | null | undefined,
+): string {
+  const v = String(id ?? "")
+    .trim()
+    .toLowerCase();
+  return v || "finder";
+}
+
+/**
+ * True for OS file-manager / system-default targets (not a code editor id).
+ * Includes legacy empty / `default`.
+ */
+export function isOsOpenTarget(id: string | null | undefined): boolean {
+  const v = normalizeOpenTargetId(id);
+  return (
+    v === "finder" ||
+    v === "explorer" ||
+    v === "system" ||
+    v === "default"
+  );
+}
+
+/**
+ * Read last-used / preferred open target from localStorage.
+ * Soft-fails to `fallback` on missing storage or errors.
+ */
+export function readOpenTargetStorage(fallback = "finder"): string {
+  try {
+    if (typeof localStorage === "undefined") return normalizeOpenTargetId(fallback);
+    return normalizeOpenTargetId(
+      localStorage.getItem(OPEN_TARGET_STORAGE_KEY) || fallback,
+    );
+  } catch {
+    return normalizeOpenTargetId(fallback);
+  }
+}
+
+/**
+ * Write open target to localStorage (session/global UI consistency).
+ * Never throws.
+ */
+export function writeOpenTargetStorage(target: string): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(
+      OPEN_TARGET_STORAGE_KEY,
+      normalizeOpenTargetId(target),
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+export type OpenTargetSelectOption = {
+  value: string;
+  label: string;
+  /** Soft-disabled when preferred editor is missing from probe. */
+  disabled?: boolean;
+};
+
+/**
+ * Settings Select options for default open target.
+ *
+ * - Finder/Explorer always first and enabled
+ * - Available (probed) editors enabled
+ * - Preferred editor missing from probe → soft-disabled trailing entry
+ * - Never invents installed editors
+ */
+export function buildOpenTargetSelectOptions(input: {
+  finderLabel: string;
+  editors: readonly {
+    id: string;
+    label: string;
+    available?: boolean;
+  }[];
+  preferred?: string | null;
+  /**
+   * Suffix for soft-disabled preferred label, e.g. `" (not detected)"`.
+   * Appended only when preferred is missing and not already in available.
+   */
+  unavailableSuffix?: string;
+}): OpenTargetSelectOption[] {
+  const available = (input.editors ?? []).filter(
+    (e) => e.available !== false && String(e.id ?? "").trim(),
+  );
+  const options: OpenTargetSelectOption[] = [
+    { value: "finder", label: input.finderLabel },
+  ];
+  const seen = new Set<string>(["finder"]);
+  for (const e of available) {
+    const id = normalizeOpenTargetId(e.id);
+    if (seen.has(id) || isOsOpenTarget(id)) continue;
+    seen.add(id);
+    options.push({
+      value: id,
+      label: String(e.label ?? e.id).trim() || id,
+    });
+  }
+
+  const preferred = normalizeOpenTargetId(input.preferred);
+  if (!isOsOpenTarget(preferred) && !seen.has(preferred)) {
+    const base =
+      (input.editors ?? []).find(
+        (e) => normalizeOpenTargetId(e.id) === preferred,
+      )?.label ?? preferred;
+    // Keep leading space in suffix (e.g. " (not detected)"); only skip empty.
+    const suffix = String(input.unavailableSuffix ?? "");
+    options.push({
+      value: preferred,
+      label: suffix.trim() ? `${base}${suffix}` : String(base),
+      disabled: true,
+    });
+  }
+  return options;
+}
+
+/**
+ * Resolve what primary click / Host should use when preferred may be missing.
+ *
+ * - OS targets stay as-is (finder/explorer/system)
+ * - Available editor id kept
+ * - Missing preferred → `osTarget` (default `finder`) — never invents an editor
+ * - Legacy `editor` → cursor → code → first available → osTarget
+ */
+export function resolveEffectiveOpenTarget(input: {
+  preferred?: string | null;
+  /** Available editor ids from Host scan (lowercase ok). */
+  availableIds?: readonly string[] | null;
+  /** Fallback OS target when preferred editor missing. Default `finder`. */
+  osTarget?: string | null;
+}): string {
+  const os = normalizeOpenTargetId(input.osTarget ?? "finder");
+  const osFallback =
+    os === "explorer" || os === "finder" || os === "system" || os === "default"
+      ? os === "default"
+        ? "system"
+        : os
+      : "finder";
+
+  let preferred = normalizeOpenTargetId(input.preferred);
+  if (preferred === "default") preferred = "system";
+
+  if (isOsOpenTarget(preferred)) {
+    return preferred === "system" ? "system" : preferred === "explorer" ? "explorer" : preferred === "finder" ? "finder" : osFallback;
+  }
+
+  const ids = (input.availableIds ?? []).map((x) =>
+    normalizeOpenTargetId(x),
+  );
+  const idSet = new Set(ids);
+
+  // Legacy Desktop value: pick best available code editor.
+  if (preferred === "editor") {
+    return resolveLegacyEditorTarget(ids) ?? osFallback;
+  }
+
+  if (idSet.size === 0) {
+    // Unknown scan → keep preferred (Host may still resolve); known empty handled by caller.
+    if (input.availableIds == null) return preferred;
+    return osFallback;
+  }
+  if (idSet.has(preferred)) return preferred;
+  return osFallback;
+}
+
+/**
+ * Legacy `editor` open target: Cursor → VS Code → first available.
+ * Returns null when none available (caller falls back to OS target).
+ */
+export function resolveLegacyEditorTarget(
+  availableIds: readonly string[],
+): string | null {
+  const ids = availableIds.map((x) => normalizeOpenTargetId(x));
+  if (ids.includes("cursor")) return "cursor";
+  if (ids.includes("code")) return "code";
+  const first = ids.find((id) => id && !isOsOpenTarget(id));
+  return first ?? null;
+}
+
+/**
+ * Order detected editors for open-with menus: preferred first, then probe order.
+ * Does not drop entries; does not invent editors.
+ */
+export function orderOpenWithEditors<T extends { id: string }>(
+  editors: readonly T[],
+  preferred?: string | null,
+): T[] {
+  if (!editors.length) return [];
+  const pref = normalizeOpenTargetId(preferred);
+  if (isOsOpenTarget(pref) || pref === "editor") return [...editors];
+  const idx = editors.findIndex(
+    (e) => normalizeOpenTargetId(e.id) === pref,
+  );
+  if (idx <= 0) return [...editors];
+  const copy = [...editors];
+  const [hit] = copy.splice(idx, 1);
+  return [hit, ...copy];
+}
+
 /**
  * Soft preflight before Host `open_in_editor`.
  * Order: host_only → not_found (empty path) → no_editor → ok.
@@ -491,6 +691,11 @@ export function planOpenInEditor(input: {
    * no_editor without calling Host. `null`/`undefined` = unknown → allow.
    */
   editorsFound?: number | null;
+  /**
+   * When set, a non-OS `editorId` not in this list soft-fails `no_editor`.
+   * `null`/`undefined` = unknown → allow (Host still checks).
+   */
+  availableIds?: readonly string[] | null;
 }): OpenInEditorPlan {
   if (input.isTauri === false) {
     return {
@@ -508,12 +713,7 @@ export function planOpenInEditor(input: {
     };
   }
   const editorId = (input.editorId ?? "").trim() || null;
-  const wantsEditor =
-    !!editorId &&
-    editorId !== "finder" &&
-    editorId !== "explorer" &&
-    editorId !== "system" &&
-    editorId !== "default";
+  const wantsEditor = !!editorId && !isOsOpenTarget(editorId);
   if (
     wantsEditor &&
     input.editorsFound != null &&
@@ -525,7 +725,30 @@ export function planOpenInEditor(input: {
       messageKey: openEditorErrorMessageKey("no_editor"),
     };
   }
-  return { ok: true, path, editorId };
+  if (wantsEditor && editorId && input.availableIds != null) {
+    const ids = input.availableIds.map((x) => normalizeOpenTargetId(x));
+    const want = normalizeOpenTargetId(editorId);
+    if (want === "editor") {
+      if (!resolveLegacyEditorTarget(ids)) {
+        return {
+          ok: false,
+          kind: "no_editor",
+          messageKey: openEditorErrorMessageKey("no_editor"),
+        };
+      }
+    } else if (!ids.includes(want)) {
+      return {
+        ok: false,
+        kind: "no_editor",
+        messageKey: openEditorErrorMessageKey("no_editor"),
+      };
+    }
+  }
+  return {
+    ok: true,
+    path,
+    editorId: editorId ? normalizeOpenTargetId(editorId) : null,
+  };
 }
 
 /** All open-in-editor error kinds (for label maps / tests). */
