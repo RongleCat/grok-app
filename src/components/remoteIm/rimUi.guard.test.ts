@@ -73,6 +73,20 @@ describe("Remote IM UI chrome guard", () => {
     expect(src).not.toMatch(/window\.confirm/);
   });
 
+  it("Overview resilience honesty: reconnect + soft-fail empties + rate notes", () => {
+    const src = readFileSync(join(ROOT, "RemoteImOverview.tsx"), "utf8");
+    expect(src).toContain("classifyRecoveryStatus");
+    expect(src).toContain("planBridgeReconnectAction");
+    expect(src).toContain("classifyChannelsEmptyState");
+    expect(src).toContain("classifyTimelineEmptyState");
+    expect(src).toContain("displayBridgeLastError");
+    expect(src).toContain("shouldShowResilienceHonestyNotes");
+    expect(src).toContain("rateLimitPolicyFacts");
+    expect(src).toContain('data-rim-reconnect="1"');
+    expect(src).toContain('data-rim-resilience-notes="1"');
+    expect(src).not.toMatch(/window\.confirm/);
+  });
+
   it("Overview security ops checklist without window.confirm", () => {
     const src = readFileSync(join(ROOT, "RemoteImOverview.tsx"), "utf8");
     expect(src).toContain("buildRemoteSecurityChecklist");

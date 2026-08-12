@@ -477,3 +477,216 @@ export function sanitizeRecoveryNote(raw: unknown, max = 120): string | undefine
   if (s.length > max) s = s.slice(0, max);
   return s;
 }
+
+// ─── Overview honesty (reconnect · rate-limit notes · soft-fail empties) ────
+
+/** Static policy numbers for honest UI copy (matches Host soft-limits). */
+export type RimRateLimitPolicyFacts = {
+  perChat: number;
+  global: number;
+  windowSecs: number;
+  backoffCapSecs: number;
+  backoffBaseSecs: number;
+  watchdogTickSecs: number;
+};
+
+export function rateLimitPolicyFacts(): RimRateLimitPolicyFacts {
+  return {
+    perChat: RIM_RATE_PER_CHAT,
+    global: RIM_RATE_GLOBAL,
+    windowSecs: RIM_RATE_WINDOW_SECS,
+    backoffCapSecs: RIM_BACKOFF_CAP_SECS,
+    backoffBaseSecs: RIM_BACKOFF_BASE_SECS,
+    watchdogTickSecs: RIM_WATCHDOG_TICK_SECS,
+  };
+}
+
+/**
+ * Safe last-error line for overview callouts.
+ * Drops secret-looking material; falls back to error-kind label only.
+ */
+export function displayBridgeLastError(
+  raw: unknown,
+  errorKind?: RimErrorKind | string | null,
+  max = 160,
+): { text: string | null; redacted: boolean } {
+  const clean = sanitizeRecoveryNote(raw, max);
+  if (clean) return { text: clean, redacted: false };
+  if (typeof raw === "string" && raw.trim()) {
+    // Had content but unsafe — never invent the original secret.
+    const kind = parseErrorKind(errorKind, null);
+    return {
+      text: kind ? rimErrorKindKey(kind) : null,
+      redacted: true,
+    };
+  }
+  return { text: null, redacted: false };
+}
+
+export type RimReconnectAction = {
+  /** Show primary reconnect in recovery card (not the always-present Restart row). */
+  show: boolean;
+  /** Disable while busy / already starting. */
+  disabled: boolean;
+  /** Prefer "Reconnect" label while recovering; Restart otherwise. */
+  labelKey:
+    | "settings.remoteIm.resilience.reconnect"
+    | "settings.remoteIm.bridge.restart";
+  /** Optional tip when disabled. */
+  tipKey: string | null;
+};
+
+/**
+ * When recovery is active, offer an explicit reconnect that skips waiting
+ * for the next watchdog tick (Host restart still applies its own schedule
+ * on subsequent failures). Soft: never claims reconnect is instant success.
+ */
+export function planBridgeReconnectAction(input: {
+  recovery: Pick<RimRecoveryStatus, "showCard" | "phase">;
+  busy?: string | null;
+  state?: BridgeRunState | string | null;
+}): RimReconnectAction {
+  const phase = input.recovery.phase;
+  const show =
+    input.recovery.showCard &&
+    (phase === "backing_off" ||
+      phase === "degraded" ||
+      phase === "restarting" ||
+      phase === "error" ||
+      phase === "rate_limited");
+  const state = String(input.state ?? "").toLowerCase();
+  const busy = !!input.busy;
+  const starting = state === "starting";
+  const disabled = busy || starting;
+  let tipKey: string | null = null;
+  if (busy) tipKey = "settings.remoteIm.resilience.reconnectBusy";
+  else if (starting) tipKey = "settings.remoteIm.resilience.reconnectStarting";
+  else if (phase === "rate_limited") {
+    tipKey = "settings.remoteIm.resilience.reconnectRateLimitedTip";
+  }
+  return {
+    show,
+    disabled,
+    labelKey: show
+      ? "settings.remoteIm.resilience.reconnect"
+      : "settings.remoteIm.bridge.restart",
+    tipKey,
+  };
+}
+
+export type RimChannelsEmptyKind =
+  | "none_configured"
+  | "recovering"
+  | "rate_limited"
+  | "configured_not_linked";
+
+export type RimChannelsEmptyState = {
+  kind: RimChannelsEmptyKind;
+  messageKey: string;
+  softFail: boolean;
+};
+
+/**
+ * Honest empty copy for the overview channels list.
+ * Soft-fail during crash recovery / rate-limit — never pretend channels vanished.
+ */
+export function classifyChannelsEmptyState(input: {
+  connectedCount: number;
+  configuredCount: number;
+  recovery: Pick<RimRecoveryStatus, "phase" | "showCard">;
+}): RimChannelsEmptyState | null {
+  if (input.connectedCount > 0) return null;
+  const phase = input.recovery.phase;
+  if (input.configuredCount === 0) {
+    return {
+      kind: "none_configured",
+      messageKey: "settings.remoteIm.bridge.noneConnected",
+      softFail: false,
+    };
+  }
+  if (phase === "rate_limited") {
+    return {
+      kind: "rate_limited",
+      messageKey: "settings.remoteIm.resilience.empty.channelsRateLimited",
+      softFail: true,
+    };
+  }
+  if (
+    input.recovery.showCard &&
+    (phase === "backing_off" ||
+      phase === "degraded" ||
+      phase === "restarting" ||
+      phase === "error" ||
+      phase === "starting")
+  ) {
+    return {
+      kind: "recovering",
+      messageKey: "settings.remoteIm.resilience.empty.channelsRecovering",
+      softFail: true,
+    };
+  }
+  return {
+    kind: "configured_not_linked",
+    messageKey: "settings.remoteIm.resilience.empty.channelsNotLinked",
+    softFail: true,
+  };
+}
+
+export type RimTimelineEmptyKind = "idle" | "recovering" | "rate_limited";
+
+export type RimTimelineEmptyState = {
+  kind: RimTimelineEmptyKind;
+  messageKey: string;
+  softFail: boolean;
+};
+
+/**
+ * Soft-fail timeline empty states after crash recovery (local ring may be empty
+ * even though Bridge was previously active — never invent events).
+ */
+export function classifyTimelineEmptyState(input: {
+  eventCount: number;
+  recovery: Pick<RimRecoveryStatus, "phase" | "showCard">;
+}): RimTimelineEmptyState | null {
+  if (input.eventCount > 0) return null;
+  const phase = input.recovery.phase;
+  if (phase === "rate_limited") {
+    return {
+      kind: "rate_limited",
+      messageKey: "settings.remoteIm.resilience.empty.timelineRateLimited",
+      softFail: true,
+    };
+  }
+  if (
+    input.recovery.showCard &&
+    (phase === "backing_off" ||
+      phase === "degraded" ||
+      phase === "restarting" ||
+      phase === "error" ||
+      phase === "starting")
+  ) {
+    return {
+      kind: "recovering",
+      messageKey: "settings.remoteIm.resilience.empty.timelineRecovering",
+      softFail: true,
+    };
+  }
+  return {
+    kind: "idle",
+    messageKey: "settings.remoteIm.timeline.empty",
+    softFail: false,
+  };
+}
+
+/**
+ * Whether overview should show the always-on rate-limit / backoff honesty card.
+ * Visible whenever Bridge is enabled (policy is real) or recovery is active.
+ */
+export function shouldShowResilienceHonestyNotes(input: {
+  enabled: boolean;
+  recovery: Pick<RimRecoveryStatus, "showCard" | "phase">;
+}): boolean {
+  if (input.recovery.showCard) return true;
+  if (input.recovery.phase === "listening") return true;
+  return !!input.enabled;
+}

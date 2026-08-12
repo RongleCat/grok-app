@@ -12,14 +12,20 @@ import type {
   RemoteChannelId,
 } from "@/lib/remoteIm";
 import {
+  classifyChannelsEmptyState,
   classifyRecoveryStatus,
+  classifyTimelineEmptyState,
   clearRimEventTimeline,
+  displayBridgeLastError,
   formatRimEventAt,
   getChannelSchema,
   loadRimEventTimeline,
+  planBridgeReconnectAction,
+  rateLimitPolicyFacts,
   rimBridgeEventTypeKey,
   RIM_EVENT_TIMELINE_CHANGE_EVENT,
   RIM_EVENT_TIMELINE_STORAGE_KEY,
+  shouldShowResilienceHonestyNotes,
   type RimBridgeEvent,
 } from "@/lib/remoteIm";
 import {
@@ -143,6 +149,51 @@ export function RemoteImOverview({
         rateLimited: bridge?.rateLimited,
       }),
     [bridge],
+  );
+
+  const reconnect = useMemo(
+    () =>
+      planBridgeReconnectAction({
+        recovery,
+        busy,
+        state: bridge?.state,
+      }),
+    [recovery, busy, bridge?.state],
+  );
+
+  const ratePolicy = useMemo(() => rateLimitPolicyFacts(), []);
+
+  const safeLastError = useMemo(
+    () => displayBridgeLastError(bridge?.lastError, bridge?.errorKind),
+    [bridge?.lastError, bridge?.errorKind],
+  );
+
+  const channelsEmpty = useMemo(
+    () =>
+      classifyChannelsEmptyState({
+        connectedCount: connected.length,
+        configuredCount: configured.length,
+        recovery,
+      }),
+    [connected.length, configured.length, recovery],
+  );
+
+  const timelineEmpty = useMemo(
+    () =>
+      classifyTimelineEmptyState({
+        eventCount: timeline.length,
+        recovery,
+      }),
+    [timeline.length, recovery],
+  );
+
+  const showHonestyNotes = useMemo(
+    () =>
+      shouldShowResilienceHonestyNotes({
+        enabled,
+        recovery,
+      }),
+    [enabled, recovery],
   );
 
   const aclAgg = useMemo(
@@ -383,12 +434,50 @@ export function RemoteImOverview({
         <IconActivity size={14} />
         {t("settings.remoteIm.bridge.connected")}
       </h3>
-      <div className="settings-card">
+      <div className="settings-card" data-rim-channels-empty={channelsEmpty?.kind ?? "none"}>
         {connected.length === 0 && configured.length === 0 ? (
           <div className="settings-row settings-row--stack">
-            <p className="settings-page__lead" style={{ margin: 0 }}>
-              {t("settings.remoteIm.bridge.noneConnected")}
+            <p
+              className="settings-page__lead"
+              style={{ margin: 0 }}
+              role="status"
+              data-rim-soft-fail={channelsEmpty?.softFail ? "1" : "0"}
+            >
+              {t(channelsEmpty?.messageKey ?? "settings.remoteIm.bridge.noneConnected")}
             </p>
+          </div>
+        ) : connected.length === 0 && channelsEmpty?.softFail ? (
+          <div className="settings-row settings-row--stack">
+            <p
+              className="settings-page__lead"
+              style={{ margin: 0 }}
+              role="status"
+              data-rim-soft-fail="1"
+            >
+              {t(channelsEmpty.messageKey)}
+            </p>
+            {configured.length > 0 ? (
+              <ul className="rim-list">
+                {configured.map((i) => (
+                  <li key={i.id}>
+                    <button
+                      type="button"
+                      className="rim-list__link"
+                      onClick={() => onOpenChannel(i.channel)}
+                    >
+                      <span className="rim-list__name">
+                        {t(
+                          getChannelSchema(i.channel)?.nameKey ??
+                            "settings.remoteIm.channel.feishu",
+                        )}
+                        <span className="rim-list__meta">{i.name}</span>
+                      </span>
+                      <RimStatusDot tone="configured" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         ) : (
           <ul className="rim-list">
@@ -464,18 +553,76 @@ export function RemoteImOverview({
               })}
             </p>
           ) : null}
-          {bridge?.lastError ? (
+          {safeLastError.text ? (
             <code className="rim-callout__code" style={{ marginTop: "0.5rem" }}>
-              {bridge.lastError}
+              {safeLastError.redacted
+                ? t(safeLastError.text)
+                : safeLastError.text}
             </code>
           ) : null}
+          {reconnect.show ? (
+            <div className="rim-btn-row" style={{ marginTop: "0.65rem" }}>
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                disabled={reconnect.disabled}
+                title={reconnect.tipKey ? t(reconnect.tipKey) : undefined}
+                data-rim-reconnect="1"
+                onClick={() => void onRestart()}
+              >
+                {t(reconnect.labelKey)}
+              </button>
+              <span className="settings-row__desc" style={{ margin: 0 }}>
+                {t("settings.remoteIm.resilience.reconnectHint")}
+              </span>
+            </div>
+          ) : null}
         </div>
-      ) : bridge?.lastError ? (
+      ) : safeLastError.text ? (
         <div className="rim-callout rim-callout--error" role="alert">
           <div className="rim-callout__title">
             {t("settings.remoteIm.bridge.lastError")}
           </div>
-          <code className="rim-callout__code">{bridge.lastError}</code>
+          <code className="rim-callout__code">
+            {safeLastError.redacted
+              ? t(safeLastError.text)
+              : safeLastError.text}
+          </code>
+        </div>
+      ) : null}
+
+      {showHonestyNotes ? (
+        <div
+          className="settings-card rim-resilience-notes"
+          data-rim-resilience-notes="1"
+        >
+          <div className="settings-row settings-row--stack">
+            <div className="settings-row__text">
+              <div className="settings-row__label">
+                {t("settings.remoteIm.resilience.notesTitle")}
+              </div>
+              <div className="settings-row__desc">
+                {t("settings.remoteIm.resilience.notesLead")}
+              </div>
+            </div>
+            <ul className="rim-help-list" aria-label={t("settings.remoteIm.resilience.notesTitle")}>
+              <li>
+                {t("settings.remoteIm.resilience.notes.rateLimit", {
+                  perChat: ratePolicy.perChat,
+                  global: ratePolicy.global,
+                  windowSecs: ratePolicy.windowSecs,
+                })}
+              </li>
+              <li>
+                {t("settings.remoteIm.resilience.notes.backoff", {
+                  capSecs: ratePolicy.backoffCapSecs,
+                  baseSecs: ratePolicy.backoffBaseSecs,
+                })}
+              </li>
+              <li>{t("settings.remoteIm.resilience.notes.noSilentDrop")}</li>
+              <li>{t("settings.remoteIm.resilience.notes.crashRecovery")}</li>
+            </ul>
+          </div>
         </div>
       ) : null}
 
@@ -622,8 +769,15 @@ export function RemoteImOverview({
         </p>
         {timelineOpen ? (
           timeline.length === 0 ? (
-            <p className="rim-timeline__empty" role="status">
-              {t("settings.remoteIm.timeline.empty")}
+            <p
+              className="rim-timeline__empty"
+              role="status"
+              data-rim-soft-fail={timelineEmpty?.softFail ? "1" : "0"}
+              data-rim-timeline-empty={timelineEmpty?.kind ?? "idle"}
+            >
+              {t(
+                timelineEmpty?.messageKey ?? "settings.remoteIm.timeline.empty",
+              )}
             </p>
           ) : (
             <ul

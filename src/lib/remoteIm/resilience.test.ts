@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   canAttemptRestart,
   checkInboundRateLimit,
+  classifyChannelsEmptyState,
   classifyRecoveryStatus,
   classifyRimError,
+  classifyTimelineEmptyState,
   createTokenBucket,
   defaultChatRateConfig,
+  displayBridgeLastError,
   nextRetryAfterFailureSecs,
+  planBridgeReconnectAction,
+  rateLimitPolicyFacts,
   reconnectBackoffSecs,
   refillTokenBucket,
   RIM_BACKOFF_CAP_SECS,
@@ -14,6 +19,7 @@ import {
   rimRecoveryPhaseKey,
   sanitizeRecoveryNote,
   secondsUntilRetry,
+  shouldShowResilienceHonestyNotes,
   tryConsumeToken,
 } from "./resilience";
 
@@ -199,5 +205,136 @@ describe("sanitizeRecoveryNote", () => {
     expect(sanitizeRecoveryNote("retry ok")).toBe("retry ok");
     expect(sanitizeRecoveryNote("see https://x.com")).toBeUndefined();
     expect(sanitizeRecoveryNote("app_secret: abc")).toBeUndefined();
+  });
+});
+
+describe("displayBridgeLastError", () => {
+  it("keeps safe notes and redacts secrets", () => {
+    expect(displayBridgeLastError("connectors exited").text).toBe(
+      "connectors exited",
+    );
+    const red = displayBridgeLastError("app_secret: xyz", "auth");
+    expect(red.redacted).toBe(true);
+    expect(red.text).toBe("settings.remoteIm.resilience.errorKind.auth");
+  });
+});
+
+describe("planBridgeReconnectAction", () => {
+  it("shows reconnect during recovery", () => {
+    const a = planBridgeReconnectAction({
+      recovery: { showCard: true, phase: "backing_off" },
+      busy: null,
+      state: "degraded",
+    });
+    expect(a.show).toBe(true);
+    expect(a.disabled).toBe(false);
+    expect(a.labelKey).toContain("reconnect");
+  });
+
+  it("disables while busy or starting", () => {
+    expect(
+      planBridgeReconnectAction({
+        recovery: { showCard: true, phase: "error" },
+        busy: "restart",
+        state: "error",
+      }).disabled,
+    ).toBe(true);
+    expect(
+      planBridgeReconnectAction({
+        recovery: { showCard: true, phase: "restarting" },
+        busy: null,
+        state: "starting",
+      }).disabled,
+    ).toBe(true);
+  });
+
+  it("hides when not in recovery card", () => {
+    expect(
+      planBridgeReconnectAction({
+        recovery: { showCard: false, phase: "listening" },
+      }).show,
+    ).toBe(false);
+  });
+});
+
+describe("classifyChannelsEmptyState / timeline empty", () => {
+  it("soft-fails channels list while recovering", () => {
+    const e = classifyChannelsEmptyState({
+      connectedCount: 0,
+      configuredCount: 2,
+      recovery: { phase: "backing_off", showCard: true },
+    });
+    expect(e?.softFail).toBe(true);
+    expect(e?.kind).toBe("recovering");
+    expect(e?.messageKey).toContain("channelsRecovering");
+  });
+
+  it("none_configured when nothing bound", () => {
+    const e = classifyChannelsEmptyState({
+      connectedCount: 0,
+      configuredCount: 0,
+      recovery: { phase: "stopped", showCard: false },
+    });
+    expect(e?.kind).toBe("none_configured");
+    expect(e?.softFail).toBe(false);
+  });
+
+  it("null when channels connected", () => {
+    expect(
+      classifyChannelsEmptyState({
+        connectedCount: 1,
+        configuredCount: 1,
+        recovery: { phase: "listening", showCard: false },
+      }),
+    ).toBeNull();
+  });
+
+  it("timeline soft-fail empty during recovery", () => {
+    const e = classifyTimelineEmptyState({
+      eventCount: 0,
+      recovery: { phase: "degraded", showCard: true },
+    });
+    expect(e?.softFail).toBe(true);
+    expect(e?.messageKey).toContain("timelineRecovering");
+  });
+
+  it("timeline idle empty when healthy", () => {
+    const e = classifyTimelineEmptyState({
+      eventCount: 0,
+      recovery: { phase: "listening", showCard: false },
+    });
+    expect(e?.kind).toBe("idle");
+    expect(e?.softFail).toBe(false);
+  });
+});
+
+describe("rateLimitPolicyFacts / honesty notes", () => {
+  it("exposes Host soft-limit numbers", () => {
+    const f = rateLimitPolicyFacts();
+    expect(f.perChat).toBe(8);
+    expect(f.global).toBe(40);
+    expect(f.windowSecs).toBe(60);
+    expect(f.backoffCapSecs).toBe(60);
+  });
+
+  it("shows honesty notes when enabled or recovering", () => {
+    expect(
+      shouldShowResilienceHonestyNotes({
+        enabled: true,
+        recovery: { showCard: false, phase: "stopped" },
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowResilienceHonestyNotes({
+        enabled: false,
+        recovery: { showCard: true, phase: "error" },
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowResilienceHonestyNotes({
+        enabled: false,
+        recovery: { showCard: false, phase: "stopped" },
+      }),
+    ).toBe(false);
   });
 });

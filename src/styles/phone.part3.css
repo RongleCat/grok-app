@@ -279,6 +279,15 @@ html[data-theme="dark"] .rim-health__v--warn {
   margin-top: 2px;
 }
 
+/* Resilience honesty notes (rate limit / backoff policy) */
+.rim-resilience-notes {
+  margin-top: 0;
+}
+
+.rim-resilience-notes .rim-help-list {
+  margin: 0.25rem 0 0;
+}
+
 /* Bridge event timeline (local ring) */
 .rim-timeline {
   padding-bottom: 4px;
