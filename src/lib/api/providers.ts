@@ -40,6 +40,11 @@ export interface CustomProvider {
    * Default false keeps legacy OpenAI-compatible `/v1` normalization.
    */
   baseUrlFullPath?: boolean;
+  /**
+   * Extra instructions appended to the system prompt on this channel.
+   * Rides the CLI `--rules` flag, so the agent keeps its built-in prompt.
+   */
+  appendPrompt?: string | null;
 }
 
 export interface ProvidersListResult {
@@ -289,6 +294,8 @@ export async function providersUpsert(body: {
   contextWindow?: number | null;
   /** Full-path base URL — do not auto-append `/v1`. */
   baseUrlFullPath?: boolean;
+  /** Channel rules appended to the system prompt. `""` clears; omit to keep. */
+  appendPrompt?: string | null;
 }) {
   return invoke<ProvidersListResult>("providers_upsert", {
     id: body.id,
@@ -303,6 +310,7 @@ export async function providersUpsert(body: {
     efforts: body.efforts ?? null,
     contextWindow: body.contextWindow ?? null,
     baseUrlFullPath: body.baseUrlFullPath ?? null,
+    appendPrompt: body.appendPrompt ?? null,
   });
 }
 

@@ -17,6 +17,10 @@ export const enProviders = {
   "prov.baseUrlPhFull": "https://ark.example.com/api/coding/v3",
   "prov.baseUrlFullPath": "Full path",
   "prov.baseUrlFullPathHint": "When on, use the URL as typed — do not auto-append /v1",
+  "prov.appendPrompt": "Appended prompt",
+  "prov.appendPromptPh": "Empty = append nothing. e.g. Always answer in English.",
+  "prov.appendPromptHint":
+    "Appended to the end of the system prompt for relays that need specific instructions. Does not replace the built-in prompt. Applies to this provider only.",
   "prov.baseUrlFullPathOnHint": "Full path on: base URL is stored as typed (no /v1 auto-append). Use for gateways like Volcengine Ark Coding Plan.",
   "prov.baseUrlFullPathOffHint": "Default: auto-append /v1 for OpenAI-compatible relays. Turn on Full path when the upstream root is already complete.",
   "prov.protocol": "Message format",

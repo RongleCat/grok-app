@@ -409,6 +409,8 @@ pub fn import_cc_switch_providers(
             }]),
             efforts: None,
             context_window: None,
+            // Imports carry no channel rules; the user can add them per provider.
+            append_prompt: None,
             // Import URLs as typed; existing /v1 suffix preserved by normalizer.
             base_url_full_path: None,
         }) {

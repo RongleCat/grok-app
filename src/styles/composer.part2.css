@@ -385,6 +385,16 @@
   grid-column: 1 / -1;
 }
 
+/* Channel rules box: multi-line, resizable vertically only so the grid holds. */
+.prov-field__textarea {
+  width: 100%;
+  min-height: 76px;
+  padding: 8px 10px;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.5;
+}
+
 .prov-field__label {
   display: block;
   min-height: 18px;

@@ -1468,9 +1468,14 @@ pub fn merge_extra_rules(user: Option<&str>) -> Option<String> {
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string());
-    let mut parts: Vec<String> = Vec::with_capacity(3);
+    // Channel-level rules from the active custom provider (Settings → Providers).
+    let channel = crate::providers::active_provider_append_prompt();
+    let mut parts: Vec<String> = Vec::with_capacity(4);
     if let Some(u) = user {
         parts.push(u);
+    }
+    if let Some(c) = channel {
+        parts.push(c);
     }
     // Always inject path citation rules (short; display stays basename via UI).
     if !path.is_empty() {

@@ -103,6 +103,8 @@ type FormState = {
   apiBackend: string;
   models: FormModel[];
   efforts: FormEffort[];
+  /** Extra rules appended to the system prompt on this channel. */
+  appendPrompt: string;
   /** External signup URL for “Get API Key” (from preset). */
   apiKeyUrl: string | null;
 };
@@ -117,6 +119,7 @@ const emptyForm = (): FormState => ({
   baseUrlFullPath: false,
   apiKey: "",
   apiBackend: "responses",
+  appendPrompt: "",
   models: [],
   efforts: defaultCustomChannelEfforts().map((e) => ({
     id: e.id,
@@ -162,6 +165,8 @@ function formFromPreset(preset: ProviderPreset): FormState {
     baseUrlFullPath: !!preset.baseUrlFullPath,
     apiKey: "",
     apiBackend: preset.apiBackend,
+    // Presets carry no channel rules — opt-in per provider.
+    appendPrompt: "",
     models: preset.models.map((m) => ({
       id: m.id,
       name: m.name || m.id,
@@ -520,6 +525,7 @@ export function ProvidersPanel({
       baseUrlFullPath: !!p.baseUrlFullPath,
       apiKey: "",
       apiBackend: p.apiBackend || "responses",
+      appendPrompt: p.appendPrompt ?? "",
       models: modelsFromProvider(p),
       efforts: effortsFromProvider(p),
       apiKeyUrl: resolveProviderApiKeyUrl({
@@ -627,6 +633,8 @@ export function ProvidersPanel({
       models,
       efforts,
       baseUrlFullPath: form.baseUrlFullPath,
+      // Always sent: "" clears the channel rules, so an emptied box sticks.
+      appendPrompt: form.appendPrompt.trim(),
       // Keep composer-set context_window on provider form save (#538).
       contextWindow:
         !isCreate && existing?.contextWindow != null && existing.contextWindow > 0
@@ -1508,6 +1516,26 @@ export function ProvidersPanel({
                       {showKey ? tr("prov.keyHide") : tr("prov.keyShow")}
                     </button>
                   </div>
+                </div>
+
+                {/* Channel rules appended to the system prompt (opt-in). */}
+                <div className="prov-field prov-field--full">
+                  <span className="prov-field__label">
+                    {tr("prov.appendPrompt")}
+                  </span>
+                  <textarea
+                    className="settings-input prov-field__textarea"
+                    rows={4}
+                    value={form.appendPrompt}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, appendPrompt: e.target.value }))
+                    }
+                    placeholder={tr("prov.appendPromptPh")}
+                    aria-label={tr("prov.appendPrompt")}
+                  />
+                  <p className="prov-field__hint">
+                    {tr("prov.appendPromptHint")}
+                  </p>
                 </div>
 
                 {showBalanceAction ? (

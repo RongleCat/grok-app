@@ -17,6 +17,10 @@ export const zhProviders = {
   "prov.baseUrlPhFull": "https://ark.example.com/api/coding/v3",
   "prov.baseUrlFullPath": "完整路径",
   "prov.baseUrlFullPathHint": "开启后按填写内容原样使用，不自动追加 /v1",
+  "prov.appendPrompt": "追加提示词",
+  "prov.appendPromptPh": "留空则不追加。例如：始终用简体中文回复。",
+  "prov.appendPromptHint":
+    "追加到系统提示词末尾，用于该中转需要的针对性指令；不会覆盖内置提示词。仅对此提供商生效。",
   "prov.baseUrlFullPathOnHint": "已开启完整路径：不会自动追加 /v1。适用于火山方舟 Coding Plan 等非 /v1 根路径。",
   "prov.baseUrlFullPathOffHint": "默认会自动补全 /v1（OpenAI 兼容中转）。若上游已是完整路径，请打开「完整路径」。",
   "prov.protocol": "消息格式",

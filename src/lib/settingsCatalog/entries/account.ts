@@ -30,7 +30,7 @@ export const ACCOUNT_ENTRIES: readonly SettingsEntry[] = [
     tab: "providers",
     anchorId: "settings-anchor-account-providers",
     labelKey: "settings.tabProviders",
-    descKeys: ["settings.tabProvidersHint"],
+    descKeys: ["settings.tabProvidersHint", "prov.appendPromptHint"],
     keywords: [
       "provider",
       "relay",
@@ -38,10 +38,18 @@ export const ACCOUNT_ENTRIES: readonly SettingsEntry[] = [
       "base url",
       "soft respawn",
       "live apply",
+      // Per-channel appended system-prompt rules live in the provider editor.
+      "append prompt",
+      "system prompt",
+      "rules",
       "中转",
       "中轉",
       "提供商",
       "供應商",
+      "追加提示词",
+      "追加提示詞",
+      "提示词注入",
+      "提示詞注入",
     ],
   },
   {

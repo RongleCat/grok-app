@@ -57,6 +57,13 @@ pub struct CustomProvider {
     /// Default false preserves legacy OpenAI-compatible `/v1` normalization.
     #[serde(default)]
     pub base_url_full_path: bool,
+    /// Extra instructions appended to the system prompt for this channel.
+    ///
+    /// Relays differ in what they need spelled out; this rides the CLI's
+    /// `--rules` (append) rather than `--system-prompt-override` (replace), so
+    /// the agent keeps its built-in prompt. Empty / unset = nothing appended.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub append_prompt: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -82,6 +89,9 @@ pub struct UpsertProviderInput {
     /// Full-path base URL mode. `None` keeps previous flag on edit; create defaults false.
     #[serde(default)]
     pub base_url_full_path: Option<bool>,
+    /// Appended system-prompt rules. `Some("")` clears; `None` keeps existing on edit.
+    #[serde(default)]
+    pub append_prompt: Option<String>,
 }
 
 /// TOML field (ignored by Grok Build) storing JSON array of `{id,name}`.
@@ -90,6 +100,8 @@ const APP_MODELS_KEY: &str = "app_models";
 const APP_EFFORTS_KEY: &str = "app_efforts";
 /// TOML field (ignored by Grok Build): when true, do not auto-append `/v1` to base_url.
 const APP_BASE_URL_FULL_PATH_KEY: &str = "app_base_url_full_path";
+/// TOML field (ignored by Grok Build): extra rules appended to the system prompt.
+const APP_APPEND_PROMPT_KEY: &str = "app_append_prompt";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -858,6 +870,7 @@ pub fn maybe_migrate_legacy_relay(
         efforts: None,
         context_window: None,
         base_url_full_path: None,
+        append_prompt: None,
     })?;
     Ok(())
 }
@@ -1002,6 +1015,8 @@ fn build_list_result(home: PathBuf, path: PathBuf, text: &str) -> ProvidersListR
             .and_then(|v| v.parse::<u64>().ok())
             .filter(|n| *n > 0);
         let base_url_full_path = base_url_full_path_from_fields(&s.fields);
+        let append_prompt =
+            crate::store::sanitize_extra_rules(s.fields.get(APP_APPEND_PROMPT_KEY).cloned());
         providers.push(CustomProvider {
             id: s.id,
             model,
@@ -1014,6 +1029,7 @@ fn build_list_result(home: PathBuf, path: PathBuf, text: &str) -> ProvidersListR
             efforts,
             context_window,
             base_url_full_path,
+            append_prompt,
         });
     }
     let (active_source, active_provider_id) = route_from_default(def.as_deref(), &providers);
@@ -1088,6 +1104,23 @@ pub fn is_custom_provider_id(id: &str) -> bool {
     list_custom_providers()
         .map(|list| list.providers.iter().any(|p| p.id == id))
         .unwrap_or(false)
+}
+
+/// Extra system-prompt rules configured on the active custom channel.
+///
+/// Relays vary in what they need spelled out (tool syntax, language, refusal
+/// style), so this rides `--rules` — appended to the agent's prompt rather than
+/// replacing it. `None` on the official route or when the channel sets nothing.
+pub fn active_provider_append_prompt() -> Option<String> {
+    let ActiveRoute::Custom { id } = active_route() else {
+        return None;
+    };
+    list_custom_providers()
+        .ok()?
+        .providers
+        .into_iter()
+        .find(|p| p.id == id)
+        .and_then(|p| p.append_prompt)
 }
 
 /// Model flag for `grok agent --model`.
@@ -1319,6 +1352,17 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
             .filter(|n| *n > 0),
     };
 
+    // Appended system-prompt rules: `Some("")` clears; `None` keeps the value
+    // already on disk so an edit that omits the field is not a silent wipe.
+    let resolved_append_prompt: Option<String> = match input.append_prompt {
+        Some(ref raw) => crate::store::sanitize_extra_rules(Some(raw.clone())),
+        None => crate::store::sanitize_extra_rules(
+            existing
+                .and_then(|s| s.fields.get(APP_APPEND_PROMPT_KEY))
+                .cloned(),
+        ),
+    };
+
     text = remove_section(&text, &id);
     let mut fields = vec![
         ("model".into(), model),
@@ -1333,6 +1377,9 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
     }
     if !app_efforts_json.is_empty() && app_efforts_json != "[]" {
         fields.push((APP_EFFORTS_KEY.into(), app_efforts_json));
+    }
+    if let Some(ref p) = resolved_append_prompt {
+        fields.push((APP_APPEND_PROMPT_KEY.into(), p.clone()));
     }
     if let Some(n) = resolved_context_window {
         fields.push(("context_window".into(), n.to_string()));
@@ -2306,6 +2353,7 @@ mod tests {
                 efforts: vec![],
                 context_window: None,
                 base_url_full_path: false,
+                append_prompt: None,
             }],
             default_model: Some("relay".into()),
             active_source: "custom".into(),
@@ -2471,6 +2519,48 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["low", "high", "xhigh", "max"]
         );
+    }
+
+    #[test]
+    fn append_prompt_round_trips_multiline_through_toml() {
+        // Channel rules are free-form and often multi-line; the JSON-quoted
+        // TOML value must survive a write → parse cycle unchanged.
+        let prompt = "Always answer in Simplified Chinese.\nNever use emoji.";
+        let text = append_section(
+            "",
+            "relay",
+            &[
+                ("model".into(), "m".into()),
+                ("base_url".into(), "https://ex/v1".into()),
+                (APP_APPEND_PROMPT_KEY.into(), prompt.into()),
+            ],
+        );
+        // A raw newline would break the `key = value` line parser.
+        assert!(!text.contains("Chinese.\nNever"), "must be escaped: {text}");
+        let sections = parse_model_sections(&text);
+        assert_eq!(sections.len(), 1);
+        assert_eq!(
+            sections[0]
+                .fields
+                .get(APP_APPEND_PROMPT_KEY)
+                .map(|s| s.as_str()),
+            Some(prompt)
+        );
+    }
+
+    #[test]
+    fn append_prompt_blank_is_dropped_not_stored() {
+        // Empty box = no channel rules; the field must not reach config.toml.
+        let text = append_section(
+            "",
+            "relay",
+            &[
+                ("model".into(), "m".into()),
+                ("base_url".into(), "https://ex/v1".into()),
+                (APP_APPEND_PROMPT_KEY.into(), String::new()),
+            ],
+        );
+        assert!(!text.contains(APP_APPEND_PROMPT_KEY), "{text}");
     }
 
     #[test]
