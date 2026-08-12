@@ -58,7 +58,7 @@ describe("memoryClearArgs", () => {
     ]);
   });
 
-  it("supports global and all scopes", () => {
+  it("supports global and all scopes (product host scopes)", () => {
     expect(memoryClearArgs("global")).toEqual([
       "memory",
       "clear",
@@ -66,6 +66,17 @@ describe("memoryClearArgs", () => {
       "--global",
     ]);
     expect(memoryClearArgs("all")).toEqual(["memory", "clear", "-y", "--all"]);
+  });
+
+  it("never invents non-CLI scopes", () => {
+    // TypeScript constrains MemoryClearScope; runtime still maps only host flags.
+    const scopes = ["workspace", "global", "all"] as const;
+    for (const scope of scopes) {
+      const args = memoryClearArgs(scope);
+      expect(args.slice(0, 3)).toEqual(["memory", "clear", "-y"]);
+      expect(args).toContain(`--${scope}`);
+      expect(args).not.toContain("--session");
+    }
   });
 });
 

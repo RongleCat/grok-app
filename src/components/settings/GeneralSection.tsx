@@ -118,6 +118,7 @@ export function GeneralSection() {
     localePreference = "en",
     maxAgentTurns = 0,
     memoryBrowserEpoch,
+    setMemoryBrowserEpoch,
     noAskUser,
     notifyHonesty,
     notifyOnPermission,
@@ -1172,12 +1173,11 @@ export function GeneralSection() {
                     locale={resolveLocale(locale)}
                     projectPath={workspaceCwd}
                     experimentalMemory={!!experimentalMemory}
-                    onClearAll={
-                      workspaceCwd
-                        ? () => setClearMemoryOpen(true)
-                        : undefined
-                    }
                     clearAllBusy={clearMemoryBusy}
+                    onToast={showSettingsToast}
+                    onMemoryCleared={() =>
+                      setMemoryBrowserEpoch((n: number) => n + 1)
+                    }
                   />
                 </div>
               ) : null}

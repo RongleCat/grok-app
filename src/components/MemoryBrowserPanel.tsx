@@ -40,6 +40,7 @@ import {
   type MemorySearchKind,
 } from "@/lib/memoryHybridSearch";
 import {
+  MEMORY_OPS_PRODUCT_CLEAR_SCOPES,
   clearMemoryScopeUnavailableKey,
   memoryOpsModeChipLabelKey,
   planClearMemoryScope,
@@ -99,6 +100,8 @@ function clearScopeLabelKey(scope: MemoryOpsClearScope): MessageKey {
   switch (scope) {
     case "session":
       return "settings.memoryOps.clear.session";
+    case "global":
+      return "settings.memoryOps.clear.global";
     case "all":
       return "settings.memoryOps.clear.all";
     case "workspace":
@@ -111,6 +114,8 @@ function clearConfirmTitleKey(scope: MemoryOpsClearScope): MessageKey {
   switch (scope) {
     case "session":
       return "settings.memoryOps.clear.confirmTitle.session";
+    case "global":
+      return "settings.memoryOps.clear.confirmTitle.global";
     case "all":
       return "settings.memoryOps.clear.confirmTitle.all";
     case "workspace":
@@ -123,6 +128,8 @@ function clearConfirmMsgKey(scope: MemoryOpsClearScope): MessageKey {
   switch (scope) {
     case "session":
       return "settings.memoryOps.clear.confirmMsg.session";
+    case "global":
+      return "settings.memoryOps.clear.confirmMsg.global";
     case "all":
       return "settings.memoryOps.clear.confirmMsg.all";
     case "workspace":
@@ -135,6 +142,8 @@ function clearDoneKey(scope: MemoryOpsClearScope): MessageKey {
   switch (scope) {
     case "all":
       return "settings.memoryOps.clear.done.all";
+    case "global":
+      return "settings.memoryOps.clear.done.global";
     case "session":
       return "settings.memoryOps.clear.done.session";
     case "workspace":
@@ -143,13 +152,15 @@ function clearDoneKey(scope: MemoryOpsClearScope): MessageKey {
   }
 }
 
-const CLEAR_SCOPES: MemoryOpsClearScope[] = ["workspace", "session", "all"];
+/** Host-wired product scopes only (workspace / global / all). */
+const CLEAR_SCOPES: readonly MemoryOpsClearScope[] =
+  MEMORY_OPS_PRODUCT_CLEAR_SCOPES;
 
 export function MemoryBrowserPanel({
   locale,
   projectPath = null,
   experimentalMemory,
-  onClearAll,
+  onClearAll: _onClearAll,
   onMemoryCleared,
   clearAllBusy = false,
   onToast,
@@ -158,8 +169,8 @@ export function MemoryBrowserPanel({
   projectPath?: string | null;
   experimentalMemory: boolean;
   /**
-   * Legacy: opens host Settings clear-workspace confirm.
-   * Prefer panel-owned clear scopes when omitted.
+   * @deprecated Panel owns GlassModal for all host scopes (workspace/global/all).
+   * Kept optional for call-site compatibility; ignored.
    */
   onClearAll?: () => void;
   /** Fired after a successful clear (any available scope). */
@@ -442,16 +453,13 @@ export function MemoryBrowserPanel({
   const requestClearScope = (scope: MemoryOpsClearScope) => {
     const plan = clearPlans[scope];
     if (!plan.available) {
+      // Soft-fail toast — never open confirm without a host-wired plan.
       if (plan.unavailableReason) {
         onToast?.(t(clearMemoryScopeUnavailableKey(plan.unavailableReason)), 3200);
       }
       return;
     }
-    // Legacy path: Settings owns workspace confirm when onClearAll is wired.
-    if (scope === "workspace" && onClearAll) {
-      onClearAll();
-      return;
-    }
+    // Panel-owned GlassModal for workspace / global / all (no window.confirm).
     setClearScope(scope);
   };
 

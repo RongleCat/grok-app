@@ -140,6 +140,19 @@ describe("planClearMemoryScope", () => {
     expect(plan.confirmNeeded).toBe(false);
     expect(plan.unavailableReason).toBe("no_cwd");
     expect(plan.hostScope).toBeNull();
+    expect(plan.cliArgs).toEqual([]);
+  });
+
+  it("plans global clear via host --global (no cwd required)", () => {
+    const plan = planClearMemoryScope("global", {
+      memoryEnabled: true,
+      hasCwd: false,
+    });
+    expect(plan.available).toBe(true);
+    expect(plan.confirmNeeded).toBe(true);
+    expect(plan.hostScope).toBe("global");
+    expect(plan.cliArgs).toEqual(["memory", "clear", "-y", "--global"]);
+    expect(plan.unavailableReason).toBeNull();
   });
 
   it("plans all clear via host --all", () => {
@@ -155,6 +168,7 @@ describe("planClearMemoryScope", () => {
       hasCwd: true,
     });
     expect(plan.available).toBe(false);
+    expect(plan.confirmNeeded).toBe(false);
     expect(plan.unavailableReason).toBe("session_not_supported");
     expect(plan.cliArgs).toEqual([]);
     expect(clearMemoryScopeUnavailableKey("session_not_supported")).toBe(
@@ -162,22 +176,36 @@ describe("planClearMemoryScope", () => {
     );
   });
 
-  it("memory off blocks clear", () => {
-    const plan = planClearMemoryScope("workspace", {
-      memoryEnabled: false,
-      hasCwd: true,
-    });
-    expect(plan.available).toBe(false);
-    expect(plan.unavailableReason).toBe("memory_off");
+  it("memory off soft-fails clear without inventing CLI args", () => {
+    for (const scope of ["workspace", "global", "all"] as const) {
+      const plan = planClearMemoryScope(scope, {
+        memoryEnabled: false,
+        hasCwd: true,
+      });
+      expect(plan.available).toBe(false);
+      expect(plan.confirmNeeded).toBe(false);
+      expect(plan.unavailableReason).toBe("memory_off");
+      expect(plan.hostScope).toBeNull();
+      expect(plan.cliArgs).toEqual([]);
+    }
   });
 
-  it("respects restricted hostScopes", () => {
-    const plan = planClearMemoryScope("all", {
+  it("respects restricted hostScopes (soft-fail)", () => {
+    const planAll = planClearMemoryScope("all", {
       memoryEnabled: true,
       hostScopes: ["workspace"],
     });
-    expect(plan.available).toBe(false);
-    expect(plan.unavailableReason).toBe("host_missing");
+    expect(planAll.available).toBe(false);
+    expect(planAll.unavailableReason).toBe("host_missing");
+    expect(planAll.cliArgs).toEqual([]);
+
+    const planGlobal = planClearMemoryScope("global", {
+      memoryEnabled: true,
+      hostScopes: ["workspace", "all"],
+    });
+    expect(planGlobal.available).toBe(false);
+    expect(planGlobal.unavailableReason).toBe("host_missing");
+    expect(planGlobal.cliArgs).toEqual([]);
   });
 });
 

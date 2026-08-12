@@ -3,10 +3,11 @@
  *
  * Unifies App browser keyword search, CLI hybrid availability, and clear-scope
  * planning. Never invents embeddings or a running dream/watcher process —
- * presence chips only reflect config keys when known.
+ * presence chips only reflect config keys when known (set_on / set_off / unset).
  *
  * Host clear: `grok memory clear` via `memoryClear` (workspace | global | all).
- * Session-scoped clear is soft-unavailable (no host CLI path as of 0.2.117).
+ * Product UI scopes match those three. Session-scoped clear stays soft-unavailable
+ * (no host CLI path). Soft-fails never invent CLI args or open confirm.
  */
 
 import { memoryClearArgs, type MemoryClearScope } from "./agentMemory";
@@ -187,8 +188,12 @@ export function resolveMemoryOpsEmptyState(
   return null;
 }
 
-/** Product clear scopes for the ops center (plan-only). */
-export type MemoryOpsClearScope = "workspace" | "session" | "all";
+/**
+ * Product clear scopes for the ops center (plan-only).
+ * Host-wired product surface: workspace | global | all.
+ * `session` remains soft-unavailable (no host session-only clear).
+ */
+export type MemoryOpsClearScope = "workspace" | "global" | "all" | "session";
 
 /** Host-supported clear scopes (CLI `grok memory clear`). */
 export type MemoryOpsHostClearScope = MemoryClearScope;
@@ -196,6 +201,12 @@ export type MemoryOpsHostClearScope = MemoryClearScope;
 /** Host scopes wired today (matches `memoryClear` / agent_memory). */
 export const MEMORY_OPS_HOST_CLEAR_SCOPES: readonly MemoryOpsHostClearScope[] =
   ["workspace", "global", "all"] as const;
+
+/** Product UI clear buttons (GlassModal → host). Session is not listed. */
+export const MEMORY_OPS_PRODUCT_CLEAR_SCOPES: readonly Exclude<
+  MemoryOpsClearScope,
+  "session"
+>[] = ["workspace", "global", "all"] as const;
 
 export type ClearMemoryScopeUnavailableReason =
   | "session_not_supported"
@@ -241,8 +252,12 @@ function hostSupports(
  * Plan a clear action for a product scope. Does not run the host.
  *
  * - workspace → host `--workspace` when cwd present
+ * - global → host `--global` (no cwd required)
  * - all → host `--all`
  * - session → soft-unavailable (no host session-only clear)
+ *
+ * Soft-fails (available=false, no confirm) when memory is off, cwd missing,
+ * session-only, or host scope is not wired — never invents CLI args.
  */
 export function planClearMemoryScope(
   scope: MemoryOpsClearScope,
@@ -320,6 +335,25 @@ export function planClearMemoryScope(
       confirmNeeded: true,
       unavailableReason: null,
       cliArgs: memoryClearArgs("workspace"),
+    });
+  }
+
+  if (scope === "global") {
+    if (!hostSupports("global", hostScopes)) {
+      return base({
+        hostScope: null,
+        available: false,
+        confirmNeeded: false,
+        unavailableReason: "host_missing",
+        cliArgs: [],
+      });
+    }
+    return base({
+      hostScope: "global",
+      available: true,
+      confirmNeeded: true,
+      unavailableReason: null,
+      cliArgs: memoryClearArgs("global"),
     });
   }
 

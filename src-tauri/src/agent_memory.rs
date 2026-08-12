@@ -1126,9 +1126,18 @@ mod tests {
             memory_clear_cli_args("all"),
             vec!["memory", "clear", "-y", "--all"]
         );
+        // Soft-fail unknown / empty → product default workspace (never invents --session).
         assert_eq!(
             memory_clear_cli_args(""),
             vec!["memory", "clear", "-y", "--workspace"]
+        );
+        assert_eq!(
+            memory_clear_cli_args("session"),
+            vec!["memory", "clear", "-y", "--workspace"]
+        );
+        assert_eq!(
+            memory_clear_cli_args("GLOBAL"),
+            vec!["memory", "clear", "-y", "--global"]
         );
     }
 

@@ -80,7 +80,7 @@ export const zhSettings = {
   "settings.storeApiKeysInKeychain": "用系统钥匙串保存 API Key",
   "settings.storeApiKeysInKeychainDesc": "默认关闭：密钥写在应用数据目录（0600）。开启后写入系统钥匙串，系统可能要求一次授权。官方登录仍走 Grok Build 鉴权，不受此项影响。",
   "settings.experimentalMemory": "跨会话记忆（实验性）",
-  "settings.experimentalMemoryDesc": "通过 --experimental-memory / GROK_MEMORY 让 Grok Build 跨对话记住项目事实。实验性功能，行为可能变化。默认关闭；关闭时 Agent 强制 --no-memory 以隔离。",
+  "settings.experimentalMemoryDesc": "通过 --experimental-memory / GROK_MEMORY 让 Grok Build 跨对话记住项目事实。实验性功能，行为可能变化。默认关闭；关闭时 Agent 强制 --no-memory 以隔离。Dream/Watcher 芯片仅表示配置存在性（绝非实时「运行中」状态）。清除范围经 GlassModal 确认，并使用真实的 grok memory clear 参数。",
   "settings.compactionModeDesc": "Grok Build 在 /compact 或自动压缩后如何保存上下文（CLI 0.2.117+）。启动时映射为 --compaction-mode / GROK_COMPACTION_MODE。summary（默认）只保留短摘要；transcript 指向原始 transcript；segments 写入可检索的分段 markdown。更改后会软重启当前 Agent。",
   "settings.compactionDetailDesc": "仅对 --compaction-mode segments 生效（CLI 0.2.117+）。映射为 --compaction-detail / GROK_COMPACTION_DETAIL。summary / transcript 下忽略。更改后会软重启。",
   "settings.twoPassCompaction": "双遍预热压缩",

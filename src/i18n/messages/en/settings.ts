@@ -80,7 +80,7 @@ export const enSettings = {
   "settings.storeApiKeysInKeychain": "Store API keys in system keychain",
   "settings.storeApiKeysInKeychainDesc": "Off by default: keys stay in the app data folder (mode 0600). Turn on to use the OS keychain — the system may ask once. Official login still uses Grok Build auth.",
   "settings.experimentalMemory": "Cross-session memory (experimental)",
-  "settings.experimentalMemoryDesc": "Let Grok Build remember project facts across chats via --experimental-memory / GROK_MEMORY. Experimental — may change. Off by default; when off, agents force --no-memory for isolation.",
+  "settings.experimentalMemoryDesc": "Let Grok Build remember project facts across chats via --experimental-memory / GROK_MEMORY. Experimental — may change. Off by default; when off, agents force --no-memory for isolation. Dream/watcher chips show config presence only (never a live “running” status). Clear scopes use GlassModal + real grok memory clear flags.",
   "settings.compactionModeDesc": "How Grok Build stores context after /compact or auto-compact (CLI 0.2.117+). Maps to --compaction-mode / GROK_COMPACTION_MODE on agent spawn. summary (default) keeps a short summary only; transcript points at the raw transcript; segments writes per-segment markdown you can grep. Soft-respawns the live agent when changed.",
   "settings.compactionDetailDesc": "Verbatim detail for --compaction-mode segments only (CLI 0.2.117+). Maps to --compaction-detail / GROK_COMPACTION_DETAIL. Ignored for summary and transcript. Soft-respawns when changed.",
   "settings.twoPassCompaction": "Two-pass prefire compaction",
