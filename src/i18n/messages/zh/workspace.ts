@@ -361,6 +361,12 @@ export const zhWorkspace = {
   "resources.revealErr.hostOnly": "在文件管理器中显示需要桌面端应用。",
   "resources.revealErr.cancelled": "已取消显示。",
   "resources.revealErr.other": "无法在文件管理器中显示。",
+  /** 对话路径卡片 → 侧栏 Files 深链软失败 */
+  "resources.sideOpen.empty": "没有可打开的文件路径。",
+  "resources.sideOpen.url": "链接会在浏览器标签中打开，而不是文件工作台。",
+  "resources.sideOpen.noProject": "请先选择项目，才能在侧栏打开文件。若可能，将在文件管理器中显示。",
+  "resources.sideOpen.untrusted": "请先信任该项目，才能在侧栏打开文件。",
+  "resources.sideOpen.outsideProject": "该路径不在当前项目内。已改为在文件管理器中打开。",
   // Side Workbench (Codex-style right pane)
   "side.picker.aria": "在侧边工作台中打开",
   "side.picker.file": "文件",

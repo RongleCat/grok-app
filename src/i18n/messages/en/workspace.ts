@@ -361,6 +361,12 @@ export const enWorkspace = {
   "resources.revealErr.hostOnly": "Reveal needs the desktop app.",
   "resources.revealErr.cancelled": "Reveal cancelled.",
   "resources.revealErr.other": "Could not reveal in file manager.",
+  /** Chat path card → Side Workbench Files tab soft-fail honesty */
+  "resources.sideOpen.empty": "No file path to open.",
+  "resources.sideOpen.url": "Links open in the browser tab, not the Files workbench.",
+  "resources.sideOpen.noProject": "Select a project to open files in the side workbench. Revealing in the file manager when possible.",
+  "resources.sideOpen.untrusted": "Trust this project first to open files in the side workbench.",
+  "resources.sideOpen.outsideProject": "That path is outside the project. Opening in the file manager instead.",
   // Side Workbench (Codex-style right pane)
   "side.picker.aria": "Open in side workbench",
   "side.picker.file": "Files",

@@ -932,6 +932,7 @@ import {
   shouldHideChatForSideExpand,
 } from "@/lib/sideFloatComposer";
 import { applySideContextOpen } from "@/lib/sideContextOpen";
+import { resolveSidePathDeepLink } from "@/lib/sidePathDeepLink";
 import { ProjectRulesModal } from "@/components/ProjectRulesModal";
 import {
   mergeSessionChange,
@@ -19351,6 +19352,41 @@ export function AppWorkbench() {
               setResourceOpenTarget({ type: "changes", path });
             }}
             onOpenResource={(target) => {
+              // Path cards → Side Workbench Files tab when project-trusted.
+              // Soft-fail outside/untrusted/no project; optional OS reveal.
+              // URLs / changes keep the prior applySideContextOpen path.
+              if (target.type === "file" && target.path) {
+                const decision = resolveSidePathDeepLink({
+                  path: target.path,
+                  title: target.title,
+                  projectPath: effectiveProjectPath,
+                  projectTrusted: activeProject
+                    ? activeProject.trusted
+                    : effectiveProjectPath
+                      ? true
+                      : null,
+                });
+                if (!decision.ok) {
+                  setLocalError(tr(decision.messageKey));
+                  if (
+                    decision.shouldReveal &&
+                    decision.revealPath &&
+                    api.isTauri()
+                  ) {
+                    void api.pathReveal(decision.revealPath).catch(() => {
+                      /* reveal is best-effort fallback */
+                    });
+                  }
+                  return;
+                }
+                openAsidePane();
+                setResourceOpenTarget({
+                  type: "file",
+                  path: decision.path,
+                  title: decision.title,
+                });
+                return;
+              }
               openAsidePane();
               setResourceOpenTarget(target);
             }}

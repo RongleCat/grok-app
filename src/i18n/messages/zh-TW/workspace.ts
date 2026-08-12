@@ -361,6 +361,12 @@ export const zhTWWorkspace = {
   "resources.revealErr.hostOnly": "在檔案管理員中顯示需要桌面端應用程式。",
   "resources.revealErr.cancelled": "已取消顯示。",
   "resources.revealErr.other": "無法在檔案管理員中顯示。",
+  /** 對話路徑卡片 → 側欄 Files 深鏈軟失敗 */
+  "resources.sideOpen.empty": "沒有可開啟的檔案路徑。",
+  "resources.sideOpen.url": "連結會在瀏覽器分頁中開啟，而不是檔案工作台。",
+  "resources.sideOpen.noProject": "請先選擇專案，才能在側欄開啟檔案。若可能，將在檔案管理員中顯示。",
+  "resources.sideOpen.untrusted": "請先信任此專案，才能在側欄開啟檔案。",
+  "resources.sideOpen.outsideProject": "該路徑不在目前專案內。已改為在檔案管理員中開啟。",
   // Side Workbench (Codex-style right pane)
   "side.picker.aria": "在側邊工作台中開啟",
   "side.picker.file": "檔案",
