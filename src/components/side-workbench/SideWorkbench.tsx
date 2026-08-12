@@ -10,7 +10,7 @@ import type { PlanReviewState } from "@/lib/planBody";
 import type { SessionFileChange } from "@/lib/sessionChanges";
 import {
   activeSideTab,
-  closeActiveSideTab,
+  applySideStripClose,
   closeAllSideTabs,
   closeOtherSideTabs,
   closeSideTab,
@@ -121,10 +121,11 @@ export function SideWorkbench({
   );
 
   /**
-   * Browser / non-Tauri preview: ⌘W closes the active side tab.
-   * In the desktop host, File → Close (⌘W) is owned by the native app menu
-   * and routed via `app://close-tab-or-window` (see AppWorkbench) so the OS
-   * does not close the window before JS can run.
+   * Browser / non-Tauri preview: ⌘W closes the active side tab first
+   * (same pure target as the desktop menu path). Empty strip is a no-op
+   * here — there is no host window close in web preview.
+   * Desktop: File → Close (⌘W) is owned by the native app menu and routed
+   * via `app://close-tab-or-window` (see AppWorkbench).
    */
   useEffect(() => {
     if (!paneActive || api.isTauri()) return;
@@ -132,10 +133,11 @@ export function SideWorkbench({
       if (e.isComposing) return;
       if (isShortcutRecordingActive()) return;
       if (!isCloseSideTabChord(e)) return;
-      if (state.tabs.length === 0) return;
+      const result = applySideStripClose(state);
+      if (result.closeWindow || result.needsConfirm) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      applyCloseState(closeActiveSideTab(state));
+      applyCloseState(result.state);
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);

@@ -11,6 +11,10 @@ import {
   closeSideTabsToLeft,
   closeSideTabsToRight,
   isCloseSideTabChord,
+  isSideTabMiddleClick,
+  resolveSideStripCloseTarget,
+  applySideStripClose,
+  sideTabCloseNeedsConfirm,
   setActiveSideTab,
   sidePickerOptions,
   SIDE_PICKER_EXCLUDED,
@@ -204,6 +208,12 @@ describe("openSideTab / close / activate", () => {
     ).toBe(false);
   });
 
+  it("isSideTabMiddleClick is button 1 only", () => {
+    expect(isSideTabMiddleClick({ button: 1 })).toBe(true);
+    expect(isSideTabMiddleClick({ button: 0 })).toBe(false);
+    expect(isSideTabMiddleClick({ button: 2 })).toBe(false);
+  });
+
   it("toggles expanded", () => {
     const s = emptySideWorkbenchState();
     expect(s.expanded).toBe(false);
@@ -299,5 +309,97 @@ describe("tab close batch helpers", () => {
     const flags = sideTabNeighborFlags(s.tabs, s.tabs[1]!.id);
     expect(flags).toEqual({ hasLeft: true, hasRight: true, hasOthers: true });
     expect(sideTabNeighborFlags(s.tabs, s.tabs[0]!.id).hasLeft).toBe(false);
+  });
+});
+
+describe("resolveSideStripCloseTarget / applySideStripClose (what closes next)", () => {
+  function stripWithActive(): ReturnType<typeof emptySideWorkbenchState> {
+    let s = emptySideWorkbenchState();
+    s = openSideTab(s, "file", { path: "/a.ts", id: "a" });
+    s = openSideTab(s, "browser", { url: "https://b", id: "b" });
+    // [b, a], active b
+    return s;
+  }
+
+  it("prefers active side tab when strip non-empty and aside open", () => {
+    const s = stripWithActive();
+    expect(resolveSideStripCloseTarget(s)).toEqual({
+      kind: "side-tab",
+      tabId: "b",
+    });
+    expect(resolveSideStripCloseTarget(s, { asideCollapsed: false })).toEqual({
+      kind: "side-tab",
+      tabId: "b",
+    });
+  });
+
+  it("falls through to window when strip is empty", () => {
+    expect(resolveSideStripCloseTarget(emptySideWorkbenchState())).toEqual({
+      kind: "window",
+    });
+  });
+
+  it("falls through to window when aside is collapsed (leftover tabs)", () => {
+    const s = stripWithActive();
+    expect(
+      resolveSideStripCloseTarget(s, { asideCollapsed: true }),
+    ).toEqual({ kind: "window" });
+  });
+
+  it("uses first tab when activeId is missing or stale", () => {
+    let s = stripWithActive();
+    s = { ...s, activeId: null };
+    expect(resolveSideStripCloseTarget(s)).toEqual({
+      kind: "side-tab",
+      tabId: "b",
+    });
+    s = { ...s, activeId: "gone" };
+    expect(resolveSideStripCloseTarget(s)).toEqual({
+      kind: "side-tab",
+      tabId: "b",
+    });
+  });
+
+  it("applySideStripClose closes active tab then window on empty", () => {
+    let s = stripWithActive();
+    let r = applySideStripClose(s);
+    expect(r.closeWindow).toBe(false);
+    expect(r.needsConfirm).toBe(false);
+    expect(r.closedTabId).toBe("b");
+    expect(r.state.tabs.map((t) => t.id)).toEqual(["a"]);
+    s = r.state;
+    r = applySideStripClose(s);
+    expect(r.closeWindow).toBe(false);
+    expect(r.closedTabId).toBe("a");
+    expect(r.state.tabs).toEqual([]);
+    r = applySideStripClose(r.state);
+    expect(r.closeWindow).toBe(true);
+    expect(r.closedTabId).toBeNull();
+    expect(r.state.tabs).toEqual([]);
+  });
+
+  it("applySideStripClose does not mutate when aside collapsed", () => {
+    const s = stripWithActive();
+    const r = applySideStripClose(s, { asideCollapsed: true });
+    expect(r.closeWindow).toBe(true);
+    expect(r.state).toBe(s);
+  });
+
+  it("dirty target needs confirm and leaves state unchanged", () => {
+    const s = stripWithActive();
+    expect(sideTabCloseNeedsConfirm("b", { dirtyTabIds: ["b"] })).toBe(true);
+    expect(sideTabCloseNeedsConfirm("a", { dirtyTabIds: new Set(["b"]) })).toBe(
+      false,
+    );
+    const r = applySideStripClose(s, { dirtyTabIds: ["b"] });
+    expect(r.needsConfirm).toBe(true);
+    expect(r.closeWindow).toBe(false);
+    expect(r.closedTabId).toBe("b");
+    expect(r.state).toBe(s);
+    // After forced close (caller discarded), next close proceeds
+    const forced = closeSideTab(s, "b");
+    const next = applySideStripClose(forced, { dirtyTabIds: ["b"] });
+    expect(next.needsConfirm).toBe(false);
+    expect(next.closedTabId).toBe("a");
   });
 });

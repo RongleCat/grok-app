@@ -889,7 +889,7 @@ import {
 import type { ResourceOpenTarget } from "@/components/ResourceViewer";
 import { EnvInfoButton } from "@/components/side-workbench/EnvInfoButton";
 import {
-  closeActiveSideTab,
+  applySideStripClose,
   emptySideWorkbenchState,
   openSideTab,
   openSideTabFromPicker,
@@ -13691,29 +13691,33 @@ export function AppWorkbench() {
   }, [requestAppQuit]);
 
   /**
-   * Host menu ⌘W / Ctrl+W (replaces native Close Window). Close the active
-   * side tab when the strip has any; otherwise close the window (tray / quit).
+   * Host menu ⌘W / Ctrl+W (replaces native Close Window). Browser-like:
+   * active side tab first when the strip is non-empty and the aside is open;
+   * empty strip (or collapsed leftover tabs) falls through to window close.
+   * Decision is pure — see {@link applySideStripClose}.
    */
   const closeSideTabOrWindow = useCallback(() => {
     const s = sideWorkbenchRef.current;
-    // Only steal ⌘W when the side pane is visible with open tabs. Collapsed
-    // leftover tabs must not block closing the window.
-    if (s.tabs.length > 0 && !layoutRef.current.asideCollapsed) {
-      const next = closeActiveSideTab(s);
-      setSideWorkbench(next);
-      if (next.tabs.length === 0) {
-        closeAsidePane();
-      }
+    const result = applySideStripClose(s, {
+      asideCollapsed: layoutRef.current.asideCollapsed,
+    });
+    if (result.closeWindow) {
+      void (async () => {
+        try {
+          const { getCurrentWindow } = await import("@tauri-apps/api/window");
+          await getCurrentWindow().close();
+        } catch (e) {
+          console.warn("close window after empty side tabs failed", e);
+        }
+      })();
       return;
     }
-    void (async () => {
-      try {
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
-        await getCurrentWindow().close();
-      } catch (e) {
-        console.warn("close window after empty side tabs failed", e);
-      }
-    })();
+    // needsConfirm: host has no dirty map for outer side tabs yet — force close.
+    // Nested FilesWorkspace drafts keep their own discard dialogs.
+    setSideWorkbench(result.state);
+    if (result.state.tabs.length === 0) {
+      closeAsidePane();
+    }
   }, [closeAsidePane]);
 
   useEffect(() => {

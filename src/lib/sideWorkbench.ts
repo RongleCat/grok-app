@@ -317,6 +317,116 @@ export function closeActiveSideTab(
 }
 
 /**
+ * What Close / ⌘W should do next for the side workbench strip.
+ * - `side-tab` — close that tab id (active, or first when active is missing)
+ * - `window` — fall through to window close (empty strip or collapsed aside)
+ *
+ * Collapsed leftover tabs must not steal ⌘W from the window.
+ */
+export type SideStripCloseTarget =
+  | { kind: "side-tab"; tabId: string }
+  | { kind: "window" };
+
+export type SideStripCloseOpts = {
+  /** When true, side chrome is hidden — never prefer leftover strip tabs. */
+  asideCollapsed?: boolean;
+  /**
+   * Optional dirty side-tab ids. When the chosen tab is dirty, callers should
+   * confirm discard before applying the close (middle-click / × / ⌘W share this).
+   */
+  dirtyTabIds?: ReadonlySet<string> | readonly string[];
+};
+
+function dirtySideTabIdSet(
+  dirtyTabIds?: SideStripCloseOpts["dirtyTabIds"],
+): ReadonlySet<string> | null {
+  if (!dirtyTabIds) return null;
+  if (dirtyTabIds instanceof Set) return dirtyTabIds;
+  return new Set(dirtyTabIds);
+}
+
+function isDirtySideTabId(
+  tabId: string,
+  dirtyTabIds?: SideStripCloseOpts["dirtyTabIds"],
+): boolean {
+  const set = dirtySideTabIdSet(dirtyTabIds);
+  return set ? set.has(tabId) : false;
+}
+
+/**
+ * Pure decision: close active side tab vs fall through to window close.
+ * Does not mutate state — pair with {@link applySideStripClose} or
+ * {@link closeSideTab} after any discard confirm.
+ */
+export function resolveSideStripCloseTarget(
+  state: Pick<SideWorkbenchState, "tabs" | "activeId">,
+  opts?: SideStripCloseOpts,
+): SideStripCloseTarget {
+  if (opts?.asideCollapsed) return { kind: "window" };
+  if (!state.tabs.length) return { kind: "window" };
+  const tabId = state.activeId ?? state.tabs[0]?.id;
+  if (!tabId) return { kind: "window" };
+  // Guard: activeId can lag behind a removed tab — fall back to first strip entry.
+  if (!state.tabs.some((t) => t.id === tabId)) {
+    const first = state.tabs[0]?.id;
+    if (!first) return { kind: "window" };
+    return { kind: "side-tab", tabId: first };
+  }
+  return { kind: "side-tab", tabId };
+}
+
+/**
+ * Whether closing `tabId` (× / middle-click / ⌘W) needs an unsaved-discard prompt.
+ */
+export function sideTabCloseNeedsConfirm(
+  tabId: string,
+  opts?: Pick<SideStripCloseOpts, "dirtyTabIds">,
+): boolean {
+  return isDirtySideTabId(tabId, opts?.dirtyTabIds);
+}
+
+/**
+ * Apply browser-like Close / ⌘W against the strip.
+ * Returns next state and whether the host should close the window instead.
+ * Does **not** auto-discard dirty tabs — when `dirtyTabIds` marks the target,
+ * returns the prior state with `needsConfirm: true` and no mutation.
+ */
+export function applySideStripClose(
+  state: SideWorkbenchState,
+  opts?: SideStripCloseOpts,
+): {
+  state: SideWorkbenchState;
+  closeWindow: boolean;
+  closedTabId: string | null;
+  needsConfirm: boolean;
+} {
+  const target = resolveSideStripCloseTarget(state, opts);
+  if (target.kind === "window") {
+    return {
+      state,
+      closeWindow: true,
+      closedTabId: null,
+      needsConfirm: false,
+    };
+  }
+  if (isDirtySideTabId(target.tabId, opts?.dirtyTabIds)) {
+    return {
+      state,
+      closeWindow: false,
+      closedTabId: target.tabId,
+      needsConfirm: true,
+    };
+  }
+  const next = closeSideTab(state, target.tabId);
+  return {
+    state: next,
+    closeWindow: false,
+    closedTabId: target.tabId,
+    needsConfirm: false,
+  };
+}
+
+/**
  * ⌘W / Ctrl+W — close the active side tab when the strip has tabs
  * (browser-style; empty strip leaves the chord for window close).
  */
@@ -329,6 +439,15 @@ export function isCloseSideTabChord(e: {
 }): boolean {
   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return false;
   return e.key === "w" || e.key === "W";
+}
+
+/**
+ * Middle mouse button (button === 1) on a tab chip — browser-style close.
+ */
+export function isSideTabMiddleClick(e: {
+  button: number;
+}): boolean {
+  return e.button === 1;
 }
 
 /**

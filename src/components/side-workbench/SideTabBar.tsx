@@ -34,6 +34,7 @@ import { ContextMenu, type ContextMenuItem } from "@/components/ContextMenu";
 import { Tip } from "@/components/ui/tooltip";
 import { useFloatingMenu } from "@/lib/floatingMenu";
 import {
+  isSideTabMiddleClick,
   resolveSideTabLabel,
   sideTabCopyPath,
   sideTabNeighborFlags,
@@ -303,6 +304,18 @@ export function SideTabBar({
                   }
                   data-testid={`side-tab-${tab.kind}`}
                   onClick={() => onActivate(tab.id)}
+                  onAuxClick={(e) => {
+                    // Browser-style middle-click closes the *clicked* tab
+                    // (not only the active one). Same path as the × button.
+                    if (!isSideTabMiddleClick(e)) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onCloseTab(tab.id);
+                  }}
+                  onMouseDown={(e) => {
+                    // Prevent middle-click auto-scroll / paste chrome.
+                    if (isSideTabMiddleClick(e)) e.preventDefault();
+                  }}
                   onContextMenu={(e) => openTabMenu(e, tab)}
                 >
                   {tabIcon(tab)}
@@ -315,6 +328,12 @@ export function SideTabBar({
                         tabIndex={0}
                         title={tr("side.tabClose")}
                         onClick={(e) => {
+                          e.stopPropagation();
+                          onCloseTab(tab.id);
+                        }}
+                        onAuxClick={(e) => {
+                          if (!isSideTabMiddleClick(e)) return;
+                          e.preventDefault();
                           e.stopPropagation();
                           onCloseTab(tab.id);
                         }}
