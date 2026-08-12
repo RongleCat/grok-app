@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- **Preferred agent apply honesty**: Settings preferred-agent and Agents & Personas console document spawn-time `--agent` apply paths — live agent soft-respawns on change; idle waits for next connect. Soft-fail when the saved name is missing from the catalog or has invalid characters. Pure `preferredAgentApply` helpers + tests; en/zh/zh-TW.
+
+**中文 · 新增**
+- **首选 agent 生效路径诚实**：设置与 Agents & Personas 控制台标明 spawn `--agent` 路径 — 已连接 soft-respawn、空闲下次连接；目录缺失/非法名称 soft-fail。纯 helper + 测试；三语文案。
+
 ## [0.2.15] - 2026-08-12
 
 > **Highlight:** Tool/activity timeline shows real expandable output and explore groups; session open never hangs on MCP/OAuth; ask-user with rpcId 0 works; sticky composer target and optimistic Stop; project drag-reorder.

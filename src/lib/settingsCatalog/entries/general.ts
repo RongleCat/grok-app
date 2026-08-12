@@ -354,8 +354,20 @@ export const GENERAL_ENTRIES: readonly SettingsEntry[] = [
     tab: "agent",
     anchorId: "settings-anchor-preferredAgent",
     labelKey: "settings.preferredAgent",
-    descKeys: ["settings.preferredAgentDesc"],
-    keywords: ["preferred agent", "agent definition"],
+    descKeys: [
+      "settings.preferredAgentDesc",
+      "settings.preferredAgent.apply.note",
+      "settings.preferredAgent.apply.softRespawn",
+      "settings.preferredAgent.apply.nextMessage",
+      "settings.preferredAgent.apply.invalidChars",
+    ],
+    keywords: [
+      "preferred agent",
+      "agent definition",
+      "--agent",
+      "soft-respawn",
+      "spawn",
+    ],
   },
   {
     id: "general.agentsPersonas",
@@ -365,9 +377,11 @@ export const GENERAL_ENTRIES: readonly SettingsEntry[] = [
     labelKey: "settings.agentsPersonas.title",
     descKeys: [
       "settings.agentsPersonas.desc",
+      "settings.agentsPersonas.applyNote",
       "settings.agentsPersonas.tab.agents",
       "settings.agentsPersonas.tab.personas",
       "settings.agentsPersonas.refresh",
+      "settings.preferredAgent.apply.note",
     ],
     keywords: [
       "agents",

@@ -861,6 +861,9 @@ export function GeneralSection() {
                       }),
                     ]}
                   />
+                  <div className="settings-row__desc">
+                    {t("settings.preferredAgent.apply.note")}
+                  </div>
                 </div>
               ) : null}
               {onAgentProfilePath ? (

@@ -26,6 +26,11 @@ import {
   type AgentsConsoleGroup,
   type PersonasConsoleEntry,
 } from "@/lib/agentsPersonasConsole";
+import {
+  classifyPreferredAgentSoftFail,
+  preferredAgentApplyNoteKey,
+  preferredAgentSoftFailMessageKey,
+} from "@/lib/preferredAgentApply";
 
 export type AgentsPersonasConsolePanelProps = {
   locale: Locale;
@@ -191,6 +196,11 @@ export function AgentsPersonasConsolePanel({
 
   const preferredLabel = useMemo(
     () => resolvePreferredAgentLabel(preferredAgent, agents),
+    [preferredAgent, agents],
+  );
+
+  const preferredSoftFail = useMemo(
+    () => classifyPreferredAgentSoftFail(preferredAgent, agents),
     [preferredAgent, agents],
   );
 
@@ -364,11 +374,19 @@ export function AgentsPersonasConsolePanel({
         </div>
       </div>
 
-      {preferredLabel.kind === "missing" ? (
+      {preferredSoftFail.kind === "invalid_chars" ? (
+        <div className="ext-alert ext-alert--error" role="status">
+          <div className="ext-alert__title">
+            {t(
+              preferredAgentSoftFailMessageKey("invalid_chars") as MessageKey,
+            )}
+          </div>
+        </div>
+      ) : preferredLabel.kind === "missing" ? (
         <div className="ext-alert ext-alert--error" role="status">
           <div className="ext-alert__title">
             {t("settings.agentsPersonas.preferredMissing", {
-              name: preferredLabel.name ?? "",
+              name: preferredLabel.name ?? preferredSoftFail.name ?? "",
             })}
           </div>
           <p className="ext-alert__body">
@@ -389,6 +407,9 @@ export function AgentsPersonasConsolePanel({
           {t("settings.agentsPersonas.preferredDefault")}
         </p>
       )}
+      <p className="ext-field-hint" role="note">
+        {t(preferredAgentApplyNoteKey() as MessageKey)}
+      </p>
 
       <div
         className="settings-agents-personas__tabs"
