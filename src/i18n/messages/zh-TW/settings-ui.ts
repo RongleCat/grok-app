@@ -393,6 +393,7 @@ export const zhTWSettingsUi = {
   "settings.autoUpdateBody.ready": "下一步：安裝會暫存套件，然後應用程式自動重新啟動。",
   "settings.autoUpdateBody.manual": "請開啟發佈頁或下載本平台安裝包。此建置不支援應用程式內靜默安裝。",
   "settings.autoUpdateBody.agentsNote": "智慧體、語音、遠端 IM 與鏡像繼續執行；僅在安裝準備成功後才會停止。",
+  "settings.autoUpdateBody.linuxAppImage": "在 Linux 上，僅 AppImage 安裝支援應用程式內更新。.deb / .rpm（及類似套件）需從 GitHub Releases 手動下載。",
   "settings.autoUpdateError.network": "無法連線更新伺服器。請檢查網路或代理後重試。",
   "settings.autoUpdateError.signature": "更新包簽名校驗失敗。請使用已簽名正式版，或從 GitHub Releases 下載。",
   "settings.autoUpdateError.pluginMissing": "此建置未啟用應用程式內更新（未簽名或本機版）。請點「檢查更新」開啟 GitHub Releases。",

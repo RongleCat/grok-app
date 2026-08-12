@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  channelExtraBodyKey,
   channelFromHostString,
   classifyUpdateError,
   formatUpdateProgressLine,
@@ -116,11 +117,12 @@ describe("updateChannelLabelKey / isAutoUpdatePath", () => {
 });
 
 describe("mapUpdateStatusCopy", () => {
-  it("maps idle with no invented version", () => {
+  it("maps idle with no invented version (empty honesty)", () => {
     const c = mapUpdateStatusCopy({ state: "idle" });
     expect(c.titleKey).toBe("settings.autoUpdateIdle");
     expect(c.version).toBeNull();
     expect(c.severity).toBe("none");
+    expect(c.bodyKey).toBeNull();
   });
 
   it("maps checking / progress states with body notes", () => {
@@ -342,7 +344,7 @@ describe("channelFromHostString / prefer host", () => {
     expect(channelFromHostString("")).toBeNull();
   });
 
-  it("prefer host silent, but live manual-required wins", () => {
+  it("prefer host silent when capability is auto; live manual-required wins", () => {
     expect(
       resolveUpdateChannelHonestyPreferHost({
         hostChannel: "silent",
@@ -365,6 +367,50 @@ describe("channelFromHostString / prefer host", () => {
         },
       }),
     ).toBe("unsupported");
+  });
+
+  it("never claims silent when plugin is off (stale host silent)", () => {
+    expect(
+      resolveUpdateChannelHonestyPreferHost({
+        hostChannel: "silent",
+        pluginEnabled: false,
+        autoUpdateSupported: false,
+        isDesktopHost: true,
+      }),
+    ).toBe("manual_github");
+  });
+
+  it("capability unsupported wins over collapsed host github_manual", () => {
+    expect(
+      resolveUpdateChannelHonestyPreferHost({
+        hostChannel: "github_manual",
+        pluginEnabled: true,
+        autoUpdateSupported: false,
+        isDesktopHost: true,
+      }),
+    ).toBe("unsupported");
+  });
+
+  it("safer host non-auto wins when capability looks auto", () => {
+    expect(
+      resolveUpdateChannelHonestyPreferHost({
+        hostChannel: "github_manual",
+        pluginEnabled: true,
+        autoUpdateSupported: true,
+        isDesktopHost: true,
+      }),
+    ).toBe("manual_github");
+  });
+});
+
+describe("channelExtraBodyKey", () => {
+  it("adds Linux AppImage note only for unsupported channel", () => {
+    expect(channelExtraBodyKey("unsupported")).toBe(
+      "settings.autoUpdateBody.linuxAppImage",
+    );
+    expect(channelExtraBodyKey("auto")).toBeNull();
+    expect(channelExtraBodyKey("manual_github")).toBeNull();
+    expect(channelExtraBodyKey("host_only")).toBeNull();
   });
 });
 

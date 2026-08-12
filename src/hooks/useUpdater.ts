@@ -115,8 +115,14 @@ async function githubCheckUpdate(): Promise<AppUpdateCheck> {
 }
 
 export type UpdaterChannelInfo = {
-  /** `silent` when signed release plugin path is live; else `github_manual`. */
-  channel: "silent" | "github_manual" | "unknown";
+  /**
+   * Host channel honesty:
+   * - `silent` — signed release plugin + platform supports in-app install
+   * - `github_manual` — unsigned / local / plugin off
+   * - `unsupported` — plugin on but package type cannot auto-update (e.g. Linux non-AppImage)
+   * - `unknown` — not yet probed
+   */
+  channel: "silent" | "github_manual" | "unsupported" | "unknown";
   pluginEnabled: boolean;
   platformSupported: boolean;
   endpoint: string;
@@ -642,13 +648,25 @@ export function useUpdater() {
         endpoint: string;
       }>("updater_status");
       if (!aliveRef.current) return;
+      // Prefer host string when known; derive unsupported from flags so a
+      // collapsed github_manual never claims silent for non-AppImage Linux.
+      let channel: UpdaterChannelInfo["channel"] = "unknown";
+      if (s.channel === "silent") {
+        channel = "silent";
+      } else if (s.channel === "unsupported") {
+        channel = "unsupported";
+      } else if (s.channel === "github_manual") {
+        channel =
+          s.pluginEnabled && !s.platformSupported
+            ? "unsupported"
+            : "github_manual";
+      } else if (s.pluginEnabled && !s.platformSupported) {
+        channel = "unsupported";
+      } else if (!s.pluginEnabled) {
+        channel = "github_manual";
+      }
       setChannelInfo({
-        channel:
-          s.channel === "silent"
-            ? "silent"
-            : s.channel === "github_manual"
-              ? "github_manual"
-              : "unknown",
+        channel,
         pluginEnabled: !!s.pluginEnabled,
         platformSupported: !!s.platformSupported,
         endpoint: s.endpoint || "",

@@ -65,7 +65,9 @@ pub struct UpdaterStatusDto {
     pub platform_supported: bool,
     /// Release binary built with signing pubkey + endpoint.
     pub plugin_enabled: bool,
-    /// `silent` when plugin path is live; otherwise `github_manual`.
+    /// `silent` when plugin path is live; `unsupported` when plugin is on but
+    /// the package type cannot auto-update (e.g. Linux non-AppImage);
+    /// otherwise `github_manual` (unsigned / local / plugin off).
     pub channel: String,
     /// Compile-time endpoint (empty when plugin off).
     pub endpoint: String,
@@ -77,6 +79,9 @@ pub fn updater_status() -> UpdaterStatusDto {
     let plugin_enabled = is_updater_plugin_enabled();
     let channel = if plugin_enabled && platform_supported {
         "silent".to_string()
+    } else if plugin_enabled && !platform_supported {
+        // Signed binary but this install type cannot silent-update.
+        "unsupported".to_string()
     } else {
         "github_manual".to_string()
     };
@@ -162,9 +167,13 @@ mod tests {
     #[test]
     fn updater_status_channel_matches_flags() {
         let s = updater_status();
-        assert!(s.channel == "silent" || s.channel == "github_manual");
+        assert!(
+            s.channel == "silent" || s.channel == "github_manual" || s.channel == "unsupported"
+        );
         if s.plugin_enabled && s.platform_supported {
             assert_eq!(s.channel, "silent");
+        } else if s.plugin_enabled && !s.platform_supported {
+            assert_eq!(s.channel, "unsupported");
         } else {
             assert_eq!(s.channel, "github_manual");
         }

@@ -20,6 +20,7 @@ See `docs/llm-wiki/release.md`.
 - **首选 agent 生效路径诚实 (#564)**：设置与 Agents & Personas 控制台标明 spawn `--agent` 路径 — 已连接 soft-respawn、空闲下次连接；目录缺失/非法名称 soft-fail。纯 helper + 测试；三语文案。
 
 ### Fixed
+- **App update channel honesty**: Settings → About restores full path honesty after the settings split — signed in-app vs GitHub download vs unsupported package type (Linux non-AppImage note), soft-fail error classes, idle/empty and check-failed copy. Never claims silent update on unsigned builds. Host `updater_status` reports `unsupported` when the plugin is on but the package cannot auto-update.
 - **CI baseline**: `cargo fmt` drift and ESLint non-null optional-chain in `session.test.ts`.
 - **Custom providers without official login (#557)**: Custom route always spawns with agent-home `GROK_HOME` (even in shared mode); activating custom also forces independent mode so session paths stay aligned.
 - **Post-turn journal retry (#554 / #555)**: After a successful prompt RPC, journal reconciliation retries over a short bounded window (0/125/375/750 ms) via `spawn_blocking`, with per-session locking against the next user append.
@@ -28,6 +29,7 @@ See `docs/llm-wiki/release.md`.
 - **CLI vs ACP agentVersion skew (#563)**: Doctor/Runtime soft-warn when probed `grok --version` disagrees with the last live ACP `agentVersion` (never blocks sessions).
 
 **中文 · 修复**
+- **应用更新通道诚实**：设置 → 关于 在设置拆分后恢复完整路径说明 — 已签名应用内 / GitHub 下载 / 不支持的安装包类型（Linux 非 AppImage 提示）、软失败错误分类、空闲与检查失败文案；未签名构建不宣称静默更新。Host `updater_status` 在插件开启但包类型不可自动更新时返回 `unsupported`。
 - **CI 基线**：`cargo fmt` 漂移与 `session.test.ts` ESLint optional-chain 非空断言。
 - **无官方登录的第三方通道 (#557)**：自定义路由 spawn 强制 agent-home；激活时亦切换独立模式以对齐会话路径。
 - **回合后 journal 延迟对账 (#554 / #555)**：prompt 成功后在有界窗口内重试对账，并与下一次用户写入互斥。

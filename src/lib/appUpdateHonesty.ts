@@ -84,6 +84,7 @@ export type UpdateStatusBodyKey =
   | "settings.autoUpdateBody.ready"
   | "settings.autoUpdateBody.manual"
   | "settings.autoUpdateBody.agentsNote"
+  | "settings.autoUpdateBody.linuxAppImage"
   | "settings.autoUpdateError.network"
   | "settings.autoUpdateError.signature"
   | "settings.autoUpdateError.pluginMissing"
@@ -522,7 +523,9 @@ export function channelFromHostString(
 }
 
 /**
- * Prefer host channel when known; else capability resolve.
+ * Prefer capability resolve for non-auto paths so unsigned / unsupported never
+ * claim silent install. Host channel is only a hint when capability says auto
+ * (or is unknown); a safer non-auto host report still wins over "auto".
  * Live `manual-required` still forces non-auto honesty.
  */
 export function resolveUpdateChannelHonestyPreferHost(input: {
@@ -539,7 +542,7 @@ export function resolveUpdateChannelHonestyPreferHost(input: {
     status: input.status,
   });
 
-  // Live manual path wins over a stale "silent" host report.
+  // Live manual path and host_only always win.
   if (
     input.status?.state === "manual-required" ||
     fromStatus === "host_only"
@@ -547,9 +550,31 @@ export function resolveUpdateChannelHonestyPreferHost(input: {
     return fromStatus;
   }
 
+  // Capability-backed manual / unsupported is authoritative — never let a stale
+  // host "silent" claim override unsigned or package-type limits.
+  if (fromStatus !== "auto") {
+    return fromStatus;
+  }
+
   const fromHost = channelFromHostString(input.hostChannel);
-  if (fromHost) return fromHost;
+  // Safer honesty: if host says non-auto while capability looks auto, prefer host.
+  if (fromHost && fromHost !== "auto") {
+    return fromHost;
+  }
   return fromStatus;
+}
+
+/**
+ * Extra channel body for package-type limits (Linux AppImage-only, etc.).
+ * Null when no extra note — never invents a silent-install claim.
+ */
+export function channelExtraBodyKey(
+  channel: UpdateChannelHonesty,
+): UpdateStatusBodyKey | null {
+  if (channel === "unsupported") {
+    return "settings.autoUpdateBody.linuxAppImage";
+  }
+  return null;
 }
 
 /** CSS modifier for About status strip (`is-available` / `is-error` / …). */

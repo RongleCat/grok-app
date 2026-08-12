@@ -76,9 +76,10 @@ Before treating silent update as “on” for users:
 3. **Release cut:** tag `vX.Y.Z` so CI builds installers **and** refreshes `grok-desktop-latest` + `latest.json` + `.sig`.
 4. **Smoke on a prior signed build:** Settings → About shows **Update channel: in-app (signed release)** → Check → Download → Install and restart → version matches tag.
 5. **Failure path:** if install fails, agents / Remote IM / mirror must keep running (`prepare_for_app_update` only after successful `install()`).
-6. **Unsigned / local builds:** About must show **GitHub download** channel and still open Release / download installer (no crash).
+6. **Unsigned / local builds:** About must show **GitHub download** channel and still open Release / download installer (no crash; never claims silent update).
+7. **Linux non-AppImage:** About shows **unsupported** package-type channel + AppImage-only note when the plugin is compiled in.
 
-In-app host command `updater_status` reports `{ channel, pluginEnabled, platformSupported, endpoint }` for Doctor / About.
+In-app host command `updater_status` reports `{ channel, pluginEnabled, platformSupported, endpoint }` for Doctor / About (`channel` is `silent` | `github_manual` | `unsupported`).
 
 ## Rolling endpoint
 
@@ -120,8 +121,10 @@ Platform keys: `darwin-aarch64`, `darwin-x86_64`, `linux-x86_64`, `windows-x86_6
 
 ## Linux note
 
-Only **AppImage** supports in-app update. `.deb` / `.rpm` installs see
-`manual-required` and open the GitHub releases page.
+Only **AppImage** supports in-app update. `.deb` / `.rpm` installs report
+channel **`unsupported`** (About: package-type cannot auto-update + AppImage
+note) and surface `manual-required` when a newer build is known so the user can
+open GitHub Releases.
 
 ## macOS note
 

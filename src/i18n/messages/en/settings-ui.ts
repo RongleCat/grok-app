@@ -393,6 +393,7 @@ export const enSettingsUi = {
   "settings.autoUpdateBody.ready": "One more step: install stages the package, then the app restarts automatically.",
   "settings.autoUpdateBody.manual": "Open the release page or download the installer for this platform. In-app silent install is not available on this build.",
   "settings.autoUpdateBody.agentsNote": "Agents, voice, Remote IM, and mirror keep running; they stop only after a successful install prepare.",
+  "settings.autoUpdateBody.linuxAppImage": "On Linux, only AppImage installs support in-app update. .deb / .rpm (and similar) need a manual download from GitHub Releases.",
   "settings.autoUpdateError.network": "Could not reach the update server. Check your network or proxy, then try again.",
   "settings.autoUpdateError.signature": "The update package failed signature verification. Use a signed release build or download from GitHub Releases.",
   "settings.autoUpdateError.pluginMissing": "In-app updater is not available in this build (unsigned or local). Use Check for updates to open GitHub Releases.",

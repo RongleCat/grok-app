@@ -393,6 +393,7 @@ export const zhSettingsUi = {
   "settings.autoUpdateBody.ready": "下一步：安装会暂存包，然后应用自动重启。",
   "settings.autoUpdateBody.manual": "请打开发布页或下载本平台安装包。此构建不支持应用内静默安装。",
   "settings.autoUpdateBody.agentsNote": "智能体、语音、远程 IM 与镜像继续运行；仅在安装准备成功后才会停止。",
+  "settings.autoUpdateBody.linuxAppImage": "在 Linux 上，仅 AppImage 安装支持应用内更新。.deb / .rpm（及类似包）需从 GitHub Releases 手动下载。",
   "settings.autoUpdateError.network": "无法连接更新服务器。请检查网络或代理后重试。",
   "settings.autoUpdateError.signature": "更新包签名校验失败。请使用已签名正式版，或从 GitHub Releases 下载。",
   "settings.autoUpdateError.pluginMissing": "此构建未启用应用内更新（未签名或本地版）。请点「检查更新」打开 GitHub Releases。",
