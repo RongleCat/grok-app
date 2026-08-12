@@ -95,4 +95,11 @@ describe("permissionTimeoutRemainingSec", () => {
     expect(permissionTimeoutRemainingSec(start, 30, start + 30_000)).toBe(0);
     expect(permissionTimeoutRemainingSec(start, 30, start + 60_000)).toBe(0);
   });
+
+  it("reports true remaining time from a clock that started earlier", () => {
+    // Resuming a request's clock (see lib/gateClock) must show what is left,
+    // not the full timeout the bar used to restart with on every remount.
+    const start = 1_000_000;
+    expect(permissionTimeoutRemainingSec(start, 30, start + 20_000)).toBe(10);
+  });
 });

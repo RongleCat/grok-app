@@ -87,13 +87,17 @@ import {
   loadChatWidth
 } from "@/lib/chatWidthPref";
 import {
+  dropGateClocks,
+  gateClockKey,
+  resumeGateClock
+} from "@/lib/gateClock";
+import {
   loadPermissionTimeoutSec,
   PERMISSION_TIMEOUT_CHANGE_EVENT,
   permissionTimeoutRemainingSec,
   savePermissionTimeoutSec
 } from "@/lib/permissionTimeout";
-import {
-  ASK_USER_TIMEOUT_CHANGE_EVENT,
+import {  ASK_USER_TIMEOUT_CHANGE_EVENT,
   loadAskUserTimeoutSec,
   saveAskUserTimeoutSec
 } from "@/lib/askUserTimeout";
@@ -2202,6 +2206,16 @@ export function AppWorkbench() {
   const pendingPermBySessionRef = useRef<Map<string, PermissionPayload>>(
     new Map(),
   );
+  /**
+   * When each pending permission request first started its clock
+   * (`sessionId:rpcId` → epoch ms).
+   *
+   * The auto-deny countdown belongs to the *request*, not to the bar being
+   * mounted. Leaving the chat — "new chat" clears `perm`, so does switching —
+   * unmounts the bar, and restarting from `Date.now()` on return handed the
+   * request a fresh full timeout every time, so it could never expire.
+   */
+  const permRaisedAtRef = useRef<Map<string, number>>(new Map());
   const pendingAskUserBySessionRef = useRef<Map<string, AskUserPayload>>(
     new Map(),
   );
@@ -2227,6 +2241,8 @@ export function AppWorkbench() {
     if (!sessionId) return;
     pendingPermBySessionRef.current.delete(sessionId);
     pendingAskUserBySessionRef.current.delete(sessionId);
+    // The request is settled — its clock must not outlive it.
+    dropGateClocks(permRaisedAtRef.current, sessionId);
     const cached = planBySessionRef.current.get(sessionId);
     if (cached && cached.rpcId != null) {
       const next = invalidatePlanGate(cached);
@@ -2519,6 +2535,53 @@ export function AppWorkbench() {
   } | null>(null);
   /** Epoch ms when the current agent turn became busy (for elapsed UI). */
   const [turnStartedAt, setTurnStartedAt] = useState<number | null>(null);
+  /**
+   * Turn clock per chat (`sessionId` → epoch ms the running turn started).
+   *
+   * A single global value could not survive multi-session use: a *background*
+   * chat going idle cleared it, and returning to a chat that was still
+   * streaming had nothing left to restore from — so "thinking for N" restarted
+   * from zero on every chat switch. The map is the truth; `turnStartedAt`
+   * mirrors whichever chat is on screen.
+   */
+  const turnStartedAtBySessionRef = useRef<Map<string, number>>(new Map());
+  /** Mirror a chat's clock into the visible timer when it is the viewed one. */
+  const syncViewedTurnClock = useCallback((sessionId: string) => {
+    if (sessionId !== viewingSessionIdRef.current) return;
+    setTurnStartedAt(turnStartedAtBySessionRef.current.get(sessionId) ?? null);
+  }, [viewingSessionIdRef]);
+  /** Begin a chat's turn clock, keeping the start of a turn already running. */
+  const startTurnClock = useCallback(
+    (sessionId?: string | null, at: number = Date.now()) => {
+      if (!sessionId) return;
+      if (!turnStartedAtBySessionRef.current.has(sessionId)) {
+        turnStartedAtBySessionRef.current.set(sessionId, at);
+      }
+      syncViewedTurnClock(sessionId);
+    },
+    [syncViewedTurnClock],
+  );
+  /** Restart a chat's turn clock (new send / steer starts a fresh episode). */
+  const restartTurnClock = useCallback(
+    (sessionId?: string | null, at: number = Date.now()) => {
+      if (!sessionId) return;
+      turnStartedAtBySessionRef.current.set(sessionId, at);
+      syncViewedTurnClock(sessionId);
+    },
+    [syncViewedTurnClock],
+  );
+  /** Clear a chat's turn clock (turn ended, stopped, or healed). */
+  const clearTurnClock = useCallback(
+    (sessionId?: string | null) => {
+      if (!sessionId) {
+        setTurnStartedAt(null);
+        return;
+      }
+      turnStartedAtBySessionRef.current.delete(sessionId);
+      syncViewedTurnClock(sessionId);
+    },
+    [syncViewedTurnClock],
+  );
   const [resizingAside, setResizingAside] = useState(false);
   const [resizingSidebar, setResizingSidebar] = useState(false);
   /** Pointer-drag origin for left-rail resize (clientX + width at down). */
@@ -4050,6 +4113,9 @@ export function AppWorkbench() {
     setRetryStatus,
     setStreamStall,
     setTurnStartedAt,
+    startTurnClock,
+    restartTurnClock,
+    clearTurnClock,
     setRecentStallSignals,
     setGoalOrchEvents,
     setLastProcessLimit,
@@ -4655,6 +4721,9 @@ export function AppWorkbench() {
     // (it may have been raised while demoted to background), else clear chrome.
     setPerm(pendingPermBySessionRef.current.get(s.id) ?? null);
     setAskUser(pendingAskUserBySessionRef.current.get(s.id) ?? null);
+    // The turn clock is session-scoped too: a chat still mid-turn keeps counting
+    // from when *its* turn started, instead of restarting at zero on every open.
+    setTurnStartedAt(turnStartedAtBySessionRef.current.get(s.id) ?? null);
     if (live.sessionId !== s.id) {
       setRetryStatus(null);
     }
@@ -7631,7 +7700,7 @@ export function AppWorkbench() {
           ? prev
           : { ...prev, state: "streaming", lastError: null },
       );
-      setTurnStartedAt(Date.now());
+      restartTurnClock(sendTargetId ?? viewingSessionIdRef.current);
     }
     // Optimistic liveHost only when we already own the live slot (or nothing is live).
     // Never stamp streaming onto a foreign mid-turn — ensureConnected demotes first.
@@ -10160,7 +10229,7 @@ export function AppWorkbench() {
     setSession,
     setLiveHost,
     setLiveMap,
-    setTurnStartedAt,
+    clearTurnClock,
     setStreamStall: (v) => setStreamStall(v),
     restoreComposer: (text) => {
       setDraft(text);
@@ -10279,7 +10348,7 @@ export function AppWorkbench() {
       // Host also emits session://interjection → live thinking shell + timer reset.
       sendQueue.removeItem(item.id);
       // Fresh wall-clock for post-steer thinking chrome (event may also set this).
-      setTurnStartedAt(Date.now());
+      restartTurnClock(viewingSessionIdRef.current);
       try {
         // Host interject has its own RPC timeout; also bound the UI so a wedged
         // agent cannot leave the button stuck on "正在引导…" forever.
@@ -12104,7 +12173,7 @@ export function AppWorkbench() {
       });
       setRetryStatus(null);
       setStreamStall(null);
-      setTurnStartedAt(null);
+      clearTurnClock(id);
     };
 
     // Optimistic unlock: sticky "thinking" + wedged cancel used to keep the
@@ -12135,7 +12204,7 @@ export function AppWorkbench() {
       await api.sessionStop(sid);
       setRetryStatus(null);
       setStreamStall(null);
-      setTurnStartedAt(null);
+      clearTurnClock(sid);
       // Stop must dismiss ask-user / permission gates even if Host event is late.
       {
         const gateId =
@@ -14194,22 +14263,31 @@ export function AppWorkbench() {
       setPermCountdownSec(null);
       return;
     }
-    const startedAt = Date.now();
+    // Resume this request's own clock rather than restarting it — the bar
+    // remounts on every return to the chat, and a fresh `Date.now()` here reset
+    // the countdown (and the auto-deny) to the full timeout each time.
+    const raisedAt = resumeGateClock(
+      permRaisedAtRef.current,
+      gateClockKey(perm.sessionId, perm.rpcId),
+    );
     setPermCountdownSec(
-      permissionTimeoutRemainingSec(startedAt, permissionTimeoutSec, startedAt),
+      permissionTimeoutRemainingSec(raisedAt, permissionTimeoutSec),
     );
     const tick = window.setInterval(() => {
       setPermCountdownSec(
         permissionTimeoutRemainingSec(
-          startedAt,
+          raisedAt,
           permissionTimeoutSec,
           Date.now(),
         ),
       );
     }, 250);
-    const t = window.setTimeout(() => {
-      denyActivePermission(perm);
-    }, permissionTimeoutSec * 1000);
+    const t = window.setTimeout(
+      () => {
+        denyActivePermission(perm);
+      },
+      Math.max(0, permissionTimeoutSec * 1000 - (Date.now() - raisedAt)),
+    );
     return () => {
       window.clearTimeout(t);
       window.clearInterval(tick);

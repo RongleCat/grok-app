@@ -7,6 +7,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { GlassModal } from "@/components/GlassModal";
 import type { AskUserPayload, AskUserQuestionItem } from "@/lib/session";
 import { askUserTimeoutRemainingSec } from "@/lib/askUserTimeout";
+import { dropGateClock, gateClockKey, resumeGateClock } from "@/lib/gateClock";
+
+/**
+ * Auto-cancel clocks by request, shared across mounts of this singleton modal.
+ *
+ * The modal closes whenever the user leaves the chat (switching chats and "new
+ * chat" both clear the pending questionnaire), so starting the clock at mount
+ * gave the request a fresh full timeout on every return — it could never
+ * auto-cancel. Entries are dropped once the request is answered or dismissed.
+ */
+const askUserClocks = new Map<string, number>();
 
 export type AskUserLabels = {
   title: string;
@@ -85,25 +96,32 @@ export function AskUserModal({
       setCountdownSec(null);
       return;
     }
-    const startedAt = Date.now();
+    // Resume this request's clock — the modal remounts on every return to the
+    // chat, and a fresh `Date.now()` here reset the countdown each time.
+    const clockKey = gateClockKey(payload.sessionId, payload.rpcId);
+    const startedAt = resumeGateClock(askUserClocks, clockKey);
     timedOutRef.current = false;
-    setCountdownSec(askUserTimeoutRemainingSec(startedAt, timeoutSec, startedAt));
+    setCountdownSec(askUserTimeoutRemainingSec(startedAt, timeoutSec));
     const tick = window.setInterval(() => {
       setCountdownSec(
         askUserTimeoutRemainingSec(startedAt, timeoutSec, Date.now()),
       );
     }, 250);
-    const t = window.setTimeout(() => {
-      if (timedOutRef.current || busyRef.current) return;
-      timedOutRef.current = true;
-      void onCancelRef.current();
-    }, timeoutSec * 1000);
+    const t = window.setTimeout(
+      () => {
+        if (timedOutRef.current || busyRef.current) return;
+        timedOutRef.current = true;
+        dropGateClock(askUserClocks, clockKey);
+        void onCancelRef.current();
+      },
+      Math.max(0, timeoutSec * 1000 - (Date.now() - startedAt)),
+    );
     return () => {
       window.clearTimeout(t);
       window.clearInterval(tick);
       setCountdownSec(null);
     };
-  }, [open, payload?.rpcId, timeoutSec]);
+  }, [open, payload?.sessionId, payload?.rpcId, timeoutSec]);
 
   const canSubmit = useMemo(() => {
     if (!questions.length) return false;
@@ -158,9 +176,19 @@ export function AskUserModal({
     return answers;
   };
 
+  /** The request is settled — its clock must not outlive it. */
+  const dropClock = () => {
+    if (!payload) return;
+    dropGateClock(
+      askUserClocks,
+      gateClockKey(payload.sessionId, payload.rpcId),
+    );
+  };
+
   const submit = async (answers: Record<string, string>) => {
     if (busy) return;
     setBusy(true);
+    dropClock();
     try {
       await onSubmit(answers);
     } finally {
@@ -171,6 +199,7 @@ export function AskUserModal({
   const cancel = async () => {
     if (busy) return;
     setBusy(true);
+    dropClock();
     try {
       await onCancel();
     } finally {

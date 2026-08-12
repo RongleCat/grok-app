@@ -474,7 +474,9 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
                 flushHostCoalescers();
                 c.setRetryStatus(null);
                 c.setStreamStall(null);
-                c.setTurnStartedAt(null);
+                // Session-scoped: a background chat going idle must not stop the
+                // clock of the chat the user is watching.
+                c.clearTurnClock(s.sessionId);
                 // Ensure no assistant is left with streaming=true after the turn
                 // (missed done chunk) — otherwise the next send can bind to it.
                 c.setMessages((prev) => {
@@ -494,10 +496,12 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
                   void c.tryApplyAutomationFromSession(s.sessionId);
                 }
               } else if (
-                (s.state === "streaming" || s.state === "awaiting_permission") &&
-                s.sessionId === c.viewingSessionIdRef.current
+                s.state === "streaming" ||
+                s.state === "awaiting_permission"
               ) {
-                c.setTurnStartedAt((prev) => prev ?? Date.now());
+                // Runs for background chats too — each keeps its own start, so
+                // returning to one mid-turn resumes instead of restarting.
+                c.startTurnClock(s.sessionId);
               }
               // After a turn, rehydrate any longer journal body (missed stream
               // tail) and resolve `images/N.jpg` short paths into image cards.
@@ -692,8 +696,8 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
               if (!changed) return prev;
               return { ...prev, [sid]: listChanges };
             });
+            c.startTurnClock(sid);
             if (sid === c.viewingSessionIdRef.current) {
-              c.setTurnStartedAt((t) => t ?? Date.now());
               // Tool activity counts as progress — clear stall banner (I06).
               c.setStreamStall(null);
               // #544: CLI rejects Host optionId → turn cancels mid-tool with no
@@ -848,10 +852,9 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
                 payload.postStreamMessageId,
               ),
             );
-            const viewed = c.viewingSessionIdRef?.current ?? null;
-            if (!viewed || viewed === payload.sessionId) {
-              c.setTurnStartedAt(Date.now());
-            }
+            // Steering restarts the thinking episode for that chat — background
+            // chats keep their own clock rather than borrowing the viewed one.
+            c.restartTurnClock(payload.sessionId);
           }),
         );
         await track(
@@ -1115,8 +1118,8 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
             c.patchSessionMessages(sid, (prev) => applyTurnMarker(prev, p));
             // Turn is over — any gate it raised can no longer be answered.
             c.clearPendingGatesRef.current(sid);
+            c.clearTurnClock(sid);
             if (sid === c.viewingSessionIdRef.current) {
-              c.setTurnStartedAt(null);
               c.setStreamStall(null);
             }
           }),

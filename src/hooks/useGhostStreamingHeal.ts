@@ -41,7 +41,8 @@ export type GhostStreamingHealDeps = {
   setSession: (updater: (prev: SessionSnapshot) => SessionSnapshot) => void;
   setLiveHost: (updater: (prev: SessionSnapshot) => SessionSnapshot) => void;
   setLiveMap: (updater: (prev: SessionLiveMap) => SessionLiveMap) => void;
-  setTurnStartedAt: (v: number | null) => void;
+  /** Stop a specific chat's turn clock (session-scoped). */
+  clearTurnClock: (sessionId?: string | null) => void;
   setStreamStall: (v: null) => void;
   /** Restore optimistic user text into the composer. */
   restoreComposer: (text: string) => void;
@@ -184,7 +185,7 @@ export function useGhostStreamingHeal(deps: GhostStreamingHealDeps): void {
           return next;
         });
 
-        d.setTurnStartedAt(null);
+        d.clearTurnClock(d.sessionId);
         d.setStreamStall(null);
 
         const text = turn.restoreComposerText;
