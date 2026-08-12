@@ -8,10 +8,41 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::{LazyLock, Mutex};
 
 use serde::{Deserialize, Serialize};
 
 use crate::process_util::{self, user_home};
+
+/// Last ACP `agentVersion` observed from `initialize` / TCP probe.
+/// Soft cache for Doctor / Runtime honesty — never gates session open.
+static LAST_ACP_AGENT_VERSION: LazyLock<Mutex<Option<String>>> =
+    LazyLock::new(|| Mutex::new(None));
+
+/// Remember a live ACP agent version banner (best-effort).
+pub fn record_acp_agent_version(raw: Option<&str>) {
+    let Some(s) = raw.map(str::trim).filter(|t| !t.is_empty()) else {
+        return;
+    };
+    if let Ok(mut g) = LAST_ACP_AGENT_VERSION.lock() {
+        *g = Some(s.to_string());
+    }
+}
+
+/// Last recorded ACP agent version, if any session/probe has run this process.
+pub fn last_acp_agent_version() -> Option<String> {
+    LAST_ACP_AGENT_VERSION
+        .lock()
+        .ok()
+        .and_then(|g| g.clone())
+}
+
+#[cfg(test)]
+pub fn clear_last_acp_agent_version_for_test() {
+    if let Ok(mut g) = LAST_ACP_AGENT_VERSION.lock() {
+        *g = None;
+    }
+}
 
 /// Minimum grok CLI version whose flag set `acp_client` is known to work with.
 ///
@@ -232,6 +263,13 @@ pub struct CliProbeResult {
     /// True when both `grok` and `agent` versions parse and differ.
     #[serde(default)]
     pub agent_binary_skew: bool,
+    /// Last live ACP `initialize` / TCP-probe `agentVersion` (process cache).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acp_agent_version: Option<String>,
+    /// True when probe `grok --version` and live ACP agentVersion cores differ.
+    /// Soft-only: never blocks session open.
+    #[serde(default)]
+    pub acp_agent_version_skew: bool,
 }
 
 pub fn cli_auth_json_present() -> bool {
@@ -622,6 +660,9 @@ fn finish_probe_result(
     };
     let agent_binary_skew =
         version_tokens_skew(version.as_deref(), agent_version.as_deref());
+    let acp_agent_version = last_acp_agent_version();
+    let acp_agent_version_skew =
+        version_tokens_skew(version.as_deref(), acp_agent_version.as_deref());
     CliProbeResult {
         found,
         path,
@@ -636,6 +677,8 @@ fn finish_probe_result(
         agent_path,
         agent_version,
         agent_binary_skew,
+        acp_agent_version,
+        acp_agent_version_skew,
     }
 }
 
@@ -711,6 +754,30 @@ mod tests {
             Some("grok 0.2.118")
         ));
         assert!(!version_tokens_skew(Some("grok"), Some("1.0.0")));
+    }
+
+    #[test]
+    fn acp_agent_version_cache_drives_probe_skew() {
+        clear_last_acp_agent_version_for_test();
+        assert!(last_acp_agent_version().is_none());
+        record_acp_agent_version(None);
+        assert!(last_acp_agent_version().is_none());
+        record_acp_agent_version(Some("  "));
+        assert!(last_acp_agent_version().is_none());
+        record_acp_agent_version(Some("grok 0.2.118 (deadbeef)"));
+        assert_eq!(
+            last_acp_agent_version().as_deref(),
+            Some("grok 0.2.118 (deadbeef)")
+        );
+        assert!(version_tokens_skew(
+            Some("grok 1.0.0"),
+            last_acp_agent_version().as_deref()
+        ));
+        assert!(!version_tokens_skew(
+            Some("grok 0.2.118"),
+            last_acp_agent_version().as_deref()
+        ));
+        clear_last_acp_agent_version_for_test();
     }
 
     #[test]

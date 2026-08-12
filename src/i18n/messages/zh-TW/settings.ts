@@ -128,6 +128,7 @@ export const zhTWSettings = {
   "settings.cliAgentSkewRepairing": "修復中…",
   "settings.cliAgentSkewRepaired": "agent 旁路已對齊（{agentVersion}）。",
   "settings.cliAgentSkewRepairFailed": "無法修復 agent 連結：{error}",
+  "settings.cliAcpVersionSkew": "探測到的 CLI 為 {version}，但最近一次 ACP 工作階段回報 agentVersion 為 {acpVersion}。僅軟警告 — 升級 CLI 後請重新啟動工作階段、重裝 Grok Build，或（API 模式）對齊遠端 agent。",
   "settings.cliUpdate": "CLI 更新",
   "settings.cliUpdateDesc": "檢查 CLI 更新（`grok update --check --json`），切換 stable/alpha 通道（CLI 0.2.117+），或固定版本。",
   "settings.cliUpdateCheck": "檢查 CLI 更新",

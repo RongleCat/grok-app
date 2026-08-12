@@ -226,6 +226,10 @@ export type CliProbeInfo = {
   agentVersion?: string | null;
   /** grok vs sibling agent binary version mismatch. */
   agentBinarySkew?: boolean;
+  /** Last live ACP initialize agentVersion (process cache). */
+  acpAgentVersion?: string | null;
+  /** probe `grok --version` vs live ACP agentVersion mismatch (soft warn). */
+  acpAgentVersionSkew?: boolean;
 };
 
 export async function probeCli(manualPath?: string) {

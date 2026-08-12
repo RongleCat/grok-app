@@ -851,21 +851,32 @@ export function DoctorModal({
   // and white-screens the whole app (DoctorModal sits outside UiErrorBoundary).
   const cliResolved = useMemo(() => {
     const raw = report?.raw as
-      | { cli?: { found?: boolean; path?: string | null; version?: string | null; source?: string | null } }
+      | {
+          cli?: {
+            found?: boolean;
+            path?: string | null;
+            version?: string | null;
+            source?: string | null;
+            agentVersion?: string | null;
+            agentBinarySkew?: boolean;
+            acpAgentVersion?: string | null;
+            acpAgentVersionSkew?: boolean;
+          };
+        }
       | undefined;
     const cli = raw?.cli;
     if (!cli) return null;
+    const trimOrNull = (v: unknown) =>
+      typeof v === "string" && v.trim() ? v.trim() : null;
     return {
       found: !!cli.found,
-      path: typeof cli.path === "string" && cli.path.trim() ? cli.path.trim() : null,
-      version:
-        typeof cli.version === "string" && cli.version.trim()
-          ? cli.version.trim()
-          : null,
-      source:
-        typeof cli.source === "string" && cli.source.trim()
-          ? cli.source.trim()
-          : null,
+      path: trimOrNull(cli.path),
+      version: trimOrNull(cli.version),
+      source: trimOrNull(cli.source),
+      agentVersion: trimOrNull(cli.agentVersion),
+      agentBinarySkew: !!cli.agentBinarySkew,
+      acpAgentVersion: trimOrNull(cli.acpAgentVersion),
+      acpAgentVersionSkew: !!cli.acpAgentVersionSkew,
     };
   }, [report]);
 
@@ -1165,6 +1176,29 @@ export function DoctorModal({
                       : t("doctor.level.fail")}
                   </dd>
                 </div>
+                {cliResolved.agentVersion || cliResolved.agentBinarySkew ? (
+                  <div>
+                    <dt>{t("doctor.cliAgentSidecar")}</dt>
+                    <dd>
+                      {cliResolved.agentVersion || "—"}
+                      {cliResolved.agentBinarySkew
+                        ? ` · ${t("doctor.cliAgentSidecarSkew")}`
+                        : ""}
+                    </dd>
+                  </div>
+                ) : null}
+                {cliResolved.acpAgentVersion ||
+                cliResolved.acpAgentVersionSkew ? (
+                  <div>
+                    <dt>{t("doctor.cliAcpAgentVersion")}</dt>
+                    <dd>
+                      {cliResolved.acpAgentVersion || "—"}
+                      {cliResolved.acpAgentVersionSkew
+                        ? ` · ${t("doctor.cliAcpAgentVersionSkew")}`
+                        : ""}
+                    </dd>
+                  </div>
+                ) : null}
               </dl>
             </div>
           )}

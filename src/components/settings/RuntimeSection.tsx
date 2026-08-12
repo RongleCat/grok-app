@@ -220,6 +220,17 @@ export function RuntimeSection() {
                       ) : null}
                     </div>
                   ) : null}
+                  {cliInfo.acpAgentVersionSkew ? (
+                    <div
+                      className="settings-row__hint settings-row__hint--warn"
+                      id="settings-anchor-cliAcpVersionSkew"
+                    >
+                      {t("settings.cliAcpVersionSkew", {
+                        version: cliInfo.version || "—",
+                        acpVersion: cliInfo.acpAgentVersion || "—",
+                      })}
+                    </div>
+                  ) : null}
                 </div>
                 {detectAppPlatform() === "win" ? (
                   <div

@@ -2561,10 +2561,14 @@ impl AcpClient {
             .await
             .map_err(|e| self.map_handshake_err("initialize", e))?;
 
+        let acp_agent_version = init
+            .pointer("/_meta/agentVersion")
+            .or_else(|| init.pointer("/agentVersion"))
+            .and_then(|v| v.as_str());
+        crate::cli_probe::record_acp_agent_version(acp_agent_version);
         info!(
             "acp initialized agentVersion={:?} loadSession={:?}",
-            init.pointer("/_meta/agentVersion")
-                .or_else(|| init.pointer("/agentVersion")),
+            acp_agent_version,
             init.pointer("/agentCapabilities/loadSession")
                 .or_else(|| init.pointer("/capabilities/loadSession")),
         );
@@ -5282,9 +5286,11 @@ pub async fn probe_acp_server(addr: &str) -> AcpProbeResult {
                 return AcpProbeResult::fail("connected, but no ACP initialize result in response");
             }
             let meta = &result["_meta"];
+            let agent_version = meta["agentVersion"].as_str().map(String::from);
+            crate::cli_probe::record_acp_agent_version(agent_version.as_deref());
             AcpProbeResult {
                 ok: true,
-                agent_version: meta["agentVersion"].as_str().map(String::from),
+                agent_version,
                 model: meta["modelState"]["currentModelId"]
                     .as_str()
                     .map(String::from),

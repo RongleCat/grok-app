@@ -215,6 +215,8 @@ export interface SettingsPageProps {
     agentBinarySkew?: boolean;
     agentVersion?: string | null;
     agentPath?: string | null;
+    acpAgentVersion?: string | null;
+    acpAgentVersionSkew?: boolean;
   };
   /** Returns outcome so Settings can toast without inventing host results. */
   onCliRepairAgentSidecar?: () =>

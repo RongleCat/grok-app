@@ -17,7 +17,9 @@ import {
   filterDoctorFindings,
   formatDoctorFindingsExportText,
   APP_AGENT_SIDECAR_SKEW_FINDING_ID,
+  APP_ACP_VERSION_SKEW_FINDING_ID,
   isAgentSidecarSkewFinding,
+  isAcpVersionSkewFinding,
   normalizeAppDoctorCheck,
   normalizeCliDoctorCheck,
   presentDoctorFindingDetail,
@@ -149,6 +151,29 @@ describe("isAgentSidecarSkewFinding", () => {
     expect(
       isAgentSidecarSkewFinding({
         rawId: APP_AGENT_SIDECAR_SKEW_FINDING_ID,
+        source: "cli",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("isAcpVersionSkewFinding", () => {
+  it("matches app cli_acp_version_skew only", () => {
+    expect(
+      isAcpVersionSkewFinding({
+        rawId: APP_ACP_VERSION_SKEW_FINDING_ID,
+        source: "app",
+      }),
+    ).toBe(true);
+    expect(
+      isAcpVersionSkewFinding({
+        rawId: APP_AGENT_SIDECAR_SKEW_FINDING_ID,
+        source: "app",
+      }),
+    ).toBe(false);
+    expect(
+      isAcpVersionSkewFinding({
+        rawId: APP_ACP_VERSION_SKEW_FINDING_ID,
         source: "cli",
       }),
     ).toBe(false);

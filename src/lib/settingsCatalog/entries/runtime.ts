@@ -207,6 +207,7 @@ export const RUNTIME_ENTRIES: readonly SettingsEntry[] = [
       "settings.cliPathDesc",
       "settings.cliVersion.recommended",
       "settings.cliAgentSkew",
+      "settings.cliAcpVersionSkew",
     ],
     keywords: [
       "cli",
@@ -218,6 +219,8 @@ export const RUNTIME_ENTRIES: readonly SettingsEntry[] = [
       "recommended",
       "agent skew",
       "agent sidecar",
+      "agentVersion",
+      "acp skew",
       "推荐",
       "版本",
       "旁路",
@@ -264,6 +267,7 @@ export const RUNTIME_ENTRIES: readonly SettingsEntry[] = [
       "settings.cliVersion.belowRecommended",
       "settings.cliAgentSkew",
       "settings.cliAgentSkewRepair",
+      "settings.cliAcpVersionSkew",
     ],
     keywords: [
       "cli version",
@@ -272,6 +276,8 @@ export const RUNTIME_ENTRIES: readonly SettingsEntry[] = [
       "meets recommended",
       "agent binary skew",
       "repair agent",
+      "agentVersion",
+      "acp skew",
       "CLI 版本",
       "推荐版本",
       "agent 对齐",

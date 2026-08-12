@@ -200,12 +200,23 @@ function makeKey(source: DoctorFindingSource, rawId: string): string {
  */
 export const APP_AGENT_SIDECAR_SKEW_FINDING_ID = "cli_agent_skew";
 
+/** Soft-only: probe banner vs last live ACP agentVersion (`cli_acp_version_skew`). */
+export const APP_ACP_VERSION_SKEW_FINDING_ID = "cli_acp_version_skew";
+
 /** True when this finding can use one-click agent sidecar repair. */
 export function isAgentSidecarSkewFinding(
   row: Pick<DoctorFindingRow, "rawId" | "source"> | null | undefined,
 ): boolean {
   if (!row || row.source !== "app") return false;
   return row.rawId === APP_AGENT_SIDECAR_SKEW_FINDING_ID;
+}
+
+/** True when this finding is the soft ACP agentVersion skew warn (no hard block). */
+export function isAcpVersionSkewFinding(
+  row: Pick<DoctorFindingRow, "rawId" | "source"> | null | undefined,
+): boolean {
+  if (!row || row.source !== "app") return false;
+  return row.rawId === APP_ACP_VERSION_SKEW_FINDING_ID;
 }
 
 /** Map a host App `DoctorCheck` into a triage row. */

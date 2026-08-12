@@ -23,6 +23,10 @@ export type CliProbeVersionFields = {
   agentBinarySkew?: boolean | null;
   agentVersion?: string | null;
   agentPath?: string | null;
+  /** Last live ACP initialize agentVersion (process cache). */
+  acpAgentVersion?: string | null;
+  /** probe banner vs live ACP agentVersion cores differ (soft warn only). */
+  acpAgentVersionSkew?: boolean | null;
 };
 
 /** Normalize host `probe_cli` payload for React state / Settings. */
@@ -40,6 +44,8 @@ export function mapProbeToCliInfo(cli: CliProbeVersionFields) {
     agentBinarySkew: !!cli.agentBinarySkew,
     agentVersion: cli.agentVersion ?? null,
     agentPath: cli.agentPath ?? null,
+    acpAgentVersion: cli.acpAgentVersion ?? null,
+    acpAgentVersionSkew: !!cli.acpAgentVersionSkew,
   };
 }
 

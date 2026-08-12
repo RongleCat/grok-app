@@ -82,9 +82,13 @@ describe("mapProbeToCliInfo", () => {
       recommendedVersion: "1.0.0",
       agentBinarySkew: true,
       agentVersion: "0.2.118",
+      acpAgentVersion: "grok 0.2.120",
+      acpAgentVersionSkew: true,
     });
     expect(info.meetsRecommended).toBe(true);
     expect(info.agentBinarySkew).toBe(true);
     expect(info.agentVersion).toBe("0.2.118");
+    expect(info.acpAgentVersion).toBe("grok 0.2.120");
+    expect(info.acpAgentVersionSkew).toBe(true);
   });
 });

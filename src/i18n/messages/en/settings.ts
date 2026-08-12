@@ -128,6 +128,7 @@ export const enSettings = {
   "settings.cliAgentSkewRepairing": "Repairing…",
   "settings.cliAgentSkewRepaired": "agent sidecar aligned ({agentVersion}).",
   "settings.cliAgentSkewRepairFailed": "Could not repair agent link: {error}",
+  "settings.cliAcpVersionSkew": "Probed CLI is {version} but last ACP session reported agentVersion {acpVersion}. Soft warning only — restart sessions after a CLI update, reinstall Grok Build, or (API mode) align the remote agent.",
   "settings.cliUpdate": "CLI updates",
   "settings.cliUpdateDesc": "Check for CLI updates (`grok update --check --json`), switch stable/alpha channels (CLI 0.2.117+), or pin a version.",
   "settings.cliUpdateCheck": "Check for CLI updates",

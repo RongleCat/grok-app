@@ -173,6 +173,8 @@ pub async fn doctor_report() -> Result<serde_json::Value, String> {
             "agentPath": probe.agent_path,
             "agentVersion": probe.agent_version,
             "agentBinarySkew": probe.agent_binary_skew,
+            "acpAgentVersion": probe.acp_agent_version,
+            "acpAgentVersionSkew": probe.acp_agent_version_skew,
         },
         "auth": {
             "cliAuthJson": auth_ok,
@@ -281,6 +283,28 @@ pub async fn doctor_report() -> Result<serde_json::Value, String> {
                 "agentPath": probe.agent_path,
                 "agentVersion": probe.agent_version,
                 "repairable": true,
+            }),
+        ));
+    }
+
+    // 1a2) probe `grok --version` vs last live ACP initialize agentVersion.
+    // Soft warn only — never blocks session open. Empty cache → no finding.
+    if probe.acp_agent_version_skew {
+        checks.push(doctor_check(
+            "cli_acp_version_skew",
+            "warn",
+            "CLI vs ACP agentVersion skew",
+            format!(
+                "probed grok reports {:?} but last ACP initialize reported {:?}. \
+                 Restart sessions after CLI update, reinstall Grok Build CLI, or \
+                 (API mode) confirm the remote agent binary matches Settings → Runtime.",
+                probe.version, probe.acp_agent_version
+            ),
+            serde_json::json!({
+                "grokPath": probe.path,
+                "grokVersion": probe.version,
+                "acpAgentVersion": probe.acp_agent_version,
+                "softFail": true,
             }),
         ));
     }
