@@ -258,6 +258,7 @@ export const enWorkspace = {
   "plan.approve": "Approve & build",
   "plan.changes": "Request changes",
   "plan.dismiss": "Dismiss",
+  "plan.exitPlanMode": "Exit plan mode",
   "plan.dismissConfirmTitle": "Close plan panel?",
   "plan.dismissConfirmMessage": "This hides the plan progress for this chat. It will not come back when you reopen the session. A new plan appears only after the agent starts plan work again (plan mode / new plan task).",
   "plan.approvedToast": "Plan approved — agent continues",

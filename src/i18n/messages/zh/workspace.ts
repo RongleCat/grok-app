@@ -258,6 +258,7 @@ export const zhWorkspace = {
   "plan.approve": "批准并构建",
   "plan.changes": "请求修改",
   "plan.dismiss": "关闭",
+  "plan.exitPlanMode": "退出计划模式",
   "plan.dismissConfirmTitle": "关闭计划面板？",
   "plan.dismissConfirmMessage": "将彻底关闭本会话的计划进度，再次打开该会话也不会显示。只有对话里再次开启计划任务（进入 plan 模式 / 新的 plan 工具）后才会重新出现。",
   "plan.approvedToast": "已批准计划，Agent 继续执行",

@@ -200,6 +200,7 @@ import {
   restorePlanFromPersistence,
   type SessionPlanState
 } from "@/lib/planSession";
+import { shouldExitComposerPlanModeAfterDecision } from "@/lib/planModePro";
 import {
   collectActivitySessions,
   countQuitBlockingSessions,
@@ -2080,7 +2081,7 @@ export function AppWorkbench() {
   const [planHistoryPreview, setPlanHistoryPreview] =
     useState<PlanHistoryEntry | null>(null);
   /** Non-empty archive — drives Plan empty-state history CTA. */
-  const [, setPlanHistoryNonEmpty] = useState(
+  const [planHistoryNonEmpty, setPlanHistoryNonEmpty] = useState(
     () => loadPlanHistory().length > 0,
   );
   /** Request-changes note modal (optional free-form feedback). */
@@ -9807,10 +9808,35 @@ export function AppWorkbench() {
         rpcId: null,
         userClosed: false,
       });
+      // Product loop: Approve & build → agent mode so the idle plan chip
+      // does not stick after the review gate closes.
+      if (
+        shouldExitComposerPlanModeAfterDecision({
+          decision: "approved",
+          composerMode: modeRef.current,
+        })
+      ) {
+        setMode("agent");
+        setGoalMode(false);
+        void api
+          .composerPrefsSet({
+            projectId: activeProject?.id ?? null,
+            sessionId: session.sessionId ?? null,
+            mode: "agent",
+          })
+          .catch((e) => showToast(String(e), 4000));
+      }
     } catch (e) {
       showToast(String(e), 4500);
     }
-  }, [archivePlanDecision, plan.rpcId, showToast, writePlanForViewing]);
+  }, [
+    activeProject?.id,
+    archivePlanDecision,
+    plan.rpcId,
+    session.sessionId,
+    showToast,
+    writePlanForViewing,
+  ]);
 
   /**
    * Resolve pending plan review as "cancelled" (revise).
@@ -9977,9 +10003,12 @@ export function AppWorkbench() {
     });
   }, [archivePlanDecision, tr, writePlanForViewing]);
 
-  /** Open resource pane Plan review (replaces scroll-to-card “详情”). */
+  /** Open Side Workbench Plan tab (review / waiting empty / open-in-resources). */
   const openPlanInResource = useCallback(() => {
     planOpenedAsideRef.current = true;
+    setSideWorkbench((s) =>
+      openSideTab(s, "plan", { name: "side.tab.plan" }),
+    );
     openAsidePane();
     setPlanFocusKey((k) => k + 1);
   }, [openAsidePane]);
@@ -18801,6 +18830,7 @@ export function AppWorkbench() {
                 approve: tr("plan.approve"),
                 changes: tr("plan.changes"),
                 dismiss: tr("plan.dismiss"),
+                exitPlanMode: tr("plan.exitPlanMode"),
                 expand: tr("planBar.expand"),
                 clearGoal: tr("planBar.clearGoal"),
                 aria: tr("planBar.aria"),
@@ -20217,9 +20247,16 @@ export function AppWorkbench() {
                 }
                 plan={plan}
                 planFocusKey={planFocusKey}
+                planChrome={{
+                  composerMode: mode,
+                  planEnabled,
+                  userClosed: plan.userClosed,
+                  hasHistory: planHistoryNonEmpty,
+                }}
                 onApprovePlan={() => void approvePlan()}
                 onRequestPlanChanges={() => openRequestPlanChanges()}
                 onDismissPlan={() => void dismissPlan()}
+                onOpenPlanHistory={() => setShowPlanHistory(true)}
                 openRequest={resourceOpenTarget}
                 onOpenRequestConsumed={() => setResourceOpenTarget(null)}
                 onCloseSide={closeAsidePane}
@@ -20227,7 +20264,6 @@ export function AppWorkbench() {
                   if (phoneLayout) return;
                   if (!expanded) setSideDockComposer(false);
                 }}
-              
                 skillInfos={skillInfos}
                 skillsLoading={skillsLoading}
                 skillsLoadError={skillsLoadError}

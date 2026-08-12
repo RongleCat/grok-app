@@ -194,3 +194,43 @@ export function planPanelInnerEmptyLabelKey(
 ): "plan.waiting" | "plan.empty" {
   return kind === "waiting" ? "plan.waiting" : "plan.empty";
 }
+
+/**
+ * Product loop: after Approve & build, leave transient composer plan mode so
+ * the sticky bar does not re-show the idle “Plan mode” chip while the agent
+ * executes. Request-changes keeps plan mode; hard-dismiss leaves mode as-is
+ * (user may still want plan mode for a new draft).
+ */
+export function shouldExitComposerPlanModeAfterDecision(input: {
+  decision: "approved" | "cancelled" | "abandoned";
+  composerMode: string;
+}): boolean {
+  if ((input.composerMode ?? "").trim().toLowerCase() !== "plan") return false;
+  return input.decision === "approved";
+}
+
+/**
+ * Side Workbench / Resources: open or focus the Plan tab.
+ * Live plan visibility auto-opens; planFocusKey bumps open even when the
+ * plan is not yet visible (bare plan-mode chip → open-in-resources empty).
+ */
+export function shouldOpenPlanSideTab(input: {
+  autoOpenEnabled: boolean;
+  planVisible: boolean;
+  focusKey: number | null | undefined;
+  lastFocusKey: number | null;
+}): { open: boolean; nextLastFocusKey: number | null } {
+  if (!input.autoOpenEnabled) {
+    return { open: false, nextLastFocusKey: input.lastFocusKey };
+  }
+  let nextLast = input.lastFocusKey;
+  let focusBump = false;
+  if (input.focusKey != null && input.focusKey !== input.lastFocusKey) {
+    focusBump = true;
+    nextLast = input.focusKey;
+  }
+  return {
+    open: !!input.planVisible || focusBump,
+    nextLastFocusKey: nextLast,
+  };
+}

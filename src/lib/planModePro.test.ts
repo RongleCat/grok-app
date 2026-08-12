@@ -5,8 +5,10 @@ import {
   resolvePlanPanelInnerEmpty,
   resolvePlanResourceEmptyState,
   shouldAutoLeavePlanSideMode,
+  shouldExitComposerPlanModeAfterDecision,
   shouldOfferOpenInResources,
   shouldOfferOpenInResourcesFromModel,
+  shouldOpenPlanSideTab,
   shouldShowPlanChromeButton,
 } from "./planModePro";
 
@@ -273,5 +275,91 @@ describe("planHasExpandableContent / inner empty", () => {
     ).toBeNull();
     expect(planPanelInnerEmptyLabelKey("waiting")).toBe("plan.waiting");
     expect(planPanelInnerEmptyLabelKey("blank")).toBe("plan.empty");
+  });
+});
+
+describe("shouldExitComposerPlanModeAfterDecision", () => {
+  it("exits plan mode only after approve", () => {
+    expect(
+      shouldExitComposerPlanModeAfterDecision({
+        decision: "approved",
+        composerMode: "plan",
+      }),
+    ).toBe(true);
+    expect(
+      shouldExitComposerPlanModeAfterDecision({
+        decision: "cancelled",
+        composerMode: "plan",
+      }),
+    ).toBe(false);
+    expect(
+      shouldExitComposerPlanModeAfterDecision({
+        decision: "abandoned",
+        composerMode: "plan",
+      }),
+    ).toBe(false);
+  });
+
+  it("is a no-op when not in plan mode", () => {
+    expect(
+      shouldExitComposerPlanModeAfterDecision({
+        decision: "approved",
+        composerMode: "agent",
+      }),
+    ).toBe(false);
+  });
+
+  it("is case-insensitive for plan", () => {
+    expect(
+      shouldExitComposerPlanModeAfterDecision({
+        decision: "approved",
+        composerMode: "Plan",
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("shouldOpenPlanSideTab", () => {
+  it("opens when plan becomes visible", () => {
+    const r = shouldOpenPlanSideTab({
+      autoOpenEnabled: true,
+      planVisible: true,
+      focusKey: 0,
+      lastFocusKey: 0,
+    });
+    expect(r.open).toBe(true);
+    expect(r.nextLastFocusKey).toBe(0);
+  });
+
+  it("opens on focus key bump even without a visible plan", () => {
+    const r = shouldOpenPlanSideTab({
+      autoOpenEnabled: true,
+      planVisible: false,
+      focusKey: 2,
+      lastFocusKey: 1,
+    });
+    expect(r.open).toBe(true);
+    expect(r.nextLastFocusKey).toBe(2);
+  });
+
+  it("does not reopen on same focus key when plan is hidden", () => {
+    const r = shouldOpenPlanSideTab({
+      autoOpenEnabled: true,
+      planVisible: false,
+      focusKey: 1,
+      lastFocusKey: 1,
+    });
+    expect(r.open).toBe(false);
+  });
+
+  it("respects autoOpenEnabled", () => {
+    const r = shouldOpenPlanSideTab({
+      autoOpenEnabled: false,
+      planVisible: true,
+      focusKey: 3,
+      lastFocusKey: 0,
+    });
+    expect(r.open).toBe(false);
+    expect(r.nextLastFocusKey).toBe(0);
   });
 });

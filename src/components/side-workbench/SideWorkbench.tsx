@@ -4,9 +4,10 @@
  * layer only; does not invent a second design system.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Locale } from "@/i18n";
 import type { PlanReviewState } from "@/lib/planBody";
+import { shouldOpenPlanSideTab } from "@/lib/planModePro";
 import type { SessionFileChange } from "@/lib/sessionChanges";
 import {
   activeSideTab,
@@ -32,7 +33,7 @@ import type { ResourceOpenTarget } from "@/components/ResourceViewer";
 import type { SkillInfo } from "@/lib/slashCatalog";
 import type { SkillsPickerSkill } from "@/lib/skillsTaskPicker";
 import { FilesWorkspace } from "./FilesWorkspace";
-import { PlanTab } from "./PlanTab";
+import { PlanTab, type PlanTabChrome } from "./PlanTab";
 import { ReviewTab } from "./ReviewTab";
 import { SkillsTab } from "./SkillsTab";
 import { SidePicker } from "./SidePicker";
@@ -55,9 +56,12 @@ export type SideWorkbenchProps = {
   sessionChanges?: SessionFileChange[];
   plan?: PlanReviewState | null;
   planFocusKey?: number | null;
+  /** PLAN-MODE-PRO empty-state context for Plan tab. */
+  planChrome?: PlanTabChrome | null;
   onApprovePlan?: () => void;
   onRequestPlanChanges?: (note?: string) => void;
   onDismissPlan?: () => void;
+  onOpenPlanHistory?: () => void;
   openRequest?: ResourceOpenTarget | null;
   onOpenRequestConsumed?: () => void;
   autoOpenPlanTab?: boolean;
@@ -83,9 +87,11 @@ export function SideWorkbench({
   sessionChanges = [],
   plan = null,
   planFocusKey = null,
+  planChrome = null,
   onApprovePlan,
   onRequestPlanChanges,
   onDismissPlan,
+  onOpenPlanHistory,
   openRequest = null,
   onOpenRequestConsumed,
   autoOpenPlanTab = true,
@@ -96,6 +102,7 @@ export function SideWorkbench({
 }: SideWorkbenchProps) {
   const [internal, setInternal] = useState(emptySideWorkbenchState);
   const state = controlled ?? internal;
+  const lastPlanFocusKey = useRef<number | null>(null);
 
   const setState = useCallback(
     (next: SideWorkbenchState) => {
@@ -172,11 +179,17 @@ export function SideWorkbench({
     onExpandedChange?.(next.expanded);
   }, [state, setState, onExpandedChange]);
 
-  // Process-only plan tab
+  // Process-only plan tab: live plan auto-open, or planFocusKey bump
+  // (open-in-resources / review gate) even before a draft is visible.
   useEffect(() => {
-    if (!autoOpenPlanTab) return;
-    if (!plan?.visible) return;
-    if (state.tabs.some((t) => t.kind === "plan")) return;
+    const { open, nextLastFocusKey } = shouldOpenPlanSideTab({
+      autoOpenEnabled: autoOpenPlanTab,
+      planVisible: !!plan?.visible,
+      focusKey: planFocusKey,
+      lastFocusKey: lastPlanFocusKey.current,
+    });
+    lastPlanFocusKey.current = nextLastFocusKey;
+    if (!open) return;
     setState(openSideTab(state, "plan", { name: "side.tab.plan" }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan?.visible, planFocusKey, autoOpenPlanTab]);
@@ -280,9 +293,11 @@ export function SideWorkbench({
                 locale={locale}
                 plan={plan}
                 planFocusKey={planFocusKey}
+                planChrome={planChrome}
                 onApprovePlan={onApprovePlan}
                 onRequestPlanChanges={onRequestPlanChanges}
                 onDismissPlan={onDismissPlan}
+                onOpenPlanHistory={onOpenPlanHistory}
               />
             ) : null}
 

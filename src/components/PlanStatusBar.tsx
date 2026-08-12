@@ -22,6 +22,8 @@ export type PlanStatusBarLabels = {
   approve: string;
   changes: string;
   dismiss: string;
+  /** Exit bare plan-mode chip (composer plan → agent). Falls back to dismiss. */
+  exitPlanMode?: string;
   expand: string;
   /** Exit goal mode (goal strip only). */
   clearGoal: string;
@@ -225,8 +227,8 @@ export function PlanStatusBar({
             type="button"
             className="icon-btn plan-bar__close"
             onClick={() => onExitPlanMode()}
-            aria-label={labels.dismiss}
-            title={labels.dismiss}
+            aria-label={labels.exitPlanMode ?? labels.dismiss}
+            title={labels.exitPlanMode ?? labels.dismiss}
             data-testid="plan-status-exit-plan-mode"
           >
             <IconClose size={14} />

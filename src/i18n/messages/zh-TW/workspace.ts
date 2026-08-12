@@ -258,6 +258,7 @@ export const zhTWWorkspace = {
   "plan.approve": "核准並建置",
   "plan.changes": "請求修改",
   "plan.dismiss": "關閉",
+  "plan.exitPlanMode": "退出計劃模式",
   "plan.dismissConfirmTitle": "關閉計劃面板？",
   "plan.dismissConfirmMessage": "將徹底關閉本對話的計劃進度，再次開啟該對話也不會顯示。只有對話裡再次開啟計劃任務（進入 plan 模式 / 新的 plan 工具）後才會重新出現。",
   "plan.approvedToast": "已核准計劃，Agent 繼續執行",
