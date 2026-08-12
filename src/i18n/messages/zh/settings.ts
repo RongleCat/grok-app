@@ -299,7 +299,7 @@ export const zhSettings = {
   "settings.terminalFontDesc": "侧栏内置终端字体（Starship / Nerd Font 图标）。",
   "settings.terminalFontPh": "例如 JetBrainsMono Nerd Font",
   "settings.terminalFontHint":
-    "推荐 Nerd Font 以正确显示 Powerline / Starship 图标。留空使用内置 Nerd Font 回退栈。新建终端标签生效；如未变化可重启该标签。",
+    "推荐 Nerd Font 以正确显示 Powerline / Starship 图标。留空使用内置 Nerd Font 回退栈。已打开的终端会实时应用字号/字体。",
   "settings.terminalFontSize": "字号",
   "settings.terminalFontPreview": "dir git  main ❯ echo hello 中文",
   "settings.fontReset": "重置",

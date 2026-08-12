@@ -630,7 +630,30 @@ html[data-theme="light"] .sw-terminal--pty {
   --sw-term-veil: #ffffff80;
 }
 
-/* Status strip removed — full-bleed xterm under tab chrome */
+/* Cwd / empty honesty strip above xterm (not a second chrome bar). */
+.sw-terminal__notice {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-elevated, var(--bg-secondary, #1e1e1e)) 88%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #333) 70%, transparent);
+}
+
+.sw-terminal__notice.rp__error {
+  color: var(--text-danger, var(--danger, #f87171));
+}
+
+.sw-terminal__notice-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  word-break: break-word;
+}
+
 .sw-terminal__restart {
   flex-shrink: 0;
   border: none;
@@ -649,7 +672,7 @@ html[data-theme="light"] .sw-terminal--pty {
 }
 
 .sw-terminal__restart--inline {
-  margin-left: 8px;
+  margin-left: 0;
 }
 
 /* Zero inset — fills remaining column under status; veil inherited from parent */

@@ -111,6 +111,11 @@ export function SidePicker({
             role="menuitem"
             className="sw-picker__item"
             data-testid={`side-picker-${opt.kind}`}
+            title={
+              opt.kind === "terminal"
+                ? tr("side.picker.terminalHint")
+                : undefined
+            }
             onClick={() => onPick(opt.kind)}
           >
             <span className="sw-picker__ico" aria-hidden>

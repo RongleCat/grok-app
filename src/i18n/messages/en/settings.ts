@@ -299,7 +299,7 @@ export const enSettings = {
   "settings.terminalFontDesc": "Font for the built-in side terminal (Starship / Nerd Font glyphs).",
   "settings.terminalFontPh": "e.g. JetBrainsMono Nerd Font",
   "settings.terminalFontHint":
-    "Prefer a Nerd Font so Powerline / Starship icons render. Empty uses the built-in Nerd Font stack. New terminals pick up changes; restart a tab if needed.",
+    "Prefer a Nerd Font so Powerline / Starship icons render. Empty uses the built-in Nerd Font stack. Open terminals apply size/family changes live.",
   "settings.terminalFontSize": "Size",
   "settings.terminalFontPreview": "dir git  main ❯ echo hello 中文",
   "settings.fontReset": "Reset",

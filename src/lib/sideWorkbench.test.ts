@@ -129,11 +129,18 @@ describe("openSideTab / close / activate", () => {
     }
   });
 
-  it("allows multiple terminals", () => {
+  it("allows multiple terminals (never reuses another terminal tab)", () => {
     let s = emptySideWorkbenchState();
-    s = openSideTab(s, "terminal");
-    s = openSideTab(s, "terminal");
-    expect(s.tabs.filter((t) => t.kind === "terminal")).toHaveLength(2);
+    const a = openSideTab(s, "terminal");
+    expect(a.created).toBe(true);
+    const b = openSideTab(a, "terminal");
+    expect(b.created).toBe(true);
+    expect(b.tabs.filter((t) => t.kind === "terminal")).toHaveLength(2);
+    expect(b.tabs[0]!.id).not.toBe(a.tabs[0]!.id);
+    // Explicit id still focuses existing (rare programmatic path).
+    const again = openSideTab(b, "terminal", { id: a.tabs[0]!.id });
+    expect(again.created).toBe(false);
+    expect(again.activeId).toBe(a.tabs[0]!.id);
   });
 
   it("process can create plan tab but picker cannot", () => {

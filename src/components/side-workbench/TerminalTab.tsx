@@ -2,13 +2,17 @@
  * Interactive terminal tab — VS Code-style full PTY + xterm.
  * User operates the shell directly (no command input / log panes).
  * Spawns `$SHELL -l -i` so oh-my-zsh and user rc load.
+ *
+ * Cwd is bound at spawn from the active project (else home). Live PTY cannot
+ * chdir when the project switches — we surface honesty + restart instead of
+ * silently killing the shell.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
-import { createT, type Locale } from "@/i18n";
+import { createT, type Locale, type MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
 import { listen } from "@/lib/api/host";
 import type {
@@ -17,9 +21,19 @@ import type {
 } from "@/lib/api/system";
 import { buildSideTerminalTheme } from "@/lib/sideTerminalTheme";
 import {
+  classifyTerminalCwdHonesty,
+  classifyTerminalSpawnCwd,
+  classifyTerminalSpawnError,
+  normalizeTerminalCwd,
+  type TerminalCwdHonesty,
+} from "@/lib/sideTerminal";
+import {
   loadTerminalFontFamily,
   loadTerminalFontSize,
   resolveTerminalFontFamily,
+  TERMINAL_FONT_CHANGED_EVENT,
+  TERMINAL_FONT_FAMILY_STORAGE_KEY,
+  TERMINAL_FONT_SIZE_STORAGE_KEY,
 } from "@/lib/terminalFontPref";
 
 export type TerminalTabProps = {
@@ -28,6 +42,35 @@ export type TerminalTabProps = {
   projectPath?: string | null;
   active?: boolean;
 };
+
+function honestyDisplay(
+  tr: (key: MessageKey, vars?: Record<string, string | number | null | undefined>) => string,
+  h: TerminalCwdHonesty,
+  exitCode?: number | null,
+): string {
+  if (h.kind === "none" || !h.messageKey) return "";
+  const key = h.messageKey as MessageKey;
+  if (h.kind === "session_ended") {
+    return tr(key, {
+      code: exitCode != null ? String(exitCode) : "?",
+    });
+  }
+  if (h.kind === "spawn_failed") {
+    const base = tr(key);
+    return h.detail ? `${base} ${h.detail}` : base;
+  }
+  if (
+    h.kind === "project_mismatch" ||
+    h.kind === "project_fallback" ||
+    h.kind === "no_project"
+  ) {
+    return tr(key, {
+      bound: h.boundCwd || "—",
+      desired: h.desiredCwd || "—",
+    });
+  }
+  return tr(key);
+}
 
 export function TerminalTab({
   locale,
@@ -47,9 +90,18 @@ export function TerminalTab({
     unlistenExit: (() => void) | null;
     dataDisp: { dispose: () => void } | null;
   }>({ unlistenData: null, unlistenExit: null, dataDisp: null });
+  /** Project path at last successful/failed boot (for honesty, not auto-respawn). */
+  const bootProjectRef = useRef<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [restartKey, setRestartKey] = useState(0);
+  const [boundCwd, setBoundCwd] = useState<string | null>(null);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [exitCode, setExitCode] = useState<number | null>(null);
+  const [spawnClassified, setSpawnClassified] = useState<ReturnType<
+    typeof classifyTerminalSpawnCwd
+  > | null>(null);
 
   const clearListeners = useCallback(() => {
     const L = listenersRef.current;
@@ -59,6 +111,26 @@ export function TerminalTab({
     L.dataDisp = null;
     L.unlistenData = null;
     L.unlistenExit = null;
+  }, []);
+
+  const applyFontPrefs = useCallback(() => {
+    const term = termRef.current;
+    if (!term) return;
+    try {
+      term.options.fontSize = loadTerminalFontSize();
+      term.options.fontFamily = resolveTerminalFontFamily(
+        loadTerminalFontFamily(),
+      );
+      fitRef.current?.fit();
+      const sid = sessionIdRef.current;
+      if (sid && term.cols && term.rows) {
+        void api
+          .terminalPtyResize(sid, term.cols, term.rows)
+          .catch(() => undefined);
+      }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   // Create xterm once per mount.
@@ -123,20 +195,51 @@ export function TerminalTab({
     };
   }, []);
 
+  // Live font prefs (Appearance) — same-tab event + cross-tab storage.
+  useEffect(() => {
+    const onPref = () => applyFontPrefs();
+    const onStorage = (e: StorageEvent) => {
+      if (
+        e.key === TERMINAL_FONT_FAMILY_STORAGE_KEY ||
+        e.key === TERMINAL_FONT_SIZE_STORAGE_KEY ||
+        e.key === null
+      ) {
+        applyFontPrefs();
+      }
+    };
+    window.addEventListener(TERMINAL_FONT_CHANGED_EVENT, onPref);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(TERMINAL_FONT_CHANGED_EVENT, onPref);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [applyFontPrefs]);
+
   // Spawn PTY + wire I/O when desktop host is available.
+  // Re-spawn only on tab / explicit restart — not on projectPath (live PTY
+  // cannot chdir; mismatch honesty + restart instead).
   useEffect(() => {
     if (!api.isTauri()) {
       setError(tr("side.terminal.hostOnly"));
+      setReady(false);
+      setSessionEnded(false);
+      setBoundCwd(null);
+      setSpawnClassified(null);
       return;
     }
 
     let cancelled = false;
     let sessionId: string | null = null;
     const gen = ++bootGenRef.current;
+    bootProjectRef.current = (projectPath || "").trim() || null;
 
     const boot = async () => {
       setError(null);
       setReady(false);
+      setSessionEnded(false);
+      setExitCode(null);
+      setBoundCwd(null);
+      setSpawnClassified(null);
       const term = termRef.current;
       const fit = fitRef.current;
       if (!term) return;
@@ -162,7 +265,7 @@ export function TerminalTab({
         // (old reader EOF would remove the new session from the map).
         const spawned = await api.terminalPtySpawn({
           sessionId: null,
-          projectPath,
+          projectPath: bootProjectRef.current,
           cols,
           rows,
         });
@@ -172,6 +275,14 @@ export function TerminalTab({
         }
         sessionId = spawned.sessionId;
         sessionIdRef.current = sessionId;
+        const bound = normalizeTerminalCwd(spawned.cwd) || spawned.cwd;
+        setBoundCwd(bound);
+        setSpawnClassified(
+          classifyTerminalSpawnCwd({
+            projectPath: bootProjectRef.current,
+            boundCwd: bound,
+          }),
+        );
         setReady(true);
 
         listenersRef.current.dataDisp = term.onData((data) => {
@@ -203,6 +314,8 @@ export function TerminalTab({
             );
             sessionIdRef.current = null;
             setReady(false);
+            setSessionEnded(true);
+            setExitCode(p.code ?? null);
           },
         );
 
@@ -221,7 +334,13 @@ export function TerminalTab({
         if (active) term.focus();
       } catch (e) {
         if (!cancelled && bootGenRef.current === gen) {
-          setError(String(e));
+          const soft = classifyTerminalSpawnError(e);
+          setError(
+            soft.detail
+              ? `${tr(soft.messageKey as MessageKey)} ${soft.detail}`
+              : tr(soft.messageKey as MessageKey),
+          );
+          setReady(false);
         }
       }
     };
@@ -236,9 +355,9 @@ export function TerminalTab({
       sessionIdRef.current = null;
       if (sid) void api.terminalPtyKill(sid).catch(() => undefined);
     };
-    // Re-spawn only on tab / project / explicit restart — not on `tr` identity.
+    // projectPath is read at boot via bootProjectRef; restart picks up latest.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabId, projectPath, restartKey, clearListeners]);
+  }, [tabId, restartKey, clearListeners]);
 
   // Focus + fit when becoming active / container resizes.
   useEffect(() => {
@@ -281,29 +400,101 @@ export function TerminalTab({
     };
   }, [active]);
 
+  const honesty = useMemo(
+    () =>
+      classifyTerminalCwdHonesty({
+        isTauri: api.isTauri(),
+        projectPath,
+        boundCwd,
+        sessionEnded,
+        exitCode,
+        spawnError: error,
+        spawnClassified,
+        ready,
+      }),
+    [
+      projectPath,
+      boundCwd,
+      sessionEnded,
+      exitCode,
+      error,
+      spawnClassified,
+      ready,
+    ],
+  );
+
+  const honestyText = useMemo(
+    () => honestyDisplay(tr, honesty, exitCode),
+    [tr, honesty, exitCode],
+  );
+
+  const showHonestyBar =
+    honesty.kind !== "none" &&
+    // spawn_failed / host_only already render via error strip; avoid double.
+    honesty.kind !== "spawn_failed" &&
+    honesty.kind !== "host_only";
+
+  const onRestart = useCallback(() => {
+    setError(null);
+    setSessionEnded(false);
+    setExitCode(null);
+    setSpawnClassified(null);
+    setRestartKey((k) => k + 1);
+  }, []);
+
   return (
     <div
       className="sw-terminal sw-terminal--pty"
       data-testid="side-terminal-tab"
       data-tab-id={tabId}
       data-ready={ready ? "1" : "0"}
+      data-bound-cwd={boundCwd || ""}
+      data-cwd-honesty={honesty.kind}
       data-interactive="1"
     >
       {error ? (
-        <div className="rp__error" role="alert">
-          {error}
+        <div className="sw-terminal__notice rp__error" role="alert">
+          <span className="sw-terminal__notice-text">{error}</span>
           <button
             type="button"
             className="sw-terminal__restart sw-terminal__restart--inline"
             aria-label={tr("side.terminal.restart")}
             title={tr("side.terminal.restart")}
-            onClick={() => {
-              setError(null);
-              setRestartKey((k) => k + 1);
-            }}
+            onClick={onRestart}
           >
             ↻
           </button>
+        </div>
+      ) : null}
+      {showHonestyBar && honestyText ? (
+        <div
+          className="sw-terminal__notice"
+          role="status"
+          data-testid="side-terminal-cwd-notice"
+          data-kind={honesty.kind}
+        >
+          <span className="sw-terminal__notice-text">{honestyText}</span>
+          {honesty.kind === "project_mismatch" ||
+          honesty.kind === "project_fallback" ||
+          honesty.kind === "session_ended" ? (
+            <button
+              type="button"
+              className="sw-terminal__restart sw-terminal__restart--inline"
+              aria-label={
+                honesty.kind === "project_mismatch"
+                  ? tr("side.terminal.restartInProject")
+                  : tr("side.terminal.restart")
+              }
+              title={
+                honesty.kind === "project_mismatch"
+                  ? tr("side.terminal.restartInProject")
+                  : tr("side.terminal.restart")
+              }
+              onClick={onRestart}
+            >
+              ↻
+            </button>
+          ) : null}
         </div>
       ) : null}
       <div

@@ -300,7 +300,7 @@ export const zhTWSettings = {
   "settings.terminalFontDesc": "側欄內建終端字型（Starship / Nerd Font 圖示）。",
   "settings.terminalFontPh": "例如 JetBrainsMono Nerd Font",
   "settings.terminalFontHint":
-    "建議使用 Nerd Font 以正確顯示 Powerline / Starship 圖示。留空使用內建 Nerd Font 回退堆疊。新建終端分頁生效；如未變化可重啟該分頁。",
+    "建議使用 Nerd Font 以正確顯示 Powerline / Starship 圖示。留空使用內建 Nerd Font 回退堆疊。已開啟的終端機會即時套用字級/字型。",
   "settings.terminalFontSize": "字級",
   "settings.terminalFontPreview": "dir git  main ❯ echo hello 中文",
   "settings.fontReset": "重設",

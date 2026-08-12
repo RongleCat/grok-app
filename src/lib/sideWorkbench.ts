@@ -228,7 +228,8 @@ function buildTab(kind: SideTabKind, meta?: CreateSideTabMeta): SideTab {
  * - file: dedupe by path when path provided
  * - browser: dedupe by url when url provided
  * - review / plan / skills: single instance (focus existing)
- * - terminal: always create new unless meta.id matches
+ * - terminal: **always create a new tab** unless meta.id matches an existing
+ *   tab (shortcut / picker = new shell; never focus-reuse another terminal)
  */
 export function openSideTab(
   state: SideWorkbenchState,

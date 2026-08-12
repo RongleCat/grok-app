@@ -8,11 +8,24 @@ import { TERMINAL_FONT_FAMILY } from "@/lib/sideTerminalTheme";
 export const TERMINAL_FONT_FAMILY_STORAGE_KEY = "grok.terminalFontFamily";
 export const TERMINAL_FONT_SIZE_STORAGE_KEY = "grok.terminalFontSize";
 
+/** Fired on `window` after a same-tab terminal font save (storage is cross-tab only). */
+export const TERMINAL_FONT_CHANGED_EVENT = "grok:terminalFont";
+
 /** Empty → built-in Nerd Font stack from sideTerminalTheme. */
 export const DEFAULT_TERMINAL_FONT_FAMILY = "";
 export const DEFAULT_TERMINAL_FONT_SIZE = 13;
 export const MIN_TERMINAL_FONT_SIZE = 10;
 export const MAX_TERMINAL_FONT_SIZE = 24;
+
+function emitTerminalFontChanged(): void {
+  try {
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new Event(TERMINAL_FONT_CHANGED_EVENT));
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 export interface TerminalFontStorage {
   getItem(key: string): string | null;
@@ -74,12 +87,13 @@ export function saveTerminalFontFamily(
     if (!v) {
       storage.removeItem?.(TERMINAL_FONT_FAMILY_STORAGE_KEY);
       if (!storage.removeItem) storage.setItem(TERMINAL_FONT_FAMILY_STORAGE_KEY, "");
-      return;
+    } else {
+      storage.setItem(TERMINAL_FONT_FAMILY_STORAGE_KEY, v);
     }
-    storage.setItem(TERMINAL_FONT_FAMILY_STORAGE_KEY, v);
   } catch {
     /* private mode / quota */
   }
+  emitTerminalFontChanged();
 }
 
 export function loadTerminalFontSize(
@@ -104,6 +118,7 @@ export function saveTerminalFontSize(
   } catch {
     /* private mode / quota */
   }
+  emitTerminalFontChanged();
 }
 
 /**
