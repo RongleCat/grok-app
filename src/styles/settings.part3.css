@@ -141,6 +141,14 @@
   font-family: var(--font-mono);
 }
 
+/* CLI recommend honesty chip (Runtime + Doctor) — soft tones only */
+.settings-row__hint--ok {
+  color: var(--success, #3d9a5f);
+}
+.settings-row__hint--warn {
+  color: var(--warning, #c90);
+}
+
 /* CLI update check (Settings → Runtime / About + Doctor) */
 .settings-cli-update {
   display: flex;

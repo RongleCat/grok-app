@@ -51,6 +51,12 @@ import {
 } from "@/lib/doctorFindings";
 import { CliUpdateRow } from "@/components/CliUpdateRow";
 import { detectAppPlatform } from "@/lib/appPlatform";
+import {
+  classifyCliVersionStatus,
+  cliVersionStatusHintClass,
+  cliVersionStatusMessageKey,
+  cliVersionStatusMessageParams,
+} from "@/lib/cliVersionStatus";
 import { DEFAULT_SANDBOX_PROFILE } from "@/lib/sandboxProfile";
 import {
   buildDoctorPlatformMatrix,
@@ -920,6 +926,10 @@ export function DoctorModal({
             path?: string | null;
             version?: string | null;
             source?: string | null;
+            minVersion?: string | null;
+            recommendedVersion?: string | null;
+            meetsRecommended?: boolean | null;
+            versionSupported?: boolean | null;
             agentVersion?: string | null;
             agentBinarySkew?: boolean;
             acpAgentVersion?: string | null;
@@ -936,6 +946,16 @@ export function DoctorModal({
       path: trimOrNull(cli.path),
       version: trimOrNull(cli.version),
       source: trimOrNull(cli.source),
+      minVersion: trimOrNull(cli.minVersion),
+      recommendedVersion: trimOrNull(cli.recommendedVersion),
+      meetsRecommended:
+        typeof cli.meetsRecommended === "boolean"
+          ? cli.meetsRecommended
+          : null,
+      versionSupported:
+        typeof cli.versionSupported === "boolean"
+          ? cli.versionSupported
+          : null,
       agentVersion: trimOrNull(cli.agentVersion),
       agentBinarySkew: !!cli.agentBinarySkew,
       acpAgentVersion: trimOrNull(cli.acpAgentVersion),
@@ -1263,6 +1283,25 @@ export function DoctorModal({
                   </div>
                 ) : null}
               </dl>
+              {(() => {
+                const status = classifyCliVersionStatus(cliResolved);
+                const tone = cliVersionStatusHintClass(status);
+                return (
+                  <div
+                    className={
+                      "settings-row__hint doctor-cli-resolved__recommend" +
+                      (tone ? ` ${tone}` : "")
+                    }
+                    data-testid="doctor-cli-version-status"
+                    data-status={status}
+                  >
+                    {t(
+                      cliVersionStatusMessageKey(status),
+                      cliVersionStatusMessageParams(cliResolved),
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 

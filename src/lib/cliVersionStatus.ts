@@ -65,7 +65,7 @@ export function classifyCliVersionStatus(
   return "unknown";
 }
 
-/** i18n key for the soft status line under Settings → Runtime · CLI. */
+/** i18n key for the soft status line (Settings → Runtime · CLI, Doctor resolved). */
 export function cliVersionStatusMessageKey(
   status: CliRecommendStatus,
 ):
@@ -86,6 +86,29 @@ export function cliVersionStatusMessageKey(
     default:
       return "settings.cliVersion.unknown";
   }
+}
+
+/**
+ * Tone class for the honesty chip.
+ * `recommended` → positive; below recommended / too old → soft warn (never hard-block).
+ */
+export function cliVersionStatusHintClass(status: CliRecommendStatus): string {
+  if (status === "too_old" || status === "below_recommended") {
+    return "settings-row__hint--warn";
+  }
+  if (status === "recommended") return "settings-row__hint--ok";
+  return "";
+}
+
+/** Interpolations for `cliVersionStatusMessageKey` strings. */
+export function cliVersionStatusMessageParams(
+  p: CliProbeVersionFields | null | undefined,
+): { version: string; recommended: string; min: string } {
+  return {
+    version: p?.version?.trim() || "—",
+    recommended: p?.recommendedVersion?.trim() || "1.0.0",
+    min: p?.minVersion?.trim() || "0.2.112",
+  };
 }
 
 /**

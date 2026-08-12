@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   classifyCliVersionStatus,
+  cliVersionStatusHintClass,
   cliVersionStatusMessageKey,
+  cliVersionStatusMessageParams,
   extractSemverCore,
   mapProbeToCliInfo,
   probeVsAcpAgentVersionSkew,
@@ -40,13 +42,44 @@ describe("classifyCliVersionStatus", () => {
     ).toBe("unknown");
   });
 
-  it("maps status to i18n keys", () => {
+  it("maps status to i18n keys and hint tones", () => {
     expect(cliVersionStatusMessageKey("recommended")).toBe(
       "settings.cliVersion.recommended",
     );
     expect(cliVersionStatusMessageKey("below_recommended")).toBe(
       "settings.cliVersion.belowRecommended",
     );
+    expect(cliVersionStatusHintClass("recommended")).toBe(
+      "settings-row__hint--ok",
+    );
+    expect(cliVersionStatusHintClass("below_recommended")).toBe(
+      "settings-row__hint--warn",
+    );
+    expect(cliVersionStatusHintClass("too_old")).toBe(
+      "settings-row__hint--warn",
+    );
+    expect(cliVersionStatusHintClass("unknown")).toBe("");
+    expect(cliVersionStatusHintClass("missing")).toBe("");
+  });
+
+  it("fills message params with 1.0 recommend defaults", () => {
+    expect(
+      cliVersionStatusMessageParams({
+        found: true,
+        version: "grok 1.0.0",
+        recommendedVersion: "1.0.0",
+        minVersion: "0.2.112",
+      }),
+    ).toEqual({
+      version: "grok 1.0.0",
+      recommended: "1.0.0",
+      min: "0.2.112",
+    });
+    expect(cliVersionStatusMessageParams({ found: false })).toEqual({
+      version: "—",
+      recommended: "1.0.0",
+      min: "0.2.112",
+    });
   });
 });
 

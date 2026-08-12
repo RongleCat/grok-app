@@ -36,7 +36,9 @@ import { detectAppPlatform } from "@/lib/appPlatform";
 import { resolveLocale, type MessageKey } from "@/i18n";
 import {
   classifyCliVersionStatus,
+  cliVersionStatusHintClass,
   cliVersionStatusMessageKey,
+  cliVersionStatusMessageParams,
 } from "@/lib/cliVersionStatus";
 
 
@@ -144,25 +146,20 @@ export function RuntimeSection() {
                   )}
                   {(() => {
                     const status = classifyCliVersionStatus(cliInfo);
-                    const key = cliVersionStatusMessageKey(status);
+                    const tone = cliVersionStatusHintClass(status);
                     return (
                       <div
                         className={
-                          "settings-row__hint" +
-                          (status === "too_old" || status === "below_recommended"
-                            ? " settings-row__hint--warn"
-                            : status === "recommended"
-                              ? " settings-row__hint--ok"
-                              : "")
+                          "settings-row__hint" + (tone ? ` ${tone}` : "")
                         }
                         id="settings-anchor-cliVersionStatus"
+                        data-testid="settings-cli-version-status"
+                        data-status={status}
                       >
-                        {t(key, {
-                          version: cliInfo.version || "—",
-                          recommended:
-                            cliInfo.recommendedVersion || "1.0.0",
-                          min: cliInfo.minVersion || "0.2.112",
-                        })}
+                        {t(
+                          cliVersionStatusMessageKey(status),
+                          cliVersionStatusMessageParams(cliInfo),
+                        )}
                       </div>
                     );
                   })()}
