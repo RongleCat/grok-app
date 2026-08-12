@@ -9,7 +9,13 @@ import {
 } from "@/lib/sideWorkbench";
 
 export type SideContextOpenTarget =
-  | { type: "file"; path: string; title?: string }
+  | {
+      type: "file";
+      path: string;
+      title?: string;
+      line?: number | null;
+      column?: number | null;
+    }
   | { type: "url"; url: string; title?: string }
   | { type: "changes"; path?: string };
 
@@ -33,6 +39,8 @@ export function applySideContextOpen(
     const next = openSideTab(state, "file", {
       path: target.path,
       name: target.title,
+      line: target.line,
+      column: target.column,
     });
     return { state: next, needAsideOpen: true, kind: "file" };
   }

@@ -154,6 +154,10 @@ export function SideWorkbench({
   const hasFileTabs = state.tabs.some((t) => t.kind === "file");
   const activeFilePath =
     active?.kind === "file" ? (active.path ?? null) : null;
+  const activeFileLine =
+    active?.kind === "file" ? (active.line ?? null) : null;
+  const activeFileColumn =
+    active?.kind === "file" ? (active.column ?? null) : null;
 
   const pick = useCallback(
     (kind: SidePickerKind) => {
@@ -203,6 +207,8 @@ export function SideWorkbench({
         openSideTab(state, "file", {
           path: openRequest.path,
           name: openRequest.title,
+          line: openRequest.line,
+          column: openRequest.column,
         }),
       );
     } else if (openRequest.type === "url" && openRequest.url) {
@@ -272,6 +278,8 @@ export function SideWorkbench({
                     setState(setTreeVisible(state, v))
                   }
                   activePath={activeFilePath}
+                  activeLine={activeFileLine}
+                  activeColumn={activeFileColumn}
                   onFileOpen={onTreeFileOpen}
                   paneActive={paneActive && active.kind === "file"}
                 />

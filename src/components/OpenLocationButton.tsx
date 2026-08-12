@@ -27,6 +27,11 @@ export type OpenLocationTarget = string; // finder | explorer | system | editor 
 export interface OpenLocationButtonProps {
   /** Absolute path to open (project root or file). Hidden when null/empty. */
   path: string | null | undefined;
+  /**
+   * Optional 1-based line for editor `-g path:line` when opening a code editor.
+   * Soft-fail / ignored for Finder / system default.
+   */
+  line?: number | null;
   /** Last selected target id (persisted by parent). */
   target: OpenLocationTarget;
   /** Called when user picks a menu item (parent should persist). */
@@ -58,6 +63,7 @@ function normalizeTarget(t: string | undefined | null): string {
 
 export function OpenLocationButton({
   path,
+  line = null,
   target,
   onTargetChange,
   onOpenError,
@@ -199,19 +205,21 @@ export function OpenLocationButton({
         t = finderTarget;
       }
       if (remember) onTargetChange(t);
+      const gotoLine =
+        line != null && Number.isInteger(line) && line >= 1 ? line : undefined;
       try {
         if (t === "finder" || t === "explorer") {
           await api.pathReveal(path);
         } else if (t === "system" || t === "default") {
           await api.pathOpen(path);
         } else {
-          await api.openInEditor({ path, editor: t });
+          await api.openInEditor({ path, editor: t, line: gotoLine });
         }
       } catch (e) {
         onOpenError?.(String(e));
       }
     },
-    [path, disabled, onTargetChange, onOpenError, isGitRepo, finderTarget],
+    [path, line, disabled, onTargetChange, onOpenError, isGitRepo, finderTarget],
   );
 
   if (!path) return null;

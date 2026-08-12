@@ -110,6 +110,25 @@ describe("openSideTab / close / activate", () => {
     expect(r2.tabs.filter((t) => t.kind === "review")).toHaveLength(1);
   });
 
+  it("stores and refreshes path:line on file tabs", () => {
+    let s = emptySideWorkbenchState();
+    s = openSideTab(s, "file", { path: "/p/a.ts", line: 10, column: 2 });
+    const first = s.tabs[0];
+    expect(first?.kind).toBe("file");
+    if (first?.kind === "file") {
+      expect(first.line).toBe(10);
+      expect(first.column).toBe(2);
+    }
+    const again = openSideTab(s, "file", { path: "/p/a.ts", line: 99 });
+    expect(again.created).toBe(false);
+    const tab = again.tabs[0];
+    expect(tab?.kind).toBe("file");
+    if (tab?.kind === "file") {
+      expect(tab.line).toBe(99);
+      expect(tab.column).toBeNull();
+    }
+  });
+
   it("allows multiple terminals", () => {
     let s = emptySideWorkbenchState();
     s = openSideTab(s, "terminal");

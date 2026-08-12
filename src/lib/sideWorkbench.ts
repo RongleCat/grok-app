@@ -12,7 +12,15 @@ export type SidePickerKind = "file" | "browser" | "terminal" | "review" | "skill
 export type SideTabKind = SidePickerKind | "plan";
 
 export type SideTab =
-  | { id: string; kind: "file"; path?: string; name: string }
+  | {
+      id: string;
+      kind: "file";
+      path?: string;
+      name: string;
+      /** 1-based line from path:line open (soft-fail if out of range). */
+      line?: number | null;
+      column?: number | null;
+    }
   | { id: string; kind: "browser"; url?: string; title?: string; name: string }
   | { id: string; kind: "terminal"; sessionKey: string; name: string }
   | { id: string; kind: "review"; name: string }
@@ -44,6 +52,9 @@ export type CreateSideTabMeta = {
   title?: string;
   planRef?: string;
   sessionKey?: string;
+  /** 1-based line for file path:line open. */
+  line?: number | null;
+  column?: number | null;
 };
 
 export type OpenSideTabResult = SideWorkbenchState & {
@@ -180,7 +191,14 @@ function buildTab(kind: SideTabKind, meta?: CreateSideTabMeta): SideTab {
   const name = defaultName(kind, meta);
   switch (kind) {
     case "file":
-      return { id, kind, path: meta?.path, name };
+      return {
+        id,
+        kind,
+        path: meta?.path,
+        name,
+        line: meta?.line ?? null,
+        column: meta?.column ?? null,
+      };
     case "browser":
       return {
         id,
@@ -250,12 +268,23 @@ export function openSideTab(
 
   if (existingIdx >= 0) {
     const hit = tabs[existingIdx]!;
+    // Refresh path:line focus when re-opening the same file citation.
+    const refreshed: SideTab =
+      hit.kind === "file" && kind === "file"
+        ? {
+            ...hit,
+            line: meta?.line ?? null,
+            column: meta?.column ?? null,
+            name: meta?.name?.trim() || hit.name,
+            path: meta?.path?.trim() || hit.path,
+          }
+        : hit;
     const rest = tabs.filter((_, i) => i !== existingIdx);
-    const nextTabs = [hit, ...rest];
+    const nextTabs = [refreshed, ...rest];
     return {
       ...state,
       tabs: nextTabs,
-      activeId: hit.id,
+      activeId: refreshed.id,
       created: false,
       droppedIds: [],
     };

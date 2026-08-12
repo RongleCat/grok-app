@@ -17451,7 +17451,7 @@ export function AppWorkbench() {
           }}
           archiveAgeSessions={sessions}
           projectPath={effectiveProjectPath}
-          onOpenProjectFileInResources={({ path, relativePath }) => {
+          onOpenProjectFileInResources={({ path, relativePath, line }) => {
           const targetPath = (path || relativePath || "").trim();
           if (!targetPath) return;
           navigateWorkbench();
@@ -17460,6 +17460,7 @@ export function AppWorkbench() {
           type: "file",
           path: targetPath,
           title: relativePath || targetPath,
+          line: line ?? null,
           });
           }}
           onSkillsPrefsChanged={() =>

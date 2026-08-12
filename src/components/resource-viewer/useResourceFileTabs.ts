@@ -340,13 +340,27 @@ const openFile = async (relativePath: string) => {
  * (handles monorepo: agent writes `05-handoff/next.md` under a subfolder).
  */
 const openAbsoluteFile = useCallback(
-  async (absolutePath: string, title?: string) => {
+  async (
+    absolutePath: string,
+    title?: string,
+    opts?: { line?: number | null; column?: number | null },
+  ) => {
     if (!api.isTauri()) {
       setError(tr("resources.openFailed"));
       return;
     }
     const norm = absolutePath.trim();
     if (!norm) return;
+    const focusLine =
+      opts?.line != null && Number.isInteger(opts.line) && opts.line >= 1
+        ? opts.line
+        : null;
+    const focusColumn =
+      opts?.column != null &&
+      Number.isInteger(opts.column) &&
+      opts.column >= 1
+        ? opts.column
+        : null;
     const existing = tabs.find(
       (t) => t.tabKind !== "url" && fileTabMatchesPath(t, norm),
     );
@@ -364,7 +378,14 @@ const openAbsoluteFile = useCallback(
     );
     if (!open.created) {
       // Move existing to front + activate (Chrome-like focus / MRU)
-      setTabs((prev) => mergeFileTabsFromOpen(prev, open));
+      // Refresh focus line when re-opening the same path from a citation.
+      setTabs((prev) =>
+        mergeFileTabsFromOpen(prev, open).map((t) =>
+          t.id === open.activeId
+            ? { ...t, focusLine, focusColumn }
+            : t,
+        ),
+      );
       setActiveId(open.activeId);
       return;
     }
@@ -379,6 +400,8 @@ const openAbsoluteFile = useCallback(
       error: null,
       loading: true,
       tabKind: "file",
+      focusLine,
+      focusColumn,
     };
     setTabs((prev) => mergeFileTabsFromOpen(prev, open, tab));
     setActiveId(id);
@@ -403,6 +426,14 @@ const openAbsoluteFile = useCallback(
         }
       }
       applyReadResult(id, r, src, relKey);
+      // applyReadResult replaces the tab fields — re-apply focus after read.
+      if (focusLine != null || focusColumn != null) {
+        setTabs((prev) =>
+          prev.map((t) =>
+            t.id === id ? { ...t, focusLine, focusColumn } : t,
+          ),
+        );
+      }
     } catch (e) {
       // Directory / non-file: drop the tab so the preview shows empty placeholder.
       const msg = String(e || "");

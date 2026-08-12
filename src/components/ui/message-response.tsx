@@ -28,6 +28,7 @@ import {
   normalizePathToken,
   resolveFileToken,
 } from "@/lib/pathRefs";
+import { parsePathLineCitation } from "@/lib/pathLineCitation";
 import type { ResourceOpenTarget } from "@/components/ResourceViewer";
 import { useSmoothStream } from "@/hooks/useSmoothStream";
 import { revealInOsLabel } from "@/lib/appPlatform";
@@ -108,7 +109,13 @@ function MessageResponseImpl({
   const renderPathOrUrl = (token: string, linkText?: string) => {
     const rawIn = token.trim().replace(/^<|>$/g, "");
     if (!rawIn) return null;
-    const raw = normalizePathToken(rawIn) || rawIn;
+    // Strip path:line[:col] before path resolution (soft-fail keeps original).
+    const citeIn = parsePathLineCitation(rawIn);
+    const citeNorm = parsePathLineCitation(normalizePathToken(rawIn) || rawIn);
+    const line = citeNorm.line ?? citeIn.line;
+    const column = citeNorm.column ?? citeIn.column;
+    const raw = normalizePathToken(citeNorm.path || citeIn.path || rawIn) || rawIn;
+    const pathForLooks = citeNorm.path || citeIn.path || raw;
 
     if (isHttpUrl(rawIn) || isHttpUrl(raw)) {
       const url = isHttpUrl(rawIn) ? rawIn : raw;
@@ -134,6 +141,7 @@ function MessageResponseImpl({
     // Prefer media map (images/videos session paths) — multi-segment local only.
     const mediaAbs =
       resolveInlineMediaToken(raw, imagePathMap) ||
+      resolveInlineMediaToken(pathForLooks, imagePathMap) ||
       resolveInlineMediaToken(rawIn, imagePathMap);
     if (
       mediaAbs &&
@@ -169,7 +177,12 @@ function MessageResponseImpl({
       );
     }
 
-    if (!looksLikeFilePath(raw) && !looksLikeFilePath(rawIn) && !mediaAbs) {
+    if (
+      !looksLikeFilePath(raw) &&
+      !looksLikeFilePath(pathForLooks) &&
+      !looksLikeFilePath(rawIn) &&
+      !mediaAbs
+    ) {
       return null;
     }
 
@@ -178,12 +191,18 @@ function MessageResponseImpl({
     const resolved =
       mediaAbs ||
       resolveFileToken(raw, { projectPath, pathMap: imagePathMap }) ||
+      resolveFileToken(pathForLooks, { projectPath, pathMap: imagePathMap }) ||
       resolveFileToken(rawIn, { projectPath, pathMap: imagePathMap });
-    if (!resolved && !looksLikeFilePath(raw) && !looksLikeFilePath(rawIn)) {
+    if (
+      !resolved &&
+      !looksLikeFilePath(raw) &&
+      !looksLikeFilePath(pathForLooks) &&
+      !looksLikeFilePath(rawIn)
+    ) {
       return null;
     }
 
-    const pathToken = resolved || raw || rawIn;
+    const pathToken = resolved || raw || pathForLooks || rawIn;
     const asLocalMedia = (p: string | null | undefined, kind: "image" | "video") => {
       if (!p || !isRealLocalAbsolutePath(p) || !isPlausibleLocalMediaAbs(p)) {
         return null;
@@ -243,11 +262,19 @@ function MessageResponseImpl({
         }
         projectPath={projectPath}
         kind="file"
+        line={line}
+        column={column}
         subtitle={fileSubtitle(pathToken, locale === "en" ? "en" : "zh")}
         labels={fileLabels}
         onOpenInPanel={(t) => {
           if (t.type === "file" && t.path) {
-            onOpenResource?.({ type: "file", path: t.path, title: t.title });
+            onOpenResource?.({
+              type: "file",
+              path: t.path,
+              title: t.title,
+              line: t.line ?? line,
+              column: t.column ?? column,
+            });
           }
         }}
       />

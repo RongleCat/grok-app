@@ -52,6 +52,9 @@ export type FilesWorkspaceProps = {
    * When set, focus/open that path in the shared preview tabs.
    */
   activePath?: string | null;
+  /** 1-based line from path:line open request (soft-fail if out of range). */
+  activeLine?: number | null;
+  activeColumn?: number | null;
   /** Report file open from tree so parent can create/focus a SideTab. */
   onFileOpen?: (path: string, name: string) => void;
   paneActive?: boolean;
@@ -67,6 +70,8 @@ export function FilesWorkspace({
   treeVisible,
   onTreeVisibleChange,
   activePath,
+  activeLine = null,
+  activeColumn = null,
   onFileOpen,
   paneActive = true,
 }: FilesWorkspaceProps) {
@@ -176,12 +181,15 @@ export function FilesWorkspace({
       }
       if (cancelled) return;
       // Prefer absolute open (handles chat paths); falls back internally.
-      void openAbsoluteFile(p);
+      void openAbsoluteFile(p, undefined, {
+        line: activeLine,
+        column: activeColumn,
+      });
     })();
     return () => {
       cancelled = true;
     };
-  }, [activePath, paneActive, projectPath]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activePath, activeLine, activeColumn, paneActive, projectPath]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleDir = useCallback(
     async (node: TreeNode) => {
@@ -388,6 +396,7 @@ export function FilesWorkspace({
           {absPath ? (
             <OpenLocationButton
               path={absPath}
+              line={activeTab?.focusLine ?? activeLine}
               target={openWithTarget}
               onTargetChange={(t) => {
                 setOpenWithTarget(t);

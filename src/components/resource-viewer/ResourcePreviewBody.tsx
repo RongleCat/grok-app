@@ -720,6 +720,7 @@ export function ResourcePreviewBody({
                 code={codePreviewBody}
                 fileName={preview.name}
                 language={preview.kind === "json" ? "json" : undefined}
+                focusLine={activeTab.focusLine}
                 footer={
                   preview.truncated ? tr("resources.truncated") : null
                 }
@@ -842,6 +843,7 @@ export function ResourcePreviewBody({
           code={body}
           fileName={preview.name.endsWith(".json") ? preview.name : "data.json"}
           language="json"
+          focusLine={activeTab?.focusLine}
           footer={
           preview.truncated ? tr("resources.truncated") : null
           }
@@ -855,6 +857,7 @@ export function ResourcePreviewBody({
             <CodePreview
             code={preview.text}
             fileName={preview.name}
+            focusLine={activeTab?.focusLine}
             footer={
             preview.truncated ? tr("resources.truncated") : null
             }

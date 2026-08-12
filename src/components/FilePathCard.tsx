@@ -84,12 +84,21 @@ export interface FilePathCardProps {
   /** Project root for monorepo suffix search. */
   projectPath?: string | null;
   subtitle?: string;
+  /**
+   * 1-based line from a `path:line` citation.
+   * Used for side preview scroll + open_in_editor `-g`. Soft-fail if invalid.
+   */
+  line?: number | null;
+  /** Optional 1-based column (open_in_editor when supported). */
+  column?: number | null;
   labels: FilePathCardLabels;
   onOpenInPanel?: (target: {
     type: "file" | "url";
     path?: string;
     url?: string;
     title?: string;
+    line?: number | null;
+    column?: number | null;
   }) => void;
   /** Optional toast / banner when open-external or reveal soft-fails. */
   onOpenError?: (message: string) => void;
@@ -147,11 +156,17 @@ export function FilePathCard({
   kind = "file",
   projectPath,
   subtitle: _subtitle,
+  line = null,
+  column = null,
   labels,
   onOpenInPanel,
   onOpenError,
 }: FilePathCardProps) {
   void _subtitle; // callers may pass; card no longer shows path/subtitle
+  const focusLine =
+    line != null && Number.isInteger(line) && line >= 1 ? line : null;
+  const focusColumn =
+    column != null && Number.isInteger(column) && column >= 1 ? column : null;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const isUrl = kind === "url" || isHttpUrl(path);
@@ -378,7 +393,13 @@ export function FilePathCard({
         onOpenError?.(filePathCardErrLabel(labels, "not_found"));
         return;
       }
-      onOpenInPanel?.({ type: "file", path: abs, title: name });
+      onOpenInPanel?.({
+        type: "file",
+        path: abs,
+        title: name,
+        line: focusLine,
+        column: focusColumn,
+      });
     } finally {
       setBusy(false);
     }
@@ -402,7 +423,12 @@ export function FilePathCard({
         onOpenError?.(filePathCardErrLabel(labels, "not_found"));
         return;
       }
-      await api.pathOpen(abs);
+      // path:line citations jump in the default editor when line is known.
+      if (focusLine != null) {
+        await api.openInEditor({ path: abs, line: focusLine });
+      } else {
+        await api.pathOpen(abs);
+      }
     } catch (e) {
       // path_open shares reveal-like Host phrases; open classifier is a superset.
       const resolved = resolveOpenEditorError(e);

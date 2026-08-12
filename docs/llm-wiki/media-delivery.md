@@ -66,6 +66,7 @@ Host injects always-on **path citation** text into session `grok --rules` via `p
 2. **Not tool-journal form** in user-facing prose: no `input:/abs/path`, no `tool_step|…` dumps as the citation style.
 3. **Disambiguate homonyms**: article / template trees often share short tails (`正文.md`, `04-正文/正文.md`). Cite from project root with unique parents so Host + path map open the right file.
 4. **Spaces**: write real spaces in absolute paths (e.g. `Mac Studio…`); never shell-escape `\ `.
+5. **Optional line jump**: `` `path/to/file.ts:42` `` or `` `path/to/file.ts:42:10` `` (line / line:col). UI opens the side preview scrolled to that line when possible; external `open_in_editor` gets `-g path:line`. Invalid lines soft-fail (open file, no jump). Parse helpers: `src/lib/pathLineCitation.ts`.
 
 Frontend path map (`sessionPathMap.ts`) collects tool `input:` / last-touched abs paths so short tokens in the same session can still resolve after tools ran — but **user-facing citations should still be unambiguous** without relying on that.
 

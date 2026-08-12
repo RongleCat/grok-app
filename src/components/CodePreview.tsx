@@ -4,8 +4,9 @@
  * Line-number gutter is always on for pane previews.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import hljs from "highlight.js/lib/core";
+import { normalizeFocusLine } from "@/lib/pathLineCitation";
 
 import javascript from "highlight.js/lib/languages/javascript";
 import typescript from "highlight.js/lib/languages/typescript";
@@ -175,6 +176,11 @@ export interface CodePreviewProps {
   footer?: string | null;
   /** Show line-number gutter (default true for resource pane). */
   showLineNumbers?: boolean;
+  /**
+   * 1-based line to scroll into view and highlight.
+   * Soft-fail when out of range / invalid (no scroll, no highlight).
+   */
+  focusLine?: number | null;
 }
 
 function readDocTheme(): "light" | "dark" {
@@ -232,10 +238,12 @@ export function CodePreview({
   className,
   footer,
   showLineNumbers = true,
+  focusLine = null,
 }: CodePreviewProps) {
   ensureLangs();
 
   const [theme, setTheme] = useState<"light" | "dark">(readDocTheme);
+  const focusRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -276,6 +284,20 @@ export function CodePreview({
   }, [code, lang]);
 
   const lines = lineHtml.length;
+  const activeLine = normalizeFocusLine(focusLine, lines);
+
+  useEffect(() => {
+    if (activeLine == null) return;
+    const el = focusRef.current;
+    if (!el) return;
+    // Double rAF: wait for layout after tab switch / async read.
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [activeLine, code, fileName]);
 
   return (
     <div
@@ -286,12 +308,19 @@ export function CodePreview({
         className,
       )}
       data-language={lang}
+      data-focus-line={activeLine ?? undefined}
     >
       <div className="rp-code__scroll">
         {showLineNumbers ? (
           <div className="rp-code__gutter" aria-hidden>
             {Array.from({ length: lines }, (_, i) => (
-              <span key={i} className="rp-code__ln">
+              <span
+                key={i}
+                className={cn(
+                  "rp-code__ln",
+                  activeLine === i + 1 && "rp-code__ln--focus",
+                )}
+              >
                 {i + 1}
               </span>
             ))}
@@ -299,16 +328,24 @@ export function CodePreview({
         ) : null}
         <pre className="rp-code__pre">
           <code className={`hljs language-${lang}`}>
-            {lineHtml.map((html, i) => (
-              <span
-                key={i}
-                className="rp-code__line"
-                // Empty lines need a non-collapsing marker for gutter alignment.
-                dangerouslySetInnerHTML={{
-                  __html: html.length ? html : "&#8203;",
-                }}
-              />
-            ))}
+            {lineHtml.map((html, i) => {
+              const isFocus = activeLine === i + 1;
+              return (
+                <span
+                  key={i}
+                  ref={isFocus ? focusRef : undefined}
+                  className={cn(
+                    "rp-code__line",
+                    isFocus && "rp-code__line--focus",
+                  )}
+                  data-line={i + 1}
+                  // Empty lines need a non-collapsing marker for gutter alignment.
+                  dangerouslySetInnerHTML={{
+                    __html: html.length ? html : "&#8203;",
+                  }}
+                />
+              );
+            })}
           </code>
         </pre>
       </div>

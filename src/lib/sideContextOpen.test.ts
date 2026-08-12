@@ -17,6 +17,22 @@ describe("applySideContextOpen", () => {
     );
   });
 
+  it("forwards path:line focus onto the file tab", () => {
+    const r = applySideContextOpen(emptySideWorkbenchState(), {
+      type: "file",
+      path: "/a/b.ts",
+      title: "b.ts",
+      line: 42,
+      column: 3,
+    });
+    const tab = r.state.tabs[0];
+    expect(tab?.kind).toBe("file");
+    if (tab?.kind === "file") {
+      expect(tab.line).toBe(42);
+      expect(tab.column).toBe(3);
+    }
+  });
+
   it("opens browser tab for url", () => {
     const r = applySideContextOpen(emptySideWorkbenchState(), {
       type: "url",

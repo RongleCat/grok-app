@@ -501,7 +501,10 @@ export function ResourceViewer({
     if (openRequest.type === "file") {
       // Leave plan workbench so file preview is not hidden behind Plan UI.
       setSideMode("files");
-      void openAbsoluteFile(openRequest.path, openRequest.title);
+      void openAbsoluteFile(openRequest.path, openRequest.title, {
+        line: openRequest.line,
+        column: openRequest.column,
+      });
     } else if (openRequest.type === "url") {
       setSideMode("files");
       openUrl(openRequest.url, openRequest.title);
@@ -880,6 +883,7 @@ export function ResourceViewer({
           {absPath ? (
             <OpenLocationButton
               path={absPath}
+              line={activeTab?.focusLine}
               target={openWithTarget}
               onTargetChange={(t) => {
                 setOpenWithTarget(t);
@@ -1091,6 +1095,7 @@ export function ResourceViewer({
             {absPath ? (
               <OpenLocationButton
                 path={absPath}
+                line={activeTab?.focusLine}
                 target={openWithTarget}
                 onTargetChange={(t) => {
                   setOpenWithTarget(t);

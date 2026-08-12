@@ -29,6 +29,7 @@ import {
   normalizePathToken,
   resolveFileToken,
 } from "@/lib/pathRefs";
+import { parsePathLineCitation } from "@/lib/pathLineCitation";
 import { isExternalHttpUrl } from "@/lib/externalLinkPref";
 import {
   createSoftBufferState,
@@ -244,8 +245,15 @@ export const MarkdownChat = memo(function MarkdownChat({
   const renderPathOrUrl = (token: string, linkText?: string) => {
     const rawIn = token.trim().replace(/^<|>$/g, "");
     if (!rawIn) return null;
+    // Strip path:line[:col] before path resolution (soft-fail keeps original).
+    const citeIn = parsePathLineCitation(rawIn);
+    const citeNorm = parsePathLineCitation(normalizePathToken(rawIn) || rawIn);
+    const line = citeNorm.line ?? citeIn.line;
+    const column = citeNorm.column ?? citeIn.column;
     // Prefer ellipsis-stripped + shell-unescaped form for open/search.
-    const raw = normalizePathToken(rawIn) || rawIn;
+    const raw =
+      normalizePathToken(citeNorm.path || citeIn.path || rawIn) || rawIn;
+    const pathForLooks = citeNorm.path || citeIn.path || raw;
 
     // Thinking: keep URL/path as original text (no FilePathCard). Media still
     // handled below when pathCards is on; when off, skip cards entirely.
@@ -278,6 +286,7 @@ export const MarkdownChat = memo(function MarkdownChat({
 
     const mediaAbs =
       resolveInlineMediaToken(raw, imagePathMap) ||
+      resolveInlineMediaToken(pathForLooks, imagePathMap) ||
       resolveInlineMediaToken(rawIn, imagePathMap);
     // Real multi-segment local abs only (pathMap verified in resolveInlineMediaToken).
     if (
@@ -314,7 +323,12 @@ export const MarkdownChat = memo(function MarkdownChat({
       );
     }
 
-    if (!looksLikeFilePath(rawIn) && !looksLikeFilePath(raw) && !mediaAbs) {
+    if (
+      !looksLikeFilePath(rawIn) &&
+      !looksLikeFilePath(raw) &&
+      !looksLikeFilePath(pathForLooks) &&
+      !mediaAbs
+    ) {
       return null;
     }
 
@@ -322,10 +336,12 @@ export const MarkdownChat = memo(function MarkdownChat({
     const resolved =
       mediaAbs ||
       resolveFileToken(raw, { projectPath, pathMap: imagePathMap }) ||
+      resolveFileToken(pathForLooks, { projectPath, pathMap: imagePathMap }) ||
       resolveFileToken(rawIn, { projectPath, pathMap: imagePathMap });
     if (
       !resolved &&
       !looksLikeFilePath(raw) &&
+      !looksLikeFilePath(pathForLooks) &&
       !looksLikeFilePath(rawIn)
     ) {
       return null;
@@ -333,7 +349,7 @@ export const MarkdownChat = memo(function MarkdownChat({
 
     // Prefer multi-segment relative after ellipsis strip for smart open.
     // Display token: keep short relative when we only have that; abs is for open.
-    const pathToken = resolved || raw || rawIn;
+    const pathToken = resolved || raw || pathForLooks || rawIn;
     // Video/image only when we have a real multi-segment local absolute.
     // Never promote site-root, single-segment tails, or unresolved relative media.
     const asLocalMedia = (p: string | null | undefined, kind: "image" | "video") => {
@@ -406,12 +422,20 @@ export const MarkdownChat = memo(function MarkdownChat({
         }
         projectPath={projectPath}
         kind="file"
+        line={line}
+        column={column}
         subtitle={fileSubtitle(tokenForCard, locale === "en" ? "en" : "zh")}
         labels={fileLabels}
         onOpenError={onOpenError}
         onOpenInPanel={(t) => {
           if (t.type === "file" && t.path) {
-            onOpenResource?.({ type: "file", path: t.path, title: t.title });
+            onOpenResource?.({
+              type: "file",
+              path: t.path,
+              title: t.title,
+              line: t.line ?? line,
+              column: t.column ?? column,
+            });
           }
         }}
       />

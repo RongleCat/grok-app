@@ -85,6 +85,18 @@
   line-height: 1.55;
 }
 
+/* path:line citation focus (soft highlight; theme-aware) */
+.rp-code__line--focus {
+  background: color-mix(in srgb, var(--accent, #61afef) 18%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent, #61afef) 70%, transparent);
+}
+
+.rp-code__ln--focus {
+  color: var(--accent, #61afef);
+  opacity: 1;
+  font-weight: 600;
+}
+
 .rp-code__footer {
   flex-shrink: 0;
   padding: 6px 12px;
