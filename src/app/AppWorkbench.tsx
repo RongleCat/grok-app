@@ -217,9 +217,11 @@ import {
 } from "@/lib/trayBusyBadgePref";
 import { resolveTrayBusyBadgeCount } from "@/lib/trayNotifyPro";
 import {
-  collectAgentDashboardRows
+  collectAgentDashboardRows,
+  countBusyDashboardRows
 } from "@/lib/agentDashboard";
 import { buildTaskBoard } from "@/lib/sessionTaskBoard";
+import type { OpsEntryCounts, OpsEntryDestinationId } from "@/lib/opsEntry";
 import {
   BATCH_AGENTS_HEADLESS_TIMEOUT_MS,
   buildBatchPromptBody,
@@ -953,6 +955,10 @@ const SessionTaskBoardModal = lazy(async () => {
 const BatchAgentsModal = lazy(async () => {
   const m = await import("@/components/BatchAgentsModal");
   return { default: m.BatchAgentsModal };
+});
+const OpsEntryModal = lazy(async () => {
+  const m = await import("@/components/OpsEntryModal");
+  return { default: m.OpsEntryModal };
 });
 const ReliabilityCenterModal = lazy(async () => {
   const m = await import("@/components/ReliabilityCenterModal");
@@ -2383,6 +2389,8 @@ export function AppWorkbench() {
   const [taskBoardIncludeArchived, setTaskBoardIncludeArchived] =
     useState(false);
   const [batchAgentsOpen, setBatchAgentsOpen] = useState(false);
+  /** Ops hub (palette open-ops) — routes to tasks / dashboard / board / batch. */
+  const [opsEntryOpen, setOpsEntryOpen] = useState(false);
   const [gitWorktrees, setGitWorktrees] = useState<api.GitWorktreeEntry[]>([]);
   /** null = unknown/loading; true = git work tree; false = not a git repo. */
   const [gitWorktreesAvailable, setGitWorktreesAvailable] = useState<
@@ -2461,6 +2469,7 @@ export function AppWorkbench() {
       agentDashboardOpen ||
       taskBoardOpen ||
       tasksPanelOpen ||
+      opsEntryOpen ||
       streamStall != null ||
       liveVoiceOpen,
   );
@@ -7133,6 +7142,16 @@ export function AppWorkbench() {
       generalWorkspacePath,
     ],
   );
+  /** Honesty counts for the Ops hub (liveMap-backed; never invents work). */
+  const opsEntryCounts = useMemo((): OpsEntryCounts => {
+    return {
+      busySessionCount: countBusyDashboardRows(agentDashboardRows),
+      sessionCount: sessions.length,
+      hasActiveSession: !!session.sessionId,
+      // Tool-row scan is expensive here; leave unknown so meta does not invent idle.
+      tasksRunningCount: null,
+    };
+  }, [agentDashboardRows, sessions.length, session.sessionId]);
   const connPill = useMemo(
     () => connPillForState(session.state, connecting),
     [session.state, connecting],
@@ -13064,6 +13083,34 @@ export function AppWorkbench() {
     setBatchAgentsOpen(true);
   }, []);
 
+  /** Route from Ops hub → existing openers (no new App.tsx state piles). */
+  const openOpsDestination = useCallback(
+    (id: OpsEntryDestinationId) => {
+      setOpsEntryOpen(false);
+      setAppView("workbench");
+      switch (id) {
+        case "tasks":
+          setMainPane("chat");
+          if (!session.sessionId) {
+            showToast(tr("ops.tasksNeedSession"), 3200);
+            return;
+          }
+          setTasksPanelOpen(true);
+          break;
+        case "dashboard":
+          setAgentDashboardOpen(true);
+          break;
+        case "task_board":
+          setTaskBoardOpen(true);
+          break;
+        case "batch_agents":
+          openBatchAgents();
+          break;
+      }
+    },
+    [openBatchAgents, session.sessionId, showToast, tr],
+  );
+
   /**
    * Multi-project batch dispatch: sessions (create+connect+send) or headless
    * one-shots. Soft-fails per project; never uses window.confirm.
@@ -13295,9 +13342,9 @@ export function AppWorkbench() {
         navigateAutomations();
         break;
       case "open-ops":
-        // Ops hub: multi-session dashboard (fleet + stop-all).
+        // Ops hub: pick tasks / dashboard / board / batch (not a silent dashboard alias).
         setAppView("workbench");
-        setAgentDashboardOpen(true);
+        setOpsEntryOpen(true);
         if (
           typeof window !== "undefined" &&
           window.location.hash.includes("settings")
@@ -16341,7 +16388,10 @@ export function AppWorkbench() {
         worktreeGcOpen ||
         shipOpen ||
         projectRulesTarget ||
-        agentDashboardOpen,
+        agentDashboardOpen ||
+        taskBoardOpen ||
+        batchAgentsOpen ||
+        opsEntryOpen,
     ),
     permOpen: !!perm,
     askUserOpen: !!askUser,
@@ -21309,6 +21359,21 @@ export function AppWorkbench() {
           setAgentDashboardOpen(false);
           openBatchAgents();
         }}
+        onOpenTaskBoard={() => {
+          setAgentDashboardOpen(false);
+          setTaskBoardOpen(true);
+        }}
+      />
+      </Suspense>
+      ) : null}
+      {(opsEntryOpen) ? (
+      <Suspense fallback={null}>
+      <OpsEntryModal
+        open={opsEntryOpen}
+        locale={locale}
+        counts={opsEntryCounts}
+        onClose={() => setOpsEntryOpen(false)}
+        onSelect={openOpsDestination}
       />
       </Suspense>
       ) : null}

@@ -512,6 +512,122 @@
 
 /* --- merged --- */
 
+/* Ops unified entry hub */
+.ops-entry-modal {
+  width: min(420px, 94vw);
+}
+
+.ops-entry-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.ops-entry__lead {
+  margin: 0;
+  font-size: var(--text-sm, 13px);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.ops-entry__empty {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--menu-item-radius, 8px);
+  border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.22));
+  background: color-mix(in srgb, var(--bg-secondary, rgba(0, 0, 0, 0.12)) 80%, transparent);
+}
+
+.ops-entry__empty-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ops-entry__empty-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.ops-entry__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ops-entry__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: var(--menu-item-radius, 8px);
+  border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.2));
+  background: color-mix(in srgb, var(--bg-code, var(--bg-app)) 55%, transparent);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.ops-entry__row:hover {
+  background: color-mix(in srgb, var(--bg-hover, rgba(127, 127, 127, 0.12)) 70%, transparent);
+  border-color: color-mix(in srgb, var(--text-primary) 18%, var(--border-subtle));
+}
+
+.ops-entry__row:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent, #6b9fff) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.ops-entry__row--empty .ops-entry__meta {
+  color: var(--text-tertiary);
+}
+
+.ops-entry__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--text-secondary);
+}
+
+.ops-entry__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ops-entry__title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ops-entry__hint {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-tertiary);
+}
+
+.ops-entry__meta {
+  flex-shrink: 0;
+  max-width: 42%;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* --- merged --- */
+
 .task-board-modal {
   width: min(1100px, 96vw);
   max-height: min(86vh, 780px);
