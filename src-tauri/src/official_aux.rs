@@ -104,7 +104,7 @@ pub fn ensure_official_aux_home() -> Result<PathBuf, String> {
     let table = format!("model.{OFFICIAL_CATALOG_MODEL}");
     if let Some(ref key) = key {
         text = set_table_string(&text, &table, "model", OFFICIAL_CATALOG_MODEL);
-        text = set_table_string(&text, &table, "name", "Grok 4.5");
+        text = set_table_string(&text, &table, "name", "Grok 4.6");
         text = set_table_string(
             &text,
             &table,

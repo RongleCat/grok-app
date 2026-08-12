@@ -19,13 +19,13 @@ import {
 } from "@/components/icons";
 import { installDialogFocus } from "@/lib/a11yFocus";
 import {
-  GROK_BUILD_EFFORTS,
   GROK_BUILD_MODELS,
   PERMISSION_POLICIES,
   SESSION_MODES,
+  effortCatalogForRoute,
   effortDisplayLabel,
   effortUiOptionsForCatalog,
-  effortsForModel,
+  findModel,
   spawnIdToEffortUiSlot,
   type EffortOption,
   type ModelOption,
@@ -267,10 +267,11 @@ export function PhoneComposerToolsSheet({
     activeSource === "custom"
       ? providers.find((x) => x.id === activeProviderId)?.model ?? null
       : null;
-  const effortCatalog =
-    activeSource === "custom" && channelEfforts && channelEfforts.length > 0
-      ? effortsForModel(null, channelEfforts)
-      : GROK_BUILD_EFFORTS;
+  const effortCatalog = effortCatalogForRoute({
+    model: findModel(modelId, modelList),
+    channelEfforts:
+      activeSource === "custom" ? channelEfforts : null,
+  });
   const effortUiList = effortUiOptionsForCatalog(effortCatalog);
   const officialLabel =
     modelList.find((m) => m.id === modelId)?.label ?? modelId;

@@ -9,7 +9,7 @@
 | 来源 | 说明 |
 |------|------|
 | `models_cache.json` | CLI 官方目录 |
-| 静态兜底 | `grok-4.5` |
+| 静态兜底 | `grok-4.6`（默认）+ `grok-4.5` |
 
 探测：`scripts/probe-models.sh`。Host：`models_list_available`。
 
@@ -26,20 +26,20 @@ Flags **必须在** `stdio` 之前。连接后 `session/set_model` 再对齐一�
 CLI `models_cache.json` 每模型可带 `info.reasoning_efforts: [{id,value,label,description,default}]`。Host 经 `AvailableModel.reasoningEfforts`（`isDefault`）下发。
 
 Composer **UI 阶梯**统一为 4 档（低 → 高）：**低 / 中 / 高 / 极高**。  
-3 档模型（Grok）不展示「极高」；选中后映射为该模型真实 spawn / `reasoning_effort` 值。
+3 档模型（Grok 4.5）不展示「极高」；4 档官方模型（Grok 4.6）展示极高并 spawn `xhigh`。选中后映射为该模型真实 spawn / `reasoning_effort` 值。
 
-| UI 阶梯 | Grok spawn | Grok 自定义(4档) | DeepSeek spawn |
-|---------|------------|------------------|----------------|
-| 低 | `low` | `low` | `low` |
-| 中 | `medium` | `medium` | `high` |
-| 高 | `high` | `high` | `xhigh` |
-| 极高 | —（不展示） | `max` | `max` |
+| UI 阶梯 | Grok 4.5 spawn | Grok 4.6 spawn | Grok 自定义(4档) | DeepSeek spawn |
+|---------|----------------|----------------|------------------|----------------|
+| 低 | `low` | `low` | `low` | `low` |
+| 中 | `medium` | `medium` | `medium` | `high` |
+| 高 | `high` | `high` | `high` | `xhigh` |
+| 极高 | —（不展示） | `xhigh` | `max` | `max` |
 
 解析顺序（真实可选值）：
 
 1. **自定义通道 active** → 该提供商的 `efforts`（`app_efforts`）
 2. 否则官方 catalog 的 `reasoningEfforts`（**以 CLI `models_cache` / `isDefault` 为准**）
-3. 再回退 `GROK_BUILD_EFFORTS`（`low` · `medium` · `high`，默认 **high** — 对齐 Grok Build **1.0**）
+3. 再回退：`grok-4.6` → `GROK_4_6_EFFORTS`（`low` · `medium` · `high` · `xhigh`，默认 **xhigh**）；其余 → `GROK_BUILD_EFFORTS`（`low` · `medium` · `high`，默认 **high**）
 
 自定义通道默认档（`GROK_CHANNEL_EFFORTS`，点「恢复 Grok 默认」得到）：`low` · `medium` · `high` · `max`——4 档，`max` 映射极高 UI 槽（catalog kind `tier4`）。官方 `GROK_BUILD_EFFORTS` 仍为 3 档。
 
@@ -47,7 +47,7 @@ Composer **UI 阶梯**统一为 4 档（低 → 高）：**低 / 中 / 高 / 极
 
 Spawn：`--reasoning-effort <spawnId>`。Host **透传** catalog / 通道 id（含 `max` 等），不硬白名单仅 low/medium/high。切换通道时按阶梯对齐（极高在 3 档上钳到「高」）。中途修改：soft-disconnect agent → 下一条消息重连。无 `session/set_effort` RPC。
 
-**产品默认（1.0）：** 官方冷启动与未设 prefs 时 effort = **high**（与 `models_cache` 一致）。用户可在 Composer 降为 medium/low 以缩短 TTFT。旧安装若全局 effort 仍为历史产品默认 `medium`，`load_settings` 一次性抬到 high（显式 low/high/max 不动）。
+**产品默认（4.6）：** 官方冷启动与未设 prefs 时 model = **grok-4.6**、effort = **xhigh**。CLI cache 可能同时把 `xhigh` 和 `high` 标成 default，Host/前端归一为 **xhigh**。用户可在 Composer 降为 high/medium/low 以缩短 TTFT。旧安装若全局 model 仍为历史产品默认 `grok-4.5`，`load_settings` 一次性抬到 `grok-4.6`；官方路由上旧 effort `high` 一次性抬到 `xhigh`（显式 low/medium/max 不动）。旧 effort `medium` 仍一次性抬到 high（3 档兜底）。
 
 **Apply honesty（UI）**：纯 helper `src/lib/modelEffortApply.ts`。Composer 改模型 / 推理后 toast + 菜单 footer 说明生效路径：
 

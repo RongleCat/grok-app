@@ -20,6 +20,7 @@ describe("normalizeModelIdForRates", () => {
 describe("resolveModelRates", () => {
   it("matches exact and prefix families", () => {
     expect(resolveModelRates("grok-4.5")?.key).toBe("grok-4.5");
+    expect(resolveModelRates("grok-4.6")?.key).toBe("grok-4.6");
     expect(resolveModelRates("grok-3-mini-fast")?.key).toBe("grok-3-mini");
     expect(resolveModelRates("provider/grok-2-vision-1212")?.key).toBe(
       "grok-2-vision",
@@ -48,6 +49,17 @@ describe("estimateCostUsd", () => {
     expect(r.inputUsd).toBeCloseTo(3, 6);
     expect(r.outputUsd).toBeCloseTo(15, 6);
     expect(r.totalUsd).toBeCloseTo(18, 6);
+  });
+
+  it("uses Grok 4.6 official-style $2/$6 rates", () => {
+    const r = estimateCostUsd(
+      { inputTokens: 1_000_000, outputTokens: 1_000_000 },
+      "grok-4.6",
+    );
+    expect(r.modelKey).toBe("grok-4.6");
+    expect(r.inputUsd).toBeCloseTo(2, 6);
+    expect(r.outputUsd).toBeCloseTo(6, 6);
+    expect(r.totalUsd).toBeCloseTo(8, 6);
   });
 
   it("accepts a bare total and blends rates", () => {

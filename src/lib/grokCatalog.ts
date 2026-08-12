@@ -64,36 +64,61 @@ export const COMPOSER_PREFS_SCOPES: ComposerPrefsScope[] = [
 ];
 
 /**
- * Fallback catalog when Host has not returned live models yet.
- * Official OAuth currently exposes grok-4.5 only (2026-07 probe).
- * `grok-build` is NOT listed — CLI rejects it as unknown model id.
- */
-export const GROK_BUILD_MODELS: ModelOption[] = [
-  { id: "grok-4.5", label: "Grok 4.5", isDefault: true, source: "official" },
-];
-
-export const DEFAULT_MODEL_ID =
-  GROK_BUILD_MODELS.find((m) => m.isDefault)?.id ?? "grok-4.5";
-
-/**
- * Fallback context window (tokens) for **custom provider** channels only.
- * Never use this for the official Grok route — official windows come from
- * live catalog / `initialize` / agent occupancy (`context_window`, often
- * 500_000 on Grok Build 1.0). Unknown official → `null` (chip hides %).
- */
-export const DEFAULT_CUSTOM_CONTEXT_WINDOW = 200000;
-
-/**
- * Static fallback when the selected model has no `reasoning_efforts` in cache.
- * Order is the product ladder (low → high intensity).
- * Default **high** matches Grok Build CLI 1.0 `models_cache` (`isDefault` on high).
- * Prefer live catalog via `pickDefaultEffort(model)` whenever available.
+ * Static 3-tier fallback (low / medium / high) when a model has no
+ * `reasoning_efforts` in cache. Default **high** matches Grok Build 1.0
+ * and the official API default. Prefer live catalog via
+ * `pickDefaultEffort(model)` whenever available.
  */
 export const GROK_BUILD_EFFORTS: EffortOption[] = [
   { id: "low" },
   { id: "medium" },
   { id: "high", isDefault: true },
 ];
+
+/**
+ * Official Grok 4.6 efforts (CLI `models_cache` 2026-08-12).
+ * Product default on 4.6 is **xhigh**. Live cache may mark both high and
+ * xhigh as `default: true` — callers must go through `pickDefaultEffort`
+ * / `normalizeEffortDefaults`.
+ */
+export const GROK_4_6_EFFORTS: EffortOption[] = [
+  { id: "low" },
+  { id: "medium" },
+  { id: "high" },
+  { id: "xhigh", isDefault: true },
+];
+
+/**
+ * Fallback catalog when Host has not returned live models yet.
+ * Official OAuth exposes grok-4.6 (default) and grok-4.5 (2026-08 probe).
+ * `grok-build` is NOT listed — CLI rejects it as unknown model id.
+ */
+export const GROK_BUILD_MODELS: ModelOption[] = [
+  {
+    id: "grok-4.6",
+    label: "Grok 4.6",
+    isDefault: true,
+    source: "official",
+    reasoningEfforts: GROK_4_6_EFFORTS,
+    contextWindow: 500000,
+  },
+  {
+    id: "grok-4.5",
+    label: "Grok 4.5",
+    source: "official",
+    reasoningEfforts: GROK_BUILD_EFFORTS,
+    contextWindow: 500000,
+  },
+];
+
+export const DEFAULT_MODEL_ID =
+  GROK_BUILD_MODELS.find((m) => m.isDefault)?.id ?? "grok-4.6";
+
+/**
+ * Fallback context window (tokens) for custom providers that have not set one.
+ * Official models prefer the live `contextWindow` from `initialize` / cache.
+ */
+export const DEFAULT_CUSTOM_CONTEXT_WINDOW = 200000;
 
 /**
  * Cold-start default reasoning depth when no live catalog is loaded yet.
@@ -157,7 +182,42 @@ export function isValidModelId(
 }
 
 /**
+ * Collapse multiple `isDefault` flags. CLI grok-4.6 cache marks both
+ * `xhigh` and `high` as default; product default on 4.6 is **xhigh**.
+ */
+export function normalizeEffortDefaults(
+  efforts: EffortOption[],
+): EffortOption[] {
+  const flagged = efforts.filter((e) => e.isDefault);
+  if (flagged.length <= 1) return efforts;
+  const preferXhigh = flagged.some(
+    (e) => e.id.trim().toLowerCase() === "xhigh",
+  );
+  if (preferXhigh) {
+    return efforts.map((e) => ({
+      ...e,
+      isDefault: e.id.trim().toLowerCase() === "xhigh",
+    }));
+  }
+  const preferHigh = flagged.some(
+    (e) => e.id.trim().toLowerCase() === "high",
+  );
+  if (!preferHigh) return efforts;
+  return efforts.map((e) => ({
+    ...e,
+    isDefault: e.id.trim().toLowerCase() === "high",
+  }));
+}
+
+function fallbackEffortsForModelId(modelId?: string | null): EffortOption[] {
+  const id = modelId?.trim().toLowerCase() ?? "";
+  if (id === "grok-4.6") return GROK_4_6_EFFORTS;
+  return GROK_BUILD_EFFORTS;
+}
+
+/**
  * Efforts list for a model: live catalog when non-empty, else static fallback.
+ * grok-4.6 falls back to 4-tier (incl. xhigh); other official models stay 3-tier.
  */
 export function effortsForModel(
   model?: ModelOption | null,
@@ -169,7 +229,8 @@ export function effortsForModel(
     model?.reasoningEfforts && model.reasoningEfforts.length > 0
       ? model.reasoningEfforts
       : null;
-  return fromArg ?? fromModel ?? GROK_BUILD_EFFORTS;
+  const raw = fromArg ?? fromModel ?? fallbackEffortsForModelId(model?.id);
+  return normalizeEffortDefaults(raw);
 }
 
 /**
@@ -185,6 +246,21 @@ export function isValidEffort(
     return effortsForModel(null, modelOrEfforts).some((e) => e.id === id);
   }
   return effortsForModel(modelOrEfforts).some((e) => e.id === id);
+}
+
+/**
+ * Composer effort catalog for the active route.
+ * Custom channels use their configured efforts; official uses the
+ * selected model's live/fallback list (grok-4.6 includes xhigh).
+ */
+export function effortCatalogForRoute(opts: {
+  model?: ModelOption | null;
+  channelEfforts?: EffortOption[] | null;
+}): EffortOption[] {
+  if (opts.channelEfforts && opts.channelEfforts.length > 0) {
+    return effortsForModel(null, opts.channelEfforts);
+  }
+  return effortsForModel(opts.model);
 }
 
 /** Default effort for a model (catalog default flag, else first, else DEFAULT_EFFORT). */
@@ -219,11 +295,10 @@ export function effortCatalogKind(
   const hasDsTop = ids.has("xhigh") || ids.has("max");
   // DeepSeek-style: low/high/xhigh/max (no medium).
   if (hasDsTop && !hasMedium) return "deepseek4";
-  // Custom-channel 4-tier: low/medium/high + max/xhigh (medium + a top tier).
-  // Official Grok stays grok3 (low/medium/high); this kind is only for
-  // custom-provider channels that add a max tier mapped to the 极高 slot.
+  // 4-tier with medium: official grok-4.6 (low/medium/high/xhigh) or a
+  // custom channel that adds max. 极高 maps to max, else xhigh.
   if (hasDsTop && hasMedium) return "tier4";
-  // Grok 3-tier: low/medium/high (no xhigh/max).
+  // Grok 3-tier: low/medium/high (no xhigh/max) — grok-4.5 and older.
   if (hasMedium) return "grok3";
   return "other";
 }
@@ -232,6 +307,7 @@ export function effortCatalogKind(
  * Map catalog spawn ids onto the canonical UI ladder (低/中/高/极高).
  *
  * Grok 3-tier: low→低, medium→中, high→高 (no 极高).
+ * Official grok-4.6 / custom 4-tier: low→低, medium→中, high→高, xhigh|max→极高.
  * DeepSeek 4-tier: low→低, high→中, xhigh→高, max→极高.
  */
 function spawnMapForCatalog(

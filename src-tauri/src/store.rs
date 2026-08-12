@@ -57,9 +57,9 @@ pub struct ComposerPrefs {
 impl Default for ComposerPrefs {
     fn default() -> Self {
         Self {
-            model_id: "grok-4.5".into(),
-            // Aligned with Grok Build 1.0 models_cache default (high).
-            effort: "high".into(),
+            model_id: "grok-4.6".into(),
+            // Grok 4.6 product default (Extra High).
+            effort: "xhigh".into(),
             mode: "agent".into(),
             permission_policy: "ask".into(),
             scope: "global".into(),
@@ -362,6 +362,13 @@ pub struct AppSettings {
     /// Missing field deserializes as false so existing installs migrate once.
     #[serde(default)]
     pub effort_default_migrated: bool,
+    /// One-shot: product official default grok-4.5 → grok-4.6.
+    /// Missing field deserializes as false so existing installs migrate once.
+    #[serde(default)]
+    pub official_model_default_migrated: bool,
+    /// One-shot: official grok-4.6 product effort high → xhigh.
+    #[serde(default)]
+    pub official_effort_xhigh_migrated: bool,
     /// One-shot: product workflows default off → on (CLI ≥0.2.111 / 1.0 align).
     #[serde(default)]
     pub workflows_default_migrated: bool,
@@ -561,8 +568,8 @@ impl Default for AppSettings {
             wsl_distro: None,
             wsl_cli_path: None,
             permission_policy: "ask".into(),
-            model_id: None,
-            effort: Some("high".into()),
+            model_id: Some("grok-4.6".into()),
+            effort: Some("xhigh".into()),
             mode: "agent".into(),
             onboarding_done: false,
             setup_skipped: false,
@@ -604,6 +611,8 @@ impl Default for AppSettings {
             startup_new_chat_default_migrated: true,
             // Fresh installs already use 1.0-aligned effort / workflows defaults.
             effort_default_migrated: true,
+            official_model_default_migrated: true,
+            official_effort_xhigh_migrated: true,
             workflows_default_migrated: true,
             plan_enabled: default_plan_enabled(),
             subagents_enabled: true,
@@ -805,6 +814,37 @@ pub fn load_settings() -> AppSettings {
         s.effort_default_migrated = true;
         let _ = write_json(&settings_file(), &s);
     }
+    // One-time: official catalog default grok-4.5 → grok-4.6. Unset / empty /
+    // legacy product default grok-4.5 lift; deliberate other ids kept.
+    if !s.official_model_default_migrated {
+        if let Some(next) = migrate_legacy_official_model_default(s.model_id.as_deref()) {
+            tracing::info!(
+                "settings migration: modelId {:?} → {} (Grok 4.6 default)",
+                s.model_id,
+                next
+            );
+            s.model_id = Some(next);
+        }
+        s.official_model_default_migrated = true;
+        let _ = write_json(&settings_file(), &s);
+    }
+    // One-time: official 4.6 product effort high → xhigh. Unset / empty / the
+    // previous product default high lift; deliberate low/medium/max stay.
+    // Skip custom-provider route ids (not grok-* / empty).
+    if !s.official_effort_xhigh_migrated {
+        if official_route_should_default_xhigh(s.model_id.as_deref()) {
+            if let Some(next) = migrate_official_effort_to_xhigh(s.effort.as_deref()) {
+                tracing::info!(
+                    "settings migration: effort {:?} → {} (Grok 4.6 default)",
+                    s.effort,
+                    next
+                );
+                s.effort = Some(next);
+            }
+        }
+        s.official_effort_xhigh_migrated = true;
+        let _ = write_json(&settings_file(), &s);
+    }
     // One-time: product workflows default off → on (CLI ≥0.2.111 / 1.0).
     // Only lifts false → true once; users who turn it off again stay off.
     if !s.workflows_default_migrated {
@@ -831,6 +871,37 @@ pub fn migrate_legacy_effort_default(stored: Option<&str>) -> Option<String> {
     match stored.map(str::trim).filter(|s| !s.is_empty()) {
         None => Some(DEFAULT_REASONING_EFFORT.into()),
         Some("medium") => Some(DEFAULT_REASONING_EFFORT.into()),
+        Some(_) => None,
+    }
+}
+
+/// Product default official catalog model (Grok 4.6, 2026-08).
+pub const DEFAULT_OFFICIAL_MODEL_ID: &str = "grok-4.6";
+
+/// One-shot official-model migration: lift unset / empty / legacy `"grok-4.5"`
+/// product default to [`DEFAULT_OFFICIAL_MODEL_ID`]. Explicit other ids stay.
+pub fn migrate_legacy_official_model_default(stored: Option<&str>) -> Option<String> {
+    match stored.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Some(DEFAULT_OFFICIAL_MODEL_ID.into()),
+        Some("grok-4.5") => Some(DEFAULT_OFFICIAL_MODEL_ID.into()),
+        Some(_) => None,
+    }
+}
+
+pub const DEFAULT_OFFICIAL_EFFORT: &str = "xhigh";
+
+fn official_route_should_default_xhigh(model_id: Option<&str>) -> bool {
+    match model_id.map(str::trim).filter(|s| !s.is_empty()) {
+        None => true,
+        Some(id) => id.starts_with("grok-"),
+    }
+}
+
+/// Lift unset / empty / previous official default `"high"` to xhigh.
+pub fn migrate_official_effort_to_xhigh(stored: Option<&str>) -> Option<String> {
+    match stored.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Some(DEFAULT_OFFICIAL_EFFORT.into()),
+        Some("high") => Some(DEFAULT_OFFICIAL_EFFORT.into()),
         Some(_) => None,
     }
 }
@@ -2117,12 +2188,12 @@ fn global_prefs(settings: &AppSettings) -> (String, String, String, String) {
             .model_id
             .clone()
             .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| "grok-4.5".into()),
+            .unwrap_or_else(|| "grok-4.6".into()),
         settings
             .effort
             .clone()
             .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| "high".into()),
+            .unwrap_or_else(|| "xhigh".into()),
         if settings.mode.trim().is_empty() {
             "agent".into()
         } else {
@@ -2604,8 +2675,11 @@ mod tests {
         assert!(!s.subagent_worktree_snapshot_enabled);
         assert!(s.workflows_enabled);
         assert!(s.effort_default_migrated);
+        assert!(s.official_model_default_migrated);
         assert!(s.workflows_default_migrated);
-        assert_eq!(s.effort.as_deref(), Some("high"));
+        assert_eq!(s.effort.as_deref(), Some("xhigh"));
+        assert_eq!(s.model_id.as_deref(), Some("grok-4.6"));
+        assert!(s.official_effort_xhigh_migrated);
         assert_eq!(s.preferred_agent, "");
         assert_eq!(s.agent_profile_path, "");
         assert_eq!(s.agents_json, "");
@@ -2626,6 +2700,45 @@ mod tests {
         assert_eq!(migrate_legacy_effort_default(Some("low")), None);
         assert_eq!(migrate_legacy_effort_default(Some("high")), None);
         assert_eq!(migrate_legacy_effort_default(Some("max")), None);
+    }
+
+    #[test]
+    fn migrate_legacy_official_model_lifts_4_5_and_unset() {
+        assert_eq!(
+            migrate_legacy_official_model_default(None).as_deref(),
+            Some("grok-4.6")
+        );
+        assert_eq!(
+            migrate_legacy_official_model_default(Some("")).as_deref(),
+            Some("grok-4.6")
+        );
+        assert_eq!(
+            migrate_legacy_official_model_default(Some("  grok-4.5  ")).as_deref(),
+            Some("grok-4.6")
+        );
+        assert_eq!(
+            migrate_legacy_official_model_default(Some("grok-4.6")),
+            None
+        );
+        assert_eq!(
+            migrate_legacy_official_model_default(Some("custom-relay")),
+            None
+        );
+    }
+
+    #[test]
+    fn migrate_official_effort_lifts_high_and_unset() {
+        assert_eq!(
+            migrate_official_effort_to_xhigh(None).as_deref(),
+            Some("xhigh")
+        );
+        assert_eq!(
+            migrate_official_effort_to_xhigh(Some("  high  ")).as_deref(),
+            Some("xhigh")
+        );
+        assert_eq!(migrate_official_effort_to_xhigh(Some("low")), None);
+        assert_eq!(migrate_official_effort_to_xhigh(Some("medium")), None);
+        assert_eq!(migrate_official_effort_to_xhigh(Some("xhigh")), None);
     }
 
     #[test]

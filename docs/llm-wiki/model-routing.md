@@ -68,7 +68,7 @@ X / web **不做 Host 关键词预跑**；由 agent 通过 tools 调用 `officia
    - CLI `--disallowed-tools image_gen,image_edit,image_to_video,reference_to_video`（**仅 headless `grok -p` 生效**；ACP `agent stdio` 常忽略）。  
    - **PreToolUse hook**（可靠）：`{agent-home}/hooks/grok-app-block-native-imagine.json`，matcher 匹配上述工具并 `decision: deny`，reason 指引改走 `official-aux__*`。spawn / 开关变更时 `sync_native_media_block_hook`。  
 2. 模型必须 `use_tool` → MCP `official-aux__image_*` / `image_to_video` / `reference_to_video`，侧信道 `GROK_HOME=agent-home-official`：  
-   - 有 Settings 官方 API Key → 写入 `[model.grok-4.5] api_key`  
+   - 有 Settings 官方 API Key → 写入 `[model.grok-4.6] api_key`  
    - 仅 SuperGrok OIDC → 同步 `~/.grok/auth.json`，并 **去掉** 过期/错误 api_key，强制用订阅凭证  
 3. **禁止** 在 API key 失败后改用 PIL/代码画图。  
 4. **禁止** 对 `.png/.jpg/.webp…` 调用 `read_file` 做「验图」——纯文本主模型（DeepSeek 等）会因 tool result 里的 `image_url` 块 400 崩溃（`unknown variant image_url`）。Hook 同步拦截；成功后只回报绝对路径，UI 从路径挂附件。  

@@ -63,13 +63,15 @@ export const DEEPSEEK_MODELS: ProviderModelEntry[] = [
   { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
 ];
 
-/** Amux OpenAI-compatible relay (grok-4.5). */
+/** Amux OpenAI-compatible relay (official Grok catalog ids). */
 export const AMUX_MODELS: ProviderModelEntry[] = [
+  { id: "grok-4.6", name: "Grok 4.6" },
   { id: "grok-4.5", name: "Grok 4.5" },
 ];
 
 /** Yun API (云驿 yunyi) OpenAI-compatible relay. */
 export const YUN_API_MODELS: ProviderModelEntry[] = [
+  { id: "grok-4.6", name: "Grok 4.6" },
   { id: "grok-4.5", name: "Grok 4.5" },
 ];
 

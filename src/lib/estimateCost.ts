@@ -20,6 +20,7 @@ export type ModelRateUsdPer1M = {
 export const MODEL_RATES_USD_PER_1M: Readonly<
   Record<string, ModelRateUsdPer1M>
 > = {
+  "grok-4.6": { input: 2, output: 6 },
   "grok-4.5": { input: 3, output: 15 },
   "grok-4": { input: 3, output: 15 },
   "grok-3-mini": { input: 0.3, output: 0.5 },

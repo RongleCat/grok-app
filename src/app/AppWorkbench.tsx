@@ -355,6 +355,7 @@ import {
   GROK_BUILD_MODELS,
   PERMISSION_POLICIES,
   findModel,
+  effortCatalogForRoute,
   effortOptionsFromProvider,
   isValidEffort,
   isValidModelId,
@@ -11828,12 +11829,23 @@ export function AppWorkbench() {
   }, [providerActiveSource, activeCustomProvider]);
 
   /**
-   * Active effort catalog for the composer: custom channel efforts, else Grok 3-tier.
-   * Used when remapping after route/model switches (DeepSeek 4-tier ↔ Grok 3-tier).
+   * Active effort catalog for the composer: custom channel efforts, else the
+   * selected official model (grok-4.6 is 4-tier with xhigh).
    */
+  const officialEffortCatalog = useMemo(
+    () =>
+      effortCatalogForRoute({
+        model: findModel(modelId, availableModels),
+      }),
+    [modelId, availableModels],
+  );
   const activeEffortCatalog = useMemo(
-    () => channelEffortOptions ?? GROK_BUILD_EFFORTS,
-    [channelEffortOptions],
+    () =>
+      effortCatalogForRoute({
+        model: findModel(modelId, availableModels),
+        channelEfforts: channelEffortOptions,
+      }),
+    [modelId, availableModels, channelEffortOptions],
   );
   const prevEffortCatalogRef = useRef(activeEffortCatalog);
 
@@ -11862,12 +11874,14 @@ export function AppWorkbench() {
           }
           if (!isValidModelId(pick.modelId, availableModels)) return;
           setModelId(pick.modelId);
-          // DeepSeek 4-tier → Grok 3-tier (low→low, high→medium, xhigh/max→high).
+          const targetOfficial = effortCatalogForRoute({
+            model: findModel(pick.modelId, availableModels),
+          });
           setEffort((prev) =>
             mapEffortToTargetCatalog(
               prev,
-              GROK_BUILD_EFFORTS,
-              channelEffortOptions ?? undefined,
+              targetOfficial,
+              channelEffortOptions ?? officialEffortCatalog,
             ),
           );
           void api
@@ -11934,7 +11948,7 @@ export function AppWorkbench() {
             mapEffortToTargetCatalog(
               prev,
               nextEfforts,
-              channelEffortOptions ?? GROK_BUILD_EFFORTS,
+              channelEffortOptions ?? officialEffortCatalog,
             ),
           );
         }
@@ -11956,6 +11970,7 @@ export function AppWorkbench() {
       showToast,
       tr,
       channelEffortOptions,
+      officialEffortCatalog,
     ],
   );
   const handleContextWindow = useCallback(
@@ -20373,13 +20388,7 @@ export function AppWorkbench() {
                         void handleModelPick(pick);
                       }}
                       onEffort={(v) => {
-                        if (
-                          !isValidEffort(
-                            v,
-                            channelEffortOptions ?? undefined,
-                          )
-                        )
-                          return;
+                        if (!isValidEffort(v, activeEffortCatalog)) return;
                         setEffort(v);
                         void api
                           .composerPrefsSet({
@@ -20725,10 +20734,7 @@ export function AppWorkbench() {
               void handleModelPick(pick);
             }}
             onEffort={(v) => {
-              if (
-                !isValidEffort(v, channelEffortOptions ?? undefined)
-              )
-                return;
+              if (!isValidEffort(v, activeEffortCatalog)) return;
               setEffort(v);
               void api
                 .composerPrefsSet({

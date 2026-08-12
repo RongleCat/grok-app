@@ -80,6 +80,87 @@ fn user_grok_home() -> PathBuf {
     crate::process_util::user_home().join(".grok")
 }
 
+/// Newest official catalog id used as the empty-cache / preferred default.
+pub const OFFICIAL_FALLBACK_MODEL_ID: &str = "grok-4.6";
+const OFFICIAL_FALLBACK_MODEL_LABEL: &str = "Grok 4.6";
+const OFFICIAL_PREFERRED_IDS: &[&str] = &["grok-4.6", "grok-4.5"];
+
+fn official_fallback_efforts() -> Vec<ReasoningEffort> {
+    vec![
+        ReasoningEffort {
+            id: "low".into(),
+            value: "low".into(),
+            label: "Low Effort".into(),
+            description: "Quick, fast implementations".into(),
+            is_default: false,
+        },
+        ReasoningEffort {
+            id: "medium".into(),
+            value: "medium".into(),
+            label: "Medium Effort".into(),
+            description: "Balanced effort with standard implementation and testing".into(),
+            is_default: false,
+        },
+        ReasoningEffort {
+            id: "high".into(),
+            value: "high".into(),
+            label: "High Effort".into(),
+            description: "Higher implementation quality with extensive reasoning".into(),
+            is_default: false,
+        },
+        ReasoningEffort {
+            id: "xhigh".into(),
+            value: "xhigh".into(),
+            label: "Extra High Effort".into(),
+            description: "Highest effort and reasoning level".into(),
+            is_default: true,
+        },
+    ]
+}
+
+/// CLI grok-4.6 cache marks both `xhigh` and `high` as default. Product
+/// default on 4.6 is **xhigh**.
+fn normalize_effort_defaults(efforts: &mut [ReasoningEffort]) {
+    let default_count = efforts.iter().filter(|e| e.is_default).count();
+    if default_count <= 1 {
+        return;
+    }
+    if efforts.iter().any(|e| e.id.eq_ignore_ascii_case("xhigh")) {
+        for e in efforts.iter_mut() {
+            e.is_default = e.id.eq_ignore_ascii_case("xhigh");
+        }
+        return;
+    }
+    if !efforts.iter().any(|e| e.id.eq_ignore_ascii_case("high")) {
+        return;
+    }
+    for e in efforts.iter_mut() {
+        e.is_default = e.id.eq_ignore_ascii_case("high");
+    }
+}
+
+fn preferred_official_model_id(
+    by_id: &BTreeMap<String, AvailableModel>,
+    settings_model: Option<&str>,
+) -> String {
+    if let Some(id) = settings_model.map(str::trim).filter(|s| !s.is_empty()) {
+        // Official cache never contains custom provider route ids.
+        if by_id.contains_key(id) {
+            return id.to_string();
+        }
+    }
+    for id in OFFICIAL_PREFERRED_IDS {
+        if by_id.contains_key(*id) {
+            return (*id).to_string();
+        }
+    }
+    by_id
+        .keys()
+        .next()
+        .cloned()
+        .unwrap_or_else(|| OFFICIAL_FALLBACK_MODEL_ID.into())
+}
+
 /// Parse `/info/reasoning_efforts` from a models_cache entry body.
 fn parse_reasoning_efforts(body: &serde_json::Value) -> Vec<ReasoningEffort> {
     let Some(arr) = body
@@ -88,7 +169,8 @@ fn parse_reasoning_efforts(body: &serde_json::Value) -> Vec<ReasoningEffort> {
     else {
         return Vec::new();
     };
-    arr.iter()
+    let mut efforts: Vec<ReasoningEffort> = arr
+        .iter()
         .filter_map(|item| {
             let id = item.get("id")?.as_str()?.trim();
             if id.is_empty() {
@@ -126,7 +208,9 @@ fn parse_reasoning_efforts(body: &serde_json::Value) -> Vec<ReasoningEffort> {
                 is_default,
             })
         })
-        .collect()
+        .collect();
+    normalize_effort_defaults(&mut efforts);
+    efforts
 }
 
 #[allow(clippy::type_complexity)]
@@ -234,14 +318,14 @@ pub fn list_available_models() -> AvailableModelsResult {
     // Hard fallback — known-good official default when cache is empty / offline.
     if by_id.is_empty() {
         by_id.insert(
-            "grok-4.5".into(),
+            OFFICIAL_FALLBACK_MODEL_ID.into(),
             AvailableModel {
-                id: "grok-4.5".into(),
-                label: "Grok 4.5".into(),
+                id: OFFICIAL_FALLBACK_MODEL_ID.into(),
+                label: OFFICIAL_FALLBACK_MODEL_LABEL.into(),
                 source: "official".into(),
                 is_default: true,
-                reasoning_efforts: Vec::new(),
-                context_window: None,
+                reasoning_efforts: official_fallback_efforts(),
+                context_window: Some(500_000),
             },
         );
     }
@@ -259,20 +343,9 @@ pub fn list_available_models() -> AvailableModelsResult {
         }
     }
 
-    // Prefer catalog default over a stale settings.model_id that might be a
-    // provider route id (e.g. "yunyi") from an older build.
-    let preferred = by_id
-        .keys()
-        .find(|k| k.as_str() == "grok-4.5")
-        .cloned()
-        .or_else(|| settings.model_id.clone().filter(|s| by_id.contains_key(s)))
-        .unwrap_or_else(|| {
-            by_id
-                .keys()
-                .next()
-                .cloned()
-                .unwrap_or_else(|| "grok-4.5".into())
-        });
+    // Prefer a saved official catalog id; ignore stale provider route ids
+    // (e.g. "yunyi"). Otherwise newest official present (4.6 > 4.5).
+    let preferred = preferred_official_model_id(&by_id, settings.model_id.as_deref());
 
     let mut models: Vec<AvailableModel> = by_id.into_values().collect();
     models.sort_by(|a, b| a.id.cmp(&b.id));
@@ -364,6 +437,44 @@ mod tests {
         assert!(efforts[0].is_default);
         assert!(!efforts[1].is_default);
         assert_eq!(efforts[2].id, "low");
+    }
+
+    #[test]
+    fn parse_reasoning_efforts_collapses_dual_default_to_xhigh() {
+        let body: serde_json::Value = serde_json::from_str(
+            r#"{
+              "info": {
+                "reasoning_efforts": [
+                  {
+                    "id": "xhigh",
+                    "value": "xhigh",
+                    "label": "Extra High Effort",
+                    "default": true
+                  },
+                  {
+                    "id": "high",
+                    "value": "high",
+                    "label": "High Effort",
+                    "default": true
+                  },
+                  {
+                    "id": "medium",
+                    "value": "medium",
+                    "label": "Medium Effort",
+                    "default": false
+                  }
+                ]
+              }
+            }"#,
+        )
+        .unwrap();
+        let efforts = parse_reasoning_efforts(&body);
+        assert_eq!(efforts.len(), 3);
+        assert_eq!(efforts[0].id, "xhigh");
+        assert!(efforts[0].is_default);
+        assert_eq!(efforts[1].id, "high");
+        assert!(!efforts[1].is_default);
+        assert!(!efforts[2].is_default);
     }
 
     #[test]

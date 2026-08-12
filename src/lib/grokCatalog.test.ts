@@ -2,13 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CUSTOM_CONTEXT_WINDOW,
   DEFAULT_EFFORT,
+  DEFAULT_MODEL_ID,
+  GROK_4_6_EFFORTS,
   GROK_BUILD_EFFORTS,
+  GROK_BUILD_MODELS,
+  effortCatalogForRoute,
   effortDisplayLabel,
   effortUiOptionsForCatalog,
   effortsForModel,
   isSpawnableReasoningEffort,
   isValidEffort,
   mapEffortToTargetCatalog,
+  normalizeEffortDefaults,
   pickDefaultEffort,
   resolveContextWindow,
   spawnIdToEffortUiSlot,
@@ -67,6 +72,12 @@ describe("effortsForModel", () => {
     expect(list[0].label).toBe("High Effort");
   });
 
+  it("falls back to 4-tier xhigh for grok-4.6 without live efforts", () => {
+    const list = effortsForModel({ id: "grok-4.6", label: "Grok 4.6" });
+    expect(list.map((e) => e.id)).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(list.find((e) => e.isDefault)?.id).toBe("xhigh");
+  });
+
   it("prefers explicit catalogEfforts arg over model", () => {
     const override = [{ id: "only" }];
     expect(effortsForModel(modelWithEfforts, override)).toEqual(override);
@@ -109,6 +120,46 @@ describe("pickDefaultEffort", () => {
     expect(pickDefaultEffort(null)).toBe(DEFAULT_EFFORT);
     expect(pickDefaultEffort({ id: "x", label: "X" })).toBe("high");
   });
+
+  it("prefers xhigh when CLI cache marks both xhigh and high as default", () => {
+    const dual: EffortOption[] = [
+      { id: "xhigh", isDefault: true },
+      { id: "high", isDefault: true },
+      { id: "medium" },
+      { id: "low" },
+    ];
+    expect(normalizeEffortDefaults(dual).filter((e) => e.isDefault).map((e) => e.id)).toEqual([
+      "xhigh",
+    ]);
+    expect(pickDefaultEffort(null, dual)).toBe("xhigh");
+  });
+});
+
+describe("effortCatalogForRoute", () => {
+  it("uses grok-4.6 xhigh when official and no channel catalog", () => {
+    const list = effortCatalogForRoute({
+      model: { id: "grok-4.6", label: "Grok 4.6" },
+    });
+    expect(list.map((e) => e.id)).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(isValidEffort("xhigh", list)).toBe(true);
+    expect(mapEffortToTargetCatalog("xhigh", list)).toBe("xhigh");
+  });
+
+  it("keeps custom channel efforts when provided", () => {
+    const list = effortCatalogForRoute({
+      model: { id: "grok-4.6", label: "Grok 4.6" },
+      channelEfforts: [{ id: "low" }, { id: "high" }],
+    });
+    expect(list.map((e) => e.id)).toEqual(["low", "high"]);
+  });
+});
+
+describe("official catalog fallback", () => {
+  it("defaults to grok-4.6 and keeps grok-4.5 selectable", () => {
+    expect(DEFAULT_MODEL_ID).toBe("grok-4.6");
+    expect(GROK_BUILD_MODELS.map((m) => m.id)).toEqual(["grok-4.6", "grok-4.5"]);
+    expect(GROK_BUILD_MODELS.find((m) => m.isDefault)?.id).toBe("grok-4.6");
+  });
 });
 
 describe("isSpawnableReasoningEffort", () => {
@@ -141,6 +192,21 @@ describe("effort UI ladder", () => {
     expect(
       effortUiOptionsForCatalog(GROK_BUILD_EFFORTS).map((o) => o.spawnId),
     ).toEqual(["low", "medium", "high"]);
+  });
+
+  it("orders Grok 4.6 as 低/中/高/极高 with xhigh spawn", () => {
+    const opts = effortUiOptionsForCatalog(GROK_4_6_EFFORTS);
+    expect(opts.map((o) => o.uiId)).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(opts.map((o) => o.spawnId)).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+    ]);
+    expect(spawnIdToEffortUiSlot("xhigh", GROK_4_6_EFFORTS)).toBe("xhigh");
+    expect(isValidEffort("xhigh", { id: "grok-4.6", label: "Grok 4.6" })).toBe(
+      true,
+    );
   });
 
   it("orders DeepSeek as 低/中/高/极高 with real spawn ids", () => {

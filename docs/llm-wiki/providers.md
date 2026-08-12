@@ -50,8 +50,8 @@ Add flow opens a **preset gallery** (`providerPresets.ts`):
 |--------|--------|-----------------|
 | **Custom** | empty (user fills) | Grok `low`/`medium`/`high` |
 | **DeepSeek** | `deepseek-v4-flash`, `deepseek-v4-pro` | `low` / `high` / `xhigh` / `max` (docs mapping table; default `high`) |
-| **Amux** | `grok-4.5` (display **Grok 4.5**) | Grok `low`/`medium`/`high` |
-| **Yun API** | `grok-4.5` (display **Grok 4.5**) | Grok `low`/`medium`/`high` |
+| **Amux** | `grok-4.6` + `grok-4.5` | Grok `low`/`medium`/`high`/`max` |
+| **Yun API** | `grok-4.6` + `grok-4.5` | Grok `low`/`medium`/`high`/`max` |
 | **OpenCode Go** | `deepseek-v4-flash`, `deepseek-v4-pro` | DeepSeek efforts (default `high`) |
 | **火山方舟** (Volcengine Ark) | `deepseek-v4-flash` | Grok `low`/`medium`/`high`/`max` (default `medium`); **full path** on |
 
@@ -124,7 +124,7 @@ Verified working combinations:
 | Route | `[models].default` | agent `--model` | agent-home `auth.json` |
 |-------|--------------------|-----------------|------------------------|
 | Custom relay | provider id (`yunyi`) | **provider id** | **removed** (api_key only) |
-| Official | `grok` | catalog id (`grok-4.5`) | **synced** from `~/.grok` |
+| Official | `grok` | catalog id (`grok-4.6`) | **synced** from `~/.grok` |
 
 Host must rebind both sides on every switch and before each ACP spawn (`prepare_route_auth_for_agent` + `agent_spawn_model_id`). Composer catalog `modelId` remains the official selection preference; spawn resolves the channel id separately. **Alternate activate entry:** picking a custom provider row in the composer model menu also calls `providers_activate` (same Host path as Settings **Use**).
 

@@ -14,7 +14,9 @@ use crate::agent_home_config::{
     SHARED_MODE_REFUSED,
 };
 use crate::paths::agent_config_toml;
-use crate::providers::{is_custom_provider_id, list_custom_providers, OFFICIAL_CATALOG_MODEL};
+use crate::providers::{
+    is_custom_provider_id, is_official_catalog_model, list_custom_providers, OFFICIAL_CATALOG_MODEL,
+};
 use crate::secrets;
 use crate::store;
 
@@ -240,7 +242,7 @@ pub fn slots_reference_official(slots: &ModelsAuxSlots) -> bool {
         &slots.prompt_suggestion,
     ]
     .into_iter()
-    .any(|v| v.trim() == OFFICIAL_CATALOG_MODEL)
+    .any(|v| is_official_catalog_model(v))
 }
 
 /// True when the set-input will introduce an official-catalog aux target.
@@ -253,11 +255,15 @@ pub fn input_references_official(input: &ModelsAuxSetInput) -> bool {
     ]
     .into_iter()
     .flatten()
-    .any(|v| normalize_slot_value(v).as_deref() == Some(OFFICIAL_CATALOG_MODEL))
+    .any(|v| {
+        normalize_slot_value(v)
+            .as_deref()
+            .is_some_and(is_official_catalog_model)
+    })
 }
 
-/// Write a **complete** `[model.grok-4.5]` so aux calls do not inherit the
-/// active custom relay's `base_url` (the bug that sent `grok-4.5` to DeepSeek).
+/// Write a **complete** `[model.grok-4.6]` so aux calls do not inherit the
+/// active custom relay's `base_url` (the bug that sent official Grok to DeepSeek).
 ///
 /// Fields always upserted: `model`, `name`, `base_url`, `api_backend`.
 /// `api_key` only when non-empty (keep previous key if empty).
@@ -265,7 +271,7 @@ pub fn ensure_official_aux_model_section(text: &str, api_key: Option<&str>) -> S
     let table = format!("model.{OFFICIAL_CATALOG_MODEL}");
     let mut out = text.to_string();
     out = set_table_string(&out, &table, "model", OFFICIAL_CATALOG_MODEL);
-    out = set_table_string(&out, &table, "name", "Grok 4.5");
+    out = set_table_string(&out, &table, "name", "Grok 4.6");
     out = set_table_string(&out, &table, "base_url", OFFICIAL_GROK_BASE_URL);
     out = set_table_string(&out, &table, "api_backend", OFFICIAL_GROK_API_BACKEND);
     if let Some(key) = api_key.map(str::trim).filter(|k| !k.is_empty()) {
@@ -292,7 +298,7 @@ pub fn ensure_official_reachable(text: &str, active_source: &str) -> Result<Stri
     // Official main route can use auth.json / OIDC without a pasted API key.
     if active_source != "official" && !has_key {
         return Err(
-            "image/search aux points at grok-4.5 but no official API key is configured, \
+            "image/search aux points at official Grok but no official API key is configured, \
              and the main route is a custom relay (auth.json cleared). \
              Add an official API key under Account → Custom providers → Official, \
              or point aux slots at a Grok-capable custom provider (Amux / Yun)."
@@ -534,9 +540,9 @@ pub fn apply_save_grok() -> Result<ModelsAuxState, String> {
     let path = resolve_writable_config_path(&settings.session_data_mode)?;
     let mut existing = std::fs::read_to_string(&path).unwrap_or_default();
 
-    // Official catalog id as aux requires a full [model.grok-4.5] section with
+    // Official catalog id as aux requires a full [model.grok-4.6] section with
     // the Grok base_url — never inherit DeepSeek/Amux/etc. base_url.
-    if target == OFFICIAL_CATALOG_MODEL {
+    if is_official_catalog_model(&target) {
         existing = ensure_official_reachable(&existing, &list.active_source)?;
     }
 
@@ -601,11 +607,10 @@ pub fn vision_aux_reachable(text: &str, list: &crate::providers::ProvidersListRe
         // auto → follows main model; only ok if main is vision-capable
         return !main_is_text_only(text, list);
     };
-    if target == OFFICIAL_CATALOG_MODEL {
-        let base = get_table_string(text, &format!("model.{OFFICIAL_CATALOG_MODEL}"), "base_url")
-            .unwrap_or_default();
-        let key = get_table_string(text, &format!("model.{OFFICIAL_CATALOG_MODEL}"), "api_key")
-            .unwrap_or_default();
+    if is_official_catalog_model(&target) {
+        let table = format!("model.{target}");
+        let base = get_table_string(text, &table, "base_url").unwrap_or_default();
+        let key = get_table_string(text, &table, "api_key").unwrap_or_default();
         let ok_base = base.contains("cli-chat-proxy.grok.com") || base.contains("api.x.ai");
         // On official route auth.json may substitute for api_key
         let ok_cred = !key.is_empty() || list.active_source == "official";
@@ -971,31 +976,19 @@ fn resolve_vision_endpoint(
 ) -> Option<VisionEndpoint> {
     let slot = get_slot(config, "image_description");
     let target = normalize_slot_value(&slot)?;
-    if target == OFFICIAL_CATALOG_MODEL {
-        let base = get_table_string(
-            config,
-            &format!("model.{OFFICIAL_CATALOG_MODEL}"),
-            "base_url",
-        )
-        .unwrap_or_else(|| OFFICIAL_GROK_BASE_URL.into());
-        let key = get_table_string(
-            config,
-            &format!("model.{OFFICIAL_CATALOG_MODEL}"),
-            "api_key",
-        )
-        .unwrap_or_default();
+    if is_official_catalog_model(&target) {
+        let table = format!("model.{target}");
+        let base = get_table_string(config, &table, "base_url")
+            .unwrap_or_else(|| OFFICIAL_GROK_BASE_URL.into());
+        let key = get_table_string(config, &table, "api_key").unwrap_or_default();
         if key.is_empty() {
             return None;
         }
-        let backend = get_table_string(
-            config,
-            &format!("model.{OFFICIAL_CATALOG_MODEL}"),
-            "api_backend",
-        )
-        .unwrap_or_else(|| OFFICIAL_GROK_API_BACKEND.into());
+        let backend = get_table_string(config, &table, "api_backend")
+            .unwrap_or_else(|| OFFICIAL_GROK_API_BACKEND.into());
         return Some(VisionEndpoint {
             base_url: base,
-            model: OFFICIAL_CATALOG_MODEL.into(),
+            model: target,
             api_key: key,
             api_backend: backend,
         });
@@ -1544,7 +1537,8 @@ yolo = false
     #[test]
     fn ensure_official_aux_writes_base_url_not_deepseek() {
         let t = ensure_official_aux_model_section(SAMPLE, Some("sk-official"));
-        assert!(t.contains("[model.grok-4.5]"), "{t}");
+        let official_table = format!("[model.{OFFICIAL_CATALOG_MODEL}]");
+        assert!(t.contains(&official_table), "{t}");
         assert!(
             t.contains("base_url = \"https://cli-chat-proxy.grok.com/v1\""),
             "{t}"
@@ -1555,7 +1549,7 @@ yolo = false
         assert!(t.contains("default = \"deepseek\""), "{t}");
         assert!(t.contains("https://api.deepseek.com/v1"), "{t}");
         // Official section must not reuse DeepSeek host
-        let off = t.split("[model.grok-4.5]").nth(1).unwrap_or("");
+        let off = t.split(official_table.as_str()).nth(1).unwrap_or("");
         assert!(
             off.contains("cli-chat-proxy.grok.com"),
             "official base missing: {off}"

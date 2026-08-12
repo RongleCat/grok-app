@@ -12,6 +12,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- **Grok 4.6 + Extra High effort**: Official catalog default is `grok-4.6` (4.5 stays selectable). Composer shows 极高/`xhigh` on 4.6; product default effort on 4.6 is **xhigh**. One-shot settings lift `grok-4.5` → `grok-4.6` and official `high` → `xhigh`. Amux/Yun presets list both models. Official aux / spawn target is `grok-4.6`.
 - **Per-provider appended prompt**: The provider editor gains an **Appended prompt** box for relays that need specific instructions. It rides the CLI's `--rules` flag, so the text is *appended* to the agent's system prompt rather than replacing it (`--system-prompt-override` would drop the built-in prompt). Stored per channel in agent-home `config.toml` as `app_append_prompt` (ignored by Grok Build), merged at connect alongside session rules. Empty by default.
 - **X evidence citation honesty (wallpaper lite)**: Wallpaper X gallery shows **X post** (canonical `x.com/…/status/…` open-in-browser) or **Unverified** when no status URL; empty search soft-fails with honest summary; applying an X wallpaper records a small local evidence ring (`localStorage` path + url meta, no cloud / no full MCP SaaS). Pure `xEvidenceCitation` helpers + tests; Host normalizes `postUrl`; en/zh/zh-TW.
 - **Bridge resilience overview honesty**: Settings → Remote control → IM overview surfaces recovery reconnect, always-on rate-limit/backoff policy notes (8/chat · 40 global / 60s · cap 60s), sanitized last-error, and soft-fail empty states for channels/timeline during crash recovery (never invents links or events). Pure helpers in `resilience.ts` + tests; i18n en/zh/zh-TW.
@@ -29,6 +30,7 @@ See `docs/llm-wiki/release.md`.
 - **Memory clear scopes + dream honesty**: Memory ops center GlassModal clear for host scopes **workspace / global / all** (real `grok memory clear` flags; no `window.confirm`). Dream/watcher chips remain config-presence only — never a live “running” status. Experimental memory stays **off** by default with `--no-memory` force-disable honesty.
 
 **中文 · 新增**
+- **Grok 4.6 + 极高推理**：官方默认模型改为 `grok-4.6`（4.5 仍可选）；4.6 显示极高/`xhigh`，产品默认 **xhigh**。旧安装一次性把全局 `grok-4.5` 抬到 4.6，官方 `high` 抬到 `xhigh`。
 - **按提供商追加提示词**：编辑提供商表单新增**追加提示词**输入框，用于某些中转需要的针对性指令。它走 CLI 的 `--rules` 参数，因此是**追加**到系统提示词末尾，而不是替换。按渠道存在 agent-home 的 `config.toml` 里（键名 `app_append_prompt`），连接时与会话规则一并合并。默认为空。
 - **沙箱产品路径诚实说明**：设置标明 App 默认 Workspace 严于 CLI Off；打开沙箱指南；Off 空态 soft 说明；Linux userns 提示；leader 与非 Off 沙箱互斥；信任项目后/项目菜单可再次打开向导。
 - **导出路径诚实徽章**：导出会话菜单显示格式名+扩展名，并标注 **会话记录 / CLI 导出**。完整 Markdown 下载在已关联 agent 时优先 `grok export`（失败回退本地记录）；其他格式与复制仅用会话记录。纯路径解析 + 测试；中英繁。
@@ -54,6 +56,7 @@ See `docs/llm-wiki/release.md`.
 - **Goal 会话指示菜单**：有真实 `goal_updated` 显示阶段 chip，仅 `/goal` 无事件时虚线等待态；点击打开菜单（可靠性中心 / 复制摘要 / 清除本机时间线）。仍不虚构进度。
 
 ### Fixed
+- **Composer Extra High chip**: Selecting 极高/`xhigh` on grok-4.6 no longer remaps back to 高. Official route validates against the selected model's effort catalog.
 - **“Thinking for N” no longer restarts on every chat switch**: The turn clock is kept per chat instead of one global value. Opening a chat now resumes its own clock.
 - **Reasoning effort is remembered per chat**: Effort cascades session → project → global like permission. `settings.effort` is only the seed for chats that never picked one.
 - **A draft chat no longer retunes the live one**: Changing effort before the first message keeps `sessionId: null` and does not write into the running session.
@@ -70,6 +73,7 @@ See `docs/llm-wiki/release.md`.
 - **Remote IM status lights**: Sidebar `deriveStatus` no longer treats Bridge running alone as connected (requires `connectedChannels` link). Incomplete drafts (any channel) cannot show Connected.
 
 **中文 · 修复**
+- **Composer 极高档回弹**：在 grok-4.6 选极高/`xhigh` 后不再被 3 档校验打回「高」。
 - **「思考中 N 秒」不再因切换会话归零**：回合计时按会话保存；打开会话恢复它自己的计时。
 - **思考等级改为按会话记忆**：effort 按 会话 → 项目 → 全局 级联；`settings.effort` 只作为从未选过的会话的初始值。
 - **草稿会话不再改动正在运行的会话**：首次发送前改思考等级不再写进当前活跃会话。

@@ -31,12 +31,15 @@ describe("providerPresets", () => {
     expect(PROVIDER_PRESETS.some((p) => p.id === "deepseek")).toBe(true);
   });
 
-  it("ships Amux with grok-4.5 display name Grok 4.5 and Grok efforts", () => {
+  it("ships Amux with grok-4.6 + grok-4.5 and Grok efforts", () => {
     const amux = findProviderPreset("amux");
     expect(amux).toBeDefined();
     expect(amux!.baseUrl).toBe("https://api.amux.ai/v1");
     expect(amux!.apiBackend).toBe("responses");
-    expect(AMUX_MODELS).toEqual([{ id: "grok-4.5", name: "Grok 4.5" }]);
+    expect(AMUX_MODELS).toEqual([
+      { id: "grok-4.6", name: "Grok 4.6" },
+      { id: "grok-4.5", name: "Grok 4.5" },
+    ]);
     expect(amux!.models).toEqual(AMUX_MODELS);
     expect(amux!.efforts.map((e) => e.id)).toEqual([
       "low",
@@ -56,11 +59,14 @@ describe("providerPresets", () => {
     expect(go!.brandId).toBe("opencode-go");
   });
 
-  it("ships Yun API with grok-4.5 and yunyi register link", () => {
+  it("ships Yun API with grok-4.6 + grok-4.5 and yunyi register link", () => {
     const yun = findProviderPreset("yun-api");
     expect(yun).toBeDefined();
     expect(yun!.baseUrl).toBe("https://api.yunyi.ai/v1");
-    expect(YUN_API_MODELS).toEqual([{ id: "grok-4.5", name: "Grok 4.5" }]);
+    expect(YUN_API_MODELS).toEqual([
+      { id: "grok-4.6", name: "Grok 4.6" },
+      { id: "grok-4.5", name: "Grok 4.5" },
+    ]);
     expect(yun!.apiKeyUrl).toBe(
       "https://api.yunyi.ai/register/?aff_code=W0iw",
     );
