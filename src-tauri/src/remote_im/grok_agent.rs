@@ -141,187 +141,20 @@ fn configure_process_tree(cmd: &mut Command) {
     }
     #[cfg(windows)]
     {
-        use windows_sys::Win32::System::Threading::CREATE_SUSPENDED;
-        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW | CREATE_SUSPENDED);
+        cmd.creation_flags(CREATE_NO_WINDOW);
     }
 }
 
 struct ProcessTree {
     id: Option<u32>,
-    #[cfg(windows)]
-    job: Option<WindowsJob>,
 }
 
 impl ProcessTree {
-    fn capture(child: &mut Child) -> std::io::Result<Self> {
-        #[cfg(windows)]
-        let job = {
-            let pid = child
-                .id()
-                .ok_or_else(|| std::io::Error::other("child process id is unavailable"))?;
-            // Every Windows child is created suspended. Never let it execute
-            // unless Job assignment succeeded, so descendants cannot escape.
-            let job = WindowsJob::attach(child)?;
-            resume_process_thread(pid)?;
-            Some(job)
-        };
-        Ok(Self {
-            id: child.id(),
-            #[cfg(windows)]
-            job,
-        })
+    fn capture(child: &Child) -> Self {
+        Self { id: child.id() }
     }
-
-    fn preserve_background_children(&mut self) {
-        #[cfg(windows)]
-        if let Some(job) = self.job.as_ref() {
-            if let Err(error) = job.disable_kill_on_close() {
-                tracing::warn!(
-                    %error,
-                    "remote_im: failed to preserve background processes after successful turn"
-                );
-            }
-        }
-    }
-}
-
-async fn capture_process_tree(child: &mut Child) -> std::io::Result<ProcessTree> {
-    match ProcessTree::capture(child) {
-        Ok(tree) => Ok(tree),
-        Err(error) => {
-            let _ = child.start_kill();
-            let _ = child.wait().await;
-            Err(error)
-        }
-    }
-}
-
-#[cfg(windows)]
-struct WindowsJob(std::os::windows::io::OwnedHandle);
-
-#[cfg(windows)]
-impl WindowsJob {
-    fn attach(child: &Child) -> std::io::Result<Self> {
-        use std::os::windows::io::{FromRawHandle, RawHandle};
-        use windows_sys::Win32::System::JobObjects::{
-            AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
-            SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
-            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-        };
-
-        let process = child
-            .raw_handle()
-            .ok_or_else(|| std::io::Error::other("child process handle is unavailable"))?;
-        // SAFETY: null security/name requests an unnamed job with default ACLs.
-        let raw_job = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
-        if raw_job.is_null() {
-            return Err(std::io::Error::last_os_error());
-        }
-        // SAFETY: CreateJobObjectW returned ownership of a valid HANDLE.
-        let job =
-            unsafe { std::os::windows::io::OwnedHandle::from_raw_handle(raw_job as RawHandle) };
-        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
-        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-        // SAFETY: pointers refer to live handles/structures for the duration of each call.
-        let configured = unsafe {
-            SetInformationJobObject(
-                raw_job,
-                JobObjectExtendedLimitInformation,
-                (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
-                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
-            )
-        };
-        if configured == 0 {
-            return Err(std::io::Error::last_os_error());
-        }
-        // SAFETY: Tokio exposes the live process HANDLE; the job remains owned by `job`.
-        let assigned = unsafe { AssignProcessToJobObject(raw_job, process as _) };
-        if assigned == 0 {
-            return Err(std::io::Error::last_os_error());
-        }
-        Ok(Self(job))
-    }
-
-    fn terminate(&self) {
-        use std::os::windows::io::AsRawHandle;
-        use windows_sys::Win32::System::JobObjects::TerminateJobObject;
-        // SAFETY: the owned Job Object HANDLE is valid while `self` is alive.
-        let _ = unsafe { TerminateJobObject(self.0.as_raw_handle() as _, 1) };
-    }
-
-    fn disable_kill_on_close(&self) -> std::io::Result<()> {
-        use std::os::windows::io::AsRawHandle;
-        use windows_sys::Win32::System::JobObjects::{
-            JobObjectExtendedLimitInformation, SetInformationJobObject,
-            JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
-        };
-
-        let limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
-        // SAFETY: the owned Job Object HANDLE and `limits` remain valid for the call.
-        let configured = unsafe {
-            SetInformationJobObject(
-                self.0.as_raw_handle() as _,
-                JobObjectExtendedLimitInformation,
-                (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
-                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
-            )
-        };
-        if configured == 0 {
-            return Err(std::io::Error::last_os_error());
-        }
-        Ok(())
-    }
-}
-
-#[cfg(windows)]
-fn resume_process_thread(process_id: u32) -> std::io::Result<()> {
-    use std::os::windows::io::{FromRawHandle, RawHandle};
-    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
-    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
-        CreateToolhelp32Snapshot, Thread32First, Thread32Next, TH32CS_SNAPTHREAD, THREADENTRY32,
-    };
-    use windows_sys::Win32::System::Threading::{OpenThread, ResumeThread, THREAD_SUSPEND_RESUME};
-
-    // SAFETY: flags and process id follow the ToolHelp API contract.
-    let raw_snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0) };
-    if raw_snapshot == INVALID_HANDLE_VALUE {
-        return Err(std::io::Error::last_os_error());
-    }
-    // SAFETY: CreateToolhelp32Snapshot returned ownership of a valid HANDLE.
-    let _snapshot =
-        unsafe { std::os::windows::io::OwnedHandle::from_raw_handle(raw_snapshot as RawHandle) };
-    let mut entry = THREADENTRY32 {
-        dwSize: std::mem::size_of::<THREADENTRY32>() as u32,
-        ..Default::default()
-    };
-    // SAFETY: `entry` is initialized with the required size and remains live.
-    let mut found = unsafe { Thread32First(raw_snapshot, &mut entry) } != 0;
-    while found {
-        if entry.th32OwnerProcessID == process_id {
-            // SAFETY: opening a non-inheritable handle to the enumerated thread id.
-            let raw_thread = unsafe { OpenThread(THREAD_SUSPEND_RESUME, 0, entry.th32ThreadID) };
-            if raw_thread.is_null() {
-                return Err(std::io::Error::last_os_error());
-            }
-            // SAFETY: OpenThread returned ownership of a valid HANDLE.
-            let _thread = unsafe {
-                std::os::windows::io::OwnedHandle::from_raw_handle(raw_thread as RawHandle)
-            };
-            // SAFETY: the handle grants THREAD_SUSPEND_RESUME access.
-            if unsafe { ResumeThread(raw_thread) } == u32::MAX {
-                return Err(std::io::Error::last_os_error());
-            }
-            return Ok(());
-        }
-        // SAFETY: snapshot/entry remain valid throughout enumeration.
-        found = unsafe { Thread32Next(raw_snapshot, &mut entry) } != 0;
-    }
-    Err(std::io::Error::new(
-        std::io::ErrorKind::NotFound,
-        "initial child thread was not found",
-    ))
 }
 
 async fn terminate_and_reap(child: &mut Child, process_tree: &ProcessTree) {
@@ -331,18 +164,11 @@ async fn terminate_and_reap(child: &mut Child, process_tree: &ProcessTree) {
         tokio::time::sleep(PROCESS_TREE_GRACE).await;
         let _ = libc_kill(-pgid, 9); // SIGKILL descendants that ignored SIGTERM.
     }
-    #[cfg(windows)]
-    if let Some(job) = process_tree.job.as_ref() {
-        job.terminate();
-    } else if let Some(pid) = process_tree.id {
-        let _ = Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .await;
-    }
 
+    tracing::debug!(
+        pid = ?process_tree.id,
+        "remote_im: terminating grok leader"
+    );
     if let Err(error) = child.start_kill() {
         tracing::debug!(%error, "remote_im: child already exited before cancellation");
     }
@@ -372,17 +198,7 @@ async fn read_version_cancellable(
         Ok(child) => child,
         Err(_) => return Ok(None),
     };
-    let process_tree = match capture_process_tree(&mut child).await {
-        Ok(tree) => tree,
-        Err(error) => {
-            tracing::warn!(
-                path = %binary.display(),
-                %error,
-                "remote_im: failed to supervise cli --version process"
-            );
-            return Ok(None);
-        }
-    };
+    let process_tree = ProcessTree::capture(&child);
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let mut output_task = tokio::spawn(async move {
@@ -635,24 +451,7 @@ async fn run_turn_with_binary_and_env(
             };
         }
     };
-    let mut process_tree = match capture_process_tree(&mut child).await {
-        Ok(tree) => tree,
-        Err(error) => {
-            tracing::error!(
-                binary = %binary.display(),
-                %error,
-                "remote_im: failed to supervise grok process"
-            );
-            return GrokTurnResult {
-                text: String::new(),
-                session_id: None,
-                error: Some(PROCESS_SUPERVISION_ERROR_CODE.into()),
-                usage: None,
-                compact: None,
-                cancelled: false,
-            };
-        }
-    };
+    let process_tree = ProcessTree::capture(&child);
 
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
@@ -775,9 +574,6 @@ async fn run_turn_with_binary_and_env(
                 return cancelled_result();
             }
         }
-    }
-    if matches!(status.as_ref(), Some(Ok(status)) if status.success()) {
-        process_tree.preserve_background_children();
     }
     let stderr_text = match finish_stdio_after_leader_exit(
         &mut stderr_task,
@@ -943,26 +739,7 @@ async fn run_turn_simple(
             };
         }
     };
-    let mut process_tree = match capture_process_tree(&mut child).await {
-        Ok(tree) => tree,
-        Err(error) => {
-            tracing::error!(
-                binary = %binary.display(),
-                %error,
-                "remote_im: failed to supervise fallback grok process"
-            );
-            return GrokTurnResult {
-                text: String::new(),
-                session_id: session_id
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty()),
-                error: Some(PROCESS_SUPERVISION_ERROR_CODE.into()),
-                usage: None,
-                compact: None,
-                cancelled: false,
-            };
-        }
-    };
+    let process_tree = ProcessTree::capture(&child);
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let mut output_task = tokio::spawn(async move {
@@ -997,9 +774,6 @@ async fn run_turn_simple(
             return cancelled_result();
         }
     };
-    if matches!(&status, Ok(status) if status.success()) {
-        process_tree.preserve_background_children();
-    }
     let (stdout, stderr) =
         match finish_stdio_after_leader_exit(&mut output_task, cancel, &mut child, &process_tree)
             .await
