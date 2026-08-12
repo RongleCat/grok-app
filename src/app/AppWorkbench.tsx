@@ -5330,10 +5330,14 @@ export function AppWorkbench() {
     sessionSelectAnchorIdRef.current = null;
   }, []);
 
-  const enterSessionSelectMode = useCallback(() => {
+  /**
+   * Enter multi-select. `preselectId` seeds the selection so right-clicking a
+   * chat → "Select" starts with that chat ticked (and anchors Shift-range).
+   */
+  const enterSessionSelectMode = useCallback((preselectId?: string) => {
     setSessionSelectMode(true);
-    setSelectedSessionIds(new Set());
-    sessionSelectAnchorIdRef.current = null;
+    setSelectedSessionIds(preselectId ? new Set([preselectId]) : new Set());
+    sessionSelectAnchorIdRef.current = preselectId ?? null;
   }, []);
 
   const toggleSessionSelected = useCallback(
@@ -18205,6 +18209,23 @@ export function AppWorkbench() {
                   {tr("sidebar.otherSessions")}
                 </span>
               </button>
+              {!sessionSelectMode && orphanSessionIds.length > 0 ? (
+                <div className="tree-l1__actions">
+                  <Tip label={tr("sidebar.select")}>
+                    <button
+                      type="button"
+                      className="tree-l1__action"
+                      aria-label={tr("sidebar.select")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        enterSessionSelectMode();
+                      }}
+                    >
+                      <IconListCheck size={15} />
+                    </button>
+                  </Tip>
+                </div>
+              ) : null}
               {sessionSelectMode && orphanSessionIds.length > 0 ? (
                 <div className="tree-l1__actions tree-l1__actions--select-mode">
                   <button
@@ -24720,6 +24741,18 @@ export function AppWorkbench() {
             })();
 
             items = [
+              ...(sessionSelectMode
+                ? []
+                : [
+                    {
+                      // Primary discovery path for bulk archive/delete: the
+                      // group header icon alone was too easy to miss.
+                      id: "select",
+                      label: tr("sidebar.select"),
+                      icon: <IconListCheck size={16} />,
+                      onClick: () => enterSessionSelectMode(s.id),
+                    } satisfies ContextMenuItem,
+                  ]),
               {
                 id: "pin",
                 label: s.pinned ? tr("session.unpin") : tr("session.pin"),
