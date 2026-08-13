@@ -808,6 +808,72 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   ) {
     return wrap(
       <EndOfTurnChip key={m.id} message={m} locale={locale} />,
+      // Show bottom actions (copy, export MD, regenerate) for cancelled turns so the user can still use them after stopping the request.
+      ( () => {
+        const showCopy = !!m.content.trim();
+        const showRegen = !!onRegenerateAssistant && regenerableAssistantId === m.id;
+        if (!showCopy && !showRegen) return null;
+        const deepLink =
+          sessionId != null
+            ? formatMessageDeepLink(sessionId, m.id)
+            : "";
+        const showCopyLink = !!deepLink;
+        if (!showCopy && !showRegen && !showCopyLink) return null;
+        return (
+          <>
+            {showCopy ? (
+              <>
+                <MessageCopyButton
+                  text={m.content}
+                  copyLabel={tr("message.copy")}
+                  copiedLabel={tr("message.copied")}
+                />
+                <MessageActionButton
+                  label={tr("message.exportMd")}
+                  onClick={() => {
+                    const blob = new Blob([m.content], {
+                      type: "text/markdown;charset=utf-8",
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `grok-${m.id.slice(0, 8)}.md`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  <IconExportMd size={15} />
+                </MessageActionButton>
+              </>
+            ) : null}
+            {showCopyLink ? (
+              <MessageCopyButton
+                text={deepLink}
+                copyLabel={tr("message.copyLink")}
+                copiedLabel={tr("message.linkCopied")}
+                idleIcon={<IconLink size={15} />}
+              />
+            ) : null}
+            {showRegen ? (
+              <MessageRegenerateButton
+                label={tr("message.regenerate")}
+                sameModelLabel={tr("message.regenerateSameModel")}
+                pickModelLabel={tr("message.regeneratePickModel")}
+                disabled={!canRegenerate}
+                models={regenerateModels}
+                currentModelId={regenerateModelId}
+                onRegenerate={(modelId) => {
+                  if (!canRegenerate) return;
+                  onRegenerateAssistant?.(
+                    m,
+                    modelId ? { modelId } : undefined,
+                  );
+                }}
+              />
+            ) : null}
+          </>
+        );
+      })()
     );
   }
 
