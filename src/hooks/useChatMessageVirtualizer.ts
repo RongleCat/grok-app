@@ -103,6 +103,8 @@ export function useChatMessageVirtualizer(
   const recomputeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Programmatic scrollTop from height correction — ignore once for stick. */
   const ignoreScrollAdjustRef = useRef(false);
+  /** Last scrollTop for micro-movement filtering (prevents light-touch shake). */
+  const lastScrollTopRef = useRef(0);
   /** Per-index ResizeObserver so image/video decode updates height after mount. */
   const rowObserversRef = useRef<Map<number, ResizeObserver>>(new Map());
   /** Coalesce scroll-driven recomputes to one per animation frame. */
@@ -141,6 +143,7 @@ export function useChatMessageVirtualizer(
     heightsRef.current.clear();
     heightsVersionRef.current = 0;
     offsetsCacheRef.current = null;
+    lastScrollTopRef.current = 0;
     for (const ro of rowObserversRef.current.values()) ro.disconnect();
     rowObserversRef.current.clear();
     setWin(full(itemCount));
@@ -269,6 +272,14 @@ export function useChatMessageVirtualizer(
         ignoreScrollAdjustRef.current = false;
         return;
       }
+      const currentScrollTop = el.scrollTop;
+      // Ignore micro-movements (< 2px) — these are common on light touches / micro-drags
+      // and cause repeated recomputes + visual shake without actual scroll.
+      if (Math.abs(currentScrollTop - (lastScrollTopRef.current || currentScrollTop)) < 2) {
+        lastScrollTopRef.current = currentScrollTop;
+        return;
+      }
+      lastScrollTopRef.current = currentScrollTop;
       scrollingRef.current = true;
       if (scrollIdleTimerRef.current != null) {
         clearTimeout(scrollIdleTimerRef.current);
@@ -325,6 +336,7 @@ export function useChatMessageVirtualizer(
         clearTimeout(scrollIdleTimerRef.current);
         scrollIdleTimerRef.current = null;
       }
+      lastScrollTopRef.current = 0;
     };
   }, [virtualized, itemCount, viewportRef, recompute, recomputeNow, conversationKey]);
 
