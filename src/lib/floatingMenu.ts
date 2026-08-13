@@ -321,7 +321,6 @@ export function useFloatingMenu({
             ...next,
             top: idealTop,
             placeAbove: false,
-            maxHeight: Math.max(next.maxHeight, ph + 8),
           };
         } else {
           const maxH = Math.max(120, r.top - gap - margin);
