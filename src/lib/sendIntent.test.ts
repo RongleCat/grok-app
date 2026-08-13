@@ -50,20 +50,32 @@ describe("resolveSendIntent", () => {
     expect(shouldEnqueueSend("awaiting_permission", true)).toBe(false);
   });
 
-  it("enqueue when same-session streaming/connecting (Send path, not steer)", () => {
-    for (const state of ["streaming", "connecting"] as SessionState[]) {
-      const r = resolveSendIntent({
-        ...base,
-        viewedState: state,
-        liveSessionId: "s1",
-        liveState: state,
-        hasBody: true,
-      });
-      expect(r.kind, state).toBe("enqueue");
-      expect(r.enqueue, state).toBe(true);
-      expect(r.bannerKey, state).toBe("composer.intent.enqueue");
-      expect(shouldEnqueueSend(state, false)).toBe(true);
-    }
+  it("enqueue when same-session streaming (Send path, not steer)", () => {
+    const r = resolveSendIntent({
+      ...base,
+      viewedState: "streaming",
+      liveSessionId: "s1",
+      liveState: "streaming",
+      hasBody: true,
+    });
+    expect(r.kind).toBe("enqueue");
+    expect(r.enqueue).toBe(true);
+    expect(r.bannerKey).toBe("composer.intent.enqueue");
+    expect(shouldEnqueueSend("streaming", false)).toBe(true);
+  });
+
+  it("send_now while connecting (fork / warm handshake is not a turn)", () => {
+    const r = resolveSendIntent({
+      ...base,
+      viewedState: "connecting",
+      liveSessionId: "s1",
+      liveState: "connecting",
+      hasBody: true,
+    });
+    expect(r.kind).toBe("send_now");
+    expect(r.enqueue).toBe(false);
+    expect(shouldEnqueueSend("connecting", false)).toBe(false);
+    expect(shouldEnqueueSend("connecting", true)).toBe(false);
   });
 
   it("parity: enqueue flag matches shouldEnqueueSend × hasBody matrix", () => {
@@ -205,7 +217,7 @@ describe("resolveSendIntent", () => {
     expect(r.enqueue).toBe(false);
   });
 
-  it("action steer without streaming falls through (enqueue if connecting)", () => {
+  it("action steer without streaming falls through (send_now while connecting)", () => {
     const r = resolveSendIntent({
       ...base,
       viewedState: "connecting",
@@ -214,9 +226,9 @@ describe("resolveSendIntent", () => {
       hasBody: true,
       action: "steer",
     });
-    // Guide unavailable during connecting-only; Send would enqueue.
-    expect(r.kind).toBe("enqueue");
-    expect(r.enqueue).toBe(true);
+    // Guide unavailable during handshake; Send goes now, not into the queue.
+    expect(r.kind).toBe("send_now");
+    expect(r.enqueue).toBe(false);
   });
 
   it("action steer with empty body is blocked_empty", () => {

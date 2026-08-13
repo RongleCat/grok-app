@@ -62,6 +62,7 @@ See `docs/llm-wiki/release.md`.
 - **Goal 会话指示菜单**：有真实 `goal_updated` 显示阶段 chip，仅 `/goal` 无事件时虚线等待态；点击打开菜单（可靠性中心 / 复制摘要 / 清除本机时间线）。仍不虚构进度。
 
 ### Fixed
+- **Fork / connecting send queue**: A first message after fork (or during warm-connect) no longer parks in the follow-up queue. Handshake `connecting` is not a live turn — Send goes through `ensureConnected`. Queue **Steer** becomes **Send now** when no turn is running.
 - **Grok preset effort catalog**: Amux / Yun presets use the official 4.6 enum (`low` / `medium` / `high` / `xhigh`, default Extra high). Legacy saved `max` ladders on those relays remap to `xhigh`. Blank custom channels still default to `max`.
 - **Changes accept/reject/restore path guard**: Accept / reject / restore never write file B using another file’s after-text. Hunk accept confirms drop-the-rest, caches the full after-text before write, and rebuilds the open diff so later hunks compose. All-dirty tabs refuse a new open instead of discarding unsaved buffers. Patch join keeps the source trailing-newline state.
 - **Remote IM empty / narrowed scope**: `{allow: []}` and out-of-scope bindings no longer spawn a turn (or fall back to `$HOME`). Telegram (and other channel) validate errors strip the request URL so bot tokens stay out of the settings panel. Only `/stop` / `/help` run inline on the pump so `/account` cannot block `/stop`.
@@ -88,6 +89,7 @@ See `docs/llm-wiki/release.md`.
 - **Remote IM status lights**: Sidebar `deriveStatus` no longer treats Bridge running alone as connected (requires `connectedChannels` link). Incomplete drafts (any channel) cannot show Connected.
 
 **中文 · 修复**
+- **分叉后发不出消息**：预热连接中的 `connecting` 不再把第一条消息当成跟进入队。握手不是进行中的回合；发送走 `ensureConnected`。无回合时队列「引导」改为「立即发送」。
 - **Grok 预设思考档对齐官方**：Amux / 云驿使用官方 4.6 枚举（`low` / `medium` / `high` / `xhigh`，默认极高）。旧存档里的 `max` 档会映射为 `xhigh`。空白自定义通道仍默认 `max`。
 - **Changes 跨文件写错 / hunk 还原**：accept/reject/restore 只写路径匹配的 after；逐 hunk 接受先确认、先缓存完整 after、再重建 diff。全脏标签拒绝打开新标签。补丁重组保留源文件末尾换行。
 - **Remote IM 空白名单 / 泄漏**：`{allow: []}` 与过期绑定不再 spawn，也不回退 `$HOME`。渠道测试错误去掉 URL（避免 Telegram token）。消息泵仅内联 `/stop`/`/help`。

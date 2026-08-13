@@ -72,9 +72,14 @@ export function queuePreviewText(
 /**
  * Whether the composer should enqueue instead of calling the agent now.
  *
- * **Only the viewed session’s own busy state** enqueues (streaming /
- * connecting FSM). `awaiting_permission` does not enqueue — the user must
- * decide first (`canType` is false).
+ * **Only a live turn** on the viewed session enqueues (`streaming`).
+ * `connecting` is handshake / warm-connect (fork, first open, reconnect) —
+ * not a turn. Enqueueing there parks the first message after fork until
+ * connect finishes, and “Guide” cannot steer a turn that has not started.
+ * First send must go through `executeSend` → `ensureConnected`.
+ *
+ * `awaiting_permission` does not enqueue — the user must decide first
+ * (`canType` is false).
  *
  * The UI `connecting` flag is **process-global** (any `ensureConnected`,
  * including reconnect / compact / another chat’s spawn). It must **not**
@@ -92,8 +97,7 @@ export function shouldEnqueueSend(
   state: SessionState,
   _connecting: boolean,
 ): boolean {
-  if (state === "awaiting_permission") return false;
-  return isSessionBusy(state);
+  return state === "streaming";
 }
 
 /**
@@ -130,7 +134,14 @@ export function shouldHoldFlushForLive(
   claimSessionId: string | null | undefined,
 ): boolean {
   if (!liveSessionId || !liveState) return false;
-  if (!isSessionBusy(liveState)) return false;
+  // Only a live turn holds flush. Handshake `connecting` must not park the
+  // queue — executeSend waits on ensureConnected instead.
+  if (
+    liveState !== "streaming" &&
+    liveState !== "awaiting_permission"
+  ) {
+    return false;
+  }
   // Draft queue is never the live mid-turn session.
   if (claimSessionId == null || claimSessionId === "") return false;
   return liveSessionId === claimSessionId;

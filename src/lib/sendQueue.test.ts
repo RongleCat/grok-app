@@ -43,7 +43,9 @@ describe("sendQueue", () => {
     expect(shouldEnqueueSend("streaming", false)).toBe(true);
     // Permission modal: decide first — do not queue.
     expect(shouldEnqueueSend("awaiting_permission", false)).toBe(false);
-    expect(shouldEnqueueSend("connecting", false)).toBe(true);
+    // Handshake / fork warm-connect is not a turn — first send must go now.
+    expect(shouldEnqueueSend("connecting", false)).toBe(false);
+    expect(shouldEnqueueSend("connecting", true)).toBe(false);
     // Global UI `connecting` must NOT enqueue idle/ready/new-chat (foreign
     // ensureConnected / reconnect in flight). Only this chat's FSM busy.
     expect(shouldEnqueueSend("ready", true)).toBe(false);
@@ -72,6 +74,7 @@ describe("sendQueue", () => {
     expect(shouldHoldFlushForLive("a", "streaming", null)).toBe(false);
     // Live idle → never hold
     expect(shouldHoldFlushForLive("a", "ready", "a")).toBe(false);
+    expect(shouldHoldFlushForLive("a", "connecting", "a")).toBe(false);
     expect(shouldHoldFlushForLive(null, "streaming", "a")).toBe(false);
   });
 

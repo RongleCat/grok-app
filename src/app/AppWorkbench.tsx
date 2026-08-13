@@ -10366,9 +10366,46 @@ export function AppWorkbench() {
     tr,
   ]);
 
+  const sendQueuedMessageNow = useCallback(
+    async (item: QueuedSend) => {
+      if (guidingQueueItemId || sendInFlightRef.current) return;
+      sendQueue.removeItem(item.id);
+      setGuidingQueueItemId(item.id);
+      const ok = await executeSend({
+        storedDisplay: item.storedDisplay,
+        att: item.attachments,
+        goalMode: item.goalMode,
+        fromQueue: true,
+        targetSessionId: session.sessionId,
+      });
+      if (!ok) {
+        sendQueue.enqueue({
+          storedDisplay: item.storedDisplay,
+          attachments: item.attachments,
+          goalMode: item.goalMode,
+        });
+        showToast(tr("composer.queueSendNowFailed"), 4200);
+      }
+      setGuidingQueueItemId((current) =>
+        current === item.id ? null : current,
+      );
+    },
+    [
+      guidingQueueItemId,
+      sendQueue.removeItem,
+      sendQueue.enqueue,
+      session.sessionId,
+      showToast,
+      tr,
+    ],
+  );
+
   const guideQueuedMessage = useCallback(
     async (item: QueuedSend) => {
-      if (guidingQueueItemId || !canGuideQueuedMessage || !session.sessionId) {
+      if (guidingQueueItemId) return;
+      if (!session.sessionId) return;
+      if (!canGuideQueuedMessage) {
+        await sendQueuedMessageNow(item);
         return;
       }
       const segments = parseStoredContent(item.storedDisplay);
@@ -10448,6 +10485,7 @@ export function AppWorkbench() {
       session.sessionId,
       sendQueue.removeItem,
       sendQueue.enqueue,
+      sendQueuedMessageNow,
       showToast,
       tr,
     ],
@@ -20103,7 +20141,7 @@ export function AppWorkbench() {
                               ? tr("composer.queueGuiding")
                               : canGuideQueuedMessage
                                 ? tr("composer.queueGuide")
-                                : tr("composer.queueGuideUnavailable")
+                                : tr("composer.queueSendNow")
                           }
                           title={
                             guidingQueueItemId === item.id ||
@@ -20111,16 +20149,16 @@ export function AppWorkbench() {
                               ? tr("composer.queueGuiding")
                               : canGuideQueuedMessage
                                 ? tr("composer.queueGuide")
-                                : tr("composer.queueGuideUnavailable")
+                                : tr("composer.queueSendNow")
                           }
-                          disabled={
-                            !canGuideQueuedMessage || guidingQueueItemId !== null
-                          }
+                          disabled={guidingQueueItemId !== null}
                           onClick={() => void guideQueuedMessage(item)}
                         >
                           {guidingQueueItemId === item.id
                             ? tr("composer.queueGuiding")
-                            : tr("composer.queueGuide")}
+                            : canGuideQueuedMessage
+                              ? tr("composer.queueGuide")
+                              : tr("composer.queueSendNow")}
                         </button>
                         <button
                           type="button"
