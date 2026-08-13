@@ -1315,12 +1315,7 @@ mod tests {
             "allow-always"
         );
         assert_eq!(
-            coerce_wire_option_id_for_tool(
-                "allow_session",
-                Some("always-allow"),
-                &empty,
-                "write",
-            ),
+            coerce_wire_option_id_for_tool("allow_session", Some("always-allow"), &empty, "write",),
             "allow-always"
         );
     }
