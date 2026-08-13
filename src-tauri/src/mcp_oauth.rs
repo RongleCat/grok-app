@@ -439,39 +439,34 @@ fn urlencoding_encode(s: &str) -> String {
     out
 }
 
+/// RFC 9728 well-known metadata URLs derived **only** from this MCP endpoint.
+/// Never prepend a third-party (ChatCut) URL — that would authorize the wrong
+/// provider for every other remote MCP (#605).
+fn protected_resource_meta_urls(mcp_url: &str) -> Vec<String> {
+    let mcp_url = mcp_url.trim().trim_end_matches('/');
+    let Ok(u) = reqwest::Url::parse(mcp_url) else {
+        return Vec::new();
+    };
+    let Some(host) = u.host_str().filter(|h| !h.is_empty()) else {
+        return Vec::new();
+    };
+    let origin = format!("{}://{}", u.scheme(), host);
+    let path = u.path().trim_start_matches('/');
+    let mut urls = Vec::new();
+    if !path.is_empty() {
+        urls.push(format!(
+            "{origin}/.well-known/oauth-protected-resource/{path}"
+        ));
+    }
+    urls.push(format!("{origin}/.well-known/oauth-protected-resource"));
+    urls
+}
+
 fn discover_for_mcp_url(
     mcp_url: &str,
 ) -> Result<(ProtectedResourceMeta, AuthServerMeta, String), String> {
     let mcp_url = mcp_url.trim().trim_end_matches('/');
-    // RFC 9728 style path under well-known
-    let resource_meta_urls = [
-        format!("https://api.chatcut.io/.well-known/oauth-protected-resource/api/external-mcp/mcp"),
-        // Generic: origin + /.well-known/oauth-protected-resource + path
-        {
-            if let Ok(u) = reqwest::Url::parse(mcp_url) {
-                let origin = format!("{}://{}", u.scheme(), u.host_str().unwrap_or(""));
-                let path = u.path().trim_start_matches('/');
-                if path.is_empty() {
-                    format!("{origin}/.well-known/oauth-protected-resource")
-                } else {
-                    format!("{origin}/.well-known/oauth-protected-resource/{path}")
-                }
-            } else {
-                String::new()
-            }
-        },
-        {
-            if let Ok(u) = reqwest::Url::parse(mcp_url) {
-                format!(
-                    "{}://{}/.well-known/oauth-protected-resource",
-                    u.scheme(),
-                    u.host_str().unwrap_or("")
-                )
-            } else {
-                String::new()
-            }
-        },
-    ];
+    let resource_meta_urls = protected_resource_meta_urls(mcp_url);
 
     let mut pr: Option<ProtectedResourceMeta> = None;
     for u in &resource_meta_urls {
@@ -561,7 +556,7 @@ fn wait_for_code(listener: TcpListener, expect_state: &str) -> Result<String, St
         }
     }
     let body = if code.is_some() {
-        "<html><body><h2>ChatCut authorization complete</h2><p>You can close this tab and return to Grok App.</p></body></html>"
+        "<html><body><h2>Authorization complete</h2><p>You can close this tab and return to Grok App.</p></body></html>"
     } else {
         "<html><body><h2>Authorization failed</h2><p>Return to Grok App and retry.</p></body></html>"
     };
@@ -1282,5 +1277,40 @@ mod tests {
             s2.resource.as_deref(),
             Some("https://api.chatcut.io/api/external-mcp/mcp")
         );
+    }
+
+    #[test]
+    fn protected_resource_meta_urls_follow_mcp_origin_not_chatcut() {
+        let urls = protected_resource_meta_urls("https://mcp.appwrite.io/mcp");
+        assert!(!urls.is_empty());
+        assert!(
+            urls.iter()
+                .all(|u| !u.to_ascii_lowercase().contains("chatcut")),
+            "non-ChatCut MCP must not probe ChatCut metadata: {urls:?}"
+        );
+        assert_eq!(
+            urls[0],
+            "https://mcp.appwrite.io/.well-known/oauth-protected-resource/mcp"
+        );
+        assert_eq!(
+            urls[1],
+            "https://mcp.appwrite.io/.well-known/oauth-protected-resource"
+        );
+    }
+
+    #[test]
+    fn protected_resource_meta_urls_chatcut_still_derives_from_own_url() {
+        let urls = protected_resource_meta_urls("https://api.chatcut.io/api/external-mcp/mcp/");
+        assert_eq!(
+            urls[0],
+            "https://api.chatcut.io/.well-known/oauth-protected-resource/api/external-mcp/mcp"
+        );
+        assert!(urls.iter().all(|u| u.contains("api.chatcut.io")));
+    }
+
+    #[test]
+    fn protected_resource_meta_urls_rejects_garbage() {
+        assert!(protected_resource_meta_urls("not a url").is_empty());
+        assert!(protected_resource_meta_urls("").is_empty());
     }
 }

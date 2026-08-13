@@ -32,6 +32,8 @@ Do **not** invent a `grok` surface value without upstream support — tools will
 
 ## OAuth lifetime (Host responsibility)
 
+Discovery of the authorization server is **per MCP URL** (RFC 9728 well-known on that origin). Do **not** fall back to ChatCut’s well-known endpoint for other servers — that sends Appwrite (and every other remote MCP) to `api.chatcut.io` (#605).
+
 ChatCut’s AS issues **short-lived access tokens** (`expires_in` ≈ 3600s) plus a **`refresh_token`** when scope includes `offline_access`. The official plugin does **not** refresh; Codex does (Keychain + silent refresh). Grok App Host must:
 
 1. Persist `access_token` + `refresh_token` + `client_id` + `token_endpoint` in `mcp_credentials.json` (agent-home and `~/.grok`, mode `0600`).

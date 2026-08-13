@@ -12,6 +12,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Fixed
+- **MCP authorize uses the selected server** (#605): Host OAuth discovery no longer tries ChatCut's well-known metadata first. Authorizing Appwrite (or any other remote MCP) opens that provider's consent screen, not `api.chatcut.io`. ChatCut still works — its metadata is derived from its own MCP URL. Loopback success page is generic (no longer says "ChatCut").
 - **Fork / connecting send queue**: A first message after fork (or during warm-connect) no longer parks in the follow-up queue. Handshake `connecting` is not a live turn — Send goes through `ensureConnected`. Queue **Steer** becomes **Send now** when no turn is running.
 - **Agent turn finish no longer drops the last stream batch**: Process crash / RPC fail now flushes the coalesced `session://stream` buffer and journal tail before clearing the live slot (answers no longer stop mid-sentence).
 - **Early `prompt_complete` no longer discards a silent long tool**: Host keeps the turn deferred while tools are still open instead of force-clearing them after 3s and treating later chunks as load-replay.
@@ -27,6 +28,7 @@ See `docs/llm-wiki/release.md`.
 - **cwd-relative downloads (`curl -O` / `wget` without `-o`) prompt** unless YOLO — no longer assumed to write inside the project.
 
 **中文 · 修复**
+- **MCP 授权跟所选服务器走**（#605）：OAuth 发现不再先打 ChatCut 的 well-known。给 Appwrite 等其它远程 MCP 点授权时，打开的是该服务商的登录页，而不是 `api.chatcut.io`。ChatCut 仍可用（从它自己的 MCP URL 推导元数据）。回环成功页不再写死 ChatCut。
 - **分叉后发不出消息**：预热连接中的 `connecting` 不再把第一条消息当成跟进入队。握手不是进行中的回合；发送走 `ensureConnected`。无回合时队列「引导」改为「立即发送」。
 - **回合结束不再丢掉最后一批流式字**：进程崩溃 / RPC 失败会先刷出合批缓冲和 journal 尾巴。
 - **提前 `prompt_complete` 不再丢掉仍在跑的静默工具**：不再 3 秒后强清 open tools，后续 chunk 也不会被当成 load-replay 丢掉。
