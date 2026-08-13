@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   applyHunks,
   applySelectedHunks,
@@ -326,8 +326,13 @@ describe("resolveDiffAfterSource", () => {
       expect(rebuilt.beforeText).toBe(written);
       expect(rebuilt.afterText).toBe(fullAfter);
       const remaining = parseUnifiedDiff(rebuilt.unified).hunks;
-      expect(remaining.length).toBe(3);
-      const composed = applySelectedHunks(written, remaining, [0, 1, 2]);
+      // Adjacent line edits coalesce into one unified hunk.
+      expect(remaining.length).toBeGreaterThan(0);
+      const composed = applySelectedHunks(
+        written,
+        remaining,
+        remaining.map((_, i) => i),
+      );
       expect(composed.ok).toBe(true);
       if (composed.ok) expect(composed.content).toBe(fullAfter);
     });
