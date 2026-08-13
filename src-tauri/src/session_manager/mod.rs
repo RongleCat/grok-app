@@ -76,6 +76,10 @@ pub struct SessionManager {
     /// post-turn reconciliation. Retry sleeps never hold these locks, and one
     /// chat never delays another chat's send.
     pub(super) post_turn_journal_locks: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+    /// Soft-respawn requested while the session was mid-turn (YOLO off,
+    /// effort change, proxy, …). Flushed when the turn becomes idle so
+    /// the next process picks up spawn flags (P0-5 / #598).
+    pub(super) pending_soft_respawn: Mutex<HashMap<String, String>>,
 }
 
 impl Default for SessionManager {
@@ -94,6 +98,7 @@ impl SessionManager {
             tool_identities: std::sync::Mutex::new(std::collections::HashMap::new()),
             connect_lock: tokio::sync::Mutex::new(()),
             post_turn_journal_locks: Mutex::new(HashMap::new()),
+            pending_soft_respawn: Mutex::new(HashMap::new()),
         }
     }
 

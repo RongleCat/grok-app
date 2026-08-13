@@ -329,7 +329,9 @@ function spawnMapForCatalog(
       low: byLower.get("low"),
       medium: byLower.get("medium"),
       high: byLower.get("high"),
-      xhigh: byLower.get("max") ?? byLower.get("xhigh"),
+      // Official grok-4.6 极高 is `xhigh`. Prefer it when both xhigh and
+      // max appear (CLI cache has dual defaults) — `max` is ignored (#598).
+      xhigh: byLower.get("xhigh") ?? byLower.get("max"),
     };
   }
   if (kind === "deepseek4") {

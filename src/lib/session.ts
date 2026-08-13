@@ -1889,6 +1889,20 @@ export function isSessionNotLiveError(err: unknown): boolean {
   );
 }
 
+/**
+ * Host skipped `session/prompt` because Stop / stall cleared the turn during
+ * Host vision / prepare. Not a send failure — the prompt was never dispatched.
+ */
+export function isTurnCancelledError(err: unknown): boolean {
+  const text =
+    typeof err === "string"
+      ? err
+      : err && typeof err === "object"
+        ? String((err as { message?: unknown }).message ?? err)
+        : String(err);
+  return text.includes("TURN_CANCELLED");
+}
+
 /** Host / UI “in progress” — sidebar spinner and cache preference. */
 export function isSessionBusy(state: SessionState): boolean {
   return (

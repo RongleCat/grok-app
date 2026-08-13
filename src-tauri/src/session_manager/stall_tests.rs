@@ -217,24 +217,51 @@ fn hard_silence_never_force_ends_user_turn() {
     });
 }
 
-/// #453: after authoritative prompt RPC (`prompt_in_flight=false`), leftover
-/// open_tool_ids must not keep Streaming/busy forever when no human gate remains.
+/// P0-3: a recently-seen open tool after early prompt_complete must keep the
+/// turn deferred — force-clearing dropped the rest of the answer as replay.
 #[test]
-fn deferred_prompt_complete_force_clears_open_tools_after_rpc() {
+fn deferred_prompt_complete_keeps_recent_open_tools() {
     with_temp_app_home(|| {
         let t0 = Instant::now();
         let mut s = streaming_session(t0, |s| {
             s.prompt_in_flight = false;
             s.deferred_prompt_complete = Some("end_turn".into());
+            s.open_tool_ids.insert("live_silent_tool".into());
+            s.open_tool_seen_at.insert("live_silent_tool".into(), t0);
+            s.tools_this_turn = 1;
+            s.saw_model_output = true;
+        });
+        let finished = SessionManager::try_finish_deferred_prompt_complete(&mut s, None);
+        assert!(
+            finished.is_none(),
+            "recent open tools must keep deferred prompt_complete"
+        );
+        assert!(s.open_tool_ids.contains("live_silent_tool"));
+        assert_eq!(s.deferred_prompt_complete.as_deref(), Some("end_turn"));
+        assert_eq!(s.fsm.state(), SessionState::Streaming);
+    });
+}
+
+/// #453 residual: aged orphan tool ids (TOOL_ORPHAN_SECONDS) prune, then
+/// deferred complete may finish without a human gate.
+#[test]
+fn deferred_prompt_complete_finishes_after_orphan_prune() {
+    with_temp_app_home(|| {
+        let t0 = Instant::now();
+        let aged = t0 - Duration::from_secs(crate::stream_stall::TOOL_ORPHAN_SECONDS as u64 + 5);
+        let mut s = streaming_session(t0, |s| {
+            s.prompt_in_flight = false;
+            s.deferred_prompt_complete = Some("end_turn".into());
             s.open_tool_ids.insert("ghost_bg_tool".into());
-            s.open_tool_seen_at.insert("ghost_bg_tool".into(), t0);
+            s.open_tool_seen_at.insert("ghost_bg_tool".into(), aged);
+            s.last_stream_progress = aged;
             s.tools_this_turn = 1;
             s.saw_model_output = true;
         });
         let finished = SessionManager::try_finish_deferred_prompt_complete(&mut s, None);
         assert!(
             finished.is_some(),
-            "expected deferred finish after force-clear open tools"
+            "expected deferred finish after orphan prune"
         );
         assert!(s.open_tool_ids.is_empty());
         assert!(s.deferred_prompt_complete.is_none());

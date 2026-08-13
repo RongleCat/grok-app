@@ -111,6 +111,10 @@ pub async fn settings_set(
     };
     // API-mode address is a spawn-path flip (local CLI ↔ TCP). Soft-respawn so
     // the next connect uses the new target; mid-turn sessions stay skipped.
+    let proxy_flip = prev.proxy_mode.trim() != settings.proxy_mode.trim()
+        || prev.proxy_url.as_deref().map(str::trim) != settings.proxy_url.as_deref().map(str::trim)
+        || prev.proxy_no_proxy.as_deref().map(str::trim)
+            != settings.proxy_no_proxy.as_deref().map(str::trim);
     let acp_addr_flip = {
         let a = prev
             .acp_server_addr
@@ -276,6 +280,7 @@ pub async fn settings_set(
         || sandbox_flip
         || compaction_flip
         || acp_addr_flip
+        || proxy_flip
     {
         need_soft_respawn = true;
     }

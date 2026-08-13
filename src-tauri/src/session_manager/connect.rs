@@ -103,6 +103,13 @@ impl SessionManager {
             "connect open_start"
         );
 
+        // Mid-turn policy / effort / proxy changes queue a respawn. If this
+        // chat is now idle, drop the old process before the no-op / unpark
+        // paths reuse spawn flags (P0-5 / #598).
+        if self.pending_soft_respawn.lock().contains_key(&meta.id) {
+            self.flush_pending_soft_respawn(&app, &meta.id).await;
+        }
+
         // Resolve model / effort / permission / mode for this project+session scope.
         let prefs =
             store::resolve_composer_prefs(meta.project_id.as_deref(), Some(meta.id.as_str()));
@@ -215,35 +222,52 @@ impl SessionManager {
                 return Err(format!("{}: {}", e.code.as_str(), e.message));
             }
             if let Some(live) = self.unpark_to_live(&meta.id) {
-                // Refresh prefs on shell (model may have changed in UI).
-                let mut live = live;
-                live.model_id = Some(prefs.model_id.clone());
-                live.effort = Some(prefs.effort.clone());
-                live.product_mode = Some(prefs.mode.clone());
-                live.policy = policy;
-                live.project_path = project_path.clone();
-                live.meta.model_id = Some(prefs.model_id.clone());
-                live.meta.mode = Some(prefs.mode.clone());
-                live.meta.effort = Some(prefs.effort.clone());
-                live.meta.permission_policy = Some(prefs.permission_policy.clone());
-                // Best-effort align agent process to channel prefs. Target the
-                // session explicitly — on a shared process the "recently bound"
-                // agent session id may belong to another App session.
-                if let Some(acp) = live.acp.clone() {
-                    if let Some(sid) = live.meta.agent_session_id.clone() {
-                        if let Err(e) = acp.set_model_for(&sid, &agent_model).await {
-                            tracing::warn!("acp set_model on unpark soft-fail: {e}");
-                        }
-                        if let Err(e) = acp.set_mode_for(&sid, &prefs.mode).await {
-                            tracing::warn!("acp set_mode on unpark soft-fail: {e}");
+                // Spawn flags are process-level. Effort / policy mismatch
+                // cannot be hot-patched — kill and fall through to cold spawn.
+                let effort_ok = live.effort.as_deref() == Some(prefs.effort.as_str());
+                let policy_ok = live.policy == policy;
+                if !effort_ok || !policy_ok {
+                    tracing::info!(
+                        session = %meta.id,
+                        parked_effort = ?live.effort,
+                        want_effort = %prefs.effort,
+                        parked_policy = ?live.policy,
+                        "unpark spawn-flag mismatch — cold spawn"
+                    );
+                    if let Some(acp) = live.acp {
+                        acp.kill().await;
+                    }
+                } else {
+                    // Refresh prefs on shell (model may have changed in UI).
+                    let mut live = live;
+                    live.model_id = Some(prefs.model_id.clone());
+                    live.effort = Some(prefs.effort.clone());
+                    live.product_mode = Some(prefs.mode.clone());
+                    live.policy = policy;
+                    live.project_path = project_path.clone();
+                    live.meta.model_id = Some(prefs.model_id.clone());
+                    live.meta.mode = Some(prefs.mode.clone());
+                    live.meta.effort = Some(prefs.effort.clone());
+                    live.meta.permission_policy = Some(prefs.permission_policy.clone());
+                    // Best-effort align agent process to channel prefs. Target the
+                    // session explicitly — on a shared process the "recently bound"
+                    // agent session id may belong to another App session.
+                    if let Some(acp) = live.acp.clone() {
+                        if let Some(sid) = live.meta.agent_session_id.clone() {
+                            if let Err(e) = acp.set_model_for(&sid, &agent_model).await {
+                                tracing::warn!("acp set_model on unpark soft-fail: {e}");
+                            }
+                            if let Err(e) = acp.set_mode_for(&sid, &prefs.mode).await {
+                                tracing::warn!("acp set_mode on unpark soft-fail: {e}");
+                            }
                         }
                     }
+                    *self.inner.lock() = Some(live);
+                    let snap = self.snapshot();
+                    Self::emit_state(&app, &snap);
+                    tracing::info!("acp unparked warm session={}", meta.id);
+                    return Ok(snap);
                 }
-                *self.inner.lock() = Some(live);
-                let snap = self.snapshot();
-                Self::emit_state(&app, &snap);
-                tracing::info!("acp unparked warm session={}", meta.id);
-                return Ok(snap);
             }
             // Parked process died — fall through to cold spawn.
         }
@@ -1474,7 +1498,7 @@ mod connect_preserve_tests {
         assert!(SessionManager::live_session_is_busy(&s));
         assert!(!SessionManager::should_preserve_live_process(&s));
 
-        SessionManager::release_failed_turn_markers(&mut s);
+        SessionManager::release_failed_turn_markers(&mut s, None);
         assert!(!SessionManager::live_session_is_busy(&s));
         assert!(s.deferred_prompt_complete.is_none());
         assert!(!s.prompt_in_flight);

@@ -153,6 +153,7 @@ import {
   clearPriorTurnStreaming,
   isSessionLiveStreaming,
   isSessionNotLiveError,
+  isTurnCancelledError,
   preferSessionMessages,
   presentErrorBanner,
   snapshotOutgoingMessages,
@@ -7836,6 +7837,33 @@ export function AppWorkbench() {
       try {
         await api.sessionSend(agentText, storedDisplay, sessionId, att);
       } catch (sendErr) {
+        // Stop / stall during Host vision/prepare: prompt never left.
+        // Do not retry and do not treat as CONNECT_FAILED (P0-2).
+        if (isTurnCancelledError(sendErr)) {
+          // Journal already has the user row; drop only the empty assistant shell.
+          if (sendTargetId) {
+            patchSessionMessages(sendTargetId, (m) =>
+              m.filter((x) => x.id !== pendingAssistantId),
+            );
+          } else if (viewingTarget()) {
+            setMessages((m) => m.filter((x) => x.id !== pendingAssistantId));
+          }
+          if (viewingTarget()) {
+            setSession((prev) =>
+              prev.state === "streaming"
+                ? { ...prev, state: prev.sessionId ? "ready" : prev.state }
+                : prev,
+            );
+          }
+          setLiveMap((prev) =>
+            projectHostIntoLiveMap(prev, {
+              sessionId,
+              state: "ready",
+              streamingMessageId: null,
+            }),
+          );
+          return true;
+        }
         // Host refuses rather than misroute when the chat lost its process
         // (idle recycle / crash while `liveHost` still looked ready).
         // Cold-connect that chat once, then retry the same turn.
@@ -8030,13 +8058,12 @@ export function AppWorkbench() {
       return;
     }
 
-    clearComposerAfterSubmit(clearDraftOpts);
-    await executeSend({
+    const sent = await executeSend({
       storedDisplay,
       att,
       goalMode,
-      targetSessionId: session.sessionId,
     });
+    if (sent) clearComposerAfterSubmit(clearDraftOpts);
   };
   sendRef.current = send;
   voiceDictationAutoSendRef.current = voiceDictationAutoSend;
@@ -21541,7 +21568,6 @@ export function AppWorkbench() {
                   storedDisplay: prompt,
                   att: [],
                   goalMode: false,
-                  targetSessionId: session.sessionId,
                 });
               }
             : undefined

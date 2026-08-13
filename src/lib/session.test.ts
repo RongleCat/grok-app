@@ -20,6 +20,7 @@ import {
   isSessionBusy,
   isSessionLiveStreaming,
   isSessionNotLiveError,
+  isTurnCancelledError,
   parseCompactContent,
   parseToolStepContent,
   pickLatestTurnTool,
@@ -112,6 +113,28 @@ describe("session projection", () => {
     expect(isSessionNotLiveError("PROCESS_LIMIT: pool full")).toBe(false);
     expect(isSessionNotLiveError(null)).toBe(false);
     expect(isSessionNotLiveError(undefined)).toBe(false);
+    expect(
+      isSessionNotLiveError(
+        "TURN_CANCELLED: turn x no longer active after prepare; prompt not dispatched",
+      ),
+    ).toBe(false);
+  });
+
+  it("isTurnCancelledError matches Host skip-prompt after Stop/stall", () => {
+    expect(
+      isTurnCancelledError(
+        "TURN_CANCELLED: turn x no longer active after prepare; prompt not dispatched",
+      ),
+    ).toBe(true);
+    expect(
+      isTurnCancelledError({
+        message:
+          "TURN_CANCELLED: turn x no longer active after prepare; prompt not dispatched",
+      }),
+    ).toBe(true);
+    expect(isTurnCancelledError("CONNECT_FAILED: no live agent process")).toBe(
+      false,
+    );
   });
 
   it("truncateBeforeLastUser drops last user turn and everything after", () => {

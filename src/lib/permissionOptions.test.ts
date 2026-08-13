@@ -81,6 +81,33 @@ describe("mapPermissionButtons (shipped)", () => {
     );
     expect(buttons[0]!.label).toBe("Allow once");
   });
+
+  it("does not bind session chip to reject-always via name", () => {
+    const buttons = mapPermissionButtons([
+      { optionId: "allow-once", kind: "allow_once" },
+      {
+        optionId: "reject-always",
+        kind: "reject_always",
+        name: "Reject always for this session",
+      },
+    ]);
+    expect(buttons[1]!.decision).toBe("allow_session");
+    expect(buttons[1]!.optionId).not.toBe("reject-always");
+    expect(buttons[1]!.optionId).toBe("allow-once");
+  });
+
+  it("session-allow on write/edit lists uses allow-once wire id (#600)", () => {
+    const buttons = mapPermissionButtons(
+      [
+        { optionId: "allow-once", kind: "allow_once" },
+        { optionId: "reject-once", kind: "reject_once" },
+      ],
+      undefined,
+      "search_replace",
+    );
+    expect(buttons[1]!.decision).toBe("allow_session");
+    expect(buttons[1]!.optionId).toBe("allow-once");
+  });
 });
 
 describe("fallbackSessionOptionId", () => {
@@ -90,7 +117,10 @@ describe("fallbackSessionOptionId", () => {
     );
     expect(fallbackSessionOptionId("web_fetch")).toBe("allow-always-domain");
     expect(fallbackSessionOptionId("mcp_foo")).toBe("allow-always-mcp");
-    expect(fallbackSessionOptionId("read_file")).toBe("always-allow");
+    expect(fallbackSessionOptionId("read_file")).toBe("allow-always");
+    expect(fallbackSessionOptionId("write")).toBe("allow-always");
+    expect(fallbackSessionOptionId("search_replace")).toBe("allow-always");
+    expect(fallbackSessionOptionId("unknown_tool")).toBe("always-allow");
   });
 });
 

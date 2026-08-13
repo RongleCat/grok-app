@@ -5,7 +5,11 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
-use crate::acp_client::{AcpEvent, PermissionOutcome, StreamKind};
+use crate::acp_client::{
+    should_abort_provider_retry_ex, AcpEvent, PermissionOutcome, StreamKind,
+    HOST_PROVIDER_MAX_RETRIES,
+};
+use crate::error::{AgentError, AgentErrorCode};
 use crate::journal_throttle::is_paragraph_break;
 use crate::permission::{
     coerce_wire_option_id_for_tool, extract_path_target, extract_shell_command, may_auto_allow,
@@ -41,7 +45,7 @@ impl SessionManager {
                     // A background chat never runs `session/load` — a drop here
                     // after the RPC resolved is a real lost chunk and must leave
                     // a trace.
-                    if Self::is_session_load_replay(s.prompt_in_flight) {
+                    if Self::is_session_load_replay(s) {
                         tracing::warn!(
                             "background stream chunk dropped after turn close sid={} fsm={:?} len={}",
                             app_session_id,
@@ -361,7 +365,7 @@ impl SessionManager {
                     if let Some(s) = bg.get_mut(app_session_id) {
                         // Defensive: background turns never load-replay, but if
                         // prompt_in_flight is already false, do not mutate journal.
-                        if Self::is_session_load_replay(s.prompt_in_flight) {
+                        if Self::is_session_load_replay(s) {
                             tracing::debug!(
                                 "background tool_call dropped after turn close sid={} id={tool_call_id}",
                                 app_session_id
@@ -494,7 +498,7 @@ impl SessionManager {
                 let finished = {
                     let mut bg = self.background.lock();
                     if let Some(s) = bg.get_mut(app_session_id) {
-                        if Self::is_session_load_replay(s.prompt_in_flight) {
+                        if Self::is_session_load_replay(s) {
                             return;
                         }
                         Self::release_tool_open_on_session(s, &tool_call_id);
@@ -526,6 +530,10 @@ impl SessionManager {
                 let mut gate_invalidations: Vec<serde_json::Value> = Vec::new();
                 let mut bg = self.background.lock();
                 if let Some(mut s) = bg.remove(app_session_id) {
+                    // No done flag — crash must not Ready the UI before
+                    // Disconnected (P1-10).
+                    Self::flush_pending_stream_emit(&mut s, app);
+                    Self::maybe_flush_stream_journal(&mut s, true, false);
                     let busy = Self::live_session_is_busy(&s)
                         || matches!(
                             s.fsm.state(),
@@ -748,8 +756,81 @@ impl SessionManager {
                     Self::emit_runtime(app, &snap);
                 }
             }
+            AcpEvent::RetryState {
+                attempt,
+                max_retries,
+                reason,
+                status,
+            } => {
+                let cap = max_retries.clamp(1, HOST_PROVIDER_MAX_RETRIES);
+                let abort = {
+                    let mut bg = self.background.lock();
+                    if let Some(s) = bg.get_mut(app_session_id) {
+                        s.provider_retry_attempt = attempt;
+                        if !Self::should_apply_provider_retry_abort(s) {
+                            false
+                        } else if s.provider_retry_aborted {
+                            false
+                        } else {
+                            should_abort_provider_retry_ex(attempt, max_retries, &status, &reason)
+                        }
+                    } else {
+                        false
+                    }
+                };
+                let _ = app.emit(
+                    "session://retry",
+                    serde_json::json!({
+                        "sessionId": app_session_id,
+                        "attempt": attempt,
+                        "maxRetries": cap,
+                        "reason": reason,
+                        "status": status,
+                        "aborting": abort,
+                    }),
+                );
+                if abort {
+                    let (acp, agent_sid) = {
+                        let mut bg = self.background.lock();
+                        if let Some(s) = bg.get_mut(app_session_id) {
+                            if s.provider_retry_aborted {
+                                (None, None)
+                            } else {
+                                s.provider_retry_aborted = true;
+                                let msg = if reason.trim().is_empty() {
+                                    format!(
+                                        "Provider request failed after {attempt} attempts (budget {cap})"
+                                    )
+                                } else {
+                                    format!(
+                                        "Provider request failed after {attempt} attempts (budget {cap}): {reason}"
+                                    )
+                                };
+                                let err = AgentError::new(AgentErrorCode::NetworkProvider, msg);
+                                Self::record_turn_error(s, app, &err);
+                                let _ = s.fsm.fail_with(err);
+                                (s.acp.clone(), s.meta.agent_session_id.clone())
+                            }
+                        } else {
+                            (None, None)
+                        }
+                    };
+                    if let Some(acp) = acp {
+                        let abort_msg = format!(
+                            "provider retries exhausted (host cap {HOST_PROVIDER_MAX_RETRIES})"
+                        );
+                        acp.abort_pending_prompts(&abort_msg);
+                        let _ = match agent_sid {
+                            Some(sid) => acp.cancel_for(&sid).await,
+                            None => acp.cancel().await,
+                        };
+                    }
+                    self.promote_background_ready_to_parked(app_session_id);
+                    Self::emit_state(app, &self.snapshot());
+                }
+            }
             _ => {
-                // stderr / retry / other variants — log only
+                // stderr / other variants — log only
                 tracing::debug!("background acp event ignored variant for sid={app_session_id}");
             }
         }

@@ -486,10 +486,11 @@ fn paths_classify_sync(paths: Vec<String>) -> Vec<PathEntry> {
             let meta = std::fs::metadata(&pb).ok();
             let exists = meta.is_some();
             let is_dir = meta.map(|m| m.is_dir()).unwrap_or(false);
-            // User-attached / chat-history paths often sit outside trusted project
-            // roots (Desktop, Downloads, Screenshots). Grant them so media://
-            // previews in the composer and thread can load.
-            if exists {
+            // User-attached / chat-history files often sit outside trusted
+            // project roots (Desktop, Downloads). Grant the **file** so media
+            // HTTP can preview it — never directories (that would unlock every
+            // sibling under e.g. ~/.ssh).
+            if exists && !is_dir {
                 crate::path_scope::grant_path(&pb);
             }
             PathEntry {

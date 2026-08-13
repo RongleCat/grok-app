@@ -2,6 +2,7 @@
 
 export interface AcpPermissionOption {
   optionId?: string;
+  option_id?: string;
   id?: string;
   name?: string;
   label?: string;
@@ -49,7 +50,7 @@ export interface MappedPermButton {
 }
 
 function oid(o: AcpPermissionOption): string {
-  return o.optionId || o.id || "";
+  return o.optionId || o.option_id || o.id || "";
 }
 
 function kindOf(o: AcpPermissionOption): string {
@@ -100,6 +101,16 @@ export function fallbackSessionOptionId(toolName?: string | null): string {
   ) {
     return "allow-always-mcp";
   }
+  if (
+    t.includes("write") ||
+    t.includes("edit") ||
+    t.includes("replace") ||
+    t.includes("image") ||
+    t === "read_file" ||
+    t === "read-file"
+  ) {
+    return "allow-always";
+  }
   return "always-allow";
 }
 
@@ -143,14 +154,16 @@ export function mapPermissionButtons(
         id.startsWith("allow_always_")
       );
     }) ||
-    find(
-      (o) =>
-        nameOf(o).includes("always") ||
-        nameOf(o).includes("session") ||
-        // CLI bash copy: "don't ask again for bash commands"
-        (nameOf(o).includes("don't ask again") && nameOf(o).includes("bash")) ||
-        (nameOf(o).includes("dont ask again") && nameOf(o).includes("bash")),
-    );
+    find((o) => {
+      const n = nameOf(o);
+      if (n.includes("reject") || n.includes("deny")) return false;
+      return (
+        (n.includes("allow") && n.includes("always")) ||
+        (n.includes("allow") && n.includes("session")) ||
+        (n.includes("don't ask again") && n.includes("bash")) ||
+        (n.includes("dont ask again") && n.includes("bash"))
+      );
+    });
 
   const reject =
     find((o) => kindOf(o) === "reject_once" || kindOf(o) === "reject_always") ||
@@ -193,6 +206,15 @@ export function mapPermissionButtons(
     out.push({
       decision: "allow_session",
       optionId: oid(always),
+      label: L.allowSession,
+    });
+  } else if (arr.length > 0 && once && oid(once)) {
+    // #600: listed tools without a session-scoped option (write/edit)
+    // still show "Allow for session" (Host caches scope) but the wire
+    // id must be a published option — inventing always-allow cancels.
+    out.push({
+      decision: "allow_session",
+      optionId: oid(once),
       label: L.allowSession,
     });
   } else {

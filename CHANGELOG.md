@@ -11,6 +11,34 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- **Agent turn finish no longer drops the last stream batch**: Process crash / RPC fail now flushes the coalesced `session://stream` buffer and journal tail before clearing the live slot (answers no longer stop mid-sentence).
+- **Early `prompt_complete` no longer discards a silent long tool**: Host keeps the turn deferred while tools are still open instead of force-clearing them after 3s and treating later chunks as load-replay.
+- **Shared-process prompt complete is per session**: `last_update` and waiter matching no longer let chat B's stream finish or extend chat A's turn.
+- **Stop / stall during Host vision no longer marks a scheduled task as run**: `send_message` returns `TURN_CANCELLED` when the turn was cleared before `session/prompt`; automations do not advance `next_run_at`.
+- **YOLO / effort / proxy mid-turn actually apply after the turn**: Busy `soft_respawn` is queued; parked agents with stale `--reasoning-effort` / permission flags are dropped so the next connect cold-spawns. Fixes Grok 4.6 Extra High not taking effect (#598) and UI “Ask” while the CLI still has `--always-approve`.
+- **Allow for session on write/edit tools no longer cancels the turn (#600)**: When the CLI list has no session-scoped option, Host answers with `allow-once` (and still caches session scope) instead of inventing `always-allow`.
+- **Stop cancels pending tool permission** (not only ask/plan), so reconnect is not stuck on an unanswered `request_permission`.
+- **Media path grant is file-exact**: `paths_classify` / `grant_path` no longer authorize the parent directory (no sibling read of e.g. `~/.ssh`).
+- **Composer draft is kept until send succeeds**; send targets the viewing chat, not a stale shell session id.
+- **Changing proxy settings respawns warm agents** so the new `HTTP_PROXY` is picked up.
+- **Background turns honor provider `RetryState`**: switching away no longer leaves a hung chat until the CLI idle/absolute timeout; Host applies the same abort + `NETWORK_PROVIDER` path as the focused session.
+- **cwd-relative downloads (`curl -O` / `wget` without `-o`) prompt** unless YOLO — no longer assumed to write inside the project.
+
+**中文 · 修复**
+- **回合结束不再丢掉最后一批流式字**：进程崩溃 / RPC 失败会先刷出合批缓冲和 journal 尾巴。
+- **提前 `prompt_complete` 不再丢掉仍在跑的静默工具**：不再 3 秒后强清 open tools，后续 chunk 也不会被当成 load-replay 丢掉。
+- **共享进程的收尾按会话隔离**：A 的回合不会被 B 的流续命或提前结束。
+- **Stop / 准备阶段取消不再把定时任务标成已跑**：未真正派发 `session/prompt` 时返回 `TURN_CANCELLED`。
+- **回合中改 YOLO / 推理强度 / 代理会在本轮结束后重生进程**：修好 Grok 4.6 极高不生效（#598）以及 UI 已是「询问」但 CLI 仍 `--always-approve`。
+- **写文件等工具点「会话内允许」不再整轮取消（#600）**：没有 session 档 option 时用列表里的 `allow-once` 作答。
+- **Stop 会取消未答复的工具权限**，避免重连卡在 `request_permission`。
+- **媒体路径只授权该文件本身**，不再授权父目录。
+- **发送失败前不丢草稿**；发送目标跟当前查看的会话，而不是过期的 shell id。
+- **改代理设置会回收 warm 进程**。
+- **后台回合也认 provider RetryState**：切走后不再空转到 CLI 超时，和前台一样熔断并记 `NETWORK_PROVIDER`。
+- **不带 `-o` 的下载默认要批准**（YOLO 除外）。
+
 ## [0.2.16] - 2026-08-13
 
 > **Highlight:** Official default is Grok 4.6 with Extra High (`xhigh`); Changes / Remote IM / Voice / workbench honesty remediations; Amux/Yun effort ids match official `low`/`medium`/`high`/`xhigh`.

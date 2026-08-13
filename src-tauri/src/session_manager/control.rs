@@ -34,7 +34,7 @@ impl SessionManager {
 
     /// Soft-respawn and tell the UI why the agent process was reloaded.
     pub async fn soft_respawn_with_reason(&self, app: &AppHandle, reason: &str) {
-        let acp = {
+        let (acp, sid) = {
             let mut guard = self.inner.lock();
             if let Some(s) = guard.as_mut() {
                 if s.acp.is_none() {
@@ -42,30 +42,72 @@ impl SessionManager {
                 }
                 if Self::live_session_is_busy(s) {
                     tracing::warn!(
-                        "soft_respawn skipped: live session mid-turn sid={} state={:?}",
+                        "soft_respawn deferred: live session mid-turn sid={} state={:?} reason={}",
                         s.app_session_id,
-                        s.fsm.state()
+                        s.fsm.state(),
+                        reason
                     );
+                    self.pending_soft_respawn
+                        .lock()
+                        .insert(s.app_session_id.clone(), reason.to_string());
                     return;
                 }
+                let sid = s.app_session_id.clone();
                 let acp = s.acp.take();
                 // Prefer resume on next connect; bootstrap only if load fails.
                 s.needs_history_bootstrap = false;
                 s.fsm.soft_disconnect();
                 // New process gets a new id on next connect.
                 s.process_id = String::new();
-                acp
+                (acp, Some(sid))
             } else {
-                None
+                (None, None)
             }
         };
         if let Some(acp) = acp {
             acp.kill().await;
+            if let Some(sid) = sid {
+                self.pending_soft_respawn.lock().remove(&sid);
+            }
             let _ = app.emit(
                 "session://agent_soft_respawn",
                 serde_json::json!({ "reason": reason }),
             );
             Self::emit_state(app, &self.snapshot());
+        }
+    }
+
+    /// If a mid-turn policy/effort/proxy change queued a respawn, run it
+    /// now that the session is idle (or drop a parked process so next
+    /// connect cold-spawns with the new flags).
+    pub async fn flush_pending_soft_respawn(&self, app: &AppHandle, session_id: &str) {
+        let reason = { self.pending_soft_respawn.lock().remove(session_id) };
+        let Some(reason) = reason else {
+            return;
+        };
+        let busy = self
+            .with_session_mut(session_id, |s| Self::live_session_is_busy(s))
+            .unwrap_or(false);
+        if busy {
+            self.pending_soft_respawn
+                .lock()
+                .insert(session_id.to_string(), reason);
+            return;
+        }
+        if self.is_live_session(session_id) {
+            self.soft_respawn_with_reason(app, &reason).await;
+            return;
+        }
+        // Parked: drop the warm process so the next connect respawns.
+        // Take the entry first — parking_lot guards are !Send across await.
+        let parked = self.parked.lock().remove(session_id);
+        if let Some(p) = parked {
+            p.acp.kill().await;
+            tracing::info!(
+                session = %session_id,
+                reason = %reason,
+                "dropped parked agent for pending soft-respawn"
+            );
         }
     }
 
@@ -383,7 +425,7 @@ impl SessionManager {
             policy.as_str(),
         );
 
-        let need_respawn = {
+        let (need_respawn, live_sid) = {
             let mut guard = self.inner.lock();
             if let Some(s) = guard.as_mut() {
                 let prev = s.policy;
@@ -391,13 +433,50 @@ impl SessionManager {
                 s.meta.permission_policy = Some(policy.as_str().into());
                 let _ = store::update_session_meta(&s.meta);
                 // Any policy change can affect agent-side enforcement / --always-approve.
-                prev != policy && s.acp.is_some()
+                (
+                    prev != policy && s.acp.is_some(),
+                    Some(s.app_session_id.clone()),
+                )
             } else {
-                false
+                (false, None)
             }
         };
+        // Background turns keep using s.policy for auto-allow (P1-19).
+        {
+            let mut bg = self.background.lock();
+            for s in bg.values_mut() {
+                s.policy = policy;
+                s.meta.permission_policy = Some(policy.as_str().into());
+                let _ = store::update_session_meta(&s.meta);
+                if s.acp.is_some() {
+                    self.pending_soft_respawn
+                        .lock()
+                        .insert(s.app_session_id.clone(), "permission_policy".into());
+                }
+            }
+        }
+        {
+            let mut parked = self.parked.lock();
+            let stale: Vec<String> = parked
+                .iter()
+                .filter(|(_, p)| p.policy != policy)
+                .map(|(id, _)| id.clone())
+                .collect();
+            for id in stale {
+                if let Some(p) = parked.remove(&id) {
+                    // Kill after drop to avoid holding the map lock across await.
+                    tokio::spawn(async move {
+                        p.acp.kill().await;
+                    });
+                }
+            }
+        }
         if need_respawn {
-            self.soft_respawn(app).await;
+            self.soft_respawn_with_reason(app, "permission_policy")
+                .await;
+            if let Some(sid) = live_sid {
+                self.flush_pending_soft_respawn(app, &sid).await;
+            }
         }
         Ok(())
     }
@@ -550,15 +629,42 @@ impl SessionManager {
                 Some(s) if session_id.is_some_and(|id| id == s.app_session_id) => {
                     let same = s.effort.as_deref() == Some(effort.as_str());
                     s.effort = Some(effort.clone());
-                    s.meta.effort = Some(effort);
+                    s.meta.effort = Some(effort.clone());
                     let _ = store::update_session_meta(&s.meta);
                     !same && s.acp.is_some()
                 }
                 _ => false,
             }
         };
+        // Parked / background chats own their process — updating only the live
+        // slot left them running the previous `--reasoning-effort` (#598).
+        if let Some(sid) = session_id {
+            if let Some(s) = self.background.lock().get_mut(sid) {
+                let same = s.effort.as_deref() == Some(effort.as_str());
+                s.effort = Some(effort.clone());
+                s.meta.effort = Some(effort.clone());
+                let _ = store::update_session_meta(&s.meta);
+                if !same && s.acp.is_some() {
+                    self.pending_soft_respawn
+                        .lock()
+                        .insert(sid.to_string(), "effort".into());
+                }
+            }
+            if let Some(p) = self.parked.lock().remove(sid) {
+                if p.effort.as_deref() != Some(effort.as_str()) {
+                    tokio::spawn(async move {
+                        p.acp.kill().await;
+                    });
+                } else {
+                    self.parked.lock().insert(sid.to_string(), p);
+                }
+            }
+        }
         if need {
-            self.soft_respawn(app).await;
+            self.soft_respawn_with_reason(app, "effort").await;
+            if let Some(sid) = session_id {
+                self.flush_pending_soft_respawn(app, sid).await;
+            }
         }
         Ok(())
     }
@@ -598,7 +704,7 @@ impl SessionManager {
         } else {
             None
         };
-        let (acp, project_path, pending_options, tool_name) = self
+        let (acp, project_path, pending_options, tool_name, pending_rpc) = self
             .with_session_mut(&target, |s| {
                 Self::touch_activity_locked(s);
                 let opts = s
@@ -616,9 +722,31 @@ impl SessionManager {
                             .filter(|s| !s.is_empty())
                     })
                     .unwrap_or_default();
-                (s.acp.clone(), s.project_path.clone(), opts, tool)
+                (
+                    s.acp.clone(),
+                    s.project_path.clone(),
+                    opts,
+                    tool,
+                    s.pending_permission_rpc_id,
+                )
             })
             .ok_or("no session")?;
+        // Stale / double-click / recycled Approve must not write an arbitrary
+        // rpc_id into a live process (P1-18).
+        match pending_rpc {
+            Some(id) if id == rpc_id => {}
+            Some(_) => {
+                return Err(
+                    "stale permission request — this approval no longer matches the pending gate"
+                        .into(),
+                );
+            }
+            None => {
+                return Err(
+                    "no pending permission on this chat — request expired or was cancelled".into(),
+                );
+            }
+        }
 
         // Prefer Host-stored options; if empty, accept the UI snapshot so we
         // can still coerce tool-scoped ids (shell allow-always-command, …).

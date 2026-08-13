@@ -139,7 +139,7 @@ impl SessionManager {
                         // fire `prompt_complete` early (which Readies the FSM) and
                         // keep streaming for many more seconds. Gating on the FSM
                         // silently truncated those answers mid-sentence.
-                        if Self::is_session_load_replay(s.prompt_in_flight) {
+                        if Self::is_session_load_replay(s) {
                             tracing::debug!(
                                 "acp stream dropped: no prompt in flight (fsm={:?}) — replay",
                                 s.fsm.state()
@@ -261,7 +261,7 @@ impl SessionManager {
                 let replay_acp = {
                     let guard = self.inner.lock();
                     guard.as_ref().and_then(|s| {
-                        if Self::is_session_load_replay(s.prompt_in_flight) {
+                        if Self::is_session_load_replay(s) {
                             s.acp.clone()
                         } else {
                             None
@@ -424,7 +424,7 @@ impl SessionManager {
                 {
                     let guard = self.inner.lock();
                     if let Some(s) = guard.as_ref() {
-                        if Self::is_session_load_replay(s.prompt_in_flight) {
+                        if Self::is_session_load_replay(s) {
                             tracing::debug!(
                                 "acp tool_call dropped: no prompt in flight (replay) id={tool_call_id} status={status}"
                             );
@@ -741,7 +741,7 @@ impl SessionManager {
                 let empty_run = {
                     let mut guard = self.inner.lock();
                     if let Some(s) = guard.as_mut() {
-                        if Self::is_session_load_replay(s.prompt_in_flight) {
+                        if Self::is_session_load_replay(s) {
                             return;
                         }
                         Self::release_tool_open_on_session(s, &tool_call_id);
@@ -843,7 +843,7 @@ impl SessionManager {
                         } else {
                             // Retry path already recorded the error; still drop busy
                             // markers so reconnect is not stuck Disconnected+busy.
-                            Self::release_failed_turn_markers(s);
+                            Self::release_failed_turn_markers(s, Some(app));
                         }
                         let _ = s.fsm.fail_with(error);
                     }
@@ -855,6 +855,12 @@ impl SessionManager {
                 {
                     let mut guard = self.inner.lock();
                     if let Some(s) = guard.as_mut() {
+                        // Deliver the last coalesced stream batch before we drop
+                        // the live slot — otherwise ~40ms / 600 chars vanish.
+                        // Do not mark done: that would Ready the UI before
+                        // fsm.crash / Disconnected (P1-10).
+                        Self::flush_pending_stream_emit(s, app);
+                        Self::maybe_flush_stream_journal(s, true, false);
                         let st = s.fsm.state();
                         // Busy includes pending plan / ask_user (not only Streaming FSM).
                         let was_busy = Self::live_session_is_busy(s)
@@ -1086,7 +1092,7 @@ impl SessionManager {
                         return;
                     };
                     // Compact markers during load/replay would spam the journal.
-                    if Self::is_session_load_replay(s.prompt_in_flight) {
+                    if Self::is_session_load_replay(s) {
                         tracing::debug!(
                             "acp context_compact dropped: no prompt in flight (replay)"
                         );
@@ -1168,7 +1174,7 @@ impl SessionManager {
                     let Some(s) = guard.as_ref() else {
                         return;
                     };
-                    if Self::is_session_load_replay(s.prompt_in_flight) {
+                    if Self::is_session_load_replay(s) {
                         return;
                     }
                     s.app_session_id.clone()

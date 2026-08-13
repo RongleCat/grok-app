@@ -70,17 +70,14 @@ pub fn refresh_from_store() {
 }
 
 /// Grant a one-off absolute path (e.g. user-picked file outside projects).
-/// Parent directory of a file is granted so re-reads of the same file work.
+///
+/// Files are granted **exactly** — never the parent directory. Granting the
+/// parent used to let loopback media serve siblings (e.g. `~/.ssh/id_rsa`
+/// classified from journal history also unlocked `id_rsa.pub`). Re-reads of
+/// the same file still work because `is_allowed` treats the grant as a root
+/// that matches that path.
 pub fn grant_path(path: &Path) {
-    let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-    let grant = if canonical.is_file() {
-        canonical
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or(canonical)
-    } else {
-        canonical
-    };
+    let grant = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
     let mut g = extra_grants().write();
     if !g.iter().any(|x| x == &grant) {
         g.push(grant);
@@ -233,6 +230,12 @@ mod tests {
             assert!(!is_allowed(&file));
             grant_path(&file);
             assert!(is_allowed(&file));
+            let sibling = other.join("secret.key");
+            fs::write(&sibling, "no").unwrap();
+            assert!(
+                !is_allowed(&sibling),
+                "granting a file must not unlock siblings in the parent dir"
+            );
         });
         let _ = fs::remove_dir_all(&tmp);
     }

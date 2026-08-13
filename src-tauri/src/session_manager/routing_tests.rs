@@ -191,10 +191,12 @@ fn empty_run_skips_ask_mode_and_tool_turns() {
 
 #[test]
 fn session_load_replay_gate_matches_prompt_in_flight() {
-    // session/load replay: no prompt RPC → drop stream/tool side effects.
-    assert!(SessionManager::is_session_load_replay(false));
+    // session/load replay: no prompt RPC and no deferred complete → drop.
+    assert!(SessionManager::is_session_load_replay_flags(false, false));
     // Live turn (prompt in flight): apply all side effects.
-    assert!(!SessionManager::is_session_load_replay(true));
+    assert!(!SessionManager::is_session_load_replay_flags(true, false));
+    // Early prompt_complete with tools still open: keep applying chunks (P0-3).
+    assert!(!SessionManager::is_session_load_replay_flags(false, true));
 }
 
 #[test]

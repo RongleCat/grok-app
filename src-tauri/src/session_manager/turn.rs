@@ -6,7 +6,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
-use crate::acp_client::{AcpClient, AskUserOutcome};
+use crate::acp_client::{AcpClient, AskUserOutcome, PermissionOutcome};
 use crate::error::{AgentError, AgentErrorCode};
 use crate::journal_throttle::is_paragraph_break;
 use crate::mock_acp::{self, StreamChunk};
@@ -322,18 +322,12 @@ impl SessionManager {
                 "send_message: turn no longer active after prepare; skip prompt_for"
             );
             self.emit_for_session(&app, &app_sid);
-            if self.is_live_session(&app_sid) {
-                return Ok(self.snapshot());
-            }
-            if let Some(snap) = self
-                .background
-                .lock()
-                .get(&app_sid)
-                .map(Self::snapshot_from_live)
-            {
-                return Ok(snap);
-            }
-            return Ok(self.snapshot());
+            // Must not return Ok — automations treat Ok as "fired" and
+            // advance next_run_at / disable once tasks (P0-2). Frontend
+            // maps TURN_CANCELLED to a silent cancel (user Stop / stall).
+            return Err(format!(
+                "TURN_CANCELLED: turn {turn_id} no longer active after prepare; prompt not dispatched"
+            ));
         }
 
         if backend == "mock_acp" || AcpClient::use_mock() {
@@ -768,7 +762,7 @@ impl SessionManager {
         // Also release ask_user / plan reverse-RPCs. Leaving them set kept
         // `live_session_is_busy` true after stop, so Send/park paths stayed
         // wedged until process kill (user diag 5bda6b52).
-        let (acp, agent_sid, pending_ask, pending_plan) = self
+        let (acp, agent_sid, pending_ask, pending_plan, pending_perm) = self
             .with_session_mut(&target, move |s| {
                 let app = app_for_marker;
                 if let Some(h) = s.mock_stream.take() {
@@ -776,13 +770,17 @@ impl SessionManager {
                 }
                 let pending_ask = s.pending_ask_user_rpc_id.take();
                 let pending_plan = s.pending_plan_rpc_id.take();
+                let pending_perm = s.pending_permission_rpc_id.take();
+                s.pending_permission_options = None;
+                s.pending_permission_tool_name = None;
                 let was_busy = s.fsm.state() == SessionState::Streaming
                     || s.fsm.state() == SessionState::AwaitingPermission
                     || s.streaming_message_id.is_some()
                     || !s.open_tool_ids.is_empty()
                     || s.prompt_in_flight
                     || pending_ask.is_some()
-                    || pending_plan.is_some();
+                    || pending_plan.is_some()
+                    || pending_perm.is_some();
                 // Journal a cancel marker so UI history is not left as user-only silence.
                 if was_busy {
                     // Shared helper: durable chip + live emit (history matches live).
@@ -814,6 +812,7 @@ impl SessionManager {
                     s.meta.agent_session_id.clone(),
                     pending_ask,
                     pending_plan,
+                    pending_perm,
                 )
             })
             .ok_or("no active session")?;
@@ -866,6 +865,24 @@ impl SessionManager {
                     tracing::warn!("stop: cancel plan id={id} failed: {e}");
                 }
             }
+            if let Some(id) = pending_perm {
+                if let Err(e) = acp
+                    .respond_permission(id, PermissionOutcome::Cancelled)
+                    .await
+                {
+                    tracing::warn!("stop: cancel permission id={id} failed: {e}");
+                }
+                let _ = app.emit(
+                    "session://permissions_invalidated",
+                    serde_json::json!({
+                        "reason": "user_stop",
+                        "gates": [{
+                            "sessionId": target,
+                            "rpcId": id,
+                        }],
+                    }),
+                );
+            }
             // Target the session explicitly (shared process safety).
             if let Err(e) = match agent_sid {
                 Some(ref sid) => acp.cancel_for(sid).await,
@@ -878,6 +895,7 @@ impl SessionManager {
                 );
             }
         }
+        self.flush_pending_soft_respawn(&app, &target).await;
         Ok(stopped_snap)
     }
 }

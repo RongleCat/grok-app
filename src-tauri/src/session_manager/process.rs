@@ -170,7 +170,10 @@ impl SessionManager {
         if s.deferred_prompt_complete.is_some() {
             return true;
         }
-        if s.pending_plan_rpc_id.is_some() || s.pending_ask_user_rpc_id.is_some() {
+        if s.pending_plan_rpc_id.is_some()
+            || s.pending_ask_user_rpc_id.is_some()
+            || s.pending_permission_rpc_id.is_some()
+        {
             return true;
         }
         false
@@ -210,7 +213,12 @@ impl SessionManager {
 
     /// Drop all in-turn busy markers after a terminal turn failure.
     /// Complements FSM `fail_with` (which only flips state + last_error).
-    pub(super) fn release_failed_turn_markers(s: &mut LiveSession) {
+    pub(super) fn release_failed_turn_markers(s: &mut LiveSession, app: Option<&AppHandle>) {
+        // Flush the last coalesced tokens before dropping the buffer (P0-1 / P1-9).
+        // No done flag: the error / fail_with state should win over a fake Ready.
+        if let Some(app) = app {
+            Self::flush_pending_stream_emit(s, app);
+        }
         s.prompt_in_flight = false;
         s.streaming_message_id = None;
         s.active_turn_id = None;
@@ -1067,7 +1075,7 @@ impl SessionManager {
         // Clear *all* busy markers (including deferred prompt_complete / open tools).
         // Leaving them set after fail_with left the session as Disconnected+busy,
         // so connect no-oped forever and local sends failed while Remote IM still worked.
-        Self::release_failed_turn_markers(s);
+        Self::release_failed_turn_markers(s, Some(app));
 
         let _ = app.emit(
             "session://turn_error",

@@ -428,8 +428,9 @@ pub fn may_auto_allow_download(
     };
     let dests = extract_download_destinations(command);
     if dests.is_empty() {
-        // wget without -O writes into cwd (project root when agent cwd = project).
-        return true;
+        // wget/curl -O without -o writes into agent cwd, which is not
+        // guaranteed to be the project root (P1-22). Ask unless YOLO.
+        return matches!(policy, PermissionPolicy::AlwaysApprove);
     }
     dests.iter().all(|d| download_dest_in_project(root, d))
 }
@@ -533,6 +534,24 @@ fn norm_perm_token(s: &str) -> String {
     s.trim().to_ascii_lowercase().replace(['_', '-'], "")
 }
 
+/// `always-allow` and `allow-always` are the same CLI session id with
+/// reversed word order (`alwaysallow` ≠ `allowalways` after hyphen strip).
+fn session_allow_alias_norm(norm: &str) -> Option<&'static str> {
+    match norm {
+        "alwaysallow" => Some("allowalways"),
+        "allowalways" => Some("alwaysallow"),
+        _ => None,
+    }
+}
+
+fn extract_option_id(o: &serde_json::Value) -> Option<String> {
+    o.get("optionId")
+        .or_else(|| o.get("option_id"))
+        .or_else(|| o.get("id"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
 /// Pick optionId from ACP permission options by preferred kind (or id).
 ///
 /// Prefer matching `kind` (underscore forms like `allow_once`), then exact
@@ -544,20 +563,14 @@ pub fn pick_option_id(options: &serde_json::Value, prefer: &str) -> Option<Strin
     if prefer_norm.is_empty() {
         return None;
     }
-    let extract_id = |o: &serde_json::Value| {
-        o.get("optionId")
-            .or_else(|| o.get("id"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-    };
     for o in arr {
         let kind = o.get("kind").and_then(|v| v.as_str()).unwrap_or("");
         if !kind.is_empty() && norm_perm_token(kind) == prefer_norm {
-            return extract_id(o);
+            return extract_option_id(o);
         }
     }
     for o in arr {
-        if let Some(id) = extract_id(o) {
+        if let Some(id) = extract_option_id(o) {
             if norm_perm_token(&id) == prefer_norm {
                 return Some(id);
             }
@@ -576,7 +589,7 @@ pub fn pick_option_id(options: &serde_json::Value, prefer: &str) -> Option<Strin
             || name.contains(&prefer_lower.replace('_', "-"))
             || name.contains(&prefer_lower.replace('-', " "))
         {
-            return extract_id(o);
+            return extract_option_id(o);
         }
     }
     None
@@ -618,6 +631,17 @@ pub fn fallback_always_allow_for_tool(tool_name: &str) -> &'static str {
     {
         return "allow-always-mcp";
     }
+    // Write / edit / image: CLI fixture publishes `allow-always`, not the
+    // reversed `always-allow` (#600).
+    if t.contains("write")
+        || t.contains("edit")
+        || t.contains("replace")
+        || t.contains("image")
+        || t == "read_file"
+        || t == "read-file"
+    {
+        return "allow-always";
+    }
     FALLBACK_ALWAYS_ALLOW
 }
 
@@ -651,27 +675,23 @@ pub fn resolve_always_allow_option_id_for_tool(
 /// Scan options for session-scoped allow kinds/ids (`allow_always*`, `allow-always-*`).
 fn pick_session_scoped_option_id(options: &serde_json::Value) -> Option<String> {
     let arr = options.as_array()?;
-    let extract_id = |o: &serde_json::Value| {
-        o.get("optionId")
-            .or_else(|| o.get("id"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-    };
     for o in arr {
         let kind = o.get("kind").and_then(|v| v.as_str()).unwrap_or("");
         let kn = norm_perm_token(kind);
         // allowalways / allowalwaysbash / allowalwayscommand — not allowonce
         if kn.starts_with("allowalways") {
-            if let Some(id) = extract_id(o) {
+            if let Some(id) = extract_option_id(o) {
                 return Some(id);
             }
         }
-        if let Some(id) = extract_id(o) {
+        if let Some(id) = extract_option_id(o) {
             let id_l = id.to_ascii_lowercase();
             if id_l.starts_with("allow-always-")
                 || id_l.starts_with("allow_always_")
                 || id_l == "always-allow"
                 || id_l == "always_allow"
+                || id_l == "allow-always"
+                || id_l == "allow_always"
             {
                 return Some(id);
             }
@@ -690,13 +710,16 @@ pub fn option_id_in_list(options: &serde_json::Value, option_id: &str) -> bool {
     if want.is_empty() {
         return false;
     }
+    let alias = session_allow_alias_norm(&want);
     for o in arr {
-        let id = o
-            .get("optionId")
-            .or_else(|| o.get("id"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        if !id.is_empty() && (id == option_id || norm_perm_token(id) == want) {
+        let id = extract_option_id(o).unwrap_or_default();
+        if id.is_empty() {
+            continue;
+        }
+        if id == option_id || norm_perm_token(&id) == want {
+            return true;
+        }
+        if alias.is_some_and(|a| norm_perm_token(&id) == a) {
             return true;
         }
     }
@@ -711,13 +734,14 @@ pub fn wire_option_id_from_list(options: &serde_json::Value, option_id: &str) ->
     if want.is_empty() {
         return None;
     }
+    let alias = session_allow_alias_norm(&want);
     for o in arr {
-        let id = o
-            .get("optionId")
-            .or_else(|| o.get("id"))
-            .and_then(|v| v.as_str())?;
-        if id == option_id || norm_perm_token(id) == want {
-            return Some(id.to_string());
+        let id = extract_option_id(o)?;
+        if id == option_id || norm_perm_token(&id) == want {
+            return Some(id);
+        }
+        if alias.is_some_and(|a| norm_perm_token(&id) == a) {
+            return Some(id);
         }
     }
     None
@@ -783,6 +807,16 @@ pub fn coerce_wire_option_id_for_tool(
     match decision {
         "deny" => resolve_reject_option_id(options),
         "allow_session" | "allow_for_session" | "allow_always" | "allow-always" => {
+            if has_list {
+                if let Some(id) = pick_session_scoped_option_id(options) {
+                    return id;
+                }
+                // Write / edit tools often publish only allow-once + reject.
+                // Inventing `always-allow` is rejected as "unknown permission
+                // option" and cancels the turn (#600). Host still caches
+                // session-allow; the wire reply must be a listed id.
+                return resolve_allow_once_option_id(options);
+            }
             resolve_always_allow_option_id_for_tool(options, tool_name)
         }
         "allow_once" | "allow-once" | "allow" => resolve_allow_once_option_id(options),
@@ -1039,6 +1073,33 @@ mod tests {
     }
 
     #[test]
+    fn download_without_dest_not_auto_allowed() {
+        let c = SessionAllowCache::default();
+        let root = std::env::temp_dir().join("grok-app-perm-dl-cwd");
+        let _ = std::fs::create_dir_all(&root);
+        let cmd = "curl -sL -O https://example.com/a.png";
+        assert!(is_download_command(cmd));
+        assert!(!may_auto_allow(
+            PermissionPolicy::Ask,
+            &c,
+            "execute:run_terminal_command",
+            Some(&root),
+            "",
+            "run_terminal_command",
+            cmd,
+        ));
+        assert!(may_auto_allow(
+            PermissionPolicy::AlwaysApprove,
+            &c,
+            "execute:run_terminal_command",
+            Some(&root),
+            "",
+            "run_terminal_command",
+            cmd,
+        ));
+    }
+
+    #[test]
     fn download_outside_project_not_auto_allowed() {
         let c = SessionAllowCache::default();
         let root = std::env::temp_dir().join("grok-app-perm-dl-out");
@@ -1251,7 +1312,49 @@ mod tests {
                 &empty,
                 "search_replace",
             ),
-            "always-allow"
+            "allow-always"
+        );
+        assert_eq!(
+            coerce_wire_option_id_for_tool(
+                "allow_session",
+                Some("always-allow"),
+                &empty,
+                "write",
+            ),
+            "allow-always"
+        );
+    }
+
+    #[test]
+    fn session_allow_without_session_option_uses_allow_once() {
+        // #600: write/edit tools list allow-once + reject only. Sending
+        // always-allow cancels the turn with "unknown permission option".
+        let write = serde_json::json!([
+            {"optionId": "allow-once", "kind": "allow_once"},
+            {"optionId": "reject-once", "kind": "reject_once"}
+        ]);
+        assert_eq!(
+            coerce_wire_option_id("allow_session", Some("always-allow"), &write),
+            "allow-once"
+        );
+        // Write fixture publishes `allow-always`; client always-allow must alias.
+        let write_session = serde_json::json!([
+            {"optionId": "allow-once", "kind": "allow_once"},
+            {"optionId": "allow-always", "kind": "allow_always"},
+            {"optionId": "reject-once", "kind": "reject_once"}
+        ]);
+        assert_eq!(
+            coerce_wire_option_id("allow_session", Some("always-allow"), &write_session),
+            "allow-always"
+        );
+        assert_eq!(
+            coerce_wire_option_id_for_tool(
+                "allow_session",
+                Some("always-allow"),
+                &write,
+                "search_replace",
+            ),
+            "allow-once"
         );
     }
 

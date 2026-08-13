@@ -209,6 +209,18 @@ describe("effort UI ladder", () => {
     );
   });
 
+  it("prefers xhigh over max for 极高 when a 4-tier catalog lists both (#598)", () => {
+    const dual: EffortOption[] = [
+      { id: "low" },
+      { id: "medium" },
+      { id: "high" },
+      { id: "xhigh" },
+      { id: "max" },
+    ];
+    const opts = effortUiOptionsForCatalog(dual);
+    expect(opts.find((o) => o.uiId === "xhigh")?.spawnId).toBe("xhigh");
+  });
+
   it("orders DeepSeek as 低/中/高/极高 with real spawn ids", () => {
     const opts = effortUiOptionsForCatalog(deepseek);
     expect(opts.map((o) => o.uiId)).toEqual([

@@ -175,7 +175,9 @@ grok --no-auto-update --permission-mode <mode> agent [--model <id>] [--reasoning
 
 **Independent 模式**：写入 `~/.grok-app/agent-home/config.toml` 与 `agent-home/.claude/settings.json`，agent 进程侧真正按策略执行；与 CLI `~/.grok` 隔离。
 
-中途改权限：同步配置 + soft-respawn（含 YOLO 降级）。Host 在收到 `session/request_permission` 时仍按 live policy 自动放行/拒绝。
+中途改权限：同步配置 + soft-respawn（含 YOLO 降级）。**回合进行中**不会立刻杀进程（CLI 仍带 spawn 时的 `--always-approve`）；Host 记下待 respawn，本轮结束后或下次 connect 时再重生。Host 在收到 `session/request_permission` 时仍按 live policy 自动放行/拒绝。
+
+**会话内允许（permission bar）**：按钮始终展示。write / image 的 CLI 档是 `allow-always`（不是反序的 `always-allow`）；空列表时 Host 按工具族回退。若列表里**没有** session 档，wire 用已发布的 `allow-once`（Host 仍缓存 scope）。发送列表里没有的 id 会被 CLI 当成 `unknown permission option` 并取消回合。
 
 注意：读工具与部分只读 shell 在 agent 内建白名单下仍可能不弹窗（Grok Build 设计）。
 

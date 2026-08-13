@@ -119,8 +119,11 @@ impl SessionManager {
     /// RPC is in flight. UI history must come only from the App journal — any
     /// turn side-effect event (`tool_call`, stream, …) must be dropped.
     ///
-    /// Gate on `prompt_in_flight` (not the FSM): early `prompt_complete` Readies
-    /// the FSM while the agent may still stream live output.
+    /// Gate on `prompt_in_flight` **or** a still-deferred `prompt_complete`
+    /// (not the FSM): early `prompt_complete` Readies the FSM and may release
+    /// the RPC after a short silence while a long tool is still running. If
+    /// we only looked at `prompt_in_flight`, those later chunks were dropped
+    /// as load-replay (P0-3).
     ///
     /// **Human gates are different:** `exit_plan_mode` / `ask_user_question` are
     /// live reverse-RPCs that Grok Build may re-issue after resume with **no**
@@ -128,8 +131,16 @@ impl SessionManager {
     /// [`Self::should_drop_plan_event`] / [`Self::should_drop_ask_user_event`]
     /// for those — never this helper alone.
     #[inline]
-    pub(super) fn is_session_load_replay(prompt_in_flight: bool) -> bool {
-        !prompt_in_flight
+    pub(super) fn is_session_load_replay(s: &LiveSession) -> bool {
+        Self::is_session_load_replay_flags(s.prompt_in_flight, s.deferred_prompt_complete.is_some())
+    }
+
+    #[inline]
+    pub(super) fn is_session_load_replay_flags(
+        prompt_in_flight: bool,
+        deferred_prompt_complete: bool,
+    ) -> bool {
+        !prompt_in_flight && !deferred_prompt_complete
     }
 
     /// Whether to drop an `AcpEvent::Plan` (progress update and/or exit_plan_mode).
@@ -327,24 +338,13 @@ impl SessionManager {
             pending_ask,
             s.open_tool_ids.len(),
         ) {
-            // #453: prompt RPC already resolved (`prompt_in_flight` false) and no
-            // human gate remains — leftover `open_tool_ids` are Host accounting
-            // leaks (bg task id mismatch / missing terminal tool_call_update).
-            // Holding Streaming/busy here blocks reconnect and new-session send.
-            if !awaiting_perm && !pending_plan && !pending_ask && !s.open_tool_ids.is_empty() {
-                tracing::warn!(
-                    target: "session",
-                    session = %s.app_session_id,
-                    open_tools = s.open_tool_ids.len(),
-                    "force-clear open_tool_ids after authoritative prompt complete (#453)"
-                );
-                for id in s.open_tool_ids.drain() {
-                    s.terminal_tool_ids.insert(id);
-                }
-                s.open_tool_seen_at.clear();
-            } else {
-                return None;
-            }
+            // Keep the turn open while tools or human gates remain. Orphans
+            // older than TOOL_ORPHAN_SECONDS were already pruned above; a
+            // still-open id is treated as a live (possibly silent) tool.
+            // Force-clearing here dropped the rest of the answer as
+            // load-replay (P0-3). #453 reconnect-stuck is recovered by
+            // the orphan prune + stall watchdog, not by discarding chunks.
+            return None;
         }
         let empty = Self::empty_run_signal_from_live(s, &stop_reason);
         s.deferred_prompt_complete = None;

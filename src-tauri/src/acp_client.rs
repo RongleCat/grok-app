@@ -247,14 +247,45 @@ fn prompt_wait_should_timeout(
 }
 
 /// Whether a pending prompt belongs to the fallback target session.
-/// A prompt without a recorded sid matches any target (legacy single-session);
-/// an explicit target only frees its own session's waiter (concurrent).
+///
+/// Only exact matches: both sides stamped with the same sid, or both unknown.
+/// Cross-matching `(Some, None)` used to let session A's early `prompt_complete`
+/// free session B's waiter on a shared process (P0-4). Unstamped / unique
+/// fallbacks go through [`pending_prompt_ids_for`].
 fn pending_prompt_matches(prompt_sid: Option<&str>, target: Option<&str>) -> bool {
     match (target, prompt_sid) {
         (Some(a), Some(b)) => a == b,
-        (None, _) => true,
-        (Some(_), None) => true,
+        (None, None) => true,
+        _ => false,
     }
+}
+
+/// Select `session/prompt` waiters for a `prompt_complete` fallback.
+///
+/// Prefer exact sid matches. Only when that set is empty and **exactly one**
+/// pending prompt exists, allow an unstamped/legacy pairing so single-session
+/// CLI traffic without `sessionId` still completes.
+fn pending_prompt_ids_for(pending: &HashMap<u64, Pending>, target: Option<&str>) -> Vec<u64> {
+    let prompts: Vec<(u64, Option<&str>)> = pending
+        .iter()
+        .filter(|(_, p)| p.method == "session/prompt")
+        .map(|(id, p)| (*id, p.session_id.as_deref()))
+        .collect();
+    let exact: Vec<u64> = prompts
+        .iter()
+        .filter(|(_, sid)| pending_prompt_matches(*sid, target))
+        .map(|(id, _)| *id)
+        .collect();
+    if !exact.is_empty() {
+        return exact;
+    }
+    if prompts.len() == 1 {
+        let (id, sid) = prompts[0];
+        if target.is_none() || sid.is_none() {
+            return vec![id];
+        }
+    }
+    Vec::new()
 }
 
 /// Pure decision for the `prompt_complete` fallback: release the waiter only
@@ -283,9 +314,11 @@ pub struct AcpClient {
     reader_alive: AtomicBool,
     /// Recent stderr lines for crash diagnostics (ring, newest last).
     stderr_tail: ParkingMutex<Vec<String>>,
-    /// Last inbound `session/update` — proof the agent is still producing turn
-    /// output. Re-arms the `prompt_complete` fallback window.
-    last_update_at: ParkingMutex<Option<Instant>>,
+    /// Last inbound `session/update` per agent session id (P0-4).
+    /// Stamped updates only extend that session's idle / prompt_complete grace.
+    last_update_by_session: ParkingMutex<HashMap<String, Instant>>,
+    /// Unstamped `session/update` (CLI omitted sessionId) — process-level only.
+    last_update_unstamped: ParkingMutex<Option<Instant>>,
     /// Official side-channel: skip App MCP inject on session/new.
     empty_mcp_servers: bool,
     /// Effective `--sandbox` profile at spawn (process-level gate for parked reuse).
@@ -1546,7 +1579,8 @@ impl AcpClient {
             stopped: AtomicBool::new(false),
             reader_alive: AtomicBool::new(true),
             stderr_tail: ParkingMutex::new(Vec::new()),
-            last_update_at: ParkingMutex::new(None),
+            last_update_by_session: ParkingMutex::new(HashMap::new()),
+            last_update_unstamped: ParkingMutex::new(None),
             empty_mcp_servers,
             sandbox_profile: ParkingMutex::new(sandbox.map(|sb| sb.profile.clone())),
             custom_route,
@@ -1629,7 +1663,8 @@ impl AcpClient {
             stopped: AtomicBool::new(false),
             reader_alive: AtomicBool::new(true),
             stderr_tail: ParkingMutex::new(Vec::new()),
-            last_update_at: ParkingMutex::new(None),
+            last_update_by_session: ParkingMutex::new(HashMap::new()),
+            last_update_unstamped: ParkingMutex::new(None),
             // TCP connect path keeps default MCP inject (not official side-channel).
             empty_mcp_servers: false,
             sandbox_profile: ParkingMutex::new(None),
@@ -1966,10 +2001,26 @@ impl AcpClient {
 
     /// Whether a `session/prompt` request is still awaiting its RPC result.
     fn has_pending_prompt_for(&self, session_id: Option<&str>) -> bool {
-        self.pending.lock().values().any(|p| {
-            p.method == "session/prompt"
-                && pending_prompt_matches(p.session_id.as_deref(), session_id)
-        })
+        !pending_prompt_ids_for(&self.pending.lock(), session_id).is_empty()
+    }
+
+    fn touch_last_update(&self, session_id: Option<&str>, at: Instant) {
+        if let Some(sid) = session_id.filter(|s| !s.is_empty()) {
+            self.last_update_by_session
+                .lock()
+                .insert(sid.to_string(), at);
+        } else {
+            *self.last_update_unstamped.lock() = Some(at);
+        }
+    }
+
+    fn last_update_for(&self, session_id: Option<&str>) -> Option<Instant> {
+        if let Some(sid) = session_id.filter(|s| !s.is_empty()) {
+            if let Some(t) = self.last_update_by_session.lock().get(sid).copied() {
+                return Some(t);
+            }
+        }
+        *self.last_update_unstamped.lock()
     }
 
     /// Release the `session/prompt` waiter only once the agent has actually gone
@@ -1999,7 +2050,7 @@ impl AcpClient {
                 if !this.has_pending_prompt_for(sid.as_deref()) {
                     return;
                 }
-                let last = *this.last_update_at.lock();
+                let last = this.last_update_for(sid.as_deref());
                 if prompt_fallback_due(last, grace, Instant::now()) {
                     break;
                 }
@@ -2014,14 +2065,7 @@ impl AcpClient {
     /// If agent never returned a session/prompt result after prompt_complete, free waiters.
     fn complete_pending_prompt_fallback(&self, session_id: &Option<String>, stop_reason: &str) {
         let mut pending = self.pending.lock();
-        let prompt_ids: Vec<u64> = pending
-            .iter()
-            .filter(|(_, p)| {
-                p.method == "session/prompt"
-                    && pending_prompt_matches(p.session_id.as_deref(), session_id.as_deref())
-            })
-            .map(|(id, _)| *id)
-            .collect();
+        let prompt_ids = pending_prompt_ids_for(&pending, session_id.as_deref());
         for id in prompt_ids {
             if let Some(p) = pending.remove(&id) {
                 info!(
@@ -2035,17 +2079,19 @@ impl AcpClient {
     fn handle_session_update(&self, params: &Value) {
         // Proof of life for the turn: re-arms the `prompt_complete` fallback so
         // an early completion notification cannot cut the answer short.
-        *self.last_update_at.lock() = Some(Instant::now());
-        // Multi-session routing: every update notification carries its
-        // `sessionId` at params top level (Grok gateway envelope). Stamp the
-        // decoded events so the SessionManager can route them to the right
-        // App session when one process hosts several. Missing sid → None
-        // (process-scoped fallback).
+        // Stamp per-session so another chat on this process cannot extend
+        // (or expire) this turn's grace window.
         let sid = params
             .get("sessionId")
             .or_else(|| params.get("session_id"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
+        self.touch_last_update(sid.as_deref(), Instant::now());
+        // Multi-session routing: every update notification carries its
+        // `sessionId` at params top level (Grok gateway envelope). Stamp the
+        // decoded events so the SessionManager can route them to the right
+        // App session when one process hosts several. Missing sid → None
+        // (process-scoped fallback).
         let events = decode_session_update(params);
         if events.is_empty() {
             let update = params.get("update").unwrap_or(params);
@@ -2471,7 +2517,7 @@ impl AcpClient {
             Pending {
                 method: method.to_string(),
                 tx,
-                session_id: prompt_sid,
+                session_id: prompt_sid.clone(),
             },
         );
         let msg = json!({
@@ -2488,7 +2534,7 @@ impl AcpClient {
 
         let wait_started = Instant::now();
         // Mark activity at dispatch so pure silence is measured from send time.
-        *self.last_update_at.lock() = Some(wait_started);
+        self.touch_last_update(prompt_sid.as_deref(), wait_started);
         let idle = Duration::from_secs(PROMPT_IDLE_TIMEOUT_SECS);
         let absolute = Duration::from_secs(PROMPT_ABSOLUTE_TIMEOUT_SECS);
         let slice = Duration::from_secs(PROMPT_WAIT_SLICE_SECS);
@@ -2524,7 +2570,7 @@ impl AcpClient {
                         error!("{}", self.format_exit_detail(&head));
                         return Err(head);
                     }
-                    let last = *self.last_update_at.lock();
+                    let last = self.last_update_for(prompt_sid.as_deref());
                     let now = Instant::now();
                     if let Some(kind) =
                         prompt_wait_should_timeout(last, wait_started, now, idle, absolute)
@@ -5488,13 +5534,11 @@ mod prompt_fallback_tests {
     #[test]
     fn fallback_sid_match_is_scoped_per_session() {
         // Concurrent turns on one process: an explicit target only matches its
-        // own session's prompt.
+        // own session's prompt. Cross-None matching is no longer allowed (P0-4).
         assert!(pending_prompt_matches(Some("sidA"), Some("sidA")));
         assert!(!pending_prompt_matches(Some("sidA"), Some("sidB")));
-        // Legacy prompts without a recorded sid match any target (never stranded).
-        assert!(pending_prompt_matches(None, Some("sidA")));
-        // Unscoped fallback (no target) frees any pending prompt.
-        assert!(pending_prompt_matches(Some("sidA"), None));
+        assert!(!pending_prompt_matches(None, Some("sidA")));
+        assert!(!pending_prompt_matches(Some("sidA"), None));
         assert!(pending_prompt_matches(None, None));
     }
 
