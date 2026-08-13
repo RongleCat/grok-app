@@ -17,6 +17,7 @@ import { CODE_FONT_SCALES } from "@/lib/codeFontScalePref";
 import {
   MAX_TERMINAL_FONT_SIZE,
   MIN_TERMINAL_FONT_SIZE,
+  resolveTerminalFontFamily,
 } from "@/lib/terminalFontPref";
 import { CHAT_DENSITIES } from "@/lib/chatDensity";
 import { CHAT_WIDTHS } from "@/lib/chatWidthPref";
@@ -863,9 +864,7 @@ export function AppearanceSection() {
                     <p
                       className="settings-font-preview"
                       style={{
-                        fontFamily: terminalFontFamily
-                          ? `"${terminalFontFamily.replace(/"/g, "")}", monospace`
-                          : "MesloLGS NF, JetBrainsMono Nerd Font, Menlo, monospace",
+                        fontFamily: resolveTerminalFontFamily(terminalFontFamily),
                         fontSize: terminalFontSize,
                       }}
                       aria-hidden

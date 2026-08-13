@@ -3,7 +3,8 @@
  * localStorage-only — no Rust AppSettings (avoids prefs schema conflicts).
  */
 
-import { TERMINAL_FONT_FAMILY } from "@/lib/sideTerminalTheme";
+import { expandNerdFontAliases, joinCssFontStack } from "@/lib/cssFontFamily";
+import { TERMINAL_FONT_FAMILY, TERMINAL_FONT_STACK } from "@/lib/sideTerminalTheme";
 
 export const TERMINAL_FONT_FAMILY_STORAGE_KEY = "grok.terminalFontFamily";
 export const TERMINAL_FONT_SIZE_STORAGE_KEY = "grok.terminalFontSize";
@@ -122,14 +123,12 @@ export function saveTerminalFontSize(
 }
 
 /**
- * CSS/xterm font-family string. Custom family is listed first, then the
- * built-in Nerd Font fallback stack so glyphs still work when the custom
- * face lacks them.
+ * CSS/xterm font-family string. Custom family is listed first (plus known
+ * Nerd Font aliases — Mono faces first), then the built-in stack so
+ * Powerline glyphs still resolve when the typed name is a shorthand.
  */
 export function resolveTerminalFontFamily(custom: string | null | undefined): string {
   const c = (custom ?? "").trim();
   if (!c) return TERMINAL_FONT_FAMILY;
-  // Quote multi-word family names; keep simple identifiers bare.
-  const quoted = /[,\s]/.test(c) && !c.startsWith('"') ? `"${c.replace(/"/g, "")}"` : c;
-  return `${quoted}, ${TERMINAL_FONT_FAMILY}`;
+  return joinCssFontStack([...expandNerdFontAliases(c), ...TERMINAL_FONT_STACK]);
 }

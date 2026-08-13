@@ -13,6 +13,12 @@ describe("sideTerminalTheme", () => {
     expect(TERMINAL_FONT_FAMILY).toMatch(/MesloLGS NF/);
     expect(TERMINAL_FONT_FAMILY).toMatch(/Menlo/);
     expect(TERMINAL_FONT_FAMILY).toMatch(/monospace/);
+    // Multi-word faces must be quoted so WebKit does not split them.
+    expect(TERMINAL_FONT_FAMILY).toMatch(/"JetBrainsMono Nerd Font Mono"/);
+    expect(TERMINAL_FONT_FAMILY).toMatch(/"JetBrainsMono NF"/);
+    expect(TERMINAL_FONT_FAMILY.indexOf("JetBrainsMono Nerd Font Mono")).toBeLessThan(
+      TERMINAL_FONT_FAMILY.indexOf("MesloLGS NF"),
+    );
   });
 
   it("uses CSS veil 50% and transparent xterm canvas (even bottom fill)", () => {

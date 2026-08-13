@@ -34,6 +34,13 @@ describe("terminalFontPref", () => {
     expect(resolveTerminalFontFamily("JetBrainsMono Nerd Font")).toContain(
       TERMINAL_FONT_FAMILY.split(",")[0]!.trim(),
     );
+    // Shorthand must expand to the Mono face and stay one quoted family.
+    const nf = resolveTerminalFontFamily("JetBrainsMono NF");
+    expect(nf).toMatch(/"JetBrainsMono Nerd Font Mono"/);
+    expect(nf).toMatch(/"JetBrainsMono NF"/);
+    expect(nf.indexOf("JetBrainsMono Nerd Font Mono")).toBeLessThan(
+      nf.indexOf("JetBrainsMono NF"),
+    );
   });
 
   it("persists family and size", () => {

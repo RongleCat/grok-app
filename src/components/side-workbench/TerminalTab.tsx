@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import { createT, type Locale, type MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
@@ -143,6 +144,11 @@ export function TerminalTab({
       cursorStyle: "block",
       fontSize: loadTerminalFontSize(),
       fontFamily: resolveTerminalFontFamily(loadTerminalFontFamily()),
+      fontWeight: "400",
+      fontWeightBold: "700",
+      // WebGL addon draws Powerline extra glyphs (U+E0B0–E0B6) from cell colors.
+      // Built-in DOM renderer ignores customGlyphs and needs a patched font.
+      customGlyphs: true,
       // lineHeight > 1 leaves a fractional-cell gap (looks like a bottom black bar).
       lineHeight: 1,
       letterSpacing: 0,
@@ -158,6 +164,23 @@ export function TerminalTab({
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(el);
+    // xterm 6 defaults to the DOM renderer (customGlyphs off). WebGL draws
+    // Powerline extras from cell fg/bg so Starship pills look like iTerm.
+    let webgl: WebglAddon | null = null;
+    try {
+      webgl = new WebglAddon();
+      webgl.onContextLoss(() => {
+        try {
+          webgl?.dispose();
+        } catch {
+          /* already gone */
+        }
+        webgl = null;
+      });
+      term.loadAddon(webgl);
+    } catch {
+      webgl = null;
+    }
     // Sample computed surface after paint (color-mix resolved).
     requestAnimationFrame(() => {
       applyTheme();
@@ -172,6 +195,18 @@ export function TerminalTab({
     } catch {
       /* ignore first fit before layout */
     }
+    const fontsReady =
+      typeof document !== "undefined" && document.fonts?.ready
+        ? document.fonts.ready.then(() => {
+            try {
+              term.refresh(0, term.rows - 1);
+              fit.fit();
+            } catch {
+              /* unmounted */
+            }
+          })
+        : null;
+    void fontsReady;
     termRef.current = term;
     fitRef.current = fit;
 
@@ -189,6 +224,11 @@ export function TerminalTab({
 
     return () => {
       mo?.disconnect();
+      try {
+        webgl?.dispose();
+      } catch {
+        /* ignore */
+      }
       term.dispose();
       termRef.current = null;
       fitRef.current = null;

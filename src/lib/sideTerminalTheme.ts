@@ -1,3 +1,5 @@
+import { joinCssFontStack } from "@/lib/cssFontFamily";
+
 /**
  * xterm theme + font for Side Workbench interactive terminal.
  *
@@ -35,13 +37,23 @@ export type SideTerminalTheme = {
   brightWhite?: string;
 };
 
-/** Prefer Nerd Fonts when installed so Powerline / p10k glyphs work. */
-export const TERMINAL_FONT_FAMILY = [
+/**
+ * Prefer Nerd Font *Mono* faces so Powerline / Starship separators stay
+ * single-cell. Names are quoted — unquoted `JetBrainsMono Nerd Font` is
+ * parsed as three families and can match non-patched JetBrains Mono.
+ */
+export const TERMINAL_FONT_STACK = [
+  "JetBrainsMono Nerd Font Mono",
+  "JetBrainsMono NFM",
+  "JetBrainsMono Nerd Font",
+  "JetBrainsMono NF",
   "MesloLGS NF",
   "MesloLGM Nerd Font",
-  "JetBrainsMono Nerd Font",
+  "Hack Nerd Font Mono",
   "Hack Nerd Font",
+  "FiraCode Nerd Font Mono",
   "FiraCode Nerd Font",
+  "Maple Mono NF CN",
   "SFMono-Regular",
   "Menlo",
   "Monaco",
@@ -49,7 +61,9 @@ export const TERMINAL_FONT_FAMILY = [
   "Liberation Mono",
   "ui-monospace",
   "monospace",
-].join(", ");
+] as const;
+
+export const TERMINAL_FONT_FAMILY = joinCssFontStack(TERMINAL_FONT_STACK);
 
 /** 50% opacity — used by CSS host (single layer). */
 export const TERM_BG_DARK_50 = "#00000080";

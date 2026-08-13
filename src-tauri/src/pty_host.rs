@@ -83,6 +83,22 @@ fn resolve_cwd(project_path: Option<&str>) -> String {
         .unwrap_or_else(|_| ".".into())
 }
 
+/// TERM / truecolor so Starship powerline + 24-bit palettes emit SGR.
+fn apply_interactive_term_env(cmd: &mut CommandBuilder) {
+    cmd.env("TERM", "xterm-256color");
+    cmd.env("COLORTERM", "truecolor");
+    cmd.env("TERM_PROGRAM", "grok-app");
+    cmd.env("TERM_PROGRAM_VERSION", env!("CARGO_PKG_VERSION"));
+}
+
+/// Force CLI color. Empty `NO_COLOR` still disables themes — must remove it.
+fn apply_cli_color_env(cmd: &mut CommandBuilder) {
+    cmd.env_remove("NO_COLOR");
+    cmd.env("CLICOLOR", "1");
+    cmd.env("CLICOLOR_FORCE", "1");
+    cmd.env("FORCE_COLOR", "1");
+}
+
 /// Spawn an interactive login shell in a PTY; stream output on `terminal://data`.
 ///
 /// `session_id` from the client is **ignored** for identity — we always allocate
@@ -118,11 +134,7 @@ pub fn spawn(
         cmd.arg("-i");
     }
     cmd.cwd(&cwd);
-    // Full terminal capability so oh-my-zsh themes / 256-color / truecolor work.
-    cmd.env("TERM", "xterm-256color");
-    cmd.env("COLORTERM", "truecolor");
-    cmd.env("TERM_PROGRAM", "grok-app");
-    cmd.env("TERM_PROGRAM_VERSION", env!("CARGO_PKG_VERSION"));
+    apply_interactive_term_env(&mut cmd);
     // Avoid shells treating the session as non-interactive in edge cases.
     cmd.env("SHELL", &shell);
     // UTF-8 locale so multi-byte / OMZ glyphs render correctly.
@@ -145,9 +157,7 @@ pub fn spawn(
     {
         cmd.env("LC_CTYPE", &lang);
     }
-    // macOS `ls` colors + common CLI color defaults for themed shells.
-    cmd.env("CLICOLOR", "1");
-    cmd.env("CLICOLOR_FORCE", "1");
+    apply_cli_color_env(&mut cmd);
 
     let mut child = pair
         .slave
@@ -316,4 +326,33 @@ pub fn kill(session_id: &str) -> Result<(), String> {
     // Dropping master/writer closes the PTY → child gets SIGHUP → reader EOF.
     g.remove(session_id);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn env_str(cmd: &CommandBuilder, key: &str) -> Option<String> {
+        cmd.get_env(key).map(|v| v.to_string_lossy().into_owned())
+    }
+
+    #[test]
+    fn interactive_term_env_advertises_truecolor() {
+        let mut cmd = CommandBuilder::new("zsh");
+        apply_interactive_term_env(&mut cmd);
+        assert_eq!(env_str(&cmd, "TERM").as_deref(), Some("xterm-256color"));
+        assert_eq!(env_str(&cmd, "COLORTERM").as_deref(), Some("truecolor"));
+        assert_eq!(env_str(&cmd, "TERM_PROGRAM").as_deref(), Some("grok-app"));
+    }
+
+    #[test]
+    fn cli_color_env_removes_no_color() {
+        let mut cmd = CommandBuilder::new("zsh");
+        cmd.env("NO_COLOR", "1");
+        apply_cli_color_env(&mut cmd);
+        assert_eq!(env_str(&cmd, "NO_COLOR"), None);
+        assert_eq!(env_str(&cmd, "CLICOLOR").as_deref(), Some("1"));
+        assert_eq!(env_str(&cmd, "CLICOLOR_FORCE").as_deref(), Some("1"));
+        assert_eq!(env_str(&cmd, "FORCE_COLOR").as_deref(), Some("1"));
+    }
 }

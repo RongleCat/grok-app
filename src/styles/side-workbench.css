@@ -703,6 +703,9 @@ html[data-theme="light"] .sw-terminal--pty {
   margin: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
+  /* Coding ligatures collapse Powerline / `>` runs in JetBrains Mono. */
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
 }
 
 .sw-terminal__xterm .xterm-viewport {
@@ -753,6 +756,13 @@ html[data-theme="light"] .sw-terminal--pty {
 .sw-terminal__xterm .xterm-rows,
 .sw-terminal__xterm canvas {
   box-shadow: none !important;
+}
+
+/* DOM-renderer fallback: do not let workbench `background: transparent`
+ * rules wipe Starship / ANSI cell backgrounds on row spans. */
+.sw-terminal__xterm .xterm-rows span[style*="background-color"],
+.sw-terminal__xterm .xterm-rows [class*="xterm-bg-"] {
+  background-clip: padding-box;
 }
 
 /* Keep workbench chrome transparent under terminal (veil only on .sw-terminal--pty) */
