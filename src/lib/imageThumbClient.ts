@@ -65,6 +65,31 @@ function cacheKey(src: string, path?: string): string {
   return (src || "").trim();
 }
 
+/** Sync lookup of the session thumb cache — remounts must first-paint this. */
+export function peekChatImageThumb(
+  src: string,
+  path?: string,
+): ThumbResolve | null {
+  const key = cacheKey(src, path);
+  if (!key) return null;
+  return displayCache.get(key) ?? null;
+}
+
+/**
+ * Next `<img src>` after a thumb resolve. Never wipe a working live URL
+ * when materialization returns null / empty (journal remount would flash
+ * a broken card over a still-valid https original).
+ */
+export function nextChatCardDisplaySrc(
+  current: string | null | undefined,
+  thumb: ThumbResolve | null | undefined,
+): string | null {
+  const next = (thumb?.displaySrc || "").trim();
+  if (next) return next;
+  const keep = (current || "").trim();
+  return keep || null;
+}
+
 /**
  * Resolve a chat-card display URL, preferring a Host-cached thumb.
  * Falls back to normal media resolve when thumb fails.

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 CI Release body = this section only (via `scripts/changelog-for-release.py`; no repeated download/install boilerplate).  
 See `docs/llm-wiki/release.md`.
 
+## [Unreleased]
+
+### Fixed
+- **Chat image cards no longer die after the turn ends**: Leftover remote https thumbs (web-fetch charts, etc.) first-paint from the in-memory thumb cache on journal remount. Swapping `src` mid-load used to abort the original `<img>` and lock `broken_blob` (“preview failed”). Abort / stale-src errors are ignored; a working https original is not wiped when thumb resolve returns empty.
+
 ## [0.2.17] - 2026-08-14
 
 > **Highlight:** Stability release — shared-process session isolation (no cross-chat history poisoning, per-session turn completion), thinking timer stays live across tool loops, chat bottom jitter gone, side-terminal Powerline/truecolor, MCP OAuth follows the selected server, and macOS no longer crashes on voice.

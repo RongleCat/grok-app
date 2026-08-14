@@ -317,6 +317,24 @@ export function mediaUrlPathParam(
 }
 
 /**
+ * Whether `<img onError>` should lock the chat card as broken.
+ * Ignore leftover abort from a src swap (https → cached thumb on remount)
+ * and explicit media-element abort codes.
+ */
+export function shouldApplyChatImageLoadError(input: {
+  failedSrc?: string | null;
+  paintedSrc?: string | null;
+  mediaElementError?: string | null;
+}): boolean {
+  const err = (input.mediaElementError || "").trim().toLowerCase();
+  if (err === "aborted" || err === "media_err_aborted") return false;
+  const failed = (input.failedSrc || "").trim();
+  const painted = (input.paintedSrc || "").trim();
+  if (failed && painted && failed !== painted) return false;
+  return true;
+}
+
+/**
  * Classify resolve / paint failures when we have path context but no thrown value.
  * Used by chat image cards when `resolveImageSrc` returns null or `<img onError>`.
  */

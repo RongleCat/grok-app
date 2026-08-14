@@ -4,6 +4,8 @@ import {
   clearChatImageThumbClientCache,
   canUseImageThumb,
   getThumbCacheEndpoint,
+  nextChatCardDisplaySrc,
+  peekChatImageThumb,
   resolveChatImageThumb,
 } from "./imageThumbClient";
 import {
@@ -46,6 +48,52 @@ describe("resolveChatImageThumb — fused paths never hit the thumb host", () =>
     const r = await resolveChatImageThumb("t:/Users/me/a.png");
     expect(r).toBeNull();
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe("peekChatImageThumb / nextChatCardDisplaySrc", () => {
+  it("seeds remount from the in-memory thumb cache (no https→loopback swap)", async () => {
+    setMediaEndpoint({ baseUrl: "http://127.0.0.1:9", token: "tok" });
+    vi.spyOn(api, "isDesktopHost").mockReturnValue(true);
+    vi.spyOn(api, "mediaImageThumb").mockResolvedValue({
+      thumbPath: "/tmp/cache/image-thumbs/x.jpg",
+      fromCache: true,
+      width: 480,
+      height: 283,
+      isOriginal: false,
+    });
+    const remote =
+      "https://gbres.example/Files/iimage/20260814/chart.png";
+    expect(peekChatImageThumb(remote)).toBeNull();
+
+    const resolved = await resolveChatImageThumb(remote);
+    expect(resolved?.displaySrc).toContain("127.0.0.1:9");
+
+    const peek = peekChatImageThumb(remote);
+    expect(peek?.displaySrc).toBe(resolved?.displaySrc);
+    expect(peekChatImageThumb(remote, remote)?.displaySrc).toBe(
+      resolved?.displaySrc,
+    );
+  });
+
+  it("does not wipe a working https src when thumb resolve returns null", () => {
+    const live = "https://cdn.example/chart.png";
+    expect(nextChatCardDisplaySrc(live, null)).toBe(live);
+    expect(nextChatCardDisplaySrc(live, { displaySrc: "" } as never)).toBe(
+      live,
+    );
+  });
+
+  it("prefers a successful thumb displaySrc over the live src", () => {
+    expect(
+      nextChatCardDisplaySrc("https://cdn.example/chart.png", {
+        displaySrc: "http://127.0.0.1:9/v1/media?t=tok&p=%2Ftmp%2Ft.jpg",
+        fullKey: "https://cdn.example/chart.png",
+        width: 480,
+        height: 283,
+        fromCache: true,
+      }),
+    ).toBe("http://127.0.0.1:9/v1/media?t=tok&p=%2Ftmp%2Ft.jpg");
   });
 });
 

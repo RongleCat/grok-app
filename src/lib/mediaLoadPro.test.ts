@@ -11,6 +11,7 @@ import {
   mediaUrlPathParam,
   resolveMediaLoadError,
   resolveMediaSrcFailure,
+  shouldApplyChatImageLoadError,
 } from "./mediaLoadPro";
 
 describe("classifyMediaLoadError", () => {
@@ -129,6 +130,30 @@ describe("classifyMediaSrcFailure", () => {
         loadFailed: true,
       }),
     ).toBe("broken_blob");
+  });
+
+  it("shouldApplyChatImageLoadError ignores abort leftover from a src swap", () => {
+    const remote = "https://gbres.example/chart.png";
+    const thumb = "http://127.0.0.1:9/v1/media?t=tok&p=%2Ftmp%2Ft.jpg";
+    expect(
+      shouldApplyChatImageLoadError({
+        failedSrc: remote,
+        paintedSrc: thumb,
+      }),
+    ).toBe(false);
+    expect(
+      shouldApplyChatImageLoadError({
+        failedSrc: remote,
+        paintedSrc: remote,
+        mediaElementError: "aborted",
+      }),
+    ).toBe(false);
+    expect(
+      shouldApplyChatImageLoadError({
+        failedSrc: thumb,
+        paintedSrc: thumb,
+      }),
+    ).toBe(true);
   });
 
   it("broken blob for remote http image decode failures (not allowlist)", () => {

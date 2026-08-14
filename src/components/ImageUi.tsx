@@ -33,6 +33,7 @@ import {
 import {
   mediaLoadErrorLabelMap,
   resolveMediaSrcFailure,
+  shouldApplyChatImageLoadError,
   type MediaLoadErrorKind,
 } from "@/lib/mediaLoadPro";
 import {
@@ -41,6 +42,8 @@ import {
 } from "@/lib/imageAspectCache";
 import {
   canUseImageThumb,
+  nextChatCardDisplaySrc,
+  peekChatImageThumb,
   resolveChatImageThumb,
 } from "@/lib/imageThumbClient";
 import { isFusedQueryKeyPath } from "@/lib/pathNormalize";
@@ -117,7 +120,18 @@ function isLocalFsPath(path: string | undefined): path is string {
   return path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
 }
 
-function initialResolvedSrc(src: string): string | null {
+function initialResolvedSrc(
+  src: string,
+  path?: string,
+  layout?: ImageUiLayout,
+): string | null {
+  // Remount after journal rehydrate must first-paint the cached thumb.
+  // Painting https then swapping to loopback aborts the in-flight <img>
+  // load; WKWebView onError then locked the card as broken_blob.
+  if (layout !== "pane") {
+    const peek = peekChatImageThumb(src, path)?.displaySrc;
+    if (peek) return peek;
+  }
   if (isViewableSrc(src)) return src;
   return resolveImageSrcSync(src);
 }
@@ -194,10 +208,12 @@ export function ImageUi({
   const layout = resolveLayout(layoutProp, className);
   const viewer = useImageViewerOptional();
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const paintedSrcRef = useRef<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(() =>
-    initialResolvedSrc(src),
+    initialResolvedSrc(src, path, layout),
   );
+  paintedSrcRef.current = resolvedSrc;
   /** Once load fails, keep a stable broken state — never re-fetch on re-render. */
   const [loadFailed, setLoadFailed] = useState(false);
   /** Classified reason when resolve or decode fails (MEDIA-LOAD-PRO). */
@@ -248,7 +264,8 @@ export function ImageUi({
 
   useEffect(() => {
     let cancelled = false;
-    const next = initialResolvedSrc(src);
+    const next = initialResolvedSrc(src, path, layout);
+    paintedSrcRef.current = next;
     setResolvedSrc(next);
     setLoadFailed(false);
     setFailKind(null);
@@ -272,11 +289,13 @@ export function ImageUi({
       void resolveChatImageThumb(src, path)
         .then((r) => {
           if (cancelled) return;
-          if (r?.displaySrc) {
-            setResolvedSrc(r.displaySrc);
+          const display = nextChatCardDisplaySrc(next, r);
+          if (display) {
+            paintedSrcRef.current = display;
+            setResolvedSrc((prev) => (prev === display ? prev : display));
             setLoadFailed(false);
             setFailKind(null);
-            if (r.width > 0 && r.height > 0) {
+            if (r && r.width > 0 && r.height > 0) {
               applyNaturalSize(r.width, r.height);
             }
           } else {
@@ -551,6 +570,7 @@ export function ImageUi({
           </span>
         ) : resolvedSrc ? (
           <img
+            key={resolvedSrc}
             ref={imgRef}
             className="md-body__img-frame__el"
             src={resolvedSrc}
@@ -570,11 +590,21 @@ export function ImageUi({
               const el = e.currentTarget;
               applyNaturalSize(el.naturalWidth, el.naturalHeight);
             }}
-            onError={() => {
+            onError={(e) => {
+              const failed =
+                e.currentTarget.currentSrc || e.currentTarget.src;
+              if (
+                !shouldApplyChatImageLoadError({
+                  failedSrc: failed,
+                  paintedSrc: paintedSrcRef.current,
+                })
+              ) {
+                return;
+              }
               setLoadFailed(true);
               const r = resolveMediaSrcFailure({
                 pathOrUrl: path || src,
-                resolvedSrc,
+                resolvedSrc: paintedSrcRef.current,
                 loadFailed: true,
                 isTauri: isTauri(),
                 mediaEndpointReady: isMediaEndpointReady(),
