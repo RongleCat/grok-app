@@ -45,7 +45,7 @@ import {
 } from "@/lib/heatmapStats";
 import { GlassModal } from "@/components/GlassModal";
 import { Tip } from "@/components/ui/tooltip";
-import { IconPlus, IconTrash, IconUser } from "@/components/icons";
+import { IconHelp, IconPlus, IconTrash, IconUser } from "@/components/icons";
 
 export interface AccountPanelLabels {
   signedIn: string;
@@ -920,7 +920,27 @@ export function AccountPanel({
         <>
           <section className="account-section">
             <div className="account-section__title account-section__title--row">
-              <span>{labels.heatmap}</span>
+              <span className="account-heatmap-title">
+                <span>{labels.heatmap}</span>
+                <Tip
+                  label={labels.heatmapHint}
+                  placement="top"
+                  className="ui-tip--wrap"
+                  delayMs={280}
+                >
+                  <button
+                    type="button"
+                    className="settings-label-help"
+                    aria-label={labels.heatmapHint}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
+                    <IconHelp size={14} stroke={1.75} />
+                  </button>
+                </Tip>
+              </span>
               <div className="account-heatmap-title-meta">
                 {heatErrChip ? (
                   <span
@@ -1021,9 +1041,6 @@ export function AccountPanel({
                 {labels.heatmapNoData}
               </span>
             )}
-            <p className="account-section__hint account-heatmap-hint">
-              {labels.heatmapHint}
-            </p>
             <div className="account-section__body account-section__body--heat">
               <Heatmap
                 days={heatDays}

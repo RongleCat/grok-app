@@ -80,6 +80,13 @@
   gap: 12px;
 }
 
+.account-heatmap-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .account-heatmap-title-meta {
   display: inline-flex;
   align-items: center;
