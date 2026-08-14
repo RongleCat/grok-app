@@ -88,6 +88,66 @@
   flex-shrink: 0;
 }
 
+.account-heat-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0 0 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-elevated, var(--surface-1));
+}
+
+.account-heat-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 8px;
+  text-align: center;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.account-heat-stat:last-child {
+  border-right: none;
+}
+
+.account-heat-stat__value {
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.account-heat-stat__label {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .account-heat-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-heat-stat:nth-child(2n) {
+    border-right: none;
+  }
+
+  .account-heat-stat {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .account-heat-stat:nth-last-child(-n + 1) {
+    border-bottom: none;
+  }
+}
+
 .account-heatmap-total {
   font-size: 12px;
   font-weight: 600;

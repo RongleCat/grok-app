@@ -28,7 +28,7 @@ import {
   type HeatmapEmptyState,
 } from "@/lib/heatmapUsagePro";
 
-export type HeatGranularity = "day" | "week";
+export type HeatGranularity = "day" | "week" | "cumulative";
 
 export type { HeatRange };
 export { dateInHeatRange, heatRangesEqual, sumHeatInRange };
@@ -40,6 +40,8 @@ type DayCell = {
   date: string | null;
   day: HeatmapDay | null;
   tokens: number;
+  /** Running total through this day when granularity is cumulative. */
+  cumulative?: number;
   requests: number;
   value: number;
   level: 0 | 1 | 2 | 3 | 4;
@@ -127,7 +129,7 @@ function tipPosFromRect(rect: DOMRect): {
   placeAbove: boolean;
 } {
   const tipW = 188;
-  const tipH = 56;
+  const tipH = 72;
   const gap = 6;
   const pad = 8;
   const placeAbove = rect.top - tipH - gap >= pad;
@@ -143,6 +145,7 @@ function tipPosFromRect(rect: DOMRect): {
 function buildDayGrid(
   days: HeatmapDay[],
   metric: Metric,
+  cumulative = false,
 ): { weeks: DayCell[][]; monthLabels: { week: number; label: string }[] } {
   if (days.length === 0) return { weeks: [], monthLabels: [] };
 
@@ -173,6 +176,16 @@ function buildDayGrid(
       empty: !inRange,
       range: inRange ? { start: key, end: key } : null,
     });
+  }
+
+  if (cumulative) {
+    let run = 0;
+    for (const c of raw) {
+      if (c.empty) continue;
+      run += c.tokens;
+      c.cumulative = run;
+      c.value = run;
+    }
   }
 
   const thresholds = levelThresholds(
@@ -301,6 +314,8 @@ export function Heatmap({
     aria: string;
     requests: string;
     tokens: string;
+    /** Running-total row in the hover tip (cumulative mode). */
+    cumulative?: string;
     /** Map error title/hint keys → localized strings. */
     errorTitle?: string;
     errorHint?: string;
@@ -319,6 +334,7 @@ export function Heatmap({
   const [hover, setHover] = useState<{
     label: string;
     tokens: number;
+    cumulative?: number;
     left: number;
     top: number;
     placeAbove: boolean;
@@ -346,10 +362,13 @@ export function Heatmap({
   const showGrid =
     emptyState == null || emptyState.kind === "range_empty";
 
+  const useDayGrid = granularity === "day" || granularity === "cumulative";
   const dayGrid = useMemo(
     () =>
-      showGrid && granularity === "day" ? buildDayGrid(days, metric) : null,
-    [days, metric, granularity, showGrid],
+      showGrid && useDayGrid
+        ? buildDayGrid(days, metric, granularity === "cumulative")
+        : null,
+    [days, metric, granularity, showGrid, useDayGrid],
   );
   const weekRow = useMemo(
     () =>
@@ -357,14 +376,12 @@ export function Heatmap({
     [days, metric, granularity, showGrid],
   );
 
-  const weekCount =
-    granularity === "day"
-      ? (dayGrid?.weeks.length ?? 0)
-      : (weekRow?.weekCells.length ?? 0);
-  const monthLabels =
-    granularity === "day"
-      ? (dayGrid?.monthLabels ?? [])
-      : (weekRow?.monthLabels ?? []);
+  const weekCount = useDayGrid
+    ? (dayGrid?.weeks.length ?? 0)
+    : (weekRow?.weekCells.length ?? 0);
+  const monthLabels = useDayGrid
+    ? (dayGrid?.monthLabels ?? [])
+    : (weekRow?.monthLabels ?? []);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -400,14 +417,14 @@ export function Heatmap({
   const cell = useMemo(() => {
     if (weekCount === 0) return MIN_CELL;
     const rightPad = 12;
-    const labelW = granularity === "day" ? LABEL_COL : 0;
+    const labelW = useDayGrid ? LABEL_COL : 0;
     if (containerWidth <= 0) return MIN_CELL;
     const available = Math.max(0, containerWidth - labelW - rightPad);
     const size = Math.floor(
       (available - (weekCount - 1) * GAP) / weekCount,
     );
     return Math.max(MIN_CELL, Math.min(MAX_CELL, size));
-  }, [containerWidth, weekCount, granularity]);
+  }, [containerWidth, weekCount, useDayGrid]);
 
   const dayLabels = useMemo(() => {
     if (locale === "zh" || locale === "zh-TW")
@@ -497,10 +514,9 @@ export function Heatmap({
   }
 
   const graphWidth = weekCount * (cell + GAP) - GAP;
-  const graphHeight =
-    granularity === "day" ? 7 * (cell + GAP) - GAP : WEEK_CELL_H;
+  const graphHeight = useDayGrid ? 7 * (cell + GAP) - GAP : WEEK_CELL_H;
   const monthTrail = 16;
-  const labelCol = granularity === "day" ? LABEL_COL : 0;
+  const labelCol = useDayGrid ? LABEL_COL : 0;
   const totalWidth = labelCol + graphWidth + monthTrail;
 
   const selectRange = (range: HeatRange | null) => {
@@ -557,7 +573,7 @@ export function Heatmap({
         </div>
 
         <div className="gh-heatmap__body">
-          {granularity === "day" ? (
+          {useDayGrid ? (
             <div
               className="gh-heatmap__dow"
               style={{ width: LABEL_COL, height: graphHeight, gap: GAP }}
@@ -577,7 +593,7 @@ export function Heatmap({
             </div>
           ) : null}
 
-          {granularity === "day" && dayGrid ? (
+          {useDayGrid && dayGrid ? (
             <div
               className="gh-heatmap__grid"
               role="grid"
@@ -633,6 +649,7 @@ export function Heatmap({
                       setHover({
                         label: cellItem.date,
                         tokens: cellItem.tokens,
+                        cumulative: cellItem.cumulative,
                         ...tipPosFromRect(rect),
                       });
                     }}
@@ -744,6 +761,12 @@ export function Heatmap({
               <span>{labels.tokens}</span>
               <span>{formatLocaleCount(hover.tokens, locale)}</span>
             </div>
+            {hover.cumulative != null && labels.cumulative ? (
+              <div className="gh-heatmap__tip-row">
+                <span>{labels.cumulative}</span>
+                <span>{formatLocaleCount(hover.cumulative, locale)}</span>
+              </div>
+            ) : null}
           </div>,
           document.body,
         )}

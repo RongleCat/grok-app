@@ -155,8 +155,9 @@ Cache successes under `~/.grok-app/account_billing_cache.json`.
 ## Heatmap & call logs
 
 - Heatmap UI ported from grok-go `components/heatmap.tsx` (GitHub green levels, month labels, tooltip).
+- Stats strip (Codex-style): total / peak tokens, longest chat, current + longest streak. Views: day · week · cumulative (running-total cell color).
 - Data: local `~/.grok/sessions/**/signals.json` → `requests` / `tokens` for ~371 days (not SuperGrok billing).
-- Call logs: recent sessions with model, turns, context tokens, duration, mtime.
+- Call logs: recent sessions with model, turns, usage tokens, context occupancy, duration, mtime.
 
 ## UI copy
 

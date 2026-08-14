@@ -378,21 +378,29 @@ export function resolveHeatmapEmptyState(
 
 // ── Range chip presentation ──────────────────────────────────────────────────
 
-/** Day / week granularity chips (Account heatmap toggle). */
-export type HeatmapGranularity = "day" | "week";
+/** Day / week / cumulative chips (Account heatmap toggle). */
+export type HeatmapGranularity = "day" | "week" | "cumulative";
 
 export type HeatmapGranularityChip = {
   id: HeatmapGranularity;
   /** i18n label key. */
-  labelKey: "account.heatmap.day" | "account.heatmap.week";
+  labelKey:
+    | "account.heatmap.day"
+    | "account.heatmap.week"
+    | "account.heatmap.cumulative";
   active: boolean;
 };
 
-/** Ordered day · week chips with active state. */
+/** Ordered day · week · cumulative chips with active state. */
 export function listHeatmapGranularityChips(
   active: HeatmapGranularity | null | undefined,
 ): HeatmapGranularityChip[] {
-  const a: HeatmapGranularity = active === "week" ? "week" : "day";
+  const a: HeatmapGranularity =
+    active === "week"
+      ? "week"
+      : active === "cumulative"
+        ? "cumulative"
+        : "day";
   return [
     {
       id: "day",
@@ -403,6 +411,11 @@ export function listHeatmapGranularityChips(
       id: "week",
       labelKey: "account.heatmap.week",
       active: a === "week",
+    },
+    {
+      id: "cumulative",
+      labelKey: "account.heatmap.cumulative",
+      active: a === "cumulative",
     },
   ];
 }

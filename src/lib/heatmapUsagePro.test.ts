@@ -210,12 +210,18 @@ describe("resolveHeatmapEmptyState", () => {
 });
 
 describe("listHeatmapGranularityChips", () => {
-  it("orders day · week with active state", () => {
+  it("orders day · week · cumulative with active state", () => {
     expect(listHeatmapGranularityChips("day")).toEqual([
       { id: "day", labelKey: "account.heatmap.day", active: true },
       { id: "week", labelKey: "account.heatmap.week", active: false },
+      {
+        id: "cumulative",
+        labelKey: "account.heatmap.cumulative",
+        active: false,
+      },
     ]);
     expect(listHeatmapGranularityChips("week")[1]?.active).toBe(true);
+    expect(listHeatmapGranularityChips("cumulative")[2]?.active).toBe(true);
     expect(listHeatmapGranularityChips(null)[0]?.active).toBe(true);
   });
 });
