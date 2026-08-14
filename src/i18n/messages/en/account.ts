@@ -52,6 +52,7 @@ export const enAccount = {
   "usageModal.cost": "Cost",
   "usageModal.noSession": "Session usage is unavailable until the session starts.",
   "usageModal.noCalls": "No model calls yet in this session.",
+  "usageModal.pendingTurn": "Usage updates when this turn finishes.",
   "usageModal.incomplete": "Usage is incomplete and may under-count.",
   "usageModal.costPartial": "Cost is incomplete and may under-count.",
   "usageModal.quotaUnknown": "Could not load the weekly limit.",

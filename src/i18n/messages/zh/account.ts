@@ -52,6 +52,7 @@ export const zhAccount = {
   "usageModal.cost": "费用",
   "usageModal.noSession": "会话尚未开始，暂无用量。",
   "usageModal.noCalls": "本会话还没有模型调用。",
+  "usageModal.pendingTurn": "用量在本回合结束后更新。",
   "usageModal.incomplete": "用量跟踪不完整，数字可能偏低。",
   "usageModal.costPartial": "费用跟踪不完整，数字可能偏低。",
   "usageModal.quotaUnknown": "未能加载每周限额。",

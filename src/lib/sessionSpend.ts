@@ -63,19 +63,16 @@ export function emptySessionSpend(): SessionSpend {
   return { ...EMPTY_SESSION_SPEND };
 }
 
+/**
+ * Only the CLI **user-turn** aggregate. Per-call `response_completed` /
+ * `turn_usage` packets use a different cache accounting (often cache-only
+ * or uncached+cache split) and must not be summed with `turn_completed`.
+ */
 export function isSessionSpendBillingSource(
   source: string | null | undefined,
 ): boolean {
   const s = (source ?? "").toLowerCase();
-  if (!s) return false;
-  if (s === "prompt_result") return false;
-  return (
-    s === "turn_completed" ||
-    s === "response_completed" ||
-    s.includes("turn_completed") ||
-    s === "turn_usage" ||
-    s === "turnusage"
-  );
+  return s === "turn_completed";
 }
 
 function finiteNonNeg(n: number | null | undefined): number | null {
@@ -94,6 +91,19 @@ export function spendTurnFingerprint(turn: SessionSpendTurn): string {
     finiteNonNeg(turn.apiDurationMs) ?? "",
     finiteNonNeg(turn.costUsdTicks) ?? "",
   ].join(":");
+}
+
+/**
+ * Per-call / split-accounting fragments: cache with no input, or cache > input
+ * and no modelCalls. Those packets must not be summed into the turn snapshot.
+ */
+export function isSpendFragment(turn: SessionSpendTurn): boolean {
+  const input = finiteNonNeg(turn.inputTokens) ?? 0;
+  const cached = finiteNonNeg(turn.cachedReadTokens) ?? 0;
+  const calls = finiteNonNeg(turn.modelCalls) ?? 0;
+  if (calls > 0) return false;
+  if (cached > 0 && (input <= 0 || cached > input)) return true;
+  return false;
 }
 
 export function hasSpendSignal(turn: SessionSpendTurn): boolean {
@@ -146,6 +156,7 @@ export function applySessionSpendTurn(
 ): SessionSpend {
   if (!isSessionSpendBillingSource(turn.source)) return state;
   if (!hasSpendSignal(turn)) return state;
+  if (isSpendFragment(turn)) return state;
 
   const fp = spendTurnFingerprint(turn);
   if (
@@ -158,7 +169,9 @@ export function applySessionSpendTurn(
 
   const input = finiteNonNeg(turn.inputTokens) ?? 0;
   const output = finiteNonNeg(turn.outputTokens) ?? 0;
-  const cached = finiteNonNeg(turn.cachedReadTokens) ?? 0;
+  let cached = finiteNonNeg(turn.cachedReadTokens) ?? 0;
+  // CLI `inputTokens` already includes cache reads; cache cannot exceed input.
+  if (input > 0 && cached > input) cached = input;
   const reasoning = finiteNonNeg(turn.reasoningTokens) ?? 0;
   const calls = finiteNonNeg(turn.modelCalls) ?? 0;
   const duration = finiteNonNeg(turn.apiDurationMs) ?? 0;
@@ -268,8 +281,43 @@ export function formatUsageResetTime(
 
 // ── In-memory per-session store (App process lifetime) ────────────────
 
+const SPEND_STORE_KEY = "grok.sessionSpend.v1";
+
 const spendBySession = new Map<string, SessionSpend>();
 const listeners = new Set<(sessionId: string) => void>();
+let storeHydrated = false;
+
+function canUseSessionStorage(): boolean {
+  return typeof sessionStorage !== "undefined";
+}
+
+function persistSpendStore(): void {
+  if (!canUseSessionStorage()) return;
+  try {
+    const obj: Record<string, SessionSpend> = {};
+    for (const [id, spend] of spendBySession) obj[id] = spend;
+    sessionStorage.setItem(SPEND_STORE_KEY, JSON.stringify(obj));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function hydrateSpendStore(): void {
+  if (storeHydrated) return;
+  storeHydrated = true;
+  if (!canUseSessionStorage()) return;
+  try {
+    const raw = sessionStorage.getItem(SPEND_STORE_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw) as Record<string, SessionSpend>;
+    for (const [id, spend] of Object.entries(obj ?? {})) {
+      if (!id || !spend || typeof spend !== "object") continue;
+      spendBySession.set(id, { ...emptySessionSpend(), ...spend });
+    }
+  } catch {
+    /* ignore bad cache */
+  }
+}
 
 function notify(sessionId: string): void {
   for (const fn of listeners) {
@@ -282,12 +330,15 @@ function notify(sessionId: string): void {
 }
 
 export function getSessionSpend(sessionId: string | null | undefined): SessionSpend {
+  hydrateSpendStore();
   if (!sessionId) return emptySessionSpend();
   return spendBySession.get(sessionId) ?? emptySessionSpend();
 }
 
 export function resetSessionSpend(sessionId: string): void {
+  hydrateSpendStore();
   spendBySession.delete(sessionId);
+  persistSpendStore();
   notify(sessionId);
 }
 
@@ -296,10 +347,12 @@ export function ingestSessionSpend(
   turn: SessionSpendTurn,
   now = Date.now(),
 ): SessionSpend {
+  hydrateSpendStore();
   const prev = spendBySession.get(sessionId) ?? emptySessionSpend();
   const next = applySessionSpendTurn(prev, turn, now);
   if (next === prev) return prev;
   spendBySession.set(sessionId, next);
+  persistSpendStore();
   notify(sessionId);
   return next;
 }
@@ -316,4 +369,12 @@ export function subscribeSessionSpend(
 /** Test-only: wipe the process map. */
 export function clearSessionSpendStore(): void {
   spendBySession.clear();
+  storeHydrated = true;
+  if (canUseSessionStorage()) {
+    try {
+      sessionStorage.removeItem(SPEND_STORE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
 }

@@ -34,7 +34,8 @@ afterEach(() => {
 describe("isSessionSpendBillingSource", () => {
   it("accepts turn_completed and rejects occupancy / prompt_result", () => {
     expect(isSessionSpendBillingSource("turn_completed")).toBe(true);
-    expect(isSessionSpendBillingSource("response_completed")).toBe(true);
+    expect(isSessionSpendBillingSource("response_completed")).toBe(false);
+    expect(isSessionSpendBillingSource("turn_usage")).toBe(false);
     expect(isSessionSpendBillingSource("prompt_result")).toBe(false);
     expect(isSessionSpendBillingSource("context_size")).toBe(false);
     expect(isSessionSpendBillingSource("compact")).toBe(false);
@@ -100,6 +101,72 @@ describe("applySessionSpendTurn", () => {
     const once = applySessionSpendTurn(emptySessionSpend(), turn, 1_000);
     const again = applySessionSpendTurn(once, turn, 5_000);
     expect(again.modelCalls).toBe(6);
+  });
+
+  it("does not add cache-heavy fragments that lack modelCalls", () => {
+    const once = applySessionSpendTurn(
+      emptySessionSpend(),
+      {
+        source: "turn_completed",
+        inputTokens: 65_402,
+        outputTokens: 2_268,
+        totalTokens: 67_670,
+        cachedReadTokens: 46_848,
+        reasoningTokens: 762,
+        modelCalls: 3,
+        apiDurationMs: 44_692,
+        costUsdTicks: 741_400_000,
+      },
+      1_000,
+    );
+    const again = applySessionSpendTurn(
+      once,
+      {
+        source: "turn_completed",
+        inputTokens: 22_887,
+        outputTokens: 3_288,
+        cachedReadTokens: 97_152,
+        reasoningTokens: 1_419,
+      },
+      1_100,
+    );
+    expect(again.inputTokens).toBe(65_402);
+    expect(again.cachedReadTokens).toBe(46_848);
+    expect(again.modelCalls).toBe(3);
+    expect(sessionSpendCacheHitRate(again)).toBe(72);
+  });
+
+  it("accepts a turn_completed snapshot even when modelCalls is missing", () => {
+    const next = applySessionSpendTurn(
+      emptySessionSpend(),
+      {
+        source: "turn_completed",
+        inputTokens: 65_402,
+        outputTokens: 2_268,
+        totalTokens: 67_670,
+        cachedReadTokens: 46_848,
+      },
+      1_000,
+    );
+    expect(next.inputTokens).toBe(65_402);
+    expect(next.cachedReadTokens).toBe(46_848);
+    expect(sessionSpendCacheHitRate(next)).toBe(72);
+  });
+
+  it("clamps per-turn cache to input", () => {
+    const next = applySessionSpendTurn(
+      emptySessionSpend(),
+      {
+        source: "turn_completed",
+        inputTokens: 10_000,
+        outputTokens: 1,
+        totalTokens: 10_001,
+        cachedReadTokens: 48_000,
+        modelCalls: 1,
+      },
+      1_000,
+    );
+    expect(next.cachedReadTokens).toBe(10_000);
   });
 
   it("marks incomplete / partial flags", () => {

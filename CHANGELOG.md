@@ -17,6 +17,7 @@ See `docs/llm-wiki/release.md`.
 - **Account heatmap stats strip**: Codex-style totals — cumulative tokens, peak day, longest chat, current / longest streak — plus a **Cumulative** calendar view (running-total color).
 
 ### Fixed
+- **Usage modal cache > input, then empty**: Session spend only sums `turn_completed` snapshots. Cache-heavy fragments (cache > input, no `modelCalls`) are dropped so cached cannot exceed input; a real turn without `modelCalls` still counts. Totals persist in sessionStorage, and an in-flight turn says usage updates when it finishes.
 - **Chat image cards no longer die after the turn ends**: Leftover remote https thumbs (web-fetch charts, etc.) first-paint from the in-memory thumb cache on journal remount. Swapping `src` mid-load used to abort the original `<img>` and lock `broken_blob` (“preview failed”). Abort / stale-src errors are ignored; a working https original is not wiped when thumb resolve returns empty.
 
 ## [0.2.17] - 2026-08-14

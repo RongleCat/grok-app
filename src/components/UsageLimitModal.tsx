@@ -29,6 +29,8 @@ type Props = {
   spend: SessionSpend;
   account: AccountStatus | null;
   customRoute?: boolean;
+  /** True while a turn is in flight — usage lands on turn_completed. */
+  turnActive?: boolean;
   onClose: () => void;
 };
 
@@ -46,6 +48,7 @@ export function UsageLimitModal({
   spend,
   account,
   customRoute = false,
+  turnActive = false,
   onClose,
 }: Props) {
   const tr = useMemo(() => createT(locale), [locale]);
@@ -160,7 +163,11 @@ export function UsageLimitModal({
         {!sessionId ? (
           <p className="usage-limit-modal__note">{tr("usageModal.noSession")}</p>
         ) : !showSpend ? (
-          <p className="usage-limit-modal__note">{tr("usageModal.noCalls")}</p>
+          <p className="usage-limit-modal__note">
+            {turnActive
+              ? tr("usageModal.pendingTurn")
+              : tr("usageModal.noCalls")}
+          </p>
         ) : (
           <dl className="usage-limit-modal__dl">
             <div className="usage-limit-modal__row">

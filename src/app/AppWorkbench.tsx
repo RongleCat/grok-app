@@ -21739,6 +21739,10 @@ export function AppWorkbench() {
         spend={sessionSpend}
         account={account}
         customRoute={customRouteActive}
+        turnActive={
+          session.state === "streaming" ||
+          session.state === "awaiting_permission"
+        }
         onClose={() => setShowUsageLimitModal(false)}
       />
       {(agentDashboardOpen) ? (

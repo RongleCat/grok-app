@@ -52,6 +52,7 @@ export const zhTWAccount = {
   "usageModal.cost": "費用",
   "usageModal.noSession": "對話尚未開始，暫無用量。",
   "usageModal.noCalls": "本對話還沒有模型呼叫。",
+  "usageModal.pendingTurn": "用量在本回合結束後更新。",
   "usageModal.incomplete": "用量追蹤不完整，數字可能偏低。",
   "usageModal.costPartial": "費用追蹤不完整，數字可能偏低。",
   "usageModal.quotaUnknown": "無法載入每週限額。",
