@@ -25,6 +25,8 @@ describe("builtinSlashItems", () => {
       "plan",
       "compact",
       "status",
+      "usage",
+      "cost",
       "mcp",
       "doctor",
       "tutorial",
@@ -59,6 +61,12 @@ describe("builtinSlashItems", () => {
     const compact = items.find((i) => i.name === "compact")!;
     expect(compact.kind).toBe("action");
     expect(compact.action).toBe("compact");
+
+    const usage = items.find((i) => i.name === "usage")!;
+    expect(usage.kind).toBe("action");
+    expect(usage.action).toBe("usage");
+    const cost = items.find((i) => i.name === "cost")!;
+    expect(cost.action).toBe("usage");
 
     const doctor = items.find((i) => i.name === "doctor")!;
     expect(doctor.kind).toBe("action");

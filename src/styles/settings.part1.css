@@ -227,13 +227,13 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  min-width: 560px;
+  min-width: 640px;
 }
 
 .account-logs__head,
 .account-logs__row {
   display: grid;
-  grid-template-columns: minmax(100px, 1.4fr) minmax(80px, 1fr) 56px 72px 72px 88px;
+  grid-template-columns: minmax(88px, 1.3fr) minmax(72px, 0.9fr) 48px 72px 64px 72px 80px;
   gap: 8px;
   align-items: center;
   padding: 8px 14px;

@@ -54,6 +54,9 @@ type Props = {
   labels: ContextUsageChipLabels;
   disabled?: boolean;
   onCompact: () => void;
+  /** Open the TUI-parity usage limit modal. */
+  onUsage?: () => void;
+  usageAction?: string;
   /** For 万/億 vs 萬/億 on menu breakdown rows. Chip label already resolved. */
   locale?: string;
 };
@@ -205,6 +208,8 @@ export function ContextUsageChip({
   labels,
   disabled,
   onCompact,
+  onUsage,
+  usageAction,
   locale = "zh",
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -329,6 +334,19 @@ export function ContextUsageChip({
               </p>
             ) : null}
             <p className="ctx-chip__note">{labels.heuristicNote}</p>
+            {onUsage && usageAction ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="ctx-chip__action"
+                onClick={() => {
+                  setOpen(false);
+                  onUsage();
+                }}
+              >
+                <span>{usageAction}</span>
+              </button>
+            ) : null}
             <button
               type="button"
               role="menuitem"

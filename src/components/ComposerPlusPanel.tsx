@@ -71,6 +71,8 @@ function slashItemIcon(item: SlashItem): ReactNode {
     case "compact":
       return <IconArrowsMinimize size={ICON_SIZE} />;
     case "status":
+    case "usage":
+    case "cost":
       return <IconActivity size={ICON_SIZE} />;
     case "mcp":
       return <IconPlug size={ICON_SIZE} />;

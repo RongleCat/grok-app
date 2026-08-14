@@ -855,6 +855,17 @@ describe("session usage snapshot (localStorage-backed)", () => {
     expect((display.percent ?? 0) < 1).toBe(true);
   });
 
+  it("treats prompt_result as billing so occupancy is not overwritten", () => {
+    expect(
+      isLikelyBillingAggregateUsage({
+        source: "prompt_result",
+        totalTokens: 1_701_340,
+        inputTokens: 1_681_484,
+        cachedReadTokens: 1_581_440,
+      }),
+    ).toBe(true);
+  });
+
   it("context_size occupancy drives the ring; turn_completed billing does not overwrite it", () => {
     let state = reduceContextUsage(INITIAL_CONTEXT_USAGE, {
       type: "usage",

@@ -184,6 +184,7 @@ export function AccountSection() {
               colSession: t("account.col.session"),
               colModel: t("account.col.model"),
               colTurns: t("account.col.turns"),
+              colUsage: t("account.col.usage"),
               colTokens: t("account.col.tokens"),
               colDuration: t("account.col.duration"),
               colWhen: t("account.col.when"),

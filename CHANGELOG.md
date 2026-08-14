@@ -11,6 +11,10 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- **Usage limit (`/usage`, `/cost`)**: TUI-parity weekly SuperGrok bar plus this session’s token spend since start or last resume (input/cached, output/reasoning, total, model calls, API time, cost). Also from the composer context-chip menu. Official route only for the weekly quota; custom routes stay honest.
+- **Account heatmap call log Tokens column**: Each recent session row now shows billing usage (same `turn_completed` sum as the heatmap) next to context occupancy.
+
 ### Fixed
 - **Chat image cards no longer die after the turn ends**: Leftover remote https thumbs (web-fetch charts, etc.) first-paint from the in-memory thumb cache on journal remount. Swapping `src` mid-load used to abort the original `<img>` and lock `broken_blob` (“preview failed”). Abort / stale-src errors are ignored; a working https original is not wiped when thumb resolve returns empty.
 

@@ -113,6 +113,22 @@ export function builtinSlashItems(): SlashItem[] {
       action: "status",
     },
     {
+      id: "usage",
+      kind: "action",
+      name: "usage",
+      titleKey: "slash.usage",
+      descriptionKey: "slash.usageDesc",
+      action: "usage",
+    },
+    {
+      id: "cost",
+      kind: "action",
+      name: "cost",
+      titleKey: "slash.cost",
+      descriptionKey: "slash.costDesc",
+      action: "usage",
+    },
+    {
       id: "mcp",
       kind: "action",
       name: "mcp",

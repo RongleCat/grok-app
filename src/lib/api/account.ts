@@ -69,6 +69,8 @@ export interface CallLogEntry {
   turns: number;
   toolCalls: number;
   contextTokens: number;
+  /** Billing usage (sum of turn_completed); same as heatmap tokens. */
+  usageTokens?: number;
   errors: number;
 }
 

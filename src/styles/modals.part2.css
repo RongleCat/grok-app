@@ -14,6 +14,80 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Usage limit modal (TUI /usage) */
+.usage-limit-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+}
+.usage-limit-modal__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.usage-limit-modal__h {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.usage-limit-modal__bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.usage-limit-modal__bar-row .account-quota-bar {
+  flex: 1;
+  min-width: 0;
+}
+.usage-limit-modal__pct {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.usage-limit-modal__meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.usage-limit-modal__note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+.usage-limit-modal__dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.usage-limit-modal__row {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 8px;
+  font-size: 13px;
+  align-items: baseline;
+}
+.usage-limit-modal__row dt {
+  margin: 0;
+  color: var(--text-tertiary);
+}
+.usage-limit-modal__row dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.usage-limit-modal__sep {
+  color: var(--text-tertiary);
+}
+.usage-limit-modal__k {
+  color: var(--text-tertiary);
+}
+
 /* MCP status modal */
 .mcp-modal__body {
   display: flex;

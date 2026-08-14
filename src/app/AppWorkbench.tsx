@@ -825,6 +825,7 @@ import {
 } from "@/components/ComposerPlusPanel";
 import { planInsertSkill } from "@/lib/skillsTaskPicker";
 import { StatusModal } from "@/components/StatusModal";
+import { UsageLimitModal } from "@/components/UsageLimitModal";
 import {
   IconChevronDown,
   IconChevronUp,
@@ -1083,6 +1084,7 @@ import { useLiveMapWhen } from "@/hooks/useSessionLiveMap";
 import { useComposerController } from "@/hooks/useComposerController";
 import { useAppDialogs } from "@/hooks/useAppDialogs";
 import { useSessionHostEvents } from "@/hooks/useSessionHostEvents";
+import { useSessionSpend } from "@/hooks/useSessionSpend";
 import { useGhostStreamingHeal } from "@/hooks/useGhostStreamingHeal";
 import { createDebouncedSkillsReload } from "@/lib/skillCatalogRefresh";
 
@@ -1557,6 +1559,7 @@ export function AppWorkbench() {
     async () => false,
   );
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showUsageLimitModal, setShowUsageLimitModal] = useState(false);
   const [showMcpModal, setShowMcpModal] = useState(false);
   const [showCompactModal, setShowCompactModal] = useState(false);
   const [compactNote, setCompactNote] = useState("");
@@ -11452,6 +11455,9 @@ export function AppWorkbench() {
           case "status":
             setShowStatusModal(true);
             return;
+          case "usage":
+            setShowUsageLimitModal(true);
+            return;
           case "mcp":
             void openMcpModal();
             return;
@@ -11784,6 +11790,7 @@ export function AppWorkbench() {
       ),
     [contextUsage, messages, locale, currentModelWindow],
   );
+  const sessionSpend = useSessionSpend(session.sessionId);
   /** Full provider list for composer model menu groups. */
   const [customProviders, setCustomProviders] = useState<api.CustomProvider[]>(
     [],
@@ -16644,6 +16651,7 @@ export function AppWorkbench() {
       "account.col.session",
       "account.col.model",
       "account.col.turns",
+      "account.col.usage",
       "account.col.tokens",
       "account.col.duration",
       "account.col.when",
@@ -16690,6 +16698,7 @@ export function AppWorkbench() {
         showShortcuts ||
         showProductTutorial ||
         showStatusModal ||
+        showUsageLimitModal ||
         showMcpModal ||
         showCompactModal ||
         exportMdTarget ||
@@ -20635,6 +20644,8 @@ export function AppWorkbench() {
                         setCompactNote("");
                         setShowCompactModal(true);
                       }}
+                      onUsage={() => setShowUsageLimitModal(true)}
+                      usageAction={tr("usageModal.openFromChip")}
                     />
                   </>
                 ) : null}
@@ -21720,6 +21731,15 @@ export function AppWorkbench() {
         projectPath={effectiveProjectPath}
         messageCount={messages.length}
         onClose={() => setShowStatusModal(false)}
+      />
+      <UsageLimitModal
+        open={showUsageLimitModal}
+        locale={locale}
+        sessionId={session.sessionId}
+        spend={sessionSpend}
+        account={account}
+        customRoute={customRouteActive}
+        onClose={() => setShowUsageLimitModal(false)}
       />
       {(agentDashboardOpen) ? (
       <Suspense fallback={null}>

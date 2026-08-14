@@ -71,6 +71,7 @@ export interface AccountPanelLabels {
   colSession: string;
   colModel: string;
   colTurns: string;
+  colUsage: string;
   colTokens: string;
   colDuration: string;
   colWhen: string;
@@ -1067,6 +1068,7 @@ export function AccountPanel({
                     <span>{labels.colSession}</span>
                     <span>{labels.colModel}</span>
                     <span>{labels.colTurns}</span>
+                    <span>{labels.colUsage}</span>
                     <span>{labels.colTokens}</span>
                     <span>{labels.colDuration}</span>
                     <span>{labels.colWhen}</span>
@@ -1088,6 +1090,14 @@ export function AccountPanel({
                         {row.model || "—"}
                       </span>
                       <span>{row.turns}</span>
+                      <span>
+                        {row.usageTokens != null && row.usageTokens > 0
+                          ? formatCompactNumber(
+                              row.usageTokens,
+                              locale === "zh-TW" ? "zh-TW" : "zh",
+                            )
+                          : "—"}
+                      </span>
                       <span>
                         {formatCompactNumber(
                           row.contextTokens,

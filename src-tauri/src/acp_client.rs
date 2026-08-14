@@ -116,8 +116,16 @@ pub enum AcpEvent {
         cached_read_tokens: Option<u64>,
         cache_creation_tokens: Option<u64>,
         reasoning_tokens: Option<u64>,
-        /// USD cost in 1e-6 ticks (1 tick = 1 micro-dollar) — avoids float drift.
+        /// USD cost in integer ticks (see frontend `usdFromCostTicks`).
         cost_usd_ticks: Option<u64>,
+        /// Model API rounds in this billing payload (`turn_completed.usage`).
+        model_calls: Option<u64>,
+        /// Summed reported per-call API time (ms). May under-count.
+        api_duration_ms: Option<u64>,
+        /// CLI `costIsPartial` — dollar figure may under-count.
+        cost_is_partial: Option<bool>,
+        /// CLI `usageIsIncomplete` — token/call totals may under-count.
+        usage_is_incomplete: Option<bool>,
         /// Agent's model context window (CLI denominator for %).
         context_window: Option<u64>,
         /// Agent-reported integer percentage (CLI style), when present.
@@ -1852,9 +1860,21 @@ impl AcpClient {
                             ),
                             reasoning_tokens: u64_field("reasoningTokens", "reasoning_tokens"),
                             cost_usd_ticks: u64_field("costUsdTicks", "cost_usd_ticks"),
+                            model_calls: u64_field("modelCalls", "model_calls"),
+                            api_duration_ms: u64_field("apiDurationMs", "api_duration_ms"),
+                            cost_is_partial: usage
+                                .get("costIsPartial")
+                                .or_else(|| usage.get("cost_is_partial"))
+                                .and_then(|v| v.as_bool()),
+                            usage_is_incomplete: usage
+                                .get("usageIsIncomplete")
+                                .or_else(|| usage.get("usage_is_incomplete"))
+                                .and_then(|v| v.as_bool()),
                             context_window: None,
                             percentage: None,
-                            source: "turn_completed".to_string(),
+                            // Distinct from sessionUpdate `turn_completed` so
+                            // the UI does not double-count the same turn.
+                            source: "prompt_result".to_string(),
                         },
                     ));
                 }
@@ -2187,6 +2207,15 @@ fn json_token_u64(obj: &Value, keys: &[&str]) -> Option<u64> {
     None
 }
 
+fn json_token_bool(obj: &Value, keys: &[&str]) -> Option<bool> {
+    for k in keys {
+        if let Some(b) = obj.get(*k).and_then(|v| v.as_bool()) {
+            return Some(b);
+        }
+    }
+    None
+}
+
 /// Parse turn/context usage from a sessionUpdate payload.
 /// Supports nested `usage` objects and flat camel/snake fields.
 /// Returns None when no usage signal is present (do not invent zeros).
@@ -2286,6 +2315,14 @@ pub fn parse_usage_update(kind: &str, update: &Value) -> Option<AcpEvent> {
     );
     let reasoning = json_token_u64(root, &["reasoningTokens", "reasoning_tokens"]);
     let cost_usd_ticks = json_token_u64(root, &["costUsdTicks", "cost_usd_ticks"]);
+    let model_calls = json_token_u64(root, &["modelCalls", "model_calls"]);
+    let api_duration_ms = json_token_u64(
+        root,
+        &["apiDurationMs", "api_duration_ms", "duration_api_ms"],
+    );
+    let cost_is_partial = json_token_bool(root, &["costIsPartial", "cost_is_partial"]);
+    let usage_is_incomplete =
+        json_token_bool(root, &["usageIsIncomplete", "usage_is_incomplete"]);
     // CLI denominator + integer % (auto_compact_started / tokens_used).
     let context_window = json_token_u64(
         root,
@@ -2312,6 +2349,8 @@ pub fn parse_usage_update(kind: &str, update: &Value) -> Option<AcpEvent> {
         && cache_creation.is_none()
         && reasoning.is_none()
         && cost_usd_ticks.is_none()
+        && model_calls.is_none()
+        && api_duration_ms.is_none()
         && occupancy.is_none()
     {
         return None;
@@ -2353,6 +2392,10 @@ pub fn parse_usage_update(kind: &str, update: &Value) -> Option<AcpEvent> {
         cache_creation_tokens: cache_creation,
         reasoning_tokens: reasoning,
         cost_usd_ticks,
+        model_calls,
+        api_duration_ms,
+        cost_is_partial,
+        usage_is_incomplete,
         context_window,
         percentage,
         source,
@@ -4091,6 +4134,10 @@ pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
                 cache_creation_tokens: None,
                 reasoning_tokens: None,
                 cost_usd_ticks: None,
+                model_calls: None,
+                api_duration_ms: None,
+                cost_is_partial: None,
+                usage_is_incomplete: None,
                 context_window: None,
                 percentage: None,
                 source: "context_size".to_string(),
@@ -4609,6 +4656,44 @@ mod context_tokens_tests {
         assert_eq!(windows.get("has-window"), Some(&128000));
         assert!(windows.get("no-window").is_none());
         assert!(windows.get("no-meta").is_none());
+    }
+
+    #[test]
+    fn parse_usage_extracts_session_spend_fields() {
+        let update = json!({
+            "usage": {
+                "inputTokens": 127521,
+                "outputTokens": 2554,
+                "totalTokens": 130075,
+                "cachedReadTokens": 69504,
+                "reasoningTokens": 1698,
+                "modelCalls": 3,
+                "apiDurationMs": 56883,
+                "costUsdTicks": 2011100000u64,
+                "costIsPartial": false,
+                "usageIsIncomplete": true
+            }
+        });
+        let ev = parse_usage_update("turn_completed", &update).expect("usage");
+        match ev {
+            AcpEvent::UsageReported {
+                model_calls,
+                api_duration_ms,
+                cost_usd_ticks,
+                cost_is_partial,
+                usage_is_incomplete,
+                source,
+                ..
+            } => {
+                assert_eq!(model_calls, Some(3));
+                assert_eq!(api_duration_ms, Some(56883));
+                assert_eq!(cost_usd_ticks, Some(2011100000));
+                assert_eq!(cost_is_partial, Some(false));
+                assert_eq!(usage_is_incomplete, Some(true));
+                assert_eq!(source, "turn_completed");
+            }
+            _ => panic!("expected UsageReported"),
+        }
     }
 
     #[test]

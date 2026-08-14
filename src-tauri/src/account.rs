@@ -182,6 +182,9 @@ pub struct CallLogEntry {
     pub turns: u64,
     pub tool_calls: u64,
     pub context_tokens: u64,
+    /// Sum of `turn_completed` billing tokens (same figure as the heatmap).
+    #[serde(default)]
+    pub usage_tokens: u64,
     pub errors: u64,
 }
 
@@ -1282,8 +1285,9 @@ fn ingest_session(
             duration_secs,
             turns,
             tool_calls,
-            // Call-log column is labeled "Context" — keep occupancy here.
+            // Call-log "Context" stays occupancy; "Tokens" is billing usage.
             context_tokens,
+            usage_tokens,
             errors,
         },
     ));
@@ -2021,6 +2025,51 @@ mod tests {
         assert_eq!(logs.len(), 2);
         assert_eq!(heatmap.iter().map(|day| day.requests).sum::<u64>(), 2);
         assert_eq!(heatmap.iter().map(|day| day.tokens).sum::<u64>(), 460);
+        let mut usage: Vec<u64> = logs.iter().map(|e| e.usage_tokens).collect();
+        usage.sort_unstable();
+        assert_eq!(usage, vec![120, 340]);
+
+        fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[test]
+    fn call_log_usage_tokens_prefers_turn_completed_sum() {
+        let temp = std::env::temp_dir().join(format!(
+            "grok-app-account-call-log-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let session = temp.join("proj").join("sess-1");
+        fs::create_dir_all(&session).unwrap();
+        fs::write(
+            session.join("signals.json"),
+            serde_json::json!({
+                "turnCount": 2,
+                "contextTokensUsed": 8000,
+                "primaryModelId": "grok-4.6"
+            })
+            .to_string(),
+        )
+        .unwrap();
+        fs::write(
+            session.join("updates.jsonl"),
+            concat!(
+                r#"{"params":{"update":{"sessionUpdate":"turn_completed","usage":{"totalTokens":10000}}}}"#,
+                "\n",
+                r#"{"params":{"update":{"sessionUpdate":"turn_completed","usage":{"totalTokens":25000}}}}"#,
+                "\n"
+            ),
+        )
+        .unwrap();
+
+        let (heatmap, logs) = local_usage_from_roots(7, 10, &[temp.clone()]);
+        assert_eq!(logs.len(), 1);
+        assert_eq!(logs[0].context_tokens, 8000);
+        assert_eq!(logs[0].usage_tokens, 35000);
+        assert_eq!(heatmap.iter().map(|day| day.tokens).sum::<u64>(), 35000);
 
         fs::remove_dir_all(temp).unwrap();
     }

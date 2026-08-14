@@ -92,6 +92,7 @@ import {
   ingestToolHookSignal,
 } from "@/lib/hooksDebug";
 import { recordCostUsageSample, sampleFromUsageEvent } from "@/lib/costRollup";
+import { ingestSessionSpend } from "@/lib/sessionSpend";
 import { mapSessionListRow } from "@/lib/app/sidebarModels";
 import {
   StreamCoalescer,
@@ -989,6 +990,10 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
             cacheCreationTokens?: number;
             reasoningTokens?: number;
             costUsdTicks?: number;
+            modelCalls?: number;
+            apiDurationMs?: number;
+            costIsPartial?: boolean;
+            usageIsIncomplete?: boolean;
             contextWindow?: number;
             percentage?: number;
             source?: string;
@@ -996,6 +1001,19 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
             if (cancelled || !p) return;
             const sid = p.sessionId;
             if (!sid) return;
+            ingestSessionSpend(sid, {
+              source: p.source,
+              inputTokens: p.inputTokens,
+              outputTokens: p.outputTokens,
+              totalTokens: p.totalTokens,
+              cachedReadTokens: p.cachedReadTokens,
+              reasoningTokens: p.reasoningTokens,
+              modelCalls: p.modelCalls,
+              apiDurationMs: p.apiDurationMs,
+              costUsdTicks: p.costUsdTicks,
+              costIsPartial: p.costIsPartial,
+              usageIsIncomplete: p.usageIsIncomplete,
+            });
             // Cost rollup: record known usage for any session (not only focused).
             const row = c.sessionsRef.current.find((s) => s.id === sid);
             const project = row?.projectId

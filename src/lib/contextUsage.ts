@@ -113,6 +113,7 @@ export function isLikelyBillingAggregateUsage(opts: {
   if (
     src === "turn_completed" ||
     src === "response_completed" ||
+    src === "prompt_result" ||
     src.includes("turn_completed") ||
     src === "turn_usage" ||
     src === "turnusage"
