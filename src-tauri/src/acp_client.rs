@@ -2321,8 +2321,7 @@ pub fn parse_usage_update(kind: &str, update: &Value) -> Option<AcpEvent> {
         &["apiDurationMs", "api_duration_ms", "duration_api_ms"],
     );
     let cost_is_partial = json_token_bool(root, &["costIsPartial", "cost_is_partial"]);
-    let usage_is_incomplete =
-        json_token_bool(root, &["usageIsIncomplete", "usage_is_incomplete"]);
+    let usage_is_incomplete = json_token_bool(root, &["usageIsIncomplete", "usage_is_incomplete"]);
     // CLI denominator + integer % (auto_compact_started / tokens_used).
     let context_window = json_token_u64(
         root,
