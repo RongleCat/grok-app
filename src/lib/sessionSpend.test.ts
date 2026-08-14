@@ -11,6 +11,7 @@ import {
   hasSessionSpend,
   ingestSessionSpend,
   isSessionSpendBillingSource,
+  sessionSpendCacheHitRate,
   usdFromCostTicks,
 } from "./sessionSpend";
 
@@ -128,6 +129,26 @@ describe("formatApiDuration", () => {
     expect(formatApiDuration(3_723_000)).toBe("1h2m3s");
     expect(formatApiDuration(0)).toBe("—");
     expect(formatApiDuration(null)).toBe("—");
+  });
+});
+
+describe("sessionSpendCacheHitRate", () => {
+  it("is cached / input, capped at 100", () => {
+    expect(
+      sessionSpendCacheHitRate({
+        inputTokens: 3_080_038,
+        cachedReadTokens: 3_057_664,
+      }),
+    ).toBe(99);
+    expect(
+      sessionSpendCacheHitRate({
+        inputTokens: 5_103_343,
+        cachedReadTokens: 7_448_832,
+      }),
+    ).toBe(100);
+    expect(
+      sessionSpendCacheHitRate({ inputTokens: 0, cachedReadTokens: 10 }),
+    ).toBeNull();
   });
 });
 

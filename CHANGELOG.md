@@ -12,7 +12,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
-- **Usage limit (`/usage`, `/cost`)**: TUI-parity weekly SuperGrok bar plus this session’s token spend since start or last resume (input/cached, output/reasoning, total, model calls, API time, cost). Also from the composer context-chip menu. Official route only for the weekly quota; custom routes stay honest.
+- **Usage limit (`/usage`, `/cost`)**: TUI-parity weekly SuperGrok bar plus this session’s token spend since start or last resume (input/cached, output/reasoning, total, cache hit, model calls, API time, cost). Also from the composer context-chip menu. Official route only for the weekly quota; custom routes stay honest.
 - **Account heatmap call log Tokens column**: Each recent session row now shows billing usage (same `turn_completed` sum as the heatmap) next to context occupancy.
 - **Account heatmap stats strip**: Codex-style totals — cumulative tokens, peak day, longest chat, current / longest streak — plus a **Cumulative** calendar view (running-total color).
 

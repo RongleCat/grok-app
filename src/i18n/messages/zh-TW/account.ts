@@ -44,6 +44,7 @@ export const zhTWAccount = {
   "usageModal.input": "輸入 token",
   "usageModal.output": "輸出 token",
   "usageModal.total": "合計 token",
+  "usageModal.cacheHit": "快取率",
   "usageModal.cached": "（{count} 快取）",
   "usageModal.reasoning": "（{count} 推理）",
   "usageModal.modelCalls": "模型呼叫",

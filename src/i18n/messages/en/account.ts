@@ -44,6 +44,7 @@ export const enAccount = {
   "usageModal.input": "Input tokens",
   "usageModal.output": "Output tokens",
   "usageModal.total": "Total tokens",
+  "usageModal.cacheHit": "Cache hit",
   "usageModal.cached": "({count} cached)",
   "usageModal.reasoning": "({count} reasoning)",
   "usageModal.modelCalls": "Model calls",

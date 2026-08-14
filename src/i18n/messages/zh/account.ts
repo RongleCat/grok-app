@@ -44,6 +44,7 @@ export const zhAccount = {
   "usageModal.input": "输入 token",
   "usageModal.output": "输出 token",
   "usageModal.total": "合计 token",
+  "usageModal.cacheHit": "缓存率",
   "usageModal.cached": "（{count} 缓存）",
   "usageModal.reasoning": "（{count} 推理）",
   "usageModal.modelCalls": "模型调用",

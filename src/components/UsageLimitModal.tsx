@@ -18,6 +18,7 @@ import {
   formatUsdFromTicks,
   formatUsageResetTime,
   hasSessionSpend,
+  sessionSpendCacheHitRate,
   type SessionSpend,
 } from "@/lib/sessionSpend";
 
@@ -63,6 +64,7 @@ export function UsageLimitModal({
       : tr("usageModal.weeklyTitle");
   const cost = formatUsdFromTicks(spend.costUsdTicks);
   const showSpend = hasSessionSpend(spend);
+  const cacheRate = sessionSpendCacheHitRate(spend);
 
   useEffect(() => {
     if (!open) return;
@@ -192,6 +194,10 @@ export function UsageLimitModal({
             <div className="usage-limit-modal__row">
               <dt>{tr("usageModal.total")}</dt>
               <dd>{formatExactTokenCount(spend.totalTokens, locale)}</dd>
+            </div>
+            <div className="usage-limit-modal__row">
+              <dt>{tr("usageModal.cacheHit")}</dt>
+              <dd>{cacheRate != null ? `${cacheRate}%` : "—"}</dd>
             </div>
             <div className="usage-limit-modal__row">
               <dt>{tr("usageModal.modelCalls")}</dt>

@@ -109,6 +109,22 @@ export function hasSpendSignal(turn: SessionSpendTurn): boolean {
   );
 }
 
+/**
+ * Cache hit % = cachedRead / input. Null when input is unknown.
+ * Caps at 100 — some wires report cache reads outside the input total.
+ */
+export function sessionSpendCacheHitRate(
+  spend: Pick<SessionSpend, "inputTokens" | "cachedReadTokens"> | null | undefined,
+): number | null {
+  if (!spend) return null;
+  const input = spend.inputTokens;
+  if (!Number.isFinite(input) || input <= 0) return null;
+  const cached = Number.isFinite(spend.cachedReadTokens)
+    ? Math.max(0, spend.cachedReadTokens)
+    : 0;
+  return Math.min(100, Math.round((cached / input) * 100));
+}
+
 export function hasSessionSpend(spend: SessionSpend | null | undefined): boolean {
   if (!spend) return false;
   return (
