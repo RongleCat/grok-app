@@ -33,3 +33,4 @@ include!("hooks_setup_p2.rs");
 include!("misc_p1.rs");
 include!("misc_p2.rs");
 include!("terminal.rs");
+include!("skin.rs");

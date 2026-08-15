@@ -51,7 +51,40 @@ pub fn ensure_app_dirs() -> std::io::Result<PathBuf> {
     std::fs::create_dir_all(root.join("cache").join("video-posters"))?;
     // Chat image thumbs (resized JPEG for virtual-list remounts).
     std::fs::create_dir_all(root.join("cache").join("image-thumbs"))?;
+    // Appearance skin packs: local presets + inspect/upload staging.
+    std::fs::create_dir_all(skin_staging_inspect_dir())?;
+    std::fs::create_dir_all(skin_staging_upload_dir())?;
+    std::fs::create_dir_all(skin_catalog_cache_dir())?;
+    crate::skin_staging::gc_expired_staging();
     Ok(root)
+}
+
+/// `{app_data}/skin-presets` — local library + undo + staging.
+pub fn skin_presets_dir() -> PathBuf {
+    let dir = app_data_root().join("skin-presets");
+    let _ = fs::create_dir_all(&dir);
+    dir
+}
+
+/// `{app_data}/skin-presets/.staging/inspect`
+pub fn skin_staging_inspect_dir() -> PathBuf {
+    let dir = skin_presets_dir().join(".staging").join("inspect");
+    let _ = fs::create_dir_all(&dir);
+    dir
+}
+
+/// `{app_data}/skin-presets/.staging/upload`
+pub fn skin_staging_upload_dir() -> PathBuf {
+    let dir = skin_presets_dir().join(".staging").join("upload");
+    let _ = fs::create_dir_all(&dir);
+    dir
+}
+
+/// `{app_data}/skin-catalog-cache`
+pub fn skin_catalog_cache_dir() -> PathBuf {
+    let dir = app_data_root().join("skin-catalog-cache");
+    let _ = fs::create_dir_all(&dir);
+    dir
 }
 
 /// Disk cache for chat video posters: `{app_data}/cache/video-posters`.

@@ -20,6 +20,7 @@ Agent 与贡献者的**可执行知识库**。改产品行为或 UI 文案前，
 | [website-downloads.md](./website-downloads.md) | **官网下载对接**：grok-app.com 按钮、稳定别名、`downloads.json`、禁止反代 |
 | [maintain.md](./maintain.md) | **开源维护**：Issue 分拣、PR 审核、社区反馈入库、修复闭环；**已合并分支 / worktree 及时安全清理** |
 | [chatcut.md](./chatcut.md) | **ChatCut Codex 插件**：适配器、MCP surface、Resources 内嵌浏览器 handoff、re-pull 迁移 |
+| [appearance-skins.md](./appearance-skins.md) | **外观皮肤包**：`.grokskin` 布局、K19 allowlist、`grok://` + `grok-app:`、从不自动 apply、网站只用 `url=` |
 
 ## 原则
 

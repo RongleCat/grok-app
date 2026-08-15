@@ -23,6 +23,16 @@ describe("settingsCatalog", () => {
     expect(catalogInvariants()).toEqual([]);
   });
 
+  it("registers three distinct static skin-share anchors", () => {
+    const presets = SETTINGS_ENTRIES.find((e) => e.id === "appearance.skinPresets");
+    const catalog = SETTINGS_ENTRIES.find((e) => e.id === "appearance.skinCatalog");
+    const sources = SETTINGS_ENTRIES.find((e) => e.id === "appearance.skinSources");
+    expect(presets?.anchorId).toBe("settings-anchor-skin-presets");
+    expect(catalog?.anchorId).toBe("settings-anchor-skin-catalog");
+    expect(sources?.anchorId).toBe("settings-anchor-skin-sources");
+    expect(new Set([presets?.anchorId, catalog?.anchorId, sources?.anchorId]).size).toBe(3);
+  });
+
   it("lists each section exactly once in NAV", () => {
     const ids = SETTINGS_NAV.map((n) => n.id);
     expect(ids).toEqual([...SETTINGS_SECTION_IDS]);

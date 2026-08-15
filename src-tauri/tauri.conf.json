@@ -74,6 +74,15 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["grokskin"],
+        "name": "Grok Skin Pack",
+        "description": "Grok appearance skin pack",
+        "role": "Editor",
+        "mimeType": "application/vnd.grok.skin"
+      }
+    ],
     "windows": {
       "webviewInstallMode": {
         "type": "downloadBootstrapper",
@@ -110,6 +119,11 @@
   "plugins": {
     "updater": {
       "endpoints": []
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": ["grok"]
+      }
     }
   }
 }

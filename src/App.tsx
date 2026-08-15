@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { ThemeProvider } from "@/providers/ThemeProvider";
+import { SkinShareProvider } from "@/providers/SkinShareProvider";
 import { AppWorkbench } from "@/app/AppWorkbench";
 
 export default function App() {
@@ -17,7 +18,9 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <AppWorkbench />
+      <SkinShareProvider>
+        <AppWorkbench />
+      </SkinShareProvider>
     </ThemeProvider>
   );
 }

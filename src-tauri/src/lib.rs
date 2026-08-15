@@ -221,6 +221,14 @@ mod wallpaper_source;
 
 mod window_min;
 
+mod skin_catalog;
+mod skin_deeplink;
+mod skin_disk;
+mod skin_net;
+mod skin_pack;
+mod skin_presets;
+mod skin_staging;
+
 #[cfg(windows)]
 mod win_shell;
 
@@ -263,6 +271,8 @@ pub fn run() {
     let remote_im_state = Arc::new(remote_im::RemoteImState {
         inner: tokio::sync::Mutex::new(remote_im::BridgeRuntime::default()),
     });
+
+    let pending_skin = Arc::new(skin_deeplink::PendingSlot::default());
 
     // Attach `tauri-plugin-updater` only when release CI injected GROK_UPDATER_*
 
@@ -317,10 +327,13 @@ pub fn run() {
                 return;
             }
 
-            // Same restore path as tray Open — taskbar + shell styles included.
-
-            tray::show_main_window(app);
+            let kind = skin_deeplink::ingest_argv_into(app, &argv);
+            if kind != skin_deeplink::ArgvIngest::FireDue {
+                // Same restore path as tray Open — taskbar + shell styles included.
+                tray::show_main_window(app);
+            }
         }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         // Always register process so release builds can relaunch after install.
         .plugin(tauri_plugin_process::init())
@@ -373,6 +386,8 @@ pub fn run() {
         .manage(voice_host)
 
         .manage(remote_im_state)
+
+        .manage(pending_skin)
 
         // Range-capable media streaming (video/audio/pdf) — never loads multi‑GB into RAM.
 
@@ -696,6 +711,37 @@ pub fn run() {
 
             // Windows: AppsUseLightTheme → frontend (WebView2 matchMedia stays frozen).
             os_theme::watch(app.handle());
+
+            // Cold-start argv: grok:// or *.grokskin → pending. Never steal fire-due.
+            if !automation_runner::wants_fire_due_schedules() {
+                let args: Vec<String> = std::env::args().collect();
+                skin_deeplink::ingest_argv_into(app.handle(), &args);
+            }
+
+            // Plugin URL + Apple Event must honor fire-due the same as argv:
+            // no pending, no emit, no window focus.
+            if !automation_runner::wants_fire_due_schedules() {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let handle = app.handle().clone();
+                match app.deep_link().get_current() {
+                    Ok(Some(urls)) => {
+                        for u in urls {
+                            skin_deeplink::ingest_uri_string(&handle, u.as_str());
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(e) => tracing::debug!(target: "skin_deeplink", "get_current: {e}"),
+                }
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    if automation_runner::wants_fire_due_schedules() {
+                        return;
+                    }
+                    for u in event.urls() {
+                        skin_deeplink::ingest_uri_string(&handle, u.as_str());
+                    }
+                });
+            }
 
             // macOS: pin notification delivery to com.grokapp.desktop and request
             // UNUserNotificationCenter auth so Grok appears in System Settings.
@@ -1491,6 +1537,35 @@ pub fn run() {
 
             commands::wallpaper_library_delete,
 
+            commands::skin_pick_open,
+            commands::skin_pick_save,
+            commands::skin_pack_inspect,
+            commands::skin_inspect_abort,
+            commands::skin_pack_export,
+            commands::skin_staging_begin,
+            commands::skin_staging_append,
+            commands::skin_staging_abort,
+            commands::skin_preset_list,
+            commands::skin_preset_save_from_upload,
+            commands::skin_preset_save_from_inspect,
+            commands::skin_preset_materialize,
+            commands::skin_preset_delete,
+            commands::skin_preset_rename,
+            commands::skin_preset_export,
+            commands::skin_undo_prepare,
+            commands::skin_undo_append,
+            commands::skin_undo_commit,
+            commands::skin_undo_abort,
+            commands::skin_catalog_fetch,
+            commands::skin_catalog_download,
+            commands::skin_catalog_preview_path,
+            commands::skin_sources_list,
+            commands::skin_sources_add,
+            commands::skin_sources_remove,
+            commands::skin_sources_set_enabled,
+            commands::skin_import_take_pending,
+            commands::skin_pack_fetch_url,
+
             commands::streaming_messages_json_probe,
 
             commands::batch_agents_headless,
@@ -1569,10 +1644,17 @@ pub fn run() {
 
             #[cfg(target_os = "macos")]
 
+            if let tauri::RunEvent::Opened { urls } = &event {
+                if !automation_runner::wants_fire_due_schedules() {
+                    for url in urls {
+                        skin_deeplink::ingest_opened_url(app, url);
+                    }
+                    tray::show_main_window(app);
+                }
+            }
+
             if let tauri::RunEvent::Reopen { .. } = event {
-
                 tray::show_main_window(app);
-
             }
 
             // Full exit (tray Quit / Cmd+Q): tear down mirror host + cloudflared group.

@@ -6,5 +6,35 @@
 	<string>Grok may access the camera when a session lists media devices or a page requests video capture.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Grok needs the microphone for voice dictation and live voice sessions with agent delegation.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.grokapp.desktop.skin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>grok</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Grok Skin Pack</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>grokskin</string>
+			</array>
+			<key>CFBundleTypeMIMETypes</key>
+			<array>
+				<string>application/vnd.grok.skin</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

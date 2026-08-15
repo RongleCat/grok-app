@@ -50,6 +50,7 @@
     "updater:allow-download",
     "updater:allow-install",
     "process:allow-restart",
-    "notification:default"
+    "notification:default",
+    "deep-link:default"
   ]
 }

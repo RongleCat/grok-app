@@ -1,0 +1,128 @@
+{
+  "cases": [
+    {
+      "name": "accepts grok url=",
+      "input": "grok://skin/import?url=https%3A%2F%2Fskins.example%2Fpacks%2Fharbor.grokskin",
+      "ok": true,
+      "kind": "url",
+      "href": "https://skins.example/packs/harbor.grokskin"
+    },
+    {
+      "name": "accepts grok-app scheme",
+      "input": "grok-app://skin/import?url=https%3A%2F%2Fskins.example%2Fp.grokskin",
+      "ok": true,
+      "kind": "url",
+      "href": "https://skins.example/p.grokskin"
+    },
+    {
+      "name": "accepts grok: without slashes",
+      "input": "grok:skin/import?url=https%3A%2F%2Fskins.example%2Fp.grokskin",
+      "ok": true,
+      "kind": "url",
+      "href": "https://skins.example/p.grokskin"
+    },
+    {
+      "name": "trailing slash ok",
+      "input": "grok://skin/import/?url=https%3A%2F%2Fskins.example%2Fp.grokskin",
+      "ok": true,
+      "kind": "url",
+      "href": "https://skins.example/p.grokskin"
+    },
+    {
+      "name": "fragment ignored",
+      "input": "grok://skin/import?url=https%3A%2F%2Fskins.example%2Fp.grokskin#ignore",
+      "ok": true,
+      "kind": "url",
+      "href": "https://skins.example/p.grokskin"
+    },
+    {
+      "name": "official id accepted at parse layer",
+      "input": "grok://skin/import?repo=official&id=harbor-dusk",
+      "ok": true,
+      "kind": "official",
+      "id": "harbor-dusk"
+    },
+    {
+      "name": "2048 bound rejected",
+      "input": "grok://skin/import?url=https%3A%2F%2Fskins.example%2F",
+      "padTo": 2049,
+      "ok": false,
+      "reason": "too_long"
+    },
+    {
+      "name": "2048 bound accepted",
+      "input": "grok://skin/import?url=https%3A%2F%2Fskins.example%2Fx.grokskin",
+      "padTo": 2048,
+      "ok": true,
+      "kind": "url"
+    },
+    {
+      "name": "double-encoding kept literal after one decode",
+      "input": "grok://skin/import?url=https%3A%2F%2Fskins.example%2F%2561.grokskin",
+      "ok": true,
+      "kind": "url",
+      "hrefContains": "%61"
+    },
+    {
+      "name": "nul in query rejected",
+      "input": "grok://skin/import?url=https%3A%2F%2Fskins.example%2F%00p.grokskin",
+      "ok": false,
+      "reason": "control"
+    },
+    {
+      "name": "plus is not space",
+      "input": "grok://skin/import?url=https%3A%2F%2Fskins.example%2Fa%2Bb.grokskin",
+      "ok": true,
+      "kind": "url",
+      "hrefContains": "a+b"
+    },
+    {
+      "name": "duplicate query keys rejected",
+      "input": "grok://skin/import?url=https%3A%2F%2Fa.example%2Fa.grokskin&url=https%3A%2F%2Fb.example%2Fb.grokskin",
+      "ok": false,
+      "reason": "duplicate"
+    },
+    {
+      "name": "url and repo together rejected",
+      "input": "grok://skin/import?url=https%3A%2F%2Fskins.example%2Fp.grokskin&repo=official",
+      "ok": false,
+      "reason": "url_and_repo"
+    },
+    {
+      "name": "userinfo on grok uri rejected",
+      "input": "grok://user:pass@skin/import?url=https%3A%2F%2Fskins.example%2Fp.grokskin",
+      "ok": false,
+      "reason": "userinfo"
+    },
+    {
+      "name": "http url rejected",
+      "input": "grok://skin/import?url=http%3A%2F%2Fskins.example%2Fp.grokskin",
+      "ok": false,
+      "code": "url_blocked"
+    },
+    {
+      "name": "url userinfo rejected",
+      "input": "grok://skin/import?url=https%3A%2F%2Fuser%3Apass%40skins.example%2Fp.grokskin",
+      "ok": false,
+      "code": "url_blocked"
+    },
+    {
+      "name": "localhost rejected",
+      "input": "grok://skin/import?url=https%3A%2F%2Flocalhost%2Fp.grokskin",
+      "ok": false,
+      "code": "url_blocked"
+    },
+    {
+      "name": "loopback rejected",
+      "input": "grok://skin/import?url=https%3A%2F%2F127.0.0.1%2Fp.grokskin",
+      "ok": false,
+      "code": "url_blocked"
+    },
+    {
+      "name": "link-local metadata rejected",
+      "input": "grok://skin/import?url=https%3A%2F%2F169.254.169.254%2Flatest%2Fmeta-data",
+      "ok": false,
+      "code": "url_blocked"
+    }
+  ]
+}

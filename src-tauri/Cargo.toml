@@ -22,6 +22,7 @@ tauri = { version = "2", features = ["protocol-asset", "macos-private-api", "tra
 tauri-plugin-store = "2"
 # Second launch focuses existing window (Dock multi-open reports).
 tauri-plugin-single-instance = "2"
+tauri-plugin-deep-link = "2"
 # In-app auto-update. Hard dependency: Tauri ACL discovers updater:allow-* from
 # this crate at build time (capabilities/default.json). Runtime registration is
 # still gated by build.rs cfg(grok_updater_enabled) + non-debug — local dev

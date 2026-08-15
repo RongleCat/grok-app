@@ -664,7 +664,15 @@ pub fn reset_app_data(keep_secrets: bool) -> Result<serde_json::Value, String> {
     let mut errors: Vec<String> = Vec::new();
 
     // Directories that always go
-    for name in ["sessions", "projects", "attachments", "logs", "agent-home"] {
+    for name in [
+        "sessions",
+        "projects",
+        "attachments",
+        "logs",
+        "agent-home",
+        "skin-presets",
+        "skin-catalog-cache",
+    ] {
         let p = root.join(name);
         if p.exists() {
             match fs::remove_dir_all(&p) {
@@ -748,6 +756,29 @@ mod tests {
         assert!(tmp.join("secrets.json").is_file());
         assert!(!tmp.join("sessions_index.json").is_file());
         assert!(tmp.join("sessions").is_dir()); // recreated empty
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn reset_removes_skin_dirs_keeps_wallpaper_library() {
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-reset-skin-{}-{}",
+            std::process::id(),
+            uuid::Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("skin-presets").join("abc")).unwrap();
+        fs::create_dir_all(tmp.join("skin-catalog-cache").join("official")).unwrap();
+        fs::create_dir_all(tmp.join("wallpapers").join("library")).unwrap();
+        fs::write(tmp.join("wallpapers").join("library").join("keep.jpg"), b"x").unwrap();
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let result = reset_app_data(true).expect("reset");
+        assert!(result["ok"].as_bool().unwrap());
+        assert!(!tmp.join("skin-presets").join("abc").exists());
+        assert!(!tmp.join("skin-catalog-cache").join("official").exists());
+        assert!(tmp.join("wallpapers").join("library").join("keep.jpg").is_file());
         std::env::remove_var("GROK_APP_HOME");
         let _ = fs::remove_dir_all(&tmp);
     }

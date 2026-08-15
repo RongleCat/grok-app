@@ -1,0 +1,64 @@
+# 外观皮肤包（Appearance skins）
+
+App 自有的外观分享系统（**不是** CLI plugin marketplace）。
+
+## 包布局（`.grokskin` ZIP）
+
+```
+manifest.json            # schemaVersion: 1
+assets/wallpaper.<ext>   # 可选，恰好一个
+preview.jpg              # 可选
+```
+
+允许的顶层名（规范化后小写）：`manifest.json`、`preview.jpg`、`assets/`、`assets/wallpaper.{jpg,jpeg,png,webp,gif,mp4,webm}`。未知顶层名 fail-closed（`invalid_pack`）。忽略 `__macosx/**`、`.ds_store`、`._*`。只接受 Stored / Deflated。
+
+字段：内置 `skin`、`scrim`、`wallpaper`（含 `focus` / `clip` / `sha256`）。`tokens` / `style` / `css` 或 `schemaVersion !== 1` → `unsupported_schema`。未知 `skin` **不**整包失败：回落 `default` + `warnings: ["unknown_skin"]`。`wallpaper == null` 默认清除接收方壁纸（`will_clear_wallpaper`）。
+
+**从不写入、不应用 `themePreference`。** 导出 / 保存当前不写该字段；导入忽略。
+
+当前生效壁纸仍只活在 IndexedDB。预设在 `{app_data}/skin-presets/`（入库目录名总是新 UUID）。磁盘合计上限 4 GiB（含 undo + staging + catalog cache；不含 IDB 当前壁纸与 `{app_data}/wallpapers/`）。
+
+## K19 官方 origin allowlist
+
+`OFFICIAL_SKIN_CATALOG_URL` 保持 `""` 直至日后填入。官方浏览按钮在 URL 为空时隐藏（卡片上仍保留 `settings-anchor-skin-catalog` 占位）。`repo=official` → `official_unconfigured`，**绝不**回落用户源。
+
+官方 pack / preview / 重定向 host 必须 ∈
+
+- `github.com`
+- `github.io`
+- `githubusercontent.com`
+- `release-assets.githubusercontent.com`
+- `objects.githubusercontent.com`
+- `x.ai`
+
+（精确匹配或 `host.endsWith('.'+entry)`）。用户附加源：HTTPS-only，上限 5，`downloadUrl` / `previewUrl` **必须与该 catalog 同 origin**。
+
+网络只走 Host `safe_https_get`（逐跳 https、无 userinfo、解析后 IP 非私网/回环/链路本地/ULA/元数据）。**禁止** `wallpaper_source::fetch_media`。
+
+## `grok://` + `grok-app:` 双认
+
+注册 scheme 现用 `grok`。解析层同时接受 `grok-app:`（迁移窗口）。
+
+```
+grok://skin/import?url=https%3A%2F%2Fskins.example%2Fpacks%2Fharbor.grokskin
+grok://skin/import?repo=official&id=harbor-dusk
+```
+
+整段 URI ≤ 2048；尾斜杠可；忽略 fragment；禁止 userinfo；`url` 与 `repo` 互斥；重复 query 键拒绝；只做一次 percent-decode；`+` 不是空格。argv / 文件关联只认 `.grokskin`（不猜 `.zip`）。`--fire-due-schedules` 优先：不写 pending、不 emit、不 `show_main_window`。
+
+`PendingSkinImport` 单槽 last-write-wins。前端只 `take_pending` 再走同一条预览。
+
+## 从不自动 apply
+
+文件 / 预设 / 仓库 / 深链都进入 `SkinImportPreviewModal` 确认。确认后 `applySkinChoice(..., { applyPreferredTheme: false })`，不调用 `applyThemeChoice`。
+
+## 网站 Apply（现阶段）
+
+官方 catalog URL 为空期间，网站**只用** `url=`（加下载 `.grokskin` 兜底）。不要出 `repo=` 按钮。不要期望自动套用。
+
+```js
+window.location.href =
+  `grok://skin/import?url=${encodeURIComponent(packUrl)}`;
+```
+
+`encodeURIComponent` 一次。不把 token 放进 `url=`。若日后注册改为 `grok-app://`，网站同步改；桌面解析层已双认。

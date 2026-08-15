@@ -78,7 +78,10 @@ export type ThemeShellValue = {
   setWallpaperScrim: (v: number) => void;
   applyThemeChoice: (next: ThemePreference) => void;
   applyThemeScheduleChoice: (next: ThemeScheduleConfig) => void;
-  applySkinChoice: (next: ThemeSkinId) => void;
+  applySkinChoice: (
+    next: ThemeSkinId,
+    opts?: { applyPreferredTheme?: boolean },
+  ) => void;
   applyWallpaperChoice: (
     record: WallpaperRecord | null,
     opts?: { onError?: (msg: string) => void },
@@ -334,10 +337,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 
   const applySkinChoice = useCallback(
-    (next: ThemeSkinId) => {
+    (next: ThemeSkinId, opts?: { applyPreferredTheme?: boolean }) => {
       saveSkin(localStorage, next);
       applySkinToDocument(next);
       setSkin(next);
+      if (opts?.applyPreferredTheme === false) return;
       const preferred = skinPreferredTheme(next);
       if (preferred && preferred !== theme) {
         applyThemeChoice(preferred);
