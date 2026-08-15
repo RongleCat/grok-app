@@ -39,6 +39,7 @@ Custom providers are written to **`$GROK_HOME/config.toml`** as `[model.<id>]` s
 | `contextWindow` | Optional token cap → TOML `context_window` as a **bare integer** (never `"1000000"`). Grok Build rejects string type and falls back to 200k (#538). Composer can set it; list/upsert preserves and reloads. Missing → UI chip uses `DEFAULT_CUSTOM_CONTEXT_WINDOW` (200k) only. |
 | `apiBackend` | Message format: `responses` (default) \| `chat_completions` \| `messages` |
 | `supportsVision` | App field `app_supports_vision`. When **true**, this custom channel is treated as multimodal: image `@path` stays in the prompt (CLI injects pixels) and the custom-main hook does **not** block `read_file` on PNG/JPG. Names / model ids that look like Grok / GPT-4o / Claude / Gemini already count as vision even when this is off. Unknown relays stay text-only (Host vision / path note) so DeepSeek-style APIs do not 400 on `image_url`. |
+| `providerMode` | Explicit transport semantics: `generic` (default) or `grok_build_proxy`. Never infer this from a provider id or hostname. |
 | `isDefault` | Maps to `[models].default` (set only via **Use** / composer pick activate, not a form checkbox) |
 
 **Integer TOML fields:** Host writes `context_window = 1000000` (CLI-compatible). On `providers_list`, legacy quoted string forms are repaired in place. Other model edits must not drop or re-quote this field.
@@ -82,6 +83,28 @@ Grok Build’s stream parsers are strict. OpenCode Zen Go historically breaks bo
 Form shows a **Get API Key** text control under the key field when the channel matches a preset (by id or base host). Opens the URL via `open_external_url`.
 
 CPA / sub2api / grok-go remain generic OpenAI-compatible relays.
+
+### Grok Build-compatible relay mode
+
+Use `providerMode = grok_build_proxy` only for a relay that intentionally
+implements Grok Build's model catalog and native proxy contract. This mode is
+separate from ordinary `[model.<id>]` relays:
+
+| Concern | Host contract |
+|---------|---------------|
+| Opt-in | Explicit Settings selection, stored as `app_provider_mode = "grok_build_proxy"`; no BeefAPI or hostname special case |
+| Protocol | `responses` only |
+| Capability gate | Save reads the live `/models` response and requires every selected model to exist with `supports_backend_search = true` |
+| ACP model | Spawn uses the real selected model id, such as `grok-4.6`, rather than the provider section alias |
+| Child environment | Only the target `grok agent stdio` process receives `GROK_MODELS_BASE_URL`, `GROK_MODELS_LIST_URL`, `GROK_CLI_CHAT_PROXY_BASE_URL`, and `XAI_API_KEY` |
+| Generic compatibility | Generic providers keep `[model.<id>]`, provider-alias spawn, and the existing stream sanitizer behavior |
+| Apply | Editing the active provider recycles warm ACP processes; the next send starts with the new catalog and capability contract |
+
+The key stays write-only from the UI and is never included in spawn logs.
+`WSLENV` forwards the native URL/key variables without path translation; macOS,
+Linux, and native Windows inherit them directly on the child command. This mode
+does not enable `official-aux`, does not mix official OAuth into the relay home,
+and does not require a second xAI credential.
 
 ## Settings UI (Account → Custom providers)
 
@@ -187,7 +210,9 @@ Settings → Account → Custom providers → **Import from CC Switch**.
 | Detect | Resolve `cc-switch.db` (see paths below); open SQLite **read-only** |
 | Scope | `providers` where `app_type = 'grokbuild'` |
 | Preview | Multi-select list (no full API keys; status badges) |
-| Import | Map TOML → `providers_upsert` into current agent-home `config.toml`; **same id overwrites** (no UI toggle); does not auto-activate route |
+| Import | Map TOML → current agent-home `config.toml`; **same id overwrites** (no UI toggle); does not auto-activate route |
+| Native capability | An explicit `app_provider_mode` is honored. Otherwise a Responses provider is promoted to `grok_build_proxy` only when its selected real model advertises `supports_backend_search = true` in the live `/models` response |
+| Apply | Any successful import recycles warm ACP children so the next send cannot reuse stale provider semantics |
 
 ### CC Switch data paths (cross-platform)
 
@@ -207,6 +232,9 @@ Store file locations:
 | Linux | `${XDG_DATA_HOME:-~/.local/share}/com.ccswitch.desktop/app_paths.json` |
 
 Official CC Switch rows are not imported as custom relays. Proxy-takeover placeholders (`PROXY_MANAGED`, `127.0.0.1:…`) are rejected.
+Capability detection never matches provider names or hosts. Explicit native mode
+fails closed when the live catalog cannot validate it; implicit probe failures
+preserve the previous generic import behavior.
 
 ## Security
 

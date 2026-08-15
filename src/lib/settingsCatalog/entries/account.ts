@@ -34,6 +34,7 @@ export const ACCOUNT_ENTRIES: readonly SettingsEntry[] = [
       "settings.tabProvidersHint",
       "prov.appendPromptHint",
       "prov.supportsVisionHint",
+      "prov.mode.grokBuildProxyHint",
     ],
     keywords: [
       "provider",
@@ -42,6 +43,9 @@ export const ACCOUNT_ENTRIES: readonly SettingsEntry[] = [
       "base url",
       "soft respawn",
       "live apply",
+      "grok build proxy",
+      "native search",
+      "supports_backend_search",
       // Per-channel appended system-prompt rules live in the provider editor.
       "append prompt",
       "system prompt",
@@ -56,6 +60,8 @@ export const ACCOUNT_ENTRIES: readonly SettingsEntry[] = [
       "中轉",
       "提供商",
       "供應商",
+      "原生搜索",
+      "原生搜尋",
       "追加提示词",
       "追加提示詞",
       "提示词注入",

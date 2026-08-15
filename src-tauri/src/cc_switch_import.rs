@@ -310,6 +310,16 @@ pub fn scan_cc_switch_providers() -> CcSwitchScanResult {
 pub fn import_cc_switch_providers(
     req: CcSwitchImportRequest,
 ) -> Result<CcSwitchImportResult, String> {
+    import_cc_switch_providers_with(req, resolve_import_provider_mode)
+}
+
+fn import_cc_switch_providers_with<F>(
+    req: CcSwitchImportRequest,
+    mut resolve_mode: F,
+) -> Result<CcSwitchImportResult, String>
+where
+    F: FnMut(&ParsedModel) -> Result<String, String>,
+{
     // Default overwrite: re-importing the same slug updates key/base_url in place.
     let on_conflict = req
         .on_conflict
@@ -376,6 +386,17 @@ pub fn import_cc_switch_providers(
             continue;
         }
 
+        let provider_mode = match resolve_mode(&parsed) {
+            Ok(mode) => mode,
+            Err(e) => {
+                failed.push(CcSwitchImportFailure {
+                    source_id: sid.clone(),
+                    reason: e,
+                });
+                continue;
+            }
+        };
+
         let mut id = slugify_id(&row.name, &parsed.profile);
         if existing.contains(&id) {
             match on_conflict.as_str() {
@@ -397,6 +418,7 @@ pub fn import_cc_switch_providers(
             name: Some(parsed.name.clone()),
             api_key: Some(parsed.api_key.clone()),
             api_backend: Some(parsed.api_backend.clone()),
+            provider_mode: Some(provider_mode),
             set_as_default: Some(false),
             create_only: Some(false),
             models: Some(vec![providers::ProviderModelEntry {
@@ -477,6 +499,7 @@ struct ParsedModel {
     name: String,
     api_key: String,
     api_backend: String,
+    provider_mode: Option<String>,
 }
 
 fn read_grokbuild_rows(db_path: &Path) -> Result<Vec<DbRow>, String> {
@@ -678,6 +701,10 @@ fn parse_grok_toml(config: &str, fallback_name: &str) -> Result<ParsedModel, Str
         .cloned()
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "responses".into());
+    let provider_mode = fields
+        .get("app_provider_mode")
+        .cloned()
+        .filter(|s| !s.trim().is_empty());
 
     Ok(ParsedModel {
         profile,
@@ -686,7 +713,64 @@ fn parse_grok_toml(config: &str, fallback_name: &str) -> Result<ParsedModel, Str
         name,
         api_key,
         api_backend,
+        provider_mode,
     })
+}
+
+fn resolve_import_provider_mode(parsed: &ParsedModel) -> Result<String, String> {
+    resolve_import_provider_mode_with(parsed, |base_url, api_key| {
+        providers::list_remote_models_blocking(base_url, api_key)
+    })
+}
+
+fn resolve_import_provider_mode_with<F>(parsed: &ParsedModel, probe: F) -> Result<String, String>
+where
+    F: FnOnce(&str, &str) -> Result<providers::RemoteModelsResult, String>,
+{
+    let explicit = parsed
+        .provider_mode
+        .as_deref()
+        .map(|raw| providers::normalize_provider_mode(Some(raw)));
+    if explicit.as_deref() == Some(providers::PROVIDER_MODE_GENERIC) {
+        return Ok(providers::PROVIDER_MODE_GENERIC.into());
+    }
+    if providers::normalize_backend(Some(&parsed.api_backend)) != "responses" {
+        if explicit.as_deref() == Some(providers::PROVIDER_MODE_GROK_BUILD_PROXY) {
+            return Err("grok_build_proxy requires api_backend=responses".into());
+        }
+        return Ok(providers::PROVIDER_MODE_GENERIC.into());
+    }
+
+    let normalized_base =
+        providers::normalize_openai_base_url(&parsed.base_url, "responses", false);
+    let remote = match probe(&normalized_base, &parsed.api_key) {
+        Ok(remote) => remote,
+        Err(error) => {
+            if explicit.as_deref() == Some(providers::PROVIDER_MODE_GROK_BUILD_PROXY) {
+                return Err(format!(
+                    "explicit grok_build_proxy capability check failed: {error}"
+                ));
+            }
+            tracing::warn!(
+                target: "cc_switch_import",
+                "model capability probe failed; preserving generic provider semantics: {error}"
+            );
+            return Ok(providers::PROVIDER_MODE_GENERIC.into());
+        }
+    };
+    let selected = [providers::ProviderModelEntry {
+        id: parsed.model.clone(),
+        name: parsed.model.clone(),
+    }];
+    match providers::validate_grok_build_proxy_models(&remote.models, &selected) {
+        Ok(()) => Ok(providers::PROVIDER_MODE_GROK_BUILD_PROXY.into()),
+        Err(error) if explicit.as_deref() == Some(providers::PROVIDER_MODE_GROK_BUILD_PROXY) => {
+            Err(format!(
+                "explicit grok_build_proxy capability check failed: {error}"
+            ))
+        }
+        Err(_) => Ok(providers::PROVIDER_MODE_GENERIC.into()),
+    }
 }
 
 fn unquote_toml_key(raw: &str) -> String {
@@ -815,6 +899,78 @@ api_key = "sk-testkey1234"
         assert_eq!(p.api_backend, "responses");
         assert_eq!(p.api_key, "sk-testkey1234");
         assert_eq!(p.model, "grok-4.5");
+        assert_eq!(p.provider_mode, None);
+    }
+
+    #[test]
+    fn parses_explicit_native_provider_mode() {
+        let toml = r#"[models]
+default = "grok-4.6"
+
+[model."grok-4.6"]
+model = "grok-4.6"
+base_url = "https://relay.example/v1"
+api_key = "runtime-key"
+api_backend = "responses"
+app_provider_mode = "grok_build_proxy"
+"#;
+        let parsed = parse_grok_toml(toml, "Relay").expect("parse");
+        assert_eq!(
+            parsed.provider_mode.as_deref(),
+            Some(providers::PROVIDER_MODE_GROK_BUILD_PROXY)
+        );
+    }
+
+    #[test]
+    fn cc_switch_import_auto_promotes_live_backend_search_capability() {
+        let parsed = test_parsed_model(None);
+        let mode = resolve_import_provider_mode_with(&parsed, |base, key| {
+            assert_eq!(base, "https://relay.example/v1");
+            assert_eq!(key, "runtime-key");
+            Ok(providers::RemoteModelsResult {
+                endpoint: "https://relay.example/v1/models".into(),
+                models: vec![providers::RemoteModel {
+                    id: "grok-4.6".into(),
+                    owned_by: Some("grok_build".into()),
+                    supports_backend_search: Some(true),
+                }],
+            })
+        })
+        .expect("classify");
+        assert_eq!(mode, providers::PROVIDER_MODE_GROK_BUILD_PROXY);
+    }
+
+    #[test]
+    fn cc_switch_import_keeps_generic_without_capability_claim() {
+        let parsed = test_parsed_model(None);
+        let mode = resolve_import_provider_mode_with(&parsed, |_, _| {
+            Ok(providers::RemoteModelsResult {
+                endpoint: "https://relay.example/v1/models".into(),
+                models: vec![providers::RemoteModel {
+                    id: "grok-4.6".into(),
+                    owned_by: None,
+                    supports_backend_search: None,
+                }],
+            })
+        })
+        .expect("classify");
+        assert_eq!(mode, providers::PROVIDER_MODE_GENERIC);
+    }
+
+    #[test]
+    fn cc_switch_import_honors_explicit_modes() {
+        let explicit_generic = test_parsed_model(Some(providers::PROVIDER_MODE_GENERIC));
+        let generic = resolve_import_provider_mode_with(&explicit_generic, |_, _| {
+            panic!("explicit generic must not probe")
+        })
+        .expect("generic");
+        assert_eq!(generic, providers::PROVIDER_MODE_GENERIC);
+
+        let explicit_native = test_parsed_model(Some(providers::PROVIDER_MODE_GROK_BUILD_PROXY));
+        let error =
+            resolve_import_provider_mode_with(&explicit_native, |_, _| Err("offline".into()))
+                .expect_err("explicit native must fail closed");
+        assert!(error.contains("capability check failed"));
     }
 
     #[test]
@@ -835,6 +991,7 @@ api_key = "sk-testkey1234"
             name: "x".into(),
             api_key: "PROXY_MANAGED".into(),
             api_backend: "responses".into(),
+            provider_mode: None,
         };
         assert!(is_proxy_managed(&p));
     }
@@ -918,6 +1075,70 @@ api_key = "sk-testkey1234"
         assert_eq!(off.map(|p| p.status.as_str()), Some("official"));
     }
 
+    #[test]
+    fn import_roundtrip_writes_resolved_native_mode() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let app_home = tempfile_dir();
+        let cc_home = tempfile_dir();
+        let _restore = RestoreEnv::set(&[
+            ("GROK_APP_HOME", app_home.to_string_lossy().as_ref()),
+            (ENV_DIR, cc_home.to_string_lossy().as_ref()),
+        ]);
+
+        let db = cc_home.join(DB_NAME);
+        let conn = Connection::open(&db).expect("create db");
+        conn.execute_batch(
+            "CREATE TABLE providers (
+                id TEXT NOT NULL,
+                app_type TEXT NOT NULL,
+                name TEXT NOT NULL,
+                settings_config TEXT NOT NULL,
+                website_url TEXT,
+                category TEXT,
+                sort_index INTEGER,
+                is_current BOOLEAN NOT NULL DEFAULT 0,
+                PRIMARY KEY (id, app_type)
+            );",
+        )
+        .expect("schema");
+        let config = format!(
+            "[models]\ndefault = \"grok-4.6\"\n\n[model.\"grok-4.6\"]\nmodel = \"grok-4.6\"\nbase_url = \"https://relay.example/v1\"\nname = \"Relay\"\napi_backend = \"responses\"\napi_key = \"runtime-key\"\n"
+        );
+        let settings = serde_json::json!({ "config": config }).to_string();
+        conn.execute(
+            "INSERT INTO providers (id, app_type, name, settings_config, category, is_current)
+             VALUES ('source-relay', 'grokbuild', 'Relay', ?1, 'aggregator', 1)",
+            [settings],
+        )
+        .expect("insert");
+        drop(conn);
+
+        let result = import_cc_switch_providers_with(
+            CcSwitchImportRequest {
+                source_ids: vec!["source-relay".into()],
+                on_conflict: Some("overwrite".into()),
+                activate_id: None,
+            },
+            |parsed| {
+                assert_eq!(parsed.model, "grok-4.6");
+                assert_eq!(parsed.base_url, "https://relay.example/v1");
+                Ok(providers::PROVIDER_MODE_GROK_BUILD_PROXY.into())
+            },
+        )
+        .expect("import");
+        assert_eq!(result.imported, 1);
+        assert!(result.failed.is_empty());
+
+        let written = fs::read_to_string(app_home.join("agent-home/config.toml")).expect("config");
+        assert!(written.contains("app_provider_mode = \"grok_build_proxy\""));
+        assert!(written.contains("model = \"grok-4.6\""));
+
+        let _ = fs::remove_dir_all(&app_home);
+        let _ = fs::remove_dir_all(&cc_home);
+    }
+
     fn tempfile_dir() -> PathBuf {
         let mut d = std::env::temp_dir();
         d.push(format!(
@@ -935,6 +1156,45 @@ api_key = "sk-testkey1234"
     fn expand_tilde() {
         let p = expand_user_path("~/foo/bar");
         assert!(p.ends_with("foo/bar") || p.ends_with(r"foo\bar"));
+    }
+
+    fn test_parsed_model(provider_mode: Option<&str>) -> ParsedModel {
+        ParsedModel {
+            profile: "grok-4.6".into(),
+            model: "grok-4.6".into(),
+            base_url: "https://relay.example/v1".into(),
+            name: "Relay".into(),
+            api_key: "runtime-key".into(),
+            api_backend: "responses".into(),
+            provider_mode: provider_mode.map(str::to_string),
+        }
+    }
+
+    struct RestoreEnv(Vec<(&'static str, Option<String>)>);
+
+    impl RestoreEnv {
+        fn set(values: &[(&'static str, &str)]) -> Self {
+            let previous = values
+                .iter()
+                .map(|(key, value)| {
+                    let old = std::env::var(key).ok();
+                    std::env::set_var(key, value);
+                    (*key, old)
+                })
+                .collect();
+            Self(previous)
+        }
+    }
+
+    impl Drop for RestoreEnv {
+        fn drop(&mut self) {
+            for (key, value) in self.0.drain(..).rev() {
+                match value {
+                    Some(value) => std::env::set_var(key, value),
+                    None => std::env::remove_var(key),
+                }
+            }
+        }
     }
 
     #[allow(dead_code)]

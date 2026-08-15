@@ -103,6 +103,7 @@ type FormState = {
   baseUrlFullPath: boolean;
   apiKey: string;
   apiBackend: string;
+  providerMode: "generic" | "grok_build_proxy";
   models: FormModel[];
   efforts: FormEffort[];
   /** Extra rules appended to the system prompt on this channel. */
@@ -123,6 +124,7 @@ const emptyForm = (): FormState => ({
   baseUrlFullPath: false,
   apiKey: "",
   apiBackend: "responses",
+  providerMode: "generic",
   appendPrompt: "",
   supportsVision: false,
   models: [],
@@ -176,6 +178,7 @@ function formFromPreset(preset: ProviderPreset): FormState {
     baseUrlFullPath: !!preset.baseUrlFullPath,
     apiKey: "",
     apiBackend: preset.apiBackend,
+    providerMode: "generic",
     // Presets carry no channel rules — opt-in per provider.
     appendPrompt: "",
     supportsVision: false,
@@ -236,7 +239,9 @@ export function ProvidersPanel({
   const [form, setForm] = useState<FormState>(emptyForm);
   const [busy, setBusy] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const [remoteModels, setRemoteModels] = useState<string[]>([]);
+  const [remoteModels, setRemoteModels] = useState<
+    Array<{ id: string; supportsBackendSearch?: boolean }>
+  >([]);
   /** Frontend substring filter for the fetched model list. */
   const [modelSearch, setModelSearch] = useState("");
   /** Busy flag for fetch-models only (disables button while in flight). */
@@ -288,10 +293,21 @@ export function ProvidersPanel({
     [tr],
   );
 
+  const providerModeOptions = useMemo(
+    () => [
+      { value: "generic", label: tr("prov.mode.generic") },
+      {
+        value: "grok_build_proxy",
+        label: tr("prov.mode.grokBuildProxy"),
+      },
+    ],
+    [tr],
+  );
+
   const filteredRemoteModels = useMemo(() => {
     const q = modelSearch.trim().toLowerCase();
     if (!q) return remoteModels;
-    return remoteModels.filter((mid) => mid.toLowerCase().includes(q));
+    return remoteModels.filter((m) => m.id.toLowerCase().includes(q));
   }, [remoteModels, modelSearch]);
 
   const reload = useCallback(async () => {
@@ -538,6 +554,10 @@ export function ProvidersPanel({
       baseUrlFullPath: !!p.baseUrlFullPath,
       apiKey: "",
       apiBackend: p.apiBackend || "responses",
+      providerMode:
+        p.providerMode === "grok_build_proxy"
+          ? "grok_build_proxy"
+          : "generic",
       appendPrompt: p.appendPrompt ?? "",
       supportsVision: !!p.supportsVision,
       models: modelsFromProvider(p),
@@ -643,6 +663,7 @@ export function ProvidersPanel({
       name: form.name.trim() || id,
       apiKey: form.apiKey.trim() || undefined,
       apiBackend: form.apiBackend,
+      providerMode: form.providerMode,
       setAsDefault: false as boolean,
       models,
       efforts,
@@ -747,12 +768,15 @@ export function ProvidersPanel({
       }
     } catch (e) {
       // Classified soft-fail — never invent success or leave raw Error dumps only.
+      const rawError = String(e);
       const kind = classifyProviderSaveError(e);
       const key = providerSaveErrorMessageKey(kind) as MessageKey;
       // Prefer classified copy for known kinds; keep detail for generic other.
       const msg =
-        kind === "other"
-          ? tr("prov.err.other", { detail: String(e) })
+        /grok_build_proxy|supports_backend_search|live \/models/i.test(rawError)
+          ? tr("prov.err.nativeCapability")
+          : kind === "other"
+            ? tr("prov.err.other", { detail: rawError })
           : kind === "timeout"
             ? tr("prov.err.saveTimeout")
             : tr(key);
@@ -839,7 +863,7 @@ export function ProvidersPanel({
         apiKey: form.apiKey.trim() || undefined,
         providerId: editingId ?? undefined,
       });
-      setRemoteModels(r.models.map((m) => m.id));
+      setRemoteModels(r.models);
       setModelSearch("");
       if (!r.models.length) {
         onToast?.(tr("prov.emptyList"), 2800);
@@ -1482,6 +1506,35 @@ export function ProvidersPanel({
                 </div>
 
                 {/* Row: protocol | API key — equal grid columns */}
+                <div
+                  className="prov-field prov-field--full"
+                  id="settings-anchor-provider-mode"
+                >
+                  <span className="prov-field__label">{tr("prov.mode")}</span>
+                  <Select
+                    value={form.providerMode}
+                    onChange={(v) =>
+                      setForm((f) => ({
+                        ...f,
+                        providerMode:
+                          v === "grok_build_proxy"
+                            ? "grok_build_proxy"
+                            : "generic",
+                        apiBackend:
+                          v === "grok_build_proxy" ? "responses" : f.apiBackend,
+                      }))
+                    }
+                    options={providerModeOptions}
+                    aria-label={tr("prov.mode")}
+                    className="prov-field__select"
+                  />
+                  <span className="prov-field__hint">
+                    {form.providerMode === "grok_build_proxy"
+                      ? tr("prov.mode.grokBuildProxyHint")
+                      : tr("prov.mode.genericHint")}
+                  </span>
+                </div>
+
                 <div className="prov-field">
                   <span className="prov-field__label">{tr("prov.protocol")}</span>
                   <Select
@@ -1733,7 +1786,8 @@ export function ProvidersPanel({
                       ) : null}
                       {filteredRemoteModels.length > 0 ? (
                         <div className="prov-models__chips">
-                          {filteredRemoteModels.map((mid) => {
+                          {filteredRemoteModels.map((remote) => {
+                            const mid = remote.id;
                             const added = form.models.some(
                               (m) => m.id === mid,
                             );
@@ -1749,7 +1803,12 @@ export function ProvidersPanel({
                                 onClick={() => addModelToForm(mid, mid)}
                                 title={mid}
                               >
-                                {mid}
+                                <span>{mid}</span>
+                                {remote.supportsBackendSearch === true ? (
+                                  <span className="prov-models__capability">
+                                    {tr("prov.nativeSearch")}
+                                  </span>
+                                ) : null}
                               </button>
                             );
                           })}
