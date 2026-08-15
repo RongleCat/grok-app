@@ -28,6 +28,8 @@ export interface CustomProvider {
   name: string;
   hasApiKey: boolean;
   apiBackend: string;
+  /** Explicit relay semantics. Host never infers this from the URL. */
+  providerMode: "generic" | "grok_build_proxy" | string;
   isDefault: boolean;
   /** Selectable models for this channel (App-managed catalog). */
   models?: ProviderModelEntry[];
@@ -287,6 +289,7 @@ export async function providersUpsert(body: {
   name?: string;
   apiKey?: string;
   apiBackend?: string;
+  providerMode?: "generic" | "grok_build_proxy" | string;
   setAsDefault?: boolean;
   createOnly?: boolean;
   models?: ProviderModelEntry[];
@@ -304,6 +307,7 @@ export async function providersUpsert(body: {
     name: body.name ?? null,
     apiKey: body.apiKey ?? null,
     apiBackend: body.apiBackend ?? null,
+    providerMode: body.providerMode ?? null,
     setAsDefault: body.setAsDefault ?? null,
     createOnly: body.createOnly ?? null,
     models: body.models ?? null,
@@ -347,7 +351,11 @@ export async function providersListModels(opts: {
 }) {
   return invoke<{
     endpoint: string;
-    models: Array<{ id: string; ownedBy?: string }>;
+    models: Array<{
+      id: string;
+      ownedBy?: string;
+      supportsBackendSearch?: boolean;
+    }>;
   }>("providers_list_models", {
     baseUrl: opts.baseUrl,
     apiKey: opts.apiKey ?? null,
@@ -464,4 +472,3 @@ export async function openInEditor(opts: {
     editor: opts.editor ?? null,
   });
 }
-

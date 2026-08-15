@@ -42,6 +42,11 @@ pub struct CustomProvider {
     pub name: String,
     pub has_api_key: bool,
     pub api_backend: String,
+    /// `generic` writes a normal `[model.<id>]` relay. `grok_build_proxy`
+    /// exposes the relay as Grok Build's native model catalog / chat proxy so
+    /// the CLI can discover server-side capabilities from `/models`.
+    #[serde(default = "default_provider_mode")]
+    pub provider_mode: String,
     pub is_default: bool,
     /// Catalog of selectable models for this channel (App-managed).
     #[serde(default)]
@@ -76,6 +81,8 @@ pub struct UpsertProviderInput {
     /// Empty / omitted = keep existing key on edit.
     pub api_key: Option<String>,
     pub api_backend: Option<String>,
+    /// Explicit transport semantics. Never inferred from a provider hostname.
+    pub provider_mode: Option<String>,
     pub set_as_default: Option<bool>,
     pub create_only: Option<bool>,
     /// Optional multi-model catalog; when omitted on edit, keep previous `app_models`.
@@ -102,6 +109,22 @@ const APP_EFFORTS_KEY: &str = "app_efforts";
 const APP_BASE_URL_FULL_PATH_KEY: &str = "app_base_url_full_path";
 /// TOML field (ignored by Grok Build): extra rules appended to the system prompt.
 const APP_APPEND_PROMPT_KEY: &str = "app_append_prompt";
+/// TOML field (ignored by Grok Build): relay transport semantics selected in App.
+const APP_PROVIDER_MODE_KEY: &str = "app_provider_mode";
+
+pub const PROVIDER_MODE_GENERIC: &str = "generic";
+pub const PROVIDER_MODE_GROK_BUILD_PROXY: &str = "grok_build_proxy";
+
+fn default_provider_mode() -> String {
+    PROVIDER_MODE_GENERIC.to_string()
+}
+
+pub fn normalize_provider_mode(raw: Option<&str>) -> String {
+    match raw.unwrap_or("").trim().to_ascii_lowercase().as_str() {
+        PROVIDER_MODE_GROK_BUILD_PROXY => PROVIDER_MODE_GROK_BUILD_PROXY.to_string(),
+        _ => PROVIDER_MODE_GENERIC.to_string(),
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -178,6 +201,53 @@ pub struct RemoteModelsResult {
 pub struct RemoteModel {
     pub id: String,
     pub owned_by: Option<String>,
+    /// Capability advertised by the live `/models` response. `None` means the
+    /// endpoint did not make a claim, which must not be treated as supported.
+    pub supports_backend_search: Option<bool>,
+}
+
+/// Process-only native Grok Build relay binding. Deliberately not Debug or
+/// Serialize because it contains the provider key.
+pub struct GrokBuildProxySpawn {
+    pub base_url: String,
+    pub models_url: String,
+    pub api_key: String,
+    pub model: String,
+}
+
+pub fn validate_grok_build_proxy_models(
+    remote: &[RemoteModel],
+    selected: &[ProviderModelEntry],
+) -> Result<(), String> {
+    if selected.is_empty() {
+        return Err("grok_build_proxy requires at least one model".into());
+    }
+    let mut missing = Vec::new();
+    let mut unsupported = Vec::new();
+    for model in selected {
+        let id = model.id.trim();
+        if id.is_empty() {
+            continue;
+        }
+        match remote.iter().find(|m| m.id == id) {
+            None => missing.push(id.to_string()),
+            Some(m) if m.supports_backend_search != Some(true) => unsupported.push(id.to_string()),
+            Some(_) => {}
+        }
+    }
+    if !missing.is_empty() {
+        return Err(format!(
+            "grok_build_proxy models missing from live /models: {}",
+            missing.join(", ")
+        ));
+    }
+    if !unsupported.is_empty() {
+        return Err(format!(
+            "grok_build_proxy requires supports_backend_search=true for: {}",
+            unsupported.join(", ")
+        ));
+    }
+    Ok(())
 }
 
 /// Parsed `[model.*]` section (shared with relay stream proxy).
@@ -329,7 +399,7 @@ fn sanitize_id(raw: &str) -> Result<String, String> {
     Ok(id)
 }
 
-fn normalize_backend(v: Option<&str>) -> String {
+pub fn normalize_backend(v: Option<&str>) -> String {
     match v.unwrap_or("").trim() {
         "responses" => "responses".into(),
         "messages" => "messages".into(),
@@ -871,6 +941,7 @@ pub fn maybe_migrate_legacy_relay(
         name: Some("Imported relay".into()),
         api_key: Some(key.into()),
         api_backend: Some("responses".into()),
+        provider_mode: Some(PROVIDER_MODE_GENERIC.into()),
         set_as_default: Some(true),
         create_only: Some(true),
         models: None,
@@ -1007,6 +1078,8 @@ fn build_list_result(home: PathBuf, path: PathBuf, text: &str) -> ProvidersListR
             .map(|k| !k.trim().is_empty())
             .unwrap_or(false);
         let api_backend = normalize_backend(s.fields.get("api_backend").map(|s| s.as_str()));
+        let provider_mode =
+            normalize_provider_mode(s.fields.get(APP_PROVIDER_MODE_KEY).map(|s| s.as_str()));
         let is_default = def.as_deref() == Some(s.id.as_str());
         // Prefer model display names from catalog; fall back to request id (not
         // channel name) so multi-model rows stay distinct from the provider card.
@@ -1031,6 +1104,7 @@ fn build_list_result(home: PathBuf, path: PathBuf, text: &str) -> ProvidersListR
             name,
             has_api_key,
             api_backend,
+            provider_mode,
             is_default,
             models,
             efforts,
@@ -1113,6 +1187,32 @@ pub fn is_custom_provider_id(id: &str) -> bool {
         .unwrap_or(false)
 }
 
+pub fn provider_mode_for_id(id: &str) -> String {
+    let id = id.trim();
+    if id.is_empty() {
+        return default_provider_mode();
+    }
+    list_custom_providers()
+        .ok()
+        .and_then(|list| list.providers.into_iter().find(|p| p.id == id))
+        .map(|p| p.provider_mode)
+        .unwrap_or_else(default_provider_mode)
+}
+
+/// Preserve the complete-path contract when callers edit only the active model
+/// or context window and omit the provider form's URL toggle.
+pub fn provider_base_url_full_path_for_id(id: &str) -> bool {
+    let id = id.trim();
+    if id.is_empty() {
+        return false;
+    }
+    list_custom_providers()
+        .ok()
+        .and_then(|list| list.providers.into_iter().find(|p| p.id == id))
+        .map(|p| p.base_url_full_path)
+        .unwrap_or(false)
+}
+
 /// Extra system-prompt rules configured on the active custom channel.
 ///
 /// Relays vary in what they need spelled out (tool syntax, language, refusal
@@ -1132,10 +1232,11 @@ pub fn active_provider_append_prompt() -> Option<String> {
 
 /// Model flag for `grok agent --model`.
 ///
-/// Grok Build behavior (verified 0.2.111):
-/// - Custom route: must pass the **provider section id** (e.g. `yunyi`) and
-///   **must not** have OIDC `auth.json` in GROK_HOME (else Auth:Oidc hits the
-///   relay base_url → 401).
+/// Grok Build behavior:
+/// - Generic custom route: pass the **provider section id** (e.g. `yunyi`) and
+///   do not keep OIDC `auth.json` in GROK_HOME.
+/// - Explicit Grok Build proxy route: `AcpClient::spawn` replaces this alias
+///   with the selected real catalog model after binding the native endpoint.
 /// - Official route: pass a catalog id (`grok-4.6`); needs `auth.json`.
 pub fn agent_spawn_model_id(composer_model: &str) -> String {
     match active_route() {
@@ -1149,6 +1250,64 @@ pub fn agent_spawn_model_id(composer_model: &str) -> String {
             }
         }
     }
+}
+
+fn grok_build_proxy_spawn_from_text(
+    text: &str,
+    composer_model: &str,
+) -> Option<GrokBuildProxySpawn> {
+    let default = get_models_default(text)?;
+    let section = parse_model_sections(text)
+        .into_iter()
+        .find(|s| s.id == default)?;
+    if normalize_provider_mode(
+        section
+            .fields
+            .get(APP_PROVIDER_MODE_KEY)
+            .map(|s| s.as_str()),
+    ) != PROVIDER_MODE_GROK_BUILD_PROXY
+    {
+        return None;
+    }
+    let base_url = crate::relay_stream_proxy::effective_upstream_base(&section.fields)
+        .trim()
+        .trim_end_matches('/')
+        .to_string();
+    let api_key = section.fields.get("api_key")?.trim().to_string();
+    if base_url.is_empty() || api_key.is_empty() {
+        return None;
+    }
+    let configured_model = section
+        .fields
+        .get("model")
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(section.id.as_str());
+    let models = decode_app_models(
+        section.fields.get(APP_MODELS_KEY).map(|s| s.as_str()),
+        configured_model,
+        configured_model,
+    );
+    let requested = composer_model.trim();
+    let model = if !requested.is_empty() && models.iter().any(|m| m.id == requested) {
+        requested.to_string()
+    } else {
+        resolve_active_model(&models, configured_model)
+    };
+    let models_url = models_list_endpoint(&base_url).ok()?;
+    Some(GrokBuildProxySpawn {
+        base_url,
+        models_url,
+        api_key,
+        model,
+    })
+}
+
+/// Resolve the active explicit Grok Build-compatible relay for one ACP spawn.
+/// The key is returned only to the spawn caller and must never be logged.
+pub fn active_grok_build_proxy_spawn(composer_model: &str) -> Option<GrokBuildProxySpawn> {
+    let text = read_text(&agent_config_toml());
+    grok_build_proxy_spawn_from_text(&text, composer_model)
 }
 
 /// Prepare agent-home auth material for the active route.
@@ -1274,6 +1433,14 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
     let mut text = read_text(&path);
     let sections = parse_model_sections(&text);
     let existing = sections.iter().find(|s| s.id == id);
+    let provider_mode = match input.provider_mode.as_deref() {
+        Some(raw) => normalize_provider_mode(Some(raw)),
+        None => normalize_provider_mode(
+            existing
+                .and_then(|s| s.fields.get(APP_PROVIDER_MODE_KEY))
+                .map(|s| s.as_str()),
+        ),
+    };
 
     // Full-path mode: UI switch. Omitted on edit keeps previous; create defaults false.
     let full_path = match input.base_url_full_path {
@@ -1291,8 +1458,13 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
     }
     // OpenCode Zen Go etc.: CLI talks to loopback sanitize proxy; real host in
     // app_upstream_base_url (ignored by Grok Build).
-    let (base_url, app_upstream) =
-        crate::relay_stream_proxy::rewrite_base_for_cli(&id, &user_base, &api_backend, full_path)?;
+    let (base_url, app_upstream) = if provider_mode == PROVIDER_MODE_GROK_BUILD_PROXY {
+        // Native catalog/proxy mode talks straight to the configured endpoint;
+        // the generic SSE sanitizer is a different provider contract.
+        (user_base.clone(), None)
+    } else {
+        crate::relay_stream_proxy::rewrite_base_for_cli(&id, &user_base, &api_backend, full_path)?
+    };
     let create_only = input.create_only.unwrap_or(false);
     if create_only && existing.is_some() {
         return Err(format!("provider id `{id}` already exists"));
@@ -1377,6 +1549,7 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
         ("name".into(), name),
         ("api_key".into(), next_key),
         ("api_backend".into(), api_backend),
+        (APP_PROVIDER_MODE_KEY.into(), provider_mode),
         (APP_MODELS_KEY.into(), app_models_json),
     ];
     if full_path {
@@ -1609,8 +1782,53 @@ pub async fn list_remote_models(
             text.chars().take(240).collect::<String>()
         ));
     }
+    parse_remote_models_response(endpoint, &text)
+}
+
+/// Blocking model-catalog probe for import paths that already run on a
+/// dedicated blocking worker. The key is request-only and must never be logged.
+pub fn list_remote_models_blocking(
+    base_url: &str,
+    api_key: &str,
+) -> Result<RemoteModelsResult, String> {
+    let base = base_url.trim();
+    if !(base.starts_with("http://") || base.starts_with("https://")) {
+        return Err("base_url must start with http:// or https://".into());
+    }
+    let key = api_key.trim();
+    if key.is_empty() {
+        return Err("api_key is required to list models".into());
+    }
+    let endpoint = models_list_endpoint(base)?;
+    let client = crate::proxy::apply_to_reqwest_blocking(
+        reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(20)),
+    )
+    .build()
+    .map_err(|e| e.to_string())?;
+    let res = client
+        .get(&endpoint)
+        .header("Authorization", format!("Bearer {key}"))
+        .header("Accept", "application/json")
+        .send()
+        .map_err(|e| format!("request failed: {e}"))?;
+    let status = res.status();
+    let text = res.text().map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!(
+            "models HTTP {}: {}",
+            status.as_u16(),
+            text.chars().take(240).collect::<String>()
+        ));
+    }
+    parse_remote_models_response(endpoint, &text)
+}
+
+fn parse_remote_models_response(
+    endpoint: String,
+    text: &str,
+) -> Result<RemoteModelsResult, String> {
     let data: serde_json::Value =
-        serde_json::from_str(&text).map_err(|_| "models response is not JSON".to_string())?;
+        serde_json::from_str(text).map_err(|_| "models response is not JSON".to_string())?;
     let arr = if let Some(a) = data.as_array() {
         a.clone()
     } else if let Some(a) = data.get("data").and_then(|d| d.as_array()) {
@@ -1632,6 +1850,9 @@ pub async fn list_remote_models(
                 .get("owned_by")
                 .and_then(|x| x.as_str())
                 .map(|s| s.to_string()),
+            supports_backend_search: item
+                .get("supports_backend_search")
+                .and_then(|x| x.as_bool()),
         });
     }
     models.sort_by(|a, b| a.id.cmp(&b.id));
@@ -2354,6 +2575,93 @@ mod tests {
     }
 
     #[test]
+    fn provider_mode_is_explicit_and_defaults_generic() {
+        assert_eq!(normalize_provider_mode(None), PROVIDER_MODE_GENERIC);
+        assert_eq!(
+            normalize_provider_mode(Some("grok_build_proxy")),
+            PROVIDER_MODE_GROK_BUILD_PROXY
+        );
+        assert_eq!(
+            normalize_provider_mode(Some("beefapi")),
+            PROVIDER_MODE_GENERIC,
+            "provider host or id must never opt into native semantics"
+        );
+    }
+
+    #[test]
+    fn native_proxy_requires_live_backend_search_capability() {
+        let remote = vec![
+            RemoteModel {
+                id: "grok-4.6".into(),
+                owned_by: None,
+                supports_backend_search: Some(true),
+            },
+            RemoteModel {
+                id: "grok-4.5".into(),
+                owned_by: None,
+                supports_backend_search: None,
+            },
+        ];
+        let selected = vec![ProviderModelEntry {
+            id: "grok-4.6".into(),
+            name: "Grok 4.6".into(),
+        }];
+        assert!(validate_grok_build_proxy_models(&remote, &selected).is_ok());
+
+        let unsupported = vec![ProviderModelEntry {
+            id: "grok-4.5".into(),
+            name: "Grok 4.5".into(),
+        }];
+        assert!(validate_grok_build_proxy_models(&remote, &unsupported)
+            .unwrap_err()
+            .contains("supports_backend_search=true"));
+    }
+
+    #[test]
+    fn native_proxy_spawn_uses_real_model_and_process_only_binding() {
+        let models = encode_app_models(&[
+            ProviderModelEntry {
+                id: "grok-4.6".into(),
+                name: "Grok 4.6".into(),
+            },
+            ProviderModelEntry {
+                id: "grok-4.5".into(),
+                name: "Grok 4.5".into(),
+            },
+        ]);
+        let text = set_models_default(
+            &append_section(
+                "",
+                "beef-relay",
+                &[
+                    ("model".into(), "grok-4.6".into()),
+                    ("base_url".into(), "https://relay.example/v1".into()),
+                    ("api_key".into(), "runtime-key".into()),
+                    ("api_backend".into(), "responses".into()),
+                    (
+                        APP_PROVIDER_MODE_KEY.into(),
+                        PROVIDER_MODE_GROK_BUILD_PROXY.into(),
+                    ),
+                    (APP_MODELS_KEY.into(), models),
+                ],
+            ),
+            "beef-relay",
+        );
+        let spawn = grok_build_proxy_spawn_from_text(&text, "grok-4.5").expect("spawn");
+        assert_eq!(spawn.model, "grok-4.5");
+        assert_ne!(spawn.model, "beef-relay");
+        assert_eq!(spawn.base_url, "https://relay.example/v1");
+        assert_eq!(spawn.models_url, "https://relay.example/v1/models");
+        assert_eq!(spawn.api_key, "runtime-key");
+
+        let generic = text.replace(
+            "app_provider_mode = \"grok_build_proxy\"",
+            "app_provider_mode = \"generic\"",
+        );
+        assert!(grok_build_proxy_spawn_from_text(&generic, "grok-4.5").is_none());
+    }
+
+    #[test]
     fn mutation_reload_when_default_or_active() {
         let active = ProvidersListResult {
             providers: vec![CustomProvider {
@@ -2363,6 +2671,7 @@ mod tests {
                 name: "Relay".into(),
                 has_api_key: true,
                 api_backend: "responses".into(),
+                provider_mode: PROVIDER_MODE_GENERIC.into(),
                 is_default: true,
                 models: vec![ProviderModelEntry {
                     id: "m".into(),

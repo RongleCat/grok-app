@@ -485,28 +485,33 @@ pub fn start_wsl_tokio_command(
 ///
 /// `GROK_HOME/p` asks WSL to translate the Windows path to `/mnt/…`.
 /// Do **not** forward Windows `PATH` (it breaks Linux tool resolution).
+const WSLENV_KEYS: &str = concat!(
+    "GROK_HOME/p:",
+    "GROK_CLAUDE_MCPS_ENABLED:",
+    "GROK_CURSOR_MCPS_ENABLED:",
+    "GROK_SANDBOX:",
+    "GROK_MEMORY:",
+    "GROK_SUBAGENT_WORKTREE_SNAPSHOT:",
+    "GROK_MODELS_BASE_URL:",
+    "GROK_MODELS_LIST_URL:",
+    "GROK_CLI_CHAT_PROXY_BASE_URL:",
+    "XAI_API_KEY:",
+    "HTTP_PROXY:",
+    "HTTPS_PROXY:",
+    "http_proxy:",
+    "https_proxy:",
+    "ALL_PROXY:",
+    "all_proxy:",
+    "NO_PROXY:",
+    "no_proxy:",
+    "SSL_CERT_FILE/p:",
+    "REQUESTS_CA_BUNDLE/p:",
+    "CURL_CA_BUNDLE/p"
+);
+
 pub fn apply_wslenv(cmd: &mut tokio::process::Command) {
     // Keys we commonly set on the agent process. Unknown keys are ignored by WSL.
-    const KEYS: &str = concat!(
-        "GROK_HOME/p:",
-        "GROK_CLAUDE_MCPS_ENABLED:",
-        "GROK_CURSOR_MCPS_ENABLED:",
-        "GROK_SANDBOX:",
-        "GROK_MEMORY:",
-        "GROK_SUBAGENT_WORKTREE_SNAPSHOT:",
-        "HTTP_PROXY:",
-        "HTTPS_PROXY:",
-        "http_proxy:",
-        "https_proxy:",
-        "ALL_PROXY:",
-        "all_proxy:",
-        "NO_PROXY:",
-        "no_proxy:",
-        "SSL_CERT_FILE/p:",
-        "REQUESTS_CA_BUNDLE/p:",
-        "CURL_CA_BUNDLE/p"
-    );
-    cmd.env("WSLENV", KEYS);
+    cmd.env("WSLENV", WSLENV_KEYS);
 }
 
 /// Tauri-facing probe result for the Settings WSL card.
@@ -618,6 +623,19 @@ mod tests {
             wsl_display_path(&l).to_string_lossy(),
             "wsl://Ubuntu/~/.grok/bin/grok"
         );
+    }
+
+    #[test]
+    fn forwards_native_grok_proxy_env_without_path_translation() {
+        for key in [
+            "GROK_MODELS_BASE_URL:",
+            "GROK_MODELS_LIST_URL:",
+            "GROK_CLI_CHAT_PROXY_BASE_URL:",
+            "XAI_API_KEY:",
+        ] {
+            assert!(WSLENV_KEYS.contains(key), "missing {key}");
+        }
+        assert!(!WSLENV_KEYS.contains("XAI_API_KEY/p"));
     }
 
     #[test]

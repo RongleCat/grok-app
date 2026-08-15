@@ -1067,6 +1067,19 @@ pub fn agents_json_spawn_flags(raw: &str) -> Option<Vec<String>> {
     crate::agents_catalog::agents_json_spawn_cli_args(raw)
 }
 
+fn apply_grok_build_proxy_env(
+    cmd: &mut tokio::process::Command,
+    native: &crate::providers::GrokBuildProxySpawn,
+) {
+    // Process-scoped only: expose the relay as Grok Build's native model
+    // catalog / chat proxy and authenticate with the provider key. Never write
+    // or log these values outside this child.
+    cmd.env("GROK_MODELS_BASE_URL", &native.base_url);
+    cmd.env("GROK_MODELS_LIST_URL", &native.models_url);
+    cmd.env("GROK_CLI_CHAT_PROXY_BASE_URL", &native.base_url);
+    cmd.env("XAI_API_KEY", &native.api_key);
+}
+
 impl AcpClient {
     /// Effective sandbox profile this process was spawned with (reuse gate).
     pub fn sandbox_profile(&self) -> Option<String> {
@@ -1229,7 +1242,14 @@ impl AcpClient {
         // Composer may hold a catalog id while the active channel is a custom
         // provider — resolve to the route id Grok Build actually understands.
         // Override home (official aux): pass model id through as catalog id.
-        let spawn_model = if home_override.is_some() {
+        let grok_build_proxy = if home_override.is_none() {
+            crate::providers::active_grok_build_proxy_spawn(opts.model_id.as_deref().unwrap_or(""))
+        } else {
+            None
+        };
+        let spawn_model = if let Some(ref native) = grok_build_proxy {
+            native.model.clone()
+        } else if home_override.is_some() {
             let m = opts.model_id.as_deref().unwrap_or("").trim();
             if m.is_empty() {
                 crate::providers::OFFICIAL_CATALOG_MODEL.to_string()
@@ -1505,6 +1525,9 @@ impl AcpClient {
             }
         }
         cmd.env("GROK_HOME", &grok_home);
+        if let Some(ref native) = grok_build_proxy {
+            apply_grok_build_proxy_env(&mut cmd, native);
+        }
         // Do NOT set GROK_IMAGE_DESCRIPTION_MODEL / GROK_WEB_SEARCH_MODEL on the
         // main agent process: when main is DeepSeek, those envs make CLI send
         // model id `grok-4.5` to the DeepSeek base_url (400). Vision/search/X
@@ -1530,9 +1553,10 @@ impl AcpClient {
             crate::wsl_backend::apply_wslenv(&mut cmd);
         }
         tracing::info!(
-            "acp: spawn home={} mode={} sandbox={:?} max_turns={:?} fork_session={} no_ask_user={} leader={} subagents={} memory={} compaction_mode={} compaction_detail={} compaction_flags={} agent_profile={:?} agents_json={}",
+            "acp: spawn home={} mode={} native_grok_proxy={} sandbox={:?} max_turns={:?} fork_session={} no_ask_user={} leader={} subagents={} memory={} compaction_mode={} compaction_detail={} compaction_flags={} agent_profile={:?} agents_json={}",
             grok_home.display(),
             session_data_mode,
+            grok_build_proxy.is_some(),
             sandbox.as_ref().map(|s| s.profile.as_str()),
             max_turns.as_ref().map(|m| m.turns),
             opts.fork_session,
@@ -4406,6 +4430,60 @@ mod session_update_decode_tests {
     }
 
     #[test]
+    fn native_web_search_tool_lifecycle_keeps_wire_identity_and_payload() {
+        let pending = decode_session_update(&json!({
+            "sessionId": "s-native-search",
+            "update": {
+                "sessionUpdate": "tool_call",
+                "toolCallId": "call-web-1",
+                "status": "pending",
+                "kind": "search",
+                "title": "web_search",
+                "rawInput": { "query": "Grok Build ACP" }
+            }
+        }));
+        let completed = decode_session_update(&json!({
+            "sessionId": "s-native-search",
+            "update": {
+                "sessionUpdate": "tool_call_update",
+                "toolCallId": "call-web-1",
+                "status": "completed",
+                "kind": "search",
+                "title": "web_search",
+                "content": [{ "type": "text", "text": "search result" }]
+            }
+        }));
+
+        assert!(matches!(
+            &pending[..],
+            [AcpEvent::ToolCall {
+                tool_call_id,
+                title,
+                kind,
+                status,
+                raw,
+            }] if tool_call_id == "call-web-1"
+                && title == "web_search"
+                && kind == "search"
+                && status == "pending"
+                && raw.pointer("/rawInput/query").and_then(Value::as_str)
+                    == Some("Grok Build ACP")
+        ));
+        assert!(matches!(
+            &completed[..],
+            [AcpEvent::ToolCall {
+                tool_call_id,
+                status,
+                raw,
+                ..
+            }] if tool_call_id == "call-web-1"
+                && status == "completed"
+                && raw.pointer("/content/0/text").and_then(Value::as_str)
+                    == Some("search result")
+        ));
+    }
+
+    #[test]
     fn hook_execution_decodes_with_runs() {
         let evs = decode_session_update(&json!({
             "update": {
@@ -5680,12 +5758,7 @@ mod prompt_wait_timeout_tests {
         let started = Instant::now();
         let last = started + Duration::from_secs(10);
         let now = last + idle();
-        assert!(prompt_wait_should_timeout(
-            Some(last),
-            started,
-            now,
-            idle()
-        ));
+        assert!(prompt_wait_should_timeout(Some(last), started, now, idle()));
     }
 
     #[test]
@@ -5931,6 +6004,41 @@ mod fork_session_spawn_tests {
         assert!(parse_fork_session_id(&json!({ "sessionId": "parent" }), "parent").is_none());
         assert!(parse_fork_session_id(&json!({ "sessionId": "  " }), "parent").is_none());
         assert!(parse_fork_session_id(&json!({}), "parent").is_none());
+    }
+}
+
+#[cfg(test)]
+mod grok_build_proxy_spawn_tests {
+    use super::*;
+
+    #[test]
+    fn injects_native_proxy_env_only_on_target_command() {
+        let native = crate::providers::GrokBuildProxySpawn {
+            base_url: "https://relay.example/v1".into(),
+            models_url: "https://relay.example/v1/models".into(),
+            api_key: "runtime-only-key".into(),
+            model: "grok-4.6".into(),
+        };
+        let mut cmd = tokio::process::Command::new("grok");
+        apply_grok_build_proxy_env(&mut cmd, &native);
+        let envs = cmd
+            .as_std()
+            .get_envs()
+            .filter_map(|(k, v)| Some((k.to_str()?, v?.to_str()?)))
+            .collect::<std::collections::HashMap<_, _>>();
+        assert_eq!(
+            envs.get("GROK_MODELS_BASE_URL"),
+            Some(&"https://relay.example/v1")
+        );
+        assert_eq!(
+            envs.get("GROK_MODELS_LIST_URL"),
+            Some(&"https://relay.example/v1/models")
+        );
+        assert_eq!(
+            envs.get("GROK_CLI_CHAT_PROXY_BASE_URL"),
+            Some(&"https://relay.example/v1")
+        );
+        assert_eq!(envs.get("XAI_API_KEY"), Some(&"runtime-only-key"));
     }
 }
 

@@ -13,13 +13,19 @@ pub async fn providers_cc_switch_scan(
 /// Import selected CC Switch Grok Build providers into App custom providers.
 #[tauri::command]
 pub async fn providers_cc_switch_import(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
     body: crate::cc_switch_import::CcSwitchImportRequest,
 ) -> Result<crate::cc_switch_import::CcSwitchImportResult, String> {
-    tauri::async_runtime::spawn_blocking(move || {
+    let result = tauri::async_runtime::spawn_blocking(move || {
         crate::cc_switch_import::import_cc_switch_providers(body)
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())??;
+    if result.imported > 0 {
+        mgr.recycle_all_agents(&app, "provider_route").await;
+    }
+    Ok(result)
 }
 
 #[tauri::command]
@@ -114,6 +120,7 @@ pub async fn providers_upsert(
     name: Option<String>,
     api_key: Option<String>,
     api_backend: Option<String>,
+    provider_mode: Option<String>,
     set_as_default: Option<bool>,
     create_only: Option<bool>,
     models: Option<Vec<crate::providers::ProviderModelEntry>>,
@@ -122,6 +129,35 @@ pub async fn providers_upsert(
     base_url_full_path: Option<bool>,
     append_prompt: Option<String>,
 ) -> Result<crate::providers::ProvidersListResult, String> {
+    let normalized_provider_mode = match provider_mode.as_deref() {
+        Some(raw) => crate::providers::normalize_provider_mode(Some(raw)),
+        None => crate::providers::provider_mode_for_id(&id),
+    };
+    if normalized_provider_mode == crate::providers::PROVIDER_MODE_GROK_BUILD_PROXY {
+        if crate::providers::normalize_backend(api_backend.as_deref()) != "responses" {
+            return Err("grok_build_proxy requires api_backend=responses".into());
+        }
+        let normalized_base = crate::providers::normalize_openai_base_url(
+            &base_url,
+            "responses",
+            base_url_full_path.unwrap_or_else(|| {
+                crate::providers::provider_base_url_full_path_for_id(&id)
+            }),
+        );
+        let remote = crate::providers::list_remote_models(
+            normalized_base,
+            api_key.clone(),
+            Some(id.clone()),
+        )
+        .await?;
+        let selected = models.clone().unwrap_or_else(|| {
+            vec![crate::providers::ProviderModelEntry {
+                id: model.clone(),
+                name: model.clone(),
+            }]
+        });
+        crate::providers::validate_grok_build_proxy_models(&remote.models, &selected)?;
+    }
     let set_default_flag = set_as_default.unwrap_or(false);
     let mutated_id = id.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
@@ -133,6 +169,7 @@ pub async fn providers_upsert(
                 name,
                 api_key,
                 api_backend,
+                provider_mode: Some(normalized_provider_mode),
                 set_as_default,
                 create_only,
                 models,
@@ -560,4 +597,3 @@ mod project_inspect_tests {
         assert_eq!(out["error"], "Grok Build CLI not found");
     }
 }
-
