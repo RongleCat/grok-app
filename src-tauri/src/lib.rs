@@ -480,11 +480,23 @@ pub fn run() {
             } else {
                 main_cfg.center = true;
             }
-            // Concrete light|dark for boot shell + window chrome (from AppSettings.theme).
-            let boot_theme = resolve_boot_theme(&store::load_settings().theme);
+            // Concrete light|dark + locale for boot shell + window chrome.
+            let boot_settings = store::load_settings();
+            let boot_theme = resolve_boot_theme(&boot_settings.theme);
+            let boot_locale = tray_i18n::Locale::parse(&boot_settings.locale);
+            let boot_locale_tag = boot_locale.as_tag();
+            let boot_os_lang = tray_i18n::detect_os_lang_tag();
+            let boot_html_lang = match boot_locale_tag {
+                "zh" => "zh-CN",
+                "zh-TW" => "zh-TW",
+                _ => "en",
+            };
             let boot_theme_script = format!(
-                r#"(function(){{try{{Object.defineProperty(window,"__GROK_BOOT_THEME__",{{value:{theme:?},writable:false,configurable:false}});var d=document.documentElement;if(d)d.setAttribute("data-theme",{theme:?});}}catch(e){{}}}})();"#,
-                theme = boot_theme
+                r#"(function(){{try{{Object.defineProperty(window,"__GROK_BOOT_THEME__",{{value:{theme:?},writable:false,configurable:false}});Object.defineProperty(window,"__GROK_BOOT_LOCALE__",{{value:{locale:?},writable:false,configurable:false}});Object.defineProperty(window,"__GROK_BOOT_OS_LANG__",{{value:{os_lang:?},writable:false,configurable:false}});var d=document.documentElement;if(d){{d.setAttribute("data-theme",{theme:?});d.setAttribute("lang",{html_lang:?});}}}}catch(e){{}}}})();"#,
+                theme = boot_theme,
+                locale = boot_locale_tag,
+                os_lang = boot_os_lang,
+                html_lang = boot_html_lang
             );
             let window = tauri::WebviewWindowBuilder::from_config(app, &main_cfg)?
                 .visible(false)

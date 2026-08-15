@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   createT,
   messages,
+  htmlLangForLocale,
+  migrateLegacyLocaleDefault,
   parseLocalePreference,
+  readSystemLangTag,
   resolveLocale,
   resolveLocaleFromSystem,
   resolveLocalePreference,
@@ -128,8 +131,12 @@ describe("parseLocalePreference / resolveLocalePreference", () => {
     expect(parseLocalePreference("zh-cn")).toBe("zh");
     expect(parseLocalePreference("zh-hant")).toBe("zh-TW");
     expect(parseLocalePreference("fr")).toBe("en");
-    expect(parseLocalePreference("")).toBe("en");
-    expect(parseLocalePreference(undefined)).toBe("en");
+  });
+
+  it("treats a missing preference as follow-system", () => {
+    expect(parseLocalePreference("")).toBe("system");
+    expect(parseLocalePreference(undefined)).toBe("system");
+    expect(parseLocalePreference(null)).toBe("system");
   });
 
   it("resolves system preference via an explicit lang tag", () => {
@@ -143,5 +150,28 @@ describe("parseLocalePreference / resolveLocalePreference", () => {
     expect(resolveLocalePreference("zh", "en-US")).toBe("zh");
     expect(resolveLocalePreference("en", "zh-CN")).toBe("en");
     expect(resolveLocalePreference("zh-TW", "en")).toBe("zh-TW");
+  });
+
+  it("lifts the factory English default to follow-system once", () => {
+    expect(migrateLegacyLocaleDefault("en")).toBe("system");
+    expect(migrateLegacyLocaleDefault("EN")).toBe("system");
+    expect(migrateLegacyLocaleDefault("  en  ")).toBe("system");
+    expect(migrateLegacyLocaleDefault("zh")).toBeNull();
+    expect(migrateLegacyLocaleDefault("zh-TW")).toBeNull();
+    expect(migrateLegacyLocaleDefault("system")).toBeNull();
+  });
+
+  it("maps catalog locales to html lang tags", () => {
+    expect(htmlLangForLocale("zh")).toBe("zh-CN");
+    expect(htmlLangForLocale("zh-TW")).toBe("zh-TW");
+    expect(htmlLangForLocale("en")).toBe("en");
+  });
+
+  it("prefers Host boot OS lang over navigator when present", () => {
+    const g = globalThis as { window?: { __GROK_BOOT_OS_LANG__?: string } };
+    const prev = g.window;
+    g.window = { __GROK_BOOT_OS_LANG__: "zh-CN" };
+    expect(readSystemLangTag()).toBe("zh-CN");
+    g.window = prev;
   });
 });

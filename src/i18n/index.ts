@@ -16,6 +16,9 @@ export { isLocale, messages };
 /** User preference: explicit catalog locale or follow OS / browser language. */
 export type LocalePreference = "system" | Locale;
 
+/** Factory / missing-settings preference — follow the OS language. */
+export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "system";
+
 export type Vars = Record<string, string | number | undefined | null>;
 
 function interpolate(template: string, vars?: Vars): string {
@@ -105,17 +108,66 @@ export function isLocalePreference(v: unknown): v is LocalePreference {
 
 /**
  * Parse a durable settings value into a {@link LocalePreference}.
- * Accepts `system`, canonical locales, and common aliases. Invalid → `en`.
+ * Accepts `system`, canonical locales, and common aliases.
+ * Missing / empty → follow system. Unrecognized ids → `en`.
  */
 export function parseLocalePreference(
   raw: string | null | undefined,
 ): LocalePreference {
-  if (raw == null) return "en";
+  if (raw == null) return DEFAULT_LOCALE_PREFERENCE;
   const trimmed = String(raw).trim();
-  if (!trimmed) return "en";
+  if (!trimmed) return DEFAULT_LOCALE_PREFERENCE;
   if (trimmed.toLowerCase() === "system") return "system";
   if (isLocale(trimmed)) return trimmed;
   return normalizeLocale(trimmed) ?? "en";
+}
+
+/**
+ * One-shot lift of the old factory default (`en`) to follow-system.
+ * Explicit `zh` / `zh-TW` / `system` stay. Callers still set the migrated flag.
+ */
+export function migrateLegacyLocaleDefault(
+  stored: string | null | undefined,
+): LocalePreference | null {
+  const trimmed = stored == null ? "" : String(stored).trim();
+  if (!trimmed || trimmed.toLowerCase() === "en") return "system";
+  return null;
+}
+
+/** `<html lang>` for a resolved catalog locale. */
+export function htmlLangForLocale(locale: Locale): string {
+  if (locale === "zh") return "zh-CN";
+  if (locale === "zh-TW") return "zh-TW";
+  return "en";
+}
+
+type BootWindow = {
+  __GROK_BOOT_OS_LANG__?: string;
+  navigator?: { language?: string; languages?: readonly string[] };
+};
+
+/** Host-injected OS tag, else `navigator.languages[0]` / `navigator.language`. */
+export function readSystemLangTag(): string | null {
+  const w =
+    typeof globalThis === "object"
+      ? ((globalThis as { window?: BootWindow }).window ??
+        (globalThis as BootWindow))
+      : undefined;
+  const boot = w?.__GROK_BOOT_OS_LANG__;
+  if (typeof boot === "string" && boot.trim()) return boot.trim();
+  const nav =
+    w?.navigator ??
+    (typeof navigator !== "undefined" ? navigator : undefined);
+  if (nav) {
+    const list = nav.languages;
+    if (Array.isArray(list) && typeof list[0] === "string" && list[0].trim()) {
+      return list[0];
+    }
+    if (typeof nav.language === "string" && nav.language.trim()) {
+      return nav.language;
+    }
+  }
+  return null;
 }
 
 /**
@@ -129,11 +181,7 @@ export function resolveLocalePreference(
 ): Locale {
   if (preference !== "system") return preference;
   const tag =
-    systemLangTag !== undefined
-      ? systemLangTag
-      : typeof navigator !== "undefined"
-        ? navigator.language
-        : null;
+    systemLangTag !== undefined ? systemLangTag : readSystemLangTag();
   return resolveLocaleFromSystem(tag);
 }
 
@@ -142,7 +190,7 @@ export function resolveLocalePreference(
  * `"system"` follows OS / browser language; explicit ids stay as-is.
  */
 export function resolveLocale(raw: string | undefined | null): Locale {
-  if (!raw) return "en";
+  if (!raw) return resolveLocalePreference(DEFAULT_LOCALE_PREFERENCE);
   if (raw.trim().toLowerCase() === "system") {
     return resolveLocalePreference("system");
   }

@@ -344,9 +344,11 @@ import { deriveMirrorClientLinkStatus } from "@/lib/mirrorStatus";
 import {
   createT,
   parseLocalePreference,
+  htmlLangForLocale,
   resolveLocale,
   resolveLocaleFromSystem,
   resolveLocalePreference,
+  DEFAULT_LOCALE_PREFERENCE,
   type Locale,
   type LocalePreference
 } from "@/i18n";
@@ -2280,9 +2282,9 @@ export function AppWorkbench() {
   const clearPendingGatesRef = useRef(clearPendingGates);
   clearPendingGatesRef.current = clearPendingGates;
   const [localePreference, setLocalePreference] =
-    useState<LocalePreference>("en");
+    useState<LocalePreference>(DEFAULT_LOCALE_PREFERENCE);
   const [locale, setLocale] = useState<Locale>(() =>
-    resolveLocalePreference("en"),
+    resolveLocalePreference(DEFAULT_LOCALE_PREFERENCE),
   );
   const localeRef = useRef(locale);
   localeRef.current = locale;
@@ -2911,6 +2913,11 @@ export function AppWorkbench() {
     return () => window.removeEventListener(ZEN_MODE_CHANGE_EVENT, onChange);
   }, [setZenModeEnabled]);
 
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.lang = htmlLangForLocale(locale);
+  }, [locale]);
 
   // Follow OS / browser UI language when preference is "system".
   useEffect(() => {

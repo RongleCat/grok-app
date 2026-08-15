@@ -23,15 +23,12 @@ impl Locale {
         }
     }
 
-    /// Best-effort map of OS language (LANG / LC_ALL / LC_MESSAGES) → catalog.
+    /// Best-effort map of OS UI language → catalog.
     /// Mirrors frontend `resolveLocaleFromSystem` for tray copy when preference
-    /// is `"system"`.
+    /// is `"system"`. Prefers the GUI language (AppleLanguages / Windows UI
+    /// LANGID) over POSIX `LANG=C` which Dock-launched apps often inherit.
     pub fn from_system() -> Self {
-        let tag = std::env::var("LC_ALL")
-            .or_else(|_| std::env::var("LC_MESSAGES"))
-            .or_else(|_| std::env::var("LANG"))
-            .unwrap_or_default();
-        Self::from_lang_tag(&tag)
+        Self::from_lang_tag(&detect_os_lang_tag())
     }
 
     /// Map a BCP-47 / POSIX language tag to a tray locale (pure; testable).
@@ -73,6 +70,137 @@ impl Locale {
             Locale::ZhTw => "zh-TW",
         }
     }
+}
+
+/// Raw OS UI language tag (`zh-CN`, `zh_TW`, `en-US`, …). Empty if unknown.
+pub fn detect_os_lang_tag() -> String {
+    if let Some(tag) = platform_ui_lang_tag() {
+        return tag;
+    }
+    posix_lang_tag().unwrap_or_default()
+}
+
+fn posix_lang_tag() -> Option<String> {
+    for key in ["LC_ALL", "LC_MESSAGES", "LANG"] {
+        if let Ok(v) = std::env::var(key) {
+            let t = v.trim();
+            if !t.is_empty() && !is_c_or_posix_locale(t) {
+                return Some(t.to_string());
+            }
+        }
+    }
+    None
+}
+
+pub fn is_c_or_posix_locale(raw: &str) -> bool {
+    let bare = raw
+        .trim()
+        .split('.')
+        .next()
+        .unwrap_or("")
+        .replace('_', "-")
+        .to_ascii_lowercase();
+    bare == "c" || bare == "posix"
+}
+
+/// First quoted token from `defaults read -g AppleLanguages` output.
+pub fn first_apple_languages_tag(raw: &str) -> Option<String> {
+    let bytes = raw.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let q = bytes[i];
+        if q == b'"' || q == b'\'' {
+            if let Some(end) = raw[i + 1..].find(q as char) {
+                let inner = raw[i + 1..i + 1 + end].trim();
+                if !inner.is_empty() {
+                    return Some(inner.to_string());
+                }
+                i += end + 2;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Map a Windows LANGID (GetUserDefaultUILanguage) to a BCP-47 tag.
+/// Unknown primary languages return `None` so callers can fall through.
+pub fn windows_langid_to_tag(id: u16) -> Option<&'static str> {
+    const LANG_CHINESE: u16 = 0x04;
+    const LANG_ENGLISH: u16 = 0x09;
+    let primary = id & 0x3ff;
+    let sub = id >> 10;
+    match primary {
+        LANG_CHINESE => match sub {
+            1 | 3 | 5 => Some("zh-TW"), // Traditional / HK / MO
+            _ => Some("zh-CN"),
+        },
+        LANG_ENGLISH => Some("en"),
+        _ => None,
+    }
+}
+
+fn platform_ui_lang_tag() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        return macos_ui_lang_tag();
+    }
+    #[cfg(windows)]
+    {
+        return windows_ui_lang_tag();
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
+    {
+        None
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn macos_ui_lang_tag() -> Option<String> {
+    let langs = crate::process_util::command("defaults")
+        .args(["read", "-g", "AppleLanguages"])
+        .output();
+    if let Ok(o) = langs {
+        if o.status.success() {
+            let s = String::from_utf8_lossy(&o.stdout);
+            if let Some(tag) = first_apple_languages_tag(&s) {
+                return Some(tag);
+            }
+        }
+    }
+    let locale = crate::process_util::command("defaults")
+        .args(["read", "-g", "AppleLocale"])
+        .output();
+    if let Ok(o) = locale {
+        if o.status.success() {
+            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if !s.is_empty() {
+                return Some(s);
+            }
+        }
+    }
+    None
+}
+
+#[cfg(windows)]
+fn windows_ui_lang_tag() -> Option<String> {
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetUserDefaultUILanguage() -> u16;
+        fn GetUserDefaultLocaleName(lp_locale_name: *mut u16, cch_locale_name: i32) -> i32;
+    }
+    let id = unsafe { GetUserDefaultUILanguage() };
+    if let Some(tag) = windows_langid_to_tag(id) {
+        return Some(tag.to_string());
+    }
+    const LOCALE_NAME_MAX_LENGTH: usize = 85;
+    let mut buf = [0u16; LOCALE_NAME_MAX_LENGTH];
+    let n = unsafe { GetUserDefaultLocaleName(buf.as_mut_ptr(), buf.len() as i32) };
+    if n > 1 {
+        return String::from_utf16(&buf[..(n as usize - 1)]).ok();
+    }
+    None
 }
 
 /// Current app locale from durable settings.
@@ -189,6 +317,43 @@ mod tests {
         assert_eq!(Locale::parse("zh-TW"), Locale::ZhTw);
         assert_eq!(Locale::parse("zh-Hant"), Locale::ZhTw);
         assert_eq!(strings(Locale::ZhTw).settings, "設定…");
+    }
+
+    #[test]
+    fn first_apple_languages_tag_picks_preferred() {
+        let raw = r#"
+(
+    "zh-Hans-CN",
+    "en-US"
+)
+"#;
+        assert_eq!(
+            first_apple_languages_tag(raw).as_deref(),
+            Some("zh-Hans-CN")
+        );
+        assert_eq!(
+            first_apple_languages_tag(r#"("en-US")"#).as_deref(),
+            Some("en-US")
+        );
+        assert_eq!(first_apple_languages_tag(""), None);
+    }
+
+    #[test]
+    fn c_and_posix_locales_are_ignored() {
+        assert!(is_c_or_posix_locale("C"));
+        assert!(is_c_or_posix_locale("POSIX"));
+        assert!(is_c_or_posix_locale("C.UTF-8"));
+        assert!(!is_c_or_posix_locale("zh_CN.UTF-8"));
+        assert!(!is_c_or_posix_locale("en_US"));
+    }
+
+    #[test]
+    fn windows_langid_maps_chinese_ui() {
+        assert_eq!(windows_langid_to_tag(0x0804), Some("zh-CN"));
+        assert_eq!(windows_langid_to_tag(0x0404), Some("zh-TW"));
+        assert_eq!(windows_langid_to_tag(0x0C04), Some("zh-TW"));
+        assert_eq!(windows_langid_to_tag(0x0409), Some("en"));
+        assert_eq!(windows_langid_to_tag(0x0411), None); // Japanese — fall through
     }
 
     #[test]

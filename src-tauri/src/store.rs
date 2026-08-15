@@ -189,7 +189,12 @@ pub struct SessionMeta {
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub theme: String,
+    #[serde(default = "default_locale")]
     pub locale: String,
+    /// One-shot: factory locale `en` → `system` so first-run follows OS language.
+    /// Missing field deserializes as false so existing installs migrate once.
+    #[serde(default)]
+    pub locale_follow_system_migrated: bool,
     pub session_data_mode: String,
     pub manual_cli_path: Option<String>,
     /// CLI launch backend: `native` (default) or `wsl` (Windows only — spawn via `wsl.exe`).
@@ -558,12 +563,17 @@ fn default_todo_gate_max_fires() -> u32 {
     crate::agent_todo_gate::DEFAULT_TODO_GATE_MAX_FIRES
 }
 
+fn default_locale() -> String {
+    "system".into()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             theme: "system".into(),
-            // Product default is English; users can switch to zh / zh-TW in Settings.
-            locale: "en".into(),
+            // Follow OS language (zh / zh-TW / en). Users can lock a catalog in Settings.
+            locale: default_locale(),
+            locale_follow_system_migrated: true,
             // Product default: share GROK_HOME (~/.grok) with terminal Grok Build CLI.
             // Existing installs keep whatever is already persisted in settings.json.
             session_data_mode: "shared".into(),
@@ -855,6 +865,21 @@ pub fn load_settings() -> AppSettings {
         s.official_effort_xhigh_rows_migrated = true;
         let _ = write_json(&settings_file(), &s);
     }
+    // One-time: factory UI locale `en` → `system` so Chinese (and other)
+    // OS languages apply on first launch / existing installs that never
+    // locked a language. Explicit zh / zh-TW / system stay.
+    if !s.locale_follow_system_migrated {
+        if let Some(next) = migrate_legacy_locale_default(Some(s.locale.as_str())) {
+            tracing::info!(
+                "settings migration: locale {:?} → {} (follow OS language)",
+                s.locale,
+                next
+            );
+            s.locale = next;
+        }
+        s.locale_follow_system_migrated = true;
+        let _ = write_json(&settings_file(), &s);
+    }
     // One-time: product workflows default off → on (CLI ≥0.2.111 / 1.0).
     // Only lifts false → true once; users who turn it off again stay off.
     if !s.workflows_default_migrated {
@@ -894,6 +919,16 @@ pub fn migrate_legacy_official_model_default(stored: Option<&str>) -> Option<Str
     match stored.map(str::trim).filter(|s| !s.is_empty()) {
         None => Some(DEFAULT_OFFICIAL_MODEL_ID.into()),
         Some("grok-4.5") => Some(DEFAULT_OFFICIAL_MODEL_ID.into()),
+        Some(_) => None,
+    }
+}
+
+/// One-shot: lift the old factory locale `"en"` (or empty) to `"system"`.
+/// Explicit `zh` / `zh-TW` / `system` / other catalog ids stay.
+pub fn migrate_legacy_locale_default(stored: Option<&str>) -> Option<String> {
+    match stored.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Some("system".into()),
+        Some(v) if v.eq_ignore_ascii_case("en") => Some("system".into()),
         Some(_) => None,
     }
 }
@@ -2771,7 +2806,8 @@ mod tests {
         assert_eq!(s.session_data_mode, "shared");
         assert_eq!(s.permission_policy, "ask");
         assert_eq!(s.theme, "system");
-        assert_eq!(s.locale, "en");
+        assert_eq!(s.locale, "system");
+        assert!(s.locale_follow_system_migrated);
         assert_eq!(s.max_concurrent_agents, 8);
         assert_eq!(s.agent_idle_minutes, 30);
         assert_eq!(s.stream_stall_seconds, 600);
@@ -2895,6 +2931,36 @@ mod tests {
         assert_eq!(clamp_effort_for_model("grok-4.5", "xhigh"), "high");
         assert_eq!(clamp_effort_for_model("grok-4.6", "xhigh"), "xhigh");
         assert_eq!(clamp_effort_for_model("custom-relay", "xhigh"), "xhigh");
+    }
+
+    #[test]
+    fn migrate_legacy_locale_en_to_system() {
+        assert_eq!(
+            migrate_legacy_locale_default(Some("en")).as_deref(),
+            Some("system")
+        );
+        assert_eq!(
+            migrate_legacy_locale_default(Some("EN")).as_deref(),
+            Some("system")
+        );
+        assert_eq!(migrate_legacy_locale_default(Some("zh")), None);
+        assert_eq!(migrate_legacy_locale_default(Some("zh-TW")), None);
+        assert_eq!(migrate_legacy_locale_default(Some("system")), None);
+        assert_eq!(
+            migrate_legacy_locale_default(Some("")).as_deref(),
+            Some("system")
+        );
+        assert_eq!(
+            migrate_legacy_locale_default(None).as_deref(),
+            Some("system")
+        );
+    }
+
+    #[test]
+    fn legacy_json_locale_en_is_unmigrated() {
+        let s: AppSettings = serde_json::from_str(legacy_settings_json()).expect("deserialize");
+        assert_eq!(s.locale, "en");
+        assert!(!s.locale_follow_system_migrated);
     }
 
     #[test]

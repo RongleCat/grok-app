@@ -12,9 +12,11 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Fixed
+- **Follow system language on first launch**: New installs default `settings.locale` to **System**. Host reads macOS AppleLanguages / Windows UI language (not just `LANG=C`), so a Chinese OS opens in 简体/繁體. Existing installs that still have the factory `en` lift once to System (explicit 简体/繁體 stays). Boot splash and tray follow the same probe.
 - **English token units (#613)**: Context-window chip, composer model menu, phone tools sheet, heatmap, and account call-log counts use **K / M / B** when locale is `en` (e.g. `500K`, `1M`) instead of Chinese 百/千/万. zh / zh-TW still use 万·萬 / 亿·億.
 
 **中文 · 修复**
+- **首次安装跟随系统语言**：新安装默认「跟随系统」。Host 读取 macOS AppleLanguages / Windows 界面语言（不再只看经常为空的 `LANG`），中文系统会直接进入简体/繁体。旧安装里仍是出厂 `en` 的一次性改成跟随系统（用户已选的中文不变）。启动页与托盘同一套探测。
 - **英文 Token 单位 (#613)**：界面语言为英文时，上下文芯片、模型菜单、热力图与通话记录显示 **K / M / B**，不再混用「万 / 千 / 百」。简体/繁体仍用中文计数单位。
 
 ## [0.2.18] - 2026-08-14

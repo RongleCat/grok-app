@@ -217,7 +217,7 @@
       }
     </style>
     <script>
-      // Apply Host-injected theme as early as possible (inline, before paint).
+      // Apply Host-injected theme + locale as early as possible (inline, before paint).
       (function () {
         try {
           var t = window.__GROK_BOOT_THEME__;
@@ -229,6 +229,48 @@
                 : "dark";
           }
           document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {
+          /* ignore */
+        }
+        try {
+          var loc = window.__GROK_BOOT_LOCALE__;
+          if (loc !== "zh" && loc !== "zh-TW" && loc !== "en") {
+            var nav = String(
+              (navigator.languages && navigator.languages[0]) ||
+                navigator.language ||
+                "",
+            ).toLowerCase();
+            if (
+              nav.indexOf("zh") === 0 &&
+              (nav.indexOf("tw") >= 0 ||
+                nav.indexOf("hk") >= 0 ||
+                nav.indexOf("hant") >= 0 ||
+                nav.indexOf("mo") >= 0)
+            ) {
+              loc = "zh-TW";
+            } else if (nav.indexOf("zh") === 0) {
+              loc = "zh";
+            } else {
+              loc = "en";
+            }
+          }
+          var htmlLang =
+            loc === "zh" ? "zh-CN" : loc === "zh-TW" ? "zh-TW" : "en";
+          document.documentElement.setAttribute("lang", htmlLang);
+          var copy =
+            loc === "zh-TW"
+              ? { title: "歡迎使用 Grok", sub: "正在偵測 Grok Build…" }
+              : loc === "en"
+                ? { title: "Welcome to Grok", sub: "Checking Grok Build…" }
+                : { title: "欢迎使用 Grok", sub: "正在检测 Grok Build…" };
+          var applyCopy = function () {
+            var titleEl = document.querySelector(".boot-title");
+            var subEl = document.querySelector(".boot-subtitle");
+            if (titleEl) titleEl.textContent = copy.title;
+            if (subEl) subEl.textContent = copy.sub;
+          };
+          if (document.querySelector(".boot-title")) applyCopy();
+          else document.addEventListener("DOMContentLoaded", applyCopy);
         } catch (e) {
           /* ignore */
         }
