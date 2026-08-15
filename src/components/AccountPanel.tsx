@@ -11,8 +11,8 @@ import type { AccountStatus, SavedAccount } from "@/lib/api";
 import {
   accountDisplayName,
   accountInitials,
-  formatChineseCount,
   formatCompactNumber,
+  formatLocaleCount,
   formatDuration,
   formatQuotaResetTime,
   formatRelativeTime,
@@ -320,7 +320,7 @@ export function AccountPanel({
     () => summarizeHeatmapStats(heatDays, status?.callLogs),
     [heatDays, status?.callLogs],
   );
-  const locCount = locale === "zh-TW" ? "zh-TW" : "zh";
+  const locCount = locale;
   const statDays = (n: number | null) =>
     n == null
       ? "—"
@@ -988,7 +988,7 @@ export function AccountPanel({
                   }
                 >
                   <span className="account-heat-stat__value">
-                    {formatChineseCount(heatStats.totalTokens, locCount)}
+                    {formatLocaleCount(heatStats.totalTokens, locCount)}
                   </span>
                   <span className="account-heat-stat__label">
                     {t("account.heatmap.stat.total")}
@@ -999,7 +999,7 @@ export function AccountPanel({
                   title={heatStats.peakDate ?? undefined}
                 >
                   <span className="account-heat-stat__value">
-                    {formatChineseCount(heatStats.peakTokens, locCount)}
+                    {formatLocaleCount(heatStats.peakTokens, locCount)}
                   </span>
                   <span className="account-heat-stat__label">
                     {t("account.heatmap.stat.peak")}
@@ -1127,14 +1127,14 @@ export function AccountPanel({
                         {row.usageTokens != null && row.usageTokens > 0
                           ? formatCompactNumber(
                               row.usageTokens,
-                              locale === "zh-TW" ? "zh-TW" : "zh",
+                              locale,
                             )
                           : "—"}
                       </span>
                       <span>
                         {formatCompactNumber(
                           row.contextTokens,
-                          locale === "zh-TW" ? "zh-TW" : "zh",
+                          locale,
                         )}
                       </span>
                       <span>{formatDuration(row.durationSecs)}</span>

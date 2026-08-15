@@ -20506,6 +20506,7 @@ export function AppWorkbench() {
                       </Tip>
                     ) : null}
                     <ComposerModelMenu
+                      locale={locale}
                       modelId={modelId}
                       effort={effort}
                       models={availableModels}
@@ -20823,6 +20824,7 @@ export function AppWorkbench() {
       {phoneLayout ? (
         <>
           <PhoneComposerToolsSheet
+            locale={locale}
             open={phoneToolsOpen}
             onClose={() => setPhoneToolsOpen(false)}
             labels={{

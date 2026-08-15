@@ -1,6 +1,8 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
   formatChineseCount,
+  formatCompactNumber,
+  formatLocaleCount,
   formatMessageTime,
   formatQuotaResetTime,
   formatRelativeTime,
@@ -217,8 +219,28 @@ describe("formatChineseCount", () => {
     expect(formatChineseCount(100_000_000, "zh-TW")).toBe("1億");
   });
 
+  it("stays on Chinese units even when locale is en", () => {
+    expect(formatChineseCount(12_500, "en")).toBe("1.3万");
+  });
+
   it("handles null / non-finite", () => {
     expect(formatChineseCount(null)).toBe("—");
     expect(formatChineseCount(Number.NaN)).toBe("—");
+  });
+});
+
+describe("formatLocaleCount / formatCompactNumber", () => {
+  it("uses K/M/B when locale is English", () => {
+    expect(formatLocaleCount(300, "en")).toBe("300");
+    expect(formatLocaleCount(12_500, "en")).toBe("12.5K");
+    expect(formatLocaleCount(500_000, "en")).toBe("500K");
+    expect(formatLocaleCount(1_000_000, "en")).toBe("1M");
+    expect(formatCompactNumber(12_500, "en")).toBe("12.5K");
+  });
+
+  it("keeps Chinese units for zh / zh-TW", () => {
+    expect(formatLocaleCount(12_500, "zh")).toBe("1.3万");
+    expect(formatLocaleCount(12_500, "zh-TW")).toBe("1.3萬");
+    expect(formatCompactNumber(12_500, "zh")).toBe("1.3万");
   });
 });

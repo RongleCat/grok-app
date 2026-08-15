@@ -6,6 +6,10 @@ import type {
   BillingSnapshot,
 } from "./api";
 import type { SuperGrokBrandKind } from "@/components/SuperGrokMark";
+import {
+  formatEnglishCompactCount,
+  usesChineseCountUnits,
+} from "./formatCompactCount";
 
 export function accountDisplayName(
   profile: AccountProfile,
@@ -192,14 +196,13 @@ export function usagePercent(billing: BillingSnapshot): number | null {
 
 /**
  * Compact counts for account / heatmap / call logs.
- * Always Chinese units (千 / 万 / 亿) — never English k/M.
- * Pass locale for 萬/億 (zh-TW) vs 万/亿.
+ * zh / zh-TW: 千 / 万·萬 / 亿·億. Other locales (incl. en): K / M / B.
  */
 export function formatCompactNumber(
   n: number | null | undefined,
   locale: string = "zh",
 ): string {
-  return formatChineseCount(n, locale);
+  return formatLocaleCount(n, locale);
 }
 
 /** Strip trailing `.0` from one-decimal compact forms (`1.0万` → `1万`). */
@@ -245,11 +248,15 @@ export function formatChineseCount(
   return `${sign}${abs.toFixed(1)}`;
 }
 
-/** Locale-aware compact number (Chinese units for all locales in this product). */
+/** Locale-aware compact number: K/M/B for en, 百/千/万 for zh. */
 export function formatLocaleCount(
   n: number | null | undefined,
   locale: string = "zh",
 ): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  if (!usesChineseCountUnits(locale)) {
+    return formatEnglishCompactCount(n);
+  }
   return formatChineseCount(n, locale);
 }
 

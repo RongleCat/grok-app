@@ -24,6 +24,12 @@
  * - Zero estimated role buckets render as "—" (not "~0").
  */
 
+import {
+  formatEnglishCompactCount,
+  trimTrailingDotZero,
+  usesChineseCountUnits,
+} from "./formatCompactCount";
+
 export type ContextUsageSource = "known" | "estimated" | "unknown";
 
 export interface LastCompactSummary {
@@ -713,19 +719,18 @@ export function mergeKnownBucketsIntoBreakdown(
   };
 }
 
-/** Strip trailing `.0` from one-decimal forms (`1.0万` → `1万`). */
-function trimTrailingDotZero(s: string): string {
-  return s.endsWith(".0") ? s.slice(0, -2) : s;
-}
-
 /**
- * Compact token display — Chinese units only (百 / 千 / 万·萬 / 亿·億).
- * Never English k/M. Pass locale for 萬/億 (zh-TW) vs 万/亿.
- * Example: 500 → 5百 · 1500 → 1.5千 · 12500 → 1.3万 · 1e6 → 100万
+ * Compact token display.
+ * zh / zh-TW: 百 / 千 / 万·萬 / 亿·億. Other locales (incl. en): K / M / B.
+ * Example zh: 500 → 5百 · 1500 → 1.5千 · 12500 → 1.3万
+ * Example en: 300 → 300 · 5000 → 5K · 500000 → 500K · 1e6 → 1M
  */
 export function formatTokenCount(n: number, locale: string = "zh"): string {
   if (!Number.isFinite(n) || n < 0) return "—";
   const whole = Math.round(n);
+  if (!usesChineseCountUnits(locale)) {
+    return formatEnglishCompactCount(whole);
+  }
   const isTw =
     locale === "zh-TW" ||
     locale.toLowerCase() === "zh-hant" ||
@@ -960,7 +965,7 @@ export function cacheHitRate(usage: KnownUsageBreakdown | null): {
 
 /**
  * Resolve what the chip should show from reducer state + live messages.
- * `locale` selects 万/亿 vs 萬/億 (and 百/千) for the chip label.
+ * `locale` selects English K/M/B vs 万/亿 vs 萬/億 for the chip label.
  * `windowSize` is the effective context window (tokens) for the "% used" row;
  * null hides the percent row.
  */

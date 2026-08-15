@@ -234,6 +234,8 @@ export interface ComposerModelMenuProps {
     contextWindowSave: string;
     contextWindowOfficialHint: string;
   };
+  /** Resolved UI locale — token window uses K/M (en) vs 万/千 (zh). */
+  locale?: string;
   /** Effective context window (tokens) for the active route. */
   contextWindow?: number | null;
   /** True for custom routes (editable); false for official (read-only). */
@@ -292,6 +294,7 @@ export function ComposerModelMenu({
   onModel,
   onEffort,
   applyNotes,
+  locale = "en",
   contextWindow = null,
   contextWindowEditable = false,
   onContextWindow,
@@ -470,7 +473,7 @@ export function ComposerModelMenu({
             <span>{labels.contextWindow}</span>
             <span className="cmm__row-val">
               <span className="cmm__row-val-text">
-                {contextWindow ? formatTokenCount(contextWindow) : "—"}
+                {contextWindow ? formatTokenCount(contextWindow, locale) : "—"}
               </span>
               <IconChevronRight size={14} />
             </span>
@@ -644,7 +647,7 @@ export function ComposerModelMenu({
                 <span className="cmm__opt-main">
                   <span className="cmm__opt-title">
                     {contextWindow
-                      ? formatTokenCount(contextWindow)
+                      ? formatTokenCount(contextWindow, locale)
                       : "—"}
                   </span>
                   <span className="cmm__opt-desc">

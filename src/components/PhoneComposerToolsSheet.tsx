@@ -123,6 +123,8 @@ export type PhoneComposerToolsSheetProps = {
   mode: string;
   policy: string;
   contextDisplay: ContextUsageDisplay;
+  /** Resolved UI locale — fallback token counts use K/M (en) vs 万/千 (zh). */
+  locale?: string;
   onAttach: () => void;
   onSelectProject: (project: PhoneProjectOption | null) => void;
   onAddProject: () => void;
@@ -226,6 +228,7 @@ export function PhoneComposerToolsSheet({
   mode,
   policy,
   contextDisplay,
+  locale = "en",
   onAttach,
   onSelectProject,
   onAddProject,
@@ -315,11 +318,11 @@ export function PhoneComposerToolsSheet({
 
   if (!open || typeof document === "undefined") return null;
 
-  // Prefer pre-resolved chip label (already locale-aware Chinese units).
+  // Prefer pre-resolved chip label (already locale-aware units).
   const contextValue =
     contextDisplay.tokens != null
       ? contextDisplay.label.replace(/^~/, "") ||
-        formatTokenCount(contextDisplay.tokens)
+        formatTokenCount(contextDisplay.tokens, locale)
       : labels.contextUnknown;
 
   const headerTitle =
@@ -615,7 +618,7 @@ export function PhoneComposerToolsSheet({
                   <div className="phone-sheet__info-row">
                     <span>{labels.contextWindow}</span>
                     <strong className="phone-sheet__nums">
-                      {formatTokenCount(contextDisplay.windowSize)}
+                      {formatTokenCount(contextDisplay.windowSize, locale)}
                     </strong>
                   </div>
                 ) : null}
@@ -661,7 +664,7 @@ export function PhoneComposerToolsSheet({
                         >
                           <span>{lab}</span>
                           <strong className="phone-sheet__nums">
-                            ~{formatTokenCount(tokens)}
+                            ~{formatTokenCount(tokens, locale)}
                           </strong>
                         </div>
                       );

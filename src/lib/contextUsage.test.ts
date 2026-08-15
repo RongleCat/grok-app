@@ -62,6 +62,16 @@ describe("formatTokenCount", () => {
     expect(formatTokenCount(100_000_000, "zh-TW")).toBe("1億");
     expect(formatTokenCount(1_000_000, "zh-TW")).toBe("100萬");
   });
+
+  it("uses K/M/B for English (and other non-zh) locales", () => {
+    expect(formatTokenCount(300, "en")).toBe("300");
+    expect(formatTokenCount(5_000, "en")).toBe("5K");
+    expect(formatTokenCount(12_400, "en")).toBe("12.4K");
+    expect(formatTokenCount(500_000, "en")).toBe("500K");
+    expect(formatTokenCount(1_000_000, "en")).toBe("1M");
+    expect(formatTokenCount(1_500_000, "en-US")).toBe("1.5M");
+    expect(formatTokenCount(2_000_000_000, "en")).toBe("2B");
+  });
 });
 
 describe("formatContextChipLabel", () => {
@@ -70,6 +80,8 @@ describe("formatContextChipLabel", () => {
     expect(formatContextChipLabel(1200, "known")).toBe("1.2千");
     expect(formatContextChipLabel(1200, "estimated")).toBe("~1.2千");
     expect(formatContextChipLabel(12_000, "known", "zh-TW")).toBe("1.2萬");
+    expect(formatContextChipLabel(500_000, "known", "en")).toBe("500K");
+    expect(formatContextChipLabel(1200, "estimated", "en")).toBe("~1.2K");
   });
 });
 
@@ -748,7 +760,7 @@ describe("compact presets", () => {
         locale: "en",
         template: "{before} → {after}",
       }),
-    ).toBe("~1.2万 → ~4千");
+    ).toBe("~12K → ~4K");
     expect(
       formatCompactBeforeAfterRange(10_000, null, {
         beforeEstimated: false,

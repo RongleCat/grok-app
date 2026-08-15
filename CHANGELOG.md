@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- **English token units (#613)**: Context-window chip, composer model menu, phone tools sheet, heatmap, and account call-log counts use **K / M / B** when locale is `en` (e.g. `500K`, `1M`) instead of Chinese 百/千/万. zh / zh-TW still use 万·萬 / 亿·億.
+
+**中文 · 修复**
+- **英文 Token 单位 (#613)**：界面语言为英文时，上下文芯片、模型菜单、热力图与通话记录显示 **K / M / B**，不再混用「万 / 千 / 百」。简体/繁体仍用中文计数单位。
+
 ## [0.2.18] - 2026-08-14
 
 > **Highlight:** TUI-parity Usage limit (`/usage`, `/cost`) with this-session spend plus heatmap Tokens / Cumulative stats; long image and tool turns no longer die at 4 hours; Windows Settings Agent tab no longer flashes a black console; chat image cards survive remount.
