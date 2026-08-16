@@ -15,11 +15,13 @@ See `docs/llm-wiki/release.md`.
 - **User menu lists every saved official account (#621)**: Each row shows honest SuperGrok remaining % (never invents 0% / 100% on a failed probe). Click another account to `account_switch`; click the active row for Settings → Account. Custom-provider / signed-out cards stay as they are.
 - **Local session API (list + continue, #626 first slice)**: Other apps on this machine can list Grok App chats and continue one by session id + prompt. Loopback HTTP (`GET /v1/sessions`, `POST /v1/sessions/{id}/turns`) is token-gated; CLI `--sessions` / `--session-send` talks to the same Host path and does not steal window focus. List can read the on-disk index when the app is quit; sending requires the app (or tray) and never interrupts a running turn. Settings → Runtime → Connection shows status and the token-file location (never the token).
 - **External follow-ups join the composer queue while a turn is running**: If that chat is mid-turn (drawing, tools, streaming), `POST /v1/sessions/{id}/turns` returns `queued` (HTTP 202) and the prompt appears on the same follow-up strip above the composer. It sends when the turn ends. The current turn is not interrupted.
+- **Install a `grok-app` terminal command from Settings**: Runtime → Connection → Session API can symlink (or write a Windows `.cmd` shim) to `~/.local/bin/grok-app` pointing at the running binary. No sudo, no shell-rc edits, will not overwrite a foreign file. New terminals still need `~/.local/bin` on `PATH`.
 
 **中文 · 新增**
 - **头像菜单列出全部已保存官方账号（#621）**：每行显示诚实的 SuperGrok 剩余 %（探测失败不编造 0% / 100%）。点其他号走 `account_switch`；点当前号仍进设置 → 账户。自定义提供商 / 未登录卡片不变。
 - **本机会话接口（列表 + 续跑，#626 第一刀）**：同一台机器上的其他应用可以列出 Grok App 会话，再用会话 ID + 提示词续跑同一条。回环 HTTP（`GET /v1/sessions`、`POST /v1/sessions/{id}/turns`）用令牌鉴权；CLI `--sessions` / `--session-send` 走同一条 Host 路径，不会抢窗口焦点。列表在应用退出后仍可读磁盘索引；发送需要应用（或托盘）在跑，且不会打断正在进行的一轮。设置 → 运行时 → 连接 显示状态和令牌文件位置（不展示令牌）。
 - **会话正忙时外部跟进入输入框上方的队列**：该会话正在跑一轮（绘画、工具、流式）时，`POST /v1/sessions/{id}/turns` 回 `queued`（HTTP 202），提示词出现在同一条跟进队列条上，本轮结束后再发。当前轮不会被打断。
+- **设置里可安装 `grok-app` 终端命令**：运行时 → 连接 → 会话接口会把用户级命令装到 `~/.local/bin/grok-app`（Unix 符号链接 / Windows `.cmd`），指向当前正在跑的二进制。不需要 sudo，不改 shell 启动脚本，也不会覆盖别人的同名文件。新终端仍需把 `~/.local/bin` 放进 `PATH`。
 
 ### Changed
 - **README Gatekeeper copy**: Official Releases from v0.2.19 are Developer ID signed and Apple-notarized. The `xattr` workaround stays for forks / older unsigned builds.

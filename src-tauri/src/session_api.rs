@@ -165,6 +165,201 @@ pub struct SessionApiStatus {
     pub listening: bool,
     pub url: Option<String>,
     pub token_file: String,
+    pub cli: SessionApiCliLink,
+}
+
+/// User-level `grok-app` command (`~/.local/bin`, no sudo, never edits the shell rc).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionApiCliLink {
+    pub supported: bool,
+    pub installed: bool,
+    /// True when the file is our symlink (Unix) or marked shim (Windows).
+    pub ours: bool,
+    pub matches_running: bool,
+    pub link_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_path: Option<String>,
+    pub desired_target: String,
+}
+
+const WIN_SHIM_MARKER: &str = "grok-app session-api shim (managed by Grok App)";
+
+pub fn cli_link_name() -> &'static str {
+    #[cfg(windows)]
+    {
+        "grok-app.cmd"
+    }
+    #[cfg(not(windows))]
+    {
+        "grok-app"
+    }
+}
+
+pub fn cli_link_path_in(home: &std::path::Path) -> PathBuf {
+    home.join(".local").join("bin").join(cli_link_name())
+}
+
+pub fn cli_link_path() -> PathBuf {
+    cli_link_path_in(&crate::process_util::user_home())
+}
+
+pub fn desired_cli_target() -> Result<PathBuf, String> {
+    let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
+    Ok(exe.canonicalize().unwrap_or(exe))
+}
+
+fn paths_match(a: &std::path::Path, b: &std::path::Path) -> bool {
+    let ca = a.canonicalize().unwrap_or_else(|_| a.to_path_buf());
+    let cb = b.canonicalize().unwrap_or_else(|_| b.to_path_buf());
+    ca == cb
+}
+
+fn is_windows_shim(contents: &str) -> bool {
+    contents.contains(WIN_SHIM_MARKER)
+}
+
+fn parse_windows_shim_target(contents: &str) -> Option<PathBuf> {
+    if !is_windows_shim(contents) {
+        return None;
+    }
+    contents.lines().find_map(|line| {
+        let t = line.trim();
+        if !t.starts_with('"') {
+            return None;
+        }
+        let rest = &t[1..];
+        let end = rest.find('"')?;
+        let p = rest[..end].trim();
+        if p.is_empty() {
+            None
+        } else {
+            Some(PathBuf::from(p))
+        }
+    })
+}
+
+pub fn render_windows_shim(target: &std::path::Path) -> String {
+    format!(
+        "@echo off\r\nREM {WIN_SHIM_MARKER}\r\n\"{}\" %*\r\n",
+        target.display()
+    )
+}
+
+fn link_is_ours(path: &std::path::Path) -> bool {
+    if !path.exists() && path.symlink_metadata().is_err() {
+        return false;
+    }
+    #[cfg(unix)]
+    {
+        path.symlink_metadata()
+            .map(|m| m.file_type().is_symlink())
+            .unwrap_or(false)
+    }
+    #[cfg(windows)]
+    {
+        fs::read_to_string(path)
+            .ok()
+            .is_some_and(|s| is_windows_shim(&s))
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        false
+    }
+}
+
+fn read_link_target(path: &std::path::Path) -> Option<PathBuf> {
+    #[cfg(unix)]
+    {
+        fs::read_link(path).ok()
+    }
+    #[cfg(windows)]
+    {
+        fs::read_to_string(path)
+            .ok()
+            .as_deref()
+            .and_then(parse_windows_shim_target)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = path;
+        None
+    }
+}
+
+pub fn inspect_cli_link(link: &std::path::Path, desired: &std::path::Path) -> SessionApiCliLink {
+    let meta = link.symlink_metadata().ok();
+    let present = meta.is_some();
+    let ours = present && link_is_ours(link);
+    let target = if present {
+        read_link_target(link)
+    } else {
+        None
+    };
+    let matches_running = ours && target.as_ref().is_some_and(|t| paths_match(t, desired));
+    SessionApiCliLink {
+        supported: cfg!(any(unix, windows)),
+        installed: present,
+        ours,
+        matches_running,
+        link_path: link.display().to_string(),
+        target_path: target.map(|p| p.display().to_string()),
+        desired_target: desired.display().to_string(),
+    }
+}
+
+pub fn install_cli_link_at(
+    link: &std::path::Path,
+    desired: &std::path::Path,
+) -> Result<(), String> {
+    if !cfg!(any(unix, windows)) {
+        return Err("installing a user command is not supported on this platform".into());
+    }
+    if !desired.exists() {
+        return Err(format!("running binary not found: {}", desired.display()));
+    }
+    if let Some(parent) = link.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("create {}: {e}", parent.display()))?;
+    }
+    let present = link.symlink_metadata().is_ok();
+    if present && !link_is_ours(link) {
+        return Err(format!(
+            "refusing to overwrite existing file: {}",
+            link.display()
+        ));
+    }
+    if present {
+        fs::remove_file(link).map_err(|e| format!("replace {}: {e}", link.display()))?;
+    }
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(desired, link)
+            .map_err(|e| format!("symlink {}: {e}", link.display()))?;
+    }
+    #[cfg(windows)]
+    {
+        fs::write(link, render_windows_shim(desired))
+            .map_err(|e| format!("write {}: {e}", link.display()))?;
+    }
+    Ok(())
+}
+
+pub fn remove_cli_link_at(link: &std::path::Path) -> Result<(), String> {
+    if link.symlink_metadata().is_err() {
+        return Ok(());
+    }
+    if !link_is_ours(link) {
+        return Err(format!(
+            "refusing to remove a file we did not install: {}",
+            link.display()
+        ));
+    }
+    fs::remove_file(link).map_err(|e| format!("remove {}: {e}", link.display()))
+}
+
+fn cli_link_status() -> SessionApiCliLink {
+    let desired = desired_cli_target().unwrap_or_default();
+    inspect_cli_link(&cli_link_path(), &desired)
 }
 
 pub struct SessionApiHandle {
@@ -660,6 +855,7 @@ pub fn status(app: Option<&AppHandle>) -> SessionApiStatus {
         listening,
         url: file.map(|f| f.url),
         token_file: endpoint_path().display().to_string(),
+        cli: cli_link_status(),
     }
 }
 
@@ -673,6 +869,44 @@ pub async fn session_api_reveal_token_file() -> Result<String, String> {
     let path = endpoint_path();
     if !path.is_file() {
         return Err("session API is not listening — start Grok App first".into());
+    }
+    let shown = path.display().to_string();
+    let pb = path.clone();
+    tokio::task::spawn_blocking(move || crate::process_util::reveal_in_file_manager(&pb))
+        .await
+        .map_err(|e| e.to_string())??;
+    Ok(shown)
+}
+
+#[tauri::command]
+pub fn session_api_install_cli(app: AppHandle) -> Result<SessionApiStatus, String> {
+    let desired = desired_cli_target()?;
+    install_cli_link_at(&cli_link_path(), &desired)?;
+    Ok(status(Some(&app)))
+}
+
+#[tauri::command]
+pub fn session_api_remove_cli(app: AppHandle) -> Result<SessionApiStatus, String> {
+    remove_cli_link_at(&cli_link_path())?;
+    Ok(status(Some(&app)))
+}
+
+#[tauri::command]
+pub async fn session_api_reveal_cli_link() -> Result<String, String> {
+    let path = cli_link_path();
+    if path.symlink_metadata().is_err() {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            let parent = parent.to_path_buf();
+            let shown = parent.display().to_string();
+            tokio::task::spawn_blocking(move || {
+                crate::process_util::reveal_in_file_manager(&parent)
+            })
+            .await
+            .map_err(|e| e.to_string())??;
+            return Ok(shown);
+        }
+        return Err("command file is not installed".into());
     }
     let shown = path.display().to_string();
     let pb = path.clone();
@@ -894,6 +1128,65 @@ mod tests {
             TurnStatus::NotFound
         );
         assert_eq!(classify_send_error("boom"), TurnStatus::Error);
+    }
+
+    #[test]
+    fn cli_link_install_update_and_refuse_foreign() {
+        let home = std::env::temp_dir().join(format!("grok-cli-link-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&home).unwrap();
+        struct Cleanup(PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = fs::remove_dir_all(&self.0);
+            }
+        }
+        let _cleanup = Cleanup(home.clone());
+        let home = home.as_path();
+        let bin_dir = home.join("app");
+        fs::create_dir_all(&bin_dir).unwrap();
+        let bin = bin_dir.join("Grok");
+        fs::write(&bin, b"fake-bin").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut p = fs::metadata(&bin).unwrap().permissions();
+            p.set_mode(0o755);
+            fs::set_permissions(&bin, p).unwrap();
+        }
+        let link = cli_link_path_in(home);
+        assert_eq!(link.file_name().unwrap(), cli_link_name());
+        let missing = inspect_cli_link(&link, &bin);
+        assert!(!missing.installed);
+        assert!(!missing.ours);
+        install_cli_link_at(&link, &bin).unwrap();
+        let ok = inspect_cli_link(&link, &bin);
+        assert!(ok.installed && ok.ours && ok.matches_running);
+        let other = bin_dir.join("Grok-other");
+        fs::write(&other, b"other").unwrap();
+        install_cli_link_at(&link, &other).unwrap();
+        let updated = inspect_cli_link(&link, &other);
+        assert!(updated.matches_running);
+        assert!(!inspect_cli_link(&link, &bin).matches_running);
+        remove_cli_link_at(&link).unwrap();
+        fs::create_dir_all(link.parent().unwrap()).unwrap();
+        fs::write(&link, b"user file").unwrap();
+        assert!(install_cli_link_at(&link, &bin)
+            .unwrap_err()
+            .contains("overwrite"));
+        assert!(remove_cli_link_at(&link)
+            .unwrap_err()
+            .contains("did not install"));
+    }
+
+    #[test]
+    fn windows_shim_roundtrip() {
+        let body = render_windows_shim(std::path::Path::new(r"C:\Apps\Grok.exe"));
+        assert!(is_windows_shim(&body));
+        assert_eq!(
+            parse_windows_shim_target(&body).unwrap(),
+            std::path::PathBuf::from(r"C:\Apps\Grok.exe")
+        );
+        assert!(parse_windows_shim_target("echo hi").is_none());
     }
 
     #[test]

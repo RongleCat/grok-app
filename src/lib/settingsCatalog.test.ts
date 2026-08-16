@@ -363,6 +363,10 @@ describe("settingsCatalog", () => {
     ).toBe(true);
     const cli = searchSettingsEntries("CLI", tZh, tEn);
     expect(cli.some((h) => h.entry.section === "runtime")).toBe(true);
+    const sessionCmd = searchSettingsEntries("grok-app command", tZh, tEn);
+    expect(
+      sessionCmd.some((h) => h.entry.id === "runtime.sessionApi"),
+    ).toBe(true);
     const sessionApi = searchSettingsEntries("session api", tZh, tEn);
     expect(
       sessionApi.some((h) => h.entry.id === "runtime.sessionApi"),

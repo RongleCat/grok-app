@@ -801,6 +801,12 @@ pub fn run() {
 
             session_api::session_api_reveal_token_file,
 
+            session_api::session_api_install_cli,
+
+            session_api::session_api_remove_cli,
+
+            session_api::session_api_reveal_cli_link,
+
             commands::session_interject,
 
             commands::session_stop,

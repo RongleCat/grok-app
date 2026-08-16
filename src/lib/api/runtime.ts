@@ -305,10 +305,21 @@ export async function serveTcpProbe(addr: string): Promise<ServeTcpProbeResult> 
 }
 
 /** Loopback session list + continue-by-id (#626 first slice). Token is never returned. */
+export type SessionApiCliLink = {
+  supported: boolean;
+  installed: boolean;
+  ours: boolean;
+  matchesRunning: boolean;
+  linkPath: string;
+  targetPath: string | null;
+  desiredTarget: string;
+};
+
 export type SessionApiStatus = {
   listening: boolean;
   url: string | null;
   tokenFile: string;
+  cli?: SessionApiCliLink;
 };
 
 export async function sessionApiStatus(): Promise<SessionApiStatus> {
@@ -318,5 +329,17 @@ export async function sessionApiStatus(): Promise<SessionApiStatus> {
 /** Reveal `session-api.json` (url + token, mode 0600) in the file manager. */
 export async function sessionApiRevealTokenFile(): Promise<string> {
   return invoke<string>("session_api_reveal_token_file");
+}
+
+export async function sessionApiInstallCli(): Promise<SessionApiStatus> {
+  return invoke<SessionApiStatus>("session_api_install_cli");
+}
+
+export async function sessionApiRemoveCli(): Promise<SessionApiStatus> {
+  return invoke<SessionApiStatus>("session_api_remove_cli");
+}
+
+export async function sessionApiRevealCliLink(): Promise<string> {
+  return invoke<string>("session_api_reveal_cli_link");
 }
 

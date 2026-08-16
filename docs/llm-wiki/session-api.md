@@ -60,7 +60,7 @@ grok-app --session-send <session-id> --prompt "…" --idempotency-key k1
 
 - `--sessions`：优先打回环；没有 App 则读磁盘索引。
 - `--session-send`：必须有正在跑的 App（或托盘）。否则 `app_not_running`，exit 2。正在跑一轮时回 `queued`（exit 0），不抢窗口、不打断。
-- 二进制名随安装变化（macOS `.app` 内可执行文件 / Windows exe）。设置页用 `grok-app` 作示意。
+- 二进制名随安装变化（macOS `.app` 内可执行文件 / Windows exe）。设置 → 运行时 → 连接 可把用户级命令装到 `~/.local/bin/grok-app`（指向当前正在跑的二进制）。
 
 ## Host 路径
 
@@ -75,7 +75,9 @@ grok-app --session-send <session-id> --prompt "…" --idempotency-key k1
 
 **运行时 → 连接** · `runtime.sessionApi` · 锚点 `settings-anchor-sessionApi`。
 
-只读状态 + 令牌文件路径 + 打开位置。新条目必须进 `settingsCatalog`。
+只读状态 + 令牌文件路径 + 打开位置。**安装终端命令**写到 `~/.local/bin/grok-app`（Unix symlink；Windows 为带标记的 `.cmd` shim），目标是 `current_exe`。不 sudo、不改 `~/.zshrc`。已有非本应用文件则拒绝覆盖。新终端仍需自行保证 `~/.local/bin` 在 `PATH`。
+
+新条目必须进 `settingsCatalog`。
 
 ## 后续（本切片不做）
 
