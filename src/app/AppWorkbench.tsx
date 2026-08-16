@@ -1033,6 +1033,10 @@ import {
   trapTabKey
 } from "@/lib/a11yFocus";
 import { UserMenu, remainingPercent } from "@/components/UserMenu";
+import {
+  quotaFromHostItem,
+  type SwitcherQuota,
+} from "@/lib/accountSwitcherQuota";
 import type { SettingsSectionId } from "@/components/SettingsPage";
 import {
   buildSettingsHash,
@@ -2209,6 +2213,9 @@ export function AppWorkbench() {
   const [chatFindIndex, setChatFindIndex] = useState(0);
   const [savedAccounts, setSavedAccounts] = useState<api.SavedAccount[]>([]);
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
+  const [accountQuotas, setAccountQuotas] = useState<
+    Record<string, SwitcherQuota>
+  >({});
   const [perm, setPerm] = useState<PermissionPayload | null>(null);
   const permBarRef = useRef<HTMLDivElement | null>(null);
   /** Seconds until auto-deny (null when off / no active timer). */
@@ -14716,6 +14723,20 @@ export function AppWorkbench() {
     }
   }, []);
 
+  const refreshAccountQuotas = useCallback(async () => {
+    if (!api.isTauri()) return;
+    try {
+      const r = await api.accountsQuota();
+      const map: Record<string, SwitcherQuota> = {};
+      for (const item of r.items ?? []) {
+        map[item.id] = quotaFromHostItem(item);
+      }
+      setAccountQuotas(map);
+    } catch {
+      /* ignore — rows stay on live seed / em dash */
+    }
+  }, []);
+
   /** Import markdown/JSON transcript as a new local session (from PR #24). */
   const importChatTranscript = useCallback(async () => {
     if (!api.isTauri()) {
@@ -18707,6 +18728,8 @@ export function AppWorkbench() {
               login: tr("account.login"),
               logout: tr("account.logout"),
               remaining: tr("account.quotaRemaining"),
+              profileActive: tr("account.profileActive"),
+              switchTo: tr("account.switchTo"),
               customProvider: tr("prov.customProvider"),
               resetsAt: tr("account.resetsAt"),
               balanceAvailable: tr("prov.balance.available"),
@@ -18722,6 +18745,10 @@ export function AppWorkbench() {
             onTheme={applyThemeChoice}
             onLogin={() => void runAccountLogin("oauth")}
             onLogout={() => void runAccountLogout()}
+            savedAccounts={savedAccounts}
+            activeAccountId={activeAccountId}
+            accountQuotas={accountQuotas}
+            onSwitchAccount={(id) => void runSwitchAccount(id)}
           >
             <Tip label={tr("user.menu")}>
             <button
@@ -18735,6 +18762,8 @@ export function AppWorkbench() {
                 setShowUserMenu((v) => !v);
                 if (!showUserMenu) {
                   void refreshAccount({ refreshBilling: !customRouteActive });
+                  void refreshSavedAccounts();
+                  if (!customRouteActive) void refreshAccountQuotas();
                   if (
                     activeCustomProvider &&
                     supportsProviderBalance({

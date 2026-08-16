@@ -113,6 +113,7 @@ export const enAccount = {
   "account.profileSwitch": "Switch",
   "account.profileRemove": "Remove",
   "account.profileActive": "Active",
+  "account.switchTo": "Switch to this account",
   "account.manageAccounts": "Switch account",
   "account.addAccount": "Add account",
   "account.profileSaved": "Account saved",

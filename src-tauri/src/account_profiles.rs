@@ -323,6 +323,87 @@ fn current_auth_source() -> Result<PathBuf, String> {
     Err("No auth.json found. Sign in first.".into())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountQuotaItem {
+    pub id: String,
+    pub remaining_percent: Option<f64>,
+    pub used_percent: Option<f64>,
+    pub subscription_tier: Option<String>,
+    pub resets_at: Option<String>,
+    pub available: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountsQuotaResult {
+    #[serde(default)]
+    pub items: Vec<AccountQuotaItem>,
+    #[serde(default)]
+    pub fetched_at: String,
+}
+
+fn quota_probe_failed(snap: &crate::supergrok_quota::AccountQuotaSnapshot) -> bool {
+    snap.last_error.is_some() || snap.source == "error" || snap.source == "empty"
+}
+
+fn quota_item_from_snapshot(
+    id: String,
+    snap: crate::supergrok_quota::AccountQuotaSnapshot,
+) -> AccountQuotaItem {
+    // Never invent 0% / 100% when the SuperGrok probe failed.
+    if quota_probe_failed(&snap) {
+        return AccountQuotaItem {
+            id,
+            remaining_percent: None,
+            used_percent: None,
+            subscription_tier: None,
+            resets_at: None,
+            available: false,
+        };
+    }
+    AccountQuotaItem {
+        id,
+        remaining_percent: Some(f64::from(snap.remaining_percent)),
+        used_percent: Some(f64::from(snap.used_percent)),
+        subscription_tier: None,
+        resets_at: snap.resets_at.map(|d| d.to_rfc3339()),
+        available: true,
+    }
+}
+
+fn unavailable_quota_item(id: String) -> AccountQuotaItem {
+    AccountQuotaItem {
+        id,
+        remaining_percent: None,
+        used_percent: None,
+        subscription_tier: None,
+        resets_at: None,
+        available: false,
+    }
+}
+
+/// Live SuperGrok remaining % for every saved snapshot (best-effort, parallel).
+/// Reuses `fetch_quota_best_effort` — same probe as the active `account_status`.
+pub async fn fetch_accounts_quota() -> AccountsQuotaResult {
+    let idx = load_index();
+    let futs = idx.profiles.into_iter().map(|p| {
+        let id = p.id;
+        async move {
+            let Some(token) = access_token_for_account(&id) else {
+                return unavailable_quota_item(id);
+            };
+            let snap = crate::supergrok_quota::fetch_quota_best_effort(&token).await;
+            quota_item_from_snapshot(id, snap)
+        }
+    });
+    let items = futures_util::future::join_all(futs).await;
+    AccountsQuotaResult {
+        items,
+        fetched_at: Utc::now().to_rfc3339(),
+    }
+}
+
 /// After a successful login, auto-snapshot so multi-account list stays current.
 pub fn auto_snapshot_after_login() {
     match save_current_account(None) {
@@ -376,5 +457,39 @@ mod tests {
         assert_eq!(resolve_account_pick("one@x.ai", &profiles).unwrap(), "u1");
         assert!(resolve_account_pick("0", &profiles).is_err());
         assert!(resolve_account_pick("missing", &profiles).is_err());
+    }
+
+    #[test]
+    fn quota_item_hides_percent_when_probe_failed() {
+        let mut snap = crate::supergrok_quota::default_unused_quota_snapshot();
+        snap.source = "error".into();
+        snap.last_error = Some("network".into());
+        let item = quota_item_from_snapshot("u1".into(), snap);
+        assert!(!item.available);
+        assert!(item.remaining_percent.is_none());
+        assert!(item.used_percent.is_none());
+    }
+
+    #[test]
+    fn quota_item_hides_empty_placeholder_snapshot() {
+        let snap = crate::supergrok_quota::default_unused_quota_snapshot();
+        let item = quota_item_from_snapshot("u1".into(), snap);
+        assert_eq!(item.available, false);
+        assert!(item.remaining_percent.is_none());
+    }
+
+    #[test]
+    fn quota_item_keeps_real_zero_remaining() {
+        let snap = crate::supergrok_quota::AccountQuotaSnapshot::from_used(
+            100.0,
+            None,
+            None,
+            Vec::new(),
+            "grpc-web",
+        );
+        let item = quota_item_from_snapshot("u1".into(), snap);
+        assert!(item.available);
+        assert_eq!(item.remaining_percent, Some(0.0));
+        assert_eq!(item.used_percent, Some(100.0));
     }
 }

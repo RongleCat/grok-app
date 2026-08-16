@@ -30,18 +30,27 @@ import type {
   AccountStatus,
   CustomProvider,
   ProviderBalanceResult,
+  SavedAccount,
 } from "@/lib/api";
 import {
   accountDisplayName,
   accountInitials,
   formatQuotaResetTime,
   tierLabel,
-  usagePercent,
 } from "@/lib/accountUi";
+import {
+  formatQuotaRemainLabel,
+  resolveQuotaPercents,
+} from "@/lib/accountQuotaHonesty";
 import {
   formatProviderBalanceDetailParts,
   formatProviderBalanceLine,
 } from "@/lib/providerBalanceFormat";
+import {
+  mergeAccountQuota,
+  switcherDisplayName,
+  type SwitcherQuota,
+} from "@/lib/accountSwitcherQuota";
 
 export interface UserMenuProps {
   open: boolean;
@@ -64,6 +73,8 @@ export interface UserMenuProps {
     login: string;
     logout: string;
     remaining: string;
+    profileActive: string;
+    switchTo: string;
     customProvider: string;
     /** Prefix for quota refresh time, e.g. 重置 / Resets */
     resetsAt: string;
@@ -90,18 +101,16 @@ export interface UserMenuProps {
   onTheme: (preference: ThemePreference) => void;
   onLogin: () => void;
   onLogout: () => void;
+  savedAccounts?: SavedAccount[];
+  activeAccountId?: string | null;
+  accountQuotas?: Record<string, SwitcherQuota>;
+  onSwitchAccount?: (id: string) => void;
   children: ReactNode;
 }
 
+/** Honest remaining % — never invents 0 / 100 when Host billing is silent. */
 export function remainingPercent(account: AccountStatus | null): number | null {
-  if (!account?.billing) return null;
-  const billing = account.billing;
-  if (billing.remainingPercent != null && Number.isFinite(billing.remainingPercent)) {
-    return Math.max(0, Math.min(100, billing.remainingPercent));
-  }
-  const used = usagePercent(billing);
-  if (used == null) return null;
-  return Math.max(0, Math.min(100, 100 - used));
+  return resolveQuotaPercents(account?.billing ?? null).remainingPercent;
 }
 
 const THEME_OPTIONS: ThemePreference[] = ["system", "light", "dark"];
@@ -160,6 +169,10 @@ export function UserMenu({
   onTheme,
   onLogin,
   onLogout,
+  savedAccounts = [],
+  activeAccountId = null,
+  accountQuotas = {},
+  onSwitchAccount,
   children,
 }: UserMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -238,7 +251,7 @@ export function UserMenu({
     fitContent: true,
     matchTriggerWidth: true,
     minWidth: 220,
-    estHeight: 260,
+    estHeight: savedAccounts.length > 1 ? 360 : 260,
     gap: 6,
   });
 
@@ -259,9 +272,13 @@ export function UserMenu({
       : "G";
   const channel = account?.channel ?? "none";
   const billing = account?.billing;
-  const usedPct = billing ? usagePercent(billing) : null;
-  const remaining = remainingPercent(account);
+  const livePercents = resolveQuotaPercents(billing ?? null);
+  const usedPct = livePercents.usedPercent;
+  const remaining = livePercents.remainingPercent;
   const resetTime = formatQuotaResetTime(billing?.resetsAt);
+  const remainLabel = formatQuotaRemainLabel(remaining);
+  const remainText = remainLabel ? `${remainLabel} ${labels.remaining}` : "—";
+  const showSavedOfficialAccounts = signedIn && savedAccounts.length > 0;
   const tier = billing
     ? tierLabel(billing, channel)
     : signedIn
@@ -330,6 +347,128 @@ export function UserMenu({
             role="menu"
             style={style}
           >
+            {showSavedOfficialAccounts ? (
+              <div className="user-menu__accounts">
+                {savedAccounts.map((saved) => {
+                  const active = saved.id === activeAccountId;
+                  const rowName = switcherDisplayName(saved);
+                  const q = mergeAccountQuota(
+                    saved.id,
+                    saved.email,
+                    accountQuotas,
+                    {
+                      id: activeAccountId,
+                      email: profile?.email,
+                      remaining,
+                      used: usedPct,
+                      resetsAt: billing?.resetsAt ?? null,
+                    },
+                  );
+                  const rowRemain = q?.remainingPercent ?? null;
+                  const rowUsed = q?.usedPercent ?? null;
+                  const rowReset = formatQuotaResetTime(q?.resetsAt);
+                  const rowRemainLabel = formatQuotaRemainLabel(rowRemain);
+                  const low = rowRemain != null && rowRemain <= 10;
+                  return (
+                    <button
+                      key={saved.id}
+                      type="button"
+                      className={
+                        "user-menu__account" +
+                        (active ? " is-active" : "") +
+                        (low ? " is-low" : "")
+                      }
+                      role="menuitem"
+                      disabled={accountBusy}
+                      aria-current={active ? "true" : undefined}
+                      aria-label={
+                        active
+                          ? `${rowName}, ${labels.profileActive}`
+                          : `${labels.switchTo}: ${rowName}`
+                      }
+                      onClick={() => {
+                        if (active) {
+                          onClose();
+                          onAccountSettings();
+                          return;
+                        }
+                        if (!onSwitchAccount) return;
+                        onClose();
+                        onSwitchAccount(saved.id);
+                      }}
+                    >
+                      <div className="user-menu__account-top">
+                        <div
+                          className="account-avatar account-avatar--sm"
+                          aria-hidden
+                        >
+                          {active && signedIn ? (
+                            <GrokLogo size={17} />
+                          ) : (
+                            rowName.slice(0, 1).toUpperCase()
+                          )}
+                        </div>
+                        <div className="user-menu__account-text">
+                          <div className="user-menu__account-name-row">
+                            <div className="user-menu__account-id">
+                              <div className="user-menu__account-name">
+                                {rowName}
+                              </div>
+                              {active ? (
+                                <span className="user-menu__current">
+                                  {labels.profileActive}
+                                </span>
+                              ) : null}
+                            </div>
+                            {rowReset ? (
+                              <span className="user-menu__quota-reset">
+                                {labels.resetsAt} {rowReset}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="user-menu__quota">
+                            <div className="user-menu__quota-row">
+                              <span className="user-menu__tier">
+                                {active
+                                  ? tier
+                                  : saved.email && saved.email !== rowName
+                                    ? saved.email
+                                    : "\u00a0"}
+                              </span>
+                              <span className="user-menu__remain">
+                                {rowRemainLabel
+                                  ? `${rowRemainLabel} ${labels.remaining}`
+                                  : "—"}
+                              </span>
+                            </div>
+                            {rowRemainLabel ? (
+                              <div
+                                className="account-quota-bar account-quota-bar--sm"
+                                aria-hidden
+                              >
+                                <div
+                                  className={
+                                    "account-quota-bar__fill" +
+                                    (rowUsed != null && rowUsed >= 90
+                                      ? " is-danger"
+                                      : rowUsed != null && rowUsed >= 70
+                                        ? " is-warn"
+                                        : "")
+                                  }
+                                  style={{
+                                    width: `${Math.min(100, rowUsed ?? 0)}%`,
+                                  }}
+                                />
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
             <button
               type="button"
               className="user-menu__account"
@@ -441,9 +580,7 @@ export function UserMenu({
                       <div className="user-menu__quota-row">
                         <span className="user-menu__tier">{tier}</span>
                         <span className="user-menu__remain">
-                          {remaining != null
-                            ? `${remaining.toFixed(0)}% ${labels.remaining}`
-                            : "—"}
+                          {remainText}
                         </span>
                       </div>
                       {remaining != null && (
@@ -471,6 +608,7 @@ export function UserMenu({
                 </div>
               </div>
             </button>
+            )}
 
             <button
               type="button"

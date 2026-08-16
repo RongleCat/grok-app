@@ -91,6 +91,11 @@ pub fn accounts_list() -> crate::account_profiles::AccountsListResult {
 }
 
 #[tauri::command]
+pub async fn accounts_quota() -> crate::account_profiles::AccountsQuotaResult {
+    crate::account_profiles::fetch_accounts_quota().await
+}
+
+#[tauri::command]
 pub fn account_save_current(
     label: Option<String>,
 ) -> Result<crate::account_profiles::SavedAccount, String> {

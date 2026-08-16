@@ -113,6 +113,7 @@ export const zhTWAccount = {
   "account.profileSwitch": "切換",
   "account.profileRemove": "移除",
   "account.profileActive": "目前",
+  "account.switchTo": "切換到此帳號",
   "account.manageAccounts": "切換帳號",
   "account.addAccount": "新增帳號",
   "account.profileSaved": "已儲存帳號",

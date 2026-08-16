@@ -228,6 +228,24 @@ export async function accountsList() {
   return invoke<AccountsListResult>("accounts_list");
 }
 
+export interface AccountQuotaItem {
+  id: string;
+  remainingPercent?: number | null;
+  usedPercent?: number | null;
+  subscriptionTier?: string | null;
+  resetsAt?: string | null;
+  available: boolean;
+}
+
+export interface AccountsQuotaResult {
+  items: AccountQuotaItem[];
+  fetchedAt?: string;
+}
+
+export async function accountsQuota() {
+  return invoke<AccountsQuotaResult>("accounts_quota");
+}
+
 export async function accountSaveCurrent(label?: string | null) {
   return invoke<SavedAccount>("account_save_current", {
     label: label ?? null,

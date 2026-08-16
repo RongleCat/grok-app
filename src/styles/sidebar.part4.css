@@ -364,8 +364,45 @@ html[data-sidebar-density="compact"] .session-row__meta {
   margin-bottom: 2px;
 }
 
+.user-menu__accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
 .user-menu__account:hover {
   background: var(--bg-active);
+}
+
+.user-menu__account.is-active {
+  border-color: color-mix(in srgb, var(--accent, #6b9fff) 45%, transparent);
+  background: color-mix(in srgb, var(--accent, #6b9fff) 10%, transparent);
+}
+
+.user-menu__account.is-low .user-menu__remain {
+  color: var(--danger, #e25555);
+}
+
+.user-menu__account-id {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.user-menu__current {
+  flex-shrink: 0;
+  margin-left: 0;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+  vertical-align: middle;
 }
 
 .user-menu__account-top {

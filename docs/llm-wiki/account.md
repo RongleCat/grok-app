@@ -77,13 +77,14 @@ Never tell the user that official OAuth alone fixes a bad custom relay key.
 | `account_open_usage` | Open `https://grok.com/?_s=usage` |
 | `account_open_subscribe` | Open SuperGrok / subscription manage URL |
 | `accounts_list` / `account_save_current` / `account_switch` / `account_remove` | Multi-account snapshots under `~/.grok-app/accounts/` |
+| `accounts_quota` | Best-effort SuperGrok remaining % for every saved snapshot (parallel; never invent 0% / 100% on probe failure) |
 | `session_import_transcript(_file)` | Import markdown/JSON chat into a new local session |
 
 ### Multi-account
 
 - After successful login, Host **auto-snapshots** auth into `accounts/<id>/auth.json`.
 - Switch copies snapshot → `~/.grok/auth.json` + agent-home, then disconnects live ACP.
-- UI: Settings → Account → **「切换账号」** opens a modal to list / switch / remove.
+- UI: the sidebar **user menu** lists saved official accounts (honest remaining %, click → `account_switch`). Clicking the active row still opens **Settings → Account**. Custom-provider / signed-out cards stay unchanged. Settings → Account keeps the full switcher / remove / rename UI.
   **「添加账号」** saves the current profile (if signed in) then starts OAuth login.
 
 ### Login failures (Access denied)

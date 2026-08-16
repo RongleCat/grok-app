@@ -1261,6 +1261,8 @@ pub fn run() {
 
             commands::accounts_list,
 
+            commands::accounts_quota,
+
             commands::account_save_current,
 
             commands::account_switch,
