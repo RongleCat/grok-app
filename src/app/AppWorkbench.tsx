@@ -713,6 +713,12 @@ import {
   flattenFilteredCatalog,
   type SlashItem
 } from "@/lib/slashCatalog";
+import {
+  classifyWorkflowSlashLine,
+  leftoverWorkflowArgs,
+  resolveWorkflowSlashAction,
+  stripWorkflowSlashFromDraft,
+} from "@/lib/workflowSlash";
 import type { MessageKey } from "@/i18n";
 import { AttachmentCard } from "@/components/AttachmentCard";
 import { ImageViewerProvider } from "@/components/ImageViewer";
@@ -4266,6 +4272,12 @@ export function AppWorkbench() {
     },
     [],
   );
+
+  /** Settings → Runtime → Tools, scrolled to the workflows card. */
+  const openWorkflowsSettings = useCallback(() => {
+    navigateSettings("runtime", "tools");
+    setSettingsFocusAnchor("settings-anchor-workflows");
+  }, [navigateSettings]);
 
   // Hash route: #/settings[/section[/tab]][?pr=N] | #/automations | #/workbench
   // Explicit #/settings/{section}… deep links always win; bare #/settings uses last.
@@ -8092,6 +8104,23 @@ export function AppWorkbench() {
     const storedDisplay = draft;
     const att = attachments;
     if (isDraftEmpty(segments) && !att.length) return;
+    // Lone /workflow(s) — App has no TUI dashboard. Bare command opens Settings.
+    // `/workflow <args>` falls through as a normal session turn.
+    if (!att.length && !segments.some((s) => s.type === "skill")) {
+      const plain = segments
+        .map((s) => (s.type === "text" ? s.text : ""))
+        .join("");
+      const wf = classifyWorkflowSlashLine(plain);
+      if (wf?.kind === "dashboard") {
+        clearComposerAfterSubmit({
+          clearProjectDraft: session.sessionId == null,
+          clearSessionDraft: session.sessionId != null,
+          sessionDraftId: viewingSessionIdRef.current ?? session.sessionId,
+        });
+        openWorkflowsSettings();
+        return;
+      }
+    }
     if (session.state === "awaiting_permission") {
       showToast(tr("composer.queueBlockedPermission"), 2800);
       return;
@@ -11505,6 +11534,33 @@ export function AppWorkbench() {
       liveSlashRef.current = { present: false, query: "", start: 0, end: 0 };
       setShowComposerPlus(false);
 
+      if (
+        item.kind === "action" &&
+        (item.action === "workflow" || item.action === "workflows")
+      ) {
+        const stored = getDraft();
+        const leftover = q ? leftoverWorkflowArgs(stored, q.end) : "";
+        const match = resolveWorkflowSlashAction({
+          query: q?.query,
+          leftoverArgs: leftover,
+          forceDashboard: item.action === "workflows",
+        });
+        if (q) {
+          setDraft((d) => stripWorkflowSlashFromDraft(d, q.start, q.end));
+          requestComposerStoredCaret(q.start);
+        }
+        if (match.kind === "session" && match.command) {
+          void executeSend({
+            storedDisplay: match.command,
+            att: [],
+            goalMode: false,
+          });
+        } else {
+          openWorkflowsSettings();
+        }
+        return;
+      }
+
       if (item.kind === "skill") {
         setDraft((d) => {
           // Prefer live range (DOM/draft poll), then re-detect on this draft.
@@ -11657,6 +11713,7 @@ export function AppWorkbench() {
       applyPermissionPolicy,
       showToast,
       openPromptHistory,
+      openWorkflowsSettings,
     ],
   );
 

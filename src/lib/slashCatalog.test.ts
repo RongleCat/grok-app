@@ -32,6 +32,8 @@ describe("builtinSlashItems", () => {
       "tutorial",
       "new",
       "automations",
+      "workflow",
+      "workflows",
       "live-voice",
       "settings",
       "export",
@@ -111,6 +113,18 @@ describe("builtinSlashItems", () => {
     const yolo = items.find((i) => i.name === "yolo")!;
     expect(yolo.kind).toBe("action");
     expect(yolo.action).toBe("yolo");
+
+    const workflow = items.find((i) => i.name === "workflow")!;
+    expect(workflow.kind).toBe("action");
+    expect(workflow.action).toBe("workflow");
+    expect(workflow.titleKey).toBe("slash.workflow");
+    expect(workflow.descriptionKey).toBe("slash.workflowDesc");
+
+    const workflows = items.find((i) => i.name === "workflows")!;
+    expect(workflows.kind).toBe("action");
+    expect(workflows.action).toBe("workflows");
+    expect(workflows.titleKey).toBe("slash.workflows");
+    expect(workflows.descriptionKey).toBe("slash.workflowsDesc");
   });
 });
 

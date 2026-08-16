@@ -28,6 +28,8 @@ const NON_SKILL_SLASH = new Set(
     "new",
     "newchat",
     "automations",
+    "workflow",
+    "workflows",
     "settings",
     "yolo",
     "always-approve",

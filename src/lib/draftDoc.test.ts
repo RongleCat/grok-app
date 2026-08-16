@@ -316,6 +316,8 @@ describe("hydrateDisplayContent", () => {
       "/compact keep auth",
     );
     expect(hydrateDisplayContent("/doctor")).toBe("/doctor");
+    expect(hydrateDisplayContent("/workflow")).toBe("/workflow");
+    expect(hydrateDisplayContent("/workflows")).toBe("/workflows");
   });
 
   it("strips goal prefix then converts skills", () => {

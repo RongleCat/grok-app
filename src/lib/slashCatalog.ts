@@ -169,6 +169,22 @@ export function builtinSlashItems(): SlashItem[] {
       action: "automations",
     },
     {
+      id: "workflow",
+      kind: "action",
+      name: "workflow",
+      titleKey: "slash.workflow",
+      descriptionKey: "slash.workflowDesc",
+      action: "workflow",
+    },
+    {
+      id: "workflows",
+      kind: "action",
+      name: "workflows",
+      titleKey: "slash.workflows",
+      descriptionKey: "slash.workflowsDesc",
+      action: "workflows",
+    },
+    {
       id: "live-voice",
       kind: "action",
       name: "live-voice",

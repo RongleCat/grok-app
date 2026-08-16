@@ -43,6 +43,7 @@ import {
   IconSkills,
   IconTarget,
   IconLiveVoice,
+  IconListTree,
 } from "@/components/icons";
 
 const ICON_SIZE = 16;
@@ -82,6 +83,9 @@ function slashItemIcon(item: SlashItem): ReactNode {
       return <IconSettings size={ICON_SIZE} />;
     case "automations":
       return <IconAutomations size={ICON_SIZE} />;
+    case "workflow":
+    case "workflows":
+      return <IconListTree size={ICON_SIZE} />;
     case "live-voice":
     case "liveVoice":
       return <IconLiveVoice size={ICON_SIZE} />;
