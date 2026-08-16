@@ -363,5 +363,13 @@ describe("settingsCatalog", () => {
     ).toBe(true);
     const cli = searchSettingsEntries("CLI", tZh, tEn);
     expect(cli.some((h) => h.entry.section === "runtime")).toBe(true);
+    const sessionApi = searchSettingsEntries("session api", tZh, tEn);
+    expect(
+      sessionApi.some((h) => h.entry.id === "runtime.sessionApi"),
+    ).toBe(true);
+    const sessionApiZh = searchSettingsEntries("会话列表", tZh, tEn);
+    expect(
+      sessionApiZh.some((h) => h.entry.id === "runtime.sessionApi"),
+    ).toBe(true);
   });
 });

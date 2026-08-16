@@ -16,6 +16,8 @@ When the user pastes a **session id** (UUID) into chat or issues for debugging:
 
 App data root (macOS typical): `~/Library/Application Support/com.grokapp.grok-app/`.
 
+External apps on this machine that need to **list chats and continue one by id** use the local session API — see [session-api.md](./session-api.md). That surface takes a **Grok App session id**, not an agent session id.
+
 ## Problem
 
 Grok App keeps a **UI journal** (`~/.…/sessions/<appSessionId>/messages.json`) separate from the **Agent session** under `GROK_HOME` (`agent-home/sessions/<encoded-cwd>/<agentSessionId>/`).

@@ -149,6 +149,8 @@ mod session_fsm;
 
 mod session_import;
 
+mod session_api;
+
 mod session_manager;
 
 mod session_title;
@@ -210,6 +212,12 @@ use session_manager::SessionManager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Session list / continue-by-id CLI must not open a window or steal focus
+    // via the single-instance plugin. Exit before any Tauri builder setup.
+    if session_api::try_run_cli() {
+        std::process::exit(session_api::run_cli());
+    }
+
     let _ = paths::ensure_app_dirs();
 
     logging::init();
@@ -250,6 +258,12 @@ pub fn run() {
         // Must be registered first so a second process exits and focuses the primary window.
         // One-shot `--fire-due-schedules`: do not steal focus; ask primary to fire once.
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            // Defense in depth: session CLI is handled before the builder.
+            // If argv still arrives here, do not focus-steal the primary window.
+            if session_api::parse_cli(&argv).is_ok() {
+                return;
+            }
+
             let fire_due = argv.iter().any(|a| a == automation_runner::FIRE_DUE_FLAG);
 
             if fire_due {
@@ -570,6 +584,7 @@ pub fn run() {
             // try_state / soft-fail until ready (ensureMediaEndpoint retries).
             {
                 let handle = app.handle().clone();
+                let session_mgr = app.state::<Arc<SessionManager>>().inner().clone();
                 tauri::async_runtime::spawn(async move {
                     match media_server::start().await {
                         Ok(h) => {
@@ -583,6 +598,18 @@ pub fn run() {
                             tracing::error!(
                                 error = %e,
                                 "media server failed to start — local media previews may break"
+                            );
+                        }
+                    }
+                    match session_api::start(handle.clone(), session_mgr).await {
+                        Ok(h) => {
+                            tracing::info!(url = %h.url, "session api ready");
+                            handle.manage(h);
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                error = %e,
+                                "session api failed to start — external list/send is unavailable"
                             );
                         }
                     }
@@ -769,6 +796,10 @@ pub fn run() {
             commands::session_prewarm,
 
             commands::session_send,
+
+            session_api::session_api_status,
+
+            session_api::session_api_reveal_token_file,
 
             commands::session_interject,
 

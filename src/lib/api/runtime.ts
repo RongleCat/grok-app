@@ -304,3 +304,19 @@ export async function serveTcpProbe(addr: string): Promise<ServeTcpProbeResult> 
   return invoke<ServeTcpProbeResult>("serve_tcp_probe", { addr });
 }
 
+/** Loopback session list + continue-by-id (#626 first slice). Token is never returned. */
+export type SessionApiStatus = {
+  listening: boolean;
+  url: string | null;
+  tokenFile: string;
+};
+
+export async function sessionApiStatus(): Promise<SessionApiStatus> {
+  return invoke<SessionApiStatus>("session_api_status");
+}
+
+/** Reveal `session-api.json` (url + token, mode 0600) in the file manager. */
+export async function sessionApiRevealTokenFile(): Promise<string> {
+  return invoke<string>("session_api_reveal_token_file");
+}
+

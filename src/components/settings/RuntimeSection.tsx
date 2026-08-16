@@ -14,6 +14,7 @@ import { ProcessBudgetPanel } from "@/components/ProcessBudgetPanel";
 import { LeaderServePanel } from "@/components/LeaderServePanel";
 import { CliWorktreeDbPanel } from "@/components/CliWorktreeDbPanel";
 import { SdkConnectWizard } from "@/components/SdkConnectWizard";
+import { SessionApiPanel } from "@/components/SessionApiPanel";
 import { CliUpdateRow } from "@/components/CliUpdateRow";
 import { CostRollupPanel } from "@/components/CostRollupPanel";
 import { StreamingMessagesJsonPanel } from "@/components/StreamingMessagesJsonPanel";
@@ -340,6 +341,10 @@ export function RuntimeSection() {
                       navigateTo("general", "permissions", "settings-anchor-sandbox")
                     }
                   />
+                </div>
+                <h2 className="settings-page__h2">{t("settings.sessionApi.title")}</h2>
+                <div className={rowHighlight("settings-anchor-sessionApi")}>
+                  <SessionApiPanel t={t} />
                 </div>
                 <h2 className="settings-page__h2">{t("settings.sdkConnect.title")}</h2>
                 <div
