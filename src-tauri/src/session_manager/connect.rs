@@ -950,9 +950,19 @@ impl SessionManager {
                 // Cold-spawn path: the process was spawned with `--model` =
                 // active channel model, and `session/new` inherits the process
                 // default — the post-open `set_model` here was a redundant RPC
-                // on every connect. Keep `set_mode` (product mode is
-                // per-prompt in Grok Build, so the App's mode is only nudged).
-                if let Err(e) = client.set_mode(&prefs.mode).await {
+                // on every connect. Keep `set_mode` on a normal resume (product
+                // mode is per-prompt; this is only a nudge).
+                // After `session/fork` the CLI is still hydrating parent
+                // context — `set_mode` timed out 5×45s (agent/default/code/…)
+                // and pinned both the fork and the parent chat on 连接中.
+                // Spawn already passed `--permission-mode`; skip the nudge.
+                if fork_agent {
+                    tracing::info!(
+                        target: "session",
+                        session = %meta.id,
+                        "connect skip set_mode after fork (parent mode already applied)"
+                    );
+                } else if let Err(e) = client.set_mode(&prefs.mode).await {
                     tracing::warn!("acp set_mode after session open soft-fail: {e}");
                 }
                 // Native resume / successful fork = full agent context. Fresh

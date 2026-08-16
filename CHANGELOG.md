@@ -17,6 +17,12 @@ See `docs/llm-wiki/release.md`.
 **中文 · 变更**
 - **README Gatekeeper 说明**：官方 Release 从 v0.2.19 起已签名并公证。`xattr` 仅留给 fork / 旧的未签名包。
 
+### Fixed
+- **Fork no longer pins the parent chat on 连接中**: After `_x.ai/session/fork` the CLI is still hydrating parent context. Post-open `session/set_mode` used to walk every agent-mode alias (`agent` / `default` / `code` / `normal` / `Agent`) at 45s each — ~4 minutes of handshake, no `session/prompt`, both the fork and the original chat stuck on Connecting / Thinking. Fork skips that nudge (spawn already has `--permission-mode`); any later `set_mode` transport timeout aborts the remaining aliases.
+
+**中文 · 修复**
+- **分叉后不再把原会话卡在「连接中」**：`session/fork` 之后 CLI 还在灌父会话。以前会连试 5 个 `session/set_mode` 别名，每个等 45 秒，握手约 4 分钟，消息发不出去，分叉和原会话一起停在连接中/思考中。分叉后不再做这次 nudge；之后若 `set_mode` 是传输超时，立刻停掉剩余别名。
+
 ## [0.2.19] - 2026-08-15
 
 > **Highlight:** SuperGrok quota auto-refresh every 10 minutes; macOS Release notarization when Apple secrets are present; first launch follows the OS language; mid-turn steer no longer flashes the transcript; composer clears as soon as the user bubble appears.

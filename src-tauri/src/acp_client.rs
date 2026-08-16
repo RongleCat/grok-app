@@ -412,6 +412,17 @@ pub fn parse_fork_session_id(
     Some(raw.to_string())
 }
 
+/// `session/set_mode` walks product-mode aliases. A transport failure is not
+/// "unknown modeId" — abort the rest so agent mode cannot spend 5×45s and
+/// leave fork + parent chats stuck on 连接中.
+pub fn set_mode_abort_remaining_candidates(err: &str) -> bool {
+    let e = err.to_ascii_lowercase();
+    e.contains("rpc timeout")
+        || e.contains("rpc channel closed")
+        || e.contains("stdout closed")
+        || e.contains("write session/set_mode failed")
+}
+
 /// Pure helper: top-level CLI args for session extra rules (before `agent`).
 ///
 /// `["--rules", text]` — empty when none. Trims, drops empty, clamps length.
@@ -3139,6 +3150,12 @@ impl AcpClient {
                 Err(e) => {
                     last_err = e;
                     tracing::debug!("acp session/set_mode {mode_id} soft-fail: {last_err}");
+                    // Unknown modeId fails fast. A timeout / dead transport is
+                    // not "try the next alias" — agent mode has 5 candidates ×
+                    // 45s and left fork + parent chats stuck on 连接中.
+                    if set_mode_abort_remaining_candidates(&last_err) {
+                        break;
+                    }
                 }
             }
         }
@@ -5794,6 +5811,25 @@ mod background_wait_policy_tests {
         assert_eq!(cli_supports_background_wait("grok 0.2.117"), Some(true));
         assert_eq!(cli_supports_background_wait("0.2.116"), Some(false));
         assert_eq!(cli_supports_background_wait(""), None);
+    }
+
+    #[test]
+    fn set_mode_stops_on_transport_errors_not_unknown_mode() {
+        assert!(set_mode_abort_remaining_candidates(
+            "rpc timeout on session/set_mode (id=5) after 45s"
+        ));
+        assert!(set_mode_abort_remaining_candidates(
+            "rpc channel closed while waiting for session/set_mode (id=6)"
+        ));
+        assert!(set_mode_abort_remaining_candidates(
+            "agent stdout closed before session/set_mode; process dead"
+        ));
+        assert!(!set_mode_abort_remaining_candidates(
+            "Method not found (code -32601)"
+        ));
+        assert!(!set_mode_abort_remaining_candidates(
+            "invalid params: unknown modeId"
+        ));
     }
 }
 
