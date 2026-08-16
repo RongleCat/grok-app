@@ -14,6 +14,13 @@ preview.jpg              # 可选
 
 字段：内置 `skin`、`scrim`、`wallpaper`（含 `focus` / `clip` / `sha256`）。`tokens` / `style` / `css` 或 `schemaVersion !== 1` → `unsupported_schema`。未知 `skin` **不**整包失败：回落 `default` + `warnings: ["unknown_skin"]`。`wallpaper == null` 默认清除接收方壁纸（`will_clear_wallpaper`）。
 
+**壁纸导出 bake：** 用户导出 / 分享时，按**当前应用窗口里实际看到的那一块**裁进包里（`.app-wallpaper-media` 宽高比 + 当前 `focus`；缺 focus 当默认 cover）。即使没手动拉焦点，窗口比例和素材不一致时也会裁掉 cover 多出来的边。裁后 `focus` 复位默认（cx=0.5, cy=0.5, zoom=1），接收方 cover-fill 与导出时看起来一致，包体积最小。当前窗口正好等于素材比例且无缩放时不重编码。本地预设库与 undo 快照仍保留原片 + 参数（套用预设可再编辑）；只有用户面向的 export 才 bake。
+
+- **静图**（jpeg/png/静态 webp/静态 gif）：`image` crate 裁像素。jpeg 仍出 jpeg；其余出 png。动图 gif/webp **不裁**（保留原文件 + `focus`，避免拍扁动画）。
+- **视频**：系统 ffmpeg 裁偶数像素画面并按 `clip` 截时长（无声 H.264 mp4），然后去掉 `clip`。App **不内置** ffmpeg。缺 ffmpeg 且需要裁切/截取时 **不阻断导出**：带原片 + `focus` / `clip` 出包，并返回 `warning: ffmpeg_unavailable`。
+
+导出 manifest 可带瞬时 `viewAspect`（窗口宽/高），bake 后从包中剥掉；导入忽略该字段。
+
 **从不写入、不应用 `themePreference`。** 导出 / 保存当前不写该字段；导入忽略。
 
 当前生效壁纸仍只活在 IndexedDB。预设在 `{app_data}/skin-presets/`（入库目录名总是新 UUID）。磁盘合计上限 4 GiB（含 undo + staging + catalog cache；不含 IDB 当前壁纸与 `{app_data}/wallpapers/`）。

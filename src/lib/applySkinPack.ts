@@ -86,6 +86,7 @@ function codeFrom(e: unknown): SkinPackErrorCode {
     "not_found",
     "busy",
     "desktop_only",
+    "ffmpeg_required",
   ];
   if (head && (known as string[]).includes(head)) return head as SkinPackErrorCode;
   return "invalid_pack";

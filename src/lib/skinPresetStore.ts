@@ -13,6 +13,8 @@ import {
 } from "./api/skin";
 import { buildExportManifest } from "./skinPack";
 import type { ThemeSkinId, WallpaperRecord } from "./themeSkin";
+import { DEFAULT_WALLPAPER_FOCUS, normalizeWallpaperFocus } from "./wallpaperFocus";
+import { readViewportAspect } from "./wallpaperExportBake";
 
 const CHUNK = 512 * 1024;
 
@@ -63,8 +65,15 @@ export function currentLookManifest(input: {
   skin: ThemeSkinId;
   scrim: number;
   wallpaper: WallpaperRecord | null;
+  /** Exporter window aspect; wallpaper bake uses this to match the editor crop. */
+  viewAspect?: number;
 }): ReturnType<typeof buildExportManifest> {
   const ext = input.wallpaper ? wallpaperExtForRecord(input.wallpaper) : "jpg";
+  const viewAspect = input.wallpaper
+    ? input.viewAspect && input.viewAspect > 0
+      ? input.viewAspect
+      : readViewportAspect()
+    : undefined;
   return buildExportManifest({
     name: input.name,
     skin: input.skin,
@@ -78,8 +87,11 @@ export function currentLookManifest(input: {
           sha256: "0".repeat(64),
           width: input.wallpaper.width,
           height: input.wallpaper.height,
-          focus: input.wallpaper.focus,
+          focus: input.wallpaper.focus
+            ? normalizeWallpaperFocus(input.wallpaper.focus)
+            : { ...DEFAULT_WALLPAPER_FOCUS },
           clip: input.wallpaper.clip ?? null,
+          ...(typeof viewAspect === "number" ? { viewAspect } : {}),
         }
       : null,
   });

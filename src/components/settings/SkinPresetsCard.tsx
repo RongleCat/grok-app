@@ -13,11 +13,19 @@ import {
   skinPresetExport,
   skinPresetList,
   skinPresetRename,
+  skinPresetReplaceFromUpload,
   skinPresetSaveFromUpload,
   type SkinPresetListItem,
 } from "@/lib/api/skin";
+import {
+  loadActivePresetId,
+  notifySkinLibraryChanged,
+  resolveActivePresetId,
+  saveActivePresetId,
+  subscribeSkinLibraryChanged,
+} from "@/lib/skinActivePreset";
 import { officialCatalogConfigured } from "@/lib/skinCatalog";
-import { exportFileName } from "@/lib/skinPack";
+import { exportFileName, parseSkinPackError, type SkinPackErrorCode } from "@/lib/skinPack";
 import {
   currentLookManifest,
   uploadCurrentWallpaper,
@@ -44,8 +52,11 @@ export function SkinPresetsCard() {
   const [nameValue, setNameValue] = useState("");
   const [renameId, setRenameId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [updateId, setUpdateId] = useState<string | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [actionError, setActionError] = useState<SkinPackErrorCode | null>(null);
+  const [actionWarn, setActionWarn] = useState<"ffmpeg_unavailable" | null>(null);
 
   useEffect(() => subscribeAppearanceWriteBusy(setWriteBusy), []);
 
@@ -58,7 +69,16 @@ export function SkinPresetsCard() {
 
   useEffect(() => {
     void reload();
+    return subscribeSkinLibraryChanged(() => {
+      void reload();
+    });
   }, [reload]);
+
+  const activeId = resolveActivePresetId(loadActivePresetId(), presets, {
+    skin: theme.skin,
+    wallpaperRecord: theme.wallpaperRecord,
+    wallpaperScrim: theme.wallpaperScrim,
+  });
 
   const locked = busy || writeBusy || share.appearanceBusy;
   const showOfficialBrowse = officialCatalogConfigured();
@@ -67,6 +87,8 @@ export function SkinPresetsCard() {
     const name = nameValue.trim();
     if (!name) return;
     setBusy(true);
+    setActionError(null);
+    setActionWarn(null);
     try {
       if (nameOpen === "save") {
         const manifest = currentLookManifest({
@@ -81,7 +103,9 @@ export function SkinPresetsCard() {
             blob: theme.wallpaperRecord.blob,
           });
         }
-        await skinPresetSaveFromUpload(stagingId ?? "", manifest);
+        const entry = await skinPresetSaveFromUpload(stagingId ?? "", manifest);
+        saveActivePresetId(entry.id);
+        notifySkinLibraryChanged();
         await reload();
       } else if (nameOpen === "export") {
         const dest = await skinPickSave(exportFileName(name));
@@ -98,17 +122,58 @@ export function SkinPresetsCard() {
             blob: theme.wallpaperRecord.blob,
           });
         }
-        await skinPackExport(dest, stagingId, manifest);
+        const exported = await skinPackExport(dest, stagingId, manifest);
+        if (exported.warning === "ffmpeg_unavailable") {
+          setActionWarn("ffmpeg_unavailable");
+        }
       } else if (nameOpen === "rename" && renameId) {
         await skinPresetRename(renameId, name);
+        notifySkinLibraryChanged();
         await reload();
       }
+    } catch (e) {
+      setActionError(parseSkinPackError(e).code);
     } finally {
       setBusy(false);
       setNameOpen(null);
       setRenameId(null);
     }
   }, [nameOpen, nameValue, reload, renameId, theme]);
+
+  const runUpdate = useCallback(async () => {
+    if (!updateId) return;
+    setBusy(true);
+    setActionError(null);
+    setActionWarn(null);
+    try {
+      const target = presets.find((p) => p.id === updateId);
+      const manifest = currentLookManifest({
+        name: target?.name ?? "skin",
+        skin: theme.skin,
+        scrim: theme.wallpaperScrim,
+        wallpaper: theme.wallpaperRecord,
+      });
+      let stagingId = "";
+      if (theme.wallpaperRecord?.blob) {
+        stagingId = await uploadCurrentWallpaper({
+          blob: theme.wallpaperRecord.blob,
+        });
+      }
+      const entry = await skinPresetReplaceFromUpload(
+        updateId,
+        stagingId,
+        manifest,
+      );
+      saveActivePresetId(entry.id);
+      notifySkinLibraryChanged();
+      await reload();
+    } catch (e) {
+      setActionError(parseSkinPackError(e).code);
+    } finally {
+      setBusy(false);
+      setUpdateId(null);
+    }
+  }, [presets, reload, theme, updateId]);
 
   if (!desktop) return null;
 
@@ -198,9 +263,21 @@ export function SkinPresetsCard() {
         ) : (
           <ul className="skin-presets__list">
             {presets.map((p) => (
-              <li key={p.id} className="skin-presets__row">
+              <li
+                key={p.id}
+                className={
+                  "skin-presets__row" + (p.id === activeId ? " is-current" : "")
+                }
+              >
                 <div>
-                  <div className="skin-presets__name">{p.name}</div>
+                  <div className="skin-presets__name">
+                    {p.name}
+                    {p.id === activeId ? (
+                      <span className="skin-presets__current">
+                        {t("settings.skinPresets.current")}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="skin-presets__meta">
                     {p.skin}
                     {p.hasWallpaper ? ` · ${p.kind ?? "image"}` : ""}
@@ -220,6 +297,14 @@ export function SkinPresetsCard() {
                     type="button"
                     className="btn btn--ghost btn--sm"
                     disabled={locked}
+                    onClick={() => setUpdateId(p.id)}
+                  >
+                    {t("settings.skinPresets.updateCurrent")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    disabled={locked}
                     onClick={() => {
                       setRenameId(p.id);
                       setNameValue(p.name);
@@ -234,8 +319,18 @@ export function SkinPresetsCard() {
                     disabled={locked}
                     onClick={() => {
                       void (async () => {
-                        const dest = await skinPickSave(exportFileName(p.name));
-                        if (dest) await skinPresetExport(p.id, dest);
+                        setActionError(null);
+                        setActionWarn(null);
+                        try {
+                          const dest = await skinPickSave(exportFileName(p.name));
+                          if (!dest) return;
+                          const exported = await skinPresetExport(p.id, dest);
+                          if (exported.warning === "ffmpeg_unavailable") {
+                            setActionWarn("ffmpeg_unavailable");
+                          }
+                        } catch (e) {
+                          setActionError(parseSkinPackError(e).code);
+                        }
                       })();
                     }}
                   >
@@ -254,9 +349,21 @@ export function SkinPresetsCard() {
             ))}
           </ul>
         )}
-        {share.notice?.kind === "err" ? (
+        {actionError || share.notice?.kind === "err" ? (
           <p className="settings-wallpaper__error" role="alert">
-            {t(`settings.skinPack.err.${share.notice.code}` as "settings.skinPack.err.busy")}
+            {t(
+              `settings.skinPack.err.${actionError ?? share.notice!.code}` as "settings.skinPack.err.busy",
+            )}
+          </p>
+        ) : actionWarn ? (
+          <p className="settings-desc" role="status">
+            {t("settings.skinPack.warn.ffmpeg_unavailable")}
+          </p>
+        ) : share.notice?.kind === "warn" ? (
+          <p className="settings-desc" role="status">
+            {t(
+              `settings.skinPack.warn.${share.notice.code}` as "settings.skinPack.warn.unknown_skin",
+            )}
           </p>
         ) : null}
       </div>
@@ -281,10 +388,12 @@ export function SkinPresetsCard() {
           </>
         }
       >
-        <label className="skin-preview__check">
-          {t("settings.skinPresets.nameLabel")}
+        <label className="skin-sources__add">
+          <span className="skin-sources__add-label">
+            {t("settings.skinPresets.nameLabel")}
+          </span>
           <input
-            className="input"
+            className="settings-input"
             value={nameValue}
             maxLength={80}
             onChange={(e) => setNameValue(e.target.value)}
@@ -308,7 +417,11 @@ export function SkinPresetsCard() {
               onClick={() => {
                 if (!deleteId) return;
                 void skinPresetDelete(deleteId).then(() => {
+                  if (loadActivePresetId() === deleteId) {
+                    saveActivePresetId(null);
+                  }
                   setDeleteId(null);
+                  notifySkinLibraryChanged();
                   void reload();
                 });
               }}
@@ -319,6 +432,30 @@ export function SkinPresetsCard() {
         }
       >
         <p>{t("settings.skinPresets.deleteConfirm")}</p>
+      </GlassModal>
+
+      <GlassModal
+        open={!!updateId}
+        onClose={() => setUpdateId(null)}
+        title={t("settings.skinPresets.updateTitle")}
+        wrapBody
+        footer={
+          <>
+            <button type="button" className="btn btn--ghost" onClick={() => setUpdateId(null)}>
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--solid"
+              disabled={busy}
+              onClick={() => void runUpdate()}
+            >
+              {t("settings.skinPresets.updateCurrent")}
+            </button>
+          </>
+        }
+      >
+        <p>{t("settings.skinPresets.updateConfirm")}</p>
       </GlassModal>
 
       <SkinCatalogModal open={catalogOpen} onClose={() => setCatalogOpen(false)} />

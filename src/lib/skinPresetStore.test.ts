@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  currentLookManifest,
   onSkinPreviewCancel,
   snapshotBeforeLastApply,
   type UndoSnapshotIo,
 } from "./skinPresetStore";
+import type { WallpaperRecord } from "./themeSkin";
 function fakeIo(over: Partial<UndoSnapshotIo> & { calls: string[] }): UndoSnapshotIo & {
   calls: string[];
 } {
@@ -85,6 +87,79 @@ describe("snapshotBeforeLastApply cancel", () => {
     );
     expect(r).toEqual({ ok: true });
     expect(io.calls).toEqual(["prepare", "commit"]);
+  });
+});
+
+describe("currentLookManifest", () => {
+  const video: WallpaperRecord = {
+    kind: "video",
+    mime: "video/mp4",
+    name: "loop.mp4",
+    createdAt: 1,
+    width: 1920,
+    height: 1080,
+    focus: { cx: 0.4, cy: 0.35, zoom: 2 },
+    clip: { start: 2, end: 8 },
+    blob: new Blob(["x"], { type: "video/mp4" }),
+  };
+
+  it("keeps focus/clip and stamps viewAspect for video so export can bake", () => {
+    const man = currentLookManifest({
+      name: "Harbor dusk",
+      skin: "ocean",
+      scrim: 42,
+      wallpaper: video,
+      viewAspect: 1.6,
+    });
+    expect(man.wallpaper).toMatchObject({
+      kind: "video",
+      file: "assets/wallpaper.mp4",
+      focus: { cx: 0.4, cy: 0.35, zoom: 2 },
+      clip: { start: 2, end: 8 },
+      viewAspect: 1.6,
+      width: 1920,
+      height: 1080,
+    });
+  });
+
+  it("stamps viewAspect on still images so export can bake the crop", () => {
+    const man = currentLookManifest({
+      name: "Harbor dusk",
+      skin: "ocean",
+      scrim: 42,
+      wallpaper: {
+        kind: "image",
+        mime: "image/png",
+        name: "bg.png",
+        createdAt: 1,
+        focus: { cx: 0.4, cy: 0.35, zoom: 2 },
+        blob: new Blob(["x"], { type: "image/png" }),
+      },
+      viewAspect: 1.6,
+    });
+    expect(man.wallpaper).toMatchObject({
+      kind: "image",
+      viewAspect: 1.6,
+      focus: { cx: 0.4, cy: 0.35, zoom: 2 },
+    });
+  });
+
+  it("writes default focus when the current look omitted it", () => {
+    const man = currentLookManifest({
+      name: "Harbor dusk",
+      skin: "ocean",
+      scrim: 42,
+      wallpaper: {
+        kind: "image",
+        mime: "image/png",
+        name: "bg.png",
+        createdAt: 1,
+        blob: new Blob(["x"], { type: "image/png" }),
+      },
+      viewAspect: 1.6,
+    });
+    expect(man.wallpaper?.focus).toEqual({ cx: 0.5, cy: 0.5, zoom: 1 });
+    expect(man.wallpaper?.viewAspect).toBe(1.6);
   });
 });
 

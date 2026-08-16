@@ -228,6 +228,8 @@ mod skin_net;
 mod skin_pack;
 mod skin_presets;
 mod skin_staging;
+mod skin_image_bake;
+mod skin_video_bake;
 
 #[cfg(windows)]
 mod win_shell;
@@ -1551,6 +1553,7 @@ pub fn run() {
             commands::skin_preset_materialize,
             commands::skin_preset_delete,
             commands::skin_preset_rename,
+            commands::skin_preset_replace_from_upload,
             commands::skin_preset_export,
             commands::skin_undo_prepare,
             commands::skin_undo_append,

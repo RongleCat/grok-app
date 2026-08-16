@@ -44,7 +44,8 @@ export type SkinPackErrorCode =
   | "source_disabled"
   | "not_found"
   | "busy"
-  | "desktop_only";
+  | "desktop_only"
+  | "ffmpeg_required";
 
 export type SkinPackSource = "file" | "preset" | "catalog" | "deeplink";
 
@@ -87,6 +88,12 @@ export type SkinPackWallpaperManifest = {
   sha256: string;
   focus?: WallpaperFocus;
   clip?: WallpaperClip | null;
+  /**
+   * Exporter window aspect (width / height). Host-only hint so video bake
+   * can crop the same cover slice the editor showed. Stripped from the
+   * packed manifest after bake; import ignores it.
+   */
+  viewAspect?: number;
 };
 
 export type SkinPackManifest = {
@@ -224,6 +231,7 @@ export function parseSkinPackError(raw: unknown): {
     "not_found",
     "busy",
     "desktop_only",
+    "ffmpeg_required",
   ];
   if ((known as string[]).includes(head)) {
     return { code: head as SkinPackErrorCode, detail: idx >= 0 ? s.slice(idx + 1).trim() : "" };

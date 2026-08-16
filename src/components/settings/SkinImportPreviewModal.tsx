@@ -7,6 +7,7 @@ import { GlassModal } from "@/components/GlassModal";
 import { createT, resolveLocale } from "@/i18n";
 import { THEME_SKINS } from "@/lib/themeSkin";
 import { keepWallpaperAllowed, type SkinPackPreview } from "@/lib/skinPack";
+import { UiCheck } from "./shared";
 
 export function SkinImportPreviewModal({
   open,
@@ -16,6 +17,7 @@ export function SkinImportPreviewModal({
   progress,
   onCancel,
   onApply,
+  onSaveLibraryOnly,
 }: {
   open: boolean;
   preview: SkinPackPreview | null;
@@ -24,6 +26,7 @@ export function SkinImportPreviewModal({
   progress: { sent: number; total: number } | null;
   onCancel: () => void;
   onApply: (opts: { keepWallpaper: boolean; saveToLibrary: boolean }) => void;
+  onSaveLibraryOnly?: () => void;
 }) {
   const t = useMemo(
     () =>
@@ -65,6 +68,16 @@ export function SkinImportPreviewModal({
           >
             {t("common.cancel")}
           </button>
+          {onSaveLibraryOnly && !undoMode ? (
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={busy || !pack}
+              onClick={onSaveLibraryOnly}
+            >
+              {t("settings.skinPresets.saveLibraryOnly")}
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn--solid"
@@ -73,7 +86,9 @@ export function SkinImportPreviewModal({
               onApply({
                 keepWallpaper: canKeep && keepWallpaper,
                 saveToLibrary:
-                  pack?.source === "catalog" ? saveToLibrary : saveToLibrary && pack?.source === "file",
+                  pack?.source === "catalog"
+                    ? saveToLibrary
+                    : saveToLibrary && pack?.source === "file",
               })
             }
           >
@@ -116,26 +131,22 @@ export function SkinImportPreviewModal({
             </p>
           ) : null}
           {canKeep ? (
-            <label className="skin-preview__check">
-              <input
-                type="checkbox"
-                checked={keepWallpaper}
-                disabled={busy}
-                onChange={(e) => setKeepWallpaper(e.target.checked)}
-              />
-              {t("settings.skinPresets.keepWallpaper")}
-            </label>
+            <UiCheck
+              checked={keepWallpaper}
+              onChange={() => {
+                if (!busy) setKeepWallpaper((v) => !v);
+              }}
+              label={t("settings.skinPresets.keepWallpaper")}
+            />
           ) : null}
           {pack.source === "catalog" || pack.source === "file" ? (
-            <label className="skin-preview__check">
-              <input
-                type="checkbox"
-                checked={pack.source === "catalog" ? saveToLibrary : saveToLibrary}
-                disabled={busy}
-                onChange={(e) => setSaveToLibrary(e.target.checked)}
-              />
-              {t("settings.skinPresets.saveToLibrary")}
-            </label>
+            <UiCheck
+              checked={saveToLibrary}
+              onChange={() => {
+                if (!busy) setSaveToLibrary((v) => !v);
+              }}
+              label={t("settings.skinPresets.saveToLibrary")}
+            />
           ) : null}
           {progress ? (
             <div className="skin-preview__progress">

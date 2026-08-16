@@ -12,6 +12,7 @@ import {
   skinSourcesSetEnabled,
 } from "@/lib/api/skin";
 import { parseSkinPackError } from "@/lib/skinPack";
+import { UiCheck } from "./shared";
 
 export function SkinSourcesModal({
   open,
@@ -65,49 +66,80 @@ export function SkinSourcesModal({
         wrapBody
         closeLabel={t("common.close")}
       >
-        <ul className="skin-presets__list">
-          {sources.map((s) => (
-            <li key={s.id} className="skin-presets__row">
-              <div>
-                <div className="skin-presets__name">
-                  {s.official ? t("settings.skinCatalog.official") : s.label || s.url}
+        <div className="skin-sources">
+          <ul className="skin-sources__list">
+            {sources.map((s) => (
+              <li key={s.id} className="skin-sources__row">
+                <div className="skin-sources__text">
+                  <div className="skin-sources__name">
+                    {s.official
+                      ? t("settings.skinCatalog.official")
+                      : s.label || s.url}
+                  </div>
+                  <div className="skin-sources__meta">
+                    {s.url || t("settings.skinPack.err.official_unconfigured")}
+                  </div>
                 </div>
-                <div className="skin-presets__meta">{s.url || t("settings.skinPack.err.official_unconfigured")}</div>
-              </div>
-              <label className="skin-preview__check">
-                <input
-                  type="checkbox"
-                  checked={s.enabled}
-                  onChange={(e) => {
-                    void skinSourcesSetEnabled(s.id, e.target.checked).then(reload);
-                  }}
-                />
-                {t("settings.skinCatalog.enabled")}
-              </label>
-              {!s.official ? (
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => void skinSourcesRemove(s.id).then(reload)}
-                >
-                  {t("settings.skinPresets.delete")}
-                </button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-        <label className="skin-preview__check">
-          {t("settings.skinCatalog.addUrl")}
-          <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} />
-        </label>
-        <button type="button" className="btn btn--solid btn--sm" onClick={tryAdd}>
-          {t("settings.skinCatalog.addSource")}
-        </button>
-        {err ? (
-          <p className="settings-wallpaper__error" role="alert">
-            {t(`settings.skinPack.err.${err}` as "settings.skinPack.err.url_blocked")}
-          </p>
-        ) : null}
+                <div className="skin-sources__controls">
+                  <UiCheck
+                    checked={s.enabled}
+                    onChange={() => {
+                      void skinSourcesSetEnabled(s.id, !s.enabled).then(reload);
+                    }}
+                    label={t("settings.skinCatalog.enabled")}
+                  />
+                  {!s.official ? (
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => void skinSourcesRemove(s.id).then(reload)}
+                    >
+                      {t("settings.skinPresets.delete")}
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="skin-sources__add">
+            <label className="skin-sources__add-label" htmlFor="skin-source-url">
+              {t("settings.skinCatalog.addUrl")}
+            </label>
+            <div className="skin-sources__add-row">
+              <input
+                id="skin-source-url"
+                className="settings-input"
+                type="url"
+                value={url}
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+                placeholder="https://"
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    tryAdd();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn--solid btn--sm"
+                onClick={tryAdd}
+              >
+                {t("settings.skinCatalog.addSource")}
+              </button>
+            </div>
+          </div>
+          {err ? (
+            <p className="settings-wallpaper__error" role="alert">
+              {t(
+                `settings.skinPack.err.${err}` as "settings.skinPack.err.url_blocked",
+              )}
+            </p>
+          ) : null}
+        </div>
       </GlassModal>
       <GlassModal
         open={!!confirmHost}

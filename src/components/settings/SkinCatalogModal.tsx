@@ -88,8 +88,9 @@ export function SkinCatalogModal({
       wrapBody
       closeLabel={t("common.close")}
     >
+      <div className="skin-sources">
       <input
-        className="input"
+        className="settings-input"
         value={filter}
         placeholder={t("settings.skinCatalog.filter")}
         onChange={(e) => setFilter(e.target.value)}
@@ -131,6 +132,7 @@ export function SkinCatalogModal({
           ))}
         </ul>
       )}
+      </div>
     </GlassModal>
   );
 }

@@ -179,6 +179,9 @@ describe("keepWallpaperAllowed / errors / export name", () => {
     );
     expect(parseSkinPackError("disk_budget: 4 GiB").code).toBe("disk_budget");
     expect(parseSkinPackError("too_large").code).toBe("too_large");
+    expect(parseSkinPackError("ffmpeg_required: missing binary").code).toBe(
+      "ffmpeg_required",
+    );
   });
 
   it("sanitizes export file names", () => {

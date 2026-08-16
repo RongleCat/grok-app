@@ -242,10 +242,10 @@ pub fn save_from_inspect(inspect_id: &str) -> Result<PresetIndexEntry, String> {
     Ok(entry)
 }
 
-pub fn save_from_upload(
+fn materialize_upload_dir(
     upload_id: &str,
     manifest: serde_json::Value,
-) -> Result<PresetIndexEntry, String> {
+) -> Result<(PathBuf, Option<PathBuf>), String> {
     let upload = if upload_id.is_empty() {
         None
     } else {
@@ -292,7 +292,62 @@ pub fn save_from_upload(
         serde_json::to_vec_pretty(&man).map_err(|e| format!("invalid_pack: {e}"))?,
     )
     .map_err(|e| format!("invalid_pack: {e}"))?;
+    Ok((tmp, upload))
+}
+
+pub fn save_from_upload(
+    upload_id: &str,
+    manifest: serde_json::Value,
+) -> Result<PresetIndexEntry, String> {
+    let (tmp, upload) = materialize_upload_dir(upload_id, manifest)?;
     let entry = save_from_dir(&tmp, None);
+    let _ = fs::remove_dir_all(&tmp);
+    if let Some(dir) = upload {
+        let _ = fs::remove_dir_all(&dir);
+    }
+    entry
+}
+
+pub fn replace_from_dir(id: &str, src: &Path) -> Result<PresetIndexEntry, String> {
+    if reserved(id) {
+        return Err("not_found: reserved id".into());
+    }
+    let dest = paths::skin_presets_dir().join(id);
+    if !dest.is_dir() {
+        return Err("not_found: preset".into());
+    }
+    let old = crate::skin_disk::dir_size(&dest);
+    let add = crate::skin_disk::dir_size(src);
+    skin_disk::preflight(add.saturating_sub(old))?;
+    let tmp = paths::skin_presets_dir().join(format!(".replace-tmp-{id}"));
+    if tmp.exists() {
+        let _ = fs::remove_dir_all(&tmp);
+    }
+    copy_dir(src, &tmp)?;
+    fs::remove_dir_all(&dest).map_err(|e| format!("invalid_pack: {e}"))?;
+    if let Err(e) = fs::rename(&tmp, &dest) {
+        let _ = fs::remove_dir_all(&tmp);
+        return Err(format!("invalid_pack: {e}"));
+    }
+    let mut entry = entry_from_dir(&dest, id)?;
+    entry.updated_at = now_ms();
+    let mut presets = list_presets()?;
+    if let Some(p) = presets.iter_mut().find(|p| p.id == id) {
+        *p = entry.clone();
+    } else {
+        presets.insert(0, entry.clone());
+    }
+    write_index(&presets)?;
+    Ok(entry)
+}
+
+pub fn replace_from_upload(
+    id: &str,
+    upload_id: &str,
+    manifest: serde_json::Value,
+) -> Result<PresetIndexEntry, String> {
+    let (tmp, upload) = materialize_upload_dir(upload_id, manifest)?;
+    let entry = replace_from_dir(id, &tmp);
     let _ = fs::remove_dir_all(&tmp);
     if let Some(dir) = upload {
         let _ = fs::remove_dir_all(&dir);
@@ -313,7 +368,9 @@ pub fn materialize(id: &str) -> Result<SkinPackPreviewDto, String> {
         return Err("not_found: preset".into());
     }
     let dest = paths::skin_presets_dir().join(format!(".export-{}.grokskin", Uuid::new_v4()));
-    skin_pack::export_dir(&dir, &dest)?;
+    // Apply/preview must keep the original video + focus/clip. Bake only
+    // happens on user-facing export/share.
+    skin_pack::export_dir_unbaked(&dir, &dest)?;
     let preview = skin_pack::inspect_pack(&dest, if id == UNDO_ID { "preset" } else { "preset" });
     let _ = fs::remove_file(&dest);
     preview
@@ -365,7 +422,7 @@ pub fn rename_preset(id: &str, name: &str) -> Result<PresetIndexEntry, String> {
     found.ok_or_else(|| "not_found: preset".to_string())
 }
 
-pub fn export_preset(id: &str, dest: &Path) -> Result<(), String> {
+pub fn export_preset(id: &str, dest: &Path) -> Result<skin_pack::SkinExportResult, String> {
     if reserved(id) && id != UNDO_ID {
         return Err("not_found: reserved".into());
     }
@@ -513,6 +570,40 @@ mod tests {
         assert!(index_path().is_file());
         assert!(list_presets().unwrap().is_empty());
         let _ = fs::remove_dir_all(&dir);
+        std::env::remove_var("GROK_APP_HOME");
+    }
+
+    #[test]
+    fn replace_from_dir_keeps_id_and_updates_manifest() {
+        let (_g, home_dir) = home();
+        let src = home_dir.join("first");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(
+            src.join("manifest.json"),
+            br#"{"schemaVersion":1,"name":"Old","skin":"ocean","scrim":10,"wallpaper":null}"#,
+        )
+        .unwrap();
+        let saved = save_from_dir(&src, None).unwrap();
+        assert_eq!(saved.name, "Old");
+        assert_eq!(list_presets().unwrap().len(), 1);
+
+        let next = home_dir.join("next");
+        fs::create_dir_all(&next).unwrap();
+        fs::write(
+            next.join("manifest.json"),
+            br#"{"schemaVersion":1,"name":"New","skin":"ember","scrim":40,"wallpaper":null}"#,
+        )
+        .unwrap();
+        let replaced = replace_from_dir(&saved.id, &next).unwrap();
+        assert_eq!(replaced.id, saved.id);
+        assert_eq!(replaced.name, "New");
+        assert_eq!(replaced.skin, "ember");
+        assert_eq!(replaced.scrim, 40);
+        let listed = list_presets().unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, saved.id);
+        assert_eq!(listed[0].name, "New");
+        let _ = fs::remove_dir_all(&home_dir);
         std::env::remove_var("GROK_APP_HOME");
     }
 }

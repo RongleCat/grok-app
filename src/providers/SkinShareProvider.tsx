@@ -24,6 +24,10 @@ import {
   skinPresetMaterialize,
   skinPresetSaveFromInspect,
 } from "@/lib/api/skin";
+import {
+  notifySkinLibraryChanged,
+  saveActivePresetId,
+} from "@/lib/skinActivePreset";
 import { acquireAppearanceWrite } from "@/lib/appearanceWriteLock";
 import { applySkinPack } from "@/lib/applySkinPack";
 import { fileFromAbsolutePath } from "@/lib/wallpaperSource";
@@ -49,6 +53,8 @@ export type SkinShareNotice = {
 type PreviewState = {
   preview: SkinPackPreview;
   undoMode: boolean;
+  /** Existing library id when applying a saved preset (not undo). */
+  libraryId?: string;
 };
 
 type SkinShareValue = {
@@ -96,10 +102,13 @@ export function SkinShareProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const showPreview = useCallback((next: SkinPackPreview, undoMode = false) => {
-    setNotice(null);
-    setPreview({ preview: next, undoMode });
-  }, []);
+  const showPreview = useCallback(
+    (next: SkinPackPreview, undoMode = false, libraryId?: string) => {
+      setNotice(null);
+      setPreview({ preview: next, undoMode, libraryId });
+    },
+    [],
+  );
 
   const openFilePreview = useCallback(async (path: string) => {
     const p = await skinPackInspect(path);
@@ -109,7 +118,7 @@ export function SkinShareProvider({ children }: { children: ReactNode }) {
   const openPresetPreview = useCallback(
     async (id: string, undoMode = false) => {
       const p = await skinPresetMaterialize(id);
-      showPreview(p, undoMode);
+      showPreview(p, undoMode, undoMode ? undefined : id);
     },
     [showPreview],
   );
@@ -166,6 +175,7 @@ export function SkinShareProvider({ children }: { children: ReactNode }) {
       if (!cur) return;
       cancelRef.current.cancelled = false;
       setAppearanceBusy(true);
+      let savedId: string | null = null;
       try {
         const result = await applySkinPack(
           cur.preview,
@@ -200,7 +210,8 @@ export function SkinShareProvider({ children }: { children: ReactNode }) {
             applySkinChoice: theme.applySkinChoice,
             applyWallpaperScrimChoice: theme.applyWallpaperScrimChoice,
             saveFromInspect: async (inspectId) => {
-              await skinPresetSaveFromInspect(inspectId);
+              const entry = await skinPresetSaveFromInspect(inspectId);
+              savedId = entry.id;
             },
             inspectAbort: skinInspectAbort,
             acquireWrite: acquireAppearanceWrite,
@@ -217,6 +228,14 @@ export function SkinShareProvider({ children }: { children: ReactNode }) {
         if (result.libraryError) {
           setNotice({ kind: "err", code: result.libraryError });
         }
+        if (!cur.undoMode) {
+          saveActivePresetId(cur.libraryId ?? savedId);
+        } else {
+          saveActivePresetId(null);
+        }
+        if (savedId || result.savedToLibrary) {
+          notifySkinLibraryChanged();
+        }
         setPreview(null);
       } catch (e) {
         const { code } = parseSkinPackError(e);
@@ -228,6 +247,22 @@ export function SkinShareProvider({ children }: { children: ReactNode }) {
     },
     [theme, closePreview],
   );
+
+  const saveLibraryOnly = useCallback(async () => {
+    const cur = previewRef.current;
+    if (!cur || cur.undoMode) return;
+    setAppearanceBusy(true);
+    try {
+      await skinPresetSaveFromInspect(cur.preview.id);
+      notifySkinLibraryChanged();
+      setPreview(null);
+    } catch (e) {
+      const { code } = parseSkinPackError(e);
+      setNotice({ kind: "err", code });
+    } finally {
+      setAppearanceBusy(false);
+    }
+  }, []);
 
   const value = useMemo<SkinShareValue>(
     () => ({
@@ -268,6 +303,17 @@ export function SkinShareProvider({ children }: { children: ReactNode }) {
         onApply={(opts) => {
           void apply(opts);
         }}
+        onSaveLibraryOnly={
+          preview &&
+          !preview.undoMode &&
+          (preview.preview.source === "file" ||
+            preview.preview.source === "catalog" ||
+            preview.preview.source === "deeplink")
+            ? () => {
+                void saveLibraryOnly();
+              }
+            : undefined
+        }
       />
     </Ctx.Provider>
   );

@@ -42,12 +42,16 @@ export async function skinInspectAbort(inspectId: string): Promise<void> {
   await invoke<void>("skin_inspect_abort", { inspectId });
 }
 
+export type SkinExportResult = {
+  warning?: "ffmpeg_unavailable" | string | null;
+};
+
 export async function skinPackExport(
   destPath: string,
   stagingId: string | null,
   manifest: unknown,
-): Promise<void> {
-  await invoke<void>("skin_pack_export", {
+): Promise<SkinExportResult> {
+  return invoke<SkinExportResult>("skin_pack_export", {
     destPath,
     stagingId,
     manifest,
@@ -106,8 +110,23 @@ export async function skinPresetRename(
   return invoke<SkinPresetListItem>("skin_preset_rename", { id, name });
 }
 
-export async function skinPresetExport(id: string, destPath: string): Promise<void> {
-  await invoke<void>("skin_preset_export", { id, destPath });
+export async function skinPresetReplaceFromUpload(
+  id: string,
+  stagingId: string,
+  manifest: unknown,
+): Promise<SkinPresetListItem> {
+  return invoke<SkinPresetListItem>("skin_preset_replace_from_upload", {
+    id,
+    stagingId,
+    manifest,
+  });
+}
+
+export async function skinPresetExport(
+  id: string,
+  destPath: string,
+): Promise<SkinExportResult> {
+  return invoke<SkinExportResult>("skin_preset_export", { id, destPath });
 }
 
 export async function skinUndoPrepare(): Promise<string> {

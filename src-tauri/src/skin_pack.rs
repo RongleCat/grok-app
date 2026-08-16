@@ -537,13 +537,57 @@ fn maybe_preview_from_wallpaper(path: &Path, kind: &str) -> Option<Vec<u8>> {
     fs::read(path).ok().and_then(|b| encode_preview_jpeg(&b))
 }
 
+struct RemoveOnDrop(Option<PathBuf>);
+
+impl Drop for RemoveOnDrop {
+    fn drop(&mut self) {
+        if let Some(p) = self.0.take() {
+            let _ = fs::remove_file(p);
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkinExportResult {
+    pub warning: Option<String>,
+}
+
+impl SkinExportResult {
+    fn from_bake(status: crate::skin_video_bake::VideoBakeStatus) -> Self {
+        Self {
+            warning: match status {
+                crate::skin_video_bake::VideoBakeStatus::SkippedNoFfmpeg => {
+                    Some("ffmpeg_unavailable".into())
+                }
+                _ => None,
+            },
+        }
+    }
+}
+
 /// Export a pack to `dest_path`. Wallpaper bytes come from `wallpaper_path`.
-/// Never writes `themePreference`.
+/// Never writes `themePreference`. Video crop/clip is baked when `bake_video`.
 pub fn export_pack(
     dest_path: &Path,
     manifest: &serde_json::Value,
     wallpaper_path: Option<&Path>,
-) -> Result<(), String> {
+) -> Result<SkinExportResult, String> {
+    export_pack_inner(dest_path, manifest, wallpaper_path, true)
+}
+
+/// Zip a library dir without re-encoding video. Used to preview/apply a
+/// saved look so the original file + focus/clip stay intact.
+pub fn export_dir_unbaked(src_dir: &Path, dest_path: &Path) -> Result<SkinExportResult, String> {
+    export_dir_inner(src_dir, dest_path, false)
+}
+
+fn export_pack_inner(
+    dest_path: &Path,
+    manifest: &serde_json::Value,
+    wallpaper_path: Option<&Path>,
+    bake_video: bool,
+) -> Result<SkinExportResult, String> {
     let mut man = manifest.clone();
     if let Some(obj) = man.as_object_mut() {
         obj.remove("themePreference");
@@ -557,12 +601,61 @@ pub fn export_pack(
         }
     }
     let mut wallpaper_bytes: Option<(String, Vec<u8>, String, String)> = None;
+    let mut baked_tmp = RemoveOnDrop(None);
+    let mut bake_status = crate::skin_video_bake::VideoBakeStatus::NotNeeded;
+    let mut preview_src = wallpaper_path.map(|p| p.to_path_buf());
     if let Some(path) = wallpaper_path {
-        let bytes = fs::read(path).map_err(|e| err("not_found", e))?;
+        let mut use_path = path.to_path_buf();
+        if let Some(obj) = man.as_object_mut() {
+            let mut wall = obj
+                .get("wallpaper")
+                .cloned()
+                .unwrap_or(serde_json::json!({}));
+            if let Some(w) = wall.as_object_mut() {
+                let is_video = w.get("kind").and_then(|x| x.as_str()) == Some("video")
+                    || path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .is_some_and(|e| e.eq_ignore_ascii_case("mp4") || e.eq_ignore_ascii_case("webm"));
+                if bake_video && is_video {
+                    w.entry("kind".to_string())
+                        .or_insert_with(|| serde_json::json!("video"));
+                    let (baked, status) =
+                        crate::skin_video_bake::maybe_bake_wallpaper_video(path, w)?;
+                    bake_status = status;
+                    if baked != path {
+                        baked_tmp.0 = Some(baked.clone());
+                        use_path = baked;
+                    }
+                } else if bake_video {
+                    let is_image = w.get("kind").and_then(|x| x.as_str()) == Some("image")
+                        || path.extension().and_then(|e| e.to_str()).is_some_and(|e| {
+                            matches!(
+                                e.to_ascii_lowercase().as_str(),
+                                "jpg" | "jpeg" | "png" | "webp" | "gif"
+                            )
+                        });
+                    if is_image {
+                        w.entry("kind".to_string())
+                            .or_insert_with(|| serde_json::json!("image"));
+                        let (baked, _status) =
+                            crate::skin_image_bake::maybe_bake_wallpaper_image(path, w)?;
+                        if baked != path {
+                            baked_tmp.0 = Some(baked.clone());
+                            use_path = baked;
+                        }
+                    }
+                } else {
+                    w.remove("viewAspect");
+                }
+            }
+            obj.insert("wallpaper".into(), wall);
+        }
+        let bytes = fs::read(&use_path).map_err(|e| err("not_found", e))?;
         if bytes.len() as u64 > WALLPAPER_MAX {
             return Err(err("too_large", "wallpaper exceeds 200 MiB"));
         }
-        let ext = path
+        let ext = use_path
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("jpg")
@@ -572,11 +665,7 @@ pub fn export_pack(
         let hash = sha256_hex(&bytes);
         let file = format!("assets/wallpaper.{ext}");
         if let Some(obj) = man.as_object_mut() {
-            let mut wall = obj
-                .get("wallpaper")
-                .cloned()
-                .unwrap_or(serde_json::json!({}));
-            if let Some(w) = wall.as_object_mut() {
+            if let Some(w) = obj.get_mut("wallpaper").and_then(|x| x.as_object_mut()) {
                 w.insert("file".into(), serde_json::json!(file));
                 w.insert("kind".into(), serde_json::json!(kind));
                 w.insert("mime".into(), serde_json::json!(mime));
@@ -591,17 +680,20 @@ pub fn export_pack(
                         ),
                     );
                 }
+                w.remove("viewAspect");
             }
-            obj.insert("wallpaper".into(), wall);
         }
+        preview_src = Some(use_path);
         wallpaper_bytes = Some((file, bytes, kind.to_string(), mime.to_string()));
     } else if let Some(obj) = man.as_object_mut() {
         obj.insert("wallpaper".into(), serde_json::Value::Null);
     }
 
-    let preview_bytes = wallpaper_bytes
-        .as_ref()
-        .and_then(|(_, _b, kind, _)| wallpaper_path.and_then(|p| maybe_preview_from_wallpaper(p, kind)));
+    let preview_bytes = wallpaper_bytes.as_ref().and_then(|(_, _b, kind, _)| {
+        preview_src
+            .as_deref()
+            .and_then(|p| maybe_preview_from_wallpaper(p, kind))
+    });
 
     if let Some(parent) = dest_path.parent() {
         fs::create_dir_all(parent).map_err(|e| err("invalid_pack", e))?;
@@ -629,11 +721,20 @@ pub fn export_pack(
     }
     zip.set_comment(ZIP_COMMENT);
     zip.finish().map_err(|e| err("invalid_pack", e))?;
-    Ok(())
+    Ok(SkinExportResult::from_bake(bake_status))
 }
 
 /// Export a directory that already has manifest + optional assets/preview.
-pub fn export_dir(src_dir: &Path, dest_path: &Path) -> Result<(), String> {
+/// Video wallpapers are cropped/trimmed when the stored look asks for it.
+pub fn export_dir(src_dir: &Path, dest_path: &Path) -> Result<SkinExportResult, String> {
+    export_dir_inner(src_dir, dest_path, true)
+}
+
+fn export_dir_inner(
+    src_dir: &Path,
+    dest_path: &Path,
+    bake_video: bool,
+) -> Result<SkinExportResult, String> {
     let man_path = src_dir.join("manifest.json");
     let raw = fs::read(&man_path).map_err(|e| err("not_found", e))?;
     let mut man: serde_json::Value =
@@ -647,7 +748,7 @@ pub fn export_dir(src_dir: &Path, dest_path: &Path) -> Result<(), String> {
         .and_then(|f| f.as_str())
         .map(|rel| src_dir.join(rel));
     let wall_ref = wall.as_deref().filter(|p| p.is_file());
-    export_pack(dest_path, &man, wall_ref)
+    export_pack_inner(dest_path, &man, wall_ref, bake_video)
 }
 
 #[cfg(test)]

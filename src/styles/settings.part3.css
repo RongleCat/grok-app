@@ -713,7 +713,8 @@ textarea.settings-input.settings-agents-json__textarea {
 }
 
 /* Stacked cards after the theme row still need top gap */
-.settings-page__main > .settings-card + .settings-appearance-duo {
+.settings-page__main > .settings-card + .settings-appearance-duo,
+.settings-page__main > .settings-appearance-duo + .settings-card {
   margin-top: 14px;
 }
 
@@ -820,7 +821,28 @@ textarea.settings-input.settings-agents-json__textarea {
 }
 
 .skin-presets__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 560;
+}
+
+.skin-presets__row.is-current {
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent, #3b7cff) 10%, transparent);
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.skin-presets__current {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: var(--accent, #3b7cff);
+  background: color-mix(in srgb, var(--accent, #3b7cff) 16%, transparent);
 }
 
 .skin-presets__meta,
@@ -875,6 +897,87 @@ textarea.settings-input.settings-agents-json__textarea {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.skin-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.skin-sources__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.skin-sources__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.skin-sources__row:first-child {
+  padding-top: 0;
+}
+
+.skin-sources__row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.skin-sources__text {
+  min-width: 0;
+}
+
+.skin-sources__name {
+  font-size: 13px;
+  font-weight: 560;
+  line-height: 1.3;
+}
+
+.skin-sources__meta {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.skin-sources__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.skin-sources__add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skin-sources__add-label {
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.skin-sources__add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skin-sources__add-row .settings-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.skin-sources__add-row .btn {
+  flex: 0 0 auto;
 }
 
 /* ── Wallpaper source modal (X + Imagine) ── */

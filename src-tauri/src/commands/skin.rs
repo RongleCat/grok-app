@@ -68,7 +68,7 @@ pub async fn skin_pack_export(
     dest_path: String,
     staging_id: Option<String>,
     manifest: serde_json::Value,
-) -> Result<(), String> {
+) -> Result<crate::skin_pack::SkinExportResult, String> {
     let dest = PathBuf::from(dest_path);
     path_scope::grant_path(&dest);
     tauri::async_runtime::spawn_blocking(move || {
@@ -166,7 +166,23 @@ pub async fn skin_preset_rename(id: String, name: String) -> Result<PresetIndexE
 }
 
 #[tauri::command]
-pub async fn skin_preset_export(id: String, dest_path: String) -> Result<(), String> {
+pub async fn skin_preset_replace_from_upload(
+    id: String,
+    staging_id: String,
+    manifest: serde_json::Value,
+) -> Result<PresetIndexEntry, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        skin_presets::replace_from_upload(&id, &staging_id, manifest)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn skin_preset_export(
+    id: String,
+    dest_path: String,
+) -> Result<crate::skin_pack::SkinExportResult, String> {
     let dest = PathBuf::from(dest_path);
     path_scope::grant_path(&dest);
     tauri::async_runtime::spawn_blocking(move || skin_presets::export_preset(&id, &dest))
