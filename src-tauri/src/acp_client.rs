@@ -5697,12 +5697,7 @@ mod prompt_wait_timeout_tests {
         let started = Instant::now();
         let last = started + Duration::from_secs(10);
         let now = last + idle();
-        assert!(prompt_wait_should_timeout(
-            Some(last),
-            started,
-            now,
-            idle()
-        ));
+        assert!(prompt_wait_should_timeout(Some(last), started, now, idle()));
     }
 
     #[test]
