@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- **User menu lists every saved official account (#621)**: Each row shows honest SuperGrok remaining % (never invents 0% / 100% on a failed probe). Click another account to `account_switch`; click the active row for Settings → Account. Custom-provider / signed-out cards stay as they are.
+
+**中文 · 新增**
+- **头像菜单列出全部已保存官方账号（#621）**：每行显示诚实的 SuperGrok 剩余 %（探测失败不编造 0% / 100%）。点其他号走 `account_switch`；点当前号仍进设置 → 账户。自定义提供商 / 未登录卡片不变。
+
 ### Changed
 - **README Gatekeeper copy**: Official Releases from v0.2.19 are Developer ID signed and Apple-notarized. The `xattr` workaround stays for forks / older unsigned builds.
 
