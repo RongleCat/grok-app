@@ -37,6 +37,9 @@ const IDEMPOTENCY_CAP: usize = 200;
 #[serde(rename_all = "snake_case")]
 pub enum TurnStatus {
     TurnStarted,
+    /// Current turn is still running (e.g. drawing / tools). Prompt is in the
+    /// same follow-up queue the composer shows — not discarded, not interrupted.
+    Queued,
     Busy,
     NotFound,
     AppNotRunning,
@@ -73,6 +76,78 @@ pub struct TurnResult {
     pub idempotency_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+    /// Set when `status == queued` so the GUI can dedup the same follow-up.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_item_id: Option<String>,
+    /// Prompt echoed on `queued` so an idempotent retry can re-fan the GUI event.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queued_prompt: Option<String>,
+}
+
+pub const SEND_QUEUE_EVENT: &str = "session://send_queue";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SendQueuePush {
+    pub session_id: String,
+    pub item_id: String,
+    pub prompt: String,
+    pub source: String,
+    pub created_at: i64,
+}
+
+impl TurnResult {
+    fn fail(status: TurnStatus, session_id: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            ok: false,
+            status,
+            session_id: session_id.into(),
+            idempotency_key: None,
+            message: Some(message.into()),
+            queue_item_id: None,
+            queued_prompt: None,
+        }
+    }
+
+    fn started(session_id: impl Into<String>) -> Self {
+        Self {
+            ok: true,
+            status: TurnStatus::TurnStarted,
+            session_id: session_id.into(),
+            idempotency_key: None,
+            message: None,
+            queue_item_id: None,
+            queued_prompt: None,
+        }
+    }
+}
+
+pub fn emit_external_queue(app: &AppHandle, session_id: &str, prompt: &str, item_id: &str) {
+    crate::mirror::fanout_event(
+        app,
+        SEND_QUEUE_EVENT,
+        SendQueuePush {
+            session_id: session_id.to_string(),
+            item_id: item_id.to_string(),
+            prompt: prompt.to_string(),
+            source: "external".into(),
+            created_at: chrono::Utc::now().timestamp_millis(),
+        },
+    );
+}
+
+pub fn enqueue_while_busy(app: &AppHandle, session_id: &str, prompt: &str) -> TurnResult {
+    let item_id = format!("q-ext-{}", uuid::Uuid::new_v4());
+    emit_external_queue(app, session_id, prompt, &item_id);
+    TurnResult {
+        ok: true,
+        status: TurnStatus::Queued,
+        session_id: session_id.to_string(),
+        idempotency_key: None,
+        message: Some("queued until the current turn ends".into()),
+        queue_item_id: Some(item_id),
+        queued_prompt: Some(prompt.to_string()),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -333,52 +408,42 @@ pub fn classify_send_error(err: &str) -> TurnStatus {
 pub fn prepare_send(session_id: &str, prompt: &str) -> Result<PreparedSend, TurnResult> {
     let prompt = prompt.trim();
     if prompt.is_empty() {
-        return Err(TurnResult {
-            ok: false,
-            status: TurnStatus::Error,
-            session_id: session_id.to_string(),
-            idempotency_key: None,
-            message: Some("empty prompt".into()),
-        });
+        return Err(TurnResult::fail(
+            TurnStatus::Error,
+            session_id,
+            "empty prompt",
+        ));
     }
     let list = store::load_sessions_index();
     let Some(meta) = list.into_iter().find(|s| s.id == session_id) else {
-        return Err(TurnResult {
-            ok: false,
-            status: TurnStatus::NotFound,
-            session_id: session_id.to_string(),
-            idempotency_key: None,
-            message: Some("session not found".into()),
-        });
+        return Err(TurnResult::fail(
+            TurnStatus::NotFound,
+            session_id,
+            "session not found",
+        ));
     };
     let projects = store::load_projects();
     if let Some(ref pid) = meta.project_id {
         let Some(p) = projects.iter().find(|p| &p.id == pid) else {
-            return Err(TurnResult {
-                ok: false,
-                status: TurnStatus::Error,
-                session_id: session_id.to_string(),
-                idempotency_key: None,
-                message: Some(format!("project not found: {pid}")),
-            });
+            return Err(TurnResult::fail(
+                TurnStatus::Error,
+                session_id,
+                format!("project not found: {pid}"),
+            ));
         };
         if !p.trusted {
-            return Err(TurnResult {
-                ok: false,
-                status: TurnStatus::Error,
-                session_id: session_id.to_string(),
-                idempotency_key: None,
-                message: Some(format!("project not trusted: {}", p.name)),
-            });
+            return Err(TurnResult::fail(
+                TurnStatus::Error,
+                session_id,
+                format!("project not trusted: {}", p.name),
+            ));
         }
         if !p.path_ok {
-            return Err(TurnResult {
-                ok: false,
-                status: TurnStatus::Error,
-                session_id: session_id.to_string(),
-                idempotency_key: None,
-                message: Some(format!("project path missing: {}", p.name)),
-            });
+            return Err(TurnResult::fail(
+                TurnStatus::Error,
+                session_id,
+                format!("project path missing: {}", p.name),
+            ));
         }
     }
     // Prefer a linked worktree cwd (same as the composer), else the project path.
@@ -416,36 +481,38 @@ pub async fn dispatch_turn(
     req: PreparedSend,
 ) -> TurnResult {
     let sid = req.session_id.clone();
+    // Mid-turn (drawing / tools / permission): do not connect-steal or send.
+    // Push onto the same composer follow-up queue the GUI already shows.
+    if mgr.session_turn_busy(&sid) {
+        return enqueue_while_busy(app, &sid, &req.prompt);
+    }
     if let Err(e) = mgr
         .connect(app.clone(), req.project_path, Some(sid.clone()), None)
         .await
     {
-        return TurnResult {
-            ok: false,
-            status: TurnStatus::Error,
-            session_id: sid,
-            idempotency_key: None,
-            message: Some(format!("connect failed: {e}")),
-        };
+        return TurnResult::fail(TurnStatus::Error, sid, format!("connect failed: {e}"));
+    }
+    // Connect can race a new turn; treat that as queue, never interrupt.
+    if mgr.session_turn_busy(&sid) {
+        return enqueue_while_busy(app, &sid, &req.prompt);
     }
     match mgr
-        .send_message(app.clone(), req.prompt, None, None, Some(sid.clone()))
+        .send_message(
+            app.clone(),
+            req.prompt.clone(),
+            None,
+            None,
+            Some(sid.clone()),
+        )
         .await
     {
-        Ok(_) => TurnResult {
-            ok: true,
-            status: TurnStatus::TurnStarted,
-            session_id: sid,
-            idempotency_key: None,
-            message: None,
-        },
-        Err(e) => TurnResult {
-            ok: false,
-            status: classify_send_error(&e),
-            session_id: sid,
-            idempotency_key: None,
-            message: Some(e),
-        },
+        Ok(_) => TurnResult::started(sid),
+        Err(e) => {
+            if classify_send_error(&e) == TurnStatus::Busy {
+                return enqueue_while_busy(app, &sid, &req.prompt);
+            }
+            TurnResult::fail(classify_send_error(&e), sid, e)
+        }
     }
 }
 
@@ -462,6 +529,11 @@ async fn handle_turn(
         .map(str::to_string);
     if let Some(ref k) = key {
         if let Some(prev) = recall_idempotency(k) {
+            if prev.status == TurnStatus::Queued {
+                if let (Some(id), Some(prompt)) = (&prev.queue_item_id, &prev.queued_prompt) {
+                    emit_external_queue(&state.app, &prev.session_id, prompt, id);
+                }
+            }
             return (status_for(&prev.status), Json(prev));
         }
     }
@@ -486,6 +558,7 @@ async fn handle_turn(
 fn status_for(s: &TurnStatus) -> StatusCode {
     match s {
         TurnStatus::TurnStarted => StatusCode::OK,
+        TurnStatus::Queued => StatusCode::ACCEPTED,
         TurnStatus::Busy => StatusCode::CONFLICT,
         TurnStatus::NotFound => StatusCode::NOT_FOUND,
         TurnStatus::AppNotRunning => StatusCode::SERVICE_UNAVAILABLE,
@@ -643,16 +716,12 @@ pub fn run_cli() -> i32 {
             idempotency_key,
         }) => {
             let Some(ep) = read_endpoint_file() else {
-                let out = TurnResult {
-                    ok: false,
-                    status: TurnStatus::AppNotRunning,
+                let mut out = TurnResult::fail(
+                    TurnStatus::AppNotRunning,
                     session_id,
-                    idempotency_key,
-                    message: Some(
-                        "Grok App is not running. Start the app (or leave it in the tray), then retry."
-                            .into(),
-                    ),
-                };
+                    "Grok App is not running. Start the app (or leave it in the tray), then retry.",
+                );
+                out.idempotency_key = idempotency_key;
                 print_turn(&out);
                 return 2;
             };
@@ -670,15 +739,14 @@ pub fn run_cli() -> i32 {
                     }
                 }
                 Err(e) => {
-                    let out = TurnResult {
-                        ok: false,
-                        status: TurnStatus::AppNotRunning,
+                    let mut out = TurnResult::fail(
+                        TurnStatus::AppNotRunning,
                         session_id,
-                        idempotency_key,
-                        message: Some(format!(
+                        format!(
                             "Grok App is not reachable ({e}). Start the app (or leave it in the tray), then retry."
-                        )),
-                    };
+                        ),
+                    );
+                    out.idempotency_key = idempotency_key;
                     print_turn(&out);
                     2
                 }
@@ -806,6 +874,13 @@ mod tests {
             }
         );
         assert!(parse_cli(&["grok-app".into()]).is_err());
+    }
+
+    #[test]
+    fn queued_http_is_accepted() {
+        assert_eq!(status_for(&TurnStatus::Queued), StatusCode::ACCEPTED);
+        let raw = serde_json::to_value(TurnStatus::Queued).unwrap();
+        assert_eq!(raw, serde_json::json!("queued"));
     }
 
     #[test]

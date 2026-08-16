@@ -133,6 +133,13 @@ impl SessionManager {
     /// True while a turn is still in flight — must demote to `background`, never park.
     /// Includes open tools / deferred prompt_complete even if FSM already Ready
     /// (early prompt_complete + long-running find/subagent).
+    /// Whether this App session is mid-turn (live focus or background).
+    /// Used by the local session API to enqueue instead of interrupting.
+    pub fn session_turn_busy(&self, app_session_id: &str) -> bool {
+        self.with_session_mut(app_session_id, |s| Self::live_session_is_busy(s))
+            .unwrap_or(false)
+    }
+
     pub(super) fn live_session_is_busy(s: &LiveSession) -> bool {
         // Authoritative: the prompt RPC has not resolved, so the agent is still
         // producing output for this chat no matter what the FSM says. Parking

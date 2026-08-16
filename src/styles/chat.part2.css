@@ -557,6 +557,18 @@ button.composer__context-item {
   font-variant-numeric: tabular-nums;
 }
 
+.composer__queue-src {
+  flex: 0 0 auto;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: var(--bg-elevated, var(--bg-app));
+  border: 1px solid var(--border-subtle);
+}
+
 .composer__queue-text {
   flex: 1;
   min-width: 0;

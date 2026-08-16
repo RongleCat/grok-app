@@ -8,9 +8,11 @@ import {
   type RefObject,
 } from "react";
 import type { Attachment } from "@/lib/attachments";
+import * as api from "@/lib/api";
 import type { SessionSnapshot, SessionState } from "@/lib/session";
 import {
   applyClearSendQueuePlan,
+  applyExternalQueuePush,
   claimQueueHead,
   dropQueuesForSessions,
   enqueueSend,
@@ -19,6 +21,7 @@ import {
   migrateDraftQueue,
   moveQueuedSend,
   planClearSendQueue,
+  queuePreviewText,
   queueSessionKey,
   removeQueuedSend,
   reorderQueuedSend,
@@ -29,6 +32,7 @@ import {
   shouldHoldFlushForLive,
   updateQueuedSend,
   type ClearSendQueuePlan,
+  type ExternalQueuePush,
   type QueueMoveDirection,
   type QueuedSend,
   type QueuedSendPatch,
@@ -52,9 +56,13 @@ export type UseSendQueueOptions = {
   /** Always call via ref so flush sees the latest executeSend. */
   executeSendRef: MutableRefObject<ExecuteSendFromQueue>;
   showToast: (msg: string, ms?: number) => void;
+  /** Primary window only — secondary has its own queue map and must not double-send. */
+  acceptExternal?: boolean;
   labels: {
     sendFailed: string;
     droppedOldest: (n: number, max: number) => string;
+    externalAdded?: (preview: string) => string;
+    externalAddedOther?: (preview: string) => string;
   };
 };
 
@@ -71,6 +79,7 @@ export function useSendQueue({
   sendInFlightRef,
   executeSendRef,
   showToast,
+  acceptExternal = false,
   labels,
 }: UseSendQueueOptions) {
   const [sendQueueByKey, setSendQueueByKey] = useState<
@@ -111,6 +120,46 @@ export function useSendQueue({
     sendQueueByKeyRef.current = next;
     setSendQueueByKey(next);
   }, []);
+
+  // Host session API: mid-turn external prompts join this same map so the
+  // composer strip updates immediately (drawing / tools / streaming).
+  useEffect(() => {
+    if (!acceptExternal || !api.hasHost()) return;
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+    void api
+      .listen<ExternalQueuePush>("session://send_queue", (push) => {
+        if (cancelled) return;
+        const r = applyExternalQueuePush(sendQueueByKeyRef.current, push);
+        if (!r.added) return;
+        writeMap(r.byKey);
+        if (r.dropped > 0) {
+          showToast(labels.droppedOldest(r.dropped, SEND_QUEUE_MAX), 3200);
+        }
+        const preview = queuePreviewText(push.prompt ?? "", [], 48);
+        const viewId = viewingSessionIdRef.current ?? sessionId;
+        const same = !!viewId && viewId === (push.sessionId ?? "").trim();
+        const toast = same
+          ? labels.externalAdded?.(preview)
+          : labels.externalAddedOther?.(preview);
+        if (toast) showToast(toast, same ? 2800 : 4200);
+      })
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [
+    acceptExternal,
+    labels,
+    sessionId,
+    showToast,
+    viewingSessionIdRef,
+    writeMap,
+  ]);
 
   /** Enqueue a follow-up for the *viewed* session (ref, not stale React id). */
   const enqueue = useCallback(

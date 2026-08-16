@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyClearSendQueuePlan,
+  applyExternalQueuePush,
   canReorderSendQueue,
   canShowQueueButton,
   claimQueueHead,
@@ -76,6 +77,37 @@ describe("sendQueue", () => {
     expect(shouldHoldFlushForLive("a", "ready", "a")).toBe(false);
     expect(shouldHoldFlushForLive("a", "connecting", "a")).toBe(false);
     expect(shouldHoldFlushForLive(null, "streaming", "a")).toBe(false);
+  });
+
+  it("applyExternalQueuePush keys by session, dedups, and tags source", () => {
+    const first = applyExternalQueuePush(
+      {},
+      { sessionId: "s1", itemId: "q-ext-1", prompt: "keep drawing", createdAt: 9 },
+    );
+    expect(first.added).toBe(true);
+    expect(first.dropped).toBe(0);
+    const row = first.byKey.s1![0]!;
+    expect(row.id).toBe("q-ext-1");
+    expect(row.storedDisplay).toBe("keep drawing");
+    expect(row.source).toBe("external");
+    expect(row.createdAt).toBe(9);
+    const again = applyExternalQueuePush(first.byKey, {
+      sessionId: "s1",
+      itemId: "q-ext-1",
+      prompt: "keep drawing",
+    });
+    expect(again.added).toBe(false);
+    expect(again.byKey.s1).toHaveLength(1);
+    const other = applyExternalQueuePush(first.byKey, {
+      sessionId: "s2",
+      itemId: "q-ext-2",
+      prompt: "next",
+    });
+    expect(other.added).toBe(true);
+    expect(other.byKey.s2).toHaveLength(1);
+    expect(applyExternalQueuePush({}, { sessionId: "s1", itemId: "x", prompt: "" }).added).toBe(
+      false,
+    );
   });
 
   it("enqueue drops oldest past max and reports dropped", () => {

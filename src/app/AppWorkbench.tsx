@@ -10413,6 +10413,10 @@ export function AppWorkbench() {
           n: String(n),
           max: String(max),
         }),
+      externalAdded: (preview: string) =>
+        tr("composer.queueExternalAdded", { preview }),
+      externalAddedOther: (preview: string) =>
+        tr("composer.queueExternalAddedOther", { preview }),
     }),
     [tr],
   );
@@ -10425,6 +10429,7 @@ export function AppWorkbench() {
     sendInFlightRef,
     executeSendRef: executeSendFromQueueRef,
     showToast,
+    acceptExternal: !isSecondaryWindow,
     labels: sendQueueLabels,
   });
 
@@ -20318,6 +20323,11 @@ export function AppWorkbench() {
                         <span className="composer__queue-idx" aria-hidden>
                           {idx + 1}
                         </span>
+                        {item.source === "external" ? (
+                          <span className="composer__queue-src">
+                            {tr("composer.queueSourceExternal")}
+                          </span>
+                        ) : null}
                         <span
                           className="composer__queue-text"
                           title={queuePreviewText(

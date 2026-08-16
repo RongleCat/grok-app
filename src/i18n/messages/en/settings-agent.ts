@@ -222,7 +222,7 @@ export const enSettingsAgent = {
   "settings.sessionApi.cliList": "List chats (works even if the app is quit):",
   "settings.sessionApi.cliSend": "Continue a chat (app must be running or in the tray):",
   "settings.sessionApi.httpHint": "HTTP: GET /v1/sessions and POST /v1/sessions/{id}/turns. Authorize with Bearer from the token file (mode 0600). The token is never shown here.",
-  "settings.sessionApi.busyHint": "If that chat is already mid-turn, the API returns busy and does not interrupt it.",
+  "settings.sessionApi.busyHint": "If that chat is already mid-turn (drawing, tools, streaming), the prompt joins this chat’s follow-up queue. The composer strip shows it; it sends when the turn ends. It does not interrupt the current turn.",
   "settings.configTomlView": "Agent config.toml",
   "settings.configTomlView.open": "View agent config.toml",
   "settings.configTomlView.title": "Agent config.toml",

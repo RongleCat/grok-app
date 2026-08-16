@@ -5,6 +5,8 @@ import { isSessionBusy, type SessionState } from "@/lib/session";
 /** Max follow-ups kept per session (FIFO drop oldest when exceeded). */
 export const SEND_QUEUE_MAX = 20;
 
+export type QueuedSendSource = "composer" | "external";
+
 export interface QueuedSend {
   id: string;
   /** Display form stored in journal / user bubble (`[[skill:…]]` tokens). */
@@ -12,6 +14,8 @@ export interface QueuedSend {
   attachments: Attachment[];
   goalMode: boolean;
   createdAt: number;
+  /** Absent / composer = typed in this window. `external` = session API. */
+  source?: QueuedSendSource;
 }
 
 export function queueSessionKey(sessionId: string | null | undefined): string {
@@ -32,13 +36,62 @@ export function makeQueuedSend(input: {
   attachments: Attachment[];
   goalMode: boolean;
   now?: number;
+  id?: string;
+  source?: QueuedSendSource;
 }): QueuedSend {
   return {
-    id: newQueueId(),
+    id: input.id && input.id.trim() ? input.id : newQueueId(),
     storedDisplay: input.storedDisplay,
     attachments: input.attachments.map((a) => ({ ...a })),
     goalMode: input.goalMode,
     createdAt: input.now ?? Date.now(),
+    source: input.source,
+  };
+}
+
+/** Host `session://send_queue` payload (camelCase). */
+export type ExternalQueuePush = {
+  sessionId?: string;
+  itemId?: string;
+  prompt?: string;
+  source?: string;
+  createdAt?: number;
+};
+
+/**
+ * Merge an external (session API) follow-up into the per-session map.
+ * Dedups by `itemId` across keys so main + event replay do not double.
+ */
+export function applyExternalQueuePush(
+  byKey: Record<string, QueuedSend[]>,
+  push: ExternalQueuePush,
+  max = SEND_QUEUE_MAX,
+): { byKey: Record<string, QueuedSend[]>; dropped: number; added: boolean } {
+  const sessionId = (push.sessionId ?? "").trim();
+  const itemId = (push.itemId ?? "").trim();
+  const prompt = (push.prompt ?? "").trim();
+  if (!sessionId || sessionId === "__draft__" || !itemId || !prompt) {
+    return { byKey, dropped: 0, added: false };
+  }
+  for (const rows of Object.values(byKey)) {
+    if (rows.some((row) => row.id === itemId)) {
+      return { byKey, dropped: 0, added: false };
+    }
+  }
+  const item = makeQueuedSend({
+    id: itemId,
+    storedDisplay: prompt,
+    attachments: [],
+    goalMode: false,
+    now: typeof push.createdAt === "number" ? push.createdAt : undefined,
+    source: "external",
+  });
+  const key = queueSessionKey(sessionId);
+  const r = enqueueSend(getQueueForKey(byKey, key), item, max);
+  return {
+    byKey: setQueueForKey(byKey, key, r.queue),
+    dropped: r.dropped,
+    added: true,
   };
 }
 

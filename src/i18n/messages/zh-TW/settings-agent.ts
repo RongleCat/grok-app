@@ -222,7 +222,7 @@ export const zhTWSettingsAgent = {
   "settings.sessionApi.cliList": "列出會話（應用結束後也能用）：",
   "settings.sessionApi.cliSend": "續跑一條會話（應用須在前景或系統匣）：",
   "settings.sessionApi.httpHint": "HTTP：GET /v1/sessions 與 POST /v1/sessions/{id}/turns。用權杖檔裡的 Bearer 驗證（檔案權限 0600）。此處不顯示權杖。",
-  "settings.sessionApi.busyHint": "若該會話正在跑一輪，介面回 busy，不會打斷。",
+  "settings.sessionApi.busyHint": "若該會話正在跑一輪（繪圖、工具、串流輸出），提示詞會進入本會話的跟進佇列。輸入框上方的佇列條會立刻顯示，本輪結束後再傳送。不會打斷目前這一輪。",
   "settings.configTomlView": "Agent config.toml",
   "settings.configTomlView.open": "檢視 agent config.toml",
   "settings.configTomlView.title": "Agent config.toml",

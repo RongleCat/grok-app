@@ -222,7 +222,7 @@ export const zhSettingsAgent = {
   "settings.sessionApi.cliList": "列出会话（应用退出后也能用）：",
   "settings.sessionApi.cliSend": "续跑一条会话（应用须在前台或托盘）：",
   "settings.sessionApi.httpHint": "HTTP：GET /v1/sessions 与 POST /v1/sessions/{id}/turns。用令牌文件里的 Bearer 鉴权（文件权限 0600）。此处不展示令牌。",
-  "settings.sessionApi.busyHint": "若该会话正在跑一轮，接口返回 busy，不会打断。",
+  "settings.sessionApi.busyHint": "若该会话正在跑一轮（绘画、工具、流式输出），提示词会进入本会话的跟进队列。输入框上方的队列条会立刻显示，本轮结束后再发送。不会打断当前轮。",
   "settings.configTomlView": "Agent config.toml",
   "settings.configTomlView.open": "查看 agent config.toml",
   "settings.configTomlView.title": "Agent config.toml",
