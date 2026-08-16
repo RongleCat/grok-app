@@ -15,6 +15,8 @@ import {
   resolveChatOverscanPx,
   scrollTopAfterHeightChange,
   shouldCommitRowHeight,
+  shouldVirtualizeChat,
+  splitVirtSpacerHeights,
 } from "./chatVirtualList";
 
 const fixed = (h: number) => () => h;
@@ -414,5 +416,45 @@ describe("long transcript window scale", () => {
     expect(w.paddingBottom).toBe(0);
     // Not the whole list — only overscan above the tail.
     expect(w.start).toBeGreaterThan(count - 80);
+  });
+});
+
+describe("shouldVirtualizeChat", () => {
+  it("windows by row count or estimated height", () => {
+    expect(
+      shouldVirtualizeChat({ itemCount: 2, threshold: 16, estimatedTotalHeight: 200 }),
+    ).toBe(false);
+    expect(
+      shouldVirtualizeChat({ itemCount: 16, threshold: 16, estimatedTotalHeight: 200 }),
+    ).toBe(true);
+    expect(
+      shouldVirtualizeChat({
+        itemCount: 2,
+        threshold: 16,
+        estimatedTotalHeight: 5000,
+      }),
+    ).toBe(true);
+    expect(
+      shouldVirtualizeChat({
+        itemCount: 80,
+        enabled: false,
+        estimatedTotalHeight: 50_000,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("splitVirtSpacerHeights", () => {
+  it("returns nothing for empty / non-positive", () => {
+    expect(splitVirtSpacerHeights(0)).toEqual([]);
+    expect(splitVirtSpacerHeights(-10)).toEqual([]);
+  });
+
+  it("keeps a short spacer as one box", () => {
+    expect(splitVirtSpacerHeights(400)).toEqual([400]);
+  });
+
+  it("chunks a tall spacer under the compositor cap", () => {
+    expect(splitVirtSpacerHeights(9000, 4096)).toEqual([4096, 4096, 808]);
   });
 });

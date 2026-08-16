@@ -58,7 +58,16 @@ import {
   stopAllResultToast,
   type StopAllSurface,
 } from "@/lib/stopAllHonesty";
-import { detectAppPlatform, revealInOsLabel } from "@/lib/appPlatform";
+import {
+  detectAppPlatform,
+  revealInOsLabel,
+  usesCustomWindowChrome,
+} from "@/lib/appPlatform";
+import {
+  isFileDrag,
+  pathsFromDroppedFiles,
+  shouldSkipHtml5AfterNative,
+} from "@/lib/fileDrop";
 import { writeOpenTargetStorage } from "@/lib/openEditorHonesty";
 import {
   APP_CLOSE_REQUESTED_EVENT,
@@ -2372,6 +2381,9 @@ export function AppWorkbench() {
   const [dragZone, setDragZone] = useState<"sidebar" | "main" | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const dragPathsRef = useRef<string[]>([]);
+  /** Tauri OS drop timestamp — HTML5 fallback must not double-attach. */
+  const lastNativeDropAtRef = useRef(0);
+  const html5DragDepthRef = useRef(0);
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
   const [, setSetup] = useState({ cli: false, auth: false, project: false });
@@ -2630,8 +2642,8 @@ export function AppWorkbench() {
   const [accountProbeError, setAccountProbeError] = useState<unknown>(null);
   const [loginHint, setLoginHint] = useState<string | null>(null);
   const platform = useMemo(() => detectAppPlatform(), []);
-  /** Self-drawn chrome when OS title bar is disabled (Windows release config). */
-  const useCustomWindowChrome = platform === "win" || platform === "other";
+  /** Self-drawn chrome when OS title bar is disabled (Win / Linux frameless). */
+  const useCustomWindowChrome = usesCustomWindowChrome(platform);
   /** Titlebar / chrome-strip double-click → maximize on mac + win. */
   const titlebarMax = titlebarMaximizeHandlers({
     enabled: !phoneLayout && !isMirrorClient(),
@@ -2956,10 +2968,12 @@ export function AppWorkbench() {
     document.documentElement.classList.remove(
       "platform-mac",
       "platform-win",
+      "platform-linux",
       "platform-other",
     );
     if (platform === "mac") document.documentElement.classList.add("platform-mac");
     if (platform === "win") document.documentElement.classList.add("platform-win");
+    if (platform === "linux") document.documentElement.classList.add("platform-linux");
     if (platform === "other") document.documentElement.classList.add("platform-other");
   }, [platform]);
 
@@ -8259,8 +8273,10 @@ export function AppWorkbench() {
       const seenPath = new Set<string>();
       const seenBlob = new Set<string>();
       for (const f of files) {
-        if (!f || f.size <= 0) continue;
+        if (!f) continue;
         const anyF = f as File & { path?: string };
+        // WebView2 Explorer drops can report size 0 while File.path is set.
+        if (f.size <= 0 && !anyF.path) continue;
         if (anyF.path) {
           if (seenPath.has(anyF.path)) continue;
           seenPath.add(anyF.path);
@@ -8653,6 +8669,7 @@ export function AppWorkbench() {
               : dragPathsRef.current;
             setDragZone(null);
             dragPathsRef.current = [];
+            lastNativeDropAtRef.current = Date.now();
             if (!paths.length) {
               setLocalError(tr("attach.droppedNone"));
               return;
@@ -8682,50 +8699,71 @@ export function AppWorkbench() {
     tr,
   ]);
 
-  // HTML5 fallback: some image drags only expose File list in the webview.
-  // Prefer Tauri paths; use File.path when present (Tauri webview).
+  // HTML5 fallback. Windows sets dragDropEnabled:false so WebView2 actually
+  // delivers File blobs (Tauri's native handler otherwise swallows Explorer
+  // drops). Capture phase so contenteditable cannot cancel the drop.
   useEffect(() => {
-    const onDragOver = (e: DragEvent) => {
-      if (!e.dataTransfer?.types?.includes("Files")) return;
+    const onDragEnter = (e: DragEvent) => {
+      if (!isFileDrag(e.dataTransfer)) return;
       e.preventDefault();
-      e.dataTransfer.dropEffect = "copy";
+      html5DragDepthRef.current += 1;
+      setDragZone(hitDragZone(e.clientX, e.clientY));
+    };
+    const onDragOver = (e: DragEvent) => {
+      if (!isFileDrag(e.dataTransfer)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      setDragZone(hitDragZone(e.clientX, e.clientY));
+    };
+    const onDragLeave = (e: DragEvent) => {
+      if (!isFileDrag(e.dataTransfer)) return;
+      html5DragDepthRef.current = Math.max(0, html5DragDepthRef.current - 1);
+      if (html5DragDepthRef.current === 0) setDragZone(null);
     };
     const onDrop = (e: DragEvent) => {
-      if (!e.dataTransfer?.files?.length) return;
-      // If Tauri already handled this OS drop, paths may be empty here.
-      const files = Array.from(e.dataTransfer.files);
-      const paths = files
-        .map((f) => {
-          const anyF = f as File & { path?: string };
-          return anyF.path || "";
-        })
-        .filter(Boolean);
+      html5DragDepthRef.current = 0;
+      setDragZone(null);
+      if (!isFileDrag(e.dataTransfer)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (shouldSkipHtml5AfterNative(lastNativeDropAtRef.current, Date.now())) {
+        return;
+      }
+      const files = e.dataTransfer?.files?.length
+        ? Array.from(e.dataTransfer.files)
+        : [];
+      const paths = pathsFromDroppedFiles(files);
       const zone = hitDragZone(e.clientX, e.clientY);
       if (paths.length) {
-        e.preventDefault();
-        e.stopPropagation();
         if (zone === "sidebar") void addProjectsFromPaths(paths);
         else void addAttachmentsFromPaths(paths);
         return;
       }
-      // Browser-only / path-less File list (e.g. image from another app)
+      // Path-less File list (Windows Explorer after dragDropEnabled:false,
+      // or an image dragged from another app).
       if (zone !== "sidebar" && files.length) {
-        e.preventDefault();
-        e.stopPropagation();
         void addAttachmentsFromFiles(files);
+      } else if (!files.length) {
+        setLocalError(tr("attach.droppedNone"));
       }
     };
-    window.addEventListener("dragover", onDragOver);
-    window.addEventListener("drop", onDrop);
+    const opts: AddEventListenerOptions = { capture: true };
+    window.addEventListener("dragenter", onDragEnter, opts);
+    window.addEventListener("dragover", onDragOver, opts);
+    window.addEventListener("dragleave", onDragLeave, opts);
+    window.addEventListener("drop", onDrop, opts);
     return () => {
-      window.removeEventListener("dragover", onDragOver);
-      window.removeEventListener("drop", onDrop);
+      window.removeEventListener("dragenter", onDragEnter, opts);
+      window.removeEventListener("dragover", onDragOver, opts);
+      window.removeEventListener("dragleave", onDragLeave, opts);
+      window.removeEventListener("drop", onDrop, opts);
     };
   }, [
     addAttachmentsFromFiles,
     addAttachmentsFromPaths,
     addProjectsFromPaths,
     hitDragZone,
+    tr,
   ]);
 
   // Drag-resize right resource pane.

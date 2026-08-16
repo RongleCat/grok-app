@@ -255,7 +255,7 @@ function sandboxEnforcementRow(
  * Window chrome from packaging configs:
  * - mac: Overlay title bar + traffic lights
  * - win: frameless custom chrome
- * - linux: standard decorations (base tauri.conf)
+ * - linux: frameless custom chrome (tauri.linux.conf)
  */
 function windowChromeRow(platform: AppPlatform): DoctorPlatformMatrixCell {
   switch (platform) {
@@ -275,7 +275,7 @@ function windowChromeRow(platform: AppPlatform): DoctorPlatformMatrixCell {
       return cell(
         "window_chrome",
         "pass",
-        "doctor.platformMatrix.msg.chrome.linuxDecorated",
+        "doctor.platformMatrix.msg.chrome.linuxFrameless",
       );
     case "other":
     default:

@@ -22,6 +22,24 @@ import { CHAT_VIRTUALIZE_THRESHOLD_PERF } from "@/lib/streamRenderPolicy";
  */
 export const CHAT_VIRTUALIZE_THRESHOLD = CHAT_VIRTUALIZE_THRESHOLD_PERF;
 
+/**
+ * Also virtualize when estimated transcript height exceeds this, even with
+ * few rows (one long article still creates a compositor-killing layer).
+ */
+export const CHAT_VIRTUALIZE_HEIGHT_PX = 4000;
+
+/**
+ * Max height of one spacer element. A single 50k-px box becomes one GPU
+ * layer and WebView/WebKit go blank (community: long article / long chat).
+ */
+export const CHAT_VIRT_SPACER_CHUNK_PX = 4096;
+
+/**
+ * CSS paint cap for a single message body (must match lobe-chat CSS).
+ * Keeps one markdown article under typical GPU texture limits (~8k).
+ */
+export const CHAT_MESSAGE_PAINT_CAP_PX = 4096;
+
 /** Fallback height before a row is measured (px). */
 export const CHAT_DEFAULT_ROW_ESTIMATE_PX = 120;
 
@@ -361,6 +379,45 @@ export function computeChatVirtualWindow(input: {
   const paddingBottom = Math.max(0, totalHeight - paddingTop - rendered);
 
   return { start, end, paddingTop, paddingBottom, totalHeight };
+}
+
+/** Window the DOM when row count or estimated height is large enough. */
+export function shouldVirtualizeChat(input: {
+  itemCount: number;
+  threshold?: number;
+  enabled?: boolean;
+  estimatedTotalHeight?: number;
+  heightThreshold?: number;
+}): boolean {
+  if (input.enabled === false) return false;
+  const count = Math.max(0, input.itemCount);
+  const rowThreshold = input.threshold ?? CHAT_VIRTUALIZE_THRESHOLD;
+  if (count >= rowThreshold) return true;
+  const height = input.estimatedTotalHeight ?? 0;
+  const heightThreshold = input.heightThreshold ?? CHAT_VIRTUALIZE_HEIGHT_PX;
+  return height >= heightThreshold;
+}
+
+/**
+ * Split a virtual spacer into compositor-safe chunks so one tall empty
+ * box cannot blank the WebView layer.
+ */
+export function splitVirtSpacerHeights(
+  total: number,
+  chunkPx: number = CHAT_VIRT_SPACER_CHUNK_PX,
+): number[] {
+  const h = Math.max(0, Math.round(total));
+  const chunk = Math.max(1, Math.round(chunkPx));
+  if (h <= 0) return [];
+  if (h <= chunk) return [h];
+  const out: number[] = [];
+  let left = h;
+  while (left > 0) {
+    const next = Math.min(chunk, left);
+    out.push(next);
+    left -= next;
+  }
+  return out;
 }
 
 /**

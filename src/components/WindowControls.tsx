@@ -1,10 +1,18 @@
 /**
- * Self-drawn window chrome for Windows (and other non-mac platforms when
- * decorations are disabled). macOS uses native Overlay traffic lights.
+ * Self-drawn window chrome for Windows / Linux (frameless) and other
+ * non-mac platforms when decorations are disabled. macOS uses Overlay
+ * traffic lights.
  */
 import { useCallback, useEffect, useState } from "react";
 import { IconClose, IconMaximize, IconMinimize } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
+import {
+  isFakeMaximized,
+  toggleMaximizeFromTitlebar,
+  toggleMaximizeReliable,
+} from "@/lib/windowChrome";
+
+export { toggleMaximizeFromTitlebar } from "@/lib/windowChrome";
 
 type Props = {
   visible: boolean;
@@ -22,7 +30,8 @@ export function WindowControls({ visible, labels }: Props) {
   const refreshMaximized = useCallback(async () => {
     try {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      setMaximized(await getCurrentWindow().isMaximized());
+      const os = await getCurrentWindow().isMaximized();
+      setMaximized(os || isFakeMaximized());
     } catch {
       /* browser / no window API */
     }
@@ -57,8 +66,7 @@ export function WindowControls({ visible, labels }: Props) {
       const w = getCurrentWindow();
       if (action === "minimize") await w.minimize();
       if (action === "toggleMaximize") {
-        await w.toggleMaximize();
-        await refreshMaximized();
+        setMaximized(await toggleMaximizeReliable());
       }
       if (action === "close") await w.close();
     } catch {
@@ -111,29 +119,6 @@ export function WindowControls({ visible, labels }: Props) {
       </Tip>
     </div>
   );
-}
-
-/**
- * Double-click titlebar / chrome drag strip → maximize/restore.
- * Used on every desktop host (mac Overlay drag regions do not always get
- * native zoom; Win frameless has no system caption). Prefer true maximize
- * over macOS "zoom" so the workbench can use the full work area.
- *
- * Debounced: drag regions may emit both mousedown(detail=2) and dblclick;
- * without a guard that would toggleMaximize twice (no-op).
- */
-let lastTitlebarMaximizeMs = 0;
-
-export async function toggleMaximizeFromTitlebar(): Promise<void> {
-  const now = Date.now();
-  if (now - lastTitlebarMaximizeMs < 400) return;
-  lastTitlebarMaximizeMs = now;
-  try {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    await getCurrentWindow().toggleMaximize();
-  } catch {
-    /* browser / no window API */
-  }
 }
 
 /** True when the event target is chrome that should not start window chrome actions. */

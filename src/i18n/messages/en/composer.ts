@@ -188,7 +188,7 @@ export const enComposer = {
   "attach.copyPath": "Copy path",
   "attach.copyImage": "Copy image",
   "attach.addToComposer": "Add to input",
-  "attach.droppedNone": "Could not read dropped paths. Try again from Finder.",
+  "attach.droppedNone": "Could not read the dropped files. Try again from the file manager.",
   "attach.details": "Details",
   "attach.detailsTitle": "Details",
   "attach.detailsName": "Name",

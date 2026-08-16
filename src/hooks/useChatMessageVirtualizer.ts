@@ -35,6 +35,7 @@ import {
   resolveChatOverscanPx,
   scrollTopAfterHeightChange,
   shouldCommitRowHeight,
+  shouldVirtualizeChat,
   type ChatVirtualWindow,
 } from "@/lib/chatVirtualList";
 import { resolveStreamOverscanScale } from "@/lib/streamRenderPolicy";
@@ -92,7 +93,22 @@ export function useChatMessageVirtualizer(
     enabled = true,
   } = args;
 
-  const virtualized = enabled && itemCount >= threshold;
+  let estimatedTotal = 0;
+  if (enabled && itemCount > 0 && itemCount < threshold) {
+    for (let i = 0; i < itemCount; i++) {
+      const est = getEstimateHeight?.(i);
+      estimatedTotal +=
+        est != null && Number.isFinite(est) && est >= 0
+          ? est
+          : CHAT_DEFAULT_ROW_ESTIMATE_PX;
+    }
+  }
+  const virtualized = shouldVirtualizeChat({
+    itemCount,
+    threshold,
+    enabled,
+    estimatedTotalHeight: estimatedTotal,
+  });
   const heightsRef = useRef<Map<string, number>>(new Map());
   const getKeyRef = useRef(getKey);
   getKeyRef.current = getKey;

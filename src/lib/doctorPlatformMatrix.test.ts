@@ -117,7 +117,7 @@ describe("buildDoctorPlatformMatrix", () => {
     });
     const chrome = m.rows.find((r) => r.rowId === "window_chrome");
     expect(chrome?.messageKey).toBe(
-      "doctor.platformMatrix.msg.chrome.linuxDecorated",
+      "doctor.platformMatrix.msg.chrome.linuxFrameless",
     );
     const update = m.rows.find((r) => r.rowId === "auto_update");
     expect(update).toMatchObject({

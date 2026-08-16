@@ -24,12 +24,18 @@ See `docs/llm-wiki/release.md`.
 - **README Gatekeeper 说明**：官方 Release 从 v0.2.19 起已签名并公证。`xattr` 仅留给 fork / 旧的未签名包。
 
 ### Fixed
+- **Windows file / image drop into the composer**: WebView2 cannot use HTML5 `Files` while Tauri owns the drop target. Windows builds now set `dragDropEnabled: false` and handle Explorer drops in capture-phase HTML5 (temp-file attach when `File.path` is missing). Overlay + `@path` still work.
+- **Linux maximize / minimize**: Linux was decorated with no in-app caption buttons, and GTK/Wayland often no-ops `toggleMaximize`. Linux is now frameless with the same min/max/close chrome as Windows; maximize falls back to filling the monitor work area when the compositor ignores GTK.
+- **Long chat / long article blanks the transcript** (community, [@y7469591](https://x.com/y7469591/status/2088917279966917116)): One huge message or spacer could exceed the WebView compositor layer and paint white (scroll also stuck). Virtualize by estimated height, split tall spacers, and cap a single message body at 4096px with inner scroll.
 - **Fork no longer pins the parent chat on 连接中**: After `_x.ai/session/fork` the CLI is still hydrating parent context. Post-open `session/set_mode` used to walk every agent-mode alias (`agent` / `default` / `code` / `normal` / `Agent`) at 45s each — ~4 minutes of handshake, no `session/prompt`, both the fork and the original chat stuck on Connecting / Thinking. Fork skips that nudge (spawn already has `--permission-mode`); any later `set_mode` transport timeout aborts the remaining aliases.
 - **New-session composer no longer restores the just-sent prompt (#620)**: Sending from the New session page materializes a chat and leaves the draft view, so persist-clear used to be skipped. The per-project new-session buffer is now wiped on success.
 - **Telegram topic replies stay in the topic (#623)**: Inbound `message_thread_id` is kept and sent back on `sendMessage` / cards / edits. With **thread isolation** on, each topic is its own agent binding.
 - **Custom Grok / vision relays can read image attachments (#618)**: Settings → Account → Custom providers has **This model can see images**. Grok / GPT-4o / Claude / Gemini names already count. Unknown relays stay text-only so DeepSeek-style APIs do not 400 on `image_url`. Vision mains keep `@path` pixels and no longer hit the `read_file` image hook.
 
 **中文 · 修复**
+- **Windows 无法把图片/文件拖进输入框**：Tauri 接管 WebView2 拖放后 HTML5 `Files` 是空的。Windows 现在关掉原生 drop handler，改用捕获阶段 HTML5（没有 `File.path` 就存临时文件再附加）。
+- **Linux 无法最大化/最小化**：以前走系统标题栏、应用内没有按钮，GTK/Wayland 上 `toggleMaximize` 经常没反应。Linux 改为与 Windows 一样的无边框自绘按钮；合成器忽略 GTK 最大化时，退化为铺满工作区。
+- **长对话 / 长文章后聊天变空白、滚不动**（社区反馈 [@y7469591](https://x.com/y7469591/status/2088917279966917116)）：超高消息或占位层会撑爆 WebView 合成层。现在按预估高度虚拟化、拆开超高 spacer，单条消息正文限高 4096px 内部滚动。
 - **分叉后不再把原会话卡在「连接中」**：`session/fork` 之后 CLI 还在灌父会话。以前会连试 5 个 `session/set_mode` 别名，每个等 45 秒，握手约 4 分钟，消息发不出去，分叉和原会话一起停在连接中/思考中。分叉后不再做这次 nudge；之后若 `set_mode` 是传输超时，立刻停掉剩余别名。
 - **新建会话发送后不再把刚发出的草稿带回来（#620）**：从「新建会话」发出去会落成真实会话并离开草稿页，以前会跳过清空。成功后现在会清掉该项目的新建会话草稿。
 - **Telegram 话题回复回到原话题（#623）**：入站保留 `message_thread_id`，出站 `sendMessage` / 卡片 / 编辑一并带回。打开 **按话题隔离** 后，每个 Topic 是独立 Agent 绑定。

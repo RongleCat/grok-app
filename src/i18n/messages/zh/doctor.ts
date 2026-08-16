@@ -386,7 +386,7 @@ export const zhDoctor = {
   "doctor.platformMatrix.msg.sandbox.unknown": "此平台的沙箱内核支持未知。",
   "doctor.platformMatrix.msg.chrome.macOverlay": "macOS Overlay 标题栏 + 交通灯（tauri.macos.conf）。",
   "doctor.platformMatrix.msg.chrome.winFrameless": "Windows 无边框自绘窗控（最小化 / 最大化 / 关闭）— tauri.windows.conf。",
-  "doctor.platformMatrix.msg.chrome.linuxDecorated": "Linux 使用标准窗口装饰（基础 tauri.conf）。",
+  "doctor.platformMatrix.msg.chrome.linuxFrameless": "Linux 无边框自绘窗口按钮（最小化 / 最大化 / 关闭）— tauri.linux.conf。",
   "doctor.platformMatrix.msg.chrome.unknown": "此平台的窗口装饰布局未分类。",
   "doctor.platformMatrix.msg.update.silent": "已签名发行路径：支持应用内静默自动更新。",
   "doctor.platformMatrix.msg.update.manual": "手动 / GitHub 更新路径（本地、未签名或插件关闭）— 打开 Releases；不宣称静默安装。",

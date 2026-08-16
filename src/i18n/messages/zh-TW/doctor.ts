@@ -386,7 +386,7 @@ export const zhTWDoctor = {
   "doctor.platformMatrix.msg.sandbox.unknown": "此平台的沙箱核心支援未知。",
   "doctor.platformMatrix.msg.chrome.macOverlay": "macOS Overlay 標題列 + 交通燈（tauri.macos.conf）。",
   "doctor.platformMatrix.msg.chrome.winFrameless": "Windows 無邊框自繪窗控（最小化 / 最大化 / 關閉）— tauri.windows.conf。",
-  "doctor.platformMatrix.msg.chrome.linuxDecorated": "Linux 使用標準視窗裝飾（基礎 tauri.conf）。",
+  "doctor.platformMatrix.msg.chrome.linuxFrameless": "Linux 無邊框自繪視窗按鈕（最小化 / 最大化 / 關閉）— tauri.linux.conf。",
   "doctor.platformMatrix.msg.chrome.unknown": "此平台的視窗裝飾佈局未分類。",
   "doctor.platformMatrix.msg.update.silent": "已簽名發行路徑：支援應用內靜默自動更新。",
   "doctor.platformMatrix.msg.update.manual": "手動 / GitHub 更新路徑（本機、未簽名或外掛關閉）— 開啟 Releases；不宣稱靜默安裝。",

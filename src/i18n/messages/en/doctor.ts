@@ -386,7 +386,7 @@ export const enDoctor = {
   "doctor.platformMatrix.msg.sandbox.unknown": "Sandbox kernel support unknown on this platform.",
   "doctor.platformMatrix.msg.chrome.macOverlay": "macOS Overlay title bar + traffic lights (tauri.macos.conf).",
   "doctor.platformMatrix.msg.chrome.winFrameless": "Windows frameless custom chrome (min / max / close) — tauri.windows.conf.",
-  "doctor.platformMatrix.msg.chrome.linuxDecorated": "Linux uses standard window decorations (base tauri.conf).",
+  "doctor.platformMatrix.msg.chrome.linuxFrameless": "Linux frameless custom chrome (min / max / close) — tauri.linux.conf.",
   "doctor.platformMatrix.msg.chrome.unknown": "Window chrome layout not classified for this platform.",
   "doctor.platformMatrix.msg.update.silent": "Signed release path: silent in-app auto-update is available.",
   "doctor.platformMatrix.msg.update.manual": "Manual / GitHub update path (local, unsigned, or plugin off) — open Releases; no silent install claimed.",

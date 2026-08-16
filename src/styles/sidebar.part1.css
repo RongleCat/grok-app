@@ -204,7 +204,9 @@ textarea:focus-visible,
   app-region: drag;
 }
 
-/* Interactive controls inside drag regions stay clickable */
+/* Interactive controls inside drag regions stay clickable.
+ * Composer / chat must stay no-drag so Windows file drops are not
+ * swallowed as window-move. */
 button,
 a,
 input,
@@ -214,7 +216,11 @@ select,
 [role="tab"],
 [role="menuitem"],
 [role="option"],
-[contenteditable="true"] {
+[contenteditable="true"],
+.composer-wrap,
+.composer,
+.lobe-chat,
+.chat-surface {
   -webkit-app-region: no-drag;
   app-region: no-drag;
 }
@@ -270,6 +276,7 @@ select,
 }
 
 .platform-win .window-controls,
+.platform-linux .window-controls,
 .platform-other .window-controls,
 .has-custom-chrome .window-controls {
   display: flex;
@@ -320,7 +327,9 @@ select,
 }
 
 .platform-win .sidebar,
-.platform-other .sidebar {
+.platform-linux .sidebar,
+.platform-other .sidebar,
+.has-custom-chrome .sidebar {
   background: var(--bg-sidebar-solid, var(--bg-sidebar));
   backdrop-filter: none;
   -webkit-backdrop-filter: none;

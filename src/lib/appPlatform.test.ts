@@ -3,6 +3,7 @@ import {
   detectAppPlatform,
   fileManagerOpenTarget,
   revealInOsMessageKey,
+  usesCustomWindowChrome,
 } from "./appPlatform";
 
 describe("detectAppPlatform", () => {
@@ -23,6 +24,15 @@ describe("revealInOsMessageKey", () => {
     expect(revealInOsMessageKey("win")).toBe("main.openInExplorer");
     expect(revealInOsMessageKey("linux")).toBe("main.openInFileManager");
     expect(revealInOsMessageKey("other")).toBe("main.openInFileManager");
+  });
+});
+
+describe("usesCustomWindowChrome", () => {
+  it("is frameless on Windows / Linux / other, native Overlay on mac", () => {
+    expect(usesCustomWindowChrome("win")).toBe(true);
+    expect(usesCustomWindowChrome("linux")).toBe(true);
+    expect(usesCustomWindowChrome("other")).toBe(true);
+    expect(usesCustomWindowChrome("mac")).toBe(false);
   });
 });
 

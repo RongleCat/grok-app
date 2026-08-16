@@ -187,7 +187,7 @@ export const zhTWComposer = {
   "attach.copyPath": "複製路徑",
   "attach.copyImage": "複製圖片",
   "attach.addToComposer": "新增到輸入框",
-  "attach.droppedNone": "無法讀取拖入的路徑，請從 Finder 再試一次。",
+  "attach.droppedNone": "無法讀取拖入的檔案，請從檔案管理員再試一次。",
   "attach.details": "詳情",
   "attach.detailsTitle": "詳情",
   "attach.detailsName": "名稱",

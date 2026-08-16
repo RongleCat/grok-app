@@ -7,6 +7,14 @@ import type { MessageKey } from "@/i18n";
 
 export type AppPlatform = "mac" | "win" | "linux" | "other";
 
+/**
+ * Self-drawn min/max/close (no native title bar).
+ * Windows + Linux ship frameless; `other` is the same fallback.
+ */
+export function usesCustomWindowChrome(platform: AppPlatform): boolean {
+  return platform === "win" || platform === "linux" || platform === "other";
+}
+
 /** Detect mac / Windows / Linux from a UA string (or `navigator.userAgent`). */
 export function detectAppPlatform(
   userAgent?: string | null,

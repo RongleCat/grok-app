@@ -84,7 +84,10 @@ import {
 import type { ModelOption } from "@/lib/grokCatalog";
 import { useStickToBottom } from "@/hooks/useStickToBottom";
 import { useChatMessageVirtualizer } from "@/hooks/useChatMessageVirtualizer";
-import { estimateChatRowHeight } from "@/lib/chatVirtualList";
+import {
+  estimateChatRowHeight,
+  splitVirtSpacerHeights,
+} from "@/lib/chatVirtualList";
 import { StructuredJsonPanel } from "./StructuredJsonPanel";
 import {
   MessageActionButton,
@@ -2362,13 +2365,16 @@ export function ConversationThread({
             </div>
           ) : null}
 
-          {virtualized && paddingTop > 0 ? (
-            <div
-              aria-hidden
-              className="lobe-chat__virt-spacer"
-              style={{ height: paddingTop, flexShrink: 0 }}
-            />
-          ) : null}
+          {virtualized && paddingTop > 0
+            ? splitVirtSpacerHeights(paddingTop).map((h, i) => (
+                <div
+                  key={`virt-top-${i}`}
+                  aria-hidden
+                  className="lobe-chat__virt-spacer"
+                  style={{ height: h, flexShrink: 0 }}
+                />
+              ))
+            : null}
 
           {visibleMessages.map(({ m, index: msgIndex }) => (
             <TranscriptMessageRow
@@ -2431,13 +2437,16 @@ export function ConversationThread({
             />
           ))}
 
-          {virtualized && paddingBottom > 0 ? (
-            <div
-              aria-hidden
-              className="lobe-chat__virt-spacer"
-              style={{ height: paddingBottom, flexShrink: 0 }}
-            />
-          ) : null}
+          {virtualized && paddingBottom > 0
+            ? splitVirtSpacerHeights(paddingBottom).map((h, i) => (
+                <div
+                  key={`virt-bot-${i}`}
+                  aria-hidden
+                  className="lobe-chat__virt-spacer"
+                  style={{ height: h, flexShrink: 0 }}
+                />
+              ))
+            : null}
 
           {/* Tool before any assistant bubble — only if not already a message row. */}
           {showToolChrome &&

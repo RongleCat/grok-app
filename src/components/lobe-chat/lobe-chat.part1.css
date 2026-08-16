@@ -153,8 +153,9 @@
   gap: var(--chat-item-gap, 8px);
   /* Isolate layout so stream growth on the tail row dirties less of the
    * surrounding tree during markdown reflow (Intel Retina). Avoid
-   * content-visibility here — the list is already virtualized. */
-  contain: layout style;
+   * content-visibility here — the list is already virtualized.
+   * paint: keep one tall article from compositing the whole transcript. */
+  contain: layout style paint;
 }
 
 .lobe-chat-item--user {
@@ -177,7 +178,18 @@
   gap: var(--chat-item-body-gap, 10px);
   max-width: 100%;
   min-width: 0;
+  /* Cap one mega-article so WebView/WebKit does not blank the layer
+   * (GPU texture limit; see CHAT_MESSAGE_PAINT_CAP_PX). */
+  max-height: 4096px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.lobe-chat__virt-spacer {
+  contain: strict;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .lobe-chat-item--assistant .lobe-chat-item__body {

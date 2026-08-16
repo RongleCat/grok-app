@@ -398,22 +398,28 @@
 }
 
 .platform-win .main__top,
+.platform-linux .main__top,
 .platform-other .main__top,
 .has-custom-chrome .main__top,
 .platform-win .settings-page__chrome,
+.platform-linux .settings-page__chrome,
 .platform-other .settings-page__chrome,
 .has-custom-chrome .settings-page__chrome,
 .platform-win .settings-page__titlebar,
+.platform-linux .settings-page__titlebar,
 .platform-other .settings-page__titlebar,
 .has-custom-chrome .settings-page__titlebar,
 .platform-win .auto-page__head,
+.platform-linux .auto-page__head,
 .has-custom-chrome .auto-page__head,
 /* Resource pane chrome (tabs + actions) — both legacy .rp__chrome empty state
    and live .rp-chrome toolbar. Must clear fixed .window-controls (3 × 46px). */
 .platform-win .rp__chrome,
+.platform-linux .rp__chrome,
 .platform-other .rp__chrome,
 .has-custom-chrome .rp__chrome,
 .platform-win .rp-chrome,
+.platform-linux .rp-chrome,
 .platform-other .rp-chrome,
 .has-custom-chrome .rp-chrome {
   padding-right: var(--window-controls-inset, 138px); /* 46px × 3 window controls */

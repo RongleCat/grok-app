@@ -187,7 +187,7 @@ export const zhComposer = {
   "attach.copyPath": "复制路径",
   "attach.copyImage": "复制图片",
   "attach.addToComposer": "添加到输入框",
-  "attach.droppedNone": "无法读取拖入的路径，请从访达再试一次。",
+  "attach.droppedNone": "无法读取拖入的文件，请从文件管理器再试一次。",
   "attach.details": "详情",
   "attach.detailsTitle": "详情",
   "attach.detailsName": "名称",
