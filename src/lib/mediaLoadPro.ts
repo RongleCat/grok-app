@@ -321,6 +321,33 @@ export function mediaUrlPathParam(
  * Ignore leftover abort from a src swap (https → cached thumb on remount)
  * and explicit media-element abort codes.
  */
+/** Delays (ms) before retrying a local preview that missed the first paint. */
+const LOCAL_MEDIA_RETRY_MS = [250, 800, 2000] as const;
+
+/** Next retry delay, or null when retries are exhausted. */
+export function nextLocalMediaRetryMs(attempt: number): number | null {
+  if (attempt < 0 || attempt >= LOCAL_MEDIA_RETRY_MS.length) return null;
+  return LOCAL_MEDIA_RETRY_MS[attempt]!;
+}
+
+/**
+ * Transient failures: file written after the markdown streamed, path_scope
+ * grant not yet applied, or media server cold-start. Decode / type errors
+ * are not retried (the bytes will not change).
+ */
+export function shouldRetryLocalMediaFailure(
+  kind: MediaLoadErrorKind | null | undefined,
+): boolean {
+  return (
+    kind == null ||
+    kind === "missing_path" ||
+    kind === "untrusted" ||
+    kind === "media_server_unavailable" ||
+    kind === "timeout" ||
+    kind === "other"
+  );
+}
+
 export function shouldApplyChatImageLoadError(input: {
   failedSrc?: string | null;
   paintedSrc?: string | null;

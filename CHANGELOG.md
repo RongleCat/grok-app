@@ -23,11 +23,14 @@ See `docs/llm-wiki/release.md`.
 
 ### Changed
 - **README Gatekeeper copy**: Official Releases from v0.2.19 are Developer ID signed and Apple-notarized. The `xattr` workaround stays for forks / older unsigned builds.
+- **Assistant process vs answer**: First-person work diaries inside a single reply fold into a muted Process row (same chrome as progress notes). The visible markdown starts at the first heading, `---`, or `**01 ·` after that diary, so the conclusion is no longer mashed into the work log.
 
 **中文 · 变更**
 - **README Gatekeeper 说明**：官方 Release 从 v0.2.19 起已签名并公证。`xattr` 仅留给 fork / 旧的未签名包。
+- **助手过程与结论分开**：单条正文里的第一人称工作日记收成一条淡的「过程」折叠（和过程说明同一套 chrome）。可见正文从第一条标题、横线或 `**01 ·` 开始，结论不再和工作日志挤在一起。
 
 ### Fixed
+- **Chat image previews**: Project-relative markdown images (`design-demos/shots/foo.png`) resolve from attachments instead of painting an empty alt card. A first-paint miss (file still being written, or path grant not ready) retries instead of locking the card as broken.
 - **Windows file / image drop into the composer**: WebView2 cannot use HTML5 `Files` while Tauri owns the drop target. Windows builds now set `dragDropEnabled: false` and handle Explorer drops in capture-phase HTML5 (temp-file attach when `File.path` is missing). Overlay + `@path` still work.
 - **Linux maximize / minimize**: Linux was decorated with no in-app caption buttons, and GTK/Wayland often no-ops `toggleMaximize`. Linux is now frameless with the same min/max/close chrome as Windows; maximize falls back to filling the monitor work area when the compositor ignores GTK.
 - **Long chat / long article blanks the transcript** (community, [@y7469591](https://x.com/y7469591/status/2088917279966917116)): One huge message or spacer could exceed the WebView compositor layer and paint white (scroll also stuck). Virtualize by estimated height, split tall spacers, and cap a single message body at 4096px with inner scroll.
@@ -37,6 +40,7 @@ See `docs/llm-wiki/release.md`.
 - **Custom Grok / vision relays can read image attachments (#618)**: Settings → Account → Custom providers has **This model can see images**. Grok / GPT-4o / Claude / Gemini names already count. Unknown relays stay text-only so DeepSeek-style APIs do not 400 on `image_url`. Vision mains keep `@path` pixels and no longer hit the `read_file` image hook.
 
 **中文 · 修复**
+- **聊天图片预览**：项目相对路径的 markdown 图（`design-demos/shots/foo.png`）会跟附件对上，不再画出一张空的 alt 卡。文件还没写完或授权还没落到的第一次失败会重试，不再把卡片锁死。
 - **Windows 无法把图片/文件拖进输入框**：Tauri 接管 WebView2 拖放后 HTML5 `Files` 是空的。Windows 现在关掉原生 drop handler，改用捕获阶段 HTML5（没有 `File.path` 就存临时文件再附加）。
 - **Linux 无法最大化/最小化**：以前走系统标题栏、应用内没有按钮，GTK/Wayland 上 `toggleMaximize` 经常没反应。Linux 改为与 Windows 一样的无边框自绘按钮；合成器忽略 GTK 最大化时，退化为铺满工作区。
 - **长对话 / 长文章后聊天变空白、滚不动**（社区反馈 [@y7469591](https://x.com/y7469591/status/2088917279966917116)）：超高消息或占位层会撑爆 WebView 合成层。现在按预估高度虚拟化、拆开超高 spacer，单条消息正文限高 4096px 内部滚动。

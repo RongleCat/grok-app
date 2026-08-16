@@ -11,16 +11,28 @@
 import { memo, useMemo, useState } from "react";
 import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
-import { IconChevronDown, IconChevronRight, IconSparkles } from "@/components/icons";
+import {
+  IconChevronDown,
+  IconChevronRight,
+  IconNotes,
+  IconSparkles,
+} from "@/components/icons";
 import { MarkdownChat } from "./MarkdownChat";
 
 export const LeadFragmentsStrip = memo(function LeadFragmentsStrip({
   fragments,
   locale,
+  label,
+  testId = "lead-fragments",
+  variant = "fragments",
   onOpenExternalLink,
 }: {
   fragments: string[];
   locale: Locale;
+  /** Override the count label (e.g. a single in-body process diary). */
+  label?: string;
+  testId?: string;
+  variant?: "fragments" | "process";
   onOpenExternalLink?: (url: string) => void;
 }) {
   const tr = useMemo(() => createT(locale), [locale]);
@@ -33,10 +45,14 @@ export const LeadFragmentsStrip = memo(function LeadFragmentsStrip({
   );
   if (!joined.trim()) return null;
 
+  const chrome =
+    label ?? tr("chat.leadFragments", { n: String(fragments.length) });
+
   return (
     <div
       className={"grok-fragments" + (open ? " is-open" : " is-collapsed")}
-      data-testid="lead-fragments"
+      data-testid={testId}
+      data-variant={variant}
       data-expanded={open ? "1" : "0"}
     >
       <button
@@ -46,11 +62,13 @@ export const LeadFragmentsStrip = memo(function LeadFragmentsStrip({
         onClick={() => setOpen((v) => !v)}
       >
         <span className="grok-fragments__icon" aria-hidden>
-          <IconSparkles size={14} stroke={1.5} />
+          {variant === "process" ? (
+            <IconNotes size={14} stroke={1.5} />
+          ) : (
+            <IconSparkles size={14} stroke={1.5} />
+          )}
         </span>
-        <span className="grok-fragments__label">
-          {tr("chat.leadFragments", { n: String(fragments.length) })}
-        </span>
+        <span className="grok-fragments__label">{chrome}</span>
         <span className="grok-fragments__caret" aria-hidden>
           {open ? (
             <IconChevronDown size={13} stroke={1.75} />

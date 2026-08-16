@@ -292,7 +292,13 @@ export function mediaTailFromPath(abs: string): string | null {
       best = norm.slice(idx + 1);
     }
   }
-  return best;
+  if (best) return best;
+  // Project shots / design-demos / arbitrary folders: last 2–3 segments so
+  // `![alt](design-demos/shots/foo.png)` matches the attachment abs path.
+  if (!isMediaPath(norm)) return null;
+  const parts = norm.split("/").filter(Boolean);
+  if (parts.length < 2) return null;
+  return parts.slice(-Math.min(3, parts.length)).join("/");
 }
 
 /**
@@ -631,7 +637,14 @@ export function applyResolvedSessionMedia<T extends MessageWithAttachments>(
     const extra: Attachment[] = [];
     for (const rel of rels) {
       const key = rel.replace(/\\/g, "/");
-      const hit = byTail.get(key) || byName.get(pathBasename(rel));
+      const hit =
+        byTail.get(key) ||
+        byName.get(pathBasename(rel)) ||
+        resolved.find(
+          (a) =>
+            a.path.replace(/\\/g, "/").endsWith(`/${key}`) ||
+            key.endsWith(`/${pathBasename(a.path)}`),
+        );
       if (hit) extra.push(hit);
     }
     if (!extra.length) return m;
@@ -737,6 +750,19 @@ export function resolveInlineMediaToken(
     mappedOk(pathMap?.[norm]) ||
     mappedOk(pathMap?.[norm.toLowerCase()]);
   if (fromNorm) return fromNorm;
+
+  // Markdown often cites `design-demos/shots/foo.png` while the map only
+  // has the basename or a shorter tail from the attachment abs path.
+  if (pathMap && isMediaPath(norm)) {
+    const slashNorm = norm.replace(/\\/g, "/").replace(/^\.\//, "");
+    const parts = slashNorm.split("/").filter(Boolean);
+    for (let n = parts.length; n >= 1; n--) {
+      const suffix = parts.slice(-n).join("/");
+      const hit =
+        mappedOk(pathMap[suffix]) || mappedOk(pathMap[suffix.toLowerCase()]);
+      if (hit) return hit;
+    }
+  }
   // Real local absolute without a map — multi-segment only.
   if (
     isRealLocalAbsolutePath(norm) &&
@@ -813,6 +839,10 @@ export function filterAttachmentsNotInlined(
     if (rel && rels.has(rel)) return false;
     if (absInText.has(a.path)) return false;
     if (rel && content.includes(rel)) return false;
+    if (rels.has(name)) return false;
+    if ([...rels].some((r) => r === name || r.endsWith(`/${name}`))) {
+      return false;
+    }
     if (
       content.includes(`\`${name}\``) ||
       content.includes(`\`${a.path}\``) ||
@@ -820,8 +850,9 @@ export function filterAttachmentsNotInlined(
     ) {
       return false;
     }
-    // Markdown link form
+    // Markdown link / image form (`![alt](rel)` or `](basename)`)
     if (rel && content.includes(`](${rel})`)) return false;
+    if (content.includes(`](${name})`)) return false;
     return true;
   });
   return out.length ? out : undefined;

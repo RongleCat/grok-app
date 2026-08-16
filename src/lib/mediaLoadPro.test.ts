@@ -12,6 +12,8 @@ import {
   resolveMediaLoadError,
   resolveMediaSrcFailure,
   shouldApplyChatImageLoadError,
+  nextLocalMediaRetryMs,
+  shouldRetryLocalMediaFailure,
 } from "./mediaLoadPro";
 
 describe("classifyMediaLoadError", () => {
@@ -198,6 +200,26 @@ describe("isSafeLocalMediaUrl", () => {
     expect(isSafeLocalMediaUrl("http://evil.example/v1/media")).toBe(false);
     expect(isSafeLocalMediaUrl("https://cdn.example/a.png")).toBe(false);
     expect(isSafeLocalMediaUrl("")).toBe(false);
+  });
+});
+
+describe("local media retry", () => {
+  it("retries missing / grant / server races, not decode", () => {
+    expect(shouldRetryLocalMediaFailure(null)).toBe(true);
+    expect(shouldRetryLocalMediaFailure("missing_path")).toBe(true);
+    expect(shouldRetryLocalMediaFailure("untrusted")).toBe(true);
+    expect(shouldRetryLocalMediaFailure("media_server_unavailable")).toBe(
+      true,
+    );
+    expect(shouldRetryLocalMediaFailure("broken_blob")).toBe(false);
+    expect(shouldRetryLocalMediaFailure("unsupported_type")).toBe(false);
+  });
+
+  it("caps retry delays", () => {
+    expect(nextLocalMediaRetryMs(0)).toBe(250);
+    expect(nextLocalMediaRetryMs(1)).toBe(800);
+    expect(nextLocalMediaRetryMs(2)).toBe(2000);
+    expect(nextLocalMediaRetryMs(3)).toBeNull();
   });
 });
 

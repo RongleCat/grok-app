@@ -7,6 +7,7 @@ import {
   extractMediaPathsFromContent,
   extractSessionRelativeMediaRefs,
   filterAttachmentsNotInlined,
+  mediaTailFromPath,
   isDisplayableAttachmentPath,
   isImagePath,
   isMediaPath,
@@ -327,6 +328,49 @@ also /tmp/other.png and /tmp/clip.mp4 and not a file.`;
       "/sess/images/1.jpg",
       "/sess/videos/1.mp4",
     ]);
+  });
+
+  it("mediaTailFromPath keeps design-demo / shots tails", () => {
+    expect(
+      mediaTailFromPath(
+        "/Users/sunny/GROK/VIKO/design-demos/shots/preview-v3-03-editorial.png",
+      ),
+    ).toBe("design-demos/shots/preview-v3-03-editorial.png");
+    expect(mediaTailFromPath("/sess/images/1.jpg")).toBe("images/1.jpg");
+  });
+
+  it("resolveInlineMediaToken maps project-relative markdown href via basename", () => {
+    const map = buildInlineMediaPathMap([
+      {
+        path: "/Users/me/proj/design-demos/shots/preview-v3-03-editorial.png",
+        name: "preview-v3-03-editorial.png",
+        isDir: false,
+      },
+    ]);
+    expect(
+      resolveInlineMediaToken(
+        "design-demos/shots/preview-v3-03-editorial.png",
+        map,
+      ),
+    ).toBe("/Users/me/proj/design-demos/shots/preview-v3-03-editorial.png");
+    expect(map["design-demos/shots/preview-v3-03-editorial.png"]).toBe(
+      "/Users/me/proj/design-demos/shots/preview-v3-03-editorial.png",
+    );
+  });
+
+  it("filterAttachmentsNotInlined drops project-relative markdown images", () => {
+    const atts: Attachment[] = [
+      {
+        path: "/Users/me/proj/design-demos/shots/preview-v3-03-editorial.png",
+        name: "preview-v3-03-editorial.png",
+        isDir: false,
+      },
+    ];
+    const out = filterAttachmentsNotInlined(
+      "![03 巨字](design-demos/shots/preview-v3-03-editorial.png)",
+      atts,
+    );
+    expect(out).toBeUndefined();
   });
 
   it("buildInlineMediaPathMap maps short tokens to absolute", () => {

@@ -107,6 +107,8 @@ export const zhChat = {
   "chat.exploreFiles": "{n} 个文件",
   "chat.exploreFilesOne": "1 个文件",
   "chat.leadFragments": "{n} 段过程说明",
+  /** 单条正文里、结论之前的第一人称工作日记折叠头。 */
+  "chat.processNotes": "过程",
   "chat.tool.bash": "运行命令",
   "chat.tool.read": "读取文件",
   "chat.tool.list": "查看目录",

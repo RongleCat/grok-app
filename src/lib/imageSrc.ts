@@ -309,6 +309,12 @@ export async function resolveImageSrcs(
   return out;
 }
 
+/** Drop a cached resolve (including a sticky null) so a later retry can hit disk. */
+export function invalidateImageSrc(pathOrUrl: string): void {
+  const key = pathOrUrl.trim();
+  if (key) resolveCache.delete(key);
+}
+
 /** Test helper — clear the resolve cache. */
 export function clearImageSrcCache(): void {
   resolveCache.clear();

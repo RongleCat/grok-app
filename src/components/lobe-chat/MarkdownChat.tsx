@@ -549,11 +549,23 @@ export const MarkdownChat = memo(function MarkdownChat({
               typeof alt === "string" ? alt : undefined,
             );
             if (card) return card;
+            // Unresolved relative / site-root: never mount a dead ImageUi
+            // (that painted the alt as an empty 150px card and never recovered).
+            const viewable =
+              isHttpUrl(src) ||
+              src.startsWith("data:") ||
+              (isRealLocalAbsolutePath(src) && isPlausibleLocalMediaAbs(src));
+            if (!viewable) return null;
             return (
               <ImageUi
                 className="md-body__img md-body__img--card"
                 src={src}
                 alt={typeof alt === "string" ? alt : ""}
+                path={
+                  isRealLocalAbsolutePath(src) && isPlausibleLocalMediaAbs(src)
+                    ? src
+                    : undefined
+                }
                 labels={imageLabels}
               />
             );

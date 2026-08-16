@@ -103,6 +103,7 @@ import { InlineUserEdit } from "./InlineUserEdit";
 import { SkillChip } from "@/components/SkillChip";
 import { HighlightedText } from "@/components/HighlightedText";
 import { findChatMatches } from "@/lib/chatFind";
+import { splitAssistantAnswer } from "@/lib/assistantAnswerSplit";
 import { hydrateDisplayContent, parseStoredContent } from "@/lib/draftDoc";
 import { parseScheduledUserContent } from "@/lib/automations";
 import {
@@ -272,6 +273,17 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
       galleryPaths: images.map((x) => x.path),
     };
   }, [bottomAtts]);
+  const tr = useMemo(() => createT(locale), [locale]);
+  const split = useMemo(
+    () => splitAssistantAnswer(displayContent),
+    [displayContent],
+  );
+  const processMatchCount = useMemo(() => {
+    if (!findQuery?.trim() || !split.process) return 0;
+    return findChatMatches(findQuery, [
+      { id: "process", role: "assistant", content: split.process },
+    ]).length;
+  }, [findQuery, split.process]);
 
   if (
     !(displayContent || "").trim() &&
@@ -280,11 +292,21 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
     return null;
   }
 
-  return (
-    <>
-      {(displayContent || "").trim() ? (
+  const answerFindBase = (findOccurrenceBase ?? 0) + processMatchCount;
+  const body = (displayContent || "").trim() ? (
+    split.process ? (
+      <>
+        <LeadFragmentsStrip
+          fragments={[split.process]}
+          locale={locale}
+          label={tr("chat.processNotes")}
+          testId="assistant-process-notes"
+          variant="process"
+          onOpenExternalLink={onOpenExternalLink}
+        />
         <MarkdownChat
           locale={locale}
+          className="chat-md--answer"
           streaming={!!streaming}
           imagePathMap={pathMapProp}
           projectPath={projectPath}
@@ -293,11 +315,32 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
           onOpenExternalLink={onOpenExternalLink}
           findQuery={findQuery}
           findActiveOccurrence={findActiveOccurrence}
-          findOccurrenceBase={findOccurrenceBase}
+          findOccurrenceBase={answerFindBase}
         >
-          {displayContent}
+          {split.answer}
         </MarkdownChat>
-      ) : null}
+      </>
+    ) : (
+      <MarkdownChat
+        locale={locale}
+        streaming={!!streaming}
+        imagePathMap={pathMapProp}
+        projectPath={projectPath}
+        onOpenResource={onOpenResource}
+        onOpenError={onOpenError}
+        onOpenExternalLink={onOpenExternalLink}
+        findQuery={findQuery}
+        findActiveOccurrence={findActiveOccurrence}
+        findOccurrenceBase={findOccurrenceBase}
+      >
+        {displayContent}
+      </MarkdownChat>
+    )
+  ) : null;
+
+  return (
+    <>
+      {body}
       {bottomImages.length > 0 ? (
         <div className="lobe-chat-atts lobe-chat-atts--images">
           {bottomImages.map((a) => (

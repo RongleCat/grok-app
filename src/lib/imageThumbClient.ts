@@ -203,6 +203,12 @@ export async function resolveChatImageThumb(
   return r;
 }
 
+/** Drop a sticky thumb miss so a later retry can rematerialize. */
+export function invalidateChatImageThumb(src: string, path?: string): void {
+  const key = cacheKey(src, path);
+  if (key) displayCache.delete(key);
+}
+
 /** Test helper. */
 export function clearChatImageThumbClientCache(): void {
   displayCache.clear();

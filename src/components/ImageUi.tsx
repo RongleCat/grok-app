@@ -25,6 +25,7 @@ import {
 } from "@/lib/copyImage";
 import {
   ensureMediaEndpoint,
+  invalidateImageSrc,
   isMediaEndpointReady,
   isViewableSrc,
   resolveImageSrc,
@@ -32,8 +33,10 @@ import {
 } from "@/lib/imageSrc";
 import {
   mediaLoadErrorLabelMap,
+  nextLocalMediaRetryMs,
   resolveMediaSrcFailure,
   shouldApplyChatImageLoadError,
+  shouldRetryLocalMediaFailure,
   type MediaLoadErrorKind,
 } from "@/lib/mediaLoadPro";
 import {
@@ -42,6 +45,7 @@ import {
 } from "@/lib/imageAspectCache";
 import {
   canUseImageThumb,
+  invalidateChatImageThumb,
   nextChatCardDisplaySrc,
   peekChatImageThumb,
   resolveChatImageThumb,
@@ -214,7 +218,7 @@ export function ImageUi({
     initialResolvedSrc(src, path, layout),
   );
   paintedSrcRef.current = resolvedSrc;
-  /** Once load fails, keep a stable broken state — never re-fetch on re-render. */
+  /** True after retries are exhausted (or a non-retryable decode error). */
   const [loadFailed, setLoadFailed] = useState(false);
   /** Classified reason when resolve or decode fails (MEDIA-LOAD-PRO). */
   const [failKind, setFailKind] = useState<MediaLoadErrorKind | null>(null);
@@ -228,6 +232,12 @@ export function ImageUi({
   const [ratioKnown, setRatioKnown] = useState(
     () => readCachedAr(src, path) != null,
   );
+  const [retryTick, setRetryTick] = useState(0);
+  const paintRetryRef = useRef(0);
+
+  useEffect(() => {
+    paintRetryRef.current = 0;
+  }, [src, path]);
   /** Once we painted from cache or decode, freeze width unless AR shifts a lot. */
   const lockedArRef = useRef<number | null>(readCachedAr(src, path));
 
@@ -264,30 +274,68 @@ export function ImageUi({
 
   useEffect(() => {
     let cancelled = false;
-    const next = initialResolvedSrc(src, path, layout);
-    paintedSrcRef.current = next;
-    setResolvedSrc(next);
-    setLoadFailed(false);
-    setFailKind(null);
-    const cached = readCachedAr(src, path);
-    if (cached != null) {
-      lockedArRef.current = cached;
-      setAspectRatio(cached);
-      setRatioKnown(true);
-    } else {
-      // Height is fixed for chat cards — AR only affects width. Default is fine
-      // until decode; avoid flashing a different height (that was the jitter).
-      lockedArRef.current = null;
-      setAspectRatio(DEFAULT_AR);
-      setRatioKnown(false);
-    }
+    let attempt = 0;
+    let retryTimer: number | null = null;
+    const localTarget = isLocalFsPath(path)
+      ? path
+      : isLocalFsPath(src)
+        ? src
+        : undefined;
 
-    const useThumb = layout === "card" && canUseImageThumb(src, path);
+    const seed = () => {
+      const next = initialResolvedSrc(src, path, layout);
+      paintedSrcRef.current = next;
+      setResolvedSrc(next);
+      setLoadFailed(false);
+      setFailKind(null);
+      const cached = readCachedAr(src, path);
+      if (cached != null) {
+        lockedArRef.current = cached;
+        setAspectRatio(cached);
+        setRatioKnown(true);
+      } else {
+        // Height is fixed for chat cards — AR only affects width. Default is fine
+        // until decode; avoid flashing a different height (that was the jitter).
+        lockedArRef.current = null;
+        setAspectRatio(DEFAULT_AR);
+        setRatioKnown(false);
+      }
+      return next;
+    };
 
-    if (useThumb) {
-      // Chat cards: Host disk thumb (≤480px) + session URL cache — not full original.
-      void resolveChatImageThumb(src, path)
-        .then((r) => {
+    const lockFail = (kind: MediaLoadErrorKind) => {
+      if (cancelled) return;
+      setResolvedSrc(null);
+      setFailKind(kind);
+    };
+
+    const scheduleRetry = (kind: MediaLoadErrorKind) => {
+      if (!localTarget || !shouldRetryLocalMediaFailure(kind)) {
+        lockFail(kind);
+        return;
+      }
+      const wait = nextLocalMediaRetryMs(attempt);
+      if (wait == null) {
+        lockFail(kind);
+        return;
+      }
+      attempt += 1;
+      retryTimer = window.setTimeout(() => {
+        invalidateImageSrc(localTarget);
+        invalidateImageSrc(src);
+        invalidateChatImageThumb(src, path);
+        void runResolve();
+      }, wait);
+    };
+
+    const runResolve = async () => {
+      if (cancelled) return;
+      const next = seed();
+      const useThumb = layout === "card" && canUseImageThumb(src, path);
+
+      if (useThumb) {
+        try {
+          const r = await resolveChatImageThumb(src, path);
           if (cancelled) return;
           const display = nextChatCardDisplaySrc(next, r);
           if (display) {
@@ -298,81 +346,94 @@ export function ImageUi({
             if (r && r.width > 0 && r.height > 0) {
               applyNaturalSize(r.width, r.height);
             }
-          } else {
-            setResolvedSrc(null);
-            const fail = resolveMediaSrcFailure({
-              pathOrUrl: path || src,
-              resolvedSrc: null,
-              isTauri: isTauri(),
-              mediaEndpointReady: isMediaEndpointReady(),
-            });
-            setFailKind(fail.kind);
+            return;
           }
-        })
-        .catch(() => {
-          if (cancelled) return;
-          // Soft fallback: full resolve path.
-          void ensureMediaEndpoint()
-            .then(() => resolveImageSrc(path || src))
-            .then((url) => {
-              if (cancelled) return;
-              if (url) {
-                setResolvedSrc(url);
-                setLoadFailed(false);
-                setFailKind(null);
-              }
-            });
-        });
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    // Pane / non-thumb: ensure loopback HTTP, then re-resolve full asset.
-    if (!isViewableSrc(src) || !next?.startsWith("http://127.0.0.1")) {
-      void ensureMediaEndpoint()
-        .then(() => resolveImageSrc(src))
-        .then((url) => {
-          if (cancelled) return;
-          if (url) {
-            if (url !== next) setResolvedSrc(url);
-            setLoadFailed(false);
-            setFailKind(null);
-          } else {
-            setResolvedSrc(null);
-            const r = resolveMediaSrcFailure({
-              pathOrUrl: path || src,
-              resolvedSrc: null,
-              isTauri: isTauri(),
-              mediaEndpointReady: isMediaEndpointReady(),
-            });
-            setFailKind(r.kind);
-          }
-        })
-        .catch(() => {
-          /* keep sync resolve — soft-fail, never crash */
-          if (cancelled || next) return;
-          const r = resolveMediaSrcFailure({
+          const fail = resolveMediaSrcFailure({
             pathOrUrl: path || src,
             resolvedSrc: null,
             isTauri: isTauri(),
             mediaEndpointReady: isMediaEndpointReady(),
           });
-          setFailKind(r.kind);
-        });
-    } else if (!next) {
-      const r = resolveMediaSrcFailure({
-        pathOrUrl: path || src,
-        resolvedSrc: null,
-        isTauri: isTauri(),
-        mediaEndpointReady: isMediaEndpointReady(),
-      });
-      setFailKind(r.kind);
-    }
+          scheduleRetry(fail.kind);
+        } catch {
+          if (cancelled) return;
+          try {
+            await ensureMediaEndpoint();
+            const url = await resolveImageSrc(path || src);
+            if (cancelled) return;
+            if (url) {
+              setResolvedSrc(url);
+              setLoadFailed(false);
+              setFailKind(null);
+              return;
+            }
+          } catch {
+            /* fall through */
+          }
+          if (cancelled) return;
+          scheduleRetry(
+            resolveMediaSrcFailure({
+              pathOrUrl: path || src,
+              resolvedSrc: null,
+              isTauri: isTauri(),
+              mediaEndpointReady: isMediaEndpointReady(),
+            }).kind,
+          );
+        }
+        return;
+      }
+
+      if (!isViewableSrc(src) || !next?.startsWith("http://127.0.0.1")) {
+        try {
+          await ensureMediaEndpoint();
+          const url = await resolveImageSrc(src);
+          if (cancelled) return;
+          if (url) {
+            if (url !== next) setResolvedSrc(url);
+            setLoadFailed(false);
+            setFailKind(null);
+            return;
+          }
+          scheduleRetry(
+            resolveMediaSrcFailure({
+              pathOrUrl: path || src,
+              resolvedSrc: null,
+              isTauri: isTauri(),
+              mediaEndpointReady: isMediaEndpointReady(),
+            }).kind,
+          );
+        } catch {
+          if (cancelled || next) return;
+          scheduleRetry(
+            resolveMediaSrcFailure({
+              pathOrUrl: path || src,
+              resolvedSrc: null,
+              isTauri: isTauri(),
+              mediaEndpointReady: isMediaEndpointReady(),
+            }).kind,
+          );
+        }
+        return;
+      }
+
+      if (!next) {
+        scheduleRetry(
+          resolveMediaSrcFailure({
+            pathOrUrl: path || src,
+            resolvedSrc: null,
+            isTauri: isTauri(),
+            mediaEndpointReady: isMediaEndpointReady(),
+          }).kind,
+        );
+      }
+    };
+
+    void runResolve();
     return () => {
       cancelled = true;
+      if (retryTimer != null) window.clearTimeout(retryTimer);
     };
-  }, [src, path, layout, applyNaturalSize]);
+  }, [src, path, layout, applyNaturalSize, retryTick]);
 
   // Recover size if decode finished before onLoad bound (disk cache).
   useEffect(() => {
@@ -601,7 +662,6 @@ export function ImageUi({
               ) {
                 return;
               }
-              setLoadFailed(true);
               const r = resolveMediaSrcFailure({
                 pathOrUrl: path || src,
                 resolvedSrc: paintedSrcRef.current,
@@ -609,6 +669,21 @@ export function ImageUi({
                 isTauri: isTauri(),
                 mediaEndpointReady: isMediaEndpointReady(),
               });
+              if (
+                localPath &&
+                shouldRetryLocalMediaFailure(r.kind) &&
+                nextLocalMediaRetryMs(paintRetryRef.current) != null
+              ) {
+                paintRetryRef.current += 1;
+                invalidateImageSrc(localPath);
+                invalidateImageSrc(src);
+                invalidateChatImageThumb(src, path);
+                setLoadFailed(false);
+                setFailKind(null);
+                setRetryTick((n) => n + 1);
+                return;
+              }
+              setLoadFailed(true);
               setFailKind(r.kind);
             }}
             onClick={(e) => {

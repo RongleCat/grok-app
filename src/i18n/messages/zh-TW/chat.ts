@@ -107,6 +107,8 @@ export const zhTWChat = {
   "chat.exploreFiles": "{n} 個檔案",
   "chat.exploreFilesOne": "1 個檔案",
   "chat.leadFragments": "{n} 段過程說明",
+  /** 單條正文裡、結論之前的第一人稱工作日記摺疊頭。 */
+  "chat.processNotes": "過程",
   "chat.tool.bash": "執行命令",
   "chat.tool.read": "讀取檔案",
   "chat.tool.list": "檢視目錄",

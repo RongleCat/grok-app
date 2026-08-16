@@ -580,6 +580,17 @@
   display: none;
 }
 
+/* Process diary sits with the work rail; conclusion starts after one beat */
+.grok-fragments[data-variant="process"] {
+  margin: 0 0 2px;
+}
+.chat-md--answer {
+  margin-top: 10px;
+}
+.lobe-chat-assistant-timeline > .grok-fragments[data-variant="process"] + .chat-md--answer {
+  margin-top: 10px;
+}
+
 /* ── Turn activity summary (tasks panel / legacy) ── */
 .lobe-turn-activity {
   width: 100%;
