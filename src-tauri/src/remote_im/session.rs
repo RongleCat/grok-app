@@ -55,6 +55,16 @@ impl SessionStore {
         format!("{channel}:{instance_id}:{chat_id}:{sender_id}")
     }
 
+    /// Same as [`scope_key`], but when `isolate_thread` the Telegram / forum
+    /// topic id is folded into the chat segment so each topic is its own binding.
+    pub fn scope_key_for(msg: &super::types::IncomingMessage, isolate_thread: bool) -> String {
+        let chat_id = match (isolate_thread, msg.thread_id()) {
+            (true, Some(tid)) => format!("{}#t{tid}", msg.chat_id),
+            _ => msg.chat_id.clone(),
+        };
+        Self::scope_key(&msg.channel, &msg.instance_id, &chat_id, &msg.sender_id)
+    }
+
     fn load_disk(&self) {
         if !self.path.is_file() {
             return;
@@ -108,5 +118,39 @@ impl SessionStore {
     pub fn remove(&self, key: &str) {
         self.inner.lock().remove(key);
         self.save_disk();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::remote_im::types::IncomingMessage;
+
+    fn msg(thread_id: Option<&str>) -> IncomingMessage {
+        IncomingMessage {
+            channel: "telegram".into(),
+            instance_id: "bot".into(),
+            message_id: "1".into(),
+            chat_id: "42".into(),
+            chat_type: "p2p".into(),
+            sender_id: "7".into(),
+            content: "hi".into(),
+            mentioned_bot: true,
+            thread_id: thread_id.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn scope_ignores_topic_unless_isolation_on() {
+        let m = msg(Some("77"));
+        assert_eq!(SessionStore::scope_key_for(&m, false), "telegram:bot:42:7");
+        assert_eq!(
+            SessionStore::scope_key_for(&m, true),
+            "telegram:bot:42#t77:7"
+        );
+        assert_eq!(
+            SessionStore::scope_key_for(&msg(None), true),
+            "telegram:bot:42:7"
+        );
     }
 }

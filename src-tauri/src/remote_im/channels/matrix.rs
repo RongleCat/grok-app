@@ -86,6 +86,7 @@ pub async fn run(
                                     sender_id: sender,
                                     content: body.into(),
                                     mentioned_bot: true,
+                                    thread_id: None,
                                 })
                                 .await;
                         }

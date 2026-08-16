@@ -127,7 +127,7 @@ pub async fn run(
                                     sender_id: user.into(),
                                     content: text.into(),
                                     mentioned_bot: true,
-                                }).await;
+                                    thread_id: None,                                }).await;
                             }
                         }
                     }

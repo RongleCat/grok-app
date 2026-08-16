@@ -184,6 +184,24 @@ impl Engine {
         agent_error_user_message(&self.lang(), classify_rim_error(error), error)
     }
 
+    fn thread_isolation_for(&self, instance_id: &str) -> bool {
+        self.instances
+            .lock()
+            .get(instance_id)
+            .map(|i| {
+                i.options
+                    .get("thread_isolation")
+                    .and_then(|x| x.as_bool())
+                    .unwrap_or(false)
+                    || i.options.get("thread_isolation").and_then(|x| x.as_str()) == Some("true")
+            })
+            .unwrap_or(false)
+    }
+
+    fn scope_for(&self, msg: &IncomingMessage) -> String {
+        SessionStore::scope_key_for(msg, self.thread_isolation_for(&msg.instance_id))
+    }
+
     fn channel_prefers_cards(&self, msg: &IncomingMessage) -> bool {
         let opts = self
             .instances
@@ -211,8 +229,7 @@ impl Engine {
     /// Register before spawning so a following `/stop` cannot overtake an
     /// inbound free-form message that Tokio has not polled yet.
     pub(super) fn spawn_cancellable(self: &Arc<Self>, msg: IncomingMessage) -> JoinHandle<()> {
-        let scope =
-            SessionStore::scope_key(&msg.channel, &msg.instance_id, &msg.chat_id, &msg.sender_id);
+        let scope = self.scope_for(&msg);
         let registered = self.register_active_turn(&scope);
         let engine = self.clone();
         tokio::spawn(async move {
@@ -288,8 +305,7 @@ impl Engine {
             return;
         }
 
-        let scope =
-            SessionStore::scope_key(&msg.channel, &msg.instance_id, &msg.chat_id, &msg.sender_id);
+        let scope = self.scope_for(&msg);
         let alt_scope = SessionStore::scope_key(
             &msg.channel,
             &msg.instance_id,
@@ -384,8 +400,7 @@ impl Engine {
             let _ = self.reply_msg(msg, text).await;
             return;
         }
-        let scope =
-            SessionStore::scope_key(&msg.channel, &msg.instance_id, &msg.chat_id, &msg.sender_id);
+        let scope = self.scope_for(msg);
         // Also clear pending under sender-only scopes (chat_id may differ on card callback).
         let alt_scope = SessionStore::scope_key(
             &msg.channel,
@@ -582,13 +597,19 @@ impl Engine {
 
         if self
             .outbound
-            .edit_card(&msg.instance_id, &msg.chat_id, &msg.message_id, &card)
+            .edit_card(
+                &msg.instance_id,
+                &msg.chat_id,
+                &msg.message_id,
+                &card,
+                msg.thread_id(),
+            )
             .await
             .is_err()
         {
             let _ = self
                 .outbound
-                .reply_card(&msg.instance_id, &msg.chat_id, None, &card)
+                .reply_card(&msg.instance_id, &msg.chat_id, None, &card, msg.thread_id())
                 .await;
         }
     }
@@ -782,7 +803,13 @@ impl Engine {
             let card = control_plane::build_telegram_account_card(&text, &choices, &self.lang(), 0);
             let _ = self
                 .outbound
-                .reply_card(&msg.instance_id, &msg.chat_id, Some(&msg.message_id), &card)
+                .reply_card(
+                    &msg.instance_id,
+                    &msg.chat_id,
+                    Some(&msg.message_id),
+                    &card,
+                    msg.thread_id(),
+                )
                 .await;
         } else {
             let _ = self.reply_msg(msg, &text).await;
@@ -1231,7 +1258,13 @@ impl Engine {
             };
             let _ = self
                 .outbound
-                .reply_card(&msg.instance_id, &msg.chat_id, Some(&msg.message_id), &card)
+                .reply_card(
+                    &msg.instance_id,
+                    &msg.chat_id,
+                    Some(&msg.message_id),
+                    &card,
+                    msg.thread_id(),
+                )
                 .await;
             // Still allow text pick as fallback (number / name). Mirror under sender scope
             // so card callbacks with different chat_id still clear the same pending.
@@ -1346,7 +1379,13 @@ impl Engine {
             };
             let _ = self
                 .outbound
-                .reply_card(&msg.instance_id, &msg.chat_id, Some(&msg.message_id), &card)
+                .reply_card(
+                    &msg.instance_id,
+                    &msg.chat_id,
+                    Some(&msg.message_id),
+                    &card,
+                    msg.thread_id(),
+                )
                 .await;
             self.insert_pending(
                 scope,
@@ -1524,7 +1563,13 @@ impl Engine {
         );
         match self
             .outbound
-            .reply(&msg.instance_id, &msg.chat_id, Some(&msg.message_id), text)
+            .reply(
+                &msg.instance_id,
+                &msg.chat_id,
+                Some(&msg.message_id),
+                text,
+                msg.thread_id(),
+            )
             .await
         {
             Ok(()) => {
@@ -1541,7 +1586,13 @@ impl Engine {
                 if !msg.sender_id.is_empty() && msg.sender_id != msg.chat_id {
                     match self
                         .outbound
-                        .reply(&msg.instance_id, &msg.sender_id, None, text)
+                        .reply(
+                            &msg.instance_id,
+                            &msg.sender_id,
+                            None,
+                            text,
+                            msg.thread_id(),
+                        )
                         .await
                     {
                         Ok(()) => {
@@ -1955,6 +2006,7 @@ mod tests {
             sender_id: "sender".into(),
             content: "/stop".into(),
             mentioned_bot: true,
+            thread_id: None,
         };
         engine
             .handle_slash(BuiltinCommand::Stop, &stop_message, "scope-a", "", None)
@@ -2133,6 +2185,7 @@ mod tests {
             sender_id: "peer@im.wechat".into(),
             content: "/p".into(),
             mentioned_bot: true,
+            thread_id: None,
         };
         // Pre-fix: nested pending.lock() in or_else deadlocked forever here.
         tokio::time::timeout(Duration::from_secs(3), engine.handle(msg))

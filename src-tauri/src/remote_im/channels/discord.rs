@@ -192,6 +192,7 @@ fn parse_message(inst: &ChannelInstance, d: &Value) -> Option<IncomingMessage> {
         sender_id,
         content,
         mentioned_bot,
+        thread_id: None,
     })
 }
 

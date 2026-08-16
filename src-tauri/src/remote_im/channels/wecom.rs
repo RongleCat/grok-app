@@ -142,6 +142,7 @@ fn parse_ws_msg(inst: &ChannelInstance, v: &Value) -> Option<IncomingMessage> {
         sender_id: sender,
         content: text,
         mentioned_bot: true,
+        thread_id: None,
     })
 }
 
@@ -249,7 +250,7 @@ async fn run_webhook(
                                 sender_id: user.into(),
                                 content: text.into(),
                                 mentioned_bot: true,
-                            }).await;
+                                thread_id: None,                            }).await;
                         }
                     }
                     let _ = socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\nsuccess").await;

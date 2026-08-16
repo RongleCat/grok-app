@@ -65,6 +65,7 @@ impl OutboundRouter {
         chat_id: &str,
         reply_to: Option<&str>,
         text: &str,
+        thread_id: Option<&str>,
     ) -> Result<(), String> {
         let cred = self
             .creds
@@ -84,7 +85,9 @@ impl OutboundRouter {
                 )
                 .await
             }
-            "telegram" => super::channels::telegram::send_text(&cred.secrets, chat_id, text).await,
+            "telegram" => {
+                super::channels::telegram::send_text(&cred.secrets, chat_id, text, thread_id).await
+            }
             "discord" => super::channels::discord::send_text(&cred.secrets, chat_id, text).await,
             "slack" => super::channels::slack::send_text(&cred.secrets, chat_id, text).await,
             "dingtalk" => super::channels::dingtalk::send_text(&cred.secrets, chat_id, text).await,
@@ -112,6 +115,7 @@ impl OutboundRouter {
         chat_id: &str,
         reply_to: Option<&str>,
         card: &serde_json::Value,
+        thread_id: Option<&str>,
     ) -> Result<(), String> {
         let cred = self
             .creds
@@ -132,7 +136,9 @@ impl OutboundRouter {
                 .await
             }
             "dingtalk" => super::channels::dingtalk::send_card(&cred.secrets, chat_id, card).await,
-            "telegram" => super::channels::telegram::send_card(&cred.secrets, chat_id, card).await,
+            "telegram" => {
+                super::channels::telegram::send_card(&cred.secrets, chat_id, card, thread_id).await
+            }
             _ => {
                 // Fallback: dump card as text menu summary
                 let text = format!(
@@ -147,6 +153,7 @@ impl OutboundRouter {
                     chat_id,
                     reply_to,
                     &text.chars().take(2000).collect::<String>(),
+                    thread_id,
                 )
                 .await
             }
@@ -160,6 +167,7 @@ impl OutboundRouter {
         chat_id: &str,
         message_id: &str,
         card: &serde_json::Value,
+        thread_id: Option<&str>,
     ) -> Result<(), String> {
         let cred = self
             .creds
@@ -169,9 +177,19 @@ impl OutboundRouter {
             .ok_or_else(|| format!("no outbound creds for {instance_id}"))?;
         match cred.channel.as_str() {
             "telegram" => {
-                super::channels::telegram::edit_card(&cred.secrets, chat_id, message_id, card).await
+                super::channels::telegram::edit_card(
+                    &cred.secrets,
+                    chat_id,
+                    message_id,
+                    card,
+                    thread_id,
+                )
+                .await
             }
-            _ => self.reply_card(instance_id, chat_id, None, card).await,
+            _ => {
+                self.reply_card(instance_id, chat_id, None, card, thread_id)
+                    .await
+            }
         }
     }
 }

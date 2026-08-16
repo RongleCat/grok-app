@@ -27,6 +27,17 @@ pub struct IncomingMessage {
     pub sender_id: String,
     pub content: String,
     pub mentioned_bot: bool,
+    /// Telegram forum / private-topic thread (`message_thread_id`).
+    pub thread_id: Option<String>,
+}
+
+impl IncomingMessage {
+    pub fn thread_id(&self) -> Option<&str> {
+        self.thread_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

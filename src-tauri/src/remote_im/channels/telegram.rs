@@ -123,6 +123,7 @@ pub async fn run(
                     _ => String::new(),
                 })
                 .unwrap_or_default();
+            let thread_id = telegram_thread_id(msg);
             // Private chats always; groups when @mentioned or a native bot_command entity.
             let mentioned_bot = chat_type == "p2p"
                 || entities
@@ -147,6 +148,7 @@ pub async fn run(
                     sender_id,
                     content: text,
                     mentioned_bot,
+                    thread_id,
                 })
                 .await;
         }
@@ -192,6 +194,7 @@ async fn handle_callback_query(
         return;
     }
     let chat_id = incoming.chat_id.clone();
+    let thread_id = incoming.thread_id.clone();
     if tx.send(incoming).await.is_ok() && !is_pagination {
         // Best-effort consume the keyboard so a stale project/session/account action
         // cannot be clicked repeatedly after the selection has been accepted.
@@ -199,11 +202,14 @@ async fn handle_callback_query(
             client,
             token,
             "editMessageReplyMarkup",
-            &json!({
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "reply_markup": { "inline_keyboard": [] },
-            }),
+            &with_thread_id(
+                json!({
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "reply_markup": { "inline_keyboard": [] },
+                }),
+                thread_id.as_deref(),
+            ),
         )
         .await;
     }
@@ -244,9 +250,31 @@ fn callback_query_to_incoming(
             sender_id,
             content: format!("__card_action__:{data}"),
             mentioned_bot: true,
+            thread_id: telegram_thread_id(message),
         },
         message_id,
     ))
+}
+
+pub fn telegram_thread_id(msg: &Value) -> Option<String> {
+    let raw = msg.get("message_thread_id")?;
+    let id = json_id_to_string(raw);
+    if id.is_empty() {
+        None
+    } else {
+        Some(id)
+    }
+}
+
+pub fn with_thread_id(mut body: Value, thread_id: Option<&str>) -> Value {
+    let Some(tid) = thread_id.map(str::trim).filter(|s| !s.is_empty()) else {
+        return body;
+    };
+    body["message_thread_id"] = match tid.parse::<i64>() {
+        Ok(n) => json!(n),
+        Err(_) => json!(tid),
+    };
+    body
 }
 
 fn json_id_to_string(value: &Value) -> String {
@@ -430,15 +458,19 @@ pub async fn send_text(
     secrets: &std::collections::HashMap<String, String>,
     chat_id: &str,
     text: &str,
+    thread_id: Option<&str>,
 ) -> Result<(), String> {
     let token = bot_token(secrets)?;
     post_with_markdown_fallback(
         token,
         "sendMessage",
-        json!({
-            "chat_id": chat_id,
-            "text": text,
-        }),
+        with_thread_id(
+            json!({
+                "chat_id": chat_id,
+                "text": text,
+            }),
+            thread_id,
+        ),
     )
     .await
 }
@@ -447,6 +479,7 @@ pub async fn send_card(
     secrets: &std::collections::HashMap<String, String>,
     chat_id: &str,
     card: &Value,
+    thread_id: Option<&str>,
 ) -> Result<(), String> {
     let token = bot_token(secrets)?;
     let text = card
@@ -460,11 +493,14 @@ pub async fn send_card(
     post_with_markdown_fallback(
         token,
         "sendMessage",
-        json!({
-            "chat_id": chat_id,
-            "text": text,
-            "reply_markup": reply_markup,
-        }),
+        with_thread_id(
+            json!({
+                "chat_id": chat_id,
+                "text": text,
+                "reply_markup": reply_markup,
+            }),
+            thread_id,
+        ),
     )
     .await
 }
@@ -474,6 +510,7 @@ pub async fn edit_card(
     chat_id: &str,
     message_id: &str,
     card: &Value,
+    thread_id: Option<&str>,
 ) -> Result<(), String> {
     let token = bot_token(secrets)?;
     let message_id = message_id
@@ -490,12 +527,15 @@ pub async fn edit_card(
     post_with_markdown_fallback(
         token,
         "editMessageText",
-        json!({
-            "chat_id": chat_id,
-            "message_id": message_id,
-            "text": text,
-            "reply_markup": reply_markup,
-        }),
+        with_thread_id(
+            json!({
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "text": text,
+                "reply_markup": reply_markup,
+            }),
+            thread_id,
+        ),
     )
     .await
 }
@@ -571,5 +611,48 @@ mod tests {
         assert_eq!(incoming.chat_type, "group");
         assert_eq!(incoming.content, "__card_action__:project:project-1");
         assert!(incoming.mentioned_bot);
+        assert_eq!(incoming.thread_id, None);
+    }
+
+    #[test]
+    fn parses_and_stamps_message_thread_id() {
+        let msg = json!({
+            "message_id": 12,
+            "message_thread_id": 77,
+            "chat": { "id": 42, "type": "private" },
+            "text": "hi"
+        });
+        assert_eq!(telegram_thread_id(&msg).as_deref(), Some("77"));
+        let stamped = with_thread_id(json!({ "chat_id": 42, "text": "ok" }), Some("77"));
+        assert_eq!(stamped["message_thread_id"], json!(77));
+        let skipped = with_thread_id(json!({ "chat_id": 42, "text": "ok" }), None);
+        assert!(skipped.get("message_thread_id").is_none());
+    }
+
+    #[test]
+    fn callback_query_keeps_topic_thread_id() {
+        let inst = ChannelInstance {
+            id: "tg-1".into(),
+            channel: "telegram".into(),
+            name: "Bot".into(),
+            enabled: true,
+            secrets: std::collections::HashMap::new(),
+            options: json!({}),
+            acl: json!({}),
+            project_scope: json!({}),
+        };
+        let callback = json!({
+            "id": "cb-1",
+            "from": { "id": 42 },
+            "data": "project:project-1",
+            "message": {
+                "message_id": 99,
+                "message_thread_id": 8,
+                "chat": { "id": 42, "type": "private" }
+            }
+        });
+        let (incoming, _) = callback_query_to_incoming(&inst, &callback).unwrap();
+        assert_eq!(incoming.thread_id.as_deref(), Some("8"));
+        assert_eq!(incoming.chat_type, "p2p");
     }
 }

@@ -211,7 +211,7 @@ async fn run_once(
                                         sender_id: sender,
                                         content,
                                         mentioned_bot: true,
-                                    })
+                                        thread_id: None,                                    })
                                     .await
                                 {
                                     tracing::error!(
@@ -412,6 +412,7 @@ fn parse_im_event(inst: &ChannelInstance, root: &Value) -> Option<IncomingMessag
         sender_id,
         content: re_clean,
         mentioned_bot: mentioned_bot || chat_type == "p2p",
+        thread_id: None,
     })
 }
 
