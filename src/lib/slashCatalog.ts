@@ -14,6 +14,8 @@ export type SlashItem = {
   descriptionKey?: string;
   displayTitle?: string;
   displayDescription?: string;
+  /** Extra search tokens (e.g. 工作流) so locale-independent CJK queries match. */
+  aliases?: string[];
   source?: string;
   action?: string;
   mode?: "goal" | "plan";
@@ -97,6 +99,24 @@ export function builtinSlashItems(): SlashItem[] {
       mode: "plan",
     },
     {
+      id: "workflow",
+      kind: "action",
+      name: "workflow",
+      titleKey: "slash.workflow",
+      descriptionKey: "slash.workflowDesc",
+      action: "workflow",
+      aliases: ["工作流", "工作流程"],
+    },
+    {
+      id: "workflows",
+      kind: "action",
+      name: "workflows",
+      titleKey: "slash.workflows",
+      descriptionKey: "slash.workflowsDesc",
+      action: "workflows",
+      aliases: ["工作流列表", "工作流程清單", "工作流"],
+    },
+    {
       id: "compact",
       kind: "action",
       name: "compact",
@@ -167,22 +187,6 @@ export function builtinSlashItems(): SlashItem[] {
       titleKey: "slash.automations",
       descriptionKey: "slash.automationsDesc",
       action: "automations",
-    },
-    {
-      id: "workflow",
-      kind: "action",
-      name: "workflow",
-      titleKey: "slash.workflow",
-      descriptionKey: "slash.workflowDesc",
-      action: "workflow",
-    },
-    {
-      id: "workflows",
-      kind: "action",
-      name: "workflows",
-      titleKey: "slash.workflows",
-      descriptionKey: "slash.workflowsDesc",
-      action: "workflows",
     },
     {
       id: "live-voice",
@@ -381,6 +385,7 @@ export function filterSlashItems(
       // strip "skill:" prefix from id for matching
       item.id?.replace(/^skill:/, ""),
       resolved?.title,
+      ...(item.aliases ?? []),
     ];
     if (nameFields.some((f) => f && f.toLowerCase().includes(q))) return true;
     // Description: ASCII needs 4+ chars (avoid "the"/"and" style noise);

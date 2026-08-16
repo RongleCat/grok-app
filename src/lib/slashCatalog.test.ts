@@ -23,6 +23,8 @@ describe("builtinSlashItems", () => {
       "goal",
       "goal-clear",
       "plan",
+      "workflow",
+      "workflows",
       "compact",
       "status",
       "usage",
@@ -32,8 +34,6 @@ describe("builtinSlashItems", () => {
       "tutorial",
       "new",
       "automations",
-      "workflow",
-      "workflows",
       "live-voice",
       "settings",
       "export",
@@ -125,6 +125,11 @@ describe("builtinSlashItems", () => {
     expect(workflows.action).toBe("workflows");
     expect(workflows.titleKey).toBe("slash.workflows");
     expect(workflows.descriptionKey).toBe("slash.workflowsDesc");
+
+    expect(workflow.aliases).toEqual(expect.arrayContaining(["工作流"]));
+    expect(
+      filterSlashItems(items, "工作流").map((i) => i.name),
+    ).toEqual(["workflow", "workflows"]);
   });
 });
 
