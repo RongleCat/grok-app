@@ -50,6 +50,37 @@ export type ProvidersEmptyState = {
   severity: "none" | "info" | "warn" | "err";
 };
 
+export type RemoteProviderModelCapability = {
+  id: string;
+  supportsBackendSearch?: boolean;
+};
+
+/**
+ * Models that prevent an explicitly selected Grok Build-compatible relay mode
+ * from being saved after a live catalog has been fetched.
+ *
+ * An absent model and an omitted/false capability claim are both unsupported.
+ * An empty remote list means no successful catalog read is available yet, so
+ * the backend save-time probe remains authoritative and the UI stays neutral.
+ */
+export function unsupportedGrokBuildProxyModels(input: {
+  providerMode: string;
+  selectedModelIds: string[];
+  remoteModels: RemoteProviderModelCapability[];
+}): string[] {
+  if (
+    input.providerMode !== "grok_build_proxy" ||
+    input.remoteModels.length === 0
+  ) {
+    return [];
+  }
+  const remote = new Map(input.remoteModels.map((model) => [model.id, model]));
+  return input.selectedModelIds
+    .map((id) => id.trim())
+    .filter(Boolean)
+    .filter((id) => remote.get(id)?.supportsBackendSearch !== true);
+}
+
 /**
  * Resolve when a successful upsert apply path takes effect.
  *

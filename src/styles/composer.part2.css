@@ -412,6 +412,10 @@
   line-height: 1.35;
 }
 
+.prov-field__hint--error {
+  color: var(--danger);
+}
+
 /* Label row: title left, optional text action (e.g. Get API Key) right */
 .prov-field__label-row {
   display: flex;

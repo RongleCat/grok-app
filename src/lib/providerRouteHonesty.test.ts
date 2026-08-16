@@ -7,6 +7,7 @@ import {
   providerSaveErrorMessageKey,
   resolveProviderApplyEffect,
   resolveProvidersEmptyState,
+  unsupportedGrokBuildProxyModels,
 } from "./providerRouteHonesty";
 
 describe("resolveProviderApplyEffect", () => {
@@ -192,6 +193,46 @@ describe("resolveProvidersEmptyState", () => {
     expect(s.kind).toBe("ok");
     expect(s.messageKey).toBeNull();
     expect(s.severity).toBe("none");
+  });
+});
+
+describe("unsupportedGrokBuildProxyModels", () => {
+  const remoteModels = [
+    { id: "grok-4.6", supportsBackendSearch: true },
+    { id: "grok-4.5", supportsBackendSearch: false },
+    { id: "relay-without-claim" },
+  ];
+
+  it("stays neutral for generic mode or before a live catalog is fetched", () => {
+    expect(
+      unsupportedGrokBuildProxyModels({
+        providerMode: "generic",
+        selectedModelIds: ["grok-4.5"],
+        remoteModels,
+      }),
+    ).toEqual([]);
+    expect(
+      unsupportedGrokBuildProxyModels({
+        providerMode: "grok_build_proxy",
+        selectedModelIds: ["grok-4.5"],
+        remoteModels: [],
+      }),
+    ).toEqual([]);
+  });
+
+  it("reports missing, false, and omitted capability claims", () => {
+    expect(
+      unsupportedGrokBuildProxyModels({
+        providerMode: "grok_build_proxy",
+        selectedModelIds: [
+          "grok-4.6",
+          "grok-4.5",
+          "relay-without-claim",
+          "missing-model",
+        ],
+        remoteModels,
+      }),
+    ).toEqual(["grok-4.5", "relay-without-claim", "missing-model"]);
   });
 });
 

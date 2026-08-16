@@ -39,6 +39,7 @@ import {
   providerSaveErrorMessageKey,
   resolveProviderApplyEffect,
   resolveProvidersEmptyState,
+  unsupportedGrokBuildProxyModels,
 } from "@/lib/providerRouteHonesty";
 import {
   PROVIDER_PRESETS,
@@ -309,6 +310,16 @@ export function ProvidersPanel({
     if (!q) return remoteModels;
     return remoteModels.filter((m) => m.id.toLowerCase().includes(q));
   }, [remoteModels, modelSearch]);
+
+  const unsupportedNativeModels = useMemo(
+    () =>
+      unsupportedGrokBuildProxyModels({
+        providerMode: form.providerMode,
+        selectedModelIds: form.models.map((model) => model.id),
+        remoteModels,
+      }),
+    [form.models, form.providerMode, remoteModels],
+  );
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -1533,6 +1544,16 @@ export function ProvidersPanel({
                       ? tr("prov.mode.grokBuildProxyHint")
                       : tr("prov.mode.genericHint")}
                   </span>
+                  {unsupportedNativeModels.length > 0 ? (
+                    <span
+                      className="prov-field__hint prov-field__hint--error"
+                      role="alert"
+                    >
+                      {tr("prov.mode.grokBuildProxyUnsupported", {
+                        models: unsupportedNativeModels.join(", "),
+                      })}
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="prov-field">

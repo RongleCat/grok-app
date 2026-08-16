@@ -1541,8 +1541,11 @@ impl AcpClient {
         }
         // Do NOT set GROK_IMAGE_DESCRIPTION_MODEL / GROK_WEB_SEARCH_MODEL on the
         // main agent process: when main is DeepSeek, those envs make CLI send
-        // model id `grok-4.5` to the DeepSeek base_url (400). Vision/search/X
-        // go through Host prepare_agent_prompt + MCP official-aux instead.
+        // model id `grok-4.5` to the DeepSeek base_url (400). Generic custom
+        // routes use Host prepare_agent_prompt + optional MCP official-aux;
+        // grok_build_proxy gets search/X through the native catalog env above.
+        // Attachment semantics are unchanged: ACP still sends @path text, not
+        // a native image content block.
         //
         // Always disable Claude/Cursor MCP compat for App agent-home sessions.
         // Grok merges ~/.claude.json / Cursor MCP by default; those hang for ~30s

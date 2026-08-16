@@ -1603,6 +1603,7 @@ yolo = false
             name: name.into(),
             has_api_key: true,
             api_backend: "chat_completions".into(),
+            provider_mode: crate::providers::PROVIDER_MODE_GENERIC.into(),
             is_default: true,
             models: vec![],
             efforts: vec![],

@@ -92,13 +92,14 @@ separate from ordinary `[model.<id>]` relays:
 
 | Concern | Host contract |
 |---------|---------------|
-| Opt-in | Explicit Settings selection, stored as `app_provider_mode = "grok_build_proxy"`; no BeefAPI or hostname special case |
+| Opt-in | Settings → Account → Custom providers → Provider mode → **Grok Build-compatible relay**, stored as `app_provider_mode = "grok_build_proxy"`; no BeefAPI or hostname special case |
 | Protocol | `responses` only |
 | Capability gate | Save reads the live `/models` response and requires every selected model to exist with `supports_backend_search = true` |
 | ACP model | Spawn uses the real selected model id, such as `grok-4.6`, rather than the provider section alias |
 | Child environment | Only the target `grok agent stdio` process receives `GROK_MODELS_BASE_URL`, `GROK_MODELS_LIST_URL`, `GROK_CLI_CHAT_PROXY_BASE_URL`, and `XAI_API_KEY` |
 | Generic compatibility | Generic providers keep `[model.<id>]`, provider-alias spawn, and the existing stream sanitizer behavior |
 | Apply | Editing the active provider recycles warm ACP processes; the next send starts with the new catalog and capability contract |
+| Attachments | Unchanged: App still sends `@absolute/path` inside ACP text content; this mode does not claim or add native ACP image blocks |
 
 The key stays write-only from the UI and is never included in spawn logs.
 `WSLENV` forwards the native URL/key variables without path translation; macOS,
