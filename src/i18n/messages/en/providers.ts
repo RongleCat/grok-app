@@ -27,6 +27,11 @@ export const enProviders = {
   "prov.protocol.chatCompletions": "OpenAI Chat Completions",
   "prov.protocol.responses": "OpenAI Responses",
   "prov.protocol.messages": "Anthropic Messages",
+  "prov.supportsVision": "This model can see images",
+  "prov.supportsVisionOn": "On",
+  "prov.supportsVisionOff": "Off",
+  "prov.supportsVisionHint":
+    "Turn on if this relay accepts image pixels (OpenAI image_url). Leave off for DeepSeek-style text-only APIs. Names or model ids that look like Grok / GPT-4o / Claude / Gemini already count as vision.",
   "prov.apiKey": "API key",
   "prov.keyPh": "sk-…",
   "prov.keyKeep": "Leave blank to keep saved key",

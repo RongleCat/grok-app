@@ -413,6 +413,7 @@ pub fn import_cc_switch_providers(
             append_prompt: None,
             // Import URLs as typed; existing /v1 suffix preserved by normalizer.
             base_url_full_path: None,
+            supports_vision: None,
         }) {
             Ok(list) => {
                 existing.insert(id);

@@ -5,7 +5,7 @@
 | 主路由 | 行为 |
 |--------|------|
 | **官方 Grok 订阅**（`active_source == official`） | **严禁** 注入 MCP `official-aux`、Host 识图预跑、侧信道 session rules。使用 Grok Build **默认原生** vision / `x_*` / `web_search`，避免双轨污染。 |
-| **自定义 / 第三方**（DeepSeek、中转等） | 开关开启且官方凭证可用时，注入 **可调用** MCP `official-aux`；附图且主模型纯文本时 Host 识图预跑。 |
+| **自定义 / 第三方**（DeepSeek、中转等） | 开关开启且官方凭证可用时，注入 **可调用** MCP `official-aux`；附图且主模型纯文本时 Host 识图预跑。通道勾了 **这个模型能看图**（或名称/模型 id 像 Grok / GPT-4o / Claude / Gemini）则主模型按多模态发像素，不剥 `@path`、不拦 `read_file` 读图。 |
 
 X / web **不做 Host 关键词预跑**；由 agent 通过 tools 调用 `official-aux__x_*` / `web_search`。
 

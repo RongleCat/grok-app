@@ -27,6 +27,11 @@ export const zhTWProviders = {
   "prov.protocol.chatCompletions": "OpenAI Chat Completions",
   "prov.protocol.responses": "OpenAI Responses",
   "prov.protocol.messages": "Anthropic Messages",
+  "prov.supportsVision": "這個模型能看圖",
+  "prov.supportsVisionOn": "開",
+  "prov.supportsVisionOff": "關",
+  "prov.supportsVisionHint":
+    "中轉按像素收圖（OpenAI image_url）時打開。DeepSeek 這類純文字介面請關掉。名稱或模型 id 帶 Grok / GPT-4o / Claude / Gemini 的通道本身就算能看圖。",
   "prov.apiKey": "API Key",
   "prov.keyPh": "sk-…",
   "prov.keyKeep": "留空則保留現有 Key",

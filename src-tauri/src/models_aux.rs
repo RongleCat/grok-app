@@ -570,14 +570,13 @@ fn path_is_image(path: &str) -> bool {
     IMAGE_EXTS.iter().any(|e| *e == ext)
 }
 
-/// Known text-only / non-vision main model heuristics (provider id or upstream id).
-pub fn looks_text_only_model(id_or_name: &str) -> bool {
+/// Known multimodal / vision-capable markers (provider id, name, or model id).
+pub fn looks_vision_model(id_or_name: &str) -> bool {
     let s = id_or_name.trim().to_ascii_lowercase();
     if s.is_empty() {
         return false;
     }
-    // Multimodal / vision-capable markers → not text-only
-    if s.contains("grok")
+    s.contains("grok")
         || s.contains("gpt-4o")
         || s.contains("gpt-4.1")
         || s.contains("claude")
@@ -586,7 +585,15 @@ pub fn looks_text_only_model(id_or_name: &str) -> bool {
         || s.contains("vision")
         || s.contains("pixtral")
         || s.contains("qwen-vl")
-    {
+}
+
+/// Known text-only / non-vision main model heuristics (provider id or upstream id).
+pub fn looks_text_only_model(id_or_name: &str) -> bool {
+    let s = id_or_name.trim().to_ascii_lowercase();
+    if s.is_empty() {
+        return false;
+    }
+    if looks_vision_model(&s) {
         return false;
     }
     s.contains("deepseek")
@@ -597,6 +604,24 @@ pub fn looks_text_only_model(id_or_name: &str) -> bool {
         || s.contains("v4-pro")
         || s.contains("v4_flash")
         || s.contains("v4_pro")
+}
+
+/// Custom channel is vision-capable when the user opted in, or the id / name /
+/// active model / catalog looks multimodal. Unknown relays stay text-only.
+pub fn custom_provider_is_text_only(p: &crate::providers::CustomProvider) -> bool {
+    if p.supports_vision {
+        return false;
+    }
+    if looks_vision_model(&p.id) || looks_vision_model(&p.model) || looks_vision_model(&p.name) {
+        return false;
+    }
+    if p.models
+        .iter()
+        .any(|m| looks_vision_model(&m.id) || looks_vision_model(&m.name))
+    {
+        return false;
+    }
+    true
 }
 
 /// Whether the configured image_description target can actually be reached
@@ -631,23 +656,7 @@ pub fn main_is_text_only(text: &str, list: &crate::providers::ProvidersListResul
         return list.active_source != "official";
     }
     if let Some(p) = list.providers.iter().find(|p| p.id == def) {
-        if looks_text_only_model(&p.id)
-            || looks_text_only_model(&p.model)
-            || looks_text_only_model(&p.name)
-        {
-            return true;
-        }
-        // Custom multimodal channel (Amux grok-4.5)
-        if !looks_text_only_model(&p.model)
-            && (p.model.to_ascii_lowercase().contains("grok")
-                || p.models
-                    .iter()
-                    .any(|m| m.id.to_ascii_lowercase().contains("grok")))
-        {
-            return false;
-        }
-        // Default: unknown custom → treat as text-only for safety (avoid image_url 400)
-        return true;
+        return custom_provider_is_text_only(p);
     }
     looks_text_only_model(&def)
 }
@@ -1581,6 +1590,57 @@ yolo = false
         assert!(!out.contains("@/Users/me/pic.png"), "{out}");
     }
 
+    fn sample_provider(
+        id: &str,
+        model: &str,
+        name: &str,
+        supports_vision: bool,
+    ) -> crate::providers::CustomProvider {
+        crate::providers::CustomProvider {
+            id: id.into(),
+            model: model.into(),
+            base_url: "https://example.com/v1".into(),
+            name: name.into(),
+            has_api_key: true,
+            api_backend: "chat_completions".into(),
+            is_default: true,
+            models: vec![],
+            efforts: vec![],
+            context_window: None,
+            base_url_full_path: false,
+            append_prompt: None,
+            supports_vision,
+        }
+    }
+
+    #[test]
+    fn custom_vision_flag_and_name_are_not_text_only() {
+        assert!(custom_provider_is_text_only(&sample_provider(
+            "relay", "foo-1", "My API", false
+        )));
+        assert!(!custom_provider_is_text_only(&sample_provider(
+            "relay", "foo-1", "My API", true
+        )));
+        assert!(!custom_provider_is_text_only(&sample_provider(
+            "relay",
+            "foo-1",
+            "第三方 Grok API",
+            false
+        )));
+        assert!(!custom_provider_is_text_only(&sample_provider(
+            "relay",
+            "gpt-4o-mini",
+            "Relay",
+            false
+        )));
+        assert!(custom_provider_is_text_only(&sample_provider(
+            "deepseek",
+            "deepseek-v4-flash",
+            "DeepSeek",
+            false
+        )));
+    }
+
     #[test]
     fn rewrite_keeps_images_for_multimodal_main() {
         let prompt = "看图\n\n@/Users/me/pic.png";
@@ -1689,6 +1749,7 @@ A red button.
                 context_window: None,
                 base_url_full_path: false,
                 append_prompt: None,
+                supports_vision: false,
             }],
             default_model: Some("deepseek".into()),
             active_source: "custom".into(),
@@ -1745,6 +1806,7 @@ A red button.
                 context_window: None,
                 base_url_full_path: false,
                 append_prompt: None,
+                supports_vision: false,
             }],
             default_model: Some("deepseek".into()),
             active_source: "custom".into(),

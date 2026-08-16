@@ -64,6 +64,10 @@ pub struct CustomProvider {
     /// the agent keeps its built-in prompt. Empty / unset = nothing appended.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub append_prompt: Option<String>,
+    /// Explicit: this relay accepts image pixels (`image_url`). Combined with
+    /// name/model heuristics in `models_aux` to decide text-only vs vision.
+    #[serde(default)]
+    pub supports_vision: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -92,6 +96,9 @@ pub struct UpsertProviderInput {
     /// Appended system-prompt rules. `Some("")` clears; `None` keeps existing on edit.
     #[serde(default)]
     pub append_prompt: Option<String>,
+    /// Explicit vision capability. `None` keeps previous flag on edit; create defaults false.
+    #[serde(default)]
+    pub supports_vision: Option<bool>,
 }
 
 /// TOML field (ignored by Grok Build) storing JSON array of `{id,name}`.
@@ -102,6 +109,8 @@ const APP_EFFORTS_KEY: &str = "app_efforts";
 const APP_BASE_URL_FULL_PATH_KEY: &str = "app_base_url_full_path";
 /// TOML field (ignored by Grok Build): extra rules appended to the system prompt.
 const APP_APPEND_PROMPT_KEY: &str = "app_append_prompt";
+/// TOML field (ignored by Grok Build): relay accepts multimodal image_url.
+const APP_SUPPORTS_VISION_KEY: &str = "app_supports_vision";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -348,6 +357,11 @@ pub fn parse_app_bool_field(raw: Option<&str>) -> bool {
 /// Whether this provider section opts out of automatic `/v1` base_url repair.
 pub fn base_url_full_path_from_fields(fields: &std::collections::HashMap<String, String>) -> bool {
     parse_app_bool_field(fields.get(APP_BASE_URL_FULL_PATH_KEY).map(|s| s.as_str()))
+}
+
+/// Whether the user marked this section as vision-capable.
+pub fn supports_vision_from_fields(fields: &std::collections::HashMap<String, String>) -> bool {
+    parse_app_bool_field(fields.get(APP_SUPPORTS_VISION_KEY).map(|s| s.as_str()))
 }
 
 /// Grok Build joins `{base_url}/chat/completions` (or `/responses`).
@@ -878,6 +892,7 @@ pub fn maybe_migrate_legacy_relay(
         context_window: None,
         base_url_full_path: None,
         append_prompt: None,
+        supports_vision: None,
     })?;
     Ok(())
 }
@@ -1024,6 +1039,7 @@ fn build_list_result(home: PathBuf, path: PathBuf, text: &str) -> ProvidersListR
         let base_url_full_path = base_url_full_path_from_fields(&s.fields);
         let append_prompt =
             crate::store::sanitize_extra_rules(s.fields.get(APP_APPEND_PROMPT_KEY).cloned());
+        let supports_vision = supports_vision_from_fields(&s.fields);
         providers.push(CustomProvider {
             id: s.id,
             model,
@@ -1037,6 +1053,7 @@ fn build_list_result(home: PathBuf, path: PathBuf, text: &str) -> ProvidersListR
             context_window,
             base_url_full_path,
             append_prompt,
+            supports_vision,
         });
     }
     let (active_source, active_provider_id) = route_from_default(def.as_deref(), &providers);
@@ -1370,6 +1387,13 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
         ),
     };
 
+    let supports_vision = match input.supports_vision {
+        Some(v) => v,
+        None => existing
+            .map(|s| supports_vision_from_fields(&s.fields))
+            .unwrap_or(false),
+    };
+
     text = remove_section(&text, &id);
     let mut fields: Vec<(String, String)> = vec![
         ("model".into(), model),
@@ -1381,6 +1405,9 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
     ];
     if full_path {
         fields.push((APP_BASE_URL_FULL_PATH_KEY.into(), "true".into()));
+    }
+    if supports_vision {
+        fields.push((APP_SUPPORTS_VISION_KEY.into(), "true".into()));
     }
     if !app_efforts_json.is_empty() && app_efforts_json != "[]" {
         fields.push((APP_EFFORTS_KEY.into(), app_efforts_json));
@@ -2372,6 +2399,7 @@ mod tests {
                 context_window: None,
                 base_url_full_path: false,
                 append_prompt: None,
+                supports_vision: false,
             }],
             default_model: Some("relay".into()),
             active_source: "custom".into(),

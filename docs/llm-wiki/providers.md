@@ -38,6 +38,7 @@ Custom providers are written to **`$GROK_HOME/config.toml`** as `[model.<id>]` s
 | `efforts` | Reasoning-effort options for this channel (`[{id, name, isDefault}]`); App field `app_efforts` JSON. Composer effort menu uses this on custom route. Empty → Grok `low`/`medium`/`high` fallback |
 | `contextWindow` | Optional token cap → TOML `context_window` as a **bare integer** (never `"1000000"`). Grok Build rejects string type and falls back to 200k (#538). Composer can set it; list/upsert preserves and reloads. Missing → UI chip uses `DEFAULT_CUSTOM_CONTEXT_WINDOW` (200k) only. |
 | `apiBackend` | Message format: `responses` (default) \| `chat_completions` \| `messages` |
+| `supportsVision` | App field `app_supports_vision`. When **true**, this custom channel is treated as multimodal: image `@path` stays in the prompt (CLI injects pixels) and the custom-main hook does **not** block `read_file` on PNG/JPG. Names / model ids that look like Grok / GPT-4o / Claude / Gemini already count as vision even when this is off. Unknown relays stay text-only (Host vision / path note) so DeepSeek-style APIs do not 400 on `image_url`. |
 | `isDefault` | Maps to `[models].default` (set only via **Use** / composer pick activate, not a form checkbox) |
 
 **Integer TOML fields:** Host writes `context_window = 1000000` (CLI-compatible). On `providers_list`, legacy quoted string forms are repaired in place. Other model edits must not drop or re-quote this field.

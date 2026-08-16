@@ -107,6 +107,8 @@ type FormState = {
   efforts: FormEffort[];
   /** Extra rules appended to the system prompt on this channel. */
   appendPrompt: string;
+  /** Explicit: this relay accepts image pixels. */
+  supportsVision: boolean;
   /** External signup URL for “Get API Key” (from preset). */
   apiKeyUrl: string | null;
 };
@@ -122,6 +124,7 @@ const emptyForm = (): FormState => ({
   apiKey: "",
   apiBackend: "responses",
   appendPrompt: "",
+  supportsVision: false,
   models: [],
   efforts: defaultCustomChannelEfforts().map((e) => ({
     id: e.id,
@@ -175,6 +178,7 @@ function formFromPreset(preset: ProviderPreset): FormState {
     apiBackend: preset.apiBackend,
     // Presets carry no channel rules — opt-in per provider.
     appendPrompt: "",
+    supportsVision: false,
     models: preset.models.map((m) => ({
       id: m.id,
       name: m.name || m.id,
@@ -535,6 +539,7 @@ export function ProvidersPanel({
       apiKey: "",
       apiBackend: p.apiBackend || "responses",
       appendPrompt: p.appendPrompt ?? "",
+      supportsVision: !!p.supportsVision,
       models: modelsFromProvider(p),
       efforts: effortsFromProvider(p),
       apiKeyUrl: resolveProviderApiKeyUrl({
@@ -644,6 +649,7 @@ export function ProvidersPanel({
       baseUrlFullPath: form.baseUrlFullPath,
       // Always sent: "" clears the channel rules, so an emptied box sticks.
       appendPrompt: form.appendPrompt.trim(),
+      supportsVision: form.supportsVision,
       // Keep composer-set context_window on provider form save (#538).
       contextWindow:
         !isCreate && existing?.contextWindow != null && existing.contextWindow > 0
@@ -1487,6 +1493,46 @@ export function ProvidersPanel({
                     aria-label={tr("prov.protocol")}
                     className="prov-field__select"
                   />
+                </div>
+
+                <div className="prov-field prov-field--full">
+                  <span className="prov-field__label-row">
+                    <span className="prov-field__label">
+                      {tr("prov.supportsVision")}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={form.supportsVision}
+                      id="settings-anchor-prov-supports-vision"
+                      className={
+                        "prov-field__full-path-switch" +
+                        (form.supportsVision ? " is-on" : "")
+                      }
+                      title={tr("prov.supportsVisionHint")}
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          supportsVision: !f.supportsVision,
+                        }))
+                      }
+                    >
+                      <span className="prov-field__full-path-label">
+                        {form.supportsVision
+                          ? tr("prov.supportsVisionOn")
+                          : tr("prov.supportsVisionOff")}
+                      </span>
+                      <span
+                        className="prov-field__full-path-track"
+                        aria-hidden
+                      >
+                        <span className="prov-field__full-path-thumb" />
+                      </span>
+                    </button>
+                  </span>
+                  <span className="prov-field__hint">
+                    {tr("prov.supportsVisionHint")}
+                  </span>
                 </div>
 
                 <div className="prov-field">

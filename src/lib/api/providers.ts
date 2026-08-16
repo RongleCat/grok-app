@@ -45,6 +45,11 @@ export interface CustomProvider {
    * Rides the CLI `--rules` flag, so the agent keeps its built-in prompt.
    */
   appendPrompt?: string | null;
+  /**
+   * Explicit: this relay accepts image pixels. Combined with name/model
+   * heuristics so Grok / gpt-4o / claude channels are vision even when off.
+   */
+  supportsVision?: boolean;
 }
 
 export interface ProvidersListResult {
@@ -296,6 +301,8 @@ export async function providersUpsert(body: {
   baseUrlFullPath?: boolean;
   /** Channel rules appended to the system prompt. `""` clears; omit to keep. */
   appendPrompt?: string | null;
+  /** Persist vision capability. Omit to keep the existing flag on edit. */
+  supportsVision?: boolean;
 }) {
   return invoke<ProvidersListResult>("providers_upsert", {
     id: body.id,
@@ -311,6 +318,7 @@ export async function providersUpsert(body: {
     contextWindow: body.contextWindow ?? null,
     baseUrlFullPath: body.baseUrlFullPath ?? null,
     appendPrompt: body.appendPrompt ?? null,
+    supportsVision: body.supportsVision ?? null,
   });
 }
 

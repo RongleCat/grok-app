@@ -1214,9 +1214,16 @@ pub fn native_media_block_read_image_reason() -> &'static str {
 
 /// Shell script body: inspect PreToolUse stdin; deny native Imagine + image read_file.
 pub fn native_media_block_hook_script_body() -> String {
+    native_media_block_hook_script_body_with(true)
+}
+
+/// Same hook; when `block_image_read` is false, vision-capable custom mains
+/// may `read_file` PNG/JPG (pixels already go out as `image_url`).
+pub fn native_media_block_hook_script_body_with(block_image_read: bool) -> String {
     // Reasons embedded as Python triple-quoted constants (no shell env expansion).
     let reason_imagine = native_media_block_hook_reason().replace('\\', "\\\\");
     let reason_read = native_media_block_read_image_reason().replace('\\', "\\\\");
+    let block_flag = if block_image_read { "True" } else { "False" };
     // Grok pipes PreToolUse event JSON on the hook process stdin.
     // IMPORTANT: do not use `python3 <<'PY'` alone — that steals stdin for the
     // script body and the event is lost. Save stdin to a temp file first.
@@ -1232,6 +1239,7 @@ import json, os, sys
 
 REASON_IMAGINE = r"""{reason_imagine}"""
 REASON_READ_IMAGE = r"""{reason_read}"""
+BLOCK_IMAGE_READ = {block_flag}
 
 def deny(reason: str) -> None:
     print(json.dumps({{"decision": "deny", "reason": reason}}, ensure_ascii=False))
@@ -1268,7 +1276,9 @@ if name_l in native or name in native:
     deny(REASON_IMAGINE)
 
 # read_file / Read — block image paths so image_url never hits text-only relays
-if name_l in {{"read_file", "read", "notebookread"}} or name in {{"Read", "NotebookRead"}}:
+if BLOCK_IMAGE_READ and (
+    name_l in {{"read_file", "read", "notebookread"}} or name in {{"Read", "NotebookRead"}}
+):
     p = (
         inp.get("target_file")
         or inp.get("path")
@@ -1315,6 +1325,15 @@ pub fn native_media_block_hook_json() -> String {
     )
 }
 
+fn current_main_is_text_only() -> bool {
+    let list = match crate::providers::list_custom_providers() {
+        Ok(l) => l,
+        Err(_) => return true,
+    };
+    let text = fs::read_to_string(&list.config_path).unwrap_or_default();
+    crate::models_aux::main_is_text_only(&text, &list)
+}
+
 /// Install or remove the native-Imagine block hook under agent GROK_HOME.
 ///
 /// When `enabled` (custom + inject): write `{home}/hooks/grok-app-block-native-imagine.{json,sh}`.
@@ -1331,7 +1350,8 @@ pub fn sync_native_media_block_hook(session_data_mode: &str, enabled: bool) -> R
     if enabled {
         fs::create_dir_all(&hooks_dir).map_err(|e| format!("create agent hooks dir: {e}"))?;
         let body = native_media_block_hook_json();
-        let script = native_media_block_hook_script_body();
+        let block_image_read = current_main_is_text_only();
+        let script = native_media_block_hook_script_body_with(block_image_read);
         let need_json = match fs::read_to_string(&path) {
             Ok(existing) => existing != body,
             Err(_) => true,
@@ -2389,6 +2409,10 @@ A UI screenshot.
         assert!(script.contains("read_file"));
         assert!(native_media_block_hook_reason().contains("blocked"));
         assert!(native_media_block_read_image_reason().contains("image_url"));
+        let vision = native_media_block_hook_script_body_with(false);
+        assert!(vision.contains("BLOCK_IMAGE_READ = False"));
+        let text_only = native_media_block_hook_script_body_with(true);
+        assert!(text_only.contains("BLOCK_IMAGE_READ = True"));
     }
 
     #[test]
