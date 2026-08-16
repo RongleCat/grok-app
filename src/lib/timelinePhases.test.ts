@@ -433,6 +433,48 @@ describe("foldProcessIntoTimeline", () => {
     }
   });
 
+  it("keeps the last-content conclusion visible when tools follow it", () => {
+    const segs: MessageSegment[] = [
+      { kind: "thought", text: "plan" },
+      tool("r1", "Read a"),
+      tool("r2", "Read b"),
+      {
+        kind: "content",
+        text: `按上次说的做：先把 8 张 hard-set 都 decode 对照手写种子，再拿反推稿出图，跑 decode → render 闭环。8 张类型全对。接着用反推稿出图，文件名加 \`-decode\`，不覆盖旧成品。H1 出图撞上 Cloudflare 524。我给生图加上有限次重试，然后从 H1 接着跑。8 张 decode 稿都出了。
+
+成品文件名带 \`-decode\`，旧的手写成品没动。Finder 已打开。`,
+      },
+      bash("open-finder"),
+    ];
+    const units = buildAssistantTimeline(segs, { streaming: false });
+    expect(units.map((u) => u.kind)).toContain("content");
+    const answer = units.find((u) => u.kind === "content");
+    expect(answer && answer.kind === "content" && answer.text).toContain(
+      "成品文件名带",
+    );
+    expect(answer && answer.kind === "content" && answer.text).not.toContain(
+      "先把 8 张",
+    );
+  });
+
+  it("does not swallow a streaming last content when a later tool arrives", () => {
+    const segs: MessageSegment[] = [
+      { kind: "thought", text: "plan" },
+      tool("r1", "Read a"),
+      tool("r2", "Read b"),
+      { kind: "content", text: "正在写结论，还没有分段。" },
+      bash("open-finder"),
+    ];
+    const live = foldProcessIntoTimeline(
+      buildTimelineUnits(segs, { streaming: true }),
+      { streaming: true },
+    );
+    const content = live.find((u) => u.kind === "content");
+    expect(content && content.kind === "content" && content.text).toContain(
+      "正在写结论",
+    );
+  });
+
   it("synthesizes a work fold when there is process speech but no tools", () => {
     const segs: MessageSegment[] = [
       {

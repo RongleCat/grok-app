@@ -95,6 +95,19 @@ A hairline directory.`;
     expect(split.answer).toContain("skills.bflabs.cn");
   });
 
+  it("does not fold a long conclusion that uses process-like verbs then a table", () => {
+    const text = `已经按你说的把闭环跑完，8 张类型都对，成品都写在 evals/renders 下面、文件名带 -decode。接下来是结论，也是我核过之后愿意签字的推荐，下面这张表按可读性和品牌件排过序。
+
+| 图 | 结果 |
+|---|---|
+| a | 过 |`;
+    const split = splitAssistantAnswer(text);
+    expect(split.cut).toBeNull();
+    expect(split.process).toBeNull();
+    expect(split.answer).toContain("接下来是结论");
+    expect(split.answer).toContain("| a | 过 |");
+  });
+
   it("does not fold a short intro before a heading", () => {
     const split = splitAssistantAnswer(
       "先说结论。\n\n**团队入口**：官网目前回 bflabs.cn。",

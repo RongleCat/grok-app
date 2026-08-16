@@ -102,7 +102,7 @@ import { BackBottom } from "./BackBottom";
 import { InlineUserEdit } from "./InlineUserEdit";
 import { SkillChip } from "@/components/SkillChip";
 import { HighlightedText } from "@/components/HighlightedText";
-import { findChatMatches } from "@/lib/chatFind";
+import { findChatMatches, findMatchesBeforeVisible } from "@/lib/chatFind";
 import { hydrateDisplayContent, parseStoredContent } from "@/lib/draftDoc";
 import { parseScheduledUserContent } from "@/lib/automations";
 import {
@@ -1276,7 +1276,20 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
           {(() => {
             // Running occurrence base across content segments so
             // find marks stay aligned with message-level match index.
-            let contentOccBase = 0;
+            // Hits in the folded process prefix of m.content must be skipped
+            // so the conclusion highlight uses the same occurrence as Cmd+F.
+            const lastVisibleContent = (() => {
+              for (let i = timelineUnits.length - 1; i >= 0; i--) {
+                const u = timelineUnits[i]!;
+                if (u.kind === "content") return u.text;
+              }
+              return "";
+            })();
+            let contentOccBase = findMatchesBeforeVisible({
+              full: m.content ?? "",
+              visible: lastVisibleContent,
+              query: findQuery,
+            });
             // First bare thought uses a stable live key for the whole episode
             // (placeholder → tokens → done) so the wall clock does not reset.
             const primaryThoughtSi = (() => {
@@ -1303,6 +1316,14 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
                       m.createdAt,
                       ...unit.tools.map((t) => t.createdAt),
                     ]}
+                    findQuery={findQuery}
+                    findActiveOccurrence={
+                      isFindCurrent
+                        ? (findActive?.occurrence ?? null)
+                        : null
+                    }
+                    messageContent={m.content}
+                    onOpenExternalLink={onOpenExternalLink}
                   />
                 );
               }

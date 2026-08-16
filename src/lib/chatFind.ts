@@ -91,6 +91,35 @@ export function findChatMatches(
   return out;
 }
 
+/**
+ * How many query hits sit in `full` before the visible slice.
+ * Used so Cmd+F occurrence indexes (scanned on the raw message body) line
+ * up with highlights on a folded conclusion / speech paragraph.
+ */
+export function findMatchesBeforeVisible(input: {
+  full: string;
+  visible: string;
+  query: string;
+}): number {
+  const full = input.full ?? "";
+  const visible = input.visible ?? "";
+  const query = input.query;
+  if (!query.trim() || !full) return 0;
+  let prefix = "";
+  if (visible && full.endsWith(visible)) {
+    prefix = full.slice(0, full.length - visible.length);
+  } else if (visible) {
+    const at = full.indexOf(visible);
+    prefix = at >= 0 ? full.slice(0, at) : "";
+  } else {
+    prefix = full;
+  }
+  if (!prefix) return 0;
+  return findChatMatches(query, [
+    { id: "_", role: "assistant", content: prefix },
+  ]).length;
+}
+
 /** Next / previous match index with wrap-around. */
 export function stepChatFindIndex(
   current: number,

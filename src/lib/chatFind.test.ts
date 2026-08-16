@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findChatMatches,
+  findMatchesBeforeVisible,
   formatChatFindCount,
   searchableTextForMessage,
   splitHighlightParts,
@@ -85,6 +86,38 @@ describe("findChatMatches", () => {
       { id: "sys", role: "system", content: "xxx" },
     ]);
     expect(hits).toHaveLength(0);
+  });
+});
+
+describe("findMatchesBeforeVisible", () => {
+  it("counts hits in the folded prefix of a process + conclusion body", () => {
+    const process =
+      "先把 8 张 hard-set 都 decode。接着补重试。8 张 decode 稿都出了。";
+    const answer = "成品文件名带 -decode，旧的手写成品没动。";
+    expect(
+      findMatchesBeforeVisible({
+        full: `${process}\n\n${answer}`,
+        visible: answer,
+        query: "decode",
+      }),
+    ).toBe(2);
+    expect(
+      findMatchesBeforeVisible({
+        full: `${process}\n\n${answer}`,
+        visible: answer,
+        query: "成品",
+      }),
+    ).toBe(0);
+  });
+
+  it("returns 0 when the visible slice is the whole body", () => {
+    expect(
+      findMatchesBeforeVisible({
+        full: "正在写结论，还没有分段。",
+        visible: "正在写结论，还没有分段。",
+        query: "结论",
+      }),
+    ).toBe(0);
   });
 });
 

@@ -129,6 +129,7 @@ export function splitAssistantAnswer(
     // Leave --- / **01 · / **title** to those dedicated cuts.
     if (
       looksLikeProcessDiary(prefix) &&
+      looksLikeMidTurnDiary(prefix) &&
       prefixLooksUnstructured(prefix) &&
       !HR_RE.test(next) &&
       !NUMBERED_RE.test(next) &&
@@ -175,6 +176,29 @@ function looksLikeProcessDiary(prefix: string): boolean {
   const t = prefix.trim();
   if (t.length < MIN_PROCESS_CHARS) return false;
   return countProcessMarkers(t) >= 2;
+}
+
+/** Blank-line cuts need a first-person / in-progress verb, not just 已经/接下来. */
+const MID_TURN_DIARY_MARKERS: RegExp[] = [
+  /我先/,
+  /我再/,
+  /我把/,
+  /我补/,
+  /我给/,
+  /先接手/,
+  /先把/,
+  /先读/,
+  /正在读/,
+  /正在核/,
+  /根因是/,
+  /\bLet me\b/i,
+  /\bI(?:'ll| will)\b/,
+  /\bI've (?:now|already)\b/i,
+  /\bLooking at\b/i,
+];
+
+function looksLikeMidTurnDiary(prefix: string): boolean {
+  return MID_TURN_DIARY_MARKERS.some((re) => re.test(prefix));
 }
 
 /** Index of the first blank line after the opening paragraph, or -1. */

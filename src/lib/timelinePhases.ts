@@ -443,14 +443,6 @@ function lastContentIndex(units: TimelineUnit[]): number {
   return -1;
 }
 
-function hasWorkAfter(units: TimelineUnit[], idx: number): boolean {
-  for (let i = idx + 1; i < units.length; i++) {
-    const u = units[i]!;
-    if (u.kind === "phase" || u.kind === "tool") return true;
-  }
-  return false;
-}
-
 function speechItemsFromText(text: string): TimelinePhaseItem[] {
   return processSpeechParagraphs(text).map((t) => ({
     kind: "speech" as const,
@@ -695,8 +687,9 @@ export function foldProcessIntoTimeline(
     }
     // content
     const isLast = i === lastCi;
-    const midTurn = !isLast || hasWorkAfter(units, i);
-    if (midTurn) {
+    // Only earlier content bodies are mid-turn chatter. The last content is
+    // the conclusion slot even when tools (open Finder, screenshot) follow.
+    if (!isLast) {
       for (const s of speechItemsFromText(u.text)) {
         pushWork(s, u.si, false);
       }
