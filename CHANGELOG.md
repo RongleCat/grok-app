@@ -19,9 +19,11 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 - **Fork no longer pins the parent chat on 连接中**: After `_x.ai/session/fork` the CLI is still hydrating parent context. Post-open `session/set_mode` used to walk every agent-mode alias (`agent` / `default` / `code` / `normal` / `Agent`) at 45s each — ~4 minutes of handshake, no `session/prompt`, both the fork and the original chat stuck on Connecting / Thinking. Fork skips that nudge (spawn already has `--permission-mode`); any later `set_mode` transport timeout aborts the remaining aliases.
+- **New-session composer no longer restores the just-sent prompt (#620)**: Sending from the New session page materializes a chat and leaves the draft view, so persist-clear used to be skipped. The per-project new-session buffer is now wiped on success.
 
 **中文 · 修复**
 - **分叉后不再把原会话卡在「连接中」**：`session/fork` 之后 CLI 还在灌父会话。以前会连试 5 个 `session/set_mode` 别名，每个等 45 秒，握手约 4 分钟，消息发不出去，分叉和原会话一起停在连接中/思考中。分叉后不再做这次 nudge；之后若 `set_mode` 是传输超时，立刻停掉剩余别名。
+- **新建会话发送后不再把刚发出的草稿带回来（#620）**：从「新建会话」发出去会落成真实会话并离开草稿页，以前会跳过清空。成功后现在会清掉该项目的新建会话草稿。
 
 ## [0.2.19] - 2026-08-15
 

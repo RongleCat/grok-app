@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   nextComposerSubmitSettlement,
   shouldClearComposerAfterSubmit,
+  shouldClearProjectDraftAfterNewChatSend,
 } from "./composerSubmitClear";
 
 const file = { path: "/tmp/a.txt" };
@@ -128,5 +129,34 @@ describe("nextComposerSubmitSettlement", () => {
         currentAttachments: [file],
       }),
     ).toBe("leave");
+  });
+});
+
+describe("shouldClearProjectDraftAfterNewChatSend", () => {
+  it("wipes the new-session buffer after a successful draft send", () => {
+    expect(
+      shouldClearProjectDraftAfterNewChatSend({
+        fromNewChatPage: true,
+        sendSucceeded: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps the new-session buffer when the draft send fails", () => {
+    expect(
+      shouldClearProjectDraftAfterNewChatSend({
+        fromNewChatPage: true,
+        sendSucceeded: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not touch the project buffer on an existing-thread send", () => {
+    expect(
+      shouldClearProjectDraftAfterNewChatSend({
+        fromNewChatPage: false,
+        sendSucceeded: true,
+      }),
+    ).toBe(false);
   });
 });

@@ -63,3 +63,18 @@ export function nextComposerSubmitSettlement(
   if (!idle && !composerMatchesSentPayload(opts)) return "leave";
   return opts.sendSucceeded ? "persist-clear" : "restore";
 }
+
+/**
+ * A new-chat send materializes a session and adopts that view, so `stillHere`
+ * is false. The per-project new-session buffer must still be wiped on success,
+ * or the next "New session" restores the just-sent prompt (#620).
+ *
+ * Follow-up on the new thread is a per-session draft — do not keep the
+ * project buffer just because we left the draft page.
+ */
+export function shouldClearProjectDraftAfterNewChatSend(opts: {
+  fromNewChatPage: boolean;
+  sendSucceeded: boolean;
+}): boolean {
+  return opts.fromNewChatPage && opts.sendSucceeded;
+}

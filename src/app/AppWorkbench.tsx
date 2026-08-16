@@ -673,7 +673,10 @@ import {
   loadComposerSessionDraft,
   saveComposerSessionDraft,
 } from "@/lib/composerSessionDraft";
-import { nextComposerSubmitSettlement } from "@/lib/composerSubmitClear";
+import {
+  nextComposerSubmitSettlement,
+  shouldClearProjectDraftAfterNewChatSend,
+} from "@/lib/composerSubmitClear";
 import {
   DEFERRED_RECONCILE_MS,
   WARM_CONNECT_DEBOUNCE_MS,
@@ -8137,7 +8140,20 @@ export function AppWorkbench() {
     }
     // Navigated away: leaving already persisted the composer-at-leave
     // (follow-up text stays). Only refill an empty origin buffer on fail.
-    if (sent) return;
+    // New-chat send adopts the materialized session, so stillHere is false —
+    // still wipe the per-project new-session buffer or the next "New session"
+    // restores the just-sent prompt (#620).
+    if (sent) {
+      if (
+        shouldClearProjectDraftAfterNewChatSend({
+          fromNewChatPage: clearDraftOpts.clearProjectDraft,
+          sendSucceeded: true,
+        })
+      ) {
+        persistComposerSubmitClear({ clearProjectDraft: true });
+      }
+      return;
+    }
     if (clearDraftOpts.clearSessionDraft && clearDraftOpts.sessionDraftId) {
       if (!loadComposerSessionDraft(clearDraftOpts.sessionDraftId)) {
         saveComposerSessionDraft(clearDraftOpts.sessionDraftId, {
