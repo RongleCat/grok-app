@@ -29,11 +29,11 @@ See `docs/llm-wiki/release.md`.
 
 ### Changed
 - **README Gatekeeper copy**: Official Releases from v0.2.19 are Developer ID signed and Apple-notarized. The `xattr` workaround stays for forks / older unsigned builds.
-- **Assistant process vs answer**: First-person work diaries inside a single reply fold into a muted Process row (same chrome as progress notes). The visible markdown starts at the first heading, `---`, or `**01 ·` after that diary, so the conclusion is no longer mashed into the work log.
+- **Assistant process vs answer**: Mid-turn speech and folded actions (explore / run / edit) live inside one **工作了** fold (collapsed by default). The conclusion stays visible below. Journal CoT stays a separate **思考了** row — not dumped into the rail or mashed into the answer.
 
 **中文 · 变更**
 - **README Gatekeeper 说明**：官方 Release 从 v0.2.19 起已签名并公证。`xattr` 仅留给 fork / 旧的未签名包。
-- **助手过程与结论分开**：单条正文里的第一人称工作日记收成一条淡的「过程」折叠（和过程说明同一套 chrome）。可见正文从第一条标题、横线或 `**01 ·` 开始，结论不再和工作日志挤在一起。
+- **助手过程与结论分开**：中间穿插的话和折叠动作（探索 / 运行 / 编辑）收进同一条「工作了」（默认收起），结论始终在下面。日记 CoT 仍是单独的「思考了」，不灌进活动轨，也不和结论挤在一起。
 
 ### Fixed
 - **Chat image previews**: Project-relative markdown images (`design-demos/shots/foo.png`) resolve from attachments instead of painting an empty alt card. A first-paint miss (file still being written, or path grant not ready) retries instead of locking the card as broken.

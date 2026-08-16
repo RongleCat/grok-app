@@ -24,11 +24,33 @@ import {
 
 export type GrokActivityStep =
   | {
+      /** User-facing mid-turn prose inside 工作了 (not journal CoT). */
+      type: "speech";
+      key: string;
+      text: string;
+    }
+  | {
       type: "thought";
       key: string;
       summary: string | null;
       streaming: boolean;
       text: string;
+    }
+  | {
+      type: "bash-group";
+      key: string;
+      count: number;
+      failed: boolean;
+      running: boolean;
+      children: GrokActivityStep[];
+    }
+  | {
+      type: "edit-group";
+      key: string;
+      count: number;
+      failed: boolean;
+      running: boolean;
+      children: GrokActivityStep[];
     }
   | {
       type: "search-group";
@@ -89,6 +111,7 @@ export type GrokActivityStep =
 
 export type GrokPhaseItem =
   | { kind: "thought"; text: string }
+  | { kind: "speech"; text: string }
   | { kind: "tool"; tool: MessageToolSegment };
 
 function toolRunning(t: MessageToolSegment): boolean {
@@ -273,6 +296,17 @@ function buildStepsInternal(
 
   while (i < items.length) {
     const item = items[i]!;
+    if (item.kind === "speech") {
+      if (item.text.trim()) {
+        steps.push({
+          type: "speech",
+          key: `sp-${i}`,
+          text: item.text,
+        });
+      }
+      i += 1;
+      continue;
+    }
     if (item.kind === "thought") {
       const parts = splitThoughtForActivity(item.text);
       const toolsAfter = items.slice(i + 1).some((x) => x.kind === "tool");
@@ -396,6 +430,49 @@ function buildStepsInternal(
         });
         i = runEnd;
         continue;
+      }
+    }
+
+    // Consecutive bash / edit bursts → one folded action row (mock: 运行了 N /
+    // 编辑了 N). Singles stay individual so a lone command is still a tool row.
+    if (grouping) {
+      const bucket = classifyToolKind(tool.toolKind, tool.title, tool.toolCallId);
+      if (bucket === "bash" || bucket === "edit") {
+        let runEnd = i;
+        while (runEnd < items.length) {
+          const it = items[runEnd]!;
+          if (it.kind !== "tool") break;
+          if (
+            classifyToolKind(
+              it.tool.toolKind,
+              it.tool.title,
+              it.tool.toolCallId,
+            ) !== bucket
+          ) {
+            break;
+          }
+          runEnd += 1;
+        }
+        if (runEnd - i >= 2) {
+          let failed = false;
+          let running = false;
+          for (let k = i; k < runEnd; k++) {
+            const t = (items[k] as { kind: "tool"; tool: MessageToolSegment })
+              .tool;
+            if (toolFailed(t)) failed = true;
+            if (stepRunning(t, messageStreaming)) running = true;
+          }
+          steps.push({
+            type: bucket === "bash" ? "bash-group" : "edit-group",
+            key: `${bucket}-${i}`,
+            count: runEnd - i,
+            failed,
+            running,
+            children: buildStepsInternal(items.slice(i, runEnd), options, false),
+          });
+          i = runEnd;
+          continue;
+        }
       }
     }
 

@@ -9,14 +9,15 @@
  *
  * Cut, earliest wins:
  * 1. First-person process prefix, then a heading / `**title**：` line
- * 2. Standalone markdown `---` / `***` / `___` (not a table rule, not in a fence)
- * 3. Numbered deliverable heading (`**01 ·` / `## 01.`)
+ * 2. Process-like first paragraph, then a blank line (the common Grok 4.6 shape)
+ * 3. Standalone markdown `---` / `***` / `___` (not a table rule, not in a fence)
+ * 4. Numbered deliverable heading (`**01 ·` / `## 01.`)
  *
  * No cut when the prefix is too short, the remainder is empty, or the
  * only hit is inside a fence / table separator.
  */
 
-export type AssistantAnswerCut = "heading" | "hr" | "numbered";
+export type AssistantAnswerCut = "heading" | "break" | "hr" | "numbered";
 
 export type AssistantAnswerSplit = {
   process: string | null;
@@ -40,6 +41,10 @@ const PROCESS_MARKERS: RegExp[] = [
   /已经/,
   /先把/,
   /先读/,
+  /先接手/,
+  /正在读/,
+  /正在核/,
+  /我给/,
   /根因是/,
   /本地已经/,
   /截图已经/,
@@ -115,6 +120,23 @@ export function splitAssistantAnswer(
       cands.push({ line: firstHeading, kind: "heading", skipLine: false });
     }
   }
+  const breakAt = firstContentParagraphEnd(lines);
+  if (breakAt >= 0) {
+    const prefix = lines.slice(0, breakAt).join("\n");
+    let j = breakAt;
+    while (j < lines.length && !(lines[j] ?? "").trim()) j += 1;
+    const next = lines[j] ?? "";
+    // Leave --- / **01 · / **title** to those dedicated cuts.
+    if (
+      looksLikeProcessDiary(prefix) &&
+      prefixLooksUnstructured(prefix) &&
+      !HR_RE.test(next) &&
+      !NUMBERED_RE.test(next) &&
+      !isAnswerHeading(next)
+    ) {
+      cands.push({ line: breakAt, kind: "break", skipLine: true });
+    }
+  }
   if (firstHr >= 0) {
     cands.push({ line: firstHr, kind: "hr", skipLine: true });
   }
@@ -155,10 +177,46 @@ function looksLikeProcessDiary(prefix: string): boolean {
   return countProcessMarkers(t) >= 2;
 }
 
+/** Index of the first blank line after the opening paragraph, or -1. */
+function firstContentParagraphEnd(lines: string[]): number {
+  let i = 0;
+  while (i < lines.length && !(lines[i] ?? "").trim()) i += 1;
+  if (i >= lines.length) return -1;
+  let inFence = false;
+  let fenceMark = "";
+  for (; i < lines.length; i++) {
+    const line = lines[i] ?? "";
+    const fence = line.match(FENCE_RE);
+    if (fence) {
+      const mark = fence[1]!.charAt(0);
+      if (!inFence) {
+        inFence = true;
+        fenceMark = mark;
+      } else if (mark === fenceMark) {
+        inFence = false;
+        fenceMark = "";
+      }
+      continue;
+    }
+    if (inFence) continue;
+    if (!line.trim()) return i;
+  }
+  return -1;
+}
+
 function prefixLooksUnstructured(prefix: string): boolean {
   for (const line of prefix.split(/\r?\n/)) {
     if (!line.trim()) continue;
     if (NUMBERED_RE.test(line) || isAnswerHeading(line)) return false;
   }
   return true;
+}
+
+/** Split a process diary into speech paragraphs (stream-order turns). */
+export function processSpeechParagraphs(process: string | null | undefined): string[] {
+  if (!process?.trim()) return [];
+  return process
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 }

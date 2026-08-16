@@ -103,7 +103,6 @@ import { InlineUserEdit } from "./InlineUserEdit";
 import { SkillChip } from "@/components/SkillChip";
 import { HighlightedText } from "@/components/HighlightedText";
 import { findChatMatches } from "@/lib/chatFind";
-import { splitAssistantAnswer } from "@/lib/assistantAnswerSplit";
 import { hydrateDisplayContent, parseStoredContent } from "@/lib/draftDoc";
 import { parseScheduledUserContent } from "@/lib/automations";
 import {
@@ -125,7 +124,7 @@ import {
 } from "./TimelineToolRow";
 import { TimelinePhaseBlock } from "./TimelinePhaseBlock";
 import {
-  buildTimelineUnits,
+  buildAssistantTimeline,
   shouldShowTrailingLiveThinking,
 } from "@/lib/timelinePhases";
 import {
@@ -273,18 +272,6 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
       galleryPaths: images.map((x) => x.path),
     };
   }, [bottomAtts]);
-  const tr = useMemo(() => createT(locale), [locale]);
-  const split = useMemo(
-    () => splitAssistantAnswer(displayContent),
-    [displayContent],
-  );
-  const processMatchCount = useMemo(() => {
-    if (!findQuery?.trim() || !split.process) return 0;
-    return findChatMatches(findQuery, [
-      { id: "process", role: "assistant", content: split.process },
-    ]).length;
-  }, [findQuery, split.process]);
-
   if (
     !(displayContent || "").trim() &&
     !(bottomImages.length || bottomFiles.length)
@@ -292,50 +279,22 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
     return null;
   }
 
-  const answerFindBase = (findOccurrenceBase ?? 0) + processMatchCount;
   const body = (displayContent || "").trim() ? (
-    split.process ? (
-      <>
-        <LeadFragmentsStrip
-          fragments={[split.process]}
-          locale={locale}
-          label={tr("chat.processNotes")}
-          testId="assistant-process-notes"
-          variant="process"
-          onOpenExternalLink={onOpenExternalLink}
-        />
-        <MarkdownChat
-          locale={locale}
-          className="chat-md--answer"
-          streaming={!!streaming}
-          imagePathMap={pathMapProp}
-          projectPath={projectPath}
-          onOpenResource={onOpenResource}
-          onOpenError={onOpenError}
-          onOpenExternalLink={onOpenExternalLink}
-          findQuery={findQuery}
-          findActiveOccurrence={findActiveOccurrence}
-          findOccurrenceBase={answerFindBase}
-        >
-          {split.answer}
-        </MarkdownChat>
-      </>
-    ) : (
-      <MarkdownChat
-        locale={locale}
-        streaming={!!streaming}
-        imagePathMap={pathMapProp}
-        projectPath={projectPath}
-        onOpenResource={onOpenResource}
-        onOpenError={onOpenError}
-        onOpenExternalLink={onOpenExternalLink}
-        findQuery={findQuery}
-        findActiveOccurrence={findActiveOccurrence}
-        findOccurrenceBase={findOccurrenceBase}
-      >
-        {displayContent}
-      </MarkdownChat>
-    )
+    <MarkdownChat
+      locale={locale}
+      className="chat-md--answer"
+      streaming={!!streaming}
+      imagePathMap={pathMapProp}
+      projectPath={projectPath}
+      onOpenResource={onOpenResource}
+      onOpenError={onOpenError}
+      onOpenExternalLink={onOpenExternalLink}
+      findQuery={findQuery}
+      findActiveOccurrence={findActiveOccurrence}
+      findOccurrenceBase={findOccurrenceBase}
+    >
+      {displayContent}
+    </MarkdownChat>
   ) : null;
 
   return (
@@ -1265,7 +1224,7 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   const isNodeFocus = focusMessageId === m.id;
   // Phase projection: thought+tools collapse when phase ends (content
   // / next thought), not only when the full answer is done.
-  const timelineUnits = buildTimelineUnits(segs, {
+  const timelineUnits = buildAssistantTimeline(segs, {
     streaming: !!m.streaming,
   });
   // Live chrome follows the *current* episode (trailing thought / phase),
@@ -1409,7 +1368,7 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
                   </div>
                 );
               }
-              // content — never folded into a work phase
+              // content — conclusion stays outside the work fold
               const segBase = contentOccBase;
               if (findQuery.trim()) {
                 contentOccBase += findChatMatches(findQuery, [

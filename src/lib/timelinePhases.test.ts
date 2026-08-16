@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { MessageSegment } from "./session";
 import {
+  buildAssistantTimeline,
   buildTimelineUnits,
+  foldProcessIntoTimeline,
   isPhaseWorthy,
   phaseTitleModel,
   shouldShowTrailingLiveThinking,
+  weaveSpeechAndTools,
 } from "./timelinePhases";
+import type { MessageToolSegment } from "./session";
 
 function tool(
   id: string,
@@ -273,5 +277,189 @@ describe("timelinePhases", () => {
       messageStreaming: true,
       hasRunningTool: false,
     })).toBe(false);
+  });
+});
+
+function bash(id: string): MessageToolSegment {
+  return {
+    kind: "tool",
+    toolCallId: id,
+    title: "Run",
+    toolKind: "run_terminal_command",
+    status: "completed",
+    streaming: false,
+  };
+}
+
+function edit(id: string): MessageToolSegment {
+  return {
+    kind: "tool",
+    toolCallId: id,
+    title: "Edit",
+    toolKind: "search_replace",
+    status: "completed",
+    streaming: false,
+  };
+}
+
+describe("foldProcessIntoTimeline", () => {
+  it("puts process speech inside 工作了 and leaves the conclusion below", () => {
+    const segs: MessageSegment[] = [
+      { kind: "thought", text: "The plan is to decode eight shots" },
+      tool("r1", "Read a"),
+      tool("r2", "Read b"),
+      bash("b1"),
+      bash("b2"),
+      bash("b3"),
+      edit("e1"),
+      edit("e2"),
+      {
+        kind: "content",
+        text: `按上次说的做：先把 8 张 hard-set 都 decode 对照手写种子，再拿反推稿出图，跑 decode → render 闭环。8 张类型全对。接着用反推稿出图，文件名加 \`-decode\`，不覆盖旧成品。H1 出图撞上 Cloudflare 524。我给生图加上有限次重试，然后从 H1 接着跑。8 张 decode 稿都出了。
+
+成品文件名带 \`-decode\`，旧的手写成品没动。Finder 已打开。
+
+| 看这张闭环 | 结果 |
+|---|---|
+| \`H6-type-poster-decode.png\` | **最好**。标题、眼窗、口号都在 |`,
+      },
+    ];
+    const units = buildAssistantTimeline(segs, { streaming: false });
+    expect(units.map((u) => u.kind)).toEqual(["thought", "phase", "content"]);
+    const thought = units[0]!;
+    expect(thought.kind).toBe("thought");
+    if (thought.kind === "thought") {
+      expect(thought.text).toContain("decode eight");
+    }
+    const phase = units[1]!;
+    expect(phase.kind).toBe("phase");
+    if (phase.kind === "phase") {
+      expect(phase.thoughts).toEqual([]);
+      expect(phase.items.some((i) => i.kind === "speech")).toBe(true);
+      expect(phase.items.some((i) => i.kind === "tool")).toBe(true);
+      const firstSpeech = phase.items.find((i) => i.kind === "speech");
+      expect(firstSpeech && firstSpeech.kind === "speech" && firstSpeech.text).toContain(
+        "先把 8 张",
+      );
+    }
+    const answer = units[2]!;
+    expect(answer.kind).toBe("content");
+    if (answer.kind === "content") {
+      expect(answer.text.startsWith("成品文件名带")).toBe(true);
+      expect(answer.text).not.toContain("先把 8 张");
+    }
+  });
+
+  it("keeps interleaved mid-turn content in stream order", () => {
+    const segs: MessageSegment[] = [
+      { kind: "thought", text: "round1" },
+      tool("r1", "Read a"),
+      tool("r2", "Read b"),
+      { kind: "content", text: "先看仓库结构，接着对一下入口。" },
+      bash("b1"),
+      bash("b2"),
+      {
+        kind: "content",
+        text: `本地已经改完，接下来装一遍确认。我再把对照表写清楚。先把重试补上，再核一遍成品路径，避免旧文件被覆盖。已经对上类型，接着把对照表写进正文，并把 Finder 打开给用户看。本地路径都对上了。
+
+成品在 \`evals/renders/\`，对照表如下。
+
+| 图 | 结果 |
+|---|---|
+| a | 过 |`,
+      },
+    ];
+    const units = buildAssistantTimeline(segs, { streaming: false });
+    expect(units.map((u) => u.kind)).toEqual(["thought", "phase", "content"]);
+    const phase = units[1]!;
+    expect(phase.kind).toBe("phase");
+    if (phase.kind === "phase") {
+      expect(phase.items.map((i) => i.kind)).toEqual([
+        "tool",
+        "tool",
+        "speech",
+        "tool",
+        "tool",
+        "speech",
+      ]);
+      const speeches = phase.items.filter((i) => i.kind === "speech");
+      expect(speeches[0]).toMatchObject({
+        kind: "speech",
+        text: "先看仓库结构，接着对一下入口。",
+      });
+    }
+    const answer = units[2]!;
+    expect(answer.kind).toBe("content");
+    if (answer.kind === "content") {
+      expect(answer.text).toContain("成品在");
+    }
+  });
+
+  it("weaves a trailing process blob in front of tool family groups", () => {
+    const woven = weaveSpeechAndTools([
+      { kind: "tool", tool: tool("r1", "Read a") },
+      { kind: "tool", tool: tool("r2", "Read b") },
+      { kind: "tool", tool: bash("b1") },
+      { kind: "tool", tool: bash("b2") },
+      { kind: "speech", text: "先对照手写种子。" },
+      { kind: "speech", text: "再补重试。" },
+    ]);
+    expect(woven.map((i) => i.kind)).toEqual([
+      "speech",
+      "tool",
+      "tool",
+      "speech",
+      "tool",
+      "tool",
+    ]);
+  });
+
+  it("does not hide a streaming last content that has no cut yet", () => {
+    const segs: MessageSegment[] = [
+      { kind: "thought", text: "plan" },
+      tool("r1", "Read a"),
+      tool("r2", "Read b"),
+      { kind: "content", text: "正在写结论，还没有分段。" },
+    ];
+    const live = foldProcessIntoTimeline(
+      buildTimelineUnits(segs, { streaming: true }),
+      { streaming: true },
+    );
+    expect(live.map((u) => u.kind)).toEqual(["thought", "phase", "content"]);
+    const content = live[2]!;
+    expect(content.kind).toBe("content");
+    if (content.kind === "content") {
+      expect(content.text).toContain("正在写结论");
+    }
+  });
+
+  it("synthesizes a work fold when there is process speech but no tools", () => {
+    const segs: MessageSegment[] = [
+      {
+        kind: "content",
+        text: `先接手这个 Claude 会话，核对项目上下文和站点上线状态。接着按 resume 协议读会话交接文档，并拉项目上下文。正在读取该 Claude 会话，并核对仓库与上线相关证据。会话 ID 没直接命中，接着列本地会话并核对站点是否真的上线。
+
+刚接手的是 Grok.app 分叉会话，不是 Claude。
+
+今天刚核过的线上事实：
+
+| 入口 | 现状 |
+|---|---|
+| \`skills.bflabs.cn\` | 无 DNS，解析失败 |`,
+      },
+    ];
+    const units = buildAssistantTimeline(segs, { streaming: false });
+    expect(units.map((u) => u.kind)).toEqual(["phase", "content"]);
+    const phase = units[0]!;
+    expect(phase.kind).toBe("phase");
+    if (phase.kind === "phase") {
+      expect(phase.items.every((i) => i.kind === "speech")).toBe(true);
+      expect(phase.tools).toHaveLength(0);
+    }
+    const answer = units[1]!;
+    expect(answer.kind).toBe("content");
+    if (answer.kind === "content") {
+      expect(answer.text).toContain("刚接手的是");
+    }
   });
 });

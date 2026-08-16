@@ -106,6 +106,10 @@ export const zhTWChat = {
   "chat.exploreSearchesOne": "1 次搜尋",
   "chat.exploreFiles": "{n} 個檔案",
   "chat.exploreFilesOne": "1 個檔案",
+  "chat.ranCommands": "執行了 {n} 個命令",
+  "chat.ranCommandsOne": "執行了 1 個命令",
+  "chat.editedFiles": "編輯了 {n} 個檔案",
+  "chat.editedFilesOne": "編輯了 1 個檔案",
   "chat.leadFragments": "{n} 段過程說明",
   /** 單條正文裡、結論之前的第一人稱工作日記摺疊頭。 */
   "chat.processNotes": "過程",

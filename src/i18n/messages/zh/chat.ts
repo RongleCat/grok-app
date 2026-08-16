@@ -106,6 +106,10 @@ export const zhChat = {
   "chat.exploreSearchesOne": "1 次搜索",
   "chat.exploreFiles": "{n} 个文件",
   "chat.exploreFilesOne": "1 个文件",
+  "chat.ranCommands": "运行了 {n} 个命令",
+  "chat.ranCommandsOne": "运行了 1 个命令",
+  "chat.editedFiles": "编辑了 {n} 个文件",
+  "chat.editedFilesOne": "编辑了 1 个文件",
   "chat.leadFragments": "{n} 段过程说明",
   /** 单条正文里、结论之前的第一人称工作日记折叠头。 */
   "chat.processNotes": "过程",

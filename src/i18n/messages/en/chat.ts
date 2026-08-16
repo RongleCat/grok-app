@@ -106,6 +106,10 @@ export const enChat = {
   "chat.exploreSearchesOne": "1 search",
   "chat.exploreFiles": "{n} files",
   "chat.exploreFilesOne": "1 file",
+  "chat.ranCommands": "Ran {n} commands",
+  "chat.ranCommandsOne": "Ran 1 command",
+  "chat.editedFiles": "Edited {n} files",
+  "chat.editedFilesOne": "Edited 1 file",
   "chat.leadFragments": "{n} progress notes",
   /** Folded first-person work diary inside a single assistant body. */
   "chat.processNotes": "Process",

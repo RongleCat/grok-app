@@ -399,6 +399,31 @@
   padding-left: 4px;
   border-left: 1px solid var(--chat-border, rgb(255 255 255 / 6%));
 }
+/* User-facing mid-turn speech inside 工作了 — body text, not a 30px rail row. */
+.grok-act__step--speech {
+  display: block;
+  min-height: 0;
+  padding: 4px 0 10px;
+  align-items: stretch;
+}
+.grok-act__speech {
+  color: var(--chat-text);
+  font-size: 14px;
+  line-height: 1.65;
+}
+.grok-act__speech .chat-md,
+.grok-act__speech .md-body {
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+.grok-act__speech p {
+  margin: 0 0 0.7em;
+}
+.grok-act__speech p:last-child {
+  margin-bottom: 0;
+}
+
 /* Full thought text revealed when a phase’s 💡 step is expanded — muted like
    the standalone Thinking block, capped so a huge reasoning trace does not
    bury the tool rows around it. */
@@ -580,14 +605,12 @@
   display: none;
 }
 
-/* Process diary sits with the work rail; conclusion starts after one beat */
-.grok-fragments[data-variant="process"] {
-  margin: 0 0 2px;
-}
+/* Conclusion sits below the 工作了 fold (or a thought row), with one beat. */
 .chat-md--answer {
   margin-top: 10px;
 }
-.lobe-chat-assistant-timeline > .grok-fragments[data-variant="process"] + .chat-md--answer {
+.lobe-chat-assistant-timeline > .grok-act + .chat-md--answer,
+.lobe-chat-assistant-timeline > .lobe-timeline-rail + .chat-md--answer {
   margin-top: 10px;
 }
 

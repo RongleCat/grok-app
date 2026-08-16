@@ -236,6 +236,42 @@ describe("grokActivitySteps explore-group", () => {
     expect(steps.map((s) => s.type)).toEqual(["tool", "tool"]);
   });
 
+  it("folds consecutive bash / edit bursts and keeps speech as its own step", () => {
+    const items: GrokPhaseItem[] = [
+      { kind: "speech", text: "先核对仓库。" },
+      {
+        kind: "tool",
+        tool: tool("b1", "run_terminal_command", "Run", { input: "ls" }),
+      },
+      {
+        kind: "tool",
+        tool: tool("b2", "run_terminal_command", "Run", { input: "pwd" }),
+      },
+      {
+        kind: "tool",
+        tool: tool("b3", "run_terminal_command", "Run", { input: "git status" }),
+      },
+      { kind: "speech", text: "接着改两处。" },
+      {
+        kind: "tool",
+        tool: tool("e1", "search_replace", "Edit", { input: "a.ts" }),
+      },
+      {
+        kind: "tool",
+        tool: tool("e2", "search_replace", "Edit", { input: "b.ts" }),
+      },
+    ];
+    const steps = buildGrokActivitySteps(items);
+    expect(steps.map((s) => s.type)).toEqual([
+      "speech",
+      "bash-group",
+      "speech",
+      "edit-group",
+    ]);
+    expect(steps[1]).toMatchObject({ type: "bash-group", count: 3 });
+    expect(steps[3]).toMatchObject({ type: "edit-group", count: 2 });
+  });
+
   it("browse breaks an explore run (keeps its own Browsed row)", () => {
     const items: GrokPhaseItem[] = [
       { kind: "tool", tool: tool("r1", "read_file", "Read", { input: "a.ts" }) },

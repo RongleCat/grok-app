@@ -18,10 +18,17 @@
 import type { MessageSegment, MessageToolSegment } from "./session";
 import { hostToolFamilyKey } from "./session";
 import { extractThinkingSummary } from "./thinkingSummary";
+import {
+  processSpeechParagraphs,
+  splitAssistantAnswer,
+} from "./assistantAnswerSplit";
+import { classifyToolKind } from "./toolDisplay";
 
 /** Ordered work unit inside a phase (Grok activity rail). */
 export type TimelinePhaseItem =
   | { kind: "thought"; text: string }
+  /** User-facing mid-turn prose (not journal CoT). */
+  | { kind: "speech"; text: string }
   | { kind: "tool"; tool: MessageToolSegment };
 
 export interface TimelinePhase {
@@ -127,8 +134,11 @@ function bufThoughts(buf: WorkBuf): string[] {
 
 function bufTools(buf: WorkBuf): MessageToolSegment[] {
   return buf.items
-    .filter((x) => x.item.kind === "tool")
-    .map((x) => (x.item as { kind: "tool"; tool: MessageToolSegment }).tool);
+    .filter(
+      (x): x is { item: { kind: "tool"; tool: MessageToolSegment }; si: number } =>
+        x.item.kind === "tool",
+    )
+    .map((x) => x.item.tool);
 }
 
 /** Collapse Host vision/X duplicates inside a work buffer before paint. */
@@ -217,7 +227,7 @@ export function buildTimelineUnits(
           streaming:
             live && streaming && isLastThought && !hasTools,
         });
-      } else {
+      } else if (entry.item.kind === "tool") {
         out.push({ kind: "tool", tool: entry.item.tool, si: entry.si });
       }
     }
@@ -424,4 +434,314 @@ export function phaseTitleModel(phase: TimelinePhase): {
     running: phase.live && phase.runningCount > 0,
     live: phase.live,
   };
+}
+
+function lastContentIndex(units: TimelineUnit[]): number {
+  for (let i = units.length - 1; i >= 0; i--) {
+    if (units[i]!.kind === "content") return i;
+  }
+  return -1;
+}
+
+function hasWorkAfter(units: TimelineUnit[], idx: number): boolean {
+  for (let i = idx + 1; i < units.length; i++) {
+    const u = units[i]!;
+    if (u.kind === "phase" || u.kind === "tool") return true;
+  }
+  return false;
+}
+
+function speechItemsFromText(text: string): TimelinePhaseItem[] {
+  return processSpeechParagraphs(text).map((t) => ({
+    kind: "speech" as const,
+    text: t,
+  }));
+}
+
+function toolFamilyKey(tool: MessageToolSegment): string {
+  const b = classifyToolKind(tool.toolKind, tool.title, tool.toolCallId);
+  if (b === "read" || b === "search") return "explore";
+  return b;
+}
+
+function speechLayout(
+  items: TimelinePhaseItem[],
+): "leading" | "trailing" | "mixed" | "none" {
+  const flags = items.map((i) => i.kind === "speech");
+  if (!flags.some(Boolean)) return "none";
+  const first = flags.indexOf(true);
+  const last = flags.lastIndexOf(true);
+  const allSpeechInRange = flags.slice(first, last + 1).every(Boolean);
+  if (!allSpeechInRange) return "mixed";
+  if (first === 0) return "leading";
+  if (last === flags.length - 1) return "trailing";
+  return "mixed";
+}
+
+function partitionToolGroups(
+  tools: MessageToolSegment[],
+): MessageToolSegment[][] {
+  const groups: MessageToolSegment[][] = [];
+  for (const t of tools) {
+    const fam = toolFamilyKey(t);
+    const prev = groups[groups.length - 1];
+    if (prev && toolFamilyKey(prev[0]!) === fam) prev.push(t);
+    else groups.push([t]);
+  }
+  return groups;
+}
+
+/**
+ * When process speech is a trailing (or leading) block after/before all
+ * tools, place a paragraph before each tool family group — the mock’s
+ * 「话 → 折叠动作 → 话」. Already-interleaved stream order is left alone.
+ */
+export function weaveSpeechAndTools(
+  items: TimelinePhaseItem[],
+): TimelinePhaseItem[] {
+  const layout = speechLayout(items);
+  if (layout !== "trailing" && layout !== "leading") return items;
+  const speeches = items.filter(
+    (i): i is { kind: "speech"; text: string } => i.kind === "speech",
+  );
+  const tools = items
+    .filter(
+      (i): i is { kind: "tool"; tool: MessageToolSegment } => i.kind === "tool",
+    )
+    .map((i) => i.tool);
+  if (!speeches.length || !tools.length) return items;
+  const groups = partitionToolGroups(tools);
+  const out: TimelinePhaseItem[] = [];
+  const pairs = Math.min(speeches.length, groups.length);
+  for (let i = 0; i < pairs; i++) {
+    out.push(speeches[i]!);
+    for (const tool of groups[i]!) out.push({ kind: "tool", tool });
+  }
+  for (let i = pairs; i < speeches.length; i++) out.push(speeches[i]!);
+  for (let i = pairs; i < groups.length; i++) {
+    for (const tool of groups[i]!) out.push({ kind: "tool", tool });
+  }
+  return out;
+}
+
+function emitThoughtUnit(
+  texts: string[],
+  si: number,
+  streaming: boolean,
+): TimelineUnit | null {
+  const cleaned = texts.map((t) => t.trim()).filter(Boolean);
+  if (!cleaned.length && !streaming) return null;
+  if (cleaned.length <= 1) {
+    return {
+      kind: "thought",
+      text: cleaned[0] ?? "",
+      si,
+      streaming,
+    };
+  }
+  return {
+    kind: "thought-group",
+    texts: cleaned,
+    si,
+    streaming,
+  };
+}
+
+function emitWorkUnits(
+  items: TimelinePhaseItem[],
+  meta: {
+    startSi: number;
+    endSi: number;
+    live: boolean;
+    streaming: boolean;
+  },
+): TimelineUnit[] {
+  const woven = weaveSpeechAndTools(items.filter((i) => i.kind !== "thought"));
+  const tools = woven
+    .filter(
+      (i): i is { kind: "tool"; tool: MessageToolSegment } => i.kind === "tool",
+    )
+    .map((i) => i.tool);
+  const speechCount = woven.filter((i) => i.kind === "speech").length;
+  if (!woven.length) return [];
+  if (speechCount === 0 && !isPhaseWorthy([], tools)) {
+    return tools.map((tool, idx) => ({
+      kind: "tool" as const,
+      tool,
+      si: meta.startSi + idx,
+    }));
+  }
+  const stats = phaseStats(tools);
+  return [
+    {
+      kind: "phase",
+      id: `p-${meta.startSi}`,
+      items: woven,
+      thoughts: [],
+      tools,
+      startSi: meta.startSi,
+      endSi: meta.endSi,
+      live: meta.live,
+      errorCount: stats.errorCount,
+      runningCount: meta.streaming ? stats.runningCount : 0,
+    },
+  ];
+}
+
+function phaseItemsOf(phase: TimelinePhase): TimelinePhaseItem[] {
+  if (phase.items?.length) return phase.items;
+  return [
+    ...phase.thoughts
+      .filter((t) => t.trim())
+      .map((text) => ({ kind: "thought" as const, text })),
+    ...phase.tools.map((tool) => ({ kind: "tool" as const, tool })),
+  ];
+}
+
+/**
+ * Display contract (confirmed mock):
+ * - Journal CoT → one 思考了 row (never dumped as body text).
+ * - Mid-turn speech + folded tools → one 工作了 fold (default collapsed).
+ * - Last-content conclusion stays visible below the fold.
+ */
+export function foldProcessIntoTimeline(
+  units: TimelineUnit[],
+  options: { streaming?: boolean } = {},
+): TimelineUnit[] {
+  const streaming = !!options.streaming;
+  const lastCi = lastContentIndex(units);
+  const hoisted: string[] = [];
+  let hoistSi = 0;
+  let hoistStreaming = false;
+  const workItems: TimelinePhaseItem[] = [];
+  let workStartSi = 0;
+  let workEndSi = 0;
+  let workLive = false;
+  let workStarted = false;
+  let answer: Extract<TimelineUnit, { kind: "content" }> | null = null;
+  const suffix: TimelineUnit[] = [];
+  let sawAnswerSlot = false;
+
+  const hoistThought = (text: string, si: number, thoughtStreaming: boolean) => {
+    if (!text.trim() && !thoughtStreaming) return;
+    if (!hoisted.length) hoistSi = si;
+    if (text.trim()) hoisted.push(text);
+    if (thoughtStreaming) hoistStreaming = true;
+  };
+
+  const pushWork = (item: TimelinePhaseItem, si: number, live: boolean) => {
+    if (!workStarted) {
+      workStarted = true;
+      workStartSi = si;
+      workEndSi = si;
+    }
+    workItems.push(item);
+    workEndSi = Math.max(workEndSi, si);
+    if (live) workLive = true;
+  };
+
+  for (let i = 0; i < units.length; i++) {
+    const u = units[i]!;
+    if (u.kind === "thought") {
+      if (sawAnswerSlot) suffix.push(u);
+      else hoistThought(u.text, u.si, u.streaming);
+      continue;
+    }
+    if (u.kind === "thought-group") {
+      if (sawAnswerSlot) {
+        suffix.push(u);
+      } else {
+        for (const t of u.texts) hoistThought(t, u.si, u.streaming);
+      }
+      continue;
+    }
+    if (u.kind === "tool") {
+      pushWork({ kind: "tool", tool: u.tool }, u.si, false);
+      continue;
+    }
+    if (u.kind === "phase") {
+      const items = phaseItemsOf(u);
+      let lastThoughtIdx = -1;
+      for (let k = items.length - 1; k >= 0; k--) {
+        if (items[k]!.kind === "thought") {
+          lastThoughtIdx = k;
+          break;
+        }
+      }
+      const thoughtLive =
+        streaming &&
+        u.live &&
+        lastThoughtIdx >= 0 &&
+        items
+          .slice(lastThoughtIdx + 1)
+          .every((x) => x.kind === "thought");
+      if (thoughtLive) hoistStreaming = true;
+      for (const it of items) {
+        if (it.kind === "thought") {
+          hoistThought(it.text, u.startSi, false);
+        } else {
+          pushWork(it, u.startSi, u.live);
+        }
+      }
+      if (u.live) {
+        if (!workStarted) {
+          workStarted = true;
+          workStartSi = u.startSi;
+        }
+        workEndSi = Math.max(workEndSi, u.endSi);
+        workLive = true;
+      }
+      continue;
+    }
+    // content
+    const isLast = i === lastCi;
+    const midTurn = !isLast || hasWorkAfter(units, i);
+    if (midTurn) {
+      for (const s of speechItemsFromText(u.text)) {
+        pushWork(s, u.si, false);
+      }
+      continue;
+    }
+    const split = splitAssistantAnswer(u.text);
+    const keepVisible = streaming && u.streaming && !split.cut;
+    if (!keepVisible && split.process) {
+      for (const s of speechItemsFromText(split.process)) {
+        pushWork(s, u.si, false);
+      }
+    }
+    sawAnswerSlot = true;
+    answer = {
+      kind: "content",
+      text: keepVisible || !split.process ? u.text : split.answer,
+      si: u.si,
+      streaming: u.streaming,
+    };
+  }
+
+  const out: TimelineUnit[] = [];
+  const thoughtU = emitThoughtUnit(hoisted, hoistSi, hoistStreaming);
+  if (thoughtU) out.push(thoughtU);
+  if (workStarted) {
+    out.push(
+      ...emitWorkUnits(workItems, {
+        startSi: workStartSi,
+        endSi: workEndSi,
+        live: workLive,
+        streaming,
+      }),
+    );
+  }
+  if (answer) out.push(answer);
+  out.push(...suffix);
+  return out;
+}
+
+/** Phase projection + process/conclusion fold (what the transcript renders). */
+export function buildAssistantTimeline(
+  segs: MessageSegment[],
+  options: { streaming?: boolean } = {},
+): TimelineUnit[] {
+  return foldProcessIntoTimeline(buildTimelineUnits(segs, options), {
+    streaming: !!options.streaming,
+  });
 }
