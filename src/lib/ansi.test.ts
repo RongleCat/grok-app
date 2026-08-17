@@ -19,4 +19,10 @@ describe("stripAnsi", () => {
     expect(stripAnsi("array[0] ok")).toBe("array[0] ok");
     expect(stripAnsi("see issue [39] later")).toBe("see issue [39] later");
   });
+
+  it("returns clean output unchanged (no regex work)", () => {
+    const plain = "ran 3 searches, 4 files";
+    expect(stripAnsi(plain)).toBe(plain);
+    expect(stripAnsi("")).toBe("");
+  });
 });

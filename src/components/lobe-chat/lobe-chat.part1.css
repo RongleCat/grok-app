@@ -746,7 +746,7 @@ html[data-msg-actions="always"] .lobe-chat-item__actions {
 
 .lobe-timeline-rail {
   width: 100%;
-  max-width: var(--chat-content-max, 48rem);
+  max-width: var(--grok-act-max, min(64rem, 100%));
   margin: 0;
   padding: 0;
   border-left: none;
@@ -771,7 +771,7 @@ html[data-msg-actions="always"] .lobe-chat-item__actions {
   --grok-act-gap: 8px;
   --grok-act-font: 13px;
   width: 100%;
-  max-width: var(--chat-content-max, 48rem);
+  max-width: var(--grok-act-max, min(64rem, 100%));
   margin: 0 0 6px;
   color: var(--grok-act-fg);
   font-size: var(--grok-act-font);

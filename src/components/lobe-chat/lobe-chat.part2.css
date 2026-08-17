@@ -54,19 +54,27 @@
 }
 
 /* Long step lists: max-height scroller so expand / live cannot dump
-   dozens of rows into the transcript (stick-to-bottom flash). */
-.grok-act__steps--capped,
+   dozens of rows into the transcript (stick-to-bottom flash).
+   Mapped (capped) lists are variable-height — keep this taller than the
+   old 12×30=360 box and never flex-shrink children (that stacked rows). */
+.grok-act__steps--capped {
+  max-height: min(70vh, 40rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
 .grok-act__steps--virtual {
-  max-height: 360px; /* fallback; inline style sets min(12, n) * 30 */
+  max-height: 648px; /* fallback; inline style sets min(18, n) * 36 */
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   min-height: 0;
 }
 .grok-act__steps--virtual .grok-act__step {
-  height: 30px;
-  min-height: 30px;
-  max-height: 30px;
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
   overflow: hidden;
   flex-shrink: 0;
   box-sizing: border-box;
@@ -76,7 +84,7 @@
   justify-content: center;
 }
 .grok-act__steps--virtual .grok-act__icon-col {
-  padding-top: 7px; /* center 16px icon in 30px row */
+  padding-top: 10px; /* center 16px icon in 36px row */
 }
 .grok-act__steps--virtual .grok-act__step.is-last .grok-act__main {
   padding-bottom: 0;
@@ -89,6 +97,7 @@
   gap: var(--grok-act-gap, 8px);
   width: 100%;
   min-height: 0;
+  flex-shrink: 0;
   margin: 0;
   padding: 0;
   color: var(--grok-act-fg);
@@ -144,7 +153,7 @@
 .grok-act__main {
   flex: 1;
   min-width: 0;
-  padding: 0 0 8px;
+  padding: 2px 0 10px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;

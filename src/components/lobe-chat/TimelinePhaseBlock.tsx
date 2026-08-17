@@ -45,11 +45,11 @@ import {
 } from "@/lib/toolDisplay";
 import {
   GROK_ACTIVITY_STEP_ROW_PX,
-  GROK_ACTIVITY_VIRTUALIZE_THRESHOLD,
   applyActivityStepExpandPolicy,
   applyActivityStepUserToggle,
   emptyActivityStepExpandState,
   grokActivityVirtualMaxHeightPx,
+  shouldCapMappedGrokActivitySteps,
   shouldVirtualizeActivityWithExpand,
   type ActivityStepExpandState,
 } from "@/lib/grokActivityVirtualize";
@@ -576,20 +576,17 @@ export function GrokActivitySteps({
   if (!total) return null;
 
   if (!virtualize) {
-    // Keep the same max-height scroller as the virtual path. Leaving the
-    // cap when a running step auto-expands used to dump 20–200 rows into
-    // the chat and fight stick-to-bottom (transcript flash).
-    const cap =
-      total > GROK_ACTIVITY_VIRTUALIZE_THRESHOLD
-        ? grokActivityVirtualMaxHeightPx(total)
-        : undefined;
+    // Long mapped lists (speech / expanded detail) keep a tall CSS cap so
+    // they do not dump 20–200 rows into the transcript. Do not set an
+    // inline N×rowHeight — that 360px box used to flex-shrink every row
+    // and paint expand bodies over the next tools.
+    const cap = shouldCapMappedGrokActivitySteps(total);
     return (
       <div
         className={
           "grok-act__steps" + (cap ? " grok-act__steps--capped" : "")
         }
         role="list"
-        style={cap ? { maxHeight: cap } : undefined}
       >
         {steps.map((step, idx) => (
           <GrokActivityStepRow

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  GROK_ACTIVITY_MAPPED_CAP_PX,
   GROK_ACTIVITY_STEP_ROW_PX,
   GROK_ACTIVITY_VIRTUAL_VISIBLE_ROWS,
   GROK_ACTIVITY_VIRTUALIZE_THRESHOLD,
@@ -8,6 +9,7 @@ import {
   emptyActivityStepExpandState,
   grokActivityVirtualMaxHeightPx,
   resolveActivityStepExpandDesired,
+  shouldCapMappedGrokActivitySteps,
   shouldVirtualizeActivityWithExpand,
   shouldVirtualizeGrokActivitySteps,
 } from "./grokActivityVirtualize";
@@ -36,18 +38,32 @@ describe("grokActivityVirtualize", () => {
   it("maxHeight is min(visibleRows, count) × row height", () => {
     expect(grokActivityVirtualMaxHeightPx(0)).toBe(0);
     expect(grokActivityVirtualMaxHeightPx(5)).toBe(5 * GROK_ACTIVITY_STEP_ROW_PX);
-    expect(grokActivityVirtualMaxHeightPx(15)).toBe(
-      GROK_ACTIVITY_VIRTUAL_VISIBLE_ROWS * GROK_ACTIVITY_STEP_ROW_PX,
-    );
+    expect(grokActivityVirtualMaxHeightPx(15)).toBe(15 * GROK_ACTIVITY_STEP_ROW_PX);
+    expect(
+      grokActivityVirtualMaxHeightPx(GROK_ACTIVITY_VIRTUAL_VISIBLE_ROWS + 3),
+    ).toBe(GROK_ACTIVITY_VIRTUAL_VISIBLE_ROWS * GROK_ACTIVITY_STEP_ROW_PX);
     expect(grokActivityVirtualMaxHeightPx(100)).toBe(
       GROK_ACTIVITY_VIRTUAL_VISIBLE_ROWS * GROK_ACTIVITY_STEP_ROW_PX,
     );
   });
 
-  it("row height constant matches virtual CSS contract (30px)", () => {
-    expect(GROK_ACTIVITY_STEP_ROW_PX).toBe(30);
+  it("row height constant matches virtual CSS contract (36px)", () => {
+    expect(GROK_ACTIVITY_STEP_ROW_PX).toBe(36);
     expect(GROK_ACTIVITY_VIRTUALIZE_THRESHOLD).toBe(14);
-    expect(GROK_ACTIVITY_VIRTUAL_VISIBLE_ROWS).toBe(12);
+    expect(GROK_ACTIVITY_VIRTUAL_VISIBLE_ROWS).toBe(18);
+    expect(GROK_ACTIVITY_MAPPED_CAP_PX).toBe(640);
+  });
+
+  it("mapped lists cap only past the virtualize threshold (CSS 70vh/40rem, not N×row)", () => {
+    expect(shouldCapMappedGrokActivitySteps(GROK_ACTIVITY_VIRTUALIZE_THRESHOLD)).toBe(
+      false,
+    );
+    expect(
+      shouldCapMappedGrokActivitySteps(GROK_ACTIVITY_VIRTUALIZE_THRESHOLD + 1),
+    ).toBe(true);
+    expect(grokActivityVirtualMaxHeightPx(100)).not.toBe(
+      GROK_ACTIVITY_MAPPED_CAP_PX,
+    );
   });
 
   it("live tool bodies leave VirtualList even before expand policy runs", () => {

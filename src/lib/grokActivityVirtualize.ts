@@ -15,12 +15,18 @@ export const GROK_ACTIVITY_VIRTUALIZE_THRESHOLD = 14;
 /**
  * Fixed row height for windowed activity steps.
  * Matches virtual CSS on `.grok-act__steps--virtual .grok-act__step`
- * (natural non-virtual rows are ~line 1.4×15 + padding ≈ 30–31px).
+ * (label 13px × 1.4 + icon padding ≈ 34–36px).
  */
-export const GROK_ACTIVITY_STEP_ROW_PX = 30;
+export const GROK_ACTIVITY_STEP_ROW_PX = 36;
 
 /** Max rows visible in the virtual scroller before overflow. */
-export const GROK_ACTIVITY_VIRTUAL_VISIBLE_ROWS = 12;
+export const GROK_ACTIVITY_VIRTUAL_VISIBLE_ROWS = 18;
+
+/**
+ * Mapped (speech / expanded) lists use this CSS cap — not N × 36.
+ * Must stay in sync with `.grok-act__steps--capped { max-height: min(70vh, 40rem) }`.
+ */
+export const GROK_ACTIVITY_MAPPED_CAP_PX = 640;
 
 /** True when the list should use VirtualList + max-height scroller. */
 export function shouldVirtualizeGrokActivitySteps(stepCount: number): boolean {
@@ -144,4 +150,13 @@ export function grokActivityVirtualMaxHeightPx(stepCount: number): number {
     Math.max(0, Math.floor(stepCount)),
   );
   return n * GROK_ACTIVITY_STEP_ROW_PX;
+}
+
+/**
+ * Whether a mapped (non-virtual) step list should use the tall CSS cap.
+ * Speech / expanded rows are variable height — never reuse the virtual
+ * N × rowPx math or flex will crush them into that box.
+ */
+export function shouldCapMappedGrokActivitySteps(stepCount: number): boolean {
+  return shouldVirtualizeGrokActivitySteps(stepCount);
 }
