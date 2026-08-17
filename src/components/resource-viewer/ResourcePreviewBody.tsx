@@ -60,6 +60,10 @@ const CodePreview = lazy(async () => {
   const m = await import("@/components/CodePreview");
   return { default: m.CodePreview };
 });
+const CodeFileEditor = lazy(async () => {
+  const m = await import("@/components/CodeFileEditor");
+  return { default: m.CodeFileEditor };
+});
 
 export type ResourcePreviewBodyProps = {
   tr: (key: MessageKey, vars?: Record<string, string>) => string;
@@ -578,8 +582,8 @@ export function ResourcePreviewBody({
 
   // Text editor shell: full-height pane + in-content toolbar (not chrome).
   // All editable kinds open in **preview** first (CodePreview highlight + line
-  // numbers for code/json/text; rendered markdown for .md). Edit toggles the
-  // plain source editor — never force textarea for non-markdown (that hid hljs).
+  // numbers for code/json/text; rendered markdown for .md). Edit is a
+  // highlighted CodeMirror for code, TipTap for markdown.
   const canEdit = isResourceTextEditable({
     kind: preview.kind,
     text: activeTab?.baselineText ?? preview.text,
@@ -712,40 +716,18 @@ export function ResourcePreviewBody({
               />
             </Suspense>
           ) : (
-            <textarea
-              className="rp-editor__textarea"
-              value={draftText}
-              spellCheck={preview.kind === "text"}
-              disabled={!!activeTab.saving}
-              aria-label={tr("resources.editorAria", { name: preview.name })}
-              onChange={(e) => updateActiveDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-                  e.preventDefault();
-                  void saveActiveFile();
-                  return;
-                }
-                if (
-                  e.key === "Tab" &&
-                  !e.metaKey &&
-                  !e.ctrlKey &&
-                  !e.altKey
-                ) {
-                  e.preventDefault();
-                  const el = e.currentTarget;
-                  const start = el.selectionStart;
-                  const end = el.selectionEnd;
-                  const next =
-                    draftText.slice(0, start) +
-                    "  " +
-                    draftText.slice(end);
-                  updateActiveDraft(next);
-                  requestAnimationFrame(() => {
-                    el.selectionStart = el.selectionEnd = start + 2;
-                  });
-                }
-              }}
-            />
+            <Suspense fallback={null}>
+              <CodeFileEditor
+                key={activeTab.id}
+                value={draftText}
+                fileName={preview.name}
+                language={preview.kind === "json" ? "json" : undefined}
+                onChange={updateActiveDraft}
+                onSave={() => void saveActiveFile()}
+                disabled={!!activeTab.saving}
+                ariaLabel={tr("resources.editorAria", { name: preview.name })}
+              />
+            </Suspense>
           )
         ) : isMarkdown ? (
           <OverlayScroll className="rp-editor__preview-scroll">

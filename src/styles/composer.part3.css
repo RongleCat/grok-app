@@ -475,6 +475,22 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.rp-code-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.rp-code-editor .cm-editor {
+  height: 100%;
+}
+
+.rp-code-editor .cm-scroller {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
 .rp-editor__textarea {
   flex: 1 1 auto;
   min-height: 0;

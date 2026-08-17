@@ -53,7 +53,8 @@ export function isFsWriteConflict(err: unknown): boolean {
 
 /**
  * Editable kinds open in **preview** first (syntax highlight + line numbers for
- * code; rendered markdown for .md). User toggles Edit for the plain/source editor.
+ * code; rendered markdown for .md). User toggles Edit for the highlighted
+ * source editor (CodeMirror) or the markdown TipTap editor.
  */
 export function defaultResourceEditMode(
   _kind: string | null | undefined,
