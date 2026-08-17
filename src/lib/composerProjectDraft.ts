@@ -7,6 +7,10 @@
  */
 
 import type { Attachment } from "@/lib/attachments";
+import {
+  normalizeComposerQuotes,
+  type ComposerQuote,
+} from "@/lib/composerQuotes";
 import { isDraftEmpty, parseStoredContent } from "@/lib/draftDoc";
 
 export const COMPOSER_PROJECT_DRAFTS_STORAGE_KEY = "grok.composerProjectDrafts";
@@ -17,6 +21,7 @@ export const ORPHAN_PROJECT_DRAFT_KEY = "__orphan__";
 export type ComposerProjectDraft = {
   text: string;
   attachments: Attachment[];
+  quotes?: ComposerQuote[];
   goalMode?: boolean;
   updatedAt: number;
 };
@@ -54,6 +59,7 @@ export function isComposerProjectDraftEmpty(
 ): boolean {
   if (!draft) return true;
   if (draft.attachments?.length) return false;
+  if (draft.quotes?.length) return false;
   return isDraftEmpty(parseStoredContent(draft.text || ""));
 }
 
@@ -82,7 +88,8 @@ function normalizeDraft(raw: unknown): ComposerProjectDraft | null {
       ? o.updatedAt
       : 0;
   const goalMode = o.goalMode === true;
-  return { text, attachments, goalMode, updatedAt };
+  const quotes = normalizeComposerQuotes(o.quotes);
+  return { text, attachments, quotes, goalMode, updatedAt };
 }
 
 /** Load full map (invalid JSON → {}). */
@@ -125,6 +132,7 @@ export function saveComposerProjectDraft(
   draft: {
     text: string;
     attachments?: Attachment[];
+    quotes?: ComposerQuote[];
     goalMode?: boolean;
   },
   storage: ComposerProjectDraftStorage = defaultStorage(),
@@ -135,6 +143,7 @@ export function saveComposerProjectDraft(
     attachments: (draft.attachments ?? [])
       .map((a) => normalizeAttachment(a))
       .filter((a): a is Attachment => !!a),
+    quotes: normalizeComposerQuotes(draft.quotes),
     goalMode: !!draft.goalMode,
     updatedAt: Date.now(),
   };
@@ -224,7 +233,7 @@ export function shouldRestoreComposerProjectDraft(
 ): boolean {
   if (!draft || isComposerProjectDraftEmpty(draft)) return false;
   const text = draft.text ?? "";
-  // Attachment-only drafts are valid — do not require text.
+  // Attachment-only / quote-only drafts are valid — do not require text.
   // The leftover-send filter only applies to a non-empty prompt string.
   if (!text.trim()) return true;
   return !composerProjectDraftLooksSent(text, recentlySentTexts);

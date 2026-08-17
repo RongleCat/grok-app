@@ -7,6 +7,10 @@
  */
 
 import type { Attachment } from "@/lib/attachments";
+import {
+  normalizeComposerQuotes,
+  type ComposerQuote,
+} from "@/lib/composerQuotes";
 import { isDraftEmpty, parseStoredContent } from "@/lib/draftDoc";
 
 export const COMPOSER_SESSION_DRAFTS_STORAGE_KEY = "grok.composerSessionDrafts";
@@ -14,6 +18,7 @@ export const COMPOSER_SESSION_DRAFTS_STORAGE_KEY = "grok.composerSessionDrafts";
 export type ComposerSessionDraft = {
   text: string;
   attachments: Attachment[];
+  quotes?: ComposerQuote[];
   goalMode?: boolean;
   updatedAt: number;
 };
@@ -50,6 +55,7 @@ export function isComposerSessionDraftEmpty(
 ): boolean {
   if (!draft) return true;
   if (draft.attachments?.length) return false;
+  if (draft.quotes?.length) return false;
   return isDraftEmpty(parseStoredContent(draft.text || ""));
 }
 
@@ -78,7 +84,8 @@ function normalizeDraft(raw: unknown): ComposerSessionDraft | null {
       ? o.updatedAt
       : 0;
   const goalMode = o.goalMode === true;
-  return { text, attachments, goalMode, updatedAt };
+  const quotes = normalizeComposerQuotes(o.quotes);
+  return { text, attachments, quotes, goalMode, updatedAt };
 }
 
 /** Load full map (invalid JSON → {}). */
@@ -121,6 +128,7 @@ export function saveComposerSessionDraft(
   draft: {
     text: string;
     attachments?: Attachment[];
+    quotes?: ComposerQuote[];
     goalMode?: boolean;
   },
   storage: ComposerSessionDraftStorage = defaultStorage(),
@@ -132,6 +140,7 @@ export function saveComposerSessionDraft(
     attachments: (draft.attachments ?? [])
       .map((a) => normalizeAttachment(a))
       .filter((a): a is Attachment => !!a),
+    quotes: normalizeComposerQuotes(draft.quotes),
     goalMode: !!draft.goalMode,
     updatedAt: Date.now(),
   };

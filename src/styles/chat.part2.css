@@ -703,6 +703,236 @@ button.composer__context-item {
   overflow: visible;
 }
 
+.composer__quotes {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 4px 4px 0;
+}
+
+.composer-quote-chip,
+.user-quote-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.composer-quote-chip:hover,
+.user-quote-chip:hover,
+.composer-quote-chip[aria-expanded="true"],
+.user-quote-chip[aria-expanded="true"] {
+  color: var(--text-primary);
+  border-color: var(--accent, #6b8afd);
+}
+
+.composer-quote-pop,
+.user-quote-pop {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 40;
+  width: min(360px, calc(100vw - 32px));
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated, var(--bg));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.user-quote-list {
+  position: relative;
+  display: flex;
+  margin-bottom: 8px;
+}
+
+.composer-quote-pop__item,
+.user-quote-pop__item {
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.composer-quote-pop__item + .composer-quote-pop__item,
+.user-quote-pop__item + .user-quote-pop__item {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.composer-quote-pop__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.composer-quote-pop__idx {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.composer-quote,
+.user-quote {
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent, #6b8afd);
+  border-radius: 8px;
+  background: var(--bg-hover);
+  padding: 8px 10px 8px 10px;
+}
+
+.composer-quote__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.composer-quote__mark {
+  color: var(--text-tertiary);
+}
+
+.composer-quote__x {
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.composer-quote__x:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated, var(--bg-hover));
+}
+
+.composer-quote__text,
+.user-quote__text {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  max-height: 7.5em;
+  overflow: auto;
+}
+
+.composer-quote__note,
+.user-quote__note {
+  margin: 8px 0 0;
+  width: 100%;
+  resize: vertical;
+  min-height: 2.4em;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-elevated, var(--bg));
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 6px 8px;
+}
+
+.user-quote__note {
+  border: 0;
+  background: transparent;
+  padding: 6px 0 0;
+  color: var(--text-primary);
+}
+
+.sel-toolbar__btn--primary {
+  background: var(--accent, #6b8afd);
+  color: #fff;
+}
+
+.sel-toolbar {
+  position: fixed;
+  z-index: 80;
+  min-width: 220px;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated, var(--bg));
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  color: var(--text-primary);
+}
+
+.sel-toolbar__preview {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sel-toolbar__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sel-toolbar__btn,
+.sel-toolbar__submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sel-toolbar__btn:hover,
+.sel-toolbar__submit:hover:not(:disabled) {
+  background: var(--bg-elevated, var(--bg-hover));
+}
+
+.sel-toolbar__btn--primary:hover {
+  filter: brightness(1.05);
+}
+
+.sel-toolbar__btn--active {
+  outline: 1px solid var(--accent, #6b8afd);
+}
+
+.sel-toolbar__comment {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.sel-toolbar__textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 3.2em;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.sel-toolbar__submit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 /* With attachments, tighten top inset so chips sit closer to the outer border */
 .composer:has(.composer__attachments) {
   padding-top: 8px;

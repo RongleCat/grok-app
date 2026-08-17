@@ -1,4 +1,5 @@
 import type { Attachment } from "@/lib/attachments";
+import type { ComposerQuote } from "@/lib/composerQuotes";
 import { previewStoredAsSlash } from "@/lib/draftDoc";
 import { isSessionBusy, type SessionState } from "@/lib/session";
 
@@ -12,6 +13,7 @@ export interface QueuedSend {
   /** Display form stored in journal / user bubble (`[[skill:…]]` tokens). */
   storedDisplay: string;
   attachments: Attachment[];
+  quotes?: ComposerQuote[];
   goalMode: boolean;
   createdAt: number;
   /** Absent / composer = typed in this window. `external` = session API. */
@@ -34,6 +36,7 @@ function newQueueId(): string {
 export function makeQueuedSend(input: {
   storedDisplay: string;
   attachments: Attachment[];
+  quotes?: ComposerQuote[];
   goalMode: boolean;
   now?: number;
   id?: string;
@@ -43,6 +46,7 @@ export function makeQueuedSend(input: {
     id: input.id && input.id.trim() ? input.id : newQueueId(),
     storedDisplay: input.storedDisplay,
     attachments: input.attachments.map((a) => ({ ...a })),
+    quotes: input.quotes?.map((q) => ({ ...q })),
     goalMode: input.goalMode,
     createdAt: input.now ?? Date.now(),
     source: input.source,

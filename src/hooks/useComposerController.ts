@@ -13,6 +13,7 @@ import {
   type SetStateAction,
 } from "react";
 import type { Attachment } from "@/lib/attachments";
+import type { ComposerQuote } from "@/lib/composerQuotes";
 import type { ComposerAtFileEntry } from "@/components/ComposerAtPanel";
 import type { SlashKindFilter, SkillInfo } from "@/lib/slashCatalog";
 import type { PromptHistoryScope } from "@/components/PromptHistoryPanel";
@@ -63,6 +64,9 @@ export function useComposerController(initialDraft = "") {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const attachmentsRef = useRef(attachments);
   attachmentsRef.current = attachments;
+  const [quotes, setQuotes] = useState<ComposerQuote[]>([]);
+  const quotesRef = useRef(quotes);
+  quotesRef.current = quotes;
 
   /**
    * Skip debounced project-draft persist while programmatically loading a
@@ -159,6 +163,9 @@ export function useComposerController(initialDraft = "") {
       setAttachments: setAttachments as Dispatch<
         SetStateAction<Attachment[]>
       >,
+      quotes,
+      quotesRef,
+      setQuotes: setQuotes as Dispatch<SetStateAction<ComposerQuote[]>>,
       suppressProjectDraftPersistRef,
       promptHistoryIndex,
       setPromptHistoryIndex,
@@ -233,6 +240,7 @@ export function useComposerController(initialDraft = "") {
     }),
     [
       attachments,
+      quotes,
       promptHistoryIndex,
       promptHistoryOpen,
       promptHistoryFilter,

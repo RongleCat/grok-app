@@ -131,6 +131,48 @@ describe("nextComposerSubmitSettlement", () => {
       }),
     ).toBe("leave");
   });
+
+  it("leaves quotes added during a slow send", () => {
+    const sentQuote = { id: "q1", text: "old", comment: "" };
+    const added = { id: "q2", text: "new excerpt", comment: "note" };
+    expect(
+      nextComposerSubmitSettlement({
+        sendSucceeded: false,
+        sentText: "hello",
+        sentAttachments: [],
+        sentQuotes: [sentQuote],
+        currentText: "",
+        currentAttachments: [],
+        currentQuotes: [added],
+      }),
+    ).toBe("leave");
+    expect(
+      nextComposerSubmitSettlement({
+        sendSucceeded: true,
+        sentText: "hello",
+        sentAttachments: [],
+        sentQuotes: [],
+        currentText: "",
+        currentAttachments: [],
+        currentQuotes: [added],
+      }),
+    ).toBe("leave");
+  });
+
+  it("restores when quotes are unchanged after a failed send", () => {
+    const q = { id: "q1", text: "excerpt", comment: "" };
+    expect(
+      nextComposerSubmitSettlement({
+        sendSucceeded: false,
+        sentText: "hello",
+        sentAttachments: [],
+        sentQuotes: [q],
+        currentText: "hello",
+        currentAttachments: [],
+        currentQuotes: [q],
+      }),
+    ).toBe("restore");
+  });
 });
 
 describe("shouldClearProjectDraftAfterNewChatSend", () => {
@@ -201,13 +243,27 @@ describe("shouldClearMatchingProjectDraft", () => {
     ).toBe(false);
   });
 
-  it("clears when the leftover payload matches this send including attachments", () => {
+  it("keeps a same-text new-task buffer that still has extra quotes", () => {
+    expect(
+      shouldClearMatchingProjectDraft({
+        projectDraftText: "hello",
+        sentText: "hello",
+        projectDraftQuotes: [{ id: "q1", text: "excerpt", comment: "" }],
+        sentQuotes: [],
+      }),
+    ).toBe(false);
+  });
+
+  it("clears when the leftover payload matches this send including extras", () => {
+    const q = { id: "q1", text: "excerpt", comment: "" };
     expect(
       shouldClearMatchingProjectDraft({
         projectDraftText: "hello",
         sentText: "hello",
         projectDraftAttachments: [file],
+        projectDraftQuotes: [q],
         sentAttachments: [file],
+        sentQuotes: [q],
       }),
     ).toBe(true);
   });

@@ -689,6 +689,13 @@ import {
   shouldClearProjectDraftAfterNewChatSend,
 } from "@/lib/composerSubmitClear";
 import {
+  appendQuotesToContent,
+  makeComposerQuoteId,
+  serializeQuotesForAgent,
+  type ComposerQuote,
+} from "@/lib/composerQuotes";
+import { ComposerQuoteCards } from "@/components/ComposerQuoteCards";
+import {
   DEFERRED_RECONCILE_MS,
   WARM_CONNECT_DEBOUNCE_MS,
   sessionJournalLooksUnchanged,
@@ -1487,6 +1494,9 @@ export function AppWorkbench() {
     attachments,
     attachmentsRef,
     setAttachments,
+    quotes,
+    quotesRef,
+    setQuotes,
     suppressProjectDraftPersistRef,
     setPromptHistoryIndex,
     promptHistoryIndexRef,
@@ -4358,12 +4368,14 @@ export function AppWorkbench() {
       saveComposerProjectDraft(projectDraftKey(activeProject?.id ?? null), {
         text: getDraft(),
         attachments,
+        quotes,
         goalMode,
       });
     } else {
       saveComposerSessionDraft(leavingBeforeOpen, {
         text: getDraft(),
         attachments,
+        quotes,
         goalMode,
       });
     }
@@ -4446,12 +4458,14 @@ export function AppWorkbench() {
       if (saved) {
         setDraft(saved.text || "");
         setAttachments(saved.attachments ?? []);
+        setQuotes(saved.quotes ?? []);
         if (typeof saved.goalMode === "boolean") {
           setGoalMode(saved.goalMode);
         }
       } else {
         setDraft("");
         setAttachments([]);
+        setQuotes([]);
       }
       requestAnimationFrame(() => {
         suppressProjectDraftPersistRef.current = false;
@@ -4953,15 +4967,18 @@ export function AppWorkbench() {
       if (seedText != null) {
         setDraft(seedText);
         setAttachments([]);
+        setQuotes([]);
       } else if (saved) {
         setDraft(saved.text || "");
         setAttachments(saved.attachments ?? []);
+        setQuotes(saved.quotes ?? []);
         if (typeof saved.goalMode === "boolean") {
           setGoalMode(saved.goalMode);
         }
       } else {
         setDraft("");
         setAttachments([]);
+        setQuotes([]);
       }
       // Allow debounced persist again after React commits the load.
       requestAnimationFrame(() => {
@@ -5007,6 +5024,7 @@ export function AppWorkbench() {
       saveComposerProjectDraft(key, {
         text: getComposerDraft(),
         attachments,
+        quotes,
         goalMode,
       });
     };
@@ -5024,7 +5042,7 @@ export function AppWorkbench() {
       window.clearTimeout(t);
       unsub();
     };
-  }, [attachments, goalMode, activeProject?.id, session.sessionId]);
+  }, [attachments, quotes, goalMode, activeProject?.id, session.sessionId]);
 
   /**
    * While viewing a real thread, keep the per-session follow-up buffer in sync
@@ -5041,6 +5059,7 @@ export function AppWorkbench() {
       saveComposerSessionDraft(id, {
         text: getComposerDraft(),
         attachments,
+        quotes,
         goalMode,
       });
     };
@@ -5056,7 +5075,7 @@ export function AppWorkbench() {
       window.clearTimeout(t);
       unsub();
     };
-  }, [attachments, goalMode, session.sessionId]);
+  }, [attachments, quotes, goalMode, session.sessionId]);
 
   useEffect(() => {
     if (appGate !== "ready") return;
@@ -5268,12 +5287,14 @@ export function AppWorkbench() {
       saveComposerProjectDraft(prevKey, {
         text: getDraft(),
         attachments,
+        quotes,
         goalMode,
       });
     } else if (leavingId) {
       saveComposerSessionDraft(leavingId, {
         text: getDraft(),
         attachments,
+        quotes,
         goalMode,
       });
     }
@@ -5683,6 +5704,7 @@ export function AppWorkbench() {
         sessionTranscriptStore.clearJournalLoad();
         setMessages([]);
         setAttachments([]);
+        setQuotes([]);
         setPerm(null);
         setAskUser(null);
         setRetryStatus(null);
@@ -7727,6 +7749,7 @@ export function AppWorkbench() {
   const executeSend = async (opts: {
     storedDisplay: string;
     att: Attachment[];
+    quotes?: ComposerQuote[];
     goalMode: boolean;
     fromQueue?: boolean;
     targetSessionId?: string | null;
@@ -7740,11 +7763,13 @@ export function AppWorkbench() {
     sendInFlightRef.current = true;
     const sendEpoch = ++sendEpochRef.current;
     const { storedDisplay, att, goalMode: useGoal, fromQueue } = opts;
+    const quotesForSend = opts.quotes ?? [];
     const segments = parseStoredContent(storedDisplay);
-    if (isDraftEmpty(segments) && !att.length) {
+    if (isDraftEmpty(segments) && !att.length && !quotesForSend.length) {
       sendInFlightRef.current = false;
       return false;
     }
+    const journalDisplay = appendQuotesToContent(storedDisplay, quotesForSend);
     // Prefer viewing id over shell sessionId — openSession points viewing at
     // the new chat before journal load finishes setSession; using only shell
     // mis-routed sends into the previous (often stuck) chat.
@@ -7763,7 +7788,10 @@ export function AppWorkbench() {
     const viewingTarget = () =>
       isViewingSendTarget(originView, currentViewFocus(), sendTargetId);
 
-    const agentBody = serializeForAgent(segments, { goalMode: useGoal });
+    const agentBody = serializeQuotesForAgent(
+      quotesForSend,
+      serializeForAgent(segments, { goalMode: useGoal }),
+    );
     let agentText = buildAgentPrompt(agentBody, att);
     const schemaForSend = sessionJsonSchemaRef.current?.trim() || "";
     if (schemaForSend && isActiveJsonSchema(schemaForSend)) {
@@ -7787,6 +7815,7 @@ export function AppWorkbench() {
     }
     const titleSeed =
       serializeForAgent(segments).replace(/\n/g, " ").trim() ||
+      quotesForSend[0]?.text.replace(/\n/g, " ").trim() ||
       att.map((a) => a.name).join(", ");
     const shouldAutoTitle =
       isPlaceholderTitle(session.title) || !sendTargetId;
@@ -7813,7 +7842,7 @@ export function AppWorkbench() {
         {
           id: userMessageId,
           role: "user",
-          content: storedDisplay,
+          content: journalDisplay,
           attachments: att.length ? att : undefined,
           createdAt: nowIso,
         },
@@ -7959,7 +7988,7 @@ export function AppWorkbench() {
       // warm connect racing this send cannot deliver it to another chat — and
       // a mid-send "new chat" still lets this turn complete.
       try {
-        await api.sessionSend(agentText, storedDisplay, sessionId, att);
+        await api.sessionSend(agentText, journalDisplay, sessionId, att);
       } catch (sendErr) {
         // Stop / stall during Host vision/prepare: prompt never left.
         // Do not retry and do not treat as CONNECT_FAILED (P0-2).
@@ -7999,7 +8028,7 @@ export function AppWorkbench() {
         });
         if (reconnected !== sessionId) throw sendErr;
         if (sendEpoch !== sendEpochRef.current) return false;
-        await api.sessionSend(agentText, storedDisplay, sessionId, att);
+        await api.sessionSend(agentText, journalDisplay, sessionId, att);
       }
       // Ghost heal / newer send superseded this await — do not re-dirty UI.
       if (sendEpoch !== sendEpochRef.current) return false;
@@ -8058,6 +8087,7 @@ export function AppWorkbench() {
     sessionDraftId?: string | null;
     sentText?: string;
     sentAttachments?: Attachment[];
+    sentQuotes?: ComposerQuote[];
   }) => {
     const projectKey = projectDraftKey(activeProject?.id ?? null);
     const savedProjectDraft = loadComposerProjectDraft(projectKey);
@@ -8067,8 +8097,10 @@ export function AppWorkbench() {
       shouldClearMatchingProjectDraft({
         projectDraftText: savedProjectDraft?.text,
         projectDraftAttachments: savedProjectDraft?.attachments,
+        projectDraftQuotes: savedProjectDraft?.quotes,
         sentText: opts?.sentText ?? "",
         sentAttachments: opts?.sentAttachments,
+        sentQuotes: opts?.sentQuotes,
       })
     ) {
       clearComposerProjectDraft(projectKey);
@@ -8086,6 +8118,7 @@ export function AppWorkbench() {
   /** Wipe the visible composer now. Persist is a separate call after send settles. */
   const resetComposerUiAfterSubmit = () => {
     setDraft("");
+    setQuotes([]);
     promptHistoryIndexRef.current = null;
     setPromptHistoryIndex(null);
     setPromptHistoryOpen(false);
@@ -8120,6 +8153,7 @@ export function AppWorkbench() {
   const applyClearComposerDraft = useCallback(() => {
     const onDraftPage =
       session.sessionId == null && viewingSessionIdRef.current == null;
+    setQuotes([]);
     clearComposerAfterSubmit({
       clearProjectDraft: onDraftPage,
       clearSessionDraft: !onDraftPage,
@@ -8135,7 +8169,9 @@ export function AppWorkbench() {
   const requestClearComposerDraft = useCallback(() => {
     const draft = getDraft();
     const hasBody =
-      !isDraftEmpty(parseStoredContent(draft)) || attachments.length > 0;
+      !isDraftEmpty(parseStoredContent(draft)) ||
+      attachments.length > 0 ||
+      quotes.length > 0;
     if (!hasBody) return;
     if (countDraftChars(draft) > 200) {
       setAppDialog({
@@ -8149,7 +8185,7 @@ export function AppWorkbench() {
       return;
     }
     applyClearComposerDraft();
-  }, [applyClearComposerDraft, attachments.length, getDraft, tr]);
+  }, [applyClearComposerDraft, attachments.length, quotes.length, getDraft, tr]);
 
   /** Enqueue when agent is busy; otherwise send immediately. */
   const send = async () => {
@@ -8175,7 +8211,8 @@ export function AppWorkbench() {
     const segments = parseStoredContent(draft);
     const storedDisplay = draft;
     const att = attachments;
-    if (isDraftEmpty(segments) && !att.length) return;
+    const sendQuotes = quotesRef.current;
+    if (isDraftEmpty(segments) && !att.length && !sendQuotes.length) return;
     // Lone /workflow(s) — App has no TUI dashboard. Bare command opens Settings.
     // `/workflow <args>` falls through as a normal session turn.
     if (!att.length && !segments.some((s) => s.type === "skill")) {
@@ -8209,6 +8246,7 @@ export function AppWorkbench() {
       sessionDraftId: viewingSessionIdRef.current ?? session.sessionId,
       sentText: storedDisplay,
       sentAttachments: att,
+      sentQuotes: sendQuotes,
     };
 
     // Enqueue only when *this viewed chat* FSM is busy (streaming/connecting).
@@ -8221,6 +8259,7 @@ export function AppWorkbench() {
       sendQueue.enqueue({
         storedDisplay,
         attachments: att,
+        quotes: sendQuotes,
         goalMode,
       });
       clearComposerAfterSubmit(clearDraftOpts);
@@ -8236,14 +8275,17 @@ export function AppWorkbench() {
     const sent = await executeSend({
       storedDisplay,
       att,
+      quotes: sendQuotes,
       goalMode,
     });
     const action = nextComposerSubmitSettlement({
       sendSucceeded: sent,
       sentText: storedDisplay,
       sentAttachments: att,
+      sentQuotes: sendQuotes,
       currentText: getDraft(),
       currentAttachments: attachmentsRef.current,
+      currentQuotes: quotesRef.current,
     });
     const sendTargetId = resolveComposerSendSessionId({
       viewingSessionId: originView.sessionId,
@@ -8259,6 +8301,7 @@ export function AppWorkbench() {
       else if (action === "restore") {
         setDraft(storedDisplay);
         setAttachments(att);
+        setQuotes(sendQuotes);
       }
       return;
     }
@@ -8275,6 +8318,7 @@ export function AppWorkbench() {
         }),
         sentText: storedDisplay,
         sentAttachments: att,
+        sentQuotes: sendQuotes,
       });
       return;
     }
@@ -8283,6 +8327,7 @@ export function AppWorkbench() {
         saveComposerSessionDraft(clearDraftOpts.sessionDraftId, {
           text: storedDisplay,
           attachments: att,
+          quotes: sendQuotes,
           goalMode,
         });
       }
@@ -8293,6 +8338,7 @@ export function AppWorkbench() {
       saveComposerProjectDraft(projectDraftKey(activeProject?.id ?? null), {
         text: storedDisplay,
         attachments: att,
+        quotes: sendQuotes,
         goalMode,
       });
     }
@@ -10662,6 +10708,7 @@ export function AppWorkbench() {
       const ok = await executeSendFromQueueRef.current({
         storedDisplay: item.storedDisplay,
         att: item.attachments,
+        quotes: item.quotes,
         goalMode: item.goalMode,
         fromQueue: true,
         targetSessionId: session.sessionId,
@@ -10670,6 +10717,7 @@ export function AppWorkbench() {
         sendQueue.enqueue({
           storedDisplay: item.storedDisplay,
           attachments: item.attachments,
+          quotes: item.quotes,
           goalMode: item.goalMode,
         });
         showToast(tr("composer.queueSendNowFailed"), 4200);
@@ -10696,8 +10744,12 @@ export function AppWorkbench() {
         await sendQueuedMessageNow(item);
         return;
       }
+      const quotesForGuide = item.quotes ?? [];
       const segments = parseStoredContent(item.storedDisplay);
-      const agentBody = serializeForAgent(segments, { goalMode: item.goalMode });
+      const agentBody = serializeQuotesForAgent(
+        quotesForGuide,
+        serializeForAgent(segments, { goalMode: item.goalMode }),
+      );
       let agentText = buildAgentPrompt(agentBody, item.attachments);
       const schemaForGuide = sessionJsonSchemaRef.current?.trim() || "";
       if (schemaForGuide && isActiveJsonSchema(schemaForGuide)) {
@@ -10707,6 +10759,10 @@ export function AppWorkbench() {
         showToast(tr("composer.queueEditEmpty"), 2800);
         return;
       }
+      const journalDisplay = appendQuotesToContent(
+        item.storedDisplay,
+        quotesForGuide,
+      );
 
       setGuidingQueueItemId(item.id);
       // Optimistic dequeue: don't leave the strip on「正在引导…」for the whole RPC.
@@ -10721,7 +10777,7 @@ export function AppWorkbench() {
         await Promise.race([
           api.sessionInterject(
             agentText,
-            item.storedDisplay,
+            journalDisplay,
             item.attachments.map((attachment) => ({
               path: attachment.path,
               name: attachment.name,
@@ -10741,6 +10797,7 @@ export function AppWorkbench() {
         sendQueue.enqueue({
           storedDisplay: item.storedDisplay,
           attachments: item.attachments,
+          quotes: item.quotes,
           goalMode: item.goalMode,
         });
         const raw =
@@ -19908,6 +19965,17 @@ export function AppWorkbench() {
             }}
           >
           <ConversationThreadLive
+            onAddQuote={(quote) => {
+              setQuotes((prev) => [
+                ...prev,
+                {
+                  id: makeComposerQuoteId(),
+                  text: quote.text,
+                  comment: quote.comment,
+                  sourceMessageId: quote.sourceMessageId,
+                },
+              ]);
+            }}
             locale={locale}
             sessionState={
               stopLatch.phase === "force_idle" || stopGate.forceIdle
@@ -20569,6 +20637,27 @@ export function AppWorkbench() {
                   </ul>
                 </div>
               )}
+              {quotes.length > 0 && (
+                <ComposerQuoteCards
+                  quotes={quotes}
+                  onCommentChange={(id, comment) =>
+                    setQuotes((prev) =>
+                      prev.map((q) => (q.id === id ? { ...q, comment } : q)),
+                    )
+                  }
+                  onRemove={(id) =>
+                    setQuotes((prev) => prev.filter((q) => q.id !== id))
+                  }
+                  labels={{
+                    list: tr("composer.quotes"),
+                    count: tr("composer.quoteCount", {
+                      n: String(quotes.length),
+                    }),
+                    remove: tr("composer.quoteRemove"),
+                    commentPlaceholder: tr("composer.quoteCommentPlaceholder"),
+                  }}
+                />
+              )}
               {attachments.length > 0 && (
                 <div
                   className="composer__attachments"
@@ -20986,7 +21075,7 @@ export function AppWorkbench() {
                 ) : null}
                 <ComposerDraftStats show={showComposerDraftStats} tr={tr} />
                 <ComposerClearDraftButton
-                  attachmentsLength={attachments.length}
+                  attachmentsLength={attachments.length + quotes.length}
                   onClear={() => requestClearComposerDraft()}
                   label={tr("composer.clearDraft")}
                 />
@@ -21030,7 +21119,7 @@ export function AppWorkbench() {
                   );
                 })()}
                 <ComposerSendCluster
-                  attachmentsLength={attachments.length}
+                  attachmentsLength={attachments.length + quotes.length}
                   effectiveCanStop={effectiveCanStop}
                   connecting={connecting}
                   sessionState={session.state}

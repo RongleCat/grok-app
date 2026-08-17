@@ -15,9 +15,15 @@ See `docs/llm-wiki/release.md`.
 - **New chat no longer restores a leftover first prompt**: Each project keeps a new-session composer buffer. After send, that buffer was often left on disk (`#620` leftovers, or a mid-type snapshot that is not byte-identical to the sent text). Restore now drops buffers that match a recent send **exactly**, as a **prefix** of that send, or as a **short first-line fragment** (e.g. saved `好的` / `d` vs sent `好的` / `你看好了吗？`). Attachment-only unsent drafts still restore. A follow-up send on an existing thread does not wipe a new-task buffer that still has extra files.
 - **Shift+Enter first press starts a new line**: The composer stored `\n` but re-projected a trailing `<br>`, which WebKit treats as an empty-editor sentinel (first Shift+Enter looked like a no-op). Each line is now a `div`; a trailing empty line is marked `data-composer-nl="1"` so serialize keeps the newline and the caret stays on that line. ZWSP caret pads are not used for this path (they split IME 汉字).
 
+### Added
+- **Transcript selection quotes**: Selecting text in a bubble shows a floating bar (copy, optional comment, add to chat). Quotes sit **beside** the draft as a compact “N notes / N 条注释” chip — they are not pasted into the input. They persist on project/session drafts and the send queue. The agent sees `Quoted excerpt` / `Comment` blocks; the journal stores `[[quote]]` / `[[note]]` fences so reload rebuilds the cards. Queue **Guide** serializes quotes (and re-queues them on failure). Send settlement compares quotes so a quote added during an in-flight send is not overwritten on failure. Switching sessions closes the selection bar.
+
 **中文 · 修复**
 - **新建对话不再带回已发送的残留**：每个项目有一份新会话输入缓冲。发送后这份缓冲常留在磁盘上（`#620` 残留，或和发出去的原文不完全相同的半截）。恢复时会丢掉与最近发送**完全相同**、作为其**前缀**、或**短且首行相同**的碎片（例如存的是 `好的` / `d`，发出去的是 `好的` / `你看好了吗？`）。只有附件的未发送草稿仍会恢复。在已有会话里跟进发送时，如果新任务缓冲还带着这份发送里没有的附件，不会整份清掉。
 - **第一次 Shift+Enter 就会换行**：原先存的是 `\n`，重绘却是尾部 `<br>`，WebKit 把它当成空编辑器哨兵，第一次换行看起来没反应。现在一行一个 `div`，末尾空行标 `data-composer-nl="1"`，序列化会保留换行，光标留在新行。这条路径不再用 ZWSP 占位（会拆开输入中的汉字）。
+
+**中文 · 新增**
+- **正文选中批注**：在气泡里选中文字后出现浮层（复制、可选评论、添加到对话）。注释作为紧凑的「N 条注释」贴在输入框旁，**不粘进正文**。会跟项目/会话草稿和发送队列一起保存。发给模型的是 `Quoted excerpt` / `Comment`；日记里写 `[[quote]]` / `[[note]]`，重载后还能还原成卡片。队列「引导」会带上注释（失败重新入队也保留）。发送结算会比较注释，发送过程中新加的注释在失败时不会被旧快照盖掉。切换会话会关掉选择浮层。
 
 ## [0.2.20] - 2026-08-17
 
