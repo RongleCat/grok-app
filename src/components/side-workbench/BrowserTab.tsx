@@ -9,17 +9,30 @@
  *
  * Loading UX: parent chrome mirrors EmbeddedBrowser load state (spin + status)
  * because the nested browser bar is hidden by side-workbench CSS.
+ *
+ * Design Mode: toolbar toggle injects a hover/click overlay via eval, then
+ * the inspector panel (React chrome) sends the selection into the composer.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createT, type Locale } from "@/i18n";
 import {
   EmbeddedBrowser,
   sideBrowserWebviewLabel,
 } from "@/components/EmbeddedBrowser";
-import { IconExternalLink, IconRefresh } from "@/components/icons";
+import { IconClick, IconExternalLink, IconRefresh } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
+import { useBrowserDesignMode } from "@/hooks/useBrowserDesignMode";
 import * as api from "@/lib/api";
+import {
+  appendDesignModeDraft,
+  dataUrlToBase64,
+  formatDesignModePrompt,
+  isLikelyInjectablePreviewUrl,
+  type DesignModePromptLabels,
+} from "@/lib/browserDesignMode";
+import { setDraft } from "@/lib/composerDraftStore";
+import { BrowserDesignModePanel } from "./BrowserDesignModePanel";
 
 export type BrowserTabProps = {
   locale: Locale | string;
@@ -59,20 +72,31 @@ export function BrowserTab({
   const [url, setUrl] = useState(
     () => normalizeBrowserUrl((initialUrl || "").trim() || "https://www.google.com"),
   );
-  const [draft, setDraft] = useState(url);
+  const [draft, setAddressDraft] = useState(url);
   /** Bumped on refresh / Enter-same-URL so EmbeddedBrowser reloads the page. */
   const [reloadKey, setReloadKey] = useState(0);
   const [pageLoading, setPageLoading] = useState(true);
+  const [designMode, setDesignMode] = useState(false);
+  const [note, setNote] = useState("");
+  const [includeShot, setIncludeShot] = useState(true);
+  const [sending, setSending] = useState(false);
   /**
    * Track composition explicitly: some WebViews clear isComposing before the
    * Enter keydown that confirms a candidate, so keyCode/isComposing alone miss.
    */
   const composingRef = useRef(false);
   const webviewLabel = sideBrowserWebviewLabel(tabId);
+  const localPreview = isLikelyInjectablePreviewUrl(url);
+  const { status, selection, shot, clearSelection } = useBrowserDesignMode({
+    label: webviewLabel,
+    enabled: designMode,
+    active,
+    pageLoading,
+  });
 
   const applyUrl = (nextRaw: string, forceReload: boolean) => {
     const withScheme = normalizeBrowserUrl(nextRaw);
-    setDraft(withScheme);
+    setAddressDraft(withScheme);
     if (withScheme === url) {
       if (forceReload) {
         setPageLoading(true);
@@ -94,10 +118,71 @@ export function BrowserTab({
   const reload = () => {
     // Prefer the live draft only if it matches the committed url; otherwise
     // refresh the committed page (same as a browser refresh button).
-    setDraft(url);
+    setAddressDraft(url);
     setPageLoading(true);
     setReloadKey((k) => k + 1);
   };
+
+  const promptLabels = useMemo<DesignModePromptLabels>(
+    () => ({
+      intro: tr("side.browser.designModePrompt.intro"),
+      page: tr("side.browser.designModePrompt.page"),
+      element: tr("side.browser.designModePrompt.element"),
+      cssPath: tr("side.browser.designModePrompt.cssPath"),
+      text: tr("side.browser.designModePrompt.text"),
+      size: tr("side.browser.designModePrompt.size"),
+      styles: tr("side.browser.designModePrompt.styles"),
+      html: tr("side.browser.designModePrompt.html"),
+      change: tr("side.browser.designModePrompt.change"),
+    }),
+    [tr],
+  );
+
+  const sendToChat = useCallback(async () => {
+    if (!selection || sending) return;
+    setSending(true);
+    try {
+      let attachmentPath: string | null = null;
+      if (includeShot && shot.status === "ok" && shot.dataUrl) {
+        const b64 = dataUrlToBase64(shot.dataUrl);
+        if (b64 && api.isTauri()) {
+          try {
+            const entry = await api.saveTempAttachment(
+              b64,
+              "design-mode-element.png",
+              "image/png",
+            );
+            attachmentPath = entry.path;
+          } catch {
+            attachmentPath = null;
+          }
+        }
+      }
+      const prompt = formatDesignModePrompt({
+        selection,
+        note,
+        labels: promptLabels,
+        attachmentPath,
+      });
+      setDraft((prev) => appendDesignModeDraft(prev, prompt));
+      setNote("");
+    } finally {
+      setSending(false);
+    }
+  }, [includeShot, note, promptLabels, selection, sending, shot]);
+
+  useEffect(() => {
+    if (shot.status === "ok" && shot.dataUrl) {
+      setIncludeShot(true);
+    }
+  }, [selection?.cssPath, shot.dataUrl, shot.status]);
+
+  const designTip =
+    !api.isTauri()
+      ? tr("side.browser.designModeHostOnly")
+      : designMode
+        ? tr("side.browser.designModeOn")
+        : tr("side.browser.designMode");
 
   return (
     <div
@@ -107,6 +192,7 @@ export function BrowserTab({
       data-webview-label={webviewLabel}
       data-browser-engine="system"
       data-page-loading={pageLoading ? "1" : "0"}
+      data-design-mode={designMode ? "1" : "0"}
     >
       <div className="embedded-browser__bar">
         <div className="rp-tree-search sw-browser__url-wrap">
@@ -116,7 +202,7 @@ export function BrowserTab({
             autoComplete="off"
             spellCheck={false}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => setAddressDraft(e.target.value)}
             onCompositionStart={() => {
               composingRef.current = true;
             }}
@@ -161,6 +247,23 @@ export function BrowserTab({
             </span>
           </button>
         </Tip>
+        <Tip label={designTip}>
+          <button
+            type="button"
+            className={
+              "chrome-btn main__pane-toggle" + (designMode ? " is-on" : "")
+            }
+            aria-pressed={designMode}
+            aria-label={designTip}
+            data-testid="side-browser-design-mode"
+            onClick={() => {
+              setDesignMode((on) => !on);
+              setNote("");
+            }}
+          >
+            <IconClick size={14} />
+          </button>
+        </Tip>
         <Tip label={tr("resources.openExternal")}>
           <button
             type="button"
@@ -178,6 +281,24 @@ export function BrowserTab({
           </button>
         </Tip>
       </div>
+      {designMode ? (
+        <BrowserDesignModePanel
+          locale={locale}
+          status={status}
+          localPreview={localPreview}
+          selection={selection}
+          shot={shot}
+          note={note}
+          includeShot={includeShot}
+          sending={sending}
+          onNoteChange={setNote}
+          onIncludeShotChange={setIncludeShot}
+          onSend={() => {
+            void sendToChat();
+          }}
+          onClear={clearSelection}
+        />
+      ) : null}
       <div className="embedded-browser__host sw-browser__host">
         <EmbeddedBrowser
           url={url}

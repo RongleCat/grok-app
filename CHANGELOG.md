@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- **Side-browser Design Mode (#636)**: Browser tab toolbar toggle. Hover/click a same-origin or localhost preview to inspect tag, CSS path, and computed styles, then send the selection (optional element snapshot) plus a style note into the composer.
+
+**中文 · 新增**
+- **侧栏浏览器设计模式（#636）**：浏览器工具栏开关。在同源 / localhost 预览里悬停、点选元素，查看标签、CSS 路径和计算样式，再把选中信息（可选元素截图）和改样式说明填进输入框。
+
 ## [0.2.20] - 2026-08-17
 
 > **Highlight:** Grok Build-compatible custom relay; local session list/continue API; official-site installer aliases; opening a chat shows a real loading state instead of a fake empty session.

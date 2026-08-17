@@ -39,6 +39,7 @@ import {
   IconBulb as TbBulb,
   IconCircle as TbCircle,
   IconCircleDashed as TbCircleDashed,
+  IconClick as TbClick,
   IconCopy as TbCopy,
   IconGridDots as TbGridDots,
   IconGripVertical as TbGripVertical,
@@ -358,6 +359,8 @@ export const IconHelp = wrap(TbHelp);
 export const IconKeyboard = wrap(TbKeyboard);
 /** Slash palette / goal mode */
 export const IconTarget = wrap(TbTarget);
+/** Side-browser Design Mode — click to inspect. */
+export const IconClick = wrap(TbClick);
 export const IconClipboardList = wrap(TbClipboardList);
 export const IconArrowsMinimize = wrap(TbArrowsMinimize);
 /** Zen mode — hide side panes and focus the chat. */
