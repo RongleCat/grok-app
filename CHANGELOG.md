@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Changed
+- **Side file tabs show names**: Inactive file tabs keep a truncated filename (and a short parent path when two open files share a name). Terminal / browser / plan stay icon-only. Not a full IDE tab strip.
+
+**中文 · 变更**
+- **侧栏文件 tab 显示文件名**：未激活的文件 tab 也保留截断文件名（同名文件补短路径）。终端 / 浏览器 / Plan 仍只显示 icon，不会整条做成 IDE 标签栏。
+
 ## [0.2.20] - 2026-08-17
 
 > **Highlight:** Grok Build-compatible custom relay; local session list/continue API; official-site installer aliases; opening a chat shows a real loading state instead of a fake empty session.

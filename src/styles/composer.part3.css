@@ -193,7 +193,7 @@
   flex-shrink: 0;
 }
 
-/* Inactive: fixed icon-only size — no width grow on hover (avoids edge flicker) */
+/* Inactive kinds (terminal / browser / plan): icon-only — no hover grow */
 .rp-tab.is-inactive {
   width: 34px;
   max-width: 34px;
@@ -201,6 +201,16 @@
   padding: 0;
   justify-content: center;
   gap: 0;
+}
+
+/* File tabs keep a truncated name so same-kind files stay distinguishable */
+.rp-tab.is-inactive.rp-tab--named {
+  width: auto;
+  max-width: 140px;
+  min-width: 0;
+  padding: 0 8px 0 10px;
+  justify-content: flex-start;
+  gap: 6px;
 }
 
 .rp-tab:hover {
@@ -224,9 +234,13 @@
   min-width: 0;
 }
 
-/* Name not in layout for inactive tabs (tooltip / title carries the label) */
+/* Name hidden for icon-only kinds; file chips keep it */
 .rp-tab.is-inactive .rp-tab__name {
   display: none;
+}
+
+.rp-tab.is-inactive.rp-tab--named .rp-tab__name {
+  display: block;
 }
 
 .rp-tab__x {

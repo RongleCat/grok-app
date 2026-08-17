@@ -64,6 +64,7 @@ import {
 import {
   resolveWorkspaceAbsolutePath,
 } from "@/lib/workspaceGit";
+import { disambiguateFileTabLabels } from "@/lib/fileTabChipLabel";
 import {
   isResourceDraftDirty,
 } from "@/lib/resourceEdit";
@@ -392,6 +393,19 @@ export function ResourceViewer({
     closeAllTabs,
   } = fileTabs;
 
+  const fileLabelById = useMemo(
+    () =>
+      disambiguateFileTabLabels(
+        tabs
+          .filter((t) => t.tabKind !== "url")
+          .map((t) => ({
+            id: t.id,
+            path: t.relativePath || t.absolutePath,
+            name: t.name,
+          })),
+      ),
+    [tabs],
+  );
 
   // Report content surface → App soft-grows the aside so chrome stays usable.
   const activePreviewKind = activeTab?.preview?.kind ?? null;
@@ -888,13 +902,22 @@ export function ResourceViewer({
             ) : (
               tabs.map((t) => {
                 const active = t.id === activeId;
+                const isFile = t.tabKind !== "url";
+                const chipLabel = isFile
+                  ? (fileLabelById.get(t.id) ?? t.name)
+                  : t.name;
+                const showName = isFile || active;
+                const dirty = isResourceDraftDirty(
+                  t.draftText,
+                  t.baselineText,
+                );
                 return (
                   <Tip
                     key={t.id}
                     label={
                       active
                         ? t.relativePath || t.name
-                        : `${t.name}\n${t.relativePath || ""}`
+                        : `${chipLabel}\n${t.relativePath || ""}`
                     }
                   >
                     <button
@@ -906,9 +929,8 @@ export function ResourceViewer({
                         "rp-tab" +
                         (active ? " is-active" : " is-inactive") +
                         (t.tabKind === "url" ? " rp-tab--url" : "") +
-                        (isResourceDraftDirty(t.draftText, t.baselineText)
-                          ? " is-dirty"
-                          : "")
+                        (isFile ? " rp-tab--named" : "") +
+                        (dirty ? " is-dirty" : "")
                       }
                       onClick={() => {
                         const next = setActiveTab(
@@ -931,35 +953,32 @@ export function ResourceViewer({
                         name={t.tabKind === "url" ? "web.html" : t.name}
                         isDir={false}
                       />
-                      {active ? (
-                        <>
-                          <span className="rp-tab__name">
-                            {isResourceDraftDirty(t.draftText, t.baselineText)
-                              ? `• ${t.name}`
-                              : t.name}
-                          </span>
-                          <span
-                            className="rp-tab__x"
-                            role="button"
-                            tabIndex={0}
-                            title={tr("resources.tabClose")}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              closeTab(t.id);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.stopPropagation();
-                                closeTab(t.id);
-                              }
-                            }}
-                          >
-                            ×
-                          </span>
-                        </>
-                      ) : isResourceDraftDirty(t.draftText, t.baselineText) ? (
+                      {showName ? (
+                        <span className="rp-tab__name">{chipLabel}</span>
+                      ) : null}
+                      {dirty ? (
                         <span className="rp-tab__dirty" aria-hidden>
                           •
+                        </span>
+                      ) : null}
+                      {active ? (
+                        <span
+                          className="rp-tab__x"
+                          role="button"
+                          tabIndex={0}
+                          title={tr("resources.tabClose")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            closeTab(t.id);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.stopPropagation();
+                              closeTab(t.id);
+                            }
+                          }}
+                        >
+                          ×
                         </span>
                       ) : null}
                     </button>

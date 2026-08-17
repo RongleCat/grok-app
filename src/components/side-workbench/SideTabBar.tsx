@@ -33,6 +33,7 @@ import { FileKindMark } from "@/components/resource-viewer/FileKindMark";
 import { ContextMenu, type ContextMenuItem } from "@/components/ContextMenu";
 import { Tip } from "@/components/ui/tooltip";
 import { useFloatingMenu } from "@/lib/floatingMenu";
+import { disambiguateFileTabLabels } from "@/lib/fileTabChipLabel";
 import {
   isSideTabMiddleClick,
   resolveSideTabLabel,
@@ -137,6 +138,17 @@ export function SideTabBar({
     y: number;
     tab: SideTab;
   } | null>(null);
+
+  const fileLabelById = useMemo(() => {
+    const files = tabs.filter((t) => t.kind === "file");
+    return disambiguateFileTabLabels(
+      files.map((t) => ({
+        id: t.id,
+        path: t.path,
+        name: resolveSideTabLabel(t, (k) => tr(k as never)),
+      })),
+    );
+  }, [tabs, tr]);
 
   const { pos, style } = useFloatingMenu({
     open: plusOpen,
@@ -306,7 +318,18 @@ export function SideTabBar({
           ) : (
             tabs.map((tab) => {
               const active = tab.id === activeId;
-              const label = resolveSideTabLabel(tab, (k) => tr(k as never));
+              const kindLabel = resolveSideTabLabel(tab, (k) =>
+                tr(k as never),
+              );
+              const label =
+                tab.kind === "file"
+                  ? (fileLabelById.get(tab.id) ?? kindLabel)
+                  : kindLabel;
+              const hoverLabel =
+                tab.kind === "file" && tab.path
+                  ? tab.path.replace(/\\/g, "/")
+                  : kindLabel;
+              const showName = tab.kind === "file" || active;
               const dirty =
                 tab.kind === "file" &&
                 pathLooksDirty(tab.path, dirtyFilePaths);
@@ -317,11 +340,14 @@ export function SideTabBar({
                   role="tab"
                   aria-selected={active}
                   title={
-                    dirty ? `${label} · ${tr("resources.unsaved")}` : label
+                    dirty
+                      ? `${hoverLabel} · ${tr("resources.unsaved")}`
+                      : hoverLabel
                   }
                   className={
                     "rp-tab" +
                     (active ? " is-active" : " is-inactive") +
+                    (tab.kind === "file" ? " rp-tab--named" : "") +
                     (dirty ? " is-dirty" : "")
                   }
                   data-testid={`side-tab-${tab.kind}`}
@@ -342,48 +368,44 @@ export function SideTabBar({
                   onContextMenu={(e) => openTabMenu(e, tab)}
                 >
                   {tabIcon(tab)}
-                  {active ? (
-                    <>
-                      <span className="rp-tab__name">{label}</span>
-                      {dirty ? (
-                        <span className="rp-tab__dirty" aria-hidden>
-                          ●
-                        </span>
-                      ) : null}
-                      <span
-                        className="rp-tab__x"
-                        role="button"
-                        tabIndex={0}
-                        title={tr("side.tabClose")}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCloseTab(tab.id);
-                        }}
-                        onAuxClick={(e) => {
-                          if (!isSideTabMiddleClick(e)) return;
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onCloseTab(tab.id);
-                        }}
-                        onContextMenu={(e) => {
-                          // Let the tab chip own the menu (not only the ×).
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openTabMenu(e, tab);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.stopPropagation();
-                            onCloseTab(tab.id);
-                          }
-                        }}
-                      >
-                        <IconClose size={12} />
-                      </span>
-                    </>
-                  ) : dirty ? (
+                  {showName ? (
+                    <span className="rp-tab__name">{label}</span>
+                  ) : null}
+                  {dirty ? (
                     <span className="rp-tab__dirty" aria-hidden>
                       ●
+                    </span>
+                  ) : null}
+                  {active ? (
+                    <span
+                      className="rp-tab__x"
+                      role="button"
+                      tabIndex={0}
+                      title={tr("side.tabClose")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCloseTab(tab.id);
+                      }}
+                      onAuxClick={(e) => {
+                        if (!isSideTabMiddleClick(e)) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onCloseTab(tab.id);
+                      }}
+                      onContextMenu={(e) => {
+                        // Let the tab chip own the menu (not only the ×).
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openTabMenu(e, tab);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.stopPropagation();
+                          onCloseTab(tab.id);
+                        }
+                      }}
+                    >
+                      <IconClose size={12} />
                     </span>
                   ) : null}
                 </button>
