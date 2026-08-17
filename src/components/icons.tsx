@@ -110,6 +110,7 @@ import {
   IconUpload as TbUpload,
   IconUser as TbUser,
   IconPhoto as TbPhoto,
+  IconMovie as TbMovie,
   IconWand as TbWand,
   IconWorld as TbWorld,
   IconX as TbX,
@@ -244,6 +245,7 @@ export const IconSeparator = wrap(TbSeparator);
 export const IconCrop = wrap(TbCrop);
 export const IconNotes = wrap(TbNotes);
 export const IconImagine = wrap(TbWand);
+export const IconVideo = wrap(TbMovie);
 export const IconAutomations = wrap(TbBolt);
 /** Scheduled / “已安排” nav — calendar clock. */
 export const IconScheduled = wrap(TbCalendarTime);

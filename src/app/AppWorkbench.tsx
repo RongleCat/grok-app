@@ -861,6 +861,7 @@ import {
 import {
   ComposerPlusPanel,
   buildComposerPlusEntries,
+  createVideoMatchesQuery,
   jsonSchemaMatchesQuery,
   uploadMatchesQuery
 } from "@/components/ComposerPlusPanel";
@@ -9401,17 +9402,28 @@ export function AppWorkbench() {
       }),
     [slashFilterQuery, slashKindFilter, tr],
   );
+  const showCreateVideoInMenu = useMemo(() => {
+    if (slashKindFilter !== "all") return false;
+    const hasImagine = slashCatalog.skills.some((s) => s.name === "imagine");
+    if (!hasImagine) return false;
+    return createVideoMatchesQuery(slashFilterQuery, {
+      title: tr("skill.createVideo"),
+      hint: tr("skill.createVideoDesc"),
+    });
+  }, [slashCatalog.skills, slashFilterQuery, slashKindFilter, tr]);
   const composerMenuEntries = useMemo(
     () =>
       buildComposerPlusEntries({
         showUpload: showUploadInMenu,
         showJsonSchema: showJsonSchemaInMenu,
+        showCreateVideo: showCreateVideoInMenu,
         commands: slashFiltered.commands,
         skills: slashFiltered.skills,
       }),
     [
       showUploadInMenu,
       showJsonSchemaInMenu,
+      showCreateVideoInMenu,
       slashFiltered.commands,
       slashFiltered.skills,
     ],
@@ -11932,6 +11944,46 @@ export function AppWorkbench() {
     },
     [activeProject?.id, session.sessionId, showToast, tr],
   );
+
+  const applyCreateVideo = useCallback(() => {
+    const live = liveSlashRef.current;
+    const q =
+      slashQuery ??
+      (live.present
+        ? { start: live.start, query: live.query, end: live.end }
+        : null);
+    setSlashQuery(null);
+    setLiveSlash({ present: false, query: "", start: 0, end: 0 });
+    liveSlashRef.current = { present: false, query: "", start: 0, end: 0 };
+    setShowComposerPlus(false);
+
+    const prompt = tr("skill.createVideoPrompt");
+    setDraft((d) => {
+      const range =
+        (q && d.slice(q.start, q.end).startsWith("/") ? q : null) ??
+        detectSlashRangeOnStored(d);
+      if (range && d.slice(range.start, range.end).startsWith("/")) {
+        const withSkill = applySkillAtSlash(
+          d,
+          range.start,
+          range.end,
+          "imagine",
+        );
+        const next = `${withSkill}${prompt}`;
+        requestComposerStoredCaret(
+          range.start + `[[skill:imagine]] `.length + prompt.length,
+        );
+        return next;
+      }
+      const needsSpace = d.length > 0 && !/\s$/.test(d);
+      const next = `${d}${needsSpace ? " " : ""}[[skill:imagine]] ${prompt}`;
+      requestComposerStoredCaret("end");
+      return next;
+    });
+    requestAnimationFrame(() => {
+      composerInputRef.current?.focus?.();
+    });
+  }, [slashQuery, tr]);
 
   const applySlashItem = useCallback(
     (item: SlashItem) => {
@@ -17551,6 +17603,7 @@ export function AppWorkbench() {
           ];
         if (!entry) return;
         if (entry.kind === "upload") void pickComposerFiles();
+        else if (entry.kind === "create-video") applyCreateVideo();
         else if (entry.kind === "json-schema") {
           closeComposerMenu();
           setJsonSchemaDraft(sessionJsonSchema ?? "");
@@ -17568,6 +17621,7 @@ export function AppWorkbench() {
         const entry =
           flat[Math.min(Math.max(0, slashActiveIndex), n - 1)]!;
         if (entry.kind === "upload") void pickComposerFiles();
+        else if (entry.kind === "create-video") applyCreateVideo();
         else if (entry.kind === "json-schema") {
           closeComposerMenu();
           setJsonSchemaDraft(sessionJsonSchema ?? "");
@@ -21150,6 +21204,7 @@ export function AppWorkbench() {
                       setJsonSchemaDraft(sessionJsonSchema ?? "");
                       setShowJsonSchemaModal(true);
                     }}
+                    onSelectCreateVideo={applyCreateVideo}
                     onSelectSlash={applySlashItem}
                     onClearFilters={clearSlashFilters}
                     resolveTitle={resolveSlashTitle}

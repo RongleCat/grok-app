@@ -255,18 +255,53 @@ export function builtinSlashItems(): SlashItem[] {
   ];
 }
 
+/**
+ * Well-known skills with localized picker titles (slash `+` / `/` menus).
+ * Skill id / invoke name stays English (`imagine`); only UI labels change.
+ */
+const KNOWN_SKILL_I18N: Record<
+  string,
+  { titleKey: string; descriptionKey: string }
+> = {
+  imagine: {
+    titleKey: "skill.imagine",
+    descriptionKey: "skill.imagineDesc",
+  },
+};
+
+/** Skills that belong in the composer `+` Add section (not under Skills). */
+export function isComposerAddSkill(name: string): boolean {
+  return name === "imagine";
+}
+
 /** Map skill metadata to slash items (enabled + invocable only). */
 export function skillsToSlashItems(skills: SkillInfo[]): SlashItem[] {
   // Dedupe by name — duplicate ids (`skill:foo`) break React keys and leave
   // ghost rows that ignore filter updates (always visible, not keyboard-navable).
-  return filterPickerSkills(skills).map((s) => ({
-    id: `skill:${s.name}`,
-    kind: "skill" as const,
-    name: s.name,
-    displayTitle: s.name,
-    displayDescription: s.description,
-    source: s.source,
-  }));
+  const items = filterPickerSkills(skills).map((s) => {
+    const labels = KNOWN_SKILL_I18N[s.name];
+    return {
+      id: `skill:${s.name}`,
+      kind: "skill" as const,
+      name: s.name,
+      displayTitle: s.name,
+      displayDescription: s.description,
+      source: s.source,
+      ...(labels
+        ? {
+            titleKey: labels.titleKey,
+            descriptionKey: labels.descriptionKey,
+          }
+        : {}),
+    };
+  });
+  // Pin Add-section skills (e.g. imagine → 創作圖像) to the front.
+  items.sort((a, b) => {
+    const ap = isComposerAddSkill(a.name) ? 0 : 1;
+    const bp = isComposerAddSkill(b.name) ? 0 : 1;
+    return ap - bp;
+  });
+  return items;
 }
 
 /** Optional resolved UI strings (i18n titles / descriptions) for search. */

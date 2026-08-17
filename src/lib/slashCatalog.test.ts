@@ -194,6 +194,25 @@ describe("skillsToSlashItems", () => {
     expect(items[0]!.source).toBe("project");
     expect(items[0]!.displayDescription).toBe("project copy");
   });
+
+  it("localizes imagine skill and pins it first", () => {
+    const items = skillsToSlashItems([
+      { name: "other", description: "misc" },
+      {
+        name: "imagine",
+        description: "How to use image_gen",
+        source: "bundled",
+      },
+    ]);
+    expect(items.map((i) => i.name)).toEqual(["imagine", "other"]);
+    expect(items[0]).toMatchObject({
+      id: "skill:imagine",
+      kind: "skill",
+      name: "imagine",
+      titleKey: "skill.imagine",
+      descriptionKey: "skill.imagineDesc",
+    });
+  });
 });
 
 describe("filterPickerSkills", () => {

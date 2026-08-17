@@ -18,6 +18,7 @@ import { createT } from "@/i18n";
 import { isProjectSkillSource } from "@/lib/extensionsUi";
 import {
   countSlashByKind,
+  isComposerAddSkill,
   resolveSlashMenuEmptyState,
   SLASH_KIND_FILTERS,
   slashKindLabelKey,
@@ -35,6 +36,8 @@ import {
   IconClipboardList,
   IconCode,
   IconDoctor,
+  IconImagine,
+  IconVideo,
   IconNewChat,
   IconPlug,
   IconPuzzle,
@@ -52,6 +55,7 @@ const ICON_SIZE = 16;
 export type ComposerPlusEntry =
   | { id: "upload"; kind: "upload" }
   | { id: "json-schema"; kind: "json-schema" }
+  | { id: "create-video"; kind: "create-video" }
   | { id: string; kind: "slash"; item: SlashItem };
 
 /** Visual row including section headers (headers are not in keyboard nav). */
@@ -60,6 +64,9 @@ export type ComposerPlusRow =
   | { type: "entry"; entry: ComposerPlusEntry; navIndex: number };
 
 function slashItemIcon(item: SlashItem): ReactNode {
+  if (item.kind === "skill" && item.name === "imagine") {
+    return <IconImagine size={ICON_SIZE} />;
+  }
   if (item.kind === "skill") {
     return <IconPuzzle size={ICON_SIZE} />;
   }
@@ -102,21 +109,29 @@ function slashItemIcon(item: SlashItem): ReactNode {
   }
 }
 
-/** Build keyboard-nav flat list: optional upload / json-schema + commands + skills. */
+/** Build keyboard-nav flat list: optional upload / Add skills / create-video / json-schema + commands + skills. */
 export function buildComposerPlusEntries(opts: {
   showUpload: boolean;
   /** Structured JSON Schema entry under the Add section. */
   showJsonSchema?: boolean;
+  /** Create Video shortcut (Imagine image_to_video) under Add. */
+  showCreateVideo?: boolean;
   commands: SlashItem[];
   skills: SlashItem[];
 }): ComposerPlusEntry[] {
   const out: ComposerPlusEntry[] = [];
   if (opts.showUpload) out.push({ id: "upload", kind: "upload" });
+  const addSkills = opts.skills.filter((s) => isComposerAddSkill(s.name));
+  const otherSkills = opts.skills.filter((s) => !isComposerAddSkill(s.name));
+  for (const item of addSkills) {
+    out.push({ id: item.id, kind: "slash", item });
+  }
+  if (opts.showCreateVideo) out.push({ id: "create-video", kind: "create-video" });
   if (opts.showJsonSchema) out.push({ id: "json-schema", kind: "json-schema" });
   for (const item of opts.commands) {
     out.push({ id: item.id, kind: "slash", item });
   }
-  for (const item of opts.skills) {
+  for (const item of otherSkills) {
     out.push({ id: item.id, kind: "slash", item });
   }
   return out;
@@ -124,7 +139,7 @@ export function buildComposerPlusEntries(opts: {
 
 /**
  * Rows for rendering: section headers + the same entries used for keyboard.
- * Order always: 添加 → 命令 (builtins like 目标/计划) → 技能.
+ * Order always: 添加 (upload + 創作圖像 + 創作影片 + json-schema) → 命令 → 技能.
  * Built-in commands must never sit under the skills section.
  */
 export function buildComposerPlusRows(
@@ -142,7 +157,21 @@ export function buildComposerPlusRows(
   let addedSkillSection = false;
 
   for (const entry of entries) {
-    if (entry.kind === "upload" || entry.kind === "json-schema") {
+    if (
+      entry.kind === "upload" ||
+      entry.kind === "json-schema" ||
+      entry.kind === "create-video"
+    ) {
+      if (!addedAddSection) {
+        rows.push({ type: "section", id: "sec-add", label: labels.add });
+        addedAddSection = true;
+      }
+      rows.push({ type: "entry", entry, navIndex: navIndex++ });
+      continue;
+    }
+
+    // Imagine (創作圖像) lives next to upload under Add.
+    if (entry.item.kind === "skill" && isComposerAddSkill(entry.item.name)) {
       if (!addedAddSection) {
         rows.push({ type: "section", id: "sec-add", label: labels.add });
         addedAddSection = true;
@@ -215,6 +244,33 @@ export function jsonSchemaMatchesQuery(
   return hay.includes(q);
 }
 
+/** Whether the Create Video row matches a slash filter query. */
+export function createVideoMatchesQuery(
+  query: string,
+  labels: { title: string; hint: string },
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const hay = [
+    labels.title,
+    labels.hint,
+    "video",
+    "film",
+    "clip",
+    "movie",
+    "imagine",
+    "image_to_video",
+    "創作影片",
+    "创作视频",
+    "影片",
+    "视频",
+    "短片",
+  ]
+    .join(" ")
+    .toLowerCase();
+  return hay.includes(q);
+}
+
 export function ComposerPlusPanel({
   open,
   locale,
@@ -233,6 +289,7 @@ export function ComposerPlusPanel({
   onActiveIndexChange,
   onSelectUpload,
   onSelectJsonSchema,
+  onSelectCreateVideo,
   onSelectSlash,
   onClearFilters,
   resolveTitle,
@@ -270,6 +327,8 @@ export function ComposerPlusPanel({
   onSelectUpload: () => void;
   /** Optional: open structured JSON Schema modal. */
   onSelectJsonSchema?: () => void;
+  /** Optional: insert Imagine skill + video starter prompt. */
+  onSelectCreateVideo?: () => void;
   onSelectSlash: (item: SlashItem) => void;
   /** Clear query (dismiss slash token) and/or reset kind chip. */
   onClearFilters?: () => void;
@@ -466,6 +525,34 @@ export function ComposerPlusPanel({
               </span>
               <span className="composer-plus__desc">
                 {tr("composer.addFilesHint")}
+              </span>
+            </button>
+          );
+        }
+
+        if (entry.kind === "create-video") {
+          return (
+            <button
+              key={`create-video-${navIndex}`}
+              id={`plus-opt-${navIndex}`}
+              type="button"
+              role="option"
+              aria-selected={active}
+              data-plus-idx={navIndex}
+              className={
+                "composer-plus__item" + (active ? " is-active" : "")
+              }
+              onMouseEnter={() => onActiveIndexChange(navIndex)}
+              onClick={() => onSelectCreateVideo?.()}
+            >
+              <span className="composer-plus__ico" aria-hidden>
+                <IconVideo size={ICON_SIZE} />
+              </span>
+              <span className="composer-plus__title">
+                {tr("skill.createVideo")}
+              </span>
+              <span className="composer-plus__desc">
+                {tr("skill.createVideoDesc")}
               </span>
             </button>
           );
