@@ -12,10 +12,14 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
-- **Side-browser Design Mode (#636)**: Browser tab toolbar toggle. Hover/click a same-origin or localhost preview to inspect tag, CSS path, and computed styles, then send the selection (optional element snapshot) plus a style note into the composer.
+- **Side-browser Design Mode (#636)**: Browser tab toolbar toggle. Hover/click a same-origin or localhost preview to inspect tag, CSS path, and computed styles, then send the selection (optional element snapshot) plus a style note into the composer. Eval/snapshot are async; iframe/`pageLoading` flicker no longer tears down a live overlay; large captures keep the real JPEG/PNG MIME.
+- **Agent Kanban**: Sidebar / palette / `#/kanban` shows live sessions in Needs you / Working / Done. A finished turn stays in Done across pane remounts (not a personal to-do list). Opening a card does not hide it.
+- **Project Spaces**: Sidebar groups projects into named spaces (All / Default / custom). Membership survives restart; search from All does not force a space switch. Name errors stay inline in the prompt (red), not a toast.
 
 **中文 · 新增**
-- **侧栏浏览器设计模式（#636）**：浏览器工具栏开关。在同源 / localhost 预览里悬停、点选元素，查看标签、CSS 路径和计算样式，再把选中信息（可选元素截图）和改样式说明填进输入框。
+- **侧栏浏览器设计模式（#636）**：浏览器工具栏开关。在同源 / localhost 预览里悬停、点选元素，查看标签、CSS 路径和计算样式，再把选中信息（可选元素截图）和改样式说明填进输入框。eval/截图改为异步；iframe / `pageLoading` 闪一下不再拆掉已装 overlay；大图按真实 JPEG/PNG MIME 保存。
+- **智能体看板**：侧栏 / 命令面板 / `#/kanban` 按「需要你 / 工作中 / 已完成」展示运行中的会话。回合结束后切走再回来仍留在已完成（不是个人待办）。打开卡片不会把它藏掉。
+- **项目空间**：侧栏项目可分到命名空间（全部 / 默认 / 自定义）。成员关系重启后仍在；「全部」里搜索不会误切空间。重名等错误在对话框里用红字提示，不再用顶部 toast。
 
 ## [0.2.20] - 2026-08-17
 

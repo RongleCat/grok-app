@@ -26,7 +26,7 @@ import { useBrowserDesignMode } from "@/hooks/useBrowserDesignMode";
 import * as api from "@/lib/api";
 import {
   appendDesignModeDraft,
-  dataUrlToBase64,
+  dataUrlImageAttachment,
   formatDesignModePrompt,
   isLikelyInjectablePreviewUrl,
   type DesignModePromptLabels,
@@ -144,13 +144,13 @@ export function BrowserTab({
     try {
       let attachmentPath: string | null = null;
       if (includeShot && shot.status === "ok" && shot.dataUrl) {
-        const b64 = dataUrlToBase64(shot.dataUrl);
-        if (b64 && api.isTauri()) {
+        const att = dataUrlImageAttachment(shot.dataUrl);
+        if (att && api.isTauri()) {
           try {
             const entry = await api.saveTempAttachment(
-              b64,
-              "design-mode-element.png",
-              "image/png",
+              att.base64,
+              att.fileName,
+              att.mime,
             );
             attachmentPath = entry.path;
           } catch {

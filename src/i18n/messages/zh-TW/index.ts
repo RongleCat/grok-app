@@ -15,6 +15,7 @@ import { zhTWDoctor } from "./doctor";
 import { zhTWExtensions } from "./extensions";
 import { zhTWAutomations } from "./automations";
 import { zhTWFeatures } from "./features";
+import { zhTWKanban } from "./kanban";
 import { zhTWSettings } from "./settings";
 import { zhTWSettingsUi } from "./settings-ui";
 import { zhTWSettingsAgent } from "./settings-agent";
@@ -41,6 +42,7 @@ export const zhTW: Record<MessageKey, string> = {
   ...zhTWExtensions,
   ...zhTWAutomations,
   ...zhTWFeatures,
+  ...zhTWKanban,
   ...zhTWSettings,
   ...zhTWSettingsUi,
   ...zhTWSettingsAgent,
@@ -65,6 +67,7 @@ export { zhTWDoctor } from "./doctor";
 export { zhTWExtensions } from "./extensions";
 export { zhTWAutomations } from "./automations";
 export { zhTWFeatures } from "./features";
+export { zhTWKanban } from "./kanban";
 export { zhTWSettings } from "./settings";
 export { zhTWSettingsUi } from "./settings-ui";
 export { zhTWSettingsAgent } from "./settings-agent";

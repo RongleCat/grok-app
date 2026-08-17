@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   busySessionIds,
   emptyLiveSnapshot,
@@ -14,7 +14,15 @@ import {
   upsertLiveSnapshot,
   mayPromoteStreamingFromStreamChunk,
 } from "./sessionLiveStore";
+import {
+  getFinishedTurns,
+  resetFinishedTurnsForTests,
+} from "./sessionFinishedTurns";
 import type { ChatMessage } from "./session";
+
+afterEach(() => {
+  resetFinishedTurnsForTests();
+});
 
 describe("sessionLiveStore", () => {
   it("tracks multi-session busy", () => {
@@ -52,6 +60,48 @@ describe("sessionLiveStore", () => {
     map = projectHostIntoLiveMap(map, { sessionId: "a", state: "ready" });
     expect(map.a!.liveToolTitle).toBeNull();
     expect(map.a!.state).toBe("ready");
+    expect(map.a!.terminalReason).toBe("agent_exit");
+  });
+
+  it("stamps terminalReason only when leaving a live turn", () => {
+    const cold = projectHostIntoLiveMap(
+      {},
+      { sessionId: "b", state: "ready" },
+    );
+    expect(cold.b!.terminalReason).toBeNull();
+
+    let map = projectHostIntoLiveMap(
+      {},
+      { sessionId: "a", state: "streaming", streamingMessageId: "m1" },
+    );
+    expect(map.a!.terminalReason).toBeNull();
+    map = projectHostIntoLiveMap(map, { sessionId: "a", state: "ready" });
+    expect(map.a!.terminalReason).toBe("agent_exit");
+    map = projectHostIntoLiveMap(map, {
+      sessionId: "a",
+      state: "streaming",
+      streamingMessageId: "m2",
+    });
+    expect(map.a!.terminalReason).toBeNull();
+    expect(getFinishedTurns()).toEqual({});
+  });
+
+  it("persists a finished turn so Kanban can remount without liveMap", () => {
+    let map = projectHostIntoLiveMap(
+      {},
+      { sessionId: "a", state: "streaming" },
+      1,
+    );
+    expect(getFinishedTurns()).toEqual({});
+    map = projectHostIntoLiveMap(map, { sessionId: "a", state: "ready" }, 2);
+    expect(getFinishedTurns()).toEqual({ a: 2 });
+    map = projectHostIntoLiveMap(
+      map,
+      { sessionId: "a", state: "streaming" },
+      3,
+    );
+    expect(getFinishedTurns()).toEqual({});
+    expect(map.a!.state).toBe("streaming");
   });
 
   it("settles only the stopped session so its sidebar busy state clears", () => {

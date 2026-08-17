@@ -57,11 +57,7 @@ pub async fn terminal_pty_write(session_id: String, data: String) -> Result<(), 
 
 /// Resize PTY when the terminal view changes.
 #[tauri::command]
-pub async fn terminal_pty_resize(
-    session_id: String,
-    cols: u16,
-    rows: u16,
-) -> Result<(), String> {
+pub async fn terminal_pty_resize(session_id: String, cols: u16, rows: u16) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || pty_host::resize(&session_id, cols, rows))
         .await
         .map_err(|e| format!("terminal_pty_resize join: {e}"))?
@@ -127,14 +123,25 @@ pub fn side_browser_url(app: AppHandle, label: String) -> Result<String, String>
     side_browser_host::current_url(&app, label)
 }
 
+/// Eval waits on the webview callback (up to 15s). Keep that wait off the
+/// UI/invoke thread — a sync command here freezes the whole app when the
+/// child document is mid-navigation (WK/WebView2 will not answer).
 #[tauri::command]
-pub fn side_browser_eval(app: AppHandle, label: String, script: String) -> Result<String, String> {
-    side_browser_host::eval(&app, label, script)
+pub async fn side_browser_eval(
+    app: AppHandle,
+    label: String,
+    script: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || side_browser_host::eval(&app, label, script))
+        .await
+        .map_err(|e| format!("side_browser_eval join: {e}"))?
 }
 
 #[tauri::command]
-pub fn side_browser_snapshot(app: AppHandle, label: String) -> Result<String, String> {
-    side_browser_host::snapshot(&app, label)
+pub async fn side_browser_snapshot(app: AppHandle, label: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || side_browser_host::snapshot(&app, label))
+        .await
+        .map_err(|e| format!("side_browser_snapshot join: {e}"))?
 }
 
 /// Force-inject blob download polyfill into a side-browser webview (idempotent).

@@ -1,5 +1,6 @@
 //! Independent store under ~/.grok-app: projects, sessions index, settings, secrets.
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -73,6 +74,14 @@ impl Default for ComposerPrefs {
 /// session bindings. Orphan chats use `project_id = None` and cwd
 /// `{app_data}/workspaces/general`.
 pub const GENERAL_PROJECT_ID: &str = "system:general";
+
+/// Named sidebar Space (UI grouping of projects). Not a git workspace.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectSpaceRecord {
+    pub id: String,
+    pub name: String,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -359,6 +368,16 @@ pub struct AppSettings {
     /// (matches historical cold-start behavior). Missing field ⇒ open.
     #[serde(default = "default_true")]
     pub sidebar_other_sessions_open: bool,
+    /// Named sidebar Spaces (Work / Personal / …). Empty ⇒ default space only.
+    /// Membership lives in [`Self::project_space_by_id`]; this list is the catalog.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub project_spaces: Vec<ProjectSpaceRecord>,
+    /// Active Space view: `"all"` or a space id. Missing ⇒ All projects.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_project_space_id: Option<String>,
+    /// projectId → spaceId. Missing / unknown / default space ⇒ unassigned.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub project_space_by_id: HashMap<String, String>,
     /// One-shot: flipped product default so launch opens a draft new chat
     /// (reopen-last-session defaulted to false). Existing installs run this once.
     #[serde(default)]
@@ -621,6 +640,9 @@ impl Default for AppSettings {
             last_project_id: None,
             sidebar_collapsed_project_ids: Vec::new(),
             sidebar_other_sessions_open: true,
+            project_spaces: Vec::new(),
+            active_project_space_id: None,
+            project_space_by_id: HashMap::new(),
             // Fresh defaults already match the new-chat-on-launch product rule.
             startup_new_chat_default_migrated: true,
             // Fresh installs already use 1.0-aligned effort / workflows defaults.
@@ -3135,6 +3157,38 @@ mod tests {
         assert_eq!(
             back.allowed_tools,
             vec!["web_search".to_string(), "write".to_string()]
+        );
+    }
+
+    #[test]
+    fn project_spaces_default_empty_and_round_trip() {
+        let missing: AppSettings =
+            serde_json::from_str(legacy_settings_json()).expect("deserialize");
+        assert!(missing.project_spaces.is_empty());
+        assert!(missing.active_project_space_id.is_none());
+        assert!(missing.project_space_by_id.is_empty());
+
+        let mut by_id = HashMap::new();
+        by_id.insert("p1".into(), "space:work".into());
+        let s = AppSettings {
+            project_spaces: vec![ProjectSpaceRecord {
+                id: "space:work".into(),
+                name: "Work".into(),
+            }],
+            active_project_space_id: Some("space:work".into()),
+            project_space_by_id: by_id,
+            ..AppSettings::default()
+        };
+        let json = serde_json::to_string(&s).expect("serialize");
+        assert!(json.contains("\"projectSpaces\""));
+        assert!(json.contains("\"activeProjectSpaceId\""));
+        assert!(json.contains("\"projectSpaceById\""));
+        let back: AppSettings = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.project_spaces[0].name, "Work");
+        assert_eq!(back.active_project_space_id.as_deref(), Some("space:work"));
+        assert_eq!(
+            back.project_space_by_id.get("p1").map(String::as_str),
+            Some("space:work")
         );
     }
 

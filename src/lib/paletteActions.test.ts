@@ -13,11 +13,13 @@ describe("defaultPaletteActions", () => {
     expect(ids).toEqual([
       "new-chat",
       "add-project",
+      "new-space",
       "open-automations",
       "open-ops",
       "open-tasks",
       "open-agent-dashboard",
       "open-task-board",
+      "open-kanban",
       "open-batch-agents",
       "doctor",
       "traces",
@@ -94,6 +96,9 @@ describe("filterPaletteActions", () => {
 
     const auto = filterPaletteActions("cron", catalog);
     expect(auto.map((h) => h.id)).toEqual(["open-automations"]);
+
+    const kanban = filterPaletteActions("agent kanban", catalog);
+    expect(kanban.map((h) => h.id)).toContain("open-kanban");
 
     // CLI -c/--continue for project path
     const cont = filterPaletteActions("continue last agent", catalog);

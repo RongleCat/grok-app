@@ -681,6 +681,10 @@ pub fn current_url(app: &AppHandle, label: String) -> Result<String, String> {
 ///
 /// Script should be an expression or IIFE that returns a value. Exceptions
 /// should be caught in-script (Windows WebView2 limitation).
+///
+/// Callers must not run this on the UI/invoke thread: `eval_with_callback`
+/// needs the platform runloop, and `recv_timeout` would otherwise freeze
+/// the app (up to 15s) whenever the child document is navigating.
 pub fn eval(app: &AppHandle, label: String, script: String) -> Result<String, String> {
     validate_label(&label)?;
     if script.trim().is_empty() {

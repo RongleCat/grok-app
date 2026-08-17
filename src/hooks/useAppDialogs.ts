@@ -68,6 +68,7 @@ export type ForkConfirmState = {
 export function useAppDialogs() {
   const [appDialog, setAppDialog] = useState<AppDialog>(null);
   const [dialogInput, setDialogInput] = useState("");
+  const [dialogError, setDialogError] = useState("");
   const dialogInputRef = useRef<HTMLInputElement>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
   const appDialogPanelRef = useRef<HTMLDivElement>(null);
@@ -97,6 +98,7 @@ export function useAppDialogs() {
     if (!appDialog) return;
     if (appDialog.kind === "prompt") {
       setDialogInput(appDialog.initial);
+      setDialogError("");
       const t = window.setTimeout(() => {
         dialogInputRef.current?.focus();
         dialogInputRef.current?.select();
@@ -237,6 +239,8 @@ export function useAppDialogs() {
     openDialog,
     dialogInput,
     setDialogInput,
+    dialogError,
+    setDialogError,
     dialogInputRef,
     confirmBtnRef,
     appDialogPanelRef,

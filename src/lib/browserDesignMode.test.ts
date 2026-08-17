@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   appendDesignModeDraft,
@@ -6,12 +8,15 @@ import {
   buildDesignModePollScript,
   buildDesignModeReadScript,
   buildDesignModeTeardownScript,
+  dataUrlImageAttachment,
   dataUrlToBase64,
   DESIGN_MODE_NS,
   formatDesignModePrompt,
   formatRect,
   inspectorStyleRows,
   isLikelyInjectablePreviewUrl,
+  nextDesignModeHostOp,
+  shouldApplyDesignModeHostResult,
   parseDesignModeInstall,
   parseDesignModePoll,
   parseDesignModeRead,
@@ -246,7 +251,7 @@ describe("appendDesignModeDraft", () => {
   });
 });
 
-describe("dataUrlToBase64", () => {
+describe("dataUrlToBase64 / dataUrlImageAttachment", () => {
   it("strips the data-url prefix", () => {
     expect(dataUrlToBase64("data:image/png;base64,abc+12/w==")).toBe(
       "abc+12/w==",
@@ -258,6 +263,116 @@ describe("dataUrlToBase64", () => {
     expect(dataUrlToBase64("data:text/plain;base64,Zm9v")).toBeNull();
     expect(dataUrlToBase64("abc+12/w==")).toBeNull();
   });
+
+  it("derives jpeg vs png name and mime", () => {
+    expect(dataUrlImageAttachment("data:image/png;base64,aaa")).toEqual({
+      base64: "aaa",
+      mime: "image/png",
+      fileName: "design-mode-element.png",
+    });
+    expect(dataUrlImageAttachment("data:image/jpeg;base64,Zm9v")).toEqual({
+      base64: "Zm9v",
+      mime: "image/jpeg",
+      fileName: "design-mode-element.jpg",
+    });
+    expect(dataUrlImageAttachment("data:image/jpg;base64,Zm9v")).toEqual({
+      base64: "Zm9v",
+      mime: "image/jpeg",
+      fileName: "design-mode-element.jpg",
+    });
+  });
+});
+
+describe("nextDesignModeHostOp", () => {
+  it("does not eval when design mode is off and nothing was installed", () => {
+    expect(
+      nextDesignModeHostOp({
+        enabled: false,
+        pageLoading: true,
+        installed: false,
+      }),
+    ).toBe("idle");
+    expect(
+      nextDesignModeHostOp({
+        enabled: false,
+        pageLoading: false,
+        installed: false,
+      }),
+    ).toBe("idle");
+  });
+
+  it("never evals while the document is navigating", () => {
+    expect(
+      nextDesignModeHostOp({
+        enabled: true,
+        pageLoading: true,
+        installed: false,
+      }),
+    ).toBe("idle");
+    expect(
+      nextDesignModeHostOp({
+        enabled: false,
+        pageLoading: true,
+        installed: true,
+      }),
+    ).toBe("idle");
+  });
+
+  it("installs only after the document is ready", () => {
+    expect(
+      nextDesignModeHostOp({
+        enabled: true,
+        pageLoading: false,
+        installed: false,
+      }),
+    ).toBe("install");
+  });
+
+  it("does not reinstall a live overlay when pageLoading settles", () => {
+    expect(
+      nextDesignModeHostOp({
+        enabled: true,
+        pageLoading: false,
+        installed: true,
+      }),
+    ).toBe("idle");
+  });
+
+  it("tears down only after a live overlay and a settled document", () => {
+    expect(
+      nextDesignModeHostOp({
+        enabled: false,
+        pageLoading: false,
+        installed: true,
+      }),
+    ).toBe("teardown");
+  });
+});
+
+describe("shouldApplyDesignModeHostResult", () => {
+  const live = {
+    alive: true,
+    cancelled: false,
+    pageLoading: false,
+    generation: 3,
+    currentGeneration: 3,
+  };
+
+  it("applies only a live matching generation", () => {
+    expect(shouldApplyDesignModeHostResult(live)).toBe(true);
+    expect(shouldApplyDesignModeHostResult({ ...live, cancelled: true })).toBe(
+      false,
+    );
+    expect(shouldApplyDesignModeHostResult({ ...live, pageLoading: true })).toBe(
+      false,
+    );
+    expect(
+      shouldApplyDesignModeHostResult({ ...live, currentGeneration: 4 }),
+    ).toBe(false);
+    expect(shouldApplyDesignModeHostResult({ ...live, alive: false })).toBe(
+      false,
+    );
+  });
 });
 
 describe("injected scripts", () => {
@@ -267,10 +382,32 @@ describe("injected scripts", () => {
     expect(script).toContain("data-grok-dm");
     expect(script).toContain("cssPath");
     expect(script).toContain("startShot");
+    expect(script).toContain("shotVersion");
+    expect(script).toContain("shotVersion !== state.version");
     expect(script).toContain("clearSelection");
     expect(script.startsWith("(function(){")).toBe(true);
     expect(script.length).toBeGreaterThan(2000);
     expect(script.length).toBeLessThan(512_000);
+  });
+
+  it("hook drops stale poll results and does not wipe install on pageLoading", () => {
+    const hook = readFileSync(
+      join(__dirname, "../hooks/useBrowserDesignMode.ts"),
+      "utf8",
+    );
+    expect(hook).toContain("shouldApplyDesignModeHostResult");
+    expect(hook).toContain("pageLoading");
+    expect(hook).toContain('poll?.reason === "missing"');
+    expect(hook).not.toMatch(
+      /else if \(pageLoading\) \{[\s\S]*installedRef\.current = false/,
+    );
+    const tab = readFileSync(
+      join(__dirname, "../components/side-workbench/BrowserTab.tsx"),
+      "utf8",
+    );
+    expect(tab).toContain("dataUrlImageAttachment");
+    expect(tab).not.toContain('"design-mode-element.png"');
+    expect(tab).not.toContain('"image/png"');
   });
 
   it("poll / read / teardown / clear stay IIFEs", () => {

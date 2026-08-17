@@ -28,6 +28,8 @@ export function paletteActionIcon(id: string) {
       return <IconSquarePen size={size} />;
     case "add-project":
       return <IconFolder size={size} />;
+    case "new-space":
+      return <IconFolder size={size} />;
     case "open-automations":
       return <IconScheduled size={size} />;
     case "open-ops":
@@ -35,6 +37,7 @@ export function paletteActionIcon(id: string) {
       return <IconActivity size={size} />;
     case "open-tasks":
     case "open-task-board":
+    case "open-kanban":
     case "open-batch-agents":
       return <IconList size={size} />;
     case "doctor":

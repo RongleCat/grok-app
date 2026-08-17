@@ -346,6 +346,19 @@
   border-color: color-mix(in srgb, var(--text-primary) 28%, var(--border-subtle));
 }
 
+.app-dialog__actions.modal-actions {
+  flex-wrap: nowrap;
+}
+
+.modal p.app-dialog__error {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 auto 0 0;
+  color: var(--danger, #ef4444);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
 .app-dialog .btn--danger {
   background: var(--danger);
   color: #fff;

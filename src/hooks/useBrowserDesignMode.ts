@@ -10,9 +10,11 @@ import {
   buildDesignModePollScript,
   buildDesignModeReadScript,
   buildDesignModeTeardownScript,
+  nextDesignModeHostOp,
   parseDesignModeInstall,
   parseDesignModePoll,
   parseDesignModeRead,
+  shouldApplyDesignModeHostResult,
   type DesignModeSelection,
   type DesignModeShot,
   type DesignModeStatus,
@@ -50,11 +52,16 @@ export function useBrowserDesignMode({
   const [status, setStatus] = useState<DesignModeStatus>("off");
   const [selection, setSelection] = useState<DesignModeSelection | null>(null);
   const [shot, setShot] = useState<DesignModeShot>(IDLE_SHOT);
+  const [overlayEpoch, setOverlayEpoch] = useState(0);
   const versionRef = useRef(0);
   const failsRef = useRef(0);
   const aliveRef = useRef(true);
+  const installedRef = useRef(false);
+  const hostGenRef = useRef(0);
+  const pageLoadingRef = useRef(pageLoading);
   const selectionRef = useRef<DesignModeSelection | null>(null);
   const shotStatusRef = useRef<DesignModeShot["status"]>("idle");
+  pageLoadingRef.current = pageLoading;
 
   const clearLocal = useCallback(() => {
     versionRef.current = 0;
@@ -66,11 +73,11 @@ export function useBrowserDesignMode({
 
   const clearSelection = useCallback(() => {
     clearLocal();
-    if (!isTauri() || !label) return;
+    if (!isTauri() || !label || pageLoading || !installedRef.current) return;
     void evalRaw(label, buildDesignModeClearScript()).catch(() => {
       /* page may have navigated */
     });
-  }, [clearLocal, label]);
+  }, [clearLocal, label, pageLoading]);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -79,43 +86,77 @@ export function useBrowserDesignMode({
     };
   }, []);
 
-  // Install when enabled and the document is ready; tear down on disable.
   useEffect(() => {
     if (!enabled) {
       setStatus("off");
       clearLocal();
-      if (isTauri() && label) {
-        void evalRaw(label, buildDesignModeTeardownScript()).catch(() => {
-          /* ignore */
-        });
-      }
-      return;
-    }
-    if (!isTauri()) {
+    } else if (!isTauri()) {
       setStatus("unavailable");
       return;
     }
-    if (pageLoading) {
-      setStatus("installing");
-      clearLocal();
+
+    const op = nextDesignModeHostOp({
+      enabled,
+      pageLoading,
+      installed: installedRef.current,
+    });
+    if (op === "idle") {
+      // In-flight install may have been cancelled by a load flicker.
+      if (enabled && installedRef.current && !pageLoading) {
+        setStatus((s) => (s === "installing" ? "ready" : s));
+      }
+      return;
+    }
+    if (!isTauri() || !label) return;
+
+    if (op === "teardown") {
+      installedRef.current = false;
+      hostGenRef.current += 1;
+      void evalRaw(label, buildDesignModeTeardownScript()).catch(() => {
+        /* page may have navigated */
+      });
       return;
     }
 
     let cancelled = false;
+    const gen = ++hostGenRef.current;
+    installedRef.current = true;
     setStatus("installing");
     void (async () => {
       try {
         const raw = await evalRaw(label, buildDesignModeInstallScript());
-        if (cancelled || !aliveRef.current) return;
+        if (
+          !shouldApplyDesignModeHostResult({
+            alive: aliveRef.current,
+            cancelled,
+            pageLoading: pageLoadingRef.current,
+            generation: gen,
+            currentGeneration: hostGenRef.current,
+          })
+        ) {
+          return;
+        }
         const installed = parseDesignModeInstall(raw);
         if (!installed.ok) {
+          installedRef.current = false;
           setStatus("unavailable");
           return;
         }
         failsRef.current = 0;
         setStatus("ready");
       } catch {
-        if (cancelled || !aliveRef.current) return;
+        if (
+          !shouldApplyDesignModeHostResult({
+            alive: aliveRef.current,
+            cancelled,
+            pageLoading: pageLoadingRef.current,
+            generation: gen,
+            currentGeneration: hostGenRef.current,
+          })
+        ) {
+          return;
+        }
+        installedRef.current = false;
         setStatus("unavailable");
       }
     })();
@@ -123,32 +164,57 @@ export function useBrowserDesignMode({
     return () => {
       cancelled = true;
     };
-  }, [clearLocal, enabled, label, pageLoading]);
+  }, [clearLocal, enabled, label, overlayEpoch, pageLoading]);
 
-  // Unmount: always try to remove the overlay.
   useEffect(() => {
     return () => {
-      if (!isTauri() || !label) return;
+      if (!isTauri() || !label || !installedRef.current) return;
+      installedRef.current = false;
+      hostGenRef.current += 1;
       void evalRaw(label, buildDesignModeTeardownScript()).catch(() => {
         /* ignore */
       });
     };
   }, [label]);
 
-  // Poll while the tab is active and the overlay is live.
   useEffect(() => {
-    if (!enabled || !active || status !== "ready" || !isTauri()) return;
+    if (
+      !enabled ||
+      !active ||
+      status !== "ready" ||
+      pageLoading ||
+      !isTauri()
+    ) {
+      return;
+    }
     let timer = 0;
     let inflight = false;
+    let cancelled = false;
+    const gen = hostGenRef.current;
+
+    const live = () =>
+      shouldApplyDesignModeHostResult({
+        alive: aliveRef.current,
+        cancelled,
+        pageLoading: pageLoadingRef.current,
+        generation: gen,
+        currentGeneration: hostGenRef.current,
+      });
 
     const tick = async () => {
-      if (inflight) return;
+      if (inflight || !live()) return;
       inflight = true;
       try {
         const raw = await evalRaw(label, buildDesignModePollScript());
-        if (!aliveRef.current) return;
+        if (!live()) return;
         const poll = parseDesignModePoll(raw);
         if (!poll || !poll.ok) {
+          if (poll?.reason === "missing") {
+            installedRef.current = false;
+            clearLocal();
+            setOverlayEpoch((n) => n + 1);
+            return;
+          }
           failsRef.current += 1;
           if (failsRef.current >= FAIL_LIMIT) {
             setStatus("unavailable");
@@ -177,7 +243,7 @@ export function useBrowserDesignMode({
           (poll.shotStatus === "error" && shotStatusRef.current === "pending");
         if (!versionChanged && !shotPending) return;
         const readRaw = await evalRaw(label, buildDesignModeReadScript());
-        if (!aliveRef.current) return;
+        if (!live()) return;
         const read = parseDesignModeRead(readRaw);
         if (!read?.ok) return;
         versionRef.current = poll.version;
@@ -186,6 +252,7 @@ export function useBrowserDesignMode({
         setSelection(read.selected);
         setShot(read.shot);
       } catch {
+        if (!live()) return;
         failsRef.current += 1;
         if (failsRef.current >= FAIL_LIMIT) setStatus("unavailable");
       } finally {
@@ -198,9 +265,10 @@ export function useBrowserDesignMode({
     }, POLL_MS);
     void tick();
     return () => {
+      cancelled = true;
       window.clearInterval(timer);
     };
-  }, [active, enabled, label, status]);
+  }, [active, clearLocal, enabled, label, pageLoading, status]);
 
   return { status, selection, shot, clearSelection };
 }

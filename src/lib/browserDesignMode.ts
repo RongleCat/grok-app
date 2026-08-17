@@ -382,13 +382,32 @@ export function appendDesignModeDraft(prev: string, prompt: string): string {
   return `${cur}\n\n${next}`;
 }
 
-export function dataUrlToBase64(dataUrl: string): string | null {
+export function dataUrlImageAttachment(dataUrl: string): {
+  base64: string;
+  fileName: string;
+  mime: string;
+} | null {
   const m = dataUrl
     .trim()
-    .match(/^data:image\/[a-zA-Z0-9.+-]+;base64,([A-Za-z0-9+/=\s]+)$/);
-  if (!m?.[1]) return null;
-  const b64 = m[1].replace(/\s+/g, "");
-  return b64.length ? b64 : null;
+    .match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/);
+  if (!m?.[1] || !m[2]) return null;
+  const rawMime = m[1].toLowerCase();
+  const base64 = m[2].replace(/\s+/g, "");
+  if (!base64) return null;
+  const mime = rawMime === "image/jpg" ? "image/jpeg" : rawMime;
+  const ext =
+    mime === "image/jpeg"
+      ? "jpg"
+      : mime === "image/webp"
+        ? "webp"
+        : mime === "image/gif"
+          ? "gif"
+          : "png";
+  return { base64, mime, fileName: `design-mode-element.${ext}` };
+}
+
+export function dataUrlToBase64(dataUrl: string): string | null {
+  return dataUrlImageAttachment(dataUrl)?.base64 ?? null;
 }
 
 export function inspectorStyleRows(
@@ -399,6 +418,34 @@ export function inspectorStyleRows(
     label,
     value: selection.styles[key].trim(),
   })).filter((row) => row.value && row.value !== "none");
+}
+
+/** Do not eval while the child document is navigating. */
+export type DesignModeHostOp = "idle" | "install" | "teardown";
+
+export function nextDesignModeHostOp(input: {
+  enabled: boolean;
+  pageLoading: boolean;
+  installed: boolean;
+}): DesignModeHostOp {
+  if (input.pageLoading) return "idle";
+  if (!input.enabled) return input.installed ? "teardown" : "idle";
+  return input.installed ? "idle" : "install";
+}
+
+export function shouldApplyDesignModeHostResult(input: {
+  alive: boolean;
+  cancelled: boolean;
+  pageLoading: boolean;
+  generation: number;
+  currentGeneration: number;
+}): boolean {
+  return (
+    input.alive &&
+    !input.cancelled &&
+    !input.pageLoading &&
+    input.generation === input.currentGeneration
+  );
 }
 
 export function buildDesignModeInstallScript(): string {
@@ -535,6 +582,11 @@ export function buildDesignModeInstallScript(): string {
       return tag === "html" || tag === "script" || tag === "style" || tag === "link" || tag === "meta" || tag === "head";
     }
     function startShot(el) {
+      var shotVersion = state.version;
+      if (state.shotUrl) {
+        try { URL.revokeObjectURL(state.shotUrl); } catch (eRevoke) {}
+        state.shotUrl = null;
+      }
       state.shot = { status: "pending" };
       try {
         var r = el.getBoundingClientRect();
@@ -575,9 +627,15 @@ export function buildDesignModeInstallScript(): string {
         var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '"><foreignObject width="100%" height="100%">' + xml + "</foreignObject></svg>";
         var blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
         var url = URL.createObjectURL(blob);
+        state.shotUrl = url;
         var img = new Image();
         img.onload = function() {
           try {
+            if (shotVersion !== state.version) {
+              try { URL.revokeObjectURL(url); } catch (eStale) {}
+              if (state.shotUrl === url) state.shotUrl = null;
+              return;
+            }
             var c = document.createElement("canvas");
             c.width = cw; c.height = ch;
             var ctx = c.getContext("2d");
@@ -585,8 +643,10 @@ export function buildDesignModeInstallScript(): string {
             ctx.scale(scale * dpr, scale * dpr);
             ctx.drawImage(img, 0, 0);
             URL.revokeObjectURL(url);
+            if (state.shotUrl === url) state.shotUrl = null;
             var dataUrl = c.toDataURL("image/png");
             if (dataUrl.length > 380000) dataUrl = c.toDataURL("image/jpeg", 0.7);
+            if (shotVersion !== state.version) return;
             if (dataUrl.length > 480000) {
               state.shot = { status: "error", error: "too-large" };
             } else {
@@ -594,11 +654,15 @@ export function buildDesignModeInstallScript(): string {
             }
           } catch (e5) {
             try { URL.revokeObjectURL(url); } catch (e6) {}
+            if (state.shotUrl === url) state.shotUrl = null;
+            if (shotVersion !== state.version) return;
             state.shot = { status: "error", error: String(e5 && e5.message || e5) };
           }
         };
         img.onerror = function() {
           try { URL.revokeObjectURL(url); } catch (e7) {}
+          if (state.shotUrl === url) state.shotUrl = null;
+          if (shotVersion !== state.version) return;
           state.shot = { status: "error", error: "img" };
         };
         img.src = url;
@@ -625,6 +689,7 @@ export function buildDesignModeInstallScript(): string {
       version: prev && typeof prev.version === "number" ? prev.version : 0,
       selected: null,
       shot: { status: "idle" },
+      shotUrl: null,
       selectedEl: null,
       clearSelection: clearSelection,
       destroy: destroy
@@ -664,6 +729,10 @@ export function buildDesignModeInstallScript(): string {
     }
     function destroy() {
       state.enabled = false;
+      if (state.shotUrl) {
+        try { URL.revokeObjectURL(state.shotUrl); } catch (eDestroyUrl) {}
+        state.shotUrl = null;
+      }
       document.removeEventListener("mousemove", onMove, true);
       document.removeEventListener("click", onClick, true);
       document.removeEventListener("keydown", onKey, true);

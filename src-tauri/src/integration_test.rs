@@ -145,6 +145,9 @@ mod integration {
         assert!(factory.last_session_id.is_none());
         assert!(factory.sidebar_collapsed_project_ids.is_empty());
         assert!(factory.sidebar_other_sessions_open);
+        assert!(factory.project_spaces.is_empty());
+        assert!(factory.active_project_space_id.is_none());
+        assert!(factory.project_space_by_id.is_empty());
         // Disk load + save same content must not corrupt
         let s = load_settings();
         save_settings(&s).expect("save");
