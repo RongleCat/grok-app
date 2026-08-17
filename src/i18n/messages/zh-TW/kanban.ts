@@ -1,0 +1,27 @@
+/** Traditional Chinese messages — domain: agent-run Kanban (Orca-style) */
+export const zhTWKanban = {
+  "kanban.title": "智慧體",
+  "kanban.open": "智慧體看板",
+  "kanban.hint":
+    "依執行狀態分欄：需要你、工作中、已完成。不是個人待辦。點擊卡片開啟該對話。",
+  "kanban.total": "{n} 個",
+  "kanban.view.dashboard": "儀表板",
+  "kanban.view.map": "智慧體地圖",
+  "kanban.searchPlaceholder": "搜尋工作樹、專案或智慧體…",
+  "kanban.filter": "篩選",
+  "kanban.filterTitle": "看板篩選",
+  "kanban.showIdle": "顯示閒置智慧體",
+  "kanban.column.needsYou": "需要你",
+  "kanban.column.working": "工作中",
+  "kanban.column.done": "已完成",
+  "kanban.column.idle": "閒置",
+  "kanban.columnsLabel": "智慧體執行欄",
+  "kanban.none": "無",
+  "kanban.empty": "尚無智慧體",
+  "kanban.emptyHint": "開始對話或等待 Agent 回合 — 執行中的工作階段會依狀態出現在這裡。",
+  "kanban.filterEmpty": "沒有符合篩選條件的智慧體",
+  "kanban.filterEmptyHint": "清空搜尋或開啟「顯示閒置智慧體」以查看更多。",
+  "kanban.clearFilters": "清除全部篩選",
+  "kanban.mapEmpty": "此檢視尚無智慧體",
+  "kanban.unboundProject": "其他對話",
+};

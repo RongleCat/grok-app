@@ -9,6 +9,7 @@ Agent 与贡献者的**可执行知识库**。改产品行为或 UI 文案前，
 | [dialogs.md](./dialogs.md) | **禁止系统默认控件**（裸 `<select>` / 原生菜单）；**禁止透明下拉**；**禁止层叠错误**；禁止 `window.confirm` / `prompt` / `alert`；复用 `Select` / `ContextMenu` / 既有面板 |
 | [catalog.md](./catalog.md) | 与 Grok Build CLI 对齐的模型 / 推理强度 / 权限（含 YOLO） |
 | [automations.md](./automations.md) | 自动化任务设计（Build `/loop` / scheduler；不阻塞 P0） |
+| [spaces-kanban.md](./spaces-kanban.md) | **侧栏 Spaces**（项目分组，不是 git workspace）与 **Agent Kanban**（`#/kanban` 运行态看板，不是待办） |
 | [slash-composer.md](./slash-composer.md) | 斜杠面板、技能标签、Goal 模式、Doctor |
 | [session-continuity.md](./session-continuity.md) | Agent 续会话（load/bootstrap）、自动压缩归属 |
 | [session-api.md](./session-api.md) | **本机会话接口**：列表 + session id 续跑（#626 第一刀；非新建、非打断） |

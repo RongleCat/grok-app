@@ -36,7 +36,13 @@ export type AppDialog =
       placeholder?: string;
       /** Primary submit button label (default: common.save). */
       submitLabel?: string;
-      onSubmit: (value: string) => void | Promise<void>;
+      /**
+       * Return `false` to keep the prompt open, or a string to keep it open
+       * and show that message inline next to the actions.
+       */
+      onSubmit: (
+        value: string,
+      ) => boolean | string | void | Promise<boolean | string | void>;
       /** Called when dismissed without submit (Cancel / Escape / overlay). */
       onDismiss?: () => void;
     }

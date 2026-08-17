@@ -15,6 +15,7 @@ import { enDoctor } from "./doctor";
 import { enExtensions } from "./extensions";
 import { enAutomations } from "./automations";
 import { enFeatures } from "./features";
+import { enKanban } from "./kanban";
 import { enSettings } from "./settings";
 import { enSettingsUi } from "./settings-ui";
 import { enSettingsAgent } from "./settings-agent";
@@ -39,6 +40,7 @@ export const en = {
   ...enExtensions,
   ...enAutomations,
   ...enFeatures,
+  ...enKanban,
   ...enSettings,
   ...enSettingsUi,
   ...enSettingsAgent,
@@ -65,6 +67,7 @@ export { enDoctor } from "./doctor";
 export { enExtensions } from "./extensions";
 export { enAutomations } from "./automations";
 export { enFeatures } from "./features";
+export { enKanban } from "./kanban";
 export { enSettings } from "./settings";
 export { enSettingsUi } from "./settings-ui";
 export { enSettingsAgent } from "./settings-agent";

@@ -6,6 +6,10 @@
 import type { ChatMessage, SessionState } from "./session";
 import { isSessionLiveStreaming, pickRunningTurnTool } from "./session";
 import type { EndOfTurnReason } from "./endOfTurn";
+import {
+  forgetFinishedTurn,
+  rememberFinishedTurn,
+} from "./sessionFinishedTurns";
 
 export interface SessionLiveSnapshot {
   sessionId: string;
@@ -96,6 +100,19 @@ export function projectHostIntoLiveMap(
   const awaitingPermission = host.state === "awaiting_permission";
   const live = isSessionLiveStreaming(host.state);
   const prev = map[host.sessionId];
+  const prevLive =
+    !!prev &&
+    (isSessionLiveStreaming(prev.state) || prev.awaitingPermission);
+  // Clear on a new live turn. Stamp only when leaving one — a cold `ready`
+  // (focus switch / warm connect) is not a finished turn.
+  let terminalReason = prev?.terminalReason ?? null;
+  if (live) {
+    terminalReason = null;
+    forgetFinishedTurn(host.sessionId);
+  } else if (prevLive) {
+    terminalReason = prev.terminalReason ?? "agent_exit";
+    rememberFinishedTurn(host.sessionId, nowMs);
+  }
   return upsertLiveSnapshot(
     map,
     {
@@ -103,6 +120,7 @@ export function projectHostIntoLiveMap(
       state: host.state,
       streamingMessageId: host.streamingMessageId ?? null,
       awaitingPermission,
+      terminalReason,
       startedAt: live ? (prev?.startedAt ?? nowMs) : null,
       // Clear live tool when not streaming. Keep saw* sticky until turn truly ends
       // so stall copy never says "waiting for first token" after a full answer.

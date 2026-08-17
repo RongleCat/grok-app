@@ -790,8 +790,114 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   color: var(--text-secondary);
 }
 
+.tree-l1__head--toggle {
+  flex: 0 0 auto;
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+
 .tree-l1__label {
   flex: 1;
+}
+
+.space-switcher {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.space-switcher__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  height: 28px;
+  padding: 0 6px 0 2px;
+  border-radius: var(--radius-md);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: left;
+}
+
+.space-switcher__btn:hover,
+.space-switcher.is-open .space-switcher__btn {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.space-switcher__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.space-switcher__menu {
+  min-width: 200px;
+  max-width: 280px;
+  z-index: 14000;
+}
+
+.space-switcher__opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.space-switcher__opt:hover {
+  background: var(--bg-hover);
+}
+
+.space-switcher__opt.is-active {
+  background: var(--bg-active);
+}
+
+.space-switcher__opt.is-danger {
+  color: var(--danger, #e5484d);
+}
+
+.space-switcher__opt-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.space-switcher__opt-count {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.space-switcher__sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-subtle, var(--glass-border));
+}
+
+.sidebar-empty--space {
+  padding-top: 10px;
+}
+
+.sidebar-empty--space .sidebar-empty__hint {
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .tree-l1__actions {

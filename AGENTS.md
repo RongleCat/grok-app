@@ -9,6 +9,7 @@
    - [dialogs.md](docs/llm-wiki/dialogs.md) — **no `window.confirm` / `prompt` / `alert`**; **no OS-default controls**; reuse `Select` / `ContextMenu` / panel CSS; **no transparent menus**; **no stacking bugs**
    - [catalog.md](docs/llm-wiki/catalog.md) — models / effort / YOLO  
    - [automations.md](docs/llm-wiki/automations.md) — automation design (Build `/loop` / scheduler; non-blocking)  
+   - [spaces-kanban.md](docs/llm-wiki/spaces-kanban.md) — sidebar Spaces (project grouping, not git cwd) and Agent Kanban (`#/kanban` run board, not todos)  
    - [account.md](docs/llm-wiki/account.md) — official login, membership, quota, heatmap  
    - [providers.md](docs/llm-wiki/providers.md) — custom relays, agent `GROK_HOME`, editors  
    - [model-routing.md](docs/llm-wiki/model-routing.md) — **official tool inject for custom main only** (never official subscription; MCP `official-aux` tools-first; Host vision for text-only custom)

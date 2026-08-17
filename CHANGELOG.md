@@ -12,9 +12,11 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- **Agent Kanban and project Spaces**: Sidebar Spaces group folders (Work / Personal / …) without changing git cwd. `#/kanban` is an Orca-style agent-run board (Needs You / Working / Done) over live sessions — not a to-do list. Finished turns persist so Done cards survive leaving the pane.
 - **Discover Claude / Cursor skills toggle**: Settings → Extensions → Skills can turn external compat discovery off. Independent session mode also writes `[compat.claude] skills` / `[compat.cursor] skills` in agent-home `config.toml`. Shared mode only hides them in the App (does not rewrite `~/.grok`).
 
 **中文 · 新增**
+- **智能体看板与项目空间**：侧栏 Space 只分组文件夹，不改 git cwd。`#/kanban` 按运行态列会话（需要你 / 工作中 / 完成），不是待办。刚结束的回合会记住，离开页面后再回来 Done 还在。
 - **探测 Claude / Cursor 技能开关**：设置 → 扩展 → 技能可关闭外源兼容探测。独立会话模式会写入 agent-home `config.toml`；共享模式只在应用内隐藏，不改写 `~/.grok`。
 
 ### Changed

@@ -1,0 +1,27 @@
+/** Simplified Chinese messages — domain: agent-run Kanban (Orca-style) */
+export const zhKanban = {
+  "kanban.title": "智能体",
+  "kanban.open": "智能体看板",
+  "kanban.hint":
+    "按运行状态分列：需要你、工作中、已完成。不是个人待办。点击卡片打开该对话。",
+  "kanban.total": "{n} 个",
+  "kanban.view.dashboard": "仪表盘",
+  "kanban.view.map": "智能体地图",
+  "kanban.searchPlaceholder": "搜索工作树、项目或智能体…",
+  "kanban.filter": "筛选",
+  "kanban.filterTitle": "看板筛选",
+  "kanban.showIdle": "显示空闲智能体",
+  "kanban.column.needsYou": "需要你",
+  "kanban.column.working": "工作中",
+  "kanban.column.done": "已完成",
+  "kanban.column.idle": "空闲",
+  "kanban.columnsLabel": "智能体运行列",
+  "kanban.none": "无",
+  "kanban.empty": "暂无智能体",
+  "kanban.emptyHint": "开始对话或等待 Agent 回合 — 运行中的会话会按状态出现在这里。",
+  "kanban.filterEmpty": "没有符合筛选条件的智能体",
+  "kanban.filterEmptyHint": "清空搜索或打开「显示空闲智能体」以查看更多。",
+  "kanban.clearFilters": "清除全部筛选",
+  "kanban.mapEmpty": "此视图暂无智能体",
+  "kanban.unboundProject": "其他对话",
+};

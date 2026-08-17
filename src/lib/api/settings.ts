@@ -178,6 +178,15 @@ export interface AppSettings {
    * Missing / undefined ⇒ open (legacy installs before this pref).
    */
   sidebarOtherSessionsOpen?: boolean;
+  /**
+   * Named sidebar Spaces (Work / Personal / …). Empty ⇒ default space only.
+   * UI grouping — not a git workspace.
+   */
+  projectSpaces?: Array<{ id: string; name: string }>;
+  /** Active Space view: `"all"` or a space id. Missing ⇒ All projects. */
+  activeProjectSpaceId?: string | null;
+  /** projectId → spaceId. Missing / default space ⇒ unassigned. */
+  projectSpaceById?: Record<string, string>;
   voiceId?: string;
   voiceDictationAutoSend?: boolean;
   voiceKeepAgentsOnEnd?: boolean;
