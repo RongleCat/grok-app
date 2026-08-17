@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { codeEditorLangId, codeEditorLangKind } from "./codeEditorLang";
+import {
+  codeEditorLangId,
+  codeEditorLangKind,
+  codeEditorLanguageExtension,
+} from "./codeEditorLang";
 
 describe("codeEditorLangId", () => {
   it("prefers an explicit language", () => {
@@ -29,5 +33,11 @@ describe("codeEditorLangKind", () => {
     expect(codeEditorLangKind("main.rs")).toBe("stream");
     expect(codeEditorLangKind("main.go")).toBe("stream");
     expect(codeEditorLangKind("cfg.yaml")).toBe("stream");
+  });
+
+  it("highlights less via the sass stream mode", () => {
+    expect(codeEditorLangKind("app.less")).toBe("stream");
+    expect(codeEditorLanguageExtension("app.less")).not.toEqual([]);
+    expect(codeEditorLanguageExtension("unknown.zzz")).toEqual([]);
   });
 });

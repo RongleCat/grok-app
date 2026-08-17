@@ -35,7 +35,7 @@ export type SideContextOpenResult = {
 export function applySideContextOpen(
   state: SideWorkbenchState,
   target: SideContextOpenTarget,
-  opts?: { isGitProject?: boolean },
+  opts?: { isGitProject?: boolean; projectRoot?: string | null },
 ): SideContextOpenResult {
   if (target.type === "file") {
     const next = openSideTab(state, "file", {
@@ -43,6 +43,7 @@ export function applySideContextOpen(
       name: target.title,
       line: target.line,
       column: target.column,
+      projectRoot: opts?.projectRoot,
     });
     return { state: next, needAsideOpen: true, kind: "file" };
   }

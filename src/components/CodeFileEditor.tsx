@@ -1,7 +1,4 @@
-/**
- * Syntax-highlighted code file editor (CodeMirror 6).
- * Same Atom One palette as CodePreview. Tab inserts two spaces. ⌘/Ctrl+S saves.
- */
+/** Syntax-highlighted code file editor (CodeMirror 6). */
 
 import { useEffect, useRef } from "react";
 import {
@@ -41,7 +38,7 @@ export type CodeFileEditorProps = {
   onChange: (text: string) => void;
   onSave?: () => void;
   disabled?: boolean;
-  ariaLabel?: string;
+  ariaLabel: string;
 };
 
 export function CodeFileEditor({
@@ -103,7 +100,7 @@ export function CodeFileEditor({
           onChangeRef.current(update.state.doc.toString());
         }),
         EditorView.contentAttributes.of({
-          "aria-label": ariaLabel || "code editor",
+          "aria-label": ariaLabel,
         }),
       ],
     });

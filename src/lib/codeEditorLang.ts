@@ -212,6 +212,7 @@ export function codeEditorLanguageExtension(
       return stream(protobuf);
     case "scss":
     case "sass":
+    case "less":
       return stream(sass);
     case "latex":
       return stream(stex);

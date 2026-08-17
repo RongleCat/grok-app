@@ -17,6 +17,24 @@ describe("applySideContextOpen", () => {
     );
   });
 
+  it("adopts a project-root directory chip when opening a file", () => {
+    const withRoot = applySideContextOpen(
+      emptySideWorkbenchState(),
+      { type: "file", path: "/proj", title: "proj" },
+    );
+    const r = applySideContextOpen(
+      withRoot.state,
+      { type: "file", path: "/proj/src/a.ts", title: "a.ts" },
+      { projectRoot: "/proj" },
+    );
+    expect(r.state.tabs.filter((t) => t.kind === "file")).toHaveLength(1);
+    expect(r.state.tabs[0]).toMatchObject({
+      kind: "file",
+      path: "/proj/src/a.ts",
+      name: "a.ts",
+    });
+  });
+
   it("forwards path:line focus onto the file tab", () => {
     const r = applySideContextOpen(emptySideWorkbenchState(), {
       type: "file",

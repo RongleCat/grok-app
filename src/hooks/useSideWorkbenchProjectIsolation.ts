@@ -3,9 +3,16 @@
  * Session-local stash — not written to disk.
  */
 
-import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
-import type { SideWorkbenchState } from "@/lib/sideWorkbench";
 import {
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import type { SideTab, SideWorkbenchState } from "@/lib/sideWorkbench";
+import {
+  collectStashedPersistTabs,
   sideWorkbenchProjectKey,
   switchSideWorkbenchProject,
   type SideWorkbenchProjectSlice,
@@ -15,11 +22,12 @@ export function useSideWorkbenchProjectIsolation(
   projectId: string | null | undefined,
   sideWorkbench: SideWorkbenchState,
   setSideWorkbench: Dispatch<SetStateAction<SideWorkbenchState>>,
-): void {
+): SideTab[] {
   const storeRef = useRef<Map<string, SideWorkbenchProjectSlice>>(new Map());
   const keyRef = useRef(sideWorkbenchProjectKey(projectId));
   const stateRef = useRef(sideWorkbench);
   stateRef.current = sideWorkbench;
+  const [stashedPersistTabs, setStashedPersistTabs] = useState<SideTab[]>([]);
 
   useEffect(() => {
     const toKey = sideWorkbenchProjectKey(projectId);
@@ -34,5 +42,8 @@ export function useSideWorkbenchProjectIsolation(
     storeRef.current = store;
     keyRef.current = toKey;
     setSideWorkbench(state);
+    setStashedPersistTabs(collectStashedPersistTabs(store, toKey));
   }, [projectId, setSideWorkbench]);
+
+  return stashedPersistTabs;
 }

@@ -55,6 +55,8 @@ export type CreateSideTabMeta = {
   /** 1-based line for file path:line open. */
   line?: number | null;
   column?: number | null;
+  /** Adopt a file tab whose path is this project root (directory chip). */
+  projectRoot?: string | null;
 };
 
 export type OpenSideTabResult = SideWorkbenchState & {
@@ -175,7 +177,22 @@ export function isSideTabNameKey(name: string): boolean {
 
 /** Pathless picker「文件」chip — not a real preview target. */
 export function isPlaceholderFileTab(tab: SideTab): boolean {
-  return tab.kind === "file" && !(tab.path || "").trim();
+  return isFileWorkspacePlaceholder(tab);
+}
+
+/** Pathless chip, or a file tab whose path is the bound project root. */
+export function isFileWorkspacePlaceholder(
+  tab: SideTab,
+  projectRoot?: string | null,
+): boolean {
+  if (tab.kind !== "file") return false;
+  const p = (tab.path || "").trim();
+  if (!p) return true;
+  const root = (projectRoot || "").trim();
+  if (!root) return false;
+  const norm = p.replace(/[/\\]+$/, "").replace(/\\/g, "/");
+  const rootNorm = root.replace(/[/\\]+$/, "").replace(/\\/g, "/");
+  return norm === rootNorm;
 }
 
 function dropPlaceholderFileTabs(
@@ -263,10 +280,11 @@ export function openSideTab(
         t.kind === "file" &&
         (t.path || "").trim().replace(/\\/g, "/") === p,
     );
-    // Consume the empty「文件」workspace chip instead of leaving it beside
-    // the real file (clicking that chip has no path and feels frozen).
+    // Pathless file chips are workspace placeholders; a real path adopts them.
     if (existingIdx < 0) {
-      existingIdx = tabs.findIndex(isPlaceholderFileTab);
+      existingIdx = tabs.findIndex((t) =>
+        isFileWorkspacePlaceholder(t, meta.projectRoot),
+      );
     }
   }
   if (existingIdx < 0 && kind === "browser" && meta?.url) {
@@ -280,12 +298,27 @@ export function openSideTab(
   if (existingIdx < 0 && (kind === "review" || kind === "plan" || kind === "skills")) {
     existingIdx = tabs.findIndex((t) => t.kind === kind);
   }
-  // Picker「文件」: reuse a placeholder, or focus an already-open file tab.
-  // Never mint a second pathless chip next to Cargo.lock / etc.
+  // Pathless file: focus an existing workspace chip or file tab.
+  // Do not mint a second chip, rewrite line/column, or reorder the strip.
   if (existingIdx < 0 && kind === "file" && !meta?.path?.trim()) {
-    existingIdx = tabs.findIndex(isPlaceholderFileTab);
+    existingIdx = tabs.findIndex((t) =>
+      isFileWorkspacePlaceholder(t, meta?.projectRoot),
+    );
     if (existingIdx < 0) {
-      existingIdx = tabs.findIndex((t) => t.kind === "file");
+      const active = tabs.find((t) => t.id === state.activeId);
+      existingIdx =
+        active?.kind === "file"
+          ? tabs.findIndex((t) => t.id === active.id)
+          : tabs.findIndex((t) => t.kind === "file");
+    }
+    if (existingIdx >= 0) {
+      const hit = tabs[existingIdx]!;
+      return {
+        ...state,
+        activeId: hit.id,
+        created: false,
+        droppedIds: [],
+      };
     }
   }
 
@@ -342,13 +375,16 @@ export function openSideTab(
 export function openSideTabFromPicker(
   state: SideWorkbenchState,
   kind: SideTabKind,
-  opts: { isGitProject: boolean },
+  opts: { isGitProject: boolean; projectRoot?: string | null },
   meta?: CreateSideTabMeta,
 ): OpenSideTabResult | SideWorkbenchState {
   if (!isPickerCreatableKind(kind, opts)) {
     return state;
   }
-  const next = openSideTab(state, kind, meta);
+  const next = openSideTab(state, kind, {
+    ...meta,
+    projectRoot: meta?.projectRoot ?? opts.projectRoot,
+  });
   // Picking「文件」always reveals the tree — hiding it is a later toggle.
   if (kind === "file") {
     return { ...next, treeVisible: true };

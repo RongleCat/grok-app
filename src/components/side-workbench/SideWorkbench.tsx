@@ -24,6 +24,7 @@ import {
   setTreeVisible,
   toggleSideExpanded,
   type SidePickerKind,
+  type SideTab,
   type SideWorkbenchState,
 } from "@/lib/sideWorkbench";
 import { isShortcutRecordingActive } from "@/lib/shortcutRemap";
@@ -72,6 +73,8 @@ export type SideWorkbenchProps = {
   skillsLoading?: boolean;
   skillsLoadError?: string | null;
   onSelectSkill?: (skill: SkillsPickerSkill) => void;
+  /** Terminal / browser tabs stashed on other projects — keep PTY/xterm alive. */
+  stashedPersistTabs?: readonly SideTab[];
 };
 
 export function SideWorkbench({
@@ -103,11 +106,16 @@ export function SideWorkbench({
   skillsLoading = false,
   skillsLoadError = null,
   onSelectSkill,
+  stashedPersistTabs = [],
 }: SideWorkbenchProps) {
   const [internal, setInternal] = useState(emptySideWorkbenchState);
   const state = controlled ?? internal;
   const lastPlanFocusKey = useRef<number | null>(null);
   const [dirtyPaths, setDirtyPaths] = useState<string[]>([]);
+  const dirtyByHostRef = useRef<Map<string, string[]>>(new Map());
+  const persistCwdByTabId = useRef<Map<string, string | null>>(new Map());
+  const filesHostKeysRef = useRef<string[]>([]);
+  const currentFilesKey = projectPath || "orphan";
   const [closePathRequest, setClosePathRequest] = useState<{
     path: string;
     token: number;
@@ -252,6 +260,10 @@ export function SideWorkbench({
 
   const active = useMemo(() => activeSideTab(state), [state]);
   const hasFileTabs = state.tabs.some((t) => t.kind === "file");
+  if (hasFileTabs && !filesHostKeysRef.current.includes(currentFilesKey)) {
+    filesHostKeysRef.current = [...filesHostKeysRef.current, currentFilesKey];
+  }
+  const filesHostKeys = filesHostKeysRef.current;
   const activeFilePath =
     active?.kind === "file" ? (active.path ?? null) : null;
   const activeFileLine =
@@ -261,19 +273,28 @@ export function SideWorkbench({
 
   const pick = useCallback(
     (kind: SidePickerKind) => {
-      const next = openSideTabFromPicker(state, kind, { isGitProject });
+      const next = openSideTabFromPicker(state, kind, {
+        isGitProject,
+        projectRoot: projectPath,
+      });
       if ("created" in next) {
         setState(next);
       }
     },
-    [state, isGitProject, setState],
+    [state, isGitProject, projectPath, setState],
   );
 
   const onTreeFileOpen = useCallback(
     (path: string, name: string) => {
-      setState(openSideTab(state, "file", { path, name }));
+      setState(
+        openSideTab(state, "file", {
+          path,
+          name,
+          projectRoot: projectPath,
+        }),
+      );
     },
-    [state, setState],
+    [state, projectPath, setState],
   );
 
   const onToggleExpand = useCallback(() => {
@@ -308,6 +329,7 @@ export function SideWorkbench({
           name: openRequest.title,
           line: openRequest.line,
           column: openRequest.column,
+          projectRoot: projectPath,
         }),
       );
     } else if (openRequest.type === "url" && openRequest.url) {
@@ -324,6 +346,39 @@ export function SideWorkbench({
     onOpenRequestConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRequest]);
+
+  useEffect(() => {
+    setBulkCloseConfirm(null);
+    setClosePathRequest(null);
+    setDirtyPaths(dirtyByHostRef.current.get(currentFilesKey) ?? []);
+  }, [currentFilesKey]);
+
+  useEffect(() => {
+    for (const tab of state.tabs) {
+      if (tab.kind === "browser" || tab.kind === "terminal") {
+        persistCwdByTabId.current.set(tab.id, projectPath ?? null);
+      }
+    }
+  }, [state.tabs, projectPath]);
+
+  const persistHosts = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { tab: SideTab; cwd: string | null }[] = [];
+    for (const tab of state.tabs) {
+      if (tab.kind !== "browser" && tab.kind !== "terminal") continue;
+      seen.add(tab.id);
+      out.push({ tab, cwd: projectPath ?? null });
+    }
+    for (const tab of stashedPersistTabs) {
+      if (tab.kind !== "browser" && tab.kind !== "terminal") continue;
+      if (seen.has(tab.id)) continue;
+      out.push({
+        tab,
+        cwd: persistCwdByTabId.current.get(tab.id) ?? null,
+      });
+    }
+    return out;
+  }, [state.tabs, stashedPersistTabs, projectPath]);
 
   return (
     <div
@@ -365,40 +420,6 @@ export function SideWorkbench({
           </div>
         ) : (
           <>
-            {hasFileTabs ? (
-              <div
-                className="sw__files-host"
-                hidden={active.kind !== "file"}
-                aria-hidden={active.kind !== "file"}
-              >
-                <FilesWorkspace
-                  key={projectPath || "orphan"}
-                  locale={locale}
-                  projectPath={projectPath}
-                  projectName={projectName}
-                  treeVisible={state.treeVisible}
-                  onTreeVisibleChange={(v) =>
-                    setState(setTreeVisible(state, v))
-                  }
-                  activePath={activeFilePath}
-                  activeLine={activeFileLine}
-                  activeColumn={activeFileColumn}
-                  onFileOpen={onTreeFileOpen}
-                  onDirtyPathsChange={setDirtyPaths}
-                  closePathRequest={
-                    closePathRequest
-                      ? {
-                          path: closePathRequest.path,
-                          token: closePathRequest.token,
-                        }
-                      : null
-                  }
-                  onClosePathResult={onClosePathResult}
-                  paneActive={paneActive && active.kind === "file"}
-                />
-              </div>
-            ) : null}
-
             {active.kind === "review" ? (
               <ReviewTab
                 locale={locale}
@@ -431,33 +452,73 @@ export function SideWorkbench({
                 onSelectSkill={(skill) => onSelectSkill?.(skill)}
               />
             ) : null}
-
-            {/* Keep browser/terminal instances mounted so PTY/xterm sessions
-                survive tab switches (VS Code-style). */}
-            {state.tabs
-              .filter((t) => t.kind === "browser" || t.kind === "terminal")
-              .map((tab) => {
-                const isActive = active.id === tab.id;
-                return (
-                  <div
-                    key={tab.id}
-                    className="sw__persist-host"
-                    hidden={!isActive}
-                    aria-hidden={!isActive}
-                    data-side-tab-id={tab.id}
-                    data-side-kind={tab.kind}
-                  >
-                    <SideTabBody
-                      locale={locale}
-                      tab={tab}
-                      projectPath={projectPath}
-                      active={paneActive && isActive}
-                    />
-                  </div>
-                );
-              })}
           </>
         )}
+
+        {filesHostKeys.map((pathKey) => {
+          const isCurrent = pathKey === currentFilesKey;
+          const visible =
+            isCurrent && hasFileTabs && !!active && active.kind === "file";
+          return (
+            <div
+              key={pathKey}
+              className="sw__files-host"
+              hidden={!visible}
+              aria-hidden={!visible}
+            >
+              <FilesWorkspace
+                locale={locale}
+                projectPath={pathKey === "orphan" ? null : pathKey}
+                projectName={isCurrent ? projectName : null}
+                treeVisible={state.treeVisible}
+                onTreeVisibleChange={(v) => {
+                  if (isCurrent) setState(setTreeVisible(state, v));
+                }}
+                activePath={isCurrent ? activeFilePath : null}
+                activeLine={isCurrent ? activeFileLine : null}
+                activeColumn={isCurrent ? activeFileColumn : null}
+                onFileOpen={isCurrent ? onTreeFileOpen : undefined}
+                onDirtyPathsChange={(paths) => {
+                  dirtyByHostRef.current.set(pathKey, paths);
+                  if (isCurrent) setDirtyPaths(paths);
+                }}
+                closePathRequest={
+                  isCurrent && closePathRequest
+                    ? {
+                        path: closePathRequest.path,
+                        token: closePathRequest.token,
+                      }
+                    : null
+                }
+                onClosePathResult={isCurrent ? onClosePathResult : undefined}
+                paneActive={
+                  isCurrent && paneActive && !!active && active.kind === "file"
+                }
+              />
+            </div>
+          );
+        })}
+
+        {persistHosts.map(({ tab, cwd }) => {
+          const isActive = !!active && active.id === tab.id;
+          return (
+            <div
+              key={tab.id}
+              className="sw__persist-host"
+              hidden={!isActive}
+              aria-hidden={!isActive}
+              data-side-tab-id={tab.id}
+              data-side-kind={tab.kind}
+            >
+              <SideTabBody
+                locale={locale}
+                tab={tab}
+                projectPath={cwd}
+                active={paneActive && isActive}
+              />
+            </div>
+          );
+        })}
       </div>
 
       <GlassModal

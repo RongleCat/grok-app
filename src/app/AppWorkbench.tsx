@@ -1638,7 +1638,7 @@ export function AppWorkbench() {
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
   const [activeProject, setActiveProject] = useState<Project | null>(null);
-  useSideWorkbenchProjectIsolation(
+  const stashedPersistTabs = useSideWorkbenchProjectIsolation(
     activeProject?.id,
     sideWorkbench,
     setSideWorkbench,
@@ -2817,6 +2817,7 @@ export function AppWorkbench() {
     if (!layout.asideCollapsed) return;
     const result = applySideContextOpen(sideWorkbench, resourceOpenTarget, {
       isGitProject: sideIsGitProject,
+      projectRoot: effectiveProjectPath,
     });
     if (result.noticeKey) {
       showToast(tr(result.noticeKey), 2400);
@@ -14154,6 +14155,7 @@ export function AppWorkbench() {
       setSideWorkbench((s) => {
         const next = openSideTabFromPicker(s, kind, {
           isGitProject: sideIsGitProject,
+          projectRoot: effectiveProjectPath,
         });
         if (!("created" in next)) return s;
         return next;
@@ -19262,14 +19264,15 @@ export function AppWorkbench() {
                           return;
                         }
                         if (jump.type === "local") {
-                          // Open / focus files workbench for the bound project.
-                          const next = openSideTab(sideWorkbench, "file", {
-                            path: effectiveProjectPath || undefined,
-                            name: activeProject
-                              ? projectDisplayName(activeProject, tr)
-                              : undefined,
-                          });
-                          setSideWorkbench({ ...next, treeVisible: true });
+                          const next = openSideTabFromPicker(
+                            sideWorkbench,
+                            "file",
+                            {
+                              isGitProject: sideIsGitProject,
+                              projectRoot: effectiveProjectPath,
+                            },
+                          );
+                          if ("created" in next) setSideWorkbench(next);
                           openAsidePane();
                         }
                         // branch / push / pr: display-only in Phase 3 (no write ops).
@@ -21112,6 +21115,7 @@ export function AppWorkbench() {
                 skillInfos={skillInfos}
                 skillsLoading={skillsLoading}
                 skillsLoadError={skillsLoadError}
+                stashedPersistTabs={stashedPersistTabs}
                 onSelectSkill={(skill) => {
                   setDraft((d) => {
                     const next = planInsertSkill(d, skill.name);

@@ -25,6 +25,7 @@ import {
   envReviewJumpEnabled,
   isSideTabNameKey,
   isPlaceholderFileTab,
+  isFileWorkspacePlaceholder,
   resolveSideTabLabel,
   sideTabLabel,
   sideTabCopyPath,
@@ -117,6 +118,19 @@ describe("openSideTab / close / activate", () => {
     ).toBe(false);
   });
 
+  it("treats a project-root directory chip as a workspace placeholder", () => {
+    const dir = {
+      id: "root",
+      kind: "file" as const,
+      path: "/Users/me/proj",
+      name: "proj",
+    };
+    expect(isPlaceholderFileTab(dir)).toBe(false);
+    expect(isFileWorkspacePlaceholder(dir, "/Users/me/proj")).toBe(true);
+    expect(isFileWorkspacePlaceholder(dir, "/Users/me/proj/")).toBe(true);
+    expect(isFileWorkspacePlaceholder(dir, "/Users/me/other")).toBe(false);
+  });
+
   it("opening a file replaces the pathless Files placeholder tab", () => {
     let s = emptySideWorkbenchState();
     s = openSideTabFromPicker(s, "file", { isGitProject: false }) as typeof s;
@@ -147,6 +161,46 @@ describe("openSideTab / close / activate", () => {
     expect("tabs" in again ? again.tabs[0] : null).toMatchObject({
       kind: "file",
       path: "Cargo.lock",
+      name: "Cargo.lock",
+    });
+  });
+
+  it("picker Files keeps the active file, strip order, and path:line", () => {
+    let s = emptySideWorkbenchState();
+    s = openSideTab(s, "file", {
+      path: "/a.ts",
+      id: "a",
+      line: 10,
+      column: 2,
+    });
+    s = openSideTab(s, "file", { path: "/b.ts", id: "b", line: 4 });
+    s = setActiveSideTab(s, "a");
+    const again = openSideTabFromPicker(s, "file", { isGitProject: false });
+    expect("created" in again && again.created).toBe(false);
+    expect(again.activeId).toBe("a");
+    expect(again.tabs.map((t) => t.id)).toEqual(["b", "a"]);
+    const a = again.tabs.find((t) => t.id === "a");
+    expect(a).toMatchObject({
+      kind: "file",
+      path: "/a.ts",
+      line: 10,
+      column: 2,
+    });
+  });
+
+  it("opening a file adopts a project-root directory chip", () => {
+    let s = emptySideWorkbenchState();
+    s = openSideTab(s, "file", { path: "/Users/me/proj", name: "proj" });
+    const opened = openSideTab(s, "file", {
+      path: "/Users/me/proj/Cargo.lock",
+      name: "Cargo.lock",
+      projectRoot: "/Users/me/proj",
+    });
+    expect(opened.created).toBe(false);
+    expect(opened.tabs.filter((t) => t.kind === "file")).toHaveLength(1);
+    expect(opened.tabs[0]).toMatchObject({
+      kind: "file",
+      path: "/Users/me/proj/Cargo.lock",
       name: "Cargo.lock",
     });
   });

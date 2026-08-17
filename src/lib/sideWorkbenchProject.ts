@@ -6,6 +6,7 @@
 
 import {
   emptySideWorkbenchState,
+  type SideTab,
   type SideWorkbenchState,
 } from "@/lib/sideWorkbench";
 
@@ -78,4 +79,21 @@ export function switchSideWorkbenchProject(
     state: applySideWorkbenchProjectSlice(state, nextStore.get(toKey)),
     store: nextStore,
   };
+}
+
+/** Terminal / browser tabs stashed on other projects (keep-alive hosts). */
+export function collectStashedPersistTabs(
+  store: ReadonlyMap<string, SideWorkbenchProjectSlice>,
+  currentKey: string,
+): SideTab[] {
+  const out: SideTab[] = [];
+  for (const [key, slice] of store) {
+    if (key === currentKey) continue;
+    for (const tab of slice.tabs) {
+      if (tab.kind === "browser" || tab.kind === "terminal") {
+        out.push(tab);
+      }
+    }
+  }
+  return out;
 }

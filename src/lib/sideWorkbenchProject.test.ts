@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptySideWorkbenchState, openSideTab } from "./sideWorkbench";
 import {
   SIDE_WORKBENCH_ORPHAN_KEY,
+  collectStashedPersistTabs,
   sideWorkbenchProjectKey,
   switchSideWorkbenchProject,
 } from "./sideWorkbenchProject";
@@ -75,5 +76,27 @@ describe("switchSideWorkbenchProject", () => {
     const next = switchSideWorkbenchProject(state, new Map(), "proj-a", "proj-a");
     expect(next.state).toBe(state);
     expect(next.store.size).toBe(0);
+  });
+
+  it("lists persist tabs from other project slices only", () => {
+    let a = emptySideWorkbenchState();
+    a = openSideTab(a, "file", { path: "/A/a.ts", id: "file-a" });
+    a = openSideTab(a, "terminal", { id: "term-a" });
+    const toB = switchSideWorkbenchProject(a, new Map(), "proj-a", "proj-b");
+    let b = openSideTab(toB.state, "browser", {
+      url: "https://b",
+      id: "br-b",
+    });
+    const back = switchSideWorkbenchProject(b, toB.store, "proj-b", "proj-a");
+    const stashed = collectStashedPersistTabs(back.store, "proj-a");
+    expect(stashed.map((t) => t.id)).toEqual(["br-b"]);
+    expect(
+      collectStashedPersistTabs(back.store, "proj-a").every(
+        (t) => t.kind === "browser" || t.kind === "terminal",
+      ),
+    ).toBe(true);
+    expect(collectStashedPersistTabs(back.store, "proj-b").map((t) => t.id)).toEqual(
+      ["term-a"],
+    );
   });
 });
