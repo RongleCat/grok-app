@@ -106,8 +106,8 @@ export function emptySideWorkbenchState(): SideWorkbenchState {
   return {
     tabs: [],
     activeId: null,
-    // File tree is opt-in — opening a file must not force the tree open.
-    treeVisible: false,
+    // Files sidebar shows the project tree unless the user hides it.
+    treeVisible: true,
     expanded: false,
   };
 }
@@ -320,7 +320,12 @@ export function openSideTabFromPicker(
   if (!isPickerCreatableKind(kind, opts)) {
     return state;
   }
-  return openSideTab(state, kind, meta);
+  const next = openSideTab(state, kind, meta);
+  // Picking「文件」always reveals the tree — hiding it is a later toggle.
+  if (kind === "file") {
+    return { ...next, treeVisible: true };
+  }
+  return next;
 }
 
 export function closeSideTab(

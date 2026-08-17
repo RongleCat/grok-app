@@ -263,7 +263,6 @@ export function SideWorkbench({
     (kind: SidePickerKind) => {
       const next = openSideTabFromPicker(state, kind, { isGitProject });
       if ("created" in next) {
-        // Keep treeVisible as-is — file tree is user-toggled only.
         setState(next);
       }
     },

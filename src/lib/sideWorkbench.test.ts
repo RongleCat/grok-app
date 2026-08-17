@@ -67,6 +67,21 @@ describe("sidePickerOptions", () => {
 });
 
 describe("openSideTab / close / activate", () => {
+  it("picker Files reveals the project tree", () => {
+    let s = emptySideWorkbenchState();
+    s = { ...s, treeVisible: false };
+    const next = openSideTabFromPicker(s, "file", { isGitProject: false });
+    expect("created" in next && next.created).toBe(true);
+    expect("treeVisible" in next && next.treeVisible).toBe(true);
+    const again = openSideTabFromPicker(
+      { ...next, treeVisible: false },
+      "file",
+      { isGitProject: false },
+    );
+    expect("created" in again && again.created).toBe(false);
+    expect("treeVisible" in again && again.treeVisible).toBe(true);
+  });
+
   it("creates file/browser/terminal/review tabs", () => {
     let s = emptySideWorkbenchState();
     const f = openSideTab(s, "file", { path: "/a/b.ts", name: "b.ts" });

@@ -28,7 +28,7 @@ describe("switchSideWorkbenchProject", () => {
     const first = switchSideWorkbenchProject(state, new Map(), "proj-a", "proj-b");
     expect(first.state.tabs).toEqual([]);
     expect(first.state.activeId).toBeNull();
-    expect(first.state.treeVisible).toBe(false);
+    expect(first.state.treeVisible).toBe(true);
     expect(first.state.expanded).toBe(true);
     expect(first.store.get("proj-a")?.tabs.map((t) => t.id)).toEqual([
       "file-a",
