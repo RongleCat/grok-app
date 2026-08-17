@@ -152,6 +152,8 @@ export function FilesWorkspace({
   } = fileTabs;
 
   const splitLayout = resolveFilesWorkbenchSplitLayout({ treeVisible });
+  // Pathless「文件」chip is a tree-only workspace, not a preview target.
+  const previewTab = activePath?.trim() ? activeTab : null;
 
   useEffect(() => {
     onDirtyPathsChange?.(dirtyPaths);
@@ -380,16 +382,16 @@ export function FilesWorkspace({
   }, [resizingTree]);
 
   const absPath =
-    activeTab?.absolutePath ||
-    (projectPath && activeTab?.relativePath
-      ? `${projectPath.replace(/\/$/, "")}/${activeTab.relativePath.replace(/^\//, "")}`
+    previewTab?.absolutePath ||
+    (projectPath && previewTab?.relativePath
+      ? `${projectPath.replace(/\/$/, "")}/${previewTab.relativePath.replace(/^\//, "")}`
       : projectPath);
 
   const crumbs = useMemo(() => {
-    const rel = activeTab?.relativePath || "";
+    const rel = previewTab?.relativePath || "";
     if (!rel) return [] as string[];
     return rel.replace(/\\/g, "/").split("/").filter(Boolean);
-  }, [activeTab?.relativePath]);
+  }, [previewTab?.relativePath]);
 
   if (!projectPath) {
     return (
@@ -503,14 +505,14 @@ export function FilesWorkspace({
           {(() => {
             // Directory / failed "not a file" → empty placeholder, not an error wall.
             const isDirOpenError =
-              !!activeTab?.error &&
-              /not a file/i.test(activeTab.error);
+              !!previewTab?.error &&
+              /not a file/i.test(previewTab.error);
             const emptyPres = filesTabsEmpty;
             const showEmpty =
-              !activeTab ||
+              !previewTab ||
               isDirOpenError ||
-              (!activeTab.loading && !activeTab.preview && !activeTab.error);
-            if (showEmpty && !activeTab?.loading) {
+              (!previewTab.loading && !previewTab.preview && !previewTab.error);
+            if (showEmpty && !previewTab?.loading) {
               return (
                 <div
                   className="rp__empty-state"
@@ -525,7 +527,7 @@ export function FilesWorkspace({
                 </div>
               );
             }
-            if (activeTab?.loading) {
+            if (previewTab?.loading) {
               return (
                 <div className="rp__empty-state">
                   <div className="rp__empty-desc">{tr("resources.loading")}</div>
@@ -540,7 +542,7 @@ export function FilesWorkspace({
                 diffView={null}
                 diffLayout="unified"
                 setDiffLayout={NOOP as (v: "unified" | "split") => void}
-                activeTab={activeTab as FileTab}
+                activeTab={previewTab as FileTab}
                 projectPath={projectPath}
                 pathCopyFlash={false}
                 diffDecisionByPath={{}}

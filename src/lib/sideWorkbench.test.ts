@@ -24,6 +24,7 @@ import {
   activeSideTab,
   envReviewJumpEnabled,
   isSideTabNameKey,
+  isPlaceholderFileTab,
   resolveSideTabLabel,
   sideTabLabel,
   sideTabCopyPath,
@@ -80,6 +81,74 @@ describe("openSideTab / close / activate", () => {
     );
     expect("created" in again && again.created).toBe(false);
     expect("treeVisible" in again && again.treeVisible).toBe(true);
+  });
+
+  it("isPlaceholderFileTab is pathless file chips only", () => {
+    expect(
+      isPlaceholderFileTab({
+        id: "p",
+        kind: "file",
+        name: "side.tab.file",
+      }),
+    ).toBe(true);
+    expect(
+      isPlaceholderFileTab({
+        id: "p",
+        kind: "file",
+        path: "   ",
+        name: "side.tab.file",
+      }),
+    ).toBe(true);
+    expect(
+      isPlaceholderFileTab({
+        id: "f",
+        kind: "file",
+        path: "Cargo.lock",
+        name: "Cargo.lock",
+      }),
+    ).toBe(false);
+    expect(
+      isPlaceholderFileTab({
+        id: "t",
+        kind: "terminal",
+        sessionKey: "t",
+        name: "side.tab.terminal",
+      }),
+    ).toBe(false);
+  });
+
+  it("opening a file replaces the pathless Files placeholder tab", () => {
+    let s = emptySideWorkbenchState();
+    s = openSideTabFromPicker(s, "file", { isGitProject: false }) as typeof s;
+    expect(s.tabs).toHaveLength(1);
+    expect(s.tabs[0]).toMatchObject({ kind: "file", name: "side.tab.file" });
+    expect(s.tabs[0] && s.tabs[0].kind === "file" && s.tabs[0].path).toBeFalsy();
+
+    const opened = openSideTab(s, "file", {
+      path: "Cargo.lock",
+      name: "Cargo.lock",
+    });
+    expect(opened.tabs.filter((t) => t.kind === "file")).toHaveLength(1);
+    expect(opened.tabs[0]).toMatchObject({
+      kind: "file",
+      path: "Cargo.lock",
+      name: "Cargo.lock",
+    });
+    expect(opened.activeId).toBe(opened.tabs[0]!.id);
+  });
+
+  it("picker Files does not mint a second Files tab when a real file is open", () => {
+    let s = emptySideWorkbenchState();
+    s = openSideTab(s, "file", { path: "Cargo.lock", name: "Cargo.lock" });
+    const again = openSideTabFromPicker(s, "file", { isGitProject: false });
+    expect("tabs" in again ? again.tabs.filter((t) => t.kind === "file") : []).toHaveLength(
+      1,
+    );
+    expect("tabs" in again ? again.tabs[0] : null).toMatchObject({
+      kind: "file",
+      path: "Cargo.lock",
+      name: "Cargo.lock",
+    });
   });
 
   it("creates file/browser/terminal/review tabs", () => {

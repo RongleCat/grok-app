@@ -16,10 +16,16 @@ See `docs/llm-wiki/release.md`.
 - **Side tabs are per project**: Switching from project A to B hides A's open tabs (files, terminal, browser, …). Coming back to A restores that group. Expand stays a layout flag.
 - **Files sidebar opens the project tree**: Picking Files (empty picker / +) shows the tree. The toolbar toggle can still hide it.
 
+### Fixed
+- **Pathless「文件」tab no longer stays beside an opened file**: Opening a file from the tree replaces the picker Files chip. Picking Files again focuses the open file instead of minting a second dead tab (which did nothing and could stall the pane).
+
 **中文 · 变更**
 - **侧栏文件 tab 显示文件名**：未激活的文件 tab 也保留截断文件名（同名文件补短路径）。终端 / 浏览器 / Plan 仍只显示 icon，不会整条做成 IDE 标签栏。
 - **侧栏标签按项目隔离**：从项目 A 切到 B 时，A 打开的文件/终端/浏览器等 tab 收起；回到 A 再恢复。侧栏展开仍是布局开关。
 - **打开文件侧栏默认展开文件树**：空态 / + 选择「文件」时直接显示树，仍可用工具栏按钮收起。
+
+**中文 · 修复**
+- **空的「文件」tab 不再和已打开文件并排**：从树里打开文件会替换选择器里的「文件」占位。再点「文件」只会聚焦已打开的文件，不会再多出一个点了没反应、还会卡住侧栏的死标签。
 
 ## [0.2.20] - 2026-08-17
 

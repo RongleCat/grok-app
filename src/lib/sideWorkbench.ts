@@ -173,6 +173,18 @@ export function isSideTabNameKey(name: string): boolean {
   return n.startsWith("side.tab.") || n.startsWith("side.picker.");
 }
 
+/** Pathless picker「文件」chip — not a real preview target. */
+export function isPlaceholderFileTab(tab: SideTab): boolean {
+  return tab.kind === "file" && !(tab.path || "").trim();
+}
+
+function dropPlaceholderFileTabs(
+  tabs: SideTab[],
+  keepId?: string,
+): SideTab[] {
+  return tabs.filter((t) => !isPlaceholderFileTab(t) || t.id === keepId);
+}
+
 function defaultName(kind: SideTabKind, meta?: CreateSideTabMeta): string {
   if (meta?.name?.trim()) return meta.name.trim();
   if (kind === "file" && meta?.path) {
@@ -251,6 +263,11 @@ export function openSideTab(
         t.kind === "file" &&
         (t.path || "").trim().replace(/\\/g, "/") === p,
     );
+    // Consume the empty「文件」workspace chip instead of leaving it beside
+    // the real file (clicking that chip has no path and feels frozen).
+    if (existingIdx < 0) {
+      existingIdx = tabs.findIndex(isPlaceholderFileTab);
+    }
   }
   if (existingIdx < 0 && kind === "browser" && meta?.url) {
     const u = meta.url.trim().replace(/\/+$/, "");
@@ -263,10 +280,13 @@ export function openSideTab(
   if (existingIdx < 0 && (kind === "review" || kind === "plan" || kind === "skills")) {
     existingIdx = tabs.findIndex((t) => t.kind === kind);
   }
-  // Files workspace: single shared tree container (not one tab per file).
-  // File path opens are handled inside ResourceViewer multi-preview tabs.
-  if (existingIdx < 0 && kind === "file" && !meta?.path) {
-    existingIdx = tabs.findIndex((t) => t.kind === "file" && !t.path);
+  // Picker「文件」: reuse a placeholder, or focus an already-open file tab.
+  // Never mint a second pathless chip next to Cargo.lock / etc.
+  if (existingIdx < 0 && kind === "file" && !meta?.path?.trim()) {
+    existingIdx = tabs.findIndex(isPlaceholderFileTab);
+    if (existingIdx < 0) {
+      existingIdx = tabs.findIndex((t) => t.kind === "file");
+    }
   }
 
   if (existingIdx >= 0) {
@@ -283,7 +303,11 @@ export function openSideTab(
           }
         : hit;
     const rest = tabs.filter((_, i) => i !== existingIdx);
-    const nextTabs = [refreshed, ...rest];
+    const keepPlaceholder = isPlaceholderFileTab(refreshed);
+    const nextTabs = dropPlaceholderFileTabs(
+      [refreshed, ...rest],
+      keepPlaceholder ? refreshed.id : undefined,
+    );
     return {
       ...state,
       tabs: nextTabs,
@@ -294,7 +318,11 @@ export function openSideTab(
   }
 
   const tab = buildTab(kind, meta);
-  let next = [tab, ...tabs];
+  const keepNewPlaceholder = isPlaceholderFileTab(tab);
+  let next = dropPlaceholderFileTabs(
+    [tab, ...tabs],
+    keepNewPlaceholder ? tab.id : undefined,
+  );
   const droppedIds: string[] = [];
   while (next.length > cap) {
     const drop = next[next.length - 1]!;
