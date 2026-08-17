@@ -29,7 +29,6 @@ import {
   isMediaEndpointReady,
   isViewableSrc,
   resolveImageSrc,
-  resolveImageSrcSync,
 } from "@/lib/imageSrc";
 import {
   mediaLoadErrorLabelMap,
@@ -45,9 +44,9 @@ import {
 } from "@/lib/imageAspectCache";
 import {
   canUseImageThumb,
+  chatCardFirstPaintSrc,
   invalidateChatImageThumb,
   nextChatCardDisplaySrc,
-  peekChatImageThumb,
   resolveChatImageThumb,
 } from "@/lib/imageThumbClient";
 import { isFusedQueryKeyPath } from "@/lib/pathNormalize";
@@ -129,15 +128,11 @@ function initialResolvedSrc(
   path?: string,
   layout?: ImageUiLayout,
 ): string | null {
-  // Remount after journal rehydrate must first-paint the cached thumb.
-  // Painting https then swapping to loopback aborts the in-flight <img>
-  // load; WKWebView onError then locked the card as broken_blob.
-  if (layout !== "pane") {
-    const peek = peekChatImageThumb(src, path)?.displaySrc;
-    if (peek) return peek;
-  }
-  if (isViewableSrc(src)) return src;
-  return resolveImageSrcSync(src);
+  return chatCardFirstPaintSrc(
+    src,
+    path,
+    layout === "pane" ? "pane" : "card",
+  );
 }
 
 function readCachedAr(src: string, path?: string): number | null {

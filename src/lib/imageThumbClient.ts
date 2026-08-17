@@ -12,6 +12,7 @@ import {
   localPathToMediaHttpUrl,
   onMediaEndpointChange,
   resolveImageSrc,
+  resolveImageSrcSync,
 } from "@/lib/imageSrc";
 import { isFusedQueryKeyPath } from "@/lib/pathNormalize";
 import { setImageAspect } from "@/lib/imageAspectCache";
@@ -88,6 +89,30 @@ export function nextChatCardDisplaySrc(
   if (next) return next;
   const keep = (current || "").trim();
   return keep || null;
+}
+
+/**
+ * Sync first-paint src for a chat card (or resource pane).
+ *
+ * Card + empty thumb cache: return null so `<img>` does not load the full
+ * original (WKWebView decode of a multi-MB Imagine PNG freezes the UI).
+ * Remounts first-paint the in-memory thumb. Pane / non-thumb sources still
+ * resolve the original (lightbox and resource preview stay full-size).
+ */
+export function chatCardFirstPaintSrc(
+  src: string,
+  path?: string,
+  layout: "card" | "pane" = "card",
+): string | null {
+  if (layout === "pane") {
+    if (isViewableSrc(src)) return src;
+    return resolveImageSrcSync(path && isLocalAbs(path) ? path : src);
+  }
+  const peek = peekChatImageThumb(src, path)?.displaySrc?.trim();
+  if (peek) return peek;
+  if (canUseImageThumb(src, path)) return null;
+  if (isViewableSrc(src)) return src;
+  return resolveImageSrcSync(path && isLocalAbs(path) ? path : src);
 }
 
 /**

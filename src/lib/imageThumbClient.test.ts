@@ -3,12 +3,14 @@ import * as api from "@/lib/api";
 import {
   clearChatImageThumbClientCache,
   canUseImageThumb,
+  chatCardFirstPaintSrc,
   getThumbCacheEndpoint,
   nextChatCardDisplaySrc,
   peekChatImageThumb,
   resolveChatImageThumb,
 } from "./imageThumbClient";
 import {
+  localPathToMediaHttpUrl,
   resetMediaEndpointForTests,
   setMediaEndpoint,
 } from "./imageSrc";
@@ -94,6 +96,64 @@ describe("peekChatImageThumb / nextChatCardDisplaySrc", () => {
         fromCache: true,
       }),
     ).toBe("http://127.0.0.1:9/v1/media?t=tok&p=%2Ftmp%2Ft.jpg");
+  });
+});
+
+describe("chatCardFirstPaintSrc — empty cache vs remount (#675)", () => {
+  it("does not first-paint the original media URL when the thumb cache is empty", () => {
+    setMediaEndpoint({ baseUrl: "http://127.0.0.1:9", token: "tok" });
+    const local = "/Users/me/imagine/1.png";
+    const originalUrl = localPathToMediaHttpUrl(local);
+    expect(originalUrl).toContain("/v1/media");
+    expect(originalUrl).toContain(encodeURIComponent(local));
+    expect(peekChatImageThumb(local, local)).toBeNull();
+
+    const first = chatCardFirstPaintSrc(local, local, "card");
+    expect(first).toBeNull();
+    expect(first).not.toBe(originalUrl);
+    expect(first).not.toBe(local);
+  });
+
+  it("does not first-paint a remote https original on an empty card cache", () => {
+    const remote = "https://cdn.example/chart.png";
+    expect(peekChatImageThumb(remote)).toBeNull();
+    expect(chatCardFirstPaintSrc(remote, undefined, "card")).toBeNull();
+  });
+
+  it("first-paints the cached thumb on remount", async () => {
+    setMediaEndpoint({ baseUrl: "http://127.0.0.1:9", token: "tok" });
+    vi.spyOn(api, "isDesktopHost").mockReturnValue(true);
+    vi.spyOn(api, "mediaImageThumb").mockResolvedValue({
+      thumbPath: "/tmp/cache/image-thumbs/x.jpg",
+      fromCache: true,
+      width: 1024,
+      height: 768,
+      isOriginal: false,
+    });
+    const local = "/Users/me/imagine/2.png";
+    expect(chatCardFirstPaintSrc(local, local, "card")).toBeNull();
+
+    const resolved = await resolveChatImageThumb(local, local);
+    expect(resolved?.displaySrc).toContain("127.0.0.1:9");
+    expect(resolved?.displaySrc).toContain(encodeURIComponent("/tmp/cache/image-thumbs/x.jpg"));
+
+    const remount = chatCardFirstPaintSrc(local, local, "card");
+    expect(remount).toBe(resolved?.displaySrc);
+    expect(remount).not.toBe(localPathToMediaHttpUrl(local));
+  });
+
+  it("pane layout still resolves the original on first paint", () => {
+    setMediaEndpoint({ baseUrl: "http://127.0.0.1:9", token: "tok" });
+    const local = "/Users/me/imagine/3.png";
+    expect(chatCardFirstPaintSrc(local, local, "pane")).toBe(
+      localPathToMediaHttpUrl(local),
+    );
+  });
+
+  it("keeps data/blob src when the card cannot use a host thumb", () => {
+    const data = "data:image/png;base64,xx";
+    expect(canUseImageThumb(data)).toBe(false);
+    expect(chatCardFirstPaintSrc(data, undefined, "card")).toBe(data);
   });
 });
 

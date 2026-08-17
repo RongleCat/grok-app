@@ -146,6 +146,52 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+/// Sidecar next to `{hash}.jpg` so a cache hit can return **source** width/height
+/// without decoding the original (or even the thumb).
+fn dims_sidecar_path(thumb: &Path) -> PathBuf {
+    thumb.with_extension("dims")
+}
+
+fn write_source_dims_sidecar(thumb: &Path, width: u32, height: u32) {
+    if width == 0 || height == 0 {
+        return;
+    }
+    let _ = fs::write(dims_sidecar_path(thumb), format!("{width} {height}\n"));
+}
+
+fn read_source_dims_sidecar(thumb: &Path) -> Option<(u32, u32)> {
+    let raw = fs::read_to_string(dims_sidecar_path(thumb)).ok()?;
+    let mut parts = raw.split_whitespace();
+    let width = parts.next()?.parse::<u32>().ok()?;
+    let height = parts.next()?.parse::<u32>().ok()?;
+    if width > 0 && height > 0 {
+        Some((width, height))
+    } else {
+        None
+    }
+}
+
+/// Header-only dimensions from a cached JPEG thumb (old cache without sidecar).
+/// Never opens the original file.
+fn thumb_header_dims(thumb: &Path) -> Option<(u32, u32)> {
+    let reader = image::ImageReader::open(thumb)
+        .ok()?
+        .with_guessed_format()
+        .ok()?;
+    let (w, h) = reader.into_dimensions().ok()?;
+    if w > 0 && h > 0 {
+        Some((w, h))
+    } else {
+        None
+    }
+}
+
+fn cached_thumb_dims(thumb: &Path) -> (u32, u32) {
+    read_source_dims_sidecar(thumb)
+        .or_else(|| thumb_header_dims(thumb))
+        .unwrap_or((0, 0))
+}
+
 fn decode_image_bytes(bytes: &[u8]) -> Result<DynamicImage, String> {
     image::load_from_memory(bytes).map_err(|e| format!("decode image: {e}"))
 }
@@ -164,6 +210,7 @@ fn build_thumb_from_bytes(bytes: &[u8], out: &Path) -> Result<(u32, u32, bool), 
     };
     let jpeg = encode_jpeg(&thumb_img)?;
     write_atomic(out, &jpeg)?;
+    write_source_dims_sidecar(out, width, height);
     Ok((width, height, false))
 }
 
@@ -200,12 +247,9 @@ pub fn ensure_local_image_thumb(path: &str) -> Result<ImageThumbResult, String> 
     let key = local_cache_key(&canonical, mtime, size);
     let out = thumb_path_for_key(&key);
     if out.is_file() && fs::metadata(&out).map(|m| m.len()).unwrap_or(0) >= 32 {
-        // Dims from original (prefer re-read header only once).
-        let (w, h) = fs::read(&canonical)
-            .ok()
-            .and_then(|b| decode_image_bytes(&b).ok())
-            .map(|im| (im.width(), im.height()))
-            .unwrap_or((0, 0));
+        // Source dims from sidecar (or thumb JPEG header). Never decode the
+        // original — that is what froze chat on image-return remounts (#675).
+        let (w, h) = cached_thumb_dims(&out);
         path_scope::grant_path(&out);
         return Ok(ImageThumbResult {
             thumb_path: out.to_string_lossy().to_string(),
@@ -246,12 +290,7 @@ pub fn ensure_remote_image_thumb(url: &str) -> Result<ImageThumbResult, String> 
     let out = thumb_path_for_key(&key);
     if out.is_file() && fs::metadata(&out).map(|m| m.len()).unwrap_or(0) >= 32 {
         path_scope::grant_path(&out);
-        // Dims unknown without decode; decode cheap from small thumb.
-        let (w, h) = fs::read(&out)
-            .ok()
-            .and_then(|b| decode_image_bytes(&b).ok())
-            .map(|im| (im.width(), im.height()))
-            .unwrap_or((0, 0));
+        let (w, h) = cached_thumb_dims(&out);
         return Ok(ImageThumbResult {
             thumb_path: out.to_string_lossy().to_string(),
             from_cache: true,
@@ -343,5 +382,93 @@ mod tests {
         let k1 = local_cache_key(&p, 1, 100);
         let k2 = local_cache_key(&p, 2, 100);
         assert_ne!(k1, k2);
+    }
+
+    fn write_noisy_png_larger_than_skip(path: &Path) -> (u32, u32) {
+        let (w, h) = (640u32, 480u32);
+        let mut img = image::RgbImage::new(w, h);
+        for (x, y, p) in img.enumerate_pixels_mut() {
+            *p = image::Rgb([
+                (x.wrapping_mul(37) % 256) as u8,
+                (y.wrapping_mul(53) % 256) as u8,
+                ((x + y).wrapping_mul(17) % 256) as u8,
+            ]);
+        }
+        DynamicImage::ImageRgb8(img)
+            .save_with_format(path, ImageFormat::Png)
+            .unwrap();
+        let size = fs::metadata(path).unwrap().len();
+        assert!(
+            size > SKIP_IF_SMALLER_THAN,
+            "fixture too small to leave the skip-reencode path: {size}"
+        );
+        (w, h)
+    }
+
+    #[test]
+    fn cache_hit_returns_source_dims_without_decoding_original() {
+        let _scope = crate::path_scope::TEST_LOCK.blocking_lock();
+        let _home = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let dir = std::env::temp_dir().join(format!(
+            "grok-img-thumb-hit-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let app = dir.join("app");
+        fs::create_dir_all(&app).unwrap();
+        let prev_home = std::env::var("GROK_APP_HOME").ok();
+        std::env::set_var("GROK_APP_HOME", &app);
+        let src = dir.join("big.png");
+        let (src_w, src_h) = write_noisy_png_larger_than_skip(&src);
+        let src_str = src.to_string_lossy().to_string();
+
+        let miss = ensure_local_image_thumb(&src_str).expect("cache miss");
+        assert!(!miss.is_original);
+        assert_eq!((miss.width, miss.height), (src_w, src_h));
+        assert!(Path::new(&miss.thumb_path).is_file());
+        assert!(dims_sidecar_path(Path::new(&miss.thumb_path)).is_file());
+
+        let meta = fs::metadata(&src).unwrap();
+        let size = meta.len();
+        let mtime = meta.modified().unwrap();
+        // Same size + mtime so the cache key still hits, but the bytes are
+        // no longer a valid image. A cache hit that re-decodes the original
+        // would lose dimensions (or error).
+        fs::write(&src, vec![0u8; size as usize]).unwrap();
+        fs::File::open(&src).unwrap().set_modified(mtime).unwrap();
+
+        let hit = ensure_local_image_thumb(&src_str).expect("cache hit");
+        assert!(hit.from_cache);
+        assert_eq!(hit.thumb_path, miss.thumb_path);
+        assert_eq!((hit.width, hit.height), (src_w, src_h));
+        assert!(hit.width > 0 && hit.height > 0);
+
+        match prev_home {
+            Some(v) => std::env::set_var("GROK_APP_HOME", v),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn cached_thumb_dims_fall_back_to_jpeg_header() {
+        let dir = std::env::temp_dir().join(format!("grok-img-thumb-hdr-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let out = dir.join("only.jpg");
+        let img =
+            DynamicImage::ImageRgb8(image::RgbImage::from_pixel(32, 16, image::Rgb([1, 2, 3])));
+        let jpeg = encode_jpeg(&img).unwrap();
+        write_atomic(&out, &jpeg).unwrap();
+        assert!(read_source_dims_sidecar(&out).is_none());
+        assert_eq!(cached_thumb_dims(&out), (32, 16));
+        let _ = fs::remove_dir_all(&dir);
     }
 }
