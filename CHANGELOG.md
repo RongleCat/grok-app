@@ -19,7 +19,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 - **Pathless「文件」tab no longer stays beside an opened file**: Opening a file from the tree replaces the picker Files chip. Picking Files again focuses the open file instead of minting a second dead tab (which did nothing and could stall the pane).
-- **Code editor line numbers stay aligned**: Content-only top padding shifted the gutter so line 1 sat on the second source line. Content and gutters now share the same padding.
+- **Code editor line numbers stay aligned**: Extra gutter padding (on top of CodeMirror’s content paddingTop) sat the numbers a few pixels below the text. Gutters are unpadded; lines share a 20px line-height.
 
 **中文 · 变更**
 - **侧栏文件 tab 显示文件名**：未激活的文件 tab 也保留截断文件名（同名文件补短路径）。终端 / 浏览器 / Plan 仍只显示 icon，不会整条做成 IDE 标签栏。
@@ -29,7 +29,7 @@ See `docs/llm-wiki/release.md`.
 
 **中文 · 修复**
 - **空的「文件」tab 不再和已打开文件并排**：从树里打开文件会替换选择器里的「文件」占位。再点「文件」只会聚焦已打开的文件，不会再多出一个点了没反应、还会卡住侧栏的死标签。
-- **代码编辑器行号对齐**：只给正文加顶边距会让行号整体下移，第 1 行对到第 2 行。正文和行号栏现在用同一套 padding。
+- **代码编辑器行号对齐**：行号栏又叠了一层顶边距，数字会比文字低几像素。行号不再加垂直 padding，行高统一 20px。
 
 ## [0.2.20] - 2026-08-17
 

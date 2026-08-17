@@ -94,33 +94,33 @@ function chrome(mode: "dark" | "light") {
       },
       ".cm-scroller": {
         fontFamily: "inherit",
-        lineHeight: "1.55",
         overflow: "auto",
       },
-      // Same vertical padding on content AND gutters. Padding only on
-      // `.cm-content` shifts the gutter map and leaves line 1 on the
-      // second source line.
+      // Pad content only. CM offsets the gutter map from content
+      // paddingTop — extra gutter padding drops the numbers.
       ".cm-content": {
         caretColor: dark ? "#528bff" : "#4078f2",
-        padding: "8px 0",
+        padding: "4px 0",
         boxSizing: "content-box",
-        lineHeight: "1.55",
+        fontSize: "13px",
+        lineHeight: "20px",
       },
       ".cm-line": {
         padding: "0 16px 0 12px",
-        lineHeight: "1.55",
+        lineHeight: "20px",
       },
       ".cm-gutters": {
         backgroundColor: dark ? "#21252b" : "#f0f0f0",
         color: dark ? "#5c6370" : "#9d9d9f",
         borderRight: `1px solid ${dark ? "#181a1f" : "#e5e5e6"}`,
         minWidth: "2.75rem",
-        padding: "8px 0",
+        padding: "0",
         boxSizing: "content-box",
+        lineHeight: "20px",
       },
-      ".cm-lineNumbers .cm-gutterElement": {
-        padding: "0 10px 0 8px",
-        lineHeight: "1.55",
+      ".cm-gutterElement": {
+        padding: "0 8px",
+        lineHeight: "20px",
       },
       ".cm-activeLine": {
         backgroundColor: dark

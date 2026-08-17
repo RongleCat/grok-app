@@ -13,8 +13,6 @@ import {
 import {
   bracketMatching,
   defaultHighlightStyle,
-  foldGutter,
-  foldKeymap,
   indentUnit,
   syntaxHighlighting,
 } from "@codemirror/language";
@@ -80,7 +78,6 @@ export function CodeFileEditor({
         lineNumbers(),
         highlightActiveLineGutter(),
         highlightActiveLine(),
-        foldGutter(),
         drawSelection(),
         bracketMatching(),
         highlightSelectionMatches(),
@@ -91,7 +88,6 @@ export function CodeFileEditor({
           { key: "Mod-s", run: saveCmd, preventDefault: true },
           ...searchKeymap,
           ...historyKeymap,
-          ...foldKeymap,
           indentWithTab,
           ...defaultKeymap,
         ]),

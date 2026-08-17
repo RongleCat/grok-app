@@ -491,10 +491,18 @@
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
 }
 
-/* Keep CM's paddingTop math on content-box so gutters stay on the same line. */
-.rp-code-editor .cm-content,
+/* CM positions gutters from content paddingTop — do not pad gutters again. */
+.rp-code-editor .cm-content {
+  box-sizing: content-box;
+}
 .rp-code-editor .cm-gutters {
   box-sizing: content-box;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.rp-code-editor .cm-line,
+.rp-code-editor .cm-gutterElement {
+  line-height: 20px;
 }
 
 .rp-editor__textarea {
