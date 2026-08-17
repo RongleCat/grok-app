@@ -97,19 +97,30 @@ function chrome(mode: "dark" | "light") {
         lineHeight: "1.55",
         overflow: "auto",
       },
+      // Same vertical padding on content AND gutters. Padding only on
+      // `.cm-content` shifts the gutter map and leaves line 1 on the
+      // second source line.
       ".cm-content": {
         caretColor: dark ? "#528bff" : "#4078f2",
-        padding: "14px 0 20px",
+        padding: "8px 0",
+        boxSizing: "content-box",
+        lineHeight: "1.55",
+      },
+      ".cm-line": {
+        padding: "0 16px 0 12px",
+        lineHeight: "1.55",
       },
       ".cm-gutters": {
         backgroundColor: dark ? "#21252b" : "#f0f0f0",
         color: dark ? "#5c6370" : "#9d9d9f",
         borderRight: `1px solid ${dark ? "#181a1f" : "#e5e5e6"}`,
         minWidth: "2.75rem",
+        padding: "8px 0",
+        boxSizing: "content-box",
       },
       ".cm-lineNumbers .cm-gutterElement": {
         padding: "0 10px 0 8px",
-        minHeight: "1.55em",
+        lineHeight: "1.55",
       },
       ".cm-activeLine": {
         backgroundColor: dark
