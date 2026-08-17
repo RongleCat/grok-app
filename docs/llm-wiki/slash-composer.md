@@ -21,7 +21,7 @@ Open when the caret is immediately after a `/` that is:
 1. at the start of the draft, or
 2. preceded by whitespace.
 
-Filter by the query after `/` (name + description fuzzy contains).  
+Filter by the query after `/`: exact name, prefix (including a trailing hyphen), kebab initials (`/rc` → `review-commit`), then name substring. Description is fallback only when no name hits.  
 ↑↓ highlight, Enter apply, Esc close. Hover and keyboard share the same `is-active` style.  
 While the palette is open, Enter does **not** send the message.
 

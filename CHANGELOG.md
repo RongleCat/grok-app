@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- **Slash palette `/rc` and `/review-` select `review-commit` (#644)**: Treat `-` as a word boundary so kebab initials match, rank name prefix above description, and keep description as fallback only when no name hits. Peer skills that mention `review-commit` in YAML no longer steal the default highlight.
+
+**中文 · 修复**
+- **斜杠菜单 `/rc`、`/review-` 会选中 `review-commit`（#644）**：把 `-` 当词界以匹配 kebab 首字母，名字前缀优先于描述，且只有名字全无命中时才用描述兜底。YAML 里互相点名 `review-commit` 的 skill 不再抢走默认高亮。
+
 ## [0.2.20] - 2026-08-17
 
 > **Highlight:** Grok Build-compatible custom relay; local session list/continue API; official-site installer aliases; opening a chat shows a real loading state instead of a fake empty session.

@@ -19,7 +19,7 @@ Run after implementation. Every item is pass/fail.
 |---|--------|-----|
 | S1 | `skills_list` / inspect returns invocable skills | Host command or UI list non-empty when CLI present |
 | S2 | Plus menu Skills section lists real skills (or empty state) | Open + menu |
-| S3 | Skills filter by name/description | Type `/aih` → aihot-like skills |
+| S3 | Skills filter by name/description | Type `/aih` → aihot-like skills; `/rc` and `/review-` highlight `review-commit` |
 
 ## C. Contenteditable + chips
 

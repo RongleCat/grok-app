@@ -353,11 +353,73 @@ export function filterSlashItemsByKind(
   return items.filter((item) => item.kind === kind);
 }
 
+/** Lower is better. Query change resets highlight to index 0, so rank first. */
+const SLASH_RANK_EXACT = 0;
+const SLASH_RANK_PREFIX = 1;
+const SLASH_RANK_INITIALS = 2;
+const SLASH_RANK_SUBSTRING = 3;
+const SLASH_RANK_DESCRIPTION = 4;
+
+function slashNameFields(
+  item: SlashItem,
+  resolved: SlashSearchText | null | undefined,
+): string[] {
+  return [
+    item.name,
+    item.displayTitle,
+    // strip "skill:" prefix from id for matching
+    item.id?.replace(/^skill:/, ""),
+    resolved?.title,
+    ...(item.aliases ?? []),
+  ]
+    .filter((field): field is string => Boolean(field))
+    .map((field) => field.toLowerCase());
+}
+
+function kebabInitials(value: string): string {
+  return value
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0))
+    .join("");
+}
+
+function rankSlashName(value: string, query: string): number | null {
+  if (value === query) return SLASH_RANK_EXACT;
+  if (value.startsWith(query)) return SLASH_RANK_PREFIX;
+  const compactQuery = query.replace(/[-_\s]+/g, "");
+  const initials = kebabInitials(value);
+  // Multi-segment initials only (`rc` → review-commit). Single letters
+  // already match via prefix on the first word.
+  if (
+    compactQuery.length >= 2 &&
+    initials.length >= 2 &&
+    initials.startsWith(compactQuery)
+  ) {
+    return SLASH_RANK_INITIALS;
+  }
+  if (value.includes(query)) return SLASH_RANK_SUBSTRING;
+  return null;
+}
+
+function bestSlashNameRank(fields: readonly string[], query: string): number | null {
+  let best: number | null = null;
+  for (const field of fields) {
+    const rank = rankSlashName(field, query);
+    if (rank == null) continue;
+    if (best == null || rank < best) best = rank;
+  }
+  return best;
+}
+
 /**
- * Filter items by query (case-insensitive substring) and optional kind chip.
+ * Filter items by query and optional kind chip, then rank so the default
+ * highlight (activeIndex 0) is the intended command.
  *
- * Prefer name/title hits; descriptions only when query is longer (4+ chars
- * for ASCII, 2+ for CJK) so short tokens don't light up half the catalog.
+ * Rank: exact name > prefix (including a trailing hyphen) > kebab initials
+ * (`rc` → `review-commit`) > name substring. Description is fallback only
+ * when no item matches a name field, and still requires 4+ ASCII / 2+ CJK
+ * characters so short tokens don't light up half the catalog.
  * Empty query returns kind-filtered items (or all when kind is `all`).
  *
  * Second arg accepts a plain query string (backward compatible) or
@@ -376,25 +438,32 @@ export function filterSlashItems(
   const byKind = filterSlashItemsByKind(items, kind);
   const q = (opts.query ?? "").trim().toLowerCase();
   if (!q) return byKind;
-  return byKind.filter((item) => {
+
+  const asciiOnly = /^[\x00-\x7f]+$/.test(q);
+  const allowDescription = q.length >= (asciiOnly ? 4 : 2);
+  const scored: { item: SlashItem; rank: number; index: number }[] = [];
+
+  for (let index = 0; index < byKind.length; index++) {
+    const item = byKind[index]!;
     const resolved = resolveSearchText?.(item);
-    // Name / title only for short queries (strict).
-    const nameFields = [
-      item.name,
-      item.displayTitle,
-      // strip "skill:" prefix from id for matching
-      item.id?.replace(/^skill:/, ""),
-      resolved?.title,
-      ...(item.aliases ?? []),
-    ];
-    if (nameFields.some((f) => f && f.toLowerCase().includes(q))) return true;
-    // Description: ASCII needs 4+ chars (avoid "the"/"and" style noise);
-    // CJK tokens are already dense at 2 characters.
-    const asciiOnly = /^[\x00-\x7f]+$/.test(q);
-    if (q.length < (asciiOnly ? 4 : 2)) return false;
+    const nameRank = bestSlashNameRank(slashNameFields(item, resolved), q);
+    if (nameRank != null) {
+      scored.push({ item, rank: nameRank, index });
+      continue;
+    }
+    if (!allowDescription) continue;
     const descFields = [item.displayDescription, resolved?.description];
-    return descFields.some((f) => f && f.toLowerCase().includes(q));
-  });
+    if (descFields.some((field) => field && field.toLowerCase().includes(q))) {
+      scored.push({ item, rank: SLASH_RANK_DESCRIPTION, index });
+    }
+  }
+
+  const hasNameHit = scored.some((row) => row.rank < SLASH_RANK_DESCRIPTION);
+  const visible = hasNameHit
+    ? scored.filter((row) => row.rank < SLASH_RANK_DESCRIPTION)
+    : scored;
+  visible.sort((a, b) => a.rank - b.rank || a.index - b.index);
+  return visible.map((row) => row.item);
 }
 
 /** Full catalog split into built-in commands and skill items. */

@@ -305,6 +305,88 @@ describe("filterSlashItems", () => {
   });
 });
 
+describe("filterSlashItems ranking", () => {
+  const peerDesc =
+    "call review-commit after execute-spec, thread-closeout, or thread-scope";
+
+  function skill(name: string, description: string): SlashItem {
+    return {
+      id: `skill:${name}`,
+      kind: "skill",
+      name,
+      displayTitle: name,
+      displayDescription: description,
+    };
+  }
+
+  const items: SlashItem[] = [
+    skill("commit", peerDesc),
+    skill("execute-spec", peerDesc),
+    skill("thread-closeout", peerDesc),
+    skill("thread-scope", peerDesc),
+    skill("review-commit", "Review changes, fix, verify, and commit"),
+    { id: "goal", kind: "mode", name: "goal", mode: "goal" },
+    { id: "goal-clear", kind: "action", name: "goal-clear", action: "goal-clear" },
+    {
+      id: "skill:aihot",
+      kind: "skill",
+      name: "aihot",
+      displayTitle: "aihot",
+      displayDescription: "AI hot reload helper",
+    },
+  ];
+
+  it("selects review-commit from kebab initials (/rc)", () => {
+    expect(filterSlashItems(items, "rc").map((i) => i.name)).toEqual([
+      "review-commit",
+    ]);
+  });
+
+  it("selects review-commit from a hyphenated name prefix (/review-)", () => {
+    expect(filterSlashItems(items, "review-").map((i) => i.name)).toEqual([
+      "review-commit",
+    ]);
+  });
+
+  it("does not let peer descriptions steal the highlight from review-commit", () => {
+    expect(filterSlashItems(items, "review-co").map((i) => i.name)).toEqual([
+      "review-commit",
+    ]);
+  });
+
+  it("ranks exact name ahead of a longer substring (/commit)", () => {
+    expect(filterSlashItems(items, "commit").map((i) => i.name)[0]).toBe(
+      "commit",
+    );
+  });
+
+  it("keeps existing name-substring matches", () => {
+    expect(filterSlashItems(items, "go").map((i) => i.name)).toEqual([
+      "goal",
+      "goal-clear",
+    ]);
+    expect(filterSlashItems(items, "aih").map((i) => i.name)).toEqual([
+      "aihot",
+    ]);
+  });
+
+  it("puts review-commit first in the flattened palette", () => {
+    const cat = buildSlashCatalog([
+      { name: "commit", description: peerDesc },
+      { name: "execute-spec", description: peerDesc },
+      { name: "thread-closeout", description: peerDesc },
+      { name: "thread-scope", description: peerDesc },
+      { name: "review-commit", description: "Review changes and commit" },
+    ]);
+    expect(flattenFilteredCatalog(cat, "rc").flat[0]!.name).toBe(
+      "review-commit",
+    );
+    expect(flattenFilteredCatalog(cat, "review-").flat[0]!.name).toBe(
+      "review-commit",
+    );
+  });
+});
+
 describe("buildSlashCatalog", () => {
   it("splits commands and skills", () => {
     const skills: SkillInfo[] = [
