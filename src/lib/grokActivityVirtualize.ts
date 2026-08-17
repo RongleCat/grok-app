@@ -35,9 +35,12 @@ export function shouldVirtualizeGrokActivitySteps(stepCount: number): boolean {
 export function shouldVirtualizeActivityWithExpand(
   stepCount: number,
   expandedKeyCount: number,
+  liveBodyCount = 0,
 ): boolean {
   return (
-    shouldVirtualizeGrokActivitySteps(stepCount) && expandedKeyCount === 0
+    shouldVirtualizeGrokActivitySteps(stepCount) &&
+    expandedKeyCount === 0 &&
+    liveBodyCount === 0
   );
 }
 

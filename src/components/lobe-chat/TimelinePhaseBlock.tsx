@@ -250,6 +250,7 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
   expanded,
   onUserToggle,
   onPolicySync,
+  lockCollapsed,
   findQuery,
   findActiveOccurrence,
   messageContent,
@@ -263,6 +264,11 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
   expanded: boolean;
   /** User click: mark user-toggled + set open (parent). */
   onUserToggle?: (key: string, open: boolean) => void;
+  /**
+   * Fixed-height VirtualList rows cannot host expand bodies. Hide detail
+   * while windowed so stdout / thought text cannot paint over the next row.
+   */
+  lockCollapsed?: boolean;
   /**
    * Running / auto-collapse policy sync (parent). Applies even when currently
    * expanded so running→finished collapses under default autoCollapse.
@@ -351,7 +357,7 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
     });
   }, [running, autoCollapse, step.key, hasBody, onPolicySync]);
 
-  const open = hasBody && expanded;
+  const open = hasBody && expanded && !lockCollapsed;
   const showBody = open;
 
   if (step.type === "speech") {
@@ -520,11 +526,17 @@ export function GrokActivitySteps({
     },
     [],
   );
+  const liveBodyCount = steps.reduce((n, s) => {
+    if (s.type === "speech") return n;
+    if (s.type === "thought") return n + (s.streaming && s.text.trim() ? 1 : 0);
+    return n + ("running" in s && s.running ? 1 : 0);
+  }, 0);
   const virtualize =
     !steps.some((s) => s.type === "speech") &&
     shouldVirtualizeActivityWithExpand(
       total,
       expandState.expandedKeys.size,
+      liveBodyCount,
     );
   const lastKey = total > 0 ? steps[total - 1]!.key : null;
 
@@ -539,6 +551,7 @@ export function GrokActivitySteps({
         expanded={expandState.expandedKeys.has(step.key)}
         onUserToggle={onUserToggle}
         onPolicySync={onPolicySync}
+        lockCollapsed={virtualize}
         findQuery={findQuery}
         findActiveOccurrence={findActiveOccurrence}
         messageContent={messageContent}
@@ -552,6 +565,7 @@ export function GrokActivitySteps({
       expandState.expandedKeys,
       onUserToggle,
       onPolicySync,
+      virtualize,
       findQuery,
       findActiveOccurrence,
       messageContent,

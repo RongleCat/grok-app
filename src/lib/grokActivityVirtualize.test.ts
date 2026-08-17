@@ -50,6 +50,12 @@ describe("grokActivityVirtualize", () => {
     expect(GROK_ACTIVITY_VIRTUAL_VISIBLE_ROWS).toBe(12);
   });
 
+  it("live tool bodies leave VirtualList even before expand policy runs", () => {
+    const stepCount = GROK_ACTIVITY_VIRTUALIZE_THRESHOLD + 5;
+    expect(shouldVirtualizeActivityWithExpand(stepCount, 0, 0)).toBe(true);
+    expect(shouldVirtualizeActivityWithExpand(stepCount, 0, 1)).toBe(false);
+  });
+
   it("expand leaves VirtualList and user toggle survives remount", () => {
     const stepCount = GROK_ACTIVITY_VIRTUALIZE_THRESHOLD + 5;
     expect(shouldVirtualizeActivityWithExpand(stepCount, 0)).toBe(true);

@@ -3,6 +3,8 @@
  * Summaries only; live mid-stream still prefers Host title via toolStepDisplayTitle.
  */
 
+import { stripAnsi } from "./ansi";
+
 export type ToolDisplayKind =
   | "bash"
   | "read"
@@ -496,7 +498,9 @@ export function toolOutputBody(
   output: string | null | undefined,
   maxLines = TOOL_OUTPUT_BODY_MAX_LINES,
 ): string {
-  const raw = (output || "").replace(/\r\n/g, "\n").replace(/\s+$/, "");
+  const raw = stripAnsi(output || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\s+$/, "");
   if (!raw) return "";
   const lines = raw.split("\n");
   if (lines.length <= maxLines) return raw;

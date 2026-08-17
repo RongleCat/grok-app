@@ -66,6 +66,8 @@
 .grok-act__steps--virtual .grok-act__step {
   height: 30px;
   min-height: 30px;
+  max-height: 30px;
+  overflow: hidden;
   flex-shrink: 0;
   box-sizing: border-box;
 }

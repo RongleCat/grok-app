@@ -197,6 +197,12 @@ describe("toolDisplay", () => {
     expect(body.command).toBe(""); // not a bash tool
   });
 
+  it("toolOutputBody strips leftover ANSI from CLI dumps", () => {
+    expect(toolOutputBody("[39mBuild complete in [32m42169ms[39m")).toBe(
+      "Build complete in 42169ms",
+    );
+  });
+
   it("toolOutputBody elides the middle of very long output", () => {
     const long = Array.from({ length: 1000 }, (_, i) => `line ${i}`).join("\n");
     const body = toolOutputBody(long, 100);
