@@ -1106,6 +1106,7 @@ import {
   moveProjectInPinGroup,
 } from "@/lib/app/projectOrder";
 import { useSidebarProjectReorder } from "@/hooks/useSidebarProjectReorder";
+import { useSideWorkbenchProjectIsolation } from "@/hooks/useSideWorkbenchProjectIsolation";
 import type { ContextMenuState } from "@/lib/app/appDialogTypes";
 import { useSessionRuntime } from "@/hooks/useSessionRuntime";
 import { sessionTranscriptStore } from "@/lib/sessionTranscriptStore";
@@ -1637,6 +1638,11 @@ export function AppWorkbench() {
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
   const [activeProject, setActiveProject] = useState<Project | null>(null);
+  useSideWorkbenchProjectIsolation(
+    activeProject?.id,
+    sideWorkbench,
+    setSideWorkbench,
+  );
   /**
    * On-disk default cwd for unbound chats (`workspaces/general`).
    * Not a sidebar project — used by connect / resource pane when no folder bound.

@@ -373,6 +373,7 @@ export function SideWorkbench({
                 aria-hidden={active.kind !== "file"}
               >
                 <FilesWorkspace
+                  key={projectPath || "orphan"}
                   locale={locale}
                   projectPath={projectPath}
                   projectName={projectName}

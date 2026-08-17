@@ -13,9 +13,11 @@ See `docs/llm-wiki/release.md`.
 
 ### Changed
 - **Side file tabs show names**: Inactive file tabs keep a truncated filename (and a short parent path when two open files share a name). Terminal / browser / plan stay icon-only. Not a full IDE tab strip.
+- **Side tabs are per project**: Switching from project A to B hides A's open tabs (files, terminal, browser, …). Coming back to A restores that group. Expand stays a layout flag.
 
 **中文 · 变更**
 - **侧栏文件 tab 显示文件名**：未激活的文件 tab 也保留截断文件名（同名文件补短路径）。终端 / 浏览器 / Plan 仍只显示 icon，不会整条做成 IDE 标签栏。
+- **侧栏标签按项目隔离**：从项目 A 切到 B 时，A 打开的文件/终端/浏览器等 tab 收起；回到 A 再恢复。侧栏展开仍是布局开关。
 
 ## [0.2.20] - 2026-08-17
 
