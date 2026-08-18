@@ -12,6 +12,7 @@ import {
   isForeignLiveBusy,
   makeQueuedSend,
   migrateDraftQueue,
+  migrateDraftSendClaim,
   moveQueuedSend,
   planClearSendQueue,
   queuePreviewText,
@@ -35,6 +36,34 @@ describe("sendQueue", () => {
     expect(queueSessionKey(null)).toBe("__draft__");
     expect(queueSessionKey(undefined)).toBe("__draft__");
     expect(queueSessionKey("abc")).toBe("abc");
+  });
+
+  it("migrateDraftSendClaim moves the draft claim and epoch onto the real id", () => {
+    const claims = new Set([queueSessionKey(null)]);
+    const epochs = new Map<string, number>([[queueSessionKey(null), 7]]);
+    expect(migrateDraftSendClaim(claims, epochs, "s-new")).toBe(true);
+    expect(claims.has("__draft__")).toBe(false);
+    expect(claims.has("s-new")).toBe(true);
+    expect(epochs.get("s-new")).toBe(7);
+    expect(epochs.has("__draft__")).toBe(false);
+  });
+
+  it("migrateDraftSendClaim does not steal a claim the real id already holds", () => {
+    const claims = new Set([queueSessionKey(null), "s-new"]);
+    const epochs = new Map<string, number>([
+      [queueSessionKey(null), 1],
+      ["s-new", 2],
+    ]);
+    expect(migrateDraftSendClaim(claims, epochs, "s-new")).toBe(false);
+    expect(claims.has("__draft__")).toBe(true);
+    expect(epochs.get("s-new")).toBe(2);
+  });
+
+  it("migrateDraftSendClaim is a no-op without a draft claim", () => {
+    const claims = new Set(["s1"]);
+    const epochs = new Map<string, number>([["s1", 3]]);
+    expect(migrateDraftSendClaim(claims, epochs, "s-new")).toBe(false);
+    expect(claims.size).toBe(1);
   });
 
   it("shouldEnqueueSend covers busy states (same session only)", () => {

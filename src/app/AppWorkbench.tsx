@@ -718,6 +718,7 @@ import {
   type PromptHistoryScope
 } from "@/components/PromptHistoryPanel";
 import {
+  migrateDraftSendClaim,
   planClearSendQueue,
   queueSessionKey,
   queuePreviewText,
@@ -7743,6 +7744,19 @@ export function AppWorkbench() {
           claims.add(materializedKey);
           heldConnectKeys.add(materializedKey);
         }
+        // Same handoff for the send claim. Heal re-arms on setSession(newId)
+        // below; if the claim stayed on __draft__ until connect returned,
+        // it looked like the turn never left.
+        if (
+          migrateDraftSendClaim(
+            sendInFlightBySessionRef.current,
+            sendEpochBySessionRef.current,
+            sessionId,
+          )
+        ) {
+          sendInFlightRef.current =
+            sendInFlightBySessionRef.current.size > 0;
+        }
         // Persist draft-page JSON Schema onto the new session before connect
         // so spawn can take top-level `grok --json-schema`.
         const pendingSchema = sessionJsonSchemaRef.current?.trim() || "";
@@ -8189,7 +8203,11 @@ export function AppWorkbench() {
       const materializedSendKey = queueSessionKey(sessionId);
       if (!heldSendKeys.has(materializedSendKey)) {
         const claims = sendInFlightBySessionRef.current;
-        if (claims.has(materializedSendKey)) {
+        const alreadyOurs =
+          claims.has(materializedSendKey) &&
+          sendEpochBySessionRef.current.get(materializedSendKey) ===
+            sendEpoch;
+        if (claims.has(materializedSendKey) && !alreadyOurs) {
           failStrip();
           return false;
         }
@@ -8198,9 +8216,11 @@ export function AppWorkbench() {
         if (sendEpochBySessionRef.current.get(sendKey) === sendEpoch) {
           sendEpochBySessionRef.current.delete(sendKey);
         }
-        claims.add(materializedSendKey);
+        if (!alreadyOurs) {
+          claims.add(materializedSendKey);
+          sendEpochBySessionRef.current.set(materializedSendKey, sendEpoch);
+        }
         heldSendKeys.add(materializedSendKey);
-        sendEpochBySessionRef.current.set(materializedSendKey, sendEpoch);
       }
       if (fromQueue && sendTargetId && sessionId !== sendTargetId) {
         failStrip();

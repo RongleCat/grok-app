@@ -12,10 +12,10 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Fixed
-- **New-chat first send no longer false-heals as “message never reached the agent”**: Ghost-heal treated a leftover previous-session turn clock plus the `__draft__` → real-id handoff as “Host idle, send finished”. The toast fired, the composer was restored, and the agent still ran the prompt. New chat now clears the clock; draft sends start/migrate it; heal counts the draft send claim as in-flight.
+- **New-chat first send no longer false-heals as “message never reached the agent”**: Ghost-heal treated a leftover previous-session turn clock plus the `__draft__` → real-id handoff as “Host idle, send finished”. The toast fired, the composer was restored, and the agent still ran the prompt. New chat now clears the clock; draft sends start/migrate it; `sessionCreate` moves the send claim onto the real id immediately; heal also counts the draft claim as in-flight.
 
 **中文 · 修复**
-- **新建会话首条消息不再误报「消息没有真正发给 Agent」**：上一条会话留下的计时，加上草稿 `__draft__` 切到真实 session id 的空档，会被当成 Host 空闲、发送已结束。于是 toast 弹出、输入框还原，Agent 其实已经在跑。现在新建会话会清计时，草稿发送会建/迁移计时，heal 也会把草稿发送认领当成仍在发送。
+- **新建会话首条消息不再误报「消息没有真正发给 Agent」**：上一条会话留下的计时，加上草稿 `__draft__` 切到真实 session id 的空档，会被当成 Host 空闲、发送已结束。于是 toast 弹出、输入框还原，Agent 其实已经在跑。现在新建会话会清计时，草稿发送会建/迁移计时，`sessionCreate` 当下就把发送认领迁到新 id，heal 也会把草稿认领当成仍在发送。
 
 ## [0.2.21] - 2026-08-18
 

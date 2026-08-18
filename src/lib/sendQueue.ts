@@ -24,6 +24,29 @@ export function queueSessionKey(sessionId: string | null | undefined): string {
   return sessionId ?? "__draft__";
 }
 
+/**
+ * Move a new-chat send claim off `__draft__` as soon as `sessionCreate`
+ * returns a real id. Heal and a second send then see the same key the UI
+ * already adopted, instead of waiting until `ensureConnected` fully returns.
+ */
+export function migrateDraftSendClaim(
+  claims: Set<string>,
+  epochs: Map<string, number>,
+  newSessionId: string,
+): boolean {
+  const draftKey = queueSessionKey(null);
+  const newKey = queueSessionKey(newSessionId);
+  if (!newKey || newKey === draftKey) return false;
+  if (!claims.has(draftKey)) return false;
+  if (claims.has(newKey)) return false;
+  const draftEpoch = epochs.get(draftKey);
+  claims.delete(draftKey);
+  epochs.delete(draftKey);
+  claims.add(newKey);
+  if (draftEpoch != null) epochs.set(newKey, draftEpoch);
+  return true;
+}
+
 function newQueueId(): string {
   const c = globalThis.crypto;
   if (c && typeof c.randomUUID === "function") {
