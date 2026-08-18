@@ -15,9 +15,10 @@ describe("SidebarTreeReveal", () => {
         ),
       }),
     );
-    expect(html).toContain("tree-reveal is-open");
+    expect(html).toContain("tree-reveal");
     expect(html).toContain("chats");
     expect(html).not.toContain("aria-hidden");
+    expect(html).not.toContain("height:0");
   });
 
   it("renders nothing when the section starts closed", () => {

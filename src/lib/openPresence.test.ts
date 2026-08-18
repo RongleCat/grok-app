@@ -98,10 +98,11 @@ describe("floating pop CSS", () => {
   });
 
   it("interpolates project session lists instead of hard-cutting", () => {
-    expect(tree).toMatch(/\.tree-reveal\.is-open/);
-    expect(tree).toMatch(/grid-template-rows:\s*0fr/);
-    expect(tree).toMatch(/grid-template-rows:\s*1fr/);
-    expect(tree).toMatch(/translateY\(-8px\)/);
-    expect(tree).toMatch(/var\(--motion-normal\) var\(--motion-pane-ease\)/);
+    expect(tree).toMatch(/\.tree-reveal\s*\{/);
+    expect(tree).not.toMatch(/grid-template-rows/);
+    expect(tree).toMatch(/height var\(--motion-normal\)/);
+    expect(tree).toMatch(/min-height var\(--motion-normal\)/);
+    expect(tree).toMatch(/max-height var\(--motion-normal\)/);
+    expect(tree).toMatch(/var\(--motion-pane-ease\)/);
   });
 });
