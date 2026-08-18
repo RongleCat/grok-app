@@ -754,6 +754,7 @@ import {
   type SidebarSessionRowLabels,
   type SidebarSessionWorktreeBadgeProp,
 } from "@/components/SidebarSessionRow";
+import { SidebarTreeReveal } from "@/components/SidebarTreeReveal";
 import {
   SIDEBAR_DENSITY_EVENT,
   loadSidebarDensity,
@@ -19112,7 +19113,7 @@ export function AppWorkbench() {
                       </span>
                     </div>
 
-                    {open && (
+                    <SidebarTreeReveal open={open}>
                       <div className="tree-l3-list-wrap">
                         {isProjectPathMissing(proj.pathOk) && (
                           <button
@@ -19212,7 +19213,7 @@ export function AppWorkbench() {
                           </div>
                         )}
                       </div>
-                    )}
+                    </SidebarTreeReveal>
                   </div>
                 );
               })}
@@ -19289,10 +19290,11 @@ export function AppWorkbench() {
                 </div>
               ) : null}
             </div>
-            {historyOpen && orphanSessions.length > 0
+            {orphanSessions.length > 0
               ? (() => {
                   const sortedOrphans = sortSessionsForSidebar(orphanSessions);
                   return (
+                    <SidebarTreeReveal open={historyOpen}>
                       <VirtualList
                         className="tree-orphan-list"
                         items={sortedOrphans}
@@ -19346,6 +19348,7 @@ export function AppWorkbench() {
                           );
                         }}
                       />
+                    </SidebarTreeReveal>
                   );
                 })()
               : null}

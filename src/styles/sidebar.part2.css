@@ -114,6 +114,50 @@
   color: var(--text-primary);
 }
 
+/*
+ * Project / Other-sessions disclosure. 0fr → 1fr interpolates the used
+ * height so sibling projects slide instead of jumping. Inner overflow
+ * clips during the motion; padding stays on .tree-l3-list-wrap so a
+ * closed section does not leave leftover inset.
+ */
+.tree-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--motion-normal) var(--motion-pane-ease),
+    opacity var(--motion-normal) var(--motion-pane-ease);
+}
+
+.tree-reveal.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.tree-reveal__inner {
+  min-height: 0;
+  overflow: hidden;
+  transform: translateY(-8px);
+  transition: transform var(--motion-normal) var(--motion-pane-ease);
+}
+
+.tree-reveal.is-open .tree-reveal__inner {
+  transform: none;
+}
+
+.tree-reveal:not(.is-open) .tree-l3 {
+  content-visibility: visible;
+  contain: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-reveal,
+  .tree-reveal__inner {
+    transform: none;
+    transition: none;
+  }
+}
+
 /* Outer wrap keeps trust hint / empty state outside the windowed list. */
 .tree-l3-list-wrap {
   padding: 2px 0 6px 12px;

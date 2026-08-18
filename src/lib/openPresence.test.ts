@@ -73,6 +73,10 @@ describe("floating pop CSS", () => {
     resolve(__dirname, "../styles/sidebar.part1.css"),
     "utf8",
   );
+  const tree = readFileSync(
+    resolve(__dirname, "../styles/sidebar.part2.css"),
+    "utf8",
+  );
 
   it("keeps account / env pops on the shared motion tokens", () => {
     expect(OPEN_PRESENCE_MS).toBe(200);
@@ -91,5 +95,13 @@ describe("floating pop CSS", () => {
     expect(settings).toMatch(/transform-origin:\s*bottom left/);
     expect(settings).toMatch(/var\(--motion-pane\) var\(--motion-pane-ease\)/);
     expect(workbenchCss).toMatch(/\.workbench\.is-view-idle/);
+  });
+
+  it("interpolates project session lists instead of hard-cutting", () => {
+    expect(tree).toMatch(/\.tree-reveal\.is-open/);
+    expect(tree).toMatch(/grid-template-rows:\s*0fr/);
+    expect(tree).toMatch(/grid-template-rows:\s*1fr/);
+    expect(tree).toMatch(/translateY\(-8px\)/);
+    expect(tree).toMatch(/var\(--motion-normal\) var\(--motion-pane-ease\)/);
   });
 });
