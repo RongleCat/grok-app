@@ -140,7 +140,7 @@ export const zhComposer = {
   "attachChat.scopeFull": "更多上下文（40 轮）",
   "attachChat.scopeHint": "点击可改带多少内容",
   "attachChat.sentWith": "已用 {titles} 作上下文",
-  "attachChat.dragHandle": "拖到输入框加入",
+  "attachChat.dragHandle": "按住拖到输入框",
   "attachChat.hoverAdd": "加入当前对话",
   "attachChat.pickerRecent": "最近用过",
   "attachChat.pickerProject": "本项目",

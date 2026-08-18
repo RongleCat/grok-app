@@ -140,7 +140,7 @@ export const enComposer = {
   "attachChat.scopeFull": "More context (40 turns)",
   "attachChat.scopeHint": "Click to change how much is included",
   "attachChat.sentWith": "Using {titles} as context",
-  "attachChat.dragHandle": "Drag to attach",
+  "attachChat.dragHandle": "Hold and drag onto the input",
   "attachChat.hoverAdd": "Attach to current chat",
   "attachChat.pickerRecent": "Recent",
   "attachChat.pickerProject": "This project",

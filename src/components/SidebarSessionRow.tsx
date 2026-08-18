@@ -173,6 +173,10 @@ function SidebarSessionRowInner({
     variant === "project" && session.archived
       ? labels.unarchive
       : labels.archive;
+  const showDragHandle = !!dragProps && !!labels.dragAttach && !selectMode && !working;
+  // Keep the labeled attach out of the hover overlay so it is not covered
+  // by pin/archive/menu. Hide on the open row (cannot attach self).
+  const showAttach = !!onAttach && !!labels.attach && !selectMode && !working && !active;
 
   const menuButton = (
     <button
@@ -206,6 +210,46 @@ function SidebarSessionRowInner({
           aria-hidden
         >
           {checked ? <IconCheck size={11} stroke={2.4} /> : null}
+        </span>
+      ) : null}
+      {showDragHandle || showAttach ? (
+        <span className="tree-l3__attach-tools">
+          {showDragHandle ? (
+            <Tip label={labels.dragAttach}>
+              <button
+                type="button"
+                className="tree-icon-btn tree-l3__drag-handle"
+                aria-label={labels.dragAttach}
+                data-testid="sidebar-session-drag-handle"
+                draggable={false}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  dragProps?.onPointerDown(e);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onDragStart={(e) => e.preventDefault()}
+              >
+                <IconDragHandle size={13} />
+              </button>
+            </Tip>
+          ) : null}
+          {showAttach ? (
+            <Tip label={labels.attach}>
+              <button
+                type="button"
+                className="tree-l3__attach-btn"
+                aria-label={labels.attach}
+                data-testid="sidebar-session-attach"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAttach?.(session);
+                }}
+              >
+                <IconChat size={12} />
+                <span className="tree-l3__attach-label">{labels.attach}</span>
+              </button>
+            </Tip>
+          ) : null}
         </span>
       ) : null}
       <span className="tree-l3__title">
@@ -285,24 +329,6 @@ function SidebarSessionRowInner({
         locale={locale}
         enabled={showRelativeTime}
       />
-      {dragProps && labels.dragAttach && !selectMode && !working ? (
-        <Tip label={labels.dragAttach}>
-          <button
-            type="button"
-            className="tree-icon-btn tree-l3__drag-handle"
-            aria-label={labels.dragAttach}
-            draggable={false}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              dragProps.onPointerDown(e);
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onDragStart={(e) => e.preventDefault()}
-          >
-            <IconDragHandle size={13} />
-          </button>
-        </Tip>
-      ) : null}
       {selectMode ? null : working ? (
         <Tip label={labels.working}>
           <span className="tree-l3__status" aria-label={labels.working}>
@@ -311,21 +337,6 @@ function SidebarSessionRowInner({
         </Tip>
       ) : (
         <span className="tree-l3__actions tree-l3__actions--triple">
-          {onAttach && labels.attach ? (
-            <Tip label={labels.attach}>
-              <button
-                type="button"
-                className="tree-icon-btn"
-                aria-label={labels.attach}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAttach(session);
-                }}
-              >
-                <IconChat size={13} />
-              </button>
-            </Tip>
-          ) : null}
           <Tip label={pinLabel}>
             <button
               type="button"
@@ -410,6 +421,7 @@ function sidebarSessionRowPropsEqual(
     prev.onArchive === next.onArchive &&
     prev.onMenu === next.onMenu &&
     prev.onAttach === next.onAttach &&
+    !!prev.dragProps === !!next.dragProps &&
     worktreeBadgeEqual(prev.worktreeBadge, next.worktreeBadge)
   );
 }

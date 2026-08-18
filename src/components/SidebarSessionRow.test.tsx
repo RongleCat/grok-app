@@ -118,6 +118,115 @@ describe("SidebarSessionRow", () => {
     // Actions stay available (not replaced by spinner) when not working.
     expect(html).toContain("tree-l3__actions");
   });
+
+  it("keeps the drag handle and labeled attach on the left, not in hover overlay", () => {
+    const html = renderToString(
+      React.createElement(SidebarSessionRow, {
+        session: { id: "s4", title: "Source chat" },
+        variant: "project",
+        active: false,
+        working: false,
+        unread: false,
+        checked: false,
+        selectMode: false,
+        muted: false,
+        noteTitle: null,
+        worktreeBadge: null,
+        labels: {
+          ...labels,
+          attach: "加入目前對話",
+          dragAttach: "按住拖到輸入框",
+        },
+        locale: "zh-TW",
+        showRelativeTime: false,
+        onOpen: vi.fn(),
+        onContextMenu: vi.fn(),
+        onToggleSelect: vi.fn(),
+        onPin: vi.fn(),
+        onArchive: vi.fn(),
+        onMenu: vi.fn(),
+        onAttach: vi.fn(),
+        dragProps: { onPointerDown: vi.fn() },
+      }),
+    );
+    expect(html).toContain("sidebar-session-drag-handle");
+    expect(html).toContain("sidebar-session-attach");
+    expect(html).toContain("加入目前對話");
+    expect(html).toContain("tree-l3__attach-tools");
+    const toolsAt = html.indexOf("tree-l3__attach-tools");
+    const titleAt = html.indexOf("tree-l3__title");
+    const actionsAt = html.indexOf("tree-l3__actions");
+    expect(toolsAt).toBeGreaterThan(-1);
+    expect(titleAt).toBeGreaterThan(toolsAt);
+    expect(actionsAt).toBeGreaterThan(titleAt);
+    expect(html.indexOf("sidebar-session-attach", actionsAt)).toBe(-1);
+  });
+
+  it("hides attach on the open row and hides the grip in select mode", () => {
+    const activeHtml = renderToString(
+      React.createElement(SidebarSessionRow, {
+        session: { id: "s5", title: "Open chat" },
+        variant: "project",
+        active: true,
+        working: false,
+        unread: false,
+        checked: false,
+        selectMode: false,
+        muted: false,
+        noteTitle: null,
+        worktreeBadge: null,
+        labels: {
+          ...labels,
+          attach: "加入目前對話",
+          dragAttach: "按住拖到輸入框",
+        },
+        locale: "zh-TW",
+        showRelativeTime: false,
+        onOpen: vi.fn(),
+        onContextMenu: vi.fn(),
+        onToggleSelect: vi.fn(),
+        onPin: vi.fn(),
+        onArchive: vi.fn(),
+        onMenu: vi.fn(),
+        onAttach: vi.fn(),
+        dragProps: { onPointerDown: vi.fn() },
+      }),
+    );
+    expect(activeHtml).toContain("sidebar-session-drag-handle");
+    expect(activeHtml).not.toContain("sidebar-session-attach");
+
+    const selectHtml = renderToString(
+      React.createElement(SidebarSessionRow, {
+        session: { id: "s6", title: "Select me" },
+        variant: "orphan",
+        active: false,
+        working: false,
+        unread: false,
+        checked: true,
+        selectMode: true,
+        muted: false,
+        noteTitle: null,
+        worktreeBadge: null,
+        labels: {
+          ...labels,
+          attach: "加入目前對話",
+          dragAttach: "按住拖到輸入框",
+        },
+        locale: "zh-TW",
+        showRelativeTime: false,
+        onOpen: vi.fn(),
+        onContextMenu: vi.fn(),
+        onToggleSelect: vi.fn(),
+        onPin: vi.fn(),
+        onArchive: vi.fn(),
+        onMenu: vi.fn(),
+        onAttach: vi.fn(),
+        dragProps: { onPointerDown: vi.fn() },
+      }),
+    );
+    expect(selectHtml).not.toContain("sidebar-session-drag-handle");
+    expect(selectHtml).not.toContain("sidebar-session-attach");
+  });
 });
 
 describe("SidebarSessionRelativeTime", () => {
