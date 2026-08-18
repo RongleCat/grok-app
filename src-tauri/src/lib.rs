@@ -151,6 +151,8 @@ mod session_fsm;
 
 mod session_import;
 
+mod session_attach;
+
 mod session_api;
 
 mod session_manager;

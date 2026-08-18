@@ -96,6 +96,8 @@ export const enSlash = {
   "slash.history": "Prompt history",
   "slash.historyDesc": "Recall a previous prompt from this chat or recent chats",
   "slash.historyEmpty": "No prompts in this chat or recent history yet",
+  "slash.attachChat": "Attach chat",
+  "slash.attachChatDesc": "Use another conversation as context",
   "slash.extensions": "Extensions",
   "slash.extensionsDesc": "Open Settings → Extensions",
   "slash.yolo": "Always approve",

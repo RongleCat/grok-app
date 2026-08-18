@@ -7,6 +7,8 @@
  */
 
 import type { Attachment } from "@/lib/attachments";
+import type { ChatRef } from "@/lib/chatAttach";
+import { isChatSessionId } from "@/lib/chatAttach";
 import {
   normalizeComposerQuotes,
   type ComposerQuote,
@@ -21,6 +23,7 @@ export const ORPHAN_PROJECT_DRAFT_KEY = "__orphan__";
 export type ComposerProjectDraft = {
   text: string;
   attachments: Attachment[];
+  chatAttachments?: ChatRef[];
   quotes?: ComposerQuote[];
   goalMode?: boolean;
   updatedAt: number;
@@ -59,6 +62,7 @@ export function isComposerProjectDraftEmpty(
 ): boolean {
   if (!draft) return true;
   if (draft.attachments?.length) return false;
+  if (draft.chatAttachments?.length) return false;
   if (draft.quotes?.length) return false;
   return isDraftEmpty(parseStoredContent(draft.text || ""));
 }
@@ -75,6 +79,19 @@ function normalizeAttachment(raw: unknown): Attachment | null {
   return { path, name, isDir: !!o.isDir };
 }
 
+function normalizeChatRef(raw: unknown): ChatRef | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const sessionId = typeof o.sessionId === "string" ? o.sessionId.trim() : "";
+  if (!isChatSessionId(sessionId)) return null;
+  const title = typeof o.title === "string" ? o.title.trim() : "";
+  const attachedUpdatedAt =
+    typeof o.attachedUpdatedAt === "string" && o.attachedUpdatedAt.trim()
+      ? o.attachedUpdatedAt.trim()
+      : undefined;
+  return { sessionId, title, attachedUpdatedAt };
+}
+
 function normalizeDraft(raw: unknown): ComposerProjectDraft | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -89,7 +106,11 @@ function normalizeDraft(raw: unknown): ComposerProjectDraft | null {
       : 0;
   const goalMode = o.goalMode === true;
   const quotes = normalizeComposerQuotes(o.quotes);
-  return { text, attachments, quotes, goalMode, updatedAt };
+  const chatsRaw = Array.isArray(o.chatAttachments) ? o.chatAttachments : [];
+  const chatAttachments = chatsRaw
+    .map(normalizeChatRef)
+    .filter((c): c is ChatRef => !!c);
+  return { text, attachments, chatAttachments, quotes, goalMode, updatedAt };
 }
 
 /** Load full map (invalid JSON → {}). */
@@ -132,6 +153,7 @@ export function saveComposerProjectDraft(
   draft: {
     text: string;
     attachments?: Attachment[];
+    chatAttachments?: ChatRef[];
     quotes?: ComposerQuote[];
     goalMode?: boolean;
   },
@@ -143,6 +165,9 @@ export function saveComposerProjectDraft(
     attachments: (draft.attachments ?? [])
       .map((a) => normalizeAttachment(a))
       .filter((a): a is Attachment => !!a),
+    chatAttachments: (draft.chatAttachments ?? [])
+      .map((c) => normalizeChatRef(c))
+      .filter((c): c is ChatRef => !!c),
     quotes: normalizeComposerQuotes(draft.quotes),
     goalMode: !!draft.goalMode,
     updatedAt: Date.now(),

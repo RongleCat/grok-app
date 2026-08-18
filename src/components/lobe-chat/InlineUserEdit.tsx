@@ -15,6 +15,7 @@ import { isImagePath } from "@/lib/attachments";
 import { AttachmentCard } from "@/components/AttachmentCard";
 import type { AttachmentCardLabels } from "@/components/AttachmentCard";
 import { SkillChip } from "@/components/SkillChip";
+import { ChatRefChip } from "@/components/ChatRefChip";
 import { cn } from "@/lib/utils";
 
 export function InlineUserEdit({
@@ -46,6 +47,14 @@ export function InlineUserEdit({
       .map((s) => s.name);
   }, [content]);
 
+  const chats = useMemo(() => {
+    return parseUserMessageContent(content)
+      .filter(
+        (s): s is { type: "chat"; sessionId: string } => s.type === "chat",
+      )
+      .map((s) => s.sessionId);
+  }, [content]);
+
   const initialText = useMemo(
     () => plainTextOf(parseUserMessageContent(content)),
     [content],
@@ -71,6 +80,7 @@ export function InlineUserEdit({
   const canSubmit =
     !busy &&
     (!isDraftEmpty([
+      ...chats.map((sessionId) => ({ type: "chat" as const, sessionId })),
       ...skills.map((name) => ({ type: "skill" as const, name })),
       { type: "text" as const, text },
     ]) ||
@@ -79,6 +89,7 @@ export function InlineUserEdit({
   const submit = () => {
     if (!canSubmit) return;
     const segs = [
+      ...chats.map((sessionId) => ({ type: "chat" as const, sessionId })),
       ...skills.map((name) => ({ type: "skill" as const, name })),
       { type: "text" as const, text },
     ];
@@ -109,8 +120,11 @@ export function InlineUserEdit({
           ))}
         </div>
       ) : null}
-      {skills.length > 0 ? (
+      {chats.length > 0 || skills.length > 0 ? (
         <div className="lobe-inline-edit__skills">
+          {chats.map((sessionId) => (
+            <ChatRefChip key={sessionId} title={sessionId.slice(0, 8)} size="sm" />
+          ))}
           {skills.map((name) => (
             <SkillChip key={name} name={name} size="sm" />
           ))}

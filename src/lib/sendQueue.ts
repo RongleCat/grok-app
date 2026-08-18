@@ -125,6 +125,8 @@ export function applyExternalQueuePush(
 export type QueuePreviewLabels = {
   /** When only attachments and count > 1; may include `{n}`. */
   filesCount: (n: number) => string;
+  /** When the queued turn is only attached chats. */
+  chatsCount?: (n: number) => string;
   /** Fallback when no text and no attachments. */
   empty?: string;
 };
@@ -141,6 +143,10 @@ export function queuePreviewText(
     .trim();
   if (line) {
     return line.length > maxLen ? `${line.slice(0, maxLen - 1)}…` : line;
+  }
+  const chatCount = (storedDisplay.match(/\[\[chat:/g) || []).length;
+  if (chatCount > 0) {
+    return labels?.chatsCount?.(chatCount) ?? labels?.empty ?? String(chatCount);
   }
   if (attachments.length === 1) return attachments[0]!.name;
   if (attachments.length > 1) {

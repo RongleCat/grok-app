@@ -37,6 +37,14 @@ describe("draftDoc empty / plain", () => {
     expect(isDraftEmpty([{ type: "skill", name: "x" }])).toBe(false);
     expect(
       isDraftEmpty([
+        {
+          type: "chat",
+          sessionId: "11111111-1111-4111-8111-111111111111",
+        },
+      ]),
+    ).toBe(false);
+    expect(
+      isDraftEmpty([
         { type: "text", text: "  " },
         { type: "skill", name: "x" },
       ]),
@@ -78,6 +86,19 @@ describe("draftDoc roundtrip", () => {
     const segs = parseStoredContent(raw);
     expect(segs.every((s) => s.type === "text")).toBe(true);
     expect(serializeStored(segs)).toBe(raw);
+  });
+
+  it("round-trips attached-chat tokens", () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    const raw = `[[chat:${id}]]\nplease continue`;
+    const segs = parseStoredContent(raw);
+    expect(segs).toEqual([
+      { type: "chat", sessionId: id },
+      { type: "text", text: "\nplease continue" },
+    ]);
+    expect(serializeStored(segs)).toBe(raw);
+    expect(previewStoredAsSlash(raw)).toBe("please continue");
+    expect(serializeForAgent(segs)).toBe("please continue");
   });
 });
 

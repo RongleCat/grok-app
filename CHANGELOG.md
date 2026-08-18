@@ -51,11 +51,13 @@ See `docs/llm-wiki/release.md`.
 - **Move chats between projects (#616)**: Sidebar menu, multi-select, and drag-and-drop can place a chat (including Other sessions) under another folder. Confirm first — the agent reopens in the new cwd and does not reuse the old CLI session. Relative paths from the previous workspace may break.
 - **Chat-column bottom terminal and pane motion (#681)**: `⌘\`` toggles a persist-mounted terminal under the chat. Sidebar / aside / settings / account-menu / project-list click-toggles interpolate instead of hard-cutting.
 - **Russian UI locale (#689)**: Settings language list and system-language detection include `ru`. Catalog is English-backed with translated overrides; tray / app menu follow the same locale.
+- **Attach another chat as context**: `/attach-chat` or composer `+` picks a local conversation; chips sit on the composer; the journal stores `[[chat:id]]` tokens; the host prefixes a compact transcript for the agent only (max 3; source chat unchanged). Sidebar grip drags onto the composer. Row-body drag still moves the chat between projects.
 
 **中文 · 新增**
 - **会话可移到其他项目（#616）**：侧栏菜单、多选和拖到项目上可以把对话（含「其他会话」）挂到另一个文件夹。会先确认；Agent 在新目录重开，不会把旧 CLI 会话 load 进新仓库。原先工作区的相对路径可能失效。
 - **对话栏底部终端与分栏动画（#681）**：`⌘\`` 打开/收起聊天下方常驻终端。侧栏、右侧栏、设置、账号菜单、项目列表的点击开合改为插值，不再硬切。
 - **俄语界面（#689）**：设置语言列表和跟随系统可切到 `ru`。词库以英文兜底、常用面有俄文；托盘和原生菜单同步。
+- **把另一段对话当作上下文加入**：`/attach-chat` 或输入框 `+` 可选本地对话；chip 挂在输入框；日记只存 `[[chat:id]]`；Host 只给 Agent 加一段压缩记录（最多 3 段；来源对话不改）。侧栏 ⋮⋮ 拖到输入框是加入上下文；拖行身到项目仍是移动会话。
 
 ### Fixed
 - **Project list collapse no longer snaps and leaves a leftover scrollbar (#694)**: Closing a project (or the L1 Projects chevron) paints the locked height, then interpolates to 0. The overlay thumb stays hidden while height is moving. Overflow is restored before the active chat scrolls into view. Open folders retarget the px lock when a chat is dropped in, so new rows are not clipped and the next close still interpolates.

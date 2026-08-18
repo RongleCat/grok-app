@@ -308,58 +308,19 @@ pub(super) const HISTORY_BOOTSTRAP_MAX_CHARS: usize = 14_000;
 /// Keeps recent turns so the model still "remembers" the chat after respawn.
 pub(super) fn build_history_bootstrap(app_session_id: &str) -> Option<String> {
     let msgs = store::load_messages(app_session_id);
-    // Take last N non-empty user/assistant turns (errors abbreviated).
-    let mut picked: Vec<&store::ChatMessageStored> = Vec::new();
-    for m in msgs.iter().rev() {
-        if m.role != "user" && m.role != "assistant" {
-            continue;
-        }
-        if m.content.trim().is_empty() {
-            continue;
-        }
-        picked.push(m);
-        if picked.len() >= HISTORY_BOOTSTRAP_MAX_MSGS {
-            break;
-        }
-    }
-    if picked.is_empty() {
-        return None;
-    }
-    picked.reverse();
-
+    let turns = crate::session_attach::compact_user_assistant_turns(
+        &msgs,
+        HISTORY_BOOTSTRAP_MAX_MSGS,
+        HISTORY_BOOTSTRAP_PER_MSG_CHARS,
+        HISTORY_BOOTSTRAP_MAX_CHARS,
+    )?;
     let mut body = String::from(
         "[Prior conversation context — this chat continues an existing Grok App session. \
 The agent process was restarted; use the following transcript for continuity ONLY. \
 Rules: do NOT re-greet; do NOT restate, quote, or re-answer prior assistant turns; \
 do NOT reprint the transcript in your reply; answer ONLY the new user message below.]\n\n",
     );
-    let header_len = body.len();
-
-    for m in picked {
-        let role = if m.role == "user" {
-            "User"
-        } else if m.is_error {
-            "Assistant (error)"
-        } else {
-            "Assistant"
-        };
-        let mut content = m.content.trim().to_string();
-        // Soft-trim huge tool dumps / tables for bootstrap.
-        if content.len() > HISTORY_BOOTSTRAP_PER_MSG_CHARS {
-            let keep = HISTORY_BOOTSTRAP_PER_MSG_CHARS.saturating_sub(40);
-            content = format!(
-                "{}…\n[truncated {} chars]",
-                content.chars().take(keep).collect::<String>(),
-                m.content.len()
-            );
-        }
-        let block = format!("### {role}\n{content}\n\n");
-        if body.len() - header_len + block.len() > HISTORY_BOOTSTRAP_MAX_CHARS {
-            body.push_str("### …\n[earlier turns omitted for length]\n\n");
-            break;
-        }
-        body.push_str(&block);
-    }
+    body.push_str(&turns);
     body.push_str("---\n\n[End of prior context. Continue with the user's new message below.]\n");
     Some(body)
 }

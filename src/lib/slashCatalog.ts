@@ -246,6 +246,14 @@ export function builtinSlashItems(): SlashItem[] {
       action: "history",
     },
     {
+      id: "attach-chat",
+      kind: "action",
+      name: "attach-chat",
+      titleKey: "slash.attachChat",
+      descriptionKey: "slash.attachChatDesc",
+      action: "attach-chat",
+    },
+    {
       id: "extensions",
       kind: "action",
       name: "extensions",

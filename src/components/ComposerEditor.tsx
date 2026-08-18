@@ -169,7 +169,10 @@ function segmentsToLines(segments: DraftSegment[]): LineInline[][] {
       lines[lines.length - 1]!.push({ type: "skill", name: seg.name });
       continue;
     }
-    const parts = (seg.text ?? "").split("\n");
+    if (seg.type === "chat") {
+      continue;
+    }
+    const parts = seg.text.split("\n");
     parts.forEach((part, i) => {
       if (part) lines[lines.length - 1]!.push({ type: "text", value: part });
       if (i < parts.length - 1) lines.push([]);

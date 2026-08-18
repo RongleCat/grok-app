@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type DragEvent as ReactDragEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
@@ -606,6 +607,28 @@ import {
   mergeAttachments,
   type Attachment
 } from "@/lib/attachments";
+import {
+  addChatRef,
+  chatHasUpdate,
+  dataTransferHasSession,
+  encodeSessionDrag,
+  filterAttachableSessions,
+  GROK_SESSION_DRAG_MIME,
+  GROK_SESSION_DRAG_MIME_ALT,
+  lookupChatTitle,
+  MAX_ATTACHED_CHATS,
+  parseChatTokens,
+  parseSessionDragFromTransfer,
+  prependChatTokens,
+  refreshChatRef,
+  refreshStaleChatRefs,
+  removeChatRef,
+  staleAttachedChats,
+  stripChatTokens,
+  type SessionDragPayload,
+} from "@/lib/chatAttach";
+import { AttachChatPanel } from "@/components/AttachChatPanel";
+import { ChatRefChip } from "@/components/ChatRefChip";
 import { mapStoredMessagesToChat } from "@/lib/mapStoredMessages";
 import {
   detectAtQueryFromEditor,
@@ -1574,6 +1597,19 @@ export function AppWorkbench() {
     attachments,
     attachmentsRef,
     setAttachments,
+    chatAttachments,
+    setChatAttachments,
+    attachChatOpen,
+    setAttachChatOpen,
+    attachChatFilter,
+    setAttachChatFilter,
+    attachChatActive,
+    setAttachChatActive,
+    attachChatPanelRef,
+    attachChatOpenRef,
+    sessionDragRef,
+    sessionDropReady,
+    setSessionDropReady,
     quotes,
     quotesRef,
     setQuotes,
@@ -4572,6 +4608,7 @@ export function AppWorkbench() {
       saveComposerProjectDraft(projectDraftKey(activeProject?.id ?? null), {
         text: getDraft(),
         attachments,
+        chatAttachments,
         quotes,
         goalMode,
       });
@@ -4579,6 +4616,7 @@ export function AppWorkbench() {
       saveComposerSessionDraft(leavingBeforeOpen, {
         text: getDraft(),
         attachments,
+        chatAttachments,
         quotes,
         goalMode,
       });
@@ -4662,6 +4700,7 @@ export function AppWorkbench() {
       if (saved) {
         setDraft(saved.text || "");
         setAttachments(saved.attachments ?? []);
+        setChatAttachments(saved.chatAttachments ?? []);
         setQuotes(saved.quotes ?? []);
         if (typeof saved.goalMode === "boolean") {
           setGoalMode(saved.goalMode);
@@ -4669,6 +4708,7 @@ export function AppWorkbench() {
       } else {
         setDraft("");
         setAttachments([]);
+        setChatAttachments([]);
         setQuotes([]);
       }
       requestAnimationFrame(() => {
@@ -5198,10 +5238,12 @@ export function AppWorkbench() {
       if (seedText != null) {
         setDraft(seedText);
         setAttachments([]);
+        setChatAttachments([]);
         setQuotes([]);
       } else if (saved) {
         setDraft(saved.text || "");
         setAttachments(saved.attachments ?? []);
+        setChatAttachments(saved.chatAttachments ?? []);
         setQuotes(saved.quotes ?? []);
         if (typeof saved.goalMode === "boolean") {
           setGoalMode(saved.goalMode);
@@ -5209,6 +5251,7 @@ export function AppWorkbench() {
       } else {
         setDraft("");
         setAttachments([]);
+        setChatAttachments([]);
         setQuotes([]);
       }
       // Allow debounced persist again after React commits the load.
@@ -5255,6 +5298,7 @@ export function AppWorkbench() {
       saveComposerProjectDraft(key, {
         text: getComposerDraft(),
         attachments,
+        chatAttachments,
         quotes,
         goalMode,
       });
@@ -5273,7 +5317,7 @@ export function AppWorkbench() {
       window.clearTimeout(t);
       unsub();
     };
-  }, [attachments, quotes, goalMode, activeProject?.id, session.sessionId]);
+  }, [attachments, chatAttachments, quotes, goalMode, activeProject?.id, session.sessionId]);
 
   /**
    * While viewing a real thread, keep the per-session follow-up buffer in sync
@@ -5290,6 +5334,7 @@ export function AppWorkbench() {
       saveComposerSessionDraft(id, {
         text: getComposerDraft(),
         attachments,
+        chatAttachments,
         quotes,
         goalMode,
       });
@@ -5306,7 +5351,7 @@ export function AppWorkbench() {
       window.clearTimeout(t);
       unsub();
     };
-  }, [attachments, quotes, goalMode, session.sessionId]);
+  }, [attachments, chatAttachments, quotes, goalMode, session.sessionId]);
 
   useEffect(() => {
     if (appGate !== "ready") return;
@@ -5518,6 +5563,7 @@ export function AppWorkbench() {
       saveComposerProjectDraft(prevKey, {
         text: getDraft(),
         attachments,
+        chatAttachments,
         quotes,
         goalMode,
       });
@@ -5525,6 +5571,7 @@ export function AppWorkbench() {
       saveComposerSessionDraft(leavingId, {
         text: getDraft(),
         attachments,
+        chatAttachments,
         quotes,
         goalMode,
       });
@@ -8488,6 +8535,8 @@ export function AppWorkbench() {
     setPromptHistoryScope("session");
     setSlashQuery(null);
     setAttachments([]);
+    setChatAttachments([]);
+    setAttachChatOpen(false);
     requestAnimationFrame(() => {
       const el = composerInputRef.current;
       if (el) el.style.height = "auto";
@@ -8531,6 +8580,7 @@ export function AppWorkbench() {
     const hasBody =
       !isDraftEmpty(parseStoredContent(draft)) ||
       attachments.length > 0 ||
+      chatAttachments.length > 0 ||
       quotes.length > 0;
     if (!hasBody) return;
     if (countDraftChars(draft) > 200) {
@@ -8545,7 +8595,7 @@ export function AppWorkbench() {
       return;
     }
     applyClearComposerDraft();
-  }, [applyClearComposerDraft, attachments.length, quotes.length, getDraft, tr]);
+  }, [applyClearComposerDraft, attachments.length, chatAttachments.length, quotes.length, getDraft, tr]);
 
   /** Enqueue when agent is busy; otherwise send immediately. */
   const send = async () => {
@@ -8568,8 +8618,15 @@ export function AppWorkbench() {
         /* keep getDraft() */
       }
     }
-    const segments = parseStoredContent(draft);
-    const storedDisplay = draft;
+    const fromDraft = parseChatTokens(draft, (id) =>
+      lookupChatTitle(id, sessions, ""),
+    );
+    let refs = chatAttachments;
+    for (const extra of fromDraft) {
+      refs = addChatRef(refs, extra, { currentId: session.sessionId }).refs;
+    }
+    const storedDisplay = prependChatTokens(stripChatTokens(draft), refs);
+    const segments = parseStoredContent(storedDisplay);
     const att = attachments;
     const sendQuotes = quotesRef.current;
     if (isDraftEmpty(segments) && !att.length && !sendQuotes.length) return;
@@ -8661,6 +8718,7 @@ export function AppWorkbench() {
       else if (action === "restore") {
         setDraft(storedDisplay);
         setAttachments(att);
+        setChatAttachments(refs);
         setQuotes(sendQuotes);
       }
       return;
@@ -8687,6 +8745,7 @@ export function AppWorkbench() {
         saveComposerSessionDraft(clearDraftOpts.sessionDraftId, {
           text: storedDisplay,
           attachments: att,
+          chatAttachments: refs,
           quotes: sendQuotes,
           goalMode,
         });
@@ -8698,6 +8757,7 @@ export function AppWorkbench() {
       saveComposerProjectDraft(projectDraftKey(activeProject?.id ?? null), {
         text: storedDisplay,
         attachments: att,
+        chatAttachments: refs,
         quotes: sendQuotes,
         goalMode,
       });
@@ -8712,6 +8772,8 @@ export function AppWorkbench() {
     () => ({
       filesCount: (n: number) =>
         tr("composer.queueFilesCount", { n: String(n) }),
+      chatsCount: (n: number) =>
+        tr("composer.queueChatsCount", { n: String(n) }),
       empty: tr("composer.queueEmptyPreview"),
     }),
     [tr],
@@ -12162,6 +12224,199 @@ export function AppWorkbench() {
     });
   }, [slashQuery, tr]);
 
+  const closeAttachChat = useCallback(() => {
+    setAttachChatOpen(false);
+    setAttachChatFilter("");
+    setAttachChatActive(0);
+  }, [setAttachChatOpen, setAttachChatFilter, setAttachChatActive]);
+
+  const attachableSessions = useMemo(
+    () =>
+      filterAttachableSessions(sessions, {
+        currentId: session.sessionId,
+        alreadyIds: chatAttachments.map((c) => c.sessionId),
+        query: attachChatFilter,
+      }),
+    [sessions, session.sessionId, chatAttachments, attachChatFilter],
+  );
+
+  const { pos: attachChatPos, style: attachChatStyle } = useFloatingMenu({
+    open: attachChatOpen,
+    triggerRef: composerShellRef,
+    panelRef: attachChatPanelRef,
+    roots: [composerShellRef, composerInputRef, attachChatPanelRef],
+    onClose: closeAttachChat,
+    placement: "up",
+    fitContent: false,
+    matchTriggerWidth: true,
+    minWidth: 280,
+    estHeight: 280,
+    gap: 8,
+    deps: [attachChatFilter, attachableSessions.length],
+  });
+
+  const openAttachChat = useCallback(() => {
+    const candidates = filterAttachableSessions(sessions, {
+      currentId: session.sessionId,
+      alreadyIds: chatAttachments.map((c) => c.sessionId),
+    });
+    if (candidates.length === 0) {
+      showToast(
+        chatAttachments.length >= MAX_ATTACHED_CHATS
+          ? tr("attachChat.limit", { n: String(MAX_ATTACHED_CHATS) })
+          : tr("attachChat.empty"),
+        2400,
+      );
+      return;
+    }
+    setShowComposerPlus(false);
+    setSlashQuery(null);
+    setLiveSlash({ present: false, query: "", start: 0, end: 0 });
+    liveSlashRef.current = { present: false, query: "", start: 0, end: 0 };
+    setPromptHistoryOpen(false);
+    setAttachChatFilter("");
+    setAttachChatActive(0);
+    setAttachChatOpen(true);
+  }, [
+    sessions,
+    session.sessionId,
+    chatAttachments,
+    showToast,
+    tr,
+    setShowComposerPlus,
+    setSlashQuery,
+    setLiveSlash,
+    setPromptHistoryOpen,
+    setAttachChatFilter,
+    setAttachChatActive,
+    setAttachChatOpen,
+  ]);
+
+  const applyAttachedChat = useCallback(
+    (id: string, title: string, updatedAt?: string) => {
+      const result = addChatRef(
+        chatAttachments,
+        { sessionId: id, title, attachedUpdatedAt: updatedAt },
+        { currentId: session.sessionId },
+      );
+      if (!result.added) {
+        if (result.reason === "limit") {
+          showToast(
+            tr("attachChat.limit", { n: String(MAX_ATTACHED_CHATS) }),
+            2400,
+          );
+        } else if (result.reason === "self") {
+          showToast(tr("attachChat.self"), 2400);
+        }
+        return;
+      }
+      setChatAttachments(result.refs);
+      closeAttachChat();
+      const label = title.trim() || id.slice(0, 8);
+      showToast(tr("attachChat.ok", { title: label }), 2200);
+      requestAnimationFrame(() => {
+        composerInputRef.current?.focus?.();
+      });
+    },
+    [
+      chatAttachments,
+      session.sessionId,
+      closeAttachChat,
+      showToast,
+      tr,
+      setChatAttachments,
+    ],
+  );
+
+  const refreshAttachedChat = useCallback(
+    (id: string) => {
+      const row = sessions.find((s) => s.id === id);
+      setChatAttachments((prev) =>
+        refreshChatRef(prev, id, {
+          updatedAt: row?.updatedAt,
+          title: row?.title,
+        }),
+      );
+      const label =
+        (row?.title || "").trim() ||
+        lookupChatTitle(id, sessions, tr("attachChat.missing"));
+      showToast(tr("attachChat.refreshed", { title: label }), 2200);
+    },
+    [sessions, setChatAttachments, showToast, tr],
+  );
+
+  const refreshAllStaleAttached = useCallback(() => {
+    const r = refreshStaleChatRefs(chatAttachments, sessions);
+    if (!r.refreshed) return;
+    setChatAttachments(r.refs);
+    showToast(tr("attachChat.refreshedAll", { n: String(r.refreshed) }), 2200);
+  }, [chatAttachments, sessions, setChatAttachments, showToast, tr]);
+
+  const sessionRowDragProps = (s: { id: string; title: string; updatedAt?: string }) => {
+    if (sessionSelectMode) return undefined;
+    return {
+      draggable: true as const,
+      onDragStart: (e: ReactDragEvent) => {
+        const payload: SessionDragPayload = {
+          id: s.id,
+          title: s.title || "",
+          updatedAt: s.updatedAt,
+        };
+        sessionDragRef.current = payload;
+        try {
+          const raw = encodeSessionDrag(payload);
+          e.dataTransfer.setData(GROK_SESSION_DRAG_MIME, raw);
+          e.dataTransfer.setData(GROK_SESSION_DRAG_MIME_ALT, raw);
+          e.dataTransfer.effectAllowed = "copy";
+        } catch {
+          /* webview */
+        }
+      },
+      onDragEnd: () => {
+        sessionDragRef.current = null;
+        setSessionDropReady(false);
+      },
+    };
+  };
+
+  useEffect(() => {
+    const isSessionDrag = (dt: DataTransfer | null | undefined) =>
+      !!sessionDragRef.current || dataTransferHasSession(dt);
+    const onDragOver = (e: DragEvent) => {
+      if (!isSessionDrag(e.dataTransfer)) return;
+      e.preventDefault();
+      const overComposer = !!(
+        composerShellRef.current &&
+        e.target instanceof Node &&
+        composerShellRef.current.contains(e.target)
+      );
+      const ready =
+        overComposer || hitDragZone(e.clientX, e.clientY) === "main";
+      setSessionDropReady(ready);
+      if (ready && e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    };
+    const onDrop = (e: DragEvent) => {
+      const sessionPayload =
+        sessionDragRef.current ?? parseSessionDragFromTransfer(e.dataTransfer);
+      if (!sessionPayload) return;
+      e.preventDefault();
+      e.stopPropagation();
+      sessionDragRef.current = null;
+      setSessionDropReady(false);
+      applyAttachedChat(
+        sessionPayload.id,
+        sessionPayload.title,
+        sessionPayload.updatedAt,
+      );
+    };
+    window.addEventListener("dragover", onDragOver, true);
+    window.addEventListener("drop", onDrop, true);
+    return () => {
+      window.removeEventListener("dragover", onDragOver, true);
+      window.removeEventListener("drop", onDrop, true);
+    };
+  }, [applyAttachedChat, hitDragZone, setSessionDropReady]);
+
   const applySlashItem = useCallback(
     (item: SlashItem) => {
       const live = liveSlashRef.current;
@@ -12327,6 +12582,9 @@ export function AppWorkbench() {
           case "history":
             openPromptHistory({ focusFilter: true, seedDraft: false });
             return;
+          case "attach-chat":
+            openAttachChat();
+            return;
           case "extensions":
             navigateSettings("extensions");
             return;
@@ -12358,6 +12616,7 @@ export function AppWorkbench() {
       showToast,
       openPromptHistory,
       openWorkflowsSettings,
+      openAttachChat,
     ],
   );
 
@@ -17947,7 +18206,8 @@ export function AppWorkbench() {
       const draftNow = getDraft();
       const hasBody =
         !isDraftEmpty(parseStoredContent(draftNow)) ||
-        attachments.length > 0;
+        attachments.length > 0 ||
+        chatAttachments.length > 0;
       if (hasBody && session.state !== "awaiting_permission") {
         void send();
       }
@@ -17955,6 +18215,10 @@ export function AppWorkbench() {
     if (e.key === "Escape") {
       if (promptHistoryOpenRef.current) {
         closePromptHistory();
+        return;
+      }
+      if (attachChatOpenRef.current) {
+        closeAttachChat();
         return;
       }
       closeComposerMenu();
@@ -19420,6 +19684,7 @@ export function AppWorkbench() {
                                         onPin={onSidebarSessionPin}
                                         onArchive={onSidebarSessionArchive}
                                         onMenu={onSidebarSessionMenu}
+                                        dragProps={sessionRowDragProps(s)}
                                       />
                                     );
                                   }}
@@ -19569,6 +19834,7 @@ export function AppWorkbench() {
                               onPin={onSidebarSessionPin}
                               onArchive={onSidebarSessionArchive}
                               onMenu={onSidebarSessionMenu}
+                              dragProps={sessionRowDragProps(s)}
                             />
                           );
                         }}
@@ -19842,6 +20108,17 @@ export function AppWorkbench() {
                 </span>
                 <strong>{tr("composer.dropAttachTitle")}</strong>
                 <span>{tr("composer.dropAttachHint")}</span>
+              </div>
+            </div>
+          )}
+          {sessionDropReady && (
+            <div className="drop-overlay drop-overlay--session" aria-hidden>
+              <div className="drop-overlay__card">
+                <span className="drop-overlay__icon">
+                  <IconChat size={22} />
+                </span>
+                <strong>{tr("attachChat.dropTitle")}</strong>
+                <span>{tr("attachChat.dropHint")}</span>
               </div>
             </div>
           )}
@@ -21264,7 +21541,9 @@ export function AppWorkbench() {
               ref={composerShellRef}
               className={
                 "composer" +
-                (dragZone === "main" ? " composer--drop-ready" : "")
+                (dragZone === "main" || sessionDropReady
+                  ? " composer--drop-ready"
+                  : "")
               }
             >
               {sendQueueStrip.visible && (
@@ -21441,13 +21720,57 @@ export function AppWorkbench() {
                   }}
                 />
               )}
-              {attachments.length > 0 && (
+              {(attachments.length > 0 || chatAttachments.length > 0) && (
                 <div
                   className="composer__attachments"
                   aria-label={tr("composer.attachCount", {
-                    n: String(attachments.length),
+                    n: String(attachments.length + chatAttachments.length),
                   })}
                 >
+                  {staleAttachedChats(chatAttachments, sessions).length > 0 ? (
+                    <button
+                      type="button"
+                      className="composer__chat-stale"
+                      onClick={refreshAllStaleAttached}
+                    >
+                      {tr("attachChat.updatedHint", {
+                        n: String(
+                          staleAttachedChats(chatAttachments, sessions).length,
+                        ),
+                      })}
+                    </button>
+                  ) : null}
+                  {chatAttachments.map((c) => (
+                    <ChatRefChip
+                      key={c.sessionId}
+                      title={
+                        c.title.trim() ||
+                        lookupChatTitle(
+                          c.sessionId,
+                          sessions,
+                          tr("attachChat.missing"),
+                        )
+                      }
+                      stale={chatHasUpdate(c, sessions)}
+                      onOpen={() => {
+                        const row = sessions.find((s) => s.id === c.sessionId);
+                        if (!row) {
+                          showToast(tr("attachChat.missing"), 2400);
+                          return;
+                        }
+                        void openSession(row);
+                      }}
+                      onRefresh={() => refreshAttachedChat(c.sessionId)}
+                      onRemove={() =>
+                        setChatAttachments((prev) =>
+                          removeChatRef(prev, c.sessionId),
+                        )
+                      }
+                      removeLabel={tr("attachChat.chipRemove")}
+                      refreshLabel={tr("attachChat.refresh")}
+                      staleLabel={tr("attachChat.staleAria")}
+                    />
+                  ))}
                   {attachments.map((a) => (
                     <AttachmentCard
                       key={a.path}
@@ -21530,6 +21853,37 @@ export function AppWorkbench() {
                     onSelect={applyAtFile}
                     style={{
                       ...composerAtStyle,
+                      zIndex: 10050,
+                    }}
+                  />,
+                  document.body,
+                )}
+              {attachChatOpen &&
+                attachChatPos &&
+                typeof document !== "undefined" &&
+                createPortal(
+                  <AttachChatPanel
+                    open
+                    panelRef={attachChatPanelRef}
+                    sessions={attachableSessions}
+                    query={attachChatFilter}
+                    activeIndex={attachChatActive}
+                    focusFilter
+                    labels={{
+                      title: tr("attachChat.title"),
+                      placeholder: tr("attachChat.placeholder"),
+                      empty: tr("attachChat.empty"),
+                      emptyFilter: tr("attachChat.emptyFilter"),
+                      aria: tr("attachChat.aria"),
+                    }}
+                    onQueryChange={setAttachChatFilter}
+                    onActiveIndexChange={setAttachChatActive}
+                    onSelect={(s) => {
+                      applyAttachedChat(s.id, s.title, s.updatedAt);
+                    }}
+                    onClose={closeAttachChat}
+                    style={{
+                      ...attachChatStyle,
                       zIndex: 10050,
                     }}
                   />,

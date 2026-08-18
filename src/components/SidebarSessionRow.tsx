@@ -3,7 +3,7 @@
  * Keeps row UI out of App so stream re-renders skip unchanged rows.
  */
 
-import { memo, type KeyboardEvent, type MouseEvent } from "react";
+import { memo, type DragEvent, type KeyboardEvent, type MouseEvent } from "react";
 import type { Locale } from "@/i18n";
 import {
   IconArchive,
@@ -91,6 +91,12 @@ export type SidebarSessionRowProps = {
   onPin: (session: SidebarSessionRowSession) => void;
   onArchive: (session: SidebarSessionRowSession) => void;
   onMenu: (e: MouseEvent, session: SidebarSessionRowSession) => void;
+  /** Sidebar → composer attach-chat drag. Omitted in select mode. */
+  dragProps?: {
+    draggable: boolean;
+    onDragStart: (e: DragEvent) => void;
+    onDragEnd: () => void;
+  };
 };
 
 function SidebarSessionRowInner({
@@ -114,6 +120,7 @@ function SidebarSessionRowInner({
   onPin,
   onArchive,
   onMenu,
+  dragProps,
 }: SidebarSessionRowProps) {
   const className =
     (variant === "orphan" ? "tree-l3 tree-l3--orphan" : "tree-l3") +
@@ -123,7 +130,8 @@ function SidebarSessionRowInner({
     (unread ? " tree-l3--unread" : "") +
     (planPending ? " tree-l3--plan-pending" : "") +
     (selectMode ? " tree-l3--select-mode" : "") +
-    (checked ? " tree-l3--checked" : "");
+    (checked ? " tree-l3--checked" : "") +
+    (dragProps?.draggable ? " tree-l3--draggable" : "");
 
   const handleClick = (e: MouseEvent) => {
     if (selectMode) {
@@ -171,6 +179,7 @@ function SidebarSessionRowInner({
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, session)}
       onKeyDown={handleKeyDown}
+      {...dragProps}
     >
       {selectMode ? (
         <span

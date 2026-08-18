@@ -118,6 +118,7 @@ import { LeadFragmentsStrip } from "./LeadFragmentsStrip";
 import { BackBottom } from "./BackBottom";
 import { InlineUserEdit } from "./InlineUserEdit";
 import { SkillChip } from "@/components/SkillChip";
+import { ChatRefChip } from "@/components/ChatRefChip";
 import { HighlightedText } from "@/components/HighlightedText";
 import { findChatMatches, findMatchesBeforeVisible } from "@/lib/chatFind";
 import { hydrateDisplayContent, parseStoredContent } from "@/lib/draftDoc";
@@ -390,7 +391,7 @@ function UserBodyText({
 }) {
   const hydrated = hydrateDisplayContent(content);
   const segs = parseStoredContent(hydrated);
-  if (!segs.some((s) => s.type === "skill")) {
+  if (!segs.some((s) => s.type === "skill" || s.type === "chat")) {
     if (findQuery?.trim()) {
       return (
         <span className="user-msg-body">
@@ -406,22 +407,35 @@ function UserBodyText({
   }
   return (
     <span className="user-msg-body">
-      {segs.map((s, i) =>
-        s.type === "skill" ? (
-          <SkillChip key={`sk-${i}-${s.name}`} name={s.name} size="sm" />
-        ) : findQuery?.trim() && s.text ? (
-          <HighlightedText
-            key={`t-${i}`}
-            text={s.text}
-            query={findQuery}
-            activeOccurrence={findActiveOccurrence ?? null}
-          />
-        ) : (
+      {segs.map((s, i) => {
+        if (s.type === "skill") {
+          return <SkillChip key={`sk-${i}-${s.name}`} name={s.name} size="sm" />;
+        }
+        if (s.type === "chat") {
+          return (
+            <ChatRefChip
+              key={`ch-${i}-${s.sessionId}`}
+              title={s.sessionId.slice(0, 8)}
+              size="sm"
+            />
+          );
+        }
+        if (findQuery?.trim() && s.text) {
+          return (
+            <HighlightedText
+              key={`t-${i}`}
+              text={s.text}
+              query={findQuery}
+              activeOccurrence={findActiveOccurrence ?? null}
+            />
+          );
+        }
+        return (
           <span key={`t-${i}`} className="user-msg-body__text">
             {s.text}
           </span>
-        ),
-      )}
+        );
+      })}
     </span>
   );
 }

@@ -6,12 +6,17 @@
 
 export type DraftSegment =
   | { type: "text"; text: string }
-  | { type: "skill"; name: string };
+  | { type: "skill"; name: string }
+  | { type: "chat"; sessionId: string };
 
 /** Skill name character class: letters, digits, `_` `.` `:` `-`. */
 export const SKILL_NAME_RE = /[a-zA-Z0-9_.:-]+/;
 
 const SKILL_TOKEN_RE = /\[\[skill:([a-zA-Z0-9_.:-]+)\]\]/g;
+
+/** Combined skill + attached-chat tokens, in document order. */
+const STORED_TOKEN_RE =
+  /\[\[skill:([a-zA-Z0-9_.:-]+)\]\]|\[\[chat:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\]\]/g;
 
 /**
  * Slash names that are App/Build commands, not skill chips, when rehydrating
@@ -46,6 +51,8 @@ const NON_SKILL_SLASH = new Set(
     "feedback",
     "live-voice",
     "livevoice",
+    "attach-chat",
+    "attachchat",
   ].map((s) => s.toLowerCase()),
 );
 
@@ -115,13 +122,17 @@ export function parseStoredContent(content: string): DraftSegment[] {
   if (!content) return [];
   const segments: DraftSegment[] = [];
   let last = 0;
-  const re = new RegExp(SKILL_TOKEN_RE.source, "g");
+  const re = new RegExp(STORED_TOKEN_RE.source, "g");
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
     if (m.index > last) {
       segments.push({ type: "text", text: content.slice(last, m.index) });
     }
-    segments.push({ type: "skill", name: m[1]! });
+    if (m[1]) {
+      segments.push({ type: "skill", name: m[1] });
+    } else if (m[2]) {
+      segments.push({ type: "chat", sessionId: m[2] });
+    }
     last = m.index + m[0].length;
   }
   if (last < content.length) {
@@ -133,7 +144,11 @@ export function parseStoredContent(content: string): DraftSegment[] {
 /** Serialize segments back to stored form (`[[skill:name]]` tokens). */
 export function serializeStored(segments: DraftSegment[]): string {
   return segments
-    .map((s) => (s.type === "text" ? s.text : `[[skill:${s.name}]]`))
+    .map((s) => {
+      if (s.type === "text") return s.text;
+      if (s.type === "skill") return `[[skill:${s.name}]]`;
+      return `[[chat:${s.sessionId}]]`;
+    })
     .join("");
 }
 
@@ -144,7 +159,15 @@ export function serializeStored(segments: DraftSegment[]): string {
  */
 export function previewStoredAsSlash(stored: string): string {
   if (!stored) return stored;
-  return stored.replace(new RegExp(SKILL_TOKEN_RE.source, "g"), "/$1");
+  return stored
+    .replace(new RegExp(SKILL_TOKEN_RE.source, "g"), "/$1")
+    .replace(
+      /\[\[chat:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\]\]/g,
+      "",
+    )
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/^\n+/, "")
+    .trim();
 }
 
 /**
@@ -158,10 +181,10 @@ export function plainTextOf(segments: DraftSegment[]): string {
     .join("");
 }
 
-/** Empty when there are no skills and no non-whitespace text. */
+/** Empty when there are no skills, no attached chats, and no non-whitespace text. */
 export function isDraftEmpty(segments: DraftSegment[]): boolean {
   for (const s of segments) {
-    if (s.type === "skill") return false;
+    if (s.type === "skill" || s.type === "chat") return false;
     if (s.type === "text" && s.text.trim() !== "") return false;
   }
   return true;
@@ -181,7 +204,7 @@ export function serializeForAgent(
   const textParts: string[] = [];
   for (const s of segments) {
     if (s.type === "skill") skillTokens.push(`/${s.name}`);
-    else textParts.push(s.text);
+    else if (s.type === "text") textParts.push(s.text);
   }
 
   const skillsPart = skillTokens.join(" ");

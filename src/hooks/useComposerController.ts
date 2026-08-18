@@ -13,6 +13,7 @@ import {
   type SetStateAction,
 } from "react";
 import type { Attachment } from "@/lib/attachments";
+import type { ChatRef, SessionDragPayload } from "@/lib/chatAttach";
 import type { ComposerQuote } from "@/lib/composerQuotes";
 import type { ComposerAtFileEntry } from "@/components/ComposerAtPanel";
 import type { SlashKindFilter, SkillInfo } from "@/lib/slashCatalog";
@@ -64,6 +65,17 @@ export function useComposerController(initialDraft = "") {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const attachmentsRef = useRef(attachments);
   attachmentsRef.current = attachments;
+  const [chatAttachments, setChatAttachments] = useState<ChatRef[]>([]);
+  const chatAttachmentsRef = useRef(chatAttachments);
+  chatAttachmentsRef.current = chatAttachments;
+  const [attachChatOpen, setAttachChatOpen] = useState(false);
+  const [attachChatFilter, setAttachChatFilter] = useState("");
+  const [attachChatActive, setAttachChatActive] = useState(0);
+  const attachChatPanelRef = useRef<HTMLDivElement>(null);
+  const attachChatOpenRef = useRef(false);
+  attachChatOpenRef.current = attachChatOpen;
+  const sessionDragRef = useRef<SessionDragPayload | null>(null);
+  const [sessionDropReady, setSessionDropReady] = useState(false);
   const [quotes, setQuotes] = useState<ComposerQuote[]>([]);
   const quotesRef = useRef(quotes);
   quotesRef.current = quotes;
@@ -163,6 +175,22 @@ export function useComposerController(initialDraft = "") {
       setAttachments: setAttachments as Dispatch<
         SetStateAction<Attachment[]>
       >,
+      chatAttachments,
+      chatAttachmentsRef,
+      setChatAttachments: setChatAttachments as Dispatch<
+        SetStateAction<ChatRef[]>
+      >,
+      attachChatOpen,
+      setAttachChatOpen,
+      attachChatFilter,
+      setAttachChatFilter,
+      attachChatActive,
+      setAttachChatActive,
+      attachChatPanelRef,
+      attachChatOpenRef,
+      sessionDragRef,
+      sessionDropReady,
+      setSessionDropReady,
       quotes,
       quotesRef,
       setQuotes: setQuotes as Dispatch<SetStateAction<ComposerQuote[]>>,
@@ -240,6 +268,11 @@ export function useComposerController(initialDraft = "") {
     }),
     [
       attachments,
+      chatAttachments,
+      attachChatOpen,
+      attachChatFilter,
+      attachChatActive,
+      sessionDropReady,
       quotes,
       promptHistoryIndex,
       promptHistoryOpen,

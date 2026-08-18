@@ -96,6 +96,8 @@ export const zhTWSlash = {
   "slash.history": "提示歷史",
   "slash.historyDesc": "從目前對話或最近對話選擇一條歷史提示",
   "slash.historyEmpty": "目前對話和最近歷史都還沒有提示",
+  "slash.attachChat": "加入對話",
+  "slash.attachChatDesc": "把另一段對話當作上下文",
   "slash.extensions": "擴充功能",
   "slash.extensionsDesc": "開啟設定 → 擴充功能",
   "slash.yolo": "完全存取",

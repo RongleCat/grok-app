@@ -41,6 +41,7 @@ describe("builtinSlashItems", () => {
       "copy",
       "find",
       "history",
+      "attach-chat",
       "extensions",
       "yolo",
     ]);

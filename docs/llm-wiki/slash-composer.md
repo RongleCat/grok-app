@@ -12,12 +12,14 @@ Gate: `showComposerProjectRow = !phoneLayout` in `AppWorkbench` (do not require 
 
 ## Composer document model
 
-- Draft is **segments**, not a plain string: `text | skill`.
+- Draft is **segments**, not a plain string: `text | skill | chat`.
 - Skills render as **inline chips** inside the editor (not a top-only chip bar).
+- Attached chats render as **composer chips** (`ChatRefChip`); the editor skips `chat` segments so `[[chat:uuid]]` never becomes typed text.
 - Mode markers (`goal`, and plan via session mode) live in the **composer toolbar**, not in the body.
-- Storage / user bubble text uses stable tokens: `[[skill:name]]`.
+- Storage / user bubble text uses stable tokens: `[[skill:name]]`, `[[chat:<session-uuid>]]`.
 - Agent prompt serialization:
   - Skills → `/name` tokens (Grok Build invocable form), then plain text.
+  - Chat tokens are **not** sent as agent text. Host `session_attach` expands ids into a compact transcript prefix (max 3 chats). Source journals are unchanged.
   - Goal task on → prefix `/goal\n` (finite objective until done — **not** a scheduled timer; copy says 目标任务 / Goal task).
   - Attachments still append `@/abs/path` lines via `buildAgentPrompt`.
 - Goal chip + schedule: with Goal on, normal sends do **not** enter silent automation-setup wrap (unless the session is sticky “Create with AI”). Unexpected `grok-automation` fences confirm before create — see [automations.md](./automations.md).
@@ -63,6 +65,20 @@ Two scopes in one picker:
 | Empty filter | When a query hides every row, offer **Clear filter** |
 
 Helpers: `src/lib/composerPromptHistory.ts` (session + list nav/empty), `src/lib/recentPromptHistory.ts` (cross-session clear/remove). UI: `PromptHistoryPanel`.
+
+## Attach another chat (`/attach-chat` · sidebar drag)
+
+Codex-style **context attach**, not a journal merge.
+
+| Entry | Behavior |
+|-------|----------|
+| `/attach-chat` or composer `+` | Opens a picker of other local sessions (excludes self, archived, already attached) |
+| Sidebar drag | Drag a session row onto the composer (same-document MIME + in-memory payload) |
+| Composer chips | Up to 3. Click opens the source chat. If the source `updatedAt` is newer than the attach snapshot, a refresh control appears |
+| Send | Journal stores `[[chat:<uuid>]]` in the user bubble. Host prefixes a compact user/assistant transcript for the agent only |
+| Limits | Max 3 chats; last 16 user/assistant turns; ~2k chars/turn; ~14k chars/chat |
+
+Helpers: `src/lib/chatAttach.ts`. Host: `src-tauri/src/session_attach.rs`. UI: `AttachChatPanel`, `ChatRefChip`.
 
 ## Doctor
 
