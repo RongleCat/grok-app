@@ -3,7 +3,13 @@
  * Keeps row UI out of App so stream re-renders skip unchanged rows.
  */
 
-import { memo, type DragEvent, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  memo,
+  useRef,
+  type DragEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import type { Locale } from "@/i18n";
 import {
   IconArchive,
@@ -133,7 +139,31 @@ function SidebarSessionRowInner({
     (checked ? " tree-l3--checked" : "") +
     (dragProps?.draggable ? " tree-l3--draggable" : "");
 
+  const ignoreClickAfterDragRef = useRef(false);
+  const wrappedDragProps = dragProps
+    ? {
+        ...dragProps,
+        onDragStart: (e: DragEvent) => {
+          ignoreClickAfterDragRef.current = true;
+          dragProps.onDragStart(e);
+        },
+        onDragEnd: () => {
+          dragProps.onDragEnd();
+          window.setTimeout(() => {
+            ignoreClickAfterDragRef.current = false;
+          }, 80);
+        },
+      }
+    : undefined;
+
   const handleClick = (e: MouseEvent) => {
+    // Dragend is followed by a click on the source row. Do not open that
+    // session or we leave the target (often a new chat) after attach.
+    if (ignoreClickAfterDragRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (selectMode) {
       onToggleSelect(session.id, { shiftKey: e.shiftKey });
       return;
@@ -179,7 +209,7 @@ function SidebarSessionRowInner({
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, session)}
       onKeyDown={handleKeyDown}
-      {...dragProps}
+      {...wrappedDragProps}
     >
       {selectMode ? (
         <span

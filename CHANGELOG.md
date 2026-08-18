@@ -95,7 +95,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 
-- Dragging a sidebar chat onto the composer no longer reports “Could not read the dropped files”. Error-banner text is selectable so it can be copied.
+- Dragging a sidebar chat onto the composer no longer reports “Could not read the dropped files”. Error-banner text is selectable so it can be copied. The drop now attaches even when Tauri swallows the HTML5 event, and the source row no longer steals focus after drag.
 
 ## [0.2.21] - 2026-08-18
 

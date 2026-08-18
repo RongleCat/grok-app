@@ -25,6 +25,8 @@ export type ChatRef = {
 /** HTML5 drag payload for sidebar → composer. */
 export const GROK_SESSION_DRAG_MIME = "application/x-grok-session";
 export const GROK_SESSION_DRAG_MIME_ALT = "text/x-grok-session";
+/** WKWebView often only preserves standard types. JSON payload. */
+export const GROK_SESSION_DRAG_TEXT = "text/plain";
 
 export type SessionDragPayload = {
   id: string;
@@ -221,17 +223,29 @@ export function dataTransferHasSession(
 ): boolean {
   if (!dt) return false;
   const types = Array.from(dt.types ?? []);
-  return (
+  if (
     types.includes(GROK_SESSION_DRAG_MIME) ||
     types.includes(GROK_SESSION_DRAG_MIME_ALT)
-  );
+  ) {
+    return true;
+  }
+  if (!types.includes(GROK_SESSION_DRAG_TEXT)) return false;
+  try {
+    return parseSessionDrag(dt.getData(GROK_SESSION_DRAG_TEXT)) != null;
+  } catch {
+    return false;
+  }
 }
 
 export function parseSessionDragFromTransfer(
   dt: DataTransfer | null | undefined,
 ): SessionDragPayload | null {
   if (!dt) return null;
-  for (const mime of [GROK_SESSION_DRAG_MIME, GROK_SESSION_DRAG_MIME_ALT]) {
+  for (const mime of [
+    GROK_SESSION_DRAG_MIME,
+    GROK_SESSION_DRAG_MIME_ALT,
+    GROK_SESSION_DRAG_TEXT,
+  ]) {
     try {
       const parsed = parseSessionDrag(dt.getData(mime));
       if (parsed) return parsed;
@@ -240,6 +254,15 @@ export function parseSessionDragFromTransfer(
     }
   }
   return null;
+}
+
+/** Prefer the in-memory payload (same-document); fall back to DataTransfer. */
+export function takeSessionDragPayload(
+  held: SessionDragPayload | null | undefined,
+  dt?: DataTransfer | null,
+): SessionDragPayload | null {
+  if (held && isChatSessionId(held.id)) return held;
+  return parseSessionDragFromTransfer(dt);
 }
 
 function parseStamp(raw: string | undefined | null): number {

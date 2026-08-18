@@ -615,11 +615,12 @@ import {
   filterAttachableSessions,
   GROK_SESSION_DRAG_MIME,
   GROK_SESSION_DRAG_MIME_ALT,
+  GROK_SESSION_DRAG_TEXT,
   lookupChatTitle,
   MAX_ATTACHED_CHATS,
   parseChatTokens,
-  parseSessionDragFromTransfer,
   prependChatTokens,
+  takeSessionDragPayload,
   refreshChatRef,
   refreshStaleChatRefs,
   removeChatRef,
@@ -1704,6 +1705,9 @@ export function AppWorkbench() {
   );
   const sessionJsonSchemaRef = useRef<string | null>(null);
   sessionJsonSchemaRef.current = sessionJsonSchema;
+  const applyAttachedChatRef = useRef<
+    (id: string, title: string, updatedAt?: string) => void
+  >(() => {});
   const [showJsonSchemaModal, setShowJsonSchemaModal] = useState(false);
   const [jsonSchemaDraft, setJsonSchemaDraft] = useState("");
   /**
@@ -9248,7 +9252,20 @@ export function AppWorkbench() {
             setDragZone(null);
             dragPathsRef.current = [];
             lastNativeDropAtRef.current = Date.now();
-            if (sessionAttach || !paths.length) {
+            if (sessionAttach) {
+              const held = sessionDragRef.current;
+              sessionDragRef.current = null;
+              setSessionDropReady(false);
+              if (held && zone === "main") {
+                applyAttachedChatRef.current(
+                  held.id,
+                  held.title,
+                  held.updatedAt,
+                );
+              }
+              return;
+            }
+            if (!paths.length) {
               return;
             }
             if (zone === "sidebar") {
@@ -12339,6 +12356,7 @@ export function AppWorkbench() {
       setChatAttachments,
     ],
   );
+  applyAttachedChatRef.current = applyAttachedChat;
 
   const refreshAttachedChat = useCallback(
     (id: string) => {
@@ -12379,14 +12397,20 @@ export function AppWorkbench() {
           const raw = encodeSessionDrag(payload);
           e.dataTransfer.setData(GROK_SESSION_DRAG_MIME, raw);
           e.dataTransfer.setData(GROK_SESSION_DRAG_MIME_ALT, raw);
+          e.dataTransfer.setData(GROK_SESSION_DRAG_TEXT, raw);
           e.dataTransfer.effectAllowed = "copy";
         } catch {
           /* webview */
         }
       },
       onDragEnd: () => {
-        sessionDragRef.current = null;
         setSessionDropReady(false);
+        const held = sessionDragRef.current;
+        window.setTimeout(() => {
+          if (sessionDragRef.current === held) {
+            sessionDragRef.current = null;
+          }
+        }, 80);
       },
     };
   };
@@ -12408,9 +12432,21 @@ export function AppWorkbench() {
       if (ready && e.dataTransfer) e.dataTransfer.dropEffect = "copy";
     };
     const onDrop = (e: DragEvent) => {
-      const sessionPayload =
-        sessionDragRef.current ?? parseSessionDragFromTransfer(e.dataTransfer);
+      const sessionPayload = takeSessionDragPayload(
+        sessionDragRef.current,
+        e.dataTransfer,
+      );
       if (!sessionPayload) return;
+      const overComposer = !!(
+        composerShellRef.current &&
+        e.target instanceof Node &&
+        composerShellRef.current.contains(e.target)
+      );
+      if (!overComposer && hitDragZone(e.clientX, e.clientY) !== "main") {
+        sessionDragRef.current = null;
+        setSessionDropReady(false);
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       sessionDragRef.current = null;
