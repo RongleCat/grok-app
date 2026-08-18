@@ -636,6 +636,7 @@ import { AttachedChatLookupContext } from "@/components/AttachedChatLookup";
 import { SessionAttachGhost } from "@/components/SessionAttachGhost";
 import {
   classifySessionAttachDrop,
+  isSessionAttachPointerStartTarget,
   sessionAttachDragPastThreshold,
   sessionAttachDropReadyFromPoint,
   setSessionAttachDragLock,
@@ -12471,6 +12472,7 @@ export function AppWorkbench() {
     return {
       onPointerDown: (e: ReactPointerEvent) => {
         if (e.button !== 0) return;
+        if (!isSessionAttachPointerStartTarget(e.target)) return;
         const payload: SessionDragPayload = {
           id: s.id,
           title: s.title || "",

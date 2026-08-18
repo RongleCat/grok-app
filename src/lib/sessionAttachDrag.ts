@@ -66,9 +66,7 @@ export function sessionAttachDropReadyFromPoint(
 export function isSessionAttachPointerStartTarget(
   target: EventTarget | null,
 ): boolean {
-  if (!target || typeof Element === "undefined") return true;
-  if (!(target instanceof Element)) return true;
-  return !target.closest(
-    "button, a, input, textarea, [contenteditable='true']",
-  );
+  if (!target || typeof Element === "undefined") return false;
+  if (!(target instanceof Element)) return false;
+  return !!target.closest(".tree-l3__drag-handle");
 }

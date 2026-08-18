@@ -430,16 +430,29 @@ button.composer__context-item {
   box-shadow: 0 0 0 2px rgba(80, 140, 255, 0.12);
 }
 
-.tree-l3--draggable {
-  cursor: default;
+.tree-l3,
+.tree-l3 * {
+  -webkit-user-drag: none;
+}
+.tree-l3__title,
+.tree-l3__title * {
+  -webkit-user-select: none;
+  user-select: none;
 }
 .tree-l3__drag-handle {
+  flex-shrink: 0;
   cursor: grab;
   -webkit-user-drag: none;
   touch-action: none;
+  opacity: 0.55;
+}
+.tree-l3:hover .tree-l3__drag-handle,
+.tree-l3__drag-handle:focus-visible {
+  opacity: 1;
 }
 .tree-l3__drag-handle:active {
   cursor: grabbing;
+  opacity: 1;
 }
 
 /* Pointer attach-drag: do not let the transcript become a Select-All. */

@@ -141,8 +141,7 @@ function SidebarSessionRowInner({
     (unread ? " tree-l3--unread" : "") +
     (planPending ? " tree-l3--plan-pending" : "") +
     (selectMode ? " tree-l3--select-mode" : "") +
-    (checked ? " tree-l3--checked" : "") +
-    (dragProps ? " tree-l3--draggable" : "");
+    (checked ? " tree-l3--checked" : "");
 
   const handleClick = (e: MouseEvent) => {
     if (dragProps?.consumeClick?.()) {
@@ -195,6 +194,11 @@ function SidebarSessionRowInner({
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, session)}
       onKeyDown={handleKeyDown}
+      draggable={false}
+      onDragStart={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
     >
       {selectMode ? (
         <span
@@ -281,6 +285,24 @@ function SidebarSessionRowInner({
         locale={locale}
         enabled={showRelativeTime}
       />
+      {dragProps && labels.dragAttach && !selectMode && !working ? (
+        <Tip label={labels.dragAttach}>
+          <button
+            type="button"
+            className="tree-icon-btn tree-l3__drag-handle"
+            aria-label={labels.dragAttach}
+            draggable={false}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              dragProps.onPointerDown(e);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onDragStart={(e) => e.preventDefault()}
+          >
+            <IconDragHandle size={13} />
+          </button>
+        </Tip>
+      ) : null}
       {selectMode ? null : working ? (
         <Tip label={labels.working}>
           <span className="tree-l3__status" aria-label={labels.working}>
@@ -301,19 +323,6 @@ function SidebarSessionRowInner({
                 }}
               >
                 <IconChat size={13} />
-              </button>
-            </Tip>
-          ) : null}
-          {dragProps && labels.dragAttach ? (
-            <Tip label={labels.dragAttach}>
-              <button
-                type="button"
-                className="tree-icon-btn tree-l3__drag-handle"
-                aria-label={labels.dragAttach}
-                onPointerDown={dragProps.onPointerDown}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <IconDragHandle size={13} />
               </button>
             </Tip>
           ) : null}

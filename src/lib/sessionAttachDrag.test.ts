@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifySessionAttachDrop,
   isSessionAttachDropTarget,
+  isSessionAttachPointerStartTarget,
   sessionAttachDragPastThreshold,
   sessionAttachDropReadyFromPoint,
 } from "./sessionAttachDrag";
@@ -36,6 +37,23 @@ describe("isSessionAttachDropTarget", () => {
     expect(
       classifySessionAttachDrop({ overComposer: false, zone: "main" }),
     ).toBe("miss");
+  });
+});
+
+describe("isSessionAttachPointerStartTarget", () => {
+  it("only accepts the grip handle", () => {
+    if (typeof document === "undefined") return;
+    const handle = document.createElement("button");
+    handle.className = "tree-icon-btn tree-l3__drag-handle";
+    const icon = document.createElement("span");
+    handle.appendChild(icon);
+    const row = document.createElement("div");
+    row.className = "tree-l3";
+    row.appendChild(handle);
+    expect(isSessionAttachPointerStartTarget(icon)).toBe(true);
+    expect(isSessionAttachPointerStartTarget(handle)).toBe(true);
+    expect(isSessionAttachPointerStartTarget(row)).toBe(false);
+    expect(isSessionAttachPointerStartTarget(null)).toBe(false);
   });
 });
 
