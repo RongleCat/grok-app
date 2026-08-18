@@ -29,12 +29,7 @@ impl SessionManager {
         let _connect_guard = self.connect_lock.lock().await;
         match tokio::time::timeout(
             Duration::from_secs(CONNECT_WALL_CLOCK_SECS),
-            self.connect_inner(
-                app.clone(),
-                project_path,
-                app_session_id.clone(),
-                mock_mode,
-            ),
+            self.connect_inner(app.clone(), project_path, app_session_id.clone(), mock_mode),
         )
         .await
         {
@@ -1578,9 +1573,7 @@ mod connect_preserve_tests {
 
     #[test]
     fn wall_clock_and_stop_only_abort_handshake() {
-        assert!(should_fail_connect_on_wall_clock(
-            SessionState::Connecting
-        ));
+        assert!(should_fail_connect_on_wall_clock(SessionState::Connecting));
         assert!(!should_fail_connect_on_wall_clock(SessionState::Ready));
         assert!(stop_should_abort_handshake(SessionState::Connecting));
         assert!(!stop_should_abort_handshake(SessionState::Streaming));
