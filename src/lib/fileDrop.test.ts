@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  GROK_SESSION_DRAG_MIME,
+  GROK_SESSION_DRAG_MIME_ALT,
+} from "./chatAttach";
+import {
   HTML5_NATIVE_DROP_GUARD_MS,
   isFileDrag,
   pathsFromDroppedFiles,
@@ -31,6 +35,15 @@ describe("isFileDrag", () => {
     expect(isFileDrag(dt({ types: [], items: [{ kind: "file" }] }))).toBe(
       true,
     );
+  });
+
+  it("rejects in-app session attach even if Files is also listed", () => {
+    expect(
+      isFileDrag(dt({ types: [GROK_SESSION_DRAG_MIME, "Files"] })),
+    ).toBe(false);
+    expect(
+      isFileDrag(dt({ types: [GROK_SESSION_DRAG_MIME_ALT] })),
+    ).toBe(false);
   });
 });
 

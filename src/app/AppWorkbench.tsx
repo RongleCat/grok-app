@@ -9211,6 +9211,9 @@ export function AppWorkbench() {
         unlisten = await webview.onDragDropEvent((event) => {
           if (cancelled) return;
           const payload = event.payload;
+          // In-app sidebar → composer attach. Host still emits native drop
+          // with empty paths; do not treat that as a failed file drop.
+          const sessionAttach = !!sessionDragRef.current;
           if (payload.type === "enter" || payload.type === "drop") {
             if ("paths" in payload && payload.paths?.length) {
               dragPathsRef.current = payload.paths;
@@ -9222,6 +9225,7 @@ export function AppWorkbench() {
             return;
           }
           if (payload.type === "enter" || payload.type === "over") {
+            if (sessionAttach) return;
             // macOS: coords are already view points; win: physical → / factor
             const { x, y } = toClientDragPoint(
               payload.position,
@@ -9244,8 +9248,7 @@ export function AppWorkbench() {
             setDragZone(null);
             dragPathsRef.current = [];
             lastNativeDropAtRef.current = Date.now();
-            if (!paths.length) {
-              setLocalError(tr("attach.droppedNone"));
+            if (sessionAttach || !paths.length) {
               return;
             }
             if (zone === "sidebar") {
@@ -9270,34 +9273,43 @@ export function AppWorkbench() {
     addProjectsFromPaths,
     hitDragZone,
     platform,
-    tr,
   ]);
 
   // HTML5 fallback. Windows sets dragDropEnabled:false so WebView2 actually
   // delivers File blobs (Tauri's native handler otherwise swallows Explorer
   // drops). Capture phase so contenteditable cannot cancel the drop.
   useEffect(() => {
+    const isSessionAttachDrag = (dt: DataTransfer | null | undefined) =>
+      !!sessionDragRef.current || dataTransferHasSession(dt);
     const onDragEnter = (e: DragEvent) => {
-      if (!isFileDrag(e.dataTransfer)) return;
+      if (isSessionAttachDrag(e.dataTransfer) || !isFileDrag(e.dataTransfer)) {
+        return;
+      }
       e.preventDefault();
       html5DragDepthRef.current += 1;
       setDragZone(hitDragZone(e.clientX, e.clientY));
     };
     const onDragOver = (e: DragEvent) => {
-      if (!isFileDrag(e.dataTransfer)) return;
+      if (isSessionAttachDrag(e.dataTransfer) || !isFileDrag(e.dataTransfer)) {
+        return;
+      }
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
       setDragZone(hitDragZone(e.clientX, e.clientY));
     };
     const onDragLeave = (e: DragEvent) => {
-      if (!isFileDrag(e.dataTransfer)) return;
+      if (isSessionAttachDrag(e.dataTransfer) || !isFileDrag(e.dataTransfer)) {
+        return;
+      }
       html5DragDepthRef.current = Math.max(0, html5DragDepthRef.current - 1);
       if (html5DragDepthRef.current === 0) setDragZone(null);
     };
     const onDrop = (e: DragEvent) => {
       html5DragDepthRef.current = 0;
       setDragZone(null);
-      if (!isFileDrag(e.dataTransfer)) return;
+      if (isSessionAttachDrag(e.dataTransfer) || !isFileDrag(e.dataTransfer)) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       if (shouldSkipHtml5AfterNative(lastNativeDropAtRef.current, Date.now())) {

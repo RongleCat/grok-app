@@ -6,12 +6,16 @@
  * See tauri.windows.conf.json. Path-less File blobs are saved via Host temp.
  */
 
+import { dataTransferHasSession } from "@/lib/chatAttach";
+
 /** How long HTML5 drop should yield to a just-handled Tauri OS drop. */
 export const HTML5_NATIVE_DROP_GUARD_MS = 400;
 
 /** True when this drag looks like OS files (Explorer / Finder / Nautilus). */
 export function isFileDrag(data: DataTransfer | null | undefined): boolean {
   if (!data) return false;
+  // Sidebar → composer attach-chat. WKWebView may also list `Files`.
+  if (dataTransferHasSession(data)) return false;
   const types = Array.from(data.types ?? []);
   if (
     types.includes("Files") ||

@@ -93,6 +93,10 @@ See `docs/llm-wiki/release.md`.
 - **移动会话被拒绝时不再误杀正在跑的 Agent（#616 跟进）**：Host 原来先杀掉会话的 ACP 进程、后校验目标文件夹，未信任/丢失的目标（或过期调用方发来的同项目 no-op）也会让会话丢掉 `agent_session_id`、被迫 `session/new`。现在 `session_move_to_project` 先预检目标和 cwd 是否变化，确认真的要移动才断开 Agent。
 - **输入框里的 skill 标签图标不再过小**：工具 / skills / imagine 等标签改用 14px SVG，和 12px 文字齐平。imagine 用魔杖，其余仍用扳手。
 
+### Fixed
+
+- Dragging a sidebar chat onto the composer no longer reports “Could not read the dropped files”. Error-banner text is selectable so it can be copied.
+
 ## [0.2.21] - 2026-08-18
 
 > **Highlight:** Create Image / Create Video from the composer + menu; Agent Kanban and Project Spaces; chat no longer freezes on the first generated image or stays stuck Connecting.

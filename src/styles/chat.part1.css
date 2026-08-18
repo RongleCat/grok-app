@@ -600,6 +600,16 @@
   border: 1px solid var(--danger);
   font-size: var(--text-sm);
   line-height: 1.45;
+  /* App chrome is user-select:none; errors must stay copyable. */
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+.error-banner button,
+.error-banner button * {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: pointer;
 }
 
 .error-banner__code {
