@@ -5,14 +5,10 @@
  * `width: 0 !important`).
  */
 
-/** Matches `--motion-pane` — expand. */
-export const TREE_REVEAL_MS = 320;
-/**
- * Close is longer and ease-in. `--motion-pane-ease` is expo-out and dumps
- * most of the height in the first frames — that is the "whoosh".
- */
-export const TREE_REVEAL_CLOSE_MS = 520;
-export const TREE_REVEAL_PRESENCE_MS = TREE_REVEAL_CLOSE_MS + 80;
+/** Matches `--motion-normal`. */
+export const TREE_REVEAL_MS = 200;
+export const TREE_REVEAL_CLOSE_MS = 200;
+export const TREE_REVEAL_PRESENCE_MS = TREE_REVEAL_CLOSE_MS + 48;
 
 export type TreeRevealSize = number | "auto";
 

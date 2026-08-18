@@ -88,20 +88,23 @@ describe("tree-reveal CSS", () => {
     "utf8",
   );
 
-  it("interpolates the inline height tuple — not 0fr/1fr, which WKWebView snaps", () => {
-    expect(TREE_REVEAL_MS).toBe(320);
-    expect(css).not.toMatch(/grid-template-rows/);
-    expect(css).toMatch(/\.tree-reveal\s*\{[^}]*height var\(--motion-pane\)/);
-    expect(css).toMatch(/min-height var\(--motion-pane\)/);
-    expect(css).toMatch(/max-height var\(--motion-pane\)/);
-    expect(css).toMatch(/var\(--motion-pane-ease\)/);
+  it("drives the L1 projects chevron, not only per-project chats", () => {
+    const src = readFileSync(
+      resolve(__dirname, "../app/AppWorkbench.tsx"),
+      "utf8",
+    );
+    expect(src).toMatch(
+      /<SidebarTreeReveal open=\{projectsOpen\} className="tree-reveal--projects">/,
+    );
   });
 
-  it("closes slower with ease-in, not the pane expo-out", () => {
-    expect(TREE_REVEAL_CLOSE_MS).toBe(520);
-    const close = css.slice(css.indexOf(".tree-reveal.is-closing"));
-    expect(close).toMatch(/520ms/);
-    expect(close).toMatch(/cubic-bezier\(0\.42,\s*0,\s*0\.58,\s*1\)/);
-    expect(close).not.toMatch(/--motion-pane-ease/);
+  it("interpolates the inline height tuple — not 0fr/1fr, which WKWebView snaps", () => {
+    expect(TREE_REVEAL_MS).toBe(200);
+    expect(TREE_REVEAL_CLOSE_MS).toBe(200);
+    expect(css).not.toMatch(/grid-template-rows/);
+    expect(css).toMatch(/\.tree-reveal\s*\{[^}]*height var\(--motion-normal\)/);
+    expect(css).toMatch(/min-height var\(--motion-normal\)/);
+    expect(css).toMatch(/max-height var\(--motion-normal\)/);
+    expect(css).toMatch(/var\(--motion-pane-ease\)/);
   });
 });

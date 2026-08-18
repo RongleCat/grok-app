@@ -100,9 +100,9 @@ describe("floating pop CSS", () => {
   it("interpolates project session lists instead of hard-cutting", () => {
     expect(tree).toMatch(/\.tree-reveal\s*\{/);
     expect(tree).not.toMatch(/grid-template-rows/);
-    expect(tree).toMatch(/height var\(--motion-pane\)/);
-    expect(tree).toMatch(/min-height var\(--motion-pane\)/);
-    expect(tree).toMatch(/max-height var\(--motion-pane\)/);
+    expect(tree).toMatch(/height var\(--motion-normal\)/);
+    expect(tree).toMatch(/min-height var\(--motion-normal\)/);
+    expect(tree).toMatch(/max-height var\(--motion-normal\)/);
     expect(tree).toMatch(/var\(--motion-pane-ease\)/);
   });
 });

@@ -122,21 +122,16 @@
 .tree-reveal {
   overflow: clip;
   transition:
-    height var(--motion-pane) var(--motion-pane-ease),
-    min-height var(--motion-pane) var(--motion-pane-ease),
-    max-height var(--motion-pane) var(--motion-pane-ease);
+    height var(--motion-normal) var(--motion-pane-ease),
+    min-height var(--motion-normal) var(--motion-pane-ease),
+    max-height var(--motion-normal) var(--motion-pane-ease);
 }
 
-/*
- * Full shorthand (WKWebView ignores a lone timing-function override on
- * a per-property transition). Ease-in + 520ms so close starts slow
- * instead of dumping the list in the first frames.
- */
 .tree-reveal.is-closing {
   transition:
-    height 520ms cubic-bezier(0.42, 0, 0.58, 1),
-    min-height 520ms cubic-bezier(0.42, 0, 0.58, 1),
-    max-height 520ms cubic-bezier(0.42, 0, 0.58, 1);
+    height var(--motion-normal) var(--motion-pane-ease),
+    min-height var(--motion-normal) var(--motion-pane-ease),
+    max-height var(--motion-normal) var(--motion-pane-ease);
 }
 
 .tree-reveal__inner {
