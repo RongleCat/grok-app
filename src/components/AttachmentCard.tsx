@@ -15,7 +15,12 @@ import {
   deriveAttachPreviewPhase,
 } from "@/lib/attachmentsPro";
 import * as api from "@/lib/api";
-import { ensureMediaEndpoint, resolveImageSrc, resolveImageSrcSync } from "@/lib/imageSrc";
+import { ensureMediaEndpoint } from "@/lib/imageSrc";
+import {
+  chatCardFirstPaintSrc,
+  nextChatCardDisplaySrc,
+  resolveChatImageThumb,
+} from "@/lib/imageThumbClient";
 import { copyImageFromPath } from "@/lib/copyImage";
 import { useImageViewerOptional } from "@/components/ImageViewer";
 import {
@@ -70,7 +75,9 @@ export function AttachmentCard({
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const isImg = !attachment.isDir && isImagePath(attachment.path);
   const [thumbSrc, setThumbSrc] = useState<string | null>(() =>
-    isImg ? resolveImageSrcSync(attachment.path) : null,
+    isImg
+      ? chatCardFirstPaintSrc(attachment.path, attachment.path, "card")
+      : null,
   );
   /** Once decode fails, stay broken — do not re-claim readiness on re-render. */
   const [thumbFailed, setThumbFailed] = useState(false);
@@ -83,21 +90,34 @@ export function AttachmentCard({
       setThumbFailed(false);
       return;
     }
-    // Sync resolve + cache: avoid empty→thumb height flash in the thread.
-    setThumbSrc(resolveImageSrcSync(attachment.path));
+    // Same thumb path as chat ImageUi (#675). Full originals in a 36px
+    // <img> make WKWebView hitch / flash when a long virtualized thread
+    // remounts the row (paste screenshots in history).
+    const first = chatCardFirstPaintSrc(
+      attachment.path,
+      attachment.path,
+      "card",
+    );
+    setThumbSrc((prev) => nextChatCardDisplaySrc(prev, { displaySrc: first }));
     setThumbFailed(false);
     let cancelled = false;
-    void ensureMediaEndpoint()
-      .then(() => resolveImageSrc(attachment.path))
-      .then((url) => {
-        if (!cancelled && url) {
-          setThumbSrc(url);
+    void (async () => {
+      try {
+        await ensureMediaEndpoint();
+        const r = await resolveChatImageThumb(
+          attachment.path,
+          attachment.path,
+        );
+        if (cancelled) return;
+        const display = nextChatCardDisplaySrc(first, r);
+        if (display) {
+          setThumbSrc(display);
           setThumbFailed(false);
         }
-      })
-      .catch(() => {
-        /* keep sync; do not invent a working thumb */
-      });
+      } catch {
+        /* keep first paint; do not invent a working thumb */
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -264,6 +284,8 @@ export function AttachmentCard({
                 src={thumbSrc!}
                 alt={attachment.name}
                 draggable={false}
+                loading="eager"
+                decoding="async"
                 onError={() => {
                   setThumbFailed(true);
                   setThumbSrc(null);
@@ -352,6 +374,8 @@ export function AttachmentCard({
               src={thumbSrc!}
               alt={attachment.name}
               draggable={false}
+              loading="eager"
+              decoding="async"
               onError={() => {
                 setThumbFailed(true);
                 setThumbSrc(null);

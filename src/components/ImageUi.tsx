@@ -278,9 +278,14 @@ export function ImageUi({
         : undefined;
 
     const seed = () => {
-      const next = initialResolvedSrc(src, path, layout);
+      const first = initialResolvedSrc(src, path, layout);
+      // Effect re-runs (retry / path alias) must not blank a card that
+      // already has a live URL — that gray↔image swap is the chat flash.
+      const next = nextChatCardDisplaySrc(paintedSrcRef.current, {
+        displaySrc: first ?? undefined,
+      });
       paintedSrcRef.current = next;
-      setResolvedSrc(next);
+      setResolvedSrc((prev) => (prev === next ? prev : next));
       setLoadFailed(false);
       setFailKind(null);
       const cached = readCachedAr(src, path);
@@ -626,7 +631,6 @@ export function ImageUi({
           </span>
         ) : resolvedSrc ? (
           <img
-            key={resolvedSrc}
             ref={imgRef}
             className="md-body__img-frame__el"
             src={resolvedSrc}

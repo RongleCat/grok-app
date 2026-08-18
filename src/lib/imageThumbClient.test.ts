@@ -86,6 +86,16 @@ describe("peekChatImageThumb / nextChatCardDisplaySrc", () => {
     );
   });
 
+  it("keeps a live loopback src when first-paint seed is empty (no gray flash)", () => {
+    const live = "http://127.0.0.1:9/v1/media?t=tok&p=%2Ftmp%2Ft.jpg";
+    expect(
+      nextChatCardDisplaySrc(live, { displaySrc: undefined } as never),
+    ).toBe(live);
+    expect(nextChatCardDisplaySrc(live, { displaySrc: null } as never)).toBe(
+      live,
+    );
+  });
+
   it("prefers a successful thumb displaySrc over the live src", () => {
     expect(
       nextChatCardDisplaySrc("https://cdn.example/chart.png", {
@@ -100,6 +110,20 @@ describe("peekChatImageThumb / nextChatCardDisplaySrc", () => {
 });
 
 describe("chatCardFirstPaintSrc — empty cache vs remount (#675)", () => {
+  it("does not first-paint a user-paste attachment original (history flash)", () => {
+    setMediaEndpoint({ baseUrl: "http://127.0.0.1:9", token: "tok" });
+    const paste =
+      "/Users/me/Library/Application Support/com.grokapp.grok-app/attachments/paste/20260818-173813-602-paste.png";
+    const originalUrl = localPathToMediaHttpUrl(paste);
+    expect(originalUrl).toContain("/v1/media");
+    expect(peekChatImageThumb(paste, paste)).toBeNull();
+
+    const first = chatCardFirstPaintSrc(paste, paste, "card");
+    expect(first).toBeNull();
+    expect(first).not.toBe(originalUrl);
+    expect(first).not.toBe(paste);
+  });
+
   it("does not first-paint the original media URL when the thumb cache is empty", () => {
     setMediaEndpoint({ baseUrl: "http://127.0.0.1:9", token: "tok" });
     const local = "/Users/me/imagine/1.png";
