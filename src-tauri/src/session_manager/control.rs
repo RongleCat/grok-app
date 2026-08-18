@@ -707,6 +707,7 @@ impl SessionManager {
         app: &AppHandle,
         effort: String,
         session_id: Option<&str>,
+        effort_changed: bool,
     ) -> Result<(), String> {
         let effort = effort.trim().to_string();
         // Accept CLI catalog values; unknown efforts still fail closed with a clear error.
@@ -720,6 +721,14 @@ impl SessionManager {
         if !ok {
             return Err(format!("invalid effort: {effort}"));
         }
+        // Grok Build's session/load restores the old model and reasoning effort,
+        // overriding this process's fresh spawn flags. On a real effort change,
+        // force session/new; the existing journal bootstrap preserves continuity.
+        if effort_changed {
+            if let Some(sid) = session_id {
+                store::clear_session_agent_session_id(sid)?;
+            }
+        }
         let need = {
             let mut guard = self.inner.lock();
             match guard.as_mut() {
@@ -727,6 +736,9 @@ impl SessionManager {
                     let same = s.effort.as_deref() == Some(effort.as_str());
                     s.effort = Some(effort.clone());
                     s.meta.effort = Some(effort.clone());
+                    if effort_changed {
+                        s.meta.agent_session_id = None;
+                    }
                     let _ = store::update_session_meta(&s.meta);
                     !same && s.acp.is_some()
                 }
@@ -740,6 +752,9 @@ impl SessionManager {
                 let same = s.effort.as_deref() == Some(effort.as_str());
                 s.effort = Some(effort.clone());
                 s.meta.effort = Some(effort.clone());
+                if effort_changed {
+                    s.meta.agent_session_id = None;
+                }
                 let _ = store::update_session_meta(&s.meta);
                 !same && s.acp.is_some()
             } else {

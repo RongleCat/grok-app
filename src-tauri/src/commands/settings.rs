@@ -354,6 +354,9 @@ pub async fn composer_prefs_set(
     } else {
         session_id.or(live_sess)
     };
+    let previous_effort = effort.as_ref().map(|_| {
+        store::resolve_composer_prefs(project_id.as_deref(), session_id.as_deref()).effort
+    });
 
     let prefs = store::save_composer_prefs(
         project_id.as_deref(),
@@ -375,8 +378,14 @@ pub async fn composer_prefs_set(
         }
     }
     if let Some(eff) = effort {
+        let effort_changed = previous_effort.as_deref() != Some(eff.trim());
         if let Err(e) = mgr
-            .set_effort_and_respawn_needed(&app, eff, session_id.as_deref())
+            .set_effort_and_respawn_needed(
+                &app,
+                eff,
+                session_id.as_deref(),
+                effort_changed,
+            )
             .await
         {
             tracing::warn!("composer_prefs_set set_effort soft-fail: {e}");

@@ -1571,9 +1571,11 @@ impl AcpClient {
             crate::wsl_backend::apply_wslenv(&mut cmd);
         }
         tracing::info!(
-            "acp: spawn home={} mode={} native_grok_proxy={} sandbox={:?} max_turns={:?} fork_session={} no_ask_user={} leader={} subagents={} memory={} compaction_mode={} compaction_detail={} compaction_flags={} agent_profile={:?} agents_json={}",
+            "acp: spawn home={} mode={} model={} effort={:?} native_grok_proxy={} sandbox={:?} max_turns={:?} fork_session={} no_ask_user={} leader={} subagents={} memory={} compaction_mode={} compaction_detail={} compaction_flags={} agent_profile={:?} agents_json={}",
             grok_home.display(),
             session_data_mode,
+            spawn_model,
+            opts.effort,
             grok_build_proxy.is_some(),
             sandbox.as_ref().map(|s| s.profile.as_str()),
             max_turns.as_ref().map(|m| m.turns),

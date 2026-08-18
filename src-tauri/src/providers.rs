@@ -112,6 +112,8 @@ pub struct UpsertProviderInput {
 const APP_MODELS_KEY: &str = "app_models";
 /// TOML field (ignored by Grok Build) storing JSON array of `{id,name,isDefault}`.
 const APP_EFFORTS_KEY: &str = "app_efforts";
+/// Grok Build capability gate for forwarding `--reasoning-effort` to inference.
+const SUPPORTS_REASONING_EFFORT_KEY: &str = "supports_reasoning_effort";
 /// TOML field (ignored by Grok Build): when true, do not auto-append `/v1` to base_url.
 const APP_BASE_URL_FULL_PATH_KEY: &str = "app_base_url_full_path";
 /// TOML field (ignored by Grok Build): extra rules appended to the system prompt.
@@ -313,7 +315,7 @@ fn format_toml_field_value(key: &str, value: &str) -> String {
         }
     }
     // App-managed bool flags: write bare `true` / `false` when clearly boolean.
-    if key == APP_BASE_URL_FULL_PATH_KEY {
+    if key == APP_BASE_URL_FULL_PATH_KEY || key == SUPPORTS_REASONING_EFFORT_KEY {
         let raw = unquote(value.trim());
         match raw.to_ascii_lowercase().as_str() {
             "true" | "1" | "yes" | "on" => return "true".into(),
@@ -383,6 +385,58 @@ pub fn ensure_model_integer_fields() -> Result<bool, String> {
     tracing::info!(
         target: "providers",
         "repaired quoted integer fields (e.g. context_window) in agent-home config.toml"
+    );
+    Ok(true)
+}
+
+/// Enable Grok Build's native effort forwarding for existing custom providers
+/// that already expose effort choices in the App.
+fn ensure_reasoning_effort_support_fields() -> Result<bool, String> {
+    let _ = ensure_agent_home()?;
+    let path = agent_config_toml();
+    if !path.exists() {
+        return Ok(false);
+    }
+
+    let text = read_text(&path);
+    let sections = parse_model_sections(&text);
+    let mut insertions = Vec::new();
+    for section in sections {
+        if !is_custom(&section.fields)
+            || section.fields.contains_key(SUPPORTS_REASONING_EFFORT_KEY)
+            || decode_app_efforts(
+                section
+                    .fields
+                    .get(APP_EFFORTS_KEY)
+                    .map(std::string::String::as_str),
+            )
+            .is_empty()
+        {
+            continue;
+        }
+
+        let lines = config_lines(&text);
+        let index = (section.start + 1..section.end)
+            .find(|&i| assignment_key_exact(lines[i].trim()) == Some(APP_EFFORTS_KEY))
+            .map_or(section.end, |i| i + 1);
+        insertions.push(index);
+    }
+    if insertions.is_empty() {
+        return Ok(false);
+    }
+
+    let mut lines: Vec<_> = config_lines(&text).into_iter().map(str::to_owned).collect();
+    for index in insertions.into_iter().rev() {
+        lines.insert(index, format!("{SUPPORTS_REASONING_EFFORT_KEY} = true"));
+    }
+    let mut repaired = lines.join("\n");
+    if text.ends_with('\n') {
+        repaired.push('\n');
+    }
+    write_text(&path, &repaired)?;
+    tracing::info!(
+        target: "providers",
+        "enabled reasoning-effort forwarding for existing custom providers"
     );
     Ok(true)
 }
@@ -1176,6 +1230,8 @@ pub fn list_custom_providers() -> Result<ProvidersListResult, String> {
     let path = agent_config_toml();
     // Heal legacy App writes that stringified context_window (#538).
     let _ = ensure_model_integer_fields();
+    // Existing App-only effort choices need the native Grok Build capability gate.
+    let _ = ensure_reasoning_effort_support_fields();
     let text = read_text(&path);
     Ok(build_list_result(home, path, &text))
 }
@@ -1585,6 +1641,10 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
     if !app_efforts_json.is_empty() && app_efforts_json != "[]" {
         fields.push((APP_EFFORTS_KEY.into(), app_efforts_json));
     }
+    fields.push((
+        SUPPORTS_REASONING_EFFORT_KEY.into(),
+        (!efforts.is_empty()).to_string(),
+    ));
     if let Some(ref p) = resolved_append_prompt {
         fields.push((APP_APPEND_PROMPT_KEY.into(), p.clone()));
     }
@@ -3007,6 +3067,104 @@ api_backend = \"responses\"";
         let json = encode_app_efforts(&list);
         let decoded = decode_app_efforts(Some(&json));
         assert_eq!(decoded, list);
+    }
+
+    #[test]
+    fn custom_provider_efforts_enable_cli_reasoning_effort() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let home =
+            std::env::temp_dir().join(format!("grok-app-provider-effort-{}", uuid::Uuid::new_v4()));
+        let previous_home = std::env::var("GROK_APP_HOME").ok();
+        std::env::set_var("GROK_APP_HOME", &home);
+
+        let result = upsert_custom_provider(UpsertProviderInput {
+            id: "custom_gateway".into(),
+            model: "custom-reasoner".into(),
+            base_url: "https://custom.example/v1".into(),
+            name: Some("Custom Gateway".into()),
+            api_key: Some("test-key".into()),
+            api_backend: Some("responses".into()),
+            provider_mode: Some(PROVIDER_MODE_GENERIC.into()),
+            set_as_default: Some(false),
+            create_only: Some(true),
+            models: Some(vec![ProviderModelEntry {
+                id: "custom-reasoner".into(),
+                name: "Custom Reasoner".into(),
+            }]),
+            efforts: Some(vec![ProviderEffortEntry {
+                id: "xhigh".into(),
+                name: "Extra high".into(),
+                is_default: true,
+            }]),
+            context_window: None,
+            base_url_full_path: Some(false),
+            append_prompt: None,
+            supports_vision: Some(false),
+        })
+        .and_then(|_| std::fs::read_to_string(agent_config_toml()).map_err(|e| e.to_string()));
+
+        match previous_home {
+            Some(value) => std::env::set_var("GROK_APP_HOME", value),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&home);
+
+        let config = result.expect("custom provider should be written");
+        assert!(
+            config.contains("supports_reasoning_effort = true"),
+            "Grok Build must see the native capability gate:\n{config}"
+        );
+        assert!(
+            !config.contains("supports_reasoning_effort = \"true\""),
+            "Grok Build requires a TOML boolean, not a string:\n{config}"
+        );
+    }
+
+    #[test]
+    fn list_repairs_existing_custom_provider_reasoning_support() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let home = std::env::temp_dir().join(format!(
+            "grok-app-provider-effort-repair-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let previous_home = std::env::var("GROK_APP_HOME").ok();
+        std::env::set_var("GROK_APP_HOME", &home);
+
+        let result = (|| -> Result<String, String> {
+            ensure_app_dirs().map_err(|e| e.to_string())?;
+            let path = agent_config_toml();
+            write_text(
+                &path,
+                r#"[models]
+default = "custom_gateway"
+
+[model.custom_gateway]
+model = "custom-reasoner"
+base_url = "https://custom.example/v1"
+api_key = "test-key"
+api_backend = "responses"
+app_efforts = "[{\"id\":\"xhigh\",\"name\":\"Extra high\",\"isDefault\":true}]"
+"#,
+            )?;
+            list_custom_providers()?;
+            std::fs::read_to_string(path).map_err(|e| e.to_string())
+        })();
+
+        match previous_home {
+            Some(value) => std::env::set_var("GROK_APP_HOME", value),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&home);
+
+        let config = result.expect("existing provider should be repaired");
+        assert!(
+            config.contains("supports_reasoning_effort = true"),
+            "existing App providers must be migrated without a manual re-save:\n{config}"
+        );
     }
 
     #[test]

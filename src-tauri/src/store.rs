@@ -1635,6 +1635,30 @@ pub fn update_session_meta(meta: &SessionMeta) -> Result<(), String> {
     update_session_index_row(meta).map(|_| ())
 }
 
+fn clear_agent_session_id(list: &mut [SessionMeta], id: &str) -> bool {
+    let Some(session) = list.iter_mut().find(|session| session.id == id) else {
+        return false;
+    };
+    if session.agent_session_id.take().is_none() {
+        return false;
+    }
+    session.updated_at = Utc::now();
+    true
+}
+
+/// Force the next CLI connection to create a fresh agent session.
+///
+/// `session/load` restores process-level model/effort from the old CLI journal,
+/// overriding new `--model` / `--reasoning-effort` spawn flags.
+pub fn clear_session_agent_session_id(id: &str) -> Result<bool, String> {
+    let mut list = load_sessions_index();
+    let changed = clear_agent_session_id(&mut list, id);
+    if changed {
+        save_sessions_index(&list)?;
+    }
+    Ok(changed)
+}
+
 pub fn delete_session(id: &str) -> Result<(), String> {
     let id_for_index = id.to_string();
     update_sessions_index(move |list| {
@@ -3432,6 +3456,21 @@ mod tests {
             fork_agent_session: false,
             no_ask_user: None,
         }
+    }
+
+    #[test]
+    fn effort_change_can_invalidate_cli_session_resume() {
+        let now = Utc::now();
+        let mut keep = sample_session("keep", false, now);
+        keep.agent_session_id = Some("agent-keep".into());
+        let mut changed = sample_session("changed", false, now);
+        changed.agent_session_id = Some("agent-old".into());
+        let mut sessions = vec![keep, changed];
+
+        assert!(clear_agent_session_id(&mut sessions, "changed"));
+        assert_eq!(sessions[0].agent_session_id.as_deref(), Some("agent-keep"));
+        assert!(sessions[1].agent_session_id.is_none());
+        assert!(!clear_agent_session_id(&mut sessions, "changed"));
     }
 
     #[test]

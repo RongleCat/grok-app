@@ -193,6 +193,9 @@ describe("buildErrorDeck", () => {
       }),
     ).toBe("AUTH_CUSTOM_PROVIDER");
     expect(
+      refineAuthDeckCode(noCtx, { activeSource: "custom" }),
+    ).toBe("AUTH_CUSTOM_PROVIDER");
+    expect(
       resolveErrorDeckCode("AUTH_FAILED", "401 unauthorized", {
         activeSource: "custom",
       }),

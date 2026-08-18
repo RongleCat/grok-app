@@ -439,6 +439,9 @@ export function refineAuthDeckCode(
   const s = (message ?? "").toLowerCase();
   const custom = opts?.activeSource === "custom";
 
+  // Custom routes never become valid by re-logging into the official account.
+  if (custom) return "AUTH_CUSTOM_PROVIDER";
+
   // Process / agent-home has no usable credentials (not just "wrong key").
   if (
     s.includes("no auth context") ||
@@ -462,12 +465,7 @@ export function refineAuthDeckCode(
         s.includes("not provided") ||
         s.includes("provided")));
   if (apiKeyish) {
-    return custom ? "AUTH_CUSTOM_PROVIDER" : "AUTH_API_KEY";
-  }
-
-  // Active custom relay: official re-login will not fix a bad key / OIDC mix.
-  if (custom) {
-    return "AUTH_CUSTOM_PROVIDER";
+    return "AUTH_API_KEY";
   }
 
   // Invalid/expired bearer with no more specific marker → generic re-login.
