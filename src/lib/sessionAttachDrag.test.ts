@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  ATTACH_DRAG_CLICK_GUARD_MS,
+  armAttachDragClickBlocker,
   classifySessionAttachDrop,
+  createAttachDragClickGuard,
   isSessionAttachDropTarget,
   isSessionAttachPointerStartTarget,
   sessionAttachDragPastThreshold,
@@ -54,6 +57,77 @@ describe("isSessionAttachPointerStartTarget", () => {
     expect(isSessionAttachPointerStartTarget(handle)).toBe(true);
     expect(isSessionAttachPointerStartTarget(row)).toBe(false);
     expect(isSessionAttachPointerStartTarget(null)).toBe(false);
+  });
+});
+
+describe("createAttachDragClickGuard", () => {
+  it("consumes the first click then later clicks are false", () => {
+    const guard = createAttachDragClickGuard(400);
+    guard.arm(1_000);
+    expect(guard.consume(1_100)).toBe(true);
+    expect(guard.consume(1_101)).toBe(false);
+    expect(guard.consume(1_200)).toBe(false);
+  });
+
+  it("does not consume after the deadline (leftover flag cannot stick)", () => {
+    const guard = createAttachDragClickGuard(400);
+    guard.arm(1_000);
+    expect(guard.consume(1_400)).toBe(false);
+    expect(guard.consume(1_401)).toBe(false);
+  });
+
+  it("does not consume when never armed", () => {
+    const guard = createAttachDragClickGuard(400);
+    expect(guard.consume(1_000)).toBe(false);
+  });
+});
+
+describe("armAttachDragClickBlocker", () => {
+  it("prevents one click then lets the next through", () => {
+    const guard = createAttachDragClickGuard(400);
+    const listeners = new Set<(ev: Event) => void>();
+    const timeouts: Array<() => void> = [];
+    const host = {
+      add: (_type: "click", fn: (ev: Event) => void) => {
+        listeners.add(fn);
+      },
+      remove: (_type: "click", fn: (ev: Event) => void) => {
+        listeners.delete(fn);
+      },
+      timeout: (fn: () => void) => {
+        timeouts.push(fn);
+      },
+    };
+    armAttachDragClickBlocker(guard, 1_000, host, 400);
+    expect(ATTACH_DRAG_CLICK_GUARD_MS).toBe(400);
+
+    const first = {
+      prevented: false,
+      stopped: false,
+      preventDefault() {
+        this.prevented = true;
+      },
+      stopPropagation() {
+        this.stopped = true;
+      },
+    };
+    for (const fn of [...listeners]) fn(first as unknown as Event);
+    expect(first.prevented).toBe(true);
+    expect(first.stopped).toBe(true);
+
+    const second = {
+      prevented: false,
+      stopped: false,
+      preventDefault() {
+        this.prevented = true;
+      },
+      stopPropagation() {
+        this.stopped = true;
+      },
+    };
+    for (const fn of [...listeners]) fn(second as unknown as Event);
+    expect(second.prevented).toBe(false);
+    expect(second.stopped).toBe(false);
   });
 });
 

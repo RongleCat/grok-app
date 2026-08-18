@@ -31,7 +31,9 @@ import {
   type SessionDragPayload,
 } from "@/lib/chatAttach";
 import {
+  armAttachDragClickBlocker,
   classifySessionAttachDrop,
+  createAttachDragClickGuard,
   isSessionAttachPointerStartTarget,
   sessionAttachDragPastThreshold,
   sessionAttachDropReadyFromPoint,
@@ -103,7 +105,7 @@ export function useAttachChat(opts: {
     title: string,
     updatedAt?: string,
   ) => void>(() => {});
-  const sessionDragMovedRef = useRef(false);
+  const clickGuardRef = useRef(createAttachDragClickGuard());
   const [sessionDragGhost, setSessionDragGhost] = useState<{
     x: number;
     y: number;
@@ -314,7 +316,6 @@ export function useAttachChat(opts: {
               return;
             }
             started = true;
-            sessionDragMovedRef.current = true;
             sessionDragRef.current = payload;
           }
           const kind = kindAt(ev.clientX, ev.clientY);
@@ -345,6 +346,9 @@ export function useAttachChat(opts: {
 
         const finish = (ev: PointerEvent) => {
           cleanup();
+          if (started) {
+            armAttachDragClickBlocker(clickGuardRef.current, Date.now());
+          }
           if (!started || cancelled) return;
           const kind = kindAt(ev.clientX, ev.clientY);
           sessionDragRef.current = null;
@@ -367,7 +371,10 @@ export function useAttachChat(opts: {
           cleanup();
           sessionDragRef.current = null;
           setSessionDropReady(false);
-          if (started) showToast(tr("attachChat.cancelled"), 1600);
+          if (started) {
+            armAttachDragClickBlocker(clickGuardRef.current, Date.now());
+            showToast(tr("attachChat.cancelled"), 1600);
+          }
         };
 
         const moveOpts: AddEventListenerOptions = {
@@ -379,11 +386,7 @@ export function useAttachChat(opts: {
         window.addEventListener("pointercancel", finish, true);
         window.addEventListener("keydown", onKey, true);
       },
-      consumeClick: () => {
-        if (!sessionDragMovedRef.current) return false;
-        sessionDragMovedRef.current = false;
-        return true;
-      },
+      consumeClick: () => clickGuardRef.current.consume(Date.now()),
     };
   };
 

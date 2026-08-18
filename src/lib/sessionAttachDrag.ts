@@ -70,3 +70,68 @@ export function isSessionAttachPointerStartTarget(
   if (!(target instanceof Element)) return false;
   return !!target.closest(".tree-l3__drag-handle");
 }
+
+/** Swallow the leftover click after a started grip-drag (same window as session-move). */
+export const ATTACH_DRAG_CLICK_GUARD_MS = 400;
+
+export type AttachDragClickGuard = {
+  arm: (now: number) => void;
+  consume: (now: number) => boolean;
+};
+
+/** One-shot + deadline. After consume or expiry, later consume() is false. */
+export function createAttachDragClickGuard(
+  ttlMs = ATTACH_DRAG_CLICK_GUARD_MS,
+): AttachDragClickGuard {
+  let until = 0;
+  return {
+    arm(now: number) {
+      until = now + ttlMs;
+    },
+    consume(now: number) {
+      if (until === 0 || now >= until) {
+        until = 0;
+        return false;
+      }
+      until = 0;
+      return true;
+    },
+  };
+}
+
+export type AttachDragClickBlockerHost = {
+  add: (type: "click", fn: (ev: Event) => void, capture: boolean) => void;
+  remove: (type: "click", fn: (ev: Event) => void, capture: boolean) => void;
+  timeout: (fn: () => void, ms: number) => unknown;
+};
+
+/** Arm the guard and intercept the next click for `ttlMs` (pointerup → click). */
+export function armAttachDragClickBlocker(
+  guard: AttachDragClickGuard,
+  now: number,
+  host?: AttachDragClickBlockerHost,
+  ttlMs = ATTACH_DRAG_CLICK_GUARD_MS,
+): void {
+  guard.arm(now);
+  const h =
+    host ??
+    (typeof window === "undefined"
+      ? null
+      : {
+          add: (type, fn, capture) =>
+            window.addEventListener(type, fn, capture),
+          remove: (type, fn, capture) =>
+            window.removeEventListener(type, fn, capture),
+          timeout: (fn, ms) => window.setTimeout(fn, ms),
+        });
+  if (!h) return;
+  const blockClick = (ev: Event) => {
+    // Same clock as arm(): leftover pointerup→click is immediate.
+    if (!guard.consume(now)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    h.remove("click", blockClick, true);
+  };
+  h.add("click", blockClick, true);
+  h.timeout(() => h.remove("click", blockClick, true), ttlMs);
+}
