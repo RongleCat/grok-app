@@ -36,6 +36,10 @@ import {
   TERMINAL_FONT_FAMILY_STORAGE_KEY,
   TERMINAL_FONT_SIZE_STORAGE_KEY,
 } from "@/lib/terminalFontPref";
+import {
+  isPaneSplitMotionActive,
+  scheduleAfterPaneSplitMotion,
+} from "@/lib/paneSplitMotion";
 
 export type TerminalTabProps = {
   locale: Locale | string;
@@ -406,36 +410,61 @@ export function TerminalTab({
     const fit = fitRef.current;
     const el = hostRef.current;
     if (!term || !el) return;
+    const last = { cols: 0, rows: 0 };
+    let raf = 0;
+    let cancelSettle: (() => void) | null = null;
 
-    const apply = () => {
+    const applyFit = () => {
       try {
-        // Refresh theme from CSS tokens (skin may have changed while hidden).
-        term.options.theme = buildSideTerminalTheme(el);
         fit?.fit();
       } catch {
         /* ignore */
       }
       const sid = sessionIdRef.current;
-      if (sid && term.cols && term.rows) {
-        void api
-          .terminalPtyResize(sid, term.cols, term.rows)
-          .catch(() => undefined);
-      }
+      if (!sid || !term.cols || !term.rows) return;
+      if (term.cols === last.cols && term.rows === last.rows) return;
+      last.cols = term.cols;
+      last.rows = term.rows;
+      void api
+        .terminalPtyResize(sid, term.cols, term.rows)
+        .catch(() => undefined);
     };
 
-    const t = window.setTimeout(apply, 0);
-    const t2 = window.setTimeout(apply, 50);
+    const apply = () => {
+      cancelSettle?.();
+      if (isPaneSplitMotionActive()) {
+        cancelSettle = scheduleAfterPaneSplitMotion(applyFit, 180);
+        return;
+      }
+      applyFit();
+    };
+
+    const schedule = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        apply();
+      });
+    };
+
+    try {
+      term.options.theme = buildSideTerminalTheme(el);
+    } catch {
+      /* ignore */
+    }
+    const t = window.setTimeout(schedule, 0);
     const ro =
       typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => apply())
+        ? new ResizeObserver(schedule)
         : null;
     ro?.observe(el);
-    window.addEventListener("resize", apply);
+    window.addEventListener("resize", schedule);
     return () => {
       window.clearTimeout(t);
-      window.clearTimeout(t2);
+      cancelSettle?.();
+      if (raf) cancelAnimationFrame(raf);
       ro?.disconnect();
-      window.removeEventListener("resize", apply);
+      window.removeEventListener("resize", schedule);
     };
   }, [active]);
 

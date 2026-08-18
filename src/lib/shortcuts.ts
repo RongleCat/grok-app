@@ -179,7 +179,7 @@ export const SHORTCUTS: ShortcutRow[] = [
     win: "Ctrl T",
   },
   {
-    /** Terminal tab in side workbench (VS Code / common ⌘`). */
+    /** Toggle the chat-column bottom terminal (VS Code / common ⌘`). */
     id: "sideTerminal",
     labelKey: "shortcuts.sideTerminal",
     group: "navigation",
@@ -330,7 +330,7 @@ function resolveVoiceHotkeyEnabled(explicit?: boolean): boolean {
  * - newChat / settings skip when typing
  * - search / help / doctor / copyLastReply / liveVoice / toggleSidebar /
  *   sideFiles / sideBrowser / sideTerminal work while typing
- *   (layout + side workbench chords are not blocked by composers)
+ *   (layout + side / bottom-terminal chords are not blocked by composers)
  * - liveVoice is suppressed when {@link shouldFireLiveVoiceHotkey} is false
  */
 export function matchGlobalShortcut(

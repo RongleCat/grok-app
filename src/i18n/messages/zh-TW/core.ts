@@ -114,7 +114,7 @@ export const zhTWCore = {
   "shortcuts.toggleRightPane": "顯示/隱藏側邊欄",
   "shortcuts.sideFiles": "側邊工作台 · 檔案",
   "shortcuts.sideBrowser": "側邊工作台 · 瀏覽器",
-  "shortcuts.sideTerminal": "側邊工作台 · 終端機",
+  "shortcuts.sideTerminal": "終端機",
   "shortcuts.closeSideTab": "關閉側邊分頁（無分頁時關閉視窗）",
   "shortcuts.sidebarSessionNav": "側欄上下切換對話（焦點在列表內）",
   "shortcuts.doctor": "Doctor",

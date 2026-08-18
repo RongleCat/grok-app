@@ -296,7 +296,7 @@ export const enSettings = {
   "settings.uiFontPh": "e.g. PingFang SC, Inter, system-ui",
   "settings.uiFontHint": "Leave empty for the default system UI stack. Enter an installed family name exactly.",
   "settings.terminalFont": "Terminal font",
-  "settings.terminalFontDesc": "Font for the built-in side terminal (Starship / Nerd Font glyphs).",
+  "settings.terminalFontDesc": "Font for the built-in terminal (Starship / Nerd Font glyphs).",
   "settings.terminalFontPh": "e.g. JetBrainsMono Nerd Font Mono",
   "settings.terminalFontHint":
     "Prefer a Nerd Font Mono face (JetBrainsMono Nerd Font Mono / JetBrainsMono NF) so Starship Powerline separators fill the cell. Empty uses the built-in Nerd Font stack. Open terminals apply size/family changes live.",

@@ -13,6 +13,7 @@ import {
   type Ref,
   type UIEvent,
 } from "react";
+import { runAfterPaneSplitMotion } from "@/lib/paneSplitMotion";
 
 type OverlayScrollProps = {
   children: ReactNode;
@@ -58,6 +59,7 @@ export function OverlayScroll({
   const [active, setActive] = useState(false);
 
   const measure = useCallback(() => {
+    if (runAfterPaneSplitMotion(measure)) return;
     const el = viewportRef.current;
     if (!el) return;
     const { scrollTop, scrollHeight, clientHeight } = el;

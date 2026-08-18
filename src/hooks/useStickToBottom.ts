@@ -32,6 +32,7 @@ import {
   shouldClampPinnedStreamDrift,
   shouldReleaseStickOnScrollUp,
 } from "@/lib/stickToBottom";
+import { runAfterPaneSplitMotion } from "@/lib/paneSplitMotion";
 
 export type UseStickToBottomOptions = {
   /** Re-pin when the conversation identity changes (session / first message). */
@@ -525,6 +526,7 @@ export function useStickToBottom(
     };
 
     const scheduleMeasure = () => {
+      if (runAfterPaneSplitMotion(scheduleMeasure)) return;
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;

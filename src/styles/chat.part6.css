@@ -571,7 +571,12 @@
   min-width: 0;
   border-left: 1px solid var(--border-subtle);
   background: var(--bg-aside);
-  transition: opacity 160ms ease, border-color 160ms ease;
+  transition:
+    width var(--motion-pane) var(--motion-pane-ease),
+    min-width var(--motion-pane) var(--motion-pane-ease),
+    max-width var(--motion-pane) var(--motion-pane-ease),
+    flex-basis var(--motion-pane) var(--motion-pane-ease),
+    border-color var(--motion-pane) ease;
   /* visible so the resizer can extend slightly into main for hit-testing */
   overflow: visible;
   display: flex;
@@ -586,13 +591,40 @@
   transition: none;
 }
 
+/* Clip only the pane whose box is interpolating. Overflow-hidden on a
+ * stable aside (file preview / native browser) during sidebar motion
+ * changes clientWidth and kicks webview setPosition every frame.
+ * Do not `contain: layout` the aside — persist-host height:100% then
+ * resolves against the full pane and the native webview covers chrome. */
+.workbench--pane-motion .sidebar,
+.workbench--aside-motion .aside {
+  overflow: hidden;
+}
+
+/*
+ * Click / shortcut collapse is a clip + fade, not a live resize.
+ * Inner rail stays at the last open width so labels do not wrap.
+ * Drag keeps `.is-resizing` and still reflows.
+ */
+.workbench--sidebar-motion .sidebar:not(.is-resizing) .sidebar__clip {
+  width: var(--sidebar-rail-min, 268px);
+  min-width: var(--sidebar-rail-min, 268px);
+  max-width: none;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.workbench--aside-motion .aside:not(.is-resizing) .aside__inner {
+  width: var(--aside-rail-min, 400px);
+  min-width: var(--aside-rail-min, 400px);
+  max-width: none;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
 .aside--collapsed,
 .aside--hidden {
-  width: 0 !important;
-  min-width: 0 !important;
-  max-width: 0 !important;
-  border: none !important;
-  opacity: 0;
+  border-left-color: transparent;
   pointer-events: none;
   overflow: hidden;
 }
@@ -638,6 +670,13 @@
   color: var(--text-secondary);
   overflow: hidden;
   border-radius: 0;
+  opacity: 1;
+  transition: opacity var(--motion-pane) ease;
+}
+
+.aside--hidden .aside__inner,
+.aside--collapsed .aside__inner {
+  opacity: 0;
 }
 
 /* When left sidebar fully closed, reserve mac traffic-light inset on main */

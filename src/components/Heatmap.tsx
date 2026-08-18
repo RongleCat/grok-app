@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { runAfterPaneSplitMotion } from "@/lib/paneSplitMotion";
 import { createPortal } from "react-dom";
 import type { HeatmapDay } from "@/lib/api";
 import { formatLocaleCount } from "@/lib/accountUi";
@@ -386,9 +387,14 @@ export function Heatmap({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width ?? 0;
-      setContainerWidth(w);
+    const apply = () => {
+      const node = containerRef.current;
+      if (!node) return;
+      setContainerWidth(node.clientWidth);
+    };
+    const ro = new ResizeObserver(() => {
+      if (runAfterPaneSplitMotion(apply)) return;
+      apply();
     });
     ro.observe(el);
     setContainerWidth(el.clientWidth);

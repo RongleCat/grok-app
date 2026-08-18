@@ -1,6 +1,12 @@
 /* Design tokens from docs/design-tokens.md — single source for CSS.
    Mount via data-theme="dark|light" on documentElement. */
 
+@property --sw-sidebar-occupied {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
 :root,
 [data-theme="dark"] {
   /* color-scheme is set on [data-theme] only — :root alone would force dark
@@ -41,6 +47,8 @@
 
   --motion-fast: 120ms;
   --motion-normal: 200ms;
+  --motion-pane: 320ms;
+  --motion-pane-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* Solid window base — never leave transparent or theme switches flash white */
   --bg-app: #0d0d0d;
@@ -294,6 +302,8 @@
   :root {
     --motion-fast: 0ms;
     --motion-normal: 0ms;
+    /* Keep pane interpolation. OS Reduce Motion zeroing this makes
+     * click-toggle look like a hard cut. */
   }
 }
 

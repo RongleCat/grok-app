@@ -45,6 +45,7 @@
 body > .composer-wrap.composer-wrap--side-dock {
   position: fixed !important;
   left: var(--sw-sidebar-occupied, 0px) !important;
+  transition: --sw-sidebar-occupied var(--motion-pane) var(--motion-pane-ease);
   right: 0 !important;
   bottom: 0 !important;
   top: auto !important;
@@ -71,6 +72,10 @@ body > .composer-wrap.composer-wrap--side-dock {
   justify-content: center;
 }
 
+.composer-wrap--side-dock.is-sidebar-resizing {
+  transition: none;
+}
+
 .composer-wrap--side-dock .composer {
   pointer-events: auto !important;
   width: 100%;
@@ -82,6 +87,11 @@ body > .composer-wrap.composer-wrap--side-dock {
   box-shadow:
     0 1px 0 rgba(0, 0, 0, 0.04),
     0 4px 14px rgba(0, 0, 0, 0.1);
+}
+
+/* Expanded overlay is a mode switch, not a split open — do not interpolate width. */
+.workbench--side-expanded .aside {
+  transition: none;
 }
 
 /* Side pane: full free area when no dock; bottom inset only with --sw-dock-composer-h */

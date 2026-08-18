@@ -51,11 +51,17 @@ import {
 import {
   boundsNearlyEqual,
   clipHostRectAgainstLeftResizers,
+  clipHostRectToAncestor,
   createTrailingSingleFlight,
+  isAsideWebviewSuppressed,
   snapBounds,
   type BoundsPx,
   type HostRectPx,
 } from "@/lib/nativeWebviewBounds";
+import {
+  isPaneSplitMotionActive,
+  runAfterPaneSplitMotion,
+} from "@/lib/paneSplitMotion";
 
 /** Collect visible vertical pane resizers that may sit under this host. */
 function leftPaneResizersNear(hostEl: HTMLElement): HostRectPx[] {
@@ -88,7 +94,7 @@ function leftPaneResizersNear(hostEl: HTMLElement): HostRectPx[] {
 /** Keep the 1px aside border hairline visible under native child Webviews. */
 const ASIDE_BROWSER_LEFT_INSET_PX = 1;
 
-function hostRectForWebview(hostEl: HTMLElement): HostRectPx {
+function hostRectForWebview(hostEl: HTMLElement): HostRectPx | null {
   const rect = hostEl.getBoundingClientRect();
   let base: HostRectPx = {
     left: rect.left,
@@ -98,9 +104,16 @@ function hostRectForWebview(hostEl: HTMLElement): HostRectPx {
     width: rect.width,
     height: rect.height,
   };
+  const aside = hostEl.closest(".aside");
+  if (aside instanceof HTMLElement) {
+    if (isAsideWebviewSuppressed(aside)) return null;
+    const clipped = clipHostRectToAncestor(base, aside.getBoundingClientRect());
+    if (!clipped) return null;
+    base = clipped;
+  }
   base = clipHostRectAgainstLeftResizers(base, leftPaneResizersNear(hostEl));
   // Side-pane browser only: shrink 1px from the left so the divider line shows.
-  if (hostEl.closest(".aside") && base.width > ASIDE_BROWSER_LEFT_INSET_PX) {
+  if (aside && base.width > ASIDE_BROWSER_LEFT_INSET_PX) {
     base = {
       ...base,
       left: base.left + ASIDE_BROWSER_LEFT_INSET_PX,
@@ -379,11 +392,29 @@ export function EmbeddedBrowser({
     const wv = webviewRef.current;
     if (!el || !wv || !isTauri()) return;
 
-    // Clip past left-edge pane resizers first (native webviews paint above DOM).
-    const rect = hostRectForWebview(el);
-    if (rect.width < 2 || rect.height < 2) {
+    const aside = el.closest(".aside");
+    const mustHide =
+      !activeRef.current ||
+      coveredRef.current ||
+      isAsideWebviewSuppressed(aside);
+    if (mustHide) {
       lastBoundsRef.current = null;
       await setWebviewVisible(wv, false);
+      return;
+    }
+
+    // Clip past left-edge pane resizers first (native webviews paint above DOM).
+    const rect = hostRectForWebview(el);
+    if (!rect || rect.width < 2 || rect.height < 2) {
+      lastBoundsRef.current = null;
+      await setWebviewVisible(wv, false);
+      return;
+    }
+
+    if (isPaneSplitMotionActive()) {
+      runAfterPaneSplitMotion(() => {
+        scheduleRef.current?.schedule();
+      });
       return;
     }
 
@@ -457,7 +488,14 @@ export function EmbeddedBrowser({
   };
 
   useEffect(() => {
-    return subscribeNativeWebviewCover(setCovered);
+    return subscribeNativeWebviewCover((next) => {
+      coveredRef.current = next;
+      setCovered(next);
+      if (next) {
+        const wv = webviewRef.current;
+        if (wv) void setWebviewVisible(wv, false);
+      }
+    });
   }, []);
 
   // Floating composer moved / sized — re-clip native webview without full hide.
@@ -696,6 +734,10 @@ export function EmbeddedBrowser({
         if (hostRef.current && typeof IntersectionObserver !== "undefined") {
           io = new IntersectionObserver(
             (entries) => {
+              if (isPaneSplitMotionActive()) {
+                runAfterPaneSplitMotion(() => scheduleSyncRaf());
+                return;
+              }
               const vis = entries.some(
                 (e) => e.isIntersecting && e.intersectionRatio > 0.05,
               );
@@ -817,6 +859,10 @@ export function EmbeddedBrowser({
   useEffect(() => {
     const wv = webviewRef.current;
     if (!wv || !isTauri()) return;
+    if (!active || covered) {
+      void setWebviewVisible(wv, false);
+      return;
+    }
     scheduleSync();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, covered]);

@@ -45,6 +45,10 @@ import {
   scheduleOnFrame,
   type FrameSchedule,
 } from "@/lib/frameSchedule";
+import {
+  isPaneSplitMotionActive,
+  runAfterPaneSplitMotion,
+} from "@/lib/paneSplitMotion";
 
 export type UseChatMessageVirtualizerArgs = {
   itemCount: number;
@@ -328,8 +332,14 @@ export function useChatMessageVirtualizer(
     el.addEventListener("scroll", onScroll, { passive: true });
     // Viewport chrome resize only — not content (content RO was thrashy).
     const ro = new ResizeObserver(() => {
-      if (scrollingRef.current) {
+      if (scrollingRef.current || isPaneSplitMotionActive()) {
         pendingHeightRecomputeRef.current = true;
+        if (isPaneSplitMotionActive()) {
+          runAfterPaneSplitMotion(() => {
+            pendingHeightRecomputeRef.current = false;
+            recomputeNow();
+          });
+        }
         return;
       }
       recompute();
@@ -389,6 +399,7 @@ export function useChatMessageVirtualizer(
   const commitRowHeight = useCallback(
     (index: number, el: HTMLElement) => {
       if (!virtualized) return;
+      if (runAfterPaneSplitMotion(() => commitRowHeight(index, el))) return;
       const key = getKeyRef.current(index);
       const nextH = Math.round(el.getBoundingClientRect().height);
       const prevMeasured = heightsRef.current.get(key);

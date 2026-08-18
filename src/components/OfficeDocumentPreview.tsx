@@ -19,6 +19,7 @@ import { createT, type Locale } from "@/i18n";
 import { openInEditor, pathOpen, pathReveal } from "@/lib/api";
 import { sanitizeOfficeSheetHtml } from "@/lib/sanitizeOfficeHtml";
 import { Tip } from "@/components/ui/tooltip";
+import { runAfterPaneSplitMotion } from "@/lib/paneSplitMotion";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -188,7 +189,9 @@ export function OfficeDocumentPreview({
         const scroll = docxScrollRef.current;
         if (scroll && typeof ResizeObserver !== "undefined") {
           ro = new ResizeObserver(() => {
-            if (!cancelled) relaxDocxPageWidths();
+            if (cancelled) return;
+            if (runAfterPaneSplitMotion(relaxDocxPageWidths)) return;
+            relaxDocxPageWidths();
           });
           ro.observe(scroll);
         }

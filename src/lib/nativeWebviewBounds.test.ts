@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   boundsNearlyEqual,
   clipHostRectAgainstLeftResizers,
+  clipHostRectToAncestor,
   createTrailingSingleFlight,
+  isAsideWebviewSuppressed,
   snapBounds,
 } from "./nativeWebviewBounds";
 
@@ -41,6 +43,78 @@ describe("snapBounds", () => {
       y: 2,
       width: 0,
       height: 10,
+    });
+  });
+});
+
+describe("isAsideWebviewSuppressed", () => {
+  it("is true for hidden / collapsed / aria-hidden aside", () => {
+    expect(
+      isAsideWebviewSuppressed({
+        classList: { contains: (n) => n === "aside--hidden" },
+        getAttribute: () => null,
+      }),
+    ).toBe(true);
+    expect(
+      isAsideWebviewSuppressed({
+        classList: { contains: (n) => n === "aside--collapsed" },
+        getAttribute: () => null,
+      }),
+    ).toBe(true);
+    expect(
+      isAsideWebviewSuppressed({
+        classList: { contains: () => false },
+        getAttribute: (n) => (n === "aria-hidden" ? "true" : null),
+      }),
+    ).toBe(true);
+    expect(
+      isAsideWebviewSuppressed({
+        classList: { contains: () => false },
+        getAttribute: () => null,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("clipHostRectToAncestor", () => {
+  const host = {
+    left: 200,
+    top: 40,
+    right: 800,
+    bottom: 700,
+    width: 600,
+    height: 660,
+  };
+
+  it("returns null when the aside is a 0-width sliver", () => {
+    expect(
+      clipHostRectToAncestor(host, {
+        left: 800,
+        top: 0,
+        right: 800,
+        bottom: 700,
+        width: 0,
+        height: 700,
+      }),
+    ).toBeNull();
+  });
+
+  it("clips a host that overflowed a shrinking aside", () => {
+    const next = clipHostRectToAncestor(host, {
+      left: 500,
+      top: 0,
+      right: 800,
+      bottom: 700,
+      width: 300,
+      height: 700,
+    });
+    expect(next).toEqual({
+      left: 500,
+      top: 40,
+      right: 800,
+      bottom: 700,
+      width: 300,
+      height: 660,
     });
   });
 });

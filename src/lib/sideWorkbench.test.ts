@@ -63,6 +63,9 @@ describe("sidePickerOptions", () => {
     expect(isPickerCreatableKind("skills", { isGitProject: false })).toBe(
       true,
     );
+    expect(isPickerCreatableKind("terminal", { isGitProject: false })).toBe(
+      true,
+    );
     expect(isPickerCreatableKind("plan", { isGitProject: true })).toBe(false);
   });
 });

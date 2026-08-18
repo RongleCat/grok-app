@@ -330,9 +330,10 @@
   );
 }
 
-/* Zone chrome while dragging — dim non-target gently, no layout jump */
-.main,
-.sidebar {
+/* Zone chrome while dragging — dim non-target gently, no layout jump.
+ * Do not set `transition` on bare `.sidebar` here: it would replace the
+ * width interpolation in sidebar.part1.css and hard-cut click-toggle. */
+.main {
   transition: opacity 180ms ease, filter 180ms ease;
 }
 
@@ -395,6 +396,7 @@
   gap: var(--space-2);
   flex-shrink: 0;
   box-sizing: border-box;
+  transition: padding-left var(--motion-pane) var(--motion-pane-ease);
 }
 
 .platform-win .main__top,

@@ -114,7 +114,7 @@ export const zhCore = {
   "shortcuts.toggleRightPane": "显示/隐藏侧边栏",
   "shortcuts.sideFiles": "侧边工作台 · 文件",
   "shortcuts.sideBrowser": "侧边工作台 · 浏览器",
-  "shortcuts.sideTerminal": "侧边工作台 · 终端",
+  "shortcuts.sideTerminal": "终端",
   "shortcuts.closeSideTab": "关闭侧边标签（无标签时关闭窗口）",
   "shortcuts.sidebarSessionNav": "侧栏上下切换会话（焦点在列表内）",
   "shortcuts.doctor": "Doctor",

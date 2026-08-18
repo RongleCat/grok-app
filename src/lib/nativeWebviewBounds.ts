@@ -83,6 +83,39 @@ export function clipHostRectAgainstLeftResizers(
   };
 }
 
+/** Aside is closing / closed — native webview must hide even if the host still reports a stale overflow box. */
+export function isAsideWebviewSuppressed(
+  aside: { classList: { contains(name: string): boolean }; getAttribute(name: string): string | null } | null,
+): boolean {
+  if (!aside) return false;
+  return (
+    aside.classList.contains("aside--hidden") ||
+    aside.classList.contains("aside--collapsed") ||
+    aside.getAttribute("aria-hidden") === "true"
+  );
+}
+
+/**
+ * Intersect host with the aside's visible border box.
+ * Closing the pane sets aside width to 0 + overflow:hidden; the host's own
+ * getBoundingClientRect can stay at the old 400px (min-content overflow).
+ * Painting the native webview at that stale rect covers chat / chrome.
+ */
+export function clipHostRectToAncestor(
+  host: HostRectPx,
+  ancestor: Pick<HostRectPx, "left" | "top" | "right" | "bottom" | "width" | "height"> | null,
+): HostRectPx | null {
+  if (!ancestor || ancestor.width < 2 || ancestor.height < 2) return null;
+  const left = Math.max(host.left, ancestor.left);
+  const top = Math.max(host.top, ancestor.top);
+  const right = Math.min(host.right, ancestor.right);
+  const bottom = Math.min(host.bottom, ancestor.bottom);
+  const width = right - left;
+  const height = bottom - top;
+  if (width < 2 || height < 2) return null;
+  return { left, top, right, bottom, width, height };
+}
+
 /**
  * Single-flight + trailing-edge runner.
  *

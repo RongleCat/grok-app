@@ -38,6 +38,7 @@
 | `--leading-tight` / `normal` | `1.35 / 1.55` | 行高 |
 | `--shadow-window` | 见主题表 | 窗口投影 |
 | `--motion-fast` / `normal` | `120ms` / `200ms` | 过渡；尊重 `prefers-reduced-motion` |
+| `--motion-pane` / `--motion-pane-ease` | `320ms` / `cubic-bezier(0.22, 1, 0.36, 1)` | 左右分栏 / 底栏开合（无过冲）。**不**随 `prefers-reduced-motion` 清零 |
 
 **栏宽持久化：** `layout.sidebarWidth` / `layout.asideWidth` / `layout.asideCollapsed` 写入 App 配置。
 

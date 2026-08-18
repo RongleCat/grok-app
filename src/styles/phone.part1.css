@@ -71,7 +71,9 @@
     max-width: 320px;
     min-width: 0 !important;
     transform: translateX(0);
-    transition: transform 200ms ease, box-shadow 200ms ease;
+    transition:
+      transform var(--motion-pane) var(--motion-pane-ease),
+      box-shadow var(--motion-pane) ease;
     box-shadow: 8px 0 28px rgba(0, 0, 0, 0.35);
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -191,8 +193,8 @@
   }
 
   /* ── Right resource pane: full-screen overlay (never side-by-side) ───── */
-  .app-shell--phone .aside:not(.aside--hidden),
-  .app-shell--phone .aside.aside--phone-overlay:not(.aside--hidden) {
+  .app-shell--phone .aside,
+  .app-shell--phone .aside.aside--phone-overlay {
     position: fixed;
     inset: 0;
     z-index: 70;
@@ -200,6 +202,20 @@
     min-width: 0 !important;
     max-width: 100% !important;
     box-shadow: none;
+    transform: translateX(0);
+    transition: transform var(--motion-pane) var(--motion-pane-ease);
+  }
+
+  .app-shell--phone .aside.aside--hidden,
+  .app-shell--phone .aside.aside--phone-overlay.aside--hidden {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    transform: translateX(105%);
+    opacity: 1;
+    pointer-events: none;
+    overflow: hidden;
+    border-left-color: transparent;
   }
 
   .app-shell--phone .aside-resizer {

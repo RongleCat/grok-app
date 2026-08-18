@@ -296,7 +296,7 @@ export const zhSettings = {
   "settings.uiFontPh": "例如 PingFang SC、Inter、system-ui",
   "settings.uiFontHint": "留空使用系统默认无衬线栈。请填写本机已安装的字体族名称。",
   "settings.terminalFont": "终端字体",
-  "settings.terminalFontDesc": "侧栏内置终端字体（Starship / Nerd Font 图标）。",
+  "settings.terminalFontDesc": "内置终端字体（Starship / Nerd Font 图标）。",
   "settings.terminalFontPh": "例如 JetBrainsMono Nerd Font Mono",
   "settings.terminalFontHint":
     "推荐 Nerd Font 的 Mono 变体（JetBrainsMono Nerd Font Mono / JetBrainsMono NF），Starship Powerline 分隔符才能铺满单元格。留空使用内置 Nerd Font 回退栈。已打开的终端会实时应用字号/字体。",

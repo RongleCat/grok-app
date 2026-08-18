@@ -1,0 +1,83 @@
+/**
+ * Bottom terminal — sits under .main__stage inside the chat column.
+ * Closed height is inline 0 (same property as open) so the pane can
+ * interpolate. Do not use height: 0 !important — that hard-cuts.
+ */
+
+.bt {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg-main);
+  border-top: 1px solid transparent;
+  transition:
+    height var(--motion-pane) var(--motion-pane-ease),
+    min-height var(--motion-pane) var(--motion-pane-ease),
+    flex-basis var(--motion-pane) var(--motion-pane-ease),
+    border-color var(--motion-pane) ease;
+}
+
+.bt[data-open="false"] {
+  pointer-events: none;
+}
+
+.bt[data-open="true"] {
+  border-top-color: var(--border-subtle);
+}
+
+.bt.is-resizing {
+  transition: none;
+}
+
+.bt__resize {
+  flex-shrink: 0;
+  height: 5px;
+  margin-top: -2px;
+  cursor: ns-resize;
+  touch-action: none;
+  position: relative;
+  z-index: 2;
+}
+
+.bt__resize:hover,
+.bt__resize:active {
+  background: color-mix(in srgb, var(--text-secondary) 28%, transparent);
+}
+
+.bt__chrome {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bt__tabs {
+  flex: 1;
+  min-width: 0;
+}
+
+.bt__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bt__persist-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.bt__persist-host[hidden] {
+  display: none !important;
+}
+
+/* Same veil-host stretch as the side persist pane */
+.bt__persist-host:has(.sw-terminal--pty) {
+  display: flex;
+  flex-direction: column;
+}

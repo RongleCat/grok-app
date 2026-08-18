@@ -353,6 +353,11 @@ select,
   position: relative;
   /* Transparent on mac so sidebar vibrancy is not covered by solid paint */
   background: transparent;
+  transition: --sw-sidebar-occupied var(--motion-pane) var(--motion-pane-ease);
+}
+
+.workbench:has(.sidebar.is-resizing) {
+  transition: none;
 }
 
 /*
@@ -376,7 +381,14 @@ select,
   /* No outer padding — chrome / brand / scroll / footer own their insets */
   padding: 0;
   gap: 0;
-  transition: width 160ms ease, min-width 160ms ease, opacity 160ms ease;
+  transition:
+    width var(--motion-pane) var(--motion-pane-ease),
+    min-width var(--motion-pane) var(--motion-pane-ease),
+    max-width var(--motion-pane) var(--motion-pane-ease),
+    flex-basis var(--motion-pane) var(--motion-pane-ease),
+    border-color var(--motion-pane) ease,
+    opacity 180ms ease,
+    filter 180ms ease;
   z-index: 1;
 }
 
@@ -495,27 +507,29 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   box-shadow: -4px 0 12px rgba(0, 0, 0, 0.02);
 }
 
-/* Fully closed left pane (no icon rail) — reopen from main top icons */
-.sidebar--hidden {
-  width: 0 !important;
-  min-width: 0 !important;
-  max-width: 0 !important;
+/* Fully closed left pane (no icon rail) — reopen from main top icons.
+ * Width stays on the inline style. !important:0 here is a hard cut. */
+.sidebar--hidden,
+.sidebar--collapsed {
   padding: 0 !important;
-  border: none !important;
-  opacity: 0;
+  border-right-color: transparent;
   overflow: hidden;
   pointer-events: none;
 }
 
-.sidebar--collapsed {
-  width: 0 !important;
-  min-width: 0 !important;
-  max-width: 0 !important;
-  padding: 0 !important;
-  border: none !important;
+.sidebar__clip {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  opacity: 1;
+  transition: opacity var(--motion-pane) ease;
+}
+
+.sidebar--hidden .sidebar__clip,
+.sidebar--collapsed .sidebar__clip {
   opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
 }
 
 /* Row 1: same height as main__top + rv__head — keep divider Y aligned across panes */

@@ -297,7 +297,7 @@ export const zhTWSettings = {
   "settings.uiFontPh": "例如 PingFang TC、Inter、system-ui",
   "settings.uiFontHint": "留空使用系統預設無襯線堆疊。請填寫本機已安裝的字型族名稱。",
   "settings.terminalFont": "終端字型",
-  "settings.terminalFontDesc": "側欄內建終端字型（Starship / Nerd Font 圖示）。",
+  "settings.terminalFontDesc": "內建終端字型（Starship / Nerd Font 圖示）。",
   "settings.terminalFontPh": "例如 JetBrainsMono Nerd Font Mono",
   "settings.terminalFontHint":
     "建議使用 Nerd Font 的 Mono 變體（JetBrainsMono Nerd Font Mono / JetBrainsMono NF），Starship Powerline 分隔符才能鋪滿儲存格。留空使用內建 Nerd Font 回退堆疊。已開啟的終端機會即時套用字級/字型。",
