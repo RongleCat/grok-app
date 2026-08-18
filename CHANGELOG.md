@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- **Live “思考中” timer no longer inherits another chat’s clock**: A leftover `turnStartedAt` (or a later correction) used to stick at 50+ minutes, then jump to the real duration after remount. The live timer now follows this turn’s clock and will not start before the assistant bubble’s `createdAt`.
+
+**中文 · 修复**
+- **「思考中」不再沿用上一会话的计时**：上一轮留下的 `turnStartedAt` 会把时长钉在 50 多分钟，滑一下或重挂载后又变成真正的几分钟。现在跟本轮时钟走，也不会早于这条助手气泡的 `createdAt`。
+
 ## [0.2.21] - 2026-08-18
 
 > **Highlight:** Create Image / Create Video from the composer + menu; Agent Kanban and Project Spaces; chat no longer freezes on the first generated image or stays stuck Connecting.

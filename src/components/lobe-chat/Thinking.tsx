@@ -18,6 +18,7 @@ import { createT, type Locale } from "@/i18n";
 import { COLLAPSE_ALL_ACTIVITY_EVENT } from "@/lib/collapseAllActivity";
 import { formatWorkDuration } from "@/lib/formatWorkDuration";
 import { resolveThinkingChromeLabel } from "@/lib/thinkingChromeLabel";
+import { nextThinkingStartAnchor } from "@/lib/thinkingStartAnchor";
 
 export const Thinking = memo(function Thinking({
   content,
@@ -67,22 +68,19 @@ export const Thinking = memo(function Thinking({
   // Live wall-clock while streaming; freeze when done.
   // Prefer `startedAt` (turn / post-steer clock) so remounts after steer /
   // session switch do not collapse a long wait into “Thought for 1s”.
+  // Also adopt a *later* startedAt: a leftover previous-session clock must
+  // not pin “思考中 51分” after this turn’s real start arrives.
   const frozenRef = useRef(false);
   useEffect(() => {
     if (thinking) {
       frozenRef.current = false;
       setOpen(true);
       userToggled.current = false;
-      const anchor =
-        typeof startedAt === "number" && Number.isFinite(startedAt)
-          ? startedAt
-          : null;
-      if (startRef.current == null) {
-        startRef.current = anchor ?? Date.now();
-      } else if (anchor != null && anchor < startRef.current) {
-        // Host pulled the episode start earlier (e.g. steer) — honor it.
-        startRef.current = anchor;
-      }
+      startRef.current = nextThinkingStartAnchor({
+        prevAnchor: startRef.current,
+        startedAt,
+        nowMs: Date.now(),
+      });
       const tick = () => {
         const origin = startRef.current;
         if (origin != null) {

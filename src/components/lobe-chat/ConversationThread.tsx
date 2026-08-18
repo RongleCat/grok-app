@@ -80,6 +80,10 @@ import {
   IconTarget,
 } from "@/components/icons";
 import { setDraft } from "@/lib/composerDraftStore";
+import {
+  clampThinkingStartToMessage,
+  parseCreatedAtMs,
+} from "@/lib/thinkingStartAnchor";
 import { formatMessageTime, formatRelativeTime } from "@/lib/accountUi";
 import type { MessageTimeFormat } from "@/lib/messageTimeFormatPref";
 import { computeMessageLength } from "@/lib/messageLength";
@@ -2649,7 +2653,10 @@ export function ConversationThread({
               wovenMessages={wovenMessages}
               thinkingStartedAt={
                 m.streaming && m.id === activeAssistantId
-                  ? turnStartedAt
+                  ? clampThinkingStartToMessage({
+                      turnStartedAt,
+                      messageCreatedAtMs: parseCreatedAtMs(m.createdAt),
+                    })
                   : null
               }
               findQuery={findQuery}
@@ -2709,7 +2716,13 @@ export function ConversationThread({
               <Thinking
                 locale={locale}
                 thinking
-                startedAt={turnStartedAt}
+                startedAt={clampThinkingStartToMessage({
+                  turnStartedAt,
+                  messageCreatedAtMs: parseCreatedAtMs(
+                    messages.find((x) => x.id === activeAssistantId)
+                      ?.createdAt,
+                  ),
+                })}
               />
             </div>
           ) : null}
