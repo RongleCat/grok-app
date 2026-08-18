@@ -1,9 +1,14 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   applyTreeRevealSize,
+  beginTreeRevealMotion,
+  isTreeRevealMotionActive,
+  resetTreeRevealMotionForTests,
+  runAfterTreeRevealMotion,
   shouldAnimateTreeReveal,
+  TREE_REVEAL_MS,
   treeRevealCloseSteps,
   treeRevealSizeStyle,
 } from "./treeReveal";
@@ -58,6 +63,24 @@ describe("applyTreeRevealSize", () => {
   });
 });
 
+describe("tree reveal motion deferral", () => {
+  afterEach(() => {
+    resetTreeRevealMotionForTests();
+  });
+
+  it("defers work until the last expand/collapse ends", () => {
+    const ran: string[] = [];
+    expect(runAfterTreeRevealMotion(() => ran.push("early"))).toBe(false);
+    const end = beginTreeRevealMotion();
+    expect(isTreeRevealMotionActive()).toBe(true);
+    expect(runAfterTreeRevealMotion(() => ran.push("later"))).toBe(true);
+    expect(ran).toEqual([]);
+    end();
+    expect(isTreeRevealMotionActive()).toBe(false);
+    expect(ran).toEqual(["later"]);
+  });
+});
+
 describe("tree-reveal CSS", () => {
   const css = readFileSync(
     resolve(__dirname, "../styles/sidebar.part2.css"),
@@ -65,10 +88,12 @@ describe("tree-reveal CSS", () => {
   );
 
   it("interpolates the inline height tuple — not 0fr/1fr, which WKWebView snaps", () => {
+    expect(TREE_REVEAL_MS).toBe(320);
     expect(css).not.toMatch(/grid-template-rows/);
-    expect(css).toMatch(/\.tree-reveal\s*\{[^}]*height var\(--motion-normal\)/);
-    expect(css).toMatch(/min-height var\(--motion-normal\)/);
-    expect(css).toMatch(/max-height var\(--motion-normal\)/);
+    expect(css).toMatch(/\.tree-reveal\s*\{[^}]*height var\(--motion-pane\)/);
+    expect(css).toMatch(/min-height var\(--motion-pane\)/);
+    expect(css).toMatch(/max-height var\(--motion-pane\)/);
     expect(css).toMatch(/var\(--motion-pane-ease\)/);
+    expect(css).toMatch(/\.tree-reveal\.is-closing/);
   });
 });

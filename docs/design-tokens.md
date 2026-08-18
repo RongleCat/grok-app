@@ -37,8 +37,8 @@
 | `--text-xs` / `sm` / `md` / `lg` | `12 / 13 / 14 / 16 px` | 字号 |
 | `--leading-tight` / `normal` | `1.35 / 1.55` | 行高 |
 | `--shadow-window` | 见主题表 | 窗口投影 |
-| `--motion-fast` / `normal` | `120ms` / `200ms` | 过渡（含项目会话列表开合）；尊重 `prefers-reduced-motion` |
-| `--motion-pane` / `--motion-pane-ease` | `320ms` / `cubic-bezier(0.22, 1, 0.36, 1)` | 左右分栏 / 底栏开合 / 设置页叠在工作台上的进出（无过冲）。分栏 token **不**随 `prefers-reduced-motion` 清零；设置 overlay 与菜单在 reduce 下关掉 transform / transition |
+| `--motion-fast` / `normal` | `120ms` / `200ms` | 过渡；尊重 `prefers-reduced-motion` |
+| `--motion-pane` / `--motion-pane-ease` | `320ms` / `cubic-bezier(0.22, 1, 0.36, 1)` | 左右分栏 / 底栏开合 / 设置页叠在工作台上的进出 / 项目会话列表开合（无过冲）。分栏 token **不**随 `prefers-reduced-motion` 清零；设置 overlay 与菜单在 reduce 下关掉 transform / transition |
 
 **栏宽持久化：** `layout.sidebarWidth` / `layout.asideWidth` / `layout.asideCollapsed` 写入 App 配置。
 

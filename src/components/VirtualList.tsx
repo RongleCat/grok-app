@@ -20,6 +20,10 @@ import {
   SIDEBAR_VIRTUALIZE_THRESHOLD,
   type VirtualWindow,
 } from "@/lib/virtualList";
+import {
+  isTreeRevealMotionActive,
+  runAfterTreeRevealMotion,
+} from "@/lib/treeReveal";
 
 export type VirtualListProps<T> = {
   items: readonly T[];
@@ -167,30 +171,43 @@ export function VirtualList<T>({
     );
     if (index < 0) return;
 
+    const align = () => {
+      const el = rootRef.current;
+      if (!el) return;
+      const parent = scrollParentRef.current ?? findScrollParent(el);
+      if (!parent) return;
+      scrollParentRef.current = parent;
+      const rootRect = el.getBoundingClientRect();
+      const parentRect = parent.getBoundingClientRect();
+      const listOffsetTop =
+        rootRect.top - parentRect.top + parent.scrollTop;
+      const nextTop = scrollTopForIndex(index, {
+        itemCount: count,
+        rowHeight,
+        gap,
+        viewportHeight: parent.clientHeight,
+        currentScrollTop: parent.scrollTop,
+        listOffsetTop,
+      });
+      if (nextTop !== parent.scrollTop) parent.scrollTop = nextTop;
+      recompute();
+    };
+
     const root = rootRef.current;
-    if (!root) return;
-    const scrollParent = scrollParentRef.current ?? findScrollParent(root);
-    if (!scrollParent) return;
-    scrollParentRef.current = scrollParent;
-
-    const rootRect = root.getBoundingClientRect();
-    const parentRect = scrollParent.getBoundingClientRect();
-    const listOffsetTop =
-      rootRect.top - parentRect.top + scrollParent.scrollTop;
-
-    const nextTop = scrollTopForIndex(index, {
-      itemCount: count,
-      rowHeight,
-      gap,
-      viewportHeight: scrollParent.clientHeight,
-      currentScrollTop: scrollParent.scrollTop,
-      listOffsetTop,
-    });
-    if (nextTop !== scrollParent.scrollTop) {
-      scrollParent.scrollTop = nextTop;
+    // Child layout runs before the parent reveal starts motion. Wait a
+    // tick so expand/collapse can own the sidebar scroll for the duration.
+    if (root?.closest(".tree-reveal")) {
+      queueMicrotask(() => {
+        if (isTreeRevealMotionActive()) {
+          runAfterTreeRevealMotion(align);
+          return;
+        }
+        align();
+      });
+      return;
     }
-    // Recompute after scroll so the target row is mounted.
-    recompute();
+
+    align();
     // scrollToKey-driven only (not every items identity change while scrolling).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollToKey, count, rowHeight, gap]);

@@ -11,11 +11,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useOpenPresence, OPEN_PRESENCE_MS } from "@/lib/openPresence";
+import { useOpenPresence } from "@/lib/openPresence";
 import { prefersReducedMotion } from "@/lib/paneSplitMotion";
 import {
   applyTreeRevealSize,
+  beginTreeRevealMotion,
+  measureTreeRevealContent,
   shouldAnimateTreeReveal,
+  TREE_REVEAL_MS,
+  TREE_REVEAL_PRESENCE_MS,
   treeRevealCloseSteps,
   treeRevealSizeStyle,
   type TreeRevealSize,
@@ -41,14 +45,19 @@ export function SidebarTreeReveal({
   className,
   children,
 }: SidebarTreeRevealProps) {
-  // Stay mounted through lock-frame + height transition (open and close).
-  const presence = useOpenPresence(open, true, OPEN_PRESENCE_MS + 48);
+  const presence = useOpenPresence(open, true, TREE_REVEAL_PRESENCE_MS);
   const boxRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const firstCommitRef = useRef(true);
   const animateOpenRef = useRef(false);
   const animateCloseRef = useRef(false);
+  const endMotionRef = useRef<(() => void) | null>(null);
   const [size, setSize] = useState<TreeRevealSize>(() => (open ? "auto" : 0));
+
+  const stopMotion = () => {
+    endMotionRef.current?.();
+    endMotionRef.current = null;
+  };
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -67,7 +76,7 @@ export function SidebarTreeReveal({
       reducedMotion: reduced,
     });
     const visualPx = Math.round(box.getBoundingClientRect().height);
-    const contentPx = inner?.scrollHeight ?? 0;
+    const contentPx = measureTreeRevealContent(inner);
     animateOpenRef.current = false;
     animateCloseRef.current = false;
 
@@ -77,6 +86,10 @@ export function SidebarTreeReveal({
       setSize(next);
       return;
     }
+
+    stopMotion();
+    endMotionRef.current = beginTreeRevealMotion();
+    box.dataset.treeRevealMotion = "1";
 
     if (open) {
       // Leave height at 0 for this paint. Promoting to px before paint
@@ -100,26 +113,39 @@ export function SidebarTreeReveal({
     if (!box) return;
     let cancelled = false;
 
+    const settle = (next: TreeRevealSize) => {
+      if (cancelled) return;
+      applyTreeRevealSize(box, next);
+      setSize(next);
+      delete box.dataset.treeRevealMotion;
+      stopMotion();
+    };
+
     if (open && animateOpenRef.current) {
       const id = window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
           if (cancelled) return;
           animateOpenRef.current = false;
-          const h = innerRef.current?.scrollHeight ?? 0;
+          const h = measureTreeRevealContent(innerRef.current);
           if (h <= 0) {
-            applyTreeRevealSize(box, "auto");
-            setSize("auto");
+            // Stay at 0 and retry once — snapping to auto flashes the list.
+            const retry = window.requestAnimationFrame(() => {
+              const again = measureTreeRevealContent(innerRef.current);
+              if (again <= 0) {
+                settle("auto");
+                return;
+              }
+              applyTreeRevealSize(box, again);
+              setSize(again);
+            });
+            if (cancelled) window.cancelAnimationFrame(retry);
             return;
           }
           applyTreeRevealSize(box, h);
           setSize(h);
         });
       });
-      const t = window.setTimeout(() => {
-        if (cancelled) return;
-        applyTreeRevealSize(box, "auto");
-        setSize("auto");
-      }, OPEN_PRESENCE_MS + 32);
+      const t = window.setTimeout(() => settle("auto"), TREE_REVEAL_MS + 32);
       return () => {
         cancelled = true;
         window.cancelAnimationFrame(id);
@@ -136,19 +162,27 @@ export function SidebarTreeReveal({
           setSize(0);
         });
       });
+      const t = window.setTimeout(() => settle(0), TREE_REVEAL_MS + 32);
       return () => {
         cancelled = true;
         window.cancelAnimationFrame(id);
+        window.clearTimeout(t);
       };
     }
   }, [open, presence.mounted]);
+
+  useEffect(() => stopMotion, []);
 
   if (!presence.mounted) return null;
 
   return (
     <div
       ref={boxRef}
-      className={"tree-reveal" + (className ? ` ${className}` : "")}
+      className={
+        "tree-reveal" +
+        (!open ? " is-closing" : "") +
+        (className ? ` ${className}` : "")
+      }
       style={size === "auto" ? undefined : treeRevealSizeStyle(size)}
       data-testid="tree-reveal"
       aria-hidden={!open || undefined}

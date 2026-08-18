@@ -120,11 +120,17 @@
  * on .tree-l3-list-wrap so a closed section does not leave leftover inset.
  */
 .tree-reveal {
-  overflow: hidden;
+  overflow: clip;
   transition:
-    height var(--motion-normal) var(--motion-pane-ease),
-    min-height var(--motion-normal) var(--motion-pane-ease),
-    max-height var(--motion-normal) var(--motion-pane-ease);
+    height var(--motion-pane) var(--motion-pane-ease),
+    min-height var(--motion-pane) var(--motion-pane-ease),
+    max-height var(--motion-pane) var(--motion-pane-ease);
+}
+
+/* Ease-out dumps most of the height in the first frames — collapse feels
+ * like a snap. Use a symmetric curve so close matches the open read. */
+.tree-reveal.is-closing {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tree-reveal__inner {
