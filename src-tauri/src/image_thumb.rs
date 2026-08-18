@@ -442,7 +442,12 @@ mod tests {
         // no longer a valid image. A cache hit that re-decodes the original
         // would lose dimensions (or error).
         fs::write(&src, vec![0u8; size as usize]).unwrap();
-        fs::File::open(&src).unwrap().set_modified(mtime).unwrap();
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&src)
+            .unwrap()
+            .set_modified(mtime)
+            .unwrap();
 
         let hit = ensure_local_image_thumb(&src_str).expect("cache hit");
         assert!(hit.from_cache);
