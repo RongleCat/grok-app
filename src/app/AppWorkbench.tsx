@@ -627,9 +627,10 @@ import {
 import { AttachChatPanel } from "@/components/AttachChatPanel";
 import { ChatRefChip } from "@/components/ChatRefChip";
 import {
-  isSessionAttachDropTarget,
   isSessionAttachPointerStartTarget,
   sessionAttachDragPastThreshold,
+  sessionAttachDropReadyFromPoint,
+  setSessionAttachDragLock,
 } from "@/lib/sessionAttachDrag";
 import { mapStoredMessagesToChat } from "@/lib/mapStoredMessages";
 import {
@@ -12402,18 +12403,24 @@ export function AppWorkbench() {
         const startX = e.clientX;
         const startY = e.clientY;
         let started = false;
+        // Lock select immediately — moving across the transcript otherwise
+        // becomes a blue Select-All and WKWebView starts a native text drag.
+        setSessionAttachDragLock(true);
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          /* capture optional */
+        }
 
-        const readyAt = (x: number, y: number, target: EventTarget | null) =>
-          isSessionAttachDropTarget({
-            overComposer: !!(
-              composerShellRef.current &&
-              target instanceof Node &&
-              composerShellRef.current.contains(target)
-            ),
+        const readyAt = (x: number, y: number) =>
+          sessionAttachDropReadyFromPoint(x, y, {
+            composerEl: composerShellRef.current,
             zone: hitDragZone(x, y),
           });
 
         const onMove = (ev: PointerEvent) => {
+          ev.preventDefault();
+          window.getSelection()?.removeAllRanges();
           if (!started) {
             if (
               !sessionAttachDragPastThreshold(
@@ -12427,15 +12434,22 @@ export function AppWorkbench() {
             sessionDragMovedRef.current = true;
             sessionDragRef.current = payload;
           }
-          setSessionDropReady(readyAt(ev.clientX, ev.clientY, ev.target));
+          setSessionDropReady(readyAt(ev.clientX, ev.clientY));
         };
 
         const finish = (ev: PointerEvent) => {
-          window.removeEventListener("pointermove", onMove, true);
+          window.removeEventListener("pointermove", onMove, moveOpts);
           window.removeEventListener("pointerup", finish, true);
           window.removeEventListener("pointercancel", finish, true);
+          setSessionAttachDragLock(false);
+          window.getSelection()?.removeAllRanges();
+          try {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+          } catch {
+            /* already released */
+          }
           if (!started) return;
-          const ready = readyAt(ev.clientX, ev.clientY, ev.target);
+          const ready = readyAt(ev.clientX, ev.clientY);
           sessionDragRef.current = null;
           setSessionDropReady(false);
           if (ready) {
@@ -12447,7 +12461,11 @@ export function AppWorkbench() {
           }
         };
 
-        window.addEventListener("pointermove", onMove, true);
+        const moveOpts: AddEventListenerOptions = {
+          capture: true,
+          passive: false,
+        };
+        window.addEventListener("pointermove", onMove, moveOpts);
         window.addEventListener("pointerup", finish, true);
         window.addEventListener("pointercancel", finish, true);
       },

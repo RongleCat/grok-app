@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isSessionAttachDropTarget,
   sessionAttachDragPastThreshold,
+  sessionAttachDropReadyFromPoint,
 } from "./sessionAttachDrag";
 
 describe("sessionAttachDragPastThreshold", () => {
@@ -27,6 +28,27 @@ describe("isSessionAttachDropTarget", () => {
     ).toBe(true);
     expect(
       isSessionAttachDropTarget({ overComposer: false, zone: "sidebar" }),
+    ).toBe(false);
+  });
+});
+
+describe("sessionAttachDropReadyFromPoint", () => {
+  it("uses the hit node, not the pointer-capture target", () => {
+    const hit = { id: "composer-child" } as unknown as Element;
+    const composer = { contains: (n: Node) => n === (hit as Node) };
+    expect(
+      sessionAttachDropReadyFromPoint(10, 10, {
+        composerEl: composer,
+        zone: "sidebar",
+        hit,
+      }),
+    ).toBe(true);
+    expect(
+      sessionAttachDropReadyFromPoint(10, 10, {
+        composerEl: composer,
+        zone: "sidebar",
+        hit: { id: "elsewhere" } as unknown as Element,
+      }),
     ).toBe(false);
   });
 });

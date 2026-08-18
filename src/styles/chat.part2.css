@@ -432,9 +432,23 @@ button.composer__context-item {
 
 .tree-l3--draggable {
   cursor: grab;
+  -webkit-user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
 }
 .tree-l3--draggable:active {
   cursor: grabbing;
+}
+
+/* Pointer attach-drag: do not let the transcript become a Select-All. */
+html.is-session-attach-dragging,
+html.is-session-attach-dragging * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+html.is-session-attach-dragging {
+  cursor: grabbing !important;
 }
 
 .skill-chip--chat.is-stale {
