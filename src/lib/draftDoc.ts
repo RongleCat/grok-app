@@ -7,7 +7,7 @@
 export type DraftSegment =
   | { type: "text"; text: string }
   | { type: "skill"; name: string }
-  | { type: "chat"; sessionId: string };
+  | { type: "chat"; sessionId: string; scope?: "recent" | "user" | "full" };
 
 /** Skill name character class: letters, digits, `_` `.` `:` `-`. */
 export const SKILL_NAME_RE = /[a-zA-Z0-9_.:-]+/;
@@ -16,7 +16,7 @@ const SKILL_TOKEN_RE = /\[\[skill:([a-zA-Z0-9_.:-]+)\]\]/g;
 
 /** Combined skill + attached-chat tokens, in document order. */
 const STORED_TOKEN_RE =
-  /\[\[skill:([a-zA-Z0-9_.:-]+)\]\]|\[\[chat:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\]\]/g;
+  /\[\[skill:([a-zA-Z0-9_.:-]+)\]\]|\[\[chat:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?::(recent|user|full))?\]\]/g;
 
 /**
  * Slash names that are App/Build commands, not skill chips, when rehydrating
@@ -131,7 +131,15 @@ export function parseStoredContent(content: string): DraftSegment[] {
     if (m[1]) {
       segments.push({ type: "skill", name: m[1] });
     } else if (m[2]) {
-      segments.push({ type: "chat", sessionId: m[2] });
+      const scope =
+        m[3] === "user" || m[3] === "full" || m[3] === "recent"
+          ? m[3]
+          : undefined;
+      segments.push({
+        type: "chat",
+        sessionId: m[2],
+        scope: scope === "recent" ? undefined : scope,
+      });
     }
     last = m.index + m[0].length;
   }
@@ -147,7 +155,9 @@ export function serializeStored(segments: DraftSegment[]): string {
     .map((s) => {
       if (s.type === "text") return s.text;
       if (s.type === "skill") return `[[skill:${s.name}]]`;
-      return `[[chat:${s.sessionId}]]`;
+      return s.scope && s.scope !== "recent"
+        ? `[[chat:${s.sessionId}:${s.scope}]]`
+        : `[[chat:${s.sessionId}]]`;
     })
     .join("");
 }
@@ -162,7 +172,7 @@ export function previewStoredAsSlash(stored: string): string {
   return stored
     .replace(new RegExp(SKILL_TOKEN_RE.source, "g"), "/$1")
     .replace(
-      /\[\[chat:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\]\]/g,
+      /\[\[chat:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?::(recent|user|full))?\]\]/g,
       "",
     )
     .replace(/[ \t]+\n/g, "\n")

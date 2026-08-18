@@ -13,8 +13,10 @@ import type { Locale } from "@/i18n";
 import {
   IconArchive,
   IconBellOff,
+  IconChat,
   IconCheck,
   IconClock,
+  IconDragHandle,
   IconMore,
   IconNotes,
   IconPin,
@@ -60,6 +62,8 @@ export type SidebarSessionRowLabels = {
   archive: string;
   unarchive: string;
   menu: string;
+  attach?: string;
+  dragAttach?: string;
 };
 
 export type SidebarSessionRowProps = {
@@ -96,6 +100,8 @@ export type SidebarSessionRowProps = {
   onPin: (session: SidebarSessionRowSession) => void;
   onArchive: (session: SidebarSessionRowSession) => void;
   onMenu: (e: MouseEvent, session: SidebarSessionRowSession) => void;
+  /** Attach this row to the current composer (hover button). */
+  onAttach?: (session: SidebarSessionRowSession) => void;
   /** Sidebar → composer attach-chat drag. Omitted in select mode. */
   dragProps?: {
     onPointerDown: (e: PointerEvent) => void;
@@ -124,6 +130,7 @@ function SidebarSessionRowInner({
   onPin,
   onArchive,
   onMenu,
+  onAttach,
   dragProps,
 }: SidebarSessionRowProps) {
   const className =
@@ -188,7 +195,6 @@ function SidebarSessionRowInner({
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, session)}
       onKeyDown={handleKeyDown}
-      onPointerDown={dragProps?.onPointerDown}
     >
       {selectMode ? (
         <span
@@ -283,6 +289,34 @@ function SidebarSessionRowInner({
         </Tip>
       ) : (
         <span className="tree-l3__actions tree-l3__actions--triple">
+          {onAttach && labels.attach ? (
+            <Tip label={labels.attach}>
+              <button
+                type="button"
+                className="tree-icon-btn"
+                aria-label={labels.attach}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAttach(session);
+                }}
+              >
+                <IconChat size={13} />
+              </button>
+            </Tip>
+          ) : null}
+          {dragProps && labels.dragAttach ? (
+            <Tip label={labels.dragAttach}>
+              <button
+                type="button"
+                className="tree-icon-btn tree-l3__drag-handle"
+                aria-label={labels.dragAttach}
+                onPointerDown={dragProps.onPointerDown}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <IconDragHandle size={13} />
+              </button>
+            </Tip>
+          ) : null}
           <Tip label={pinLabel}>
             <button
               type="button"
@@ -366,6 +400,7 @@ function sidebarSessionRowPropsEqual(
     prev.onPin === next.onPin &&
     prev.onArchive === next.onArchive &&
     prev.onMenu === next.onMenu &&
+    prev.onAttach === next.onAttach &&
     worktreeBadgeEqual(prev.worktreeBadge, next.worktreeBadge)
   );
 }

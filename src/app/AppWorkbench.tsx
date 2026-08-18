@@ -612,10 +612,16 @@ import {
   chatHasUpdate,
   dataTransferHasSession,
   filterAttachableSessions,
+  loadRecentAttachIds,
+  lookupChatStatus,
   lookupChatTitle,
   MAX_ATTACHED_CHATS,
+  nextChatAttachScope,
+  parseChatAttachScope,
   parseChatTokens,
   prependChatTokens,
+  rememberRecentAttach,
+  setChatRefScope,
   takeSessionDragPayload,
   refreshChatRef,
   refreshStaleChatRefs,
@@ -626,8 +632,10 @@ import {
 } from "@/lib/chatAttach";
 import { AttachChatPanel } from "@/components/AttachChatPanel";
 import { ChatRefChip } from "@/components/ChatRefChip";
+import { AttachedChatLookupContext } from "@/components/AttachedChatLookup";
+import { SessionAttachGhost } from "@/components/SessionAttachGhost";
 import {
-  isSessionAttachPointerStartTarget,
+  classifySessionAttachDrop,
   sessionAttachDragPastThreshold,
   sessionAttachDropReadyFromPoint,
   setSessionAttachDragLock,
@@ -7441,6 +7449,8 @@ export function AppWorkbench() {
       archive: tr("sidebar.archive"),
       unarchive: tr("sidebar.unarchive"),
       menu: tr("sidebar.menu"),
+      attach: tr("attachChat.hoverAdd"),
+      dragAttach: tr("attachChat.dragHandle"),
     }),
     [tr],
   );
@@ -8701,6 +8711,16 @@ export function AppWorkbench() {
       quotes: sendQuotes,
       goalMode,
     });
+    if (sent && refs.length) {
+      showToast(
+        tr("attachChat.sentWith", {
+          titles: refs
+            .map((r) => r.title.trim() || r.sessionId.slice(0, 8))
+            .join(" · "),
+        }),
+        2600,
+      );
+    }
     const action = nextComposerSubmitSettlement({
       sendSucceeded: sent,
       sentText: storedDisplay,
@@ -12267,8 +12287,16 @@ export function AppWorkbench() {
         currentId: session.sessionId,
         alreadyIds: chatAttachments.map((c) => c.sessionId),
         query: attachChatFilter,
+        currentProjectId: activeProject?.id ?? null,
+        recentIds: loadRecentAttachIds(),
       }),
-    [sessions, session.sessionId, chatAttachments, attachChatFilter],
+    [
+      sessions,
+      session.sessionId,
+      chatAttachments,
+      attachChatFilter,
+      activeProject?.id,
+    ],
   );
 
   const { pos: attachChatPos, style: attachChatStyle } = useFloatingMenu({
@@ -12342,6 +12370,7 @@ export function AppWorkbench() {
         return;
       }
       setChatAttachments(result.refs);
+      rememberRecentAttach(id);
       closeAttachChat();
       const label = title.trim() || id.slice(0, 8);
       showToast(tr("attachChat.ok", { title: label }), 2200);
@@ -12359,6 +12388,48 @@ export function AppWorkbench() {
     ],
   );
   applyAttachedChatRef.current = applyAttachedChat;
+
+  const onSidebarSessionAttach = useCallback(
+    (s: { id: string; title: string; updatedAt?: string }) => {
+      applyAttachedChat(s.id, s.title, s.updatedAt);
+    },
+    [applyAttachedChat],
+  );
+
+  const cycleAttachedChatScope = useCallback((id: string) => {
+    setChatAttachments((prev) => {
+      const cur = prev.find((r) => r.sessionId === id);
+      if (!cur) return prev;
+      return setChatRefScope(prev, id, nextChatAttachScope(cur.scope));
+    });
+  }, [setChatAttachments]);
+
+  const attachedChatLookup = useMemo(
+    () => ({
+      titleOf: (id: string) =>
+        lookupChatTitle(id, sessions, tr("attachChat.missing")),
+      statusOf: (id: string) => lookupChatStatus(id, sessions),
+      onOpen: (id: string) => {
+        const row = sessions.find((s) => s.id === id);
+        if (!row) {
+          showToast(tr("attachChat.missing"), 2400);
+          return;
+        }
+        void openSession(row);
+      },
+    }),
+    [sessions, showToast, tr, openSession],
+  );
+
+  const attachScopeLabel = useCallback(
+    (scope?: string) => {
+      const sc = parseChatAttachScope(scope);
+      if (sc === "user") return tr("attachChat.scopeUser");
+      if (sc === "full") return tr("attachChat.scopeFull");
+      return tr("attachChat.scopeRecent");
+    },
+    [tr],
+  );
 
   const refreshAttachedChat = useCallback(
     (id: string) => {
@@ -12385,6 +12456,12 @@ export function AppWorkbench() {
   }, [chatAttachments, sessions, setChatAttachments, showToast, tr]);
 
   const sessionDragMovedRef = useRef(false);
+  const [sessionDragGhost, setSessionDragGhost] = useState<{
+    x: number;
+    y: number;
+    title: string;
+    ready: boolean;
+  } | null>(null);
   const sessionRowDragProps = (s: {
     id: string;
     title: string;
@@ -12394,7 +12471,6 @@ export function AppWorkbench() {
     return {
       onPointerDown: (e: ReactPointerEvent) => {
         if (e.button !== 0) return;
-        if (!isSessionAttachPointerStartTarget(e.target)) return;
         const payload: SessionDragPayload = {
           id: s.id,
           title: s.title || "",
@@ -12403,8 +12479,7 @@ export function AppWorkbench() {
         const startX = e.clientX;
         const startY = e.clientY;
         let started = false;
-        // Lock select immediately — moving across the transcript otherwise
-        // becomes a blue Select-All and WKWebView starts a native text drag.
+        let cancelled = false;
         setSessionAttachDragLock(true);
         try {
           e.currentTarget.setPointerCapture(e.pointerId);
@@ -12412,9 +12487,14 @@ export function AppWorkbench() {
           /* capture optional */
         }
 
-        const readyAt = (x: number, y: number) =>
-          sessionAttachDropReadyFromPoint(x, y, {
-            composerEl: composerShellRef.current,
+        const composerEl =
+          composerWrapRef.current ?? composerShellRef.current;
+        const kindAt = (x: number, y: number) =>
+          classifySessionAttachDrop({
+            overComposer: sessionAttachDropReadyFromPoint(x, y, {
+              composerEl,
+              zone: hitDragZone(x, y),
+            }),
             zone: hitDragZone(x, y),
           });
 
@@ -12434,31 +12514,57 @@ export function AppWorkbench() {
             sessionDragMovedRef.current = true;
             sessionDragRef.current = payload;
           }
-          setSessionDropReady(readyAt(ev.clientX, ev.clientY));
+          const kind = kindAt(ev.clientX, ev.clientY);
+          const ready = kind === "composer";
+          setSessionDropReady(ready);
+          setSessionDragGhost({
+            x: ev.clientX,
+            y: ev.clientY,
+            title: payload.title || payload.id.slice(0, 8),
+            ready,
+          });
         };
 
-        const finish = (ev: PointerEvent) => {
+        const cleanup = () => {
           window.removeEventListener("pointermove", onMove, moveOpts);
           window.removeEventListener("pointerup", finish, true);
           window.removeEventListener("pointercancel", finish, true);
+          window.removeEventListener("keydown", onKey, true);
           setSessionAttachDragLock(false);
+          setSessionDragGhost(null);
           window.getSelection()?.removeAllRanges();
           try {
             e.currentTarget.releasePointerCapture(e.pointerId);
           } catch {
             /* already released */
           }
-          if (!started) return;
-          const ready = readyAt(ev.clientX, ev.clientY);
+        };
+
+        const finish = (ev: PointerEvent) => {
+          cleanup();
+          if (!started || cancelled) return;
+          const kind = kindAt(ev.clientX, ev.clientY);
           sessionDragRef.current = null;
           setSessionDropReady(false);
-          if (ready) {
+          if (kind === "composer") {
             applyAttachedChatRef.current(
               payload.id,
               payload.title,
               payload.updatedAt,
             );
+            return;
           }
+          showToast(tr("attachChat.cancelled"), 1600);
+        };
+
+        const onKey = (ev: KeyboardEvent) => {
+          if (ev.key !== "Escape") return;
+          ev.preventDefault();
+          cancelled = true;
+          cleanup();
+          sessionDragRef.current = null;
+          setSessionDropReady(false);
+          if (started) showToast(tr("attachChat.cancelled"), 1600);
         };
 
         const moveOpts: AddEventListenerOptions = {
@@ -12468,6 +12574,7 @@ export function AppWorkbench() {
         window.addEventListener("pointermove", onMove, moveOpts);
         window.addEventListener("pointerup", finish, true);
         window.addEventListener("pointercancel", finish, true);
+        window.addEventListener("keydown", onKey, true);
       },
       consumeClick: () => {
         if (!sessionDragMovedRef.current) return false;
@@ -19794,6 +19901,7 @@ export function AppWorkbench() {
                                         onPin={onSidebarSessionPin}
                                         onArchive={onSidebarSessionArchive}
                                         onMenu={onSidebarSessionMenu}
+                                        onAttach={onSidebarSessionAttach}
                                         dragProps={sessionRowDragProps(s)}
                                       />
                                     );
@@ -19944,6 +20052,7 @@ export function AppWorkbench() {
                               onPin={onSidebarSessionPin}
                               onArchive={onSidebarSessionArchive}
                               onMenu={onSidebarSessionMenu}
+                              onAttach={onSidebarSessionAttach}
                               dragProps={sessionRowDragProps(s)}
                             />
                           );
@@ -20221,17 +20330,14 @@ export function AppWorkbench() {
               </div>
             </div>
           )}
-          {sessionDropReady && (
-            <div className="drop-overlay drop-overlay--session" aria-hidden>
-              <div className="drop-overlay__card">
-                <span className="drop-overlay__icon">
-                  <IconChat size={22} />
-                </span>
-                <strong>{tr("attachChat.dropTitle")}</strong>
-                <span>{tr("attachChat.dropHint")}</span>
-              </div>
-            </div>
-          )}
+          {sessionDragGhost ? (
+            <SessionAttachGhost
+              x={sessionDragGhost.x}
+              y={sessionDragGhost.y}
+              title={sessionDragGhost.title}
+              ready={sessionDragGhost.ready}
+            />
+          ) : null}
           {toast && (
             <div className="app-toast" role="status">
               {toast}
@@ -21124,6 +21230,7 @@ export function AppWorkbench() {
           <div className="sr-only" aria-live="polite" aria-atomic="true">
             {streamA11yNote}
           </div>
+          <AttachedChatLookupContext.Provider value={attachedChatLookup}>
           <UiErrorBoundary
             resetKey={session.sessionId ?? `draft-${session.title ?? "new"}`}
             labels={{
@@ -21275,6 +21382,7 @@ export function AppWorkbench() {
             }}
           />
           </UiErrorBoundary>
+          </AttachedChatLookupContext.Provider>
 
           {(() => {
             const composerNode = (
@@ -21312,6 +21420,11 @@ export function AppWorkbench() {
                     }
                   />
                 )}
+                {chatAttachments.length === 0 ? (
+                  <div className="composer__attach-hint">
+                    {tr("attachChat.welcomeHint")}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {perm ? (
@@ -21653,9 +21766,15 @@ export function AppWorkbench() {
                 "composer" +
                 (dragZone === "main" || sessionDropReady
                   ? " composer--drop-ready"
-                  : "")
+                  : "") +
+                (sessionDropReady ? " composer--attach-ready" : "")
               }
             >
+              {sessionDropReady ? (
+                <div className="composer__attach-drop-hint">
+                  {tr("attachChat.dropHint")}
+                </div>
+              ) : null}
               {sendQueueStrip.visible && (
                 <div
                   className="composer__queue"
@@ -21861,6 +21980,9 @@ export function AppWorkbench() {
                           tr("attachChat.missing"),
                         )
                       }
+                      status={lookupChatStatus(c.sessionId, sessions)}
+                      meta={attachScopeLabel(c.scope)}
+                      metaTitle={tr("attachChat.scopeHint")}
                       stale={chatHasUpdate(c, sessions)}
                       onOpen={() => {
                         const row = sessions.find((s) => s.id === c.sessionId);
@@ -21870,6 +21992,7 @@ export function AppWorkbench() {
                         }
                         void openSession(row);
                       }}
+                      onCycleScope={() => cycleAttachedChatScope(c.sessionId)}
                       onRefresh={() => refreshAttachedChat(c.sessionId)}
                       onRemove={() =>
                         setChatAttachments((prev) =>
@@ -21985,7 +22108,11 @@ export function AppWorkbench() {
                       empty: tr("attachChat.empty"),
                       emptyFilter: tr("attachChat.emptyFilter"),
                       aria: tr("attachChat.aria"),
+                      recentBadge: tr("attachChat.pickerRecent"),
+                      projectBadge: tr("attachChat.pickerProject"),
                     }}
+                    recentIds={loadRecentAttachIds()}
+                    currentProjectId={activeProject?.id ?? null}
                     onQueryChange={setAttachChatFilter}
                     onActiveIndexChange={setAttachChatActive}
                     onSelect={(s) => {

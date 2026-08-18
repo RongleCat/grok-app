@@ -8,8 +8,42 @@ use crate::store::{self, ChatMessageStored};
 /// Same compact budget as history bootstrap (session-continuity.md).
 pub const ATTACH_MAX_SESSIONS: usize = 3;
 pub const ATTACH_MAX_MSGS: usize = 16;
+pub const ATTACH_MAX_MSGS_FULL: usize = 40;
 pub const ATTACH_PER_MSG_CHARS: usize = 2_000;
 pub const ATTACH_MAX_CHARS: usize = 14_000;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AttachScope {
+    Recent,
+    User,
+    Full,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttachedChatSpec {
+    pub id: String,
+    pub scope: AttachScope,
+}
+
+fn parse_chat_inner(inner: &str) -> Option<AttachedChatSpec> {
+    if inner.len() < 36 {
+        return None;
+    }
+    let id = &inner[..36];
+    if !is_uuid(id) {
+        return None;
+    }
+    let scope = match &inner[36..] {
+        "" | ":recent" => AttachScope::Recent,
+        ":user" => AttachScope::User,
+        ":full" => AttachScope::Full,
+        _ => return None,
+    };
+    Some(AttachedChatSpec {
+        id: id.to_string(),
+        scope,
+    })
+}
 
 const TOKEN_OPEN: &str = "[[chat:";
 const TOKEN_CLOSE: &str = "]]";
@@ -31,8 +65,8 @@ fn is_uuid(s: &str) -> bool {
     true
 }
 
-/// Ordered unique session ids from `[[chat:<uuid>]]` tokens.
-pub fn extract_chat_session_ids(text: &str) -> Vec<String> {
+/// Ordered unique attached chats (`[[chat:<uuid>]]` or `[[chat:<uuid>:user|full]]`).
+pub fn extract_attached_chats(text: &str) -> Vec<AttachedChatSpec> {
     let mut out = Vec::new();
     let mut rest = text;
     while let Some(start) = rest.find(TOKEN_OPEN) {
@@ -40,13 +74,22 @@ pub fn extract_chat_session_ids(text: &str) -> Vec<String> {
         let Some(end) = after.find(TOKEN_CLOSE) else {
             break;
         };
-        let id = &after[..end];
-        if is_uuid(id) && !out.iter().any(|x| x == id) {
-            out.push(id.to_string());
+        if let Some(spec) = parse_chat_inner(&after[..end]) {
+            if !out.iter().any(|x: &AttachedChatSpec| x.id == spec.id) {
+                out.push(spec);
+            }
         }
         rest = &after[end + TOKEN_CLOSE.len()..];
     }
     out
+}
+
+/// Ordered unique session ids from `[[chat:<uuid>]]` tokens.
+pub fn extract_chat_session_ids(text: &str) -> Vec<String> {
+    extract_attached_chats(text)
+        .into_iter()
+        .map(|s| s.id)
+        .collect()
 }
 
 /// Drop `[[chat:<uuid>]]` tokens. Leaves surrounding text intact.
@@ -57,7 +100,7 @@ pub fn strip_chat_tokens(text: &str) -> String {
         out.push_str(&rest[..start]);
         let after = &rest[start + TOKEN_OPEN.len()..];
         match after.find(TOKEN_CLOSE) {
-            Some(end) if is_uuid(&after[..end]) => {
+            Some(end) if parse_chat_inner(&after[..end]).is_some() => {
                 rest = &after[end + TOKEN_CLOSE.len()..];
             }
             _ => {
@@ -142,22 +185,30 @@ fn session_title(id: &str) -> String {
 }
 
 /// Build the agent-only prefix for attached chats. Skips self + missing journals.
-pub fn build_attached_chats_context(ids: &[String], current_id: &str) -> Option<String> {
+pub fn build_attached_chats_context(
+    specs: &[AttachedChatSpec],
+    current_id: &str,
+) -> Option<String> {
     let mut blocks: Vec<String> = Vec::new();
-    for id in ids.iter().take(ATTACH_MAX_SESSIONS) {
+    for spec in specs.iter().take(ATTACH_MAX_SESSIONS) {
+        let id = spec.id.as_str();
         if id == current_id {
             continue;
         }
         if !is_uuid(id) {
             continue;
         }
-        let msgs = store::load_messages(id);
-        let Some(turns) = compact_user_assistant_turns(
-            &msgs,
-            ATTACH_MAX_MSGS,
-            ATTACH_PER_MSG_CHARS,
-            ATTACH_MAX_CHARS,
-        ) else {
+        let mut msgs = store::load_messages(id);
+        if spec.scope == AttachScope::User {
+            msgs.retain(|m| m.role == "user");
+        }
+        let max_msgs = match spec.scope {
+            AttachScope::Full => ATTACH_MAX_MSGS_FULL,
+            AttachScope::Recent | AttachScope::User => ATTACH_MAX_MSGS,
+        };
+        let Some(turns) =
+            compact_user_assistant_turns(&msgs, max_msgs, ATTACH_PER_MSG_CHARS, ATTACH_MAX_CHARS)
+        else {
             continue;
         };
         let title = session_title(id);
@@ -201,6 +252,11 @@ mod tests {
         let b = "22222222-2222-4222-8222-222222222222";
         let raw = format!("x [[chat:{a}]] y [[chat:{b}]] [[chat:{a}]] [[chat:nope]]");
         assert_eq!(extract_chat_session_ids(&raw), vec![a, b]);
+        let scoped = format!("[[chat:{a}:user]] [[chat:{b}:full]]");
+        let specs = extract_attached_chats(&scoped);
+        assert_eq!(specs.len(), 2);
+        assert_eq!(specs[0].scope, AttachScope::User);
+        assert_eq!(specs[1].scope, AttachScope::Full);
     }
 
     #[test]

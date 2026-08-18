@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifySessionAttachDrop,
   isSessionAttachDropTarget,
   sessionAttachDragPastThreshold,
   sessionAttachDropReadyFromPoint,
@@ -19,16 +20,22 @@ describe("sessionAttachDragPastThreshold", () => {
 });
 
 describe("isSessionAttachDropTarget", () => {
-  it("accepts composer or main chat, not sidebar", () => {
+  it("only the composer is a drop target", () => {
     expect(
       isSessionAttachDropTarget({ overComposer: true, zone: "sidebar" }),
     ).toBe(true);
     expect(
       isSessionAttachDropTarget({ overComposer: false, zone: "main" }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isSessionAttachDropTarget({ overComposer: false, zone: "sidebar" }),
     ).toBe(false);
+    expect(
+      classifySessionAttachDrop({ overComposer: false, zone: "sidebar" }),
+    ).toBe("sidebar");
+    expect(
+      classifySessionAttachDrop({ overComposer: false, zone: "main" }),
+    ).toBe("miss");
   });
 });
 

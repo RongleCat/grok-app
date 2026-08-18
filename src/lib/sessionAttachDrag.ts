@@ -16,11 +16,23 @@ export function sessionAttachDragPastThreshold(
   return dx * dx + dy * dy >= threshold * threshold;
 }
 
+export type SessionAttachDropKind = "composer" | "sidebar" | "miss";
+
+export function classifySessionAttachDrop(opts: {
+  overComposer: boolean;
+  zone: "sidebar" | "main";
+}): SessionAttachDropKind {
+  if (opts.overComposer) return "composer";
+  if (opts.zone === "sidebar") return "sidebar";
+  return "miss";
+}
+
+/** Visual + drop target is the composer (not the whole transcript). */
 export function isSessionAttachDropTarget(opts: {
   overComposer: boolean;
   zone: "sidebar" | "main";
 }): boolean {
-  return opts.overComposer || opts.zone === "main";
+  return classifySessionAttachDrop(opts) === "composer";
 }
 
 export const SESSION_ATTACH_DRAG_CLASS = "is-session-attach-dragging";

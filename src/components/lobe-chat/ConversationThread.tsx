@@ -119,6 +119,7 @@ import { BackBottom } from "./BackBottom";
 import { InlineUserEdit } from "./InlineUserEdit";
 import { SkillChip } from "@/components/SkillChip";
 import { ChatRefChip } from "@/components/ChatRefChip";
+import { useAttachedChatLookup } from "@/components/AttachedChatLookup";
 import { HighlightedText } from "@/components/HighlightedText";
 import { findChatMatches, findMatchesBeforeVisible } from "@/lib/chatFind";
 import { hydrateDisplayContent, parseStoredContent } from "@/lib/draftDoc";
@@ -389,6 +390,7 @@ function UserBodyText({
   findQuery?: string;
   findActiveOccurrence?: number | null;
 }) {
+  const chatLookup = useAttachedChatLookup();
   const hydrated = hydrateDisplayContent(content);
   const segs = parseStoredContent(hydrated);
   if (!segs.some((s) => s.type === "skill" || s.type === "chat")) {
@@ -412,11 +414,18 @@ function UserBodyText({
           return <SkillChip key={`sk-${i}-${s.name}`} name={s.name} size="sm" />;
         }
         if (s.type === "chat") {
+          const status = chatLookup.statusOf(s.sessionId);
           return (
             <ChatRefChip
               key={`ch-${i}-${s.sessionId}`}
-              title={s.sessionId.slice(0, 8)}
+              title={chatLookup.titleOf(s.sessionId)}
+              status={status}
               size="sm"
+              onOpen={
+                chatLookup.onOpen
+                  ? () => chatLookup.onOpen?.(s.sessionId)
+                  : undefined
+              }
             />
           );
         }

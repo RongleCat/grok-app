@@ -16,6 +16,7 @@ import { AttachmentCard } from "@/components/AttachmentCard";
 import type { AttachmentCardLabels } from "@/components/AttachmentCard";
 import { SkillChip } from "@/components/SkillChip";
 import { ChatRefChip } from "@/components/ChatRefChip";
+import { useAttachedChatLookup } from "@/components/AttachedChatLookup";
 import { cn } from "@/lib/utils";
 
 export function InlineUserEdit({
@@ -47,12 +48,12 @@ export function InlineUserEdit({
       .map((s) => s.name);
   }, [content]);
 
+  const chatLookup = useAttachedChatLookup();
   const chats = useMemo(() => {
-    return parseUserMessageContent(content)
-      .filter(
-        (s): s is { type: "chat"; sessionId: string } => s.type === "chat",
-      )
-      .map((s) => s.sessionId);
+    return parseUserMessageContent(content).filter(
+      (s): s is { type: "chat"; sessionId: string; scope?: "recent" | "user" | "full" } =>
+        s.type === "chat",
+    );
   }, [content]);
 
   const initialText = useMemo(
@@ -80,7 +81,11 @@ export function InlineUserEdit({
   const canSubmit =
     !busy &&
     (!isDraftEmpty([
-      ...chats.map((sessionId) => ({ type: "chat" as const, sessionId })),
+      ...chats.map((c) => ({
+        type: "chat" as const,
+        sessionId: c.sessionId,
+        scope: c.scope,
+      })),
       ...skills.map((name) => ({ type: "skill" as const, name })),
       { type: "text" as const, text },
     ]) ||
@@ -89,7 +94,11 @@ export function InlineUserEdit({
   const submit = () => {
     if (!canSubmit) return;
     const segs = [
-      ...chats.map((sessionId) => ({ type: "chat" as const, sessionId })),
+      ...chats.map((c) => ({
+        type: "chat" as const,
+        sessionId: c.sessionId,
+        scope: c.scope,
+      })),
       ...skills.map((name) => ({ type: "skill" as const, name })),
       { type: "text" as const, text },
     ];
@@ -122,8 +131,13 @@ export function InlineUserEdit({
       ) : null}
       {chats.length > 0 || skills.length > 0 ? (
         <div className="lobe-inline-edit__skills">
-          {chats.map((sessionId) => (
-            <ChatRefChip key={sessionId} title={sessionId.slice(0, 8)} size="sm" />
+          {chats.map((c) => (
+            <ChatRefChip
+              key={c.sessionId}
+              title={chatLookup.titleOf(c.sessionId)}
+              status={chatLookup.statusOf(c.sessionId)}
+              size="sm"
+            />
           ))}
           {skills.map((name) => (
             <SkillChip key={name} name={name} size="sm" />

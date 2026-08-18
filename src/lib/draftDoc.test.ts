@@ -100,6 +100,17 @@ describe("draftDoc roundtrip", () => {
     expect(previewStoredAsSlash(raw)).toBe("please continue");
     expect(serializeForAgent(segs)).toBe("please continue");
   });
+
+  it("round-trips scoped attach tokens", () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    const raw = `[[chat:${id}:user]]\ngo`;
+    const segs = parseStoredContent(raw);
+    expect(segs).toEqual([
+      { type: "chat", sessionId: id, scope: "user" },
+      { type: "text", text: "\ngo" },
+    ]);
+    expect(serializeStored(segs)).toBe(raw);
+  });
 });
 
 describe("detectSlashQuery", () => {

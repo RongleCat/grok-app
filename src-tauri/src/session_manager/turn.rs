@@ -38,9 +38,9 @@ impl SessionManager {
                 }
             })
             .unwrap_or_else(|| text.clone());
-        let attached_ids = crate::session_attach::extract_chat_session_ids(&journal_content);
+        let attached = crate::session_attach::extract_attached_chats(&journal_content);
         let stripped_text = crate::session_attach::strip_chat_tokens(&text);
-        if stripped_text.is_empty() && attached_ids.is_empty() {
+        if stripped_text.is_empty() && attached.is_empty() {
             return Err("empty message".into());
         }
         // User file/image cards — structured field is primary for history cards.
@@ -108,10 +108,9 @@ impl SessionManager {
             }
 
             let mut agent_prompt = stripped_text.clone();
-            if let Some(ctx) = crate::session_attach::build_attached_chats_context(
-                &attached_ids,
-                &s.app_session_id,
-            ) {
+            if let Some(ctx) =
+                crate::session_attach::build_attached_chats_context(&attached, &s.app_session_id)
+            {
                 if agent_prompt.is_empty() {
                     agent_prompt =
                         format!("{ctx}\nThe user attached the conversation(s) above as context.");
@@ -121,7 +120,7 @@ impl SessionManager {
                 tracing::info!(
                     "attached chat context ({} chars, {} id(s)) for session {}",
                     ctx.len(),
-                    attached_ids.len(),
+                    attached.len(),
                     s.app_session_id
                 );
             } else if agent_prompt.is_empty() {

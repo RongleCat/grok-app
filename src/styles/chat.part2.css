@@ -431,13 +431,14 @@ button.composer__context-item {
 }
 
 .tree-l3--draggable {
+  cursor: default;
+}
+.tree-l3__drag-handle {
   cursor: grab;
   -webkit-user-drag: none;
-  -webkit-user-select: none;
-  user-select: none;
   touch-action: none;
 }
-.tree-l3--draggable:active {
+.tree-l3__drag-handle:active {
   cursor: grabbing;
 }
 
@@ -449,6 +450,68 @@ html.is-session-attach-dragging * {
 }
 html.is-session-attach-dragging {
   cursor: grabbing !important;
+}
+
+.session-attach-ghost {
+  position: fixed;
+  z-index: 20000;
+  pointer-events: none;
+  transform: translate(14px, 12px);
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.22));
+  opacity: 0.96;
+}
+.session-attach-ghost.is-ready {
+  outline: 2px solid rgba(80, 140, 255, 0.55);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+.composer__attach-hint {
+  margin-top: 10px;
+  max-width: 22rem;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.composer__attach-drop-hint {
+  padding: 6px 12px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.composer.composer--attach-ready {
+  box-shadow: 0 0 0 2px rgba(80, 140, 255, 0.42);
+}
+
+.skill-chip--chat.is-missing,
+.skill-chip--chat.is-archived {
+  opacity: 0.62;
+}
+.skill-chip__meta {
+  margin-left: 2px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 10px;
+  line-height: 16px;
+  cursor: pointer;
+}
+.skill-chip__meta:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.prompt-history__item-meta {
+  margin-left: 8px;
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-secondary);
 }
 
 .skill-chip--chat.is-stale {

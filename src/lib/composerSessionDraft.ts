@@ -8,7 +8,7 @@
 
 import type { Attachment } from "@/lib/attachments";
 import type { ChatRef } from "@/lib/chatAttach";
-import { isChatSessionId } from "@/lib/chatAttach";
+import { isChatSessionId, parseChatAttachScope } from "@/lib/chatAttach";
 import {
   normalizeComposerQuotes,
   type ComposerQuote,
@@ -85,7 +85,14 @@ function normalizeChatRef(raw: unknown): ChatRef | null {
     typeof o.attachedUpdatedAt === "string" && o.attachedUpdatedAt.trim()
       ? o.attachedUpdatedAt.trim()
       : undefined;
-  return { sessionId, title, attachedUpdatedAt };
+  const scopeRaw = typeof o.scope === "string" ? o.scope : "";
+  const scope = parseChatAttachScope(scopeRaw);
+  return {
+    sessionId,
+    title,
+    attachedUpdatedAt,
+    scope: scope === "recent" ? undefined : scope,
+  };
 }
 
 function normalizeDraft(raw: unknown): ComposerSessionDraft | null {

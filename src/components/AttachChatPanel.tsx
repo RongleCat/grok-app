@@ -5,6 +5,7 @@
 import { useEffect, useRef, type CSSProperties, type Ref } from "react";
 import { IconChat } from "@/components/icons";
 import type { AttachableSession } from "@/lib/chatAttach";
+import { attachSessionBadge } from "@/lib/chatAttach";
 
 export type AttachChatPanelLabels = {
   title: string;
@@ -12,6 +13,8 @@ export type AttachChatPanelLabels = {
   empty: string;
   emptyFilter: string;
   aria: string;
+  recentBadge?: string;
+  projectBadge?: string;
 };
 
 export type AttachChatPanelProps = {
@@ -25,6 +28,8 @@ export type AttachChatPanelProps = {
   onActiveIndexChange: (i: number) => void;
   onSelect: (session: AttachableSession) => void;
   onClose: () => void;
+  recentIds?: string[];
+  currentProjectId?: string | null;
   style?: CSSProperties;
   panelRef?: Ref<HTMLDivElement | null>;
 };
@@ -40,6 +45,8 @@ export function AttachChatPanel({
   onActiveIndexChange,
   onSelect,
   onClose,
+  recentIds,
+  currentProjectId,
   style,
   panelRef,
 }: AttachChatPanelProps) {
@@ -138,6 +145,16 @@ export function AttachChatPanel({
           sessions.map((s, i) => {
             const active = i === activeIndex;
             const title = (s.title || "").trim() || s.id.slice(0, 8);
+            const badge = attachSessionBadge(s, {
+              recentIds,
+              currentProjectId,
+            });
+            const badgeLabel =
+              badge === "recent"
+                ? labels.recentBadge
+                : badge === "project"
+                  ? labels.projectBadge
+                  : null;
             return (
               <button
                 key={s.id}
@@ -153,6 +170,9 @@ export function AttachChatPanel({
                 onClick={() => onSelect(s)}
               >
                 <span className="prompt-history__item-text">{title}</span>
+                {badgeLabel ? (
+                  <span className="prompt-history__item-meta">{badgeLabel}</span>
+                ) : null}
               </button>
             );
           })

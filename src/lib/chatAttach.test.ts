@@ -4,7 +4,11 @@ import {
   chatHasUpdate,
   encodeSessionDrag,
   extractChatSessionIds,
+  attachSessionBadge,
   filterAttachableSessions,
+  loadRecentAttachIds,
+  nextChatAttachScope,
+  rememberRecentAttach,
   lookupChatTitle,
   MAX_ATTACHED_CHATS,
   parseChatTokens,
@@ -132,13 +136,55 @@ describe("filterAttachableSessions", () => {
         includeArchived: true,
         currentId: A,
       }).map((s) => s.id),
-    ).toEqual([B, C]);
+    ).toEqual(expect.arrayContaining([B, C]));
   });
 
   it("filters by title query", () => {
     expect(
       filterAttachableSessions(sessions, { query: "login" }).map((s) => s.id),
     ).toEqual([A, C]);
+  });
+
+  it("ranks recent, then same project, then recency", () => {
+    const P = "proj-a";
+    const rows = [
+      { id: A, title: "old", projectId: "other", updatedAt: "2026-01-01T00:00:00.000Z" },
+      { id: B, title: "proj", projectId: P, updatedAt: "2026-02-01T00:00:00.000Z" },
+      { id: C, title: "recent", projectId: "other", updatedAt: "2026-03-01T00:00:00.000Z" },
+    ];
+    expect(
+      filterAttachableSessions(rows, {
+        includeArchived: true,
+        currentProjectId: P,
+        recentIds: [C],
+      }).map((s) => s.id),
+    ).toEqual([C, B, A]);
+    expect(attachSessionBadge(rows[2]!, { recentIds: [C] })).toBe("recent");
+    expect(attachSessionBadge(rows[1]!, { currentProjectId: P })).toBe(
+      "project",
+    );
+  });
+});
+
+describe("recent attach memory", () => {
+  it("stores newest first and dedupes", () => {
+    const mem = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => mem.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        mem.set(k, v);
+      },
+    };
+    rememberRecentAttach(A, storage);
+    rememberRecentAttach(B, storage);
+    rememberRecentAttach(A, storage);
+    expect(loadRecentAttachIds(storage)).toEqual([A, B]);
+  });
+
+  it("cycles attach scope", () => {
+    expect(nextChatAttachScope()).toBe("user");
+    expect(nextChatAttachScope("user")).toBe("full");
+    expect(nextChatAttachScope("full")).toBe("recent");
   });
 });
 
