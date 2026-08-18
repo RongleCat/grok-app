@@ -1,7 +1,8 @@
 /**
  * Keep a sidebar tree section mounted through its exit so expand/collapse
  * interpolates height. WKWebView only interpolates concrete inline px
- * (see treeReveal.ts) — CSS 0fr/1fr snaps.
+ * (see treeReveal.ts). Stay on px after expand — settling to `auto` makes
+ * the next close an auto→0 snap.
  */
 
 import {
@@ -18,11 +19,11 @@ import {
   beginTreeRevealMotion,
   measureTreeRevealContent,
   shouldAnimateTreeReveal,
+  TREE_REVEAL_CLOSE_MS,
   TREE_REVEAL_MS,
   TREE_REVEAL_PRESENCE_MS,
   treeRevealCloseSteps,
   treeRevealSizeStyle,
-  type TreeRevealSize,
 } from "@/lib/treeReveal";
 
 type SidebarTreeRevealProps = {
@@ -52,7 +53,7 @@ export function SidebarTreeReveal({
   const animateOpenRef = useRef(false);
   const animateCloseRef = useRef(false);
   const endMotionRef = useRef<(() => void) | null>(null);
-  const [size, setSize] = useState<TreeRevealSize>(() => (open ? "auto" : 0));
+  const [size, setSize] = useState<number | null>(() => (open ? null : 0));
 
   const stopMotion = () => {
     endMotionRef.current?.();
@@ -63,7 +64,6 @@ export function SidebarTreeReveal({
     const box = boxRef.current;
     const inner = innerRef.current;
     if (!box) {
-      // Collapsed first paint returns null — the next expand must animate.
       firstCommitRef.current = false;
       return;
     }
@@ -81,7 +81,7 @@ export function SidebarTreeReveal({
     animateCloseRef.current = false;
 
     if (!animate) {
-      const next: TreeRevealSize = open ? "auto" : 0;
+      const next = open ? contentPx || visualPx : 0;
       applyTreeRevealSize(box, next);
       setSize(next);
       return;
@@ -92,16 +92,15 @@ export function SidebarTreeReveal({
     box.dataset.treeRevealMotion = "1";
 
     if (open) {
-      // Leave height at 0 for this paint. Promoting to px before paint
-      // lets WKWebView skip the transition (same class of bug as 0fr/1fr).
       applyTreeRevealSize(box, 0);
       setSize(0);
       animateOpenRef.current = true;
       return;
     }
 
-    // Leave height locked for this paint. auto→0 in one commit snaps.
-    const { lockPx } = treeRevealCloseSteps(visualPx || contentPx);
+    const { lockPx } = treeRevealCloseSteps(
+      visualPx || contentPx || size || 0,
+    );
     applyTreeRevealSize(box, lockPx);
     setSize(lockPx);
     animateCloseRef.current = true;
@@ -113,7 +112,7 @@ export function SidebarTreeReveal({
     if (!box) return;
     let cancelled = false;
 
-    const settle = (next: TreeRevealSize) => {
+    const finish = (next: number) => {
       if (cancelled) return;
       applyTreeRevealSize(box, next);
       setSize(next);
@@ -127,25 +126,14 @@ export function SidebarTreeReveal({
           if (cancelled) return;
           animateOpenRef.current = false;
           const h = measureTreeRevealContent(innerRef.current);
-          if (h <= 0) {
-            // Stay at 0 and retry once — snapping to auto flashes the list.
-            const retry = window.requestAnimationFrame(() => {
-              const again = measureTreeRevealContent(innerRef.current);
-              if (again <= 0) {
-                settle("auto");
-                return;
-              }
-              applyTreeRevealSize(box, again);
-              setSize(again);
-            });
-            if (cancelled) window.cancelAnimationFrame(retry);
-            return;
-          }
           applyTreeRevealSize(box, h);
           setSize(h);
         });
       });
-      const t = window.setTimeout(() => settle("auto"), TREE_REVEAL_MS + 32);
+      const t = window.setTimeout(() => {
+        const h = measureTreeRevealContent(innerRef.current);
+        finish(h);
+      }, TREE_REVEAL_MS + 32);
       return () => {
         cancelled = true;
         window.cancelAnimationFrame(id);
@@ -162,13 +150,33 @@ export function SidebarTreeReveal({
           setSize(0);
         });
       });
-      const t = window.setTimeout(() => settle(0), TREE_REVEAL_MS + 32);
+      const t = window.setTimeout(() => finish(0), TREE_REVEAL_CLOSE_MS + 32);
       return () => {
         cancelled = true;
         window.cancelAnimationFrame(id);
         window.clearTimeout(t);
       };
     }
+  }, [open, presence.mounted]);
+
+  useEffect(() => {
+    if (!open || !presence.mounted) return;
+    const box = boxRef.current;
+    const inner = innerRef.current;
+    if (!box || !inner) return;
+    const ro = new ResizeObserver(() => {
+      if (box.dataset.treeRevealMotion) return;
+      const h = measureTreeRevealContent(inner);
+      if (h <= 0 || h === Math.round(box.getBoundingClientRect().height)) return;
+      const prev = box.style.transition;
+      box.style.transition = "none";
+      applyTreeRevealSize(box, h);
+      setSize(h);
+      void box.getBoundingClientRect();
+      box.style.transition = prev;
+    });
+    ro.observe(inner);
+    return () => ro.disconnect();
   }, [open, presence.mounted]);
 
   useEffect(() => stopMotion, []);
@@ -183,7 +191,7 @@ export function SidebarTreeReveal({
         (!open ? " is-closing" : "") +
         (className ? ` ${className}` : "")
       }
-      style={size === "auto" ? undefined : treeRevealSizeStyle(size)}
+      style={size == null ? undefined : treeRevealSizeStyle(size)}
       data-testid="tree-reveal"
       aria-hidden={!open || undefined}
       inert={!open || undefined}

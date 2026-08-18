@@ -5,9 +5,14 @@
  * `width: 0 !important`).
  */
 
-/** Matches `--motion-pane`. Extra slack keeps the node mounted through rAF. */
+/** Matches `--motion-pane` — expand. */
 export const TREE_REVEAL_MS = 320;
-export const TREE_REVEAL_PRESENCE_MS = TREE_REVEAL_MS + 64;
+/**
+ * Close is longer and ease-in. `--motion-pane-ease` is expo-out and dumps
+ * most of the height in the first frames — that is the "whoosh".
+ */
+export const TREE_REVEAL_CLOSE_MS = 520;
+export const TREE_REVEAL_PRESENCE_MS = TREE_REVEAL_CLOSE_MS + 80;
 
 export type TreeRevealSize = number | "auto";
 

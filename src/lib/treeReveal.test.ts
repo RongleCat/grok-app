@@ -8,6 +8,7 @@ import {
   resetTreeRevealMotionForTests,
   runAfterTreeRevealMotion,
   shouldAnimateTreeReveal,
+  TREE_REVEAL_CLOSE_MS,
   TREE_REVEAL_MS,
   treeRevealCloseSteps,
   treeRevealSizeStyle,
@@ -94,6 +95,13 @@ describe("tree-reveal CSS", () => {
     expect(css).toMatch(/min-height var\(--motion-pane\)/);
     expect(css).toMatch(/max-height var\(--motion-pane\)/);
     expect(css).toMatch(/var\(--motion-pane-ease\)/);
-    expect(css).toMatch(/\.tree-reveal\.is-closing/);
+  });
+
+  it("closes slower with ease-in, not the pane expo-out", () => {
+    expect(TREE_REVEAL_CLOSE_MS).toBe(520);
+    const close = css.slice(css.indexOf(".tree-reveal.is-closing"));
+    expect(close).toMatch(/520ms/);
+    expect(close).toMatch(/cubic-bezier\(0\.42,\s*0,\s*0\.58,\s*1\)/);
+    expect(close).not.toMatch(/--motion-pane-ease/);
   });
 });
