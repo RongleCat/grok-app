@@ -155,6 +155,8 @@ import {
   paneSplitSizeStyle,
 } from "@/lib/paneSplitMotion";
 import { usePaneSplitMotion } from "@/hooks/usePaneSplitMotion";
+import { useOpenPresence, VIEW_PRESENCE_MS } from "@/lib/openPresence";
+import { acquireNativeWebviewCover } from "@/lib/nativeWebviewCover";
 import {
   PHONE_KEYBOARD_INSET_VAR,
   keyboardInsetBottom
@@ -17749,6 +17751,20 @@ export function AppWorkbench() {
     [],
   );
 
+  const settingsPresence = useOpenPresence(
+    appView === "settings",
+    true,
+    VIEW_PRESENCE_MS,
+  );
+  useEffect(() => {
+    if (!settingsPresence.mounted) return;
+    return acquireNativeWebviewCover();
+  }, [settingsPresence.mounted]);
+  useEffect(() => {
+    if (!showUserMenu) return;
+    void import("@/components/SettingsPage");
+  }, [showUserMenu]);
+
   return (
     <ImageViewerProvider locale={locale}>
     <div
@@ -17881,7 +17897,17 @@ export function AppWorkbench() {
         </Suspense>
       )}
 
-      {appGate === "ready" && (appView === "settings" ? (
+      {appGate === "ready" && (
+      <>
+      {settingsPresence.mounted ? (
+        <div
+          className={
+            "app-settings-stage" +
+            (settingsPresence.entered ? " is-open" : "")
+          }
+          data-testid="settings-stage"
+          aria-hidden={!settingsPresence.entered || undefined}
+        >
                 <Suspense fallback={null}>
           <SettingsPage
           section={settingsSection}
@@ -18559,15 +18585,21 @@ export function AppWorkbench() {
           })();
           }}
           />        </Suspense>
-      ) : (
+        </div>
+      ) : null}
       <div
         className={
           "workbench" +
           (phoneLayout ? " workbench--phone" : "") +
           (hideChatForSideExpand ? " workbench--side-expanded" : "") +
           (sideDockActive ? " workbench--side-dock" : "") +
+          (appView === "settings" && settingsPresence.entered
+            ? " is-view-idle"
+            : "") +
           paneMotionClass
         }
+        aria-hidden={appView === "settings" || undefined}
+        inert={appView === "settings" || undefined}
         style={
           {
             // Free-area left edge for expanded side overlay (px).
@@ -21742,7 +21774,8 @@ export function AppWorkbench() {
           </div>
         </aside>
       </div>
-      ))}
+      </>
+      )}
 
       {phoneLayout ? (
         <>

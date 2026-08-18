@@ -25,6 +25,7 @@ import {
 import { Tip } from "@/components/ui/tooltip";
 import * as api from "@/lib/api";
 import { useFloatingMenu } from "@/lib/floatingMenu";
+import { useOpenPresence } from "@/lib/openPresence";
 import { pathBaseName } from "@/lib/sessionChanges";
 import { envReviewJumpEnabled } from "@/lib/sideWorkbench";
 
@@ -95,8 +96,9 @@ export function EnvInfoButton({
     emptySnapshot(isGitProject),
   );
 
-  const { pos, style } = useFloatingMenu({
-    open,
+  const presence = useOpenPresence(open);
+  const { pos, style, settled } = useFloatingMenu({
+    open: presence.mounted,
     triggerRef,
     panelRef,
     onClose: () => setOpen(false),
@@ -108,6 +110,8 @@ export function EnvInfoButton({
     estHeight: 320,
     gap: 6,
   });
+  const enter = useOpenPresence(Boolean(open && settled));
+  const entered = enter.entered;
 
   const localLabel = useMemo(() => {
     const named = (projectName || "").trim();
@@ -299,11 +303,13 @@ export function EnvInfoButton({
           <IconEnv size={16} />
         </button>
       </Tip>
-      {open && pos
+      {presence.mounted && pos
         ? createPortal(
             <div
               ref={panelRef}
-              className="sw-env-menu menu-panel"
+              className={
+                "sw-env-menu menu-panel" + (entered ? " is-open" : "")
+              }
               style={style}
               role="dialog"
               aria-label={tr("side.envTitle")}

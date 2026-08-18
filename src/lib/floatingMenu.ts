@@ -167,7 +167,12 @@ export const FLOATING_MENU_Z_INDEX = 13000;
 
 export function floatingStyle(
   pos: FloatingPos | null,
-  extras?: { minWidth?: number; settled?: boolean },
+  extras?: {
+    minWidth?: number;
+    settled?: boolean;
+    /** When false, skip placeAbove `translateY(-100%)` so CSS can own transform. */
+    anchorTransform?: boolean;
+  },
 ): CSSProperties | undefined {
   if (!pos) return undefined;
   const base: CSSProperties = {
@@ -188,7 +193,7 @@ export function floatingStyle(
     base.minWidth = 0;
     base.overflowX = "hidden";
   }
-  if (pos.placeAbove) {
+  if (pos.placeAbove && extras?.anchorTransform !== false) {
     // Keep a compositing layer (matches glass translateZ) while anchoring above.
     base.transform = "translateY(-100%) translateZ(0)";
   }
@@ -219,6 +224,11 @@ export interface UseFloatingMenuOptions {
   fitContent?: boolean;
   estHeight?: number;
   gap?: number;
+  /**
+   * When false, do not apply the placeAbove `translateY(-100%)` positioning
+   * transform. Needed when the panel itself animates transform.
+   */
+  anchorTransform?: boolean;
   /** Extra deps that should recompute position (e.g. nested content). */
   deps?: unknown[];
 }
@@ -240,6 +250,7 @@ export function useFloatingMenu({
   fitContent = true,
   estHeight = 240,
   gap = 6,
+  anchorTransform = true,
   deps = [],
 }: UseFloatingMenuOptions): {
   pos: FloatingPos | null;
@@ -517,6 +528,7 @@ export function useFloatingMenu({
     style: floatingStyle(pos, {
       minWidth: styleMin,
       settled: open ? settled : true,
+      anchorTransform,
     }),
   };
 }

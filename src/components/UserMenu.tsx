@@ -26,6 +26,7 @@ import {
   FLOATING_MENU_Z_INDEX,
   useFloatingMenu,
 } from "@/lib/floatingMenu";
+import { useOpenPresence } from "@/lib/openPresence";
 import type {
   AccountStatus,
   CustomProvider,
@@ -222,7 +223,7 @@ export function UserMenu({
 
   useLayoutEffect(() => {
     if (!open || !themeSubOpen) {
-      setFlyoutStyle(null);
+      // Keep last rect so the flyout can play its exit motion.
       return;
     }
     updateFlyoutPos();
@@ -241,8 +242,9 @@ export function UserMenu({
     updateFlyoutPos();
   }, [open, themeSubOpen, updateFlyoutPos, themePreference]);
 
-  const { pos, style } = useFloatingMenu({
-    open,
+  const panelPresence = useOpenPresence(open);
+  const { pos, style, settled } = useFloatingMenu({
+    open: panelPresence.mounted,
     triggerRef,
     panelRef,
     roots: [rootRef, themeFlyoutRef],
@@ -253,7 +255,10 @@ export function UserMenu({
     minWidth: 220,
     estHeight: savedAccounts.length > 1 ? 360 : 260,
     gap: 6,
+    // CSS owns transform (rise from the footer). Do not apply placeAbove -100%.
+    anchorTransform: false,
   });
+  const panelEntered = useOpenPresence(Boolean(open && settled)).entered;
 
   const profile = account?.profile;
   const isCustomProvider = activeProvider != null;
@@ -291,15 +296,18 @@ export function UserMenu({
     return labels.themeDark;
   };
 
+  const flyoutPresence = useOpenPresence(open && themeSubOpen, !!flyoutStyle);
   const themeFlyout =
-    open &&
-    themeSubOpen &&
+    flyoutPresence.mounted &&
     flyoutStyle &&
     typeof document !== "undefined"
       ? createPortal(
           <div
             ref={themeFlyoutRef}
-            className="menu-panel user-menu__flyout"
+            className={
+              "menu-panel user-menu__flyout" +
+              (flyoutPresence.entered ? " is-open" : "")
+            }
             role="menu"
             aria-label={labels.theme}
             style={flyoutStyle}
@@ -339,11 +347,14 @@ export function UserMenu({
       : null;
 
   const panel =
-    open && pos && typeof document !== "undefined"
+    panelPresence.mounted && pos && typeof document !== "undefined"
       ? createPortal(
           <div
             ref={panelRef}
-            className="menu-panel user-menu__pop user-menu__pop--portal user-menu__pop--account"
+            className={
+              "menu-panel user-menu__pop user-menu__pop--portal user-menu__pop--account" +
+              (panelEntered ? " is-open" : "")
+            }
             role="menu"
             style={style}
           >

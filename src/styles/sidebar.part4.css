@@ -267,6 +267,19 @@ html[data-sidebar-density="compact"] .session-row__meta {
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   overflow: hidden;
+  opacity: 0;
+  transform: translateX(-6px) scale(0.97) translateZ(0);
+  transform-origin: center left;
+  transition:
+    opacity var(--motion-normal) var(--motion-pane-ease),
+    transform var(--motion-normal) var(--motion-pane-ease);
+  pointer-events: none;
+}
+
+.user-menu__flyout.is-open {
+  opacity: 1;
+  transform: translateZ(0);
+  pointer-events: auto;
 }
 
 .user-menu__check {
@@ -301,6 +314,28 @@ html[data-sidebar-density="compact"] .session-row__meta {
 
 .user-menu__pop--portal {
   position: fixed;
+}
+
+/*
+ * Rise out of the footer trigger (bottom → up) and sink back into it.
+ * translateY(+N) starts closer to the account row; origin stays on the
+ * bottom edge so scale grows upward. Positioning transform is disabled
+ * on this panel (anchorTransform: false) so it cannot animate from -100%.
+ */
+.user-menu__pop.user-menu__pop--portal {
+  opacity: 0;
+  transform: translateY(16px) scaleY(0.92) translateZ(0);
+  transform-origin: bottom center;
+  transition:
+    opacity var(--motion-normal) var(--motion-pane-ease),
+    transform var(--motion-normal) var(--motion-pane-ease);
+  pointer-events: none;
+}
+
+.user-menu__pop.user-menu__pop--portal.is-open {
+  opacity: 1;
+  transform: translateZ(0);
+  pointer-events: auto;
 }
 
 .user-menu__status {
@@ -605,6 +640,14 @@ html[data-sidebar-density="compact"] .session-row__meta {
 .user-avatar--logo .provider-brand-icon {
   width: 16px;
   height: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .user-menu__pop.user-menu__pop--portal,
+  .user-menu__flyout {
+    transform: translateZ(0);
+    transition: none;
+  }
 }
 
 .user-meta {

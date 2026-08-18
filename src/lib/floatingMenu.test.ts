@@ -125,6 +125,23 @@ describe("floatingStyle", () => {
     expect(s?.width).toBe(200);
   });
 
+  it("skips the placeAbove transform when CSS owns motion", () => {
+    const s = floatingStyle(
+      {
+        left: 10,
+        top: 100,
+        width: 200,
+        placeAbove: true,
+        maxHeight: 200,
+        maxWidth: 1000,
+        fitContent: false,
+        align: "start",
+      },
+      { anchorTransform: false },
+    );
+    expect(s?.transform).toBeUndefined();
+  });
+
   it("stacks above modal overlay (z-index 12000)", () => {
     const s = floatingStyle({
       left: 10,

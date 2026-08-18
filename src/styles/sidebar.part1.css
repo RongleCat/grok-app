@@ -353,7 +353,15 @@ select,
   position: relative;
   /* Transparent on mac so sidebar vibrancy is not covered by solid paint */
   background: transparent;
-  transition: --sw-sidebar-occupied var(--motion-pane) var(--motion-pane-ease);
+  transition:
+    --sw-sidebar-occupied var(--motion-pane) var(--motion-pane-ease),
+    opacity var(--motion-pane) var(--motion-pane-ease);
+}
+
+/* Covered by settings overlay — keep mounted so chat/webview state survives. */
+.workbench.is-view-idle {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .workbench:has(.sidebar.is-resizing) {
@@ -693,6 +701,10 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 @media (prefers-reduced-motion: reduce) {
   .sidebar-update-btn__dot--pulse {
     animation: none;
+  }
+
+  .workbench.is-view-idle {
+    transition: none;
   }
 }
 

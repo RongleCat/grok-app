@@ -1011,6 +1011,20 @@ html[data-theme="light"] .sw-terminal--pty {
   border-radius: 12px;
   padding: 10px 8px 8px;
   box-sizing: border-box;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.97);
+  transform-origin: top right;
+  transition:
+    opacity var(--motion-normal) var(--motion-pane-ease),
+    transform var(--motion-normal) var(--motion-pane-ease);
+  pointer-events: none;
+}
+
+.sw-env-menu.menu-panel.is-open,
+.menu-panel.sw-env-menu.is-open {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
 }
 
 .sw-env-menu__head {
@@ -1112,6 +1126,14 @@ html[data-theme="light"] .sw-terminal--pty {
 
 .sw-env-menu__del {
   color: #d45454;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-env-menu.menu-panel,
+  .menu-panel.sw-env-menu {
+    transform: none;
+    transition: none;
+  }
 }
 
 /* Review — Codex-style stacked diffs + side tree (theme-aware) */
