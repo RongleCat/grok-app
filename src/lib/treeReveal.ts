@@ -72,13 +72,29 @@ export function measureTreeRevealContent(inner: HTMLElement | null): number {
 
 let motionCount = 0;
 const idle = new Set<() => void>();
+const watchers = new Set<(active: boolean) => void>();
 
 export function isTreeRevealMotionActive(): boolean {
   return motionCount > 0;
 }
 
+export function subscribeTreeRevealMotion(
+  fn: (active: boolean) => void,
+): () => void {
+  watchers.add(fn);
+  return () => {
+    watchers.delete(fn);
+  };
+}
+
+function emitMotion(active: boolean): void {
+  for (const fn of [...watchers]) fn(active);
+}
+
 export function beginTreeRevealMotion(): () => void {
+  const wasIdle = motionCount === 0;
   motionCount += 1;
+  if (wasIdle) emitMotion(true);
   let open = true;
   return () => {
     if (!open) return;
@@ -88,6 +104,7 @@ export function beginTreeRevealMotion(): () => void {
     const waiters = [...idle];
     idle.clear();
     for (const fn of waiters) fn();
+    emitMotion(false);
   };
 }
 

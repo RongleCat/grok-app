@@ -7,6 +7,7 @@ import {
   isTreeRevealMotionActive,
   resetTreeRevealMotionForTests,
   runAfterTreeRevealMotion,
+  subscribeTreeRevealMotion,
   shouldAnimateTreeReveal,
   TREE_REVEAL_CLOSE_MS,
   TREE_REVEAL_MS,
@@ -80,6 +81,16 @@ describe("tree reveal motion deferral", () => {
     expect(isTreeRevealMotionActive()).toBe(false);
     expect(ran).toEqual(["later"]);
   });
+
+  it("notifies subscribers on start and end even if they never deferred", () => {
+    const seen: boolean[] = [];
+    const stop = subscribeTreeRevealMotion((active) => seen.push(active));
+    const end = beginTreeRevealMotion();
+    expect(seen).toEqual([true]);
+    end();
+    expect(seen).toEqual([true, false]);
+    stop();
+  });
 });
 
 describe("tree-reveal CSS", () => {
@@ -95,6 +106,16 @@ describe("tree-reveal CSS", () => {
     );
     expect(src).toMatch(
       /<SidebarTreeReveal open=\{projectsOpen\} className="tree-reveal--projects">/,
+    );
+    expect(src).toMatch(/syncTreeReveal/);
+  });
+
+  it("hides the sidebar overlay thumb while the project list is moving", () => {
+    expect(css).toMatch(
+      /\.sidebar__scroll:has\(\[data-tree-reveal-motion\]\) \.overlay-scroll__thumb/,
+    );
+    expect(css).toMatch(
+      /\.sidebar__scroll:has\(\[data-tree-reveal-motion\]\) \.overlay-scroll__viewport/,
     );
   });
 

@@ -143,6 +143,17 @@
   contain: none;
 }
 
+/* Collapsing the list leaves a stale overlay thumb (and WKWebView's
+ * native indicator) until the next hover. Hide both while height moves. */
+.sidebar__scroll:has([data-tree-reveal-motion]) .overlay-scroll__thumb {
+  opacity: 0;
+  transition: none;
+}
+
+.sidebar__scroll:has([data-tree-reveal-motion]) .overlay-scroll__viewport {
+  overflow: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tree-reveal {
     transition: none;

@@ -18974,7 +18974,11 @@ export function AppWorkbench() {
             ) : null}
           </div>
 
-          <OverlayScroll className="sidebar__scroll" viewportClassName="sidebar__scroll-inner">
+          <OverlayScroll
+            className="sidebar__scroll"
+            viewportClassName="sidebar__scroll-inner"
+            syncTreeReveal
+          >
             {/* L1 — Projects section */}
             <div className="tree-l1">
               <button
