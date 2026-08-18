@@ -14,10 +14,12 @@ See `docs/llm-wiki/release.md`.
 ### Added
 - **Pet eye color, white body, and celebrate spin**: Settings → Pet can pick eyes independently of the body (body palette + Auto). White stays pale in both themes. The mark spins when a focused task finishes, or from the pet menu.
 - **Pet task bubbles can be turned off (#696)**: Settings → Pet and the pet context menu can hide the session chips above the mark. The overlay shrinks when they are off.
+- **Attach another chat as context**: `/attach-chat`, composer `+`, sidebar attach icon, or right-click **Attach to current chat** picks a local conversation; chips sit on the composer; the journal stores `[[chat:id]]` tokens; the host prefixes a compact transcript for the agent only (max 3; source chat unchanged). Row-body drag still moves the chat between projects.
 
 **中文 · 新增**
 - **宠物可改眼睛颜色、白色身体、完成转圈**：设置 → 宠物里眼睛和身体分开选（身体色板 + 自动）。白色在两种主题下都保持浅色。聚焦任务完成时（或右键菜单）会转圈。
 - **桌宠提示框可关（#696）**：设置 → 宠物，以及宠物右键菜单，都能关掉任务气泡；关掉后浮层会收小。
+- **把另一段对话当作上下文加入**：`/attach-chat`、输入框 `+`、侧栏对话图标或右键「加入目前对话」可加入本地对话；chip 挂在输入框；日记只存 `[[chat:id]]`；Host 只给 Agent 加一段压缩记录（最多 3 段；来源对话不改）。拖行身到项目仍是移动会话。
 
 ### Fixed
 - **Finished turns no longer stay on 思考中 / 连接中**: After the last assistant body is painted, leftover streaming or a leaked connect claim kept Stop and blocked the next send. Client heal unlocks the composer (reply stays) when Host is idle, or after 90s if Host itself went stale.
@@ -25,6 +27,7 @@ See `docs/llm-wiki/release.md`.
 - **Permission bars and journal flush after live lock**: A remounted WebView can recover the full approval card instead of looking stuck thinking. The stream journal flushes after the live lock is released.
 - **User images no longer echo as broken assistant cards**: Pasted / attached user files are not re-attached onto the assistant turn. Outside-project paths 403 after restart no longer lock the card as a corrupt blob.
 - **Windows pet overlay no longer inherits File / Edit / Window / Help; toggle follows real window visibility; hit target shrinks after drag (#696)**: The overlay keeps a window-local empty menu and strips the native bar. Hide retries if the HWND stays painted; File → Close hides instead of destroying. Host clears drag when the left button is up, and measured hit radius is clamped to the mark size.
+- Sidebar attach is an icon click (tooltip keeps the full phrase). No ⋮⋮ grip-drag. Host compact keeps the newest turns; chips-only missing/empty sources return typed errors; recycle bootstrap keeps a stub or re-expanded attach context.
 
 **中文 · 修复**
 - **回合结束后不再一直「思考中 / 连接中」**：正文已经出来，UI 还停在停止键、发不了下一句。Host 已空闲（或卡住超过 90 秒）时自动解锁，回复保留。
@@ -32,6 +35,7 @@ See `docs/llm-wiki/release.md`.
 - **权限条和日记在解开 live lock 后会补上**：WebView 重挂后能恢复完整审批卡，不再看起来卡在思考。流式日记在释放锁之后再刷盘。
 - **用户图片不再回显成损坏的助手图卡**：用户粘贴/附图不会再挂到助手回合上。项目外路径重启后 403 也不再把卡片钉成坏图。
 - **Windows 宠物不再继承 File / Edit / Window / Help；开关跟真实窗口走；拖完热区会收回（#696）**：浮层用自己的空菜单并卸掉原生菜单栏。关掉后若仍显示会再 hide 一次；File → 关闭只会收起。松开鼠标后 Host 清掉拖拽状态，热区半径按标记尺寸封顶。
+- 侧栏用对话图标一按即可加入目前对话（无 ⋮⋮ 拖曳）。压缩时保留最新轮次；只发 chip 且来源缺失/空白会返回明确错误；Agent 重开后仍保留附加上下文或占位。
 
 ## [0.2.22] - 2026-08-19
 
@@ -51,13 +55,11 @@ See `docs/llm-wiki/release.md`.
 - **Move chats between projects (#616)**: Sidebar menu, multi-select, and drag-and-drop can place a chat (including Other sessions) under another folder. Confirm first — the agent reopens in the new cwd and does not reuse the old CLI session. Relative paths from the previous workspace may break.
 - **Chat-column bottom terminal and pane motion (#681)**: `⌘\`` toggles a persist-mounted terminal under the chat. Sidebar / aside / settings / account-menu / project-list click-toggles interpolate instead of hard-cutting.
 - **Russian UI locale (#689)**: Settings language list and system-language detection include `ru`. Catalog is English-backed with translated overrides; tray / app menu follow the same locale.
-- **Attach another chat as context**: `/attach-chat` or composer `+` picks a local conversation; chips sit on the composer; the journal stores `[[chat:id]]` tokens; the host prefixes a compact transcript for the agent only (max 3; source chat unchanged). Sidebar grip drags onto the composer. Row-body drag still moves the chat between projects.
 
 **中文 · 新增**
 - **会话可移到其他项目（#616）**：侧栏菜单、多选和拖到项目上可以把对话（含「其他会话」）挂到另一个文件夹。会先确认；Agent 在新目录重开，不会把旧 CLI 会话 load 进新仓库。原先工作区的相对路径可能失效。
 - **对话栏底部终端与分栏动画（#681）**：`⌘\`` 打开/收起聊天下方常驻终端。侧栏、右侧栏、设置、账号菜单、项目列表的点击开合改为插值，不再硬切。
 - **俄语界面（#689）**：设置语言列表和跟随系统可切到 `ru`。词库以英文兜底、常用面有俄文；托盘和原生菜单同步。
-- **把另一段对话当作上下文加入**：`/attach-chat` 或输入框 `+` 可选本地对话；chip 挂在输入框；日记只存 `[[chat:id]]`；Host 只给 Agent 加一段压缩记录（最多 3 段；来源对话不改）。侧栏 ⋮⋮ 拖到输入框是加入上下文；拖行身到项目仍是移动会话。
 
 ### Fixed
 - **Project list collapse no longer snaps and leaves a leftover scrollbar (#694)**: Closing a project (or the L1 Projects chevron) paints the locked height, then interpolates to 0. The overlay thumb stays hidden while height is moving. Overflow is restored before the active chat scrolls into view. Open folders retarget the px lock when a chat is dropped in, so new rows are not clipped and the next close still interpolates.
@@ -92,11 +94,6 @@ See `docs/llm-wiki/release.md`.
 - **工具很多的长对话不再把两轮回复叠在一起闪**：折叠的思考不再计入行高预估；虚拟列表起点落在一串 0 高工具行上时，回退到前一条真实消息。高度差 1px 不会再换一套助手气泡（Windows 上旧层清不掉，看起来像正文狂闪）。
 - **移动会话被拒绝时不再误杀正在跑的 Agent（#616 跟进）**：Host 原来先杀掉会话的 ACP 进程、后校验目标文件夹，未信任/丢失的目标（或过期调用方发来的同项目 no-op）也会让会话丢掉 `agent_session_id`、被迫 `session/new`。现在 `session_move_to_project` 先预检目标和 cwd 是否变化，确认真的要移动才断开 Agent。
 - **输入框里的 skill 标签图标不再过小**：工具 / skills / imagine 等标签改用 14px SVG，和 12px 文字齐平。imagine 用魔杖，其余仍用扳手。
-
-### Fixed
-
-- Dragging a sidebar chat onto the composer no longer reports “Could not read the dropped files”. Error-banner text is selectable so it can be copied. Attach uses a pointer drag (Tauri swallows HTML5 drop) and a context-menu **Attach to current chat** action so the source row does not steal focus. Drag no longer Select-Alls the open transcript. Follow-cursor chip, composer-only highlight, Esc/cancel, left-side grip + labeled attach, history titles, scope (16 / user / 40), and picker ranking.
-- Sidebar **Attach to current chat** is a labeled control on the left of each row (not a hover-only icon). The ⋮⋮ grip stays on the left so pin/archive/menu no longer cover it.
 
 ## [0.2.21] - 2026-08-18
 

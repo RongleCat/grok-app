@@ -308,11 +308,13 @@ pub(super) const HISTORY_BOOTSTRAP_MAX_CHARS: usize = 14_000;
 /// Keeps recent turns so the model still "remembers" the chat after respawn.
 pub(super) fn build_history_bootstrap(app_session_id: &str) -> Option<String> {
     let msgs = store::load_messages(app_session_id);
-    let turns = crate::session_attach::compact_user_assistant_turns(
+    let turns = crate::session_attach::compact_user_assistant_turns_with(
         &msgs,
         HISTORY_BOOTSTRAP_MAX_MSGS,
         HISTORY_BOOTSTRAP_PER_MSG_CHARS,
         HISTORY_BOOTSTRAP_MAX_CHARS,
+        crate::session_attach::NestedAttach::Expand,
+        &crate::session_attach::StoreAttachJournal,
     )?;
     let mut body = String::from(
         "[Prior conversation context — this chat continues an existing Grok App session. \

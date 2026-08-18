@@ -107,24 +107,20 @@ impl SessionManager {
                 ));
             }
 
-            let mut agent_prompt = stripped_text.clone();
-            if let Some(ctx) =
-                crate::session_attach::build_attached_chats_context(&attached, &s.app_session_id)
-            {
-                if agent_prompt.is_empty() {
-                    agent_prompt =
-                        format!("{ctx}\nThe user attached the conversation(s) above as context.");
-                } else {
-                    agent_prompt = format!("{ctx}\n{agent_prompt}");
-                }
+            let mut agent_prompt = crate::session_attach::agent_prompt_after_attach(
+                &stripped_text,
+                &attached,
+                &s.app_session_id,
+                &crate::session_attach::StoreAttachJournal,
+            )
+            .map_err(|e| e.to_string())?;
+            if !attached.is_empty() && agent_prompt.len() > stripped_text.len() {
                 tracing::info!(
                     "attached chat context ({} chars, {} id(s)) for session {}",
-                    ctx.len(),
+                    agent_prompt.len().saturating_sub(stripped_text.len()),
                     attached.len(),
                     s.app_session_id
                 );
-            } else if agent_prompt.is_empty() {
-                return Err("empty message".into());
             }
 
             s.fsm.begin_stream().map_err(|e| e.to_string())?;

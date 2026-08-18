@@ -22,6 +22,7 @@ export function ChatRefChip({
   removeLabel,
   refreshLabel,
   staleLabel,
+  archivedLabel,
 }: {
   title: string;
   size?: "sm" | "md";
@@ -37,6 +38,7 @@ export function ChatRefChip({
   removeLabel?: string;
   refreshLabel?: string;
   staleLabel?: string;
+  archivedLabel?: string;
 }) {
   const iconSize = size === "sm" ? 12 : 14;
   const label = title.trim() || "…";
@@ -44,6 +46,7 @@ export function ChatRefChip({
   const Tag = clickable ? "button" : "span";
   const tipParts = [label];
   if (stale && staleLabel) tipParts.push(staleLabel);
+  if (status === "archived" && archivedLabel) tipParts.push(archivedLabel);
   if (status === "missing") tipParts.push(label);
   const tip = tipParts.join(" · ");
   return (

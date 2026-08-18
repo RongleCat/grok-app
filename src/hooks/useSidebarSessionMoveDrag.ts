@@ -17,7 +17,8 @@ const SIDEBAR_MOVING = "sidebar--session-moving";
 const ROW_DRAGGING = "tree-l3--dragging";
 const DROP_TARGET = "is-session-drop";
 
-function isIgnoredTarget(target: EventTarget | null): boolean {
+/** Row-body move must not start from the attach grip or other row chrome. */
+export function isSessionMoveIgnoredTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return true;
   if (
     target.closest(
@@ -176,7 +177,7 @@ export function useSidebarSessionMoveDrag(opts: {
     const onDown = (e: PointerEvent) => {
       if (!enabledRef.current) return;
       if (e.button !== 0) return;
-      if (isIgnoredTarget(e.target)) return;
+      if (isSessionMoveIgnoredTarget(e.target)) return;
       const raw = e.target;
       if (!(raw instanceof Element)) return;
       if (!raw.closest(".sidebar")) return;
