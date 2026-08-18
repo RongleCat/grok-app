@@ -132,6 +132,40 @@ export function findWorktreeAt(
 }
 
 /**
+ * Apply `git status` branch onto the cached worktree list used by the
+ * composer branch chip.
+ *
+ * In-place `git checkout` / `git switch` does not change the project path, so
+ * the porcelain list stays stale until the menu is opened. The dirty-status
+ * poll already has the live branch — patch the matching row instead of
+ * waiting for a click.
+ *
+ * Returns the same array when nothing changed (skip setState).
+ */
+export function applyGitStatusBranch(
+  worktrees: GitWorktreeEntry[],
+  projectPath: string | null | undefined,
+  status:
+    | { available?: boolean | null; branch?: string | null }
+    | null
+    | undefined,
+): GitWorktreeEntry[] {
+  if (!worktrees.length || !status?.available) return worktrees;
+  const nextBranch = (status.branch ?? "").trim() || null;
+  const detached = !nextBranch;
+  let changed = false;
+  const next = worktrees.map((wt) => {
+    if (!pathsEqual(wt.path, projectPath)) return wt;
+    if ((wt.branch ?? null) === nextBranch && wt.detached === detached) {
+      return wt;
+    }
+    changed = true;
+    return { ...wt, branch: nextBranch, detached };
+  });
+  return changed ? next : worktrees;
+}
+
+/**
  * Resolve a path to a {@link GitWorktreeEntry} for session bind / switch.
  *
  * Prefers a porcelain list match (branch / main flags intact). When the path

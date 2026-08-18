@@ -784,6 +784,7 @@ import {
 import { ComposerProjectMenu } from "@/components/ComposerProjectMenu";
 import { ComposerWorktreeMenu } from "@/components/ComposerWorktreeMenu";
 import {
+  applyGitStatusBranch,
   buildWorktreePath,
   canRemoveWorktree,
   mainWorktreePath,
@@ -13306,6 +13307,9 @@ export function AppWorkbench() {
       const status = await api.gitStatus(path);
       if (reqId !== gitDirtyReqRef.current) return;
       setGitDirtySummary(summarizeGitDirty(status));
+      // Same poll already has HEAD. Patch the composer branch chip so an
+      // in-place checkout does not stay stale until the menu is clicked.
+      setGitWorktrees((prev) => applyGitStatusBranch(prev, path, status));
     } catch {
       if (reqId !== gitDirtyReqRef.current) return;
       setGitDirtySummary(null);
@@ -13315,9 +13319,12 @@ export function AppWorkbench() {
   useEffect(() => {
     void refreshGitDirtyStatus();
     // Soft poll while a project is bound; refresh sooner on focus.
+    // Faster while a turn is live — agent may `git switch` mid-session.
     const path = activeProject?.path?.trim() || null;
     if (!path || !api.isTauri()) return;
-    const intervalMs = 8000;
+    const busy =
+      session.state === "streaming" || session.state === "awaiting_permission";
+    const intervalMs = busy ? 2000 : 8000;
     const id = window.setInterval(() => {
       void refreshGitDirtyStatus();
     }, intervalMs);
@@ -13334,7 +13341,12 @@ export function AppWorkbench() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [activeProject?.path, refreshGitDirtyStatus]);
+  }, [
+    activeProject?.path,
+    refreshGitDirtyStatus,
+    session.sessionId,
+    session.state,
+  ]);
 
   /** Soft offer sandbox guide after a successful project trust. */
   const maybeOfferSandboxWizardAfterTrust = useCallback(() => {

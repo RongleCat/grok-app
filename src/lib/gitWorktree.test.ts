@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyGitStatusBranch,
   buildWorktreeCliPath,
   buildWorktreeGcArgs,
   buildWorktreePath,
@@ -90,7 +91,70 @@ describe("path helpers", () => {
     ]);
     expect(findWorktreeAt(list, "/Users/me/repo-feat")?.branch).toBe("feat/x");
   });
+});
 
+describe("applyGitStatusBranch", () => {
+  it("updates the matching worktree after an in-place checkout", () => {
+    const cached = parseWorktreePorcelain(SAMPLE);
+    expect(worktreeLabel(cached[0])).toBe("main");
+
+    // Repro: agent / user `git switch feat/x` in the same cwd. Path is
+    // unchanged so the porcelain cache still says `main` until the chip is
+    // clicked. git status already has the live branch.
+    const next = applyGitStatusBranch(cached, "/Users/me/repo/", {
+      available: true,
+      branch: "feat/x",
+    });
+    expect(next).not.toBe(cached);
+    expect(worktreeLabel(next[0])).toBe("feat/x");
+    expect(next[0].detached).toBe(false);
+    expect(next[1].branch).toBe("feat/x");
+    expect(worktreeLabel(cached[0])).toBe("main");
+  });
+
+  it("marks detached when git status reports no branch (HEAD)", () => {
+    const cached = parseWorktreePorcelain(SAMPLE);
+    const next = applyGitStatusBranch(cached, "/Users/me/repo", {
+      available: true,
+      branch: null,
+    });
+    expect(next[0].branch).toBeNull();
+    expect(next[0].detached).toBe(true);
+    expect(worktreeLabel(next[0])).toContain("repo");
+  });
+
+  it("does not invent a row when the path is missing from the cache", () => {
+    const cached = parseWorktreePorcelain(SAMPLE);
+    const next = applyGitStatusBranch(cached, "/tmp/other", {
+      available: true,
+      branch: "master",
+    });
+    expect(next).toBe(cached);
+  });
+
+  it("keeps the cache when git status is unavailable or the branch matches", () => {
+    const cached = parseWorktreePorcelain(SAMPLE);
+    expect(
+      applyGitStatusBranch(cached, "/Users/me/repo", {
+        available: false,
+        branch: "feat/x",
+      }),
+    ).toBe(cached);
+    expect(applyGitStatusBranch(cached, "/Users/me/repo", null)).toBe(cached);
+    expect(
+      applyGitStatusBranch(cached, "/Users/me/repo", {
+        available: true,
+        branch: "main",
+      }),
+    ).toBe(cached);
+    expect(applyGitStatusBranch([], "/Users/me/repo", {
+      available: true,
+      branch: "main",
+    })).toEqual([]);
+  });
+});
+
+describe("path helpers (entry resolve)", () => {
   it("worktreeEntryForPath prefers porcelain match, else synthetic", () => {
     const list = parseWorktreePorcelain(SAMPLE);
     const hit = worktreeEntryForPath("/Users/me/repo-feat/", list);
