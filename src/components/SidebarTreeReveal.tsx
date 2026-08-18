@@ -16,6 +16,7 @@ import { prefersReducedMotion } from "@/lib/paneSplitMotion";
 import {
   applyTreeRevealSize,
   shouldAnimateTreeReveal,
+  treeRevealCloseSteps,
   treeRevealSizeStyle,
   type TreeRevealSize,
 } from "@/lib/treeReveal";
@@ -40,11 +41,13 @@ export function SidebarTreeReveal({
   className,
   children,
 }: SidebarTreeRevealProps) {
-  const presence = useOpenPresence(open, true, OPEN_PRESENCE_MS);
+  // Stay mounted through lock-frame + height transition (open and close).
+  const presence = useOpenPresence(open, true, OPEN_PRESENCE_MS + 48);
   const boxRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const firstCommitRef = useRef(true);
   const animateOpenRef = useRef(false);
+  const animateCloseRef = useRef(false);
   const [size, setSize] = useState<TreeRevealSize>(() => (open ? "auto" : 0));
 
   useLayoutEffect(() => {
@@ -63,8 +66,10 @@ export function SidebarTreeReveal({
       isFirstCommit,
       reducedMotion: reduced,
     });
+    const visualPx = Math.round(box.getBoundingClientRect().height);
     const contentPx = inner?.scrollHeight ?? 0;
     animateOpenRef.current = false;
+    animateCloseRef.current = false;
 
     if (!animate) {
       const next: TreeRevealSize = open ? "auto" : 0;
@@ -82,42 +87,60 @@ export function SidebarTreeReveal({
       return;
     }
 
-    const locked = contentPx || Math.round(box.getBoundingClientRect().height);
-    applyTreeRevealSize(box, locked);
-    void box.getBoundingClientRect();
-    applyTreeRevealSize(box, 0);
-    setSize(0);
+    // Leave height locked for this paint. auto→0 in one commit snaps.
+    const { lockPx } = treeRevealCloseSteps(visualPx || contentPx);
+    applyTreeRevealSize(box, lockPx);
+    setSize(lockPx);
+    animateCloseRef.current = true;
   }, [open, presence.mounted]);
 
   useEffect(() => {
-    if (!open || !presence.mounted || !animateOpenRef.current) return;
+    if (!presence.mounted) return;
     const box = boxRef.current;
     if (!box) return;
     let cancelled = false;
-    const id = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        if (cancelled) return;
-        animateOpenRef.current = false;
-        const h = innerRef.current?.scrollHeight ?? 0;
-        if (h <= 0) {
-          applyTreeRevealSize(box, "auto");
-          setSize("auto");
-          return;
-        }
-        applyTreeRevealSize(box, h);
-        setSize(h);
+
+    if (open && animateOpenRef.current) {
+      const id = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (cancelled) return;
+          animateOpenRef.current = false;
+          const h = innerRef.current?.scrollHeight ?? 0;
+          if (h <= 0) {
+            applyTreeRevealSize(box, "auto");
+            setSize("auto");
+            return;
+          }
+          applyTreeRevealSize(box, h);
+          setSize(h);
+        });
       });
-    });
-    const t = window.setTimeout(() => {
-      if (cancelled) return;
-      applyTreeRevealSize(box, "auto");
-      setSize("auto");
-    }, OPEN_PRESENCE_MS + 32);
-    return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(id);
-      window.clearTimeout(t);
-    };
+      const t = window.setTimeout(() => {
+        if (cancelled) return;
+        applyTreeRevealSize(box, "auto");
+        setSize("auto");
+      }, OPEN_PRESENCE_MS + 32);
+      return () => {
+        cancelled = true;
+        window.cancelAnimationFrame(id);
+        window.clearTimeout(t);
+      };
+    }
+
+    if (!open && animateCloseRef.current) {
+      const id = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (cancelled) return;
+          animateCloseRef.current = false;
+          applyTreeRevealSize(box, 0);
+          setSize(0);
+        });
+      });
+      return () => {
+        cancelled = true;
+        window.cancelAnimationFrame(id);
+      };
+    }
   }, [open, presence.mounted]);
 
   if (!presence.mounted) return null;

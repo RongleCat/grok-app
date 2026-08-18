@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyTreeRevealSize,
   shouldAnimateTreeReveal,
+  treeRevealCloseSteps,
   treeRevealSizeStyle,
 } from "./treeReveal";
 
@@ -33,6 +34,13 @@ describe("shouldAnimateTreeReveal", () => {
     expect(
       shouldAnimateTreeReveal({ isFirstCommit: false, reducedMotion: true }),
     ).toBe(false);
+  });
+});
+
+describe("treeRevealCloseSteps", () => {
+  it("locks the used height before writing 0 so auto→0 can interpolate", () => {
+    expect(treeRevealCloseSteps(256)).toEqual({ lockPx: 256, endPx: 0 });
+    expect(treeRevealCloseSteps(0)).toEqual({ lockPx: 0, endPx: 0 });
   });
 });
 

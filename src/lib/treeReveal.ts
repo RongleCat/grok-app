@@ -42,3 +42,14 @@ export function shouldAnimateTreeReveal(opts: {
   if (opts.isFirstCommit || opts.reducedMotion) return false;
   return true;
 }
+
+/**
+ * Close must paint a locked px height, then 0. Writing auto→0 in one
+ * commit is the WKWebView snap (same as promoting 0→N before paint).
+ */
+export function treeRevealCloseSteps(contentPx: number): {
+  lockPx: number;
+  endPx: number;
+} {
+  return { lockPx: Math.max(0, Math.round(contentPx)), endPx: 0 };
+}
