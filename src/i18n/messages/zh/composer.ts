@@ -114,6 +114,7 @@ export const zhComposer = {
   "composer.queueEmptyPreview": "（附件）",
   "composer.queueFilesCount": "{n} 个文件",
   "composer.queueChatsCount": "{n} 段对话",
+  "attachChat.menu": "加入当前对话",
   "attachChat.title": "加入一段对话",
   "attachChat.placeholder": "搜索对话…",
   "attachChat.empty": "没有可加入的其他对话",

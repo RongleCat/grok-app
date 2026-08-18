@@ -147,6 +147,7 @@ export const zhTWComposer = {
   "composer.queueEmptyPreview": "（附件）",
   "composer.queueFilesCount": "{n} 個檔案",
   "composer.queueChatsCount": "{n} 段對話",
+  "attachChat.menu": "加入目前對話",
   "attachChat.title": "加入一段對話",
   "attachChat.placeholder": "搜尋對話…",
   "attachChat.empty": "沒有可加入的其他對話",

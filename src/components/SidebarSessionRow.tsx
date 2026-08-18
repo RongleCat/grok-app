@@ -5,10 +5,9 @@
 
 import {
   memo,
-  useRef,
-  type DragEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent,
 } from "react";
 import type { Locale } from "@/i18n";
 import {
@@ -99,9 +98,8 @@ export type SidebarSessionRowProps = {
   onMenu: (e: MouseEvent, session: SidebarSessionRowSession) => void;
   /** Sidebar → composer attach-chat drag. Omitted in select mode. */
   dragProps?: {
-    draggable: boolean;
-    onDragStart: (e: DragEvent) => void;
-    onDragEnd: () => void;
+    onPointerDown: (e: PointerEvent) => void;
+    consumeClick?: () => boolean;
   };
 };
 
@@ -137,29 +135,10 @@ function SidebarSessionRowInner({
     (planPending ? " tree-l3--plan-pending" : "") +
     (selectMode ? " tree-l3--select-mode" : "") +
     (checked ? " tree-l3--checked" : "") +
-    (dragProps?.draggable ? " tree-l3--draggable" : "");
-
-  const ignoreClickAfterDragRef = useRef(false);
-  const wrappedDragProps = dragProps
-    ? {
-        ...dragProps,
-        onDragStart: (e: DragEvent) => {
-          ignoreClickAfterDragRef.current = true;
-          dragProps.onDragStart(e);
-        },
-        onDragEnd: () => {
-          dragProps.onDragEnd();
-          window.setTimeout(() => {
-            ignoreClickAfterDragRef.current = false;
-          }, 80);
-        },
-      }
-    : undefined;
+    (dragProps ? " tree-l3--draggable" : "");
 
   const handleClick = (e: MouseEvent) => {
-    // Dragend is followed by a click on the source row. Do not open that
-    // session or we leave the target (often a new chat) after attach.
-    if (ignoreClickAfterDragRef.current) {
+    if (dragProps?.consumeClick?.()) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -209,7 +188,7 @@ function SidebarSessionRowInner({
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, session)}
       onKeyDown={handleKeyDown}
-      {...wrappedDragProps}
+      onPointerDown={dragProps?.onPointerDown}
     >
       {selectMode ? (
         <span

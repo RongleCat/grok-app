@@ -73,7 +73,8 @@ Codex-style **context attach**, not a journal merge.
 | Entry | Behavior |
 |-------|----------|
 | `/attach-chat` or composer `+` | Opens a picker of other local sessions (excludes self, archived, already attached) |
-| Sidebar drag | Drag a session row onto the composer (same-document MIME + in-memory payload) |
+| Sidebar context menu | **Attach to current chat** / 加入目前對話 — does not switch the open thread |
+| Sidebar drag | Pointer drag a session row onto the composer (not HTML5 DnD; Tauri swallows that) |
 | Composer chips | Up to 3. Click opens the source chat. If the source `updatedAt` is newer than the attach snapshot, a refresh control appears |
 | Send | Journal stores `[[chat:<uuid>]]` in the user bubble. Host prefixes a compact user/assistant transcript for the agent only |
 | Limits | Max 3 chats; last 16 user/assistant turns; ~2k chars/turn; ~14k chars/chat |

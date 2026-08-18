@@ -114,6 +114,7 @@ export const enComposer = {
   "composer.queueEmptyPreview": "(attachment)",
   "composer.queueFilesCount": "{n} files",
   "composer.queueChatsCount": "{n} chats",
+  "attachChat.menu": "Attach to current chat",
   "attachChat.title": "Attach a conversation",
   "attachChat.placeholder": "Search chats…",
   "attachChat.empty": "No other conversations to attach",

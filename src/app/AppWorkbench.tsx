@@ -7,9 +7,9 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type DragEvent as ReactDragEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useThemeShell } from "@/providers/ThemeProvider";
 import { usePetCompanion } from "@/hooks/usePetCompanion";
@@ -611,11 +611,7 @@ import {
   addChatRef,
   chatHasUpdate,
   dataTransferHasSession,
-  encodeSessionDrag,
   filterAttachableSessions,
-  GROK_SESSION_DRAG_MIME,
-  GROK_SESSION_DRAG_MIME_ALT,
-  GROK_SESSION_DRAG_TEXT,
   lookupChatTitle,
   MAX_ATTACHED_CHATS,
   parseChatTokens,
@@ -630,6 +626,11 @@ import {
 } from "@/lib/chatAttach";
 import { AttachChatPanel } from "@/components/AttachChatPanel";
 import { ChatRefChip } from "@/components/ChatRefChip";
+import {
+  isSessionAttachDropTarget,
+  isSessionAttachPointerStartTarget,
+  sessionAttachDragPastThreshold,
+} from "@/lib/sessionAttachDrag";
 import { mapStoredMessagesToChat } from "@/lib/mapStoredMessages";
 import {
   detectAtQueryFromEditor,
@@ -12382,35 +12383,78 @@ export function AppWorkbench() {
     showToast(tr("attachChat.refreshedAll", { n: String(r.refreshed) }), 2200);
   }, [chatAttachments, sessions, setChatAttachments, showToast, tr]);
 
-  const sessionRowDragProps = (s: { id: string; title: string; updatedAt?: string }) => {
+  const sessionDragMovedRef = useRef(false);
+  const sessionRowDragProps = (s: {
+    id: string;
+    title: string;
+    updatedAt?: string;
+  }) => {
     if (sessionSelectMode) return undefined;
     return {
-      draggable: true as const,
-      onDragStart: (e: ReactDragEvent) => {
+      onPointerDown: (e: ReactPointerEvent) => {
+        if (e.button !== 0) return;
+        if (!isSessionAttachPointerStartTarget(e.target)) return;
         const payload: SessionDragPayload = {
           id: s.id,
           title: s.title || "",
           updatedAt: s.updatedAt,
         };
-        sessionDragRef.current = payload;
-        try {
-          const raw = encodeSessionDrag(payload);
-          e.dataTransfer.setData(GROK_SESSION_DRAG_MIME, raw);
-          e.dataTransfer.setData(GROK_SESSION_DRAG_MIME_ALT, raw);
-          e.dataTransfer.setData(GROK_SESSION_DRAG_TEXT, raw);
-          e.dataTransfer.effectAllowed = "copy";
-        } catch {
-          /* webview */
-        }
-      },
-      onDragEnd: () => {
-        setSessionDropReady(false);
-        const held = sessionDragRef.current;
-        window.setTimeout(() => {
-          if (sessionDragRef.current === held) {
-            sessionDragRef.current = null;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        let started = false;
+
+        const readyAt = (x: number, y: number, target: EventTarget | null) =>
+          isSessionAttachDropTarget({
+            overComposer: !!(
+              composerShellRef.current &&
+              target instanceof Node &&
+              composerShellRef.current.contains(target)
+            ),
+            zone: hitDragZone(x, y),
+          });
+
+        const onMove = (ev: PointerEvent) => {
+          if (!started) {
+            if (
+              !sessionAttachDragPastThreshold(
+                ev.clientX - startX,
+                ev.clientY - startY,
+              )
+            ) {
+              return;
+            }
+            started = true;
+            sessionDragMovedRef.current = true;
+            sessionDragRef.current = payload;
           }
-        }, 80);
+          setSessionDropReady(readyAt(ev.clientX, ev.clientY, ev.target));
+        };
+
+        const finish = (ev: PointerEvent) => {
+          window.removeEventListener("pointermove", onMove, true);
+          window.removeEventListener("pointerup", finish, true);
+          window.removeEventListener("pointercancel", finish, true);
+          if (!started) return;
+          const ready = readyAt(ev.clientX, ev.clientY, ev.target);
+          sessionDragRef.current = null;
+          setSessionDropReady(false);
+          if (ready) {
+            applyAttachedChatRef.current(
+              payload.id,
+              payload.title,
+              payload.updatedAt,
+            );
+          }
+        };
+
+        window.addEventListener("pointermove", onMove, true);
+        window.addEventListener("pointerup", finish, true);
+        window.addEventListener("pointercancel", finish, true);
+      },
+      consumeClick: () => {
+        if (!sessionDragMovedRef.current) return false;
+        sessionDragMovedRef.current = false;
+        return true;
       },
     };
   };
@@ -26691,6 +26735,15 @@ export function AppWorkbench() {
             })();
 
             items = [
+              {
+                id: "attach-chat",
+                label: tr("attachChat.menu"),
+                icon: <IconChat size={16} />,
+                disabled: s.id === session.sessionId,
+                onClick: () => {
+                  applyAttachedChat(s.id, s.title, s.updatedAt);
+                },
+              },
               ...(sessionSelectMode
                 ? []
                 : [
