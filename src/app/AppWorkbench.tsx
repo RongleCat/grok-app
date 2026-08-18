@@ -726,6 +726,11 @@ import {
   type QueuedSend
 } from "@/lib/sendQueue";
 import {
+  migrateDraftTurnClock,
+  resolveTurnClockKey,
+  shouldSyncViewedTurnClock,
+} from "@/lib/turnClock";
+import {
   useSendQueue,
   type ExecuteSendFromQueue
 } from "@/hooks/useSendQueue";
@@ -2717,7 +2722,14 @@ export function AppWorkbench() {
   const turnStartedAtBySessionRef = useRef<Map<string, number>>(new Map());
   /** Mirror a chat's clock into the visible timer when it is the viewed one. */
   const syncViewedTurnClock = useCallback((sessionId: string) => {
-    if (sessionId !== viewingSessionIdRef.current) return;
+    if (
+      !shouldSyncViewedTurnClock({
+        clockSessionId: sessionId,
+        viewingSessionId: viewingSessionIdRef.current,
+      })
+    ) {
+      return;
+    }
     setTurnStartedAt(turnStartedAtBySessionRef.current.get(sessionId) ?? null);
   }, [viewingSessionIdRef]);
   /** Begin a chat's turn clock, keeping the start of a turn already running. */
@@ -2744,6 +2756,9 @@ export function AppWorkbench() {
   const clearTurnClock = useCallback(
     (sessionId?: string | null) => {
       if (!sessionId) {
+        // Viewed timer only. An in-flight new-chat send still owns `__draft__`
+        // in the map until migrateDraftTurnClock; deleting it here would leave
+        // that background session with no grace clock if the user hits New chat.
         setTurnStartedAt(null);
         return;
       }
@@ -5507,6 +5522,12 @@ export function AppWorkbench() {
       state: "idle",
       backend: "grok_agent_stdio",
     });
+    // Drop the previous chat's elapsed timer. Ghost-heal grace uses this
+    // value; leaving it in place made a new-chat first send look 45s+ old.
+    clearTurnClock();
+    if (!isSendInFlightForSession(null)) {
+      turnStartedAtBySessionRef.current.delete(resolveTurnClockKey(null));
+    }
     setLocalError(null);
     // Multi-session: NEVER sessionDisconnect here.
     // Disconnect kills the live ACP process — that aborted in-flight turns when
@@ -7750,6 +7771,9 @@ export function AppWorkbench() {
           messagesBySessionRef.current.set(meta.id, draftMsgs);
           messagesBySessionRef.current.delete("__draft__");
         }
+        if (migrateDraftTurnClock(turnStartedAtBySessionRef.current, meta.id)) {
+          syncViewedTurnClock(meta.id);
+        }
         // Auto-tag worktree-bound chats when cwd is a linked worktree.
         if (api.isTauri() && connectProject?.path) {
           const linked = resolveSessionWorktreeBadge(
@@ -8073,7 +8097,11 @@ export function AppWorkbench() {
           ? prev
           : { ...prev, state: "streaming", lastError: null },
       );
-      restartTurnClock(sendTargetId ?? viewingSessionIdRef.current);
+      restartTurnClock(
+        resolveTurnClockKey(
+          sendTargetId ?? viewingSessionIdRef.current,
+        ),
+      );
     }
     // Optimistic liveHost only when we already own the live slot (or nothing is live).
     // Never stamp streaming onto a foreign mid-turn — ensureConnected demotes first.
@@ -8186,6 +8214,9 @@ export function AppWorkbench() {
         if (draftMsgs?.length) {
           messagesBySessionRef.current.set(sessionId, draftMsgs);
           messagesBySessionRef.current.delete("__draft__");
+        }
+        if (migrateDraftTurnClock(turnStartedAtBySessionRef.current, sessionId)) {
+          syncViewedTurnClock(sessionId);
         }
       }
       // Sticky setup only for explicit “用 AI 创建”, so a one-off “每天…” line

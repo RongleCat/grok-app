@@ -19,6 +19,7 @@
 
 import type { SessionState } from "./session";
 import { isSessionLiveStreaming } from "./session";
+import { queueSessionKey } from "./sendQueue";
 
 /**
  * Wait this long after optimistic send before considering Host-absent a ghost.
@@ -117,6 +118,29 @@ export function findOptimisticGhostTurn(
     userMessageId: user.id,
     assistantMessageId: last.id,
   };
+}
+
+/**
+ * Whether ghost-heal should treat a send as still in flight for this view.
+ *
+ * New-chat first send claims `__draft__` and only moves that claim onto the
+ * real id *after* `ensureConnected` returns. `setSession(newId)` happens
+ * earlier, so a heal tick on the materialized id must still see the draft
+ * claim — otherwise it thinks Host is idle and restores the composer while
+ * `sessionSend` is about to run (or already running).
+ *
+ * A live `__draft__` claim counts for *every* viewed id (including a
+ * different chat). That can delay an unrelated heal until the draft send
+ * settles; it will not skip a real ghost forever.
+ */
+export function ghostSendInFlight(
+  claims: Iterable<string>,
+  viewedSessionId: string | null | undefined,
+): boolean {
+  const set = claims instanceof Set ? claims : new Set(claims);
+  if (set.has(queueSessionKey(viewedSessionId))) return true;
+  if (set.has(queueSessionKey(null))) return true;
+  return false;
 }
 
 /**

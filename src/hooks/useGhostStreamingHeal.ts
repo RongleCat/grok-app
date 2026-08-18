@@ -8,6 +8,7 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
 import {
   findOptimisticGhostTurn,
+  ghostSendInFlight,
   GHOST_STREAMING_POLL_MS,
   shouldHealGhostStreaming,
   stripGhostTurnMessages,
@@ -118,8 +119,9 @@ export function useGhostStreamingHeal(deps: GhostStreamingHealDeps): void {
           nowMs: Date.now(),
           hostStateForSession: hostState,
           sendInFlight: d.sendInFlightBySessionRef
-            ? d.sendInFlightBySessionRef.current.has(
-                queueSessionKey(d.sessionId),
+            ? ghostSendInFlight(
+                d.sendInFlightBySessionRef.current,
+                d.sessionId,
               )
             : d.sendInFlightRef.current,
         })
@@ -133,15 +135,21 @@ export function useGhostStreamingHeal(deps: GhostStreamingHealDeps): void {
       healingRef.current = true;
       try {
         // Invalidate any hung executeSend still awaiting sessionSend.
+        // Also drop `__draft__`: a new-chat first send may still be claimed
+        // there after setSession(newId).
         const sessionKey = queueSessionKey(d.sessionId);
+        const draftKey = queueSessionKey(null);
         d.sendEpochRef.current += 1;
         if (d.sendEpochBySessionRef) {
-          const next =
-            (d.sendEpochBySessionRef.current.get(sessionKey) ?? 0) + 1;
-          d.sendEpochBySessionRef.current.set(sessionKey, next);
+          for (const key of new Set([sessionKey, draftKey])) {
+            const next =
+              (d.sendEpochBySessionRef.current.get(key) ?? 0) + 1;
+            d.sendEpochBySessionRef.current.set(key, next);
+          }
         }
         if (d.sendInFlightBySessionRef) {
           d.sendInFlightBySessionRef.current.delete(sessionKey);
+          d.sendInFlightBySessionRef.current.delete(draftKey);
           d.sendInFlightRef.current =
             d.sendInFlightBySessionRef.current.size > 0;
         } else {
