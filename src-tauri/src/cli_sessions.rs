@@ -2556,7 +2556,7 @@ mod tests {
     fn find_latest_prefers_newest_under_encoded_cwd() {
         use crate::paths::{percent_encode_path_component, APP_HOME_ENV_LOCK};
 
-        let _guard = APP_HOME_ENV_LOCK.lock().unwrap();
+        let _guard = APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let app_home = std::env::temp_dir().join(format!("cli-cont-{}", Uuid::new_v4()));
         let agent_home = app_home.join("agent-home");
         let proj = "/Users/me/continue-proj";
@@ -2620,7 +2620,7 @@ mod tests {
     fn find_latest_matches_trailing_slash_variant() {
         use crate::paths::{percent_encode_path_component, APP_HOME_ENV_LOCK};
 
-        let _guard = APP_HOME_ENV_LOCK.lock().unwrap();
+        let _guard = APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let app_home = std::env::temp_dir().join(format!("cli-cont2-{}", Uuid::new_v4()));
         let agent_home = app_home.join("agent-home");
         let proj = "/Users/me/slash-proj";

@@ -328,7 +328,7 @@ mod tests {
 
     #[test]
     fn save_client_roundtrip_under_app_home() {
-        let _lock = paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _lock = paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let home =
             std::env::temp_dir().join(format!("grok-app-poster-home-{}", std::process::id()));
         let _ = fs::remove_dir_all(&home);

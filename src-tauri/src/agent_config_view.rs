@@ -408,7 +408,7 @@ theme = "dark"
 
     #[test]
     fn read_missing_file_reports_exists_false() {
-        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = temp_app_home("missing");
         let prev = std::env::var("GROK_APP_HOME").ok();
         std::env::set_var("GROK_APP_HOME", &tmp);
@@ -426,7 +426,7 @@ theme = "dark"
 
     #[test]
     fn read_existing_file_redacts() {
-        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = temp_app_home("exists");
         let prev = std::env::var("GROK_APP_HOME").ok();
         std::env::set_var("GROK_APP_HOME", &tmp);

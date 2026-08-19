@@ -509,7 +509,7 @@ fn empty_run_skips_when_saw_model_output_even_if_buf_cleared() {
 
 #[test]
 fn journal_assistant_after_last_user_detects_answered_turn() {
-    let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+    let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let tmp =
         std::env::temp_dir().join(format!("grok-app-replay-gate-test-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);

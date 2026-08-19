@@ -832,7 +832,7 @@ two_pass_compaction = true
 
     #[test]
     fn path_scope_is_agent_home() {
-        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let p = agent_config_toml();
         assert!(is_agent_home_config_path(&p));
         let other = PathBuf::from("/tmp/not-agent-home/config.toml");
@@ -841,7 +841,7 @@ two_pass_compaction = true
 
     #[test]
     fn load_and_save_roundtrip_independent() {
-        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = temp_app_home("roundtrip");
         let prev = std::env::var("GROK_APP_HOME").ok();
         std::env::set_var("GROK_APP_HOME", &tmp);
@@ -904,7 +904,7 @@ two_pass_compaction = true
 
     #[test]
     fn save_refuses_shared_mode() {
-        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = temp_app_home("shared");
         let prev = std::env::var("GROK_APP_HOME").ok();
         std::env::set_var("GROK_APP_HOME", &tmp);

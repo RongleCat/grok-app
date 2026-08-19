@@ -3729,7 +3729,7 @@ mod tests {
     fn create_session_defaults_to_orphan() {
         // Isolated home: parallel tests share default data dir and can race
         // atomic renames into sessions_index (macOS CI flake).
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-create-orphan-{}-{}",
             std::process::id(),
@@ -3748,7 +3748,7 @@ mod tests {
 
     #[test]
     fn set_session_worktree_marks_and_clears() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-wt-meta-{}-{}",
             std::process::id(),
@@ -3795,7 +3795,7 @@ mod tests {
 
     #[test]
     fn migrate_legacy_general_project_rehomes_sessions() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-migrate-general-{}-{}",
             std::process::id(),
@@ -3963,7 +3963,7 @@ mod tests {
 
     #[test]
     fn set_project_pinned_moves_to_group_end() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-pin-order-{}-{}",
             std::process::id(),
@@ -4010,7 +4010,7 @@ mod tests {
         // Effort is a per-chat decision even when model/mode memory is global:
         // raising it in one chat used to rewrite `settings.effort` and therefore
         // every other chat that had already picked its own.
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-effort-scope-{}-{}",
             std::process::id(),
@@ -4043,7 +4043,7 @@ mod tests {
     fn draft_effort_seeds_global_without_touching_existing_sessions() {
         // A draft chat has no row yet, so its effort seeds the default for the
         // next chat — it must not leak into a chat that already chose one.
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-effort-draft-{}-{}",
             std::process::id(),
@@ -4083,7 +4083,7 @@ mod tests {
 
     #[test]
     fn sessions_index_transaction_preserves_concurrent_mutations() {
-        let _env = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _env = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-store-index-rmw-{}-{}",
             std::process::id(),
@@ -4123,7 +4123,7 @@ mod tests {
 
     #[test]
     fn sessions_index_mutation_error_does_not_commit_partial_changes() {
-        let _env = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _env = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-store-index-error-{}-{}",
             std::process::id(),
@@ -4160,7 +4160,7 @@ mod tests {
 
     #[test]
     fn merged_message_save_keeps_concurrent_append_and_replace_truncates() {
-        let _env = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _env = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-store-journal-rmw-{}-{}",
             std::process::id(),
@@ -4261,7 +4261,7 @@ mod tests {
 
     #[test]
     fn set_session_project_keeps_agent_id_for_fork_restore() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-set-project-keep-agent-{}-{}",
             std::process::id(),
@@ -4292,7 +4292,7 @@ mod tests {
 
     #[test]
     fn move_session_to_project_clears_agent_and_worktree() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-move-session-{}-{}",
             std::process::id(),
@@ -4337,7 +4337,7 @@ mod tests {
 
     #[test]
     fn precheck_session_move_validates_before_any_write() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-move-precheck-{}-{}",
             std::process::id(),
@@ -4395,7 +4395,7 @@ mod tests {
 
     #[test]
     fn move_session_to_project_refuses_untrusted_and_missing() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-move-refuse-{}-{}",
             std::process::id(),

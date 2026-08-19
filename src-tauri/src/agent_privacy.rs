@@ -454,7 +454,7 @@ trace_upload = false
 
     #[test]
     fn load_and_save_roundtrip_independent() {
-        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = temp_app_home("roundtrip");
         let prev = std::env::var("GROK_APP_HOME").ok();
         std::env::set_var("GROK_APP_HOME", &tmp);
@@ -505,7 +505,7 @@ trace_upload = false
 
     #[test]
     fn save_refuses_shared_mode() {
-        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = temp_app_home("shared");
         let prev = std::env::var("GROK_APP_HOME").ok();
         std::env::set_var("GROK_APP_HOME", &tmp);

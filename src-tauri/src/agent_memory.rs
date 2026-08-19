@@ -1278,7 +1278,7 @@ mod tests {
         fs::write(ws.join("index.sqlite"), b"SQLite format 3\0fake").unwrap();
 
         // Point independent mode agent home at tmp via GROK_APP_HOME.
-        let _guard = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _guard = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // Safety: only for this process during test.
         std::env::set_var("GROK_APP_HOME", &tmp);
         // agent-home is under app data; memory for independent is agent-home/memory
@@ -1440,7 +1440,7 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        let _guard = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _guard = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::set_var("GROK_APP_HOME", &tmp);
         let agent_mem = tmp.join("agent-home").join("memory");
         let slug = "demo-search-cafe0123";

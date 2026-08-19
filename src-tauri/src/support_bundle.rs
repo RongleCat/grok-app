@@ -732,7 +732,7 @@ mod tests {
     use super::*;
     #[test]
     fn reset_keeps_secrets_when_requested() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!("grok-app-reset-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(tmp.join("sessions")).unwrap();
@@ -752,7 +752,7 @@ mod tests {
 
     #[test]
     fn support_bundle_creates_zip_without_secrets() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!("grok-app-bundle-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(tmp.join("logs")).unwrap();
@@ -815,7 +815,7 @@ mod tests {
 
     #[test]
     fn support_bundle_includes_redacted_stall_timeline() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp =
             std::env::temp_dir().join(format!("grok-app-bundle-stall-{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
@@ -876,7 +876,7 @@ mod tests {
 
     #[test]
     fn session_bundle_includes_messages_without_secrets() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-session-bundle-test-{}",
             std::process::id()

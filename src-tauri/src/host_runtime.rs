@@ -154,7 +154,7 @@ mod tests {
     use uuid::Uuid;
 
     fn with_home<T>(f: impl FnOnce() -> T) -> T {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-host-runtime-{}-{}",
             std::process::id(),

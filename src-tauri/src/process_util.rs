@@ -717,7 +717,7 @@ mod tests {
     #[test]
     fn ensure_home_env_uses_userprofile_fallback_when_home_absent() {
         // Serialise against other env-mutating tests in this crate.
-        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let prev_home = std::env::var_os("HOME");
         let prev_profile = std::env::var_os("USERPROFILE");
         // Simulate Windows GUI: no HOME, only USERPROFILE (Unix falls back the same way).
@@ -741,7 +741,7 @@ mod tests {
 
     #[test]
     fn ensure_home_env_skips_when_home_already_set() {
-        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let prev_home = std::env::var_os("HOME");
         std::env::set_var("HOME", "/tmp/grok-app-home-test");
         assert!(home_env_present());

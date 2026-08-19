@@ -18,7 +18,7 @@ use serde_json::json;
 /// Isolate store writes (`force_end` → journal/meta) from the real app home.
 /// Without this, stall heal tests once rewrote production `sessions_index.json`.
 fn with_temp_app_home<R>(f: impl FnOnce() -> R) -> R {
-    let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+    let _lock = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let tmp = std::env::temp_dir().join(format!(
         "grok-app-stall-test-{}-{}",
         std::process::id(),
