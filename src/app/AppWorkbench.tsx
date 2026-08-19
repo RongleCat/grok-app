@@ -1177,6 +1177,7 @@ import { useSessionRuntime } from "@/hooks/useSessionRuntime";
 import { sessionTranscriptStore } from "@/lib/sessionTranscriptStore";
 import { useLiveMapWhen } from "@/hooks/useSessionLiveMap";
 import { useComposerController } from "@/hooks/useComposerController";
+import { useTypeToFocusComposer } from "@/hooks/useTypeToFocusComposer";
 import { useAppDialogs } from "@/hooks/useAppDialogs";
 import { useSessionHostEvents } from "@/hooks/useSessionHostEvents";
 import { useSessionSpend } from "@/hooks/useSessionSpend";
@@ -1637,6 +1638,11 @@ export function AppWorkbench() {
     composerFloatPad,
     setComposerFloatPad,
   } = useComposerController();
+  const typeToFocusLiveRef = useRef({ enabled: false, overlayOpen: false });
+  useTypeToFocusComposer({
+    getEditor: () => composerInputRef.current,
+    getLive: () => typeToFocusLiveRef.current,
+  });
 
   /**
    * Archive-by-age pro confirm (GlassModal with preview count + title samples).
@@ -17722,6 +17728,24 @@ export function AppWorkbench() {
     slashOrMenuOpen:
       composerMenuOpen || phoneToolsOpen || !!ctxMenu || showUserMenu,
     promptHistoryOpen,
+  };
+  typeToFocusLiveRef.current = {
+    enabled:
+      appGate === "ready" &&
+      appView === "workbench" &&
+      mainPane === "chat" &&
+      canType(session.state),
+    overlayOpen: Boolean(
+      escapeStopLiveRef.current.overlayOpen ||
+        escapeStopLiveRef.current.permOpen ||
+        escapeStopLiveRef.current.askUserOpen ||
+        escapeStopLiveRef.current.slashOrMenuOpen ||
+        escapeStopLiveRef.current.promptHistoryOpen ||
+        liveVoiceOpen ||
+        showJsonSchemaModal ||
+        phoneAccountOpen ||
+        sessionSelectMode,
+    ),
   };
 
   /**
