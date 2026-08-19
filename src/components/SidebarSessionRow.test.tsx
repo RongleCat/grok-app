@@ -119,7 +119,7 @@ describe("SidebarSessionRow", () => {
     expect(html).toContain("tree-l3__actions");
   });
 
-  it("keeps the drag handle and labeled attach on the left, not in hover overlay", () => {
+  it("keeps the drag handle and icon-only attach on the left, not in hover overlay", () => {
     const html = renderToString(
       React.createElement(SidebarSessionRow, {
         session: { id: "s4", title: "Source chat" },
@@ -151,7 +151,8 @@ describe("SidebarSessionRow", () => {
     );
     expect(html).toContain("sidebar-session-drag-handle");
     expect(html).toContain("sidebar-session-attach");
-    expect(html).toContain("加入目前對話");
+    expect(html).toContain('aria-label="加入目前對話"');
+    expect(html).not.toContain("tree-l3__attach-label");
     expect(html).toContain("tree-l3__attach-tools");
     const toolsAt = html.indexOf("tree-l3__attach-tools");
     const titleAt = html.indexOf("tree-l3__title");

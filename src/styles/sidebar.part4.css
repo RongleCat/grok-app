@@ -30,12 +30,7 @@ html[data-sidebar-density="compact"] .tree-l3 .tree-icon-btn {
   height: 20px;
 }
 
-html[data-sidebar-density="compact"] .tree-l3__attach-btn {
-  height: 18px;
-  padding: 0 5px;
-  font-size: 10px;
-  max-width: 7.6em;
-}
+
 
 html[data-sidebar-density="compact"] .session-list {
   gap: 0;

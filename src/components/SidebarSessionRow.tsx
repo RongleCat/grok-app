@@ -174,7 +174,7 @@ function SidebarSessionRowInner({
       ? labels.unarchive
       : labels.archive;
   const showDragHandle = !!dragProps && !!labels.dragAttach && !selectMode && !working;
-  // Keep the labeled attach out of the hover overlay so it is not covered
+  // Keep the attach icon out of the hover overlay so it is not covered
   // by pin/archive/menu. Hide on the open row (cannot attach self).
   const showAttach = !!onAttach && !!labels.attach && !selectMode && !working && !active;
 
@@ -237,7 +237,7 @@ function SidebarSessionRowInner({
             <Tip label={labels.attach}>
               <button
                 type="button"
-                className="tree-l3__attach-btn"
+                className="tree-icon-btn tree-l3__attach-btn"
                 aria-label={labels.attach}
                 data-testid="sidebar-session-attach"
                 onClick={(e) => {
@@ -245,8 +245,7 @@ function SidebarSessionRowInner({
                   onAttach?.(session);
                 }}
               >
-                <IconChat size={12} />
-                <span className="tree-l3__attach-label">{labels.attach}</span>
+                <IconChat size={13} />
               </button>
             </Tip>
           ) : null}

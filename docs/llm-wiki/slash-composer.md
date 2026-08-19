@@ -74,7 +74,7 @@ Codex-style **context attach**, not a journal merge.
 |-------|----------|
 | `/attach-chat` or composer `+` | Opens a picker of other local sessions (excludes self, archived, already attached). Recent + same-project first. |
 | Sidebar context menu / `⋯` | **Attach to current chat** — does not switch the open thread |
-| Sidebar row | Always-visible labeled **Attach to current chat** on the left (hidden on the open row). |
+| Sidebar row | Always-visible attach **icon** on the left (tooltip / ⋯ / right-click still say Attach to current chat). Hidden on the open row. |
 | Sidebar drag | **Hold the left ⋮⋮ grip only**. Row body drag moves the chat between projects. Ghost chip follows the pointer. Drop on the composer (Esc or drop on sidebar cancels). |
 | Composer chips | Up to 3. Click opens the source chat. If the source has newer `updatedAt`, the chip notes new messages are already included on send. |
 | Send | Journal stores `[[chat:<uuid>]]` in the user bubble. Host prefixes a compact user/assistant transcript for the agent only |
