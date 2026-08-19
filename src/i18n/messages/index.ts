@@ -1,22 +1,44 @@
 /** Canonical UI message catalog. Keys must stay stable; add all locales together. */
 
+import { de } from "./de";
 import { en, type MessageKey } from "./en";
+import { es } from "./es";
+import { fr } from "./fr";
+import { id } from "./id";
+import { it } from "./it";
+import { ja } from "./ja";
+import { ko } from "./ko";
+import { ptBR } from "./pt-BR";
 import { ru } from "./ru";
-import { ruAutomations } from "./ru/automations";
-import { ruDoctor } from "./ru/doctor";
-import { ruErrors } from "./ru/errors";
-import { ruExtensions } from "./ru/extensions";
-import { ruExtra } from "./ru/extra";
-import { ruProviders } from "./ru/providers";
-import { ruSession } from "./ru/session";
-import { ruSettingsVisible } from "./ru/settings-visible";
-import { ruSlash } from "./ru/slash";
-import { ruTasks } from "./ru/tasks";
-import { ruWorkspace } from "./ru/workspace";
+import { uk } from "./uk";
 import { zh } from "./zh";
 import { zhTW } from "./zh-TW";
 
-export type Locale = "zh" | "zh-TW" | "ru" | "en";
+/**
+ * Every shipped catalog id, in language-picker order (English first, then the
+ * rest alphabetically by endonym as presented in Settings).
+ *
+ * Adding an entry here is the single source of truth: `Locale`, `isLocale`, and
+ * the parity tests all derive from it. Keep the native locale parsing in
+ * `src-tauri/src/tray_i18n.rs` in sync — see docs/llm-wiki/i18n.md.
+ */
+export const LOCALES = [
+  "en",
+  "de",
+  "es",
+  "fr",
+  "id",
+  "it",
+  "ja",
+  "ko",
+  "pt-BR",
+  "ru",
+  "uk",
+  "zh",
+  "zh-TW",
+] as const;
+
+export type Locale = (typeof LOCALES)[number];
 
 export type { MessageKey };
 
@@ -24,24 +46,20 @@ export { en };
 
 export const messages: Record<Locale, Record<MessageKey, string>> = {
   en: en as Record<MessageKey, string>,
-  ru: {
-    ...ru,
-    ...ruExtra,
-    ...ruErrors,
-    ...ruSession,
-    ...ruSettingsVisible,
-    ...ruSlash,
-    ...ruTasks,
-    ...ruWorkspace,
-    ...ruProviders,
-    ...ruAutomations,
-    ...ruDoctor,
-    ...ruExtensions,
-  },
+  de,
+  es,
+  fr,
+  id,
+  it,
+  ja,
+  ko,
+  "pt-BR": ptBR,
+  ru,
+  uk,
   zh,
   "zh-TW": zhTW,
 };
 
 export function isLocale(v: string): v is Locale {
-  return v === "zh" || v === "zh-TW" || v === "ru" || v === "en";
+  return (LOCALES as readonly string[]).includes(v);
 }

@@ -80,7 +80,7 @@ import { CodebaseSearchPanel } from "@/components/CodebaseSearchPanel";
 import { AgentConfigTomlPanel } from "@/components/AgentConfigTomlPanel";
 import { CliSessionsPanel } from "./CliSessionsPanel";
 import { SettingsTabStrip, UiCheck } from "./shared";
-import { resolveLocale } from "@/i18n";
+import { LOCALES, LOCALE_ENDONYMS, resolveLocale } from "@/i18n";
 import type { MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
 import {
@@ -1952,10 +1952,12 @@ export function GeneralSection() {
                   onChange={onLocale}
                   options={[
                     { value: "system", label: t("settings.languageSystem") },
-                    { value: "en", label: "English" },
-                    { value: "ru", label: "Русский" },
-                    { value: "zh", label: "简体中文" },
-                    { value: "zh-TW", label: "繁體中文" },
+                    // Driven by LOCALES so the dropdown can only ever offer a
+                    // locale we actually ship. See docs/llm-wiki/i18n.md.
+                    ...LOCALES.map((loc) => ({
+                      value: loc,
+                      label: LOCALE_ENDONYMS[loc],
+                    })),
                   ]}
                 />
               </div>

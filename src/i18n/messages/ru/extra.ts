@@ -2,6 +2,22 @@
 import type { MessageKey } from "../en";
 
 export const ruExtra: Partial<Record<MessageKey, string>> = {
+  // Tray / menu-bar copy. Must match `RU` in src-tauri/src/tray_i18n.rs — the
+  // native menu and the in-app shortcut list show the same words.
+  "tray.recent": "Недавние",
+  "tray.noRecent": "Нет недавних чатов",
+  "tray.untitled": "Без названия",
+  "tray.more": "Ещё",
+  "tray.settings": "Настройки…",
+  "tray.doctor": "Диагностика",
+  "tray.account": "Аккаунт",
+  "tray.newChat": "Новый чат",
+  "tray.openApp": "Открыть Grok",
+  "tray.quit": "Выйти из Grok",
+  "tray.usageWithReset": "Лимит  ·  осталось {pct}%  ·  {time}",
+  "tray.usagePct": "Лимит  ·  осталось {pct}%",
+  "tray.usageUnknown": "Лимит  ·  —",
+
   "agent.zombieBusyHealed":
     "Этот ход уже завершён. Поле ввода снова доступно — можно отправить следующее сообщение.",
   // Project menu and trust flow.
