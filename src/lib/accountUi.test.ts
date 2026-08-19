@@ -182,13 +182,21 @@ describe("formatRelativeTime", () => {
 });
 
 describe("formatQuotaResetTime", () => {
-  it("formats MM-DD HH:mm in local time", () => {
+  it("writes day, month and clock in the UI language", () => {
     // Fixed local instant via Date components
     const d = new Date(2026, 3, 15, 9, 5); // Apr 15 09:05
     const iso = d.toISOString();
-    expect(formatQuotaResetTime(iso)).toBe("04-15 09:05");
-    expect(formatQuotaResetTime(null)).toBe("");
-    expect(formatQuotaResetTime("not-a-date")).toBe("");
+    expect(formatQuotaResetTime(iso, "en")).toBe("04/15, 09:05");
+    // German writes the day first — the old hard-coded `MM-DD` read as
+    // April 15 to an English user and as the 4th of an impossible month here.
+    expect(formatQuotaResetTime(iso, "de")).toBe("15.04., 09:05");
+    expect(formatQuotaResetTime(iso, "ja")).toBe("04/15 09:05");
+    // 24-hour clock everywhere, like formatMessageTime and the tray.
+    expect(formatQuotaResetTime(iso, "en")).not.toContain("AM");
+    // An unknown locale still formats rather than throwing.
+    expect(formatQuotaResetTime(iso, null)).toBe(formatQuotaResetTime(iso, "en"));
+    expect(formatQuotaResetTime(null, "en")).toBe("");
+    expect(formatQuotaResetTime("not-a-date", "en")).toBe("");
   });
 });
 

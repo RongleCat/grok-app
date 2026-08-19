@@ -156,7 +156,7 @@ describe("helpers", () => {
 
   it("formatRimEventAt same-day time", () => {
     const now = Date.parse("2026-07-30T15:00:00.000Z");
-    const s = formatRimEventAt("2026-07-30T14:30:00.000Z", now);
+    const s = formatRimEventAt("2026-07-30T14:30:00.000Z", "en", now);
     expect(s.length).toBeGreaterThan(0);
     expect(s).not.toContain("2026-07-30T");
   });

@@ -8,6 +8,8 @@
  * Spec depth: docs/llm-wiki/remote-im.md §3.1 / §9 / §10
  */
 
+import { intlLocale } from "@/i18n";
+
 export type RimBridgeEventType =
   | "bridge_started"
   | "bridge_stopped"
@@ -312,7 +314,11 @@ export function rimBridgeEventTypeKey(
 }
 
 /** Compact local time for timeline rows. */
-export function formatRimEventAt(iso: string, now = Date.now()): string {
+export function formatRimEventAt(
+  iso: string,
+  locale: string | null,
+  now = Date.now(),
+): string {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return iso;
   const d = new Date(t);
@@ -320,17 +326,19 @@ export function formatRimEventAt(iso: string, now = Date.now()): string {
     new Date(now).toDateString() === d.toDateString();
   try {
     if (sameDay) {
-      return d.toLocaleTimeString(undefined, {
+      return d.toLocaleTimeString(intlLocale(locale), {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
+        hour12: false,
       });
     }
-    return d.toLocaleString(undefined, {
+    return d.toLocaleString(intlLocale(locale), {
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
     });
   } catch {
     return iso;

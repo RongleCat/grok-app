@@ -257,17 +257,6 @@ export function localDateKeyFromIso(
   return `${y}-${m}-${day}`;
 }
 
-export function formatDuration(secs: number | null | undefined): string {
-  if (secs == null || secs <= 0) return "—";
-  if (secs < 60) return `${secs}s`;
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  if (m < 60) return s ? `${m}m ${s}s` : `${m}m`;
-  const h = Math.floor(m / 60);
-  const rm = m % 60;
-  return rm ? `${h}h ${rm}m` : `${h}h`;
-}
-
 /**
  * Compact message footer time, e.g. `星期二15:23` / `火15:23` / `Tue 15:23`.
  * CJK weekday abbreviations butt against the clock with no separating space.
@@ -311,19 +300,34 @@ export function formatRelativeTime(
   return rtf.format(-day, "day");
 }
 
-/** Quota refresh time for menus: `MM-DD HH:mm` (local). */
+/**
+ * Quota refresh time for menus: day, month and clock in the UI language.
+ *
+ * Hand-building `MM-DD HH:mm` shipped US month-day order to every locale,
+ * including the ones that write `15.04.` — the surrounding template is
+ * translated, so the timestamp inside it has to be too.
+ */
 export function formatQuotaResetTime(
   iso: string | null | undefined,
+  // Required: an omitted locale silently formatted as English, which is how
+  // the account-switcher rows ended up on US month-day order in a German UI.
+  locale: string | null,
 ): string {
   if (!iso) return "";
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return "";
-  const d = new Date(t);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${mm}-${dd} ${hh}:${min}`;
+  try {
+    return new Intl.DateTimeFormat(intlLocale(locale), {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      // 24-hour everywhere, like formatMessageTime and the tray templates.
+      hour12: false,
+    }).format(new Date(t));
+  } catch {
+    return "";
+  }
 }
 
 export function isAccountConnected(status: AccountStatus | null): boolean {

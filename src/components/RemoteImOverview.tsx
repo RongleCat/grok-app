@@ -787,7 +787,7 @@ export function RemoteImOverview({
               {timeline.map((e) => (
                 <li key={e.id} className="rim-timeline__row">
                   <span className="rim-timeline__when" title={e.at}>
-                    {formatRimEventAt(e.at)}
+                    {formatRimEventAt(e.at, locale)}
                   </span>
                   <span className="rim-timeline__label">
                     {t(rimBridgeEventTypeKey(e.type))}

@@ -743,6 +743,7 @@ export function RuntimeSection() {
                   </div>
                   <div className="trace-history-settings">
                     <TraceHistoryList
+                      locale={resolveLocale(locale)}
                       labels={{
                         empty: t("session.tracesEmpty"),
                         emptyFilter: t("session.tracesEmptyFilter"),

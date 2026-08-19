@@ -87,6 +87,8 @@ export interface UserMenuProps {
     balanceRefresh?: string;
     balanceChecking?: string;
   };
+  /** Resolved catalog locale — formats the quota refresh timestamp. */
+  locale: string;
   account: AccountStatus | null;
   activeProvider: CustomProvider | null;
   accountBusy: boolean;
@@ -157,6 +159,7 @@ export function UserMenu({
   theme,
   themePreference,
   labels,
+  locale,
   account,
   activeProvider,
   accountBusy,
@@ -280,7 +283,7 @@ export function UserMenu({
   const livePercents = resolveQuotaPercents(billing ?? null);
   const usedPct = livePercents.usedPercent;
   const remaining = livePercents.remainingPercent;
-  const resetTime = formatQuotaResetTime(billing?.resetsAt);
+  const resetTime = formatQuotaResetTime(billing?.resetsAt, locale);
   const remainLabel = formatQuotaRemainLabel(remaining);
   const remainText = remainLabel ? `${remainLabel} ${labels.remaining}` : "—";
   const showSavedOfficialAccounts = signedIn && savedAccounts.length > 0;
@@ -377,7 +380,7 @@ export function UserMenu({
                   );
                   const rowRemain = q?.remainingPercent ?? null;
                   const rowUsed = q?.usedPercent ?? null;
-                  const rowReset = formatQuotaResetTime(q?.resetsAt);
+                  const rowReset = formatQuotaResetTime(q?.resetsAt, locale);
                   const rowRemainLabel = formatQuotaRemainLabel(rowRemain);
                   const low = rowRemain != null && rowRemain <= 10;
                   return (

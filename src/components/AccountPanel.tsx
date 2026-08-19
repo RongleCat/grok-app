@@ -13,7 +13,6 @@ import {
   accountInitials,
   formatCompactNumber,
   formatLocaleCount,
-  formatDuration,
   formatQuotaResetTime,
   formatRelativeTime,
   localDateKeyFromIso,
@@ -267,7 +266,7 @@ export function AccountPanel({
   const { usedPercent: usedPct, remainingPercent: remaining } =
     resolveQuotaPercents(billing);
   /** Same absolute clock as sidebar UserMenu (`MM-DD HH:mm`). */
-  const resetTime = formatQuotaResetTime(billing?.resetsAt);
+  const resetTime = formatQuotaResetTime(billing?.resetsAt, locale);
 
   const heatDays = status?.heatmap ?? [];
   const heatHasSamples = useMemo(
@@ -1137,7 +1136,7 @@ export function AccountPanel({
                           locale,
                         )}
                       </span>
-                      <span>{formatDuration(row.durationSecs)}</span>
+                      <span>{formatStatDuration(row.durationSecs, locale)}</span>
                       <span>
                         {formatRelativeTime(row.startedAt, locale)}
                       </span>

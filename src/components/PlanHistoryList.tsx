@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { formatListTimestamp } from "@/lib/formatDateTime";
 import {
   PLAN_HISTORY_CHANGE_EVENT,
   PLAN_HISTORY_STORAGE_KEY,
@@ -51,25 +52,11 @@ export type PlanHistoryListProps = {
    * When omitted, clear button is hidden.
    */
   onRequestClearAll?: () => void;
+  /** Resolved catalog locale — formats the entry timestamps. */
+  locale: string;
   className?: string;
   compact?: boolean;
 };
-
-function formatAt(iso: string): string {
-  const d = Date.parse(iso);
-  if (!Number.isFinite(d)) return iso || "";
-  try {
-    return new Date(d).toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 function decisionLabel(
   decision: PlanHistoryDecision,
@@ -90,6 +77,7 @@ function toSessionIdSet(
 
 export function PlanHistoryList({
   labels,
+  locale,
   onOpen,
   onOpenSession,
   existingSessionIds,
@@ -246,7 +234,7 @@ export function PlanHistoryList({
                       </span>
                       {e.at ? (
                         <span className="plan-history-row__when">
-                          {formatAt(e.at)}
+                          {formatListTimestamp(e.at, locale)}
                         </span>
                       ) : null}
                     </div>

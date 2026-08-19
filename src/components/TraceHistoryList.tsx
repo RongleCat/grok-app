@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatListTimestamp } from "@/lib/formatDateTime";
 import { GlassModal } from "@/components/GlassModal";
 import { IconCopy, IconFolder, IconTrash } from "@/components/icons";
 import * as api from "@/lib/api";
@@ -75,24 +76,10 @@ export type TraceHistoryListProps = {
   onError?: (msg: string) => void;
   className?: string;
   /** Compact rows for modal. */
+  /** Resolved catalog locale — formats the export timestamps. */
+  locale: string;
   compact?: boolean;
 };
-
-function formatExportedAt(iso: string): string {
-  const d = Date.parse(iso);
-  if (!Number.isFinite(d)) return iso || "";
-  try {
-    return new Date(d).toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 function scopeLabel(
   scope: TraceHistoryScope,
@@ -107,6 +94,7 @@ function scopeLabel(
 
 export function TraceHistoryList({
   labels,
+  locale,
   onCopied,
   onError,
   className = "",
@@ -399,7 +387,7 @@ export function TraceHistoryList({
                     ) : null}
                     {e.exportedAt ? (
                       <span className="trace-history-row__when">
-                        {formatExportedAt(e.exportedAt)}
+                        {formatListTimestamp(e.exportedAt, locale)}
                       </span>
                     ) : null}
                   </div>
