@@ -1,7 +1,5 @@
-/** Russian messages — domain: errors. */
-import type { MessageKey } from "../en";
-
-export const ruErrors: Partial<Record<MessageKey, string>> = {
+/** ru messages — domain: errors */
+export const ruErrors = {
   "error.details": "Подробности",
   "error.hideDetails": "Скрыть подробности",
   "error.action.reconnect": "Переподключиться",
@@ -65,4 +63,6 @@ export const ruErrors: Partial<Record<MessageKey, string>> = {
   "error.deck.generic.problem": "Что-то пошло не так",
   "error.deck.generic.cause": "Проверьте состояние CLI и авторизации в Диагностике, затем повторите последнее действие.",
   "error.needTauri": "Выбор папки доступен только в настольном приложении",
+  "error.streamFlap": "Соединение оборвалось посреди ответа. Приложение повторит автоматически; отправьте снова, если зависло.",
+  "error.requestFailedRetry": "Запрос не удался. Повторите попытку.",
 };

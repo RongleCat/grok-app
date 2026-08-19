@@ -114,7 +114,7 @@ export const koSession = {
   "session.move.manyOkOrphan": "대화 {n}개를 기타 세션으로 옮겼습니다",
   "session.move.ghostMany": "대화 {n}개",
   "session.deleteTitle": "대화 삭제",
-  "session.deleteConfirm": "Delete “{name}” permanently? This cannot be undone.",
+  "session.deleteConfirm": "“{name}”을(를) 영구 삭제할까요? 이 작업은 되돌릴 수 없습니다.",
   "session.deleteManyTitle": "대화 삭제",
   "session.deleteManyConfirm": "대화 {n}개를 영구 삭제할까요? 되돌릴 수 없습니다.",
   "session.menu": "세션 메뉴",
@@ -326,5 +326,5 @@ export const koSession = {
   "session.tracesFilter.all": "모두",
   "session.tracesFilter.local": "로컬",
   "session.tracesFilter.uploaded": "업로드됨",
-  "session.tracesUploadedBadgeTitle": "Upload reported by export (path only — no remote URL stored)",
+  "session.tracesUploadedBadgeTitle": "내보내기가 보고한 업로드 상태(경로만 — 원격 URL은 저장하지 않음)",
 };

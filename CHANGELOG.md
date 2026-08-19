@@ -12,9 +12,11 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Changed
+- **Remaining UI locales filled**: German, Spanish, French, Korean, Brazilian Portuguese, Indonesian, Filipino, Ukrainian, Tamil, and Russian catalogs now cover essentially the full key set (product names and symbols stay English).
 - **Italian catalog is now fully translated**: Remaining settings / Doctor / extensions copy that still fell back to English is Italian.
 
 **中文 · 变更**
+- **其余界面语言补全**：德、西、法、韩、巴西葡、印尼、菲、乌克兰、泰米尔、俄语目录覆盖完整 key 集（品牌名和符号仍可保持英文）。
 - **意大利语目录补全**：原先回落英文的设置、Doctor、扩展文案改为意大利语。
 
 ### Added

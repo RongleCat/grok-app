@@ -1,7 +1,5 @@
-/** Russian messages — domain: slash commands. */
-import type { MessageKey } from "../en";
-
-export const ruSlash: Partial<Record<MessageKey, string>> = {
+/** ru messages — domain: slash */
+export const ruSlash = {
   "slash.tutorial": "Обзор возможностей",
   "slash.tutorialDesc": "Открыть необязательный интерактивный обзор приложения",
   "slash.section.commands": "Команды",
@@ -98,6 +96,8 @@ export const ruSlash: Partial<Record<MessageKey, string>> = {
   "slash.history": "История запросов",
   "slash.historyDesc": "Повторно использовать предыдущий запрос из этого или недавних чатов",
   "slash.historyEmpty": "В этом чате и недавней истории пока нет запросов",
+  "slash.attachChat": "Прикрепить чат",
+  "slash.attachChatDesc": "Использовать другой диалог как контекст",
   "slash.extensions": "Расширения",
   "slash.extensionsDesc": "Открыть Настройки → Расширения",
   "slash.yolo": "Всегда разрешать",

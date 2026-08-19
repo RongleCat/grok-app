@@ -1,7 +1,5 @@
-/** Russian messages — domain: workspace / resources / changes / search / plan. */
-import type { MessageKey } from "../en";
-
-export const ruWorkspace: Partial<Record<MessageKey, string>> = {
+/** ru messages — domain: workspace */
+export const ruWorkspace = {
   "resources.title": "Ресурсы",
   "resources.files": "Файлы",
   "resources.preview": "Выберите файл",
@@ -71,7 +69,6 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "resources.discardTitle": "Отменить изменения?",
   "resources.discardBody": "В этой вкладке есть несохранённые изменения. Закрыть без сохранения?",
   "resources.discardConfirm": "Отменить изменения",
-
   "changes.title": "Изменения",
   "changes.files": "Файлы",
   "changes.empty": "В этой сессии пока нет изменений файлов",
@@ -192,7 +189,6 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "changes.batchHunksRejectConfirmBody": "Отменить {n} фрагментов в «{name}». Файл будет записан без них.",
   "changes.batchHunksAcceptDone": "Принято фрагментов: {n}",
   "changes.batchHunksRejectDone": "Отклонено фрагментов: {n}",
-
   "rules.title": "Правила",
   "rules.modalTitleNamed": "Правила проекта · {name}",
   "rules.empty": "Файлы правил проекта не найдены",
@@ -222,7 +218,6 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "rules.permissionDenied": "Доступ к этому пути правил запрещён",
   "rules.notFound": "Файл правил не найден",
   "rules.emptyPath": "Для этого правила нет доступного пути",
-
   "changes.workspace.empty": "В рабочей области нет git-изменений",
   "changes.workspace.emptyHint": "Изменённые, добавленные и неотслеживаемые файлы проекта появятся здесь, если git доступен.",
   "changes.workspace.unavailable": "Состояние git недоступно",
@@ -248,7 +243,6 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "changes.workspace.kind.conflict": "Конфликт",
   "changes.workspace.kind.ignored": "Игнорируется",
   "changes.workspace.kind.unknown": "Изменён",
-
   "resources.openInPanel": "Открыть в панели",
   "resources.openExternal": "Открыть во внешнем браузере",
   "resources.browserReload": "Обновить",
@@ -260,7 +254,6 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "resources.browserDownloadSaved": "Сохранено: {name}",
   "resources.browserDownloadFailed": "Ошибка загрузки",
   "resources.browserDownloadCancelled": "Загрузка отменена",
-
   "search.title": "Поиск",
   "search.placeholder": "Поиск чатов, проектов, действий или содержимого сообщений…",
   "search.projects": "Проекты",
@@ -293,7 +286,6 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "search.rankHybrid": "Гибридное",
   "search.rankKeywordHint": "Совпадение подстроки; стабильный порядок заголовок → содержимое",
   "search.rankHybridHint": "Локальный гибрид: ключевые слова + пересечение токенов заголовков/фрагментов, без облачных embeddings",
-
   "plan.waiting": "Ожидание плана",
   "plan.ready": "План готов к проверке",
   "plan.context": "Контекст",
@@ -353,7 +345,6 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "planBar.current": "Сейчас",
   "planBar.expand": "Открыть в Ресурсах",
   "planBar.clearGoal": "Очистить цель",
-
   "context.chipAria": "Использование контекста",
   "context.chipTipUnknown": "Число токенов контекста неизвестно, пока агент не сообщит использование или вы не выполните сжатие",
   "context.chipTipEstimated": "Оценка по видимому чату (~4 символа на токен), не вывод токенизатора модели",
@@ -376,7 +367,6 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "context.breakdownAssistant": "Ответы ассистента",
   "context.breakdownThought": "Рассуждения",
   "context.breakdownEstimatedNote": "Разделение по ролям — только оценка. Свободная ёмкость неизвестна.",
-
   "changes.comment": "Комментарий",
   "changes.commentTip": "Добавить замечание к этому фрагменту и вставить его в поле чата",
   "changes.commentModalTitle": "Комментарий к фрагменту",
@@ -387,7 +377,6 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "changes.commentErrorEmpty": "Сначала введите короткое замечание",
   "changes.commentErrorTooLong": "Замечание слишком длинное (максимум около 4000 символов)",
   "changes.commentErrorGeneric": "Не удалось сформировать запрос для чата",
-
   "plan.edit": "Редактировать план",
   "plan.cancelEdit": "Отменить редактирование",
   "plan.requestWithDraft": "Запросить изменения с черновиком",
@@ -399,7 +388,6 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "plan.discardConfirm": "Отменить изменения",
   "plan.draftEmpty": "Черновик плана не может быть пустым.",
   "plan.draftTooLong": "Черновик плана слишком длинный (максимум около 200 тыс. символов).",
-
   "resources.agents": "Агенты",
   "resources.agentsShow": "Показать панель агентов",
   "resources.agentsHide": "Скрыть панель агентов",
@@ -419,7 +407,6 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "resources.sideOpen.noProject": "Выберите проект, чтобы открывать файлы в боковой рабочей панели. По возможности путь будет показан в файловом менеджере.",
   "resources.sideOpen.untrusted": "Сначала разрешите доступ к проекту, чтобы открывать его файлы в боковой рабочей панели.",
   "resources.sideOpen.outsideProject": "Этот путь находится вне проекта. Вместо боковой панели он будет открыт в файловом менеджере.",
-
   "side.picker.aria": "Открыть в боковой рабочей панели",
   "side.picker.file": "Файлы",
   "side.picker.fileShortcut": "⌘P",
@@ -494,6 +481,12 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "side.terminal.cwd.noProject": "Проект не открыт — shell запущен в {bound}. Привяжите папку проекта, чтобы новые терминалы открывались там.",
   "side.terminal.cwd.projectFallback": "Папка проекта недоступна — shell запущен в {bound} вместо {desired}.",
   "side.terminal.cwd.projectMismatch": "Shell остаётся в {bound}, а активный проект — {desired}. Работающий терминал нельзя переключить через chdir — перезапустите его.",
+  "terminal.toggleShow": "Показать терминал",
+  "terminal.toggleHide": "Скрыть терминал",
+  "terminal.panelAria": "Панель терминала",
+  "terminal.new": "Новый терминал",
+  "terminal.closePanel": "Скрыть панель терминала",
+  "terminal.resize": "Изменить размер терминала",
   "side.review.scope": "Область",
   "side.review.scopeAll": "Все изменения",
   "side.review.scopeSession": "Эта сессия",
@@ -522,10 +515,4 @@ export const ruWorkspace: Partial<Record<MessageKey, string>> = {
   "side.env.prOpen": "#{n} {title}",
   "side.env.prOpenNumber": "PR #{n}",
   "side.env.prUnavailable": "Состояние pull request недоступно",
-  "terminal.toggleShow": "Показать терминал",
-  "terminal.toggleHide": "Скрыть терминал",
-  "terminal.panelAria": "Панель терминала",
-  "terminal.new": "Новый терминал",
-  "terminal.closePanel": "Скрыть панель терминала",
-  "terminal.resize": "Изменить размер терминала",
 };

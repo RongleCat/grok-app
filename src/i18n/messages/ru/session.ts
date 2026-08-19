@@ -1,7 +1,5 @@
-/** Russian messages — domain: session. */
-import type { MessageKey } from "../en";
-
-export const ruSession: Partial<Record<MessageKey, string>> = {
+/** ru messages — domain: session */
+export const ruSession = {
   "session.pin": "Закрепить чат",
   "session.unpin": "Открепить чат",
   "session.pinned": "Закреплён",
@@ -24,7 +22,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.clearAllMutesAction": "Включить все",
   "session.clearAllMutesToast": "Уведомления включены для {n} чатов",
   "session.clearAllMutesEmpty": "Нет сессий с отключёнными уведомлениями",
-
   "session.note": "Заметка сессии",
   "session.noteTitle": "Заметка сессии",
   "session.notePlaceholder": "Личные заметки для этого чата (не отправляются агенту)",
@@ -46,7 +43,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.notesEmpty.none": "Заметок сессий пока нет",
   "session.notesEmpty.noMatches": "Нет заметок, соответствующих поиску",
   "session.notesEmpty.noSession": "Выберите чат, чтобы добавить заметку",
-
   "session.rules": "Правила сессии",
   "session.rulesTitle": "Правила сессии",
   "session.rulesPlaceholder": "Дополнительные правила только для этого чата (добавляются через --rules)",
@@ -64,7 +60,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.promptError.host": "Не удалось сохранить — приложение отклонило изменение",
   "session.promptError.other": "Не удалось сохранить системный запрос или правила сессии",
   "session.promptDiscardBody": "Отменить несохранённые изменения системного запроса или правил этой сессии?",
-
   "session.maxTurns": "Максимум ходов агента",
   "session.maxTurnsCount": "Максимум ходов агента ({n})",
   "session.maxTurnsTitle": "Максимум ходов агента для сессии",
@@ -74,7 +69,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.maxTurnsClear": "Использовать глобальное",
   "session.maxTurnsSaved": "Лимит ходов сессии сохранён — агент перечитает его на следующем ходу",
   "session.maxTurnsCleared": "Лимит ходов сессии очищен — используется глобальная настройка",
-
   "session.sysPrompt": "Переопределение системного запроса",
   "session.sysPromptActive": "Переопределение системного запроса (задано)",
   "session.sysPromptTitle": "Переопределение системного запроса",
@@ -84,7 +78,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.sysPromptSaved": "Системный запрос сохранён — агент перечитает его на следующем ходу",
   "session.sysPromptCleared": "Переопределение системного запроса очищено",
   "session.sysPromptChars": "{n}/{max}",
-
   "session.worktreeBadge": "Worktree",
   "session.worktreeBadgeAria": "Сессия worktree · {branch}",
   "session.worktreeBadgeCliAria": "Сессия CLI worktree · {branch}",
@@ -93,7 +86,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.worktreeReveal": "Показать worktree",
   "session.worktreeCopyPath": "Копировать путь worktree",
   "session.worktreePathCopied": "Путь worktree скопирован",
-
   "session.rename": "Переименовать",
   "session.renamePrompt": "Переименовать чат",
   "session.renamePlaceholder": "Название чата",
@@ -131,7 +123,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.menuCopy": "Копировать",
   "session.menuExport": "Экспорт",
   "session.menuWorktree": "Worktree",
-
   "session.openInNewWindow": "Открыть сессию в новом окне",
   "session.openInNewWindowOk": "Открыто в новом окне",
   "session.openInNewWindowFailed": "Не удалось открыть окно сессии",
@@ -142,12 +133,10 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.focusMainWindowFailed": "Не удалось перейти в главное окно",
   "session.collapseAllActivity": "Свернуть всю активность",
   "session.collapseAllActivityHint": "Свернуть раскрытые этапы инструментов и завершённые блоки рассуждений",
-
   "session.new": "Новый чат",
   "session.newShort": "Новый",
   "session.placeholderTitle": "Новый чат",
   "session.untitled": "Без названия",
-
   "session.fork": "Ответвить чат",
   "session.forkTitle": "Ответвить чат",
   "session.forkTitleOf": "Ответвление от {name}",
@@ -175,7 +164,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.forkCliFailed": "Не удалось подготовить ответвление сессии агента CLI",
   "session.forkWorktreeCollision": "Не удалось создать worktree — имя или путь уже используются. Попробуйте ещё раз.",
   "session.forkCancelled": "Создание ответвления отменено",
-
   "session.resumeRestore": "Продолжить с восстановлением кода",
   "session.resumeRestoreTitle": "Продолжить с восстановлением кода",
   "session.resumeRestoreConfirm": "Открыть этот чат в чистом связанном git worktree на текущем HEAD проекта. Диалог останется тем же, изменится только рабочая папка. Операция отменяется при наличии незакоммиченных изменений.",
@@ -189,14 +177,12 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.resumeRestoreCreateFailed": "Не удалось создать worktree для продолжения",
   "session.resumeRestoreBindFailed": "Не удалось связать чат с новым worktree",
   "session.resumeRestoreBusy": "Дождитесь завершения текущего хода перед продолжением с восстановлением кода",
-
   "session.duplicate": "Дублировать чат",
   "session.duplicateTitleOf": "Копия {name}",
   "session.duplicateWorking": "Дублирование…",
   "session.duplicateOk": "Чат скопирован · открыт новый чат",
   "session.duplicateFailed": "Не удалось дублировать чат",
   "session.duplicateBusy": "Дождитесь завершения текущего хода перед дублированием",
-
   "session.pluginDirsAdd": "Добавить папку плагинов сессии",
   "session.pluginDirsAddCount": "Добавить папку плагинов сессии ({n})",
   "session.pluginDirsClear": "Очистить плагины сессии",
@@ -204,7 +190,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.pluginDirsCleared": "Плагины сессии очищены — Расширения и глобальные плагины не изменены",
   "session.backgroundPermission": "Другому чату требуется разрешение — переключитесь на него, чтобы разрешить или запретить действие.",
   "session.backgroundPlan": "В другом чате готов план — переключитесь на него для проверки или запроса изменений.",
-
   "session.rewind": "Откатить диалог",
   "session.rewindTitle": "Откатить диалог",
   "session.rewindHint": "Выберите сообщение пользователя, которое нужно оставить. Всё после него будет удалено из этого чата.",
@@ -218,7 +203,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.rewindFailed": "Не удалось откатить диалог",
   "session.rewindBusy": "Дождитесь завершения текущего хода перед откатом",
   "session.rewindNoop": "Вы уже в этой точке — удалять нечего",
-
   "session.transcriptFilter.hideTools": "Скрыть сырые строки инструментов",
   "session.transcriptFilter.showTools": "Показать сырые строки инструментов",
   "session.transcriptFilter.hint": "Переключатель скрывает отдельные сырые записи инструментов. Сводка выполненной работы в ответах остаётся видимой.",
@@ -226,7 +210,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.copyMdDone": "Диалог скопирован как Markdown",
   "session.copyMdFail": "Не удалось скопировать диалог",
   "session.copyMdEmpty": "В диалоге нечего копировать",
-
   "session.exportMd": "Экспортировать чат как Markdown",
   "session.exportMdTitle": "Экспорт Markdown",
   "session.exportMdHint": "Выберите содержимое, затем сохраните .md или скопируйте текст в буфер обмена. Полный транскрипт использует grok export, если связана сессия агента; иначе используется локальный журнал.",
@@ -243,7 +226,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.exportStreamMessagesJson": "Экспортировать streaming-messages-json NDJSON",
   "session.exportStreamDone": "Поток NDJSON экспортирован ({format}, строк: {n})",
   "session.exportStreamEmpty": "В этом диалоге нечего экспортировать как поток NDJSON",
-
   "session.exportImage": "Экспортировать чат как изображение",
   "session.exportImageTitle": "Экспорт карточки для публикации",
   "session.exportImageHint": "PNG-карточка этого диалога с настройками темы и компоновки.",
@@ -277,7 +259,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.exportImagePreview": "Предпросмотр карточки",
   "session.exportImageSaveTitle": "Сохранить PNG карточки",
   "session.exportImageClipboardFail": "Не удалось скопировать изображение в буфер обмена. Попробуйте сохранить PNG.",
-
   "session.exportTrace": "Экспортировать trace",
   "session.exportTraceLocal": "Экспортировать локально",
   "session.exportTraceUpload": "Экспортировать и отправить",
@@ -292,8 +273,7 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.exportTraceNoAgent": "Сессия агента ещё не связана. Сначала начните диалог, затем экспортируйте trace.",
   "session.exportTraceNoCli": "Grok Build CLI не найден. Установите CLI или укажите путь в Настройках и повторите попытку.",
   "session.exportTraceTimeout": "Истекло время ожидания grok trace. Попробуйте снова или используйте локальный экспорт.",
-
-  "session.traces": "Traces",
+  "session.traces": "Трейсы",
   "session.tracesTitle": "Недавние traces",
   "session.tracesDesc": "Локальная история экспортов trace сессий (только пути). Можно открыть папку или скопировать путь; большие архивы не загружаются в приложение.",
   "session.tracesEmpty": "Trace ещё не экспортировались. После появления связанной сессии агента используйте локальный экспорт или экспорт с отправкой.",
@@ -308,7 +288,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.tracesSearch": "Фильтр по названию или пути…",
   "session.tracesEmptyFilter": "Нет traces, соответствующих фильтру",
   "session.tracesUploadedBadge": "Отправлен",
-
   "session.exportBundle": "Экспортировать диагностический пакет",
   "session.exportBundleDone": "Диагностический пакет сохранён",
   "session.exportBundleFail": "Ошибка диагностического экспорта",
@@ -339,7 +318,6 @@ export const ruSession: Partial<Record<MessageKey, string>> = {
   "session.exportSize.large": "Большой",
   "session.exportSize.huge": "Очень большой",
   "session.exportSizeHint": "Примерный размер: {size}",
-
   "session.emptyRunToast": "Этот ход завершился без видимого ответа или вызовов инструментов. Ответьте «continue», если задача не закончена, или экспортируйте диагностический пакет из меню сессии.",
   "session.tracesEmptyHint": "После появления сессии агента используйте локальный экспорт или экспорт с отправкой из меню чата. Хранятся только пути — архивы не загружаются в приложение.",
   "session.tracesEmptyFilterHint": "Попробуйте другой запрос или переключите фильтр Все / Локальные / Отправленные.",

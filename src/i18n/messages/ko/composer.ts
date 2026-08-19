@@ -24,7 +24,7 @@ export const koComposer = {
   "composer.jsonSchema": "JSON Schema",
   "composer.jsonSchemaHint": "이 대화의 선택적 구조화 JSON 출력",
   "composer.jsonSchemaTitle": "구조화 출력 (JSON Schema)",
-  "composer.jsonSchemaPlaceholder": "Paste a JSON Schema object, e.g. {\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}",
+  "composer.jsonSchemaPlaceholder": "JSON Schema 객체를 붙여넣으세요. 예: {\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}",
   "composer.jsonSchemaApply": "스키마 적용",
   "composer.jsonSchemaClear": "스키마 지우기",
   "composer.jsonSchemaActive": "스키마 켜짐",

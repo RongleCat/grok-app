@@ -1,7 +1,5 @@
-/** Russian messages — domain: providers. */
-import type { MessageKey } from "../en";
-
-export const ruProviders: Partial<Record<MessageKey, string>> = {
+/** ru messages — domain: providers */
+export const ruProviders = {
   "prov.emptyTitle": "Провайдеров пока нет",
   "prov.detailEmpty": "Выберите провайдера или добавьте нового.",
   "prov.new": "Добавить провайдера",

@@ -24,7 +24,7 @@ export const idComposer = {
   "composer.jsonSchema": "JSON Schema",
   "composer.jsonSchemaHint": "Keluaran JSON terstruktur opsional untuk obrolan ini",
   "composer.jsonSchemaTitle": "Keluaran terstruktur (JSON Schema)",
-  "composer.jsonSchemaPlaceholder": "Paste a JSON Schema object, e.g. {\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}",
+  "composer.jsonSchemaPlaceholder": "Tempel objek JSON Schema, mis. {\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}",
   "composer.jsonSchemaApply": "Terapkan skema",
   "composer.jsonSchemaClear": "Hapus skema",
   "composer.jsonSchemaActive": "Skema aktif",

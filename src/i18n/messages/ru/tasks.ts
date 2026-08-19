@@ -1,7 +1,5 @@
-/** Russian messages — domain: tasks / agent operations. */
-import type { MessageKey } from "../en";
-
-export const ruTasks: Partial<Record<MessageKey, string>> = {
+/** ru messages — domain: tasks */
+export const ruTasks = {
   "tasks.title": "Задачи",
   "ops.palette": "Управление агентами",
   "ops.paletteHint": "Задачи · панель агентов · доска сессий · пакетный запуск",
@@ -30,7 +28,6 @@ export const ruTasks: Partial<Record<MessageKey, string>> = {
   "ops.empty.noBusy": "Нет занятых сессий",
   "ops.empty.noBusyHint": "Сейчас ничего не генерируется и не ожидает разрешения. Панель и доска по-прежнему показывают сессии в ожидании.",
   "ops.tasksNeedSession": "Сначала откройте чат, чтобы показать панель задач",
-
   "tasks.empty": "В этом ходу нет задач агента",
   "tasks.emptyHint": "Текущие и недавние вызовы инструментов — субагенты, shell, мониторы и другие инструменты — появляются здесь из живого потока сессии.",
   "tasks.showPanel": "Показать задачи агента",
@@ -85,7 +82,6 @@ export const ruTasks: Partial<Record<MessageKey, string>> = {
   "tasks.clearFilters": "Очистить фильтры",
   "tasks.subagentWtSnapNote": "Включены снимки worktree субагентов (CLI 0.2.117+). Вложенные агенты могут использовать изолированные снимки worktree.",
   "tasks.openDashboard": "Панель агентов",
-
   "tasks.activity.stopErr.host_only": "Остановка доступна только в настольном приложении",
   "tasks.activity.stopErr.host_onlyHint": "Остановить сессию можно только через Tauri host, но не в браузерном предпросмотре.",
   "tasks.activity.stopErr.not_found": "Сессия не найдена",
@@ -98,7 +94,6 @@ export const ruTasks: Partial<Record<MessageKey, string>> = {
   "tasks.activity.stopErr.permissionHint": "Приложение не разрешило остановить эту сессию. Проверьте разрешения и повторите попытку.",
   "tasks.activity.stopErr.other": "Не удалось остановить сессию",
   "tasks.activity.stopErr.otherHint": "Остановка не удалась. Повторите попытку или откройте сессию и остановите ход из поля ввода.",
-
   "tasks.cwdBindErr.empty_path": "Нет пути к папке",
   "tasks.cwdBindErr.empty_pathHint": "У этого инструмента нет пути worktree, который можно использовать как папку чата.",
   "tasks.cwdBindErr.already_active": "Это уже папка этого чата",
@@ -111,7 +106,6 @@ export const ruTasks: Partial<Record<MessageKey, string>> = {
   "tasks.cwdBindErr.switch_failedHint": "Не удалось привязать проект. Проверьте существование пути и повторите попытку.",
   "tasks.cwdBindErr.other": "Не удалось использовать путь как папку чата",
   "tasks.cwdBindErr.otherHint": "Привязка не удалась. Покажите путь в файловом менеджере или скопируйте его и откройте проект вручную.",
-
   "dashboard.title": "Панель агентов",
   "dashboard.hint": "Активные и недавние сессии всего приложения. Нажмите строку, чтобы перейти к чату. В отличие от Задач здесь показываются сессии, а не инструменты текущего хода.",
   "dashboard.searchPlaceholder": "Фильтр сессий…",
@@ -153,7 +147,6 @@ export const ruTasks: Partial<Record<MessageKey, string>> = {
   "dashboard.evidence.total": "Всего: {n}",
   "dashboard.batchAgents": "Пакетный запуск агентов…",
   "dashboard.batchAgentsTitle": "Отправить один запрос в несколько проектов — через сессии или headless",
-
   "batchAgents.title": "Пакетный запуск агентов",
   "batchAgents.hint": "Выберите доверенные проекты и один общий запрос, затем откройте отдельную сессию для каждого проекта или выполните headless-запуски. Ошибка одного проекта не прерывает остальные.",
   "batchAgents.modeLabel": "Режим запуска",
@@ -194,7 +187,6 @@ export const ruTasks: Partial<Record<MessageKey, string>> = {
   "batchAgents.settingsDesc": "Один запрос для нескольких доверенных проектов — отдельные сессии или headless-сводка с мягкими ошибками.",
   "batchAgents.openFromSettings": "Открыть пакетный запуск…",
   "batchAgents.toastDone": "Пакет завершён: успешно {ok} · мягких ошибок {soft} · ошибок {err} · пропущено {skip}",
-
   "dashboard.peek.label": "Сведения о сессии",
   "dashboard.peek.expand": "Показать сведения о {title}",
   "dashboard.peek.collapse": "Скрыть сведения о {title}",
@@ -217,7 +209,6 @@ export const ruTasks: Partial<Record<MessageKey, string>> = {
   "dashboard.dispatch.started": "Запущено для {name}",
   "dashboard.openBoard": "Доска",
   "dashboard.openBoardTitle": "Показать сессии как доску состояний: нужно внимание / выполняется / ожидание / готово",
-
   "taskBoard.title": "Доска сессий",
   "taskBoard.hint": "Сессии сгруппированы по локальному состоянию приложения и живого агента, а не по CI или облаку. Нажмите карточку, чтобы открыть чат.",
   "taskBoard.open": "Доска сессий",
@@ -238,7 +229,6 @@ export const ruTasks: Partial<Record<MessageKey, string>> = {
   "taskBoard.filterEmptyHint": "Очистите поиск или включите архивные сессии.",
   "taskBoard.clearFilters": "Очистить фильтры",
   "taskBoard.totalCount": "Сессий: {n}",
-
   "batchAgents.downloadSummary": "Скачать .txt",
   "batchAgents.downloaded": "Скачано",
   "batchAgents.exportEmpty": "Пока нет результатов пакета для экспорта.",

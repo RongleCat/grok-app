@@ -44,7 +44,7 @@ export const idAccount = {
   "usageModal.input": "Token masukan",
   "usageModal.output": "Token keluaran",
   "usageModal.total": "Total token",
-  "usageModal.cacheHit": "Cache hit",
+  "usageModal.cacheHit": "Tembus cache",
   "usageModal.cached": "({count} ter-cache)",
   "usageModal.reasoning": "({count} penalaran)",
   "usageModal.modelCalls": "Panggilan model",
