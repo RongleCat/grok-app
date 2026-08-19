@@ -50,9 +50,7 @@ export function PetTaskBubbles({
           task.phase === "done"
             ? t("pet.bubble.progressDone")
             : t("pet.bubble.progressActive");
-        const sub = snippet
-          ? title
-          : task.toolTitle?.trim() || phaseLabel;
+        const showSub = Boolean(snippet && title && title !== snippet);
         const pct = Math.round(Math.max(0, Math.min(1, task.progress)) * 100);
         return (
           <button
@@ -88,8 +86,16 @@ export function PetTaskBubbles({
                 )}
               </span>
               <span className="pet-bubble__text">
-                <span className="pet-bubble__title">{headline}</span>
-                <span className="pet-bubble__sub">{sub}</span>
+                <span
+                  className={
+                    "pet-bubble__title" + (showSub ? " is-2" : " is-3")
+                  }
+                >
+                  {headline}
+                </span>
+                {showSub ? (
+                  <span className="pet-bubble__sub">{title}</span>
+                ) : null}
               </span>
             </span>
             {progressBar ? (

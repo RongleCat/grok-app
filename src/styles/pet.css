@@ -147,7 +147,7 @@ html[data-pet-shell] .boot-gate {
 .pet-bubble {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 0;
   width: 100%;
   margin: 0;
   padding: 6px 8px 7px;
@@ -155,6 +155,7 @@ html[data-pet-shell] .boot-gate {
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
   background: var(--bg-elevated, #1c1c1e);
   color: var(--text-primary, #f4f4f5);
+  --pet-bubble-muted: color-mix(in srgb, currentColor 68%, transparent);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
   text-align: left;
   cursor: pointer;
@@ -198,21 +199,28 @@ html[data-pet-shell] .boot-gate {
   border-radius: 4px 16px 4px 16px;
 }
 
+.pet-bubble.has-track {
+  gap: 5px;
+}
+
 .pet-bubble--ink {
   background: var(--bg-elevated, #1c1c1e);
   color: var(--text-primary, #f4f4f5);
+  --pet-bubble-muted: color-mix(in srgb, var(--text-primary, #f4f4f5) 62%, transparent);
 }
 
 .pet-bubble--glass {
   background: color-mix(in srgb, var(--bg-elevated, #1c1c1e) 58%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  --pet-bubble-muted: color-mix(in srgb, currentColor 62%, transparent);
 }
 
 .pet-bubble--solid {
   background: #141416;
   color: #f4f4f5;
   border-color: rgba(255, 255, 255, 0.08);
+  --pet-bubble-muted: rgba(244, 244, 245, 0.68);
 }
 
 .pet-bubble--paper {
@@ -220,21 +228,20 @@ html[data-pet-shell] .boot-gate {
   color: #2a241c;
   border-color: rgba(80, 60, 30, 0.18);
   box-shadow: 0 8px 18px rgba(60, 40, 20, 0.16);
-}
-
-.pet-bubble--paper .pet-bubble__sub {
-  color: rgba(42, 36, 28, 0.62);
+  --pet-bubble-muted: rgba(42, 36, 28, 0.72);
 }
 
 .pet-bubble--outline {
   background: rgba(12, 12, 14, 0.42);
   border: 1.5px solid color-mix(in srgb, var(--text-primary, #fff) 45%, transparent);
   box-shadow: none;
+  --pet-bubble-muted: color-mix(in srgb, currentColor 68%, transparent);
 }
 
 .pet-bubble--accent {
   background: color-mix(in srgb, var(--accent, #6b8cff) 22%, var(--bg-elevated, #1c1c1e));
   border-color: color-mix(in srgb, var(--accent, #6b8cff) 45%, transparent);
+  --pet-bubble-muted: color-mix(in srgb, currentColor 68%, transparent);
 }
 
 .pet-bubble-preview {
@@ -250,7 +257,7 @@ html[data-pet-shell] .boot-gate {
 
 .pet-bubble__row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 7px;
   min-width: 0;
 }
@@ -259,6 +266,7 @@ html[data-pet-shell] .boot-gate {
   flex: 0 0 16px;
   width: 16px;
   height: 16px;
+  margin-top: 1px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -296,16 +304,28 @@ html[data-pet-shell] .boot-gate {
 .pet-bubble__title {
   font-size: 12px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.35;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: inherit;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.pet-bubble__title.is-2 {
+  -webkit-line-clamp: 2;
+}
+
+.pet-bubble__title.is-3 {
+  -webkit-line-clamp: 3;
 }
 
 .pet-bubble__sub {
   font-size: 10px;
-  line-height: 1.2;
-  color: var(--text-muted, rgba(255, 255, 255, 0.58));
+  line-height: 1.3;
+  margin-top: 2px;
+  color: var(--pet-bubble-muted, color-mix(in srgb, currentColor 68%, transparent));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

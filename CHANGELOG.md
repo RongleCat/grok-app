@@ -40,6 +40,7 @@ See `docs/llm-wiki/release.md`.
 - **把另一段对话当作上下文加入**：`/attach-chat`、输入框 `+`、侧栏对话图标或右键「加入目前对话」可加入本地对话；chip 挂在输入框；日记只存 `[[chat:id]]`；Host 只给 Agent 加一段压缩记录（最多 3 段；来源对话不改）。拖行身到项目仍是移动会话。
 
 ### Fixed
+- **Pet bubble body wraps 2–3 lines; session title stays readable on light chips**: Stage text is no longer a single ellipsis line. The session title under it uses contrast-safe muted color (paper/white no longer hides it). With the progress bar off, the chip does not keep an empty track gap.
 - **“No credentials on the agent” points to Providers, not only official Sign in (#705)**: The banner now explains that a terminal CC Switch / custom relay is unused until you click Use in Settings, and the primary action opens Custom providers.
 - **Chat no longer jitters when scrolling up from the bottom (#703)**: Stick-to-bottom only snaps rubber-band past max; a 10px trackpad nudge can leave the pin. Sending after reading history force-sticks once in layout (not a double rAF + busy-edge bump).
 - **New-chat Connecting no longer hangs when `connect_lock` is held (#709)**: The 90s wall clock now covers lock wait (sibling task, so a blocking ACP poll cannot starve the timer). A timed-out attempt is invalidated so it cannot start a handshake after the lock frees. Idle recycle kill / send / disconnect wait for the lock with a timeout. Connect enqueue + timeout also sync-append to `app.log` if the tracing worker is silent. The client drops `sessionConnect` after 100s so the pill cannot sit on Connecting forever.
@@ -52,6 +53,7 @@ See `docs/llm-wiki/release.md`.
 - Sidebar attach is an icon click (tooltip keeps the full phrase). No ⋮⋮ grip-drag. Host compact keeps the newest turns; chips-only missing/empty sources return typed errors; recycle bootstrap keeps a stub or re-expanded attach context.
 
 **中文 · 修复**
+- **宠物气泡正文可折 2–3 行；浅色底上也能看见会话标题**：阶段性回复不再只挤一行省略。下面的会话标题用对比色，纸张/白色背景不再把标题隐成空行。关掉进度条时不再留那条空白。
 - **「Agent 侧没有可用凭据」不再只叫人官方登录（#705）**：文案说明终端 CC Switch / 中转要在设置里点「使用」才会进 App；主按钮打开自定义服务商。
 - **贴底后再轻微上滑不再抖动（#703）**：贴底锁只回弹越过底部的橡皮筋；10px 触控板轻拨即可离开。先上滑再发送只会在 layout 里吸一次底，不会双 rAF + busy 再吸一次。
 - **`connect_lock` 被占住时新对话不再一直 Connecting（#709）**：90 秒墙钟覆盖等锁；握手在旁路任务里跑，ACP 阻塞也挡不住超时。超时后作废这次 connect。recycle 杀进程、发送、断开等锁都有上限。tracing 日志挂了时 connect 关键行仍会写入 `app.log`。前端 100 秒丢掉卡住的 `sessionConnect`。

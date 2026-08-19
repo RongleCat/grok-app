@@ -20,7 +20,8 @@ export const PET_BUBBLE_VISIBLE = 3;
 /** Collect cap — more than the viewport so the slot can scroll. */
 export const PET_TASK_LIMIT = 16;
 export const PET_BUBBLE_WIDTH = 216;
-export const PET_BUBBLE_ROW_H = 38;
+/** One chip: 2–3 wrapped body lines + optional session title. */
+export const PET_BUBBLE_ROW_H = 68;
 export const PET_BUBBLE_GAP = 6;
 export const PET_BUBBLE_STACK_PAD = 10;
 /** Inner padding so chip drop-shadows are not square-clipped by overflow. */

@@ -4,7 +4,10 @@ import type { PetFocusInput } from "./petFocus";
 import {
   collectPetTasks,
   mergeHeldPetTasks,
+  PET_BUBBLE_GAP,
+  PET_BUBBLE_ROW_H,
   PET_BUBBLE_SHADOW_PAD,
+  PET_BUBBLE_STACK_PAD,
   PET_BUBBLE_VISIBLE,
   PET_TASK_LIMIT,
   petBubbleStackHeight,
@@ -182,6 +185,12 @@ describe("pet task helpers", () => {
     expect(petBubbleStackHeight(9)).toBe(petBubbleStackHeight(3));
     expect(petBubbleViewportHeight()).toBe(
       petBubbleStackHeight(PET_BUBBLE_VISIBLE) + PET_BUBBLE_SHADOW_PAD * 2,
+    );
+    expect(petBubbleViewportHeight()).toBe(
+      PET_BUBBLE_VISIBLE * PET_BUBBLE_ROW_H +
+        (PET_BUBBLE_VISIBLE - 1) * PET_BUBBLE_GAP +
+        PET_BUBBLE_STACK_PAD +
+        PET_BUBBLE_SHADOW_PAD * 2,
     );
   });
 

@@ -311,8 +311,8 @@ fn window_logical_size(size_px: u32) -> f64 {
 const PET_BUBBLE_WIDTH_PX: f64 = 216.0;
 /// Chip drop-shadow pad (matches JS `PET_BUBBLE_SHADOW_PAD`).
 const PET_BUBBLE_SHADOW_PAD: f64 = 20.0;
-/// 3 visible rows + shadow pad: 3*38 + 2*6 + 10 + 40. Always reserved so the mark does not jump.
-const PET_BUBBLE_VIEWPORT_H: f64 = 176.0;
+/// 3 visible rows + shadow pad: 3*68 + 2*6 + 10 + 40. Always reserved so the mark does not jump.
+const PET_BUBBLE_VIEWPORT_H: f64 = 266.0;
 /// Matches `.pet-overlay` padding-bottom — mark sits on the bottom, not centered.
 const PET_MARK_BOTTOM_PAD: f64 = 16.0;
 /// Matches `PET_COMPACT_PAD` in JS — idle Wayland window hugs the mark.
@@ -1274,7 +1274,7 @@ mod tests {
     fn overlay_extent_matches_js_width_and_does_not_use_hit_chrome() {
         let (w, h) = overlay_extent(128);
         assert_eq!(w, 128.0 + 96.0 + 216.0 + 40.0);
-        assert_eq!(h, 128.0 + 96.0 + 176.0);
+        assert_eq!(h, 128.0 + 96.0 + 266.0);
         let (w0, h0) = overlay_extent_for(128, false);
         assert_eq!(w0, 128.0 + 96.0);
         assert_eq!(h0, 128.0 + 96.0);
