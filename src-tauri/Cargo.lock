@@ -1827,6 +1827,7 @@ dependencies = [
  "directories",
  "fs2",
  "futures-util",
+ "gtk",
  "hex",
  "hmac",
  "image",

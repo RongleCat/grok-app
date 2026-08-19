@@ -3,9 +3,20 @@
  */
 import { useEffect, useState } from "react";
 import { listen } from "@/lib/api/host";
-import { petGetFocus, petGetTasks, petPrefsGet, petWebviewReady } from "@/lib/api/pet";
-import type { PetPrefs } from "@/lib/api/pet";
-import { type PetFocus, type PetTask } from "@/lib/pet";
+import {
+  petGetFocus,
+  petGetTasks,
+  petPrefsGet,
+  petWebviewReady,
+  PET_OVERLAY_POLICY_FULL,
+  type PetOverlayPolicy,
+  type PetPrefs,
+} from "@/lib/api/pet";
+import {
+  fallbackPetOverlayPolicy,
+  type PetFocus,
+  type PetTask,
+} from "@/lib/pet";
 import { resolveLocale, type Locale } from "@/i18n";
 import { settingsGet } from "@/lib/api/settings";
 import { PetOverlay } from "./PetOverlay";
@@ -41,13 +52,35 @@ export function PetApp() {
     sizePx: 128,
   });
   const [locale, setLocale] = useState<Locale>(readLocale);
+  const [policy, setPolicy] = useState<PetOverlayPolicy>(PET_OVERLAY_POLICY_FULL);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-pet-shell", "1");
     document.body.style.background = "transparent";
     document.querySelector(".boot-gate")?.setAttribute("hidden", "");
-    void petWebviewReady();
+    let gone = false;
+    void petWebviewReady()
+      .then((p) => {
+        if (!gone) {
+          setPolicy(
+            p ??
+              fallbackPetOverlayPolicy(
+                typeof navigator !== "undefined" ? navigator.userAgent : "",
+              ),
+          );
+        }
+      })
+      .catch(() => {
+        if (!gone) {
+          setPolicy(
+            fallbackPetOverlayPolicy(
+              typeof navigator !== "undefined" ? navigator.userAgent : "",
+            ),
+          );
+        }
+      });
     return () => {
+      gone = true;
       document.documentElement.removeAttribute("data-pet-shell");
     };
   }, []);
@@ -93,5 +126,13 @@ export function PetApp() {
     };
   }, []);
 
-  return <PetOverlay focus={focus} tasks={tasks} prefs={prefs} locale={locale} />;
+  return (
+    <PetOverlay
+      focus={focus}
+      tasks={tasks}
+      prefs={prefs}
+      locale={locale}
+      policy={policy}
+    />
+  );
 }

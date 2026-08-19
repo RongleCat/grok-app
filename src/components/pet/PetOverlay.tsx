@@ -14,12 +14,16 @@ import {
   isPetShape,
   normalizePetEyeColor,
   PET_BUBBLE_WIDTH,
+  PET_DRAG_SLOP,
   petBubbleViewportHeight,
   petBubblesEnabled,
   petDoneTaskIds,
-  petOverlayHeight,
+  petDragPassedSlop,
+  petOverlayExtent,
   petOverlayWidth,
+  petPointerStep,
   petSettingsHash,
+  petShouldManualDrag,
   petVerbFor,
   placePetContextMenu,
   scaleHitLen,
@@ -30,6 +34,7 @@ import {
 import {
   petFocusSession,
   petHide,
+  petNudge,
   petOpenSettings,
   petPrefsSet,
   petReadBubbleOffset,
@@ -41,12 +46,13 @@ import {
   petShowMain,
   petStartDragging,
   petSyncOverlaySize,
+  PET_OVERLAY_POLICY_FULL,
+  type PetOverlayPolicy,
 } from "@/lib/api/pet";
 import type { PetPrefs } from "@/lib/api/pet";
 
 export { petSettingsHash };
 
-const DRAG_SLOP = 6;
 const DBLCLICK_MS = 280;
 const MENU_W = 148;
 const MENU_H = 156;
@@ -56,11 +62,13 @@ export function PetOverlay({
   tasks = [],
   prefs,
   locale = "en",
+  policy = PET_OVERLAY_POLICY_FULL,
 }: {
   focus: PetFocus;
   tasks?: readonly PetTask[];
   prefs: PetPrefs;
   locale?: Locale;
+  policy?: PetOverlayPolicy;
 }) {
   const t = useMemo(() => createT(locale), [locale]);
   const shape = isPetShape(prefs.shape) ? prefs.shape : "hex";
@@ -80,7 +88,18 @@ export function PetOverlay({
     done: Set<string>;
   }>({ primed: false, kind: null, done: new Set() });
   const originRef = useRef<{ x: number; y: number } | null>(null);
+  const lastScreenRef = useRef({ x: 0, y: 0 });
+  const accumRef = useRef({ x: 0, y: 0 });
   const draggedRef = useRef(false);
+  const manualDrag = petShouldManualDrag(policy);
+  const hugMark =
+    policy.compactIdle && !menuOpen && !(bubblesOn && tasks.length > 0);
+  const overlaySize = petOverlayExtent({
+    sizePx,
+    bubbles: bubblesOn,
+    compactIdle: policy.compactIdle,
+    expanded: !hugMark,
+  });
   const pendingClickRef = useRef<number | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const markRef = useRef<HTMLDivElement | null>(null);
@@ -144,12 +163,10 @@ export function PetOverlay({
   }, [bubblesOn, sizePx, reportHitChrome]);
 
   useLayoutEffect(() => {
-    const w = petOverlayWidth(sizePx, bubblesOn);
-    const h = petOverlayHeight(sizePx, bubblesOn);
-    void petSyncOverlaySize(w, h).then(() => {
+    void petSyncOverlaySize(overlaySize.w, overlaySize.h).then(() => {
       void refreshBubbleOffset();
     });
-  }, [bubblesOn, sizePx, refreshBubbleOffset]);
+  }, [overlaySize.h, overlaySize.w, refreshBubbleOffset]);
 
   useLayoutEffect(() => {
     reportHitChrome();
@@ -274,6 +291,8 @@ export function PetOverlay({
         return;
       }
       originRef.current = { x: e.screenX, y: e.screenY };
+      lastScreenRef.current = { x: e.screenX, y: e.screenY };
+      accumRef.current = { x: 0, y: 0 };
       draggedRef.current = false;
       try {
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -291,12 +310,10 @@ export function PetOverlay({
     setDragging(false);
     void petSetDragging(false);
     if (!moved) return;
-    const w = petOverlayWidth(sizePx, bubblesOn);
-    const h = petOverlayHeight(sizePx, bubblesOn);
-    void petSyncOverlaySize(w, h).then(() => {
+    void petSyncOverlaySize(overlaySize.w, overlaySize.h).then(() => {
       void refreshBubbleOffset();
     });
-  }, [bubblesOn, refreshBubbleOffset, sizePx]);
+  }, [overlaySize.h, overlaySize.w, refreshBubbleOffset]);
 
   useEffect(() => {
     const end = () => {
@@ -315,25 +332,40 @@ export function PetOverlay({
     };
   }, [finishDrag]);
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    const start = originRef.current;
-    if (!start || draggedRef.current) return;
-    const dx = e.screenX - start.x;
-    const dy = e.screenY - start.y;
-    if (dx * dx + dy * dy < DRAG_SLOP * DRAG_SLOP) return;
-    draggedRef.current = true;
-    setDragging(true);
-    void petSetIgnoreCursor(false);
-    void petSetDragging(true);
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      /* capture was not held */
-    }
-    void petStartDragging().catch(() => {
-      /* startDragging unavailable outside Tauri */
-    });
-  }, []);
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!originRef.current) return;
+      const step = petPointerStep(e, lastScreenRef.current);
+      lastScreenRef.current = step.nextScreen;
+      accumRef.current = {
+        x: accumRef.current.x + step.dx,
+        y: accumRef.current.y + step.dy,
+      };
+      if (!draggedRef.current) {
+        if (!petDragPassedSlop(accumRef.current.x, accumRef.current.y, PET_DRAG_SLOP)) {
+          return;
+        }
+        draggedRef.current = true;
+        setDragging(true);
+        void petSetIgnoreCursor(false);
+        void petSetDragging(true);
+        if (!manualDrag) {
+          try {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+          } catch {
+            /* capture was not held */
+          }
+          void petStartDragging().catch(() => {
+            /* startDragging unavailable outside Tauri */
+          });
+        }
+      }
+      if (manualDrag && draggedRef.current && (step.dx || step.dy)) {
+        void petNudge(step.dx, step.dy);
+      }
+    },
+    [manualDrag],
+  );
 
   const onPointerUp = useCallback(
     (e: React.PointerEvent) => {
@@ -349,7 +381,7 @@ export function PetOverlay({
       if (!start) return;
       const dx = e.screenX - start.x;
       const dy = e.screenY - start.y;
-      if (dx * dx + dy * dy >= DRAG_SLOP * DRAG_SLOP) return;
+      if (petDragPassedSlop(e.screenX - start.x, e.screenY - start.y)) return;
       if (pendingClickRef.current != null) {
         window.clearTimeout(pendingClickRef.current);
         pendingClickRef.current = null;

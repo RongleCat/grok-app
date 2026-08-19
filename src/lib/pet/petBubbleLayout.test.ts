@@ -5,8 +5,13 @@ import {
   petBubbleViewportHeight,
 } from "./petTasks";
 import {
+  PET_COMPACT_PAD,
+  PET_MARK_BOTTOM_PAD,
   petBubbleOffsetX,
   petBubblesEnabled,
+  petCompactOverlayHeight,
+  petCompactOverlayWidth,
+  petOverlayExtent,
   petOverlayHeight,
   petOverlayWidth,
 } from "./petBubbleLayout";
@@ -75,5 +80,36 @@ describe("petOverlayHeight", () => {
     expect(petBubblesEnabled(undefined)).toBe(true);
     expect(petBubblesEnabled({ bubblesEnabled: false })).toBe(false);
     expect(petBubblesEnabled({ bubblesEnabled: true })).toBe(true);
+  });
+});
+
+describe("petOverlayExtent", () => {
+  it("hugs the mark when compact idle", () => {
+    expect(petCompactOverlayWidth(128)).toBe(128 + PET_COMPACT_PAD * 2);
+    expect(petCompactOverlayHeight(128)).toBe(
+      128 + PET_COMPACT_PAD + PET_MARK_BOTTOM_PAD,
+    );
+    expect(
+      petOverlayExtent({
+        sizePx: 128,
+        bubbles: true,
+        compactIdle: true,
+        expanded: false,
+      }),
+    ).toEqual({
+      w: petCompactOverlayWidth(128),
+      h: petCompactOverlayHeight(128),
+    });
+  });
+
+  it("uses the reserved chip window when expanded", () => {
+    expect(
+      petOverlayExtent({
+        sizePx: 128,
+        bubbles: true,
+        compactIdle: true,
+        expanded: true,
+      }),
+    ).toEqual({ w: petOverlayWidth(128, true), h: petOverlayHeight(128, true) });
   });
 });

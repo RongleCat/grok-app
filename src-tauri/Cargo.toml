@@ -100,6 +100,9 @@ tauri-winrt-notification = "0.7"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 notify-rust = "4"
+# Same gtk as Tauri — hide the app menubar on the pet overlay (KDE/GTK
+# reapplies Edit/Window/Help to every ApplicationWindow).
+gtk = { version = "0.18", features = ["v3_24"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-window-state = "2"
