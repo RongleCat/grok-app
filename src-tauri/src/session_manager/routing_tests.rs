@@ -890,9 +890,9 @@ fn promote_background_to_live_survives_inner_then_background_contention() {
 
     match rx.recv_timeout(Duration::from_secs(10)) {
         Ok(promoted) => assert!(promoted, "seeded background session must promote"),
-        Err(_) => panic!(
-            "ABBA deadlock regression: promote held `background` while waiting on `inner`"
-        ),
+        Err(_) => {
+            panic!("ABBA deadlock regression: promote held `background` while waiting on `inner`")
+        }
     }
     adversary.join().expect("adversary thread");
     assert!(mgr.is_live_session("bg-1"));

@@ -987,10 +987,7 @@ impl SessionManager {
     /// window that remounts while a turn waits on approval misses it, and the
     /// chat looks stuck "thinking" with no way to answer (diag f1daa64c). The
     /// frontend pulls this on session open to restore the approval bar.
-    pub fn pending_permission(
-        &self,
-        session_id: Option<String>,
-    ) -> Option<UiPermissionRequest> {
+    pub fn pending_permission(&self, session_id: Option<String>) -> Option<UiPermissionRequest> {
         let target = self.resolve_target_session(session_id).ok()?;
         self.with_session_mut(&target, |s| {
             // Gate on rpc_id: it is the field every invalidation path clears.

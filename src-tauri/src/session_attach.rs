@@ -156,7 +156,9 @@ pub struct StoreAttachJournal;
 
 impl AttachJournal for StoreAttachJournal {
     fn exists(&self, id: &str) -> bool {
-        crate::paths::session_dir(id).join("messages.json").is_file()
+        crate::paths::session_dir(id)
+            .join("messages.json")
+            .is_file()
     }
 
     fn load(&self, id: &str) -> Vec<ChatMessageStored> {
@@ -646,10 +648,7 @@ mod tests {
             )]),
             titles: std::collections::HashMap::from([(src.to_string(), "Other".into())]),
         };
-        let historical = vec![msg(
-            "user",
-            &format!("[[chat:{src}]]\nsummarize"),
-        )];
+        let historical = vec![msg("user", &format!("[[chat:{src}]]\nsummarize"))];
         let expanded = compact_user_assistant_turns_with(
             &historical,
             16,
@@ -661,8 +660,7 @@ mod tests {
         .unwrap();
         assert!(expanded.contains("summarize"));
         assert!(
-            expanded.contains("source-turn-body")
-                || expanded.contains(&attach_stub("Other", src)),
+            expanded.contains("source-turn-body") || expanded.contains(&attach_stub("Other", src)),
             "recycle bootstrap must keep attach context or stub, got: {expanded}"
         );
         assert!(!expanded.contains(&format!("[[chat:{src}]]")));
