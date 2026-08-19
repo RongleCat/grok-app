@@ -151,11 +151,15 @@ export async function voiceTranscribe(opts: {
   audioBase64: string;
   filename?: string | null;
   mime?: string | null;
+  /** Resolved UI locale (en/zh/zh-TW) steering the Chinese language hint. */
+  locale?: string | null;
 }) {
   return invoke<VoiceTranscribeResult>("voice_transcribe", {
     audioBase64: opts.audioBase64,
     filename: opts.filename ?? null,
     mime: opts.mime ?? null,
+    locale: opts.locale ?? null,
   });
 }
+
 

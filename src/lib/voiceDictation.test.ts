@@ -143,6 +143,40 @@ describe("voiceAvailabilityFromAuth", () => {
     expect(s.available).toBe(false);
     expect(s.reason).toBe("not_available");
   });
+
+  it("enables with custom STT endpoint without any official auth", () => {
+    const s = voiceAvailabilityFromAuth({
+      signedInOfficial: false,
+      hasOfficialApiKey: false,
+      hasRelayOnly: true,
+      sttCustomConfigured: true,
+    });
+    expect(s.available).toBe(true);
+    expect(s.reason).toBeNull();
+  });
+
+  it("enables custom STT under a custom provider route", () => {
+    const s = voiceAvailabilityFromAuth({
+      signedInOfficial: false,
+      hasOfficialApiKey: false,
+      hasRelayOnly: true,
+      sttCustomConfigured: true,
+      activeProviderIsCustom: true,
+    });
+    expect(s.available).toBe(true);
+    expect(s.reason).toBeNull();
+  });
+
+  it("stays disabled when custom STT is not configured", () => {
+    const s = voiceAvailabilityFromAuth({
+      signedInOfficial: false,
+      hasOfficialApiKey: false,
+      hasRelayOnly: true,
+      sttCustomConfigured: false,
+    });
+    expect(s.available).toBe(false);
+    expect(s.reason).toBe("not_available");
+  });
 });
 
 describe("classifyVoiceError", () => {
@@ -162,6 +196,26 @@ describe("classifyVoiceError", () => {
 
   it("maps network strings", () => {
     expect(classifyVoiceError("connection refused")).toBe("network");
+  });
+
+  it("classifies custom-STT key errors as stt_key (not auth)", () => {
+    expect(classifyVoiceError("stt_key")).toBe("stt_key");
+    expect(
+      classifyVoiceError("自定义听写 API Key 无效或未填写，请到设置 → Voice 检查"),
+    ).toBe("stt_key");
+    expect(
+      resolveVoiceErrorClass("stt_key", "some host text"),
+    ).toBe("stt_key");
+    // Host HTTP 401 on a custom endpoint must not say "re-login".
+    expect(classifyVoiceError("stt HTTP 401", 401)).toBe("auth");
+  });
+
+  it("classifies local service offline", () => {
+    expect(classifyVoiceError("local_offline")).toBe("local_offline");
+    expect(classifyVoiceError("本地听写服务未运行")).toBe("local_offline");
+    expect(resolveVoiceErrorClass("local_offline", null)).toBe(
+      "local_offline",
+    );
   });
 });
 
@@ -277,6 +331,11 @@ describe("voiceSoftFailResetsIdle", () => {
     expect(voiceSoftFailResetsIdle("not_available")).toBe(true);
     expect(voiceSoftFailResetsIdle("network")).toBe(false);
     expect(voiceSoftFailResetsIdle("timeout")).toBe(false);
+  });
+
+  it("custom STT key and local-offline errors toast and go idle", () => {
+    expect(voiceSoftFailResetsIdle("stt_key")).toBe(true);
+    expect(voiceSoftFailResetsIdle("local_offline")).toBe(true);
   });
 });
 

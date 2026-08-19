@@ -191,6 +191,20 @@ export interface AppSettings {
   voiceId?: string;
   voiceDictationAutoSend?: boolean;
   voiceKeepAgentsOnEnd?: boolean;
+  /** Composer dictation STT engine: `official` (xAI) or `custom` (OpenAI-compatible). */
+  sttEngine?: string;
+  /** Base URL for the custom STT endpoint, e.g. https://api.groq.com/openai/v1. */
+  sttCustomBaseUrl?: string | null;
+  /** Optional upstream model id for the custom STT endpoint. */
+  sttCustomModel?: string | null;
+  /** Optional language hint for the custom STT endpoint. */
+  sttCustomLanguage?: string | null;
+  /**
+   * Chinese output script for dictation on Whisper-family custom endpoints:
+   * `auto` (follow app UI locale) | `simplified` | `traditional`.
+   * Sent as the OpenAI-compatible `prompt` field.
+   */
+  sttZhScript?: string;
   /** Window close hides to tray when true (default). */
   closeToTray?: boolean;
   /**
@@ -334,6 +348,9 @@ export async function secretsGetMasked() {
   return invoke<{
     hasOfficialKey: boolean;
     hasRelayKey: boolean;
+    hasSttCustomKey: boolean;
+    /** Per-provider-preset custom STT key presence (ADR-0001). */
+    sttCustomKeys?: Record<string, boolean>;
     relayBaseUrl: string | null;
     defaultModel: string | null;
   }>("secrets_get_masked");
@@ -344,12 +361,17 @@ export async function secretsSet(body: {
   relayBaseUrl?: string;
   relayApiKey?: string;
   defaultModel?: string;
+  sttCustomApiKey?: string;
+  /** Provider preset id the custom STT key belongs to (ADR-0001). */
+  sttCustomApiKeyProvider?: string;
 }) {
   return invoke("secrets_set", {
     officialApiKey: body.officialApiKey ?? null,
     relayBaseUrl: body.relayBaseUrl ?? null,
     relayApiKey: body.relayApiKey ?? null,
     defaultModel: body.defaultModel ?? null,
+    sttCustomApiKey: body.sttCustomApiKey ?? null,
+    sttCustomApiKeyProvider: body.sttCustomApiKeyProvider ?? null,
   });
 }
 

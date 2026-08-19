@@ -20,6 +20,8 @@ export type VoiceErrorClass =
   | "network"
   | "auth"
   | "timeout"
+  | "stt_key"
+  | "local_offline"
   | "unknown";
 
 export type VoiceStatus = {
@@ -172,6 +174,8 @@ const KNOWN_VOICE_ERRORS: readonly VoiceErrorClass[] = [
   "network",
   "auth",
   "timeout",
+  "stt_key",
+  "local_offline",
   "unknown",
 ] as const;
 
@@ -200,6 +204,23 @@ export function classifyVoiceError(
     s.includes("no speech auth")
   ) {
     return "not_available";
+  }
+  // Custom STT key invalid/missing (host returns `stt_key` for 401/403 on a
+  // custom endpoint; free-form matches keep older host strings working).
+  if (
+    s.includes("stt_key") ||
+    s.includes("custom stt api key") ||
+    s.includes("自定义听写")
+  ) {
+    return "stt_key";
+  }
+  // Local (loopback) dictation service not running / unreachable.
+  if (
+    s.includes("local_offline") ||
+    s.includes("local stt") ||
+    s.includes("本地听写服务")
+  ) {
+    return "local_offline";
   }
   if (
     s.includes("permission") ||
@@ -266,17 +287,25 @@ export function resolveVoiceErrorClass(
 
 /**
  * Gate composer dictation (mic STT).
- * - Needs official Grok OAuth token or official xAI API key.
- * - Active custom / third-party provider route disables voice (relay keys are not enough).
+ * - Custom STT endpoint (Settings → Voice) is available on its own — no
+ *   official account needed, and works under custom/third-party providers.
+ * - Otherwise needs official Grok OAuth token or official xAI API key.
+ * - Active custom / third-party provider route disables official dictation
+ *   (relay keys are not enough).
  * - Live voice is gated separately (currently not exposed in the composer).
  */
 export function voiceAvailabilityFromAuth(opts: {
   signedInOfficial: boolean;
   hasOfficialApiKey: boolean;
   hasRelayOnly: boolean;
+  /** True when a custom OpenAI-compatible STT endpoint is configured. */
+  sttCustomConfigured?: boolean;
   /** True when Settings → Providers is set to a custom relay. */
   activeProviderIsCustom?: boolean;
 }): VoiceStatus {
+  if (opts.sttCustomConfigured) {
+    return { available: true, reason: null };
+  }
   if (opts.activeProviderIsCustom) {
     return { available: false, reason: "not_available" };
   }
@@ -375,6 +404,8 @@ export function voiceSoftFailResetsIdle(cls: VoiceErrorClass): boolean {
   return (
     cls === "no_speech" ||
     cls === "auth" ||
+    cls === "stt_key" ||
+    cls === "local_offline" ||
     cls === "not_available" ||
     cls === "mic_denied" ||
     cls === "mic_missing"
