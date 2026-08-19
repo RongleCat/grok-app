@@ -12,7 +12,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Changed
-- **Remaining UI locales filled**: German, Spanish, French, Korean, Brazilian Portuguese, Indonesian, Filipino, Ukrainian, Tamil, and Russian catalogs now cover essentially the full key set (product names and symbols stay English). Russian leftovers after that pass were filled again.
+- **Remaining UI locales filled**: German, Spanish, French, Korean, Brazilian Portuguese, Indonesian, Filipino, Ukrainian, Tamil, and Russian catalogs now cover essentially the full key set (product names and symbols stay English). Russian leftovers after that pass were filled again. Korean leftovers after the first pass were filled again.
 - **Italian catalog is now fully translated**: Remaining settings / Doctor / extensions copy that still fell back to English is Italian.
 
 **中文 · 变更**
