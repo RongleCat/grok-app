@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Changed
+- **Italian catalog is now fully translated**: Remaining settings / Doctor / extensions copy that still fell back to English is Italian.
+
+**中文 · 变更**
+- **意大利语目录补全**：原先回落英文的设置、Doctor、扩展文案改为意大利语。
+
 ### Added
 - **Fifteen UI locales with complete catalogs (#708)**: Settings and OS language detection include German, Spanish, Filipino, French, Indonesian, Italian, Japanese, Korean, Brazilian Portuguese, Tamil, and Ukrainian (plus existing English, Russian, Simplified and Traditional Chinese). Every new catalog has the full English key set. Japanese is nearly fully translated; the others cover chrome plus expanded surfaces (remaining deep settings stay English, like Russian). Dates, compact counts, heatmap labels, and tray/menu copy follow the locale instead of forking on Chinese-vs-English. Russian `tray.*` keys are filled. Latin and Sanskrit are not shipped.
 - **Interrupted turns after an app restart**: If the host process dies mid-turn, reopening the chat journals `turn_cancelled|host_exit` instead of looking finished. Continue sends a new prompt (with the unfinished command when known). Unclean host exits and Windows last-crash notes go into the session diagnostic zip.

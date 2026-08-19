@@ -24,7 +24,7 @@ export const itComposer = {
   "composer.jsonSchema": "JSON Schema",
   "composer.jsonSchemaHint": "Output JSON strutturato opzionale per questa chat",
   "composer.jsonSchemaTitle": "Output strutturato (JSON Schema)",
-  "composer.jsonSchemaPlaceholder": "Paste a JSON Schema object, e.g. {\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}",
+  "composer.jsonSchemaPlaceholder": "Incolla un oggetto JSON Schema, es. {\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}",
   "composer.jsonSchemaApply": "Applica schema",
   "composer.jsonSchemaClear": "Cancella schema",
   "composer.jsonSchemaActive": "Schema attivo",

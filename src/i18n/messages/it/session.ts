@@ -114,7 +114,7 @@ export const itSession = {
   "session.move.manyOkOrphan": "Spostate {n} chat in Altre sessioni",
   "session.move.ghostMany": "{n} chat",
   "session.deleteTitle": "Elimina chat",
-  "session.deleteConfirm": "Delete “{name}” permanently? This cannot be undone.",
+  "session.deleteConfirm": "Eliminare definitivamente «{name}»? L’operazione non si può annullare.",
   "session.deleteManyTitle": "Elimina chat",
   "session.deleteManyConfirm": "Eliminare definitivamente {n} chat? L’operazione non si può annullare.",
   "session.menu": "Menu sessione",

@@ -23,7 +23,7 @@ export const itAutomations = {
   "automations.resume": "Riprendi",
   "automations.runNow": "Esegui ora",
   "automations.delete": "Elimina",
-  "automations.deleteConfirm": "Delete scheduled task \"{title}\"?",
+  "automations.deleteConfirm": "Eliminare l’attività pianificata «{title}»?",
   "automations.save": "Salva",
   "automations.errTitle": "Il titolo è obbligatorio.",
   "automations.errPrompt": "Descrivi cosa deve fare Grok.",
