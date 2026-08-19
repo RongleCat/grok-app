@@ -2,6 +2,8 @@
 import type { MessageKey } from "../en";
 
 export const ruExtra: Partial<Record<MessageKey, string>> = {
+  "agent.zombieBusyHealed":
+    "Этот ход уже завершён. Поле ввода снова доступно — можно отправить следующее сообщение.",
   // Project menu and trust flow.
   "project.pin": "Закрепить проект",
   "project.unpin": "Открепить проект",

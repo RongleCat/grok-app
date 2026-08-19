@@ -74,6 +74,7 @@ export const zhCore = {
   "agent.streamStallKeepWaiting": "继续等待",
   "agent.streamStallHardEndToast": "Host 已恢复收尾，本轮内容已保留。",
   "agent.ghostStreamingHealed": "消息没有真正发给 Agent。已恢复到输入框，请重新发送。",
+  "agent.zombieBusyHealed": "这一轮其实已经结束。已恢复发送，可以继续提问。",
   "app.quitBusy.title": "仍有 Agent 忙碌，确定退出？",
   "app.quitBusy.message": "还有 {n} 个会话在运行。退出会中断进行中的 Agent 工作。",
   "app.quitBusy.confirm": "退出",

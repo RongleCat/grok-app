@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- **Finished turns no longer stay on 思考中 / 连接中**: After the last assistant body is painted, leftover streaming or a leaked connect claim kept Stop and blocked the next send. Client heal unlocks the composer (reply stays) when Host is idle, or after 90s if Host itself went stale.
+
+**中文 · 修复**
+- **回合结束后不再一直「思考中 / 连接中」**：正文已经出来，UI 还停在停止键、发不了下一句。Host 已空闲（或卡住超过 90 秒）时自动解锁，回复保留。
+
 ## [0.2.22] - 2026-08-19
 
 > **Highlight:** Move chats between projects; a persist-mounted terminal under the chat; Russian UI; pet overlay no longer steals the first click.

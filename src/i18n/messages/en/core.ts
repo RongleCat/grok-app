@@ -74,6 +74,8 @@ export const enCore = {
   "agent.streamStallKeepWaiting": "Keep waiting",
   "agent.streamStallHardEndToast": "Turn was closed after Host recovery — your reply was kept.",
   "agent.ghostStreamingHealed": "Message never reached the agent. Restored to the composer — send again.",
+  "agent.zombieBusyHealed":
+    "This turn already finished. Composer unlocked — you can send again.",
   "app.quitBusy.title": "Quit while agents are busy?",
   "app.quitBusy.message": "{n} session(s) are still running. Quitting will stop in-progress agent work.",
   "app.quitBusy.confirm": "Quit",

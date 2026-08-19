@@ -11045,6 +11045,18 @@ export function AppWorkbench() {
       showToast(tr("agent.ghostStreamingHealed"), 5200);
       setLocalError(tr("agent.ghostStreamingHealed"));
     },
+    uiConnecting: connecting,
+    connectInFlightCountRef: ensureConnectCountRef,
+    releaseConnecting: (sessionId) => {
+      releaseSessionConnection([
+        queueSessionKey(sessionId),
+        queueSessionKey(null),
+      ]);
+      syncEnsureConnectingUi();
+    },
+    onZombieHealed: () => {
+      showToast(tr("agent.zombieBusyHealed"), 4200);
+    },
   });
 
   // Soft-steer while a live turn is producing (streaming / permission). Align
