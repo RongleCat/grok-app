@@ -3,6 +3,8 @@
  * Listing / paths only — no hook JSON editor.
  */
 
+import { intlLocale } from "@/i18n";
+
 export type HookScope = "user" | "project" | string;
 
 export type HookLike = {
@@ -53,7 +55,7 @@ export function formatHookMtime(
   const ms = typeof mtimeMs === "number" && mtimeMs > 0 ? mtimeMs : 0;
   if (!ms) return "";
   try {
-    return new Date(ms).toLocaleString(locale || undefined, {
+    return new Date(ms).toLocaleString(intlLocale(locale), {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",

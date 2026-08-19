@@ -19,7 +19,7 @@ import {
 } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import type { SettingsNavIcon, SettingsTabId } from "@/lib/settingsCatalog";
-import type { MessageKey } from "@/i18n";
+import { intlLocale, type MessageKey } from "@/i18n";
 import type { MarqueeBox } from "./types";
 
 export type { MarqueeBox } from "./types";
@@ -48,7 +48,7 @@ export function formatSessionWhen(iso: string, locale: string): string {
   try {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleString(locale === "zh" ? "zh-CN" : "en-US", {
+    return d.toLocaleString(intlLocale(locale), {
       year: "numeric",
       month: "short",
       day: "numeric",

@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as api from "@/lib/api";
-import { createT, type Locale, type MessageKey } from "@/i18n";
+import { createT, intlLocale, type Locale, type MessageKey } from "@/i18n";
 import { GlassModal } from "@/components/GlassModal";
 import { Select } from "@/components/Select";
 import {
@@ -93,7 +93,7 @@ function formatHistoryWhen(at: string, locale: Locale): string {
   try {
     const d = new Date(at);
     if (Number.isNaN(d.getTime())) return at;
-    return d.toLocaleString(locale === "en" ? "en-US" : locale);
+    return d.toLocaleString(intlLocale(locale));
   } catch {
     return at;
   }

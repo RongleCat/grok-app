@@ -4,6 +4,7 @@
  */
 
 import { heatmapDayHasActivity, type HeatmapUsageDay } from "./heatmapUsagePro";
+import { intlLocale, isTightScript } from "@/i18n";
 
 export type HeatmapCallLogLike = {
   durationSecs?: number | null;
@@ -151,7 +152,56 @@ export function cumulativeTokenSeries(
   });
 }
 
-/** Hours/minutes in the locale (Codex-style stat strip). */
+type DurationUnit = "hour" | "minute" | "second";
+
+/** ASCII suffixes used when the runtime lacks `Intl.NumberFormat` unit style. */
+const DURATION_FALLBACK: Record<DurationUnit, string> = {
+  hour: "h",
+  minute: "m",
+  second: "s",
+};
+
+/**
+ * CLDR narrow duration units are compact and written in the locale's own script
+ * for every language shipped here — except Japanese, whose narrow forms are the
+ * Latin `h` / `m` / `s`. Those read as untranslated next to Japanese UI copy, so
+ * Japanese uses its own suffixes. (CLDR's Japanese *short* forms are correct but
+ * insert a space, `9 時間`, which Japanese typography does not want.)
+ */
+const DURATION_UNIT_OVERRIDES: Record<string, Record<DurationUnit, string>> = {
+  ja: { hour: "時間", minute: "分", second: "秒" },
+};
+
+/**
+ * `9h` / `9時間` / `9시간` / `9 ч` — narrow unit for the locale.
+ * Falls back to ASCII suffixes if the runtime rejects the unit style.
+ */
+function formatDurationPart(
+  value: number,
+  unit: DurationUnit,
+  locale: string,
+): string {
+  const primary = locale.trim().toLowerCase().split(/[-_]/)[0] ?? "";
+  const override = DURATION_UNIT_OVERRIDES[primary];
+  if (override) return `${value}${override[unit]}`;
+  try {
+    return new Intl.NumberFormat(intlLocale(locale), {
+      style: "unit",
+      unit,
+      unitDisplay: "narrow",
+    }).format(value);
+  } catch {
+    return `${value}${DURATION_FALLBACK[unit]}`;
+  }
+}
+
+/**
+ * Hours/minutes in the locale (Codex-style stat strip).
+ *
+ * Units come from CLDR rather than a zh/en fork, so every shipped locale gets
+ * its own suffix. CJK joins the two parts without a space (`1時間30分`);
+ * everything else keeps one (`1h 30m`).
+ */
 export function formatStatDuration(
   secs: number | null | undefined,
   locale = "en",
@@ -161,13 +211,16 @@ export function formatStatDuration(
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
-  const zh = locale === "zh" || locale === "zh-TW";
-  if (zh) {
-    if (h > 0) return m > 0 ? `${h}小时${m}分` : `${h}小时`;
-    if (m > 0) return s > 0 ? `${m}分${s}秒` : `${m}分`;
-    return `${s}秒`;
+  const sep = isTightScript(locale) ? "" : " ";
+  const part = (v: number, u: DurationUnit) => formatDurationPart(v, u, locale);
+
+  if (h > 0) {
+    return m > 0 ? `${part(h, "hour")}${sep}${part(m, "minute")}` : part(h, "hour");
   }
-  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  if (m > 0) return s > 0 ? `${m}m ${s}s` : `${m}m`;
-  return `${s}s`;
+  if (m > 0) {
+    return s > 0
+      ? `${part(m, "minute")}${sep}${part(s, "second")}`
+      : part(m, "minute");
+  }
+  return part(s, "second");
 }
