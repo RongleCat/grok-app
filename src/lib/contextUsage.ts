@@ -26,8 +26,8 @@
 
 import {
   formatEnglishCompactCount,
-  trimTrailingDotZero,
-  usesChineseCountUnits,
+  formatMyriadCount,
+  myriadUnitsFor,
 } from "./formatCompactCount";
 
 export type ContextUsageSource = "known" | "estimated" | "unknown";
@@ -721,35 +721,19 @@ export function mergeKnownBucketsIntoBreakdown(
 
 /**
  * Compact token display.
- * zh / zh-TW: 百 / 千 / 万·萬 / 亿·億. Other locales (incl. en): K / M / B.
+ * Myriad locales (zh · zh-TW · ja · ko): 百 / 千 / 万·萬·만 / 亿·億·억.
+ * Every other locale (incl. en): K / M / B.
  * Example zh: 500 → 5百 · 1500 → 1.5千 · 12500 → 1.3万
  * Example en: 300 → 300 · 5000 → 5K · 500000 → 500K · 1e6 → 1M
  */
 export function formatTokenCount(n: number, locale: string = "zh"): string {
   if (!Number.isFinite(n) || n < 0) return "—";
   const whole = Math.round(n);
-  if (!usesChineseCountUnits(locale)) {
+  const units = myriadUnitsFor(locale);
+  if (!units) {
     return formatEnglishCompactCount(whole);
   }
-  const isTw =
-    locale === "zh-TW" ||
-    locale.toLowerCase() === "zh-hant" ||
-    locale.toLowerCase().startsWith("zh-hant");
-  const wan = isTw ? "萬" : "万";
-  const yi = isTw ? "億" : "亿";
-  if (whole >= 100_000_000) {
-    return `${trimTrailingDotZero((whole / 100_000_000).toFixed(1))}${yi}`;
-  }
-  if (whole >= 10_000) {
-    return `${trimTrailingDotZero((whole / 10_000).toFixed(1))}${wan}`;
-  }
-  if (whole >= 1_000) {
-    return `${trimTrailingDotZero((whole / 1_000).toFixed(1))}千`;
-  }
-  if (whole >= 100) {
-    return `${trimTrailingDotZero((whole / 100).toFixed(1))}百`;
-  }
-  return String(whole);
+  return formatMyriadCount(whole, units);
 }
 
 export function formatContextChipLabel(

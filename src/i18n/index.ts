@@ -4,6 +4,7 @@
  */
 
 import {
+  LOCALES,
   isLocale,
   messages,
   type Locale,
@@ -11,7 +12,7 @@ import {
 } from "./messages";
 
 export type { Locale, MessageKey };
-export { isLocale, messages };
+export { LOCALES, isLocale, messages };
 
 /** User preference: explicit catalog locale or follow OS / browser language. */
 export type LocalePreference = "system" | Locale;
@@ -41,8 +42,65 @@ export function createT(locale: Locale) {
 }
 
 /**
+ * Extra spellings accepted for a catalog id beyond the canonical one and the
+ * bare primary subtag (which {@link normalizeLocale} handles generically).
+ *
+ * Only list forms a user or an OS can realistically produce. Regional variants
+ * that should collapse into a catalog live here; anything else falls through to
+ * the primary-subtag match.
+ */
+const LOCALE_ALIASES: Readonly<Record<string, Locale>> = {
+  "en-us": "en",
+  "en-gb": "en",
+  "en-au": "en",
+  "en-ca": "en",
+  "de-de": "de",
+  "de-at": "de",
+  "de-ch": "de",
+  "es-es": "es",
+  "es-mx": "es",
+  "es-419": "es",
+  "es-ar": "es",
+  "fr-fr": "fr",
+  "fr-ca": "fr",
+  "fr-be": "fr",
+  "fr-ch": "fr",
+  "it-it": "it",
+  "it-ch": "it",
+  "id-id": "id",
+  // Indonesian's retired ISO-639 code, still emitted by some Java/POSIX stacks.
+  in: "id",
+  "fil-ph": "fil",
+  // Tagalog and Filipino share one catalog.
+  tl: "fil",
+  "tl-ph": "fil",
+  "ja-jp": "ja",
+  "ko-kr": "ko",
+  "pt-br": "pt-BR",
+  // European Portuguese has no catalog of its own — pt-BR is closer than English.
+  "pt-pt": "pt-BR",
+  pt: "pt-BR",
+  "ru-ru": "ru",
+  "ta-in": "ta",
+  "ta-lk": "ta",
+  "uk-ua": "uk",
+  "zh-cn": "zh",
+  "zh-hans": "zh",
+  "zh-sg": "zh",
+  "zh-tw": "zh-TW",
+  "zh-hant": "zh-TW",
+  "zh-hk": "zh-TW",
+  "zh-mo": "zh-TW",
+};
+
+/** Catalog ids keyed by their lowercase form, for case-insensitive lookup. */
+const LOCALE_BY_LOWER: Readonly<Record<string, Locale>> = Object.fromEntries(
+  LOCALES.map((l: Locale) => [l.toLowerCase(), l]),
+);
+
+/**
  * Best-effort normalization of a raw locale id to a canonical {@link Locale}.
- * Accepts common case/alias variants (e.g. "zh-tw", "zh_Hant", "ru-RU",
+ * Accepts common case/alias variants (e.g. "zh-tw", "zh_Hant", "pt_BR",
  * "EN-US") so a hand-edited settings value still resolves. Returns `null`
  * when the id is not a recognizable variant, leaving the fallback to the caller.
  * Mirrors the case-insensitive parsing on the Rust side (see tray_i18n.rs
@@ -50,19 +108,8 @@ export function createT(locale: Locale) {
  */
 function normalizeLocale(raw: string): Locale | null {
   const v = raw.trim().toLowerCase().replace(/_/g, "-");
-  if (v === "zh-tw" || v === "zh-hant") {
-    return "zh-TW";
-  }
-  if (v === "zh" || v === "zh-cn" || v === "zh-hans") {
-    return "zh";
-  }
-  if (v === "ru" || v === "ru-ru") {
-    return "ru";
-  }
-  if (v === "en" || v === "en-us" || v === "en-gb") {
-    return "en";
-  }
-  return null;
+  if (!v) return null;
+  return LOCALE_BY_LOWER[v] ?? LOCALE_ALIASES[v] ?? null;
 }
 
 /**
@@ -72,8 +119,9 @@ function normalizeLocale(raw: string): Locale | null {
  * Rules:
  * - Chinese + Traditional script/region (`Hant`, `TW`, `HK`, `MO`) → `zh-TW`
  * - Other Chinese (`zh`, `zh-CN`, `zh-Hans`, `zh-SG`, …) → `zh`
- * - Russian (`ru`, `ru-RU`, …) → `ru`
- * - English (`en`, `en-US`, …) → `en`
+ * - Any Portuguese (`pt`, `pt-PT`, `pt-BR`) → `pt-BR`
+ * - Tagalog (`tl`) shares the Filipino catalog
+ * - Otherwise the primary subtag when it names a shipped catalog
  * - Everything else → product default `en`
  */
 export function resolveLocaleFromSystem(
@@ -86,11 +134,11 @@ export function resolveLocaleFromSystem(
   // Strip encoding suffix from POSIX tags: "zh_CN.UTF-8" → already "_"→"-",
   // still may have ".utf-8".
   const bare = v.split(".")[0] ?? v;
-  const primary = bare.split("-")[0] ?? bare;
+  const parts = bare.split("-");
+  const primary = parts[0] ?? bare;
 
   if (primary === "zh") {
     // Script subtag or region for Traditional Chinese.
-    const parts = bare.split("-");
     if (
       parts.includes("hant") ||
       parts.includes("tw") ||
@@ -102,10 +150,12 @@ export function resolveLocaleFromSystem(
     return "zh";
   }
 
-  if (primary === "ru") return "ru";
-  if (primary === "en") return "en";
+  // Exact tag (with region/script) wins over the bare primary subtag so
+  // `pt-PT` and `zh-Hans-CN` land where their alias says.
+  const exact = normalizeLocale(bare);
+  if (exact) return exact;
 
-  return normalizeLocale(bare) ?? "en";
+  return normalizeLocale(primary) ?? "en";
 }
 
 export function isLocalePreference(v: unknown): v is LocalePreference {
@@ -130,7 +180,7 @@ export function parseLocalePreference(
 
 /**
  * One-shot lift of the old factory default (`en`) to follow-system.
- * Explicit `zh` / `zh-TW` / `ru` / `system` stay. Callers still set the migrated flag.
+ * Explicit catalog ids and `system` stay. Callers still set the migrated flag.
  */
 export function migrateLegacyLocaleDefault(
   stored: string | null | undefined,
@@ -140,12 +190,61 @@ export function migrateLegacyLocaleDefault(
   return null;
 }
 
+/**
+ * BCP-47 tag for a catalog locale — used for `<html lang>` and every `Intl.*`
+ * constructor. Catalog ids are already valid BCP-47 except where a catalog
+ * covers a wider language than its id implies.
+ *
+ * Never pass a raw catalog id to `Intl` directly: `zh` must resolve to
+ * `zh-CN`, not the generic macrolanguage.
+ */
+const INTL_TAGS: Readonly<Record<Locale, string>> = {
+  en: "en",
+  de: "de-DE",
+  es: "es-ES",
+  fil: "fil-PH",
+  fr: "fr-FR",
+  id: "id-ID",
+  it: "it-IT",
+  ja: "ja-JP",
+  ko: "ko-KR",
+  "pt-BR": "pt-BR",
+  ru: "ru-RU",
+  ta: "ta-IN",
+  uk: "uk-UA",
+  zh: "zh-CN",
+  "zh-TW": "zh-TW",
+};
+
 /** `<html lang>` for a resolved catalog locale. */
 export function htmlLangForLocale(locale: Locale): string {
   if (locale === "zh") return "zh-CN";
   if (locale === "zh-TW") return "zh-TW";
-  if (locale === "ru") return "ru";
-  return "en";
+  return locale;
+}
+
+/**
+ * BCP-47 tag to hand to `Intl.DateTimeFormat` / `NumberFormat` /
+ * `RelativeTimeFormat` for a catalog locale. Accepts a raw string so callers
+ * holding an unvalidated settings value can use it directly.
+ */
+export function intlLocale(locale: string | null | undefined): string {
+  if (!locale) return INTL_TAGS.en;
+  const canonical = isLocale(locale) ? locale : normalizeLocale(locale);
+  return canonical ? INTL_TAGS[canonical] : INTL_TAGS.en;
+}
+
+/**
+ * True for CJK locales, whose typography sets a unit or weekday directly
+ * against its number with no separating space (`火15:23`, `1時間30分`).
+ * Everything else keeps the space (`Tue 15:23`, `1h 30m`).
+ */
+export function isTightScript(locale: string | null | undefined): boolean {
+  if (!locale) return false;
+  const primary = String(locale).trim().toLowerCase().split(/[-_]/)[0];
+  // Korean is deliberately absent: its orthography spaces words, so a Korean
+  // stat reads `화 15:23` / `9시간 36분`, not the Chinese/Japanese tight form.
+  return primary === "zh" || primary === "ja";
 }
 
 type BootWindow = {

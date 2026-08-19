@@ -1,5 +1,6 @@
 /** Re-export barrel — catalog lives in `./messages/`. */
 export {
+  LOCALES,
   en,
   isLocale,
   messages,

@@ -102,6 +102,11 @@ fn clean_llm_title(raw: &str) -> Option<String> {
 }
 
 /// Prompt for the headless title LLM, matching the app UI locale.
+///
+/// The four locales that shipped first keep their hand-written native prompts —
+/// they are tuned and covered by tests. Every locale added since gets a generic
+/// English-instruction prompt that names the target language, which the title
+/// model follows reliably and which needs no re-tuning per language.
 fn title_prompt(snippet: &str, locale: Locale) -> String {
     match locale {
         Locale::En => format!(
@@ -116,6 +121,12 @@ fn title_prompt(snippet: &str, locale: Locale) -> String {
         Locale::ZhTw => format!(
             "為下面這則使用者訊息起一個簡短對話標題。要求：最多16個漢字或8個英文單詞；只輸出標題；不要引號、標點前綴、解釋。\n\n使用者訊息：\n{snippet}"
         ),
+        other => {
+            let language = other.english_name();
+            format!(
+                "Write a short session title in {language} for the user message below.\nRequirements: at most 8 words; write the title in {language}; output the title only; no quotes, prefixes, or explanation.\n\nUser message:\n{snippet}"
+            )
+        }
     }
 }
 
@@ -311,5 +322,25 @@ mod tests {
         assert!(zhtw.contains("list open prs"));
         assert!(!zhtw.contains("为下面这条用户消息"));
         assert!(!zhtw.contains("User message:"));
+    }
+
+    #[test]
+    fn title_prompt_names_the_target_language_for_added_locales() {
+        for (locale, language) in [
+            (Locale::Ja, "Japanese"),
+            (Locale::Ko, "Korean"),
+            (Locale::De, "German"),
+            (Locale::PtBr, "Brazilian Portuguese"),
+            (Locale::Ta, "Tamil"),
+        ] {
+            let p = title_prompt("list open prs", locale);
+            assert!(
+                p.contains(language),
+                "{} prompt must name {language}",
+                locale.as_tag()
+            );
+            assert!(p.contains("list open prs"), "{} keeps the snippet", locale.as_tag());
+            assert!(p.contains("User message:"), "{} keeps the anchor", locale.as_tag());
+        }
     }
 }

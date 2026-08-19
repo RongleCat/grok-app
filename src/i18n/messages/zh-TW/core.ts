@@ -292,4 +292,11 @@ export const zhTWCore = {
   "cliTrust.hint.mismatch": "已發佈校驗和與下載內容不一致，安裝已拒絕——校驗失敗時不可強制略過。",
   "cliTrust.hint.unverifiedAllowed": "在無已發佈校驗檔的情況下完成安裝（逃生開關或預設「缺校驗可裝」策略）。",
   "cliTrust.hint.unknown": "尚無 App 託管安裝的校驗記錄。手動或外部安裝不評級。",
+  "fileCard.file": "檔案",
+  "fileCard.docMd": "文件 · MD",
+  "fileCard.docWord": "文件 · Word",
+  "fileCard.sheetExcel": "試算表 · Excel",
+  "fileCard.codePython": "程式碼 · Python",
+  "fileCard.code": "程式碼 · {ext}",
+  "fileCard.fileExt": "檔案 · {ext}",
 };

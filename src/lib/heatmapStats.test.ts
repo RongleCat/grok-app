@@ -90,9 +90,24 @@ describe("cumulativeTokenSeries", () => {
 
 describe("formatStatDuration", () => {
   it("uses locale-aware hours and minutes", () => {
-    expect(formatStatDuration(34560, "zh")).toBe("9小时36分");
+    // Units come from CLDR narrow forms, so Chinese reads 小时/分钟 rather than
+    // the abbreviated 分 the old hand-written fork produced.
+    expect(formatStatDuration(34560, "zh")).toBe("9小时36分钟");
     expect(formatStatDuration(34560, "en")).toBe("9h 36m");
     expect(formatStatDuration(0, "zh")).toBe("—");
     expect(formatStatDuration(null)).toBe("—");
+  });
+
+  it("translates the units for every added locale", () => {
+    // Before the CLDR switch these all fell into the English branch.
+    expect(formatStatDuration(34560, "ja")).toBe("9時間36分");
+    expect(formatStatDuration(34560, "ko")).toBe("9시간 36분");
+    expect(formatStatDuration(90, "ja")).toBe("1分30秒");
+  });
+
+  it("joins CJK parts without a space and Latin parts with one", () => {
+    expect(formatStatDuration(34560, "ja")).not.toContain(" ");
+    expect(formatStatDuration(34560, "zh")).not.toContain(" ");
+    expect(formatStatDuration(34560, "de")).toContain(" ");
   });
 });

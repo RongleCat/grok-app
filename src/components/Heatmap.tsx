@@ -16,6 +16,7 @@ import { runAfterPaneSplitMotion } from "@/lib/paneSplitMotion";
 import { createPortal } from "react-dom";
 import type { HeatmapDay } from "@/lib/api";
 import { formatLocaleCount } from "@/lib/accountUi";
+import { intlLocale, isTightScript } from "@/i18n";
 import {
   dateInHeatRange,
   heatRangesEqual,
@@ -432,21 +433,38 @@ export function Heatmap({
     return Math.max(MIN_CELL, Math.min(MAX_CELL, size));
   }, [containerWidth, weekCount, useDayGrid]);
 
+  // 2023-01-01 was a Sunday — the anchor for weekday-name generation.
   const dayLabels = useMemo(() => {
-    if (locale === "zh" || locale === "zh-TW")
-      return ["日", "一", "二", "三", "四", "五", "六"];
-    return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    // CJK narrow weekdays are a single glyph (日 月 火 …), which is what this
+    // one-column gutter has room for. Latin narrow collapses to "S M T W T F S"
+    // with three ambiguous repeats, so those locales get the short form.
+    const style = isTightScript(locale) ? "narrow" : "short";
+    try {
+      const fmt = new Intl.DateTimeFormat(intlLocale(locale), {
+        weekday: style,
+      });
+      return Array.from({ length: 7 }, (_, i) =>
+        fmt.format(new Date(Date.UTC(2023, 0, 1 + i))),
+      );
+    } catch {
+      return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    }
   }, [locale]);
 
-  const monthName = (mm: string) => {
-    const idx = Number(mm) - 1;
-    if (locale === "zh" || locale === "zh-TW") return `${idx + 1}月`;
-    return (
-      ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][
-        idx
-      ] ?? mm
-    );
-  };
+  const monthName = useMemo(() => {
+    let fmt: Intl.DateTimeFormat | null = null;
+    try {
+      fmt = new Intl.DateTimeFormat(intlLocale(locale), { month: "short" });
+    } catch {
+      fmt = null;
+    }
+    return (mm: string) => {
+      const idx = Number(mm) - 1;
+      if (!Number.isInteger(idx) || idx < 0 || idx > 11) return mm;
+      // Short month renders as "Jan" / "1月" / "1월" / "янв." per locale.
+      return fmt ? fmt.format(new Date(Date.UTC(2023, idx, 1))) : mm;
+    };
+  }, [locale]);
 
   const emptyTitle = (() => {
     if (!emptyState) return labels.noData;

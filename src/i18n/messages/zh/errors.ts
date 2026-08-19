@@ -63,4 +63,6 @@ export const zhErrors = {
   "error.deck.generic.problem": "出了点问题",
   "error.deck.generic.cause": "可在 Doctor 查看 CLI/鉴权状态，然后重试上一步操作。",
   "error.needTauri": "需要在 Tauri 窗口中选择目录",
+  "error.streamFlap": "回复中途连接中断。应用会自动重试；若仍卡住请再发送一次。",
+  "error.requestFailedRetry": "请求失败，请重试。",
 };

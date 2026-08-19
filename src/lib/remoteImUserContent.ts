@@ -33,23 +33,38 @@ export function parseRemoteImUserContent(
   };
 }
 
-/** Human-readable channel label for the pill title. */
+/**
+ * Human-readable channel label for the pill title.
+ *
+ * These are product names, not UI copy: only the Chinese-market apps have an
+ * established local name, so Simplified Chinese gets it and every other locale
+ * gets the international brand. Traditional Chinese keeps the brand's own
+ * Traditional spelling where it differs.
+ */
 export function remoteImChannelLabel(channel: string, locale?: string): string {
   const c = channel.trim().toLowerCase();
-  const zh = !locale || locale.startsWith("zh");
-  const map: Record<string, [string, string]> = {
-    feishu: ["飞书", "Feishu"],
-    lark: ["Lark", "Lark"],
-    weixin: ["微信", "WeChat"],
-    wecom: ["企业微信", "WeCom"],
-    dingtalk: ["钉钉", "DingTalk"],
-    telegram: ["Telegram", "Telegram"],
-    discord: ["Discord", "Discord"],
-    slack: ["Slack", "Slack"],
-    qq: ["QQ", "QQ"],
-    qqbot: ["QQ 机器人", "QQ Bot"],
+  const v = (locale ?? "").trim().toLowerCase().replace(/_/g, "-");
+  const traditional =
+    v === "zh-tw" || v === "zh-hant" || v === "zh-hk" || v === "zh-mo";
+  // No locale means the caller has none to give — default to the brand names.
+  const simplified = v.startsWith("zh") && !traditional;
+
+  const map: Record<string, { hans?: string; hant?: string; intl: string }> = {
+    feishu: { hans: "飞书", hant: "飛書", intl: "Feishu" },
+    lark: { intl: "Lark" },
+    weixin: { hans: "微信", hant: "微信", intl: "WeChat" },
+    wecom: { hans: "企业微信", hant: "企業微信", intl: "WeCom" },
+    dingtalk: { hans: "钉钉", hant: "釘釘", intl: "DingTalk" },
+    telegram: { intl: "Telegram" },
+    discord: { intl: "Discord" },
+    slack: { intl: "Slack" },
+    qq: { intl: "QQ" },
+    qqbot: { hans: "QQ 机器人", hant: "QQ 機器人", intl: "QQ Bot" },
   };
-  const pair = map[c];
-  if (pair) return zh ? pair[0] : pair[1];
-  return channel;
+
+  const entry = map[c];
+  if (!entry) return channel;
+  if (simplified) return entry.hans ?? entry.intl;
+  if (traditional) return entry.hant ?? entry.intl;
+  return entry.intl;
 }

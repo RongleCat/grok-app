@@ -424,7 +424,7 @@ export const MarkdownChat = memo(function MarkdownChat({
         kind="file"
         line={line}
         column={column}
-        subtitle={fileSubtitle(tokenForCard, locale === "en" ? "en" : "zh")}
+        subtitle={fileSubtitle(tokenForCard, locale)}
         labels={fileLabels}
         onOpenError={onOpenError}
         onOpenInPanel={(t) => {

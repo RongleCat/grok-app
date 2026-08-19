@@ -7,9 +7,14 @@ import type {
 } from "./api";
 import type { SuperGrokBrandKind } from "@/components/SuperGrokMark";
 import {
+  ZH_HANS_UNITS,
+  ZH_HANT_UNITS,
   formatEnglishCompactCount,
-  usesChineseCountUnits,
+  formatMyriadCount,
+  isTraditionalChinese,
+  myriadUnitsFor,
 } from "./formatCompactCount";
+import { intlLocale, isTightScript } from "@/i18n";
 
 export function accountDisplayName(
   profile: AccountProfile,
@@ -205,59 +210,37 @@ export function formatCompactNumber(
   return formatLocaleCount(n, locale);
 }
 
-/** Strip trailing `.0` from one-decimal compact forms (`1.0万` → `1万`). */
-function trimTrailingDotZero(s: string): string {
-  return s.endsWith(".0") ? s.slice(0, -2) : s;
-}
-
 /**
  * Chinese compact count: 百 / 千 / 万·萬 / 亿·億 (not English k/M).
  * `zh-TW` uses 萬/億; simplified (default) uses 万/亿.
  * Bands: ≥1e8 亿, ≥1e4 万, ≥1e3 千, ≥100 百, else integer/1dp.
+ *
+ * Always formats in Chinese regardless of the id passed — callers that want
+ * per-locale behaviour use {@link formatLocaleCount} instead.
  */
 export function formatChineseCount(
   n: number | null | undefined,
   locale: string = "zh",
 ): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  const sign = n < 0 ? "-" : "";
-  const abs = Math.abs(n);
-  const whole = Math.round(abs);
-  const isTw =
-    locale === "zh-TW" ||
-    locale.toLowerCase() === "zh-hant" ||
-    locale.toLowerCase().startsWith("zh-hant");
-  const wan = isTw ? "萬" : "万";
-  const yi = isTw ? "億" : "亿";
-
-  if (whole >= 100_000_000) {
-    return `${sign}${trimTrailingDotZero((whole / 100_000_000).toFixed(1))}${yi}`;
-  }
-  if (whole >= 10_000) {
-    return `${sign}${trimTrailingDotZero((whole / 10_000).toFixed(1))}${wan}`;
-  }
-  if (whole >= 1_000) {
-    return `${sign}${trimTrailingDotZero((whole / 1_000).toFixed(1))}千`;
-  }
-  if (whole >= 100) {
-    return `${sign}${trimTrailingDotZero((whole / 100).toFixed(1))}百`;
-  }
-  if (Number.isInteger(abs) || Math.abs(abs - whole) < 1e-9) {
-    return `${sign}${whole}`;
-  }
-  return `${sign}${abs.toFixed(1)}`;
+  const units = isTraditionalChinese(locale) ? ZH_HANT_UNITS : ZH_HANS_UNITS;
+  return formatMyriadCount(n, units);
 }
 
-/** Locale-aware compact number: K/M/B for en, 百/千/万 for zh. */
+/**
+ * Locale-aware compact number: myriad units (百/千/万·萬 · 백/천/만) for the CJK
+ * locales that group by 10^4, K/M/B everywhere else.
+ */
 export function formatLocaleCount(
   n: number | null | undefined,
   locale: string = "zh",
 ): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  if (!usesChineseCountUnits(locale)) {
+  const units = myriadUnitsFor(locale);
+  if (!units) {
     return formatEnglishCompactCount(n);
   }
-  return formatChineseCount(n, locale);
+  return formatMyriadCount(n, units);
 }
 
 /** Local calendar day `YYYY-MM-DD` for an ISO timestamp (heatmap / call-log filter). */
@@ -285,7 +268,10 @@ export function formatDuration(secs: number | null | undefined): string {
   return rm ? `${h}h ${rm}m` : `${h}h`;
 }
 
-/** Compact message footer time, e.g. `星期二15:23` / `Tue 15:23`. */
+/**
+ * Compact message footer time, e.g. `星期二15:23` / `火15:23` / `Tue 15:23`.
+ * CJK weekday abbreviations butt against the clock with no separating space.
+ */
 export function formatMessageTime(
   iso: string | null | undefined,
   locale: string,
@@ -294,15 +280,14 @@ export function formatMessageTime(
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return "";
   const d = new Date(t);
-  const loc = locale === "zh" ? "zh-CN" : "en-US";
+  const loc = intlLocale(locale);
   const weekday = new Intl.DateTimeFormat(loc, { weekday: "short" }).format(d);
   const hm = new Intl.DateTimeFormat(loc, {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   }).format(d);
-  // zh often wants no space: 星期二15:23
-  return locale === "zh" ? `${weekday}${hm}` : `${weekday} ${hm}`;
+  return isTightScript(locale) ? `${weekday}${hm}` : `${weekday} ${hm}`;
 }
 
 export function formatRelativeTime(
@@ -313,7 +298,7 @@ export function formatRelativeTime(
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return "—";
   const diff = Date.now() - t;
-  const rtf = new Intl.RelativeTimeFormat(locale === "zh" ? "zh-CN" : "en", {
+  const rtf = new Intl.RelativeTimeFormat(intlLocale(locale), {
     numeric: "auto",
   });
   const sec = Math.round(diff / 1000);

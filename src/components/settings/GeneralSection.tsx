@@ -1952,8 +1952,21 @@ export function GeneralSection() {
                   onChange={onLocale}
                   options={[
                     { value: "system", label: t("settings.languageSystem") },
+                    // Endonyms — a language picker must be readable to someone
+                    // who cannot yet read the current UI language.
                     { value: "en", label: "English" },
+                    { value: "de", label: "Deutsch" },
+                    { value: "es", label: "Español" },
+                    { value: "fil", label: "Filipino" },
+                    { value: "fr", label: "Français" },
+                    { value: "id", label: "Bahasa Indonesia" },
+                    { value: "it", label: "Italiano" },
+                    { value: "pt-BR", label: "Português (Brasil)" },
                     { value: "ru", label: "Русский" },
+                    { value: "uk", label: "Українська" },
+                    { value: "ta", label: "தமிழ்" },
+                    { value: "ja", label: "日本語" },
+                    { value: "ko", label: "한국어" },
                     { value: "zh", label: "简体中文" },
                     { value: "zh-TW", label: "繁體中文" },
                   ]}

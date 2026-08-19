@@ -14,7 +14,7 @@ import {
   IconRefresh,
 } from "@/components/icons";
 import { GlassModal } from "@/components/GlassModal";
-import { createT, type Locale, type MessageKey } from "@/i18n";
+import { createT, intlLocale, type Locale, type MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
 import type { DoctorLevel, DoctorReport } from "@/lib/api";
 import {
@@ -188,7 +188,7 @@ function formatGeneratedAt(iso: string, locale: Locale): string {
   try {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleString(locale === "zh" || locale === "zh-TW" ? "zh-CN" : "en-US", {
+    return d.toLocaleString(intlLocale(locale), {
       dateStyle: "medium",
       timeStyle: "medium",
     });

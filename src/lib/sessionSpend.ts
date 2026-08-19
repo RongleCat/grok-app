@@ -8,6 +8,8 @@
  * double-counted with the matching `sessionUpdate: turn_completed`.
  */
 
+import { intlLocale } from "@/i18n";
+
 export type SessionSpend = {
   inputTokens: number;
   outputTokens: number;
@@ -249,7 +251,7 @@ export function formatExactTokenCount(
   const v = finiteNonNeg(n);
   if (v == null) return "—";
   try {
-    return v.toLocaleString(locale);
+    return v.toLocaleString(intlLocale(locale));
   } catch {
     return String(v);
   }
@@ -264,10 +266,8 @@ export function formatUsageResetTime(
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return "";
   const d = new Date(t);
-  const loc =
-    locale === "zh-TW" ? "zh-Hant" : locale === "zh" ? "zh-CN" : "en-US";
   try {
-    const date = new Intl.DateTimeFormat(loc, {
+    const date = new Intl.DateTimeFormat(intlLocale(locale), {
       month: "long",
       day: "numeric",
     }).format(d);

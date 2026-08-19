@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as api from "@/lib/api";
 import type { MemoryFileEntry, MemorySearchHit } from "@/lib/api";
-import { createT, type Locale, type MessageKey } from "@/i18n";
+import { createT, intlLocale, type Locale, type MessageKey } from "@/i18n";
 import { GlassModal } from "@/components/GlassModal";
 import {
   IconExternalLink,
@@ -61,7 +61,7 @@ function formatMtime(ms: number, locale: Locale): string {
   if (!ms) return "";
   try {
     return new Date(ms).toLocaleString(
-      locale === "zh" ? "zh-CN" : locale === "zh-TW" ? "zh-TW" : "en",
+      intlLocale(locale),
       { dateStyle: "medium", timeStyle: "short" },
     );
   } catch {

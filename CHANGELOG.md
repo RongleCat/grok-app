@@ -12,6 +12,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- **Fifteen UI locales with complete catalogs (#708)**: Settings and OS language detection include German, Spanish, Filipino, French, Indonesian, Italian, Japanese, Korean, Brazilian Portuguese, Tamil, and Ukrainian (plus existing English, Russian, Simplified and Traditional Chinese). Every new catalog has the full English key set. Japanese is nearly fully translated; the others cover chrome plus expanded surfaces (remaining deep settings stay English, like Russian). Dates, compact counts, heatmap labels, and tray/menu copy follow the locale instead of forking on Chinese-vs-English. Russian `tray.*` keys are filled. Latin and Sanskrit are not shipped.
 - **Interrupted turns after an app restart**: If the host process dies mid-turn, reopening the chat journals `turn_cancelled|host_exit` instead of looking finished. Continue sends a new prompt (with the unfinished command when known). Unclean host exits and Windows last-crash notes go into the session diagnostic zip.
 - **Pet stage bubbles, boot color, and peek-hide**: Chips pop only when an agent posts a mid-turn reply (not the session title). Concurrent chats stack instead of overwriting. The overlay boots in the saved color. Settings add auto-hide seconds (default 15), an optional progress bar (off — spinner/check is enough), and bubble shape/background presets. Single-click opens the window; double-click hides it; a second click within 3s of opening also hides (quick peek).
 - **File preview refresh (#711)**: The files toolbar can re-read the open file from disk after the agent edits it. Unsaved drafts keep the button disabled so a refresh cannot wipe the editor.
@@ -22,6 +23,7 @@ See `docs/llm-wiki/release.md`.
 - **Attach another chat as context**: `/attach-chat`, composer `+`, sidebar attach icon, or right-click **Attach to current chat** picks a local conversation; chips sit on the composer; the journal stores `[[chat:id]]` tokens; the host prefixes a compact transcript for the agent only (max 3; source chat unchanged). Row-body drag still moves the chat between projects.
 
 **中文 · 新增**
+- **十五种界面语言，词条补全（#708）**：设置和系统语言可识别德、西、菲、法、印尼、意、日、韩、巴西葡、泰米尔、乌克兰（加上原有的英、俄、简中、繁中）。新语言都有完整 key 集。日语接近全译；其余覆盖主界面并扩展了设置（深层仍可回落英文，和俄语一样）。日期、数字、热力图、托盘/菜单跟界面语言走，不再按「中文或英语」二分。补上俄语 `tray.*`。不收录拉丁语和梵语。
 - **应用重启后的中断回合**：宿主进程中途死掉再打开会话，会记 `turn_cancelled|host_exit`，不再看起来像做完了。芯片上的「继续」发新 prompt（有未跑完的命令会带上）。非干净退出和 Windows 崩溃摘要会进会话诊断包。
 - **宠物阶段性气泡、启动色、点一下就藏**：气泡只在 Agent 写出阶段性回复时弹出（不再只显示会话标题）；不同会话往上叠加、互不覆盖。启动即用已保存的自定义颜色。设置里可调自动关闭秒数（默认 15）、可选进度条（默认关，左边旋转/打钩即可），以及气泡形状和背景。单击打开窗口，双击隐藏；打开后 3 秒内再点一次也会藏（看一眼就收）。
 - **文件预览可刷新（#711）**：文件工具栏能从磁盘重新读取当前打开的文件，agent 改完不必关 tab。有未保存草稿时按钮禁用，避免冲掉编辑。

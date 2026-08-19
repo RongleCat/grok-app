@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createT, type Locale, type MessageKey } from "@/i18n";
+import { createT, intlLocale, type Locale, type MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
 import {
   DEFAULT_MAX_CONCURRENT_AGENTS,
@@ -46,7 +46,7 @@ function formatWhen(ms: number, locale: Locale): string {
     const d = new Date(ms);
     if (Number.isNaN(d.getTime())) return "";
     return d.toLocaleString(
-      locale === "zh" || locale === "zh-TW" ? "zh-CN" : "en-US",
+      intlLocale(locale),
       { dateStyle: "short", timeStyle: "short" },
     );
   } catch {
