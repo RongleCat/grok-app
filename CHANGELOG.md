@@ -12,12 +12,14 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- **File preview refresh (#711)**: The files toolbar can re-read the open file from disk after the agent edits it. Unsaved drafts keep the button disabled so a refresh cannot wipe the editor.
 - **Type-to-focus composer (#704)**: With the chat in the foreground, typing while focus is not in an input focuses the composer and inserts the character. IME composition, sidebar j/k, terminals/editors, overlays, and Space-on-button are left alone.
 - **Double-click a sidebar chat to rename (#702)**: Project and Other-session rows edit the title in place. Enter / blur save when the name changed; Escape cancels. F2 on a focused row does the same. Right-click Rename still uses the existing prompt. Multi-select does not start rename.
 - **Pet eye color, white body, and celebrate spin**: Settings → Pet can pick eyes independently of the body (body palette + Auto). White stays pale in both themes. The mark spins when a focused task finishes, or from the pet menu.
 - **Pet task bubbles can be turned off (#696)**: Settings → Pet and the pet context menu can hide the session chips above the mark. The overlay shrinks when they are off.
 
 **中文 · 新增**
+- **文件预览可刷新（#711）**：文件工具栏能从磁盘重新读取当前打开的文件，agent 改完不必关 tab。有未保存草稿时按钮禁用，避免冲掉编辑。
 - **打字自动聚焦输入框（#704）**：对话在前台、光标不在输入框时，敲键盘会聚焦 composer 并写入该字符。中文输入法、侧栏 j/k、终端/编辑器、弹层、按钮上的空格不受影响。
 - **双击侧栏对话可重命名（#702）**：项目里和其他会话的行内直接改标题。Enter / 失焦在标题有改动时保存，Esc 取消。聚焦行按 F2 同样进入。右键「重命名」仍走原来的弹窗。多选模式不会进入重命名。
 - **宠物可改眼睛颜色、白色身体、完成转圈**：设置 → 宠物里眼睛和身体分开选（身体色板 + 自动）。白色在两种主题下都保持浅色。聚焦任务完成时（或右键菜单）会转圈。

@@ -19,6 +19,7 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconListTree,
+  IconRefresh,
   IconSearch,
 } from "@/components/icons";
 import { OpenLocationButton } from "@/components/OpenLocationButton";
@@ -49,6 +50,7 @@ import {
   mergeTreeExpandedForFilter,
   saveTreeExpanded,
 } from "@/lib/resourceTree";
+import { isResourceDraftDirty } from "@/lib/resourceEdit";
 import { pathBaseName } from "@/lib/sessionChanges";
 
 export type FilesWorkspaceProps = {
@@ -393,6 +395,16 @@ export function FilesWorkspace({
     return rel.replace(/\\/g, "/").split("/").filter(Boolean);
   }, [previewTab?.relativePath]);
 
+  const previewDirty = isResourceDraftDirty(
+    previewTab?.draftText,
+    previewTab?.baselineText,
+  );
+  const canReloadPreview =
+    !!previewTab &&
+    previewTab.tabKind !== "url" &&
+    !previewTab.loading &&
+    !previewDirty;
+
   if (!projectPath) {
     return (
       <div className="sw-files" data-testid="files-workspace">
@@ -437,6 +449,27 @@ export function FilesWorkspace({
           )}
         </div>
         <div className="rp-files-toolbar__actions">
+          <Tip
+            label={
+              previewDirty ? tr("resources.unsaved") : tr("resources.refresh")
+            }
+          >
+            <button
+              type="button"
+              className="chrome-btn"
+              aria-label={
+                previewDirty ? tr("resources.unsaved") : tr("resources.refresh")
+              }
+              data-testid="files-reload"
+              disabled={!canReloadPreview}
+              onClick={() => {
+                if (!canReloadPreview) return;
+                void reloadActiveFile();
+              }}
+            >
+              <IconRefresh size={16} />
+            </button>
+          </Tip>
           <Tip
             label={
               treeVisible
