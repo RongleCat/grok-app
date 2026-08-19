@@ -195,7 +195,9 @@ async fn custom_transcribe(
         return VoiceTranscribeResult {
             ok: false,
             text: None,
-            error: Some("custom STT base URL is empty — configure it under Settings → Voice".into()),
+            error: Some(
+                "custom STT base URL is empty — configure it under Settings → Voice".into(),
+            ),
             error_class: Some("not_available".into()),
         };
     }
@@ -349,7 +351,8 @@ async fn custom_transcribe(
             let (class, error) = if local {
                 (
                     "local_offline",
-                    "本地听写服务未运行或不可达，请先启动服务（见设置 → Voice 的本地指引）".to_string(),
+                    "本地听写服务未运行或不可达，请先启动服务（见设置 → Voice 的本地指引）"
+                        .to_string(),
                 )
             } else if e.is_timeout() {
                 ("timeout", format!("stt request: {e}"))
@@ -460,7 +463,6 @@ pub fn stt_provider_for_base_url(base_url: &str) -> &'static str {
     }
 }
 
-
 /// Convert a non-2xx STT response into a structured result (short body only —
 /// never echo full bodies that may contain secrets).
 fn finish_http_error(
@@ -478,9 +480,9 @@ fn finish_http_error(
     };
     let snippet: String = body.chars().take(160).collect();
     let error = match ctx {
-        SttErrorCtx::Custom { .. } if code == 401 || code == 403 => format!(
-            "自定义听写 API Key 无效或未填写，请到设置 → Voice 检查（HTTP {code}）"
-        ),
+        SttErrorCtx::Custom { .. } if code == 401 || code == 403 => {
+            format!("自定义听写 API Key 无效或未填写，请到设置 → Voice 检查（HTTP {code}）")
+        }
         SttErrorCtx::Official if code == 401 || code == 403 => {
             format!("stt HTTP {code}: {snippet}")
         }
@@ -856,10 +858,7 @@ mod tests {
             "unexpected field `language` is not supported",
             "language"
         ));
-        assert!(mentions_param(
-            "invalid parameter `model`",
-            "model"
-        ));
+        assert!(mentions_param("invalid parameter `model`", "model"));
         assert!(!mentions_param(
             r#"{"error":{"message":"model too slow"}}"#,
             "prompt"
@@ -869,12 +868,27 @@ mod tests {
 
     #[test]
     fn stt_provider_for_base_url_matches_presets() {
-        assert_eq!(stt_provider_for_base_url("http://127.0.0.1:8000/v1"), "local");
-        assert_eq!(stt_provider_for_base_url("https://api.groq.com/openai/v1"), "groq");
-        assert_eq!(stt_provider_for_base_url("https://api.openai.com/v1/"), "openai");
-        assert_eq!(stt_provider_for_base_url("https://api.mistral.ai/v1"), "mistral");
+        assert_eq!(
+            stt_provider_for_base_url("http://127.0.0.1:8000/v1"),
+            "local"
+        );
+        assert_eq!(
+            stt_provider_for_base_url("https://api.groq.com/openai/v1"),
+            "groq"
+        );
+        assert_eq!(
+            stt_provider_for_base_url("https://api.openai.com/v1/"),
+            "openai"
+        );
+        assert_eq!(
+            stt_provider_for_base_url("https://api.mistral.ai/v1"),
+            "mistral"
+        );
         assert_eq!(stt_provider_for_base_url(""), "custom");
-        assert_eq!(stt_provider_for_base_url("https://api.example.com/v1"), "custom");
+        assert_eq!(
+            stt_provider_for_base_url("https://api.example.com/v1"),
+            "custom"
+        );
     }
 
     #[test]
@@ -931,8 +945,14 @@ mod tests {
 
     #[test]
     fn resolve_zh_script_explicit_prefs_win() {
-        assert_eq!(resolve_zh_script("simplified", "zh-TW"), ZhScript::Simplified);
-        assert_eq!(resolve_zh_script("traditional", "en"), ZhScript::Traditional);
+        assert_eq!(
+            resolve_zh_script("simplified", "zh-TW"),
+            ZhScript::Simplified
+        );
+        assert_eq!(
+            resolve_zh_script("traditional", "en"),
+            ZhScript::Traditional
+        );
         assert_eq!(
             resolve_zh_script("Simplified", "zh-TW"),
             ZhScript::Simplified
@@ -980,7 +1000,10 @@ mod tests {
     /// text is asserted. Never runs in CI.
     #[tokio::test]
     async fn custom_transcribe_e2e_against_local_server() {
-        if std::env::var("GROK_APP_E2E_STT").map(|v| v != "1").unwrap_or(true) {
+        if std::env::var("GROK_APP_E2E_STT")
+            .map(|v| v != "1")
+            .unwrap_or(true)
+        {
             return;
         }
         let port = std::env::var("GROK_APP_E2E_STT_PORT").unwrap_or_else(|_| "8799".into());
@@ -994,18 +1017,24 @@ mod tests {
         };
         let audio = match &audio_path {
             Some(p) => {
-                let bytes = std::fs::read(p).expect("GROK_APP_E2E_STT_AUDIO must be a readable file");
+                let bytes =
+                    std::fs::read(p).expect("GROK_APP_E2E_STT_AUDIO must be a readable file");
                 base64::engine::general_purpose::STANDARD.encode(bytes)
             }
             None => base64::engine::general_purpose::STANDARD.encode(vec![7u8; 2048]),
         };
-        let r = custom_transcribe(&settings, audio, Some("audio.webm".into()), None, Some("zh-TW".into())).await;
+        let r = custom_transcribe(
+            &settings,
+            audio,
+            Some("audio.webm".into()),
+            None,
+            Some("zh-TW".into()),
+        )
+        .await;
         assert!(r.ok, "expected ok, got error={:?}", r.error);
         assert_eq!(r.error_class, None);
         if audio_path.is_none() {
             assert!(r.text.unwrap_or_default().contains("本地模拟"));
         }
     }
-
-
 }

@@ -1195,8 +1195,6 @@ export const GENERAL_ENTRIES: readonly SettingsEntry[] = [
       "whisper",
       "mistral",
       "voxtral",
-      "elevenlabs",
-      "scribe",
       "简体",
       "繁体",
       "繁体中文",

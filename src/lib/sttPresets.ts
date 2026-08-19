@@ -71,34 +71,6 @@ export function sttPresetById(id: string): SttProviderPreset | null {
   return STT_PROVIDER_PRESETS.find((p) => p.id === id) ?? null;
 }
 
-/** Approximate download sizes for the local whisper.cpp models (button copy). */
-export const LOCAL_MODEL_SIZES: Record<string, string> = {
-  tiny: "约 75 MB",
-  base: "约 140 MB",
-  small: "约 460 MB",
-  medium: "约 1.5 GB",
-  "large-v3": "约 3 GB",
-  "large-v3-turbo": "约 1.6 GB",
-};
-
-/** GGML file name a local model id downloads to / loads from. */
-export function localModelFileName(model: string): string {
-  const m = model.trim();
-  if (["tiny", "base", "small", "medium"].includes(m)) return `ggml-${m}.bin`;
-  if (m === "large-v3") return "ggml-large-v3.bin";
-  return "ggml-large-v3-turbo.bin";
-}
-
-/** The local model id actually in effect (dropdown default = first preset). */
-export function effectiveLocalModel(
-  selected: string | null | undefined,
-): string {
-  const preset = sttPresetById("local");
-  const models = preset?.models ?? [];
-  const s = (selected ?? "").trim();
-  return s && models.includes(s) ? s : (models[0] ?? "large-v3-turbo");
-}
-
 /** Normalize a Base URL for preset matching (trim + drop trailing slash). */
 export function normalizeSttBaseUrl(
   baseUrl: string | null | undefined,

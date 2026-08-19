@@ -2183,15 +2183,19 @@ export function GeneralSection() {
                             // the user actually typed a value. Clearing has a
                             // dedicated button (matches official key behavior).
                             if (!v) return;
-                            void api.secretsSet({
-                              sttCustomApiKey: v,
-                              sttCustomApiKeyProvider: matchSttPreset(
-                                sttCustomBaseUrl,
-                              ),
-                            });
-                            // Mirror official keys: after saving, empty the
-                            // field so the "saved" placeholder shows.
-                            setSttCustomApiKeyDraft("");
+                            const provider = matchSttPreset(sttCustomBaseUrl);
+                            void api
+                              .secretsSet({
+                                sttCustomApiKey: v,
+                                sttCustomApiKeyProvider: provider,
+                              })
+                              .then(() => {
+                                setSttCustomApiKeyDraft("");
+                                setSttCustomKeyPresence((prev) => ({
+                                  ...prev,
+                                  [provider]: true,
+                                }));
+                              });
                           }}
                           spellCheck={false}
                           autoComplete="off"
@@ -2214,13 +2218,21 @@ export function GeneralSection() {
                             type="button"
                             className="btn btn--ghost btn--sm"
                             onClick={() => {
-                              void api.secretsSet({
-                                sttCustomApiKey: "",
-                                sttCustomApiKeyProvider: matchSttPreset(
-                                  sttCustomBaseUrl,
-                                ),
-                              });
-                              setSttCustomApiKeyDraft("");
+                              const provider = matchSttPreset(
+                                sttCustomBaseUrl,
+                              );
+                              void api
+                                .secretsSet({
+                                  sttCustomApiKey: "",
+                                  sttCustomApiKeyProvider: provider,
+                                })
+                                .then(() => {
+                                  setSttCustomApiKeyDraft("");
+                                  setSttCustomKeyPresence((prev) => ({
+                                    ...prev,
+                                    [provider]: false,
+                                  }));
+                                });
                             }}
                           >
                             {t("settings.sttCustomApiKeyClear")}
