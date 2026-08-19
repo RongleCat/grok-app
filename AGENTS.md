@@ -28,7 +28,7 @@
 
 1c. **Open-source surface** — public docs: `README.md` / `README_EN.md`, `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`. Do not commit secrets, `auth.json`, or local agent homes.
 
-2. Do **not** hardcode user-facing English/Chinese. Use `createT(locale)` / `t()`.
+2. Do **not** hardcode user-facing copy in any language. Use `createT(locale)` / `t()`. Seventeen locales ship (`de` `en` `es` `fil` `fr` `id` `it` `ja` `ko` `la` `pt-BR` `ru` `sa` `ta` `uk` `zh` `zh-TW`); `en` is the key authority and every other catalog is English-backed. Never fork a date or number format on `locale === "zh"` — use `intlLocale()` / `isTightScript()`. See [i18n.md](docs/llm-wiki/i18n.md).
 
 2b. **Dialogs & overlays** — never use `window.confirm` / `window.prompt` / `window.alert` in Tauri UI. Use App `setAppDialog`, `GlassModal`, or the same in-app portal + modal/menu CSS. Prefer existing panel styles (`.cmm__pop`, solid context `.menu-panel`, `.modal`); frosted glass is **not** required. Details: [docs/llm-wiki/dialogs.md](docs/llm-wiki/dialogs.md).
 
