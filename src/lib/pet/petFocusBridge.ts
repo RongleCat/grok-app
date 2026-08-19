@@ -11,13 +11,24 @@ import {
   SESSION_UNREAD_CHANGE_EVENT,
 } from "@/lib/sessionUnread";
 import { resolvePetFocus, type PetFocus, type PetFocusSession } from "./petFocus";
-import { collectPetTasks, samePetTasks, type PetTask } from "./petTasks";
+import {
+  collectPetTasks,
+  mergeHeldPetTasks,
+  samePetTasks,
+  stripHeldPetTasks,
+  type HeldPetTask,
+  type PetTask,
+} from "./petTasks";
+import { PET_BUBBLE_DISMISS_DEFAULT } from "./petBubbleChrome";
+import { petStageSnippetStore } from "./petStageSnippets";
 
 export type PetFocusBridgeOpts = {
   isEnabled: () => boolean;
   getSessions: () => readonly PetFocusSession[];
   push: (focus: PetFocus) => void;
   pushTasks?: (tasks: PetTask[]) => void;
+  getSnippets?: () => Readonly<Record<string, string>>;
+  getDismissMs?: () => number;
 };
 
 export type PetFocusBridge = {
@@ -28,18 +39,53 @@ export type PetFocusBridge = {
 export function startPetFocusBridge(opts: PetFocusBridgeOpts): PetFocusBridge {
   let prev: PetFocus | null = null;
   let prevTasks: PetTask[] = [];
+  let held: HeldPetTask[] = [];
   let stopped = false;
+  let expireTimer: ReturnType<typeof setInterval> | null = null;
+
+  const dismissMs = () => {
+    const n = opts.getDismissMs?.();
+    return typeof n === "number" && n > 0 ? n : PET_BUBBLE_DISMISS_DEFAULT * 1000;
+  };
+
+  const stopExpire = () => {
+    if (expireTimer != null) {
+      clearInterval(expireTimer);
+      expireTimer = null;
+    }
+  };
 
   const tick = () => {
     if (stopped || !opts.isEnabled()) return;
+    const liveMap = sessionLiveMapStore.getMap();
+    for (const [id, snap] of Object.entries(liveMap)) {
+      if (snap?.startedAt && petStageSnippetStore.pruneStale(id, snap.startedAt)) {
+        held = held.filter((h) => h.sessionId !== id);
+      }
+    }
     const input = {
-      liveMap: sessionLiveMapStore.getMap(),
+      liveMap,
       unreadIds: loadUnreadSessionIds(),
       finishedTurns: getFinishedTurns(),
       sessions: opts.getSessions(),
+      snippets: opts.getSnippets?.() ?? petStageSnippetStore.getMap(),
     };
     const next = resolvePetFocus(prev, input);
-    const tasks = collectPetTasks(input);
+    const live = collectPetTasks(input);
+    held = mergeHeldPetTasks({
+      held,
+      live,
+      now: Date.now(),
+      dismissMs: dismissMs(),
+    });
+    if (held.some((h) => h.expireAt != null)) {
+      if (expireTimer == null) {
+        expireTimer = setInterval(() => tick(), 500);
+      }
+    } else {
+      stopExpire();
+    }
+    const tasks = stripHeldPetTasks(held);
     if (opts.pushTasks && !samePetTasks(prevTasks, tasks)) {
       prevTasks = tasks;
       opts.pushTasks(tasks);
@@ -70,6 +116,7 @@ export function startPetFocusBridge(opts: PetFocusBridgeOpts): PetFocusBridge {
     stop() {
       if (stopped) return;
       stopped = true;
+      stopExpire();
       unsubMap();
       unsubFin();
       if (

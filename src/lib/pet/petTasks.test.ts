@@ -3,6 +3,7 @@ import { emptyLiveSnapshot, type SessionLiveMap } from "@/lib/sessionLiveStore";
 import type { PetFocusInput } from "./petFocus";
 import {
   collectPetTasks,
+  mergeHeldPetTasks,
   PET_BUBBLE_SHADOW_PAD,
   PET_BUBBLE_VISIBLE,
   PET_TASK_LIMIT,
@@ -37,13 +38,17 @@ function input(partial: Partial<PetFocusInput> & { liveMap: SessionLiveMap }): P
 }
 
 describe("collectPetTasks", () => {
-  it("emits a bubble only for truly working sessions", () => {
+  it("emits a bubble only when a working session has a stage reply", () => {
     const liveMap: SessionLiveMap = {
       a: snap("a", { state: "streaming", liveToolTitle: "npm test", updatedAt: 9_000 }),
       b: snap("b", { state: "connecting", updatedAt: 8_000 }),
+      c: snap("c", { state: "streaming", updatedAt: 8_500 }),
     };
-    const tasks = collectPetTasks(input({ liveMap }));
+    const tasks = collectPetTasks(
+      input({ liveMap, snippets: { a: "Running the suite." } }),
+    );
     expect(tasks.map((t) => t.sessionId)).toEqual(["a"]);
+    expect(tasks[0]?.snippet).toBe("Running the suite.");
     expect(tasks[0]?.phase).toBe("active");
     expect(tasks[0]?.progress).toBeGreaterThan(0);
     expect(tasks[0]?.progress).toBeLessThan(1);
@@ -56,7 +61,7 @@ describe("collectPetTasks", () => {
     expect(collectPetTasks(input({ liveMap }))).toEqual([]);
   });
 
-  it("marks unread finished turns as completed", () => {
+  it("does not emit a title-only chip for unread finished turns", () => {
     const liveMap: SessionLiveMap = {
       done: snap("done", { state: "idle", updatedAt: 2_000 }),
     };
@@ -68,10 +73,7 @@ describe("collectPetTasks", () => {
         sessions: [{ id: "done", title: "Ship pet" }],
       }),
     );
-    expect(tasks).toHaveLength(1);
-    expect(tasks[0]?.phase).toBe("done");
-    expect(tasks[0]?.progress).toBe(1);
-    expect(tasks[0]?.title).toBe("Ship pet");
+    expect(tasks).toEqual([]);
   });
 
   it("omits idle / read sessions", () => {
@@ -81,28 +83,26 @@ describe("collectPetTasks", () => {
     expect(collectPetTasks(input({ liveMap }))).toEqual([]);
   });
 
-  it("keeps a completed bubble until unread is cleared", () => {
+  it("stacks distinct stage replies from concurrent sessions", () => {
     const liveMap: SessionLiveMap = {
-      done: snap("done", { state: "idle", updatedAt: 2_000 }),
+      a: snap("a", { state: "streaming", updatedAt: 9_000 }),
+      b: snap("b", { state: "streaming", updatedAt: 8_000 }),
     };
-    const unread = collectPetTasks(
+    const tasks = collectPetTasks(
       input({
         liveMap,
-        unreadIds: new Set(["done"]),
-        finishedTurns: { done: 8_000 },
+        snippets: { a: "Editing App.tsx", b: "Running cargo test" },
+        sessions: [
+          { id: "a", title: "Chat A" },
+          { id: "b", title: "Chat B" },
+        ],
       }),
     );
-    expect(unread).toHaveLength(1);
-    expect(unread[0]?.phase).toBe("done");
-    expect(
-      collectPetTasks(
-        input({
-          liveMap,
-          unreadIds: new Set(),
-          finishedTurns: { done: 8_000 },
-        }),
-      ),
-    ).toEqual([]);
+    expect(tasks).toHaveLength(2);
+    expect(tasks.map((t) => t.snippet).sort()).toEqual([
+      "Editing App.tsx",
+      "Running cargo test",
+    ]);
   });
 
   it("collects more than the visible viewport and prefers unread-complete", () => {
@@ -115,9 +115,16 @@ describe("collectPetTasks", () => {
       w3: snap("w3", { state: "streaming", updatedAt: 3 }),
       w4: snap("w4", { state: "streaming", updatedAt: 2 }),
     };
+    const snippets: Record<string, string> = {
+      w1: "one",
+      w2: "two",
+      w3: "three",
+      w4: "four",
+    };
     const tasks = collectPetTasks(
       input({
         liveMap,
+        snippets,
         unreadIds: new Set(["d"]),
         finishedTurns: { d: 9 },
         sessions: [
@@ -133,9 +140,8 @@ describe("collectPetTasks", () => {
       }),
     );
     expect(tasks.length).toBeGreaterThan(PET_BUBBLE_VISIBLE);
-    expect(tasks).toHaveLength(5);
+    expect(tasks).toHaveLength(4);
     expect(tasks.map((t) => t.kind)).toEqual([
-      "ready",
       "working",
       "working",
       "working",
@@ -149,12 +155,14 @@ describe("collectPetTasks", () => {
   it("caps the collected list well above the visible viewport", () => {
     const liveMap: SessionLiveMap = {};
     const sessions: { id: string; title: string }[] = [];
+    const snippets: Record<string, string> = {};
     for (let i = 0; i < PET_TASK_LIMIT + 4; i++) {
       const id = `w${i}`;
       liveMap[id] = snap(id, { state: "streaming", updatedAt: 100 - i });
       sessions.push({ id, title: id });
+      snippets[id] = `stage ${i}`;
     }
-    const tasks = collectPetTasks(input({ liveMap, sessions }));
+    const tasks = collectPetTasks(input({ liveMap, sessions, snippets }));
     expect(tasks).toHaveLength(PET_TASK_LIMIT);
   });
 });
@@ -177,10 +185,50 @@ describe("pet task helpers", () => {
     );
   });
 
+  it("holds finished chips until dismiss and keeps sessions stacked", () => {
+    const live = collectPetTasks(
+      input({
+        liveMap: {
+          a: snap("a", { state: "streaming", updatedAt: 9 }),
+          b: snap("b", { state: "streaming", updatedAt: 8 }),
+        },
+        snippets: { a: "Alpha", b: "Beta" },
+      }),
+    );
+    const held = mergeHeldPetTasks({
+      held: [],
+      live,
+      now: 10_000,
+      dismissMs: 15_000,
+    });
+    expect(held).toHaveLength(2);
+    expect(held.every((h) => h.expireAt == null)).toBe(true);
+
+    const afterA = mergeHeldPetTasks({
+      held,
+      live: live.filter((t) => t.sessionId === "b"),
+      now: 11_000,
+      dismissMs: 15_000,
+    });
+    expect(afterA.map((t) => t.sessionId).sort()).toEqual(["a", "b"]);
+    expect(afterA.find((t) => t.sessionId === "a")?.phase).toBe("done");
+    expect(afterA.find((t) => t.sessionId === "a")?.expireAt).toBe(26_000);
+    expect(afterA.find((t) => t.sessionId === "b")?.expireAt).toBeNull();
+
+    const expired = mergeHeldPetTasks({
+      held: afterA,
+      live: [],
+      now: 26_000,
+      dismissMs: 15_000,
+    });
+    expect(expired.map((t) => t.sessionId)).toEqual(["b"]);
+  });
+
   it("samePetTasks ignores progress jitter", () => {
     const a = collectPetTasks(
       input({
         liveMap: { a: snap("a", { state: "streaming", updatedAt: 1 }) },
+        snippets: { a: "Working on it." },
       }),
     );
     const b = a.map((t) => ({ ...t, progress: 0.9, updatedAt: 99 }));

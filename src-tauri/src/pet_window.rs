@@ -36,7 +36,26 @@ static WANT_SHOW: AtomicBool = AtomicBool::new(false);
 static CACHED_SIZE_PX: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(128);
 static SHOW_LOCK: Mutex<()> = Mutex::new(());
 
-const PET_INIT_SCRIPT: &str = r#"(function(){try{document.documentElement.setAttribute("data-pet-shell","1");var s=document.createElement("style");s.setAttribute("data-pet-boot","1");s.textContent="html,html[data-theme],body,#root,.boot-gate{background:transparent!important;background-image:none!important;background-color:transparent!important;} .boot-gate{display:none!important;visibility:hidden!important;opacity:0!important;}";document.documentElement.appendChild(s);}catch(e){}})();"#;
+const PET_INIT_SCRIPT_PREFIX: &str = r#"(function(){try{document.documentElement.setAttribute("data-pet-shell","1");var s=document.createElement("style");s.setAttribute("data-pet-boot","1");s.textContent="html,html[data-theme],body,#root,.boot-gate{background:transparent!important;background-image:none!important;background-color:transparent!important;} .boot-gate{display:none!important;visibility:hidden!important;opacity:0!important;}";document.documentElement.appendChild(s);"#;
+
+fn pet_init_script(prefs: &PetPrefs) -> String {
+    let boot = serde_json::json!({
+        "shape": prefs.shape,
+        "color": prefs.color,
+        "eyeColor": prefs.eye_color,
+        "sizePx": prefs.size_px,
+        "bubblesEnabled": prefs.bubbles_enabled,
+        "progressBarEnabled": prefs.progress_bar_enabled,
+        "bubbleDismissSec": prefs.bubble_dismiss_sec,
+        "bubbleShape": prefs.bubble_shape,
+        "bubbleStyle": prefs.bubble_style,
+    });
+    format!(
+        "{prefix}window.__GROK_PET_BOOT__={boot};}}catch(e){{}}}})();",
+        prefix = PET_INIT_SCRIPT_PREFIX,
+        boot = boot
+    )
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +74,14 @@ pub struct PetPrefs {
     pub size_px: u32,
     #[serde(default = "default_bubbles")]
     pub bubbles_enabled: bool,
+    #[serde(default)]
+    pub progress_bar_enabled: bool,
+    #[serde(default = "default_dismiss")]
+    pub bubble_dismiss_sec: u32,
+    #[serde(default = "default_bubble_shape")]
+    pub bubble_shape: String,
+    #[serde(default = "default_bubble_style")]
+    pub bubble_style: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -76,6 +103,15 @@ fn default_size() -> u32 {
 fn default_bubbles() -> bool {
     true
 }
+fn default_dismiss() -> u32 {
+    15
+}
+fn default_bubble_shape() -> String {
+    "round".into()
+}
+fn default_bubble_style() -> String {
+    "ink".into()
+}
 
 impl Default for PetPrefs {
     fn default() -> Self {
@@ -87,6 +123,10 @@ impl Default for PetPrefs {
             eye_color: default_eye_color(),
             size_px: default_size(),
             bubbles_enabled: default_bubbles(),
+            progress_bar_enabled: false,
+            bubble_dismiss_sec: default_dismiss(),
+            bubble_shape: default_bubble_shape(),
+            bubble_style: default_bubble_style(),
             x: None,
             y: None,
         }
@@ -119,6 +159,8 @@ pub struct PetTaskPayload {
     pub session_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snippet: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_title: Option<String>,
     #[serde(default)]
@@ -247,6 +289,15 @@ fn normalize_prefs(mut p: PetPrefs) -> PetPrefs {
     } else {
         128
     };
+    let bubble_shapes = ["round", "pill", "card", "ticket", "cloud", "slash"];
+    if !bubble_shapes.contains(&p.bubble_shape.as_str()) {
+        p.bubble_shape = default_bubble_shape();
+    }
+    let bubble_styles = ["ink", "glass", "solid", "paper", "outline", "accent"];
+    if !bubble_styles.contains(&p.bubble_style.as_str()) {
+        p.bubble_style = default_bubble_style();
+    }
+    p.bubble_dismiss_sec = p.bubble_dismiss_sec.clamp(3, 120);
     p
 }
 
@@ -697,7 +748,7 @@ pub fn ensure_pet_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String
     .focusable(pet_overlay_focusable(cfg!(target_os = "linux")))
     .shadow(false)
     .accept_first_mouse(true)
-    .initialization_script(PET_INIT_SCRIPT)
+    .initialization_script(pet_init_script(&prefs))
     .on_page_load(|win, payload| {
         if payload.event() != PageLoadEvent::Finished {
             return;
@@ -1097,6 +1148,11 @@ pub fn pet_show_main(app: AppHandle) {
 }
 
 #[tauri::command]
+pub fn pet_hide_main(app: AppHandle) {
+    crate::tray::hide_to_tray(&app);
+}
+
+#[tauri::command]
 pub fn pet_push_tasks(app: AppHandle, tasks: Vec<PetTaskPayload>) -> Result<(), String> {
     if let Ok(mut g) = LAST_TASKS.lock() {
         *g = tasks.clone();
@@ -1141,10 +1197,26 @@ mod tests {
 
     #[test]
     fn pet_init_script_hides_boot_gate() {
-        assert!(PET_INIT_SCRIPT.contains("data-pet-shell"));
-        assert!(PET_INIT_SCRIPT.contains("boot-gate"));
-        assert!(PET_INIT_SCRIPT.contains("transparent"));
-        assert!(PET_INIT_SCRIPT.contains("display:none"));
+        let script = pet_init_script(&PetPrefs::default());
+        assert!(script.contains("data-pet-shell"));
+        assert!(script.contains("boot-gate"));
+        assert!(script.contains("transparent"));
+        assert!(script.contains("display:none"));
+        assert!(script.contains("__GROK_PET_BOOT__"));
+        assert!(script.contains("green"));
+    }
+
+    #[test]
+    fn pet_init_script_embeds_saved_color() {
+        let prefs = PetPrefs {
+            color: "violet".into(),
+            shape: "cloud".into(),
+            ..Default::default()
+        };
+        let script = pet_init_script(&normalize_prefs(prefs));
+        assert!(script.contains("violet"));
+        assert!(script.contains("cloud"));
+        assert!(script.contains("__GROK_PET_BOOT__"));
     }
 
     #[test]
@@ -1186,6 +1258,16 @@ mod tests {
             ..Default::default()
         });
         assert_eq!(leaf.shape, "leaf");
+        let bubbles = normalize_prefs(PetPrefs {
+            bubble_shape: "nope".into(),
+            bubble_style: "neon".into(),
+            bubble_dismiss_sec: 1,
+            ..Default::default()
+        });
+        assert_eq!(bubbles.bubble_shape, "round");
+        assert_eq!(bubbles.bubble_style, "ink");
+        assert_eq!(bubbles.bubble_dismiss_sec, 3);
+        assert!(!bubbles.progress_bar_enabled);
     }
 
     #[test]

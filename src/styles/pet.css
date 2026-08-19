@@ -162,6 +162,88 @@ html[data-pet-shell] .boot-gate {
   -webkit-appearance: none;
 }
 
+.pet-bubble--round {
+  border-radius: 14px;
+}
+
+.pet-bubble--pill {
+  border-radius: 999px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.pet-bubble--card {
+  border-radius: 4px;
+}
+
+.pet-bubble--ticket {
+  border-radius: 8px;
+  clip-path: polygon(
+    0 8px,
+    8px 0,
+    calc(100% - 8px) 0,
+    100% 8px,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    8px 100%,
+    0 calc(100% - 8px)
+  );
+}
+
+.pet-bubble--cloud {
+  border-radius: 22px 28px 18px 26px;
+}
+
+.pet-bubble--slash {
+  border-radius: 4px 16px 4px 16px;
+}
+
+.pet-bubble--ink {
+  background: var(--bg-elevated, #1c1c1e);
+  color: var(--text-primary, #f4f4f5);
+}
+
+.pet-bubble--glass {
+  background: color-mix(in srgb, var(--bg-elevated, #1c1c1e) 58%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.pet-bubble--solid {
+  background: #141416;
+  color: #f4f4f5;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.pet-bubble--paper {
+  background: #f6f1e7;
+  color: #2a241c;
+  border-color: rgba(80, 60, 30, 0.18);
+  box-shadow: 0 8px 18px rgba(60, 40, 20, 0.16);
+}
+
+.pet-bubble--paper .pet-bubble__sub {
+  color: rgba(42, 36, 28, 0.62);
+}
+
+.pet-bubble--outline {
+  background: rgba(12, 12, 14, 0.42);
+  border: 1.5px solid color-mix(in srgb, var(--text-primary, #fff) 45%, transparent);
+  box-shadow: none;
+}
+
+.pet-bubble--accent {
+  background: color-mix(in srgb, var(--accent, #6b8cff) 22%, var(--bg-elevated, #1c1c1e));
+  border-color: color-mix(in srgb, var(--accent, #6b8cff) 45%, transparent);
+}
+
+.pet-bubble-preview {
+  width: 36px;
+  height: 22px;
+  display: block;
+  pointer-events: none;
+}
+
 .pet-bubble:hover {
   border-color: color-mix(in srgb, var(--accent, #6b8cff) 45%, var(--border-subtle, #333));
 }

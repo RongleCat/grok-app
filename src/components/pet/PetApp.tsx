@@ -8,6 +8,7 @@ import {
   petGetTasks,
   petPrefsGet,
   petWebviewReady,
+  readPetBootPrefs,
   PET_OVERLAY_POLICY_FULL,
   type PetOverlayPolicy,
   type PetPrefs,
@@ -42,15 +43,7 @@ function readLocale(): Locale {
 export function PetApp() {
   const [focus, setFocus] = useState<PetFocus>(IDLE);
   const [tasks, setTasks] = useState<PetTask[]>([]);
-  const [prefs, setPrefs] = useState<PetPrefs>({
-    enabled: true,
-    visible: true,
-    shape: "hex",
-    color: "green",
-    eyeColor: "auto",
-    bubblesEnabled: true,
-    sizePx: 128,
-  });
+  const [prefs, setPrefs] = useState<PetPrefs>(readPetBootPrefs);
   const [locale, setLocale] = useState<Locale>(readLocale);
   const [policy, setPolicy] = useState<PetOverlayPolicy>(PET_OVERLAY_POLICY_FULL);
 

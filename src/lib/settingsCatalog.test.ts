@@ -169,6 +169,10 @@ describe("settingsCatalog", () => {
     expect(eyeEn.some((h) => h.entry.section === "pet")).toBe(true);
     const bubbleHits = searchSettingsEntries("提示框", tZh, tEn);
     expect(bubbleHits.some((h) => h.entry.id === "pet.bubbles")).toBe(true);
+    const dismissHits = searchSettingsEntries("自动关闭", tZh, tEn);
+    expect(dismissHits.some((h) => h.entry.id === "pet.bubbleDismiss")).toBe(true);
+    const lookHits = searchSettingsEntries("气泡形状", tZh, tEn);
+    expect(lookHits.some((h) => h.entry.id === "pet.bubbleLook")).toBe(true);
   });
 
   it("keywordKeysForSection includes appearance prefs and remote control", () => {

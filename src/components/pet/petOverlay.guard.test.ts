@@ -19,6 +19,13 @@ describe("PetOverlay drag hit target", () => {
     expect(src).toContain("bubblesEnabled");
   });
 
+  it("opens on click, hides on double-click or a peek click within 3s", () => {
+    expect(src).toContain("petMarkClickIntent");
+    expect(src).toContain("petHideMain");
+    expect(src).toContain("PET_DBLCLICK_MS");
+    expect(src).toContain("openedAtRef");
+  });
+
   it("keeps celebrate spin after drag and bubble changes", () => {
     expect(src).toContain("spinSignal");
     expect(src).toContain("shouldTriggerPetSpin");

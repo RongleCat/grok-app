@@ -26,4 +26,14 @@ describe("PetSection visibility switch", () => {
     expect(src).toContain("settings.pet.bubbles");
     expect(src).toContain("bubblesEnabled");
   });
+
+  it("lets the user pick dismiss seconds, progress bar, and bubble look", () => {
+    expect(src).toContain("settings.pet.bubbleDismiss");
+    expect(src).toContain("bubbleDismissSec");
+    expect(src).toContain("settings.pet.progressBar");
+    expect(src).toContain("progressBarEnabled");
+    expect(src).toContain("settings.pet.bubbleLook");
+    expect(src).toContain("PET_BUBBLE_SHAPES");
+    expect(src).toContain("PET_BUBBLE_STYLES");
+  });
 });

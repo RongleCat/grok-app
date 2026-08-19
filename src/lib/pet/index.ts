@@ -27,14 +27,45 @@ export {
   PET_TASK_LIMIT,
   collectPetTasks,
   isPetTaskBubbleKind,
+  mergeHeldPetTasks,
   petBubbleStackHeight,
   petBubbleViewportHeight,
   petTaskPhase,
   petTaskProgress,
   samePetTasks,
+  stripHeldPetTasks,
+  type HeldPetTask,
   type PetTask,
   type PetTaskPhase,
 } from "./petTasks";
+
+export {
+  PET_BUBBLE_DISMISS_DEFAULT,
+  PET_BUBBLE_DISMISS_MAX,
+  PET_BUBBLE_DISMISS_MIN,
+  PET_BUBBLE_SHAPES,
+  PET_BUBBLE_STYLES,
+  isPetBubbleShape,
+  isPetBubbleStyle,
+  normalizePetBubbleDismissSec,
+  normalizePetBubbleShape,
+  normalizePetBubbleStyle,
+  petBubbleDismissMs,
+  petProgressBarEnabled,
+  type PetBubbleShape,
+  type PetBubbleStyle,
+} from "./petBubbleChrome";
+
+export {
+  PET_DBLCLICK_MS,
+  PET_PEEK_HIDE_MS,
+  petMarkClickIntent,
+} from "./petClick";
+
+export {
+  petStageSnippetStore,
+  type PetStageStreamChunk,
+} from "./petStageSnippets";
 
 export {
   PET_BUBBLE_EDGE_PAD,

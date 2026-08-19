@@ -18,6 +18,11 @@ import {
   petBubbleViewportHeight,
   petBubblesEnabled,
   petDoneTaskIds,
+  PET_DBLCLICK_MS,
+  normalizePetBubbleShape,
+  normalizePetBubbleStyle,
+  petMarkClickIntent,
+  petProgressBarEnabled,
   petDragPassedSlop,
   petOverlayExtent,
   petOverlayWidth,
@@ -43,6 +48,7 @@ import {
   petSetHitChrome,
   petSetIgnoreCursor,
   petSetMenuOpen,
+  petHideMain,
   petShowMain,
   petStartDragging,
   petSyncOverlaySize,
@@ -53,7 +59,6 @@ import type { PetPrefs } from "@/lib/api/pet";
 
 export { petSettingsHash };
 
-const DBLCLICK_MS = 280;
 const MENU_W = 148;
 const MENU_H = 188;
 
@@ -77,6 +82,9 @@ export function PetOverlay({
   const verb = petVerbFor(focus.kind, focus.toolTitle);
   const sizePx = prefs.sizePx || 128;
   const bubblesOn = petBubblesEnabled(prefs);
+  const bubbleShape = normalizePetBubbleShape(prefs.bubbleShape);
+  const bubbleStyle = normalizePetBubbleStyle(prefs.bubbleStyle);
+  const progressBar = petProgressBarEnabled(prefs);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const menuOpen = menu != null;
   const [dragging, setDragging] = useState(false);
@@ -102,6 +110,7 @@ export function PetOverlay({
     expanded: !hugMark,
   });
   const pendingClickRef = useRef<number | null>(null);
+  const openedAtRef = useRef<number | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const markRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
@@ -381,10 +390,18 @@ export function PetOverlay({
       if (moved) return;
       if (!start) return;
       if (petDragPassedSlop(e.screenX - start.x, e.screenY - start.y)) return;
-      if (pendingClickRef.current != null) {
-        window.clearTimeout(pendingClickRef.current);
-        pendingClickRef.current = null;
-        void petShowMain();
+      const intent = petMarkClickIntent({
+        pendingSingle: pendingClickRef.current != null,
+        openedAt: openedAtRef.current,
+        now: Date.now(),
+      });
+      if (intent === "hide-double" || intent === "hide-peek") {
+        if (pendingClickRef.current != null) {
+          window.clearTimeout(pendingClickRef.current);
+          pendingClickRef.current = null;
+        }
+        openedAtRef.current = null;
+        void petHideMain();
         return;
       }
       pendingClickRef.current = window.setTimeout(() => {
@@ -392,7 +409,8 @@ export function PetOverlay({
         setEmoteSignal((n) => n + 1);
         if (focus.sessionId) void petFocusSession(focus.sessionId);
         else void petShowMain();
-      }, DBLCLICK_MS);
+        openedAtRef.current = Date.now();
+      }, PET_DBLCLICK_MS);
     },
     [finishDrag, focus.sessionId],
   );
@@ -426,6 +444,9 @@ export function PetOverlay({
             t={t}
             onOpen={openTask}
             listRef={stackRef}
+            bubbleShape={bubbleShape}
+            bubbleStyle={bubbleStyle}
+            progressBar={progressBar}
           />
         </div>
       ) : null}

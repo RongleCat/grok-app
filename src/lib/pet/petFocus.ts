@@ -42,6 +42,8 @@ export type PetFocusInput = {
   unreadIds: ReadonlySet<string>;
   finishedTurns: Readonly<Record<string, number>>;
   sessions: readonly PetFocusSession[];
+  /** Latest assistant stage reply per session (pet chips only). */
+  snippets?: Readonly<Record<string, string>>;
   now?: number;
 };
 

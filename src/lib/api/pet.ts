@@ -2,7 +2,13 @@
 
 import { invoke, isDesktopHost } from "./host";
 import {
+  PET_BUBBLE_DISMISS_DEFAULT,
   PET_BUBBLE_WIDTH,
+  isPetColor,
+  isPetShape,
+  normalizePetBubbleDismissSec,
+  normalizePetBubbleShape,
+  normalizePetBubbleStyle,
   petBubbleOffsetX,
   type PetFocus,
   type PetKind,
@@ -17,10 +23,54 @@ export type PetPrefs = {
   color: string;
   eyeColor?: string;
   bubblesEnabled?: boolean;
+  progressBarEnabled?: boolean;
+  bubbleDismissSec?: number;
+  bubbleShape?: string;
+  bubbleStyle?: string;
   sizePx: number;
   x?: number | null;
   y?: number | null;
 };
+
+export const PET_PREFS_FALLBACK: PetPrefs = {
+  enabled: false,
+  visible: false,
+  shape: "hex",
+  color: "green",
+  eyeColor: "auto",
+  bubblesEnabled: true,
+  progressBarEnabled: false,
+  bubbleDismissSec: PET_BUBBLE_DISMISS_DEFAULT,
+  bubbleShape: "round",
+  bubbleStyle: "ink",
+  sizePx: 128,
+};
+
+type PetBootGlobals = {
+  __GROK_PET_BOOT__?: Partial<PetPrefs>;
+};
+
+/** First-paint prefs from the overlay init script (saved color, no green flash). */
+export function readPetBootPrefs(): PetPrefs {
+  const fallback: PetPrefs = {
+    ...PET_PREFS_FALLBACK,
+    enabled: true,
+    visible: true,
+  };
+  if (typeof window === "undefined") return fallback;
+  const raw = (window as unknown as PetBootGlobals).__GROK_PET_BOOT__;
+  if (!raw || typeof raw !== "object") return fallback;
+  return {
+    ...fallback,
+    ...raw,
+    shape: isPetShape(raw.shape) ? raw.shape : fallback.shape,
+    color: isPetColor(raw.color) ? raw.color : fallback.color,
+    sizePx: raw.sizePx || fallback.sizePx,
+    bubbleDismissSec: normalizePetBubbleDismissSec(raw.bubbleDismissSec),
+    bubbleShape: normalizePetBubbleShape(raw.bubbleShape),
+    bubbleStyle: normalizePetBubbleStyle(raw.bubbleStyle),
+  };
+}
 
 /** Host overlay policy — compact idle + no cursor-poll click-through on Wayland. */
 export type PetOverlayPolicy = {
@@ -35,15 +85,7 @@ export const PET_OVERLAY_POLICY_FULL: PetOverlayPolicy = {
 
 export async function petPrefsGet(): Promise<PetPrefs> {
   if (!isDesktopHost()) {
-    return {
-      enabled: false,
-      visible: false,
-      shape: "hex",
-      color: "green",
-      eyeColor: "auto",
-      bubblesEnabled: true,
-      sizePx: 128,
-    };
+    return { ...PET_PREFS_FALLBACK };
   }
   return invoke<PetPrefs>("pet_prefs_get");
 }
@@ -99,6 +141,7 @@ export async function petPushTasks(tasks: readonly PetTask[]): Promise<void> {
     tasks: tasks.map((task) => ({
       sessionId: task.sessionId,
       title: task.title,
+      snippet: task.snippet,
       toolTitle: task.toolTitle,
       kind: task.kind,
       phase: task.phase,
@@ -114,6 +157,7 @@ export async function petGetTasks(): Promise<PetTask[]> {
     Array<{
       sessionId?: string;
       title?: string | null;
+      snippet?: string | null;
       toolTitle?: string | null;
       kind?: PetKind;
       phase?: PetTaskPhase;
@@ -127,6 +171,7 @@ export async function petGetTasks(): Promise<PetTask[]> {
     .map((row) => ({
       sessionId: row.sessionId as string,
       title: row.title ?? null,
+      snippet: row.snippet ?? null,
       toolTitle: row.toolTitle ?? null,
       kind: row.kind ?? "working",
       phase: row.phase === "done" ? "done" : "active",
@@ -172,6 +217,11 @@ export async function petFocusSession(sessionId: string): Promise<void> {
 export async function petShowMain(): Promise<void> {
   if (!isDesktopHost()) return;
   await invoke("pet_show_main");
+}
+
+export async function petHideMain(): Promise<void> {
+  if (!isDesktopHost()) return;
+  await invoke("pet_hide_main");
 }
 
 export type PetHitChrome = {

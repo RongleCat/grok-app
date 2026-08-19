@@ -13,6 +13,7 @@ import {
 import { startPetFocusBridge } from "./petFocusBridge";
 import type { PetFocus } from "./petFocus";
 import type { PetTask } from "./petTasks";
+import { petStageSnippetStore } from "./petStageSnippets";
 
 function installUnreadHost() {
   const store: Record<string, string> = {};
@@ -68,12 +69,14 @@ describe("startPetFocusBridge unread-clear", () => {
     restoreHost = installUnreadHost();
     sessionLiveMapStore.resetForTests();
     resetFinishedTurnsForTests();
+    petStageSnippetStore.resetForTests();
     localStorage.removeItem(SESSION_UNREAD_STORAGE_KEY);
   });
 
   afterEach(() => {
     sessionLiveMapStore.resetForTests();
     resetFinishedTurnsForTests();
+    petStageSnippetStore.resetForTests();
     restoreHost();
   });
 
@@ -111,6 +114,7 @@ describe("startPetFocusBridge unread-clear", () => {
   });
 
   it("pushes a bubble for each live session even when focus is sticky", () => {
+    const snippets: Record<string, string> = { a: "Running npm test" };
     sessionLiveMapStore.setLiveMap({
       a: {
         ...emptyLiveSnapshot("a", 2_000),
@@ -125,13 +129,16 @@ describe("startPetFocusBridge unread-clear", () => {
         { id: "a", title: "A" },
         { id: "b", title: "B" },
       ],
+      getSnippets: () => snippets,
       push: () => {},
       pushTasks: (next) => {
         tasks.push(next);
       },
     });
     expect(tasks.at(-1)?.map((t) => t.sessionId)).toEqual(["a"]);
+    expect(tasks.at(-1)?.[0]?.snippet).toBe("Running npm test");
 
+    snippets.b = "Running cargo check";
     sessionLiveMapStore.setLiveMap({
       a: {
         ...emptyLiveSnapshot("a", 3_000),
@@ -145,6 +152,10 @@ describe("startPetFocusBridge unread-clear", () => {
       },
     });
     expect(tasks.at(-1)?.map((t) => t.sessionId).sort()).toEqual(["a", "b"]);
+    expect(tasks.at(-1)?.map((t) => t.snippet).sort()).toEqual([
+      "Running cargo check",
+      "Running npm test",
+    ]);
     bridge.stop();
   });
 });

@@ -1,11 +1,11 @@
 /**
  * Codex-style task chips stacked above the living mark.
- * Each chip is one session: in-progress or completed. Click opens that chat.
+ * Each chip is one session's latest stage reply. Click opens that chat.
  */
 import type { Ref } from "react";
 import { IconAlertTriangle, IconCheck } from "@/components/icons";
 import { createT } from "@/i18n";
-import type { PetTask } from "@/lib/pet";
+import type { PetBubbleShape, PetBubbleStyle, PetTask } from "@/lib/pet";
 import {
   PET_BUBBLE_SHADOW_PAD,
   PET_BUBBLE_WIDTH,
@@ -17,11 +17,17 @@ export function PetTaskBubbles({
   t,
   onOpen,
   listRef,
+  bubbleShape = "round",
+  bubbleStyle = "ink",
+  progressBar = false,
 }: {
   tasks: readonly PetTask[];
   t: ReturnType<typeof createT>;
   onOpen: (sessionId: string) => void;
   listRef?: Ref<HTMLDivElement>;
+  bubbleShape?: PetBubbleShape;
+  bubbleStyle?: PetBubbleStyle;
+  progressBar?: boolean;
 }) {
   if (tasks.length === 0) return null;
   return (
@@ -38,10 +44,15 @@ export function PetTaskBubbles({
     >
       {tasks.map((task) => {
         const title = task.title?.trim() || t("pet.bubble.untitled");
+        const snippet = task.snippet?.trim() || "";
+        const headline = snippet || title;
         const phaseLabel =
           task.phase === "done"
             ? t("pet.bubble.progressDone")
             : t("pet.bubble.progressActive");
+        const sub = snippet
+          ? title
+          : task.toolTitle?.trim() || phaseLabel;
         const pct = Math.round(Math.max(0, Math.min(1, task.progress)) * 100);
         return (
           <button
@@ -50,12 +61,15 @@ export function PetTaskBubbles({
             role="listitem"
             className={
               "pet-bubble" +
+              ` pet-bubble--${bubbleShape}` +
+              ` pet-bubble--${bubbleStyle}` +
               (task.phase === "done" ? " is-done" : " is-active") +
               (task.kind === "error" ? " is-error" : "") +
-              (task.kind === "needs_you" ? " is-wait" : "")
+              (task.kind === "needs_you" ? " is-wait" : "") +
+              (progressBar ? " has-track" : "")
             }
-            aria-label={t("pet.bubble.open", { title })}
-            title={`${phaseLabel} · ${title}`}
+            aria-label={t("pet.bubble.open", { title: headline })}
+            title={`${phaseLabel} · ${headline}`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.preventDefault();
@@ -74,24 +88,22 @@ export function PetTaskBubbles({
                 )}
               </span>
               <span className="pet-bubble__text">
-                <span className="pet-bubble__title">{title}</span>
-                {task.toolTitle ? (
-                  <span className="pet-bubble__sub">{task.toolTitle}</span>
-                ) : (
-                  <span className="pet-bubble__sub">{phaseLabel}</span>
-                )}
+                <span className="pet-bubble__title">{headline}</span>
+                <span className="pet-bubble__sub">{sub}</span>
               </span>
             </span>
-            <span className="pet-bubble__track" aria-hidden>
-              <span
-                className="pet-bubble__fill"
-                style={
-                  task.phase === "active"
-                    ? undefined
-                    : { width: `${pct}%` }
-                }
-              />
-            </span>
+            {progressBar ? (
+              <span className="pet-bubble__track" aria-hidden>
+                <span
+                  className="pet-bubble__fill"
+                  style={
+                    task.phase === "active"
+                      ? undefined
+                      : { width: `${pct}%` }
+                  }
+                />
+              </span>
+            ) : null}
           </button>
         );
       })}

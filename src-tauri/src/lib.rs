@@ -1523,6 +1523,7 @@ pub fn run() {
             pet_window::pet_open_settings,
             pet_window::pet_focus_session,
             pet_window::pet_show_main,
+            pet_window::pet_hide_main,
             pet_window::pet_push_tasks,
             pet_window::pet_get_tasks,
             pet_window::pet_set_hit_chrome,
