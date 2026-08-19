@@ -1736,10 +1736,41 @@ pub(super) struct DrainedAgents {
     pub(super) prewarm_count: usize,
 }
 
-/// Whole-connect budget (spawn + initialize + load/new). Sequential RPCs each
-/// have their own 45s cap; without a wall clock the pill can sit on 连接中
-/// for minutes, and a hung spawn never leaves Connecting.
+/// Whole-connect budget: lock wait + spawn + initialize + load/new.
+/// Sibling-task timer so a blocking ACP poll cannot starve it; lock wait is
+/// inside this budget (otherwise Connecting never times out).
 pub const CONNECT_WALL_CLOCK_SECS: u64 = 90;
+
+/// Idle recycle / disconnect must not wait forever for `connect_lock`.
+pub const CONNECT_LOCK_WATCHDOG_SECS: u64 = 5;
+
+/// `AcpClient::kill` under the recycle watchdog — a hung child must not
+/// pin `connect_lock` for the rest of the process lifetime.
+pub const ACP_KILL_TIMEOUT_SECS: u64 = 5;
+
+/// Why a connect attempt gave up. `lock_acquired` is false when we never
+/// entered `connect_inner`.
+pub fn connect_gave_up_reason(lock_acquired: bool) -> &'static str {
+    if lock_acquired {
+        "connect timed out"
+    } else {
+        "connect lock busy"
+    }
+}
+
+/// Latest-wins generation: only the current attempt may enter `connect_inner`.
+pub fn connect_attempt_still_current(current: u64, attempt_gen: u64) -> bool {
+    current == attempt_gen
+}
+
+/// Invalidate `attempt_gen` only if it is still the latest connect.
+pub fn next_connect_epoch_on_timeout(current: u64, attempt_gen: u64) -> u64 {
+    if current == attempt_gen {
+        attempt_gen.wrapping_add(1)
+    } else {
+        current
+    }
+}
 
 /// Pure policy: should connect keep the live agent process instead of respawning?
 ///

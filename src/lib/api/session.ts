@@ -7,6 +7,11 @@ import {
 } from "./host";
 import type { PermissionPayload, SessionSnapshot } from "../session";
 import { IDLE_SNAPSHOT } from "../session";
+import {
+  SESSION_CONNECT_CLIENT_TIMEOUT_MS,
+  sessionConnectTimeoutError,
+  withDeadline,
+} from "../sessionConnectTimeout";
 
 export async function sessionGetState(): Promise<SessionSnapshot> {
   if (isMirrorClient()) return invoke("session_get_state");
@@ -20,11 +25,15 @@ export async function sessionConnect(opts?: {
   mode?: string;
 }): Promise<SessionSnapshot> {
   if (isMirrorClient()) {
-    return invoke("session_connect", {
-      projectPath: opts?.projectPath ?? null,
-      sessionId: opts?.sessionId ?? null,
-      mode: opts?.mode ?? null,
-    });
+    return withDeadline(
+      invoke("session_connect", {
+        projectPath: opts?.projectPath ?? null,
+        sessionId: opts?.sessionId ?? null,
+        mode: opts?.mode ?? null,
+      }),
+      SESSION_CONNECT_CLIENT_TIMEOUT_MS,
+      () => sessionConnectTimeoutError(),
+    );
   }
   if (!isTauri()) {
     return {
@@ -35,11 +44,15 @@ export async function sessionConnect(opts?: {
       title: "Browser preview",
     };
   }
-  return invoke("session_connect", {
-    projectPath: opts?.projectPath ?? null,
-    sessionId: opts?.sessionId ?? null,
-    mode: opts?.mode ?? null,
-  });
+  return withDeadline(
+    invoke("session_connect", {
+      projectPath: opts?.projectPath ?? null,
+      sessionId: opts?.sessionId ?? null,
+      mode: opts?.mode ?? null,
+    }),
+    SESSION_CONNECT_CLIENT_TIMEOUT_MS,
+    () => sessionConnectTimeoutError(),
+  );
 }
 
 /**
