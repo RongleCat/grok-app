@@ -259,11 +259,12 @@ fn find_app_session_id(local_id: &str, agent_id: Option<&str>) -> Option<String>
 }
 
 fn is_placeholder_title(t: &str) -> bool {
+    // Remote IM adds one default of its own on top of the app-wide names.
+    // The shared matcher covers every shipped locale; this copy knew only
+    // English and Simplified Chinese, so a `de` or `ja` session bound to a
+    // bridge never got its first real title.
     let t = t.trim();
-    t.is_empty()
-        || t.eq_ignore_ascii_case("New chat")
-        || t == "新对话"
-        || t.starts_with("Remote IM")
+    crate::session_title::is_placeholder_title(t) || t.starts_with("Remote IM")
 }
 
 fn title_from_prompt(prompt: &str, channel: &str) -> String {

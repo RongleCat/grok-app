@@ -10,7 +10,9 @@ use crate::cli_probe;
 use crate::store::{self, SessionMeta};
 use crate::tray_i18n::{self, Locale};
 
-const PLACEHOLDERS: &[&str] = &[
+/// Default names written to disk before the locale catalogs existed.
+/// Live names come from `tray_i18n` in [`is_placeholder_title`].
+const LEGACY_PLACEHOLDERS: &[&str] = &[
     "New chat",
     "Новый чат",
     "Новая беседа",
@@ -24,9 +26,27 @@ const PLACEHOLDERS: &[&str] = &[
     "新建会话",
 ];
 
+/// True when a title is a default name rather than something about the chat.
+///
+/// Walks every shipped locale instead of a hand-kept list. The app writes
+/// `session.placeholderTitle` in the user's language, so a German session is
+/// stored as "Neuer Chat"; a matcher that only knows English and Chinese never
+/// recognises it and leaves that session on its default name forever.
 pub fn is_placeholder_title(title: &str) -> bool {
     let t = title.trim();
-    t.is_empty() || PLACEHOLDERS.iter().any(|p| p.eq_ignore_ascii_case(t))
+    if t.is_empty() {
+        return true;
+    }
+    if LEGACY_PLACEHOLDERS
+        .iter()
+        .any(|p| p.eq_ignore_ascii_case(t))
+    {
+        return true;
+    }
+    tray_i18n::ALL.iter().any(|l| {
+        let s = tray_i18n::strings(*l);
+        s.new_chat.eq_ignore_ascii_case(t) || s.untitled.eq_ignore_ascii_case(t)
+    })
 }
 
 /// Offline title: first non-empty line, collapsed whitespace, max ~28 display chars.
@@ -292,6 +312,28 @@ mod tests {
         let long_ja: String = "あ".repeat(64);
         let got = clean_llm_title(&long_ja).expect("accepted");
         assert_eq!(got.chars().count(), 32, "truncated to the char budget");
+    }
+
+    /// The app writes `session.placeholderTitle` in the user's language, so
+    /// every shipped locale's default name has to be recognised — otherwise
+    /// those sessions keep their default name forever.
+    #[test]
+    fn placeholder_detection_covers_every_shipped_locale() {
+        for locale in tray_i18n::ALL {
+            let s = tray_i18n::strings(locale);
+            assert!(
+                is_placeholder_title(s.new_chat),
+                "{}: {:?} not recognised",
+                locale.as_tag(),
+                s.new_chat
+            );
+            assert!(
+                is_placeholder_title(s.untitled),
+                "{}: {:?} not recognised",
+                locale.as_tag(),
+                s.untitled
+            );
+        }
     }
 
     #[test]

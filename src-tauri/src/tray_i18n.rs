@@ -626,29 +626,33 @@ pub fn format_usage(template: &str, pct: Option<f64>, time: Option<&str>) -> Str
     out
 }
 
+/// Every catalog id shipped by the frontend (`LOCALES` in
+/// `src/i18n/messages/index.ts`), in the same order.
+///
+/// Public because anything that has to recognise copy the app itself wrote
+/// must walk the whole roster; a second hand-kept list goes stale the moment
+/// a locale is added.
+pub const ALL: [Locale; 15] = [
+    Locale::En,
+    Locale::De,
+    Locale::Es,
+    Locale::Fil,
+    Locale::Fr,
+    Locale::Id,
+    Locale::It,
+    Locale::Ja,
+    Locale::Ko,
+    Locale::PtBr,
+    Locale::Ru,
+    Locale::Ta,
+    Locale::Uk,
+    Locale::Zh,
+    Locale::ZhTw,
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Every catalog id shipped by the frontend (`LOCALES` in
-    /// `src/i18n/messages/index.ts`), in the same order.
-    const ALL: [Locale; 15] = [
-        Locale::En,
-        Locale::De,
-        Locale::Es,
-        Locale::Fil,
-        Locale::Fr,
-        Locale::Id,
-        Locale::It,
-        Locale::Ja,
-        Locale::Ko,
-        Locale::PtBr,
-        Locale::Ru,
-        Locale::Ta,
-        Locale::Uk,
-        Locale::Zh,
-        Locale::ZhTw,
-    ];
 
     #[test]
     fn locale_parse() {
