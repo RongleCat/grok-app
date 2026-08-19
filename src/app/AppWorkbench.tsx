@@ -405,6 +405,7 @@ import {
 import { AskUserModal, dropAskUserClocks } from "@/components/AskUserModal";
 import { TraceHistoryList } from "@/components/TraceHistoryList";
 import { PlanHistoryList } from "@/components/PlanHistoryList";
+import { formatListTimestamp } from "@/lib/formatDateTime";
 import { MarkdownBody } from "@/components/MarkdownBody";
 import {
   clearSessionSearchFilters,
@@ -23714,6 +23715,7 @@ export function AppWorkbench() {
       >
         <p className="trace-history-modal__desc">{tr("session.tracesDesc")}</p>
         <TraceHistoryList
+          locale={locale}
           labels={{
             empty: tr("session.tracesEmpty"),
             emptyFilter: tr("session.tracesEmptyFilter"),
@@ -23754,6 +23756,7 @@ export function AppWorkbench() {
       >
         <p className="plan-history-modal__desc">{tr("plan.historyDesc")}</p>
         <PlanHistoryList
+          locale={locale}
           labels={{
             empty: tr("plan.historyEmpty"),
             emptyFilter: tr("plan.historyEmptyFilter"),
@@ -23825,15 +23828,7 @@ export function AppWorkbench() {
               ) : null}
               {planHistoryPreview.at ? (
                 <span>
-                  {(() => {
-                    const d = Date.parse(planHistoryPreview.at);
-                    if (!Number.isFinite(d)) return planHistoryPreview.at;
-                    try {
-                      return new Date(d).toLocaleString();
-                    } catch {
-                      return planHistoryPreview.at;
-                    }
-                  })()}
+                  {formatListTimestamp(planHistoryPreview.at, locale)}
                 </span>
               ) : null}
             </div>

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GlassModal } from "@/components/GlassModal";
 import { IconCopy, IconFolder, IconTrash } from "@/components/icons";
 import * as api from "@/lib/api";
+import { formatListTimestamp } from "@/lib/formatDateTime";
 import {
   TRACE_HISTORY_CHANGE_EVENT,
   TRACE_HISTORY_STORAGE_KEY,
@@ -69,6 +70,8 @@ export type TraceHistoryListLabels = {
 
 export type TraceHistoryListProps = {
   labels: TraceHistoryListLabels;
+  /** App locale, so the timestamps follow Settings and not the WebView. */
+  locale: string | null;
   /** Called after copy-path success (toast). */
   onCopied?: () => void;
   /** Called after reveal failure. */
@@ -77,22 +80,6 @@ export type TraceHistoryListProps = {
   /** Compact rows for modal. */
   compact?: boolean;
 };
-
-function formatExportedAt(iso: string): string {
-  const d = Date.parse(iso);
-  if (!Number.isFinite(d)) return iso || "";
-  try {
-    return new Date(d).toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 function scopeLabel(
   scope: TraceHistoryScope,
@@ -107,6 +94,7 @@ function scopeLabel(
 
 export function TraceHistoryList({
   labels,
+  locale,
   onCopied,
   onError,
   className = "",
@@ -399,7 +387,7 @@ export function TraceHistoryList({
                     ) : null}
                     {e.exportedAt ? (
                       <span className="trace-history-row__when">
-                        {formatExportedAt(e.exportedAt)}
+                        {formatListTimestamp(e.exportedAt, locale)}
                       </span>
                     ) : null}
                   </div>

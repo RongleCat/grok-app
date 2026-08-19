@@ -54,6 +54,7 @@ export function RemoteImSection() {
                   <MirrorConnectPanel
                     variant="inline"
                     open
+                    locale={locale}
                     labels={{
                       title: t("mirror.connectTitle"),
                       close: t("common.close"),

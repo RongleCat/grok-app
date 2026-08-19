@@ -17,6 +17,7 @@ import { GlassModal } from "@/components/GlassModal";
 import { IconCopy, IconDeviceMobile } from "@/components/icons";
 import type { MirrorStatus } from "@/lib/api";
 import * as api from "@/lib/api";
+import { formatListTimestamp } from "@/lib/formatDateTime";
 import {
   clampMirrorMaxClients,
   formatMirrorClientCapLine,
@@ -197,6 +198,8 @@ export type MirrorConnectPanelProps = {
   open?: boolean;
   onClose?: () => void;
   labels: MirrorConnectLabels;
+  /** App locale, so the audit timestamps follow Settings and not the WebView. */
+  locale: string | null;
   /**
    * In-app confirm for stop / enable-write (no window.confirm).
    * Prefer GlassModal / setAppDialog from the parent.
@@ -457,22 +460,6 @@ function MirrorClientCapStrip({
   );
 }
 
-function formatAuditAt(iso: string): string {
-  const d = Date.parse(iso);
-  if (!Number.isFinite(d)) return iso || "";
-  try {
-    return new Date(d).toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
-
 function auditTypeLabel(
   type: MirrorWriteAuditType,
   labels: MirrorConnectLabels,
@@ -495,9 +482,11 @@ function auditTypeLabel(
 
 function MirrorWriteAuditSection({
   labels,
+  locale,
   onRequestConfirm,
 }: {
   labels: MirrorConnectLabels;
+  locale: string | null;
   onRequestConfirm: (opts: MirrorConfirmRequest) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -568,7 +557,7 @@ function MirrorWriteAuditSection({
             {events.map((e) => (
               <li key={e.id} className="mirror-connect__audit-row">
                 <span className="mirror-connect__audit-when" title={e.at}>
-                  {formatAuditAt(e.at)}
+                  {formatListTimestamp(e.at, locale)}
                 </span>
                 <span className="mirror-connect__audit-label">
                   {auditTypeLabel(e.type, labels)}
@@ -610,6 +599,7 @@ function MirrorWriteCategories({ labels }: { labels: MirrorConnectLabels }) {
 
 function MirrorConnectBody({
   labels,
+  locale,
   status,
   connect,
   busy,
@@ -626,6 +616,7 @@ function MirrorConnectBody({
   onRequestConfirm,
 }: {
   labels: MirrorConnectLabels;
+  locale: string | null;
   status: MirrorStatus;
   connect: MirrorHostConnectStatus;
   busy: boolean;
@@ -901,6 +892,7 @@ function MirrorConnectBody({
 
       <MirrorWriteAuditSection
         labels={labels}
+        locale={locale}
         onRequestConfirm={onRequestConfirm}
       />
     </>
@@ -912,6 +904,7 @@ export function MirrorConnectPanel({
   open = true,
   onClose,
   labels,
+  locale,
   onRequestConfirm,
   showToast,
   autoStart = true,
@@ -1153,6 +1146,7 @@ export function MirrorConnectPanel({
   const body = (
     <MirrorConnectBody
       labels={labels}
+      locale={locale}
       status={status}
       connect={connect}
       busy={busy}

@@ -17,6 +17,7 @@ import {
   type PlanHistoryDecision,
   type PlanHistoryEntry,
 } from "@/lib/planHistory";
+import { formatListTimestamp } from "@/lib/formatDateTime";
 
 export type PlanHistoryDecisionFilter = "all" | PlanHistoryDecision;
 
@@ -38,6 +39,8 @@ export type PlanHistoryListLabels = {
 
 export type PlanHistoryListProps = {
   labels: PlanHistoryListLabels;
+  /** App locale, so the timestamps follow Settings and not the WebView. */
+  locale: string | null;
   onOpen?: (entry: PlanHistoryEntry) => void;
   /**
    * Open the chat that produced this plan when it still exists.
@@ -54,22 +57,6 @@ export type PlanHistoryListProps = {
   className?: string;
   compact?: boolean;
 };
-
-function formatAt(iso: string): string {
-  const d = Date.parse(iso);
-  if (!Number.isFinite(d)) return iso || "";
-  try {
-    return new Date(d).toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 function decisionLabel(
   decision: PlanHistoryDecision,
@@ -90,6 +77,7 @@ function toSessionIdSet(
 
 export function PlanHistoryList({
   labels,
+  locale,
   onOpen,
   onOpenSession,
   existingSessionIds,
@@ -246,7 +234,7 @@ export function PlanHistoryList({
                       </span>
                       {e.at ? (
                         <span className="plan-history-row__when">
-                          {formatAt(e.at)}
+                          {formatListTimestamp(e.at, locale)}
                         </span>
                       ) : null}
                     </div>
