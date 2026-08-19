@@ -23,7 +23,7 @@ export const zhTWErrors = {
   "error.deck.auth.problem": "驗證失敗",
   "error.deck.auth.cause": "登入過期、API 金鑰無效，或服務商拒絕了請求（401）。",
   "error.deck.authNoContext.problem": "Agent 端沒有可用憑證",
-  "error.deck.authNoContext.cause": "目前 CLI 行程沒有有效鑑權上下文（常見於切過自訂中轉，或沿用了登入前的預熱行程）。請在帳號中重新登入，再按重新連線讓新行程載入憑證。",
+  "error.deck.authNoContext.cause": "目前 CLI 行程沒有有效鑑權上下文。終端機裡的 CC Switch / 自訂中轉不會自動進 App。請在設定 → 自訂服務商匯入帶真實 base URL 與 Key 的通道（不要 127.0.0.1 接管代理），按「使用」，再重新連線。官方登入只對官方路線有效。",
   "error.deck.authApiKey.problem": "API 金鑰被拒絕",
   "error.deck.authApiKey.cause": "模型服務拒絕了金鑰（常見 HTTP 400 Incorrect API key）。請檢查帳號官方金鑰或自訂中轉金鑰——只重新瀏覽器登入往往修不好錯誤的貼上金鑰。",
   "error.deck.authCustom.problem": "自訂中轉驗證失敗",

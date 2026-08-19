@@ -23,7 +23,7 @@ export const zhErrors = {
   "error.deck.auth.problem": "鉴权失败",
   "error.deck.auth.cause": "登录过期、API Key 无效，或服务商拒绝了请求（401）。",
   "error.deck.authNoContext.problem": "Agent 侧没有可用凭据",
-  "error.deck.authNoContext.cause": "当前 CLI 进程没有有效鉴权上下文（常见于切过自定义中转，或复用了登录前的预热进程）。请在账号中重新登录，再点重新连接让新进程加载凭据。",
+  "error.deck.authNoContext.cause": "当前 CLI 进程没有有效鉴权上下文。终端里的 CC Switch / 自定义中转不会自动进 App。请在设置 → 自定义服务商导入带真实 base URL 和 Key 的通道（不要 127.0.0.1 接管代理），点「使用」，再重新连接。官方登录只对官方路线有效。",
   "error.deck.authApiKey.problem": "API Key 被拒绝",
   "error.deck.authApiKey.cause": "模型服务拒绝了密钥（常见 HTTP 400 Incorrect API key）。请检查账号里的官方 Key 或自定义中转 Key——仅重新浏览器登录往往修不好错误的粘贴 Key。",
   "error.deck.authCustom.problem": "自定义中转鉴权失败",

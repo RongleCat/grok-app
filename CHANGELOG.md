@@ -26,6 +26,7 @@ See `docs/llm-wiki/release.md`.
 - **桌宠提示框可关（#696）**：设置 → 宠物，以及宠物右键菜单，都能关掉任务气泡；关掉后浮层会收小。
 
 ### Fixed
+- **“No credentials on the agent” points to Providers, not only official Sign in (#705)**: The banner now explains that a terminal CC Switch / custom relay is unused until you click Use in Settings, and the primary action opens Custom providers.
 - **Chat no longer jitters when scrolling up from the bottom (#703)**: Stick-to-bottom only snaps rubber-band past max; a 10px trackpad nudge can leave the pin. Sending after reading history force-sticks once in layout (not a double rAF + busy-edge bump).
 - **New-chat Connecting no longer hangs when `connect_lock` is held (#709)**: The 90s wall clock now covers lock wait (sibling task, so a blocking ACP poll cannot starve the timer). A timed-out attempt is invalidated so it cannot start a handshake after the lock frees. Idle recycle kill / send / disconnect wait for the lock with a timeout. Connect enqueue + timeout also sync-append to `app.log` if the tracing worker is silent. The client drops `sessionConnect` after 100s so the pill cannot sit on Connecting forever.
 - **Finished turns no longer stay on 思考中 / 连接中**: After the last assistant body is painted, leftover streaming or a leaked connect claim kept Stop and blocked the next send. Client heal unlocks the composer (reply stays) when Host is idle, or after 90s if Host itself went stale.
@@ -36,6 +37,7 @@ See `docs/llm-wiki/release.md`.
 - **Linux / KDE pet overlay can be clicked and dragged**: The always-on-top pet stays focusable on Linux so KWin delivers pointer events, hides the GTK Edit/Window/Help bar that `app.set_menu` reapplied on the transparent window, and moves with `movementX/Y` on Wayland (late `startDragging` has no button serial).
 
 **中文 · 修复**
+- **「Agent 侧没有可用凭据」不再只叫人官方登录（#705）**：文案说明终端 CC Switch / 中转要在设置里点「使用」才会进 App；主按钮打开自定义服务商。
 - **贴底后再轻微上滑不再抖动（#703）**：贴底锁只回弹越过底部的橡皮筋；10px 触控板轻拨即可离开。先上滑再发送只会在 layout 里吸一次底，不会双 rAF + busy 再吸一次。
 - **`connect_lock` 被占住时新对话不再一直 Connecting（#709）**：90 秒墙钟覆盖等锁；握手在旁路任务里跑，ACP 阻塞也挡不住超时。超时后作废这次 connect。recycle 杀进程、发送、断开等锁都有上限。tracing 日志挂了时 connect 关键行仍会写入 `app.log`。前端 100 秒丢掉卡住的 `sessionConnect`。
 - **回合结束后不再一直「思考中 / 连接中」**：正文已经出来，UI 还停在停止键、发不了下一句。Host 已空闲（或卡住超过 90 秒）时自动解锁，回复保留。

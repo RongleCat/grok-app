@@ -23,7 +23,7 @@ export const enErrors = {
   "error.deck.auth.problem": "Authentication failed",
   "error.deck.auth.cause": "Login expired, API key invalid, or the provider rejected the request (401).",
   "error.deck.authNoContext.problem": "No credentials on the agent",
-  "error.deck.authNoContext.cause": "The CLI process has no usable auth context (often after custom-route switch or a warm process kept old state). Sign in under Account, then reconnect so a fresh agent reloads auth.",
+  "error.deck.authNoContext.cause": "The CLI process has no usable auth context. A terminal CC Switch / custom relay does not apply until you Use that provider here. Official Sign in only helps the official route. Import the real base URL + key (not a 127.0.0.1 takeover proxy), click Use, then reconnect.",
   "error.deck.authApiKey.problem": "API key rejected",
   "error.deck.authApiKey.cause": "The model host rejected the key (often HTTP 400 Incorrect API key). Check Account official key or Custom providers — re-login alone may not help if a pasted key is wrong.",
   "error.deck.authCustom.problem": "Custom provider auth failed",
