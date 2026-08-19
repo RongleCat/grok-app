@@ -620,7 +620,6 @@ import {
 import { AttachChatPanel } from "@/components/AttachChatPanel";
 import { ChatRefChip } from "@/components/ChatRefChip";
 import { AttachedChatLookupContext } from "@/components/AttachedChatLookup";
-import { SessionAttachGhost } from "@/components/SessionAttachGhost";
 import { useAttachChat } from "@/hooks/useAttachChat";
 import { mapStoredMessagesToChat } from "@/lib/mapStoredMessages";
 import {
@@ -7429,7 +7428,6 @@ export function AppWorkbench() {
       unarchive: tr("sidebar.unarchive"),
       menu: tr("sidebar.menu"),
       attach: tr("attachChat.hoverAdd"),
-      dragAttach: tr("attachChat.dragHandle"),
     }),
     [tr],
   );
@@ -12267,8 +12265,6 @@ export function AppWorkbench() {
     attachableSessions,
     attachChatPos,
     attachChatStyle,
-    sessionRowDragProps,
-    sessionDragGhost,
     removeAttachedChat,
   } = useAttachChat({
     sessions,
@@ -19567,7 +19563,6 @@ export function AppWorkbench() {
                                         onArchive={onSidebarSessionArchive}
                                         onMenu={onSidebarSessionMenu}
                                         onAttach={onSidebarSessionAttach}
-                                        dragProps={sessionRowDragProps(s)}
                                       />
                                     );
                                   }}
@@ -19718,7 +19713,6 @@ export function AppWorkbench() {
                               onArchive={onSidebarSessionArchive}
                               onMenu={onSidebarSessionMenu}
                               onAttach={onSidebarSessionAttach}
-                              dragProps={sessionRowDragProps(s)}
                             />
                           );
                         }}
@@ -19995,14 +19989,7 @@ export function AppWorkbench() {
               </div>
             </div>
           )}
-          {sessionDragGhost ? (
-            <SessionAttachGhost
-              x={sessionDragGhost.x}
-              y={sessionDragGhost.y}
-              title={sessionDragGhost.title}
-              ready={sessionDragGhost.ready}
-            />
-          ) : null}
+
           {toast && (
             <div className="app-toast" role="status">
               {toast}
@@ -21085,11 +21072,7 @@ export function AppWorkbench() {
                     }
                   />
                 )}
-                {sessionDragGhost ? (
-                  <div className="composer__attach-hint">
-                    {tr("attachChat.welcomeHint")}
-                  </div>
-                ) : null}
+
               </div>
             ) : null}
             {perm ? (

@@ -119,7 +119,7 @@ describe("SidebarSessionRow", () => {
     expect(html).toContain("tree-l3__actions");
   });
 
-  it("keeps the drag handle and icon-only attach on the left, not in hover overlay", () => {
+  it("keeps the icon-only attach on the left, not in hover overlay", () => {
     const html = renderToString(
       React.createElement(SidebarSessionRow, {
         session: { id: "s4", title: "Source chat" },
@@ -135,7 +135,6 @@ describe("SidebarSessionRow", () => {
         labels: {
           ...labels,
           attach: "加入目前對話",
-          dragAttach: "按住拖到輸入框",
         },
         locale: "zh-TW",
         showRelativeTime: false,
@@ -146,10 +145,9 @@ describe("SidebarSessionRow", () => {
         onArchive: vi.fn(),
         onMenu: vi.fn(),
         onAttach: vi.fn(),
-        dragProps: { onPointerDown: vi.fn() },
       }),
     );
-    expect(html).toContain("sidebar-session-drag-handle");
+    expect(html).not.toContain("sidebar-session-drag-handle");
     expect(html).toContain("sidebar-session-attach");
     expect(html).toContain('aria-label="加入目前對話"');
     expect(html).not.toContain("tree-l3__attach-label");
@@ -163,7 +161,7 @@ describe("SidebarSessionRow", () => {
     expect(html.indexOf("sidebar-session-attach", actionsAt)).toBe(-1);
   });
 
-  it("hides attach on the open row and hides the grip in select mode", () => {
+  it("hides attach on the open row and in select mode", () => {
     const activeHtml = renderToString(
       React.createElement(SidebarSessionRow, {
         session: { id: "s5", title: "Open chat" },
@@ -179,7 +177,6 @@ describe("SidebarSessionRow", () => {
         labels: {
           ...labels,
           attach: "加入目前對話",
-          dragAttach: "按住拖到輸入框",
         },
         locale: "zh-TW",
         showRelativeTime: false,
@@ -190,10 +187,9 @@ describe("SidebarSessionRow", () => {
         onArchive: vi.fn(),
         onMenu: vi.fn(),
         onAttach: vi.fn(),
-        dragProps: { onPointerDown: vi.fn() },
       }),
     );
-    expect(activeHtml).toContain("sidebar-session-drag-handle");
+    expect(activeHtml).not.toContain("sidebar-session-drag-handle");
     expect(activeHtml).not.toContain("sidebar-session-attach");
 
     const selectHtml = renderToString(
@@ -211,7 +207,6 @@ describe("SidebarSessionRow", () => {
         labels: {
           ...labels,
           attach: "加入目前對話",
-          dragAttach: "按住拖到輸入框",
         },
         locale: "zh-TW",
         showRelativeTime: false,
@@ -222,7 +217,6 @@ describe("SidebarSessionRow", () => {
         onArchive: vi.fn(),
         onMenu: vi.fn(),
         onAttach: vi.fn(),
-        dragProps: { onPointerDown: vi.fn() },
       }),
     );
     expect(selectHtml).not.toContain("sidebar-session-drag-handle");
