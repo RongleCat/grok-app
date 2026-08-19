@@ -22,6 +22,17 @@ export type PetPrefs = {
   y?: number | null;
 };
 
+/** Host overlay policy — compact idle + no cursor-poll click-through on Wayland. */
+export type PetOverlayPolicy = {
+  compactIdle: boolean;
+  cursorClickThrough: boolean;
+};
+
+export const PET_OVERLAY_POLICY_FULL: PetOverlayPolicy = {
+  compactIdle: false,
+  cursorClickThrough: true,
+};
+
 export async function petPrefsGet(): Promise<PetPrefs> {
   if (!isDesktopHost()) {
     return {
@@ -305,12 +316,8 @@ export async function petSetMenuOpen(open: boolean): Promise<void> {
 
 export async function petSetIgnoreCursor(ignore: boolean): Promise<void> {
   if (!isDesktopHost()) return;
-  try {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    await getCurrentWindow().setIgnoreCursorEvents(ignore);
-  } catch {
-    await invoke("pet_set_ignore_cursor", { ignore });
-  }
+  // Host refuses click-through on Wayland (global cursor is stubbed at 0,0).
+  await invoke("pet_set_ignore_cursor", { ignore });
 }
 
 export async function petStartDragging(): Promise<void> {
@@ -319,7 +326,19 @@ export async function petStartDragging(): Promise<void> {
   await getCurrentWindow().startDragging();
 }
 
-export async function petWebviewReady(): Promise<void> {
+/** Wayland: move the overlay by logical CSS pixels (no compositor grab). */
+export async function petNudge(dx: number, dy: number): Promise<void> {
   if (!isDesktopHost()) return;
-  await invoke("pet_webview_ready");
+  if (!dx && !dy) return;
+  await invoke("pet_nudge", { dx, dy });
+}
+
+export async function petWebviewReady(): Promise<PetOverlayPolicy> {
+  if (!isDesktopHost()) return PET_OVERLAY_POLICY_FULL;
+  return invoke<PetOverlayPolicy>("pet_webview_ready");
+}
+
+export async function petOverlayPolicy(): Promise<PetOverlayPolicy> {
+  if (!isDesktopHost()) return PET_OVERLAY_POLICY_FULL;
+  return invoke<PetOverlayPolicy>("pet_overlay_policy");
 }

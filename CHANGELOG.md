@@ -12,29 +12,43 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- **File preview refresh (#711)**: The files toolbar can re-read the open file from disk after the agent edits it. Unsaved drafts keep the button disabled so a refresh cannot wipe the editor.
+- **Type-to-focus composer (#704)**: With the chat in the foreground, typing while focus is not in an input focuses the composer and inserts the character. IME composition, sidebar j/k, terminals/editors, overlays, and Space-on-button are left alone.
+- **Double-click a sidebar chat to rename (#702)**: Project and Other-session rows edit the title in place. Enter / blur save when the name changed; Escape cancels. F2 on a focused row does the same. Right-click Rename still uses the existing prompt. Multi-select does not start rename.
 - **Pet eye color, white body, and celebrate spin**: Settings → Pet can pick eyes independently of the body (body palette + Auto). White stays pale in both themes. The mark spins when a focused task finishes, or from the pet menu.
 - **Pet task bubbles can be turned off (#696)**: Settings → Pet and the pet context menu can hide the session chips above the mark. The overlay shrinks when they are off.
 - **Attach another chat as context**: `/attach-chat`, composer `+`, sidebar attach icon, or right-click **Attach to current chat** picks a local conversation; chips sit on the composer; the journal stores `[[chat:id]]` tokens; the host prefixes a compact transcript for the agent only (max 3; source chat unchanged). Row-body drag still moves the chat between projects.
 
 **中文 · 新增**
+- **文件预览可刷新（#711）**：文件工具栏能从磁盘重新读取当前打开的文件，agent 改完不必关 tab。有未保存草稿时按钮禁用，避免冲掉编辑。
+- **打字自动聚焦输入框（#704）**：对话在前台、光标不在输入框时，敲键盘会聚焦 composer 并写入该字符。中文输入法、侧栏 j/k、终端/编辑器、弹层、按钮上的空格不受影响。
+- **双击侧栏对话可重命名（#702）**：项目里和其他会话的行内直接改标题。Enter / 失焦在标题有改动时保存，Esc 取消。聚焦行按 F2 同样进入。右键「重命名」仍走原来的弹窗。多选模式不会进入重命名。
 - **宠物可改眼睛颜色、白色身体、完成转圈**：设置 → 宠物里眼睛和身体分开选（身体色板 + 自动）。白色在两种主题下都保持浅色。聚焦任务完成时（或右键菜单）会转圈。
 - **桌宠提示框可关（#696）**：设置 → 宠物，以及宠物右键菜单，都能关掉任务气泡；关掉后浮层会收小。
 - **把另一段对话当作上下文加入**：`/attach-chat`、输入框 `+`、侧栏对话图标或右键「加入目前对话」可加入本地对话；chip 挂在输入框；日记只存 `[[chat:id]]`；Host 只给 Agent 加一段压缩记录（最多 3 段；来源对话不改）。拖行身到项目仍是移动会话。
 
 ### Fixed
+- **“No credentials on the agent” points to Providers, not only official Sign in (#705)**: The banner now explains that a terminal CC Switch / custom relay is unused until you click Use in Settings, and the primary action opens Custom providers.
+- **Chat no longer jitters when scrolling up from the bottom (#703)**: Stick-to-bottom only snaps rubber-band past max; a 10px trackpad nudge can leave the pin. Sending after reading history force-sticks once in layout (not a double rAF + busy-edge bump).
+- **New-chat Connecting no longer hangs when `connect_lock` is held (#709)**: The 90s wall clock now covers lock wait (sibling task, so a blocking ACP poll cannot starve the timer). A timed-out attempt is invalidated so it cannot start a handshake after the lock frees. Idle recycle kill / send / disconnect wait for the lock with a timeout. Connect enqueue + timeout also sync-append to `app.log` if the tracing worker is silent. The client drops `sessionConnect` after 100s so the pill cannot sit on Connecting forever.
 - **Finished turns no longer stay on 思考中 / 连接中**: After the last assistant body is painted, leftover streaming or a leaked connect claim kept Stop and blocked the next send. Client heal unlocks the composer (reply stays) when Host is idle, or after 90s if Host itself went stale.
 - **Late tool-turn answers paint without remount (#697 / #698)**: Stream text that arrives after a tool-only (or thinking-only) bubble can now fill that bubble in place. A ready→ready skip no longer hides the final answer.
 - **Permission bars and journal flush after live lock**: A remounted WebView can recover the full approval card instead of looking stuck thinking. The stream journal flushes after the live lock is released.
 - **User images no longer echo as broken assistant cards**: Pasted / attached user files are not re-attached onto the assistant turn. Outside-project paths 403 after restart no longer lock the card as a corrupt blob.
 - **Windows pet overlay no longer inherits File / Edit / Window / Help; toggle follows real window visibility; hit target shrinks after drag (#696)**: The overlay keeps a window-local empty menu and strips the native bar. Hide retries if the HWND stays painted; File → Close hides instead of destroying. Host clears drag when the left button is up, and measured hit radius is clamped to the mark size.
+- **Linux / KDE pet overlay can be clicked and dragged**: The always-on-top pet stays focusable on Linux so KWin delivers pointer events, hides the GTK Edit/Window/Help bar that `app.set_menu` reapplied on the transparent window, and moves with `movementX/Y` on Wayland (late `startDragging` has no button serial).
 - Sidebar attach is an icon click (tooltip keeps the full phrase). No ⋮⋮ grip-drag. Host compact keeps the newest turns; chips-only missing/empty sources return typed errors; recycle bootstrap keeps a stub or re-expanded attach context.
 
 **中文 · 修复**
+- **「Agent 侧没有可用凭据」不再只叫人官方登录（#705）**：文案说明终端 CC Switch / 中转要在设置里点「使用」才会进 App；主按钮打开自定义服务商。
+- **贴底后再轻微上滑不再抖动（#703）**：贴底锁只回弹越过底部的橡皮筋；10px 触控板轻拨即可离开。先上滑再发送只会在 layout 里吸一次底，不会双 rAF + busy 再吸一次。
+- **`connect_lock` 被占住时新对话不再一直 Connecting（#709）**：90 秒墙钟覆盖等锁；握手在旁路任务里跑，ACP 阻塞也挡不住超时。超时后作废这次 connect。recycle 杀进程、发送、断开等锁都有上限。tracing 日志挂了时 connect 关键行仍会写入 `app.log`。前端 100 秒丢掉卡住的 `sessionConnect`。
 - **回合结束后不再一直「思考中 / 连接中」**：正文已经出来，UI 还停在停止键、发不了下一句。Host 已空闲（或卡住超过 90 秒）时自动解锁，回复保留。
 - **工具回合的晚到正文不再要重挂才出现（#697 / #698）**：只有工具（或只有思考）的气泡，后到的流式文字会填进同一条。ready→ready 跳过状态时也不再把最终答案藏掉。
 - **权限条和日记在解开 live lock 后会补上**：WebView 重挂后能恢复完整审批卡，不再看起来卡在思考。流式日记在释放锁之后再刷盘。
 - **用户图片不再回显成损坏的助手图卡**：用户粘贴/附图不会再挂到助手回合上。项目外路径重启后 403 也不再把卡片钉成坏图。
 - **Windows 宠物不再继承 File / Edit / Window / Help；开关跟真实窗口走；拖完热区会收回（#696）**：浮层用自己的空菜单并卸掉原生菜单栏。关掉后若仍显示会再 hide 一次；File → 关闭只会收起。松开鼠标后 Host 清掉拖拽状态，热区半径按标记尺寸封顶。
+- **Linux / KDE 上可以点、可以拖桌面宠物**：Linux 上宠物窗保持可接收指针；去掉 GTK 应用菜单画在透明 overlay 上的 Edit/Window/Help；Wayland 用位移挪窗，不再等已经过期的 `startDragging` 抓手。
 - 侧栏用对话图标一按即可加入目前对话（无 ⋮⋮ 拖曳）。压缩时保留最新轮次；只发 chip 且来源缺失/空白会返回明确错误；Agent 重开后仍保留附加上下文或占位。
 
 ## [0.2.22] - 2026-08-19

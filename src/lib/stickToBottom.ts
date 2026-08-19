@@ -33,10 +33,11 @@ export const STICK_HEIGHT_NOISE_PX = 8;
 
 /**
  * Minimum upward scroll (px) to leave stick-lock.
- * Trackpad jitter, elastic overscroll, and 1–2px virtual height corrections
- * used to "unlock" the bottom then yank back — felt like bounce + flash.
+ * Keep this aligned with {@link STICK_ESCAPE_WHEEL_DELTA}: a 10–12px
+ * trackpad nudge used to be clamped by the scroll handler and then
+ * unpinned by wheel, which is the #703 jitter.
  */
-export const STICK_ESCAPE_MIN_DELTA_PX = 14;
+export const STICK_ESCAPE_MIN_DELTA_PX = 10;
 
 /**
  * Wheel deltaY (negative = read history) must exceed this to escape pin.
@@ -51,6 +52,29 @@ export function isMeaningfulScrollUp(
   minDeltaPx: number = STICK_ESCAPE_MIN_DELTA_PX,
 ): boolean {
   return previousScrollTop - scrollTop >= minDeltaPx;
+}
+
+/**
+ * While pinned, only rubber-band / overscroll *past* max should snap back.
+ * An upward scroll that stays at or below maxTop is the user leaving the
+ * bottom — fighting it with applyScrollTop is the #703 jitter.
+ */
+export function shouldClampPinnedOverscroll(
+  scrollTop: number,
+  maxTop: number,
+): boolean {
+  return scrollTop > maxTop + 0.5;
+}
+
+/**
+ * `stickBump` on streaming/permission edge: only when this is the *same*
+ * user turn (regenerate / approval). A new last user id already force-sticks.
+ */
+export function shouldBumpStickOnBusyEdge(
+  lastUserId: string | null,
+  prevLastUserId: string | null,
+): boolean {
+  return lastUserId === prevLastUserId;
 }
 
 /**

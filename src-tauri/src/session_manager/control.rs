@@ -3,6 +3,7 @@
 #![allow(dead_code)] // residual-clippy: set_permission_policy / tracked counts
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 
 use tauri::{AppHandle, Emitter};
 
@@ -1148,7 +1149,16 @@ impl SessionManager {
         // never interleave with a background→live promote in `connect_inner`
         // / `focus_session`. All callers are top-level commands, so no caller
         // already holds `connect_lock`.
-        let _connect_guard = self.connect_lock.lock().await;
+        let Some(_connect_guard) = self
+            .try_lock_connect(Duration::from_secs(CONNECT_WALL_CLOCK_SECS))
+            .await
+        else {
+            return Err(format!(
+                "{}: {}",
+                crate::error::AgentErrorCode::ConnectFailed.as_str(),
+                connect_gave_up_reason(false)
+            ));
+        };
         // Clear live focus without aborting background/parked multi-session work.
         self.disconnect_inner(&app).await;
         Ok(self.snapshot())

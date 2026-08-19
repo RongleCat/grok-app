@@ -4,11 +4,14 @@
 //! click-through on empty pixels, and prefs persistence. Status changes never
 //! call `set_focus` on the pet window.
 //!
-//! The overlay is **not focusable**. Tao's `show()` on macOS always calls
-//! `makeKeyAndOrderFront`, which would otherwise make the pet the key window.
-//! WKWebView then eats the first click on the workbench just to focus it.
-//! `focusable(false)` maps to `canBecomeKeyWindow = NO` / `WS_EX_NOACTIVATE`
-//! so the pet stays above other apps without stealing key.
+//! The overlay is **not focusable on macOS/Windows**. Tao's `show()` on macOS
+//! always calls `makeKeyAndOrderFront`, which would otherwise make the pet
+//! the key window. WKWebView then eats the first click on the workbench just
+//! to focus it. `focusable(false)` maps to `canBecomeKeyWindow = NO` /
+//! `WS_EX_NOACTIVATE` so the pet stays above other apps without stealing key.
+//!
+//! Linux/KWin drops pointer events on `accept_focus=false` windows, so the
+//! overlay stays focusable there and does not yield key on the same click.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -260,6 +263,8 @@ const PET_BUBBLE_SHADOW_PAD: f64 = 20.0;
 const PET_BUBBLE_VIEWPORT_H: f64 = 176.0;
 /// Matches `.pet-overlay` padding-bottom — mark sits on the bottom, not centered.
 const PET_MARK_BOTTOM_PAD: f64 = 16.0;
+/// Matches `PET_COMPACT_PAD` in JS — idle Wayland window hugs the mark.
+const PET_COMPACT_PAD: f64 = 8.0;
 
 fn overlay_extent(size_px: u32) -> (f64, f64) {
     overlay_extent_for(size_px, true)
@@ -275,6 +280,95 @@ fn overlay_extent_for(size_px: u32, bubbles: bool) -> (f64, f64) {
     } else {
         (mark, mark)
     }
+}
+
+fn overlay_compact(size_px: u32) -> (f64, f64) {
+    (
+        f64::from(size_px) + PET_COMPACT_PAD * 2.0,
+        f64::from(size_px) + PET_COMPACT_PAD + PET_MARK_BOTTOM_PAD,
+    )
+}
+
+fn overlay_expanded_now(bubbles: bool) -> bool {
+    if !pet_wayland_display() {
+        return true;
+    }
+    if MENU_OPEN.load(Ordering::Relaxed) {
+        return true;
+    }
+    if !bubbles {
+        return false;
+    }
+    LAST_TASKS.lock().map(|g| !g.is_empty()).unwrap_or(false)
+}
+
+fn overlay_extent_now(size_px: u32, bubbles: bool) -> (f64, f64) {
+    if overlay_expanded_now(bubbles) {
+        overlay_extent_for(size_px, bubbles)
+    } else {
+        overlay_compact(size_px)
+    }
+}
+
+/// Tao/GTK reports (0, 0) for global cursor on Wayland — never treat that
+/// as a real pointer. `GDK_BACKEND=x11` stays on the X11 click-through path.
+pub fn wayland_display_from_env(wayland_display: Option<&str>, gdk_backend: Option<&str>) -> bool {
+    let backend = gdk_backend.unwrap_or("").trim();
+    if backend.eq_ignore_ascii_case("x11") {
+        return false;
+    }
+    if backend.eq_ignore_ascii_case("wayland") {
+        return true;
+    }
+    wayland_display
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false)
+}
+
+pub fn pet_wayland_display() -> bool {
+    wayland_display_from_env(
+        std::env::var("WAYLAND_DISPLAY").ok().as_deref(),
+        std::env::var("GDK_BACKEND").ok().as_deref(),
+    )
+}
+
+/// `None` = leave ignore-cursor unchanged (Wayland: polling is unusable).
+/// `Some(true)` = click-through empty pixels.
+pub fn pet_poll_ignore_cursor(wayland: bool, over: bool) -> Option<bool> {
+    if wayland {
+        None
+    } else {
+        Some(!over)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PetOverlayPolicy {
+    pub compact_idle: bool,
+    pub cursor_click_through: bool,
+}
+
+pub fn pet_overlay_policy_for(wayland: bool) -> PetOverlayPolicy {
+    PetOverlayPolicy {
+        compact_idle: wayland,
+        cursor_click_through: !wayland,
+    }
+}
+
+/// KWin/Mutter drop pointer events when `accept_focus` is false. macOS/Windows
+/// need the opposite so `show()` cannot steal the workbench's first click.
+pub fn pet_overlay_focusable(linux: bool) -> bool {
+    linux
+}
+
+/// Immediate Focused(true) → yield cancels the click / move serial on Linux.
+pub fn should_yield_key_on_pet_focus(linux: bool, dragging: bool, menu_open: bool) -> bool {
+    !linux && !dragging && !menu_open
+}
+
+pub fn pet_nudge_origin(x: f64, y: f64, dx: f64, dy: f64) -> (f64, f64) {
+    (x + dx, y + dy)
 }
 
 fn mark_center_physical(
@@ -366,9 +460,11 @@ fn apply_window_chrome(win: &tauri::WebviewWindow) {
     let _ = win.set_skip_taskbar(true);
     let _ = win.set_decorations(false);
     let _ = win.set_shadow(false);
-    // Must stay false: show() / always-on-top must not make this the key window.
-    let _ = win.set_focusable(false);
+    let _ = win.set_focusable(pet_overlay_focusable(cfg!(target_os = "linux")));
     detach_native_menu(win);
+    if pet_wayland_display() {
+        let _ = win.set_ignore_cursor_events(false);
+    }
 }
 
 /// Keep a window-local empty menu so `AppHandle::set_menu` (locale refresh)
@@ -383,6 +479,26 @@ fn detach_native_menu(#[allow(unused_variables)] win: &tauri::WebviewWindow) {
     }
     #[cfg(windows)]
     crate::win_shell::strip_overlay_native_menu(win);
+    hide_linux_menubar(win);
+}
+
+/// GTK `app.set_menu` reapplies the menubar on every ApplicationWindow.
+/// An empty muda menu is not enough — KDE still paints Edit/Window/Help.
+fn hide_linux_menubar(win: &tauri::WebviewWindow) {
+    #[cfg(target_os = "linux")]
+    {
+        let w = win.clone();
+        let handle = w.clone();
+        let _ = handle.run_on_main_thread(move || {
+            if let Ok(gtk_win) = w.gtk_window() {
+                gtk::prelude::ApplicationWindowExt::set_show_menubar(&gtk_win, false);
+            }
+        });
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = win;
+    }
 }
 
 /// Re-apply overlay chrome after the app-wide menu is installed or refreshed.
@@ -483,7 +599,7 @@ pub fn ensure_pet_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String
         return Ok(existing);
     }
     let prefs = normalize_prefs(load_prefs());
-    let (side_w, side_h) = overlay_extent_for(prefs.size_px, prefs.bubbles_enabled);
+    let (side_w, side_h) = overlay_extent_now(prefs.size_px, prefs.bubbles_enabled);
     WEBVIEW_READY.store(false, Ordering::SeqCst);
     let mut builder = WebviewWindowBuilder::new(
         app,
@@ -500,7 +616,7 @@ pub fn ensure_pet_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String
     .skip_taskbar(true)
     .visible(false)
     .focused(false)
-    .focusable(false)
+    .focusable(pet_overlay_focusable(cfg!(target_os = "linux")))
     .shadow(false)
     .accept_first_mouse(true)
     .initialization_script(PET_INIT_SCRIPT)
@@ -537,7 +653,13 @@ pub fn ensure_pet_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String
                 // show() uses makeKeyAndOrderFront even when focused(false).
                 // If the workbench is already up, give key back immediately.
                 // Skip while dragging / menu is open so pointer capture stays.
-                if !DRAGGING.load(Ordering::Relaxed) && !MENU_OPEN.load(Ordering::Relaxed) {
+                // On Linux a same-tick yield eats the click (KWin) and the
+                // xdg_toplevel.move serial — show_pet already yields.
+                if should_yield_key_on_pet_focus(
+                    cfg!(target_os = "linux"),
+                    DRAGGING.load(Ordering::Relaxed),
+                    MENU_OPEN.load(Ordering::Relaxed),
+                ) {
                     yield_key_to_main(&handle);
                 }
             }
@@ -567,7 +689,7 @@ pub fn show_pet(app: &AppHandle) -> Result<(), String> {
     save_prefs(&prefs)?;
     let win = ensure_pet_window(app)?;
     apply_window_chrome(&win);
-    let (side_w, side_h) = overlay_extent_for(prefs.size_px, prefs.bubbles_enabled);
+    let (side_w, side_h) = overlay_extent_now(prefs.size_px, prefs.bubbles_enabled);
     let _ = win.set_size(LogicalSize::new(side_w, side_h));
     if let (Some(x), Some(y)) = (prefs.x, prefs.y) {
         let _ = win.set_position(LogicalPosition::new(x, y));
@@ -583,6 +705,14 @@ pub fn show_pet(app: &AppHandle) -> Result<(), String> {
         apply_window_chrome(&win);
     }
     yield_key_to_main(app);
+    // GTK reapplies the app menubar on map; strip again after realize.
+    let later = win.clone();
+    tauri::async_runtime::spawn(async move {
+        for ms in [50_u64, 250, 800] {
+            tokio::time::sleep(Duration::from_millis(ms)).await;
+            apply_window_chrome(&later);
+        }
+    });
     Ok(())
 }
 
@@ -609,11 +739,22 @@ pub fn start_cursor_watch(app: AppHandle) {
         return;
     }
     tauri::async_runtime::spawn(async move {
+        let wayland = pet_wayland_display();
         loop {
             tokio::time::sleep(Duration::from_millis(64)).await;
             let Some(win) = app.get_webview_window(PET_WINDOW_LABEL) else {
                 continue;
             };
+            if wayland {
+                // Tao stubs global cursor at (0, 0) on Wayland. Polling that
+                // would set ignore_cursor_events(true) forever. Compact window
+                // + local pointer events instead.
+                if DRAGGING.load(Ordering::Relaxed) && drag_should_clear(true, primary_mouse_down())
+                {
+                    finish_os_drag(&app);
+                }
+                continue;
+            }
             if DRAGGING.load(Ordering::Relaxed) {
                 // startDragging() often eats WebView pointerup. If the button is
                 // already up, the whole padded overlay would stay a hit target.
@@ -658,7 +799,9 @@ pub fn start_cursor_watch(app: AppHandle) {
                 scale,
                 &chrome,
             );
-            let _ = win.set_ignore_cursor_events(!over);
+            if let Some(ignore) = pet_poll_ignore_cursor(false, over) {
+                let _ = win.set_ignore_cursor_events(ignore);
+            }
             // Screen-space look target so eyes track the pointer even when
             // the overlay is click-through (no webview pointer events).
             let (fallback_cx, fallback_cy) = mark_center_physical(
@@ -693,12 +836,17 @@ pub fn start_cursor_watch(app: AppHandle) {
 }
 
 #[tauri::command]
-pub fn pet_webview_ready(app: AppHandle) -> Result<(), String> {
+pub fn pet_webview_ready(app: AppHandle) -> Result<PetOverlayPolicy, String> {
     WEBVIEW_READY.store(true, Ordering::SeqCst);
     if let Some(win) = app.get_webview_window(PET_WINDOW_LABEL) {
         reveal_if_wanted(&win);
     }
-    Ok(())
+    Ok(pet_overlay_policy_for(pet_wayland_display()))
+}
+
+#[tauri::command]
+pub fn pet_overlay_policy() -> PetOverlayPolicy {
+    pet_overlay_policy_for(pet_wayland_display())
 }
 
 #[tauri::command]
@@ -716,7 +864,7 @@ pub fn pet_prefs_set(app: AppHandle, prefs: PetPrefs) -> Result<PetPrefs, String
     if next.enabled && next.visible {
         show_pet(&app)?;
         if let Some(win) = app.get_webview_window(PET_WINDOW_LABEL) {
-            let (side_w, side_h) = overlay_extent_for(next.size_px, next.bubbles_enabled);
+            let (side_w, side_h) = overlay_extent_now(next.size_px, next.bubbles_enabled);
             let _ = win.set_size(LogicalSize::new(side_w, side_h));
         }
     } else {
@@ -766,6 +914,8 @@ pub fn pet_is_visible(app: AppHandle) -> bool {
 
 #[tauri::command]
 pub fn pet_set_ignore_cursor(app: AppHandle, ignore: bool) -> Result<(), String> {
+    // Wayland global cursor is (0, 0); click-through would stick forever.
+    let ignore = if pet_wayland_display() { false } else { ignore };
     if let Some(win) = app.get_webview_window(PET_WINDOW_LABEL) {
         win.set_ignore_cursor_events(ignore)
             .map_err(|e| e.to_string())?;
@@ -779,6 +929,31 @@ pub fn pet_set_dragging(app: AppHandle, dragging: bool) {
     if was && !dragging {
         persist_window_pos(&app);
     }
+}
+
+/// Move the overlay by logical CSS pixels. Wayland `startDragging` needs a
+/// live button serial; late JS IPC does not have one.
+#[tauri::command]
+pub fn pet_nudge(app: AppHandle, dx: f64, dy: f64) {
+    if !dx.is_finite() || !dy.is_finite() || (dx == 0.0 && dy == 0.0) {
+        return;
+    }
+    let Some(win) = app.get_webview_window(PET_WINDOW_LABEL) else {
+        return;
+    };
+    DRAGGING.store(true, Ordering::Relaxed);
+    let handle = win.clone();
+    let _ = handle.run_on_main_thread(move || {
+        let Ok(scale) = win.scale_factor() else {
+            return;
+        };
+        let Ok(pos) = win.outer_position() else {
+            return;
+        };
+        let scale = scale.max(0.1);
+        let (x, y) = pet_nudge_origin(f64::from(pos.x) / scale, f64::from(pos.y) / scale, dx, dy);
+        let _ = win.set_position(LogicalPosition::new(x, y));
+    });
 }
 
 #[tauri::command]
@@ -1038,5 +1213,58 @@ mod tests {
             !should_return_main_key(true, true, true),
             "minimized workbench must not be raised"
         );
+    }
+
+    #[test]
+    fn linux_overlay_stays_focusable_for_pointer_events() {
+        assert!(pet_overlay_focusable(true));
+        assert!(!pet_overlay_focusable(false));
+    }
+
+    #[test]
+    fn linux_focus_does_not_yield_key_on_the_same_click() {
+        assert!(!should_yield_key_on_pet_focus(true, false, false));
+        assert!(should_yield_key_on_pet_focus(false, false, false));
+        assert!(!should_yield_key_on_pet_focus(false, true, false));
+        assert!(!should_yield_key_on_pet_focus(false, false, true));
+    }
+
+    #[test]
+    fn nudge_adds_logical_delta() {
+        assert_eq!(pet_nudge_origin(100.0, 200.0, -4.0, 6.5), (96.0, 206.5));
+    }
+
+    #[test]
+    fn wayland_env_detects_display_and_respects_x11_backend() {
+        assert!(wayland_display_from_env(Some("wayland-0"), None));
+        assert!(wayland_display_from_env(Some("wayland-0"), Some("wayland")));
+        assert!(!wayland_display_from_env(Some("wayland-0"), Some("x11")));
+        assert!(!wayland_display_from_env(None, None));
+        assert!(!wayland_display_from_env(Some(""), None));
+    }
+
+    #[test]
+    fn wayland_poll_never_sets_click_through() {
+        assert_eq!(pet_poll_ignore_cursor(true, false), None);
+        assert_eq!(pet_poll_ignore_cursor(true, true), None);
+        assert_eq!(pet_poll_ignore_cursor(false, false), Some(true));
+        assert_eq!(pet_poll_ignore_cursor(false, true), Some(false));
+    }
+
+    #[test]
+    fn wayland_policy_is_compact_without_cursor_click_through() {
+        let wayland = pet_overlay_policy_for(true);
+        assert!(wayland.compact_idle);
+        assert!(!wayland.cursor_click_through);
+        let other = pet_overlay_policy_for(false);
+        assert!(!other.compact_idle);
+        assert!(other.cursor_click_through);
+    }
+
+    #[test]
+    fn compact_overlay_hugs_the_mark() {
+        let (w, h) = overlay_compact(128);
+        assert_eq!(w, 128.0 + 8.0 * 2.0);
+        assert_eq!(h, 128.0 + 8.0 + 16.0);
     }
 }

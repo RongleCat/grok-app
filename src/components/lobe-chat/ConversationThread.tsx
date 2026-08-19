@@ -94,6 +94,7 @@ import {
 } from "@/lib/contextUsage";
 import type { ModelOption } from "@/lib/grokCatalog";
 import { useStickToBottom } from "@/hooks/useStickToBottom";
+import { shouldBumpStickOnBusyEdge } from "@/lib/stickToBottom";
 import { useChatMessageVirtualizer } from "@/hooks/useChatMessageVirtualizer";
 import {
   estimateChatRowHeight,
@@ -1785,29 +1786,39 @@ export function ConversationThread({
    * ends, or a user who scrolled up mid-stream would be yanked back.
    */
   const prevTurnBusyRef = useRef(false);
+  const prevLastUserIdForStickRef = useRef<string | null>(null);
   const [stickBump, setStickBump] = useState(0);
   const turnBusyForStick =
     sessionState === "streaming" || sessionState === "awaiting_permission";
+  const lastUserIdForStick = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]?.role === "user") return messages[i]!.id;
+    }
+    return null;
+  }, [messages]);
   useEffect(() => {
     if (turnBusyForStick && !prevTurnBusyRef.current) {
-      // Task just started → re-enter auto-follow once.
-      setStickBump((n) => n + 1);
-    }
-    prevTurnBusyRef.current = turnBusyForStick;
-  }, [turnBusyForStick]);
-
-  const forceStickKey = useMemo(() => {
-    let lastUserId: string | null = null;
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i]?.role === "user") {
-        lastUserId = messages[i]!.id;
-        break;
+      // Same user turn became busy (regenerate / permission) — bump.
+      // A new lastUserId already changes forceStickKey; bumping again
+      // would snap twice (#703 send flicker).
+      if (
+        shouldBumpStickOnBusyEdge(
+          lastUserIdForStick,
+          prevLastUserIdForStickRef.current,
+        )
+      ) {
+        setStickBump((n) => n + 1);
       }
     }
-    if (!lastUserId && stickBump === 0) return null;
+    prevTurnBusyRef.current = turnBusyForStick;
+    prevLastUserIdForStickRef.current = lastUserIdForStick;
+  }, [turnBusyForStick, lastUserIdForStick]);
+
+  const forceStickKey = useMemo(() => {
+    if (!lastUserIdForStick && stickBump === 0) return null;
     // stickBump only increments on busy edge — end-of-turn leaves it stable.
-    return `${lastUserId ?? "turn"}:${stickBump}`;
-  }, [messages, stickBump]);
+    return `${lastUserIdForStick ?? "turn"}:${stickBump}`;
+  }, [lastUserIdForStick, stickBump]);
 
   /** Last non-streaming assistant in the current user turn — regenerate target. */
   const regenerableAssistantId = useMemo(

@@ -26,23 +26,73 @@ impl SessionManager {
         app_session_id: Option<String>,
         mock_mode: Option<String>,
     ) -> Result<SessionSnapshot, String> {
-        let _connect_guard = self.connect_lock.lock().await;
-        match tokio::time::timeout(
-            Duration::from_secs(CONNECT_WALL_CLOCK_SECS),
-            self.connect_inner(app.clone(), project_path, app_session_id.clone(), mock_mode),
-        )
+        // Enqueue is logged before `connect_lock` so a stuck holder still
+        // leaves a trail. The 90s timer runs on this task; handshake + lock
+        // wait run on a sibling so a blocking ACP poll cannot starve it.
+        tracing::info!(
+            target: "session",
+            session = ?app_session_id,
+            "connect enqueue"
+        );
+        crate::logging::sync_diag(&format!("connect enqueue session={:?}", app_session_id));
+
+        let my_gen = self
+            .connect_epoch
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            .wrapping_add(1);
+
+        let mgr = Arc::clone(self);
+        let app_task = app.clone();
+        let sid = app_session_id.clone();
+        let join = tauri::async_runtime::spawn(async move {
+            let _connect_guard = mgr.connect_lock.lock().await;
+            if !connect_attempt_still_current(
+                mgr.connect_epoch.load(std::sync::atomic::Ordering::SeqCst),
+                my_gen,
+            ) {
+                return Err(format!(
+                    "{}: {}",
+                    crate::error::AgentErrorCode::ConnectFailed.as_str(),
+                    connect_gave_up_reason(false)
+                ));
+            }
+            mgr.connect_inner(app_task, project_path, sid, mock_mode)
+                .await
+        });
+
+        match tokio::time::timeout(Duration::from_secs(CONNECT_WALL_CLOCK_SECS), async {
+            join.await
+        })
         .await
         {
-            Ok(r) => r,
+            Ok(Ok(inner)) => inner,
+            Ok(Err(join_err)) => {
+                tracing::error!(error = %join_err, "connect task failed");
+                Err(format!("connect task failed: {join_err}"))
+            }
             Err(_) => {
+                let current = self.connect_epoch.load(std::sync::atomic::Ordering::SeqCst);
+                let next = next_connect_epoch_on_timeout(current, my_gen);
+                if next != current {
+                    self.connect_epoch
+                        .store(next, std::sync::atomic::Ordering::SeqCst);
+                }
                 tracing::warn!(
                     target: "session",
                     session = ?app_session_id,
                     secs = CONNECT_WALL_CLOCK_SECS,
                     "connect wall-clock timeout"
                 );
+                crate::logging::sync_diag(&format!(
+                    "connect wall-clock timeout session={:?} secs={}",
+                    app_session_id, CONNECT_WALL_CLOCK_SECS
+                ));
                 Ok(self
-                    .fail_stale_connecting(&app, app_session_id.as_deref(), "connect timed out")
+                    .fail_stale_connecting(
+                        &app,
+                        app_session_id.as_deref(),
+                        connect_gave_up_reason(true),
+                    )
                     .await)
             }
         }
@@ -1583,6 +1633,24 @@ mod connect_preserve_tests {
         assert!(!stop_should_abort_handshake(SessionState::Streaming));
         assert!(CONNECT_WALL_CLOCK_SECS >= 60);
         assert!(CONNECT_WALL_CLOCK_SECS <= 90);
+    }
+
+    #[test]
+    fn wall_clock_covers_lock_wait_and_handshake() {
+        assert_eq!(connect_gave_up_reason(false), "connect lock busy");
+        assert_eq!(connect_gave_up_reason(true), "connect timed out");
+        assert!(CONNECT_LOCK_WATCHDOG_SECS < CONNECT_WALL_CLOCK_SECS);
+        assert!(ACP_KILL_TIMEOUT_SECS <= CONNECT_LOCK_WATCHDOG_SECS);
+    }
+
+    #[test]
+    fn timed_out_connect_invalidates_only_its_own_generation() {
+        assert!(connect_attempt_still_current(7, 7));
+        assert!(!connect_attempt_still_current(8, 7));
+        // Latest attempt timed out → bump so a waiter cannot start handshake.
+        assert_eq!(next_connect_epoch_on_timeout(7, 7), 8);
+        // A newer connect already owns the epoch → leave it.
+        assert_eq!(next_connect_epoch_on_timeout(9, 7), 9);
     }
 
     #[test]

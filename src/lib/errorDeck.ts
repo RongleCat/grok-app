@@ -126,10 +126,10 @@ const DECK: Record<ErrorDeckCode, DeckSpec> = {
   AUTH_NO_CONTEXT: {
     problem: "error.deck.authNoContext.problem",
     cause: "error.deck.authNoContext.cause",
-    primaryId: "open_account",
-    primaryLabel: "error.action.openAccount",
-    secondaryId: "reconnect",
-    secondaryLabel: "error.action.reconnect",
+    primaryId: "open_providers",
+    primaryLabel: "error.action.openProviders",
+    secondaryId: "open_account",
+    secondaryLabel: "error.action.openAccount",
   },
   AUTH_API_KEY: {
     problem: "error.deck.authApiKey.problem",

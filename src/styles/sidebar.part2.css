@@ -420,6 +420,43 @@ html[data-sidebar-density="compact"] .tree-date-group__head {
   flex-shrink: 0;
 }
 
+.tree-l3__rename {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  padding: 0 6px;
+  border: 1px solid var(--border-subtle, var(--glass-border));
+  border-radius: 4px;
+  background: var(--bg-app, var(--bg-elevated));
+  color: var(--text-primary);
+  font: inherit;
+  font-size: inherit;
+  line-height: 20px;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.tree-l3__rename:focus,
+.tree-l3__rename:focus-visible {
+  border-color: var(--accent, var(--text-primary));
+  outline: none;
+  box-shadow: none;
+}
+
+.tree-l3--renaming {
+  opacity: 1;
+  cursor: default;
+}
+
+.tree-l3--renaming .tree-l3__actions,
+.tree-l3--renaming .tree-l3__time,
+.tree-l3--renaming .tree-l3__status {
+  display: none;
+}
+
 /*
  * One-way seamless marquee: only forward (left).
  * Hold at start → scroll through full loop (title + gap) → seamless restart.

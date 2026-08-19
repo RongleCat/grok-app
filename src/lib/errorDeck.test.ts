@@ -210,9 +210,11 @@ describe("buildErrorDeck", () => {
     );
 
     const noCtxDeck = buildErrorDeck("AUTH_NO_CONTEXT", "en");
-    expect(noCtxDeck.primary.id).toBe("open_account");
-    expect(noCtxDeck.secondary?.id).toBe("reconnect");
-    expect(noCtxDeck.cause.toLowerCase()).toMatch(/auth|credential|reconnect|sign/);
+    expect(noCtxDeck.primary.id).toBe("open_providers");
+    expect(noCtxDeck.secondary?.id).toBe("open_account");
+    expect(noCtxDeck.cause.toLowerCase()).toMatch(
+      /cc switch|provider|relay|use/,
+    );
 
     const apiKeyDeck = buildErrorDeck("AUTH_API_KEY", "en");
     expect(apiKeyDeck.primary.id).toBe("open_providers");

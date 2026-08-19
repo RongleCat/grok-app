@@ -882,6 +882,15 @@ export function ResourceViewer({
         .split("/")
         .filter(Boolean)
     : [];
+  const previewDirty = isResourceDraftDirty(
+    activeTab?.draftText,
+    activeTab?.baselineText,
+  );
+  const canReloadPreview =
+    !!activeTab &&
+    activeTab.tabKind !== "url" &&
+    !activeTab.loading &&
+    !previewDirty;
 
   return (
     <div
@@ -1167,6 +1176,27 @@ export function ResourceViewer({
             )}
           </div>
           <div className="rp-files-toolbar__actions">
+            <Tip
+              label={
+                previewDirty ? tr("resources.unsaved") : tr("resources.refresh")
+              }
+            >
+              <button
+                type="button"
+                className="chrome-btn"
+                aria-label={
+                  previewDirty ? tr("resources.unsaved") : tr("resources.refresh")
+                }
+                data-testid="files-reload"
+                disabled={!canReloadPreview}
+                onClick={() => {
+                  if (!canReloadPreview) return;
+                  void reloadActiveFile();
+                }}
+              >
+                <IconRefresh size={16} />
+              </button>
+            </Tip>
             <Tip
               label={
                 treeVisible

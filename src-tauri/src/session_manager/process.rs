@@ -893,7 +893,7 @@ impl SessionManager {
                 entries.len()
             );
             if let Some(acp) = entries.first().map(|p| p.acp.clone()) {
-                acp.kill().await;
+                self.kill_acp_bounded(&acp).await;
             }
             for p in entries {
                 Self::emit_idle_recycled(app, &p.app_session_id, "capacity");
@@ -949,12 +949,38 @@ impl SessionManager {
         }
     }
 
+    pub(super) async fn try_lock_connect(
+        &self,
+        wait: Duration,
+    ) -> Option<tokio::sync::MutexGuard<'_, ()>> {
+        tokio::time::timeout(wait, self.connect_lock.lock())
+            .await
+            .ok()
+    }
+
+    pub(super) async fn kill_acp_bounded(&self, acp: &AcpClient) {
+        if tokio::time::timeout(Duration::from_secs(ACP_KILL_TIMEOUT_SECS), acp.kill())
+            .await
+            .is_err()
+        {
+            tracing::warn!(secs = ACP_KILL_TIMEOUT_SECS, "acp kill timed out");
+        }
+    }
+
     /// Idle recycle for live + parked (I03).
     pub(super) async fn tick_idle_recycle(&self, app: &AppHandle) {
-        // Serialize watchdog recycling with connect/park/unpark. Without this
-        // boundary a warm-reuse connect can bind a new live session to a PID
-        // immediately after the watchdog decides that a parked handle is idle.
-        let _connect_guard = self.connect_lock.lock().await;
+        // Serialize recycle with connect/park/unpark. Bound the wait so a
+        // wedged handshake cannot pin this watchdog (and every later connect).
+        let Some(_connect_guard) = self
+            .try_lock_connect(Duration::from_secs(CONNECT_LOCK_WATCHDOG_SECS))
+            .await
+        else {
+            tracing::warn!(
+                secs = CONNECT_LOCK_WATCHDOG_SECS,
+                "idle recycle skipped: connect_lock busy"
+            );
+            return;
+        };
         let idle_mins = Self::idle_minutes_from_settings();
         let now = Instant::now();
         self.sweep_dead_parked();
@@ -1002,7 +1028,7 @@ impl SessionManager {
                 entries.len()
             );
             if let Some(acp) = entries.first().map(|p| p.acp.clone()) {
-                acp.kill().await;
+                self.kill_acp_bounded(&acp).await;
             }
             for p in entries {
                 Self::emit_idle_recycled(app, &p.app_session_id, "idle");
@@ -1090,7 +1116,7 @@ impl SessionManager {
                     .filter_map(|session_id| parked.remove(&session_id))
                     .collect::<Vec<_>>()
             };
-            acp.kill().await;
+            self.kill_acp_bounded(&acp).await;
             Self::emit_idle_recycled(app, &sid, "idle");
             for p in parked_cotenants {
                 Self::emit_idle_recycled(app, &p.app_session_id, "idle");

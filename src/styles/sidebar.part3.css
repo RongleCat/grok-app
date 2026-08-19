@@ -804,6 +804,12 @@ html[data-sidebar-density="compact"] .tree-l3__title {
   gap: 4px;
 }
 
+html[data-sidebar-density="compact"] .tree-l3__rename {
+  height: 18px;
+  padding: 0 4px;
+  line-height: 16px;
+}
+
 html[data-sidebar-density="compact"] .tree-l3--hint {
   height: 22px;
   min-height: 22px;

@@ -68,6 +68,26 @@ pub fn logs_dir() -> PathBuf {
     crate::paths::app_data_root().join("logs")
 }
 
+/// Append one line to today's rolling file and flush. Survives a wedged
+/// `tracing-appender` worker (lossy non-blocking sink can go silent while
+/// Host is still serving commands).
+pub fn sync_diag(message: &str) {
+    let log_dir = logs_dir();
+    let _ = std::fs::create_dir_all(&log_dir);
+    let day = chrono::Local::now().format("%Y-%m-%d");
+    let path = log_dir.join(format!("app.log.{day}"));
+    let ts = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+    let line = format!("{ts}  WARN grok_app::logging: {message}\n");
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        let _ = f.write_all(line.as_bytes());
+        let _ = f.flush();
+    }
+}
+
 /// Install a panic hook that **sync-writes** to `logs/panic.log` and today's
 /// `app.log.YYYY-MM-DD` before chaining to the previous hook.
 ///

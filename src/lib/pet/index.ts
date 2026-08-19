@@ -38,8 +38,13 @@ export {
 
 export {
   PET_BUBBLE_EDGE_PAD,
+  PET_COMPACT_PAD,
+  PET_MARK_BOTTOM_PAD,
   petBubbleOffsetX,
   petBubblesEnabled,
+  petCompactOverlayHeight,
+  petCompactOverlayWidth,
+  petOverlayExtent,
   petOverlayHeight,
   petOverlayWidth,
 } from "./petBubbleLayout";
@@ -60,6 +65,14 @@ export {
 } from "./petNav";
 
 export { isPetShellHash } from "./petShell";
+
+export {
+  PET_DRAG_SLOP,
+  fallbackPetOverlayPolicy,
+  petDragPassedSlop,
+  petPointerStep,
+  petShouldManualDrag,
+} from "./petDrag";
 
 export {
   PET_COLORS,

@@ -79,6 +79,9 @@ pub struct SessionManager {
     >,
     /// Serialize connect / park / unpark so openSession prefetch cannot race first send.
     pub(super) connect_lock: tokio::sync::Mutex<()>,
+    /// Latest-wins generation for `session_connect`. A timed-out or superseded
+    /// waiter must not enter `connect_inner` after it finally acquires the lock.
+    pub(super) connect_epoch: AtomicU64,
     /// Per-session locks that serialize a prompt's user-journal append with
     /// post-turn reconciliation. Retry sleeps never hold these locks, and one
     /// chat never delays another chat's send.
@@ -105,6 +108,7 @@ impl SessionManager {
             prewarm_epoch: AtomicU64::new(0),
             tool_identities: std::sync::Mutex::new(std::collections::HashMap::new()),
             connect_lock: tokio::sync::Mutex::new(()),
+            connect_epoch: AtomicU64::new(0),
             post_turn_journal_locks: Mutex::new(HashMap::new()),
             pending_soft_respawn: Mutex::new(HashMap::new()),
         }

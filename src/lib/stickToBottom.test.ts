@@ -11,6 +11,8 @@ import {
   isMeaningfulScrollUp,
   isNearBottom,
   nextStickPinState,
+  shouldBumpStickOnBusyEdge,
+  shouldClampPinnedOverscroll,
   shouldClampPinnedStreamDrift,
   shouldReleaseStickOnScrollUp,
 } from "./stickToBottom";
@@ -114,13 +116,38 @@ describe("shouldClampPinnedStreamDrift", () => {
 describe("isMeaningfulScrollUp", () => {
   it("ignores micro jitter at the locked bottom", () => {
     expect(isMeaningfulScrollUp(595, 600)).toBe(false); // 5px
-    expect(isMeaningfulScrollUp(590, 600)).toBe(false); // 10px
-    expect(STICK_ESCAPE_MIN_DELTA_PX).toBe(14);
+    expect(isMeaningfulScrollUp(591, 600)).toBe(false); // 9px
+    expect(STICK_ESCAPE_MIN_DELTA_PX).toBe(10);
   });
 
-  it("accepts a clear upward drag", () => {
+  it("accepts a clear upward drag aligned with the wheel threshold", () => {
     expect(isMeaningfulScrollUp(580, 600)).toBe(true); // 20px
-    expect(isMeaningfulScrollUp(586, 600)).toBe(true); // 14px
+    expect(isMeaningfulScrollUp(590, 600)).toBe(true); // 10px
+  });
+});
+
+describe("shouldClampPinnedOverscroll", () => {
+  it("clamps only past max (rubber-band)", () => {
+    expect(shouldClampPinnedOverscroll(601, 600)).toBe(true);
+    expect(shouldClampPinnedOverscroll(600.6, 600)).toBe(true);
+  });
+
+  it("does not fight an upward leave of a few pixels", () => {
+    expect(shouldClampPinnedOverscroll(600, 600)).toBe(false);
+    expect(shouldClampPinnedOverscroll(595, 600)).toBe(false);
+    expect(shouldClampPinnedOverscroll(590, 600)).toBe(false);
+  });
+});
+
+describe("shouldBumpStickOnBusyEdge", () => {
+  it("bumps regenerate / permission on the same user turn", () => {
+    expect(shouldBumpStickOnBusyEdge("u1", "u1")).toBe(true);
+    expect(shouldBumpStickOnBusyEdge(null, null)).toBe(true);
+  });
+
+  it("does not bump when a new user message already force-sticks", () => {
+    expect(shouldBumpStickOnBusyEdge("u2", "u1")).toBe(false);
+    expect(shouldBumpStickOnBusyEdge("u1", null)).toBe(false);
   });
 });
 

@@ -57,7 +57,16 @@ impl SessionManager {
 
         // Serialize against connect for the whole focus + turn-open window, so
         // the slot cannot move between the target check and `begin_stream`.
-        let _focus_guard = self.connect_lock.lock().await;
+        let Some(_focus_guard) = self
+            .try_lock_connect(Duration::from_secs(CONNECT_WALL_CLOCK_SECS))
+            .await
+        else {
+            return Err(format!(
+                "{}: {}",
+                AgentErrorCode::ConnectFailed.as_str(),
+                connect_gave_up_reason(false)
+            ));
+        };
         if let Some(target) = session_id.as_deref() {
             match self.ensure_promptable_session(&app, target) {
                 Ok(true) => {}
