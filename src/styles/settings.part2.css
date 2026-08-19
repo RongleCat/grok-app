@@ -251,6 +251,44 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   color: var(--text-muted, inherit);
 }
 
+/* Two-column compact grid for the custom STT engine fields. Cells mirror the
+   page's settings-row rhythm (label left, control right) so the block reads
+   as part of the row instead of a detached form. */
+.settings-stt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 20px;
+  margin-top: 10px;
+  width: 100%;
+  max-width: 46rem;
+}
+.settings-stt-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.settings-stt-field > .settings-row__label {
+  color: var(--text-muted, inherit);
+  font-size: var(--text-sm, 13px);
+  white-space: nowrap;
+}
+.settings-stt-field--wide {
+  grid-column: 1 / -1;
+}
+/* Controls fill their cell so both columns line up. */
+.settings-stt-field .settings-select,
+.settings-stt-field .c-select,
+.settings-stt-field .settings-input {
+  width: 100%;
+  min-width: 0;
+}
+.settings-stt-field .prov-key-row .settings-input {
+  flex: 1;
+  min-width: 0;
+}
+
 .settings-font-preview {
   margin: 8px 0 0;
   padding: 8px 10px;

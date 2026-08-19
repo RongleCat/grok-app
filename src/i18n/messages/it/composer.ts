@@ -361,4 +361,6 @@ export const itComposer = {
   "composer.apply.error.busy": "L’agente è a metà turno — il cambio si applica dopo questo turno",
   "composer.apply.error.other": "Impossibile applicare il cambio di modello o ragionamento",
   "composer.skillsPicker": "Trova skill",
+  "composer.voiceErr.local_offline": "Il servizio di dettatura locale non è in esecuzione — vedi Impostazioni → Voice per avviarlo.",
+  "composer.voiceErr.stt_key": "La chiave API di dettatura personalizzata è mancante o non valida — controllala in Impostazioni → Voice.",
 };

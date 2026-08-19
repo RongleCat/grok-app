@@ -2595,6 +2595,11 @@ export function AppWorkbench() {
   const [voiceId, setVoiceId] = useState("eve");
   const [voiceDictationAutoSend, setVoiceDictationAutoSend] = useState(false);
   const [voiceKeepAgentsOnEnd, setVoiceKeepAgentsOnEnd] = useState(true);
+  const [sttEngine, setSttEngine] = useState("official");
+  const [sttCustomBaseUrl, setSttCustomBaseUrl] = useState("");
+  const [sttCustomModel, setSttCustomModel] = useState("");
+  const [sttCustomLanguage, setSttCustomLanguage] = useState("");
+  const [sttZhScript, setSttZhScript] = useState("auto");
   const [allowUnverifiedCliInstall, setAllowUnverifiedCliInstall] =
     useState(false);
   const [lastCliChecksumVerified, setLastCliChecksumVerified] = useState<
@@ -3707,6 +3712,14 @@ export function AppWorkbench() {
       setVoiceKeepAgentsOnEnd(
         settings.voiceKeepAgentsOnEnd !== false,
       );
+      setSttEngine((settings.sttEngine || "official").trim() || "official");
+      setSttCustomBaseUrl(settings.sttCustomBaseUrl || "");
+      setSttCustomModel(settings.sttCustomModel || "");
+      setSttCustomLanguage(settings.sttCustomLanguage || "");
+      setSttZhScript(
+        (settings.sttZhScript || "auto").trim() || "auto",
+      );
+
       setAllowUnverifiedCliInstall(!!settings.allowUnverifiedCliInstall);
       setLastCliChecksumVerified(
         typeof settings.lastCliChecksumVerified === "boolean"
@@ -10519,10 +10532,11 @@ export function AppWorkbench() {
     }
     try {
       // Desktop Tauri and phone mirror both resolve availability from the host
-      // voice.status (mirror routes it over the WS allowlist). The host also
-      // refuses speech when active provider is custom.
+      // voice.status (mirror routes it over the WS allowlist). The host refuses
+      // speech when the active provider is custom AND no custom STT endpoint is
+      // configured; with a custom STT endpoint the host reports available.
       if (api.isTauri() || isMirrorClient()) {
-        if (customActive) {
+        if (customActive && sttEngine !== "custom") {
           setVoiceGate({ available: false, reason: "not_available" });
           return;
         }
@@ -10550,13 +10564,15 @@ export function AppWorkbench() {
       signedInOfficial: signedIn,
       hasOfficialApiKey: hasOfficial,
       hasRelayOnly: hasRelay && !hasOfficial && !signedIn,
+      sttCustomConfigured:
+        sttEngine === "custom" && sttCustomBaseUrl.trim().length > 0,
       activeProviderIsCustom: customActive,
     });
     setVoiceGate({
       available: gate.available,
       reason: gate.reason,
     });
-  }, [account?.profile?.signedIn]);
+  }, [account?.profile?.signedIn, sttEngine, sttCustomBaseUrl]);
 
   useEffect(() => {
     void refreshVoiceGate();
@@ -10635,6 +10651,10 @@ export function AppWorkbench() {
           audioBase64: b64,
           filename: `dictation.${ext}`,
           mime,
+          // Resolved locale via the live ref (never the raw "system"
+          // preference) so the host can steer the Chinese language hint for
+          // 跟随系统 — avoids a stale closure when the UI language changes.
+          locale: localeRef.current,
         });
         if (!voiceResultStillCurrent(gen, voiceGenRef.current)) return;
         if (!res.ok || !res.text?.trim()) {
@@ -18641,6 +18661,46 @@ export function AppWorkbench() {
           setVoiceKeepAgentsOnEnd(v);
           void api.settingsGet().then((s) =>
           api.settingsSet({ ...s, voiceKeepAgentsOnEnd: v }),
+          );
+          }}
+          sttEngine={sttEngine}
+          onSttEngine={(v) => {
+          const next = (v || "official").trim() || "official";
+          setSttEngine(next);
+          void api.settingsGet().then((s) =>
+          api.settingsSet({ ...s, sttEngine: next }),
+          );
+          }}
+          sttCustomBaseUrl={sttCustomBaseUrl}
+          onSttCustomBaseUrl={(v) => {
+          const next = (v || "").trim();
+          setSttCustomBaseUrl(next);
+          void api.settingsGet().then((s) =>
+          api.settingsSet({ ...s, sttCustomBaseUrl: next }),
+          );
+          }}
+          sttCustomModel={sttCustomModel}
+          onSttCustomModel={(v) => {
+          const next = (v || "").trim();
+          setSttCustomModel(next);
+          void api.settingsGet().then((s) =>
+          api.settingsSet({ ...s, sttCustomModel: next }),
+          );
+          }}
+          sttCustomLanguage={sttCustomLanguage}
+          onSttCustomLanguage={(v) => {
+          const next = (v || "").trim();
+          setSttCustomLanguage(next);
+          void api.settingsGet().then((s) =>
+          api.settingsSet({ ...s, sttCustomLanguage: next }),
+          );
+          }}
+          sttZhScript={sttZhScript}
+          onSttZhScript={(v) => {
+          const next = (v || "auto").trim() || "auto";
+          setSttZhScript(next);
+          void api.settingsGet().then((s) =>
+          api.settingsSet({ ...s, sttZhScript: next }),
           );
           }}
           subagentsEnabled={subagentsEnabled}

@@ -361,4 +361,6 @@ export const deComposer = {
   "composer.apply.error.busy": "Agent ist mitten im Zug — Änderung gilt nach diesem Zug",
   "composer.apply.error.other": "Modell- oder Reasoning-Änderung konnte nicht angewendet werden",
   "composer.skillsPicker": "Skills finden",
+  "composer.voiceErr.local_offline": "Der lokale Diktierdienst wird nicht ausgeführt – unter Einstellungen → Voice nachsehen.",
+  "composer.voiceErr.stt_key": "Der benutzerdefinierte Diktier-API-Schlüssel fehlt oder ist ungültig – unter Einstellungen → Voice prüfen.",
 };

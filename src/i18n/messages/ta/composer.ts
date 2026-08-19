@@ -361,4 +361,6 @@ export const taComposer = {
   "composer.apply.error.busy": "முகவர் இடை-சுற்று - இந்த சுற்றுக்குப் பிறகு மாற்றம் பொருந்தும்",
   "composer.apply.error.other": "மாதிரி அல்லது பகுத்தறிவு மாற்றத்தைப் பயன்படுத்த முடியவில்லை",
   "composer.skillsPicker": "திறன்களைக் கண்டறியவும்",
+  "composer.voiceErr.local_offline": "உள்ளூர் கட்டளை சேவை இயங்கவில்லை — தொடங்க அமைப்புகள் → Voice ஐப் பார்க்கவும்.",
+  "composer.voiceErr.stt_key": "தனிப்பயன் கட்டளை API விசை இல்லை அல்லது தவறானது — அமைப்புகள் → Voice இல் சரிபார்க்கவும்.",
 };

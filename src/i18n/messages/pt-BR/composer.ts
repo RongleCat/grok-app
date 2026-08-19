@@ -361,4 +361,6 @@ export const ptBRComposer = {
   "composer.apply.error.busy": "O agente está no meio do turno — a mudança aplica depois deste turno",
   "composer.apply.error.other": "Não foi possível aplicar a mudança de modelo ou raciocínio",
   "composer.skillsPicker": "Buscar skills",
+  "composer.voiceErr.local_offline": "O serviço de ditado local não está em execução — veja Configurações → Voice para iniciá-lo.",
+  "composer.voiceErr.stt_key": "A chave de API de ditado personalizada está ausente ou inválida — verifique em Configurações → Voice.",
 };

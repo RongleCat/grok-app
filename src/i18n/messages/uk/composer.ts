@@ -361,4 +361,6 @@ export const ukComposer = {
   "composer.apply.error.busy": "Агент посеред ходу — зміна застосується після цього ходу",
   "composer.apply.error.other": "Не вдалося застосувати зміну моделі або міркування",
   "composer.skillsPicker": "Знайти навички",
+  "composer.voiceErr.local_offline": "Локальний сервіс диктування не запущено — див. Налаштування → Voice.",
+  "composer.voiceErr.stt_key": "Користувацький API-ключ диктування відсутній або недійсний — перевірте в Налаштуваннях → Voice.",
 };

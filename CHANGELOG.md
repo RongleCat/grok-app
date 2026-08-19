@@ -29,6 +29,7 @@ See `docs/llm-wiki/release.md`.
 - **Pet eye color, white body, and celebrate spin**: Settings → Pet can pick eyes independently of the body (body palette + Auto). White stays pale in both themes. The mark spins when a focused task finishes, or from the pet menu.
 - **Pet task bubbles can be turned off (#696)**: Settings → Pet and the pet context menu can hide the session chips above the mark. The overlay shrinks when they are off.
 - **Attach another chat as context**: `/attach-chat`, composer `+`, sidebar attach icon, or right-click **Attach to current chat** picks a local conversation; chips sit on the composer; the journal stores `[[chat:id]]` tokens; the host prefixes a compact transcript for the agent only (max 3; source chat unchanged). Row-body drag still moves the chat between projects.
+- **Custom OpenAI-compatible STT endpoint for composer dictation (#700)**: Settings → Voice can pick a custom `/audio/transcriptions` endpoint (Groq / OpenAI / Mistral / local server) with per-provider API keys stored in the OS keychain; official xAI dictation and Live Voice stay unchanged. Chinese dictation gets simplified / traditional script steering, and the 跟随系统 language hint now follows the resolved UI locale.
 
 **中文 · 新增**
 - **十五种界面语言，词条补全（#708）**：设置和系统语言可识别德、西、菲、法、印尼、意、日、韩、巴西葡、泰米尔、乌克兰（加上原有的英、俄、简中、繁中）。新语言都有完整 key 集。日语接近全译；其余覆盖主界面并扩展了设置（深层仍可回落英文，和俄语一样）。日期、数字、热力图、托盘/菜单跟界面语言走，不再按「中文或英语」二分。补上俄语 `tray.*`。不收录拉丁语和梵语。
@@ -40,6 +41,7 @@ See `docs/llm-wiki/release.md`.
 - **宠物可改眼睛颜色、白色身体、完成转圈**：设置 → 宠物里眼睛和身体分开选（身体色板 + 自动）。白色在两种主题下都保持浅色。聚焦任务完成时（或右键菜单）会转圈。
 - **桌宠提示框可关（#696）**：设置 → 宠物，以及宠物右键菜单，都能关掉任务气泡；关掉后浮层会收小。
 - **把另一段对话当作上下文加入**：`/attach-chat`、输入框 `+`、侧栏对话图标或右键「加入目前对话」可加入本地对话；chip 挂在输入框；日记只存 `[[chat:id]]`；Host 只给 Agent 加一段压缩记录（最多 3 段；来源对话不改）。拖行身到项目仍是移动会话。
+- **Composer 听写支持自定义 OpenAI 兼容 STT 端点（#700）**：设置 → Voice 可选用任意 `/audio/transcriptions` 端点（Groq / OpenAI / Mistral / 本地服务），API Key 按提供方独立存入系统钥匙串，明文不出 webview；官方 xAI 听写与 Live Voice 不变。中文听写支持简体 / 繁体引导，「跟随系统」语言提示跟随界面实际语言。
 
 ### Fixed
 - **“No credentials on the agent” points to Providers, not only official Sign in (#705)**: The banner now explains that a terminal CC Switch / custom relay is unused until you click Use in Settings, and the primary action opens Custom providers.

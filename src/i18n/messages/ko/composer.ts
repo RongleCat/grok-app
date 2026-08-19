@@ -361,4 +361,6 @@ export const koComposer = {
   "composer.apply.error.busy": "에이전트가 턴 중간입니다 — 이 턴이 끝난 뒤 변경이 적용됩니다",
   "composer.apply.error.other": "모델 또는 추론 변경을 적용하지 못했습니다",
   "composer.skillsPicker": "스킬 찾기",
+  "composer.voiceErr.local_offline": "로컬 받아쓰기 서비스가 실행 중이 아닙니다 — 설정 → Voice에서 시작 방법을 확인하세요.",
+  "composer.voiceErr.stt_key": "사용자 지정 받아쓰기 API 키가 없거나 유효하지 않습니다 — 설정 → Voice에서 확인하세요.",
 };

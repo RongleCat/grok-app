@@ -1,14 +1,12 @@
 /**
  * Settings → general section (consumes SettingsModel context).
  */
+import { useEffect, useState } from "react";
 import { useSettingsModel } from "@/providers/SettingsModelContext";
 import type { SettingsViewModel } from "./types";
 
 import { Select } from "@/components/Select";
-import {
-  IconLanguage,
-  IconShield,
-} from "@/components/icons";
+import { IconLanguage, IconShield } from "@/components/icons";
 import {
   COMMON_DISALLOWED_TOOLS,
   isToolDisallowed,
@@ -27,6 +25,14 @@ import {
   toggleAllowedTool,
 } from "@/lib/allowedTools";
 import { detectAppPlatform } from "@/lib/appPlatform";
+import {
+  STT_PROVIDER_PRESETS,
+  applySttLanguageOption,
+  matchSttPreset,
+  resolveSttLanguageOption,
+  resolveSttTemplateSelect,
+  sttPresetById,
+} from "@/lib/sttPresets";
 import {
   DEFAULT_SANDBOX_PROFILE,
   RECOMMENDED_SANDBOX_PROFILE,
@@ -87,7 +93,6 @@ import {
   buildOpenTargetSelectOptions,
   resolveOpenEditorEmptyState,
 } from "@/lib/openEditorHonesty";
-
 
 export function GeneralSection() {
   const s = useSettingsModel() as SettingsViewModel & Record<string, any>;
@@ -183,6 +188,16 @@ export function GeneralSection() {
     onVoiceDictationAutoSend,
     onVoiceId,
     onVoiceKeepAgentsOnEnd,
+    sttEngine,
+    onSttEngine,
+    sttCustomBaseUrl,
+    onSttCustomBaseUrl,
+    sttCustomModel,
+    onSttCustomModel,
+    sttCustomLanguage,
+    onSttCustomLanguage,
+    sttZhScript,
+    onSttZhScript,
     onWindowAlwaysOnTop,
     permissionTimeoutSec,
     planEnabled,
@@ -227,6 +242,30 @@ export function GeneralSection() {
     windowAlwaysOnTop,
     workspaceCwd,
   } = s;
+
+  // Local draft for the custom STT key of the ACTIVE provider (persisted on
+  // blur only — never on keystroke; the stored value never comes back to the
+  // webview, mirroring the big-model key fields).
+  const [sttCustomApiKeyDraft, setSttCustomApiKeyDraft] = useState("");
+  // Whether the key field shows plaintext (session-only, like ProvidersPanel).
+  const [sttCustomKeyVisible, setSttCustomKeyVisible] = useState(false);
+  // Per-provider "a key is saved" presence from the host (masked).
+  const [sttCustomKeyPresence, setSttCustomKeyPresence] = useState<
+    Record<string, boolean>
+  >({});
+  useEffect(() => {
+    let cancelled = false;
+    void api.secretsGetMasked().then((r) => {
+      if (cancelled) return;
+      // A stored key never reaches the webview — presence only, so the field
+      // can show a "saved, enter new to replace" placeholder (like the
+      // big-model key). The reveal state never persists across sessions.
+      setSttCustomKeyPresence(r.sttCustomKeys ?? {});
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
@@ -1928,6 +1967,270 @@ export function GeneralSection() {
                     }
                     ariaLabel={t("settings.voiceKeepAgentsOnEnd")}
                   />
+                </div>
+              ) : null}
+              {onSttEngine ? (
+                <div
+                  className={
+                    "settings-row settings-row--stack" +
+                    rowHighlight("settings-anchor-sttEngine")
+                  }
+                  id="settings-anchor-sttEngine"
+                >
+                  <div className="settings-row__text">
+                    <div className="settings-row__label">
+                      {t("settings.sttEngine")}
+                    </div>
+                    <div className="settings-row__desc">
+                      {t("settings.sttEngineDesc")}
+                    </div>
+                  </div>
+                  <Select
+                    value={sttEngine || "official"}
+                    onChange={(v) => onSttEngine(v)}
+                    options={[
+                      {
+                        value: "official",
+                        label: t("settings.sttEngineOfficial"),
+                      },
+                      { value: "custom", label: t("settings.sttEngineCustom") },
+                    ]}
+                  />
+                  {sttEngine === "custom" ? (
+                  <>
+                    <div className="settings-stt-grid">
+                    <div className="settings-stt-field">
+                      <span className="settings-row__label">
+                        {t("settings.sttProvider")}
+                      </span>
+                      <Select
+                        value={matchSttPreset(sttCustomBaseUrl)}
+                        onChange={(v) => {
+                          const next = resolveSttTemplateSelect(
+                            sttCustomBaseUrl,
+                            v,
+                          );
+                          if (!next) return;
+                          onSttCustomBaseUrl?.(next.baseUrl);
+                          if (next.model !== undefined) {
+                            onSttCustomModel?.(next.model);
+                          }
+                          // Per-provider keys: switching template switches the
+                          // key slot. Reset the draft; the new provider's
+                          // presence determines the placeholder.
+                          setSttCustomApiKeyDraft("");
+                          setSttCustomKeyVisible(false);
+                        }}
+                        options={[
+                          ...STT_PROVIDER_PRESETS.map((p) => ({
+                            value: p.id,
+                            label: t(
+                              (
+                                {
+                                  local: "settings.sttProvider.local",
+                                  groq: "settings.sttProvider.groq",
+                                  openai: "settings.sttProvider.openai",
+                                  mistral: "settings.sttProvider.mistral",
+                                } as const
+                              )[p.id],
+                            ),
+                          })),
+                          {
+                            value: "custom",
+                            label: t("settings.sttProvider.custom"),
+                          },
+                        ]}
+                        aria-label={t("settings.sttProvider")}
+                      />
+                    </div>
+                    <div className="settings-stt-field">
+                      <span className="settings-row__label">
+                        {t("settings.sttCustomModel")}
+                      </span>
+                      {(() => {
+                        const preset = sttPresetById(
+                          matchSttPreset(sttCustomBaseUrl),
+                        );
+                        if (preset) {
+                          return (
+                            <Select
+                              value={
+                                preset.models.includes(sttCustomModel || "")
+                                  ? sttCustomModel || ""
+                                  : sttCustomModel || preset.models[0]
+                              }
+                              onChange={(v) => onSttCustomModel?.(v)}
+                              options={[
+                                ...(sttCustomModel &&
+                                !preset.models.includes(sttCustomModel)
+                                  ? [
+                                      {
+                                        value: sttCustomModel,
+                                        label: sttCustomModel,
+                                      },
+                                    ]
+                                  : []),
+                                ...preset.models.map((m) => ({
+                                  value: m,
+                                  label: m,
+                                })),
+                              ]}
+                              aria-label={t("settings.sttCustomModel")}
+                            />
+                          );
+                        }
+                        return (
+                          <input
+                            className="settings-input"
+                            value={sttCustomModel || ""}
+                            placeholder={t(
+                              "settings.sttCustomModelPlaceholder",
+                            )}
+                            aria-label={t("settings.sttCustomModel")}
+                            onChange={(e) =>
+                              onSttCustomModel?.(e.target.value)
+                            }
+                            spellCheck={false}
+                          />
+                        );
+                      })()}
+                    </div>
+                    <div className="settings-stt-field">
+                      <span className="settings-row__label">
+                        {t("settings.sttCustomBaseUrl")}
+                      </span>
+                      <input
+                        className="settings-input"
+                        value={sttCustomBaseUrl || ""}
+                        placeholder={t("settings.sttCustomBaseUrlPlaceholder")}
+                        aria-label={t("settings.sttCustomBaseUrl")}
+                        onChange={(e) =>
+                          onSttCustomBaseUrl?.(e.target.value)
+                        }
+                        spellCheck={false}
+                      />
+                    </div>
+                    <div className="settings-stt-field">
+                      <span className="settings-row__label">
+                        {t("settings.sttCustomLanguage")}
+                      </span>
+                      <Select
+                        value={resolveSttLanguageOption(
+                          sttCustomLanguage,
+                          sttZhScript,
+                        )}
+                        onChange={(v) => {
+                          const next = applySttLanguageOption(v);
+                          onSttCustomLanguage?.(next.language);
+                          onSttZhScript?.(next.script);
+                        }}
+                        options={[
+                          {
+                            value: "auto",
+                            label: t("settings.sttLanguage.auto"),
+                          },
+                          {
+                            value: "en",
+                            label: t("settings.sttLanguage.en"),
+                          },
+                          {
+                            value: "zh-CN",
+                            label: t("settings.sttLanguage.zhCN"),
+                          },
+                          {
+                            value: "zh-TW",
+                            label: t("settings.sttLanguage.zhTW"),
+                          },
+                          ...(() => {
+                            const legacy = resolveSttLanguageOption(
+                              sttCustomLanguage,
+                              sttZhScript,
+                            );
+                            return legacy !== "auto" &&
+                              legacy !== "en" &&
+                              legacy !== "zh-CN" &&
+                              legacy !== "zh-TW"
+                              ? [{ value: legacy, label: legacy }]
+                              : [];
+                          })(),
+                        ]}
+                        aria-label={t("settings.sttCustomLanguage")}
+                      />
+                    </div>
+                    <div className="settings-stt-field settings-stt-field--wide">
+                      <span className="settings-row__label">
+                        {t("settings.sttCustomApiKey")}
+                      </span>
+                      <div className="prov-key-row">
+                        <input
+                          className="settings-input"
+                          type={sttCustomKeyVisible ? "text" : "password"}
+                          value={sttCustomApiKeyDraft}
+                          placeholder={
+                            sttCustomKeyPresence[
+                              matchSttPreset(sttCustomBaseUrl)
+                            ]
+                              ? t("settings.sttCustomApiKeySaved")
+                              : t("settings.sttCustomApiKeyPlaceholder")
+                          }
+                          aria-label={t("settings.sttCustomApiKey")}
+                          onChange={(e) =>
+                            setSttCustomApiKeyDraft(e.target.value)
+                          }
+                          onBlur={() => {
+                            const v = sttCustomApiKeyDraft.trim();
+                            // Never wipe a saved key on blur: only persist when
+                            // the user actually typed a value. Clearing has a
+                            // dedicated button (matches official key behavior).
+                            if (!v) return;
+                            void api.secretsSet({
+                              sttCustomApiKey: v,
+                              sttCustomApiKeyProvider: matchSttPreset(
+                                sttCustomBaseUrl,
+                              ),
+                            });
+                            // Mirror official keys: after saving, empty the
+                            // field so the "saved" placeholder shows.
+                            setSttCustomApiKeyDraft("");
+                          }}
+                          spellCheck={false}
+                          autoComplete="off"
+                        />
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          onClick={() =>
+                            setSttCustomKeyVisible((v) => !v)
+                          }
+                        >
+                          {sttCustomKeyVisible
+                            ? t("prov.keyHide")
+                            : t("prov.keyShow")}
+                        </button>
+                        {sttCustomKeyPresence[
+                          matchSttPreset(sttCustomBaseUrl)
+                        ] ? (
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            onClick={() => {
+                              void api.secretsSet({
+                                sttCustomApiKey: "",
+                                sttCustomApiKeyProvider: matchSttPreset(
+                                  sttCustomBaseUrl,
+                                ),
+                              });
+                              setSttCustomApiKeyDraft("");
+                            }}
+                          >
+                            {t("settings.sttCustomApiKeyClear")}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                    </div>
+                  </>
+                ) : null}
                 </div>
               ) : null}
             </div>

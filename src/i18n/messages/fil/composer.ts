@@ -361,4 +361,6 @@ export const filComposer = {
   "composer.apply.error.busy": "Nasa gitna ng turn ang agent — ma-aapply ang pagbabago pagkatapos ng turn na ito",
   "composer.apply.error.other": "Hindi ma-apply ang pagbabago sa modelo o pangangatwiran",
   "composer.skillsPicker": "Maghanap ng skill",
+  "composer.voiceErr.local_offline": "Hindi tumatakbo ang lokal na serbisyo ng dikta — tingnan ang Settings → Voice kung paano i-start.",
+  "composer.voiceErr.stt_key": "Kulang o invalid ang custom dictation API key — tingnan sa Settings → Voice.",
 };

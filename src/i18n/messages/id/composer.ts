@@ -361,4 +361,6 @@ export const idComposer = {
   "composer.apply.error.busy": "Agen sedang di tengah giliran — perubahan berlaku setelah giliran ini",
   "composer.apply.error.other": "Perubahan model atau penalaran tidak dapat diterapkan",
   "composer.skillsPicker": "Cari skill",
+  "composer.voiceErr.local_offline": "Layanan dikte lokal tidak berjalan — lihat Pengaturan → Voice untuk memulai.",
+  "composer.voiceErr.stt_key": "Kunci API dikte kustom tidak ada atau tidak valid — periksa di Pengaturan → Voice.",
 };

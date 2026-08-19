@@ -361,4 +361,6 @@ export const frComposer = {
   "composer.apply.error.busy": "L’agent est en cours de tour — le changement s’applique après ce tour",
   "composer.apply.error.other": "Impossible d’appliquer le changement de modèle ou de raisonnement",
   "composer.skillsPicker": "Trouver des skills",
+  "composer.voiceErr.local_offline": "Le service de dictée local ne tourne pas — voir Réglages → Voice pour le démarrer.",
+  "composer.voiceErr.stt_key": "La clé API de dictée personnalisée est manquante ou invalide — vérifiez dans Réglages → Voice.",
 };

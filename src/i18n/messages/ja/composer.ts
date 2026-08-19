@@ -361,4 +361,6 @@ export const jaComposer = {
   "composer.apply.error.busy": "Agent 回合进行中 — 本轮结束后生效",
   "composer.apply.error.other": "无法应用模型或推理强度变更",
   "composer.skillsPicker": "查找技能",
+  "composer.voiceErr.local_offline": "ローカルディクテーションサービスが起動していません — 設定 → Voice で起動方法を確認してください。",
+  "composer.voiceErr.stt_key": "カスタムディクテーション API キーが未設定か無効です — 設定 → Voice で確認してください。",
 };

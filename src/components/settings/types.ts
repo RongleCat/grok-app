@@ -197,6 +197,20 @@ export interface SettingsPageProps {
   voiceDictationAutoSend?: boolean;
   onVoiceDictationAutoSend?: (v: boolean) => void;
   voiceKeepAgentsOnEnd?: boolean;
+  sttEngine?: string;
+  onSttEngine?: (v: string) => void;
+  sttCustomBaseUrl?: string;
+  onSttCustomBaseUrl?: (v: string) => void;
+  sttCustomModel?: string;
+  onSttCustomModel?: (v: string) => void;
+  sttCustomLanguage?: string;
+  onSttCustomLanguage?: (v: string) => void;
+  /**
+   * Chinese output script for dictation on Whisper-family custom endpoints:
+   * `auto` (follow app UI locale) | `simplified` | `traditional`.
+   */
+  sttZhScript?: string;
+  onSttZhScript?: (v: string) => void;
   onVoiceKeepAgentsOnEnd?: (v: boolean) => void;
   storeApiKeysInKeychain?: boolean;
   onStoreApiKeysInKeychain?: (v: boolean) => void;

@@ -361,4 +361,6 @@ export const esComposer = {
   "composer.apply.error.busy": "El agente está a mitad de turno — el cambio se aplica tras este turno",
   "composer.apply.error.other": "No se pudo aplicar el cambio de modelo o razonamiento",
   "composer.skillsPicker": "Buscar skills",
+  "composer.voiceErr.local_offline": "El servicio de dictado local no se está ejecutando; mira Ajustes → Voice para iniciarlo.",
+  "composer.voiceErr.stt_key": "La clave de API de dictado personalizada falta o no es válida; revísala en Ajustes → Voice.",
 };

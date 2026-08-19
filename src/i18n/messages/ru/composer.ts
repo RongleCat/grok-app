@@ -361,4 +361,6 @@ export const ruComposer = {
   "composer.apply.error.busy": "Агент выполняет ход — изменение применится после этого хода",
   "composer.apply.error.other": "Не удалось применить смену модели или рассуждения",
   "composer.skillsPicker": "Найти навыки",
+  "composer.voiceErr.local_offline": "Локальный сервис диктовки не запущен — см. Настройки → Voice.",
+  "composer.voiceErr.stt_key": "Пользовательский API-ключ диктовки отсутствует или недействителен — проверьте в Настройках → Voice.",
 };
