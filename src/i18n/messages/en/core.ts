@@ -290,4 +290,11 @@ export const enCore = {
   "cliTrust.hint.mismatch": "Published checksum did not match the download. Install is refused — do not force unverified on mismatch.",
   "cliTrust.hint.unverifiedAllowed": "Install proceeded without a published sidecar (escape hatch or default missing-sidecar policy).",
   "cliTrust.hint.unknown": "No App-managed install checksum record yet. Manual or external installs are not graded.",
+  "fileCard.file": "File",
+  "fileCard.docMd": "Doc · MD",
+  "fileCard.docWord": "Doc · Word",
+  "fileCard.sheetExcel": "Sheet · Excel",
+  "fileCard.codePython": "Code · Python",
+  "fileCard.code": "Code · {ext}",
+  "fileCard.fileExt": "File · {ext}",
 } as const;

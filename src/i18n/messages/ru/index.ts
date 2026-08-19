@@ -6,6 +6,18 @@
  */
 import { en, type MessageKey } from "../en";
 
+import { ruAutomations } from "./automations";
+import { ruDoctor } from "./doctor";
+import { ruErrors } from "./errors";
+import { ruExtensions } from "./extensions";
+import { ruExtra } from "./extra";
+import { ruProviders } from "./providers";
+import { ruSession } from "./session";
+import { ruSettingsVisible } from "./settings-visible";
+import { ruSlash } from "./slash";
+import { ruTasks } from "./tasks";
+import { ruWorkspace } from "./workspace";
+
 const ruOverrides: Partial<Record<MessageKey, string>> = {
   "window.minimize": "Свернуть",
   "window.maximize": "Развернуть",
@@ -360,4 +372,15 @@ const ruOverrides: Partial<Record<MessageKey, string>> = {
 export const ru = {
   ...en,
   ...ruOverrides,
+  ...ruExtra,
+  ...ruErrors,
+  ...ruSession,
+  ...ruSettingsVisible,
+  ...ruSlash,
+  ...ruTasks,
+  ...ruWorkspace,
+  ...ruProviders,
+  ...ruAutomations,
+  ...ruDoctor,
+  ...ruExtensions,
 } satisfies Record<MessageKey, string>;

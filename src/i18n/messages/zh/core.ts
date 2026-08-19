@@ -289,4 +289,11 @@ export const zhCore = {
   "cliTrust.hint.mismatch": "已发布校验和与下载内容不一致，安装已拒绝——校验失败时不可强制跳过。",
   "cliTrust.hint.unverifiedAllowed": "在无已发布校验文件的情况下完成安装（逃生开关或默认「缺校验可装」策略）。",
   "cliTrust.hint.unknown": "尚无 App 托管安装的校验记录。手动或外部安装不评级。",
+  "fileCard.file": "文件",
+  "fileCard.docMd": "文档 · MD",
+  "fileCard.docWord": "文档 · Word",
+  "fileCard.sheetExcel": "表格 · Excel",
+  "fileCard.codePython": "代码 · Python",
+  "fileCard.code": "代码 · {ext}",
+  "fileCard.fileExt": "文件 · {ext}",
 };

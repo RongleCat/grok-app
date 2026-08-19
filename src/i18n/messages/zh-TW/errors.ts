@@ -63,4 +63,6 @@ export const zhTWErrors = {
   "error.deck.generic.problem": "出了點問題",
   "error.deck.generic.cause": "可在 Doctor 查看 CLI/驗證狀態，然後重試上一步操作。",
   "error.needTauri": "需要在 Tauri 視窗中選擇目錄",
+  "error.streamFlap": "回覆中途連線中斷。應用會自動重試；若仍卡住請再傳送一次。",
+  "error.requestFailedRetry": "請求失敗，請重試。",
 };

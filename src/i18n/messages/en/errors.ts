@@ -63,4 +63,6 @@ export const enErrors = {
   "error.deck.generic.problem": "Something went wrong",
   "error.deck.generic.cause": "Check Doctor for CLI/auth status, then retry the last action.",
   "error.needTauri": "Folder picker requires the Tauri window",
+  "error.streamFlap": "Connection dropped mid-reply. The app will retry automatically; send again if it stays stuck.",
+  "error.requestFailedRetry": "Request failed. Please retry.",
 } as const;
