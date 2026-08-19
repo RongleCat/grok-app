@@ -2078,8 +2078,12 @@ mod tests {
             .unwrap_or_else(|e| e.into_inner());
         let engine = Engine::new_ephemeral(OutboundRouter::new(), false);
         let lang = engine.lang();
+        // Any shipped catalog id is correct here — the point of the test is that
+        // the engine follows the product locale instead of a hard-coded zh.
+        // Naming three ids made this fail on a machine whose OS language is one
+        // of the others, which an English CI runner never reaches.
         assert!(
-            matches!(lang.as_str(), "en" | "zh" | "zh-TW"),
+            crate::tray_i18n::ALL.iter().any(|l| l.as_tag() == lang),
             "unexpected catalog id {lang}"
         );
         assert_eq!(lang, i18n::resolve_engine_lang());
