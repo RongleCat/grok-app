@@ -305,6 +305,10 @@ pub struct TrayStrings {
     pub usage_pct: &'static str,
     /// `Usage  ·  —`
     pub usage_unknown: &'static str,
+    /// `chrono` format for the quota refresh instant inside `usage_with_reset`.
+    /// Day/month order is not universal — a translated template around a
+    /// hard-coded `%m-%d` still reads wrong in most of the shipped locales.
+    pub reset_time_fmt: &'static str,
 }
 
 const EN: TrayStrings = TrayStrings {
@@ -323,6 +327,7 @@ const EN: TrayStrings = TrayStrings {
     usage_with_reset: "Usage  ·  {pct}% left  ·  {time}",
     usage_pct: "Usage  ·  {pct}% left",
     usage_unknown: "Usage  ·  —",
+    reset_time_fmt: "%m/%d %H:%M",
 };
 
 const DE: TrayStrings = TrayStrings {
@@ -341,6 +346,7 @@ const DE: TrayStrings = TrayStrings {
     usage_with_reset: "Nutzung  ·  {pct}% übrig  ·  {time}",
     usage_pct: "Nutzung  ·  {pct}% übrig",
     usage_unknown: "Nutzung  ·  —",
+    reset_time_fmt: "%d.%m. %H:%M",
 };
 
 const ES: TrayStrings = TrayStrings {
@@ -359,6 +365,7 @@ const ES: TrayStrings = TrayStrings {
     usage_with_reset: "Uso  ·  {pct}% restante  ·  {time}",
     usage_pct: "Uso  ·  {pct}% restante",
     usage_unknown: "Uso  ·  —",
+    reset_time_fmt: "%d/%m %H:%M",
 };
 
 const FR: TrayStrings = TrayStrings {
@@ -377,6 +384,7 @@ const FR: TrayStrings = TrayStrings {
     usage_with_reset: "Usage  ·  {pct}% restants  ·  {time}",
     usage_pct: "Usage  ·  {pct}% restants",
     usage_unknown: "Usage  ·  —",
+    reset_time_fmt: "%d/%m %H:%M",
 };
 
 const ID: TrayStrings = TrayStrings {
@@ -395,6 +403,7 @@ const ID: TrayStrings = TrayStrings {
     usage_with_reset: "Pemakaian  ·  sisa {pct}%  ·  {time}",
     usage_pct: "Pemakaian  ·  sisa {pct}%",
     usage_unknown: "Pemakaian  ·  —",
+    reset_time_fmt: "%d/%m %H:%M",
 };
 
 const IT: TrayStrings = TrayStrings {
@@ -413,6 +422,7 @@ const IT: TrayStrings = TrayStrings {
     usage_with_reset: "Utilizzo  ·  {pct}% rimasto  ·  {time}",
     usage_pct: "Utilizzo  ·  {pct}% rimasto",
     usage_unknown: "Utilizzo  ·  —",
+    reset_time_fmt: "%d/%m %H:%M",
 };
 
 const JA: TrayStrings = TrayStrings {
@@ -431,6 +441,7 @@ const JA: TrayStrings = TrayStrings {
     usage_with_reset: "使用量  ·  残り {pct}%  ·  {time}",
     usage_pct: "使用量  ·  残り {pct}%",
     usage_unknown: "使用量  ·  —",
+    reset_time_fmt: "%m/%d %H:%M",
 };
 
 const KO: TrayStrings = TrayStrings {
@@ -449,6 +460,7 @@ const KO: TrayStrings = TrayStrings {
     usage_with_reset: "사용량  ·  {pct}% 남음  ·  {time}",
     usage_pct: "사용량  ·  {pct}% 남음",
     usage_unknown: "사용량  ·  —",
+    reset_time_fmt: "%m. %d. %H:%M",
 };
 
 const PT_BR: TrayStrings = TrayStrings {
@@ -467,6 +479,7 @@ const PT_BR: TrayStrings = TrayStrings {
     usage_with_reset: "Uso  ·  {pct}% restante  ·  {time}",
     usage_pct: "Uso  ·  {pct}% restante",
     usage_unknown: "Uso  ·  —",
+    reset_time_fmt: "%d/%m %H:%M",
 };
 
 const RU: TrayStrings = TrayStrings {
@@ -485,6 +498,7 @@ const RU: TrayStrings = TrayStrings {
     usage_with_reset: "Лимит  ·  осталось {pct}%  ·  {time}",
     usage_pct: "Лимит  ·  осталось {pct}%",
     usage_unknown: "Лимит  ·  —",
+    reset_time_fmt: "%d.%m %H:%M",
 };
 
 const UK: TrayStrings = TrayStrings {
@@ -503,6 +517,7 @@ const UK: TrayStrings = TrayStrings {
     usage_with_reset: "Ліміт  ·  залишилось {pct}%  ·  {time}",
     usage_pct: "Ліміт  ·  залишилось {pct}%",
     usage_unknown: "Ліміт  ·  —",
+    reset_time_fmt: "%d.%m %H:%M",
 };
 
 const ZH: TrayStrings = TrayStrings {
@@ -521,6 +536,7 @@ const ZH: TrayStrings = TrayStrings {
     usage_with_reset: "额度  ·  剩余 {pct}%  ·  {time}",
     usage_pct: "额度  ·  剩余 {pct}%",
     usage_unknown: "额度  ·  —",
+    reset_time_fmt: "%m-%d %H:%M",
 };
 
 const ZH_TW: TrayStrings = TrayStrings {
@@ -539,7 +555,27 @@ const ZH_TW: TrayStrings = TrayStrings {
     usage_with_reset: "額度  ·  剩餘 {pct}%  ·  {time}",
     usage_pct: "額度  ·  剩餘 {pct}%",
     usage_unknown: "額度  ·  —",
+    reset_time_fmt: "%m/%d %H:%M",
 };
+
+/// Every catalog id shipped by the frontend (`LOCALES` in
+/// `src/i18n/messages/index.ts`), in the same order. Anything that has to walk
+/// all locales — placeholder-title detection, parity tests — reads this.
+pub const ALL: [Locale; 13] = [
+    Locale::En,
+    Locale::De,
+    Locale::Es,
+    Locale::Fr,
+    Locale::Id,
+    Locale::It,
+    Locale::Ja,
+    Locale::Ko,
+    Locale::PtBr,
+    Locale::Ru,
+    Locale::Uk,
+    Locale::Zh,
+    Locale::ZhTw,
+];
 
 pub fn strings(locale: Locale) -> &'static TrayStrings {
     match locale {
@@ -578,24 +614,6 @@ pub fn format_usage(template: &str, pct: Option<f64>, time: Option<&str>) -> Str
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Every catalog id shipped by the frontend (`LOCALES` in
-    /// `src/i18n/messages/index.ts`), in the same order.
-    const ALL: [Locale; 13] = [
-        Locale::En,
-        Locale::De,
-        Locale::Es,
-        Locale::Fr,
-        Locale::Id,
-        Locale::It,
-        Locale::Ja,
-        Locale::Ko,
-        Locale::PtBr,
-        Locale::Ru,
-        Locale::Uk,
-        Locale::Zh,
-        Locale::ZhTw,
-    ];
 
     #[test]
     fn locale_parse() {

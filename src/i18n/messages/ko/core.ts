@@ -194,4 +194,11 @@ export const koCore: Partial<Record<MessageKey, string>> = {
   "fileCard.codePython": "코드 · Python",
   "fileCard.code": "코드 · {ext}",
   "fileCard.fileExt": "파일 · {ext}",
+
+  // Written to disk as the session title on first send, so it must be
+  // translated before a user creates chats in this language — and must
+  // match `new_chat` / `untitled` in src-tauri/src/tray_i18n.rs.
+  "session.new": "새 대화",
+  "session.placeholderTitle": "새 대화",
+  "session.untitled": "제목 없음",
 };

@@ -124,6 +124,8 @@ describe("i18n catalog", () => {
       "conn.ready",
       "perm.allowOnce",
       "tray.newChat",
+      "session.new",
+      "session.untitled",
       "error.action.retry",
       "kanban.column.done",
     ];

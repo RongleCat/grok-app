@@ -48,7 +48,7 @@ export const deCore: Partial<Record<MessageKey, string>> = {
   "empty.disconnectedHint":
     "Verbinde neu, um diesen Chat fortzusetzen, oder starte einen neuen.",
 
-  "notify.turnDoneTitle": "Grok hat einen Zug abgeschlossen",
+  "notify.turnDoneTitle": "Grok hat einen Vorgang abgeschlossen",
   "notify.turnDoneBody": "Die Sitzung ist bereit für die nächste Nachricht.",
   "notify.permissionTitle": "Freigabe erforderlich",
   "notify.permissionBody": "Der Agent wartet auf deine Zustimmung.",
@@ -89,10 +89,10 @@ export const deCore: Partial<Record<MessageKey, string>> = {
   "activity.running": "Läuft",
   "activity.done": "Fertig",
   "activity.failed": "Fehlgeschlagen",
-  "activity.cancelled": "Zug mitten im Lauf abgebrochen",
+  "activity.cancelled": "Vorgang mitten im Lauf abgebrochen",
   "activity.cancelledByUser": "Von dir gestoppt",
   "activity.cancelledAgentExit": "Agent-Prozess beendet",
-  "activity.cancelledToast": "Zug gestoppt",
+  "activity.cancelledToast": "Vorgang gestoppt",
   "activity.tool": "Werkzeug",
   "activity.working": "Arbeitet…",
   "activity.inProgress": "Arbeitet",
@@ -185,4 +185,11 @@ export const deCore: Partial<Record<MessageKey, string>> = {
   "app.quitBusy.message":
     "{n} Sitzung(en) laufen noch. Beim Beenden wird die laufende Agentenarbeit gestoppt.",
   "app.quitBusy.confirm": "Beenden",
+
+  // Written to disk as the session title on first send, so it must be
+  // translated before a user creates chats in this language — and must
+  // match `new_chat` / `untitled` in src-tauri/src/tray_i18n.rs.
+  "session.new": "Neuer Chat",
+  "session.placeholderTitle": "Neuer Chat",
+  "session.untitled": "Ohne Titel",
 };

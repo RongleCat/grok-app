@@ -258,12 +258,12 @@ fn find_app_session_id(local_id: &str, agent_id: Option<&str>) -> Option<String>
     None
 }
 
+/// Same rule as the App side, plus the bridge's own auto-generated prefix.
+/// The local copy used to know only `New chat` and `新对话`, so a Traditional
+/// Chinese (or any newly translated) session was never re-titled.
 fn is_placeholder_title(t: &str) -> bool {
     let t = t.trim();
-    t.is_empty()
-        || t.eq_ignore_ascii_case("New chat")
-        || t == "新对话"
-        || t.starts_with("Remote IM")
+    crate::session_title::is_placeholder_title(t) || t.starts_with("Remote IM")
 }
 
 fn title_from_prompt(prompt: &str, channel: &str) -> String {

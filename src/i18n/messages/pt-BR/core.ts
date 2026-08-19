@@ -185,4 +185,11 @@ export const ptBRCore: Partial<Record<MessageKey, string>> = {
   "app.quitBusy.message":
     "{n} sessão(ões) ainda em execução. Sair interromperá o trabalho em andamento.",
   "app.quitBusy.confirm": "Sair",
+
+  // Written to disk as the session title on first send, so it must be
+  // translated before a user creates chats in this language — and must
+  // match `new_chat` / `untitled` in src-tauri/src/tray_i18n.rs.
+  "session.new": "Nova conversa",
+  "session.placeholderTitle": "Nova conversa",
+  "session.untitled": "Sem título",
 };

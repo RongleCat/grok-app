@@ -213,4 +213,11 @@ export const jaCore: Partial<Record<MessageKey, string>> = {
   "fileCard.codePython": "コード · Python",
   "fileCard.code": "コード · {ext}",
   "fileCard.fileExt": "ファイル · {ext}",
+
+  // Written to disk as the session title on first send, so it must be
+  // translated before a user creates chats in this language — and must
+  // match `new_chat` / `untitled` in src-tauri/src/tray_i18n.rs.
+  "session.new": "新しいチャット",
+  "session.placeholderTitle": "新しいチャット",
+  "session.untitled": "無題",
 };
