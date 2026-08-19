@@ -147,7 +147,7 @@ export const ruCore = {
   "activity.running": "Выполняется",
   "activity.done": "Готово",
   "activity.failed": "Ошибка",
-  "activity.cancelled": "Выполнение остановлено",
+  "activity.cancelled": "Ход остановлен посреди выполнения",
   "activity.cancelledByUser": "Остановлено пользователем",
   "activity.cancelledAgentExit": "Процесс агента завершился",
   "activity.cancelledToast": "Ход остановлен",

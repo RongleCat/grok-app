@@ -384,7 +384,7 @@ export const ruDoctor = {
   "doctor.platformMatrix.msg.sandbox.winSoftFail": "Windows: CLI может принять профиль песочницы, но мягко не применяет его без ядра — это не жёсткая граница безопасности.",
   "doctor.platformMatrix.msg.sandbox.platformSoft": "На этой платформе OS-песочница мягко не применяется (CLI может продолжить без изоляции).",
   "doctor.platformMatrix.msg.sandbox.unknown": "Поддержка песочницы ядром на этой платформе неизвестна.",
-  "doctor.platformMatrix.msg.chrome.macOverlay": "macOS Overlay title bar + traffic lights (tauri.macos.conf).",
+  "doctor.platformMatrix.msg.chrome.macOverlay": "macOS: панель заголовка Overlay и кнопки окна (tauri.macos.conf).",
   "doctor.platformMatrix.msg.chrome.winFrameless": "Windows: собственная рамка без стандартного chrome (свернуть / развернуть / закрыть) — tauri.windows.conf.",
   "doctor.platformMatrix.msg.chrome.linuxFrameless": "Linux: собственная рамка без стандартного chrome (свернуть / развернуть / закрыть) — tauri.linux.conf.",
   "doctor.platformMatrix.msg.chrome.unknown": "Раскладка оконного chrome для этой платформы не классифицирована.",
