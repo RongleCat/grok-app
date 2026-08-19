@@ -1,28 +1,37 @@
 //! Tray / menu-bar copy — mirrors `tray.*` keys in `src/i18n/messages.ts`.
 //! Native menus cannot use the frontend catalog; keep both sides in sync.
+//!
+//! The variant list, alias table and `as_tag` output must match `LOCALES` and
+//! the alias map in `src/i18n/index.ts`. See docs/llm-wiki/i18n.md.
 
 use crate::store;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Locale {
+    De,
+    En,
+    Es,
+    Fr,
+    Id,
+    It,
+    Ja,
+    Ko,
+    PtBr,
+    Ru,
+    Uk,
     Zh,
     ZhTw,
-    Ru,
-    En,
 }
 
 impl Locale {
     pub fn parse(raw: &str) -> Self {
         let v = raw.trim().to_ascii_lowercase();
-        match v.as_str() {
-            "system" => Locale::from_system(),
-            "en" | "en-us" | "en_us" | "en-gb" => Locale::En,
-            "ru" | "ru-ru" | "ru_ru" => Locale::Ru,
-            "zh-tw" | "zh_tw" | "zh-hant" | "zh_hant" => Locale::ZhTw,
-            "zh" | "zh-cn" | "zh_cn" | "zh-hans" | "zh_hans" => Locale::Zh,
-            // Default product locale is en (matches AppSettings::default).
-            _ => Locale::En,
+        if v == "system" {
+            return Locale::from_system();
         }
+        // Everything else is a tag: reuse the one matcher so settings values and
+        // OS tags can never diverge.
+        Self::from_lang_tag(&v)
     }
 
     /// Best-effort map of OS UI language → catalog.
@@ -34,6 +43,7 @@ impl Locale {
     }
 
     /// Map a BCP-47 / POSIX language tag to a tray locale (pure; testable).
+    /// Unknown languages fall back to `en`, matching `AppSettings::default`.
     pub fn from_lang_tag(raw: &str) -> Self {
         let bare = raw
             .trim()
@@ -46,35 +56,70 @@ impl Locale {
             return Locale::En;
         }
         let primary = bare.split('-').next().unwrap_or("");
+
+        // Chinese needs script/region inspection before the primary-subtag path.
         if primary == "zh" {
             let is_trad = bare
                 .split('-')
                 .any(|p| p == "hant" || p == "tw" || p == "hk" || p == "mo");
             return if is_trad { Locale::ZhTw } else { Locale::Zh };
         }
-        if primary == "ru" {
-            return Locale::Ru;
-        }
-        if primary == "en" {
-            return Locale::En;
-        }
-        // Fall through to exact alias parse (without re-entering "system").
-        match bare.as_str() {
-            "zh-tw" | "zh-hant" => Locale::ZhTw,
-            "zh" | "zh-cn" | "zh-hans" => Locale::Zh,
-            "ru" | "ru-ru" => Locale::Ru,
-            "en" | "en-us" | "en-gb" => Locale::En,
+
+        match primary {
+            "de" => Locale::De,
+            "en" => Locale::En,
+            "es" => Locale::Es,
+            "fr" => Locale::Fr,
+            "it" => Locale::It,
+            "ja" => Locale::Ja,
+            "ko" => Locale::Ko,
+            "ru" => Locale::Ru,
+            "uk" => Locale::Uk,
+            // Every Portuguese variant shares the pt-BR catalog.
+            "pt" => Locale::PtBr,
+            // `in` is Indonesian's retired ISO-639 code, still emitted by some
+            // Java and POSIX stacks.
+            "id" | "in" => Locale::Id,
             _ => Locale::En,
         }
     }
 
-    /// Canonical catalog id shared with the frontend (`en` / `ru` / `zh` / `zh-TW`).
+    /// Canonical catalog id shared with the frontend.
     pub fn as_tag(self) -> &'static str {
         match self {
+            Locale::De => "de",
             Locale::En => "en",
+            Locale::Es => "es",
+            Locale::Fr => "fr",
+            Locale::Id => "id",
+            Locale::It => "it",
+            Locale::Ja => "ja",
+            Locale::Ko => "ko",
+            Locale::PtBr => "pt-BR",
             Locale::Ru => "ru",
+            Locale::Uk => "uk",
             Locale::Zh => "zh",
             Locale::ZhTw => "zh-TW",
+        }
+    }
+
+    /// English name of the language, for prompts that must name a target
+    /// language to a model (see `session_title.rs`).
+    pub fn english_name(self) -> &'static str {
+        match self {
+            Locale::De => "German",
+            Locale::En => "English",
+            Locale::Es => "Spanish",
+            Locale::Fr => "French",
+            Locale::Id => "Indonesian",
+            Locale::It => "Italian",
+            Locale::Ja => "Japanese",
+            Locale::Ko => "Korean",
+            Locale::PtBr => "Brazilian Portuguese",
+            Locale::Ru => "Russian",
+            Locale::Uk => "Ukrainian",
+            Locale::Zh => "Simplified Chinese",
+            Locale::ZhTw => "Traditional Chinese",
         }
     }
 }
@@ -133,10 +178,21 @@ pub fn first_apple_languages_tag(raw: &str) -> Option<String> {
 
 /// Map a Windows LANGID (GetUserDefaultUILanguage) to a BCP-47 tag.
 /// Unknown primary languages return `None` so callers can fall through to
-/// GetUserDefaultLocaleName (which covers Russian and other locales).
+/// GetUserDefaultLocaleName (which covers locales without an entry here).
 pub fn windows_langid_to_tag(id: u16) -> Option<&'static str> {
     const LANG_CHINESE: u16 = 0x04;
+    const LANG_GERMAN: u16 = 0x07;
     const LANG_ENGLISH: u16 = 0x09;
+    const LANG_SPANISH: u16 = 0x0a;
+    const LANG_FRENCH: u16 = 0x0c;
+    const LANG_ITALIAN: u16 = 0x10;
+    const LANG_JAPANESE: u16 = 0x11;
+    const LANG_KOREAN: u16 = 0x12;
+    const LANG_PORTUGUESE: u16 = 0x16;
+    const LANG_RUSSIAN: u16 = 0x19;
+    const LANG_INDONESIAN: u16 = 0x21;
+    const LANG_UKRAINIAN: u16 = 0x22;
+
     let primary = id & 0x3ff;
     let sub = id >> 10;
     match primary {
@@ -144,7 +200,19 @@ pub fn windows_langid_to_tag(id: u16) -> Option<&'static str> {
             1 | 3 | 5 => Some("zh-TW"), // Traditional / HK / MO
             _ => Some("zh-CN"),
         },
+        // SUBLANG_PORTUGUESE_BRAZILIAN is 1, SUBLANG_PORTUGUESE (Portugal) is 2.
+        // Both share the pt-BR catalog, so the tag does not need to distinguish.
+        LANG_PORTUGUESE => Some("pt-BR"),
+        LANG_GERMAN => Some("de"),
         LANG_ENGLISH => Some("en"),
+        LANG_SPANISH => Some("es"),
+        LANG_FRENCH => Some("fr"),
+        LANG_ITALIAN => Some("it"),
+        LANG_JAPANESE => Some("ja"),
+        LANG_KOREAN => Some("ko"),
+        LANG_RUSSIAN => Some("ru"),
+        LANG_INDONESIAN => Some("id"),
+        LANG_UKRAINIAN => Some("uk"),
         _ => None,
     }
 }
@@ -229,6 +297,8 @@ pub struct TrayStrings {
     pub open_app: &'static str,
     pub quit: &'static str,
     pub tooltip: &'static str,
+    /// Native File/Window menu "Close" item (see `app_menu.rs`).
+    pub close: &'static str,
     /// `Usage  ·  {pct}% left  ·  {time}`
     pub usage_with_reset: &'static str,
     /// `Usage  ·  {pct}% left`
@@ -249,9 +319,154 @@ const EN: TrayStrings = TrayStrings {
     open_app: "Open Grok",
     quit: "Quit Grok",
     tooltip: "Grok",
+    close: "Close",
     usage_with_reset: "Usage  ·  {pct}% left  ·  {time}",
     usage_pct: "Usage  ·  {pct}% left",
     usage_unknown: "Usage  ·  —",
+};
+
+const DE: TrayStrings = TrayStrings {
+    recent: "Zuletzt",
+    no_recent: "Keine kürzlichen Chats",
+    untitled: "Ohne Titel",
+    more: "Mehr",
+    settings: "Einstellungen…",
+    doctor: "Doctor",
+    account: "Konto",
+    new_chat: "Neuer Chat",
+    open_app: "Grok öffnen",
+    quit: "Grok beenden",
+    tooltip: "Grok",
+    close: "Schließen",
+    usage_with_reset: "Nutzung  ·  {pct}% übrig  ·  {time}",
+    usage_pct: "Nutzung  ·  {pct}% übrig",
+    usage_unknown: "Nutzung  ·  —",
+};
+
+const ES: TrayStrings = TrayStrings {
+    recent: "Recientes",
+    no_recent: "No hay chats recientes",
+    untitled: "Sin título",
+    more: "Más",
+    settings: "Ajustes…",
+    doctor: "Doctor",
+    account: "Cuenta",
+    new_chat: "Nuevo chat",
+    open_app: "Abrir Grok",
+    quit: "Salir de Grok",
+    tooltip: "Grok",
+    close: "Cerrar",
+    usage_with_reset: "Uso  ·  {pct}% restante  ·  {time}",
+    usage_pct: "Uso  ·  {pct}% restante",
+    usage_unknown: "Uso  ·  —",
+};
+
+const FR: TrayStrings = TrayStrings {
+    recent: "Récents",
+    no_recent: "Aucune conversation récente",
+    untitled: "Sans titre",
+    more: "Plus",
+    settings: "Réglages…",
+    doctor: "Doctor",
+    account: "Compte",
+    new_chat: "Nouvelle conversation",
+    open_app: "Ouvrir Grok",
+    quit: "Quitter Grok",
+    tooltip: "Grok",
+    close: "Fermer",
+    usage_with_reset: "Usage  ·  {pct}% restants  ·  {time}",
+    usage_pct: "Usage  ·  {pct}% restants",
+    usage_unknown: "Usage  ·  —",
+};
+
+const ID: TrayStrings = TrayStrings {
+    recent: "Terbaru",
+    no_recent: "Tidak ada obrolan terbaru",
+    untitled: "Tanpa judul",
+    more: "Lainnya",
+    settings: "Pengaturan…",
+    doctor: "Doctor",
+    account: "Akun",
+    new_chat: "Obrolan baru",
+    open_app: "Buka Grok",
+    quit: "Keluar dari Grok",
+    tooltip: "Grok",
+    close: "Tutup",
+    usage_with_reset: "Pemakaian  ·  sisa {pct}%  ·  {time}",
+    usage_pct: "Pemakaian  ·  sisa {pct}%",
+    usage_unknown: "Pemakaian  ·  —",
+};
+
+const IT: TrayStrings = TrayStrings {
+    recent: "Recenti",
+    no_recent: "Nessuna chat recente",
+    untitled: "Senza titolo",
+    more: "Altro",
+    settings: "Impostazioni…",
+    doctor: "Doctor",
+    account: "Account",
+    new_chat: "Nuova chat",
+    open_app: "Apri Grok",
+    quit: "Esci da Grok",
+    tooltip: "Grok",
+    close: "Chiudi",
+    usage_with_reset: "Utilizzo  ·  {pct}% rimasto  ·  {time}",
+    usage_pct: "Utilizzo  ·  {pct}% rimasto",
+    usage_unknown: "Utilizzo  ·  —",
+};
+
+const JA: TrayStrings = TrayStrings {
+    recent: "最近",
+    no_recent: "最近のチャットはありません",
+    untitled: "無題",
+    more: "その他",
+    settings: "設定…",
+    doctor: "ドクター",
+    account: "アカウント",
+    new_chat: "新しいチャット",
+    open_app: "Grok を開く",
+    quit: "Grok を終了",
+    tooltip: "Grok",
+    close: "閉じる",
+    usage_with_reset: "使用量  ·  残り {pct}%  ·  {time}",
+    usage_pct: "使用量  ·  残り {pct}%",
+    usage_unknown: "使用量  ·  —",
+};
+
+const KO: TrayStrings = TrayStrings {
+    recent: "최근",
+    no_recent: "최근 대화 없음",
+    untitled: "제목 없음",
+    more: "더 보기",
+    settings: "설정…",
+    doctor: "닥터",
+    account: "계정",
+    new_chat: "새 대화",
+    open_app: "Grok 열기",
+    quit: "Grok 종료",
+    tooltip: "Grok",
+    close: "닫기",
+    usage_with_reset: "사용량  ·  {pct}% 남음  ·  {time}",
+    usage_pct: "사용량  ·  {pct}% 남음",
+    usage_unknown: "사용량  ·  —",
+};
+
+const PT_BR: TrayStrings = TrayStrings {
+    recent: "Recentes",
+    no_recent: "Nenhuma conversa recente",
+    untitled: "Sem título",
+    more: "Mais",
+    settings: "Configurações…",
+    doctor: "Doctor",
+    account: "Conta",
+    new_chat: "Nova conversa",
+    open_app: "Abrir o Grok",
+    quit: "Sair do Grok",
+    tooltip: "Grok",
+    close: "Fechar",
+    usage_with_reset: "Uso  ·  {pct}% restante  ·  {time}",
+    usage_pct: "Uso  ·  {pct}% restante",
+    usage_unknown: "Uso  ·  —",
 };
 
 const RU: TrayStrings = TrayStrings {
@@ -266,9 +481,28 @@ const RU: TrayStrings = TrayStrings {
     open_app: "Открыть Grok",
     quit: "Выйти из Grok",
     tooltip: "Grok",
+    close: "Закрыть",
     usage_with_reset: "Лимит  ·  осталось {pct}%  ·  {time}",
     usage_pct: "Лимит  ·  осталось {pct}%",
     usage_unknown: "Лимит  ·  —",
+};
+
+const UK: TrayStrings = TrayStrings {
+    recent: "Нещодавні",
+    no_recent: "Немає нещодавніх чатів",
+    untitled: "Без назви",
+    more: "Ще",
+    settings: "Налаштування…",
+    doctor: "Діагностика",
+    account: "Обліковий запис",
+    new_chat: "Новий чат",
+    open_app: "Відкрити Grok",
+    quit: "Вийти з Grok",
+    tooltip: "Grok",
+    close: "Закрити",
+    usage_with_reset: "Ліміт  ·  залишилось {pct}%  ·  {time}",
+    usage_pct: "Ліміт  ·  залишилось {pct}%",
+    usage_unknown: "Ліміт  ·  —",
 };
 
 const ZH: TrayStrings = TrayStrings {
@@ -283,6 +517,7 @@ const ZH: TrayStrings = TrayStrings {
     open_app: "打开 Grok",
     quit: "退出 Grok",
     tooltip: "Grok",
+    close: "关闭",
     usage_with_reset: "额度  ·  剩余 {pct}%  ·  {time}",
     usage_pct: "额度  ·  剩余 {pct}%",
     usage_unknown: "额度  ·  —",
@@ -300,6 +535,7 @@ const ZH_TW: TrayStrings = TrayStrings {
     open_app: "開啟 Grok",
     quit: "結束 Grok",
     tooltip: "Grok",
+    close: "關閉",
     usage_with_reset: "額度  ·  剩餘 {pct}%  ·  {time}",
     usage_pct: "額度  ·  剩餘 {pct}%",
     usage_unknown: "額度  ·  —",
@@ -307,8 +543,17 @@ const ZH_TW: TrayStrings = TrayStrings {
 
 pub fn strings(locale: Locale) -> &'static TrayStrings {
     match locale {
+        Locale::De => &DE,
         Locale::En => &EN,
+        Locale::Es => &ES,
+        Locale::Fr => &FR,
+        Locale::Id => &ID,
+        Locale::It => &IT,
+        Locale::Ja => &JA,
+        Locale::Ko => &KO,
+        Locale::PtBr => &PT_BR,
         Locale::Ru => &RU,
+        Locale::Uk => &UK,
         Locale::Zh => &ZH,
         Locale::ZhTw => &ZH_TW,
     }
@@ -334,6 +579,24 @@ pub fn format_usage(template: &str, pct: Option<f64>, time: Option<&str>) -> Str
 mod tests {
     use super::*;
 
+    /// Every catalog id shipped by the frontend (`LOCALES` in
+    /// `src/i18n/messages/index.ts`), in the same order.
+    const ALL: [Locale; 13] = [
+        Locale::En,
+        Locale::De,
+        Locale::Es,
+        Locale::Fr,
+        Locale::Id,
+        Locale::It,
+        Locale::Ja,
+        Locale::Ko,
+        Locale::PtBr,
+        Locale::Ru,
+        Locale::Uk,
+        Locale::Zh,
+        Locale::ZhTw,
+    ];
+
     #[test]
     fn locale_parse() {
         assert_eq!(Locale::parse("en"), Locale::En);
@@ -346,6 +609,76 @@ mod tests {
         assert_eq!(Locale::parse("zh-Hant"), Locale::ZhTw);
         assert_eq!(strings(Locale::Ru).settings, "Настройки…");
         assert_eq!(strings(Locale::ZhTw).settings, "設定…");
+    }
+
+    #[test]
+    fn locale_parse_covers_every_shipped_catalog() {
+        for l in ALL {
+            // A catalog id must round-trip through the settings parser, or a
+            // user who picks that language in Settings gets English chrome.
+            assert_eq!(Locale::parse(l.as_tag()), l, "round-trip {}", l.as_tag());
+        }
+    }
+
+    #[test]
+    fn parse_accepts_new_locale_aliases() {
+        assert_eq!(Locale::parse("ja-JP"), Locale::Ja);
+        assert_eq!(Locale::parse("ko_KR"), Locale::Ko);
+        assert_eq!(Locale::parse("de-AT"), Locale::De);
+        assert_eq!(Locale::parse("es-419"), Locale::Es);
+        assert_eq!(Locale::parse("fr-CA"), Locale::Fr);
+        assert_eq!(Locale::parse("it-CH"), Locale::It);
+        assert_eq!(Locale::parse("pt"), Locale::PtBr);
+        assert_eq!(Locale::parse("pt-PT"), Locale::PtBr);
+        assert_eq!(Locale::parse("pt-BR"), Locale::PtBr);
+        assert_eq!(Locale::parse("uk-UA"), Locale::Uk);
+        assert_eq!(Locale::parse("in-ID"), Locale::Id);
+        assert_eq!(Locale::parse("id-ID"), Locale::Id);
+        // Languages we deliberately do not ship fall back to the default.
+        assert_eq!(Locale::parse("la"), Locale::En);
+        assert_eq!(Locale::parse("sa-IN"), Locale::En);
+        assert_eq!(Locale::parse("ta-LK"), Locale::En);
+        assert_eq!(Locale::parse("tl-PH"), Locale::En);
+    }
+
+    #[test]
+    fn tray_strings_are_non_empty_for_every_locale() {
+        for l in ALL {
+            let s = strings(l);
+            for (field, v) in [
+                ("recent", s.recent),
+                ("no_recent", s.no_recent),
+                ("untitled", s.untitled),
+                ("more", s.more),
+                ("settings", s.settings),
+                ("doctor", s.doctor),
+                ("account", s.account),
+                ("new_chat", s.new_chat),
+                ("open_app", s.open_app),
+                ("quit", s.quit),
+                ("tooltip", s.tooltip),
+                ("close", s.close),
+            ] {
+                assert!(!v.trim().is_empty(), "{} {} is empty", l.as_tag(), field);
+            }
+            // Usage templates must keep their placeholders or the tray shows a
+            // literal "{pct}" to the user.
+            assert!(s.usage_pct.contains("{pct}"), "{} usage_pct", l.as_tag());
+            assert!(
+                s.usage_with_reset.contains("{pct}") && s.usage_with_reset.contains("{time}"),
+                "{} usage_with_reset",
+                l.as_tag()
+            );
+        }
+    }
+
+    #[test]
+    fn as_tag_is_unique_per_locale() {
+        let mut tags: Vec<&str> = ALL.iter().map(|l| l.as_tag()).collect();
+        tags.sort_unstable();
+        let before = tags.len();
+        tags.dedup();
+        assert_eq!(before, tags.len(), "duplicate catalog id in as_tag");
     }
 
     #[test]
@@ -378,13 +711,43 @@ mod tests {
     }
 
     #[test]
-    fn windows_langid_maps_chinese_ui() {
+    fn windows_langid_maps_ui_languages() {
         assert_eq!(windows_langid_to_tag(0x0804), Some("zh-CN"));
         assert_eq!(windows_langid_to_tag(0x0404), Some("zh-TW"));
         assert_eq!(windows_langid_to_tag(0x0C04), Some("zh-TW"));
         assert_eq!(windows_langid_to_tag(0x0409), Some("en"));
-        assert_eq!(windows_langid_to_tag(0x0411), None); // Japanese — fall through
-        assert_eq!(windows_langid_to_tag(0x0419), None); // Russian — locale-name fallback
+        assert_eq!(windows_langid_to_tag(0x0411), Some("ja"));
+        assert_eq!(windows_langid_to_tag(0x0412), Some("ko"));
+        assert_eq!(windows_langid_to_tag(0x0419), Some("ru"));
+        assert_eq!(windows_langid_to_tag(0x0407), Some("de"));
+        assert_eq!(windows_langid_to_tag(0x0C0A), Some("es"));
+        assert_eq!(windows_langid_to_tag(0x040C), Some("fr"));
+        assert_eq!(windows_langid_to_tag(0x0410), Some("it"));
+        assert_eq!(windows_langid_to_tag(0x0416), Some("pt-BR")); // pt-BR
+        assert_eq!(windows_langid_to_tag(0x0816), Some("pt-BR")); // pt-PT → same catalog
+        assert_eq!(windows_langid_to_tag(0x0421), Some("id"));
+        assert_eq!(windows_langid_to_tag(0x0422), Some("uk"));
+        // Languages without a shipped catalog stay unmapped, so the OS tag
+        // falls through to the product default instead of a missing locale.
+        assert_eq!(windows_langid_to_tag(0x0449), None); // Tamil
+        assert_eq!(windows_langid_to_tag(0x044F), None); // Sanskrit
+        assert_eq!(windows_langid_to_tag(0x0464), None); // Filipino
+        assert_eq!(windows_langid_to_tag(0x040D), None); // Hebrew
+    }
+
+    #[test]
+    fn windows_langid_tags_resolve_to_the_expected_catalog() {
+        for (id, expected) in [
+            (0x0411u16, Locale::Ja),
+            (0x0412, Locale::Ko),
+            (0x0416, Locale::PtBr),
+            (0x0816, Locale::PtBr),
+            (0x0421, Locale::Id),
+            (0x0422, Locale::Uk),
+        ] {
+            let tag = windows_langid_to_tag(id).expect("langid mapped");
+            assert_eq!(Locale::from_lang_tag(tag), expected, "langid {id:#06x}");
+        }
     }
 
     #[test]
@@ -397,12 +760,18 @@ mod tests {
         assert_eq!(Locale::from_lang_tag("zh-TW"), Locale::ZhTw);
         assert_eq!(Locale::from_lang_tag("zh-Hant-TW"), Locale::ZhTw);
         assert_eq!(Locale::from_lang_tag("zh-HK"), Locale::ZhTw);
-        assert_eq!(Locale::from_lang_tag("fr_FR.UTF-8"), Locale::En);
+        assert_eq!(Locale::from_lang_tag("ja_JP.UTF-8"), Locale::Ja);
+        assert_eq!(Locale::from_lang_tag("fr_FR.UTF-8"), Locale::Fr);
+        assert_eq!(Locale::from_lang_tag("pt_BR.UTF-8"), Locale::PtBr);
+        // Still unsupported languages fall back to the product default.
+        assert_eq!(Locale::from_lang_tag("he-IL"), Locale::En);
+        assert_eq!(Locale::from_lang_tag("th-TH"), Locale::En);
         assert_eq!(Locale::from_lang_tag(""), Locale::En);
         assert_eq!(Locale::En.as_tag(), "en");
         assert_eq!(Locale::Ru.as_tag(), "ru");
         assert_eq!(Locale::Zh.as_tag(), "zh");
         assert_eq!(Locale::ZhTw.as_tag(), "zh-TW");
+        assert_eq!(Locale::PtBr.as_tag(), "pt-BR");
     }
 
     #[test]
@@ -413,5 +782,7 @@ mod tests {
         assert_eq!(r, "Лимит  ·  осталось 73%");
         let z = format_usage(ZH.usage_pct, Some(73.0), None);
         assert_eq!(z, "额度  ·  剩余 73%");
+        let j = format_usage(JA.usage_pct, Some(73.0), None);
+        assert_eq!(j, "使用量  ·  残り 73%");
     }
 }
