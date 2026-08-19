@@ -1,4 +1,4 @@
-import type { Locale } from "../i18n";
+import { t, type Locale } from "../i18n";
 import { isDisplayableAttachmentPath } from "./attachments";
 import {
   buildErrorDeck,
@@ -3055,13 +3055,7 @@ export function agentDisconnectedCopy(locale: Locale = "en"): string {
 
 /** Mid-stream disconnect / closed before response.completed (relay flap). */
 export function streamFlapCopy(locale: Locale = "en"): string {
-  if (locale === "en") {
-    return "Connection dropped mid-reply. The app will retry automatically; send again if it stays stuck.";
-  }
-  if (locale === "zh-TW") {
-    return "回覆中途連線中斷。應用會自動重試；若仍卡住請再傳送一次。";
-  }
-  return "回复中途连接中断。应用会自动重试；若仍卡住请再发送一次。";
+  return t(locale, "error.streamFlap");
 }
 
 const AGENT_ERROR_CODE_RE =
@@ -3202,7 +3196,7 @@ export function formatTurnErrorBody(
       .split(/\r?\n/)
       .map((l) => l.trim())
       .find((l) => l && !/connection refused|worker quit|hyper_util|reqwest/i.test(l)) ||
-    (locale === "en" ? "Request failed. Please retry." : "请求失败，请重试。");
+    t(locale, "error.requestFailedRetry");
   return first.length > 200 ? `${first.slice(0, 200)}…` : first;
 }
 

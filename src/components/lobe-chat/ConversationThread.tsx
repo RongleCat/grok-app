@@ -1223,7 +1223,7 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   if (m.isError) {
     const friendly = formatTurnErrorBody(
       { content: m.content, code: undefined, message: undefined },
-      locale === "en" ? "en" : "zh",
+      locale,
     );
     const isFindHit = !!findHitMessageIds?.has(m.id);
     const isFindCurrent = findActive?.messageId === m.id;
