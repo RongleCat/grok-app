@@ -45,6 +45,13 @@ export {
 export { placePetContextMenu, type PetWorkRect } from "./petMenuPlace";
 
 export {
+  clampPetMarkHitRadius,
+  expectedPetMarkHitRadius,
+  hitChromeCssScale,
+  scaleHitLen,
+} from "./petHitChrome";
+
+export {
   PET_SETTINGS_HASH,
   PET_SETTINGS_SECTION,
   petSettingsHash,

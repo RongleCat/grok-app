@@ -8,6 +8,8 @@ import { PetTaskBubbles } from "./PetTaskBubbles";
 import { ContextMenu } from "@/components/ContextMenu";
 import { createT, type Locale } from "@/i18n";
 import {
+  clampPetMarkHitRadius,
+  hitChromeCssScale,
   isPetColor,
   isPetEyeColor,
   isPetShape,
@@ -15,6 +17,7 @@ import {
   petBubbleViewportHeight,
   petOverlayHeight,
   petOverlayWidth,
+  scaleHitLen,
   petSettingsHash,
   petVerbFor,
   placePetContextMenu,
@@ -98,18 +101,23 @@ export function PetOverlay({
     const o = overlay.getBoundingClientRect();
     const m = mark.getBoundingClientRect();
     const b = stackRef.current?.getBoundingClientRect();
+    const css = hitChromeCssScale(o.width, petOverlayWidth(sizePx));
+    const markR = clampPetMarkHitRadius(
+      scaleHitLen(Math.max(m.width, m.height) * 0.52, css),
+      sizePx,
+    );
     void petSetHitChrome({
-      markCx: m.left + m.width / 2 - o.left,
-      markCy: m.top + m.height / 2 - o.top,
-      markR: Math.max(m.width, m.height) * 0.52,
-      bubbleX: b ? b.left - o.left : 0,
-      bubbleY: b ? b.top - o.top : 0,
-      bubbleW: b ? b.width : 0,
-      bubbleH: b ? b.height : 0,
-      windowW: o.width,
-      windowH: o.height,
+      markCx: scaleHitLen(m.left + m.width / 2 - o.left, css),
+      markCy: scaleHitLen(m.top + m.height / 2 - o.top, css),
+      markR,
+      bubbleX: b ? scaleHitLen(b.left - o.left, css) : 0,
+      bubbleY: b ? scaleHitLen(b.top - o.top, css) : 0,
+      bubbleW: b ? scaleHitLen(b.width, css) : 0,
+      bubbleH: b ? scaleHitLen(b.height, css) : 0,
+      windowW: scaleHitLen(o.width, css),
+      windowH: scaleHitLen(o.height, css),
     });
-  }, []);
+  }, [sizePx]);
 
   const refreshBubbleOffset = useCallback(async () => {
     const max = Math.max(0, (petOverlayWidth(sizePx) - PET_BUBBLE_WIDTH) / 2 - 8);
@@ -242,6 +250,37 @@ export function PetOverlay({
     [closeMenu, menuOpen],
   );
 
+  const finishDrag = useCallback(() => {
+    const moved = draggedRef.current;
+    originRef.current = null;
+    draggedRef.current = false;
+    setDragging(false);
+    void petSetDragging(false);
+    if (!moved) return;
+    const w = petOverlayWidth(sizePx);
+    const h = petOverlayHeight(sizePx);
+    void petSyncOverlaySize(w, h).then(() => {
+      void refreshBubbleOffset();
+    });
+  }, [refreshBubbleOffset, sizePx]);
+
+  useEffect(() => {
+    const end = () => {
+      // Only an in-progress OS drag. A click still has originRef but must
+      // reach onPointerUp so double-click / open-session still works.
+      if (!draggedRef.current) return;
+      finishDrag();
+    };
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+    window.addEventListener("blur", end);
+    return () => {
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      window.removeEventListener("blur", end);
+    };
+  }, [finishDrag]);
+
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     const start = originRef.current;
     if (!start || draggedRef.current) return;
@@ -252,6 +291,11 @@ export function PetOverlay({
     setDragging(true);
     void petSetIgnoreCursor(false);
     void petSetDragging(true);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* capture was not held */
+    }
     void petStartDragging().catch(() => {
       /* startDragging unavailable outside Tauri */
     });
@@ -261,19 +305,13 @@ export function PetOverlay({
     (e: React.PointerEvent) => {
       const start = originRef.current;
       const moved = draggedRef.current;
-      originRef.current = null;
-      draggedRef.current = false;
-      setDragging(false);
-      void petSetDragging(false);
       try {
         e.currentTarget.releasePointerCapture(e.pointerId);
       } catch {
         /* ignore */
       }
-      if (moved) {
-        void refreshBubbleOffset();
-        return;
-      }
+      finishDrag();
+      if (moved) return;
       if (!start) return;
       const dx = e.screenX - start.x;
       const dy = e.screenY - start.y;
@@ -290,7 +328,7 @@ export function PetOverlay({
         else void petShowMain();
       }, DBLCLICK_MS);
     },
-    [focus.sessionId, refreshBubbleOffset],
+    [finishDrag, focus.sessionId],
   );
 
   return (
@@ -306,10 +344,7 @@ export function PetOverlay({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={() => {
-        originRef.current = null;
-        draggedRef.current = false;
-        setDragging(false);
-        void petSetDragging(false);
+        finishDrag();
       }}
     >
       <div

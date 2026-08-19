@@ -22,10 +22,12 @@ See `docs/llm-wiki/release.md`.
 ### Fixed
 - **Windows pet no longer shows File / Edit / Window / Help**: The overlay inherited the app-wide menu. It now keeps a window-local empty menu, hides that bar, and on Windows calls `SetMenu(NULL)` so the strip cannot paint over the mark.
 - **Pet show/hide no longer gets stuck**: Toggle follows the real overlay window (not a stale pref). Hide retries if the HWND stays painted; File → Close hides instead of deleting the window out of sync.
+- **Pet hit target no longer balloons after a drag**: `startDragging()` can swallow WebView `pointerup`, leaving the whole padded overlay clickable. Host clears drag when the left button is up; measured hit radius is clamped to the mark size.
 
 **中文 · 修复**
 - **Windows 宠物顶上不再出现 File / Edit / Window / Help**：浮层误继承了应用菜单。现在用窗口自己的空菜单，并在 Windows 上卸掉原生菜单栏。
 - **宠物开关不再有时打不开、有时关不掉**：开关跟真实窗口走；关掉后若仍显示会再 hide 一次；点 File → 关闭只会收起，不会把窗口拆掉导致状态对不上。
+- **拖完宠物后识别区域不再突然变大**：系统拖拽会吃掉 WebView 的 pointerup，整块浮层都会可点。松开鼠标后 Host 清掉拖拽状态，热区半径也按标记尺寸封顶。
 
 ## [0.2.22] - 2026-08-19
 

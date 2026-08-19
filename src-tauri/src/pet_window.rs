@@ -393,6 +393,32 @@ fn lock_show() -> std::sync::MutexGuard<'static, ()> {
     SHOW_LOCK.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// `None` on platforms where we cannot read the physical mouse button.
+fn primary_mouse_down() -> Option<bool> {
+    #[cfg(windows)]
+    {
+        Some(crate::win_shell::primary_mouse_button_down())
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
+/// Clear drag when the OS took the mouse and never delivered pointerup.
+pub fn drag_should_clear(dragging: bool, button_down: Option<bool>) -> bool {
+    dragging && button_down == Some(false)
+}
+
+fn finish_os_drag(app: &AppHandle) {
+    if DRAGGING.swap(false, Ordering::Relaxed) {
+        persist_window_pos(app);
+        if let Some(win) = app.get_webview_window(PET_WINDOW_LABEL) {
+            apply_window_chrome(&win);
+        }
+    }
+}
+
 /// Give the workbench key/activation back when the overlay stole it.
 ///
 /// Do not raise a hidden or minimized main window — the pet can float alone
@@ -570,7 +596,17 @@ pub fn start_cursor_watch(app: AppHandle) {
             let Some(win) = app.get_webview_window(PET_WINDOW_LABEL) else {
                 continue;
             };
-            if DRAGGING.load(Ordering::Relaxed) || MENU_OPEN.load(Ordering::Relaxed) {
+            if DRAGGING.load(Ordering::Relaxed) {
+                // startDragging() often eats WebView pointerup. If the button is
+                // already up, the whole padded overlay would stay a hit target.
+                if drag_should_clear(true, primary_mouse_down()) {
+                    finish_os_drag(&app);
+                } else {
+                    let _ = win.set_ignore_cursor_events(false);
+                    continue;
+                }
+            }
+            if MENU_OPEN.load(Ordering::Relaxed) {
                 let _ = win.set_ignore_cursor_events(false);
                 continue;
             }
@@ -800,16 +836,19 @@ pub fn pet_get_tasks() -> Vec<PetTaskPayload> {
 
 #[tauri::command]
 pub fn pet_set_hit_chrome(chrome: PetHitChromeIn) {
+    let size = f64::from(CACHED_SIZE_PX.load(Ordering::Relaxed).max(64));
+    let max_r = size * 0.52 * 1.2;
+    let (max_w, max_h) = overlay_extent(CACHED_SIZE_PX.load(Ordering::Relaxed).max(64));
     if let Ok(mut g) = HIT_CHROME.lock() {
         *g = PetHitChrome {
             valid: chrome.mark_r > 0.0 || chrome.bubble_w > 0.0,
             mark_cx: chrome.mark_cx,
             mark_cy: chrome.mark_cy,
-            mark_r: chrome.mark_r.max(0.0),
+            mark_r: chrome.mark_r.max(0.0).min(max_r),
             bubble_x: chrome.bubble_x,
             bubble_y: chrome.bubble_y,
-            bubble_w: chrome.bubble_w.max(0.0),
-            bubble_h: chrome.bubble_h.max(0.0),
+            bubble_w: chrome.bubble_w.max(0.0).min(max_w),
+            bubble_h: chrome.bubble_h.max(0.0).min(max_h),
             window_w: chrome.window_w.max(0.0),
             window_h: chrome.window_h.max(0.0),
         };
@@ -866,6 +905,14 @@ mod tests {
         assert!(hide_needs_destroy(true, true));
         assert!(hide_needs_destroy(false, false));
         assert!(!hide_needs_destroy(true, false));
+    }
+
+    #[test]
+    fn drag_clears_only_when_button_is_known_up() {
+        assert!(drag_should_clear(true, Some(false)));
+        assert!(!drag_should_clear(true, Some(true)));
+        assert!(!drag_should_clear(true, None));
+        assert!(!drag_should_clear(false, Some(false)));
     }
 
     #[test]

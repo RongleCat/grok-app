@@ -17,6 +17,7 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_SERVER, COINIT_APARTMENTTHREADED,
 };
+use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows::Win32::UI::Shell::{
     ITaskbarList, SetCurrentProcessExplicitAppUserModelID, TaskbarList,
 };
@@ -41,6 +42,14 @@ pub fn set_process_app_user_model_id() {
             tracing::warn!("SetCurrentProcessExplicitAppUserModelID: {e}");
         }
     }
+}
+
+/// True while the physical left mouse button is down.
+///
+/// Used by the pet overlay: `startDragging()` often swallows WebView `pointerup`,
+/// so the host must notice the button release itself.
+pub fn primary_mouse_button_down() -> bool {
+    unsafe { GetAsyncKeyState(i32::from(VK_LBUTTON.0)) < 0 }
 }
 
 /// Desktop-pet overlay: drop the Win32 menu bar (File / Edit / Window / Help).
