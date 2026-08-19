@@ -286,8 +286,7 @@
 }
 
 /* Main / chat: soft blue wash, full bleed, inset ring via box-shadow */
-.drop-overlay--attach,
-.drop-overlay--session {
+.drop-overlay--attach {
   background: linear-gradient(
     180deg,
     rgba(70, 130, 255, 0.09) 0%,
@@ -296,8 +295,7 @@
   box-shadow: inset 0 0 0 2px rgba(80, 140, 255, 0.42);
 }
 
-.drop-overlay--attach .drop-overlay__icon,
-.drop-overlay--session .drop-overlay__icon {
+.drop-overlay--attach .drop-overlay__icon {
   color: rgb(70, 130, 255);
   background: rgba(70, 130, 255, 0.12);
 }
@@ -317,8 +315,7 @@
   background: rgba(50, 170, 110, 0.14);
 }
 
-[data-theme="light"] .drop-overlay--attach,
-[data-theme="light"] .drop-overlay--session {
+[data-theme="light"] .drop-overlay--attach {
   background: linear-gradient(
     180deg,
     rgba(70, 130, 255, 0.06) 0%,

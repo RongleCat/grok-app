@@ -1,15 +1,12 @@
 /**
- * Attach-another-chat orchestration (picker, chips, grip-hold drag).
+ * Attach-another-chat orchestration (picker, chips, sidebar icon click).
  * State may live in useComposerController; this hook owns the wiring.
+ * No sidebar → composer drag — row-body drag is session-move.
  */
 import {
   useCallback,
   useMemo,
-  useRef,
-  useState,
   type Dispatch,
-  type MutableRefObject,
-  type PointerEvent as ReactPointerEvent,
   type RefObject,
   type SetStateAction,
 } from "react";
@@ -28,17 +25,7 @@ import {
   removeChatRef,
   setChatRefScope,
   type ChatRef,
-  type SessionDragPayload,
 } from "@/lib/chatAttach";
-import {
-  armAttachDragClickBlocker,
-  classifySessionAttachDrop,
-  createAttachDragClickGuard,
-  isSessionAttachPointerStartTarget,
-  sessionAttachDragPastThreshold,
-  sessionAttachDropReadyFromPoint,
-  setSessionAttachDragLock,
-} from "@/lib/sessionAttachDrag";
 
 export type AttachChatSession = {
   id: string;
@@ -54,7 +41,6 @@ export function useAttachChat(opts: {
   sessions: AttachChatSession[];
   currentSessionId: string | null | undefined;
   currentProjectId: string | null;
-  sessionSelectMode: boolean;
   chatAttachments: ChatRef[];
   setChatAttachments: Dispatch<SetStateAction<ChatRef[]>>;
   attachChatOpen: boolean;
@@ -64,12 +50,8 @@ export function useAttachChat(opts: {
   attachChatActive: number;
   setAttachChatActive: Dispatch<SetStateAction<number>>;
   attachChatPanelRef: RefObject<HTMLDivElement | null>;
-  sessionDragRef: MutableRefObject<SessionDragPayload | null>;
-  setSessionDropReady: Dispatch<SetStateAction<boolean>>;
   composerShellRef: RefObject<HTMLElement | null>;
-  composerWrapRef: RefObject<HTMLDivElement | null>;
   composerInputRef: RefObject<HTMLDivElement | null>;
-  hitDragZone: (x: number, y: number) => "sidebar" | "main";
   showToast: (msg: string, ms?: number) => void;
   tr: Tr;
   onBeforeOpenPicker: () => void;
@@ -79,7 +61,6 @@ export function useAttachChat(opts: {
     sessions,
     currentSessionId,
     currentProjectId,
-    sessionSelectMode,
     chatAttachments,
     setChatAttachments,
     attachChatOpen,
@@ -88,30 +69,13 @@ export function useAttachChat(opts: {
     setAttachChatFilter,
     setAttachChatActive,
     attachChatPanelRef,
-    sessionDragRef,
-    setSessionDropReady,
     composerShellRef,
-    composerWrapRef,
     composerInputRef,
-    hitDragZone,
     showToast,
     tr,
     onBeforeOpenPicker,
     openSession,
   } = opts;
-
-  const applyAttachedChatRef = useRef<(
-    id: string,
-    title: string,
-    updatedAt?: string,
-  ) => void>(() => {});
-  const clickGuardRef = useRef(createAttachDragClickGuard());
-  const [sessionDragGhost, setSessionDragGhost] = useState<{
-    x: number;
-    y: number;
-    title: string;
-    ready: boolean;
-  } | null>(null);
 
   const closeAttachChat = useCallback(() => {
     setAttachChatOpen(false);
@@ -219,7 +183,6 @@ export function useAttachChat(opts: {
       composerInputRef,
     ],
   );
-  applyAttachedChatRef.current = applyAttachedChat;
 
   const onSidebarSessionAttach = useCallback(
     (s: { id: string; title: string; updatedAt?: string }) => {
@@ -266,130 +229,6 @@ export function useAttachChat(opts: {
     [tr],
   );
 
-  const sessionRowDragProps = (s: {
-    id: string;
-    title: string;
-    updatedAt?: string;
-  }) => {
-    if (sessionSelectMode) return undefined;
-    return {
-      onPointerDown: (e: ReactPointerEvent) => {
-        if (e.button !== 0) return;
-        if (!isSessionAttachPointerStartTarget(e.target)) return;
-        const payload: SessionDragPayload = {
-          id: s.id,
-          title: s.title || "",
-          updatedAt: s.updatedAt,
-        };
-        const startX = e.clientX;
-        const startY = e.clientY;
-        let started = false;
-        let cancelled = false;
-        setSessionAttachDragLock(true);
-        try {
-          e.currentTarget.setPointerCapture(e.pointerId);
-        } catch {
-          /* capture optional */
-        }
-
-        const composerEl =
-          composerWrapRef.current ?? composerShellRef.current;
-        const kindAt = (x: number, y: number) =>
-          classifySessionAttachDrop({
-            overComposer: sessionAttachDropReadyFromPoint(x, y, {
-              composerEl,
-              zone: hitDragZone(x, y),
-            }),
-            zone: hitDragZone(x, y),
-          });
-
-        const onMove = (ev: PointerEvent) => {
-          ev.preventDefault();
-          window.getSelection()?.removeAllRanges();
-          if (!started) {
-            if (
-              !sessionAttachDragPastThreshold(
-                ev.clientX - startX,
-                ev.clientY - startY,
-              )
-            ) {
-              return;
-            }
-            started = true;
-            sessionDragRef.current = payload;
-          }
-          const kind = kindAt(ev.clientX, ev.clientY);
-          const ready = kind === "composer";
-          setSessionDropReady(ready);
-          setSessionDragGhost({
-            x: ev.clientX,
-            y: ev.clientY,
-            title: payload.title || payload.id.slice(0, 8),
-            ready,
-          });
-        };
-
-        const cleanup = () => {
-          window.removeEventListener("pointermove", onMove, moveOpts);
-          window.removeEventListener("pointerup", finish, true);
-          window.removeEventListener("pointercancel", finish, true);
-          window.removeEventListener("keydown", onKey, true);
-          setSessionAttachDragLock(false);
-          setSessionDragGhost(null);
-          window.getSelection()?.removeAllRanges();
-          try {
-            e.currentTarget.releasePointerCapture(e.pointerId);
-          } catch {
-            /* already released */
-          }
-        };
-
-        const finish = (ev: PointerEvent) => {
-          cleanup();
-          if (started) {
-            armAttachDragClickBlocker(clickGuardRef.current, Date.now());
-          }
-          if (!started || cancelled) return;
-          const kind = kindAt(ev.clientX, ev.clientY);
-          sessionDragRef.current = null;
-          setSessionDropReady(false);
-          if (kind === "composer") {
-            applyAttachedChatRef.current(
-              payload.id,
-              payload.title,
-              payload.updatedAt,
-            );
-            return;
-          }
-          showToast(tr("attachChat.cancelled"), 1600);
-        };
-
-        const onKey = (ev: KeyboardEvent) => {
-          if (ev.key !== "Escape") return;
-          ev.preventDefault();
-          cancelled = true;
-          cleanup();
-          sessionDragRef.current = null;
-          setSessionDropReady(false);
-          if (started) {
-            armAttachDragClickBlocker(clickGuardRef.current, Date.now());
-            showToast(tr("attachChat.cancelled"), 1600);
-          }
-        };
-
-        const moveOpts: AddEventListenerOptions = {
-          capture: true,
-          passive: false,
-        };
-        window.addEventListener("pointermove", onMove, moveOpts);
-        window.addEventListener("pointerup", finish, true);
-        window.addEventListener("pointercancel", finish, true);
-        window.addEventListener("keydown", onKey, true);
-      },
-      consumeClick: () => clickGuardRef.current.consume(Date.now()),
-    };
-  };
-
   const removeAttachedChat = useCallback(
     (id: string) => {
       setChatAttachments((prev) => removeChatRef(prev, id));
@@ -401,7 +240,6 @@ export function useAttachChat(opts: {
     closeAttachChat,
     openAttachChat,
     applyAttachedChat,
-    applyAttachedChatRef,
     onSidebarSessionAttach,
     cycleAttachedChatScope,
     attachedChatLookup,
@@ -409,8 +247,6 @@ export function useAttachChat(opts: {
     attachableSessions,
     attachChatPos,
     attachChatStyle,
-    sessionRowDragProps,
-    sessionDragGhost,
     removeAttachedChat,
   };
 }

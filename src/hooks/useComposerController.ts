@@ -13,7 +13,7 @@ import {
   type SetStateAction,
 } from "react";
 import type { Attachment } from "@/lib/attachments";
-import type { ChatRef, SessionDragPayload } from "@/lib/chatAttach";
+import type { ChatRef } from "@/lib/chatAttach";
 import type { ComposerQuote } from "@/lib/composerQuotes";
 import type { ComposerAtFileEntry } from "@/components/ComposerAtPanel";
 import type { SlashKindFilter, SkillInfo } from "@/lib/slashCatalog";
@@ -74,8 +74,6 @@ export function useComposerController(initialDraft = "") {
   const attachChatPanelRef = useRef<HTMLDivElement>(null);
   const attachChatOpenRef = useRef(false);
   attachChatOpenRef.current = attachChatOpen;
-  const sessionDragRef = useRef<SessionDragPayload | null>(null);
-  const [sessionDropReady, setSessionDropReady] = useState(false);
   const [quotes, setQuotes] = useState<ComposerQuote[]>([]);
   const quotesRef = useRef(quotes);
   quotesRef.current = quotes;
@@ -188,9 +186,6 @@ export function useComposerController(initialDraft = "") {
       setAttachChatActive,
       attachChatPanelRef,
       attachChatOpenRef,
-      sessionDragRef,
-      sessionDropReady,
-      setSessionDropReady,
       quotes,
       quotesRef,
       setQuotes: setQuotes as Dispatch<SetStateAction<ComposerQuote[]>>,
@@ -272,7 +267,6 @@ export function useComposerController(initialDraft = "") {
       attachChatOpen,
       attachChatFilter,
       attachChatActive,
-      sessionDropReady,
       quotes,
       promptHistoryIndex,
       promptHistoryOpen,

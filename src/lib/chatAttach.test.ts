@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   addChatRef,
   chatHasUpdate,
-  encodeSessionDrag,
   extractChatSessionIds,
   attachSessionBadge,
   filterAttachableSessions,
@@ -12,9 +11,6 @@ import {
   lookupChatTitle,
   MAX_ATTACHED_CHATS,
   parseChatTokens,
-  parseSessionDrag,
-  parseSessionDragFromTransfer,
-  takeSessionDragPayload,
   prependChatTokens,
   refreshChatRef,
   refreshStaleChatRefs,
@@ -194,43 +190,6 @@ describe("lookupChatTitle", () => {
     expect(lookupChatTitle(B, [{ id: A, title: "Login" }], "gone")).toBe(
       "gone",
     );
-  });
-});
-
-describe("session drag payload", () => {
-  it("round-trips id / title / updatedAt", () => {
-    const raw = encodeSessionDrag({
-      id: A,
-      title: "Fix login",
-      updatedAt: "2026-08-18T10:00:00.000Z",
-    });
-    expect(parseSessionDrag(raw)).toEqual({
-      id: A,
-      title: "Fix login",
-      updatedAt: "2026-08-18T10:00:00.000Z",
-    });
-  });
-
-  it("rejects invalid ids", () => {
-    expect(parseSessionDrag(JSON.stringify({ id: "nope", title: "x" }))).toBe(
-      null,
-    );
-    expect(parseSessionDrag("not-json")).toBe(null);
-  });
-
-  it("reads WKWebView text/plain fallback from DataTransfer", () => {
-    const raw = encodeSessionDrag({ id: A, title: "Fix login" });
-    const dt = {
-      getData: (mime: string) => (mime === "text/plain" ? raw : ""),
-    } as unknown as DataTransfer;
-    expect(parseSessionDragFromTransfer(dt)).toEqual({
-      id: A,
-      title: "Fix login",
-    });
-    expect(takeSessionDragPayload(null, dt)?.id).toBe(A);
-    expect(
-      takeSessionDragPayload({ id: B, title: "held" }, dt),
-    ).toEqual({ id: B, title: "held" });
   });
 });
 

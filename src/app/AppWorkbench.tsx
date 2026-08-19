@@ -609,7 +609,6 @@ import {
 import {
   addChatRef,
   chatHasUpdate,
-  dataTransferHasSession,
   loadRecentAttachIds,
   lookupChatStatus,
   lookupChatTitle,
@@ -1599,9 +1598,6 @@ export function AppWorkbench() {
     setAttachChatActive,
     attachChatPanelRef,
     attachChatOpenRef,
-    sessionDragRef,
-    sessionDropReady,
-    setSessionDropReady,
     quotes,
     quotesRef,
     setQuotes,
@@ -9214,9 +9210,6 @@ export function AppWorkbench() {
         unlisten = await webview.onDragDropEvent((event) => {
           if (cancelled) return;
           const payload = event.payload;
-          // In-app sidebar → composer attach. Host still emits native drop
-          // with empty paths; do not treat that as a failed file drop.
-          const sessionAttach = !!sessionDragRef.current;
           if (payload.type === "enter" || payload.type === "drop") {
             if ("paths" in payload && payload.paths?.length) {
               dragPathsRef.current = payload.paths;
@@ -9228,7 +9221,6 @@ export function AppWorkbench() {
             return;
           }
           if (payload.type === "enter" || payload.type === "over") {
-            if (sessionAttach) return;
             // macOS: coords are already view points; win: physical → / factor
             const { x, y } = toClientDragPoint(
               payload.position,
@@ -9251,13 +9243,6 @@ export function AppWorkbench() {
             setDragZone(null);
             dragPathsRef.current = [];
             lastNativeDropAtRef.current = Date.now();
-            if (sessionAttach) {
-              // Pointer-drag is the attach gesture. Native drop is empty-path
-              // and must not attach on the whole main column.
-              sessionDragRef.current = null;
-              setSessionDropReady(false);
-              return;
-            }
             if (!paths.length) {
               return;
             }
@@ -9289,10 +9274,8 @@ export function AppWorkbench() {
   // delivers File blobs (Tauri's native handler otherwise swallows Explorer
   // drops). Capture phase so contenteditable cannot cancel the drop.
   useEffect(() => {
-    const isSessionAttachDrag = (dt: DataTransfer | null | undefined) =>
-      !!sessionDragRef.current || dataTransferHasSession(dt);
     const onDragEnter = (e: DragEvent) => {
-      if (isSessionAttachDrag(e.dataTransfer) || !isFileDrag(e.dataTransfer)) {
+      if (!isFileDrag(e.dataTransfer)) {
         return;
       }
       e.preventDefault();
@@ -9300,7 +9283,7 @@ export function AppWorkbench() {
       setDragZone(hitDragZone(e.clientX, e.clientY));
     };
     const onDragOver = (e: DragEvent) => {
-      if (isSessionAttachDrag(e.dataTransfer) || !isFileDrag(e.dataTransfer)) {
+      if (!isFileDrag(e.dataTransfer)) {
         return;
       }
       e.preventDefault();
@@ -9308,7 +9291,7 @@ export function AppWorkbench() {
       setDragZone(hitDragZone(e.clientX, e.clientY));
     };
     const onDragLeave = (e: DragEvent) => {
-      if (isSessionAttachDrag(e.dataTransfer) || !isFileDrag(e.dataTransfer)) {
+      if (!isFileDrag(e.dataTransfer)) {
         return;
       }
       html5DragDepthRef.current = Math.max(0, html5DragDepthRef.current - 1);
@@ -9317,7 +9300,7 @@ export function AppWorkbench() {
     const onDrop = (e: DragEvent) => {
       html5DragDepthRef.current = 0;
       setDragZone(null);
-      if (isSessionAttachDrag(e.dataTransfer) || !isFileDrag(e.dataTransfer)) {
+      if (!isFileDrag(e.dataTransfer)) {
         return;
       }
       e.preventDefault();
@@ -12270,7 +12253,6 @@ export function AppWorkbench() {
     sessions,
     currentSessionId: session.sessionId,
     currentProjectId: activeProject?.id ?? null,
-    sessionSelectMode,
     chatAttachments,
     setChatAttachments,
     attachChatOpen,
@@ -12280,12 +12262,8 @@ export function AppWorkbench() {
     attachChatActive,
     setAttachChatActive,
     attachChatPanelRef,
-    sessionDragRef,
-    setSessionDropReady,
     composerShellRef,
-    composerWrapRef,
     composerInputRef,
-    hitDragZone,
     showToast,
     tr,
     onBeforeOpenPicker: onBeforeOpenAttachPicker,
@@ -21412,17 +21390,9 @@ export function AppWorkbench() {
               ref={composerShellRef}
               className={
                 "composer" +
-                (dragZone === "main" || sessionDropReady
-                  ? " composer--drop-ready"
-                  : "") +
-                (sessionDropReady ? " composer--attach-ready" : "")
+                (dragZone === "main" ? " composer--drop-ready" : "")
               }
             >
-              {sessionDropReady ? (
-                <div className="composer__attach-drop-hint">
-                  {tr("attachChat.dropHint")}
-                </div>
-              ) : null}
               {sendQueueStrip.visible && (
                 <div
                   className="composer__queue"

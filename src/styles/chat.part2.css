@@ -448,23 +448,6 @@ button.composer__context-item {
   /* Left of title so the hover pin/archive overlay cannot cover these. */
   z-index: 3;
 }
-.tree-l3__drag-handle {
-  flex-shrink: 0;
-  cursor: grab;
-  -webkit-user-drag: none;
-  touch-action: none;
-  opacity: 0.85;
-  color: var(--text-secondary);
-}
-.tree-l3:hover .tree-l3__drag-handle,
-.tree-l3__drag-handle:focus-visible {
-  opacity: 1;
-  color: var(--text-primary);
-}
-.tree-l3__drag-handle:active {
-  cursor: grabbing;
-  opacity: 1;
-}
 .tree-l3__attach-btn {
   flex-shrink: 0;
   color: var(--text-secondary);
@@ -472,50 +455,6 @@ button.composer__context-item {
 .tree-l3:hover .tree-l3__attach-btn,
 .tree-l3__attach-btn:focus-visible {
   color: var(--text-primary);
-}
-
-/* Pointer attach-drag: do not let the transcript become a Select-All. */
-html.is-session-attach-dragging,
-html.is-session-attach-dragging * {
-  -webkit-user-select: none !important;
-  user-select: none !important;
-}
-html.is-session-attach-dragging {
-  cursor: grabbing !important;
-}
-
-.session-attach-ghost {
-  position: fixed;
-  z-index: 20000;
-  pointer-events: none;
-  transform: translate(14px, 12px);
-  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.22));
-  opacity: 0.96;
-}
-.session-attach-ghost.is-ready {
-  outline: 2px solid rgba(80, 140, 255, 0.55);
-  outline-offset: 2px;
-  border-radius: 999px;
-}
-
-.composer__attach-hint {
-  margin-top: 10px;
-  max-width: 22rem;
-  text-align: center;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--text-secondary);
-  pointer-events: none;
-}
-
-.composer__attach-drop-hint {
-  padding: 6px 12px 0;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.composer.composer--attach-ready {
-  box-shadow: 0 0 0 2px rgba(80, 140, 255, 0.42);
 }
 
 .skill-chip--chat.is-missing,

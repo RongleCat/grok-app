@@ -62,18 +62,6 @@ export function chatToken(
   return sc === "recent" ? `[[chat:${id}]]` : `[[chat:${id}:${sc}]]`;
 }
 
-/** HTML5 drag payload for sidebar → composer. */
-export const GROK_SESSION_DRAG_MIME = "application/x-grok-session";
-export const GROK_SESSION_DRAG_MIME_ALT = "text/x-grok-session";
-/** WKWebView often only preserves standard types. JSON payload. */
-export const GROK_SESSION_DRAG_TEXT = "text/plain";
-
-export type SessionDragPayload = {
-  id: string;
-  title: string;
-  updatedAt?: string;
-};
-
 export type AddChatRefResult = {
   refs: ChatRef[];
   added: boolean;
@@ -356,80 +344,6 @@ export function lookupChatTitle(
   const hit = sessions.find((s) => s.id === sessionId);
   const title = (hit?.title ?? "").trim();
   return title || fallback;
-}
-
-export function encodeSessionDrag(payload: SessionDragPayload): string {
-  return JSON.stringify({
-    id: payload.id,
-    title: payload.title ?? "",
-    updatedAt: payload.updatedAt ?? "",
-  });
-}
-
-export function parseSessionDrag(raw: string | null | undefined): SessionDragPayload | null {
-  if (!raw) return null;
-  try {
-    const v = JSON.parse(raw) as unknown;
-    if (!v || typeof v !== "object") return null;
-    const o = v as Record<string, unknown>;
-    const id = typeof o.id === "string" ? o.id.trim() : "";
-    if (!isChatSessionId(id)) return null;
-    const title = typeof o.title === "string" ? o.title : "";
-    const updatedAt =
-      typeof o.updatedAt === "string" && o.updatedAt.trim()
-        ? o.updatedAt.trim()
-        : undefined;
-    return { id, title, updatedAt };
-  } catch {
-    return null;
-  }
-}
-
-export function dataTransferHasSession(
-  dt: DataTransfer | null | undefined,
-): boolean {
-  if (!dt) return false;
-  const types = Array.from(dt.types ?? []);
-  if (
-    types.includes(GROK_SESSION_DRAG_MIME) ||
-    types.includes(GROK_SESSION_DRAG_MIME_ALT)
-  ) {
-    return true;
-  }
-  if (!types.includes(GROK_SESSION_DRAG_TEXT)) return false;
-  try {
-    return parseSessionDrag(dt.getData(GROK_SESSION_DRAG_TEXT)) != null;
-  } catch {
-    return false;
-  }
-}
-
-export function parseSessionDragFromTransfer(
-  dt: DataTransfer | null | undefined,
-): SessionDragPayload | null {
-  if (!dt) return null;
-  for (const mime of [
-    GROK_SESSION_DRAG_MIME,
-    GROK_SESSION_DRAG_MIME_ALT,
-    GROK_SESSION_DRAG_TEXT,
-  ]) {
-    try {
-      const parsed = parseSessionDrag(dt.getData(mime));
-      if (parsed) return parsed;
-    } catch {
-      /* getData can throw on some dragover paths */
-    }
-  }
-  return null;
-}
-
-/** Prefer the in-memory payload (same-document); fall back to DataTransfer. */
-export function takeSessionDragPayload(
-  held: SessionDragPayload | null | undefined,
-  dt?: DataTransfer | null,
-): SessionDragPayload | null {
-  if (held && isChatSessionId(held.id)) return held;
-  return parseSessionDragFromTransfer(dt);
 }
 
 function parseStamp(raw: string | undefined | null): number {
