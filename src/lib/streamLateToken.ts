@@ -55,13 +55,32 @@ export function shouldApplyLateStreamText(opts: {
   if (turnAsst.streaming) return true;
 
   const bodyEmpty = !((turnAsst.content ?? "").trim());
-  const hasThought = !((turnAsst.thought ?? "").trim() === "");
-  // Thinking landed, body still empty (host may have cleared streaming on ready).
-  if (bodyEmpty && hasThought) return true;
+  // Empty body after early ready: thinking-only *or* tool-only. A long tool
+  // turn settles the bubble (streaming=false, no thought) before the real
+  // answer tokens arrive. Dropping those tokens left the viewed chat blank
+  // until the user switched sessions and remounted from disk.
+  if (bodyEmpty) return true;
 
-  // Settled with body already present, or tool-only empty final → drop replays.
+  // Settled with a body already present → drop post-turn replays that
+  // would double-append into the finished bubble.
   return false;
 }
+
+/**
+ * Stream `done` flips liveMap to `ready`. The session://state ready
+ * handler then sees ready→ready and skips journal heal
+ * (`isTurnDoneReadyTransition` is false). Heal the viewed chat on
+ * stream done so a dropped tail is lifted without a remount.
+ */
+export function shouldHealJournalOnStreamDone(opts: {
+  isViewingSession: boolean;
+  streamDone: boolean;
+}): boolean {
+  return opts.streamDone && opts.isViewingSession;
+}
+
+/** Gaps after attempt 0: 400ms then +500ms (900ms), covering Host's 750ms flush. */
+export const JOURNAL_REHYDRATE_RETRY_GAPS_MS = [400, 500] as const;
 
 /**
  * Early `session://stream` `done:true` (prompt_complete / prompt RPC

@@ -102,7 +102,9 @@ import {
   toolEventNeedsImmediateFlush,
 } from "@/lib/streamCoalesce";
 import {
+  JOURNAL_REHYDRATE_RETRY_GAPS_MS,
   shouldApplyLateStreamText,
+  shouldHealJournalOnStreamDone,
   shouldIgnorePrematureStreamDone,
 } from "@/lib/streamLateToken";
 import {
@@ -393,10 +395,13 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
               // truncated stream. Apply must run post-rehydrate for the
               // *viewed* session too (stream `done` alone is not enough).
               void c.tryApplyAutomationFromSession(sid);
-              if (attempt === 0) {
+              const gap = JOURNAL_REHYDRATE_RETRY_GAPS_MS[attempt];
+              if (gap != null) {
                 window.setTimeout(() => {
-                  if (!cancelled) scheduleJournalRehydrate(sid, 1, opts);
-                }, 400);
+                  if (!cancelled) {
+                    scheduleJournalRehydrate(sid, attempt + 1, opts);
+                  }
+                }, gap);
               }
             })
             .catch(() => {
@@ -948,6 +953,18 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
                 streamingMessageId: null,
               }),
             );
+            // liveMap is already ready here, so session://state ready→ready
+            // will not schedule a heal. Lift any journal tail the late-token
+            // filter or a dropped IPC batch missed.
+            if (
+              shouldHealJournalOnStreamDone({
+                isViewingSession:
+                  chunk.sessionId === c.viewingSessionIdRef.current,
+                streamDone: true,
+              })
+            ) {
+              scheduleJournalRehydrate(chunk.sessionId, 0);
+            }
           }
           c.patchSessionMessages(chunk.sessionId, (prev) => {
             const next = applyStreamChunk(prev, effective);

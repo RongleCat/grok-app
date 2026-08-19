@@ -1186,6 +1186,56 @@ describe("session projection", () => {
     );
   });
 
+  it("upgradeMessagesFromJournal lifts a tool-only empty bubble from disk", () => {
+    const ui: ChatMessage[] = [
+      { id: "u1", role: "user", content: "删 branch" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "",
+        streaming: false,
+        segments: [
+          toolSegmentFromFields({
+            toolCallId: "t1",
+            title: "git",
+            status: "completed",
+          }),
+        ],
+      },
+    ];
+    const journal: ChatMessage[] = [
+      { id: "u1", role: "user", content: "删 branch" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "昨晚那批已经清掉了。",
+      },
+    ];
+    const out = upgradeMessagesFromJournal(ui, journal);
+    expect(out.find((m) => m.id === "a1")?.content).toBe("昨晚那批已经清掉了。");
+  });
+
+  it("applyStreamChunk attaches a late answer onto a settled empty assistant", () => {
+    const msgs: ChatMessage[] = [
+      { id: "u1", role: "user", content: "删 branch" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "",
+        streaming: false,
+      },
+    ];
+    const out = applyStreamChunk(msgs, {
+      sessionId: "s1",
+      messageId: "a1",
+      text: "昨晚那批已经清掉了。",
+      done: true,
+      kind: "assistant",
+    });
+    expect(out.find((m) => m.id === "a1")?.content).toContain("清掉");
+    expect(out.find((m) => m.id === "a1")?.streaming).toBe(false);
+  });
+
   it("weaveToolsIntoAssistantSegments puts journal tools between thought and content", () => {
     // Host journal shape: U → A (final) → tools (tools ran mid-turn).
     const woven = weaveToolsIntoAssistantSegments([
