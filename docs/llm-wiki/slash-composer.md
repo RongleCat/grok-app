@@ -66,7 +66,7 @@ Two scopes in one picker:
 
 Helpers: `src/lib/composerPromptHistory.ts` (session + list nav/empty), `src/lib/recentPromptHistory.ts` (cross-session clear/remove). UI: `PromptHistoryPanel`.
 
-## Attach another chat (`/attach-chat` · sidebar drag)
+## Attach another chat (`/attach-chat` · sidebar icon)
 
 Codex-style **context attach**, not a journal merge.
 
