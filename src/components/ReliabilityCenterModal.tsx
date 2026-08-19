@@ -18,7 +18,7 @@ import {
   IconDoctor,
 } from "@/components/icons";
 import { ProcessBudgetPanel } from "@/components/ProcessBudgetPanel";
-import { createT, type Locale, type MessageKey } from "@/i18n";
+import { createT, intlLocale, type Locale, type MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
 import {
   auditLedgerEventKey,
@@ -104,7 +104,7 @@ function formatWhen(ms: number, locale: Locale): string {
     const d = new Date(ms);
     if (Number.isNaN(d.getTime())) return "";
     return d.toLocaleString(
-      locale === "zh" || locale === "zh-TW" ? "zh-CN" : "en-US",
+      intlLocale(locale),
       { dateStyle: "short", timeStyle: "medium" },
     );
   } catch {

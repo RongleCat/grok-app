@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "@/lib/api";
-import { createT, type Locale, type MessageKey } from "@/i18n";
+import { createT, intlLocale, type Locale, type MessageKey } from "@/i18n";
 import { GlassModal } from "@/components/GlassModal";
 import {
   IconDoctor,
@@ -1453,13 +1453,7 @@ export function ExtensionsPanel({
     try {
       const d = new Date(doctorLastAt);
       if (Number.isNaN(d.getTime())) return null;
-      const loc =
-        locale === "zh" || locale === "zh-TW"
-          ? "zh-CN"
-          : locale === "en"
-            ? "en-US"
-            : undefined;
-      return d.toLocaleString(loc, {
+      return d.toLocaleString(intlLocale(locale), {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
