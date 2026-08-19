@@ -24,11 +24,15 @@ use parking_lot::Mutex;
 use crate::paths::{ensure_app_dirs, secrets_file};
 use crate::store::SecretsFile;
 
+#[cfg(test)]
+use std::collections::HashMap;
+
 /// Reverse-DNS service id shared with app data layout (`com.grokapp.grok-app`).
 const KEYRING_SERVICE: &str = "com.grokapp.grok-app";
 
 const KEY_OFFICIAL: &str = "official_api_key";
 const KEY_RELAY: &str = "relay_api_key";
+const KEY_STT_CUSTOM: &str = "stt_custom_api_key";
 
 /// Where sensitive fields were last successfully written (for diagnostics only).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -150,9 +154,79 @@ fn non_empty(s: &Option<String>) -> bool {
     s.as_ref().map(|v| !v.is_empty()).unwrap_or(false)
 }
 
+/// Any non-empty per-provider custom STT key (or the legacy single key).
+fn stt_keys_non_empty(s: &SecretsFile) -> bool {
+    non_empty(&s.stt_custom_api_key)
+        || s.stt_custom_api_keys
+            .values()
+            .any(|k| !k.is_empty())
+}
+
+/// ADR-0001 migration: fold the legacy single custom STT key into the
+/// per-provider map under the `custom` slot at load time.
+fn migrate_legacy_stt_key(s: &mut SecretsFile) {
+    if non_empty(&s.stt_custom_api_key) {
+        if !s.stt_custom_api_keys.contains_key("custom") {
+            let legacy = s.stt_custom_api_key.clone().unwrap_or_default();
+            s.stt_custom_api_keys.insert("custom".into(), legacy);
+        }
+        s.stt_custom_api_key = None;
+    }
+}
+
+/// Resolve the custom STT key for a provider preset id: exact slot first, the
+/// `custom` slot as the ADR-0001 migration fallback.
+pub fn stt_custom_key_for(s: &SecretsFile, provider: &str) -> Option<String> {
+    let p = provider.trim();
+    if !p.is_empty() {
+        if let Some(k) = s.stt_custom_api_keys.get(p).filter(|k| !k.is_empty()) {
+            return Some(k.clone());
+        }
+    }
+    s.stt_custom_api_keys
+        .get("custom")
+        .filter(|k| !k.is_empty())
+        .cloned()
+}
+
+/// Presence flags for every known provider slot (disk only — no keychain
+/// unlock). Used by the settings UI for key-field placeholders. Persisted
+/// non-secret flags are the source of truth; plaintext leftovers count too.
+pub fn stt_custom_key_presence(disk: &SecretsFile) -> std::collections::HashMap<String, bool> {
+    let mut m = disk.stt_custom_key_presence.clone();
+    for id in ["local", "groq", "openai", "mistral", "custom"] {
+        let has_plain = disk
+            .stt_custom_api_keys
+            .get(id)
+            .map(|k| !k.is_empty())
+            .unwrap_or(false);
+        m.insert(id.to_string(), has_plain || m.get(id).copied().unwrap_or(false));
+    }
+    // Legacy single key counts as present for the `custom` slot.
+    if non_empty(&disk.stt_custom_api_key) {
+        m.insert("custom".into(), true);
+    }
+    m
+}
+
+/// Recompute per-provider presence flags from the actual key map. Call before
+/// persisting so the flags survive keychain-mode saves (which strip values).
+pub fn sync_stt_presence(s: &mut SecretsFile) {
+    for id in ["local", "groq", "openai", "mistral", "custom"] {
+        let has = s
+            .stt_custom_api_keys
+            .get(id)
+            .map(|k| !k.is_empty())
+            .unwrap_or(false);
+        s.stt_custom_key_presence.insert(id.to_string(), has);
+    }
+}
+
 /// True when the on-disk payload still holds plaintext API keys that should migrate.
 pub fn disk_has_plaintext_keys(disk: &SecretsFile) -> bool {
-    non_empty(&disk.official_api_key) || non_empty(&disk.relay_api_key)
+    non_empty(&disk.official_api_key)
+        || non_empty(&disk.relay_api_key)
+        || stt_keys_non_empty(disk)
 }
 
 /// Whether UI / setup should treat an official key as configured.
@@ -166,15 +240,24 @@ pub fn has_relay_key_configured(disk: &SecretsFile) -> bool {
     non_empty(&disk.relay_api_key) || disk.keychain_has_relay
 }
 
+/// Whether a custom STT key is configured (disk plaintext or keychain flag).
+pub fn has_stt_custom_key_configured(disk: &SecretsFile) -> bool {
+    stt_keys_non_empty(disk) || disk.keychain_has_stt_custom
+}
+
 /// Disk payload with sensitive key fields stripped (metadata + presence flags kept).
 pub fn strip_keys_for_disk(s: &SecretsFile) -> SecretsFile {
     SecretsFile {
         official_api_key: None,
         relay_api_key: None,
+        stt_custom_api_key: None,
+        stt_custom_api_keys: std::collections::HashMap::new(),
+        stt_custom_key_presence: s.stt_custom_key_presence.clone(),
         relay_base_url: s.relay_base_url.clone(),
         default_model: s.default_model.clone(),
         keychain_has_official: s.keychain_has_official,
         keychain_has_relay: s.keychain_has_relay,
+        keychain_has_stt_custom: s.keychain_has_stt_custom,
     }
 }
 
@@ -188,6 +271,26 @@ pub fn merge_secrets(disk: SecretsFile, from_keychain: SecretsFile) -> SecretsFi
         .relay_api_key
         .filter(|k| !k.is_empty())
         .or(disk.relay_api_key.filter(|k| !k.is_empty()));
+    // Per-provider: keychain wins per key; disk map supplies the rest.
+    let mut stt_custom_keys = disk.stt_custom_api_keys;
+    for (k, v) in from_keychain.stt_custom_api_keys {
+        if !v.is_empty() {
+            stt_custom_keys.insert(k, v);
+        }
+    }
+    let stt_custom = from_keychain
+        .stt_custom_api_key
+        .filter(|k| !k.is_empty())
+        .or(disk.stt_custom_api_key.filter(|k| !k.is_empty()));
+    let mut stt_presence = disk.stt_custom_key_presence;
+    for (k, v) in from_keychain.stt_custom_key_presence {
+        if v {
+            stt_presence.insert(k, true);
+        }
+    }
+    let stt_present = stt_custom_keys.values().any(|k| !k.is_empty())
+        || non_empty(&stt_custom)
+        || stt_presence.values().any(|v| *v);
     SecretsFile {
         // Presence flags: true if we have a value or disk said keychain holds it.
         keychain_has_official: non_empty(&official)
@@ -196,8 +299,14 @@ pub fn merge_secrets(disk: SecretsFile, from_keychain: SecretsFile) -> SecretsFi
         keychain_has_relay: non_empty(&relay)
             || disk.keychain_has_relay
             || from_keychain.keychain_has_relay,
+        keychain_has_stt_custom: stt_present
+            || disk.keychain_has_stt_custom
+            || from_keychain.keychain_has_stt_custom,
         official_api_key: official,
         relay_api_key: relay,
+        stt_custom_api_key: stt_custom,
+        stt_custom_api_keys: stt_custom_keys,
+        stt_custom_key_presence: stt_presence,
         relay_base_url: disk.relay_base_url,
         default_model: disk.default_model,
     }
@@ -292,6 +401,38 @@ pub fn migrate_plaintext_keys_to_keychain(disk: &mut SecretsFile) -> usize {
         }
     }
 
+    // Fold legacy single key into the map first (ADR-0001), then store the
+    // whole per-provider map as one keychain entry (JSON).
+    migrate_legacy_stt_key(disk);
+    if !disk.stt_custom_api_keys.is_empty() {
+        match serde_json::to_string(&disk.stt_custom_api_keys) {
+            Ok(json) => match keychain_set(KEY_STT_CUSTOM, &json) {
+                Ok(()) => {
+                    disk.stt_custom_api_keys.clear();
+                    disk.keychain_has_stt_custom = true;
+                    migrated += 1;
+                }
+                Err(e) => {
+                    failed = true;
+                    tracing::warn!(
+                        target: "grok_app::secrets",
+                        field = KEY_STT_CUSTOM,
+                        error = %e,
+                        "failed to migrate secret field to OS keychain; leaving on disk"
+                    );
+                }
+            },
+            Err(e) => {
+                failed = true;
+                tracing::warn!(
+                    target: "grok_app::secrets",
+                    error = %e,
+                    "failed to serialize custom STT keys for keychain migration"
+                );
+            }
+        }
+    }
+
     if migrated > 0 {
         let path = secrets_file();
         if let Err(e) = write_disk_secrets(&path, disk) {
@@ -333,11 +474,13 @@ pub fn load_secrets() -> SecretsFile {
     let mut disk = read_disk_secrets(&path);
 
     if !use_keychain_backend() {
+        migrate_legacy_stt_key(&mut disk);
         *SESSION_CACHE.lock() = Some(disk.clone());
         return disk;
     }
 
     let _ = migrate_plaintext_keys_to_keychain(&mut disk);
+    migrate_legacy_stt_key(&mut disk);
 
     let official = if disk.keychain_has_official || non_empty(&disk.official_api_key) {
         keychain_get(KEY_OFFICIAL)
@@ -349,11 +492,28 @@ pub fn load_secrets() -> SecretsFile {
     } else {
         None
     };
+    // Keychain holds the per-provider map as JSON. Older entries stored the
+    // raw single key — parse failure folds that into the `custom` slot.
+    let stt_keys: std::collections::HashMap<String, String> =
+        if disk.keychain_has_stt_custom || !disk.stt_custom_api_keys.is_empty() {
+            match keychain_get(KEY_STT_CUSTOM) {
+                Some(json) => serde_json::from_str(&json).unwrap_or_else(|_| {
+                    std::collections::HashMap::from([("custom".to_string(), json)])
+                }),
+                None => std::collections::HashMap::new(),
+            }
+        } else {
+            std::collections::HashMap::new()
+        };
     let from_kc = SecretsFile {
         official_api_key: official,
         relay_api_key: relay,
+        stt_custom_api_key: None,
+        stt_custom_api_keys: stt_keys,
+        stt_custom_key_presence: disk.stt_custom_key_presence.clone(),
         keychain_has_official: disk.keychain_has_official,
         keychain_has_relay: disk.keychain_has_relay,
+        keychain_has_stt_custom: disk.keychain_has_stt_custom,
         relay_base_url: None,
         default_model: None,
     };
@@ -367,9 +527,13 @@ pub fn save_secrets(s: &SecretsFile) -> Result<(), String> {
     let _ = ensure_app_dirs();
     let path = secrets_file();
     invalidate_session_cache();
+    // Per-provider presence is derived from the key map on every save so it
+    // survives keychain-mode writes (which strip key values from disk).
+    let mut s = s.clone();
+    sync_stt_presence(&mut s);
 
     if use_keychain_backend() {
-        let mut disk = strip_keys_for_disk(s);
+        let mut disk = strip_keys_for_disk(&s);
 
         match &s.official_api_key {
             Some(k) if !k.is_empty() => {
@@ -395,22 +559,41 @@ pub fn save_secrets(s: &SecretsFile) -> Result<(), String> {
                 disk.keychain_has_relay = false;
             }
         }
+        match &s.stt_custom_api_keys {
+            m if !m.values().any(|k| !k.is_empty()) => {
+                if s.keychain_has_stt_custom || stt_keys_non_empty(&s) {
+                    keychain_delete(KEY_STT_CUSTOM)?;
+                }
+                disk.keychain_has_stt_custom = false;
+            }
+            m => {
+                let json = serde_json::to_string(m).map_err(|e| e.to_string())?;
+                keychain_set(KEY_STT_CUSTOM, &json)?;
+                disk.keychain_has_stt_custom = true;
+            }
+        }
 
         write_disk_secrets(&path, &disk)?;
         let cached = SecretsFile {
             official_api_key: s.official_api_key.clone(),
             relay_api_key: s.relay_api_key.clone(),
+            stt_custom_api_key: None,
+            stt_custom_api_keys: s.stt_custom_api_keys.clone(),
+            stt_custom_key_presence: disk.stt_custom_key_presence.clone(),
             relay_base_url: disk.relay_base_url.clone(),
             default_model: disk.default_model.clone(),
             keychain_has_official: disk.keychain_has_official,
             keychain_has_relay: disk.keychain_has_relay,
+            keychain_has_stt_custom: disk.keychain_has_stt_custom,
         };
         *SESSION_CACHE.lock() = Some(cached);
         Ok(())
     } else {
         // File mode: write full payload; drop any leftover keychain entries best-effort.
         let mut file = s.clone();
-        if file.keychain_has_official || file.keychain_has_relay {
+        sync_stt_presence(&mut file);
+        migrate_legacy_stt_key(&mut file);
+        if file.keychain_has_official || file.keychain_has_relay || file.keychain_has_stt_custom {
             // Pull values if caller only had flags (shouldn't happen after load).
             if !non_empty(&file.official_api_key) && file.keychain_has_official {
                 file.official_api_key = keychain_get(KEY_OFFICIAL);
@@ -418,13 +601,21 @@ pub fn save_secrets(s: &SecretsFile) -> Result<(), String> {
             if !non_empty(&file.relay_api_key) && file.keychain_has_relay {
                 file.relay_api_key = keychain_get(KEY_RELAY);
             }
+            if file.stt_custom_api_keys.is_empty() && file.keychain_has_stt_custom {
+                file.stt_custom_api_keys =
+                    keychain_get(KEY_STT_CUSTOM)
+                        .and_then(|json| serde_json::from_str(&json).ok())
+                        .unwrap_or_default();
+            }
             if keychain_platform_ok() {
                 let _ = keychain_delete(KEY_OFFICIAL);
                 let _ = keychain_delete(KEY_RELAY);
+                let _ = keychain_delete(KEY_STT_CUSTOM);
             }
         }
         file.keychain_has_official = false;
         file.keychain_has_relay = false;
+        file.keychain_has_stt_custom = false;
         write_disk_secrets(&path, &file)?;
         *SESSION_CACHE.lock() = Some(file);
         Ok(())
@@ -469,10 +660,19 @@ pub fn apply_keychain_preference(enabled: bool) -> Result<(), String> {
         if disk.keychain_has_relay && !non_empty(&disk.relay_api_key) {
             disk.relay_api_key = keychain_get(KEY_RELAY);
         }
+        if disk.keychain_has_stt_custom && disk.stt_custom_api_keys.is_empty() {
+            disk.stt_custom_api_keys =
+                keychain_get(KEY_STT_CUSTOM)
+                    .and_then(|json| serde_json::from_str(&json).ok())
+                    .unwrap_or_default();
+        }
+        sync_stt_presence(&mut disk);
+        migrate_legacy_stt_key(&mut disk);
 
         let mut meta = strip_keys_for_disk(&disk);
         let mut official = disk.official_api_key.clone();
         let mut relay = disk.relay_api_key.clone();
+        let mut stt_keys = disk.stt_custom_api_keys.clone();
 
         if non_empty(&official) {
             keychain_set(KEY_OFFICIAL, official.as_deref().unwrap())?;
@@ -482,15 +682,24 @@ pub fn apply_keychain_preference(enabled: bool) -> Result<(), String> {
             keychain_set(KEY_RELAY, relay.as_deref().unwrap())?;
             meta.keychain_has_relay = true;
         }
+        if !stt_keys.is_empty() {
+            let json = serde_json::to_string(&stt_keys).map_err(|e| e.to_string())?;
+            keychain_set(KEY_STT_CUSTOM, &json)?;
+            meta.keychain_has_stt_custom = true;
+        }
 
         write_disk_secrets(&path, &meta)?;
         *SESSION_CACHE.lock() = Some(SecretsFile {
             official_api_key: official.take(),
             relay_api_key: relay.take(),
+            stt_custom_api_key: None,
+            stt_custom_api_keys: std::mem::take(&mut stt_keys),
+            stt_custom_key_presence: meta.stt_custom_key_presence.clone(),
             relay_base_url: meta.relay_base_url,
             default_model: meta.default_model,
             keychain_has_official: meta.keychain_has_official,
             keychain_has_relay: meta.keychain_has_relay,
+            keychain_has_stt_custom: meta.keychain_has_stt_custom,
         });
         tracing::info!(target: "grok_app::secrets", "API keys storage: OS keychain");
         Ok(())
@@ -506,11 +715,23 @@ pub fn apply_keychain_preference(enabled: bool) -> Result<(), String> {
                     disk.relay_api_key = Some(k);
                 }
             }
+            if disk.keychain_has_stt_custom || !disk.stt_custom_api_keys.is_empty() {
+                if let Some(json) = keychain_get(KEY_STT_CUSTOM) {
+                    disk.stt_custom_api_keys =
+                        serde_json::from_str(&json).unwrap_or_else(|_| {
+                            std::collections::HashMap::from([("custom".to_string(), json)])
+                        });
+                }
+            }
             let _ = keychain_delete(KEY_OFFICIAL);
             let _ = keychain_delete(KEY_RELAY);
+            let _ = keychain_delete(KEY_STT_CUSTOM);
         }
+        sync_stt_presence(&mut disk);
+        migrate_legacy_stt_key(&mut disk);
         disk.keychain_has_official = false;
         disk.keychain_has_relay = false;
+        disk.keychain_has_stt_custom = false;
         write_disk_secrets(&path, &disk)?;
         *SESSION_CACHE.lock() = Some(disk);
         tracing::info!(target: "grok_app::secrets", "API keys storage: secrets.json");
@@ -522,7 +743,7 @@ pub fn apply_keychain_preference(enabled: bool) -> Result<(), String> {
 pub fn clear_keychain_secrets() {
     invalidate_session_cache();
     if keychain_platform_ok() {
-        for account in [KEY_OFFICIAL, KEY_RELAY] {
+        for account in [KEY_OFFICIAL, KEY_RELAY, KEY_STT_CUSTOM] {
             if let Err(e) = keychain_delete(account) {
                 tracing::warn!(
                     target: "grok_app::secrets",
@@ -538,8 +759,11 @@ pub fn clear_keychain_secrets() {
         let mut disk = read_disk_secrets(&path);
         disk.keychain_has_official = false;
         disk.keychain_has_relay = false;
+        disk.keychain_has_stt_custom = false;
         disk.official_api_key = None;
         disk.relay_api_key = None;
+        disk.stt_custom_api_key = None;
+        disk.stt_custom_api_keys.clear();
         let _ = write_disk_secrets(&path, &disk);
     }
     tracing::info!(
@@ -562,6 +786,7 @@ pub fn wipe_all_secrets() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn disk_has_plaintext_keys_detects_present() {
@@ -609,6 +834,10 @@ mod tests {
             default_model: Some("grok-4".into()),
             keychain_has_official: true,
             keychain_has_relay: true,
+            stt_custom_api_key: None,
+            stt_custom_api_keys: HashMap::new(),
+            stt_custom_key_presence: HashMap::new(),
+            keychain_has_stt_custom: false,
         };
         let disk = strip_keys_for_disk(&s);
         assert!(disk.official_api_key.is_none());
@@ -631,6 +860,10 @@ mod tests {
             default_model: Some("m1".into()),
             keychain_has_official: false,
             keychain_has_relay: false,
+            stt_custom_api_key: None,
+            stt_custom_api_keys: HashMap::new(),
+            stt_custom_key_presence: HashMap::new(),
+            keychain_has_stt_custom: false,
         };
         let kc = SecretsFile {
             official_api_key: Some("kc-new".into()),
@@ -670,6 +903,10 @@ mod tests {
             default_model: Some("g".into()),
             keychain_has_official: true,
             keychain_has_relay: false,
+            stt_custom_api_key: None,
+            stt_custom_api_keys: HashMap::new(),
+            stt_custom_key_presence: HashMap::new(),
+            keychain_has_stt_custom: false,
         };
         let disk = strip_keys_for_disk(&s);
         let json = serde_json::to_string(&disk).unwrap();
@@ -725,6 +962,76 @@ mod tests {
     }
 
     #[test]
+    fn stt_custom_key_presence_and_strip() {
+        let s = SecretsFile {
+            stt_custom_api_key: Some("stt-secret".into()),
+            keychain_has_stt_custom: true,
+            ..Default::default()
+        };
+        assert!(has_stt_custom_key_configured(&s));
+        assert!(disk_has_plaintext_keys(&s));
+
+        let disk = strip_keys_for_disk(&s);
+        assert!(disk.stt_custom_api_key.is_none());
+        assert!(disk.keychain_has_stt_custom);
+        let json = serde_json::to_string(&disk).unwrap();
+        assert!(!json.contains("stt-secret"));
+    }
+
+    #[test]
+    fn merge_keeps_stt_custom_key() {
+        let disk = SecretsFile {
+            stt_custom_api_key: Some("disk-stt".into()),
+            keychain_has_stt_custom: false,
+            ..Default::default()
+        };
+        let kc = SecretsFile {
+            stt_custom_api_key: Some("kc-stt".into()),
+            keychain_has_stt_custom: true,
+            ..Default::default()
+        };
+        let m = merge_secrets(disk, kc);
+        assert_eq!(m.stt_custom_api_key.as_deref(), Some("kc-stt"));
+        assert!(m.keychain_has_stt_custom);
+    }
+
+    #[test]
+    fn presence_flags_survive_strip_and_sync() {
+        let mut s = SecretsFile {
+            stt_custom_api_keys: HashMap::from([
+                ("groq".to_string(), "g".into()),
+                ("openai".to_string(), String::new()),
+            ]),
+            ..Default::default()
+        };
+        sync_stt_presence(&mut s);
+        assert!(s.stt_custom_key_presence.get("groq").copied().unwrap_or(false));
+        assert!(!s.stt_custom_key_presence.get("openai").copied().unwrap_or(true));
+
+        // Keychain-mode strip must keep the non-secret presence flags.
+        let disk = strip_keys_for_disk(&s);
+        assert!(disk.stt_custom_api_keys.is_empty());
+        assert!(disk.stt_custom_key_presence.get("groq").copied().unwrap_or(false));
+        let p = stt_custom_key_presence(&disk);
+        assert!(p.get("groq").copied().unwrap_or(false));
+        assert!(!p.get("openai").copied().unwrap_or(true));
+    }
+
+    #[test]
+    fn merge_stt_present_flag_not_inverted() {
+        let disk = SecretsFile {
+            stt_custom_api_keys: HashMap::from([("groq".to_string(), "g".into())]),
+            stt_custom_key_presence: HashMap::from([("groq".to_string(), true)]),
+            ..Default::default()
+        };
+        let m = merge_secrets(disk, SecretsFile::default());
+        assert!(m.keychain_has_stt_custom, "stored key must count as present");
+        // Empty key map + no flags → not present.
+        let m2 = merge_secrets(SecretsFile::default(), SecretsFile::default());
+        assert!(!m2.keychain_has_stt_custom);
+    }
+
+    #[test]
     fn default_settings_prefer_file_not_keychain() {
         let s = crate::store::AppSettings::default();
         assert!(!s.store_api_keys_in_keychain);
@@ -751,3 +1058,61 @@ mod tests {
         let _ = fs::remove_dir_all(&tmp);
     }
 }
+
+    #[test]
+    fn stt_custom_key_for_prefers_exact_slot_then_custom_fallback() {
+        let s = SecretsFile {
+            stt_custom_api_keys: HashMap::from([
+                ("groq".to_string(), "groq-key".into()),
+                ("custom".to_string(), "custom-key".into()),
+            ]),
+            ..Default::default()
+        };
+        assert_eq!(stt_custom_key_for(&s, "groq").as_deref(), Some("groq-key"));
+        // Provider without its own slot falls back to the `custom` slot.
+        assert_eq!(stt_custom_key_for(&s, "openai").as_deref(), Some("custom-key"));
+        // No slots → None.
+        let empty = SecretsFile::default();
+        assert_eq!(stt_custom_key_for(&empty, "groq"), None);
+    }
+
+    #[test]
+    fn migrate_legacy_stt_key_folds_into_custom_slot() {
+        let mut s = SecretsFile {
+            stt_custom_api_key: Some("legacy-key".into()),
+            ..Default::default()
+        };
+        migrate_legacy_stt_key(&mut s);
+        assert!(s.stt_custom_api_key.is_none());
+        assert_eq!(
+            s.stt_custom_api_keys.get("custom").map(String::as_str),
+            Some("legacy-key")
+        );
+        // Existing custom slot wins; legacy is dropped.
+        let mut s2 = SecretsFile {
+            stt_custom_api_key: Some("legacy".into()),
+            stt_custom_api_keys: HashMap::from([("custom".to_string(), "kept".into())]),
+            ..Default::default()
+        };
+        migrate_legacy_stt_key(&mut s2);
+        assert_eq!(
+            s2.stt_custom_api_keys.get("custom").map(String::as_str),
+            Some("kept")
+        );
+    }
+
+    #[test]
+    fn stt_custom_key_presence_reports_per_slot() {
+        let s = SecretsFile {
+            stt_custom_api_keys: HashMap::from([
+                ("groq".to_string(), "g".into()),
+                ("openai".to_string(), String::new()),
+            ]),
+            stt_custom_api_key: Some("legacy".into()),
+            ..Default::default()
+        };
+        let p = stt_custom_key_presence(&s);
+        assert!(p.get("groq").copied().unwrap_or(false));
+        assert!(!p.get("openai").copied().unwrap_or(true));
+        assert!(p.get("custom").copied().unwrap_or(false)); // legacy folded presence
+    }

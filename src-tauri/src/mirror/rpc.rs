@@ -179,8 +179,14 @@ pub async fn dispatch(
             }
             let filename = param_string(&params, &["filename"]);
             let mime = param_string(&params, &["mime"]);
-            let result =
-                crate::voice_stt::voice_transcribe(audio_base64.to_string(), filename, mime).await;
+            let locale = param_string(&params, &["locale"]);
+            let result = crate::voice_stt::voice_transcribe(
+                audio_base64.to_string(),
+                filename,
+                mime,
+                locale,
+            )
+            .await;
             Ok(serde_json::to_value(result).map_err(|e| RpcError::host(e.to_string()))?)
         }
 

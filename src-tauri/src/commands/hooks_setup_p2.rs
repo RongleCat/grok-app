@@ -86,10 +86,10 @@ pub async fn voice_transcribe(
     audio_base64: String,
     filename: Option<String>,
     mime: Option<String>,
+    locale: Option<String>,
 ) -> Result<crate::voice_stt::VoiceTranscribeResult, String> {
-    Ok(crate::voice_stt::voice_transcribe(audio_base64, filename, mime).await)
+    Ok(crate::voice_stt::voice_transcribe(audio_base64, filename, mime, locale).await)
 }
-
 // from PR #74
 
 /// Case-insensitive path equality after normalization (pure; unit-tested).

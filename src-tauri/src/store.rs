@@ -485,6 +485,24 @@ pub struct AppSettings {
     /// Keep delegated agent sessions running after ending a live voice chat.
     #[serde(default = "default_true")]
     pub voice_keep_agents_on_end: bool,
+    /// Composer dictation STT engine: `official` (xAI, default) or `custom`
+    /// (any OpenAI-compatible `/audio/transcriptions` endpoint).
+    #[serde(default = "default_stt_engine")]
+    pub stt_engine: String,
+    /// Base URL for the custom STT engine, e.g. `https://api.groq.com/openai/v1`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stt_custom_base_url: Option<String>,
+    /// Optional upstream model id passed to the custom STT endpoint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stt_custom_model: Option<String>,
+    /// Optional language hint passed to the custom STT endpoint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stt_custom_language: Option<String>,
+    /// Chinese output script for dictation on Whisper-family custom endpoints:
+    /// `auto` (follow app UI locale) | `simplified` | `traditional`.
+    /// Sent as the `prompt` field when Chinese dictation applies.
+    #[serde(default = "default_stt_zh_script")]
+    pub stt_zh_script: String,
     /// Outbound proxy mode: `system` (default; OS proxy / env vars), `none`
     /// (force direct), or `manual` (use [`Self::proxy_url`]). NEW-02: without
     /// this, restricted-network users cannot reach Grok backends at all —
@@ -570,6 +588,15 @@ fn default_background_wait_timeout_sec() -> u32 {
 fn default_voice_id() -> String {
     "eve".into()
 }
+
+fn default_stt_engine() -> String {
+    "official".into()
+}
+
+fn default_stt_zh_script() -> String {
+    "auto".into()
+}
+
 
 fn default_close_to_tray() -> bool {
     true
@@ -664,6 +691,12 @@ impl Default for AppSettings {
             voice_id: default_voice_id(),
             voice_dictation_auto_send: false,
             voice_keep_agents_on_end: true,
+            stt_engine: default_stt_engine(),
+            stt_custom_base_url: None,
+            stt_custom_model: None,
+            stt_custom_language: None,
+            stt_zh_script: default_stt_zh_script(),
+
             close_to_tray: default_close_to_tray(),
             keep_tray_for_schedules: true,
             schedules_launch_agent: false,
@@ -697,12 +730,28 @@ pub struct SecretsFile {
     pub relay_base_url: Option<String>,
     pub relay_api_key: Option<String>,
     pub default_model: Option<String>,
+    /// Custom STT endpoint API key (OpenAI-compatible `stt.engine = custom`).
+    /// Deprecated single slot (ADR-0001): folded into `stt_custom_api_keys`
+    /// under the `custom` slot at load time; kept only for reading old files.
+    #[serde(default)]
+    pub stt_custom_api_key: Option<String>,
+    /// Per-provider custom STT keys (ADR-0001): provider preset id → key.
+    #[serde(default)]
+    pub stt_custom_api_keys: HashMap<String, String>,
+    /// Non-secret per-provider presence flags (mirrors `keychain_has_*`):
+    /// always persisted on disk so the settings UI can show "saved" even when
+    /// key values live only in the OS keychain.
+    #[serde(default)]
+    pub stt_custom_key_presence: HashMap<String, bool>,
     /// Official API key lives in OS keychain (value not on disk).
     #[serde(default)]
     pub keychain_has_official: bool,
     /// Relay API key lives in OS keychain (value not on disk).
     #[serde(default)]
     pub keychain_has_relay: bool,
+    /// Custom STT key lives in OS keychain (value not on disk).
+    #[serde(default)]
+    pub keychain_has_stt_custom: bool,
 }
 
 /// File/image card persisted with a chat message (user attach or agent image_gen).

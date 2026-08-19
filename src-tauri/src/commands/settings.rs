@@ -582,6 +582,8 @@ pub async fn secrets_get_masked() -> Result<serde_json::Value, String> {
         "hasOfficialKey": crate::secrets::has_official_key_configured(&s),
         "hasRelayKey": has_provider_key
             || crate::secrets::has_relay_key_configured(&s),
+        "hasSttCustomKey": crate::secrets::has_stt_custom_key_configured(&s),
+        "sttCustomKeys": crate::secrets::stt_custom_key_presence(&s),
         "relayBaseUrl": relay_base,
         "defaultModel": providers.default_model.or(s.default_model),
         "providerCount": providers.providers.len(),
@@ -595,12 +597,17 @@ pub async fn secrets_get_masked() -> Result<serde_json::Value, String> {
     }))
 }
 
+/// Set secrets. `stt_custom_api_key_provider` is the provider preset id the
+/// custom STT key belongs to (ADR-0001); empty → `custom` slot, and an empty
+/// `stt_custom_api_key` clears that slot.
 #[tauri::command]
 pub async fn secrets_set(
     official_api_key: Option<String>,
     relay_base_url: Option<String>,
     relay_api_key: Option<String>,
     default_model: Option<String>,
+    stt_custom_api_key: Option<String>,
+    stt_custom_api_key_provider: Option<String>,
 ) -> Result<(), String> {
     let mut s = store::load_secrets();
     // Empty string clears the secret (needed when revoking speech/API credentials).
@@ -623,6 +630,19 @@ pub async fn secrets_set(
     }
     if let Some(m) = default_model {
         s.default_model = if m.is_empty() { None } else { Some(m) };
+    }
+    if let Some(k) = stt_custom_api_key {
+        let provider = stt_custom_api_key_provider
+            .map(|p| p.trim().to_string())
+            .filter(|p| !p.is_empty())
+            .unwrap_or_else(|| "custom".into());
+        if k.trim().is_empty() {
+            s.stt_custom_api_keys.remove(&provider);
+        } else {
+            s.stt_custom_api_keys.insert(provider, k);
+        }
+        // Deprecated single slot is superseded once any map write happens.
+        s.stt_custom_api_key = None;
     }
     store::save_secrets(&s)
 }
