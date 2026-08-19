@@ -173,6 +173,9 @@ fn close_menu_label() -> String {
 pub fn install(app: &AppHandle) -> Result<(), String> {
     let menu = build_menu(app).map_err(|e| e.to_string())?;
     app.set_menu(menu).map_err(|e| e.to_string())?;
+    // App-wide set_menu reattaches File/Edit/Window/Help to windows that have
+    // no menu of their own — the pet overlay must stay chrome-less.
+    crate::pet_window::reassert_overlay_chrome(app);
     Ok(())
 }
 
@@ -191,6 +194,11 @@ fn dispatch_close_tab_or_window(app: &AppHandle) {
         return;
     };
     // Secondary session windows have no side-tab strip — close for real.
+    // The pet overlay is not a document window: hide it so prefs stay in sync.
+    if win.label() == crate::pet_window::PET_WINDOW_LABEL {
+        let _ = crate::pet_window::hide_pet(app);
+        return;
+    }
     if win.label() != "main" {
         let _ = win.close();
         return;

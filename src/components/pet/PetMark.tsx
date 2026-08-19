@@ -4,8 +4,8 @@
  */
 import { useEffect, useId, useRef } from "react";
 import { listen } from "@/lib/api/host";
-import type { PetColor, PetShape, PetVerb } from "@/lib/pet";
-import { PET_INK } from "@/lib/pet";
+import type { PetColor, PetEyeColor, PetShape, PetVerb } from "@/lib/pet";
+import { PET_INK, petEyeFill } from "@/lib/pet";
 import shapes from "@/lib/pet/data/shapes.json";
 import eyes from "@/lib/pet/data/eyes.json";
 import {
@@ -136,6 +136,7 @@ function applyPose(state: string, tSec: number, age: number, pose: {
 export function PetMark({
   shape = "hex",
   color = "green",
+  eyeColor = "auto",
   verb = "idle",
   sizePx = 128,
   title,
@@ -143,6 +144,7 @@ export function PetMark({
 }: {
   shape?: PetShape | string;
   color?: PetColor;
+  eyeColor?: PetEyeColor | string;
   verb?: PetVerb | string;
   sizePx?: number;
   title?: string;
@@ -150,6 +152,7 @@ export function PetMark({
 }) {
   const rec = SHAPES[shape] ?? SHAPES.hex;
   const ink = PET_INK[color] ?? PET_INK.green;
+  const eyeFill = petEyeFill(eyeColor, color);
   const uid = useId().replace(/:/g, "");
   const svgRef = useRef<SVGSVGElement>(null);
   const bodyRef = useRef<SVGGElement>(null);
@@ -373,8 +376,8 @@ export function PetMark({
       <g ref={bodyRef}>
         <path ref={pathRef} d={rec.path} fill={fill} />
         <g clipPath={`url(#pet-clip-${uid})`}>
-          <path ref={eye0Ref} d={polyPath(EYES[0][0])} fill="var(--bg, #161616)" />
-          <path ref={eye1Ref} d={polyPath(EYES[0][1])} fill="var(--bg, #161616)" />
+          <path ref={eye0Ref} d={polyPath(EYES[0][0])} fill={eyeFill} />
+          <path ref={eye1Ref} d={polyPath(EYES[0][1])} fill={eyeFill} />
         </g>
       </g>
     </svg>

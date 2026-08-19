@@ -94,6 +94,14 @@ html[data-pet-shell] .boot-gate {
   display: block;
 }
 
+.pet-settings-swatch--auto {
+  background: linear-gradient(135deg, #161616 50%, #f4f4f4 50%);
+}
+
+.pet-settings-swatch--light {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
 .pet-bubbles {
   display: flex;
   flex-direction: column;

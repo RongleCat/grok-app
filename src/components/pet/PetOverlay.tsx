@@ -9,6 +9,7 @@ import { ContextMenu } from "@/components/ContextMenu";
 import { createT, type Locale } from "@/i18n";
 import {
   isPetColor,
+  isPetEyeColor,
   isPetShape,
   PET_BUBBLE_WIDTH,
   petBubbleViewportHeight,
@@ -55,6 +56,7 @@ export function PetOverlay({
   const t = useMemo(() => createT(locale), [locale]);
   const shape = isPetShape(prefs.shape) ? prefs.shape : "hex";
   const color = isPetColor(prefs.color) ? prefs.color : "green";
+  const eyeColor = isPetEyeColor(prefs.eyeColor) ? prefs.eyeColor : "auto";
   const verb = petVerbFor(focus.kind, focus.toolTitle);
   const sizePx = prefs.sizePx || 128;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -328,6 +330,7 @@ export function PetOverlay({
         <PetMark
           shape={shape}
           color={color}
+          eyeColor={eyeColor}
           verb={verb}
           sizePx={sizePx}
           title={title}

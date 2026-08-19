@@ -16,8 +16,8 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri::{
-    webview::PageLoadEvent, AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl,
-    WebviewWindowBuilder,
+    menu::Menu, webview::PageLoadEvent, AppHandle, Emitter, LogicalPosition, LogicalSize, Manager,
+    WebviewUrl, WebviewWindowBuilder,
 };
 
 pub const PET_WINDOW_LABEL: &str = "pet";
@@ -29,6 +29,7 @@ static WATCH_STARTED: AtomicBool = AtomicBool::new(false);
 static WEBVIEW_READY: AtomicBool = AtomicBool::new(false);
 static WANT_SHOW: AtomicBool = AtomicBool::new(false);
 static CACHED_SIZE_PX: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(128);
+static SHOW_LOCK: Mutex<()> = Mutex::new(());
 
 const PET_INIT_SCRIPT: &str = r#"(function(){try{document.documentElement.setAttribute("data-pet-shell","1");var s=document.createElement("style");s.setAttribute("data-pet-boot","1");s.textContent="html,html[data-theme],body,#root,.boot-gate{background:transparent!important;background-image:none!important;background-color:transparent!important;} .boot-gate{display:none!important;visibility:hidden!important;opacity:0!important;}";document.documentElement.appendChild(s);}catch(e){}})();"#;
 
@@ -45,6 +46,8 @@ pub struct PetPrefs {
     pub color: String,
     #[serde(default = "default_size")]
     pub size_px: u32,
+    #[serde(default = "default_eye_color")]
+    pub eye_color: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -60,6 +63,9 @@ fn default_color() -> String {
 fn default_size() -> u32 {
     128
 }
+fn default_eye_color() -> String {
+    "auto".into()
+}
 
 impl Default for PetPrefs {
     fn default() -> Self {
@@ -69,6 +75,7 @@ impl Default for PetPrefs {
             shape: default_shape(),
             color: default_color(),
             size_px: default_size(),
+            eye_color: default_eye_color(),
             x: None,
             y: None,
         }
@@ -212,11 +219,18 @@ fn normalize_prefs(mut p: PetPrefs) -> PetPrefs {
         p.shape = default_shape();
     }
     let colors = [
-        "black", "brown", "red", "orange", "yellow", "green", "cyan", "blue", "violet", "magenta",
-        "gray",
+        "black", "white", "brown", "red", "orange", "yellow", "green", "cyan", "blue", "violet",
+        "magenta", "gray",
     ];
     if !colors.contains(&p.color.as_str()) {
         p.color = default_color();
+    }
+    let eye_colors = [
+        "auto", "white", "cream", "gold", "orange", "red", "green", "cyan", "blue", "violet",
+        "black",
+    ];
+    if !eye_colors.contains(&p.eye_color.as_str()) {
+        p.eye_color = default_eye_color();
     }
     p.size_px = if p.size_px <= 112 {
         96
@@ -337,6 +351,46 @@ fn apply_window_chrome(win: &tauri::WebviewWindow) {
     let _ = win.set_shadow(false);
     // Must stay false: show() / always-on-top must not make this the key window.
     let _ = win.set_focusable(false);
+    detach_native_menu(win);
+}
+
+/// Keep a window-local empty menu so `AppHandle::set_menu` (locale refresh)
+/// does not re-attach File / Edit / Window / Help to this overlay.
+fn detach_native_menu(win: &tauri::WebviewWindow) {
+    #[cfg(not(target_os = "macos"))]
+    {
+        if let Ok(empty) = Menu::new(win.app_handle()) {
+            let _ = win.set_menu(empty);
+        }
+        let _ = win.hide_menu();
+    }
+    #[cfg(windows)]
+    crate::win_shell::strip_overlay_native_menu(win);
+}
+
+/// Re-apply overlay chrome after the app-wide menu is installed or refreshed.
+pub fn reassert_overlay_chrome(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window(PET_WINDOW_LABEL) {
+        apply_window_chrome(&win);
+    }
+}
+
+/// True when the overlay HWND is actually up. Prefs can lag after File>Close.
+pub fn overlay_is_up(app: &AppHandle) -> bool {
+    app.get_webview_window(PET_WINDOW_LABEL)
+        .and_then(|w| w.is_visible().ok())
+        .unwrap_or(false)
+}
+
+/// After hide(), a leftover visible HWND would need a second hide (Windows
+/// transparent always-on-top windows can report success while staying painted).
+#[cfg(test)]
+pub fn hide_needs_destroy(hide_reported_ok: bool, still_visible: bool) -> bool {
+    still_visible || !hide_reported_ok
+}
+
+fn lock_show() -> std::sync::MutexGuard<'static, ()> {
+    SHOW_LOCK.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 /// Give the workbench key/activation back when the overlay stole it.
@@ -412,8 +466,13 @@ pub fn ensure_pet_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String
             return;
         }
         WEBVIEW_READY.store(true, Ordering::SeqCst);
+        apply_window_chrome(&win);
         reveal_if_wanted(&win);
     });
+    // Own an empty menu so the app-wide File/Edit/Window/Help bar is not inherited.
+    if let Ok(empty) = Menu::new(app) {
+        builder = builder.menu(empty);
+    }
 
     if let (Some(x), Some(y)) = (prefs.x, prefs.y) {
         builder = builder.position(x, y);
@@ -438,6 +497,17 @@ pub fn ensure_pet_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String
                     yield_key_to_main(&handle);
                 }
             }
+            tauri::WindowEvent::Destroyed => {
+                WEBVIEW_READY.store(false, Ordering::SeqCst);
+                if WANT_SHOW.swap(false, Ordering::SeqCst) {
+                    let mut prefs = load_prefs();
+                    if prefs.visible {
+                        prefs.visible = false;
+                        let _ = save_prefs(&prefs);
+                        emit_prefs(&handle, &prefs);
+                    }
+                }
+            }
             _ => {}
         }
     });
@@ -446,6 +516,7 @@ pub fn ensure_pet_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String
 }
 
 pub fn show_pet(app: &AppHandle) -> Result<(), String> {
+    let _guard = lock_show();
     let mut prefs = normalize_prefs(load_prefs());
     prefs.enabled = true;
     prefs.visible = true;
@@ -463,17 +534,28 @@ pub fn show_pet(app: &AppHandle) -> Result<(), String> {
     // while the pet bundle was still booting.
     win.show().map_err(|e| e.to_string())?;
     apply_window_chrome(&win);
+    if !win.is_visible().unwrap_or(false) {
+        let _ = win.show();
+        apply_window_chrome(&win);
+    }
     yield_key_to_main(app);
     Ok(())
 }
 
 pub fn hide_pet(app: &AppHandle) -> Result<(), String> {
+    let _guard = lock_show();
     WANT_SHOW.store(false, Ordering::SeqCst);
     let mut prefs = normalize_prefs(load_prefs());
     prefs.visible = false;
     save_prefs(&prefs)?;
     if let Some(win) = app.get_webview_window(PET_WINDOW_LABEL) {
+        let _ = win.set_ignore_cursor_events(true);
         win.hide().map_err(|e| e.to_string())?;
+        // Do not destroy() here: CloseRequested (File>Close) also calls hide_pet,
+        // and destroy-from-that-handler can deadlock the window event loop.
+        if win.is_visible().unwrap_or(false) {
+            let _ = win.hide();
+        }
     }
     Ok(())
 }
@@ -609,8 +691,9 @@ pub fn pet_hide(app: AppHandle) -> Result<PetPrefs, String> {
 
 #[tauri::command]
 pub fn pet_toggle(app: AppHandle) -> Result<PetPrefs, String> {
-    let prefs = normalize_prefs(load_prefs());
-    if prefs.enabled && prefs.visible {
+    // Follow the real HWND, not just prefs — File>Close / failed hide used to
+    // invert the next /pet click so the overlay looked stuck.
+    if overlay_is_up(&app) {
         hide_pet(&app)?;
     } else {
         show_pet(&app)?;
@@ -751,11 +834,38 @@ mod tests {
             shape: "nope".into(),
             color: "neon".into(),
             size_px: 12,
+            eye_color: "neon".into(),
             ..Default::default()
         });
         assert_eq!(p.shape, "hex");
         assert_eq!(p.color, "green");
         assert_eq!(p.size_px, 96);
+        assert_eq!(p.eye_color, "auto");
+    }
+
+    #[test]
+    fn normalize_keeps_known_eye_color() {
+        let p = normalize_prefs(PetPrefs {
+            eye_color: "gold".into(),
+            ..Default::default()
+        });
+        assert_eq!(p.eye_color, "gold");
+    }
+
+    #[test]
+    fn normalize_keeps_white_body() {
+        let p = normalize_prefs(PetPrefs {
+            color: "white".into(),
+            ..Default::default()
+        });
+        assert_eq!(p.color, "white");
+    }
+
+    #[test]
+    fn hide_needs_destroy_when_hwnd_stays_up() {
+        assert!(hide_needs_destroy(true, true));
+        assert!(hide_needs_destroy(false, false));
+        assert!(!hide_needs_destroy(true, false));
     }
 
     #[test]

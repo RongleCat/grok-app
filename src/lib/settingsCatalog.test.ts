@@ -163,6 +163,10 @@ describe("settingsCatalog", () => {
     const enHits = searchSettingsEntries("pet", tZh, tEn);
     expect(enHits.some((h) => h.entry.section === "pet")).toBe(true);
     expect(enHits.some((h) => h.entry.id === "pet.companion")).toBe(true);
+    const eyeHits = searchSettingsEntries("眼睛", tZh, tEn);
+    expect(eyeHits.some((h) => h.entry.id === "pet.eyeColor")).toBe(true);
+    const eyeEn = searchSettingsEntries("eye color", tZh, tEn);
+    expect(eyeEn.some((h) => h.entry.section === "pet")).toBe(true);
   });
 
   it("keywordKeysForSection includes appearance prefs and remote control", () => {

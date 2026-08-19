@@ -400,6 +400,13 @@ pub fn run() {
 
             match event {
                 WindowEvent::CloseRequested { api, .. } => {
+                    // Pet overlay: hide (keep prefs in sync). Do not destroy the HWND
+                    // via File>Close — that used to leave the toggle stuck.
+                    if window.label() == pet_window::PET_WINDOW_LABEL {
+                        api.prevent_close();
+                        let _ = pet_window::hide_pet(window.app_handle());
+                        return;
+                    }
                     // Only the primary workbench owns tray-hide / quit-confirm.
                     // Secondary session windows (`session-*`) close for real.
                     if window.label() != "main" {

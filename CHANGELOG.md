@@ -11,6 +11,22 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- **Pet eye color in Settings → Pet**: A swatch row (Auto / follow theme, plus a palette) changes the living-mark eyes independently of the body color. Stored in `pet-prefs.json`.
+- **White pet body color**: Settings → Pet body swatches include White. Unlike Black (which flips to white in dark theme), White stays pale in both themes.
+
+**中文 · 新增**
+- **设置 → 宠物可改眼睛颜色**：色板含「自动（跟随主题）」和一组固定色，与身体颜色分开保存。
+- **宠物身体增加白色**：外观色板有白色。黑色在深色主题会反成白，白色在两种主题下都保持浅色。
+
+### Fixed
+- **Windows pet no longer shows File / Edit / Window / Help**: The overlay inherited the app-wide menu. It now keeps a window-local empty menu, hides that bar, and on Windows calls `SetMenu(NULL)` so the strip cannot paint over the mark.
+- **Pet show/hide no longer gets stuck**: Toggle follows the real overlay window (not a stale pref). Hide retries if the HWND stays painted; File → Close hides instead of deleting the window out of sync.
+
+**中文 · 修复**
+- **Windows 宠物顶上不再出现 File / Edit / Window / Help**：浮层误继承了应用菜单。现在用窗口自己的空菜单，并在 Windows 上卸掉原生菜单栏。
+- **宠物开关不再有时打不开、有时关不掉**：开关跟真实窗口走；关掉后若仍显示会再 hide 一次；点 File → 关闭只会收起，不会把窗口拆掉导致状态对不上。
+
 ## [0.2.22] - 2026-08-19
 
 > **Highlight:** Move chats between projects; a persist-mounted terminal under the chat; Russian UI; pet overlay no longer steals the first click.

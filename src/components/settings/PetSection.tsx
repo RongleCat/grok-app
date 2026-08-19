@@ -1,7 +1,8 @@
 /**
  * Settings → 宠物 (first-class nav).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { MessageKey } from "@/i18n";
 import { useSettingsModel } from "@/providers/SettingsModelContext";
 import { UiSwitch } from "./shared";
 import { PetMark } from "@/components/pet/PetMark";
@@ -10,12 +11,17 @@ import { listen } from "@/lib/api/host";
 import {
   PET_COLORS,
   PET_COLOR_SWATCH,
+  PET_EYE_COLORS,
+  PET_EYE_INK,
   PET_SHAPES,
   PET_SIZES,
   isPetColor,
+  isPetEyeColor,
   isPetShape,
+  normalizePetEyeColor,
   normalizePetSize,
   type PetColor,
+  type PetEyeColor,
   type PetShape,
 } from "@/lib/pet";
 import {
@@ -33,11 +39,26 @@ const DEFAULT_PREFS: PetPrefs = {
   shape: "hex",
   color: "green",
   sizePx: 128,
+  eyeColor: "auto",
 };
 
 function petWindowOn(p: PetPrefs): boolean {
   return p.enabled && p.visible;
 }
+
+const EYE_COLOR_LABEL: Record<PetEyeColor, MessageKey> = {
+  auto: "settings.pet.eyeColor.auto",
+  white: "settings.pet.eyeColor.white",
+  cream: "settings.pet.eyeColor.cream",
+  gold: "settings.pet.eyeColor.gold",
+  orange: "settings.pet.eyeColor.orange",
+  red: "settings.pet.eyeColor.red",
+  green: "settings.pet.eyeColor.green",
+  cyan: "settings.pet.eyeColor.cyan",
+  blue: "settings.pet.eyeColor.blue",
+  violet: "settings.pet.eyeColor.violet",
+  black: "settings.pet.eyeColor.black",
+};
 
 export function PetSection() {
   const s = useSettingsModel();
@@ -45,6 +66,7 @@ export function PetSection() {
   const rowHighlight = s.rowHighlight ?? ((_id: string) => "");
   const [prefs, setPrefs] = useState<PetPrefs>(DEFAULT_PREFS);
   const [busy, setBusy] = useState(false);
+  const toggleGen = useRef(0);
 
   useEffect(() => {
     let gone = false;
@@ -76,25 +98,31 @@ export function PetSection() {
   }, []);
 
   const onToggleWindow = useCallback(async (next: boolean) => {
-    setPrefs((p) => ({ ...p, enabled: next || p.enabled, visible: next }));
+    const gen = ++toggleGen.current;
+    setPrefs((p) => ({ ...p, enabled: next ? true : p.enabled, visible: next }));
     setBusy(true);
     try {
       const saved = next ? await petShow() : await petHide();
+      if (gen !== toggleGen.current) return;
       setPrefs(saved);
     } catch {
+      if (gen !== toggleGen.current) return;
       try {
         setPrefs(await petPrefsGet());
       } catch {
         /* keep optimistic state */
       }
     } finally {
-      setBusy(false);
+      if (gen === toggleGen.current) setBusy(false);
     }
   }, []);
 
   const shown = petWindowOn(prefs);
   const shape: PetShape = isPetShape(prefs.shape) ? prefs.shape : "hex";
   const color: PetColor = isPetColor(prefs.color) ? prefs.color : "green";
+  const eyeColor: PetEyeColor = isPetEyeColor(prefs.eyeColor)
+    ? prefs.eyeColor
+    : "auto";
   const sizePx = normalizePetSize(prefs.sizePx);
 
   return (
@@ -132,7 +160,13 @@ export function PetSection() {
             <div className="settings-row__label">{t("settings.pet.identity")}</div>
             <div className="settings-row__desc">{t("settings.pet.identityDesc")}</div>
           </div>
-          <PetMark shape={shape} color={color} verb="idle" sizePx={72} />
+          <PetMark
+            shape={shape}
+            color={color}
+            eyeColor={eyeColor}
+            verb="idle"
+            sizePx={72}
+          />
         </div>
         <div className="settings-row settings-row--stack">
           <div className="settings-row__label">{t("settings.pet.shape")}</div>
@@ -149,7 +183,14 @@ export function PetSection() {
                 disabled={busy}
                 onClick={() => void commit({ ...prefs, shape: sh })}
               >
-                <PetMark shape={sh} color={color} verb="idle" sizePx={28} paused />
+                <PetMark
+                  shape={sh}
+                  color={color}
+                  eyeColor={eyeColor}
+                  verb="idle"
+                  sizePx={28}
+                  paused
+                />
               </button>
             ))}
           </div>
@@ -170,8 +211,53 @@ export function PetSection() {
                 onClick={() => void commit({ ...prefs, color: c })}
               >
                 <span
-                  className="pet-settings-swatch"
+                  className={
+                    "pet-settings-swatch" +
+                    (c === "white" ? " pet-settings-swatch--light" : "")
+                  }
                   style={{ background: PET_COLOR_SWATCH[c].value }}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+        <div
+          className="settings-row settings-row--stack"
+          id="settings-anchor-pet-eyes"
+        >
+          <div className="settings-row__label">{t("settings.pet.eyeColor")}</div>
+          <div
+            className="pet-settings-grid"
+            role="group"
+            aria-label={t("settings.pet.eyeColor")}
+          >
+            {PET_EYE_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={
+                  "pet-settings-grid__btn" + (eyeColor === c ? " is-on" : "")
+                }
+                aria-pressed={eyeColor === c}
+                aria-label={t(EYE_COLOR_LABEL[c])}
+                disabled={busy}
+                onClick={() =>
+                  void commit({
+                    ...prefs,
+                    eyeColor: normalizePetEyeColor(c),
+                  })
+                }
+              >
+                <span
+                  className={
+                    "pet-settings-swatch" +
+                    (c === "auto" ? " pet-settings-swatch--auto" : "")
+                  }
+                  style={
+                    c === "auto"
+                      ? undefined
+                      : { background: PET_EYE_INK[c] }
+                  }
                 />
               </button>
             ))}
