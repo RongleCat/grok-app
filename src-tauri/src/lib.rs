@@ -511,10 +511,13 @@ pub fn run() {
             let boot_locale = tray_i18n::Locale::parse(&boot_settings.locale);
             let boot_locale_tag = boot_locale.as_tag();
             let boot_os_lang = tray_i18n::detect_os_lang_tag();
+            // Mirrors `htmlLangForLocale` in src/i18n/index.ts: catalog ids are
+            // already valid BCP-47 except Simplified Chinese, whose id names the
+            // macrolanguage. Never collapse an unrecognized-looking tag to `en` —
+            // `boot_locale_tag` is always one of the shipped ids.
             let boot_html_lang = match boot_locale_tag {
                 "zh" => "zh-CN",
-                "zh-TW" => "zh-TW",
-                _ => "en",
+                other => other,
             };
             let boot_theme_script = format!(
                 r#"(function(){{try{{Object.defineProperty(window,"__GROK_BOOT_THEME__",{{value:{theme:?},writable:false,configurable:false}});Object.defineProperty(window,"__GROK_BOOT_LOCALE__",{{value:{locale:?},writable:false,configurable:false}});Object.defineProperty(window,"__GROK_BOOT_OS_LANG__",{{value:{os_lang:?},writable:false,configurable:false}});var d=document.documentElement;if(d){{d.setAttribute("data-theme",{theme:?});d.setAttribute("lang",{html_lang:?});}}}}catch(e){{}}}})();"#,

@@ -246,36 +246,112 @@
           /* ignore */
         }
         try {
+          // Boot copy for every shipped catalog id. The React catalog is not
+          // loaded yet, so the splash carries its own table — keep the ids in
+          // sync with LOCALES in src/i18n/messages/index.ts, and `lang` with
+          // htmlLangForLocale. See docs/llm-wiki/i18n.md.
+          var BOOT_I18N = {
+            en: {
+              lang: "en",
+              title: "Welcome to Grok",
+              sub: "Checking Grok Build…",
+            },
+            de: {
+              lang: "de",
+              title: "Willkommen bei Grok",
+              sub: "Grok Build wird geprüft…",
+            },
+            es: {
+              lang: "es",
+              title: "Te damos la bienvenida a Grok",
+              sub: "Comprobando Grok Build…",
+            },
+            fr: {
+              lang: "fr",
+              title: "Bienvenue dans Grok",
+              sub: "Vérification de Grok Build…",
+            },
+            id: {
+              lang: "id",
+              title: "Selamat datang di Grok",
+              sub: "Memeriksa Grok Build…",
+            },
+            it: {
+              lang: "it",
+              title: "Ti diamo il benvenuto in Grok",
+              sub: "Verifica di Grok Build…",
+            },
+            ja: {
+              lang: "ja",
+              title: "Grok へようこそ",
+              sub: "Grok Build を確認しています…",
+            },
+            ko: {
+              lang: "ko",
+              title: "Grok에 오신 것을 환영합니다",
+              sub: "Grok Build 확인 중…",
+            },
+            "pt-BR": {
+              lang: "pt-BR",
+              title: "Boas-vindas ao Grok",
+              sub: "Verificando o Grok Build…",
+            },
+            ru: {
+              lang: "ru",
+              title: "Добро пожаловать в Grok",
+              sub: "Проверяем Grok Build…",
+            },
+            uk: {
+              lang: "uk",
+              title: "Ласкаво просимо до Grok",
+              sub: "Перевіряємо Grok Build…",
+            },
+            zh: {
+              lang: "zh-CN",
+              title: "欢迎使用 Grok",
+              sub: "正在检测 Grok Build…",
+            },
+            "zh-TW": {
+              lang: "zh-TW",
+              title: "歡迎使用 Grok",
+              sub: "正在偵測 Grok Build…",
+            },
+          };
           var loc = window.__GROK_BOOT_LOCALE__;
-          if (loc !== "zh" && loc !== "zh-TW" && loc !== "en") {
+          if (!Object.prototype.hasOwnProperty.call(BOOT_I18N, loc)) {
+            // No Host tag (browser dev / older build): fall back to the WebView
+            // language with the same rules as resolveLocaleFromSystem.
             var nav = String(
               (navigator.languages && navigator.languages[0]) ||
                 navigator.language ||
                 "",
-            ).toLowerCase();
-            if (
-              nav.indexOf("zh") === 0 &&
-              (nav.indexOf("tw") >= 0 ||
-                nav.indexOf("hk") >= 0 ||
-                nav.indexOf("hant") >= 0 ||
-                nav.indexOf("mo") >= 0)
+            )
+              .toLowerCase()
+              .replace(/_/g, "-");
+            var parts = nav.split(".")[0].split("-");
+            var primary = parts[0];
+            if (primary === "zh") {
+              loc =
+                parts.indexOf("hant") >= 0 ||
+                parts.indexOf("tw") >= 0 ||
+                parts.indexOf("hk") >= 0 ||
+                parts.indexOf("mo") >= 0
+                  ? "zh-TW"
+                  : "zh";
+            } else if (primary === "pt") {
+              loc = "pt-BR";
+            } else if (primary === "in") {
+              loc = "id";
+            } else if (
+              Object.prototype.hasOwnProperty.call(BOOT_I18N, primary)
             ) {
-              loc = "zh-TW";
-            } else if (nav.indexOf("zh") === 0) {
-              loc = "zh";
+              loc = primary;
             } else {
               loc = "en";
             }
           }
-          var htmlLang =
-            loc === "zh" ? "zh-CN" : loc === "zh-TW" ? "zh-TW" : "en";
-          document.documentElement.setAttribute("lang", htmlLang);
-          var copy =
-            loc === "zh-TW"
-              ? { title: "歡迎使用 Grok", sub: "正在偵測 Grok Build…" }
-              : loc === "en"
-                ? { title: "Welcome to Grok", sub: "Checking Grok Build…" }
-                : { title: "欢迎使用 Grok", sub: "正在检测 Grok Build…" };
+          var copy = BOOT_I18N[loc];
+          document.documentElement.setAttribute("lang", copy.lang);
           var applyCopy = function () {
             var titleEl = document.querySelector(".boot-title");
             var subEl = document.querySelector(".boot-subtitle");

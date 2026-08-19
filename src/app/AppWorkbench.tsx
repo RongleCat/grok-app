@@ -363,13 +363,13 @@ import {
   mirrorWsConnected
 } from "@/lib/mirrorTransport";
 import { deriveMirrorClientLinkStatus } from "@/lib/mirrorStatus";
+import { formatListTimestamp } from "@/lib/formatDateTime";
 
 import {
   createT,
   parseLocalePreference,
   htmlLangForLocale,
   resolveLocale,
-  resolveLocaleFromSystem,
   resolveLocalePreference,
   DEFAULT_LOCALE_PREFERENCE,
   type Locale,
@@ -3155,10 +3155,11 @@ export function AppWorkbench() {
   useEffect(() => {
     if (localePreference !== "system") return;
     const applySystem = () => {
-      const next = resolveLocaleFromSystem(
-        typeof navigator !== "undefined" ? navigator.language : null,
-      );
-      setLocale(next);
+      // Host-injected OS UI language first (same tag the tray resolves), then
+      // the WebView language. A Dock- or WebView2-launched app can report
+      // navigator.language === "en-US" on a Japanese desktop, which would undo
+      // the locale we just resolved from the OS.
+      setLocale(resolveLocalePreference("system"));
     };
     applySystem();
     if (typeof window === "undefined" || !("addEventListener" in window)) {
@@ -19647,6 +19648,7 @@ export function AppWorkbench() {
             onClose={() => setShowUserMenu(false)}
             theme={theme}
             themePreference={themePreference}
+            locale={locale}
             account={account}
             activeProvider={activeCustomProvider}
             accountBusy={accountBusy}
@@ -23389,6 +23391,7 @@ export function AppWorkbench() {
       >
         <p className="trace-history-modal__desc">{tr("session.tracesDesc")}</p>
         <TraceHistoryList
+          locale={locale}
           labels={{
             empty: tr("session.tracesEmpty"),
             emptyFilter: tr("session.tracesEmptyFilter"),
@@ -23429,6 +23432,7 @@ export function AppWorkbench() {
       >
         <p className="plan-history-modal__desc">{tr("plan.historyDesc")}</p>
         <PlanHistoryList
+          locale={locale}
           labels={{
             empty: tr("plan.historyEmpty"),
             emptyFilter: tr("plan.historyEmptyFilter"),
@@ -23500,15 +23504,7 @@ export function AppWorkbench() {
               ) : null}
               {planHistoryPreview.at ? (
                 <span>
-                  {(() => {
-                    const d = Date.parse(planHistoryPreview.at);
-                    if (!Number.isFinite(d)) return planHistoryPreview.at;
-                    try {
-                      return new Date(d).toLocaleString();
-                    } catch {
-                      return planHistoryPreview.at;
-                    }
-                  })()}
+                  {formatListTimestamp(planHistoryPreview.at, locale)}
                 </span>
               ) : null}
             </div>
