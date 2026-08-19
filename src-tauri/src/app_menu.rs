@@ -160,13 +160,10 @@ pub fn build_menu(app: &AppHandle) -> Result<Menu<Wry>, tauri::Error> {
     Ok(menu)
 }
 
+/// Native File/Window "Close" label. Shares the tray catalog so a new locale
+/// only has to be translated once (see `tray_i18n::TrayStrings::close`).
 fn close_menu_label() -> String {
-    match crate::tray_i18n::app_locale() {
-        crate::tray_i18n::Locale::Zh => "关闭".into(),
-        crate::tray_i18n::Locale::ZhTw => "關閉".into(),
-        crate::tray_i18n::Locale::Ru => "Закрыть".into(),
-        crate::tray_i18n::Locale::En => "Close".into(),
-    }
+    crate::tray_i18n::t().close.to_string()
 }
 
 /// Install the menu (replaces the auto default that binds ⌘W → window close).
