@@ -350,9 +350,11 @@ pub fn load_agent_plan_snapshot(session_id: &str) -> AgentPlanSnapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
 
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    // GROK_APP_HOME is process-global, so the tests that repoint it take
+    // `paths::APP_HOME_ENV_LOCK`. A module-private lock only serialises
+    // this file and lets it move the app home out from under any other
+    // suite that is holding the real one.
 
     #[test]
     fn cap_body_truncates() {
@@ -364,7 +366,9 @@ mod tests {
 
     #[test]
     fn upsert_and_mark_stale_round_trip() {
-        let _g = ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-plan-chrome-test-{}",
             uuid::Uuid::new_v4()
