@@ -20,6 +20,9 @@ const labels: SidebarSessionRowLabels = {
   archive: "Archive",
   unarchive: "Unarchive",
   menu: "Menu",
+  untitled: "Untitled",
+  renameLabel: "Rename chat",
+  renamePlaceholder: "Chat title",
 };
 
 describe("SidebarSessionRow", () => {
@@ -50,6 +53,7 @@ describe("SidebarSessionRow", () => {
         onPin: vi.fn(),
         onArchive: vi.fn(),
         onMenu: vi.fn(),
+        onRename: vi.fn(),
       }),
     );
     expect(html).toContain("tree-l3");
@@ -81,6 +85,7 @@ describe("SidebarSessionRow", () => {
         onPin: vi.fn(),
         onArchive: vi.fn(),
         onMenu: vi.fn(),
+        onRename: vi.fn(),
       }),
     );
     expect(html).toContain("tree-l3--orphan");
@@ -110,6 +115,7 @@ describe("SidebarSessionRow", () => {
         onPin: vi.fn(),
         onArchive: vi.fn(),
         onMenu: vi.fn(),
+        onRename: vi.fn(),
       }),
     );
     expect(html).toContain("tree-l3--plan-pending");
@@ -117,6 +123,36 @@ describe("SidebarSessionRow", () => {
     expect(html).toContain("Plan awaiting review");
     // Actions stay available (not replaced by spinner) when not working.
     expect(html).toContain("tree-l3__actions");
+  });
+
+  it("uses untitled fallback and does not render a rename field at rest", () => {
+    const html = renderToString(
+      React.createElement(SidebarSessionRow, {
+        session: { id: "s4", title: "" },
+        variant: "project",
+        active: false,
+        working: false,
+        unread: false,
+        checked: false,
+        selectMode: false,
+        muted: false,
+        noteTitle: null,
+        worktreeBadge: null,
+        labels,
+        locale: "en",
+        showRelativeTime: false,
+        onOpen: vi.fn(),
+        onContextMenu: vi.fn(),
+        onToggleSelect: vi.fn(),
+        onPin: vi.fn(),
+        onArchive: vi.fn(),
+        onMenu: vi.fn(),
+        onRename: vi.fn(),
+      }),
+    );
+    expect(html).toContain("Untitled");
+    expect(html).not.toContain("sidebar-session-rename");
+    expect(html).not.toContain("tree-l3--renaming");
   });
 });
 

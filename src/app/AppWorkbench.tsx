@@ -776,6 +776,7 @@ import {
   type SidebarDensity
 } from "@/lib/sidebarDensity";
 import { sortSessionsForSidebar } from "@/lib/sidebarDateGroups";
+import { nextSessionTitle } from "@/lib/sidebarSessionRename";
 import { GrokLogo } from "@/components/GrokLogo";
 import { SidebarBrand } from "@/components/SidebarBrand";
 import { SidebarUpdateButton } from "@/components/SidebarUpdateButton";
@@ -6648,23 +6649,28 @@ export function AppWorkbench() {
     });
   };
 
+  const persistSessionTitle = async (s: SessionRow, next: string) => {
+    try {
+      await api.sessionRename(s.id, next);
+      applySessionTitle(s.id, next);
+      await refreshSessions();
+    } catch (e) {
+      setLocalError(String(e));
+    }
+  };
+
   const renameSession = (s: SessionRow) => {
     setCtxMenu(null);
+    const shown = s.title || tr("session.untitled");
     setAppDialog({
       kind: "prompt",
       title: tr("session.renamePrompt"),
-      initial: s.title || tr("session.untitled"),
+      initial: shown,
       placeholder: tr("session.renamePlaceholder"),
       onSubmit: async (title) => {
-        const next = title.trim();
+        const next = nextSessionTitle(title, shown);
         if (!next) return;
-        try {
-          await api.sessionRename(s.id, next);
-          applySessionTitle(s.id, next);
-          await refreshSessions();
-        } catch (e) {
-          setLocalError(String(e));
-        }
+        await persistSessionTitle(s, next);
       },
     });
   };
@@ -7335,6 +7341,8 @@ export function AppWorkbench() {
   archiveSessionRef.current = archiveSession;
   const openSessionMenuRef = useRef(openSessionMenu);
   openSessionMenuRef.current = openSessionMenu;
+  const persistSessionTitleRef = useRef(persistSessionTitle);
+  persistSessionTitleRef.current = persistSessionTitle;
 
   const resolveSidebarSession = useCallback(
     (partial: { id: string }): SessionRow =>
@@ -7380,6 +7388,13 @@ export function AppWorkbench() {
     [resolveSidebarSession],
   );
 
+  const onSidebarSessionRename = useCallback(
+    (s: { id: string }, title: string) => {
+      void persistSessionTitleRef.current(resolveSidebarSession(s), title);
+    },
+    [resolveSidebarSession],
+  );
+
   const sidebarSessionLabels = useMemo<SidebarSessionRowLabels>(
     () => ({
       unreadAria: tr("session.unreadAria"),
@@ -7394,6 +7409,9 @@ export function AppWorkbench() {
       archive: tr("sidebar.archive"),
       unarchive: tr("sidebar.unarchive"),
       menu: tr("sidebar.menu"),
+      untitled: tr("session.untitled"),
+      renameLabel: tr("session.renamePrompt"),
+      renamePlaceholder: tr("session.renamePlaceholder"),
     }),
     [tr],
   );
@@ -19444,6 +19462,7 @@ export function AppWorkbench() {
                                         onPin={onSidebarSessionPin}
                                         onArchive={onSidebarSessionArchive}
                                         onMenu={onSidebarSessionMenu}
+                                        onRename={onSidebarSessionRename}
                                       />
                                     );
                                   }}
@@ -19593,6 +19612,7 @@ export function AppWorkbench() {
                               onPin={onSidebarSessionPin}
                               onArchive={onSidebarSessionArchive}
                               onMenu={onSidebarSessionMenu}
+                              onRename={onSidebarSessionRename}
                             />
                           );
                         }}

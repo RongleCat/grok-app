@@ -3,7 +3,15 @@
  * Keeps row UI out of App so stream re-renders skip unchanged rows.
  */
 
-import { memo, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  memo,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
+import { nextSessionTitle } from "@/lib/sidebarSessionRename";
 import type { Locale } from "@/i18n";
 import {
   IconArchive,
@@ -55,6 +63,9 @@ export type SidebarSessionRowLabels = {
   archive: string;
   unarchive: string;
   menu: string;
+  untitled: string;
+  renameLabel: string;
+  renamePlaceholder: string;
 };
 
 export type SidebarSessionRowProps = {
@@ -91,6 +102,8 @@ export type SidebarSessionRowProps = {
   onPin: (session: SidebarSessionRowSession) => void;
   onArchive: (session: SidebarSessionRowSession) => void;
   onMenu: (e: MouseEvent, session: SidebarSessionRowSession) => void;
+  /** Persist a committed in-row title (already trimmed, non-empty, changed). */
+  onRename: (session: SidebarSessionRowSession, title: string) => void;
 };
 
 function SidebarSessionRowInner({
@@ -114,7 +127,14 @@ function SidebarSessionRowInner({
   onPin,
   onArchive,
   onMenu,
+  onRename,
 }: SidebarSessionRowProps) {
+  const displayTitle = session.title || labels.untitled;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const editingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const className =
     (variant === "orphan" ? "tree-l3 tree-l3--orphan" : "tree-l3") +
     (active ? " tree-l3--active" : "") +
@@ -123,9 +143,48 @@ function SidebarSessionRowInner({
     (unread ? " tree-l3--unread" : "") +
     (planPending ? " tree-l3--plan-pending" : "") +
     (selectMode ? " tree-l3--select-mode" : "") +
-    (checked ? " tree-l3--checked" : "");
+    (checked ? " tree-l3--checked" : "") +
+    (editing ? " tree-l3--renaming" : "");
 
+  const closeRename = (commit: boolean) => {
+    if (!editingRef.current) return;
+    editingRef.current = false;
+    setEditing(false);
+    if (!commit) return;
+    const next = nextSessionTitle(draft, displayTitle);
+    if (!next) return;
+    onRename(session, next);
+  };
+
+  const beginRename = () => {
+    if (selectMode || editingRef.current) return;
+    editingRef.current = true;
+    setDraft(displayTitle);
+    setEditing(true);
+  };
+
+  useLayoutEffect(() => {
+    if (!selectMode || !editingRef.current) return;
+    editingRef.current = false;
+    setEditing(false);
+  }, [selectMode]);
+
+  useLayoutEffect(() => {
+    if (!editing) return;
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, [editing]);
+
+  /**
+   * Double-click starts in-row rename. The first click of the pair still
+   * opens the chat — delaying onOpen would make single-click feel laggy.
+   * `detail > 1` skips the extra click so open is not invoked twice.
+   */
   const handleClick = (e: MouseEvent) => {
+    if (editingRef.current) return;
+    if (e.detail > 1) return;
     if (selectMode) {
       onToggleSelect(session.id, { shiftKey: e.shiftKey });
       return;
@@ -133,7 +192,20 @@ function SidebarSessionRowInner({
     onOpen(session);
   };
 
+  const handleDoubleClick = (e: MouseEvent) => {
+    if (selectMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    beginRename();
+  };
+
   const handleKeyDown = (e: KeyboardEvent) => {
+    if (editingRef.current) return;
+    if (e.key === "F2" && !selectMode) {
+      e.preventDefault();
+      beginRename();
+      return;
+    }
     if (e.key === "Enter" || e.key === " ") {
       if (selectMode) {
         e.preventDefault();
@@ -156,6 +228,7 @@ function SidebarSessionRowInner({
       type="button"
       className="tree-icon-btn"
       onClick={(e) => onMenu(e, session)}
+      onDoubleClick={(e) => e.stopPropagation()}
     >
       <IconMore size={13} />
     </button>
@@ -169,6 +242,7 @@ function SidebarSessionRowInner({
       tabIndex={0}
       aria-checked={selectMode ? checked : undefined}
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       onContextMenu={(e) => onContextMenu(e, session)}
       onKeyDown={handleKeyDown}
     >
@@ -250,7 +324,37 @@ function SidebarSessionRowInner({
             {worktreeBadge.label}
           </span>
         ) : null}
-        <SidebarSessionName title={session.title || "Untitled"} />
+        {editing ? (
+          <input
+            ref={inputRef}
+            className="tree-l3__rename"
+            value={draft}
+            aria-label={labels.renameLabel}
+            placeholder={labels.renamePlaceholder}
+            spellCheck={false}
+            autoComplete="off"
+            data-no-session-move=""
+            data-testid="sidebar-session-rename"
+            onChange={(e) => setDraft(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.nativeEvent.isComposing || e.key === "Process") return;
+              if (e.key === "Enter") {
+                e.preventDefault();
+                closeRename(true);
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                closeRename(false);
+              }
+            }}
+            onBlur={() => closeRename(true)}
+          />
+        ) : (
+          <SidebarSessionName title={displayTitle} />
+        )}
       </span>
       <SidebarSessionRelativeTime
         updatedAt={session.updatedAt}
@@ -273,6 +377,7 @@ function SidebarSessionRowInner({
                 e.stopPropagation();
                 onPin(session);
               }}
+              onDoubleClick={(e) => e.stopPropagation()}
             >
               {session.pinned ? (
                 <IconPinOff size={13} />
@@ -289,6 +394,7 @@ function SidebarSessionRowInner({
                 e.stopPropagation();
                 onArchive(session);
               }}
+              onDoubleClick={(e) => e.stopPropagation()}
             >
               <IconArchive size={13} />
             </button>
@@ -348,6 +454,7 @@ function sidebarSessionRowPropsEqual(
     prev.onPin === next.onPin &&
     prev.onArchive === next.onArchive &&
     prev.onMenu === next.onMenu &&
+    prev.onRename === next.onRename &&
     worktreeBadgeEqual(prev.worktreeBadge, next.worktreeBadge)
   );
 }
