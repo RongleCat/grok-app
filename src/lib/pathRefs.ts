@@ -2,7 +2,7 @@
  * Detect file paths and URLs in assistant markdown for in-place cards.
  */
 
-import type { Locale } from "../i18n";
+import { createT, type Locale } from "../i18n";
 import {
   isImagePath,
   isMediaPath,
@@ -251,20 +251,17 @@ export function classifyPathRef(pathOrUrl: string): PathRefKind {
 
 export function fileSubtitle(path: string, locale: Locale = "en"): string {
   const ext = pathExt(path).toUpperCase();
-  const pick = (en: string, zh: string, tw: string) =>
-    locale === "en" ? en : locale === "zh-TW" ? tw : zh;
-  if (!ext) return pick("File", "文件", "檔案");
-  if (ext === "MD" || ext === "MDX") return pick("Doc · MD", "文档 · MD", "文件 · MD");
+  const tr = createT(locale);
+  if (!ext) return tr("fileCard.file");
+  if (ext === "MD" || ext === "MDX") return tr("fileCard.docMd");
+  // Format names that are already the same word in every locale stay bare.
   if (ext === "HTML" || ext === "HTM") return "HTML";
-  if (ext === "DOCX" || ext === "DOC")
-    return pick("Doc · Word", "文档 · Word", "文件 · Word");
-  if (ext === "XLSX" || ext === "XLS")
-    return pick("Sheet · Excel", "表格 · Excel", "試算表 · Excel");
+  if (ext === "DOCX" || ext === "DOC") return tr("fileCard.docWord");
+  if (ext === "XLSX" || ext === "XLS") return tr("fileCard.sheetExcel");
   if (ext === "PDF") return "PDF";
-  if (ext === "PY") return pick("Code · Python", "代码 · Python", "程式碼 · Python");
-  if (["TS", "TSX", "JS", "JSX"].includes(ext))
-    return pick("Code · " + ext, "代码 · " + ext, "程式碼 · " + ext);
-  return pick(`File · ${ext}`, `文件 · ${ext}`, `檔案 · ${ext}`);
+  if (ext === "PY") return tr("fileCard.codePython");
+  if (["TS", "TSX", "JS", "JSX"].includes(ext)) return tr("fileCard.code", { ext });
+  return tr("fileCard.fileExt", { ext });
 }
 
 export { pathBasename, isMediaPath };

@@ -264,7 +264,7 @@ function MessageResponseImpl({
         kind="file"
         line={line}
         column={column}
-        subtitle={fileSubtitle(pathToken, locale === "en" ? "en" : "zh")}
+        subtitle={fileSubtitle(pathToken, locale)}
         labels={fileLabels}
         onOpenInPanel={(t) => {
           if (t.type === "file" && t.path) {
