@@ -2078,8 +2078,12 @@ mod tests {
             .unwrap_or_else(|e| e.into_inner());
         let engine = Engine::new_ephemeral(OutboundRouter::new(), false);
         let lang = engine.lang();
+        // Checked against the shipped roster rather than a literal list:
+        // with the literal, `app_locale()` resolving to any newer catalog
+        // panics here while holding APP_HOME_ENV_LOCK and poisons it for the
+        // rest of the suite. Green on an English runner, red on a German desktop.
         assert!(
-            matches!(lang.as_str(), "en" | "zh" | "zh-TW"),
+            crate::tray_i18n::ALL.iter().any(|l| l.as_tag() == lang),
             "unexpected catalog id {lang}"
         );
         assert_eq!(lang, i18n::resolve_engine_lang());
