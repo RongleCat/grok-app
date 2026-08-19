@@ -14,6 +14,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type RefObject,
@@ -29,6 +30,7 @@ import {
   isMeaningfulScrollUp,
   isNearBottom,
   nextStickPinState,
+  shouldClampPinnedOverscroll,
   shouldClampPinnedStreamDrift,
   shouldReleaseStickOnScrollUp,
 } from "@/lib/stickToBottom";
@@ -202,10 +204,11 @@ export function useStickToBottom(
       const meaningfulDown =
         scrollTop - lastScrollTop >= STICK_ESCAPE_MIN_DELTA_PX;
 
-      // While locked at bottom: ignore micro jitter / rubber-band / phantom
-      // spacer play. Only a real upward drag releases the lock.
+      // While locked at bottom: only snap rubber-band past max. Do not
+      // write an upward leave back to the bottom — that fights the
+      // trackpad and is the #703 jitter.
       if (isPinnedRef.current && !escapedRef.current && !meaningfulUp) {
-        if (Math.abs(scrollTop - maxTop) > 0.5) {
+        if (shouldClampPinnedOverscroll(scrollTop, maxTop)) {
           applyScrollTop(maxTop);
         }
         return;
@@ -242,10 +245,12 @@ export function useStickToBottom(
       window.setTimeout(() => {
         if (ignore != null && scrollTop === ignore) return;
 
-        // Still locked (e.g. no escape this frame)? Keep clamped after layout.
+        // Still locked (e.g. no escape this frame)? Snap rubber-band only.
         if (isPinnedRef.current && !escapedRef.current) {
           const top = bottomScrollTop(el.scrollHeight, el.clientHeight);
-          if (Math.abs(el.scrollTop - top) > 0.5) applyScrollTop(top);
+          if (shouldClampPinnedOverscroll(el.scrollTop, top)) {
+            applyScrollTop(top);
+          }
           syncShowBack();
           return;
         }
@@ -418,21 +423,17 @@ export function useStickToBottom(
   }, [conversationKey, enabled, scrollToBottom]);
 
   // User sent / turn became busy → force follow even if they had scrolled up.
-  // Double rAF: first paint may not have the new user/assistant row height yet.
-  useEffect(() => {
+  // Layout first so the virtual list's itemCount effect sees pin=true in the
+  // same frame (avoids a browse-window flash, then a snap). One rAF covers
+  // the new bubble height that is not measured until after paint.
+  useLayoutEffect(() => {
     if (!enabled || forceStickKey == null || forceStickKey === "") return;
     escapedRef.current = false;
     isPinnedRef.current = true;
     userIntentDownRef.current = false;
-    let raf2 = 0;
-    const raf1 = requestAnimationFrame(() => {
-      scrollToBottom("instant");
-      raf2 = requestAnimationFrame(() => scrollToBottom("instant"));
-    });
-    return () => {
-      cancelAnimationFrame(raf1);
-      if (raf2) cancelAnimationFrame(raf2);
-    };
+    scrollToBottom("instant");
+    const raf = requestAnimationFrame(() => scrollToBottom("instant"));
+    return () => cancelAnimationFrame(raf);
   }, [forceStickKey, enabled, scrollToBottom]);
 
   // Content growth / shrink while pinned.
