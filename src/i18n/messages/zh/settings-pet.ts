@@ -6,6 +6,9 @@ export const zhSettingsPet = {
   "settings.pet.enabled": "显示桌面宠物",
   "settings.pet.enabledDesc":
     "让活体标记浮在其他应用上方。可随时从宠物菜单或 /pet 收起。",
+  "settings.pet.bubbles": "桌宠提示框",
+  "settings.pet.bubblesDesc":
+    "会话需要你、正在干活或刚完成时，在宠物上方显示任务气泡。",
   "settings.pet.show": "显示宠物",
   "settings.pet.hide": "隐藏宠物",
   "settings.pet.identity": "外观",
@@ -32,6 +35,8 @@ export const zhSettingsPet = {
   "pet.menu.show": "显示宠物",
   "pet.menu.hide": "隐藏宠物",
   "pet.menu.settings": "宠物设置",
+  "pet.menu.hideBubbles": "关闭提示框",
+  "pet.menu.showBubbles": "开启提示框",
   "pet.status.idle": "空闲",
   "pet.status.working": "进行中",
   "pet.status.needsYou": "需要你",

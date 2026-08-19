@@ -6,6 +6,9 @@ export const enSettingsPet = {
   "settings.pet.enabled": "Show desktop pet",
   "settings.pet.enabledDesc":
     "Float a living mark over other apps. Hide anytime from the pet menu or /pet.",
+  "settings.pet.bubbles": "Task bubbles",
+  "settings.pet.bubblesDesc":
+    "Show session chips above the pet when a chat needs you, is working, or just finished.",
   "settings.pet.show": "Show pet",
   "settings.pet.hide": "Hide pet",
   "settings.pet.identity": "Look",
@@ -32,6 +35,8 @@ export const enSettingsPet = {
   "pet.menu.show": "Show pet",
   "pet.menu.hide": "Hide pet",
   "pet.menu.settings": "Pet settings",
+  "pet.menu.hideBubbles": "Hide task bubbles",
+  "pet.menu.showBubbles": "Show task bubbles",
   "pet.status.idle": "Idle",
   "pet.status.working": "Working",
   "pet.status.needsYou": "Needs you",

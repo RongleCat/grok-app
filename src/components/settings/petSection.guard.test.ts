@@ -22,6 +22,11 @@ describe("PetSection visibility switch", () => {
     expect(src).toContain("onToggleWindow");
   });
 
+  it("lets the user toggle task bubbles", () => {
+    expect(src).toContain("settings.pet.bubbles");
+    expect(src).toContain("bubblesEnabled");
+  });
+
   it("lets the user pick an eye color from a swatch grid", () => {
     expect(src).toContain("PET_EYE_COLORS");
     expect(src).toContain("settings.pet.eyeColor");

@@ -15,6 +15,7 @@ import {
   isPetShape,
   PET_BUBBLE_WIDTH,
   petBubbleViewportHeight,
+  petBubblesEnabled,
   petOverlayHeight,
   petOverlayWidth,
   scaleHitLen,
@@ -33,6 +34,7 @@ import {
   petSetDragging,
   petSetHitChrome,
   petSetIgnoreCursor,
+  petPrefsSet,
   petSetMenuOpen,
   petShowMain,
   petStartDragging,
@@ -62,6 +64,7 @@ export function PetOverlay({
   const eyeColor = isPetEyeColor(prefs.eyeColor) ? prefs.eyeColor : "auto";
   const verb = petVerbFor(focus.kind, focus.toolTitle);
   const sizePx = prefs.sizePx || 128;
+  const bubblesOn = petBubblesEnabled(prefs);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const menuOpen = menu != null;
   const [dragging, setDragging] = useState(false);
@@ -101,7 +104,7 @@ export function PetOverlay({
     const o = overlay.getBoundingClientRect();
     const m = mark.getBoundingClientRect();
     const b = stackRef.current?.getBoundingClientRect();
-    const css = hitChromeCssScale(o.width, petOverlayWidth(sizePx));
+    const css = hitChromeCssScale(o.width, petOverlayWidth(sizePx, bubblesOn));
     const markR = clampPetMarkHitRadius(
       scaleHitLen(Math.max(m.width, m.height) * 0.52, css),
       sizePx,
@@ -117,22 +120,26 @@ export function PetOverlay({
       windowW: scaleHitLen(o.width, css),
       windowH: scaleHitLen(o.height, css),
     });
-  }, [sizePx]);
+  }, [bubblesOn, sizePx]);
 
   const refreshBubbleOffset = useCallback(async () => {
-    const max = Math.max(0, (petOverlayWidth(sizePx) - PET_BUBBLE_WIDTH) / 2 - 8);
+    if (!bubblesOn) {
+      reportHitChrome();
+      return;
+    }
+    const max = Math.max(0, (petOverlayWidth(sizePx, true) - PET_BUBBLE_WIDTH) / 2 - 8);
     const dx = await petReadBubbleOffset(max);
     setBubbleDx((prev) => (Math.abs(prev - dx) < 1 ? prev : dx));
     reportHitChrome();
-  }, [sizePx, reportHitChrome]);
+  }, [bubblesOn, sizePx, reportHitChrome]);
 
   useLayoutEffect(() => {
-    const w = petOverlayWidth(sizePx);
-    const h = petOverlayHeight(sizePx);
+    const w = petOverlayWidth(sizePx, bubblesOn);
+    const h = petOverlayHeight(sizePx, bubblesOn);
     void petSyncOverlaySize(w, h).then(() => {
       void refreshBubbleOffset();
     });
-  }, [sizePx, refreshBubbleOffset]);
+  }, [bubblesOn, sizePx, refreshBubbleOffset]);
 
   useLayoutEffect(() => {
     reportHitChrome();
@@ -198,8 +205,8 @@ export function PetOverlay({
       overlayH,
       clickX,
       clickY,
-      menuW: 128,
-      menuH: 80,
+      menuW: 148,
+      menuH: 112,
       winX: 0,
       winY: 0,
       work: { x: 0, y: 0, w: overlayW, h: overlayH },
@@ -215,8 +222,8 @@ export function PetOverlay({
         overlayH: frame.overlayH,
         clickX,
         clickY,
-        menuW: 128,
-        menuH: 80,
+        menuW: 148,
+        menuH: 112,
         winX: frame.winX,
         winY: frame.winY,
         work: frame.work,
@@ -257,12 +264,12 @@ export function PetOverlay({
     setDragging(false);
     void petSetDragging(false);
     if (!moved) return;
-    const w = petOverlayWidth(sizePx);
-    const h = petOverlayHeight(sizePx);
+    const w = petOverlayWidth(sizePx, bubblesOn);
+    const h = petOverlayHeight(sizePx, bubblesOn);
     void petSyncOverlaySize(w, h).then(() => {
       void refreshBubbleOffset();
     });
-  }, [refreshBubbleOffset, sizePx]);
+  }, [bubblesOn, refreshBubbleOffset, sizePx]);
 
   useEffect(() => {
     const end = () => {
@@ -337,7 +344,7 @@ export function PetOverlay({
       className={
         "pet-overlay" +
         (dragging ? " is-dragging" : "") +
-        (tasks.length ? " has-bubbles" : "")
+        (bubblesOn && tasks.length ? " has-bubbles" : "")
       }
       onContextMenu={openMenu}
       onPointerDown={onPointerDown}
@@ -347,20 +354,22 @@ export function PetOverlay({
         finishDrag();
       }}
     >
-      <div
-        className="pet-bubbles-slot"
-        style={{
-          transform: `translateX(${bubbleDx}px)`,
-          height: petBubbleViewportHeight(),
-        }}
-      >
-        <PetTaskBubbles
-          tasks={tasks}
-          t={t}
-          onOpen={openTask}
-          listRef={stackRef}
-        />
-      </div>
+      {bubblesOn ? (
+        <div
+          className="pet-bubbles-slot"
+          style={{
+            transform: `translateX(${bubbleDx}px)`,
+            height: petBubbleViewportHeight(),
+          }}
+        >
+          <PetTaskBubbles
+            tasks={tasks}
+            t={t}
+            onOpen={openTask}
+            listRef={stackRef}
+          />
+        </div>
+      ) : null}
       <div ref={markRef} className="pet-overlay__hit">
         <PetMark
           shape={shape}
@@ -376,14 +385,23 @@ export function PetOverlay({
         x={menu?.x ?? 0}
         y={menu?.y ?? 0}
         onClose={closeMenu}
-        estimatedWidth={128}
-        estimatedHeight={80}
+        estimatedWidth={148}
+        estimatedHeight={112}
         items={[
           {
             id: "pet-settings",
             label: t("pet.menu.settings"),
             onClick: () => {
               void petOpenSettings();
+            },
+          },
+          {
+            id: "pet-bubbles",
+            label: bubblesOn
+              ? t("pet.menu.hideBubbles")
+              : t("pet.menu.showBubbles"),
+            onClick: () => {
+              void petPrefsSet({ ...prefs, bubblesEnabled: !bubblesOn });
             },
           },
           { id: "pet-sep", separator: true },

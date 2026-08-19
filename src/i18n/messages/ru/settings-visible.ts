@@ -274,6 +274,9 @@ export const ruSettingsVisible: Partial<Record<MessageKey, string>> = {
   "settings.pet.enabled": "Показывать питомца",
   "settings.pet.enabledDesc":
     "Значок парит над другими окнами. Спрятать можно из меню питомца или командой /pet.",
+  "settings.pet.bubbles": "Подсказки питомца",
+  "settings.pet.bubblesDesc":
+    "Показывать карточки сессий над питомцем, когда чат ждёт вас, работает или только что закончил.",
   "settings.pet.identity": "Внешний вид",
   "settings.pet.identityDesc": "Форма, цвет тела и цвет глаз живого значка.",
   "settings.pet.shape": "Форма",
@@ -292,4 +295,6 @@ export const ruSettingsVisible: Partial<Record<MessageKey, string>> = {
   "settings.pet.eyeColor.black": "Чёрный",
   "settings.pet.size": "Размер",
   "settings.pet.sizeDesc": "Размер наложения на экране.",
+  "pet.menu.hideBubbles": "Скрыть подсказки",
+  "pet.menu.showBubbles": "Показать подсказки",
 };

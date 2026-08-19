@@ -48,6 +48,8 @@ pub struct PetPrefs {
     pub size_px: u32,
     #[serde(default = "default_eye_color")]
     pub eye_color: String,
+    #[serde(default = "default_bubbles")]
+    pub bubbles_enabled: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -66,6 +68,9 @@ fn default_size() -> u32 {
 fn default_eye_color() -> String {
     "auto".into()
 }
+fn default_bubbles() -> bool {
+    true
+}
 
 impl Default for PetPrefs {
     fn default() -> Self {
@@ -76,6 +81,7 @@ impl Default for PetPrefs {
             color: default_color(),
             size_px: default_size(),
             eye_color: default_eye_color(),
+            bubbles_enabled: default_bubbles(),
             x: None,
             y: None,
         }
@@ -256,8 +262,16 @@ const PET_BUBBLE_VIEWPORT_H: f64 = 136.0;
 const PET_MARK_BOTTOM_PAD: f64 = 16.0;
 
 fn overlay_extent(size_px: u32) -> (f64, f64) {
+    overlay_extent_for(size_px, true)
+}
+
+fn overlay_extent_for(size_px: u32, bubbles: bool) -> (f64, f64) {
     let mark = window_logical_size(size_px);
-    (mark + PET_BUBBLE_WIDTH_PX, mark + PET_BUBBLE_VIEWPORT_H)
+    if bubbles {
+        (mark + PET_BUBBLE_WIDTH_PX, mark + PET_BUBBLE_VIEWPORT_H)
+    } else {
+        (mark, mark)
+    }
 }
 
 fn mark_center_physical(
@@ -466,7 +480,7 @@ pub fn ensure_pet_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String
         return Ok(existing);
     }
     let prefs = normalize_prefs(load_prefs());
-    let (side_w, side_h) = overlay_extent(prefs.size_px);
+    let (side_w, side_h) = overlay_extent_for(prefs.size_px, prefs.bubbles_enabled);
     WEBVIEW_READY.store(false, Ordering::SeqCst);
     let mut builder = WebviewWindowBuilder::new(
         app,
@@ -549,7 +563,7 @@ pub fn show_pet(app: &AppHandle) -> Result<(), String> {
     save_prefs(&prefs)?;
     let win = ensure_pet_window(app)?;
     apply_window_chrome(&win);
-    let (side_w, side_h) = overlay_extent(prefs.size_px);
+    let (side_w, side_h) = overlay_extent_for(prefs.size_px, prefs.bubbles_enabled);
     let _ = win.set_size(LogicalSize::new(side_w, side_h));
     if let (Some(x), Some(y)) = (prefs.x, prefs.y) {
         let _ = win.set_position(LogicalPosition::new(x, y));
@@ -698,7 +712,7 @@ pub fn pet_prefs_set(app: AppHandle, prefs: PetPrefs) -> Result<PetPrefs, String
     if next.enabled && next.visible {
         show_pet(&app)?;
         if let Some(win) = app.get_webview_window(PET_WINDOW_LABEL) {
-            let (side_w, side_h) = overlay_extent(next.size_px);
+            let (side_w, side_h) = overlay_extent_for(next.size_px, next.bubbles_enabled);
             let _ = win.set_size(LogicalSize::new(side_w, side_h));
         }
     } else {
@@ -920,6 +934,9 @@ mod tests {
         let (w, h) = overlay_extent(128);
         assert_eq!(w, 128.0 + 96.0 + 216.0);
         assert_eq!(h, 128.0 + 96.0 + 136.0);
+        let (w0, h0) = overlay_extent_for(128, false);
+        assert_eq!(w0, 128.0 + 96.0);
+        assert_eq!(h0, 128.0 + 96.0);
     }
 
     #[test]

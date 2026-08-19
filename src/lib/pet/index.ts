@@ -38,6 +38,7 @@ export {
 export {
   PET_BUBBLE_EDGE_PAD,
   petBubbleOffsetX,
+  petBubblesEnabled,
   petOverlayHeight,
   petOverlayWidth,
 } from "./petBubbleLayout";

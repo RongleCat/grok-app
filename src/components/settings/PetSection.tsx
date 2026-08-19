@@ -40,6 +40,7 @@ const DEFAULT_PREFS: PetPrefs = {
   color: "green",
   sizePx: 128,
   eyeColor: "auto",
+  bubblesEnabled: true,
 };
 
 function petWindowOn(p: PetPrefs): boolean {
@@ -147,6 +148,18 @@ export function PetSection() {
             disabled={busy}
             label={t("settings.pet.enabled")}
             onChange={(next) => void onToggleWindow(next)}
+          />
+        </div>
+        <div className="settings-row" id="settings-anchor-pet-bubbles">
+          <div className="settings-row__text">
+            <div className="settings-row__label">{t("settings.pet.bubbles")}</div>
+            <div className="settings-row__desc">{t("settings.pet.bubblesDesc")}</div>
+          </div>
+          <UiSwitch
+            checked={prefs.bubblesEnabled !== false}
+            disabled={busy}
+            label={t("settings.pet.bubbles")}
+            onChange={(next) => void commit({ ...prefs, bubblesEnabled: next })}
           />
         </div>
       </div>

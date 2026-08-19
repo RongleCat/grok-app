@@ -6,6 +6,9 @@ export const zhTWSettingsPet = {
   "settings.pet.enabled": "顯示桌面寵物",
   "settings.pet.enabledDesc":
     "讓活體標記浮在其他應用程式上方。可隨時從寵物選單或 /pet 收起。",
+  "settings.pet.bubbles": "桌寵提示框",
+  "settings.pet.bubblesDesc":
+    "工作階段需要你、正在進行或剛完成時，在寵物上方顯示任務氣泡。",
   "settings.pet.show": "顯示寵物",
   "settings.pet.hide": "隱藏寵物",
   "settings.pet.identity": "外觀",
@@ -32,6 +35,8 @@ export const zhTWSettingsPet = {
   "pet.menu.show": "顯示寵物",
   "pet.menu.hide": "隱藏寵物",
   "pet.menu.settings": "寵物設定",
+  "pet.menu.hideBubbles": "關閉提示框",
+  "pet.menu.showBubbles": "開啟提示框",
   "pet.status.idle": "閒置",
   "pet.status.working": "進行中",
   "pet.status.needsYou": "需要你",

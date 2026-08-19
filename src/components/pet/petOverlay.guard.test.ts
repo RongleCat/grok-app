@@ -12,4 +12,10 @@ describe("PetOverlay drag hit target", () => {
     expect(src).toContain('window.addEventListener("pointerup"');
     expect(src).toContain("clampPetMarkHitRadius");
   });
+
+  it("can hide task bubbles from prefs and the pet menu", () => {
+    expect(src).toContain("petBubblesEnabled");
+    expect(src).toContain("pet.menu.hideBubbles");
+    expect(src).toContain("bubblesEnabled");
+  });
 });

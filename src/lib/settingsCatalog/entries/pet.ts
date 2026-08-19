@@ -14,6 +14,22 @@ export const PET_ENTRIES: readonly SettingsEntry[] = [
     keywords: ["pet", "宠物", "寵物", "desktop pet", "companion", "overlay", "mascot"],
   },
   {
+    id: "pet.bubbles",
+    section: "pet",
+    anchorId: "settings-anchor-pet-bubbles",
+    labelKey: "settings.pet.bubbles",
+    descKeys: ["settings.pet.bubblesDesc"],
+    keywords: [
+      "bubble",
+      "bubbles",
+      "tips",
+      "提示框",
+      "气泡",
+      "氣泡",
+      "chip",
+    ],
+  },
+  {
     id: "pet.identity",
     section: "pet",
     anchorId: "settings-anchor-pet-identity",

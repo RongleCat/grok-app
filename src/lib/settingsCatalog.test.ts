@@ -167,6 +167,8 @@ describe("settingsCatalog", () => {
     expect(eyeHits.some((h) => h.entry.id === "pet.eyeColor")).toBe(true);
     const eyeEn = searchSettingsEntries("eye color", tZh, tEn);
     expect(eyeEn.some((h) => h.entry.section === "pet")).toBe(true);
+    const bubbleHits = searchSettingsEntries("提示框", tZh, tEn);
+    expect(bubbleHits.some((h) => h.entry.id === "pet.bubbles")).toBe(true);
   });
 
   it("keywordKeysForSection includes appearance prefs and remote control", () => {
