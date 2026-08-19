@@ -182,13 +182,27 @@ describe("formatRelativeTime", () => {
 });
 
 describe("formatQuotaResetTime", () => {
-  it("formats MM-DD HH:mm in local time", () => {
-    // Fixed local instant via Date components
-    const d = new Date(2026, 3, 15, 9, 5); // Apr 15 09:05
-    const iso = d.toISOString();
-    expect(formatQuotaResetTime(iso)).toBe("04-15 09:05");
-    expect(formatQuotaResetTime(null)).toBe("");
-    expect(formatQuotaResetTime("not-a-date")).toBe("");
+  // Fixed local instant via Date components: Apr 15 09:05, whatever the
+  // runner's time zone is.
+  const iso = new Date(2026, 3, 15, 9, 5).toISOString();
+
+  it("orders the parts the way the locale does", () => {
+    // en-GB and en-US share a language and disagree on both of the things
+    // this function prints, so a passing assertion here means the tag really
+    // reached Intl rather than a hard-coded template.
+    expect(formatQuotaResetTime(iso, "en")).toContain("04/15");
+    expect(formatQuotaResetTime(iso, "de")).toContain("15.04");
+    expect(formatQuotaResetTime(iso, "ja")).toContain("04/15");
+  });
+
+  it("keeps the clock in local time", () => {
+    expect(formatQuotaResetTime(iso, "de")).toContain("09:05");
+  });
+
+  it("returns an empty string for nothing to show", () => {
+    expect(formatQuotaResetTime(null, "en")).toBe("");
+    expect(formatQuotaResetTime(undefined, "en")).toBe("");
+    expect(formatQuotaResetTime("not-a-date", "en")).toBe("");
   });
 });
 

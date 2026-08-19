@@ -311,19 +311,27 @@ export function formatRelativeTime(
   return rtf.format(-day, "day");
 }
 
-/** Quota refresh time for menus: `MM-DD HH:mm` (local). */
+/**
+ * Quota refresh time for menus: month, day and clock in local time.
+ *
+ * The order and separators come from the locale. Hand-building `MM-DD HH:mm`
+ * reads as a date only to someone who already expects month first — a German
+ * user parses `04-15` as the 4th of month 15, and an en-US user loses the
+ * am/pm their clock format needs.
+ */
 export function formatQuotaResetTime(
   iso: string | null | undefined,
+  locale: string,
 ): string {
   if (!iso) return "";
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return "";
-  const d = new Date(t);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${mm}-${dd} ${hh}:${min}`;
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(t));
 }
 
 export function isAccountConnected(status: AccountStatus | null): boolean {

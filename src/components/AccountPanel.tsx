@@ -266,8 +266,8 @@ export function AccountPanel({
   const usageKnown = isQuotaUsageKnown(billing);
   const { usedPercent: usedPct, remainingPercent: remaining } =
     resolveQuotaPercents(billing);
-  /** Same absolute clock as sidebar UserMenu (`MM-DD HH:mm`). */
-  const resetTime = formatQuotaResetTime(billing?.resetsAt);
+  /** Same absolute clock as the sidebar UserMenu. */
+  const resetTime = formatQuotaResetTime(billing?.resetsAt, locale);
 
   const heatDays = status?.heatmap ?? [];
   const heatHasSamples = useMemo(

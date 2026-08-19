@@ -60,6 +60,8 @@ export interface UserMenuProps {
   theme: Theme;
   /** Preference driving the theme submenu selection. */
   themePreference: ThemePreference;
+  /** App locale, so the quota reset clock follows Settings. */
+  locale: string;
   labels: {
     settings: string;
     /** Optional product tour entry label */
@@ -156,6 +158,7 @@ export function UserMenu({
   onClose,
   theme,
   themePreference,
+  locale,
   labels,
   account,
   activeProvider,
@@ -280,7 +283,7 @@ export function UserMenu({
   const livePercents = resolveQuotaPercents(billing ?? null);
   const usedPct = livePercents.usedPercent;
   const remaining = livePercents.remainingPercent;
-  const resetTime = formatQuotaResetTime(billing?.resetsAt);
+  const resetTime = formatQuotaResetTime(billing?.resetsAt, locale);
   const remainLabel = formatQuotaRemainLabel(remaining);
   const remainText = remainLabel ? `${remainLabel} ${labels.remaining}` : "—";
   const showSavedOfficialAccounts = signedIn && savedAccounts.length > 0;
@@ -377,7 +380,7 @@ export function UserMenu({
                   );
                   const rowRemain = q?.remainingPercent ?? null;
                   const rowUsed = q?.usedPercent ?? null;
-                  const rowReset = formatQuotaResetTime(q?.resetsAt);
+                  const rowReset = formatQuotaResetTime(q?.resetsAt, locale);
                   const rowRemainLabel = formatQuotaRemainLabel(rowRemain);
                   const low = rowRemain != null && rowRemain <= 10;
                   return (

@@ -19881,6 +19881,7 @@ export function AppWorkbench() {
             onClose={() => setShowUserMenu(false)}
             theme={theme}
             themePreference={themePreference}
+            locale={locale}
             account={account}
             activeProvider={activeCustomProvider}
             accountBusy={accountBusy}
