@@ -160,15 +160,15 @@ export const deNav: Partial<Record<MessageKey, string>> = {
   "error.deck.limit.problem": "Limit für Agent-Prozesse erreicht",
   "error.deck.limit.cause":
     "Zu viele warme Agent-Prozesse. Beende eine andere Sitzung oder erhöhe das Limit unter Runtime.",
-  "error.deck.timeout.problem": "Zeitüberschreitung in diesem Zug",
+  "error.deck.timeout.problem": "Zeitüberschreitung in diesem Vorgang",
   "error.deck.timeout.cause":
     "Der Agent hat nach langer Wartezeit gestoppt. Versuche es erneut — Bilder oder schwere Werkzeuge brauchen länger.",
   "error.deck.disconnect.problem": "Agent-Verbindung unterbrochen",
   "error.deck.disconnect.cause":
-    "Der RPC-Kanal wurde mitten im Zug geschlossen. Neu verbinden und erneut senden.",
+    "Der RPC-Kanal wurde mitten im Vorgang geschlossen. Neu verbinden und erneut senden.",
   "error.deck.stall.problem": "Der Stream wirkt still",
   "error.deck.stall.cause":
-    "Seit rund {seconds} s keine Tokens oder Werkzeugfortschritte. Weiter warten oder diesen Zug beenden.",
+    "Seit rund {seconds} s keine Tokens oder Werkzeugfortschritte. Weiter warten oder diesen Vorgang beenden.",
   "error.deck.untrusted.problem": "Projekt ist nicht vertrauenswürdig",
   "error.deck.untrusted.cause":
     "Vertraue dem Ordner, damit der Agent dort lesen und schreiben darf (Nachfragen bleibt Standard).",

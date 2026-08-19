@@ -27,9 +27,11 @@ See `docs/llm-wiki/release.md`.
 - **Permission bars and journal flush after live lock**: A remounted WebView can recover the full approval card instead of looking stuck thinking. The stream journal flushes after the live lock is released.
 - **User images no longer echo as broken assistant cards**: Pasted / attached user files are not re-attached onto the assistant turn. Outside-project paths 403 after restart no longer lock the card as a corrupt blob.
 - **Windows pet overlay no longer inherits File / Edit / Window / Help; toggle follows real window visibility; hit target shrinks after drag (#696)**: The overlay keeps a window-local empty menu and strips the native bar. Hide retries if the HWND stays painted; File → Close hides instead of destroying. Host clears drag when the left button is up, and measured hit radius is clamped to the mark size.
-- **Dates, counts and durations follow the UI language**: 25 call sites formatted dates as `en-US` for every non-Chinese locale, compact counts were hard-coded to Chinese myriad units, and heatmap weekday / month labels came from fixed arrays. All of them now derive from the resolved locale — Japanese and Korean get their own 万/億 and 만/억 units, and durations use CLDR units instead of `9小时36分` or `9h 36m`.
+- **Dates, counts and durations follow the UI language**: 25 call sites formatted dates as `en-US` for every non-Chinese locale, compact counts were hard-coded to Chinese myriad units, and heatmap weekday / month labels came from fixed arrays. All of them now derive from the resolved locale — Japanese and Korean get their own 万/億 and 만/억 units, and durations use CLDR units instead of `9小时36分` or `9h 36m`. The quota refresh time, the tray usage tooltip, and the plan / trace / mirror-audit history rows followed the OS or a hard-coded `MM-DD` instead of the language you picked; they now follow the UI language too, on a 24-hour clock everywhere.
 - **File cards and error bodies no longer show Chinese to non-Chinese users**: `pathRefs.fileSubtitle` and `formatTurnErrorBody` collapsed the locale to "English or Chinese", so a French or Japanese UI rendered Chinese subtitles. Stream-flap and unknown-error copy now come from the catalog instead of inline text, and the Remote IM channel label no longer falls back to Chinese brand names.
 - **Russian tray menu showed English inside the app**: the `tray.*` keys were translated on the native side but missing from the frontend catalog.
+- **Auto-titling silently gave up on quoted CJK titles**: the title cleaner sliced by byte, so a title the model wrapped in 「」 or “” hit a character boundary and killed the background task — the session kept its heuristic name and nothing was logged. The length cap is counted in characters too, so a Japanese title is no longer rejected at a length an English one passes.
+- **Remote IM stopped re-titling chats whose default name was translated**: the bridge recognized only `New chat` and `新对话` as a placeholder, so a Traditional Chinese session kept its default name forever. Both sides now share one rule derived from the shipped catalogs.
 
 **中文 · 修复**
 - **回合结束后不再一直「思考中 / 连接中」**：正文已经出来，UI 还停在停止键、发不了下一句。Host 已空闲（或卡住超过 90 秒）时自动解锁，回复保留。
@@ -37,9 +39,11 @@ See `docs/llm-wiki/release.md`.
 - **权限条和日记在解开 live lock 后会补上**：WebView 重挂后能恢复完整审批卡，不再看起来卡在思考。流式日记在释放锁之后再刷盘。
 - **用户图片不再回显成损坏的助手图卡**：用户粘贴/附图不会再挂到助手回合上。项目外路径重启后 403 也不再把卡片钉成坏图。
 - **Windows 宠物不再继承 File / Edit / Window / Help；开关跟真实窗口走；拖完热区会收回（#696）**：浮层用自己的空菜单并卸掉原生菜单栏。关掉后若仍显示会再 hide 一次；File → 关闭只会收起。松开鼠标后 Host 清掉拖拽状态，热区半径按标记尺寸封顶。
-- **日期、数字和时长跟随界面语言**：此前有 25 处按 `en-US` 格式化日期（非中文一律走英文），紧凑计数写死中文「万/亿」，热力图的星期和月份来自固定数组。现在都按当前语言推导：日语、韩语各用 万/億、만/억，时长改用 CLDR 单位，不再只有 `9小时36分` 或 `9h 36m`。
+- **日期、数字和时长跟随界面语言**：此前有 25 处按 `en-US` 格式化日期（非中文一律走英文），紧凑计数写死中文「万/亿」，热力图的星期和月份来自固定数组。现在都按当前语言推导：日语、韩语各用 万/億、만/억，时长改用 CLDR 单位，不再只有 `9小时36分` 或 `9h 36m`。额度刷新时间、托盘用量提示，以及计划/追踪/镜像审计的历史时间，之前跟系统或写死的 `MM-DD` 走，现在也跟界面语言，并统一 24 小时制。
 - **文件卡片和错误正文不再对非中文用户显示中文**：`pathRefs.fileSubtitle` 和 `formatTurnErrorBody` 把语言压成「英文或中文」，法语、日语界面会看到中文副标题。断流提示和未知错误文案改为走词库；Remote IM 渠道名也不再默认回落到中文品牌名。
 - **俄语托盘在应用内显示英文**：`tray.*` 在原生侧已翻译，但前端词库里缺了这批 key。
+- **自动命名遇到带引号的中日文标题会悄悄失败**：清洗标题时按字节切片，模型用「」或“”包住的标题会在字符边界上 panic，后台任务被吞掉，会话只能停在启发式名字。长度上限也改为按字符计，中日文标题不再在英文标题还能通过的长度被拒。
+- **Remote IM 不再漏改已翻译的默认标题**：桥接侧只认 `New chat` 和「新对话」，繁体中文会话会一直停在默认名。现在两侧共用同一套判定，直接来自出货词库。
 
 ## [0.2.22] - 2026-08-19
 
