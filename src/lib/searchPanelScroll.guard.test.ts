@@ -9,9 +9,11 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = join(__dirname, "..");
 
+const PALETTE = "components/workbench-modals/SearchPalette.tsx";
+
 describe("search panel scrollport", () => {
   it("wraps palette hits in OverlayScroll.search-panel__results", () => {
-    const src = readFileSync(join(ROOT, "app/AppWorkbench.tsx"), "utf8");
+    const src = readFileSync(join(ROOT, PALETTE), "utf8");
     expect(src).toMatch(
       /<OverlayScroll className="search-panel__results">/,
     );
@@ -22,17 +24,22 @@ describe("search panel scrollport", () => {
     const close = src.indexOf("</OverlayScroll>", open);
     const inner = src.slice(open, close);
     expect(inner).toContain("search-panel__row");
-    expect(inner).toContain("mergedSessionHits.map");
+    expect(inner).toContain("props.sessionHits.map");
     expect(inner).toContain("data-search-idx");
     expect(inner).toContain("search-opt-");
   });
 
   it("wires keyboard selection through useSearchPanelNav", () => {
-    const src = readFileSync(join(ROOT, "app/AppWorkbench.tsx"), "utf8");
-    expect(src).toContain("useSearchPanelNav");
-    expect(src).toContain("flattenSearchPanelItems");
-    expect(src).toContain("searchActiveIndex");
-    expect(src).toMatch(/role="combobox"/);
+    const shell = readFileSync(join(ROOT, "app/AppWorkbench.tsx"), "utf8");
+    expect(shell).toContain("useSearchPanelNav");
+    expect(shell).toContain("flattenSearchPanelItems");
+    expect(shell).toContain("searchActiveIndex");
+    // The shell owns nav state; the palette renders it onto the combobox.
+    expect(shell).toMatch(/activeIndex=\{searchActiveIndex\}/);
+    expect(shell).toMatch(/itemCount=\{searchPaletteItems\.length\}/);
+    const palette = readFileSync(join(ROOT, PALETTE), "utf8");
+    expect(palette).toMatch(/role="combobox"/);
+    expect(palette).toMatch(/aria-activedescendant=/);
   });
 
   it("keeps results as the overflow-y scrollport under a clipping panel", () => {

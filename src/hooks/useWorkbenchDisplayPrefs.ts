@@ -2,7 +2,7 @@
  * Workbench display + composer chrome preferences (localStorage + Settings events).
  * Extracted from AppWorkbench (P2) so the shell does not own every pref listener.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   loadAskUserTimeoutSec,
   ASK_USER_TIMEOUT_CHANGE_EVENT,
@@ -66,30 +66,45 @@ import {
   loadWindowAlwaysOnTopPref,
 } from "@/lib/windowAlwaysOnTop";
 
+/**
+ * Callers pass inline arrows, so subscribing on their identity would re-bind
+ * every workbench render. Keep the listener stable and read the latest one
+ * through a ref instead.
+ */
+function useLatest<T>(value: T) {
+  const ref = useRef(value);
+  ref.current = value;
+  return ref;
+}
+
 function useBooleanPrefSync(
   eventName: string,
   reload: () => boolean,
   set: (v: boolean) => void,
 ) {
+  const reloadRef = useLatest(reload);
+  const setRef = useLatest(set);
   useEffect(() => {
     const onChange = (ev: Event) => {
       const detail = (ev as CustomEvent<unknown>).detail;
       if (typeof detail === "boolean") {
-        set(detail);
+        setRef.current(detail);
         return;
       }
-      set(reload());
+      setRef.current(reloadRef.current());
     };
     window.addEventListener(eventName, onChange);
     return () => window.removeEventListener(eventName, onChange);
-  }, [eventName, reload, set]);
+  }, [eventName, reloadRef, setRef]);
 }
 
 function useReloadPrefSync(eventName: string, reload: () => void) {
+  const reloadRef = useLatest(reload);
   useEffect(() => {
-    window.addEventListener(eventName, reload);
-    return () => window.removeEventListener(eventName, reload);
-  }, [eventName, reload]);
+    const onChange = () => reloadRef.current();
+    window.addEventListener(eventName, onChange);
+    return () => window.removeEventListener(eventName, onChange);
+  }, [eventName, reloadRef]);
 }
 
 export function useWorkbenchDisplayPrefs() {
