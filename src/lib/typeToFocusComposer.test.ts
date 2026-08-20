@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  composerOwnsFocus,
   decideTypeToFocusComposer,
   isActivateKeyControl,
   isComposerRedirectBlocked,
@@ -160,15 +161,14 @@ describe("decideTypeToFocusComposer", () => {
     ).toEqual({ action: "focus", preventDefault: false });
   });
 
-  it("inserts printable keys and prevents default only for space", () => {
+  it("focuses printable keys; only Space inserts (and preventDefault)", () => {
+    // Letters must not insert: Chromium types into the newly focused editor.
     expect(decideTypeToFocusComposer(baseKey({ key: "h" }), ready)).toEqual({
-      action: "focus-and-insert",
-      text: "h",
+      action: "focus",
       preventDefault: false,
     });
     expect(decideTypeToFocusComposer(baseKey({ key: "/" }), ready)).toEqual({
-      action: "focus-and-insert",
-      text: "/",
+      action: "focus",
       preventDefault: false,
     });
     expect(decideTypeToFocusComposer(baseKey({ key: " " }), ready)).toEqual({
@@ -195,16 +195,31 @@ describe("decideTypeToFocusComposer", () => {
     }
   });
 
-  it("still inserts letters while a button is focused", () => {
+  it("still focuses for letters while a button is focused", () => {
     expect(
       decideTypeToFocusComposer(baseKey({ key: "a" }), {
         ...ready,
         spaceActivatesControl: true,
       }),
     ).toEqual({
-      action: "focus-and-insert",
-      text: "a",
+      action: "focus",
       preventDefault: false,
     });
+  });
+});
+
+describe("composerOwnsFocus", () => {
+  it("is true when the editor or a descendant is active", () => {
+    const child = { id: "child" } as unknown as EventTarget;
+    const editor = {
+      contains: (n: unknown) => n === child,
+    } as unknown as EventTarget;
+    expect(composerOwnsFocus(null, editor)).toBe(false);
+    expect(composerOwnsFocus(editor, null)).toBe(false);
+    expect(composerOwnsFocus(editor, editor)).toBe(true);
+    expect(composerOwnsFocus(editor, child)).toBe(true);
+    expect(
+      composerOwnsFocus(editor, { id: "other" } as unknown as EventTarget),
+    ).toBe(false);
   });
 });

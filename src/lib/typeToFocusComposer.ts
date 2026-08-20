@@ -1,6 +1,8 @@
 /**
  * Type-to-focus composer: when the chat is frontmost but focus is not in
- * an input, a printable key focuses the composer and the character lands.
+ * an input, a printable key focuses the composer so the character lands
+ * there. Letters are focus-only (native types once). Space inserts after
+ * preventDefault so the page does not scroll.
  *
  * Decision is pure (no DOM). The hook applies focus / insert.
  */
@@ -116,6 +118,17 @@ export function isComposerRedirectBlocked(
   }
 }
 
+/** Composer already has the caret — never steal or re-insert. */
+export function composerOwnsFocus(
+  editor: EventTarget | null | undefined,
+  active: EventTarget | null | undefined,
+): boolean {
+  if (!editor || !active) return false;
+  if (editor === active) return true;
+  const node = editor as HTMLElement;
+  return typeof node.contains === "function" && node.contains(active as Node);
+}
+
 export function decideTypeToFocusComposer(
   e: TypeToFocusKey,
   ctx: TypeToFocusContext,
@@ -140,9 +153,14 @@ export function decideTypeToFocusComposer(
     return { action: "ignore" };
   }
 
-  // Space scrolls the page if we let the default through on body.
-  const preventDefault = e.key === " ";
-  return { action: "focus-and-insert", text: e.key, preventDefault };
+  // Letters: focus only. Inserting as well doubles the glyph in Chromium
+  // (WebView2) — the same key still types into the newly focused editor.
+  // Do not preventDefault: IME needs the key (macOS pinyin first letter).
+  if (e.key !== " ") {
+    return { action: "focus", preventDefault: false };
+  }
+  // Space would scroll the page if we let the default through on body.
+  return { action: "focus-and-insert", text: " ", preventDefault: true };
 }
 
 export function focusComposerForTyping(el: HTMLElement): void {
@@ -159,26 +177,6 @@ export function focusComposerForTyping(el: HTMLElement): void {
   } catch {
     /* ignore */
   }
-}
-
-/** Insert only if the engine did not already type into the newly focused editor. */
-export function scheduleInsertIfNeeded(el: HTMLElement, text: string): void {
-  if (typeof document === "undefined") return;
-  let canceled = false;
-  const onComp = () => {
-    canceled = true;
-  };
-  const onInput = () => {
-    canceled = true;
-  };
-  document.addEventListener("compositionstart", onComp, true);
-  el.addEventListener("input", onInput);
-  queueMicrotask(() => {
-    document.removeEventListener("compositionstart", onComp, true);
-    el.removeEventListener("input", onInput);
-    if (canceled || !el.isConnected) return;
-    insertTextIntoFocusedComposer(el, text);
-  });
 }
 
 export function insertTextIntoFocusedComposer(
@@ -200,6 +198,6 @@ export function applyTypeToFocusComposer(
 ): void {
   focusComposerForTyping(el);
   if (decision.action === "focus-and-insert") {
-    scheduleInsertIfNeeded(el, decision.text);
+    insertTextIntoFocusedComposer(el, decision.text);
   }
 }

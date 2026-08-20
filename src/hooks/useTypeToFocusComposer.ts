@@ -7,6 +7,7 @@ import { querySidebarEl } from "@/lib/dragZone";
 import { isShortcutRecordingActive } from "@/lib/shortcutRemap";
 import {
   applyTypeToFocusComposer,
+  composerOwnsFocus,
   decideTypeToFocusComposer,
   isActivateKeyControl,
   isComposerRedirectBlocked,
@@ -49,7 +50,9 @@ export function useTypeToFocusComposer(opts: {
           enabled: live.enabled,
           overlayOpen: live.overlayOpen,
           recordingShortcut: isShortcutRecordingActive(),
-          blockedSurface: isComposerRedirectBlocked(target),
+          blockedSurface:
+            isComposerRedirectBlocked(target) ||
+            composerOwnsFocus(editor, document.activeElement),
           sidebarNavOwnsKey:
             sidebarOwns && isSidebarSessionNavKey(e.key),
           spaceActivatesControl:
