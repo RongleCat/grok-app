@@ -242,9 +242,14 @@
     height: 44px;
   }
 
-  .app-shell--phone .tree-l1__head--toggle {
-    width: 44px;
-    min-width: 44px;
+  .app-shell--phone .tree-l1 {
+    --tree-l1-gutter: 44px;
+  }
+
+  .app-shell--phone .tree-l1__head--toggle,
+  .app-shell--phone .tree-l1__chevron {
+    width: var(--tree-l1-gutter, 44px);
+    min-width: var(--tree-l1-gutter, 44px);
   }
 
   .app-shell--phone .space-switcher__btn {

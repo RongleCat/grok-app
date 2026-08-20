@@ -1,7 +1,7 @@
 /* domain CSS chunk (move-only split; selectors unchanged) */
 
 html[data-sidebar-density="compact"] .tree-l3-list-wrap {
-  padding: 1px 0 4px 12px;
+  padding: 1px 0 4px;
   gap: 0;
 }
 

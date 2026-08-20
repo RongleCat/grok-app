@@ -19802,11 +19802,13 @@ export function AppWorkbench() {
                 aria-expanded={historyOpen}
                 onClick={() => setHistoryOpen((v) => !v)}
               >
-                {historyOpen ? (
-                  <IconChevronDown size={14} />
-                ) : (
-                  <IconChevronRight size={14} />
-                )}
+                <span className="tree-l1__chevron" aria-hidden>
+                  {historyOpen ? (
+                    <IconChevronDown size={14} />
+                  ) : (
+                    <IconChevronRight size={14} />
+                  )}
+                </span>
                 <span className="tree-l1__label">
                   {tr("sidebar.otherSessions")}
                 </span>

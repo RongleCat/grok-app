@@ -228,3 +228,32 @@ describe("Other sessions tree wrap", () => {
     expect(part2).not.toMatch(/\.tree-date-group--orphan/);
   });
 });
+
+describe("sidebar tree text columns", () => {
+  const part1 = readFileSync(
+    resolve(__dirname, "../styles/sidebar.part1.css"),
+    "utf8",
+  );
+  const part2 = readFileSync(
+    resolve(__dirname, "../styles/sidebar.part2.css"),
+    "utf8",
+  );
+  const src = readFileSync(
+    resolve(__dirname, "../app/AppWorkbench.tsx"),
+    "utf8",
+  );
+
+  it("defines one L1 gutter and one text inset for L2 name + L3 title", () => {
+    expect(part1).toMatch(/--tree-l1-gutter:\s*20px/);
+    expect(part1).toMatch(/--tree-text-inset:\s*calc\(/);
+    expect(part1).toMatch(
+      /\.tree-l1__head--toggle,\s*\.tree-l1__chevron\s*\{[^}]*var\(--tree-l1-gutter/,
+    );
+    expect(part1).toMatch(/\.tree-l2\s*\{[^}]*var\(--tree-l2-pad/);
+    expect(part2).toMatch(/\.tree-l3\s*\{[^}]*var\(--tree-text-inset/);
+  });
+
+  it("wraps the Other chevron in the shared L1 gutter", () => {
+    expect(src).toMatch(/className="tree-l1__chevron"/);
+  });
+});

@@ -751,6 +751,14 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   flex-direction: column;
   gap: 2px;
   padding: 4px 10px 10px;
+  /* L1 chevron column; L2 name + L3 title share --tree-text-inset. */
+  --tree-l1-gutter: 20px;
+  --tree-l2-pad: 4px;
+  --tree-l2-icon: 16px;
+  --tree-l2-gap: 6px;
+  --tree-text-inset: calc(
+    var(--tree-l2-pad) + var(--tree-l2-icon) + var(--tree-l2-gap)
+  );
 }
 
 /*
@@ -793,7 +801,7 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 .tree-l1 {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   margin-top: 8px;
   margin-bottom: 4px;
   min-height: 28px;
@@ -803,11 +811,11 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 .tree-l1__head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0;
   flex: 1;
   min-width: 0;
   height: 28px;
-  padding: 0 8px;
+  padding: 0 8px 0 0;
   border-radius: var(--radius-md);
   color: var(--text-tertiary);
   font-size: 11px;
@@ -821,11 +829,14 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   color: var(--text-secondary);
 }
 
-.tree-l1__head--toggle {
+.tree-l1__head--toggle,
+.tree-l1__chevron {
   flex: 0 0 auto;
-  width: 28px;
-  min-width: 28px;
+  width: var(--tree-l1-gutter, 20px);
+  min-width: var(--tree-l1-gutter, 20px);
   padding: 0;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
 }
 
@@ -847,7 +858,7 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   min-width: 0;
   max-width: 100%;
   height: 28px;
-  padding: 0 6px 0 2px;
+  padding: 0 6px 0 0;
   border-radius: var(--radius-md);
   color: var(--text-tertiary);
   font-size: 11px;
@@ -1015,13 +1026,13 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 .tree-l2 {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--tree-l2-gap, 6px);
   width: 100%;
   height: 32px;
   min-height: 32px;
   max-height: 32px;
   box-sizing: border-box;
-  padding: 0 6px 0 8px;
+  padding: 0 6px 0 var(--tree-l2-pad, 4px);
   border-radius: 8px;
   color: var(--text-secondary);
   font-size: 13px;
@@ -1171,7 +1182,7 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
+  width: var(--tree-l2-icon, 16px);
   opacity: 0.9;
   flex-shrink: 0;
 }

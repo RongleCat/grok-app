@@ -157,7 +157,7 @@
 
 /* Outer wrap keeps trust hint / empty state outside the windowed list. */
 .tree-l3-list-wrap {
-  padding: 2px 0 6px 12px;
+  padding: 2px 0 6px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -202,7 +202,7 @@
   align-items: center;
   height: 22px;
   min-height: 22px;
-  padding: 0 6px 0 12px;
+  padding: 0 6px 0 var(--tree-text-inset, 26px);
   margin: 0;
   box-sizing: border-box;
   font-size: 11px;
@@ -239,7 +239,7 @@ html[data-sidebar-density="compact"] .tree-date-group__head {
   min-height: 30px;
   max-height: 30px;
   box-sizing: border-box;
-  padding: 0 6px 0 12px;
+  padding: 0 6px 0 var(--tree-text-inset, 26px);
   border-radius: 8px;
   color: var(--text-secondary);
   font-size: 13px;
