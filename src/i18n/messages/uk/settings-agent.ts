@@ -332,7 +332,7 @@ export const ukSettingsAgent = {
   "settings.agentsPersonas.setPreferred": "Зробити бажаним",
   "settings.agentsPersonas.preferredBadge": "Бажаний",
   "settings.agentsPersonas.preferredDefault": "Бажаний агент: за замовчуванням (CLI) — породження пропускає `--agent`. Живі агенти м'яко відроджуються при зміні; неактивний, очікує наступного підключення.",
-  "settings.agentsPersonas.preferredCurrent": "Бажаний агент: {name} · {source} — запуск `--agent ` (м’який перезапуск, коли живе).",
+  "settings.agentsPersonas.preferredCurrent": "Бажаний агент: {name} · {source} — запуск `--agent {name}` (м’який перезапуск, коли живе).",
   "settings.agentsPersonas.preferredMissing": "Бажаного агента «{name}» немає в каталозі",
   "settings.agentsPersonas.preferredMissingHint": "Можливо, його було перейменовано або видалено. Виберіть іншого агента або за замовчуванням (CLI). М'яка помилка: spawn все ще передає збережену назву, доки ви її не зміните (CLI може бути помилкою).",
   "settings.workflows.authorHint": "Створіть повні конвеєри за допомогою навику create-workflow (/create-workflow) або відредагуйте файл.rhai. Ця панель створює лише короткий шаблон і може димити/запускатися за назвою — не візуальний редактор.",

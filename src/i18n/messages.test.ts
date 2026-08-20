@@ -134,6 +134,35 @@ describe("i18n catalog", () => {
     ).toEqual([]);
   });
 
+  it("every locale keeps the placeholders its en string declares", () => {
+    // `t()` substitutes by name, so a translation that drops `{name}` renders
+    // without the value and one that renames it renders the literal braces.
+    // Neither is a missing key, so nothing else catches it: `prHub.author`
+    // read "作成者" with no author, and the Ukrainian
+    // `--agent {name}` shipped as a command with no agent to copy.
+    const named = /\{[A-Za-z_][A-Za-z0-9_]*\}/g;
+    const placeholders = (s: string) =>
+      [...s.matchAll(named)]
+        .map((m) => m[0])
+        .sort()
+        .join(",");
+    const broken: string[] = [];
+    for (const loc of LOCALES) {
+      if (loc === "en") continue;
+      for (const [k, v] of Object.entries(messages.en)) {
+        const want = placeholders(v);
+        const got = placeholders(messages[loc][k as MessageKey]);
+        if (want !== got) {
+          broken.push(`${loc}.${k}: en has [${want}], ${loc} has [${got}]`);
+        }
+      }
+    }
+    expect(
+      broken,
+      `${broken.length} placeholder mismatches: ${broken.join("; ")}`,
+    ).toEqual([]);
+  });
+
   it("translates the always-visible chrome in every locale", () => {
     // These render on first paint in every session, so a locale that still
     // falls back to English here is not usable as a UI language.

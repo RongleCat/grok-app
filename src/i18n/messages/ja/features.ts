@@ -442,7 +442,7 @@ export const jaFeatures = {
   "prHub.mergeable": "マージ可能",
   "prHub.conflicting": "競合",
   "prHub.mergeableUnknown": "不明",
-  "prHub.author": "作成者",
+  "prHub.author": "作成者 {name}",
   "prHub.untitled": "（タイトルなし）",
   "prHub.expandDetails": "チェックとコメントを表示",
   "prHub.collapseDetails": "チェックとコメントを隠す",
