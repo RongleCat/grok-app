@@ -82,3 +82,20 @@ export function shouldSteerOnKeydown(e: ComposerSendKeyEvent): boolean {
   if (e.shiftKey || e.altKey) return false;
   return e.ctrlKey || e.metaKey;
 }
+
+export type ComposerSubmitAction = "steer" | "send" | "none";
+
+/**
+ * What composer Enter should do. Steer (CLI Ctrl+Enter) wins while a
+ * turn is live so a mod-enter send pref cannot queue instead.
+ */
+export function resolveComposerSubmitAction(opts: {
+  event: ComposerSendKeyEvent;
+  sendPref: ComposerSendKeyPref;
+  /** Live turn that can accept `sessionInterject` (not a permission gate). */
+  canSteer: boolean;
+}): ComposerSubmitAction {
+  if (shouldSteerOnKeydown(opts.event) && opts.canSteer) return "steer";
+  if (shouldSendOnKeydown(opts.event, opts.sendPref)) return "send";
+  return "none";
+}

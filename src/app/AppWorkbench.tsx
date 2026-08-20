@@ -693,8 +693,7 @@ import {
 import {
   COMPOSER_SEND_KEY_CHANGED_EVENT,
   loadComposerSendKeyPref,
-  shouldSendOnKeydown,
-  shouldSteerOnKeydown,
+  resolveComposerSubmitAction,
   type ComposerSendKeyPref
 } from "@/lib/composerSendKey";
 import {
@@ -18054,7 +18053,12 @@ export function AppWorkbench() {
         setAtActiveIndex((i) => (i - 1 + n) % n);
         return;
       }
-      if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey) {
+      if (
+        (e.key === "Enter" || e.key === "Tab") &&
+        !e.shiftKey &&
+        !e.ctrlKey &&
+        !e.metaKey
+      ) {
         e.preventDefault();
         if (!n) return;
         const entry =
@@ -18086,7 +18090,7 @@ export function AppWorkbench() {
         setSlashActiveIndex((i) => (i - 1 + n) % n);
         return;
       }
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         const entry =
           flat[
@@ -18129,7 +18133,10 @@ export function AppWorkbench() {
         closePromptHistory();
         return;
       }
-      if (e.key === "Enter" || e.key === "Tab") {
+      if (
+        (e.key === "Enter" && !e.ctrlKey && !e.metaKey) ||
+        e.key === "Tab"
+      ) {
         const entry = promptHistoryEntries[promptHistoryActive];
         if (entry) {
           e.preventDefault();
@@ -18218,17 +18225,18 @@ export function AppWorkbench() {
         return;
       }
     }
-    if (shouldSteerOnKeydown(e)) {
-      if (
-        canGuideQueuedMessage &&
-        session.state !== "awaiting_permission"
-      ) {
-        e.preventDefault();
-        void steerFromComposer();
-        return;
-      }
+    const submit = resolveComposerSubmitAction({
+      event: e,
+      sendPref: composerSendKeyPref,
+      canSteer:
+        canGuideQueuedMessage && session.state !== "awaiting_permission",
+    });
+    if (submit === "steer") {
+      e.preventDefault();
+      void steerFromComposer();
+      return;
     }
-    if (shouldSendOnKeydown(e, composerSendKeyPref)) {
+    if (submit === "send") {
       e.preventDefault();
       const draftNow = getDraft();
       const hasBody =

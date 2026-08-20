@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   loadComposerSendKeyPref,
+  resolveComposerSubmitAction,
   saveComposerSendKeyPref,
   shouldSendOnKeydown,
   shouldSteerOnKeydown,
@@ -126,5 +127,47 @@ describe("shouldSteerOnKeydown — Grok Build CLI Ctrl+Enter", () => {
 
   it("ignores non-Enter keys", () => {
     expect(shouldSteerOnKeydown(key({ key: "i", ctrlKey: true }))).toBe(false);
+  });
+});
+
+describe("resolveComposerSubmitAction", () => {
+  it("idle + default Enter pref: Ctrl+Enter does nothing (CLI chord is mid-turn only)", () => {
+    expect(
+      resolveComposerSubmitAction({
+        event: key({ ctrlKey: true }),
+        sendPref: "enter",
+        canSteer: false,
+      }),
+    ).toBe("none");
+  });
+
+  it("live turn: Ctrl+Enter steers even if send pref is mod-enter", () => {
+    expect(
+      resolveComposerSubmitAction({
+        event: key({ ctrlKey: true }),
+        sendPref: "mod-enter",
+        canSteer: true,
+      }),
+    ).toBe("steer");
+  });
+
+  it("permission / not live: Ctrl+Enter does not steer", () => {
+    expect(
+      resolveComposerSubmitAction({
+        event: key({ ctrlKey: true }),
+        sendPref: "mod-enter",
+        canSteer: false,
+      }),
+    ).toBe("send");
+  });
+
+  it("plain Enter still sends when pref is enter", () => {
+    expect(
+      resolveComposerSubmitAction({
+        event: key(),
+        sendPref: "enter",
+        canSteer: true,
+      }),
+    ).toBe("send");
   });
 });

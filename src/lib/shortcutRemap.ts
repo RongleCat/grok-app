@@ -509,7 +509,8 @@ export function findChordConflicts(
  * If `candidateChord` is already used by another shortcut id in `effectiveMap`,
  * return that id; otherwise null.
  *
- * Skips {@link CHORD_CONFLICT_IGNORE_IDS} (display-only / composer-owned rows).
+ * Skips {@link CHORD_CONFLICT_IGNORE_IDS} (display-only / composer-owned
+ * rows: send, steer, sidebarSessionNav, closeSideTab).
  * With {@link ChordConflictOpts.ignoreCrossScope}, skips other ids whose scope
  * differs from the candidate's (requires `scopeOf`).
  */
