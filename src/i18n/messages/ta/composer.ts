@@ -51,6 +51,7 @@ export const taComposer = {
   "attach.err.cancelled": "இணைப்பு ரத்து செய்யப்பட்டது.",
   "attach.err.openFailed": "இந்தக் கோப்பைத் திறக்க முடியவில்லை.",
   "attach.err.previewFailed": "இணைப்பு மாதிரிக்காட்சியை ஏற்ற முடியவில்லை.",
+  "attach.err.unreadable": "ஒட்டிய கோப்பை படிக்க முடியவில்லை. அரட்டைக்கு இழுக்கவும் அல்லது + → Files மூலம் இணைக்கவும்.",
   "attach.preview.broken": "முன்னோட்டம் கிடைக்கவில்லை - கோப்பு காணாமல் போயிருக்கலாம் அல்லது படிக்கமுடியாமல் இருக்கலாம்.",
   "attach.preview.missing": "கோப்பு வட்டில் காணப்படவில்லை.",
   "attach.preview.pending": "முன்னோட்டத்தை ஏற்றுகிறது…",

@@ -119,6 +119,69 @@ pub async fn clipboard_paste_image() -> Result<Option<PathEntry>, String> {
         .map_err(|e| format!("clipboard task: {e}"))?
 }
 
+/// Absolute paths from the OS clipboard file list (Explorer / Finder copy).
+/// Empty when the clipboard has no files (screenshots, text). Never errors
+/// on a missing format — paste of images must keep working.
+#[tauri::command]
+pub async fn clipboard_file_paths() -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(clipboard_file_paths_sync)
+        .await
+        .map_err(|e| format!("clipboard task: {e}"))
+}
+
+fn clipboard_file_paths_sync() -> Vec<String> {
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for raw in clipboard_file_paths_os() {
+        let n = normalize_fs_path(&raw);
+        if n.is_empty() || !seen.insert(n.clone()) {
+            continue;
+        }
+        out.push(n);
+    }
+    out
+}
+
+fn clipboard_file_paths_os() -> Vec<String> {
+    #[cfg(windows)]
+    {
+        use clipboard_win::{formats, get_clipboard};
+        if let Ok(list) = get_clipboard(formats::FileList) {
+            if !list.is_empty() {
+                return list;
+            }
+        }
+    }
+    let text = match arboard::Clipboard::new() {
+        Ok(mut cb) => cb.get_text().unwrap_or_default(),
+        Err(_) => String::new(),
+    };
+    parse_clipboard_file_list_text(&text)
+}
+
+/// text/uri-list, GNOME copied-files, or one absolute path per line.
+fn parse_clipboard_file_list_text(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if line.eq_ignore_ascii_case("copy") || line.eq_ignore_ascii_case("cut") {
+            continue;
+        }
+        if line.starts_with("file://")
+            || line.starts_with('/')
+            || (line.len() >= 3
+                && line.as_bytes()[1] == b':'
+                && (line.as_bytes()[2] == b'\\' || line.as_bytes()[2] == b'/'))
+        {
+            out.push(line.to_string());
+        }
+    }
+    out
+}
+
 /// Write a PNG (base64, no data: prefix) to the OS clipboard as an image.
 /// WebView `navigator.clipboard.write(image/png)` is unreliable in Tauri.
 #[tauri::command]
@@ -296,6 +359,15 @@ mod clipboard_paste_tests {
     #[test]
     fn rgba_rejects_short_buffer() {
         assert!(rgba_to_png_bytes(2, 2, &[0u8; 4]).is_err());
+    }
+
+    #[test]
+    fn parse_uri_list_and_windows_path() {
+        let text = "copy\n# comment\nfile:///C:/dumps/crash.dmp\nC:\\temp\\a.dmp\nnot-a-path";
+        let got = super::parse_clipboard_file_list_text(text);
+        assert!(got.iter().any(|p| p.contains("crash.dmp")), "{got:?}");
+        assert!(got.iter().any(|p| p.contains("a.dmp")), "{got:?}");
+        assert!(!got.iter().any(|p| p == "not-a-path"));
     }
 }
 

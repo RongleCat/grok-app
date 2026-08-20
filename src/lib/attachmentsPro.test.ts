@@ -64,6 +64,18 @@ describe("classifyAttachError", () => {
     expect(classifyAttachError("something weird happened")).toBe("other");
     expect(classifyAttachError(null)).toBe("other");
   });
+
+  it("classifies WebView NotReadableError as unreadable", () => {
+    expect(
+      classifyAttachError(
+        "The requested file could not be read, typically due to permission problems that have occurred after a reference to a file was acquired. NotReadableError",
+      ),
+    ).toBe("unreadable");
+    expect(classifyAttachError({ code: "unreadable" })).toBe("unreadable");
+    expect(attachErrorMessageKey("unreadable", "paste")).toBe(
+      "attach.err.unreadable",
+    );
+  });
 });
 
 describe("attachErrorMessageKey / silent", () => {

@@ -51,6 +51,7 @@ export const filComposer = {
   "attach.err.cancelled": "Nakansela ang attachment.",
   "attach.err.openFailed": "Hindi mabuksan ang file na ito.",
   "attach.err.previewFailed": "Hindi ma-load ang preview ng attachment.",
+  "attach.err.unreadable": "Hindi mabasa ang na-paste na file. I-drag ito sa chat o i-attach gamit ang + → Files.",
   "attach.preview.broken": "Hindi available ang preview — maaaring nawawala o hindi mabasa ang file.",
   "attach.preview.missing": "Hindi nahanap ang file sa disk.",
   "attach.preview.pending": "Nilo-load ang preview…",

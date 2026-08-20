@@ -88,6 +88,7 @@ tauri-plugin-notification = "2"
 # `tauri-winrt-notification` — toast click (`on_activated`); the notification
 # plugin's desktop path is fire-and-forget and drops `extra`.
 [target.'cfg(windows)'.dependencies]
+clipboard-win = "5"
 winreg = "0.55"
 windows = { version = "0.61", features = [
     "Win32_Foundation",

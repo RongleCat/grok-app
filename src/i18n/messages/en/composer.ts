@@ -51,6 +51,7 @@ export const enComposer = {
   "attach.err.cancelled": "Attachment cancelled.",
   "attach.err.openFailed": "Could not open this file.",
   "attach.err.previewFailed": "Could not load the attachment preview.",
+  "attach.err.unreadable": "Could not read the pasted file. Drag it into the chat or attach it with + → Files.",
   "attach.preview.broken": "Preview unavailable — file may be missing or unreadable.",
   "attach.preview.missing": "File not found on disk.",
   "attach.preview.pending": "Loading preview…",

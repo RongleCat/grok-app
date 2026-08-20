@@ -55,6 +55,20 @@ export async function clipboardPasteImage() {
   return invoke<PathEntry | null>("clipboard_paste_image");
 }
 
+/**
+ * Absolute paths from the OS clipboard file list (Explorer / Finder copy).
+ * Empty when the clipboard has no files (screenshots, text).
+ */
+export async function clipboardFilePaths() {
+  if (!isTauri()) return [];
+  try {
+    const paths = await invoke<string[]>("clipboard_file_paths");
+    return Array.isArray(paths) ? paths.filter((p) => !!p?.trim()) : [];
+  } catch {
+    return [];
+  }
+}
+
 export interface PathEntry {
   path: string;
   name: string;

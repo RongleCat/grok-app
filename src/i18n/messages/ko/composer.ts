@@ -51,6 +51,7 @@ export const koComposer = {
   "attach.err.cancelled": "첨부가 취소되었습니다.",
   "attach.err.openFailed": "이 파일을 열지 못했습니다.",
   "attach.err.previewFailed": "첨부 미리보기를 불러오지 못했습니다.",
+  "attach.err.unreadable": "붙여넣은 파일을 읽을 수 없습니다. 채팅으로 끌어오거나 + → 파일로 첨부하세요.",
   "attach.preview.broken": "미리보기를 사용할 수 없습니다 — 파일이 없거나 읽을 수 없을 수 있습니다.",
   "attach.preview.missing": "디스크에서 파일을 찾을 수 없습니다.",
   "attach.preview.pending": "미리보기 불러오는 중…",

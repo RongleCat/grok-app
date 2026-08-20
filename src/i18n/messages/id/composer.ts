@@ -51,6 +51,7 @@ export const idComposer = {
   "attach.err.cancelled": "Lampiran dibatalkan.",
   "attach.err.openFailed": "Berkas ini tidak dapat dibuka.",
   "attach.err.previewFailed": "Pratinjau lampiran tidak dapat dimuat.",
+  "attach.err.unreadable": "Tidak bisa membaca file yang ditempel. Seret ke chat atau lampirkan lewat + → File.",
   "attach.preview.broken": "Pratinjau tidak tersedia — berkas mungkin hilang atau tidak dapat dibaca.",
   "attach.preview.missing": "Berkas tidak ditemukan di disk.",
   "attach.preview.pending": "Memuat pratinjau…",

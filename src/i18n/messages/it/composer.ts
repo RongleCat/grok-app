@@ -51,6 +51,7 @@ export const itComposer = {
   "attach.err.cancelled": "Allegato annullato.",
   "attach.err.openFailed": "Impossibile aprire questo file.",
   "attach.err.previewFailed": "Impossibile caricare l’anteprima dell’allegato.",
+  "attach.err.unreadable": "Impossibile leggere il file incollato. Trascinalo nella chat o allegalo con + → File.",
   "attach.preview.broken": "Anteprima non disponibile — il file potrebbe mancare o essere illeggibile.",
   "attach.preview.missing": "File non trovato sul disco.",
   "attach.preview.pending": "Caricamento anteprima…",

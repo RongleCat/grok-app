@@ -51,6 +51,7 @@ export const ptBRComposer = {
   "attach.err.cancelled": "Anexo cancelado.",
   "attach.err.openFailed": "Não foi possível abrir este arquivo.",
   "attach.err.previewFailed": "Não foi possível carregar a pré-visualização do anexo.",
+  "attach.err.unreadable": "Não foi possível ler o arquivo colado. Arraste-o para o chat ou anexe com + → Arquivos.",
   "attach.preview.broken": "Pré-visualização indisponível — o arquivo pode estar ausente ou ilegível.",
   "attach.preview.missing": "Arquivo não encontrado no disco.",
   "attach.preview.pending": "Carregando pré-visualização…",

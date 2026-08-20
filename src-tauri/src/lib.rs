@@ -1216,6 +1216,9 @@ pub fn run() {
             commands::save_temp_attachment,
 
             commands::clipboard_paste_image,
+
+            commands::clipboard_file_paths,
+
             commands::clipboard_write_image_path,
 
             commands::clipboard_write_image,

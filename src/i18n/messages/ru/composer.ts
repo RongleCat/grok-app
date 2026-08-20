@@ -51,6 +51,7 @@ export const ruComposer = {
   "attach.err.cancelled": "Вложение отменено.",
   "attach.err.openFailed": "Не удалось открыть этот файл.",
   "attach.err.previewFailed": "Не удалось загрузить предпросмотр вложения.",
+  "attach.err.unreadable": "Не удалось прочитать вставленный файл. Перетащите его в чат или добавьте через + → Файлы.",
   "attach.preview.broken": "Предпросмотр недоступен — файл может отсутствовать или быть нечитаемым.",
   "attach.preview.missing": "Файл не найден на диске.",
   "attach.preview.pending": "Загрузка предпросмотра…",

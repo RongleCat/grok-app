@@ -23,6 +23,7 @@ import {
 import { skillChipGlyphSvg } from "@/components/SkillChip";
 import {
   clipboardLooksLikeMedia,
+  clipboardLooksLikeOsFiles,
   clipboardPlainText,
   collectFilesFromDataTransfer,
   isFileUrlOnlyText,
@@ -1268,9 +1269,9 @@ export const ComposerEditor = memo(function ComposerEditor({
     const files = collectFilesFromDataTransfer(cd);
     const plain = clipboardPlainText(cd);
 
-    if (files.length && onPasteFiles) {
-      // Sync path: event already has File(s). Do not also run async/native
-      // fallbacks — that was a common source of duplicate attachments.
+    if ((files.length || clipboardLooksLikeOsFiles(cd)) && onPasteFiles) {
+      // Explorer/Finder copy: File blobs are often unreadable (NotReadableError
+      // on .dmp). Parent should prefer native clipboard paths over arrayBuffer.
       onPasteFiles(files);
     } else if (onPasteFiles && clipboardLooksLikeMedia(cd)) {
       // Screenshot paste: event often has image/* types but no File objects.

@@ -51,6 +51,7 @@ export const deComposer = {
   "attach.err.cancelled": "Anhang abgebrochen.",
   "attach.err.openFailed": "Diese Datei konnte nicht geöffnet werden.",
   "attach.err.previewFailed": "Anhangsvorschau konnte nicht geladen werden.",
+  "attach.err.unreadable": "Die eingefügte Datei konnte nicht gelesen werden. Ziehen Sie sie in den Chat oder fügen Sie sie über + → Dateien hinzu.",
   "attach.preview.broken": "Keine Vorschau — Datei fehlt oder ist unlesbar.",
   "attach.preview.missing": "Datei nicht auf der Festplatte gefunden.",
   "attach.preview.pending": "Vorschau wird geladen…",

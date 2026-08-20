@@ -51,6 +51,7 @@ export const zhComposer = {
   "attach.err.cancelled": "已取消附加。",
   "attach.err.openFailed": "无法打开该文件。",
   "attach.err.previewFailed": "无法加载附件预览。",
+  "attach.err.unreadable": "无法读取粘贴的文件。请拖入对话，或用 + → 文件 添加。",
   "attach.preview.broken": "预览不可用 — 文件可能缺失或无法读取。",
   "attach.preview.missing": "磁盘上未找到该文件。",
   "attach.preview.pending": "正在加载预览…",

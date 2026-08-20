@@ -4,8 +4,9 @@
  * Tauri / WKWebView often omits File objects from the paste event for
  * screenshots (only `image/png` types, or nothing usable). Callers should:
  * 1. collectFilesFromDataTransfer(clipboardData)
- * 2. if empty + clipboardLooksLikeMedia → readClipboardMediaFiles()
- * 3. if still empty → native Host clipboard (arboard)
+ * 2. if OS file-list paste (Explorer/Finder) → native Host file paths
+ * 3. if empty + clipboardLooksLikeMedia → readClipboardMediaFiles()
+ * 4. if still empty → native Host clipboard image (arboard)
  *
  * Always dedupe before attach: WebViews often expose the same blob via both
  * `data.files` and `data.items`, or multiple image/* MIME flavors.
@@ -43,6 +44,53 @@ export function collectFilesFromDataTransfer(
   }
 
   return Array.from(fileMap.values());
+}
+
+/** Absolute path on Tauri/WebView File objects when the host filled it in. */
+export function fileNativePath(f: File): string {
+  const p = (f as File & { path?: string }).path;
+  return typeof p === "string" ? p.trim() : "";
+}
+
+/**
+ * Explorer / Finder file copy. Distinct from a screenshot (`image/png` types
+ * with no `Files` list): WebView File blobs from CF_HDROP are often
+ * unreadable (`NotReadableError`), so the Host must use native paths.
+ */
+export function clipboardLooksLikeOsFiles(
+  data: DataTransfer | null | undefined,
+): boolean {
+  if (!data) return false;
+  const types = Array.from(data.types ?? []);
+  if (types.some((t) => t === "Files" || t === "text/uri-list")) return true;
+  if (data.files && data.files.length > 0) return true;
+  const items = data.items;
+  if (items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item) continue;
+      if (item.kind === "file" && !item.type.startsWith("image/")) return true;
+    }
+  }
+  return false;
+}
+
+/** Chromium/WebView2 cannot read the pasted File blob (locked / sandboxed). */
+export function isNotReadableBlobError(err: unknown): boolean {
+  const name =
+    err && typeof err === "object" && "name" in err
+      ? String((err as { name?: unknown }).name)
+      : "";
+  if (name === "NotReadableError") return true;
+  const msg =
+    err instanceof Error
+      ? `${err.name} ${err.message}`
+      : err == null
+        ? ""
+        : String(err);
+  return /notreadableerror|could not be read, typically due to permission/i.test(
+    msg,
+  );
 }
 
 /**

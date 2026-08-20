@@ -51,6 +51,7 @@ export const frComposer = {
   "attach.err.cancelled": "Pièce jointe annulée.",
   "attach.err.openFailed": "Impossible d’ouvrir ce fichier.",
   "attach.err.previewFailed": "Impossible de charger l’aperçu de la pièce jointe.",
+  "attach.err.unreadable": "Impossible de lire le fichier collé. Déposez-le dans le chat ou joignez-le via + → Fichiers.",
   "attach.preview.broken": "Aperçu indisponible — le fichier est peut-être manquant ou illisible.",
   "attach.preview.missing": "Fichier introuvable sur le disque.",
   "attach.preview.pending": "Chargement de l’aperçu…",

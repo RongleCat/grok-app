@@ -51,6 +51,7 @@ export const jaComposer = {
   "attach.err.cancelled": "添付をキャンセルしました。",
   "attach.err.openFailed": "このファイルを開けませんでした。",
   "attach.err.previewFailed": "添付のプレビューを読み込めませんでした。",
+  "attach.err.unreadable": "貼り付けたファイルを読めませんでした。チャットにドラッグするか、+ → ファイルで追加してください。",
   "attach.preview.broken": "プレビュー不可 — ファイルがないか読めない可能性があります。",
   "attach.preview.missing": "ディスク上にファイルが見つかりません。",
   "attach.preview.pending": "プレビューを読み込み中…",

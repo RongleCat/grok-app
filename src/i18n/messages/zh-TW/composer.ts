@@ -84,6 +84,7 @@ export const zhTWComposer = {
   "attach.err.cancelled": "已取消附加。",
   "attach.err.openFailed": "無法開啟該檔案。",
   "attach.err.previewFailed": "無法載入附件預覽。",
+  "attach.err.unreadable": "無法讀取貼上的檔案。請拖入對話，或用 + → 檔案 新增。",
   "attach.preview.broken": "預覽不可用 — 檔案可能缺失或無法讀取。",
   "attach.preview.missing": "磁碟上未找到該檔案。",
   "attach.preview.pending": "正在載入預覽…",

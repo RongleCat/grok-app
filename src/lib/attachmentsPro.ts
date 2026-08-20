@@ -26,6 +26,7 @@ export type AttachErrorKind =
   | "unsupported"
   | "open_failed"
   | "preview_failed"
+  | "unreadable"
   | "other";
 
 /** Where the failure was observed (affects default copy slightly). */
@@ -115,6 +116,9 @@ export function classifyAttachError(err: unknown): AttachErrorKind {
   if (code === "open_failed" || code === "open-failed") return "open_failed";
   if (code === "preview_failed" || code === "preview-failed") {
     return "preview_failed";
+  }
+  if (code === "unreadable" || code === "not_readable" || code === "notreadableerror") {
+    return "unreadable";
   }
 
   const s = errText(err).toLowerCase();
@@ -245,6 +249,15 @@ export function classifyAttachError(err: unknown): AttachErrorKind {
     return "preview_failed";
   }
 
+  // WebView2 / Chromium: Explorer-copied files (esp. .dmp) fail File.arrayBuffer().
+  if (
+    s.includes("notreadableerror") ||
+    s.includes("could not be read, typically due to permission") ||
+    s.includes("not readable")
+  ) {
+    return "unreadable";
+  }
+
   // Generic path classify / attach path failures
   if (
     s.includes("paths_classify") ||
@@ -293,6 +306,8 @@ export function attachErrorMessageKey(
       return "attach.err.openFailed";
     case "preview_failed":
       return "attach.err.previewFailed";
+    case "unreadable":
+      return "attach.err.unreadable";
     case "other":
     default:
       if (source === "paste" || source === "native_clipboard") {

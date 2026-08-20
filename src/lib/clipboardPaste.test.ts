@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   clipboardLooksLikeMedia,
+  clipboardLooksLikeOsFiles,
   clipboardPlainText,
   collectFilesFromDataTransfer,
   fileKey,
+  fileNativePath,
   isFileUrlOnlyText,
+  isNotReadableBlobError,
   readClipboardMediaFiles,
 } from "./clipboardPaste";
 
@@ -122,6 +125,40 @@ describe("fileKey", () => {
     const a = fakeFile("image.png", "image/png", 40, 1);
     const b = fakeFile("paste.png", "image/png", 40, 2);
     expect(fileKey(a)).toBe(fileKey(b));
+  });
+});
+
+describe("clipboardLooksLikeOsFiles / fileNativePath / isNotReadableBlobError", () => {
+  it("detects Explorer Files list without readable blobs", () => {
+    const data = {
+      files: { length: 0, item: () => null } as unknown as FileList,
+      items: [{ kind: "file", type: "", getAsFile: () => null }],
+      types: ["Files"],
+      getData: () => "",
+    } as unknown as DataTransfer;
+    expect(clipboardLooksLikeOsFiles(data)).toBe(true);
+    expect(clipboardLooksLikeOsFiles({
+      files: { length: 0, item: () => null } as unknown as FileList,
+      items: [],
+      types: ["image/png"],
+      getData: () => "",
+    } as unknown as DataTransfer)).toBe(false);
+  });
+
+  it("reads Tauri File.path when present", () => {
+    const f = Object.assign(fakeFile("crash.dmp", ""), {
+      path: "C:\\\\dumps\\\\crash.dmp",
+    });
+    expect(fileNativePath(f)).toBe("C:\\\\dumps\\\\crash.dmp");
+    expect(fileNativePath(fakeFile("crash.dmp", ""))).toBe("");
+  });
+
+  it("classifies Chromium NotReadableError", () => {
+    const err = Object.assign(new Error(
+      "The requested file could not be read, typically due to permission problems that have occurred after a reference to a file was acquired.",
+    ), { name: "NotReadableError" });
+    expect(isNotReadableBlobError(err)).toBe(true);
+    expect(isNotReadableBlobError(new Error("disk full"))).toBe(false);
   });
 });
 

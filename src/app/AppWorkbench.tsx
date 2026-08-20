@@ -9148,6 +9148,14 @@ export function AppWorkbench() {
         requestComposerFocus();
         return;
       }
+      // 1b. Explorer/Finder file list (native paths — do not arrayBuffer dumps).
+      if (api.isTauri()) {
+        const native = await api.clipboardFilePaths();
+        if (native.length) {
+          await addAttachmentsFromPaths(native);
+          return;
+        }
+      }
       // 2. Image via the async Clipboard API (Chromium / some WKWebView).
       const files = await readClipboardMediaFiles();
       if (files.length) {
@@ -18073,9 +18081,26 @@ export function AppWorkbench() {
 
   const onComposerPasteFiles = useCallback(
     (files: File[]) => {
-      void addAttachmentsFromFiles(files);
+      void (async () => {
+        // Explorer copy already has an on-disk path (CF_HDROP). Reading the
+        // WebView File via arrayBuffer() throws NotReadableError for .dmp and
+        // other locked/large files — attach the original path instead.
+        if (api.isTauri()) {
+          const native = await api.clipboardFilePaths();
+          if (native.length) {
+            await addAttachmentsFromPaths(native);
+            setLocalError(null);
+            return;
+          }
+        }
+        if (files.length) {
+          await addAttachmentsFromFiles(files);
+          return;
+        }
+        reportAttachError({ code: "unreadable" }, "paste");
+      })();
     },
-    [addAttachmentsFromFiles],
+    [addAttachmentsFromFiles, addAttachmentsFromPaths, reportAttachError],
   );
 
   const onComposerPasteMediaFallback = useCallback(

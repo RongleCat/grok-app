@@ -51,6 +51,7 @@ export const ukComposer = {
   "attach.err.cancelled": "Вкладення скасовано.",
   "attach.err.openFailed": "Не вдалося відкрити цей файл.",
   "attach.err.previewFailed": "Не вдалося завантажити попередній перегляд вкладення.",
+  "attach.err.unreadable": "Не вдалося прочитати вставлений файл. Перетягніть його в чат або додайте через + → Файли.",
   "attach.preview.broken": "Попередній перегляд недоступний — файл може бути відсутній або нечитабельний.",
   "attach.preview.missing": "Файл не знайдено на диску.",
   "attach.preview.pending": "Завантаження попереднього перегляду…",

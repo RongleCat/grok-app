@@ -51,6 +51,7 @@ export const esComposer = {
   "attach.err.cancelled": "Adjunto cancelado.",
   "attach.err.openFailed": "No se pudo abrir este archivo.",
   "attach.err.previewFailed": "No se pudo cargar la vista previa del adjunto.",
+  "attach.err.unreadable": "No se pudo leer el archivo pegado. Arrástrelo al chat o adjúntelo con + → Archivos.",
   "attach.preview.broken": "Vista previa no disponible: el archivo puede faltar o ser ilegible.",
   "attach.preview.missing": "Archivo no encontrado en el disco.",
   "attach.preview.pending": "Cargando vista previa…",
