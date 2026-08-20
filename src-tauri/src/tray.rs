@@ -139,28 +139,27 @@ pub fn build_menu(app: &AppHandle) -> Result<Menu<Wry>, tauri::Error> {
     builder.build()
 }
 
-/// Format quota refresh ISO → local `MM-DD HH:mm` (same as in-app user menu).
-fn format_reset_mm_dd_hm(iso: &str) -> Option<String> {
+/// Format quota refresh ISO → local short date and clock, in `fmt`.
+///
+/// `fmt` comes from the active locale's `TrayStrings`, so this stays the same
+/// instant the in-app user menu shows, written the way that language writes it.
+fn format_reset_time(iso: &str, fmt: &str) -> Option<String> {
     let s = iso.trim();
     if s.is_empty() {
         return None;
     }
     // Prefer RFC3339 (what BillingSnapshot writes).
     if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
-        return Some(
-            dt.with_timezone(&chrono::Local)
-                .format("%m-%d %H:%M")
-                .to_string(),
-        );
+        return Some(dt.with_timezone(&chrono::Local).format(fmt).to_string());
     }
     // Fallback: UTC Z without offset, or naive local.
     if let Ok(ndt) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.fZ") {
         let dt = ndt.and_utc().with_timezone(&chrono::Local);
-        return Some(dt.format("%m-%d %H:%M").to_string());
+        return Some(dt.format(fmt).to_string());
     }
     if let Ok(ndt) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%SZ") {
         let dt = ndt.and_utc().with_timezone(&chrono::Local);
-        return Some(dt.format("%m-%d %H:%M").to_string());
+        return Some(dt.format(fmt).to_string());
     }
     None
 }
@@ -190,7 +189,7 @@ fn usage_status_label(tr: &TrayStrings) -> String {
                 .pointer("/resetsAt")
                 .or_else(|| v.pointer("/resets_at"))
                 .and_then(|x| x.as_str())
-                .and_then(format_reset_mm_dd_hm);
+                .and_then(|s| format_reset_time(s, tr.reset_time_fmt));
             if let Some(r) = rem {
                 return match reset.as_deref() {
                     Some(t) => tray_i18n::format_usage(tr.usage_with_reset, Some(r), Some(t)),

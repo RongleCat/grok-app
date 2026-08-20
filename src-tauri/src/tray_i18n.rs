@@ -318,6 +318,12 @@ pub struct TrayStrings {
     pub usage_pct: &'static str,
     /// `Usage  ·  —`
     pub usage_unknown: &'static str,
+    /// `chrono` format for the reset clock inside `usage_with_reset`.
+    ///
+    /// Day-first locales must not read a month-first date, and `%p` appears
+    /// only where chrono's English "AM"/"PM" is the local convention — it has
+    /// no localized form, so every other locale gets a 24-hour clock.
+    pub reset_time_fmt: &'static str,
 }
 
 const EN: TrayStrings = TrayStrings {
@@ -336,6 +342,7 @@ const EN: TrayStrings = TrayStrings {
     usage_with_reset: "Usage  ·  {pct}% left  ·  {time}",
     usage_pct: "Usage  ·  {pct}% left",
     usage_unknown: "Usage  ·  —",
+    reset_time_fmt: "%m/%d %I:%M %p",
 };
 
 const DE: TrayStrings = TrayStrings {
@@ -354,6 +361,7 @@ const DE: TrayStrings = TrayStrings {
     usage_with_reset: "Nutzung  ·  {pct}% übrig  ·  {time}",
     usage_pct: "Nutzung  ·  {pct}% übrig",
     usage_unknown: "Nutzung  ·  —",
+    reset_time_fmt: "%d.%m. %H:%M",
 };
 
 const ES: TrayStrings = TrayStrings {
@@ -372,6 +380,7 @@ const ES: TrayStrings = TrayStrings {
     usage_with_reset: "Uso  ·  {pct}% restante  ·  {time}",
     usage_pct: "Uso  ·  {pct}% restante",
     usage_unknown: "Uso  ·  —",
+    reset_time_fmt: "%d/%m %H:%M",
 };
 
 const FIL: TrayStrings = TrayStrings {
@@ -390,6 +399,7 @@ const FIL: TrayStrings = TrayStrings {
     usage_with_reset: "Paggamit  ·  {pct}% natitira  ·  {time}",
     usage_pct: "Paggamit  ·  {pct}% natitira",
     usage_unknown: "Paggamit  ·  —",
+    reset_time_fmt: "%m/%d %I:%M %p",
 };
 
 const FR: TrayStrings = TrayStrings {
@@ -408,6 +418,7 @@ const FR: TrayStrings = TrayStrings {
     usage_with_reset: "Usage  ·  {pct}% restants  ·  {time}",
     usage_pct: "Usage  ·  {pct}% restants",
     usage_unknown: "Usage  ·  —",
+    reset_time_fmt: "%d/%m %H:%M",
 };
 
 const ID: TrayStrings = TrayStrings {
@@ -426,6 +437,7 @@ const ID: TrayStrings = TrayStrings {
     usage_with_reset: "Pemakaian  ·  sisa {pct}%  ·  {time}",
     usage_pct: "Pemakaian  ·  sisa {pct}%",
     usage_unknown: "Pemakaian  ·  —",
+    reset_time_fmt: "%d/%m %H:%M",
 };
 
 const IT: TrayStrings = TrayStrings {
@@ -444,6 +456,7 @@ const IT: TrayStrings = TrayStrings {
     usage_with_reset: "Utilizzo  ·  {pct}% rimasto  ·  {time}",
     usage_pct: "Utilizzo  ·  {pct}% rimasto",
     usage_unknown: "Utilizzo  ·  —",
+    reset_time_fmt: "%d/%m %H:%M",
 };
 
 const JA: TrayStrings = TrayStrings {
@@ -462,6 +475,7 @@ const JA: TrayStrings = TrayStrings {
     usage_with_reset: "使用量  ·  残り {pct}%  ·  {time}",
     usage_pct: "使用量  ·  残り {pct}%",
     usage_unknown: "使用量  ·  —",
+    reset_time_fmt: "%m/%d %H:%M",
 };
 
 const KO: TrayStrings = TrayStrings {
@@ -480,6 +494,7 @@ const KO: TrayStrings = TrayStrings {
     usage_with_reset: "사용량  ·  {pct}% 남음  ·  {time}",
     usage_pct: "사용량  ·  {pct}% 남음",
     usage_unknown: "사용량  ·  —",
+    reset_time_fmt: "%m. %d. %H:%M",
 };
 
 const PT_BR: TrayStrings = TrayStrings {
@@ -498,6 +513,7 @@ const PT_BR: TrayStrings = TrayStrings {
     usage_with_reset: "Uso  ·  {pct}% restante  ·  {time}",
     usage_pct: "Uso  ·  {pct}% restante",
     usage_unknown: "Uso  ·  —",
+    reset_time_fmt: "%d/%m %H:%M",
 };
 
 const RU: TrayStrings = TrayStrings {
@@ -516,6 +532,7 @@ const RU: TrayStrings = TrayStrings {
     usage_with_reset: "Лимит  ·  осталось {pct}%  ·  {time}",
     usage_pct: "Лимит  ·  осталось {pct}%",
     usage_unknown: "Лимит  ·  —",
+    reset_time_fmt: "%d.%m %H:%M",
 };
 
 const TA: TrayStrings = TrayStrings {
@@ -534,6 +551,7 @@ const TA: TrayStrings = TrayStrings {
     usage_with_reset: "பயன்பாடு  ·  {pct}% மீதம்  ·  {time}",
     usage_pct: "பயன்பாடு  ·  {pct}% மீதம்",
     usage_unknown: "பயன்பாடு  ·  —",
+    reset_time_fmt: "%d/%m %H:%M",
 };
 
 const UK: TrayStrings = TrayStrings {
@@ -552,6 +570,7 @@ const UK: TrayStrings = TrayStrings {
     usage_with_reset: "Ліміт  ·  залишилось {pct}%  ·  {time}",
     usage_pct: "Ліміт  ·  залишилось {pct}%",
     usage_unknown: "Ліміт  ·  —",
+    reset_time_fmt: "%d.%m %H:%M",
 };
 
 const ZH: TrayStrings = TrayStrings {
@@ -570,6 +589,7 @@ const ZH: TrayStrings = TrayStrings {
     usage_with_reset: "额度  ·  剩余 {pct}%  ·  {time}",
     usage_pct: "额度  ·  剩余 {pct}%",
     usage_unknown: "额度  ·  —",
+    reset_time_fmt: "%m/%d %H:%M",
 };
 
 const ZH_TW: TrayStrings = TrayStrings {
@@ -588,6 +608,7 @@ const ZH_TW: TrayStrings = TrayStrings {
     usage_with_reset: "額度  ·  剩餘 {pct}%  ·  {time}",
     usage_pct: "額度  ·  剩餘 {pct}%",
     usage_unknown: "額度  ·  —",
+    reset_time_fmt: "%m/%d %H:%M",
 };
 
 pub fn strings(locale: Locale) -> &'static TrayStrings {
@@ -722,6 +743,28 @@ mod tests {
                 l.as_tag()
             );
         }
+    }
+
+    #[test]
+    fn every_locale_renders_its_reset_clock() {
+        // chrono panics at Display time on a bad format spec, so render all 15
+        // rather than trusting the table by inspection.
+        let at = chrono::NaiveDate::from_ymd_opt(2026, 4, 15)
+            .unwrap()
+            .and_hms_opt(9, 5, 0)
+            .unwrap();
+        for l in ALL {
+            let out = at.format(strings(l).reset_time_fmt).to_string();
+            assert!(out.contains("15"), "{} lost the day: {out}", l.as_tag());
+            assert!(out.contains("05"), "{} lost the minute: {out}", l.as_tag());
+        }
+        // The reason the table exists at all.
+        let de = at.format(strings(Locale::De).reset_time_fmt).to_string();
+        let ja = at.format(strings(Locale::Ja).reset_time_fmt).to_string();
+        let en = at.format(strings(Locale::En).reset_time_fmt).to_string();
+        assert!(de.starts_with("15."), "de should be day-first: {de}");
+        assert!(ja.starts_with("04/"), "ja should be month-first: {ja}");
+        assert!(en.ends_with("AM"), "en should keep its 12-hour clock: {en}");
     }
 
     #[test]
