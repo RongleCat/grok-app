@@ -10,6 +10,16 @@ const CONF_PATH = resolve(TAURI_DIR, "tauri.conf.json");
 const MAC_PATH = resolve(TAURI_DIR, "tauri.macos.conf.json");
 const WIN_PATH = resolve(TAURI_DIR, "tauri.windows.conf.json");
 
+/**
+ * Read a source file for text assertions, normalized to LF.
+ *
+ * The repo stores LF, but git's default `core.autocrlf=true` on Windows writes
+ * CRLF into the working tree. Asserting on raw bytes then fails against source
+ * that is perfectly correct, and only ever for Windows contributors.
+ */
+const readSource = (path: string) =>
+  readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+
 describe("window chrome", () => {
   it("ships platform-specific window configs", () => {
     expect(existsSync(CONF_PATH)).toBe(true);
@@ -58,7 +68,7 @@ describe("window chrome", () => {
     // ToggleDesktop still minimizes when Grok is the only window.
     const winShell = resolve(TAURI_DIR, "src/win_shell.rs");
     expect(existsSync(winShell)).toBe(true);
-    const body = readFileSync(winShell, "utf8");
+    const body = readSource(winShell);
     expect(body).toMatch(/SetCurrentProcessExplicitAppUserModelID/);
     expect(body).toMatch(/WS_EX_APPWINDOW/);
     expect(body).toMatch(/ensure_main_window_shell_integration/);
@@ -69,7 +79,7 @@ describe("window chrome", () => {
   });
 
   it("user close keeps the macOS Dock icon", () => {
-    const tray = readFileSync(resolve(TAURI_DIR, "src/tray.rs"), "utf8");
+    const tray = readSource(resolve(TAURI_DIR, "src/tray.rs"));
     expect(tray).toContain("pub fn hide_to_tray");
     expect(tray).toContain("pub fn hide_to_tray_accessory");
     const hideFn = tray.slice(tray.indexOf("pub fn hide_to_tray("));
@@ -92,7 +102,7 @@ describe("window chrome", () => {
   });
 
   it("uses window-vibrancy for native frosted glass on macOS", () => {
-    const cargo = readFileSync(resolve(TAURI_DIR, "Cargo.toml"), "utf8");
+    const cargo = readSource(resolve(TAURI_DIR, "Cargo.toml"));
     expect(cargo).toMatch(/window-vibrancy/);
   });
 });
