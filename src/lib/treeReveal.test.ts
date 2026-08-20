@@ -230,6 +230,10 @@ describe("Other sessions tree wrap", () => {
 });
 
 describe("sidebar tree text columns", () => {
+  const tokens = readFileSync(
+    resolve(__dirname, "../styles/tokens.css"),
+    "utf8",
+  );
   const part1 = readFileSync(
     resolve(__dirname, "../styles/sidebar.part1.css"),
     "utf8",
@@ -238,19 +242,33 @@ describe("sidebar tree text columns", () => {
     resolve(__dirname, "../styles/sidebar.part2.css"),
     "utf8",
   );
+  const part4 = readFileSync(
+    resolve(__dirname, "../styles/sidebar.part4.css"),
+    "utf8",
+  );
   const src = readFileSync(
     resolve(__dirname, "../app/AppWorkbench.tsx"),
     "utf8",
   );
 
-  it("defines one L1 gutter and one text inset for L2 name + L3 title", () => {
-    expect(part1).toMatch(/--tree-l1-gutter:\s*20px/);
-    expect(part1).toMatch(/--tree-text-inset:\s*calc\(/);
+  it("assigns tree insets once in tokens.css", () => {
+    expect(tokens).toMatch(/--tree-rail-pad:\s*10px/);
+    expect(tokens).toMatch(/--tree-l1-gutter:\s*var\(--space-5\)/);
+    expect(tokens).toMatch(/--tree-text-inset:\s*calc\(/);
+    expect(part1).not.toMatch(/--tree-l1-gutter:/);
+    expect(part1).not.toMatch(/--tree-text-inset:/);
+  });
+
+  it("consumes tree tokens without px fallbacks", () => {
     expect(part1).toMatch(
-      /\.tree-l1__head--toggle,\s*\.tree-l1__chevron\s*\{[^}]*var\(--tree-l1-gutter/,
+      /\.tree-l1__head--toggle,\s*\.tree-l1__chevron\s*\{[^}]*var\(--tree-l1-gutter\)/,
     );
-    expect(part1).toMatch(/\.tree-l2\s*\{[^}]*var\(--tree-l2-pad/);
-    expect(part2).toMatch(/\.tree-l3\s*\{[^}]*var\(--tree-text-inset/);
+    expect(part1).toMatch(/\.tree-l2\s*\{[^}]*var\(--tree-l2-pad\)/);
+    expect(part2).toMatch(/\.tree-l3\s*\{[^}]*var\(--tree-text-inset\)/);
+    expect(part4).toMatch(/\.nav-item__icon\s*\{[^}]*var\(--tree-l1-gutter\)/);
+    expect(`${part1}\n${part2}\n${part4}`).not.toMatch(
+      /var\(--tree-[a-z0-9-]+,\s*[^)]+\)/,
+    );
   });
 
   it("wraps the Other chevron in the shared L1 gutter", () => {

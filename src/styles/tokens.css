@@ -28,6 +28,19 @@
   --space-8: 48px;
 
   --sidebar-width: 260px;
+  /*
+   * Sidebar tree columns (nav icons, L1 chevron, L2 name, L3 title).
+   * Change values here only — consumers use var() with no px fallback.
+   */
+  --tree-rail-pad: 10px;
+  --tree-l1-gutter: var(--space-5);
+  --tree-l1-gutter-touch: 44px;
+  --tree-l2-pad: var(--space-1);
+  --tree-l2-icon: var(--space-4);
+  --tree-l2-gap: 6px;
+  --tree-text-inset: calc(
+    var(--tree-l2-pad) + var(--tree-l2-icon) + var(--tree-l2-gap)
+  );
   --aside-width: 400px;
   --titlebar-height: 40px;
   /* Self-drawn min/max/close (Win / custom chrome): 3 × 46px */

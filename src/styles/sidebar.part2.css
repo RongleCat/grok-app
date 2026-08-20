@@ -202,7 +202,7 @@
   align-items: center;
   height: 22px;
   min-height: 22px;
-  padding: 0 6px 0 var(--tree-text-inset, 26px);
+  padding: 0 6px 0 var(--tree-text-inset);
   margin: 0;
   box-sizing: border-box;
   font-size: 11px;
@@ -239,7 +239,7 @@ html[data-sidebar-density="compact"] .tree-date-group__head {
   min-height: 30px;
   max-height: 30px;
   box-sizing: border-box;
-  padding: 0 6px 0 var(--tree-text-inset, 26px);
+  padding: 0 6px 0 var(--tree-text-inset);
   border-radius: 8px;
   color: var(--text-secondary);
   font-size: 13px;

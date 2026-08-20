@@ -88,7 +88,7 @@ html[data-sidebar-density="compact"] .session-row__meta {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 4px 10px 8px;
+  padding: 4px var(--tree-rail-pad) 8px;
   flex-shrink: 0;
 }
 
@@ -96,6 +96,7 @@ html[data-sidebar-density="compact"] .session-row__meta {
 .sidebar-nav .nav-item {
   width: 100%;
   margin: 0;
+  padding-left: 0;
 }
 
 .nav-new {
@@ -146,7 +147,11 @@ html[data-sidebar-density="compact"] .session-row__meta {
 }
 
 .nav-item__icon {
-  width: 16px;
+  width: var(--tree-l1-gutter);
+  min-width: var(--tree-l1-gutter);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   opacity: 0.85;
   font-size: 13px;

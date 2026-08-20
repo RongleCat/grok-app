@@ -28,6 +28,11 @@
 | `--radius-full` | `9999px` | 头像、圆点状态 |
 | `--space-1` … `--space-8` | `4 / 8 / 12 / 16 / 20 / 24 / 32 / 48 px` | 间距阶梯 |
 | `--sidebar-width` | `260px` | 左栏默认（可拖 200–360） |
+| `--tree-rail-pad` | `10px` | 侧栏 nav / 会话列表共用左右内边距（图标列原点） |
+| `--tree-l1-gutter` | `--space-5`（20px） | 一级箭头 + New session 等图标槽 |
+| `--tree-l1-gutter-touch` | `44px` | 手机抽屉里只加宽 L1 箭头命中区 |
+| `--tree-l2-pad` / `--tree-l2-icon` / `--tree-l2-gap` | `--space-1` / `--space-4` / `6px` | 项目行：左垫 + 文件夹图标 + 间距 |
+| `--tree-text-inset` | 三者之和 | 项目名与会话标题左缘 |
 | `--aside-width` | `300px` | 右栏默认（可拖 240–420；可折叠 0） |
 | `--titlebar-height` | `40px` | 可拖拽顶区 |
 | `--input-min-height` | `52px` | 底部输入区最小高度 |

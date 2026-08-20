@@ -243,13 +243,13 @@
   }
 
   .app-shell--phone .tree-l1 {
-    --tree-l1-gutter: 44px;
+    --tree-l1-gutter: var(--tree-l1-gutter-touch);
   }
 
   .app-shell--phone .tree-l1__head--toggle,
   .app-shell--phone .tree-l1__chevron {
-    width: var(--tree-l1-gutter, 44px);
-    min-width: var(--tree-l1-gutter, 44px);
+    width: var(--tree-l1-gutter);
+    min-width: var(--tree-l1-gutter);
   }
 
   .app-shell--phone .space-switcher__btn {
