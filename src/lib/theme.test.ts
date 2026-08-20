@@ -5,11 +5,16 @@ import {
   getSystemTheme,
   loadTheme,
   loadThemePreference,
+  nativeWindowThemeArg,
+  OS_THEME_CHANGED_EVENT,
+  parseOsThemePayload,
   parseTheme,
   parseThemePreference,
+  readOsTheme,
   resolveTheme,
   saveTheme,
   saveThemePreference,
+  subscribeHostOsTheme,
   subscribeSystemTheme,
   switchTheme,
   THEME_STORAGE_KEY,
@@ -144,5 +149,47 @@ describe("theme preference + resolve", () => {
     // After unlock, caller passes freshly read OS theme — must win over stale state.
     expect(resolveTheme("system", "dark")).toBe("dark");
     expect(resolveTheme("system", "light")).toBe("light");
+  });
+
+  it("Windows follow-system locks native chrome to the resolved theme", () => {
+    // WebView2 matchMedia does not live-update after boot lock — push concrete.
+    expect(nativeWindowThemeArg("system", false, "light", "win")).toBe("light");
+    expect(nativeWindowThemeArg("system", false, "dark", "win")).toBe("dark");
+    expect(nativeWindowThemeArg("system", false, "dark", "mac")).toBeNull();
+    expect(nativeWindowThemeArg("system", false, "light", "linux")).toBeNull();
+    expect(nativeWindowThemeArg("system", true, "light", "mac")).toBe("light");
+    expect(nativeWindowThemeArg("dark", false, "dark", "win")).toBe("dark");
+    expect(nativeWindowThemeArg("light", false, "light", "mac")).toBe("light");
+  });
+
+  it("parseOsThemePayload accepts command strings and host events", () => {
+    expect(parseOsThemePayload("light")).toBe("light");
+    expect(parseOsThemePayload("dark")).toBe("dark");
+    expect(parseOsThemePayload({ theme: "light" })).toBe("light");
+    expect(parseOsThemePayload({ theme: "nope" })).toBeNull();
+    expect(parseOsThemePayload(null)).toBeNull();
+  });
+
+  it("readOsTheme prefers a host probe over matchMedia", async () => {
+    await expect(readOsTheme(async () => ({ theme: "light" }))).resolves.toBe(
+      "light",
+    );
+    await expect(readOsTheme(async () => "dark")).resolves.toBe("dark");
+  });
+
+  it("subscribeHostOsTheme forwards parsed host payloads", async () => {
+    const listeners = new Map<string, (p: unknown) => void>();
+    const listen = async (event: string, handler: (p: unknown) => void) => {
+      listeners.set(event, handler);
+      return () => {
+        listeners.delete(event);
+      };
+    };
+    const seen: string[] = [];
+    const unsub = await subscribeHostOsTheme((t) => seen.push(t), listen);
+    listeners.get(OS_THEME_CHANGED_EVENT)?.({ theme: "light" });
+    expect(seen).toEqual(["light"]);
+    unsub();
+    expect(listeners.size).toBe(0);
   });
 });

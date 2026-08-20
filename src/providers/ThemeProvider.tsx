@@ -12,14 +12,18 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { detectAppPlatform } from "@/lib/appPlatform";
 import {
   applyNativeWindowTheme,
   applyThemePreference,
   applyThemeToDocument,
   getSystemTheme,
   loadThemePreference,
+  nativeWindowThemeArg,
   parseThemePreference,
+  readOsTheme,
   saveThemePreference,
+  subscribeHostOsTheme,
   subscribeSystemTheme,
   type Theme,
   type ThemePreference,
@@ -139,28 +143,55 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     applyThemeToDocument(theme);
     void applyNativeWindowTheme(
-      themePreference === "system" && !themeSchedule.enabled ? null : theme,
+      nativeWindowThemeArg(
+        themePreference,
+        themeSchedule.enabled,
+        theme,
+        detectAppPlatform(),
+      ),
     );
   }, [theme, themePreference, themeSchedule.enabled]);
 
   useEffect(() => {
     if (themePreference !== "system" || themeSchedule.enabled) return;
     let cancelled = false;
-    void (async () => {
-      await applyNativeWindowTheme(null);
-      if (cancelled) return;
-      const sys = getSystemTheme();
-      setSystemTheme(sys);
-      applyThemeToDocument(sys);
-    })();
-    const unsub = subscribeSystemTheme((next) => {
+    let unsubHost = () => {};
+    const platform = detectAppPlatform();
+    let applied: Theme | null = null;
+    const applySystem = (next: Theme) => {
+      if (applied === next) return;
+      applied = next;
       setSystemTheme(next);
       applyThemeToDocument(next);
-      void applyNativeWindowTheme(null);
+      void applyNativeWindowTheme(
+        nativeWindowThemeArg("system", false, next, platform),
+      );
+    };
+    void (async () => {
+      const sys = await readOsTheme();
+      if (cancelled) return;
+      applySystem(sys);
+    })();
+    const unsubMql = subscribeSystemTheme(applySystem);
+    void subscribeHostOsTheme(applySystem).then((unsub) => {
+      if (cancelled) {
+        unsub();
+        return;
+      }
+      unsubHost = unsub;
     });
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      void readOsTheme().then((sys) => {
+        if (!cancelled) applySystem(sys);
+      });
+    };
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       cancelled = true;
-      unsub();
+      unsubMql();
+      unsubHost();
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, [themePreference, themeSchedule.enabled]);
 

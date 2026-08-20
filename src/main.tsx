@@ -10,11 +10,13 @@ import "./styles/tailwind.css";
 import "streamdown/styles.css";
 import "./styles/app.css";
 import "./styles/setup-wizard.css";
+import { detectAppPlatform } from "./lib/appPlatform";
 import {
   applyNativeWindowTheme,
   applyThemeToDocument,
   getSystemTheme,
   loadThemePreference,
+  nativeWindowThemeArg,
   resolveTheme,
 } from "./lib/theme";
 import {
@@ -96,10 +98,15 @@ applyComposerMinRows(loadComposerMinRows(localStorage));
 // the IndexedDB blob is loaded — no synchronous access to IDB is possible.
 applyWallpaperFlag(loadWallpaperMeta(localStorage) !== null);
 applyWallpaperScrimToDocument(loadWallpaperScrim(localStorage));
-// Native: null = follow OS (required for live system theme); light/dark or
-// schedule-resolved theme locks chrome so WebView matchMedia cannot fight us.
+// macOS: null = follow OS (live matchMedia). Windows: lock to the resolved
+// theme — WebView2 matchMedia does not track Personalization flips.
 void applyNativeWindowTheme(
-  bootPref === "system" && !bootSchedule.enabled ? null : bootTheme,
+  nativeWindowThemeArg(
+    bootPref,
+    bootSchedule.enabled,
+    bootTheme,
+    detectAppPlatform(),
+  ),
 );
 const petShell =
   typeof window !== "undefined" && isPetShellHash(window.location.hash);

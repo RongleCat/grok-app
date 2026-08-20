@@ -186,6 +186,8 @@ mod tray;
 
 mod tray_i18n;
 
+mod os_theme;
+
 mod desktop_notify;
 
 mod turn_complete;
@@ -567,6 +569,8 @@ pub fn run() {
             // Lock WebView / native form chrome to the boot theme on every OS.
             // Windows WebView2 otherwise follows the OS scheme, so number/date/time
             // inputs paint as black boxes on a light Settings page (Agent tab).
+            // Live follow-system on Windows is os_theme::watch → frontend — this
+            // lock freezes prefers-color-scheme inside WebView2.
             let _ = window.set_theme(Some(if boot_theme == "light" {
                 tauri::Theme::Light
             } else {
@@ -673,6 +677,9 @@ pub fn run() {
             if let Err(e) = tray::setup_tray(app.handle()) {
                 tracing::warn!("tray setup: {e}");
             }
+
+            // Windows: AppsUseLightTheme → frontend (WebView2 matchMedia stays frozen).
+            os_theme::watch(app.handle());
 
             // macOS: pin notification delivery to com.grokapp.desktop and request
             // UNUserNotificationCenter auth so Grok appears in System Settings.
@@ -1283,6 +1290,8 @@ pub fn run() {
 
             tray::tray_set_busy_count,
 
+            os_theme::os_theme_current,
+
             desktop_notify::desktop_notify_show,
 
             desktop_notify::desktop_notify_available,
@@ -1574,62 +1583,12 @@ fn resolve_boot_theme(pref: &str) -> &'static str {
         "dark" => "dark",
         // system / empty / unknown
         _ => {
-            if os_prefers_dark() {
+            if os_theme::os_prefers_dark() {
                 "dark"
             } else {
                 "light"
             }
         }
-    }
-}
-
-/// Best-effort OS dark/light probe (no extra deps).
-fn os_prefers_dark() -> bool {
-    #[cfg(target_os = "macos")]
-    {
-        // AppleInterfaceStyle is set only in dark mode; missing → light.
-        let out = process_util::command("defaults")
-            .args(["read", "-g", "AppleInterfaceStyle"])
-            .output();
-        if let Ok(o) = out {
-            let s = String::from_utf8_lossy(&o.stdout).to_ascii_lowercase();
-            return s.contains("dark");
-        }
-        return true;
-    }
-    #[cfg(target_os = "windows")]
-    {
-        // AppsUseLightTheme DWORD: 0 = dark apps, 1 = light.
-        // `reg query` is a console app — hide the window (Fixes boot black flash).
-        let out = process_util::command("reg")
-            .args([
-                "query",
-                r"HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-                "/v",
-                "AppsUseLightTheme",
-            ])
-            .output();
-        if let Ok(o) = out {
-            let s = String::from_utf8_lossy(&o.stdout);
-            for line in s.lines() {
-                if !line.contains("AppsUseLightTheme") {
-                    continue;
-                }
-                // line ends like "0x0" or "0x1"
-                if line.contains("0x0") {
-                    return true;
-                }
-                if line.contains("0x1") {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    {
-        // GNOME etc. — soft default dark when unknown
-        true
     }
 }
 

@@ -4,9 +4,14 @@
  * concrete `data-theme="light|dark"`. Default preference is follow system.
  */
 
+import { detectAppPlatform, type AppPlatform } from "./appPlatform";
+
 export type Theme = "dark" | "light";
 /** User-facing choice including follow-OS. */
 export type ThemePreference = "system" | Theme;
+
+/** Host → frontend when Windows `AppsUseLightTheme` flips. */
+export const OS_THEME_CHANGED_EVENT = "os-theme://changed";
 
 export const THEME_STORAGE_KEY = "grok-app.theme";
 /** Fallback when OS scheme cannot be read (tests / SSR). */
@@ -93,11 +98,62 @@ export function applyThemeToDocument(
 }
 
 /**
+ * Native chrome lock vs Auto when the user follows the OS.
+ *
+ * macOS / Linux: `null` (Auto) so WKWebView matchMedia + Tauri theme-changed
+ * stay live. Windows WebView2: Auto after a boot lock does not fire
+ * `prefers-color-scheme` changes — push the resolved theme instead; the host
+ * watches `AppsUseLightTheme` and the frontend re-applies.
+ */
+export function nativeWindowThemeArg(
+  preference: ThemePreference,
+  scheduleEnabled: boolean,
+  resolved: Theme,
+  platform: AppPlatform,
+): Theme | null {
+  if (preference === "system" && !scheduleEnabled && platform !== "win") {
+    return null;
+  }
+  return resolved;
+}
+
+/** Host event / command payload → concrete theme. */
+export function parseOsThemePayload(raw: unknown): Theme | null {
+  if (raw === "light" || raw === "dark") return raw;
+  if (raw && typeof raw === "object" && "theme" in raw) {
+    const theme = (raw as { theme: unknown }).theme;
+    if (theme === "light" || theme === "dark") return theme;
+  }
+  return null;
+}
+
+/** Authoritative OS theme: Host probe, then matchMedia. */
+export async function readOsTheme(
+  hostRead?: () => Promise<unknown>,
+): Promise<Theme> {
+  try {
+    const read =
+      hostRead ??
+      (async () => {
+        const { isDesktopHost, invoke } = await import("@/lib/api/host");
+        if (!isDesktopHost()) return null;
+        return invoke<string>("os_theme_current");
+      });
+    const parsed = parseOsThemePayload(await read());
+    if (parsed) return parsed;
+  } catch {
+    /* browser / older host */
+  }
+  return getSystemTheme();
+}
+
+/**
  * Sync Tauri / macOS native chrome (NSAppearance + vibrancy) with app theme.
  * Without this, light UI still sits on dark Sidebar vibrancy → dirty gray rail + black edges.
  *
- * Pass `null` to **follow the OS** (required for live system switching — locking
- * light/dark freezes `prefers-color-scheme` inside the WebView).
+ * Pass `null` to **follow the OS** (required for live system switching on
+ * macOS — locking light/dark freezes `prefers-color-scheme` inside the WebView).
+ * On Windows, pass the concrete theme (see `nativeWindowThemeArg`).
  * No-op outside Tauri.
  */
 export async function applyNativeWindowTheme(
@@ -118,8 +174,7 @@ export async function applyNativeWindowTheme(
 
 /**
  * Apply preference end-to-end: unlock/lock native chrome, resolve system if
- * needed, write `data-theme`. When switching **to** system, native is unlocked
- * first so matchMedia reflects the real OS scheme.
+ * needed, write `data-theme`. Host probe wins over matchMedia on Windows.
  */
 export async function applyThemePreference(
   preference: ThemePreference,
@@ -129,17 +184,11 @@ export async function applyThemePreference(
   },
 ): Promise<Theme> {
   if (preference === "system") {
-    // Unlock WebView appearance so prefers-color-scheme tracks the OS.
-    await applyNativeWindowTheme(null);
-    // matchMedia can lag one frame after native unlock — re-read twice.
-    let system = getSystemTheme();
-    if (typeof requestAnimationFrame === "function") {
-      await new Promise<void>((r) => {
-        requestAnimationFrame(() => r());
-      });
-      system = getSystemTheme();
-    }
+    const system = await readOsTheme();
     applyThemeToDocument(system);
+    await applyNativeWindowTheme(
+      nativeWindowThemeArg("system", false, system, detectAppPlatform()),
+    );
     options?.onResolved?.(system, system);
     return system;
   }
@@ -230,4 +279,45 @@ export function subscribeSystemTheme(
   };
   legacy.addListener?.(handler);
   return () => legacy.removeListener?.(handler);
+}
+
+/**
+ * Host OS-theme event (+ Tauri window theme-changed when not injecting listen).
+ * WebView2 matchMedia often stays frozen; this is the live path on Windows.
+ */
+export async function subscribeHostOsTheme(
+  onChange: (systemTheme: Theme) => void,
+  listenFn?: (
+    event: string,
+    handler: (payload: unknown) => void,
+  ) => Promise<() => void>,
+): Promise<() => void> {
+  const listen =
+    listenFn ??
+    (async (event, handler) => {
+      const { listen: hostListen } = await import("@/lib/api/host");
+      return hostListen<unknown>(event, handler);
+    });
+  const unsubs: Array<() => void> = [];
+  unsubs.push(
+    await listen(OS_THEME_CHANGED_EVENT, (payload) => {
+      const theme = parseOsThemePayload(payload);
+      if (theme) onChange(theme);
+    }),
+  );
+  if (!listenFn) {
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      unsubs.push(
+        await getCurrentWindow().onThemeChanged(({ payload }) => {
+          if (payload === "light" || payload === "dark") onChange(payload);
+        }),
+      );
+    } catch {
+      /* browser / older runtime */
+    }
+  }
+  return () => {
+    for (const unsub of unsubs) unsub();
+  };
 }

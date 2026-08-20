@@ -22,6 +22,7 @@ See `docs/llm-wiki/release.md`.
 - **宠物换成完整 bloub 形变目录**：浮层改用测过的 SVG 引擎（静止、思考、眨眼、通知、警示、六边形、轨道、彗星等），不再用旧的 clip-path 表情。设置可选 8 种休息形体和 16 种休息表情。输入框打字会走目录里的警示（斜感叹号），停打后回到所选休息形体；未读完成会话是显眼的橙红圆点（身体已经很热时改用柠黄），不再用视频里的蓝色。
 
 ### Fixed
+- **Windows “follow system” theme now switches with Personalization (#749)**: Boot still locks WebView2 form chrome, but that froze `prefers-color-scheme`, so the main window stayed put when the OS flipped. The host watches `AppsUseLightTheme` and the UI reapplies `data-theme`.
 - **Phone mirror serves the packaged SPA when dist is missing (#734)**: Filesystem `dist` / `GROK_MIRROR_DIST` still win in dev; packaged builds fall back to embedded `frontendDist`. Token gates on `/t/{token}` and `/assets` are unchanged.
 - **macOS green zoom no longer deadlocks the UI (#735)**: After a resize/move debounce, window-state persist hops back to the main thread before `save_window_state`. The plugin mutex + macOS geometry getters could AB-deadlock when maximize fired a Resized storm.
 - **Queued follow-up reply no longer stays blank until you switch chats (#737)**: Turn-1 journal rehydrate (400/900ms) was copying the previous answer onto the queued `a-pending-*` bubble. Turn-2 tokens then looked like a replay and were dropped. Same-turn lift still runs once disk has the new user prompt; a stale Host `ready` no longer freezes that pending shell.
@@ -38,6 +39,7 @@ See `docs/llm-wiki/release.md`.
 - **`cargo fmt --check` is green on main (#725)**.
 
 **中文 · 修复**
+- **Windows「跟随系统」现在会跟个性化一起切（#749）**：启动锁 WebView2 表单颜色后，`prefers-color-scheme` 不再更新，系统换深浅色主窗不动。Host 改为监视 `AppsUseLightTheme`，前端重刷 `data-theme`。
 - **手机镜像在没有磁盘 dist 时改走打包内嵌前端（#734）**：开发模式仍优先文件系统 / `GROK_MIRROR_DIST`；正式包用 embedded `frontendDist`。`/t/{token}` 与 `/assets` 的 token 门不变。
 - **macOS 点绿色放大不再卡死（#735）**：resize/move debounce 到期后先 hop 回主线程再 `save_window_state`。插件 mutex 加上跨线程几何查询会在 maximize 的 Resized 风暴里 AB 死锁。
 - **排队跟进跑完后，不用切会话才看到回复（#737）**：上一轮 journal 补刷会把旧正文盖到新的空 pending 气泡上，跟进 token 被当成 replay 丢掉。磁盘追上新 user 之后仍会做同轮抬升；过期的 Host `ready` 也不会把排队中的 pending 结算掉。
