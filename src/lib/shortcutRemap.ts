@@ -79,6 +79,8 @@ export const DEFAULT_SHORTCUT_CHORDS: Record<ShortcutId, ChordString> = {
   sideTerminal: "mod+`",
   /** Close active side tab when open; otherwise window close (host). Display-only. */
   closeSideTab: "mod+w",
+  /** Ctrl+Q twice to quit. Display-only; not remappable. */
+  quit: "ctrl+q",
   // Display-only (j/k pair); App handles when focus is in the sidebar list.
   sidebarSessionNav: "j",
   settings: "mod+,",

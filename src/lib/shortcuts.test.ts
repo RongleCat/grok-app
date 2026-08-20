@@ -44,6 +44,7 @@ const tStub = (key: string) => {
     "shortcuts.doctor": "Doctor",
     "shortcuts.liveVoice": "Live voice",
     "shortcuts.voice": "Dictation",
+    "shortcuts.quit": "Quit (press twice)",
   };
   return map[key] ?? key;
 };
@@ -128,6 +129,18 @@ describe("shortcuts catalog", () => {
     expect(
       (GLOBAL_MOD_SHORTCUT_IDS as readonly string[]).includes("steer"),
     ).toBe(false);
+  });
+
+  it("lists quit as display-only Ctrl+Q (press twice)", () => {
+    const row = SHORTCUTS.find((s) => s.id === "quit");
+    expect(row).toBeDefined();
+    expect(row!.labelKey).toBe("shortcuts.quit");
+    expect(row!.group).toBe("workbench");
+    expect(row!.mac.toLowerCase()).toMatch(/ctrl/);
+    expect(row!.win.toLowerCase()).toMatch(/ctrl/);
+    expect((GLOBAL_MOD_SHORTCUT_IDS as readonly string[]).includes("quit")).toBe(
+      false,
+    );
   });
 
   it("lists default send as plain Enter", () => {
@@ -318,6 +331,7 @@ describe("matchGlobalShortcut", () => {
       "stop",
       "dictation",
       "sidebarSessionNav",
+      "quit",
     ]);
     for (const id of SHORTCUT_IDS) {
       if (special.has(id)) {

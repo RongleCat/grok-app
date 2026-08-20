@@ -77,6 +77,8 @@ import {
   loadAlwaysQuitWithoutAskingPref,
   shouldConfirmQuit
 } from "@/lib/confirmQuit";
+import { QUIT_DOUBLE_PRESS_MS } from "@/lib/doublePressQuit";
+import { useDoublePressQuit } from "@/hooks/useDoublePressQuit";
 import {
   loadNotifySoundPref,
   NOTIFY_SOUND_CHANGE_EVENT,
@@ -15243,8 +15245,10 @@ export function AppWorkbench() {
    * Secondary windows never quit the process from their chrome.
    */
   const quitBusyDialogOpenRef = useRef(false);
-  const requestAppQuit = useCallback(() => {
-    if (isSecondaryWindowRef.current) return;
+  const requestAppQuit = useCallback((source: "chrome" | "shortcut" = "chrome") => {
+    // Window chrome on a secondary pane must not quit the process.
+    // Ctrl+Q is app-wide and may fire from any window.
+    if (isSecondaryWindowRef.current && source !== "shortcut") return;
     // Second OS close / tray Quit while confirming → leave now.
     if (quitBusyDialogOpenRef.current) {
       quitBusyDialogOpenRef.current = false;
@@ -15341,6 +15345,12 @@ export function AppWorkbench() {
       unlisten?.();
     };
   }, [requestAppQuit]);
+
+  useDoublePressQuit({
+    enabled: api.isTauri(),
+    onArm: () => showToast(tr("app.quitPressAgain"), QUIT_DOUBLE_PRESS_MS),
+    onQuit: () => requestAppQuit("shortcut"),
+  });
 
   /**
    * Host menu ⌘W / Ctrl+W (replaces native Close Window). Browser-like:

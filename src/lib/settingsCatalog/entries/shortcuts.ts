@@ -27,6 +27,8 @@ export const SHORTCUTS_ENTRIES: readonly SettingsEntry[] = [
       "keyboard",
       "hotkey",
       "shortcut",
+      "quit",
+      "ctrl+q",
       "remap",
       "binding",
       "record",

@@ -45,6 +45,7 @@ export type ShortcutId =
   | "sideBrowser"
   | "sideTerminal"
   | "closeSideTab"
+  | "quit"
   | "sidebarSessionNav"
   | "settings"
   | "help"
@@ -67,7 +68,7 @@ export type ShortcutRow = {
 
 /**
  * Stable catalog id order — same as SHORTCUTS.
- * Includes display-only rows (send, steer, stop, dictation, sidebarSessionNav)
+ * Includes display-only rows (send, steer, stop, dictation, quit, sidebarSessionNav)
  * that are not matched by {@link matchGlobalShortcut}.
  */
 export const SHORTCUT_IDS: readonly ShortcutId[] = [
@@ -84,6 +85,7 @@ export const SHORTCUT_IDS: readonly ShortcutId[] = [
   "sideBrowser",
   "sideTerminal",
   "closeSideTab",
+  "quit",
   "sidebarSessionNav",
   "settings",
   "help",
@@ -209,6 +211,15 @@ export const SHORTCUTS: ShortcutRow[] = [
     win: "Ctrl W",
   },
   {
+    // Display-only: Ctrl+Q twice (toast, then quit). Not remappable.
+    id: "quit",
+    labelKey: "shortcuts.quit",
+    group: "workbench",
+    scope: "global",
+    mac: "Ctrl Q",
+    win: "Ctrl Q",
+  },
+  {
     // Sidebar-local j/k (not global mod). App handles when focus is in the
     // session list / sidebar; never steals from inputs. Display-only here.
     id: "sidebarSessionNav",
@@ -273,7 +284,8 @@ export function shortcutScope(id: ShortcutId): ShortcutScope {
  * vs voice cancel / overlays), `dictation` (Ctrl+Space via `isVoiceToggleKey` —
  * must not use meta, and runs before the mod branch), `sidebarSessionNav` (plain
  * j/k when focus is in the sidebar session list), `closeSideTab` (⌘W / Ctrl+W
- * handled in SideWorkbench — only steals when tabs are open).
+ * handled in SideWorkbench — only steals when tabs are open), `quit`
+ * (Ctrl+Q twice via `useDoublePressQuit`).
  */
 export const GLOBAL_MOD_SHORTCUT_IDS = [
   "search",
