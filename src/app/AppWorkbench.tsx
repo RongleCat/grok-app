@@ -152,11 +152,7 @@ import {
 import { UiErrorBoundary } from "@/components/UiErrorBoundary";
 import {
   buildCompactSlashCommand,
-  COMPACT_PRESET_IDS,
   DEFAULT_COMPACT_PRESET,
-  estimateCompactAfterTokens,
-  formatCompactBeforeAfterRange,
-  formatTokenCount,
   INITIAL_CONTEXT_USAGE,
   resolveCompactNoteBody,
   resolveContextUsageDisplay,
@@ -165,11 +161,8 @@ import {
   type ContextUsageState
 } from "@/lib/contextUsage";
 import {
-  COMPACTION_DETAILS,
-  COMPACTION_MODES,
   DEFAULT_COMPACTION_DETAIL,
   DEFAULT_COMPACTION_MODE,
-  compactionDetailApplies,
   normalizeCompactionDetail,
   normalizeCompactionMode,
   type CompactionDetailId,
@@ -531,7 +524,6 @@ import {
   dismissCliUpdateNotice,
   shouldOfferCliUpdateNotice
 } from "@/lib/cliUpdateNotice";
-import { Select } from "@/components/Select";
 import {
   loadDone as loadProductTutorialDone,
   markDone as markProductTutorialDone,
@@ -884,7 +876,6 @@ import {
   IconSettings,
   IconAppearance,
   IconPuzzle,
-  IconHelp,
 } from "@/components/icons";
 import { PhoneAccountSheet } from "@/components/PhoneAccountSheet";
 import { PhoneComposerToolsSheet } from "@/components/PhoneComposerToolsSheet";
@@ -971,6 +962,8 @@ import { SessionMaxTurnsModal } from "@/components/workbench-modals/SessionMaxTu
 import { SessionSysPromptModal } from "@/components/workbench-modals/SessionSysPromptModal";
 import { ExportMdModal } from "@/components/workbench-modals/ExportMdModal";
 import { ExportImageModal } from "@/components/workbench-modals/ExportImageModal";
+import { CompactModal } from "@/components/workbench-modals/CompactModal";
+import { AppDialogHost } from "@/components/workbench-modals/AppDialogHost";
 import {
   mergeSessionChange,
   sessionChangesFromMessages,
@@ -23156,358 +23149,71 @@ export function AppWorkbench() {
       />
 
       {showCompactModal && (
-        <div
-          className="overlay"
-          role="presentation"
-          onClick={() => {
+        <CompactModal
+          locale={locale}
+          formRef={compactModalRef}
+          noteInputRef={compactNoteRef}
+          note={compactNote}
+          preset={compactPreset}
+          compactionMode={compactionMode}
+          compactionDetail={compactionDetail}
+          turnLive={
+            session.state === "streaming" ||
+            session.state === "awaiting_permission"
+          }
+          usage={contextUsageDisplay}
+          onClose={() => {
             setShowCompactModal(false);
             setCompactNote("");
             setCompactPreset(DEFAULT_COMPACT_PRESET);
           }}
-        >
-          <form
-            ref={compactModalRef}
-            className="modal compact-modal"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="compact-modal-title"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (
-                session.state === "streaming" ||
-                session.state === "awaiting_permission"
-              ) {
-                return;
+          onNoteChange={setCompactNote}
+          onPresetChange={selectCompactPreset}
+          onCompactionModeChange={(next) => {
+            setCompactionMode(next);
+            void api.settingsGet().then((s) =>
+              api.settingsSet({ ...s, compactionMode: next }),
+            );
+          }}
+          onCompactionDetailChange={(next) => {
+            setCompactionDetail(next);
+            void api.settingsGet().then((s) =>
+              api.settingsSet({ ...s, compactionDetail: next }),
+            );
+          }}
+          onSubmit={(note, preset) => {
+            const body = resolveCompactNoteBody(
+              note,
+              compactPresetNote(preset),
+            );
+            const uiBefore = contextUsageDisplay.tokens;
+            setShowCompactModal(false);
+            setCompactNote("");
+            setCompactPreset(DEFAULT_COMPACT_PRESET);
+            void (async () => {
+              const cmd = buildCompactSlashCommand(body, { preset });
+              try {
+                const sid = await ensureConnected();
+                if (!sid) {
+                  setLocalError(tr("slash.compactConnectFailed"));
+                  return;
+                }
+                pendingCompactBeforeRef.current = {
+                  sessionId: sid,
+                  tokensBefore:
+                    uiBefore != null && Number.isFinite(uiBefore)
+                      ? Math.floor(uiBefore)
+                      : null,
+                  at: Date.now(),
+                };
+                await api.sessionSend(cmd, null, sid);
+              } catch (err) {
+                pendingCompactBeforeRef.current = null;
+                setLocalError(String(err));
               }
-              const note = resolveCompactNoteBody(
-                compactNote,
-                compactPresetNote(compactPreset),
-              );
-              const uiBefore = contextUsageDisplay.tokens;
-              const preset = compactPreset;
-              setShowCompactModal(false);
-              setCompactNote("");
-              setCompactPreset(DEFAULT_COMPACT_PRESET);
-              void (async () => {
-                const cmd = buildCompactSlashCommand(note, { preset });
-                try {
-                  const sid = await ensureConnected();
-                  if (!sid) {
-                    setLocalError(tr("slash.compactConnectFailed"));
-                    return;
-                  }
-                  pendingCompactBeforeRef.current = {
-                    sessionId: sid,
-                    tokensBefore:
-                      uiBefore != null && Number.isFinite(uiBefore)
-                        ? Math.floor(uiBefore)
-                        : null,
-                    at: Date.now(),
-                  };
-                  await api.sessionSend(cmd, null, sid);
-                } catch (err) {
-                  pendingCompactBeforeRef.current = null;
-                  setLocalError(String(err));
-                }
-              })();
-            }}
-          >
-            <header className="modal-head">
-              <div className="compact-modal__title-row">
-                <h2 id="compact-modal-title" className="modal-title">
-                  {tr("slash.compact")}
-                </h2>
-                <Tip
-                  label={tr("slash.compactHelpTip")}
-                  placement="bottom"
-                  delayMs={280}
-                  className="ui-tip--wrap ui-tip--modal"
-                >
-                  <button
-                    type="button"
-                    className="settings-label-help"
-                    aria-label={tr("slash.compactHelp")}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                  >
-                    <IconHelp size={14} stroke={1.75} />
-                  </button>
-                </Tip>
-              </div>
-              <button
-                type="button"
-                className="icon-btn modal-close"
-                onClick={() => {
-                  setShowCompactModal(false);
-                  setCompactNote("");
-                  setCompactPreset(DEFAULT_COMPACT_PRESET);
-                }}
-                aria-label={tr("common.close")}
-              >
-                <IconClose size={16} />
-              </button>
-            </header>
-            <div className="compact-modal__body">
-            <div
-              className="compact-modal__presets"
-              role="radiogroup"
-              aria-label={tr("slash.compactPresets")}
-            >
-              {COMPACT_PRESET_IDS.map((id) => {
-                const labelKey =
-                  id === "light"
-                    ? "slash.compactPreset.light"
-                    : id === "aggressive"
-                      ? "slash.compactPreset.aggressive"
-                      : "slash.compactPreset.standard";
-                const hintKey =
-                  id === "light"
-                    ? "slash.compactPresetHint.light"
-                    : id === "aggressive"
-                      ? "slash.compactPresetHint.aggressive"
-                      : "slash.compactPresetHint.standard";
-                const active = compactPreset === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    className={
-                      "compact-modal__preset" + (active ? " is-active" : "")
-                    }
-                    onClick={() => selectCompactPreset(id)}
-                  >
-                    <span className="compact-modal__preset-label">
-                      {tr(labelKey)}
-                    </span>
-                    <span className="compact-modal__preset-hint">
-                      {tr(hintKey)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="compact-modal__cli-fields">
-              <div className="compact-modal__field-group">
-                <div className="compact-modal__field-label">
-                  {tr("slash.compactMode")}
-                </div>
-                <Select
-                  value={compactionMode}
-                  aria-label={tr("slash.compactMode")}
-                  onChange={(v) => {
-                    const next = normalizeCompactionMode(v);
-                    setCompactionMode(next);
-                    void api.settingsGet().then((s) =>
-                      api.settingsSet({ ...s, compactionMode: next }),
-                    );
-                  }}
-                  options={COMPACTION_MODES.map((id) => ({
-                    value: id,
-                    label: tr(
-                      id === "transcript"
-                        ? "settings.compactionMode.transcript"
-                        : id === "segments"
-                          ? "settings.compactionMode.segments"
-                          : "settings.compactionMode.summary",
-                    ),
-                  }))}
-                />
-              </div>
-              <div className="compact-modal__field-group">
-                <div className="compact-modal__field-label">
-                  {tr("slash.compactDetail")}
-                </div>
-                <Select
-                  value={compactionDetail}
-                  aria-label={tr("slash.compactDetail")}
-                  disabled={!compactionDetailApplies(compactionMode)}
-                  onChange={(v) => {
-                    const next = normalizeCompactionDetail(v);
-                    setCompactionDetail(next);
-                    void api.settingsGet().then((s) =>
-                      api.settingsSet({ ...s, compactionDetail: next }),
-                    );
-                  }}
-                  options={COMPACTION_DETAILS.map((id) => ({
-                    value: id,
-                    label: tr(
-                      id === "none"
-                        ? "settings.compactionDetail.none"
-                        : id === "minimal"
-                          ? "settings.compactionDetail.minimal"
-                          : id === "balanced"
-                            ? "settings.compactionDetail.balanced"
-                            : "settings.compactionDetail.verbose",
-                    ),
-                  }))}
-                />
-              </div>
-            </div>
-            <div className="compact-modal__usage" aria-live="polite">
-              <div className="compact-modal__usage-row">
-                <span className="compact-modal__usage-k">
-                  {tr("slash.compactBefore")}
-                </span>
-                <span className="compact-modal__usage-v">
-                  <span className="compact-modal__usage-tokens">
-                    {contextUsageDisplay.tokens != null
-                      ? contextUsageDisplay.label
-                      : tr("slash.compactCurrentUnknown")}
-                  </span>
-                  {contextUsageDisplay.tokens != null ? (
-                    <span className="compact-modal__usage-src">
-                      {contextUsageDisplay.source === "known"
-                        ? tr("context.sourceKnown")
-                        : contextUsageDisplay.source === "estimated"
-                          ? tr("context.sourceEstimated")
-                          : tr("context.sourceUnknown")}
-                    </span>
-                  ) : null}
-                </span>
-              </div>
-              {(() => {
-                const afterEst = estimateCompactAfterTokens(
-                  contextUsageDisplay.tokens,
-                  compactPreset,
-                );
-                if (afterEst == null) {
-                  return (
-                    <div className="compact-modal__usage-row">
-                      <span className="compact-modal__usage-k">
-                        {tr("slash.compactAfterEst")}
-                      </span>
-                      <span className="compact-modal__usage-v">
-                        <span className="compact-modal__usage-tokens">
-                          {tr("slash.compactAfterUnknown")}
-                        </span>
-                      </span>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="compact-modal__usage-row">
-                    <span className="compact-modal__usage-k">
-                      {tr("slash.compactAfterEst")}
-                    </span>
-                    <span className="compact-modal__usage-v">
-                      <span className="compact-modal__usage-tokens">
-                        ~{formatTokenCount(afterEst, locale)}
-                      </span>
-                      <span className="compact-modal__usage-src">
-                        {tr("context.sourceEstimated")}
-                      </span>
-                    </span>
-                  </div>
-                );
-              })()}
-              {contextUsageDisplay.lastCompact &&
-              (contextUsageDisplay.lastCompact.tokensBefore != null ||
-                contextUsageDisplay.lastCompact.tokensAfter != null) ? (
-                <div className="compact-modal__usage-row compact-modal__usage-row--last">
-                  <span className="compact-modal__usage-k">
-                    {tr("context.lastCompact")}
-                  </span>
-                  <span className="compact-modal__usage-v">
-                    <span className="compact-modal__usage-tokens">
-                      {formatCompactBeforeAfterRange(
-                        contextUsageDisplay.lastCompact.tokensBefore,
-                        contextUsageDisplay.lastCompact.tokensAfter,
-                        {
-                          locale,
-                          template: tr("compact.tokensRange"),
-                        },
-                      ) ?? tr("context.lastCompactNone")}
-                    </span>
-                  </span>
-                </div>
-              ) : null}
-            </div>
-            <div className="compact-modal__field-group">
-            <label className="compact-modal__field-label" htmlFor="compact-note">
-              {tr("slash.compactNote")}
-            </label>
-            <input
-              id="compact-note"
-              ref={compactNoteRef}
-              className="compact-modal__field"
-              value={compactNote}
-              onChange={(e) => setCompactNote(e.target.value)}
-              placeholder={tr("slash.compactNoteOptional")}
-              autoFocus
-              autoComplete="off"
-            />
-            <div
-              className="compact-modal__chips"
-              role="group"
-              aria-label={tr("slash.compactNote")}
-            >
-              {(
-                [
-                  "slash.compactNoteChipDecisions",
-                  "slash.compactNoteChipErrors",
-                  "slash.compactNoteChipFiles",
-                  "slash.compactNoteChipTodos",
-                ] as const
-              ).map((key) => {
-                const label = tr(key);
-                const active = compactNote.trim() === label;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={
-                      "compact-modal__chip" + (active ? " is-active" : "")
-                    }
-                    aria-pressed={active}
-                    onClick={() =>
-                      setCompactNote((prev) =>
-                        prev.trim() === label ? "" : label,
-                      )
-                    }
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-            </div>
-            {(session.state === "streaming" ||
-              session.state === "awaiting_permission") && (
-              <p className="compact-modal__busy" role="status">
-                {tr("slash.compactBusy")}
-              </p>
-            )}
-            </div>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={() => {
-                  setShowCompactModal(false);
-                  setCompactNote("");
-                  setCompactPreset(DEFAULT_COMPACT_PRESET);
-                }}
-              >
-                {tr("slash.compactConfirmCancel")}
-              </button>
-              <button
-                type="submit"
-                className="btn btn--solid"
-                disabled={
-                  session.state === "streaming" ||
-                  session.state === "awaiting_permission"
-                }
-              >
-                {tr("slash.compactConfirmOk")}
-              </button>
-            </div>
-          </form>
-        </div>
+            })();
+          }}
+        />
       )}
 
       {/* Search / command palette (Codex-style) */}
@@ -23852,139 +23558,44 @@ export function AppWorkbench() {
       />
 
       {/* In-app confirm / prompt (Tauri WebView has no reliable window.prompt/confirm) */}
-      {appDialog &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            className="overlay app-dialog-overlay"
-            role="presentation"
-            onMouseDown={(e) => {
-              if (e.target === e.currentTarget) dismissDialog();
-            }}
-          >
-            <div
-              ref={appDialogPanelRef}
-              className="modal app-dialog"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="app-dialog-title"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <header className="modal-head">
-                <h2 id="app-dialog-title" className="modal-title">
-                  {appDialog.title}
-                </h2>
-                <button
-                  type="button"
-                  className="icon-btn modal-close"
-                  onClick={() => dismissDialog()}
-                  aria-label={tr("common.close")}
-                >
-                  <IconClose size={16} />
-                </button>
-              </header>
-              {appDialog.kind === "confirm" ? (
-                <form
-                  className="app-dialog__form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    // Prefer the keyboard path's latest ref so chained
-                    // dialogs (YOLO step1 → step2) stay consistent.
-                    const dialog = appDialogRef.current;
-                    if (!dialog || dialog.kind !== "confirm") return;
-                    const run = dialog.onConfirm;
-                    setAppDialog(null);
-                    void run();
-                  }}
-                >
-                  <p className="app-dialog__msg">{appDialog.message}</p>
-                  <div className="app-dialog__actions modal-actions">
-                    <button
-                      type="button"
-                      className="btn btn--ghost"
-                      onClick={() => dismissDialog()}
-                    >
-                      {tr("common.cancel")}
-                    </button>
-                    <button
-                      ref={confirmBtnRef}
-                      type="submit"
-                      className={`btn ${appDialog.danger ? "btn--danger" : "btn--solid"}`}
-                    >
-                      {appDialog.confirmLabel || tr("common.confirm")}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <form
-                  className="app-dialog__form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const value = dialogInput;
-                    const submit = appDialog.onSubmit;
-                    void (async () => {
-                      const ok = await submit(value);
-                      if (typeof ok === "string") {
-                        setDialogError(ok);
-                        return;
-                      }
-                      if (ok === false) return;
-                      setDialogError("");
-                      setAppDialog((cur) =>
-                        cur &&
-                        cur.kind === "prompt" &&
-                        cur.onSubmit === submit
-                          ? null
-                          : cur,
-                      );
-                    })();
-                  }}
-                >
-                  {appDialog.message ? (
-                    <p className="app-dialog__msg">{appDialog.message}</p>
-                  ) : null}
-                  <input
-                    ref={dialogInputRef}
-                    className="app-dialog__input"
-                    value={dialogInput}
-                    placeholder={appDialog.placeholder}
-                    onChange={(e) => {
-                      setDialogInput(e.target.value);
-                      if (dialogError) setDialogError("");
-                    }}
-                    autoComplete="off"
-                    aria-invalid={dialogError ? true : undefined}
-                    aria-describedby={
-                      dialogError ? "app-dialog-error" : undefined
-                    }
-                  />
-                  <div className="app-dialog__actions modal-actions">
-                    {dialogError ? (
-                      <p
-                        id="app-dialog-error"
-                        className="app-dialog__error"
-                        role="alert"
-                      >
-                        {dialogError}
-                      </p>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="btn btn--ghost"
-                      onClick={() => dismissDialog()}
-                    >
-                      {tr("common.cancel")}
-                    </button>
-                    <button type="submit" className="btn btn--solid">
-                      {appDialog.submitLabel || tr("common.save")}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>,
-          document.body,
-        )}
+      {appDialog ? (
+        <AppDialogHost
+          locale={locale}
+          dialog={appDialog}
+          dialogRef={appDialogRef}
+          panelRef={appDialogPanelRef}
+          confirmBtnRef={confirmBtnRef}
+          inputRef={dialogInputRef}
+          inputValue={dialogInput}
+          error={dialogError}
+          onDismiss={dismissDialog}
+          onInputChange={setDialogInput}
+          onClearError={() => setDialogError("")}
+          onConfirm={(d) => {
+            const run = d.onConfirm;
+            setAppDialog(null);
+            void run();
+          }}
+          onPromptSubmit={(value) => {
+            if (appDialog.kind !== "prompt") return;
+            const submit = appDialog.onSubmit;
+            void (async () => {
+              const ok = await submit(value);
+              if (typeof ok === "string") {
+                setDialogError(ok);
+                return;
+              }
+              if (ok === false) return;
+              setDialogError("");
+              setAppDialog((cur) =>
+                cur && cur.kind === "prompt" && cur.onSubmit === submit
+                  ? null
+                  : cur,
+              );
+            })();
+          }}
+        />
+      ) : null}
 
       {/* Floating context menu (project / session) — unified ContextMenu */}
       {(() => {
