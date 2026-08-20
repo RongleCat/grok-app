@@ -98,11 +98,7 @@ pub fn mark_interrupted(session_id: &str) -> Option<TurnLease> {
 }
 
 /// Fresh active lease for a newly dispatched prompt (drops leftover pending).
-pub fn begin_active(
-    session_id: &str,
-    agent_session_id: Option<&str>,
-    turn_id: Option<&str>,
-) {
+pub fn begin_active(session_id: &str, agent_session_id: Option<&str>, turn_id: Option<&str>) {
     let now = now_rfc3339();
     let lease = TurnLease {
         schema: SCHEMA,
@@ -134,9 +130,7 @@ pub fn update_active(
         schema: SCHEMA,
         status: LeaseStatus::Active,
         session_id: session_id.to_string(),
-        agent_session_id: existing
-            .as_ref()
-            .and_then(|e| e.agent_session_id.clone()),
+        agent_session_id: existing.as_ref().and_then(|e| e.agent_session_id.clone()),
         turn_id: existing.as_ref().and_then(|e| e.turn_id.clone()),
         started_at: existing
             .as_ref()
@@ -166,7 +160,10 @@ pub fn list_active_lease_session_ids() -> Vec<String> {
         let Some(id) = path.file_name().and_then(|s| s.to_str()) else {
             continue;
         };
-        if matches!(read_lease(id).as_ref().map(|l| &l.status), Some(LeaseStatus::Active)) {
+        if matches!(
+            read_lease(id).as_ref().map(|l| &l.status),
+            Some(LeaseStatus::Active)
+        ) {
             out.push(id.to_string());
         }
     }
@@ -253,10 +250,7 @@ mod tests {
             write_lease(&sample(sid)).unwrap();
             let got = mark_interrupted(sid).expect("marked");
             assert_eq!(got.status, LeaseStatus::Interrupted);
-            assert_eq!(
-                got.pending_tool.unwrap().tool_call_id,
-                "call-9e5f0e0d"
-            );
+            assert_eq!(got.pending_tool.unwrap().tool_call_id, "call-9e5f0e0d");
             assert_eq!(read_lease(sid).unwrap().status, LeaseStatus::Interrupted);
         });
     }

@@ -597,7 +597,6 @@ fn default_stt_zh_script() -> String {
     "auto".into()
 }
 
-
 fn default_close_to_tray() -> bool {
     true
 }

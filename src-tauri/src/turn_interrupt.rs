@@ -55,16 +55,18 @@ pub fn inspect_agent_trail(agent_dir: &Path) -> TrailVerdict {
             match typ {
                 "permission_requested" => {
                     requested += 1;
-                    last_tool = Some(pending_from_event(&v).or(last_tool).unwrap_or(PendingTool {
-                        tool_call_id: String::new(),
-                        tool_name: v
-                            .get("tool_name")
-                            .and_then(|x| x.as_str())
-                            .unwrap_or("tool")
-                            .to_string(),
-                        title: String::new(),
-                        command: String::new(),
-                    }));
+                    last_tool = Some(
+                        pending_from_event(&v).or(last_tool).unwrap_or(PendingTool {
+                            tool_call_id: String::new(),
+                            tool_name: v
+                                .get("tool_name")
+                                .and_then(|x| x.as_str())
+                                .unwrap_or("tool")
+                                .to_string(),
+                            title: String::new(),
+                            command: String::new(),
+                        }),
+                    );
                 }
                 "permission_resolved" => resolved += 1,
                 "turn_completed" => {
@@ -159,10 +161,7 @@ fn pending_from_event(v: &Value) -> Option<PendingTool> {
 }
 
 fn pending_from_tool_call(call: &Value) -> PendingTool {
-    let args = call
-        .get("arguments")
-        .and_then(|x| x.as_str())
-        .unwrap_or("");
+    let args = call.get("arguments").and_then(|x| x.as_str()).unwrap_or("");
     let command = serde_json::from_str::<Value>(args)
         .ok()
         .and_then(|v| {
@@ -214,10 +213,7 @@ pub fn heal_interrupted_turn(session_id: &str) -> Option<String> {
         return None;
     }
     let lease = read_lease(session_id);
-    let lease_active = matches!(
-        lease.as_ref().map(|l| &l.status),
-        Some(LeaseStatus::Active)
-    );
+    let lease_active = matches!(lease.as_ref().map(|l| &l.status), Some(LeaseStatus::Active));
     let trail = resolve_agent_dir(session_id)
         .map(|d| inspect_agent_trail(&d))
         .unwrap_or_default();
@@ -410,7 +406,10 @@ mod tests {
             r#"{"type":"assistant","tool_calls":[{"id":"call-later","name":"run_terminal_command","arguments":"{\"command\":\"git log\"}"}]}"#,
         );
         let v = inspect_agent_trail(&dir);
-        assert!(v.abandoned, "a later unfinished turn must not be hidden by an earlier turn_completed");
+        assert!(
+            v.abandoned,
+            "a later unfinished turn must not be hidden by an earlier turn_completed"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -430,10 +429,7 @@ mod tests {
             begin_active(sid, Some("agent-1"), Some("turn-1"));
             assert!(heal_interrupted_turn(sid).is_some());
             assert_eq!(host_exit_count(sid), 1);
-            assert_eq!(
-                read_lease(sid).unwrap().status,
-                LeaseStatus::Interrupted
-            );
+            assert_eq!(read_lease(sid).unwrap().status, LeaseStatus::Interrupted);
         });
     }
 

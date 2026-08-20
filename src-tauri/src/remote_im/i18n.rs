@@ -146,11 +146,23 @@ mod tests {
 
     #[test]
     fn added_locales_are_translated_not_english() {
-        assert_eq!(t("ja", MessageKey::StopSignalSent), "中断信号を送信しました。");
-        assert_eq!(t("ko", MessageKey::NoInFlightTurn), "진행 중인 턴이 없습니다.");
+        assert_eq!(
+            t("ja", MessageKey::StopSignalSent),
+            "中断信号を送信しました。"
+        );
+        assert_eq!(
+            t("ko", MessageKey::NoInFlightTurn),
+            "진행 중인 턴이 없습니다."
+        );
         assert_eq!(t("de", MessageKey::NoInFlightTurn), "Kein laufender Zug.");
-        assert_eq!(t("pt-BR", MessageKey::StopSignalSent), "Sinal de parada enviado.");
-        assert_eq!(t("uk", MessageKey::StopSignalSent), "Сигнал зупинки надіслано.");
+        assert_eq!(
+            t("pt-BR", MessageKey::StopSignalSent),
+            "Sinal de parada enviado."
+        );
+        assert_eq!(
+            t("uk", MessageKey::StopSignalSent),
+            "Сигнал зупинки надіслано."
+        );
     }
 
     #[test]

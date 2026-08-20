@@ -339,8 +339,16 @@ mod tests {
                 "{} prompt must name {language}",
                 locale.as_tag()
             );
-            assert!(p.contains("list open prs"), "{} keeps the snippet", locale.as_tag());
-            assert!(p.contains("User message:"), "{} keeps the anchor", locale.as_tag());
+            assert!(
+                p.contains("list open prs"),
+                "{} keeps the snippet",
+                locale.as_tag()
+            );
+            assert!(
+                p.contains("User message:"),
+                "{} keeps the anchor",
+                locale.as_tag()
+            );
         }
     }
 }
