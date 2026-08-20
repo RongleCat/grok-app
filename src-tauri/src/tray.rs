@@ -131,12 +131,18 @@ pub fn build_menu(app: &AppHandle) -> Result<Menu<Wry>, tauri::Error> {
     builder = builder.item(&MenuItem::with_id(
         app,
         "quit",
-        tr.quit,
+        &quit_tray_label(tr.quit),
         true,
         None::<&str>,
     )?);
 
     builder.build()
+}
+
+/// Tray Quit label plus a Ctrl+Q hint.
+/// Inline on purpose: a `\t` accelerator column makes the whole tray menu wider.
+fn quit_tray_label(quit: &str) -> String {
+    format!("{quit} (Ctrl+Q)")
 }
 
 /// Format quota refresh ISO → local short date and clock, in `fmt`.
@@ -524,5 +530,11 @@ mod badge_tests {
     fn busy_tooltip_suffix() {
         assert_eq!(busy_tooltip("Grok", 0), "Grok");
         assert_eq!(busy_tooltip("Grok", 2), "Grok · 2");
+    }
+
+    #[test]
+    fn quit_label_shows_ctrl_q_without_owning_the_text() {
+        assert_eq!(quit_tray_label("Quit Grok"), "Quit Grok (Ctrl+Q)");
+        assert_eq!(quit_tray_label("退出 Grok"), "退出 Grok (Ctrl+Q)");
     }
 }
