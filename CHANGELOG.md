@@ -18,6 +18,8 @@ See `docs/llm-wiki/release.md`.
 - **宠物换成完整 bloub 形变目录**：浮层改用测过的 SVG 引擎（静止、思考、眨眼、通知、警示、六边形、轨道、彗星等），不再用旧的 clip-path 表情。设置可选 8 种休息形体和 16 种休息表情。输入框打字会走目录里的警示（斜感叹号），停打后回到所选休息形体；未读完成会话是显眼的橙红圆点（身体已经很热时改用柠黄），不再用视频里的蓝色。
 
 ### Fixed
+- **Queued follow-up reply no longer stays blank until you switch chats (#737)**: Turn-1 journal rehydrate (400/900ms) was copying the previous answer onto the queued `a-pending-*` bubble. Turn-2 tokens then looked like a replay and were dropped. Same-turn lift still runs once disk has the new user prompt; a stale Host `ready` no longer freezes that pending shell.
+- **User bubbles paint the hydrated draft, not a leftover `/goal` or `/skill` first line**: Optimistic send and reload already hydrates; the live bubble now uses the same text.
 - **Type-to-focus no longer doubles letters (#739)**: Printable keys only focus the composer. Chromium/WebView2 already types that key into the newly focused editor; a second `insertText` made `aa` from one `a` (#706). Space still inserts itself (`preventDefault` so the page does not scroll).
 - **Pet typing / settings / spin**: composer typing plays the catalog alert morph (slanted !) and returns to the chosen rest shape when keystrokes stop; Settings → Pet shape and rest-face clicks update the preview immediately; **Spin spin spin** restores the colorful orbit belts instead of collapsing to a point.
 - **Japanese UI is no longer two-thirds Simplified Chinese (#732)**: Settings / Doctor / extensions / session catalogs that still copied `zh` verbatim are Japanese. `session.placeholderTitle` is `新しいチャット` (matches the tray). A catalog test fails if a non-Chinese locale copies simplified-only Han from `zh`.
@@ -30,6 +32,8 @@ See `docs/llm-wiki/release.md`.
 - **`cargo fmt --check` is green on main (#725)**.
 
 **中文 · 修复**
+- **排队跟进跑完后，不用切会话才看到回复（#737）**：上一轮 journal 补刷会把旧正文盖到新的空 pending 气泡上，跟进 token 被当成 replay 丢掉。磁盘追上新 user 之后仍会做同轮抬升；过期的 Host `ready` 也不会把排队中的 pending 结算掉。
+- **用户气泡按 hydrated 草稿画，不再露出 `/goal` / `/skill` 首行**。
 - **打字聚焦输入框不再重复字母（#739）**：可打印键只负责聚焦。Chromium/WebView2 会把该键打进刚聚焦的输入框；再 `insertText` 一次就会变成按 `a` 出 `aa`（#706）。空格仍自己插入（必须 `preventDefault`，否则会滚页面）。
 - **宠物打字 / 设置 / 转圈**：输入走目录里的警示（斜感叹号），停打后回到原形；设置里点形状和表情会马上反映到预览；「转转转」找回彩带轨道，不再缩成一个点。
 - **日语界面不再有三分之二简体中文（#732）**：原先原样复制 `zh` 的设置 / Doctor / 扩展 / 会话词条改为日语。`session.placeholderTitle` 与托盘一致为 `新しいチャット`。CI 会拦截非中文目录复制简体专用汉字。

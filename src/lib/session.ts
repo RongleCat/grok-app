@@ -2315,6 +2315,29 @@ function lastTurnAssistantIndex(messages: ChatMessage[]): number {
   return -1;
 }
 
+/** User prompts that start a turn (skip mid-turn 引导). */
+function promptUserCount(messages: ChatMessage[]): number {
+  let n = 0;
+  for (const m of messages) {
+    if (m.role === "user" && m.marker !== "interjection") n += 1;
+  }
+  return n;
+}
+
+/**
+ * Cross-id last-turn lift is only valid when journal has caught up to the
+ * UI's last user prompt. Queue flush paints the next `u-*` + empty
+ * `a-pending-*` while turn-1 rehydrate retries (400/900ms) still hold the
+ * previous journal; copying that longer body onto the pending bubble then
+ * makes turn-2 tokens look like a replay.
+ */
+export function canLiftJournalLastTurn(
+  ui: ChatMessage[],
+  journal: ChatMessage[],
+): boolean {
+  return promptUserCount(ui) <= promptUserCount(journal);
+}
+
 /**
  * After a turn ends, lift any longer body/thought/attachments from the journal
  * into the live UI list (same id, or last-turn id-mismatch heal).
@@ -2326,6 +2349,8 @@ function lastTurnAssistantIndex(messages: ChatMessage[]): number {
  * Cross-id heal: mid-turn reconcile can mint a new assistant UUID while the
  * live bubble still uses the stream id. Match the last turn's richest journal
  * body onto the UI's last assistant when it is strictly longer.
+ * Skip when the UI already has a newer user prompt than disk (queued
+ * follow-up painted during turn-1 rehydrate retries).
  */
 export function upgradeMessagesFromJournal(
   ui: ChatMessage[],
@@ -2395,10 +2420,16 @@ export function upgradeMessagesFromJournal(
     return out;
   });
 
-  // Last-turn cross-id heal (after per-id pass).
+  // Last-turn cross-id heal (after per-id pass). Skip when the UI already
+  // has a newer user prompt than disk — that's the queued follow-up, not
+  // an id mismatch on the turn that just finished.
   const uiAsstIdx = lastTurnAssistantIndex(next);
   const jAsstIdx = lastTurnAssistantIndex(journal);
-  if (uiAsstIdx >= 0 && jAsstIdx >= 0) {
+  if (
+    uiAsstIdx >= 0 &&
+    jAsstIdx >= 0 &&
+    canLiftJournalLastTurn(next, journal)
+  ) {
     const uiAsst = next[uiAsstIdx]!;
     const jAsst = journal[jAsstIdx]!;
     // Prefer the richest journal assistant in the same turn (not only the
@@ -2469,6 +2500,38 @@ export function upgradeMessagesFromJournal(
   }
 
   return changed ? next : ui;
+}
+
+/**
+ * Host `ready` for the turn that just finished. Freeze leftover streaming on
+ * older rows, but keep an optimistic queued pending (`a-pending-*` / `t-*`)
+ * after the last user — auto-flush may already have painted the next shell,
+ * and a stale ready must not settle it.
+ */
+export function settleStreamingOnHostReady(
+  messages: ChatMessage[],
+): ChatMessage[] {
+  let lastUser = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m?.role === "user" && m.marker !== "interjection") {
+      lastUser = i;
+      break;
+    }
+  }
+  let changed = false;
+  const next = messages.map((m, i) => {
+    if (m.role !== "assistant" || !m.streaming) return m;
+    if (
+      i > lastUser &&
+      (m.id.startsWith("a-pending-") || m.id.startsWith("t-"))
+    ) {
+      return m;
+    }
+    changed = true;
+    return { ...m, streaming: false };
+  });
+  return changed ? next : messages;
 }
 
 /**

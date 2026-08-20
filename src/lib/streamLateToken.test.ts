@@ -131,6 +131,42 @@ describe("shouldApplyLateStreamText", () => {
       }),
     ).toBe(true);
   });
+
+  it("applies to an empty queued pending after the previous turn settled", () => {
+    expect(
+      shouldApplyLateStreamText({
+        hostLiveStreaming: false,
+        chunkIsForFocusedHost: true,
+        messages: [
+          { role: "user", content: "long task" },
+          { role: "assistant", streaming: false, content: "turn 1 answer" },
+          { role: "user", content: "ok continue" },
+          { role: "assistant", streaming: false, content: "" },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it("drops tokens if a stale heal copied the previous turn onto the pending", () => {
+    // What the queued-turn bug looks like before canLiftJournalLastTurn:
+    // last assistant already has turn-1 body, so turn-2 tokens are replay.
+    expect(
+      shouldApplyLateStreamText({
+        hostLiveStreaming: false,
+        chunkIsForFocusedHost: true,
+        messages: [
+          { role: "user", content: "long task" },
+          { role: "assistant", streaming: false, content: "turn 1 answer" },
+          { role: "user", content: "ok continue" },
+          {
+            role: "assistant",
+            streaming: false,
+            content: "turn 1 answer",
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("shouldHealJournalOnStreamDone", () => {

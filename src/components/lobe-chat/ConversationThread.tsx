@@ -402,14 +402,14 @@ function UserBodyText({
       return (
         <span className="user-msg-body">
           <HighlightedText
-            text={content}
+            text={hydrated}
             query={findQuery}
             activeOccurrence={findActiveOccurrence ?? null}
           />
         </span>
       );
     }
-    return <span className="user-msg-body">{content}</span>;
+    return <span className="user-msg-body">{hydrated}</span>;
   }
   return (
     <span className="user-msg-body">

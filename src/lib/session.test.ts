@@ -30,6 +30,8 @@ import {
   presentErrorBanner,
   snapshotOutgoingMessages,
   upgradeMessagesFromJournal,
+  canLiftJournalLastTurn,
+  settleStreamingOnHostReady,
   ensureBusyTurnStreaming,
   mergeSessionMessagesById,
   reconcileOptimisticDuplicates,
@@ -1214,6 +1216,132 @@ describe("session projection", () => {
     ];
     const out = upgradeMessagesFromJournal(ui, journal);
     expect(out.find((m) => m.id === "a1")?.content).toBe("昨晚那批已经清掉了。");
+  });
+
+  it("upgradeMessagesFromJournal does not copy the previous turn onto a queued pending", () => {
+    const turn1 =
+      "LONG TURN1 REPLY ".repeat(20);
+    const ui: ChatMessage[] = [
+      { id: "u1", role: "user", content: "long task" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: turn1,
+        streaming: false,
+      },
+      { id: "u-queued", role: "user", content: "ok continue" },
+      {
+        id: "a-pending-1",
+        role: "assistant",
+        content: "",
+        streaming: true,
+      },
+    ];
+    const journal: ChatMessage[] = [
+      { id: "u1", role: "user", content: "long task" },
+      { id: "a1", role: "assistant", content: turn1 },
+    ];
+    expect(canLiftJournalLastTurn(ui, journal)).toBe(false);
+    const out = upgradeMessagesFromJournal(ui, journal);
+    const pending = out.find((m) => m.id === "a-pending-1");
+    expect(pending?.content ?? "").toBe("");
+    expect(pending?.streaming).toBe(true);
+    expect(out.find((m) => m.id === "a1")?.content).toBe(turn1);
+  });
+
+  it("upgradeMessagesFromJournal still lifts the queued turn once disk has caught up", () => {
+    const ui: ChatMessage[] = [
+      { id: "u1", role: "user", content: "long task" },
+      { id: "a1", role: "assistant", content: "turn 1 answer" },
+      { id: "u-queued", role: "user", content: "ok continue" },
+      {
+        id: "a-pending-1",
+        role: "assistant",
+        content: "",
+        streaming: true,
+      },
+    ];
+    const journal: ChatMessage[] = [
+      { id: "u1", role: "user", content: "long task" },
+      { id: "a1", role: "assistant", content: "turn 1 answer" },
+      { id: "host-u2", role: "user", content: "ok continue" },
+      {
+        id: "host-a2",
+        role: "assistant",
+        content: "short follow-up",
+      },
+    ];
+    expect(canLiftJournalLastTurn(ui, journal)).toBe(true);
+    const out = upgradeMessagesFromJournal(ui, journal);
+    expect(out.find((m) => m.id === "a-pending-1")?.content).toBe(
+      "short follow-up",
+    );
+    expect(out.find((m) => m.id === "a-pending-1")?.streaming).toBe(true);
+  });
+
+  it("settleStreamingOnHostReady keeps a queued pending live", () => {
+    const msgs: ChatMessage[] = [
+      { id: "u1", role: "user", content: "first" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "answer one",
+        streaming: true,
+      },
+      { id: "u-queued", role: "user", content: "second" },
+      {
+        id: "a-pending-2",
+        role: "assistant",
+        content: "",
+        streaming: true,
+      },
+    ];
+    const next = settleStreamingOnHostReady(msgs);
+    expect(next.find((m) => m.id === "a1")?.streaming).toBe(false);
+    expect(next.find((m) => m.id === "a-pending-2")?.streaming).toBe(true);
+  });
+
+  it("settleStreamingOnHostReady still freezes the finished turn when nothing is queued", () => {
+    const msgs: ChatMessage[] = [
+      { id: "u1", role: "user", content: "first" },
+      {
+        id: "host-a1",
+        role: "assistant",
+        content: "answer one",
+        streaming: true,
+      },
+    ];
+    const next = settleStreamingOnHostReady(msgs);
+    expect(next.find((m) => m.id === "host-a1")?.streaming).toBe(false);
+  });
+
+  it("applyStreamChunk binds queued-turn tokens to the pending shell, not turn 1", () => {
+    const msgs: ChatMessage[] = [
+      { id: "u1", role: "user", content: "long task" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "turn 1 answer",
+        streaming: false,
+      },
+      { id: "u-queued", role: "user", content: "ok continue" },
+      {
+        id: "a-pending-1",
+        role: "assistant",
+        content: "",
+        streaming: true,
+      },
+    ];
+    const out = applyStreamChunk(msgs, {
+      sessionId: "s1",
+      messageId: "host-a2",
+      text: "short follow-up",
+      done: true,
+      kind: "assistant",
+    });
+    expect(out.find((m) => m.id === "a1")?.content).toBe("turn 1 answer");
+    expect(out.find((m) => m.id === "a-pending-1")).toBeUndefined();
+    expect(out.find((m) => m.id === "host-a2")?.content).toBe("short follow-up");
   });
 
   it("applyStreamChunk attaches a late answer onto a settled empty assistant", () => {
