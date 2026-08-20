@@ -217,4 +217,14 @@ describe("Other sessions tree wrap", () => {
       /className="tree-orphan"[\s\S]*SidebarTreeReveal open=\{historyOpen\}/,
     );
   });
+
+  it("keeps Other-session rows on the same left inset as project L3", () => {
+    const part2 = readFileSync(
+      resolve(__dirname, "../styles/sidebar.part2.css"),
+      "utf8",
+    );
+    expect(part2).not.toMatch(/\.tree-orphan\s+\.tree-l3-list-wrap/);
+    expect(part2).not.toMatch(/\.tree-l3--orphan\s*\{/);
+    expect(part2).not.toMatch(/\.tree-date-group--orphan/);
+  });
 });

@@ -175,11 +175,7 @@
   flex-shrink: 0;
 }
 
-.tree-orphan .tree-l3-list-wrap {
-  padding-left: 4px;
-}
-
-/* Orphan sessions under “Other sessions” (same row metrics as project L3). */
+/* Orphan sessions under Other (same row metrics and left inset as project L3). */
 .tree-orphan-list {
   display: flex;
   flex-direction: column;
@@ -219,11 +215,6 @@
   box-shadow: 0 1px 0 color-mix(in srgb, var(--border-subtle, transparent) 70%, transparent);
   user-select: none;
   pointer-events: none;
-}
-
-.tree-orphan-list .tree-date-group__head,
-.tree-date-group--orphan .tree-date-group__head {
-  padding-left: 8px;
 }
 
 html[data-sidebar-density="compact"] .tree-date-group__head {
@@ -272,11 +263,6 @@ html[data-sidebar-density="compact"] .tree-date-group__head {
 
 .tree-l3--archived {
   opacity: 0.55;
-}
-
-.tree-l3--orphan {
-  margin-left: 0;
-  padding-left: 8px;
 }
 
 .tree-l3--hint {
