@@ -352,15 +352,9 @@ import {
   hasActiveSessionSearchFilters,
   mergeSessionSearchHits,
   resolveSessionSearchEmptyState,
-  sessionSearchBadge,
-  sessionSearchBadgeLabelKey,
-  sessionSearchModeLabelKey,
-  sessionSearchRankModeLabelKey,
   shouldScanSessionContent,
-  SESSION_SEARCH_RANK_MODES,
   type SessionContentHit,
   type SessionSearchMode,
-  SESSION_SEARCH_MODES,
   type SessionSearchRankMode
 } from "@/lib/sessionSearch";
 import {
@@ -964,6 +958,7 @@ import { ExportMdModal } from "@/components/workbench-modals/ExportMdModal";
 import { ExportImageModal } from "@/components/workbench-modals/ExportImageModal";
 import { CompactModal } from "@/components/workbench-modals/CompactModal";
 import { AppDialogHost } from "@/components/workbench-modals/AppDialogHost";
+import { SearchPalette } from "@/components/workbench-modals/SearchPalette";
 import {
   mergeSessionChange,
   sessionChangesFromMessages,
@@ -1085,7 +1080,6 @@ import {
   titlebarMaximizeHandlers
 } from "@/components/WindowControls";
 
-import { paletteActionIcon } from "@/app/paletteActionIcon";
 import {
   isGeneralProject,
   mapProjectsList,
@@ -23218,313 +23212,46 @@ export function AppWorkbench() {
 
       {/* Search / command palette (Codex-style) */}
       {showSearch && (
-        <div
-          className="overlay"
-          role="presentation"
-          onClick={() => setShowSearch(false)}
-        >
-          <div
-            ref={searchPanelRef}
-            className="search-panel"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-label={tr("search.title")}
-          >
-            <div className="search-panel__head">
-              <IconSearch size={16} />
-              <input
-                autoFocus
-                className="search-panel__input"
-                placeholder={
-                  tr("search.placeholder")
-                }
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                role="combobox"
-                aria-autocomplete="list"
-                aria-expanded="true"
-                aria-controls="search-panel-listbox"
-                aria-activedescendant={
-                  searchPaletteItems.length > 0
-                    ? `search-opt-${searchActiveIndex}`
-                    : undefined
-                }
-              />
-              <button
-                type="button"
-                className="icon-btn modal-close"
-                onClick={() => setShowSearch(false)}
-                aria-label={tr("common.close")}
-              >
-                <IconClose size={16} />
-              </button>
-            </div>
-            <div className="search-panel__filters">
-              <div
-                className="search-panel__modes"
-                role="tablist"
-                aria-label={tr("search.modeLabel")}
-              >
-                {SESSION_SEARCH_MODES.map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    role="tab"
-                    aria-selected={searchMode === mode}
-                    className={
-                      "search-panel__mode" +
-                      (searchMode === mode ? " is-active" : "")
-                    }
-                    onClick={() => applySearchMode(mode)}
-                  >
-                    {tr(sessionSearchModeLabelKey(mode))}
-                  </button>
-                ))}
-              </div>
-              <label className="search-panel__archived">
-                <input
-                  type="checkbox"
-                  checked={searchIncludeArchived}
-                  onChange={(e) =>
-                    applySearchIncludeArchived(e.target.checked)
-                  }
-                />
-                <span>{tr("search.includeArchived")}</span>
-              </label>
-              {searchFiltersActive ? (
-                <button
-                  type="button"
-                  className="search-panel__clear-filters"
-                  onClick={clearSearchFilters}
-                >
-                  {tr("search.clearFilters")}
-                </button>
-              ) : null}
-            </div>
-            <div className="search-panel__filters">
-              <div
-                className="search-panel__modes"
-                role="tablist"
-                aria-label={tr("search.rankModeLabel")}
-              >
-                {SESSION_SEARCH_RANK_MODES.map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    role="tab"
-                    aria-selected={searchRankMode === mode}
-                    className={
-                      "search-panel__mode" +
-                      (searchRankMode === mode ? " is-active" : "")
-                    }
-                    onClick={() => {
-                      setSearchRankMode(mode);
-                      saveSessionSearchRankPref(mode);
-                    }}
-                  >
-                    {tr(sessionSearchRankModeLabelKey(mode))}
-                  </button>
-                ))}
-              </div>
-              <span className="search-panel__rank-hint">
-                {searchRankMode === "hybrid"
-                  ? tr("search.rankHybridHint")
-                  : tr("search.rankKeywordHint")}
-              </span>
-            </div>
-            <OverlayScroll className="search-panel__results">
-            <div
-              id="search-panel-listbox"
-              role="listbox"
-              aria-label={tr("search.title")}
-            >
-            {paletteActionHits.length > 0 && (
-              <>
-                <div className="search-panel__section">
-                  {tr("search.actions")}
-                </div>
-                {paletteActionHits.map((action, i) => {
-                  const idx = i;
-                  const active = idx === searchActiveIndex;
-                  return (
-                  <button
-                    key={action.id}
-                    type="button"
-                    id={`search-opt-${idx}`}
-                    data-search-idx={idx}
-                    role="option"
-                    aria-selected={active}
-                    tabIndex={-1}
-                    className={
-                      "search-panel__row" + (active ? " is-active" : "")
-                    }
-                    onMouseEnter={() => setSearchActiveIndex(idx)}
-                    onClick={() => runPaletteAction(action)}
-                  >
-                    {paletteActionIcon(action.id)}
-                    <span className="search-panel__title">
-                      {tr(action.labelKey)}
-                    </span>
-                    {action.group === "settings" ? (
-                      <kbd className="menu-shortcut" aria-hidden>
-                        {settingsShortcutHint}
-                      </kbd>
-                    ) : null}
-                  </button>
-                  );
-                })}
-              </>
-            )}
-            {searchHits.matchedProjects.length > 0 && (
-              <>
-                <div className="search-panel__section">
-                  {tr("sidebar.projects")}
-                </div>
-                {searchHits.matchedProjects.map((p, i) => {
-                  const idx = paletteActionHits.length + i;
-                  const active = idx === searchActiveIndex;
-                  return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    id={`search-opt-${idx}`}
-                    data-search-idx={idx}
-                    role="option"
-                    aria-selected={active}
-                    tabIndex={-1}
-                    className={
-                      "search-panel__row" + (active ? " is-active" : "")
-                    }
-                    onMouseEnter={() => setSearchActiveIndex(idx)}
-                    onClick={() => {
-                      setShowSearch(false);
-                      // Project is a folder: expand only; selection is for sessions.
-                      projectSpaces.revealProject(p.id);
-                      setProjectsOpen(true);
-                      setExpandedProjects((e) => ({ ...e, [p.id]: true }));
-                    }}
-                  >
-                    <IconFolder size={15} />
-                    <span className="search-panel__title">{p.name}</span>
-                    <span className="search-panel__meta">{p.path}</span>
-                  </button>
-                  );
-                })}
-              </>
-            )}
-            <div className="search-panel__section">
-              {tr("search.chats")}
-              {contentSearchLoading &&
-              shouldScanSessionContent(searchQuery, searchMode)
-                ? ` · ${tr("search.searchingContent")}`
-                : null}
-            </div>
-            {searchEmptyState ? (
-              <div
-                className="search-panel__empty"
-                role="status"
-                data-kind={searchEmptyState.kind}
-              >
-                <p className="search-panel__empty-title">
-                  {tr(searchEmptyState.titleKey)}
-                </p>
-                <p className="search-panel__empty-hint">
-                  {tr(searchEmptyState.hintKey)}
-                </p>
-                {searchEmptyState.showClearFilters ? (
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--sm search-panel__empty-clear"
-                    onClick={clearSearchFilters}
-                  >
-                    {tr("search.clearFilters")}
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-            {mergedSessionHits.map((hit, i) => {
-              const s = sessions.find((x) => x.id === hit.id);
-              // Content-only hits may lack a live row if the list is stale; still open by id.
-              const row: SessionRow = s ?? normalizeSessionRow({
-                id: hit.id,
-                title: hit.title,
-                projectId: hit.projectId ?? null,
-                updatedAt: "",
-                archived: hit.archived,
-              });
-              const proj = projects.find(
-                (p) => p.id === (row.projectId ?? hit.projectId),
-              );
-              const badge = sessionSearchBadge(hit);
-              const metaParts: string[] = [];
-              if (proj?.name) metaParts.push(proj.name);
-              if (hit.contentMatch && hit.matchCount && hit.matchCount > 0) {
-                metaParts.push(
-                  tr("search.matchCount", { n: String(hit.matchCount) }),
-                );
-              }
-              if (i < 9) metaParts.push(`⌘${i + 1}`);
-              const idx =
-                paletteActionHits.length +
-                searchHits.matchedProjects.length +
-                i;
-              const active = idx === searchActiveIndex;
-              return (
-                <button
-                  key={hit.id}
-                  type="button"
-                  id={`search-opt-${idx}`}
-                  data-search-idx={idx}
-                  role="option"
-                  aria-selected={active}
-                  tabIndex={-1}
-                  className={
-                    "search-panel__row" + (active ? " is-active" : "")
-                  }
-                  onMouseEnter={() => setSearchActiveIndex(idx)}
-                  onClick={() => {
-                    setShowSearch(false);
-                    void openSession(row, proj ?? null);
-                  }}
-                >
-                  <IconSquarePen size={15} />
-                  <span className="search-panel__body">
-                    <span className="search-panel__title">
-                      <span className="search-panel__title-text">
-                        {hit.title || s?.title || "Untitled"}
-                      </span>
-                      {badge ? (
-                        <span
-                          className={
-                            "search-panel__badge" +
-                            (badge === "content"
-                              ? " search-panel__badge--content"
-                              : badge === "both"
-                                ? " search-panel__badge--both"
-                                : "")
-                          }
-                        >
-                          {tr(sessionSearchBadgeLabelKey(badge))}
-                        </span>
-                      ) : null}
-                    </span>
-                    {hit.snippet ? (
-                      <span className="search-panel__snippet">
-                        {hit.snippet}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="search-panel__meta">
-                    {metaParts.join(" · ") || "—"}
-                  </span>
-                </button>
-              );
-            })}
-            </div>
-            </OverlayScroll>
-          </div>
-        </div>
+        <SearchPalette
+          locale={locale}
+          panelRef={searchPanelRef}
+          query={searchQuery}
+          mode={searchMode}
+          rankMode={searchRankMode}
+          includeArchived={searchIncludeArchived}
+          filtersActive={searchFiltersActive}
+          activeIndex={searchActiveIndex}
+          itemCount={searchPaletteItems.length}
+          actions={paletteActionHits}
+          projects={searchHits.matchedProjects}
+          sessionHits={mergedSessionHits}
+          sessions={sessions}
+          projectsCatalog={projects}
+          contentSearchLoading={contentSearchLoading}
+          emptyState={searchEmptyState}
+          settingsShortcutHint={settingsShortcutHint}
+          onClose={() => setShowSearch(false)}
+          onQueryChange={setSearchQuery}
+          onModeChange={applySearchMode}
+          onRankModeChange={(mode) => {
+            setSearchRankMode(mode);
+            saveSessionSearchRankPref(mode);
+          }}
+          onIncludeArchivedChange={applySearchIncludeArchived}
+          onClearFilters={clearSearchFilters}
+          onActiveIndexChange={setSearchActiveIndex}
+          onRunAction={runPaletteAction}
+          onPickProject={(p) => {
+            setShowSearch(false);
+            projectSpaces.revealProject(p.id);
+            setProjectsOpen(true);
+            setExpandedProjects((e) => ({ ...e, [p.id]: true }));
+          }}
+          onPickSession={(row, proj) => {
+            setShowSearch(false);
+            void openSession(row, proj);
+          }}
+        />
       )}
 
       <QueueEditModal
