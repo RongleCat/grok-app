@@ -232,7 +232,7 @@ export const jaCore = {
   "askUser.freeTextHint": "自由に回答を入力することもできます",
   "askUser.multiHint": "1 つ以上選択してください",
   "askUser.autoCancelCountdown": "{seconds} 秒後に自動で閉じます",
-  "remoteIm.msgTag": "远程 IM",
+  "remoteIm.msgTag": "リモート IM",
   "tray.recent": "最近",
   "tray.noRecent": "最近のチャットはありません",
   "tray.untitled": "無題",

@@ -140,7 +140,7 @@ export const jaTasks = {
   "dashboard.tool": "ツール: {name}",
   "dashboard.toolLabel": "ツール",
   "dashboard.open": "エージェントダッシュボード",
-  "dashboard.evidence.title": "X 证据",
+  "dashboard.evidence.title": "X のエビデンス",
   "dashboard.evidence.hint": "X Evidence Rail — x_evidence_search が保存したローカル証拠行（docs/features/x-search.md）",
   "dashboard.evidence.todayNew": "今日 {n} 件新規",
   "dashboard.evidence.weekPacks": "今週 {n} 件の引用パック",
