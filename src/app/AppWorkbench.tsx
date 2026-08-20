@@ -444,7 +444,6 @@ import {
 import {
   loadExportImageSkinPref,
   saveExportImageSkinPref,
-  SHARE_CARD_SKIN_IDS,
   type ShareCardSkinId
 } from "@/lib/shareCardSkins";
 import {
@@ -454,7 +453,6 @@ import {
   exportImageBlobMatchesOptions,
   formatExportImageBytes,
   resolveExportImageError,
-  shareCardSkinMessageKey,
   stampFromPipelineResult,
   type ExportImageBlobStamp
 } from "@/lib/exportSharePro";
@@ -520,8 +518,6 @@ import {
   shouldConfirmClearAllUnread,
 } from "@/lib/sessionUnread";
 import {
-  SESSION_NOTE_MAX_LENGTH,
-  clampSessionNoteInput,
   clearNote as clearSessionNote,
   getNote as getSessionNote,
   loadSessionNotes,
@@ -535,7 +531,6 @@ import {
   dismissCliUpdateNotice,
   shouldOfferCliUpdateNotice
 } from "@/lib/cliUpdateNotice";
-import { GlassModal } from "@/components/GlassModal";
 import { Select } from "@/components/Select";
 import {
   loadDone as loadProductTutorialDone,
@@ -598,20 +593,10 @@ import {
   parseJsonSchemaText,
   wrapAgentTextWithJsonSchema
 } from "@/lib/jsonSchema";
+import { sanitizeExtraRules } from "@/lib/sessionExtraRules";
+import { normalizeMaxAgentTurns } from "@/lib/sessionMaxAgentTurns";
+import { sanitizeSystemPromptOverride } from "@/lib/sessionSystemPrompt";
 import {
-  SESSION_EXTRA_RULES_MAX_CHARS,
-  sanitizeExtraRules
-} from "@/lib/sessionExtraRules";
-import {
-  MAX_AGENT_TURNS_CAP,
-  normalizeMaxAgentTurns
-} from "@/lib/sessionMaxAgentTurns";
-import {
-  SESSION_SYSTEM_PROMPT_MAX_CHARS,
-  sanitizeSystemPromptOverride
-} from "@/lib/sessionSystemPrompt";
-import {
-  clampSessionTextInput,
   presentSessionPromptSoftFail,
   shouldConfirmSessionTextDiscard,
   validateSessionTextField
@@ -980,6 +965,12 @@ import { PlanHistoryPreviewModal } from "@/components/workbench-modals/PlanHisto
 import { PlanReviseModal } from "@/components/workbench-modals/PlanReviseModal";
 import { JsonSchemaModal } from "@/components/workbench-modals/JsonSchemaModal";
 import { QueueEditModal } from "@/components/workbench-modals/QueueEditModal";
+import { SessionNoteModal } from "@/components/workbench-modals/SessionNoteModal";
+import { SessionRulesModal } from "@/components/workbench-modals/SessionRulesModal";
+import { SessionMaxTurnsModal } from "@/components/workbench-modals/SessionMaxTurnsModal";
+import { SessionSysPromptModal } from "@/components/workbench-modals/SessionSysPromptModal";
+import { ExportMdModal } from "@/components/workbench-modals/ExportMdModal";
+import { ExportImageModal } from "@/components/workbench-modals/ExportImageModal";
 import {
   mergeSessionChange,
   sessionChangesFromMessages,
@@ -22945,119 +22936,25 @@ export function AppWorkbench() {
         }}
       />
 
-      <GlassModal
+      <SessionNoteModal
+        locale={locale}
         open={!!sessionNoteTarget}
-        onClose={closeSessionNoteModal}
-        title={tr("session.noteTitle")}
-        size="md"
-        closeLabel={tr("common.close")}
-        wrapBody
-        className="session-note-modal"
-        footer={
-          <div className="session-note-modal__actions">
-            {sessionNoteTarget &&
+        sessionTitle={sessionNoteTarget?.title ?? null}
+        draft={sessionNoteDraft}
+        baseline={sessionNoteBaseline}
+        hadStored={Boolean(
+          sessionNoteTarget && sessionNotesMap[sessionNoteTarget.id]?.trim(),
+        )}
+        showClear={Boolean(
+          sessionNoteTarget &&
             (sessionNotesMap[sessionNoteTarget.id]?.trim() ||
-              sessionNoteDraft.trim()) ? (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={requestClearSessionNoteModal}
-              >
-                {tr("session.noteClear")}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={closeSessionNoteModal}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={saveSessionNoteModal}
-            >
-              {tr("common.save")}
-            </button>
-          </div>
-        }
-      >
-        <p className="session-note-modal__hint">
-          {tr("session.noteHint", { n: String(SESSION_NOTE_MAX_LENGTH) })}
-        </p>
-        {sessionNoteTarget ? (
-          <p
-            className="session-note-modal__session"
-            title={sessionNoteTarget.title}
-          >
-            {sessionNoteTarget.title}
-          </p>
-        ) : null}
-        {(() => {
-          const v = validateSessionNote({
-            draft: sessionNoteDraft,
-            baseline: sessionNoteBaseline,
-            hadStored: Boolean(
-              sessionNoteTarget &&
-                sessionNotesMap[sessionNoteTarget.id]?.trim(),
-            ),
-          });
-          return (
-            <>
-              {v.statusKey ? (
-                <p
-                  className={
-                    "session-prompt-status" +
-                    (v.severity === "warn"
-                      ? " session-prompt-status--warn"
-                      : v.severity === "info"
-                        ? " session-prompt-status--info"
-                        : "")
-                  }
-                  role="status"
-                >
-                  {tr(v.statusKey)}
-                </p>
-              ) : null}
-              <textarea
-                className={
-                  "session-note-modal__textarea" +
-                  (v.severity === "warn"
-                    ? " session-prompt-textarea--warn"
-                    : "")
-                }
-                value={sessionNoteDraft}
-                onChange={(e) => {
-                  const next = clampSessionNoteInput(
-                    e.target.value,
-                    SESSION_NOTE_MAX_LENGTH,
-                  );
-                  setSessionNoteDraft(next.value);
-                }}
-                placeholder={tr("session.notePlaceholder")}
-                maxLength={SESSION_NOTE_MAX_LENGTH}
-                spellCheck
-                aria-label={tr("session.noteTitle")}
-              />
-              <p
-                className={
-                  "session-note-modal__count" +
-                  (v.severity === "warn"
-                    ? " session-prompt-count--warn"
-                    : "")
-                }
-                aria-live="polite"
-              >
-                {tr("session.noteChars", {
-                  n: String(v.budget.rawLen),
-                  max: String(v.budget.max),
-                })}
-              </p>
-            </>
-          );
-        })()}
-      </GlassModal>
+              sessionNoteDraft.trim()),
+        )}
+        onClose={closeSessionNoteModal}
+        onSave={saveSessionNoteModal}
+        onClear={requestClearSessionNoteModal}
+        onDraftChange={setSessionNoteDraft}
+      />
 
       <ConfirmCopyModal
         open={sessionNoteDiscardOpen}
@@ -23088,144 +22985,41 @@ export function AppWorkbench() {
         }}
       />
 
-      <GlassModal
+      <SessionRulesModal
+        locale={locale}
         open={!!sessionRulesTarget}
-        onClose={closeSessionRulesModal}
-        title={tr("session.rulesTitle")}
-        size="md"
-        closeLabel={tr("common.close")}
-        wrapBody
-        className="session-rules-modal"
-        closeOnOverlay={!sessionRulesBusy}
-        showClose={!sessionRulesBusy}
-        footer={
-          <div className="session-rules-modal__actions">
-            {sessionRulesTarget &&
+        sessionTitle={sessionRulesTarget?.title ?? null}
+        draft={sessionRulesDraft}
+        baseline={sessionRulesBaseline}
+        hadStored={sessions.some(
+          (row) =>
+            sessionRulesTarget &&
+            row.id === sessionRulesTarget.id &&
+            !!sanitizeExtraRules(row.extraRules),
+        )}
+        showClear={Boolean(
+          sessionRulesTarget &&
             (sessionRulesDraft.trim() ||
               sessions.some(
                 (row) =>
                   row.id === sessionRulesTarget.id &&
                   !!sanitizeExtraRules(row.extraRules),
-              )) ? (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                disabled={sessionRulesBusy}
-                onClick={() => {
-                  void clearSessionRulesModal();
-                }}
-              >
-                {tr("session.rulesClear")}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={sessionRulesBusy}
-              onClick={closeSessionRulesModal}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={sessionRulesBusy}
-              onClick={() => {
-                void saveSessionRulesModal();
-              }}
-            >
-              {sessionRulesBusy ? tr("resources.saving") : tr("common.save")}
-            </button>
-          </div>
-        }
-      >
-        <p className="session-rules-modal__hint">
-          {tr("session.rulesHint", {
-            n: String(SESSION_EXTRA_RULES_MAX_CHARS),
-          })}
-        </p>
-        {sessionRulesTarget ? (
-          <p
-            className="session-rules-modal__session"
-            title={sessionRulesTarget.title}
-          >
-            {sessionRulesTarget.title}
-          </p>
-        ) : null}
-        {(() => {
-          const v = validateSessionTextField({
-            field: "extra_rules",
-            draft: sessionRulesDraft,
-            baseline: sessionRulesBaseline,
-            hadStored: sessions.some(
-              (row) =>
-                sessionRulesTarget &&
-                row.id === sessionRulesTarget.id &&
-                !!sanitizeExtraRules(row.extraRules),
-            ),
-          });
-          return (
-            <>
-              {v.statusKey ? (
-                <p
-                  className={
-                    "session-prompt-status" +
-                    (v.severity === "warn"
-                      ? " session-prompt-status--warn"
-                      : v.severity === "info"
-                        ? " session-prompt-status--info"
-                        : "")
-                  }
-                  role="status"
-                >
-                  {tr(v.statusKey)}
-                </p>
-              ) : null}
-              {sessionRulesError ? (
-                <p className="session-prompt-error" role="alert">
-                  {sessionRulesError}
-                </p>
-              ) : null}
-              <textarea
-                className={
-                  "session-rules-modal__textarea" +
-                  (v.severity === "warn"
-                    ? " session-prompt-textarea--warn"
-                    : "")
-                }
-                value={sessionRulesDraft}
-                onChange={(e) => {
-                  const next = clampSessionTextInput(
-                    e.target.value,
-                    SESSION_EXTRA_RULES_MAX_CHARS,
-                  );
-                  setSessionRulesDraft(next.value);
-                  setSessionRulesError(null);
-                }}
-                placeholder={tr("session.rulesPlaceholder")}
-                maxLength={SESSION_EXTRA_RULES_MAX_CHARS}
-                spellCheck={false}
-                disabled={sessionRulesBusy}
-                aria-label={tr("session.rulesTitle")}
-              />
-              <p
-                className={
-                  "session-rules-modal__count" +
-                  (v.severity === "warn"
-                    ? " session-prompt-count--warn"
-                    : "")
-                }
-                aria-live="polite"
-              >
-                {tr("session.rulesChars", {
-                  n: String(v.budget.rawLen),
-                  max: String(v.budget.max),
-                })}
-              </p>
-            </>
-          );
-        })()}
-      </GlassModal>
+              )),
+        )}
+        busy={sessionRulesBusy}
+        error={sessionRulesError}
+        onClose={closeSessionRulesModal}
+        onSave={() => {
+          void saveSessionRulesModal();
+        }}
+        onClear={() => {
+          void clearSessionRulesModal();
+        }}
+        onDraftChange={(value) => {
+          setSessionRulesDraft(value);
+          setSessionRulesError(null);
+        }}
+      />
 
       <ConfirmCopyModal
         open={sessionRulesDiscardOpen}
@@ -23241,233 +23035,66 @@ export function AppWorkbench() {
         }}
       />
 
-      <GlassModal
+      <SessionMaxTurnsModal
+        locale={locale}
         open={!!sessionMaxTurnsTarget}
-        onClose={closeSessionMaxTurnsModal}
-        title={tr("session.maxTurnsTitle")}
-        size="sm"
-        closeLabel={tr("common.close")}
-        wrapBody
-        className="session-max-turns-modal"
-        footer={
-          <div className="session-max-turns-modal__actions">
-            {sessionMaxTurnsTarget &&
+        sessionTitle={sessionMaxTurnsTarget?.title ?? null}
+        draft={sessionMaxTurnsDraft}
+        globalTurns={maxAgentTurns}
+        showClear={Boolean(
+          sessionMaxTurnsTarget &&
             (sessionMaxTurnsDraft.trim() ||
               sessions.some(
                 (row) =>
                   row.id === sessionMaxTurnsTarget.id &&
                   normalizeMaxAgentTurns(row.maxAgentTurns) != null,
-              )) ? (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={() => {
-                  void clearSessionMaxTurnsModal();
-                }}
-              >
-                {tr("session.maxTurnsClear")}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={closeSessionMaxTurnsModal}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => {
-                void saveSessionMaxTurnsModal();
-              }}
-            >
-              {tr("common.save")}
-            </button>
-          </div>
-        }
-      >
-        <p className="session-max-turns-modal__hint">
-          {tr("session.maxTurnsHint", {
-            max: String(MAX_AGENT_TURNS_CAP),
-            global:
-              maxAgentTurns > 0
-                ? String(maxAgentTurns)
-                : tr("session.maxTurnsGlobalUnlimited"),
-          })}
-        </p>
-        {sessionMaxTurnsTarget ? (
-          <p
-            className="session-max-turns-modal__session"
-            title={sessionMaxTurnsTarget.title}
-          >
-            {sessionMaxTurnsTarget.title}
-          </p>
-        ) : null}
-        <input
-          className="session-max-turns-modal__input"
-          type="number"
-          min={0}
-          max={MAX_AGENT_TURNS_CAP}
-          step={1}
-          value={sessionMaxTurnsDraft}
-          onChange={(e) => {
-            const raw = e.target.value;
-            if (!raw.trim()) {
-              setSessionMaxTurnsDraft("");
-              return;
-            }
-            const n = Number(raw);
-            if (!Number.isFinite(n)) return;
-            const clamped = Math.min(
-              MAX_AGENT_TURNS_CAP,
-              Math.max(0, Math.round(n)),
-            );
-            setSessionMaxTurnsDraft(String(clamped));
-          }}
-          placeholder={tr("session.maxTurnsPlaceholder")}
-          aria-label={tr("session.maxTurnsTitle")}
-        />
-      </GlassModal>
+              )),
+        )}
+        onClose={closeSessionMaxTurnsModal}
+        onSave={() => {
+          void saveSessionMaxTurnsModal();
+        }}
+        onClear={() => {
+          void clearSessionMaxTurnsModal();
+        }}
+        onDraftChange={setSessionMaxTurnsDraft}
+      />
 
-      <GlassModal
+      <SessionSysPromptModal
+        locale={locale}
         open={!!sessionSysPromptTarget}
-        onClose={closeSessionSysPromptModal}
-        title={tr("session.sysPromptTitle")}
-        size="md"
-        closeLabel={tr("common.close")}
-        wrapBody
-        className="session-sys-prompt-modal"
-        closeOnOverlay={!sessionSysPromptBusy}
-        showClose={!sessionSysPromptBusy}
-        footer={
-          <div className="session-sys-prompt-modal__actions">
-            {sessionSysPromptTarget &&
+        sessionTitle={sessionSysPromptTarget?.title ?? null}
+        draft={sessionSysPromptDraft}
+        baseline={sessionSysPromptBaseline}
+        hadStored={sessions.some(
+          (row) =>
+            sessionSysPromptTarget &&
+            row.id === sessionSysPromptTarget.id &&
+            !!sanitizeSystemPromptOverride(row.systemPromptOverride),
+        )}
+        showClear={Boolean(
+          sessionSysPromptTarget &&
             (sessionSysPromptDraft.trim() ||
               sessions.some(
                 (row) =>
                   row.id === sessionSysPromptTarget.id &&
                   !!sanitizeSystemPromptOverride(row.systemPromptOverride),
-              )) ? (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                disabled={sessionSysPromptBusy}
-                onClick={() => {
-                  void clearSessionSysPromptModal();
-                }}
-              >
-                {tr("session.sysPromptClear")}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={sessionSysPromptBusy}
-              onClick={closeSessionSysPromptModal}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={sessionSysPromptBusy}
-              onClick={() => {
-                void saveSessionSysPromptModal();
-              }}
-            >
-              {sessionSysPromptBusy ? tr("resources.saving") : tr("common.save")}
-            </button>
-          </div>
-        }
-      >
-        <p className="session-sys-prompt-modal__hint">
-          {tr("session.sysPromptHint", {
-            n: String(SESSION_SYSTEM_PROMPT_MAX_CHARS),
-          })}
-        </p>
-        {sessionSysPromptTarget ? (
-          <p
-            className="session-sys-prompt-modal__session"
-            title={sessionSysPromptTarget.title}
-          >
-            {sessionSysPromptTarget.title}
-          </p>
-        ) : null}
-        {(() => {
-          const v = validateSessionTextField({
-            field: "system_prompt",
-            draft: sessionSysPromptDraft,
-            baseline: sessionSysPromptBaseline,
-            hadStored: sessions.some(
-              (row) =>
-                sessionSysPromptTarget &&
-                row.id === sessionSysPromptTarget.id &&
-                !!sanitizeSystemPromptOverride(row.systemPromptOverride),
-            ),
-          });
-          return (
-            <>
-              {v.statusKey ? (
-                <p
-                  className={
-                    "session-prompt-status" +
-                    (v.severity === "warn"
-                      ? " session-prompt-status--warn"
-                      : v.severity === "info"
-                        ? " session-prompt-status--info"
-                        : "")
-                  }
-                  role="status"
-                >
-                  {tr(v.statusKey)}
-                </p>
-              ) : null}
-              {sessionSysPromptError ? (
-                <p className="session-prompt-error" role="alert">
-                  {sessionSysPromptError}
-                </p>
-              ) : null}
-              <textarea
-                className={
-                  "session-sys-prompt-modal__textarea" +
-                  (v.severity === "warn"
-                    ? " session-prompt-textarea--warn"
-                    : "")
-                }
-                value={sessionSysPromptDraft}
-                onChange={(e) => {
-                  const next = clampSessionTextInput(
-                    e.target.value,
-                    SESSION_SYSTEM_PROMPT_MAX_CHARS,
-                  );
-                  setSessionSysPromptDraft(next.value);
-                  setSessionSysPromptError(null);
-                }}
-                placeholder={tr("session.sysPromptPlaceholder")}
-                maxLength={SESSION_SYSTEM_PROMPT_MAX_CHARS}
-                spellCheck={false}
-                disabled={sessionSysPromptBusy}
-                aria-label={tr("session.sysPromptTitle")}
-              />
-              <p
-                className={
-                  "session-sys-prompt-modal__count" +
-                  (v.severity === "warn"
-                    ? " session-prompt-count--warn"
-                    : "")
-                }
-                aria-live="polite"
-              >
-                {tr("session.sysPromptChars", {
-                  n: String(v.budget.rawLen),
-                  max: String(v.budget.max),
-                })}
-              </p>
-            </>
-          );
-        })()}
-      </GlassModal>
+              )),
+        )}
+        busy={sessionSysPromptBusy}
+        error={sessionSysPromptError}
+        onClose={closeSessionSysPromptModal}
+        onSave={() => {
+          void saveSessionSysPromptModal();
+        }}
+        onClear={() => {
+          void clearSessionSysPromptModal();
+        }}
+        onDraftChange={(value) => {
+          setSessionSysPromptDraft(value);
+          setSessionSysPromptError(null);
+        }}
+      />
 
       <ConfirmCopyModal
         open={sessionSysPromptDiscardOpen}
@@ -23483,300 +23110,50 @@ export function AppWorkbench() {
         }}
       />
 
-      <GlassModal
+      <ExportMdModal
+        locale={locale}
         open={!!exportMdTarget}
-        onClose={() => {
-          if (exportMdBusy) return;
-          setExportMdTarget(null);
+        busy={exportMdBusy}
+        includeThoughts={exportMdIncludeThoughts}
+        includeTools={exportMdIncludeTools}
+        honesty={exportMdHonesty}
+        onClose={() => setExportMdTarget(null)}
+        onCopy={() => {
+          void runExportSessionMd("copy");
         }}
-        title={tr("session.exportMdTitle")}
-        size="sm"
-        closeLabel={tr("common.close")}
-        closeOnOverlay={!exportMdBusy}
-        showClose={!exportMdBusy}
-        wrapBody
-        className="export-md-modal"
-      >
-        {/*
-          Layout: options first; action buttons on a second row (cancel / copy /
-          download) like edit+save dialogs — not in the modal header/top.
-        */}
-        <div className="export-md-options">
-          <p className="export-md-options__msg">{tr("session.exportMdHint")}</p>
-          <div
-            className="export-md-options__meta"
-            role="status"
-            aria-live="polite"
-          >
-            <span className="export-md-options__chip">
-              {tr(
-                sessionExportFormatNameKey(
-                  "markdown",
-                ) as Parameters<typeof tr>[0],
-              )}
-              {" · .md"}
-            </span>
-            {exportMdHonesty.path?.badgeKeys.map((key) => (
-              <span
-                key={key}
-                className={
-                  key === "session.exportPath.cli"
-                    ? "export-md-options__chip export-md-options__chip--cli"
-                    : "export-md-options__chip"
-                }
-              >
-                {tr(key as Parameters<typeof tr>[0])}
-              </span>
-            ))}
-            {exportMdHonesty.sizeClassKey ? (
-              <span className="export-md-options__chip">
-                {tr("session.exportSizeHint", {
-                  size: exportMdHonesty.sizeBytesLabel
-                    ? `${tr(exportMdHonesty.sizeClassKey as Parameters<typeof tr>[0])} · ${exportMdHonesty.sizeBytesLabel}`
-                    : tr(
-                        exportMdHonesty.sizeClassKey as Parameters<
-                          typeof tr
-                        >[0],
-                      ),
-                })}
-              </span>
-            ) : null}
-          </div>
-          {exportMdHonesty.path?.cliSkipReasonKey ? (
-            <p className="export-md-options__path-hint" role="status">
-              {tr(
-                exportMdHonesty.path.cliSkipReasonKey as Parameters<
-                  typeof tr
-                >[0],
-              )}
-            </p>
-          ) : null}
-          {exportMdHonesty.journalEmpty === true ? (
-            <p className="export-md-options__empty" role="status">
-              {tr("session.exportEmpty")}
-            </p>
-          ) : null}
-          <label className="export-md-options__row">
-            <input
-              type="checkbox"
-              checked={exportMdIncludeThoughts}
-              disabled={exportMdBusy}
-              onChange={(e) => setExportMdIncludeThoughts(e.target.checked)}
-            />
-            <span>{tr("session.exportMdIncludeThoughts")}</span>
-          </label>
-          <label className="export-md-options__row">
-            <input
-              type="checkbox"
-              checked={exportMdIncludeTools}
-              disabled={exportMdBusy}
-              onChange={(e) => setExportMdIncludeTools(e.target.checked)}
-            />
-            <span>{tr("session.exportMdIncludeTools")}</span>
-          </label>
-          <div className="export-md-options__actions" role="group">
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={exportMdBusy}
-              onClick={() => setExportMdTarget(null)}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={
-                exportMdBusy ||
-                !exportMdTarget ||
-                !exportMdHonesty.canAct
-              }
-              onClick={() => void runExportSessionMd("copy")}
-            >
-              {tr("session.exportMdCopy")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--solid"
-              disabled={
-                exportMdBusy ||
-                !exportMdTarget ||
-                !exportMdHonesty.canAct
-              }
-              onClick={() => void runExportSessionMd("download")}
-            >
-              {exportMdBusy
-                ? tr("session.exportMdWorking")
-                : tr("session.exportMdDownload")}
-            </button>
-          </div>
-        </div>
-      </GlassModal>
+        onDownload={() => {
+          void runExportSessionMd("download");
+        }}
+        onIncludeThoughtsChange={setExportMdIncludeThoughts}
+        onIncludeToolsChange={setExportMdIncludeTools}
+      />
 
-      <GlassModal
+      <ExportImageModal
+        locale={locale}
         open={!!exportImageTarget}
+        busy={exportImageBusy}
+        canAct={exportImageCanAct}
+        skin={exportImageSkin}
+        smart={exportImageSmart}
+        previewPhase={exportImagePreviewPhase}
+        previewUrl={exportImagePreviewUrl}
+        optionsMatch={exportImageOptionsMatch}
+        previewError={exportImagePreviewError}
+        bytesLabel={exportImageBytesLabel}
+        metaParts={exportImageMetaParts}
         onClose={closeExportSessionImage}
-        title={tr("session.exportImageTitle")}
-        size="md"
-        closeLabel={tr("common.close")}
-        closeOnOverlay={!exportImageBusy}
-        showClose={!exportImageBusy}
-        wrapBody
-        className="export-md-modal export-image-modal"
-      >
-        <div className="export-md-options">
-          <div
-            className="export-image-skins"
-            role="radiogroup"
-            aria-label={tr("session.exportImageTheme")}
-          >
-            {SHARE_CARD_SKIN_IDS.map((skinId) => (
-              <button
-                key={skinId}
-                type="button"
-                role="radio"
-                aria-checked={exportImageSkin === skinId}
-                className={
-                  "export-image-skin" +
-                  (exportImageSkin === skinId
-                    ? " export-image-skin--active"
-                    : "")
-                }
-                disabled={exportImageBusy}
-                data-skin={skinId}
-                onClick={() => {
-                  setExportImageSkin(skinId);
-                  saveExportImageSkinPref(skinId);
-                }}
-              >
-                <span
-                  className="export-image-skin__swatch"
-                  aria-hidden
-                  data-skin={skinId}
-                />
-                <span className="export-image-skin__label">
-                  {tr(
-                    shareCardSkinMessageKey(skinId) as Parameters<
-                      typeof tr
-                    >[0],
-                  )}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div
-            className="export-image-meta"
-            aria-live="polite"
-            data-phase={exportImagePreviewPhase}
-          >
-            <span className="export-image-meta__chip">
-              {tr(
-                exportImageMetaParts.modeKey as Parameters<typeof tr>[0],
-              )}
-            </span>
-            <span className="export-image-meta__chip">
-              {tr(
-                exportImageMetaParts.skinKey as Parameters<typeof tr>[0],
-              )}
-            </span>
-            {exportImageMetaParts.layoutKey ? (
-              <span className="export-image-meta__chip export-image-style-chip">
-                {tr(
-                  exportImageMetaParts.layoutKey as Parameters<typeof tr>[0],
-                )}
-              </span>
-            ) : null}
-            {exportImageBytesLabel && exportImagePreviewPhase === "ready" ? (
-              <span
-                className="export-image-meta__chip export-image-meta__chip--muted"
-                title={tr("session.exportImageSize")}
-              >
-                {exportImageBytesLabel}
-              </span>
-            ) : null}
-          </div>
-          <div
-            key={
-              exportImagePreviewUrl && exportImageOptionsMatch
-                ? exportImagePreviewUrl
-                : "export-image-preview-empty"
-            }
-            className={
-              "export-image-preview" +
-              (exportImagePreviewPhase === "error"
-                ? " export-image-preview--error"
-                : "") +
-              (exportImagePreviewPhase === "rendering"
-                ? " export-image-preview--busy"
-                : "")
-            }
-            aria-busy={exportImageBusy}
-            aria-live="polite"
-            data-phase={exportImagePreviewPhase}
-          >
-            {exportImagePreviewUrl && exportImageOptionsMatch ? (
-              <img
-                src={exportImagePreviewUrl}
-                alt={tr("session.exportImagePreview")}
-                className="export-image-preview__img"
-              />
-            ) : exportImagePreviewError ? (
-              <p className="export-image-preview__err" role="alert">
-                {exportImagePreviewError}
-              </p>
-            ) : (
-              <p className="export-image-preview__placeholder">
-                {exportImagePreviewPhase === "rendering" || exportImageBusy
-                  ? tr("session.exportImageWorking")
-                  : tr("session.exportImagePreview")}
-              </p>
-            )}
-          </div>
-          <label className="export-md-options__row">
-            <input
-              type="checkbox"
-              checked={exportImageSmart}
-              disabled={exportImageBusy}
-              onChange={(e) => setExportImageSmart(e.target.checked)}
-            />
-            <span>
-              {tr("session.exportImageSmart")}
-              <span className="export-image-smart-hint">
-                {" "}
-                — {tr("session.exportImageSmartDesc")}
-              </span>
-            </span>
-          </label>
-          <div className="export-md-options__actions" role="group">
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={exportImageBusy}
-              onClick={closeExportSessionImage}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={!exportImageCanAct || exportImageBusy}
-              onClick={() => void runExportSessionImage("copy")}
-            >
-              {tr("session.exportImageCopy")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--solid"
-              disabled={!exportImageCanAct || exportImageBusy}
-              onClick={() => void runExportSessionImage("download")}
-            >
-              {exportImageBusy
-                ? tr("session.exportImageWorking")
-                : tr("session.exportImageDownload")}
-            </button>
-          </div>
-        </div>
-      </GlassModal>
+        onCopy={() => {
+          void runExportSessionImage("copy");
+        }}
+        onDownload={() => {
+          void runExportSessionImage("download");
+        }}
+        onSkinChange={(skinId) => {
+          setExportImageSkin(skinId);
+          saveExportImageSkinPref(skinId);
+        }}
+        onSmartChange={setExportImageSmart}
+      />
 
       {showCompactModal && (
         <div
