@@ -136,7 +136,7 @@ describe("shortcuts catalog", () => {
     expect(row).toBeDefined();
     expect(row!.labelKey).toBe("shortcuts.quit");
     expect(row!.group).toBe("workbench");
-    expect(row!.mac.toLowerCase()).toMatch(/ctrl/);
+    expect(row!.mac).toBe("⌃ Q");
     expect(row!.win.toLowerCase()).toMatch(/ctrl/);
     expect((GLOBAL_MOD_SHORTCUT_IDS as readonly string[]).includes("quit")).toBe(
       false,

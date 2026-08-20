@@ -3,10 +3,32 @@
  * First press is a toast; the second actually exits.
  *
  * Windows native Quit has no Ctrl+Q binding. This chord is frontend-owned.
+ * Focus on a PTY/xterm surface must not consume Ctrl+Q (terminal XON).
  */
 
 /** How long the second Ctrl+Q counts as confirm. */
 export const QUIT_DOUBLE_PRESS_MS = 2000;
+
+/** Side/bottom terminal surfaces that own Ctrl+Q as XON (not quit). */
+export const PTY_QUIT_PASSTHROUGH_SEL = [
+  ".xterm",
+  ".xterm-helper-textarea",
+  ".sw-terminal",
+  "[data-testid='side-terminal-xterm']",
+  "[data-testid='bottom-terminal']",
+].join(", ");
+
+/** True when focus is inside the embedded PTY / xterm panel. */
+export function isPtyFocusSurface(
+  el: EventTarget | null | undefined,
+): boolean {
+  if (!el || typeof (el as HTMLElement).closest !== "function") return false;
+  try {
+    return !!(el as HTMLElement).closest(PTY_QUIT_PASSTHROUGH_SEL);
+  } catch {
+    return false;
+  }
+}
 
 export type QuitPressResult = {
   action: "arm" | "quit";
@@ -28,6 +50,27 @@ export function isQuitShortcutKey(e: {
     !e.altKey &&
     !e.shiftKey
   );
+}
+
+/**
+ * Whether the window-capture handler should preventDefault / stopPropagation.
+ * False on PTY/xterm so Ctrl+Q still sends XON after Ctrl+S freeze.
+ */
+export function shouldConsumeQuitShortcut(opts: {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+  isComposing?: boolean;
+  recordingShortcut?: boolean;
+  target?: EventTarget | null;
+}): boolean {
+  if (opts.isComposing) return false;
+  if (opts.recordingShortcut) return false;
+  if (!isQuitShortcutKey(opts)) return false;
+  if (isPtyFocusSurface(opts.target)) return false;
+  return true;
 }
 
 /**

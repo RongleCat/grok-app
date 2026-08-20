@@ -139,10 +139,19 @@ pub fn build_menu(app: &AppHandle) -> Result<Menu<Wry>, tauri::Error> {
     builder.build()
 }
 
-/// Tray Quit label plus a Ctrl+Q hint.
+/// Tray Quit label plus a Ctrl+Q hint on Windows/Linux.
+/// macOS keeps the bare label: ⌘Q is the quit chord (and still immediate).
 /// Inline on purpose: a `\t` accelerator column makes the whole tray menu wider.
 fn quit_tray_label(quit: &str) -> String {
-    format!("{quit} (Ctrl+Q)")
+    quit_tray_label_for(quit, cfg!(target_os = "macos"))
+}
+
+fn quit_tray_label_for(quit: &str, macos: bool) -> String {
+    if macos {
+        quit.to_string()
+    } else {
+        format!("{quit} (Ctrl+Q)")
+    }
 }
 
 /// Format quota refresh ISO → local short date and clock, in `fmt`.
@@ -534,7 +543,15 @@ mod badge_tests {
 
     #[test]
     fn quit_label_shows_ctrl_q_without_owning_the_text() {
-        assert_eq!(quit_tray_label("Quit Grok"), "Quit Grok (Ctrl+Q)");
-        assert_eq!(quit_tray_label("退出 Grok"), "退出 Grok (Ctrl+Q)");
+        assert_eq!(
+            quit_tray_label_for("Quit Grok", false),
+            "Quit Grok (Ctrl+Q)"
+        );
+        assert_eq!(
+            quit_tray_label_for("退出 Grok", false),
+            "退出 Grok (Ctrl+Q)"
+        );
+        assert_eq!(quit_tray_label_for("Quit Grok", true), "Quit Grok");
+        assert_eq!(quit_tray_label_for("退出 Grok", true), "退出 Grok");
     }
 }

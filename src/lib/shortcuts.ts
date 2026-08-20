@@ -216,7 +216,7 @@ export const SHORTCUTS: ShortcutRow[] = [
     labelKey: "shortcuts.quit",
     group: "workbench",
     scope: "global",
-    mac: "Ctrl Q",
+    mac: "⌃ Q",
     win: "Ctrl Q",
   },
   {

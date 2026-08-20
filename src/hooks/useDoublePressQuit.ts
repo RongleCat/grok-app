@@ -5,8 +5,8 @@
 
 import { useEffect, useRef } from "react";
 import {
-  isQuitShortcutKey,
   nextQuitPress,
+  shouldConsumeQuitShortcut,
 } from "@/lib/doublePressQuit";
 import { isShortcutRecordingActive } from "@/lib/shortcutRemap";
 
@@ -24,9 +24,20 @@ export function useDoublePressQuit(opts: {
   useEffect(() => {
     if (!opts.enabled) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.isComposing) return;
-      if (isShortcutRecordingActive()) return;
-      if (!isQuitShortcutKey(e)) return;
+      if (
+        !shouldConsumeQuitShortcut({
+          key: e.key,
+          ctrlKey: e.ctrlKey,
+          metaKey: e.metaKey,
+          altKey: e.altKey,
+          shiftKey: e.shiftKey,
+          isComposing: e.isComposing,
+          recordingShortcut: isShortcutRecordingActive(),
+          target: e.target,
+        })
+      ) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       const next = nextQuitPress(Date.now(), armedAtRef.current);

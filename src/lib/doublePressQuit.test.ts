@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   QUIT_DOUBLE_PRESS_MS,
+  isPtyFocusSurface,
   isQuitShortcutKey,
   nextQuitPress,
+  shouldConsumeQuitShortcut,
 } from "./doublePressQuit";
 
 function key(
@@ -38,6 +40,39 @@ describe("isQuitShortcutKey", () => {
     expect(isQuitShortcutKey(key({ altKey: true }))).toBe(false);
     expect(isQuitShortcutKey(key({ ctrlKey: false }))).toBe(false);
     expect(isQuitShortcutKey(key({ key: "w" }))).toBe(false);
+  });
+});
+
+describe("PTY / xterm Ctrl+Q passthrough", () => {
+  const xtermTarget = {
+    closest: (sel: string) => (sel.includes(".xterm") ? {} : null),
+  } as unknown as EventTarget;
+
+  it("detects PTY/xterm focus surfaces", () => {
+    expect(isPtyFocusSurface(null)).toBe(false);
+    expect(isPtyFocusSurface(xtermTarget)).toBe(true);
+    expect(
+      isPtyFocusSurface({ closest: () => null } as unknown as EventTarget),
+    ).toBe(false);
+  });
+
+  it("does not consume Ctrl+Q when focus is on a PTY/xterm surface (no preventDefault)", () => {
+    expect(
+      shouldConsumeQuitShortcut({
+        ...key(),
+        target: xtermTarget,
+      }),
+    ).toBe(false);
+  });
+
+  it("still consumes Ctrl+Q when focus is not on a terminal", () => {
+    expect(
+      shouldConsumeQuitShortcut({
+        ...key(),
+        target: { closest: () => null } as unknown as EventTarget,
+      }),
+    ).toBe(true);
+    expect(shouldConsumeQuitShortcut(key())).toBe(true);
   });
 });
 
