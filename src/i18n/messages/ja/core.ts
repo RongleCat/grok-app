@@ -2,7 +2,7 @@
 export const jaCore = {
   "app.name": "Grok",
   "app.tagline": "MIT · 非公式 · 姉妹プロジェクト grok-go",
-  "app.versionFooter": "Grok v0.2.22 · MIT · 非公式 · 姉妹プロジェクト grok-go",
+  "app.versionFooter": "Grok v0.2.23 · MIT · 非公式 · 姉妹プロジェクト grok-go",
   "window.minimize": "最小化",
   "window.maximize": "最大化",
   "window.restore": "元のサイズに戻す",
@@ -232,7 +232,7 @@ export const jaCore = {
   "askUser.freeTextHint": "自由に回答を入力することもできます",
   "askUser.multiHint": "1 つ以上選択してください",
   "askUser.autoCancelCountdown": "{seconds} 秒後に自動で閉じます",
-  "remoteIm.msgTag": "远程 IM",
+  "remoteIm.msgTag": "リモート IM",
   "tray.recent": "最近",
   "tray.noRecent": "最近のチャットはありません",
   "tray.untitled": "無題",

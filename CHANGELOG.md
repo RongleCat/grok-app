@@ -12,6 +12,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Fixed
+- **Japanese UI is no longer two-thirds Simplified Chinese (#732)**: Settings / Doctor / extensions / session catalogs that still copied `zh` verbatim are Japanese. `session.placeholderTitle` is `新しいチャット` (matches the tray). A catalog test fails if a non-Chinese locale copies simplified-only Han from `zh`.
 - **Windows `pnpm test` no longer fails on a fresh clone (#730)**: `window-config.test.ts` now normalizes CRLF before asserting on Host source, so `core.autocrlf=true` checkouts stay green.
 - **German “turn” is *Vorgang*, not *Zug* (#728)**: 125 catalog sites no longer read as “train” / “chess move”.
 - **15-locale auto-title and test cascade (#726)**: CJK titles no longer panic when peeling 「」 / “”; every shipped locale’s placeholder name is recognised; engine-locale tests no longer poison `APP_HOME_ENV_LOCK` on a non-English desktop.
@@ -21,6 +22,7 @@ See `docs/llm-wiki/release.md`.
 - **`cargo fmt --check` is green on main (#725)**.
 
 **中文 · 修复**
+- **日语界面不再有三分之二简体中文（#732）**：原先原样复制 `zh` 的设置 / Doctor / 扩展 / 会话词条改为日语。`session.placeholderTitle` 与托盘一致为 `新しいチャット`。CI 会拦截非中文目录复制简体专用汉字。
 - **Windows 全新 clone 上 `pnpm test` 不再红（#730）**：断言 Host 源码前把 CRLF 归一成 LF。
 - **德语 “turn” 改为 Vorgang，不再用 Zug（#728）**。
 - **十五语言自动标题与测试连锁失败（#726）**：剥「」/“”不再 panic；占位标题覆盖全部语言；非英语桌面上的 engine locale 断言不再毒化锁。

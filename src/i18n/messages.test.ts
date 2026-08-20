@@ -101,6 +101,39 @@ describe("i18n catalog", () => {
     }
   });
 
+  it("non-Chinese catalogs do not copy Simplified Chinese values", () => {
+    // A catalog value that equals `zh` and contains simplified-only Han
+    // (无/设/渠/话/…) is never correct Japanese or Korean. Shared
+    // shinjitai (保存, 国内, 独立) matches `zh` and differs from `zh-TW`
+    // without using those characters, so it is not flagged. Language
+    // names and Volcano product titles are deliberately Chinese.
+    const exclude = new Set<MessageKey>([
+      "settings.sttLanguage.zhCN",
+      "settings.sttLanguage.zhTW",
+      "settings.terminalFontPreview",
+    ]);
+    // Simplified forms that are not Japanese shinjitai / not Hangul-adjacent Han.
+    const simplifiedOnly =
+      /[无与为这们吗么还对从经现里后发长门页选项语说话请认问间开关东车来时户启钱钥锁队际网览视频图传输链接远程进让给把着该种样没汉汇义书买卖乐习乡乱亚产亩亲亿仅仑仓伦侦侧侨俭债倾偿儿党兰关兴养兽冈册写军农冯冲决况冻净准凉减几凤凭凯击凿划刘则刚创剂剑剥剧劝办务动励劲劳势勋区医华协单卖卫厅历厉压厌厕厢厦厨县参双变叙叠叶号叹吓吕吨听启吴呕员呛呜咏咙咛响哑哗哟唤啧啬啰啸喷喽嘱团园围设渠]/;
+    const leaked: string[] = [];
+    for (const loc of LOCALES) {
+      if (loc === "en" || loc === "zh" || loc === "zh-TW") continue;
+      for (const [k, v] of Object.entries(messages[loc])) {
+        const key = k as MessageKey;
+        if (exclude.has(key) || key.startsWith("prov.preset.volcanoArk.")) {
+          continue;
+        }
+        if (v === messages.zh[key] && simplifiedOnly.test(v)) {
+          leaked.push(`${loc}.${key}`);
+        }
+      }
+    }
+    expect(
+      leaked,
+      `${leaked.length} simplified-Chinese leaks, e.g. ${leaked.slice(0, 8).join(", ")}`,
+    ).toEqual([]);
+  });
+
   it("translates the always-visible chrome in every locale", () => {
     // These render on first paint in every session, so a locale that still
     // falls back to English here is not usable as a UI language.

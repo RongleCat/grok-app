@@ -52,7 +52,7 @@ export const jaChat = {
   "message.structuredJsonPartialKeys": "検出したキー: {keys}",
   "message.structuredJsonTimeline": "検証",
   "message.structuredJsonUsage": "使用量: {detail}",
-  "message.structuredJsonUsageIo": "{input} 入 · {output} 出",
+  "message.structuredJsonUsageIo": "{input} 入力 · {output} 出力",
   "message.structuredJsonUsageTotal": "{total} トークン",
   "chatFind.placeholder": "会話内を検索…",
   "chatFind.prev": "前の一致",
