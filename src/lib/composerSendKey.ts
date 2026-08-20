@@ -86,13 +86,26 @@ export function shouldSteerOnKeydown(e: ComposerSendKeyEvent): boolean {
 export type ComposerSubmitAction = "steer" | "send" | "none";
 
 /**
+ * Whether the Ctrl/Cmd+Enter chord should be dispatched to `steerFromComposer`.
+ * Permission waits stay **true** — that handler toasts and refuses to write.
+ * Pre-filtering `awaiting_permission` here made the chord a silent no-op.
+ */
+export function composerSteerLive(opts: {
+  canGuideQueuedMessage: boolean;
+  sessionState: string;
+}): boolean {
+  void opts.sessionState;
+  return opts.canGuideQueuedMessage;
+}
+
+/**
  * What composer Enter should do. Steer (CLI Ctrl+Enter) wins while a
  * turn is live so a mod-enter send pref cannot queue instead.
  */
 export function resolveComposerSubmitAction(opts: {
   event: ComposerSendKeyEvent;
   sendPref: ComposerSendKeyPref;
-  /** Live turn that can accept `sessionInterject` (not a permission gate). */
+  /** Live turn (streaming **or** permission wait). Handler toasts on the gate. */
   canSteer: boolean;
 }): ComposerSubmitAction {
   if (shouldSteerOnKeydown(opts.event) && opts.canSteer) return "steer";

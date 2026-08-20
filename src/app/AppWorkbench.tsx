@@ -692,6 +692,7 @@ import {
 } from "@/lib/recentPromptHistory";
 import {
   COMPOSER_SEND_KEY_CHANGED_EVENT,
+  composerSteerLive,
   loadComposerSendKeyPref,
   resolveComposerSubmitAction,
   type ComposerSendKeyPref
@@ -18228,8 +18229,10 @@ export function AppWorkbench() {
     const submit = resolveComposerSubmitAction({
       event: e,
       sendPref: composerSendKeyPref,
-      canSteer:
-        canGuideQueuedMessage && session.state !== "awaiting_permission",
+      canSteer: composerSteerLive({
+        canGuideQueuedMessage,
+        sessionState: session.state,
+      }),
     });
     if (submit === "steer") {
       e.preventDefault();

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  composerSteerLive,
   loadComposerSendKeyPref,
   resolveComposerSubmitAction,
   saveComposerSendKeyPref,
@@ -169,5 +170,30 @@ describe("resolveComposerSubmitAction", () => {
         canSteer: true,
       }),
     ).toBe("send");
+  });
+
+  it("does not drop steer while awaiting_permission (handler toasts)", () => {
+    expect(
+      composerSteerLive({
+        canGuideQueuedMessage: true,
+        sessionState: "awaiting_permission",
+      }),
+    ).toBe(true);
+    expect(
+      resolveComposerSubmitAction({
+        event: key({ ctrlKey: true }),
+        sendPref: "enter",
+        canSteer: composerSteerLive({
+          canGuideQueuedMessage: true,
+          sessionState: "awaiting_permission",
+        }),
+      }),
+    ).toBe("steer");
+    expect(
+      composerSteerLive({
+        canGuideQueuedMessage: false,
+        sessionState: "ready",
+      }),
+    ).toBe(false);
   });
 });
