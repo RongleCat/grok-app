@@ -145,6 +145,20 @@ describe("clipboardLooksLikeOsFiles / fileNativePath / isNotReadableBlobError", 
     } as unknown as DataTransfer)).toBe(false);
   });
 
+  it("does not treat a copied http URL uri-list as OS files", () => {
+    const data = {
+      files: { length: 0, item: () => null } as unknown as FileList,
+      items: [{ kind: "string", type: "text/plain", getAsFile: () => null }],
+      types: ["text/uri-list", "text/plain"],
+      getData: (t: string) =>
+        t === "text/plain" || t === "text/uri-list"
+          ? "https://example.com/shot.png"
+          : "",
+    } as unknown as DataTransfer;
+    expect(clipboardLooksLikeOsFiles(data)).toBe(false);
+    expect(clipboardLooksLikeMedia(data)).toBe(false);
+  });
+
   it("reads Tauri File.path when present", () => {
     const f = Object.assign(fakeFile("crash.dmp", ""), {
       path: "C:\\\\dumps\\\\crash.dmp",

@@ -62,7 +62,10 @@ export function clipboardLooksLikeOsFiles(
 ): boolean {
   if (!data) return false;
   const types = Array.from(data.types ?? []);
-  if (types.some((t) => t === "Files" || t === "text/uri-list")) return true;
+  // `Files` is Explorer/Finder. Do not treat bare `text/uri-list` as an OS
+  // file list — Firefox and Chromium/Linux put uri-list on copied links and
+  // browser images, which must stay on the media/text paste path (#756).
+  if (types.some((t) => t === "Files")) return true;
   if (data.files && data.files.length > 0) return true;
   const items = data.items;
   if (items) {
