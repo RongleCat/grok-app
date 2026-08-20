@@ -15,32 +15,11 @@ import { usePetCompanion } from "@/hooks/usePetCompanion";
 import { createPortal } from "react-dom";
 import { useFloatingMenu } from "@/lib/floatingMenu";
 import { DEFAULT_WALLPAPER_FOCUS } from "@/lib/themeSkin";
-import {
-  loadMessageTimestampsPref,
-  MESSAGE_TIMESTAMPS_CHANGE_EVENT,
-  saveMessageTimestampsPref
-} from "@/lib/messageTimestampsPref";
-import {
-  loadShowReplyLengthPref,
-  saveShowReplyLengthPref,
-  SHOW_REPLY_LENGTH_CHANGE_EVENT
-} from "@/lib/messageLength";
-import {
-  loadReplaceProviderBrandLogoPref,
-  REPLACE_PROVIDER_BRAND_LOGO_CHANGE_EVENT,
-  saveReplaceProviderBrandLogoPref,
-} from "@/lib/replaceProviderBrandLogoPref";
-import {
-  loadMessageTimeFormatPref,
-  MESSAGE_TIME_FORMAT_CHANGE_EVENT,
-  saveMessageTimeFormatPref,
-  type MessageTimeFormat
-} from "@/lib/messageTimeFormatPref";
-import {
-  loadSidebarShowRelativeTimePref,
-  saveSidebarShowRelativeTimePref,
-  SIDEBAR_SHOW_RELATIVE_TIME_CHANGE_EVENT
-} from "@/lib/sidebarShowRelativeTimePref";
+import { saveMessageTimestampsPref } from "@/lib/messageTimestampsPref";
+import { saveShowReplyLengthPref } from "@/lib/messageLength";
+import { saveReplaceProviderBrandLogoPref } from "@/lib/replaceProviderBrandLogoPref";
+import { saveMessageTimeFormatPref } from "@/lib/messageTimeFormatPref";
+import { saveSidebarShowRelativeTimePref } from "@/lib/sidebarShowRelativeTimePref";
 import { formatRelativeTime } from "@/lib/accountUi";
 import {
   canFetchOfficialQuota,
@@ -79,16 +58,8 @@ import {
 } from "@/lib/confirmQuit";
 import { QUIT_DOUBLE_PRESS_MS } from "@/lib/doublePressQuit";
 import { useDoublePressQuit } from "@/hooks/useDoublePressQuit";
-import {
-  loadNotifySoundPref,
-  NOTIFY_SOUND_CHANGE_EVENT,
-  saveNotifySoundPref
-} from "@/lib/notifySound";
-import {
-  applyWindowAlwaysOnTop,
-  loadWindowAlwaysOnTopPref,
-  saveWindowAlwaysOnTopPref
-} from "@/lib/windowAlwaysOnTop";
+import { saveNotifySoundPref } from "@/lib/notifySound";
+import { saveWindowAlwaysOnTopPref } from "@/lib/windowAlwaysOnTop";
 import {
   canLiveParticipate,
   canOpenSessionInNewWindow,
@@ -109,15 +80,10 @@ import {
   resumeGateClock
 } from "@/lib/gateClock";
 import {
-  loadPermissionTimeoutSec,
-  PERMISSION_TIMEOUT_CHANGE_EVENT,
   permissionTimeoutRemainingSec,
   savePermissionTimeoutSec
 } from "@/lib/permissionTimeout";
-import {  ASK_USER_TIMEOUT_CHANGE_EVENT,
-  loadAskUserTimeoutSec,
-  saveAskUserTimeoutSec
-} from "@/lib/askUserTimeout";
+import { saveAskUserTimeoutSec } from "@/lib/askUserTimeout";
 import { WallpaperMediaLayer } from "@/components/WallpaperMediaLayer";
 import {
   ASIDE_WIDTH_MIN,
@@ -129,26 +95,8 @@ import {
   resolveSidebarDragEnd,
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_WIDTH_MIN,
-  isMirrorPhoneLayout,
-  loadLayout,
   saveLayout,
-  withMirrorPhoneDrawerDefault,
 } from "@/lib/layout";
-import {
-  ZEN_MODE_CHANGE_EVENT,
-  applyZenModeLayoutTransition,
-  clearZenModePrior,
-  loadZenMode,
-  loadZenModePrior,
-  saveZenMode,
-  saveZenModePrior
-} from "@/lib/zenMode";
-import {
-  TRANSCRIPT_FILTER_CHANGE_EVENT,
-  loadTranscriptFilterPref,
-  saveTranscriptFilterPref,
-  type TranscriptFilterMode
-} from "@/lib/transcriptFilterPref";
 import {
   ensureWindowFitsLayout,
   isWindowFitSuppressed
@@ -250,10 +198,7 @@ import {
   classifyTasksStopError,
   type TasksBindCwdResult
 } from "@/lib/tasksPanelPro";
-import {
-  loadTrayBusyBadgePref,
-  saveTrayBusyBadgePref
-} from "@/lib/trayBusyBadgePref";
+import { saveTrayBusyBadgePref } from "@/lib/trayBusyBadgePref";
 import { resolveTrayBusyBadgeCount } from "@/lib/trayNotifyPro";
 import {
   collectAgentDashboardRows,
@@ -289,12 +234,10 @@ import {
   buildGoalControlSummary,
   filterGoalOrchEvents,
   goalOrchPhaseLabelKey,
-  loadGoalOrchUiEnabled,
   planClearGoalOrchEvents,
   resolveGoalOrchSessionIndicator,
   saveGoalOrchUiEnabled,
-  shouldConfirmClearGoalOrch,
-  type GoalOrchEvent
+  shouldConfirmClearGoalOrch
 } from "@/lib/goalOrch";
 import * as api from "@/lib/api";
 import { queueComposerPreferenceApply } from "@/lib/composerPrefsBarrier";
@@ -544,7 +487,6 @@ import {
 import {
   formatShortcutHint,
   matchGlobalShortcut,
-  shortcutsForPlatform
 } from "@/lib/shortcuts";
 import { nextSessionId } from "@/lib/sidebarSessionNav";
 import {
@@ -555,7 +497,6 @@ import {
   type ShortcutRemapMap
 } from "@/lib/shortcutRemap";
 import {
-  SHORTCUT_KEYS_OFF,
   loadVoiceHotkeyEnabled,
   shouldFireLiveVoiceHotkey,
   VOICE_HOTKEY_CHANGED_EVENT,
@@ -698,25 +639,14 @@ import {
   RECENT_PROMPT_HISTORY_STORAGE_KEY
 } from "@/lib/recentPromptHistory";
 import {
-  COMPOSER_SEND_KEY_CHANGED_EVENT,
   composerSteerLive,
-  loadComposerSendKeyPref,
   resolveComposerSubmitAction,
-  type ComposerSendKeyPref
 } from "@/lib/composerSendKey";
-import {
-  COMPOSER_DRAFT_STATS_CHANGED_EVENT,
-  countDraftChars,
-  loadComposerDraftStatsPref
-} from "@/lib/draftStats";
+import { countDraftChars } from "@/lib/draftStats";
 import {
   composerDraftStore,
   getDraft as getComposerDraft,
 } from "@/lib/composerDraftStore";
-import {
-  COMPOSER_SPELLCHECK_CHANGED_EVENT,
-  loadComposerSpellcheck
-} from "@/lib/composerSpellcheck";
 import {
   clearComposerProjectDraft,
   loadComposerProjectDraft,
@@ -795,12 +725,7 @@ import {
   type SidebarSessionWorktreeBadgeProp,
 } from "@/components/SidebarSessionRow";
 import { SidebarTreeReveal } from "@/components/SidebarTreeReveal";
-import {
-  SIDEBAR_DENSITY_EVENT,
-  loadSidebarDensity,
-  sidebarSessionRowMetrics,
-  type SidebarDensity
-} from "@/lib/sidebarDensity";
+import { sidebarSessionRowMetrics } from "@/lib/sidebarDensity";
 import { sortSessionsForSidebar } from "@/lib/sidebarDateGroups";
 import { nextSessionTitle } from "@/lib/sidebarSessionRename";
 import { GrokLogo } from "@/components/GrokLogo";
@@ -1042,6 +967,15 @@ import {
 import { applySideContextOpen } from "@/lib/sideContextOpen";
 import { resolveSidePathDeepLink } from "@/lib/sidePathDeepLink";
 import { ProjectRulesModal } from "@/components/ProjectRulesModal";
+import { PromptHistoryClearModal } from "@/components/workbench-modals/PromptHistoryClearModal";
+import { ArchiveAgeConfirmModal } from "@/components/workbench-modals/ArchiveAgeConfirmModal";
+import { WorktreeCreateModal } from "@/components/workbench-modals/WorktreeCreateModal";
+import { WorktreeGcModal } from "@/components/workbench-modals/WorktreeGcModal";
+import { WorktreeShipModal } from "@/components/workbench-modals/WorktreeShipModal";
+import { ShortcutsHelpModal } from "@/components/workbench-modals/ShortcutsHelpModal";
+import { RewindConfirmModal } from "@/components/workbench-modals/RewindConfirmModal";
+import { ForkConfirmModal } from "@/components/workbench-modals/ForkConfirmModal";
+import { ResumeRestoreConfirmModal } from "@/components/workbench-modals/ResumeRestoreConfirmModal";
 import {
   mergeSessionChange,
   sessionChangesFromMessages,
@@ -1210,6 +1144,8 @@ import { useSessionHostEvents } from "@/hooks/useSessionHostEvents";
 import { useSessionSpend } from "@/hooks/useSessionSpend";
 import { useGhostStreamingHeal } from "@/hooks/useGhostStreamingHeal";
 import { useAccountQuotaAutoRefresh } from "@/hooks/useAccountQuotaAutoRefresh";
+import { useWorkbenchDisplayPrefs } from "@/hooks/useWorkbenchDisplayPrefs";
+import { useWorkbenchLayout } from "@/hooks/useWorkbenchLayout";
 import { createDebouncedSkillsReload } from "@/lib/skillCatalogRefresh";
 
 /** App-local plan chrome state (session-scoped via planBySessionRef). */
@@ -1254,28 +1190,36 @@ export function AppWorkbench() {
     applyWallpaperMediaSize,
     applyWallpaperScrimChoice,
   } = useThemeShell();
-  const [showMessageTimestamps, setShowMessageTimestamps] = useState(() =>
-    loadMessageTimestampsPref(localStorage),
-  );
-  const [showReplyLength, setShowReplyLength] = useState(() =>
-    loadShowReplyLengthPref(localStorage),
-  );
-  /** Sidebar top-left: swap Grok mark for branded custom providers. */
-  const [replaceProviderBrandLogo, setReplaceProviderBrandLogo] = useState(
-    () => loadReplaceProviderBrandLogoPref(localStorage),
-  );
-  /** Display-only: Reliability “Goal orchestration” section (default on). */
-  const [goalOrchUiEnabled, setGoalOrchUiEnabled] = useState(() =>
-    loadGoalOrchUiEnabled(localStorage),
-  );
-  /** In-memory ring of CLI goal_updated / goal phase events (never invented). */
-  const [goalOrchEvents, setGoalOrchEvents] = useState<GoalOrchEvent[]>([]);
-  const [messageTimeFormat, setMessageTimeFormat] = useState<MessageTimeFormat>(
-    () => loadMessageTimeFormatPref(localStorage),
-  );
-  const [sidebarShowRelativeTime, setSidebarShowRelativeTime] = useState(() =>
-    loadSidebarShowRelativeTimePref(localStorage),
-  );
+  const {
+    showMessageTimestamps,
+    setShowMessageTimestamps,
+    showReplyLength,
+    setShowReplyLength,
+    replaceProviderBrandLogo,
+    setReplaceProviderBrandLogo,
+    goalOrchUiEnabled,
+    setGoalOrchUiEnabled,
+    goalOrchEvents,
+    setGoalOrchEvents,
+    messageTimeFormat,
+    setMessageTimeFormat,
+    sidebarShowRelativeTime,
+    setSidebarShowRelativeTime,
+    notifySound,
+    setNotifySound,
+    windowAlwaysOnTop,
+    setWindowAlwaysOnTop,
+    trayBusyBadge,
+    setTrayBusyBadge,
+    composerSendKeyPref,
+    showComposerDraftStats,
+    composerSpellcheck,
+    sidebarDensity,
+    permissionTimeoutSec,
+    setPermissionTimeoutSec,
+    askUserTimeoutSec,
+    setAskUserTimeoutSec,
+  } = useWorkbenchDisplayPrefs();
   // Warm loopback media HTTP endpoint ASAP so chat images resolve to
   // http://127.0.0.1 (not media://) before the first history paint.
   useEffect(() => {
@@ -1284,16 +1228,6 @@ export function AppWorkbench() {
       .catch(() => {
         /* non-Tauri / server down */
       });
-  }, []);
-  useEffect(() => {
-    const reload = () =>
-      setSidebarShowRelativeTime(loadSidebarShowRelativeTimePref(localStorage));
-    window.addEventListener(SIDEBAR_SHOW_RELATIVE_TIME_CHANGE_EVENT, reload);
-    return () =>
-      window.removeEventListener(
-        SIDEBAR_SHOW_RELATIVE_TIME_CHANGE_EVENT,
-        reload,
-      );
   }, []);
   /** Per-session desktop notification mute (localStorage Set). */
   const [mutedSessionIds, setMutedSessionIds] = useState<Set<string>>(
@@ -1449,53 +1383,16 @@ export function AppWorkbench() {
     resumeRestoreBusy,
     setResumeRestoreBusy,
   } = useAppDialogs();
-
-  const [notifySound, setNotifySound] = useState(() =>
-    loadNotifySoundPref(localStorage),
-  );
-  const [windowAlwaysOnTop, setWindowAlwaysOnTop] = useState(() =>
-    loadWindowAlwaysOnTopPref(localStorage),
-  );
-  const [trayBusyBadge, setTrayBusyBadge] = useState(() =>
-    loadTrayBusyBadgePref(localStorage),
-  );
-  const [layout, setLayout] = useState(() => {
-    // Platform UA is available at first paint; reserve window-control inset on Win.
-    const ua =
-      typeof navigator !== "undefined"
-        ? navigator.userAgent.toLowerCase()
-        : "";
-    const winChrome =
-      ua.includes("win") ||
-      (!ua.includes("mac") && typeof navigator !== "undefined");
-    const clampOpts =
-      typeof window !== "undefined"
-        ? {
-            windowControlsInset: winChrome ? WINDOW_CONTROLS_INSET : 0,
-            viewportWidth: window.innerWidth,
-          }
-        : undefined;
-    let base = loadLayout(localStorage, clampOpts);
-    // Zen mode maximizes chat: force both side panes collapsed on cold start.
-    if (loadZenMode(localStorage)) {
-      base = {
-        ...base,
-        sidebarCollapsed: true,
-        asideCollapsed: true,
-      };
-    }
-    // Mirror phone: drawer starts collapsed so chat is not covered on first paint.
-    if (typeof window !== "undefined" && isMirrorClient()) {
-      return withMirrorPhoneDrawerDefault(base, {
-        isMirror: true,
-        viewportWidth: window.innerWidth,
-      });
-    }
-    return base;
-  });
-  /** Hide left + right chrome to maximize chat (localStorage `grok.zenMode`). */
-  const [zenMode, setZenModeState] = useState(() => loadZenMode(localStorage));
-  const zenModeRef = useRef(zenMode);
+  const {
+    layout,
+    setLayout,
+    layoutRef,
+    zenMode,
+    setZenModeEnabled,
+    transcriptFilter,
+    toggleTranscriptFilter,
+    phoneLayout,
+  } = useWorkbenchLayout();
   /** Side Workbench multi-kind tabs (session-local; Phase 0+). */
   const [sideWorkbench, setSideWorkbench] = useState<SideWorkbenchState>(
     emptySideWorkbenchState,
@@ -1518,10 +1415,6 @@ export function AppWorkbench() {
   const [sideDockComposerH, setSideDockComposerH] = useState(0);
   /** Git work tree gate for Review picker entry. */
   const [sideIsGitProject, setSideIsGitProject] = useState(false);
-  zenModeRef.current = zenMode;
-  /** Transcript filter: all activity vs conversation-only (hide tool steps). */
-  const [transcriptFilter, setTranscriptFilter] =
-    useState<TranscriptFilterMode>(() => loadTranscriptFilterPref());
 
   /**
    * Secondary session window (`session-*` label / `#/session/<id>` deep link).
@@ -1888,15 +1781,6 @@ export function AppWorkbench() {
     typeof window !== "undefined" && isMirrorClient() ? mirrorWsConnected() : false,
   );
   const [mirrorHostLabel, setMirrorHostLabel] = useState<string | null>(null);
-  /** Mirror + ≤820px — phone chrome only; desktop layout path never sets this. */
-  const [phoneLayout, setPhoneLayout] = useState(() =>
-    typeof window !== "undefined"
-      ? isMirrorPhoneLayout({
-          isMirror: isMirrorClient(),
-          viewportWidth: window.innerWidth,
-        })
-      : false,
-  );
   const [phoneToolsOpen, setPhoneToolsOpen] = useState(false);
   const [phoneAccountOpen, setPhoneAccountOpen] = useState(false);
   /** Hash route: workbench | settings/:section | automations */
@@ -2430,12 +2314,6 @@ export function AppWorkbench() {
   const permBarRef = useRef<HTMLDivElement | null>(null);
   /** Seconds until auto-deny (null when off / no active timer). */
   const [permCountdownSec, setPermCountdownSec] = useState<number | null>(null);
-  const [permissionTimeoutSec, setPermissionTimeoutSec] = useState(() =>
-    loadPermissionTimeoutSec(localStorage),
-  );
-  const [askUserTimeoutSec, setAskUserTimeoutSec] = useState(() =>
-    loadAskUserTimeoutSec(localStorage),
-  );
   const [askUser, setAskUser] = useState<AskUserPayload | null>(null);
   /**
    * Unanswered gates per session (`sessionId` → payload).
@@ -2528,44 +2406,6 @@ export function AppWorkbench() {
   /** Where model/permission chips are remembered. */
   const [prefsScope, setPrefsScope] =
     useState<ComposerPrefsScope>("global");
-  /** Enter vs ⌘/Ctrl+Enter to send (localStorage; Settings → Composer). */
-  const [composerSendKeyPref, setComposerSendKeyPref] =
-    useState<ComposerSendKeyPref>(() => loadComposerSendKeyPref());
-  useEffect(() => {
-    const reload = () => setComposerSendKeyPref(loadComposerSendKeyPref());
-    window.addEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, reload);
-    return () =>
-      window.removeEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, reload);
-  }, []);
-  /** Muted char/word count on non-empty drafts (localStorage; Settings → Composer). */
-  const [showComposerDraftStats, setShowComposerDraftStats] = useState(() =>
-    loadComposerDraftStatsPref(),
-  );
-  useEffect(() => {
-    const reload = () => setShowComposerDraftStats(loadComposerDraftStatsPref());
-    window.addEventListener(COMPOSER_DRAFT_STATS_CHANGED_EVENT, reload);
-    return () =>
-      window.removeEventListener(COMPOSER_DRAFT_STATS_CHANGED_EVENT, reload);
-  }, []);
-  /** Browser spellcheck on main composer (localStorage; Settings → Composer). */
-  const [composerSpellcheck, setComposerSpellcheck] = useState(() =>
-    loadComposerSpellcheck(),
-  );
-  useEffect(() => {
-    const reload = () => setComposerSpellcheck(loadComposerSpellcheck());
-    window.addEventListener(COMPOSER_SPELLCHECK_CHANGED_EVENT, reload);
-    return () =>
-      window.removeEventListener(COMPOSER_SPELLCHECK_CHANGED_EVENT, reload);
-  }, []);
-  /** Sidebar session-list density (localStorage; Settings → Appearance). */
-  const [sidebarDensity, setSidebarDensity] = useState<SidebarDensity>(() =>
-    loadSidebarDensity(),
-  );
-  useEffect(() => {
-    const reload = () => setSidebarDensity(loadSidebarDensity());
-    window.addEventListener(SIDEBAR_DENSITY_EVENT, reload);
-    return () => window.removeEventListener(SIDEBAR_DENSITY_EVENT, reload);
-  }, []);
   const sidebarRowMetrics = sidebarSessionRowMetrics(sidebarDensity);
   /** Chat file/url card → open in right resource pane / Side Workbench. */
   const [resourceOpenTarget, setResourceOpenTarget] =
@@ -2585,8 +2425,6 @@ export function AppWorkbench() {
   /** Tauri OS drop timestamp — HTML5 fallback must not double-attach. */
   const lastNativeDropAtRef = useRef(0);
   const html5DragDepthRef = useRef(0);
-  const layoutRef = useRef(layout);
-  layoutRef.current = layout;
   const [, setSetup] = useState({ cli: false, auth: false, project: false });
   const [localError, setLocalError] = useState<string | null>(null);
   /** Expand technical dump under the compact error banner. */
@@ -3154,82 +2992,6 @@ export function AppWorkbench() {
   const openAsidePaneRef = useRef(openAsidePane);
   openAsidePaneRef.current = openAsidePane;
 
-  /**
-   * Enter/exit zen mode: remember prior collapse, force both panes hidden,
-   * restore on disable. Escape is not bound (Esc→stop must keep working).
-   */
-  const setZenModeEnabled = useCallback((enabled: boolean) => {
-    if (zenModeRef.current === enabled) return;
-    const cur = layoutRef.current;
-    const prior = enabled ? null : loadZenModePrior(localStorage);
-    const { layout: nextCollapse, nextPrior } = applyZenModeLayoutTransition(
-      enabled,
-      {
-        sidebarCollapsed: cur.sidebarCollapsed,
-        asideCollapsed: cur.asideCollapsed,
-      },
-      prior,
-    );
-    if (enabled) {
-      if (nextPrior) saveZenModePrior(nextPrior, localStorage);
-    } else {
-      clearZenModePrior(localStorage);
-    }
-    setLayout((l) => {
-      const n = {
-        ...l,
-        sidebarCollapsed: nextCollapse.sidebarCollapsed,
-        asideCollapsed: nextCollapse.asideCollapsed,
-      };
-      saveLayout(localStorage, n);
-      return n;
-    });
-    // Sync ref before saveZenMode dispatches, so the change listener is a no-op.
-    zenModeRef.current = enabled;
-    setZenModeState(enabled);
-    saveZenMode(enabled, localStorage);
-  }, []);
-
-  /** Toggle transcript filter (all ↔ conversation) — Settings + chat chrome. */
-  const setTranscriptFilterMode = useCallback((mode: TranscriptFilterMode) => {
-    const next: TranscriptFilterMode =
-      mode === "conversation" ? "conversation" : "all";
-    setTranscriptFilter(next);
-    saveTranscriptFilterPref(next);
-  }, []);
-  const toggleTranscriptFilter = useCallback(() => {
-    setTranscriptFilterMode(
-      transcriptFilter === "conversation" ? "all" : "conversation",
-    );
-  }, [transcriptFilter, setTranscriptFilterMode]);
-
-  useEffect(() => {
-    const onPref = (ev: Event) => {
-      const detail = (ev as CustomEvent).detail;
-      if (detail === "all" || detail === "conversation") {
-        setTranscriptFilter(detail);
-      } else {
-        setTranscriptFilter(loadTranscriptFilterPref());
-      }
-    };
-    window.addEventListener(TRANSCRIPT_FILTER_CHANGE_EVENT, onPref);
-    return () =>
-      window.removeEventListener(TRANSCRIPT_FILTER_CHANGE_EVENT, onPref);
-  }, []);
-
-  // Settings (or another surface) may flip zen via localStorage + event.
-  useEffect(() => {
-    const onChange = (ev: Event) => {
-      const detail = (ev as CustomEvent<boolean>).detail;
-      const next =
-        typeof detail === "boolean" ? detail : loadZenMode(localStorage);
-      setZenModeEnabled(next);
-    };
-    window.addEventListener(ZEN_MODE_CHANGE_EVENT, onChange);
-    return () => window.removeEventListener(ZEN_MODE_CHANGE_EVENT, onChange);
-  }, [setZenModeEnabled]);
-
-
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.documentElement.lang = htmlLangForLocale(locale);
@@ -3318,11 +3080,6 @@ export function AppWorkbench() {
       unlistenScale?.();
     };
   }, []);
-
-  // Apply always-on-top from localStorage on boot (and whenever state is set).
-  useEffect(() => {
-    void applyWindowAlwaysOnTop(windowAlwaysOnTop);
-  }, [windowAlwaysOnTop]);
 
   // Chat transcript reading width (Appearance) — html[data-chat-width].
   useEffect(() => {
@@ -4189,135 +3946,6 @@ export function AppWorkbench() {
       for (const u of cleanups) u();
     };
   }, [tr]);
-
-  // Message timestamps visibility (localStorage; Settings dispatches change event).
-  useEffect(() => {
-    const onChange = (ev: Event) => {
-      const detail = (ev as CustomEvent<unknown>).detail;
-      if (typeof detail === "boolean") {
-        setShowMessageTimestamps(detail);
-        return;
-      }
-      setShowMessageTimestamps(loadMessageTimestampsPref(localStorage));
-    };
-    window.addEventListener(MESSAGE_TIMESTAMPS_CHANGE_EVENT, onChange);
-    return () =>
-      window.removeEventListener(MESSAGE_TIMESTAMPS_CHANGE_EVENT, onChange);
-  }, []);
-
-  // Assistant reply word/char count under bubble (localStorage; Settings event).
-  useEffect(() => {
-    const onChange = (ev: Event) => {
-      const detail = (ev as CustomEvent<unknown>).detail;
-      if (typeof detail === "boolean") {
-        setShowReplyLength(detail);
-        return;
-      }
-      setShowReplyLength(loadShowReplyLengthPref(localStorage));
-    };
-    window.addEventListener(SHOW_REPLY_LENGTH_CHANGE_EVENT, onChange);
-    return () =>
-      window.removeEventListener(SHOW_REPLY_LENGTH_CHANGE_EVENT, onChange);
-  }, []);
-
-  // Sidebar brand logo follows active custom provider (localStorage; Settings).
-  useEffect(() => {
-    const onChange = (ev: Event) => {
-      const detail = (ev as CustomEvent<unknown>).detail;
-      if (typeof detail === "boolean") {
-        setReplaceProviderBrandLogo(detail);
-        return;
-      }
-      setReplaceProviderBrandLogo(
-        loadReplaceProviderBrandLogoPref(localStorage),
-      );
-    };
-    window.addEventListener(REPLACE_PROVIDER_BRAND_LOGO_CHANGE_EVENT, onChange);
-    return () =>
-      window.removeEventListener(
-        REPLACE_PROVIDER_BRAND_LOGO_CHANGE_EVENT,
-        onChange,
-      );
-  }, []);
-
-  // Message time format absolute/relative (localStorage; Settings change event).
-  useEffect(() => {
-    const onChange = (ev: Event) => {
-      const detail = (ev as CustomEvent<unknown>).detail;
-      if (detail === "absolute" || detail === "relative") {
-        setMessageTimeFormat(detail);
-        return;
-      }
-      setMessageTimeFormat(loadMessageTimeFormatPref(localStorage));
-    };
-    window.addEventListener(MESSAGE_TIME_FORMAT_CHANGE_EVENT, onChange);
-    return () =>
-      window.removeEventListener(MESSAGE_TIME_FORMAT_CHANGE_EVENT, onChange);
-  }, []);
-
-  // Optional notify beep (localStorage; Settings dispatches change event).
-  useEffect(() => {
-    const onChange = (ev: Event) => {
-      const detail = (ev as CustomEvent<unknown>).detail;
-      if (typeof detail === "boolean") {
-        setNotifySound(detail);
-        return;
-      }
-      setNotifySound(loadNotifySoundPref(localStorage));
-    };
-    window.addEventListener(NOTIFY_SOUND_CHANGE_EVENT, onChange);
-    return () =>
-      window.removeEventListener(NOTIFY_SOUND_CHANGE_EVENT, onChange);
-  }, []);
-
-  // Permission auto-deny timeout (localStorage; Settings dispatches change event).
-  useEffect(() => {
-    const onChange = (ev: Event) => {
-      const detail = (ev as CustomEvent<unknown>).detail;
-      if (typeof detail === "number" && Number.isFinite(detail)) {
-        setPermissionTimeoutSec(detail);
-        return;
-      }
-      setPermissionTimeoutSec(loadPermissionTimeoutSec(localStorage));
-    };
-    window.addEventListener(PERMISSION_TIMEOUT_CHANGE_EVENT, onChange);
-    return () =>
-      window.removeEventListener(PERMISSION_TIMEOUT_CHANGE_EVENT, onChange);
-  }, []);
-
-  // Ask User Question auto-cancel timeout (localStorage; Settings dispatches change).
-  useEffect(() => {
-    const onChange = (ev: Event) => {
-      const detail = (ev as CustomEvent<unknown>).detail;
-      if (typeof detail === "number" && Number.isFinite(detail)) {
-        setAskUserTimeoutSec(detail);
-        return;
-      }
-      setAskUserTimeoutSec(loadAskUserTimeoutSec(localStorage));
-    };
-    window.addEventListener(ASK_USER_TIMEOUT_CHANGE_EVENT, onChange);
-    return () =>
-      window.removeEventListener(ASK_USER_TIMEOUT_CHANGE_EVENT, onChange);
-  }, []);
-
-  // Phone layout flag: mirror client + ≤820px only (desktop ≥821px unchanged).
-  useEffect(() => {
-    if (!isMirrorClient()) {
-      setPhoneLayout(false);
-      return;
-    }
-    const sync = () => {
-      setPhoneLayout(
-        isMirrorPhoneLayout({
-          isMirror: true,
-          viewportWidth: window.innerWidth,
-        }),
-      );
-    };
-    sync();
-    window.addEventListener("resize", sync);
-    return () => window.removeEventListener("resize", sync);
-  }, []);
 
   // User-driven window resize only: clamp open aside. Ignore programmatic setSize
   // (isWindowFitSuppressed) so open-pane fit does not fight resize handlers.
@@ -22740,561 +22368,110 @@ export function AppWorkbench() {
         projectName={projectRulesTarget?.name ?? null}
         locale={locale}
       />
-      <GlassModal
+      <PromptHistoryClearModal
+        locale={locale}
         open={promptHistoryClearOpen}
         onClose={() => setPromptHistoryClearOpen(false)}
-        title={tr("promptHistory.clearRecentConfirmTitle")}
-        size="sm"
-        closeLabel={tr("common.close")}
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setPromptHistoryClearOpen(false)}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--danger"
-              data-testid="prompt-history-clear-confirm"
-              onClick={() => {
-                setRecentPromptHistory(clearRecentPromptHistory());
-                setPromptHistoryActive(0);
-                setPromptHistoryClearOpen(false);
-              }}
-            >
-              {tr("promptHistory.clearRecentConfirmAction")}
-            </button>
-          </>
-        }
-      >
-        <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-          {tr("promptHistory.clearRecentConfirmBody")}
-        </p>
-      </GlassModal>
-      <GlassModal
-        open={!!archiveAgeConfirm}
-        onClose={() => {
-          if (archiveAgeBusy) return;
-          setArchiveAgeConfirm(null);
+        onConfirm={() => {
+          setRecentPromptHistory(clearRecentPromptHistory());
+          setPromptHistoryActive(0);
+          setPromptHistoryClearOpen(false);
         }}
-        title={tr("sidebar.archiveOlderTitle")}
-        size="sm"
-        closeLabel={tr("common.close")}
-        closeOnOverlay={!archiveAgeBusy}
-        showClose={!archiveAgeBusy}
-        wrapBody
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={archiveAgeBusy}
-              onClick={() => setArchiveAgeConfirm(null)}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--solid"
-              disabled={archiveAgeBusy || !archiveAgeConfirm?.count}
-              data-testid="archive-age-confirm"
-              onClick={() => {
-                if (!archiveAgeConfirm) return;
-                void runArchiveAgePlan(archiveAgeConfirm);
-              }}
-            >
-              {tr("sidebar.archiveOlderConfirmAction", {
-                n: String(archiveAgeConfirm?.count ?? 0),
-              })}
-            </button>
-          </>
-        }
-      >
-        {archiveAgeConfirm ? (
-          <div className="archive-age-modal">
-            <p className="archive-age-modal__msg">
-              {tr("sidebar.archiveOlderConfirm", {
-                n: String(archiveAgeConfirm.count),
-                days: String(archiveAgeConfirm.days),
-              })}
-            </p>
-            {archiveAgeConfirm.previewTitles.length > 0 ? (
-              <div className="archive-age-modal__preview">
-                <div className="archive-age-modal__preview-label">
-                  {tr("sidebar.archiveOlderPreviewLabel")}
-                </div>
-                <ul className="archive-age-modal__list">
-                  {archiveAgeConfirm.previewTitles.map((title, i) => {
-                    const row = archiveAgeConfirm.sessions[i];
-                    const key = row?.id ?? `preview-${i}`;
-                    return (
-                      <li key={key} className="archive-age-modal__item">
-                        {title || tr("session.untitled")}
-                      </li>
-                    );
-                  })}
-                </ul>
-                {archiveAgeConfirm.previewMore > 0 ? (
-                  <div className="archive-age-modal__more">
-                    {tr("sidebar.archiveOlderPreviewMore", {
-                      n: String(archiveAgeConfirm.previewMore),
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </GlassModal>
-      <GlassModal
+      />
+      <ArchiveAgeConfirmModal
+        locale={locale}
+        plan={archiveAgeConfirm}
+        busy={archiveAgeBusy}
+        onClose={() => setArchiveAgeConfirm(null)}
+        onConfirm={() => {
+          if (!archiveAgeConfirm) return;
+          void runArchiveAgePlan(archiveAgeConfirm);
+        }}
+      />
+      <WorktreeCreateModal
+        locale={locale}
         open={worktreeCreateOpen}
-        onClose={() => {
-          if (worktreeCreateBusy) return;
-          setWorktreeCreateOpen(false);
+        busy={worktreeCreateBusy}
+        startChat={worktreeCreateStartChat}
+        name={worktreeCreateName}
+        layout={worktreeCreateLayout}
+        startRef={worktreeCreateRef}
+        previewPath={worktreeCreatePreviewPath}
+        error={worktreeCreateError}
+        onClose={() => setWorktreeCreateOpen(false)}
+        onSubmit={() => {
+          void submitWorktreeCreate();
         }}
-        title={
-          worktreeCreateStartChat
-            ? tr("composer.worktreeNewChatTitle")
-            : tr("composer.worktreeNewTitle")
-        }
-        size="sm"
-        closeLabel={tr("common.close")}
-        closeOnOverlay={!worktreeCreateBusy}
-        showClose={!worktreeCreateBusy}
-        wrapBody
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={worktreeCreateBusy}
-              onClick={() => setWorktreeCreateOpen(false)}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--solid"
-              disabled={worktreeCreateBusy || !worktreeCreateName.trim()}
-              onClick={() => {
-                void submitWorktreeCreate();
-              }}
-            >
-              {worktreeCreateBusy
-                ? tr("composer.worktreeCreating")
-                : worktreeCreateStartChat
-                  ? tr("composer.worktreeCreateChat")
-                  : tr("composer.worktreeCreate")}
-            </button>
-          </>
-        }
-      >
-        <form
-          className="wt-create"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (worktreeCreateBusy) return;
-            void submitWorktreeCreate();
-          }}
-        >
-          <p className="wt-create__hint">
-            {worktreeCreateStartChat
-              ? tr("composer.worktreeNewChatHint")
-              : tr("composer.worktreeNewHint")}
-          </p>
-          <label className="wt-create__field">
-            <span className="wt-create__label">
-              {tr("composer.worktreeName")}
-            </span>
-            <input
-              className="settings-input"
-              value={worktreeCreateName}
-              onChange={(e) => {
-                setWorktreeCreateName(e.target.value);
-                setWorktreeCreateError(null);
-              }}
-              placeholder={tr("composer.worktreeNamePlaceholder")}
-              autoComplete="off"
-              autoFocus
-              disabled={worktreeCreateBusy}
-              spellCheck={false}
-            />
-          </label>
-          <fieldset className="wt-create__field wt-create__layout" disabled={worktreeCreateBusy}>
-            <legend className="wt-create__label">
-              {tr("composer.worktreeLayout")}
-            </legend>
-            <label className="wt-create__radio">
-              <input
-                type="radio"
-                name="worktree-layout"
-                value="cli"
-                checked={worktreeCreateLayout === "cli"}
-                onChange={() => {
-                  setWorktreeCreateLayout("cli");
-                  setWorktreeCreateError(null);
-                }}
-              />
-              <span>{tr("composer.worktreeLayoutCli")}</span>
-            </label>
-            <label className="wt-create__radio">
-              <input
-                type="radio"
-                name="worktree-layout"
-                value="sibling"
-                checked={worktreeCreateLayout === "sibling"}
-                onChange={() => {
-                  setWorktreeCreateLayout("sibling");
-                  setWorktreeCreateError(null);
-                }}
-              />
-              <span>{tr("composer.worktreeLayoutSibling")}</span>
-            </label>
-          </fieldset>
-          <label className="wt-create__field">
-            <span className="wt-create__label">
-              {tr("composer.worktreeRef")}
-            </span>
-            <input
-              className="settings-input"
-              value={worktreeCreateRef}
-              onChange={(e) => {
-                setWorktreeCreateRef(e.target.value);
-                setWorktreeCreateError(null);
-              }}
-              placeholder={tr("composer.worktreeRefPlaceholder")}
-              autoComplete="off"
-              disabled={worktreeCreateBusy}
-              spellCheck={false}
-            />
-          </label>
-          {worktreeCreatePreviewPath ? (
-            <p className="wt-create__preview">
-              {tr("composer.worktreePathPreview", {
-                path: worktreeCreatePreviewPath,
-              })}
-            </p>
-          ) : null}
-          {worktreeCreateError ? (
-            <p className="wt-create__error" role="alert">
-              {worktreeCreateError}
-            </p>
-          ) : null}
-        </form>
-      </GlassModal>
-      <GlassModal
+        onNameChange={(value) => {
+          setWorktreeCreateName(value);
+          setWorktreeCreateError(null);
+        }}
+        onLayoutChange={(value) => {
+          setWorktreeCreateLayout(value);
+          setWorktreeCreateError(null);
+        }}
+        onRefChange={(value) => {
+          setWorktreeCreateRef(value);
+          setWorktreeCreateError(null);
+        }}
+      />
+      <WorktreeGcModal
+        locale={locale}
         open={worktreeGcOpen}
+        busy={worktreeGcBusy}
+        previewBusy={worktreeGcPreviewBusy}
+        force={worktreeGcForce}
+        preview={worktreeGcPreview}
+        error={worktreeGcError}
         onClose={() => {
-          if (worktreeGcBusy) return;
           setWorktreeGcOpen(false);
           setWorktreeGcError(null);
           setWorktreeGcPreview(null);
           setWorktreeGcForce(false);
         }}
-        title={tr("composer.worktreeGcTitle")}
-        size="sm"
-        closeLabel={tr("common.close")}
-        closeOnOverlay={!worktreeGcBusy}
-        showClose={!worktreeGcBusy}
-        wrapBody
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={worktreeGcBusy}
-              onClick={() => {
-                setWorktreeGcOpen(false);
-                setWorktreeGcError(null);
-                setWorktreeGcPreview(null);
-                setWorktreeGcForce(false);
-              }}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--solid"
-              disabled={worktreeGcBusy || worktreeGcPreviewBusy}
-              onClick={() => {
-                void submitWorktreeGc();
-              }}
-            >
-              {worktreeGcBusy
-                ? tr("composer.worktreeGcRunning")
-                : tr("composer.worktreeGcConfirm")}
-            </button>
-          </>
-        }
-      >
-        <div className="wt-gc">
-          <p className="wt-gc__hint">{tr("composer.worktreeGcHint")}</p>
-          <label className="wt-gc__force">
-            <input
-              type="checkbox"
-              checked={worktreeGcForce}
-              disabled={worktreeGcBusy || worktreeGcPreviewBusy}
-              onChange={(e) => setWorktreeGcForce(e.target.checked)}
-            />
-            <span>{tr("composer.worktreeGcForce")}</span>
-          </label>
-          <div className="wt-gc__preview-head">{tr("composer.worktreeGcPreview")}</div>
-          {worktreeGcPreviewBusy ? (
-            <p className="wt-gc__preview-status">
-              {tr("composer.worktreeGcPreviewLoading")}
-            </p>
-          ) : worktreeGcPreview ? (
-            <>
-              {(worktreeGcPreview.prunable?.length ?? 0) > 0 ? (
-                <p className="wt-gc__prunable">
-                  {tr("composer.worktreeGcPrunable", {
-                    n: String(worktreeGcPreview.prunable?.length ?? 0),
-                  })}
-                </p>
-              ) : null}
-              {(worktreeGcPreview.output ?? "").trim() ||
-              (worktreeGcPreview.prunable?.length ?? 0) > 0 ? (
-                <pre className="wt-gc__output" tabIndex={0}>
-                  {(worktreeGcPreview.output ?? "").trim() ||
-                    (Array.isArray(worktreeGcPreview.prunable)
-                      ? worktreeGcPreview.prunable.join("\n")
-                      : "")}
-                </pre>
-              ) : (
-                <p className="wt-gc__preview-status">
-                  {tr("composer.worktreeGcPreviewEmpty")}
-                </p>
-              )}
-            </>
-          ) : worktreeGcError ? null : (
-            <p className="wt-gc__preview-status">
-              {tr("composer.worktreeGcPreviewEmpty")}
-            </p>
-          )}
-          {worktreeGcError ? (
-            <p className="wt-gc__error" role="alert">
-              {worktreeGcError}
-            </p>
-          ) : null}
-        </div>
-      </GlassModal>
-      <GlassModal
+        onSubmit={() => {
+          void submitWorktreeGc();
+        }}
+        onForceChange={setWorktreeGcForce}
+      />
+      <WorktreeShipModal
+        locale={locale}
         open={shipOpen}
+        busy={shipBusy}
+        success={shipSuccess}
+        title={shipTitle}
+        body={shipBody}
+        createPr={shipCreatePr}
+        draft={shipDraft}
+        branch={shipBranch}
+        status={shipStatus}
+        error={shipError}
         onClose={closeShipFlow}
-        title={
-          shipSuccess
-            ? tr("composer.worktreeShipSuccessTitle")
-            : tr("composer.worktreeShipTitle")
-        }
-        size="md"
-        closeLabel={tr("common.close")}
-        closeOnOverlay={!shipBusy}
-        showClose={!shipBusy}
-        wrapBody
-        footer={
-          shipSuccess ? (
-            <>
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={closeShipFlow}
-                data-testid="ship-success-done"
-              >
-                {tr("composer.worktreeShipDone")}
-              </button>
-              <button
-                type="button"
-                className="btn btn--solid"
-                onClick={() => openPrHubFromShip(shipSuccess.prNumber)}
-                data-testid="ship-open-pr-hub"
-              >
-                {tr("composer.worktreeShipOpenInHub")}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="btn btn--ghost"
-                disabled={shipBusy}
-                onClick={closeShipFlow}
-              >
-                {tr("common.cancel")}
-              </button>
-              <button
-                type="button"
-                className="btn btn--solid"
-                disabled={shipBusy || !shipTitle.trim()}
-                onClick={() => {
-                  void submitShipFlow();
-                }}
-                data-testid="ship-submit"
-              >
-                {shipBusy
-                  ? shipStatus || tr("composer.worktreeShipRunning")
-                  : shipCreatePr
-                    ? tr("composer.worktreeShipConfirmPr")
-                    : tr("composer.worktreeShipConfirmPush")}
-              </button>
-            </>
-          )
-        }
-      >
-        {shipSuccess ? (
-          <div
-            className="wt-ship wt-ship--success"
-            data-testid="ship-success"
-          >
-            <p className="wt-ship__hint">
-              {tr("composer.worktreeShipDonePr", { url: shipSuccess.prUrl })}
-            </p>
-            <p className="wt-ship__success-url" title={shipSuccess.prUrl}>
-              {shipSuccess.prUrl}
-            </p>
-            <div className="wt-ship__success-actions">
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                onClick={() => {
-                  void api.openExternalUrl(shipSuccess.prUrl).catch(() => {
-                    showToast(tr("composer.worktreeShipOpenBrowserFailed"), 3500);
-                  });
-                }}
-                data-testid="ship-open-browser"
-              >
-                {tr("composer.worktreeShipOpenInBrowser")}
-              </button>
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                onClick={() => openPrHubFromShip(shipSuccess.prNumber)}
-              >
-                {tr("composer.worktreeShipOpenInHub")}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <form
-            className="wt-ship"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (shipBusy || !shipTitle.trim()) return;
-              void submitShipFlow();
-            }}
-          >
-            <p className="wt-ship__hint">{tr("composer.worktreeShipHint")}</p>
-            {shipBranch ? (
-              <p className="wt-ship__branch">
-                {tr("composer.worktreeShipBranch", { branch: shipBranch })}
-              </p>
-            ) : null}
-            <label className="wt-ship__field">
-              <span className="wt-ship__label">
-                {tr("composer.worktreeShipTitleField")}
-              </span>
-              <input
-                className="settings-input"
-                value={shipTitle}
-                onChange={(e) => {
-                  setShipTitle(e.target.value);
-                  setShipError(null);
-                }}
-                placeholder={tr("composer.worktreeShipTitlePlaceholder")}
-                autoComplete="off"
-                autoFocus
-                disabled={shipBusy}
-                spellCheck={true}
-                data-testid="ship-title"
-              />
-            </label>
-            <label className="wt-ship__field">
-              <span className="wt-ship__label">
-                {tr("composer.worktreeShipBodyField")}
-              </span>
-              <textarea
-                className="settings-input wt-ship__body"
-                value={shipBody}
-                onChange={(e) => {
-                  setShipBody(e.target.value);
-                  setShipError(null);
-                }}
-                placeholder={tr("composer.worktreeShipBodyPlaceholder")}
-                rows={5}
-                disabled={shipBusy}
-                spellCheck={true}
-                data-testid="ship-body"
-              />
-            </label>
-            <label className="wt-ship__check">
-              <input
-                type="checkbox"
-                checked={shipCreatePr}
-                disabled={shipBusy}
-                onChange={(e) => setShipCreatePr(e.target.checked)}
-              />
-              <span>{tr("composer.worktreeShipCreatePr")}</span>
-            </label>
-            <label className="wt-ship__check">
-              <input
-                type="checkbox"
-                checked={shipDraft}
-                disabled={shipBusy || !shipCreatePr}
-                onChange={(e) => setShipDraft(e.target.checked)}
-              />
-              <span>{tr("composer.worktreeShipDraft")}</span>
-            </label>
-            {shipStatus ? (
-              <p className="wt-ship__status" aria-live="polite">
-                {shipStatus}
-              </p>
-            ) : null}
-            {shipError ? (
-              <p className="wt-ship__error" role="alert">
-                {shipError}
-              </p>
-            ) : null}
-          </form>
-        )}
-      </GlassModal>
-      <GlassModal
+        onSubmit={() => {
+          void submitShipFlow();
+        }}
+        onTitleChange={(value) => {
+          setShipTitle(value);
+          setShipError(null);
+        }}
+        onBodyChange={(value) => {
+          setShipBody(value);
+          setShipError(null);
+        }}
+        onCreatePrChange={setShipCreatePr}
+        onDraftChange={setShipDraft}
+        onOpenPrHub={openPrHubFromShip}
+        onToast={showToast}
+      />
+      <ShortcutsHelpModal
+        locale={locale}
         open={showShortcuts}
+        platform={platform}
+        composerSendKeyPref={composerSendKeyPref}
+        shortcutRemaps={shortcutRemaps}
+        voiceHotkeyEnabled={voiceHotkeyEnabled}
         onClose={() => setShowShortcuts(false)}
-        title={tr("shortcuts.title")}
-        size="md"
-        closeLabel={tr("shortcuts.close")}
-        footer={
-          <button
-            type="button"
-            className="btn btn--ghost"
-            onClick={() => setShowShortcuts(false)}
-          >
-            {tr("shortcuts.close")}
-          </button>
-        }
-      >
-        <ul className="shortcuts-list">
-          {shortcutsForPlatform(
-            platform === "mac" ? "mac" : platform === "win" ? "win" : "other",
-            composerSendKeyPref,
-            shortcutRemaps,
-            voiceHotkeyEnabled,
-          ).map((row) => (
-            <li key={row.id} className="shortcuts-list__row">
-              <span className="shortcuts-list__label">
-                {tr(row.labelKey as MessageKey)}
-              </span>
-              <kbd className="shortcuts-list__keys">
-                {row.keys === SHORTCUT_KEYS_OFF
-                  ? tr("shortcuts.off")
-                  : row.keys}
-              </kbd>
-            </li>
-          ))}
-        </ul>
-      </GlassModal>
+      />
       {(showProductTutorial) ? (
       <Suspense fallback={null}>
       <ProductTutorial
@@ -23661,243 +22838,67 @@ export function AppWorkbench() {
         </div>
       )}
 
-      <GlassModal
-        open={!!rewindConfirm}
+      <RewindConfirmModal
+        locale={locale}
+        confirm={rewindConfirm}
+        busy={rewindBusy}
+        restoreFiles={rewindRestoreFiles}
+        onRestoreFilesChange={setRewindRestoreFiles}
         onClose={() => {
-          if (rewindBusy) return;
           setRewindConfirm(null);
           setRewindRestoreFiles(false);
         }}
-        title={tr("session.rewindTitle")}
-        size="sm"
-        closeLabel={tr("common.close")}
-        closeOnOverlay={!rewindBusy}
-        showClose={!rewindBusy}
-        wrapBody
-        className="rewind-confirm-modal"
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={rewindBusy}
-              onClick={() => {
-                setRewindConfirm(null);
-                setRewindRestoreFiles(false);
-              }}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--danger"
-              disabled={rewindBusy || !rewindConfirm}
-              onClick={() => {
-                if (!rewindConfirm) return;
-                void runRewindToPrompt(
-                  rewindConfirm.sessionId,
-                  rewindConfirm.targetPromptIndex,
-                  rewindRestoreFiles,
-                );
-              }}
-            >
-              {tr("session.rewindConfirmLabel")}
-            </button>
-          </>
-        }
-      >
-        <div className="rewind-confirm">
-          <p className="rewind-confirm__msg">
-            {tr("session.rewindConfirm")}
-            {rewindConfirm?.preview
-              ? `\n\n“${rewindConfirm.preview}”`
-              : ""}
-          </p>
-          <label className="rewind-confirm__restore">
-            <input
-              type="checkbox"
-              checked={rewindRestoreFiles}
-              disabled={rewindBusy}
-              onChange={(e) => setRewindRestoreFiles(e.target.checked)}
-            />
-            <span>{tr("session.rewindRestoreFiles")}</span>
-          </label>
-          <p className="rewind-confirm__hint">
-            {tr("session.rewindRestoreFilesHint")}
-          </p>
-        </div>
-      </GlassModal>
+        onConfirm={() => {
+          if (!rewindConfirm) return;
+          void runRewindToPrompt(
+            rewindConfirm.sessionId,
+            rewindConfirm.targetPromptIndex,
+            rewindRestoreFiles,
+          );
+        }}
+      />
 
-      <GlassModal
-        open={!!forkConfirm}
+      <ForkConfirmModal
+        locale={locale}
+        confirm={forkConfirm}
+        busy={forkBusy}
+        restoreCode={forkRestoreCode}
+        agentCheckbox={forkAgentCheckbox}
+        onRestoreCodeChange={setForkRestoreCode}
+        onForkCliSessionChange={setForkCliSession}
         onClose={() => {
-          if (forkBusy) return;
           setForkConfirm(null);
           setForkRestoreCode(false);
           setForkCliSession(false);
         }}
-        title={tr("session.forkTitle")}
-        size="sm"
-        closeLabel={tr("common.close")}
-        closeOnOverlay={!forkBusy}
-        showClose={!forkBusy}
-        wrapBody
-        className="fork-confirm-modal"
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={forkBusy}
-              onClick={() => {
-                setForkConfirm(null);
-                setForkRestoreCode(false);
-                setForkCliSession(false);
-              }}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={forkBusy || !forkConfirm}
-              onClick={() => {
-                if (!forkConfirm) return;
-                void runForkSession(forkConfirm.source, {
-                  throughUserPromptIndex:
-                    forkConfirm.throughUserPromptIndex ?? null,
-                  restoreCode: forkRestoreCode,
-                  // Honesty: only pass true when checkbox is actually available.
-                  forkCliSession: forkAgentCheckbox.checked,
-                });
-              }}
-            >
-              {forkBusy ? tr("session.forkWorking") : tr("session.fork")}
-            </button>
-          </>
-        }
-      >
-        <div className="fork-confirm">
-          <p className="fork-confirm__msg">
-            {forkConfirm?.throughUserPromptIndex != null &&
-            forkConfirm.throughUserPromptIndex !== undefined
-              ? tr("session.forkConfirmPartial")
-              : tr("session.forkConfirm")}
-          </p>
-          <label className="fork-confirm__restore">
-            <input
-              type="checkbox"
-              checked={forkRestoreCode}
-              disabled={forkBusy}
-              onChange={(e) => setForkRestoreCode(e.target.checked)}
-            />
-            <span>{tr("session.forkRestoreCode")}</span>
-          </label>
-          <p className="fork-confirm__hint">
-            {tr("session.forkRestoreCodeHint")}
-          </p>
-          <label
-            className={
-              "fork-confirm__restore" +
-              (forkAgentCheckbox.disabled ? " fork-confirm__restore--disabled" : "")
-            }
-          >
-            <input
-              type="checkbox"
-              checked={forkAgentCheckbox.checked}
-              disabled={forkBusy || forkAgentCheckbox.disabled}
-              onChange={(e) => {
-                if (forkAgentCheckbox.disabled) return;
-                setForkCliSession(e.target.checked);
-              }}
-              aria-disabled={forkAgentCheckbox.disabled || undefined}
-            />
-            <span>{tr("session.forkCliSession")}</span>
-          </label>
-          <p className="fork-confirm__hint">
-            {tr(forkAgentCheckbox.hintKey as Parameters<typeof tr>[0])}
-          </p>
-        </div>
-      </GlassModal>
+        onConfirm={() => {
+          if (!forkConfirm) return;
+          void runForkSession(forkConfirm.source, {
+            throughUserPromptIndex:
+              forkConfirm.throughUserPromptIndex ?? null,
+            restoreCode: forkRestoreCode,
+            forkCliSession: forkAgentCheckbox.checked,
+          });
+        }}
+      />
 
-      <GlassModal
+      <ResumeRestoreConfirmModal
+        locale={locale}
         open={!!resumeRestoreConfirm}
+        busy={resumeRestoreBusy}
+        agentCheckbox={resumeAgentCheckbox}
+        onForkCliSessionChange={setResumeForkCliSession}
         onClose={() => {
-          if (resumeRestoreBusy) return;
           setResumeRestoreConfirm(null);
           setResumeForkCliSession(false);
         }}
-        title={tr("session.resumeRestoreTitle")}
-        size="sm"
-        closeLabel={tr("common.close")}
-        closeOnOverlay={!resumeRestoreBusy}
-        showClose={!resumeRestoreBusy}
-        wrapBody
-        className="fork-confirm-modal"
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={resumeRestoreBusy}
-              onClick={() => {
-                setResumeRestoreConfirm(null);
-                setResumeForkCliSession(false);
-              }}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={resumeRestoreBusy || !resumeRestoreConfirm}
-              onClick={() => {
-                if (!resumeRestoreConfirm) return;
-                void runResumeWithCodeRestore(resumeRestoreConfirm, {
-                  // Honesty: only pass true when checkbox is actually available.
-                  forkCliSession: resumeAgentCheckbox.checked,
-                });
-              }}
-            >
-              {resumeRestoreBusy
-                ? tr("session.resumeRestoreWorking")
-                : tr("session.resumeRestore")}
-            </button>
-          </>
-        }
-      >
-        <div className="fork-confirm">
-          <p className="fork-confirm__msg">
-            {tr("session.resumeRestoreConfirm")}
-          </p>
-          <p className="fork-confirm__hint">
-            {tr("session.resumeRestoreHint")}
-          </p>
-          <label
-            className={
-              "fork-confirm__restore" +
-              (resumeAgentCheckbox.disabled
-                ? " fork-confirm__restore--disabled"
-                : "")
-            }
-          >
-            <input
-              type="checkbox"
-              checked={resumeAgentCheckbox.checked}
-              disabled={resumeRestoreBusy || resumeAgentCheckbox.disabled}
-              onChange={(e) => {
-                if (resumeAgentCheckbox.disabled) return;
-                setResumeForkCliSession(e.target.checked);
-              }}
-              aria-disabled={resumeAgentCheckbox.disabled || undefined}
-            />
-            <span>{tr("session.forkCliSession")}</span>
-          </label>
-          <p className="fork-confirm__hint">
-            {tr(resumeAgentCheckbox.hintKey as Parameters<typeof tr>[0])}
-          </p>
-        </div>
-      </GlassModal>
+        onConfirm={() => {
+          if (!resumeRestoreConfirm) return;
+          void runResumeWithCodeRestore(resumeRestoreConfirm, {
+            forkCliSession: resumeAgentCheckbox.checked,
+          });
+        }}
+      />
 
       <GlassModal
         open={showTraces}
