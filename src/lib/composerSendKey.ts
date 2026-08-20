@@ -67,3 +67,18 @@ export function shouldSendOnKeydown(
   // mod-enter
   return e.metaKey || e.ctrlKey;
 }
+
+/**
+ * Mid-turn Steer chord. Default matches Grok Build CLI: **Ctrl+Enter**
+ * (non–VS Code family; CLI docs also list Ctrl+I / Apple Ctrl+O / VS Code
+ * family Ctrl+L as terminal-specific alts).
+ *
+ * Independent of the Composer send-key preference. While a turn is live,
+ * this chord steers (`sessionInterject`) instead of queueing. Cmd+Enter is
+ * accepted too so macOS App users hit the same modifier as other App chords.
+ */
+export function shouldSteerOnKeydown(e: ComposerSendKeyEvent): boolean {
+  if (e.key !== "Enter") return false;
+  if (e.shiftKey || e.altKey) return false;
+  return e.ctrlKey || e.metaKey;
+}

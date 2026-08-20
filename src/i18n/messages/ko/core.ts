@@ -124,6 +124,7 @@ export const koCore = {
   "shortcuts.off": "끄기",
   "shortcuts.stop": "생성 중지 / 오버레이 닫기",
   "shortcuts.send": "메시지 보내기",
+  "shortcuts.steer": "진행 중 조향",
   "shortcuts.help": "단축키 보기",
   "shortcuts.voice": "음성 입력 전환",
   "empty.noProjectTitle": "열린 프로젝트가 없습니다",

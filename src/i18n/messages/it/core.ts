@@ -124,6 +124,7 @@ export const itCore = {
   "shortcuts.off": "Disattivato",
   "shortcuts.stop": "Ferma la generazione / chiudi l’overlay",
   "shortcuts.send": "Invia messaggio",
+  "shortcuts.steer": "Guida a metà turno",
   "shortcuts.help": "Mostra scorciatoie",
   "shortcuts.voice": "Attiva/disattiva dettatura",
   "empty.noProjectTitle": "Nessun progetto aperto",

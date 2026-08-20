@@ -124,6 +124,7 @@ export const zhCore = {
   "shortcuts.off": "关闭",
   "shortcuts.stop": "停止生成 / 关闭浮层",
   "shortcuts.send": "发送消息",
+  "shortcuts.steer": "引导当前回合",
   "shortcuts.help": "显示快捷键",
   "shortcuts.voice": "开关语音输入",
   "empty.noProjectTitle": "尚未打开项目",

@@ -124,6 +124,7 @@ export const frCore = {
   "shortcuts.off": "Désactivé",
   "shortcuts.stop": "Arrêter la génération / fermer la surcouche",
   "shortcuts.send": "Envoyer le message",
+  "shortcuts.steer": "Orienter en cours de tour",
   "shortcuts.help": "Afficher les raccourcis",
   "shortcuts.voice": "Activer/désactiver la dictée",
   "empty.noProjectTitle": "Aucun projet ouvert",

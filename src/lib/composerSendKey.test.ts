@@ -3,6 +3,7 @@ import {
   loadComposerSendKeyPref,
   saveComposerSendKeyPref,
   shouldSendOnKeydown,
+  shouldSteerOnKeydown,
   type ComposerSendKeyEvent,
 } from "./composerSendKey";
 
@@ -98,5 +99,32 @@ describe("shouldSendOnKeydown — mod-enter pref", () => {
     expect(shouldSendOnKeydown(key({ altKey: true, metaKey: true }), pref)).toBe(
       false,
     );
+  });
+});
+
+describe("shouldSteerOnKeydown — Grok Build CLI Ctrl+Enter", () => {
+  it("steers on Ctrl+Enter (CLI default mid-turn chord)", () => {
+    expect(shouldSteerOnKeydown(key({ ctrlKey: true }))).toBe(true);
+  });
+
+  it("also steers on Cmd+Enter (macOS App modifier)", () => {
+    expect(shouldSteerOnKeydown(key({ metaKey: true }))).toBe(true);
+  });
+
+  it("does not steal plain Enter (that still sends / queues)", () => {
+    expect(shouldSteerOnKeydown(key())).toBe(false);
+  });
+
+  it("does not fire on Shift+Enter or Alt+Enter", () => {
+    expect(shouldSteerOnKeydown(key({ shiftKey: true, ctrlKey: true }))).toBe(
+      false,
+    );
+    expect(shouldSteerOnKeydown(key({ altKey: true, ctrlKey: true }))).toBe(
+      false,
+    );
+  });
+
+  it("ignores non-Enter keys", () => {
+    expect(shouldSteerOnKeydown(key({ key: "i", ctrlKey: true }))).toBe(false);
   });
 });

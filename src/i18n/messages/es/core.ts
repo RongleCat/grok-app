@@ -124,6 +124,7 @@ export const esCore = {
   "shortcuts.off": "Desactivado",
   "shortcuts.stop": "Detener generación / cerrar superposición",
   "shortcuts.send": "Enviar mensaje",
+  "shortcuts.steer": "Guiar a mitad de turno",
   "shortcuts.help": "Mostrar atajos",
   "shortcuts.voice": "Alternar dictado por voz",
   "empty.noProjectTitle": "No hay ningún proyecto abierto",

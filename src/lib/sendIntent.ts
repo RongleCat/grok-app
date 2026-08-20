@@ -7,7 +7,8 @@
  * - Same-session FSM busy (`streaming` / `connecting`) → **enqueue** follow-up
  *   for after this turn (not mid-turn interject).
  * - Steer / interject is a **separate** path (`sessionInterject` via queue-row
- *   Guide) while the agent is generating — classify with `action: "steer"`.
+ *   Guide, or composer **Ctrl+Enter** matching Grok Build CLI) while the
+ *   agent is generating — classify with `action: "steer"`.
  * - Host live busy on another session / draft → **foreign concurrent** demote+
  *   spawn (`executeSend`); never park into a fake local queue.
  * - Process-global `connecting` is ignored for enqueue gating (parity with

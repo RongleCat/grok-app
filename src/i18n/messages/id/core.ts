@@ -124,6 +124,7 @@ export const idCore = {
   "shortcuts.off": "Mati",
   "shortcuts.stop": "Hentikan generasi / tutup overlay",
   "shortcuts.send": "Kirim pesan",
+  "shortcuts.steer": "Steer di tengah giliran",
   "shortcuts.help": "Tampilkan pintasan",
   "shortcuts.voice": "Alihkan dikte suara",
   "empty.noProjectTitle": "Tidak ada proyek yang terbuka",

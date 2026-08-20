@@ -124,6 +124,7 @@ export const filCore = {
   "shortcuts.off": "Naka-off",
   "shortcuts.stop": "Ihinto ang paggawa / isara ang overlay",
   "shortcuts.send": "Ipadala ang mensahe",
+  "shortcuts.steer": "I-steer sa gitna ng turn",
   "shortcuts.help": "Ipakita ang mga shortcut",
   "shortcuts.voice": "I-toggle ang voice dictation",
   "empty.noProjectTitle": "Walang nakabukas na proyekto",

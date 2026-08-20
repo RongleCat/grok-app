@@ -124,6 +124,7 @@ export const zhTWCore = {
   "shortcuts.off": "關閉",
   "shortcuts.stop": "停止產生 / 關閉浮層",
   "shortcuts.send": "傳送訊息",
+  "shortcuts.steer": "引導目前回合",
   "shortcuts.help": "顯示快捷鍵",
   "shortcuts.voice": "開關語音輸入",
   "empty.noProjectTitle": "尚未開啟專案",

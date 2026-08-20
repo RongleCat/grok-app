@@ -124,6 +124,7 @@ export const deCore = {
   "shortcuts.off": "Aus",
   "shortcuts.stop": "Generierung stoppen / Overlay schließen",
   "shortcuts.send": "Nachricht senden",
+  "shortcuts.steer": "Vorgang zwischendurch steuern",
   "shortcuts.help": "Kürzel anzeigen",
   "shortcuts.voice": "Spracheingabe umschalten",
   "empty.noProjectTitle": "Kein Projekt geöffnet",

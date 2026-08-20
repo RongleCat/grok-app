@@ -124,6 +124,7 @@ export const jaCore = {
   "shortcuts.off": "オフ",
   "shortcuts.stop": "生成を停止 / オーバーレイを閉じる",
   "shortcuts.send": "メッセージを送信",
+  "shortcuts.steer": "ターン中にステア",
   "shortcuts.help": "ショートカットを表示",
   "shortcuts.voice": "音声入力の切替",
   "empty.noProjectTitle": "プロジェクトが開かれていません",

@@ -152,7 +152,7 @@ export const zhTWSettingsUi = {
   "settings.shortcuts.group.navigation": "導覽",
   "settings.shortcuts.group.diagnostics": "診斷",
   "settings.shortcuts.group.input": "輸入",
-  "settings.shortcuts.note": "預設 Enter 傳送；可在 設定 → 對話偏好 改為 ⌘/Ctrl+Enter。Esc、Ctrl+Space 語音輸入與傳送鍵為固定綁定。範圍區分全域與對話；可選跨範圍共用僅影響衝突檢查。部分組合鍵可能被系統占用（如輸入法切換）。",
+  "settings.shortcuts.note": "預設 Enter 傳送；可在 設定 → 對話偏好 改為 ⌘/Ctrl+Enter。回合中途引導是 Ctrl+Enter（對標 Grok Build CLI）。Esc、Ctrl+Space 語音輸入、傳送鍵和引導為固定綁定。範圍區分全域與對話；可選跨範圍共用僅影響衝突檢查。部分組合鍵可能被系統占用（如輸入法切換）。",
   "settings.shortcuts.openHelp": "開啟快捷鍵說明",
   "settings.shortcuts.filterPlaceholder": "篩選快捷鍵…",
   "settings.shortcuts.filterEmpty": "沒有符合篩選條件的快捷鍵。",

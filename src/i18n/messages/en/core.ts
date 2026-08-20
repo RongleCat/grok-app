@@ -125,6 +125,7 @@ export const enCore = {
   "shortcuts.off": "Off",
   "shortcuts.stop": "Stop generation / close overlay",
   "shortcuts.send": "Send message",
+  "shortcuts.steer": "Steer mid-turn",
   "shortcuts.help": "Show shortcuts",
   "shortcuts.voice": "Toggle voice dictation",
   "empty.noProjectTitle": "No project open",

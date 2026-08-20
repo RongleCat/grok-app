@@ -124,6 +124,7 @@ export const ukCore = {
   "shortcuts.off": "Вимкнено",
   "shortcuts.stop": "Зупинити генерацію / закрити накладку",
   "shortcuts.send": "Надіслати повідомлення",
+  "shortcuts.steer": "Скоригувати хід",
   "shortcuts.help": "Показати скорочення",
   "shortcuts.voice": "Перемкнути голосове введення",
   "empty.noProjectTitle": "Жодного проєкту не відкрито",

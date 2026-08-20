@@ -152,7 +152,7 @@ export const zhSettingsUi = {
   "settings.shortcuts.group.navigation": "导航",
   "settings.shortcuts.group.diagnostics": "诊断",
   "settings.shortcuts.group.input": "输入",
-  "settings.shortcuts.note": "默认 Enter 发送；可在 设置 → 对话偏好 改为 ⌘/Ctrl+Enter。Esc、Ctrl+Space 语音输入与发送键为固定绑定。范围区分全局与对话；可选跨范围共用仅影响冲突检查。部分组合键可能被系统占用（如输入法切换）。",
+  "settings.shortcuts.note": "默认 Enter 发送；可在 设置 → 对话偏好 改为 ⌘/Ctrl+Enter。回合中途引导是 Ctrl+Enter（对标 Grok Build CLI）。Esc、Ctrl+Space 语音输入、发送键和引导为固定绑定。范围区分全局与对话；可选跨范围共用仅影响冲突检查。部分组合键可能被系统占用（如输入法切换）。",
   "settings.shortcuts.openHelp": "打开快捷键帮助",
   "settings.shortcuts.filterPlaceholder": "筛选快捷键…",
   "settings.shortcuts.filterEmpty": "没有符合筛选条件的快捷键。",

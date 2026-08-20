@@ -59,12 +59,14 @@ export type ParsedChord = {
   alt: boolean;
 };
 
-/** Catalog defaults as unified chords (send is display-only here; Composer owns Enter pref). */
+/** Catalog defaults as unified chords (send / steer are composer-owned). */
 export const DEFAULT_SHORTCUT_CHORDS: Record<ShortcutId, ChordString> = {
   search: "mod+k",
   findInChat: "mod+f",
   newChat: "mod+n",
   send: "enter",
+  /** Composer-local; Grok Build CLI default mid-turn chord. */
+  steer: "ctrl+enter",
   stop: "escape",
   copyLastReply: "mod+shift+c",
   toggleSidebar: "mod+b",
@@ -88,7 +90,7 @@ export const DEFAULT_SHORTCUT_CHORDS: Record<ShortcutId, ChordString> = {
 
 /**
  * Ids that honor user remaps in the App capture-phase mod handler.
- * Subset of catalog — send / stop / dictation stay special-cased elsewhere.
+ * Subset of catalog — send / steer / stop / dictation stay special-cased elsewhere.
  */
 export const REMAPPABLE_SHORTCUT_IDS = [
   "search",
@@ -403,6 +405,7 @@ export function buildEffectiveChordMap(
 export const CHORD_CONFLICT_IGNORE_IDS: ReadonlySet<ShortcutId> = new Set([
   "sidebarSessionNav",
   "send",
+  "steer",
   "closeSideTab",
 ]);
 

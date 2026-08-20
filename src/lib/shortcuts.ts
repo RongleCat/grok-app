@@ -36,6 +36,7 @@ export type ShortcutId =
   | "findInChat"
   | "newChat"
   | "send"
+  | "steer"
   | "stop"
   | "copyLastReply"
   | "toggleSidebar"
@@ -66,14 +67,15 @@ export type ShortcutRow = {
 
 /**
  * Stable catalog id order — same as SHORTCUTS.
- * Includes display-only rows (send, stop, dictation, sidebarSessionNav) that
- * are not matched by {@link matchGlobalShortcut}.
+ * Includes display-only rows (send, steer, stop, dictation, sidebarSessionNav)
+ * that are not matched by {@link matchGlobalShortcut}.
  */
 export const SHORTCUT_IDS: readonly ShortcutId[] = [
   "search",
   "findInChat",
   "newChat",
   "send",
+  "steer",
   "stop",
   "copyLastReply",
   "toggleSidebar",
@@ -129,6 +131,15 @@ export const SHORTCUTS: ShortcutRow[] = [
     // Product default: plain Enter (mod-enter only when Settings → Composer pref is set).
     mac: "↵",
     win: "Enter",
+  },
+  {
+    // Composer-local. Matches Grok Build CLI default mid-turn chord (Ctrl+Enter).
+    id: "steer",
+    labelKey: "shortcuts.steer",
+    group: "workbench",
+    scope: "chat-focus",
+    mac: "⌃ ↵",
+    win: "Ctrl Enter",
   },
   {
     id: "stop",
@@ -258,7 +269,7 @@ export function shortcutScope(id: ShortcutId): ShortcutScope {
 
 /**
  * Catalog ids handled by {@link matchGlobalShortcut} (mod-based App capture handler).
- * Not included: `send` (composer-local), `stop` (Esc special-cased in App for order
+ * Not included: `send` / `steer` (composer-local), `stop` (Esc special-cased in App for order
  * vs voice cancel / overlays), `dictation` (Ctrl+Space via `isVoiceToggleKey` —
  * must not use meta, and runs before the mod branch), `sidebarSessionNav` (plain
  * j/k when focus is in the sidebar session list), `closeSideTab` (⌘W / Ctrl+W
@@ -445,8 +456,8 @@ export function withEffectiveBindings(
   if (!remaps || !remaps[row.id]) return next;
   const chord = effectiveShortcutChord(row.id, remaps);
   // Prefer formatChordDisplay so remapped rows stay consistent across platforms.
-  // Keep send row owned by Composer pref (not remappable).
-  if (row.id === "send") return next;
+  // Keep send / steer rows composer-owned (not remappable).
+  if (row.id === "send" || row.id === "steer") return next;
   return {
     ...next,
     mac: formatChordDisplay(chord, "mac"),

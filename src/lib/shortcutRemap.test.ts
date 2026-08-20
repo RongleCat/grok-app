@@ -299,6 +299,7 @@ describe("findChordConflicts", () => {
 
   it("excludes display-only ignore ids (send / sidebarSessionNav)", () => {
     expect(CHORD_CONFLICT_IGNORE_IDS.has("send")).toBe(true);
+    expect(CHORD_CONFLICT_IGNORE_IDS.has("steer")).toBe(true);
     expect(CHORD_CONFLICT_IGNORE_IDS.has("sidebarSessionNav")).toBe(true);
     // Even if a remap used bare "j", sidebarSessionNav must not join a group.
     // (Recording UI cannot bind bare j; this guards the pure helper.)

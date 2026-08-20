@@ -124,6 +124,7 @@ export const ptBRCore = {
   "shortcuts.off": "Desligado",
   "shortcuts.stop": "Parar geração / fechar sobreposição",
   "shortcuts.send": "Enviar mensagem",
+  "shortcuts.steer": "Direcionar no meio do turno",
   "shortcuts.help": "Mostrar atalhos",
   "shortcuts.voice": "Alternar ditado por voz",
   "empty.noProjectTitle": "Nenhum projeto aberto",

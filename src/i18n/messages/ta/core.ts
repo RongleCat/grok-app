@@ -124,6 +124,7 @@ export const taCore = {
   "shortcuts.off": "அணைப்பு",
   "shortcuts.stop": "உருவாக்கத்தை நிறுத்து / மேலடுக்கை மூடு",
   "shortcuts.send": "செய்தியை அனுப்பு",
+  "shortcuts.steer": "நடு திருப்பத்தில் வழிநடத்து",
   "shortcuts.help": "குறுக்குவழிகளைக் காட்டு",
   "shortcuts.voice": "குரல் உள்ளீட்டை மாற்று",
   "empty.noProjectTitle": "எந்தத் திட்டமும் திறக்கப்படவில்லை",

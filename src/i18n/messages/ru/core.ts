@@ -124,6 +124,7 @@ export const ruCore = {
   "shortcuts.off": "Выкл.",
   "shortcuts.stop": "Остановить генерацию / закрыть окно",
   "shortcuts.send": "Отправить сообщение",
+  "shortcuts.steer": "Скорректировать ход",
   "shortcuts.help": "Показать горячие клавиши",
   "shortcuts.voice": "Переключить голосовую диктовку",
   "empty.noProjectTitle": "Проект не открыт",

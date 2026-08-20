@@ -34,6 +34,7 @@ const tStub = (key: string) => {
     "shortcuts.findInChat": "Find in conversation",
     "shortcuts.newChat": "New chat",
     "shortcuts.send": "Send",
+    "shortcuts.steer": "Steer mid-turn",
     "shortcuts.stop": "Stop",
     "shortcuts.copyLastReply": "Copy last reply",
     "shortcuts.toggleSidebar": "Toggle sidebar",
@@ -72,6 +73,7 @@ describe("shortcuts catalog", () => {
     expect(shortcutScope("findInChat")).toBe("chat-focus");
     expect(shortcutScope("copyLastReply")).toBe("chat-focus");
     expect(shortcutScope("send")).toBe("chat-focus");
+    expect(shortcutScope("steer")).toBe("chat-focus");
     expect(shortcutScope("stop")).toBe("chat-focus");
     expect(shortcutScope("search")).toBe("global");
     expect(shortcutScope("settings")).toBe("global");
@@ -114,6 +116,17 @@ describe("shortcuts catalog", () => {
     expect(row!.win.toLowerCase()).toMatch(/ctrl/);
     expect(
       (GLOBAL_MOD_SHORTCUT_IDS as readonly string[]).includes("closeSideTab"),
+    ).toBe(false);
+  });
+
+  it("lists steer as Ctrl+Enter (Grok Build CLI mid-turn chord)", () => {
+    const row = SHORTCUTS.find((s) => s.id === "steer");
+    expect(row).toBeDefined();
+    expect(row!.labelKey).toBe("shortcuts.steer");
+    expect(row!.mac).toMatch(/⌃|Ctrl/i);
+    expect(row!.win.toLowerCase()).toMatch(/ctrl/);
+    expect(
+      (GLOBAL_MOD_SHORTCUT_IDS as readonly string[]).includes("steer"),
     ).toBe(false);
   });
 
@@ -301,6 +314,7 @@ describe("matchGlobalShortcut", () => {
   it("does not claim send / stop / dictation / sidebar j/k (special-cased elsewhere)", () => {
     const special = new Set([
       "send",
+      "steer",
       "stop",
       "dictation",
       "sidebarSessionNav",
