@@ -360,7 +360,7 @@ export const deWorkspace = {
   "context.percentLabel": "Genutzt",
   "context.cacheHit": "Cache-Treffer",
   "context.compactAction": "Verdichten…",
-  "context.heuristicNote": "Nutzung je Zug von der CLI gemeldet. Rollenaufteilung ist eine Schätzung.",
+  "context.heuristicNote": "Nutzung je Vorgang von der CLI gemeldet. Rollenaufteilung ist eine Schätzung.",
   "context.triggerAuto": "Auto",
   "context.triggerManual": "Manuell",
   "context.breakdownUser": "Nutzernachrichten",

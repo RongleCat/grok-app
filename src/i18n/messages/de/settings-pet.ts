@@ -5,7 +5,7 @@ export const deSettingsPet = {
   "settings.pet.enabled": "Desktop-Pet zeigen",
   "settings.pet.enabledDesc": "Lebendes Zeichen über anderen Apps schweben lassen. Jederzeit über das Pet-Menü oder /pet ausblenden.",
   "settings.pet.bubbles": "Aufgabenblasen",
-  "settings.pet.bubblesDesc": "Chip über dem Pet zeigen, wenn ein Agent mitten im Zug antwortet. Gleichzeitige Chats stapeln statt einander zu überschreiben.",
+  "settings.pet.bubblesDesc": "Chip über dem Pet zeigen, wenn ein Agent mitten im Vorgang antwortet. Gleichzeitige Chats stapeln statt einander zu überschreiben.",
   "settings.pet.progressBar": "Blasen-Fortschrittsbalken",
   "settings.pet.progressBarDesc": "Optionaler Ladebalken auf jedem Chip. Standard aus — Spinner und Häkchen zeigen schon läuft vs. fertig.",
   "settings.pet.bubbleDismiss": "Blasen automatisch ausblenden nach",

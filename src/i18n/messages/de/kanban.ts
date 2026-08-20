@@ -17,7 +17,7 @@ export const deKanban = {
   "kanban.columnsLabel": "Spalten nach Agenten-Laufstatus",
   "kanban.none": "Keine",
   "kanban.empty": "Keine Agenten vorhanden",
-  "kanban.emptyHint": "Starte einen Chat oder warte auf einen Agentenzug — aktive Sitzungen erscheinen hier nach Laufstatus.",
+  "kanban.emptyHint": "Starte einen Chat oder warte auf einen Agentenvorgang — aktive Sitzungen erscheinen hier nach Laufstatus.",
   "kanban.filterEmpty": "Keine Agenten passen zu diesen Filtern",
   "kanban.filterEmptyHint": "Setze die Suche zurück oder zeige inaktive Agenten an.",
   "kanban.clearFilters": "Alle Filter zurücksetzen",

@@ -100,7 +100,7 @@ export const deSettingsMemory = {
   "settings.memoryEmbed.watcher": "Memory-Datei-Watcher",
   "settings.memoryEmbed.watcherDesc": "GROK_HOME/memory auf externe Edits beobachten und bei Suche neu indexieren.",
   "settings.memoryEmbed.injection": "First-Turn-Injection",
-  "settings.memoryEmbed.injectionDesc": "Relevantes Memory beim ersten Agentenzug automatisch injizieren.",
+  "settings.memoryEmbed.injectionDesc": "Relevantes Memory beim ersten Agentenvorgang automatisch injizieren.",
   "settings.memoryEmbed.unsetPlaceholder": "unset",
   "settings.memoryEmbed.preview": "Memory-Abschnitte (redigiert)",
   "settings.memoryEmbed.previewEmpty": "Noch keine `[memory.*]`-Tabellen in der Config gefunden.",

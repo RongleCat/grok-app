@@ -131,7 +131,7 @@ export const deAutomations = {
   "automations.oneshot.reveal": "One-Shot-Helferdateien zeigen",
   "automations.oneshot.outcome.fired": "One-Shot hat eine fällige geplante Aufgabe gefeuert.",
   "automations.oneshot.outcome.noneDue": "One-Shot fand keine fällige geplante Aufgabe (nichts auszuführen).",
-  "automations.oneshot.outcome.busy": "One-Shot übersprungen — ein Agentenzug läuft bereits.",
+  "automations.oneshot.outcome.busy": "One-Shot übersprungen — ein Agentenvorgang läuft bereits.",
   "automations.oneshot.outcome.error": "One-Shot konnte nicht feuern (CLI fehlt, Projekt nicht vertrauenswürdig oder Verbindung fehlgeschlagen). Soft-Fail.",
   "automations.oneshot.outcome.alreadyClaimed": "One-Shot übersprungen — dieser fällige Slot wurde in diesem Prozess bereits beansprucht.",
   "automations.oneshot.outcome.unknown": "One-Shot endete mit unbekanntem Ergebnis.",
