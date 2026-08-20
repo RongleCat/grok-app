@@ -8,6 +8,8 @@ export const filSidebar = {
   "sidebar.addProject": "Magdagdag ng proyekto",
   "sidebar.collapseAllProjects": "Ikipot lahat ng proyekto",
   "sidebar.noProjects": "Wala pang proyekto. I-click ang + para magdagdag ng folder.",
+  "sidebar.importCliSessions": "I-import mula sa Grok Build",
+  "sidebar.importCliSessionsHint": "Nanatili sa ~/.grok ang mga Grok Build chat hanggang i-import mo sila rito.",
   "sidebar.untrusted": "hindi pinagkakatiwalaan",
   "sidebar.pathMissing": "nawawala",
   "sidebar.newConversation": "Bagong usapan",

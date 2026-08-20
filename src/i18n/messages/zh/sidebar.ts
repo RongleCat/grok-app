@@ -8,6 +8,8 @@ export const zhSidebar = {
   "sidebar.addProject": "添加项目",
   "sidebar.collapseAllProjects": "收起全部项目",
   "sidebar.noProjects": "还没有项目。点击 + 添加本地目录。",
+  "sidebar.importCliSessions": "从 Grok Build 导入",
+  "sidebar.importCliSessionsHint": "Grok Build 对话仍在 ~/.grok，导入后才会出现在侧栏。",
   "sidebar.untrusted": "未信任",
   "sidebar.pathMissing": "路径失效",
   "sidebar.newConversation": "新建会话",

@@ -55,6 +55,27 @@ html[data-sidebar-density="compact"] .session-row__meta {
   line-height: 1.45;
 }
 
+.sidebar-empty__hint {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.sidebar-empty__actions {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sidebar-cli-import {
+  margin-top: 4px;
+}
+
+.tree-orphan > .sidebar-cli-import {
+  padding: 4px 10px 12px;
+}
+
 .status-pill-inline {
   display: inline-flex;
   align-items: center;

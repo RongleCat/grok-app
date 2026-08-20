@@ -8,6 +8,8 @@ export const enSidebar = {
   "sidebar.addProject": "Add project",
   "sidebar.collapseAllProjects": "Collapse all projects",
   "sidebar.noProjects": "No projects yet. Click + to add a folder.",
+  "sidebar.importCliSessions": "Import from Grok Build",
+  "sidebar.importCliSessionsHint": "Grok Build chats stay under ~/.grok until you import them here.",
   "sidebar.untrusted": "untrusted",
   "sidebar.pathMissing": "missing",
   "sidebar.newConversation": "New conversation",

@@ -294,17 +294,50 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  min-width: 640px;
+  min-width: 720px;
 }
 
 .account-logs__head,
 .account-logs__row {
   display: grid;
-  grid-template-columns: minmax(88px, 1.3fr) minmax(72px, 0.9fr) 48px 72px 64px 72px 80px;
+  grid-template-columns: minmax(88px, 1.3fr) minmax(72px, 0.9fr) 48px 72px 64px 72px 80px minmax(96px, auto);
   gap: 8px;
   align-items: center;
   padding: 8px 14px;
   font-size: 12px;
+}
+
+.account-logs__title-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.account-logs__hint {
+  margin: 0 0 8px;
+  padding: 0 14px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.account-logs__status {
+  margin: 0 0 6px;
+  padding: 0 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.account-logs__err {
+  margin: 0 0 6px;
+  padding: 0 14px;
+  font-size: 12px;
+  color: var(--danger, #c23);
+}
+
+.account-logs__row-actions {
+  justify-self: end;
 }
 
 .account-logs__head {

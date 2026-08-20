@@ -8,6 +8,8 @@ export const taSidebar = {
   "sidebar.addProject": "திட்டத்தைச் சேர்",
   "sidebar.collapseAllProjects": "அனைத்துத் திட்டங்களையும் சுருக்கு",
   "sidebar.noProjects": "இன்னும் திட்டங்கள் இல்லை. கோப்புறையைச் சேர்க்க + ஐ அழுத்தவும்.",
+  "sidebar.importCliSessions": "Grok Build இலிருந்து இறக்குமதி செய்",
+  "sidebar.importCliSessionsHint": "Grok Build உரையாடல்கள் இங்கே இறக்குமதி செய்யும் வரை ~/.grok இல் இருக்கும்.",
   "sidebar.untrusted": "நம்பப்படாதது",
   "sidebar.pathMissing": "காணவில்லை",
   "sidebar.newConversation": "புதிய உரையாடல்",

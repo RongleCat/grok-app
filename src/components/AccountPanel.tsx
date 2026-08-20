@@ -46,6 +46,12 @@ import {
 import { GlassModal } from "@/components/GlassModal";
 import { Tip } from "@/components/ui/tooltip";
 import { IconHelp, IconPlus, IconTrash, IconUser } from "@/components/icons";
+import * as api from "@/lib/api";
+import {
+  isImportableAgentSessionId,
+  planCallLogImport,
+  runCallLogImport,
+} from "@/lib/cliSessionCallLogImport";
 
 export interface AccountPanelLabels {
   signedIn: string;
@@ -192,6 +198,10 @@ export interface AccountPanelProps {
   onSwitchAccount?: (id: string) => void;
   onRemoveAccount?: (id: string) => void;
   onImportChat?: () => void;
+  /** After CLI call-log import; refresh the sidebar. */
+  onImported?: () => void;
+  /** Open an App session after import (or an already-linked one). */
+  onOpenSession?: (appSessionId: string) => void;
 }
 
 function rowInitials(a: SavedAccount): string {
@@ -230,6 +240,8 @@ export function AccountPanel({
   onSwitchAccount,
   onRemoveAccount,
   onImportChat,
+  onImported,
+  onOpenSession,
 }: AccountPanelProps) {
   const [accountsOpen, setAccountsOpen] = useState(false);
   /**
@@ -239,6 +251,15 @@ export function AccountPanel({
   const [loginPasteOpen, setLoginPasteOpen] = useState(false);
   const [loginPasteCode, setLoginPasteCode] = useState("");
   const [loginPasteBusy, setLoginPasteBusy] = useState(false);
+  const [importBusy, setImportBusy] = useState<string | null>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [linkedAgentIds, setLinkedAgentIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [linkedAppByAgent, setLinkedAppByAgent] = useState<
+    Record<string, string>
+  >({});
   // Collapse paste UI when login ends so next sign-in starts clean.
   useEffect(() => {
     if (!busy) {
@@ -334,6 +355,93 @@ export function AccountPanel({
       return key != null && dateInHeatRange(key, selectedHeatRange);
     });
   }, [status?.callLogs, selectedHeatRange]);
+
+  const listedImportPlan = useMemo(
+    () => planCallLogImport(filteredCallLogs, linkedAgentIds),
+    [filteredCallLogs, linkedAgentIds],
+  );
+
+  const refreshLinkedCliSessions = async () => {
+    if (!api.isTauri()) return;
+    try {
+      const list = await api.cliSessionsList();
+      const ids = new Set<string>();
+      const map: Record<string, string> = {};
+      for (const row of list) {
+        if (row.alreadyLinked) ids.add(row.agentSessionId);
+        if (row.appSessionId) map[row.agentSessionId] = row.appSessionId;
+      }
+      setLinkedAgentIds(ids);
+      setLinkedAppByAgent(map);
+    } catch {
+      /* list is best-effort; import still works */
+    }
+  };
+
+  useEffect(() => {
+    if (!status?.callLogs?.length) return;
+    void refreshLinkedCliSessions();
+  }, [status?.callLogs]);
+
+  const importOneCallLog = async (agentSessionId: string, title: string) => {
+    if (!api.isTauri()) return;
+    if (!isImportableAgentSessionId(agentSessionId)) {
+      setImportError(t("account.callLogsImportPartial", { n: "1" }));
+      return;
+    }
+    setImportBusy(agentSessionId);
+    setImportError(null);
+    setImportStatus(null);
+    try {
+      const existing = linkedAppByAgent[agentSessionId];
+      if (existing) {
+        setImportStatus(t("settings.cliSessionsOpened", { title }));
+        onOpenSession?.(existing);
+        return;
+      }
+      const meta = await api.cliSessionImport(agentSessionId);
+      setImportStatus(
+        t("settings.cliSessionsImportedOpen", { title }),
+      );
+      onImported?.();
+      await refreshLinkedCliSessions();
+      if (meta?.id) onOpenSession?.(meta.id);
+    } catch (e) {
+      setImportError(String(e));
+    } finally {
+      setImportBusy(null);
+    }
+  };
+
+  const importListedCallLogs = async () => {
+    if (!api.isTauri() || !listedImportPlan.hasImportable) return;
+    setImportBusy("__listed__");
+    setImportError(null);
+    setImportStatus(null);
+    try {
+      const result = await runCallLogImport(listedImportPlan, (id) =>
+        api.cliSessionImport(id),
+      );
+      setImportStatus(
+        t("settings.cliSessionsImportedN", {
+          n: String(result.imported.length),
+        }),
+      );
+      if (result.failed > 0) {
+        setImportError(
+          t("account.callLogsImportPartial", {
+            n: String(result.failed),
+          }),
+        );
+      }
+      onImported?.();
+      await refreshLinkedCliSessions();
+    } catch (e) {
+      setImportError(String(e));
+    } finally {
+      setImportBusy(null);
+    }
+  };
 
   const callLogsTitle = (() => {
     if (!selectedHeatRange || rangeSessionCount == null) return labels.callLogs;
@@ -491,6 +599,7 @@ export function AccountPanel({
       }
     >
       <p className="account-mgr__hint">{labels.profilesHint}</p>
+      <p className="account-mgr__hint">{t("account.profilesAnother")}</p>
       {savedAccounts.length === 0 ? (
         <div className="account-mgr__empty">{labels.profilesEmpty}</div>
       ) : (
@@ -1073,19 +1182,52 @@ export function AccountPanel({
             </div>
           </section>
 
-          <section className="account-section" ref={logsSectionRef}>
+          <section
+            className="account-section"
+            ref={logsSectionRef}
+            id="settings-anchor-account-callLogs"
+          >
             <div className="account-section__title account-section__title--row">
               <span>{callLogsTitle}</span>
-              {selectedHeatRange ? (
-                <button
-                  type="button"
-                  className="account-link"
-                  onClick={() => setSelectedHeatRange(null)}
-                >
-                  {labels.callLogsClearDay}
-                </button>
-              ) : null}
+              <div className="account-logs__title-actions">
+                {selectedHeatRange ? (
+                  <button
+                    type="button"
+                    className="account-link"
+                    onClick={() => setSelectedHeatRange(null)}
+                  >
+                    {labels.callLogsClearDay}
+                  </button>
+                ) : null}
+                {filteredCallLogs.length > 0 ? (
+                  <button
+                    type="button"
+                    className="btn btn--solid btn--sm"
+                    disabled={!!importBusy || !listedImportPlan.hasImportable}
+                    onClick={() => void importListedCallLogs()}
+                  >
+                    {importBusy === "__listed__"
+                      ? t("settings.cliSessionsImporting")
+                      : t("account.callLogsImportListed", {
+                          n: String(listedImportPlan.importable),
+                        })}
+                  </button>
+                ) : null}
+              </div>
             </div>
+            <p className="account-logs__hint">
+              {t("account.callLogsImportHint")}
+            </p>
+            {importStatus ? (
+              <p className="account-logs__status" role="status">
+                {importStatus}
+              </p>
+            ) : null}
+            {importError ? (
+              <p className="account-logs__err" role="alert">
+                {importError}
+              </p>
+            ) : null}
             <div className="account-section__body account-logs-scroll">
               {!status?.callLogs?.length ? (
                 <div className="account-logs__empty">
@@ -1105,6 +1247,7 @@ export function AccountPanel({
                     <span>{labels.colTokens}</span>
                     <span>{labels.colDuration}</span>
                     <span>{labels.colWhen}</span>
+                    <span>{t("account.col.actions")}</span>
                   </div>
                   {filteredCallLogs.map((row) => (
                     <div
@@ -1140,6 +1283,22 @@ export function AccountPanel({
                       <span>{formatDuration(row.durationSecs)}</span>
                       <span>
                         {formatRelativeTime(row.startedAt, locale)}
+                      </span>
+                      <span className="account-logs__row-actions">
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          disabled={!!importBusy}
+                          onClick={() =>
+                            void importOneCallLog(row.id, row.title)
+                          }
+                        >
+                          {importBusy === row.id
+                            ? t("settings.cliSessionsImporting")
+                            : linkedAppByAgent[row.id]
+                              ? t("settings.cliSessionsOpen")
+                              : t("settings.cliSessionsImportOpen")}
+                        </button>
                       </span>
                     </div>
                   ))}

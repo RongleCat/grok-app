@@ -8,6 +8,8 @@ export const koSidebar = {
   "sidebar.addProject": "프로젝트 추가",
   "sidebar.collapseAllProjects": "모든 프로젝트 접기",
   "sidebar.noProjects": "프로젝트가 없습니다. +를 눌러 폴더를 추가하세요.",
+  "sidebar.importCliSessions": "Grok Build에서 가져오기",
+  "sidebar.importCliSessionsHint": "Grok Build 채팅은 가져오기 전까지 ~/.grok에 있습니다.",
   "sidebar.untrusted": "신뢰 안 됨",
   "sidebar.pathMissing": "없음",
   "sidebar.newConversation": "새 대화",

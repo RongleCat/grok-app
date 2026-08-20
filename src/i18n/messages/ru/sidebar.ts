@@ -8,6 +8,8 @@ export const ruSidebar = {
   "sidebar.addProject": "Добавить проект",
   "sidebar.collapseAllProjects": "Свернуть все проекты",
   "sidebar.noProjects": "Проектов пока нет. Нажмите +, чтобы добавить папку.",
+  "sidebar.importCliSessions": "Импорт из Grok Build",
+  "sidebar.importCliSessionsHint": "Чаты Grok Build остаются в ~/.grok, пока вы не импортируете их сюда.",
   "sidebar.untrusted": "не доверен",
   "sidebar.pathMissing": "папка отсутствует",
   "sidebar.newConversation": "Новый диалог",

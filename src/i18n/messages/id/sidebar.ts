@@ -8,6 +8,8 @@ export const idSidebar = {
   "sidebar.addProject": "Tambah proyek",
   "sidebar.collapseAllProjects": "Ciutkan semua proyek",
   "sidebar.noProjects": "Belum ada proyek. Klik + untuk menambah folder.",
+  "sidebar.importCliSessions": "Impor dari Grok Build",
+  "sidebar.importCliSessionsHint": "Obrolan Grok Build tetap di ~/.grok sampai Anda mengimpornya ke sini.",
   "sidebar.untrusted": "tak tepercaya",
   "sidebar.pathMissing": "hilang",
   "sidebar.newConversation": "Percakapan baru",

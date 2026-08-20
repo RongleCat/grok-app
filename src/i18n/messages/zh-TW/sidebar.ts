@@ -8,6 +8,8 @@ export const zhTWSidebar = {
   "sidebar.addProject": "新增專案",
   "sidebar.collapseAllProjects": "收合全部專案",
   "sidebar.noProjects": "還沒有專案。點擊 + 新增本機目錄。",
+  "sidebar.importCliSessions": "從 Grok Build 匯入",
+  "sidebar.importCliSessionsHint": "Grok Build 對話仍在 ~/.grok，匯入後才會出現在側欄。",
   "sidebar.untrusted": "未信任",
   "sidebar.pathMissing": "路徑失效",
   "sidebar.newConversation": "新增對話",

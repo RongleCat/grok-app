@@ -8,6 +8,8 @@ export const jaSidebar = {
   "sidebar.addProject": "プロジェクトを追加",
   "sidebar.collapseAllProjects": "すべてのプロジェクトを折りたたむ",
   "sidebar.noProjects": "プロジェクトがありません。+ を押してフォルダーを追加してください。",
+  "sidebar.importCliSessions": "Grok Build からインポート",
+  "sidebar.importCliSessionsHint": "Grok Build のチャットはインポートするまで ~/.grok にあります。",
   "sidebar.untrusted": "未信頼",
   "sidebar.pathMissing": "見つかりません",
   "sidebar.newConversation": "新しい会話",

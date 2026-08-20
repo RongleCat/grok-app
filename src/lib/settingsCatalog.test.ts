@@ -458,5 +458,13 @@ describe("settingsCatalog", () => {
     expect(
       sessionApiZh.some((h) => h.entry.id === "runtime.sessionApi"),
     ).toBe(true);
+    const importListed = searchSettingsEntries("import listed", tZh, tEn);
+    expect(
+      importListed.some((h) => h.entry.id === "account.callLogs"),
+    ).toBe(true);
+    const importZh = searchSettingsEntries("导入会话", tZh, tEn);
+    expect(
+      importZh.some((h) => h.entry.id === "account.callLogs"),
+    ).toBe(true);
   });
 });

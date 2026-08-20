@@ -8,6 +8,8 @@ export const ukSidebar = {
   "sidebar.addProject": "Додати проєкт",
   "sidebar.collapseAllProjects": "Згорнути всі проєкти",
   "sidebar.noProjects": "Проєктів ще немає. Натисніть +, щоб додати теку.",
+  "sidebar.importCliSessions": "Імпорт із Grok Build",
+  "sidebar.importCliSessionsHint": "Чати Grok Build лишаються в ~/.grok, доки ви не імпортуєте їх сюди.",
   "sidebar.untrusted": "не довірений",
   "sidebar.pathMissing": "відсутній",
   "sidebar.newConversation": "Нова розмова",

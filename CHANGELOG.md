@@ -12,8 +12,12 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- **Import Grok Build CLI sessions from Account → Recent sessions**: Import & open a row, or import the listed table into the sidebar. Empty sidebar offers the same when local CLI logs exist. Import may add the CLI cwd as an **untrusted** project (never home `/` or `~/`).
+- **Second SuperGrok login hint** on the account switcher: Add account, then switch. One login stays active.
 
 **中文 · 新增**
+- **从设置 → 账户「近期会话」导入 Grok Build CLI 对话**到侧栏；空侧栏在有本地 CLI 记录时提供同一入口。导入可为 CLI 工作目录补一条**未信任**项目（不会把家目录或 `/` 加成项目）。
+- **账户切换**提示可添加第二个 SuperGrok 登录；同一时间只有一个登录生效。
 
 ### Changed
 

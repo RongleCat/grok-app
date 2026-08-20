@@ -113,8 +113,13 @@ Some auth.x.ai sessions (not always) show a long code and ask to **paste into Gr
 
 Grok Build CLI does **not** expose grok.com web history. Supported migration:
 
+- Settings → Account → **Recent sessions**: **Import & open** on a row, or **Import listed** for the visible table. Row `id` is the CLI agent session id; Host `cli_session_import` copies `chat_history.jsonl` into an App journal (idempotent if already linked).
+- Settings → General → App → **CLI sessions**: search / import all (cap 50) / open linked chats.
+- Sidebar empty state: **Import from Grok Build** when local call logs exist and the sidebar has ≤1 unarchived chat.
 - Settings → Account → **Import conversation** (`.md` / `.json` / `.txt`)
 - Formats: `## User` / `## Assistant` markdown, or JSON `[{role,content}]`
+
+CLI import may add an **untrusted** App project for the session cwd (skips `$HOME`, `/`, and shallow paths). Trust still requires the usual project confirm.
 
 ## Settings IA
 

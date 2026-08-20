@@ -8,6 +8,8 @@ export const ptBRSidebar = {
   "sidebar.addProject": "Adicionar projeto",
   "sidebar.collapseAllProjects": "Recolher todos os projetos",
   "sidebar.noProjects": "Ainda não há projetos. Clique em + para adicionar uma pasta.",
+  "sidebar.importCliSessions": "Importar do Grok Build",
+  "sidebar.importCliSessionsHint": "Os chats do Grok Build ficam em ~/.grok até você importá-los aqui.",
   "sidebar.untrusted": "não confiável",
   "sidebar.pathMissing": "ausente",
   "sidebar.newConversation": "Nova conversa",
