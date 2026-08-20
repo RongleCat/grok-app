@@ -1,6 +1,7 @@
 //! System tray / menu-bar icon + ChatGPT / Codex-style menu.
 //!
-//! **Tray / menu-bar icon** → `icons/tray-icon.png` (from `docs/svg/logo.svg`).
+//! **macOS menu-bar** → `icons/tray-icon.png` (template from `docs/svg/logo.svg`).
+//! **Windows tray** → `icons/tray-win-light.png` / `tray-win-dark.png` (taskbar theme).
 //! **App dock / .exe icons** → generated from `icons/icon (1).png` (do not mix).
 
 #![allow(dead_code)] // residual-clippy: busy_tooltip helper
@@ -342,15 +343,94 @@ fn handle_menu_event(app: &AppHandle, event: MenuEvent) {
     }
 }
 
+/// Windows notification-area badge. Named by the *taskbar*, not the in-app theme.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WinTrayBadge {
+    /// Light taskbar → black tile, white glyph.
+    LightTaskbar,
+    /// Dark taskbar → white tile, black glyph.
+    DarkTaskbar,
+}
+
+fn win_tray_badge(taskbar_light: bool) -> WinTrayBadge {
+    if taskbar_light {
+        WinTrayBadge::LightTaskbar
+    } else {
+        WinTrayBadge::DarkTaskbar
+    }
+}
+
+/// Interpret Windows Personalize DWORDs (`1` = light).
+///
+/// Prefer `SystemUsesLightTheme` (taskbar / notification area). Fall back to
+/// `AppsUseLightTheme`. Missing both → dark taskbar (Win11 default).
+fn taskbar_is_light_from_dwords(system: Option<u32>, apps: Option<u32>) -> bool {
+    system.or(apps).is_some_and(|v| v != 0)
+}
+
+#[cfg(windows)]
+fn taskbar_uses_light_theme() -> bool {
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let (system, apps) =
+        match hkcu.open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") {
+            Ok(key) => (
+                key.get_value::<u32, _>("SystemUsesLightTheme").ok(),
+                key.get_value::<u32, _>("AppsUseLightTheme").ok(),
+            ),
+            Err(_) => (None, None),
+        };
+    taskbar_is_light_from_dwords(system, apps)
+}
+
 fn load_tray_icon() -> Result<Image<'static>, String> {
     // Embedded at compile time — logo.svg pipeline only (never app icon.png).
     // tray-icon on macOS displays at 18pt height; embed 36px (@2x) so retina is sharp.
-    // Windows notification area: 32px monochrome.
+    // Windows: contrast badges — no template invert on the notification area.
     #[cfg(target_os = "macos")]
     let bytes: &[u8] = include_bytes!("../icons/tray-icon.png"); // 36×36
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    let bytes: &[u8] = match win_tray_badge(taskbar_uses_light_theme()) {
+        WinTrayBadge::LightTaskbar => include_bytes!("../icons/tray-win-light.png"),
+        WinTrayBadge::DarkTaskbar => include_bytes!("../icons/tray-win-dark.png"),
+    };
+    #[cfg(not(any(target_os = "macos", windows)))]
     let bytes: &[u8] = include_bytes!("../icons/tray-32.png");
     Image::from_bytes(bytes).map_err(|e| format!("tray icon decode: {e}"))
+}
+
+#[cfg(windows)]
+fn apply_tray_icon(app: &AppHandle) -> Result<(), String> {
+    let icon = load_tray_icon()?;
+    if let Some(tray) = app.try_state::<Mutex<tauri::tray::TrayIcon>>() {
+        if let Ok(t) = tray.lock() {
+            t.set_icon(Some(icon)).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+/// Swap the Windows tray badge when the user flips the taskbar theme.
+#[cfg(windows)]
+fn watch_taskbar_theme(app: AppHandle) {
+    std::thread::Builder::new()
+        .name("grok-tray-theme".into())
+        .spawn(move || {
+            let mut last = taskbar_uses_light_theme();
+            loop {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                let now = taskbar_uses_light_theme();
+                if now == last {
+                    continue;
+                }
+                last = now;
+                if let Err(e) = apply_tray_icon(&app) {
+                    tracing::debug!(error = %e, "tray icon theme swap failed");
+                }
+            }
+        })
+        .ok();
 }
 
 /// Create menu-bar / system tray at startup.
@@ -403,6 +483,8 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), String> {
 
     let tray = builder.build(app).map_err(|e| e.to_string())?;
     app.manage(Mutex::new(tray));
+    #[cfg(windows)]
+    watch_taskbar_theme(app.clone());
     Ok(())
 }
 
@@ -553,5 +635,54 @@ mod badge_tests {
         );
         assert_eq!(quit_tray_label_for("Quit Grok", true), "Quit Grok");
         assert_eq!(quit_tray_label_for("退出 Grok", true), "退出 Grok");
+    }
+
+    #[test]
+    fn win_tray_badge_follows_taskbar_not_app_theme() {
+        assert_eq!(win_tray_badge(true), WinTrayBadge::LightTaskbar);
+        assert_eq!(win_tray_badge(false), WinTrayBadge::DarkTaskbar);
+    }
+
+    #[test]
+    fn taskbar_light_prefers_system_dword() {
+        assert!(taskbar_is_light_from_dwords(Some(1), Some(0)));
+        assert!(!taskbar_is_light_from_dwords(Some(0), Some(1)));
+        assert!(taskbar_is_light_from_dwords(None, Some(1)));
+        assert!(!taskbar_is_light_from_dwords(None, Some(0)));
+        assert!(!taskbar_is_light_from_dwords(None, None));
+    }
+
+    #[test]
+    fn win_light_badge_is_black_tile_white_glyph() {
+        let img = image::load_from_memory(include_bytes!("../icons/tray-win-light.png"))
+            .expect("tray-win-light.png")
+            .to_rgba8();
+        assert_eq!(img.dimensions(), (32, 32));
+        let bg = img.get_pixel(16, 4).0;
+        assert!(
+            bg[0] < 16 && bg[1] < 16 && bg[2] < 16 && bg[3] > 200,
+            "{bg:?}"
+        );
+        let has_white = img
+            .pixels()
+            .any(|p| p[0] > 240 && p[1] > 240 && p[2] > 240 && p[3] > 200);
+        assert!(has_white, "light-taskbar badge needs a white glyph");
+    }
+
+    #[test]
+    fn win_dark_badge_is_white_tile_black_glyph() {
+        let img = image::load_from_memory(include_bytes!("../icons/tray-win-dark.png"))
+            .expect("tray-win-dark.png")
+            .to_rgba8();
+        assert_eq!(img.dimensions(), (32, 32));
+        let bg = img.get_pixel(16, 4).0;
+        assert!(
+            bg[0] > 240 && bg[1] > 240 && bg[2] > 240 && bg[3] > 200,
+            "{bg:?}"
+        );
+        let has_black = img
+            .pixels()
+            .any(|p| p[0] < 16 && p[1] < 16 && p[2] < 16 && p[3] > 200);
+        assert!(has_black, "dark-taskbar badge needs a black glyph");
     }
 }

@@ -2,7 +2,7 @@
 # Generate Tauri app icons + tray icons from two separate sources.
 # Do NOT mix pipelines:
 #   App dock / .exe / .icns  ←  icon (1).png | icon-source.png | icon.png
-#   Menu bar / system tray  ←  docs/svg/logo.svg  (black template, retina 36px)
+#   Menu bar / system tray  ←  docs/svg/logo.svg  (macOS template + Windows badges)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ICONS="$ROOT/src-tauri/icons"
@@ -147,6 +147,11 @@ for name, (sz, pad) in outs.items():
         raise SystemExit(f"{name} looks too empty (opaque={n})")
 PY
 
+# Windows notification area: no template invert. High-contrast badges
+# follow the *taskbar* theme (see tray.rs + SystemUsesLightTheme).
+python3 "$ROOT/scripts/tray_win_badge.py" "$ICONS/tray-32.png" "$ICONS"
+
 echo "OK — app icons from: $SRC_APP"
 echo "OK — tray icons from: $SVG (36px @2x for 18pt menu bar)"
+echo "OK — Windows tray badges: tray-win-light.png / tray-win-dark.png"
 echo "Remember: dock uses icon*.png/icns/ico; tray uses tray-*.png only."
