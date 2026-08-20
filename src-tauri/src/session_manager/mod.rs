@@ -45,7 +45,10 @@ mod stall_tests;
 
 use std::{
     collections::HashMap,
-    sync::{atomic::AtomicU64, Arc},
+    sync::{
+        atomic::{AtomicU32, AtomicU64},
+        Arc,
+    },
 };
 
 use parking_lot::Mutex;
@@ -84,6 +87,14 @@ pub struct SessionManager {
     /// Latest-wins generation for `session_connect`. A timed-out or superseded
     /// waiter must not enter `connect_inner` after it finally acquires the lock.
     pub(super) connect_epoch: AtomicU64,
+    /// ACP children spawned inside `connect_inner` that are not yet (or no
+    /// longer) the live/parked slot owner. Wall-clock abort sweeps this list
+    /// with `kill_acp_bounded` so a cancelled handshake cannot leak workers.
+    pub(super) pending_children: Mutex<Vec<PendingAcpChild>>,
+    /// Diagnostic snapshot of the current `connect_lock` holder.
+    pub(super) connect_holder: Mutex<Option<ConnectLockHolderInfo>>,
+    /// Consecutive idle-recycle ticks that failed to acquire `connect_lock`.
+    pub(super) connect_lock_busy_ticks: AtomicU32,
     /// Per-session locks that serialize a prompt's user-journal append with
     /// post-turn reconciliation. Retry sleeps never hold these locks, and one
     /// chat never delays another chat's send.
@@ -111,6 +122,9 @@ impl SessionManager {
             tool_identities: std::sync::Mutex::new(std::collections::HashMap::new()),
             connect_lock: tokio::sync::Mutex::new(()),
             connect_epoch: AtomicU64::new(0),
+            pending_children: Mutex::new(Vec::new()),
+            connect_holder: Mutex::new(None),
+            connect_lock_busy_ticks: AtomicU32::new(0),
             post_turn_journal_locks: Mutex::new(HashMap::new()),
             pending_soft_respawn: Mutex::new(HashMap::new()),
         }
@@ -119,6 +133,26 @@ impl SessionManager {
     /// Drop bookkeeping for a chat that no longer exists in the store.
     pub fn forget_deleted_session(&self, session_id: &str) {
         self.pending_soft_respawn.lock().remove(session_id);
+        let kids: Vec<PendingAcpChild> = {
+            let mut list = self.pending_children.lock();
+            let mut taken = Vec::new();
+            list.retain(|c| {
+                if c.session_id.as_deref() == Some(session_id) {
+                    taken.push(c.clone());
+                    false
+                } else {
+                    true
+                }
+            });
+            taken
+        };
+        if !kids.is_empty() {
+            tokio::spawn(async move {
+                for child in kids {
+                    SessionManager::kill_acp_bounded(&child.acp).await;
+                }
+            });
+        }
     }
 
     pub(super) fn invalidate_prewarm_epoch(&self) {

@@ -80,7 +80,7 @@ impl SessionManager {
                 .as_deref()
                 .is_none_or(|session_id| !self.has_other_process_tenant(&process_id, session_id));
             if kill_allowed {
-                acp.kill().await;
+                Self::kill_acp_bounded(&acp).await;
             } else {
                 tracing::info!(
                     reason = %reason,
@@ -135,7 +135,7 @@ impl SessionManager {
                         "pending soft-respawn detached shared background ACP without killing co-tenant"
                     );
                 } else {
-                    acp.kill().await;
+                    Self::kill_acp_bounded(&acp).await;
                     tracing::info!(
                         session = %session_id,
                         reason = %reason,
@@ -151,7 +151,7 @@ impl SessionManager {
         let parked = self.parked.lock().remove(session_id);
         if let Some(p) = parked {
             if !self.has_other_process_tenant(&p.process_id, session_id) {
-                p.acp.kill().await;
+                Self::kill_acp_bounded(&p.acp).await;
                 tracing::info!(
                     session = %session_id,
                     reason = %reason,
@@ -268,7 +268,7 @@ impl SessionManager {
         let drained = self.drain_all_agent_slots();
         let total = drained.acps.len();
         for acp in drained.acps {
-            acp.kill().await;
+            Self::kill_acp_bounded(&acp).await;
         }
         tracing::info!(
             "recycle_all_agents reason={reason} killed={total} (live_shell={} bg={} parked={} prewarm={}) pending_invalidated={}",
@@ -568,7 +568,7 @@ impl SessionManager {
                 let acp = p.acp;
                 // Kill after drop to avoid holding the map lock across await.
                 tokio::spawn(async move {
-                    acp.kill().await;
+                    SessionManager::kill_acp_bounded(&acp).await;
                 });
             }
         }
@@ -776,7 +776,7 @@ impl SessionManager {
                 if p.effort.as_deref() != Some(effort.as_str()) {
                     if !self.has_other_process_tenant(&p.process_id, sid) {
                         tokio::spawn(async move {
-                            p.acp.kill().await;
+                            SessionManager::kill_acp_bounded(&p.acp).await;
                         });
                     } else {
                         tracing::info!(
@@ -1131,13 +1131,13 @@ impl SessionManager {
         if let Some(acp) = orphan {
             // Dead / non-alive client handle only.
             if !acp.is_alive() {
-                acp.kill().await;
+                Self::kill_acp_bounded(&acp).await;
             } else {
                 // Alive but unparkable — do not kill; leave Arc drop alone would kill.
                 // Re-insert as anonymous? Safer to kill only if not busy — we already
                 // tried demote. Keep process alive by forgetting kill.
                 tracing::warn!("disconnect: orphan alive acp left without map entry — killing");
-                acp.kill().await;
+                Self::kill_acp_bounded(&acp).await;
             }
         }
         Self::emit_state(app, &self.snapshot());
@@ -1201,17 +1201,17 @@ impl SessionManager {
         let parked = self.parked.lock().remove(session_id);
         if let Some(acp) = live_acp {
             if !self.has_other_process_tenant(&live_process_id, session_id) {
-                acp.kill().await;
+                Self::kill_acp_bounded(&acp).await;
             }
         }
         if let Some(acp) = bg_acp {
             if !self.has_other_process_tenant(&bg_process_id, session_id) {
-                acp.kill().await;
+                Self::kill_acp_bounded(&acp).await;
             }
         }
         if let Some(p) = parked {
             if !self.has_other_process_tenant(&p.process_id, session_id) {
-                p.acp.kill().await;
+                Self::kill_acp_bounded(&p.acp).await;
             }
         }
         self.pending_soft_respawn.lock().remove(session_id);

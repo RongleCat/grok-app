@@ -18,6 +18,25 @@ use crate::store::{self};
 
 use super::*;
 
+/// Drops `connect_lock` holder diagnostics when the lock guard goes out of
+/// scope — including on task abort, where tokio drops the future's stack.
+struct ConnectHolderGuard {
+    mgr: Arc<SessionManager>,
+}
+
+impl ConnectHolderGuard {
+    fn enter(mgr: Arc<SessionManager>, session_id: Option<String>, phase: &'static str) -> Self {
+        mgr.record_connect_holder(session_id, phase);
+        Self { mgr }
+    }
+}
+
+impl Drop for ConnectHolderGuard {
+    fn drop(&mut self) {
+        self.mgr.clear_connect_holder();
+    }
+}
+
 fn emit_host_exit_heal(app: &AppHandle, session_id: &str) {
     let Some(message_id) = crate::turn_interrupt::heal_interrupted_turn(session_id) else {
         return;
@@ -43,8 +62,8 @@ impl SessionManager {
         mock_mode: Option<String>,
     ) -> Result<SessionSnapshot, String> {
         // Enqueue is logged before `connect_lock` so a stuck holder still
-        // leaves a trail. The 90s timer runs on this task; handshake + lock
-        // wait run on a sibling so a blocking ACP poll cannot starve it.
+        // leaves a trail. The 90s timer runs *inside* the sibling so dropping
+        // this JoinHandle (HTTP 15s) still reaps the lock.
         tracing::info!(
             target: "session",
             session = ?app_session_id,
@@ -60,57 +79,114 @@ impl SessionManager {
         let mgr = Arc::clone(self);
         let app_task = app.clone();
         let sid = app_session_id.clone();
+        // Wall-clock lives *inside* the sibling. HTTP 15s may drop this JoinHandle
+        // (detach, not abort); recovery must not depend on the caller future.
         let join = tauri::async_runtime::spawn(async move {
-            let _connect_guard = mgr.connect_lock.lock().await;
-            if !connect_attempt_still_current(
-                mgr.connect_epoch.load(std::sync::atomic::Ordering::SeqCst),
-                my_gen,
-            ) {
-                return Err(format!(
-                    "{}: {}",
-                    crate::error::AgentErrorCode::ConnectFailed.as_str(),
-                    connect_gave_up_reason(false)
-                ));
+            match tokio::time::timeout(Duration::from_secs(CONNECT_WALL_CLOCK_SECS), async {
+                let _connect_guard = mgr.connect_lock.lock().await;
+                let _holder =
+                    ConnectHolderGuard::enter(Arc::clone(&mgr), sid.clone(), "connect_inner");
+                if !connect_attempt_still_current(
+                    mgr.connect_epoch.load(std::sync::atomic::Ordering::SeqCst),
+                    my_gen,
+                ) {
+                    return Err(format!(
+                        "{}: {}",
+                        crate::error::AgentErrorCode::ConnectFailed.as_str(),
+                        connect_gave_up_reason(false)
+                    ));
+                }
+                mgr.connect_inner(app_task.clone(), project_path, sid.clone(), mock_mode)
+                    .await
+            })
+            .await
+            {
+                Ok(inner) => inner,
+                Err(_) => {
+                    mgr.reap_timed_out_connect(&app_task, sid.as_deref(), my_gen)
+                        .await
+                }
             }
-            mgr.connect_inner(app_task, project_path, sid, mock_mode)
-                .await
         });
 
-        match tokio::time::timeout(Duration::from_secs(CONNECT_WALL_CLOCK_SECS), async {
-            join.await
-        })
-        .await
-        {
-            Ok(Ok(inner)) => inner,
-            Ok(Err(join_err)) => {
+        match join.await {
+            Ok(inner) => inner,
+            Err(join_err) => {
                 tracing::error!(error = %join_err, "connect task failed");
                 Err(format!("connect task failed: {join_err}"))
             }
-            Err(_) => {
-                let current = self.connect_epoch.load(std::sync::atomic::Ordering::SeqCst);
-                let next = next_connect_epoch_on_timeout(current, my_gen);
-                if next != current {
-                    self.connect_epoch
-                        .store(next, std::sync::atomic::Ordering::SeqCst);
-                }
-                tracing::warn!(
-                    target: "session",
-                    session = ?app_session_id,
-                    secs = CONNECT_WALL_CLOCK_SECS,
-                    "connect wall-clock timeout"
-                );
-                crate::logging::sync_diag(&format!(
-                    "connect wall-clock timeout session={:?} secs={}",
-                    app_session_id, CONNECT_WALL_CLOCK_SECS
-                ));
-                Ok(self
-                    .fail_stale_connecting(
-                        &app,
-                        app_session_id.as_deref(),
-                        connect_gave_up_reason(true),
-                    )
-                    .await)
-            }
+        }
+    }
+
+    /// Epoch bump + fail stale handshake + reap pending children.
+    /// Runs on the connect sibling so a dropped HTTP waiter cannot cancel it.
+    pub(super) async fn reap_timed_out_connect(
+        self: &Arc<Self>,
+        app: &AppHandle,
+        app_session_id: Option<&str>,
+        my_gen: u64,
+    ) -> Result<SessionSnapshot, String> {
+        let current = self.connect_epoch.load(std::sync::atomic::Ordering::SeqCst);
+        let next = next_connect_epoch_on_timeout(current, my_gen);
+        if next != current {
+            self.connect_epoch
+                .store(next, std::sync::atomic::Ordering::SeqCst);
+        }
+        tracing::warn!(
+            target: "session",
+            session = ?app_session_id,
+            secs = CONNECT_WALL_CLOCK_SECS,
+            "connect wall-clock timeout"
+        );
+        crate::logging::sync_diag(&format!(
+            "connect wall-clock timeout session={:?} secs={}",
+            app_session_id, CONNECT_WALL_CLOCK_SECS
+        ));
+        // Slot cleanup first: Ready/Streaming is a no-op. Then reap children
+        // still in pending (never bound, or bound but still Connecting).
+        let snap = self
+            .fail_stale_connecting(app, app_session_id, connect_gave_up_reason(true))
+            .await;
+        self.sweep_pending_children().await;
+        Ok(snap)
+    }
+
+    /// Outer handshake RPC budget (initialize + openSession). Smaller than
+    /// wall-clock so a wedged child fails without relying on abort.
+    pub(super) async fn with_handshake_budget<T, F>(fut: F) -> Result<T, AgentError>
+    where
+        F: std::future::Future<Output = Result<T, AgentError>>,
+    {
+        Self::with_handshake_budget_for(Duration::from_secs(CONNECT_HANDSHAKE_BUDGET_SECS), fut)
+            .await
+    }
+
+    pub(super) async fn with_handshake_budget_for<T, F>(
+        budget: Duration,
+        fut: F,
+    ) -> Result<T, AgentError>
+    where
+        F: std::future::Future<Output = Result<T, AgentError>>,
+    {
+        match tokio::time::timeout(budget, fut).await {
+            Ok(inner) => inner,
+            Err(_) => Err(AgentError::new(
+                AgentErrorCode::ConnectFailed,
+                format!("handshake timed out after {}s", budget.as_secs().max(1)),
+            )),
+        }
+    }
+
+    /// Soft-fail RPCs (set_model / set_mode) must not pin `connect_lock`.
+    pub(super) async fn with_soft_rpc_budget<T, F>(fut: F) -> Result<T, String>
+    where
+        F: std::future::Future<Output = Result<T, String>>,
+    {
+        match tokio::time::timeout(Duration::from_secs(CONNECT_HANDSHAKE_BUDGET_SECS), fut).await {
+            Ok(inner) => inner,
+            Err(_) => Err(format!(
+                "rpc timed out after {CONNECT_HANDSHAKE_BUDGET_SECS}s"
+            )),
         }
     }
 
@@ -154,7 +230,7 @@ impl SessionManager {
             }
         }
         for acp in acps {
-            acp.kill().await;
+            Self::kill_acp_bounded(&acp).await;
         }
         let snap = self.snapshot();
         Self::emit_state(app, &snap);
@@ -171,6 +247,9 @@ impl SessionManager {
         let settings = store::load_settings();
         let max_concurrent = normalize_max_concurrent(settings.max_concurrent_agents);
         self.sweep_dead_parked();
+        if let Some(ref sid) = app_session_id {
+            self.sweep_pending_for_session(sid).await;
+        }
 
         // Ensure app session meta — never panic on disk/index races.
         let mut meta = if let Some(id) = app_session_id {
@@ -298,7 +377,7 @@ impl SessionManager {
                         "pending fork detached shared ACP without killing co-tenant"
                     );
                 } else {
-                    acp.kill().await;
+                    Self::kill_acp_bounded(&acp).await;
                 }
             }
             // Invalidate only after the busy early-return above. A deferred
@@ -319,7 +398,7 @@ impl SessionManager {
                 }
             };
             if let Some(acp) = prewarm_to_kill {
-                acp.kill().await;
+                Self::kill_acp_bounded(&acp).await;
             }
             tracing::info!(
                 target: "session",
@@ -397,7 +476,7 @@ impl SessionManager {
                         let shared_with_other =
                             self.has_other_process_tenant(&live.process_id, &meta.id);
                         if !shared_with_other {
-                            acp.kill().await;
+                            Self::kill_acp_bounded(&acp).await;
                         } else {
                             tracing::info!(
                                 session = %meta.id,
@@ -423,10 +502,16 @@ impl SessionManager {
                     // agent session id may belong to another App session.
                     if let Some(acp) = live.acp.clone() {
                         if let Some(sid) = live.meta.agent_session_id.clone() {
-                            if let Err(e) = acp.set_model_for(&sid, &agent_model).await {
+                            if let Err(e) =
+                                Self::with_soft_rpc_budget(acp.set_model_for(&sid, &agent_model))
+                                    .await
+                            {
                                 tracing::warn!("acp set_model on unpark soft-fail: {e}");
                             }
-                            if let Err(e) = acp.set_mode_for(&sid, &prefs.mode).await {
+                            if let Err(e) =
+                                Self::with_soft_rpc_budget(acp.set_mode_for(&sid, &prefs.mode))
+                                    .await
+                            {
                                 tracing::warn!("acp set_mode on unpark soft-fail: {e}");
                             }
                         }
@@ -490,7 +575,7 @@ impl SessionManager {
                     }
                 };
                 if let Some(acp) = leftover {
-                    acp.kill().await;
+                    Self::kill_acp_bounded(&acp).await;
                 }
             }
             Self::emit_state(&app, &self.snapshot());
@@ -756,7 +841,7 @@ impl SessionManager {
                 best.map(|(acp, pid, _)| (acp, pid))
             };
             for acp in stale_prewarm {
-                acp.kill().await;
+                Self::kill_acp_bounded(&acp).await;
             }
             if let Some((acp, reused_process)) = reused {
                 tracing::info!(
@@ -796,9 +881,12 @@ impl SessionManager {
                     }
                 }
                 let cwd_str = cwd.to_string_lossy().to_string();
-                let open_result = acp
-                    .open_session_at(resume_agent_sid.as_deref(), false, &cwd_str)
-                    .await;
+                let open_result = Self::with_handshake_budget(acp.open_session_at(
+                    resume_agent_sid.as_deref(),
+                    false,
+                    &cwd_str,
+                ))
+                .await;
                 match open_result {
                     Ok((agent_sid, resumed)) => {
                         let need_bootstrap = !resumed && journal_has_history;
@@ -867,7 +955,7 @@ impl SessionManager {
                             error = %e.message,
                             "connect warm-reuse open_session failed; cold spawn"
                         );
-                        acp.kill().await;
+                        Self::kill_acp_bounded(&acp).await;
                     }
                 }
             }
@@ -971,37 +1059,68 @@ impl SessionManager {
             empty_mcp_servers: false,
         };
 
-        let (client, mut events) =
-            match AcpClient::spawn_with_options(cli_path, cwd, spawn_opts).await {
-                Ok(v) => {
-                    tracing::info!(
-                        target: "session",
-                        session = %meta.id,
-                        process = %process_id,
-                        fork_session = fork_agent,
-                        "connect spawn_ok"
-                    );
-                    v
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        target: "session",
-                        session = %meta.id,
-                        code = e.code.as_str(),
-                        error = %e.message,
-                        "connect spawn_fail"
-                    );
-                    {
-                        let mut guard = self.inner.lock();
-                        if let Some(s) = guard.as_mut() {
-                            let _ = s.fsm.connect_failed(e);
-                        }
+        let spawn_result = tokio::time::timeout(
+            Duration::from_secs(CONNECT_HANDSHAKE_BUDGET_SECS),
+            AcpClient::spawn_with_options(cli_path, cwd, spawn_opts),
+        )
+        .await;
+        let (client, mut events) = match spawn_result {
+            Ok(Ok(v)) => {
+                tracing::info!(
+                    target: "session",
+                    session = %meta.id,
+                    process = %process_id,
+                    fork_session = fork_agent,
+                    "connect spawn_ok"
+                );
+                v
+            }
+            Ok(Err(e)) => {
+                tracing::warn!(
+                    target: "session",
+                    session = %meta.id,
+                    code = e.code.as_str(),
+                    error = %e.message,
+                    "connect spawn_fail"
+                );
+                {
+                    let mut guard = self.inner.lock();
+                    if let Some(s) = guard.as_mut() {
+                        let _ = s.fsm.connect_failed(e);
                     }
-                    let snap = self.snapshot();
-                    Self::emit_state(&app, &snap);
-                    return Ok(snap);
                 }
-            };
+                let snap = self.snapshot();
+                Self::emit_state(&app, &snap);
+                return Ok(snap);
+            }
+            Err(_) => {
+                let e = AgentError::new(
+                    AgentErrorCode::ConnectFailed,
+                    format!("spawn timed out after {CONNECT_HANDSHAKE_BUDGET_SECS}s"),
+                );
+                tracing::warn!(
+                    target: "session",
+                    session = %meta.id,
+                    code = e.code.as_str(),
+                    error = %e.message,
+                    "connect spawn_fail"
+                );
+                {
+                    let mut guard = self.inner.lock();
+                    if let Some(s) = guard.as_mut() {
+                        let _ = s.fsm.connect_failed(e);
+                    }
+                }
+                let snap = self.snapshot();
+                Self::emit_state(&app, &snap);
+                return Ok(snap);
+            }
+        };
+        self.register_pending_child(PendingAcpChild {
+            session_id: Some(meta.id.clone()),
+            process_id: process_id.clone(),
+            acp: client.clone(),
+        });
 
         // Event pump tagged with process_id (multi-process routing). Events
         // carry the CLI's owning sessionId when known so a reused process
@@ -1037,9 +1156,10 @@ impl SessionManager {
             fork_session = fork_agent,
             "connect session_open_begin"
         );
-        let open_result = client
-            .initialize_and_open_session(resume_agent_sid.as_deref(), fork_agent)
-            .await;
+        let open_result = Self::with_handshake_budget(
+            client.initialize_and_open_session(resume_agent_sid.as_deref(), fork_agent),
+        )
+        .await;
 
         // One-shot flag: clear whether fork succeeded or fell through to new/load.
         if meta.fork_agent_session {
@@ -1079,7 +1199,7 @@ impl SessionManager {
                     if let Some(s) = guard.as_mut() {
                         let _ = s.fsm.handshake_ok();
                         s.acp = Some(client.clone());
-                        s.process_id = process_id;
+                        s.process_id = process_id.clone();
                         s.meta.agent_session_id = Some(agent_sid);
                         s.meta.fork_agent_session = false;
                         s.meta.model_id = Some(prefs.model_id.clone());
@@ -1098,6 +1218,9 @@ impl SessionManager {
                 let _ = store::update_session_meta(&meta);
                 let snap = self.snapshot();
                 Self::emit_state(&app, &snap);
+                // Child is live/Ready — drop it from the abort-reap list before
+                // set_mode so a wall-clock sweep cannot kill a working agent.
+                self.unregister_pending_child(&process_id);
                 // Nudge mode *after* Ready so a slow/failed set_mode cannot pin
                 // the pill on 连接中. Fork already inherited parent mode.
                 if fork_agent {
@@ -1106,7 +1229,9 @@ impl SessionManager {
                         session = %meta.id,
                         "connect skip set_mode after fork (parent mode already applied)"
                     );
-                } else if let Err(e) = client.set_mode(&prefs.mode).await {
+                } else if let Err(e) =
+                    Self::with_soft_rpc_budget(client.set_mode(&prefs.mode)).await
+                {
                     tracing::warn!("acp set_mode after session open soft-fail: {e}");
                 }
                 emit_host_exit_heal(&app, &meta.id);
@@ -1120,7 +1245,8 @@ impl SessionManager {
                     error = %e.message,
                     "connect session_open_fail"
                 );
-                client.kill().await;
+                Self::kill_acp_bounded(&client).await;
+                self.unregister_pending_child(&process_id);
                 {
                     let mut guard = self.inner.lock();
                     if let Some(s) = guard.as_mut() {
@@ -1311,7 +1437,7 @@ impl SessionManager {
                     },
                 ) {
                     tokio::spawn(async move {
-                        p.acp.kill().await;
+                        SessionManager::kill_acp_bounded(&p.acp).await;
                     });
                 }
             } else {
@@ -1399,7 +1525,7 @@ impl SessionManager {
         }
         if let Err(e) = client.initialize_and_auth().await {
             tracing::warn!(code = e.code.as_str(), error = %e.message, "prewarm init failed");
-            client.kill().await;
+            Self::kill_acp_bounded(&client).await;
             self.clear_prewarm_if_current(epoch);
             return;
         }
@@ -1426,7 +1552,7 @@ impl SessionManager {
         if !published {
             // A pending fork or route reset cancelled this prewarm while it
             // was starting. Do not leak the initialized child.
-            client.kill().await;
+            Self::kill_acp_bounded(&client).await;
             return;
         }
         tracing::info!(target: "session", "prewarm ready (spawn+init+auth, no session)");
@@ -1450,7 +1576,7 @@ impl SessionManager {
         };
         if let Some(p) = victim {
             tracing::info!("prewarm process {} recycled (dead)", p.process_id);
-            p.acp.kill().await;
+            Self::kill_acp_bounded(&p.acp).await;
         }
     }
 
@@ -1659,6 +1785,8 @@ mod connect_preserve_tests {
         assert_eq!(connect_gave_up_reason(true), "connect timed out");
         assert!(CONNECT_LOCK_WATCHDOG_SECS < CONNECT_WALL_CLOCK_SECS);
         assert!(ACP_KILL_TIMEOUT_SECS <= CONNECT_LOCK_WATCHDOG_SECS);
+        assert!(CONNECT_HANDSHAKE_BUDGET_SECS < CONNECT_WALL_CLOCK_SECS);
+        assert!(CONNECT_HANDSHAKE_BUDGET_SECS >= 45);
     }
 
     #[test]
@@ -1915,5 +2043,143 @@ mod reuse_gate_tests {
         ));
         // Empty id never matches the busy set → treat as unshared (kill).
         assert!(should_kill_parked_after_flag_mismatch("", &busy));
+    }
+}
+
+#[cfg(test)]
+mod connect_timeout_tests {
+    use super::*;
+    use crate::error::AgentError;
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    #[tokio::test]
+    async fn aborting_connect_task_releases_connect_lock() {
+        let mgr = Arc::new(SessionManager::new());
+        let mgr_hold = Arc::clone(&mgr);
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel::<()>();
+        let join: tauri::async_runtime::JoinHandle<Result<SessionSnapshot, String>> =
+            tauri::async_runtime::spawn(async move {
+                let _g = mgr_hold.connect_lock.lock().await;
+                let _ = entered_tx.send(());
+                std::future::pending::<()>().await;
+                Ok(mgr_hold.snapshot())
+            });
+        entered_rx.await.expect("holder entered");
+        assert!(
+            mgr.try_lock_connect(Duration::ZERO).await.is_none(),
+            "lock must be held before abort"
+        );
+        join.abort();
+        let _ = join.await;
+        assert!(
+            mgr.try_lock_connect(Duration::ZERO).await.is_some(),
+            "abort must drop connect_lock so the next waiter is not pinned"
+        );
+    }
+
+    #[tokio::test]
+    async fn abort_drops_holder_and_sweep_does_not_hang() {
+        let mgr = Arc::new(SessionManager::new());
+        let mgr_hold = Arc::clone(&mgr);
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel::<()>();
+        let join: tauri::async_runtime::JoinHandle<Result<SessionSnapshot, String>> =
+            tauri::async_runtime::spawn(async move {
+                let _g = mgr_hold.connect_lock.lock().await;
+                let _holder = ConnectHolderGuard::enter(
+                    Arc::clone(&mgr_hold),
+                    Some("sess-wedge".into()),
+                    "connect_inner",
+                );
+                let _ = entered_tx.send(());
+                std::future::pending::<()>().await;
+                Ok(mgr_hold.snapshot())
+            });
+        entered_rx.await.expect("holder entered");
+        assert!(mgr.connect_lock_busy());
+        assert!(mgr.connect_holder_snapshot().is_some());
+        join.abort();
+        let _ = join.await;
+        mgr.sweep_pending_children().await;
+        assert!(
+            mgr.try_lock_connect(Duration::ZERO).await.is_some(),
+            "lock free after abort+reap"
+        );
+        assert!(
+            mgr.connect_holder_snapshot().is_none(),
+            "holder guard drops on abort"
+        );
+    }
+
+    #[tokio::test]
+    async fn health_probe_stays_fast_while_lock_held() {
+        let mgr = Arc::new(SessionManager::new());
+        let mgr_hold = Arc::clone(&mgr);
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel::<()>();
+        let hold = tokio::spawn(async move {
+            let _g = mgr_hold.connect_lock.lock().await;
+            let _ = entered_tx.send(());
+            std::future::pending::<()>().await;
+        });
+        entered_rx.await.unwrap();
+        let t0 = Instant::now();
+        let busy = mgr.connect_lock_busy();
+        let elapsed = t0.elapsed();
+        assert!(busy);
+        assert!(
+            elapsed < Duration::from_secs(1),
+            "lock probe took {elapsed:?}, health must stay <1s during wedge"
+        );
+        hold.abort();
+    }
+
+    #[tokio::test]
+    async fn inner_wall_clock_releases_lock_after_caller_drops() {
+        // Simulates POST /turns 15s dropping the connect JoinHandle: the
+        // sibling must still time out and drop connect_lock by itself.
+        let mgr = Arc::new(SessionManager::new());
+        let mgr_hold = Arc::clone(&mgr);
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel::<()>();
+        let join = tokio::spawn(async move {
+            match tokio::time::timeout(Duration::from_millis(80), async {
+                let _g = mgr_hold.connect_lock.lock().await;
+                let _ = entered_tx.send(());
+                std::future::pending::<()>().await;
+                Ok::<(), String>(())
+            })
+            .await
+            {
+                Ok(inner) => inner,
+                Err(_) => Ok(()),
+            }
+        });
+        entered_rx.await.expect("holder entered");
+        drop(join);
+        let deadline = Instant::now() + Duration::from_millis(400);
+        loop {
+            if mgr.try_lock_connect(Duration::ZERO).await.is_some() {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "inner wall-clock must release connect_lock after caller drop"
+            );
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn handshake_budget_fails_closed() {
+        let err = SessionManager::with_handshake_budget_for(
+            Duration::from_millis(30),
+            std::future::pending::<Result<(), AgentError>>(),
+        )
+        .await
+        .expect_err("handshake budget must fire");
+        assert!(
+            err.message.contains("handshake timed out"),
+            "{}",
+            err.message
+        );
     }
 }

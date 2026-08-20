@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyClearSendQueuePlan,
   applyExternalQueuePush,
+  applyExternalQueueTake,
   canReorderSendQueue,
   canShowQueueButton,
   claimQueueHead,
@@ -111,7 +112,12 @@ describe("sendQueue", () => {
   it("applyExternalQueuePush keys by session, dedups, and tags source", () => {
     const first = applyExternalQueuePush(
       {},
-      { sessionId: "s1", itemId: "q-ext-1", prompt: "keep drawing", createdAt: 9 },
+      {
+        sessionId: "s1",
+        itemId: "q-ext-1",
+        prompt: "keep drawing",
+        createdAt: 9,
+      },
     );
     expect(first.added).toBe(true);
     expect(first.dropped).toBe(0);
@@ -134,9 +140,10 @@ describe("sendQueue", () => {
     });
     expect(other.added).toBe(true);
     expect(other.byKey.s2).toHaveLength(1);
-    expect(applyExternalQueuePush({}, { sessionId: "s1", itemId: "x", prompt: "" }).added).toBe(
-      false,
-    );
+    expect(
+      applyExternalQueuePush({}, { sessionId: "s1", itemId: "x", prompt: "" })
+        .added,
+    ).toBe(false);
   });
 
   it("enqueue drops oldest past max and reports dropped", () => {
@@ -159,9 +166,7 @@ describe("sendQueue", () => {
     expect(q).toHaveLength(SEND_QUEUE_MAX);
     expect(lastDropped).toBe(1);
     expect(q[0]!.storedDisplay).toBe("m3");
-    expect(q[q.length - 1]!.storedDisplay).toBe(
-      `m${SEND_QUEUE_MAX + 2}`,
-    );
+    expect(q[q.length - 1]!.storedDisplay).toBe(`m${SEND_QUEUE_MAX + 2}`);
   });
 
   it("dequeue and remove", () => {
@@ -394,17 +399,13 @@ describe("sendQueue", () => {
     expect(r.queue).toHaveLength(max);
     expect(r.queue[0]!.id).toBe(head.id);
     // Dropped oldest of rest (r1); kept r2, r3 + head
-    expect(r.queue.map((x) => x.storedDisplay)).toEqual([
-      "head",
-      "r2",
-      "r3",
-    ]);
+    expect(r.queue.map((x) => x.storedDisplay)).toEqual(["head", "r2", "r3"]);
   });
 
   it("preview prefers text then attachments", () => {
-    expect(
-      queuePreviewText("hello [[skill:foo]] world", [], 20),
-    ).toBe("hello /foo world");
+    expect(queuePreviewText("hello [[skill:foo]] world", [], 20)).toBe(
+      "hello /foo world",
+    );
     expect(
       queuePreviewText("", [{ path: "/a", name: "a.png", isDir: false }]),
     ).toBe("a.png");
@@ -442,6 +443,36 @@ describe("sendQueue", () => {
   });
 
   describe("integration-style flows", () => {
+    it("does not claim external heads (Host drains them)", () => {
+      const ext = makeQueuedSend({
+        storedDisplay: "from api",
+        attachments: [],
+        goalMode: false,
+        now: 1,
+        source: "external",
+      });
+      const map = setQueueForKey({}, "s1", [ext]);
+      expect(claimQueueHead(map, "s1")).toBeNull();
+    });
+
+    it("applyExternalQueueTake removes the drained item", () => {
+      const ext = makeQueuedSend({
+        id: "q-ext-1",
+        storedDisplay: "from api",
+        attachments: [],
+        goalMode: false,
+        now: 1,
+        source: "external",
+      });
+      const map = setQueueForKey({}, "s1", [ext]);
+      const r = applyExternalQueueTake(map, {
+        sessionId: "s1",
+        itemId: "q-ext-1",
+      });
+      expect(r.removed).toBe(true);
+      expect(getQueueForKey(r.byKey, "s1")).toEqual([]);
+    });
+
     it("flush fail requeues claimed head at front", () => {
       const a = makeQueuedSend({
         storedDisplay: "first",
@@ -455,7 +486,11 @@ describe("sendQueue", () => {
         goalMode: false,
         now: 2,
       });
-      let map = setQueueForKey({}, "s1", enqueueSend(enqueueSend([], a).queue, b).queue);
+      let map = setQueueForKey(
+        {},
+        "s1",
+        enqueueSend(enqueueSend([], a).queue, b).queue,
+      );
       const claimed = claimQueueHead(map, "s1");
       expect(claimed).not.toBeNull();
       expect(claimed!.head.id).toBe(a.id);
@@ -463,7 +498,11 @@ describe("sendQueue", () => {
         b.id,
       ]);
       // executeSend failed → restore
-      const restored = requeueAfterFlushFail(claimed!.byKey, "s1", claimed!.head);
+      const restored = requeueAfterFlushFail(
+        claimed!.byKey,
+        "s1",
+        claimed!.head,
+      );
       expect(getQueueForKey(restored.byKey, "s1").map((x) => x.id)).toEqual([
         a.id,
         b.id,
@@ -499,11 +538,9 @@ describe("sendQueue", () => {
       map = setQueueForKey(map, "sid-real", [existing]);
       const next = migrateDraftQueue(map, "sid-real");
       expect(next).not.toHaveProperty("__draft__");
-      expect(getQueueForKey(next, "sid-real").map((x) => x.storedDisplay)).toEqual([
-        "already",
-        "draft-1",
-        "draft-2",
-      ]);
+      expect(
+        getQueueForKey(next, "sid-real").map((x) => x.storedDisplay),
+      ).toEqual(["already", "draft-1", "draft-2"]);
       // no-op when draft empty
       expect(migrateDraftQueue(next, "sid-real")).toBe(next);
     });
@@ -622,7 +659,10 @@ describe("sendQueue", () => {
         isFull: false,
         canReorder: false,
       });
-      expect(summarizeSendQueue(null)).toMatchObject({ count: 0, isEmpty: true });
+      expect(summarizeSendQueue(null)).toMatchObject({
+        count: 0,
+        isEmpty: true,
+      });
       const full = Array.from({ length: 3 }, (_, i) =>
         makeQueuedSend({
           storedDisplay: `m${i}`,

@@ -138,15 +138,15 @@ export function queuePreviewText(
   maxLen = 72,
   labels?: QueuePreviewLabels,
 ): string {
-  const line = previewStoredAsSlash(storedDisplay)
-    .replace(/\s+/g, " ")
-    .trim();
+  const line = previewStoredAsSlash(storedDisplay).replace(/\s+/g, " ").trim();
   if (line) {
     return line.length > maxLen ? `${line.slice(0, maxLen - 1)}…` : line;
   }
   const chatCount = (storedDisplay.match(/\[\[chat:/g) || []).length;
   if (chatCount > 0) {
-    return labels?.chatsCount?.(chatCount) ?? labels?.empty ?? String(chatCount);
+    return (
+      labels?.chatsCount?.(chatCount) ?? labels?.empty ?? String(chatCount)
+    );
   }
   if (attachments.length === 1) return attachments[0]!.name;
   if (attachments.length > 1) {
@@ -222,10 +222,7 @@ export function shouldHoldFlushForLive(
   if (!liveSessionId || !liveState) return false;
   // Only a live turn holds flush. Handshake `connecting` must not park the
   // queue — executeSend waits on ensureConnected instead.
-  if (
-    liveState !== "streaming" &&
-    liveState !== "awaiting_permission"
-  ) {
+  if (liveState !== "streaming" && liveState !== "awaiting_permission") {
     return false;
   }
   // Draft queue is never the live mid-turn session.
@@ -325,8 +322,7 @@ export function updateQueuedSend(
     patch.attachments !== undefined
       ? patch.attachments.map((a) => ({ ...a }))
       : cur.attachments;
-  const nextGoal =
-    patch.goalMode !== undefined ? patch.goalMode : cur.goalMode;
+  const nextGoal = patch.goalMode !== undefined ? patch.goalMode : cur.goalMode;
 
   // Reject empty body with no attachments (caller may also validate).
   if (!nextDisplay.trim() && nextAttachments.length === 0) {
@@ -341,10 +337,7 @@ export function updateQueuedSend(
       nextAttachments.some((a, i) => {
         const b = cur.attachments[i];
         return (
-          !b ||
-          a.path !== b.path ||
-          a.name !== b.name ||
-          a.isDir !== b.isDir
+          !b || a.path !== b.path || a.name !== b.name || a.isDir !== b.isDir
         );
       }));
 
@@ -457,9 +450,39 @@ export function claimQueueHead(
   key: string,
 ): { head: QueuedSend; byKey: Record<string, QueuedSend[]> } | null {
   const q = getQueueForKey(byKey, key);
+  // Host drains `source: external` items. The webview only displays them.
+  if (q[0]?.source === "external") return null;
   const [head, rest] = dequeueSend(q);
   if (!head) return null;
   return { head, byKey: setQueueForKey(byKey, key, rest) };
+}
+
+/** Host `session://send_queue_take` payload (camelCase). */
+export type ExternalQueueTake = {
+  sessionId?: string;
+  itemId?: string;
+};
+
+/** Drop a Host-drained external item from the display map. */
+export function applyExternalQueueTake(
+  byKey: Record<string, QueuedSend[]>,
+  take: ExternalQueueTake,
+): { byKey: Record<string, QueuedSend[]>; removed: boolean } {
+  const itemId = (take.itemId ?? "").trim();
+  if (!itemId) return { byKey, removed: false };
+  const sessionId = (take.sessionId ?? "").trim();
+  const keys = sessionId ? [queueSessionKey(sessionId)] : Object.keys(byKey);
+  let next = byKey;
+  let removed = false;
+  for (const key of keys) {
+    const q = getQueueForKey(next, key);
+    const filtered = removeQueuedSend(q, itemId);
+    if (filtered.length !== q.length) {
+      next = setQueueForKey(next, key, filtered);
+      removed = true;
+    }
+  }
+  return { byKey: next, removed };
 }
 
 /**

@@ -846,7 +846,7 @@ impl SessionManager {
         });
         if let Some((true, acp)) = abort_handshake {
             if let Some(acp) = acp {
-                acp.kill().await;
+                Self::kill_acp_bounded(&acp).await;
             }
             self.emit_for_session(&app, &target);
             return Ok(self.snapshot());

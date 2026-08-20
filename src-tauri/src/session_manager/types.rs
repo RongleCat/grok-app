@@ -1711,6 +1711,34 @@ pub const CONNECT_LOCK_WATCHDOG_SECS: u64 = 5;
 /// pin `connect_lock` for the rest of the process lifetime.
 pub const ACP_KILL_TIMEOUT_SECS: u64 = 5;
 
+/// Hard bound for initialize / openSession RPC inside `connect_lock`.
+/// Must stay below the 90s wall-clock so a wedged handshake fails closed
+/// without waiting for abort as the only backstop.
+pub const CONNECT_HANDSHAKE_BUDGET_SECS: u64 = 60;
+
+/// Consecutive idle-recycle skips before `connect_lock busy` escalates from
+/// warn to error with holder context. Idle recycle ticks every 30s, so 12
+/// skips is about six minutes — long enough that a 90s wall-clock abort
+/// should already have run.
+pub const CONNECT_LOCK_BUSY_ESCALATE_TICKS: u32 = 12;
+
+/// Child spawned during connect, recorded before it is bound into a live
+/// slot so a wall-clock abort can still `kill_acp_bounded` it.
+#[derive(Clone)]
+pub struct PendingAcpChild {
+    pub session_id: Option<String>,
+    pub process_id: String,
+    pub acp: std::sync::Arc<crate::acp_client::AcpClient>,
+}
+
+/// Who currently holds `connect_lock` (best-effort diagnostics).
+#[derive(Clone, Debug)]
+pub struct ConnectLockHolderInfo {
+    pub session_id: Option<String>,
+    pub phase: &'static str,
+    pub since: std::time::Instant,
+}
+
 /// Why a connect attempt gave up. `lock_acquired` is false when we never
 /// entered `connect_inner`.
 pub fn connect_gave_up_reason(lock_acquired: bool) -> &'static str {

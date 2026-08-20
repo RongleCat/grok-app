@@ -13,6 +13,7 @@ import type { SessionSnapshot, SessionState } from "@/lib/session";
 import {
   applyClearSendQueuePlan,
   applyExternalQueuePush,
+  applyExternalQueueTake,
   claimQueueHead,
   dropQueuesForSessions,
   enqueueSend,
@@ -33,6 +34,7 @@ import {
   updateQueuedSend,
   type ClearSendQueuePlan,
   type ExternalQueuePush,
+  type ExternalQueueTake,
   type QueueMoveDirection,
   type QueuedSend,
   type QueuedSendPatch,
@@ -97,9 +99,7 @@ export function useSendQueue({
   const queueFlushHoldByKeyRef = useRef<Set<string>>(new Set());
   /** UI-visible hold (ref alone does not re-render). */
   const [flushHold, setFlushHold] = useState(false);
-  const flushQueueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const flushQueueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeQueue = useMemo(
     () => getQueueForKey(sendQueueByKey, queueSessionKey(sessionId)),
@@ -166,6 +166,7 @@ export function useSendQueue({
     if (!acceptExternal || !api.hasHost()) return;
     let cancelled = false;
     let unlisten: (() => void) | undefined;
+    let unlistenTake: (() => void) | undefined;
     let retryTimer: number | null = null;
     let wakeRetry: (() => void) | null = null;
     const onPush = (push: ExternalQueuePush) => {
@@ -184,6 +185,12 @@ export function useSendQueue({
         : labels.externalAddedOther?.(preview);
       if (toast) showToast(toast, same ? 2800 : 4200);
     };
+    const onTake = (take: ExternalQueueTake) => {
+      if (cancelled) return;
+      const r = applyExternalQueueTake(sendQueueByKeyRef.current, take);
+      if (!r.removed) return;
+      writeMap(r.byKey);
+    };
     const register = async () => {
       let attempt = 0;
       while (!cancelled) {
@@ -192,8 +199,17 @@ export function useSendQueue({
             "session://send_queue",
             onPush,
           );
-          if (cancelled) fn();
-          else unlisten = fn;
+          const fnTake = await api.listen<ExternalQueueTake>(
+            "session://send_queue_take",
+            onTake,
+          );
+          if (cancelled) {
+            fn();
+            fnTake();
+          } else {
+            unlisten = fn;
+            unlistenTake = fnTake;
+          }
           return;
         } catch (e) {
           if (cancelled) return;
@@ -226,6 +242,7 @@ export function useSendQueue({
       wakeRetry?.();
       wakeRetry = null;
       unlisten?.();
+      unlistenTake?.();
     };
   }, [
     acceptExternal,
@@ -245,11 +262,12 @@ export function useSendQueue({
       goalMode: boolean;
     }) => {
       // Prefer viewing ref so a mid-render session switch cannot mis-key the item.
-      const key = queueSessionKey(
-        viewingSessionIdRef.current ?? sessionId,
-      );
+      const key = queueSessionKey(viewingSessionIdRef.current ?? sessionId);
       const item = makeQueuedSend(input);
-      const r = enqueueSend(getQueueForKey(sendQueueByKeyRef.current, key), item);
+      const r = enqueueSend(
+        getQueueForKey(sendQueueByKeyRef.current, key),
+        item,
+      );
       writeMap(setQueueForKey(sendQueueByKeyRef.current, key, r.queue));
       if (r.dropped > 0) {
         showToast(labels.droppedOldest(r.dropped, SEND_QUEUE_MAX), 3200);
@@ -339,10 +357,7 @@ export function useSendQueue({
 
   const dropSessions = useCallback(
     (sessionIds: Iterable<string>) => {
-      const next = dropQueuesForSessions(
-        sendQueueByKeyRef.current,
-        sessionIds,
-      );
+      const next = dropQueuesForSessions(sendQueueByKeyRef.current, sessionIds);
       if (next !== sendQueueByKeyRef.current) writeMap(next);
     },
     [writeMap],
@@ -472,7 +487,10 @@ export function useSendQueue({
       return;
     }
     // Viewed key only — never the live host's key when they differ.
-    if (!getQueueForKey(sendQueueByKeyRef.current, key).length) return;
+    const viewed = getQueueForKey(sendQueueByKeyRef.current, key);
+    if (!viewed.length) return;
+    // Host owns `source: external` drain; GUI only displays those rows.
+    if (viewed[0]?.source === "external") return;
     const live = liveHostRef.current;
     // Hold only when this same session is mid-turn on Host.
     if (shouldHoldFlushForLive(live.sessionId, live.state, viewId)) {

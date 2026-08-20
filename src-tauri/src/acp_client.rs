@@ -2281,7 +2281,18 @@ impl AcpClient {
                 let _ = self
                     .event_tx
                     .send((None, AcpEvent::ProcessExited { code: None }));
-                self.kill().await;
+                if tokio::time::timeout(
+                    std::time::Duration::from_secs(STDIN_WRITE_TIMEOUT_SECS),
+                    self.kill(),
+                )
+                .await
+                .is_err()
+                {
+                    tracing::warn!(
+                        secs = STDIN_WRITE_TIMEOUT_SECS,
+                        "acp kill after stdin timeout also timed out"
+                    );
+                }
                 Err(head)
             }
         }

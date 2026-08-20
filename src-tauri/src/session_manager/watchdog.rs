@@ -41,6 +41,10 @@ impl SessionManager {
                 ticker.tick().await;
                 mgr.tick_tool_heartbeats(&app);
                 mgr.tick_stream_stall(&app);
+                crate::session_api::schedule_drain_ready_external_queues(
+                    app.clone(),
+                    Arc::clone(&mgr),
+                );
             }
         });
     }

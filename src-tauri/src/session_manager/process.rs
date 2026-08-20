@@ -457,7 +457,7 @@ impl SessionManager {
                         );
                         let c = acp;
                         tokio::spawn(async move {
-                            c.kill().await;
+                            SessionManager::kill_acp_bounded(&c).await;
                         });
                     } else {
                         tracing::info!(
@@ -893,7 +893,7 @@ impl SessionManager {
                 entries.len()
             );
             if let Some(acp) = entries.first().map(|p| p.acp.clone()) {
-                self.kill_acp_bounded(&acp).await;
+                Self::kill_acp_bounded(&acp).await;
             }
             for p in entries {
                 Self::emit_idle_recycled(app, &p.app_session_id, "capacity");
@@ -958,12 +958,71 @@ impl SessionManager {
             .ok()
     }
 
-    pub(super) async fn kill_acp_bounded(&self, acp: &AcpClient) {
+    /// Non-blocking probe: true when some task currently holds `connect_lock`.
+    pub fn connect_lock_busy(&self) -> bool {
+        self.connect_lock.try_lock().is_err()
+    }
+
+    pub(super) fn record_connect_holder(&self, session_id: Option<String>, phase: &'static str) {
+        *self.connect_holder.lock() = Some(ConnectLockHolderInfo {
+            session_id,
+            phase,
+            since: Instant::now(),
+        });
+    }
+
+    pub(super) fn clear_connect_holder(&self) {
+        *self.connect_holder.lock() = None;
+        self.connect_lock_busy_ticks
+            .store(0, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub(super) fn connect_holder_snapshot(&self) -> Option<ConnectLockHolderInfo> {
+        self.connect_holder.lock().clone()
+    }
+
+    pub(super) async fn kill_acp_bounded(acp: &AcpClient) {
         if tokio::time::timeout(Duration::from_secs(ACP_KILL_TIMEOUT_SECS), acp.kill())
             .await
             .is_err()
         {
             tracing::warn!(secs = ACP_KILL_TIMEOUT_SECS, "acp kill timed out");
+        }
+    }
+
+    pub(super) fn register_pending_child(&self, child: PendingAcpChild) {
+        self.pending_children.lock().push(child);
+    }
+
+    pub(super) fn unregister_pending_child(&self, process_id: &str) {
+        self.pending_children
+            .lock()
+            .retain(|c| c.process_id != process_id);
+    }
+
+    pub(super) async fn sweep_pending_children(&self) {
+        let kids = std::mem::take(&mut *self.pending_children.lock());
+        for child in kids {
+            Self::kill_acp_bounded(&child.acp).await;
+        }
+    }
+
+    pub(super) async fn sweep_pending_for_session(&self, session_id: &str) {
+        let kids: Vec<PendingAcpChild> = {
+            let mut list = self.pending_children.lock();
+            let mut taken = Vec::new();
+            list.retain(|c| {
+                if c.session_id.as_deref() == Some(session_id) {
+                    taken.push(c.clone());
+                    false
+                } else {
+                    true
+                }
+            });
+            taken
+        };
+        for child in kids {
+            Self::kill_acp_bounded(&child.acp).await;
         }
     }
 
@@ -975,12 +1034,42 @@ impl SessionManager {
             .try_lock_connect(Duration::from_secs(CONNECT_LOCK_WATCHDOG_SECS))
             .await
         else {
-            tracing::warn!(
-                secs = CONNECT_LOCK_WATCHDOG_SECS,
-                "idle recycle skipped: connect_lock busy"
-            );
+            let ticks = self
+                .connect_lock_busy_ticks
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                .saturating_add(1);
+            let holder = self.connect_holder_snapshot();
+            let held_secs = holder
+                .as_ref()
+                .map(|h| h.since.elapsed().as_secs())
+                .unwrap_or(0);
+            let session = holder
+                .as_ref()
+                .and_then(|h| h.session_id.clone())
+                .unwrap_or_else(|| "-".into());
+            let phase = holder.as_ref().map(|h| h.phase).unwrap_or("unknown");
+            if ticks >= CONNECT_LOCK_BUSY_ESCALATE_TICKS {
+                tracing::error!(
+                    secs = CONNECT_LOCK_WATCHDOG_SECS,
+                    ticks,
+                    session = %session,
+                    phase,
+                    held_secs,
+                    "connect_lock held by session={session} phase={phase} since={held_secs}s"
+                );
+            } else {
+                tracing::warn!(
+                    secs = CONNECT_LOCK_WATCHDOG_SECS,
+                    session = %session,
+                    phase,
+                    held_secs,
+                    "idle recycle skipped: connect_lock busy"
+                );
+            }
             return;
         };
+        self.connect_lock_busy_ticks
+            .store(0, std::sync::atomic::Ordering::SeqCst);
         let idle_mins = Self::idle_minutes_from_settings();
         let now = Instant::now();
         self.sweep_dead_parked();
@@ -1028,7 +1117,7 @@ impl SessionManager {
                 entries.len()
             );
             if let Some(acp) = entries.first().map(|p| p.acp.clone()) {
-                self.kill_acp_bounded(&acp).await;
+                Self::kill_acp_bounded(&acp).await;
             }
             for p in entries {
                 Self::emit_idle_recycled(app, &p.app_session_id, "idle");
@@ -1116,7 +1205,7 @@ impl SessionManager {
                     .filter_map(|session_id| parked.remove(&session_id))
                     .collect::<Vec<_>>()
             };
-            self.kill_acp_bounded(&acp).await;
+            Self::kill_acp_bounded(&acp).await;
             Self::emit_idle_recycled(app, &sid, "idle");
             for p in parked_cotenants {
                 Self::emit_idle_recycled(app, &p.app_session_id, "idle");
