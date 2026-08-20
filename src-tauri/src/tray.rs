@@ -412,6 +412,9 @@ fn apply_tray_icon(app: &AppHandle) -> Result<(), String> {
 }
 
 /// Swap the Windows tray badge when the user flips the taskbar theme.
+/// Poll on a background thread; apply `set_icon` on the main thread so we
+/// never hold `Mutex<TrayIcon>` while Windows marshals to the UI thread
+/// (#735-style AB deadlock with `tray_set_busy_count`).
 #[cfg(windows)]
 fn watch_taskbar_theme(app: AppHandle) {
     std::thread::Builder::new()
@@ -425,9 +428,12 @@ fn watch_taskbar_theme(app: AppHandle) {
                     continue;
                 }
                 last = now;
-                if let Err(e) = apply_tray_icon(&app) {
-                    tracing::debug!(error = %e, "tray icon theme swap failed");
-                }
+                let app2 = app.clone();
+                let _ = app.run_on_main_thread(move || {
+                    if let Err(e) = apply_tray_icon(&app2) {
+                        tracing::debug!(error = %e, "tray icon theme swap failed");
+                    }
+                });
             }
         })
         .ok();
