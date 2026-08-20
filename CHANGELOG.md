@@ -22,6 +22,7 @@ See `docs/llm-wiki/release.md`.
 - **宠物换成完整 bloub 形变目录**：浮层改用测过的 SVG 引擎（静止、思考、眨眼、通知、警示、六边形、轨道、彗星等），不再用旧的 clip-path 表情。设置可选 8 种休息形体和 16 种休息表情。输入框打字会走目录里的警示（斜感叹号），停打后回到所选休息形体；未读完成会话是显眼的橙红圆点（身体已经很热时改用柠黄），不再用视频里的蓝色。
 
 ### Fixed
+- **Japanese PR hub and Ukrainian agent command keep `{name}` (#751)**: `ja` `prHub.author` was `作成者` with no author; `uk` `preferredCurrent` shipped `--agent ` with nothing to paste. Catalog tests now fail if any locale drops or renames an `en` placeholder.
 - **Sidebar tree text columns line up (#745)**: Projects and Other labels share one left edge. Project names and the session titles under them share `--tree-text-inset`. The L1 chevron column is 20px (was 28).
 - **Windows tray icon stays visible on a dark taskbar (#747)**: The notification-area mark is no longer a black glyph on transparency. Light taskbars get a black tile / white glyph; dark taskbars get the inverse. The host follows `SystemUsesLightTheme` (not the in-app theme) and swaps live.
 - **Windows “follow system” theme now switches with Personalization (#749)**: Boot still locks WebView2 form chrome, but that froze `prefers-color-scheme`, so the main window stayed put when the OS flipped. The host watches `AppsUseLightTheme` and the UI reapplies `data-theme`.
@@ -41,6 +42,7 @@ See `docs/llm-wiki/release.md`.
 - **`cargo fmt --check` is green on main (#725)**.
 
 **中文 · 修复**
+- **日语 PR hub 和乌克兰语 agent 命令不再丢掉 `{name}`（#751）**：`ja` 的 `prHub.author` 只有「作成者」没有人名；`uk` 的 `preferredCurrent` 复制出来是空的 `--agent `。目录测试会拦截任何语言丢掉或改名 en 占位符。
 - **侧栏树文字列对齐（#745）**：Projects 与 Other 标题左缘对齐；项目名与其下会话标题共用 `--tree-text-inset`。一级箭头列从 28px 收到 20px。
 - **Windows 托盘在深色任务栏上不再隐身（#747）**：通知区不再用透明底黑标。浅色任务栏黑底白标，深色任务栏白底黑标。跟随任务栏 `SystemUsesLightTheme`（不是应用内主题），切换后即时换标。
 - **Windows「跟随系统」现在会跟个性化一起切（#749）**：启动锁 WebView2 表单颜色后，`prefers-color-scheme` 不再更新，系统换深浅色主窗不动。Host 改为监视 `AppsUseLightTheme`，前端重刷 `data-theme`。
