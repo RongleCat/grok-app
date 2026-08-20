@@ -2504,9 +2504,13 @@ export function upgradeMessagesFromJournal(
 
 /**
  * Host `ready` for the turn that just finished. Freeze leftover streaming on
- * older rows, but keep an optimistic queued pending (`a-pending-*` / `t-*`)
- * after the last user — auto-flush may already have painted the next shell,
- * and a stale ready must not settle it.
+ * older rows, but keep an *empty* optimistic queued pending (`a-pending-*` /
+ * `t-*`) after the last user when a follow-up is already on screen — auto-flush
+ * may have painted that shell, and a stale ready must not settle it.
+ *
+ * A filled pending (journal already lifted the body) is frozen so a later
+ * replay chunk cannot append. A solo current-turn pending is frozen the same
+ * as a host-id bubble.
  */
 export function settleStreamingOnHostReady(
   messages: ChatMessage[],
@@ -2519,12 +2523,15 @@ export function settleStreamingOnHostReady(
       break;
     }
   }
+  const queuedFollowUp = promptUserCount(messages) >= 2;
   let changed = false;
   const next = messages.map((m, i) => {
     if (m.role !== "assistant" || !m.streaming) return m;
     if (
+      queuedFollowUp &&
       i > lastUser &&
-      (m.id.startsWith("a-pending-") || m.id.startsWith("t-"))
+      (m.id.startsWith("a-pending-") || m.id.startsWith("t-")) &&
+      !(m.content ?? "").trim()
     ) {
       return m;
     }

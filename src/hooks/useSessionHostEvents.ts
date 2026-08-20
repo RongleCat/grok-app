@@ -412,9 +412,7 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
               const cached: ChatMessage[] =
                 c.messagesBySessionRef.current.get(sid) ?? [];
               const base = shouldClear
-                ? cached.map((m) =>
-                    m.streaming ? { ...m, streaming: false } : m,
-                  )
+                ? settleStreamingOnHostReady(cached)
                 : cached;
               // Empty cache → journal is sole source (openSession may race-write).
               // Non-empty → lift longer journal tails into this session only.
@@ -422,6 +420,11 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
                 base.length === 0
                   ? woven
                   : upgradeMessagesFromJournal(base, woven);
+              // Lift may have filled the queued pending from disk. Settle
+              // again so a complete body is frozen and replay cannot append.
+              if (shouldClear) {
+                next = settleStreamingOnHostReady(next);
+              }
               if (stillBusy) {
                 next = ensureBusyTurnStreaming(next, hostState);
                 next = weaveToolsIntoAssistantSegments(next);

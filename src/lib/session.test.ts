@@ -1276,7 +1276,16 @@ describe("session projection", () => {
     expect(out.find((m) => m.id === "a-pending-1")?.content).toBe(
       "short follow-up",
     );
+    // Upgrade keeps the live flag; Host-ready settle then freezes a
+    // filled pending so a replay chunk cannot append.
     expect(out.find((m) => m.id === "a-pending-1")?.streaming).toBe(true);
+    const settled = settleStreamingOnHostReady(out);
+    expect(settled.find((m) => m.id === "a-pending-1")?.streaming).toBe(
+      false,
+    );
+    expect(settled.find((m) => m.id === "a-pending-1")?.content).toBe(
+      "short follow-up",
+    );
   });
 
   it("settleStreamingOnHostReady keeps a queued pending live", () => {
@@ -1313,6 +1322,20 @@ describe("session projection", () => {
     ];
     const next = settleStreamingOnHostReady(msgs);
     expect(next.find((m) => m.id === "host-a1")?.streaming).toBe(false);
+  });
+
+  it("settleStreamingOnHostReady freezes a solo current-turn pending", () => {
+    const msgs: ChatMessage[] = [
+      { id: "u1", role: "user", content: "first" },
+      {
+        id: "a-pending-1",
+        role: "assistant",
+        content: "",
+        streaming: true,
+      },
+    ];
+    const next = settleStreamingOnHostReady(msgs);
+    expect(next.find((m) => m.id === "a-pending-1")?.streaming).toBe(false);
   });
 
   it("applyStreamChunk binds queued-turn tokens to the pending shell, not turn 1", () => {
