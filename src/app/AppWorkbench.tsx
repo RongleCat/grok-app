@@ -370,6 +370,7 @@ import {
   parseLocalePreference,
   htmlLangForLocale,
   resolveLocale,
+  readSystemLangTag,
   resolveLocaleFromSystem,
   resolveLocalePreference,
   DEFAULT_LOCALE_PREFERENCE,
@@ -3191,18 +3192,27 @@ export function AppWorkbench() {
   // Follow OS / browser UI language when preference is "system".
   useEffect(() => {
     if (localePreference !== "system") return;
-    const applySystem = () => {
-      const next = resolveLocaleFromSystem(
-        typeof navigator !== "undefined" ? navigator.language : null,
-      );
-      setLocale(next);
+    const applySystem = (tag: string | null) => {
+      setLocale(resolveLocaleFromSystem(tag));
     };
-    applySystem();
+    // `navigator.language` is the WebView's language, not the OS's: on a
+    // Windows box whose UI is Japanese it still reports `en-US`, so reading it
+    // meant "follow system" quietly settled on English. `readSystemLangTag`
+    // prefers the OS tag the Host injects and only then falls back to the
+    // navigator.
+    applySystem(readSystemLangTag());
     if (typeof window === "undefined" || !("addEventListener" in window)) {
       return;
     }
-    window.addEventListener("languagechange", applySystem);
-    return () => window.removeEventListener("languagechange", applySystem);
+    // A `languagechange` means the WebView's own list moved, which the tag
+    // captured at window build time cannot know about — trust it here.
+    const onLanguageChange = () =>
+      applySystem(
+        (typeof navigator !== "undefined" ? navigator.language : "") ||
+          readSystemLangTag(),
+      );
+    window.addEventListener("languagechange", onLanguageChange);
+    return () => window.removeEventListener("languagechange", onLanguageChange);
   }, [localePreference]);
 
 
