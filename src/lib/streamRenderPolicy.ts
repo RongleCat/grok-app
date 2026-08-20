@@ -109,3 +109,16 @@ export function resolveStreamOverscanScale(
   if (!streaming) return 1;
   return isLowPowerClient(hardwareConcurrency) ? 0.55 : 0.75;
 }
+
+/**
+ * Streaming markdown parse is throttled. On settle, paint the live source in
+ * the same render — a useEffect flush leaves one frame of stale tree at the
+ * tail (the end-of-answer flash).
+ */
+export function resolveMarkdownPaintSource(
+  streaming: boolean,
+  liveSource: string,
+  throttledSource: string,
+): string {
+  return streaming ? throttledSource : liveSource;
+}

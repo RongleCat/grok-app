@@ -8157,17 +8157,28 @@ export function AppWorkbench() {
 
   const lastUserMessageId = transcriptMeta.lastUserId;
 
-  // Streaming perf mode — cheapen wallpaper/glass on integrated GPU Retina.
+  // Streaming perf mode — shrink browse overscan on integrated GPU Retina.
+  // Do not zero the flag in the update cleanup (that flashes 1→0→1).
+  // Turn it off after paint so it does not restyle in the same frame as settle.
   useEffect(() => {
     const on =
       session.state === "streaming" ||
       session.state === "awaiting_permission" ||
       transcriptMeta.hasStreamingAssistant;
-    document.documentElement.dataset.streamPerf = on ? "1" : "0";
+    if (on) {
+      document.documentElement.dataset.streamPerf = "1";
+      return;
+    }
+    const id = window.setTimeout(() => {
+      document.documentElement.dataset.streamPerf = "0";
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [session.state, transcriptMeta.hasStreamingAssistant]);
+  useEffect(() => {
     return () => {
       document.documentElement.dataset.streamPerf = "0";
     };
-  }, [session.state, transcriptMeta.hasStreamingAssistant]);
+  }, []);
 
   const canEditLastUser =
     !!lastUserMessageId &&

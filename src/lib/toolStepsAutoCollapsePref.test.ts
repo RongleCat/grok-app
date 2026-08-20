@@ -8,6 +8,7 @@ import {
   saveToolStepsAutoCollapsePref,
   toolStepDefaultOpen,
   workPhaseDefaultOpen,
+  resolveFoldExpanded,
   type ToolStepsAutoCollapseStorage,
 } from "./toolStepsAutoCollapsePref";
 
@@ -66,6 +67,37 @@ describe("toolStepsAutoCollapsePref", () => {
     // Default arg uses DEFAULT_TOOL_STEPS_AUTO_COLLAPSE (true)
     expect(toolStepDefaultOpen(false)).toBe(false);
     expect(toolStepDefaultOpen(true)).toBe(true);
+  });
+
+  it("resolveFoldExpanded follows default until the user toggles", () => {
+    expect(
+      resolveFoldExpanded({
+        userToggled: false,
+        storedOpen: true,
+        defaultOpen: false,
+      }),
+    ).toBe(false);
+    expect(
+      resolveFoldExpanded({
+        userToggled: false,
+        storedOpen: false,
+        defaultOpen: true,
+      }),
+    ).toBe(true);
+    expect(
+      resolveFoldExpanded({
+        userToggled: true,
+        storedOpen: true,
+        defaultOpen: false,
+      }),
+    ).toBe(true);
+    expect(
+      resolveFoldExpanded({
+        userToggled: true,
+        storedOpen: false,
+        defaultOpen: true,
+      }),
+    ).toBe(false);
   });
 
   it("workPhaseDefaultOpen: live stays expanded; done collapses unless errors", () => {

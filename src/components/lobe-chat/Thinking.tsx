@@ -18,6 +18,7 @@ import { createT, type Locale } from "@/i18n";
 import { COLLAPSE_ALL_ACTIVITY_EVENT } from "@/lib/collapseAllActivity";
 import { formatWorkDuration } from "@/lib/formatWorkDuration";
 import { resolveThinkingChromeLabel } from "@/lib/thinkingChromeLabel";
+import { resolveFoldExpanded } from "@/lib/toolStepsAutoCollapsePref";
 import {
   freezeThinkingDurationMs,
   nextThinkingStartAnchor,
@@ -55,6 +56,11 @@ export const Thinking = memo(function Thinking({
   const userToggled = useRef(false);
   const thinkingRef = useRef(!!thinking);
   thinkingRef.current = !!thinking;
+  const expanded = resolveFoldExpanded({
+    userToggled: userToggled.current,
+    storedOpen: open,
+    defaultOpen: !!thinking,
+  });
 
   useEffect(() => {
     const onCollapseAll = () => {
@@ -156,11 +162,8 @@ export const Thinking = memo(function Thinking({
     // the global default (that retroactively opened/collapsed every other
     // block via THINKING_PREF_EVENT). The global pref is Settings-only and
     // applies to blocks the user has not toggled.
-    setOpen((v) => {
-      const next = !v;
-      userToggled.current = true;
-      return next;
-    });
+    userToggled.current = true;
+    setOpen(!expanded);
   };
 
   return (
@@ -168,15 +171,15 @@ export const Thinking = memo(function Thinking({
       className={
         "grok-thought" +
         (thinking ? " is-live" : "") +
-        (open && hasBody ? " is-open" : " is-collapsed")
+        (expanded && hasBody ? " is-open" : " is-collapsed")
       }
       data-testid="thinking-block"
-      data-expanded={open && hasBody ? "1" : "0"}
+      data-expanded={expanded && hasBody ? "1" : "0"}
     >
       <button
         type="button"
         className="grok-thought__header"
-        aria-expanded={hasBody ? open : undefined}
+        aria-expanded={hasBody ? expanded : undefined}
         onClick={toggle}
         disabled={!hasBody}
       >
@@ -193,7 +196,7 @@ export const Thinking = memo(function Thinking({
         </span>
         {hasBody ? (
           <span className="grok-thought__caret" aria-hidden>
-            {open ? (
+            {expanded ? (
               <IconChevronDown size={12} stroke={2} />
             ) : (
               <IconChevronRight size={12} stroke={2} />
@@ -203,7 +206,7 @@ export const Thinking = memo(function Thinking({
       </button>
 
       {/* Collapsed: header only. Expanded: muted dig-in body. */}
-      {open && hasBody ? (
+      {expanded && hasBody ? (
         <div className="grok-thought__body">
           {typeof content === "string" ? (
             <MarkdownChat

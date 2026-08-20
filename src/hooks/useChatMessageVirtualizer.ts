@@ -126,6 +126,10 @@ export function useChatMessageVirtualizer(
   estimateRef.current = getEstimateHeight;
   const forceRef = useRef(forceIndices);
   forceRef.current = forceIndices;
+  const itemCountRef = useRef(itemCount);
+  itemCountRef.current = itemCount;
+  const virtualizedRef = useRef(virtualized);
+  virtualizedRef.current = virtualized;
   const recomputeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Programmatic scrollTop from height correction — ignore once for stick. */
   const ignoreScrollAdjustRef = useRef(false);
@@ -187,24 +191,26 @@ export function useChatMessageVirtualizer(
   }, []);
 
   const getOffsets = useCallback(() => {
+    const count = itemCountRef.current;
     const version = heightsVersionRef.current;
     const cached = offsetsCacheRef.current;
     if (
       cached &&
       cached.version === version &&
-      cached.count === itemCount
+      cached.count === count
     ) {
       return cached.offsets;
     }
-    const offsets = cumulativeOffsets(itemCount, getHeight);
-    offsetsCacheRef.current = { version, count: itemCount, offsets };
+    const offsets = cumulativeOffsets(count, getHeight);
+    offsetsCacheRef.current = { version, count, offsets };
     return offsets;
-  }, [itemCount, getHeight]);
+  }, [getHeight]);
 
   const recomputeNow = useCallback(() => {
-    if (!virtualized) {
+    const count = itemCountRef.current;
+    if (!virtualizedRef.current) {
       setWin((prev) => {
-        const next = full(itemCount);
+        const next = full(count);
         return prev.start === next.start &&
           prev.end === next.end &&
           prev.paddingTop === 0 &&
@@ -216,13 +222,13 @@ export function useChatMessageVirtualizer(
     }
     const el = viewportRef.current;
     if (!el) {
-      setWin(full(itemCount));
+      setWin(full(count));
       return;
     }
     const pin = !!isPinnedRef.current;
     const offsets = getOffsets();
     const next = computeChatVirtualWindow({
-      count: itemCount,
+      count,
       getHeight,
       scrollTop: el.scrollTop,
       viewportHeight: el.clientHeight,
@@ -261,7 +267,7 @@ export function useChatMessageVirtualizer(
       }
       return next;
     });
-  }, [virtualized, itemCount, viewportRef, isPinnedRef, getHeight, getOffsets]);
+  }, [viewportRef, isPinnedRef, getHeight, getOffsets]);
 
   const recompute = useCallback(() => {
     // Never rebuild the virtual window from height churn mid-scroll — that
@@ -283,9 +289,11 @@ export function useChatMessageVirtualizer(
   }, [recomputeNow, isPinnedRef]);
 
   // Scroll → recompute window range only (rAF). Height-driven rebuilds wait for idle.
+  // Do not list itemCount: a send must not tear down scroll/RO while old row
+  // observers still fire with a stale count (window fight = flash).
   useEffect(() => {
     if (!virtualized) {
-      setWin(full(itemCount));
+      setWin(full(itemCountRef.current));
       return;
     }
     const el = viewportRef.current;
@@ -359,7 +367,7 @@ export function useChatMessageVirtualizer(
         scrollIdleTimerRef.current = null;
       }
     };
-  }, [virtualized, itemCount, viewportRef, recompute, recomputeNow, conversationKey]);
+  }, [virtualized, viewportRef, recompute, recomputeNow, conversationKey]);
 
   // Streaming growth / force index changes while mounted.
   useLayoutEffect(() => {
@@ -398,7 +406,7 @@ export function useChatMessageVirtualizer(
 
   const commitRowHeight = useCallback(
     (index: number, el: HTMLElement) => {
-      if (!virtualized) return;
+      if (!virtualizedRef.current) return;
       if (runAfterPaneSplitMotion(() => commitRowHeight(index, el))) return;
       const key = getKeyRef.current(index);
       const nextH = Math.round(el.getBoundingClientRect().height);
@@ -440,7 +448,7 @@ export function useChatMessageVirtualizer(
       if (viewport && !pin && Math.abs(nextH - prevH) >= 4) {
         // Offsets for scroll anchor must use prevH for this row.
         heightsRef.current.set(key, prevH);
-        const offsetsBefore = cumulativeOffsets(itemCount, (i) => {
+        const offsetsBefore = cumulativeOffsets(itemCountRef.current, (i) => {
           const k = getKeyRef.current(i);
           const m = heightsRef.current.get(k);
           if (m != null) return m;
@@ -475,8 +483,11 @@ export function useChatMessageVirtualizer(
         }
       }
     },
-    [virtualized, isPinnedRef, viewportRef, recompute, itemCount],
+    [isPinnedRef, viewportRef, recompute],
   );
+
+  const commitRowHeightRef = useRef(commitRowHeight);
+  commitRowHeightRef.current = commitRowHeight;
 
   /**
    * Stable per-index ref callbacks. Returning a fresh function from measureRef(i)
@@ -502,17 +513,17 @@ export function useChatMessageVirtualizer(
           prevRo.disconnect();
           rowObserversRef.current.delete(index);
         }
-        if (!el || !virtualized) return;
+        if (!el || !virtualizedRef.current) return;
 
         // Immediate sample (mount) + observe media/layout growth afterward.
-        commitRowHeight(index, el);
+        commitRowHeightRef.current(index, el);
         // Coalesce RO storms (multi-image decode) — one commit per frame.
         let roRaf = 0;
         const ro = new ResizeObserver(() => {
           if (roRaf) return;
           roRaf = requestAnimationFrame(() => {
             roRaf = 0;
-            commitRowHeight(index, el);
+            commitRowHeightRef.current(index, el);
           });
         });
         ro.observe(el);
@@ -521,7 +532,7 @@ export function useChatMessageVirtualizer(
       measureCallbackCacheRef.current.set(index, cb);
       return cb;
     },
-    [virtualized, commitRowHeight],
+    [],
   );
 
   if (!virtualized) {

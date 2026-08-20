@@ -12,6 +12,7 @@ import {
   isNearBottom,
   nextStickPinState,
   shouldBumpStickOnBusyEdge,
+  stabilizeStickUserId,
   shouldClampPinnedOverscroll,
   shouldClampPinnedStreamDrift,
   shouldReleaseStickOnScrollUp,
@@ -148,6 +149,50 @@ describe("shouldBumpStickOnBusyEdge", () => {
   it("does not bump when a new user message already force-sticks", () => {
     expect(shouldBumpStickOnBusyEdge("u2", "u1")).toBe(false);
     expect(shouldBumpStickOnBusyEdge("u1", null)).toBe(false);
+  });
+});
+
+describe("stabilizeStickUserId", () => {
+  it("keeps the optimistic id when journal rewrites the last user", () => {
+    expect(
+      stabilizeStickUserId({
+        prevId: "u-1787240481019",
+        nextId: "857cd02c-7159-41a2-8083-ce28d831e5b7",
+        prevUserCount: 12,
+        nextUserCount: 12,
+      }),
+    ).toBe("u-1787240481019");
+  });
+
+  it("takes the new id on a new send or rewind", () => {
+    expect(
+      stabilizeStickUserId({
+        prevId: "u-1",
+        nextId: "u-2",
+        prevUserCount: 11,
+        nextUserCount: 12,
+      }),
+    ).toBe("u-2");
+    expect(
+      stabilizeStickUserId({
+        prevId: "u-2",
+        nextId: "u-1",
+        prevUserCount: 12,
+        nextUserCount: 11,
+      }),
+    ).toBe("u-1");
+  });
+
+  it("takes the new id on conversation switch", () => {
+    expect(
+      stabilizeStickUserId({
+        prevId: "u-1",
+        nextId: "other-user",
+        prevUserCount: 12,
+        nextUserCount: 12,
+        conversationChanged: true,
+      }),
+    ).toBe("other-user");
   });
 });
 

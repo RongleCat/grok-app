@@ -210,6 +210,9 @@ export function resolveChatOverscanPx(input: {
       ),
     );
   }
+  // Pin window must not shrink under stream-perf. Scaling it down mid-turn
+  // then restoring at ready jumps start by a few rows — one tail flash.
+  if (input.pinToBottom) return px;
   const scale =
     input.scale != null && Number.isFinite(input.scale)
       ? Math.min(1, Math.max(0.35, input.scale))

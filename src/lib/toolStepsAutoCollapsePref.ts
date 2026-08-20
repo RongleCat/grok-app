@@ -97,3 +97,15 @@ export function workPhaseDefaultOpen(opts: {
   if ((opts.errorCount ?? 0) > 0) return true;
   return !(opts.autoCollapse ?? DEFAULT_TOOL_STEPS_AUTO_COLLAPSE);
 }
+
+/**
+ * Live→idle folds must follow `defaultOpen` on the same render the turn
+ * settles. Waiting on useEffect paints one expanded idle frame then collapses.
+ */
+export function resolveFoldExpanded(input: {
+  userToggled: boolean;
+  storedOpen: boolean;
+  defaultOpen: boolean;
+}): boolean {
+  return input.userToggled ? input.storedOpen : input.defaultOpen;
+}

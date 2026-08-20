@@ -97,7 +97,10 @@ import {
 } from "@/lib/contextUsage";
 import type { ModelOption } from "@/lib/grokCatalog";
 import { useStickToBottom } from "@/hooks/useStickToBottom";
-import { shouldBumpStickOnBusyEdge } from "@/lib/stickToBottom";
+import {
+  shouldBumpStickOnBusyEdge,
+  stabilizeStickUserId,
+} from "@/lib/stickToBottom";
 import { useChatMessageVirtualizer } from "@/hooks/useChatMessageVirtualizer";
 import {
   estimateChatRowHeight,
@@ -1791,15 +1794,43 @@ export function ConversationThread({
    */
   const prevTurnBusyRef = useRef(false);
   const prevLastUserIdForStickRef = useRef<string | null>(null);
+  const stickUserRef = useRef<{
+    id: string | null;
+    count: number;
+    conversationKey: string;
+  }>({ id: null, count: 0, conversationKey: "" });
   const [stickBump, setStickBump] = useState(0);
   const turnBusyForStick =
     sessionState === "streaming" || sessionState === "awaiting_permission";
-  const lastUserIdForStick = useMemo(() => {
+  const lastUserIdRaw = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i]?.role === "user") return messages[i]!.id;
     }
     return null;
   }, [messages]);
+  const lastUserCount = useMemo(() => {
+    let n = 0;
+    for (const m of messages) if (m.role === "user") n += 1;
+    return n;
+  }, [messages]);
+  const conversationKeyForStick = sessionKey ?? "chat";
+  const lastUserIdForStick = useMemo(() => {
+    const conversationChanged =
+      stickUserRef.current.conversationKey !== conversationKeyForStick;
+    const next = stabilizeStickUserId({
+      prevId: stickUserRef.current.id,
+      nextId: lastUserIdRaw,
+      prevUserCount: stickUserRef.current.count,
+      nextUserCount: lastUserCount,
+      conversationChanged,
+    });
+    stickUserRef.current = {
+      id: next,
+      count: lastUserCount,
+      conversationKey: conversationKeyForStick,
+    };
+    return next;
+  }, [lastUserIdRaw, lastUserCount, conversationKeyForStick]);
   useEffect(() => {
     if (turnBusyForStick && !prevTurnBusyRef.current) {
       // Same user turn became busy (regenerate / permission) — bump.
@@ -2432,6 +2463,7 @@ export function ConversationThread({
     !showQuietThinking &&
     !liveTool &&
     !turnBusy;
+
   const emptyCopy = resolveChatTranscriptEmptyState({
     empty,
     suppressEmptyCopy,

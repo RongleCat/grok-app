@@ -4,6 +4,7 @@ import {
   resolveStreamFlushMs,
   resolveStreamMarkdownParseMs,
   resolveStreamOverscanScale,
+  resolveMarkdownPaintSource,
   resolveTranscriptContentNotifyMs,
   shouldUsePlainStreamBody,
   STREAM_COALESCE_FLUSH_MS,
@@ -48,6 +49,12 @@ describe("streamRenderPolicy", () => {
     expect(resolveStreamFlushMs(4)).toBeGreaterThanOrEqual(STREAM_COALESCE_FLUSH_MS);
     expect(resolveStreamFlushMs(12)).toBe(STREAM_COALESCE_FLUSH_MS);
     expect(resolveStreamFlushMs(16)).toBeLessThan(STREAM_COALESCE_FLUSH_MS);
+  });
+
+  it("settled markdown paints live source, not the throttle lag", () => {
+    expect(resolveMarkdownPaintSource(true, "live", "lag")).toBe("lag");
+    expect(resolveMarkdownPaintSource(false, "live", "lag")).toBe("live");
+    expect(resolveMarkdownPaintSource(false, "final", "final")).toBe("final");
   });
 
   it("overscan scale shrinks only while streaming", () => {

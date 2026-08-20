@@ -37,7 +37,10 @@ import {
   type SoftBufferState,
 } from "@/lib/softStreamBuffer";
 import { softCloseMarkdown } from "@/lib/softCloseMarkdown";
-import { resolveStreamMarkdownParseMs } from "@/lib/streamRenderPolicy";
+import {
+  resolveMarkdownPaintSource,
+  resolveStreamMarkdownParseMs,
+} from "@/lib/streamRenderPolicy";
 import { revealInOsLabel } from "@/lib/appPlatform";
 import { cn } from "@/lib/utils";
 import { CodeBlock } from "./CodeBlock";
@@ -241,6 +244,7 @@ export const MarkdownChat = memo(function MarkdownChat({
     }, parseMs);
     return () => window.clearTimeout(id);
   }, [source, streaming, parseMs]);
+  const painted = resolveMarkdownPaintSource(streaming, source, mdSource);
 
   const renderPathOrUrl = (token: string, linkText?: string) => {
     const rawIn = token.trim().replace(/^<|>$/g, "");
@@ -572,7 +576,7 @@ export const MarkdownChat = memo(function MarkdownChat({
           },
         }}
       >
-        {mdSource}
+        {painted}
       </ReactMarkdown>
     </div>
   );

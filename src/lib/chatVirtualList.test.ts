@@ -200,6 +200,23 @@ describe("resolveChatOverscanPx", () => {
     expect(pin).toBeGreaterThanOrEqual(CHAT_PIN_OVERSCAN_MIN_PX);
     expect(pin).toBeLessThanOrEqual(CHAT_PIN_OVERSCAN_MAX_PX);
   });
+
+  it("does not shrink pin overscan under stream-perf scale", () => {
+    const vh = 811;
+    const pin = resolveChatOverscanPx({
+      viewportHeight: vh,
+      pinToBottom: true,
+    });
+    const scaled = resolveChatOverscanPx({
+      viewportHeight: vh,
+      pinToBottom: true,
+      scale: 0.55,
+    });
+    expect(scaled).toBe(pin);
+    const browse = resolveChatOverscanPx({ viewportHeight: vh, scale: 0.55 });
+    const browseFull = resolveChatOverscanPx({ viewportHeight: vh });
+    expect(browse).toBeLessThan(browseFull);
+  });
 });
 
 describe("applyForceIndices", () => {

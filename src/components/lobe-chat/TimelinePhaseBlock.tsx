@@ -32,6 +32,7 @@ import { COLLAPSE_ALL_ACTIVITY_EVENT } from "@/lib/collapseAllActivity";
 import type { TimelinePhase } from "@/lib/timelinePhases";
 import {
   loadToolStepsAutoCollapsePref,
+  resolveFoldExpanded,
   workPhaseDefaultOpen,
   TOOL_STEPS_AUTO_COLLAPSE_CHANGE_EVENT,
 } from "@/lib/toolStepsAutoCollapsePref";
@@ -724,6 +725,11 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
   });
   const [open, setOpen] = useState(() => wantOpen);
   const userToggled = useRef(false);
+  const expanded = resolveFoldExpanded({
+    userToggled: userToggled.current,
+    storedOpen: open,
+    defaultOpen: wantOpen,
+  });
 
   useEffect(() => {
     if (userToggled.current) return;
@@ -820,20 +826,20 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
     <div
       className={
         "grok-act" +
-        (phaseRunning ? " is-live" : open ? " is-open" : " is-collapsed")
+        (phaseRunning ? " is-live" : expanded ? " is-open" : " is-collapsed")
       }
       data-testid="timeline-phase"
       data-phase-id={phase.id}
       data-live={phaseRunning ? "1" : "0"}
-      data-expanded={open ? "1" : "0"}
+      data-expanded={expanded ? "1" : "0"}
     >
       <button
         type="button"
         className="grok-act__header"
-        aria-expanded={open}
+        aria-expanded={expanded}
         onClick={() => {
           userToggled.current = true;
-          setOpen((v) => !v);
+          setOpen(!expanded);
         }}
       >
         <span className="grok-act__header-icon" aria-hidden>
@@ -841,14 +847,14 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
         </span>
         <span className="grok-act__header-text">{phaseChromeLabel}</span>
         <span className="grok-act__header-caret" aria-hidden>
-          {open ? (
+          {expanded ? (
             <IconChevronDown size={12} stroke={2} />
           ) : (
             <IconChevronRight size={12} stroke={2} />
           )}
         </span>
       </button>
-      {open ? (
+      {expanded ? (
         <GrokActivitySteps
           steps={stepsResolved}
           tr={tr}

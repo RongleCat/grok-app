@@ -23,6 +23,7 @@ import {
 import { normalizeTaskStatus } from "@/lib/sessionTasks";
 import {
   loadToolStepsAutoCollapsePref,
+  resolveFoldExpanded,
   toolStepDefaultOpen,
   TOOL_STEPS_AUTO_COLLAPSE_CHANGE_EVENT,
 } from "@/lib/toolStepsAutoCollapsePref";
@@ -126,6 +127,11 @@ export const TimelineToolRow = memo(function TimelineToolRow({
       : toolStepDefaultOpen(running, autoCollapse);
 
   const [open, setOpen] = useState(() => prefOpen);
+  const expanded = resolveFoldExpanded({
+    userToggled: userToggled.current,
+    storedOpen: open,
+    defaultOpen: prefOpen,
+  });
 
   useEffect(() => {
     if (running) {
@@ -143,7 +149,7 @@ export const TimelineToolRow = memo(function TimelineToolRow({
     }
   }, [running, autoCollapse, defaultExpanded, tool.toolCallId]);
 
-  const showBody = hasBody && open;
+  const showBody = hasBody && expanded;
 
   return (
     <div
@@ -156,7 +162,7 @@ export const TimelineToolRow = memo(function TimelineToolRow({
       role="status"
       data-tool-id={tool.toolCallId}
       data-testid="timeline-tool"
-      data-expanded={hasBody ? (open ? "1" : "0") : undefined}
+      data-expanded={hasBody ? (expanded ? "1" : "0") : undefined}
       title={tool.input || tool.path || tool.detail || summary}
     >
       <div className="grok-act__icon-col" aria-hidden>
@@ -168,15 +174,15 @@ export const TimelineToolRow = memo(function TimelineToolRow({
         <button
           type="button"
           className="grok-act__step-btn grok-act__step-btn--grow"
-          aria-expanded={open}
+          aria-expanded={expanded}
           onClick={() => {
             userToggled.current = true;
-            setOpen((v) => !v);
+            setOpen(!expanded);
           }}
         >
           <span className="grok-act__label">{summary}</span>
           <span
-            className={"grok-act__mini-caret" + (open ? " is-open" : "")}
+            className={"grok-act__mini-caret" + (expanded ? " is-open" : "")}
             aria-hidden
           >
             <IconChevronRight size={11} />
@@ -241,6 +247,12 @@ export function TimelineToolGroup({
   const [open, setOpen] = useState(() =>
     toolStepDefaultOpen(running, autoCollapse),
   );
+  const groupDefaultOpen = toolStepDefaultOpen(running, autoCollapse);
+  const expanded = resolveFoldExpanded({
+    userToggled: userToggled.current,
+    storedOpen: open,
+    defaultOpen: groupDefaultOpen,
+  });
 
   useEffect(() => {
     if (running) {
@@ -308,10 +320,10 @@ export function TimelineToolGroup({
       <button
         type="button"
         className="grok-act__step is-last grok-act__step-btn"
-        aria-expanded={open}
+        aria-expanded={expanded}
         onClick={() => {
           userToggled.current = true;
-          setOpen((v) => !v);
+          setOpen(!expanded);
         }}
       >
         <div className="grok-act__icon-col" aria-hidden>
@@ -325,13 +337,13 @@ export function TimelineToolGroup({
         </div>
         <span className="grok-act__label">{groupLabel}</span>
         <span
-          className={"grok-act__mini-caret" + (open ? " is-open" : "")}
+          className={"grok-act__mini-caret" + (expanded ? " is-open" : "")}
           aria-hidden
         >
           <IconChevronRight size={11} />
         </span>
       </button>
-      {open ? (
+      {expanded ? (
         <div className="lobe-timeline-tool-group__list">
           {tools.map((t) => (
             <TimelineToolRow

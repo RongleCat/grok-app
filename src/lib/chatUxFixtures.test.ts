@@ -214,14 +214,14 @@ describe("chat UX fixtures (shipped path)", () => {
     units = buildTimelineUnits(segs, { streaming: true });
     expect(units.map((u) => u.kind)).toEqual(["phase", "content"]);
     if (units[0]?.kind === "phase") expect(units[0].live).toBe(false);
-    // First status sentence must not freeze later reasoning: either a live
-    // trailing thought, or a placeholder while waiting for the next episode.
+    // Placeholder under live last content unmounts at settle and flashes the
+    // tail. Later reasoning paints as a thought row when it arrives.
     expect(
       shouldShowTrailingLiveThinking(units, {
         messageStreaming: true,
         hasRunningTool: false,
       }),
-    ).toBe(true);
+    ).toBe(false);
 
     messages = applyStreamChunk(messages, {
       sessionId: "s",

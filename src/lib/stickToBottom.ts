@@ -78,6 +78,30 @@ export function shouldBumpStickOnBusyEdge(
 }
 
 /**
+ * `forceStickKey` is last-user-id + bump. Journal hydrate rewrites the
+ * optimistic `u-${ts}` to a uuid without adding a user — treating that as a
+ * new key instant-scrolls at settle.
+ *
+ * Not #714 / #703 (pin yank / double stick on send). This only freezes the
+ * id when the user *count* is unchanged. New send / rewind / conversation
+ * switch still take `nextId`.
+ */
+export function stabilizeStickUserId(input: {
+  prevId: string | null;
+  nextId: string | null;
+  prevUserCount: number;
+  nextUserCount: number;
+  conversationChanged?: boolean;
+}): string | null {
+  if (input.conversationChanged) return input.nextId;
+  if (input.nextUserCount !== input.prevUserCount) return input.nextId;
+  if (input.prevId && input.nextId && input.prevId !== input.nextId) {
+    return input.prevId;
+  }
+  return input.nextId;
+}
+
+/**
  * Whether an upward scroll should release stick-to-bottom.
  *
  * Escape only when the viewport actually left the bottom **and** ended

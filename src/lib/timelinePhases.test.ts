@@ -249,7 +249,7 @@ describe("timelinePhases", () => {
     if (first.kind === "thought") expect(first.streaming).toBe(false);
   });
 
-  it("shouldShowTrailingLiveThinking after body while waiting for next episode", () => {
+  it("shouldShowTrailingLiveThinking skips a live last content tail", () => {
     const segs: MessageSegment[] = [
       { kind: "thought", text: "round1" },
       tool("t1", "Read a"),
@@ -259,7 +259,7 @@ describe("timelinePhases", () => {
     expect(shouldShowTrailingLiveThinking(units, {
       messageStreaming: true,
       hasRunningTool: false,
-    })).toBe(true);
+    })).toBe(false);
     expect(shouldShowTrailingLiveThinking(units, {
       messageStreaming: true,
       hasRunningTool: true,
@@ -275,6 +275,19 @@ describe("timelinePhases", () => {
     );
     expect(shouldShowTrailingLiveThinking(thinking, {
       messageStreaming: true,
+      hasRunningTool: false,
+    })).toBe(false);
+  });
+
+  it("shouldShowTrailingLiveThinking after a last bare tool while waiting", () => {
+    const segs: MessageSegment[] = [tool("t1", "Read a")];
+    const units = buildTimelineUnits(segs, { streaming: true });
+    expect(shouldShowTrailingLiveThinking(units, {
+      messageStreaming: true,
+      hasRunningTool: false,
+    })).toBe(true);
+    expect(shouldShowTrailingLiveThinking(units, {
+      messageStreaming: false,
       hasRunningTool: false,
     })).toBe(false);
   });

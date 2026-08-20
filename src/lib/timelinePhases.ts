@@ -392,8 +392,9 @@ export function coalesceAdjacentThoughts(
 /**
  * After the first answer fragment, later think→tool loops still need a live
  * “思考中” row. Timeline units already mark the trailing thought/phase live;
- * when the last unit is finished content or a closed phase, paint a trailing
+ * when the last unit is a closed phase or bare tool, paint a trailing
  * thinking placeholder until the next thought/tool arrives.
+ * Do not put it under last content — that row unmounts at settle and jumps the tail.
  *
  * Empty timelines stay on the existing empty-shell placeholder.
  */
@@ -421,6 +422,9 @@ export function shouldShowTrailingLiveThinking(
     return false;
   }
   if (last.kind === "phase" && last.live) return false;
+  // Last content is the live tail. A placeholder under it unmounts when
+  // the turn settles and jumps the answer. Next thought/tool paints itself.
+  if (last.kind === "content") return false;
   return true;
 }
 
