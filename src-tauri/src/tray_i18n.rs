@@ -109,6 +109,16 @@ impl Locale {
         }
     }
 
+    /// `<html lang>` for the WebView. Catalog ids are already valid BCP-47
+    /// except `zh`, which must not reach the document as the macrolanguage.
+    /// Mirrors `htmlLangForLocale` in `src/i18n/index.ts`.
+    pub fn html_lang(self) -> &'static str {
+        match self {
+            Locale::Zh => "zh-CN",
+            other => other.as_tag(),
+        }
+    }
+
     /// English name of the language, for prompts that must name a target
     /// language to a model (see `session_title.rs`).
     pub fn english_name(self) -> &'static str {
@@ -721,6 +731,25 @@ mod tests {
                 "{} usage_with_reset",
                 l.as_tag()
             );
+        }
+    }
+
+    #[test]
+    fn html_lang_is_the_catalog_id_except_for_chinese() {
+        // A wrong `<html lang>` is invisible until it is not: it picks the
+        // font fallback, the hyphenation dictionary and how a screen reader
+        // pronounces the page.
+        assert_eq!(Locale::Zh.html_lang(), "zh-CN");
+        assert_eq!(Locale::ZhTw.html_lang(), "zh-TW");
+        for l in ALL {
+            let lang = l.html_lang();
+            assert!(!lang.is_empty(), "{} html_lang is empty", l.as_tag());
+            if l != Locale::En {
+                assert_ne!(lang, "en", "{} fell back to English", l.as_tag());
+            }
+            if l != Locale::Zh {
+                assert_eq!(lang, l.as_tag(), "{} should pass through", l.as_tag());
+            }
         }
     }
 
