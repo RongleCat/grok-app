@@ -339,7 +339,11 @@ import {
   tickStopLatch,
   STOP_LATCH_MS
 } from "@/lib/stopLatch";
-import { shouldEscapeStopGeneration } from "@/lib/escapeStop";
+import {
+  isSettingsEscapeOwnedByNestedLayer,
+  shouldEscapeCloseSettings,
+  shouldEscapeStopGeneration,
+} from "@/lib/escapeStop";
 import {
   isSameView,
   isViewingSendTarget,
@@ -538,6 +542,7 @@ import {
   shouldDisableReconnectBecauseConnecting,
 } from "@/lib/connStatus";
 import {
+  formatShortcutHint,
   matchGlobalShortcut,
   shortcutsForPlatform
 } from "@/lib/shortcuts";
@@ -2069,6 +2074,7 @@ export function AppWorkbench() {
   const shortcutHandlersRef = useRef({
     newChat: () => {},
     openSettings: () => {},
+    closeSettings: () => {},
     openChatFind: () => {},
     copyLastReply: () => {},
     toggleSidebar: () => {},
@@ -2098,6 +2104,7 @@ export function AppWorkbench() {
     chatFindOpen: false,
     slashOrMenuOpen: false,
     promptHistoryOpen: false,
+    settingsOpen: false,
   });
   /** Live user remaps for capture-phase matching + help table. */
   const [shortcutRemaps, setShortcutRemaps] = useState<ShortcutRemapMap>(() =>
@@ -2148,13 +2155,31 @@ export function AppWorkbench() {
         shortcutHandlersRef.current.cancelVoice();
         return;
       }
-      // Esc stops the active turn when nothing else owns Escape (catalog: shortcuts.stop).
+      // Esc: leave Settings, else stop the active turn (catalog: shortcuts.stop).
       if (e.key === "Escape") {
         const gate = escapeStopLiveRef.current;
+        const voiceSteals = voiceStealsEscape(voiceRef.current.phase);
+        const nestedLayerOpen =
+          gate.settingsOpen &&
+          isSettingsEscapeOwnedByNestedLayer(
+            typeof document !== "undefined" ? document : null,
+          );
+        if (
+          shouldEscapeCloseSettings({
+            ...gate,
+            voiceStealsEscape: voiceSteals,
+            nestedLayerOpen,
+          })
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          shortcutHandlersRef.current.closeSettings();
+          return;
+        }
         if (
           shouldEscapeStopGeneration({
             ...gate,
-            voiceStealsEscape: voiceStealsEscape(voiceRef.current.phase),
+            voiceStealsEscape: voiceSteals,
           })
         ) {
           e.preventDefault();
@@ -2220,7 +2245,10 @@ export function AppWorkbench() {
           typing,
         },
         shortcutRemapsRef.current,
-        { voiceHotkeyEnabled: voiceHotkeyEnabledRef.current },
+        {
+          voiceHotkeyEnabled: voiceHotkeyEnabledRef.current,
+          settingsOpen: escapeStopLiveRef.current.settingsOpen,
+        },
       );
       if (!matched) return;
       e.preventDefault();
@@ -2235,7 +2263,11 @@ export function AppWorkbench() {
           setShowShortcuts((v) => !v);
           return;
         case "settings":
-          shortcutHandlersRef.current.openSettings();
+          if (escapeStopLiveRef.current.settingsOpen) {
+            shortcutHandlersRef.current.closeSettings();
+          } else {
+            shortcutHandlersRef.current.openSettings();
+          }
           return;
         case "newChat":
           shortcutHandlersRef.current.newChat();
@@ -2863,6 +2895,15 @@ export function AppWorkbench() {
   const [accountProbeError, setAccountProbeError] = useState<unknown>(null);
   const [loginHint, setLoginHint] = useState<string | null>(null);
   const platform = useMemo(() => detectAppPlatform(), []);
+  const settingsShortcutHint = useMemo(
+    () =>
+      formatShortcutHint(
+        "settings",
+        shortcutRemaps,
+        platform === "mac" ? "mac" : "win",
+      ),
+    [shortcutRemaps, platform],
+  );
   /** Self-drawn chrome when OS title bar is disabled (Win / Linux frameless). */
   const useCustomWindowChrome = usesCustomWindowChrome(platform);
   /** Titlebar / chrome-strip double-click → maximize on mac + win. */
@@ -15089,6 +15130,9 @@ export function AppWorkbench() {
     openSettings: (section?: SettingsSectionId) => {
       navigateSettings(section);
     },
+    closeSettings: () => {
+      navigateWorkbench();
+    },
     openChatFind: () => {
       openChatFind();
     },
@@ -17956,6 +18000,7 @@ export function AppWorkbench() {
   // Keep Esc→stop gate current for the capture-phase shortcut listener.
   escapeStopLiveRef.current = {
     streamingOrBusy: effectiveCanStop,
+    settingsOpen: appView === "settings",
     overlayOpen: Boolean(
       appDialog ||
         showSearch ||
@@ -25532,6 +25577,11 @@ export function AppWorkbench() {
                     <span className="search-panel__title">
                       {tr(action.labelKey)}
                     </span>
+                    {action.group === "settings" ? (
+                      <kbd className="menu-shortcut" aria-hidden>
+                        {settingsShortcutHint}
+                      </kbd>
+                    ) : null}
                   </button>
                   );
                 })}

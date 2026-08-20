@@ -26,6 +26,7 @@ import {
   type SlashKindFilter,
   type SlashMenuEmptyPresentation,
 } from "@/lib/slashCatalog";
+import { formatShortcutHint } from "@/lib/shortcuts";
 import {
   IconActivity,
   IconArrowsMinimize,
@@ -341,6 +342,10 @@ export function ComposerPlusPanel({
 }) {
   const tr = createT(locale);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const settingsHint = useMemo(
+    () => (open ? formatShortcutHint("settings") : ""),
+    [open],
+  );
 
   const setRefs = (node: HTMLDivElement | null) => {
     listRef.current = node;
@@ -593,6 +598,8 @@ export function ComposerPlusPanel({
         const item = entry.item;
         const title = resolveTitle(item);
         const desc = resolveDescription(item);
+        const settingsChord =
+          item.action === "settings" && settingsHint ? settingsHint : "";
         const right =
           desc.trim() ||
           (item.kind === "skill" && item.source ? item.source : "") ||
@@ -626,7 +633,11 @@ export function ComposerPlusPanel({
                 </span>
               ) : null}
             </span>
-            {right ? (
+            {settingsChord ? (
+              <kbd className="menu-shortcut" aria-hidden>
+                {settingsChord}
+              </kbd>
+            ) : right ? (
               <span className="composer-plus__desc">{right}</span>
             ) : null}
           </button>

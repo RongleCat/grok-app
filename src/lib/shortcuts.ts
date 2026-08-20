@@ -324,6 +324,11 @@ export type MatchGlobalShortcutOpts = {
    * (composer / slash / menus stay available). Defaults to loaded pref / true.
    */
   voiceHotkeyEnabled?: boolean;
+  /**
+   * Settings page is showing. The settings chord still matches while a
+   * settings field is focused so ⌘, / Ctrl+, can leave the page.
+   */
+  settingsOpen?: boolean;
 };
 
 function resolveVoiceHotkeyEnabled(explicit?: boolean): boolean {
@@ -350,7 +355,9 @@ function resolveVoiceHotkeyEnabled(explicit?: boolean): boolean {
  *
  * Behavior preserved from the previous inline App handler (with defaults):
  * - findInChat works while typing
- * - newChat / settings skip when typing
+ * - newChat / settings skip when typing, except settings still matches
+ *   while typing when {@link MatchGlobalShortcutOpts.settingsOpen} is true
+ *   (toggle / leave Settings from a focused field)
  * - search / help / doctor / copyLastReply / liveVoice / toggleSidebar /
  *   sideFiles / sideBrowser / sideTerminal work while typing
  *   (layout + side / bottom-terminal chords are not blocked by composers)
@@ -385,8 +392,10 @@ export function matchGlobalShortcut(
       continue;
     }
     // newChat / settings: skip while typing (same as pre-remap handler).
+    // Settings chord still fires while typing if the page is already open
+    // so the same shortcut can leave Settings from a focused field.
     if ((id === "newChat" || id === "settings") && ctx.typing) {
-      continue;
+      if (!(id === "settings" && opts?.settingsOpen)) continue;
     }
     // Live Voice hotkey can be disabled in Settings (composer / menus still work).
     if (id === "liveVoice" && !shouldFireLiveVoiceHotkey(voiceHotkeyEnabled)) {
@@ -519,6 +528,22 @@ export function detectShortcutPlatform(): "mac" | "win" | "other" {
   }
   if (/Win/i.test(p) || /Windows/i.test(ua)) return "win";
   return "other";
+}
+
+/** Visible chord for a catalog id (remap-aware, current OS). */
+export function formatShortcutHint(
+  id: ShortcutId,
+  remaps?: ShortcutRemapMap | null,
+  platform: "mac" | "win" | "other" = detectShortcutPlatform(),
+): string {
+  const map =
+    remaps !== undefined
+      ? remaps
+      : typeof localStorage !== "undefined"
+        ? loadShortcutRemaps()
+        : {};
+  const plat = platform === "mac" ? "mac" : "win";
+  return formatChordDisplay(effectiveShortcutChord(id, map), plat);
 }
 
 export function shortcutsByGroup(

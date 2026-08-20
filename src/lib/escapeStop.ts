@@ -1,9 +1,9 @@
 /**
- * Esc → stop generation gate.
+ * Esc → stop generation / leave Settings.
  *
- * Shortcuts catalog documents Esc as “Stop generation / close overlay”.
- * Overlays, permission, ask-user, find, menus, and voice own Escape first;
- * stop only when the turn is busy and nothing else claims the key.
+ * Overlays, permission, ask-user, find, menus, and voice own Escape first.
+ * Settings is a full-page view: Esc leaves it instead of stopping a
+ * background turn. Nested GlassModal / Select layers still own Escape.
  */
 
 export type EscapeStopOpts = {
@@ -23,21 +23,66 @@ export type EscapeStopOpts = {
   promptHistoryOpen?: boolean;
   /** In-progress voice dictation steals Esc. */
   voiceStealsEscape?: boolean;
+  /** Settings view is showing (Esc leaves; does not stop). */
+  settingsOpen?: boolean;
 };
 
-/**
- * Whether global Escape should call `stop()` instead of doing nothing.
- * True only when a stoppable turn is active and no higher-priority owner
- * of Escape is open.
- */
+export type EscapeCloseSettingsOpts = Omit<
+  EscapeStopOpts,
+  "streamingOrBusy"
+> & {
+  settingsOpen: boolean;
+  /** GlassModal / Select already owns Escape. */
+  nestedLayerOpen?: boolean;
+};
+
+/** GlassModal overlay and Settings Select menus — Esc closes those first. */
+export const SETTINGS_NESTED_ESCAPE_SELECTOR =
+  ".overlay .modal, .c-select__menu";
+
+function escapeOwnedByOverlay(
+  opts: Pick<
+    EscapeStopOpts,
+    | "overlayOpen"
+    | "permOpen"
+    | "askUserOpen"
+    | "chatFindOpen"
+    | "slashOrMenuOpen"
+    | "promptHistoryOpen"
+    | "voiceStealsEscape"
+  >,
+): boolean {
+  return Boolean(
+    opts.voiceStealsEscape ||
+      opts.overlayOpen ||
+      opts.permOpen ||
+      opts.askUserOpen ||
+      opts.chatFindOpen ||
+      opts.slashOrMenuOpen ||
+      opts.promptHistoryOpen,
+  );
+}
+
+/** Stop the turn only when busy and nothing else owns Escape. */
 export function shouldEscapeStopGeneration(opts: EscapeStopOpts): boolean {
   if (!opts.streamingOrBusy) return false;
-  if (opts.voiceStealsEscape) return false;
-  if (opts.overlayOpen) return false;
-  if (opts.permOpen) return false;
-  if (opts.askUserOpen) return false;
-  if (opts.chatFindOpen) return false;
-  if (opts.slashOrMenuOpen) return false;
-  if (opts.promptHistoryOpen) return false;
-  return true;
+  if (opts.settingsOpen) return false;
+  return !escapeOwnedByOverlay(opts);
+}
+
+/** Leave Settings for the workbench when nothing else owns Escape. */
+export function shouldEscapeCloseSettings(
+  opts: EscapeCloseSettingsOpts,
+): boolean {
+  if (!opts.settingsOpen) return false;
+  if (opts.nestedLayerOpen) return false;
+  return !escapeOwnedByOverlay(opts);
+}
+
+/** Nested Settings dialog / Select should get Escape before leaving the page. */
+export function isSettingsEscapeOwnedByNestedLayer(
+  root: ParentNode | null | undefined,
+): boolean {
+  if (!root || typeof root.querySelector !== "function") return false;
+  return Boolean(root.querySelector(SETTINGS_NESTED_ESCAPE_SELECTOR));
 }

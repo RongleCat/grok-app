@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { shouldEscapeStopGeneration, type EscapeStopOpts } from "./escapeStop";
+import {
+  SETTINGS_NESTED_ESCAPE_SELECTOR,
+  isSettingsEscapeOwnedByNestedLayer,
+  shouldEscapeCloseSettings,
+  shouldEscapeStopGeneration,
+  type EscapeStopOpts,
+} from "./escapeStop";
 
 const free: EscapeStopOpts = {
   streamingOrBusy: true,
@@ -76,5 +82,88 @@ describe("shouldEscapeStopGeneration", () => {
         slashOrMenuOpen: false,
       }),
     ).toBe(true);
+  });
+
+  it("does not stop while Settings is open (Esc leaves settings)", () => {
+    expect(
+      shouldEscapeStopGeneration({ ...free, settingsOpen: true }),
+    ).toBe(false);
+  });
+});
+
+const settingsFree = {
+  settingsOpen: true,
+  overlayOpen: false,
+  permOpen: false,
+  askUserOpen: false,
+  chatFindOpen: false,
+  slashOrMenuOpen: false,
+  promptHistoryOpen: false,
+  voiceStealsEscape: false,
+  nestedLayerOpen: false,
+};
+
+describe("shouldEscapeCloseSettings", () => {
+  it("closes settings when the page is open and nothing else owns Escape", () => {
+    expect(shouldEscapeCloseSettings(settingsFree)).toBe(true);
+  });
+
+  it("does not close when settings are not open", () => {
+    expect(
+      shouldEscapeCloseSettings({ ...settingsFree, settingsOpen: false }),
+    ).toBe(false);
+  });
+
+  it("defers to voice, overlays, menus, and nested dialogs / selects", () => {
+    expect(
+      shouldEscapeCloseSettings({ ...settingsFree, voiceStealsEscape: true }),
+    ).toBe(false);
+    expect(
+      shouldEscapeCloseSettings({ ...settingsFree, overlayOpen: true }),
+    ).toBe(false);
+    expect(
+      shouldEscapeCloseSettings({ ...settingsFree, permOpen: true }),
+    ).toBe(false);
+    expect(
+      shouldEscapeCloseSettings({ ...settingsFree, askUserOpen: true }),
+    ).toBe(false);
+    expect(
+      shouldEscapeCloseSettings({ ...settingsFree, chatFindOpen: true }),
+    ).toBe(false);
+    expect(
+      shouldEscapeCloseSettings({ ...settingsFree, slashOrMenuOpen: true }),
+    ).toBe(false);
+    expect(
+      shouldEscapeCloseSettings({ ...settingsFree, promptHistoryOpen: true }),
+    ).toBe(false);
+    expect(
+      shouldEscapeCloseSettings({ ...settingsFree, nestedLayerOpen: true }),
+    ).toBe(false);
+  });
+});
+
+describe("isSettingsEscapeOwnedByNestedLayer", () => {
+  it("is false for missing roots or no matching node", () => {
+    expect(isSettingsEscapeOwnedByNestedLayer(null)).toBe(false);
+    expect(
+      isSettingsEscapeOwnedByNestedLayer({
+        querySelector: () => null,
+      } as unknown as ParentNode),
+    ).toBe(false);
+  });
+
+  it("is true when querySelector finds a nested layer", () => {
+    const seen: string[] = [];
+    expect(
+      isSettingsEscapeOwnedByNestedLayer({
+        querySelector: (sel: string) => {
+          seen.push(sel);
+          return {} as Element;
+        },
+      } as unknown as ParentNode),
+    ).toBe(true);
+    expect(seen).toEqual([SETTINGS_NESTED_ESCAPE_SELECTOR]);
+    expect(SETTINGS_NESTED_ESCAPE_SELECTOR).toContain(".overlay .modal");
+    expect(SETTINGS_NESTED_ESCAPE_SELECTOR).toContain(".c-select__menu");
   });
 });

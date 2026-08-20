@@ -98,6 +98,8 @@ import {
   loadComposerSendKeyPref,
   type ComposerSendKeyPref,
 } from "@/lib/composerSendKey";
+import { formatShortcutHint } from "@/lib/shortcuts";
+import { SHORTCUT_REMAP_CHANGED_EVENT } from "@/lib/shortcutRemap";
 import {
   loadComposerDraftStatsPref,
 } from "@/lib/draftStats";
@@ -448,6 +450,14 @@ export function SettingsPage({
   } = { section: sectionGate, tab: tabGate, onSection: onSectionGate, onBack: onBackGate, phoneLayout: phoneLayoutGate, labels: labelsGate, locale: localeGate, focusAnchorId: focusAnchorIdGate, prHubHighlightPr: prHubHighlightPrGate, onFocusAnchorConsumed: onFocusAnchorConsumedGate, ...rest } as SettingsPageProps;
 
   const [query, setQuery] = useState("");
+  const [settingsHint, setSettingsHint] = useState(() =>
+    formatShortcutHint("settings"),
+  );
+  useEffect(() => {
+    const sync = () => setSettingsHint(formatShortcutHint("settings"));
+    window.addEventListener(SHORTCUT_REMAP_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(SHORTCUT_REMAP_CHANGED_EVENT, sync);
+  }, []);
   /** Client-side validation error for Agents JSON (invalid blocks save). */
   const [agentsJsonError, setAgentsJsonError] = useState<string | null>(null);
   const [agentsJsonSaving, setAgentsJsonSaving] = useState(false);
@@ -1759,6 +1769,11 @@ export function SettingsPage({
         >
           <IconArrowLeft size={16} />
           <span>{t("settings.backToApp")}</span>
+          {settingsHint ? (
+            <kbd className="menu-shortcut" aria-hidden>
+              {settingsHint}
+            </kbd>
+          ) : null}
         </button>
 
         <div className="settings-page__search">

@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -52,6 +53,7 @@ import {
   switcherDisplayName,
   type SwitcherQuota,
 } from "@/lib/accountSwitcherQuota";
+import { formatShortcutHint } from "@/lib/shortcuts";
 
 export interface UserMenuProps {
   open: boolean;
@@ -187,6 +189,10 @@ export function UserMenu({
   const [themeSubOpen, setThemeSubOpen] = useState(false);
   const [flyoutStyle, setFlyoutStyle] = useState<CSSProperties | null>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const settingsHint = useMemo(
+    () => (open ? formatShortcutHint("settings") : ""),
+    [open],
+  );
 
   useEffect(() => {
     if (!open) setThemeSubOpen(false);
@@ -634,7 +640,12 @@ export function UserMenu({
               }}
             >
               <IconSettings size={16} />
-              <span>{labels.settings}</span>
+              <span className="user-menu__item-label">{labels.settings}</span>
+              {settingsHint ? (
+                <kbd className="menu-shortcut" aria-hidden>
+                  {settingsHint}
+                </kbd>
+              ) : null}
             </button>
 
             {onTutorial && labels.tutorial ? (

@@ -4,6 +4,7 @@ import {
   SHORTCUT_SCOPE_ORDER,
   filterShortcutGroups,
   filterShortcutRows,
+  formatShortcutHint,
   matchGlobalShortcut,
   sendShortcutDisplay,
   SHORTCUT_IDS,
@@ -106,6 +107,14 @@ describe("shortcuts catalog", () => {
     expect(
       (GLOBAL_MOD_SHORTCUT_IDS as readonly string[]).includes("sidebarSessionNav"),
     ).toBe(false);
+  });
+
+  it("formats settings hint for the current platform and remaps", () => {
+    expect(formatShortcutHint("settings", {}, "win")).toBe("Ctrl ,");
+    expect(formatShortcutHint("settings", {}, "mac")).toBe("⌘ ,");
+    expect(
+      formatShortcutHint("settings", { settings: "mod+shift+," }, "win"),
+    ).toBe("Ctrl Shift ,");
   });
 
   it("lists close side tab as display-only ⌘W / Ctrl+W", () => {
@@ -287,6 +296,19 @@ describe("matchGlobalShortcut", () => {
     ).toBeNull();
     expect(
       matchGlobalShortcut(chord({ key: ",", typing: true }), noRemaps),
+    ).toBeNull();
+  });
+
+  it("matches settings while typing when settings are already open", () => {
+    expect(
+      matchGlobalShortcut(chord({ key: ",", typing: true }), noRemaps, {
+        settingsOpen: true,
+      }),
+    ).toBe("settings");
+    expect(
+      matchGlobalShortcut(chord({ key: "n", typing: true }), noRemaps, {
+        settingsOpen: true,
+      }),
     ).toBeNull();
   });
 

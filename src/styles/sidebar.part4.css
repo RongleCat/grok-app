@@ -377,6 +377,12 @@ html[data-sidebar-density="compact"] .session-row__meta {
   min-width: 0;
 }
 
+.user-menu__item > .menu-shortcut {
+  display: inline;
+  flex-direction: unset;
+  gap: 0;
+}
+
 .user-menu__item em {
   font-style: normal;
   font-size: 11px;
