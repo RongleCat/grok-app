@@ -353,10 +353,6 @@ import {
   mapPermissionButtons
 } from "@/lib/permissionOptions";
 import { AskUserModal, dropAskUserClocks } from "@/components/AskUserModal";
-import { TraceHistoryList } from "@/components/TraceHistoryList";
-import { PlanHistoryList } from "@/components/PlanHistoryList";
-import { formatListTimestamp } from "@/lib/formatDateTime";
-import { MarkdownBody } from "@/components/MarkdownBody";
 import {
   clearSessionSearchFilters,
   filterSessionSearch,
@@ -976,6 +972,14 @@ import { ShortcutsHelpModal } from "@/components/workbench-modals/ShortcutsHelpM
 import { RewindConfirmModal } from "@/components/workbench-modals/RewindConfirmModal";
 import { ForkConfirmModal } from "@/components/workbench-modals/ForkConfirmModal";
 import { ResumeRestoreConfirmModal } from "@/components/workbench-modals/ResumeRestoreConfirmModal";
+import { ConfirmCopyModal } from "@/components/workbench-modals/ConfirmCopyModal";
+import { RewindTimelineModal } from "@/components/workbench-modals/RewindTimelineModal";
+import { TracesHistoryModal } from "@/components/workbench-modals/TracesHistoryModal";
+import { PlanHistoryModal } from "@/components/workbench-modals/PlanHistoryModal";
+import { PlanHistoryPreviewModal } from "@/components/workbench-modals/PlanHistoryPreviewModal";
+import { PlanReviseModal } from "@/components/workbench-modals/PlanReviseModal";
+import { JsonSchemaModal } from "@/components/workbench-modals/JsonSchemaModal";
+import { QueueEditModal } from "@/components/workbench-modals/QueueEditModal";
 import {
   mergeSessionChange,
   sessionChangesFromMessages,
@@ -22754,89 +22758,21 @@ export function AppWorkbench() {
       />
       </Suspense>
       ) : null}
-      {rewindTimeline && (
-        <div
-          className="overlay"
-          role="presentation"
-          onClick={() => {
-            if (!rewindBusy) setRewindTimeline(null);
-          }}
-        >
-          <div
-            ref={rewindModalRef}
-            className="modal rewind-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="rewind-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header className="modal-head">
-              <h2 id="rewind-modal-title" className="modal-title">
-                {tr("session.rewindTitle")}
-              </h2>
-              <button
-                type="button"
-                className="icon-btn modal-close"
-                onClick={() => setRewindTimeline(null)}
-                aria-label={tr("common.close")}
-                disabled={rewindBusy}
-              >
-                <IconClose size={16} />
-              </button>
-            </header>
-            <p className="rewind-modal__msg">{tr("session.rewindHint")}</p>
-            <div className="rewind-modal__list" role="list">
-              {rewindTimeline.points.map((p) => {
-                const isLast =
-                  p.promptIndex ===
-                  rewindTimeline.points[rewindTimeline.points.length - 1]
-                    ?.promptIndex;
-                return (
-                  <button
-                    key={`${p.promptIndex}-${p.messageId ?? ""}`}
-                    type="button"
-                    role="listitem"
-                    className="rewind-modal__item"
-                    disabled={rewindBusy || isLast}
-                    title={
-                      isLast
-                        ? tr("session.rewindNoop")
-                        : tr("message.rewindHere")
-                    }
-                    onClick={() => {
-                      if (isLast) {
-                        return;
-                      }
-                      confirmRewindToPrompt(
-                        rewindTimeline.sessionId,
-                        p.promptIndex,
-                        p.preview,
-                      );
-                    }}
-                  >
-                    <span className="rewind-modal__idx">
-                      #{p.promptIndex + 1}
-                    </span>
-                    <span className="rewind-modal__preview">
-                      {p.preview || "…"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn--ghost"
-                disabled={rewindBusy}
-                onClick={() => setRewindTimeline(null)}
-              >
-                {tr("common.cancel")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <RewindTimelineModal
+        locale={locale}
+        timeline={rewindTimeline}
+        busy={rewindBusy}
+        panelRef={rewindModalRef}
+        onClose={() => setRewindTimeline(null)}
+        onPick={(promptIndex, preview) => {
+          if (!rewindTimeline) return;
+          confirmRewindToPrompt(
+            rewindTimeline.sessionId,
+            promptIndex,
+            preview,
+          );
+        }}
+      />
 
       <RewindConfirmModal
         locale={locale}
@@ -22900,314 +22836,114 @@ export function AppWorkbench() {
         }}
       />
 
-      <GlassModal
+      <TracesHistoryModal
+        locale={locale}
         open={showTraces}
         onClose={() => setShowTraces(false)}
-        title={tr("session.tracesTitle")}
-        size="md"
-        closeLabel={tr("common.close")}
-        wrapBody
-        className="trace-history-modal"
-        footer={
-          <button
-            type="button"
-            className="btn btn--ghost"
-            onClick={() => setShowTraces(false)}
-          >
-            {tr("common.close")}
-          </button>
-        }
-      >
-        <p className="trace-history-modal__desc">{tr("session.tracesDesc")}</p>
-        <TraceHistoryList
-          locale={locale}
-          labels={{
-            empty: tr("session.tracesEmpty"),
-            emptyFilter: tr("session.tracesEmptyFilter"),
-            reveal: tr("session.tracesReveal"),
-            copyPath: tr("session.tracesCopyPath"),
-            copied: tr("session.tracesCopied"),
-            remove: tr("session.tracesRemove"),
-            clearAll: tr("session.tracesClearAll"),
-            clearConfirmTitle: tr("session.tracesClearConfirmTitle"),
-            clearConfirmMessage: tr("session.tracesClearConfirmMessage"),
-            clearConfirmAction: tr("session.tracesClearConfirmAction"),
-            cancel: tr("common.cancel"),
-            searchPlaceholder: tr("session.tracesSearch"),
-            listAria: tr("session.tracesTitle"),
-            uploadedBadge: tr("session.tracesUploadedBadge"),
-          }}
-          onError={(msg) => showToast(msg, 4000)}
-        />
-      </GlassModal>
+        onError={(msg) => showToast(msg, 4000)}
+      />
 
-      <GlassModal
+      <PlanHistoryModal
+        locale={locale}
         open={showPlanHistory}
+        existingSessionIds={sessions.map((s) => s.id)}
         onClose={() => setShowPlanHistory(false)}
-        title={tr("plan.historyTitle")}
-        size="md"
-        closeLabel={tr("common.close")}
-        wrapBody
-        className="plan-history-modal"
-        footer={
-          <button
-            type="button"
-            className="btn btn--ghost"
-            onClick={() => setShowPlanHistory(false)}
-          >
-            {tr("common.close")}
-          </button>
-        }
-      >
-        <p className="plan-history-modal__desc">{tr("plan.historyDesc")}</p>
-        <PlanHistoryList
-          locale={locale}
-          labels={{
-            empty: tr("plan.historyEmpty"),
-            emptyFilter: tr("plan.historyEmptyFilter"),
-            open: tr("plan.historyOpen"),
-            openSession: tr("plan.historyOpenSession"),
-            clearAll: tr("plan.historyClear"),
-            searchPlaceholder: tr("plan.historySearchPlaceholder"),
-            filterAll: tr("plan.historyFilterAll"),
-            decisionApproved: tr("plan.historyDecisionApproved"),
-            decisionAbandoned: tr("plan.historyDecisionAbandoned"),
-            decisionCompleted: tr("plan.historyDecisionCompleted"),
-            listAria: tr("plan.historyTitle"),
-          }}
-          existingSessionIds={sessions.map((s) => s.id)}
-          onOpen={(entry) => setPlanHistoryPreview(entry)}
-          onOpenSession={(entry) => openPlanHistorySession(entry)}
-          onRequestClearAll={confirmClearPlanHistory}
-        />
-      </GlassModal>
+        onOpen={(entry) => setPlanHistoryPreview(entry)}
+        onOpenSession={(entry) => openPlanHistorySession(entry)}
+        onRequestClearAll={confirmClearPlanHistory}
+      />
 
-      <GlassModal
-        open={!!planHistoryPreview}
+      <PlanHistoryPreviewModal
+        locale={locale}
+        entry={planHistoryPreview}
+        canOpenSession={
+          !!planHistoryPreview &&
+          sessions.some((s) => s.id === planHistoryPreview.sessionId)
+        }
         onClose={() => setPlanHistoryPreview(null)}
-        title={tr("plan.historyPreviewTitle")}
-        size="md"
-        closeLabel={tr("common.close")}
-        wrapBody
-        className="plan-history-preview-modal"
-        footer={
-          <>
-            {planHistoryPreview &&
-            sessions.some((s) => s.id === planHistoryPreview.sessionId) ? (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={() => {
-                  if (planHistoryPreview) {
-                    openPlanHistorySession(planHistoryPreview);
-                  }
-                }}
-              >
-                {tr("plan.historyOpenSession")}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setPlanHistoryPreview(null)}
-            >
-              {tr("common.close")}
-            </button>
-          </>
-        }
-      >
-        {planHistoryPreview ? (
-          <div className="plan-history-preview">
-            <div className="plan-history-preview__meta">
-              <span>
-                {planHistoryPreview.decision === "approved"
-                  ? tr("plan.historyDecisionApproved")
-                  : planHistoryPreview.decision === "abandoned"
-                    ? tr("plan.historyDecisionAbandoned")
-                    : tr("plan.historyDecisionCompleted")}
-              </span>
-              {planHistoryPreview.title ? (
-                <span title={planHistoryPreview.title}>
-                  {planHistoryPreview.title}
-                </span>
-              ) : null}
-              {planHistoryPreview.at ? (
-                <span>
-                  {formatListTimestamp(planHistoryPreview.at, locale)}
-                </span>
-              ) : null}
-            </div>
-            {planHistoryPreview.bodyPreview.trim() ? (
-              <MarkdownBody locale={locale}>
-                {planHistoryPreview.bodyPreview}
-              </MarkdownBody>
-            ) : (
-              <div className="plan-history-preview__empty">
-                {tr("plan.historyPreviewEmpty")}
-              </div>
-            )}
-          </div>
-        ) : null}
-      </GlassModal>
+        onOpenSession={() => {
+          if (planHistoryPreview) openPlanHistorySession(planHistoryPreview);
+        }}
+      />
 
-      <GlassModal
+      <PlanReviseModal
+        locale={locale}
         open={planReviseOpen}
+        note={planReviseNote}
+        onNoteChange={setPlanReviseNote}
         onClose={() => {
           setPlanReviseOpen(false);
           setPlanReviseNote("");
         }}
-        title={tr("plan.reviseNoteTitle")}
-        size="sm"
-        closeLabel={tr("common.close")}
-        wrapBody
-        className="plan-revise-modal"
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => {
-                setPlanReviseOpen(false);
-                setPlanReviseNote("");
-              }}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--solid"
-              onClick={() => void requestPlanChanges(planReviseNote)}
-              data-testid="plan-revise-submit"
-            >
-              {tr("plan.reviseNoteSubmit")}
-            </button>
-          </>
-        }
-      >
-        <p className="plan-revise-modal__desc">{tr("plan.reviseNoteDesc")}</p>
-        <label className="plan-revise-modal__field">
-          <span className="sr-only">{tr("plan.reviseNotePlaceholder")}</span>
-          <textarea
-            className="plan-revise-modal__textarea"
-            value={planReviseNote}
-            onChange={(e) => setPlanReviseNote(e.target.value)}
-            placeholder={tr("plan.reviseNotePlaceholder")}
-            rows={4}
-            autoFocus
-            data-testid="plan-revise-note"
-          />
-        </label>
-      </GlassModal>
+        onSubmit={() => void requestPlanChanges(planReviseNote)}
+      />
 
-      <GlassModal
+      <JsonSchemaModal
+        locale={locale}
         open={showJsonSchemaModal}
+        draft={jsonSchemaDraft}
+        hasStoredSchema={!!sessionJsonSchema}
+        onDraftChange={setJsonSchemaDraft}
         onClose={() => setShowJsonSchemaModal(false)}
-        title={tr("composer.jsonSchemaTitle")}
-        size="md"
-        closeLabel={tr("common.close")}
-        wrapBody
-        className="json-schema-modal"
-        footer={
-          <div className="json-schema-modal__actions">
-            {sessionJsonSchema ? (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={() => {
-                  void (async () => {
-                    const sid = session.sessionId;
-                    setSessionJsonSchema(null);
-                    setJsonSchemaDraft("");
-                    setShowJsonSchemaModal(false);
-                    if (sid && api.isTauri()) {
-                      try {
-                        await api.sessionSetJsonSchema(sid, null);
-                      } catch {
-                        /* ignore */
-                      }
-                    }
-                    if (sid) {
-                      setSessions((list) =>
-                        list.map((row) =>
-                          row.id === sid ? { ...row, jsonSchema: null } : row,
-                        ),
-                      );
-                    }
-                  })();
-                }}
-              >
-                {tr("composer.jsonSchemaClear")}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setShowJsonSchemaModal(false)}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => {
-                void (async () => {
-                  const parsed = parseJsonSchemaText(jsonSchemaDraft);
-                  if (!parsed.ok) {
-                    showToast(tr("composer.jsonSchemaInvalid"), 4000);
-                    return;
-                  }
-                  const sid = session.sessionId;
-                  setSessionJsonSchema(parsed.normalized);
-                  if (sid && api.isTauri()) {
-                    try {
-                      const saved = await api.sessionSetJsonSchema(
-                        sid,
-                        parsed.normalized,
-                      );
-                      const next =
-                        typeof saved.jsonSchema === "string" &&
-                        saved.jsonSchema.trim()
-                          ? saved.jsonSchema
-                          : parsed.normalized;
-                      setSessionJsonSchema(next);
-                      setSessions((list) =>
-                        list.map((row) =>
-                          row.id === sid
-                            ? { ...row, jsonSchema: next }
-                            : row,
-                        ),
-                      );
-                    } catch (e) {
-                      showToast(String(e), 4000);
-                      return;
-                    }
-                  } else if (!sid) {
-                    showToast(tr("composer.jsonSchemaEmptySession"), 3200);
-                  }
-                  setShowJsonSchemaModal(false);
-                })();
-              }}
-            >
-              {tr("composer.jsonSchemaApply")}
-            </button>
-          </div>
-        }
-      >
-        <p className="json-schema-modal__hint">
-          {tr("composer.jsonSchemaHint")}
-        </p>
-        <p className="json-schema-modal__experimental">
-          {tr("composer.jsonSchemaExperimental")}
-        </p>
-        <textarea
-          className="json-schema-modal__textarea"
-          value={jsonSchemaDraft}
-          onChange={(e) => setJsonSchemaDraft(e.target.value)}
-          placeholder={tr("composer.jsonSchemaPlaceholder")}
-          spellCheck={false}
-          aria-label={tr("composer.jsonSchemaTitle")}
-        />
-      </GlassModal>
+        onClear={() => {
+          void (async () => {
+            const sid = session.sessionId;
+            setSessionJsonSchema(null);
+            setJsonSchemaDraft("");
+            setShowJsonSchemaModal(false);
+            if (sid && api.isTauri()) {
+              try {
+                await api.sessionSetJsonSchema(sid, null);
+              } catch {
+                /* ignore */
+              }
+            }
+            if (sid) {
+              setSessions((list) =>
+                list.map((row) =>
+                  row.id === sid ? { ...row, jsonSchema: null } : row,
+                ),
+              );
+            }
+          })();
+        }}
+        onApply={() => {
+          void (async () => {
+            const parsed = parseJsonSchemaText(jsonSchemaDraft);
+            if (!parsed.ok) {
+              showToast(tr("composer.jsonSchemaInvalid"), 4000);
+              return;
+            }
+            const sid = session.sessionId;
+            setSessionJsonSchema(parsed.normalized);
+            if (sid && api.isTauri()) {
+              try {
+                const saved = await api.sessionSetJsonSchema(
+                  sid,
+                  parsed.normalized,
+                );
+                const next =
+                  typeof saved.jsonSchema === "string" &&
+                  saved.jsonSchema.trim()
+                    ? saved.jsonSchema
+                    : parsed.normalized;
+                setSessionJsonSchema(next);
+                setSessions((list) =>
+                  list.map((row) =>
+                    row.id === sid ? { ...row, jsonSchema: next } : row,
+                  ),
+                );
+              } catch (e) {
+                showToast(String(e), 4000);
+                return;
+              }
+            } else if (!sid) {
+              showToast(tr("composer.jsonSchemaEmptySession"), 3200);
+            }
+            setShowJsonSchemaModal(false);
+          })();
+        }}
+      />
 
       <GlassModal
         open={!!sessionNoteTarget}
@@ -23323,67 +23059,34 @@ export function AppWorkbench() {
         })()}
       </GlassModal>
 
-      <GlassModal
+      <ConfirmCopyModal
         open={sessionNoteDiscardOpen}
-        onClose={() => setSessionNoteDiscardOpen(false)}
         title={tr("resources.discardTitle")}
-        size="sm"
+        body={tr("session.noteDiscardBody")}
         closeLabel={tr("common.close")}
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setSessionNoteDiscardOpen(false)}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--solid"
-              onClick={() => {
-                setSessionNoteDiscardOpen(false);
-                forceCloseSessionNoteModal();
-              }}
-            >
-              {tr("resources.discardConfirm")}
-            </button>
-          </>
-        }
-      >
-        <p className="rp-modal-copy">{tr("session.noteDiscardBody")}</p>
-      </GlassModal>
+        cancelLabel={tr("common.cancel")}
+        confirmLabel={tr("resources.discardConfirm")}
+        onClose={() => setSessionNoteDiscardOpen(false)}
+        onConfirm={() => {
+          setSessionNoteDiscardOpen(false);
+          forceCloseSessionNoteModal();
+        }}
+      />
 
-      <GlassModal
+      <ConfirmCopyModal
         open={sessionNoteClearOpen}
-        onClose={() => setSessionNoteClearOpen(false)}
         title={tr("session.noteClearTitle")}
-        size="sm"
+        body={tr("session.noteClearBody")}
         closeLabel={tr("common.close")}
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setSessionNoteClearOpen(false)}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--solid btn--danger"
-              onClick={() => {
-                setSessionNoteClearOpen(false);
-                confirmClearSessionNoteModal();
-              }}
-            >
-              {tr("session.noteClearConfirm")}
-            </button>
-          </>
-        }
-      >
-        <p className="rp-modal-copy">{tr("session.noteClearBody")}</p>
-      </GlassModal>
+        cancelLabel={tr("common.cancel")}
+        confirmLabel={tr("session.noteClearConfirm")}
+        danger
+        onClose={() => setSessionNoteClearOpen(false)}
+        onConfirm={() => {
+          setSessionNoteClearOpen(false);
+          confirmClearSessionNoteModal();
+        }}
+      />
 
       <GlassModal
         open={!!sessionRulesTarget}
@@ -23524,36 +23227,19 @@ export function AppWorkbench() {
         })()}
       </GlassModal>
 
-      <GlassModal
+      <ConfirmCopyModal
         open={sessionRulesDiscardOpen}
-        onClose={() => setSessionRulesDiscardOpen(false)}
         title={tr("resources.discardTitle")}
-        size="sm"
+        body={tr("session.promptDiscardBody")}
         closeLabel={tr("common.close")}
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setSessionRulesDiscardOpen(false)}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--solid"
-              onClick={() => {
-                setSessionRulesDiscardOpen(false);
-                forceCloseSessionRulesModal();
-              }}
-            >
-              {tr("resources.discardConfirm")}
-            </button>
-          </>
-        }
-      >
-        <p className="rp-modal-copy">{tr("session.promptDiscardBody")}</p>
-      </GlassModal>
+        cancelLabel={tr("common.cancel")}
+        confirmLabel={tr("resources.discardConfirm")}
+        onClose={() => setSessionRulesDiscardOpen(false)}
+        onConfirm={() => {
+          setSessionRulesDiscardOpen(false);
+          forceCloseSessionRulesModal();
+        }}
+      />
 
       <GlassModal
         open={!!sessionMaxTurnsTarget}
@@ -23783,36 +23469,19 @@ export function AppWorkbench() {
         })()}
       </GlassModal>
 
-      <GlassModal
+      <ConfirmCopyModal
         open={sessionSysPromptDiscardOpen}
-        onClose={() => setSessionSysPromptDiscardOpen(false)}
         title={tr("resources.discardTitle")}
-        size="sm"
+        body={tr("session.promptDiscardBody")}
         closeLabel={tr("common.close")}
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setSessionSysPromptDiscardOpen(false)}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--solid"
-              onClick={() => {
-                setSessionSysPromptDiscardOpen(false);
-                forceCloseSessionSysPromptModal();
-              }}
-            >
-              {tr("resources.discardConfirm")}
-            </button>
-          </>
-        }
-      >
-        <p className="rp-modal-copy">{tr("session.promptDiscardBody")}</p>
-      </GlassModal>
+        cancelLabel={tr("common.cancel")}
+        confirmLabel={tr("resources.discardConfirm")}
+        onClose={() => setSessionSysPromptDiscardOpen(false)}
+        onConfirm={() => {
+          setSessionSysPromptDiscardOpen(false);
+          forceCloseSessionSysPromptModal();
+        }}
+      />
 
       <GlassModal
         open={!!exportMdTarget}
@@ -24775,98 +24444,35 @@ export function AppWorkbench() {
         </div>
       )}
 
-      {/* Edit queued follow-up (textarea; not window.prompt) */}
-      <GlassModal
+      <QueueEditModal
+        locale={locale}
         open={queueEditItemId !== null}
+        text={queueEditText}
+        textareaRef={queueEditTextareaRef}
+        onTextChange={setQueueEditText}
         onClose={closeQueueEdit}
-        title={tr("composer.queueEditTitle")}
-        size="md"
-        closeLabel={tr("common.close")}
-        wrapBody
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={closeQueueEdit}
-            >
-              {tr("composer.queueEditCancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--solid"
-              onClick={saveQueueEdit}
-            >
-              {tr("composer.queueEditSave")}
-            </button>
-          </>
-        }
-      >
-        <label className="composer__queue-edit-field">
-          <span className="sr-only">{tr("composer.queueEditTitle")}</span>
-          <textarea
-            ref={queueEditTextareaRef}
-            className="composer__queue-edit-textarea settings-input"
-            value={queueEditText}
-            onChange={(e) => setQueueEditText(e.target.value)}
-            rows={6}
-            spellCheck={false}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.preventDefault();
-                closeQueueEdit();
-              }
-              // ⌘/Ctrl+Enter saves (Enter alone inserts newline).
-              if (
-                e.key === "Enter" &&
-                (e.metaKey || e.ctrlKey) &&
-                !e.shiftKey &&
-                !e.altKey
-              ) {
-                e.preventDefault();
-                saveQueueEdit();
-              }
-            }}
-          />
-        </label>
-      </GlassModal>
+        onSave={saveQueueEdit}
+      />
 
-      {/* Clear all queued follow-ups (GlassModal; never window.confirm) */}
-      <GlassModal
+      <ConfirmCopyModal
         open={sendQueueClearOpen}
-        onClose={() => setSendQueueClearOpen(false)}
         title={tr("composer.queueClearConfirmTitle")}
-        size="sm"
-        closeLabel={tr("common.close")}
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => setSendQueueClearOpen(false)}
-            >
-              {tr("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn btn--danger"
-              data-testid="queue-clear-confirm"
-              disabled={!sendQueueClearPlan.confirmNeeded}
-              onClick={confirmClearSendQueue}
-            >
-              {tr("composer.queueClearConfirmAction")}
-            </button>
-          </>
-        }
-      >
-        <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-          {sendQueueClearPlan.confirmNeeded
+        body={
+          sendQueueClearPlan.confirmNeeded
             ? tr("composer.queueClearConfirmMessage", {
                 n: String(sendQueueClearPlan.count),
               })
-            : tr("composer.queueClearEmpty")}
-        </p>
-      </GlassModal>
+            : tr("composer.queueClearEmpty")
+        }
+        closeLabel={tr("common.close")}
+        cancelLabel={tr("common.cancel")}
+        confirmLabel={tr("composer.queueClearConfirmAction")}
+        danger
+        confirmTestId="queue-clear-confirm"
+        confirmDisabled={!sendQueueClearPlan.confirmNeeded}
+        onClose={() => setSendQueueClearOpen(false)}
+        onConfirm={confirmClearSendQueue}
+      />
 
       {/* In-app confirm / prompt (Tauri WebView has no reliable window.prompt/confirm) */}
       {appDialog &&
