@@ -124,7 +124,11 @@ stack full open pipelines.
    after each `await`, abort UI writes when gen or viewing id no longer match.  
 2. **Journal load without reconcile** — switch calls `session_messages` with
    `reconcile: false` (App `messages.json` only). Agent `chat_history` merge is
-   **deferred** (~500ms) only if the user is still on that chat.  
+   **deferred** (~500ms) only if the user is still on that chat.
+   End-of-turn UI rehydrate (`session://stream` done / `session://state` ready /
+   `session://journal_reconciled`) also passes `reconcile: false` — Host
+   `post_turn_reconcile` already merged agent history. Re-parsing jsonl on that
+   IPC path deadlocked the Windows WndProc (#754).  
 3. **Warm connect debounce** (~350ms) — only the settled viewing session may
    call `sessionConnect`; pending timers clear on the next navigation.  
 4. Host: `session_messages` / `paths_classify` run disk work on `spawn_blocking`

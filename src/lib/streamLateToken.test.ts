@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  JOURNAL_REHYDRATE_RECONCILE,
   JOURNAL_REHYDRATE_RETRY_GAPS_MS,
   shouldApplyLateStreamText,
   shouldHealJournalOnStreamDone,
@@ -198,5 +199,9 @@ describe("shouldHealJournalOnStreamDone", () => {
     const total = JOURNAL_REHYDRATE_RETRY_GAPS_MS.reduce((a, b) => a + b, 0);
     expect(JOURNAL_REHYDRATE_RETRY_GAPS_MS).toEqual([400, 500]);
     expect(total).toBeGreaterThanOrEqual(750);
+  });
+
+  it("does not re-parse agent jsonl on end-of-turn rehydrate (#754)", () => {
+    expect(JOURNAL_REHYDRATE_RECONCILE).toBe(false);
   });
 });

@@ -24,6 +24,7 @@ See `docs/llm-wiki/release.md`.
 - **宠物换成完整 bloub 形变目录**：浮层改用测过的 SVG 引擎（静止、思考、眨眼、通知、警示、六边形、轨道、彗星等），不再用旧的 clip-path 表情。设置可选 8 种休息形体和 16 种休息表情。输入框打字会走目录里的警示（斜感叹号），停打后回到所选休息形体；未读完成会话是显眼的橙红圆点（身体已经很热时改用柠黄），不再用视频里的蓝色。
 
 ### Fixed
+- **Windows no longer freezes at end of a long turn (#754)**: A trailing `prompt_complete` after `session/prompt` RPC Ok used to re-arm the end-of-turn handler. The second pass emitted IPC while journal reconcile still held the store lock; the WebView WndProc waited on that lock inside `SendMessage` and the window stopped painting. Duplicate finish is now a no-op, and post-turn UI rehydrate reads App `messages.json` only (Host already merged agent history).
 - **Local session API no longer wedges after the first turn**: A hung ACP handshake used to keep `connect_lock` forever (90s timeout abandoned the waiter without aborting the task). Later `--session-send` / `POST /turns` then waited ~180s and the CLI lied with `app_not_running`. Connect now aborts and bounded-kills pending children; dispatch returns `retry_later` in 15s; health exposes `connectLockBusy`; CLI maps timeouts to `error`; queued external prompts persist on disk and the Host drains them without the main window.
 - **Japanese PR hub and Ukrainian agent command keep `{name}` (#751)**: `ja` `prHub.author` was `作成者` with no author; `uk` `preferredCurrent` shipped `--agent ` with nothing to paste. Catalog tests now fail if any locale drops or renames an `en` placeholder.
 - **Sidebar tree text columns line up (#745)**: Projects and Other labels share one left edge. Project names and the session titles under them share `--tree-text-inset`. The L1 chevron column is 20px (was 28).
@@ -45,6 +46,7 @@ See `docs/llm-wiki/release.md`.
 - **`cargo fmt --check` is green on main (#725)**.
 
 **中文 · 修复**
+- **Windows 长回合结束不再卡死整窗（#754）**：`session/prompt` RPC 已经结束之后，迟到的 `prompt_complete` 会再次武装结束逻辑。第二次结束在 journal 对账还占着 store 锁时发 IPC，WebView 的 WndProc 在 `SendMessage` 里等这把锁，窗口不再重绘。重复结束现在是空操作；回合结束后的 UI 补刷只读 App `messages.json`（Host 已经合并过 agent 历史）。
 - **本地 session API 干完一轮后不再卡死**：卡住的 ACP 握手会把 `connect_lock` 永久占住（90s 超时只放弃等待、不 abort 任务），之后的 `--session-send` / `POST /turns` 会挂到约 180s，CLI 还谎称 `app_not_running`。现在超时会 abort 并用有上界的 kill 清 pending 子进程；派活 15s 内回 `retry_later`；health 带 `connectLockBusy`；CLI 把超时映射成 `error`；外部 queued 落盘，由 Host drain，不依赖主窗口。
 - **日语 PR hub 和乌克兰语 agent 命令不再丢掉 `{name}`（#751）**：`ja` 的 `prHub.author` 只有「作成者」没有人名；`uk` 的 `preferredCurrent` 复制出来是空的 `--agent `。目录测试会拦截任何语言丢掉或改名 en 占位符。
 - **侧栏树文字列对齐（#745）**：Projects 与 Other 标题左缘对齐；项目名与其下会话标题共用 `--tree-text-inset`。一级箭头列从 28px 收到 20px。

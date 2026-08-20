@@ -103,6 +103,7 @@ import {
   toolEventNeedsImmediateFlush,
 } from "@/lib/streamCoalesce";
 import {
+  JOURNAL_REHYDRATE_RECONCILE,
   JOURNAL_REHYDRATE_RETRY_GAPS_MS,
   shouldApplyLateStreamText,
   shouldHealJournalOnStreamDone,
@@ -390,7 +391,7 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
           opts?: { clearStreaming?: boolean },
         ) => {
           void api
-            .sessionMessages(sid)
+            .sessionMessages(sid, { reconcile: JOURNAL_REHYDRATE_RECONCILE })
             .then((stored) => {
               if (cancelled || c.viewingSessionIdRef.current !== sid) return;
               const hostState =

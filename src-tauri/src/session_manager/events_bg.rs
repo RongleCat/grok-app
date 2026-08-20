@@ -143,18 +143,22 @@ impl SessionManager {
                         if authoritative {
                             s.prompt_in_flight = false;
                         }
-                        s.deferred_prompt_complete = Some(stop_reason.clone());
-                        // Keep turn open while tools still running (long find / subagent).
-                        match Self::try_finish_deferred_prompt_complete(s, Some(app)) {
-                            None => {
-                                tracing::info!(
-                                    "background prompt_complete deferred sid={} tools={}",
-                                    app_session_id,
-                                    s.open_tool_ids.len()
-                                );
-                                false
+                        if !Self::should_rearm_deferred_prompt_complete(s) {
+                            false
+                        } else {
+                            s.deferred_prompt_complete = Some(stop_reason.clone());
+                            // Keep turn open while tools still running (long find / subagent).
+                            match Self::try_finish_deferred_prompt_complete(s, Some(app)) {
+                                None => {
+                                    tracing::info!(
+                                        "background prompt_complete deferred sid={} tools={}",
+                                        app_session_id,
+                                        s.open_tool_ids.len()
+                                    );
+                                    false
+                                }
+                                Some(_) => true,
                             }
-                            Some(_) => true,
                         }
                     } else {
                         false

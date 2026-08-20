@@ -323,6 +323,23 @@ impl SessionManager {
         }
     }
 
+    /// A second `prompt_complete` (notification + `session/prompt` RPC Ok)
+    /// must not re-arm finish after the turn already left Streaming.
+    ///
+    /// Rearming `deferred_prompt_complete` ran the end-of-turn handler twice
+    /// (#754): the second pass emitted IPC while still holding `inner`, overlapping
+    /// post-turn journal reconcile's store lock. On Windows the WebView WndProc
+    /// then waited on that lock inside `SendMessage` and the window froze.
+    pub(super) fn should_rearm_deferred_prompt_complete(s: &LiveSession) -> bool {
+        if s.prompt_in_flight {
+            return true;
+        }
+        matches!(
+            s.fsm.state(),
+            SessionState::Streaming | SessionState::AwaitingPermission
+        )
+    }
+
     /// Finish turn when a deferred `prompt_complete` is safe (#52).
     /// Returns `Some(empty_run)` if finished (`None` inside = finished, not empty);
     /// returns `None` if still deferred.
@@ -338,6 +355,12 @@ impl SessionManager {
         // has gone quiet (and `PROMPT_TIMEOUT_SECS` caps a wedged RPC), so this
         // cannot hang.
         if s.prompt_in_flight {
+            return None;
+        }
+        // Duplicate prompt_complete after a successful finish: clear the
+        // re-armed deferred flag and do not flush/emit/journal again.
+        if s.active_turn_id.is_none() && s.fsm.state() == SessionState::Ready {
+            s.deferred_prompt_complete = None;
             return None;
         }
         // Drop journal-terminal / aged open tools first so bg handoff leftovers

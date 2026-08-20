@@ -284,21 +284,25 @@ impl SessionManager {
                         if authoritative {
                             s.prompt_in_flight = false;
                         }
-                        s.deferred_prompt_complete = Some(stop_reason.clone());
-                        // #52: do not Ready the UI while tools / permission / ask_user / plan
-                        // are still open — agent often fires prompt_complete early.
-                        match Self::try_finish_deferred_prompt_complete(s, Some(app)) {
-                            None => {
-                                tracing::info!(
-                                    "acp prompt_complete deferred stop={stop_reason} tools={} perm={} plan={} ask={}",
-                                    s.open_tool_ids.len(),
-                                    s.fsm.state() == SessionState::AwaitingPermission,
-                                    s.pending_plan_rpc_id.is_some(),
-                                    s.pending_ask_user_rpc_id.is_some(),
-                                );
-                                None
+                        if !Self::should_rearm_deferred_prompt_complete(s) {
+                            None
+                        } else {
+                            s.deferred_prompt_complete = Some(stop_reason.clone());
+                            // #52: do not Ready the UI while tools / permission / ask_user / plan
+                            // are still open — agent often fires prompt_complete early.
+                            match Self::try_finish_deferred_prompt_complete(s, Some(app)) {
+                                None => {
+                                    tracing::info!(
+                                        "acp prompt_complete deferred stop={stop_reason} tools={} perm={} plan={} ask={}",
+                                        s.open_tool_ids.len(),
+                                        s.fsm.state() == SessionState::AwaitingPermission,
+                                        s.pending_plan_rpc_id.is_some(),
+                                        s.pending_ask_user_rpc_id.is_some(),
+                                    );
+                                    None
+                                }
+                                Some(empty) => empty,
                             }
-                            Some(empty) => empty,
                         }
                     } else {
                         None

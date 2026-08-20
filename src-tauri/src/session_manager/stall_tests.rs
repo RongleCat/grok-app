@@ -306,6 +306,44 @@ fn deferred_prompt_complete_finishes_after_orphan_prune() {
     });
 }
 
+/// #754: session/prompt RPC Ok already finished the turn. A trailing
+/// prompt_complete notification must not re-arm deferred finish.
+#[test]
+fn prompt_complete_does_not_rearm_after_turn_is_ready() {
+    with_temp_app_home(|| {
+        let t0 = Instant::now();
+        let mut s = streaming_session(t0, |s| {
+            s.prompt_in_flight = false;
+            s.deferred_prompt_complete = Some("end_turn".into());
+            s.saw_model_output = true;
+        });
+        let first = SessionManager::try_finish_deferred_prompt_complete(&mut s, None);
+        assert!(first.is_some(), "first finish should complete the turn");
+        assert_eq!(s.fsm.state(), SessionState::Ready);
+        assert!(s.active_turn_id.is_none());
+        assert!(!SessionManager::should_rearm_deferred_prompt_complete(&s));
+
+        s.deferred_prompt_complete = Some("end_turn".into());
+        let second = SessionManager::try_finish_deferred_prompt_complete(&mut s, None);
+        assert!(
+            second.is_none(),
+            "duplicate prompt_complete must not finish again"
+        );
+        assert!(s.deferred_prompt_complete.is_none());
+        assert_eq!(s.fsm.state(), SessionState::Ready);
+    });
+}
+
+#[test]
+fn prompt_complete_still_rearms_while_rpc_in_flight() {
+    let t0 = Instant::now();
+    let s = streaming_session(t0, |s| {
+        s.prompt_in_flight = true;
+        s.deferred_prompt_complete = None;
+    });
+    assert!(SessionManager::should_rearm_deferred_prompt_complete(&s));
+}
+
 #[test]
 fn enrich_recovers_mcp_tool_name_from_sparse_completed() {
     let raw = json!({

@@ -83,6 +83,15 @@ export function shouldHealJournalOnStreamDone(opts: {
 export const JOURNAL_REHYDRATE_RETRY_GAPS_MS = [400, 500] as const;
 
 /**
+ * End-of-turn UI rehydrate must not re-parse agent `chat_history` / `updates`.
+ * Host `post_turn_reconcile` already merged those rows. Passing `reconcile: true`
+ * here stacked a second jsonl parse on `session_messages` while the Host still
+ * held the process store lock — on Windows that wait sat inside the WebView
+ * WndProc and froze the window (#754).
+ */
+export const JOURNAL_REHYDRATE_RECONCILE = false;
+
+/**
  * Early `session://stream` `done:true` (prompt_complete / prompt RPC
  * fallback) must not freeze the bubble while Host is still mid-turn.
  * A later fragment would then render as 工作了 + copy/MD/retry under a
