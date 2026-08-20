@@ -245,42 +245,63 @@
         } catch (e) {
           /* ignore */
         }
+        /*
+         * Boot copy for every shipped catalog. The splash paints before the JS
+         * bundle arrives, so it cannot read src/i18n — src/i18n/bootShell.test.ts
+         * asserts each row still equals that locale's `setup.title` and
+         * `setup.detecting`, so the two cannot drift apart.
+         */
+        var BOOT_COPY = {
+          "de": ["Willkommen bei Grok", "Grok Build wird geprüft…"],
+          "en": ["Welcome to Grok", "Checking Grok Build…"],
+          "es": ["Te damos la bienvenida a Grok", "Comprobando Grok Build…"],
+          "fil": ["Maligayang pagdating sa Grok", "Sini-check ang Grok Build…"],
+          "fr": ["Bienvenue dans Grok", "Vérification de Grok Build…"],
+          "id": ["Selamat datang di Grok", "Memeriksa Grok Build…"],
+          "it": ["Benvenuto in Grok", "Verifica di Grok Build…"],
+          "ja": ["Grok へようこそ", "Grok Build を確認中…"],
+          "ko": ["Grok에 오신 것을 환영합니다", "Grok Build 확인 중…"],
+          "pt-BR": ["Boas-vindas ao Grok", "Verificando o Grok Build…"],
+          "ru": ["Добро пожаловать в Grok", "Проверка Grok Build…"],
+          "ta": ["Grok க்கு வரவேற்கிறோம்", "Grok Build ஐச் சரிபார்க்கிறது…"],
+          "uk": ["Ласкаво просимо до Grok", "Перевірка Grok Build…"],
+          "zh": ["欢迎使用 Grok", "正在检测 Grok Build…"],
+          "zh-TW": ["歡迎使用 Grok", "正在偵測 Grok Build…"]
+        };
         try {
           var loc = window.__GROK_BOOT_LOCALE__;
-          if (loc !== "zh" && loc !== "zh-TW" && loc !== "en") {
+          if (!BOOT_COPY[loc]) {
+            // No Host value: `vite dev` in a browser, or a settings id this
+            // build predates. Aliases mirror `normalizeLocale` in src/i18n.
             var nav = String(
               (navigator.languages && navigator.languages[0]) ||
                 navigator.language ||
                 "",
             ).toLowerCase();
-            if (
-              nav.indexOf("zh") === 0 &&
-              (nav.indexOf("tw") >= 0 ||
-                nav.indexOf("hk") >= 0 ||
-                nav.indexOf("hant") >= 0 ||
-                nav.indexOf("mo") >= 0)
-            ) {
-              loc = "zh-TW";
-            } else if (nav.indexOf("zh") === 0) {
-              loc = "zh";
+            if (nav.indexOf("zh") === 0) {
+              loc = /hant|tw|hk|mo/.test(nav) ? "zh-TW" : "zh";
+            } else if (nav.indexOf("pt") === 0) {
+              loc = "pt-BR";
+            } else if (nav.indexOf("tl") === 0) {
+              loc = "fil";
+            } else if (nav.indexOf("in") === 0) {
+              loc = "id";
             } else {
-              loc = "en";
+              var primary = nav.split(/[-_]/)[0];
+              loc = BOOT_COPY[primary] ? primary : "en";
             }
           }
-          var htmlLang =
-            loc === "zh" ? "zh-CN" : loc === "zh-TW" ? "zh-TW" : "en";
-          document.documentElement.setAttribute("lang", htmlLang);
-          var copy =
-            loc === "zh-TW"
-              ? { title: "歡迎使用 Grok", sub: "正在偵測 Grok Build…" }
-              : loc === "en"
-                ? { title: "Welcome to Grok", sub: "Checking Grok Build…" }
-                : { title: "欢迎使用 Grok", sub: "正在检测 Grok Build…" };
+          // Catalog ids are valid BCP-47 except `zh` (see htmlLangForLocale).
+          document.documentElement.setAttribute(
+            "lang",
+            loc === "zh" ? "zh-CN" : loc,
+          );
+          var copy = BOOT_COPY[loc] || BOOT_COPY["en"];
           var applyCopy = function () {
             var titleEl = document.querySelector(".boot-title");
             var subEl = document.querySelector(".boot-subtitle");
-            if (titleEl) titleEl.textContent = copy.title;
-            if (subEl) subEl.textContent = copy.sub;
+            if (titleEl) titleEl.textContent = copy[0];
+            if (subEl) subEl.textContent = copy[1];
           };
           if (document.querySelector(".boot-title")) applyCopy();
           else document.addEventListener("DOMContentLoaded", applyCopy);
