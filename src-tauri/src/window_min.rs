@@ -99,7 +99,10 @@ mod tests {
     fn large_display_keeps_comfort() {
         assert_eq!(snap_friendly_min(900.0, 1920.0), 900.0);
         assert_eq!(snap_friendly_min(900.0, 2560.0), 900.0);
-        assert_eq!(snap_friendly_min(600.0, 1080.0), 600.0);
+        // 1080 work height: half is 540, so comfort 600 cannot be kept.
+        assert_eq!(snap_friendly_min(600.0, 1080.0), 540.0);
+        // 1200+ work height keeps 600.
+        assert_eq!(snap_friendly_min(600.0, 1200.0), 600.0);
     }
 
     #[test]
@@ -129,6 +132,10 @@ mod tests {
         );
         assert_eq!(
             snap_friendly_min_size(900.0, 600.0, 1920.0, 1080.0),
+            (900.0, 540.0)
+        );
+        assert_eq!(
+            snap_friendly_min_size(900.0, 600.0, 1920.0, 1200.0),
             (900.0, 600.0)
         );
     }
