@@ -1,7 +1,5 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App";
-import { PetApp } from "./components/pet/PetApp";
 import { isPetShellHash } from "@/lib/pet/petShell";
 import { UpdaterProvider } from "./hooks/UpdaterProvider";
 import "./styles/tokens.css";
@@ -230,14 +228,23 @@ document.addEventListener(
   true,
 );
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    {petShell ? (
-      <PetApp />
-    ) : (
-      <UpdaterProvider>
-        <App />
-      </UpdaterProvider>
-    )}
-  </StrictMode>,
-);
+const root = createRoot(document.getElementById("root")!);
+if (petShell) {
+  void import("./components/pet/PetApp").then(({ PetApp }) => {
+    root.render(
+      <StrictMode>
+        <PetApp />
+      </StrictMode>,
+    );
+  });
+} else {
+  void import("./App").then(({ default: App }) => {
+    root.render(
+      <StrictMode>
+        <UpdaterProvider>
+          <App />
+        </UpdaterProvider>
+      </StrictMode>,
+    );
+  });
+}
