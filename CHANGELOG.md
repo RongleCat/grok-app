@@ -20,6 +20,7 @@ See `docs/llm-wiki/release.md`.
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
 
 ### Changed
+- **Pet cursor watch idles when hidden**: Overlay pointer polling stays ~64ms while visible or dragging, and sleeps 500ms when the pet is hidden or disabled.
 - **Session journals write compact JSON**: `messages.json` mid-stream flushes rewrite the whole file; pretty-print indent was extra disk/CPU on long chats. Existing pretty files still load.
 - **Stream-perf actually drops wallpaper GPU cost**: `html[data-stream-perf="1"]` now turns off wallpaper sidebar/settings blur and pauses wallpaper video for the live turn (the flag already existed; CSS/JS did not honor it).
 - **Streaming markdown keeps a stable ReactMarkdown component map**: `remarkPlugins` and leaf tags are module-level; path/code/img handlers memoize so a token tick does not remount the tree.
@@ -28,6 +29,7 @@ See `docs/llm-wiki/release.md`.
 - **Official site on GitHub About and README**: Repo homepage, `package.json` `homepage`, and public READMEs now point to [https://grok-app.com/](https://grok-app.com/).
 
 **中文 · 变更**
+- **桌宠隐藏时降低光标轮询**：可见或拖动时仍约 64ms；隐藏/关闭时睡 500ms。
 - **会话 journal 改写紧凑 JSON**：流式落盘会重写整份 `messages.json`，pretty 缩进在长对话上白烧磁盘。旧的 pretty 文件仍能读。
 - **流式性能模式真正减壁纸 GPU**：`html[data-stream-perf="1"]` 会关掉壁纸侧栏/设置毛玻璃，并暂停壁纸视频（旗标早就有，CSS/JS 之前没接上）。
 - **流式 markdown 不再每跳一次 token 换一套 components**：`remarkPlugins` 和叶子标签提到模块级；路径/代码/图片处理器 memo，避免 ReactMarkdown 整树重挂。

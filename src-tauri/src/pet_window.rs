@@ -28,6 +28,22 @@ use tauri::{
 pub const PET_WINDOW_LABEL: &str = "pet";
 const PREFS_FILE: &str = "pet-prefs.json";
 
+/// Cursor/hit poll while the overlay is on screen or being dragged.
+pub const PET_CURSOR_WATCH_ACTIVE_MS: u64 = 64;
+/// Hidden / disabled overlay — do not wake every frame.
+pub const PET_CURSOR_WATCH_IDLE_MS: u64 = 500;
+
+/// Sleep between pet cursor-watch ticks.
+pub fn pet_cursor_watch_sleep_ms(want_show: bool, visible: bool, dragging: bool) -> u64 {
+    if dragging {
+        return PET_CURSOR_WATCH_ACTIVE_MS;
+    }
+    if !want_show || !visible {
+        return PET_CURSOR_WATCH_IDLE_MS;
+    }
+    PET_CURSOR_WATCH_ACTIVE_MS
+}
+
 static DRAGGING: AtomicBool = AtomicBool::new(false);
 static MENU_OPEN: AtomicBool = AtomicBool::new(false);
 static WATCH_STARTED: AtomicBool = AtomicBool::new(false);
@@ -1049,7 +1065,19 @@ pub fn start_cursor_watch(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let wayland = pet_wayland_display();
         loop {
-            tokio::time::sleep(Duration::from_millis(64)).await;
+            let want = WANT_SHOW.load(Ordering::SeqCst);
+            let dragging = DRAGGING.load(Ordering::Relaxed);
+            let visible = app
+                .get_webview_window(PET_WINDOW_LABEL)
+                .and_then(|w| w.is_visible().ok())
+                .unwrap_or(false);
+            tokio::time::sleep(Duration::from_millis(pet_cursor_watch_sleep_ms(
+                want, visible, dragging,
+            )))
+            .await;
+            if !want && !dragging {
+                continue;
+            }
             let Some(win) = app.get_webview_window(PET_WINDOW_LABEL) else {
                 continue;
             };
@@ -1367,6 +1395,30 @@ pub fn pet_set_hit_chrome(chrome: PetHitChromeIn) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cursor_watch_sleeps_longer_when_hidden() {
+        assert_eq!(
+            pet_cursor_watch_sleep_ms(true, true, false),
+            PET_CURSOR_WATCH_ACTIVE_MS
+        );
+        assert_eq!(
+            pet_cursor_watch_sleep_ms(true, true, true),
+            PET_CURSOR_WATCH_ACTIVE_MS
+        );
+        assert_eq!(
+            pet_cursor_watch_sleep_ms(false, false, false),
+            PET_CURSOR_WATCH_IDLE_MS
+        );
+        assert_eq!(
+            pet_cursor_watch_sleep_ms(true, false, false),
+            PET_CURSOR_WATCH_IDLE_MS
+        );
+        assert_eq!(
+            pet_cursor_watch_sleep_ms(false, false, true),
+            PET_CURSOR_WATCH_ACTIVE_MS
+        );
+    }
 
     #[test]
     fn pet_init_script_hides_boot_gate() {
