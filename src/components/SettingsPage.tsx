@@ -93,7 +93,11 @@ import {
   type SidebarDensity,
 } from "@/lib/sidebarDensity";
 import type { WallpaperSourceTab } from "@/components/WallpaperSourceModal";
-import { titlebarMaximizeHandlers } from "@/components/WindowControls";
+import { detectAppPlatform } from "@/lib/appPlatform";
+import {
+  tauriDragRegion,
+  titlebarMaximizeHandlers,
+} from "@/components/WindowControls";
 import {
   loadComposerSendKeyPref,
   type ComposerSendKeyPref,
@@ -1755,7 +1759,7 @@ export function SettingsPage({
       {/* Full-width overlay drag band (does not break glass nav continuity) */}
       <div
         className="settings-page__chrome"
-        data-tauri-drag-region
+        data-tauri-drag-region={tauriDragRegion(detectAppPlatform())}
         aria-hidden
         {...titlebarMaximizeHandlers()}
       />

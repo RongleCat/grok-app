@@ -1081,6 +1081,7 @@ import {
 import { Tip } from "@/components/ui/tooltip";
 import {
   WindowControls,
+  tauriDragRegion,
   titlebarMaximizeHandlers
 } from "@/components/WindowControls";
 
@@ -2736,6 +2737,7 @@ export function AppWorkbench() {
   const titlebarMax = titlebarMaximizeHandlers({
     enabled: !phoneLayout && !isMirrorClient(),
   });
+  const dragRegion = tauriDragRegion(platform);
   /** Right inset so resource chrome icons clear min/max/close. */
   const windowControlsInset = useCustomWindowChrome ? WINDOW_CONTROLS_INSET : 0;
   const [windowMaximized, setWindowMaximized] = useState(false);
@@ -18062,7 +18064,7 @@ export function AppWorkbench() {
         <div className="setup-gate" data-testid="setup-booting">
           <div
             className="setup-gate__drag"
-            data-tauri-drag-region
+            data-tauri-drag-region={dragRegion}
             {...titlebarMax}
           />
           <div className="setup-gate__center">
@@ -18979,7 +18981,7 @@ export function AppWorkbench() {
           {/* Row 1: traffic-light height — panel toggle sits just right of traffic lights */}
           <div
             className="sidebar-chrome"
-            data-tauri-drag-region
+            data-tauri-drag-region={dragRegion}
             {...titlebarMax}
           >
             <Tip label={tr("main.leftPaneHide")}>
@@ -18994,7 +18996,7 @@ export function AppWorkbench() {
             </Tip>
             <div
               className="sidebar-chrome__drag"
-              data-tauri-drag-region
+              data-tauri-drag-region={dragRegion}
               {...titlebarMax}
             />
           </div>
@@ -19942,10 +19944,10 @@ export function AppWorkbench() {
             className={
               "main__top" + (phoneLayout ? " main__top--phone" : "")
             }
-            data-tauri-drag-region
+            data-tauri-drag-region={dragRegion}
             {...titlebarMax}
           >
-            <div className="main__title-row" data-tauri-drag-region>
+            <div className="main__title-row" data-tauri-drag-region={dragRegion}>
               {/* Phone: always-visible hamburger (≥44px). Desktop: reopen when rail hidden. */}
               {phoneLayout ? (
                 <button
@@ -19981,7 +19983,7 @@ export function AppWorkbench() {
                       <IconScheduled size={16} />
                     </span>
                   ) : null}
-                  <h1 className="main__title" data-tauri-drag-region>
+                  <h1 className="main__title" data-tauri-drag-region={dragRegion}>
                     {tr("automations.title")}
                   </h1>
                 </>
@@ -19992,7 +19994,7 @@ export function AppWorkbench() {
                       <IconList size={16} />
                     </span>
                   ) : null}
-                  <h1 className="main__title" data-tauri-drag-region>
+                  <h1 className="main__title" data-tauri-drag-region={dragRegion}>
                     {tr("kanban.title")}
                   </h1>
                 </>
@@ -20023,12 +20025,12 @@ export function AppWorkbench() {
                         </span>
                       ) : null}
                       {phoneLayout ? (
-                        <h1 className="main__title" data-tauri-drag-region>
+                        <h1 className="main__title" data-tauri-drag-region={dragRegion}>
                           {title}
                         </h1>
                       ) : (
                         <Tip label={title}>
-                          <h1 className="main__title" data-tauri-drag-region>
+                          <h1 className="main__title" data-tauri-drag-region={dragRegion}>
                             {title}
                           </h1>
                         </Tip>

@@ -43,7 +43,11 @@ import {
   type SidePickerKind,
 } from "@/lib/sideWorkbench";
 import { SidePicker } from "./SidePicker";
-import { titlebarMaximizeHandlers } from "@/components/WindowControls";
+import { detectAppPlatform } from "@/lib/appPlatform";
+import {
+  tauriDragRegion,
+  titlebarMaximizeHandlers,
+} from "@/components/WindowControls";
 
 export type SideTabBarProps = {
   locale: Locale | string;
@@ -127,6 +131,7 @@ export function SideTabBar({
 }: SideTabBarProps) {
   const tr = useMemo(() => createT(locale as Locale), [locale]);
   const titlebarMax = titlebarMaximizeHandlers();
+  const dragRegion = tauriDragRegion(detectAppPlatform());
   const [plusOpen, setPlusOpen] = useState(false);
   const plusRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -431,7 +436,7 @@ export function SideTabBar({
       {/* Empty strip between tabs/+ and right actions — window drag (titlebar). */}
       <div
         className="sw-chrome__drag"
-        data-tauri-drag-region
+        data-tauri-drag-region={dragRegion}
         aria-hidden
         {...titlebarMax}
       />

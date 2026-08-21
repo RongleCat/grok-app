@@ -26,6 +26,7 @@ See `docs/llm-wiki/release.md`.
 - **仓库 About 与 README 挂上官网**：GitHub 仓库网站、`package.json` `homepage` 与各语言 README 现指向 [https://grok-app.com/](https://grok-app.com/)。
 
 ### Fixed
+- **Windows titlebar drag-up no longer grows height (#786)**: Follow-up to #783/#784. Caption maximize stayed up, but dragging the titlebar still stretched the frame. Windows skips JS `start_dragging` (`data-tauri-drag-region="false"`) and keeps compositor caption drag. Host `set_min_size` no longer runs on every `Moved` (tao re-applies inner size and double-counts the shadow offset); it skips while maximized, while the pointer is down, and when the min is unchanged.
 - **Windows caption maximize stays maximized; titlebar drag moves the window (#783)**: Follow-up to #773/#774. The button defers `maximize()` until after mouse-up so Aero does not drag-to-restore (flash). The `body` visualViewport transform pin is gone — it broke `-webkit-app-region: drag`, so pulling the titlebar up north-resized (bottom never lifted). An 8px top no-drag strip keeps native HTTOP.
 - **Windows maximize button is a real maximize (#773)**: The caption square used a Linux work-area `setSize` fill when `isMaximized()` lagged ~40ms. That cancelled the OS maximize, left the glyph as a square, and after restore, dragging the top edge panned the WebView inside the frame. Windows now waits for the OS flag and never fakes geometry; the button switches to the restore glyph.
 - **In-app update waits for Install and restart (#777)**: Settings → About Check for updates only checks and downloads. Sidebar and Install and restart open an in-app confirm (version + restart) before install+relaunch. Cancel does nothing. Unsigned GitHub download is unchanged.
@@ -36,6 +37,7 @@ See `docs/llm-wiki/release.md`.
 - **Windows Alt+Tab can type without a click first (#768)**: Tauri `unstable` (side-browser multi-webview) builds the page as a child `WRY_WEBVIEW`, so Alt-Tab / taskbar only activates the outer HWND. The host now forwards `WM_SETFOCUS` / `WM_ACTIVATE` into that child so composer and shortcuts work immediately.
 
 **中文 · 修复**
+- **Windows 标题栏往上拖不再把窗口拉高（#786）**：#783/#784 的后续。最大化能站住，但拖标题栏仍会拉长窗口。Windows 关掉 JS `start_dragging`（`data-tauri-drag-region="false"`），保留 compositor 标题栏拖动。`set_min_size` 不再在每次 `Moved` 里重设客户区（tao 会把阴影边框加两次）；最大化、按住鼠标、min 没变时都跳过。
 - **Windows 点最大化不再闪回，标题栏往上拖是移动窗口（#783）**：#773/#774 的后续。最大化推迟到鼠标松开之后，避免 Aero 当成拖拽立刻还原。去掉会破坏标题栏拖动的 `body` transform；顶边留 8px 非拖动带，标题栏中部往上拖会把整窗抬起来，不再把下沿无限拉高。
 - **Windows 右上角最大化是系统最大化（#773）**：按钮在 `isMaximized()` 还没跟上时会走 Linux 的铺满工作区 `setSize`，把真正的最大化取消掉，图标也不变；还原后再从上沿往下拉，页面会在窗口里往下挪。Windows 现在等系统标志、不再假铺满，按钮换成还原图标。
 - **应用内更新须确认「安装并重启」（#777）**：设置 → 关于「检查更新」只检查和下载。侧栏与「安装并重启」会先弹出应用内确认（版本 + 即将重启），取消不安装。未签名的 GitHub 下载路径不变。

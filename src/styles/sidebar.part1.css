@@ -203,7 +203,10 @@ textarea:focus-visible,
   user-select: none;
 }
 
-/* Tauri window drag regions (mac Overlay + frameless Win) */
+/* Tauri window drag regions.
+ * `false` only skips JS `start_dragging` (Tauri drag.js). Keep compositor
+ * caption drag: WebView2 covers the client, so parent WM_NCHITTEST never
+ * sees titlebar clicks. */
 [data-tauri-drag-region] {
   -webkit-app-region: drag;
   app-region: drag;
@@ -268,8 +271,8 @@ select,
 }
 
 /* Win / frameless self-drawn chrome (mac uses Overlay traffic lights) */
-/* Top 8px must not be a drag region: otherwise titlebar move is HTTOP
-   (window grows downward; you cannot lift it). Stays below .window-controls. */
+/* Top 8px: Linux/other keep a no-drag strip. Windows lets compositor caption
+   cover the client titlebar; tao already maps the non-client shadow to HTTOP. */
 .window-edge-n {
   display: none;
   position: fixed;
@@ -288,6 +291,10 @@ select,
 .platform-other .window-edge-n,
 .has-custom-chrome .window-edge-n {
   display: block;
+}
+
+html.platform-win .window-edge-n {
+  pointer-events: none;
 }
 
 .window-controls {

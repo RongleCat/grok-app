@@ -34,6 +34,16 @@ export function shouldFakeMaximizeFallback(platform: AppPlatform): boolean {
   return platform === "linux";
 }
 
+/**
+ * `data-tauri-drag-region` value.
+ * Windows: `"false"` so Tauri's drag.js skips `start_dragging`. That IPC
+ * move plus `-webkit-app-region: drag` north-resized the frame. CSS still
+ * applies compositor caption drag on the same attribute.
+ */
+export function tauriDragRegion(platform: AppPlatform): "false" | "deep" {
+  return platform === "win" ? "false" : "deep";
+}
+
 export function osMaximizeWaitMs(allowFakeFallback: boolean): number {
   return allowFakeFallback ? LINUX_MAXIMIZE_WAIT_MS : 0;
 }

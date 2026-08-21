@@ -11,6 +11,7 @@ import {
   IconRestore,
 } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
+import { detectAppPlatform } from "@/lib/appPlatform";
 import {
   CAPTION_BUTTON_TOGGLE_DEFER_MS,
   isFakeMaximized,
@@ -19,7 +20,10 @@ import {
   toggleMaximizeReliable,
 } from "@/lib/windowChrome";
 
-export { toggleMaximizeFromTitlebar } from "@/lib/windowChrome";
+export {
+  tauriDragRegion,
+  toggleMaximizeFromTitlebar,
+} from "@/lib/windowChrome";
 
 type Props = {
   visible: boolean;
@@ -181,7 +185,10 @@ export function titlebarMaximizeHandlers(opts?: {
     preventDefault: () => void;
   }) => void;
 } {
-  const enabled = opts?.enabled !== false;
+  // Windows: compositor caption dblclick maximizes (mouse is up). A JS
+  // toggle on mousedown(detail=2) races Aero drag-to-restore.
+  const enabled =
+    opts?.enabled !== false && detectAppPlatform() !== "win";
   return {
     onDoubleClick: (e) => {
       if (!enabled) return;

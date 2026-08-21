@@ -6,6 +6,8 @@
 //! min to half the current monitor work area (taskbar excluded). Large
 //! displays keep 900×600; moving onto a bigger screen restores that floor.
 
+use std::sync::Mutex;
+
 use tauri::{AppHandle, LogicalSize, Manager, Monitor};
 
 /// Comfort fallback when the window config omits min size.
@@ -73,20 +75,64 @@ fn comfort_from_config(app: &AppHandle) -> (f64, f64) {
     )
 }
 
+/// Last committed (min_w, min_h, scale×100). Skip tao `set_min_size` when
+/// unchanged — it always `set_inner_size`s, which grows undecorated-shadow
+/// windows (outer−inner added twice) and clears WS_MAXIMIZE.
+static LAST_MIN: Mutex<Option<(u32, u32, u32)>> = Mutex::new(None);
+
+pub fn should_commit_min(
+    maximized: bool,
+    pointer_down: bool,
+    last: Option<(u32, u32, u32)>,
+    next: (u32, u32, u32),
+) -> bool {
+    if maximized || pointer_down {
+        return false;
+    }
+    last != Some(next)
+}
+
+fn min_cache_key(min_w: f64, min_h: f64, scale: f64) -> (u32, u32, u32) {
+    (
+        min_w.round() as u32,
+        min_h.round() as u32,
+        (scale.max(0.1) * 100.0).round() as u32,
+    )
+}
+
 /// Recompute OS min from the main window's current monitor.
 pub fn apply_main(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
+    let maximized = window.is_maximized().unwrap_or(false);
+    let pointer_down = {
+        #[cfg(windows)]
+        {
+            crate::win_shell::primary_mouse_button_down()
+        }
+        #[cfg(not(windows))]
+        {
+            false
+        }
+    };
     let (cw, ch) = comfort_from_config(app);
     let monitor = window.current_monitor().ok().flatten();
     let (min_w, min_h) = cap_for_monitor(cw, ch, monitor.as_ref());
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let next = min_cache_key(min_w, min_h, scale);
+    let mut last = LAST_MIN.lock().unwrap_or_else(|e| e.into_inner());
+    if !should_commit_min(maximized, pointer_down, *last, next) {
+        return;
+    }
+    *last = Some(next);
+    drop(last);
     let _ = window.set_min_size(Some(LogicalSize::new(min_w, min_h)));
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{snap_friendly_min, snap_friendly_min_size};
+    use super::{should_commit_min, snap_friendly_min, snap_friendly_min_size};
 
     #[test]
     fn half_of_1440_beats_comfort_900() {
@@ -138,5 +184,16 @@ mod tests {
             snap_friendly_min_size(900.0, 600.0, 1920.0, 1200.0),
             (900.0, 600.0)
         );
+    }
+
+    #[test]
+    fn commit_min_skips_drag_maximize_and_repeats() {
+        let key = (900, 600, 200);
+        assert!(!should_commit_min(true, false, None, key));
+        assert!(!should_commit_min(false, true, None, key));
+        assert!(!should_commit_min(false, false, Some(key), key));
+        assert!(should_commit_min(false, false, None, key));
+        assert!(should_commit_min(false, false, Some(key), (720, 600, 200)));
+        assert!(should_commit_min(false, false, Some(key), (900, 600, 100)));
     }
 }

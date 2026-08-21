@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   CAPTION_BUTTON_TOGGLE_DEFER_MS,
@@ -6,6 +8,7 @@ import {
   scheduleCaptionButtonToggle,
   shouldAcceptTitlebarMaximize,
   shouldFakeMaximizeFallback,
+  tauriDragRegion,
   TITLEBAR_MAXIMIZE_DEBOUNCE_MS,
 } from "./windowChrome";
 
@@ -25,6 +28,37 @@ describe("maximizeLooksNoop", () => {
     expect(maximizeLooksNoop(true, true)).toBe(true);
     expect(maximizeLooksNoop(false, true)).toBe(false);
     expect(maximizeLooksNoop(true, false)).toBe(false);
+  });
+});
+
+describe("tauriDragRegion", () => {
+  it("disables JS start_dragging on Windows (CSS compositor caption stays)", () => {
+    expect(tauriDragRegion("win")).toBe("false");
+    expect(tauriDragRegion("mac")).toBe("deep");
+    expect(tauriDragRegion("linux")).toBe("deep");
+  });
+
+  it("keeps compositor caption drag on Windows false-regions", () => {
+    const sidebar = readFileSync(
+      join(__dirname, "../styles/sidebar.part1.css"),
+      "utf8",
+    );
+    const settings = readFileSync(
+      join(__dirname, "../styles/settings.part1.css"),
+      "utf8",
+    );
+    expect(sidebar).toMatch(
+      /\[data-tauri-drag-region\][^{]*\{[^}]*-webkit-app-region:\s*drag/,
+    );
+    expect(sidebar).not.toMatch(
+      /\[data-tauri-drag-region="false"\][^{]*\{[^}]*no-drag/,
+    );
+    expect(sidebar).not.toMatch(
+      /html\.platform-win \[data-tauri-drag-region\][\s\S]{0,80}no-drag/,
+    );
+    expect(settings).not.toMatch(
+      /html\.platform-win \.settings-page__chrome[\s\S]{0,120}no-drag/,
+    );
   });
 });
 
