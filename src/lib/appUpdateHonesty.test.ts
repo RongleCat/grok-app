@@ -7,15 +7,19 @@ import {
   isAutoUpdatePath,
   isUpdateActionBusy,
   mapUpdateStatusCopy,
+  needsInstallAndRestartConfirm,
+  planUserCheckUpdate,
   resolveManualUpdateUrls,
   resolveUpdateChannelHonesty,
   resolveUpdateChannelHonestyPreferHost,
   isUpdateAffordanceVisible,
+  shouldInstallWhenReady,
   shouldShowInstallButton,
   shouldShowInstallProgress,
   shouldShowManualDownloadCtas,
   updateChannelLabelKey,
   updateErrorBodyKey,
+  updateInstallConfirmCopyKeys,
   updateStatusToneClass,
   type AppUpdateStatusLike,
 } from "./appUpdateHonesty";
@@ -421,6 +425,60 @@ describe("updateStatusToneClass", () => {
     expect(updateStatusToneClass("info")).toBe("is-available");
     expect(updateStatusToneClass("success")).toBe("");
     expect(updateStatusToneClass("none")).toBe("");
+  });
+});
+
+describe("user-initiated check must not auto-install", () => {
+  it("only confirmed apply installs when download reaches ready", () => {
+    expect(shouldInstallWhenReady("check")).toBe(false);
+    expect(shouldInstallWhenReady("background")).toBe(false);
+    expect(shouldInstallWhenReady("apply")).toBe(true);
+  });
+
+  it("About check stops at ready / downloading and only downloads when available", () => {
+    expect(planUserCheckUpdate({ state: "ready", version: "1.2.3" })).toEqual({
+      action: "noop",
+    });
+    expect(planUserCheckUpdate({ state: "downloading", version: "1.2.3" })).toEqual({
+      action: "noop",
+    });
+    expect(planUserCheckUpdate({ state: "installing", version: "1.2.3" })).toEqual({
+      action: "noop",
+    });
+    expect(planUserCheckUpdate({ state: "restarting", version: "1.2.3" })).toEqual({
+      action: "noop",
+    });
+    expect(planUserCheckUpdate({ state: "available", version: "1.2.3" })).toEqual({
+      action: "download",
+      version: "1.2.3",
+    });
+    expect(planUserCheckUpdate({ state: "idle" })).toEqual({ action: "runCheck" });
+    expect(planUserCheckUpdate({ state: "up-to-date" })).toEqual({
+      action: "runCheck",
+    });
+    expect(planUserCheckUpdate({ state: "error" })).toEqual({
+      action: "runCheck",
+    });
+  });
+
+  it("signed ready/available/downloading need confirm; manual GitHub does not", () => {
+    expect(needsInstallAndRestartConfirm({ state: "ready" })).toBe(true);
+    expect(needsInstallAndRestartConfirm({ state: "available" })).toBe(true);
+    expect(needsInstallAndRestartConfirm({ state: "downloading" })).toBe(true);
+    expect(needsInstallAndRestartConfirm({ state: "manual-required" })).toBe(
+      false,
+    );
+    expect(needsInstallAndRestartConfirm({ state: "installing" })).toBe(false);
+    expect(needsInstallAndRestartConfirm({ state: "idle" })).toBe(false);
+    expect(needsInstallAndRestartConfirm(null)).toBe(false);
+  });
+
+  it("confirm copy keys keep a {version} placeholder", () => {
+    const keys = updateInstallConfirmCopyKeys();
+    expect(keys.titleKey).toBe("settings.autoUpdateConfirm.title");
+    expect(keys.messageKey).toBe("settings.autoUpdateConfirm.message");
+    expect(keys.confirmKey).toBe("settings.autoUpdateConfirm.confirm");
+    expect(keys.cancelKey).toBe("settings.autoUpdateConfirm.cancel");
   });
 });
 

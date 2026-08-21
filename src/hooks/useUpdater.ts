@@ -1,7 +1,8 @@
 /**
  * Single-source auto-update state machine.
  *
- * - Signed release binaries (plugin enabled): Tauri check → download → install → relaunch.
+ * - Signed release binaries (plugin enabled): Tauri check → download → confirm →
+ *   install → relaunch. About “Check for updates” stops at `ready`.
  * - Local / unsigned / plugin off: GitHub Releases via `app_check_update` → open page.
  *
  * P0: `prepare_for_app_update` runs only AFTER successful `install()`, so a failed
@@ -13,6 +14,10 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktopHost, type AppUpdateCheck } from "@/lib/api";
+import {
+  planUserCheckUpdate,
+  shouldInstallWhenReady,
+} from "@/lib/appUpdateHonesty";
 import { DEVELOPER_MODE_CHANGE_EVENT } from "@/lib/developerModePref";
 import {
   UPDATE_SIM_CHANGE_EVENT,
@@ -151,9 +156,8 @@ export function useUpdater() {
   const installInFlightRef = useRef(false);
   const manualResultRequestedRef = useRef(false);
   /**
-   * When true, finish download → install → relaunch without a second click
-   * (sidebar affordance or Settings → About “Check for updates”).
-   * Background discovery only stages to `ready` (badge / Install CTA).
+   * When true, finish download → install → relaunch (confirmed sidebar apply).
+   * About “Check for updates” and background discovery only stage to `ready`.
    */
   const installWhenReadyRef = useRef(false);
   /** Bumped on unmount so in-flight async work never setState on a dead tree. */
@@ -296,7 +300,7 @@ export function useUpdater() {
         await update.download();
         if (!aliveRef.current) return;
         setStatus({ state: "ready", version });
-        // User-initiated path: install + relaunch immediately (no second click).
+        // Confirmed apply only — About check / background stay at `ready`.
         if (installWhenReadyRef.current) {
           await performInstall(version);
         }
@@ -544,41 +548,30 @@ export function useUpdater() {
   );
 
   const checkForUpdate = useCallback(async () => {
-    // About “Check for updates”: if a package is found, download then
-    // install + relaunch automatically (no second Install click).
-    // Already staged from background discovery → install immediately.
+    // About “Check for updates”: check / download only. Stop at `ready`.
+    // Never arm auto-install — that requires confirmed Install and restart.
     const current = statusRef.current;
-    if (current.state === "restarting" || current.state === "installing") {
+    const plan = planUserCheckUpdate(current);
+    if (plan.action === "noop") {
       return;
     }
-    if (current.state === "ready") {
-      installWhenReadyRef.current = true;
-      await installAndRelaunch();
-      return;
-    }
-    if (current.state === "downloading") {
-      installWhenReadyRef.current = true;
-      return;
-    }
-    if (current.state === "available") {
-      installWhenReadyRef.current = true;
+    if (plan.action === "download") {
       if (!downloadInFlightRef.current) {
-        void downloadUpdate(current.version);
+        void downloadUpdate(plan.version);
       }
       return;
     }
-    installWhenReadyRef.current = true;
     await runUpdateCheck({ background: false });
-  }, [downloadUpdate, installAndRelaunch, runUpdateCheck]);
+  }, [downloadUpdate, runUpdateCheck]);
 
   const checkForUpdateInBackground = useCallback(async () => {
     await runUpdateCheck({ background: true });
   }, [runUpdateCheck]);
 
   /**
-   * Sidebar / one-shot update affordance.
-   * - Silent path: download (if needed) → install → relaunch automatically.
-   * - Manual path: return URLs so the UI can open GitHub (same as About).
+   * Sidebar / one-shot update affordance (call after in-app confirm).
+   * - Signed path: download (if needed) → install → relaunch.
+   * - Manual path: return URLs so the UI can open GitHub (no confirm).
    */
   const applyAvailableUpdate = useCallback(async (): Promise<ApplyUpdateResult> => {
     const current = statusRef.current;
@@ -598,16 +591,14 @@ export function useUpdater() {
       return { kind: "busy" };
     }
 
-    // One click: install + auto-restart (no second confirm).
+    installWhenReadyRef.current = shouldInstallWhenReady("apply");
+
     if (current.state === "ready") {
-      installWhenReadyRef.current = true;
       await installAndRelaunch();
       return { kind: "installing" };
     }
 
     if (current.state === "downloading" || current.state === "available") {
-      // Finish download → install → relaunch without another click.
-      installWhenReadyRef.current = true;
       if (current.state === "available" && !downloadInFlightRef.current) {
         // Real path needs a Tauri Update handle; silent sim does not.
         if (updateRef.current || readUpdateSimMode() === "silent") {
@@ -618,12 +609,10 @@ export function useUpdater() {
     }
 
     if (current.state === "checking") {
-      installWhenReadyRef.current = true;
       return { kind: "checking" };
     }
 
-    // idle / up-to-date / error — run a full user-initiated check (auto-install).
-    installWhenReadyRef.current = true;
+    // idle / up-to-date / error — full check, then install when ready.
     await runUpdateCheck({ background: false });
     return { kind: "checking" };
   }, [downloadUpdate, installAndRelaunch, runUpdateCheck]);

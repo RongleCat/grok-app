@@ -4,7 +4,7 @@ Settings → About → Check for updates.
 
 ## Behaviour
 
-1. Signed release (plugin on + platform supports): check → download → install → `prepare_for_app_update` → relaunch.
+1. Signed release (plugin on + platform supports): check → download → in-app confirm (Install and restart) → install → `prepare_for_app_update` → relaunch. About **Check for updates** stops at `ready`.
 2. Unsigned / local / plugin off: query GitHub Releases, then **Open release page** and optional **Download installer**.
 3. Package types that cannot auto-update (e.g. Linux non-AppImage): **unsupported** channel + Linux AppImage-only note; manual download CTAs when a newer build is known.
 4. Status copy and channel honesty: pure `src/lib/appUpdateHonesty.ts` + About row (`AboutUpdateRow`) — never invents versions; soft-fail error classes; agents stop only after successful install prepare.

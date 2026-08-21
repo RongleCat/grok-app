@@ -24,6 +24,7 @@ See `docs/llm-wiki/release.md`.
 - **仓库 About 与 README 挂上官网**：GitHub 仓库网站、`package.json` `homepage` 与各语言 README 现指向 [https://grok-app.com/](https://grok-app.com/)。
 
 ### Fixed
+- **In-app update waits for Install and restart (#777)**: Settings → About Check for updates only checks and downloads. Sidebar and Install and restart open an in-app confirm (version + restart) before install+relaunch. Cancel does nothing. Unsigned GitHub download is unchanged.
 - **Windows dark-taskbar tray is a white glyph, not a white square (#776)**: Follow-up to #747/#748, not a revert of the invisibility fix. Light taskbars keep the black rounded tile + white glyph. Dark taskbars drop the white fill and show a white Grok mark on transparency. The host still follows `SystemUsesLightTheme` (not the in-app theme) and does not restore black-on-transparent.
 - **Slow trackpad scroll-up can leave stick-to-bottom (#778)**: Pixel-mode wheels send 2–8px ticks, so a single 10px event never unpinned. Release once the viewport is 10px off the bottom, even across ticks, and do not snap the virtual list back after the user has left.
 - **Long chats no longer bounce up while images/PDF previews decode (#771)**: Per-row pinned snaps are gone. Media-sized height jumps coalesce to one follow instead of one per file.
@@ -31,6 +32,7 @@ See `docs/llm-wiki/release.md`.
 - **Windows Alt+Tab can type without a click first (#768)**: Tauri `unstable` (side-browser multi-webview) builds the page as a child `WRY_WEBVIEW`, so Alt-Tab / taskbar only activates the outer HWND. The host now forwards `WM_SETFOCUS` / `WM_ACTIVATE` into that child so composer and shortcuts work immediately.
 
 **中文 · 修复**
+- **应用内更新须确认「安装并重启」（#777）**：设置 → 关于「检查更新」只检查和下载。侧栏与「安装并重启」会先弹出应用内确认（版本 + 即将重启），取消不安装。未签名的 GitHub 下载路径不变。
 - **Windows 深色任务栏托盘改为白标透明底，不再是白方块（#776）**：#747/#748 的后续，不是撤回可见性修复。浅色任务栏仍是黑底圆角块 + 白标；深色任务栏去掉白色填充，只用透明底上的白色 Grok 标。仍跟任务栏 `SystemUsesLightTheme`，不跟应用内主题；也不会退回深色栏上看不见的黑标。
 - **触控板慢慢往上滚能离开贴底锁（#778）**：像素模式滚轮每次只有 2–8px，单次 10px 永远松不开。离开底部累计 10px 就放锁，虚拟列表不再把你弹回去。
 - **长对话里图片/PDF 预览解码时不再往上弹（#771）**：不再在每一行高度变化时贴底；媒体尺寸的高度跳变合并成一次跟随。

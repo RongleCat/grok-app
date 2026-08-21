@@ -603,3 +603,80 @@ export function updateStatusToneClass(
 export function isAutoUpdatePath(channel: UpdateChannelHonesty): boolean {
   return channel === "auto";
 }
+
+/**
+ * Who initiated the updater action.
+ * - `check` — Settings → About “Check for updates” (download only)
+ * - `apply` — confirmed sidebar / Install and restart
+ * - `background` — startup / periodic discovery (download only)
+ */
+export type UpdateInstallIntent = "check" | "apply" | "background";
+
+/**
+ * Whether reaching `ready` should immediately install+relaunch.
+ * Only a confirmed apply does that. About check and background discovery stop
+ * at `ready` so Install and restart can be confirmed.
+ */
+export function shouldInstallWhenReady(intent: UpdateInstallIntent): boolean {
+  return intent === "apply";
+}
+
+/**
+ * Signed in-app path: confirm before install+relaunch.
+ * Manual GitHub (open URL) does not use this.
+ */
+export function needsInstallAndRestartConfirm(
+  status: AppUpdateStatusLike | { state: string } | null | undefined,
+): boolean {
+  const state = status?.state;
+  return (
+    state === "ready" ||
+    state === "available" ||
+    state === "downloading"
+  );
+}
+
+/** About “Check for updates”: never auto-install; may download to `ready`. */
+export type UserCheckUpdatePlan =
+  | { action: "noop" }
+  | { action: "download"; version: string }
+  | { action: "runCheck" };
+
+export function planUserCheckUpdate(status: {
+  state: string;
+  version?: string;
+}): UserCheckUpdatePlan {
+  switch (status.state) {
+    case "installing":
+    case "restarting":
+    case "ready":
+    case "downloading":
+      return { action: "noop" };
+    case "available": {
+      const version =
+        typeof status.version === "string" && status.version.trim()
+          ? status.version.trim()
+          : "";
+      if (version) return { action: "download", version };
+      return { action: "runCheck" };
+    }
+    default:
+      return { action: "runCheck" };
+  }
+}
+
+export type UpdateInstallConfirmCopyKeys = {
+  titleKey: "settings.autoUpdateConfirm.title";
+  messageKey: "settings.autoUpdateConfirm.message";
+  confirmKey: "settings.autoUpdateConfirm.confirm";
+  cancelKey: "settings.autoUpdateConfirm.cancel";
+};
+
+export function updateInstallConfirmCopyKeys(): UpdateInstallConfirmCopyKeys {
+  return {
+    titleKey: "settings.autoUpdateConfirm.title",
+    messageKey: "settings.autoUpdateConfirm.message",
+    confirmKey: "settings.autoUpdateConfirm.confirm",
+    cancelKey: "settings.autoUpdateConfirm.cancel",
+  };
+}

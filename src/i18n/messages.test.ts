@@ -186,6 +186,17 @@ describe("i18n catalog", () => {
     }
   });
 
+  it("ready update copy asks for Install and restart confirm, not auto-install", () => {
+    for (const loc of LOCALES) {
+      const ready = messages[loc]["settings.autoUpdateBody.ready"];
+      expect(ready, loc).not.toMatch(/automatic/i);
+      expect(ready, loc).not.toMatch(/automatically/i);
+    }
+    expect(messages.en["settings.autoUpdateBody.ready"].toLowerCase()).toContain(
+      "confirm",
+    );
+  });
+
   it("keeps interpolation placeholders intact across locales", () => {
     // A dropped `{n}` silently prints a sentence with a hole in it.
     const cases: Array<[MessageKey, string[]]> = [
@@ -195,6 +206,7 @@ describe("i18n catalog", () => {
       ["tray.usageWithReset", ["{pct}", "{time}"]],
       ["app.quitBusy.message", ["{n}"]],
       ["fileCard.code", ["{ext}"]],
+      ["settings.autoUpdateConfirm.message", ["{version}"]],
     ];
     for (const loc of LOCALES) {
       for (const [key, vars] of cases) {

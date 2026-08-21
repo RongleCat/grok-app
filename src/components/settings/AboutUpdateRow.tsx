@@ -5,6 +5,7 @@
  * silent install on unsigned / unsupported / host-only paths.
  */
 import { useState } from "react";
+import { UpdateInstallConfirmModal } from "@/components/UpdateInstallConfirmModal";
 import { useUpdaterContext } from "@/hooks/UpdaterProvider";
 import * as api from "@/lib/api";
 import {
@@ -13,6 +14,7 @@ import {
   isAutoUpdatePath,
   isUpdateActionBusy,
   mapUpdateStatusCopy,
+  needsInstallAndRestartConfirm,
   resolveManualUpdateUrls,
   resolveUpdateChannelHonestyPreferHost,
   shouldShowInstallButton,
@@ -39,6 +41,7 @@ export function AboutUpdateRow({
     githubReleasesUrl,
   } = useUpdaterContext();
   const [openError, setOpenError] = useState<string | null>(null);
+  const [confirmInstall, setConfirmInstall] = useState(false);
 
   const openRelease = async (url: string) => {
     try {
@@ -90,7 +93,7 @@ export function AboutUpdateRow({
   const busy = isUpdateActionBusy(statusLike);
   const showInstallProgress = shouldShowInstallProgress(statusLike);
   // Only show install when download finished (ready), never on available.
-  // After install, restart runs automatically (no second click).
+  // Click opens in-app confirm; confirm runs install + relaunch.
   const showInstall = shouldShowInstallButton(statusLike);
   const showOpenRelease = shouldShowManualDownloadCtas(statusLike);
   const manualUrls = showOpenRelease
@@ -155,7 +158,13 @@ export function AboutUpdateRow({
               type="button"
               className="btn btn--solid"
               disabled={busy}
-              onClick={() => void installAndRelaunch()}
+              onClick={() => {
+                if (needsInstallAndRestartConfirm(statusLike)) {
+                  setConfirmInstall(true);
+                  return;
+                }
+                void installAndRelaunch();
+              }}
             >
               {t("settings.autoUpdateInstall")}
             </button>
@@ -236,6 +245,16 @@ export function AboutUpdateRow({
           </div>
         ) : null}
       </div>
+      <UpdateInstallConfirmModal
+        open={confirmInstall}
+        version={copy.version}
+        t={t}
+        onClose={() => setConfirmInstall(false)}
+        onConfirm={() => {
+          setConfirmInstall(false);
+          void installAndRelaunch();
+        }}
+      />
     </div>
   );
 }
