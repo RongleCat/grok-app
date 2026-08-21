@@ -9,6 +9,7 @@ const TAURI_DIR = resolve(__dirname, "../../src-tauri");
 const CONF_PATH = resolve(TAURI_DIR, "tauri.conf.json");
 const MAC_PATH = resolve(TAURI_DIR, "tauri.macos.conf.json");
 const WIN_PATH = resolve(TAURI_DIR, "tauri.windows.conf.json");
+const LINUX_PATH = resolve(TAURI_DIR, "tauri.linux.conf.json");
 
 /**
  * Read a source file for text assertions, normalized to LF.
@@ -47,6 +48,31 @@ describe("window chrome", () => {
     expect(main.transparent).toBe(true);
     expect(main.decorations).toBe(true);
     expect(conf.app.macOSPrivateApi).toBe(true);
+  });
+
+  it("comfort min stays 900; Host caps OS min to half the work area", () => {
+    // Do not drop JSON minWidth to "fit" 1440 — large screens keep 900.
+    // window_min.rs caps WM_GETMINMAXINFO to half the current work area.
+    for (const path of [CONF_PATH, MAC_PATH, WIN_PATH, LINUX_PATH]) {
+      const conf = JSON.parse(readFileSync(path, "utf8")) as {
+        app: { windows: Array<{ minWidth?: number }> };
+      };
+      expect(conf.app.windows[0]!.minWidth).toBe(900);
+    }
+    const host = readSource(resolve(TAURI_DIR, "src/window_min.rs"));
+    expect(host).toMatch(/fn snap_friendly_min/);
+    expect(host).toContain("work_area");
+    // Same cases as src-tauri/src/window_min.rs (comfort stays 900; OS min ≤ half).
+    const snapFriendlyMin = (comfort: number, work: number) => {
+      if (!Number.isFinite(comfort) || comfort <= 0) return 1;
+      if (!Number.isFinite(work) || work <= 0) return comfort;
+      const half = Math.floor(work / 2);
+      if (half <= 0) return comfort;
+      return Math.min(comfort, half);
+    };
+    expect(snapFriendlyMin(900, 1440)).toBe(720);
+    expect(snapFriendlyMin(900, 1920)).toBe(900);
+    expect(snapFriendlyMin(600, 852)).toBe(426);
   });
 
   it("windows is frameless for self-drawn controls", () => {

@@ -215,6 +215,8 @@ mod voice_tools;
 
 mod wallpaper_source;
 
+mod window_min;
+
 #[cfg(windows)]
 mod win_shell;
 
@@ -456,9 +458,13 @@ pub fn run() {
                 // Plugin keeps in-memory state on Resized/Moved but only writes disk
                 // on process Exit. Debounce-persist so force-quit / crash / tauri-dev
                 // restart / OS reboot still remember the last user size.
-                WindowEvent::Resized(_)
-                | WindowEvent::Moved(_)
-                | WindowEvent::ScaleFactorChanged { .. } => {
+                WindowEvent::Moved(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                    if window.label() == "main" {
+                        window_min::apply_main(window.app_handle());
+                        schedule_persist_main_window_state(window.app_handle());
+                    }
+                }
+                WindowEvent::Resized(_) => {
                     if window.label() == "main" {
                         schedule_persist_main_window_state(window.app_handle());
                     }
@@ -491,14 +497,20 @@ pub fn run() {
                 .ok_or_else(|| "main window config missing".to_string())?;
             main_cfg.visible = false;
             main_cfg.focus = false;
+            // Comfort min from JSON, capped so Win+Left/Right can be a true half.
+            let comfort_w = main_cfg.min_width.unwrap_or(900.0);
+            let comfort_h = main_cfg.min_height.unwrap_or(600.0);
+            let snap_mon = on_monitor
+                .clone()
+                .or_else(|| app.primary_monitor().ok().flatten());
+            let (min_w, min_h) =
+                window_min::cap_for_monitor(comfort_w, comfort_h, snap_mon.as_ref());
+            main_cfg.min_width = Some(min_w);
+            main_cfg.min_height = Some(min_h);
             if let Some(g) = &saved_geometry {
                 let (mut w, mut h) = (g.width as f64 / scale, g.height as f64 / scale);
-                if let Some(min_w) = main_cfg.min_width {
-                    w = w.max(min_w);
-                }
-                if let Some(min_h) = main_cfg.min_height {
-                    h = h.max(min_h);
-                }
+                w = w.max(min_w);
+                h = h.max(min_h);
                 main_cfg.width = w;
                 main_cfg.height = h;
                 let (px, py) = if g.maximized {
@@ -539,6 +551,7 @@ pub fn run() {
                 .accept_first_mouse(true)
                 .initialization_script(&boot_theme_script)
                 .build()?;
+            window_min::apply_main(window.app_handle());
 
             #[cfg(target_os = "macos")]
             {
