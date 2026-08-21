@@ -780,42 +780,19 @@ impl SessionManager {
                         content.push_str(o);
                     }
                     let mid = format!("tool-{tool_call_id}");
-                    // Upsert: replace only when new content is richer (never downgrade
-                    // a Fetch:https://… row to bare "tool" on a sparse completed tick).
-                    let mut msgs = store::load_messages(&app_sid);
-                    if let Some(slot) = msgs.iter_mut().find(|m| m.id == mid) {
-                        if tool_journal_richer(&slot.content, &content) {
-                            slot.content = content.clone();
-                            slot.marker = Some("tool_step".into());
-                            if let Err(e) = store::save_messages(&app_sid, &msgs) {
-                                tracing::error!(
-                                    session = %app_sid,
-                                    tool = %tool_call_id,
-                                    "tool journal update failed: {e}"
-                                );
-                            }
-                        }
-                    } else {
-                        if let Err(e) = store::append_message(
-                            &app_sid,
-                            ChatMessageStored {
-                                id: mid,
-                                role: "tool".into(),
-                                content,
-                                thought: None,
-                                created_at: chrono::Utc::now(),
-                                is_error: matches!(st, "failed" | "error"),
-                                attachments: None,
-                                marker: Some("tool_step".into()),
-                            },
-                        ) {
-                            tracing::error!(
-                                session = %app_sid,
-                                tool = %tool_call_id,
-                                "tool journal append failed: {e}"
-                            );
-                        }
-                    }
+                    let is_error = matches!(st, "failed" | "error");
+                    let app_sid_j = app_sid.clone();
+                    let tool_call_id_j = tool_call_id.clone();
+                    // Disk RMW must not stall the ACP pump (later stream tokens).
+                    tauri::async_runtime::spawn_blocking(move || {
+                        persist_completed_tool_journal(
+                            app_sid_j,
+                            tool_call_id_j,
+                            mid,
+                            content,
+                            is_error,
+                        );
+                    });
                 }
             }
             AcpEvent::ToolOpenReleased { tool_call_id } => {
@@ -1278,5 +1255,48 @@ impl SessionManager {
                 );
             }
         }
+    }
+}
+
+fn persist_completed_tool_journal(
+    app_sid: String,
+    tool_call_id: String,
+    mid: String,
+    content: String,
+    is_error: bool,
+) {
+    let mut msgs = store::load_messages(&app_sid);
+    if let Some(slot) = msgs.iter_mut().find(|m| m.id == mid) {
+        if tool_journal_richer(&slot.content, &content) {
+            slot.content = content;
+            slot.marker = Some("tool_step".into());
+            if let Err(e) = store::save_messages(&app_sid, &msgs) {
+                tracing::error!(
+                    session = %app_sid,
+                    tool = %tool_call_id,
+                    "tool journal update failed: {e}"
+                );
+            }
+        }
+        return;
+    }
+    if let Err(e) = store::append_message(
+        &app_sid,
+        ChatMessageStored {
+            id: mid,
+            role: "tool".into(),
+            content,
+            thought: None,
+            created_at: chrono::Utc::now(),
+            is_error,
+            attachments: None,
+            marker: Some("tool_step".into()),
+        },
+    ) {
+        tracing::error!(
+            session = %app_sid,
+            tool = %tool_call_id,
+            "tool journal append failed: {e}"
+        );
     }
 }
