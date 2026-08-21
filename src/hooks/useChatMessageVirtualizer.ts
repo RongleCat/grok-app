@@ -52,6 +52,7 @@ import {
   isPaneSplitMotionActive,
   runAfterPaneSplitMotion,
 } from "@/lib/paneSplitMotion";
+import { shouldSnapPinnedLayoutToBottom } from "@/lib/stickToBottom";
 
 export type UseChatMessageVirtualizerArgs = {
   itemCount: number;
@@ -385,10 +386,20 @@ export function useChatMessageVirtualizer(
     const v = viewportRef.current;
     if (!v) return;
     const top = Math.max(0, v.scrollHeight - v.clientHeight);
-    if (Math.abs(v.scrollTop - top) > 0.5) {
-      ignoreScrollAdjustRef.current = true;
-      v.scrollTop = top;
+    if (Math.abs(v.scrollTop - top) <= 0.5) return;
+    // User already left the bottom (trackpad ticks). Snapping here is the
+    // "wheel turns, screen does not move" freeze until a hard flick.
+    if (
+      !shouldSnapPinnedLayoutToBottom({
+        scrollTop: v.scrollTop,
+        scrollHeight: v.scrollHeight,
+        clientHeight: v.clientHeight,
+      })
+    ) {
+      return;
     }
+    ignoreScrollAdjustRef.current = true;
+    v.scrollTop = top;
   }, [
     virtualized,
     win.start,

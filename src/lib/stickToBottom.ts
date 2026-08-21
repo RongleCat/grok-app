@@ -111,6 +111,55 @@ export function stabilizeStickUserId(input: {
 }
 
 /**
+ * Escape pin when the viewport has moved far enough off the absolute
+ * bottom, even if no single wheel/scroll event was large.
+ *
+ * Pixel-mode trackpads send many 2–8px ticks. Escape used to require ≥10px
+ * in *one* event (`isMeaningfulScrollUp`), so those ticks never released
+ * the pin. The list kept using the "stuck at bottom" window and the screen
+ * did not walk into history until a harder flick.
+ */
+export function shouldReleaseStickOnDistanceFromBottom(input: {
+  pinned: boolean;
+  escaped?: boolean;
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  minDeltaPx?: number;
+}): boolean {
+  if (!input.pinned || input.escaped) return false;
+  const min = input.minDeltaPx ?? STICK_ESCAPE_MIN_DELTA_PX;
+  return (
+    distanceFromBottom(
+      input.scrollTop,
+      input.scrollHeight,
+      input.clientHeight,
+    ) >= min
+  );
+}
+
+/**
+ * Virtual-list layout may snap to max while stick is still pinned. Do that
+ * only if the user is still on the bottom. If they already scrolled away,
+ * snapping is the "wheel turns, screen does not move" freeze.
+ */
+export function shouldSnapPinnedLayoutToBottom(input: {
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  minLeavePx?: number;
+}): boolean {
+  const min = input.minLeavePx ?? STICK_ESCAPE_MIN_DELTA_PX;
+  return (
+    distanceFromBottom(
+      input.scrollTop,
+      input.scrollHeight,
+      input.clientHeight,
+    ) < min
+  );
+}
+
+/**
  * Whether an upward scroll should release stick-to-bottom.
  *
  * Escape only when the viewport actually left the bottom **and** ended

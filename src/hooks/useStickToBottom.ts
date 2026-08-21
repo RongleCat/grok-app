@@ -33,6 +33,7 @@ import {
   pinnedFollowDelayMs,
   shouldClampPinnedOverscroll,
   shouldClampPinnedStreamDrift,
+  shouldReleaseStickOnDistanceFromBottom,
   shouldReleaseStickOnScrollUp,
 } from "@/lib/stickToBottom";
 import { runAfterPaneSplitMotion } from "@/lib/paneSplitMotion";
@@ -208,9 +209,25 @@ export function useStickToBottom(
       // While locked at bottom: only snap rubber-band past max. Do not
       // write an upward leave back to the bottom — that fights the
       // trackpad and is the #703 jitter.
+      // Pixel-mode wheels never hit meaningfulUp (each tick is 2–8px).
+      // If they have already left the bottom by ≥10px, release anyway.
       if (isPinnedRef.current && !escapedRef.current && !meaningfulUp) {
         if (shouldClampPinnedOverscroll(scrollTop, maxTop)) {
           applyScrollTop(maxTop);
+          return;
+        }
+        if (
+          shouldReleaseStickOnDistanceFromBottom({
+            pinned: true,
+            scrollTop,
+            scrollHeight: el.scrollHeight,
+            clientHeight: el.clientHeight,
+          })
+        ) {
+          userIntentDownRef.current = false;
+          isPinnedRef.current = false;
+          escapedRef.current = true;
+          syncShowBack();
         }
         return;
       }
