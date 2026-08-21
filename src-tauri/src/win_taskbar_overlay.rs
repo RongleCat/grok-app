@@ -1,9 +1,10 @@
-//! Windows taskbar overlay badge for unread / busy sessions.
+//! Windows taskbar overlay badge for unread sessions (opt-in, default off).
 //!
 //! Tauri `WebviewWindow::set_badge_count` is a no-op on Windows (wry has no
 //! `SetBadgeCount` branch; the docs say use `set_overlay_icon`). This module
-//! paints a 16×16 overlay and remembers the last count so hide-to-tray
-//! `DeleteTab` / `AddTab` can put it back.
+//! paints a 16×16 overlay and remembers the last *overlay* count so hide-to-tray
+//! `DeleteTab` / `AddTab` can put it back. Driven by `tray_set_windows_overlay`,
+//! not `tray_set_busy_count`.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -57,7 +58,7 @@ pub enum OverlayKind {
     Overflow,
 }
 
-/// Pure: which overlay to show for a busy/unread count.
+/// Pure: which overlay to show for an unread count.
 pub fn overlay_kind(count: u32) -> Option<OverlayKind> {
     match count {
         0 => None,
@@ -66,7 +67,7 @@ pub fn overlay_kind(count: u32) -> Option<OverlayKind> {
     }
 }
 
-/// Remember the last count so show-from-tray can re-apply after AddTab.
+/// Remember the last overlay count so show-from-tray can re-apply after AddTab.
 pub fn remember(count: u32) {
     LAST_COUNT.store(count, Ordering::Relaxed);
 }

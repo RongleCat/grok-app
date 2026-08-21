@@ -228,6 +228,8 @@ export const ptBRSettings = {
   "settings.trayBusyBadge.status.idle": "Nenhum chat não lido agora — o selo permanece limpo.",
   "settings.trayBusyBadge.status.busy": "{n} chat(s) não lido(s) mostrado(s) no dock/bandeja.",
   "settings.trayBusyBadge.status.capped": "Mostrando {n}+ no dock/bandeja (teto de exibição).",
+  "settings.winTaskbarOverlay": "Mostrar overlay de não lidas na barra de tarefas do Windows",
+  "settings.winTaskbarOverlayDesc": "Quando um chat termina uma resposta em segundo plano, pintar uma contagem no botão da barra de tarefas do Windows (1–9 como dígito, 10+ como plus). Desligado por padrão. Independente do selo de não lidas do dock/bandeja. Sem efeito no macOS ou Linux.",
   "settings.launchAtLogin": "Iniciar ao entrar",
   "settings.launchAtLoginDesc": "Iniciar o Grok automaticamente quando você entrar neste computador (itens de login do SO / Launch Agent no macOS). As tarefas agendadas só rodam enquanto o app está aberto ou na bandeja — iniciar ao entrar ajuda a retomá-las após o reboot. Não há um daemon em segundo plano separado.",
   "settings.windowAlwaysOnTop": "Manter a janela no topo",

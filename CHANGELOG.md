@@ -12,11 +12,11 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
-- **Windows taskbar overlay for unread sessions**: Host busy count now uses `set_overlay_icon` (Tauri `set_badge_count` is a no-op on Windows). 1–9 show a digit; 10+ a plus. Hide-to-tray restore re-applies the overlay after Explorer AddTab.
+- **Optional Windows taskbar overlay for unread sessions** (#775): Settings → General → App toggle, **off by default**, independent of the dock/tray unread badge. When on, the host paints 1–9 / 10+ via `set_overlay_icon` (Tauri `set_badge_count` is a no-op on Windows). Hide-to-tray restore re-applies the last overlay count after Explorer AddTab.
 - **Shortcuts help (Ctrl+/)**: the overlay now searches by label / id / chord, groups like Settings → Keyboard, and lists zoom, newline, prompt history, and type-to-focus. The list scrolls instead of clipping the last rows.
 
 **中文 · 新增**
-- **Windows 任务栏未读 overlay**：后台会话计数改为 `set_overlay_icon`（Tauri 的 `set_badge_count` 在 Windows 上是空操作）。1–9 显示数字，10+ 显示加号。从托盘还原时在 Explorer AddTab 后再贴一次。
+- **可选 Windows 任务栏未读 overlay**（#775）：设置 → 通用 → 应用里开关，**默认关闭**，与程序坞/托盘未读角标互不绑定。开启后 Host 用 `set_overlay_icon` 画 1–9 / 10+（Tauri 的 `set_badge_count` 在 Windows 上是空操作）。从托盘还原时按上次 overlay 计数在 Explorer AddTab 后再贴一次。
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
 
 ### Changed

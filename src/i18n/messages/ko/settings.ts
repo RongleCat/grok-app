@@ -228,6 +228,8 @@ export const koSettings = {
   "settings.trayBusyBadge.status.idle": "지금 읽지 않은 대화가 없습니다 — 배지가 비어 있습니다.",
   "settings.trayBusyBadge.status.busy": "Dock/트레이에 읽지 않은 대화 {n}개 표시.",
   "settings.trayBusyBadge.status.capped": "Dock/트레이에 {n}+ 표시(표시 한도).",
+  "settings.winTaskbarOverlay": "Windows 작업 표시줄에 읽지 않음 오버레이 표시",
+  "settings.winTaskbarOverlayDesc": "대화가 백그라운드에서 응답을 마치면 Windows 작업 표시줄 단추에 개수를 그립니다(1–9는 숫자, 10+는 더하기). 기본값은 끔. Dock/트레이 읽지 않음 배지와는 별개입니다. macOS와 Linux에서는 효과가 없습니다.",
   "settings.launchAtLogin": "로그인 시 실행",
   "settings.launchAtLoginDesc": "이 컴퓨터에 로그인할 때 Grok을 자동으로 시작합니다(OS 로그인 항목 / macOS Launch Agent). 예약된 작업은 앱이 열려 있거나 트레이에 있을 때만 실행됩니다 — 로그인 시 실행은 재부팅 후 재개에 도움이 됩니다. 별도 백그라운드 데몬은 없습니다.",
   "settings.windowAlwaysOnTop": "창을 항상 위",

@@ -193,6 +193,7 @@ import {
   type TasksBindCwdResult
 } from "@/lib/tasksPanelPro";
 import { saveTrayBusyBadgePref } from "@/lib/trayBusyBadgePref";
+import { saveWinTaskbarOverlayPref } from "@/lib/winTaskbarOverlayPref";
 import { resolveTrayBusyBadgeCount } from "@/lib/trayNotifyPro";
 import {
   collectAgentDashboardRows,
@@ -1195,6 +1196,8 @@ export function AppWorkbench() {
     setWindowAlwaysOnTop,
     trayBusyBadge,
     setTrayBusyBadge,
+    winTaskbarOverlay,
+    setWinTaskbarOverlay,
     composerSendKeyPref,
     showComposerDraftStats,
     composerSpellcheck,
@@ -3142,6 +3145,18 @@ export function AppWorkbench() {
     if (!resolved.apply) return;
     void api.traySetBusyCount(resolved.count);
   }, [unreadSessionIds.size, trayBusyBadge, isSecondaryWindow]);
+
+  // Windows taskbar *button* overlay: independent of trayBusyBadge (default off).
+  // Secondary windows must not apply. Pref off sends 0 (clear).
+  useEffect(() => {
+    const resolved = resolveTrayBusyBadgeCount({
+      enabled: winTaskbarOverlay,
+      busyCount: unreadSessionIds.size,
+      isSecondaryWindow,
+    });
+    if (!resolved.apply) return;
+    void api.traySetWindowsOverlay(resolved.count);
+  }, [unreadSessionIds.size, winTaskbarOverlay, isSecondaryWindow]);
 
   const applyComposerPrefs = useCallback(
     (prefs: api.ComposerPrefs, catalog: ModelOption[]) => {
@@ -18642,6 +18657,11 @@ export function AppWorkbench() {
           onTrayBusyBadge={(v) => {
           saveTrayBusyBadgePref(v, localStorage);
           setTrayBusyBadge(v);
+          }}
+          winTaskbarOverlay={winTaskbarOverlay}
+          onWinTaskbarOverlay={(v) => {
+          saveWinTaskbarOverlayPref(v, localStorage);
+          setWinTaskbarOverlay(v);
           }}
           launchAtLogin={launchAtLogin}
           onLaunchAtLogin={(v) => {

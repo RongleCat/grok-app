@@ -183,6 +183,7 @@ export function GeneralSection() {
     onTodoGateEnabled,
     onTodoGateMaxFiresPerPrompt,
     onTrayBusyBadge,
+    onWinTaskbarOverlay,
     onTwoPassCompactionEnabled,
     onUseLeader,
     onVoiceDictationAutoSend,
@@ -233,6 +234,7 @@ export function GeneralSection() {
     todoGateMaxFiresPerPrompt,
     trayBusyBadge,
     trayBusySurface,
+    winTaskbarOverlay,
     twoPassCompactionEnabled,
     useLeader,
     voiceDictationAutoSend,
@@ -2475,6 +2477,29 @@ export function GeneralSection() {
                       cap: trayBusySurface.displayCount,
                     })}
                   </div>
+                </div>
+              ) : null}
+              {onWinTaskbarOverlay && detectAppPlatform() === "win" ? (
+                <div
+                  className={
+                    "settings-row" +
+                    rowHighlight("settings-anchor-winTaskbarOverlay")
+                  }
+                  id="settings-anchor-winTaskbarOverlay"
+                >
+                  <div className="settings-row__text">
+                    <div className="settings-row__label">
+                      {t("settings.winTaskbarOverlay")}
+                    </div>
+                    <div className="settings-row__desc">
+                      {t("settings.winTaskbarOverlayDesc")}
+                    </div>
+                  </div>
+                  <UiCheck
+                    checked={!!winTaskbarOverlay}
+                    onChange={() => onWinTaskbarOverlay(!winTaskbarOverlay)}
+                    ariaLabel={t("settings.winTaskbarOverlay")}
+                  />
                 </div>
               ) : null}
               {onLaunchAtLogin ? (

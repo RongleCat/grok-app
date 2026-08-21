@@ -251,6 +251,8 @@ export const zhSettings = {
   "settings.trayBusyBadge.status.idle": "当前无未读会话 — 角标保持空白。",
   "settings.trayBusyBadge.status.busy": "程序坞/托盘显示 {n} 个未读会话。",
   "settings.trayBusyBadge.status.capped": "程序坞/托盘显示 {n}+（已达显示上限）。",
+  "settings.winTaskbarOverlay": "在 Windows 任务栏显示未读 overlay",
+  "settings.winTaskbarOverlayDesc": "后台会话回复结束后，在 Windows 任务栏按钮上绘制未读数（1–9 为数字，10+ 为加号）。默认关闭。与程序坞/托盘未读角标相互独立。macOS 和 Linux 上无效。",
   "settings.launchAtLogin": "登录时启动",
   "settings.launchAtLoginDesc": "在你登录此电脑时自动启动 Grok（系统登录项 / macOS 为 Launch Agent）。已安排任务仅在应用打开或收起到托盘时运行——开启登录启动有助于重启后恢复调度。没有独立的后台守护进程。",
   "settings.windowAlwaysOnTop": "窗口置顶",

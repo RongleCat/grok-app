@@ -252,6 +252,8 @@ export const zhTWSettings = {
   "settings.trayBusyBadge.status.idle": "目前無未讀工作階段 — 角標保持空白。",
   "settings.trayBusyBadge.status.busy": "Dock/系統匣顯示 {n} 個未讀工作階段。",
   "settings.trayBusyBadge.status.capped": "Dock/系統匣顯示 {n}+（已達顯示上限）。",
+  "settings.winTaskbarOverlay": "在 Windows 工作列顯示未讀 overlay",
+  "settings.winTaskbarOverlayDesc": "背景工作階段回覆結束後，在 Windows 工作列按鈕上繪製未讀數（1–9 為數字，10+ 為加號）。預設關閉。與 Dock/系統匣未讀角標互不影響。macOS 與 Linux 上無效。",
   "settings.launchAtLogin": "登入時啟動",
   "settings.launchAtLoginDesc": "在你登入此電腦時自動啟動 Grok（系統登入項目 / macOS 為 Launch Agent）。已排程任務僅在應用開啟或收進選單列時執行——開啟登入啟動有助於重啟後恢復排程。沒有獨立的背景守護行程。",
   "settings.windowAlwaysOnTop": "視窗置頂",

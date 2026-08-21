@@ -228,6 +228,8 @@ export const filSettings = {
   "settings.trayBusyBadge.status.idle": "Walang unread chats ngayon — malinis ang badge.",
   "settings.trayBusyBadge.status.busy": "{n} unread chat ang ipinapakita sa dock/tray.",
   "settings.trayBusyBadge.status.capped": "Ipinapakita ang {n}+ sa dock/tray (display cap).",
+  "settings.winTaskbarOverlay": "Ipakita ang unread overlay sa Windows taskbar",
+  "settings.winTaskbarOverlayDesc": "Kapag natapos ang chat na mag-reply sa background, magpinta ng count sa Windows taskbar button (1–9 na digit, 10+ na plus). Naka-off bilang default. Hiwalay sa dock/tray unread badge. Walang epekto sa macOS o Linux.",
   "settings.launchAtLogin": "Ilunsad sa login",
   "settings.launchAtLoginDesc": "Awtomatikong simulan ang Grok kapag nag-log in ka sa computer na ito (OS login items / Launch Agent sa macOS). Tumatakbo lang ang mga naka-iskedyul na gawain habang bukas ang app o nasa tray — nakakatulong ang launch at login na magpatuloy sila pagkatapos mag-reboot. Walang hiwalay na background daemon.",
   "settings.windowAlwaysOnTop": "Panatilihing nasa itaas ang window",

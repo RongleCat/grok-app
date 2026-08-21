@@ -62,6 +62,10 @@ import {
   loadTrayBusyBadgePref,
 } from "@/lib/trayBusyBadgePref";
 import {
+  loadWinTaskbarOverlayPref,
+  WIN_TASKBAR_OVERLAY_CHANGE_EVENT,
+} from "@/lib/winTaskbarOverlayPref";
+import {
   applyWindowAlwaysOnTop,
   loadWindowAlwaysOnTopPref,
 } from "@/lib/windowAlwaysOnTop";
@@ -136,6 +140,9 @@ export function useWorkbenchDisplayPrefs() {
   const [trayBusyBadge, setTrayBusyBadge] = useState(() =>
     loadTrayBusyBadgePref(localStorage),
   );
+  const [winTaskbarOverlay, setWinTaskbarOverlay] = useState(() =>
+    loadWinTaskbarOverlayPref(localStorage),
+  );
   const [composerSendKeyPref, setComposerSendKeyPref] =
     useState<ComposerSendKeyPref>(() => loadComposerSendKeyPref());
   const [showComposerDraftStats, setShowComposerDraftStats] = useState(() =>
@@ -173,6 +180,11 @@ export function useWorkbenchDisplayPrefs() {
     NOTIFY_SOUND_CHANGE_EVENT,
     () => loadNotifySoundPref(localStorage),
     setNotifySound,
+  );
+  useBooleanPrefSync(
+    WIN_TASKBAR_OVERLAY_CHANGE_EVENT,
+    () => loadWinTaskbarOverlayPref(localStorage),
+    setWinTaskbarOverlay,
   );
 
   useEffect(() => {
@@ -258,6 +270,8 @@ export function useWorkbenchDisplayPrefs() {
     setWindowAlwaysOnTop,
     trayBusyBadge,
     setTrayBusyBadge,
+    winTaskbarOverlay,
+    setWinTaskbarOverlay,
     composerSendKeyPref,
     setComposerSendKeyPref,
     showComposerDraftStats,

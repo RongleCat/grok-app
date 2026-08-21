@@ -228,6 +228,8 @@ export const itSettings = {
   "settings.trayBusyBadge.status.idle": "Nessuna chat non letta in questo momento — il badge resta pulito.",
   "settings.trayBusyBadge.status.busy": "{n} chat non letta/e mostrate su dock/vassoio.",
   "settings.trayBusyBadge.status.capped": "Mostro {n}+ su dock/vassoio (tetto di visualizzazione).",
+  "settings.winTaskbarOverlay": "Mostra overlay non letti sulla barra delle applicazioni Windows",
+  "settings.winTaskbarOverlayDesc": "Quando una chat termina una risposta in background, disegna un conteggio sul pulsante della barra delle applicazioni Windows (1–9 come cifra, 10+ come plus). Disattivato di default. Indipendente dal badge non letti dock/vassoio. Nessun effetto su macOS o Linux.",
   "settings.launchAtLogin": "Avvio all’accesso",
   "settings.launchAtLoginDesc": "Avvia Grok automaticamente quando accedi a questo computer (elementi di login OS / Launch Agent su macOS). Le attività pianificate girano solo mentre l’app è aperta o nel vassoio — l’avvio all’accesso le aiuta a riprendere dopo il riavvio. Non c’è un demone di background separato.",
   "settings.windowAlwaysOnTop": "Tieni la finestra in primo piano",

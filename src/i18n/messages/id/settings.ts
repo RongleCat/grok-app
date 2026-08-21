@@ -228,6 +228,8 @@ export const idSettings = {
   "settings.trayBusyBadge.status.idle": "Tidak ada obrolan belum dibaca sekarang — lencana tetap bersih.",
   "settings.trayBusyBadge.status.busy": "{n} obrolan belum dibaca ditampilkan di dock/baki.",
   "settings.trayBusyBadge.status.capped": "Menampilkan {n}+ di dock/baki (batas tampilan).",
+  "settings.winTaskbarOverlay": "Tampilkan overlay belum dibaca di taskbar Windows",
+  "settings.winTaskbarOverlayDesc": "Saat obrolan menyelesaikan balasan di latar, tampilkan hitungan pada tombol taskbar Windows (1–9 sebagai angka, 10+ sebagai plus). Mati secara default. Terpisah dari lencana belum dibaca dock/baki. Tidak berpengaruh di macOS atau Linux.",
   "settings.launchAtLogin": "Jalankan saat masuk",
   "settings.launchAtLoginDesc": "Mulai Grok secara otomatis saat Anda masuk ke komputer ini (item masuk OS / Launch Agent di macOS). Tugas terjadwal hanya berjalan saat aplikasi terbuka atau di baki — jalankan saat masuk membantu mereka dilanjutkan setelah reboot. Tidak ada daemon latar terpisah.",
   "settings.windowAlwaysOnTop": "Jaga jendela di atas",

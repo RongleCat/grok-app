@@ -405,12 +405,28 @@ export async function trayRefresh() {
  * Show badge count on dock (macOS) or tray tooltip (elsewhere).
  * Product uses unread session count (post turn-end), not live busy.
  * Pass `0` to clear. Fail-closed outside Tauri / on host errors.
+ * Does **not** drive the Windows taskbar overlay.
  */
 export async function traySetBusyCount(count: number) {
   if (!isTauri()) return;
   const n = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
   try {
     await invoke<void>("tray_set_busy_count", { count: n });
+  } catch {
+    /* fail-closed */
+  }
+}
+
+/**
+ * Windows taskbar *button* overlay for unread sessions (opt-in).
+ * Independent of `traySetBusyCount`. Pass `0` to clear.
+ * Fail-closed outside Tauri / on host errors / non-Windows (host no-op).
+ */
+export async function traySetWindowsOverlay(count: number) {
+  if (!isTauri()) return;
+  const n = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  try {
+    await invoke<void>("tray_set_windows_overlay", { count: n });
   } catch {
     /* fail-closed */
   }

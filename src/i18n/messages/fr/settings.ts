@@ -228,6 +228,8 @@ export const frSettings = {
   "settings.trayBusyBadge.status.idle": "Aucune conversation non lue pour l’instant — le badge reste vide.",
   "settings.trayBusyBadge.status.busy": "{n} conversation(s) non lue(s) affichée(s) sur dock/tiroir.",
   "settings.trayBusyBadge.status.capped": "Affichage de {n}+ sur dock/tiroir (plafond d’affichage).",
+  "settings.winTaskbarOverlay": "Afficher un overlay de non lus sur la barre des tâches Windows",
+  "settings.winTaskbarOverlayDesc": "Lorsqu’une conversation termine une réponse en arrière-plan, peindre un compteur sur le bouton de la barre des tâches Windows (1–9 en chiffre, 10+ en plus). Désactivé par défaut. Indépendant du badge de non lus du dock/tiroir. Sans effet sur macOS ou Linux.",
   "settings.launchAtLogin": "Lancer à la connexion",
   "settings.launchAtLoginDesc": "Démarrer Grok automatiquement à l’ouverture de session de cet ordinateur (éléments de connexion OS / Launch Agent sur macOS). Les tâches planifiées ne s’exécutent que tant que l’app est ouverte ou dans le tiroir — lancer à la connexion aide à reprendre après un redémarrage. Il n’y a pas de démon d’arrière-plan séparé.",
   "settings.windowAlwaysOnTop": "Garder la fenêtre au premier plan",

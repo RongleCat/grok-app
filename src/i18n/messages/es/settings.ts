@@ -228,6 +228,8 @@ export const esSettings = {
   "settings.trayBusyBadge.status.idle": "Ningún chat no leído ahora — la insignia permanece vacía.",
   "settings.trayBusyBadge.status.busy": "{n} chat(s) no leído(s) en dock/bandeja.",
   "settings.trayBusyBadge.status.capped": "Mostrando {n}+ en dock/bandeja (tope de visualización).",
+  "settings.winTaskbarOverlay": "Mostrar overlay de no leídos en la barra de tareas de Windows",
+  "settings.winTaskbarOverlayDesc": "Cuando un chat termina una respuesta en segundo plano, pintar un recuento en el botón de la barra de tareas de Windows (1–9 como dígito, 10+ como plus). Desactivado por defecto. Independiente de la insignia de no leídos del dock/bandeja. Sin efecto en macOS o Linux.",
   "settings.launchAtLogin": "Iniciar al iniciar sesión",
   "settings.launchAtLoginDesc": "Inicia Grok automáticamente al iniciar sesión en este equipo (elementos de inicio del SO / Launch Agent en macOS). Las tareas programadas solo se ejecutan mientras la app está abierta o en la bandeja — iniciar al iniciar sesión ayuda a reanudarlas tras un reinicio. No hay un demonio de segundo plano aparte.",
   "settings.windowAlwaysOnTop": "Mantener la ventana al frente",

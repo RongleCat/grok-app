@@ -161,6 +161,9 @@ export interface SettingsPageProps {
   onTrayBusyBadge?: (v: boolean) => void;
   /** Current badge count for settings status (unread session count). */
   trayBusyCount?: number;
+  /** Windows taskbar button overlay (opt-in, default off). Independent of trayBusyBadge. */
+  winTaskbarOverlay?: boolean;
+  onWinTaskbarOverlay?: (v: boolean) => void;
   launchAtLogin?: boolean;
   onLaunchAtLogin?: (v: boolean) => void;
   windowAlwaysOnTop?: boolean;

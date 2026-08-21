@@ -228,6 +228,8 @@ export const jaSettings = {
   "settings.trayBusyBadge.status.idle": "いま未読チャットはありません — バッジは空のままです。",
   "settings.trayBusyBadge.status.busy": "Dock/トレイに未読チャット {n} 件を表示しています。",
   "settings.trayBusyBadge.status.capped": "Dock/トレイに {n}+ を表示しています（表示上限）。",
+  "settings.winTaskbarOverlay": "Windows タスクバーに未読オーバーレイを表示",
+  "settings.winTaskbarOverlayDesc": "バックグラウンドでチャットの返信が終わると、Windows タスクバーボタンに件数を描きます（1–9 は数字、10+ はプラス）。既定はオフ。Dock/トレイの未読バッジとは独立しています。macOS と Linux では無効です。",
   "settings.launchAtLogin": "ログイン時に起動",
   "settings.launchAtLoginDesc": "このコンピュータにログインしたとき Grok を自動起動します（OS のログイン項目 / macOS の Launch Agent）。スケジュールタスクはアプリが開いているかトレイにあるときだけ動きます — ログイン時起動は再起動後の再開に役立ちます。別のバックグラウンドデーモンはありません。",
   "settings.windowAlwaysOnTop": "ウィンドウを最前面に保つ",

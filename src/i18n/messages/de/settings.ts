@@ -228,6 +228,8 @@ export const deSettings = {
   "settings.trayBusyBadge.status.idle": "Gerade keine ungelesenen Chats — Badge bleibt leer.",
   "settings.trayBusyBadge.status.busy": "{n} ungelesene(r) Chat(s) auf Dock/Tray gezeigt.",
   "settings.trayBusyBadge.status.capped": "{n}+ auf Dock/Tray gezeigt (Anzeige-Cap).",
+  "settings.winTaskbarOverlay": "Ungelesen-Overlay auf der Windows-Taskleiste zeigen",
+  "settings.winTaskbarOverlayDesc": "Wenn ein Chat im Hintergrund eine Antwort beendet, eine Zahl auf dem Windows-Taskleistenschalter malen (1–9 als Ziffer, 10+ als Plus). Standard aus. Unabhängig vom Dock-/Tray-Ungelesen-Badge. Keine Wirkung auf macOS oder Linux.",
   "settings.launchAtLogin": "Bei Anmeldung starten",
   "settings.launchAtLoginDesc": "Grok automatisch starten, wenn du dich an diesem Computer anmeldest (OS-Login-Items / Launch Agent auf macOS). Geplante Aufgaben laufen nur, solange die App offen oder im Tray ist — Bei Anmeldung starten hilft ihnen nach dem Reboot fortzusetzen. Es gibt keinen separaten Hintergrund-Daemon.",
   "settings.windowAlwaysOnTop": "Fenster im Vordergrund halten",

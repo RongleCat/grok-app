@@ -1308,6 +1308,8 @@ pub fn run() {
 
             tray::tray_set_busy_count,
 
+            tray::tray_set_windows_overlay,
+
             os_theme::os_theme_current,
 
             desktop_notify::desktop_notify_show,

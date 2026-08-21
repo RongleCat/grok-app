@@ -251,6 +251,8 @@ export const enSettings = {
   "settings.trayBusyBadge.status.idle": "No unread chats right now — badge stays clear.",
   "settings.trayBusyBadge.status.busy": "{n} unread chat(s) shown on dock/tray.",
   "settings.trayBusyBadge.status.capped": "Showing {n}+ on dock/tray (display cap).",
+  "settings.winTaskbarOverlay": "Show unread overlay on the Windows taskbar",
+  "settings.winTaskbarOverlayDesc": "When a chat finishes a reply in the background, paint a count on the Windows taskbar button (1–9 as a digit, 10+ as a plus). Off by default. Independent of the dock/tray unread badge. No effect on macOS or Linux.",
   "settings.launchAtLogin": "Launch at login",
   "settings.launchAtLoginDesc": "Start Grok automatically when you log into this computer (OS login items / Launch Agent on macOS). Scheduled tasks only run while the app is open or in the tray — launch at login helps them resume after reboot. There is no separate background daemon.",
   "settings.windowAlwaysOnTop": "Keep window on top",

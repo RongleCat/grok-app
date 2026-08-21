@@ -228,6 +228,8 @@ export const ruSettings = {
   "settings.trayBusyBadge.status.idle": "Непрочитанных чатов сейчас нет — значок остаётся чистым.",
   "settings.trayBusyBadge.status.busy": "Непрочитанных чатов на dock/tray: {n}.",
   "settings.trayBusyBadge.status.capped": "На dock/tray показано {n}+ (потолок отображения).",
+  "settings.winTaskbarOverlay": "Показывать оверлей непрочитанных на панели задач Windows",
+  "settings.winTaskbarOverlayDesc": "Когда чат завершает ответ в фоне, нарисовать счётчик на кнопке панели задач Windows (1–9 цифрой, 10+ плюсом). По умолчанию выкл. Не зависит от значка непрочитанных на Dock/трее. На macOS и Linux не действует.",
   "settings.launchAtLogin": "Запускать при входе в систему",
   "settings.launchAtLoginDesc": "Автоматически запускать Grok после входа в систему. Это помогает запланированным задачам возобновляться после перезагрузки.",
   "settings.windowAlwaysOnTop": "Окно поверх остальных",

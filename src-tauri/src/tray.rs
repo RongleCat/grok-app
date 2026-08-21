@@ -296,7 +296,7 @@ pub fn show_main_window(app: &AppHandle) {
         {
             // After show/focus, re-assert styles + taskbar tab once more.
             crate::win_shell::ensure_main_window_shell_integration(&w);
-            // DeleteTab/AddTab drops ITaskbarList3 overlay; put the last count back.
+            // DeleteTab/AddTab drops ITaskbarList3 overlay; put the last overlay count back.
             reapply_windows_overlay(app);
         }
     }
@@ -548,9 +548,10 @@ pub fn busy_tooltip(base: &str, count: u32) -> String {
 /// - **macOS Dock**: `set_badge_label` (+ count) on the main window. No-op while
 ///   the app is Accessory / dock-hidden (close-to-tray) — tray chrome still updates.
 /// - **macOS menu-bar tray**: tooltip `Grok · N` and a numeric title next to the icon.
-/// - **Windows taskbar**: `set_overlay_icon` (Tauri `set_badge_count` is unsupported).
+/// - **Windows**: tray tooltip only. Taskbar *button* overlay is a separate
+///   opt-in (`tray_set_windows_overlay`); this path must not call `set_overlay_icon`.
 /// - **Linux**: dock-like badge when supported + tray tooltip.
-/// - Count `0` clears the badge / overlay / restores default tooltip / clears tray title.
+/// - Count `0` clears the badge / restores default tooltip / clears tray title.
 /// - Fail-closed: missing tray/window errors are logged, never panic.
 pub fn set_busy_count(app: &AppHandle, count: u32) {
     let base = tray_i18n::t().tooltip;
@@ -565,16 +566,6 @@ pub fn set_busy_count(app: &AppHandle, count: u32) {
             if let Err(e) = w.set_badge_label(badge_label_value(count)) {
                 tracing::debug!(error = %e, count, "set_badge_label failed");
             }
-        } else {
-            tracing::debug!(count, "set_busy_count: main window missing");
-        }
-    }
-
-    #[cfg(windows)]
-    {
-        crate::win_taskbar_overlay::remember(count);
-        if let Some(w) = app.get_webview_window("main") {
-            apply_windows_overlay(&w, count);
         } else {
             tracing::debug!(count, "set_busy_count: main window missing");
         }
@@ -616,7 +607,6 @@ pub fn set_busy_count(app: &AppHandle, count: u32) {
 
 #[cfg(windows)]
 fn apply_windows_overlay(window: &tauri::WebviewWindow, count: u32) {
-    crate::win_taskbar_overlay::remember(count);
     match crate::win_taskbar_overlay::overlay_rgba(count) {
         Some(rgba) => {
             let icon = Image::new_owned(
@@ -636,6 +626,18 @@ fn apply_windows_overlay(window: &tauri::WebviewWindow, count: u32) {
     }
 }
 
+/// Remember overlay count (not busy/tray count) and paint or clear.
+/// Window missing still stores the count so show-from-tray can re-apply.
+#[cfg(windows)]
+fn set_windows_overlay_count(app: &AppHandle, count: u32) {
+    crate::win_taskbar_overlay::remember(count);
+    if let Some(w) = app.get_webview_window("main") {
+        apply_windows_overlay(&w, count);
+    } else {
+        tracing::debug!(count, "set_windows_overlay: main window missing");
+    }
+}
+
 #[cfg(windows)]
 fn reapply_windows_overlay(app: &AppHandle) {
     let count = crate::win_taskbar_overlay::last_count();
@@ -645,9 +647,23 @@ fn reapply_windows_overlay(app: &AppHandle) {
 }
 
 /// Frontend → host: update dock/tray badge count (product: unread sessions).
+/// Does **not** drive the Windows taskbar overlay.
 #[tauri::command]
 pub fn tray_set_busy_count(app: AppHandle, count: u32) -> Result<(), String> {
     set_busy_count(&app, count);
+    Ok(())
+}
+
+/// Frontend → host: Windows taskbar *button* overlay (opt-in unread count).
+/// Independent of `tray_set_busy_count`. Count `0` clears. No-op off Windows.
+#[tauri::command]
+pub fn tray_set_windows_overlay(app: AppHandle, count: u32) -> Result<(), String> {
+    #[cfg(windows)]
+    set_windows_overlay_count(&app, count);
+    #[cfg(not(windows))]
+    {
+        let _ = (app, count);
+    }
     Ok(())
 }
 
