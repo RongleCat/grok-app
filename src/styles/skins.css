@@ -126,6 +126,20 @@ html[data-wallpaper="1"] .platform-mac .settings-page__nav {
     saturate(1.25);
 }
 
+/*
+ * Live turn: AppWorkbench sets html[data-stream-perf="1"].
+ * Frosted wallpaper panes on a playing video are a WebView2 GPU sink.
+ * Video pause is JS (WallpaperMediaLayer).
+ */
+html[data-stream-perf="1"][data-wallpaper="1"] .sidebar,
+html[data-stream-perf="1"][data-wallpaper="1"] .settings-page__nav,
+html[data-stream-perf="1"][data-wallpaper="1"] .platform-win .settings-page__nav,
+html[data-stream-perf="1"][data-wallpaper="1"] .platform-other .settings-page__nav,
+html[data-stream-perf="1"][data-wallpaper="1"] .platform-mac .settings-page__nav {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 html[data-wallpaper="1"] .settings-page__content,
 html[data-wallpaper="1"].platform-mac .settings-page__content,
 html[data-wallpaper="1"].platform-mac[data-theme="light"] .settings-page__content {

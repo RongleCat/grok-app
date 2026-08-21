@@ -122,3 +122,22 @@ export function resolveMarkdownPaintSource(
 ): string {
   return streaming ? throttledSource : liveSource;
 }
+
+/** `html[data-stream-perf]` as written by AppWorkbench during a live turn. */
+export function readStreamPerfFlag(
+  dataset: { streamPerf?: string } | null | undefined,
+): boolean {
+  return dataset?.streamPerf === "1";
+}
+
+/**
+ * Wallpaper `<video>` should decode only when the window is visible and
+ * stream-perf is off. CSS drops sidebar blur separately.
+ */
+export function shouldPlayWallpaperVideo(opts: {
+  visibilityState?: string;
+  streamPerf?: boolean;
+}): boolean {
+  if ((opts.visibilityState ?? "visible") === "hidden") return false;
+  return !opts.streamPerf;
+}

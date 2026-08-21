@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   CHAT_VIRTUALIZE_THRESHOLD_PERF,
+  readStreamPerfFlag,
   resolveStreamFlushMs,
   resolveStreamMarkdownParseMs,
   resolveStreamOverscanScale,
   resolveMarkdownPaintSource,
   resolveTranscriptContentNotifyMs,
+  shouldPlayWallpaperVideo,
   shouldUsePlainStreamBody,
   STREAM_COALESCE_FLUSH_MS,
   STREAM_MARKDOWN_PARSE_MS,
@@ -76,5 +78,25 @@ describe("streamRenderPolicy", () => {
     expect(resolveTranscriptContentNotifyMs(16)).toBeLessThan(
       TRANSCRIPT_CONTENT_NOTIFY_MS,
     );
+  });
+
+  it("reads html dataset.streamPerf", () => {
+    expect(readStreamPerfFlag(undefined)).toBe(false);
+    expect(readStreamPerfFlag({})).toBe(false);
+    expect(readStreamPerfFlag({ streamPerf: "0" })).toBe(false);
+    expect(readStreamPerfFlag({ streamPerf: "1" })).toBe(true);
+  });
+
+  it("pauses wallpaper video when hidden or stream-perf", () => {
+    expect(shouldPlayWallpaperVideo({})).toBe(true);
+    expect(shouldPlayWallpaperVideo({ visibilityState: "visible" })).toBe(true);
+    expect(shouldPlayWallpaperVideo({ visibilityState: "hidden" })).toBe(false);
+    expect(shouldPlayWallpaperVideo({ streamPerf: true })).toBe(false);
+    expect(
+      shouldPlayWallpaperVideo({
+        visibilityState: "visible",
+        streamPerf: true,
+      }),
+    ).toBe(false);
   });
 });

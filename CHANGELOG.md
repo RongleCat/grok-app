@@ -20,12 +20,14 @@ See `docs/llm-wiki/release.md`.
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
 
 ### Changed
+- **Stream-perf actually drops wallpaper GPU cost**: `html[data-stream-perf="1"]` now turns off wallpaper sidebar/settings blur and pauses wallpaper video for the live turn (the flag already existed; CSS/JS did not honor it).
 - **Streaming markdown keeps a stable ReactMarkdown component map**: `remarkPlugins` and leaf tags are module-level; path/code/img handlers memoize so a token tick does not remount the tree.
 - **Streamdown CSS no longer loads at boot**: Chat uses `MarkdownChat`, not Streamdown. Styles move onto the unused `MessageResponse` module so a later import still looks right.
 - **Vendor JS split for markdown / TipTap / xterm**: Vite emits separate chunks so those stacks can cache independently of the app shell (and drop off first paint once their call sites are lazy).
 - **Official site on GitHub About and README**: Repo homepage, `package.json` `homepage`, and public READMEs now point to [https://grok-app.com/](https://grok-app.com/).
 
 **中文 · 变更**
+- **流式性能模式真正减壁纸 GPU**：`html[data-stream-perf="1"]` 会关掉壁纸侧栏/设置毛玻璃，并暂停壁纸视频（旗标早就有，CSS/JS 之前没接上）。
 - **流式 markdown 不再每跳一次 token 换一套 components**：`remarkPlugins` 和叶子标签提到模块级；路径/代码/图片处理器 memo，避免 ReactMarkdown 整树重挂。
 - **启动不再加载 Streamdown CSS**：聊天走 `MarkdownChat`，不走 Streamdown。样式挪到未接入的 `MessageResponse`，以后真用到时才会带上。
 - **markdown / TipTap / xterm 拆成独立 JS chunk**：Vite 单独打包这三坨，壳改动不再带着重库一起失效；后续 lazy 后它们可以离开首屏。

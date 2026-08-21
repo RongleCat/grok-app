@@ -24,6 +24,10 @@ import {
   wallpaperMediaLayout,
   type WallpaperFocus,
 } from "@/lib/themeSkin";
+import {
+  readStreamPerfFlag,
+  shouldPlayWallpaperVideo,
+} from "@/lib/streamRenderPolicy";
 
 export type WallpaperMediaSize = { w: number; h: number };
 
@@ -194,26 +198,38 @@ export function WallpaperMediaLayer({
     return undefined;
   }, [kind, clip, url]);
 
-  // Pause wallpaper video while the window is hidden (save decode + avoid
-  // thrashing media pipelines when the user Cmd-Tabs away and back).
+  // Pause wallpaper video while hidden or while stream-perf is on (live turn).
   useEffect(() => {
     if (kind !== "video") return;
-    const onVis = () => {
+    const apply = () => {
       const el = mediaRef.current;
       if (!(el instanceof HTMLVideoElement)) return;
-      if (document.visibilityState === "hidden") {
-        try {
-          if (!el.paused) el.pause();
-        } catch {
-          /* ignore */
-        }
+      const play = shouldPlayWallpaperVideo({
+        visibilityState: document.visibilityState,
+        streamPerf: readStreamPerfFlag(document.documentElement.dataset),
+      });
+      if (play) {
+        void el.play().catch(() => {});
         return;
       }
-      // Resume muted autoplay wallpaper when visible again.
-      void el.play().catch(() => {});
+      try {
+        if (!el.paused) el.pause();
+      } catch {
+        /* ignore */
+      }
     };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+    apply();
+    document.addEventListener("visibilitychange", apply);
+    const root = document.documentElement;
+    const obs = new MutationObserver(apply);
+    obs.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-stream-perf"],
+    });
+    return () => {
+      document.removeEventListener("visibilitychange", apply);
+      obs.disconnect();
+    };
   }, [kind, url]);
 
   const layout =
