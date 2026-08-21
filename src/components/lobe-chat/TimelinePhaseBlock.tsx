@@ -538,17 +538,16 @@ export function GrokActivitySteps({
     },
     [],
   );
-  const liveBodyCount = steps.reduce((n, s) => {
-    if (s.type === "speech") return n;
-    if (s.type === "thought") return n + (s.streaming && s.text.trim() ? 1 : 0);
-    return n + ("running" in s && s.running ? 1 : 0);
+  const liveThoughtCount = steps.reduce((n, s) => {
+    if (s.type !== "thought") return n;
+    return n + (s.streaming && s.text.trim() ? 1 : 0);
   }, 0);
   const virtualize =
     !steps.some((s) => s.type === "speech") &&
     shouldVirtualizeActivityWithExpand(
       total,
       expandState.expandedKeys.size,
-      liveBodyCount,
+      liveThoughtCount,
     );
   const lastKey = total > 0 ? steps[total - 1]!.key : null;
   const followKey = live ? liveActivityFollowKey(steps) : lastKey;

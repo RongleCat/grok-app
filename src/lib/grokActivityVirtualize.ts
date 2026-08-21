@@ -34,19 +34,22 @@ export function shouldVirtualizeGrokActivitySteps(stepCount: number): boolean {
 }
 
 /**
- * Fixed VirtualList row height cannot host expanded detail.
- * Leave windowing whenever any step is expanded (parent owns expanded keys so
+ * Fixed VirtualList row height cannot host expanded detail or a streaming
+ * thought body. Running tool *titles* stay 36px — they must not disable
+ * windowing (that was dumping 20–200 live steps into the DOM).
+ *
+ * Leave windowing when any step is expanded (parent owns expanded keys so
  * the virtual→map remount does not wipe open state).
  */
 export function shouldVirtualizeActivityWithExpand(
   stepCount: number,
   expandedKeyCount: number,
-  liveBodyCount = 0,
+  liveThoughtCount = 0,
 ): boolean {
   return (
     shouldVirtualizeGrokActivitySteps(stepCount) &&
     expandedKeyCount === 0 &&
-    liveBodyCount === 0
+    liveThoughtCount === 0
   );
 }
 

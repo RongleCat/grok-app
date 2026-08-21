@@ -91,7 +91,7 @@ describe("grokActivityVirtualize", () => {
     );
   });
 
-  it("live tool bodies leave VirtualList even before expand policy runs", () => {
+  it("streaming thought bodies leave VirtualList; running tool titles do not", () => {
     const stepCount = GROK_ACTIVITY_VIRTUALIZE_THRESHOLD + 5;
     expect(shouldVirtualizeActivityWithExpand(stepCount, 0, 0)).toBe(true);
     expect(shouldVirtualizeActivityWithExpand(stepCount, 0, 1)).toBe(false);
