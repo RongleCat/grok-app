@@ -20,9 +20,11 @@ See `docs/llm-wiki/release.md`.
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
 
 ### Changed
+- **Vendor JS split for markdown / TipTap / xterm**: Vite emits separate chunks so those stacks can cache independently of the app shell (and drop off first paint once their call sites are lazy).
 - **Official site on GitHub About and README**: Repo homepage, `package.json` `homepage`, and public READMEs now point to [https://grok-app.com/](https://grok-app.com/).
 
 **中文 · 变更**
+- **markdown / TipTap / xterm 拆成独立 JS chunk**：Vite 单独打包这三坨，壳改动不再带着重库一起失效；后续 lazy 后它们可以离开首屏。
 - **仓库 About 与 README 挂上官网**：GitHub 仓库网站、`package.json` `homepage` 与各语言 README 现指向 [https://grok-app.com/](https://grok-app.com/)。
 
 ### Fixed

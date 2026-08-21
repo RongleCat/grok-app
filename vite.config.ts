@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import process from "node:process";
+import { vendorManualChunk } from "./src/lib/viteManualChunks";
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -28,6 +29,13 @@ export default defineConfig(() => ({
       : undefined,
     watch: {
       ignored: ["**/src-tauri/**"],
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: vendorManualChunk,
+      },
     },
   },
   test: {
