@@ -20,6 +20,7 @@ See `docs/llm-wiki/release.md`.
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
 
 ### Changed
+- **Locale catalogs load on demand**: English stays in the main bundle. The other 14 languages `import()` when selected; UI falls back to English until that chunk arrives.
 - **Heavy surfaces leave first paint**: Bottom terminal (xterm) mounts after first open; project-rules TipTap and the image lightbox load on demand.
 - **Live tool title rows keep activity VirtualList**: Only streaming thought bodies (variable height) drop windowing. Running 36px tool titles no longer dump the whole step list into the DOM.
 - **Weaving tools no longer clones every chat row**: History message object identity is kept so memoized transcript rows survive stream ticks. Row memo no longer busts on a new `wovenMessages` array.
@@ -34,6 +35,7 @@ See `docs/llm-wiki/release.md`.
 - **Official site on GitHub About and README**: Repo homepage, `package.json` `homepage`, and public READMEs now point to [https://grok-app.com/](https://grok-app.com/).
 
 **中文 · 变更**
+- **语言包按需加载**：主包只带英文。另外 14 种语言选中后再 `import()`；chunk 到达前界面先用英文。
 - **重表面离开首屏**：底栏终端（xterm）第一次打开才挂载；项目规则 TipTap 和图片灯箱按需加载。
 - **进行中的 tool 标题行仍走活动列表虚拟化**：只有流式 thought（变高）才关掉窗口化；36px 的 running tool 不再把整表打进 DOM。
 - **织入 tool 不再克隆整份 transcript**：历史消息保持同一对象引用，流式时 memo 行能活下来；行比较也不再被新的 `wovenMessages` 数组打穿。

@@ -319,6 +319,7 @@ import {
   resolveLocaleFromSystem,
   resolveLocalePreference,
   DEFAULT_LOCALE_PREFERENCE,
+  loadLocaleCatalog,
   type Locale,
   type LocalePreference
 } from "@/i18n";
@@ -2391,7 +2392,17 @@ export function AppWorkbench() {
   );
   const localeRef = useRef(locale);
   localeRef.current = locale;
-  const tr = useMemo(() => createT(locale), [locale]);
+  const [localeCatalogRev, setLocaleCatalogRev] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    void loadLocaleCatalog(locale).then(() => {
+      if (!cancelled) setLocaleCatalogRev((n) => n + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [locale]);
+  const tr = useMemo(() => createT(locale), [locale, localeCatalogRev]);
   const trRef = useRef(tr);
   trRef.current = tr;
   const [modelId, setModelId] = useState(DEFAULT_MODEL_ID);

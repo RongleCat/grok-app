@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   LOCALES,
   createT,
+  loadAllLocaleCatalogs,
   messages,
   htmlLangForLocale,
   intlLocale,
@@ -17,6 +19,10 @@ import {
 } from "./index";
 
 describe("i18n catalog", () => {
+  beforeAll(async () => {
+    await loadAllLocaleCatalogs();
+  });
+
   it("every shipped locale has exactly the en key set", () => {
     const enKeys = Object.keys(messages.en).sort();
     for (const loc of LOCALES) {

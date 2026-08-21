@@ -4,8 +4,8 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
-import { LOCALES, messages } from "./messages";
+import { beforeAll, describe, expect, it } from "vitest";
+import { LOCALES, loadAllLocaleCatalogs, messages } from "./messages";
 
 const INDEX_HTML = resolve(__dirname, "../../index.html");
 
@@ -24,6 +24,9 @@ function readBootCopy(): Record<string, [string, string]> {
 }
 
 describe("boot splash copy", () => {
+  beforeAll(async () => {
+    await loadAllLocaleCatalogs();
+  });
   const table = readBootCopy();
 
   it("covers exactly the shipped catalogs", () => {

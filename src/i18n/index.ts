@@ -6,13 +6,23 @@
 import {
   LOCALES,
   isLocale,
+  isLocaleCatalogReady,
+  loadAllLocaleCatalogs,
+  loadLocaleCatalog,
   messages,
   type Locale,
   type MessageKey,
 } from "./messages";
 
 export type { Locale, MessageKey };
-export { LOCALES, isLocale, messages };
+export {
+  LOCALES,
+  isLocale,
+  isLocaleCatalogReady,
+  loadAllLocaleCatalogs,
+  loadLocaleCatalog,
+  messages,
+};
 
 /** User preference: explicit catalog locale or follow OS / browser language. */
 export type LocalePreference = "system" | Locale;
