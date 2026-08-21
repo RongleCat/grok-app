@@ -10,6 +10,8 @@
 
 import {
   createContext,
+  lazy,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -18,11 +20,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import Lightbox from "yet-another-react-lightbox";
-import Zoom from "yet-another-react-lightbox/plugins/zoom";
-import Counter from "yet-another-react-lightbox/plugins/counter";
-import "yet-another-react-lightbox/styles.css";
-import "yet-another-react-lightbox/plugins/counter.css";
 import { resolveImageSrc, resolveImageSrcs } from "@/lib/imageSrc";
 import { copyImageFromPath, copyImageFromSrc } from "@/lib/copyImage";
 import {
@@ -32,6 +29,11 @@ import {
   loadImageNaturalSize,
 } from "@/lib/imageLightboxFit";
 import { createT, type Locale } from "@/i18n";
+
+const ImageLightbox = lazy(async () => {
+  const m = await import("./ImageLightbox");
+  return { default: m.ImageLightbox };
+});
 
 export interface ImageSlideInput {
   /** Local absolute path or already-viewable URL. */
@@ -256,63 +258,24 @@ export function ImageViewerProvider({
   return (
     <ImageViewerContext.Provider value={api}>
       {children}
-      <Lightbox
-        open={isOpen}
-        close={close}
-        index={index}
-        slides={slides.map((s) => ({
-          src: s.src,
-          alt: s.alt ?? s.title,
-          title: s.title,
-          width: s.width,
-          height: s.height,
-          // Critical for drag-pan: srcSet logical size beats naturalWidth
-          // overwrite inside Zoom's useZoomImageRect (Math.max).
-          ...(s.srcSet?.length ? { srcSet: s.srcSet } : {}),
-        }))}
-        on={{
-          view: ({ index: i }) => setIndex(i),
-        }}
-        plugins={[Zoom, Counter]}
-        zoom={{
-          // Relative to logical slide size (fit-to-stage at zoom=1).
-          // After zoom-in, built-in pointer drag pans (offsetX/Y).
-          maxZoomPixelRatio: 4,
-          scrollToZoom: true,
-        }}
-        carousel={{
-          finite: slides.length <= 1,
-          preload: 2,
-          imageFit: "contain",
-          // Force fill of the stage with object-fit contain so small bitmaps
-          // actually paint at the logical (upscaled) size — YARL's default
-          // only sets max-width/max-height which never upscales.
-          imageProps: {
-            style: {
-              maxWidth: "100%",
-              maxHeight: "100%",
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-            },
-            draggable: false,
-          },
-        }}
-        controller={{
-          closeOnBackdropClick: true,
-        }}
-        styles={{
-          // z-index via .yarl__portal in app.css (above GlassModal 12000)
-          container: { backgroundColor: "rgba(0, 0, 0, 0.92)" },
-        }}
-        labels={{
-          Next: tr("image.next"),
-          Previous: tr("image.prev"),
-          Close: tr("image.close"),
-          "Zoom in": tr("image.zoomIn"),
-          "Zoom out": tr("image.zoomOut"),
-        }}
-      />
+      {isOpen ? (
+        <Suspense fallback={null}>
+          <ImageLightbox
+            open={isOpen}
+            close={close}
+            index={index}
+            slides={slides}
+            onView={setIndex}
+            labels={{
+              next: tr("image.next"),
+              prev: tr("image.prev"),
+              close: tr("image.close"),
+              zoomIn: tr("image.zoomIn"),
+              zoomOut: tr("image.zoomOut"),
+            }}
+          />
+        </Suspense>
+      ) : null}
     </ImageViewerContext.Provider>
   );
 }

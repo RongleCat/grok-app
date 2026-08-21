@@ -15,7 +15,6 @@ import {
   IconChevronDown,
   IconClose,
   IconPlus,
-  IconTerminal,
 } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import { TerminalTab } from "@/components/side-workbench/TerminalTab";
@@ -34,35 +33,6 @@ export type BottomTerminalProps = {
   onHeightChange: (height: number, maxPx?: number) => void;
   onClosePanel: () => void;
 };
-
-export type BottomTerminalToggleProps = {
-  locale: Locale | string;
-  open: boolean;
-  onToggle: () => void;
-};
-
-export function BottomTerminalToggle({
-  locale,
-  open,
-  onToggle,
-}: BottomTerminalToggleProps) {
-  const tr = useMemo(() => createT(locale as Locale), [locale]);
-  const label = open ? tr("terminal.toggleHide") : tr("terminal.toggleShow");
-  return (
-    <Tip label={label}>
-      <button
-        type="button"
-        className={"chrome-btn main__pane-toggle" + (open ? " is-on" : "")}
-        aria-label={label}
-        aria-pressed={open}
-        data-testid="bottom-terminal-toggle"
-        onClick={onToggle}
-      >
-        <IconTerminal size={16} />
-      </button>
-    </Tip>
-  );
-}
 
 export function BottomTerminal({
   locale,

@@ -936,7 +936,7 @@ import {
 } from "@/lib/sideFloatComposer";
 import { applySideContextOpen } from "@/lib/sideContextOpen";
 import { resolveSidePathDeepLink } from "@/lib/sidePathDeepLink";
-import { ProjectRulesModal } from "@/components/ProjectRulesModal";
+
 import { PromptHistoryClearModal } from "@/components/workbench-modals/PromptHistoryClearModal";
 import { ArchiveAgeConfirmModal } from "@/components/workbench-modals/ArchiveAgeConfirmModal";
 import { WorktreeCreateModal } from "@/components/workbench-modals/WorktreeCreateModal";
@@ -1036,6 +1036,14 @@ const SetupWizard = lazy(async () => {
   const m = await import("@/components/SetupWizard");
   return { default: m.SetupWizard };
 });
+const BottomTerminal = lazy(async () => {
+  const m = await import("@/components/bottom-terminal/BottomTerminal");
+  return { default: m.BottomTerminal };
+});
+const ProjectRulesModal = lazy(async () => {
+  const m = await import("@/components/ProjectRulesModal");
+  return { default: m.ProjectRulesModal };
+});
 import { dispatchCollapseAllActivity } from "@/lib/collapseAllActivity";
 import {
   installDialogFocus,
@@ -1106,10 +1114,7 @@ import { useSidebarSessionMoveDrag } from "@/hooks/useSidebarSessionMoveDrag";
 import { SESSION_DROP_ORPHAN } from "@/lib/sessionMoveProject";
 import { useSideWorkbenchProjectIsolation } from "@/hooks/useSideWorkbenchProjectIsolation";
 import { useBottomTerminal } from "@/hooks/useBottomTerminal";
-import {
-  BottomTerminal,
-  BottomTerminalToggle,
-} from "@/components/bottom-terminal";
+import { BottomTerminalToggle } from "@/components/bottom-terminal/BottomTerminalToggle";
 import { useProjectSpaces } from "@/hooks/useProjectSpaces";
 import { SpaceSwitcher } from "@/components/SpaceSwitcher";
 import {
@@ -1682,6 +1687,12 @@ export function AppWorkbench() {
     setSideWorkbench,
   );
   const bottomTerminal = useBottomTerminal(activeProject?.id);
+  const [bottomTerminalMounted, setBottomTerminalMounted] = useState(false);
+  useEffect(() => {
+    if (bottomTerminal.state.open || bottomTerminal.state.tabs.length > 0) {
+      setBottomTerminalMounted(true);
+    }
+  }, [bottomTerminal.state.open, bottomTerminal.state.tabs.length]);
   /**
    * On-disk default cwd for unbound chats (`workspaces/general`).
    * Not a sidebar project — used by connect / resource pane when no folder bound.
@@ -22103,16 +22114,20 @@ export function AppWorkbench() {
           </div>
           </>
           )}
-          <BottomTerminal
-            locale={locale}
-            projectPath={effectiveProjectPath}
-            state={bottomTerminal.state}
-            onAddTab={bottomTerminal.addTab}
-            onCloseTab={bottomTerminal.closeTab}
-            onActivateTab={bottomTerminal.activateTab}
-            onHeightChange={bottomTerminal.setHeight}
-            onClosePanel={bottomTerminal.closePanel}
-          />
+          {bottomTerminalMounted ? (
+            <Suspense fallback={null}>
+              <BottomTerminal
+                locale={locale}
+                projectPath={effectiveProjectPath}
+                state={bottomTerminal.state}
+                onAddTab={bottomTerminal.addTab}
+                onCloseTab={bottomTerminal.closeTab}
+                onActivateTab={bottomTerminal.activateTab}
+                onHeightChange={bottomTerminal.setHeight}
+                onClosePanel={bottomTerminal.closePanel}
+              />
+            </Suspense>
+          ) : null}
         </main>
 
         {/* RIGHT — session-linked project resource viewer (fully hideable + resizable) */}
@@ -22384,13 +22399,17 @@ export function AppWorkbench() {
       />
       </Suspense>
       ) : null}
-      <ProjectRulesModal
-        open={!!projectRulesTarget}
-        onClose={() => setProjectRulesTarget(null)}
-        projectPath={projectRulesTarget?.path ?? null}
-        projectName={projectRulesTarget?.name ?? null}
-        locale={locale}
-      />
+      {projectRulesTarget ? (
+        <Suspense fallback={null}>
+          <ProjectRulesModal
+            open
+            onClose={() => setProjectRulesTarget(null)}
+            projectPath={projectRulesTarget.path}
+            projectName={projectRulesTarget.name}
+            locale={locale}
+          />
+        </Suspense>
+      ) : null}
       <PromptHistoryClearModal
         locale={locale}
         open={promptHistoryClearOpen}
