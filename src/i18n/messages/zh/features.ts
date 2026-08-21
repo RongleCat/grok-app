@@ -365,7 +365,7 @@ export const zhFeatures = {
   "tutorial.step.context-compact.title": "上下文与压缩",
   "tutorial.step.context-compact.body": "长对话会占满模型上下文。留意上下文芯片，可用 /compact（或芯片菜单）摘要历史、腾出空间，并保留重要备注。",
   "tutorial.step.shortcuts.title": "键盘快捷键",
-  "tutorial.step.shortcuts.body": "⌘/Ctrl+K 搜索会话与项目；⌘/Ctrl+/ 打开快捷键列表；⌘/Ctrl+, 打开设置。更多组合键见「设置 → 键盘」，列表可随时筛选。",
+  "tutorial.step.shortcuts.body": "⌘/Ctrl+K 搜索会话与项目；⌘/Ctrl+/ 打开快捷键列表（可按名称或组合键筛选）；⌘/Ctrl+, 打开设置。全局组合键可在「设置 → 键盘」改键。",
   "tutorial.step.extensions.title": "扩展与技能",
   "tutorial.step.extensions.body": "「设置 → 扩展」管理插件、技能、MCP 与 hooks。启用且可调用的技能也会出现在输入区 + / 斜杠面板中。",
   "tutorial.step.done.title": "可以开始了",

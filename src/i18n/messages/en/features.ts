@@ -365,7 +365,7 @@ export const enFeatures = {
   "tutorial.step.context-compact.title": "Context & compact",
   "tutorial.step.context-compact.body": "Long chats fill the model context. Watch the context chip, then use /compact (or the chip menu) to summarize history and free space while keeping important notes.",
   "tutorial.step.shortcuts.title": "Keyboard shortcuts",
-  "tutorial.step.shortcuts.body": "⌘/Ctrl+K searches chats and projects; ⌘/Ctrl+/ shows the shortcuts list; ⌘/Ctrl+, opens Settings. More chords live under Settings → Keyboard — filter the list anytime.",
+  "tutorial.step.shortcuts.body": "⌘/Ctrl+K searches chats and projects; ⌘/Ctrl+/ shows the shortcuts list (filter by name or chord); ⌘/Ctrl+, opens Settings. Remap global chords under Settings → Keyboard.",
   "tutorial.step.extensions.title": "Extensions & skills",
   "tutorial.step.extensions.body": "Settings → Extensions manages plugins, skills, MCP servers, and hooks. Skills also appear in the composer + / slash palette when enabled and user-invocable.",
   "tutorial.step.done.title": "You're ready",

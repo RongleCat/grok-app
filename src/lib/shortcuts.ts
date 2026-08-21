@@ -19,7 +19,12 @@ import {
   shouldFireLiveVoiceHotkey,
 } from "@/lib/voiceHotkeyPref";
 
-export type ShortcutGroup = "workbench" | "navigation" | "diagnostics" | "input";
+export type ShortcutGroup =
+  | "workbench"
+  | "navigation"
+  | "view"
+  | "diagnostics"
+  | "input";
 
 /**
  * When a remappable chord may fire:
@@ -36,6 +41,7 @@ export type ShortcutId =
   | "findInChat"
   | "newChat"
   | "send"
+  | "newline"
   | "steer"
   | "stop"
   | "copyLastReply"
@@ -49,9 +55,14 @@ export type ShortcutId =
   | "sidebarSessionNav"
   | "settings"
   | "help"
+  | "zoomIn"
+  | "zoomOut"
+  | "zoomReset"
   | "doctor"
   | "liveVoice"
-  | "dictation";
+  | "dictation"
+  | "promptHistory"
+  | "typeToFocus";
 
 export type ShortcutRow = {
   id: ShortcutId;
@@ -68,14 +79,16 @@ export type ShortcutRow = {
 
 /**
  * Stable catalog id order — same as SHORTCUTS.
- * Includes display-only rows (send, steer, stop, dictation, quit, sidebarSessionNav)
- * that are not matched by {@link matchGlobalShortcut}.
+ * Includes display-only rows (send, newline, steer, stop, dictation, quit,
+ * sidebarSessionNav, zoom*, promptHistory, typeToFocus) that are not matched
+ * by {@link matchGlobalShortcut}.
  */
 export const SHORTCUT_IDS: readonly ShortcutId[] = [
   "search",
   "findInChat",
   "newChat",
   "send",
+  "newline",
   "steer",
   "stop",
   "copyLastReply",
@@ -89,9 +102,14 @@ export const SHORTCUT_IDS: readonly ShortcutId[] = [
   "sidebarSessionNav",
   "settings",
   "help",
+  "zoomIn",
+  "zoomOut",
+  "zoomReset",
   "doctor",
   "liveVoice",
   "dictation",
+  "promptHistory",
+  "typeToFocus",
 ];
 
 /**
@@ -133,6 +151,15 @@ export const SHORTCUTS: ShortcutRow[] = [
     // Product default: plain Enter (mod-enter only when Settings → Composer pref is set).
     mac: "↵",
     win: "Enter",
+  },
+  {
+    // Inverse of send (Settings → Composer). Display patched via send pref.
+    id: "newline",
+    labelKey: "shortcuts.newline",
+    group: "workbench",
+    scope: "chat-focus",
+    mac: "⇧ ↵",
+    win: "Shift Enter",
   },
   {
     // Composer-local. Matches Grok Build CLI default mid-turn chord (Ctrl+Enter).
@@ -226,8 +253,8 @@ export const SHORTCUTS: ShortcutRow[] = [
     labelKey: "shortcuts.sidebarSessionNav",
     group: "navigation",
     scope: "global",
-    mac: "J / K",
-    win: "J / K",
+    mac: "J / K · ↑ / ↓",
+    win: "J / K · ↑ / ↓",
   },
   {
     id: "settings",
@@ -244,6 +271,30 @@ export const SHORTCUTS: ShortcutRow[] = [
     scope: "global",
     mac: "⌘ /",
     win: "Ctrl /",
+  },
+  {
+    id: "zoomIn",
+    labelKey: "shortcuts.zoomIn",
+    group: "view",
+    scope: "global",
+    mac: "⌘ +",
+    win: "Ctrl +",
+  },
+  {
+    id: "zoomOut",
+    labelKey: "shortcuts.zoomOut",
+    group: "view",
+    scope: "global",
+    mac: "⌘ -",
+    win: "Ctrl -",
+  },
+  {
+    id: "zoomReset",
+    labelKey: "shortcuts.zoomReset",
+    group: "view",
+    scope: "global",
+    mac: "⌘ 0",
+    win: "Ctrl 0",
   },
   {
     id: "doctor",
@@ -270,6 +321,24 @@ export const SHORTCUTS: ShortcutRow[] = [
     mac: "Ctrl Space",
     win: "Ctrl Space",
   },
+  {
+    // Composer-local: ↑/↓ on empty draft or while browsing prompt history.
+    id: "promptHistory",
+    labelKey: "shortcuts.promptHistory",
+    group: "input",
+    scope: "chat-focus",
+    mac: "↑ / ↓",
+    win: "↑ / ↓",
+  },
+  {
+    // Printable keys outside inputs focus the composer (type-to-focus).
+    id: "typeToFocus",
+    labelKey: "shortcuts.typeToFocus",
+    group: "input",
+    scope: "global",
+    mac: "A-Z …",
+    win: "A-Z …",
+  },
 ];
 
 /** Resolve catalog scope for an id (defaults to `global` for unknown ids). */
@@ -280,12 +349,14 @@ export function shortcutScope(id: ShortcutId): ShortcutScope {
 
 /**
  * Catalog ids handled by {@link matchGlobalShortcut} (mod-based App capture handler).
- * Not included: `send` / `steer` (composer-local), `stop` (Esc special-cased in App for order
- * vs voice cancel / overlays), `dictation` (Ctrl+Space via `isVoiceToggleKey` —
- * must not use meta, and runs before the mod branch), `sidebarSessionNav` (plain
- * j/k when focus is in the sidebar session list), `closeSideTab` (⌘W / Ctrl+W
- * handled in SideWorkbench — only steals when tabs are open), `quit`
- * (Ctrl+Q twice via `useDoublePressQuit`).
+ * Not included: `send` / `newline` / `steer` (composer-local), `stop` (Esc
+ * special-cased in App for order vs voice cancel / overlays), `dictation`
+ * (Ctrl+Space via `isVoiceToggleKey` — must not use meta, and runs before the
+ * mod branch), `sidebarSessionNav` (plain j/k when focus is in the sidebar
+ * session list), `closeSideTab` (⌘W / Ctrl+W handled in SideWorkbench — only
+ * steals when tabs are open), `quit` (Ctrl+Q twice via `useDoublePressQuit`),
+ * `zoomIn` / `zoomOut` / `zoomReset` (`installZoomHotkeys` in main),
+ * `promptHistory` (composer ↑/↓), `typeToFocus` (printable-key capture).
  */
 export const GLOBAL_MOD_SHORTCUT_IDS = [
   "search",
@@ -411,6 +482,7 @@ export function matchGlobalShortcut(
 export const SHORTCUT_GROUP_ORDER: ShortcutGroup[] = [
   "workbench",
   "navigation",
+  "view",
   "diagnostics",
   "input",
 ];
@@ -429,6 +501,17 @@ export function sendShortcutDisplay(pref: ComposerSendKeyPref): {
   return { mac: "↵", win: "Enter" };
 }
 
+/** Inverse of {@link sendShortcutDisplay} — newline chord for the same pref. */
+export function newlineShortcutDisplay(pref: ComposerSendKeyPref): {
+  mac: string;
+  win: string;
+} {
+  if (pref === "mod-enter") {
+    return { mac: "↵", win: "Enter" };
+  }
+  return { mac: "⇧ ↵", win: "Shift Enter" };
+}
+
 function resolveSendPref(pref?: ComposerSendKeyPref): ComposerSendKeyPref {
   if (pref !== undefined) return pref;
   if (typeof localStorage !== "undefined") {
@@ -445,9 +528,15 @@ function withSendPref(
   row: ShortcutRow,
   pref: ComposerSendKeyPref,
 ): ShortcutRow {
-  if (row.id !== "send") return row;
-  const keys = sendShortcutDisplay(pref);
-  return { ...row, mac: keys.mac, win: keys.win };
+  if (row.id === "send") {
+    const keys = sendShortcutDisplay(pref);
+    return { ...row, mac: keys.mac, win: keys.win };
+  }
+  if (row.id === "newline") {
+    const keys = newlineShortcutDisplay(pref);
+    return { ...row, mac: keys.mac, win: keys.win };
+  }
+  return row;
 }
 
 /** Apply user remaps (and send / Live Voice hotkey prefs) to a catalog row for display. */
@@ -477,8 +566,10 @@ export function withEffectiveBindings(
   if (!remaps || !remaps[row.id]) return next;
   const chord = effectiveShortcutChord(row.id, remaps);
   // Prefer formatChordDisplay so remapped rows stay consistent across platforms.
-  // Keep send / steer rows composer-owned (not remappable).
-  if (row.id === "send" || row.id === "steer") return next;
+  // Keep send / newline / steer rows composer-owned (not remappable).
+  if (row.id === "send" || row.id === "newline" || row.id === "steer") {
+    return next;
+  }
   return {
     ...next,
     mac: formatChordDisplay(chord, "mac"),
@@ -592,8 +683,13 @@ function keySearchExtra(keys: string): string {
   return keys
     .replace(/⌘/g, "cmd command")
     .replace(/⇧/g, "shift")
+    .replace(/⌃/g, "ctrl control")
+    .replace(/⌥/g, "alt option")
     .replace(/↵|Return/gi, "enter return")
     .replace(/Esc/gi, "escape esc")
+    .replace(/↑/g, "up arrow")
+    .replace(/↓/g, "down arrow")
+    .replace(/\+/g, " plus ")
     .toLowerCase();
 }
 
@@ -612,6 +708,8 @@ export function filterShortcutRows(
     const label = t(row.labelKey);
     const haystack = [
       row.id,
+      row.group,
+      t(`settings.shortcuts.group.${row.group}`),
       label,
       row.scope,
       row.scope === "chat-focus" ? "chat focus" : "global",

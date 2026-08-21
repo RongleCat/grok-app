@@ -152,6 +152,7 @@ export const itSettingsUi = {
   "settings.shortcuts.group.navigation": "Navigazione",
   "settings.shortcuts.group.diagnostics": "Diagnostica",
   "settings.shortcuts.group.input": "Input",
+  "settings.shortcuts.group.view": "Visualizzazione",
   "settings.shortcuts.note": "L’invio predefinito è Invio; passa a ⌘/Ctrl+Invio in Impostazioni → Composer. Esc, dettatura Ctrl+Spazio e Invia sono fissi. L’ambito marca azioni Globali vs Chat; la condivisione opzionale tra ambiti influisce solo sui controlli di conflitto. Alcuni accordi possono essere presi dall’OS (es. origini di input).",
   "settings.shortcuts.openHelp": "Apri aiuto scorciatoie",
   "settings.shortcuts.filterPlaceholder": "Filtra scorciatoie…",

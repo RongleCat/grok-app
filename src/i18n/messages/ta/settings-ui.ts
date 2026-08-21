@@ -152,6 +152,7 @@ export const taSettingsUi = {
   "settings.shortcuts.group.navigation": "வழிசெலுத்தல்",
   "settings.shortcuts.group.diagnostics": "நோயறிதல்",
   "settings.shortcuts.group.input": "உள்ளீடு",
+  "settings.shortcuts.group.view": "பார்வை",
   "settings.shortcuts.note": "Default send என்பது Enter; அமைப்புகள் → எழுதி என்பதில் ⌘/Ctrl+Enter க்கு மாறவும். Esc, Ctrl+Space டிக்டேஷன் மற்றும் Send ஆகியவை சரி செய்யப்பட்டுள்ளன. ஸ்கோப் குளோபல் vs உரையாடல் செயல்களைக் குறிக்கிறது; விருப்ப கிராஸ்-ஸ்கோப் பகிர்வு மோதல் சோதனைகளை மட்டுமே பாதிக்கிறது. சில வளையங்கள் OS ஆல் எடுக்கப்படலாம் (எ.கா. உள்ளீடு மூலங்கள்).",
   "settings.shortcuts.openHelp": "ஷார்ட்கட் உதவியைத் திற",
   "settings.shortcuts.filterPlaceholder": "ஷார்ட்கட்களை வடிகட்டி…",

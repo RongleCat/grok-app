@@ -23,7 +23,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { IconClose } from "@/components/icons";
-import { installDialogFocus } from "@/lib/a11yFocus";
+import {
+  installDialogFocus,
+  type InstallDialogFocusOptions,
+} from "@/lib/a11yFocus";
 
 export type GlassModalSize = "sm" | "md" | "lg";
 
@@ -48,6 +51,11 @@ export type GlassModalProps = {
   showClose?: boolean;
   /** Stop mousedown bubbling on panel (default true) */
   stopPanelPropagation?: boolean;
+  /**
+   * Initial focus inside the panel. Default `"first"`.
+   * Pass a getter to focus a specific control (e.g. a filter field).
+   */
+  initialFocus?: InstallDialogFocusOptions["initialFocus"];
 };
 
 function cx(...parts: Array<string | false | null | undefined>) {
@@ -70,6 +78,7 @@ export function GlassModal({
   closeOnOverlay = true,
   showClose = true,
   stopPanelPropagation = true,
+  initialFocus = "first",
 }: GlassModalProps) {
   const autoId = useId();
   const titleId = titleIdProp || autoId;
@@ -78,6 +87,8 @@ export function GlassModal({
   // effect on every parent render steals focus and makes modals flicker.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const initialFocusRef = useRef(initialFocus);
+  initialFocusRef.current = initialFocus;
 
   useEffect(() => {
     if (!open) return;
@@ -87,7 +98,7 @@ export function GlassModal({
       // Bubble phase so nested capture handlers (permission bar, appDialog)
       // can still claim Escape first when stacked.
       capture: false,
-      initialFocus: "first",
+      initialFocus: initialFocusRef.current ?? "first",
       restoreFocus: true,
     });
   }, [open]);

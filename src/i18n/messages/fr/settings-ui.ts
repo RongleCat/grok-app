@@ -152,6 +152,7 @@ export const frSettingsUi = {
   "settings.shortcuts.group.navigation": "Navigation",
   "settings.shortcuts.group.diagnostics": "Diagnostics",
   "settings.shortcuts.group.input": "Saisie",
+  "settings.shortcuts.group.view": "Affichage",
   "settings.shortcuts.note": "L’envoi par défaut est Entrée ; passez à ⌘/Ctrl+Entrée dans Réglages → Saisie. Échap, dictée Ctrl+Espace et Envoyer sont fixes. La portée marque les actions Globales vs Chat ; le partage inter-portées facultatif n’affecte que les contrôles de conflit. Certains accords peuvent être pris par l’OS (ex. sources de saisie).",
   "settings.shortcuts.openHelp": "Ouvrir l’aide des raccourcis",
   "settings.shortcuts.filterPlaceholder": "Filtrer les raccourcis…",

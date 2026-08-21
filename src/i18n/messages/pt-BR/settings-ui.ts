@@ -152,6 +152,7 @@ export const ptBRSettingsUi = {
   "settings.shortcuts.group.navigation": "Navegação",
   "settings.shortcuts.group.diagnostics": "Diagnósticos",
   "settings.shortcuts.group.input": "Entrada",
+  "settings.shortcuts.group.view": "Exibição",
   "settings.shortcuts.note": "O envio padrão é Enter; mude para ⌘/Ctrl+Enter em Configurações → Compositor. Esc, ditação Ctrl+Espaço e Enviar são fixos. O escopo marca ações Global vs Chat; o compartilhamento opcional entre escopos só afeta as checagens de conflito. Alguns atalhos podem ser tomados pelo SO (ex.: fontes de entrada).",
   "settings.shortcuts.openHelp": "Abrir ajuda de atalhos",
   "settings.shortcuts.filterPlaceholder": "Filtrar atalhos…",

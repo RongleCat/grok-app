@@ -6,6 +6,7 @@ import {
   filterShortcutRows,
   formatShortcutHint,
   matchGlobalShortcut,
+  newlineShortcutDisplay,
   sendShortcutDisplay,
   SHORTCUT_IDS,
   SHORTCUTS,
@@ -35,6 +36,7 @@ const tStub = (key: string) => {
     "shortcuts.findInChat": "Find in conversation",
     "shortcuts.newChat": "New chat",
     "shortcuts.send": "Send",
+    "shortcuts.newline": "New line",
     "shortcuts.steer": "Steer mid-turn",
     "shortcuts.stop": "Stop",
     "shortcuts.copyLastReply": "Copy last reply",
@@ -46,6 +48,16 @@ const tStub = (key: string) => {
     "shortcuts.liveVoice": "Live voice",
     "shortcuts.voice": "Dictation",
     "shortcuts.quit": "Quit (press twice)",
+    "shortcuts.zoomIn": "Zoom in",
+    "shortcuts.zoomOut": "Zoom out",
+    "shortcuts.zoomReset": "Reset zoom",
+    "shortcuts.promptHistory": "Previous / next prompt",
+    "shortcuts.typeToFocus": "Type to focus composer",
+    "settings.shortcuts.group.workbench": "Workbench",
+    "settings.shortcuts.group.navigation": "Navigation",
+    "settings.shortcuts.group.view": "View",
+    "settings.shortcuts.group.diagnostics": "Diagnostics",
+    "settings.shortcuts.group.input": "Input",
   };
   return map[key] ?? key;
 };
@@ -84,6 +96,10 @@ describe("shortcuts catalog", () => {
     expect(shortcutScope("sideFiles")).toBe("global");
     expect(shortcutScope("sideBrowser")).toBe("global");
     expect(shortcutScope("sideTerminal")).toBe("global");
+    expect(shortcutScope("newline")).toBe("chat-focus");
+    expect(shortcutScope("promptHistory")).toBe("chat-focus");
+    expect(shortcutScope("zoomIn")).toBe("global");
+    expect(shortcutScope("typeToFocus")).toBe("global");
   });
 
   it("lists find-in-chat and toggle sidebar", () => {
@@ -152,6 +168,34 @@ describe("shortcuts catalog", () => {
     );
   });
 
+  it("lists zoom, newline, prompt history, and type-to-focus as display-only", () => {
+    const zoomIn = SHORTCUTS.find((s) => s.id === "zoomIn");
+    const zoomOut = SHORTCUTS.find((s) => s.id === "zoomOut");
+    const zoomReset = SHORTCUTS.find((s) => s.id === "zoomReset");
+    expect(zoomIn?.group).toBe("view");
+    expect(zoomOut?.win.toLowerCase()).toMatch(/ctrl/);
+    expect(zoomReset?.mac).toMatch(/0/);
+    const newline = SHORTCUTS.find((s) => s.id === "newline");
+    expect(newline?.labelKey).toBe("shortcuts.newline");
+    expect(newline?.win.toLowerCase()).toMatch(/shift/);
+    const history = SHORTCUTS.find((s) => s.id === "promptHistory");
+    expect(history?.mac).toMatch(/↑/);
+    const typeFocus = SHORTCUTS.find((s) => s.id === "typeToFocus");
+    expect(typeFocus?.group).toBe("input");
+    for (const id of [
+      "zoomIn",
+      "zoomOut",
+      "zoomReset",
+      "newline",
+      "promptHistory",
+      "typeToFocus",
+    ] as const) {
+      expect(
+        (GLOBAL_MOD_SHORTCUT_IDS as readonly string[]).includes(id),
+      ).toBe(false);
+    }
+  });
+
   it("lists default send as plain Enter", () => {
     const row = SHORTCUTS.find((s) => s.id === "send");
     expect(row).toBeDefined();
@@ -163,6 +207,15 @@ describe("shortcuts catalog", () => {
     expect(sendShortcutDisplay("enter").win.toLowerCase()).toBe("enter");
     expect(sendShortcutDisplay("mod-enter").win.toLowerCase()).toMatch(/ctrl/);
     expect(sendShortcutDisplay("mod-enter").mac).toMatch(/⌘/);
+  });
+
+  it("newlineShortcutDisplay is the inverse of send", () => {
+    expect(newlineShortcutDisplay("enter").win.toLowerCase()).toMatch(/shift/);
+    expect(newlineShortcutDisplay("mod-enter").win.toLowerCase()).toBe("enter");
+    const win = shortcutsForPlatform("win", "mod-enter", {});
+    expect(win.find((s) => s.id === "newline")?.keys.toLowerCase()).toBe(
+      "enter",
+    );
   });
 
   it("picks platform-specific keys", () => {
@@ -349,11 +402,17 @@ describe("matchGlobalShortcut", () => {
   it("does not claim send / stop / dictation / sidebar j/k (special-cased elsewhere)", () => {
     const special = new Set([
       "send",
+      "newline",
       "steer",
       "stop",
       "dictation",
       "sidebarSessionNav",
       "quit",
+      "zoomIn",
+      "zoomOut",
+      "zoomReset",
+      "promptHistory",
+      "typeToFocus",
     ]);
     for (const id of SHORTCUT_IDS) {
       if (special.has(id)) {
@@ -433,6 +492,12 @@ describe("filterShortcutRows", () => {
     expect(chat.every((r) => r.scope === "chat-focus")).toBe(true);
     const globalHits = filterShortcutRows("global", SHORTCUTS, tStub);
     expect(globalHits.some((r) => r.id === "search")).toBe(true);
+  });
+
+  it("matches group names", () => {
+    const view = filterShortcutRows("view", SHORTCUTS, tStub);
+    expect(view.some((r) => r.id === "zoomIn")).toBe(true);
+    expect(view.every((r) => r.group === "view")).toBe(true);
   });
 
   it("matches key chord text", () => {

@@ -152,6 +152,7 @@ export const ukSettingsUi = {
   "settings.shortcuts.group.navigation": "Навігація",
   "settings.shortcuts.group.diagnostics": "Діагностика",
   "settings.shortcuts.group.input": "Введення",
+  "settings.shortcuts.group.view": "Вигляд",
   "settings.shortcuts.note": "За замовчуванням надсилається Enter; перемикайтеся на ⌘/Ctrl+Enter у Налаштуваннях → Композер. Виправлено диктування Esc, Ctrl+Пробіл і Надіслати. Область позначає глобальні дії проти чату; необов’язковий спільний доступ до різних областей впливає лише на перевірку конфліктів. Деякі акорди можуть бути використані ОС (джерела вхідного сигналу e.g.).",
   "settings.shortcuts.openHelp": "Відкрити довідку скорочень",
   "settings.shortcuts.filterPlaceholder": "Фільтр скорочень…",

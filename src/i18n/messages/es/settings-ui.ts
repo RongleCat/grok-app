@@ -152,6 +152,7 @@ export const esSettingsUi = {
   "settings.shortcuts.group.navigation": "Navegación",
   "settings.shortcuts.group.diagnostics": "Diagnósticos",
   "settings.shortcuts.group.input": "Entrada",
+  "settings.shortcuts.group.view": "Vista",
   "settings.shortcuts.note": "El envío predeterminado es Intro; cambia a ⌘/Ctrl+Intro en Ajustes → Cuadro de mensaje. Esc, dictado Ctrl+Espacio y Enviar son fijos. El ámbito marca acciones Global frente a Chat; el intercambio opcional entre ámbitos solo afecta a las comprobaciones de conflicto. Algunas combinaciones pueden estar ocupadas por el SO (p. ej. orígenes de entrada).",
   "settings.shortcuts.openHelp": "Abrir ayuda de atajos",
   "settings.shortcuts.filterPlaceholder": "Filtrar atajos…",

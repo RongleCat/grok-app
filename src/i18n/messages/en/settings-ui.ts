@@ -152,6 +152,7 @@ export const enSettingsUi = {
   "settings.shortcuts.group.navigation": "Navigation",
   "settings.shortcuts.group.diagnostics": "Diagnostics",
   "settings.shortcuts.group.input": "Input",
+  "settings.shortcuts.group.view": "View",
   "settings.shortcuts.note": "Default send is Enter; switch to ⌘/Ctrl+Enter in Settings → Composer. Mid-turn Steer is Ctrl+Enter (same chord as Grok Build CLI). Esc, Ctrl+Space dictation, Send, and Steer are fixed. Scope marks Global vs Chat actions; optional cross-scope sharing only affects conflict checks. Some chords may be taken by the OS (e.g. input sources).",
   "settings.shortcuts.openHelp": "Open shortcuts help",
   "settings.shortcuts.filterPlaceholder": "Filter shortcuts…",

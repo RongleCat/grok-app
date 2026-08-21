@@ -152,6 +152,7 @@ export const ruSettingsUi = {
   "settings.shortcuts.group.navigation": "Навигация",
   "settings.shortcuts.group.diagnostics": "Диагностика",
   "settings.shortcuts.group.input": "Ввод",
+  "settings.shortcuts.group.view": "Вид",
   "settings.shortcuts.note": "Отправка по умолчанию — Enter; переключите на ⌘/Ctrl+Enter в Настройки → Ввод. Esc, диктовка Ctrl+Space и Отправка фиксированы. Область отмечает глобальные действия и действия чата; необязательное совместное использование между областями влияет только на проверки конфликтов. Некоторые аккорды может занимать ОС (напр. источники ввода).",
   "settings.shortcuts.openHelp": "Открыть справку по горячим клавишам",
   "settings.shortcuts.filterPlaceholder": "Фильтр горячих клавиш…",

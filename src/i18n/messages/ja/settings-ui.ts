@@ -152,6 +152,7 @@ export const jaSettingsUi = {
   "settings.shortcuts.group.navigation": "ナビゲーション",
   "settings.shortcuts.group.diagnostics": "診断",
   "settings.shortcuts.group.input": "入力",
+  "settings.shortcuts.group.view": "表示",
   "settings.shortcuts.note": "デフォルトの送信は Enter です。設定 → コンポーザー で ⌘/Ctrl+Enter に切り替えられます。Esc、Ctrl+Space のディクテーション、送信は固定です。範囲は全体とチャットを区別します。任意の範囲横断共有は競合チェックにだけ影響します。一部のキー組み合わせは OS が使っていることがあります（入力ソースなど）。",
   "settings.shortcuts.openHelp": "ショートカットのヘルプを開く",
   "settings.shortcuts.filterPlaceholder": "ショートカットを絞り込み…",

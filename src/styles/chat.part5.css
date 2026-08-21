@@ -618,13 +618,86 @@
 }
 
 /* Shortcuts help panel */
+.shortcuts-help-modal {
+  width: min(640px, 100%);
+  min-height: min(72vh, 560px);
+}
+
+.modal-body.shortcuts-help {
+  overflow: hidden;
+  gap: 10px;
+}
+
+.shortcuts-help__filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+}
+
+.shortcuts-help__filter input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.shortcuts-help__filter input[type="search"]::-webkit-search-decoration,
+.shortcuts-help__filter input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.shortcuts-help__scroller {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-right: 2px;
+}
+
+.shortcuts-help__empty {
+  margin: 0;
+  padding: 28px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.shortcuts-list__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shortcuts-list__group-title {
+  margin: 0;
+  padding: 4px 4px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
 .shortcuts-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0;
 }
 
 .shortcuts-list__row {
@@ -637,7 +710,7 @@
   font-size: 13px;
 }
 
-.shortcuts-list__row:last-child {
+.shortcuts-list__group .shortcuts-list__row:last-child {
   border-bottom: none;
 }
 

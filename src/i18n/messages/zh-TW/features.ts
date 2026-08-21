@@ -365,7 +365,7 @@ export const zhTWFeatures = {
   "tutorial.step.context-compact.title": "上下文與壓縮",
   "tutorial.step.context-compact.body": "長對話會佔滿模型上下文。留意上下文晶片，可用 /compact（或晶片選單）摘要歷史、騰出空間，並保留重要備註。",
   "tutorial.step.shortcuts.title": "鍵盤快捷鍵",
-  "tutorial.step.shortcuts.body": "⌘/Ctrl+K 搜尋工作階段與專案；⌘/Ctrl+/ 開啟快捷鍵清單；⌘/Ctrl+, 開啟設定。更多組合鍵見「設定 → 鍵盤」，清單可隨時篩選。",
+  "tutorial.step.shortcuts.body": "⌘/Ctrl+K 搜尋工作階段與專案；⌘/Ctrl+/ 開啟快捷鍵清單（可依名稱或組合鍵篩選）；⌘/Ctrl+, 開啟設定。全域組合鍵可在「設定 → 鍵盤」改鍵。",
   "tutorial.step.extensions.title": "擴充與技能",
   "tutorial.step.extensions.body": "「設定 → 擴充」管理外掛、技能、MCP 與 hooks。啟用且可呼叫的技能也會出現在輸入區 + / 斜線面板中。",
   "tutorial.step.done.title": "可以開始了",

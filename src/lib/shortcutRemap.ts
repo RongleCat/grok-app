@@ -65,6 +65,8 @@ export const DEFAULT_SHORTCUT_CHORDS: Record<ShortcutId, ChordString> = {
   findInChat: "mod+f",
   newChat: "mod+n",
   send: "enter",
+  /** Inverse of send; display patched from Composer pref. */
+  newline: "shift+enter",
   /** Composer-local; Grok Build CLI default mid-turn chord. */
   steer: "ctrl+enter",
   stop: "escape",
@@ -85,9 +87,14 @@ export const DEFAULT_SHORTCUT_CHORDS: Record<ShortcutId, ChordString> = {
   sidebarSessionNav: "j",
   settings: "mod+,",
   help: "mod+/",
+  zoomIn: "mod+=",
+  zoomOut: "mod+-",
+  zoomReset: "mod+0",
   doctor: "mod+shift+d",
   liveVoice: "mod+shift+v",
   dictation: "ctrl+space",
+  promptHistory: "arrowup",
+  typeToFocus: "type",
 };
 
 /**
@@ -401,14 +408,22 @@ export function buildEffectiveChordMap(
  * remappable capture handler, so an overlapping “chord” is not a real runtime
  * collision in the App mod-key path:
  * - `sidebarSessionNav` — j/k when the sidebar list is focused (not a single global chord)
- * - `send` — Composer Enter / mod-enter preference (not remappable here)
+ * - `send` / `newline` — Composer Enter / mod-enter preference (not remappable here)
  * - `closeSideTab` — SideWorkbench ⌘W only while tabs exist (else window close)
+ * - `zoomIn` / `zoomOut` / `zoomReset` — host zoom capture in `main`
+ * - `promptHistory` / `typeToFocus` — composer-local / printable-key capture
  */
 export const CHORD_CONFLICT_IGNORE_IDS: ReadonlySet<ShortcutId> = new Set([
   "sidebarSessionNav",
   "send",
+  "newline",
   "steer",
   "closeSideTab",
+  "zoomIn",
+  "zoomOut",
+  "zoomReset",
+  "promptHistory",
+  "typeToFocus",
 ]);
 
 /** One normalized chord shared by two or more catalog ids. */

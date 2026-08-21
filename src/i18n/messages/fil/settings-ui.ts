@@ -152,6 +152,7 @@ export const filSettingsUi = {
   "settings.shortcuts.group.navigation": "Navigation",
   "settings.shortcuts.group.diagnostics": "Diagnostics",
   "settings.shortcuts.group.input": "Input",
+  "settings.shortcuts.group.view": "Tanaw",
   "settings.shortcuts.note": "Default send ay Enter; lumipat sa ⌘/Ctrl+Enter sa Mga setting → Composer. Fixed ang Esc, Ctrl+Space dictation, at Send. Minamarkahan ng Scope ang Global vs Chat actions; apektado lang ng opsyonal na cross-scope sharing ang conflict checks. Maaaring nakuha na ng OS ang ilang chord (hal. input sources).",
   "settings.shortcuts.openHelp": "Buksan ang tulong sa shortcuts",
   "settings.shortcuts.filterPlaceholder": "I-filter ang mga shortcut…",

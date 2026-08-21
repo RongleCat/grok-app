@@ -530,7 +530,7 @@ export function ShortcutsSettingsPanel({
                             </>
                           ) : (
                             <span className="settings-shortcuts-fixed">
-                              {row.id === "send"
+                              {row.id === "send" || row.id === "newline"
                                 ? t("settings.shortcuts.fixedSend")
                                 : t("settings.shortcuts.fixed")}
                             </span>

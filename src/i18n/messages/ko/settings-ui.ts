@@ -152,6 +152,7 @@ export const koSettingsUi = {
   "settings.shortcuts.group.navigation": "탐색",
   "settings.shortcuts.group.diagnostics": "진단",
   "settings.shortcuts.group.input": "입력",
+  "settings.shortcuts.group.view": "보기",
   "settings.shortcuts.note": "기본 보내기는 Enter입니다. 설정 → 작성기에서 ⌘/Ctrl+Enter로 바꾸세요. Esc, Ctrl+Space 받아쓰기, 보내기는 고정입니다. 범위는 전역 vs 채팅 동작을 표시하며, 선택적 범위 간 공유는 충돌 검사에만 영향을 줍니다. 일부 코드는 OS가 사용할 수 있습니다(예: 입력 소스).",
   "settings.shortcuts.openHelp": "단축키 도움말 열기",
   "settings.shortcuts.filterPlaceholder": "단축키 필터…",
