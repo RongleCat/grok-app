@@ -15,6 +15,7 @@ import {
   IconChevronDown,
   IconClose,
   IconPlus,
+  IconTerminal,
 } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import { TerminalTab } from "@/components/side-workbench/TerminalTab";
