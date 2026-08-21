@@ -4355,8 +4355,7 @@ mod tests {
         std::env::set_var("GROK_APP_HOME", &tmp);
         let _ = ensure_app_dirs();
 
-        let session =
-            create_session(None, Some("compact journal".into()), false).expect("session");
+        let session = create_session(None, Some("compact journal".into()), false).expect("session");
         let row = stored_msg("u1", "user", "hello", None);
         save_messages(&session.id, &[row.clone()]).expect("save");
         let path = session_dir(&session.id).join("messages.json");
