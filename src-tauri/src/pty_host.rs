@@ -7,8 +7,10 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::sync::mpsc;
 use std::sync::{Mutex, OnceLock};
 use std::thread;
+use std::time::Duration;
 
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use serde::Serialize;
@@ -17,6 +19,18 @@ use uuid::Uuid;
 
 const EVENT_DATA: &str = "terminal://data";
 const EVENT_EXIT: &str = "terminal://exit";
+
+/// Coalesce window for `terminal://data` (flood of 8KiB reads).
+pub const PTY_DATA_FLUSH_MS: u64 = 16;
+/// Flush once the batch reaches this many UTF-8 bytes.
+pub const PTY_DATA_FLUSH_CHARS: usize = 4096;
+
+pub fn should_flush_pty_data(pending_chars: usize, force: bool) -> bool {
+    if pending_chars == 0 {
+        return false;
+    }
+    force || pending_chars >= PTY_DATA_FLUSH_CHARS
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -203,6 +217,44 @@ pub fn spawn(
 
     let app_r = app.clone();
     let sid_r = sid.clone();
+    let app_emit = app_r.clone();
+    let sid_emit = sid_r.clone();
+    let (tx, rx) = mpsc::channel::<String>();
+    thread::Builder::new()
+        .name(format!("pty-emit-{sid}"))
+        .spawn(move || {
+            let mut batch = String::new();
+            let flush = |batch: &mut String, force: bool| {
+                if !should_flush_pty_data(batch.len(), force) {
+                    return;
+                }
+                if batch.is_empty() {
+                    return;
+                }
+                let data = std::mem::take(batch);
+                let _ = app_emit.emit(
+                    EVENT_DATA,
+                    &PtyDataPayload {
+                        session_id: sid_emit.clone(),
+                        data,
+                    },
+                );
+            };
+            loop {
+                match rx.recv_timeout(Duration::from_millis(PTY_DATA_FLUSH_MS)) {
+                    Ok(chunk) => {
+                        batch.push_str(&chunk);
+                        flush(&mut batch, false);
+                    }
+                    Err(mpsc::RecvTimeoutError::Timeout) => flush(&mut batch, true),
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        flush(&mut batch, true);
+                        break;
+                    }
+                }
+            }
+        })
+        .map_err(|e| format!("spawn pty emit: {e}"))?;
     thread::Builder::new()
         .name(format!("pty-read-{sid}"))
         .spawn(move || {
@@ -239,26 +291,16 @@ pub fn spawn(
                         if data.is_empty() {
                             continue;
                         }
-                        let _ = app_r.emit(
-                            EVENT_DATA,
-                            &PtyDataPayload {
-                                session_id: sid_r.clone(),
-                                data,
-                            },
-                        );
+                        if tx.send(data).is_err() {
+                            break;
+                        }
                     }
                     Err(_) => break,
                 }
             }
             if !pending.is_empty() {
                 let data = String::from_utf8_lossy(&pending).into_owned();
-                let _ = app_r.emit(
-                    EVENT_DATA,
-                    &PtyDataPayload {
-                        session_id: sid_r.clone(),
-                        data,
-                    },
-                );
+                let _ = tx.send(data);
             }
             // Only remove *this* id — never a later remount (unique UUID).
             if let Ok(mut g) = sessions().lock() {
@@ -334,6 +376,16 @@ mod tests {
 
     fn env_str(cmd: &CommandBuilder, key: &str) -> Option<String> {
         cmd.get_env(key).map(|v| v.to_string_lossy().into_owned())
+    }
+
+    #[test]
+    fn pty_data_flushes_on_size_or_force() {
+        assert!(!should_flush_pty_data(0, false));
+        assert!(!should_flush_pty_data(0, true));
+        assert!(!should_flush_pty_data(16, false));
+        assert!(should_flush_pty_data(16, true));
+        assert!(should_flush_pty_data(PTY_DATA_FLUSH_CHARS, false));
+        assert!(should_flush_pty_data(PTY_DATA_FLUSH_CHARS + 1, false));
     }
 
     #[test]
