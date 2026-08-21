@@ -29,10 +29,7 @@ pub fn child_trim_after_rewind_error(rewind_ok: bool) -> ChildTrimPlan {
 }
 
 /// Host `session://fork_trimmed` outcome. `None` means do not emit (uncut fork).
-pub fn fork_trimmed_outcome(
-    plan: ChildTrimPlan,
-    rewind_ok: Option<bool>,
-) -> Option<&'static str> {
+pub fn fork_trimmed_outcome(plan: ChildTrimPlan, rewind_ok: Option<bool>) -> Option<&'static str> {
     match plan {
         ChildTrimPlan::Skip => None,
         ChildTrimPlan::Bootstrap => Some("bootstrap"),

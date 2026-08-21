@@ -20,10 +20,10 @@
 //!   long silence re-prompts only; only the user may End turn.
 
 mod connect;
-mod fork_trim;
 mod control;
 mod events;
 mod events_bg;
+mod fork_trim;
 mod journal;
 mod post_turn_reconcile;
 mod process;
