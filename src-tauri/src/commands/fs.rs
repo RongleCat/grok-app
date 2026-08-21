@@ -146,7 +146,8 @@ fn clipboard_file_paths_os() -> Vec<String> {
     #[cfg(windows)]
     {
         use clipboard_win::{formats, get_clipboard};
-        if let Ok(list) = get_clipboard(formats::FileList) {
+        // FileList implements Getter for Vec<String> and Vec<PathBuf> (clipboard-win 5.4).
+        if let Ok(list) = get_clipboard::<Vec<String>, _>(formats::FileList) {
             if !list.is_empty() {
                 return list;
             }

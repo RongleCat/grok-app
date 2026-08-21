@@ -36,6 +36,7 @@ See `docs/llm-wiki/release.md`.
 - **工作台外壳拆分（#757）**：偏好/布局 hook、GlassModal、紧凑浮层、应用内对话框、命令面板进 `workbench-modals/`；会话 transcript 助手进 `src/lib/session/*`（barrel 保持 `@/lib/session`）。发送 / 打开会话 / rewind 仍在 AppWorkbench。
 
 ### Fixed
+- **Windows Host builds again after Explorer-file paste (#763)**: `clipboard-win` 5.4’s `FileList` implements `Getter` for both `Vec<String>` and `Vec<PathBuf>`, so rustc could not infer `get_clipboard` (`E0282`). Name `Vec<String>` explicitly. Follow-up to #756.
 - **Desktop pet remembers its last place after quit**: Drag origin is flushed on pointer-up, hide, and process exit. A stuck OS-drag flag can no longer persist 0,0 while hiding. Settings writes keep the live overlay instead of stale x/y. Reopen places the window so the mark (not just the frame’s top-left) stays put when overlay size changes.
 - **Long chats no longer flash on send and at turn settle (#760)**: This is not #714 / #703 (stick-lock no longer yanks a slight scroll-up, and send only sticks once). After send, the virtual list no longer fights two `itemCount`s; journal rewrite of the last user id no longer force-sticks.
 - **Windows paste of Explorer files (.dmp) no longer dies on NotReadableError (#755)**: Composer paste of an on-disk file (crash dumps, locked/large binaries) now reads the OS clipboard path list (`CF_HDROP`) and attaches `@path` like drag-drop. WebView `File.arrayBuffer()` is only used for in-memory blobs (screenshots). Unreadable blobs get a dedicated i18n hint instead of the Chromium English `NotReadableError`.
@@ -61,6 +62,7 @@ See `docs/llm-wiki/release.md`.
 - **`cargo fmt --check` is green on main (#725)**.
 
 **中文 · 修复**
+- **Windows Host 在资源管理器粘贴修复后重新能编过（#763）**：`clipboard-win` 5.4 的 `FileList` 同时实现 `Vec<String>` 和 `Vec<PathBuf>`，`get_clipboard` 推不出类型（`E0282`）。显式标成 `Vec<String>`。#756 的后续。
 - **桌面宠物关闭再开会回到上次位置**：松手、隐藏、退出都会把坐标写盘。卡住的系统拖动标记不会在隐藏时把 0,0 存进去。改设置不再用过期的 x/y 覆盖现场。重新打开时按宠物（不是窗口左上角）对齐，浮层大小变了也不会把宠物挪走。
 - **长对话发送/回合结束不再整页闪（#760）**：不是 #714 / #703（那是贴底后轻滑被拽回、发送双吸底）。发送后虚拟列表不再用两套条数抢窗口；日记改写最后一条 user id 时不再强制吸底。
 - **Windows 粘贴资源管理器文件（.dmp）不再报 NotReadableError（#755）**：Explorer 复制的已有磁盘路径改为读系统剪贴板文件列表（`CF_HDROP`）并按 `@path` 附加，与拖放一致。截图等无路径内容仍走 `arrayBuffer`。读不了的 blob 用专用文案，不再把 Chromium 英文 `NotReadableError` 拼进横幅。
