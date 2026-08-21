@@ -1,7 +1,8 @@
 //! System tray / menu-bar icon + ChatGPT / Codex-style menu.
 //!
 //! **macOS menu-bar** → `icons/tray-icon.png` (template from `docs/svg/logo.svg`).
-//! **Windows tray** → `icons/tray-win-light.png` / `tray-win-dark.png` (taskbar theme).
+//! **Windows tray** → `icons/tray-win-light.png` (black tile) / `tray-win-dark.png`
+//! (white glyph on transparency). Host picks by taskbar theme, not in-app theme.
 //! **App dock / .exe icons** → generated from `icons/icon (1).png` (do not mix).
 
 #![allow(dead_code)] // residual-clippy: busy_tooltip helper
@@ -348,7 +349,7 @@ fn handle_menu_event(app: &AppHandle, event: MenuEvent) {
 enum WinTrayBadge {
     /// Light taskbar → black tile, white glyph.
     LightTaskbar,
-    /// Dark taskbar → white tile, black glyph.
+    /// Dark taskbar → white glyph on transparency (no white fill tile).
     DarkTaskbar,
 }
 
@@ -388,6 +389,7 @@ fn load_tray_icon() -> Result<Image<'static>, String> {
     // Embedded at compile time — logo.svg pipeline only (never app icon.png).
     // tray-icon on macOS displays at 18pt height; embed 36px (@2x) so retina is sharp.
     // Windows: contrast badges — no template invert on the notification area.
+    // Light taskbar: black tile. Dark taskbar: white glyph, transparent canvas.
     #[cfg(target_os = "macos")]
     let bytes: &[u8] = include_bytes!("../icons/tray-icon.png"); // 36×36
     #[cfg(windows)]
@@ -676,19 +678,21 @@ mod badge_tests {
     }
 
     #[test]
-    fn win_dark_badge_is_white_tile_black_glyph() {
+    fn win_dark_badge_is_white_glyph_on_transparent() {
         let img = image::load_from_memory(include_bytes!("../icons/tray-win-dark.png"))
             .expect("tray-win-dark.png")
             .to_rgba8();
         assert_eq!(img.dimensions(), (32, 32));
-        let bg = img.get_pixel(16, 4).0;
+        let corner = img.get_pixel(0, 0).0;
+        assert!(corner[3] < 20, "{corner:?}");
+        let tile = img.get_pixel(16, 4).0;
         assert!(
-            bg[0] > 240 && bg[1] > 240 && bg[2] > 240 && bg[3] > 200,
-            "{bg:?}"
+            !(tile[0] > 240 && tile[1] > 240 && tile[2] > 240 && tile[3] > 200),
+            "dark-taskbar badge must not be a white tile: {tile:?}"
         );
-        let has_black = img
+        let has_white = img
             .pixels()
-            .any(|p| p[0] < 16 && p[1] < 16 && p[2] < 16 && p[3] > 200);
-        assert!(has_black, "dark-taskbar badge needs a black glyph");
+            .any(|p| p[0] > 240 && p[1] > 240 && p[2] > 240 && p[3] > 200);
+        assert!(has_white, "dark-taskbar badge needs a white glyph");
     }
 }

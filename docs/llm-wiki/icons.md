@@ -6,12 +6,12 @@ Two **separate** pipelines — never mix them.
 |--------|--------|---------|
 | Dock / taskbar / `.app` / Windows `.exe` | `src-tauri/icons/icon (1).png` (copied as `icon-source.png`) | `icon.png`, `32x32.png`, `64x64.png`, `128x128.png`, `128x128@2x.png`, `icon.icns`, `icon.ico` |
 | macOS menu bar | `docs/svg/logo.svg` | `tray-icon.png` (**36×36**, @2x for 18pt bar), `tray-16` / `tray-32`, `tray-source.png` |
-| Windows system tray | `docs/svg/logo.svg` → `tray-32.png` | `tray-win-light.png` (black tile, white glyph), `tray-win-dark.png` (white tile, black glyph). Host picks by **taskbar** theme (`SystemUsesLightTheme`) and swaps live. |
+| Windows system tray | `docs/svg/logo.svg` → `tray-32.png` | `tray-win-light.png` (black tile, white glyph), `tray-win-dark.png` (white glyph on transparency, no fill tile). Host picks by **taskbar** theme (`SystemUsesLightTheme`) and swaps live. |
 
 ## Rules
 
 1. **App / dock** uses the full-color artwork from `icon (1).png` only. Listed in `tauri.conf.json` → `bundle.icon`.
-2. **Tray / status bar** uses marks from `logo.svg` only. Embedded in `src-tauri/src/tray.rs` via `include_bytes!`. **macOS**: monochrome template + `icon_as_template(true)` (the bar inverts it). **Windows**: contrast badges (`tray-win-light.png` / `tray-win-dark.png`) — there is no template invert, so a black glyph vanishes on a dark taskbar. Do not follow the in-app theme; follow the taskbar (`SystemUsesLightTheme`).
+2. **Tray / status bar** uses marks from `logo.svg` only. Embedded in `src-tauri/src/tray.rs` via `include_bytes!`. **macOS**: monochrome template + `icon_as_template(true)` (the bar inverts it). **Windows**: contrast badges (`tray-win-light.png` / `tray-win-dark.png`) — there is no template invert, so a black glyph vanishes on a dark taskbar. Light taskbars keep the black tile; dark taskbars use a **white glyph on transparency** (not a white rounded tile, and not black-on-transparent). Do not follow the in-app theme; follow the taskbar (`SystemUsesLightTheme`).
 3. Do not point the tray at `icon.png` or the dock at `tray-*.png`.
 4. Menu-bar icons must stay **padded** (~14% margin) and **retina-sized** (36px for 18pt display). Tiny unpadded rasters look like a blob on Retina.
 

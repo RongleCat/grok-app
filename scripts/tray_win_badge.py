@@ -1,10 +1,16 @@
 """Windows tray badges: high-contrast mark for light vs dark taskbars.
 
 Windows has no macOS-style template icons. A black glyph on a dark taskbar
-vanishes. These badges invert as a pair:
+vanishes (#747). Pair (do not swap the two assets):
 
 - light taskbar → black fill, white glyph (`tray-win-light.png`)
-- dark taskbar  → white fill, black glyph (`tray-win-dark.png`)
+- dark taskbar  → white glyph on transparency (`tray-win-dark.png`)
+
+#748 used a white tile / black glyph on dark taskbars so the mark stayed
+visible. That tile reads as a white square in the notification area (#776);
+the dark asset is a white glyph on a transparent canvas instead. Do not
+restore black-on-transparent (the #747 bug). Host still picks by taskbar
+`SystemUsesLightTheme`, not the in-app theme.
 
 Input is the monochrome `tray-32.png` (or any black-on-transparent mark).
 """
@@ -115,8 +121,13 @@ def light_taskbar_badge(glyph: Image.Image, **kwargs) -> Image.Image:
 
 
 def dark_taskbar_badge(glyph: Image.Image, **kwargs) -> Image.Image:
-    """White tile, black mark — for a dark Windows taskbar."""
-    return compose_badge(glyph, bg=(255, 255, 255), fg=(0, 0, 0), **kwargs)
+    """White glyph on transparency — for a dark Windows taskbar (no fill tile)."""
+    size = kwargs.get("size", SIZE)
+    pad_ratio = kwargs.get("pad_ratio", GLYPH_PAD)
+    mark = fit_glyph(glyph, size, pad_ratio)
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    canvas.alpha_composite(tint_glyph(mark, (255, 255, 255)))
+    return canvas
 
 
 def write_badges(glyph_src: Path, dest_dir: Path) -> tuple[Path, Path]:

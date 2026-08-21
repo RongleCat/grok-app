@@ -55,16 +55,23 @@ class TrayWinBadgeTest(unittest.TestCase):
         corner = _pixel(out, 0, 0)
         self.assertLess(corner[3], 20)
 
-    def test_dark_taskbar_is_white_tile_black_glyph(self) -> None:
+    def test_dark_taskbar_is_white_glyph_on_transparent(self) -> None:
         out = dark_taskbar_badge(_black_mark())
-        bg = _pixel(out, 16, 4)
-        self.assertGreater(bg[0], 240)
-        self.assertGreater(bg[3], 200)
+        self.assertEqual(out.size, (32, 32))
+        # No large opaque white tile — top-center of the old rounded fill is empty.
+        tile = _pixel(out, 16, 4)
+        self.assertFalse(
+            tile[0] > 240 and tile[1] > 240 and tile[2] > 240 and tile[3] > 200,
+            f"dark-taskbar badge must not be a white tile: {tile!r}",
+        )
+        self.assertLess(tile[3], 20)
         fg = _pixel(out, 16, 16)
-        self.assertLess(fg[0], 16)
-        self.assertLess(fg[1], 16)
-        self.assertLess(fg[2], 16)
+        self.assertGreater(fg[0], 240)
+        self.assertGreater(fg[1], 240)
+        self.assertGreater(fg[2], 240)
         self.assertGreater(fg[3], 200)
+        corner = _pixel(out, 0, 0)
+        self.assertLess(corner[3], 20)
 
     def test_compose_uses_requested_colors(self) -> None:
         out = compose_badge(
@@ -107,8 +114,13 @@ class GenerateIconsScriptContractTest(unittest.TestCase):
         dbg = dark.getpixel((16, 4))
         self.assertLess(lbg[0], 16)
         self.assertGreater(lbg[3], 200)
-        self.assertGreater(dbg[0], 240)
-        self.assertGreater(dbg[3], 200)
+        # Dark: no white rounded tile at the old fill sample point.
+        self.assertFalse(
+            dbg[0] > 240 and dbg[1] > 240 and dbg[2] > 240 and dbg[3] > 200,
+            f"dark-taskbar badge must not be a white tile: {dbg!r}",
+        )
+        self.assertLess(dbg[3], 20)
+        self.assertLess(dark.getpixel((0, 0))[3], 20)
         # The Grok mark is two strokes — (16,16) may sit in a gap. Scan.
         self.assertTrue(
             _any_pixel(
@@ -118,9 +130,15 @@ class GenerateIconsScriptContractTest(unittest.TestCase):
         )
         self.assertTrue(
             _any_pixel(
+                dark, lambda p: p[0] > 240 and p[1] > 240 and p[2] > 240 and p[3] > 200
+            ),
+            "dark-taskbar badge needs a white glyph",
+        )
+        self.assertFalse(
+            _any_pixel(
                 dark, lambda p: p[0] < 16 and p[1] < 16 and p[2] < 16 and p[3] > 200
             ),
-            "dark-taskbar badge needs a black glyph",
+            "dark-taskbar badge must not restore a black glyph",
         )
         light.close()
         dark.close()
