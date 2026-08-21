@@ -71,6 +71,7 @@ export function isLocaleCatalogReady(locale: Locale): boolean {
 
 /** Load one catalog (no-op for English or a cache hit). */
 export function loadLocaleCatalog(locale: Locale): Promise<void> {
+  if (locale === "en") return Promise.resolve();
   if (isLocaleCatalogReady(locale)) return Promise.resolve();
   const existing = inflight.get(locale);
   if (existing) return existing;
