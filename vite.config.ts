@@ -41,5 +41,6 @@ export default defineConfig(() => ({
   test: {
     environment: "node",
     include: ["src/**/*.{test,spec}.ts", "src/**/*.{test,spec}.tsx"],
+    setupFiles: ["./src/test/loadLocaleCatalogs.ts"],
   },
 }));

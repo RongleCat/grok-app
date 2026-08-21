@@ -18,6 +18,8 @@
 //! Returns the delivery **path** string on success so Settings can be honest.
 
 use tauri::{AppHandle, Emitter};
+#[cfg(not(target_os = "macos"))]
+use tauri_plugin_notification::NotificationExt;
 
 /// Product bundle id / AUMID (must match `tauri.conf.json` `identifier`).
 const APP_BUNDLE_ID: &str = "com.grokapp.desktop";
