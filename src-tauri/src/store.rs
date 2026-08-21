@@ -2077,7 +2077,9 @@ pub fn load_messages(session_id: &str) -> Vec<ChatMessageStored> {
 }
 
 fn write_messages_locked(path: &Path, messages: &[ChatMessageStored]) -> Result<(), String> {
-    let serialized = serde_json::to_string_pretty(messages).map_err(|e| e.to_string())?;
+    // Compact JSON: mid-stream flushes rewrite the whole journal. Pretty
+    // indent made long chats a disk sink. `from_str` still accepts pretty files.
+    let serialized = serde_json::to_string(messages).map_err(|e| e.to_string())?;
     crate::store_lock::write_bytes_replace(path, serialized.as_bytes())
 }
 
@@ -4333,6 +4335,42 @@ mod tests {
         let truncated = load_messages(&session.id);
         assert_eq!(truncated.len(), 1);
         assert_eq!(truncated[0].id, "user-1");
+
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn journal_writes_compact_json() {
+        let _env = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-store-journal-compact-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp home");
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let _ = ensure_app_dirs();
+
+        let session =
+            create_session(None, Some("compact journal".into()), false).expect("session");
+        let row = stored_msg("u1", "user", "hello", None);
+        save_messages(&session.id, &[row.clone()]).expect("save");
+        let path = session_dir(&session.id).join("messages.json");
+        let raw = fs::read_to_string(&path).expect("read journal");
+        assert!(raw.starts_with('['), "journal is a JSON array");
+        assert!(!raw.contains("\n  "), "pretty indent must not appear");
+        let parsed: Vec<ChatMessageStored> =
+            serde_json::from_str(&raw).expect("compact journal parses");
+        assert_eq!(parsed[0].id, "u1");
+
+        fs::write(&path, serde_json::to_string_pretty(&[row]).unwrap()).unwrap();
+        let loaded = load_messages(&session.id);
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].id, "u1");
 
         std::env::remove_var("GROK_APP_HOME");
         let _ = fs::remove_dir_all(&tmp);
