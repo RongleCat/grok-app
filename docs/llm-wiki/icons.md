@@ -20,6 +20,7 @@ Two **separate** pipelines — never mix them.
 - Window close (traffic light / self-drawn close / `window.close`) → **hide to tray** (`CloseRequested` + `prevent_close` + `tray::hide_to_tray`):
   - **macOS**: main window hides; **Dock icon stays** (`ActivationPolicy::Regular` + `set_dock_visibility(true)`). Do **not** switch to Accessory on user close — that removed the Dock icon and broke click-to-reopen (the pet overlay is skip-taskbar and does not count as the workbench).
   - **Windows**: taskbar button removed via `win_shell::set_main_window_skip_taskbar` (`WS_EX_TOOLWINDOW` + `ITaskbarList::DeleteTab`). Do **not** use bare `set_skip_taskbar` alone — incomplete restore breaks **Show Desktop** when this is the only window.
+- **Windows unread overlay**: `tray::set_busy_count` uses `WebviewWindow::set_overlay_icon` (16×16 painted badge from `win_taskbar_overlay`). Do **not** call `set_badge_count` on Windows — Tauri documents it as unsupported and wry no-ops it. Re-apply after AddTab.
   - Status bar / system tray icon stays.
   - Headless `--start-in-tray` / fire-due uses `hide_to_tray_accessory` (Dock hidden + Accessory).
 - Reopen via **Dock click** (`RunEvent::Reopen` → `show_main_window`) or tray **Open Grok** / menu actions.

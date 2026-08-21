@@ -296,6 +296,8 @@ pub fn show_main_window(app: &AppHandle) {
         {
             // After show/focus, re-assert styles + taskbar tab once more.
             crate::win_shell::ensure_main_window_shell_integration(&w);
+            // DeleteTab/AddTab drops ITaskbarList3 overlay; put the last count back.
+            reapply_windows_overlay(app);
         }
     }
 }
@@ -546,8 +548,9 @@ pub fn busy_tooltip(base: &str, count: u32) -> String {
 /// - **macOS Dock**: `set_badge_label` (+ count) on the main window. No-op while
 ///   the app is Accessory / dock-hidden (close-to-tray) — tray chrome still updates.
 /// - **macOS menu-bar tray**: tooltip `Grok · N` and a numeric title next to the icon.
-/// - **Other platforms**: dock-like badge when supported + tray tooltip.
-/// - Count `0` clears the badge / restores default tooltip / clears tray title.
+/// - **Windows taskbar**: `set_overlay_icon` (Tauri `set_badge_count` is unsupported).
+/// - **Linux**: dock-like badge when supported + tray tooltip.
+/// - Count `0` clears the badge / overlay / restores default tooltip / clears tray title.
 /// - Fail-closed: missing tray/window errors are logged, never panic.
 pub fn set_busy_count(app: &AppHandle, count: u32) {
     let base = tray_i18n::t().tooltip;
@@ -567,7 +570,17 @@ pub fn set_busy_count(app: &AppHandle, count: u32) {
         }
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    {
+        crate::win_taskbar_overlay::remember(count);
+        if let Some(w) = app.get_webview_window("main") {
+            apply_windows_overlay(&w, count);
+        } else {
+            tracing::debug!(count, "set_busy_count: main window missing");
+        }
+    }
+
+    #[cfg(all(not(target_os = "macos"), not(windows)))]
     {
         // Linux may also support dock-like badge count via libunity; best-effort.
         if let Some(w) = app.get_webview_window("main") {
@@ -598,6 +611,36 @@ pub fn set_busy_count(app: &AppHandle, count: u32) {
         }
     } else {
         tracing::debug!("set_busy_count: tray state missing");
+    }
+}
+
+#[cfg(windows)]
+fn apply_windows_overlay(window: &tauri::WebviewWindow, count: u32) {
+    crate::win_taskbar_overlay::remember(count);
+    match crate::win_taskbar_overlay::overlay_rgba(count) {
+        Some(rgba) => {
+            let icon = Image::new_owned(
+                rgba,
+                crate::win_taskbar_overlay::SIZE,
+                crate::win_taskbar_overlay::SIZE,
+            );
+            if let Err(e) = window.set_overlay_icon(Some(icon)) {
+                tracing::debug!(error = %e, count, "set_overlay_icon failed");
+            }
+        }
+        None => {
+            if let Err(e) = window.set_overlay_icon(None) {
+                tracing::debug!(error = %e, "clear overlay icon failed");
+            }
+        }
+    }
+}
+
+#[cfg(windows)]
+fn reapply_windows_overlay(app: &AppHandle) {
+    let count = crate::win_taskbar_overlay::last_count();
+    if let Some(w) = app.get_webview_window("main") {
+        apply_windows_overlay(&w, count);
     }
 }
 
