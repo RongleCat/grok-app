@@ -36,7 +36,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SetWindowLongW, SetWindowPos, GWLP_HWNDPARENT, GWLP_WNDPROC, GWL_EXSTYLE, GWL_STYLE, GW_CHILD,
     GW_HWNDNEXT, GW_OWNER, HWND_NOTOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
     SWP_NOSIZE, SWP_NOZORDER, WA_ACTIVE, WA_CLICKACTIVE, WM_ACTIVATE, WM_NCDESTROY, WM_SETFOCUS,
-    WNDPROC, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_MINIMIZEBOX,
+    WNDPROC, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
 };
 
 /// Product AUMID — must match `identifier` in tauri.conf.json / NSIS shortcuts.
@@ -154,6 +154,11 @@ fn ensure_hwnd_shell_integration(hwnd: HWND, register_taskbar: bool) {
 
         if style & WS_MINIMIZEBOX.0 == 0 {
             style |= WS_MINIMIZEBOX.0;
+            changed = true;
+        }
+        // Frameless HWNDs still need MAXIMIZEBOX so IsZoomed / SW_MAXIMIZE work.
+        if style & WS_MAXIMIZEBOX.0 == 0 {
+            style |= WS_MAXIMIZEBOX.0;
             changed = true;
         }
         // Visible app windows must not be tool windows — TOOLWINDOW alone is excluded

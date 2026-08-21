@@ -25,6 +25,7 @@ import {
   IconGitBranch as TbGitBranch,
   IconGitCommit as TbGitCommit,
   IconBox as TbBox,
+  IconBoxMultiple as TbBoxMultiple,
   IconBrush as TbBrush,
   IconCalendarTime as TbCalendarTime,
   IconCheck as TbCheck,
@@ -393,6 +394,8 @@ export const IconFileText = wrap(TbFileText);
 export const IconBolt = wrap(TbBolt);
 export const IconMinimize = wrap(TbMinus);
 export const IconMaximize = wrap(TbSquare);
+/** Caption restore (overlapping squares). */
+export const IconRestore = wrap(TbBoxMultiple);
 export const IconPlan = wrap(TbList);
 export const IconPin = wrap(TbPinned);
 export const IconPinOff = wrap(TbPinnedOff);

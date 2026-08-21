@@ -97,6 +97,7 @@ describe("window chrome", () => {
     const body = readSource(winShell);
     expect(body).toMatch(/SetCurrentProcessExplicitAppUserModelID/);
     expect(body).toMatch(/WS_EX_APPWINDOW/);
+    expect(body).toMatch(/WS_MAXIMIZEBOX/);
     expect(body).toMatch(/ensure_main_window_shell_integration/);
     expect(body).toMatch(/set_main_window_skip_taskbar/);
     const conf = JSON.parse(readFileSync(CONF_PATH, "utf8")) as { identifier?: string };

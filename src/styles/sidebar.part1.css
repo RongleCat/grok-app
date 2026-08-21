@@ -22,6 +22,15 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
+/* WebView2 shifts visualViewport when a frameless window is resized from the
+   top; pin the page so chrome does not walk down inside the frame. */
+html.has-viewport-pan body {
+  transform: translate(
+    var(--viewport-pan-x, 0px),
+    var(--viewport-pan-y, 0px)
+  );
+}
+
 button,
 input,
 textarea,

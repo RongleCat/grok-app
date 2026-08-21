@@ -101,6 +101,7 @@ import {
   ensureWindowFitsLayout,
   isWindowFitSuppressed
 } from "@/lib/windowFit";
+import { isFakeMaximized } from "@/lib/windowChrome";
 import {
   bumpPaneSplitMotion,
   isPaneSplitMotionActive,
@@ -3029,6 +3030,7 @@ export function AppWorkbench() {
   useEffect(() => {
     if (!api.isDesktopHost() || !api.isTauri()) return;
     let unlistenResize: (() => void) | undefined;
+    let unlistenMoved: (() => void) | undefined;
     let unlistenScale: (() => void) | undefined;
     let cancelled = false;
     void (async () => {
@@ -3037,7 +3039,9 @@ export function AppWorkbench() {
         const w = getCurrentWindow();
         const sync = async () => {
           try {
-            setWindowMaximized(await w.isMaximized());
+            setWindowMaximized(
+              (await w.isMaximized()) || isFakeMaximized(),
+            );
           } catch {
             /* ignore */
           }
@@ -3047,6 +3051,13 @@ export function AppWorkbench() {
           void sync();
         });
         try {
+          unlistenMoved = await w.onMoved(() => {
+            void sync();
+          });
+        } catch {
+          /* older API */
+        }
+        try {
           unlistenScale = await w.onScaleChanged(() => {
             void sync();
           });
@@ -3055,6 +3066,7 @@ export function AppWorkbench() {
         }
         if (cancelled) {
           unlistenResize?.();
+          unlistenMoved?.();
           unlistenScale?.();
         }
       } catch {
@@ -3064,6 +3076,7 @@ export function AppWorkbench() {
     return () => {
       cancelled = true;
       unlistenResize?.();
+      unlistenMoved?.();
       unlistenScale?.();
     };
   }, []);

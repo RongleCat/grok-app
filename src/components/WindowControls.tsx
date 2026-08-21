@@ -4,10 +4,16 @@
  * traffic lights.
  */
 import { useCallback, useEffect, useState } from "react";
-import { IconClose, IconMaximize, IconMinimize } from "@/components/icons";
+import {
+  IconClose,
+  IconMaximize,
+  IconMinimize,
+  IconRestore,
+} from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import {
   isFakeMaximized,
+  subscribeDesktopViewportPin,
   toggleMaximizeFromTitlebar,
   toggleMaximizeReliable,
 } from "@/lib/windowChrome";
@@ -40,23 +46,36 @@ export function WindowControls({ visible, labels }: Props) {
   useEffect(() => {
     if (!visible) return;
     void refreshMaximized();
-    let unlisten: (() => void) | undefined;
+    const unpin = subscribeDesktopViewportPin();
+    let unlistenResize: (() => void) | undefined;
+    let unlistenMoved: (() => void) | undefined;
     let cancelled = false;
     void (async () => {
       try {
         const { getCurrentWindow } = await import("@tauri-apps/api/window");
         const w = getCurrentWindow();
-        unlisten = await w.onResized(() => {
+        const sync = () => {
           void refreshMaximized();
-        });
-        if (cancelled && unlisten) unlisten();
+        };
+        unlistenResize = await w.onResized(sync);
+        try {
+          unlistenMoved = await w.onMoved(sync);
+        } catch {
+          /* older API */
+        }
+        if (cancelled) {
+          unlistenResize?.();
+          unlistenMoved?.();
+        }
       } catch {
         /* ignore */
       }
     })();
     return () => {
       cancelled = true;
-      unlisten?.();
+      unlistenResize?.();
+      unlistenMoved?.();
+      unpin();
     };
   }, [visible, refreshMaximized]);
 
@@ -101,7 +120,7 @@ export function WindowControls({ visible, labels }: Props) {
             void winChrome("toggleMaximize");
           }}
         >
-          <IconMaximize size={14} />
+          {maximized ? <IconRestore size={14} /> : <IconMaximize size={14} />}
         </button>
       </Tip>
       <Tip label={labels.close}>
