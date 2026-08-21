@@ -53,11 +53,10 @@ html[data-wallpaper="1"] .app-shell::after {
 }
 
 /* Lift real chrome above the media + scrim.
- * Excludes .window-controls (must keep position: fixed; right:0; z:10040 —
- * otherwise the buttons jump to the left and the drag strip is clobbered)
+ * Excludes .window-controls / .window-edge-n (must keep position: fixed)
  * and the media layer itself (already positioned/z-indexed above). */
 html[data-wallpaper="1"] .app-shell
-  > *:not(.window-controls):not(.app-wallpaper-media) {
+  > *:not(.window-controls):not(.window-edge-n):not(.app-wallpaper-media) {
   position: relative;
   z-index: 2;
 }

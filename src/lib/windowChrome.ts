@@ -5,6 +5,10 @@
  * work area and remember the previous bounds so Restore works.
  * Windows/macOS must not take that path: a follow-up setSize cancels a real
  * maximize that was still settling.
+ *
+ * Do not put a CSS transform on `html`/`body` to "pin" visualViewport — that
+ * breaks `-webkit-app-region: drag`, so titlebar moves become north-resize
+ * (window grows downward; you cannot lift it).
  */
 
 import type { AppPlatform } from "@/lib/appPlatform";
@@ -12,18 +16,18 @@ import { detectAppPlatform } from "@/lib/appPlatform";
 
 export const TITLEBAR_MAXIMIZE_DEBOUNCE_MS = 400;
 
-/** Poll interval while waiting for OS `isMaximized` to catch up. */
+/** Poll interval while waiting for OS `isMaximized` to catch up (Linux only). */
 export const OS_MAXIMIZE_POLL_MS = 16;
 
 /** Linux: short wait then work-area fill. */
 export const LINUX_MAXIMIZE_WAIT_MS = 40;
 
-/** Windows/mac: give ShowWindow(SW_MAXIMIZE) time; never fake-fill. */
-export const OS_MAXIMIZE_WAIT_MS = 280;
-
-export const VIEWPORT_PAN_CLASS = "has-viewport-pan";
-export const VIEWPORT_PAN_X_VAR = "--viewport-pan-x";
-export const VIEWPORT_PAN_Y_VAR = "--viewport-pan-y";
+/**
+ * Caption min/max/close: wait until the pointer is fully up before
+ * maximize(). Otherwise Windows treats the still-held click as a drag on
+ * a maximized window and immediately restores (flash).
+ */
+export const CAPTION_BUTTON_TOGGLE_DEFER_MS = 32;
 
 /** Work-area fill is only for compositors that ignore gtk_window_maximize. */
 export function shouldFakeMaximizeFallback(platform: AppPlatform): boolean {
@@ -31,74 +35,14 @@ export function shouldFakeMaximizeFallback(platform: AppPlatform): boolean {
 }
 
 export function osMaximizeWaitMs(allowFakeFallback: boolean): number {
-  return allowFakeFallback ? LINUX_MAXIMIZE_WAIT_MS : OS_MAXIMIZE_WAIT_MS;
+  return allowFakeFallback ? LINUX_MAXIMIZE_WAIT_MS : 0;
 }
 
-/**
- * CSS translate that cancels visualViewport pan (WebView2 top/left resize).
- * `null` means identity — drop the pin class.
- */
-export function viewportPanFromOffset(
-  offsetLeft: number,
-  offsetTop: number,
-): { x: number; y: number } | null {
-  const x = Number.isFinite(offsetLeft) ? Math.round(-offsetLeft) : 0;
-  const y = Number.isFinite(offsetTop) ? Math.round(-offsetTop) : 0;
-  if (x === 0 && y === 0) return null;
-  return { x: x === 0 ? 0 : x, y: y === 0 ? 0 : y };
-}
-
-export function applyViewportPan(
-  root: HTMLElement,
-  pan: { x: number; y: number } | null,
-): void {
-  if (!pan) {
-    root.classList.remove(VIEWPORT_PAN_CLASS);
-    root.style.removeProperty(VIEWPORT_PAN_X_VAR);
-    root.style.removeProperty(VIEWPORT_PAN_Y_VAR);
-    return;
-  }
-  root.classList.add(VIEWPORT_PAN_CLASS);
-  root.style.setProperty(VIEWPORT_PAN_X_VAR, `${pan.x}px`);
-  root.style.setProperty(VIEWPORT_PAN_Y_VAR, `${pan.y}px`);
-}
-
-/** Pin the page when WebView2 shifts visualViewport during edge resize. */
-export function subscribeDesktopViewportPin(
-  opts?: {
-    root?: HTMLElement;
-    getOffset?: () => { offsetLeft: number; offsetTop: number } | null;
-  },
-): () => void {
-  const root = opts?.root ?? document.documentElement;
-  const apply = () => {
-    let offset: { offsetLeft: number; offsetTop: number } | null;
-    if (opts?.getOffset) {
-      offset = opts.getOffset();
-    } else {
-      const vv = window.visualViewport;
-      offset = vv
-        ? { offsetLeft: vv.offsetLeft, offsetTop: vv.offsetTop }
-        : null;
-    }
-    applyViewportPan(
-      root,
-      offset
-        ? viewportPanFromOffset(offset.offsetLeft, offset.offsetTop)
-        : null,
-    );
-  };
-  apply();
-  const vv = typeof window !== "undefined" ? window.visualViewport : null;
-  vv?.addEventListener("resize", apply);
-  vv?.addEventListener("scroll", apply);
-  window.addEventListener("resize", apply);
-  return () => {
-    vv?.removeEventListener("resize", apply);
-    vv?.removeEventListener("scroll", apply);
-    window.removeEventListener("resize", apply);
-    applyViewportPan(root, null);
-  };
+export function scheduleCaptionButtonToggle(
+  fn: () => void,
+  deferMs: number = CAPTION_BUTTON_TOGGLE_DEFER_MS,
+): ReturnType<typeof setTimeout> {
+  return setTimeout(fn, Math.max(0, deferMs));
 }
 
 /** Double-click / mousedown(detail=2) must not toggle twice. */
@@ -206,15 +150,35 @@ async function waitForOsMaximized(
 /**
  * Maximize / restore. Prefers the OS API; on Linux Wayland no-ops, fills
  * the work area and treats that as maximized until the next toggle.
- * Windows never fills the work area — that undoes a real maximize.
- * Returns whether the window should display as maximized.
+ * Windows/mac: one OS call, no wait, no setSize. Returns the intended
+ * caption state; onResized corrects the glyph if the OS disagrees.
  */
 export async function toggleMaximizeReliable(): Promise<boolean> {
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
   const w = getCurrentWindow();
   const allowFake = shouldFakeMaximizeFallback(detectAppPlatform());
-  const waitMs = osMaximizeWaitMs(allowFake);
   const wasOs = await w.isMaximized().catch(() => false);
+
+  if (!allowFake) {
+    fakeMaximized = false;
+    restoreBounds = null;
+    if (wasOs) {
+      try {
+        await w.unmaximize();
+      } catch {
+        /* ignore */
+      }
+      return false;
+    }
+    try {
+      await w.maximize();
+    } catch {
+      /* ignore */
+    }
+    return true;
+  }
+
+  const waitMs = osMaximizeWaitMs(true);
   const was = wasOs || fakeMaximized;
 
   if (was) {
@@ -227,7 +191,7 @@ export async function toggleMaximizeReliable(): Promise<boolean> {
       }
       await waitForOsMaximized(w, false, waitMs);
     }
-    if (allowFake && restoreBounds) {
+    if (restoreBounds) {
       const prev = restoreBounds;
       restoreBounds = null;
       try {
@@ -235,13 +199,11 @@ export async function toggleMaximizeReliable(): Promise<boolean> {
       } catch {
         /* ignore */
       }
-    } else {
-      restoreBounds = null;
     }
     return w.isMaximized().catch(() => false);
   }
 
-  const before = allowFake ? await readLogicalBounds(w) : null;
+  const before = await readLogicalBounds(w);
   try {
     await w.maximize();
   } catch {
@@ -252,10 +214,6 @@ export async function toggleMaximizeReliable(): Promise<boolean> {
     restoreBounds = null;
     fakeMaximized = false;
     return true;
-  }
-
-  if (!allowFake) {
-    return w.isMaximized().catch(() => false);
   }
 
   if (before) restoreBounds = before;

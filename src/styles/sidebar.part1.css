@@ -22,15 +22,6 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
-/* WebView2 shifts visualViewport when a frameless window is resized from the
-   top; pin the page so chrome does not walk down inside the frame. */
-html.has-viewport-pan body {
-  transform: translate(
-    var(--viewport-pan-x, 0px),
-    var(--viewport-pan-y, 0px)
-  );
-}
-
 button,
 input,
 textarea,
@@ -277,6 +268,28 @@ select,
 }
 
 /* Win / frameless self-drawn chrome (mac uses Overlay traffic lights) */
+/* Top 8px must not be a drag region: otherwise titlebar move is HTTOP
+   (window grows downward; you cannot lift it). Stays below .window-controls. */
+.window-edge-n {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: var(--window-controls-inset, 138px);
+  height: 8px;
+  z-index: 10039;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  pointer-events: auto;
+}
+
+.platform-win .window-edge-n,
+.platform-linux .window-edge-n,
+.platform-other .window-edge-n,
+.has-custom-chrome .window-edge-n {
+  display: block;
+}
+
 .window-controls {
   display: none;
   align-items: stretch;

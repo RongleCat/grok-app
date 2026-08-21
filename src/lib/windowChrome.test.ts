@@ -1,16 +1,12 @@
-/** @vitest-environment jsdom */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  applyViewportPan,
+  CAPTION_BUTTON_TOGGLE_DEFER_MS,
   maximizeLooksNoop,
   osMaximizeWaitMs,
+  scheduleCaptionButtonToggle,
   shouldAcceptTitlebarMaximize,
   shouldFakeMaximizeFallback,
   TITLEBAR_MAXIMIZE_DEBOUNCE_MS,
-  viewportPanFromOffset,
-  VIEWPORT_PAN_CLASS,
-  VIEWPORT_PAN_X_VAR,
-  VIEWPORT_PAN_Y_VAR,
 } from "./windowChrome";
 
 describe("shouldAcceptTitlebarMaximize", () => {
@@ -42,35 +38,23 @@ describe("shouldFakeMaximizeFallback", () => {
 });
 
 describe("osMaximizeWaitMs", () => {
-  it("waits longer when there is no work-area fill fallback", () => {
-    expect(osMaximizeWaitMs(true)).toBeLessThan(osMaximizeWaitMs(false));
+  it("only waits on the Linux work-area fill path", () => {
     expect(osMaximizeWaitMs(true)).toBe(40);
-    expect(osMaximizeWaitMs(false)).toBe(280);
+    expect(osMaximizeWaitMs(false)).toBe(0);
   });
 });
 
-describe("viewportPanFromOffset", () => {
-  it("returns null when the visual viewport is not panned", () => {
-    expect(viewportPanFromOffset(0, 0)).toBeNull();
-    expect(viewportPanFromOffset(0.2, -0.2)).toBeNull();
-  });
-
-  it("negates top/left offset so chrome stays pinned in the frame", () => {
-    expect(viewportPanFromOffset(0, 48)).toEqual({ x: 0, y: -48 });
-    expect(viewportPanFromOffset(12.6, 20.4)).toEqual({ x: -13, y: -20 });
-  });
-});
-
-describe("applyViewportPan", () => {
-  it("sets CSS vars while panned and clears them at identity", () => {
-    const root = document.createElement("html");
-    applyViewportPan(root, { x: 0, y: -48 });
-    expect(root.classList.contains(VIEWPORT_PAN_CLASS)).toBe(true);
-    expect(root.style.getPropertyValue(VIEWPORT_PAN_X_VAR)).toBe("0px");
-    expect(root.style.getPropertyValue(VIEWPORT_PAN_Y_VAR)).toBe("-48px");
-    applyViewportPan(root, null);
-    expect(root.classList.contains(VIEWPORT_PAN_CLASS)).toBe(false);
-    expect(root.style.getPropertyValue(VIEWPORT_PAN_X_VAR)).toBe("");
-    expect(root.style.getPropertyValue(VIEWPORT_PAN_Y_VAR)).toBe("");
+describe("scheduleCaptionButtonToggle", () => {
+  it("defers past mouse-up so Windows does not drag-to-restore", () => {
+    expect(CAPTION_BUTTON_TOGGLE_DEFER_MS).toBeGreaterThan(0);
+    vi.useFakeTimers();
+    const fn = vi.fn();
+    scheduleCaptionButtonToggle(fn, CAPTION_BUTTON_TOGGLE_DEFER_MS);
+    expect(fn).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(CAPTION_BUTTON_TOGGLE_DEFER_MS - 1);
+    expect(fn).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(fn).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 });
