@@ -1653,6 +1653,21 @@ describe("session projection", () => {
     expect(segs[5]).toMatchObject({ kind: "content", text: " final" });
   });
 
+  it("weaveToolsIntoAssistantSegments keeps history row identity", () => {
+    const user = { id: "u1", role: "user" as const, content: "q" };
+    const asst = {
+      id: "a1",
+      role: "assistant" as const,
+      content: "done",
+      streaming: false,
+      segments: [{ kind: "content" as const, text: "done" }],
+    };
+    const laterUser = { id: "u2", role: "user" as const, content: "next" };
+    const woven = weaveToolsIntoAssistantSegments([user, asst, laterUser]);
+    expect(woven[0]).toBe(user);
+    expect(woven[2]).toBe(laterUser);
+  });
+
   it("weaveToolsIntoAssistantSegments keeps finished live interleave without remount", () => {
     // Live turn left thought/tool interleaved with content; streaming=false.
     const woven = weaveToolsIntoAssistantSegments([

@@ -860,7 +860,9 @@ function transcriptRowPropsEqual(
   if (a.regenerateModelId !== b.regenerateModelId) return false;
   if (a.activeAssistantId !== b.activeAssistantId) return false;
   if (a.liveTool !== b.liveTool) return false;
-  if (a.wovenMessages !== b.wovenMessages) return false;
+  // Do not compare wovenMessages by array identity — weave used to clone every
+  // row on each stream notify and bust all memos. History `m` refs + toolInlined
+  // via `a.m` are enough; the streaming assistant already has a new `m`.
   if (a.standaloneToolGroups !== b.standaloneToolGroups) return false;
   if (a.findQuery !== b.findQuery) return false;
   if (a.findHitMessageIds !== b.findHitMessageIds) return false;

@@ -20,6 +20,7 @@ See `docs/llm-wiki/release.md`.
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
 
 ### Changed
+- **Weaving tools no longer clones every chat row**: History message object identity is kept so memoized transcript rows survive stream ticks. Row memo no longer busts on a new `wovenMessages` array.
 - **Completed tool journal writes leave the ACP pump**: `load_messages` / `save_messages` for finished tools run on `spawn_blocking` so disk IO does not stall later stream tokens.
 - **PTY output is coalesced**: `terminal://data` flushes every 16ms or 4KiB instead of one IPC per 8KiB OS read.
 - **Pet cursor watch idles when hidden**: Overlay pointer polling stays ~64ms while visible or dragging, and sleeps 500ms when the pet is hidden or disabled.
@@ -31,6 +32,7 @@ See `docs/llm-wiki/release.md`.
 - **Official site on GitHub About and README**: Repo homepage, `package.json` `homepage`, and public READMEs now point to [https://grok-app.com/](https://grok-app.com/).
 
 **中文 · 变更**
+- **织入 tool 不再克隆整份 transcript**：历史消息保持同一对象引用，流式时 memo 行能活下来；行比较也不再被新的 `wovenMessages` 数组打穿。
 - **完成态 tool journal 不再堵 ACP 泵**：落盘改 `spawn_blocking`，磁盘 IO 不再挡住后续 token。
 - **终端 PTY 输出合并发送**：`terminal://data` 每 16ms 或满 4KiB 再发，不再每次 OS read（8KiB）打一次 IPC。
 - **桌宠隐藏时降低光标轮询**：可见或拖动时仍约 64ms；隐藏/关闭时睡 500ms。

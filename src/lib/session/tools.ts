@@ -417,11 +417,9 @@ export function weaveToolsIntoAssistantSegments(
   // a single message (final fragment as body, earlier ones folded). Runs
   // before tool weaving so multi-assistant turns become single-assistant.
   messages = mergeAssistantFragments(messages);
-  const out = messages.map((m) =>
-    m.segments
-      ? { ...m, segments: m.segments.map((s) => ({ ...s })) as MessageSegment[] }
-      : { ...m },
-  );
+  // Keep history row identity so memoized transcript rows survive stream ticks.
+  // Only assistants we actually rewrite are replaced below.
+  const out = messages.slice();
 
   // Walk by user turns so tools before/after assistant all attach to that turn.
   let i = 0;
