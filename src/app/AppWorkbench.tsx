@@ -79,10 +79,7 @@ import {
   gateClockKey,
   resumeGateClock
 } from "@/lib/gateClock";
-import {
-  permissionTimeoutRemainingSec,
-  savePermissionTimeoutSec
-} from "@/lib/permissionTimeout";
+import { savePermissionTimeoutSec } from "@/lib/permissionTimeout";
 import { saveAskUserTimeoutSec } from "@/lib/askUserTimeout";
 import { WallpaperMediaLayer } from "@/components/WallpaperMediaLayer";
 import {
@@ -971,11 +968,13 @@ import {
   type SessionFileChange
 } from "@/lib/sessionChanges";
 import {
+  gitDirtySummariesEqual,
   summarizeGitDirty,
   type GitDirtySummary
 } from "@/lib/workspaceGit";
 import { ConversationThreadLive } from "@/components/lobe-chat";
 import { AgentTasksPanelLive } from "@/components/AgentTasksPanelLive";
+import { PermissionCountdown } from "@/components/PermissionCountdown";
 
 const SettingsPage = lazy(async () => {
   const m = await import("@/components/SettingsPage");
@@ -1627,6 +1626,17 @@ export function AppWorkbench() {
   const executeSendFromQueueRef = useRef<ExecuteSendFromQueue>(
     async () => false,
   );
+  const executeSendLatestRef = useRef<
+    (opts: {
+      storedDisplay: string;
+      att: Attachment[];
+      quotes?: ComposerQuote[];
+      goalMode: boolean;
+      fromQueue?: boolean;
+      targetSessionId?: string | null;
+      agentTextOverride?: string;
+    }) => Promise<boolean>
+  >(async () => false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showUsageLimitModal, setShowUsageLimitModal] = useState(false);
   const [showMcpModal, setShowMcpModal] = useState(false);
@@ -2313,8 +2323,6 @@ export function AppWorkbench() {
   >({});
   const [perm, setPerm] = useState<PermissionPayload | null>(null);
   const permBarRef = useRef<HTMLDivElement | null>(null);
-  /** Seconds until auto-deny (null when off / no active timer). */
-  const [permCountdownSec, setPermCountdownSec] = useState<number | null>(null);
   const [askUser, setAskUser] = useState<AskUserPayload | null>(null);
   /**
    * Unanswered gates per session (`sessionId` → payload).
@@ -2608,7 +2616,6 @@ export function AppWorkbench() {
     showReliability ||
       agentDashboardOpen ||
       taskBoardOpen ||
-      tasksPanelOpen ||
       opsEntryOpen ||
       streamStall != null ||
       liveVoiceOpen ||
@@ -7819,6 +7826,43 @@ export function AppWorkbench() {
     [tr, platform],
   );
 
+  const structuredOutputLabels = useMemo(
+    () => ({
+      title: tr("message.structuredJson"),
+      badge: tr("message.structuredJsonBadge"),
+      copy: tr("message.structuredJsonCopy"),
+      copied: tr("message.copied"),
+      export: tr("message.structuredJsonExport"),
+      invalidJson: tr("message.structuredJsonInvalid"),
+      empty: tr("message.structuredJsonEmpty"),
+      valid: tr("message.structuredJsonValid"),
+      schemaMismatch: tr("message.structuredJsonSchemaMismatch"),
+      missingRequired: tr("message.structuredJsonMissingRequired"),
+      streaming: tr("message.structuredJsonStreaming"),
+      partial: tr("message.structuredJsonPartial"),
+      partialKeys: tr("message.structuredJsonPartialKeys"),
+      timeline: tr("message.structuredJsonTimeline"),
+      usage: tr("message.structuredJsonUsage"),
+      usageIo: tr("message.structuredJsonUsageIo"),
+      usageTotal: tr("message.structuredJsonUsageTotal"),
+    }),
+    [tr],
+  );
+
+  const structuredOutputUsage = useMemo(() => {
+    const u = contextUsage.knownUsage;
+    if (!u) return null;
+    return {
+      inputTokens: u.inputTokens,
+      outputTokens: u.outputTokens,
+      totalTokens: u.totalTokens,
+    };
+  }, [
+    contextUsage.knownUsage?.inputTokens,
+    contextUsage.knownUsage?.outputTokens,
+    contextUsage.knownUsage?.totalTokens,
+  ]);
+
   const lastUserMessageId = transcriptMeta.lastUserId;
 
   // Streaming perf mode — shrink browse overscan on integrated GPU Retina.
@@ -8538,6 +8582,7 @@ export function AppWorkbench() {
   voiceDictationAutoSendRef.current = voiceDictationAutoSend;
 
   executeSendFromQueueRef.current = (opts) => executeSend(opts);
+  executeSendLatestRef.current = executeSend;
 
   const queuePreviewLabels = useMemo(
     () => ({
@@ -13464,20 +13509,23 @@ export function AppWorkbench() {
     const path = activeProject?.path?.trim() || null;
     if (!path || !api.isTauri()) {
       gitDirtyReqRef.current += 1;
-      setGitDirtySummary(null);
+      setGitDirtySummary((prev) => (prev == null ? prev : null));
       return;
     }
     const reqId = ++gitDirtyReqRef.current;
     try {
       const status = await api.gitStatus(path);
       if (reqId !== gitDirtyReqRef.current) return;
-      setGitDirtySummary(summarizeGitDirty(status));
+      const next = summarizeGitDirty(status);
+      setGitDirtySummary((prev) =>
+        gitDirtySummariesEqual(prev, next) ? prev : next,
+      );
       // Same poll already has HEAD. Patch the composer branch chip so an
       // in-place checkout does not stay stale until the menu is clicked.
       setGitWorktrees((prev) => applyGitStatusBranch(prev, path, status));
     } catch {
       if (reqId !== gitDirtyReqRef.current) return;
-      setGitDirtySummary(null);
+      setGitDirtySummary((prev) => (prev == null ? prev : null));
     }
   }, [activeProject?.path]);
 
@@ -15389,7 +15437,6 @@ export function AppWorkbench() {
   // Optional auto-deny after N seconds (Settings → Permissions; 0 = off).
   useEffect(() => {
     if (!perm || permissionTimeoutSec <= 0) {
-      setPermCountdownSec(null);
       return;
     }
     // Resume this request's own clock rather than restarting it — the bar
@@ -15399,18 +15446,6 @@ export function AppWorkbench() {
       permRaisedAtRef.current,
       gateClockKey(perm.sessionId, perm.rpcId),
     );
-    setPermCountdownSec(
-      permissionTimeoutRemainingSec(raisedAt, permissionTimeoutSec),
-    );
-    const tick = window.setInterval(() => {
-      setPermCountdownSec(
-        permissionTimeoutRemainingSec(
-          raisedAt,
-          permissionTimeoutSec,
-          Date.now(),
-        ),
-      );
-    }, 250);
     const t = window.setTimeout(
       () => {
         denyActivePermission(perm);
@@ -15419,10 +15454,16 @@ export function AppWorkbench() {
     );
     return () => {
       window.clearTimeout(t);
-      window.clearInterval(tick);
-      setPermCountdownSec(null);
     };
   }, [perm, permissionTimeoutSec, denyActivePermission]);
+
+  const permCountdownStartedAt =
+    perm && permissionTimeoutSec > 0
+      ? resumeGateClock(
+          permRaisedAtRef.current,
+          gateClockKey(perm.sessionId, perm.rpcId),
+        )
+      : 0;
 
   /** T04 deck buttons: reconnect / Doctor / Settings sections / project / MCP / dismiss. */
   const runErrorBannerAction = useCallback(
@@ -17240,6 +17281,112 @@ export function AppWorkbench() {
       tr,
       availableModels,
     ],
+  );
+
+  const onThreadContinueInterrupted = useCallback(() => {
+    const sid = session.sessionId;
+    if (!sid) return;
+    if (
+      session.state === "streaming" ||
+      session.state === "awaiting_permission" ||
+      session.state === "connecting"
+    ) {
+      return;
+    }
+    void (async () => {
+      const ctx = await api.sessionInterruptContext(sid);
+      const journal = tr("endOfTurn.continuePrompt");
+      await executeSendLatestRef.current({
+        storedDisplay: journal,
+        att: [],
+        goalMode: false,
+        targetSessionId: sid,
+        agentTextOverride: buildContinueAgentPrompt(ctx),
+      });
+    })();
+  }, [session.sessionId, session.state, tr]);
+
+  const onThreadAddQuote = useCallback(
+    (quote: { text: string; comment: string; sourceMessageId?: string }) => {
+      setQuotes((prev) => [
+        ...prev,
+        {
+          id: makeComposerQuoteId(),
+          text: quote.text,
+          comment: quote.comment,
+          sourceMessageId: quote.sourceMessageId,
+        },
+      ]);
+    },
+    [setQuotes],
+  );
+
+  const onThreadRemoveEditAttachment = useCallback((att: Attachment) => {
+    setEditAttachments((prev) => prev.filter((x) => x.path !== att.path));
+  }, []);
+
+  const onThreadOpenSessionChanges = useCallback(() => {
+    openAsidePane();
+    setResourceOpenTarget({ type: "changes" });
+  }, [openAsidePane]);
+
+  const onThreadOpenModifiedPath = useCallback(
+    (path: string) => {
+      openAsidePane();
+      setResourceOpenTarget({ type: "changes", path });
+    },
+    [openAsidePane],
+  );
+
+  const onThreadOpenResource = useCallback(
+    (target: ResourceOpenTarget) => {
+      if (target.type === "file" && target.path) {
+        const decision = resolveSidePathDeepLink({
+          path: target.path,
+          title: target.title,
+          projectPath: effectiveProjectPath,
+          projectTrusted: activeProject ? activeProject.trusted : null,
+        });
+        if (!decision.ok) {
+          setLocalError(tr(decision.messageKey));
+          if (
+            decision.shouldReveal &&
+            decision.revealPath &&
+            api.isTauri()
+          ) {
+            void api.pathReveal(decision.revealPath).catch(() => {
+              /* reveal is best-effort fallback */
+            });
+          }
+          return;
+        }
+        openAsidePane();
+        setResourceOpenTarget({
+          type: "file",
+          path: decision.path,
+          title: decision.title,
+          line: target.line ?? null,
+          column: target.column ?? null,
+        });
+        return;
+      }
+      openAsidePane();
+      setResourceOpenTarget(target);
+    },
+    [activeProject, effectiveProjectPath, openAsidePane, tr],
+  );
+
+  const onThreadAddAttachmentToComposer = useCallback((att: Attachment) => {
+    setAttachments((prev) => mergeAttachments(prev, [att]));
+  }, []);
+
+  const onThreadOpenError = useCallback((message: string) => {
+    setLocalError(message);
+  }, []);
+
+  const formatPermCountdown = useCallback(
+    (seconds: string) => tr("perm.autoDenyCountdown", { seconds }),
+    [tr],
   );
 
   const runAccountLogin = useCallback(
@@ -20691,12 +20838,9 @@ export function AppWorkbench() {
               subagentWorktreeSnapshotEnabled={
                 subagentWorktreeSnapshotEnabled
               }
-              activitySessions={collectActivitySessions({
-                liveMap,
-                sessions,
-                currentSessionId: session.sessionId,
-                untitledLabel: tr("session.untitled"),
-              })}
+              activityLookupSessions={sessions}
+              currentSessionId={session.sessionId}
+              untitledLabel={tr("session.untitled")}
               onSelectSession={(id) => {
                 const row = sessions.find((s) => s.id === id);
                 if (!row) return;
@@ -20859,39 +21003,8 @@ export function AppWorkbench() {
             }}
           >
           <ConversationThreadLive
-            onContinueInterrupted={() => {
-              const sid = session.sessionId;
-              if (!sid) return;
-              if (
-                session.state === "streaming" ||
-                session.state === "awaiting_permission" ||
-                session.state === "connecting"
-              ) {
-                return;
-              }
-              void (async () => {
-                const ctx = await api.sessionInterruptContext(sid);
-                const journal = tr("endOfTurn.continuePrompt");
-                await executeSend({
-                  storedDisplay: journal,
-                  att: [],
-                  goalMode: false,
-                  targetSessionId: sid,
-                  agentTextOverride: buildContinueAgentPrompt(ctx),
-                });
-              })();
-            }}
-            onAddQuote={(quote) => {
-              setQuotes((prev) => [
-                ...prev,
-                {
-                  id: makeComposerQuoteId(),
-                  text: quote.text,
-                  comment: quote.comment,
-                  sourceMessageId: quote.sourceMessageId,
-                },
-              ]);
-            }}
+            onContinueInterrupted={onThreadContinueInterrupted}
+            onAddQuote={onThreadAddQuote}
             locale={locale}
             sessionState={
               stopLatch.phase === "force_idle" || stopGate.forceIdle
@@ -20914,76 +21027,22 @@ export function AppWorkbench() {
             editAttachments={editAttachments}
             onEditUserMessage={beginEditLastUser}
             onCancelEditUserMessage={cancelEditUser}
-            onSubmitEditUserMessage={(msg, content) => {
-              void submitEditLastUser(msg, content);
-            }}
-            onRemoveEditAttachment={(att) =>
-              setEditAttachments((prev) =>
-                prev.filter((x) => x.path !== att.path),
-              )
-            }
+            onSubmitEditUserMessage={submitEditLastUser}
+            onRemoveEditAttachment={onThreadRemoveEditAttachment}
             canRegenerate={canEditLastUser && !editSubmitting}
-            onRegenerateAssistant={(msg, opts) => {
-              void regenerateLastAssistant(msg, opts);
-            }}
+            onRegenerateAssistant={regenerateLastAssistant}
             regenerateModels={availableModels}
             regenerateModelId={modelId}
             canRewindSession={canRewindSession && !!session.sessionId}
             onRewindToUserMessage={onRewindToUserMessage}
             onForkFromAssistantMessage={onForkFromAssistantMessage}
             turnStartedAt={turnStartedAt}
-            onOpenSessionChanges={() => {
-              openAsidePane();
-              setResourceOpenTarget({ type: "changes" });
-            }}
-            onOpenModifiedPath={(path) => {
-              openAsidePane();
-              setResourceOpenTarget({ type: "changes", path });
-            }}
-            onOpenResource={(target) => {
-              // Path cards → Side Workbench Files tab when project-trusted.
-              // Soft-fail outside/untrusted/no project; optional OS reveal.
-              // URLs / changes keep the prior applySideContextOpen path.
-              if (target.type === "file" && target.path) {
-                const decision = resolveSidePathDeepLink({
-                  path: target.path,
-                  title: target.title,
-                  projectPath: effectiveProjectPath,
-                  projectTrusted: activeProject
-                    ? activeProject.trusted
-                    : null,
-                });
-                if (!decision.ok) {
-                  setLocalError(tr(decision.messageKey));
-                  if (
-                    decision.shouldReveal &&
-                    decision.revealPath &&
-                    api.isTauri()
-                  ) {
-                    void api.pathReveal(decision.revealPath).catch(() => {
-                      /* reveal is best-effort fallback */
-                    });
-                  }
-                  return;
-                }
-                openAsidePane();
-                setResourceOpenTarget({
-                  type: "file",
-                  path: decision.path,
-                  title: decision.title,
-                  line: target.line ?? null,
-                  column: target.column ?? null,
-                });
-                return;
-              }
-              openAsidePane();
-              setResourceOpenTarget(target);
-            }}
-            onOpenError={(message) => setLocalError(message)}
+            onOpenSessionChanges={onThreadOpenSessionChanges}
+            onOpenModifiedPath={onThreadOpenModifiedPath}
+            onOpenResource={onThreadOpenResource}
+            onOpenError={onThreadOpenError}
             onOpenExternalLink={openExternalLinkFromChat}
-            onAddAttachmentToComposer={(att) =>
-              setAttachments((prev) => mergeAttachments(prev, [att]))
-            }
+            onAddAttachmentToComposer={onThreadAddAttachmentToComposer}
             attachLabels={attachLabels}
             findQuery={showChatFind ? chatFindQuery : ""}
             findHitMessageIds={showChatFind ? chatFindHitIds : undefined}
@@ -20993,34 +21052,8 @@ export function AppWorkbench() {
             showReplyLength={showReplyLength}
             structuredOutputActive={!!sessionJsonSchema}
             structuredOutputSchema={sessionJsonSchema}
-            structuredOutputUsage={
-              contextUsage.knownUsage
-                ? {
-                    inputTokens: contextUsage.knownUsage.inputTokens,
-                    outputTokens: contextUsage.knownUsage.outputTokens,
-                    totalTokens: contextUsage.knownUsage.totalTokens,
-                  }
-                : null
-            }
-            structuredOutputLabels={{
-              title: tr("message.structuredJson"),
-              badge: tr("message.structuredJsonBadge"),
-              copy: tr("message.structuredJsonCopy"),
-              copied: tr("message.copied"),
-              export: tr("message.structuredJsonExport"),
-              invalidJson: tr("message.structuredJsonInvalid"),
-              empty: tr("message.structuredJsonEmpty"),
-              valid: tr("message.structuredJsonValid"),
-              schemaMismatch: tr("message.structuredJsonSchemaMismatch"),
-              missingRequired: tr("message.structuredJsonMissingRequired"),
-              streaming: tr("message.structuredJsonStreaming"),
-              partial: tr("message.structuredJsonPartial"),
-              partialKeys: tr("message.structuredJsonPartialKeys"),
-              timeline: tr("message.structuredJsonTimeline"),
-              usage: tr("message.structuredJsonUsage"),
-              usageIo: tr("message.structuredJsonUsageIo"),
-              usageTotal: tr("message.structuredJsonUsageTotal"),
-            }}
+            structuredOutputUsage={structuredOutputUsage}
+            structuredOutputLabels={structuredOutputLabels}
           />
           </UiErrorBoundary>
           </AttachedChatLookupContext.Provider>
@@ -21083,12 +21116,12 @@ export function AppWorkbench() {
                   <span className="perm-bar__tool">
                     {perm.title || perm.toolName}
                   </span>
-                  {permCountdownSec != null && permCountdownSec > 0 ? (
-                    <span className="perm-bar__countdown" aria-live="polite">
-                      {tr("perm.autoDenyCountdown", {
-                        seconds: String(permCountdownSec),
-                      })}
-                    </span>
+                  {permissionTimeoutSec > 0 ? (
+                    <PermissionCountdown
+                      startedAtMs={permCountdownStartedAt}
+                      timeoutSec={permissionTimeoutSec}
+                      format={formatPermCountdown}
+                    />
                   ) : null}
                 </div>
                 <p className="perm-bar__summary" id="perm-bar-summary">

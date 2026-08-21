@@ -3,6 +3,7 @@
  * Isolates stream token re-renders from the App shell.
  */
 
+import { memo } from "react";
 import { ConversationThread, type ConversationThreadProps } from "./ConversationThread";
 import {
   useTranscriptMeta,
@@ -14,7 +15,9 @@ export type ConversationThreadLiveProps = Omit<
   "messages"
 >;
 
-export function ConversationThreadLive(props: ConversationThreadLiveProps) {
+export const ConversationThreadLive = memo(function ConversationThreadLive(
+  props: ConversationThreadLiveProps,
+) {
   const messages = useViewingMessages();
   const meta = useTranscriptMeta();
   const journalLoading = !!props.journalLoading || meta.journalLoading;
@@ -25,4 +28,4 @@ export function ConversationThreadLive(props: ConversationThreadLiveProps) {
       journalLoading={journalLoading}
     />
   );
-}
+});

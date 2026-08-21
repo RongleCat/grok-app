@@ -26,7 +26,7 @@ const EMPTY_LIVE_MAP: SessionLiveMap = Object.freeze({}) as SessionLiveMap;
 
 /**
  * Subscribe to the full live map only while `enabled` is true.
- * When panels (dashboard / reliability / stall / tasks) are closed, the
+ * When panels (dashboard / reliability / stall) are closed, the
  * workbench shell does not re-render on every tool-title liveMap tick.
  */
 export function useLiveMapWhen(enabled: boolean): SessionLiveMap {

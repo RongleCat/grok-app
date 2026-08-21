@@ -3,6 +3,7 @@ import {
   classifyGitStatusCode,
   classifyGitStatusString,
   filterWorkspaceGitEntries,
+  gitDirtySummariesEqual,
   isSafeDiscardCandidate,
   normalizeWorkspaceGitEntries,
   normalizeWorkspaceGitEntry,
@@ -189,5 +190,26 @@ describe("summarizeGitDirty", () => {
         files: [{ path: "only.ts" }],
       }),
     ).toEqual({ count: 1, label: "1 changed" });
+  });
+});
+
+describe("gitDirtySummariesEqual", () => {
+  it("treats both nullish as equal and compares count plus label", () => {
+    expect(gitDirtySummariesEqual(null, undefined)).toBe(true);
+    expect(
+      gitDirtySummariesEqual(
+        { count: 1, label: "1 changed" },
+        { count: 1, label: "1 changed" },
+      ),
+    ).toBe(true);
+    expect(
+      gitDirtySummariesEqual(
+        { count: 1, label: "1 changed" },
+        { count: 2, label: "2 changed" },
+      ),
+    ).toBe(false);
+    expect(
+      gitDirtySummariesEqual(null, { count: 1, label: "1 changed" }),
+    ).toBe(false);
   });
 });

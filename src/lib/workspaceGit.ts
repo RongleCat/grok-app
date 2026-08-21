@@ -265,3 +265,13 @@ export function summarizeGitDirty(
     label: `${count} changed`,
   };
 }
+
+/** True when two chip summaries would paint the same (skip setState). */
+export function gitDirtySummariesEqual(
+  a: GitDirtySummary | null | undefined,
+  b: GitDirtySummary | null | undefined,
+): boolean {
+  if (a == null && b == null) return true;
+  if (a == null || b == null) return false;
+  return a.count === b.count && a.label === b.label;
+}
