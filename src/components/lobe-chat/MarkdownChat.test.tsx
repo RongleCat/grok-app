@@ -1,11 +1,17 @@
-import { describe, expect, it } from "vitest";
+/**
+ * @vitest-environment jsdom
+ */
+import { afterEach, describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { cleanup, render } from "@testing-library/react";
 import remarkGfm from "remark-gfm";
 import {
   MARKDOWN_CHAT_LEAF_COMPONENTS,
   MARKDOWN_CHAT_REMARK_PLUGINS,
   MarkdownChat,
 } from "./MarkdownChat";
+
+afterEach(cleanup);
 
 describe("MarkdownChat", () => {
   it("keeps a stable remarkPlugins array", () => {
@@ -40,5 +46,25 @@ describe("MarkdownChat", () => {
       </MarkdownChat>,
     );
     expect(html).toContain("please");
+  });
+
+  it("resets find occurrence indices when the same components map paints more text", () => {
+    const { rerender, container } = render(
+      <MarkdownChat findQuery="foo" findActiveOccurrence={0}>
+        {"foo"}
+      </MarkdownChat>,
+    );
+    expect(container.querySelectorAll("[data-find-mark='current']")).toHaveLength(
+      1,
+    );
+    rerender(
+      <MarkdownChat findQuery="foo" findActiveOccurrence={0}>
+        {"foo and foo"}
+      </MarkdownChat>,
+    );
+    const currents = container.querySelectorAll("[data-find-mark='current']");
+    expect(currents).toHaveLength(1);
+    expect(currents[0]?.textContent).toBe("foo");
+    expect(container.querySelectorAll("[data-find-mark]")).toHaveLength(2);
   });
 });

@@ -345,11 +345,19 @@ export const MarkdownChat = memo(function MarkdownChat({
   const painted = resolveMarkdownPaintSource(streaming, source, mdSource);
 
   const qFind = findQuery.trim();
+  // Fresh counter each render (including stream ticks). Kept on a ref so the
+  // memoized components map can stay stable without drifting occurrence indices.
+  const findCounterRef = useRef({ n: findOccurrenceBase });
+  findCounterRef.current = { n: findOccurrenceBase };
   const components = useMemo((): Components => {
-    const findCounter = { n: findOccurrenceBase };
     const paint = (node: ReactNode) =>
       qFind
-        ? highlightChildren(node, qFind, findActiveOccurrence, findCounter)
+        ? highlightChildren(
+            node,
+            qFind,
+            findActiveOccurrence,
+            findCounterRef.current,
+          )
         : node;
 
     const renderPathOrUrl = (token: string, linkText?: string) => {
@@ -644,7 +652,6 @@ export const MarkdownChat = memo(function MarkdownChat({
   }, [
     qFind,
     findActiveOccurrence,
-    findOccurrenceBase,
     pathCards,
     projectPath,
     imagePathMap,
