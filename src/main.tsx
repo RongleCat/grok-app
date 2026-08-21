@@ -7,7 +7,6 @@ import { UpdaterProvider } from "./hooks/UpdaterProvider";
 import "./styles/tokens.css";
 import "./styles/skins.css";
 import "./styles/tailwind.css";
-import "streamdown/styles.css";
 import "./styles/app.css";
 import "./styles/setup-wizard.css";
 import { detectAppPlatform } from "./lib/appPlatform";

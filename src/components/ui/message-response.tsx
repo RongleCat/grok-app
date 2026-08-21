@@ -1,11 +1,14 @@
 /**
  * Streaming markdown body — Streamdown (AI Elements MessageResponse).
+ * Not used by ConversationThread (that path is MarkdownChat). CSS is
+ * imported here so boot does not pay for an unused stylesheet.
  * Media paths → image/video cards; other file paths & URLs → FilePathCard
  * (open in right resource pane).
  */
 
 import { memo, useMemo, type ReactNode } from "react";
 import { Streamdown } from "streamdown";
+import "streamdown/styles.css";
 import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
 import { ImageUi, imageUiLabels } from "@/components/ImageUi";
