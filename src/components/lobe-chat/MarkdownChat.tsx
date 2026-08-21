@@ -2,8 +2,15 @@
  * Chat markdown — path/url → cards (image/video/file); open in resource pane.
  */
 
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import ReactMarkdown from "react-markdown";
+import {
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
@@ -103,6 +110,97 @@ function textFromChildren(children: ReactNode): string {
     return children.map(textFromChildren).join("");
   }
   return "";
+}
+
+/** Stable identity so ReactMarkdown does not remount the tree every stream tick. */
+export const MARKDOWN_CHAT_REMARK_PLUGINS = [remarkGfm];
+
+type MdKids = { children?: ReactNode };
+
+function MdP({ children }: MdKids) {
+  return <p>{children}</p>;
+}
+function MdLi({ children }: MdKids) {
+  return <li>{children}</li>;
+}
+function MdStrong({ children }: MdKids) {
+  return <strong>{children}</strong>;
+}
+function MdEm({ children }: MdKids) {
+  return <em>{children}</em>;
+}
+function MdH1({ children }: MdKids) {
+  return <h1>{children}</h1>;
+}
+function MdH2({ children }: MdKids) {
+  return <h2>{children}</h2>;
+}
+function MdH3({ children }: MdKids) {
+  return <h3>{children}</h3>;
+}
+function MdH4({ children }: MdKids) {
+  return <h4>{children}</h4>;
+}
+function MdBlockquote({ children }: MdKids) {
+  return <blockquote>{children}</blockquote>;
+}
+function MdTd({ children }: MdKids) {
+  return <td>{children}</td>;
+}
+function MdTh({ children }: MdKids) {
+  return <th>{children}</th>;
+}
+function MdPre({ children }: MdKids) {
+  return <>{children}</>;
+}
+function MdTable({ children }: MdKids) {
+  return (
+    <div className="chat-md__table-wrap">
+      <table>{children}</table>
+    </div>
+  );
+}
+function MdHr() {
+  return null;
+}
+
+/** Leaf tags with no find-highlight wrap — reused on the stream hot path. */
+export const MARKDOWN_CHAT_LEAF_COMPONENTS: Components = {
+  p: MdP,
+  li: MdLi,
+  strong: MdStrong,
+  em: MdEm,
+  h1: MdH1,
+  h2: MdH2,
+  h3: MdH3,
+  h4: MdH4,
+  blockquote: MdBlockquote,
+  td: MdTd,
+  th: MdTh,
+  pre: MdPre,
+  table: MdTable,
+  hr: MdHr,
+};
+
+function paintedLeaves(
+  paint: (node: ReactNode) => ReactNode,
+): Components {
+  return {
+    p: ({ children: c }) => <p>{paint(c)}</p>,
+    li: ({ children: c }) => <li>{paint(c)}</li>,
+    strong: ({ children: c }) => <strong>{paint(c)}</strong>,
+    em: ({ children: c }) => <em>{paint(c)}</em>,
+    h1: ({ children: c }) => <h1>{paint(c)}</h1>,
+    h2: ({ children: c }) => <h2>{paint(c)}</h2>,
+    h3: ({ children: c }) => <h3>{paint(c)}</h3>,
+    h4: ({ children: c }) => <h4>{paint(c)}</h4>,
+    blockquote: ({ children: c }) => <blockquote>{paint(c)}</blockquote>,
+    td: ({ children: c }) => <td>{paint(c)}</td>,
+    th: ({ children: c }) => <th>{paint(c)}</th>,
+    pre: MdPre,
+    table: MdTable,
+    hr: MdHr,
+  };
 }
 
 export const MarkdownChat = memo(function MarkdownChat({
@@ -246,7 +344,15 @@ export const MarkdownChat = memo(function MarkdownChat({
   }, [source, streaming, parseMs]);
   const painted = resolveMarkdownPaintSource(streaming, source, mdSource);
 
-  const renderPathOrUrl = (token: string, linkText?: string) => {
+  const qFind = findQuery.trim();
+  const components = useMemo((): Components => {
+    const findCounter = { n: findOccurrenceBase };
+    const paint = (node: ReactNode) =>
+      qFind
+        ? highlightChildren(node, qFind, findActiveOccurrence, findCounter)
+        : node;
+
+    const renderPathOrUrl = (token: string, linkText?: string) => {
     const rawIn = token.trim().replace(/^<|>$/g, "");
     if (!rawIn) return null;
     // Strip path:line[:col] before path resolution (soft-fail keeps original).
@@ -444,15 +550,114 @@ export const MarkdownChat = memo(function MarkdownChat({
         }}
       />
     );
-  };
+    };
 
-  // Fresh counter each render so occurrence indices stay stable for the mark.
-  const findCounter = { n: findOccurrenceBase };
-  const qFind = findQuery.trim();
-  const paint = (node: ReactNode) =>
-    qFind
-      ? highlightChildren(node, qFind, findActiveOccurrence, findCounter)
-      : node;
+    const leaves = qFind
+      ? paintedLeaves(paint)
+      : MARKDOWN_CHAT_LEAF_COMPONENTS;
+
+    return {
+      ...leaves,
+      a: ({ href, children: c }) => {
+        const text = textFromChildren(c).trim();
+        const hrefStr = typeof href === "string" ? href : "";
+        if (onOpenExternalLink && isExternalHttpUrl(hrefStr)) {
+          return (
+            <a
+              className="chat-md__link"
+              href={hrefStr}
+              rel="noreferrer noopener"
+              onClick={(e) => {
+                e.preventDefault();
+                onOpenExternalLink(hrefStr);
+              }}
+            >
+              {paint(c)}
+            </a>
+          );
+        }
+        const card =
+          (hrefStr && renderPathOrUrl(hrefStr, text)) ||
+          (text && text !== hrefStr ? renderPathOrUrl(text) : null);
+        if (card) return card;
+        return (
+          <a
+            className="chat-md__link"
+            href={href}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {paint(c)}
+          </a>
+        );
+      },
+      code: ({ className: cnCode, children: c }) => {
+        const match =
+          typeof cnCode === "string"
+            ? /language-([\w#+-]+)/.exec(cnCode)
+            : null;
+        const block = Boolean(match) || String(c).includes("\n");
+        if (!block) {
+          const raw = textFromChildren(c).replace(/\n$/, "").trim();
+          const card = renderPathOrUrl(raw);
+          if (card) return card;
+          return <code className="chat-md__inline-code">{paint(c)}</code>;
+        }
+        return (
+          <CodeBlock
+            language={match?.[1] || "text"}
+            wrapLabel={tr("chat.codeWrap")}
+            unwrapLabel={tr("chat.codeUnwrap")}
+            copyLabel={tr("message.copy")}
+          >
+            {c as ReactNode}
+          </CodeBlock>
+        );
+      },
+      img: ({ src, alt }) => {
+        if (!src || typeof src !== "string") return null;
+        const card = renderPathOrUrl(
+          src,
+          typeof alt === "string" ? alt : undefined,
+        );
+        if (card) return card;
+        const viewable =
+          isHttpUrl(src) ||
+          src.startsWith("data:") ||
+          (isRealLocalAbsolutePath(src) && isPlausibleLocalMediaAbs(src));
+        if (!viewable) return null;
+        return (
+          <ImageUi
+            className="md-body__img md-body__img--card"
+            src={src}
+            alt={typeof alt === "string" ? alt : ""}
+            path={
+              isRealLocalAbsolutePath(src) && isPlausibleLocalMediaAbs(src)
+                ? src
+                : undefined
+            }
+            labels={imageLabels}
+          />
+        );
+      },
+    };
+  }, [
+    qFind,
+    findActiveOccurrence,
+    findOccurrenceBase,
+    pathCards,
+    projectPath,
+    imagePathMap,
+    fileLabels,
+    onOpenError,
+    onOpenResource,
+    onOpenExternalLink,
+    gallery,
+    imageLabels,
+    videoLabels,
+    locale,
+    tr,
+  ]);
 
   return (
     <div
@@ -464,117 +669,8 @@ export const MarkdownChat = memo(function MarkdownChat({
       )}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          p: ({ children: c }) => <p>{paint(c)}</p>,
-          li: ({ children: c }) => <li>{paint(c)}</li>,
-          strong: ({ children: c }) => <strong>{paint(c)}</strong>,
-          em: ({ children: c }) => <em>{paint(c)}</em>,
-          h1: ({ children: c }) => <h1>{paint(c)}</h1>,
-          h2: ({ children: c }) => <h2>{paint(c)}</h2>,
-          h3: ({ children: c }) => <h3>{paint(c)}</h3>,
-          h4: ({ children: c }) => <h4>{paint(c)}</h4>,
-          blockquote: ({ children: c }) => (
-            <blockquote>{paint(c)}</blockquote>
-          ),
-          td: ({ children: c }) => <td>{paint(c)}</td>,
-          th: ({ children: c }) => <th>{paint(c)}</th>,
-          a: ({ href, children: c }) => {
-            const text = textFromChildren(c).trim();
-            const hrefStr = typeof href === "string" ? href : "";
-            // Prefer app-controlled external open (Tauri shell + optional confirm)
-            // over path cards / target=_blank for absolute http(s) links.
-            if (onOpenExternalLink && isExternalHttpUrl(hrefStr)) {
-              return (
-                <a
-                  className="chat-md__link"
-                  href={hrefStr}
-                  rel="noreferrer noopener"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onOpenExternalLink(hrefStr);
-                  }}
-                >
-                  {paint(c)}
-                </a>
-              );
-            }
-            const card =
-              (hrefStr && renderPathOrUrl(hrefStr, text)) ||
-              (text && text !== hrefStr ? renderPathOrUrl(text) : null);
-            if (card) return card;
-            return (
-              <a
-                className="chat-md__link"
-                href={href}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                {paint(c)}
-              </a>
-            );
-          },
-          pre: ({ children: c }) => <>{c}</>,
-          code: ({ className: cnCode, children: c }) => {
-            const match =
-              typeof cnCode === "string"
-                ? /language-([\w#+-]+)/.exec(cnCode)
-                : null;
-            const block = Boolean(match) || String(c).includes("\n");
-            if (!block) {
-              const raw = textFromChildren(c).replace(/\n$/, "").trim();
-              const card = renderPathOrUrl(raw);
-              if (card) return card;
-              return (
-                <code className="chat-md__inline-code">{paint(c)}</code>
-              );
-            }
-            return (
-              <CodeBlock
-                language={match?.[1] || "text"}
-                wrapLabel={tr("chat.codeWrap")}
-                unwrapLabel={tr("chat.codeUnwrap")}
-                copyLabel={tr("message.copy")}
-              >
-                {c as ReactNode}
-              </CodeBlock>
-            );
-          },
-          table: ({ children: c }) => (
-            <div className="chat-md__table-wrap">
-              <table>{c}</table>
-            </div>
-          ),
-          hr: () => null,
-          img: ({ src, alt }) => {
-            if (!src || typeof src !== "string") return null;
-            const card = renderPathOrUrl(
-              src,
-              typeof alt === "string" ? alt : undefined,
-            );
-            if (card) return card;
-            // Unresolved relative / site-root: never mount a dead ImageUi
-            // (that painted the alt as an empty 150px card and never recovered).
-            const viewable =
-              isHttpUrl(src) ||
-              src.startsWith("data:") ||
-              (isRealLocalAbsolutePath(src) && isPlausibleLocalMediaAbs(src));
-            if (!viewable) return null;
-            return (
-              <ImageUi
-                className="md-body__img md-body__img--card"
-                src={src}
-                alt={typeof alt === "string" ? alt : ""}
-                path={
-                  isRealLocalAbsolutePath(src) && isPlausibleLocalMediaAbs(src)
-                    ? src
-                    : undefined
-                }
-                labels={imageLabels}
-              />
-            );
-          },
-        }}
+        remarkPlugins={MARKDOWN_CHAT_REMARK_PLUGINS}
+        components={components}
       >
         {painted}
       </ReactMarkdown>
