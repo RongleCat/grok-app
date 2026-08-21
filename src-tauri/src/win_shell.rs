@@ -8,24 +8,35 @@
 //!
 //! This module forces shell-friendly styles, AppUserModelID, and taskbar tab
 //! registration so the window participates in Show Desktop consistently.
+//!
+//! It also forwards Alt-Tab / taskbar activation into the child WebView2 HWND.
+//! With Tauri `unstable` (multi-webview), the page is a `WRY_WEBVIEW` child and
+//! wry does not subclass the parent to `MoveFocus`, so the window can be
+//! foreground while keyboard events never reach JS until a click.
 
 #![cfg(windows)]
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use tauri::WebviewWindow;
 use windows::core::PCWSTR;
-use windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::{HANDLE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_SERVER, COINIT_APARTMENTTHREADED,
 };
-use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    GetAsyncKeyState, GetFocus, SetFocus, VK_LBUTTON,
+};
 use windows::Win32::UI::Shell::{
     ITaskbarList, SetCurrentProcessExplicitAppUserModelID, TaskbarList,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    DrawMenuBar, GetWindow, GetWindowLongPtrW, GetWindowLongW, SetMenu, SetWindowLongPtrW,
-    SetWindowLongW, SetWindowPos, GWLP_HWNDPARENT, GWL_EXSTYLE, GWL_STYLE, GW_OWNER,
-    HWND_NOTOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
-    WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_MINIMIZEBOX,
+    CallWindowProcW, DrawMenuBar, GetClassNameW, GetPropW, GetWindow, GetWindowLongPtrW,
+    GetWindowLongW, IsChild, IsWindowVisible, RemovePropW, SetMenu, SetPropW, SetWindowLongPtrW,
+    SetWindowLongW, SetWindowPos, GWLP_HWNDPARENT, GWLP_WNDPROC, GWL_EXSTYLE, GWL_STYLE, GW_CHILD,
+    GW_HWNDNEXT, GW_OWNER, HWND_NOTOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
+    SWP_NOSIZE, SWP_NOZORDER, WA_ACTIVE, WA_CLICKACTIVE, WM_ACTIVATE, WM_NCDESTROY, WM_SETFOCUS,
+    WNDPROC, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_MINIMIZEBOX,
 };
 
 /// Product AUMID — must match `identifier` in tauri.conf.json / NSIS shortcuts.
@@ -85,6 +96,7 @@ pub fn ensure_main_window_shell_integration(window: &WebviewWindow) {
         return;
     };
     ensure_hwnd_shell_integration(hwnd, /*register_taskbar*/ true);
+    attach_hwnd_webview_keyboard_focus(hwnd);
 }
 
 /// Apply or clear "live in tray only" extended styles + taskbar tab.
@@ -117,6 +129,7 @@ pub fn set_main_window_skip_taskbar(window: &WebviewWindow, skip: bool) {
     if !skip {
         // Full re-assert (minimize box, owner clear, not topmost, refresh tab).
         ensure_hwnd_shell_integration(hwnd, /*register_taskbar*/ true);
+        attach_hwnd_webview_keyboard_focus(hwnd);
     }
 }
 
@@ -212,6 +225,140 @@ where
     }
 }
 
+/// wry child-webview class (Tauri `unstable` / `build_as_child`).
+const WRY_WEBVIEW_CLASS: &str = "WRY_WEBVIEW";
+/// Stored original WndProc pointer (`SetWindowLongPtr` subclass).
+const ORIG_PROC_PROP: PCWSTR = windows::core::w!("GrokWvKbdFocusOrig");
+static FORWARDING_KEYBOARD_FOCUS: AtomicBool = AtomicBool::new(false);
+
+/// Forward Alt-Tab / taskbar activation into the child WebView2 HWND.
+///
+/// Safe to call repeatedly (skips if the original WndProc prop is already set).
+pub fn attach_webview_keyboard_focus(window: &WebviewWindow) {
+    let Ok(hwnd) = window.hwnd() else {
+        return;
+    };
+    attach_hwnd_webview_keyboard_focus(hwnd);
+}
+
+fn attach_hwnd_webview_keyboard_focus(hwnd: HWND) {
+    unsafe {
+        if !GetPropW(hwnd, ORIG_PROC_PROP).0.is_null() {
+            return;
+        }
+        let prev = SetWindowLongPtrW(
+            hwnd,
+            GWLP_WNDPROC,
+            keyboard_focus_wndproc as *const () as isize,
+        );
+        if prev == 0 {
+            return;
+        }
+        if SetPropW(
+            hwnd,
+            ORIG_PROC_PROP,
+            Some(HANDLE(prev as *mut std::ffi::c_void)),
+        )
+        .is_err()
+        {
+            SetWindowLongPtrW(hwnd, GWLP_WNDPROC, prev);
+        }
+    }
+}
+
+unsafe extern "system" fn keyboard_focus_wndproc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    if should_handle_focus_message(msg, wparam.0 as u32) {
+        forward_keyboard_focus_to_webview(hwnd);
+    }
+    let orig = GetPropW(hwnd, ORIG_PROC_PROP);
+    if msg == WM_NCDESTROY {
+        let _ = RemovePropW(hwnd, ORIG_PROC_PROP);
+    }
+    type WndProcFn = unsafe extern "system" fn(HWND, u32, WPARAM, LPARAM) -> LRESULT;
+    let prev: WNDPROC = if orig.0.is_null() {
+        None
+    } else {
+        Some(std::mem::transmute::<*mut std::ffi::c_void, WndProcFn>(
+            orig.0,
+        ))
+    };
+    CallWindowProcW(prev, hwnd, msg, wparam, lparam)
+}
+
+fn forward_keyboard_focus_to_webview(hwnd: HWND) {
+    if FORWARDING_KEYBOARD_FOCUS.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let _guard = ForwardingGuard;
+    unsafe {
+        let focus = GetFocus();
+        if !focus.0.is_null() && IsChild(hwnd, focus).as_bool() {
+            return;
+        }
+        if let Some(child) = first_visible_wry_webview_child(hwnd) {
+            let _ = SetFocus(Some(child));
+        }
+    }
+}
+
+struct ForwardingGuard;
+impl Drop for ForwardingGuard {
+    fn drop(&mut self) {
+        FORWARDING_KEYBOARD_FOCUS.store(false, Ordering::SeqCst);
+    }
+}
+
+fn first_visible_wry_webview_child(parent: HWND) -> Option<HWND> {
+    unsafe {
+        let mut child = hwnd_or_none(GetWindow(parent, GW_CHILD).ok())?;
+        loop {
+            if IsWindowVisible(child).as_bool() && hwnd_is_wry_webview(child) {
+                return Some(child);
+            }
+            child = hwnd_or_none(GetWindow(child, GW_HWNDNEXT).ok())?;
+        }
+    }
+}
+
+fn hwnd_or_none(hwnd: Option<HWND>) -> Option<HWND> {
+    hwnd.filter(|h| !h.0.is_null())
+}
+
+fn hwnd_is_wry_webview(hwnd: HWND) -> bool {
+    is_wry_webview_class(&hwnd_class_name(hwnd))
+}
+
+fn hwnd_class_name(hwnd: HWND) -> String {
+    let mut buf = [0u16; 64];
+    let n = unsafe { GetClassNameW(hwnd, &mut buf) };
+    if n <= 0 {
+        return String::new();
+    }
+    String::from_utf16_lossy(&buf[..n as usize])
+}
+
+/// `WM_SETFOCUS`, or `WM_ACTIVATE` that is not minimize / deactivate.
+fn should_handle_focus_message(msg: u32, wparam: u32) -> bool {
+    if msg == WM_SETFOCUS {
+        return true;
+    }
+    if msg != WM_ACTIVATE {
+        return false;
+    }
+    let state = wparam & 0xffff;
+    let minimized = ((wparam >> 16) & 0xffff) != 0;
+    !minimized && (state == WA_ACTIVE || state == WA_CLICKACTIVE)
+}
+
+fn is_wry_webview_class(name: &str) -> bool {
+    name.eq_ignore_ascii_case(WRY_WEBVIEW_CLASS)
+}
+
 /// Pure helper for unit tests: Alt-Tab / Show-Desktop significance rules (simplified).
 #[cfg(test)]
 pub fn is_shell_significant_for_tests(style: u32, ex: u32, has_owner: bool) -> bool {
@@ -230,6 +377,7 @@ pub fn is_shell_significant_for_tests(style: u32, ex: u32, has_owner: bool) -> b
 #[cfg(test)]
 mod tests {
     use super::*;
+    use windows::Win32::UI::WindowsAndMessaging::WM_ACTIVATEAPP;
 
     #[test]
     fn toolwindow_without_appwindow_is_not_significant() {
@@ -257,5 +405,27 @@ mod tests {
         let style = WS_MINIMIZEBOX.0;
         let ex = WS_EX_APPWINDOW.0;
         assert!(is_shell_significant_for_tests(style, ex, true));
+    }
+
+    #[test]
+    fn wry_webview_class_matches_child_container() {
+        assert!(is_wry_webview_class("WRY_WEBVIEW"));
+        assert!(is_wry_webview_class("wry_webview"));
+        assert!(!is_wry_webview_class("Chrome_WidgetWin_1"));
+        assert!(!is_wry_webview_class(""));
+    }
+
+    #[test]
+    fn alt_tab_activate_and_setfocus_forward_to_webview() {
+        assert!(should_handle_focus_message(WM_SETFOCUS, 0));
+        assert!(should_handle_focus_message(WM_ACTIVATE, WA_ACTIVE));
+        assert!(should_handle_focus_message(WM_ACTIVATE, WA_CLICKACTIVE));
+        assert!(!should_handle_focus_message(WM_ACTIVATE, 0));
+        // HIWORD set → window is minimized while activating.
+        assert!(!should_handle_focus_message(
+            WM_ACTIVATE,
+            WA_ACTIVE | (1 << 16)
+        ));
+        assert!(!should_handle_focus_message(WM_ACTIVATEAPP, WA_ACTIVE));
     }
 }

@@ -17,6 +17,12 @@ See `docs/llm-wiki/release.md`.
 **中文 · 变更**
 - **仓库 About 与 README 挂上官网**：GitHub 仓库网站、`package.json` `homepage` 与各语言 README 现指向 [https://grok-app.com/](https://grok-app.com/)。
 
+### Fixed
+- **Windows Alt+Tab can type without a click first (#768)**: Tauri `unstable` (side-browser multi-webview) builds the page as a child `WRY_WEBVIEW`, so Alt-Tab / taskbar only activates the outer HWND. The host now forwards `WM_SETFOCUS` / `WM_ACTIVATE` into that child so composer and shortcuts work immediately.
+
+**中文 · 修复**
+- **Windows Alt+Tab 后不用先点一下就能打字（#768）**：Tauri `unstable`（资源栏内嵌浏览器）把页面建成子窗口 `WRY_WEBVIEW`，Alt+Tab / 任务栏只激活外层 HWND。Host 现在把 `WM_SETFOCUS` / `WM_ACTIVATE` 转进该子窗口，输入框和快捷键立刻可用。
+
 ## [0.2.24] - 2026-08-21
 
 > **Highlight:** Full bloub pet with compact Look/Bubbles settings; fork from an assistant reply; Windows no longer freezes at end of turn; Explorer-file paste and local session API stall are fixed.

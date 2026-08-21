@@ -820,7 +820,7 @@ pub fn open_session_window(
 
     // Deep link: frontend parses `#/session/<id>` on boot (secondary live mode).
     let url = format!("index.html#/session/{sid}");
-    WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
+    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
         .title(win_title)
         .inner_size(1000.0, 720.0)
         .min_inner_size(720.0, 480.0)
@@ -829,6 +829,10 @@ pub fn open_session_window(
         .center()
         .build()
         .map_err(|e| format!("open session window: {e}"))?;
+    #[cfg(windows)]
+    crate::win_shell::attach_webview_keyboard_focus(&window);
+    #[cfg(not(windows))]
+    let _ = window;
     Ok(())
 }
 
