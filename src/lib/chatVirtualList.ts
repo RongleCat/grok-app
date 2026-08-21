@@ -488,6 +488,18 @@ export function scrollTopAfterHeightChange(input: {
  * Image-heavy rows used to oscillate by a few px after decode (scrollbar
  * gutter / subpixel) → virtual window rebuild → visible chat "shiver".
  */
+/**
+ * Whether a row-height commit may write scrollTop while stick-pinned.
+ *
+ * Per-row image/PDF decode used to snap to max on every commit, then the
+ * virtual window rebuild snapped again. That is the bounce-up on long
+ * media-heavy turns. Pinned snaps belong on the coalesced window layout,
+ * not on each ResizeObserver.
+ */
+export function shouldWriteScrollOnRowCommit(pinned: boolean): boolean {
+  return !pinned;
+}
+
 export function shouldCommitRowHeight(
   prev: number | undefined,
   next: number,

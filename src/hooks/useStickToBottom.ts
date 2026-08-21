@@ -30,6 +30,7 @@ import {
   isMeaningfulScrollUp,
   isNearBottom,
   nextStickPinState,
+  pinnedFollowDelayMs,
   shouldClampPinnedOverscroll,
   shouldClampPinnedStreamDrift,
   shouldReleaseStickOnScrollUp,
@@ -444,6 +445,7 @@ export function useStickToBottom(
 
     let previousHeight: number | undefined;
     let raf = 0;
+    let mediaFollowTimer: ReturnType<typeof setTimeout> | null = null;
 
     const onHeightChange = (height: number) => {
       const difference = height - (previousHeight ?? height);
@@ -506,9 +508,22 @@ export function useStickToBottom(
       // Grow, shrink, or viewport-only resize: follow only while pinned.
       // Do NOT compensate scrollTop while escaped — stream growth is almost
       // always at the bottom; adding the full height delta would yank the
-      // user down. Image cards use fixed-aspect frames so residual media
-      // reflow (the old jump-to-top cause) should be ~0.
-      followIfPinned();
+      // user down. Large jumps (image/PDF decode) wait so a storm of
+      // screenshots is one snap, not one per file.
+      const delay = pinnedFollowDelayMs(difference);
+      if (delay <= 0) {
+        if (mediaFollowTimer != null) {
+          clearTimeout(mediaFollowTimer);
+          mediaFollowTimer = null;
+        }
+        followIfPinned();
+      } else {
+        if (mediaFollowTimer != null) clearTimeout(mediaFollowTimer);
+        mediaFollowTimer = setTimeout(() => {
+          mediaFollowTimer = null;
+          followIfPinned();
+        }, delay);
+      }
 
       previousHeight = height;
       requestAnimationFrame(() => {
@@ -549,6 +564,7 @@ export function useStickToBottom(
 
     return () => {
       if (raf) cancelAnimationFrame(raf);
+      if (mediaFollowTimer != null) clearTimeout(mediaFollowTimer);
       ro.disconnect();
     };
   }, [enabled, conversationKey, applyScrollTop, followIfPinned]);

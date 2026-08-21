@@ -11,11 +11,14 @@ import {
   isMeaningfulScrollUp,
   isNearBottom,
   nextStickPinState,
+  pinnedFollowDelayMs,
   shouldBumpStickOnBusyEdge,
   stabilizeStickUserId,
   shouldClampPinnedOverscroll,
   shouldClampPinnedStreamDrift,
   shouldReleaseStickOnScrollUp,
+  STICK_MEDIA_FOLLOW_DELAY_MS,
+  STICK_MEDIA_HEIGHT_PX,
 } from "./stickToBottom";
 
 describe("distanceFromBottom", () => {
@@ -67,6 +70,25 @@ describe("bottomScrollTop", () => {
 
   it("is 0 when content shorter than viewport", () => {
     expect(bottomScrollTop(200, 400)).toBe(0);
+  });
+});
+
+describe("pinnedFollowDelayMs", () => {
+  it("follows stream-sized growth this frame", () => {
+    expect(pinnedFollowDelayMs(0)).toBe(0);
+    expect(pinnedFollowDelayMs(8)).toBe(0);
+    expect(pinnedFollowDelayMs(23)).toBe(0);
+  });
+
+  it("coalesces image/PDF-sized jumps", () => {
+    expect(STICK_MEDIA_HEIGHT_PX).toBe(24);
+    expect(pinnedFollowDelayMs(24)).toBe(STICK_MEDIA_FOLLOW_DELAY_MS);
+    expect(pinnedFollowDelayMs(400)).toBe(STICK_MEDIA_FOLLOW_DELAY_MS);
+    expect(pinnedFollowDelayMs(-180)).toBe(STICK_MEDIA_FOLLOW_DELAY_MS);
+  });
+
+  it("treats non-finite as immediate", () => {
+    expect(pinnedFollowDelayMs(Number.NaN)).toBe(0);
   });
 });
 

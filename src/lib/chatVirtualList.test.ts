@@ -15,6 +15,7 @@ import {
   resolveChatOverscanPx,
   scrollTopAfterHeightChange,
   shouldCommitRowHeight,
+  shouldWriteScrollOnRowCommit,
   shouldVirtualizeChat,
   splitVirtSpacerHeights,
 } from "./chatVirtualList";
@@ -304,6 +305,16 @@ describe("estimateChatRowHeight", () => {
     expect(images).toBeGreaterThan(chips);
     // 6 cards → 2 rows × ~160px
     expect(images - chips).toBeGreaterThanOrEqual(200);
+  });
+});
+
+describe("shouldWriteScrollOnRowCommit", () => {
+  it("never writes scrollTop from a row commit while pinned", () => {
+    expect(shouldWriteScrollOnRowCommit(true)).toBe(false);
+  });
+
+  it("still allows escaped history-anchor writes", () => {
+    expect(shouldWriteScrollOnRowCommit(false)).toBe(true);
   });
 });
 
