@@ -1646,18 +1646,18 @@ pub fn run() {
             // bringing the workbench back.
 
             #[cfg(target_os = "macos")]
-
-            if let tauri::RunEvent::Opened { urls } = &event {
-                if !automation_runner::wants_fire_due_schedules() {
-                    for url in urls {
-                        skin_deeplink::ingest_opened_url(app, url);
+            {
+                if let tauri::RunEvent::Opened { urls } = &event {
+                    if !automation_runner::wants_fire_due_schedules() {
+                        for url in urls {
+                            skin_deeplink::ingest_opened_url(app, url);
+                        }
+                        tray::show_main_window(app);
                     }
+                }
+                if let tauri::RunEvent::Reopen { .. } = event {
                     tray::show_main_window(app);
                 }
-            }
-
-            if let tauri::RunEvent::Reopen { .. } = event {
-                tray::show_main_window(app);
             }
 
             // Full exit (tray Quit / Cmd+Q): tear down mirror host + cloudflared group.
