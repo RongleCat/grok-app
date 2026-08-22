@@ -64,6 +64,7 @@ const NON_SKILL_SLASH = new Set(
 export function hydrateDisplayContent(content: string): string {
   if (!content) return content;
   if (content.includes("[[skill:")) return content;
+  if (!content.startsWith("/") && !content.includes("/goal")) return content;
 
   let rest = content;
   // Drop goal mode prefix from display hydration (mode is session chrome, not a chip).
@@ -120,6 +121,9 @@ export function draftFromPlainText(text: string): DraftSegment[] {
  */
 export function parseStoredContent(content: string): DraftSegment[] {
   if (!content) return [];
+  if (!content.includes("[[skill:") && !content.includes("[[chat:")) {
+    return [{ type: "text", text: content }];
+  }
   const segments: DraftSegment[] = [];
   let last = 0;
   const re = new RegExp(STORED_TOKEN_RE.source, "g");

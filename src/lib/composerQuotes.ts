@@ -98,6 +98,7 @@ export function parseQuotesFromContent(content: string): {
   quotes: ComposerQuote[];
 } {
   if (!content) return { text: "", quotes: [] };
+  if (!content.includes("[[quote]]")) return { text: content, quotes: [] };
   const src = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const quotes: ComposerQuote[] = [];
   let rest = src;

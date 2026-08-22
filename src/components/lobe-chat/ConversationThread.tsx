@@ -120,6 +120,7 @@ import { MarkdownChat } from "./MarkdownChat";
 import { LongAssistantSpillNote } from "./LongAssistantSpillNote";
 import {
   previewLongAssistant,
+  shouldSpillHugePlainText,
   shouldSpillLongAssistant,
 } from "@/lib/longAssistantSpill";
 import { detectAppPlatform } from "@/lib/appPlatform";
@@ -475,6 +476,16 @@ const UserPlainOrSkills = memo(function UserPlainOrSkills({
   const body = parsed.text;
   const quotes: ComposerQuote[] = parsed.quotes;
   const tr = createT(locale);
+  const [showFull, setShowFull] = useState(false);
+
+  const findActiveHere = !!findQuery?.trim();
+  const isHuge =
+    shouldSpillHugePlainText((body || content).length, detectAppPlatform()) &&
+    !findActiveHere;
+  const targetText = body || (quotes.length ? "" : content);
+  const displayText =
+    isHuge && !showFull ? previewLongAssistant(targetText) : targetText;
+
   return (
     <>
       <UserQuoteCards
@@ -482,11 +493,28 @@ const UserPlainOrSkills = memo(function UserPlainOrSkills({
         countLabel={tr("composer.quoteCount", { n: String(quotes.length) })}
       />
       {body.trim() || !quotes.length ? (
-        <UserBodyText
-          content={body || (quotes.length ? "" : content)}
-          findQuery={findQuery}
-          findActiveOccurrence={findActiveOccurrence}
-        />
+        <div className="lobe-chat-user-body-wrap">
+          <UserBodyText
+            content={displayText}
+            findQuery={findQuery}
+            findActiveOccurrence={findActiveOccurrence}
+          />
+          {isHuge ? (
+            <div className="lobe-chat-user-expand">
+              <button
+                type="button"
+                className="lobe-chat-user-expand__btn"
+                onClick={() => setShowFull((v) => !v)}
+              >
+                {showFull
+                  ? tr("attach.showLess")
+                  : tr("attach.showMore", {
+                      n: `${Math.round(targetText.length / 1000)}k`,
+                    })}
+              </button>
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </>
   );

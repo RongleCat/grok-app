@@ -711,6 +711,36 @@
   vertical-align: baseline;
 }
 
+.lobe-chat-user-body-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lobe-chat-user-expand {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.lobe-chat-user-expand__btn {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--border-soft, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.lobe-chat-user-expand__btn:hover {
+  background: var(--bg-active, rgba(255, 255, 255, 0.14));
+  color: var(--text-primary, #f8fafc);
+  border-color: var(--border-strong, rgba(255, 255, 255, 0.2));
+}
+
 .mcp-modal__footer {
   display: flex;
   align-items: center;
