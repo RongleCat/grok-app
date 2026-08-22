@@ -137,8 +137,10 @@ export function useChatMessageVirtualizer(
   const recomputeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Programmatic scrollTop from height correction — ignore once for stick. */
   const ignoreScrollAdjustRef = useRef(false);
-  /** Per-index ResizeObserver so image/video decode updates height after mount. */
-  const rowObserversRef = useRef<Map<number, ResizeObserver>>(new Map());
+  /** Shared ResizeObserver so image/video/layout growth updates height without per-row RO thrash. */
+  const sharedRowObserverRef = useRef<ResizeObserver | null>(null);
+  const observedElementsRef = useRef<Map<HTMLElement, number>>(new Map());
+  const observedIndicesRef = useRef<Map<number, HTMLElement>>(new Map());
   /** Coalesce scroll-driven recomputes to one paint (rAF + mixed-Hz fallback). */
   const scrollFrameRef = useRef<FrameSchedule>(emptyFrameSchedule());
   /**
@@ -175,8 +177,12 @@ export function useChatMessageVirtualizer(
     heightsRef.current.clear();
     heightsVersionRef.current = 0;
     offsetsCacheRef.current = null;
-    for (const ro of rowObserversRef.current.values()) ro.disconnect();
-    rowObserversRef.current.clear();
+    if (sharedRowObserverRef.current) {
+      sharedRowObserverRef.current.disconnect();
+      sharedRowObserverRef.current = null;
+    }
+    observedElementsRef.current.clear();
+    observedIndicesRef.current.clear();
     setWin(full(itemCount));
   }, [conversationKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -343,24 +349,27 @@ export function useChatMessageVirtualizer(
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     // Viewport chrome resize only — not content (content RO was thrashy).
-    const ro = new ResizeObserver(() => {
-      if (scrollingRef.current || isPaneSplitMotionActive()) {
-        pendingHeightRecomputeRef.current = true;
-        if (isPaneSplitMotionActive()) {
-          runAfterPaneSplitMotion(() => {
-            pendingHeightRecomputeRef.current = false;
-            recomputeNow();
-          });
-        }
-        return;
-      }
-      recompute();
-    });
-    ro.observe(el);
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            if (scrollingRef.current || isPaneSplitMotionActive()) {
+              pendingHeightRecomputeRef.current = true;
+              if (isPaneSplitMotionActive()) {
+                runAfterPaneSplitMotion(() => {
+                  pendingHeightRecomputeRef.current = false;
+                  recomputeNow();
+                });
+              }
+              return;
+            }
+            recompute();
+          })
+        : null;
+    ro?.observe(el);
     recomputeNow();
     return () => {
       el.removeEventListener("scroll", onScroll);
-      ro.disconnect();
+      ro?.disconnect();
       cancelFrameSchedule(scrollFrameRef.current);
       if (recomputeTimerRef.current != null) {
         clearTimeout(recomputeTimerRef.current);
@@ -414,16 +423,23 @@ export function useChatMessageVirtualizer(
   // Drop row observers when virtualization turns off.
   useEffect(() => {
     if (virtualized) return;
-    for (const ro of rowObserversRef.current.values()) ro.disconnect();
-    rowObserversRef.current.clear();
+    if (sharedRowObserverRef.current) {
+      sharedRowObserverRef.current.disconnect();
+      sharedRowObserverRef.current = null;
+    }
+    observedElementsRef.current.clear();
+    observedIndicesRef.current.clear();
   }, [virtualized]);
 
   const commitRowHeight = useCallback(
-    (index: number, el: HTMLElement) => {
+    (index: number, el: HTMLElement, measuredHeight?: number) => {
       if (!virtualizedRef.current) return;
-      if (runAfterPaneSplitMotion(() => commitRowHeight(index, el))) return;
+      if (runAfterPaneSplitMotion(() => commitRowHeight(index, el, measuredHeight))) return;
       const key = getKeyRef.current(index);
-      const nextH = Math.round(el.getBoundingClientRect().height);
+      const nextH =
+        measuredHeight != null && Number.isFinite(measuredHeight) && measuredHeight >= 0
+          ? Math.round(measuredHeight)
+          : Math.round(el.getBoundingClientRect().height);
       const prevMeasured = heightsRef.current.get(key);
       const estRaw = estimateRef.current?.(index);
       const estimateH =
@@ -504,6 +520,34 @@ export function useChatMessageVirtualizer(
   const commitRowHeightRef = useRef(commitRowHeight);
   commitRowHeightRef.current = commitRowHeight;
 
+  const ensureSharedObserver = useCallback(() => {
+    if (sharedRowObserverRef.current || typeof ResizeObserver === "undefined") {
+      return sharedRowObserverRef.current;
+    }
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const el = entry.target as HTMLElement;
+        const index = observedElementsRef.current.get(el);
+        if (index === undefined) continue;
+        let h = 0;
+        if (entry.borderBoxSize && entry.borderBoxSize.length > 0) {
+          const bs = entry.borderBoxSize[0];
+          if (bs && Number.isFinite(bs.blockSize) && bs.blockSize > 0) {
+            h = bs.blockSize;
+          }
+        } else if (entry.contentRect && Number.isFinite(entry.contentRect.height)) {
+          h = entry.contentRect.height;
+        }
+        if (h <= 0) {
+          h = el.getBoundingClientRect().height;
+        }
+        commitRowHeightRef.current(index, el, h);
+      }
+    });
+    sharedRowObserverRef.current = ro;
+    return ro;
+  }, []);
+
   /**
    * Stable per-index ref callbacks. Returning a fresh function from measureRef(i)
    * on every render makes React detach/reattach the ref → ResizeObserver thrash
@@ -523,31 +567,28 @@ export function useChatMessageVirtualizer(
       const cached = measureCallbackCacheRef.current.get(index);
       if (cached) return cached;
       const cb = (el: HTMLElement | null) => {
-        const prevRo = rowObserversRef.current.get(index);
-        if (prevRo) {
-          prevRo.disconnect();
-          rowObserversRef.current.delete(index);
+        const ro = ensureSharedObserver();
+        const prevEl = observedIndicesRef.current.get(index);
+        if (prevEl && prevEl !== el) {
+          ro?.unobserve(prevEl);
+          observedElementsRef.current.delete(prevEl);
+          observedIndicesRef.current.delete(index);
         }
         if (!el || !virtualizedRef.current) return;
 
-        // Immediate sample (mount) + observe media/layout growth afterward.
-        commitRowHeightRef.current(index, el);
-        // Coalesce RO storms (multi-image decode) — one commit per frame.
-        let roRaf = 0;
-        const ro = new ResizeObserver(() => {
-          if (roRaf) return;
-          roRaf = requestAnimationFrame(() => {
-            roRaf = 0;
-            commitRowHeightRef.current(index, el);
-          });
-        });
-        ro.observe(el);
-        rowObserversRef.current.set(index, ro);
+        observedElementsRef.current.set(el, index);
+        observedIndicesRef.current.set(index, el);
+        if (ro) {
+          ro.observe(el);
+        } else {
+          // Fallback if ResizeObserver is unavailable (e.g. test environment)
+          commitRowHeightRef.current(index, el);
+        }
       };
       measureCallbackCacheRef.current.set(index, cb);
       return cb;
     },
-    [],
+    [ensureSharedObserver],
   );
 
   if (!virtualized) {

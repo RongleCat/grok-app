@@ -16,7 +16,7 @@ import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
 import { ImageUi, imageUiLabels } from "@/components/ImageUi";
 import { VideoUi, videoUiLabels } from "@/components/VideoUi";
-import { FilePathCard } from "@/components/FilePathCard";
+import { FilePathCard, type FilePathCardLabels } from "@/components/FilePathCard";
 import type { ResourceOpenTarget } from "@/components/ResourceViewer";
 import { HighlightedText } from "@/components/HighlightedText";
 import {
@@ -203,6 +203,44 @@ function paintedLeaves(
   };
 }
 
+const fileLabelsCache = new Map<Locale, FilePathCardLabels>();
+
+export function getMarkdownFileLabels(locale: Locale): FilePathCardLabels {
+  let cached = fileLabelsCache.get(locale);
+  if (!cached) {
+    const tr = createT(locale);
+    cached = {
+      open: tr("attach.open"),
+      reveal: revealInOsLabel(tr),
+      copyPath: tr("attach.copyPath"),
+      openInPanel: tr("resources.openInPanel"),
+      openExternal: tr("resources.openExternal"),
+      details: tr("attach.details"),
+      detailsTitle: tr("attach.detailsTitle"),
+      detailsName: tr("attach.detailsName"),
+      detailsType: tr("attach.detailsType"),
+      detailsPath: tr("attach.detailsPath"),
+      detailsResolved: tr("attach.detailsResolved"),
+      detailsStatus: tr("attach.detailsStatus"),
+      detailsMissing: tr("attach.detailsMissing"),
+      detailsOk: tr("attach.detailsOk"),
+      detailsClose: tr("attach.detailsClose"),
+      typeFile: tr("attach.typeFile"),
+      typeUrl: tr("attach.typeUrl"),
+      typeDir: tr("attach.typeDir"),
+      errNotFound: tr("resources.openErr.notFound"),
+      errPathDenied: tr("resources.openErr.pathDenied"),
+      errHostOnly: tr("resources.openErr.hostOnly"),
+      errNoEditor: tr("resources.openErr.noEditor"),
+      errCancelled: tr("resources.openErr.cancelled"),
+      errOther: tr("resources.openErr.other"),
+      errRevealOther: tr("resources.revealErr.other"),
+    };
+    fileLabelsCache.set(locale, cached);
+  }
+  return cached;
+}
+
 export const MarkdownChat = memo(function MarkdownChat({
   children,
   streaming = false,
@@ -249,36 +287,7 @@ export const MarkdownChat = memo(function MarkdownChat({
   const tr = useMemo(() => createT(locale), [locale]);
   const imageLabels = useMemo(() => imageUiLabels(locale), [locale]);
   const videoLabels = useMemo(() => videoUiLabels(locale), [locale]);
-  const fileLabels = useMemo(
-    () => ({
-      open: tr("attach.open"),
-      reveal: revealInOsLabel(tr),
-      copyPath: tr("attach.copyPath"),
-      openInPanel: tr("resources.openInPanel"),
-      openExternal: tr("resources.openExternal"),
-      details: tr("attach.details"),
-      detailsTitle: tr("attach.detailsTitle"),
-      detailsName: tr("attach.detailsName"),
-      detailsType: tr("attach.detailsType"),
-      detailsPath: tr("attach.detailsPath"),
-      detailsResolved: tr("attach.detailsResolved"),
-      detailsStatus: tr("attach.detailsStatus"),
-      detailsMissing: tr("attach.detailsMissing"),
-      detailsOk: tr("attach.detailsOk"),
-      detailsClose: tr("attach.detailsClose"),
-      typeFile: tr("attach.typeFile"),
-      typeUrl: tr("attach.typeUrl"),
-      typeDir: tr("attach.typeDir"),
-      errNotFound: tr("resources.openErr.notFound"),
-      errPathDenied: tr("resources.openErr.pathDenied"),
-      errHostOnly: tr("resources.openErr.hostOnly"),
-      errNoEditor: tr("resources.openErr.noEditor"),
-      errCancelled: tr("resources.openErr.cancelled"),
-      errOther: tr("resources.openErr.other"),
-      errRevealOther: tr("resources.revealErr.other"),
-    }),
-    [tr],
-  );
+  const fileLabels = useMemo(() => getMarkdownFileLabels(locale), [locale]);
   const gallery = useMemo(() => {
     if (!imagePathMap) return undefined;
     return Array.from(new Set(Object.values(imagePathMap))).filter(isImagePath);

@@ -28,6 +28,7 @@ See `docs/llm-wiki/release.md`.
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
 
 ### Changed
+- **Chat transcript scroll no longer thrashes layout on mounted rows**: Virtual rows share a single `ResizeObserver` and measure via `borderBoxSize` instead of synchronous `getBoundingClientRect()` on mount; code block line-wrap/number preferences use in-memory caches to avoid blocking `localStorage` reads; right-edge message node rail uses memoized node IDs and skips redundant tick scrolls.
 - **UI font and terminal font are local-font dropdowns**: Settings → Appearance lists installed families (searchable) instead of a free-text name. UI default is the app sans stack; terminal default is the built-in Nerd Font stack. Reset is unchanged.
 - **Debug dock icon is the white invert**: `pnpm dev` uses `src-tauri/icons/dev` (white plate, dark mark) so the running debug app is distinct from the installed black production icon. Release bundles are unchanged.
 - **Resource markdown preview windows long files**: Side-pane `.md` keeps short files as one tree. Files at 200+ lines split on headings (and length caps) and only mount visible sections, instead of ReactMarkdown for the whole buffer.
@@ -59,6 +60,7 @@ See `docs/llm-wiki/release.md`.
 - **Official site on GitHub About and README**: Repo homepage, `package.json` `homepage`, and public READMEs now point to [https://grok-app.com](https://grok-app.com) (no trailing slash).
 
 **中文 · 变更**
+- **长对话滚动消除挂载重排与同步存储阻塞**：虚拟列表改用单个共享 `ResizeObserver` 并通过 `borderBoxSize` 获取高度，消除新行挂载时的 `getBoundingClientRect()` 强制同步重排（Layout Thrashing）；代码块换行与行号偏好使用内存缓存，避免挂载时同步读取 `localStorage` 阻塞主线程；右侧消息节点轴缓存节点 ID 集合并在可视范围内跳过冗余滚动。
 - **界面字体和终端字体改为本机字体下拉**：设置 → 外观列出本机已安装字体族（可搜索），不再手填名称。界面默认是应用无衬线栈；终端默认是内置 Nerd Font。重置不变。
 - **开发版 Dock 图标改白底反色**：`pnpm dev` 使用 `src-tauri/icons/dev`（白底深色标），和已安装的黑底正式版区分。发布包图标不变。
 - **资源栏 Markdown 对长文件做窗口化**：侧栏 `.md` 短文件仍整树渲染。200 行以上按标题（及长度上限）切块，只挂可见节，不再对整份 buffer 跑 ReactMarkdown。

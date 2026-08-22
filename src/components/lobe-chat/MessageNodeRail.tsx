@@ -101,14 +101,24 @@ export function MessageNodeRail({
     (activeIndex >= 0 && activeIndex < nodes.length - 1) ||
     (activeIndex < 0 && nodes.length > 0);
 
+  const nodeIdSet = useMemo(() => new Set(nodes.map((n) => n.id)), [nodes]);
+
   // Keep the active tick roughly in view inside a long rail.
   useEffect(() => {
     if (activeIndex < 0 || !listRef.current) return;
-    const tick = listRef.current.querySelector(
+    const list = listRef.current;
+    const tick = list.querySelector(
       `[data-node-id="${CSS.escape(nodes[activeIndex]!.id)}"]`,
     ) as HTMLElement | null;
-    // Instant — smooth nested scroll was a jank source during free reading.
-    tick?.scrollIntoView({ block: "nearest", behavior: "auto" });
+    if (!tick) return;
+    const tickTop = tick.offsetTop;
+    const tickBottom = tickTop + tick.offsetHeight;
+    const viewTop = list.scrollTop;
+    const viewBottom = viewTop + list.clientHeight;
+    // Only scroll if outside visible range to avoid redundant scroll operations.
+    if (tickTop < viewTop || tickBottom > viewBottom) {
+      tick.scrollIntoView({ block: "nearest", behavior: "auto" });
+    }
   }, [activeIndex, nodes]);
 
   // Free-scroll highlight: rAF throttle + one querySelectorAll per frame.
@@ -131,7 +141,6 @@ export function MessageNodeRail({
       // Single pass over mounted message rows (virtual window only).
       const mounted = viewport.querySelectorAll<HTMLElement>("[data-message-id]");
       const rects: { id: string; top: number; bottom: number }[] = [];
-      const nodeIdSet = new Set(nodes.map((n) => n.id));
       for (const row of mounted) {
         const id = row.getAttribute("data-message-id");
         if (!id || !nodeIdSet.has(id)) continue;
@@ -149,9 +158,11 @@ export function MessageNodeRail({
       }
 
       if (bestId) {
-        setScrollActiveId((prev) => (prev === bestId ? prev : bestId));
-        // Ref-only parent sync so prev/next track free scroll without setState.
-        onScrollActiveChangeRef.current?.(bestId);
+        setScrollActiveId((prev) => {
+          if (prev === bestId) return prev;
+          onScrollActiveChangeRef.current?.(bestId);
+          return bestId;
+        });
       }
     };
 
@@ -171,7 +182,7 @@ export function MessageNodeRail({
         rafRef.current = null;
       }
     };
-  }, [scrollParentRef, nodes, messages, navLockUntilRef]);
+  }, [scrollParentRef, nodes, nodeIdSet, messages, navLockUntilRef]);
 
   // When parent sets a programmatic activeId, mirror it into scroll state so
   // highlight does not snap back on the next free-scroll frame incorrectly.

@@ -11,13 +11,31 @@ export const CODE_WRAP_PREF_EVENT = "grok:codeWrapPref";
 /** `true` = wrap lines by default; `false` = horizontal scroll (no wrap). */
 export type CodeWrapPref = boolean;
 
+let memoryWrapPref: CodeWrapPref | null = null;
+
+export function resetCodeWrapPrefCacheForTest(): void {
+  memoryWrapPref = null;
+}
+
 export function loadCodeWrapPref(
   storage: Storage = localStorage,
 ): CodeWrapPref {
+  if (
+    typeof localStorage !== "undefined" &&
+    storage === localStorage &&
+    memoryWrapPref !== null
+  ) {
+    return memoryWrapPref;
+  }
   try {
     const v = storage.getItem(CODE_WRAP_PREF_KEY);
-    if (v === "1" || v === "true" || v === "wrap") return true;
-    if (v === "0" || v === "false" || v === "scroll") return false;
+    let parsed = false;
+    if (v === "1" || v === "true" || v === "wrap") parsed = true;
+    else if (v === "0" || v === "false" || v === "scroll") parsed = false;
+    if (typeof localStorage !== "undefined" && storage === localStorage) {
+      memoryWrapPref = parsed;
+    }
+    return parsed;
   } catch {
     /* private mode */
   }
@@ -29,6 +47,9 @@ export function saveCodeWrapPref(
   pref: CodeWrapPref,
   storage: Storage = localStorage,
 ): void {
+  if (typeof localStorage !== "undefined" && storage === localStorage) {
+    memoryWrapPref = pref;
+  }
   try {
     storage.setItem(CODE_WRAP_PREF_KEY, pref ? "wrap" : "scroll");
   } catch {

@@ -709,15 +709,22 @@ export function ImageUi({
   );
 }
 
+const imageLabelsCache = new Map<Locale, ImageUiLabels>();
+
 /** Build image UI labels from locale (OS-aware reveal label). */
 export function imageUiLabels(locale: Locale): ImageUiLabels {
-  const tr = createT(locale);
-  return {
-    viewImage: tr("image.view"),
-    copyImage: tr("image.copy"),
-    reveal: revealInOsLabel(tr),
-    copyPath: tr("attach.copyPath"),
-    loadFailed: tr("media.err.other"),
-    loadFailedByKind: mediaLoadErrorLabelMap(tr),
-  };
+  let cached = imageLabelsCache.get(locale);
+  if (!cached) {
+    const tr = createT(locale);
+    cached = {
+      viewImage: tr("image.view"),
+      copyImage: tr("image.copy"),
+      reveal: revealInOsLabel(tr),
+      copyPath: tr("attach.copyPath"),
+      loadFailed: tr("media.err.other"),
+      loadFailedByKind: mediaLoadErrorLabelMap(tr),
+    };
+    imageLabelsCache.set(locale, cached);
+  }
+  return cached;
 }

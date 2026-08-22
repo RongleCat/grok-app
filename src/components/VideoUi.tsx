@@ -545,13 +545,20 @@ export const VideoUi = memo(function VideoUi({
   );
 });
 
+const videoLabelsCache = new Map<Locale, VideoUiLabels>();
+
 export function videoUiLabels(locale: Locale): VideoUiLabels {
-  const tr = createT(locale);
-  return {
-    open: tr("attach.open"),
-    reveal: revealInOsLabel(tr),
-    copyPath: tr("attach.copyPath"),
-    loadError: tr("video.loadError"),
-    play: tr("video.play"),
-  };
+  let cached = videoLabelsCache.get(locale);
+  if (!cached) {
+    const tr = createT(locale);
+    cached = {
+      open: tr("attach.open"),
+      reveal: revealInOsLabel(tr),
+      copyPath: tr("attach.copyPath"),
+      loadError: tr("video.loadError"),
+      play: tr("video.play"),
+    };
+    videoLabelsCache.set(locale, cached);
+  }
+  return cached;
 }
