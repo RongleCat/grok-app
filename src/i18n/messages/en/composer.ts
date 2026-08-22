@@ -1,6 +1,7 @@
 /** English messages — domain: composer */
 export const enComposer = {
   "composer.placeholder": "Type freely…",
+  "composer.welcomePrompt": "What will we do today?",
   "composer.add": "Add",
   "composer.commandPanel": "Command panel",
   "composer.addFiles": "Upload files",

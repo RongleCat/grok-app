@@ -1,6 +1,7 @@
 /** fr messages — domain: composer */
 export const frComposer = {
   "composer.placeholder": "Saisissez librement…",
+  "composer.welcomePrompt": "Que faisons-nous aujourd’hui ?",
   "composer.add": "Ajouter",
   "composer.commandPanel": "Panneau de commandes",
   "composer.addFiles": "Envoyer des fichiers",

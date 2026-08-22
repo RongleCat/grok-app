@@ -740,6 +740,9 @@
 
 .composer-welcome-mark {
   pointer-events: none;
+  position: relative;
+  width: 100%;
+  max-width: 42rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -749,6 +752,72 @@
   user-select: none;
   flex-shrink: 0;
   contain: layout style;
+}
+
+.composer-welcome-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(calc(-100% - 12px));
+}
+
+.composer-welcome-prompt {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  transform: translate(-50%, -50%);
+  color: var(--text-primary);
+  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.composer-welcome-mark.is-entering .composer-welcome-brand {
+  animation: composer-welcome-brand-rise
+    var(--motion-pane)
+    var(--motion-pane-ease)
+    both;
+  will-change: transform;
+}
+
+.composer-welcome-mark.is-entering .composer-welcome-prompt {
+  animation: composer-welcome-prompt-type
+    680ms
+    steps(var(--welcome-prompt-steps), end)
+    var(--motion-pane)
+    both;
+  will-change: clip-path;
+}
+
+@keyframes composer-welcome-brand-rise {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% - 12px));
+  }
+}
+
+@keyframes composer-welcome-prompt-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-welcome-mark.is-entering .composer-welcome-brand,
+  .composer-welcome-mark.is-entering .composer-welcome-prompt {
+    animation: none;
+  }
 }
 
 /* SuperGrok / SuperGrok Heavy wordmarks (theme via data-theme tokens).

@@ -1,6 +1,7 @@
 /** fil messages — domain: composer */
 export const filComposer = {
   "composer.placeholder": "Mag-type nang malaya…",
+  "composer.welcomePrompt": "Ano ang gagawin natin ngayon?",
   "composer.add": "Magdagdag",
   "composer.commandPanel": "Panel ng command",
   "composer.addFiles": "Mag-upload ng file",

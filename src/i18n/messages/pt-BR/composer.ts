@@ -1,6 +1,7 @@
 /** pt-BR messages — domain: composer */
 export const ptBRComposer = {
   "composer.placeholder": "Digite livremente…",
+  "composer.welcomePrompt": "O que vamos fazer hoje?",
   "composer.add": "Adicionar",
   "composer.commandPanel": "Painel de comandos",
   "composer.addFiles": "Enviar arquivos",

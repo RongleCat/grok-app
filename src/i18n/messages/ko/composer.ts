@@ -1,6 +1,7 @@
 /** ko messages — domain: composer */
 export const koComposer = {
   "composer.placeholder": "자유롭게 입력…",
+  "composer.welcomePrompt": "오늘 무엇을 할까요?",
   "composer.add": "추가",
   "composer.commandPanel": "명령 패널",
   "composer.addFiles": "파일 업로드",

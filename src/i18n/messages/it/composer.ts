@@ -1,6 +1,7 @@
 /** it messages — domain: composer */
 export const itComposer = {
   "composer.placeholder": "Scrivi liberamente…",
+  "composer.welcomePrompt": "Cosa facciamo oggi?",
   "composer.add": "Aggiungi",
   "composer.commandPanel": "Pannello comandi",
   "composer.addFiles": "Carica file",

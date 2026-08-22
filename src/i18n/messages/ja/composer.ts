@@ -1,6 +1,7 @@
 /** ja messages — domain: composer */
 export const jaComposer = {
   "composer.placeholder": "自由に入力…",
+  "composer.welcomePrompt": "今日は何をしますか？",
   "composer.add": "追加",
   "composer.commandPanel": "コマンドパネル",
   "composer.addFiles": "ファイルをアップロード",

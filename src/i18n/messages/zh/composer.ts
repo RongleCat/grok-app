@@ -1,6 +1,7 @@
 /** Simplified Chinese messages — domain: composer */
 export const zhComposer = {
   "composer.placeholder": "随心输入",
+  "composer.welcomePrompt": "今天做什么？",
   "composer.add": "添加",
   "composer.commandPanel": "命令面板",
   "composer.addFiles": "上传文件",

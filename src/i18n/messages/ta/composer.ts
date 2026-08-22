@@ -1,6 +1,7 @@
 /** ta messages — domain: composer */
 export const taComposer = {
   "composer.placeholder": "சுதந்திரமாக எழுது…",
+  "composer.welcomePrompt": "இன்று என்ன செய்வோம்?",
   "composer.add": "சேர்",
   "composer.commandPanel": "கட்டளை குழு",
   "composer.addFiles": "கோப்புகளைப் பதிவேற்றவும்",

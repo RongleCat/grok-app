@@ -1,6 +1,7 @@
 /** Traditional Chinese messages — domain: composer */
 export const zhTWComposer = {
   "composer.placeholder": "隨心輸入",
+  "composer.welcomePrompt": "今天做什麼？",
   "composer.add": "新增",
   "composer.commandPanel": "命令面板",
   "composer.addProject": "新增專案",

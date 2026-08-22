@@ -1785,6 +1785,8 @@ export function AppWorkbench() {
   const contentSearchSeq = useRef(0);
   /** Floating composer shell — height drives chat bottom padding. */
   const composerWrapRef = useRef<HTMLDivElement>(null);
+  /** One-shot welcome motion: initial draft and each accepted new-chat action. */
+  const [welcomeIntroActive, setWelcomeIntroActive] = useState(true);
   /** Set by newChat; applied after chat pane + textarea mount. */
   const pendingComposerFocus = useRef(false);
   const [sessionDataMode, setSessionDataMode] = useState(DEFAULT_SESSION_DATA_MODE);
@@ -5404,6 +5406,7 @@ export function AppWorkbench() {
       setLocalError(tr("project.pathMissing", { name: proj.name }));
       return;
     }
+    setWelcomeIntroActive(true);
 
     // Snapshot outgoing composer: new-chat → per-project; real thread → per-session.
     const prevKey = projectDraftKey(activeProject?.id ?? null);
@@ -12617,6 +12620,7 @@ export function AppWorkbench() {
     !session.sessionId &&
     transcriptMeta.length === 0 &&
     session.state !== "streaming";
+  const welcomePrompt = tr("composer.welcomePrompt");
   const journalPending =
     !!session.sessionId &&
     (transcriptMeta.journalLoading ||
@@ -21164,21 +21168,40 @@ export function AppWorkbench() {
             data-side-dock={sideDockActive ? "true" : undefined}
           >
             {welcomeSession && welcomeBrandKind && !sideDockActive ? (
-              <div className="composer-welcome-mark">
-                {welcomeProviderBrandNode ?? (
-                  <SuperGrokMark
-                    kind={welcomeBrandKind}
-                    title={
-                      customRouteActive
-                        ? "SuperGrok"
-                        : account?.billing?.subscriptionTier?.trim() ||
-                          (welcomeBrandKind === "heavy"
-                            ? "SuperGrok Heavy"
-                            : "SuperGrok")
-                    }
-                  />
-                )}
-
+              <div
+                className={
+                  "composer-welcome-mark" +
+                  (welcomeIntroActive ? " is-entering" : "")
+                }
+              >
+                <div className="composer-welcome-brand">
+                  {welcomeProviderBrandNode ?? (
+                    <SuperGrokMark
+                      kind={welcomeBrandKind}
+                      title={
+                        customRouteActive
+                          ? "SuperGrok"
+                          : account?.billing?.subscriptionTier?.trim() ||
+                            (welcomeBrandKind === "heavy"
+                              ? "SuperGrok Heavy"
+                              : "SuperGrok")
+                      }
+                    />
+                  )}
+                </div>
+                <div
+                  className="composer-welcome-prompt"
+                  style={
+                    {
+                      ["--welcome-prompt-steps"]: String(
+                        Math.max(1, Array.from(welcomePrompt).length),
+                      ),
+                    } as CSSProperties
+                  }
+                  onAnimationEnd={() => setWelcomeIntroActive(false)}
+                >
+                  {welcomePrompt}
+                </div>
               </div>
             ) : null}
             {perm ? (

@@ -155,6 +155,8 @@
     position: relative;
     flex: 1 1 auto;
     align-self: stretch;
+    width: auto;
+    max-width: none;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -927,4 +929,3 @@
   background: var(--bg-hover);
   color: var(--text-primary);
 }
-

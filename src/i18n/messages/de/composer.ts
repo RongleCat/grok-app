@@ -1,6 +1,7 @@
 /** de messages — domain: composer */
 export const deComposer = {
   "composer.placeholder": "Frei tippen…",
+  "composer.welcomePrompt": "Was möchtest du heute machen?",
   "composer.add": "Hinzufügen",
   "composer.commandPanel": "Befehlspanel",
   "composer.addFiles": "Dateien hochladen",
