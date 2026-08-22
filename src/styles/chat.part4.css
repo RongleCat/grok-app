@@ -687,6 +687,10 @@
   z-index: 12000;
   padding: 24px;
   box-sizing: border-box;
+  /* WKWebView drag regions ignore z-index; keep portaled dialogs clickable. */
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  pointer-events: auto;
 }
 
 .modal {
@@ -701,6 +705,9 @@
   padding: var(--modal-pad-y, 20px) var(--modal-pad-x, 24px);
   box-sizing: border-box;
   color: var(--text-primary);
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  pointer-events: auto;
 }
 
 .modal.glass-modal--sm,

@@ -82,6 +82,11 @@ import {
 } from "@/lib/gateClock";
 import { savePermissionTimeoutSec } from "@/lib/permissionTimeout";
 import { saveAskUserTimeoutSec } from "@/lib/askUserTimeout";
+import {
+  canClaimAskUserSettle,
+  settleAskUserDecision,
+  shouldClearAskUserGate,
+} from "@/lib/askUserSettle";
 import { WallpaperMediaLayer } from "@/components/WallpaperMediaLayer";
 import {
   ASIDE_WIDTH_MIN,
@@ -2328,6 +2333,9 @@ export function AppWorkbench() {
   const [perm, setPerm] = useState<PermissionPayload | null>(null);
   const permBarRef = useRef<HTMLDivElement | null>(null);
   const [askUser, setAskUser] = useState<AskUserPayload | null>(null);
+  const askUserRef = useRef(askUser);
+  askUserRef.current = askUser;
+  const askUserSettlingRpcRef = useRef<number | null>(null);
   /**
    * Unanswered gates per session (`sessionId` → payload).
    *
@@ -22770,32 +22778,71 @@ export function AppWorkbench() {
         }}
         onSubmit={async (answers) => {
           if (!askUser) return;
-          try {
-            await api.sessionResolveAskUser({
-              decision: "accepted",
-              answers,
-              rpcId: askUser.rpcId,
-              sessionId: askUser.sessionId,
-            });
-            clearPendingGates(askUser.sessionId);
-            setAskUser(null);
-          } catch (e) {
-            showToast(String(e), 4500);
+          if (!canClaimAskUserSettle(askUserSettlingRpcRef.current, askUser.rpcId)) {
+            return;
+          }
+          const payload = askUser;
+          askUserSettlingRpcRef.current = payload.rpcId;
+          // Hide before the ACP write. Waiting left every control disabled
+          // for the Host stdin timeout when the agent was wedged (#844).
+          setAskUser(null);
+          const settled = await settleAskUserDecision({
+            payload,
+            decision: "accepted",
+            answers,
+            viewingSessionId: () => viewingSessionIdRef.current,
+            currentRpcId: () => askUserRef.current?.rpcId ?? null,
+            resolve: (args) => api.sessionResolveAskUser(args),
+          });
+          if (settled.kind === "restore") {
+            if (askUserSettlingRpcRef.current === payload.rpcId) {
+              askUserSettlingRpcRef.current = null;
+            }
+            showToast(String(settled.error), 4500);
+            pendingAskUserBySessionRef.current.set(payload.sessionId, payload);
+            if (viewingSessionIdRef.current === payload.sessionId) {
+              setAskUser(payload);
+            }
+            return;
+          }
+          if (askUserSettlingRpcRef.current === payload.rpcId) {
+            askUserSettlingRpcRef.current = null;
+          }
+          if (
+            shouldClearAskUserGate({
+              settledRpcId: payload.rpcId,
+              currentRpcId: askUserRef.current?.rpcId ?? null,
+            })
+          ) {
+            clearPendingGates(payload.sessionId);
           }
         }}
         onCancel={async () => {
           if (!askUser) return;
-          try {
-            await api.sessionResolveAskUser({
-              decision: "cancelled",
-              rpcId: askUser.rpcId,
-              sessionId: askUser.sessionId,
-            });
-          } catch {
-            /* still hide UI */
+          if (!canClaimAskUserSettle(askUserSettlingRpcRef.current, askUser.rpcId)) {
+            return;
           }
-          clearPendingGates(askUser.sessionId);
+          const payload = askUser;
+          askUserSettlingRpcRef.current = payload.rpcId;
           setAskUser(null);
+          await settleAskUserDecision({
+            payload,
+            decision: "cancelled",
+            viewingSessionId: () => viewingSessionIdRef.current,
+            currentRpcId: () => askUserRef.current?.rpcId ?? null,
+            resolve: (args) => api.sessionResolveAskUser(args),
+          });
+          if (askUserSettlingRpcRef.current === payload.rpcId) {
+            askUserSettlingRpcRef.current = null;
+          }
+          if (
+            shouldClearAskUserGate({
+              settledRpcId: payload.rpcId,
+              currentRpcId: askUserRef.current?.rpcId ?? null,
+            })
+          ) {
+            clearPendingGates(payload.sessionId);
+          }
         }}
       />
       <StatusModal

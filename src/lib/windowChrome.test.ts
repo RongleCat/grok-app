@@ -60,6 +60,19 @@ describe("tauriDragRegion", () => {
       /html\.platform-win \.settings-page__chrome[\s\S]{0,120}no-drag/,
     );
   });
+
+  it("keeps portaled GlassModal overlays off the window-drag region (#844)", () => {
+    const chrome = readFileSync(
+      join(__dirname, "../styles/chat.part4.css"),
+      "utf8",
+    );
+    expect(chrome).toMatch(
+      /\.overlay\s*\{[^}]*-webkit-app-region:\s*no-drag/s,
+    );
+    expect(chrome).toMatch(
+      /\.modal\s*\{[^}]*-webkit-app-region:\s*no-drag/s,
+    );
+  });
 });
 
 describe("shouldFakeMaximizeFallback", () => {

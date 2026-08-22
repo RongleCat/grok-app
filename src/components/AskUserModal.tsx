@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { GlassModal } from "@/components/GlassModal";
 import type { AskUserPayload, AskUserQuestionItem } from "@/lib/session";
 import { askUserTimeoutRemainingSec } from "@/lib/askUserTimeout";
+import { askUserDismissLocked } from "@/lib/askUserSettle";
 import { dropGateClock, gateClockKey, resumeGateClock } from "@/lib/gateClock";
 
 /**
@@ -207,14 +208,9 @@ export function AskUserModal({
   };
 
   const cancel = async () => {
-    if (busy) return;
-    setBusy(true);
+    // Dismiss / X must stay available while accept IPC is in flight (#844).
     dropClock();
-    try {
-      await onCancel();
-    } finally {
-      setBusy(false);
-    }
+    await onCancel();
   };
 
   // Single-select, single question, option click → immediate answer.
@@ -249,7 +245,7 @@ export function AskUserModal({
           <button
             type="button"
             className="btn btn--ghost"
-            disabled={busy}
+            disabled={askUserDismissLocked(busy)}
             onClick={() => void cancel()}
           >
             {labels.cancel}
