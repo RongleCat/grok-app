@@ -120,9 +120,12 @@ import { MarkdownChat } from "./MarkdownChat";
 import { LongAssistantSpillNote } from "./LongAssistantSpillNote";
 import {
   previewLongAssistant,
-  shouldSpillHugePlainText,
   shouldSpillLongAssistant,
 } from "@/lib/longAssistantSpill";
+import {
+  previewUserMessageText,
+  shouldFoldUserMessage,
+} from "@/lib/userMessageFold";
 import { detectAppPlatform } from "@/lib/appPlatform";
 import { Thinking } from "./Thinking";
 import { LeadFragmentsStrip } from "./LeadFragmentsStrip";
@@ -478,13 +481,11 @@ const UserPlainOrSkills = memo(function UserPlainOrSkills({
   const tr = createT(locale);
   const [showFull, setShowFull] = useState(false);
 
-  const findActiveHere = !!findQuery?.trim();
-  const isHuge =
-    shouldSpillHugePlainText((body || content).length, detectAppPlatform()) &&
-    !findActiveHere;
   const targetText = body || (quotes.length ? "" : content);
+  const findActiveHere = !!findQuery?.trim();
+  const canFold = shouldFoldUserMessage(targetText) && !findActiveHere;
   const displayText =
-    isHuge && !showFull ? previewLongAssistant(targetText) : targetText;
+    canFold && !showFull ? previewUserMessageText(targetText) : targetText;
 
   return (
     <>
@@ -499,7 +500,7 @@ const UserPlainOrSkills = memo(function UserPlainOrSkills({
             findQuery={findQuery}
             findActiveOccurrence={findActiveOccurrence}
           />
-          {isHuge ? (
+          {canFold ? (
             <div className="lobe-chat-user-expand">
               <button
                 type="button"
@@ -509,7 +510,10 @@ const UserPlainOrSkills = memo(function UserPlainOrSkills({
                 {showFull
                   ? tr("attach.showLess")
                   : tr("attach.showMore", {
-                      n: `${Math.round(targetText.length / 1000)}k`,
+                      n:
+                        targetText.length >= 1000
+                          ? `${(targetText.length / 1000).toFixed(1)}k`
+                          : `${targetText.length}`,
                     })}
               </button>
             </div>
