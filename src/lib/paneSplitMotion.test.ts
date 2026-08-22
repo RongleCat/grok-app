@@ -115,7 +115,7 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(block).not.toMatch(/--motion-pane\s*:\s*0ms/);
   });
 
-  it("in-flow sidebar / aside snap; overlay drawers interpolate transform", () => {
+  it("in-flow sidebar / aside / bottom terminal snap; overlay drawers interpolate transform", () => {
     const sidebar = readFileSync(
       resolve(__dirname, "../styles/sidebar.part1.css"),
       "utf8",
@@ -142,7 +142,10 @@ describe("desktop hidden CSS must not force width 0", () => {
       resolve(__dirname, "../styles/bottom-terminal.css"),
       "utf8",
     );
-    expect(ruleBody(bt, "\n.bt {")).toMatch(/height var\(--motion-pane\)/);
+    const btBody = ruleBody(bt, "\n.bt {");
+    expect(btBody).not.toMatch(/height var\(--motion-pane\)/);
+    expect(btBody).not.toMatch(/min-height var\(--motion-pane\)/);
+    expect(btBody).not.toMatch(/flex-basis var\(--motion-pane\)/);
     expect(bt).not.toMatch(/^\s*height\s*:\s*0\s*!important/m);
   });
 

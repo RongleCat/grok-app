@@ -1,7 +1,8 @@
 /**
  * Bottom terminal — sits under .main__stage inside the chat column.
- * Closed height is inline 0 (same property as open) so the pane can
- * interpolate. Do not use height: 0 !important — that hard-cuts.
+ * Closed height is inline 0 (same property as open) so persist-mounted
+ * PTY survives. Toggle snaps; do not interpolate height against the chat
+ * virtualizer. Do not use height: 0 !important — that fights the inline size.
  */
 
 .bt {
@@ -13,11 +14,7 @@
   overflow: hidden;
   background: var(--bg-main);
   border-top: 1px solid transparent;
-  transition:
-    height var(--motion-pane) var(--motion-pane-ease),
-    min-height var(--motion-pane) var(--motion-pane-ease),
-    flex-basis var(--motion-pane) var(--motion-pane-ease),
-    border-color var(--motion-pane) ease;
+  transition: border-color var(--motion-pane) ease;
 }
 
 .bt[data-open="false"] {

@@ -21,7 +21,6 @@ import { Tip } from "@/components/ui/tooltip";
 import { TerminalTab } from "@/components/side-workbench/TerminalTab";
 import { isSideTabMiddleClick } from "@/lib/sideWorkbench";
 import { paneSplitSizeStyle } from "@/lib/paneSplitMotion";
-import { usePaneHeightMotion } from "@/hooks/usePaneSplitMotion";
 import type { BottomTerminalState } from "@/lib/bottomTerminal";
 
 export type BottomTerminalProps = {
@@ -52,7 +51,6 @@ export function BottomTerminal({
   );
   const [resizing, setResizing] = useState(false);
   const paintH = state.open ? state.height : 0;
-  usePaneHeightMotion(state.open, panelRef);
 
   const onResizePointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
