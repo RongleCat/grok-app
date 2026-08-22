@@ -38,13 +38,15 @@ interface ScrollSessionMetrics {
   longTasks: Array<{ duration: number; startTime: number }>;
 }
 
+const IS_DEV = Boolean(import.meta.env?.DEV);
+
 let activeSession: ScrollSessionMetrics | null = null;
 let rafId: number | null = null;
 let lastRafTime = 0;
 let lastObservedScrollTop = 0;
 
 let perfObserver: PerformanceObserver | null = null;
-if (typeof window !== "undefined" && typeof PerformanceObserver !== "undefined") {
+if (IS_DEV && typeof window !== "undefined" && typeof PerformanceObserver !== "undefined") {
   try {
     perfObserver = new PerformanceObserver((list) => {
       if (!activeSession) return;
@@ -116,6 +118,7 @@ function onRaf(now: number) {
 
 export const scrollPerfDebug = {
   recordInputEvent() {
+    if (!IS_DEV) return;
     const now = performance.now();
     const st = readCurrentScrollTop();
     if (!activeSession) {
@@ -146,11 +149,12 @@ export const scrollPerfDebug = {
   },
 
   recordScrollStart() {
+    if (!IS_DEV) return;
     this.recordInputEvent();
   },
 
   recordScrollEnd() {
-    if (!activeSession) return;
+    if (!IS_DEV || !activeSession) return;
     if (rafId) {
       cancelAnimationFrame(rafId);
       rafId = null;
@@ -253,6 +257,7 @@ export const scrollPerfDebug = {
   },
 
   recordRecomputeTime(ms: number, snapshot?: any) {
+    if (!IS_DEV) return;
     if (activeSession) {
       activeSession.recomputeTimes.push(ms);
       if (snapshot) {
@@ -265,6 +270,7 @@ export const scrollPerfDebug = {
   },
 
   recordNodeRailSyncTime(ms: number, nodesQueried: number) {
+    if (!IS_DEV) return;
     if (activeSession) {
       activeSession.nodeRailSyncTimes.push(ms);
     }
@@ -274,12 +280,14 @@ export const scrollPerfDebug = {
   },
 
   recordRowMount(_id: string, _index: number) {
+    if (!IS_DEV) return;
     if (activeSession) {
       activeSession.rowMountCount++;
     }
   },
 
   recordRowRender(id: string, index: number, durationMs: number) {
+    if (!IS_DEV) return;
     if (activeSession) {
       activeSession.rowRenderCount++;
     }
@@ -289,11 +297,12 @@ export const scrollPerfDebug = {
   },
 
   recordLog(tag: string, ...args: any[]) {
+    if (!IS_DEV) return;
     console.log(`%c[ScrollPerf:${tag}]`, "color: #a8dadc; font-weight: bold;", ...args);
   },
 };
 
-if (typeof window !== "undefined") {
+if (IS_DEV && typeof window !== "undefined") {
   (window as any).__SCROLL_PERF_DEBUG__ = scrollPerfDebug;
   window.addEventListener(
     "wheel",
@@ -322,7 +331,7 @@ if (typeof window !== "undefined") {
     { passive: true, capture: true },
   );
   console.log(
-    "%c[ScrollPerf] 🚀 Multi-phase telemetry initialized. Accurately tracks Active Drag & Momentum Fling.",
+    "%c[ScrollPerf] 🚀 Multi-phase telemetry initialized (DEV mode only).",
     "color: #06d6a0; font-weight: bold; font-size: 12px;",
   );
 }
