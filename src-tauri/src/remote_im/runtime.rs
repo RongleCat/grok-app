@@ -4,7 +4,7 @@
 use super::channels;
 use super::config;
 use super::engine::Engine;
-use super::outbound::OutboundRouter;
+use super::outbound::{self, OutboundRouter};
 use super::slash::{self, BuiltinCommand};
 use super::types::{ChannelInstance, ConnectedChannel, IncomingMessage};
 use std::sync::Arc;
@@ -61,6 +61,18 @@ pub async fn start_runtime(
         }
         let secrets = config::get_secrets(&dto.id);
         if secrets.is_empty() {
+            continue;
+        }
+        // Fail-closed ACL guard (§3.2): a channel without an explicit allow-from
+        // entry must not start — same contract the Settings UI enforces at save
+        // time (`err.allowFromRequired`). Covers hand-edited configs and
+        // instances saved before that UI rule existed.
+        if outbound::allow_from_blocks_enable(&dto.acl) {
+            let err = "allow_from is empty: add your user id (or * for any) in \
+                       Settings → Remote IM before enabling this channel"
+                .to_string();
+            tracing::error!(instance = %dto.id, "{err}");
+            let _ = config::set_instance_last_error(&dto.id, Some(err));
             continue;
         }
         let inst = ChannelInstance {

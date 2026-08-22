@@ -268,15 +268,19 @@ pub fn secret_or_opt(
 
 /// Parse allow-from ACL.
 ///
-/// - `*` or missing → open (None)
-/// - empty string → fail-closed empty list
+/// - `*` → open (None)
+/// - missing / empty string → fail-closed empty list
 /// - comma list → allow only those senders
+///
+/// Missing means deny: the Settings UI refuses to enable a channel without an
+/// explicit allow-from entry, so the backend must not be more permissive than
+/// the UI contract (hand-edited or pre-existing configs included).
 pub fn allow_from_list(acl: &serde_json::Value) -> Option<Vec<String>> {
     let raw = acl
         .get("allowFrom")
         .or_else(|| acl.get("allow_from"))
         .and_then(|x| x.as_str())
-        .unwrap_or("*")
+        .unwrap_or("")
         .trim();
     if raw == "*" {
         return None;
@@ -300,7 +304,8 @@ pub fn sender_allowed(acl: &serde_json::Value, sender_id: &str) -> bool {
     }
 }
 
-/// True when enable should be refused (empty allow list, not `*`).
+/// True when enable should be refused: no allowFrom entry at all, or an
+/// explicit empty list (both yield an empty allow list since fail-closed).
 pub fn allow_from_blocks_enable(acl: &serde_json::Value) -> bool {
     matches!(allow_from_list(acl), Some(list) if list.is_empty())
 }
@@ -365,5 +370,31 @@ mod tests {
         ));
         // default need @
         assert!(require_mention(&json!({}), &json!({})));
+    }
+
+    #[test]
+    fn missing_allow_from_denies_by_default() {
+        // Fail-closed: no explicit allowFrom ⇒ nobody is allowed.
+        assert!(!sender_allowed(&json!({}), "attacker"));
+        assert!(!sender_allowed(&json!({ "allowFrom": "" }), "owner"));
+        // Explicit wildcard stays the documented opt-in.
+        assert!(sender_allowed(&json!({ "allowFrom": "*" }), "anyone"));
+        // Comma list allows exactly the listed senders.
+        let acl = json!({ "allowFrom": "alice, bob ,," });
+        assert!(sender_allowed(&acl, "alice"));
+        assert!(sender_allowed(&acl, "bob"));
+        assert!(!sender_allowed(&acl, "mallory"));
+        // snake_case alias behaves identically.
+        assert!(sender_allowed(&json!({ "allow_from": "*" }), "anyone"));
+    }
+
+    #[test]
+    fn blocks_enable_without_explicit_allow_from() {
+        // Fail-closed: missing entry or explicit empty list both refuse enable;
+        // only an explicit wildcard or a non-empty list may start.
+        assert!(allow_from_blocks_enable(&json!({})));
+        assert!(allow_from_blocks_enable(&json!({ "allowFrom": "" })));
+        assert!(!allow_from_blocks_enable(&json!({ "allowFrom": "*" })));
+        assert!(!allow_from_blocks_enable(&json!({ "allowFrom": "alice" })));
     }
 }
