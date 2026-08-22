@@ -28,6 +28,8 @@ export type ChatFindBarProps = {
   activeIndex: number;
   matchCount: number;
   labels: ChatFindBarLabels;
+  /** Bump to focus+select the input without remounting the live island. */
+  focusNonce?: number;
   onQueryChange: (q: string) => void;
   onPrev: () => void;
   onNext: () => void;
@@ -39,6 +41,7 @@ export function ChatFindBar({
   activeIndex,
   matchCount,
   labels,
+  focusNonce = 0,
   onQueryChange,
   onPrev,
   onNext,
@@ -52,7 +55,7 @@ export function ChatFindBar({
       inputRef.current?.select();
     }, 0);
     return () => window.clearTimeout(t);
-  }, []);
+  }, [focusNonce]);
 
   const { current, total } = formatChatFindCount(activeIndex, matchCount);
   const countText =

@@ -461,11 +461,7 @@ import {
 } from "@/lib/planHistory";
 import type { PlanHistoryEntry } from "@/lib/planHistory";
 import { planDisplayMarkdown } from "@/lib/planBody";
-import {
-  findChatMatches,
-  stepChatFindIndex,
-  type ChatFindMatch
-} from "@/lib/chatFind";
+
 import {
   connPillForState,
   connPillRetryable,
@@ -530,7 +526,7 @@ import {
   markDone as markProductTutorialDone,
   shouldAutoOffer as shouldAutoOfferProductTutorial
 } from "@/lib/productTutorial";
-import { ChatFindBar } from "@/components/ChatFindBar";
+import { ChatFindLive } from "@/components/ChatFindLive";
 import {
   applyResolvedSessionMedia,
   buildAgentPrompt,
@@ -2320,8 +2316,6 @@ export function AppWorkbench() {
   }, [appGate]);
   /** In-conversation find (Cmd/Ctrl+F) — not the palette/session search. */
   const [showChatFind, setShowChatFind] = useState(false);
-  const [chatFindQuery, setChatFindQuery] = useState("");
-  const [chatFindIndex, setChatFindIndex] = useState(0);
   const [savedAccounts, setSavedAccounts] = useState<api.SavedAccount[]>([]);
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
   const [accountQuotas, setAccountQuotas] = useState<
@@ -12513,75 +12507,9 @@ export function AppWorkbench() {
     return summarizeSessionChanges(list);
   }, [session.sessionId, sessionChangesById]);
 
-  /**
-   * In-chat find matches — user + assistant bodies only.
-   * Historical tool_step rows are not rendered in the transcript, so matching
-   * them would land on invisible hits.
-   */
-  const [chatFindLiveTick, setChatFindLiveTick] = useState(0);
-  useEffect(() => {
-    if (!showChatFind) return;
-    let raf = 0;
-    const unsub = sessionTranscriptStore.subscribeContent(() => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => setChatFindLiveTick((n) => n + 1));
-    });
-    return () => {
-      cancelAnimationFrame(raf);
-      unsub();
-    };
-  }, [showChatFind]);
-
-  const chatFindMatches = useMemo((): ChatFindMatch[] => {
-    if (!showChatFind) return [];
-    void chatFindLiveTick;
-    const live = sessionTranscriptStore.getMessages();
-    return findChatMatches(
-      chatFindQuery,
-      live
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          marker: m.marker,
-        })),
-    );
-  }, [showChatFind, chatFindQuery, chatFindLiveTick, messages]);
-
-  const chatFindHitIds = useMemo(() => {
-    const s = new Set<string>();
-    for (const m of chatFindMatches) s.add(m.messageId);
-    return s;
-  }, [chatFindMatches]);
-
-  const chatFindActive = useMemo(() => {
-    if (!showChatFind || chatFindMatches.length === 0) return null;
-    const idx =
-      chatFindIndex >= 0 && chatFindIndex < chatFindMatches.length
-        ? chatFindIndex
-        : 0;
-    const hit = chatFindMatches[idx]!;
-    return { messageId: hit.messageId, occurrence: hit.occurrence };
-  }, [showChatFind, chatFindMatches, chatFindIndex]);
-
-  // Clamp active index when the match list shrinks (query edit / new messages).
-  useEffect(() => {
-    if (!showChatFind) return;
-    if (chatFindMatches.length === 0) {
-      if (chatFindIndex !== 0) setChatFindIndex(0);
-      return;
-    }
-    if (chatFindIndex >= chatFindMatches.length) {
-      setChatFindIndex(0);
-    }
-  }, [showChatFind, chatFindMatches.length, chatFindIndex]);
-
   // Reset find when switching conversation (keep open across same session).
   useEffect(() => {
     setShowChatFind(false);
-    setChatFindQuery("");
-    setChatFindIndex(0);
   }, [session.sessionId]);
 
   // Close find when leaving the chat pane (not when opening from another pane).
@@ -12616,18 +12544,6 @@ export function AppWorkbench() {
     setShowChatFind(true);
     setChatFindFocusKey((k) => k + 1);
   }, [mainPane]);
-
-  const chatFindNext = useCallback(() => {
-    setChatFindIndex((i) =>
-      stepChatFindIndex(i, chatFindMatches.length, 1),
-    );
-  }, [chatFindMatches.length]);
-
-  const chatFindPrev = useCallback(() => {
-    setChatFindIndex((i) =>
-      stepChatFindIndex(i, chatFindMatches.length, -1),
-    );
-  }, [chatFindMatches.length]);
 
   /** Copy last non-error assistant reply body to the clipboard. */
   const copyLastAssistantReply = useCallback(async () => {
@@ -20949,11 +20865,8 @@ export function AppWorkbench() {
           ) : null}
 
           {mainPane === "chat" && showChatFind && (
-            <ChatFindBar
-              key={chatFindFocusKey}
-              query={chatFindQuery}
-              activeIndex={chatFindIndex}
-              matchCount={chatFindMatches.length}
+            <ChatFindLive
+              focusNonce={chatFindFocusKey}
               labels={{
                 placeholder: tr("chatFind.placeholder"),
                 prev: tr("chatFind.prev"),
@@ -20963,12 +20876,6 @@ export function AppWorkbench() {
                 noMatches: tr("chatFind.noMatches"),
                 aria: tr("chatFind.aria"),
               }}
-              onQueryChange={(q) => {
-                setChatFindQuery(q);
-                setChatFindIndex(0);
-              }}
-              onPrev={chatFindPrev}
-              onNext={chatFindNext}
               onClose={() => setShowChatFind(false)}
             />
           )}
@@ -21185,9 +21092,6 @@ export function AppWorkbench() {
             onOpenExternalLink={openExternalLinkFromChat}
             onAddAttachmentToComposer={onThreadAddAttachmentToComposer}
             attachLabels={attachLabels}
-            findQuery={showChatFind ? chatFindQuery : ""}
-            findHitMessageIds={showChatFind ? chatFindHitIds : undefined}
-            findActive={showChatFind ? chatFindActive : null}
             showTimestamps={showMessageTimestamps}
             messageTimeFormat={messageTimeFormat}
             showReplyLength={showReplyLength}
