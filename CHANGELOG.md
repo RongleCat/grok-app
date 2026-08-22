@@ -12,11 +12,13 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- **Appearance packs (.grokskin)**: Settings → Appearance can save, import, and export the current skin + wallpaper + crop + clip + overlay. Apply always confirms first. `grok://` and `.grokskin` files write a pending import and never auto-apply. Export bakes the visible wallpaper crop (video uses system ffmpeg when present).
 - **Custom provider extra request headers (#812)**: Settings → Account → Providers can add key/value HTTP headers. They write Grok Build `extra_headers` on `[model.<id>]` (sent verbatim). Use for AgentRouter / AnyRouter WAF (`User-Agent`, `Originator`) or Anthropic `x-api-key`. Empty list omits the field.
 - **Optional Windows taskbar overlay for unread sessions** (#775): Settings → General → App toggle, **off by default**, independent of the dock/tray unread badge. When on, the host paints 1–9 / 10+ via `set_overlay_icon` (Tauri `set_badge_count` is a no-op on Windows). Hide-to-tray restore re-applies the last overlay count after Explorer AddTab.
 - **Shortcuts help (Ctrl+/)**: the overlay now searches by label / id / chord, groups like Settings → Keyboard, and lists zoom, newline, prompt history, and type-to-focus. The list scrolls instead of clipping the last rows.
 
 **中文 · 新增**
+- **外观包（.grokskin）**：设置 → 外观可保存/导入/导出当前皮肤 + 壁纸 + 裁切 + 片段 + 遮罩。套用前必须确认。`grok://` 和 `.grokskin` 只写入待导入槽，从不静默套用。导出按当前窗口可见区域烘焙壁纸（视频在本机有 ffmpeg 时裁切）。
 - **自定义提供商可填额外请求头（#812）**：设置 → 账号 → 提供商可添加键/值 HTTP 头，写入 Grok Build `[model.<id>].extra_headers`（推理请求原样发送）。用于 AgentRouter / AnyRouter 校验 `User-Agent` / `Originator`，或 Anthropic 的 `x-api-key`。空列表不写该字段。
 - **可选 Windows 任务栏未读 overlay**（#775）：设置 → 通用 → 应用里开关，**默认关闭**，与程序坞/托盘未读角标互不绑定。开启后 Host 用 `set_overlay_icon` 画 1–9 / 10+（Tauri 的 `set_badge_count` 在 Windows 上是空操作）。从托盘还原时按上次 overlay 计数在 Explorer AddTab 后再贴一次。
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
