@@ -15,4 +15,11 @@ describe("PetMark long-run paint", () => {
     expect(src).toContain("!restOnlyRef.current");
     expect(src).toContain("pet://cursor");
   });
+
+  it("mirrors the face with CSS scaleX while dragging on the right half", () => {
+    expect(src).toContain("petShouldMirrorFace");
+    expect(src).toContain('scaleX(-1)');
+    expect(src).toContain("window.screenX");
+    expect(src).toContain("draggingRef.current");
+  });
 });

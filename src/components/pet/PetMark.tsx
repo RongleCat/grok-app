@@ -30,6 +30,11 @@ import {
 } from "@/lib/pet/bloubPlay";
 import { pickRestEmote, resolveLivingMood } from "@/lib/pet/petMood";
 import { petLookIsNear, petPaintMinMs } from "@/lib/pet/petMarkPaint";
+import {
+  petMarkScreenCenter,
+  petNormXOnWorkArea,
+  petShouldMirrorFace,
+} from "@/lib/pet/petFaceMirror";
 import { MARK_CENTER, verbToMarkState } from "@/lib/pet/markTables";
 import { createMarkOrbit } from "@/lib/pet/markOrbit";
 import {
@@ -271,6 +276,7 @@ export function PetMark({
     const look = { dx: 0, dy: 0, localR: 48, at: 0, fromScreen: false };
     let unlistenCursor: (() => void) | undefined;
     let aiming = false;
+    let mirrored = false;
     let markBox: DOMRect | null = null;
     let markBoxAt = 0;
     const measureMark = () => {
@@ -280,6 +286,33 @@ export function PetMark({
         markBoxAt = now;
       }
       return markBox;
+    };
+    const syncFaceMirror = () => {
+      const svg = svgRef.current;
+      if (!svg || typeof window === "undefined") return;
+      if (restOnlyRef.current) {
+        svg.style.transform = "";
+        mirrored = false;
+        return;
+      }
+      if (draggingRef.current) {
+        markBox = svg.getBoundingClientRect();
+        markBoxAt = performance.now();
+      }
+      const box = measureMark();
+      if (!box) return;
+      const { cx } = petMarkScreenCenter({
+        screenX: window.screenX,
+        screenY: window.screenY,
+        rect: box,
+      });
+      const nx = petNormXOnWorkArea({
+        cx,
+        left: window.screen.availLeft,
+        width: window.screen.availWidth,
+      });
+      mirrored = petShouldMirrorFace(nx);
+      svg.style.transform = mirrored ? "scaleX(-1)" : "";
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -413,6 +446,7 @@ export function PetMark({
       }
       const frozen = pausedRef.current || reduce;
       const t = frozen ? (POSES[play.state] ?? 1) : clock;
+      syncFaceMirror();
       const baseFace =
         play.state === "idle" || play.state === "swirl";
       const fresh = petLookIsNear({
@@ -441,7 +475,10 @@ export function PetMark({
           ny = (look.dy - (box.top + box.height / 2)) / Math.max(1, box.height);
         }
         if (Number.isFinite(nx) && Number.isFinite(ny)) {
-          engine.setLook(bloubLookAtPointer(nx, ny, true), clock);
+          engine.setLook(
+            bloubLookAtPointer(mirrored ? -nx : nx, ny, true),
+            clock,
+          );
           aiming = true;
         }
       }
@@ -513,13 +550,13 @@ export function PetMark({
       const morphing =
         wantSpinRef.current !== playedSpinRef.current ||
         clockRef.current - stateSince < 1.2;
-      if (trackingLook || spin || morphing) {
+      if (trackingLook || spin || morphing || draggingRef.current) {
         idleSince = nowMs;
       }
       const minMs = petPaintMinMs({
         spinning: spin != null || wantSpinRef.current !== playedSpinRef.current,
         morphing,
-        trackingLook,
+        trackingLook: trackingLook || draggingRef.current,
         idleMs: nowMs - idleSince,
       });
       if (lastPaint && ms - lastPaint < minMs) {
