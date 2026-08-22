@@ -396,7 +396,6 @@
   gap: var(--space-2);
   flex-shrink: 0;
   box-sizing: border-box;
-  transition: padding-left var(--motion-pane) var(--motion-pane-ease);
 }
 
 .platform-win .main__top,

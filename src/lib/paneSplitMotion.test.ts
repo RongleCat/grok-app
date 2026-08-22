@@ -116,6 +116,13 @@ describe("desktop hidden CSS must not force width 0", () => {
   });
 
   it("in-flow sidebar / aside / bottom terminal snap; overlay drawers interpolate transform", () => {
+    const settings = readFileSync(
+      resolve(__dirname, "../styles/settings.part5.css"),
+      "utf8",
+    );
+    expect(ruleBody(settings, "\n.main__top {")).not.toMatch(
+      /transition:[^;}]*padding-left/,
+    );
     const sidebar = readFileSync(
       resolve(__dirname, "../styles/sidebar.part1.css"),
       "utf8",
