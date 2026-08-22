@@ -3,6 +3,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -94,6 +95,10 @@ import {
   SIDEBAR_WIDTH_MIN,
   saveLayout,
 } from "@/lib/layout";
+import {
+  applyLiveSplitWidth,
+  queryWorkbenchSplitPane,
+} from "@/lib/paneDragLive";
 import { resolveWorkbenchPaneOverlay } from "@/lib/paneOverlay";
 import {
   ensureWindowFitsLayout,
@@ -2775,6 +2780,8 @@ export function AppWorkbench() {
   const sidebarResizeStartRef = useRef<{ x: number; width: number } | null>(
     null,
   );
+  const liveSidebarWidthRef = useRef(sidebarOpenW);
+  const liveAsideWidthRef = useRef(asideOpenW);
   const [account, setAccount] = useState<api.AccountStatus | null>(null);
   const [accountLoading, setAccountLoading] = useState(false);
   const [accountBusy, setAccountBusy] = useState(false);
@@ -9245,27 +9252,32 @@ export function AppWorkbench() {
   // Drag-resize right resource pane.
   // Live clamp only — do NOT fitWindowThenClampAside on pointer-up (that
   // re-applied preferred min / window grow and bounced the divider back).
+  // Width is written on the aside element during move; layout commits on up.
   useEffect(() => {
     if (!resizingAside) return;
     const clampOpts = () => ({
       ...asideClampOpts(),
       viewportWidth: window.innerWidth,
     });
+    const pane = queryWorkbenchSplitPane("aside");
+    liveAsideWidthRef.current = clampAsideWidth(
+      layoutRef.current.asideWidth,
+      clampOpts(),
+    );
+    applyLiveSplitWidth(pane, liveAsideWidthRef.current);
     const onMove = (e: PointerEvent) => {
       if (isWindowFitSuppressed()) return;
       const desired = Math.round(window.innerWidth - e.clientX);
       const next = clampAsideWidth(desired, clampOpts());
-      setLayout((l) => {
-        if (l.asideWidth === next && !l.asideCollapsed) return l;
-        return { ...l, asideWidth: next, asideCollapsed: false };
-      });
+      if (next === liveAsideWidthRef.current) return;
+      liveAsideWidthRef.current = next;
+      applyLiveSplitWidth(pane, next);
     };
     const onUp = () => {
       setResizingAside(false);
       // Persist the last live width (same clamp as drag). No window grow /
       // preferredAside bump — those caused a visible spring-back at chat min.
-      const cur = layoutRef.current;
-      const width = clampAsideWidth(cur.asideWidth, clampOpts());
+      const width = clampAsideWidth(liveAsideWidthRef.current, clampOpts());
       setLayout((l) => {
         const n = {
           ...l,
@@ -9304,6 +9316,10 @@ export function AppWorkbench() {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
+    const pane = queryWorkbenchSplitPane("sidebar");
+    liveSidebarWidthRef.current =
+      layoutRef.current.sidebarWidth || SIDEBAR_DEFAULT_WIDTH;
+    applyLiveSplitWidth(pane, liveSidebarWidthRef.current);
     const applyCollapseLive = () => {
       const cur = layoutRef.current;
       const n = {
@@ -9328,10 +9344,9 @@ export function AppWorkbench() {
         return;
       }
       const next = clampSidebarDragWidth(desired, clampOpts());
-      setLayout((l) => {
-        if (l.sidebarWidth === next && !l.sidebarCollapsed) return l;
-        return { ...l, sidebarWidth: next, sidebarCollapsed: false };
-      });
+      if (next === liveSidebarWidthRef.current) return;
+      liveSidebarWidthRef.current = next;
+      applyLiveSplitWidth(pane, next);
     };
     const onUp = () => {
       // If we already live-collapsed, effect teardown cleared state — still safe.
@@ -9348,7 +9363,7 @@ export function AppWorkbench() {
         return;
       }
       const resolved = resolveSidebarDragEnd(
-        cur.sidebarWidth || SIDEBAR_DEFAULT_WIDTH,
+        liveSidebarWidthRef.current || SIDEBAR_DEFAULT_WIDTH,
         clampOpts(),
       );
       const n =
@@ -9376,6 +9391,21 @@ export function AppWorkbench() {
       window.removeEventListener("pointerup", onUp);
     };
   }, [resizingSidebar]);
+
+  useLayoutEffect(() => {
+    if (resizingSidebar) {
+      applyLiveSplitWidth(
+        queryWorkbenchSplitPane("sidebar"),
+        liveSidebarWidthRef.current,
+      );
+    }
+    if (resizingAside) {
+      applyLiveSplitWidth(
+        queryWorkbenchSplitPane("aside"),
+        liveAsideWidthRef.current,
+      );
+    }
+  }, [resizingSidebar, resizingAside]);
 
   /** Programmatic draft / layout changes: recompute height after paint. */
   const syncComposerHeight = useCallback(() => {
@@ -19214,10 +19244,14 @@ export function AppWorkbench() {
                     maxWidth: sidebarOpenW,
                     ["--sidebar-rail-min"]: `${sidebarOpenW}px`,
                   } as CSSProperties)
-                : ({
-                    ...paneSplitSizeStyle(sidebarPaint, "x", resizingSidebar),
-                    ["--sidebar-rail-min"]: `${sidebarOpenW}px`,
-                  } as CSSProperties)
+                : resizingSidebar
+                  ? ({
+                      ["--sidebar-rail-min"]: `${sidebarOpenW}px`,
+                    } as CSSProperties)
+                  : ({
+                      ...paneSplitSizeStyle(sidebarPaint, "x", false),
+                      ["--sidebar-rail-min"]: `${sidebarOpenW}px`,
+                    } as CSSProperties)
           }
         >
           {dragZone === "sidebar" && (
@@ -19243,10 +19277,12 @@ export function AppWorkbench() {
               onPointerDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                const width = layout.sidebarWidth || SIDEBAR_DEFAULT_WIDTH;
                 sidebarResizeStartRef.current = {
                   x: e.clientX,
-                  width: layout.sidebarWidth || SIDEBAR_DEFAULT_WIDTH,
+                  width,
                 };
+                liveSidebarWidthRef.current = width;
                 setResizingSidebar(true);
               }}
             />
@@ -22300,10 +22336,14 @@ export function AppWorkbench() {
                     maxWidth: asideOpenW,
                     ["--aside-rail-min"]: `${asideOpenW}px`,
                   } as CSSProperties)
-                : ({
-                    ...paneSplitSizeStyle(asidePaint, "x", resizingAside),
-                    ["--aside-rail-min"]: `${layout.asideWidth || DEFAULT_LAYOUT.asideWidth}px`,
-                  } as CSSProperties)
+                : resizingAside
+                  ? ({
+                      ["--aside-rail-min"]: `${layout.asideWidth || DEFAULT_LAYOUT.asideWidth}px`,
+                    } as CSSProperties)
+                  : ({
+                      ...paneSplitSizeStyle(asidePaint, "x", false),
+                      ["--aside-rail-min"]: `${layout.asideWidth || DEFAULT_LAYOUT.asideWidth}px`,
+                    } as CSSProperties)
           }
         >
           {!layout.asideCollapsed && !hideChatForSideExpand && !asideOverlay && (
@@ -22314,6 +22354,8 @@ export function AppWorkbench() {
               aria-label="Resize files pane"
               onPointerDown={(e) => {
                 e.preventDefault();
+                liveAsideWidthRef.current =
+                  layout.asideWidth || DEFAULT_LAYOUT.asideWidth;
                 setResizingAside(true);
               }}
             />
