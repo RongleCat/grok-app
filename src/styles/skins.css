@@ -70,6 +70,9 @@ html[data-wallpaper="1"] .workbench {
 /* Keep the atomic Settings swap above the lifted workbench chrome. */
 html[data-wallpaper="1"] .app-settings-stage {
   z-index: 20;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur))
+    saturate(var(--glass-saturate));
 }
 
 /* Pane fills scale with scrim: 0% = fully clear wallpaper under chrome.

@@ -28,6 +28,13 @@ describe("settings overlay fills the window with wallpaper on", () => {
     expect(css).toMatch(/\.app-settings-stage\s*\{[^}]*inset:\s*0/s);
   });
 
+  it("frosts the still-mounted workbench behind settings", () => {
+    const css = readFileSync(join(STYLES, "skins.css"), "utf8");
+    expect(css).toMatch(
+      /html\[data-wallpaper="1"\] \.app-settings-stage\s*\{[^}]*backdrop-filter:\s*blur\(var\(--glass-blur\)\)/s,
+    );
+  });
+
   it("does not force the settings stage to position:relative", () => {
     const css = readFileSync(join(STYLES, "skins.css"), "utf8").replace(
       /\/\*[\s\S]*?\*\//g,
