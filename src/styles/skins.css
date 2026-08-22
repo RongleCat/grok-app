@@ -52,11 +52,13 @@ html[data-wallpaper="1"] .app-shell::after {
   transition: opacity 120ms ease-out;
 }
 
-/* Lift real chrome above the media + scrim.
- * Excludes .window-controls / .window-edge-n (must keep position: fixed)
- * and the media layer itself (already positioned/z-indexed above). */
-html[data-wallpaper="1"] .app-shell
-  > *:not(.window-controls):not(.window-edge-n):not(.app-wallpaper-media) {
+/* Lift the workbench above the media + scrim.
+ * Only .workbench: overlay stages (.app-settings-stage) must stay
+ * position:absolute; inset:0 or they size to content and wallpaper
+ * shows under short Settings tabs (#846). Caption chrome
+ * (.window-controls / .window-edge-n) stays position:fixed. The
+ * media layer is already z-indexed behind chrome. */
+html[data-wallpaper="1"] .app-shell > .workbench {
   position: relative;
   z-index: 2;
 }

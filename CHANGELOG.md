@@ -94,6 +94,7 @@ See `docs/llm-wiki/release.md`.
 - **仓库 About 与 README 挂上官网**：GitHub 仓库网站、`package.json` `homepage` 与各语言 README 现指向 [https://grok-app.com](https://grok-app.com)（无末尾斜杠）。
 
 ### Fixed
+- **Settings covers the window with wallpaper on (#846)**: Wallpaper chrome lift no longer forces `position: relative` on the settings overlay. Short tabs (Pet, Archived chats) were shrinking to content height, so wallpaper (and the desktop pet) showed in the leftover strip.
 - **Agent questionnaire no longer freezes the workbench (#844)**: Answering or dismissing `_x.ai/ask_user_question` used to wait on the Host IPC with every control disabled. The modal now closes first and restores only if a failed accept is still the live request. Portaled overlays also opt out of the window-drag region so macOS titlebar drag cannot swallow clicks.
 - **Windows titlebar drag-up no longer grows height (#786)**: Follow-up to #783/#784. Caption maximize stayed up, but dragging the titlebar still stretched the frame. Windows skips JS `start_dragging` (`data-tauri-drag-region="false"`) and keeps compositor caption drag. Host `set_min_size` no longer runs on every `Moved` (tao re-applies inner size and double-counts the shadow offset); it skips while maximized, while the pointer is down, and when the min is unchanged.
 - **Desktop pet stays the chosen body, celebrates once, and no longer stalls on Windows**: Typing and in-progress tools no longer morph the mark into the catalog `!` or orbit/comet ribbons — the rest shape stays, with an attentive/curious face. Colorful belts fire only when the last live turn becomes unread-ready, then a corner pastille. Overlay paint throttles after idle, pauses while hidden, and cursor look events stay on the pet window (no duplicate still-cursor wakeups) so a long-running Windows overlay no longer freezes until restart.
@@ -107,6 +108,7 @@ See `docs/llm-wiki/release.md`.
 - **Windows Alt+Tab can type without a click first (#768)**: Tauri `unstable` (side-browser multi-webview) builds the page as a child `WRY_WEBVIEW`, so Alt-Tab / taskbar only activates the outer HWND. The host now forwards `WM_SETFOCUS` / `WM_ACTIVATE` into that child so composer and shortcuts work immediately.
 
 **中文 · 修复**
+- **有壁纸时设置页铺满窗口（#846）**：壁纸层级提升不再给设置 overlay 强制 `position: relative`。内容短的页（宠物、归档对话）以前按内容高度收缩，壁纸和桌面宠物会从底下露出来。
 - **Agent 提问弹窗不再卡住工作台（#844）**：回答或忽略 `_x.ai/ask_user_question` 以前会等 Host IPC，期间所有按钮都禁用。现在先关弹窗，只有失败的接受且仍是当前请求时才恢复。浮层也退出窗口拖动区，避免 macOS 标题栏拖动吞掉点击。
 - **Windows 标题栏往上拖不再把窗口拉高（#786）**：#783/#784 的后续。最大化能站住，但拖标题栏仍会拉长窗口。Windows 关掉 JS `start_dragging`（`data-tauri-drag-region="false"`），保留 compositor 标题栏拖动。`set_min_size` 不再在每次 `Moved` 里重设客户区（tao 会把阴影边框加两次）；最大化、按住鼠标、min 没变时都跳过。
 - **桌面宠物以本体为主、只在全部完成时撒彩带，Windows 长跑不再卡死**：打字和工具进行中不再把标记变成感叹号或轨道/彗星彩带，始终显示所选形体（专注/好奇脸）。彩带只在最后一个进行中的回合变成未读完成时播一次，然后右上角亮未读小圆点。空闲后降低绘制频率、隐藏时暂停，光标看向事件只发给宠物窗且静止不再重复唤醒，避免 Windows 透明浮层用久了卡顿卡死、重启才恢复。
