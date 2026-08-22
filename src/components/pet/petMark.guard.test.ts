@@ -23,4 +23,9 @@ describe("PetMark long-run paint", () => {
     expect(src).toContain("onMoved");
     expect(src).toContain("draggingRef.current");
   });
+
+  it("keeps the eye-color underlay from haloing around the body", () => {
+    expect(src).toContain("stroke={ink}");
+    expect(src).toContain('vectorEffect="non-scaling-stroke"');
+  });
 });

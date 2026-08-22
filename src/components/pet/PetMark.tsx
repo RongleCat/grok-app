@@ -772,7 +772,14 @@ export function PetMark({
           ))}
         </g>
         <g ref={bodyAlphaRef} opacity={1}>
-          <path ref={bodyFillRef} d="" fill={paper} />
+          <path
+            ref={bodyFillRef}
+            d=""
+            fill={paper}
+            stroke={ink}
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+          />
           <g mask={`url(#${maskId})`}>
             <rect x={-vb} y={-vb} width={vb * 2} height={vb * 2} fill={ink} />
           </g>
