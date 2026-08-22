@@ -198,7 +198,7 @@ pub async fn safe_https_get_resolved(
             return Err(format!("network: http {status}"));
         }
         let mut bytes = Vec::new();
-        let mut stream = resp;
+        let stream = resp;
         let mut writer = if let Some(p) = dest {
             if let Some(parent) = p.parent() {
                 std::fs::create_dir_all(parent).map_err(|e| format!("disk_budget: {e}"))?;

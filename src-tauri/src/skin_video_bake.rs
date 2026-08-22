@@ -445,10 +445,10 @@ fn maybe_bake_wallpaper_video_with(
             .map(|n| n as u32),
     ) {
         (Some(w), Some(h)) if w > 0 && h > 0 => (w, h),
-        _ => match ffmpeg.as_ref().and_then(|ff| probe_size(ff, src)) {
-            Some(s) => s,
-            None => (0, 0),
-        },
+        _ => ffmpeg
+            .as_ref()
+            .and_then(|ff| probe_size(ff, src))
+            .unwrap_or_default(),
     };
     if mw == 0 || mh == 0 {
         let needs_crop = wall.get("focus").is_some_and(|f| {

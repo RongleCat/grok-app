@@ -67,6 +67,7 @@ pub struct SkinPackPreviewDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)] // on-disk export shape; writers currently emit serde_json::Value
 pub struct SkinPackExportManifest {
     pub schema_version: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -482,9 +483,8 @@ pub fn inspect_pack_into(
         wall_name,
         wall_hash.as_deref(),
     )
-    .map_err(|e| {
+    .inspect_err(|_| {
         let _ = fs::remove_dir_all(&dest);
-        e
     })?;
 
     preview.id = inspect_id;

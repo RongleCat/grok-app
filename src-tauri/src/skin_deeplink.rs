@@ -274,12 +274,9 @@ pub fn ingest_uri_string(app: &AppHandle, raw: &str) {
             set_pending_and_emit(app, PendingSkinImport::Url { href });
         }
         ParseResult::Official(id) => {
-            if crate::skin_net::official_configured() {
-                set_pending_and_emit(app, PendingSkinImport::Official { id });
-            }
             // empty official URL: do not invent pending; FE maps via take + official_unconfigured
-            else {
-                set_pending_and_emit(app, PendingSkinImport::Official { id });
+            if let Ok(pending) = resolve_official(&id) {
+                set_pending_and_emit(app, pending);
             }
         }
         ParseResult::Err(_) => {}

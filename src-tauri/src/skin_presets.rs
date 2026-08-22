@@ -84,7 +84,7 @@ fn scan_dirs() -> Vec<PresetIndexEntry> {
             out.push(entry);
         }
     }
-    out.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    out.sort_by_key(|b| std::cmp::Reverse(b.updated_at));
     out
 }
 
@@ -374,7 +374,7 @@ pub fn materialize(id: &str) -> Result<SkinPackPreviewDto, String> {
     // Apply/preview must keep the original video + focus/clip. Bake only
     // happens on user-facing export/share.
     skin_pack::export_dir_unbaked(&dir, &dest)?;
-    let preview = skin_pack::inspect_pack(&dest, if id == UNDO_ID { "preset" } else { "preset" });
+    let preview = skin_pack::inspect_pack(&dest, "preset");
     let _ = fs::remove_file(&dest);
     preview
 }
