@@ -295,7 +295,7 @@ fn test_weixin(creds: &HashMap<String, String>) -> Result<TestConnectionDto, Str
 
     // Soft option checks (shape only — never claims getUpdates is live).
     let base = cred_get(creds, &["base_url"]);
-    if !base.is_empty() && !(base.starts_with("https://") || base.starts_with("http://")) {
+    if !(base.is_empty() || base.starts_with("https://") || base.starts_with("http://")) {
         return Ok(TestConnectionDto {
             ok: false,
             message: "invalid_weixin_base_url".into(),

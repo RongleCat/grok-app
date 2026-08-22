@@ -49,6 +49,7 @@ chrono = { version = "0.4", features = ["serde", "clock"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "multipart", "system-proxy", "blocking", "socks"] }
 futures-util = "0.3"
 base64 = "0.22"
+sha1 = "0.10"
 sha2 = "0.10"
 hmac = "0.12"
 hex = "0.4"

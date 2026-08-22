@@ -146,6 +146,92 @@ fn parse_ws_msg(inst: &ChannelInstance, v: &Value) -> Option<IncomingMessage> {
     })
 }
 
+/// Default local webhook port for WeCom callback mode.
+pub const DEFAULT_WEBHOOK_PORT: u16 = 8081;
+
+/// Shared-token fallback header when `msg_signature` is unavailable
+/// (plain-JSON deployments that cannot compute the WeCom signature).
+pub const SHARED_TOKEN_HEADER: &str = "x-grok-wecom-token";
+
+fn const_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for i in 0..a.len() {
+        diff |= a[i] ^ b[i];
+    }
+    diff == 0
+}
+
+/// Official WeCom callback signature:
+/// `SHA1(lexicographically sorted [token, timestamp, nonce, payload])`,
+/// delivered as the `msg_signature` query parameter. Compared constant-time.
+fn wecom_signature_ok(
+    token: &str,
+    timestamp: &str,
+    nonce: &str,
+    payload: &str,
+    signature: Option<&str>,
+) -> bool {
+    use sha1::{Digest, Sha1};
+
+    let Some(sig) = signature.map(str::trim).filter(|s| !s.is_empty()) else {
+        return false;
+    };
+    let mut parts = [token, timestamp, nonce, payload];
+    parts.sort_unstable();
+    let mut hasher = Sha1::new();
+    for part in parts {
+        hasher.update(part.as_bytes());
+    }
+    let expected = hex::encode(hasher.finalize());
+    const_time_eq(expected.as_bytes(), sig.as_bytes())
+}
+
+/// Extract `k=v` from an HTTP query string (first occurrence, no decode).
+fn query_param<'a>(query: &'a str, key: &str) -> Option<&'a str> {
+    query.split('&').find_map(|pair| {
+        let (k, v) = pair.split_once('=')?;
+        (k == key).then_some(v)
+    })
+}
+
+/// Minimal percent-decoding (%XX only) so signatures are computed over the
+/// decoded values the sender signed.
+fn percent_decode(raw: &str) -> String {
+    let bytes = raw.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            if let Some(hex) = bytes
+                .get(i + 1..i + 3)
+                .and_then(|h| std::str::from_utf8(h).ok())
+                .and_then(|h| u8::from_str_radix(h, 16).ok())
+            {
+                out.push(hex);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Split a raw HTTP request into (request-line, headers, body).
+fn split_request(req: &str) -> (&str, &str, &str) {
+    match req.split_once("\r\n\r\n") {
+        Some((head, body)) => match head.split_once("\r\n") {
+            Some((request_line, headers)) => (request_line, headers, body),
+            None => (head, "", body),
+        },
+        None => (req.trim_end_matches(['\r', '\n']), "", ""),
+    }
+}
+
 async fn run_webhook(
     inst: ChannelInstance,
     tx: mpsc::Sender<IncomingMessage>,
@@ -159,17 +245,48 @@ async fn run_webhook(
                 .and_then(|x| x.as_u64())
                 .map(|n| n as u16)
         })
-        .unwrap_or(8081);
+        .unwrap_or(DEFAULT_WEBHOOK_PORT);
     let path = secret_or_opt(&inst.secrets, &inst.options, "callback_path")
         .unwrap_or_else(|| "/wecom/callback".into());
+    let callback_token = secret_or_opt(&inst.secrets, &inst.options, "callback_token")
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty());
+    if callback_token.is_none() {
+        return Err(
+            "wecom webhook: missing callback_token (Settings → WeCom requires it; \
+             it is the Callback Token shown in the WeCom admin console)"
+                .to_string(),
+        );
+    }
 
-    tracing::info!(instance = %inst.id, port, %path, "wecom webhook server starting");
+    // Default loopback; opt-in LAN bind only with allow_external=true (same
+    // contract as the LINE channel).
+    let allow_external = inst
+        .options
+        .get("allow_external")
+        .or_else(|| inst.options.get("allowExternal"))
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+    let bind_ip = if allow_external {
+        [0, 0, 0, 0]
+    } else {
+        [127, 0, 0, 1]
+    };
+
+    tracing::info!(
+        instance = %inst.id,
+        port,
+        %path,
+        allow_external,
+        "wecom webhook server starting"
+    );
 
     // Bind first so the connector is reachable even if remote gettoken is slow.
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let addr = SocketAddr::from((bind_ip, port));
     let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .map_err(|e| format!("wecom bind: {e}"))?;
+        .map_err(|e| format!("wecom bind {port}: {e}"))?;
+    let _ = super::super::config::set_instance_last_error(&inst.id, None);
 
     // Best-effort corp credential check in background (must not block listen).
     let corp_id = secret_or_opt(&inst.secrets, &inst.options, "corp_id");
@@ -189,6 +306,9 @@ async fn run_webhook(
 
     let inst = Arc::new(inst);
     let path = Arc::new(path);
+    // `callback_token` presence was validated before binding; this fallback is
+    // unreachable in practice and only satisfies the type checker without a panic.
+    let callback_token = Arc::new(callback_token.unwrap_or_else(|| String::from("unreachable")));
 
     loop {
         tokio::select! {
@@ -200,6 +320,7 @@ async fn run_webhook(
                 let tx = tx.clone();
                 let inst = inst.clone();
                 let path = path.clone();
+                let callback_token = callback_token.clone();
                 tokio::spawn(async move {
                     use tokio::io::{AsyncReadExt, AsyncWriteExt};
                     let mut buf = vec![0u8; 65536];
@@ -208,26 +329,81 @@ async fn run_webhook(
                         _ => return,
                     };
                     let req = String::from_utf8_lossy(&buf[..n]);
-                    // URL verify echo
-                    if req.starts_with("GET") {
-                        if let Some(q) = req.lines().next().and_then(|l| l.split_whitespace().nth(1)) {
-                            if let Some(echo) = q.split("echostr=").nth(1).map(|s| s.split('&').next().unwrap_or("")) {
-                                let body = echo.to_string();
-                                let resp = format!(
-                                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
-                                    body.len(),
-                                    body
-                                );
-                                let _ = socket.write_all(resp.as_bytes()).await;
-                                return;
-                            }
-                        }
-                    }
-                    let body = req.split("\r\n\r\n").nth(1).unwrap_or("");
-                    if !req.contains(path.as_str()) {
-                        let _ = socket.write_all(b"HTTP/1.1 404\r\n\r\n").await;
+                    let (request_line, _, body) = split_request(&req);
+
+                    let uri = request_line.split_whitespace().nth(1).unwrap_or("");
+                    let (uri_path, uri_query) = match uri.split_once('?') {
+                        Some((p, q)) => (p, q),
+                        None => (uri, ""),
+                    };
+                    // Path match on the decoded request target; tolerate a
+                    // trailing-slash difference only.
+                    let norm =
+                        |p: &str| p.trim_end_matches('/').to_string();
+                    if norm(&percent_decode(uri_path)) != norm(path.as_str()) {
+                        let _ = socket.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n").await;
                         return;
                     }
+
+                    // Official WeCom signature over [token, timestamp, nonce,
+                    // payload]; GET verify signs the echostr, POSTs sign the body.
+                    let sig = query_param(uri_query, "msg_signature").map(percent_decode);
+                    let timestamp = query_param(uri_query, "timestamp")
+                        .map(percent_decode)
+                        .unwrap_or_default();
+                    let nonce = query_param(uri_query, "nonce")
+                        .map(percent_decode)
+                        .unwrap_or_default();
+                    let echostr = query_param(uri_query, "echostr").map(percent_decode);
+                    let header_token = req.lines().skip(1).find_map(|l| {
+                        l.split_once(':').filter(|(name, _)| {
+                            name.eq_ignore_ascii_case(SHARED_TOKEN_HEADER)
+                        }).map(|(_, v)| v.trim().to_string())
+                    });
+
+                    let is_get = request_line.starts_with("GET");
+                    let payload_for_sig: &str = if is_get {
+                        echostr.as_deref().unwrap_or("")
+                    } else {
+                        body
+                    };
+                    let verified = wecom_signature_ok(
+                        callback_token.as_str(),
+                        &timestamp,
+                        &nonce,
+                        payload_for_sig,
+                        sig.as_deref(),
+                    ) || header_token.is_some_and(|t| {
+                        const_time_eq(t.as_bytes(), callback_token.as_bytes())
+                    });
+
+                    // URL verify echo: only echo after verification (WeCom signs
+                    // the encrypted echostr during endpoint setup).
+                    if is_get {
+                        if !verified {
+                            tracing::warn!(instance = %inst.id, "wecom: bad or missing callback signature on verify");
+                            let _ = socket.write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n").await;
+                            return;
+                        }
+                        if let Some(echo) = echostr.as_deref() {
+                            let resp = format!(
+                                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
+                                echo.len(),
+                                echo
+                            );
+                            let _ = socket.write_all(resp.as_bytes()).await;
+                            return;
+                        }
+                        let _ = socket.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n").await;
+                        return;
+                    }
+
+                    if !verified {
+                        tracing::warn!(instance = %inst.id, "wecom: bad or missing callback signature");
+                        let _ = socket.write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n").await;
+                        return;
+                    }
+
                     // JSON or XML simplified — try JSON
                     if let Ok(v) = serde_json::from_str::<Value>(body) {
                         let text = v
@@ -322,4 +498,121 @@ pub async fn send_text(
 
 pub fn protocol_name() -> &'static str {
     "wecom-ws-or-webhook"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Official WeCom signature: SHA1 over lexicographically sorted
+    /// [token, timestamp, nonce, payload], hex-encoded.
+    fn sign(token: &str, ts: &str, nonce: &str, payload: &str) -> String {
+        use sha1::{Digest, Sha1};
+        let mut parts = [token, ts, nonce, payload];
+        parts.sort_unstable();
+        let mut h = Sha1::new();
+        for p in parts {
+            h.update(p.as_bytes());
+        }
+        hex::encode(h.finalize())
+    }
+
+    #[test]
+    fn signature_accepts_valid_and_rejects_missing_or_bad() {
+        let sig = sign("tok", "1717171717", "nonce1", "{\"x\":1}");
+        assert!(wecom_signature_ok(
+            "tok",
+            "1717171717",
+            "nonce1",
+            "{\"x\":1}",
+            Some(&sig)
+        ));
+        // Wrong payload / token / timestamp must not verify.
+        assert!(!wecom_signature_ok(
+            "tok",
+            "1717171717",
+            "nonce1",
+            "{\"y\":2}",
+            Some(&sig)
+        ));
+        assert!(!wecom_signature_ok(
+            "bad",
+            "1717171717",
+            "nonce1",
+            "{\"x\":1}",
+            Some(&sig)
+        ));
+        assert!(!wecom_signature_ok(
+            "tok",
+            "0000",
+            "nonce1",
+            "{\"x\":1}",
+            Some(&sig)
+        ));
+        // Missing or empty signature fails closed.
+        assert!(!wecom_signature_ok(
+            "tok",
+            "1717171717",
+            "nonce1",
+            "{\"x\":1}",
+            None
+        ));
+        assert!(!wecom_signature_ok(
+            "tok",
+            "1717171717",
+            "nonce1",
+            "{\"x\":1}",
+            Some("  ")
+        ));
+    }
+
+    #[test]
+    fn signature_is_order_independent_over_parts() {
+        // The four parts sort before hashing — same inputs, any order.
+        let a = wecom_signature_ok("t", "123", "n", "p", Some(&sign("t", "123", "n", "p")));
+        let b = wecom_signature_ok("123", "t", "p", "n", Some(&sign("t", "123", "n", "p")));
+        assert!(a && b);
+    }
+
+    #[test]
+    fn const_time_eq_basic() {
+        assert!(const_time_eq(b"abc", b"abc"));
+        assert!(!const_time_eq(b"abc", b"abd"));
+        assert!(!const_time_eq(b"abc", b"ab"));
+        assert!(const_time_eq(b"", b""));
+    }
+
+    #[test]
+    fn percent_decode_handles_escapes_and_passes_through() {
+        assert_eq!(percent_decode("a%20b"), "a b");
+        assert_eq!(percent_decode("%2Fx"), "/x");
+        assert_eq!(percent_decode("plain"), "plain");
+        // Truncated escape stays literal.
+        assert_eq!(percent_decode("100%"), "100%");
+        assert_eq!(percent_decode("%G1"), "%G1");
+    }
+
+    #[test]
+    fn query_param_finds_first_exact_key() {
+        let q = "msg_signature=abc&timestamp=5&nonce=xyz&echostr=EN%2FCODE";
+        assert_eq!(query_param(q, "timestamp"), Some("5"));
+        assert_eq!(query_param(q, "nonce"), Some("xyz"));
+        assert_eq!(query_param(q, "echostr"), Some("EN%2FCODE"));
+        assert_eq!(query_param(q, "missing"), None);
+        // Prefix keys do not match.
+        assert_eq!(query_param("nonceX=1", "nonce"), None);
+    }
+
+    #[test]
+    fn split_request_parses_head_and_body() {
+        let raw = "POST /cb HTTP/1.1\r\nHost: x\r\n\r\n{\"a\":1}";
+        let (line, headers, body) = split_request(raw);
+        assert_eq!(line, "POST /cb HTTP/1.1");
+        assert_eq!(headers, "Host: x");
+        assert_eq!(body, "{\"a\":1}");
+        // Bodyless request still yields an empty body slice.
+        let (line2, _, body2) = split_request("GET /cb HTTP/1.1\r\n");
+        assert_eq!(line2, "GET /cb HTTP/1.1");
+        assert_eq!(body2, "");
+    }
 }
