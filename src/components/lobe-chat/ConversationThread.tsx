@@ -2194,6 +2194,7 @@ export function ConversationThread({
 
   const onScroll = useCallback(
     (e: UIEvent<HTMLDivElement>) => {
+      scrollPerfDebug.recordScrollStart();
       onStickScroll(e);
       // Do NOT setActiveNodeId here — MessageNodeRail owns free-scroll highlight (#280).
     },

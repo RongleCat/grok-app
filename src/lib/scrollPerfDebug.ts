@@ -192,4 +192,22 @@ export const scrollPerfDebug = {
 
 if (typeof window !== "undefined") {
   (window as any).__SCROLL_PERF_DEBUG__ = scrollPerfDebug;
+  window.addEventListener(
+    "wheel",
+    () => {
+      scrollPerfDebug.recordScrollStart();
+    },
+    { passive: true, capture: true },
+  );
+  window.addEventListener(
+    "scroll",
+    () => {
+      scrollPerfDebug.recordScrollStart();
+    },
+    { passive: true, capture: true },
+  );
+  console.log(
+    "%c[ScrollPerf] 🚀 Diagnostic telemetry initialized. Any wheel/scroll event will record metrics.",
+    "color: #06d6a0; font-weight: bold; font-size: 12px;",
+  );
 }
