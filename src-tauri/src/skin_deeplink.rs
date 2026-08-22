@@ -243,6 +243,7 @@ pub fn is_grokskin_path(p: &Path) -> bool {
         .unwrap_or(false)
 }
 
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn ingest_opened_url(app: &AppHandle, url: &url::Url) {
     match url.scheme() {
         "file" => {
