@@ -14,7 +14,7 @@ pub const OS_THEME_CHANGED_EVENT: &str = "os-theme://changed";
 /// `AppsUseLightTheme` DWORD: `0` = dark apps, `1` = light. Missing → dark.
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn apps_prefer_dark_from_dword(apps: Option<u32>) -> bool {
-    !apps.is_some_and(|v| v != 0)
+    apps.is_none_or(|v| v == 0)
 }
 
 /// Best-effort OS dark/light probe (no extra deps).
