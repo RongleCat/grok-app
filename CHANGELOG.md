@@ -22,6 +22,7 @@ See `docs/llm-wiki/release.md`.
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
 
 ### Changed
+- **Files tree windows long listings**: Side-pane / resource trees keep short folders as a full list. At 32+ visible rows, only the viewport is mounted (28px rows), instead of recursively mapping every expanded entry.
 - **L/R splitter drag no longer re-renders the workbench every move**: In-flow sidebar / aside width is written on the pane element while the pointer is down. Layout prefs commit on pointer-up. Dragging the left rail past the open min still collapses live.
 - **Bottom terminal toggle snaps height**: Ctrl+` jumps between 0 and the last panel height. The chat column is not interpolated for 320ms, so a long transcript does not reflow on every open/close. Drag-resize and persist-mounted PTY are unchanged.
 - **Chat code line numbers are one text node**: Fences with line numbers on keep a single gutter (`1\n2\n…`) instead of one React node per source line, so a 5000-line streamed/pasted block no longer mounts thousands of spans.
@@ -45,6 +46,7 @@ See `docs/llm-wiki/release.md`.
 - **Official site on GitHub About and README**: Repo homepage, `package.json` `homepage`, and public READMEs now point to [https://grok-app.com/](https://grok-app.com/).
 
 **中文 · 变更**
+- **文件树对长列表做窗口化**：侧栏 / 资源树短目录仍整表渲染。可见行达到 32 以上只挂视口（28px 行高），不再递归把每个展开节点打进 DOM。
 - **拖左右分割条不再每帧重绘工作台**：按住时只改侧栏/右栏元素宽度；松手才写入 layout。左栏拖过最小宽度仍即时收起。
 - **底栏终端开关改为瞬时高度**：Ctrl+` 在 0 和上次高度之间直接跳。聊天列不再插值 320ms，长对话不会每次开关都重排。拖高度和常驻 PTY 不变。
 - **聊天代码行号改成一个文本节点**：开启行号时 gutter 是一份 `1\n2\n…`，不再一行一个 React 节点；流式/粘贴的 5000 行代码块不会再挂几千个 span。

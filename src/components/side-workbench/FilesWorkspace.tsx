@@ -10,7 +10,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import * as api from "@/lib/api";
 import { createT, type Locale } from "@/i18n";
@@ -24,6 +23,7 @@ import {
 } from "@/components/icons";
 import { OpenLocationButton } from "@/components/OpenLocationButton";
 import { OverlayScroll } from "@/components/OverlayScroll";
+import { VirtualList } from "@/components/VirtualList";
 import { Tip } from "@/components/ui/tooltip";
 import { GlassModal } from "@/components/GlassModal";
 import { FileKindMark } from "@/components/resource-viewer/FileKindMark";
@@ -44,8 +44,11 @@ import {
 } from "@/lib/openEditorHonesty";
 import { resolveFilesWorkbenchSplitLayout } from "@/lib/resourceTabs";
 import {
+  RESOURCE_TREE_ROW_HEIGHT_PX,
+  RESOURCE_TREE_VIRTUALIZE_THRESHOLD,
   expandKeysForResourceTreeFilter,
   filterResourceTreeNodes,
+  flattenVisibleResourceTree,
   loadTreeExpanded,
   mergeTreeExpandedForFilter,
   saveTreeExpanded,
@@ -314,48 +317,12 @@ export function FilesWorkspace({
     [openFile, onFileOpen],
   );
 
-  const renderTree = (nodes: TreeNode[], depth: number): ReactNode =>
-    nodes.map((n) => {
-      const open = !!displayExpanded[n.relativePath];
-      const selected =
-        activeTab &&
-        (activeTab.relativePath === n.relativePath ||
-          activeTab.absolutePath === n.relativePath);
-      return (
-        <div key={n.relativePath}>
-          <button
-            type="button"
-            className={
-              "rp-tree__row" + (selected ? " is-selected" : "")
-            }
-            style={{ paddingLeft: 8 + depth * 12 }}
-            onClick={() => {
-              if (n.isDir) void toggleDir(n);
-              else void onTreeFileClick(n.relativePath, n.name);
-            }}
-          >
-            <span className="rp-tree__chev">
-              {n.isDir ? (
-                open ? (
-                  <IconChevronDown size={14} />
-                ) : (
-                  <IconChevronRight size={14} />
-                )
-              ) : (
-                <span className="rp-tree__gap" />
-              )}
-            </span>
-            <FileKindMark name={n.name} isDir={n.isDir} />
-            <span className="rp-tree__name">{n.name}</span>
-          </button>
-          {n.isDir && open && n.children?.length ? (
-            <div className="rp-tree__kids">
-              {renderTree(n.children as TreeNode[], depth + 1)}
-            </div>
-          ) : null}
-        </div>
-      );
-    });
+  const visibleRows = useMemo(
+    () => flattenVisibleResourceTree(filteredRoot, displayExpanded),
+    [filteredRoot, displayExpanded],
+  );
+  const selectedTreeKey =
+    activeTab?.relativePath || activeTab?.absolutePath || null;
 
   // Tree resize — persist final width via functional update (no stale width).
   useEffect(() => {
@@ -648,7 +615,48 @@ export function FilesWorkspace({
                       : tr("resources.empty")}
                   </div>
                 ) : (
-                  renderTree(filteredRoot, 0)
+                  <VirtualList
+                    items={visibleRows}
+                    getKey={(row) => row.node.relativePath || row.node.name}
+                    rowHeight={RESOURCE_TREE_ROW_HEIGHT_PX}
+                    threshold={RESOURCE_TREE_VIRTUALIZE_THRESHOLD}
+                    scrollToKey={selectedTreeKey}
+                    renderItem={(row) => {
+                      const n = row.node;
+                      const open = !!displayExpanded[n.relativePath];
+                      const selected =
+                        !!activeTab &&
+                        (activeTab.relativePath === n.relativePath ||
+                          activeTab.absolutePath === n.relativePath);
+                      return (
+                        <button
+                          type="button"
+                          className={
+                            "rp-tree__row" + (selected ? " is-selected" : "")
+                          }
+                          style={{ paddingLeft: 8 + row.depth * 12 }}
+                          onClick={() => {
+                            if (n.isDir) void toggleDir(n);
+                            else void onTreeFileClick(n.relativePath, n.name);
+                          }}
+                        >
+                          <span className="rp-tree__chev">
+                            {n.isDir ? (
+                              open ? (
+                                <IconChevronDown size={14} />
+                              ) : (
+                                <IconChevronRight size={14} />
+                              )
+                            ) : (
+                              <span className="rp-tree__gap" />
+                            )}
+                          </span>
+                          <FileKindMark name={n.name} isDir={n.isDir} />
+                          <span className="rp-tree__name">{n.name}</span>
+                        </button>
+                      );
+                    }}
+                  />
                 )}
               </OverlayScroll>
             </div>

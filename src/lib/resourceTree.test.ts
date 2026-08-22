@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  RESOURCE_TREE_VIRTUALIZE_THRESHOLD,
   TREE_WIDTH_DEFAULT,
   TREE_WIDTH_MAX,
   TREE_WIDTH_MIN,
   clampTreeWidth,
   expandKeysForResourceTreeFilter,
   filterResourceTreeNodes,
+  flattenVisibleResourceTree,
   loadTreeExpanded,
   loadTreeWidth,
   mergeTreeExpandedForFilter,
@@ -122,6 +124,54 @@ describe("filterResourceTreeNodes", () => {
   it("matches by basename", () => {
     const filtered = filterResourceTreeNodes(sample, "readme");
     expect(filtered.map((n) => n.name)).toEqual(["README.md"]);
+  });
+});
+
+describe("flattenVisibleResourceTree", () => {
+  it("omits children of collapsed dirs", () => {
+    const rows = flattenVisibleResourceTree(sample, { "": true });
+    expect(rows.map((r) => r.node.relativePath)).toEqual(["src", "README.md"]);
+    expect(rows.map((r) => r.depth)).toEqual([0, 0]);
+  });
+
+  it("walks expanded dirs in depth-first order", () => {
+    const rows = flattenVisibleResourceTree(sample, {
+      "": true,
+      src: true,
+      "src/lib": true,
+    });
+    expect(rows.map((r) => r.node.relativePath)).toEqual([
+      "src",
+      "src/App.tsx",
+      "src/lib",
+      "src/lib/resourceTabs.ts",
+      "README.md",
+    ]);
+    expect(rows.map((r) => r.depth)).toEqual([0, 1, 1, 2, 0]);
+  });
+
+  it("include skips a node and its descendants", () => {
+    const rows = flattenVisibleResourceTree(
+      sample,
+      { "": true, src: true, "src/lib": true },
+      (n) => n.isDir === true || n.name.toLowerCase().includes("readme"),
+    );
+    expect(rows.map((r) => r.node.relativePath)).toEqual([
+      "src",
+      "src/lib",
+      "README.md",
+    ]);
+  });
+
+  it("windowing threshold is below a 5000-row expanded listing", () => {
+    const many: ResourceTreeNodeLike[] = Array.from({ length: 5000 }, (_, i) => ({
+      name: `f${i}.ts`,
+      relativePath: `f${i}.ts`,
+      isDir: false,
+    }));
+    const rows = flattenVisibleResourceTree(many, { "": true });
+    expect(rows).toHaveLength(5000);
+    expect(rows.length).toBeGreaterThan(RESOURCE_TREE_VIRTUALIZE_THRESHOLD);
   });
 });
 

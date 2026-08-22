@@ -16,6 +16,47 @@ export type ResourceTreeNodeLike = {
   children?: ResourceTreeNodeLike[] | null;
 };
 
+/** Must match `.rp-tree__row` height. */
+export const RESOURCE_TREE_ROW_HEIGHT_PX = 28;
+
+/** Below this visible-row count, the files tree renders every row. */
+export const RESOURCE_TREE_VIRTUALIZE_THRESHOLD = 32;
+
+export type VisibleResourceTreeRow<T extends ResourceTreeNodeLike = ResourceTreeNodeLike> =
+  {
+    node: T;
+    depth: number;
+  };
+
+/**
+ * Depth-first visible rows for the expanded map.
+ * Collapsed dirs contribute the dir row only. `include` skips a node
+ * and its descendants (ResourceViewer query: keep dirs, hide non-hits).
+ */
+export function flattenVisibleResourceTree<T extends ResourceTreeNodeLike>(
+  nodes: readonly T[],
+  expanded: Record<string, boolean>,
+  include?: (node: T) => boolean,
+): VisibleResourceTreeRow<T>[] {
+  const out: VisibleResourceTreeRow<T>[] = [];
+  const walk = (list: readonly T[], depth: number) => {
+    for (const n of list) {
+      if (include && !include(n)) continue;
+      out.push({ node: n, depth });
+      if (
+        n.isDir &&
+        expanded[n.relativePath] &&
+        Array.isArray(n.children) &&
+        n.children.length > 0
+      ) {
+        walk(n.children as T[], depth + 1);
+      }
+    }
+  };
+  walk(nodes, 0);
+  return out;
+}
+
 export function loadTreeWidth(
   storage: Pick<Storage, "getItem"> | null = defaultStorage(),
 ): number {
