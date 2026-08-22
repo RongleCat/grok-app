@@ -124,9 +124,10 @@ export function estimateChatRowHeight(input: {
   }
   // Collapsed CoT is a one-line "Thought" chip, not the raw thought body.
   const thoughtChrome = !input.thoughtExpanded && thoughtRaw > 0 ? 28 : 0;
-  // ~42 chars/line in the bubble, ~20px line height, role chrome.
-  const lines = Math.ceil((content + thought * 0.5) / 42);
-  const chrome = role === "user" ? 72 : role === "tool" ? 28 : 96;
+  // Assistant markdown has paragraph/heading spacing; user bubbles are compact.
+  const contentMultiplier = role === "assistant" ? 1.35 : 1.0;
+  const lines = Math.ceil((content * contentMultiplier + thought * 0.5) / 42);
+  const chrome = role === "user" ? 72 : role === "tool" ? 28 : 110;
   const atts = Math.max(0, input.attachmentCount ?? 0);
   // 36px chips + gap; user strip packs to ~70% width (~6–8 chips/row typical).
   // Collapsed default shows ≤3 + "+N" (≤4 slots) on one row when possible.

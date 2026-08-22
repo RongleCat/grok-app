@@ -355,12 +355,40 @@ export function useChatMessageVirtualizer(
           pendingHeightRecomputeRef.current = false;
           recomputeNow();
         }
-      }, 140);
+      }, 240);
       // One window update per paint while flinging. Timeout fallback covers
       // mixed 120Hz/75Hz displays where rAF can skip a 75Hz vsync.
       scheduleOnFrame(scrollFrameRef.current, recomputeNow);
     };
+
+    const onUserInteraction = () => {
+      scrollingRef.current = true;
+      if (scrollIdleTimerRef.current != null) {
+        clearTimeout(scrollIdleTimerRef.current);
+      }
+      scrollIdleTimerRef.current = setTimeout(() => {
+        scrollIdleTimerRef.current = null;
+        scrollingRef.current = false;
+        const pending = pendingHeightsRef.current;
+        if (pending.size > 0) {
+          for (const [k, h] of pending) {
+            heightsRef.current.set(k, h);
+          }
+          pending.clear();
+          heightsVersionRef.current += 1;
+          offsetsCacheRef.current = null;
+          pendingHeightRecomputeRef.current = true;
+        }
+        if (pendingHeightRecomputeRef.current) {
+          pendingHeightRecomputeRef.current = false;
+          recomputeNow();
+        }
+      }, 240);
+    };
+
     el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("wheel", onUserInteraction, { passive: true });
+    el.addEventListener("touchmove", onUserInteraction, { passive: true });
     // Viewport chrome resize only — not content (content RO was thrashy).
     const ro =
       typeof ResizeObserver !== "undefined"
@@ -382,6 +410,8 @@ export function useChatMessageVirtualizer(
     recomputeNow();
     return () => {
       el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("wheel", onUserInteraction);
+      el.removeEventListener("touchmove", onUserInteraction);
       ro?.disconnect();
       cancelFrameSchedule(scrollFrameRef.current);
       if (recomputeTimerRef.current != null) {

@@ -125,6 +125,7 @@ import {
 import {
   previewUserMessageText,
   shouldFoldUserMessage,
+  USER_MSG_PREVIEW_CHARS,
 } from "@/lib/userMessageFold";
 import { detectAppPlatform } from "@/lib/appPlatform";
 import { Thinking } from "./Thinking";
@@ -2693,8 +2694,12 @@ export function ConversationThread({
           !isToolStepMessage(m) &&
           !isEndOfTurnMarker(m.marker) &&
           !isContextCompactMessage(m));
+      const effectiveContentLength =
+        m.role === "user" && shouldFoldUserMessage(body)
+          ? USER_MSG_PREVIEW_CHARS
+          : body.length;
       return estimateChatRowHeight({
-        contentLength: body.length,
+        contentLength: effectiveContentLength,
         thoughtLength: m.thought?.length ?? 0,
         role: m.role,
         attachmentCount,
