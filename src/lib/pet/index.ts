@@ -147,6 +147,7 @@ export {
   petMarkScreenCenter,
   petNormXOnWorkArea,
   petShouldMirrorFace,
+  petShouldMirrorFromOverlay,
 } from "./petFaceMirror";
 
 export {

@@ -28,3 +28,21 @@ export function petMarkScreenCenter(input: {
     cy: input.screenY + input.rect.top + input.rect.height / 2,
   };
 }
+
+/** Overlay window origin is Host outerPosition (logical CSS), not `window.screenX`. */
+export function petShouldMirrorFromOverlay(input: {
+  winX: number;
+  markLeft: number;
+  markWidth: number;
+  workX: number;
+  workW: number;
+}): boolean {
+  const cx = input.winX + input.markLeft + input.markWidth / 2;
+  return petShouldMirrorFace(
+    petNormXOnWorkArea({
+      cx,
+      left: input.workX,
+      width: input.workW,
+    }),
+  );
+}

@@ -8,6 +8,7 @@
  */
 import { useEffect, useId, useRef } from "react";
 import { listen } from "@/lib/api/host";
+import { petReadOverlayFrame, type PetOverlayFrame } from "@/lib/api/pet";
 import type { PetColor, PetEyeColor, PetShape, PetVerb } from "@/lib/pet";
 import { isPetColor, resolvePetBodyInk, resolvePetEyeInk } from "@/lib/pet";
 import {
@@ -34,6 +35,7 @@ import {
   petMarkScreenCenter,
   petNormXOnWorkArea,
   petShouldMirrorFace,
+  petShouldMirrorFromOverlay,
 } from "@/lib/pet/petFaceMirror";
 import { MARK_CENTER, verbToMarkState } from "@/lib/pet/markTables";
 import { createMarkOrbit } from "@/lib/pet/markOrbit";
@@ -279,6 +281,16 @@ export function PetMark({
     let mirrored = false;
     let markBox: DOMRect | null = null;
     let markBoxAt = 0;
+    let overlayFrame: PetOverlayFrame | null = null;
+    let overlayFrameBusy = false;
+    const pullOverlayFrame = () => {
+      if (overlayFrameBusy || restOnlyRef.current) return;
+      overlayFrameBusy = true;
+      void petReadOverlayFrame().then((frame) => {
+        overlayFrameBusy = false;
+        if (frame) overlayFrame = frame;
+      });
+    };
     const measureMark = () => {
       const now = performance.now();
       if (!markBox || now - markBoxAt > 500) {
@@ -298,21 +310,33 @@ export function PetMark({
       if (draggingRef.current) {
         markBox = svg.getBoundingClientRect();
         markBoxAt = performance.now();
+        pullOverlayFrame();
       }
       const box = measureMark();
       if (!box) return;
-      const { cx } = petMarkScreenCenter({
-        screenX: window.screenX,
-        screenY: window.screenY,
-        rect: box,
-      });
-      const nx = petNormXOnWorkArea({
-        cx,
-        left: window.screen.availLeft,
-        width: window.screen.availWidth,
-      });
-      mirrored = petShouldMirrorFace(nx);
+      if (overlayFrame) {
+        mirrored = petShouldMirrorFromOverlay({
+          winX: overlayFrame.winX,
+          markLeft: box.left,
+          markWidth: box.width,
+          workX: overlayFrame.work.x,
+          workW: overlayFrame.work.w,
+        });
+      } else {
+        const { cx } = petMarkScreenCenter({
+          screenX: window.screenX,
+          screenY: window.screenY,
+          rect: box,
+        });
+        const nx = petNormXOnWorkArea({
+          cx,
+          left: window.screen.availLeft,
+          width: window.screen.availWidth,
+        });
+        mirrored = petShouldMirrorFace(nx);
+      }
       svg.style.transform = mirrored ? "scaleX(-1)" : "";
+      svg.style.transformOrigin = "center center";
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -328,7 +352,19 @@ export function PetMark({
       if (!look.fromScreen) look.at = 0;
     };
 
+    let unlistenMoved: (() => void) | undefined;
     if (!pausedRef.current && !reduce && !restOnlyRef.current) {
+      pullOverlayFrame();
+      void (async () => {
+        try {
+          const { getCurrentWindow } = await import("@tauri-apps/api/window");
+          unlistenMoved = await getCurrentWindow().onMoved(() => {
+            pullOverlayFrame();
+          });
+        } catch {
+          /* browser / tests */
+        }
+      })();
       window.addEventListener("pointermove", onPointerMove, { passive: true });
       window.addEventListener("pointerleave", onPointerLeave);
       void listen<{ dx?: number; dy?: number; localR?: number }>(
@@ -596,6 +632,7 @@ export function PetMark({
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerleave", onPointerLeave);
       unlistenCursor?.();
+      unlistenMoved?.();
     };
   }, [paused, uid]);
 

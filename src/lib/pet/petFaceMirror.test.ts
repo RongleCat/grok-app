@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   petNormXOnWorkArea,
   petShouldMirrorFace,
+  petShouldMirrorFromOverlay,
   petMarkScreenCenter,
 } from "./petFaceMirror";
 
@@ -30,6 +31,32 @@ describe("petNormXOnWorkArea", () => {
 
   it("returns 0 when the work area has no width", () => {
     expect(petNormXOnWorkArea({ cx: 10, left: 0, width: 0 })).toBe(0);
+  });
+});
+
+describe("petShouldMirrorFromOverlay", () => {
+  const work = { workX: 0, workW: 1440 };
+
+  it("does not flip a mark on the left of the work area", () => {
+    expect(
+      petShouldMirrorFromOverlay({
+        winX: 24,
+        markLeft: 16,
+        markWidth: 128,
+        ...work,
+      }),
+    ).toBe(false);
+  });
+
+  it("flips a mark on the right of the work area", () => {
+    expect(
+      petShouldMirrorFromOverlay({
+        winX: 1200,
+        markLeft: 16,
+        markWidth: 128,
+        ...work,
+      }),
+    ).toBe(true);
   });
 });
 
