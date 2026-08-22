@@ -13,6 +13,30 @@ interface FrameRecord {
   isMomentum: boolean;
 }
 
+interface SlowMountRecord {
+  id: string;
+  index: number;
+  role: string;
+  durationMs: number;
+  contentLength: number;
+}
+
+interface HeightDiscrepancyRecord {
+  index: number;
+  id: string;
+  measured: number;
+  estimated: number;
+  diff: number;
+}
+
+interface StutterEvent {
+  timestamp: number;
+  delta: number;
+  isMomentum: boolean;
+  scrollTop: number;
+  recentAction: string;
+}
+
 interface ScrollSessionMetrics {
   startTime: number;
   lastInputTime: number;
@@ -26,6 +50,9 @@ interface ScrollSessionMetrics {
   nodeRailSyncTimes: number[];
   rowMountCount: number;
   rowRenderCount: number;
+  slowMounts: SlowMountRecord[];
+  heightDiscrepancies: HeightDiscrepancyRecord[];
+  stutterEvents: StutterEvent[];
   virtualWindowSnapshots: Array<{
     start: number;
     end: number;
@@ -44,6 +71,7 @@ let activeSession: ScrollSessionMetrics | null = null;
 let rafId: number | null = null;
 let lastRafTime = 0;
 let lastObservedScrollTop = 0;
+let lastActionContext = "";
 
 let perfObserver: PerformanceObserver | null = null;
 if (IS_DEV && typeof window !== "undefined" && typeof PerformanceObserver !== "undefined") {
@@ -100,6 +128,25 @@ function onRaf(now: number) {
       delta,
       isMomentum,
     });
+    if (delta > 20) {
+      activeSession.stutterEvents.push({
+        timestamp: now,
+        delta,
+        isMomentum,
+        scrollTop: currentScrollTop,
+        recentAction: lastActionContext || `scrollTop=${currentScrollTop.toFixed(0)}`,
+      });
+      console.warn(
+        `%c[ScrollPerf 🚨 Stutter Delta = ${delta.toFixed(1)}ms]`,
+        "color: #ff0055; font-weight: bold;",
+        {
+          deltaMs: delta.toFixed(1),
+          phase: isMomentum ? "Momentum Fling" : "Active Input",
+          scrollTop: Math.round(currentScrollTop),
+          context: lastActionContext || "coasting",
+        },
+      );
+    }
   }
   lastRafTime = now;
 
@@ -135,13 +182,17 @@ export const scrollPerfDebug = {
         nodeRailSyncTimes: [],
         rowMountCount: 0,
         rowRenderCount: 0,
+        slowMounts: [],
+        heightDiscrepancies: [],
+        stutterEvents: [],
         virtualWindowSnapshots: [],
         longTasks: [],
       };
       lastRafTime = now;
       lastObservedScrollTop = st;
+      lastActionContext = "gesture_start";
       rafId = requestAnimationFrame(onRaf);
-      console.log("%c[ScrollPerf] 🚀 Scroll gesture started - tracking Active Drag & Momentum Fling...", "color: #00b4d8; font-weight: bold;");
+      console.log("%c[ScrollPerf] 🚀 Scroll session started - tracking fine-grained drops...", "color: #00b4d8; font-weight: bold;");
     } else {
       activeSession.lastInputTime = now;
       activeSession.lastMotionTime = now;
@@ -229,23 +280,38 @@ export const scrollPerfDebug = {
         "Total Severe (>50ms)": totalSevere,
         "Long Tasks (>50ms)": session.longTasks.length,
         "Row Mounts": session.rowMountCount,
+        "Slow Mounts (>3ms)": session.slowMounts.length,
+        "Height Jumps (>100px)": session.heightDiscrepancies.length,
         "Total Displacement": `${totalDisplacement} px`,
         "Avg Recompute (ms)": avgRecompute,
         "Avg NodeRail (ms)": avgNodeRail,
       },
     };
 
-    console.group("%c[ScrollPerf] 📊 Multi-Phase Scroll Report (跟手 + 离手抛滑)", "color: #ffb703; font-size: 13px; font-weight: bold;");
+    console.group("%c[ScrollPerf] 📊 Multi-Phase Scroll Report", "color: #ffb703; font-size: 13px; font-weight: bold;");
     console.log("%cPhase 1: 跟手操作阶段 (Active Drag)", "color: #00b4d8; font-weight: bold;");
     console.table(report["1. Phase: 跟手阶段 (Active Drag)"]);
     console.log("%cPhase 2: 离手抛滑阶段 (Momentum Fling Coasting)", "color: #06d6a0; font-weight: bold;");
     console.table(report["2. Phase: 离手抛滑 (Momentum Fling)"]);
     console.log("%cPhase 3: 全局汇总 (Overall Lifecycle)", "color: #f72585; font-weight: bold;");
     console.table(report["3. Summary: 全流程物理收敛 (Full Lifecycle)"]);
+
+    if (session.slowMounts.length > 0) {
+      console.log("%c⚠️ Slow Row Mounts (>3ms):", "color: #e76f51; font-weight: bold;");
+      console.table(session.slowMounts);
+    }
+    if (session.heightDiscrepancies.length > 0) {
+      console.log("%c⚠️ Large Height Discrepancies (>100px):", "color: #f4a261; font-weight: bold;");
+      console.table(session.heightDiscrepancies);
+    }
+    if (session.stutterEvents.length > 0) {
+      console.log("%c🚨 Stutter Events (>20ms):", "color: #e63946; font-weight: bold;");
+      console.table(session.stutterEvents);
+    }
     if (session.longTasks.length > 0) {
       console.warn("[ScrollPerf] ⚠️ Long Tasks detected during scroll:", session.longTasks);
     }
-    console.log("[ScrollPerf] Full session raw data stored in window.__LAST_SCROLL_REPORT__");
+    console.log("[ScrollPerf] Full raw data: copy(JSON.stringify(window.__LAST_SCROLL_REPORT__, null, 2))");
     console.groupEnd();
 
     if (typeof window !== "undefined") {
@@ -262,6 +328,7 @@ export const scrollPerfDebug = {
       activeSession.recomputeTimes.push(ms);
       if (snapshot) {
         activeSession.virtualWindowSnapshots.push(snapshot);
+        lastActionContext = `window_shift[${snapshot.start}..${snapshot.end}]`;
       }
     }
     if (ms > 5) {
@@ -279,10 +346,40 @@ export const scrollPerfDebug = {
     }
   },
 
-  recordRowMount(_id: string, _index: number) {
+  recordRowMount(id: string, index: number, role = "msg", durationMs = 0, contentLength = 0) {
     if (!IS_DEV) return;
+    lastActionContext = `mount_row_${index}_${role}_${Math.round(durationMs)}ms`;
     if (activeSession) {
       activeSession.rowMountCount++;
+      if (durationMs > 3) {
+        activeSession.slowMounts.push({
+          id,
+          index,
+          role,
+          durationMs: Number(durationMs.toFixed(2)),
+          contentLength,
+        });
+      }
+    }
+    if (durationMs > 8) {
+      console.warn(`%c[ScrollPerf] ⚠️ Slow Row Mount: idx=${index}, role=${role}, took ${durationMs.toFixed(2)}ms (chars=${contentLength})`, "color: #e63946;");
+    }
+  },
+
+  recordHeightMeasurement(index: number, id: string, measured: number, estimated: number) {
+    if (!IS_DEV) return;
+    const diff = Math.abs(measured - estimated);
+    if (diff > 100) {
+      lastActionContext = `height_jump_idx_${index}_diff_${diff}px`;
+      if (activeSession) {
+        activeSession.heightDiscrepancies.push({
+          index,
+          id,
+          measured,
+          estimated,
+          diff,
+        });
+      }
     }
   },
 

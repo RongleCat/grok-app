@@ -462,6 +462,7 @@ export function useChatMessageVirtualizer(
       // First paint used the estimate in offsets; treat it as the previous
       // height so estimate→actual can keep the viewport anchored.
       const prevH = prevMeasured ?? estimateH;
+      scrollPerfDebug.recordHeightMeasurement(index, key, nextH, estimateH);
 
       if (prevMeasured != null) {
         if (!shouldCommitRowHeight(prevMeasured, nextH)) return;

@@ -982,9 +982,17 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   latestContinuableEndId,
 }: TranscriptMessageRowProps) {
   void _timeTick;
+  const renderStart = performance.now();
   useEffect(() => {
-    scrollPerfDebug.recordRowMount(m.id, msgIndex);
-  }, [m.id, msgIndex]);
+    const dur = performance.now() - renderStart;
+    scrollPerfDebug.recordRowMount(
+      m.id,
+      msgIndex,
+      m.role,
+      dur,
+      m.content?.length ?? 0,
+    );
+  }, [m.id, msgIndex, m.role]);
 
   const wrap = (node: ReactNode) =>
     virtualized ? (
