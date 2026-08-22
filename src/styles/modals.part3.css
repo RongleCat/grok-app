@@ -714,31 +714,32 @@
 .lobe-chat-user-body-wrap {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  position: relative;
 }
 
-.lobe-chat-user-expand {
+.lobe-chat-user-body-wrap--foldable {
+  cursor: pointer;
+}
+
+.lobe-chat-user-body-wrap--foldable:hover {
+  filter: brightness(1.06);
+}
+
+.lobe-chat-user-fold-cue {
   display: flex;
   justify-content: flex-end;
-  padding-top: 4px;
+  align-items: center;
+  margin-top: 2px;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--text-tertiary, #94a3b8);
+  opacity: 0.6;
+  user-select: none;
+  transition: opacity 120ms ease;
 }
 
-.lobe-chat-user-expand__btn {
-  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
-  border: 1px solid var(--border-soft, rgba(255, 255, 255, 0.12));
-  border-radius: 6px;
-  color: var(--text-secondary, #94a3b8);
-  font-size: 11.5px;
-  font-weight: 500;
-  padding: 2px 8px;
-  cursor: pointer;
-  transition: all 120ms ease;
-}
-
-.lobe-chat-user-expand__btn:hover {
-  background: var(--bg-active, rgba(255, 255, 255, 0.14));
-  color: var(--text-primary, #f8fafc);
-  border-color: var(--border-strong, rgba(255, 255, 255, 0.2));
+.lobe-chat-user-body-wrap--foldable:hover .lobe-chat-user-fold-cue {
+  opacity: 1;
 }
 
 .mcp-modal__footer {

@@ -487,6 +487,18 @@ const UserPlainOrSkills = memo(function UserPlainOrSkills({
   const displayText =
     canFold && !showFull ? previewUserMessageText(targetText) : targetText;
 
+  const handleBubbleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!canFold) return;
+      const sel = window.getSelection();
+      if (sel && sel.toString().trim().length > 0) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("button, a, .skill-chip, .chat-ref-chip")) return;
+      setShowFull((v) => !v);
+    },
+    [canFold],
+  );
+
   return (
     <>
       <UserQuoteCards
@@ -494,28 +506,29 @@ const UserPlainOrSkills = memo(function UserPlainOrSkills({
         countLabel={tr("composer.quoteCount", { n: String(quotes.length) })}
       />
       {body.trim() || !quotes.length ? (
-        <div className="lobe-chat-user-body-wrap">
+        <div
+          className={
+            "lobe-chat-user-body-wrap" +
+            (canFold ? " lobe-chat-user-body-wrap--foldable" : "") +
+            (canFold && !showFull ? " lobe-chat-user-body-wrap--collapsed" : "")
+          }
+          onClick={canFold ? handleBubbleClick : undefined}
+          title={
+            canFold
+              ? showFull
+                ? tr("inspect.collapse")
+                : tr("inspect.expandMore", { n: "" })
+              : undefined
+          }
+        >
           <UserBodyText
             content={displayText}
             findQuery={findQuery}
             findActiveOccurrence={findActiveOccurrence}
           />
           {canFold ? (
-            <div className="lobe-chat-user-expand">
-              <button
-                type="button"
-                className="lobe-chat-user-expand__btn"
-                onClick={() => setShowFull((v) => !v)}
-              >
-                {showFull
-                  ? tr("attach.showLess")
-                  : tr("attach.showMore", {
-                      n:
-                        targetText.length >= 1000
-                          ? `${(targetText.length / 1000).toFixed(1)}k`
-                          : `${targetText.length}`,
-                    })}
-              </button>
+            <div className="lobe-chat-user-fold-cue" aria-hidden>
+              <span>{showFull ? "▲" : "▼"}</span>
             </div>
           ) : null}
         </div>
