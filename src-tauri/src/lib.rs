@@ -492,6 +492,12 @@ pub fn run() {
                     if window.label() == "main" => {
                         schedule_persist_main_window_state(window.app_handle());
                     }
+                WindowEvent::Focused(focused) if window.label() == "main" => {
+                    // Launch first-interaction dead-zone diagnosis: trace every
+                    // key-window transition so a lost activation race is visible
+                    // in the log (first click / ⌘, eaten = no Focused(true)).
+                    tracing::info!("main window focused={focused}");
+                }
                 _ => {}
             }
         })
@@ -573,6 +579,75 @@ pub fn run() {
                 .visible(false)
                 .accept_first_mouse(true)
                 .initialization_script(&boot_theme_script)
+                .on_page_load(|window, payload| {
+                    // Cold-launch first-click / first-key dead zone: the
+                    // set_focus() right after show() occasionally loses the
+                    // activation race, leaving a key window whose app is still
+                    // INACTIVE (macOS cooperative activation silently ignores
+                    // activateIgnoringOtherApps from a background process — e.g.
+                    // dev launched from a terminal). isKeyWindow is then true,
+                    // so an is_focused guard would wrongly skip; clicks still
+                    // land (accept_first_mouse) but NO key events reach the app
+                    // while NSApp is inactive — ⌘, stays dead until one click
+                    // activates us. Reassert unconditionally ONCE when the page
+                    // has loaded, then repair the residual stuck state (key
+                    // window + inactive app) with guarded retries. Note: tao's
+                    // set_focus short-circuits while hidden — setup shows the
+                    // window synchronously before any page load can finish,
+                    // which this reassert relies on.
+                    use std::sync::atomic::{AtomicBool, Ordering};
+                    static REASSERTED: AtomicBool = AtomicBool::new(false);
+                    if payload.event() != tauri::webview::PageLoadEvent::Finished {
+                        return;
+                    }
+                    if REASSERTED.swap(true, Ordering::SeqCst) {
+                        return;
+                    }
+                    let app_active_at_load = ns_app_is_active();
+                    tracing::info!(
+                        focused_at_load = window.is_focused().unwrap_or(false),
+                        app_active_at_load,
+                        "main page loaded — reasserting launch focus/activation"
+                    );
+                    let _ = window.set_focus();
+                    {
+                        let w = window.clone();
+                        let _ = window.run_on_main_thread(move || {
+                            point_keys_at_webview(&w);
+                        });
+                    }
+                    if !app_active_at_load && cfg!(target_os = "macos") {
+                        // Repair loop for the pathological state: the window
+                        // claims key while NSApp is inactive (cooperative
+                        // activation denied/raced). Retry a few times over ~2s.
+                        // Guard: if the user deliberately switched away, our
+                        // window loses key → bail instead of yanking them back;
+                        // once active, stop immediately.
+                        let w = window.clone();
+                        tauri::async_runtime::spawn(async move {
+                            for attempt in 1..=8u8 {
+                                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                                if ns_app_is_active() {
+                                    return;
+                                }
+                                if !w.is_focused().unwrap_or(false) {
+                                    tracing::info!(
+                                        attempt,
+                                        "launch activation repair: window lost key (user moved on or pet briefly keyed)"
+                                    );
+                                    return;
+                                }
+                                tracing::info!(attempt, "repairing launch activation (key window + inactive app)");
+                                let _ = w.set_focus();
+                                let wr = w.clone();
+                                let _ = w.run_on_main_thread(move || {
+                                    point_keys_at_webview(&wr);
+                                });
+                            }
+                            tracing::warn!("launch activation repair gave up; first click will activate");
+                        });
+                    }
+                })
                 .build()?;
             #[cfg(debug_assertions)]
             {
@@ -1697,6 +1772,52 @@ pub fn run() {
 
         });
 }
+
+/// NSApp activation state. Key events only reach the web while the app is
+/// ACTIVE; a key window on an inactive app is the launch dead-zone pathology
+/// (macOS cooperative activation silently denies background self-activation).
+#[cfg(target_os = "macos")]
+fn ns_app_is_active() -> bool {
+    use objc2::{class, msg_send, runtime::AnyObject};
+    unsafe {
+        let app: *mut AnyObject = msg_send![class!(NSApplication), sharedApplication];
+        if app.is_null() {
+            return false;
+        }
+        msg_send![app, isActive]
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn ns_app_is_active() -> bool {
+    true
+}
+
+/// Point the key window's first responder at the WKWebView so key events reach
+/// the DOM (web shortcuts like ⌘,). `makeKeyAndOrderFront` alone can leave the
+/// NSWindow itself as initial first responder: app ACTIVE + window key, yet
+/// every keystroke dies in the responder chain until one click focuses the
+/// web view. Idempotent; logs when it had to re-point.
+#[cfg(target_os = "macos")]
+fn point_keys_at_webview(win: &tauri::WebviewWindow) {
+    use objc2::{class, msg_send, runtime::AnyObject};
+    let (Ok(ns_win), Ok(ns_view)) = (win.ns_window(), win.ns_view()) else {
+        return;
+    };
+    unsafe {
+        let ns_win = ns_win as *mut AnyObject;
+        let ns_view = ns_view as *mut AnyObject;
+        let resp: *mut AnyObject = msg_send![ns_win, firstResponder];
+        let resp_is_webview: bool = msg_send![resp, isKindOfClass: class!(WKWebView)];
+        if !resp_is_webview {
+            tracing::info!("main first responder is not the webview — re-pointing keys at DOM");
+            let _: () = msg_send![ns_win, makeFirstResponder: ns_view];
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn point_keys_at_webview(_win: &tauri::WebviewWindow) {}
 
 /// Resolve AppSettings.theme (`system` | `light` | `dark`) to a concrete
 /// boot theme for the static shell and native chrome before React loads.

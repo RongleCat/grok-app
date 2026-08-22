@@ -9,6 +9,7 @@
 //! the key window. WKWebView then eats the first click on the workbench just
 //! to focus it. `focusable(false)` maps to `canBecomeKeyWindow = NO` /
 //! `WS_EX_NOACTIVATE` so the pet stays above other apps without stealing key.
+//! A press on the mark is for drag / emote; only a double-click shows main.
 //!
 //! Linux/KWin drops pointer events on `accept_focus=false` windows, so the
 //! overlay stays focusable there and does not yield key on the same click.
@@ -472,9 +473,14 @@ pub fn pet_overlay_focusable(linux: bool) -> bool {
     linux
 }
 
-/// Immediate Focused(true) → yield cancels the click / move serial on Linux.
-pub fn should_yield_key_on_pet_focus(linux: bool, dragging: bool, menu_open: bool) -> bool {
-    !linux && !dragging && !menu_open
+/// Clicking or dragging the overlay must not raise the workbench.
+///
+/// Linux: a same-tick yield also eats the click / move serial.
+/// macOS/Windows: yielding `set_focus` on main is what made a pet press
+/// wake the main window. Key is returned after pet `show()` via
+/// `should_force_return_main_key_after_show`.
+pub fn should_yield_key_on_pet_focus(_linux: bool, _dragging: bool, _menu_open: bool) -> bool {
+    false
 }
 
 pub fn pet_nudge_origin(x: f64, y: f64, dx: f64, dy: f64) -> (f64, f64) {
@@ -732,9 +738,40 @@ fn apply_window_chrome(win: &tauri::WebviewWindow) {
     let _ = win.set_decorations(false);
     let _ = win.set_shadow(false);
     let _ = win.set_focusable(pet_overlay_focusable(cfg!(target_os = "linux")));
+    apply_pet_prevents_activation(win);
     detach_native_menu(win);
     if pet_wayland_display() {
         let _ = win.set_ignore_cursor_events(false);
+    }
+}
+
+/// Clicking the overlay must not activate Grok (macOS would otherwise raise
+/// every window of the app, including the hidden/background workbench).
+fn apply_pet_prevents_activation(#[allow(unused_variables)] win: &tauri::WebviewWindow) {
+    #[cfg(target_os = "macos")]
+    {
+        let Ok(ptr) = win.ns_window() else {
+            return;
+        };
+        if ptr.is_null() {
+            return;
+        }
+        unsafe {
+            use objc2::runtime::{AnyObject, Bool};
+            use objc2::{msg_send, sel};
+            let window = ptr as *mut AnyObject;
+            let public = sel!(setPreventsActivation:);
+            let responds: Bool = msg_send![window, respondsToSelector: public];
+            if responds.as_bool() {
+                let _: () = msg_send![window, setPreventsActivation: true];
+                return;
+            }
+            let private = sel!(_setPreventsActivation:);
+            let responds: Bool = msg_send![window, respondsToSelector: private];
+            if responds.as_bool() {
+                let _: () = msg_send![window, _setPreventsActivation: true];
+            }
+        }
     }
 }
 
@@ -977,10 +1014,8 @@ pub fn ensure_pet_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String
             }
             tauri::WindowEvent::Focused(true) => {
                 // show() uses makeKeyAndOrderFront even when focused(false).
-                // If the workbench is already up, give key back immediately.
-                // Skip while dragging / menu is open so pointer capture stays.
-                // On Linux a same-tick yield eats the click (KWin) and the
-                // xdg_toplevel.move serial — show_pet already yields.
+                // Do not yield on a user press — that raised the workbench
+                // when the user only meant to drag. show_pet already yields.
                 if should_yield_key_on_pet_focus(
                     cfg!(target_os = "linux"),
                     DRAGGING.load(Ordering::Relaxed),
@@ -1730,9 +1765,11 @@ mod tests {
     }
 
     #[test]
-    fn linux_focus_does_not_yield_key_on_the_same_click() {
+    fn pet_pointer_down_does_not_yield_key_to_main() {
+        // Click / drag the overlay to move it — never raise the workbench.
+        // Key is returned after pet show() via should_force_return_main_key_after_show.
         assert!(!should_yield_key_on_pet_focus(true, false, false));
-        assert!(should_yield_key_on_pet_focus(false, false, false));
+        assert!(!should_yield_key_on_pet_focus(false, false, false));
         assert!(!should_yield_key_on_pet_focus(false, true, false));
         assert!(!should_yield_key_on_pet_focus(false, false, true));
     }

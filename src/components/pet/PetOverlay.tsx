@@ -49,7 +49,6 @@ import {
   petSetHitChrome,
   petSetIgnoreCursor,
   petSetMenuOpen,
-  petHideMain,
   petShowMain,
   petStartDragging,
   petSyncOverlaySize,
@@ -114,7 +113,6 @@ export function PetOverlay({
     expanded: !hugMark,
   });
   const pendingClickRef = useRef<number | null>(null);
-  const openedAtRef = useRef<number | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const markRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
@@ -335,7 +333,7 @@ export function PetOverlay({
   useEffect(() => {
     const end = () => {
       // Only an in-progress OS drag. A click still has originRef but must
-      // reach onPointerUp so double-click / open-session still works.
+      // reach onPointerUp so double-click can open the workbench.
       if (!draggedRef.current) return;
       finishDrag();
     };
@@ -399,24 +397,19 @@ export function PetOverlay({
       if (petDragPassedSlop(e.screenX - start.x, e.screenY - start.y)) return;
       const intent = petMarkClickIntent({
         pendingSingle: pendingClickRef.current != null,
-        openedAt: openedAtRef.current,
-        now: Date.now(),
       });
-      if (intent === "hide-double" || intent === "hide-peek") {
+      if (intent === "open-double") {
         if (pendingClickRef.current != null) {
           window.clearTimeout(pendingClickRef.current);
           pendingClickRef.current = null;
         }
-        openedAtRef.current = null;
-        void petHideMain();
+        if (focus.sessionId) void petFocusSession(focus.sessionId);
+        else void petShowMain();
         return;
       }
       pendingClickRef.current = window.setTimeout(() => {
         pendingClickRef.current = null;
         setEmoteSignal((n) => n + 1);
-        if (focus.sessionId) void petFocusSession(focus.sessionId);
-        else void petShowMain();
-        openedAtRef.current = Date.now();
       }, PET_DBLCLICK_MS);
     },
     [finishDrag, focus.sessionId],

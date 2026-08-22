@@ -19,11 +19,13 @@ describe("PetOverlay drag hit target", () => {
     expect(src).toContain("bubblesEnabled");
   });
 
-  it("opens on click, hides on double-click or a peek click within 3s", () => {
+  it("opens the workbench only on double-click; a single click emotes", () => {
     expect(src).toContain("petMarkClickIntent");
-    expect(src).toContain("petHideMain");
     expect(src).toContain("PET_DBLCLICK_MS");
-    expect(src).toContain("openedAtRef");
+    expect(src).toContain('"open-double"');
+    expect(src).toContain("setEmoteSignal");
+    expect(src).not.toContain("petHideMain");
+    expect(src).not.toContain("openedAtRef");
   });
 
   it("keeps celebrate spin after drag and bubble changes", () => {

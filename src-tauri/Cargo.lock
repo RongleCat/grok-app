@@ -1865,6 +1865,7 @@ dependencies = [
  "mac-notification-sys",
  "mac-usernotifications",
  "notify-rust",
+ "objc2",
  "parking_lot",
  "portable-pty",
  "rand 0.8.7",

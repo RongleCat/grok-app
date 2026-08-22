@@ -56,11 +56,7 @@ export {
   type PetBubbleStyle,
 } from "./petBubbleChrome";
 
-export {
-  PET_DBLCLICK_MS,
-  PET_PEEK_HIDE_MS,
-  petMarkClickIntent,
-} from "./petClick";
+export { PET_DBLCLICK_MS, petMarkClickIntent } from "./petClick";
 
 export {
   petStageSnippetStore,

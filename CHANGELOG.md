@@ -98,6 +98,8 @@ See `docs/llm-wiki/release.md`.
 - **仓库 About 与 README 挂上官网**：GitHub 仓库网站、`package.json` `homepage` 与各语言 README 现指向 [https://grok-app.com](https://grok-app.com)（无末尾斜杠）。
 
 ### Fixed
+- **Desktop pet press no longer wakes the workbench**: Dragging or single-clicking the mark only moves it / plays an emote. Double-click opens the main window (or the focused session). The overlay no longer yields key to main on pointer-down, and on macOS it opts out of app activation so a pet press cannot raise a background or hidden workbench.
+- **macOS launch can type and use shortcuts without a first click**: After `show()`, the Host reasserts key/activation once the page has loaded, retries briefly if NSApp stayed inactive while the window claimed key, and points firstResponder at the WKWebView so ⌘, and other web shortcuts reach the DOM.
 - **Settings covers the window with wallpaper on (#846)**: Wallpaper chrome lift no longer forces `position: relative` on the settings overlay. Short tabs (Pet, Archived chats) were shrinking to content height, so wallpaper (and the desktop pet) showed in the leftover strip.
 - **Agent questionnaire no longer freezes the workbench (#844)**: Answering or dismissing `_x.ai/ask_user_question` used to wait on the Host IPC with every control disabled. The modal now closes first and restores only if a failed accept is still the live request. Portaled overlays also opt out of the window-drag region so macOS titlebar drag cannot swallow clicks.
 - **Windows titlebar drag-up no longer grows height (#786)**: Follow-up to #783/#784. Caption maximize stayed up, but dragging the titlebar still stretched the frame. Windows skips JS `start_dragging` (`data-tauri-drag-region="false"`) and keeps compositor caption drag. Host `set_min_size` no longer runs on every `Moved` (tao re-applies inner size and double-counts the shadow offset); it skips while maximized, while the pointer is down, and when the min is unchanged.
@@ -112,6 +114,8 @@ See `docs/llm-wiki/release.md`.
 - **Windows Alt+Tab can type without a click first (#768)**: Tauri `unstable` (side-browser multi-webview) builds the page as a child `WRY_WEBVIEW`, so Alt-Tab / taskbar only activates the outer HWND. The host now forwards `WM_SETFOCUS` / `WM_ACTIVATE` into that child so composer and shortcuts work immediately.
 
 **中文 · 修复**
+- **按下桌面宠物不再唤醒主窗口**：拖动或单击标记只移动 / 做表情；双击才打开主窗口（或聚焦当前会话）。浮层在按下时不再把键盘焦点交回主窗口；macOS 上宠物窗选择不激活应用，避免后台或已隐藏的工作台被带起来。
+- **macOS 启动后不用先点一下就能打字和用快捷键**：`show()` 之后等页面加载完再确认一次键盘焦点/激活；若窗口已是 key 但 NSApp 仍 inactive，短重试几次；并把 firstResponder 指到 WKWebView，让 ⌘, 等网页快捷键进 DOM。
 - **有壁纸时设置页铺满窗口（#846）**：壁纸层级提升不再给设置 overlay 强制 `position: relative`。内容短的页（宠物、归档对话）以前按内容高度收缩，壁纸和桌面宠物会从底下露出来。
 - **Agent 提问弹窗不再卡住工作台（#844）**：回答或忽略 `_x.ai/ask_user_question` 以前会等 Host IPC，期间所有按钮都禁用。现在先关弹窗，只有失败的接受且仍是当前请求时才恢复。浮层也退出窗口拖动区，避免 macOS 标题栏拖动吞掉点击。
 - **Windows 标题栏往上拖不再把窗口拉高（#786）**：#783/#784 的后续。最大化能站住，但拖标题栏仍会拉长窗口。Windows 关掉 JS `start_dragging`（`data-tauri-drag-region="false"`），保留 compositor 标题栏拖动。`set_min_size` 不再在每次 `Moved` 里重设客户区（tao 会把阴影边框加两次）；最大化、按住鼠标、min 没变时都跳过。

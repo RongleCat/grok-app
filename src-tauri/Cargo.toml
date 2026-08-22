@@ -115,6 +115,8 @@ tauri-plugin-window-state = "2"
 [target.'cfg(target_os = "macos")'.dependencies]
 mac-notification-sys = "0.6"
 mac-usernotifications = "0.3"
+# Pet overlay: setPreventsActivation. Launch: NSApp.isActive / firstResponder.
+objc2 = "0.6"
 
 [profile.release]
 codegen-units = 1
