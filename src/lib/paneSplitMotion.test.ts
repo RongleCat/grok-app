@@ -115,19 +115,27 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(block).not.toMatch(/--motion-pane\s*:\s*0ms/);
   });
 
-  it("sidebar / aside / bottom terminal still interpolate the used size", () => {
+  it("in-flow sidebar / aside snap; overlay drawers interpolate transform", () => {
     const sidebar = readFileSync(
       resolve(__dirname, "../styles/sidebar.part1.css"),
       "utf8",
     );
-    expect(ruleBody(sidebar, "\n.sidebar {")).toMatch(
+    expect(ruleBody(sidebar, "\n.sidebar {")).not.toMatch(
       /width var\(--motion-pane\)/,
+    );
+    expect(sidebar).toMatch(
+      /\.sidebar\.sidebar--overlay[^{]*\{[^}]*transform var\(--motion-pane\)/,
     );
     const aside = readFileSync(
       resolve(__dirname, "../styles/chat.part6.css"),
       "utf8",
     );
-    expect(ruleBody(aside, "\n.aside {")).toMatch(/width var\(--motion-pane\)/);
+    expect(ruleBody(aside, "\n.aside {")).not.toMatch(
+      /width var\(--motion-pane\)/,
+    );
+    expect(aside).toMatch(
+      /\.aside\.aside--overlay[^{]*\{[^}]*transform var\(--motion-pane\)/,
+    );
     const hidden = ruleBody(aside, ".aside--collapsed");
     expect(hidden).not.toMatch(/width\s*:\s*0\s*!important/);
     const bt = readFileSync(

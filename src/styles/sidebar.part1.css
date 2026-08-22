@@ -419,14 +419,48 @@ html.platform-win .window-edge-n {
   padding: 0;
   gap: 0;
   transition:
-    width var(--motion-pane) var(--motion-pane-ease),
-    min-width var(--motion-pane) var(--motion-pane-ease),
-    max-width var(--motion-pane) var(--motion-pane-ease),
-    flex-basis var(--motion-pane) var(--motion-pane-ease),
     border-color var(--motion-pane) ease,
     opacity 180ms ease,
     filter 180ms ease;
   z-index: 1;
+}
+
+/*
+ * Narrow desktop: overlay the rail instead of squeezing chat.
+ * Width stays the open size; motion is transform (compositor), not flex.
+ */
+.sidebar.sidebar--overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  flex-shrink: 0;
+  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.22);
+  transition:
+    transform var(--motion-pane) var(--motion-pane-ease),
+    box-shadow var(--motion-pane) ease,
+    border-color var(--motion-pane) ease,
+    opacity 180ms ease,
+    filter 180ms ease;
+}
+
+.sidebar.sidebar--overlay.sidebar--hidden,
+.sidebar.sidebar--overlay.sidebar--collapsed {
+  transform: translateX(-105%);
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.workbench-pane-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 34;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.28);
+  cursor: pointer;
 }
 
 /* Drag-resize: skip width transition so the rail tracks the pointer */

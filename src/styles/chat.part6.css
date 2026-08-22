@@ -571,12 +571,7 @@
   min-width: 0;
   border-left: 1px solid var(--border-subtle);
   background: var(--bg-aside);
-  transition:
-    width var(--motion-pane) var(--motion-pane-ease),
-    min-width var(--motion-pane) var(--motion-pane-ease),
-    max-width var(--motion-pane) var(--motion-pane-ease),
-    flex-basis var(--motion-pane) var(--motion-pane-ease),
-    border-color var(--motion-pane) ease;
+  transition: border-color var(--motion-pane) ease;
   /* visible so the resizer can extend slightly into main for hit-testing */
   overflow: visible;
   display: flex;
@@ -589,6 +584,27 @@
 
 .aside.is-resizing {
   transition: none;
+}
+
+.aside.aside--overlay {
+  position: absolute;
+  top: var(--titlebar-height, 40px);
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  flex-shrink: 0;
+  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.22);
+  transition:
+    transform var(--motion-pane) var(--motion-pane-ease),
+    box-shadow var(--motion-pane) ease,
+    border-color var(--motion-pane) ease;
+}
+
+.aside.aside--overlay.aside--hidden,
+.aside.aside--overlay.aside--collapsed {
+  transform: translateX(105%);
+  box-shadow: none;
+  pointer-events: none;
 }
 
 /* Clip only the pane whose box is interpolating. Overflow-hidden on a

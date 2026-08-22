@@ -26,6 +26,8 @@ export function usePaneSplitMotion(opts: {
   sidebarCollapsed: boolean;
   asideCollapsed: boolean;
   phoneLayout?: boolean;
+  /** Right pane is an overlay drawer — cover native webviews during transform. */
+  asideOverlay?: boolean;
 }): { paneMotionClass: string } {
   const [, setEpoch] = useState(0);
   const keyRef = useRef<string | null>(null);
@@ -45,6 +47,8 @@ export function usePaneSplitMotion(opts: {
     keyRef.current = key;
     if (
       !opts.phoneLayout &&
+      asideChanged &&
+      opts.asideOverlay &&
       shouldStartPaneSplitMotion({
         reducedMotion: false,
         isFirstCommit: false,
@@ -53,10 +57,10 @@ export function usePaneSplitMotion(opts: {
     ) {
       if (tokenRef.current) endPaneSplitMotion(tokenRef.current);
       tokenRef.current = beginPaneSplitMotion({
-        cover: asideChanged,
-        width: true,
-        sidebar: sidebarChanged,
-        aside: asideChanged,
+        cover: true,
+        width: false,
+        sidebar: false,
+        aside: false,
       });
     }
   }

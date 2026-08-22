@@ -94,6 +94,7 @@ import {
   SIDEBAR_WIDTH_MIN,
   saveLayout,
 } from "@/lib/layout";
+import { resolveWorkbenchPaneOverlay } from "@/lib/paneOverlay";
 import {
   ensureWindowFitsLayout,
   isWindowFitSuppressed
@@ -2731,10 +2732,42 @@ export function AppWorkbench() {
   );
   const [resizingAside, setResizingAside] = useState(false);
   const [resizingSidebar, setResizingSidebar] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth : 1280,
+  );
+  const sidebarOpenW = layout.sidebarWidth || SIDEBAR_DEFAULT_WIDTH;
+  const asideOpenW = Math.max(
+    layout.asideWidth || 0,
+    DEFAULT_LAYOUT.asideWidth,
+    ASIDE_WIDTH_MIN,
+  );
+  const sidebarOverlay =
+    !phoneLayout &&
+    resolveWorkbenchPaneOverlay({
+      viewportWidth,
+      sidebarOpen: true,
+      sidebarWidth: sidebarOpenW,
+      asideOpen: !layout.asideCollapsed,
+      asideWidth: asideOpenW,
+    }).sidebarOverlay;
+  const asideOverlay =
+    !phoneLayout &&
+    !shouldHideChatForSideExpand({
+      expanded: sideWorkbench.expanded,
+      phoneLayout,
+    }) &&
+    resolveWorkbenchPaneOverlay({
+      viewportWidth,
+      sidebarOpen: !layout.sidebarCollapsed,
+      sidebarWidth: sidebarOpenW,
+      asideOpen: true,
+      asideWidth: asideOpenW,
+    }).asideOverlay;
   const { paneMotionClass } = usePaneSplitMotion({
     sidebarCollapsed: layout.sidebarCollapsed,
     asideCollapsed: layout.asideCollapsed,
     phoneLayout,
+    asideOverlay,
   });
   const asideFitGenRef = useRef(0);
   const sidebarFitGenRef = useRef(0);
@@ -2776,7 +2809,8 @@ export function AppWorkbench() {
     viewportWidth?: number;
     sidebarOccupiedWidth?: number;
   } => {
-    const sidebarOpen = !layout.sidebarCollapsed && !phoneLayout;
+    const sidebarOpen =
+      !layout.sidebarCollapsed && !phoneLayout && !sidebarOverlay;
     return {
       windowControlsInset,
       viewportWidth:
@@ -2791,6 +2825,7 @@ export function AppWorkbench() {
     layout.sidebarCollapsed,
     layout.sidebarWidth,
     phoneLayout,
+    sidebarOverlay,
   ]);
 
   /**
@@ -2858,21 +2893,33 @@ export function AppWorkbench() {
       DEFAULT_LAYOUT.asideWidth,
       ASIDE_WIDTH_MIN,
     );
+    const vw =
+      typeof window !== "undefined" ? window.innerWidth : viewportWidth;
+    const overlay = resolveWorkbenchPaneOverlay({
+      viewportWidth: vw,
+      sidebarOpen: !cur.sidebarCollapsed,
+      sidebarWidth: cur.sidebarWidth || SIDEBAR_DEFAULT_WIDTH,
+      asideOpen: true,
+      asideWidth: preferredAside,
+    });
     // Sync-clamp to the *current* viewport before paint. Opening at preferred
     // width first (old path) made sidebar + main min + aside overflow narrow
     // non-maximized windows, clipping the side chrome close control off-screen.
-    const syncWidth = clampAsideWidth(preferredAside, {
-      ...asideClampOpts(),
-      viewportWidth:
-        typeof window !== "undefined" ? window.innerWidth : undefined,
-      sidebarOccupiedWidth: cur.sidebarCollapsed
-        ? 0
-        : cur.sidebarWidth || SIDEBAR_DEFAULT_WIDTH,
-    });
+    const syncWidth = overlay.asideOverlay
+      ? preferredAside
+      : clampAsideWidth(preferredAside, {
+          ...asideClampOpts(),
+          viewportWidth: vw,
+          sidebarOccupiedWidth:
+            cur.sidebarCollapsed || overlay.sidebarOverlay
+              ? 0
+              : cur.sidebarWidth || SIDEBAR_DEFAULT_WIDTH,
+        });
     // If the frame is too tight for any aside (syncWidth 0), still paint a
     // small pane and let window fit / expand try to recover.
-    const paintWidth =
-      syncWidth > 0
+    const paintWidth = overlay.asideOverlay
+      ? preferredAside
+      : syncWidth > 0
         ? syncWidth
         : Math.min(preferredAside, ASIDE_WIDTH_MIN);
     setLayout((l) => {
@@ -2891,6 +2938,7 @@ export function AppWorkbench() {
       asideCollapsed: false as const,
       asideWidth: preferredAside,
     };
+    if (overlay.asideOverlay) return;
     const fitGen = ++asideFitGenRef.current;
     void fitWindowThenClampAside(projected).then((width) => {
       if (asideFitGenRef.current !== fitGen) return;
@@ -2904,7 +2952,7 @@ export function AppWorkbench() {
         return n;
       });
     });
-  }, [asideClampOpts, fitWindowThenClampAside, phoneLayout]);
+  }, [asideClampOpts, fitWindowThenClampAside, phoneLayout, viewportWidth]);
 
   /** Collapse the right Side Workbench (and exit expand / dock composer). */
   const closeAsidePane = useCallback(() => {
@@ -2956,14 +3004,30 @@ export function AppWorkbench() {
     }
     const cur = layoutRef.current;
     if (!cur.sidebarCollapsed) return;
+    const vw =
+      typeof window !== "undefined" ? window.innerWidth : viewportWidth;
+    const asideW = Math.max(
+      cur.asideWidth || 0,
+      DEFAULT_LAYOUT.asideWidth,
+      ASIDE_WIDTH_MIN,
+    );
+    const overlay = resolveWorkbenchPaneOverlay({
+      viewportWidth: vw,
+      sidebarOpen: true,
+      sidebarWidth: cur.sidebarWidth || SIDEBAR_WIDTH_MIN,
+      asideOpen: !cur.asideCollapsed,
+      asideWidth: asideW,
+    });
     // After auto-collapse (drag below threshold) width is stored as MIN;
     // always open at least SIDEBAR_WIDTH_MIN.
     const openWidth = clampSidebarWidth(
       cur.sidebarWidth || SIDEBAR_WIDTH_MIN,
       {
-        viewportWidth:
-          typeof window !== "undefined" ? window.innerWidth : undefined,
-        asideOccupiedWidth: cur.asideCollapsed ? 0 : cur.asideWidth || 0,
+        viewportWidth: vw,
+        asideOccupiedWidth:
+          cur.asideCollapsed || overlay.asideOverlay
+            ? 0
+            : cur.asideWidth || 0,
       },
     );
     setLayout((l) => {
@@ -2984,6 +3048,7 @@ export function AppWorkbench() {
         ? cur.asideWidth
         : Math.max(cur.asideWidth || 0, DEFAULT_LAYOUT.asideWidth),
     };
+    if (overlay.sidebarOverlay) return;
     const fitGen = ++sidebarFitGenRef.current;
     void fitWindowThenClampAside(projected).then((width) => {
       if (sidebarFitGenRef.current !== fitGen) return;
@@ -2996,7 +3061,7 @@ export function AppWorkbench() {
         return n;
       });
     });
-  }, [fitWindowThenClampAside, phoneLayout]);
+  }, [fitWindowThenClampAside, phoneLayout, viewportWidth]);
 
   const closeSidebarPane = useCallback(() => {
     sidebarFitGenRef.current += 1;
@@ -3989,6 +4054,13 @@ export function AppWorkbench() {
       for (const u of cleanups) u();
     };
   }, [tr]);
+
+  useEffect(() => {
+    const sync = () => setViewportWidth(window.innerWidth);
+    sync();
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, []);
 
   // User-driven window resize only: clamp open aside. Ignore programmatic setSize
   // (isWindowFitSuppressed) so open-pane fit does not fight resize handlers.
@@ -13115,17 +13187,21 @@ export function AppWorkbench() {
     expanded: sideWorkbench.expanded,
     phoneLayout,
   });
-  const sidebarPaint = layout.sidebarCollapsed
-    ? 0
-    : layout.sidebarWidth || SIDEBAR_DEFAULT_WIDTH;
-  const asidePaint = layout.asideCollapsed ? 0 : layout.asideWidth;
+  const sidebarPaint =
+    layout.sidebarCollapsed || sidebarOverlay
+      ? 0
+      : layout.sidebarWidth || SIDEBAR_DEFAULT_WIDTH;
+  const asidePaint =
+    layout.asideCollapsed || asideOverlay ? 0 : layout.asideWidth;
   const sideDockActive = isSideDockComposerActive({
     expanded: sideWorkbench.expanded,
     dockComposer: sideDockComposer,
     phoneLayout,
   });
   const dockSidebarOccupied =
-    phoneLayout || layout.sidebarCollapsed ? 0 : layout.sidebarWidth;
+    phoneLayout || layout.sidebarCollapsed || sidebarOverlay
+      ? 0
+      : layout.sidebarWidth;
 
   // Expand ends → close dock toggle.
   useEffect(() => {
@@ -19074,7 +19150,7 @@ export function AppWorkbench() {
           {
             // Free-area left edge for expanded side overlay (px).
             ["--sw-sidebar-occupied"]:
-              phoneLayout || layout.sidebarCollapsed
+              phoneLayout || layout.sidebarCollapsed || sidebarOverlay
                 ? "0px"
                 : `${layout.sidebarWidth}px`,
             // Bottom strip reserved only while dock toggle is on.
@@ -19094,6 +19170,27 @@ export function AppWorkbench() {
             onClick={closePhoneDrawer}
           />
         ) : null}
+        {!phoneLayout &&
+        ((sidebarOverlay && !layout.sidebarCollapsed) ||
+          (asideOverlay && !layout.asideCollapsed)) ? (
+          <button
+            type="button"
+            className="workbench-pane-scrim"
+            aria-label={
+              sidebarOverlay && !layout.sidebarCollapsed
+                ? tr("phone.drawerClose")
+                : tr("main.rightPaneHide")
+            }
+            onClick={() => {
+              if (sidebarOverlay && !layout.sidebarCollapsed) {
+                closeSidebarPane();
+              }
+              if (asideOverlay && !layout.asideCollapsed) {
+                closeAsidePane();
+              }
+            }}
+          />
+        ) : null}
         {/* LEFT — fully hideable (not icon-rail); open via top-bar icon when closed */}
         <aside
           className={
@@ -19102,17 +19199,25 @@ export function AppWorkbench() {
             (resizingSidebar ? " is-resizing" : "") +
             (dragZone === "sidebar" ? " is-drop-target" : "") +
             (dragZone === "main" ? " is-drop-idle" : "") +
-            (phoneLayout ? " sidebar--phone-drawer" : "")
+            (phoneLayout ? " sidebar--phone-drawer" : "") +
+            (sidebarOverlay ? " sidebar--overlay" : "")
           }
           aria-label={tr("a11y.sidebar")}
           aria-hidden={layout.sidebarCollapsed}
           style={
             phoneLayout
               ? undefined
-              : ({
-                  ...paneSplitSizeStyle(sidebarPaint, "x", resizingSidebar),
-                  ["--sidebar-rail-min"]: `${layout.sidebarWidth || SIDEBAR_DEFAULT_WIDTH}px`,
-                } as CSSProperties)
+              : sidebarOverlay
+                ? ({
+                    width: sidebarOpenW,
+                    minWidth: sidebarOpenW,
+                    maxWidth: sidebarOpenW,
+                    ["--sidebar-rail-min"]: `${sidebarOpenW}px`,
+                  } as CSSProperties)
+                : ({
+                    ...paneSplitSizeStyle(sidebarPaint, "x", resizingSidebar),
+                    ["--sidebar-rail-min"]: `${sidebarOpenW}px`,
+                  } as CSSProperties)
           }
         >
           {dragZone === "sidebar" && (
@@ -19127,7 +19232,7 @@ export function AppWorkbench() {
             </div>
           )}
           {/* Right-edge drag handle — desktop only (phone is overlay drawer) */}
-          {!layout.sidebarCollapsed && !phoneLayout ? (
+          {!layout.sidebarCollapsed && !phoneLayout && !sidebarOverlay ? (
             <div
               className="sidebar-resizer"
               role="separator"
@@ -22180,20 +22285,28 @@ export function AppWorkbench() {
             (layout.asideCollapsed ? "aside aside--hidden" : "aside") +
             (resizingAside ? " is-resizing" : "") +
             (phoneLayout ? " aside--phone-overlay" : "") +
-            (hideChatForSideExpand ? " aside--side-expanded" : "")
+            (hideChatForSideExpand ? " aside--side-expanded" : "") +
+            (asideOverlay ? " aside--overlay" : "")
           }
           aria-label={tr("a11y.resourcesPane")}
           aria-hidden={layout.asideCollapsed}
           style={
             phoneLayout || hideChatForSideExpand
               ? undefined
-              : ({
-                  ...paneSplitSizeStyle(asidePaint, "x", resizingAside),
-                  ["--aside-rail-min"]: `${layout.asideWidth || DEFAULT_LAYOUT.asideWidth}px`,
-                } as CSSProperties)
+              : asideOverlay
+                ? ({
+                    width: asideOpenW,
+                    minWidth: asideOpenW,
+                    maxWidth: asideOpenW,
+                    ["--aside-rail-min"]: `${asideOpenW}px`,
+                  } as CSSProperties)
+                : ({
+                    ...paneSplitSizeStyle(asidePaint, "x", resizingAside),
+                    ["--aside-rail-min"]: `${layout.asideWidth || DEFAULT_LAYOUT.asideWidth}px`,
+                  } as CSSProperties)
           }
         >
-          {!layout.asideCollapsed && !hideChatForSideExpand && (
+          {!layout.asideCollapsed && !hideChatForSideExpand && !asideOverlay && (
             <div
               className="aside-resizer"
               role="separator"
