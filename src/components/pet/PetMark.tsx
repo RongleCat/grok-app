@@ -330,8 +330,8 @@ export function PetMark({
         });
         const nx = petNormXOnWorkArea({
           cx,
-          left: window.screen.availLeft,
-          width: window.screen.availWidth,
+          left: 0,
+          width: window.screen.availWidth || window.innerWidth || 1,
         });
         mirrored = petShouldMirrorFace(nx);
       }
