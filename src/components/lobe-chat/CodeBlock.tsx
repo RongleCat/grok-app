@@ -2,9 +2,10 @@
  * Path / code block — Cursor-style soft chrome (label + wrap + copy).
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { IconCheck, IconCopy } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
+import { formatLineNumberGutter } from "@/lib/codeBlockGutter";
 import {
   CODE_LINE_NUMBERS_PREF_EVENT,
   loadCodeLineNumbersPref,
@@ -48,6 +49,10 @@ export function CodeBlock({
   const text = extractText(children).replace(/\n$/, "");
   const showLineNumbers = showLineNumbersProp ?? prefLineNumbers;
   const lineCount = Math.max(1, text.split("\n").length);
+  const gutterText = useMemo(
+    () => (showLineNumbers ? formatLineNumberGutter(lineCount) : ""),
+    [showLineNumbers, lineCount],
+  );
 
   useEffect(() => {
     if (showLineNumbersProp !== undefined) return;
@@ -102,13 +107,9 @@ export function CodeBlock({
       </div>
       <div className="chat-code__body">
         {showLineNumbers ? (
-          <div className="chat-code__gutter" aria-hidden>
-            {Array.from({ length: lineCount }, (_, i) => (
-              <span key={i} className="chat-code__ln">
-                {i + 1}
-              </span>
-            ))}
-          </div>
+          <pre className="chat-code__gutter" aria-hidden>
+            {gutterText}
+          </pre>
         ) : null}
         <pre className={cn("chat-code__pre", wrap && "is-wrap")}>
           <code>{children}</code>

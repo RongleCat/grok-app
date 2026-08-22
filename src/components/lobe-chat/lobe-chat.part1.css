@@ -636,26 +636,22 @@ html[data-msg-actions="always"] .lobe-chat-item__actions {
 
 .chat-code--lines .chat-code__gutter {
   flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  padding: 10px 0 14px 12px;
+  min-width: 1.5em;
+  padding: 10px 10px 14px 12px;
   margin: 0;
   font-family: var(--chat-mono);
   font-size: var(--code-fs, var(--chat-fs-sm));
   line-height: 1.55;
   color: var(--chat-text-3);
-  user-select: none;
-  pointer-events: none;
+  background: transparent;
+  border: none;
   border-right: 1px solid var(--chat-code-border);
-}
-
-.chat-code--lines .chat-code__ln {
-  display: block;
-  min-width: 1.5em;
-  padding-right: 10px;
+  border-radius: 0;
+  white-space: pre;
   text-align: right;
   opacity: 0.72;
+  user-select: none;
+  pointer-events: none;
 }
 
 .chat-code--lines .chat-code__pre {
