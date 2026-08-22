@@ -7,6 +7,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import hljs from "highlight.js/lib/core";
 import { normalizeFocusLine } from "@/lib/pathLineCitation";
+import { VirtualList } from "@/components/VirtualList";
+import {
+  CODE_PREVIEW_LINE_HEIGHT_PX,
+  CODE_PREVIEW_OVERSCAN,
+  CODE_PREVIEW_VIRTUALIZE_THRESHOLD,
+  shouldVirtualizeCodePreview,
+  splitSourceLines,
+} from "@/lib/codePreviewWindow";
 
 import javascript from "highlight.js/lib/languages/javascript";
 import typescript from "highlight.js/lib/languages/typescript";
@@ -231,6 +239,25 @@ function splitHighlightedLines(html: string): string[] {
   return lines;
 }
 
+function highlightSource(code: string, lang: string): string {
+  try {
+    if (lang && hljs.getLanguage(lang)) {
+      return hljs.highlight(code, {
+        language: lang,
+        ignoreIllegals: true,
+      }).value;
+    }
+  } catch {
+    /* fall through */
+  }
+  return escapeHtml(code);
+}
+
+function highlightOneLine(text: string, lang: string): string {
+  if (!text) return "";
+  return highlightSource(text, lang);
+}
+
 export function CodePreview({
   code,
   fileName,
@@ -243,7 +270,6 @@ export function CodePreview({
   ensureLangs();
 
   const [theme, setTheme] = useState<"light" | "dark">(readDocTheme);
-  const focusRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -260,44 +286,40 @@ export function CodePreview({
     return "plaintext";
   }, [language, fileName]);
 
-  const lineHtml = useMemo(() => {
-    let highlighted: string;
-    try {
-      if (lang && hljs.getLanguage(lang)) {
-        highlighted = hljs.highlight(code, {
-          language: lang,
-          ignoreIllegals: true,
-        }).value;
-      } else {
-        // Prefer plain escape over highlightAuto for unknown langs — auto is
-        // slow on large files and often wrong for short snippets.
-        highlighted = escapeHtml(code);
-      }
-    } catch {
-      highlighted = escapeHtml(code);
-    }
-    const parts = splitHighlightedLines(highlighted);
-    // Match source line count: trailing newline does not add an extra gutter row.
+  const sourceLines = useMemo(() => splitSourceLines(code), [code]);
+  const virtualize = shouldVirtualizeCodePreview(sourceLines.length);
+
+  const smallHtml = useMemo(() => {
+    if (virtualize) return null;
+    const parts = splitHighlightedLines(highlightSource(code, lang));
     if (parts.length > 0 && parts[parts.length - 1] === "") parts.pop();
     if (parts.length === 0) parts.push("");
     return parts;
-  }, [code, lang]);
+  }, [code, lang, virtualize]);
 
-  const lines = lineHtml.length;
+  const lineCacheRef = useRef<{
+    lang: string;
+    code: string;
+    map: Map<number, string>;
+  }>({ lang: "", code: "", map: new Map() });
+  if (
+    lineCacheRef.current.lang !== lang ||
+    lineCacheRef.current.code !== code
+  ) {
+    lineCacheRef.current = { lang, code, map: new Map() };
+  }
+
+  const htmlAt = (index: number): string => {
+    if (smallHtml) return smallHtml[index] ?? "";
+    const cached = lineCacheRef.current.map.get(index);
+    if (cached != null) return cached;
+    const html = highlightOneLine(sourceLines[index] ?? "", lang);
+    lineCacheRef.current.map.set(index, html);
+    return html;
+  };
+
+  const lines = sourceLines.length;
   const activeLine = normalizeFocusLine(focusLine, lines);
-
-  useEffect(() => {
-    if (activeLine == null) return;
-    const el = focusRef.current;
-    if (!el) return;
-    // Double rAF: wait for layout after tab switch / async read.
-    const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ block: "center", behavior: "smooth" });
-      });
-    });
-    return () => cancelAnimationFrame(id);
-  }, [activeLine, code, fileName]);
 
   return (
     <div
@@ -309,45 +331,54 @@ export function CodePreview({
       )}
       data-language={lang}
       data-focus-line={activeLine ?? undefined}
+      data-virtualized={virtualize ? "1" : "0"}
     >
-      <div className="rp-code__scroll">
-        {showLineNumbers ? (
-          <div className="rp-code__gutter" aria-hidden>
-            {Array.from({ length: lines }, (_, i) => (
-              <span
-                key={i}
-                className={cn(
-                  "rp-code__ln",
-                  activeLine === i + 1 && "rp-code__ln--focus",
-                )}
+      <div className="rp-code__scroll" style={{ overflow: "auto" }}>
+        <VirtualList
+          className="rp-code__list"
+          items={sourceLines}
+          getKey={(_line, index) => String(index)}
+          rowHeight={CODE_PREVIEW_LINE_HEIGHT_PX}
+          threshold={CODE_PREVIEW_VIRTUALIZE_THRESHOLD}
+          overscan={CODE_PREVIEW_OVERSCAN}
+          scrollToKey={
+            activeLine != null ? String(activeLine - 1) : null
+          }
+          style={{ paddingTop: 14, paddingBottom: 20 }}
+          renderItem={(_line, index) => {
+            const isFocus = activeLine === index + 1;
+            const html = htmlAt(index);
+            return (
+              <div
+                className={cn("rp-code__row", isFocus && "is-focus")}
+                data-line={index + 1}
               >
-                {i + 1}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        <pre className="rp-code__pre">
-          <code className={`hljs language-${lang}`}>
-            {lineHtml.map((html, i) => {
-              const isFocus = activeLine === i + 1;
-              return (
+                {showLineNumbers ? (
+                  <span
+                    className={cn(
+                      "rp-code__ln",
+                      isFocus && "rp-code__ln--focus",
+                    )}
+                    aria-hidden
+                  >
+                    {index + 1}
+                  </span>
+                ) : null}
                 <span
-                  key={i}
-                  ref={isFocus ? focusRef : undefined}
                   className={cn(
                     "rp-code__line",
+                    "hljs",
+                    `language-${lang}`,
                     isFocus && "rp-code__line--focus",
                   )}
-                  data-line={i + 1}
-                  // Empty lines need a non-collapsing marker for gutter alignment.
                   dangerouslySetInnerHTML={{
                     __html: html.length ? html : "&#8203;",
                   }}
                 />
-              );
-            })}
-          </code>
-        </pre>
+              </div>
+            );
+          }}
+        />
       </div>
       {footer ? <div className="rp-code__footer">{footer}</div> : null}
     </div>

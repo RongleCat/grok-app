@@ -7,7 +7,6 @@
 import {
   Fragment,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -16,6 +15,7 @@ import {
 } from "react";
 import {
   computeVirtualWindow,
+  DEFAULT_OVERSCAN,
   scrollTopForIndex,
   SIDEBAR_VIRTUALIZE_THRESHOLD,
   type VirtualWindow,
@@ -81,6 +81,24 @@ const fullWindow = (count: number): VirtualWindow => ({
   totalHeight: 0,
 });
 
+/** First paint must not mount every row before the scroll parent is measured. */
+function initialWindow(
+  count: number,
+  virtualize: boolean,
+  overscan?: number,
+): VirtualWindow {
+  if (!virtualize) return fullWindow(count);
+  const over = Math.max(0, overscan ?? DEFAULT_OVERSCAN);
+  const end = Math.min(count, Math.max(1, over * 2 + 1));
+  return {
+    start: 0,
+    end,
+    paddingTop: 0,
+    paddingBottom: 0,
+    totalHeight: 0,
+  };
+}
+
 export function VirtualList<T>({
   items,
   getKey,
@@ -98,7 +116,9 @@ export function VirtualList<T>({
   const count = items.length;
   const shouldVirtualize = count >= threshold;
 
-  const [win, setWin] = useState<VirtualWindow>(() => fullWindow(count));
+  const [win, setWin] = useState<VirtualWindow>(() =>
+    initialWindow(count, shouldVirtualize, overscan),
+  );
 
   const recompute = useCallback(() => {
     const root = rootRef.current;
@@ -115,7 +135,7 @@ export function VirtualList<T>({
 
     if (!scrollParent) {
       setWin((prev) => {
-        const next = fullWindow(count);
+        const next = initialWindow(count, true, overscan);
         return windowsEqual(prev, next) ? prev : next;
       });
       return;
@@ -136,7 +156,7 @@ export function VirtualList<T>({
     setWin((prev) => (windowsEqual(prev, next) ? prev : next));
   }, [count, rowHeight, gap, overscan, shouldVirtualize]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!shouldVirtualize) {
       setWin(fullWindow(count));
       return;

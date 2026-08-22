@@ -22,6 +22,7 @@ See `docs/llm-wiki/release.md`.
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
 
 ### Changed
+- **Resource code preview windows long files**: Side-pane / Changes `CodePreview` keeps short files as a full list. Files at 200+ lines (including 5000-line sources) only mount the visible rows and highlight those lines, instead of highlight.js + one DOM node per line for the whole file.
 - **Permission countdown, git dirty chip, and Tasks liveMap stay off the workbench shell**: Auto-deny seconds tick inside the permission bar. Git chip setState runs only when the count/label change. The Tasks panel subscribes to liveMap itself. ConversationThreadLive is memoized with stable callbacks.
 - **Pet overlay does not parse the workbench**: `#/pet` `import()`s `PetApp`; the main window `import()`s `App`.
 - **Clippy is silent on macOS host builds again (#785)**: Windows-only overlay/WSL/shim items use the existing `cfg_attr(not(windows), allow(dead_code))` idiom so cross-platform tests stay; mechanical style lints and Tauri `too_many_arguments` allows restore zero `cargo clippy --all-targets` warnings without behavior change.
@@ -40,6 +41,7 @@ See `docs/llm-wiki/release.md`.
 - **Official site on GitHub About and README**: Repo homepage, `package.json` `homepage`, and public READMEs now point to [https://grok-app.com/](https://grok-app.com/).
 
 **中文 · 变更**
+- **资源栏代码预览对长文件做窗口化**：侧栏 / Changes 的 `CodePreview` 短文件仍整表渲染。200 行以上（含 5000 行源文件）只挂可见行并高亮这些行，不再对整文件跑 highlight.js、也不再一行一个 DOM 节点。
 - **权限倒计时、git 脏文件芯片和 Tasks liveMap 不再打穿工作台**：自动拒绝秒数在权限条内部跳动。git 芯片只在条数/文案变化时 setState。Tasks 面板自己订阅 liveMap。ConversationThreadLive 带稳定回调并 memo。
 - **宠物浮层不再解析工作台**：`#/pet` 动态加载 `PetApp`；主窗口动态加载 `App`。
 - **macOS 上 clippy 再次零警告（#785）**：Windows 专用 overlay/WSL/shim 用既有 `cfg_attr(not(windows), allow(dead_code))`，跨平台测试仍跑；机械风格与 Tauri `too_many_arguments` allow 恢复 `cargo clippy --all-targets` 零警告，无行为变化。
