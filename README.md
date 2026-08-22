@@ -308,6 +308,8 @@ cd src-tauri && cargo test
 pnpm build
 ```
 
+Windows (optional): double-click [`install-latest.cmd`](./install-latest.cmd) to fast-forward `origin/main` and silently install an unsigned side-by-side **grok-app-latest** (does not replace official **Grok**). Needs VS Build Tools + Rust MSVC; details in [docs/BUILD.md](./docs/BUILD.md).
+
 Cross-compile and release notes: [docs/BUILD.md](./docs/BUILD.md).
 
 Release (write the matching `CHANGELOG.md` section first):

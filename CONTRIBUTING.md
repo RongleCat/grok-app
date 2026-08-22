@@ -13,6 +13,8 @@ pnpm install
 pnpm dev          # Tauri + Vite
 ```
 
+Windows: to run already-merged `origin/main` beside the official **Grok** install, double-click [`install-latest.cmd`](./install-latest.cmd) (see [docs/BUILD.md](./docs/BUILD.md)).
+
 Frontend only:
 
 ```bash

@@ -48,6 +48,8 @@ pnpm setup:cross   # rust targets + (macOS) cargo-xwin / nsis / llvm 检查
 - [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)（多数 Win10/11 已带）
 - Rust MSVC toolchain：`rustup default stable-x86_64-pc-windows-msvc`
 
+装好上述工具后，可双击仓库根目录 [`install-latest.cmd`](../install-latest.cmd)，把 **已合入的 `origin/main`** 打成并排安装的 **grok-app-latest**。这不是 GitHub Release，也不覆盖正式版 **Grok**。详见下文「Windows：并排安装已合入的 main」。
+
 ### Linux（含 Arch / Ubuntu / Debian）
 
 ```bash
@@ -110,6 +112,32 @@ pnpm build:all          # mac-arm + mac-intel + win（仅 macOS 主机）
 ./scripts/build-local.sh linux
 ./scripts/build-local.sh all
 ```
+
+### Windows：并排安装已合入的 main
+
+给**已经有编译环境**、等不及下一版 GitHub Release 的人：把当前仓库 fast-forward 到 `origin/main`，打一份**未签名** NSIS，静默装到 `%LOCALAPPDATA%\grok-app-latest`。
+
+```bat
+install-latest.cmd
+```
+
+或：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-latest.ps1
+```
+
+行为：
+
+- 要求 **tracked 工作区干净**；`git fetch` 后把 `main` **fast-forward** 到 `origin/main`（当前在别的分支也会切走）
+- 临时 Tauri overlay：`productName=grok-app-latest`，`identifier=com.grokapp.desktop.latest`（single-instance mutex 与正式版隔离）
+- 只打 NSIS（`--bundles nsis --no-sign --ci`），`/S` 静默安装
+- **不覆盖** 正式 **Grok** 安装目录；开始菜单多一项 `grok-app-latest`
+- 会话/设置仍走同一套 App data（`%APPDATA%\grokapp\grok-app`，可用 `GROK_APP_HOME` 覆盖）——不要和正式版同时当写入端开着
+- 本机 NSIS 仍会注册 `grok://` / `.grokskin`（后装的覆盖系统关联）
+- 不是 nightly CI；没有 macOS / Linux 对等脚本
+
+`origin` 应指向你想跟上的 GitHub 仓库（贡献者通常是 `RongleCat/grok-app`）。
 
 ### Apple Silicon 本机安装包（示例）
 

@@ -291,6 +291,8 @@ cd src-tauri && cargo test
 pnpm build
 ```
 
+Windows（可选）：双击 [`install-latest.cmd`](./install-latest.cmd) 会把 `main` fast-forward 到 `origin/main`，并静默安装一份未签名的并排 **grok-app-latest**（不覆盖正式版 **Grok**）。需要 VS Build Tools + Rust MSVC；详见 [docs/BUILD.md](./docs/BUILD.md)。
+
 交叉编译、发版与可选签名见 [docs/BUILD.md](./docs/BUILD.md)。
 
 发版（需先写好 `CHANGELOG.md` 对应章节）：
