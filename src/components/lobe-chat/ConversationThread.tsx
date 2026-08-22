@@ -391,7 +391,7 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
   );
 });
 
-function UserBodyText({
+const UserBodyText = memo(function UserBodyText({
   content,
   findQuery,
   findActiveOccurrence,
@@ -457,10 +457,10 @@ function UserBodyText({
       })}
     </span>
   );
-}
+});
 
 /** Render skill chips / plain text for the user bubble body. */
-function UserPlainOrSkills({
+const UserPlainOrSkills = memo(function UserPlainOrSkills({
   content,
   findQuery,
   findActiveOccurrence,
@@ -490,13 +490,13 @@ function UserPlainOrSkills({
       ) : null}
     </>
   );
-}
+});
 
 /**
  * User bubble: skill chips + scheduled / Remote IM headers as pill tags
  * (`[Scheduled: title]` / `[Remote IM · feishu]` → label, not raw brackets).
  */
-function UserMessageBody({
+const UserMessageBody = memo(function UserMessageBody({
   content,
   scheduledLabel,
   remoteImLabel,
@@ -595,7 +595,7 @@ function UserMessageBody({
       findActiveOccurrence={findActiveOccurrence}
     />
   );
-}
+});
 
 export interface ConversationThreadProps {
   locale: Locale;

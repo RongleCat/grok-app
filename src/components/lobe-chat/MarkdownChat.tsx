@@ -241,6 +241,23 @@ export function getMarkdownFileLabels(locale: Locale): FilePathCardLabels {
   return cached;
 }
 
+const StaticMarkdownBody = memo(function StaticMarkdownBody({
+  source,
+  components,
+}: {
+  source: string;
+  components: Components;
+}) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={MARKDOWN_CHAT_REMARK_PLUGINS}
+      components={components}
+    >
+      {source}
+    </ReactMarkdown>
+  );
+});
+
 export const MarkdownChat = memo(function MarkdownChat({
   children,
   streaming = false,
@@ -684,12 +701,16 @@ export const MarkdownChat = memo(function MarkdownChat({
         className,
       )}
     >
-      <ReactMarkdown
-        remarkPlugins={MARKDOWN_CHAT_REMARK_PLUGINS}
-        components={components}
-      >
-        {painted}
-      </ReactMarkdown>
+      {streaming ? (
+        <ReactMarkdown
+          remarkPlugins={MARKDOWN_CHAT_REMARK_PLUGINS}
+          components={components}
+        >
+          {painted}
+        </ReactMarkdown>
+      ) : (
+        <StaticMarkdownBody source={painted} components={components} />
+      )}
     </div>
   );
 });
