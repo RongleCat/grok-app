@@ -24,7 +24,7 @@ pub fn user_home() -> PathBuf {
                 return PathBuf::from(h);
             }
         }
-        return PathBuf::from(".");
+        PathBuf::from(".")
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -575,7 +575,7 @@ pub fn path_for_file_manager(path: &Path) -> String {
     let raw = pb.to_string_lossy();
     #[cfg(target_os = "windows")]
     {
-        return strip_extended_path_prefix(&raw).replace('/', "\\");
+        strip_extended_path_prefix(&raw).replace('/', "\\")
     }
     #[cfg(not(target_os = "windows"))]
     {

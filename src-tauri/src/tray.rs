@@ -230,6 +230,8 @@ pub fn hide_to_tray_accessory(app: &AppHandle) {
 }
 
 fn hide_to_tray_inner(app: &AppHandle, hide_dock: bool) {
+    #[cfg(not(target_os = "macos"))]
+    let _ = hide_dock;
     // Persist geometry before hide so force-kill while tray-resident still restores
     // the last size/position on next launch (plugin also saves on process Exit;
     // resize is additionally debounced to disk from lib.rs window events).
@@ -456,6 +458,8 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), String> {
     let show_menu_on_left = false;
 
     let tooltip = tray_i18n::t().tooltip;
+    // `mut` is only exercised by the macOS icon-as-template mutation below.
+    #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
         .menu(&menu)

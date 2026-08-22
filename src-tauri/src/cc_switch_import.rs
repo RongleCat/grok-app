@@ -231,13 +231,13 @@ fn cc_switch_store_path() -> Option<PathBuf> {
         if let Ok(appdata) = std::env::var("APPDATA") {
             return Some(PathBuf::from(appdata).join(STORE_APP_ID).join(STORE_FILE));
         }
-        return Some(
+        Some(
             process_util::user_home()
                 .join("AppData")
                 .join("Roaming")
                 .join(STORE_APP_ID)
                 .join(STORE_FILE),
-        );
+        )
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {

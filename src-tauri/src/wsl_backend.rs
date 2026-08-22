@@ -200,8 +200,10 @@ fn decode_wsl_list_output(bytes: &[u8]) -> String {
                 > bytes.len() / 4;
         if looks_utf16 {
             let u16s: Vec<u16> = bytes
-                .chunks_exact(2)
-                .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|&c| u16::from_le_bytes(c))
                 .collect();
             let start = if u16s.first() == Some(&0xFEFF) { 1 } else { 0 };
             return String::from_utf16_lossy(&u16s[start..]);

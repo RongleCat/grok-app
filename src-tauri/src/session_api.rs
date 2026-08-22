@@ -1322,6 +1322,7 @@ pub fn try_run_cli() -> bool {
 
 #[cfg(windows)]
 fn attach_parent_console() {
+    #[allow(clippy::upper_case_acronyms)] // Win32 API name
     type BOOL = i32;
     extern "system" {
         fn AttachConsole(dw_process_id: u32) -> BOOL;

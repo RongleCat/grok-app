@@ -16,9 +16,8 @@ use tokio::sync::oneshot;
 use tokio::time::timeout;
 
 // tokio::process::Command::pre_exec is available on Unix without importing
-// std::os::unix::process::CommandExt. Windows uses creation_flags via CommandExt.
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
+// std::os::unix::process::CommandExt. On Windows, `creation_flags` is an
+// inherent tokio method — no std CommandExt import needed.
 
 /// How long to wait for URL + registered connection.
 const TUNNEL_READY_TIMEOUT: Duration = Duration::from_secs(90);

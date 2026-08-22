@@ -74,7 +74,7 @@ fn configure_process_tree(cmd: &mut Command) {
     }
     #[cfg(windows)]
     {
-        use std::os::windows::process::CommandExt;
+        // tokio's inherent `creation_flags` (no std CommandExt import needed).
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
@@ -112,6 +112,7 @@ async fn terminate_and_reap(child: &mut Child, process_tree: &ProcessTree) {
 
 /// Wait for a stdio reader. `/stop` can still unstick a hung pipe; a successful
 /// turn waits for EOF the same way as before this change.
+#[allow(clippy::result_large_err)] // GrokTurnResult carries turn context; cold path
 async fn await_stdio_or_cancel<T: Default>(
     task: &mut tokio::task::JoinHandle<T>,
     cancel: &mut Option<oneshot::Receiver<()>>,

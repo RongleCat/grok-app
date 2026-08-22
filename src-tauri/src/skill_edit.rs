@@ -451,7 +451,7 @@ fn paths_equal_loose(a: &Path, b: &Path) -> bool {
     }
     #[cfg(windows)]
     {
-        return sa.eq_ignore_ascii_case(&sb);
+        sa.eq_ignore_ascii_case(&sb)
     }
     #[cfg(not(windows))]
     {

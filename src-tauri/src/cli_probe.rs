@@ -172,7 +172,7 @@ pub fn repair_agent_sidecar_link(grok_path: Option<&str>) -> Result<String, Stri
             let _ = std::fs::rename(&agent, &old);
             std::fs::copy(&grok, &agent).map_err(|e| format!("copy agent.exe: {e}"))?;
         }
-        return Ok(agent.display().to_string());
+        Ok(agent.display().to_string())
     }
 
     #[cfg(not(target_os = "windows"))]

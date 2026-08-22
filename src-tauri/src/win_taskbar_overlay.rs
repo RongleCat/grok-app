@@ -171,7 +171,7 @@ mod tests {
         let px = overlay_rgba(8).expect("8");
         let mut fill = 0usize;
         let mut white = 0usize;
-        for chunk in px.chunks_exact(4) {
+        for chunk in px.as_chunks::<4>().0 {
             if chunk[3] < 200 {
                 continue;
             }

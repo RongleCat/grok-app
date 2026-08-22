@@ -75,7 +75,7 @@ fn resolve_shell() -> String {
     }
     #[cfg(windows)]
     {
-        return "powershell.exe".into();
+        "powershell.exe".into()
     }
     #[cfg(not(windows))]
     {

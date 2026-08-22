@@ -545,7 +545,7 @@ pub fn hooks_try_command(script: &Path) -> std::process::Command {
         let mut cmd = process_util::command("cmd");
         cmd.arg("/C");
         cmd.arg(script);
-        return cmd;
+        cmd
     }
     #[cfg(not(windows))]
     {

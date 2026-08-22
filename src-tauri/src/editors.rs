@@ -7,11 +7,13 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+#[cfg(target_os = "macos")]
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde::{Deserialize, Serialize};
 
@@ -509,6 +511,7 @@ fn system_icns_for(id: &str) -> Option<PathBuf> {
     }
 }
 
+#[cfg(target_os = "macos")]
 fn icon_cache_dir() -> PathBuf {
     let _ = ensure_app_dirs();
     let d = app_data_root().join("cache").join("app-icons");

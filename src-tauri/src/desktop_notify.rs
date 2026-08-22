@@ -22,6 +22,8 @@ use tauri::{AppHandle, Emitter};
 use tauri_plugin_notification::NotificationExt;
 
 /// Product bundle id / AUMID (must match `tauri.conf.json` `identifier`).
+/// Linux notifications carry no app id; the const stays for WinToast/macOS.
+#[cfg_attr(target_os = "linux", allow(dead_code))]
 const APP_BUNDLE_ID: &str = "com.grokapp.desktop";
 
 /// Frontend listens for this after a native notification body click.

@@ -49,8 +49,12 @@ pub enum ProxySource {
     /// OS static HTTP/HTTPS proxy.
     SystemHttp,
     /// OS static SOCKS proxy (no HTTP).
+    /// Linux resolves neither static system proxies nor PAC; the variants stay
+    /// for the Windows/macOS resolvers and their unit tests.
+    #[cfg_attr(target_os = "linux", allow(dead_code))]
     SystemSocks,
     /// PAC file resolved to a concrete endpoint.
+    #[cfg_attr(target_os = "linux", allow(dead_code))]
     SystemPac,
     /// No proxy configured / unresolvable — inherit OS defaults.
     None,
@@ -109,6 +113,7 @@ fn env_proxy_present() -> bool {
 }
 
 /// True when a host is loopback (safe to fetch PAC without going through a proxy).
+#[cfg_attr(target_os = "linux", allow(dead_code))] // PAC fetch is Windows/macOS only
 fn is_loopback_host(host: &str) -> bool {
     let h = host.trim().trim_matches(['[', ']']).to_ascii_lowercase();
     h == "localhost" || h == "127.0.0.1" || h == "::1" || h == "0.0.0.0"
@@ -119,6 +124,7 @@ fn is_loopback_host(host: &str) -> bool {
 /// Clash / Surge enhanced-mode PAC typically returns strings like:
 /// `PROXY 127.0.0.1:7890; SOCKS5 127.0.0.1:7890; DIRECT`
 /// Prefer HTTP `PROXY` over SOCKS (broader child-tool support).
+#[cfg_attr(target_os = "linux", allow(dead_code))] // PAC parse is Windows/macOS only
 pub fn first_proxy_from_pac(pac_body: &str) -> Option<String> {
     // Scan tokens case-insensitively; PAC is small.
     let upper = pac_body.to_ascii_uppercase();
@@ -167,6 +173,7 @@ pub fn first_proxy_from_pac(pac_body: &str) -> Option<String> {
 /// Fetch a PAC document when the URL points at loopback (or is a local file).
 /// Non-loopback PAC is intentionally ignored — evaluating remote PAC without a
 /// working network is chicken-and-egg, and we refuse to open arbitrary hosts.
+#[cfg_attr(target_os = "linux", allow(dead_code))] // PAC fetch is Windows/macOS only
 fn fetch_pac_body(pac_url: &str) -> Option<String> {
     let pac_url = pac_url.trim();
     if pac_url.is_empty() {

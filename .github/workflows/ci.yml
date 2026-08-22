@@ -74,10 +74,10 @@ jobs:
         run: cargo fmt --all -- --check
       - name: cargo clippy
         working-directory: src-tauri
-        # Run clippy on all platforms. Prefer zero warnings locally (`-D warnings`);
-        # CI toolchain/cfg paths still surface a small set of style lints (e.g.
-        # needless_return on windows-only code) — do not block merge on those.
-        run: cargo clippy --all-targets -- -W clippy::all
+        # All three legs must stay at zero warnings: `-D warnings` blocks merge so
+        # platform-cfg dead code cannot silently re-accumulate (98 warnings piled
+        # up on macOS alone before the 2026-08 sweeps).
+        run: cargo clippy --all-targets -- -D warnings
         continue-on-error: false
       # Includes ACP golden fixtures (tests/fixtures/acp + acp_golden_test).
       # Required green for any ACP / mock_acp / permission wire change (T06).

@@ -17,6 +17,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
 use std::process::Command;
 
 use serde::Serialize;
@@ -63,6 +64,7 @@ pub fn helper_dir() -> PathBuf {
         .join("schedules-launch-agent")
 }
 
+#[cfg(target_os = "macos")]
 fn launch_agents_dir() -> Option<PathBuf> {
     crate::process_util::user_home()
         .into_os_string()
@@ -71,6 +73,7 @@ fn launch_agents_dir() -> Option<PathBuf> {
         .map(|h| PathBuf::from(h).join("Library").join("LaunchAgents"))
 }
 
+#[cfg(target_os = "macos")]
 fn installed_plist_path() -> Option<PathBuf> {
     launch_agents_dir().map(|d| d.join(PLIST_FILENAME))
 }
@@ -386,7 +389,7 @@ fn launchctl_bootstrap(plist: &Path) -> Result<(), String> {
 pub fn enable() -> Result<SchedulesLaunchAgentStatus, String> {
     #[cfg(not(target_os = "macos"))]
     {
-        return Ok(status_inner(false));
+        Ok(status_inner(false))
     }
     #[cfg(target_os = "macos")]
     {
@@ -406,7 +409,7 @@ pub fn enable() -> Result<SchedulesLaunchAgentStatus, String> {
 pub fn disable() -> Result<SchedulesLaunchAgentStatus, String> {
     #[cfg(not(target_os = "macos"))]
     {
-        return Ok(status_inner(false));
+        Ok(status_inner(false))
     }
     #[cfg(target_os = "macos")]
     {
@@ -422,7 +425,7 @@ fn status_inner(settings_enabled: bool) -> SchedulesLaunchAgentStatus {
     #[cfg(not(target_os = "macos"))]
     {
         let _ = settings_enabled;
-        return SchedulesLaunchAgentStatus {
+        SchedulesLaunchAgentStatus {
             supported: false,
             enabled: false,
             helper_dir: None,
@@ -430,7 +433,7 @@ fn status_inner(settings_enabled: bool) -> SchedulesLaunchAgentStatus {
             installed: false,
             app_path: None,
             honesty: honesty_note(),
-        };
+        }
     }
     #[cfg(target_os = "macos")]
     {

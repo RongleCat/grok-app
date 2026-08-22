@@ -10,7 +10,7 @@ fn windows_grok_go_config_candidates() -> Option<Vec<String>> {
             out.push(format!(r"{local}\com.grokgo.desktop\config.json"));
             out.push(format!(r"{local}\GrokGo\config.json"));
         }
-        return if out.is_empty() { None } else { Some(out) };
+        if out.is_empty() { None } else { Some(out) }
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -409,7 +409,7 @@ pub async fn pick_cli_binary() -> Result<Option<String>, String> {
             let dlg = rfd::FileDialog::new()
                 .set_title("Select Grok Build binary / 选择 Grok Build 可执行文件")
                 .add_filter("Executable", &["exe", "cmd", "bat"]);
-            return dlg.pick_file();
+            dlg.pick_file()
         }
         #[cfg(not(target_os = "windows"))]
         {
@@ -484,7 +484,7 @@ pub fn open_http_url(url: &str) -> Result<(), String> {
             .args(["url.dll,FileProtocolHandler", url])
             .status()
             .map_err(|e| e.to_string())?;
-        return Ok(());
+        Ok(())
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {

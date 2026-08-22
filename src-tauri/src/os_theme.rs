@@ -33,7 +33,7 @@ pub fn os_prefers_dark() -> bool {
     }
     #[cfg(target_os = "windows")]
     {
-        return apps_prefer_dark();
+        apps_prefer_dark()
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {

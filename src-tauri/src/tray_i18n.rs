@@ -174,6 +174,7 @@ pub fn is_c_or_posix_locale(raw: &str) -> bool {
 }
 
 /// First quoted token from `defaults read -g AppleLanguages` output.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn first_apple_languages_tag(raw: &str) -> Option<String> {
     let bytes = raw.as_bytes();
     let mut i = 0;
@@ -248,7 +249,7 @@ fn platform_ui_lang_tag() -> Option<String> {
     }
     #[cfg(windows)]
     {
-        return windows_ui_lang_tag();
+        windows_ui_lang_tag()
     }
     #[cfg(not(any(target_os = "macos", windows)))]
     {
