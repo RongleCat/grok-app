@@ -675,7 +675,7 @@ pub fn reset_app_data(keep_secrets: bool) -> Result<serde_json::Value, String> {
     ] {
         let p = root.join(name);
         if p.exists() {
-            match fs::remove_dir_all(&p) {
+            match remove_dir_all_retry(&p) {
                 Ok(()) => removed.push(name.into()),
                 Err(e) => errors.push(format!("{name}: {e}")),
             }
@@ -735,6 +735,23 @@ pub fn reset_app_data(keep_secrets: bool) -> Result<serde_json::Value, String> {
     }))
 }
 
+/// `skin_presets_dir()` / `ensure_app_dirs()` eagerly `create_dir_all` staging.
+/// Parallel tests can recreate the tree while reset is deleting it (Linux ENOTEMPTY).
+fn remove_dir_all_retry(p: &std::path::Path) -> std::io::Result<()> {
+    let mut last = None;
+    for _ in 0..8 {
+        match fs::remove_dir_all(p) {
+            Ok(()) => return Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => {
+                last = Some(e);
+                std::thread::sleep(std::time::Duration::from_millis(15));
+            }
+        }
+    }
+    Err(last.unwrap())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -743,7 +760,11 @@ mod tests {
         let _g = crate::paths::APP_HOME_ENV_LOCK
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        let tmp = std::env::temp_dir().join(format!("grok-app-reset-test-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-reset-test-{}-{}",
+            std::process::id(),
+            uuid::Uuid::new_v4()
+        ));
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(tmp.join("sessions")).unwrap();
         fs::write(tmp.join("sessions_index.json"), "[]").unwrap();
@@ -762,7 +783,9 @@ mod tests {
 
     #[test]
     fn reset_removes_skin_dirs_keeps_wallpaper_library() {
-        let _g = crate::paths::APP_HOME_ENV_LOCK.lock().unwrap();
+        let _g = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!(
             "grok-app-reset-skin-{}-{}",
             std::process::id(),
