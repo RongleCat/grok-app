@@ -27,7 +27,7 @@
 | `--radius-sm` | `6px` | chip、小按钮 |
 | `--radius-full` | `9999px` | 头像、圆点状态 |
 | `--space-1` … `--space-8` | `4 / 8 / 12 / 16 / 20 / 24 / 32 / 48 px` | 间距阶梯 |
-| `--sidebar-width` | `260px` | 左栏默认（可拖 200–360） |
+| `--sidebar-width` | `268px` | 左栏默认（可拖 200–420，与 `SIDEBAR_DEFAULT_WIDTH` 一致） |
 | `--tree-rail-pad` | `10px` | 侧栏 nav / 会话列表共用左右内边距（图标列原点） |
 | `--tree-l1-gutter` | `--space-5`（20px） | 一级箭头 + New session 等图标槽 |
 | `--tree-l1-gutter-touch` | `44px` | 手机抽屉里只加宽 L1 箭头命中区 |
@@ -43,7 +43,7 @@
 | `--leading-tight` / `normal` | `1.35 / 1.55` | 行高 |
 | `--shadow-window` | 见主题表 | 窗口投影 |
 | `--motion-fast` / `normal` | `120ms` / `200ms` | 过渡（含侧栏项目列表开合）；尊重 `prefers-reduced-motion` |
-| `--motion-pane` / `--motion-pane-ease` | `320ms` / `cubic-bezier(0.22, 1, 0.36, 1)` | 左右分栏 / 底栏开合 / 设置页叠在工作台上的进出（无过冲）。分栏 token **不**随 `prefers-reduced-motion` 清零；设置 overlay 与菜单在 reduce 下关掉 transform / transition |
+| `--motion-pane` / `--motion-pane-ease` | `320ms` / `cubic-bezier(0.22, 1, 0.36, 1)` | 左右分栏 / 底栏开合（无过冲）；设置页与工作台直接切换，不使用该 token。分栏 token **不**随 `prefers-reduced-motion` 清零 |
 
 **栏宽持久化：** `layout.sidebarWidth` / `layout.asideWidth` / `layout.asideCollapsed` 写入 App 配置。
 

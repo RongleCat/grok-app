@@ -27,7 +27,8 @@
   --space-7: 32px;
   --space-8: 48px;
 
-  --sidebar-width: 260px;
+  /* Keep in sync with SIDEBAR_DEFAULT_WIDTH in layout.ts */
+  --sidebar-width: 268px;
   /*
    * Sidebar tree columns (nav icons, L1 chevron, L2 name, L3 title).
    * Change values here only — consumers use var() with no px fallback.
@@ -99,13 +100,16 @@
     0 24px 64px rgba(0, 0, 0, 0.32);
 
   /*
-   * Sidebar CSS blur is unused on mac (native vibrancy only).
-   * Kept for experiments / non-mac CSS glass if re-enabled later.
+   * Left rail frost (workbench + settings). Native Sidebar vibrancy is the
+   * window plate; this CSS blur is what actually reads on the rail — WKWebView
+   * does not sample vibrancy while a parent is mid-opacity/transform.
    */
-  --sidebar-blur: 120px;
-  --sidebar-saturate: 2;
-  --sidebar-edge-line: rgba(255, 255, 255, 0.06);
-  --sidebar-edge-inset: none;
+  --sidebar-blur: 64px;
+  --sidebar-saturate: 1.85;
+  --sidebar-edge-line: rgba(255, 255, 255, 0.08);
+  /* No opaque --bg-main strip — that read as a black bar cutting the glass. */
+  --sidebar-edge-shadow: none;
+  --sidebar-seam: none;
 
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border-strong: rgba(255, 255, 255, 0.12);
@@ -217,7 +221,7 @@
    * ChatGPT/Cursor-style light chrome:
    * - Sidebar: translucent white glass over native light vibrancy (airier than solid)
    * - Main / aside: pure solid white (elevated content column)
-   * - Edge: soft inward shade at sidebar→main (see --sidebar-edge-inset)
+   * - Edge: soft inward shade on the rail + hairline on solid main (--sidebar-seam)
    */
   /* More open glass — translucent white over light vibrancy */
   --bg-sidebar: rgba(255, 255, 255, 0.38);
@@ -233,11 +237,10 @@
   --bg-card: #ffffff;
   --bg-user-bubble: #e8e8ed;
 
-  /* Subtle edge only — tight inset, low opacity (hierarchy without drama) */
+  /* Soft inward shade on glass; no 1px fill of --bg-main (that cut the frost). */
   --sidebar-edge-line: rgba(0, 0, 0, 0.04);
-  --sidebar-edge-inset:
-    inset -1px 0 0 var(--sidebar-edge-line),
-    inset -8px 0 12px -8px rgba(0, 0, 0, 0.035);
+  --sidebar-edge-shadow: inset -8px 0 12px -8px rgba(0, 0, 0, 0.035);
+  --sidebar-seam: -4px 0 12px rgba(0, 0, 0, 0.02);
 
   --glass-surface: rgba(255, 255, 255, 0.72);
   --glass-surface-solid: rgba(255, 255, 255, 0.96);
@@ -249,7 +252,7 @@
     0 8px 28px rgba(0, 0, 0, 0.1),
     0 20px 48px rgba(0, 0, 0, 0.08);
 
-  --sidebar-blur: 120px;
+  --sidebar-blur: 64px;
   --sidebar-saturate: 1.85;
 
   --border-subtle: rgba(0, 0, 0, 0.06);

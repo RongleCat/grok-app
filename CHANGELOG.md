@@ -28,6 +28,8 @@ See `docs/llm-wiki/release.md`.
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
 
 ### Changed
+- **macOS workbench sidebar uses the same frost as Settings**: Left rail (sessions + Settings nav) applies `--sidebar-blur` backdrop-filter instead of relying on native vibrancy alone. Settings is available before first navigation and swaps atomically with the workbench; the account portal closes in the same commit. Settings nav width follows the workbench rail. The glass meets the chat column with no opaque black seam. Returning keeps the workbench painted instead of hiding Settings for 320ms and leaving only the wallpaper in WKWebView.
+- **macOS sidebar right edge no longer flashes while dragging**: The seam is an inset hairline on the solid chat column, not a 1px layout border on Sidebar vibrancy. Window drag and split resize no longer alias that pixel light/dark.
 - **Chat transcript scroll no longer thrashes layout on mounted rows**: Virtual rows share a single `ResizeObserver` and measure via `borderBoxSize` instead of synchronous `getBoundingClientRect()` on mount; code block line-wrap/number preferences use in-memory caches to avoid blocking `localStorage` reads; right-edge message node rail uses memoized node IDs and skips redundant tick scrolls.
 - **UI font and terminal font are local-font dropdowns**: Settings → Appearance lists installed families (searchable) instead of a free-text name. UI default is the app sans stack; terminal default is the built-in Nerd Font stack. Reset is unchanged.
 - **Debug dock icon is the white invert**: `pnpm dev` uses `src-tauri/icons/dev` (white plate, dark mark) so the running debug app is distinct from the installed black production icon. Release bundles are unchanged.
@@ -61,6 +63,8 @@ See `docs/llm-wiki/release.md`.
 - **Official site on GitHub About and README**: Repo homepage, `package.json` `homepage`, and public READMEs now point to [https://grok-app.com](https://grok-app.com) (no trailing slash).
 
 **中文 · 变更**
+- **macOS 主页面侧栏与设置导航同一套毛玻璃**：会话列表和设置左栏都用 `--sidebar-blur` 的 backdrop-filter，不再只靠系统 vibrancy。设置页在首次导航前就已可用，并与工作台原子切换；账户菜单浮层在同一次提交中收起。设置左栏宽度跟工作台侧栏走，玻璃接到聊天列不再夹实色黑边。返回时工作台始终保持已绘制，不再先隐藏设置层并等待 320ms、让 WKWebView 只剩壁纸。
+- **macOS 侧栏右缘拖动不再明暗闪烁**：分割线画在实色聊天列上，不再用 Sidebar 毛玻璃上的 1px layout 边框。拖窗口和拖分割条时那一像素不会再在亮/暗之间跳。
 - **长对话滚动消除挂载重排与同步存储阻塞**：虚拟列表改用单个共享 `ResizeObserver` 并通过 `borderBoxSize` 获取高度，消除新行挂载时的 `getBoundingClientRect()` 强制同步重排（Layout Thrashing）；代码块换行与行号偏好使用内存缓存，避免挂载时同步读取 `localStorage` 阻塞主线程；右侧消息节点轴缓存节点 ID 集合并在可视范围内跳过冗余滚动。
 - **界面字体和终端字体改为本机字体下拉**：设置 → 外观列出本机已安装字体族（可搜索），不再手填名称。界面默认是应用无衬线栈；终端默认是内置 Nerd Font。重置不变。
 - **开发版 Dock 图标改白底反色**：`pnpm dev` 使用 `src-tauri/icons/dev`（白底深色标），和已安装的黑底正式版区分。发布包图标不变。

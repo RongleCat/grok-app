@@ -380,17 +380,13 @@ html.platform-win .window-edge-n {
   flex: 1;
   min-height: 0;
   position: relative;
+  z-index: 0;
   /* Transparent on mac so sidebar vibrancy is not covered by solid paint */
   background: transparent;
-  transition:
-    --sw-sidebar-occupied var(--motion-pane) var(--motion-pane-ease),
-    opacity var(--motion-pane) var(--motion-pane-ease);
-}
-
-/* Covered by settings overlay — keep mounted so chat/webview state survives. */
-.workbench.is-view-idle {
-  opacity: 0;
-  pointer-events: none;
+  /* Do not transition opacity: a parent opacity group flattens the glass
+   * rail with the solid chat column, and WKWebView keeps that flatten after
+   * settings closes — sidebar frost then matches .main. */
+  transition: --sw-sidebar-occupied var(--motion-pane) var(--motion-pane-ease);
 }
 
 .workbench:has(.sidebar.is-resizing) {
@@ -497,10 +493,39 @@ html.platform-win .window-edge-n {
   background: var(--border-focus, #6b8cff);
 }
 
-/* mac: tint only — native vibrancy provides blur */
+.sidebar.is-resizing .sidebar-resizer::after {
+  transition: none;
+}
+
+/*
+ * mac rail: same frost as Settings nav — CSS blur + tint over native Sidebar.
+ * Do not wait on native vibrancy alone: a sibling opaque .main (or a parent
+ * opacity/transform) makes the rail look like a flat tint of the chat column.
+ * Overlay / phone drawers keep their drop shadow (set below).
+ */
 .platform-mac .sidebar {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  -webkit-backdrop-filter: blur(var(--sidebar-blur)) saturate(var(--sidebar-saturate));
+  backdrop-filter: blur(var(--sidebar-blur)) saturate(var(--sidebar-saturate));
+  border-right: none;
+}
+
+.platform-mac .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer) {
+  box-shadow: var(--sidebar-edge-shadow);
+}
+
+.platform-mac .sidebar.sidebar--overlay {
+  border-right: none;
+}
+
+/* Hairline on solid main — composites against --bg-main, not vibrancy. */
+.platform-mac .main {
+  box-shadow: var(--sidebar-seam);
+}
+
+.workbench:has(> .sidebar.sidebar--hidden) .main,
+.workbench:has(> .sidebar.sidebar--collapsed) .main,
+.workbench:has(> .sidebar.sidebar--overlay) .main,
+.app-shell--phone .main {
   box-shadow: none;
 }
 
@@ -521,21 +546,26 @@ html.platform-mac[data-theme="light"] .workbench {
   background: transparent;
 }
 
-html.platform-mac[data-theme="light"] .sidebar,
-.platform-mac[data-theme="light"] .sidebar {
+html.platform-mac[data-theme="light"] .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer),
+.platform-mac[data-theme="light"] .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer) {
   background: var(--bg-sidebar);
-  /* Edge treated by box-shadow only — no border-right (avoids double line) */
   border-right: none;
-  box-shadow: var(--sidebar-edge-inset);
+  box-shadow: var(--sidebar-edge-shadow);
 }
 
 /* Solid elevated content columns — pure white, sit above glass rail */
 html.platform-mac[data-theme="light"] .main {
   background: #ffffff;
   border-left: none;
-  /* Barely-there lift; rail inset carries the edge hierarchy */
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.02);
+  box-shadow: var(--sidebar-seam);
   z-index: 2;
+}
+
+html.platform-mac[data-theme="light"] .workbench:has(> .sidebar.sidebar--hidden) .main,
+html.platform-mac[data-theme="light"] .workbench:has(> .sidebar.sidebar--collapsed) .main,
+html.platform-mac[data-theme="light"] .workbench:has(> .sidebar.sidebar--overlay) .main,
+html.platform-mac[data-theme="light"] .app-shell--phone .main {
+  box-shadow: none;
 }
 
 html.platform-mac[data-theme="light"] .aside {
@@ -555,27 +585,28 @@ html.platform-mac[data-theme="light"] .aside {
 
 .platform-mac .settings-page__nav {
   background: var(--bg-sidebar);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  /* same default edge as workbench rail */
-  border-right: 1px solid var(--border-subtle);
-  box-shadow: none;
+  -webkit-backdrop-filter: blur(var(--sidebar-blur)) saturate(var(--sidebar-saturate));
+  backdrop-filter: blur(var(--sidebar-blur)) saturate(var(--sidebar-saturate));
+  border-right: none;
+  box-shadow: var(--sidebar-edge-shadow);
+  /* overflow on the blur element kills backdrop sampling in WKWebView */
+  overflow: visible;
 }
 
 .platform-mac .settings-page__content {
   background: var(--bg-main);
   z-index: 2;
+  box-shadow: var(--sidebar-seam);
 }
 
-/* Light: same edge inset + no hard border + soft content lift as .main */
 html.platform-mac[data-theme="light"] .settings-page__nav {
   border-right: none;
-  box-shadow: var(--sidebar-edge-inset);
+  box-shadow: var(--sidebar-edge-shadow);
 }
 
 html.platform-mac[data-theme="light"] .settings-page__content {
   background: #ffffff;
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.02);
+  box-shadow: var(--sidebar-seam);
 }
 
 /* Fully closed left pane (no icon rail) — reopen from main top icons.
@@ -764,10 +795,6 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 @media (prefers-reduced-motion: reduce) {
   .sidebar-update-btn__dot--pulse {
     animation: none;
-  }
-
-  .workbench.is-view-idle {
-    transition: none;
   }
 }
 

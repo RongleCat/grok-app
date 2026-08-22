@@ -149,6 +149,27 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(bt).not.toMatch(/^\s*height\s*:\s*0\s*!important/m);
   });
 
+  it("mac sidebar seam is not a 1px layout border on vibrancy", () => {
+    const sidebar = readFileSync(
+      resolve(__dirname, "../styles/sidebar.part1.css"),
+      "utf8",
+    );
+    const tokens = readFileSync(
+      resolve(__dirname, "../styles/tokens.css"),
+      "utf8",
+    );
+    expect(sidebar).toMatch(
+      /\.platform-mac \.sidebar\s*\{[^}]*border-right:\s*none/,
+    );
+    expect(sidebar).toMatch(
+      /\.platform-mac \.main[^{]*\{[^}]*box-shadow:\s*var\(--sidebar-seam\)/,
+    );
+    expect(tokens).toMatch(/--sidebar-edge-shadow:\s*none/);
+    expect(tokens).not.toMatch(
+      /--sidebar-edge-shadow:[^;]*1px 0 0 var\(--bg-main\)/,
+    );
+  });
+
   it("sidebar-only motion does not overflow-hidden or contain a stable aside", () => {
     const css = readFileSync(
       resolve(__dirname, "../styles/chat.part6.css"),

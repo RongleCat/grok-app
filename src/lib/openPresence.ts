@@ -9,8 +9,6 @@ import { prefersReducedMotion } from "@/lib/paneSplitMotion";
 
 /** Matches `--motion-normal` (tokens.css). */
 export const OPEN_PRESENCE_MS = 200;
-/** Matches `--motion-pane` — full view swaps (settings ↔ workbench). */
-export const VIEW_PRESENCE_MS = 320;
 
 export type OpenPresenceState = {
   mounted: boolean;

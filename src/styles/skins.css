@@ -67,6 +67,11 @@ html[data-wallpaper="1"] .workbench {
   background: transparent !important;
 }
 
+/* Keep the atomic Settings swap above the lifted workbench chrome. */
+html[data-wallpaper="1"] .app-settings-stage {
+  z-index: 20;
+}
+
 /* Pane fills scale with scrim: 0% = fully clear wallpaper under chrome.
  * !important beats platform-win solid fills and mac light #ffffff rules. */
 html[data-wallpaper="1"] .sidebar {

@@ -27,7 +27,7 @@ import {
   FLOATING_MENU_Z_INDEX,
   useFloatingMenu,
 } from "@/lib/floatingMenu";
-import { useOpenPresence } from "@/lib/openPresence";
+import { OPEN_PRESENCE_MS, useOpenPresence } from "@/lib/openPresence";
 import type {
   AccountStatus,
   CustomProvider,
@@ -57,6 +57,8 @@ import { formatShortcutHint } from "@/lib/shortcuts";
 
 export interface UserMenuProps {
   open: boolean;
+  /** Skip the portal exit when a full-page view replaces the workbench. */
+  closeImmediately?: boolean;
   onClose: () => void;
   /** Resolved light/dark for icons. */
   theme: Theme;
@@ -157,6 +159,7 @@ function computeThemeFlyoutStyle(
 
 export function UserMenu({
   open,
+  closeImmediately = false,
   onClose,
   theme,
   themePreference,
@@ -251,9 +254,13 @@ export function UserMenu({
     updateFlyoutPos();
   }, [open, themeSubOpen, updateFlyoutPos, themePreference]);
 
-  const panelPresence = useOpenPresence(open);
+  const panelPresence = useOpenPresence(
+    open,
+    true,
+    closeImmediately ? 0 : OPEN_PRESENCE_MS,
+  );
   const { pos, style, settled } = useFloatingMenu({
-    open: panelPresence.mounted,
+    open: !closeImmediately && panelPresence.mounted,
     triggerRef,
     panelRef,
     roots: [rootRef, themeFlyoutRef],
@@ -267,7 +274,11 @@ export function UserMenu({
     // CSS owns transform (rise from the footer). Do not apply placeAbove -100%.
     anchorTransform: false,
   });
-  const panelEntered = useOpenPresence(Boolean(open && settled)).entered;
+  const panelEntered = useOpenPresence(
+    Boolean(open && settled),
+    true,
+    closeImmediately ? 0 : OPEN_PRESENCE_MS,
+  ).entered;
 
   const profile = account?.profile;
   const isCustomProvider = activeProvider != null;
@@ -305,8 +316,13 @@ export function UserMenu({
     return labels.themeDark;
   };
 
-  const flyoutPresence = useOpenPresence(open && themeSubOpen, !!flyoutStyle);
+  const flyoutPresence = useOpenPresence(
+    open && themeSubOpen,
+    !!flyoutStyle,
+    closeImmediately ? 0 : OPEN_PRESENCE_MS,
+  );
   const themeFlyout =
+    !closeImmediately &&
     flyoutPresence.mounted &&
     flyoutStyle &&
     typeof document !== "undefined"
@@ -356,7 +372,10 @@ export function UserMenu({
       : null;
 
   const panel =
-    panelPresence.mounted && pos && typeof document !== "undefined"
+    !closeImmediately &&
+    panelPresence.mounted &&
+    pos &&
+    typeof document !== "undefined"
       ? createPortal(
           <div
             ref={panelRef}

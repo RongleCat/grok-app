@@ -116,7 +116,6 @@ import {
   paneSplitSizeStyle,
 } from "@/lib/paneSplitMotion";
 import { usePaneSplitMotion } from "@/hooks/usePaneSplitMotion";
-import { useOpenPresence, VIEW_PRESENCE_MS } from "@/lib/openPresence";
 import { acquireNativeWebviewCover } from "@/lib/nativeWebviewCover";
 import {
   PHONE_KEYBOARD_INSET_VAR,
@@ -983,10 +982,6 @@ import { ConversationThreadLive } from "@/components/lobe-chat";
 import { AgentTasksPanelLive } from "@/components/AgentTasksPanelLive";
 import { PermissionCountdown } from "@/components/PermissionCountdown";
 
-const SettingsPage = lazy(async () => {
-  const m = await import("@/components/SettingsPage");
-  return { default: m.SettingsPage };
-});
 const AutomationsPage = lazy(async () => {
   const m = await import("@/components/AutomationsPage");
   return { default: m.AutomationsPage };
@@ -1063,7 +1058,10 @@ import {
   quotaFromHostItem,
   type SwitcherQuota,
 } from "@/lib/accountSwitcherQuota";
-import type { SettingsSectionId } from "@/components/SettingsPage";
+import {
+  SettingsPage,
+  type SettingsSectionId,
+} from "@/components/SettingsPage";
 import {
   buildSettingsHash,
   isSettingsSectionId,
@@ -1803,6 +1801,10 @@ export function AppWorkbench() {
   const [phoneAccountOpen, setPhoneAccountOpen] = useState(false);
   /** Hash route: workbench | settings/:section | automations */
   const [appView, setAppView] = useState<"workbench" | "settings">("workbench");
+  const settingsNativeCoverReleaseRef = useRef<(() => void) | null>(null);
+  const ensureSettingsNativeCover = useCallback(() => {
+    settingsNativeCoverReleaseRef.current ??= acquireNativeWebviewCover();
+  }, []);
   /** Inside workbench: chat thread vs scheduled tasks vs agent kanban. */
   const [mainPane, setMainPane] = useState<"chat" | "automations" | "kanban">(
     "chat",
@@ -4343,6 +4345,7 @@ export function AppWorkbench() {
         tab,
         last: section == null ? loadSettingsLastRoute() : null,
       });
+      ensureSettingsNativeCover();
       setSettingsSection(loc.section);
       setSettingsTab(loc.tab);
       setAppView("settings");
@@ -4362,7 +4365,7 @@ export function AppWorkbench() {
         }
       }
     },
-    [],
+    [ensureSettingsNativeCover],
   );
 
   /** Settings → Runtime → Tools, scrolled to the workflows card. */
@@ -4378,6 +4381,8 @@ export function AppWorkbench() {
       const fullHash = window.location.hash || "";
       const raw = fullHash.replace(/^#\/?/, "");
       if (raw.startsWith("settings")) {
+        ensureSettingsNativeCover();
+        setShowUserMenu(false);
         const parts = raw.split("/").filter(Boolean);
         // parts[0] === "settings"; parts[1] may be section (ignore ?query)
         const sectionPart = (parts[1] ?? "").split("?")[0];
@@ -4423,7 +4428,7 @@ export function AppWorkbench() {
     syncFromHash();
     window.addEventListener("hashchange", syncFromHash);
     return () => window.removeEventListener("hashchange", syncFromHash);
-  }, []);
+  }, [ensureSettingsNativeCover]);
 
   /**
    * Open a stored session. Loads journal immediately; warms the ACP agent in
@@ -18234,20 +18239,22 @@ export function AppWorkbench() {
     [],
   );
 
-  const settingsPresence = useOpenPresence(
-    appView === "settings",
-    true,
-    VIEW_PRESENCE_MS,
+  useLayoutEffect(() => {
+    if (appView === "settings") {
+      ensureSettingsNativeCover();
+      return;
+    }
+    const release = settingsNativeCoverReleaseRef.current;
+    settingsNativeCoverReleaseRef.current = null;
+    release?.();
+  }, [appView, ensureSettingsNativeCover]);
+  useEffect(
+    () => () => {
+      settingsNativeCoverReleaseRef.current?.();
+      settingsNativeCoverReleaseRef.current = null;
+    },
+    [],
   );
-  useEffect(() => {
-    if (!settingsPresence.mounted) return;
-    return acquireNativeWebviewCover();
-  }, [settingsPresence.mounted]);
-  useEffect(() => {
-    if (!showUserMenu) return;
-    void import("@/components/SettingsPage");
-  }, [showUserMenu]);
-
   return (
     <ImageViewerProvider locale={locale}>
     <div
@@ -18261,6 +18268,11 @@ export function AppWorkbench() {
       data-testid="app-shell"
       data-mirror={isMirrorClient() ? "1" : undefined}
       data-phone={phoneLayout ? "1" : undefined}
+      style={
+        {
+          ["--sidebar-rail-width"]: `${layout.sidebarWidth || SIDEBAR_DEFAULT_WIDTH}px`,
+        } as CSSProperties
+      }
     >
       <WindowControls
         visible={useCustomWindowChrome && !isMirrorClient()}
@@ -18382,16 +18394,8 @@ export function AppWorkbench() {
 
       {appGate === "ready" && (
       <>
-      {settingsPresence.mounted ? (
-        <div
-          className={
-            "app-settings-stage" +
-            (settingsPresence.entered ? " is-open" : "")
-          }
-          data-testid="settings-stage"
-          aria-hidden={!settingsPresence.entered || undefined}
-        >
-                <Suspense fallback={null}>
+      {appView === "settings" ? (
+        <div className="app-settings-stage" data-testid="settings-stage">
           <SettingsPage
           section={settingsSection}
           tab={settingsTab}
@@ -19112,7 +19116,7 @@ export function AppWorkbench() {
           }
           })();
           }}
-          />        </Suspense>
+          />
         </div>
       ) : null}
       <div
@@ -19121,9 +19125,6 @@ export function AppWorkbench() {
           (phoneLayout ? " workbench--phone" : "") +
           (hideChatForSideExpand ? " workbench--side-expanded" : "") +
           (sideDockActive ? " workbench--side-dock" : "") +
-          (appView === "settings" && settingsPresence.entered
-            ? " is-view-idle"
-            : "") +
           paneMotionClass
         }
         aria-hidden={appView === "settings" || undefined}
@@ -19229,6 +19230,7 @@ export function AppWorkbench() {
               onPointerDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                e.currentTarget.setPointerCapture?.(e.pointerId);
                 const width = layout.sidebarWidth || SIDEBAR_DEFAULT_WIDTH;
                 sidebarResizeStartRef.current = {
                   x: e.clientX,
@@ -19994,6 +19996,7 @@ export function AppWorkbench() {
 
           <UserMenu
             open={showUserMenu}
+            closeImmediately={appView === "settings"}
             onClose={() => setShowUserMenu(false)}
             theme={theme}
             themePreference={themePreference}

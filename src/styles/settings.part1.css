@@ -354,10 +354,7 @@
   }
 }
 
-/*
- * Settings overlays the still-mounted workbench. Rise from the account
- * menu (bottom-left) and sink back on close — not a hard view cut.
- */
+/* Settings is an atomic full-page swap over the still-mounted workbench. */
 .app-settings-stage {
   position: absolute;
   inset: 0;
@@ -365,26 +362,10 @@
   display: flex;
   min-width: 0;
   min-height: 0;
-  opacity: 0;
-  transform: translateY(18px);
-  transform-origin: bottom left;
-  transition:
-    opacity var(--motion-pane) var(--motion-pane-ease),
-    transform var(--motion-pane) var(--motion-pane-ease);
-  pointer-events: none;
 }
 
-.app-settings-stage.is-open {
-  opacity: 1;
-  transform: none;
-  pointer-events: auto;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .app-settings-stage {
-    transform: none;
-    transition: none;
-  }
+.app-settings-stage .settings-page {
+  background: transparent;
 }
 
 /* ===== Settings full page (ChatGPT-desktop style) ===== */
@@ -419,19 +400,21 @@
 }
 
 .settings-page__nav {
-  width: 220px;
-  min-width: 200px;
-  max-width: 240px;
+  /* Match workbench rail (layout.sidebarWidth → --sidebar-rail-width). */
+  width: var(--sidebar-rail-width, var(--sidebar-width));
+  min-width: var(--sidebar-rail-width, var(--sidebar-width));
+  max-width: var(--sidebar-rail-width, var(--sidebar-width));
   flex-shrink: 0;
   border-right: 1px solid var(--border-subtle);
   /*
    * Same token as workbench .sidebar. On mac, parent .settings-page is
    * transparent so glass samples vibrancy. Win keeps solid shell + this fill.
+   * overflow lives on __nav-inner — hidden here clips backdrop-filter.
    */
   background: var(--bg-sidebar);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   /* Clear traffic-light / drag band */
   padding-top: var(--titlebar-height, 40px);
   box-sizing: border-box;
