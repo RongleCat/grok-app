@@ -62,10 +62,7 @@ fn is_blocked_v6(v6: Ipv6Addr) -> bool {
     if let Some(v4) = v6.to_ipv4_mapped() {
         return is_blocked_v4(v4);
     }
-    v6.is_loopback()
-        || v6.is_unspecified()
-        || is_ula(v6)
-        || is_link_local_v6(v6)
+    v6.is_loopback() || v6.is_unspecified() || is_ula(v6) || is_link_local_v6(v6)
 }
 
 fn is_ula(v6: Ipv6Addr) -> bool {
@@ -206,9 +203,7 @@ pub async fn safe_https_get_resolved(
             if let Some(parent) = p.parent() {
                 std::fs::create_dir_all(parent).map_err(|e| format!("disk_budget: {e}"))?;
             }
-            Some(
-                std::fs::File::create(p).map_err(|e| format!("invalid_pack: write dest: {e}"))?,
-            )
+            Some(std::fs::File::create(p).map_err(|e| format!("invalid_pack: write dest: {e}"))?)
         } else {
             None
         };
@@ -245,8 +240,12 @@ mod tests {
 
     #[test]
     fn reject_http() {
-        let e = check_hop("http://skins.example/p.grokskin", &OriginPolicy::AnyHttps, no_dns)
-            .unwrap_err();
+        let e = check_hop(
+            "http://skins.example/p.grokskin",
+            &OriginPolicy::AnyHttps,
+            no_dns,
+        )
+        .unwrap_err();
         assert!(e.contains("https"), "{e}");
     }
 
@@ -277,18 +276,20 @@ mod tests {
 
     #[test]
     fn reject_localhost() {
-        let e = check_hop("https://localhost/p.grokskin", &OriginPolicy::AnyHttps, no_dns)
-            .unwrap_err();
+        let e = check_hop(
+            "https://localhost/p.grokskin",
+            &OriginPolicy::AnyHttps,
+            no_dns,
+        )
+        .unwrap_err();
         assert!(e.contains("localhost"), "{e}");
     }
 
     #[test]
     fn reject_v6_loopback() {
-        let e = check_hop(
-            "https://[::1]/p.grokskin",
-            &OriginPolicy::AnyHttps,
-            |_| Ok(vec![IpAddr::V6(Ipv6Addr::LOCALHOST)]),
-        )
+        let e = check_hop("https://[::1]/p.grokskin", &OriginPolicy::AnyHttps, |_| {
+            Ok(vec![IpAddr::V6(Ipv6Addr::LOCALHOST)])
+        })
         .unwrap_err();
         assert!(e.contains("private") || e.contains("url_blocked"), "{e}");
     }
@@ -323,11 +324,9 @@ mod tests {
 
     #[test]
     fn reject_redirect_to_private() {
-        let e = check_hop(
-            "https://10.0.0.5/x",
-            &OriginPolicy::AnyHttps,
-            |_| Ok(vec![IpAddr::V4(Ipv4Addr::new(10, 0, 0, 5))]),
-        )
+        let e = check_hop("https://10.0.0.5/x", &OriginPolicy::AnyHttps, |_| {
+            Ok(vec![IpAddr::V4(Ipv4Addr::new(10, 0, 0, 5))])
+        })
         .unwrap_err();
         assert!(e.contains("private") || e.contains("url_blocked"), "{e}");
     }
@@ -336,18 +335,8 @@ mod tests {
     fn user_source_same_origin() {
         let catalog = Url::parse("https://pages.example/catalog.json").unwrap();
         let policy = OriginPolicy::UserSameOrigin { catalog };
-        check_hop(
-            "https://pages.example/packs/a.grokskin",
-            &policy,
-            no_dns,
-        )
-        .unwrap();
-        let e = check_hop(
-            "https://cdn.other/a.grokskin",
-            &policy,
-            no_dns,
-        )
-        .unwrap_err();
+        check_hop("https://pages.example/packs/a.grokskin", &policy, no_dns).unwrap();
+        let e = check_hop("https://cdn.other/a.grokskin", &policy, no_dns).unwrap_err();
         assert!(e.contains("same origin"), "{e}");
     }
 

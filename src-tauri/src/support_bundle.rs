@@ -772,13 +772,21 @@ mod tests {
         fs::create_dir_all(tmp.join("skin-presets").join("abc")).unwrap();
         fs::create_dir_all(tmp.join("skin-catalog-cache").join("official")).unwrap();
         fs::create_dir_all(tmp.join("wallpapers").join("library")).unwrap();
-        fs::write(tmp.join("wallpapers").join("library").join("keep.jpg"), b"x").unwrap();
+        fs::write(
+            tmp.join("wallpapers").join("library").join("keep.jpg"),
+            b"x",
+        )
+        .unwrap();
         std::env::set_var("GROK_APP_HOME", &tmp);
         let result = reset_app_data(true).expect("reset");
         assert!(result["ok"].as_bool().unwrap());
         assert!(!tmp.join("skin-presets").join("abc").exists());
         assert!(!tmp.join("skin-catalog-cache").join("official").exists());
-        assert!(tmp.join("wallpapers").join("library").join("keep.jpg").is_file());
+        assert!(tmp
+            .join("wallpapers")
+            .join("library")
+            .join("keep.jpg")
+            .is_file());
         std::env::remove_var("GROK_APP_HOME");
         let _ = fs::remove_dir_all(&tmp);
     }

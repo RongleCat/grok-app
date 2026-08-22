@@ -224,11 +224,11 @@ mod window_min;
 mod skin_catalog;
 mod skin_deeplink;
 mod skin_disk;
+mod skin_image_bake;
 mod skin_net;
 mod skin_pack;
 mod skin_presets;
 mod skin_staging;
-mod skin_image_bake;
 mod skin_video_bake;
 
 #[cfg(windows)]

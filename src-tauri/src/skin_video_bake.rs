@@ -161,7 +161,11 @@ fn parse_focus(v: &Value) -> (f64, f64, f64) {
     let cx = v.get("cx").and_then(|x| x.as_f64()).unwrap_or(0.5);
     let cy = v.get("cy").and_then(|x| x.as_f64()).unwrap_or(0.5);
     let zoom = v.get("zoom").and_then(|x| x.as_f64()).unwrap_or(1.0);
-    (clamp(cx, 0.0, 1.0), clamp(cy, 0.0, 1.0), clamp(zoom, 1.0, FOCUS_MAX_ZOOM))
+    (
+        clamp(cx, 0.0, 1.0),
+        clamp(cy, 0.0, 1.0),
+        clamp(zoom, 1.0, FOCUS_MAX_ZOOM),
+    )
 }
 
 fn parse_clip(v: &Value) -> Option<(f64, f64)> {
@@ -186,9 +190,7 @@ pub fn plan_video_bake(
         .filter(|a| a.is_finite() && *a > 0.0)
         .unwrap_or(mw as f64 / mh as f64);
     let mut crop = None;
-    let (cx, cy, zoom) = focus
-        .map(parse_focus)
-        .unwrap_or((0.5, 0.5, 1.0));
+    let (cx, cy, zoom) = focus.map(parse_focus).unwrap_or((0.5, 0.5, 1.0));
     let c = pixel_crop_from_focus(mw, mh, aspect, cx, cy, zoom);
     if !is_full_frame(&c, mw, mh) {
         crop = Some(c);
@@ -212,9 +214,7 @@ pub fn plan_image_bake(
     let aspect = view_aspect
         .filter(|a| a.is_finite() && *a > 0.0)
         .unwrap_or(mw as f64 / mh as f64);
-    let (cx, cy, zoom) = focus
-        .map(parse_focus)
-        .unwrap_or((0.5, 0.5, 1.0));
+    let (cx, cy, zoom) = focus.map(parse_focus).unwrap_or((0.5, 0.5, 1.0));
     let c = pixel_crop_from_focus_raw(mw, mh, aspect, cx, cy, zoom);
     if is_full_frame(&c, mw, mh) {
         return None;
@@ -326,7 +326,9 @@ fn run_ffmpeg(mut cmd: Command) -> Result<(), String> {
     if let Some(path_env) = process_util::enriched_path_env() {
         cmd.env("PATH", path_env);
     }
-    let mut child = cmd.spawn().map_err(|e| format!("invalid_pack: ffmpeg spawn: {e}"))?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("invalid_pack: ffmpeg spawn: {e}"))?;
     let deadline = Instant::now() + Duration::from_secs(BAKE_TIMEOUT_SECS);
     loop {
         match child.try_wait() {
@@ -356,7 +358,10 @@ pub fn bake_video(src: &Path, dest: &Path, plan: &VideoBakePlan) -> Result<(u32,
         std::fs::create_dir_all(parent).map_err(|e| format!("invalid_pack: {e}"))?;
     }
     let mut cmd = Command::new(&ffmpeg);
-    cmd.arg("-hide_banner").arg("-loglevel").arg("error").arg("-y");
+    cmd.arg("-hide_banner")
+        .arg("-loglevel")
+        .arg("error")
+        .arg("-y");
     if let Some((start, _)) = plan.clip {
         cmd.arg("-ss").arg(format!("{start:.3}"));
     }
@@ -366,7 +371,8 @@ pub fn bake_video(src: &Path, dest: &Path, plan: &VideoBakePlan) -> Result<(u32,
         cmd.arg("-t").arg(format!("{dur:.3}"));
     }
     if let Some(c) = &plan.crop {
-        cmd.arg("-vf").arg(format!("crop={}:{}:{}:{}", c.w, c.h, c.x, c.y));
+        cmd.arg("-vf")
+            .arg(format!("crop={}:{}:{}:{}", c.w, c.h, c.x, c.y));
     }
     cmd.arg("-c:v")
         .arg("libx264")
@@ -434,7 +440,9 @@ fn maybe_bake_wallpaper_video_with(
     }
     let (mw, mh) = match (
         wall.get("width").and_then(|x| x.as_u64()).map(|n| n as u32),
-        wall.get("height").and_then(|x| x.as_u64()).map(|n| n as u32),
+        wall.get("height")
+            .and_then(|x| x.as_u64())
+            .map(|n| n as u32),
     ) {
         (Some(w), Some(h)) if w > 0 && h > 0 => (w, h),
         _ => match ffmpeg.as_ref().and_then(|ff| probe_size(ff, src)) {
@@ -509,7 +517,10 @@ fn maybe_bake_wallpaper_video_with(
     let mut hasher = sha2::Sha256::new();
     use sha2::Digest;
     hasher.update(&bytes);
-    wall.insert("sha256".into(), Value::String(hex::encode(hasher.finalize())));
+    wall.insert(
+        "sha256".into(),
+        Value::String(hex::encode(hasher.finalize())),
+    );
     Ok((dest, VideoBakeStatus::Baked))
 }
 
@@ -565,7 +576,15 @@ mod tests {
         assert!(cover.w < 1920);
         let focus = serde_json::json!({ "cx": 0.4, "cy": 0.35, "zoom": 2.0 });
         let c = plan_image_bake(1920, 1080, Some(1.6), Some(&focus)).unwrap();
-        assert_eq!(c, PixelCrop { x: 336, y: 108, w: 864, h: 540 });
+        assert_eq!(
+            c,
+            PixelCrop {
+                x: 336,
+                y: 108,
+                w: 864,
+                h: 540
+            }
+        );
     }
 
     #[test]
@@ -573,7 +592,15 @@ mod tests {
         let focus = serde_json::json!({ "cx": 0.4, "cy": 0.35, "zoom": 2.0 });
         let plan = plan_video_bake(1920, 1080, Some(1.6), Some(&focus), None).unwrap();
         let c = plan.crop.unwrap();
-        assert_eq!(c, PixelCrop { x: 336, y: 108, w: 864, h: 540 });
+        assert_eq!(
+            c,
+            PixelCrop {
+                x: 336,
+                y: 108,
+                w: 864,
+                h: 540
+            }
+        );
     }
 
     #[test]
@@ -616,8 +643,7 @@ mod tests {
         .as_object()
         .cloned()
         .unwrap();
-        let (out, status) =
-            maybe_bake_wallpaper_video_with(&src, &mut wall, None).unwrap();
+        let (out, status) = maybe_bake_wallpaper_video_with(&src, &mut wall, None).unwrap();
         assert_eq!(out, src);
         assert_eq!(status, VideoBakeStatus::SkippedNoFfmpeg);
         assert!(wall.get("viewAspect").is_none());

@@ -91,7 +91,10 @@ fn parse_query(qs: &str) -> Result<Vec<(String, String)>, &'static str> {
 }
 
 fn blocked_host(host: &str) -> bool {
-    let h = host.trim().trim_matches(|c| c == '[' || c == ']').to_ascii_lowercase();
+    let h = host
+        .trim()
+        .trim_matches(|c| c == '[' || c == ']')
+        .to_ascii_lowercase();
     if h.is_empty() || h == "localhost" || h.ends_with(".localhost") {
         return true;
     }
@@ -285,12 +288,17 @@ pub fn ingest_uri_string(app: &AppHandle, raw: &str) {
 
 /// Scan argv. Fire-due wins: no pending, no emit.
 pub fn ingest_argv(args: &[String]) -> (ArgvIngest, Option<PendingSkinImport>) {
-    if args.iter().any(|a| a == crate::automation_runner::FIRE_DUE_FLAG) {
+    if args
+        .iter()
+        .any(|a| a == crate::automation_runner::FIRE_DUE_FLAG)
+    {
         return (ArgvIngest::FireDue, None);
     }
     let mut last = None;
     for a in args {
-        if a.starts_with("grok:") || a.starts_with("GROK:") || a.to_ascii_lowercase().starts_with("grok-app:")
+        if a.starts_with("grok:")
+            || a.starts_with("GROK:")
+            || a.to_ascii_lowercase().starts_with("grok-app:")
         {
             match parse_skin_import_uri(a) {
                 ParseResult::Url(href) => last = Some(PendingSkinImport::Url { href }),

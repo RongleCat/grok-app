@@ -281,7 +281,10 @@ fn materialize_upload_dir(
                 let mut h = sha2::Sha256::new();
                 use sha2::Digest;
                 h.update(&bytes);
-                w.insert("sha256".into(), serde_json::json!(hex::encode(h.finalize())));
+                w.insert(
+                    "sha256".into(),
+                    serde_json::json!(hex::encode(h.finalize())),
+                );
             }
         }
     } else if let Some(obj) = man.as_object_mut() {
@@ -462,8 +465,11 @@ pub fn undo_append(id: &str, chunk_base64: &str) -> Result<u64, String> {
     if !dir.is_dir() {
         return Err("not_found: undo tmp".into());
     }
-    let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, chunk_base64.trim())
-        .map_err(|_| "invalid_pack: bad chunk".to_string())?;
+    let bytes = base64::Engine::decode(
+        &base64::engine::general_purpose::STANDARD,
+        chunk_base64.trim(),
+    )
+    .map_err(|_| "invalid_pack: bad chunk".to_string())?;
     let blob = dir.join("blob.bin");
     let current = fs::metadata(&blob).map(|m| m.len()).unwrap_or(0);
     let next = current.saturating_add(bytes.len() as u64);
@@ -477,7 +483,8 @@ pub fn undo_append(id: &str, chunk_base64: &str) -> Result<u64, String> {
         .append(true)
         .open(&blob)
         .map_err(|e| format!("invalid_pack: {e}"))?;
-    f.write_all(&bytes).map_err(|e| format!("invalid_pack: {e}"))?;
+    f.write_all(&bytes)
+        .map_err(|e| format!("invalid_pack: {e}"))?;
     Ok(next)
 }
 
@@ -499,7 +506,9 @@ pub fn undo_commit(id: &str, mut manifest: serde_json::Value) -> Result<(), Stri
             .unwrap_or("bin");
         let dest = dir.join("assets").join(format!("wallpaper.{ext}"));
         fs::create_dir_all(dest.parent().unwrap()).map_err(|e| format!("invalid_pack: {e}"))?;
-        fs::rename(&blob, &dest).or_else(|_| fs::copy(&blob, &dest).map(|_| ())).map_err(|e| format!("invalid_pack: {e}"))?;
+        fs::rename(&blob, &dest)
+            .or_else(|_| fs::copy(&blob, &dest).map(|_| ()))
+            .map_err(|e| format!("invalid_pack: {e}"))?;
         let _ = fs::remove_file(&blob);
     }
     fs::write(
@@ -558,7 +567,10 @@ mod tests {
         assert!(reserved(UNDO_ID));
         let (_g, dir) = home();
         let err = rename_preset(UNDO_ID, "x").unwrap_err();
-        assert!(err.contains("reserved") || err.contains("not_found"), "{err}");
+        assert!(
+            err.contains("reserved") || err.contains("not_found"),
+            "{err}"
+        );
         let _ = fs::remove_dir_all(&dir);
         std::env::remove_var("GROK_APP_HOME");
     }

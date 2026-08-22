@@ -124,10 +124,7 @@ pub fn remove_source(id: &str) -> Result<(), String> {
     if id == OFFICIAL_SKIN_CATALOG_ID {
         return Err("invalid_pack: official source cannot be removed".into());
     }
-    let list: Vec<_> = list_sources()?
-        .into_iter()
-        .filter(|s| s.id != id)
-        .collect();
+    let list: Vec<_> = list_sources()?.into_iter().filter(|s| s.id != id).collect();
     write_sources(&list)
 }
 
@@ -242,7 +239,10 @@ fn parse_catalog(bytes: &[u8], policy: &OriginPolicy) -> Result<Vec<CatalogPack>
                 .get("hasWallpaper")
                 .and_then(|x| x.as_bool())
                 .unwrap_or(false),
-            kind: p.get("kind").and_then(|x| x.as_str()).map(|s| s.to_string()),
+            kind: p
+                .get("kind")
+                .and_then(|x| x.as_str())
+                .map(|s| s.to_string()),
             tags: p
                 .get("tags")
                 .and_then(|x| x.as_array())
@@ -264,15 +264,13 @@ fn policy_for(src: &SkinSource) -> Result<OriginPolicy, String> {
         }
         Ok(OriginPolicy::Official)
     } else {
-        let catalog = Url::parse(&src.url).map_err(|_| "url_blocked: bad source url".to_string())?;
+        let catalog =
+            Url::parse(&src.url).map_err(|_| "url_blocked: bad source url".to_string())?;
         Ok(OriginPolicy::UserSameOrigin { catalog })
     }
 }
 
-pub async fn fetch_catalog(
-    source_id: &str,
-    force: bool,
-) -> Result<Vec<CatalogPack>, String> {
+pub async fn fetch_catalog(source_id: &str, force: bool) -> Result<Vec<CatalogPack>, String> {
     let src = list_sources()?
         .into_iter()
         .find(|s| s.id == source_id)
@@ -300,10 +298,7 @@ pub async fn fetch_catalog(
     Ok(packs)
 }
 
-pub async fn download_pack(
-    source_id: &str,
-    pack_id: &str,
-) -> Result<SkinPackPreviewDto, String> {
+pub async fn download_pack(source_id: &str, pack_id: &str) -> Result<SkinPackPreviewDto, String> {
     let src = list_sources()?
         .into_iter()
         .find(|s| s.id == source_id)
@@ -341,7 +336,8 @@ pub async fn download_pack(
 pub async fn fetch_url_pack(href: &str) -> Result<SkinPackPreviewDto, String> {
     skin_net::check_hop(href, &OriginPolicy::AnyHttps, skin_net::default_resolve)?;
     skin_disk::preflight(PACK_MAX)?;
-    let tmp = paths::skin_catalog_cache_dir().join(format!("url-{}.grokskin", uuid::Uuid::new_v4()));
+    let tmp =
+        paths::skin_catalog_cache_dir().join(format!("url-{}.grokskin", uuid::Uuid::new_v4()));
     let _ = skin_net::safe_https_get(href, OriginPolicy::AnyHttps, PACK_MAX, Some(&tmp)).await?;
     let preview = skin_pack::inspect_pack(&tmp, "deeplink");
     let _ = fs::remove_file(&tmp);
@@ -382,7 +378,9 @@ mod tests {
         assert_eq!(OFFICIAL_SKIN_CATALOG_URL, "");
         let src = official_source(true);
         assert!(src.url.is_empty());
-        assert!(policy_for(&src).unwrap_err().starts_with("official_unconfigured"));
+        assert!(policy_for(&src)
+            .unwrap_err()
+            .starts_with("official_unconfigured"));
     }
 
     #[test]

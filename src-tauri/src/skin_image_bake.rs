@@ -39,8 +39,8 @@ fn is_animated_webp(bytes: &[u8]) -> bool {
     let mut i = 12usize;
     while i + 8 <= bytes.len() {
         let tag = &bytes[i..i + 4];
-        let size = u32::from_le_bytes([bytes[i + 4], bytes[i + 5], bytes[i + 6], bytes[i + 7]])
-            as usize;
+        let size =
+            u32::from_le_bytes([bytes[i + 4], bytes[i + 5], bytes[i + 6], bytes[i + 7]]) as usize;
         let data_at = i + 8;
         if tag == b"VP8X" && data_at < bytes.len() {
             // Bit 1 of the VP8X flags byte is animation.
@@ -161,7 +161,10 @@ pub fn maybe_bake_wallpaper_image(
     let mut hasher = sha2::Sha256::new();
     use sha2::Digest;
     hasher.update(&out_bytes);
-    wall.insert("sha256".into(), Value::String(hex::encode(hasher.finalize())));
+    wall.insert(
+        "sha256".into(),
+        Value::String(hex::encode(hasher.finalize())),
+    );
     Ok((dest, ImageBakeStatus::Baked))
 }
 
@@ -258,9 +261,15 @@ mod tests {
 
     #[test]
     fn raw_crop_matches_editor_math() {
-        let c = crate::skin_video_bake::pixel_crop_from_focus_raw(
-            1920, 1080, 1.6, 0.4, 0.35, 2.0,
+        let c = crate::skin_video_bake::pixel_crop_from_focus_raw(1920, 1080, 1.6, 0.4, 0.35, 2.0);
+        assert_eq!(
+            c,
+            PixelCrop {
+                x: 336,
+                y: 108,
+                w: 864,
+                h: 540
+            }
         );
-        assert_eq!(c, PixelCrop { x: 336, y: 108, w: 864, h: 540 });
     }
 }
