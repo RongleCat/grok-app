@@ -102,7 +102,7 @@ describe("window chrome", () => {
     expect(body).toMatch(/set_main_window_skip_taskbar/);
     const conf = JSON.parse(readFileSync(CONF_PATH, "utf8")) as { identifier?: string };
     expect(conf.identifier).toBe("com.grokapp.desktop");
-    expect(body).toContain("com.grokapp.desktop");
+    expect(body).toMatch(/pub fn set_process_app_user_model_id\(id: &str\)/);
   });
 
   it("user close keeps the macOS Dock icon", () => {

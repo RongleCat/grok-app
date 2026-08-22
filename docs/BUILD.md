@@ -29,6 +29,16 @@ pnpm install
 pnpm setup:cross   # rust targets + (macOS) cargo-xwin / nsis / llvm 检查
 ```
 
+### `pnpm dev` 与已安装版并排
+
+`pnpm dev` 会 merge [`src-tauri/tauri.dev.conf.json`](../src-tauri/tauri.dev.conf.json)：
+
+- `identifier=com.grokapp.desktop.dev`（single-instance mutex 与正式版 / **grok-app-latest** 隔离）
+- `productName=Grok Dev`，Dock / 窗口图标用 `src-tauri/icons/dev` 白底反色
+- Windows AUMID / WinRT toast 跟 bundled identifier，不和正式版抢任务栏分组
+- 会话/设置仍默认同一套 App data（`%APPDATA%\grokapp\grok-app`）；可用 `GROK_APP_HOME` 覆盖（`scripts/dev-white-icon.sh` 会指到临时目录）
+- **不要**裸跑 `tauri dev` / `pnpm tauri dev`（没有 `--config` 会撞正式版单实例锁）
+
 ### macOS
 
 - Xcode Command Line Tools：`xcode-select --install`

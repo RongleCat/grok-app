@@ -259,12 +259,13 @@ pub fn run() {
     crate::host_runtime::on_process_start();
     crate::win_crash::install();
 
-    // Windows: AppUserModelID before window/taskbar so Show Desktop / jump lists
+    let context = tauri::generate_context!();
 
-    // treat us as a normal app (matches NSIS shortcut AUMID).
+    // Windows: AppUserModelID before window/taskbar so Show Desktop / jump lists
+    // treat us as a normal app (matches NSIS shortcut AUMID / `pnpm dev` overlay).
 
     #[cfg(windows)]
-    win_shell::set_process_app_user_model_id();
+    win_shell::set_process_app_user_model_id(&context.config().identifier);
 
     let session_mgr = Arc::new(SessionManager::new());
 
@@ -1649,7 +1650,7 @@ pub fn run() {
 
         ])
 
-        .build(tauri::generate_context!())
+        .build(context)
 
         .expect("error while building Grok App")
 

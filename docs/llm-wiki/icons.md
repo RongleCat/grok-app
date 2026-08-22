@@ -24,7 +24,7 @@ Two **separate** pipelines — never mix them.
   - Headless `--start-in-tray` / fire-due uses `hide_to_tray_accessory` (Dock hidden + Accessory).
 - **Windows unread overlay** (opt-in, **default off**, independent of dock/tray `trayBusyBadge`): frontend `tray_set_windows_overlay` uses `WebviewWindow::set_overlay_icon` (16×16 painted badge from `win_taskbar_overlay`). `set_busy_count` does **not** drive the overlay. Do **not** call `set_badge_count` on Windows — Tauri documents it as unsupported and wry no-ops it. Re-apply the last overlay count after AddTab.
 - Reopen via **Dock click** (`RunEvent::Reopen` → `show_main_window`) or tray **Open Grok** / menu actions.
-- **Windows shell**: `win_shell.rs` sets process AppUserModelID (`com.grokapp.desktop`) and re-asserts `WS_EX_APPWINDOW` / `WS_MINIMIZEBOX` / taskbar tab on setup and every show so Explorer **Show Desktop** (taskbar far-right) minimizes the window even when it is alone.
+- **Windows shell**: `win_shell.rs` sets process AppUserModelID from the bundled `identifier` (release `com.grokapp.desktop`; `pnpm dev` overlay `com.grokapp.desktop.dev`) and re-asserts `WS_EX_APPWINDOW` / `WS_MINIMIZEBOX` / taskbar tab on setup and every show so Explorer **Show Desktop** (taskbar far-right) minimizes the window even when it is alone.
 - **Quit Grok** in the tray menu (or app quit) fully exits.
 
 ## Window chrome by platform

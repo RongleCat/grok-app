@@ -10,7 +10,7 @@ Thanks for your interest in contributing.
 
 ```bash
 pnpm install
-pnpm dev          # Tauri + Vite
+pnpm dev          # Tauri + Vite; identifier com.grokapp.desktop.dev (beside installed Grok)
 ```
 
 Windows: to run already-merged `origin/main` beside the official **Grok** install, double-click [`install-latest.cmd`](./install-latest.cmd) (see [docs/BUILD.md](./docs/BUILD.md)).

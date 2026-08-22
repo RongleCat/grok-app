@@ -39,15 +39,13 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WNDPROC, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
 };
 
-/// Product AUMID — must match `identifier` in tauri.conf.json / NSIS shortcuts.
-const APP_USER_MODEL_ID: &str = "com.grokapp.desktop";
-
 /// Call once early in process startup (before or right after creating the main window).
-pub fn set_process_app_user_model_id() {
-    let wide: Vec<u16> = APP_USER_MODEL_ID
-        .encode_utf16()
-        .chain(std::iter::once(0))
-        .collect();
+///
+/// `id` must be the bundled Tauri `identifier` (release `com.grokapp.desktop`;
+/// `pnpm dev` overlay `com.grokapp.desktop.dev`) so Explorer groups this
+/// process with the matching shortcuts / toasts, not the other install.
+pub fn set_process_app_user_model_id(id: &str) {
+    let wide: Vec<u16> = id.encode_utf16().chain(std::iter::once(0)).collect();
     unsafe {
         if let Err(e) = SetCurrentProcessExplicitAppUserModelID(PCWSTR(wide.as_ptr())) {
             tracing::warn!("SetCurrentProcessExplicitAppUserModelID: {e}");

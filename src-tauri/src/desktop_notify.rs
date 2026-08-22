@@ -21,9 +21,10 @@ use tauri::{AppHandle, Emitter};
 #[cfg(not(target_os = "macos"))]
 use tauri_plugin_notification::NotificationExt;
 
-/// Product bundle id / AUMID (must match `tauri.conf.json` `identifier`).
-/// Linux notifications carry no app id; the const stays for WinToast/macOS.
-#[cfg_attr(target_os = "linux", allow(dead_code))]
+/// Packaged-macOS NS notification id. `tauri dev` is a bare binary and skips
+/// this path. Windows WinRT toasts use `app.config().identifier` so `pnpm dev`
+/// matches the overlay (`com.grokapp.desktop.dev`).
+#[cfg(target_os = "macos")]
 const APP_BUNDLE_ID: &str = "com.grokapp.desktop";
 
 /// Frontend listens for this after a native notification body click.
@@ -251,7 +252,7 @@ fn show_via_winrt(
 
     let app_click = app.clone();
     let sid = session_id.map(|s| s.to_string());
-    let mut toast = Toast::new(APP_BUNDLE_ID).title(title);
+    let mut toast = Toast::new(&app.config().identifier).title(title);
     if !body.is_empty() {
         toast = toast.text1(body);
     }

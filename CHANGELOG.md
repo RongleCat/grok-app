@@ -30,6 +30,7 @@ See `docs/llm-wiki/release.md`.
 ### Changed
 - **UI font and terminal font are local-font dropdowns**: Settings → Appearance lists installed families (searchable) instead of a free-text name. UI default is the app sans stack; terminal default is the built-in Nerd Font stack. Reset is unchanged.
 - **Debug dock icon is the white invert**: `pnpm dev` uses `src-tauri/icons/dev` (white plate, dark mark) so the running debug app is distinct from the installed black production icon. Release bundles are unchanged.
+- **Windows AUMID follows the bundled identifier**: `pnpm dev` (`com.grokapp.desktop.dev`) is no longer grouped with official Grok on the taskbar / WinRT toasts. Release stays `com.grokapp.desktop`. Sessions still share App data unless `GROK_APP_HOME` is set.
 - **Resource markdown preview windows long files**: Side-pane `.md` keeps short files as one tree. Files at 200+ lines split on headings (and length caps) and only mount visible sections, instead of ReactMarkdown for the whole buffer.
 - **In-chat find stays off the workbench shell**: Ctrl+F match scanning and stream ticks live in the find bar / transcript island. Opening or closing find still toggles the shell; typing and token growth do not.
 - **Files tree windows long listings**: Side-pane / resource trees keep short folders as a full list. At 32+ visible rows, only the viewport is mounted (28px rows), instead of recursively mapping every expanded entry.
@@ -61,6 +62,7 @@ See `docs/llm-wiki/release.md`.
 **中文 · 变更**
 - **界面字体和终端字体改为本机字体下拉**：设置 → 外观列出本机已安装字体族（可搜索），不再手填名称。界面默认是应用无衬线栈；终端默认是内置 Nerd Font。重置不变。
 - **开发版 Dock 图标改白底反色**：`pnpm dev` 使用 `src-tauri/icons/dev`（白底深色标），和已安装的黑底正式版区分。发布包图标不变。
+- **Windows AUMID 跟随 bundled identifier**：`pnpm dev`（`com.grokapp.desktop.dev`）不再和正式版抢任务栏分组 / WinRT toast。发布包仍是 `com.grokapp.desktop`。会话/设置仍共用，除非设置 `GROK_APP_HOME`。
 - **资源栏 Markdown 对长文件做窗口化**：侧栏 `.md` 短文件仍整树渲染。200 行以上按标题（及长度上限）切块，只挂可见节，不再对整份 buffer 跑 ReactMarkdown。
 - **对话内查找不再打穿工作台**：Ctrl+F 的匹配和流式跳动留在找条 / 对话岛。开关查找仍会切壳；打字和 token 增长不会。
 - **文件树对长列表做窗口化**：侧栏 / 资源树短目录仍整表渲染。可见行达到 32 以上只挂视口（28px 行高），不再递归把每个展开节点打进 DOM。
