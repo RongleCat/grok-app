@@ -24,6 +24,7 @@ See `docs/llm-wiki/release.md`.
 - **快捷键帮助（Ctrl+/）**：面板可按名称 / id / 组合键筛选，按设置页同样的分组列出；补上缩放、换行、历史提示、打字聚焦；列表可滚动，不再裁掉末尾几项。
 
 ### Changed
+- **Resource markdown preview windows long files**: Side-pane `.md` keeps short files as one tree. Files at 200+ lines split on headings (and length caps) and only mount visible sections, instead of ReactMarkdown for the whole buffer.
 - **In-chat find stays off the workbench shell**: Ctrl+F match scanning and stream ticks live in the find bar / transcript island. Opening or closing find still toggles the shell; typing and token growth do not.
 - **Files tree windows long listings**: Side-pane / resource trees keep short folders as a full list. At 32+ visible rows, only the viewport is mounted (28px rows), instead of recursively mapping every expanded entry.
 - **L/R splitter drag no longer re-renders the workbench every move**: In-flow sidebar / aside width is written on the pane element while the pointer is down. Layout prefs commit on pointer-up. Dragging the left rail past the open min still collapses live.
@@ -49,6 +50,7 @@ See `docs/llm-wiki/release.md`.
 - **Official site on GitHub About and README**: Repo homepage, `package.json` `homepage`, and public READMEs now point to [https://grok-app.com/](https://grok-app.com/).
 
 **中文 · 变更**
+- **资源栏 Markdown 对长文件做窗口化**：侧栏 `.md` 短文件仍整树渲染。200 行以上按标题（及长度上限）切块，只挂可见节，不再对整份 buffer 跑 ReactMarkdown。
 - **对话内查找不再打穿工作台**：Ctrl+F 的匹配和流式跳动留在找条 / 对话岛。开关查找仍会切壳；打字和 token 增长不会。
 - **文件树对长列表做窗口化**：侧栏 / 资源树短目录仍整表渲染。可见行达到 32 以上只挂视口（28px 行高），不再递归把每个展开节点打进 DOM。
 - **拖左右分割条不再每帧重绘工作台**：按住时只改侧栏/右栏元素宽度；松手才写入 layout。左栏拖过最小宽度仍即时收起。

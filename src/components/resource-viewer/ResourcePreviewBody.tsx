@@ -12,7 +12,7 @@ import {
   resolveMediaLoadError,
 } from "@/lib/mediaLoadPro";
 import { HtmlBrowser } from "@/components/HtmlBrowser";
-import { MarkdownBody } from "@/components/MarkdownBody";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { OverlayScroll } from "@/components/OverlayScroll";
 import { ImageUi } from "@/components/ImageUi";
 import { revealInOsLabel } from "@/lib/appPlatform";
@@ -732,9 +732,9 @@ export function ResourcePreviewBody({
         ) : isMarkdown ? (
           <OverlayScroll className="rp-editor__preview-scroll">
             <div className="rp-editor__preview-body rp-preview__md">
-              <MarkdownBody>
+              <MarkdownPreview locale={locale}>
                 {draftText || preview.text || ""}
-              </MarkdownBody>
+              </MarkdownPreview>
             </div>
           </OverlayScroll>
         ) : isHtml ? (
@@ -845,9 +845,9 @@ export function ResourcePreviewBody({
     case "markdown":
       return (
         <div className="rp-preview__md">
-          <MarkdownBody>
+          <MarkdownPreview locale={locale}>
             {activeTab?.draftText ?? preview.text ?? ""}
-          </MarkdownBody>
+          </MarkdownPreview>
         </div>
       );
     case "html":
