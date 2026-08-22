@@ -136,8 +136,12 @@ describe("floating pop CSS", () => {
     expect(skins).toMatch(
       /html\[data-wallpaper="1"\] \.app-settings-stage\s*\{[^}]*z-index:\s*20/,
     );
+    // #846: lift only .workbench so the settings stage keeps inset:0.
     expect(skins).toMatch(
-      /> \*:not\(\.window-controls\):not\(\.window-edge-n\):not\(\.app-wallpaper-media\):not\(\.app-settings-stage\)/,
+      /html\[data-wallpaper="1"\] \.app-shell > \.workbench\s*\{[^}]*position:\s*relative/s,
+    );
+    expect(skins).not.toMatch(
+      /html\[data-wallpaper="1"\] \.app-shell\s*>\s*\*:not\(/s,
     );
   });
 
