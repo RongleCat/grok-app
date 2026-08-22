@@ -564,15 +564,6 @@ impl SessionManager {
         out
     }
 
-    /// True when the journal has a non-empty, non-error assistant body (any turn).
-    /// Used only as a silent heal signal when Host is stuck Streaming after work finished.
-    pub(super) fn journal_has_assistant_body(app_session_id: &str) -> bool {
-        store::load_messages(app_session_id)
-            .iter()
-            .rev()
-            .any(|m| m.role == "assistant" && !m.is_error && !m.content.trim().is_empty())
-    }
-
     /// Drop leaked open tool ids (journal already terminal, or aged without updates).
     pub(super) fn prune_orphan_open_tools(s: &mut LiveSession, now: Instant) -> usize {
         if s.open_tool_ids.is_empty() {

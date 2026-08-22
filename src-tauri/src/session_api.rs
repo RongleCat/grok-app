@@ -367,6 +367,7 @@ pub struct SessionApiCliLink {
     pub desired_target: String,
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 const WIN_SHIM_MARKER: &str = "grok-app session-api shim (managed by Grok App)";
 
 pub fn cli_link_name() -> &'static str {
@@ -399,10 +400,12 @@ fn paths_match(a: &std::path::Path, b: &std::path::Path) -> bool {
     ca == cb
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 fn is_windows_shim(contents: &str) -> bool {
     contents.contains(WIN_SHIM_MARKER)
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 fn parse_windows_shim_target(contents: &str) -> Option<PathBuf> {
     if !is_windows_shim(contents) {
         return None;
@@ -423,6 +426,7 @@ fn parse_windows_shim_target(contents: &str) -> Option<PathBuf> {
     })
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn render_windows_shim(target: &std::path::Path) -> String {
     format!(
         "@echo off\r\nREM {WIN_SHIM_MARKER}\r\n\"{}\" %*\r\n",
@@ -592,9 +596,9 @@ pub enum CliCommand {
 
 pub fn parse_cli(argv: &[String]) -> Result<CliCommand, String> {
     let args: Vec<&str> = argv.iter().skip(1).map(String::as_str).collect();
-    if args.iter().any(|a| *a == SESSIONS_FLAG) {
+    if args.contains(&SESSIONS_FLAG) {
         return Ok(CliCommand::List {
-            include_archived: args.iter().any(|a| *a == INCLUDE_ARCHIVED_FLAG),
+            include_archived: args.contains(&INCLUDE_ARCHIVED_FLAG),
         });
     }
     if let Some(i) = args.iter().position(|a| *a == SESSION_SEND_FLAG) {
@@ -822,6 +826,9 @@ pub fn classify_send_error(err: &str) -> TurnStatus {
     TurnStatus::Error
 }
 
+// TurnResult carries full error context strings; boxing it would ripple
+// through every caller for no measurable win on this cold path.
+#[allow(clippy::result_large_err)]
 pub fn prepare_send(session_id: &str, prompt: &str) -> Result<PreparedSend, TurnResult> {
     let prompt = prompt.trim();
     if prompt.is_empty() {
@@ -1482,6 +1489,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)] // const comparison pins the spec budget
     fn retry_later_is_503_and_serializes() {
         assert_eq!(
             status_for(&TurnStatus::RetryLater),

@@ -77,9 +77,7 @@ pub fn compat_skill_kind(source: &str, path: Option<&str>) -> Option<CompatSkill
     if src == "cursor" || src.starts_with("cursor") {
         return Some(CompatSkillKind::Cursor);
     }
-    let Some(raw) = path.map(str::trim).filter(|s| !s.is_empty()) else {
-        return None;
-    };
+    let raw = path.map(str::trim).filter(|s| !s.is_empty())?;
     let p = normalize_fs_path(raw);
     if p.contains("/.claude/skills/")
         || p.contains("/.claude/commands/")

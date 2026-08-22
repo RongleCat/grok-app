@@ -263,6 +263,7 @@ pub async fn session_reattach(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn session_resolve_permission(
     app: tauri::AppHandle,
     mgr: State<'_, Arc<SessionManager>>,

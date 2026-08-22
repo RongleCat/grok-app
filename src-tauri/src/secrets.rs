@@ -24,9 +24,6 @@ use parking_lot::Mutex;
 use crate::paths::{ensure_app_dirs, secrets_file};
 use crate::store::SecretsFile;
 
-#[cfg(test)]
-use std::collections::HashMap;
-
 /// Reverse-DNS service id shared with app data layout (`com.grokapp.grok-app`).
 const KEYRING_SERVICE: &str = "com.grokapp.grok-app";
 

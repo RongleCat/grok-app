@@ -1277,6 +1277,9 @@ fn system_downloads_dir() -> PathBuf {
     crate::process_util::user_home().join("Downloads")
 }
 
+/// Collision-safe download target (`name.ext` → `name (2).ext` → …).
+/// Unit-tested pure helper; the live download path resolves naming inline.
+#[cfg_attr(not(test), allow(dead_code))]
 fn unique_download_path(dir: &Path, suggested: &str) -> PathBuf {
     let name = sanitize_filename(suggested);
     let (stem, ext) = match name.rsplit_once('.') {

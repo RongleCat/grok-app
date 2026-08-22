@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use tauri::{AppHandle, Emitter};
-use uuid::Uuid;
 
 use crate::acp_client::{
     provider_retry_abort_error, provider_retry_abort_rpc_message, should_abort_provider_retry_ex,
@@ -844,12 +843,10 @@ impl SessionManager {
                     let mut bg = self.background.lock();
                     if let Some(s) = bg.get_mut(app_session_id) {
                         s.provider_retry_attempt = attempt;
-                        if !Self::should_apply_provider_retry_abort(s) {
-                            false
-                        } else if s.provider_retry_aborted {
-                            false
-                        } else {
+                        if Self::should_apply_provider_retry_abort(s) && !s.provider_retry_aborted {
                             should_abort_provider_retry_ex(attempt, max_retries, &status, &reason)
+                        } else {
+                            false
                         }
                     } else {
                         false

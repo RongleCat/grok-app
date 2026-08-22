@@ -130,7 +130,7 @@ pub fn first_proxy_from_pac(pac_body: &str) -> Option<String> {
             let abs = search_from + rel + prefix.len();
             let rest = pac_body.get(abs..).unwrap_or("");
             let end = rest
-                .find(|c: char| c == ';' || c == '"' || c == '\'' || c == '\n' || c == '\r')
+                .find([';', '"', '\'', '\n', '\r'])
                 .unwrap_or(rest.len());
             let addr = rest[..end].trim();
             if addr.is_empty() || addr.eq_ignore_ascii_case("DIRECT") {
@@ -427,6 +427,7 @@ pub fn decision() -> ProxyDecision {
 
 /// Pure resolution used by tests and callers that only need [`ProxyDecision`]
 /// (system OS reads are live when mode is `system`).
+#[cfg_attr(not(test), allow(dead_code))]
 #[inline]
 pub fn decision_from(
     mode: &str,

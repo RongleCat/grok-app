@@ -4321,7 +4321,7 @@ mod tests {
 
         // `base` models a snapshot taken before the stream append.
         append_message(&session.id, appended.clone()).expect("append stream row");
-        save_messages(&session.id, &[base.clone()]).expect("merge stale snapshot");
+        save_messages(&session.id, std::slice::from_ref(&base)).expect("merge stale snapshot");
         let merged = load_messages(&session.id);
         assert!(merged.iter().any(|message| message.id == base.id));
         assert!(merged

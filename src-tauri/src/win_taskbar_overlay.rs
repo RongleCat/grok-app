@@ -6,6 +6,11 @@
 //! `DeleteTab` / `AddTab` can put it back. Driven by `tray_set_windows_overlay`,
 //! not `tray_set_busy_count`.
 
+// Prod callers live behind `#[cfg(windows)]` in tray.rs; unit tests run on all
+// platforms, so keep the module compiled everywhere and silence dead_code only
+// where the feature is absent.
+#![cfg_attr(not(target_os = "windows"), allow(dead_code))]
+
 use std::sync::atomic::{AtomicU32, Ordering};
 
 pub const SIZE: u32 = 16;

@@ -24,6 +24,7 @@ use crate::store::AppSettings;
 /// Settings value for native Windows/macOS/Linux CLI spawn.
 pub const CLI_BACKEND_NATIVE: &str = "native";
 /// Settings value for spawning through `wsl.exe` (Windows only).
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 pub const CLI_BACKEND_WSL: &str = "wsl";
 
 const VERSION_PROBE_TIMEOUT: Duration = Duration::from_secs(8);
@@ -39,18 +40,18 @@ pub struct WslLaunch {
 
 /// Whether settings request the WSL spawn path on this host.
 pub fn wsl_backend_active(settings: &AppSettings) -> bool {
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = settings;
-        return false;
-    }
     #[cfg(target_os = "windows")]
-    {
-        normalize_cli_backend(&settings.cli_backend) == CLI_BACKEND_WSL
-    }
+    let requested = normalize_cli_backend(&settings.cli_backend) == CLI_BACKEND_WSL;
+    #[cfg(not(target_os = "windows"))]
+    let requested = {
+        let _ = settings;
+        false
+    };
+    requested
 }
 
 /// Normalize stored backend id (`native` | `wsl`). Unknown → `native`.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 pub fn normalize_cli_backend(raw: &str) -> String {
     match raw.trim().to_ascii_lowercase().as_str() {
         CLI_BACKEND_WSL => CLI_BACKEND_WSL.into(),
@@ -160,6 +161,7 @@ pub fn find_wsl_exe() -> Option<PathBuf> {
 }
 
 /// List installed WSL distro names (`wsl.exe -l -q`). Best-effort; empty on failure.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 pub fn list_wsl_distros() -> Vec<String> {
     let Some(wsl) = find_wsl_exe() else {
         return Vec::new();
@@ -187,8 +189,9 @@ pub fn list_wsl_distros() -> Vec<String> {
         .collect()
 }
 
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 fn decode_wsl_list_output(bytes: &[u8]) -> String {
-    if bytes.len() >= 2 && bytes.len() % 2 == 0 {
+    if bytes.len() >= 2 && bytes.len().is_multiple_of(2) {
         // UTF-16 LE BOM or high null density → treat as UTF-16 LE
         let looks_utf16 = bytes[0] == 0xFF && bytes[1] == 0xFE
             || bytes
@@ -364,11 +367,7 @@ echo "$CLI"
                         l.to_ascii_lowercase().contains("grok")
                             || extract_version_token(l).is_some()
                     })
-                    .map(|s| s.to_string())
-                    .or_else(|| {
-                        // Single-line --version sometimes only on first line after path
-                        path.as_ref().and_then(|_| None)
-                    });
+                    .map(|s| s.to_string());
                 // If path line itself looks like a version banner, treat carefully
                 let (resolved_path, version) = match (&path, &version_line) {
                     (Some(p), Some(v)) => (Some(p.clone()), Some(v.clone())),
@@ -529,20 +528,8 @@ pub struct WslStatus {
 
 /// Collect WSL availability + optional CLI probe for Settings.
 pub fn wsl_status(settings: &AppSettings) -> WslStatus {
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = settings;
-        return WslStatus {
-            available: false,
-            wsl_exe: None,
-            distros: Vec::new(),
-            backend_active: false,
-            probe: None,
-            error: Some("WSL backend is only available on Windows".into()),
-        };
-    }
     #[cfg(target_os = "windows")]
-    {
+    let status = {
         let wsl_exe = find_wsl_exe().map(|p| p.display().to_string());
         let available = wsl_exe.is_some();
         let distros = if available {
@@ -569,7 +556,20 @@ pub fn wsl_status(settings: &AppSettings) -> WslStatus {
             probe,
             error,
         }
-    }
+    };
+    #[cfg(not(target_os = "windows"))]
+    let status = {
+        let _ = settings;
+        WslStatus {
+            available: false,
+            wsl_exe: None,
+            distros: Vec::new(),
+            backend_active: false,
+            probe: None,
+            error: Some("WSL backend is only available on Windows".into()),
+        }
+    };
+    status
 }
 
 #[cfg(test)]

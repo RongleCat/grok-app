@@ -1073,7 +1073,7 @@ impl Engine {
             } else {
                 "当前没有可压缩的 agent 会话。请先发送一条消息，或使用 /r 恢复会话。"
             };
-            let _ = self.reply_msg(msg, &text).await;
+            let _ = self.reply_msg(msg, text).await;
             return;
         };
         let Some(agent_session_id) = binding

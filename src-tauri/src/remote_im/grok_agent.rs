@@ -237,6 +237,7 @@ async fn run_turn_with_binary(
     .await
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn run_turn_with_binary_and_env(
     binary: &Path,
     work_dir: &Path,

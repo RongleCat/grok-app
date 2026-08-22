@@ -96,7 +96,7 @@ pub fn ensure_home_env_std(cmd: &mut StdCommand) {
         return;
     }
     let home = user_home();
-    if home.as_os_str().is_empty() || home == PathBuf::from(".") {
+    if home.as_os_str().is_empty() || home == Path::new(".") {
         return;
     }
     cmd.env("HOME", home);
@@ -108,7 +108,7 @@ pub fn ensure_home_env_tokio(cmd: &mut tokio::process::Command) {
         return;
     }
     let home = user_home();
-    if home.as_os_str().is_empty() || home == PathBuf::from(".") {
+    if home.as_os_str().is_empty() || home == Path::new(".") {
         return;
     }
     cmd.env("HOME", home);

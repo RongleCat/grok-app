@@ -475,7 +475,7 @@ mod tests {
     fn quota_item_hides_empty_placeholder_snapshot() {
         let snap = crate::supergrok_quota::default_unused_quota_snapshot();
         let item = quota_item_from_snapshot("u1".into(), snap);
-        assert_eq!(item.available, false);
+        assert!(!item.available);
         assert!(item.remaining_percent.is_none());
     }
 

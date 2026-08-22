@@ -1102,8 +1102,8 @@ fn local_usage_from_roots(
     let skip_before = start - ChronoDuration::days(1);
     let skip_before_epoch = skip_before
         .and_hms_opt(0, 0, 0)
-        .and_then(|d| d.and_utc().timestamp().try_into().ok())
-        .unwrap_or(0i64);
+        .map(|d| d.and_utc().timestamp())
+        .unwrap_or(0);
 
     for root in roots {
         if root.is_dir() {
@@ -2078,7 +2078,7 @@ mod tests {
         )
         .unwrap();
 
-        let (heatmap, logs) = local_usage_from_roots(7, 10, &[temp.clone()]);
+        let (heatmap, logs) = local_usage_from_roots(7, 10, std::slice::from_ref(&temp));
         assert_eq!(logs.len(), 1);
         assert_eq!(logs[0].context_tokens, 8000);
         assert_eq!(logs[0].usage_tokens, 35000);

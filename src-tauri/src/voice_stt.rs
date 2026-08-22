@@ -437,7 +437,11 @@ fn mentions_param(body: &str, param: &str) -> bool {
 /// Error-classification context: official xAI endpoint vs custom endpoint
 /// (which may be a local service). Keeps 401/403 and connectivity failures in
 /// the right buckets so the UI can show accurate copy.
+///
+/// Prod currently transcribes only through custom-compatible endpoints; the
+/// `Official` variant and `local` flag stay for the classification unit tests.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 enum SttErrorCtx {
     Official,
     Custom { local: bool },

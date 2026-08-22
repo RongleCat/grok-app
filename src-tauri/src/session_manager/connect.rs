@@ -1625,9 +1625,7 @@ impl SessionManager {
                     policy,
                     effort: Some(prefs.effort),
                     sandbox_profile: Some(effective_sandbox),
-                    model_id: Some(prefs.model_id),
                     created_at: Instant::now(),
-                    backend: "grok_agent_stdio".into(),
                 });
                 true
             } else {
@@ -1665,29 +1663,6 @@ impl SessionManager {
         }
     }
 
-    /// Process ids that currently host a mid-turn live or background session.
-    /// Parked is never mid-turn (`prompt_in_flight` blocks parking).
-    pub(super) fn busy_process_ids_for_warm_reuse(&self) -> HashSet<String> {
-        let live_pid = {
-            let guard = self.inner.lock();
-            guard.as_ref().and_then(|s| {
-                if s.acp.as_ref().is_some_and(|c| c.is_alive()) && Self::live_session_is_busy(s) {
-                    Some(s.process_id.clone())
-                } else {
-                    None
-                }
-            })
-        };
-        let bg_pids: Vec<String> = {
-            let bg = self.background.lock();
-            bg.values()
-                .filter(|s| Self::live_session_is_busy(s))
-                .map(|s| s.process_id.clone())
-                .collect()
-        };
-        collect_busy_reuse_process_ids(live_pid.as_deref(), bg_pids.iter().map(String::as_str))
-    }
-
     /// Pure reuse gate — split out for unit tests (no AcpClient needed).
     /// Process-level spawn flags must match: permission policy, reasoning
     /// effort, sandbox profile, and route class (official OIDC vs custom
@@ -1697,6 +1672,7 @@ impl SessionManager {
     /// Sandbox: the CLI normalizes "off" to no `--sandbox` flag (stored as
     /// `None` on the client), while settings resolve to the string "off".
     /// Treat None as "off" so both representations match.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn reuse_gate(
         alive: bool,
         p_policy: PermissionPolicy,
@@ -1757,6 +1733,10 @@ impl SessionManager {
 /// `live` is included only when that live shell is itself mid-turn on a
 /// real ACP (the Connecting placeholder with a fresh UUID is omitted by
 /// the caller).
+///
+/// Pure helpers kept for the warm-reuse unit tests; the live connect path
+/// currently gates reuse inline.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn collect_busy_reuse_process_ids<'a>(
     live: Option<&'a str>,
     backgrounds: impl IntoIterator<Item = &'a str>,
@@ -1776,6 +1756,7 @@ pub(super) fn collect_busy_reuse_process_ids<'a>(
 }
 
 /// True when this process currently hosts a mid-turn co-tenant.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn process_blocked_for_warm_reuse(
     process_id: &str,
     busy_process_ids: &HashSet<String>,
@@ -1790,6 +1771,7 @@ pub(super) fn process_blocked_for_warm_reuse(
 /// Parked entries are per-session; the ACP child is shared. Killing on the
 /// parked grain would abort a cohabitant's in-flight turn. The parked row
 /// stays gone so this chat cold-spawns on next connect.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn should_kill_parked_after_flag_mismatch(
     process_id: &str,
     busy_process_ids: &HashSet<String>,
@@ -1854,7 +1836,9 @@ mod connect_preserve_tests {
         assert!(!process_exit_should_fail_fsm(SessionState::Idle, false));
     }
 
+    // Const comparisons are deliberate spec guards pinning the wall-clock budget.
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn wall_clock_and_stop_only_abort_handshake() {
         assert!(should_fail_connect_on_wall_clock(SessionState::Connecting));
         assert!(!should_fail_connect_on_wall_clock(SessionState::Ready));
@@ -1865,6 +1849,7 @@ mod connect_preserve_tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn wall_clock_covers_lock_wait_and_handshake() {
         assert_eq!(connect_gave_up_reason(false), "connect lock busy");
         assert_eq!(connect_gave_up_reason(true), "connect timed out");

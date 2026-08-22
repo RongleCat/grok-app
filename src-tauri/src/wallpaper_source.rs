@@ -1703,7 +1703,9 @@ and https://pbs.twimg.com/media/HNccFG2X0AE8gQ6.jpg?format=jpg&name=small
         assert!(
             extract_status_id_from_url("https://x.com/victim/photo?u=/status/99999999").is_none()
         );
-        assert!(is_canonical_x_status_url("ftp://x.com/user/status/12345678") == false);
+        assert!(!is_canonical_x_status_url(
+            "ftp://x.com/user/status/12345678"
+        ));
         assert!(normalize_status_url("https://cdn.evil.com/x.com/status/12345678", None).is_none());
         assert!(
             normalize_status_url("https://x.com.evil.com/user/status/12345678", None).is_none()

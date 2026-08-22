@@ -758,7 +758,7 @@ fn run_workflow_inner(
 
     if let Some(out) = child.stdout.take() {
         let buf = Arc::clone(&stdout_buf);
-        let app_c = app.map(|a| a.clone());
+        let app_c = app.cloned();
         let n = name_owned.clone();
         let m = mode_owned.clone();
         let st = Arc::clone(&started_arc);
@@ -784,7 +784,7 @@ fn run_workflow_inner(
     }
     if let Some(err) = child.stderr.take() {
         let buf = Arc::clone(&stderr_buf);
-        let app_c = app.map(|a| a.clone());
+        let app_c = app.cloned();
         let n = name_owned.clone();
         let m = mode_owned.clone();
         let st = Arc::clone(&started_arc);

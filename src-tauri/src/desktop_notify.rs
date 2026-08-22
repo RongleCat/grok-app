@@ -18,7 +18,6 @@
 //! Returns the delivery **path** string on success so Settings can be honest.
 
 use tauri::{AppHandle, Emitter};
-use tauri_plugin_notification::NotificationExt;
 
 /// Product bundle id / AUMID (must match `tauri.conf.json` `identifier`).
 const APP_BUNDLE_ID: &str = "com.grokapp.desktop";
@@ -64,7 +63,7 @@ pub fn desktop_notify_show(
                     %path,
                     "native notification delivered"
                 );
-                return Ok(path.to_string());
+                Ok(path.to_string())
             }
             Err(e) => {
                 tracing::warn!(
@@ -73,7 +72,7 @@ pub fn desktop_notify_show(
                     title = %title,
                     "macos native path failed"
                 );
-                return Err(e);
+                Err(e)
             }
         }
     }

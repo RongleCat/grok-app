@@ -76,6 +76,7 @@ pub async fn terminal_pty_kill(session_id: String) -> Result<(), String> {
 /// Create/replace a side-browser child webview with download save-dialog wiring.
 /// Prefer this over frontend `new Webview()` so WKWebView downloads can prompt.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn side_browser_create(
     app: AppHandle,
     label: String,

@@ -193,7 +193,7 @@ pub struct PetTaskPayload {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct PetHitChrome {
+pub(crate) struct PetHitChrome {
     valid: bool,
     mark_cx: f64,
     mark_cy: f64,
@@ -202,8 +202,6 @@ struct PetHitChrome {
     bubble_y: f64,
     bubble_w: f64,
     bubble_h: f64,
-    window_w: f64,
-    window_h: f64,
 }
 
 impl PetHitChrome {
@@ -217,8 +215,6 @@ impl PetHitChrome {
             bubble_y: 0.0,
             bubble_w: 0.0,
             bubble_h: 0.0,
-            window_w: 0.0,
-            window_h: 0.0,
         }
     }
 
@@ -654,6 +650,7 @@ pub fn persist_pet_window_pos(app: &AppHandle) {
 }
 
 /// Physical cursor vs logical hit chrome (mark disc + task-bubble stack).
+#[allow(clippy::too_many_arguments)]
 pub fn pet_cursor_over_chrome(
     cursor_x: f64,
     cursor_y: f64,
@@ -689,6 +686,7 @@ pub fn pet_hit_radius(size_px: u32, scale_factor: f64) -> f64 {
     f64::from(size_px.max(64)) * scale_factor.max(0.5) * 0.52
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn pet_cursor_over_mark(
     cursor_x: f64,
     cursor_y: f64,
@@ -1358,8 +1356,6 @@ pub fn pet_set_hit_chrome(chrome: PetHitChromeIn) {
             bubble_y: chrome.bubble_y,
             bubble_w: chrome.bubble_w.max(0.0).min(max_w),
             bubble_h: chrome.bubble_h.max(0.0).min(max_h),
-            window_w: chrome.window_w.max(0.0),
-            window_h: chrome.window_h.max(0.0),
         };
     }
 }
@@ -1524,8 +1520,6 @@ mod tests {
             bubble_y: 8.0,
             bubble_w: 216.0,
             bubble_h: 80.0,
-            window_w: 260.0,
-            window_h: 280.0,
         };
         let scale = 2.0;
         let win_w = 260.0 * scale;

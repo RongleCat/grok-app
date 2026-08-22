@@ -204,12 +204,9 @@ fn dispatch_close_tab_or_window(app: &AppHandle) {
 }
 
 fn focused_webview(app: &AppHandle) -> Option<WebviewWindow> {
-    for (_, w) in app.webview_windows() {
-        if w.is_focused().unwrap_or(false) {
-            return Some(w);
-        }
-    }
-    None
+    app.webview_windows()
+        .into_values()
+        .find(|w| w.is_focused().unwrap_or(false))
 }
 
 /// Refresh labels when the user changes locale in Settings (best-effort).

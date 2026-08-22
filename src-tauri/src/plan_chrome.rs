@@ -231,7 +231,7 @@ pub fn apply_decision(session_id: &str, decision: &str, keep_body: bool) {
         return;
     }
     let mut prev = load_plan_chrome(session_id).unwrap_or_default();
-    let closed = prev.rpc_id.clone();
+    let closed = prev.rpc_id;
     let d = decision.trim().to_ascii_lowercase();
     prev.rpc_id = None;
     prev.gate_stale = false;

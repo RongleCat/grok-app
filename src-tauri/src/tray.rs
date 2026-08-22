@@ -133,7 +133,7 @@ pub fn build_menu(app: &AppHandle) -> Result<Menu<Wry>, tauri::Error> {
     builder = builder.item(&MenuItem::with_id(
         app,
         "quit",
-        &quit_tray_label(tr.quit),
+        quit_tray_label(tr.quit),
         true,
         None::<&str>,
     )?);

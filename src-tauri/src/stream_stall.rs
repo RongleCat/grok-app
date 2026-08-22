@@ -363,6 +363,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)] // const comparisons pin the spec defaults
     fn defaults_match_spec() {
         assert_eq!(DEFAULT_STREAM_STALL_SECONDS, 600);
         assert_eq!(MIN_STREAM_STALL_SECONDS, 15);

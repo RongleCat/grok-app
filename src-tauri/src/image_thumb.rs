@@ -13,7 +13,7 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use image::imageops::FilterType;
-use image::{DynamicImage, ImageFormat};
+use image::DynamicImage;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -354,6 +354,7 @@ pub fn ensure_image_thumb(path_or_url: &str) -> Result<ImageThumbResult, String>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image::ImageFormat;
 
     #[test]
     fn builds_thumb_from_png_bytes() {

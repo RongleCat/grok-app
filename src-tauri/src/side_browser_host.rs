@@ -274,6 +274,7 @@ fn suggested_from_staging_name(file_name: &str) -> String {
 ///
 /// `window_label` is usually `main` or `session-*` — the window that hosts the
 /// overlay bounds. Position/size are logical pixels matching the host DOM rect.
+#[allow(clippy::too_many_arguments)]
 pub fn create(
     app: &AppHandle,
     label: String,
@@ -364,10 +365,10 @@ pub fn create(
             };
             match payload.event() {
                 PageLoadEvent::Started => {
-                    emit_page_load(&webview.app_handle(), "started", &label, &url);
+                    emit_page_load(webview.app_handle(), "started", &label, &url);
                 }
                 PageLoadEvent::Finished => {
-                    emit_page_load(&webview.app_handle(), "finished", &label, &url);
+                    emit_page_load(webview.app_handle(), "finished", &label, &url);
                     let _ = webview.eval(polyfill_reload.clone());
                 }
             }
@@ -381,11 +382,7 @@ pub fn create(
                 } else {
                     label
                 };
-                crate::side_browser_blob::handle_title_signal(
-                    &webview.app_handle(),
-                    &label,
-                    &title,
-                );
+                crate::side_browser_blob::handle_title_signal(webview.app_handle(), &label, &title);
             }
         })
         .on_download(move |webview, event| {
@@ -421,7 +418,7 @@ pub fn create(
                     *destination = staging;
 
                     emit_download(
-                        &webview.app_handle(),
+                        webview.app_handle(),
                         SideBrowserDownloadPayload {
                             phase: "requested".into(),
                             label,
@@ -464,7 +461,7 @@ pub fn create(
                             "download failed"
                         );
                         emit_download(
-                            &webview.app_handle(),
+                            webview.app_handle(),
                             SideBrowserDownloadPayload {
                                 phase: "finished".into(),
                                 label,
@@ -485,7 +482,7 @@ pub fn create(
                             "download finished without path"
                         );
                         emit_download(
-                            &webview.app_handle(),
+                            webview.app_handle(),
                             SideBrowserDownloadPayload {
                                 phase: "finished".into(),
                                 label,
@@ -507,7 +504,7 @@ pub fn create(
                             "download staging missing"
                         );
                         emit_download(
-                            &webview.app_handle(),
+                            webview.app_handle(),
                             SideBrowserDownloadPayload {
                                 phase: "finished".into(),
                                 label,

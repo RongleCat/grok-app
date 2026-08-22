@@ -13,6 +13,8 @@ pub enum MessageKey {
 }
 
 /// Canonical catalog id: `en` | `de` | … | `zh-TW`.
+/// Test convenience over [`Locale::parse`]; prod resolves via `resolve_engine_lang`.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn normalize_lang(lang: &str) -> &'static str {
     Locale::parse(lang).as_tag()
 }

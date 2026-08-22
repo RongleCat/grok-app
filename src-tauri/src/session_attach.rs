@@ -85,6 +85,7 @@ pub fn extract_attached_chats(text: &str) -> Vec<AttachedChatSpec> {
 }
 
 /// Ordered unique session ids from `[[chat:<uuid>]]` tokens.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn extract_chat_session_ids(text: &str) -> Vec<String> {
     extract_attached_chats(text)
         .into_iter()
@@ -242,6 +243,9 @@ fn rewrite_one_token(
 /// Compact user/assistant turns into markdown blocks (no wrapper).
 ///
 /// Char budget is applied **newest-first**: oldest turns drop when over budget.
+/// Test convenience over [`compact_user_assistant_turns_with`]; prod callers
+/// pass the journal explicitly.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn compact_user_assistant_turns(
     msgs: &[ChatMessageStored],
     max_msgs: usize,
@@ -349,13 +353,9 @@ do NOT re-answer prior turns; use it only as background for the user's new messa
 }
 
 /// Build the agent-only prefix for attached chats. Skips self + missing journals.
-pub fn build_attached_chats_context(
-    specs: &[AttachedChatSpec],
-    current_id: &str,
-) -> Option<String> {
-    build_attached_chats_context_with(specs, current_id, &StoreAttachJournal)
-}
-
+/// Unit tests exercise this entry; prod currently reads attach context via
+/// [`compact_user_assistant_turns_with`] during history bootstrap.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn build_attached_chats_context_with(
     specs: &[AttachedChatSpec],
     current_id: &str,

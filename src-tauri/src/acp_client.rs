@@ -329,8 +329,6 @@ pub struct AcpClient {
     last_update_unstamped: ParkingMutex<Option<Instant>>,
     /// Official side-channel: skip App MCP inject on session/new.
     empty_mcp_servers: bool,
-    /// Effective `--sandbox` profile at spawn (process-level gate for parked reuse).
-    sandbox_profile: ParkingMutex<Option<String>>,
     /// Route class at spawn: custom relay (api_key, no OIDC) vs official OIDC.
     /// Used by process reuse gate — must **not** be inferred from composer
     /// model id (custom routes often store the upstream model name, not the
@@ -1110,11 +1108,6 @@ pub fn should_authenticate_cached_token(custom_route: bool) -> bool {
 }
 
 impl AcpClient {
-    /// Effective sandbox profile this process was spawned with (reuse gate).
-    pub fn sandbox_profile(&self) -> Option<String> {
-        self.sandbox_profile.lock().clone()
-    }
-
     pub fn use_mock() -> bool {
         std::env::var("GROK_APP_ACP")
             .map(|v| v.eq_ignore_ascii_case("mock"))
@@ -1650,7 +1643,6 @@ impl AcpClient {
             last_update_by_session: ParkingMutex::new(HashMap::new()),
             last_update_unstamped: ParkingMutex::new(None),
             empty_mcp_servers,
-            sandbox_profile: ParkingMutex::new(sandbox.map(|sb| sb.profile.clone())),
             custom_route,
             rewind_supported: ParkingMutex::new(None),
         });
@@ -1745,7 +1737,6 @@ impl AcpClient {
             last_update_unstamped: ParkingMutex::new(None),
             // TCP connect path keeps default MCP inject (not official side-channel).
             empty_mcp_servers: false,
-            sandbox_profile: ParkingMutex::new(None),
             // Remote ACP: treat as official-class for reuse (no local auth strip).
             custom_route: false,
             rewind_supported: ParkingMutex::new(None),
@@ -2478,9 +2469,9 @@ pub fn parse_usage_update(kind: &str, update: &Value) -> Option<AcpEvent> {
     // Normalize source so the frontend occupancy classifier matches CLI events.
     let source = if kind == "auto_compact_started" || kind.ends_with("auto_compact_started") {
         "auto_compact_started".to_string()
-    } else if kind == "tokens_used" {
-        "tokens_used".to_string()
-    } else if occupancy.is_some() && input.is_none() && output.is_none() && kind.is_empty() {
+    } else if kind == "tokens_used"
+        || (occupancy.is_some() && input.is_none() && output.is_none() && kind.is_empty())
+    {
         "tokens_used".to_string()
     } else {
         kind.to_string()
@@ -4905,8 +4896,8 @@ mod context_tokens_tests {
         let windows = parse_model_context_tokens(&init);
         assert_eq!(windows.len(), 1);
         assert_eq!(windows.get("has-window"), Some(&128000));
-        assert!(windows.get("no-window").is_none());
-        assert!(windows.get("no-meta").is_none());
+        assert!(!windows.contains_key("no-window"));
+        assert!(!windows.contains_key("no-meta"));
     }
 
     #[test]

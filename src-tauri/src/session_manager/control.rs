@@ -813,6 +813,7 @@ impl SessionManager {
     /// permissions too (`session://background_permission`), and their rpc id
     /// belongs to *their* ACP child. Resolving against the live slot dropped the
     /// answer on the wrong process and left the background turn stuck forever.
+    #[allow(clippy::too_many_arguments)]
     pub async fn resolve_permission(
         self: &Arc<Self>,
         app: AppHandle,
@@ -1018,7 +1019,7 @@ impl SessionManager {
         let (acp, id) = self
             .with_session_mut(&target, |s| {
                 Self::touch_activity_locked(s);
-                let id = rpc_id.or_else(|| s.pending_plan_rpc_id.clone());
+                let id = rpc_id.or(s.pending_plan_rpc_id);
                 (s.acp.clone(), id)
             })
             .ok_or("no session")?;
@@ -1054,7 +1055,7 @@ impl SessionManager {
         // Peek pending id without taking — only clear after a successful RPC.
         let (acp, id) = self
             .with_session_mut(&target, |s| {
-                let id = rpc_id.or_else(|| s.pending_ask_user_rpc_id.clone());
+                let id = rpc_id.or(s.pending_ask_user_rpc_id);
                 (s.acp.clone(), id)
             })
             .ok_or("no session")?;
