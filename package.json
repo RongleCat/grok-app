@@ -19,7 +19,7 @@
     "preinstall": "node scripts/check-deps-hygiene.mjs --preinstall",
     "deps:check": "node scripts/check-deps-hygiene.mjs",
     "audit:prod": "pnpm audit --prod --audit-level moderate",
-    "dev": "tauri dev",
+    "dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
     "dev:ui": "vite",
     "build": "bash scripts/build-local.sh host",
     "build:ui": "tsc -b && vite build",

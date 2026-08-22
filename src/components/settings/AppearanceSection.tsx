@@ -5,6 +5,7 @@ import { useSettingsModel } from "@/providers/SettingsModelContext";
 import type { SettingsViewModel } from "./types";
 
 import { Select } from "@/components/Select";
+import { FontFamilySelect } from "./FontFamilySelect";
 import { IconAppearance, IconCrop, IconHelp } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import {
@@ -792,13 +793,14 @@ export function AppearanceSection() {
                       />
                     </div>
                     <div className="settings-row__controls settings-row__controls--grow">
-                      <input
-                        type="text"
-                        className="settings-input"
+                      <FontFamilySelect
                         value={uiFontFamily}
-                        placeholder={t("settings.uiFontPh")}
+                        onChange={(next) => onUiFontFamily?.(next)}
                         aria-label={t("settings.uiFont")}
-                        onChange={(e) => onUiFontFamily?.(e.target.value)}
+                        defaultLabel={t("settings.uiFontDefault")}
+                        searchPlaceholder={t("settings.uiFontPh")}
+                        emptyLabel={t("settings.uiFontEmpty")}
+                        loadingLabel={t("settings.uiFontLoading")}
                       />
                       <button
                         type="button"
@@ -828,15 +830,15 @@ export function AppearanceSection() {
                       />
                     </div>
                     <div className="settings-row__controls settings-row__controls--grow">
-                      <input
-                        type="text"
-                        className="settings-input"
+                      <FontFamilySelect
                         value={terminalFontFamily}
-                        placeholder={t("settings.terminalFontPh")}
+                        onChange={(next) => onTerminalFontFamily?.(next)}
                         aria-label={t("settings.terminalFont")}
-                        onChange={(e) =>
-                          onTerminalFontFamily?.(e.target.value)
-                        }
+                        defaultLabel={t("settings.terminalFontDefault")}
+                        searchPlaceholder={t("settings.terminalFontPh")}
+                        emptyLabel={t("settings.uiFontEmpty")}
+                        loadingLabel={t("settings.uiFontLoading")}
+                        genericFamily="ui-monospace"
                       />
                       <label className="settings-inline-label">
                         <span>{t("settings.terminalFontSize")}</span>

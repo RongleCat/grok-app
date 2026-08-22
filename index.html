@@ -66,6 +66,9 @@
       #root {
         min-height: 100%;
       }
+      .boot-gate[data-dev-hide] {
+        display: none !important;
+      }
       .boot-gate {
         position: fixed;
         inset: 0;
@@ -341,5 +344,15 @@
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Dev: hide static splash as soon as the module graph starts. Vite HMR
+      // used to remount this node forever while Host heartbeats were watched.
+      try {
+        if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+          var g = document.querySelector(".boot-gate");
+          if (g) g.setAttribute("data-dev-hide", "1");
+        }
+      } catch (e) { /* ignore */ }
+    </script>
   </body>
 </html>

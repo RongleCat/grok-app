@@ -192,6 +192,8 @@ mod win_taskbar_overlay;
 
 mod os_theme;
 
+mod system_fonts;
+
 mod desktop_notify;
 
 mod turn_complete;
@@ -571,6 +573,16 @@ pub fn run() {
                 .accept_first_mouse(true)
                 .initialization_script(&boot_theme_script)
                 .build()?;
+            #[cfg(debug_assertions)]
+            {
+                if let Ok(icon) =
+                    tauri::image::Image::from_bytes(include_bytes!("../icons/dev/icon.png"))
+                {
+                    if let Err(e) = window.set_icon(icon) {
+                        tracing::warn!("debug white icon: {e}");
+                    }
+                }
+            }
             window_min::apply_main(window.app_handle());
 
             #[cfg(target_os = "macos")]
@@ -1360,6 +1372,8 @@ pub fn run() {
             tray::tray_set_windows_overlay,
 
             os_theme::os_theme_current,
+
+            system_fonts::list_system_font_families,
 
             desktop_notify::desktop_notify_show,
 

@@ -233,9 +233,44 @@ html[data-theme="light"] .ui-check.is-mixed .ui-check__box {
   width: 100%;
 }
 
-.settings-row__controls--grow .settings-input {
+.settings-row__controls--grow .settings-input,
+.settings-row__controls--grow .font-select {
   flex: 1 1 12rem;
   min-width: 8rem;
+}
+
+.font-select .c-select__trigger {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.font-select__panel.c-select__menu {
+  width: 100%;
+  max-width: none;
+  overflow: hidden;
+  padding-top: 8px;
+}
+
+.font-select__search {
+  width: 100%;
+  margin: 0 0 6px;
+  flex: none;
+}
+
+.font-select__list {
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--menu-gap);
+  min-height: 0;
+}
+
+.font-select__status {
+  padding: 8px 10px;
+  font-size: var(--text-sm);
 }
 
 .settings-input--narrow {

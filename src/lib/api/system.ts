@@ -15,6 +15,12 @@ export async function pathExistsMany(paths: string[]) {
   return invoke<PathExistsResult>("path_exists_many", { paths });
 }
 
+/** Installed font-family names (Settings → Appearance). Desktop host only. */
+export async function listSystemFontFamilies() {
+  if (!isDesktopHost()) return [] as string[];
+  return invoke<string[]>("list_system_font_families");
+}
+
 /** Interactive PTY terminal (VS Code-style). Desktop-only. */
 export type TerminalPtySpawnResult = {
   sessionId: string;

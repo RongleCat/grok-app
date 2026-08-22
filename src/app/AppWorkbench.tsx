@@ -2206,9 +2206,13 @@ export function AppWorkbench() {
   }, []);
 
   /** First-run gate: loading → setup wizard → ready (home). Mirror forces ready. */
-  const [appGate, setAppGate] = useState<"loading" | "setup" | "ready">(() =>
-    typeof window !== "undefined" && isMirrorClient() ? "ready" : "loading",
-  );
+  const [appGate, setAppGate] = useState<"loading" | "setup" | "ready">(() => {
+    if (typeof window === "undefined") return "loading";
+    if (isMirrorClient()) return "ready";
+    // Vite HMR / host heartbeats used to remount this splash forever in `tauri dev`.
+    if (import.meta.env.DEV) return "ready";
+    return "loading";
+  });
   /** Boot probe hung / timed out — show retry on the loading gate. */
   const [bootDetectTimedOut, setBootDetectTimedOut] = useState(false);
   const [bootDetectSlow, setBootDetectSlow] = useState(false);
@@ -3398,21 +3402,44 @@ export function AppWorkbench() {
       const modelsP = api.modelsListAvailable().catch(() => null);
 
       // Never hang forever on a stuck Host probe / IPC (was: infinite "Checking…").
-      type BootPair = [
-        Awaited<ReturnType<typeof api.settingsGet>>,
-        Awaited<ReturnType<typeof api.probeCli>>,
-      ];
-      const bootPair = Promise.all([settingsP, cliP]) as Promise<BootPair>;
+      // Settings first: if this install already finished the wizard, paint the
+      // workbench even while `probeCli` is slow (dev CLI spawn / hung grok).
+      type BootSettings = Awaited<ReturnType<typeof api.settingsGet>>;
+      type BootCli = Awaited<ReturnType<typeof api.probeCli>>;
       let timeoutId: number | undefined;
-      const timed = new Promise<BootPair>((_resolve, reject) => {
-        timeoutId = window.setTimeout(() => {
-          reject(new Error("BOOT_DETECT_TIMEOUT"));
-        }, BOOT_TIMEOUT_MS);
-      });
-      let settings: Awaited<ReturnType<typeof api.settingsGet>>;
-      let cli: Awaited<ReturnType<typeof api.probeCli>>;
+      const timed = <T,>(ms: number) =>
+        new Promise<T>((_resolve, reject) => {
+          timeoutId = window.setTimeout(() => {
+            reject(new Error("BOOT_DETECT_TIMEOUT"));
+          }, ms);
+        });
+      let settings: BootSettings;
       try {
-        [settings, cli] = await Promise.race([bootPair, timed]);
+        settings = await Promise.race([settingsP, timed<BootSettings>(BOOT_TIMEOUT_MS)]);
+      } finally {
+        if (timeoutId != null) window.clearTimeout(timeoutId);
+      }
+      const wizardCompleted = !!settings.setupWizardCompleted;
+      const legacyDone =
+        !!settings.onboardingDone || !!settings.setupSkipped;
+      if (wizardCompleted || legacyDone) {
+        window.clearTimeout(slowTimer);
+        setBootDetectTimedOut(false);
+        setBootDetectSlow(false);
+        setAppGate("ready");
+      }
+      let cli: BootCli;
+      try {
+        cli = await Promise.race([cliP, timed<BootCli>(BOOT_TIMEOUT_MS)]);
+      } catch (e) {
+        if (!(wizardCompleted || legacyDone)) throw e;
+        cli = {
+          found: false,
+          path: null,
+          version: null,
+          source: "timeout",
+          cliAuthPresent: false,
+        } as BootCli;
       } finally {
         window.clearTimeout(slowTimer);
         if (timeoutId != null) window.clearTimeout(timeoutId);
@@ -3443,18 +3470,19 @@ export function AppWorkbench() {
       }
 
       // SETUP-GATE-PRO: leave loading as soon as CLI + wizard flags are known.
-      const wizardCompleted = !!settings.setupWizardCompleted;
-      const legacyDone =
-        !!settings.onboardingDone || !!settings.setupSkipped;
+      // Wizard already done: workbench is up; do not bounce back to Setup if
+      // this boot's CLI probe is late or empty.
       const gate = resolveSetupGateBoot({
         cliFound: !!cli.found,
         wizardCompleted,
         legacyDone,
         isMirror: isMirrorClient(),
       });
-      setBootDetectTimedOut(false);
-      setBootDetectSlow(false);
-      setAppGate(gate.phase);
+      if (!(wizardCompleted || legacyDone)) {
+        setBootDetectTimedOut(false);
+        setBootDetectSlow(false);
+        setAppGate(gate.phase);
+      }
 
       // Phase 2 — workbench data (does not block gate chrome).
       const [p, s, modelsRes] = await Promise.all([
@@ -3781,7 +3809,7 @@ export function AppWorkbench() {
         msg.includes("BOOT_DETECT_TIMEOUT") || /timed?\s*out/i.test(msg);
       if (isTimeout) {
         setBootDetectTimedOut(true);
-        setLocalError(tr("setup.detectTimeoutHint"));
+        setLocalError(trRef.current("setup.detectTimeoutHint"));
         // Stay on loading chrome with Retry — do not pretend Setup finished.
         setSetupCliSeed((prev) =>
           prev ?? {
@@ -3807,7 +3835,7 @@ export function AppWorkbench() {
       );
       setAppGate((g) => (g === "loading" ? "setup" : g));
     }
-  }, [tr]);
+  }, []);
 
   // Bootstrap lists once (+ manual retry after boot timeout).
   useEffect(() => {
