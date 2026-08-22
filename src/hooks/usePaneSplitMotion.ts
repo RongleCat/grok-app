@@ -40,8 +40,6 @@ export function usePaneSplitMotion(opts: {
     keyRef.current = key;
   } else if (keyRef.current !== key) {
     const colon = keyRef.current.indexOf(":");
-    const sidebarChanged =
-      keyRef.current.slice(0, colon) !== String(opts.sidebarCollapsed);
     const asideChanged =
       keyRef.current.slice(colon + 1) !== String(opts.asideCollapsed);
     keyRef.current = key;
