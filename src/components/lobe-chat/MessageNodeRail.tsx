@@ -42,6 +42,8 @@ type TipState = {
   right: number;
 };
 
+import { scrollPerfDebug } from "@/lib/scrollPerfDebug";
+
 export function MessageNodeRail({
   nodes,
   activeId,
@@ -134,6 +136,7 @@ export function MessageNodeRail({
       ) {
         return;
       }
+      const t0 = performance.now();
 
       const viewportRect = viewport.getBoundingClientRect();
       const focusY = viewportRect.top + viewport.clientHeight * 0.28;
@@ -156,6 +159,9 @@ export function MessageNodeRail({
         // Id walk on the paint list — not journal messageIndex (filtered lists).
         bestId = nearestNodeIdFromPaintList(messages, nodes, msgIdx);
       }
+
+      const syncDuration = performance.now() - t0;
+      scrollPerfDebug.recordNodeRailSyncTime(syncDuration, mounted.length);
 
       if (bestId) {
         setScrollActiveId((prev) => {

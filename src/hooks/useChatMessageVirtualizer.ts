@@ -41,6 +41,7 @@ import {
   shouldVirtualizeChat,
   type ChatVirtualWindow,
 } from "@/lib/chatVirtualList";
+import { scrollPerfDebug } from "@/lib/scrollPerfDebug";
 import { resolveStreamOverscanScale } from "@/lib/streamRenderPolicy";
 import {
   cancelFrameSchedule,
@@ -235,6 +236,7 @@ export function useChatMessageVirtualizer(
       setWin(full(count));
       return;
     }
+    const t0 = performance.now();
     const pin = !!isPinnedRef.current;
     const offsets = getOffsets();
     const next = computeChatVirtualWindow({
@@ -253,6 +255,16 @@ export function useChatMessageVirtualizer(
       pinToBottom: pin,
       forceIndices: forceRef.current,
       offsets,
+    });
+    const recomputeDuration = performance.now() - t0;
+    scrollPerfDebug.recordRecomputeTime(recomputeDuration, {
+      start: next.start,
+      end: next.end,
+      total: count,
+      scrollTop: el.scrollTop,
+      scrollHeight: el.scrollHeight,
+      paddingTop: next.paddingTop,
+      paddingBottom: next.paddingBottom,
     });
     setWin((prev) => {
       if (
@@ -309,6 +321,7 @@ export function useChatMessageVirtualizer(
     const el = viewportRef.current;
     if (!el) return;
     const onScroll = () => {
+      scrollPerfDebug.recordScrollStart();
       if (ignoreScrollAdjustRef.current) {
         ignoreScrollAdjustRef.current = false;
         return;

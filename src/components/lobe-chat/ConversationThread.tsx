@@ -108,6 +108,7 @@ import {
   estimateChatRowHeight,
   splitVirtSpacerHeights,
 } from "@/lib/chatVirtualList";
+import { scrollPerfDebug } from "@/lib/scrollPerfDebug";
 import { StructuredJsonPanel } from "./StructuredJsonPanel";
 import {
   MessageActionButton,
@@ -936,6 +937,10 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   latestContinuableEndId,
 }: TranscriptMessageRowProps) {
   void _timeTick;
+  useEffect(() => {
+    scrollPerfDebug.recordRowMount(m.id, msgIndex);
+  }, [m.id, msgIndex]);
+
   const wrap = (node: ReactNode) =>
     virtualized ? (
       <div
@@ -2666,6 +2671,12 @@ export function ConversationThread({
 
   const visibleMessages = useMemo(() => {
     if (!virtualized) {
+      if (transcriptMessages.length >= 10) {
+        scrollPerfDebug.recordLog(
+          "VirtualizationStatus",
+          `⚠️ Virtualization is OFF for ${transcriptMessages.length} messages (rendered all DOM nodes)`,
+        );
+      }
       return transcriptMessages.map((m, index) => ({ m, index }));
     }
     const slice: { m: ChatMessage; index: number }[] = [];
