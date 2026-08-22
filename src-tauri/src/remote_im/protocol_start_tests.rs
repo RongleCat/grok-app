@@ -84,6 +84,7 @@ mod tests {
         secrets.insert("connect_mode".into(), "webhook".into());
         secrets.insert("corp_id".into(), "ww".into());
         secrets.insert("corp_secret".into(), "sec".into());
+        secrets.insert("callback_token".into(), "cb-token".into());
         secrets.insert("port".into(), "0".into()); // may fail bind 0 — use high port
                                                    // pick ephemeral by binding ourselves to find free port then re-use - simpler: use 19876
         secrets.insert("port".into(), "19876".into());
@@ -98,6 +99,27 @@ mod tests {
         let _ = c_tx.send(true);
         let _ = h.await;
         assert!(probe.is_ok(), "wecom webhook did not bind listening port");
+    }
+
+    /// WeCom webhook without callback_token must refuse to start (fail closed).
+    #[tokio::test]
+    async fn wecom_webhook_without_callback_token_fails_closed() {
+        let mut secrets = HashMap::new();
+        secrets.insert("connect_mode".into(), "webhook".into());
+        secrets.insert("corp_id".into(), "ww".into());
+        secrets.insert("corp_secret".into(), "sec".into());
+        secrets.insert("port".into(), "19877".into());
+        secrets.insert("callback_path".into(), "/wecom/callback".into());
+        let i = inst("wecom", secrets);
+        let (tx, _rx) = mpsc::channel(4);
+        let (c_tx, c_rx) = watch::channel(false);
+        let res = wecom::run(i, tx, c_rx).await;
+        let err = res.expect_err("missing callback_token must refuse start");
+        assert!(err.contains("callback_token"), "unexpected error: {err}");
+        // Nothing should be listening on the refused port.
+        let probe = tokio::net::TcpStream::connect("127.0.0.1:19877").await;
+        assert!(probe.is_err(), "no listener expected after refusal");
+        let _ = c_tx.send(true);
     }
 
     /// Feishu protocol is long-connection (name + endpoint shape).
