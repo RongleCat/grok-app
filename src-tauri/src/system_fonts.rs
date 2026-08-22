@@ -142,8 +142,10 @@ fn list_families_windows() -> Result<Vec<String>, String> {
         if hdc.is_invalid() {
             return Err("GetDC failed".into());
         }
-        let mut lf = LOGFONTW::default();
-        lf.lfCharSet = DEFAULT_CHARSET;
+        let lf = LOGFONTW {
+            lfCharSet: DEFAULT_CHARSET,
+            ..Default::default()
+        };
         let _ = EnumFontFamiliesExW(
             hdc,
             &lf,
