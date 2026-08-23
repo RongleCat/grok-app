@@ -759,7 +759,7 @@
   align-items: center;
   justify-content: center;
   max-width: 100%;
-  translate: 0;
+  transform: translate3d(0, 0, 0);
 }
 
 .composer-welcome-prompt {
@@ -791,10 +791,10 @@
 
 @keyframes composer-welcome-brand-rise {
   from {
-    transform: translateY(calc(100% + 12px));
+    transform: translate3d(0, calc(100% + 12px), 0);
   }
   to {
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 

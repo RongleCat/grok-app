@@ -30,15 +30,18 @@ describe("new-chat welcome intro", () => {
     );
     expect(brandBaseBlocks).toHaveLength(1);
     const brandBase = brandBaseBlocks[0];
-    expect(brandBase).toMatch(/(?:^|\n)\s*translate:\s*0\s*;/);
-    expect(brandBase?.match(/\btranslate\s*:/g)).toHaveLength(1);
-    expect(brandBase).not.toMatch(/\btransform\s*:/);
+    const baseTransform = brandBase
+      ?.match(/(?:^|\n)\s*transform:\s*([^;]+);/)?.[1]
+      ?.trim();
+    expect(baseTransform).toBe("translate3d(0, 0, 0)");
+    expect(brandBase).not.toMatch(/(?:^|\n)\s*translate\s*:/);
     expect(css).toMatch(
       /\.composer-welcome-mark\.is-entering \.composer-welcome-brand\s*\{[^}]*composer-welcome-brand-rise 480ms ease both/s,
     );
-    expect(css).toMatch(
-      /@keyframes composer-welcome-brand-rise\s*\{\s*from\s*\{[^}]*translateY\(calc\(100% \+ 12px\)\)[^}]*\}\s*to\s*\{[^}]*translateY\(0\)/s,
+    const riseKeyframes = css.match(
+      /@keyframes composer-welcome-brand-rise\s*\{\s*from\s*\{[^}]*transform:\s*translate3d\(0, calc\(100% \+ 12px\), 0\);[^}]*\}\s*to\s*\{[^}]*transform:\s*([^;]+);/s,
     );
+    expect(riseKeyframes?.[1]?.trim()).toBe(baseTransform);
     expect(css).toMatch(
       /\.composer-welcome-mark\s*\{[\s\S]*?width: 100%;[\s\S]*?max-width: 42rem;/,
     );
