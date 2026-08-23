@@ -35,7 +35,12 @@ html[data-theme="light"][data-wallpaper="1"] {
   --wallpaper-theme-mix-settings: var(--wallpaper-light-mix-settings, 72%);
   --wallpaper-light-elevated-surface: color-mix(
     in srgb,
-    var(--bg-elevated) 74%,
+    var(--bg-elevated) 82%,
+    transparent
+  );
+  --wallpaper-light-surface-border: color-mix(
+    in srgb,
+    var(--text-primary) 10%,
     transparent
   );
 }
@@ -284,8 +289,8 @@ html[data-theme="light"][data-wallpaper="1"]
 }
 
 /*
- * Hard clear at 0% scrim — bypass color-mix residuals / platform solid fills
- * so the wallpaper is actually unobstructed under chrome.
+ * Hard clear at 0% scrim — clear the canvas and pane curves completely.
+ * The critical light-theme chrome below keeps its local readability surface.
  */
 html[data-wallpaper="1"][data-wallpaper-clear="1"] .app-shell::after {
   opacity: 0 !important;
@@ -306,6 +311,31 @@ html[data-wallpaper="1"][data-wallpaper-clear="1"].platform-mac[data-theme="ligh
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
+}
+
+/* Wallpaper luminance is unknowable, so critical light-theme chrome keeps a
+ * fixed local surface even when the full-canvas scrim is explicitly clear. */
+html[data-theme="light"][data-wallpaper="1"] .sidebar {
+  --text-tertiary: color-mix(
+    in srgb,
+    var(--text-primary) 70%,
+    transparent
+  );
+  background: var(--wallpaper-light-elevated-surface) !important;
+}
+
+html[data-theme="light"][data-wallpaper="1"] .main__top {
+  background: var(--wallpaper-light-elevated-surface);
+  border-bottom-color: var(--wallpaper-light-surface-border);
+}
+
+html[data-theme="light"][data-wallpaper="1"]
+  .app-shell:not(.app-shell--phone)
+  .composer-welcome-mark {
+  border: 1px solid var(--wallpaper-light-surface-border);
+  border-radius: 24px;
+  background: var(--wallpaper-light-elevated-surface);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.08);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

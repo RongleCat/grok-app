@@ -26,7 +26,16 @@ describe("wallpaper theme contrast CSS", () => {
       /html\[data-theme="light"\]\[data-wallpaper="1"\][^{]*:is\([^)]*, \.status-pill\)\s*\{/s,
     );
     expect(css).toMatch(
-      /--wallpaper-light-elevated-surface:\s*color-mix\(\s*in srgb,\s*var\(--bg-elevated\) 74%,\s*transparent/s,
+      /--wallpaper-light-elevated-surface:\s*color-mix\(\s*in srgb,\s*var\(--bg-elevated\) 82%,\s*transparent/s,
+    );
+    expect(css).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\] \.sidebar\s*\{[^}]*--text-tertiary:[^}]*70%[^}]*background:\s*var\(--wallpaper-light-elevated-surface\)\s*!important/s,
+    );
+    expect(css).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\] \.main__top\s*\{[^}]*background:\s*var\(--wallpaper-light-elevated-surface\)/s,
+    );
+    expect(css).toMatch(
+      /\.composer-welcome-mark\s*\{[^}]*background:\s*var\(--wallpaper-light-elevated-surface\)/s,
     );
     expect(css).toMatch(
       /\.lobe-chat-assistant-timeline\s+:is\(\s*pre,\s*code,\s*\.chat-code,\s*\.chat-md__table-wrap,[^)]*\.lobe-timeline-tool__output,[^)]*\.lobe-chat-plan,[^)]*\.struct-json,[^)]*\.att-card[^)]*\)\s*\{[^}]*text-shadow:\s*none/s,
