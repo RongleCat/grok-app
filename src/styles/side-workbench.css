@@ -141,6 +141,16 @@ html[data-wallpaper="1"].platform-mac[data-theme="light"]
   -webkit-backdrop-filter: none !important;
 }
 
+/* Expanded pane starts at x=0 when the sidebar is hidden/overlayed. */
+.platform-mac
+  .workbench--side-expanded:has(
+    > .sidebar:is(.sidebar--hidden, .sidebar--overlay)
+  )
+  .aside
+  .sw-chrome {
+  padding-left: var(--titlebar-safe-left, 96px);
+}
+
 /* Content shell under chrome — solid fill; terminal keeps its own veil layer */
 .workbench--side-expanded .aside .rp.sw,
 .workbench--side-expanded .aside .sw__content,
@@ -2053,4 +2063,3 @@ html[data-theme="light"] .sw-terminal--pty {
   align-self: flex-start;
   margin-top: 4px;
 }
-
