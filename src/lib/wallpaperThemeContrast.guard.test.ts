@@ -14,7 +14,7 @@ describe("wallpaper theme contrast CSS", () => {
     );
   });
 
-  it("keeps light controls readable without adding another blur layer", () => {
+  it("keeps light controls readable without adding structural surfaces", () => {
     const material = css.match(
       /html\[data-theme="light"\]\[data-wallpaper="1"\][^{]*:is\(\.composer, \.composer__context-bar, \.main__top \.status-pill\)\s*\{[^}]*\}/s,
     )?.[0];
@@ -26,32 +26,49 @@ describe("wallpaper theme contrast CSS", () => {
       /html\[data-theme="light"\]\[data-wallpaper="1"\][^{]*:is\([^)]*, \.status-pill\)\s*\{/s,
     );
     expect(css).toMatch(
-      /--wallpaper-light-elevated-surface:\s*color-mix\(\s*in srgb,\s*var\(--bg-elevated\) 82%,\s*transparent/s,
+      /--wallpaper-light-elevated-surface:\s*color-mix\(\s*in srgb,\s*var\(--bg-elevated\) 74%,\s*transparent/s,
     );
-    expect(css).toMatch(
-      /html\[data-theme="light"\]\[data-wallpaper="1"\] \.sidebar\s*\{[^}]*--text-tertiary:[^}]*70%[^}]*background:\s*var\(--wallpaper-light-elevated-surface\)\s*!important/s,
+    expect(css).not.toContain("--wallpaper-light-surface-border");
+    expect(css).not.toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\] \.sidebar\s*\{[^}]*background:\s*var\(--wallpaper-light-elevated-surface\)/s,
     );
-    expect(css).toMatch(
+    expect(css).not.toMatch(
       /html\[data-theme="light"\]\[data-wallpaper="1"\] \.main__top\s*\{[^}]*background:\s*var\(--wallpaper-light-elevated-surface\)/s,
     );
-    expect(css).toMatch(
-      /\.composer-welcome-mark\s*\{[^}]*background:\s*var\(--wallpaper-light-elevated-surface\)/s,
+    expect(css).not.toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\][^{]*\.composer-welcome-mark\s*\{[^}]*(?:background|border|box-shadow):/s,
     );
     expect(css).toMatch(
       /\.lobe-chat-assistant-timeline\s+:is\(\s*pre,\s*code,\s*\.chat-code,\s*\.chat-md__table-wrap,[^)]*\.lobe-timeline-tool__output,[^)]*\.lobe-chat-plan,[^)]*\.struct-json,[^)]*\.att-card[^)]*\)\s*\{[^}]*text-shadow:\s*none/s,
     );
   });
 
-  it("uses foreground shadows only for dark wallpaper chrome", () => {
+  it("uses a dark edge on exposed light wallpaper chrome", () => {
     const lightRoot = css.match(
       /html\[data-theme="light"\]\[data-wallpaper="1"\]\s*\{[^}]*\}/s,
     )?.[0];
-    expect(lightRoot).not.toContain("foreground-shadow");
+    expect(lightRoot).toContain("--wallpaper-chrome-foreground");
+    expect(lightRoot).toContain("--wallpaper-chrome-shadow-color");
     expect(css).toMatch(
       /html\[data-theme="dark"\]\[data-wallpaper="1"\] \.sidebar\s*\{[^}]*text-shadow:/s,
     );
-    expect(css).not.toMatch(
-      /html\[data-theme="light"\]\[data-wallpaper="1"\][^{]*\{[^}]*text-shadow:/s,
+    expect(css).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\] \.sidebar\s*\{[^}]*--text-primary:\s*var\(--wallpaper-chrome-foreground\)[^}]*text-shadow:\s*0 1px 2px var\(--wallpaper-chrome-shadow-color\)/s,
+    );
+    expect(css).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\]\s+\.sidebar\s+\.user-avatar--logo\s+\.grok-logo\s+svg\s*\{[^}]*color:\s*var\(--text-inverse\)[^}]*filter:\s*none/s,
+    );
+    expect(css).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\]\s+\.sidebar\s+\.user-avatar--logo\s+\.provider-brand-icon\s*\{[^}]*filter:\s*none/s,
+    );
+    expect(css).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\]\s+\.sidebar\s+\.user-avatar--logo\s+:is\(\.provider-brand-icon--amux,\s*\.provider-brand-icon--opencode-go\)\s*\{[^}]*color:\s*var\(--text-inverse\)/s,
+    );
+    expect(css).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\][^{]*:is\(\.main__title,[^)]*\.main__title-row \.chrome-btn,[^)]*\.main__top-actions \.chrome-btn[^)]*\)\s*\{[^}]*color:\s*var\(--wallpaper-chrome-foreground\)[^}]*text-shadow:/s,
+    );
+    expect(css).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\] \.composer-welcome-mark\s*\{[^}]*--text-primary:\s*var\(--wallpaper-chrome-foreground\)[^}]*text-shadow:/s,
     );
   });
 });

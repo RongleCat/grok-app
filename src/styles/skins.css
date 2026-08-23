@@ -35,14 +35,11 @@ html[data-theme="light"][data-wallpaper="1"] {
   --wallpaper-theme-mix-settings: var(--wallpaper-light-mix-settings, 72%);
   --wallpaper-light-elevated-surface: color-mix(
     in srgb,
-    var(--bg-elevated) 82%,
+    var(--bg-elevated) 74%,
     transparent
   );
-  --wallpaper-light-surface-border: color-mix(
-    in srgb,
-    var(--text-primary) 10%,
-    transparent
-  );
+  --wallpaper-chrome-foreground: rgb(255 255 255 / 0.96);
+  --wallpaper-chrome-shadow-color: rgb(0 0 0 / 0.68);
 }
 
 html[data-wallpaper="1"] .app-shell {
@@ -290,7 +287,6 @@ html[data-theme="light"][data-wallpaper="1"]
 
 /*
  * Hard clear at 0% scrim — clear the canvas and pane curves completely.
- * The critical light-theme chrome below keeps its local readability surface.
  */
 html[data-wallpaper="1"][data-wallpaper-clear="1"] .app-shell::after {
   opacity: 0 !important;
@@ -313,29 +309,72 @@ html[data-wallpaper="1"][data-wallpaper-clear="1"].platform-mac[data-theme="ligh
   box-shadow: none !important;
 }
 
-/* Wallpaper luminance is unknowable, so critical light-theme chrome keeps a
- * fixed local surface even when the full-canvas scrim is explicitly clear. */
+/* Wallpaper luminance is unknowable. Keep light and dark wallpaper layouts
+ * structurally identical, then protect only foreground ink with the same
+ * white-on-dark-edge treatment used by the dark shell. */
 html[data-theme="light"][data-wallpaper="1"] .sidebar {
-  --text-tertiary: color-mix(
-    in srgb,
-    var(--text-primary) 70%,
-    transparent
-  );
-  background: var(--wallpaper-light-elevated-surface) !important;
+  --text-primary: var(--wallpaper-chrome-foreground);
+  --text-inverse: rgb(15 15 15 / 0.96);
+  --bg-hover: rgb(0 0 0 / 0.14);
+  --bg-active: rgb(0 0 0 / 0.2);
+  color: var(--wallpaper-chrome-foreground);
+  text-shadow: 0 1px 2px var(--wallpaper-chrome-shadow-color);
 }
 
-html[data-theme="light"][data-wallpaper="1"] .main__top {
-  background: var(--wallpaper-light-elevated-surface);
-  border-bottom-color: var(--wallpaper-light-surface-border);
+html[data-theme="light"][data-wallpaper="1"] .sidebar svg {
+  filter: drop-shadow(0 1px 1px var(--wallpaper-chrome-shadow-color));
 }
 
 html[data-theme="light"][data-wallpaper="1"]
-  .app-shell:not(.app-shell--phone)
-  .composer-welcome-mark {
-  border: 1px solid var(--wallpaper-light-surface-border);
-  border-radius: 24px;
-  background: var(--wallpaper-light-elevated-surface);
-  box-shadow: 0 8px 28px rgb(0 0 0 / 0.08);
+  .sidebar
+  .user-avatar--logo
+  .grok-logo
+  svg {
+  color: var(--text-inverse);
+  filter: none;
+}
+
+html[data-theme="light"][data-wallpaper="1"]
+  .sidebar
+  .user-avatar--logo
+  .provider-brand-icon {
+  filter: none;
+}
+
+html[data-theme="light"][data-wallpaper="1"]
+  .sidebar
+  .user-avatar--logo
+  :is(.provider-brand-icon--amux, .provider-brand-icon--opencode-go) {
+  color: var(--text-inverse);
+}
+
+html[data-theme="light"][data-wallpaper="1"]
+  :is(.main__title, .main__title-icon, .main__title-row .chrome-btn, .main__top-actions .chrome-btn) {
+  color: var(--wallpaper-chrome-foreground);
+  text-shadow: 0 1px 2px var(--wallpaper-chrome-shadow-color);
+}
+
+html[data-theme="light"][data-wallpaper="1"]
+  :is(.main__title-icon, .main__title-row .chrome-btn, .main__top-actions .chrome-btn)
+  svg {
+  filter: drop-shadow(0 1px 1px var(--wallpaper-chrome-shadow-color));
+}
+
+html[data-theme="light"][data-wallpaper="1"] .composer-welcome-mark {
+  --text-primary: var(--wallpaper-chrome-foreground);
+  color: var(--wallpaper-chrome-foreground);
+  text-shadow: 0 1px 2px var(--wallpaper-chrome-shadow-color);
+}
+
+html[data-theme="light"][data-wallpaper="1"]
+  .composer-welcome-mark
+  :is(.deepseek-full-mark__ink, .opencode-wordmark) {
+  color: var(--wallpaper-chrome-foreground);
+  fill: var(--wallpaper-chrome-foreground);
+}
+
+html[data-theme="light"][data-wallpaper="1"] .composer-welcome-mark svg {
+  filter: drop-shadow(0 1px 1px var(--wallpaper-chrome-shadow-color));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
