@@ -71,4 +71,37 @@ describe("wallpaper theme contrast CSS", () => {
       /html\[data-theme="light"\]\[data-wallpaper="1"\] \.composer-welcome-mark\s*\{[^}]*--text-primary:\s*var\(--wallpaper-chrome-foreground\)[^}]*text-shadow:/s,
     );
   });
+
+  it("protects light wallpaper assistant ink while preserving carried surfaces", () => {
+    const timeline = css.match(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\] \.lobe-chat-assistant-timeline\s*\{[^}]*\}/s,
+    )?.[0];
+    expect(timeline).toContain(
+      "--chat-text: var(--wallpaper-chrome-foreground)",
+    );
+    expect(timeline).toContain(
+      "text-shadow: 0 1px 2px var(--wallpaper-chrome-shadow-color)",
+    );
+    expect(timeline).not.toMatch(/(?:background|border|box-shadow):/);
+    expect(css).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\] \.lobe-chat-assistant-timeline svg\s*\{[^}]*filter:\s*drop-shadow\(0 1px 1px var\(--wallpaper-chrome-shadow-color\)\)/s,
+    );
+
+    const carriedSurface = css.match(
+      /\.lobe-chat-assistant-timeline\s+:is\([^{]*\.lobe-timeline-tool__output,[^{]*\.lobe-chat-plan,[^{]*\.struct-json,[^{]*\.att-card,[^{]*\.file-path-card[^)]*\)\s*\{[^}]*\}/s,
+    )?.[0];
+    expect(carriedSurface).toContain("--chat-text: var(--text-primary)");
+    expect(carriedSurface).toContain("--chat-text-2: var(--text-secondary)");
+    expect(carriedSurface).toContain("--chat-text-3: var(--text-tertiary)");
+    expect(carriedSurface).toContain("text-shadow: none");
+    expect(css).toMatch(
+      /html\[data-wallpaper="1"\]\s+\.lobe-chat\s+\.lobe-chat-assistant-timeline\s+:is\([^{]*\.lobe-chat-plan,[^{]*\.struct-json,[^{]*\.att-card,[^{]*\.file-path-card[^)]*\)\s+svg\s*\{[^}]*filter:\s*none/s,
+    );
+  });
+
+  it("does not paint a light fade beneath the floating wallpaper composer", () => {
+    expect(css).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\] \.composer-wrap--float\s*\{[^}]*background:\s*transparent/s,
+    );
+  });
 });
