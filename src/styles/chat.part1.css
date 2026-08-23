@@ -759,6 +759,7 @@
   align-items: center;
   justify-content: center;
   max-width: 100%;
+  translate: 0;
 }
 
 .composer-welcome-prompt {

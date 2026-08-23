@@ -21,7 +21,15 @@ describe("new-chat welcome intro", () => {
   it("rises before a locale-sized stepped reveal and honors reduced motion", () => {
     expect(css).toContain("@keyframes composer-welcome-brand-rise");
     expect(css).toContain("steps(var(--welcome-prompt-steps), end)");
-    expect(css).not.toMatch(/\.composer-welcome-brand\s*\{[^}]*translate:/s);
+    const brandBaseBlocks = Array.from(
+      css.matchAll(/^\.composer-welcome-brand\s*\{([^}]*)\}/gm),
+      (match) => match[1],
+    );
+    expect(brandBaseBlocks).toHaveLength(1);
+    const brandBase = brandBaseBlocks[0];
+    expect(brandBase).toMatch(/(?:^|\n)\s*translate:\s*0\s*;/);
+    expect(brandBase?.match(/\btranslate\s*:/g)).toHaveLength(1);
+    expect(brandBase).not.toMatch(/\btransform\s*:/);
     expect(css).toMatch(
       /\.composer-welcome-mark\.is-entering \.composer-welcome-brand\s*\{[^}]*composer-welcome-brand-rise 480ms ease both/s,
     );
