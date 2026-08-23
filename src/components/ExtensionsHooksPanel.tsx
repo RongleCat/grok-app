@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import * as api from "@/lib/api";
 import { createT, type Locale } from "@/i18n";
 import { GlassModal } from "@/components/GlassModal";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import {
   IconExternalLink,
   IconFolder,
@@ -1106,32 +1107,27 @@ export function ExtensionsHooksPanel({
             </div>
           </div>
           {activity.length > 0 ? (
-            <div
-              className="settings-seg ext-hooks-activity__chips"
+            <SegmentedControl
               role="tablist"
-              aria-label={tr("ext.hooks.activity.filterLabel")}
-            >
-              {OUTCOME_FILTERS.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={outcomeFilter === id}
-                  className={
-                    "settings-seg__btn" + (outcomeFilter === id ? " is-on" : "")
-                  }
-                  onClick={() => {
-                    setOutcomeFilter(id);
-                    setExportMsg(null);
-                  }}
-                >
-                  {filterChipLabel(id, tr)}
-                  <span className="ext-hooks-activity__count" aria-hidden>
-                    {activityCounts[id]}
-                  </span>
-                </button>
-              ))}
-            </div>
+              ariaLabel={tr("ext.hooks.activity.filterLabel")}
+              className="ext-hooks-activity__chips"
+              value={outcomeFilter}
+              options={OUTCOME_FILTERS.map((id) => ({
+                value: id,
+                label: (
+                  <>
+                    {filterChipLabel(id, tr)}
+                    <span className="ext-hooks-activity__count" aria-hidden>
+                      {activityCounts[id]}
+                    </span>
+                  </>
+                ),
+              }))}
+              onChange={(id) => {
+                setOutcomeFilter(id);
+                setExportMsg(null);
+              }}
+            />
           ) : null}
           {exportMsg ? (
             <p

@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(resolve(__dirname, path), "utf8");
@@ -34,24 +35,43 @@ describe("settings segmented control motion guard", () => {
     expect(css).toMatch(
       /\.settings-seg--sliding \.settings-seg__btn\s*\{[^}]*white-space:\s*nowrap;/s,
     );
+    expect(css).toMatch(
+      /\.settings-seg--sliding \.settings-seg__btn\.is-on\s*\{[^}]*font-weight:\s*600;/s,
+    );
     expect(css).not.toMatch(/\.settings-page__tabs-seg:has\(/);
   });
 
-  it("routes each exclusive settings control through the shared component", () => {
-    for (const path of [
-      "../components/settings/shared.tsx",
-      "../components/settings/AccountSection.tsx",
-      "../components/settings/AppearanceSection.tsx",
-      "../components/settings/GeneralSection.tsx",
-      "../components/settings/RuntimeSection.tsx",
-      "../components/PromptHistoryPanel.tsx",
-      "../components/remoteIm/RimControls.tsx",
-    ]) {
-      const source = read(path);
-      expect(source).toContain("<SegmentedControl");
-      expect(source).not.toMatch(
-        /className=(?:\{)?["']settings-seg(?:\s|["'])/,
-      );
-    }
+  it("discovers raw segmented markup outside the shared component", () => {
+    const componentsRoot = resolve(__dirname, "../components");
+    const bypasses = globSync("**/*.tsx", { cwd: componentsRoot }).filter(
+      (path) => {
+        if (path.replaceAll("\\", "/") === "ui/SegmentedControl.tsx") {
+          return false;
+        }
+        const source = readFileSync(resolve(componentsRoot, path), "utf8");
+        const sourceFile = ts.createSourceFile(
+          path,
+          source,
+          ts.ScriptTarget.Latest,
+          true,
+          ts.ScriptKind.TSX,
+        );
+        let bypassesSharedControl = false;
+        const visit = (node: ts.Node) => {
+          if (
+            ts.isJsxAttribute(node) &&
+            node.name.getText(sourceFile) === "className" &&
+            node.initializer?.getText(sourceFile).includes("settings-seg")
+          ) {
+            bypassesSharedControl = true;
+          }
+          ts.forEachChild(node, visit);
+        };
+        visit(sourceFile);
+        return bypassesSharedControl;
+      },
+    );
+
+    expect(bypasses).toEqual([]);
   });
 });

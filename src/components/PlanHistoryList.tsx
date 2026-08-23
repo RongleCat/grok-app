@@ -18,6 +18,7 @@ import {
   type PlanHistoryEntry,
 } from "@/lib/planHistory";
 import { formatListTimestamp } from "@/lib/formatDateTime";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 
 export type PlanHistoryDecisionFilter = "all" | PlanHistoryDecision;
 
@@ -170,28 +171,19 @@ export function PlanHistoryList({
         ) : null}
       </div>
 
-      <div
-        className="plan-history__chips settings-seg"
+      <SegmentedControl
         role="tablist"
-        aria-label={labels.listAria}
-      >
-        {chips.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            role="tab"
-            className={
-              "settings-seg__btn plan-history__chip" +
-              (decisionFilter === c.id ? " is-on" : "")
-            }
-            aria-selected={decisionFilter === c.id}
-            data-testid={`plan-history-filter-${c.id}`}
-            onClick={() => setDecisionFilter(c.id)}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
+        ariaLabel={labels.listAria}
+        className="plan-history__chips"
+        value={decisionFilter}
+        options={chips.map((c) => ({
+          value: c.id,
+          label: c.label,
+          className: "plan-history__chip",
+          testId: `plan-history-filter-${c.id}`,
+        }))}
+        onChange={setDecisionFilter}
+      />
 
       {filtered.length === 0 ? (
         <div className="plan-history-empty" role="status">

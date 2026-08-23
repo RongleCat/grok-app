@@ -742,6 +742,7 @@ textarea.settings-input.settings-agents-json__textarea {
 .settings-seg--sliding .settings-seg__btn.is-on {
   background: transparent;
   box-shadow: none;
+  font-weight: 600;
 }
 
 .settings-seg--sliding .settings-seg__btn:focus-visible {
