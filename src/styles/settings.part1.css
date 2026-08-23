@@ -520,6 +520,53 @@
   pointer-events: auto;
 }
 
+/* Two-tab strips use one shared selection pill so state changes slide. */
+.settings-page__tabs-seg:has(
+    > .settings-seg__btn:nth-child(2):last-child
+  ) {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  isolation: isolate;
+}
+
+.settings-page__tabs-seg:has(
+    > .settings-seg__btn:nth-child(2):last-child
+  )::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  box-sizing: border-box;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-pop);
+  pointer-events: none;
+  transition: transform var(--motion-normal) var(--motion-pane-ease);
+}
+
+.settings-page__tabs-seg:has(
+    > .settings-seg__btn:nth-child(2).is-on:last-child
+  )::before {
+  transform: translateX(100%);
+}
+
+.settings-page__tabs-seg:has(
+    > .settings-seg__btn:nth-child(2):last-child
+  ) > .settings-seg__btn {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  transition: color var(--motion-fast) ease;
+}
+
 .settings-page__tabs .settings-seg__btn {
   pointer-events: auto;
   cursor: pointer;
