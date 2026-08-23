@@ -15773,8 +15773,8 @@ export function AppWorkbench() {
     }
   }, [cliCallLogImport, showToast, tr]);
   const browseCliSessionsSettings = useCallback(() => {
-    navigateSettings("general", "app");
-    setSettingsFocusAnchor("settings-anchor-cliSessions");
+    navigateSettings("account");
+    setSettingsFocusAnchor("settings-anchor-account-callLogs");
   }, [navigateSettings]);
 
   type ExportMdTarget = {
@@ -19554,7 +19554,7 @@ export function AppWorkbench() {
                         ? tr("settings.cliSessionsImporting")
                         : tr("sidebar.importCliSessions")
                     }
-                    browseLabel={tr("settings.cliSessions")}
+                    browseLabel={tr("account.callLogs")}
                     importing={cliCallLogImport.importing}
                     onImport={() => void importCliCallLogsFromSidebar()}
                     onBrowse={browseCliSessionsSettings}
@@ -19986,7 +19986,8 @@ export function AppWorkbench() {
                     </SidebarTreeReveal>
                   );
                 })()
-              : cliCallLogImport.showCta && historyOpen && projects.length > 0 ? (
+              : null}
+            {cliCallLogImport.showCta && historyOpen && projects.length > 0 ? (
                   <SidebarCliImportCta
                     hint={tr("sidebar.importCliSessionsHint")}
                     importLabel={
@@ -19994,7 +19995,7 @@ export function AppWorkbench() {
                         ? tr("settings.cliSessionsImporting")
                         : tr("sidebar.importCliSessions")
                     }
-                    browseLabel={tr("settings.cliSessions")}
+                    browseLabel={tr("account.callLogs")}
                     importing={cliCallLogImport.importing}
                     onImport={() => void importCliCallLogsFromSidebar()}
                     onBrowse={browseCliSessionsSettings}

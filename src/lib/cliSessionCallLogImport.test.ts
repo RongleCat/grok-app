@@ -90,6 +90,12 @@ describe("shouldShowSidebarCliImportCta", () => {
   it("hides once the sidebar already has several App chats", () => {
     expect(
       shouldShowSidebarCliImportCta({
+        unarchivedAppSessionCount: 2,
+        callLogCount: 6,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowSidebarCliImportCta({
         unarchivedAppSessionCount: 4,
         callLogCount: 6,
       }),
