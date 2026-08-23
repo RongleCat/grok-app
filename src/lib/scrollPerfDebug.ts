@@ -7,6 +7,8 @@
  * Collects FPS, frame delta histograms, long tasks, layout recomputes, and DOM mounts.
  */
 
+import { createScrollVelocityTracker } from "./scrollVelocity";
+
 interface FrameRecord {
   timestamp: number;
   delta: number;
@@ -72,6 +74,8 @@ let rafId: number | null = null;
 let lastRafTime = 0;
 let lastObservedScrollTop = 0;
 let lastActionContext = "";
+/** One tracker per session. Reset on start so first-sample `isMoving=false` cannot close immediately. */
+let sessionVelocity = createScrollVelocityTracker();
 
 let perfObserver: PerformanceObserver | null = null;
 if (IS_DEV && typeof window !== "undefined" && typeof PerformanceObserver !== "undefined") {
@@ -150,12 +154,11 @@ function onRaf(now: number) {
   }
   lastRafTime = now;
 
-  // Physics settlement check:
-  // User input ended > 350ms ago AND scroll position has been static for > 300ms
-  const inputIdle = (now - activeSession.lastInputTime) > 350;
-  const motionIdle = (now - activeSession.lastMotionTime) > 300;
-
-  if (inputIdle && motionIdle) {
+  // Close only after velocity settle (frames + 160ms stillness). A 350/300ms
+  // input/motion idle cut fires in the touchpad contact→inertia gap and
+  // splits one gesture into two reports, printing at lift-off.
+  const vel = sessionVelocity.sample(currentScrollTop, now);
+  if (!vel.isMoving) {
     scrollPerfDebug.recordScrollEnd();
     return;
   }
@@ -191,6 +194,7 @@ export const scrollPerfDebug = {
       lastRafTime = now;
       lastObservedScrollTop = st;
       lastActionContext = "gesture_start";
+      sessionVelocity.reset(st, now);
       rafId = requestAnimationFrame(onRaf);
       console.log("%c[ScrollPerf] 🚀 Scroll session started - tracking fine-grained drops...", "color: #00b4d8; font-weight: bold;");
     } else {
