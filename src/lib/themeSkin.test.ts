@@ -329,7 +329,17 @@ describe("wallpaper scrim", () => {
     expect(props.get("--wallpaper-mix-main")).toBe("18%"); // 70 * 0.25
     expect(props.get("--wallpaper-mix-sidebar")).toBe("15%"); // 58 * 0.25
     expect(props.get("--wallpaper-mix-settings")).toBe("20%"); // 78 * 0.25
+    expect(props.get("--wallpaper-light-scrim-opacity")).toBe("0.113");
+    expect(props.get("--wallpaper-light-mix-sidebar")).toBe("18%");
+    expect(props.get("--wallpaper-light-mix-main")).toBe("6%");
+    expect(props.get("--wallpaper-light-mix-aside")).toBe("8%");
+    expect(props.get("--wallpaper-light-mix-settings")).toBe("18%");
     expect(props.get("--wallpaper-sidebar-blur")).toBe("5.5px");
+    expect(props.get("--wallpaper-settings-blur")).toBe("3.5px");
+    expect(props.get("--wallpaper-sidebar-shadow-alpha")).toBe("0.420");
+    expect(props.get("--wallpaper-light-foreground-shadow-alpha")).toBe(
+      "0.550",
+    );
 
     applyWallpaperScrimToDocument(0, el);
     expect(attrs.get("data-wallpaper-clear")).toBe("1");
@@ -337,7 +347,17 @@ describe("wallpaper scrim", () => {
     expect(props.get("--wallpaper-mix-main")).toBe("0%");
     expect(props.get("--wallpaper-mix-sidebar")).toBe("0%");
     expect(props.get("--wallpaper-mix-settings")).toBe("0%");
+    expect(props.get("--wallpaper-light-scrim-opacity")).toBe("0.000");
+    expect(props.get("--wallpaper-light-mix-sidebar")).toBe("0%");
+    expect(props.get("--wallpaper-light-mix-main")).toBe("0%");
+    expect(props.get("--wallpaper-light-mix-aside")).toBe("0%");
+    expect(props.get("--wallpaper-light-mix-settings")).toBe("0%");
     expect(props.get("--wallpaper-sidebar-blur")).toBe("0.0px");
+    expect(props.get("--wallpaper-settings-blur")).toBe("0.0px");
+    expect(props.get("--wallpaper-sidebar-shadow-alpha")).toBe("0.560");
+    expect(props.get("--wallpaper-light-foreground-shadow-alpha")).toBe(
+      "0.660",
+    );
 
     applyWallpaperScrimToDocument(100, el);
     expect(attrs.has("data-wallpaper-clear")).toBe(false);
@@ -345,7 +365,17 @@ describe("wallpaper scrim", () => {
     expect(props.get("--wallpaper-mix-main")).toBe("70%");
     expect(props.get("--wallpaper-mix-sidebar")).toBe("58%");
     expect(props.get("--wallpaper-mix-settings")).toBe("78%");
+    expect(props.get("--wallpaper-light-scrim-opacity")).toBe("0.450");
+    expect(props.get("--wallpaper-light-mix-sidebar")).toBe("72%");
+    expect(props.get("--wallpaper-light-mix-main")).toBe("24%");
+    expect(props.get("--wallpaper-light-mix-aside")).toBe("32%");
+    expect(props.get("--wallpaper-light-mix-settings")).toBe("72%");
     expect(props.get("--wallpaper-sidebar-blur")).toBe("22.0px");
+    expect(props.get("--wallpaper-settings-blur")).toBe("14.0px");
+    expect(props.get("--wallpaper-sidebar-shadow-alpha")).toBe("0.000");
+    expect(props.get("--wallpaper-light-foreground-shadow-alpha")).toBe(
+      "0.220",
+    );
   });
 });
 

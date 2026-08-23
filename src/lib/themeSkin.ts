@@ -237,8 +237,9 @@ export function saveWallpaperScrim(
 
 /**
  * Apply scrim strength as CSS vars on the root.
- * Scales the full-window veil, pane/settings fills, and sidebar blur.
- * Text and control fills stay solid (they do not read these variables).
+ * Scales theme-specific full-window veils, pane/settings fills, and background
+ * blurs. Light keeps a weaker veil and clearer main pane than dark so a white
+ * scrim does not wash the wallpaper gray.
  *
  * Derived mix/%/px vars avoid flaky `calc(% * var)` inside `color-mix`
  * in some WebViews. At 0, also sets `data-wallpaper-clear` so CSS can force
@@ -268,8 +269,40 @@ export function applyWallpaperScrimToDocument(
     `${Math.round(78 * t)}%`,
   );
   root.style.setProperty(
+    "--wallpaper-light-scrim-opacity",
+    `${(0.45 * t).toFixed(3)}`,
+  );
+  root.style.setProperty(
+    "--wallpaper-light-mix-sidebar",
+    `${Math.round(72 * t)}%`,
+  );
+  root.style.setProperty(
+    "--wallpaper-light-mix-main",
+    `${Math.round(24 * t)}%`,
+  );
+  root.style.setProperty(
+    "--wallpaper-light-mix-aside",
+    `${Math.round(32 * t)}%`,
+  );
+  root.style.setProperty(
+    "--wallpaper-light-mix-settings",
+    `${Math.round(72 * t)}%`,
+  );
+  root.style.setProperty(
     "--wallpaper-sidebar-blur",
     `${(22 * t).toFixed(1)}px`,
+  );
+  root.style.setProperty(
+    "--wallpaper-settings-blur",
+    `${(14 * t).toFixed(1)}px`,
+  );
+  root.style.setProperty(
+    "--wallpaper-sidebar-shadow-alpha",
+    `${(0.56 * (1 - t)).toFixed(3)}`,
+  );
+  root.style.setProperty(
+    "--wallpaper-light-foreground-shadow-alpha",
+    `${(0.22 + 0.44 * (1 - t)).toFixed(3)}`,
   );
 }
 

@@ -7,12 +7,42 @@
  * Media is rendered by a React layer (.app-wallpaper-media) so video & gif
  * actually play; scrim on ::after; panes go translucent.
  *
- * Scrim strength (Settings slider) writes:
- *   --wallpaper-scrim-opacity   0–1  (full-window ::after veil)
- *   --wallpaper-mix-sidebar|main|aside|settings  (pane tint %)
- *   --wallpaper-sidebar-blur
- * At 0% every dimming fill is fully transparent so the wallpaper is clear;
- * text/buttons keep their own solid colors. Settings cards stay solid. */
+ * Scrim strength (Settings slider) writes separate dark/light veil + pane
+ * curves, along with sidebar/settings blur and foreground contrast strength.
+ * At 0% pane fills are clear; foreground halos and elevated controls remain so
+ * the wallpaper can stay visible without sacrificing essential readability. */
+html[data-wallpaper="1"] {
+  --wallpaper-theme-scrim-color: var(--bg-app);
+  --wallpaper-theme-scrim-opacity: var(--wallpaper-scrim-opacity, 1);
+  --wallpaper-theme-mix-sidebar: var(--wallpaper-mix-sidebar, 58%);
+  --wallpaper-theme-mix-main: var(--wallpaper-mix-main, 70%);
+  --wallpaper-theme-mix-aside: var(--wallpaper-mix-aside, 70%);
+  --wallpaper-theme-mix-settings: var(--wallpaper-mix-settings, 78%);
+  --wallpaper-foreground-shadow-color: rgb(
+    0 0 0 / var(--wallpaper-sidebar-shadow-alpha, 0)
+  );
+}
+
+html[data-theme="light"][data-wallpaper="1"] {
+  --wallpaper-theme-scrim-color: #ffffff;
+  --wallpaper-theme-scrim-opacity: var(
+    --wallpaper-light-scrim-opacity,
+    0.45
+  );
+  --wallpaper-theme-mix-sidebar: var(--wallpaper-light-mix-sidebar, 72%);
+  --wallpaper-theme-mix-main: var(--wallpaper-light-mix-main, 24%);
+  --wallpaper-theme-mix-aside: var(--wallpaper-light-mix-aside, 32%);
+  --wallpaper-theme-mix-settings: var(--wallpaper-light-mix-settings, 72%);
+  --wallpaper-foreground-shadow-color: rgb(
+    255 255 255 / var(--wallpaper-light-foreground-shadow-alpha, 0.22)
+  );
+  --wallpaper-light-elevated-surface: color-mix(
+    in srgb,
+    var(--bg-elevated) 74%,
+    transparent
+  );
+}
+
 html[data-wallpaper="1"] .app-shell {
   background: transparent !important;
 }
@@ -23,14 +53,14 @@ html[data-wallpaper="1"] .app-shell::after {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: var(--wallpaper-scrim-opacity, 1);
+  opacity: var(--wallpaper-theme-scrim-opacity);
   /* Left-weighted scrim so chrome stays readable (Dream Skin safe-area left). */
   background: linear-gradient(
     105deg,
-    color-mix(in srgb, var(--bg-app) 88%, transparent) 0%,
-    color-mix(in srgb, var(--bg-app) 62%, transparent) 42%,
-    color-mix(in srgb, var(--bg-app) 28%, transparent) 78%,
-    color-mix(in srgb, var(--bg-app) 12%, transparent) 100%
+    color-mix(in srgb, var(--wallpaper-theme-scrim-color) 88%, transparent) 0%,
+    color-mix(in srgb, var(--wallpaper-theme-scrim-color) 62%, transparent) 42%,
+    color-mix(in srgb, var(--wallpaper-theme-scrim-color) 28%, transparent) 78%,
+    color-mix(in srgb, var(--wallpaper-theme-scrim-color) 12%, transparent) 100%
   );
 }
 
@@ -70,29 +100,86 @@ html[data-wallpaper="1"] .workbench {
 /* Keep the atomic Settings swap above the lifted workbench chrome. */
 html[data-wallpaper="1"] .app-settings-stage {
   z-index: 20;
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur))
+  backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
+    saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
     saturate(var(--glass-saturate));
 }
 
 /* Pane fills scale with scrim: 0% = fully clear wallpaper under chrome.
  * !important beats platform-win solid fills and mac light #ffffff rules. */
 html[data-wallpaper="1"] .sidebar {
+  --text-secondary: color-mix(
+    in srgb,
+    var(--text-primary) 80%,
+    transparent
+  );
+  --text-tertiary: color-mix(
+    in srgb,
+    var(--text-primary) 62%,
+    transparent
+  );
   background: color-mix(
     in srgb,
     var(--bg-sidebar-solid, var(--bg-sidebar))
-      var(--wallpaper-mix-sidebar, 58%),
+      var(--wallpaper-theme-mix-sidebar),
     transparent
   ) !important;
   backdrop-filter: blur(var(--wallpaper-sidebar-blur, 22px)) saturate(1.25);
   -webkit-backdrop-filter: blur(var(--wallpaper-sidebar-blur, 22px))
     saturate(1.25);
+  text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
+}
+
+html[data-wallpaper="1"] .sidebar svg {
+  filter: drop-shadow(0 1px 1px var(--wallpaper-foreground-shadow-color));
+}
+
+html[data-wallpaper="1"] .main__top,
+html[data-wallpaper="1"] .composer-welcome-mark,
+html[data-wallpaper="1"] .lobe-chat-assistant-timeline {
+  text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
+}
+
+html[data-wallpaper="1"] .main__top svg,
+html[data-wallpaper="1"] .composer-welcome-mark svg,
+html[data-wallpaper="1"] .lobe-chat-assistant-timeline svg {
+  filter: drop-shadow(0 1px 1px var(--wallpaper-foreground-shadow-color));
+}
+
+html[data-wallpaper="1"]
+  .lobe-chat-assistant-timeline
+  :is(
+    pre,
+    code,
+    .chat-code,
+    .chat-md__table-wrap,
+    .lobe-timeline-tool__output,
+    .lobe-timeline-tool__cmd,
+    .lobe-chat-plan,
+    .struct-json,
+    .att-card
+  ) {
+  text-shadow: none;
+}
+
+html[data-wallpaper="1"]
+  .lobe-chat-assistant-timeline
+  :is(
+    .chat-code,
+    .chat-md__table-wrap,
+    .lobe-chat-plan,
+    .struct-json,
+    .att-card
+  )
+  svg {
+  filter: none;
 }
 
 html[data-wallpaper="1"] .main {
   background: color-mix(
     in srgb,
-    var(--bg-main) var(--wallpaper-mix-main, 70%),
+    var(--bg-main) var(--wallpaper-theme-mix-main),
     transparent
   ) !important;
   /* Drop soft lift shadow that reads as a gray edge over clear wallpaper. */
@@ -102,7 +189,7 @@ html[data-wallpaper="1"] .main {
 html[data-wallpaper="1"] .aside {
   background: color-mix(
     in srgb,
-    var(--bg-aside) var(--wallpaper-mix-aside, 70%),
+    var(--bg-aside) var(--wallpaper-theme-mix-aside),
     transparent
   ) !important;
 }
@@ -111,7 +198,7 @@ html[data-wallpaper="1"] .settings-page,
 html[data-wallpaper="1"] .setup-gate {
   background: color-mix(
     in srgb,
-    var(--bg-main) var(--wallpaper-mix-settings, 78%),
+    var(--bg-main) var(--wallpaper-theme-mix-settings),
     transparent
   ) !important;
 }
@@ -128,7 +215,7 @@ html[data-wallpaper="1"] .platform-mac .settings-page__nav {
   background: color-mix(
     in srgb,
     var(--bg-sidebar-solid, var(--bg-sidebar))
-      var(--wallpaper-mix-sidebar, 58%),
+      var(--wallpaper-theme-mix-sidebar),
     transparent
   ) !important;
   backdrop-filter: blur(var(--wallpaper-sidebar-blur, 22px)) saturate(1.25);
@@ -141,6 +228,7 @@ html[data-wallpaper="1"] .platform-mac .settings-page__nav {
  * Frosted wallpaper panes on a playing video are a WebView2 GPU sink.
  * Video pause is JS (WallpaperMediaLayer).
  */
+html[data-stream-perf="1"][data-wallpaper="1"] .app-settings-stage,
 html[data-stream-perf="1"][data-wallpaper="1"] .sidebar,
 html[data-stream-perf="1"][data-wallpaper="1"] .settings-page__nav,
 html[data-stream-perf="1"][data-wallpaper="1"] .platform-win .settings-page__nav,
@@ -155,20 +243,44 @@ html[data-wallpaper="1"].platform-mac .settings-page__content,
 html[data-wallpaper="1"].platform-mac[data-theme="light"] .settings-page__content {
   background: color-mix(
     in srgb,
-    var(--bg-main) var(--wallpaper-mix-settings, 78%),
+    var(--bg-main) var(--wallpaper-theme-mix-settings),
     transparent
   ) !important;
   box-shadow: none !important;
 }
 
-/* mac light workbench main is forced #ffffff — keep it tied to scrim too. */
-html[data-wallpaper="1"].platform-mac[data-theme="light"] .main,
+/* mac light workbench is forced #ffffff — keep each pane on its light curve. */
+html[data-wallpaper="1"].platform-mac[data-theme="light"] .main {
+  background: color-mix(
+    in srgb,
+    #ffffff var(--wallpaper-theme-mix-main),
+    transparent
+  ) !important;
+}
+
 html[data-wallpaper="1"].platform-mac[data-theme="light"] .aside {
   background: color-mix(
     in srgb,
-    #ffffff var(--wallpaper-mix-main, 70%),
+    #ffffff var(--wallpaper-theme-mix-aside),
     transparent
   ) !important;
+}
+
+/* Light wallpaper controls share one translucent elevated material. It stays
+ * readable when stream-perf removes pane blur and when the scrim is low. */
+html[data-theme="light"][data-wallpaper="1"]
+  :is(.composer, .composer__context-bar, .main__top .status-pill) {
+  background: var(--wallpaper-light-elevated-surface);
+}
+
+html[data-theme="light"][data-wallpaper="1"]
+  .main__top
+  .status-pill--action:hover {
+  background: color-mix(
+    in srgb,
+    var(--wallpaper-light-elevated-surface) 90%,
+    var(--text-primary) 10%
+  );
 }
 
 /*
@@ -179,6 +291,7 @@ html[data-wallpaper="1"][data-wallpaper-clear="1"] .app-shell::after {
   opacity: 0 !important;
 }
 
+html[data-wallpaper="1"][data-wallpaper-clear="1"] .app-settings-stage,
 html[data-wallpaper="1"][data-wallpaper-clear="1"] .sidebar,
 html[data-wallpaper="1"][data-wallpaper-clear="1"] .main,
 html[data-wallpaper="1"][data-wallpaper-clear="1"] .aside,

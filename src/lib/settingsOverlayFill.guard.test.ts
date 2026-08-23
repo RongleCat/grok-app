@@ -28,10 +28,20 @@ describe("settings overlay fills the window with wallpaper on", () => {
     expect(css).toMatch(/\.app-settings-stage\s*\{[^}]*inset:\s*0/s);
   });
 
-  it("frosts the still-mounted workbench behind settings", () => {
+  it("lightly frosts the still-mounted workbench behind settings", () => {
     const css = readFileSync(join(STYLES, "skins.css"), "utf8");
     expect(css).toMatch(
-      /html\[data-wallpaper="1"\] \.app-settings-stage\s*\{[^}]*backdrop-filter:\s*blur\(var\(--glass-blur\)\)/s,
+      /html\[data-wallpaper="1"\] \.app-settings-stage\s*\{[^}]*backdrop-filter:\s*blur\(var\(--wallpaper-settings-blur, 14px\)\)/s,
+    );
+  });
+
+  it("drops settings-stage blur for stream-perf and a clear wallpaper", () => {
+    const css = readFileSync(join(STYLES, "skins.css"), "utf8");
+    expect(css).toMatch(
+      /html\[data-stream-perf="1"\]\[data-wallpaper="1"\] \.app-settings-stage,[^{]*\{[^}]*backdrop-filter:\s*none\s*!important/s,
+    );
+    expect(css).toMatch(
+      /html\[data-wallpaper="1"\]\[data-wallpaper-clear="1"\] \.app-settings-stage,[^{]*\{[^}]*backdrop-filter:\s*none\s*!important/s,
     );
   });
 
