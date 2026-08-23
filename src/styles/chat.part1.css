@@ -758,7 +758,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transform: translateY(calc(-100% - 12px));
+  translate: 0 calc(-100% - 12px);
 }
 
 .composer-welcome-prompt {
@@ -779,10 +779,7 @@
 }
 
 .composer-welcome-mark.is-entering .composer-welcome-brand {
-  animation: composer-welcome-brand-rise
-    var(--motion-pane)
-    var(--motion-pane-ease)
-    both;
+  animation: composer-welcome-brand-rise 480ms ease both;
   will-change: transform;
 }
 
@@ -790,17 +787,17 @@
   animation: composer-welcome-prompt-type
     680ms
     steps(var(--welcome-prompt-steps), end)
-    var(--motion-pane)
+    480ms
     both;
   will-change: clip-path;
 }
 
 @keyframes composer-welcome-brand-rise {
   from {
-    transform: translateY(0);
+    transform: translateY(calc(100% + 12px));
   }
   to {
-    transform: translateY(calc(-100% - 12px));
+    transform: translateY(0);
   }
 }
 

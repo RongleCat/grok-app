@@ -20,6 +20,15 @@ describe("new-chat welcome intro", () => {
     expect(css).toContain("@keyframes composer-welcome-brand-rise");
     expect(css).toContain("steps(var(--welcome-prompt-steps), end)");
     expect(css).toMatch(
+      /\.composer-welcome-brand\s*\{[^}]*translate:\s*0 calc\(-100% - 12px\)/s,
+    );
+    expect(css).toMatch(
+      /\.composer-welcome-mark\.is-entering \.composer-welcome-brand\s*\{[^}]*composer-welcome-brand-rise 480ms ease both/s,
+    );
+    expect(css).toMatch(
+      /@keyframes composer-welcome-brand-rise\s*\{\s*from\s*\{[^}]*translateY\(calc\(100% \+ 12px\)\)[^}]*\}\s*to\s*\{[^}]*translateY\(0\)/s,
+    );
+    expect(css).toMatch(
       /\.composer-welcome-mark\s*\{[\s\S]*?width: 100%;[\s\S]*?max-width: 42rem;/,
     );
     expect(css).toMatch(
