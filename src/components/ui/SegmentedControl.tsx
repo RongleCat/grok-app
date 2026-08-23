@@ -49,6 +49,7 @@ export function SegmentedControl<T extends SegmentedControlValue>({
       const active = activeRef.current;
       if (!active) {
         delete root.dataset.segmentedReady;
+        delete root.dataset.segmentedAnimate;
         return;
       }
       root.style.setProperty("--seg-x", `${active.offsetLeft}px`);
@@ -56,6 +57,10 @@ export function SegmentedControl<T extends SegmentedControlValue>({
       root.style.setProperty("--seg-width", `${active.offsetWidth}px`);
       root.style.setProperty("--seg-height", `${active.offsetHeight}px`);
       root.dataset.segmentedReady = "1";
+      if (!root.dataset.segmentedAnimate) {
+        void root.offsetWidth;
+        root.dataset.segmentedAnimate = "1";
+      }
     };
 
     measure();

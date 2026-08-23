@@ -15,13 +15,18 @@ describe("settings segmented control motion guard", () => {
     expect(component).toContain("active.offsetTop");
     expect(component).toContain("active.offsetWidth");
     expect(component).toContain("active.offsetHeight");
+    expect(component).toContain("void root.offsetWidth");
+    expect(component).toContain('root.dataset.segmentedAnimate = "1"');
     expect(component).toContain("new ResizeObserver(measure)");
     expect(component).toContain('<span className="settings-seg__indicator"');
   });
 
   it("limits sliding styles to explicit segmented controls", () => {
     expect(css).toMatch(
-      /\.settings-seg--sliding\[data-segmented-ready="1"\][^{]*\.settings-seg__indicator\s*\{[^}]*transform var\(--motion-normal\)/s,
+      /\.settings-seg--sliding\[data-segmented-ready="1"\][^{]*\.settings-seg__indicator\s*\{[^}]*opacity:\s*1;?[^}]*\}/s,
+    );
+    expect(css).toMatch(
+      /\.settings-seg--sliding\[data-segmented-animate="1"\][^{]*\.settings-seg__indicator\s*\{[^}]*transform var\(--motion-normal\)/s,
     );
     expect(css).toMatch(
       /\.settings-seg--sliding\s*\{[^}]*flex-wrap:\s*wrap;[^}]*max-width:\s*100%;[^}]*flex-shrink:\s*1;/s,

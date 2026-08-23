@@ -722,6 +722,9 @@ textarea.settings-input.settings-agents-json__textarea {
 
 .settings-seg--sliding[data-segmented-ready="1"] .settings-seg__indicator {
   opacity: 1;
+}
+
+.settings-seg--sliding[data-segmented-animate="1"] .settings-seg__indicator {
   transition:
     transform var(--motion-normal) var(--motion-pane-ease),
     width var(--motion-normal) var(--motion-pane-ease),

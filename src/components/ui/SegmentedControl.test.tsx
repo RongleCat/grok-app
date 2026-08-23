@@ -87,9 +87,20 @@ describe("SegmentedControl", () => {
   });
 
   it("measures the selected button instead of assuming equal widths", () => {
+    const activationOrder: Array<[string | null, string | null]> = [];
     vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockReturnValue(41);
     vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockReturnValue(7);
-    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(83);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(
+      function (this: HTMLElement) {
+        if (this.getAttribute("role") === "radiogroup") {
+          activationOrder.push([
+            this.getAttribute("data-segmented-ready"),
+            this.getAttribute("data-segmented-animate"),
+          ]);
+        }
+        return 83;
+      },
+    );
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(28);
     render(
       <SegmentedControl
@@ -104,6 +115,9 @@ describe("SegmentedControl", () => {
 
     const group = screen.getByRole("radiogroup");
     expect(group).toHaveClass("settings-seg--sliding");
+    expect(group).toHaveAttribute("data-segmented-ready", "1");
+    expect(group).toHaveAttribute("data-segmented-animate", "1");
+    expect(activationOrder).toEqual([["1", null]]);
     expect(group).toHaveStyle({
       "--seg-x": "41px",
       "--seg-y": "7px",
