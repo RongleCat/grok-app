@@ -207,6 +207,31 @@ describe("theme preference + resolve", () => {
     expect(startViewTransition).not.toHaveBeenCalled();
   });
 
+  it("keeps WebKit glass live instead of using a View Transition snapshot", () => {
+    const update = vi.fn();
+    const startViewTransition = vi.fn((commit: () => void) => {
+      commit();
+      return { finished: Promise.resolve(), skipTransition: vi.fn() };
+    });
+    const doc = {
+      defaultView: {
+        matchMedia: () => ({ matches: false }),
+        navigator: {
+          userAgent:
+            "Mozilla/5.0 AppleWebKit/605.1.15 Version/26.0 Safari/605.1.15",
+        },
+      },
+      documentElement: { dataset: {} },
+      visibilityState: "visible",
+      startViewTransition,
+    } as unknown as Document;
+
+    runThemeTransition(update, doc);
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(startViewTransition).not.toHaveBeenCalled();
+  });
+
   it("keeps only the latest rapid theme transition update", async () => {
     const callbacks: Array<() => void> = [];
     const transitions: Array<{

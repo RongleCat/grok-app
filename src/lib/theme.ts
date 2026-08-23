@@ -122,8 +122,14 @@ export function runThemeTransition(
   const commit = () => {
     if (generation === themeTransitionGeneration) update();
   };
+  const userAgent = doc.defaultView?.navigator?.userAgent ?? "";
+  // WebKit bug 302256 drops backdrop-filter for the whole snapshot animation.
+  const webKitDropsGlass =
+    /AppleWebKit/i.test(userAgent) &&
+    !/(Chrome|Chromium|CriOS|Edg)/i.test(userAgent);
   if (
     reduceMotion ||
+    webKitDropsGlass ||
     doc.visibilityState === "hidden" ||
     typeof doc.startViewTransition !== "function"
   ) {
