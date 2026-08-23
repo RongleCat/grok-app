@@ -97,6 +97,51 @@ export function applyThemeToDocument(
   root.setAttribute("data-theme", theme);
 }
 
+let themeTransitionGeneration = 0;
+let activeThemeTransition: ViewTransition | null = null;
+
+/** Run one user-triggered theme update inside the native page cross-fade. */
+export function runThemeTransition(
+  update: () => void,
+  doc: Document = document,
+): void {
+  const generation = ++themeTransitionGeneration;
+  activeThemeTransition?.skipTransition();
+  activeThemeTransition = null;
+  delete doc.documentElement.dataset.themeTransition;
+
+  let reduceMotion = false;
+  try {
+    reduceMotion =
+      doc.defaultView?.matchMedia("(prefers-reduced-motion: reduce)").matches ??
+      false;
+  } catch {
+    /* restricted / test window */
+  }
+
+  const commit = () => {
+    if (generation === themeTransitionGeneration) update();
+  };
+  if (
+    reduceMotion ||
+    doc.visibilityState === "hidden" ||
+    typeof doc.startViewTransition !== "function"
+  ) {
+    commit();
+    return;
+  }
+
+  doc.documentElement.dataset.themeTransition = "1";
+  const transition = doc.startViewTransition(commit);
+  activeThemeTransition = transition;
+  const cleanup = () => {
+    if (activeThemeTransition !== transition) return;
+    activeThemeTransition = null;
+    delete doc.documentElement.dataset.themeTransition;
+  };
+  void transition.finished.then(cleanup, cleanup);
+}
+
 /**
  * Native chrome lock vs Auto when the user follows the OS.
  *

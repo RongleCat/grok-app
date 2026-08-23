@@ -12,6 +12,7 @@ import {
   parseThemePreference,
   readOsTheme,
   resolveTheme,
+  runThemeTransition,
   saveTheme,
   saveThemePreference,
   subscribeHostOsTheme,
@@ -175,6 +176,68 @@ describe("theme preference + resolve", () => {
       "light",
     );
     await expect(readOsTheme(async () => "dark")).resolves.toBe("dark");
+  });
+
+  it("runs theme updates directly without View Transition support", () => {
+    const update = vi.fn();
+    const doc = {
+      defaultView: { matchMedia: () => ({ matches: false }) },
+      documentElement: { dataset: {} },
+      visibilityState: "visible",
+    } as unknown as Document;
+
+    runThemeTransition(update, doc);
+
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it("skips animation when reduced motion is enabled", () => {
+    const update = vi.fn();
+    const startViewTransition = vi.fn();
+    const doc = {
+      defaultView: { matchMedia: () => ({ matches: true }) },
+      documentElement: { dataset: {} },
+      visibilityState: "visible",
+      startViewTransition,
+    } as unknown as Document;
+
+    runThemeTransition(update, doc);
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(startViewTransition).not.toHaveBeenCalled();
+  });
+
+  it("keeps only the latest rapid theme transition update", async () => {
+    const callbacks: Array<() => void> = [];
+    const transitions: Array<{
+      finished: Promise<void>;
+      skipTransition: ReturnType<typeof vi.fn>;
+    }> = [];
+    const doc = {
+      defaultView: { matchMedia: () => ({ matches: false }) },
+      documentElement: { dataset: {} },
+      visibilityState: "visible",
+      startViewTransition: (callback: () => void) => {
+        callbacks.push(callback);
+        const transition = {
+          finished: Promise.resolve(),
+          skipTransition: vi.fn(),
+        };
+        transitions.push(transition);
+        return transition;
+      },
+    } as unknown as Document;
+    const seen: string[] = [];
+
+    runThemeTransition(() => seen.push("light"), doc);
+    runThemeTransition(() => seen.push("dark"), doc);
+    callbacks[1]?.();
+    callbacks[0]?.();
+    await Promise.resolve();
+
+    expect(transitions[0]?.skipTransition).toHaveBeenCalledOnce();
+    expect(seen).toEqual(["dark"]);
+    expect(doc.documentElement.dataset.themeTransition).toBeUndefined();
   });
 
   it("subscribeHostOsTheme forwards parsed host payloads", async () => {

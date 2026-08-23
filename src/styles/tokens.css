@@ -323,6 +323,20 @@
   }
 }
 
+/* Explicit light/dark choices use the browser's compositor cross-fade. */
+html[data-theme-transition="1"]::view-transition-old(root),
+html[data-theme-transition="1"]::view-transition-new(root) {
+  animation-duration: var(--motion-normal);
+  animation-timing-function: var(--motion-pane-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-transition="1"]::view-transition-old(root),
+  html[data-theme-transition="1"]::view-transition-new(root) {
+    animation: none;
+  }
+}
+
 /*
  * Native form chrome follows WebView color-scheme. On Windows WebView2 a
  * mismatch (OS dark + app light, or :root dark leaking) paints number/date/

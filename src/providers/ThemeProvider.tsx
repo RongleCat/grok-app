@@ -12,6 +12,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { flushSync } from "react-dom";
 import { detectAppPlatform } from "@/lib/appPlatform";
 import {
   applyNativeWindowTheme,
@@ -22,6 +23,7 @@ import {
   nativeWindowThemeArg,
   parseThemePreference,
   readOsTheme,
+  runThemeTransition,
   saveThemePreference,
   subscribeHostOsTheme,
   subscribeSystemTheme,
@@ -243,10 +245,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const applyThemeChoice = useCallback(
     (next: ThemePreference) => {
       saveThemePreference(localStorage, next);
-      setThemePreference(next);
       // Dual-write Host settings so the next cold start can paint the boot
       // shell + native chrome before React loads (see resolve_boot_theme).
       void persistThemeToHostSettings(next);
+      if (next === "light" || next === "dark") {
+        runThemeTransition(() => {
+          applyThemeToDocument(next);
+          flushSync(() => setThemePreference(next));
+        });
+        return;
+      }
+      setThemePreference(next);
       if (next === "system" && themeSchedule.enabled) {
         const resolved = resolveThemeWithSchedule(
           next,
