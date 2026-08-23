@@ -6,6 +6,7 @@ import { useSettingsModel } from "@/providers/SettingsModelContext";
 import type { SettingsViewModel } from "./types";
 
 import { Select } from "@/components/Select";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { IconLanguage, IconShield } from "@/components/icons";
 import {
   COMMON_DISALLOWED_TOOLS,
@@ -362,27 +363,15 @@ export function GeneralSection() {
                     {t("settings.composerMinRowsDesc")}
                   </div>
                 </div>
-                <div
-                  className="settings-seg"
-                  role="radiogroup"
-                  aria-label={t("settings.composerMinRows")}
-                >
-                  {COMPOSER_MIN_ROWS_OPTIONS.map((rows) => (
-                    <button
-                      key={rows}
-                      type="button"
-                      role="radio"
-                      aria-checked={composerMinRows === rows}
-                      className={
-                        "settings-seg__btn" +
-                        (composerMinRows === rows ? " is-on" : "")
-                      }
-                      onClick={() => onComposerMinRows(rows)}
-                    >
-                      {t(`settings.composerMinRows.${rows}`)}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  value={composerMinRows}
+                  ariaLabel={t("settings.composerMinRows")}
+                  options={COMPOSER_MIN_ROWS_OPTIONS.map((rows) => ({
+                    value: rows,
+                    label: t(`settings.composerMinRows.${rows}`),
+                  }))}
+                  onChange={onComposerMinRows}
+                />
               </div>
               <div
                 className={

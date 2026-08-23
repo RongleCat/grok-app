@@ -7,6 +7,7 @@ import type { SettingsViewModel } from "./types";
 import { Select } from "@/components/Select";
 import { FontFamilySelect } from "./FontFamilySelect";
 import { IconAppearance, IconCrop, IconHelp } from "@/components/icons";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Tip } from "@/components/ui/tooltip";
 import {
   DEFAULT_WALLPAPER_FOCUS,
@@ -175,48 +176,25 @@ export function AppearanceSection() {
                         tip={t("settings.themeDesc")}
                       />
                     </div>
-                    <div
-                      className="settings-seg"
-                      role="radiogroup"
-                      aria-label={t("settings.theme")}
-                    >
-                      <button
-                        type="button"
-                        role="radio"
-                        aria-checked={themePreference === "system"}
-                        className={
-                          "settings-seg__btn" +
-                          (themePreference === "system" ? " is-on" : "")
-                        }
-                        onClick={() => onTheme("system")}
-                      >
-                        {t("settings.themeSystem")}
-                      </button>
-                      <button
-                        type="button"
-                        role="radio"
-                        aria-checked={themePreference === "light"}
-                        className={
-                          "settings-seg__btn" +
-                          (themePreference === "light" ? " is-on" : "")
-                        }
-                        onClick={() => onTheme("light")}
-                      >
-                        {t("settings.themeLight")}
-                      </button>
-                      <button
-                        type="button"
-                        role="radio"
-                        aria-checked={themePreference === "dark"}
-                        className={
-                          "settings-seg__btn" +
-                          (themePreference === "dark" ? " is-on" : "")
-                        }
-                        onClick={() => onTheme("dark")}
-                      >
-                        {t("settings.themeDark")}
-                      </button>
-                    </div>
+                    <SegmentedControl
+                      value={themePreference}
+                      ariaLabel={t("settings.theme")}
+                      options={[
+                        {
+                          value: "system",
+                          label: t("settings.themeSystem"),
+                        },
+                        {
+                          value: "light",
+                          label: t("settings.themeLight"),
+                        },
+                        {
+                          value: "dark",
+                          label: t("settings.themeDark"),
+                        },
+                      ]}
+                      onChange={onTheme}
+                    />
                   </div>
                   {onThemeSchedule ? (
                     <>
@@ -891,27 +869,15 @@ export function AppearanceSection() {
                         tip={t("settings.chatFontScaleDesc")}
                       />
                     </div>
-                    <div
-                      className="settings-seg"
-                      role="radiogroup"
-                      aria-label={t("settings.chatFontScale")}
-                    >
-                      {CHAT_FONT_SCALES.map((scale) => (
-                        <button
-                          key={scale}
-                          type="button"
-                          role="radio"
-                          aria-checked={chatFontScale === scale}
-                          className={
-                            "settings-seg__btn" +
-                            (chatFontScale === scale ? " is-on" : "")
-                          }
-                          onClick={() => onChatFontScale(scale)}
-                        >
-                          {t(`settings.chatFontScale.${scale}`)}
-                        </button>
-                      ))}
-                    </div>
+                    <SegmentedControl
+                      value={chatFontScale}
+                      ariaLabel={t("settings.chatFontScale")}
+                      options={CHAT_FONT_SCALES.map((scale) => ({
+                        value: scale,
+                        label: t(`settings.chatFontScale.${scale}`),
+                      }))}
+                      onChange={onChatFontScale}
+                    />
                   </div>
                 </div>
                 <div
@@ -928,27 +894,15 @@ export function AppearanceSection() {
                         tip={t("settings.codeFontScaleDesc")}
                       />
                     </div>
-                    <div
-                      className="settings-seg"
-                      role="radiogroup"
-                      aria-label={t("settings.codeFontScale")}
-                    >
-                      {CODE_FONT_SCALES.map((scale) => (
-                        <button
-                          key={scale}
-                          type="button"
-                          role="radio"
-                          aria-checked={codeFontScale === scale}
-                          className={
-                            "settings-seg__btn" +
-                            (codeFontScale === scale ? " is-on" : "")
-                          }
-                          onClick={() => onCodeFontScale(scale)}
-                        >
-                          {t(`settings.codeFontScale.${scale}`)}
-                        </button>
-                      ))}
-                    </div>
+                    <SegmentedControl
+                      value={codeFontScale}
+                      ariaLabel={t("settings.codeFontScale")}
+                      options={CODE_FONT_SCALES.map((scale) => ({
+                        value: scale,
+                        label: t(`settings.codeFontScale.${scale}`),
+                      }))}
+                      onChange={onCodeFontScale}
+                    />
                   </div>
                 </div>
                 <div
@@ -965,27 +919,15 @@ export function AppearanceSection() {
                         tip={t("settings.chatDensityDesc")}
                       />
                     </div>
-                    <div
-                      className="settings-seg"
-                      role="radiogroup"
-                      aria-label={t("settings.chatDensity")}
-                    >
-                      {CHAT_DENSITIES.map((density) => (
-                        <button
-                          key={density}
-                          type="button"
-                          role="radio"
-                          aria-checked={chatDensity === density}
-                          className={
-                            "settings-seg__btn" +
-                            (chatDensity === density ? " is-on" : "")
-                          }
-                          onClick={() => onChatDensity(density)}
-                        >
-                          {t(`settings.chatDensity.${density}`)}
-                        </button>
-                      ))}
-                    </div>
+                    <SegmentedControl
+                      value={chatDensity}
+                      ariaLabel={t("settings.chatDensity")}
+                      options={CHAT_DENSITIES.map((density) => ({
+                        value: density,
+                        label: t(`settings.chatDensity.${density}`),
+                      }))}
+                      onChange={onChatDensity}
+                    />
                   </div>
                 </div>
                 <div
@@ -1002,27 +944,15 @@ export function AppearanceSection() {
                         tip={t("settings.chatWidthDesc")}
                       />
                     </div>
-                    <div
-                      className="settings-seg"
-                      role="radiogroup"
-                      aria-label={t("settings.chatWidth")}
-                    >
-                      {CHAT_WIDTHS.map((width) => (
-                        <button
-                          key={width}
-                          type="button"
-                          role="radio"
-                          aria-checked={chatWidth === width}
-                          className={
-                            "settings-seg__btn" +
-                            (chatWidth === width ? " is-on" : "")
-                          }
-                          onClick={() => onChatWidth(width)}
-                        >
-                          {t(`settings.chatWidth.${width}`)}
-                        </button>
-                      ))}
-                    </div>
+                    <SegmentedControl
+                      value={chatWidth}
+                      ariaLabel={t("settings.chatWidth")}
+                      options={CHAT_WIDTHS.map((width) => ({
+                        value: width,
+                        label: t(`settings.chatWidth.${width}`),
+                      }))}
+                      onChange={onChatWidth}
+                    />
                   </div>
                 </div>
                 <div
@@ -1039,27 +969,15 @@ export function AppearanceSection() {
                         tip={t("settings.sidebarDensityDesc")}
                       />
                     </div>
-                    <div
-                      className="settings-seg"
-                      role="radiogroup"
-                      aria-label={t("settings.sidebarDensity")}
-                    >
-                      {SIDEBAR_DENSITIES.map((density) => (
-                        <button
-                          key={density}
-                          type="button"
-                          role="radio"
-                          aria-checked={sidebarDensity === density}
-                          className={
-                            "settings-seg__btn" +
-                            (sidebarDensity === density ? " is-on" : "")
-                          }
-                          onClick={() => onSidebarDensity(density)}
-                        >
-                          {t(`settings.sidebarDensity.${density}`)}
-                        </button>
-                      ))}
-                    </div>
+                    <SegmentedControl
+                      value={sidebarDensity}
+                      ariaLabel={t("settings.sidebarDensity")}
+                      options={SIDEBAR_DENSITIES.map((density) => ({
+                        value: density,
+                        label: t(`settings.sidebarDensity.${density}`),
+                      }))}
+                      onChange={onSidebarDensity}
+                    />
                   </div>
                 </div>
                 <div
@@ -1076,27 +994,15 @@ export function AppearanceSection() {
                         tip={t("settings.messageActionsDesc")}
                       />
                     </div>
-                    <div
-                      className="settings-seg"
-                      role="radiogroup"
-                      aria-label={t("settings.messageActions")}
-                    >
-                      {MESSAGE_ACTIONS_VISIBILITIES.map((mode) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          role="radio"
-                          aria-checked={messageActionsVisibility === mode}
-                          className={
-                            "settings-seg__btn" +
-                            (messageActionsVisibility === mode ? " is-on" : "")
-                          }
-                          onClick={() => onMessageActionsVisibility(mode)}
-                        >
-                          {t(`settings.messageActions.${mode}`)}
-                        </button>
-                      ))}
-                    </div>
+                    <SegmentedControl
+                      value={messageActionsVisibility}
+                      ariaLabel={t("settings.messageActions")}
+                      options={MESSAGE_ACTIONS_VISIBILITIES.map((mode) => ({
+                        value: mode,
+                        label: t(`settings.messageActions.${mode}`),
+                      }))}
+                      onChange={onMessageActionsVisibility}
+                    />
                   </div>
                 </div>
                 <div
@@ -1437,27 +1343,15 @@ export function AppearanceSection() {
                           tip={t("settings.messageTimeFormatDesc")}
                         />
                       </div>
-                      <div
-                        className="settings-seg"
-                        role="radiogroup"
-                        aria-label={t("settings.messageTimeFormat")}
-                      >
-                        {MESSAGE_TIME_FORMATS.map((mode) => (
-                          <button
-                            key={mode}
-                            type="button"
-                            role="radio"
-                            aria-checked={messageTimeFormat === mode}
-                            className={
-                              "settings-seg__btn" +
-                              (messageTimeFormat === mode ? " is-on" : "")
-                            }
-                            onClick={() => onMessageTimeFormat(mode)}
-                          >
-                            {t(`settings.messageTimeFormat.${mode}`)}
-                          </button>
-                        ))}
-                      </div>
+                      <SegmentedControl
+                        value={messageTimeFormat}
+                        ariaLabel={t("settings.messageTimeFormat")}
+                        options={MESSAGE_TIME_FORMATS.map((mode) => ({
+                          value: mode,
+                          label: t(`settings.messageTimeFormat.${mode}`),
+                        }))}
+                        onChange={onMessageTimeFormat}
+                      />
                     </div>
                   </div>
                 ) : null}

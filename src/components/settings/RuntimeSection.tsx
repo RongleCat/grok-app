@@ -5,6 +5,7 @@ import { useSettingsModel } from "@/providers/SettingsModelContext";
 import type { SettingsViewModel } from "./types";
 
 import { Select } from "@/components/Select";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { ProjectInspectPanel } from "@/components/ProjectInspectPanel";
 import { GitPrHubPanel } from "@/components/GitPrHubPanel";
 import { PrivacyCenterPanel } from "@/components/PrivacyCenterPanel";
@@ -813,13 +814,17 @@ export function RuntimeSection() {
                           {t("reliability.audit.retentionDesc")}
                         </div>
                       </div>
-                      <div
-                        className="settings-seg"
-                        role="radiogroup"
-                        aria-label={t("reliability.audit.retentionAria")}
-                        data-testid="settings-audit-retention"
-                      >
-                        {(
+                      <SegmentedControl
+                        value={
+                          auditLedgerRetentionDays === 7 ||
+                          auditLedgerRetentionDays === 30 ||
+                          auditLedgerRetentionDays === 90
+                            ? auditLedgerRetentionDays
+                            : 0
+                        }
+                        ariaLabel={t("reliability.audit.retentionAria")}
+                        testId="settings-audit-retention"
+                        options={(
                           [
                             { days: 7, key: "reliability.audit.retention.7" as const },
                             { days: 30, key: "reliability.audit.retention.30" as const },
@@ -829,35 +834,13 @@ export function RuntimeSection() {
                               key: "reliability.audit.retention.unlimited" as const,
                             },
                           ] as const
-                        ).map((opt) => (
-                          <button
-                            key={opt.days}
-                            type="button"
-                            role="radio"
-                            aria-checked={
-                              (auditLedgerRetentionDays === 7 ||
-                              auditLedgerRetentionDays === 30 ||
-                              auditLedgerRetentionDays === 90
-                                ? auditLedgerRetentionDays
-                                : 0) === opt.days
-                            }
-                            className={
-                              "settings-seg__btn" +
-                              ((auditLedgerRetentionDays === 7 ||
-                              auditLedgerRetentionDays === 30 ||
-                              auditLedgerRetentionDays === 90
-                                ? auditLedgerRetentionDays
-                                : 0) === opt.days
-                                ? " is-on"
-                                : "")
-                            }
-                            data-testid={`settings-audit-retention-${opt.days}`}
-                            onClick={() => onAuditLedgerRetentionDays(opt.days)}
-                          >
-                            {t(opt.key)}
-                          </button>
-                        ))}
-                      </div>
+                        ).map((opt) => ({
+                          value: opt.days,
+                          label: t(opt.key),
+                          testId: `settings-audit-retention-${opt.days}`,
+                        }))}
+                        onChange={onAuditLedgerRetentionDays}
+                      />
                     </div>
                   </div>
                 ) : null}

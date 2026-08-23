@@ -18,6 +18,7 @@ import {
   IconUser,
 } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import type { SettingsNavIcon, SettingsTabId } from "@/lib/settingsCatalog";
 import { intlLocale, type MessageKey } from "@/i18n";
 import type { MarqueeBox } from "./types";
@@ -177,27 +178,23 @@ export function SettingsTabStrip({
 }) {
   if (tabs.length === 0) return null;
   return (
-    <div className="settings-account-tabs settings-page__tabs" role="tablist" aria-label={ariaLabel}>
-      <div className="settings-seg settings-seg--lg settings-page__tabs-seg" role="presentation">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            className={
-              "settings-seg__btn" + (active === tab.id ? " is-on" : "")
-            }
-            aria-selected={active === tab.id}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onChange(tab.id);
-            }}
-          >
-            {t(tab.labelKey)}
-          </button>
-        ))}
-      </div>
+    <div className="settings-account-tabs settings-page__tabs">
+      <SegmentedControl
+        value={active}
+        role="tablist"
+        large
+        className="settings-page__tabs-seg"
+        ariaLabel={ariaLabel}
+        options={tabs.map((tab) => ({
+          value: tab.id,
+          label: t(tab.labelKey),
+        }))}
+        onChange={(id, event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onChange(id);
+        }}
+      />
     </div>
   );
 }

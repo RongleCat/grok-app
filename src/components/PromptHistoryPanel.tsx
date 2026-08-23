@@ -20,6 +20,7 @@ import {
 } from "@/lib/composerPromptHistory";
 import { previewStoredAsSlash } from "@/lib/draftDoc";
 import { IconClock, IconTrash } from "@/components/icons";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 
 export type { PromptHistoryScope };
 
@@ -185,38 +186,27 @@ export function PromptHistoryPanel({
       data-scope={scope}
     >
       <div className="prompt-history__head">
-        <div
-          className="prompt-history__tabs settings-seg"
+        <SegmentedControl
+          value={scope}
           role="tablist"
-          aria-label={labels.aria}
-        >
-          <button
-            type="button"
-            role="tab"
-            className={
-              "settings-seg__btn prompt-history__tab" +
-              (scope === "session" ? " is-on" : "")
-            }
-            aria-selected={scope === "session"}
-            data-testid="prompt-history-tab-session"
-            onClick={() => onScopeChange("session")}
-          >
-            {labels.tabSession}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={
-              "settings-seg__btn prompt-history__tab" +
-              (scope === "recent" ? " is-on" : "")
-            }
-            aria-selected={scope === "recent"}
-            data-testid="prompt-history-tab-recent"
-            onClick={() => onScopeChange("recent")}
-          >
-            {labels.tabRecent}
-          </button>
-        </div>
+          className="prompt-history__tabs"
+          ariaLabel={labels.aria}
+          options={[
+            {
+              value: "session",
+              label: labels.tabSession,
+              className: "prompt-history__tab",
+              testId: "prompt-history-tab-session",
+            },
+            {
+              value: "recent",
+              label: labels.tabRecent,
+              className: "prompt-history__tab",
+              testId: "prompt-history-tab-recent",
+            },
+          ]}
+          onChange={onScopeChange}
+        />
         {showClearRecent ? (
           <button
             type="button"

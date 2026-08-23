@@ -697,6 +697,55 @@ textarea.settings-input.settings-agents-json__textarea {
   border: 1px solid var(--border-subtle);
 }
 
+.settings-seg--sliding {
+  position: relative;
+  flex-wrap: wrap;
+  max-width: 100%;
+  flex-shrink: 1;
+}
+
+.settings-seg--sliding .settings-seg__indicator {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  left: 0;
+  width: var(--seg-width, 0);
+  height: var(--seg-height, 0);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-pop);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(var(--seg-x, 0), var(--seg-y, 0), 0);
+}
+
+.settings-seg--sliding[data-segmented-ready="1"] .settings-seg__indicator {
+  opacity: 1;
+  transition:
+    transform var(--motion-normal) var(--motion-pane-ease),
+    width var(--motion-normal) var(--motion-pane-ease),
+    height var(--motion-normal) var(--motion-pane-ease);
+}
+
+.settings-seg--sliding .settings-seg__btn {
+  position: relative;
+  z-index: 1;
+  border: 1px solid transparent;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.settings-seg--sliding .settings-seg__btn.is-on {
+  background: transparent;
+  box-shadow: none;
+}
+
+.settings-seg--sliding .settings-seg__btn:focus-visible {
+  outline: 2px solid var(--border-focus, #6b8cff);
+  outline-offset: -2px;
+}
+
 /* Appearance: skin (left) + wallpaper (right) */
 .settings-appearance-duo {
   display: grid;

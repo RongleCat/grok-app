@@ -7,6 +7,7 @@ import type { SettingsViewModel } from "./types";
 import { AccountPanel } from "@/components/AccountPanel";
 import { OfficialAuxPanel } from "@/components/OfficialAuxPanel";
 import { ProvidersPanel } from "@/components/ProvidersPanel";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { resolveLocale } from "@/i18n";
 
 
@@ -48,7 +49,6 @@ export function AccountSection() {
 <>
             <div
               className="settings-account-tabs"
-              role="tablist"
               id={
                 activeTab === "providers"
                   ? "settings-anchor-account-providers"
@@ -57,58 +57,21 @@ export function AccountSection() {
                     : "settings-anchor-account-official"
               }
             >
-              <div className="settings-seg settings-seg--lg" role="presentation">
-                <button
-                  type="button"
-                  role="tab"
-                  className={
-                    "settings-seg__btn" +
-                    (activeTab === "official" || activeTab == null
-                      ? " is-on"
-                      : "")
-                  }
-                  aria-selected={activeTab === "official" || activeTab == null}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSectionTab("official");
-                  }}
-                >
-                  {t("settings.tabOfficial")}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  className={
-                    "settings-seg__btn" +
-                    (activeTab === "providers" ? " is-on" : "")
-                  }
-                  aria-selected={activeTab === "providers"}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSectionTab("providers");
-                  }}
-                >
-                  {t("settings.tabProviders")}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  className={
-                    "settings-seg__btn" +
-                    (activeTab === "extras" ? " is-on" : "")
-                  }
-                  aria-selected={activeTab === "extras"}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSectionTab("extras");
-                  }}
-                >
-                  {t("settings.tabExtras")}
-                </button>
-              </div>
+              <SegmentedControl
+                value={activeTab ?? "official"}
+                role="tablist"
+                large
+                options={[
+                  { value: "official", label: t("settings.tabOfficial") },
+                  { value: "providers", label: t("settings.tabProviders") },
+                  { value: "extras", label: t("settings.tabExtras") },
+                ]}
+                onChange={(tab, event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setSectionTab(tab);
+                }}
+              />
               {activeTab === "providers" ? (
                 <p className="settings-account-tabs__hint">
                   {t("settings.tabProvidersHint")}

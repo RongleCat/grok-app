@@ -6,6 +6,7 @@
 import type { ReactNode } from "react";
 import { IconCheck } from "@/components/icons";
 import { Select, type SelectOption } from "@/components/Select";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 
 export function RimSwitch({
   checked,
@@ -116,22 +117,14 @@ export function RimSeg({
   ariaLabel?: string;
 }) {
   return (
-    <div className="settings-seg settings-seg--lg" role="tablist" aria-label={ariaLabel}>
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="tab"
-          aria-selected={value === o.value}
-          className={
-            "settings-seg__btn" + (value === o.value ? " is-on" : "")
-          }
-          onClick={() => onChange(o.value)}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <SegmentedControl
+      value={value}
+      role="tablist"
+      large
+      ariaLabel={ariaLabel}
+      options={options}
+      onChange={onChange}
+    />
   );
 }
 
