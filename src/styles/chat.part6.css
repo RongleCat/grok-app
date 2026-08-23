@@ -700,6 +700,10 @@
   padding-left: var(--titlebar-safe-left, 96px);
 }
 
+.workbench--sidebar-motion .main__top {
+  transition: padding-left var(--motion-pane) var(--motion-pane-ease);
+}
+
 .main__pane-toggle.is-on {
   color: var(--text-primary);
   background: var(--bg-active);

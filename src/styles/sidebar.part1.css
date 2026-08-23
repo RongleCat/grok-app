@@ -415,6 +415,10 @@ html.platform-win .window-edge-n {
   padding: 0;
   gap: 0;
   transition:
+    width var(--motion-pane) var(--motion-pane-ease),
+    min-width var(--motion-pane) var(--motion-pane-ease),
+    max-width var(--motion-pane) var(--motion-pane-ease),
+    flex-basis var(--motion-pane) var(--motion-pane-ease),
     border-color var(--motion-pane) ease,
     opacity 180ms ease,
     filter 180ms ease;

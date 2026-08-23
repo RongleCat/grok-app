@@ -115,7 +115,7 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(block).not.toMatch(/--motion-pane\s*:\s*0ms/);
   });
 
-  it("in-flow sidebar / aside / bottom terminal snap; overlay drawers interpolate transform", () => {
+  it("in-flow sidebar interpolates while aside and bottom terminal snap", () => {
     const settings = readFileSync(
       resolve(__dirname, "../styles/settings.part5.css"),
       "utf8",
@@ -127,8 +127,8 @@ describe("desktop hidden CSS must not force width 0", () => {
       resolve(__dirname, "../styles/sidebar.part1.css"),
       "utf8",
     );
-    expect(ruleBody(sidebar, "\n.sidebar {")).not.toMatch(
-      /width var\(--motion-pane\)/,
+    expect(ruleBody(sidebar, "\n.sidebar {")).toMatch(
+      /width var\(--motion-pane\)[^,]*,[^}]*min-width var\(--motion-pane\)[^,]*,[^}]*max-width var\(--motion-pane\)[^,]*,[^}]*flex-basis var\(--motion-pane\)/s,
     );
     expect(sidebar).toMatch(
       /\.sidebar\.sidebar--overlay[^{]*\{[^}]*transform var\(--motion-pane\)/,
@@ -143,6 +143,9 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(aside).toMatch(
       /\.aside\.aside--overlay[^{]*\{[^}]*transform var\(--motion-pane\)/,
     );
+    expect(aside).toMatch(
+      /\.workbench--sidebar-motion \.main__top\s*\{[^}]*transition:\s*padding-left var\(--motion-pane\) var\(--motion-pane-ease\)/s,
+    );
     const hidden = ruleBody(aside, ".aside--collapsed");
     expect(hidden).not.toMatch(/width\s*:\s*0\s*!important/);
     const bt = readFileSync(
@@ -154,6 +157,17 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(btBody).not.toMatch(/min-height var\(--motion-pane\)/);
     expect(btBody).not.toMatch(/flex-basis var\(--motion-pane\)/);
     expect(bt).not.toMatch(/^\s*height\s*:\s*0\s*!important/m);
+  });
+
+  it("starts sidebar width motion only outside overlay and phone layouts", () => {
+    const hook = readFileSync(
+      resolve(__dirname, "../hooks/usePaneSplitMotion.ts"),
+      "utf8",
+    );
+    expect(hook).toContain("sidebarChanged && !opts.sidebarOverlay");
+    expect(hook).toContain("!opts.phoneLayout");
+    expect(hook).toContain("width: sidebarWidthChanged");
+    expect(hook).toContain("sidebar: sidebarWidthChanged");
   });
 
   it("mac sidebar seam is not a 1px layout border on vibrancy", () => {

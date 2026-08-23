@@ -26,6 +26,8 @@ export function usePaneSplitMotion(opts: {
   sidebarCollapsed: boolean;
   asideCollapsed: boolean;
   phoneLayout?: boolean;
+  /** Left pane is an overlay drawer — its transform already owns the motion. */
+  sidebarOverlay?: boolean;
   /** Right pane is an overlay drawer — cover native webviews during transform. */
   asideOverlay?: boolean;
 }): { paneMotionClass: string } {
@@ -40,13 +42,16 @@ export function usePaneSplitMotion(opts: {
     keyRef.current = key;
   } else if (keyRef.current !== key) {
     const colon = keyRef.current.indexOf(":");
+    const sidebarChanged =
+      keyRef.current.slice(0, colon) !== String(opts.sidebarCollapsed);
     const asideChanged =
       keyRef.current.slice(colon + 1) !== String(opts.asideCollapsed);
+    const sidebarWidthChanged = sidebarChanged && !opts.sidebarOverlay;
+    const asideOverlayChanged = asideChanged && !!opts.asideOverlay;
     keyRef.current = key;
     if (
       !opts.phoneLayout &&
-      asideChanged &&
-      opts.asideOverlay &&
+      (sidebarWidthChanged || asideOverlayChanged) &&
       shouldStartPaneSplitMotion({
         reducedMotion: false,
         isFirstCommit: false,
@@ -55,9 +60,9 @@ export function usePaneSplitMotion(opts: {
     ) {
       if (tokenRef.current) endPaneSplitMotion(tokenRef.current);
       tokenRef.current = beginPaneSplitMotion({
-        cover: true,
-        width: false,
-        sidebar: false,
+        cover: asideOverlayChanged,
+        width: sidebarWidthChanged,
+        sidebar: sidebarWidthChanged,
         aside: false,
       });
     }
@@ -108,7 +113,13 @@ export function usePaneSplitMotion(opts: {
       document.removeEventListener("transitionend", onEnd);
       unsubBump();
     };
-  }, [opts.sidebarCollapsed, opts.asideCollapsed, opts.phoneLayout]);
+  }, [
+    opts.sidebarCollapsed,
+    opts.asideCollapsed,
+    opts.phoneLayout,
+    opts.sidebarOverlay,
+    opts.asideOverlay,
+  ]);
 
   useEffect(() => {
     return () => {
