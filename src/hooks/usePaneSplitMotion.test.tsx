@@ -85,4 +85,46 @@ describe("usePaneSplitMotion", () => {
     act(() => dispatchWidthTransitionEnd("sidebar"));
     expect(isPaneSplitMotionActive()).toBe(false);
   });
+
+  it("covers native webviews while an in-flow aside interpolates", () => {
+    const props = { ...initialProps, asideOverlay: false };
+    const { result, rerender } = renderHook(
+      (next) => usePaneSplitMotion(next),
+      { initialProps: props },
+    );
+
+    rerender({ ...props, asideCollapsed: true });
+    expect(result.current.paneMotionClass).toContain(
+      "workbench--aside-motion",
+    );
+    expect(nativeWebviewCoverDepth()).toBe(1);
+    expect(isPaneSplitMotionActive()).toBe(true);
+
+    act(() => dispatchWidthTransitionEnd("aside"));
+    expect(nativeWebviewCoverDepth()).toBe(0);
+    expect(isPaneSplitMotionActive()).toBe(false);
+  });
+
+  it("waits for both in-flow panes before ending a shared motion", () => {
+    const props = { ...initialProps, asideOverlay: false };
+    const { rerender } = renderHook((next) => usePaneSplitMotion(next), {
+      initialProps: props,
+    });
+
+    rerender({
+      ...props,
+      sidebarCollapsed: true,
+      asideCollapsed: true,
+    });
+    expect(nativeWebviewCoverDepth()).toBe(1);
+    expect(isPaneSplitMotionActive()).toBe(true);
+
+    act(() => dispatchWidthTransitionEnd("sidebar"));
+    expect(nativeWebviewCoverDepth()).toBe(1);
+    expect(isPaneSplitMotionActive()).toBe(true);
+
+    act(() => dispatchWidthTransitionEnd("aside"));
+    expect(nativeWebviewCoverDepth()).toBe(0);
+    expect(isPaneSplitMotionActive()).toBe(false);
+  });
 });

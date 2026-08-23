@@ -50,9 +50,12 @@ export function usePaneSplitMotion(opts: {
     const asideChanged =
       keyRef.current.slice(colon + 1) !== String(opts.asideCollapsed);
     const sidebarWidthChanged = sidebarChanged && !opts.sidebarOverlay;
+    const asideWidthChanged =
+      asideChanged && !opts.asideOverlay && !asideOverlayRef.current;
     const asideOverlayChanged =
       asideChanged && (asideOverlayRef.current || asideOverlay);
-    const coverChanged = asideOverlayChanged || asideOverlayModeChanged;
+    const coverChanged =
+      asideWidthChanged || asideOverlayChanged || asideOverlayModeChanged;
     keyRef.current = key;
     if (
       !opts.phoneLayout &&
@@ -66,9 +69,9 @@ export function usePaneSplitMotion(opts: {
       if (tokenRef.current) endPaneSplitMotion(tokenRef.current);
       tokenRef.current = beginPaneSplitMotion({
         cover: coverChanged,
-        width: sidebarWidthChanged,
+        width: sidebarWidthChanged || asideWidthChanged,
         sidebar: sidebarWidthChanged,
-        aside: false,
+        aside: asideWidthChanged,
       });
     }
   }
@@ -79,6 +82,9 @@ export function usePaneSplitMotion(opts: {
     if (!token) return;
     const finishOnSidebarWidth = isPaneSplitSidebarMotionActive();
     const finishOnAsideWidth = isPaneSplitAsideMotionActive();
+    const pendingWidthPanes = new Set<"sidebar" | "aside">();
+    if (finishOnSidebarWidth) pendingWidthPanes.add("sidebar");
+    if (finishOnAsideWidth) pendingWidthPanes.add("aside");
 
     if (isPaneSplitCoverActive() && !releaseRef.current) {
       releaseRef.current = acquireNativeWebviewCover();
@@ -106,14 +112,13 @@ export function usePaneSplitMotion(opts: {
       const t = e.target;
       if (!(t instanceof HTMLElement)) return;
       if (e.propertyName !== "width") return;
-      if (t.classList.contains("sidebar") && !finishOnSidebarWidth) return;
-      if (t.classList.contains("aside") && !finishOnAsideWidth) return;
-      if (
-        !t.classList.contains("sidebar") &&
-        !t.classList.contains("aside")
-      ) {
-        return;
-      }
+      const pane = t.classList.contains("sidebar")
+        ? "sidebar"
+        : t.classList.contains("aside")
+          ? "aside"
+          : null;
+      if (!pane || !pendingWidthPanes.delete(pane)) return;
+      if (pendingWidthPanes.size) return;
       finish();
     };
     document.addEventListener("transitionend", onEnd);

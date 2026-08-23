@@ -586,6 +586,16 @@
   transition: none;
 }
 
+.workbench--aside-motion
+  .aside:not(.is-resizing):not(.aside--overlay) {
+  transition:
+    width var(--motion-pane) var(--motion-pane-ease),
+    min-width var(--motion-pane) var(--motion-pane-ease),
+    max-width var(--motion-pane) var(--motion-pane-ease),
+    flex-basis var(--motion-pane) var(--motion-pane-ease),
+    border-color var(--motion-pane) ease;
+}
+
 .aside.aside--overlay {
   position: absolute;
   top: var(--titlebar-height, 40px);
