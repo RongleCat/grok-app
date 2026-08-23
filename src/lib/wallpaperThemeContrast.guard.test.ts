@@ -28,11 +28,21 @@ describe("wallpaper theme contrast CSS", () => {
     expect(css).toMatch(
       /--wallpaper-light-elevated-surface:\s*color-mix\(\s*in srgb,\s*var\(--bg-elevated\) 74%,\s*transparent/s,
     );
-    expect(css).toContain(
-      'html[data-wallpaper="1"] .lobe-chat-assistant-timeline',
-    );
     expect(css).toMatch(
       /\.lobe-chat-assistant-timeline\s+:is\(\s*pre,\s*code,\s*\.chat-code,\s*\.chat-md__table-wrap,[^)]*\.lobe-timeline-tool__output,[^)]*\.lobe-chat-plan,[^)]*\.struct-json,[^)]*\.att-card[^)]*\)\s*\{[^}]*text-shadow:\s*none/s,
+    );
+  });
+
+  it("uses foreground shadows only for dark wallpaper chrome", () => {
+    const lightRoot = css.match(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\]\s*\{[^}]*\}/s,
+    )?.[0];
+    expect(lightRoot).not.toContain("foreground-shadow");
+    expect(css).toMatch(
+      /html\[data-theme="dark"\]\[data-wallpaper="1"\] \.sidebar\s*\{[^}]*text-shadow:/s,
+    );
+    expect(css).not.toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\][^{]*\{[^}]*text-shadow:/s,
     );
   });
 });

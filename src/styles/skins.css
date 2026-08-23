@@ -8,9 +8,9 @@
  * actually play; scrim on ::after; panes go translucent.
  *
  * Scrim strength (Settings slider) writes separate dark/light veil + pane
- * curves, along with sidebar/settings blur and foreground contrast strength.
- * At 0% pane fills are clear; foreground halos and elevated controls remain so
- * the wallpaper can stay visible without sacrificing essential readability. */
+ * curves, along with sidebar/settings blur and dark-theme foreground contrast.
+ * At 0% pane fills are clear; elevated controls remain readable without adding
+ * a light halo to dark text. */
 html[data-wallpaper="1"] {
   --wallpaper-theme-scrim-color: var(--bg-app);
   --wallpaper-theme-scrim-opacity: var(--wallpaper-scrim-opacity, 1);
@@ -33,9 +33,6 @@ html[data-theme="light"][data-wallpaper="1"] {
   --wallpaper-theme-mix-main: var(--wallpaper-light-mix-main, 24%);
   --wallpaper-theme-mix-aside: var(--wallpaper-light-mix-aside, 32%);
   --wallpaper-theme-mix-settings: var(--wallpaper-light-mix-settings, 72%);
-  --wallpaper-foreground-shadow-color: rgb(
-    255 255 255 / var(--wallpaper-light-foreground-shadow-alpha, 0.22)
-  );
   --wallpaper-light-elevated-surface: color-mix(
     in srgb,
     var(--bg-elevated) 74%,
@@ -128,22 +125,25 @@ html[data-wallpaper="1"] .sidebar {
   backdrop-filter: blur(var(--wallpaper-sidebar-blur, 22px)) saturate(1.25);
   -webkit-backdrop-filter: blur(var(--wallpaper-sidebar-blur, 22px))
     saturate(1.25);
+}
+
+html[data-theme="dark"][data-wallpaper="1"] .sidebar {
   text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
 }
 
-html[data-wallpaper="1"] .sidebar svg {
+html[data-theme="dark"][data-wallpaper="1"] .sidebar svg {
   filter: drop-shadow(0 1px 1px var(--wallpaper-foreground-shadow-color));
 }
 
-html[data-wallpaper="1"] .main__top,
-html[data-wallpaper="1"] .composer-welcome-mark,
-html[data-wallpaper="1"] .lobe-chat-assistant-timeline {
+html[data-theme="dark"][data-wallpaper="1"] .main__top,
+html[data-theme="dark"][data-wallpaper="1"] .composer-welcome-mark,
+html[data-theme="dark"][data-wallpaper="1"] .lobe-chat-assistant-timeline {
   text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
 }
 
-html[data-wallpaper="1"] .main__top svg,
-html[data-wallpaper="1"] .composer-welcome-mark svg,
-html[data-wallpaper="1"] .lobe-chat-assistant-timeline svg {
+html[data-theme="dark"][data-wallpaper="1"] .main__top svg,
+html[data-theme="dark"][data-wallpaper="1"] .composer-welcome-mark svg,
+html[data-theme="dark"][data-wallpaper="1"] .lobe-chat-assistant-timeline svg {
   filter: drop-shadow(0 1px 1px var(--wallpaper-foreground-shadow-color));
 }
 

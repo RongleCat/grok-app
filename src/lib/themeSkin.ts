@@ -300,10 +300,6 @@ export function applyWallpaperScrimToDocument(
     "--wallpaper-sidebar-shadow-alpha",
     `${(0.56 * (1 - t)).toFixed(3)}`,
   );
-  root.style.setProperty(
-    "--wallpaper-light-foreground-shadow-alpha",
-    `${(0.22 + 0.44 * (1 - t)).toFixed(3)}`,
-  );
 }
 
 /**
