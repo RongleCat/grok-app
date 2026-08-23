@@ -19,6 +19,7 @@ import { DEFAULT_WALLPAPER_FOCUS } from "@/lib/themeSkin";
 import { saveMessageTimestampsPref } from "@/lib/messageTimestampsPref";
 import { saveShowReplyLengthPref } from "@/lib/messageLength";
 import { saveReplaceProviderBrandLogoPref } from "@/lib/replaceProviderBrandLogoPref";
+import { saveWelcomeMotionPref } from "@/lib/welcomeMotionPref";
 import { saveMessageTimeFormatPref } from "@/lib/messageTimeFormatPref";
 import { saveSidebarShowRelativeTimePref } from "@/lib/sidebarShowRelativeTimePref";
 import { formatRelativeTime } from "@/lib/accountUi";
@@ -1194,6 +1195,8 @@ export function AppWorkbench() {
     setShowReplyLength,
     replaceProviderBrandLogo,
     setReplaceProviderBrandLogo,
+    welcomeMotionEnabled,
+    setWelcomeMotionEnabled,
     goalOrchUiEnabled,
     setGoalOrchUiEnabled,
     goalOrchEvents,
@@ -1786,8 +1789,14 @@ export function AppWorkbench() {
   /** Floating composer shell — height drives chat bottom padding. */
   const composerWrapRef = useRef<HTMLDivElement>(null);
   /** One-shot welcome motion: initial draft and each accepted new-chat action. */
-  const [welcomeIntroActive, setWelcomeIntroActive] = useState(true);
+  const [welcomeIntroActive, setWelcomeIntroActive] = useState(
+    welcomeMotionEnabled,
+  );
   useEffect(() => {
+    if (!welcomeMotionEnabled) {
+      setWelcomeIntroActive(false);
+      return;
+    }
     if (!welcomeIntroActive) return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const settle = () => {
@@ -1796,7 +1805,7 @@ export function AppWorkbench() {
     settle();
     reducedMotion.addEventListener("change", settle);
     return () => reducedMotion.removeEventListener("change", settle);
-  }, [welcomeIntroActive]);
+  }, [welcomeIntroActive, welcomeMotionEnabled]);
   /** Set by newChat; applied after chat pane + textarea mount. */
   const pendingComposerFocus = useRef(false);
   const [sessionDataMode, setSessionDataMode] = useState(DEFAULT_SESSION_DATA_MODE);
@@ -5416,7 +5425,7 @@ export function AppWorkbench() {
       setLocalError(tr("project.pathMissing", { name: proj.name }));
       return;
     }
-    setWelcomeIntroActive(true);
+    setWelcomeIntroActive(welcomeMotionEnabled);
 
     // Snapshot outgoing composer: new-chat → per-project; real thread → per-session.
     const prevKey = projectDraftKey(activeProject?.id ?? null);
@@ -18456,6 +18465,11 @@ export function AppWorkbench() {
           saveReplaceProviderBrandLogoPref(v, localStorage);
           setReplaceProviderBrandLogo(v);
           }}
+          welcomeMotionEnabled={welcomeMotionEnabled}
+          onWelcomeMotionEnabled={(v) => {
+          saveWelcomeMotionPref(v, localStorage);
+          setWelcomeMotionEnabled(v);
+          }}
           goalOrchUiEnabled={goalOrchUiEnabled}
           onGoalOrchUiEnabled={(v) => {
           saveGoalOrchUiEnabled(v, localStorage);
@@ -21181,7 +21195,9 @@ export function AppWorkbench() {
               <div
                 className={
                   "composer-welcome-mark" +
-                  (welcomeIntroActive ? " is-entering" : "")
+                  (welcomeMotionEnabled && welcomeIntroActive
+                    ? " is-entering"
+                    : "")
                 }
               >
                 <div className="composer-welcome-brand">

@@ -264,6 +264,8 @@ export const frSettings = {
   "settings.composerSpellcheckDesc": "Souligner les mots mal orthographiés dans la saisie du chat via le dictionnaire système. Désactivé par défaut.",
   "settings.theme": "Thème",
   "settings.themeDesc": "Suivre le système, ou verrouiller clair / sombre",
+  "settings.welcomeMotion": "Animation de bienvenue",
+  "settings.welcomeMotionDesc": "Dans les nouvelles discussions, jouer l’animation d’entrée qui fait monter la marque et révèle « Que faisons-nous aujourd’hui ? ». Le contenu reste visible lorsqu’elle est désactivée.",
   "settings.themeSystem": "Système",
   "settings.themeLight": "Clair",
   "settings.themeDark": "Sombre",

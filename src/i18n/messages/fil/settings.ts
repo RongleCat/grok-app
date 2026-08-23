@@ -264,6 +264,8 @@ export const filSettings = {
   "settings.composerSpellcheckDesc": "Salungguhitan ang mga maling spelling sa input ng chat gamit ang system dictionary. Naka-off bilang default.",
   "settings.theme": "Tema",
   "settings.themeDesc": "Sundin ang system, o i-lock sa maliwanag / madilim",
+  "settings.welcomeMotion": "Animasyon ng pagbati",
+  "settings.welcomeMotionDesc": "Sa mga bagong chat, i-play ang entrance animation na itinataas ang brand at ipinapakita ang “Ano ang gagawin natin ngayon?”. Mananatiling nakikita ang nilalaman kapag naka-off.",
   "settings.themeSystem": "System",
   "settings.themeLight": "Maliwanag",
   "settings.themeDark": "Madilim",

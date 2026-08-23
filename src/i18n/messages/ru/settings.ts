@@ -264,6 +264,8 @@ export const ruSettings = {
   "settings.composerSpellcheckDesc": "Подчёркивать слова с ошибками в поле ввода с помощью системного словаря.",
   "settings.theme": "Тема",
   "settings.themeDesc": "Следовать системе или выбрать светлую/тёмную тему",
+  "settings.welcomeMotion": "Анимация приветствия",
+  "settings.welcomeMotionDesc": "В новых чатах воспроизводить вступительную анимацию: бренд поднимается вверх, а затем появляется «Что будем делать сегодня?». Если отключить её, содержимое останется видимым.",
   "settings.themeSystem": "Системная",
   "settings.themeLight": "Светлая",
   "settings.themeDark": "Тёмная",

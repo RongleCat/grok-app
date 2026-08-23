@@ -287,6 +287,8 @@ export const enSettings = {
   "settings.composerSpellcheckDesc": "Underline misspelled words in the chat input using the system dictionary. Off by default.",
   "settings.theme": "Theme",
   "settings.themeDesc": "Follow the system, or lock light / dark",
+  "settings.welcomeMotion": "Welcome animation",
+  "settings.welcomeMotionDesc": "In new chats, play the entrance animation that lifts the brand and reveals “What will we do today?”. The content remains visible when disabled.",
   "settings.themeSystem": "System",
   "settings.themeLight": "Light",
   "settings.themeDark": "Dark",

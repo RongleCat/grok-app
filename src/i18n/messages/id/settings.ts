@@ -264,6 +264,8 @@ export const idSettings = {
   "settings.composerSpellcheckDesc": "Garis bawahi kata salah eja di masukan obrolan memakai kamus sistem. Mati secara bawaan.",
   "settings.theme": "Tema",
   "settings.themeDesc": "Ikuti sistem, atau kunci terang / gelap",
+  "settings.welcomeMotion": "Animasi sambutan",
+  "settings.welcomeMotionDesc": "Di chat baru, putar animasi masuk yang mengangkat merek dan menampilkan “Apa yang akan kita lakukan hari ini?”. Konten tetap terlihat saat dinonaktifkan.",
   "settings.themeSystem": "Sistem",
   "settings.themeLight": "Terang",
   "settings.themeDark": "Gelap",

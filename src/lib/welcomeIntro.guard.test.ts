@@ -12,7 +12,10 @@ const phoneCss = readFileSync(
 describe("new-chat welcome intro", () => {
   it("runs only on the empty welcome surface and settles after the type reveal", () => {
     expect(app).toContain("welcomeSession && welcomeBrandKind && !sideDockActive");
-    expect(app).toContain('welcomeIntroActive ? " is-entering" : ""');
+    expect(app).toContain("useState(\n    welcomeMotionEnabled,\n  )");
+    expect(app).toContain("welcomeMotionEnabled && welcomeIntroActive");
+    expect(app).toContain("setWelcomeIntroActive(welcomeMotionEnabled)");
+    expect(app).toContain("if (!welcomeMotionEnabled)");
     expect(app).toContain("onAnimationEnd={() => setWelcomeIntroActive(false)}");
     expect(app).toContain('window.matchMedia("(prefers-reduced-motion: reduce)")');
     expect(app).toContain('reducedMotion.addEventListener("change", settle)');

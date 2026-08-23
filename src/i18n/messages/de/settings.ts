@@ -264,6 +264,8 @@ export const deSettings = {
   "settings.composerSpellcheckDesc": "Falsch geschriebene Wörter in der Chat-Eingabe mit dem Systemwörterbuch unterstreichen. Standard aus.",
   "settings.theme": "Design",
   "settings.themeDesc": "Dem System folgen oder Hell / Dunkel festlegen",
+  "settings.welcomeMotion": "Willkommensanimation",
+  "settings.welcomeMotionDesc": "In neuen Chats die Animation abspielen, bei der die Marke nach oben gleitet und „Was möchtest du heute machen?“ eingeblendet wird. Wenn deaktiviert, bleiben die Inhalte sichtbar.",
   "settings.themeSystem": "System",
   "settings.themeLight": "Hell",
   "settings.themeDark": "Dunkel",

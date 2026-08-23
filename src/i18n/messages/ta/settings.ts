@@ -264,6 +264,8 @@ export const taSettings = {
   "settings.composerSpellcheckDesc": "கணினி அகராதியைப் பயன்படுத்தி உரையாடல் உள்ளீட்டில் எழுத்துப் பிழையான வார்த்தைகளை அடிக்கோடிடவும். இயல்பாக ஆஃப்.",
   "settings.theme": "தோற்றம்",
   "settings.themeDesc": "கணினியைப் பின்பற்றவும் அல்லது ஒளி/இருட்டைப் பூட்டவும்",
+  "settings.welcomeMotion": "வரவேற்பு அசைவூட்டம்",
+  "settings.welcomeMotionDesc": "புதிய அரட்டைகளில் பிராண்ட் மேலே நகர்ந்து “இன்று என்ன செய்வோம்?” தோன்றும் நுழைவு அசைவூட்டத்தை இயக்கவும். இதை முடக்கினாலும் உள்ளடக்கம் தொடர்ந்து தெரியும்.",
   "settings.themeSystem": "கணினி",
   "settings.themeLight": "ஒளி",
   "settings.themeDark": "இருள்",

@@ -58,6 +58,8 @@ export interface SettingsPageProps {
   /** When true, sidebar top-left Grok mark follows the active branded provider. */
   replaceProviderBrandLogo?: boolean;
   onReplaceProviderBrandLogo?: (v: boolean) => void;
+  welcomeMotionEnabled?: boolean;
+  onWelcomeMotionEnabled?: (v: boolean) => void;
   goalOrchUiEnabled?: boolean;
   onGoalOrchUiEnabled?: (v: boolean) => void;
   messageTimeFormat?: MessageTimeFormat;

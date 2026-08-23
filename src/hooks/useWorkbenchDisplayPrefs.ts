@@ -66,6 +66,10 @@ import {
   WIN_TASKBAR_OVERLAY_CHANGE_EVENT,
 } from "@/lib/winTaskbarOverlayPref";
 import {
+  loadWelcomeMotionPref,
+  WELCOME_MOTION_CHANGE_EVENT,
+} from "@/lib/welcomeMotionPref";
+import {
   applyWindowAlwaysOnTop,
   loadWindowAlwaysOnTopPref,
 } from "@/lib/windowAlwaysOnTop";
@@ -121,6 +125,9 @@ export function useWorkbenchDisplayPrefs() {
   const [replaceProviderBrandLogo, setReplaceProviderBrandLogo] = useState(
     () => loadReplaceProviderBrandLogoPref(localStorage),
   );
+  const [welcomeMotionEnabled, setWelcomeMotionEnabled] = useState(() =>
+    loadWelcomeMotionPref(localStorage),
+  );
   const [goalOrchUiEnabled, setGoalOrchUiEnabled] = useState(() =>
     loadGoalOrchUiEnabled(localStorage),
   );
@@ -175,6 +182,11 @@ export function useWorkbenchDisplayPrefs() {
     REPLACE_PROVIDER_BRAND_LOGO_CHANGE_EVENT,
     () => loadReplaceProviderBrandLogoPref(localStorage),
     setReplaceProviderBrandLogo,
+  );
+  useBooleanPrefSync(
+    WELCOME_MOTION_CHANGE_EVENT,
+    () => loadWelcomeMotionPref(localStorage),
+    setWelcomeMotionEnabled,
   );
   useBooleanPrefSync(
     NOTIFY_SOUND_CHANGE_EVENT,
@@ -256,6 +268,8 @@ export function useWorkbenchDisplayPrefs() {
     setShowReplyLength,
     replaceProviderBrandLogo,
     setReplaceProviderBrandLogo,
+    welcomeMotionEnabled,
+    setWelcomeMotionEnabled,
     goalOrchUiEnabled,
     setGoalOrchUiEnabled,
     goalOrchEvents,

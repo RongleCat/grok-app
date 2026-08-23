@@ -264,6 +264,8 @@ export const ptBRSettings = {
   "settings.composerSpellcheckDesc": "Sublinhar palavras com erro na entrada do chat usando o dicionário do sistema. Desligado por padrão.",
   "settings.theme": "Tema",
   "settings.themeDesc": "Seguir o sistema, ou fixar claro / escuro",
+  "settings.welcomeMotion": "Animação de boas-vindas",
+  "settings.welcomeMotionDesc": "Em novos chats, reproduza a animação de entrada que eleva a marca e revela “O que vamos fazer hoje?”. O conteúdo continua visível quando desativada.",
   "settings.themeSystem": "Sistema",
   "settings.themeLight": "Claro",
   "settings.themeDark": "Escuro",

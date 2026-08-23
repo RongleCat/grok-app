@@ -95,6 +95,7 @@ export function AppearanceSection() {
     onSkin,
     onTheme,
     onThemeSchedule,
+    onWelcomeMotionEnabled,
     onWallpaper,
     onWallpaperAdjust,
     onWallpaperFile,
@@ -142,6 +143,7 @@ export function AppearanceSection() {
     wallpaperSourceOpen,
     wallpaperSourceTab,
     wallpaperUrl,
+    welcomeMotionEnabled = true,
     zenMode,
   } = s;
 
@@ -677,6 +679,31 @@ export function AppearanceSection() {
                         checked={!!zenMode}
                         onChange={() => onZenMode(!zenMode)}
                         ariaLabel={t("settings.zenMode")}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                {onWelcomeMotionEnabled ? (
+                  <div
+                    className={
+                      "settings-card" +
+                      rowHighlight("settings-anchor-welcomeMotion")
+                    }
+                    id="settings-anchor-welcomeMotion"
+                  >
+                    <div className="settings-row">
+                      <div className="settings-row__text">
+                        <SettingsLabelWithTip
+                          label={t("settings.welcomeMotion")}
+                          tip={t("settings.welcomeMotionDesc")}
+                        />
+                      </div>
+                      <UiCheck
+                        checked={!!welcomeMotionEnabled}
+                        onChange={() =>
+                          onWelcomeMotionEnabled(!welcomeMotionEnabled)
+                        }
+                        ariaLabel={t("settings.welcomeMotion")}
                       />
                     </div>
                   </div>

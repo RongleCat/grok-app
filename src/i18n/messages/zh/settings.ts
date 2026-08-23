@@ -287,6 +287,8 @@ export const zhSettings = {
   "settings.composerDraftStatsDesc": "输入框有内容时以低调样式显示字符数与词数。",
   "settings.theme": "主题",
   "settings.themeDesc": "跟随系统，或固定浅色 / 深色",
+  "settings.welcomeMotion": "欢迎动画",
+  "settings.welcomeMotionDesc": "在新对话中播放品牌上移及“今天做什么？”的入场动画；关闭后内容仍会显示。",
   "settings.themeSystem": "跟随系统",
   "settings.themeLight": "浅色",
   "settings.themeDark": "深色",

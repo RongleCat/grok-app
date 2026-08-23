@@ -288,6 +288,8 @@ export const zhTWSettings = {
   "settings.composerSpellcheckDesc": "在對話輸入框用系統辭典標出拼字錯誤。預設關閉。",
   "settings.theme": "主題",
   "settings.themeDesc": "跟隨系統，或固定淺色 / 深色",
+  "settings.welcomeMotion": "歡迎動畫",
+  "settings.welcomeMotionDesc": "在新對話中播放品牌上移及「今天做什麼？」的入場動畫；關閉後內容仍會顯示。",
   "settings.themeSystem": "跟隨系統",
   "settings.themeLight": "淺色",
   "settings.themeDark": "深色",

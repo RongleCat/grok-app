@@ -264,6 +264,8 @@ export const ukSettings = {
   "settings.composerSpellcheckDesc": "Підкресліть неправильно написані слова в чаті за допомогою системного словника. За замовчуванням вимкнено.",
   "settings.theme": "Тема",
   "settings.themeDesc": "Слідкуйте за системою, або блокуйте світло/темно",
+  "settings.welcomeMotion": "Анімація привітання",
+  "settings.welcomeMotionDesc": "У нових чатах відтворювати вступну анімацію: бренд підіймається вгору, а потім з’являється «Що робитимемо сьогодні?». Якщо її вимкнути, вміст залишиться видимим.",
   "settings.themeSystem": "Система",
   "settings.themeLight": "Світла",
   "settings.themeDark": "Темна",
