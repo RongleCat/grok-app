@@ -744,10 +744,10 @@
   width: 100%;
   max-width: 42rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  /* Reserve height so composer doesn't jump when mark appears */
-  min-height: 36px;
+  gap: 12px;
   padding: 4px 8px 8px;
   user-select: none;
   flex-shrink: 0;
@@ -758,16 +758,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  translate: 0 calc(-100% - 12px);
+  max-width: 100%;
 }
 
 .composer-welcome-prompt {
-  position: absolute;
-  top: 50%;
-  left: 50%;
   width: max-content;
   max-width: calc(100% - 32px);
-  transform: translate(-50%, -50%);
   color: var(--text-primary);
   font-size: clamp(1.35rem, 2.4vw, 1.75rem);
   font-weight: 600;

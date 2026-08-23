@@ -1787,6 +1787,16 @@ export function AppWorkbench() {
   const composerWrapRef = useRef<HTMLDivElement>(null);
   /** One-shot welcome motion: initial draft and each accepted new-chat action. */
   const [welcomeIntroActive, setWelcomeIntroActive] = useState(true);
+  useEffect(() => {
+    if (!welcomeIntroActive) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const settle = () => {
+      if (reducedMotion.matches) setWelcomeIntroActive(false);
+    };
+    settle();
+    reducedMotion.addEventListener("change", settle);
+    return () => reducedMotion.removeEventListener("change", settle);
+  }, [welcomeIntroActive]);
   /** Set by newChat; applied after chat pane + textarea mount. */
   const pendingComposerFocus = useRef(false);
   const [sessionDataMode, setSessionDataMode] = useState(DEFAULT_SESSION_DATA_MODE);

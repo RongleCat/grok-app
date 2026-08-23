@@ -14,14 +14,14 @@ describe("new-chat welcome intro", () => {
     expect(app).toContain("welcomeSession && welcomeBrandKind && !sideDockActive");
     expect(app).toContain('welcomeIntroActive ? " is-entering" : ""');
     expect(app).toContain("onAnimationEnd={() => setWelcomeIntroActive(false)}");
+    expect(app).toContain('window.matchMedia("(prefers-reduced-motion: reduce)")');
+    expect(app).toContain('reducedMotion.addEventListener("change", settle)');
   });
 
   it("rises before a locale-sized stepped reveal and honors reduced motion", () => {
     expect(css).toContain("@keyframes composer-welcome-brand-rise");
     expect(css).toContain("steps(var(--welcome-prompt-steps), end)");
-    expect(css).toMatch(
-      /\.composer-welcome-brand\s*\{[^}]*translate:\s*0 calc\(-100% - 12px\)/s,
-    );
+    expect(css).not.toMatch(/\.composer-welcome-brand\s*\{[^}]*translate:/s);
     expect(css).toMatch(
       /\.composer-welcome-mark\.is-entering \.composer-welcome-brand\s*\{[^}]*composer-welcome-brand-rise 480ms ease both/s,
     );
@@ -32,7 +32,13 @@ describe("new-chat welcome intro", () => {
       /\.composer-welcome-mark\s*\{[\s\S]*?width: 100%;[\s\S]*?max-width: 42rem;/,
     );
     expect(css).toMatch(
+      /\.composer-welcome-mark\s*\{[\s\S]*?flex-direction: column;[\s\S]*?gap: 12px;/,
+    );
+    expect(css).toMatch(
       /\.composer-welcome-prompt\s*\{[\s\S]*?max-width: calc\(100% - 32px\);[\s\S]*?overflow-wrap: anywhere;/,
+    );
+    expect(css).not.toMatch(
+      /\.composer-welcome-prompt\s*\{[^}]*position:\s*absolute/s,
     );
     expect(phoneCss).toMatch(
       /\.app-shell--phone \.composer-wrap--welcome \.composer-welcome-mark\s*\{[\s\S]*?align-self: stretch;[\s\S]*?width: auto;[\s\S]*?max-width: none;/,
