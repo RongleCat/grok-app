@@ -207,29 +207,94 @@ describe("theme preference + resolve", () => {
     expect(startViewTransition).not.toHaveBeenCalled();
   });
 
-  it("keeps WebKit glass live instead of using a View Transition snapshot", () => {
-    const update = vi.fn();
-    const startViewTransition = vi.fn((commit: () => void) => {
-      commit();
-      return { finished: Promise.resolve(), skipTransition: vi.fn() };
-    });
-    const doc = {
-      defaultView: {
-        matchMedia: () => ({ matches: false }),
-        navigator: {
-          userAgent:
-            "Mozilla/5.0 AppleWebKit/605.1.15 Version/26.0 Safari/605.1.15",
+  it("animates WebKit theme colors without using a glass-breaking snapshot", () => {
+    vi.useFakeTimers();
+    try {
+      let updated = false;
+      const animation = {
+        cancel: vi.fn(),
+        finished: new Promise<void>(() => {}),
+      };
+      const animate = vi.fn(
+        (
+          _keyframes: Keyframe[] | PropertyIndexedKeyframes | null,
+          _options?: number | KeyframeAnimationOptions,
+        ) => animation as unknown as Animation,
+      );
+      const update = vi.fn(() => {
+        updated = true;
+      });
+      const startViewTransition = vi.fn((commit: () => void) => {
+        commit();
+        return { finished: Promise.resolve(), skipTransition: vi.fn() };
+      });
+      const doc = {
+        defaultView: {
+          matchMedia: () => ({ matches: false }),
+          navigator: {
+            userAgent:
+              "Mozilla/5.0 AppleWebKit/605.1.15 Version/26.0 Safari/605.1.15",
+          },
+          innerWidth: 1200,
+          innerHeight: 800,
+          getComputedStyle: () => ({
+            color: updated ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
+            backgroundColor: updated
+              ? "rgb(20, 20, 20)"
+              : "rgb(255, 255, 255)",
+            borderTopColor: "rgba(0, 0, 0, 0)",
+            borderRightColor: "rgba(0, 0, 0, 0)",
+            borderBottomColor: "rgba(0, 0, 0, 0)",
+            borderLeftColor: "rgba(0, 0, 0, 0)",
+            outlineColor: "rgba(0, 0, 0, 0)",
+            fill: "none",
+            stroke: "none",
+          }),
         },
-      },
-      documentElement: { dataset: {} },
-      visibilityState: "visible",
-      startViewTransition,
-    } as unknown as Document;
+        documentElement: {
+          animate,
+          dataset: {},
+          getBoundingClientRect: () => ({
+            bottom: 800,
+            height: 800,
+            left: 0,
+            right: 1200,
+            top: 0,
+            width: 1200,
+          }),
+          isConnected: true,
+        },
+        querySelectorAll: () => [],
+        visibilityState: "visible",
+        startViewTransition,
+      } as unknown as Document;
 
-    runThemeTransition(update, doc);
+      runThemeTransition(update, doc);
 
-    expect(update).toHaveBeenCalledOnce();
-    expect(startViewTransition).not.toHaveBeenCalled();
+      expect(update).toHaveBeenCalledOnce();
+      expect(startViewTransition).not.toHaveBeenCalled();
+      expect(doc.documentElement.dataset.themeTransition).toBe("webkit");
+      expect(animate).toHaveBeenCalledOnce();
+      const keyframes = animate.mock.calls[0]?.[0];
+      expect(keyframes).toEqual([
+        expect.objectContaining({
+          backgroundColor: "rgb(255, 255, 255)",
+          color: "rgb(0, 0, 0)",
+        }),
+        expect.objectContaining({
+          backgroundColor: "rgb(20, 20, 20)",
+          color: "rgb(255, 255, 255)",
+        }),
+      ]);
+      expect(JSON.stringify(keyframes)).not.toMatch(
+        /(?:transform|opacity|backdropFilter)/,
+      );
+
+      vi.runAllTimers();
+      expect(doc.documentElement.dataset.themeTransition).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps only the latest rapid theme transition update", async () => {
