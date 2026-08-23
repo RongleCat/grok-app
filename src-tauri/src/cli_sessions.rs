@@ -1797,6 +1797,8 @@ pub fn import_cli_session(
     project_id: Option<String>,
     session_data_mode: &str,
 ) -> Result<SessionMeta, String> {
+    let agent_session_id = validate_agent_session_id(agent_session_id)?;
+
     // Already linked? Skip re-import and return the existing app session.
     if let Some(existing) = store::load_sessions_index()
         .into_iter()
@@ -2443,6 +2445,18 @@ mod tests {
         assert!(validate_agent_session_id("a\\b").is_err());
         assert!(validate_agent_session_id("..").is_err());
         assert!(validate_agent_session_id("sess-ok-123").is_ok());
+    }
+
+    #[test]
+    fn import_cli_session_rejects_traversal_ids_before_path_join() {
+        // Must fail closed on the id itself — never scan sessions or join `..`.
+        for id in ["", "   ", "../etc", "a/b", "a\\b", "..", "sess/../x"] {
+            let err = import_cli_session(id, None, None, "shared").unwrap_err();
+            assert!(
+                err.contains("invalid agent_session_id") || err.contains("empty agent_session_id"),
+                "id {id:?} → {err}"
+            );
+        }
     }
 
     fn make_fake_cli_session(home: &Path, agent_id: &str) -> PathBuf {
