@@ -15776,6 +15776,20 @@ export function AppWorkbench() {
     navigateSettings("account");
     setSettingsFocusAnchor("settings-anchor-account-callLogs");
   }, [navigateSettings]);
+  const sidebarCliImportCta = cliCallLogImport.showCta ? (
+    <SidebarCliImportCta
+      hint={tr("sidebar.importCliSessionsHint")}
+      importLabel={
+        cliCallLogImport.importing
+          ? tr("settings.cliSessionsImporting")
+          : tr("sidebar.importCliSessions")
+      }
+      browseLabel={tr("account.callLogs")}
+      importing={cliCallLogImport.importing}
+      onImport={() => void importCliCallLogsFromSidebar()}
+      onBrowse={browseCliSessionsSettings}
+    />
+  ) : null;
 
   type ExportMdTarget = {
     id: string;
@@ -19546,20 +19560,7 @@ export function AppWorkbench() {
             {projects.length === 0 && (
               <div className="sidebar-empty">
                 {tr("sidebar.noProjects")}
-                {cliCallLogImport.showCta ? (
-                  <SidebarCliImportCta
-                    hint={tr("sidebar.importCliSessionsHint")}
-                    importLabel={
-                      cliCallLogImport.importing
-                        ? tr("settings.cliSessionsImporting")
-                        : tr("sidebar.importCliSessions")
-                    }
-                    browseLabel={tr("account.callLogs")}
-                    importing={cliCallLogImport.importing}
-                    onImport={() => void importCliCallLogsFromSidebar()}
-                    onBrowse={browseCliSessionsSettings}
-                  />
-                ) : null}
+                {sidebarCliImportCta}
               </div>
             )}
 
@@ -19987,20 +19988,7 @@ export function AppWorkbench() {
                   );
                 })()
               : null}
-            {cliCallLogImport.showCta && historyOpen && projects.length > 0 ? (
-                  <SidebarCliImportCta
-                    hint={tr("sidebar.importCliSessionsHint")}
-                    importLabel={
-                      cliCallLogImport.importing
-                        ? tr("settings.cliSessionsImporting")
-                        : tr("sidebar.importCliSessions")
-                    }
-                    browseLabel={tr("account.callLogs")}
-                    importing={cliCallLogImport.importing}
-                    onImport={() => void importCliCallLogsFromSidebar()}
-                    onBrowse={browseCliSessionsSettings}
-                  />
-                ) : null}
+            {historyOpen && projects.length > 0 ? sidebarCliImportCta : null}
             </div>
           </OverlayScroll>
 
