@@ -630,6 +630,7 @@ html[data-theme="light"][data-wallpaper="1"]
 html[data-theme="dark"][data-wallpaper="1"]
   .agent-kanban-page
   :is(.auto-page__title, .auto-page__subtitle) {
+  color: var(--text-primary);
   text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
 }
 
