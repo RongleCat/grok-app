@@ -54,12 +54,12 @@ import {
   RimCheck,
   RimChoiceRow,
   RimSecretField,
-  RimSeg,
-  RimSelect,
   RimStatusDot,
   RimSwitch,
 } from "@/components/remoteIm/RimControls";
 import { IconAlertTriangle, IconDoctor, IconPlus } from "@/components/icons";
+import { Select } from "@/components/Select";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 
 export interface RemoteImChannelPanelProps {
   locale: string;
@@ -764,9 +764,10 @@ export function RemoteImChannelPanel({
               <div className="settings-row__desc">{t(f.helpKey)}</div>
             ) : null}
           </div>
-          <RimSelect
+          <Select
+            className="rim-select"
             value={String(val ?? f.defaultValue ?? "")}
-            ariaLabel={t(f.labelKey)}
+            aria-label={t(f.labelKey)}
             onChange={(v) => setValue(f.key, v)}
             options={f.choices.map((c) => ({
               value: c.value,
@@ -975,9 +976,10 @@ export function RemoteImChannelPanel({
             {t("settings.remoteIm.instance")}
           </div>
           <div className="rim-instance-bar">
-            <RimSelect
+            <Select
+              className="rim-select"
               value={instance.id}
-              ariaLabel={t("settings.remoteIm.instance")}
+              aria-label={t("settings.remoteIm.instance")}
               options={instanceOptions}
               onChange={onSelectInstance}
             />
@@ -1082,8 +1084,10 @@ export function RemoteImChannelPanel({
       <div className="settings-card">
         {schema.scanSupport ? (
           <div className="settings-row settings-row--stack">
-            <RimSeg
+            <SegmentedControl
               value={bindTab}
+              role="tablist"
+              large
               ariaLabel={t("settings.remoteIm.bind")}
               onChange={(v) => setBindTab(v as BindTab)}
               options={[
@@ -1568,11 +1572,12 @@ export function RemoteImChannelPanel({
           </p>
         </div>
       ) : null}
-              <RimSelect
+              <Select
+                className="rim-select"
                 value={
                   isPresenterLocked(channelId) ? "text_only" : presenter
                 }
-                ariaLabel={t("settings.remoteIm.field.presenter")}
+                aria-label={t("settings.remoteIm.field.presenter")}
                 onChange={(v) => {
                   if (isPresenterLocked(channelId)) {
                     setPresenter("text_only");
