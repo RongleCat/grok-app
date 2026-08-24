@@ -723,20 +723,13 @@
   right: 0;
   bottom: 0;
   z-index: 20;
-  /* Pass scroll through the fade; only the card captures pointer */
+  /* Only the card captures pointer; chat remains scrollable underneath. */
   pointer-events: none;
   padding: 28px 16px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  background: linear-gradient(
-    to top,
-    var(--bg-main) 0%,
-    color-mix(in srgb, var(--bg-main) 92%, transparent) 42%,
-    color-mix(in srgb, var(--bg-main) 55%, transparent) 72%,
-    transparent 100%
-  );
 }
 
 /* Empty / new session: logo + composer vertically centered in the stage */
@@ -750,8 +743,6 @@
   justify-content: center;
   gap: 22px;
   padding: 24px 16px;
-  /* Full-area overlay — no bottom fade while centered */
-  background: transparent;
 }
 
 .composer-wrap--welcome .composer {

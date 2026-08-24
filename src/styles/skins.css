@@ -292,10 +292,6 @@ html[data-theme="light"][data-wallpaper="1"]
   );
 }
 
-html[data-theme="light"][data-wallpaper="1"] .composer-wrap--float {
-  background: transparent;
-}
-
 /*
  * Hard clear at 0% scrim — clear the canvas and pane curves completely.
  */
