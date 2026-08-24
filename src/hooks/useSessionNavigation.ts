@@ -490,7 +490,7 @@ export function useSessionNavigation(opts: {
       }
       host.chrome.closePhoneDrawerIfNeeded();
       host.catalog.setActiveProject(proj);
-      host.catalog.revealInSidebar(proj);
+      if (proj) host.catalog.revealInSidebar(proj);
 
       bumpViewEpoch();
       invalidateOpenPipelines();

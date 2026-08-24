@@ -64,7 +64,6 @@ export type SessionConnectHost = {
   setSessionJsonSchema: Dispatch<SetStateAction<string | null>>;
   setActiveProject: Dispatch<SetStateAction<Project | null>>;
   setExpandedProjects: Dispatch<SetStateAction<Record<string, boolean>>>;
-  setHistoryOpen: Dispatch<SetStateAction<boolean>>;
   refreshSessions: () => void | Promise<void>;
 };
 
@@ -96,7 +95,6 @@ function emptyHost(): SessionConnectHost {
     setSessionJsonSchema: noop,
     setActiveProject: noop,
     setExpandedProjects: noop,
-    setHistoryOpen: noop,
     refreshSessions: noop,
   };
 }
@@ -314,8 +312,6 @@ export function useSessionConnect(opts: {
                 ...e,
                 [connectProject.id]: true,
               }));
-            } else {
-              h.setHistoryOpen(true);
             }
           }
           await h.refreshSessions();

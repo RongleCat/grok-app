@@ -3297,7 +3297,6 @@ export function AppWorkbench() {
     connectHost.setSessionJsonSchema = setSessionJsonSchema;
     connectHost.setActiveProject = setActiveProject;
     connectHost.setExpandedProjects = setExpandedProjects;
-    connectHost.setHistoryOpen = setHistoryOpen;
     connectHost.refreshSessions = refreshSessions;
     const host = sessionNavHostRef.current;
     host.chrome.goToChat = () => {
