@@ -2421,10 +2421,8 @@ A UI screenshot.
         assert!(js.contains("x_keyword_search"));
         assert!(js.contains("image_gen"));
         assert!(js.contains("official-aux"));
-        let dir = std::env::temp_dir().join(format!(
-            "grok-official-aux-script-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("grok-official-aux-script-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("temp home");
         let path = write_official_aux_mcp_script(&dir).expect("write script");
