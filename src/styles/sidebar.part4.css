@@ -30,7 +30,14 @@ html[data-sidebar-density="compact"] .tree-l3 .tree-icon-btn {
   height: 20px;
 }
 
-
+html[data-sidebar-density="compact"]
+  .tree-l3:hover:has(.tree-l3__actions):not(.tree-l3--renaming)
+  .tree-l3__title,
+html[data-sidebar-density="compact"]
+  .tree-l3:has(.tree-l3__actions:focus-within):not(.tree-l3--renaming)
+  .tree-l3__title {
+  padding-right: 68px;
+}
 
 html[data-sidebar-density="compact"] .session-list {
   gap: 0;
@@ -718,4 +725,3 @@ html[data-sidebar-density="compact"] .session-row__meta {
 .user-meta__hint {
   display: none;
 }
-

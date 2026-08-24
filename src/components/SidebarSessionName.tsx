@@ -9,18 +9,12 @@ type Props = {
   title: string;
 };
 
-/**
- * Approx. hover action strip (pin + archive + menu + left fade).
- * Subtracted from the clip width so marquee can clear icons under the overlay.
- */
-const HOVER_ACTIONS_RESERVE_PX = 78;
-
 /** Gap between duplicated title copies in the seamless loop (px). */
 const MARQUEE_GAP_PX = 28;
 
 /**
  * Sidebar session title: ellipsis at rest; on row hover, if text overflows
- * (including space under overlay icons), marquee-scroll left continuously
+ * (including space reserved for the action buttons), marquee-scroll left continuously
  * (one-way seamless loop — never reverse).
  */
 export function SidebarSessionName({ title }: Props) {
@@ -36,7 +30,7 @@ export function SidebarSessionName({ title }: Props) {
 
     const run = () => {
       const contentW = measure.scrollWidth;
-      const visible = Math.max(8, outer.clientWidth - HOVER_ACTIONS_RESERVE_PX);
+      const visible = Math.max(8, outer.clientWidth);
       const overflow = contentW - visible;
       const needsScroll = overflow > 2;
       setScrollable(needsScroll);

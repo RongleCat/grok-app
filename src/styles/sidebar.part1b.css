@@ -539,12 +539,4 @@
   white-space: nowrap;
 }
 
-/*
- * Session rows: overlay actions on hover (do not hard-reserve width).
- *
- * --bg-hover / --bg-active are translucent tints — using them alone lets the
- * marquee title bleed through. Composite an opaque strip:
- *   [hover/active tint] over [--bg-sidebar-solid]
- * so the whole button block is solid, matching the hovered row surface.
- * Only the LEFT edge fades to transparent (mask), not a frosted glass fill.
- */
+/* Session actions overlay the row; the title yields only while they are visible. */

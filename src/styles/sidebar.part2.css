@@ -1,8 +1,6 @@
 /* domain CSS chunk (move-only split; selectors unchanged) */
 
 .tree-l3__actions {
-  --tree-l3-overlay-base: var(--bg-sidebar-solid, var(--bg-elevated, var(--bg-app)));
-  --tree-l3-overlay-tint: var(--bg-hover);
   position: absolute;
   right: 2px;
   top: 0;
@@ -22,31 +20,6 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 120ms ease;
-  /* Opaque composite: solid sidebar base + hover/active tint on top */
-  background-color: var(--tree-l3-overlay-base);
-  background-image: linear-gradient(
-    var(--tree-l3-overlay-tint),
-    var(--tree-l3-overlay-tint)
-  );
-  border-radius: 0 8px 8px 0;
-}
-
-/* Left edge only: same solid composite, mask fades to transparent (no blur glass) */
-.tree-l3__actions::before {
-  content: "";
-  position: absolute;
-  right: 100%;
-  top: 0;
-  bottom: 0;
-  width: 28px;
-  pointer-events: none;
-  background-color: var(--tree-l3-overlay-base);
-  background-image: linear-gradient(
-    var(--tree-l3-overlay-tint),
-    var(--tree-l3-overlay-tint)
-  );
-  mask-image: linear-gradient(to right, transparent 0%, black 100%);
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 100%);
 }
 
 /* pin + archive + menu — width from content, not reserved layout */
@@ -62,27 +35,10 @@
   pointer-events: auto;
 }
 
-/* Hover chrome only on real pointer hover — not sticky :focus-within after click
- * (selected row used to look “hovered” because the row keeps keyboard focus).
- * Keyboard: still reveal when focus is inside the actions cluster. */
-.tree-l3:hover {
-  --tree-l3-overlay-tint: var(--bg-hover);
-}
-
-.tree-l3--active,
-.tree-l3--checked {
-  --tree-l3-overlay-tint: var(--bg-active);
-}
-
-.tree-l3--active:hover,
-.tree-l3--checked:hover {
-  --tree-l3-overlay-tint: var(--bg-active);
-}
-
 .tree-l3:hover .tree-l3__actions,
 .tree-l3:has(.tree-l3__actions:focus-within) .tree-l3__actions {
   opacity: 1;
-  /* Container ignores clicks in the fade zone; only icon buttons receive them */
+  /* The container ignores clicks; only icon buttons receive them. */
   pointer-events: none;
 }
 
@@ -91,11 +47,18 @@
   pointer-events: auto;
 }
 
-/* Relative time yields to hover actions (still keeps layout until hidden) */
+/* The metadata column yields to the actions; the title reserves their width. */
 .tree-l3:hover .tree-l3__time,
 .tree-l3:has(.tree-l3__actions:focus-within) .tree-l3__time {
-  opacity: 0;
-  transition: opacity 100ms ease;
+  display: none;
+}
+
+.tree-l3:hover:has(.tree-l3__actions):not(.tree-l3--renaming)
+  .tree-l3__title,
+.tree-l3:has(.tree-l3__actions:focus-within):not(.tree-l3--renaming)
+  .tree-l3__title {
+  box-sizing: border-box;
+  padding-right: 80px;
 }
 
 .tree-icon-btn {
@@ -502,7 +465,6 @@ html[data-sidebar-density="compact"] .tree-date-group__head {
   opacity: 0.9;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
-  transition: opacity 100ms ease;
 }
 
 /* In-progress session: always-visible spinner on the right (replaces hover actions). */

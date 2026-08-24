@@ -194,6 +194,22 @@ describe("tree-reveal CSS", () => {
     );
   });
 
+  it("uses the selected row surface for session actions without a solid fade", () => {
+    const actions = css.match(/\.tree-l3__actions\s*\{[^}]*\}/s)?.[0];
+    const sessionName = readFileSync(
+      resolve(__dirname, "../components/SidebarSessionName.tsx"),
+      "utf8",
+    );
+    expect(actions).toBeTruthy();
+    expect(actions).not.toMatch(/(?:background|mask-image|--bg-sidebar-solid)/);
+    expect(css).not.toContain(".tree-l3__actions::before");
+    expect(css).toMatch(
+      /\.tree-l3:hover:has\(\.tree-l3__actions\):not\(\.tree-l3--renaming\)[\s\S]*padding-right:\s*80px/,
+    );
+    expect(sessionName).not.toContain("HOVER_ACTIONS_RESERVE_PX");
+    expect(sessionName).not.toMatch(/outer\.clientWidth\s*-/);
+  });
+
   it("interpolates the inline height tuple — not 0fr/1fr, which WKWebView snaps", () => {
     expect(TREE_REVEAL_MS).toBe(200);
     expect(TREE_REVEAL_CLOSE_MS).toBe(200);
