@@ -325,6 +325,28 @@ describe("buildAgentKanban (shipped buildTaskBoard path)", () => {
 describe("agent kanban surface is not a todo list", () => {
   const root = join(__dirname, "..");
 
+  it("keeps wallpaper glass and contrast scoped to the agent board", () => {
+    const css = readFileSync(
+      join(root, "styles/workbench.part1b.css"),
+      "utf8",
+    );
+    expect(css).toMatch(
+      /html\[data-wallpaper="1"\]\s+\.agent-kanban-page\s+\.agent-kanban__col\s*\{[^}]*background:\s*color-mix\([^;]*var\(--bg-elevated\) 68%[^;]*transparent[^;]*\);[^}]*backdrop-filter:\s*blur\(var\(--wallpaper-settings-blur, 14px\)\)/s,
+    );
+    expect(css).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\]\s+\.agent-kanban-page\s+\.settings-input\s*\{[^}]*background:\s*color-mix\([^;]*var\(--bg-input\) 72%[^;]*transparent/s,
+    );
+    expect(css).toMatch(
+      /html\[data-theme="dark"\]\[data-wallpaper="1"\]\s+\.agent-kanban-page\s+\.settings-input\s*\{[^}]*background:\s*color-mix\([^;]*var\(--bg-input\) 68%[^;]*transparent/s,
+    );
+    expect(css).toMatch(
+      /html\[data-wallpaper="1"\]\s+\.agent-kanban-page\s+:is\(\.agent-kanban__col-title, \.agent-kanban__col-count\)\s*\{[^}]*color:\s*var\(--text-primary\)/s,
+    );
+    expect(css).toMatch(
+      /html\[data-wallpaper="1"\]\s+\.agent-kanban-page\s+:is\([^)]*\.agent-kanban__none[^)]*\.agent-kanban__card-age[^)]*\)\s*\{[^}]*color:\s*var\(--text-secondary\)/s,
+    );
+  });
+
   it("page uses live agent columns + i18n, not a GlassModal todo list", () => {
     const src = readFileSync(
       join(root, "components/KanbanBoardPage.tsx"),

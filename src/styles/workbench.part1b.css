@@ -553,6 +553,98 @@
   color: var(--text-primary);
 }
 
+/* Wallpaper trial: keep the agent board legible without changing other pages. */
+html[data-wallpaper="1"] .agent-kanban-page .agent-kanban__col {
+  background: color-mix(
+    in srgb,
+    var(--bg-elevated) 68%,
+    transparent
+  );
+  backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
+    saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
+    saturate(var(--glass-saturate));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+
+html[data-wallpaper="1"]
+  .agent-kanban-page
+  :is(.agent-kanban__col-title, .agent-kanban__col-count) {
+  color: var(--text-primary);
+}
+
+html[data-wallpaper="1"]
+  .agent-kanban-page
+  :is(
+    .agent-kanban__none,
+    .agent-kanban__card-tool,
+    .agent-kanban__card-meta,
+    .agent-kanban__card-age
+  ) {
+  color: var(--text-secondary);
+}
+
+html[data-wallpaper="1"] .agent-kanban-page .agent-kanban__views,
+html[data-wallpaper="1"]
+  .agent-kanban-page
+  .agent-kanban__filter-btn:not(.is-active) {
+  background: color-mix(in srgb, var(--bg-elevated) 68%, transparent);
+  backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
+    saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
+    saturate(var(--glass-saturate));
+}
+
+html[data-wallpaper="1"] .agent-kanban-page .agent-kanban__views {
+  padding: 3px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+}
+
+html[data-wallpaper="1"] .agent-kanban-page .settings-input {
+  backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
+    saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
+    saturate(var(--glass-saturate));
+}
+
+html[data-theme="light"][data-wallpaper="1"]
+  .agent-kanban-page
+  .settings-input {
+  background: color-mix(in srgb, var(--bg-input) 72%, transparent);
+}
+
+html[data-theme="dark"][data-wallpaper="1"]
+  .agent-kanban-page
+  .settings-input {
+  background: color-mix(in srgb, var(--bg-input) 68%, transparent);
+}
+
+html[data-theme="light"][data-wallpaper="1"]
+  .agent-kanban-page
+  :is(.auto-page__title, .auto-page__subtitle) {
+  color: var(--wallpaper-chrome-foreground);
+  text-shadow: 0 1px 2px var(--wallpaper-chrome-shadow-color);
+}
+
+html[data-theme="dark"][data-wallpaper="1"]
+  .agent-kanban-page
+  :is(.auto-page__title, .auto-page__subtitle) {
+  text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
+}
+
+html[data-stream-perf="1"][data-wallpaper="1"]
+  .agent-kanban-page
+  :is(
+    .agent-kanban__col,
+    .agent-kanban__views,
+    .agent-kanban__filter-btn,
+    .settings-input
+  ) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* --- merged --- */
 
 .settings-agents-personas {
