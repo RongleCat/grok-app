@@ -155,16 +155,6 @@
   background: transparent;
 }
 
-/* Legacy nested class: if still present, open it up so it doesn't look double-boxed */
-.settings-card--nested.pi-settings-block {
-  margin-top: 0;
-  padding: 4px 16px 16px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
 .pi-panel {
   display: flex;
   flex-direction: column;

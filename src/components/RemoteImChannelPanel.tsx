@@ -1262,7 +1262,7 @@ export function RemoteImChannelPanel({
       </div>
 
       {/* Advanced: extra options, ACL detail, project scope, presenter */}
-      <div className="rim-collapse">
+      <div className="settings-card rim-collapse">
         <button
           type="button"
           className="rim-collapse__head"

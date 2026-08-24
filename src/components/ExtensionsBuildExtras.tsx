@@ -1301,7 +1301,7 @@ export function ExtensionsBuildExtras({
               <span className="ext-count">{hooks.length}</span>
             ) : null}
           </h2>
-          <div className="settings-card ext-card">
+          <div className={embedded ? "ext-card" : "settings-card ext-card"}>
             <p className="ext-section-note ext-section-note--top">
               {tr("ext.hooks.desc")}
             </p>

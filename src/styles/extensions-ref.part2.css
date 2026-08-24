@@ -240,7 +240,7 @@
   display: none !important;
 }
 
-.ext-ref-catalog.ext-ref-catalog--embedded .settings-card.ext-card {
+.ext-ref-catalog.ext-ref-catalog--embedded .ext-card {
   margin: 0;
   padding: 0;
   border: 0;
@@ -307,7 +307,7 @@
   flex-wrap: wrap;
 }
 
-.ext-ref-shell .settings-card.ext-card {
+.ext-ref-shell .ext-card {
   margin: 0;
   padding: 0;
   border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.14));
@@ -318,26 +318,26 @@
 }
 
 /* Prefer ext-ref-list over nested card list chrome when both present */
-.ext-ref-shell .settings-card.ext-card > .ext-ref-list,
-.ext-ref-shell .settings-card.ext-card > .ext-ref-block {
+.ext-ref-shell .ext-card > .ext-ref-list,
+.ext-ref-shell .ext-card > .ext-ref-block {
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
-.ext-ref-shell .settings-card.ext-card > .ext-empty,
-.ext-ref-shell .settings-card.ext-card > .ext-ref-empty {
+.ext-ref-shell .ext-card > .ext-empty,
+.ext-ref-shell .ext-card > .ext-ref-empty {
   padding: 16px 14px;
 }
 
-.ext-ref-shell .settings-card.ext-card > .ext-ref-section,
-.ext-ref-shell .settings-card.ext-card > .ext-ref-block {
+.ext-ref-shell .ext-card > .ext-ref-section,
+.ext-ref-shell .ext-card > .ext-ref-block {
   padding: 12px 12px 14px;
   gap: 8px;
 }
 
-.ext-ref-shell .settings-card.ext-card > .ext-ref-section + .ext-ref-section,
-.ext-ref-shell .settings-card.ext-card > .ext-ref-block + .ext-ref-block {
+.ext-ref-shell .ext-card > .ext-ref-section + .ext-ref-section,
+.ext-ref-shell .ext-card > .ext-ref-block + .ext-ref-block {
   border-top: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.1));
   padding-top: 14px;
 }
