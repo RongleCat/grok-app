@@ -990,20 +990,3 @@ html[data-sidebar-density="compact"] .session-row__meta {
   font-size: 12px;
   font-family: var(--font-mono, ui-monospace, monospace);
 }
-
-/* Multi-account manager modal */
-.account-mgr__hint {
-  margin: 0 0 12px;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--text-tertiary);
-}
-
-.account-mgr__empty {
-  padding: 20px 12px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-tertiary);
-  border-radius: 10px;
-  border: 1px dashed var(--border-subtle);
-}
