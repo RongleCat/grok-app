@@ -43,6 +43,15 @@ describe("wallpaper theme contrast CSS", () => {
     );
   });
 
+  it("gives dark wallpaper composers a translucent blurred surface", () => {
+    expect(css).toMatch(
+      /html\[data-theme="dark"\]\[data-wallpaper="1"\][^{]*:is\(\.composer, \.composer__context-bar\)\s*\{[^}]*background:\s*color-mix\(\s*in srgb,\s*var\(--bg-elevated\) 68%,\s*transparent\s*\)[^}]*backdrop-filter:\s*blur\(var\(--wallpaper-settings-blur, 14px\)\)/s,
+    );
+    expect(css).toMatch(
+      /html\[data-stream-perf="1"\]\[data-wallpaper="1"\][^{]*:is\(\.composer, \.composer__context-bar\)\s*\{[^}]*backdrop-filter:\s*none !important/s,
+    );
+  });
+
   it("uses a dark edge on exposed light wallpaper chrome", () => {
     const lightRoot = css.match(
       /html\[data-theme="light"\]\[data-wallpaper="1"\]\s*\{[^}]*\}/s,

@@ -282,6 +282,25 @@ html[data-theme="light"][data-wallpaper="1"]
   background: var(--wallpaper-light-elevated-surface);
 }
 
+html[data-theme="dark"][data-wallpaper="1"]
+  :is(.composer, .composer__context-bar) {
+  background: color-mix(
+    in srgb,
+    var(--bg-elevated) 68%,
+    transparent
+  );
+  backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
+    saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
+    saturate(var(--glass-saturate));
+}
+
+html[data-stream-perf="1"][data-wallpaper="1"]
+  :is(.composer, .composer__context-bar) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 html[data-theme="light"][data-wallpaper="1"]
   .main__top
   .status-pill--action:hover {
