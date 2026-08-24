@@ -6,9 +6,17 @@ import {
 } from "./host";
 
 export type ComposerPrefsScope = "global" | "project" | "session";
+export type AppIconId =
+  | "default-black"
+  | "default-white"
+  | "pixel-glitch"
+  | "minimal-line"
+  | "terminal-code"
+  | "white-hole";
 
 export interface AppSettings {
   theme: string;
+  appIcon: AppIconId;
   locale: string;
   sessionDataMode: string;
   manualCliPath: string | null;
@@ -315,7 +323,7 @@ export async function composerPrefsSet(body: {
 }
 
 export async function settingsSet(settings: Record<string, unknown>) {
-  return invoke("settings_set", { settings });
+  return invoke<AppSettings>("settings_set", { settings });
 }
 
 /** Update live Host permission policy + persist at configured prefs scope. */
@@ -386,4 +394,3 @@ export async function importGrokCli() {
 export async function importGrokGo() {
   return invoke("import_grok_go_config");
 }
-

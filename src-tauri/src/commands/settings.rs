@@ -17,6 +17,7 @@ pub async fn settings_set(
 ) -> Result<AppSettings, String> {
     let prev = store::load_settings();
     let mut settings = settings;
+    settings.app_icon = crate::app_icon::validate_id(&settings.app_icon)?.into();
     // Normalize denylist / allowlist so spawn / equality see stable lists.
     settings.disallowed_tools =
         crate::acp_client::normalize_disallowed_tools(&settings.disallowed_tools);
@@ -49,6 +50,7 @@ pub async fn settings_set(
     let audit_retention_flip = crate::audit_ledger::normalize_retention_days(
         prev.audit_ledger_retention_days,
     ) != settings.audit_ledger_retention_days;
+    let app_icon_flip = prev.app_icon != settings.app_icon;
     let keychain_flip =
         prev.store_api_keys_in_keychain != settings.store_api_keys_in_keychain;
     let session_data_mode_changed =
@@ -134,6 +136,28 @@ pub async fn settings_set(
         prev.schedules_launch_agent != settings.schedules_launch_agent;
 
     store::save_settings(&settings)?;
+
+    if app_icon_flip {
+        if let Err(e) = crate::app_icon::apply(&app, &settings.app_icon).await {
+            let mut rolled = settings.clone();
+            rolled.app_icon = prev.app_icon.clone();
+            let persist_error = store::save_settings(&rolled).err();
+            let restore_error = crate::app_icon::apply(
+                &app,
+                crate::app_icon::effective_id(&prev.app_icon),
+            )
+            .await
+            .err();
+            let mut detail = format!("apply app icon: {e}");
+            if let Some(error) = persist_error {
+                detail.push_str(&format!("; rollback settings: {error}"));
+            }
+            if let Some(error) = restore_error {
+                detail.push_str(&format!("; restore previous icon: {error}"));
+            }
+            return Err(detail);
+        }
+    }
 
     if schedules_launch_agent_flip {
         let res = if settings.schedules_launch_agent {

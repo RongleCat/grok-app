@@ -41,6 +41,8 @@ mod agents_catalog;
 
 mod app_menu;
 
+mod app_icon;
+
 mod app_update;
 
 mod audit_ledger;
@@ -649,15 +651,8 @@ pub fn run() {
                     }
                 })
                 .build()?;
-            #[cfg(debug_assertions)]
-            {
-                if let Ok(icon) =
-                    tauri::image::Image::from_bytes(include_bytes!("../icons/dev/icon.png"))
-                {
-                    if let Err(e) = window.set_icon(icon) {
-                        tracing::warn!("debug white icon: {e}");
-                    }
-                }
+            if let Err(e) = app_icon::apply_startup(app.handle(), &boot_settings.app_icon) {
+                tracing::warn!("startup app icon: {e}");
             }
             window_min::apply_main(window.app_handle());
 

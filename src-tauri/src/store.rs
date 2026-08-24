@@ -203,6 +203,8 @@ pub struct SessionMeta {
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub theme: String,
+    #[serde(default = "default_app_icon")]
+    pub app_icon: String,
     #[serde(default = "default_locale")]
     pub locale: String,
     /// One-shot: factory locale `en` → `system` so first-run follows OS language.
@@ -540,6 +542,10 @@ fn default_composer_prefs_scope() -> String {
     "global".into()
 }
 
+fn default_app_icon() -> String {
+    crate::app_icon::DEFAULT_ICON_ID.into()
+}
+
 fn default_open_target() -> String {
     "finder".into()
 }
@@ -622,6 +628,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             theme: "system".into(),
+            app_icon: default_app_icon(),
             // Follow OS language (zh / zh-TW / en). Users can lock a catalog in Settings.
             locale: default_locale(),
             locale_follow_system_migrated: true,
@@ -836,6 +843,14 @@ fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
 pub fn load_settings() -> AppSettings {
     let _ = ensure_app_dirs();
     let mut s: AppSettings = read_json(&settings_file());
+    if crate::app_icon::validate_id(&s.app_icon).is_err() {
+        tracing::warn!(
+            persisted_id = s.app_icon,
+            fallback = crate::app_icon::DEFAULT_ICON_ID,
+            "unknown persisted app icon; using default"
+        );
+        s.app_icon = default_app_icon();
+    }
     // One-time: installs that already stored keys in keychain before the opt-in
     // keep keychain mode so keys remain reachable without a silent loss.
     if !s.store_api_keys_in_keychain {
@@ -3131,6 +3146,7 @@ mod tests {
         assert_eq!(s.session_data_mode, "shared");
         assert_eq!(s.permission_policy, "ask");
         assert_eq!(s.theme, "system");
+        assert_eq!(s.app_icon, crate::app_icon::DEFAULT_ICON_ID);
         assert_eq!(s.locale, "system");
         assert!(s.locale_follow_system_migrated);
         assert_eq!(s.max_concurrent_agents, 8);
@@ -3165,6 +3181,22 @@ mod tests {
         assert_eq!(s.agent_profile_path, "");
         assert_eq!(s.agents_json, "");
         assert!(!s.use_leader);
+    }
+
+    #[test]
+    fn app_icon_defaults_when_missing_and_round_trips_camel_case() {
+        let missing: AppSettings =
+            serde_json::from_str(legacy_settings_json()).expect("deserialize");
+        assert_eq!(missing.app_icon, crate::app_icon::DEFAULT_ICON_ID);
+
+        let s = AppSettings {
+            app_icon: "white-hole".into(),
+            ..AppSettings::default()
+        };
+        let json = serde_json::to_string(&s).expect("serialize");
+        assert!(json.contains("\"appIcon\":\"white-hole\""));
+        let back: AppSettings = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.app_icon, "white-hole");
     }
 
     #[test]

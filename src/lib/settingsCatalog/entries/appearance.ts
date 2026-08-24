@@ -52,6 +52,23 @@ export const APPEARANCE_ENTRIES: readonly SettingsEntry[] = [
     ],
   },
   {
+    id: "appearance.appIcon",
+    section: "appearance",
+    tab: "theme",
+    anchorId: "settings-anchor-app-icon",
+    labelKey: "settings.appIcon",
+    descKeys: [
+      "settings.appIconDesc",
+      "settings.appIcon.defaultBlack",
+      "settings.appIcon.defaultWhite",
+      "settings.appIcon.pixelGlitch",
+      "settings.appIcon.minimalLine",
+      "settings.appIcon.terminalCode",
+      "settings.appIcon.whiteHole",
+    ],
+    keywords: ["app icon", "dock icon", "application icon", "应用图标", "應用程式圖示"],
+  },
+  {
     id: "appearance.skin",
     section: "appearance",
     tab: "theme",

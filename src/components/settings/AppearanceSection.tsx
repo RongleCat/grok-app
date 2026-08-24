@@ -47,6 +47,7 @@ import { MESSAGE_TIME_FORMATS } from "@/lib/messageTimeFormatPref";
 import { normalizeHHmm } from "@/lib/notifyQuietHours";
 import { SettingsTabStrip, SettingsLabelWithTip, UiCheck } from "./shared";
 import { SkinPresetsCard } from "./SkinPresetsCard";
+import { AppIconPicker } from "./AppIconPicker";
 
 export function AppearanceSection() {
   const s = useSettingsModel() as SettingsViewModel & Record<string, any>;
@@ -630,6 +631,10 @@ export function AppearanceSection() {
                     ) : null}
                   </div>
                 ) : null}
+                <AppIconPicker
+                  t={(key) => t(key)}
+                  rowHighlight={rowHighlight}
+                />
                 <SkinPresetsCard />
               </>
             )}

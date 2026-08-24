@@ -33,6 +33,15 @@ describe("settingsCatalog", () => {
     expect(new Set([presets?.anchorId, catalog?.anchorId, sources?.anchorId]).size).toBe(3);
   });
 
+  it("registers app icon selection under appearance theme", () => {
+    expect(SETTINGS_ENTRIES.find((e) => e.id === "appearance.appIcon")).toMatchObject({
+      section: "appearance",
+      tab: "theme",
+      anchorId: "settings-anchor-app-icon",
+      labelKey: "settings.appIcon",
+    });
+  });
+
   it("lists each section exactly once in NAV", () => {
     const ids = SETTINGS_NAV.map((n) => n.id);
     expect(ids).toEqual([...SETTINGS_SECTION_IDS]);
@@ -216,6 +225,7 @@ describe("settingsCatalog", () => {
   it("keywordKeysForSection includes appearance prefs and remote control", () => {
     const appearance = keywordKeysForSection("appearance");
     expect(appearance).toContain("settings.skin");
+    expect(appearance).toContain("settings.appIcon");
     expect(appearance).toContain("settings.themeSchedule");
     expect(appearance).toContain("settings.wallpaper");
     expect(appearance).toContain("settings.thinkingExpand");
