@@ -10,6 +10,11 @@
   margin: 0 0 14px;
 }
 
+.ext-panel__surface {
+  padding: 16px;
+  min-width: 0;
+}
+
 .ext-ref-stack {
   display: flex;
   flex-direction: column;
@@ -663,4 +668,3 @@
   padding: 0 2px 4px;
   letter-spacing: 0.02em;
 }
-

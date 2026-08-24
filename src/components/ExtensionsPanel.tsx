@@ -1811,6 +1811,7 @@ export function ExtensionsPanel({
         </div>
       )}
 
+      <div className="settings-card ext-panel__surface">
       {/* Plugins — reference layout: installed strip + 2-col featured catalog */}
       {tab === "plugins" && (
       <div className="ext-ref-stack ext-ref-plugins-scroll">
@@ -2685,6 +2686,7 @@ export function ExtensionsPanel({
           }}
         />
       )}
+      </div>
 
       <GlassModal
         open={chatcutInstallOpen}
