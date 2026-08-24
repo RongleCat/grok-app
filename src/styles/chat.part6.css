@@ -598,7 +598,7 @@
 
 .aside.aside--overlay {
   position: absolute;
-  top: var(--titlebar-height, 40px);
+  top: 0;
   right: 0;
   bottom: 0;
   z-index: 41;

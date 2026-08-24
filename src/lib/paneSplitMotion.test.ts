@@ -199,6 +199,43 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(hook).toContain("pendingWidthPanes.delete(pane)");
   });
 
+  it("promotes an open aside overlay to the existing full-cover mode", () => {
+    const app = readFileSync(
+      resolve(__dirname, "../app/AppWorkbench.tsx"),
+      "utf8",
+    );
+    const main = readFileSync(
+      resolve(__dirname, "../app/WorkbenchMain.tsx"),
+      "utf8",
+    );
+    const resources = readFileSync(
+      resolve(__dirname, "../app/WorkbenchResourcesAside.tsx"),
+      "utf8",
+    );
+    const aside = readFileSync(
+      resolve(__dirname, "../styles/chat.part6.css"),
+      "utf8",
+    );
+
+    expect(app).toMatch(
+      /const sidePaneCoversMain =\s*hideChatForSideExpand \|\|\s*\(asideOverlay && !layout\.asideCollapsed\)/,
+    );
+    expect(app).toContain(
+      'sidePaneCoversMain ? " workbench--side-expanded" : ""',
+    );
+    expect(app).toMatch(
+      /!phoneLayout && sidebarOverlay && !layout\.sidebarCollapsed \? \(\s*<button[\s\S]*?className="workbench-pane-scrim"/,
+    );
+    expect(app).toContain("sidePaneCoversMain={sidePaneCoversMain}");
+    expect(main).toContain("inert={sidePaneCoversMain ? true : undefined}");
+    expect(resources).toContain(
+      'sidePaneCoversMain ? " aside--side-expanded" : ""',
+    );
+    expect(aside).toMatch(
+      /\.aside\.aside--overlay\s*\{[^}]*top:\s*0;/s,
+    );
+  });
+
   it("mac sidebar seam is not a 1px layout border on vibrancy", () => {
     const sidebar = readFileSync(
       resolve(__dirname, "../styles/sidebar.part1.css"),

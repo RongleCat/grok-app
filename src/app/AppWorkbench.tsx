@@ -2245,6 +2245,8 @@ export function AppWorkbench() {
       asideOpen: true,
       asideWidth: asideOpenW,
     }).asideOverlay;
+  const sidePaneCoversMain =
+    hideChatForSideExpand || (asideOverlay && !layout.asideCollapsed);
   const { paneMotionClass } = usePaneSplitMotion({
     sidebarCollapsed: layout.sidebarCollapsed,
     asideCollapsed: layout.asideCollapsed,
@@ -13791,7 +13793,7 @@ export function AppWorkbench() {
         className={
           "workbench" +
           (phoneLayout ? " workbench--phone" : "") +
-          (hideChatForSideExpand ? " workbench--side-expanded" : "") +
+          (sidePaneCoversMain ? " workbench--side-expanded" : "") +
           (sideDockActive ? " workbench--side-dock" : "") +
           paneMotionClass
         }
@@ -13821,24 +13823,13 @@ export function AppWorkbench() {
             onClick={closePhoneDrawer}
           />
         ) : null}
-        {!phoneLayout &&
-        ((sidebarOverlay && !layout.sidebarCollapsed) ||
-          (asideOverlay && !layout.asideCollapsed)) ? (
+        {!phoneLayout && sidebarOverlay && !layout.sidebarCollapsed ? (
           <button
             type="button"
             className="workbench-pane-scrim"
-            aria-label={
-              sidebarOverlay && !layout.sidebarCollapsed
-                ? tr("phone.drawerClose")
-                : tr("main.rightPaneHide")
-            }
+            aria-label={tr("phone.drawerClose")}
             onClick={() => {
-              if (sidebarOverlay && !layout.sidebarCollapsed) {
-                closeSidebarPane();
-              }
-              if (asideOverlay && !layout.asideCollapsed) {
-                closeAsidePane();
-              }
+              closeSidebarPane();
             }}
           />
         ) : null}
@@ -13961,7 +13952,7 @@ export function AppWorkbench() {
           layout={layout}
           phoneLayout={phoneLayout}
           dragZone={dragZone}
-          hideChatForSideExpand={hideChatForSideExpand}
+          sidePaneCoversMain={sidePaneCoversMain}
           toast={toast}
           dragRegion={dragRegion}
           titlebarMax={titlebarMax}
@@ -14488,7 +14479,7 @@ export function AppWorkbench() {
           locale={locale}
           layout={layout}
           phoneLayout={phoneLayout}
-          hideChatForSideExpand={hideChatForSideExpand}
+          sidePaneCoversMain={sidePaneCoversMain}
           asideOverlay={asideOverlay}
           resizingAside={resizingAside}
           asideOpenW={asideOpenW}

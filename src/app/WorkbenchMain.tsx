@@ -59,7 +59,7 @@ export type WorkbenchMainProps = {
   layout: { sidebarCollapsed: boolean; asideCollapsed: boolean };
   phoneLayout: boolean;
   dragZone: "sidebar" | "main" | null;
-  hideChatForSideExpand: boolean;
+  sidePaneCoversMain: boolean;
   toast: string | null;
   dragRegion: "false" | "deep";
   titlebarMax: TitlebarMax;
@@ -103,7 +103,7 @@ export function WorkbenchMain(props: WorkbenchMainProps) {
     layout,
     phoneLayout,
     dragZone,
-    hideChatForSideExpand,
+    sidePaneCoversMain,
     toast,
     dragRegion,
     titlebarMax,
@@ -156,11 +156,11 @@ export function WorkbenchMain(props: WorkbenchMainProps) {
         (layout.sidebarCollapsed ? " main--sidebar-hidden" : "") +
         (dragZone === "main" ? " is-drop-target" : "") +
         (dragZone === "sidebar" ? " is-drop-idle" : "") +
-        (hideChatForSideExpand ? " main--side-covered" : "")
+        (sidePaneCoversMain ? " main--side-covered" : "")
       }
-      aria-hidden={hideChatForSideExpand ? true : undefined}
+      aria-hidden={sidePaneCoversMain ? true : undefined}
       // Keep chat DOM mounted under the side overlay; block interaction.
-      inert={hideChatForSideExpand ? true : undefined}
+      inert={sidePaneCoversMain ? true : undefined}
     >
       {dragZone === "main" && (
         <div className="drop-overlay drop-overlay--attach" aria-hidden>
