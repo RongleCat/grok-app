@@ -15,6 +15,7 @@ pub fn is_usable_lan_ipv4(ip: Ipv4Addr) -> bool {
 }
 
 /// Lower is better. Prefer typical home Wi-Fi ranges.
+#[cfg(test)]
 pub fn rank_lan_ipv4(ip: Ipv4Addr) -> u8 {
     let o = ip.octets();
     if o[0] == 192 && o[1] == 168 {
@@ -28,6 +29,7 @@ pub fn rank_lan_ipv4(ip: Ipv4Addr) -> u8 {
     }
 }
 
+#[cfg(test)]
 pub fn pick_lan_ipv4(ips: impl IntoIterator<Item = Ipv4Addr>) -> Option<Ipv4Addr> {
     ips.into_iter()
         .filter(|ip| is_usable_lan_ipv4(*ip))
