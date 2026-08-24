@@ -28,23 +28,22 @@ describe("Remote IM UI chrome guard", () => {
     });
   }
 
-  it("RimControls reuses project Select + ui-check + ext-switch", () => {
+  it("RimControls reuses shared ui-check + ext-switch controls", () => {
     const src = readFileSync(join(ROOT, "remoteIm/RimControls.tsx"), "utf8");
-    expect(src).toContain('from "@/components/Select"');
-    expect(src).toContain("ext-switch");
-    expect(src).toContain("ui-check");
-    expect(src).toContain("settings-seg");
+    expect(src).toContain("UiSwitch as RimSwitch");
+    expect(src).toContain("UiCheck as RimCheck");
+    expect(src).toContain('from "@/components/settings/shared"');
   });
 
-  it("ChannelPanel uses settings-card / settings-row / settings-input", () => {
+  it("ChannelPanel uses settings chrome and shared Select/SegmentedControl", () => {
     const src = readFileSync(join(ROOT, "RemoteImChannelPanel.tsx"), "utf8");
     expect(src).toContain("settings-card");
     expect(src).toContain("settings-row");
     expect(src).toContain("settings-input");
-    expect(src).toContain("RimSelect");
     expect(src).toContain("RimCheck");
     expect(src).toContain("RimSwitch");
-    expect(src).toContain("RimSeg");
+    expect(src).toContain("<Select");
+    expect(src).toContain("<SegmentedControl");
     expect(src).toContain("showsPublicUrlCallout");
   });
 
