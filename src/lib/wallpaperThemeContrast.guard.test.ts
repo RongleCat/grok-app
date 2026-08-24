@@ -3,6 +3,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const css = readFileSync(join(__dirname, "../styles/skins.css"), "utf8");
+const workbenchCss = readFileSync(
+  join(__dirname, "../styles/workbench.part1b.css"),
+  "utf8",
+);
 
 describe("wallpaper theme contrast CSS", () => {
   it("maps light wallpaper to its own white veil and pane curves", () => {
@@ -97,6 +101,35 @@ describe("wallpaper theme contrast CSS", () => {
     expect(css).toMatch(
       /html\[data-wallpaper="1"\]\s+\.lobe-chat\s+\.lobe-chat-assistant-timeline\s+:is\([^{]*\.lobe-chat-plan,[^{]*\.struct-json,[^{]*\.att-card,[^{]*\.file-path-card[^)]*\)\s+svg\s*\{[^}]*filter:\s*none/s,
     );
+  });
+
+  it("extends wallpaper contrast only to exposed main-page text", () => {
+    const darkTimeline = css.match(
+      /html\[data-theme="dark"\]\[data-wallpaper="1"\] \.lobe-chat-assistant-timeline\s*\{[^}]*\}/s,
+    )?.[0];
+    expect(darkTimeline).toContain("--chat-text: var(--text-primary)");
+    expect(darkTimeline).toContain("var(--text-primary) 84%");
+    expect(darkTimeline).toContain("var(--text-primary) 72%");
+
+    const lightExposed = css.match(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\]\s+:is\(\.lobe-chat-empty, \.main__stage > \.conn-bar\)\s*\{[^}]*color:\s*var\(--wallpaper-chrome-foreground\)[^}]*text-shadow:\s*0 1px 2px var\(--wallpaper-chrome-shadow-color\)[^}]*\}/s,
+    )?.[0];
+    const darkExposed = css.match(
+      /html\[data-theme="dark"\]\[data-wallpaper="1"\]\s+:is\(\.lobe-chat-empty, \.main__stage > \.conn-bar\)\s*\{[^}]*color:\s*var\(--text-primary\)[^}]*text-shadow:\s*0 1px 2px var\(--wallpaper-foreground-shadow-color\)[^}]*\}/s,
+    )?.[0];
+    expect(lightExposed).toBeTruthy();
+    expect(darkExposed).toBeTruthy();
+    expect(workbenchCss).toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\]\s+\.auto-page\s+:is\(\.auto-page__title, \.auto-page__subtitle\)\s*\{/s,
+    );
+    expect(workbenchCss).toMatch(
+      /html\[data-theme="dark"\]\[data-wallpaper="1"\]\s+\.auto-page\s+:is\(\.auto-page__title, \.auto-page__subtitle\)\s*\{/s,
+    );
+    for (const exposed of [lightExposed, darkExposed]) {
+      expect(exposed).not.toMatch(
+        /(?:\.lobe-chat-bubble|\.composer|\.chat-code|\.att-card)/,
+      );
+    }
   });
 
   it("does not paint a light fade beneath the floating wallpaper composer", () => {

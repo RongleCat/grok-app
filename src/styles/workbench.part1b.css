@@ -553,6 +553,20 @@
   color: var(--text-primary);
 }
 
+html[data-theme="light"][data-wallpaper="1"]
+  .auto-page
+  :is(.auto-page__title, .auto-page__subtitle) {
+  color: var(--wallpaper-chrome-foreground);
+  text-shadow: 0 1px 2px var(--wallpaper-chrome-shadow-color);
+}
+
+html[data-theme="dark"][data-wallpaper="1"]
+  .auto-page
+  :is(.auto-page__title, .auto-page__subtitle) {
+  color: var(--text-primary);
+  text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
+}
+
 /* --- merged --- */
 
 .settings-agents-personas {

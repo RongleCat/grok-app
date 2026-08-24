@@ -138,8 +138,15 @@ html[data-theme="dark"][data-wallpaper="1"] .sidebar svg {
 }
 
 html[data-theme="dark"][data-wallpaper="1"] .main__top,
-html[data-theme="dark"][data-wallpaper="1"] .composer-welcome-mark,
+html[data-theme="dark"][data-wallpaper="1"] .composer-welcome-mark {
+  text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
+}
+
 html[data-theme="dark"][data-wallpaper="1"] .lobe-chat-assistant-timeline {
+  --chat-text: var(--text-primary);
+  --chat-text-2: color-mix(in srgb, var(--text-primary) 84%, transparent);
+  --chat-text-3: color-mix(in srgb, var(--text-primary) 72%, transparent);
+  color: var(--text-primary);
   text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
 }
 
@@ -406,6 +413,44 @@ html[data-theme="light"][data-wallpaper="1"]
 
 html[data-theme="light"][data-wallpaper="1"] .composer-welcome-mark svg {
   filter: drop-shadow(0 1px 1px var(--wallpaper-chrome-shadow-color));
+}
+
+html[data-theme="light"][data-wallpaper="1"]
+  :is(.lobe-chat-empty, .main__stage > .conn-bar) {
+  color: var(--wallpaper-chrome-foreground);
+  text-shadow: 0 1px 2px var(--wallpaper-chrome-shadow-color);
+}
+
+html[data-theme="light"][data-wallpaper="1"] .lobe-chat-empty {
+  --chat-text: var(--wallpaper-chrome-foreground);
+  --chat-text-3: color-mix(
+    in srgb,
+    var(--wallpaper-chrome-foreground) 72%,
+    transparent
+  );
+}
+
+html[data-theme="light"][data-wallpaper="1"] .main__stage > .conn-bar strong {
+  color: color-mix(
+    in srgb,
+    var(--wallpaper-chrome-foreground) 84%,
+    transparent
+  );
+}
+
+html[data-theme="dark"][data-wallpaper="1"]
+  :is(.lobe-chat-empty, .main__stage > .conn-bar) {
+  color: var(--text-primary);
+  text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
+}
+
+html[data-theme="dark"][data-wallpaper="1"] .lobe-chat-empty {
+  --chat-text: var(--text-primary);
+  --chat-text-3: color-mix(in srgb, var(--text-primary) 72%, transparent);
+}
+
+html[data-theme="dark"][data-wallpaper="1"] .main__stage > .conn-bar strong {
+  color: color-mix(in srgb, var(--text-primary) 84%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
