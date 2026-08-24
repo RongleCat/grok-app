@@ -173,9 +173,36 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(terminal).toMatch(
       /\.bt\[data-open="true"\]:not\(\.is-resizing\)[\s\S]*?:is\(\.bt__chrome, \.bt__body\)\s*\{[^}]*animation:\s*bt-panel-in/,
     );
-    expect(terminal).toMatch(/@keyframes bt-panel-in/);
+    expect(terminal).toMatch(
+      /@keyframes bt-panel-in\s*\{\s*from\s*\{\s*opacity:\s*0;\s*translate:\s*0 6px;\s*\}\s*to\s*\{\s*opacity:\s*1;\s*translate:\s*0;\s*\}\s*\}/s,
+    );
     expect(terminal).toMatch(
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.bt\[data-open="true"\]:not\(\.is-resizing\)[\s\S]*?animation:\s*none/,
+    );
+  });
+
+  it("keeps the bottom terminal separator and surfaces theme-native", () => {
+    const terminal = readFileSync(
+      resolve(__dirname, "../styles/bottom-terminal.css"),
+      "utf8",
+    );
+    expect(terminal).toMatch(
+      /\.bt__resize::after\s*\{[^}]*height:\s*1px;[^}]*background:\s*var\(--border-subtle\)/s,
+    );
+    expect(terminal).toMatch(
+      /\.bt__resize:hover::after,\s*\.bt\.is-resizing \.bt__resize::after\s*\{[^}]*background:\s*var\(--border-focus\)/s,
+    );
+    expect(ruleBody(terminal, "\n.bt__chrome {")).toMatch(
+      /background:\s*color-mix\([^;]*var\(--bg-card\)[^;]*var\(--bg-main\)/s,
+    );
+    expect(ruleBody(terminal, "\n.bt__body {")).toMatch(
+      /background:\s*var\(--bg-main\)/,
+    );
+    expect(terminal).toMatch(
+      /html\[data-wallpaper="1"\] \.bt\s*\{[^}]*var\(--wallpaper-theme-mix-main\)[^}]*backdrop-filter:\s*blur\(var\(--wallpaper-settings-blur, 14px\)\)/s,
+    );
+    expect(terminal).not.toMatch(
+      /(?:background|border(?:-color)?):\s*(?:#000(?:000)?\b|black\b)/i,
     );
   });
 

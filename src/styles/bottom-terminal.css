@@ -13,16 +13,10 @@
   min-width: 0;
   overflow: hidden;
   background: var(--bg-main);
-  border-top: 1px solid transparent;
-  transition: border-color var(--motion-pane) ease;
 }
 
 .bt[data-open="false"] {
   pointer-events: none;
-}
-
-.bt[data-open="true"] {
-  border-top-color: var(--border-subtle);
 }
 
 .bt[data-open="true"]:not(.is-resizing)
@@ -33,7 +27,7 @@
 @keyframes bt-panel-in {
   from {
     opacity: 0;
-    translate: 0 10px;
+    translate: 0 6px;
   }
   to {
     opacity: 1;
@@ -54,20 +48,31 @@
 
 .bt__resize {
   flex-shrink: 0;
-  height: 5px;
-  margin-top: -2px;
+  height: 7px;
+  margin-top: -3px;
   cursor: ns-resize;
   touch-action: none;
   position: relative;
   z-index: 2;
 }
 
-.bt__resize:hover,
-.bt__resize:active {
-  background: color-mix(in srgb, var(--text-secondary) 28%, transparent);
+.bt__resize::after {
+  content: "";
+  position: absolute;
+  inset: 3px 0 auto;
+  height: 1px;
+  background: var(--border-subtle);
+  transition: background var(--motion-fast) ease;
+  pointer-events: none;
+}
+
+.bt__resize:hover::after,
+.bt.is-resizing .bt__resize::after {
+  background: var(--border-focus);
 }
 
 .bt__chrome {
+  background: color-mix(in srgb, var(--bg-card) 72%, var(--bg-main));
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -99,6 +104,27 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: var(--bg-main);
+}
+
+html[data-wallpaper="1"] .bt {
+  background: color-mix(
+    in srgb,
+    var(--bg-main) var(--wallpaper-theme-mix-main),
+    transparent
+  );
+  backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
+    saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--wallpaper-settings-blur, 14px))
+    saturate(var(--glass-saturate));
+}
+
+html[data-wallpaper="1"] .bt__chrome {
+  background: color-mix(in srgb, var(--bg-card) 72%, transparent);
+}
+
+html[data-wallpaper="1"] .bt__body {
+  background: transparent;
 }
 
 .bt__persist-host {
