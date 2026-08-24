@@ -182,12 +182,13 @@ describe("desktop hidden CSS must not force width 0", () => {
       "utf8",
     );
     expect(hook).toContain("sidebarChanged && !opts.sidebarOverlay");
-    expect(hook).toContain("asideChanged && !opts.asideOverlay");
+    expect(hook).toContain("asideChanged && opts.asideInFlow");
+    expect(hook).toContain("asideInFlowRef.current");
     expect(hook).toContain("!opts.phoneLayout");
     expect(hook).toContain("width: sidebarWidthChanged || asideWidthChanged");
     expect(hook).toContain("sidebar: sidebarWidthChanged");
     expect(hook).toContain("aside: asideWidthChanged");
-    expect(hook).toContain("asideOverlayModeChanged");
+    expect(hook).toContain("asideOverlayMotionChanged");
     expect(hook).toContain("asideOverlayRef.current || asideOverlay");
     expect(hook).toContain("cover: coverChanged");
     expect(hook).toContain('pendingWidthPanes.add("sidebar")');

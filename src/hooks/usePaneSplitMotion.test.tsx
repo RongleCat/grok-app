@@ -21,6 +21,7 @@ const initialProps = {
   phoneLayout: false,
   sidebarOverlay: false,
   asideOverlay: true,
+  asideInFlow: false,
 };
 
 function dispatchWidthTransitionEnd(className: string): void {
@@ -52,7 +53,7 @@ describe("usePaneSplitMotion", () => {
       initialProps,
     });
 
-    rerender({ ...initialProps, asideOverlay: false });
+    rerender({ ...initialProps, asideOverlay: false, asideInFlow: true });
     expect(nativeWebviewCoverDepth()).toBe(1);
     expect(isPaneSplitMotionActive()).toBe(true);
 
@@ -72,12 +73,17 @@ describe("usePaneSplitMotion", () => {
 
   it("ends an in-flow sidebar token on its width transition", () => {
     const { rerender } = renderHook((props) => usePaneSplitMotion(props), {
-      initialProps: { ...initialProps, asideOverlay: false },
+      initialProps: {
+        ...initialProps,
+        asideOverlay: false,
+        asideInFlow: true,
+      },
     });
 
     rerender({
       ...initialProps,
       asideOverlay: false,
+      asideInFlow: true,
       sidebarCollapsed: true,
     });
     expect(isPaneSplitMotionActive()).toBe(true);
@@ -87,7 +93,11 @@ describe("usePaneSplitMotion", () => {
   });
 
   it("covers native webviews while an in-flow aside interpolates", () => {
-    const props = { ...initialProps, asideOverlay: false };
+    const props = {
+      ...initialProps,
+      asideOverlay: false,
+      asideInFlow: true,
+    };
     const { result, rerender } = renderHook(
       (next) => usePaneSplitMotion(next),
       { initialProps: props },
@@ -106,7 +116,11 @@ describe("usePaneSplitMotion", () => {
   });
 
   it("waits for both in-flow panes before ending a shared motion", () => {
-    const props = { ...initialProps, asideOverlay: false };
+    const props = {
+      ...initialProps,
+      asideOverlay: false,
+      asideInFlow: true,
+    };
     const { rerender } = renderHook((next) => usePaneSplitMotion(next), {
       initialProps: props,
     });
@@ -124,6 +138,83 @@ describe("usePaneSplitMotion", () => {
     expect(isPaneSplitMotionActive()).toBe(true);
 
     act(() => dispatchWidthTransitionEnd("aside"));
+    expect(nativeWebviewCoverDepth()).toBe(0);
+    expect(isPaneSplitMotionActive()).toBe(false);
+  });
+
+  it("does not animate an aside leaving the in-flow split", () => {
+    const props = {
+      ...initialProps,
+      asideOverlay: false,
+      asideInFlow: true,
+    };
+    const { result, rerender } = renderHook(
+      (next) => usePaneSplitMotion(next),
+      { initialProps: props },
+    );
+
+    rerender({ ...props, asideCollapsed: true, asideInFlow: false });
+    expect(result.current.paneMotionClass).not.toContain(
+      "workbench--aside-motion",
+    );
+    expect(nativeWebviewCoverDepth()).toBe(0);
+    expect(isPaneSplitMotionActive()).toBe(false);
+  });
+
+  it("does not cover webviews when an overlay becomes side-expanded", () => {
+    const { result, rerender } = renderHook(
+      (next) => usePaneSplitMotion(next),
+      { initialProps },
+    );
+
+    rerender({ ...initialProps, asideOverlay: false, asideInFlow: false });
+    expect(result.current.paneMotionClass).toBe("");
+    expect(nativeWebviewCoverDepth()).toBe(0);
+    expect(isPaneSplitMotionActive()).toBe(false);
+  });
+
+  it("ends an active in-flow aside motion when side-expanded takes over", () => {
+    const props = {
+      ...initialProps,
+      asideOverlay: false,
+      asideInFlow: true,
+    };
+    const { result, rerender } = renderHook(
+      (next) => usePaneSplitMotion(next),
+      { initialProps: props },
+    );
+
+    rerender({ ...props, asideCollapsed: true });
+    expect(nativeWebviewCoverDepth()).toBe(1);
+    expect(isPaneSplitMotionActive()).toBe(true);
+
+    rerender({
+      ...props,
+      asideCollapsed: true,
+      asideInFlow: false,
+    });
+    expect(result.current.paneMotionClass).toBe("");
+    expect(nativeWebviewCoverDepth()).toBe(0);
+    expect(isPaneSplitMotionActive()).toBe(false);
+  });
+
+  it("ends an active overlay token when side-expanded takes over", () => {
+    const props = {
+      ...initialProps,
+      asideOverlay: false,
+      asideInFlow: true,
+    };
+    const { result, rerender } = renderHook(
+      (next) => usePaneSplitMotion(next),
+      { initialProps: props },
+    );
+
+    rerender({ ...props, asideOverlay: true, asideInFlow: false });
+    expect(nativeWebviewCoverDepth()).toBe(1);
+    expect(isPaneSplitMotionActive()).toBe(true);
+
+    rerender({ ...props, asideOverlay: false, asideInFlow: false });
+    expect(result.current.paneMotionClass).toBe("");
     expect(nativeWebviewCoverDepth()).toBe(0);
     expect(isPaneSplitMotionActive()).toBe(false);
   });

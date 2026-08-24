@@ -2779,6 +2779,10 @@ export function AppWorkbench() {
     DEFAULT_LAYOUT.asideWidth,
     ASIDE_WIDTH_MIN,
   );
+  const hideChatForSideExpand = shouldHideChatForSideExpand({
+    expanded: sideWorkbench.expanded,
+    phoneLayout,
+  });
   const sidebarOverlay =
     !phoneLayout &&
     resolveWorkbenchPaneOverlay({
@@ -2807,6 +2811,7 @@ export function AppWorkbench() {
     phoneLayout,
     sidebarOverlay,
     asideOverlay,
+    asideInFlow: !phoneLayout && !hideChatForSideExpand && !asideOverlay,
   });
   const asideFitGenRef = useRef(0);
   const sidebarFitGenRef = useRef(0);
@@ -13198,10 +13203,6 @@ export function AppWorkbench() {
     welcomeBrandKind,
   ]);
 
-  const hideChatForSideExpand = shouldHideChatForSideExpand({
-    expanded: sideWorkbench.expanded,
-    phoneLayout,
-  });
   const sidebarPaint =
     layout.sidebarCollapsed || sidebarOverlay
       ? 0
