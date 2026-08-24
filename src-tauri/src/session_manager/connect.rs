@@ -2092,7 +2092,7 @@ mod connect_preserve_tests {
         let mut guard = mgr.inner.lock();
         *guard = Some(ready_live_for_snapshot_lock("sess-already-live"));
         let t0 = Instant::now();
-        let snap = SessionManager::snapshot_locked(&*guard);
+        let snap = SessionManager::snapshot_locked(&guard);
         assert!(
             t0.elapsed() < Duration::from_millis(200),
             "snapshot_locked must not re-acquire inner; took {:?}",
