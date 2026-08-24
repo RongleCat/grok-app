@@ -913,6 +913,13 @@ textarea.settings-input.settings-agents-json__textarea {
   text-align: center;
 }
 
+.settings-app-icon-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(360px, 100%);
+  margin-left: auto;
+}
+
 /* Custom wallpaper upload (Appearance) */
 .settings-wallpaper {
   display: flex;

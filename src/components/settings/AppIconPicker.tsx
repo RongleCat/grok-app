@@ -145,7 +145,7 @@ export function AppIconPicker({
             );
           })}
         </div>
-        <div className="settings-row__actions">
+        <div className="settings-row__actions settings-app-icon-actions">
           <button
             type="button"
             className="btn btn--ghost btn--sm"
