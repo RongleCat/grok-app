@@ -13,9 +13,11 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 - **Session API second turn no longer deadlocks on already-live connect (#905)**: `connect_inner` held `inner` and then called `snapshot()`, which locks `inner` again (`parking_lot` is not reentrant). The thread never returned, so `connect_lock` stayed busy forever and later `POST /turns` got 503 `retry_later`. Already-live and fork-busy now snapshot from the held lock.
+- **Unsigned-in startup no longer waits 24s on ACP `authenticate` (#898)**: Official route with no `auth.json` / no usable cached token used to send `authenticate(cached_token)` after `initialize`, time out at 12s, retry once, then soft-fail. Workbench still opened idle. Host now skips that RPC when the user is not signed in. Custom routes still skip; the signed-in-but-agent-home-stale path (#528) still re-syncs and retries once.
 
 **中文 · 修复**
 - **Session API 第二轮不再在 already-live connect 上死锁（#905）**：`connect_inner` 握着 `inner` 再调 `snapshot()`，而 `snapshot()` 会再锁一次（`parking_lot` 不可重入）。线程回不来，`connect_lock` 一直 busy，后续 `POST /turns` 变成 503 `retry_later`。already-live / fork-busy 改为从已持有的锁做 snapshot。
+- **未登录启动不再为 ACP `authenticate` 空等约 24 秒（#898）**：官方路由在没有 `auth.json` / 没有可用 cached token 时仍会在 `initialize` 后发 `authenticate(cached_token)`，12 秒超时后再试一次，然后 soft-fail；工作台仍会打开。现在未登录就跳过该 RPC。自定义路由仍跳过；已登录但 agent-home 缺 token（#528）仍会同步并重试一次。
 
 ## [0.2.26] - 2026-08-24
 
