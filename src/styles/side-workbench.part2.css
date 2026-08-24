@@ -1,3 +1,20 @@
+.sw-terminal__xterm .xterm-scrollable-element > .shadow,
+.sw-terminal__xterm .xterm-scrollable-element > .shadow.top,
+.sw-terminal__xterm .xterm-scrollable-element > .shadow.left,
+.sw-terminal__xterm .xterm-scrollable-element > .shadow.top-left-corner,
+.sw-terminal__xterm .xterm-scrollable-element > .shadow.top.left {
+  display: none !important;
+  opacity: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+.sw-terminal__xterm .xterm-scrollable-element > .scrollbar,
+.sw-terminal__xterm .xterm-scrollable-element > .scrollbar > .slider {
+  box-shadow: none !important;
+}
+
 .sw-terminal__xterm .xterm-scrollable-element > .scrollbar.horizontal {
   display: none !important;
   height: 0 !important;
@@ -611,4 +628,3 @@
 .sw-review-more:hover {
   text-decoration: underline;
 }
-
