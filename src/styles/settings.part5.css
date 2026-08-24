@@ -349,11 +349,12 @@
 }
 
 .app-toast {
-  position: absolute;
+  position: fixed;
   top: 56px;
   left: 50%;
   transform: translateX(-50%) translateZ(0);
-  z-index: 60;
+  /* Above GlassModal .overlay (12000) so rewind/fork errors are visible. */
+  z-index: 14000;
   max-width: min(420px, 90%);
   padding: 8px 14px;
   border-radius: var(--menu-radius, 12px);

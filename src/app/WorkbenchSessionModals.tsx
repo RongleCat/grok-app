@@ -126,6 +126,8 @@ export function WorkbenchSessionModals(p: WorkbenchSessionModalsProps) {
     resumeRestoreConfirm,
     rewindBusy,
     rewindConfirm,
+    rewindError,
+    setRewindError,
     rewindModalRef,
     rewindRestoreFiles,
     rewindTimeline,
@@ -425,11 +427,13 @@ export function WorkbenchSessionModals(p: WorkbenchSessionModalsProps) {
         locale={locale}
         confirm={rewindConfirm}
         busy={rewindBusy}
+        error={typeof rewindError === "string" ? rewindError : null}
         restoreFiles={rewindRestoreFiles}
         onRestoreFilesChange={setRewindRestoreFiles}
         onClose={() => {
           setRewindConfirm(null);
           setRewindRestoreFiles(false);
+          (setRewindError as (v: string | null) => void)(null);
         }}
         onConfirm={() => {
           if (!rewindConfirm) return;

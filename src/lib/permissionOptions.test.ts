@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  displayPermissionPreview,
   fallbackSessionOptionId,
   formatPermissionSummary,
   mapPermissionButtons,
+  normalizePermissionOptions,
   permissionDecisionHint,
 } from "./permissionOptions";
 
@@ -108,6 +110,24 @@ describe("mapPermissionButtons (shipped)", () => {
     expect(buttons[1]!.decision).toBe("allow_session");
     expect(buttons[1]!.optionId).toBe("allow-once");
   });
+
+  it("unwraps ACP params blobs that nest the option list", () => {
+    const wrapped = {
+      options: [
+        { optionId: "allow-once", kind: "allow_once" },
+        { optionId: "reject-once", kind: "reject_once" },
+      ],
+      sessionId: "01aa",
+    };
+    expect(normalizePermissionOptions(wrapped)).toHaveLength(2);
+    const buttons = mapPermissionButtons(
+      wrapped,
+      undefined,
+      "run_terminal_command",
+    );
+    expect(buttons[0]!.optionId).toBe("allow-once");
+    expect(buttons[2]!.optionId).toBe("reject-once");
+  });
 });
 
 describe("fallbackSessionOptionId", () => {
@@ -132,6 +152,22 @@ describe("formatPermissionSummary", () => {
         command: "rm -rf /tmp/foo",
       }),
     ).toBe("bash: rm -rf /tmp/foo");
+  });
+
+  it("does not treat ACP permission JSON dumps as the command", () => {
+    const dump =
+      '{"options":[{"kind":"allow_once","optionId":"allow-once"},{"kind":"reject_once","optionId":"reject-once"}],"sessionId":"01aa"}';
+    expect(
+      formatPermissionSummary({
+        toolName: "run_terminal_command",
+        title: "Execute `python ./get_context.py`",
+        command: dump,
+      }),
+    ).toBe("run_terminal_command");
+    expect(displayPermissionPreview(dump)).toBe("");
+    expect(displayPermissionPreview("python ./get_context.py")).toBe(
+      "python ./get_context.py",
+    );
   });
 
   it("falls back to path", () => {

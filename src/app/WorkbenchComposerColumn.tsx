@@ -11,8 +11,12 @@ import { IconFileDiff, IconGitBranch } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import { projectDisplayName } from "@/lib/app/sidebarModels";
 import { isMirrorClient } from "@/lib/mirrorTransport";
-import { formatPermissionSummary, mapPermissionButtons } from "@/lib/permissionOptions";
-import { type CSSProperties } from "react";
+import {
+  displayPermissionPreview,
+  formatPermissionSummary,
+  mapPermissionButtons,
+} from "@/lib/permissionOptions";
+import { type CSSProperties, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { WorkbenchComposerShell } from "@/app/WorkbenchComposerShell";
 
@@ -70,6 +74,13 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
     tr,
     session,
   } = p;
+  const [permBusy, setPermBusy] = useState(false);
+  const [permError, setPermError] = useState<string | null>(null);
+  const previewText = displayPermissionPreview(perm?.preview);
+  useEffect(() => {
+    setPermBusy(false);
+    setPermError(null);
+  }, [perm?.rpcId, perm?.sessionId]);
   return (() => {
             const composerNode = (
           <div
@@ -161,11 +172,16 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                   {formatPermissionSummary({
                     toolName: perm.toolName,
                     title: perm.title,
-                    command: perm.preview,
+                    command: previewText,
                   })}
                 </p>
-                {perm.preview?.trim() ? (
-                  <pre className="perm-bar__preview">{perm.preview.trim()}</pre>
+                {previewText ? (
+                  <pre className="perm-bar__preview">{previewText}</pre>
+                ) : null}
+                {permError ? (
+                  <p className="perm-bar__error" role="alert">
+                    {permError}
+                  </p>
                 ) : null}
                 <div className="perm-bar__actions" role="group">
                   {mapPermissionButtons(
@@ -188,6 +204,7 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                             ? " perm-bar__btn--deny"
                             : " perm-bar__btn--session")
                       }
+                      disabled={permBusy}
                       title={
                         btn.decision === "allow_once"
                           ? tr("perm.hintOnce")
@@ -195,9 +212,18 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                             ? tr("perm.hintSession")
                             : tr("perm.hintDeny")
                       }
-                      onClick={() =>
-                        resolvePermission(perm, btn.decision, btn.optionId)
-                      }
+                      onClick={() => {
+                        if (permBusy) return;
+                        setPermBusy(true);
+                        setPermError(null);
+                        void Promise.resolve(
+                          resolvePermission(perm, btn.decision, btn.optionId),
+                        )
+                          .catch((e: unknown) => {
+                            setPermError(String(e));
+                          })
+                          .finally(() => setPermBusy(false));
+                      }}
                     >
                       {btn.label}
                     </button>

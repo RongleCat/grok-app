@@ -238,6 +238,67 @@ pub fn extract_shell_command(raw: &serde_json::Value) -> String {
     String::new()
 }
 
+fn truncate_permission_preview(s: &str) -> String {
+    s.chars().take(2000).collect()
+}
+
+fn extract_permission_input(raw: &serde_json::Value) -> String {
+    let ri = raw
+        .pointer("/toolCall/rawInput")
+        .or_else(|| raw.get("rawInput"))
+        .or_else(|| raw.get("raw_input"));
+    let Some(ri) = ri else {
+        return String::new();
+    };
+    if let Some(s) = ri.as_str() {
+        return s.trim().to_string();
+    }
+    let Some(obj) = ri.as_object() else {
+        return String::new();
+    };
+    for key in [
+        "command",
+        "cmd",
+        "target_file",
+        "file_path",
+        "path",
+        "query",
+        "url",
+        "description",
+    ] {
+        if let Some(s) = obj.get(key).and_then(|v| v.as_str()) {
+            let t = s.trim();
+            if !t.is_empty() {
+                return t.to_string();
+            }
+        }
+    }
+    String::new()
+}
+
+/// Human preview for the permission card. Never dump the ACP request JSON
+/// (`options` + `sessionId`) — that is wire, not the command the user is
+/// approving.
+pub fn permission_preview_text(raw: &serde_json::Value, title: &str) -> String {
+    let cmd = extract_shell_command(raw);
+    if !cmd.is_empty() {
+        return truncate_permission_preview(&cmd);
+    }
+    let path = extract_path_target(raw);
+    if !path.is_empty() {
+        return truncate_permission_preview(&path);
+    }
+    let input = extract_permission_input(raw);
+    if !input.is_empty() {
+        return truncate_permission_preview(&input);
+    }
+    let t = title.trim();
+    if !t.is_empty() && t != "Tool permission" {
+        return truncate_permission_preview(t);
+    }
+    String::new()
+}
+
 fn shell_has_token(cmd_lower: &str, token: &str) -> bool {
     // Word-ish match so `curl` does not hit `curly`.
     for part in cmd_lower.split(|c: char| {
@@ -1125,6 +1186,34 @@ mod tests {
             }
         });
         assert_eq!(extract_shell_command(&raw), "curl -o out.png https://x");
+    }
+
+    #[test]
+    fn permission_preview_prefers_command_not_raw_json() {
+        let raw = serde_json::json!({
+            "sessionId": "01aa",
+            "options": [
+                {"kind": "allow_once", "optionId": "allow-once"},
+                {"kind": "reject_once", "optionId": "reject-once"}
+            ],
+            "toolCall": {
+                "title": "Execute `python ./get_context.py`",
+                "rawInput": { "command": "python ./get_context.py" }
+            }
+        });
+        assert_eq!(
+            permission_preview_text(&raw, "Execute `python ./get_context.py`"),
+            "python ./get_context.py"
+        );
+        let options_only = serde_json::json!({
+            "options": [{"kind": "allow_once", "optionId": "allow-once"}],
+            "sessionId": "01aa"
+        });
+        assert_eq!(
+            permission_preview_text(&options_only, "Execute `python ./get_context.py`"),
+            "Execute `python ./get_context.py`"
+        );
+        assert!(!permission_preview_text(&options_only, "Tool permission").contains('{'));
     }
 
     #[test]

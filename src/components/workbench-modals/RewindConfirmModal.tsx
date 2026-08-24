@@ -6,6 +6,7 @@ export function RewindConfirmModal(props: {
   locale: Locale;
   confirm: RewindConfirmState | null;
   busy: boolean;
+  error?: string | null;
   restoreFiles: boolean;
   onRestoreFilesChange: (value: boolean) => void;
   onClose: () => void;
@@ -65,6 +66,11 @@ export function RewindConfirmModal(props: {
         <p className="rewind-confirm__hint">
           {tr("session.rewindRestoreFilesHint")}
         </p>
+        {props.error ? (
+          <p className="rewind-confirm__error" role="alert">
+            {props.error}
+          </p>
+        ) : null}
       </div>
     </GlassModal>
   );

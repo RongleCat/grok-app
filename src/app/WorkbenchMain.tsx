@@ -3,6 +3,7 @@
  * Chat / kanban / automations body stay with the host as children.
  */
 import type { Dispatch, MouseEvent, ReactNode, SetStateAction } from "react";
+import { createPortal } from "react-dom";
 import { Tip } from "@/components/ui/tooltip";
 import { OpenLocationButton } from "@/components/OpenLocationButton";
 import { EnvInfoButton } from "@/components/side-workbench/EnvInfoButton";
@@ -173,11 +174,19 @@ export function WorkbenchMain(props: WorkbenchMainProps) {
         </div>
       )}
 
-      {toast && (
-        <div className="app-toast" role="status">
-          {toast}
-        </div>
-      )}
+      {toast &&
+        (typeof document !== "undefined"
+          ? createPortal(
+              <div className="app-toast" role="status">
+                {toast}
+              </div>,
+              document.body,
+            )
+          : (
+              <div className="app-toast" role="status">
+                {toast}
+              </div>
+            ))}
       <div
         className={"main__top" + (phoneLayout ? " main__top--phone" : "")}
         data-tauri-drag-region={dragRegion}

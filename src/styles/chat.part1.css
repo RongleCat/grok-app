@@ -202,6 +202,8 @@
  */
 .perm-bar {
   pointer-events: auto;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
   width: 100%;
   max-width: var(--chat-width-max, 800px);
   margin: 0 auto;
@@ -280,6 +282,9 @@
 }
 
 .perm-bar__actions {
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
@@ -287,6 +292,9 @@
 }
 
 .perm-bar__btn {
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
   appearance: none;
   border: 1px solid var(--border-subtle);
   background: transparent;
@@ -306,6 +314,18 @@
 .perm-bar__btn:hover {
   background: var(--bg-hover);
   border-color: var(--border-strong);
+}
+
+.perm-bar__btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.perm-bar__error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--danger);
 }
 
 .perm-bar__btn--allow {

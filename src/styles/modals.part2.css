@@ -631,6 +631,13 @@
   flex-shrink: 0;
 }
 
+.rewind-confirm__error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--danger);
+}
+
 .export-md-options {
   display: flex;
   flex-direction: column;

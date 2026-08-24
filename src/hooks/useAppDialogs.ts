@@ -202,6 +202,7 @@ export function useAppDialogs() {
   const [rewindConfirm, setRewindConfirm] =
     useState<RewindConfirmState | null>(null);
   const [rewindRestoreFiles, setRewindRestoreFiles] = useState(false);
+  const [rewindError, setRewindError] = useState<string | null>(null);
   const rewindModalRef = useRef<HTMLDivElement>(null);
 
   // Rewind timeline dialog — focus trap + Escape.
@@ -298,6 +299,8 @@ export function useAppDialogs() {
     setRewindConfirm,
     rewindRestoreFiles,
     setRewindRestoreFiles,
+    rewindError,
+    setRewindError,
     rewindModalRef,
 
     forkConfirm,

@@ -938,6 +938,8 @@ export function AppWorkbench() {
     setRewindConfirm,
     rewindRestoreFiles,
     setRewindRestoreFiles,
+    rewindError,
+    setRewindError,
     rewindModalRef,
     forkConfirm,
     setForkConfirm,
@@ -8676,13 +8678,18 @@ export function AppWorkbench() {
       restoreFiles = false,
     ) => {
       if (!api.isTauri()) {
-        showToast(tr("error.needTauri"));
+        const msg = tr("error.needTauri");
+        setRewindError(msg);
+        showToast(msg);
         return;
       }
       if (!canRewindSession) {
-        showToast(tr("session.rewindBusy"));
+        const msg = tr("session.rewindBusy");
+        setRewindError(msg);
+        showToast(msg);
         return;
       }
+      setRewindError(null);
       setRewindBusy(true);
       try {
         // Prefer live connect so agent rewind can run; local truncate still works if not.
@@ -8724,12 +8731,15 @@ export function AppWorkbench() {
         setRewindTimeline(null);
         setRewindConfirm(null);
         setRewindRestoreFiles(false);
+        setRewindError(null);
         if (!result.agentOk) {
           showToast(tr("session.rewindLocalOnly"), 4200);
         }
         await refreshSessions();
       } catch (e) {
-        showToast(tr("session.rewindFailed") + ": " + String(e), 4500);
+        const msg = tr("session.rewindFailed") + ": " + String(e);
+        setRewindError(msg);
+        showToast(msg, 4500);
       } finally {
         setRewindBusy(false);
       }
@@ -8743,7 +8753,10 @@ export function AppWorkbench() {
     (sessionId: string, targetPromptIndex: number, preview?: string) => {
       setCtxMenu(null);
       // GlassModal with restore-files checkbox (default off) — not bare setAppDialog.
+      // Close the timeline first so two overlays cannot swallow the confirm click.
+      setRewindTimeline(null);
       setRewindRestoreFiles(false);
+      setRewindError(null);
       setRewindConfirm({
         sessionId,
         targetPromptIndex,
@@ -11993,7 +12006,7 @@ export function AppWorkbench() {
       decision: "allow_once" | "allow_session" | "deny",
       optionId: string,
     ) => {
-      void api
+      return api
         .sessionResolvePermission({
           rpcId: p.rpcId,
           decision,
@@ -12014,12 +12027,10 @@ export function AppWorkbench() {
             e && typeof e === "object" && "code" in e
               ? String((e as { code?: string }).code)
               : "";
-          showToast(
-            code === "UNSUPPORTED"
-              ? tr("mirror.unsupported")
-              : String(e),
-            4000,
-          );
+          const msg =
+            code === "UNSUPPORTED" ? tr("mirror.unsupported") : String(e);
+          showToast(msg, 4000);
+          throw e instanceof Error ? e : new Error(msg);
         });
     },
     [clearPendingGates, showToast, tr],
@@ -12037,7 +12048,9 @@ export function AppWorkbench() {
         p.toolName,
       ).find((b) => b.decision === "deny");
       if (!deny) return;
-      resolvePermission(p, deny.decision, deny.optionId);
+      void resolvePermission(p, deny.decision, deny.optionId).catch(() => {
+        /* toast already shown */
+      });
     },
     [resolvePermission, tr],
   );
@@ -14897,8 +14910,10 @@ export function AppWorkbench() {
         resumeRestoreConfirm={resumeRestoreConfirm}
         rewindBusy={rewindBusy}
         rewindConfirm={rewindConfirm}
+        rewindError={rewindError}
         rewindModalRef={rewindModalRef}
         rewindRestoreFiles={rewindRestoreFiles}
+        setRewindError={setRewindError}
         rewindTimeline={rewindTimeline}
         runBatchAgentsDispatch={runBatchAgentsDispatch}
         runForkSession={runForkSession}

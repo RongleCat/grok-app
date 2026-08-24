@@ -9,6 +9,37 @@ export interface AcpPermissionOption {
   kind?: string;
 }
 
+/** True when `preview` is the ACP request blob, not a command/path. */
+export function isRawPermissionDump(text: string): boolean {
+  const t = text.trim();
+  if (!t.startsWith("{")) return false;
+  return (
+    t.includes('"options"') ||
+    t.includes('"sessionId"') ||
+    t.includes('"toolCall"')
+  );
+}
+
+/** Strip ACP JSON dumps so the permission bar shows a command, not wire. */
+export function displayPermissionPreview(
+  preview?: string | null,
+): string {
+  const t = (preview || "").trim();
+  if (!t || isRawPermissionDump(t)) return "";
+  return t;
+}
+
+export function normalizePermissionOptions(
+  options: unknown,
+): AcpPermissionOption[] {
+  if (Array.isArray(options)) return options as AcpPermissionOption[];
+  if (options && typeof options === "object") {
+    const inner = (options as { options?: unknown }).options;
+    if (Array.isArray(inner)) return inner as AcpPermissionOption[];
+  }
+  return [];
+}
+
 /** Human-readable summary for the permission bar header / aria. */
 export function formatPermissionSummary(input: {
   toolName?: string | null;
@@ -18,7 +49,7 @@ export function formatPermissionSummary(input: {
 }): string {
   const tool = (input.toolName || input.title || "").trim();
   const path = (input.path || "").trim();
-  const command = (input.command || "").trim();
+  const command = displayPermissionPreview(input.command);
   if (command) {
     const short =
       command.length > 96 ? `${command.slice(0, 96)}…` : command;
@@ -121,9 +152,7 @@ export function mapPermissionButtons(
   /** Real tool name when options list is empty (#542 / #544). */
   toolName?: string | null,
 ): MappedPermButton[] {
-  const arr: AcpPermissionOption[] = Array.isArray(options)
-    ? (options as AcpPermissionOption[])
-    : [];
+  const arr: AcpPermissionOption[] = normalizePermissionOptions(options);
 
   const find = (pred: (o: AcpPermissionOption) => boolean) => arr.find(pred);
 

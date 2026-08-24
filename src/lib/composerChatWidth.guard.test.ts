@@ -47,6 +47,10 @@ describe("composer tracks chat reading width", () => {
 
     const perm = part1.match(/(?:^|\n)\.perm-bar\s*\{[^}]*\}/);
     expect(perm?.[0]).toMatch(/max-width:\s*var\(--chat-width-max/);
+    // Floating composer wrap is pointer-events:none; the card must opt back in
+    // and stay no-drag so Windows WebView2 does not swallow Approve / Deny.
+    expect(perm?.[0]).toMatch(/pointer-events:\s*auto/);
+    expect(perm?.[0]).toMatch(/-webkit-app-region:\s*no-drag/);
 
     // Prefer the standalone .composer rule (not .composer-stack .composer).
     const composer = [...part2.matchAll(/(?:^|\n)\.composer\s*\{[^}]*\}/g)].map(
