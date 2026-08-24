@@ -851,12 +851,12 @@ textarea::-webkit-scrollbar-thumb:active,
   gap: 12px 18px;
   margin: 0 0 14px;
   padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-card);
 }
 
-.prov-official-aux.is-disabled {
+.prov-official-aux.is-disabled > :is(
+  .prov-official-aux__text,
+  .prov-official-aux__switch
+) {
   opacity: 0.72;
 }
 

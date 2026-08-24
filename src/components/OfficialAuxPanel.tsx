@@ -122,7 +122,8 @@ export function OfficialAuxPanel({
 
       <div
         className={
-          "prov-official-aux" + (!injectAllowed ? " is-disabled" : "")
+          "settings-card prov-official-aux" +
+          (!injectAllowed ? " is-disabled" : "")
         }
         id="settings-anchor-official-aux-inject"
       >
@@ -156,7 +157,7 @@ export function OfficialAuxPanel({
 
       {injectAllowed && officialAuxInject ? (
         <div
-          className="prov-official-aux prov-official-aux--sub"
+          className="settings-card prov-official-aux prov-official-aux--sub"
           id="settings-anchor-official-aux-user-mcp"
         >
           <div className="prov-official-aux__text">
