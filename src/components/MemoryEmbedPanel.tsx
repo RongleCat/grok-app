@@ -15,55 +15,13 @@ import {
   memoryEmbedKeyPresence,
   memoryEmbedToggleChecked,
   parseOptionalNumber,
-  toggleMemoryEmbedTri,
   validateMemoryEmbedDraft,
   valuesFromMemoryEmbedSnapshot,
   type MemoryEmbedTri,
   type MemoryEmbedValues,
 } from "@/lib/memoryEmbedConfig";
 import { IconRefresh } from "@/components/icons";
-
-function Toggle({
-  checked,
-  disabled,
-  onChange,
-  ariaLabel,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: () => void;
-  ariaLabel: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      className={"ui-check" + (checked ? " is-on" : "")}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        if (!disabled) onChange();
-      }}
-    >
-      <span className="ui-check__box" aria-hidden>
-        {checked ? (
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path
-              d="M2.5 6.2L4.8 8.5L9.5 3.5"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        ) : null}
-      </span>
-    </button>
-  );
-}
+import { UiCheck } from "@/components/settings/shared";
 
 function PresenceBadge({
   value,
@@ -124,7 +82,7 @@ function BoolRow({
   configKey: string;
   value: MemoryEmbedTri;
   disabled: boolean;
-  onToggle: () => void;
+  onToggle: (next: boolean) => void;
   t: (k: MessageKey, vars?: Record<string, string | number>) => string;
 }) {
   return (
@@ -138,7 +96,7 @@ function BoolRow({
           {configKey}
         </div>
       </div>
-      <Toggle
+      <UiCheck
         checked={memoryEmbedToggleChecked(value)}
         disabled={disabled}
         onChange={onToggle}
@@ -266,10 +224,10 @@ export function MemoryEmbedPanel({
   const modes = describeSearchModes(snap ?? undefined);
   const configured = isEmbeddingConfigured(snap ?? undefined);
 
-  const setTri = (key: keyof MemoryEmbedValues) => {
+  const setTri = (key: keyof MemoryEmbedValues, next: boolean) => {
     setDraft((d) => ({
       ...d,
-      [key]: toggleMemoryEmbedTri(d[key] as MemoryEmbedTri),
+      [key]: next,
     }));
   };
 
@@ -487,7 +445,7 @@ export function MemoryEmbedPanel({
               configKey="[memory.search.mmr] enabled"
               value={draft.mmrEnabled}
               disabled={disabled}
-              onToggle={() => setTri("mmrEnabled")}
+              onToggle={(next) => setTri("mmrEnabled", next)}
               t={t}
             />
 
@@ -510,7 +468,7 @@ export function MemoryEmbedPanel({
               configKey="[memory.search.temporal_decay] enabled"
               value={draft.temporalDecayEnabled}
               disabled={disabled}
-              onToggle={() => setTri("temporalDecayEnabled")}
+              onToggle={(next) => setTri("temporalDecayEnabled", next)}
               t={t}
             />
 
@@ -535,7 +493,7 @@ export function MemoryEmbedPanel({
               configKey="[memory.dream] enabled"
               value={draft.dreamEnabled}
               disabled={disabled}
-              onToggle={() => setTri("dreamEnabled")}
+              onToggle={(next) => setTri("dreamEnabled", next)}
               t={t}
             />
 
@@ -572,7 +530,7 @@ export function MemoryEmbedPanel({
               configKey="[memory.watcher] enabled"
               value={draft.watcherEnabled}
               disabled={disabled}
-              onToggle={() => setTri("watcherEnabled")}
+              onToggle={(next) => setTri("watcherEnabled", next)}
               t={t}
             />
 
@@ -583,7 +541,7 @@ export function MemoryEmbedPanel({
               configKey="[memory.initial_injection] enabled"
               value={draft.initialInjectionEnabled}
               disabled={disabled}
-              onToggle={() => setTri("initialInjectionEnabled")}
+              onToggle={(next) => setTri("initialInjectionEnabled", next)}
               t={t}
             />
           </div>

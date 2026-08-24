@@ -25,7 +25,6 @@ import {
   privacyToggleChecked,
   resolvePrivacyProbeErrorCopy,
   summarizePrivacyValues,
-  togglePrivacyTri,
   valuesFromPrivacySnapshot,
   type ClassifiedPrivacyProbe,
   type PrivacyTri,
@@ -44,48 +43,7 @@ import {
   resolveExternalOtelStatus,
 } from "@/lib/externalOtelHonesty";
 import { IconRefresh } from "@/components/icons";
-
-function Toggle({
-  checked,
-  disabled,
-  onChange,
-  ariaLabel,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: () => void;
-  ariaLabel: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      className={"ui-check" + (checked ? " is-on" : "")}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        if (!disabled) onChange();
-      }}
-    >
-      <span className="ui-check__box" aria-hidden>
-        {checked ? (
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path
-              d="M2.5 6.2L4.8 8.5L9.5 3.5"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        ) : null}
-      </span>
-    </button>
-  );
-}
+import { UiCheck } from "@/components/settings/shared";
 
 function PresenceBadge({
   value,
@@ -133,7 +91,7 @@ function PrivacyRow({
   valueKey: PrivacyWritableKey;
   value: PrivacyTri;
   disabled: boolean;
-  onToggle: () => void;
+  onToggle: (next: boolean) => void;
   t: (k: MessageKey, vars?: Record<string, string | number>) => string;
 }) {
   const unset = privacyIsUnset(value);
@@ -153,7 +111,7 @@ function PrivacyRow({
           {configKey}
         </div>
       </div>
-      <Toggle
+      <UiCheck
         checked={privacyToggleChecked(value)}
         disabled={disabled}
         onChange={onToggle}
@@ -268,8 +226,8 @@ export function PrivacyCenterPanel({
     [draft],
   );
 
-  const setKey = (key: RowKey) => {
-    setDraft((d) => ({ ...d, [key]: togglePrivacyTri(d[key]) }));
+  const setKey = (key: RowKey, next: boolean) => {
+    setDraft((d) => ({ ...d, [key]: next }));
   };
 
   const save = async () => {
@@ -458,7 +416,7 @@ export function PrivacyCenterPanel({
               valueKey="telemetry"
               value={draft.telemetry}
               disabled={disabled}
-              onToggle={() => setKey("telemetry")}
+              onToggle={(next) => setKey("telemetry", next)}
               t={t}
             />
             <PrivacyRow
@@ -469,7 +427,7 @@ export function PrivacyCenterPanel({
               valueKey="traceUpload"
               value={draft.traceUpload}
               disabled={disabled}
-              onToggle={() => setKey("traceUpload")}
+              onToggle={(next) => setKey("traceUpload", next)}
               t={t}
             />
             <PrivacyRow
@@ -480,7 +438,7 @@ export function PrivacyCenterPanel({
               valueKey="mixpanelEnabled"
               value={draft.mixpanelEnabled}
               disabled={disabled}
-              onToggle={() => setKey("mixpanelEnabled")}
+              onToggle={(next) => setKey("mixpanelEnabled", next)}
               t={t}
             />
             <PrivacyRow
@@ -491,7 +449,7 @@ export function PrivacyCenterPanel({
               valueKey="disableCodebaseUpload"
               value={draft.disableCodebaseUpload}
               disabled={disabled}
-              onToggle={() => setKey("disableCodebaseUpload")}
+              onToggle={(next) => setKey("disableCodebaseUpload", next)}
               t={t}
             />
             <PrivacyRow
@@ -502,7 +460,7 @@ export function PrivacyCenterPanel({
               valueKey="disableWorkspaceTeleport"
               value={draft.disableWorkspaceTeleport}
               disabled={disabled}
-              onToggle={() => setKey("disableWorkspaceTeleport")}
+              onToggle={(next) => setKey("disableWorkspaceTeleport", next)}
               t={t}
             />
           </div>

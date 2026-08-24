@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import * as api from "@/lib/api";
 import type { AgentConfigEditSnapshot } from "@/lib/api";
 import { Select } from "@/components/Select";
+import { UiCheck } from "@/components/settings/shared";
 import { createT, type Locale, type MessageKey } from "@/i18n";
 import {
   buildConfigEditPatch,
@@ -17,48 +18,6 @@ import {
   type UiPermissionMode,
 } from "@/lib/configTomlEdit";
 import { IconRefresh } from "@/components/icons";
-
-function Toggle({
-  checked,
-  disabled,
-  onChange,
-  ariaLabel,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: () => void;
-  ariaLabel: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      className={"ui-check" + (checked ? " is-on" : "")}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        if (!disabled) onChange();
-      }}
-    >
-      <span className="ui-check__box" aria-hidden>
-        {checked ? (
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path
-              d="M2.5 6.2L4.8 8.5L9.5 3.5"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        ) : null}
-      </span>
-    </button>
-  );
-}
 
 export function AgentConfigEditPanel({
   locale,
@@ -278,10 +237,10 @@ export function AgentConfigEditPanel({
                   {t("settings.configTomlEdit.uiYoloDesc")}
                 </div>
               </div>
-              <Toggle
+              <UiCheck
                 checked={draft.yolo}
                 disabled={disabled}
-                onChange={() => setDraft((d) => ({ ...d, yolo: !d.yolo }))}
+                onChange={(next) => setDraft((d) => ({ ...d, yolo: next }))}
                 ariaLabel={t("settings.configTomlEdit.uiYolo")}
               />
             </div>
@@ -295,13 +254,13 @@ export function AgentConfigEditPanel({
                   {t("settings.configTomlEdit.subagentsDesc")}
                 </div>
               </div>
-              <Toggle
+              <UiCheck
                 checked={draft.subagentsEnabled}
                 disabled={disabled}
-                onChange={() =>
+                onChange={(next) =>
                   setDraft((d) => ({
                     ...d,
-                    subagentsEnabled: !d.subagentsEnabled,
+                    subagentsEnabled: next,
                   }))
                 }
                 ariaLabel={t("settings.configTomlEdit.subagents")}
@@ -317,13 +276,13 @@ export function AgentConfigEditPanel({
                   {t("settings.configTomlEdit.memoryDesc")}
                 </div>
               </div>
-              <Toggle
+              <UiCheck
                 checked={draft.memoryEnabled}
                 disabled={disabled}
-                onChange={() =>
+                onChange={(next) =>
                   setDraft((d) => ({
                     ...d,
-                    memoryEnabled: !d.memoryEnabled,
+                    memoryEnabled: next,
                   }))
                 }
                 ariaLabel={t("settings.configTomlEdit.memory")}
@@ -339,13 +298,13 @@ export function AgentConfigEditPanel({
                   {t("settings.configTomlEdit.workflowsDesc")}
                 </div>
               </div>
-              <Toggle
+              <UiCheck
                 checked={draft.workflowsEnabled}
                 disabled={disabled}
-                onChange={() =>
+                onChange={(next) =>
                   setDraft((d) => ({
                     ...d,
-                    workflowsEnabled: !d.workflowsEnabled,
+                    workflowsEnabled: next,
                   }))
                 }
                 ariaLabel={t("settings.configTomlEdit.workflows")}
@@ -361,13 +320,13 @@ export function AgentConfigEditPanel({
                   {t("settings.configTomlEdit.autoWakeDesc")}
                 </div>
               </div>
-              <Toggle
+              <UiCheck
                 checked={draft.autoWakeEnabled}
                 disabled={disabled}
-                onChange={() =>
+                onChange={(next) =>
                   setDraft((d) => ({
                     ...d,
-                    autoWakeEnabled: !d.autoWakeEnabled,
+                    autoWakeEnabled: next,
                   }))
                 }
                 ariaLabel={t("settings.configTomlEdit.autoWake")}
@@ -383,13 +342,13 @@ export function AgentConfigEditPanel({
                   {t("settings.configTomlEdit.twoPassDesc")}
                 </div>
               </div>
-              <Toggle
+              <UiCheck
                 checked={draft.twoPassCompactionEnabled}
                 disabled={disabled}
-                onChange={() =>
+                onChange={(next) =>
                   setDraft((d) => ({
                     ...d,
-                    twoPassCompactionEnabled: !d.twoPassCompactionEnabled,
+                    twoPassCompactionEnabled: next,
                   }))
                 }
                 ariaLabel={t("settings.configTomlEdit.twoPass")}
@@ -405,13 +364,13 @@ export function AgentConfigEditPanel({
                   {t("settings.configTomlEdit.lspToolsDesc")}
                 </div>
               </div>
-              <Toggle
+              <UiCheck
                 checked={draft.lspToolsEnabled}
                 disabled={disabled}
-                onChange={() =>
+                onChange={(next) =>
                   setDraft((d) => ({
                     ...d,
-                    lspToolsEnabled: !d.lspToolsEnabled,
+                    lspToolsEnabled: next,
                   }))
                 }
                 ariaLabel={t("settings.configTomlEdit.lspTools")}
@@ -427,13 +386,13 @@ export function AgentConfigEditPanel({
                   {t("settings.configTomlEdit.codebaseIndexingDesc")}
                 </div>
               </div>
-              <Toggle
+              <UiCheck
                 checked={draft.codebaseIndexing}
                 disabled={disabled}
-                onChange={() =>
+                onChange={(next) =>
                   setDraft((d) => ({
                     ...d,
-                    codebaseIndexing: !d.codebaseIndexing,
+                    codebaseIndexing: next,
                   }))
                 }
                 ariaLabel={t("settings.configTomlEdit.codebaseIndexing")}
@@ -449,13 +408,13 @@ export function AgentConfigEditPanel({
                   {t("settings.configTomlEdit.remoteFetchDesc")}
                 </div>
               </div>
-              <Toggle
+              <UiCheck
                 checked={draft.remoteFetch}
                 disabled={disabled}
-                onChange={() =>
+                onChange={(next) =>
                   setDraft((d) => ({
                     ...d,
-                    remoteFetch: !d.remoteFetch,
+                    remoteFetch: next,
                   }))
                 }
                 ariaLabel={t("settings.configTomlEdit.remoteFetch")}

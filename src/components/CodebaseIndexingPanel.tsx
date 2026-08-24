@@ -21,7 +21,6 @@ import {
   describeCodebaseIndexingStatus,
   hasCodebaseIndexingChanges,
   isCodebaseIndexingToggleable,
-  toggleCodebaseIndexingTri,
   valuesFromCodebaseIndexingSnapshot,
   type CodebaseIndexingValues,
 } from "@/lib/codebaseIndexing";
@@ -35,48 +34,7 @@ import {
   resolveCodeGraphMode,
 } from "@/lib/codeGraphProduct";
 import { IconRefresh } from "@/components/icons";
-
-function Toggle({
-  checked,
-  disabled,
-  onChange,
-  ariaLabel,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: () => void;
-  ariaLabel: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      className={"ui-check" + (checked ? " is-on" : "")}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        if (!disabled) onChange();
-      }}
-    >
-      <span className="ui-check__box" aria-hidden>
-        {checked ? (
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path
-              d="M2.5 6.2L4.8 8.5L9.5 3.5"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        ) : null}
-      </span>
-    </button>
-  );
-}
+import { UiCheck } from "@/components/settings/shared";
 
 function PresenceBadge({
   values,
@@ -254,11 +212,11 @@ export function CodebaseIndexingPanel({
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
-  const onToggle = () => {
+  const onToggle = (next: boolean) => {
     if (!toggleable) return;
     setDraft((d) => ({
       ...d,
-      enabled: toggleCodebaseIndexingTri(d.enabled),
+      enabled: next,
       customRaw: null,
     }));
   };
@@ -457,7 +415,7 @@ export function CodebaseIndexingPanel({
                   </div>
                 ) : null}
               </div>
-              <Toggle
+              <UiCheck
                 checked={codebaseIndexingToggleChecked(draft)}
                 disabled={disabled}
                 onChange={onToggle}
