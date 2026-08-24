@@ -3,10 +3,14 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const css = readFileSync(join(__dirname, "../styles/skins.css"), "utf8");
-const sideWorkbenchCss = readFileSync(
-  join(__dirname, "../styles/side-workbench.part1.css"),
-  "utf8",
-);
+const sideWorkbenchCss = ["part1", "part2"]
+  .map((part) =>
+    readFileSync(
+      join(__dirname, `../styles/side-workbench.${part}.css`),
+      "utf8",
+    ),
+  )
+  .join("\n");
 
 describe("wallpaper theme contrast CSS", () => {
   it("maps light wallpaper to its own white veil and pane curves", () => {

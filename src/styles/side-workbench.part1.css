@@ -162,21 +162,6 @@ html:not([data-wallpaper="1"])
   background: var(--bg-aside) !important;
 }
 
-/* The outer aside owns wallpaper frost; common Plan/chrome shells stay clear. */
-html[data-wallpaper="1"]
-  .workbench--side-expanded
-  .aside
-  :is(
-    .aside__inner,
-    .rp-chrome,
-    .rp.sw,
-    .sw__content,
-    .sw__empty,
-    .sw__persist-host
-  ) {
-  background: transparent !important;
-}
-
 /* Files still use card surfaces; ensure no transparent hole under expand */
 .workbench--side-expanded .aside .sw__files-host,
 .workbench--side-expanded .aside .sw-files {

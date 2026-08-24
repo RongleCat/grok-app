@@ -1,3 +1,18 @@
+/* The outer aside owns wallpaper frost; common Plan/chrome shells stay clear. */
+html[data-wallpaper="1"]
+  .workbench--side-expanded
+  .aside
+  :is(
+    .aside__inner,
+    .rp-chrome,
+    .rp.sw,
+    .sw__content,
+    .sw__empty,
+    .sw__persist-host
+  ) {
+  background: transparent !important;
+}
+
 .sw-terminal__xterm .xterm-scrollable-element > .scrollbar.horizontal {
   display: none !important;
   height: 0 !important;
@@ -611,4 +626,3 @@
 .sw-review-more:hover {
   text-decoration: underline;
 }
-
