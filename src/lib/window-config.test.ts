@@ -48,7 +48,7 @@ describe("window chrome", () => {
     const main = conf.app.windows[0]!;
     expect(main.titleBarStyle).toBe("Overlay");
     expect(main.hiddenTitle).toBe(true);
-    expect(main.trafficLightPosition).toBeTruthy();
+    expect(main.trafficLightPosition).toEqual({ x: 16, y: 22 });
     expect(main.transparent).toBe(true);
     expect(main.decorations).toBe(true);
     expect(conf.app.macOSPrivateApi).toBe(true);
