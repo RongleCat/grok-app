@@ -12,6 +12,9 @@ describe("stream-perf wallpaper CSS", () => {
       'html[data-stream-perf="1"][data-wallpaper="1"] .sidebar',
     );
     expect(css).toContain(
+      'html[data-stream-perf="1"][data-wallpaper="1"] .aside',
+    );
+    expect(css).toContain(
       'html[data-stream-perf="1"][data-wallpaper="1"] .settings-page__nav',
     );
   });

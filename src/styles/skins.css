@@ -124,6 +124,9 @@ html[data-wallpaper="1"] .sidebar {
       var(--wallpaper-theme-mix-sidebar),
     transparent
   ) !important;
+}
+
+html[data-wallpaper="1"] :is(.sidebar, .aside) {
   backdrop-filter: blur(var(--wallpaper-sidebar-blur, 22px)) saturate(1.25);
   -webkit-backdrop-filter: blur(var(--wallpaper-sidebar-blur, 22px))
     saturate(1.25);
@@ -239,6 +242,7 @@ html[data-wallpaper="1"] .platform-mac .settings-page__nav {
  */
 html[data-stream-perf="1"][data-wallpaper="1"] .app-settings-stage,
 html[data-stream-perf="1"][data-wallpaper="1"] .sidebar,
+html[data-stream-perf="1"][data-wallpaper="1"] .aside,
 html[data-stream-perf="1"][data-wallpaper="1"] .settings-page__nav,
 html[data-stream-perf="1"][data-wallpaper="1"] .platform-win .settings-page__nav,
 html[data-stream-perf="1"][data-wallpaper="1"] .platform-other .settings-page__nav,

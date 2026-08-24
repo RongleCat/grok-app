@@ -10,6 +10,7 @@
   /* Keep size & subtree; only block interaction while covered by aside */
   pointer-events: none;
   user-select: none;
+  visibility: hidden;
 }
 
 /*
@@ -105,17 +106,8 @@ body > .composer-wrap.composer-wrap--side-dock {
   flex-shrink: 0;
 }
 
-/*
- * Expanded free area: theme-solid surfaces only.
- * Wallpaper mode uses color-mix(... transparent) !important on .aside — beat it
- * so the expanded side (chrome + body) never shows custom wallpaper through.
- */
-.workbench--side-expanded .aside:not(.aside--hidden),
-html[data-wallpaper="1"] .workbench--side-expanded .aside:not(.aside--hidden),
-html[data-wallpaper="1"][data-wallpaper-clear="1"]
-  .workbench--side-expanded
-  .aside:not(.aside--hidden),
-html[data-wallpaper="1"].platform-mac[data-theme="light"]
+/* Without a wallpaper, expanded panes keep the normal solid theme surface. */
+html:not([data-wallpaper="1"])
   .workbench--side-expanded
   .aside:not(.aside--hidden) {
   background: var(--bg-aside) !important;
@@ -124,13 +116,22 @@ html[data-wallpaper="1"].platform-mac[data-theme="light"]
   box-shadow: none !important;
 }
 
-.workbench--side-expanded .aside .aside__inner {
+html:not([data-wallpaper="1"])
+  .workbench--side-expanded
+  .aside
+  .aside__inner {
   background: var(--bg-aside) !important;
 }
 
 /* Top tab strip: solid chrome (not glass mix over wallpaper) */
-.workbench--side-expanded .aside .rp-chrome,
-.workbench--side-expanded .aside .rp-chrome.sw-chrome {
+html:not([data-wallpaper="1"])
+  .workbench--side-expanded
+  .aside
+  .rp-chrome,
+html:not([data-wallpaper="1"])
+  .workbench--side-expanded
+  .aside
+  .rp-chrome.sw-chrome {
   background: var(--bg-card) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -147,13 +148,33 @@ html[data-wallpaper="1"].platform-mac[data-theme="light"]
 }
 
 /* Content shell under chrome — solid fill; terminal keeps its own veil layer */
-.workbench--side-expanded .aside .rp.sw,
-.workbench--side-expanded .aside .sw__content,
-.workbench--side-expanded .aside .sw__empty,
-.workbench--side-expanded .aside .sw__persist-host,
-.workbench--side-expanded .aside .sw-browser,
-.workbench--side-expanded .aside .sw-browser__host {
+html:not([data-wallpaper="1"])
+  .workbench--side-expanded
+  .aside
+  :is(
+    .rp.sw,
+    .sw__content,
+    .sw__empty,
+    .sw__persist-host,
+    .sw-browser,
+    .sw-browser__host
+  ) {
   background: var(--bg-aside) !important;
+}
+
+/* The outer aside owns wallpaper frost; common Plan/chrome shells stay clear. */
+html[data-wallpaper="1"]
+  .workbench--side-expanded
+  .aside
+  :is(
+    .aside__inner,
+    .rp-chrome,
+    .rp.sw,
+    .sw__content,
+    .sw__empty,
+    .sw__persist-host
+  ) {
+  background: transparent !important;
 }
 
 /* Files still use card surfaces; ensure no transparent hole under expand */
@@ -988,4 +1009,3 @@ html[data-theme="light"] .sw-terminal--pty {
 .sw-terminal__xterm .xterm-scrollable-element > .scrollbar > .slider {
   box-shadow: none !important;
 }
-
