@@ -3,6 +3,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const css = readFileSync(join(__dirname, "../styles/skins.css"), "utf8");
+const sideWorkbenchCss = readFileSync(
+  join(__dirname, "../styles/side-workbench.part1.css"),
+  "utf8",
+);
 
 describe("wallpaper theme contrast CSS", () => {
   it("maps light wallpaper to its own white veil and pane curves", () => {
@@ -102,6 +106,15 @@ describe("wallpaper theme contrast CSS", () => {
   it("does not paint a light fade beneath the floating wallpaper composer", () => {
     expect(css).toMatch(
       /html\[data-theme="light"\]\[data-wallpaper="1"\] \.composer-wrap--float\s*\{[^}]*background:\s*transparent/s,
+    );
+  });
+
+  it("uses one right-pane chrome material in rail and full-cover modes", () => {
+    expect(sideWorkbenchCss).toMatch(
+      /html:not\(\[data-wallpaper="1"\]\) \.aside \.rp-chrome\s*\{[^}]*background:\s*var\(--bg-card\) !important[^}]*backdrop-filter:\s*none !important/s,
+    );
+    expect(sideWorkbenchCss).toMatch(
+      /html\[data-wallpaper="1"\] \.aside \.rp-chrome\s*\{[^}]*background:\s*transparent !important/s,
     );
   });
 });

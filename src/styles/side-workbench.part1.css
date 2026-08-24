@@ -128,12 +128,15 @@ html[data-wallpaper="1"].platform-mac[data-theme="light"]
   background: var(--bg-aside) !important;
 }
 
-/* Top tab strip: solid chrome (not glass mix over wallpaper) */
-.workbench--side-expanded .aside .rp-chrome,
-.workbench--side-expanded .aside .rp-chrome.sw-chrome {
+/* Shared right-pane chrome: rail and full-cover modes use one material. */
+html:not([data-wallpaper="1"]) .aside .rp-chrome {
   background: var(--bg-card) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+html[data-wallpaper="1"] .aside .rp-chrome {
+  background: transparent !important;
 }
 
 /* Expanded pane starts at x=0 when the sidebar is hidden/overlayed. */
@@ -988,4 +991,3 @@ html[data-theme="light"] .sw-terminal--pty {
 .sw-terminal__xterm .xterm-scrollable-element > .scrollbar > .slider {
   box-shadow: none !important;
 }
-
