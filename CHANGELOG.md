@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- **Session API second turn no longer deadlocks on already-live connect (#905)**: `connect_inner` held `inner` and then called `snapshot()`, which locks `inner` again (`parking_lot` is not reentrant). The thread never returned, so `connect_lock` stayed busy forever and later `POST /turns` got 503 `retry_later`. Already-live and fork-busy now snapshot from the held lock.
+
+**中文 · 修复**
+- **Session API 第二轮不再在 already-live connect 上死锁（#905）**：`connect_inner` 握着 `inner` 再调 `snapshot()`，而 `snapshot()` 会再锁一次（`parking_lot` 不可重入）。线程回不来，`connect_lock` 一直 busy，后续 `POST /turns` 变成 503 `retry_later`。already-live / fork-busy 改为从已持有的锁做 snapshot。
+
 ## [0.2.26] - 2026-08-24
 
 > **Highlight:** Import Grok Build CLI sessions from Account; phone mirror on the same Wi-Fi; Windows permission/rewind clicks; long chats stay scrollable.

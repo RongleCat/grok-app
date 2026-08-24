@@ -345,7 +345,8 @@ impl SessionManager {
                                 "connect fork pending but live mid-turn; deferring fork sid={}",
                                 meta.id
                             );
-                            return Ok(self.snapshot());
+                            // `inner` is held — never `self.snapshot()` (non-reentrant).
+                            return Ok(Self::snapshot_from_live(s));
                         }
                         let process_id = s.process_id.clone();
                         let acp = s.acp.take();
@@ -430,7 +431,8 @@ impl SessionManager {
                             Self::live_session_is_busy(s),
                             preserve
                         );
-                        return Ok(self.snapshot());
+                        // `inner` is held — never `self.snapshot()` (non-reentrant).
+                        return Ok(Self::snapshot_from_live(s));
                     }
                 }
             }
@@ -2000,6 +2002,109 @@ mod connect_preserve_tests {
         assert!(!s.prompt_in_flight);
         assert!(s.streaming_message_id.is_none());
         assert!(!SessionManager::should_preserve_live_process(&s));
+    }
+
+    fn ready_live_for_snapshot_lock(id: &str) -> LiveSession {
+        let mut fsm = SessionFsm::new();
+        let _ = fsm.start_connect();
+        let _ = fsm.handshake_ok();
+        let now = Instant::now();
+        LiveSession {
+            app_session_id: id.into(),
+            process_id: "process-already-live".into(),
+            meta: SessionMeta {
+                id: id.into(),
+                project_id: None,
+                title: "Already live".into(),
+                agent_session_id: Some("agent-1".into()),
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                model_id: None,
+                archived: false,
+                pinned: false,
+                effort: None,
+                mode: None,
+                permission_policy: None,
+                json_schema: None,
+                scheduled: false,
+                worktree_path: None,
+                worktree_branch: None,
+                is_worktree_session: false,
+                plugin_dirs: Vec::new(),
+                extra_rules: None,
+                max_agent_turns: None,
+                system_prompt_override: None,
+                fork_agent_session: false,
+                fork_rewind_prompt_index: None,
+                no_ask_user: None,
+            },
+            fsm,
+            backend: "grok_agent_stdio".into(),
+            acp: None,
+            mock_stream: None,
+            streaming_message_id: None,
+            active_turn_id: None,
+            stream_message_id_locked: false,
+            stream_buf: String::new(),
+            stream_thought: String::new(),
+            stream_last_was_assistant: false,
+            stream_attachments: Vec::new(),
+            model_id: None,
+            effort: None,
+            product_mode: None,
+            project_path: Some("/tmp".into()),
+            allow_cache: SessionAllowCache::default(),
+            policy: PermissionPolicy::default(),
+            provider_retry_attempt: 0,
+            provider_retry_aborted: false,
+            needs_history_bootstrap: false,
+            pending_plan_rpc_id: None,
+            pending_permission_rpc_id: None,
+            pending_permission_options: None,
+            pending_permission_tool_name: None,
+            pending_permission_ui: None,
+            pending_ask_user_rpc_id: None,
+            last_activity: now,
+            last_stream_progress: now,
+            last_stall_emit: None,
+            stall_soft_emits: 0,
+            journal_throttle: JournalWriteThrottle::with_default_interval(),
+            open_tool_ids: HashSet::new(),
+            open_tool_seen_at: HashMap::new(),
+            terminal_tool_ids: HashSet::new(),
+            deferred_prompt_complete: None,
+            tools_this_turn: 0,
+            saw_model_output: false,
+            prompt_in_flight: false,
+            sent_prompt_this_visit: false,
+            pending_stream_emit: None,
+            stream_emit_flush_gen: 0,
+            last_tool_heartbeat_emit: None,
+        }
+    }
+
+    #[test]
+    fn already_live_snapshot_while_holding_inner_does_not_relock() {
+        // Repro #905: already-live / fork-busy used to `return Ok(self.snapshot())`
+        // while `inner` was held. `snapshot()` re-locks `inner`; parking_lot is
+        // not reentrant → connect_inner never returns → connect_lock wedges.
+        let mgr = SessionManager::new();
+        let mut guard = mgr.inner.lock();
+        *guard = Some(ready_live_for_snapshot_lock("sess-already-live"));
+        let t0 = Instant::now();
+        let snap = SessionManager::snapshot_locked(&*guard);
+        assert!(
+            t0.elapsed() < Duration::from_millis(200),
+            "snapshot_locked must not re-acquire inner; took {:?}",
+            t0.elapsed()
+        );
+        assert_eq!(snap.session_id.as_deref(), Some("sess-already-live"));
+        assert_eq!(snap.state, SessionState::Ready);
+        assert_eq!(snap.agent_session_id.as_deref(), Some("agent-1"));
+        // Same helper the already-live / fork-busy returns now use.
+        let from_live = SessionManager::snapshot_from_live(guard.as_ref().unwrap());
+        assert_eq!(from_live.session_id, snap.session_id);
+        assert_eq!(from_live.state, snap.state);
     }
 }
 

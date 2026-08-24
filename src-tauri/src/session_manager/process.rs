@@ -1223,8 +1223,16 @@ impl SessionManager {
     }
 
     pub fn snapshot(&self) -> SessionSnapshot {
-        let guard = self.inner.lock();
-        match guard.as_ref() {
+        Self::snapshot_locked(&self.inner.lock())
+    }
+
+    /// Snapshot from an already-held `inner` guard.
+    ///
+    /// `parking_lot::Mutex` is not reentrant — callers that already hold
+    /// `inner` must use this (or [`Self::snapshot_from_live`]) instead of
+    /// [`Self::snapshot`], which would deadlock.
+    pub(super) fn snapshot_locked(inner: &Option<LiveSession>) -> SessionSnapshot {
+        match inner.as_ref() {
             None => SessionSnapshot {
                 session_id: None,
                 agent_session_id: None,
@@ -1236,17 +1244,7 @@ impl SessionManager {
                 project_path: None,
                 title: String::new(),
             },
-            Some(s) => SessionSnapshot {
-                session_id: Some(s.app_session_id.clone()),
-                agent_session_id: s.meta.agent_session_id.clone(),
-                state: s.fsm.state(),
-                last_error: s.fsm.last_error().cloned(),
-                streaming_message_id: s.streaming_message_id.clone(),
-                backend: s.backend.clone(),
-                model_id: s.model_id.clone(),
-                project_path: s.project_path.clone(),
-                title: s.meta.title.clone(),
-            },
+            Some(s) => Self::snapshot_from_live(s),
         }
     }
 
