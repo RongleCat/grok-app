@@ -157,6 +157,7 @@ Get-FileHash .\Grok_*_x64-setup.exe -Algorithm SHA256
 #### 系统与依赖要求
 - 本机已安装 **Grok Build CLI**（`grok`）**0.2.112 或更高版本**（可通过终端运行 `grok update` 进行更新）。
 - Windows 环境需要 **WebView2 Runtime**（Windows 11 通常已内置；若缺失安装包会自动引导安装）。
+- Linux AppImage：宿主需要 `libEGL.so.1` 以及 WebKitGTK 4.1 / Ayatana，见 [Linux 运行时库](#linux-运行时库appimage)。
 
 #### 网络代理设置（网络受限环境）
 若所处网络无法直连 Grok 官方服务（如部分地区）：
@@ -184,7 +185,29 @@ open /Applications/Grok.app
 
 ---
 
+### Linux 运行时库（AppImage）
+
+官方 AppImage **不会**打包宿主的 EGL / WebKit / 托盘库。在**干净的 Debian / Ubuntu** 上可能一启动就退出：
+
+```text
+error while loading shared libraries: libEGL.so.1: cannot open shared object file
+```
+
+先装运行时包（`.deb` 已依赖 WebKit；再补 EGL/GLES）。已在 **Debian 13（trixie）x86_64**、官方 `Grok_0.2.26_amd64.AppImage` 上确认：
+
+```bash
+sudo apt-get install -y libegl1 libgles2 libwebkit2gtk-4.1-0 libayatana-appindicator3-1
+```
+
+然后 `chmod +x` 再运行 AppImage（或解压后的 `usr/bin/grok-app`）。`.deb` 已声明 `libwebkit2gtk-4.1-0` 与 `libgtk-3-0`。
+
+这是**进程启动时缺共享库**，不是下面 [Linux 渲染提示](#linux-渲染提示-webkitgtk) 的 Wayland / `EGL_BAD_PARAMETER` 情况。见 [#899](https://github.com/RongleCat/grok-app/issues/899)。
+
+---
+
 ### Linux 渲染提示 (WebKitGTK)
+如果进程根本起不来，报错是 `libEGL.so.1: cannot open shared object file`，那是缺宿主库——见 [Linux 运行时库](#linux-运行时库appimage)。
+
 部分运行 Wayland（如 Hyprland + AMD 显卡）的 Linux 环境下，AppImage 可能会因容器打包版本与主机 Mesa 驱动兼容性问题出现显示异常：
 - **推荐方案**：优先使用与系统包管理器契合的 **`.deb`** 或 **`.rpm`** 安装包（链接系统原生 WebKitGTK）。
 - 如使用 AppImage，可尝试添加环境变量运行：

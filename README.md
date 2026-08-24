@@ -157,6 +157,7 @@ Get-FileHash .\Grok_*_x64-setup.exe -Algorithm SHA256
 #### Requirements
 - Local **Grok Build CLI** (`grok`) **0.2.112 or newer** (run `grok update` in terminal to upgrade).
 - Windows: Requires **WebView2 Runtime** (pre-installed on Windows 11; bootstrapped by the installer if missing).
+- Linux AppImage: host `libEGL.so.1` plus WebKitGTK 4.1 / Ayatana — see [Linux runtime libraries](#linux-runtime-libraries-appimage).
 
 #### Network & Proxy Configuration
 In restricted network environments where Grok services cannot be reached directly:
@@ -184,7 +185,29 @@ For unsigned community packages, Windows SmartScreen may display a warning on in
 
 ---
 
+### Linux runtime libraries (AppImage)
+
+The official AppImage does **not** bundle host EGL / WebKit / tray libraries. On a **clean Debian / Ubuntu** install the binary can exit immediately:
+
+```text
+error while loading shared libraries: libEGL.so.1: cannot open shared object file
+```
+
+Install the runtime packages the `.deb` already expects, plus EGL/GLES (confirmed on **Debian 13 (trixie) x86_64** with official `Grok_0.2.26_amd64.AppImage`):
+
+```bash
+sudo apt-get install -y libegl1 libgles2 libwebkit2gtk-4.1-0 libayatana-appindicator3-1
+```
+
+Then `chmod +x` and run the AppImage (or the extracted `usr/bin/grok-app`). The `.deb` already lists `libwebkit2gtk-4.1-0` and `libgtk-3-0`.
+
+This is a **missing shared library at process start**. It is not the Wayland black-window / `EGL_BAD_PARAMETER` case in [Linux Display Notes](#linux-display-notes-webkitgtk--wayland). See issue [#899](https://github.com/RongleCat/grok-app/issues/899).
+
+---
+
 ### Linux Display Notes (WebKitGTK / Wayland)
+If the process never starts and you see `libEGL.so.1: cannot open shared object file`, that is a missing host library — see [Linux runtime libraries](#linux-runtime-libraries-appimage).
+
 On certain Wayland desktop setups (such as Hyprland with AMD GPUs), the universal AppImage may encounter rendering conflicts with the host Mesa/DRI stack:
 - **Recommended**: Use system-integrated **`.deb`** or **`.rpm`** packages which link against your distribution's native WebKitGTK.
 - When running the AppImage, you can try disabling hardware compositing:

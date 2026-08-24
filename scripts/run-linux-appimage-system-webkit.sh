@@ -59,11 +59,17 @@ error: system WebKitGTK 4.1 not found.
 
 Install it, then re-run:
   Arch / Manjaro:  sudo pacman -S webkit2gtk-4.1
-  Debian / Ubuntu: sudo apt install libwebkit2gtk-4.1-0
+  Debian / Ubuntu: sudo apt-get install -y libegl1 libgles2 libwebkit2gtk-4.1-0 libayatana-appindicator3-1
   Fedora:          sudo dnf install webkit2gtk4.1
 
 Prefer .deb / .rpm from the same Release when possible (they already use system WebKit).
 EOF
+  exit 1
+fi
+
+# Stock AppImage / extracted grok-app also need host libEGL.so.1 (Debian 13 #899).
+if [[ ! -e "$LIB_DIR/libEGL.so.1" && ! -e /usr/lib/x86_64-linux-gnu/libEGL.so.1 && ! -e /usr/lib64/libEGL.so.1 && ! -e /usr/lib/libEGL.so.1 ]]; then
+  echo "error: libEGL.so.1 not found. Debian/Ubuntu: sudo apt-get install -y libegl1 libgles2 libwebkit2gtk-4.1-0 libayatana-appindicator3-1" >&2
   exit 1
 fi
 

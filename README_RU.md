@@ -157,6 +157,7 @@ Get-FileHash .\Grok_*_x64-setup.exe -Algorithm SHA256
 #### Системные требования
 - Установленный **Grok Build CLI** (`grok`) версии **0.2.112 или новее** (для обновления выполните `grok update` в терминале).
 - Для Windows требуется **WebView2 Runtime** (в Windows 11 предустановлен; в более ранних версиях установщик предложит инсталляцию).
+- Linux AppImage: системные `libEGL.so.1`, WebKitGTK 4.1 и Ayatana — см. [библиотеки runtime](#linux-библиотеки-runtime-appimage).
 
 #### Настройка сетевого прокси
 Если сервисы Grok недоступны напрямую из-за ограничений сети:
@@ -184,7 +185,29 @@ open /Applications/Grok.app
 
 ---
 
+### Linux: библиотеки runtime (AppImage)
+
+Официальный AppImage **не** содержит системные EGL / WebKit / tray-библиотеки. На **чистой Debian / Ubuntu** процесс может сразу завершиться:
+
+```text
+error while loading shared libraries: libEGL.so.1: cannot open shared object file
+```
+
+Установите runtime-пакеты, которые уже ожидает `.deb`, плюс EGL/GLES (проверено на **Debian 13 (trixie) x86_64**, официальный `Grok_0.2.26_amd64.AppImage`):
+
+```bash
+sudo apt-get install -y libegl1 libgles2 libwebkit2gtk-4.1-0 libayatana-appindicator3-1
+```
+
+Затем `chmod +x` и запустите AppImage (или распакованный `usr/bin/grok-app`). В `.deb` уже указаны `libwebkit2gtk-4.1-0` и `libgtk-3-0`.
+
+Это **отсутствие shared library при старте**, а не чёрное окно Wayland / `EGL_BAD_PARAMETER` из раздела [графика в Linux](#особенности-графики-в-linux-webkitgtk--wayland). См. issue [#899](https://github.com/RongleCat/grok-app/issues/899).
+
+---
+
 ### Особенности графики в Linux (WebKitGTK / Wayland)
+Если процесс вообще не стартует и в выводе `libEGL.so.1: cannot open shared object file`, это отсутствие системной библиотеки — см. [библиотеки runtime](#linux-библиотеки-runtime-appimage).
+
 В некоторых окружениях Wayland (например, Hyprland на видеокартах AMD) пакет AppImage может испытывать сложности взаимодействия с драйверами Mesa:
 - **Рекомендуется**: Использовать системные пакеты **`.deb`** или **`.rpm`**, скомпонованные с системной версией WebKitGTK.
 - При использовании AppImage можно запустить приложение с отключением аппаратного композитинга:

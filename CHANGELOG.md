@@ -11,6 +11,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Changed
+- **Linux AppImage runtime packages (#899)**: README documents the host apt line for a clean Debian/Ubuntu (`libegl1`, `libgles2`, `libwebkit2gtk-4.1-0`, `libayatana-appindicator3-1`) when the official AppImage exits with `libEGL.so.1: cannot open shared object file`. Distinct from the Wayland black-window / `EGL_BAD_PARAMETER` notes.
+
+**中文 · 变更**
+- **Linux AppImage 运行时包（#899）**：README 补上干净 Debian/Ubuntu 的 apt 行（`libegl1`、`libgles2`、`libwebkit2gtk-4.1-0`、`libayatana-appindicator3-1`）。官方 AppImage 缺 `libEGL.so.1` 会立刻退出；这与 Wayland 黑窗 / `EGL_BAD_PARAMETER` 不是同一类问题。
+
 ### Fixed
 - **Session API second turn no longer deadlocks on already-live connect (#905)**: `connect_inner` held `inner` and then called `snapshot()`, which locks `inner` again (`parking_lot` is not reentrant). The thread never returned, so `connect_lock` stayed busy forever and later `POST /turns` got 503 `retry_later`. Already-live and fork-busy now snapshot from the held lock.
 - **Unsigned-in startup no longer waits 24s on ACP `authenticate` (#898)**: Official route with no `auth.json` / no usable cached token used to send `authenticate(cached_token)` after `initialize`, time out at 12s, retry once, then soft-fail. Workbench still opened idle. Host now skips that RPC when the user is not signed in. Custom routes still skip; the signed-in-but-agent-home-stale path (#528) still re-syncs and retries once.
