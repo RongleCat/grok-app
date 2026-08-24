@@ -41,6 +41,15 @@ describe("settings segmented control motion guard", () => {
     expect(css).not.toMatch(/\.settings-page__tabs-seg:has\(/);
   });
 
+  it("keeps all account tabs on the shared settings page width", () => {
+    expect(css).toMatch(
+      /\.settings-page__main\s*\{[^}]*max-width:\s*960px;/s,
+    );
+    expect(css).not.toMatch(
+      /\.settings-page__main--pane-fill\s*\{[^}]*max-width:/s,
+    );
+  });
+
   it("discovers raw segmented markup outside the shared component", () => {
     const componentsRoot = resolve(__dirname, "../components");
     const bypasses = globSync("**/*.tsx", { cwd: componentsRoot }).filter(

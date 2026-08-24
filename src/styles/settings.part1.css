@@ -729,7 +729,6 @@
   flex-direction: column;
   /* Bottom padding lives inside scrolling panes, not the page */
   padding-bottom: 16px;
-  max-width: min(1100px, 100%);
 }
 
 .settings-page__main--pane-fill > .settings-page__title,
