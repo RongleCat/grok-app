@@ -218,6 +218,33 @@ describe("resolveChatOverscanPx", () => {
     const browseFull = resolveChatOverscanPx({ viewportHeight: vh });
     expect(browse).toBeLessThan(browseFull);
   });
+
+  it("shrinks browse overscan on long transcripts so scroll stays windowed (#881)", () => {
+    const vh = 900;
+    const short = resolveChatOverscanPx({ viewportHeight: vh, rowCount: 12 });
+    const long = resolveChatOverscanPx({ viewportHeight: vh, rowCount: 180 });
+    const veryLong = resolveChatOverscanPx({
+      viewportHeight: vh,
+      rowCount: 400,
+    });
+    expect(long).toBeLessThan(short);
+    expect(veryLong).toBeLessThan(long);
+    expect(veryLong).toBeGreaterThanOrEqual(900);
+  });
+
+  it("does not shrink pin overscan for long transcripts", () => {
+    const vh = 900;
+    const pin = resolveChatOverscanPx({
+      viewportHeight: vh,
+      pinToBottom: true,
+    });
+    const pinLong = resolveChatOverscanPx({
+      viewportHeight: vh,
+      pinToBottom: true,
+      rowCount: 400,
+    });
+    expect(pinLong).toBe(pin);
+  });
 });
 
 describe("applyForceIndices", () => {

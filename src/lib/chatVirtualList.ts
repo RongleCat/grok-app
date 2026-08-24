@@ -206,6 +206,8 @@ export function resolveChatOverscanPx(input: {
    * fewer offscreen markdown rows).
    */
   scale?: number;
+  /** Transcript row count. Long chats shrink browse overscan (#881). */
+  rowCount?: number;
 }): number {
   if (input.overscanPx != null && Number.isFinite(input.overscanPx)) {
     return Math.max(0, input.overscanPx);
@@ -236,10 +238,14 @@ export function resolveChatOverscanPx(input: {
   // Pin window must not shrink under stream-perf. Scaling it down mid-turn
   // then restoring at ready jumps start by a few rows — one tail flash.
   if (input.pinToBottom) return px;
-  const scale =
+  let scale =
     input.scale != null && Number.isFinite(input.scale)
       ? Math.min(1, Math.max(0.35, input.scale))
       : 1;
+  const rows = input.rowCount ?? 0;
+  if (rows >= 80) {
+    scale *= rows >= 240 ? 0.42 : rows >= 140 ? 0.55 : 0.72;
+  }
   return Math.round(px * scale);
 }
 

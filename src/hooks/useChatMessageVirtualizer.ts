@@ -342,6 +342,7 @@ export function useChatMessageVirtualizer(
       overscanPx: resolveChatOverscanPx({
         viewportHeight: el.clientHeight,
         pinToBottom: pin,
+        rowCount: count,
         scale: resolveStreamOverscanScale(
           typeof document !== "undefined" &&
             document.documentElement.dataset.streamPerf === "1",
