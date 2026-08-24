@@ -12,6 +12,7 @@ describe("useAppSettingsPrefs", () => {
     act(() => {
       result.current.hydrateFromSettings({
         theme: "dark",
+        appIcon: "default-black",
         locale: "en",
         sessionDataMode: "independent",
         manualCliPath: "/bin/grok",

@@ -5,6 +5,7 @@ import { parseAppSettingsPrefs } from "./appSettingsHydrate";
 function settings(over: Partial<AppSettings> = {}): AppSettings {
   return {
     theme: "dark",
+    appIcon: "default-black",
     locale: "en",
     sessionDataMode: "shared",
     manualCliPath: null,
