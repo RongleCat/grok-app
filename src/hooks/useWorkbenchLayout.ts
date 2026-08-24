@@ -49,6 +49,7 @@ import { isDesktopHost } from "@/lib/api";
 import {
   bumpPaneSplitMotion,
   isPaneSplitMotionActive,
+  runAfterPaneSplitMotion,
 } from "@/lib/paneSplitMotion";
 
 function initialLayout(): LayoutPrefs {
@@ -483,22 +484,29 @@ export function useWorkbenchLayout(opts?: { onAsideClose?: () => void }) {
   useEffect(() => {
     if (phoneLayout) return;
     let resizeTimer: number | null = null;
+    let cancelled = false;
+    const applyResizeClamp = () => {
+      if (cancelled || isWindowFitSuppressed()) return;
+      if (runAfterPaneSplitMotion(applyResizeClamp)) return;
+      const opts = asideClampOpts();
+      setLayout((l) => {
+        if (l.asideCollapsed) return l;
+        const next = clampAsideWidth(l.asideWidth, opts);
+        if (next === l.asideWidth) return l;
+        return persist({ ...l, asideWidth: next });
+      });
+    };
     const onResize = () => {
-      if (isWindowFitSuppressed() || isPaneSplitMotionActive()) return;
+      if (isWindowFitSuppressed()) return;
       if (resizeTimer != null) window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
-        if (isWindowFitSuppressed() || isPaneSplitMotionActive()) return;
-        const opts = asideClampOpts();
-        setLayout((l) => {
-          if (l.asideCollapsed) return l;
-          const next = clampAsideWidth(l.asideWidth, opts);
-          if (next === l.asideWidth) return l;
-          return persist({ ...l, asideWidth: next });
-        });
+        resizeTimer = null;
+        applyResizeClamp();
       }, 150);
     };
     window.addEventListener("resize", onResize);
     return () => {
+      cancelled = true;
       window.removeEventListener("resize", onResize);
       if (resizeTimer != null) window.clearTimeout(resizeTimer);
     };
