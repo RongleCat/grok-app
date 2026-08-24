@@ -627,6 +627,7 @@ export const jaSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Bridge は少なくとも 1 つのチャネルインスタンスにリンクしています。",
   "settings.remoteIm.security.detail.liveNotLinked": "Bridge は待ち受け中ですが、まだリンクされたチャネルがありません。ライブ WS/Gateway を主張しないでください。",
   "settings.remoteIm.security.confirm.mirrorWrite": "スマホミラー: 書き込みを許可",
+  "settings.remoteIm.security.confirm.mirrorLan": "スマホミラー: 同じ Wi-Fi を許可",
   "settings.remoteIm.security.confirm.mirrorRotate": "スマホミラー: リンクを再生成",
   "settings.remoteIm.security.confirm.mirrorStop": "スマホミラー: ホストを停止",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "スマホミラー: 書き込み監査をクリア",

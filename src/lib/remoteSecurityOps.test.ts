@@ -311,6 +311,7 @@ describe("dangerous-write inventory + keys", () => {
     }
     const ids = DANGEROUS_WRITE_CONFIRMS.map((c) => c.id);
     expect(ids).toContain("mirror_write_enable");
+    expect(ids).toContain("mirror_lan_bind");
     expect(ids).toContain("remote_yolo");
     expect(ids).toContain("timeline_clear");
   });

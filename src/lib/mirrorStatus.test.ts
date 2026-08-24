@@ -3,6 +3,8 @@ import {
   classifyMirrorError,
   deriveMirrorClientLinkStatus,
   deriveMirrorHostStatus,
+  isLoopbackMirrorUrl,
+  mirrorCopyUrl,
   mirrorDiagnosticDisplay,
   mirrorErrorKindHintKey,
   mirrorErrorKindLabelKey,
@@ -12,6 +14,7 @@ import {
   mirrorHostPhaseLabelField,
   mirrorSoftFailKeepsHost,
   sanitizeMirrorDiagnostic,
+  shouldShowMirrorQr,
 } from "./mirrorStatus";
 
 describe("sanitizeMirrorDiagnostic", () => {
@@ -296,6 +299,95 @@ describe("display helpers", () => {
         publicUrl: "http://127.0.0.1/t/a/",
         localPort: 1,
       }),
+    ).toBe(true);
+  });
+});
+
+describe("LAN copy / QR (#875)", () => {
+  const lan = "http://192.168.110.188:59166/t/tok/";
+  const loopback = "http://127.0.0.1:59166/t/tok/";
+
+  it("detects loopback hosts", () => {
+    expect(isLoopbackMirrorUrl(loopback)).toBe(true);
+    expect(isLoopbackMirrorUrl("http://localhost:1/t/x/")).toBe(true);
+    expect(isLoopbackMirrorUrl(lan)).toBe(false);
+    expect(isLoopbackMirrorUrl("https://x.trycloudflare.com/t/tok/")).toBe(
+      false,
+    );
+  });
+
+  it("local-only copy prefers LAN URL once opted in", () => {
+    expect(
+      mirrorCopyUrl({
+        running: true,
+        phase: "local",
+        publicUrl: loopback,
+        lanUrl: lan,
+        allowLan: true,
+      }),
+    ).toBe(lan);
+    expect(
+      mirrorCopyUrl({
+        running: true,
+        phase: "error",
+        publicUrl: loopback,
+        lanUrl: lan,
+        allowLan: true,
+      }),
+    ).toBe(lan);
+    expect(
+      mirrorCopyUrl({
+        running: true,
+        phase: "local",
+        publicUrl: loopback,
+        lanUrl: lan,
+        allowLan: false,
+      }),
+    ).toBe(loopback);
+  });
+
+  it("live tunnel stays the primary copy URL", () => {
+    const pub = "https://x.trycloudflare.com/t/tok/";
+    expect(
+      mirrorCopyUrl({
+        running: true,
+        phase: "live",
+        publicUrl: pub,
+        lanUrl: lan,
+        allowLan: true,
+      }),
+    ).toBe(pub);
+  });
+
+  it("does not QR a loopback URL", () => {
+    const local = deriveMirrorHostStatus({
+      phase: "local",
+      running: true,
+      publicUrl: loopback,
+    });
+    expect(
+      shouldShowMirrorQr(
+        {
+          running: true,
+          phase: "local",
+          publicUrl: loopback,
+          lanUrl: null,
+          allowLan: false,
+        },
+        local,
+      ),
+    ).toBe(false);
+    expect(
+      shouldShowMirrorQr(
+        {
+          running: true,
+          phase: "local",
+          publicUrl: lan,
+          lanUrl: lan,
+          allowLan: true,
+        },
+        local,
+      ),
     ).toBe(true);
   });
 });

@@ -627,6 +627,7 @@ export const koSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "브릿지가 하나 이상의 채널 인스턴스에 연결되었습니다.",
   "settings.remoteIm.security.detail.liveNotLinked": "브릿지가 수신 중이지만 아직 연결된 채널이 없습니다 — 라이브 WS/Gateway를 주장하지 마세요.",
   "settings.remoteIm.security.confirm.mirrorWrite": "휴대폰 미러: 쓰기 허용",
+  "settings.remoteIm.security.confirm.mirrorLan": "휴대폰 미러: 같은 Wi-Fi 허용",
   "settings.remoteIm.security.confirm.mirrorRotate": "휴대폰 미러: 링크 재생성",
   "settings.remoteIm.security.confirm.mirrorStop": "휴대폰 미러: 호스트 중지",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "휴대폰 미러: 쓰기 감사 지우기",

@@ -627,6 +627,7 @@ export const itSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Bridge collegato ad almeno un’istanza canale.",
   "settings.remoteIm.security.detail.liveNotLinked": "Bridge in ascolto ma nessun canale ancora collegato — non dichiarare WS/Gateway live.",
   "settings.remoteIm.security.confirm.mirrorWrite": "Specchio telefono: consenti scritture",
+  "settings.remoteIm.security.confirm.mirrorLan": "Specchio telefono: consenti stessa Wi-Fi",
   "settings.remoteIm.security.confirm.mirrorRotate": "Specchio telefono: rigenera link",
   "settings.remoteIm.security.confirm.mirrorStop": "Specchio telefono: ferma host",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "Specchio telefono: cancella audit scritture",

@@ -627,6 +627,7 @@ export const ruSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Bridge связан хотя бы с одним экземпляром канала.",
   "settings.remoteIm.security.detail.liveNotLinked": "Bridge слушает, но канал ещё не связан — не заявляйте живой WS/Gateway.",
   "settings.remoteIm.security.confirm.mirrorWrite": "Зеркало телефона: разрешить запись",
+  "settings.remoteIm.security.confirm.mirrorLan": "Зеркало телефона: разрешить ту же Wi-Fi",
   "settings.remoteIm.security.confirm.mirrorRotate": "Зеркало телефона: создать новую ссылку",
   "settings.remoteIm.security.confirm.mirrorStop": "Зеркало телефона: остановить host",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "Зеркало телефона: очистить аудит записи",

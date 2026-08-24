@@ -627,6 +627,7 @@ export const ptBRSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Bridge vinculado a pelo menos uma instância de canal.",
   "settings.remoteIm.security.detail.liveNotLinked": "Bridge escutando mas ainda sem canal vinculado — não reivindique WS/Gateway ao vivo.",
   "settings.remoteIm.security.confirm.mirrorWrite": "Espelho do telefone: permitir escritas",
+  "settings.remoteIm.security.confirm.mirrorLan": "Espelho do telefone: permitir o mesmo Wi-Fi",
   "settings.remoteIm.security.confirm.mirrorRotate": "Espelho do telefone: regenerar link",
   "settings.remoteIm.security.confirm.mirrorStop": "Espelho do telefone: parar host",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "Espelho do telefone: limpar auditoria de escrita",

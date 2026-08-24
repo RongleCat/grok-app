@@ -662,3 +662,68 @@ export function mirrorSoftFailKeepsHost(
   }
   return false;
 }
+
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+
+/** True when the URL host is this computer only. */
+export function isLoopbackMirrorUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    return LOOPBACK_HOSTS.has(new URL(url).hostname);
+  } catch {
+    return /https?:\/\/(127\.0\.0\.1|localhost|\[::1\])[:/]/i.test(url);
+  }
+}
+
+function isLocalOnlyPhase(phase: MirrorPhase | string | undefined): boolean {
+  return (
+    phase === "local" ||
+    phase === "error" ||
+    phase === "tunnel_dead" ||
+    phase === "starting" ||
+    phase === "waiting_tunnel"
+  );
+}
+
+/**
+ * URL to copy / QR. Local-only hosts prefer the LAN URL once opted in;
+ * a live tunnel keeps the public URL as primary.
+ */
+export function mirrorCopyUrl(
+  status: Pick<
+    MirrorStatus,
+    "running" | "phase" | "publicUrl" | "lanUrl" | "allowLan"
+  >,
+): string | null {
+  if (!status.running) return null;
+  if (
+    status.allowLan &&
+    status.lanUrl &&
+    isLocalOnlyPhase(status.phase)
+  ) {
+    return status.lanUrl;
+  }
+  return status.publicUrl ?? status.lanUrl ?? null;
+}
+
+/** QR is for a phone, so never encode a loopback URL. */
+export function shouldShowMirrorQr(
+  status: Pick<
+    MirrorStatus,
+    "running" | "phase" | "publicUrl" | "lanUrl" | "allowLan"
+  >,
+  connect: Pick<MirrorHostConnectStatus, "phase" | "showSoftLocal">,
+): boolean {
+  const url = mirrorCopyUrl(status);
+  if (!url || isLoopbackMirrorUrl(url)) return false;
+  if (connect.phase === "live") return true;
+  if (
+    connect.phase === "local" ||
+    connect.phase === "soft_local" ||
+    connect.phase === "tunnel_dead" ||
+    connect.showSoftLocal
+  ) {
+    return !!status.allowLan;
+  }
+  return false;
+}

@@ -627,6 +627,7 @@ export const filSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Naka-link ang Bridge sa kahit isang channel instance.",
   "settings.remoteIm.security.detail.liveNotLinked": "Nakikinig ang Bridge pero wala pang naka-link na channel — huwag mag-claim ng live WS/Gateway.",
   "settings.remoteIm.security.confirm.mirrorWrite": "Phone mirror: payagan ang writes",
+  "settings.remoteIm.security.confirm.mirrorLan": "Phone mirror: payagan ang parehong Wi-Fi",
   "settings.remoteIm.security.confirm.mirrorRotate": "Phone mirror: gumawa ng bagong link",
   "settings.remoteIm.security.confirm.mirrorStop": "Phone mirror: ihinto ang host",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "Phone mirror: i-clear ang write audit",

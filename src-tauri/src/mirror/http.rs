@@ -19,6 +19,7 @@ use tokio::sync::oneshot;
 use tauri::AppHandle;
 
 use super::auth::{extract_token_from_path, path_after_token, path_for_log, tokens_equal};
+use super::lan::listen_ip;
 use super::ws;
 use super::MirrorHost;
 
@@ -50,11 +51,13 @@ pub fn resolve_mirror_static_source(fs_hit: bool, embedded_hit: bool) -> MirrorS
     }
 }
 
-/// Bind `127.0.0.1:port` (port 0 = OS-assigned free port). Returns bound port + shutdown sender.
+/// Bind loopback (`127.0.0.1`) or all interfaces (`0.0.0.0`) when `allow_lan`.
+/// `port` 0 = OS-assigned free port. Returns bound port + shutdown sender.
 pub async fn start_server(
     host: Arc<MirrorHost>,
     port: u16,
     dist_dir: PathBuf,
+    allow_lan: bool,
 ) -> Result<(u16, oneshot::Sender<()>), String> {
     let app = host.rpc_ctx().map(|(a, _)| a);
     let state = HttpState {
@@ -87,7 +90,7 @@ pub async fn start_server(
 
     let app = gated.merge(public_assets).fallback(unauth_fallback);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let addr = SocketAddr::from((listen_ip(allow_lan), port));
     let listener = TcpListener::bind(addr)
         .await
         .map_err(|e| format!("mirror bind {addr}: {e}"))?;
@@ -109,7 +112,7 @@ pub async fn start_server(
         }
     });
 
-    tracing::info!(port = bound, "mirror http listening on 127.0.0.1");
+    tracing::info!(port = bound, allow_lan, "mirror http listening");
     Ok((bound, shutdown_tx))
 }
 

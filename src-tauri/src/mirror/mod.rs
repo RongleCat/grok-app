@@ -4,12 +4,15 @@
 
 mod auth;
 mod http;
+mod lan;
 mod rpc;
 mod tunnel;
 mod ws;
 
+use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -44,6 +47,8 @@ pub struct MirrorEnvConfig {
     pub port: Option<u16>,
     /// Skip cloudflared when true (`GROK_MIRROR_NO_TUNNEL=1`).
     pub no_tunnel: bool,
+    /// Bind `0.0.0.0` when true (`GROK_MIRROR_ALLOW_LAN=1`). Default loopback.
+    pub allow_lan: bool,
     /// Override static SPA root (`GROK_MIRROR_DIST`).
     pub dist: Option<PathBuf>,
     /// Concurrent WS client cap (`GROK_MIRROR_MAX_CLIENTS`, default 4).
@@ -62,6 +67,7 @@ impl MirrorEnvConfig {
             .and_then(|s| s.trim().parse::<u16>().ok())
             .filter(|&p| p > 0);
         let no_tunnel = env_truthy("GROK_MIRROR_NO_TUNNEL");
+        let allow_lan = env_truthy("GROK_MIRROR_ALLOW_LAN");
         let dist = std::env::var("GROK_MIRROR_DIST")
             .ok()
             .map(|s| PathBuf::from(s.trim()))
@@ -76,6 +82,7 @@ impl MirrorEnvConfig {
             token,
             port,
             no_tunnel,
+            allow_lan,
             dist,
             max_clients,
         }
@@ -126,6 +133,10 @@ pub struct MirrorStatus {
     pub error: Option<String>,
     /// When true, mirror RPC rejects write methods (send / permissions / create).
     pub read_only: bool,
+    /// When true, HTTP listens on all interfaces (`0.0.0.0`) so same-LAN phones can connect.
+    pub allow_lan: bool,
+    /// Copy/QR URL using the detected LAN IPv4. None when LAN is off or no IPv4 found.
+    pub lan_url: Option<String>,
 }
 
 struct Runtime {
@@ -140,6 +151,9 @@ struct Runtime {
     #[allow(dead_code)] // kept for future media/static re-resolve
     dist_dir: PathBuf,
     read_only: bool,
+    allow_lan: bool,
+    /// Cached default-route IPv4 for copy/QR (None = undetected).
+    lan_ip: Option<Ipv4Addr>,
 }
 
 /// Host-side handles for RPC (set in app setup / mirror_start).
@@ -156,6 +170,8 @@ struct Inner {
     read_only: bool,
     /// Concurrent WS client cap (panel + env). Survives stop/start in-process.
     max_clients: u32,
+    /// LAN bind preference (panel + env). Default false (loopback).
+    allow_lan: bool,
 }
 
 /// Process-wide mirror host (memory-only token; not persisted).
@@ -168,6 +184,7 @@ impl MirrorHost {
     pub fn from_env() -> Self {
         let env = MirrorEnvConfig::from_env();
         let max_clients = env.max_clients;
+        let allow_lan = env.allow_lan;
         Self {
             inner: Mutex::new(Inner {
                 env,
@@ -176,6 +193,7 @@ impl MirrorHost {
                 // Safe default: phone can observe until the user opts into write access.
                 read_only: true,
                 max_clients,
+                allow_lan,
             }),
             hub: Arc::new(ws::WsHub::new()),
         }
@@ -265,6 +283,93 @@ impl MirrorHost {
         }
     }
 
+    pub fn allow_lan(&self) -> bool {
+        self.inner.lock().allow_lan
+    }
+
+    /// Opt-in LAN bind. Loopback is the default. Rebinds HTTP when already running.
+    pub async fn set_allow_lan(self: &Arc<Self>, allow_lan: bool) -> Result<MirrorStatus, String> {
+        let need_rebind = {
+            let mut g = self.inner.lock();
+            let prev = g.allow_lan;
+            g.allow_lan = allow_lan;
+            g.env.allow_lan = allow_lan;
+            if let Some(r) = g.runtime.as_mut() {
+                r.allow_lan = allow_lan;
+            }
+            if prev != allow_lan {
+                tracing::info!(allow_lan, "mirror: LAN bind toggled");
+            }
+            g.runtime.is_some() && prev != allow_lan
+        };
+        if need_rebind {
+            self.rebind_http().await?;
+        } else {
+            self.refresh_access_urls();
+        }
+        Ok(self.status())
+    }
+
+    fn refresh_access_urls(&self) {
+        let mut g = self.inner.lock();
+        let Some(r) = g.runtime.as_mut() else {
+            return;
+        };
+        if r.allow_lan {
+            if r.lan_ip.is_none() {
+                r.lan_ip = lan::detect_lan_ipv4();
+            }
+        } else {
+            r.lan_ip = None;
+        }
+        let local = lan::local_access_url(r.allow_lan, r.port, &r.token, r.lan_ip);
+        if r.phase != MirrorPhase::Live {
+            r.public_url = Some(local);
+        }
+    }
+
+    async fn rebind_http(self: &Arc<Self>) -> Result<(), String> {
+        let (shutdown_tx, port, dist_dir, allow_lan) = {
+            let mut g = self.inner.lock();
+            let Some(r) = g.runtime.as_mut() else {
+                return Ok(());
+            };
+            (
+                r.shutdown_tx.take(),
+                r.port,
+                r.dist_dir.clone(),
+                g.allow_lan,
+            )
+        };
+        if let Some(tx) = shutdown_tx {
+            let _ = tx.send(());
+        }
+
+        let (bound_port, new_shutdown) =
+            bind_http_with_retry(self.clone(), port, dist_dir, allow_lan).await?;
+        let lan_ip = if allow_lan {
+            lan::detect_lan_ipv4()
+        } else {
+            None
+        };
+
+        {
+            let mut g = self.inner.lock();
+            if let Some(r) = g.runtime.as_mut() {
+                r.port = bound_port;
+                r.shutdown_tx = Some(new_shutdown);
+                r.allow_lan = allow_lan;
+                r.lan_ip = lan_ip;
+                let local = lan::local_access_url(allow_lan, bound_port, &r.token, lan_ip);
+                if r.phase != MirrorPhase::Live {
+                    r.public_url = Some(local);
+                }
+            }
+        }
+        tracing::info!(port = bound_port, allow_lan, "mirror http rebound");
+        Ok(())
+    }
+
     /// Mint a new token, drop WS clients, keep the same port/tunnel when possible.
     pub fn rotate_token(&self) -> Result<MirrorStatus, String> {
         let clients_before = self.hub.client_count() as u32;
@@ -340,9 +445,10 @@ impl MirrorHost {
         }
 
         // Mark starting so concurrent status is coherent.
-        {
+        let allow_lan = {
             let mut g = self.inner.lock();
             let read_only = g.read_only;
+            let allow_lan = g.allow_lan;
             g.runtime = Some(Runtime {
                 token: token.clone(),
                 port: prefer_port,
@@ -353,20 +459,34 @@ impl MirrorHost {
                 tunnel: None,
                 dist_dir: dist_dir.clone(),
                 read_only,
+                allow_lan,
+                lan_ip: None,
             });
-        }
+            allow_lan
+        };
 
-        let (bound_port, shutdown_tx) =
-            match http::start_server(self.clone(), prefer_port, dist_dir.clone()).await {
-                Ok(v) => v,
-                Err(e) => {
-                    let mut g = self.inner.lock();
-                    g.runtime = None;
-                    return Err(e);
-                }
-            };
+        let (bound_port, shutdown_tx) = match http::start_server(
+            self.clone(),
+            prefer_port,
+            dist_dir.clone(),
+            allow_lan,
+        )
+        .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                let mut g = self.inner.lock();
+                g.runtime = None;
+                return Err(e);
+            }
+        };
 
-        let local_url = format!("http://127.0.0.1:{bound_port}/t/{token}/");
+        let lan_ip = if allow_lan {
+            lan::detect_lan_ipv4()
+        } else {
+            None
+        };
+        let local_url = lan::local_access_url(allow_lan, bound_port, &token, lan_ip);
 
         {
             let mut g = self.inner.lock();
@@ -380,6 +500,8 @@ impl MirrorHost {
                 r.public_url = Some(local_url.clone());
                 r.shutdown_tx = Some(shutdown_tx);
                 r.token = token.clone();
+                r.allow_lan = allow_lan;
+                r.lan_ip = lan_ip;
             }
         }
 
@@ -398,7 +520,7 @@ impl MirrorHost {
                 }
                 Err(e) => {
                     tracing::error!(error = %e, "mirror cloudflared tunnel failed");
-                    // Keep local server up so panel can show error + still copy loopback for debug.
+                    // Keep local server up so panel can show error + still copy a debug URL.
                     (MirrorPhase::Error, local_url.clone(), None, Some(e))
                 }
             }
@@ -421,6 +543,7 @@ impl MirrorHost {
             token_tail = %tail,
             phase = ?phase,
             no_tunnel = env.no_tunnel,
+            allow_lan,
             max_clients = self.max_clients(),
             "mirror host started"
         );
@@ -477,15 +600,19 @@ impl MirrorHost {
                 phase: MirrorPhase::Stopped,
                 error: None,
                 read_only: g.read_only,
+                allow_lan: g.allow_lan,
+                lan_url: None,
             },
             Some(r) => {
                 let tail = auth::token_tail(&r.token, 6);
+                let fallback = lan::local_access_url(r.allow_lan, r.port, &r.token, r.lan_ip);
+                let lan_url = r
+                    .lan_ip
+                    .filter(|_| r.allow_lan)
+                    .map(|ip| lan::mirror_path_url(&ip.to_string(), r.port, &r.token));
                 MirrorStatus {
                     running: true,
-                    public_url: r
-                        .public_url
-                        .clone()
-                        .or_else(|| Some(format!("http://127.0.0.1:{}/t/{}/", r.port, r.token))),
+                    public_url: r.public_url.clone().or(Some(fallback)),
                     local_port: Some(r.port),
                     token: Some(r.token.clone()),
                     token_tail: Some(tail),
@@ -494,10 +621,44 @@ impl MirrorHost {
                     phase: r.phase,
                     error: r.error.clone(),
                     read_only: r.read_only,
+                    allow_lan: r.allow_lan,
+                    lan_url,
                 }
             }
         }
     }
+}
+
+async fn bind_http_with_retry(
+    host: Arc<MirrorHost>,
+    port: u16,
+    dist_dir: PathBuf,
+    allow_lan: bool,
+) -> Result<(u16, oneshot::Sender<()>), String> {
+    let mut last = "mirror rebind: no attempts".to_string();
+    for i in 0..8u32 {
+        match http::start_server(host.clone(), port, dist_dir.clone(), allow_lan).await {
+            Ok(v) => return Ok(v),
+            Err(e) => {
+                last = e;
+                tokio::time::sleep(Duration::from_millis(40 * (i + 1) as u64)).await;
+            }
+        }
+    }
+    if port != 0 {
+        match http::start_server(host, 0, dist_dir, allow_lan).await {
+            Ok(v) => {
+                tracing::warn!(
+                    preferred = port,
+                    bound = v.0,
+                    "mirror rebind fell back to an ephemeral port"
+                );
+                return Ok(v);
+            }
+            Err(e) => last = e,
+        }
+    }
+    Err(last)
 }
 
 /// Emit to desktop WebView **and** mirror WS clients (DESIGN §7.3).
@@ -629,6 +790,7 @@ mod tests {
                     token: Some("test-token-please-use-long-random-value-0123456789".into()),
                     port: Some(0), // ephemeral
                     no_tunnel: true,
+                    allow_lan: false,
                     dist: Some(resolve_dist_dir(None)),
                     max_clients: DEFAULT_MAX_CLIENTS,
                 },
@@ -636,6 +798,7 @@ mod tests {
                 ctx: None,
                 read_only: true,
                 max_clients: DEFAULT_MAX_CLIENTS,
+                allow_lan: false,
             }),
             hub: Arc::new(ws::WsHub::new()),
         });
@@ -709,6 +872,7 @@ mod tests {
                     token: Some("placeholder-cache-token-0123456789abcdef".into()),
                     port: Some(0),
                     no_tunnel: true,
+                    allow_lan: false,
                     dist: Some(missing.clone()),
                     max_clients: DEFAULT_MAX_CLIENTS,
                 },
@@ -716,6 +880,7 @@ mod tests {
                 ctx: None,
                 read_only: true,
                 max_clients: DEFAULT_MAX_CLIENTS,
+                allow_lan: false,
             }),
             hub: Arc::new(ws::WsHub::new()),
         });
@@ -749,6 +914,98 @@ mod tests {
         host.stop().await.expect("stop");
         let _ = std::fs::remove_dir_all(&missing);
     }
+
+    fn test_host(token: &str, dist: PathBuf, allow_lan: bool) -> Arc<MirrorHost> {
+        Arc::new(MirrorHost {
+            inner: Mutex::new(Inner {
+                env: MirrorEnvConfig {
+                    headless: false,
+                    token: Some(token.into()),
+                    port: Some(0),
+                    no_tunnel: true,
+                    allow_lan,
+                    dist: Some(dist),
+                    max_clients: DEFAULT_MAX_CLIENTS,
+                },
+                runtime: None,
+                ctx: None,
+                read_only: true,
+                max_clients: DEFAULT_MAX_CLIENTS,
+                allow_lan,
+            }),
+            hub: Arc::new(ws::WsHub::new()),
+        })
+    }
+
+    /// Loopback bind refuses LAN IP (the #875 repro). Opt-in LAN bind accepts it.
+    #[tokio::test]
+    async fn lan_bind_accepts_detected_ipv4() {
+        let dist = resolve_dist_dir(None);
+        let host = test_host("lan-bind-token-0123456789abcdef01234567", dist, false);
+        let st = host.start().await.expect("start");
+        let port = st.local_port.expect("port");
+        let token = st.token.expect("token");
+        assert!(!st.allow_lan);
+        assert!(!host.allow_lan());
+        assert!(st.public_url.as_deref().unwrap_or("").contains("127.0.0.1"));
+
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .timeout(std::time::Duration::from_secs(2))
+            .build()
+            .expect("client");
+        let loopback = client
+            .get(format!("http://127.0.0.1:{port}/t/{token}/api/health"))
+            .send()
+            .await
+            .expect("loopback health");
+        assert_eq!(loopback.status().as_u16(), 200);
+
+        if let Some(ip) = lan::detect_lan_ipv4() {
+            let lan_health = format!("http://{ip}:{port}/t/{token}/api/health");
+            let refused = client.get(&lan_health).send().await;
+            assert!(
+                refused.is_err(),
+                "loopback bind must refuse LAN IP (got {:?})",
+                refused.map(|r| r.status())
+            );
+
+            let st2 = host.set_allow_lan(true).await.expect("enable lan");
+            assert!(st2.allow_lan);
+            let port2 = st2.local_port.expect("port after rebind");
+            assert!(
+                st2.lan_url
+                    .as_deref()
+                    .is_some_and(|u| u.contains(&ip.to_string())),
+                "lan_url should use detected IPv4, got {:?}",
+                st2.lan_url
+            );
+            assert!(
+                st2.public_url
+                    .as_deref()
+                    .unwrap_or("")
+                    .contains(&ip.to_string()),
+                "local URL should advertise LAN IP, got {:?}",
+                st2.public_url
+            );
+            let ok = client
+                .get(format!("http://{ip}:{port2}/t/{token}/api/health"))
+                .send()
+                .await
+                .expect("lan health after allow");
+            assert_eq!(ok.status().as_u16(), 200);
+        }
+
+        host.stop().await.expect("stop");
+    }
+}
+
+#[tauri::command]
+pub async fn mirror_set_allow_lan(
+    host: State<'_, Arc<MirrorHost>>,
+    allow_lan: bool,
+) -> Result<MirrorStatus, String> {
+    host.set_allow_lan(allow_lan).await
 }
 
 #[tauri::command]

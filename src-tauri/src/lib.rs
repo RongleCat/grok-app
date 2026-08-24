@@ -1579,6 +1579,8 @@ pub fn run() {
 
             mirror::mirror_set_max_clients,
 
+            mirror::mirror_set_allow_lan,
+
             mirror::mirror_start,
 
             mirror::mirror_stop,

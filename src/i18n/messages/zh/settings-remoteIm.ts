@@ -627,6 +627,7 @@ export const zhSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Bridge 已关联至少一个渠道实例。",
   "settings.remoteIm.security.detail.liveNotLinked": "Bridge 在监听但尚未关联渠道 — 请勿声称 live WS/Gateway。",
   "settings.remoteIm.security.confirm.mirrorWrite": "手机镜像：允许写入",
+  "settings.remoteIm.security.confirm.mirrorLan": "手机镜像：允许同一 Wi-Fi",
   "settings.remoteIm.security.confirm.mirrorRotate": "手机镜像：重新生成链接",
   "settings.remoteIm.security.confirm.mirrorStop": "手机镜像：停止主机",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "手机镜像：清空写入审计",

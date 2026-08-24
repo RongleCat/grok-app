@@ -15,6 +15,7 @@
 - macOS / Windows 容器通过 `host.docker.internal:<动态端口>` 访问仅监听本机的镜像主机；Linux 使用 host network，继续保持回环地址。
 - App 负责容器命名、日志就绪检测和停止清理；“停止主机”或正常退出时会强制移除本次容器，异常终止产生的同前缀残留会在下次启动隧道前清理。
 - 可用 `GROK_MIRROR_CLOUDFLARED_IMAGE` 覆盖镜像；`GROK_MIRROR_NO_TUNNEL=1` 仍用于仅本机测试。
+- HTTP **默认只绑 `127.0.0.1`**。把链接里的回环地址换成局域网 IP **不会**让手机连上。设置 → 远程控制 → 手机镜像里显式打开「允许同一 Wi-Fi」后才绑 `0.0.0.0`，复制/二维码改用探测到的局域网 IPv4。默认关闭（token 门控仍在，但 HTTP 未加密）。也可用 `GROK_MIRROR_ALLOW_LAN=1`。
 
 ---
 

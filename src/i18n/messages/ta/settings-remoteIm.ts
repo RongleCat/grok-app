@@ -627,6 +627,7 @@ export const taSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "பாலம் குறைந்தது ஒரு சேனல் நிகழ்வுடன் இணைக்கப்பட்டுள்ளது.",
   "settings.remoteIm.security.detail.liveNotLinked": "பிரிட்ஜ் கேட்கிறது ஆனால் இணைக்கப்பட்ட சேனல் இன்னும் இல்லை — நேரலை WS/Gateway ஐ கோர வேண்டாம்.",
   "settings.remoteIm.security.confirm.mirrorWrite": "தொலைபேசி கண்ணாடி: எழுத அனுமதி",
+  "settings.remoteIm.security.confirm.mirrorLan": "தொலைபேசி கண்ணாடி: அதே Wi-Fi அனுமதி",
   "settings.remoteIm.security.confirm.mirrorRotate": "தொலைபேசி கண்ணாடி: மீண்டும் உருவாக்க இணைப்பு",
   "settings.remoteIm.security.confirm.mirrorStop": "தொலைபேசி கண்ணாடி: ஹோஸ்ட் நிறுத்து",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "தொலைபேசி கண்ணாடி: தெளிவான எழுத்து தணிக்கை",

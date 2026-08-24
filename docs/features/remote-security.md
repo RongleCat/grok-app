@@ -1,6 +1,7 @@
 # Remote control security
 
 - Phone mirror defaults to **read-only**; enable “Allow phone to send” for writes (in-app confirm + persistent warning banner while write is on).
+- Phone mirror HTTP **defaults to loopback** (`127.0.0.1`). Same-LAN access is opt-in (“Allow same Wi-Fi”, in-app confirm) and rebinds `0.0.0.0`; copy/QR then use the detected LAN IPv4. Token path still required; HTTP stays unencrypted.
 - While write is on, the Connect panel lists **allowlisted write RPC categories** and shows a **broad-surface** warning (full allowlist is open; filesystem / desktop-only commands stay blocked).
 - Optional **max phone clients** (1–16, default 4): extra WebSocket upgrades get HTTP 503 (soft-fail). Connect panel shows a live cap bar/chip, full/near-full honesty, zero-client empty state when host is up, and never invents clients while stopped.
 - Toggling write access writes an audit line to `app.log` (no tokens/URLs). Local write-ACL audit ring (localStorage) also records enable/disable, rotate, host start/stop — never secrets.
@@ -22,5 +23,5 @@ Settings → **Remote control** → **IM** → Bridge overview shows a unified *
 | Live claim | Never invent live WS/Gateway without Bridge linked |
 
 - **Copy summary** exports a redacted multi-line report (no tokens/URLs).
-- **Dangerous-write confirms** inventory lists known in-app confirms (mirror write / rotate / stop / audit clear · remote YOLO · channel delete · timeline clear) — all GlassModal / `setAppDialog`, never `window.confirm`.
+- **Dangerous-write confirms** inventory lists known in-app confirms (mirror write / LAN bind / rotate / stop / audit clear · remote YOLO · channel delete · timeline clear) — all GlassModal / `setAppDialog`, never `window.confirm`.
 - Risk badge: `ok` · `warn` · `danger` (open ACL + write, or write + auth error → danger).

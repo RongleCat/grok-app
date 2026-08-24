@@ -627,6 +627,7 @@ export const zhTWSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Bridge 已關聯至少一個渠道實例。",
   "settings.remoteIm.security.detail.liveNotLinked": "Bridge 在監聽但尚未關聯渠道 — 請勿聲稱 live WS/Gateway。",
   "settings.remoteIm.security.confirm.mirrorWrite": "手機鏡像：允許寫入",
+  "settings.remoteIm.security.confirm.mirrorLan": "手機鏡像：允許同一 Wi-Fi",
   "settings.remoteIm.security.confirm.mirrorRotate": "手機鏡像：重新產生連結",
   "settings.remoteIm.security.confirm.mirrorStop": "手機鏡像：停止主機",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "手機鏡像：清空寫入稽核",

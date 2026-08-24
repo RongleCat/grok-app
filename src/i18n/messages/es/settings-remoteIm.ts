@@ -627,6 +627,7 @@ export const esSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "El Bridge está vinculado a al menos una instancia de canal.",
   "settings.remoteIm.security.detail.liveNotLinked": "El Bridge está escuchando pero aún no hay canal vinculado — no afirmes WS/Gateway en vivo.",
   "settings.remoteIm.security.confirm.mirrorWrite": "Espejo del teléfono: permitir escrituras",
+  "settings.remoteIm.security.confirm.mirrorLan": "Espejo del teléfono: permitir la misma Wi-Fi",
   "settings.remoteIm.security.confirm.mirrorRotate": "Espejo del teléfono: regenerar enlace",
   "settings.remoteIm.security.confirm.mirrorStop": "Espejo del teléfono: detener host",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "Espejo del teléfono: borrar auditoría de escritura",

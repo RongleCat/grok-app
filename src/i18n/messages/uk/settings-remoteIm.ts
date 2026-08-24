@@ -627,6 +627,7 @@ export const ukSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Міст, пов’язаний принаймні з одним екземпляром каналу.",
   "settings.remoteIm.security.detail.liveNotLinked": "Прослуховування Bridge, але зв’язаного каналу ще немає — не вимагайте прямого доступу до WS/Gateway.",
   "settings.remoteIm.security.confirm.mirrorWrite": "Дзеркало телефону: дозволити запис",
+  "settings.remoteIm.security.confirm.mirrorLan": "Дзеркало телефону: дозволити ту саму Wi-Fi",
   "settings.remoteIm.security.confirm.mirrorRotate": "Дзеркало телефону: згенерувати посилання знову",
   "settings.remoteIm.security.confirm.mirrorStop": "Дзеркало телефону: зупинити Host",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "Дзеркало телефону: очистити аудит запису",

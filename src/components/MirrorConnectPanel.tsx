@@ -30,9 +30,12 @@ import {
 } from "@/lib/mirrorClientCapPro";
 import {
   deriveMirrorHostStatus,
+  isLoopbackMirrorUrl,
+  mirrorCopyUrl,
   mirrorDiagnosticDisplay,
   mirrorHostPhaseClass,
   mirrorHostPhaseLabelField,
+  shouldShowMirrorQr,
   type MirrorErrorKind,
   type MirrorHostConnectStatus,
 } from "@/lib/mirrorStatus";
@@ -83,6 +86,17 @@ export type MirrorConnectLabels = {
   linkLabel: string;
   /** Loopback / soft-fail link label (never claim public tunnel). */
   linkLabelLocal: string;
+  /** Same-LAN URL when allow-LAN is on. */
+  linkLabelLan: string;
+  allowLan: string;
+  allowLanOn: string;
+  allowLanHint: string;
+  allowLanConfirmTitle: string;
+  allowLanConfirmMessage: string;
+  allowLanConfirmOk: string;
+  lanHint: string;
+  lanHintOn: string;
+  lanIpUnknown: string;
   rotate: string;
   rotateDone: string;
   /** Confirm before regenerating the link (invalidates old QR). */
@@ -225,6 +239,8 @@ function emptyStatus(): MirrorStatus {
     phase: "stopped",
     error: null,
     readOnly: true,
+    allowLan: false,
+    lanUrl: null,
   };
 }
 
@@ -613,6 +629,7 @@ function MirrorConnectBody({
   onStop,
   onRotate,
   onToggleReadOnly,
+  onToggleAllowLan,
   onRequestConfirm,
 }: {
   labels: MirrorConnectLabels;
@@ -630,15 +647,18 @@ function MirrorConnectBody({
   onStop: () => void;
   onRotate: () => void;
   onToggleReadOnly: () => void;
+  onToggleAllowLan: () => void;
   onRequestConfirm: (opts: MirrorConfirmRequest) => void;
 }) {
   const phaseMod = mirrorHostPhaseClass(connect.tone);
-  // QR only for intentional public/live or local — not soft-fail tunnel errors
-  // (loopback QR is rarely useful on a phone; still allow copy of URL).
-  const showQr =
-    !!status.publicUrl &&
-    (connect.phase === "live" || connect.phase === "local") &&
-    !connect.showSoftLocal;
+  const copyUrl = mirrorCopyUrl(status);
+  const lanOn = !!status.allowLan;
+  const showQr = shouldShowMirrorQr(status, connect);
+  const showLiveLanRow =
+    lanOn &&
+    !!status.lanUrl &&
+    connect.phase === "live" &&
+    status.lanUrl !== status.publicUrl;
   const writeOn = status.running && status.readOnly === false;
   const cap = resolveMirrorClientCapState({
     connected: status.running ? status.clients : 0,
@@ -649,11 +669,6 @@ function MirrorConnectBody({
     running: status.running,
     connected: status.running ? status.clients : 0,
   });
-  const linkIsLocalSoft =
-    connect.showSoftLocal ||
-    connect.phase === "local" ||
-    connect.phase === "soft_local" ||
-    connect.phase === "tunnel_dead";
   // Prefer live cap-full honesty over a generic error chip when at limit.
   const showClientsFullChip =
     cap.atLimit || connect.errorKind === "clients_full";
@@ -762,14 +777,18 @@ function MirrorConnectBody({
         </div>
       )}
 
-      {status.publicUrl ? (
+      {copyUrl ? (
         <div className="mirror-connect__link-row">
           <label className="mirror-connect__link-label">
-            {linkIsLocalSoft ? labels.linkLabelLocal : labels.linkLabel}
+            {connect.phase === "live"
+              ? labels.linkLabel
+              : lanOn && !isLoopbackMirrorUrl(copyUrl)
+                ? labels.linkLabelLan
+                : labels.linkLabelLocal}
           </label>
           <div className="mirror-connect__link-box">
-            <code className="mirror-connect__url" title={status.publicUrl}>
-              {status.publicUrl}
+            <code className="mirror-connect__url" title={copyUrl}>
+              {copyUrl}
             </code>
             <button
               type="button"
@@ -782,6 +801,27 @@ function MirrorConnectBody({
             </button>
           </div>
           <p className="mirror-connect__warn">{labels.warningToken}</p>
+          {isLoopbackMirrorUrl(copyUrl) ? (
+            <p className="mirror-connect__warn">{labels.lanHint}</p>
+          ) : lanOn ? (
+            <p className="mirror-connect__warn">{labels.lanHintOn}</p>
+          ) : null}
+          {lanOn && !status.lanUrl ? (
+            <p className="mirror-connect__warn">{labels.lanIpUnknown}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showLiveLanRow && status.lanUrl ? (
+        <div className="mirror-connect__link-row">
+          <label className="mirror-connect__link-label">
+            {labels.linkLabelLan}
+          </label>
+          <div className="mirror-connect__link-box">
+            <code className="mirror-connect__url" title={status.lanUrl}>
+              {status.lanUrl}
+            </code>
+          </div>
         </div>
       ) : null}
 
@@ -868,6 +908,19 @@ function MirrorConnectBody({
             </button>
           </>
         ) : null}
+        <button
+          type="button"
+          className={
+            "btn btn--ghost" +
+            (lanOn ? " mirror-connect__write-toggle--on" : "")
+          }
+          disabled={busy}
+          onClick={onToggleAllowLan}
+          aria-pressed={lanOn}
+          title={labels.allowLanHint}
+        >
+          {lanOn ? labels.allowLanOn : labels.allowLan}
+        </button>
       </div>
       {status.running && status.readOnly ? (
         <p className="mirror-connect__hint">{labels.readOnlyHint}</p>
@@ -982,15 +1035,15 @@ export function MirrorConnectPanel({
     };
   }, [active, autoStart, refresh, applyStatus]);
 
-  // Render QR whenever public URL is available.
+  // QR encodes the phone-facing URL — never a loopback address.
+  const copyUrl = mirrorCopyUrl(status);
   useEffect(() => {
-    const url = status.publicUrl;
-    if (!url) {
+    if (!copyUrl || isLoopbackMirrorUrl(copyUrl)) {
       setQrDataUrl(null);
       return;
     }
     let cancelled = false;
-    void QRCode.toDataURL(url, {
+    void QRCode.toDataURL(copyUrl, {
       width: 220,
       margin: 2,
       errorCorrectionLevel: "M",
@@ -1005,7 +1058,7 @@ export function MirrorConnectPanel({
     return () => {
       cancelled = true;
     };
-  }, [status.publicUrl]);
+  }, [copyUrl]);
 
   const doRotate = () => {
     void (async () => {
@@ -1082,8 +1135,35 @@ export function MirrorConnectPanel({
     })();
   };
 
+  const applyAllowLan = (allowLan: boolean) => {
+    void (async () => {
+      setBusy(true);
+      try {
+        const st = await api.mirrorSetAllowLan(allowLan);
+        applyStatus(st, { syncMaxClients: true });
+      } catch (e) {
+        setErr(String(e));
+      } finally {
+        setBusy(false);
+      }
+    })();
+  };
+
+  const handleToggleAllowLan = () => {
+    if (!status.allowLan) {
+      onRequestConfirm({
+        title: labels.allowLanConfirmTitle,
+        message: labels.allowLanConfirmMessage,
+        confirmLabel: labels.allowLanConfirmOk,
+        onConfirm: () => applyAllowLan(true),
+      });
+      return;
+    }
+    applyAllowLan(false);
+  };
+
   const handleCopy = async () => {
-    const url = status.publicUrl;
+    const url = mirrorCopyUrl(status);
     if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
@@ -1160,6 +1240,7 @@ export function MirrorConnectPanel({
       onStop={handleStop}
       onRotate={handleRotate}
       onToggleReadOnly={handleToggleReadOnly}
+      onToggleAllowLan={handleToggleAllowLan}
       onRequestConfirm={onRequestConfirm}
     />
   );

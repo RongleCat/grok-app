@@ -34,6 +34,7 @@ See `docs/llm-wiki/release.md`.
 - **浅色壁纸可读性**：浅色主题用独立白色 veil、主区更通透；文字保持深色描边，不额外加承载卡片。
 
 ### Fixed
+- **Phone mirror same-LAN access (#875)**: the host bound only `127.0.0.1`, so replacing the URL with a LAN IP returned `ERR_CONNECTION_REFUSED`. Loopback stays the default. **Allow same Wi-Fi** (in-app confirm) rebinds `0.0.0.0` and copies/QRs the detected LAN IPv4. Soft-fail copy no longer claims LAN works without that toggle.
 - **Windows PTY clippy**: `PtySession.pid` is Unix-only (process-group SIGKILL). Windows kill stays on `ChildKiller`, so CI `-D warnings` stays green.
 - **Expanded SideWorkbench vs macOS traffic lights**: when the sidebar is hidden or overlayed, the shared pane chrome pads with `--titlebar-safe-left`.
 - **WeCom webhook replay window**: signed callbacks whose `timestamp` is outside ±300 seconds are rejected with 401.
@@ -62,6 +63,7 @@ See `docs/llm-wiki/release.md`.
 - **Official-aux X/Imagine on packaged custom mains**: `/Applications/Grok.app` never bundled `scripts/official-aux-mcp.mjs`, so ACP injected `mcpServers count=0` while ChatCut still auto-loaded from independent `agent-home/config.toml`. Host now writes the MCP script into `agent-home-official`, disables user MCP `enabled` flags during solo inject, ships official-aux `--rules` on prewarm, and tells the model to call `official-aux__x_keyword_search` directly instead of `search_tool` (which was resolving to ChatCut).
 
 **中文 · 修复**
+- **手机镜像同一局域网访问（#875）**：主机原先只绑 `127.0.0.1`，把链接换成局域网 IP 会 `ERR_CONNECTION_REFUSED`。默认仍是回环。开启 **允许同一 Wi-Fi**（应用内确认）后改绑 `0.0.0.0`，复制/二维码使用探测到的局域网 IPv4。隧道失败时的文案不再暗示「换成局域网 IP 就能用」。
 - **Windows PTY clippy**：`PtySession.pid` 仅 Unix 用于进程组 SIGKILL；Windows 仍走 `ChildKiller`，CI `-D warnings` 不再红。
 - **展开侧栏避开 macOS 交通灯**：侧栏隐藏或 overlay 时，共享顶栏使用 `--titlebar-safe-left` 内边距。
 - **企微 webhook 重放窗口**：`timestamp` 超出 ±300 秒的已签名回调返回 401。

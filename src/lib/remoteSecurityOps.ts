@@ -482,6 +482,7 @@ export function aggregateAllowFromSummary(
  */
 export type DangerousWriteConfirmId =
   | "mirror_write_enable"
+  | "mirror_lan_bind"
   | "mirror_token_rotate"
   | "mirror_host_stop"
   | "mirror_audit_clear"
@@ -504,6 +505,12 @@ export const DANGEROUS_WRITE_CONFIRMS: readonly DangerousWriteConfirmMeta[] = [
     id: "mirror_write_enable",
     area: "mirror",
     labelKey: "settings.remoteIm.security.confirm.mirrorWrite",
+    requiresConfirm: true,
+  },
+  {
+    id: "mirror_lan_bind",
+    area: "mirror",
+    labelKey: "settings.remoteIm.security.confirm.mirrorLan",
     requiresConfirm: true,
   },
   {

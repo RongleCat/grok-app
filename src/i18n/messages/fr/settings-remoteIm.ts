@@ -627,6 +627,7 @@ export const frSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Bridge lié à au moins une instance de canal.",
   "settings.remoteIm.security.detail.liveNotLinked": "Bridge en écoute mais aucun canal lié pour l’instant — n’affirmez pas un WS/Gateway live.",
   "settings.remoteIm.security.confirm.mirrorWrite": "Miroir téléphone : autoriser les écritures",
+  "settings.remoteIm.security.confirm.mirrorLan": "Miroir téléphone : autoriser le même Wi-Fi",
   "settings.remoteIm.security.confirm.mirrorRotate": "Miroir téléphone : régénérer le lien",
   "settings.remoteIm.security.confirm.mirrorStop": "Miroir téléphone : arrêter l’hôte",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "Miroir téléphone : effacer l’audit d’écriture",

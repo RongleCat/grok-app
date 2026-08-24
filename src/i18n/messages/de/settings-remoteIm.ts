@@ -627,6 +627,7 @@ export const deSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Bridge mit mindestens einer Kanalinstanz verknüpft.",
   "settings.remoteIm.security.detail.liveNotLinked": "Bridge hört, aber noch kein verknüpfter Kanal — kein Live-WS/Gateway behaupten.",
   "settings.remoteIm.security.confirm.mirrorWrite": "Phone Mirror: Schreiben erlauben",
+  "settings.remoteIm.security.confirm.mirrorLan": "Phone Mirror: gleiches WLAN erlauben",
   "settings.remoteIm.security.confirm.mirrorRotate": "Phone Mirror: Link neu erzeugen",
   "settings.remoteIm.security.confirm.mirrorStop": "Phone Mirror: Host stoppen",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "Phone Mirror: Schreib-Audit leeren",

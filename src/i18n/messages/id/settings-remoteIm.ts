@@ -627,6 +627,7 @@ export const idSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Bridge tertaut ke setidaknya satu instans saluran.",
   "settings.remoteIm.security.detail.liveNotLinked": "Bridge mendengarkan tetapi belum ada saluran tertaut — jangan klaim WS/Gateway langsung.",
   "settings.remoteIm.security.confirm.mirrorWrite": "Cermin ponsel: izinkan tulisan",
+  "settings.remoteIm.security.confirm.mirrorLan": "Cermin ponsel: izinkan Wi-Fi yang sama",
   "settings.remoteIm.security.confirm.mirrorRotate": "Cermin ponsel: buat ulang tautan",
   "settings.remoteIm.security.confirm.mirrorStop": "Cermin ponsel: hentikan host",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "Cermin ponsel: hapus audit tulis",

@@ -627,6 +627,7 @@ export const enSettingsRemoteIm = {
   "settings.remoteIm.security.detail.liveLinked": "Bridge linked to at least one channel instance.",
   "settings.remoteIm.security.detail.liveNotLinked": "Bridge listening but no linked channel yet — do not claim live WS/Gateway.",
   "settings.remoteIm.security.confirm.mirrorWrite": "Phone mirror: allow writes",
+  "settings.remoteIm.security.confirm.mirrorLan": "Phone mirror: allow same Wi-Fi",
   "settings.remoteIm.security.confirm.mirrorRotate": "Phone mirror: regenerate link",
   "settings.remoteIm.security.confirm.mirrorStop": "Phone mirror: stop host",
   "settings.remoteIm.security.confirm.mirrorAuditClear": "Phone mirror: clear write audit",
