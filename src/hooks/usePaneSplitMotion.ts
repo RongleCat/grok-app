@@ -32,11 +32,15 @@ export function usePaneSplitMotion(opts: {
   asideOverlay?: boolean;
   /** Right pane participates in the workbench width split. */
   asideInFlow: boolean;
+  /** Right pane occupies all space not used by the left sidebar. */
+  sideExpanded: boolean;
 }): { paneMotionClass: string } {
   const [, setEpoch] = useState(0);
   const keyRef = useRef<string | null>(null);
   const asideOverlayRef = useRef(Boolean(opts.asideOverlay));
   const asideInFlowRef = useRef(opts.asideInFlow);
+  const sideExpandedRef = useRef(opts.sideExpanded);
+  const sideExpandMotionRef = useRef(false);
   const tokenRef = useRef(0);
   const releaseRef = useRef<(() => void) | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -46,21 +50,14 @@ export function usePaneSplitMotion(opts: {
   const asideOverlayModeChanged = asideOverlayRef.current !== asideOverlay;
   const asideOverlayMotionChanged =
     asideOverlayModeChanged && (asideOverlay || opts.asideInFlow);
-  const enteredSideExpanded =
-    !asideOverlay &&
-    !opts.asideInFlow &&
-    (asideOverlayRef.current || asideInFlowRef.current);
-  if (
-    enteredSideExpanded &&
-    tokenRef.current &&
-    (isPaneSplitAsideMotionActive() || isPaneSplitCoverActive())
-  ) {
-    endPaneSplitMotion(tokenRef.current);
-    tokenRef.current = 0;
-  }
+  const sideExpandedChanged = sideExpandedRef.current !== opts.sideExpanded;
   if (keyRef.current === null) {
     keyRef.current = key;
-  } else if (keyRef.current !== key || asideOverlayMotionChanged) {
+  } else if (
+    keyRef.current !== key ||
+    asideOverlayMotionChanged ||
+    sideExpandedChanged
+  ) {
     const colon = keyRef.current.indexOf(":");
     const sidebarChanged =
       keyRef.current.slice(0, colon) !== String(opts.sidebarCollapsed);
@@ -68,7 +65,8 @@ export function usePaneSplitMotion(opts: {
       keyRef.current.slice(colon + 1) !== String(opts.asideCollapsed);
     const sidebarWidthChanged = sidebarChanged && !opts.sidebarOverlay;
     const asideWidthChanged =
-      asideChanged && opts.asideInFlow && asideInFlowRef.current;
+      sideExpandedChanged ||
+      (asideChanged && opts.asideInFlow && asideInFlowRef.current);
     const asideOverlayChanged =
       asideChanged &&
       (asideOverlay || opts.asideInFlow) &&
@@ -86,6 +84,7 @@ export function usePaneSplitMotion(opts: {
       })
     ) {
       if (tokenRef.current) endPaneSplitMotion(tokenRef.current);
+      if (sideExpandedChanged) sideExpandMotionRef.current = true;
       tokenRef.current = beginPaneSplitMotion({
         cover: coverChanged,
         width: sidebarWidthChanged || asideWidthChanged,
@@ -96,6 +95,7 @@ export function usePaneSplitMotion(opts: {
   }
   asideOverlayRef.current = asideOverlay;
   asideInFlowRef.current = opts.asideInFlow;
+  sideExpandedRef.current = opts.sideExpanded;
 
   useLayoutEffect(() => {
     const token = tokenRef.current;
@@ -125,6 +125,7 @@ export function usePaneSplitMotion(opts: {
       releaseRef.current = null;
       endPaneSplitMotion(token);
       tokenRef.current = 0;
+      sideExpandMotionRef.current = false;
       setEpoch((n) => n + 1);
     };
 
@@ -164,6 +165,7 @@ export function usePaneSplitMotion(opts: {
     opts.sidebarOverlay,
     opts.asideOverlay,
     opts.asideInFlow,
+    opts.sideExpanded,
   ]);
 
   useEffect(() => {
@@ -171,6 +173,7 @@ export function usePaneSplitMotion(opts: {
       if (timerRef.current != null) window.clearTimeout(timerRef.current);
       releaseRef.current?.();
       releaseRef.current = null;
+      sideExpandMotionRef.current = false;
       if (tokenRef.current) endPaneSplitMotion(tokenRef.current);
     };
   }, []);
@@ -181,5 +184,8 @@ export function usePaneSplitMotion(opts: {
     classes.push(PANE_SPLIT_SIDEBAR_MOTION_CLASS);
   }
   if (isPaneSplitAsideMotionActive()) classes.push(PANE_SPLIT_ASIDE_MOTION_CLASS);
+  if (sideExpandMotionRef.current && isPaneSplitAsideMotionActive()) {
+    classes.push("workbench--side-expand-motion");
+  }
   return { paneMotionClass: classes.length ? ` ${classes.join(" ")}` : "" };
 }

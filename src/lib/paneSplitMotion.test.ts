@@ -199,6 +199,42 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(hook).toContain("pendingWidthPanes.delete(pane)");
   });
 
+  it("interpolates the right-aligned side workbench between rail and full width", () => {
+    const hook = readFileSync(
+      resolve(__dirname, "../hooks/usePaneSplitMotion.ts"),
+      "utf8",
+    );
+    const aside = readFileSync(
+      resolve(__dirname, "../app/WorkbenchResourcesAside.tsx"),
+      "utf8",
+    );
+    const side = readFileSync(
+      resolve(__dirname, "../styles/side-workbench.part1.css"),
+      "utf8",
+    );
+
+    expect(hook).toContain("sideExpanded: boolean");
+    expect(hook).toContain("workbench--side-expand-motion");
+    expect(aside).toContain(
+      'width: "calc(100% - var(--sw-sidebar-occupied, 0px))"',
+    );
+    expect(side).not.toMatch(
+      /\.workbench--side-expanded \.aside\s*\{[^}]*transition:\s*none/s,
+    );
+    expect(side).toMatch(
+      /\.workbench--side-expand-motion \.aside:not\(\.is-resizing\)\s*\{[^}]*width var\(--motion-pane\)[^}]*min-width var\(--motion-pane\)[^}]*max-width var\(--motion-pane\)/s,
+    );
+    expect(side).toMatch(
+      /\.workbench--side-expanded \.aside:not\(\.aside--hidden\)\s*\{[^}]*right:\s*0;[^}]*left:\s*auto;/s,
+    );
+    expect(side).toMatch(
+      /\.workbench--side-expand-motion \.main\s*\{[^}]*min-width:\s*0;[^}]*overflow:\s*hidden/s,
+    );
+    expect(side).not.toMatch(
+      /\.workbench--side-expanded\.workbench--side-expand-motion \.main\s*\{[^}]*visibility:\s*visible/s,
+    );
+  });
+
   it("mac sidebar seam is not a 1px layout border on vibrancy", () => {
     const sidebar = readFileSync(
       resolve(__dirname, "../styles/sidebar.part1.css"),

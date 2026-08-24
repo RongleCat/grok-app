@@ -2252,6 +2252,7 @@ export function AppWorkbench() {
     sidebarOverlay,
     asideOverlay,
     asideInFlow: !phoneLayout && !hideChatForSideExpand && !asideOverlay,
+    sideExpanded: hideChatForSideExpand,
   });
   const [account, setAccount] = useState<api.AccountStatus | null>(null);
   voiceSignedInRef.current = !!account?.profile?.signedIn;

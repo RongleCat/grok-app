@@ -117,8 +117,16 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
       aria-label={tr("a11y.resourcesPane")}
       aria-hidden={layout.asideCollapsed}
       style={
-        phoneLayout || hideChatForSideExpand
+        phoneLayout
           ? undefined
+          : hideChatForSideExpand
+            ? ({
+                width: "calc(100% - var(--sw-sidebar-occupied, 0px))",
+                minWidth: "calc(100% - var(--sw-sidebar-occupied, 0px))",
+                maxWidth: "calc(100% - var(--sw-sidebar-occupied, 0px))",
+                flexBasis: "calc(100% - var(--sw-sidebar-occupied, 0px))",
+                ["--aside-rail-min"]: `${asideMin}px`,
+              } as CSSProperties)
           : asideOverlay
             ? ({
                 width: asideOpenW,

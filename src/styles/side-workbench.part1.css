@@ -85,24 +85,40 @@ body > .composer-wrap.composer-wrap--side-dock {
     0 4px 14px rgba(0, 0, 0, 0.1);
 }
 
-/* Expanded overlay is a mode switch, not a split open — do not interpolate width. */
-.workbench--side-expanded .aside {
-  transition: none;
-}
-
 /* Side pane: full free area when no dock; bottom inset only with --sw-dock-composer-h */
 .workbench--side-expanded .aside:not(.aside--hidden) {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
-  left: var(--sw-sidebar-occupied, 0px);
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: none !important;
+  left: auto;
   z-index: 40;
   border-left: 1px solid var(--border-subtle);
   flex-shrink: 0;
+}
+
+/* Interpolate the right-aligned pane without scaling or distorting its text. */
+.workbench--side-expand-motion .aside:not(.is-resizing) {
+  transition:
+    width var(--motion-pane) var(--motion-pane-ease),
+    min-width var(--motion-pane) var(--motion-pane-ease),
+    max-width var(--motion-pane) var(--motion-pane-ease),
+    flex-basis var(--motion-pane) var(--motion-pane-ease),
+    transform var(--motion-pane) var(--motion-pane-ease),
+    box-shadow var(--motion-pane) ease,
+    border-color var(--motion-pane) ease;
+}
+
+.workbench--side-expand-motion .aside:not(.is-resizing) .aside__inner {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+/* Let the chat column yield while the full-width pane contracts. */
+.workbench--side-expand-motion .main {
+  min-width: 0;
+  overflow: hidden;
 }
 
 /*
@@ -988,4 +1004,3 @@ html[data-theme="light"] .sw-terminal--pty {
 .sw-terminal__xterm .xterm-scrollable-element > .scrollbar > .slider {
   box-shadow: none !important;
 }
-
