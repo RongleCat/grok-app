@@ -386,13 +386,15 @@ export function useFloatingMenu({
     window.addEventListener("resize", onResize);
     window.addEventListener("scroll", onScroll, true);
 
-    // Re-anchor when panel content height changes (e.g. filter shrinks from
-    // 50 rows to 3 — must drop back down to sit on the input, not stay at top).
+    // Re-anchor when either anchor or content changes size. Pane dragging can
+    // resize the trigger without resizing the window.
     let ro: ResizeObserver | null = null;
+    const trigger = triggerRef.current;
     const panel = panelRef.current;
-    if (typeof ResizeObserver !== "undefined" && panel) {
+    if (typeof ResizeObserver !== "undefined" && (trigger || panel)) {
       ro = new ResizeObserver(() => update(true));
-      ro.observe(panel);
+      if (trigger) ro.observe(trigger);
+      if (panel) ro.observe(panel);
     }
 
     return () => {

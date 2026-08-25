@@ -84,6 +84,17 @@ describe("computeFloatingPos", () => {
     expect(pos.width).toBeGreaterThanOrEqual(280);
   });
 
+  it("can match the trigger width exactly", () => {
+    const r = rect({ top: 100, left: 20, width: 208, height: 32 });
+    const pos = computeFloatingPos(r, {
+      width: 0,
+      matchTriggerWidth: true,
+      fitContent: false,
+      placement: "down",
+    });
+    expect(pos.width).toBe(208);
+  });
+
   it("fitContent leaves width 0 (CSS max-content)", () => {
     const r = rect({ top: 100, left: 40, width: 80, height: 28 });
     const pos = computeFloatingPos(r, { placement: "down", fitContent: true });

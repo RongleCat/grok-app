@@ -153,11 +153,20 @@ describe("floating pop CSS", () => {
     );
   });
 
-  it("closes the account portal immediately when settings takes over", () => {
-    expect(appWorkbench).toMatch(/closeImmediately=\{settingsOpen\}/);
+  it("closes the account portal immediately when its sidebar disappears", () => {
+    expect(appWorkbench).toMatch(
+      /closeImmediately=\{settingsOpen \|\| layout\.sidebarCollapsed\}/,
+    );
+    expect(appWorkbench).toMatch(
+      /useEffect\(\(\) => \{\s*if \(!layout\.sidebarCollapsed\) return;\s*setShowUserMenu\(false\);\s*\}, \[layout\.sidebarCollapsed\]\);/,
+    );
     expect(userMenu).toMatch(
       /useOpenPresence\(\s*open,\s*true,\s*closeImmediately \? 0 : OPEN_PRESENCE_MS,\s*\)/,
     );
+    expect(userMenu).toMatch(
+      /placement:\s*"up",\s*width:\s*0,\s*fitContent:\s*false,\s*matchTriggerWidth:\s*true,/,
+    );
+    expect(userMenu).not.toMatch(/minWidth:\s*220/);
     expect(userMenu).toMatch(
       /const panel\s*=\s*!closeImmediately\s*&&\s*panelPresence\.mounted/,
     );
