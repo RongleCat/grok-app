@@ -125,6 +125,12 @@ describe("wallpaper theme contrast CSS", () => {
       /html\[data-font-shadow="1"\][\s\S]*\.pane-toggle--pinned/s,
     );
     expect(css).toMatch(
+      /html\[data-wallpaper="1"\] \.aside :is\(\.rp-chrome, \.rp__empty-state\)\s*\{[^}]*--text-secondary:\s*color-mix\([^}]*--text-tertiary:\s*color-mix\([^}]*color:\s*var\(--text-primary\)/s,
+    );
+    expect(css).toMatch(
+      /html\[data-font-shadow="1"\][\s\S]*\.aside \.rp-chrome,[\s\S]*\.aside \.rp__empty-state[\s\S]*text-shadow:/s,
+    );
+    expect(css).toMatch(
       /html\[data-theme="light"\]\[data-wallpaper="1"\]\s+\.sidebar\s+\.user-avatar--logo\s+\.grok-logo\s+svg\s*\{[^}]*color:\s*var\(--text-inverse\)[^}]*filter:\s*none/s,
     );
     expect(css).toMatch(

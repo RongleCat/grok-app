@@ -364,6 +364,12 @@ html[data-wallpaper="1"][data-wallpaper-clear="1"].platform-mac[data-theme="ligh
 /* Wallpaper luminance is unknowable. Light/dark layouts stay structurally
  * identical; ink follows theme tokens (or a custom --text-primary). Optional
  * text shadow is html[data-font-shadow="1"]. */
+html[data-wallpaper="1"] .aside :is(.rp-chrome, .rp__empty-state) {
+  --text-secondary: color-mix(in srgb, var(--text-primary) 80%, transparent);
+  --text-tertiary: color-mix(in srgb, var(--text-primary) 62%, transparent);
+  color: var(--text-primary);
+}
+
 html[data-theme="light"][data-wallpaper="1"] .sidebar {
   --text-inverse: rgb(15 15 15 / 0.96);
   --bg-hover: rgb(0 0 0 / 0.14);
@@ -429,6 +435,8 @@ html[data-font-shadow="1"]
     .lobe-chat-empty,
     .main__stage > .conn-bar,
     .pane-toggle--pinned,
+    .aside .rp-chrome,
+    .aside .rp__empty-state,
     .auto-page :is(.auto-page__title, .auto-page__subtitle),
     .agent-kanban-page :is(.auto-page__title, .auto-page__subtitle)
   ) {
@@ -441,7 +449,9 @@ html[data-font-shadow="1"]
     .main__top,
     .composer-welcome-mark,
     .lobe-chat-assistant-timeline,
-    .pane-toggle--pinned
+    .pane-toggle--pinned,
+    .aside .rp-chrome,
+    .aside .rp__empty-state
   )
   svg {
   filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.45));
