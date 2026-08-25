@@ -174,10 +174,13 @@ describe("wallpaper theme contrast CSS", () => {
 
   it("keeps an expanded wallpaper side pane frosted without exposing chat", () => {
     expect(css).toMatch(
-      /html\[data-wallpaper="1"\] \.aside,\s*html\[data-wallpaper="1"\] \.sidebar\.sidebar--overlay,\s*html\[data-wallpaper="1"\] \.sidebar\.sidebar--phone-drawer\s*\{[^}]*backdrop-filter:\s*blur\(var\(--wallpaper-sidebar-blur, 22px\)\)/s,
+      /html\[data-wallpaper="1"\] \.app-wallpaper-media\s*\{[^}]*filter:\s*blur\(var\(--wallpaper-sidebar-blur, 22px\)\)/s,
     );
     expect(css).toMatch(
-      /html\[data-wallpaper="1"\]\s+\.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\)::before\s*\{[^}]*backdrop-filter:\s*blur\(var\(--wallpaper-sidebar-blur, 22px\)\)/s,
+      /html\[data-wallpaper="1"\] \.sidebar\.sidebar--overlay,\s*html\[data-wallpaper="1"\] \.sidebar\.sidebar--phone-drawer\s*\{[^}]*backdrop-filter:\s*blur\(var\(--wallpaper-sidebar-blur, 22px\)\)/s,
+    );
+    expect(css).not.toMatch(
+      /html\[data-wallpaper="1"\]\s+\.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\)::before/,
     );
     expect(css).toMatch(
       /html\[data-stream-perf="1"\]\[data-wallpaper="1"\] \.aside,/,

@@ -360,33 +360,22 @@ describe("desktop hidden CSS must not force width 0", () => {
 
   it("does not put backdrop-filter on the interpolating in-flow sidebar", () => {
     /**
-     * Resizing a blur-owning box flashes (toggle end, live drag, or a
-     * paused drag). In-flow frost is the rail max so its layer never
-     * changes size; extra sits under .main.
+     * ChatGPT-desktop model: window vibrancy + tint. CSS blur must not sit
+     * on a box whose width interpolates (WKWebView seam flash). Overlay /
+     * phone still frost because they animate transform.
      */
     const sidebar = readFileSync(
       resolve(__dirname, "../styles/sidebar.part1.css"),
       "utf8",
     );
-    const tokens = readFileSync(
-      resolve(__dirname, "../styles/tokens.css"),
-      "utf8",
-    );
-    expect(tokens).toMatch(/--sidebar-width-max:\s*420px/);
     const inFlow = ruleBody(
       sidebar,
       ".platform-mac .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer) {",
     );
     expect(inFlow).toMatch(/backdrop-filter:\s*none/);
-    expect(inFlow).not.toMatch(/overflow:\s*hidden/);
-    expect(sidebar).toMatch(
-      /\.platform-mac \.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\)::before\s*\{[^}]*width:\s*var\(--sidebar-width-max[^}]*backdrop-filter:\s*blur\(var\(--sidebar-blur\)\)/s,
-    );
+    expect(inFlow).toMatch(/background:\s*var\(--bg-sidebar\)/);
     expect(sidebar).not.toMatch(
-      /\.sidebar\.is-resizing[^{]*::before[^{]*\{[^}]*width:\s*100%/s,
-    );
-    expect(sidebar).not.toMatch(
-      /\.platform-mac \.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\)::before\s*\{[^}]*\btransition\s*:/s,
+      /\.platform-mac \.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\)::before/,
     );
     expect(sidebar).toMatch(
       /\.platform-mac \.sidebar\.sidebar--overlay,\s*\.platform-mac \.sidebar\.sidebar--phone-drawer\s*\{[^}]*backdrop-filter:\s*blur\(var\(--sidebar-blur\)\)/s,

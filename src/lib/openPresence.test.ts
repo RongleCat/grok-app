@@ -125,9 +125,9 @@ describe("floating pop CSS", () => {
     expect(settings).not.toMatch(/settings-stage-(?:enter|leave)/);
   });
 
-  it("keeps mac workbench sidebar frost; settings nav is solid", () => {
+  it("uses native vibrancy for mac workbench panes but keeps overlay drawer frost", () => {
     expect(workbenchCss).toMatch(
-      /\.platform-mac \.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\)::before\s*\{[^}]*backdrop-filter:\s*blur\(var\(--sidebar-blur\)\)/,
+      /\.platform-mac \.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\)\s*\{[^}]*backdrop-filter:\s*none/s,
     );
     expect(workbenchCss).toMatch(
       /\.platform-mac \.sidebar\.sidebar--overlay,\s*\.platform-mac \.sidebar\.sidebar--phone-drawer\s*\{[^}]*backdrop-filter:\s*blur\(var\(--sidebar-blur\)\)/s,

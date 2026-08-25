@@ -72,6 +72,12 @@ html[data-wallpaper="1"] .app-shell::after {
   pointer-events: none;
 }
 
+/* One static frost behind both rails — not on the interpolating pane boxes. */
+html[data-wallpaper="1"] .app-wallpaper-media {
+  filter: blur(var(--wallpaper-sidebar-blur, 22px));
+  transform: scale(1.06);
+}
+
 .app-wallpaper-media__el {
   display: block;
   /* Compositor-friendly; avoid filters that force software decode on video. */
@@ -117,10 +123,6 @@ html[data-wallpaper="1"] .sidebar {
     var(--text-primary) 62%,
     transparent
   );
-}
-
-html[data-wallpaper="1"] .sidebar.sidebar--overlay,
-html[data-wallpaper="1"] .sidebar.sidebar--phone-drawer {
   background: color-mix(
     in srgb,
     var(--bg-sidebar-solid, var(--bg-sidebar))
@@ -129,25 +131,6 @@ html[data-wallpaper="1"] .sidebar.sidebar--phone-drawer {
   ) !important;
 }
 
-html[data-wallpaper="1"]
-  .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer) {
-  background: transparent !important;
-}
-
-html[data-wallpaper="1"]
-  .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer)::before {
-  background: color-mix(
-    in srgb,
-    var(--bg-sidebar-solid, var(--bg-sidebar))
-      var(--wallpaper-theme-mix-sidebar),
-    transparent
-  ) !important;
-  backdrop-filter: blur(var(--wallpaper-sidebar-blur, 22px)) saturate(1.25);
-  -webkit-backdrop-filter: blur(var(--wallpaper-sidebar-blur, 22px))
-    saturate(1.25);
-}
-
-html[data-wallpaper="1"] .aside,
 html[data-wallpaper="1"] .sidebar.sidebar--overlay,
 html[data-wallpaper="1"] .sidebar.sidebar--phone-drawer {
   backdrop-filter: blur(var(--wallpaper-sidebar-blur, 22px)) saturate(1.25);
@@ -257,7 +240,6 @@ html[data-wallpaper="1"] .platform-mac .settings-page__nav {
  */
 html[data-stream-perf="1"][data-wallpaper="1"] .app-settings-stage,
 html[data-stream-perf="1"][data-wallpaper="1"] .sidebar,
-html[data-stream-perf="1"][data-wallpaper="1"] .sidebar::before,
 html[data-stream-perf="1"][data-wallpaper="1"] .aside,
 html[data-stream-perf="1"][data-wallpaper="1"] .settings-page__nav,
 html[data-stream-perf="1"][data-wallpaper="1"] .platform-win .settings-page__nav,
@@ -265,6 +247,11 @@ html[data-stream-perf="1"][data-wallpaper="1"] .platform-other .settings-page__n
 html[data-stream-perf="1"][data-wallpaper="1"] .platform-mac .settings-page__nav {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+html[data-stream-perf="1"][data-wallpaper="1"] .app-wallpaper-media {
+  filter: none;
+  transform: none;
 }
 
 html[data-wallpaper="1"] .settings-page__content,
@@ -349,7 +336,6 @@ html[data-wallpaper="1"][data-wallpaper-clear="1"].platform-mac[data-theme="ligh
 }
 
 html[data-wallpaper="1"][data-wallpaper-clear="1"] .sidebar,
-html[data-wallpaper="1"][data-wallpaper-clear="1"] .sidebar::before,
 html[data-wallpaper="1"][data-wallpaper-clear="1"] .main,
 html[data-wallpaper="1"][data-wallpaper-clear="1"] .aside,
 html[data-wallpaper="1"][data-wallpaper-clear="1"] .setup-gate,
@@ -359,6 +345,11 @@ html[data-wallpaper="1"][data-wallpaper-clear="1"].platform-mac[data-theme="ligh
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
+}
+
+html[data-wallpaper="1"][data-wallpaper-clear="1"] .app-wallpaper-media {
+  filter: none;
+  transform: none;
 }
 
 /* Wallpaper luminance is unknowable. Light/dark layouts stay structurally

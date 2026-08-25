@@ -553,6 +553,13 @@
   z-index: 3;
 }
 
+/* mac in-flow: same window-vibrancy tint as the left rail (ChatGPT chrome). */
+.platform-mac .aside:not(.aside--overlay) {
+  background: var(--bg-sidebar);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .aside.is-resizing {
   transition: none;
 }

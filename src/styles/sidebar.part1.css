@@ -513,48 +513,27 @@ html.platform-win .window-edge-n {
 }
 
 /*
- * mac rail: same frost as Settings nav — CSS blur + tint over native Sidebar.
- * Do not wait on native vibrancy alone: a sibling opaque .main (or a parent
- * opacity/transform) makes the rail look like a flat tint of the chat column.
- * Overlay / phone drawers keep their drop shadow (set below).
+ * ChatGPT-desktop model (mac in-flow): window already has
+ * NSVisualEffectMaterial::Sidebar. Rails are a translucent tint over that
+ * window glass — no CSS backdrop-filter on a box whose width interpolates
+ * (WKWebView rebuilds that layer and the seam flashes). Overlay / phone
+ * still use CSS blur because they animate transform, not flex width.
  */
 .platform-mac .sidebar {
   border-right: none;
+}
+
+.platform-mac .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer) {
+  background: var(--bg-sidebar);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: var(--sidebar-edge-shadow);
 }
 
 .platform-mac .sidebar.sidebar--overlay,
 .platform-mac .sidebar.sidebar--phone-drawer {
   -webkit-backdrop-filter: blur(var(--sidebar-blur)) saturate(var(--sidebar-saturate));
   backdrop-filter: blur(var(--sidebar-blur)) saturate(var(--sidebar-saturate));
-}
-
-/*
- * In-flow frost is the rail max, not the current width. Resizing the
- * blur box (toggle interpolation, live drag, or stopping a drag)
- * rebuilds the WKWebView backdrop layer. Extra frost sits under .main
- * (z-index 2). Overlay / phone keep blur on the pane (transform).
- */
-.platform-mac .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer) {
-  overflow: visible;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: var(--sidebar-edge-shadow);
-}
-
-.platform-mac .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer)::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: var(--sidebar-width-max, 420px);
-  background: var(--bg-sidebar);
-  -webkit-backdrop-filter: blur(var(--sidebar-blur)) saturate(var(--sidebar-saturate));
-  backdrop-filter: blur(var(--sidebar-blur)) saturate(var(--sidebar-saturate));
-  pointer-events: none;
-  z-index: 0;
-  border-radius: inherit;
 }
 
 .platform-mac .sidebar.sidebar--overlay {
@@ -592,7 +571,7 @@ html.platform-mac[data-theme="light"] .workbench {
 
 html.platform-mac[data-theme="light"] .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer),
 .platform-mac[data-theme="light"] .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer) {
-  background: transparent;
+  background: var(--bg-sidebar);
   border-right: none;
   box-shadow: var(--sidebar-edge-shadow);
 }
@@ -613,7 +592,7 @@ html.platform-mac[data-theme="light"] .app-shell--phone .main {
 }
 
 html.platform-mac[data-theme="light"] .aside {
-  background: #ffffff;
+  background: var(--bg-sidebar);
   border-left: 1px solid rgba(0, 0, 0, 0.05);
   z-index: 2;
 }
