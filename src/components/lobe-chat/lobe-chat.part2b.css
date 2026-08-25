@@ -173,7 +173,7 @@
   line-height: 0;
   color: currentColor;
 }
-/* Collapse wrap() size so SVG fills the 14×14 slot (same as live-tool mark). */
+/* Collapse wrap() size so SVG fills the 14×14 end-turn mark slot. */
 .lobe-end-turn__mark .g-icon {
   width: 14px !important;
   height: 14px !important;
