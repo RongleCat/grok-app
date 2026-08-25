@@ -63,7 +63,7 @@ describe("PaneToggleButton", () => {
 
 describe("pinned pane-toggle CSS contract", () => {
   const css = readFileSync(
-    resolve(__dirname, "../styles/chat.part6.css"),
+    resolve(__dirname, "../styles/workbench.part1.css"),
     "utf8",
   );
 

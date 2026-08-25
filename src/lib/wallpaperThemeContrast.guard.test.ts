@@ -78,6 +78,12 @@ describe("wallpaper theme contrast CSS", () => {
       /html\[data-theme="dark"\]\[data-wallpaper="1"\] \.sidebar\s*\{[^}]*text-shadow:/s,
     );
     expect(css).toMatch(
+      /html\[data-theme="dark"\]\[data-wallpaper="1"\] \.pane-toggle--pinned\s*\{[^}]*color:\s*var\(--text-primary\)/s,
+    );
+    expect(css).toMatch(
+      /html\[data-theme="dark"\]\[data-wallpaper="1"\] \.pane-toggle--pinned svg,[\s\S]*?filter:\s*drop-shadow\(0 1px 1px var\(--wallpaper-foreground-shadow-color\)\)/s,
+    );
+    expect(css).toMatch(
       /html\[data-theme="light"\]\[data-wallpaper="1"\] \.sidebar\s*\{[^}]*--text-primary:\s*var\(--wallpaper-chrome-foreground\)[^}]*text-shadow:\s*0 1px 2px var\(--wallpaper-chrome-shadow-color\)/s,
     );
     expect(css).toMatch(

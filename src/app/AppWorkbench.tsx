@@ -685,7 +685,6 @@ import { useGhostStreamingHeal } from "@/hooks/useGhostStreamingHeal";
 import { useAccountQuotaAutoRefresh } from "@/hooks/useAccountQuotaAutoRefresh";
 import { useWorkbenchDisplayPrefs } from "@/hooks/useWorkbenchDisplayPrefs";
 import { useWorkbenchLayout } from "@/hooks/useWorkbenchLayout";
-import { usePaneUnreadDot } from "@/hooks/usePaneUnreadDot";
 import { useSettingsNavigation } from "@/hooks/useSettingsNavigation";
 import { useAppSettingsPrefs } from "@/hooks/useAppSettingsPrefs";
 import { useSearchPalette } from "@/hooks/useSearchPalette";
@@ -709,7 +708,6 @@ import { WorkbenchComposerColumn } from "@/app/WorkbenchComposerColumn";
 import { WorkbenchFloatingMenus } from "@/app/WorkbenchFloatingMenus";
 import { WorkbenchSettingsStage } from "@/app/WorkbenchSettingsStage";
 import { WorkbenchChatStage } from "@/app/WorkbenchChatStage";
-import { PaneToggleButton } from "@/components/PaneToggleButton";
 import { useSessionExportText } from "@/hooks/useSessionExportText";
 import { useSessionExportImage } from "@/hooks/useSessionExportImage";
 import {
@@ -9228,26 +9226,6 @@ export function AppWorkbench() {
     return summarizeSessionChanges(list);
   }, [session.sessionId, sessionChangesById]);
 
-  const sidebarToggleUnread = usePaneUnreadDot({
-    open: !layout.sidebarCollapsed,
-    keys: unreadSessionIds,
-  });
-  const asideToggleUnread = usePaneUnreadDot({
-    open: !layout.asideCollapsed,
-    keys: (session.sessionId
-      ? (sessionChangesById[session.sessionId] ?? [])
-      : []
-    ).map((change) =>
-      JSON.stringify([
-        change.path,
-        change.updatedAt,
-        change.status,
-        change.toolCallId ?? "",
-      ]),
-    ),
-    resetKey: session.sessionId || "",
-  });
-
   // Reset find when switching conversation (keep open across same session).
   useEffect(() => {
     setShowChatFind(false);
@@ -13836,39 +13814,6 @@ export function AppWorkbench() {
           } as CSSProperties
         }
       >
-        {!phoneLayout ? (
-          <>
-            <PaneToggleButton
-              side="left"
-              open={!layout.sidebarCollapsed}
-              unread={sidebarToggleUnread}
-              label={tr(
-                layout.sidebarCollapsed
-                  ? "main.leftPaneShow"
-                  : "main.leftPaneHide",
-              )}
-              unreadLabel={tr("main.paneUnread")}
-              controlsId="workbench-sidebar"
-              onToggle={
-                layout.sidebarCollapsed ? openSidebarPane : closeSidebarPane
-              }
-            />
-            <PaneToggleButton
-              side="right"
-              open={!layout.asideCollapsed}
-              unread={asideToggleUnread}
-              label={tr(
-                layout.asideCollapsed
-                  ? "main.rightPaneShow"
-                  : "main.rightPaneHide",
-              )}
-              unreadLabel={tr("main.paneUnread")}
-              controlsId="workbench-aside"
-              testId="main-side-toggle"
-              onToggle={layout.asideCollapsed ? openAsidePane : closeAsidePane}
-            />
-          </>
-        ) : null}
         {/* Phone drawer scrim — tap closes without resizing the conversation */}
         {phoneLayout && !layout.sidebarCollapsed ? (
           <button
@@ -14017,7 +13962,8 @@ export function AppWorkbench() {
           messages={messages}
           openPhoneDrawer={openPhoneDrawer}
           closePhoneDrawer={closePhoneDrawer}
-          sidebarToggleUnread={sidebarToggleUnread}
+          openSidebarPane={openSidebarPane}
+          sidebarToggleUnread={unreadSessionIds.size > 0}
           openSessionMenu={openSessionMenu}
           onOpenPhoneAccount={() => setPhoneAccountOpen(true)}
           bottomTerminalOpen={bottomTerminal.state.open}
@@ -14552,6 +14498,7 @@ export function AppWorkbench() {
           sessionChanges={
             sessionChangesById[session.sessionId || ""] ?? []
           }
+          sessionId={session.sessionId}
           plan={plan}
           planFocusKey={planFocusKey}
           composerMode={mode}
@@ -14568,7 +14515,7 @@ export function AppWorkbench() {
           onCloseActiveRequestConsumed={() =>
             setCloseActiveSideRequest(null)
           }
-          onCloseSide={closeAsidePane}
+          onToggleSide={layout.asideCollapsed ? openAsidePane : closeAsidePane}
           onExpandedChange={(expanded) => {
             if (phoneLayout) return;
             if (!expanded) setSideDockComposer(false);

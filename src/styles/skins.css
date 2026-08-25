@@ -141,8 +141,13 @@ html[data-theme="dark"][data-wallpaper="1"] .sidebar svg {
 }
 
 html[data-theme="dark"][data-wallpaper="1"] .main__top,
-html[data-theme="dark"][data-wallpaper="1"] .composer-welcome-mark {
+html[data-theme="dark"][data-wallpaper="1"] .composer-welcome-mark,
+html[data-theme="dark"][data-wallpaper="1"] .pane-toggle--pinned {
   text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
+}
+
+html[data-theme="dark"][data-wallpaper="1"] .pane-toggle--pinned {
+  color: var(--text-primary);
 }
 
 html[data-theme="dark"][data-wallpaper="1"] .lobe-chat-assistant-timeline {
@@ -155,6 +160,7 @@ html[data-theme="dark"][data-wallpaper="1"] .lobe-chat-assistant-timeline {
 
 html[data-theme="dark"][data-wallpaper="1"] .main__top svg,
 html[data-theme="dark"][data-wallpaper="1"] .composer-welcome-mark svg,
+html[data-theme="dark"][data-wallpaper="1"] .pane-toggle--pinned svg,
 html[data-theme="dark"][data-wallpaper="1"] .lobe-chat-assistant-timeline svg {
   filter: drop-shadow(0 1px 1px var(--wallpaper-foreground-shadow-color));
 }

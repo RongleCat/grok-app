@@ -143,13 +143,17 @@ describe("desktop hidden CSS must not force width 0", () => {
       resolve(__dirname, "../styles/chat.part6.css"),
       "utf8",
     );
+    const workbench = readFileSync(
+      resolve(__dirname, "../styles/workbench.part1.css"),
+      "utf8",
+    );
     expect(aside).toMatch(
       /\.workbench--aside-motion\s+\.aside:not\(\.is-resizing\):not\(\.aside--overlay\)\s*\{[^}]*width var\(--motion-pane\)[^,]*,[^}]*min-width var\(--motion-pane\)[^,]*,[^}]*max-width var\(--motion-pane\)[^,]*,[^}]*flex-basis var\(--motion-pane\)/s,
     );
     expect(aside).toMatch(
       /\.aside\.aside--overlay[^{]*\{[^}]*transform var\(--motion-pane\)/,
     );
-    expect(aside).toMatch(
+    expect(workbench).toMatch(
       /\.workbench--sidebar-motion \.main__top\s*\{[^}]*transition:\s*padding-left var\(--motion-pane\) var\(--motion-pane-ease\)/s,
     );
     const hidden = ruleBody(aside, ".aside--collapsed");
@@ -366,16 +370,20 @@ describe("desktop hidden CSS must not force width 0", () => {
       "utf8",
     );
 
-    expect(app.match(/<PaneToggleButton/g) ?? []).toHaveLength(2);
-    expect(app.match(/testId="main-side-toggle"/g) ?? []).toHaveLength(1);
-    expect(app).toMatch(/<PaneToggleButton\s+side="left"/);
-    expect(app).toMatch(/<PaneToggleButton\s+side="right"/);
+    expect(app).not.toContain("<PaneToggleButton");
+    expect(app).toContain(
+      "sidebarToggleUnread={unreadSessionIds.size > 0}",
+    );
     expect(sidebar).not.toContain("main__pane-toggle");
-    expect(main).not.toContain('data-testid="main-side-toggle"');
-    expect(main.match(/<PaneToggleButton/g) ?? []).toHaveLength(1);
+    expect(main).not.toContain('testId="main-side-toggle"');
+    expect(main.match(/<PaneToggleButton/g) ?? []).toHaveLength(2);
+    expect(main).toMatch(/<PaneToggleButton\s+side="left"/);
     expect(main).not.toMatch(
       /layout\.asideCollapsed\s*\?\s*\(\s*<Tip label=\{tr\("main\.rightPane/s,
     );
+    expect(resources.match(/<PaneToggleButton/g) ?? []).toHaveLength(1);
+    expect(resources).toMatch(/<PaneToggleButton\s+side="right"/);
+    expect(resources).toContain('testId="main-side-toggle"');
     expect(resources).toContain('id="workbench-aside"');
     expect(resources).toContain("closeToggleInBar={phoneLayout}");
     expect(sideTabBar).toContain("expanded || closeToggleInBar");

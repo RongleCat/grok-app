@@ -2,8 +2,16 @@
  * Right resources pane: resize handle + SideWorkbench.
  * Skill insert and plan verbs stay with the host.
  */
-import { lazy, Suspense, type CSSProperties, type Dispatch, type SetStateAction } from "react";
+import {
+  lazy,
+  Suspense,
+  type CSSProperties,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import { PaneToggleButton } from "@/components/PaneToggleButton";
 import { createT, type Locale } from "@/i18n";
+import { usePaneUnreadDot } from "@/hooks/usePaneUnreadDot";
 import { DEFAULT_LAYOUT } from "@/lib/layout";
 import { paneSplitSizeStyle } from "@/lib/paneSplitMotion";
 import type { SessionPlanState } from "@/lib/planSession";
@@ -39,6 +47,7 @@ export type WorkbenchResourcesAsideProps = {
   sideDockComposer: boolean;
   onToggleSideDockComposer: () => void;
   sessionChanges: SessionFileChange[];
+  sessionId: string | null;
   plan: SessionPlanState;
   planFocusKey: number | null;
   composerMode: string;
@@ -53,7 +62,7 @@ export type WorkbenchResourcesAsideProps = {
   onOpenRequestConsumed: () => void;
   closeActiveSideRequest: { token: number } | null;
   onCloseActiveRequestConsumed: () => void;
-  onCloseSide: () => void;
+  onToggleSide: () => void;
   onExpandedChange: (expanded: boolean) => void;
   skillInfos: readonly SkillInfo[];
   skillsLoading: boolean;
@@ -81,6 +90,7 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
     sideDockComposer,
     onToggleSideDockComposer,
     sessionChanges,
+    sessionId,
     plan,
     planFocusKey,
     composerMode,
@@ -95,7 +105,7 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
     onOpenRequestConsumed,
     closeActiveSideRequest,
     onCloseActiveRequestConsumed,
-    onCloseSide,
+    onToggleSide,
     onExpandedChange,
     skillInfos,
     skillsLoading,
@@ -104,9 +114,38 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
   } = props;
 
   const asideMin = layout.asideWidth || DEFAULT_LAYOUT.asideWidth;
+  const toggleUnread = usePaneUnreadDot({
+    open: !layout.asideCollapsed,
+    keys: sessionChanges.map((change) =>
+      JSON.stringify([
+        change.path,
+        change.updatedAt,
+        change.status,
+        change.toolCallId ?? "",
+      ]),
+    ),
+    resetKey: sessionId || "",
+  });
 
   return (
-    <aside
+    <>
+      {!phoneLayout ? (
+        <PaneToggleButton
+          side="right"
+          open={!layout.asideCollapsed}
+          unread={toggleUnread}
+          label={tr(
+            layout.asideCollapsed
+              ? "main.rightPaneShow"
+              : "main.rightPaneHide",
+          )}
+          unreadLabel={tr("main.paneUnread")}
+          controlsId="workbench-aside"
+          testId="main-side-toggle"
+          onToggle={onToggleSide}
+        />
+      ) : null}
+      <aside
       id="workbench-aside"
       className={
         (layout.asideCollapsed ? "aside aside--hidden" : "aside") +
@@ -188,7 +227,7 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
             onOpenRequestConsumed={onOpenRequestConsumed}
             closeActiveRequest={closeActiveSideRequest}
             onCloseActiveRequestConsumed={onCloseActiveRequestConsumed}
-            onCloseSide={onCloseSide}
+            onCloseSide={onToggleSide}
             closeToggleInBar={phoneLayout}
             onExpandedChange={onExpandedChange}
             skillInfos={skillInfos}
@@ -198,6 +237,7 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
           />
         </Suspense>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
