@@ -1,3 +1,5 @@
+import { globSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createT, loadAllLocaleCatalogs } from "@/i18n";
 import {
@@ -21,6 +23,23 @@ describe("settingsCatalog", () => {
 
   it("has no structural invariants broken", () => {
     expect(catalogInvariants()).toEqual([]);
+  });
+
+  it("mounts every searchable anchor in production", () => {
+    const srcRoot = resolve(__dirname, "..");
+    const productionSources = globSync("**/*.{ts,tsx}", {
+      cwd: srcRoot,
+      exclude: [
+        "**/*.test.*",
+        "**/*.guard.test.*",
+        "lib/settingsCatalog/entries/**",
+      ],
+    }).map((file) => readFileSync(resolve(srcRoot, file), "utf8"));
+    const missing = SETTINGS_ENTRIES.filter(
+      ({ anchorId }) => !productionSources.some((source) => source.includes(anchorId)),
+    ).map(({ id, anchorId }) => `${id}: ${anchorId}`);
+
+    expect(missing).toEqual([]);
   });
 
   it("registers three distinct static skin-share anchors", () => {
