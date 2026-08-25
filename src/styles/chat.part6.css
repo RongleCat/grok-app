@@ -369,35 +369,6 @@
   filter: brightness(1.06);
 }
 
-.entry-grid {
-  display: grid;
-  gap: 10px;
-  margin: var(--space-4) 0;
-}
-
-.entry-card {
-  text-align: left;
-  padding: 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-main);
-}
-
-.entry-card:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-hover);
-}
-
-.entry-card__t {
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.entry-card__d {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
 .field {
   display: flex;
   flex-direction: column;

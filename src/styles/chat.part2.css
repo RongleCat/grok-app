@@ -525,28 +525,3 @@ button.skill-chip__chat-main--btn {
   color: var(--text-primary);
   background: var(--bg-hover);
 }
-
-.composer__editing-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 2px 4px 0;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.composer__editing-cancel {
-  border: none;
-  background: transparent;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 12px;
-  color: var(--accent);
-  cursor: pointer;
-}
-
-.composer__editing-cancel:hover {
-  background: var(--bg-hover);
-}
-

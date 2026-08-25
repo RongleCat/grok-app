@@ -509,29 +509,6 @@ html[data-msg-actions="always"] .lobe-chat-item__actions {
   text-underline-offset: 2px;
 }
 
-/* File path / name links (blue + doc icon) */
-.chat-md__file-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--chat-link);
-  text-decoration: none;
-  font-size: var(--chat-fs);
-  line-height: var(--chat-lh);
-  vertical-align: baseline;
-  max-width: 100%;
-}
-.chat-md__file-link:hover {
-  color: var(--chat-link-hover);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.chat-md__file-link span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* Inline code / tags — always readable on both themes */
 .chat-md__inline-code,
 .chat-md :not(pre) > code {

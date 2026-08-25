@@ -146,69 +146,7 @@
   white-space: nowrap;
 }
 
-/* Quiet thinking / cancel rows (shared chrome) */
-.lobe-chat-live-tool {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  margin: 2px 0 6px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--chat-text-2);
-  font-size: var(--chat-fs-sm);
-  line-height: 1.35;
-  min-height: 20px;
-}
-.lobe-chat-live-tool__mark {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  color: var(--chat-text-3);
-}
-.lobe-chat-live-tool__title {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--chat-text-2);
-  font-weight: 400;
-}
-.lobe-chat-live-tool.is-running .lobe-chat-live-tool__title,
-.lobe-chat-live-tool__title--pulse {
-  color: var(--chat-text);
-}
-/* Must match .lobe-chat-thinking__dot--live (was 1.4s vs 1.2s → visible desync). */
-.lobe-chat-live-tool__title--pulse {
-  animation: chat-live-pulse 1.2s ease-in-out infinite;
-}
-.lobe-chat-live-tool__done {
-  display: block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--chat-text-3, #6e6e73) 55%, transparent);
-}
-.lobe-chat-live-tool__x {
-  font-size: 12px;
-  line-height: 1;
-  color: var(--chat-danger, #e55);
-}
-.lobe-chat-live-tool.is-failed .lobe-chat-live-tool__title {
-  color: var(--chat-danger, #e55);
-}
-.lobe-chat-live-tool--cancel {
-  color: var(--chat-text-3);
-}
-
-/* End-of-turn chip — match .lobe-chat-live-tool quiet chrome metrics */
+/* End-of-turn chip — quiet chrome metrics (20px row, 14px mark, fs-sm) */
 .lobe-end-turn {
   display: flex;
   align-items: center;
@@ -533,4 +471,3 @@
 .lobe-msg-rail__list {
   pointer-events: auto;
 }
-

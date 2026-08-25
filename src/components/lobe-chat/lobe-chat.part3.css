@@ -452,12 +452,6 @@
   line-height: 1.2;
 }
 
-.lobe-chat .att-card__path,
-.lobe-chat .att-card__sub,
-.lobe-chat .att-card__open {
-  display: none !important;
-}
-
 .lobe-chat .att-card__btn--image,
 .lobe-chat .att-card__thumb {
   width: var(--attach-h);

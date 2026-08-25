@@ -208,12 +208,6 @@
   text-align: left;
 }
 
-/* Path available via tooltip */
-.att-card__path,
-.att-card__sub {
-  display: none;
-}
-
 /* Markdown inline images — STABLE CHAT FRAME
  *
  * Chat cards: fixed 150px height (inline style) so image decode / natural-ratio
@@ -586,17 +580,6 @@
   line-height: 1.35;
 }
 
-/* Path never shown on card */
-.file-path-card__sub,
-.file-path-card__path {
-  display: none !important;
-}
-
-.file-path-card--missing {
-  opacity: 0.72;
-  border-style: dashed;
-}
-
 /* Details dialog for file / URL cards */
 .file-path-details-overlay {
   z-index: 13000;
@@ -762,10 +745,6 @@ html[data-composer-min-rows="8"] .composer__input {
 /* Auth / provider gate soft-unavailable — still clickable for toast honesty. */
 .composer__voice.composer__voice--unavailable {
   opacity: 0.45;
-}
-
-.composer__voice-live.is-on {
-  color: var(--accent, #5b8def);
 }
 
 @keyframes composer-voice-pulse {
