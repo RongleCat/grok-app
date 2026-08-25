@@ -68,36 +68,60 @@ html[data-wallpaper="1"]
   flex-direction: column;
 }
 
-/* Env menu — solid panel (same family as .sw-plus-menu / context menus).
- * Bare .menu-panel has no surface; without this the rows float over chat. */
+/*
+ * Env dock: pinned in `.main`. `.is-parked` when the right rail opens;
+ * closing the rail restores it unless the user dismissed it.
+ */
+.sw-env-dock {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  perspective: 900px;
+  perspective-origin: 100% 0%;
+  overflow: hidden;
+}
+
 .sw-env-menu.menu-panel,
 .menu-panel.sw-env-menu {
-  z-index: 13000;
+  position: absolute;
+  top: calc(var(--titlebar-height, 40px) + 8px);
+  right: 16px;
+  bottom: auto;
+  width: 300px;
+  max-width: 300px;
+  max-height: calc(
+    100% - var(--titlebar-height, 40px) - var(--composer-float-pad, 168px) - 16px
+  );
   min-width: 0;
-  max-width: min(var(--menu-max-width, 360px), calc(100vw - 16px));
-  width: max-content;
-  background: var(--menu-context-bg, var(--bg-elevated, var(--bg-card)));
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated, var(--bg-card));
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border: 1px solid var(--menu-context-border, var(--border-subtle));
-  box-shadow: var(--menu-context-shadow, 0 8px 28px rgba(0, 0, 0, 0.45));
-  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-pop, 0 8px 28px rgba(0, 0, 0, 0.18));
+  border-radius: 24px;
   padding: 10px 8px 8px;
   box-sizing: border-box;
-  opacity: 0;
-  transform: translateY(-8px) scale(0.97);
   transform-origin: top right;
+  opacity: 0;
+  transform: translateX(100%) scale(0.8) rotateY(-22deg);
   transition:
     opacity var(--motion-normal) var(--motion-pane-ease),
     transform var(--motion-normal) var(--motion-pane-ease);
   pointer-events: none;
 }
 
-.sw-env-menu.menu-panel.is-open,
-.menu-panel.sw-env-menu.is-open {
+.sw-env-menu.menu-panel.is-open:not(.is-parked),
+.menu-panel.sw-env-menu.is-open:not(.is-parked) {
   opacity: 1;
   transform: none;
   pointer-events: auto;
+}
+
+body > .sw-env-dock {
+  position: fixed;
 }
 
 .sw-env-menu__head {
@@ -113,10 +137,19 @@ html[data-wallpaper="1"]
   font-weight: 600;
 }
 
+.sw-env-menu__close {
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+}
+
 .sw-env-menu__body {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .sw-env-menu__row {

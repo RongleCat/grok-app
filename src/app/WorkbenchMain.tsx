@@ -370,6 +370,7 @@ export function WorkbenchMain(props: WorkbenchMainProps) {
               {mainPane === "chat" ? (
                 <EnvInfoButton
                   locale={locale}
+                  asideOpen={!layout.asideCollapsed}
                   projectPath={effectiveProjectPath}
                   projectName={
                     activeProject

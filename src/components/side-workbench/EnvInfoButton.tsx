@@ -1,11 +1,12 @@
 /**
- * Main chrome `env` control — environment info dropdown (image-7 five rows).
+ * Main chrome `env` control — environment info dock (five rows).
  * Phase 3: display collected git/session status + jump callbacks; no full git write ops.
  */
 
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -16,6 +17,7 @@ import { createT, type Locale } from "@/i18n";
 import {
   IconBrandGithub,
   IconChevronDown,
+  IconClose,
   IconDeviceDesktop,
   IconEnv,
   IconFileDiff,
@@ -24,7 +26,6 @@ import {
 } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import * as api from "@/lib/api";
-import { useFloatingMenu } from "@/lib/floatingMenu";
 import { useOpenPresence } from "@/lib/openPresence";
 import { pathBaseName } from "@/lib/sessionChanges";
 import { envReviewJumpEnabled } from "@/lib/sideWorkbench";
@@ -54,6 +55,8 @@ export type EnvInfoButtonProps = {
   changeSummary?: EnvChangeSummary | null;
   /** Optional branch override; when omitted, loaded from git status on open. */
   branch?: string | null;
+  /** Right rail open — parks the dock instead of closing it. */
+  asideOpen?: boolean;
   className?: string;
   onJump?: (jump: EnvInfoJump) => void;
 };
@@ -83,35 +86,50 @@ export function EnvInfoButton({
   isGitProject = false,
   changeSummary = null,
   branch: branchProp = null,
+  asideOpen = false,
   className = "",
   onJump,
 }: EnvInfoButtonProps) {
   const tr = useMemo(() => createT(locale as Locale), [locale]);
   const [open, setOpen] = useState(false);
+  const [parked, setParked] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const loadGen = useRef(0);
+  const asideOpenRef = useRef(asideOpen);
+  const [host, setHost] = useState<HTMLElement | null>(null);
 
   const [snap, setSnap] = useState<EnvSnapshot>(() =>
     emptySnapshot(isGitProject),
   );
 
   const presence = useOpenPresence(open);
-  const { pos, style, settled } = useFloatingMenu({
-    open: presence.mounted,
-    triggerRef,
-    panelRef,
-    onClose: () => setOpen(false),
-    placement: "down",
-    // Chrome trailing control: hang panel so right edges match the env icon.
-    align: "end",
-    fitContent: true,
-    minWidth: 280,
-    estHeight: 320,
-    gap: 6,
-  });
-  const enter = useOpenPresence(Boolean(open && settled));
-  const entered = enter.entered;
+  const entered = presence.entered;
+
+  useLayoutEffect(() => {
+    const el = document.querySelector(".main");
+    setHost(el instanceof HTMLElement ? el : document.body);
+  }, []);
+
+  useLayoutEffect(() => {
+    const wasOpen = asideOpenRef.current;
+    asideOpenRef.current = asideOpen;
+    if (!open) {
+      setParked(false);
+      return;
+    }
+    if (!wasOpen && asideOpen) setParked(true);
+    if (wasOpen && !asideOpen) setParked(false);
+  }, [asideOpen, open]);
+
+  useEffect(() => {
+    if (!presence.mounted) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [presence.mounted]);
 
   const localLabel = useMemo(() => {
     const named = (projectName || "").trim();
@@ -303,20 +321,30 @@ export function EnvInfoButton({
           <IconEnv size={16} />
         </button>
       </Tip>
-      {presence.mounted && pos
+      {presence.mounted && host
         ? createPortal(
+            <div className="sw-env-dock" aria-hidden={parked || !entered}>
             <div
               ref={panelRef}
               className={
-                "sw-env-menu menu-panel" + (entered ? " is-open" : "")
+                "sw-env-menu menu-panel" +
+                (entered ? " is-open" : "") +
+                (parked ? " is-parked" : "")
               }
-              style={style}
               role="dialog"
               aria-label={tr("side.envTitle")}
               data-testid="env-info-menu"
             >
               <div className="sw-env-menu__head">
                 <span className="sw-env-menu__title">{tr("side.envTitle")}</span>
+                <button
+                  type="button"
+                  className="chrome-btn sw-env-menu__close"
+                  aria-label={tr("common.close")}
+                  onClick={() => setOpen(false)}
+                >
+                  <IconClose size={14} />
+                </button>
               </div>
               <div className="sw-env-menu__body">
                 {row(
@@ -376,8 +404,9 @@ export function EnvInfoButton({
                   gitReady,
                 )}
               </div>
+            </div>
             </div>,
-            document.body,
+            host,
           )
         : null}
     </>
