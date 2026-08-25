@@ -14,6 +14,7 @@ export const itChat = {
   "main.leftPaneHide": "Nascondi barra laterale",
   "main.rightPaneShow": "Mostra/nascondi barra laterale",
   "main.rightPaneHide": "Mostra/nascondi barra laterale",
+  "main.paneUnread": "Nuova attività",
   "main.zenModeEnter": "Modalità zen — nascondi i pannelli laterali",
   "main.zenModeExit": "Esci dalla modalità zen",
   "main.openLocation": "Apri posizione",

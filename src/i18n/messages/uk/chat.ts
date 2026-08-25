@@ -14,6 +14,7 @@ export const ukChat = {
   "main.leftPaneHide": "Сховати бічну панель",
   "main.rightPaneShow": "Показати/сховати бічну панель",
   "main.rightPaneHide": "Показати/сховати бічну панель",
+  "main.paneUnread": "Нова активність",
   "main.zenModeEnter": "Режим дзен — сховати бічні панелі",
   "main.zenModeExit": "Вийти з режиму дзен",
   "main.openLocation": "Відкрити розташування",

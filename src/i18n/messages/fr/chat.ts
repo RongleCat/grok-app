@@ -14,6 +14,7 @@ export const frChat = {
   "main.leftPaneHide": "Masquer la barre latérale",
   "main.rightPaneShow": "Afficher/masquer le panneau",
   "main.rightPaneHide": "Afficher/masquer le panneau",
+  "main.paneUnread": "Nouvelle activité",
   "main.zenModeEnter": "Mode zen — masquer les panneaux latéraux",
   "main.zenModeExit": "Quitter le mode zen",
   "main.openLocation": "Ouvrir l’emplacement",

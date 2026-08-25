@@ -14,6 +14,7 @@ export const deChat = {
   "main.leftPaneHide": "Seitenleiste ausblenden",
   "main.rightPaneShow": "Seitenleiste ein-/ausblenden",
   "main.rightPaneHide": "Seitenleiste ein-/ausblenden",
+  "main.paneUnread": "Neue Aktivität",
   "main.zenModeEnter": "Zen-Modus — Seitenpanels ausblenden",
   "main.zenModeExit": "Zen-Modus beenden",
   "main.openLocation": "Ort öffnen",

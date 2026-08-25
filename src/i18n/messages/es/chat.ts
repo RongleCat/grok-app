@@ -14,6 +14,7 @@ export const esChat = {
   "main.leftPaneHide": "Ocultar barra lateral",
   "main.rightPaneShow": "Mostrar/ocultar barra lateral",
   "main.rightPaneHide": "Mostrar/ocultar barra lateral",
+  "main.paneUnread": "Actividad nueva",
   "main.zenModeEnter": "Modo zen — ocultar paneles laterales",
   "main.zenModeExit": "Salir del modo zen",
   "main.openLocation": "Abrir ubicación",

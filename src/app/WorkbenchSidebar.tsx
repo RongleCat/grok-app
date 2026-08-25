@@ -22,7 +22,6 @@ import {
   IconFolderPlus,
   IconList,
   IconNewChat,
-  IconPanel,
   IconScheduled,
   IconSearch,
 } from "@/components/icons";
@@ -77,7 +76,6 @@ export type WorkbenchSidebarProps = {
   sidebarOpenW: number;
   sidebarPaint: number;
   beginSidebarResize: (clientX: number, width: number) => void;
-  closeSidebarPane: () => void;
   dragRegion: "false" | "deep";
   titlebarMax: TitlebarMax;
   replaceProviderBrandLogo: boolean;
@@ -129,7 +127,6 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
     sidebarOpenW,
     sidebarPaint,
     beginSidebarResize,
-    closeSidebarPane,
     dragRegion,
     titlebarMax,
     replaceProviderBrandLogo,
@@ -174,6 +171,7 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
 
   return (
     <aside
+      id="workbench-sidebar"
       className={
         "sidebar" +
         (layout.sidebarCollapsed ? " sidebar--hidden" : "") +
@@ -240,16 +238,6 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
           data-tauri-drag-region={dragRegion}
           {...titlebarMax}
         >
-          <Tip label={tr("main.leftPaneHide")}>
-            <button
-              type="button"
-              className="chrome-btn chrome-btn--traffic main__pane-toggle is-on"
-              aria-label={tr("main.leftPaneHide")}
-              onClick={() => closeSidebarPane()}
-            >
-              <IconPanel size={16} />
-            </button>
-          </Tip>
           <div
             className="sidebar-chrome__drag"
             data-tauri-drag-region={dragRegion}

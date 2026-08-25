@@ -14,6 +14,7 @@ export const taChat = {
   "main.leftPaneHide": "பக்கப்பட்டியை மறை",
   "main.rightPaneShow": "பக்கப்பட்டியைக் காட்டு/மறை",
   "main.rightPaneHide": "பக்கப்பட்டியைக் காட்டு/மறை",
+  "main.paneUnread": "புதிய செயல்பாடு",
   "main.zenModeEnter": "ஜென் பயன்முறை - பக்க பலகங்களை மறை",
   "main.zenModeExit": "ஜென் பயன்முறையிலிருந்து வெளியேறு",
   "main.openLocation": "திறந்த இடம்",

@@ -14,6 +14,7 @@ export const zhChat = {
   "main.leftPaneHide": "隐藏侧栏",
   "main.rightPaneShow": "显示/隐藏侧边栏",
   "main.rightPaneHide": "显示/隐藏侧边栏",
+  "main.paneUnread": "有新活动",
   "main.zenModeEnter": "禅模式 — 隐藏两侧栏",
   "main.zenModeExit": "退出禅模式",
   "main.openLocation": "打开位置",

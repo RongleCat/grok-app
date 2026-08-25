@@ -672,24 +672,6 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   padding-left: 10px;
 }
 
-/* Panel toggle next to traffic lights — no extra left margin; keep drawable */
-.sidebar-chrome > .chrome-btn--traffic {
-  margin-left: 0;
-  margin-right: 2px;
-  flex-shrink: 0;
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
-  position: relative;
-  z-index: 2;
-}
-
-/* Avoid Tip/layout making the traffic-adjacent control look like an empty slab */
-.sidebar-chrome > .chrome-btn--traffic svg,
-.main__top .chrome-btn--traffic svg {
-  display: block;
-  flex-shrink: 0;
-}
-
 .sidebar-chrome__drag {
   flex: 1;
   height: 100%;
@@ -835,4 +817,3 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
-

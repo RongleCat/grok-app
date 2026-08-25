@@ -705,18 +705,131 @@
   opacity: 0;
 }
 
-/* When left sidebar fully closed, reserve mac traffic-light inset on main */
+/* Hidden sidebar: clear traffic lights plus the fixed left toggle. */
 .platform-mac .main--sidebar-hidden .main__top {
-  padding-left: var(--titlebar-safe-left, 96px);
+  padding-left: calc(var(--titlebar-safe-left, 96px) + 34px);
+}
+
+.platform-win .main--sidebar-hidden .main__top,
+.platform-linux .main--sidebar-hidden .main__top,
+.platform-other .main--sidebar-hidden .main__top,
+.has-custom-chrome .main--sidebar-hidden .main__top {
+  padding-left: 44px;
 }
 
 .workbench--sidebar-motion .main__top {
   transition: padding-left var(--motion-pane) var(--motion-pane-ease);
 }
 
+/* Hidden aside: leave the fixed right toggle unobstructed. */
+.workbench:not(.workbench--phone):has(> .aside.aside--hidden) .main__top {
+  padding-right: 46px;
+}
+
+.platform-win
+  .workbench:not(.workbench--phone):has(> .aside.aside--hidden)
+  .main__top,
+.platform-linux
+  .workbench:not(.workbench--phone):has(> .aside.aside--hidden)
+  .main__top,
+.platform-other
+  .workbench:not(.workbench--phone):has(> .aside.aside--hidden)
+  .main__top,
+.has-custom-chrome
+  .workbench:not(.workbench--phone):has(> .aside.aside--hidden)
+  .main__top {
+  padding-right: calc(var(--window-controls-inset, 138px) + 34px);
+}
+
+.workbench--aside-motion .main__top {
+  transition: padding-right var(--motion-pane) var(--motion-pane-ease);
+}
+
+.workbench--sidebar-motion.workbench--aside-motion .main__top {
+  transition:
+    padding-left var(--motion-pane) var(--motion-pane-ease),
+    padding-right var(--motion-pane) var(--motion-pane-ease);
+}
+
+/* The desktop aside close action is pinned; reserve its corner in rail mode. */
+.workbench:not(.workbench--phone):not(.workbench--side-expanded)
+  .aside
+  .rp-chrome {
+  padding-right: 44px;
+}
+
+.platform-win
+  .workbench:not(.workbench--phone):not(.workbench--side-expanded)
+  .aside
+  .rp-chrome,
+.platform-linux
+  .workbench:not(.workbench--phone):not(.workbench--side-expanded)
+  .aside
+  .rp-chrome,
+.platform-other
+  .workbench:not(.workbench--phone):not(.workbench--side-expanded)
+  .aside
+  .rp-chrome,
+.has-custom-chrome
+  .workbench:not(.workbench--phone):not(.workbench--side-expanded)
+  .aside
+  .rp-chrome {
+  padding-right: calc(var(--window-controls-inset, 138px) + 34px);
+}
+
 .main__pane-toggle.is-on {
   color: var(--text-primary);
   background: var(--bg-active);
+}
+
+.pane-toggle--pinned {
+  position: absolute;
+  top: calc((var(--titlebar-height, 40px) - 28px) / 2);
+  z-index: 45;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.pane-toggle--left.pane-toggle--pinned {
+  left: 10px;
+}
+
+.platform-mac .pane-toggle--left.pane-toggle--pinned {
+  left: var(--titlebar-safe-left, 96px);
+}
+
+.has-custom-chrome .pane-toggle--left.pane-toggle--pinned {
+  left: 10px;
+}
+
+.pane-toggle--right.pane-toggle--pinned {
+  right: 12px;
+}
+
+.platform-win .pane-toggle--right.pane-toggle--pinned,
+.platform-linux .pane-toggle--right.pane-toggle--pinned,
+.platform-other .pane-toggle--right.pane-toggle--pinned,
+.has-custom-chrome .pane-toggle--right.pane-toggle--pinned {
+  right: var(--window-controls-inset, 138px);
+}
+
+.workbench--side-expanded .pane-toggle--right.pane-toggle--pinned,
+.workbench--side-expanded:has(> .sidebar:is(.sidebar--hidden, .sidebar--overlay))
+  .pane-toggle--left.pane-toggle--pinned {
+  display: none;
+}
+
+.pane-toggle__dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent, #6b9fff);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--accent, #6b9fff) 28%, transparent);
+  pointer-events: none;
 }
 
 /* ===== Composer model / access menus (Codex-style sheet) ===== */

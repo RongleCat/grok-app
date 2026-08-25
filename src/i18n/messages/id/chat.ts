@@ -14,6 +14,7 @@ export const idChat = {
   "main.leftPaneHide": "Sembunyikan bilah sisi",
   "main.rightPaneShow": "Tampilkan/sembunyikan bilah sisi",
   "main.rightPaneHide": "Tampilkan/sembunyikan bilah sisi",
+  "main.paneUnread": "Aktivitas baru",
   "main.zenModeEnter": "Mode zen — sembunyikan panel sisi",
   "main.zenModeExit": "Keluar dari mode zen",
   "main.openLocation": "Buka lokasi",

@@ -14,6 +14,7 @@ export const zhTWChat = {
   "main.leftPaneHide": "隱藏側邊欄",
   "main.rightPaneShow": "顯示/隱藏側邊欄",
   "main.rightPaneHide": "顯示/隱藏側邊欄",
+  "main.paneUnread": "有新活動",
   "main.zenModeEnter": "禪模式 — 隱藏兩側欄",
   "main.zenModeExit": "退出禪模式",
   "main.openLocation": "開啟位置",

@@ -14,6 +14,7 @@ export const ruChat = {
   "main.leftPaneHide": "Скрыть панель чатов",
   "main.rightPaneShow": "Показать/скрыть боковую панель",
   "main.rightPaneHide": "Показать/скрыть боковую панель",
+  "main.paneUnread": "Новая активность",
   "main.zenModeEnter": "Режим дзен — скрыть боковые панели",
   "main.zenModeExit": "Выйти из режима дзен",
   "main.openLocation": "Открыть расположение",

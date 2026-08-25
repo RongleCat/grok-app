@@ -14,6 +14,7 @@ export const enChat = {
   "main.leftPaneHide": "Hide sidebar",
   "main.rightPaneShow": "Show/hide sidebar",
   "main.rightPaneHide": "Show/hide sidebar",
+  "main.paneUnread": "New activity",
   "main.zenModeEnter": "Zen mode — hide side panes",
   "main.zenModeExit": "Exit zen mode",
   "main.openLocation": "Open location",

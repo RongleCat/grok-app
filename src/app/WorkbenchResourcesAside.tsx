@@ -107,6 +107,7 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
 
   return (
     <aside
+      id="workbench-aside"
       className={
         (layout.asideCollapsed ? "aside aside--hidden" : "aside") +
         (resizingAside ? " is-resizing" : "") +
@@ -188,6 +189,7 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
             closeActiveRequest={closeActiveSideRequest}
             onCloseActiveRequestConsumed={onCloseActiveRequestConsumed}
             onCloseSide={onCloseSide}
+            closeToggleInBar={phoneLayout}
             onExpandedChange={onExpandedChange}
             skillInfos={skillInfos}
             skillsLoading={skillsLoading}

@@ -14,6 +14,7 @@ export const filChat = {
   "main.leftPaneHide": "Itago ang sidebar",
   "main.rightPaneShow": "Ipakita/itago ang sidebar",
   "main.rightPaneHide": "Ipakita/itago ang sidebar",
+  "main.paneUnread": "May bagong aktibidad",
   "main.zenModeEnter": "Zen mode — itago ang mga side pane",
   "main.zenModeExit": "Lumabas sa zen mode",
   "main.openLocation": "Buksan ang lokasyon",

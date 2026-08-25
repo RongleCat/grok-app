@@ -14,6 +14,7 @@ export const koChat = {
   "main.leftPaneHide": "사이드바 숨기기",
   "main.rightPaneShow": "사이드바 표시/숨기기",
   "main.rightPaneHide": "사이드바 표시/숨기기",
+  "main.paneUnread": "새 활동",
   "main.zenModeEnter": "젠 모드 — 사이드 패널 숨기기",
   "main.zenModeExit": "젠 모드 종료",
   "main.openLocation": "위치 열기",

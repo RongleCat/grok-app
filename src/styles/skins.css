@@ -386,13 +386,13 @@ html[data-theme="light"][data-wallpaper="1"]
 }
 
 html[data-theme="light"][data-wallpaper="1"]
-  :is(.main__title, .main__title-icon, .main__title-row .chrome-btn, .main__top-actions .chrome-btn) {
+  :is(.main__title, .main__title-icon, .main__title-row .chrome-btn, .main__top-actions .chrome-btn, .pane-toggle--pinned) {
   color: var(--wallpaper-chrome-foreground);
   text-shadow: 0 1px 2px var(--wallpaper-chrome-shadow-color);
 }
 
 html[data-theme="light"][data-wallpaper="1"]
-  :is(.main__title-icon, .main__title-row .chrome-btn, .main__top-actions .chrome-btn)
+  :is(.main__title-icon, .main__title-row .chrome-btn, .main__top-actions .chrome-btn, .pane-toggle--pinned)
   svg {
   filter: drop-shadow(0 1px 1px var(--wallpaper-chrome-shadow-color));
 }

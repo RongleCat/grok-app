@@ -47,6 +47,7 @@ export type SideWorkbenchProps = {
   state?: SideWorkbenchState;
   onStateChange?: (next: SideWorkbenchState) => void;
   onCloseSide: () => void;
+  closeToggleInBar?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
   /** Bottom-docked compressed composer over expanded side content. */
   dockComposer?: boolean;
@@ -82,6 +83,7 @@ export function SideWorkbench({
   state: controlled,
   onStateChange,
   onCloseSide,
+  closeToggleInBar = false,
   onExpandedChange,
   dockComposer = false,
   onToggleDockComposer,
@@ -353,6 +355,7 @@ export function SideWorkbench({
         onToggleExpand={onToggleExpand}
         onToggleDockComposer={onToggleDockComposer}
         onToggleSide={onCloseSide}
+        closeToggleInBar={closeToggleInBar}
       />
 
       <div className="sw__content">

@@ -14,6 +14,7 @@ export const ptBRChat = {
   "main.leftPaneHide": "Ocultar barra lateral",
   "main.rightPaneShow": "Mostrar/ocultar barra lateral",
   "main.rightPaneHide": "Mostrar/ocultar barra lateral",
+  "main.paneUnread": "Nova atividade",
   "main.zenModeEnter": "Modo zen — ocultar painéis laterais",
   "main.zenModeExit": "Sair do modo zen",
   "main.openLocation": "Abrir local",

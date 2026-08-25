@@ -14,6 +14,7 @@ export const jaChat = {
   "main.leftPaneHide": "サイドバーを隠す",
   "main.rightPaneShow": "サイドバーの表示 / 非表示",
   "main.rightPaneHide": "サイドバーの表示 / 非表示",
+  "main.paneUnread": "新しいアクティビティ",
   "main.zenModeEnter": "禅モード — サイドペインを隠す",
   "main.zenModeExit": "禅モードを終了",
   "main.openLocation": "場所を開く",

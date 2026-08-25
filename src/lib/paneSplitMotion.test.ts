@@ -343,6 +343,43 @@ describe("desktop hidden CSS must not force width 0", () => {
     );
     expect(css).not.toMatch(/\.workbench--sidebar-motion[^{]*\{[^}]*contain:/);
   });
+
+  it("mounts one fixed desktop toggle per side without sliding-pane duplicates", () => {
+    const app = readFileSync(
+      resolve(__dirname, "../app/AppWorkbench.tsx"),
+      "utf8",
+    );
+    const sidebar = readFileSync(
+      resolve(__dirname, "../app/WorkbenchSidebar.tsx"),
+      "utf8",
+    );
+    const main = readFileSync(
+      resolve(__dirname, "../app/WorkbenchMain.tsx"),
+      "utf8",
+    );
+    const resources = readFileSync(
+      resolve(__dirname, "../app/WorkbenchResourcesAside.tsx"),
+      "utf8",
+    );
+    const sideTabBar = readFileSync(
+      resolve(__dirname, "../components/side-workbench/SideTabBar.tsx"),
+      "utf8",
+    );
+
+    expect(app.match(/<PaneToggleButton/g) ?? []).toHaveLength(2);
+    expect(app.match(/testId="main-side-toggle"/g) ?? []).toHaveLength(1);
+    expect(app).toMatch(/<PaneToggleButton\s+side="left"/);
+    expect(app).toMatch(/<PaneToggleButton\s+side="right"/);
+    expect(sidebar).not.toContain("main__pane-toggle");
+    expect(main).not.toContain('data-testid="main-side-toggle"');
+    expect(main.match(/<PaneToggleButton/g) ?? []).toHaveLength(1);
+    expect(main).not.toMatch(
+      /layout\.asideCollapsed\s*\?\s*\(\s*<Tip label=\{tr\("main\.rightPane/s,
+    );
+    expect(resources).toContain('id="workbench-aside"');
+    expect(resources).toContain("closeToggleInBar={phoneLayout}");
+    expect(sideTabBar).toContain("expanded || closeToggleInBar");
+  });
 });
 
 describe("motion window", () => {
