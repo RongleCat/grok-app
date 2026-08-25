@@ -71,6 +71,9 @@ html[data-wallpaper="1"]
 /*
  * Env dock: pinned in `.main`. `.is-parked` when the right rail opens;
  * closing the rail restores it unless the user dismissed it.
+ * Open (not parked) reserves 316px (300 panel + 16 end pad) via stage
+ * margin-right so the centered thread recenters. Padding would not inset
+ * the absolutely positioned composer.
  */
 .sw-env-dock {
   position: absolute;
@@ -82,14 +85,28 @@ html[data-wallpaper="1"]
   overflow: hidden;
 }
 
+.main {
+  --env-summary-width: 300px;
+  --env-summary-gutter: 0px;
+}
+
+.main:has(.sw-env-menu.is-open:not(.is-parked)) {
+  --env-summary-gutter: 316px;
+}
+
+.main > .main__stage {
+  margin-right: var(--env-summary-gutter);
+  transition: margin-right var(--motion-pane) var(--motion-pane-ease);
+}
+
 .sw-env-menu.menu-panel,
 .menu-panel.sw-env-menu {
   position: absolute;
   top: calc(var(--titlebar-height, 40px) + 8px);
   right: 16px;
   bottom: auto;
-  width: 300px;
-  max-width: 300px;
+  width: var(--env-summary-width);
+  max-width: var(--env-summary-width);
   max-height: calc(
     100% - var(--titlebar-height, 40px) - var(--composer-float-pad, 168px) - 16px
   );
@@ -238,6 +255,10 @@ body > .sw-env-dock {
   .sw-env-menu.menu-panel,
   .menu-panel.sw-env-menu {
     transform: none;
+    transition: none;
+  }
+
+  .main > .main__stage {
     transition: none;
   }
 }

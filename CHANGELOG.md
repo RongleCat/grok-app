@@ -19,6 +19,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Changed
 - **Environment info is a pinned dock**: the env panel hangs in the chat column (not a dropdown). Opening the right rail parks it with a reverse-fold animation; closing the rail brings it back unless dismissed.
+- **Open env dock leaves room for the thread**: the chat stage takes a 316px right margin so welcome / composer recenter instead of sitting under the card.
 - **Agent question no longer covers the transcript (#891)**: `_x.ai/ask_user_question` sits above the composer like the permission bar. Chat stays scrollable. Collapse to a chip (not Dismiss) keeps the draft. The question is the title; options sit on the left with Dismiss / Submit on the right (Submit pinned to the bottom of the card). Short chips stay in a row. Selection uses the theme accent fill; Enter submits except while an IME is committing a candidate.
 - **Dock icons from authored black / white appiconsets**: production `icon.icns` / `icon.ico` pack the black 16–1024 rasters; `pnpm dev` packs the white set into `icons/dev`. Pixel sizes are not resampled (`scripts/pack_appiconset.py`).
 - **Linux AppImage runtime packages (#899)**: README documents the host apt line for a clean Debian/Ubuntu (`libegl1`, `libgles2`, `libwebkit2gtk-4.1-0`, `libayatana-appindicator3-1`) when the official AppImage exits with `libEGL.so.1: cannot open shared object file`. Distinct from the Wayland black-window / `EGL_BAD_PARAMETER` notes.
@@ -28,6 +29,7 @@ See `docs/llm-wiki/release.md`.
 
 **中文 · 变更**
 - **环境信息改为钉板**：挂在对话列里，不再是下拉。打开右侧栏会 park 收起，关掉侧栏再转回来（用户关掉的除外）。
+- **环境信息打开时对话列让位**：主列右边预留 316px，欢迎页和输入框重新居中，不再压在卡片上。
 - **Agent 提问不再挡住会话（#891）**：`_x.ai/ask_user_question` 放到输入框上方，和权限条一样。会话可滚动。收成一条不算忽略，草稿还在。问题当标题；选项在左、忽略/提交在右（提交贴容器底）。短芯片横排。选中用主题色填充；回车提交，中文输入法选词回车不提交。
 - **Dock 图标改用已调好的黑 / 白 appiconset**：正式版 `icon.icns` / `icon.ico` 打黑色 16–1024；`pnpm dev` 打白色到 `icons/dev`。按原像素封装，不再缩放（`scripts/pack_appiconset.py`）。
 - **Linux AppImage 运行时包（#899）**：README 补上干净 Debian/Ubuntu 的 apt 行（`libegl1`、`libgles2`、`libwebkit2gtk-4.1-0`、`libayatana-appindicator3-1`）。官方 AppImage 缺 `libEGL.so.1` 会立刻退出；这与 Wayland 黑窗 / `EGL_BAD_PARAMETER` 不是同一类问题。
