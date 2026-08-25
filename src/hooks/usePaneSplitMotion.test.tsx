@@ -93,6 +93,38 @@ describe("usePaneSplitMotion", () => {
     expect(isPaneSplitMotionActive()).toBe(false);
   });
 
+  it("does not cover a closed aside when sidebar opening changes its prospective overlay", () => {
+    const closedAside = {
+      ...initialProps,
+      sidebarCollapsed: true,
+      asideCollapsed: true,
+      asideOverlay: false,
+    };
+    const { result, rerender } = renderHook(
+      (props) => usePaneSplitMotion(props),
+      { initialProps: closedAside },
+    );
+
+    rerender({
+      ...closedAside,
+      sidebarCollapsed: false,
+      asideOverlay: true,
+    });
+
+    expect(result.current.paneMotionClass).toContain(
+      "workbench--sidebar-motion",
+    );
+    expect(nativeWebviewCoverDepth()).toBe(0);
+    expect(isPaneSplitMotionActive()).toBe(true);
+
+    act(() => dispatchWidthTransitionEnd("sidebar"));
+    expect(result.current.paneMotionClass).not.toContain(
+      "workbench--sidebar-motion",
+    );
+    expect(nativeWebviewCoverDepth()).toBe(0);
+    expect(isPaneSplitMotionActive()).toBe(false);
+  });
+
   it("covers native webviews while an in-flow aside interpolates", () => {
     const props = {
       ...initialProps,

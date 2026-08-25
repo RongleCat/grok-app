@@ -1,6 +1,13 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MAIN_CHAT_MIN_WIDTH } from "@/lib/layout";
 import { resolveWorkbenchPaneOverlay } from "./paneOverlay";
+
+const workbenchLayout = readFileSync(
+  resolve(__dirname, "../hooks/useWorkbenchLayout.ts"),
+  "utf8",
+);
 
 describe("resolveWorkbenchPaneOverlay", () => {
   it("keeps both panes in flow when the window fits chat plus both", () => {
@@ -49,5 +56,15 @@ describe("resolveWorkbenchPaneOverlay", () => {
         asideWidth: 400,
       }),
     ).toEqual({ sidebarOverlay: false, asideOverlay: false });
+  });
+
+  it("does not grow the window when opening the sidebar leaves the aside overlaid", () => {
+    const start = workbenchLayout.indexOf("const openSidebarPane = useCallback");
+    const end = workbenchLayout.indexOf("const closeSidebarPane", start);
+    const openSidebarPane = workbenchLayout.slice(start, end);
+
+    expect(openSidebarPane).toContain(
+      "if (overlay.sidebarOverlay || overlay.asideOverlay) return;",
+    );
   });
 });

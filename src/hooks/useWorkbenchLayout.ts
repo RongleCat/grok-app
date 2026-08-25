@@ -388,7 +388,7 @@ export function useWorkbenchLayout(opts?: { onAsideClose?: () => void }) {
         ? cur.asideWidth
         : Math.max(cur.asideWidth || 0, DEFAULT_LAYOUT.asideWidth),
     };
-    if (overlay.sidebarOverlay) return;
+    if (overlay.sidebarOverlay || overlay.asideOverlay) return;
     const fitGen = ++sidebarFitGenRef.current;
     void fitWindowThenClampAside(projected).then((width) => {
       if (sidebarFitGenRef.current !== fitGen) return;

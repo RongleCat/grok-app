@@ -27,8 +27,9 @@
   --space-7: 32px;
   --space-8: 48px;
 
-  /* Keep in sync with SIDEBAR_DEFAULT_WIDTH in layout.ts */
+  /* Keep in sync with SIDEBAR_DEFAULT_WIDTH / SIDEBAR_WIDTH_MAX in layout.ts */
   --sidebar-width: 268px;
+  --sidebar-width-max: 420px;
   /*
    * Sidebar tree columns (nav icons, L1 chevron, L2 name, L3 title).
    * Change values here only — consumers use var() with no px fallback.

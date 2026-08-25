@@ -617,27 +617,13 @@
   pointer-events: none;
 }
 
-/* Clip only the pane whose box is interpolating. Overflow-hidden on a
- * stable aside (file preview / native browser) during sidebar motion
- * changes clientWidth and kicks webview setPosition every frame.
+/* Clip only the right pane whose box is interpolating. Overflow-hidden on
+ * a stable aside (file preview / native browser) during sidebar motion changes
+ * clientWidth and kicks webview setPosition every frame.
  * Do not `contain: layout` the aside — persist-host height:100% then
  * resolves against the full pane and the native webview covers chrome. */
-.workbench--pane-motion .sidebar,
 .workbench--aside-motion .aside {
   overflow: hidden;
-}
-
-/*
- * Click / shortcut collapse is a clip + fade, not a live resize.
- * Inner rail stays at the last open width so labels do not wrap.
- * Drag keeps `.is-resizing` and still reflows.
- */
-.workbench--sidebar-motion .sidebar:not(.is-resizing) .sidebar__clip {
-  width: var(--sidebar-rail-min, 268px);
-  min-width: var(--sidebar-rail-min, 268px);
-  max-width: none;
-  flex-shrink: 0;
-  box-sizing: border-box;
 }
 
 .workbench--aside-motion .aside:not(.is-resizing) .aside__inner {

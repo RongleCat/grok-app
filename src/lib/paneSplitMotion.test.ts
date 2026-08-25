@@ -74,9 +74,10 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(sidebar).toMatch(/\.sidebar__clip/);
     expect(sidebar).toMatch(/opacity:\s*0/);
     expect(sidebar).not.toMatch(/repeating-linear-gradient/);
-    expect(chat).toMatch(
-      /\.workbench--sidebar-motion \.sidebar:not\(\.is-resizing\) \.sidebar__clip/,
+    expect(sidebar).toMatch(
+      /\.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\):not\(\.is-resizing\)[^{]*\.sidebar__clip\s*>\s*\*/s,
     );
+    expect(sidebar).toMatch(/--sidebar-rail-min/);
     expect(chat).toMatch(
       /\.workbench--aside-motion \.aside:not\(\.is-resizing\) \.aside__inner/,
     );
@@ -127,11 +128,11 @@ describe("desktop hidden CSS must not force width 0", () => {
       resolve(__dirname, "../styles/sidebar.part1.css"),
       "utf8",
     );
-    expect(ruleBody(sidebar, "\n.sidebar {")).not.toMatch(
-      /width var\(--motion-pane\)/,
+    expect(ruleBody(sidebar, "\n.sidebar {")).toMatch(
+      /width var\(--motion-pane\)[^,]*,[^}]*min-width var\(--motion-pane\)[^,]*,[^}]*max-width var\(--motion-pane\)[^,]*,[^}]*flex-basis var\(--motion-pane\)/s,
     );
-    expect(sidebar).toMatch(
-      /\.workbench--sidebar-motion\s+\.sidebar:not\(\.is-resizing\):not\(\.sidebar--overlay\)\s*\{[^}]*width var\(--motion-pane\)[^,]*,[^}]*min-width var\(--motion-pane\)[^,]*,[^}]*max-width var\(--motion-pane\)[^,]*,[^}]*flex-basis var\(--motion-pane\)/s,
+    expect(sidebar).not.toMatch(
+      /^\s*\.workbench--sidebar-motion[^\n{]*\.sidebar/m,
     );
     expect(sidebar).not.toMatch(
       /\.sidebar\.sidebar--overlay[^}]*width var\(--motion-pane\)/s,
@@ -333,7 +334,66 @@ describe("desktop hidden CSS must not force width 0", () => {
     );
   });
 
-  it("sidebar-only motion does not overflow-hidden or contain a stable aside", () => {
+  it("does not toggle size transitions on the blur-owning in-flow sidebar", () => {
+    /**
+     * WKWebView rebuilds the backdrop-filter layer when `transition` is
+     * added or removed on `.sidebar`. Size interpolation must live on
+     * `.sidebar` itself; drag still uses `.is-resizing`.
+     */
+    const sidebar = readFileSync(
+      resolve(__dirname, "../styles/sidebar.part1.css"),
+      "utf8",
+    );
+    const body = ruleBody(sidebar, "\n.sidebar {");
+    expect(body).toMatch(/width var\(--motion-pane\)/);
+    expect(body).toMatch(/min-width var\(--motion-pane\)/);
+    expect(body).toMatch(/max-width var\(--motion-pane\)/);
+    expect(body).toMatch(/flex-basis var\(--motion-pane\)/);
+    expect(sidebar).not.toMatch(
+      /^\s*\.workbench--sidebar-motion[^\n{]*\.sidebar/m,
+    );
+  });
+
+  it("does not put backdrop-filter on the interpolating in-flow sidebar", () => {
+    /**
+     * Resizing a blur-owning box flashes (toggle end, live drag, or a
+     * paused drag). In-flow frost is the rail max so its layer never
+     * changes size; extra sits under .main.
+     */
+    const sidebar = readFileSync(
+      resolve(__dirname, "../styles/sidebar.part1.css"),
+      "utf8",
+    );
+    const tokens = readFileSync(
+      resolve(__dirname, "../styles/tokens.css"),
+      "utf8",
+    );
+    expect(tokens).toMatch(/--sidebar-width-max:\s*420px/);
+    const inFlow = ruleBody(
+      sidebar,
+      ".platform-mac .sidebar:not(.sidebar--overlay):not(.sidebar--phone-drawer) {",
+    );
+    expect(inFlow).toMatch(/backdrop-filter:\s*none/);
+    expect(inFlow).not.toMatch(/overflow:\s*hidden/);
+    expect(sidebar).toMatch(
+      /\.platform-mac \.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\)::before\s*\{[^}]*width:\s*var\(--sidebar-width-max[^}]*backdrop-filter:\s*blur\(var\(--sidebar-blur\)\)/s,
+    );
+    expect(sidebar).not.toMatch(
+      /\.sidebar\.is-resizing[^{]*::before[^{]*\{[^}]*width:\s*100%/s,
+    );
+    expect(sidebar).not.toMatch(
+      /\.platform-mac \.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\)::before\s*\{[^}]*\btransition\s*:/s,
+    );
+    expect(sidebar).toMatch(
+      /\.platform-mac \.sidebar\.sidebar--overlay,\s*\.platform-mac \.sidebar\.sidebar--phone-drawer\s*\{[^}]*backdrop-filter:\s*blur\(var\(--sidebar-blur\)\)/s,
+    );
+  });
+
+  it("clips the sidebar contents without changing the blur-owning pane", () => {
+    const sidebar = readFileSync(
+      resolve(__dirname, "../styles/sidebar.part1.css"),
+      "utf8",
+    );
     const css = readFileSync(
       resolve(__dirname, "../styles/chat.part6.css"),
       "utf8",
@@ -341,6 +401,16 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(css).not.toMatch(
       /\.workbench--pane-motion \.aside,\s*\.workbench--pane-motion \.sidebar/,
     );
+    expect(css).not.toMatch(
+      /\.workbench--pane-motion \.sidebar\s*\{[^}]*overflow:\s*hidden/s,
+    );
+    expect(ruleBody(sidebar, "\n.sidebar--hidden,")).not.toMatch(
+      /overflow:\s*hidden/,
+    );
+    expect(ruleBody(sidebar, "\n.sidebar__clip {")).toMatch(
+      /overflow:\s*hidden/,
+    );
+    expect(css).not.toMatch(/\.workbench--sidebar-motion[^,{]*\.sidebar__clip/);
     expect(css).not.toMatch(/\.workbench--sidebar-motion[^{]*\{[^}]*contain:/);
   });
 });
