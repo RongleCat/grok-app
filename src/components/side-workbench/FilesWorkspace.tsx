@@ -229,33 +229,59 @@ export function FilesWorkspace({
     saveTreeExpanded(projectPath, expanded);
   }, [expanded, projectPath]);
 
-  const sessionChangeKey = useMemo(
-    () => sessionChangePathsKey(sessionChanges.map((change) => change.path)),
-    [sessionChanges],
-  );
-  const sessionChangeKeySeen = useRef("");
+  const { sessionChangeRevisionKey, completedChangeRevisionKey } = useMemo(() => {
+    const revisions = sessionChanges.map((change) => {
+      const status = change.status.trim().toLowerCase();
+      return {
+        key: `${change.path}\u001f${change.toolCallId?.trim() || ""}\u001f${status}`,
+        status,
+      };
+    });
+    return {
+      sessionChangeRevisionKey: sessionChangePathsKey(
+        revisions.map((revision) => revision.key),
+      ),
+      completedChangeRevisionKey: sessionChangePathsKey(
+        revisions
+          .filter((revision) => revision.status === "completed")
+          .map((revision) => revision.key),
+      ),
+    };
+  }, [sessionChanges]);
+  const sessionChangeRevisionSeen = useRef("");
+  const completedChangeRevisionSeen = useRef("");
+  const softRefreshGeneration = useRef(0);
   const expandedRef = useRef(expanded);
   const rootRef = useRef(root);
   expandedRef.current = expanded;
   rootRef.current = root;
 
   useEffect(() => {
-    sessionChangeKeySeen.current = "";
+    sessionChangeRevisionSeen.current = "";
+    completedChangeRevisionSeen.current = "";
+    softRefreshGeneration.current += 1;
   }, [projectPath]);
 
   const softRefreshTree = useCallback(async () => {
     if (!projectPath) return;
+    const generation = ++softRefreshGeneration.current;
+    const isCurrent = () => generation === softRefreshGeneration.current;
     const previousRoot = rootRef.current;
+    let refreshError: string | null = null;
     try {
       let next = await loadDir("");
+      if (!isCurrent()) return;
       const openDirs = Object.entries(expandedRef.current)
         .filter(([, open]) => open)
         .map(([path]) => path)
         .filter(Boolean);
       for (const dir of openDirs) {
         try {
-          next = replaceResourceTreeChildren(next, dir, await loadDir(dir));
+          const children = await loadDir(dir);
+          if (!isCurrent()) return;
+          next = replaceResourceTreeChildren(next, dir, children);
         } catch (e) {
+          if (!isCurrent()) return;
           const find = (nodes: TreeNode[]): TreeNode | undefined => {
             for (const node of nodes) {
               if (node.relativePath === dir) return node;
@@ -270,22 +296,33 @@ export function FilesWorkspace({
           if (previousChildren) {
             next = replaceResourceTreeChildren(next, dir, previousChildren);
           }
-          setError(String(e));
+          refreshError = String(e);
         }
       }
+      if (!isCurrent()) return;
+      if (refreshError) setError(refreshError);
       setRoot(next);
     } catch (e) {
-      setError(String(e));
+      if (isCurrent()) setError(String(e));
     }
   }, [loadDir, projectPath]);
 
   useEffect(() => {
     if (!projectPath || !paneActive) return;
-    if (sessionChangeKeySeen.current === sessionChangeKey) return;
-    sessionChangeKeySeen.current = sessionChangeKey;
-    if (!sessionChangeKey) return;
+    if (sessionChangeRevisionSeen.current === sessionChangeRevisionKey) return;
+    sessionChangeRevisionSeen.current = sessionChangeRevisionKey;
+    const completedChanged =
+      completedChangeRevisionSeen.current !== completedChangeRevisionKey;
+    completedChangeRevisionSeen.current = completedChangeRevisionKey;
+    if (!completedChanged || !completedChangeRevisionKey) return;
     void softRefreshTree();
-  }, [sessionChangeKey, projectPath, paneActive, softRefreshTree]);
+  }, [
+    sessionChangeRevisionKey,
+    completedChangeRevisionKey,
+    projectPath,
+    paneActive,
+    softRefreshTree,
+  ]);
 
   // Focus/open when Side Workbench active file path changes.
   // Directories (project root / folder tab) stay on empty preview — never "not a file".

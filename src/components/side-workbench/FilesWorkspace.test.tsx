@@ -3,7 +3,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@/test/jsdomStubs";
 import type { SessionFileChange } from "@/lib/sessionChanges";
@@ -65,12 +65,18 @@ const file = (path: string) => ({
   ext: "ts",
 });
 
-const change = (path: string, updatedAt: string): SessionFileChange => ({
+const change = (
+  path: string,
+  updatedAt: string,
+  status = "completed",
+  toolCallId = `call:${path}`,
+): SessionFileChange => ({
   path,
   name: path.split("/").at(-1) || path,
   toolKind: "write",
-  status: "completed",
+  status,
   updatedAt,
+  toolCallId,
 });
 
 afterEach(() => {
@@ -117,7 +123,30 @@ describe("FilesWorkspace session-change refresh", () => {
     view.rerender(
       <FilesWorkspace
         {...props}
-        sessionChanges={[change("src/fresh.ts", "2026-08-25T01:00:00Z")]}
+        sessionChanges={[
+          change(
+            "src/fresh.ts",
+            "2026-08-25T01:00:00Z",
+            "in_progress",
+            "call:fresh",
+          ),
+        ]}
+      />,
+    );
+    await waitFor(() => expect(apiMocks.fsListDir).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText("fresh.ts")).not.toBeInTheDocument();
+
+    view.rerender(
+      <FilesWorkspace
+        {...props}
+        sessionChanges={[
+          change(
+            "src/fresh.ts",
+            "2026-08-25T01:00:01Z",
+            "completed",
+            "call:fresh",
+          ),
+        ]}
       />,
     );
     expect(await screen.findByText("fresh.ts")).toBeInTheDocument();
@@ -126,7 +155,14 @@ describe("FilesWorkspace session-change refresh", () => {
     view.rerender(
       <FilesWorkspace
         {...props}
-        sessionChanges={[change("src/fresh.ts", "2026-08-25T02:00:00Z")]}
+        sessionChanges={[
+          change(
+            "src/fresh.ts",
+            "2026-08-25T02:00:00Z",
+            "completed",
+            "call:fresh",
+          ),
+        ]}
       />,
     );
     await waitFor(() => expect(apiMocks.fsListDir).toHaveBeenCalledTimes(4));
@@ -162,5 +198,63 @@ describe("FilesWorkspace session-change refresh", () => {
       "nested read failed",
     );
     expect(screen.getByText("hidden.ts")).toBeInTheDocument();
+  });
+
+  it("discards an older soft refresh when a newer completed revision wins", async () => {
+    let resolveStale!: (value: ReturnType<typeof file>[]) => void;
+    const staleRead = new Promise<ReturnType<typeof file>[]>((resolve) => {
+      resolveStale = resolve;
+    });
+    let rootReads = 0;
+    apiMocks.fsListDir.mockImplementation(
+      async (_projectPath: string, relativePath: string) => {
+        if (relativePath) return [];
+        rootReads += 1;
+        if (rootReads === 1) return [file("base.ts")];
+        if (rootReads === 2) return staleRead;
+        return [file("latest.ts")];
+      },
+    );
+
+    const props = {
+      locale: "en",
+      projectPath: "/repo",
+      projectName: "repo",
+      treeVisible: true,
+      onTreeVisibleChange: vi.fn(),
+      paneActive: true,
+      sessionChanges: [] as SessionFileChange[],
+    };
+    const view = render(<FilesWorkspace {...props} />);
+    expect(await screen.findByText("base.ts")).toBeInTheDocument();
+
+    view.rerender(
+      <FilesWorkspace
+        {...props}
+        sessionChanges={[
+          change("same.ts", "2026-08-25T05:00:00Z", "completed", "call:1"),
+        ]}
+      />,
+    );
+    await waitFor(() => expect(apiMocks.fsListDir).toHaveBeenCalledTimes(2));
+
+    view.rerender(
+      <FilesWorkspace
+        {...props}
+        sessionChanges={[
+          change("same.ts", "2026-08-25T05:00:01Z", "completed", "call:2"),
+        ]}
+      />,
+    );
+    expect(await screen.findByText("latest.ts")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveStale([file("stale.ts")]);
+      await staleRead;
+    });
+    await waitFor(() => {
+      expect(screen.getByText("latest.ts")).toBeInTheDocument();
+      expect(screen.queryByText("stale.ts")).not.toBeInTheDocument();
+    });
   });
 });
