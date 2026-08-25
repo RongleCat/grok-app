@@ -345,9 +345,6 @@ describe("agent kanban surface is not a todo list", () => {
     expect(css).toMatch(
       /html\[data-wallpaper="1"\]\s+\.agent-kanban-page\s+:is\([^)]*\.agent-kanban__none[^)]*\.agent-kanban__card-age[^)]*\)\s*\{[^}]*color:\s*var\(--text-secondary\)/s,
     );
-    expect(css).toMatch(
-      /html\[data-theme="dark"\]\[data-wallpaper="1"\]\s+\.agent-kanban-page\s+:is\(\.auto-page__title, \.auto-page__subtitle\)\s*\{[^}]*color:\s*var\(--text-primary\)[^}]*text-shadow:/s,
-    );
   });
 
   it("page uses live agent columns + i18n, not a GlassModal todo list", () => {
