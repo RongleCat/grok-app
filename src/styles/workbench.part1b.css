@@ -659,18 +659,3 @@ html[data-theme="dark"][data-wallpaper="1"]
   color: var(--text-primary);
   text-shadow: 0 1px 2px var(--wallpaper-foreground-shadow-color);
 }
-/* --- merged --- */
-
-.settings-agents-personas {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-}
-
-.settings-agents-personas__tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  width: 100%;
-}

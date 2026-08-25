@@ -14,7 +14,6 @@
 .prompt-history,
 .modal,
 .search-panel,
-.effort-panel__pop,
 .cmm__pop,
 .auto-panel,
 .drop-overlay__card {
@@ -94,7 +93,6 @@
   .prompt-history,
   .modal,
   .search-panel,
-  .effort-panel__pop,
   .cmm__pop,
   .auto-panel,
   .drop-overlay__card {
@@ -826,4 +824,3 @@ html[data-sidebar-density="compact"] .tree-l3--hint {
   min-height: 22px;
   font-size: 11px;
 }
-

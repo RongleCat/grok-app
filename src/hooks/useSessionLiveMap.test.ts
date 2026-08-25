@@ -18,7 +18,7 @@ describe("useSessionLiveMap helpers", () => {
     expect([...peekBusySessionIds()]).toEqual(["a"]);
   });
 
-  it("busyKey lists session ids for useIsSessionBusy", () => {
+  it("busyKey lists busy session ids", () => {
     sessionLiveMapStore.setMap((prev) =>
       projectHostIntoLiveMap(prev, { sessionId: "x", state: "streaming" }),
     );

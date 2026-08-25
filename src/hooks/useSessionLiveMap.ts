@@ -91,18 +91,3 @@ export function useLiveMapActions() {
 export function peekBusySessionIds(): Set<string> {
   return busySessionIds(sessionLiveMapStore.getMap());
 }
-
-/**
- * Whether a single session id is busy (streaming / permission).
- * Subscribes to busy membership only — not full liveMap tool-title ticks.
- */
-export function useIsSessionBusy(sessionId: string | null | undefined): boolean {
-  const meta = useLiveMapBusyMeta();
-  return useMemo(() => {
-    if (!sessionId) return false;
-    if (!meta.busyKey) return false;
-    // busyKey is sorted ids joined by \0
-    if (meta.busyKey === sessionId) return true;
-    return meta.busyKey.split("\0").includes(sessionId);
-  }, [meta.busyKey, sessionId]);
-}
