@@ -268,7 +268,6 @@ export const IconPlus = wrap(TbPlus);
 export const IconMore = wrap(TbDots);
 export const IconFolder = wrap(TbFolder);
 export const IconRename = wrap(TbPencil);
-export const IconShare = wrap(TbLink);
 export const IconLink = wrap(TbLink);
 export const IconTrash = wrap(TbTrash, { className: "g-icon--danger" });
 export const IconPaperclip = wrap(TbPaperclip);
@@ -382,7 +381,6 @@ export const IconFileDiff = wrap(TbFileDiff);
 /** File tree panel toggle (resource viewer). */
 export const IconListTree = wrap(TbListTree);
 export const IconFileUp = wrap(TbUpload);
-export const IconCart = wrap(TbBolt);
 export const IconThumbsUp = wrap(TbThumbUp);
 export const IconThumbsDown = wrap(TbThumbDown);
 export const IconRefresh = wrap(TbRefresh);

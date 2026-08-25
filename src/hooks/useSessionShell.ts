@@ -3,10 +3,7 @@
  */
 
 import { useCallback, useSyncExternalStore } from "react";
-import {
-  sessionShellStore,
-  type SessionShellMeta,
-} from "@/lib/sessionShellStore";
+import { sessionShellStore } from "@/lib/sessionShellStore";
 import type { SessionSnapshot } from "@/lib/session";
 
 /** Full focused session — composer / main chrome that need all fields. */
@@ -15,15 +12,6 @@ export function useFocusedSession(): SessionSnapshot {
     sessionShellStore.subscribeSession,
     sessionShellStore.getSessionSnapshot,
     sessionShellStore.getSessionSnapshot,
-  );
-}
-
-/** Structural session fields only (id / state / error) — fewer re-renders. */
-export function useSessionShellMeta(): SessionShellMeta {
-  return useSyncExternalStore(
-    sessionShellStore.subscribeMeta,
-    sessionShellStore.getMetaSnapshot,
-    sessionShellStore.getMetaSnapshot,
   );
 }
 

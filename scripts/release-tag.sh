@@ -115,7 +115,7 @@ if p.is_file():
 
 # i18n version footer in every locale catalog (en is the key authority)
 core_files = sorted(Path("src/i18n/messages").glob("*/core.ts"))
-legacy = [Path(rel) for rel in ("src/i18n/messages.ts", "src/i18n/zh-tw.ts")]
+legacy = [Path(rel) for rel in ("src/i18n/messages.ts",)]
 found = 0
 for p in core_files + legacy:
     if not p.is_file():
@@ -134,7 +134,7 @@ PY
 
 git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock \
   src/i18n/messages/*/core.ts \
-  src/i18n/messages.ts src/i18n/zh-tw.ts \
+  src/i18n/messages.ts \
   README.md README_EN.md README_ZH.md README_RU.md 2>/dev/null || true
 if [[ -n "$(git status --porcelain)" ]]; then
   git commit -m "chore: release $TAG"

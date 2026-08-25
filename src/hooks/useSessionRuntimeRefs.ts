@@ -42,9 +42,3 @@ export function useSessionRuntimeRefs(opts?: {
 
   return { liveMapRef, liveHostRef };
 }
-
-/** Reset shell stores (tests / hot reload helpers). */
-export function resetSessionRuntimeStoresForTests(): void {
-  sessionLiveMapStore.resetForTests();
-  sessionShellStore.resetForTests();
-}

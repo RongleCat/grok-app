@@ -10,7 +10,6 @@ import {
 import {
   busySessionIds,
   type SessionLiveMap,
-  type SessionLiveSnapshot,
 } from "@/lib/sessionLiveStore";
 
 /** Full live map — use in panels that need every session row. */
@@ -44,16 +43,6 @@ export function useLiveMapWhen(enabled: boolean): SessionLiveMap {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
-/** Single-session snapshot without forcing a full-map subscription when idle. */
-export function useLiveSessionSnapshotWhen(
-  sessionId: string | null | undefined,
-  enabled: boolean,
-): SessionLiveSnapshot | null {
-  const map = useLiveMapWhen(enabled && !!sessionId);
-  if (!sessionId || !enabled) return null;
-  return map[sessionId] ?? null;
-}
-
 /** Busy membership only — sidebar chrome / tray badge. */
 export function useLiveMapBusyMeta(): LiveMapBusyMeta {
   return useSyncExternalStore(
@@ -69,12 +58,6 @@ export function useLiveMapBusyIds(): Set<string> {
     if (!meta.busyKey) return new Set<string>();
     return new Set(meta.busyKey.split("\0").filter(Boolean));
   }, [meta.busyKey]);
-}
-
-export function useLiveSessionSnapshot(
-  sessionId: string | null | undefined,
-): SessionLiveSnapshot | null {
-  return useLiveSessionSnapshotWhen(sessionId, true);
 }
 
 export function useLiveMapActions() {

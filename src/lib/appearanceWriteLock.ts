@@ -50,12 +50,3 @@ export function acquireAppearanceWrite(): Promise<Unlock> {
     };
   });
 }
-
-export async function withAppearanceWrite<T>(fn: () => Promise<T>): Promise<T> {
-  const unlock = await acquireAppearanceWrite();
-  try {
-    return await fn();
-  } finally {
-    unlock();
-  }
-}

@@ -31,7 +31,6 @@ import {
 import {
   useLiveMapActions,
   useLiveMapBusyIds,
-  useLiveMapBusyMeta,
 } from "@/hooks/useSessionLiveMap";
 import {
   useFocusedSession,
@@ -54,7 +53,6 @@ export function useSessionRuntime(opts?: {
 
   const { setLiveMap } = useLiveMapActions();
   const busyIdsFromStore = useLiveMapBusyIds();
-  const busyMeta = useLiveMapBusyMeta();
   // Refs only — no full-map React subscription on the workbench shell.
   const { liveMapRef, liveHostRef } = useSessionRuntimeRefs({ liveHost });
 
@@ -143,19 +141,6 @@ export function useSessionRuntime(opts?: {
     return set;
   }, [busyIdsFromStore, liveHost.sessionId, liveHost.state]);
 
-  /** Busy session count for tray / chrome (no full-map subscription). */
-  const liveMapBusyCount = useMemo(() => {
-    let n = busyMeta.busyCount;
-    if (
-      liveHost.sessionId &&
-      isSessionLiveStreaming(liveHost.state) &&
-      !busyIdsFromStore.has(liveHost.sessionId)
-    ) {
-      n += 1;
-    }
-    return n;
-  }, [busyMeta.busyCount, busyIdsFromStore, liveHost.sessionId, liveHost.state]);
-
   const settleStoppedSessionUi = useCallback(
     (sessionId: string) => {
       setLiveMap((prev) => {
@@ -188,12 +173,6 @@ export function useSessionRuntime(opts?: {
     canLiveParticipate(isSecondaryWindow) &&
     canStopWithStopLatch(session.state, stopLatch);
 
-  const clearStopLatch = useCallback(() => {
-    const idle = createStopLatchState();
-    setStopLatch(idle);
-    stopLatchRef.current = idle;
-  }, []);
-
   /** Latest full map for event handlers (always fresh; not a React subscription). */
   const getLiveMap = useCallback(() => sessionLiveMapStore.getMap(), []);
 
@@ -209,7 +188,6 @@ export function useSessionRuntime(opts?: {
     stopLatch,
     setStopLatch,
     stopLatchRef,
-    clearStopLatch,
     messages,
     setMessages,
     messagesRef,
@@ -220,7 +198,6 @@ export function useSessionRuntime(opts?: {
     bumpViewEpoch,
     patchSessionMessages,
     busyIds,
-    liveMapBusyCount,
     getLiveMap,
     settleStoppedSessionUi,
     stopGate,
