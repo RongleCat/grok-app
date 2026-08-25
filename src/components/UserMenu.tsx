@@ -201,6 +201,10 @@ export function UserMenu({
     if (!open) setThemeSubOpen(false);
   }, [open]);
 
+  useEffect(() => {
+    if (closeImmediately && open) onClose();
+  }, [closeImmediately, onClose, open]);
+
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current != null) {
       window.clearTimeout(closeTimerRef.current);

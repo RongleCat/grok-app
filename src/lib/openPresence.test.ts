@@ -157,8 +157,11 @@ describe("floating pop CSS", () => {
     expect(appWorkbench).toMatch(
       /closeImmediately=\{settingsOpen \|\| layout\.sidebarCollapsed\}/,
     );
-    expect(appWorkbench).toMatch(
+    expect(appWorkbench).not.toMatch(
       /useEffect\(\(\) => \{\s*if \(!layout\.sidebarCollapsed\) return;\s*setShowUserMenu\(false\);\s*\}, \[layout\.sidebarCollapsed\]\);/,
+    );
+    expect(userMenu).toMatch(
+      /useEffect\(\(\) => \{\s*if \(closeImmediately && open\) onClose\(\);\s*\}, \[closeImmediately, onClose, open\]\);/,
     );
     expect(userMenu).toMatch(
       /useOpenPresence\(\s*open,\s*true,\s*closeImmediately \? 0 : OPEN_PRESENCE_MS,\s*\)/,

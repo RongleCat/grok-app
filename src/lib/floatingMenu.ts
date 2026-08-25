@@ -405,6 +405,7 @@ export function useFloatingMenu({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     open,
+    !!pos,
     placement,
     align,
     width,
