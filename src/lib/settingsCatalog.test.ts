@@ -1,5 +1,6 @@
 import { globSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import * as ts from "typescript";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createT, loadAllLocaleCatalogs } from "@/i18n";
 import {
@@ -27,16 +28,45 @@ describe("settingsCatalog", () => {
 
   it("mounts every searchable anchor in production", () => {
     const srcRoot = resolve(__dirname, "..");
-    const productionSources = globSync("**/*.{ts,tsx}", {
+    const mountedAnchors = new Set<string>();
+    for (const file of globSync("**/*.{ts,tsx}", {
       cwd: srcRoot,
       exclude: [
         "**/*.test.*",
         "**/*.guard.test.*",
         "lib/settingsCatalog/entries/**",
       ],
-    }).map((file) => readFileSync(resolve(srcRoot, file), "utf8"));
+    })) {
+      const source = readFileSync(resolve(srcRoot, file), "utf8");
+      const sourceFile = ts.createSourceFile(
+        file,
+        source,
+        ts.ScriptTarget.Latest,
+        true,
+        file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+      );
+      const collectIdValues = (node: ts.Node) => {
+        if (ts.isStringLiteralLike(node)) {
+          mountedAnchors.add(node.text);
+        } else if (ts.isJsxExpression(node) && node.expression) {
+          collectIdValues(node.expression);
+        } else if (ts.isConditionalExpression(node)) {
+          collectIdValues(node.whenTrue);
+          collectIdValues(node.whenFalse);
+        } else if (ts.isParenthesizedExpression(node)) {
+          collectIdValues(node.expression);
+        }
+      };
+      const visit = (node: ts.Node) => {
+        if (ts.isJsxAttribute(node) && node.name.getText(sourceFile) === "id") {
+          if (node.initializer) collectIdValues(node.initializer);
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(sourceFile);
+    }
     const missing = SETTINGS_ENTRIES.filter(
-      ({ anchorId }) => !productionSources.some((source) => source.includes(anchorId)),
+      ({ anchorId }) => !mountedAnchors.has(anchorId),
     ).map(({ id, anchorId }) => `${id}: ${anchorId}`);
 
     expect(missing).toEqual([]);

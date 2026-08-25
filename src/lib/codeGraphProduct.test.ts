@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   CODEBASE_INDEXING_MIN_CLI,
   CODE_GRAPH_INDEXING_ANCHOR,
-  CODE_GRAPH_PRODUCT_ANCHOR,
   CODE_GRAPH_SEARCH_ANCHOR,
   HOST_CODE_GRAPH_REBUILD_AVAILABLE,
   HOST_CODE_GRAPH_SEARCH_AVAILABLE,
@@ -332,10 +331,9 @@ describe("label / status keys + anchors", () => {
     );
   });
 
-  it("exports stable anchors + min CLI", () => {
+  it("exports stable deep-link anchors + min CLI", () => {
     expect(CODE_GRAPH_INDEXING_ANCHOR).toBe("settings-anchor-codebaseIndexing");
     expect(CODE_GRAPH_SEARCH_ANCHOR).toBe("settings-anchor-codebaseSearch");
-    expect(CODE_GRAPH_PRODUCT_ANCHOR).toBe("settings-anchor-codeGraph");
     expect(CODEBASE_INDEXING_MIN_CLI).toBe("0.2.117");
   });
 });

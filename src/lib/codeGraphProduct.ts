@@ -456,8 +456,5 @@ export const CODE_GRAPH_INDEXING_ANCHOR = "settings-anchor-codebaseIndexing";
 /** Deep-link target for search settings from indexing panel. */
 export const CODE_GRAPH_SEARCH_ANCHOR = "settings-anchor-codebaseSearch";
 
-/** Shared product card anchor (optional wrap). */
-export const CODE_GRAPH_PRODUCT_ANCHOR = "settings-anchor-codeGraph";
-
 /** Re-export CLI defaults for UI chips that mention min version. */
 export { CODEBASE_INDEXING_CLI_DEFAULT, CODEBASE_INDEXING_MIN_CLI };
