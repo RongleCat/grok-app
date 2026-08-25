@@ -235,7 +235,10 @@ fn parse_font_shadow(v: &serde_json::Value) -> bool {
         serde_json::Value::Bool(b) => *b,
         serde_json::Value::Number(n) => n.as_i64() == Some(1),
         serde_json::Value::String(s) => {
-            matches!(s.trim().to_ascii_lowercase().as_str(), "1" | "true" | "on" | "yes")
+            matches!(
+                s.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "on" | "yes"
+            )
         }
         _ => false,
     }
