@@ -51,10 +51,15 @@ import {
   flattenVisibleResourceTree,
   loadTreeExpanded,
   mergeTreeExpandedForFilter,
+  replaceResourceTreeChildren,
   saveTreeExpanded,
+  sessionChangePathsKey,
 } from "@/lib/resourceTree";
 import { isResourceDraftDirty } from "@/lib/resourceEdit";
-import { pathBaseName } from "@/lib/sessionChanges";
+import {
+  pathBaseName,
+  type SessionFileChange,
+} from "@/lib/sessionChanges";
 
 export type FilesWorkspaceProps = {
   locale: Locale | string;
@@ -82,6 +87,7 @@ export type FilesWorkspaceProps = {
   closePathRequest?: { path: string; token: number } | null;
   onClosePathResult?: (path: string, closed: boolean) => void;
   paneActive?: boolean;
+  sessionChanges: SessionFileChange[];
 };
 
 const NOOP = () => {};
@@ -101,6 +107,7 @@ export function FilesWorkspace({
   closePathRequest,
   onClosePathResult,
   paneActive = true,
+  sessionChanges,
 }: FilesWorkspaceProps) {
   const tr = useMemo(() => createT(locale as Locale), [locale]);
   const [root, setRoot] = useState<TreeNode[]>([]);
@@ -181,21 +188,16 @@ export function FilesWorkspace({
   const loadDir = useCallback(
     async (relative: string): Promise<TreeNode[]> => {
       if (!projectPath || !api.isTauri()) return [];
-      try {
-        const entries = await api.fsListDir(projectPath, relative);
-        return (entries || []).map((e) => ({
-          name: e.name,
-          relativePath: e.relativePath || e.name,
-          isDir: !!e.isDir,
-          size: typeof e.size === "number" ? e.size : 0,
-          ext: e.ext || "",
-          children: e.isDir ? [] : undefined,
-          loaded: !e.isDir,
-        }));
-      } catch (e) {
-        setError(String(e));
-        return [];
-      }
+      const entries = await api.fsListDir(projectPath, relative);
+      return (entries || []).map((e) => ({
+        name: e.name,
+        relativePath: e.relativePath || e.name,
+        isDir: !!e.isDir,
+        size: typeof e.size === "number" ? e.size : 0,
+        ext: e.ext || "",
+        children: e.isDir ? [] : undefined,
+        loaded: !e.isDir,
+      }));
     },
     [projectPath],
   );
@@ -206,9 +208,13 @@ export function FilesWorkspace({
       return;
     }
     setLoadingTree(true);
-    const nodes = await loadDir("");
-    setRoot(nodes);
-    setLoadingTree(false);
+    try {
+      setRoot(await loadDir(""));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoadingTree(false);
+    }
   }, [loadDir, projectPath]);
 
   useEffect(() => {
@@ -222,6 +228,64 @@ export function FilesWorkspace({
     if (!projectPath) return;
     saveTreeExpanded(projectPath, expanded);
   }, [expanded, projectPath]);
+
+  const sessionChangeKey = useMemo(
+    () => sessionChangePathsKey(sessionChanges.map((change) => change.path)),
+    [sessionChanges],
+  );
+  const sessionChangeKeySeen = useRef("");
+  const expandedRef = useRef(expanded);
+  const rootRef = useRef(root);
+  expandedRef.current = expanded;
+  rootRef.current = root;
+
+  useEffect(() => {
+    sessionChangeKeySeen.current = "";
+  }, [projectPath]);
+
+  const softRefreshTree = useCallback(async () => {
+    if (!projectPath) return;
+    const previousRoot = rootRef.current;
+    try {
+      let next = await loadDir("");
+      const openDirs = Object.entries(expandedRef.current)
+        .filter(([, open]) => open)
+        .map(([path]) => path)
+        .filter(Boolean);
+      for (const dir of openDirs) {
+        try {
+          next = replaceResourceTreeChildren(next, dir, await loadDir(dir));
+        } catch (e) {
+          const find = (nodes: TreeNode[]): TreeNode | undefined => {
+            for (const node of nodes) {
+              if (node.relativePath === dir) return node;
+              const nested = node.children?.length
+                ? find(node.children)
+                : undefined;
+              if (nested) return nested;
+            }
+            return undefined;
+          };
+          const previousChildren = find(previousRoot)?.children;
+          if (previousChildren) {
+            next = replaceResourceTreeChildren(next, dir, previousChildren);
+          }
+          setError(String(e));
+        }
+      }
+      setRoot(next);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [loadDir, projectPath]);
+
+  useEffect(() => {
+    if (!projectPath || !paneActive) return;
+    if (sessionChangeKeySeen.current === sessionChangeKey) return;
+    sessionChangeKeySeen.current = sessionChangeKey;
+    if (!sessionChangeKey) return;
+    void softRefreshTree();
+  }, [sessionChangeKey, projectPath, paneActive, softRefreshTree]);
 
   // Focus/open when Side Workbench active file path changes.
   // Directories (project root / folder tab) stay on empty preview — never "not a file".
@@ -280,18 +344,12 @@ export function FilesWorkspace({
       }
       setExpanded((e) => ({ ...e, [key]: true }));
       if (!node.loaded) {
-        const kids = await loadDir(node.relativePath);
-        const mark = (list: TreeNode[]): TreeNode[] =>
-          list.map((n) => {
-            if (n.relativePath === key) {
-              return { ...n, children: kids, loaded: true };
-            }
-            if (n.children?.length) {
-              return { ...n, children: mark(n.children) };
-            }
-            return n;
-          });
-        setRoot((r) => mark(r));
+        try {
+          const kids = await loadDir(node.relativePath);
+          setRoot((r) => replaceResourceTreeChildren(r, key, kids));
+        } catch (e) {
+          setError(String(e));
+        }
       }
     },
     [expanded, loadDir],

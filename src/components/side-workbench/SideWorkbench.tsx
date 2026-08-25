@@ -396,6 +396,7 @@ export function SideWorkbench({
                   }
                   onClosePathResult={onClosePathResult}
                   paneActive={paneActive && active.kind === "file"}
+                  sessionChanges={sessionChanges}
                 />
               </div>
             ) : null}
