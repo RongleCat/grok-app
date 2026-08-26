@@ -274,6 +274,7 @@ describe("settingsCatalog", () => {
     expect(appearance).toContain("settings.codeFontScale");
     expect(appearance).toContain("settings.chatDensity");
     expect(appearance).toContain("settings.chatWidth");
+    expect(appearance).toContain("settings.msgRailSide");
     expect(appearance).toContain("settings.sidebarDensity");
     expect(appearance).toContain("settings.zenMode");
     expect(appearance).toContain("settings.messageActions");
@@ -425,6 +426,10 @@ describe("settingsCatalog", () => {
     );
     const widthEn = searchSettingsEntries("narrow", tZh, tEn);
     expect(widthEn.some((h) => h.entry.id === "appearance.chatWidth")).toBe(
+      true,
+    );
+    const rail = searchSettingsEntries("进度条", tZh, tEn);
+    expect(rail.some((h) => h.entry.id === "appearance.msgRailSide")).toBe(
       true,
     );
     const sidebar = searchSettingsEntries("侧栏", tZh, tEn);

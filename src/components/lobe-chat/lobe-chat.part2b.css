@@ -450,24 +450,4 @@
  * measured shell height). Centered so narrow panes don't overlap the
  * composer card / side controls.
  */
-/* ── Message node rail (Grok-web style, right edge) ── */
-.lobe-msg-rail {
-  position: absolute;
-  z-index: 40;
-  top: 50%;
-  right: 6px;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  max-height: min(70vh, 520px);
-  padding: 4px 2px;
-  pointer-events: none;
-}
 
-.lobe-msg-rail__step,
-.lobe-msg-rail__tick,
-.lobe-msg-rail__list {
-  pointer-events: auto;
-}

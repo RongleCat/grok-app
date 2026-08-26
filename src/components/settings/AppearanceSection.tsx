@@ -23,6 +23,7 @@ import {
 } from "@/lib/terminalFontPref";
 import { CHAT_DENSITIES } from "@/lib/chatDensity";
 import { CHAT_WIDTHS } from "@/lib/chatWidthPref";
+import { MSG_RAIL_SIDES } from "@/lib/msgRailSidePref";
 import { SIDEBAR_DENSITIES } from "@/lib/sidebarDensity";
 import { WallpaperFocusEditor } from "@/components/WallpaperFocusEditor";
 import { WallpaperMediaLayer } from "@/components/WallpaperMediaLayer";
@@ -60,6 +61,7 @@ export function AppearanceSection() {
     chatDensity,
     chatFontScale,
     chatWidth,
+    msgRailSide,
     codeFontScale,
     codeLineNumbers,
     codeWrapDefault,
@@ -75,6 +77,7 @@ export function AppearanceSection() {
     onChatDensity,
     onChatFontScale,
     onChatWidth,
+    onMsgRailSide,
     onClearAllSessionMutes,
     onClearAllSessionUnread,
     onClearExportLogo,
@@ -700,6 +703,29 @@ export function AppearanceSection() {
                   label: t(`settings.chatWidth.${width}`),
                 }))}
                 onChange={onChatWidth}
+              />
+            </div>
+            <div
+              className={
+                "settings-row" +
+                rowHighlight("settings-anchor-msgRailSide")
+              }
+              id="settings-anchor-msgRailSide"
+            >
+              <div className="settings-row__text">
+                <SettingsLabelWithTip
+                  label={t("settings.msgRailSide")}
+                  tip={t("settings.msgRailSideDesc")}
+                />
+              </div>
+              <SegmentedControl
+                value={msgRailSide}
+                ariaLabel={t("settings.msgRailSide")}
+                options={MSG_RAIL_SIDES.map((side) => ({
+                  value: side,
+                  label: t(`settings.msgRailSide.${side}`),
+                }))}
+                onChange={onMsgRailSide}
               />
             </div>
             <div

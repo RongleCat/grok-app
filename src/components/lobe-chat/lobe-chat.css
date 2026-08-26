@@ -3,6 +3,7 @@
 @import "./lobe-chat.part2.css";
 @import "./lobe-chat.part2b.css";
 @import "./lobe-chat.part3.css";
+@import "./lobe-msg-rail.css";
 
 /* Plain-stream body retired: live markdown is kept during streaming
    (see softCloseMarkdown + resolveStreamMarkdownParseMs). */
