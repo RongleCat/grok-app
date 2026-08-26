@@ -37,7 +37,7 @@
    - 背景：`var(--glass-surface)` + border + shadow（无 backdrop 时回落 solid）。
 
 3. **区域专用已验收面板**  
-   - 若既有模块已为 `.menu-panel.xxx` 写了完整 surface（如 `.sw-plus-menu`、`.sw-env-menu`），**复用该 class**，不要另起透明壳。
+   - 若既有模块已为 `.menu-panel.xxx` 写了完整 surface（如 `.sw-plus-menu`），**复用该 class**，不要另起透明壳。环境信息钉板是 `.sw-env-menu`，不是 dropdown `menu-panel`。
 
 ### 禁止写法
 

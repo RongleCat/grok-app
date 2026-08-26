@@ -94,7 +94,6 @@ export function EnvInfoButton({
   const [open, setOpen] = useState(false);
   const [parked, setParked] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
   const loadGen = useRef(0);
   const asideOpenRef = useRef(asideOpen);
   const [host, setHost] = useState<HTMLElement | null>(null);
@@ -103,12 +102,12 @@ export function EnvInfoButton({
     emptySnapshot(isGitProject),
   );
 
-  const presence = useOpenPresence(open);
+  const presence = useOpenPresence(open, true, 320);
   const entered = presence.entered;
 
   useLayoutEffect(() => {
     const el = document.querySelector(".main");
-    setHost(el instanceof HTMLElement ? el : document.body);
+    setHost(el instanceof HTMLElement ? el : null);
   }, []);
 
   useLayoutEffect(() => {
@@ -325,9 +324,8 @@ export function EnvInfoButton({
         ? createPortal(
             <div className="sw-env-dock" aria-hidden={parked || !entered}>
             <div
-              ref={panelRef}
               className={
-                "sw-env-menu menu-panel" +
+                "sw-env-menu" +
                 (entered ? " is-open" : "") +
                 (parked ? " is-parked" : "")
               }
