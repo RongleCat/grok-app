@@ -1,6 +1,6 @@
-/** Sticky plan/goal strip — stays put while the in-thread plan card scrolls away. */
+/** Overlay plan/goal card — floats over chat; padding is measured to match. */
 
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { IconCheck, IconPlan, IconClose } from "@/components/icons";
 import {
   formatPlanFraction,
@@ -101,6 +101,26 @@ export function PlanStatusBar({
     [goalMode, mode, planVisible, planWaiting, planRpcId, planNeedsResume, entries],
   );
 
+  const barRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!shouldShowPlanBar(model)) return;
+    const el = barRef.current;
+    const main = el?.closest(".main");
+    if (!el || !(main instanceof HTMLElement)) return;
+    const apply = () => {
+      const h = Math.ceil(el.getBoundingClientRect().height);
+      main.style.setProperty("--plan-bar-float-pad", `${h + 8}px`);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      main.style.removeProperty("--plan-bar-float-pad");
+    };
+  }, [model]);
+
   if (!shouldShowPlanBar(model)) return null;
 
   const fraction = formatPlanFraction(model.progress);
@@ -112,17 +132,19 @@ export function PlanStatusBar({
         ? "plan-bar--review"
         : model.kind === "plan_progress"
           ? "plan-bar--progress"
-          : "plan-bar--mode";
+          : "";
 
   return (
-    <div
-      className={`plan-bar ${kindClass}`}
-      role="status"
-      aria-live="polite"
-      aria-label={labels.aria}
-      data-testid="plan-status-bar"
-      data-kind={model.kind}
-    >
+    <div className="plan-bar-host">
+      <div
+        ref={barRef}
+        className={["plan-bar", kindClass].filter(Boolean).join(" ")}
+        role="status"
+        aria-live="polite"
+        aria-label={labels.aria}
+        data-testid="plan-status-bar"
+        data-kind={model.kind}
+      >
       <div className="plan-bar__main">
         <span className="plan-bar__icon" aria-hidden>
           {model.headlineKey === "planBar.done" ? (
@@ -234,6 +256,7 @@ export function PlanStatusBar({
             <IconClose size={14} />
           </button>
         ) : null}
+      </div>
       </div>
     </div>
   );

@@ -347,37 +347,55 @@
   word-break: break-word;
 }
 
-/* Sticky plan/goal bar above the chat stage — accent blue-violet, theme-aware */
+/* Overlay host — zero flow size so the card cannot reserve a full-width strip. */
+.plan-bar-host {
+  flex: 0 0 0;
+  height: 0;
+  width: 100%;
+  position: relative;
+  z-index: 12;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* Sticky plan/goal card — frosted overlay. No transform (breaks backdrop-filter). */
 .plan-bar {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: var(--env-summary-gutter, 0px);
+  margin-left: auto;
+  margin-right: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-  /* Clear main__top: leave breathing room under titlebar chrome */
-  margin: 12px var(--space-5) 10px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--plan-bar-border, var(--border-subtle));
-  background: var(--plan-bar-bg, var(--bg-card, var(--bg-elevated)));
+  width: min(42rem, calc(100% - 2 * var(--space-5)));
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid var(--glass-border, var(--border-subtle));
+  background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
+  backdrop-filter: blur(var(--wallpaper-settings-blur, 18px))
+    saturate(var(--glass-saturate, 1.4));
+  -webkit-backdrop-filter: blur(var(--wallpaper-settings-blur, 18px))
+    saturate(var(--glass-saturate, 1.4));
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.08);
   min-width: 0;
+  overflow: hidden;
+  pointer-events: auto;
 }
 
-.plan-bar--goal,
-.plan-bar--mode,
-.plan-bar--progress,
+[data-theme="light"] .plan-bar {
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.04),
+    0 10px 28px rgba(0, 0, 0, 0.06);
+}
+
 .plan-bar--review {
-  border-color: color-mix(in srgb, var(--accent) 36%, var(--border-subtle));
-  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card, var(--bg-elevated)));
-}
-
-.plan-bar--review {
-  /* Slightly stronger fill when action is required */
-  border-color: color-mix(in srgb, var(--accent) 48%, var(--border-subtle));
-  background: color-mix(in srgb, var(--accent) 14%, var(--bg-card, var(--bg-elevated)));
-}
-
-.plan-bar--progress {
-  border-color: color-mix(in srgb, var(--accent) 32%, var(--border-subtle));
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border-subtle));
 }
 
 .plan-bar__main {
@@ -392,10 +410,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  margin-top: 1px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   background: var(--bg-hover);
   flex-shrink: 0;
@@ -461,9 +478,9 @@
 .plan-bar__meter {
   flex: 1 1 100%;
   order: 3;
-  height: 3px;
+  height: 2px;
   border-radius: 999px;
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
   overflow: hidden;
 }
 
@@ -488,9 +505,18 @@
 }
 
 .plan-bar__btn {
-  height: 26px;
+  height: 28px;
   padding: 0 10px;
   font-size: 12px;
+}
+
+.plan-bar__btn.btn--ghost {
+  border: none;
+  background: transparent;
+}
+
+.plan-bar__btn.btn--ghost:hover:not(:disabled) {
+  background: var(--bg-hover);
 }
 
 .plan-bar__btn--clear-goal {
@@ -500,9 +526,16 @@
 }
 
 .plan-bar__close {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: transparent;
   color: var(--text-tertiary);
+}
+
+.plan-bar__close:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 /* Plan review workbench (resource pane) */

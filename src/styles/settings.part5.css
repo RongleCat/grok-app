@@ -650,6 +650,11 @@
   padding-bottom: calc(var(--composer-float-pad, 168px) + 16px);
 }
 
+/* Clear the overlay plan card — pad matches measured card height, not a full-width strip. */
+.main:has(.plan-bar) .main__stage .lobe-chat__inner {
+  padding-top: calc(var(--plan-bar-float-pad, 80px) + 8px);
+}
+
 /* Welcome: composer is centered, not bottom-docked — no extra chat pad */
 .main__stage:has(.composer-wrap--welcome) .lobe-chat__inner {
   padding-bottom: 16px;

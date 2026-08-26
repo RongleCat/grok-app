@@ -302,6 +302,19 @@ html[data-theme="dark"][data-wallpaper="1"]
     saturate(var(--glass-saturate));
 }
 
+html[data-theme="light"][data-wallpaper="1"] .plan-bar {
+  background: var(--wallpaper-light-elevated-surface);
+}
+
+html[data-theme="dark"][data-wallpaper="1"] .plan-bar {
+  background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
+}
+
+html[data-stream-perf="1"] .plan-bar {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 html[data-stream-perf="1"][data-wallpaper="1"]
   :is(.composer, .composer__context-bar) {
   backdrop-filter: none !important;
