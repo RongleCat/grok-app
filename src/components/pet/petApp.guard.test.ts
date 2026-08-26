@@ -9,4 +9,12 @@ describe("PetApp first paint", () => {
     expect(src).toContain("readPetBootPrefs");
     expect(src).toContain("useState<PetPrefs>(readPetBootPrefs)");
   });
+
+  it("loads the UI catalog so pet copy follows the app language", () => {
+    expect(src).toContain("loadLocaleCatalog");
+    expect(src).toContain("parseLocalePreference");
+    expect(src).toContain("resolveLocalePreference");
+    expect(src).toContain("__GROK_BOOT_LOCALE__");
+    expect(src).toContain("localeCatalogRev");
+  });
 });

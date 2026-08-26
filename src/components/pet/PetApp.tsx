@@ -18,7 +18,14 @@ import {
   type PetFocus,
   type PetTask,
 } from "@/lib/pet";
-import { resolveLocale, type Locale } from "@/i18n";
+import {
+  htmlLangForLocale,
+  loadLocaleCatalog,
+  parseLocalePreference,
+  resolveLocale,
+  resolveLocalePreference,
+  type Locale,
+} from "@/i18n";
 import { settingsGet } from "@/lib/api/settings";
 import { PetOverlay } from "./PetOverlay";
 import "@/styles/pet.css";
@@ -32,8 +39,12 @@ const IDLE: PetFocus = {
   updatedAt: 0,
 };
 
-function readLocale(): Locale {
+function readBootLocale(): Locale {
   try {
+    const w = window as Window & { __GROK_BOOT_LOCALE__?: string };
+    if (typeof w.__GROK_BOOT_LOCALE__ === "string" && w.__GROK_BOOT_LOCALE__.trim()) {
+      return resolveLocale(w.__GROK_BOOT_LOCALE__);
+    }
     return resolveLocale(document.documentElement.lang);
   } catch {
     return "en";
@@ -44,7 +55,8 @@ export function PetApp() {
   const [focus, setFocus] = useState<PetFocus>(IDLE);
   const [tasks, setTasks] = useState<PetTask[]>([]);
   const [prefs, setPrefs] = useState<PetPrefs>(readPetBootPrefs);
-  const [locale, setLocale] = useState<Locale>(readLocale);
+  const [locale, setLocale] = useState<Locale>(readBootLocale);
+  const [localeCatalogRev, setLocaleCatalogRev] = useState(0);
   const [policy, setPolicy] = useState<PetOverlayPolicy>(PET_OVERLAY_POLICY_FULL);
 
   useEffect(() => {
@@ -107,12 +119,25 @@ export function PetApp() {
 
   useEffect(() => {
     let gone = false;
+    void loadLocaleCatalog(locale).then(() => {
+      if (!gone) setLocaleCatalogRev((n) => n + 1);
+    });
+    document.documentElement.setAttribute("lang", htmlLangForLocale(locale));
+    return () => {
+      gone = true;
+    };
+  }, [locale]);
+
+  useEffect(() => {
+    let gone = false;
     void settingsGet()
       .then((s) => {
-        if (!gone) setLocale(resolveLocale(s.locale));
+        if (!gone) {
+          setLocale(resolveLocalePreference(parseLocalePreference(s.locale)));
+        }
       })
       .catch(() => {
-        if (!gone) setLocale(readLocale());
+        if (!gone) setLocale(readBootLocale());
       });
     return () => {
       gone = true;
@@ -125,6 +150,7 @@ export function PetApp() {
       tasks={tasks}
       prefs={prefs}
       locale={locale}
+      localeCatalogRev={localeCatalogRev}
       policy={policy}
     />
   );

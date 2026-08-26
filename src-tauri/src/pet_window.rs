@@ -70,10 +70,14 @@ fn pet_init_script(prefs: &PetPrefs) -> String {
         "bubbleShape": prefs.bubble_shape,
         "bubbleStyle": prefs.bubble_style,
     });
+    let locale = crate::tray_i18n::Locale::parse(&crate::store::load_settings().locale);
     format!(
-        "{prefix}window.__GROK_PET_BOOT__={boot};}}catch(e){{}}}})();",
+        "{prefix}window.__GROK_PET_BOOT__={boot};window.__GROK_BOOT_LOCALE__={locale:?};window.__GROK_BOOT_OS_LANG__={os:?};var d=document.documentElement;if(d)d.setAttribute(\"lang\",{html:?});}}catch(e){{}}}})();",
         prefix = PET_INIT_SCRIPT_PREFIX,
-        boot = boot
+        boot = boot,
+        locale = locale.as_tag(),
+        os = crate::tray_i18n::detect_os_lang_tag(),
+        html = locale.html_lang(),
     )
 }
 
@@ -1494,6 +1498,8 @@ mod tests {
         assert!(script.contains("transparent"));
         assert!(script.contains("display:none"));
         assert!(script.contains("__GROK_PET_BOOT__"));
+        assert!(script.contains("__GROK_BOOT_LOCALE__"));
+        assert!(script.contains("__GROK_BOOT_OS_LANG__"));
         assert!(script.contains("green"));
     }
 

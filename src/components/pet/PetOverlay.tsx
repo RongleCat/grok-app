@@ -67,15 +67,20 @@ export function PetOverlay({
   tasks = [],
   prefs,
   locale = "en",
+  localeCatalogRev = 0,
   policy = PET_OVERLAY_POLICY_FULL,
 }: {
   focus: PetFocus;
   tasks?: readonly PetTask[];
   prefs: PetPrefs;
   locale?: Locale;
+  localeCatalogRev?: number;
   policy?: PetOverlayPolicy;
 }) {
-  const t = useMemo(() => createT(locale), [locale]);
+  const t = useMemo(
+    () => createT(locale),
+    [locale, localeCatalogRev],
+  );
   const shape = isPetShape(prefs.shape) ? prefs.shape : "hex";
   const color = isPetColor(prefs.color) ? prefs.color : "green";
   const eyeColor = normalizePetEyeColor(prefs.eyeColor);

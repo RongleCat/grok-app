@@ -39,6 +39,11 @@ describe("PetOverlay drag hit target", () => {
     expect(src).toContain("pet.menu.emote");
   });
 
+  it("rebuilds copy after the locale catalog loads", () => {
+    expect(src).toContain("localeCatalogRev");
+    expect(src).toMatch(/createT\(locale\),\s*\[locale, localeCatalogRev\]/);
+  });
+
   it("nudges on Wayland instead of startDragging after slop", () => {
     expect(src).toContain("petShouldManualDrag");
     expect(src).toContain("petPointerStep");
