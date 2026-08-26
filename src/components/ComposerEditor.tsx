@@ -492,6 +492,11 @@ function lineDivForCaret(el: HTMLElement, range: Range): HTMLElement | null {
 /**
  * Split the current line DIV at the caret. Does **not** clear the editor —
  * rewriting from a React snapshot was deleting live typed text on Shift+Enter.
+ *
+ * WebKit often reports the caret on the editor root (`startContainer === el`,
+ * offset 0) after wrapping a typed line. Treating that as "start of line"
+ * extracted the whole line onto the next row. If the caret is visually at
+ * the end, insert an empty next line instead of moving the text.
  */
 export function insertComposerLineBreakInPlace(el: HTMLElement): boolean {
   const sel = window.getSelection();
@@ -501,9 +506,30 @@ export function insertComposerLineBreakInPlace(el: HTMLElement): boolean {
     return false;
   }
 
+  const visuallyAtEnd = isCaretAtEditorEnd(el);
+  const anchorNode = range.startContainer;
+  const anchorOff = range.startOffset;
+
   ensureComposerLineDivs(el);
   if (sel.rangeCount === 0) return false;
-  range = sel.getRangeAt(0);
+  if (
+    anchorNode.nodeType === Node.TEXT_NODE &&
+    el.contains(anchorNode)
+  ) {
+    try {
+      const restored = document.createRange();
+      const max = (anchorNode.textContent ?? "").length;
+      restored.setStart(anchorNode, Math.max(0, Math.min(anchorOff, max)));
+      restored.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(restored);
+      range = restored;
+    } catch {
+      range = sel.getRangeAt(0);
+    }
+  } else {
+    range = sel.getRangeAt(0);
+  }
   if (!range.collapsed) {
     range.deleteContents();
     if (sel.rangeCount === 0) return false;
@@ -513,13 +539,24 @@ export function insertComposerLineBreakInPlace(el: HTMLElement): boolean {
   const line = lineDivForCaret(el, range);
   if (!line) return false;
 
+  const next = document.createElement("div");
+  if (visuallyAtEnd) {
+    padEmptyComposerLine(line);
+    next.appendChild(document.createElement("br"));
+    line.insertAdjacentElement("afterend", next);
+    markTrailingEmptyComposerLine(el);
+    placeCaretInLine(next, true);
+    return true;
+  }
+
   const tail = document.createRange();
   try {
     if (line.contains(range.startContainer) || range.startContainer === line) {
       tail.setStart(range.startContainer, range.startOffset);
     } else if (range.startContainer === el) {
-      // Offset at the editor root: end of last line vs start of this line.
-      if (range.startOffset >= el.childNodes.length) {
+      // (el, i) = before child i. Past this line → split at end; else start.
+      const lineIndex = lineDivsOf(el).indexOf(line);
+      if (range.startOffset > lineIndex) {
         tail.setStart(line, line.childNodes.length);
       } else {
         tail.setStart(line, 0);
@@ -533,7 +570,6 @@ export function insertComposerLineBreakInPlace(el: HTMLElement): boolean {
   }
 
   const contents = tail.extractContents();
-  const next = document.createElement("div");
   next.appendChild(contents);
   padEmptyComposerLine(line);
   padEmptyComposerLine(next);
@@ -808,7 +844,7 @@ function isCaretAtEditorEnd(el: HTMLElement): boolean {
   const frag = after.cloneContents();
   const tmp = document.createElement("div");
   tmp.appendChild(frag);
-  const rest = stripEditorGhostChars(tmp.innerText ?? tmp.textContent ?? "")
+  const rest = stripEditorGhostChars(tmp.innerText || tmp.textContent || "")
     .replace(/\u00a0/g, " ")
     .replace(/[\n\r]+/g, "");
   return rest.length === 0;
@@ -826,7 +862,7 @@ function isCaretAtEditorStart(el: HTMLElement): boolean {
   const frag = before.cloneContents();
   const tmp = document.createElement("div");
   tmp.appendChild(frag);
-  const head = stripEditorGhostChars(tmp.innerText ?? tmp.textContent ?? "")
+  const head = stripEditorGhostChars(tmp.innerText || tmp.textContent || "")
     .replace(/\u00a0/g, " ")
     .replace(/[\n\r]+/g, "");
   return head.length === 0;
