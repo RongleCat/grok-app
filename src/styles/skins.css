@@ -170,6 +170,19 @@ html[data-wallpaper="1"]
   text-shadow: none;
 }
 
+/* Inline `code` chips sit on wallpaper — give them a real well so they
+ * read as tokens, not a smear of the surrounding chrome ink. */
+html[data-wallpaper="1"]
+  .lobe-chat
+  .lobe-chat-assistant-timeline
+  :is(.chat-md__inline-code, .chat-md :not(pre) > code) {
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  color: var(--text-primary);
+  -webkit-text-fill-color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--text-primary) 18%, transparent);
+  text-shadow: none;
+}
+
 html[data-wallpaper="1"]
   .lobe-chat
   .lobe-chat-assistant-timeline

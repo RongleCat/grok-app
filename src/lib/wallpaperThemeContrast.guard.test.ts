@@ -157,6 +157,9 @@ describe("wallpaper theme contrast CSS", () => {
     expect(carriedSurface).toContain("--chat-text-3: var(--text-tertiary)");
     expect(carriedSurface).toContain("text-shadow: none");
     expect(css).toMatch(
+      /html\[data-wallpaper="1"\]\s+\.lobe-chat\s+\.lobe-chat-assistant-timeline\s+:is\(\.chat-md__inline-code, \.chat-md :not\(pre\) > code\)\s*\{[^}]*background:\s*color-mix\([^;]*--bg-elevated\) 82%[^}]*text-shadow:\s*none/s,
+    );
+    expect(css).toMatch(
       /html\[data-wallpaper="1"\]\s+\.lobe-chat\s+\.lobe-chat-assistant-timeline\s+:is\([^{]*\.lobe-chat-plan,[^{]*\.struct-json,[^{]*\.att-card,[^{]*\.file-path-card[^)]*\)\s+svg\s*\{[^}]*filter:\s*none/s,
     );
     expect(workbenchCss).toMatch(

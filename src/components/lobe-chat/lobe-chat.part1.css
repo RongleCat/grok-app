@@ -80,7 +80,7 @@
 [data-theme="dark"] .lobe-chat {
   --chat-code-bg: color-mix(in srgb, var(--bg-code, #0a0a0a) 55%, #2a2a2e);
   --chat-code-fg: var(--text-primary, #e8e8ea);
-  --chat-inline-code-bg: rgba(255, 255, 255, 0.08);
+  --chat-inline-code-bg: rgba(255, 255, 255, 0.14);
   --chat-inline-code-fg: var(--chat-code-fg);
 }
 
@@ -90,7 +90,7 @@
   --chat-code-fg: var(--text-primary, #1d1d1f);
   --chat-code-bar: color-mix(in srgb, var(--chat-code-bg) 92%, #000 8%);
   --chat-code-border: var(--border-subtle, rgba(0, 0, 0, 0.08));
-  --chat-inline-code-bg: rgba(0, 0, 0, 0.06);
+  --chat-inline-code-bg: rgba(0, 0, 0, 0.09);
   --chat-inline-code-fg: var(--chat-code-fg);
   --chat-bubble: var(--bg-user-bubble, rgba(0, 0, 0, 0.05));
   --chat-card: var(--bg-card, #f5f5f7);
@@ -509,19 +509,22 @@ html[data-msg-actions="always"] .lobe-chat-item__actions {
   text-underline-offset: 2px;
 }
 
-/* Inline code / tags — always readable on both themes */
+/* Inline code / tags — chip language, slightly stronger than body copy */
 .chat-md__inline-code,
 .chat-md :not(pre) > code {
   display: inline;
-  padding: 0.12em 0.45em;
+  padding: 0.12em 0.5em;
   border-radius: 6px;
   background: var(--chat-inline-code-bg);
   border: 1px solid var(--chat-code-border);
   font-family: var(--chat-mono);
   font-size: 0.9em;
+  font-weight: 500;
   color: var(--chat-inline-code-fg);
   box-shadow: none;
   outline: none;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 /* ── Code / path block (theme-aware chrome) ── */
