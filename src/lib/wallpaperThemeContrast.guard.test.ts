@@ -41,7 +41,7 @@ describe("wallpaper theme contrast CSS", () => {
 
   it("keeps light controls readable without adding structural surfaces", () => {
     const material = css.match(
-      /html\[data-theme="light"\]\[data-wallpaper="1"\][^{]*:is\(\.composer, \.composer__context-bar, \.main__top \.status-pill\)\s*\{[^}]*\}/s,
+      /html\[data-theme="light"\]\[data-wallpaper="1"\][^{]*:is\(\.composer, \.composer__context-bar\)\s*\{[^}]*\}/s,
     )?.[0];
     expect(material).toContain(
       "background: var(--wallpaper-light-elevated-surface)",
@@ -49,6 +49,9 @@ describe("wallpaper theme contrast CSS", () => {
     expect(material).not.toContain("backdrop-filter");
     expect(css).not.toMatch(
       /html\[data-theme="light"\]\[data-wallpaper="1"\][^{]*:is\([^)]*, \.status-pill\)\s*\{/s,
+    );
+    expect(css).not.toMatch(
+      /html\[data-theme="light"\]\[data-wallpaper="1"\][^{]*:is\([^)]*\.open-loc[^)]*\)\s*\{[^}]*--wallpaper-light-elevated-surface/s,
     );
     expect(css).toMatch(
       /--wallpaper-light-elevated-surface:\s*color-mix\(\s*in srgb,\s*var\(--bg-elevated\) 74%,\s*transparent/s,

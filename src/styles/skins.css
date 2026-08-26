@@ -285,7 +285,7 @@ html[data-wallpaper="1"].platform-mac[data-theme="light"] .aside {
 /* Light wallpaper controls share one translucent elevated material. It stays
  * readable when stream-perf removes pane blur and when the scrim is low. */
 html[data-theme="light"][data-wallpaper="1"]
-  :is(.composer, .composer__context-bar, .main__top .status-pill) {
+  :is(.composer, .composer__context-bar) {
   background: var(--wallpaper-light-elevated-surface);
 }
 
@@ -306,16 +306,6 @@ html[data-stream-perf="1"][data-wallpaper="1"]
   :is(.composer, .composer__context-bar) {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-}
-
-html[data-theme="light"][data-wallpaper="1"]
-  .main__top
-  .status-pill--action:hover {
-  background: color-mix(
-    in srgb,
-    var(--wallpaper-light-elevated-surface) 90%,
-    var(--text-primary) 10%
-  );
 }
 
 /*

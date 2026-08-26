@@ -495,30 +495,30 @@
   opacity: 0.92;
 }
 
-/* ===== Codex-style open-location split control =====
-   Height / radius / icon metrics match .chrome-btn (28×28) so it sits
-   evenly next to pane toggles in main__top-actions and rp-chrome__actions. */
+/* Open-location split — same flat chip language as .chip / .chrome-btn */
 .open-loc {
-  --open-loc-h: 28px;
   position: relative;
   display: inline-flex;
   align-items: stretch;
-  height: var(--open-loc-h);
+  height: 28px;
   box-sizing: border-box;
-  border-radius: var(--radius-sm, 6px); /* same as .chrome-btn */
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-elevated, var(--bg-hover));
-  color: var(--text-primary);
-  font-size: 12.5px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
   font-weight: 500;
   flex-shrink: 0;
-  overflow: hidden;
-  box-shadow: none; /* avoid extra visual bulk vs flat chrome-btn */
+  transition: background 120ms ease, color 120ms ease;
 }
 
-.open-loc:hover,
+.open-loc:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
 .open-loc.is-open {
-  border-color: var(--border-strong, var(--border-subtle));
+  color: var(--text-primary);
   background: var(--bg-active, var(--bg-hover));
 }
 
@@ -531,7 +531,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px; /* match chrome / chip internal gaps */
-  padding: 0 8px 0 8px;
+  padding: 0 8px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -544,8 +544,10 @@
   box-sizing: border-box;
 }
 
-.open-loc__main:hover {
-  background: rgba(127, 127, 127, 0.08);
+.open-loc__main:focus-visible,
+.open-loc__caret:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent));
+  outline-offset: 2px;
 }
 
 .open-loc__app-ico {
@@ -581,14 +583,16 @@
   padding: 0 6px 0 2px;
   border: 0;
   background: transparent;
-  color: var(--text-tertiary);
+  color: inherit;
+  opacity: 0.62;
   cursor: pointer;
   box-sizing: border-box;
 }
 
+.open-loc:hover .open-loc__caret,
+.open-loc.is-open .open-loc__caret,
 .open-loc__caret:hover {
-  color: var(--text-primary);
-  background: rgba(127, 127, 127, 0.08);
+  opacity: 1;
 }
 
 .open-loc--compact {
