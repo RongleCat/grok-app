@@ -266,6 +266,19 @@ export function pinnedFollowDelayMs(
 }
 
 /**
+ * Aside / env-gutter width interpolation reflows the column every frame.
+ * Media delay would wait until the interpolation stops, then snap — the
+ * transcript jumps up, then back to the bottom. Follow immediately.
+ */
+export function pinnedFollowDelayForLayout(input: {
+  heightDelta: number;
+  viewportWidthChanged: boolean;
+}): number {
+  if (input.viewportWidthChanged) return 0;
+  return pinnedFollowDelayMs(input.heightDelta);
+}
+
+/**
  * While stick is pinned, stream/thinking often grows a few px per frame
  * (smooth reveal). Those deltas are "noise" for bounce suppression, but
  * stacked they leave the viewport off the true bottom. Callers should still

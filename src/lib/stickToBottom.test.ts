@@ -12,6 +12,7 @@ import {
   isNearBottom,
   nextStickPinState,
   pinnedFollowDelayMs,
+  pinnedFollowDelayForLayout,
   shouldBumpStickOnBusyEdge,
   stabilizeStickUserId,
   shouldClampPinnedOverscroll,
@@ -91,6 +92,26 @@ describe("pinnedFollowDelayMs", () => {
 
   it("treats non-finite as immediate", () => {
     expect(pinnedFollowDelayMs(Number.NaN)).toBe(0);
+  });
+});
+
+describe("pinnedFollowDelayForLayout", () => {
+  it("follows immediately when the viewport width is interpolating", () => {
+    expect(
+      pinnedFollowDelayForLayout({
+        heightDelta: 400,
+        viewportWidthChanged: true,
+      }),
+    ).toBe(0);
+  });
+
+  it("keeps the media delay when only height jumped", () => {
+    expect(
+      pinnedFollowDelayForLayout({
+        heightDelta: 400,
+        viewportWidthChanged: false,
+      }),
+    ).toBe(STICK_MEDIA_FOLLOW_DELAY_MS);
   });
 });
 

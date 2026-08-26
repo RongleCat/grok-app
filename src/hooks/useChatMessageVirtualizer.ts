@@ -531,12 +531,17 @@ export function useChatMessageVirtualizer(
     const ro =
       typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => {
-            if (scrollingRef.current || isPaneSplitMotionActive()) {
-              if (isPaneSplitMotionActive()) {
-                runAfterPaneSplitMotion(() => {
-                  recomputeNow();
-                });
-              }
+            if (scrollingRef.current) {
+              return;
+            }
+            if (isPinnedRef.current) {
+              scheduleOnFrame(scrollFrameRef.current, () => recomputeNow());
+              return;
+            }
+            if (isPaneSplitMotionActive()) {
+              runAfterPaneSplitMotion(() => {
+                recomputeNow();
+              });
               return;
             }
             recompute();
@@ -612,6 +617,7 @@ export function useChatMessageVirtualizer(
     (index: number, el: HTMLElement, measuredHeight?: number) => {
       if (!virtualizedRef.current) return;
       if (
+        !isPinnedRef.current &&
         runAfterPaneSplitMotion(() =>
           commitRowHeight(index, el, measuredHeight),
         )
