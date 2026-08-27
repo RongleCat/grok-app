@@ -1166,11 +1166,6 @@ impl SessionManager {
         )
         .await;
 
-        // One-shot flags: clear whether fork succeeded or fell through to new/load.
-        if meta.fork_agent_session {
-            let _ = store::clear_session_fork_agent_session(&meta.id);
-        }
-
         match open_result {
             Ok((mut agent_sid, resumed)) => {
                 let plan = child_trim_plan(rewind_index, resumed);
@@ -1325,6 +1320,11 @@ impl SessionManager {
                 Ok(self.snapshot())
             }
             Err(e) => {
+                // Failed open must drop the one-shot so the next connect does
+                // not retry session/fork forever. Success clears via live meta.
+                if meta.fork_agent_session {
+                    let _ = store::clear_session_fork_after_connect_failure(&meta.id);
+                }
                 tracing::warn!(
                     target: "session",
                     session = %meta.id,

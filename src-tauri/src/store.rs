@@ -2385,6 +2385,24 @@ pub fn clear_session_fork_agent_session(id: &str) -> Result<SessionMeta, String>
     set_session_fork_agent_session(id, false)
 }
 
+/// After a failed connect, drop the one-shot fork flags.
+///
+/// Partial forks (those with a rewind index) also drop `agent_session_id` so
+/// the next connect cannot resume the parent's agent id after a failed
+/// agent-side fork attempt. Full forks keep the parent agent id.
+pub fn clear_session_fork_after_connect_failure(id: &str) -> Result<SessionMeta, String> {
+    update_session_row(id, |s| {
+        let pending_partial = s.fork_agent_session && s.fork_rewind_prompt_index.is_some();
+        if pending_partial {
+            s.agent_session_id = None;
+        }
+        s.fork_agent_session = false;
+        s.fork_rewind_prompt_index = None;
+        s.updated_at = Utc::now();
+        Ok(s.clone())
+    })
+}
+
 // ─── Automations (scheduled tasks shell) ───────────────────────────────────
 
 /// Host-side scheduled automation. Execution is driven by the host scheduler
@@ -3778,24 +3796,24 @@ mod tests {
         let mut src = create_session(None, Some("src".into()), false).expect("create");
         src.agent_session_id = Some("agent-parent".into());
         update_session_meta(&src).expect("meta");
-        save_messages(
-            &src.id,
-            &[
-                stored_msg("u1", "user", "first", None),
-                stored_msg("a1", "assistant", "ok", None),
-                stored_msg("u2", "user", "second", None),
-            ],
-        )
-        .expect("msgs");
+        let parent_msgs: Vec<_> = (1u32..=8)
+            .flat_map(|i| {
+                [
+                    stored_msg(&format!("u{i}"), "user", &format!("q{i}"), None),
+                    stored_msg(&format!("a{i}"), "assistant", &format!("a{i}"), None),
+                ]
+            })
+            .collect();
+        save_messages(&src.id, &parent_msgs).expect("msgs");
 
-        let partial = fork_session(&src.id, Some(0), None, true).expect("partial");
+        let partial = fork_session(&src.id, Some(4), None, true).expect("partial");
         assert_eq!(partial.agent_session_id.as_deref(), Some("agent-parent"));
         assert!(partial.fork_agent_session);
-        assert_eq!(partial.fork_rewind_prompt_index, Some(0));
+        assert_eq!(partial.fork_rewind_prompt_index, Some(4));
         let kept = load_messages(&partial.id);
-        assert_eq!(kept.len(), 2, "through first turn only");
-        assert!(kept.iter().all(|m| m.content != "second"));
-        assert_eq!(load_messages(&src.id).len(), 3, "parent journal unchanged");
+        assert_eq!(kept.len(), 10, "through fifth turn only");
+        assert_eq!(kept.last().map(|m| m.content.as_str()), Some("a5"));
+        assert_eq!(load_messages(&src.id).len(), 16, "parent journal unchanged");
         assert_eq!(
             load_sessions_index()
                 .iter()
@@ -3808,12 +3826,13 @@ mod tests {
         let full = fork_session(&src.id, None, None, true).expect("full");
         assert!(full.fork_agent_session);
         assert_eq!(full.fork_rewind_prompt_index, None);
-        assert_eq!(load_messages(&full.id).len(), 3);
+        assert_eq!(load_messages(&full.id).len(), 16);
 
-        let journal_only = fork_session(&src.id, Some(0), None, false).expect("journal");
+        let journal_only = fork_session(&src.id, Some(4), None, false).expect("journal");
         assert!(!journal_only.fork_agent_session);
         assert_eq!(journal_only.fork_rewind_prompt_index, None);
         assert!(journal_only.agent_session_id.is_none());
+        assert_eq!(load_messages(&journal_only.id).len(), 10);
 
         std::env::remove_var("GROK_APP_HOME");
         let _ = fs::remove_dir_all(&tmp);
@@ -3851,6 +3870,66 @@ mod tests {
         assert!(!cleared.fork_agent_session);
         assert_eq!(cleared.fork_rewind_prompt_index, None);
         assert_eq!(cleared.agent_session_id.as_deref(), Some("agent-parent"));
+
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn clear_session_fork_after_connect_failure_partial_drops_agent_id() {
+        let _g = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-fork-fail-partial-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp home");
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let _ = ensure_app_dirs();
+
+        let mut meta = create_session(None, Some("partial-fail".into()), false).expect("create");
+        meta.agent_session_id = Some("agent-parent".into());
+        meta.fork_agent_session = true;
+        meta.fork_rewind_prompt_index = Some(4);
+        update_session_meta(&meta).expect("meta");
+
+        let cleared = clear_session_fork_after_connect_failure(&meta.id).expect("clear");
+        assert!(cleared.agent_session_id.is_none());
+        assert!(!cleared.fork_agent_session);
+        assert_eq!(cleared.fork_rewind_prompt_index, None);
+
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn clear_session_fork_after_connect_failure_full_keeps_agent_id() {
+        let _g = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-fork-fail-full-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp home");
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let _ = ensure_app_dirs();
+
+        let mut meta = create_session(None, Some("full-fail".into()), false).expect("create");
+        meta.agent_session_id = Some("agent-parent".into());
+        meta.fork_agent_session = true;
+        meta.fork_rewind_prompt_index = None;
+        update_session_meta(&meta).expect("meta");
+
+        let cleared = clear_session_fork_after_connect_failure(&meta.id).expect("clear");
+        assert_eq!(cleared.agent_session_id.as_deref(), Some("agent-parent"));
+        assert!(!cleared.fork_agent_session);
+        assert_eq!(cleared.fork_rewind_prompt_index, None);
 
         std::env::remove_var("GROK_APP_HOME");
         let _ = fs::remove_dir_all(&tmp);

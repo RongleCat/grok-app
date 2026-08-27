@@ -1765,6 +1765,15 @@ pub fn reconcile_journal_from_chat_history(
     Ok(changed)
 }
 
+/// Linked reconcile may rebuild the App journal from agent `chat_history`.
+/// Skip while a **partial** fork is still pending (`fork_agent_session` plus a
+/// rewind index): the child journal is intentionally shorter than parent
+/// history, so a reconcile would overwrite the cut. Full forks and ordinary
+/// linked sessions stay eligible.
+fn linked_reconcile_allowed(meta: &SessionMeta) -> bool {
+    !(meta.fork_agent_session && meta.fork_rewind_prompt_index.is_some())
+}
+
 /// Best-effort reconcile when opening an App session that is linked to an agent.
 /// Never fails the load path — missing agent dir is normal for brand-new chats.
 pub fn try_reconcile_linked_session(app_session_id: &str) -> u32 {
@@ -1774,6 +1783,9 @@ pub fn try_reconcile_linked_session(app_session_id: &str) -> u32 {
     let Some(meta) = meta else {
         return 0;
     };
+    if !linked_reconcile_allowed(&meta) {
+        return 0;
+    }
     let Some(agent_id) = meta.agent_session_id.as_deref().filter(|s| !s.is_empty()) else {
         return 0;
     };
@@ -2837,5 +2849,30 @@ Total: 1
             "/home/name/projects/grok-app",
             ""
         ));
+    }
+
+    fn fork_meta(fork: bool, rewind: Option<u32>) -> SessionMeta {
+        let mut meta: SessionMeta = serde_json::from_str(
+            r#"{"id":"s1","projectId":null,"title":"t","agentSessionId":"agent-1","createdAt":"2020-01-01T00:00:00Z","updatedAt":"2020-01-01T00:00:00Z"}"#,
+        )
+        .expect("session meta");
+        meta.fork_agent_session = fork;
+        meta.fork_rewind_prompt_index = rewind;
+        meta
+    }
+
+    #[test]
+    fn linked_reconcile_skips_pending_partial_fork() {
+        assert!(!linked_reconcile_allowed(&fork_meta(true, Some(4))));
+    }
+
+    #[test]
+    fn linked_reconcile_allows_pending_full_fork() {
+        assert!(linked_reconcile_allowed(&fork_meta(true, None)));
+    }
+
+    #[test]
+    fn linked_reconcile_allows_ordinary_linked_session() {
+        assert!(linked_reconcile_allowed(&fork_meta(false, None)));
     }
 }
