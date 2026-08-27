@@ -113,6 +113,19 @@ export function projectJournalToChat(opts: {
 }
 
 /**
+ * Partial-fork follow-up: Host already cut the child journal. Disk is
+ * authoritative — never prefer/merge the in-memory cache, which can still
+ * hold the parent's later turns.
+ */
+export function projectTrimmedJournalToChat(
+  stored: StoredJournalMessage[],
+): ChatMessage[] {
+  return stripAutomationFences(
+    weaveToolsIntoAssistantSegments(mapStoredMessagesToChat(stored)),
+  );
+}
+
+/**
  * Drop missing local thumbs; keep http(s); on classify failure keep only
  * displayable paths. Relative-media resolve is applied first when present.
  */

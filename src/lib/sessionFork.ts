@@ -718,6 +718,37 @@ export function forkTrimmedToastKey(
   return outcome === "bootstrap" ? "session.forkOkBootstrap" : null;
 }
 
+export type ForkTrimmedFollowUp = {
+  /** Child App session to reload from disk; null skips the reload. */
+  sessionId: string | null;
+  toastKey: "session.forkOkBootstrap" | null;
+};
+
+/**
+ * `session://fork_trimmed` follow-up.
+ *
+ * Partial forks already cut the child journal on disk. The UI must reload
+ * that cut copy — a toast-only handler leaves the parent's later turns
+ * painted from the in-memory cache.
+ */
+export function planForkTrimmedFollowUp(
+  payload:
+    | {
+        sessionId?: string | null;
+        outcome?: string | null;
+      }
+    | null
+    | undefined,
+): ForkTrimmedFollowUp {
+  const raw = payload?.sessionId;
+  const sessionId =
+    typeof raw === "string" && raw.trim() ? raw.trim() : null;
+  return {
+    sessionId,
+    toastKey: forkTrimmedToastKey(payload?.outcome),
+  };
+}
+
 /**
  * Success toast key for resume-with-code restore.
  * Never claims “new agent session” without the fork flag.

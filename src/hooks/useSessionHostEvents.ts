@@ -7,7 +7,8 @@ import { useEffect, useRef } from "react";
 import * as api from "@/lib/api";
 import { isMirrorClient } from "@/lib/mirrorTransport";
 import { isValidAskUserPayload } from "@/lib/askUserPayload";
-import { forkTrimmedToastKey } from "@/lib/sessionFork";
+import { planForkTrimmedFollowUp } from "@/lib/sessionFork";
+import { projectTrimmedJournalToChat } from "@/lib/sessionJournalHydrate";
 import {
   applyContextCompact,
   applyGeneratedImage,
@@ -1334,10 +1335,29 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
             "session://fork_trimmed",
             (p) => {
               if (cancelled || !p) return;
-              const key = forkTrimmedToastKey(p.outcome);
-              if (!key) return;
-              c.setToast(c.tr(key));
-              window.setTimeout(() => c.setToast(null), 4200);
+              const followUp = planForkTrimmedFollowUp(p);
+              if (followUp.toastKey) {
+                c.setToast(c.tr(followUp.toastKey));
+                window.setTimeout(() => c.setToast(null), 4200);
+              }
+              const sid = followUp.sessionId;
+              if (!sid) return;
+              // Disk is the cut journal. Do not merge/upgrade the live cache —
+              // leftover parent turns would stick.
+              void api
+                .sessionMessages(sid, { reconcile: false })
+                .then((stored) => {
+                  if (cancelled) return;
+                  const woven = projectTrimmedJournalToChat(stored);
+                  c.patchSessionMessages(sid, () => woven);
+                  if (c.viewingSessionIdRef.current === sid) {
+                    void c.tryApplyAutomationFromSession(sid);
+                    applyResolvedRelativeMedia(sid, woven);
+                  }
+                })
+                .catch(() => {
+                  /* disk reload is best-effort */
+                });
             },
           ),
         );

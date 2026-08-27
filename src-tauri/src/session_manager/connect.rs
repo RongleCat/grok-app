@@ -16,7 +16,9 @@ use crate::process_limits::{can_spawn_process, normalize_max_concurrent, process
 use crate::session_fsm::{SessionFsm, SessionState};
 use crate::store::{self};
 
-use super::fork_trim::{child_trim_plan, fork_trimmed_outcome, ChildTrimPlan};
+use super::fork_trim::{
+    apply_child_rewind_fail_safe, child_trim_plan, fork_trimmed_outcome, ChildTrimPlan,
+};
 use super::*;
 
 /// Drops `connect_lock` holder diagnostics when the lock guard goes out of
@@ -1197,9 +1199,31 @@ impl SessionManager {
                                     target: "session",
                                     session = %meta.id,
                                     agent = %agent_sid,
+                                    prompt_index,
                                     error = %e,
-                                    "child rewind failed; session/new + bootstrap (will not keep untrimmed fork)"
+                                    "child rewind failed; will not keep untrimmed fork"
                                 );
+                                let fail_safe =
+                                    apply_child_rewind_fail_safe(&meta.id, prompt_index);
+                                match &fail_safe {
+                                    Ok(fs) => tracing::info!(
+                                        target: "session",
+                                        session = %meta.id,
+                                        prompt_index,
+                                        before = fs.before_len,
+                                        after = fs.after_len,
+                                        persisted = fs.persisted,
+                                        need_bootstrap = fs.need_bootstrap,
+                                        "rewind-fail child journal re-cut before session/new"
+                                    ),
+                                    Err(trim_err) => tracing::warn!(
+                                        target: "session",
+                                        session = %meta.id,
+                                        prompt_index,
+                                        error = %trim_err,
+                                        "rewind-fail child journal re-cut failed; refusing bootstrap"
+                                    ),
+                                }
                                 match Self::with_handshake_budget(
                                     client.open_session_at(None, false, &cwd_str),
                                 )
@@ -1207,7 +1231,8 @@ impl SessionManager {
                                 {
                                     Ok((new_sid, _)) => {
                                         agent_sid = new_sid;
-                                        need_bootstrap = journal_has_history;
+                                        need_bootstrap =
+                                            fail_safe.map(|fs| fs.need_bootstrap).unwrap_or(false);
                                         skip_set_mode = false;
                                     }
                                     Err(new_err) => {

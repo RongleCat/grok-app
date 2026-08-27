@@ -6,6 +6,7 @@ import {
   hydrateSessionJournal,
   journalHasScheduledUser,
   projectJournalToChat,
+  projectTrimmedJournalToChat,
   refineJournalAttachments,
   stripAutomationFences,
   type JournalIo,
@@ -279,5 +280,32 @@ describe("hydrateSessionJournal", () => {
     });
     expect(out[0]?.content).toBe("partial");
     expect(out[0]?.streaming).toBe(true);
+  });
+
+  it("projectTrimmedJournalToChat drops later parent turns that cache still holds", () => {
+    const disk = [
+      stored({ id: "u1", role: "user", content: "q1" }),
+      stored({ id: "a1", role: "assistant", content: "a1" }),
+    ];
+    const cached = [
+      user("u1", "q1"),
+      assistant("a1", "a1"),
+      user("u2", "q2"),
+      assistant("a2", "a2"),
+    ];
+    const leaked = projectJournalToChat({
+      stored: disk,
+      cached,
+      liveState: "idle",
+    });
+    expect(leaked.map((m) => m.id)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    const trimmed = projectTrimmedJournalToChat(disk);
+    expect(trimmed.map((m) => m.id)).toEqual(["u1", "a1"]);
+    expect(trimmed.map((m) => m.content)).toEqual(["q1", "a1"]);
+    // patchSessionMessages reducer must ignore prev — same as this helper.
+    expect(projectTrimmedJournalToChat(disk).map((m) => m.id)).toEqual(
+      cached.slice(0, 2).map((m) => m.id),
+    );
   });
 });

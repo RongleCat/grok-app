@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildForkWorktreeName,
@@ -12,6 +14,7 @@ import {
   isGitWorkingTreeDirty,
   isWorktreeNameCollisionError,
   keepForkDialogOpenOnSoftFail,
+  planForkTrimmedFollowUp,
   resolveForkAgentCheckbox,
   resolveForkAgentSession,
   resolveForkCliOnConfirm,
@@ -405,5 +408,56 @@ describe("forkSuccessToastKey / resumeRestoreSuccessToastKey", () => {
     expect(forkTrimmedToastKey("rewound")).toBe(null);
     expect(forkTrimmedToastKey("bootstrap")).toBe("session.forkOkBootstrap");
     expect(forkTrimmedToastKey("nope")).toBe(null);
+  });
+
+  it("planForkTrimmedFollowUp reloads disk for both outcomes, toasts only bootstrap", () => {
+    expect(planForkTrimmedFollowUp(null)).toEqual({
+      sessionId: null,
+      toastKey: null,
+    });
+    expect(planForkTrimmedFollowUp({ outcome: "bootstrap" })).toEqual({
+      sessionId: null,
+      toastKey: "session.forkOkBootstrap",
+    });
+    expect(
+      planForkTrimmedFollowUp({ sessionId: "  ", outcome: "rewound" }),
+    ).toEqual({ sessionId: null, toastKey: null });
+    expect(
+      planForkTrimmedFollowUp({
+        sessionId: " child-1 ",
+        outcome: "rewound",
+      }),
+    ).toEqual({ sessionId: "child-1", toastKey: null });
+    expect(
+      planForkTrimmedFollowUp({
+        sessionId: "child-2",
+        outcome: "bootstrap",
+      }),
+    ).toEqual({
+      sessionId: "child-2",
+      toastKey: "session.forkOkBootstrap",
+    });
+    expect(
+      planForkTrimmedFollowUp({ sessionId: "child-3", outcome: "nope" }),
+    ).toEqual({ sessionId: "child-3", toastKey: null });
+  });
+});
+
+describe("session://fork_trimmed host listener", () => {
+  it("reloads the cut journal from disk instead of only toasting", () => {
+    const src = readFileSync(
+      resolve(__dirname, "../hooks/useSessionHostEvents.ts"),
+      "utf8",
+    );
+    const start = src.indexOf('"session://fork_trimmed"');
+    expect(start).toBeGreaterThan(0);
+    const block = src.slice(start, start + 1600);
+    expect(block).toContain("planForkTrimmedFollowUp");
+    expect(block).toContain("sessionMessages");
+    expect(block).toContain("reconcile: false");
+    expect(block).toContain("projectTrimmedJournalToChat");
+    expect(block).toContain("patchSessionMessages");
+    expect(block).not.toContain("forkTrimmedToastKey(");
+    expect(block).not.toContain("scheduleJournalRehydrate");
   });
 });
