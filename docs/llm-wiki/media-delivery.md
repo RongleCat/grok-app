@@ -43,6 +43,14 @@ Video covers remain separate (`video-posters` + ffmpeg).
 
 `media://` custom protocol remains registered for cold-start races only. Steady-state UI should use HTTP URLs.
 
+Full-file consumers that must construct a browser `Blob` / `File` may use the
+bounded raw-IPC pair `media_file_info` + `media_read_file_chunk`. This avoids a
+WebView2 local-network policy that can block page-script loopback `fetch()`
+before the request reaches the Host CORS handler. Raw IPC reads still require
+`path_scope`, return at most 8 MiB per chunk, and reject files over 200 MiB.
+Wallpaper preview remains on loopback HTTP; only “apply” uses the full-file IPC
+path.
+
 ## Security notes
 
 - Bind **only** loopback.

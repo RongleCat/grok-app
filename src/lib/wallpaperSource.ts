@@ -232,20 +232,124 @@ export async function fetchEntireMediaBlob(
   return new Blob(parts);
 }
 
+/** Bounded raw Tauri IPC chunk size (must match Host `MAX_IPC_CHUNK`). */
+export const MEDIA_IPC_CHUNK = 8 * 1024 * 1024;
+
+/** Wallpaper video ceiling (must match Host `MAX_IPC_FILE`). */
+export const MEDIA_IPC_MAX_FILE = 200 * 1024 * 1024;
+
+type MediaFileInfo = {
+  bytes: number;
+  mime: string;
+  name: string;
+};
+
+type MediaInvoke = (
+  command: string,
+  args?: Record<string, unknown>,
+) => Promise<unknown>;
+
+function ipcBytesToArrayBuffer(value: unknown): ArrayBuffer {
+  if (value instanceof ArrayBuffer) return value;
+  if (ArrayBuffer.isView(value)) {
+    const view = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    const copy = new Uint8Array(view.byteLength);
+    copy.set(view);
+    return copy.buffer;
+  }
+  // Normalize test doubles and bridges that serialize byte buffers as arrays.
+  // Production Tauri returns an ArrayBuffer for `tauri::ipc::Response`.
+  if (
+    Array.isArray(value) &&
+    value.every(
+      (byte) => Number.isInteger(byte) && Number(byte) >= 0 && Number(byte) <= 255,
+    )
+  ) {
+    return Uint8Array.from(value as number[]).buffer;
+  }
+  throw new Error("read_failed: invalid IPC byte response");
+}
+
+/**
+ * Read a complete allowlisted media file through bounded raw Tauri IPC.
+ *
+ * WebView2 can reject page-script `fetch()` to 127.0.0.1 before the request
+ * reaches the Host CORS handler. Raw IPC avoids that browser network gate
+ * while the Host still enforces `path_scope` and a 200 MiB total cap.
+ * `opts.chunkSize` is for unit tests only.
+ */
+export async function readLocalMediaBlobViaIpc(
+  absolutePath: string,
+  invokeImpl?: MediaInvoke,
+  opts?: { chunkSize?: number },
+): Promise<{ blob: Blob; info: MediaFileInfo }> {
+  const invoke: MediaInvoke =
+    invokeImpl ?? ((await import("@tauri-apps/api/core")).invoke as MediaInvoke);
+  const rawInfo = await invoke("media_file_info", {
+    path: absolutePath,
+  });
+  if (!rawInfo || typeof rawInfo !== "object") {
+    throw new Error("read_failed: invalid media metadata");
+  }
+
+  const candidate = rawInfo as Partial<MediaFileInfo>;
+  const bytes = Number(candidate.bytes);
+  if (!Number.isSafeInteger(bytes) || bytes < 0 || bytes > MEDIA_IPC_MAX_FILE) {
+    throw new Error("read_failed: invalid media size");
+  }
+  const chunkSize = opts?.chunkSize ?? MEDIA_IPC_CHUNK;
+  if (
+    !Number.isSafeInteger(chunkSize) ||
+    chunkSize <= 0 ||
+    chunkSize > MEDIA_IPC_CHUNK
+  ) {
+    throw new Error("read_failed: invalid IPC chunk size");
+  }
+
+  const info: MediaFileInfo = {
+    bytes,
+    mime:
+      typeof candidate.mime === "string" && candidate.mime.trim()
+        ? candidate.mime
+        : "application/octet-stream",
+    name:
+      typeof candidate.name === "string" && candidate.name.trim()
+        ? candidate.name
+        : absolutePath.split(/[/\\]/).pop() || "wallpaper",
+  };
+
+  const parts: ArrayBuffer[] = [];
+  let got = 0;
+  for (let offset = 0; offset < bytes; offset += chunkSize) {
+    const length = Math.min(chunkSize, bytes - offset);
+    const raw = await invoke("media_read_file_chunk", {
+      path: absolutePath,
+      offset,
+      length,
+    });
+    const part = ipcBytesToArrayBuffer(raw);
+    if (part.byteLength !== length) {
+      throw new Error(
+        `read_failed: short IPC read (${part.byteLength}/${length} bytes at ${offset})`,
+      );
+    }
+    got += part.byteLength;
+    parts.push(part);
+  }
+  if (got !== bytes) {
+    throw new Error(`read_failed: short IPC read (${got}/${bytes} bytes)`);
+  }
+  return { blob: new Blob(parts, { type: info.mime }), info };
+}
+
 /**
  * Load a local absolute path into a File for prepareWallpaperFromFile.
- * Uses Host loopback media HTTP with **full Range reassembly** (not a single bare GET).
+ * Uses bounded raw Tauri IPC so WebView2 local-network policy cannot block it.
  */
 export async function fileFromAbsolutePath(
   absolutePath: string,
   opts?: { name?: string; mime?: string },
 ): Promise<File> {
-  const name =
-    opts?.name ||
-    absolutePath.split(/[/\\]/).pop() ||
-    "wallpaper.jpg";
-  const mime = opts?.mime || mimeFromName(name);
-
   // Browser / unit tests: no Tauri
   if (
     typeof window === "undefined" ||
@@ -254,27 +358,32 @@ export async function fileFromAbsolutePath(
     throw new Error("desktop_only");
   }
 
-  const { resolveImageSrc } = await import("@/lib/imageSrc");
-  const url = await resolveImageSrc(absolutePath);
-  if (!url) {
-    throw new Error("read_failed: cannot resolve local media URL");
-  }
-
-  let blob: Blob;
+  let result: Awaited<ReturnType<typeof readLocalMediaBlobViaIpc>>;
   try {
-    blob = await fetchEntireMediaBlob(url);
+    result = await readLocalMediaBlobViaIpc(absolutePath);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("path_not_allowed")) throw new Error("path_not_allowed");
     if (msg.startsWith("read_failed")) throw e instanceof Error ? e : new Error(msg);
     throw new Error(`read_failed: ${msg}`);
   }
 
+  const { blob, info } = result;
   if (!blob.size) {
     throw new Error("read_failed: empty file");
   }
 
+  const name =
+    opts?.name ||
+    info.name ||
+    absolutePath.split(/[/\\]/).pop() ||
+    "wallpaper.jpg";
+  const fallbackMime = mimeFromName(name);
   const type =
-    blob.type && blob.type !== "application/octet-stream" ? blob.type : mime;
+    opts?.mime ||
+    (blob.type && blob.type !== "application/octet-stream"
+      ? blob.type
+      : fallbackMime);
   return new File([blob], name, { type });
 }
 

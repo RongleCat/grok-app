@@ -6,9 +6,11 @@ import {
   isStaticImageLibraryEntry,
   libraryEntriesToGalleryItems,
   libraryEntryToGalleryItem,
+  MEDIA_IPC_CHUNK,
   MEDIA_PROTO_CHUNK,
   parseContentRangeTotal,
   parseWallpaperSourceError,
+  readLocalMediaBlobViaIpc,
   resolveApplySource,
   sortLibraryEntriesStaticFirst,
   type WallpaperGalleryItem,
@@ -162,6 +164,58 @@ describe("wallpaperSource", () => {
     expect(spy.mock.calls.length).toBeGreaterThanOrEqual(3);
     // production default remains 2 MiB
     expect(MEDIA_PROTO_CHUNK).toBe(2 * 1024 * 1024);
+  });
+
+  it("reassembles bounded raw IPC chunks without loopback fetch", async () => {
+    const bytes = Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    const invoke = vi.fn(
+      async (command: string, args?: Record<string, unknown>): Promise<unknown> => {
+        if (command === "media_file_info") {
+          return { bytes: bytes.length, mime: "image/png", name: "wall.png" };
+        }
+        if (command === "media_read_file_chunk") {
+          const offset = Number(args?.offset);
+          const length = Number(args?.length);
+          return bytes.slice(offset, offset + length).buffer;
+        }
+        throw new Error(`unexpected command: ${command}`);
+      },
+    );
+
+    const { blob, info } = await readLocalMediaBlobViaIpc(
+      "C:/wallpapers/wall.png",
+      invoke,
+      { chunkSize: 4 },
+    );
+    expect(info).toEqual({
+      bytes: bytes.length,
+      mime: "image/png",
+      name: "wall.png",
+    });
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
+    expect(blob.type).toBe("image/png");
+    expect(invoke.mock.calls.map(([command]) => command)).toEqual([
+      "media_file_info",
+      "media_read_file_chunk",
+      "media_read_file_chunk",
+      "media_read_file_chunk",
+    ]);
+    expect(MEDIA_IPC_CHUNK).toBe(8 * 1024 * 1024);
+  });
+
+  it("rejects a short raw IPC chunk", async () => {
+    const invoke = vi.fn(
+      async (command: string): Promise<unknown> =>
+        command === "media_file_info"
+          ? { bytes: 4, mime: "image/png", name: "wall.png" }
+          : Uint8Array.from([1, 2, 3]).buffer,
+    );
+
+    await expect(
+      readLocalMediaBlobViaIpc("C:/wallpapers/wall.png", invoke, {
+        chunkSize: 4,
+      }),
+    ).rejects.toThrow("short IPC read (3/4 bytes at 0)");
   });
 
   it("maps library entries to gallery items (static first)", () => {

@@ -1127,3 +1127,29 @@ pub async fn media_server_endpoint(
         .ok_or_else(|| "media server not running".to_string())?;
     Ok(handle.endpoint())
 }
+
+/// Metadata for a bounded raw-IPC media read.
+///
+/// Used by full-file consumers when WebView2 blocks JavaScript loopback fetch
+/// before the request can reach the media server's CORS handler.
+#[tauri::command]
+pub async fn media_file_info(path: String) -> Result<crate::media_server::MediaFileInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || crate::media_server::ipc_file_info(&path))
+        .await
+        .map_err(|e| format!("media_file_info task failed: {e}"))?
+}
+
+/// Read one bounded raw byte chunk from an allowlisted local media file.
+#[tauri::command]
+pub async fn media_read_file_chunk(
+    path: String,
+    offset: u64,
+    length: u32,
+) -> Result<tauri::ipc::Response, String> {
+    let bytes = tauri::async_runtime::spawn_blocking(move || {
+        crate::media_server::ipc_read_file_chunk(&path, offset, length)
+    })
+    .await
+    .map_err(|e| format!("media_read_file_chunk task failed: {e}"))??;
+    Ok(tauri::ipc::Response::new(bytes))
+}

@@ -38,12 +38,29 @@ const MAX_CHUNK: u64 = 2 * 1024 * 1024; // 2 MiB
 /// MAX_CHUNK yields broken/empty thumbnails for common multi-MB photos.
 const MAX_FULL_BODY: u64 = 40 * 1024 * 1024; // 40 MiB
 
+/// Max bytes returned by one raw Tauri IPC read. Wallpaper application needs a
+/// complete `File`, but one unbounded IPC response would create a large memory
+/// spike for videos.
+pub const MAX_IPC_CHUNK: u32 = 8 * 1024 * 1024; // 8 MiB
+
+/// Same ceiling as wallpaper video preparation/download.
+const MAX_IPC_FILE: u64 = 200 * 1024 * 1024; // 200 MiB
+
 /// Endpoint published to the frontend (base URL + secret token).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MediaServerEndpoint {
     pub base_url: String,
     pub token: String,
+}
+
+/// Metadata used by bounded raw-IPC reads for full-file consumers.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaFileInfo {
+    pub bytes: u64,
+    pub mime: String,
+    pub name: String,
 }
 
 /// Managed Tauri state — process-wide media server.
@@ -136,6 +153,80 @@ pub fn url_for_path(endpoint: &MediaServerEndpoint, abs_path: &str) -> String {
         urlencoding_encode(&endpoint.token),
         urlencoding_encode(abs_path)
     )
+}
+
+/// Inspect one allowlisted local media file before reading it over raw IPC.
+///
+/// WebView2 can block JavaScript `fetch()` to the loopback server before the
+/// request reaches our CORS handler. Full-file consumers (wallpaper apply) use
+/// this bounded IPC path; normal `<img>` / `<video>` previews still use HTTP.
+pub fn ipc_file_info(path_raw: &str) -> Result<MediaFileInfo, String> {
+    let path = require_allowed_media_file(path_raw)?;
+    let meta = std::fs::metadata(&path).map_err(|e| format!("read_failed: stat: {e}"))?;
+    let bytes = meta.len();
+    if bytes > MAX_IPC_FILE {
+        return Err("read_failed: file too large".into());
+    }
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .unwrap_or("wallpaper")
+        .to_string();
+    Ok(MediaFileInfo {
+        bytes,
+        mime: mime_from_path(&path.to_string_lossy()).to_string(),
+        name,
+    })
+}
+
+/// Read one bounded byte window for a full-file raw IPC consumer.
+pub fn ipc_read_file_chunk(path_raw: &str, offset: u64, length: u32) -> Result<Vec<u8>, String> {
+    if length == 0 || length > MAX_IPC_CHUNK {
+        return Err("read_failed: invalid chunk length".into());
+    }
+
+    let path = require_allowed_media_file(path_raw)?;
+    let mut file = std::fs::File::open(&path).map_err(|e| format!("read_failed: open: {e}"))?;
+    let total = file
+        .metadata()
+        .map_err(|e| format!("read_failed: stat: {e}"))?
+        .len();
+    if total > MAX_IPC_FILE {
+        return Err("read_failed: file too large".into());
+    }
+    if offset >= total {
+        return Err("read_failed: invalid chunk offset".into());
+    }
+
+    let expected = u64::from(length).min(total - offset) as usize;
+    let mut bytes = vec![0_u8; expected];
+    file.seek(SeekFrom::Start(offset))
+        .map_err(|e| format!("read_failed: seek: {e}"))?;
+    file.read_exact(&mut bytes)
+        .map_err(|e| format!("read_failed: short read: {e}"))?;
+    Ok(bytes)
+}
+
+fn require_allowed_media_file(path_raw: &str) -> Result<PathBuf, String> {
+    let raw = path_raw.trim();
+    if raw.is_empty() {
+        return Err("read_failed: missing path".into());
+    }
+    let path = PathBuf::from(raw);
+
+    // Check scope before existence so IPC does not become a filesystem oracle.
+    if !crate::path_scope::is_allowed(&path) {
+        return Err("path_not_allowed".into());
+    }
+    if !path.exists() {
+        return Err("read_failed: file not found".into());
+    }
+    let canonical = crate::path_scope::require_allowed(&path).map_err(|_| "path_not_allowed")?;
+    if !canonical.is_file() {
+        return Err("read_failed: file not found".into());
+    }
+    Ok(canonical)
 }
 
 fn random_token() -> String {
@@ -570,6 +661,48 @@ mod tests {
         let u = url_for_path(&ep, "/Users/me/a b.png");
         assert!(u.contains("t=tok"));
         assert!(u.contains("p=%2FUsers%2Fme%2Fa%20b.png") || u.contains("a%20b"));
+    }
+
+    #[tokio::test]
+    async fn ipc_file_read_is_allowlisted_and_chunked() {
+        let _scope = crate::path_scope::TEST_LOCK.lock().await;
+        let dir = std::env::temp_dir().join(format!("grok-media-ipc-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("wallpaper.png");
+        std::fs::write(&file, b"abcdefghij").unwrap();
+        crate::path_scope::grant_path(&file);
+
+        let raw = file.to_string_lossy();
+        let info = ipc_file_info(&raw).expect("info");
+        assert_eq!(info.bytes, 10);
+        assert_eq!(info.mime, "image/png");
+        assert_eq!(info.name, "wallpaper.png");
+        assert_eq!(ipc_read_file_chunk(&raw, 2, 4).expect("chunk"), b"cdef");
+        assert_eq!(ipc_read_file_chunk(&raw, 8, 8).expect("last chunk"), b"ij");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn ipc_file_read_rejects_path_outside_allowlist() {
+        let _scope = crate::path_scope::TEST_LOCK.lock().await;
+        let missing = std::path::PathBuf::from(format!(
+            "/grok-app-untrusted-ipc-{}/nope.png",
+            uuid::Uuid::new_v4()
+        ));
+        let raw = missing.to_string_lossy();
+
+        assert_eq!(ipc_file_info(&raw).unwrap_err(), "path_not_allowed");
+        assert_eq!(
+            ipc_read_file_chunk(&raw, 0, 1).unwrap_err(),
+            "path_not_allowed"
+        );
+    }
+
+    #[test]
+    fn ipc_file_read_rejects_unbounded_chunk() {
+        let err = ipc_read_file_chunk("ignored", 0, MAX_IPC_CHUNK + 1).unwrap_err();
+        assert!(err.contains("invalid chunk length"));
     }
 
     #[tokio::test]

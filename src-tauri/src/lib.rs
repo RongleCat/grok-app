@@ -1154,6 +1154,10 @@ pub fn run() {
 
             commands::media_server_endpoint,
 
+            commands::media_file_info,
+
+            commands::media_read_file_chunk,
+
             commands::settings_get,
 
             commands::store_take_quarantine,
