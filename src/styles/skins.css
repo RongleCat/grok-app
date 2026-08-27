@@ -115,6 +115,23 @@ html[data-wallpaper="1"] .app-wallpaper-media {
   transition: opacity 120ms ease-out;
 }
 
+/*
+ * WebView2 skips filter:blur on the media *container* when the child is a
+ * GPU-decoded <img> / <video>. Docked .sidebar also forces backdrop-filter:
+ * none (no native vibrancy), so the wallpaper stays sharp under a 72%/24%
+ * mix — session titles and the empty-chat welcome sit on the raw picture.
+ * Blur the replaced element instead. Mac keeps the container filter.
+ */
+html.platform-win[data-wallpaper="1"] .app-wallpaper-media {
+  filter: none;
+}
+
+html.platform-win[data-wallpaper="1"]
+  .app-wallpaper-media.is-ready
+  .app-wallpaper-media__el {
+  filter: blur(var(--wallpaper-sidebar-blur, 22px));
+}
+
 /* Lift the workbench above the media + scrim.
  * Only .workbench: overlay stages (.app-settings-stage) must stay
  * position:absolute; inset:0 or they size to content and wallpaper
@@ -408,6 +425,11 @@ html[data-stream-perf="1"][data-wallpaper="1"] .app-wallpaper-media {
   filter: none;
   transform: none;
   inset: 0;
+}
+
+html.platform-win[data-stream-perf="1"][data-wallpaper="1"]
+  .app-wallpaper-media__el {
+  filter: none;
 }
 
 html[data-wallpaper="1"] .settings-page__content,

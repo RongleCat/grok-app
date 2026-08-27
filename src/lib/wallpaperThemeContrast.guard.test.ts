@@ -388,6 +388,12 @@ describe("wallpaper theme contrast CSS", () => {
     expect(css).toMatch(
       /html\[data-wallpaper="1"\] \.sidebar\.sidebar--overlay,\s*html\[data-wallpaper="1"\] \.sidebar\.sidebar--phone-drawer\s*\{[^}]*backdrop-filter:\s*blur\(var\(--wallpaper-sidebar-blur, 22px\)\)/s,
     );
+    expect(css).toMatch(
+      /html\.platform-win\[data-wallpaper="1"\] \.app-wallpaper-media\s*\{[^}]*filter:\s*none/s,
+    );
+    expect(css).toMatch(
+      /html\.platform-win\[data-wallpaper="1"\]\s+\.app-wallpaper-media\.is-ready\s+\.app-wallpaper-media__el\s*\{[^}]*filter:\s*blur\(var\(--wallpaper-sidebar-blur, 22px\)\)/s,
+    );
     expect(css).not.toMatch(
       /html\[data-wallpaper="1"\]\s+\.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\)::before/,
     );

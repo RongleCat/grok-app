@@ -17,5 +17,8 @@ describe("stream-perf wallpaper CSS", () => {
     expect(css).toContain(
       'html[data-stream-perf="1"][data-wallpaper="1"] .settings-page__nav',
     );
+    expect(css).toMatch(
+      /html\.platform-win\[data-stream-perf="1"\]\[data-wallpaper="1"\]\s+\.app-wallpaper-media__el\s*\{[^}]*filter:\s*none/s,
+    );
   });
 });
