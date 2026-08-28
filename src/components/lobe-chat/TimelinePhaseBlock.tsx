@@ -66,6 +66,7 @@ import {
   type ActivityStepExpandState,
 } from "@/lib/grokActivityVirtualize";
 import { VirtualList } from "@/components/VirtualList";
+import { useThoughtBodyFollow } from "@/hooks/useThoughtBodyFollow";
 import { ToolExpandBody } from "./ToolExpandBody";
 import { MarkdownChat } from "./MarkdownChat";
 import { findMatchesBeforeVisible } from "@/lib/chatFind";
@@ -368,6 +369,13 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
     () => (expandTool && open ? toolExpandBody(expandTool, failed) : null),
     [expandTool, open, failed],
   );
+  const thoughtLive = step.type === "thought" && step.streaming;
+  const thoughtFollowKey = step.type === "thought" ? step.text : "";
+  const thoughtBodyRef = useThoughtBodyFollow({
+    live: thoughtLive,
+    expanded: showBody,
+    followKey: thoughtFollowKey,
+  });
 
   if (step.type === "speech") {
     const speechFindBase = findMatchesBeforeVisible({
@@ -474,7 +482,7 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
               />
             </div>
           ) : step.type === "thought" ? (
-            <div className="grok-act__thought-body">
+            <div ref={thoughtBodyRef} className="grok-act__thought-body">
               <MarkdownChat locale={locale} muted pathCards={false}>
                 {step.text}
               </MarkdownChat>

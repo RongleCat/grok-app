@@ -13,6 +13,7 @@
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { IconBulb, IconChevronDown, IconChevronRight } from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { useThoughtBodyFollow } from "@/hooks/useThoughtBodyFollow";
 import { MarkdownChat } from "./MarkdownChat";
 import { createT, type Locale } from "@/i18n";
 import { COLLAPSE_ALL_ACTIVITY_EVENT } from "@/lib/collapseAllActivity";
@@ -155,6 +156,12 @@ export const Thinking = memo(function Thinking({
   const hasBody =
     (typeof content === "string" && content.trim().length > 0) ||
     (content != null && typeof content !== "string");
+  const thoughtFollowKey = typeof content === "string" ? content : "";
+  const thoughtBodyRef = useThoughtBodyFollow({
+    live: !!thinking,
+    expanded: expanded && hasBody,
+    followKey: thoughtFollowKey,
+  });
 
   const toggle = () => {
     if (!hasBody) return;
@@ -207,7 +214,7 @@ export const Thinking = memo(function Thinking({
 
       {/* Collapsed: header only. Expanded: muted dig-in body. */}
       {expanded && hasBody ? (
-        <div className="grok-thought__body">
+        <div ref={thoughtBodyRef} className="grok-thought__body">
           {typeof content === "string" ? (
             <MarkdownChat
               locale={locale}
