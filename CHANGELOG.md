@@ -21,21 +21,37 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 - Last chat lines stay above the floating composer. Scrolling down at the bottom no longer bounces the tail under the input.
+- Live thinking is not clipped in a 220px box. The transcript follows the stream.
+- Opening an SSH path chip no longer blanks the window. The files pane shows a loading state instead of an empty Suspense.
 - Rewind on the last user bubble undoes that turn. Local journal still truncates if agent rewind fails.
 - First send on a new chat is not dropped when the agent is parked as viewed-only.
 - SSH path chips in chat open the files tree like local projects.
+- Long live thinking stays scrolled to the latest tokens inside the thought box.
+- Wallpaper frost no longer pops off when a chat starts streaming. Empty home and a live turn keep the same blur.
+- Overlay at 0% no longer clears wallpaper blur. The two sliders stay independent.
+- Windows taskbar keeps the Grok mark after an update.
+- Mac Steer is Ctrl+Enter only, matching Grok Build CLI. Cmd+Enter no longer steers.
 - Windows wallpaper frost reaches the sidebar and empty chat. WebView2 skipped container blur.
 - Fork from a middle turn no longer brings back later parent messages.
 - Rapid follow-up messages no longer lose the next reply.
+- Bottom overscroll no longer rebounds above hidden chat content.
 
 **中文 · 修复**
 - 修复对话最后几行压在输入框上。滚到最底再往下滚不会把尾巴弹回输入框下面。
+- 修复直播思考被 220px 小框截断。主对话跟着流式输出走。
+- 修复点 SSH 路径 chip 整窗变白。文件面板先显示加载，不再空白。
 - 修复点最后一条用户消息无法回退。Agent rewind 失败时仍截断本地记录。
 - 修复新会话第一轮发出去没有真正开跑。
 - 修复 SSH 会话里点路径 chip 不能跳到侧栏文件树。
+- 修复思考过长时看不到最新内容。展开的思考区跟到最新字，上翻不会被拽回。
+- 修复进会话、开始直播时壁纸突然变清楚并弹一下。空会话和直播回合共用同一层模糊。
+- 修复遮罩透明度拉到 0% 时把壁纸模糊也关掉。两根滑块互不影响。
+- 修复 Windows 更新后任务栏变成空白文档图标。
+- 修复 Mac 引导快捷键。对标 Grok Build CLI，只用 Ctrl+Enter，不再认 ⌘Enter。
 - 修复 Windows 壁纸透过侧栏和空会话。WebView2 会跳过容器模糊。
 - 修复从中间分叉时后面的父会话消息又回来。
 - 修复连续快速发送时下一条回复丢失。
+- 修复底部超滚回弹后仍有聊天内容被遮挡。
 
 ## [0.2.27] - 2026-08-27
 

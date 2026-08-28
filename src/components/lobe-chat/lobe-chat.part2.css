@@ -539,6 +539,7 @@
   padding: 0 0 2px;
   max-height: min(32vh, 220px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   color: color-mix(in srgb, var(--chat-text-3, #9ca3af) 95%, transparent);
   font-size: 12.5px;
   line-height: 1.5;

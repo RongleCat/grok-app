@@ -74,19 +74,22 @@ export function shouldSendOnKeydown(
  * family Ctrl+L as terminal-specific alts).
  *
  * Independent of the Composer send-key preference. While a turn is live,
- * this chord steers (`sessionInterject`) instead of queueing. Cmd+Enter is
- * accepted too so macOS App users hit the same modifier as other App chords.
+ * this chord steers (`sessionInterject`) instead of queueing.
+ *
+ * Ctrl only — not Cmd. Grok Build CLI uses Ctrl+Enter on every platform,
+ * including macOS (Apple Terminal falls back to Ctrl+O). Cmd+Enter stays
+ * the optional Composer send key (`mod-enter`).
  */
 export function shouldSteerOnKeydown(e: ComposerSendKeyEvent): boolean {
   if (e.key !== "Enter") return false;
   if (e.shiftKey || e.altKey) return false;
-  return e.ctrlKey || e.metaKey;
+  return e.ctrlKey && !e.metaKey;
 }
 
 export type ComposerSubmitAction = "steer" | "send" | "none";
 
 /**
- * Whether the Ctrl/Cmd+Enter chord should be dispatched to `steerFromComposer`.
+ * Whether the Ctrl+Enter chord should be dispatched to `steerFromComposer`.
  * Permission waits stay **true** — that handler toasts and refuses to write.
  * Pre-filtering `awaiting_permission` here made the chord a silent no-op.
  */

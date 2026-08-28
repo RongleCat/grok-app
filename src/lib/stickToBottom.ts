@@ -61,6 +61,16 @@ export const STICK_ESCAPE_MIN_DELTA_PX = 10;
  */
 export const STICK_ESCAPE_WHEEL_DELTA = 10;
 
+/**
+ * Keep a recent gesture toward the tail alive across compositor rubber-band.
+ * WebView2 may report the rebound as a decreasing `scrollTop` even though the
+ * user never reversed direction.
+ */
+export const STICK_BOTTOM_REBOUND_INTENT_MS = 320;
+
+/** Quiet window after the last rebound scroll event before snapping to max. */
+export const STICK_BOTTOM_REBOUND_SETTLE_MS = 96;
+
 /** True when the upward scroll is large enough to intentionally leave the bottom. */
 export function isMeaningfulScrollUp(
   scrollTop: number,
@@ -80,6 +90,30 @@ export function shouldClampPinnedOverscroll(
   maxTop: number,
 ): boolean {
   return scrollTop > maxTop + 0.5;
+}
+
+/**
+ * A downward wheel/touch gesture can overshoot the tail and rebound upward.
+ * That decreasing `scrollTop` is not a request to read history. Recover only
+ * inside the near-bottom band and only while the downward intent is current;
+ * a real reverse wheel/touch gesture clears that intent before scroll events.
+ */
+export function shouldSettleBottomRebound(input: {
+  downIntentActive: boolean;
+  scrollTop: number;
+  previousScrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  thresholdPx?: number;
+}): boolean {
+  if (!input.downIntentActive) return false;
+  if (input.previousScrollTop - input.scrollTop < 0.5) return false;
+  return isNearBottom(
+    input.scrollTop,
+    input.scrollHeight,
+    input.clientHeight,
+    input.thresholdPx,
+  );
 }
 
 /**

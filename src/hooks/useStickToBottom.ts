@@ -22,6 +22,8 @@ import {
 import {
   STICK_ESCAPE_MIN_DELTA_PX,
   STICK_ESCAPE_WHEEL_DELTA,
+  STICK_BOTTOM_REBOUND_INTENT_MS,
+  STICK_BOTTOM_REBOUND_SETTLE_MS,
   STICK_OPEN_FOLLOW_MS,
   STICK_TO_BOTTOM_THRESHOLD_PX,
   bottomScrollTop,
@@ -34,6 +36,7 @@ import {
   shouldClampPinnedOverscroll,
   shouldClampPinnedStreamDrift,
   shouldEscapePinnedScroll,
+  shouldSettleBottomRebound,
   takeProgrammaticStickScroll,
 } from "@/lib/stickToBottom";
 
@@ -62,6 +65,13 @@ export type UseStickToBottomResult = {
   subscribeShowBack: (cb: (val: boolean) => void) => () => void;
 };
 
+function stickNowMs(): number {
+  return typeof performance !== "undefined" &&
+    typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+}
+
 export function useStickToBottom(
   options: UseStickToBottomOptions = {},
 ): UseStickToBottomResult {
@@ -87,6 +97,8 @@ export function useStickToBottom(
    * final scroll event has no positive delta.
    */
   const userIntentDownRef = useRef(false);
+  /** Recent real wheel/touch intent toward the tail; survives elastic rebound. */
+  const bottomIntentUntilRef = useRef(0);
   const lastScrollTopRef = useRef(0);
   /** scrollTop we just wrote — used to ignore synthetic scroll events. */
   const ignoreScrollTopRef = useRef<number | undefined>(undefined);
@@ -107,6 +119,7 @@ export function useStickToBottom(
     escapedRef.current = false;
     isPinnedRef.current = true;
     userIntentDownRef.current = false;
+    bottomIntentUntilRef.current = 0;
     lastScrollTopRef.current = 0;
     const now =
       typeof performance !== "undefined" && typeof performance.now === "function"
@@ -223,6 +236,43 @@ export function useStickToBottom(
     const el = viewportRef.current;
     if (!el) return;
 
+    let bottomReboundTimer: ReturnType<typeof setTimeout> | null = null;
+    const clearBottomRebound = () => {
+      bottomIntentUntilRef.current = 0;
+      if (bottomReboundTimer != null) {
+        clearTimeout(bottomReboundTimer);
+        bottomReboundTimer = null;
+      }
+    };
+    const armBottomIntent = () => {
+      bottomIntentUntilRef.current =
+        stickNowMs() + STICK_BOTTOM_REBOUND_INTENT_MS;
+    };
+    const scheduleBottomReboundSettle = () => {
+      if (bottomReboundTimer != null) clearTimeout(bottomReboundTimer);
+      bottomReboundTimer = setTimeout(() => {
+        bottomReboundTimer = null;
+        const v = viewportRef.current;
+        if (!v || stickNowMs() > bottomIntentUntilRef.current) return;
+        if (
+          !isNearBottom(
+            v.scrollTop,
+            v.scrollHeight,
+            v.clientHeight,
+            thresholdRef.current,
+          )
+        ) {
+          return;
+        }
+        escapedRef.current = false;
+        isPinnedRef.current = true;
+        userIntentDownRef.current = false;
+        bottomIntentUntilRef.current = 0;
+        applyScrollTop(bottomScrollTop(v.scrollHeight, v.clientHeight));
+        syncShowBack();
+      }, STICK_BOTTOM_REBOUND_SETTLE_MS);
+    };
+
     const handleScroll = () => {
       const scrollTop = el.scrollTop;
       let lastScrollTop = lastScrollTopRef.current;
@@ -237,6 +287,23 @@ export function useStickToBottom(
       }
 
       const maxTop = bottomScrollTop(el.scrollHeight, el.clientHeight);
+      const isMovingUp = scrollTop < lastScrollTop - 0.5;
+      const bottomRebound = shouldSettleBottomRebound({
+        downIntentActive: stickNowMs() <= bottomIntentUntilRef.current,
+        scrollTop,
+        previousScrollTop: lastScrollTop,
+        scrollHeight: el.scrollHeight,
+        clientHeight: el.clientHeight,
+        thresholdPx: thresholdRef.current,
+      });
+      if (bottomRebound) {
+        if (scrollDebounceTimerRef.current != null) {
+          clearTimeout(scrollDebounceTimerRef.current);
+          scrollDebounceTimerRef.current = null;
+        }
+        scheduleBottomReboundSettle();
+        return;
+      }
       // Default 10px event + slow-trackpad accumulation from the locked
       // bottom. Never use a sub-pixel minDelta: thinking / tool collapse and
       // the next body round routinely move 2–8px off hard bottom, and that
@@ -249,7 +316,6 @@ export function useStickToBottom(
         scrollHeight: el.scrollHeight,
         clientHeight: el.clientHeight,
       });
-      const isMovingUp = scrollTop < lastScrollTop - 0.5;
       const meaningfulDown =
         scrollTop - lastScrollTop >= STICK_ESCAPE_MIN_DELTA_PX;
 
@@ -359,6 +425,7 @@ export function useStickToBottom(
         e.deltaY <= -STICK_ESCAPE_WHEEL_DELTA &&
         el.scrollHeight > el.clientHeight
       ) {
+        clearBottomRebound();
         userIntentDownRef.current = false;
         if (isPinnedRef.current) {
           escapedRef.current = true;
@@ -370,6 +437,7 @@ export function useStickToBottom(
       // deltaY > 0 → scrolling toward latest. Mark intent so a no-delta
       // hard-bottom landing (max scrollTop) still re-pins.
       if (e.deltaY >= STICK_ESCAPE_WHEEL_DELTA) {
+        armBottomIntent();
         userIntentDownRef.current = true;
         if (escapedRef.current) {
           requestAnimationFrame(() => {
@@ -405,6 +473,7 @@ export function useStickToBottom(
       // Require a clear drag so a light touch at the locked bottom does not
       // unstick and then snap back (bounce + flash).
       if (dy > STICK_ESCAPE_MIN_DELTA_PX) {
+        clearBottomRebound();
         userIntentDownRef.current = false;
         if (isPinnedRef.current) {
           escapedRef.current = true;
@@ -413,6 +482,7 @@ export function useStickToBottom(
         }
       } else if (dy < -STICK_ESCAPE_MIN_DELTA_PX) {
         // Finger moves up → content moves down (toward latest)
+        armBottomIntent();
         userIntentDownRef.current = true;
       }
       touchY = y;
@@ -453,6 +523,10 @@ export function useStickToBottom(
       if (scrollDebounceTimerRef.current != null) {
         clearTimeout(scrollDebounceTimerRef.current);
         scrollDebounceTimerRef.current = null;
+      }
+      if (bottomReboundTimer != null) {
+        clearTimeout(bottomReboundTimer);
+        bottomReboundTimer = null;
       }
     };
   }, [enabled, conversationKey, syncShowBack, applyScrollTop]);

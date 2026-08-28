@@ -132,7 +132,7 @@ export function readStreamPerfFlag(
 
 /**
  * Wallpaper `<video>` should decode only when the window is visible and
- * stream-perf is off. CSS drops sidebar blur separately.
+ * stream-perf is off. CSS drops pane backdrop-filter separately; media frost stays.
  */
 export function shouldPlayWallpaperVideo(opts: {
   visibilityState?: string;

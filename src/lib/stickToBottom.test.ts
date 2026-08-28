@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   STICK_ESCAPE_MIN_DELTA_PX,
+  STICK_BOTTOM_REBOUND_INTENT_MS,
+  STICK_BOTTOM_REBOUND_SETTLE_MS,
   STICK_HEIGHT_NOISE_PX,
   STICK_HARD_BOTTOM_PX,
   STICK_TO_BOTTOM_THRESHOLD_PX,
@@ -23,6 +25,7 @@ import {
   shouldReleaseStickOnScrollUp,
   shouldReleaseStickOnSlowScrollUp,
   shouldSnapPinnedLayoutToBottom,
+  shouldSettleBottomRebound,
   isConversationOpenFollowActive,
   transcriptStickIdentity,
   shouldFollowPinnedMediaReveal,
@@ -32,6 +35,60 @@ import {
   markProgrammaticStickScroll,
   takeProgrammaticStickScroll,
 } from "./stickToBottom";
+
+describe("bottom overscroll rebound", () => {
+  it("settles a recent downward rebound inside the tail band", () => {
+    expect(
+      shouldSettleBottomRebound({
+        downIntentActive: true,
+        previousScrollTop: 610,
+        scrollTop: 590,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      }),
+    ).toBe(true);
+  });
+
+  it("covers a queue/composer height increase during the rebound", () => {
+    // Old bottom was 600. Queue chrome adds 40px before the elastic settle.
+    expect(
+      shouldSettleBottomRebound({
+        downIntentActive: true,
+        previousScrollTop: 620,
+        scrollTop: 600,
+        scrollHeight: 1040,
+        clientHeight: 400,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not steal a real reverse gesture or history scroll", () => {
+    expect(
+      shouldSettleBottomRebound({
+        downIntentActive: false,
+        previousScrollTop: 620,
+        scrollTop: 600,
+        scrollHeight: 1040,
+        clientHeight: 400,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSettleBottomRebound({
+        downIntentActive: true,
+        previousScrollTop: 500,
+        scrollTop: 450,
+        scrollHeight: 1200,
+        clientHeight: 400,
+      }),
+    ).toBe(false);
+  });
+
+  it("uses a grace longer than the quiet settle window", () => {
+    expect(STICK_BOTTOM_REBOUND_INTENT_MS).toBeGreaterThan(
+      STICK_BOTTOM_REBOUND_SETTLE_MS,
+    );
+  });
+});
 
 describe("distanceFromBottom", () => {
   it("is 0 at bottom", () => {
