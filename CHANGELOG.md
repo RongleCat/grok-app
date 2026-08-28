@@ -20,6 +20,7 @@ See `docs/llm-wiki/release.md`.
 - **SSH 远端主机**：设置 → 运行时 → SSH 读取 `~/.ssh/config` 的 Host。测通后 Watch，侧栏列出远端 Grok 会话，可打开/续跑、在远端文件夹开新对话，并通过 OpenSSH 在主机上跑 `grok agent stdio`。文件、终端、Skills、localhost 浏览器走同一条 SSH。断线续跑用 `grok agent leader`，不是 tmux。远端路径不当本地磁盘。
 
 ### Fixed
+- Opening a remote file no longer shows a failed banner when the file already loaded. Listing a parent folder is not treated as an SSH outage.
 - Rewind puts the discarded user prompt back in the composer so it can be edited and sent again.
 - Chat no longer jumps up while the agent is streaming, or to a random middle position after switching away and back.
 - Last chat lines stay above the floating composer. Scrolling down at the bottom no longer bounces the tail under the input.
@@ -39,6 +40,7 @@ See `docs/llm-wiki/release.md`.
 - Bottom overscroll no longer rebounds above hidden chat content.
 
 **中文 · 修复**
+- 修复远端文件已经打开仍显示 failed。展开目录失败不再盖住已经读出来的正文。
 - 修复回退后用户那句从对话里消失、没法改。会回到输入框，带上原来的附件。
 - 修复对话输出时屏幕往上跳、切出 App 再回来落到中间。正在看历史时不会被拽回底部。
 - 修复对话最后几行压在输入框上。滚到最底再往下滚不会把尾巴弹回输入框下面。

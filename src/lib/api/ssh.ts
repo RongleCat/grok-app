@@ -72,6 +72,7 @@ export type SshListDirResult = {
   path: string;
   entries: SshDirEntry[];
   error?: string | null;
+  errorCode?: string | null;
 };
 
 export type SshRemoteSession = {

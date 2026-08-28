@@ -150,6 +150,7 @@ const applyReadResult = (
     error: r.error,
   });
   const text = r.text ?? null;
+  setError(null);
   setTabs((prev) =>
     prev.map((t) =>
       t.id === id
@@ -161,6 +162,7 @@ const applyReadResult = (
             relativePath: relativePath || r.relativePath || t.relativePath,
             name: r.name || baseName(relativePath || r.absolutePath || "file"),
             loading: false,
+            error: null,
             tabKind: "file" as const,
             draftText: editable ? text : null,
             baselineText: editable ? text : null,

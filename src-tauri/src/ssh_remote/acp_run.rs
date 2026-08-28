@@ -547,6 +547,8 @@ pub struct SshListDirResult {
     pub entries: Vec<SshDirEntry>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -583,11 +585,27 @@ pub struct SshWatchResult {
     pub error_code: Option<String>,
 }
 
-fn parse_ls_stdout(stdout: &str) -> Option<(String, Vec<SshDirEntry>)> {
+#[derive(Debug)]
+enum RemoteLsParse {
+    Ok {
+        path: String,
+        entries: Vec<SshDirEntry>,
+    },
+    NotADir,
+    CdFail,
+    Unparseable,
+}
+
+fn parse_ls_stdout(stdout: &str) -> RemoteLsParse {
     let mut lines = stdout.lines().map(|l| l.trim_end_matches('\r'));
     while let Some(line) = lines.next() {
         if line.trim() == "GROK_APP_LS_ERR" {
-            return None;
+            let code = lines.next().unwrap_or("").trim();
+            return match code {
+                "not_a_dir" => RemoteLsParse::NotADir,
+                "cd_fail" => RemoteLsParse::CdFail,
+                _ => RemoteLsParse::Unparseable,
+            };
         }
         if line.trim() == "GROK_APP_LS" {
             let path = lines.next().unwrap_or("").trim().to_string();
@@ -604,10 +622,10 @@ fn parse_ls_stdout(stdout: &str) -> Option<(String, Vec<SshDirEntry>)> {
                 }
                 entries.push(SshDirEntry { name, is_dir });
             }
-            return Some((path, entries));
+            return RemoteLsParse::Ok { path, entries };
         }
     }
-    None
+    RemoteLsParse::Unparseable
 }
 
 pub fn parse_sess_stdout(stdout: &str) -> Option<(u32, Vec<SshRemoteSession>)> {

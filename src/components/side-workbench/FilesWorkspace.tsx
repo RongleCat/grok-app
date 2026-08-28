@@ -62,6 +62,7 @@ import {
   type SessionFileChange,
 } from "@/lib/sessionChanges";
 import { sshChatRelative, sshRemoteDirToList } from "@/lib/sshChatPath";
+import { sshListDirShouldSetPaneError } from "@/lib/sshListDirHonesty";
 
 export type FilesWorkspaceProps = {
   locale: Locale | string;
@@ -203,9 +204,17 @@ export function FilesWorkspace({
           }
           const listing = await api.sshListDir(sshAlias, dir);
           if (!listing.ok) {
-            setError(listing.error || tr("resources.openFailed"));
+            if (
+              sshListDirShouldSetPaneError({
+                relative,
+                result: listing,
+              })
+            ) {
+              setError(listing.error || tr("resources.openFailed"));
+            }
             return [];
           }
+          setError(null);
           return (listing.entries || []).map((e) => {
             const rel = relative ? `${relative.replace(/\/+$/, "")}/${e.name}` : e.name;
             const ext = e.isDir

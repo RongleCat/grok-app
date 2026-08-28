@@ -284,6 +284,32 @@ Host "build-server"
     }
 
     #[test]
+    fn parse_ls_stdout_ok_and_not_a_dir() {
+        let ok = parse_ls_stdout("banner\nGROK_APP_LS\n/data/proj\nREADME.md\nsrc/\n");
+        match ok {
+            RemoteLsParse::Ok { path, entries } => {
+                assert_eq!(path, "/data/proj");
+                assert_eq!(entries.len(), 2);
+                assert!(!entries[0].is_dir);
+                assert!(entries[1].is_dir);
+            }
+            other => panic!("expected ok, got {other:?}"),
+        }
+        assert!(matches!(
+            parse_ls_stdout("GROK_APP_LS_ERR\nnot_a_dir\n"),
+            RemoteLsParse::NotADir
+        ));
+        assert!(matches!(
+            parse_ls_stdout("GROK_APP_LS_ERR\ncd_fail\n"),
+            RemoteLsParse::CdFail
+        ));
+        assert!(matches!(
+            parse_ls_stdout("no marker here\n"),
+            RemoteLsParse::Unparseable
+        ));
+    }
+
+    #[test]
     fn parse_marked_json_reads_header_line() {
         let raw = "noise\nGROK_APP_READ\n{\"ok\":true,\"size\":4,\"text\":\"hi\"}\n";
         let v = parse_marked_json(raw, "GROK_APP_READ").unwrap();

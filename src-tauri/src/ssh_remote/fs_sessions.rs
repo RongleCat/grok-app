@@ -8,6 +8,7 @@ pub async fn ssh_list_dir(alias: String, path: Option<String>) -> Result<SshList
             path: path.unwrap_or_default(),
             entries: Vec::new(),
             error: Some("invalid alias".into()),
+            error_code: Some("invalid_alias".into()),
         });
     }
     let dir = path.unwrap_or_default();
@@ -18,6 +19,7 @@ pub async fn ssh_list_dir(alias: String, path: Option<String>) -> Result<SshList
             path: dir,
             entries: Vec::new(),
             error: Some("invalid path".into()),
+            error_code: Some("invalid_path".into()),
         });
     }
     match run_ssh(
@@ -34,6 +36,7 @@ pub async fn ssh_list_dir(alias: String, path: Option<String>) -> Result<SshList
             path: dir,
             entries: Vec::new(),
             error: Some("ssh missing".into()),
+            error_code: Some("ssh_missing".into()),
         }),
         Err(SshRunErr::Timeout) => Ok(SshListDirResult {
             ok: false,
@@ -41,6 +44,7 @@ pub async fn ssh_list_dir(alias: String, path: Option<String>) -> Result<SshList
             path: dir,
             entries: Vec::new(),
             error: Some("timeout".into()),
+            error_code: Some("timeout".into()),
         }),
         Err(SshRunErr::Spawn(e)) => Ok(SshListDirResult {
             ok: false,
@@ -48,6 +52,7 @@ pub async fn ssh_list_dir(alias: String, path: Option<String>) -> Result<SshList
             path: dir,
             entries: Vec::new(),
             error: Some(truncate_err(&e)),
+            error_code: Some("spawn".into()),
         }),
         Ok(run) if !run.success => {
             let (code, msg) = classify_ssh_stderr(&run.stderr);
@@ -57,22 +62,43 @@ pub async fn ssh_list_dir(alias: String, path: Option<String>) -> Result<SshList
                 path: dir,
                 entries: Vec::new(),
                 error: Some(format!("{code}: {msg}")),
+                error_code: Some(code.to_string()),
             })
         }
         Ok(run) => match parse_ls_stdout(&run.stdout) {
-            Some((path, entries)) => Ok(SshListDirResult {
+            RemoteLsParse::Ok { path, entries } => Ok(SshListDirResult {
                 ok: true,
                 alias,
                 path,
                 entries,
                 error: None,
+                error_code: None,
             }),
-            None => Ok(SshListDirResult {
+            // Listing a file (or a missing path) is not an SSH outage.
+            // The files pane still opens the file over ssh_read_file.
+            RemoteLsParse::NotADir => Ok(SshListDirResult {
+                ok: false,
+                alias,
+                path: dir,
+                entries: Vec::new(),
+                error: None,
+                error_code: Some("not_a_dir".into()),
+            }),
+            RemoteLsParse::CdFail => Ok(SshListDirResult {
+                ok: false,
+                alias,
+                path: dir,
+                entries: Vec::new(),
+                error: None,
+                error_code: Some("cd_fail".into()),
+            }),
+            RemoteLsParse::Unparseable => Ok(SshListDirResult {
                 ok: false,
                 alias,
                 path: dir,
                 entries: Vec::new(),
                 error: Some("remote ls failed".into()),
+                error_code: Some("parse".into()),
             }),
         },
     }
