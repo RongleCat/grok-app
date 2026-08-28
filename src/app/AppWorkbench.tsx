@@ -104,6 +104,7 @@ import {
   truncateBeforeLastUser,
   truncateThroughUserPrompt,
   rewindKeepPromptIndex,
+  rewindComposerRestore,
   canRegenerateAssistant,
   userPromptIndexOf,
   userPromptIndexContaining,
@@ -8719,6 +8720,34 @@ export function AppWorkbench() {
   );
 
   /**
+   * Put the discarded user prompt back in the composer (edit + resend).
+   * Background rewind only writes that session's draft store.
+   */
+  const applyRewindComposerRestore = useCallback(
+    (
+      sessionId: string,
+      restore: ReturnType<typeof rewindComposerRestore>,
+    ) => {
+      if (!restore) return;
+      saveComposerSessionDraft(sessionId, {
+        text: restore.text,
+        attachments: restore.attachments,
+      });
+      if (viewingSessionIdRef.current !== sessionId) return;
+      setDraft(restore.text);
+      setAttachments(restore.attachments);
+      setChatAttachments([]);
+      setQuotes([]);
+      setEditingUserMessageId(null);
+      setEditAttachments([]);
+      requestAnimationFrame(() => {
+        composerInputRef.current?.focus?.({ preventScroll: true });
+      });
+    },
+    [setAttachments, setChatAttachments, setDraft, setQuotes],
+  );
+
+  /**
    * Apply rewind: truncate local journal (+ agent when live), refresh messages UI.
    * `restoreFiles` is opt-in (safe default off) — reverts workspace files when agent supports it.
    */
@@ -8743,6 +8772,11 @@ export function AppWorkbench() {
       setRewindError(null);
       setRewindBusy(true);
       try {
+        const prior =
+          viewingSessionIdRef.current === sessionId
+            ? messagesRef.current
+            : (messagesBySessionRef.current.get(sessionId) ?? []);
+        const restore = rewindComposerRestore(prior, targetPromptIndex);
         // Prefer live connect so agent rewind can run; local truncate still works if not.
         if (
           (session.sessionId === sessionId ||
@@ -8783,6 +8817,7 @@ export function AppWorkbench() {
         setRewindConfirm(null);
         setRewindRestoreFiles(false);
         setRewindError(null);
+        applyRewindComposerRestore(sessionId, restore);
         if (!result.agentOk) {
           showToast(tr("session.rewindLocalOnly"), 4200);
         } else {
@@ -8799,7 +8834,14 @@ export function AppWorkbench() {
     },
     // ensureConnected / refreshSessions via closure
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [canRewindSession, session.sessionId, session.state, showToast, tr],
+    [
+      applyRewindComposerRestore,
+      canRewindSession,
+      session.sessionId,
+      session.state,
+      showToast,
+      tr,
+    ],
   );
 
   const runRewindDropLastUser = useCallback(
@@ -8819,6 +8861,11 @@ export function AppWorkbench() {
       setRewindError(null);
       setRewindBusy(true);
       try {
+        const prior =
+          viewingSessionIdRef.current === sessionId
+            ? messagesRef.current
+            : (messagesBySessionRef.current.get(sessionId) ?? []);
+        const restore = rewindComposerRestore(prior, null);
         if (
           (session.sessionId === sessionId ||
             viewingSessionIdRef.current === sessionId) &&
@@ -8844,6 +8891,7 @@ export function AppWorkbench() {
         setRewindConfirm(null);
         setRewindRestoreFiles(false);
         setRewindError(null);
+        applyRewindComposerRestore(sessionId, restore);
         showToast(tr("session.rewindOk"));
         await refreshSessions();
       } catch (e) {
@@ -8855,7 +8903,14 @@ export function AppWorkbench() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [canRewindSession, session.sessionId, session.state, showToast, tr],
+    [
+      applyRewindComposerRestore,
+      canRewindSession,
+      session.sessionId,
+      session.state,
+      showToast,
+      tr,
+    ],
   );
 
   const confirmRewindToPrompt = useCallback(

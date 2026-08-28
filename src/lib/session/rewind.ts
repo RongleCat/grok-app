@@ -153,6 +153,51 @@ export function rewindKeepPromptIndex(
   return clickedUserPromptIndex - 1;
 }
 
+/**
+ * First discarded user prompt after a rewind — restore into the composer
+ * so the user can edit and send again instead of losing the text.
+ *
+ * - `keepPromptIndex == null` (drop last / empty chat): last user prompt.
+ * - Keep index K: first user prompt after that turn.
+ * - Nothing discarded, or only assistant/tool rows dropped: null.
+ */
+export type RewindComposerRestore = {
+  text: string;
+  attachments: Array<{ path: string; name: string; isDir: boolean }>;
+};
+
+export function rewindComposerRestore(
+  messages: ChatMessage[],
+  keepPromptIndex: number | null,
+): RewindComposerRestore | null {
+  const fromUser = (m: ChatMessage): RewindComposerRestore | null => {
+    const text = m.content ?? "";
+    const attachments = (m.attachments ?? []).map((a) => ({
+      path: a.path,
+      name: a.name,
+      isDir: !!a.isDir,
+    }));
+    if (!text.trim() && attachments.length === 0) return null;
+    return { text, attachments };
+  };
+
+  if (keepPromptIndex == null) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m && isTurnPromptMessage(m)) return fromUser(m);
+    }
+    return null;
+  }
+
+  const end = endIndexThroughUserPrompt(messages, keepPromptIndex);
+  if (end < 0 || end >= messages.length) return null;
+  for (let i = end; i < messages.length; i++) {
+    const m = messages[i];
+    if (m && isTurnPromptMessage(m)) return fromUser(m);
+  }
+  return null;
+}
+
 export interface LocalRewindPoint {
   promptIndex: number;
   messageId: string;

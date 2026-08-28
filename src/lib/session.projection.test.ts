@@ -24,6 +24,7 @@ import {
   endIndexThroughUserPrompt,
   canRewindToUserPrompt,
   rewindKeepPromptIndex,
+  rewindComposerRestore,
   userPromptIndexOf,
   userPromptIndexContaining,
   countUserPrompts,
@@ -211,6 +212,36 @@ describe("session projection", () => {
     expect(rewindKeepPromptIndex(msgs, 0)).toBe(0);
     expect(rewindKeepPromptIndex(msgs, 1)).toBe(0);
     expect(rewindKeepPromptIndex(msgs.slice(0, 3), 0)).toBe(null);
+  });
+
+  it("rewindComposerRestore puts the discarded user prompt back for edit", () => {
+    const msgs: ChatMessage[] = [
+      { id: "u1", role: "user", content: "first" },
+      { id: "a1", role: "assistant", content: "ok" },
+      {
+        id: "u2",
+        role: "user",
+        content: "second",
+        attachments: [{ path: "/tmp/a.png", name: "a.png", isDir: false }],
+      },
+      { id: "a2", role: "assistant", content: "later" },
+    ];
+    expect(rewindComposerRestore(msgs, null)).toEqual({
+      text: "second",
+      attachments: [{ path: "/tmp/a.png", name: "a.png", isDir: false }],
+    });
+    expect(rewindComposerRestore(msgs, 0)).toEqual({
+      text: "second",
+      attachments: [{ path: "/tmp/a.png", name: "a.png", isDir: false }],
+    });
+    expect(rewindComposerRestore(msgs, 1)).toBeNull();
+    expect(rewindComposerRestore(msgs.slice(0, 2), 0)).toBeNull();
+    expect(
+      rewindComposerRestore(
+        [{ id: "u1", role: "user", content: "only" }],
+        null,
+      ),
+    ).toEqual({ text: "only", attachments: [] });
   });
 
   it("userPromptIndexContaining maps assistant/tool to the parent user turn", () => {
