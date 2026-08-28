@@ -163,6 +163,15 @@ pub fn spawn(
         for a in argv.iter().skip(1) {
             cmd.arg(a);
         }
+        // GUI Windows processes often have USERPROFILE but no HOME. Git's
+        // OpenSSH reads ~/.ssh/config from HOME.
+        let home = crate::process_util::user_home();
+        if !home.as_os_str().is_empty() && home != *std::path::Path::new(".") {
+            cmd.env("HOME", home.as_os_str());
+        }
+        if let Some(path) = crate::process_util::enriched_path_env() {
+            cmd.env("PATH", path);
+        }
         let cwd = remote_cwd.unwrap_or("").to_string();
         (format!("ssh {alias}"), cwd, cmd)
     } else {

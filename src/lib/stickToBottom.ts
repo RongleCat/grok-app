@@ -117,6 +117,29 @@ export function shouldSettleBottomRebound(input: {
 }
 
 /**
+ * At the locked hard bottom, a wheel/trackpad tick *toward* later content
+ * cannot reveal more transcript. Letting it through rubber-bands then the
+ * pin snap pulls the last lines back under the floating composer.
+ * Scroll-up (history) must never be blocked.
+ */
+export function shouldPreventPinnedBottomWheel(input: {
+  pinned: boolean;
+  escaped?: boolean;
+  deltaY: number;
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+}): boolean {
+  if (!input.pinned || input.escaped) return false;
+  if (!(input.deltaY > 0)) return false;
+  return isHardBottom(
+    input.scrollTop,
+    input.scrollHeight,
+    input.clientHeight,
+  );
+}
+
+/**
  * `stickBump` on streaming/permission edge: only when this is the *same*
  * user turn (regenerate / approval). A new last user id already force-sticks.
  */

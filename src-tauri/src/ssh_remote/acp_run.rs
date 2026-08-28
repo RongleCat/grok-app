@@ -93,8 +93,39 @@ fn control_dir() -> PathBuf {
         .unwrap_or_else(|| std::env::temp_dir().join("grok-app-ssh-cm"))
 }
 
+fn control_socket_name(alias: &str) -> String {
+    // AF_UNIX sun_path is ~104–108 bytes. Windows AppData prefixes eat most of
+    // that, and aliases may be up to 255 chars. Keep the filename short.
+    const MAX: usize = 32;
+    let compact = alias.len() <= MAX
+        && alias
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'.' | b'_' | b'-'));
+    if compact {
+        return format!("{alias}.sock");
+    }
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    alias.hash(&mut h);
+    format!("{:016x}.sock", h.finish())
+}
+
 fn control_path(alias: &str) -> PathBuf {
-    control_dir().join(format!("{alias}.sock"))
+    control_dir().join(control_socket_name(alias))
+}
+
+/// Native Windows OpenSSH has no reliable ControlMaster / `ssh -f`.
+/// macOS and Linux keep mux. Tests lock the split.
+pub fn ssh_control_master_enabled() -> bool {
+    !cfg!(windows)
+}
+
+/// Run the POSIX snippet via `/bin/sh -c` so fish/zsh login shells on Linux
+/// do not parse `[` / `export`. One ssh remote argv — never extra words after
+/// `bash -lc` (OpenSSH joins those into the same `-c` string).
+fn wrap_remote_posix(script: &str) -> String {
+    format!("exec /bin/sh -c {}", posix_single_quote(script))
 }
 
 /// `-o KEY=VALUE` is a ssh_config line. Quote values that contain spaces.
@@ -134,6 +165,9 @@ fn apply_base_ssh_opts(cmd: &mut Command) {
 }
 
 fn apply_control_opts(cmd: &mut Command, alias: &str, master: &str) {
+    if !ssh_control_master_enabled() {
+        return;
+    }
     push_ssh_opt(cmd, "ControlMaster", master);
     push_ssh_opt(
         cmd,
@@ -141,6 +175,19 @@ fn apply_control_opts(cmd: &mut Command, alias: &str, master: &str) {
         control_path(alias).to_string_lossy().as_ref(),
     );
     push_ssh_opt(cmd, "ControlPersist", "yes");
+}
+
+fn push_control_opts_argv(args: &mut Vec<String>, alias: &str, master: &str) {
+    if !ssh_control_master_enabled() {
+        return;
+    }
+    push_ssh_opt_argv(args, "ControlMaster", master);
+    push_ssh_opt_argv(
+        args,
+        "ControlPath",
+        control_path(alias).to_string_lossy().as_ref(),
+    );
+    push_ssh_opt_argv(args, "ControlPersist", "yes");
 }
 
 fn apply_common_ssh_opts(cmd: &mut Command, alias: &str, mux: bool) {
@@ -175,15 +222,9 @@ pub fn ssh_pty_argv(alias: &str, remote_cwd: Option<&str>) -> Result<Vec<String>
     push_ssh_opt_argv(&mut args, "KbdInteractiveAuthentication", "no");
     push_ssh_opt_argv(&mut args, "StrictHostKeyChecking", "yes");
     push_ssh_opt_argv(&mut args, "RequestTTY", "yes");
-    push_ssh_opt_argv(&mut args, "ControlMaster", "auto");
-    push_ssh_opt_argv(
-        &mut args,
-        "ControlPath",
-        control_path(alias).to_string_lossy().as_ref(),
-    );
-    push_ssh_opt_argv(&mut args, "ControlPersist", "yes");
+    push_control_opts_argv(&mut args, alias, "auto");
     args.push(alias.to_string());
-    args.push(ssh_pty_remote_cmd(remote_cwd));
+    args.push(wrap_remote_posix(&ssh_pty_remote_cmd(remote_cwd)));
     Ok(args)
 }
 
@@ -268,15 +309,11 @@ pub fn ssh_acp_argv(
     push_ssh_opt_argv(&mut args, "KbdInteractiveAuthentication", "no");
     push_ssh_opt_argv(&mut args, "StrictHostKeyChecking", "yes");
     push_ssh_opt_argv(&mut args, "RequestTTY", "no");
-    push_ssh_opt_argv(&mut args, "ControlMaster", "auto");
-    push_ssh_opt_argv(
-        &mut args,
-        "ControlPath",
-        control_path(alias).to_string_lossy().as_ref(),
-    );
-    push_ssh_opt_argv(&mut args, "ControlPersist", "yes");
+    push_control_opts_argv(&mut args, alias, "auto");
     args.push(alias.to_string());
-    args.push(ssh_acp_remote_command(remote_cwd, grok_args)?);
+    args.push(wrap_remote_posix(&ssh_acp_remote_command(
+        remote_cwd, grok_args,
+    )?));
     Ok(args)
 }
 
@@ -288,7 +325,7 @@ pub fn start_ssh_acp_command(
 ) -> Result<tokio::process::Command, String> {
     let argv = ssh_acp_argv(alias, remote_cwd, grok_args)?;
     let mut cmd = tokio::process::Command::new(&argv[0]);
-    crate::process_util::apply_no_window_tokio(&mut cmd);
+    crate::process_util::apply_cli_env_tokio(&mut cmd);
     for a in argv.iter().skip(1) {
         cmd.arg(a);
     }
@@ -335,9 +372,9 @@ async fn run_ssh_io(
 ) -> Result<SshRun, SshRunErr> {
     let ssh = find_ssh_binary().ok_or(SshRunErr::Missing)?;
     let mut cmd = Command::new(&ssh);
-    process_util::apply_no_window_tokio(&mut cmd);
+    process_util::apply_cli_env_tokio(&mut cmd);
     apply_common_ssh_opts(&mut cmd, alias, mux);
-    cmd.arg(alias).arg(remote);
+    cmd.arg(alias).arg(wrap_remote_posix(remote));
     if stdin.is_some() {
         cmd.stdin(Stdio::piped());
     } else {
@@ -711,64 +748,110 @@ pub async fn ssh_watch_start(alias: String) -> Result<SshWatchResult, String> {
             error_code: Some("ssh_missing".into()),
         });
     };
-    let dir = control_dir();
-    if let Err(e) = std::fs::create_dir_all(&dir) {
-        return Ok(SshWatchResult {
-            ok: false,
-            alias,
-            watching: false,
-            error: Some(format!("Could not create SSH control dir: {e}")),
-            error_code: Some("other".into()),
-        });
-    }
-    let path = control_path(&alias);
-    let mut cmd = Command::new(&ssh);
-    process_util::apply_no_window_tokio(&mut cmd);
-    apply_base_ssh_opts(&mut cmd);
-    apply_control_opts(&mut cmd, &alias, "yes");
-    cmd.arg("-fN")
-        .arg(&alias)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    let out = timeout(Duration::from_secs(SSH_OVERALL_TIMEOUT_SECS), cmd.output()).await;
-    match out {
-        Err(_) => {
+    if ssh_control_master_enabled() {
+        let dir = control_dir();
+        if let Err(e) = std::fs::create_dir_all(&dir) {
             return Ok(SshWatchResult {
                 ok: false,
                 alias,
                 watching: false,
-                error: Some("Connection timed out".into()),
-                error_code: Some("timeout".into()),
-            });
-        }
-        Ok(Err(e)) => {
-            return Ok(SshWatchResult {
-                ok: false,
-                alias,
-                watching: false,
-                error: Some(truncate_err(&e.to_string())),
+                error: Some(format!("Could not create SSH control dir: {e}")),
                 error_code: Some("other".into()),
             });
         }
-        Ok(Ok(o)) if !o.status.success() => {
-            let stderr = String::from_utf8_lossy(&o.stderr);
-            let mut check = Command::new(&ssh);
-            process_util::apply_no_window_tokio(&mut check);
-            check.arg("-O").arg("check");
-            push_ssh_opt(&mut check, "ControlPath", path.to_string_lossy().as_ref());
-            check
-                .arg(&alias)
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null());
-            let already = timeout(Duration::from_secs(3), check.output())
-                .await
-                .ok()
-                .and_then(|r| r.ok())
-                .map(|c| c.status.success())
-                .unwrap_or(false);
-            if !already {
+        let path = control_path(&alias);
+        let mut cmd = Command::new(&ssh);
+        process_util::apply_cli_env_tokio(&mut cmd);
+        apply_base_ssh_opts(&mut cmd);
+        apply_control_opts(&mut cmd, &alias, "yes");
+        cmd.arg("-fN")
+            .arg(&alias)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let out = timeout(Duration::from_secs(SSH_OVERALL_TIMEOUT_SECS), cmd.output()).await;
+        match out {
+            Err(_) => {
+                return Ok(SshWatchResult {
+                    ok: false,
+                    alias,
+                    watching: false,
+                    error: Some("Connection timed out".into()),
+                    error_code: Some("timeout".into()),
+                });
+            }
+            Ok(Err(e)) => {
+                return Ok(SshWatchResult {
+                    ok: false,
+                    alias,
+                    watching: false,
+                    error: Some(truncate_err(&e.to_string())),
+                    error_code: Some("other".into()),
+                });
+            }
+            Ok(Ok(o)) if !o.status.success() => {
+                let stderr = String::from_utf8_lossy(&o.stderr);
+                let mut check = Command::new(&ssh);
+                process_util::apply_cli_env_tokio(&mut check);
+                check.arg("-O").arg("check");
+                push_ssh_opt(&mut check, "ControlPath", path.to_string_lossy().as_ref());
+                check
+                    .arg(&alias)
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null());
+                let already = timeout(Duration::from_secs(3), check.output())
+                    .await
+                    .ok()
+                    .and_then(|r| r.ok())
+                    .map(|c| c.status.success())
+                    .unwrap_or(false);
+                if !already {
+                    let (code, msg) = classify_ssh_stderr(&stderr);
+                    return Ok(SshWatchResult {
+                        ok: false,
+                        alias,
+                        watching: false,
+                        error: Some(msg),
+                        error_code: Some(code.into()),
+                    });
+                }
+            }
+            Ok(Ok(_)) => {}
+        }
+    } else {
+        // Windows OpenSSH cannot mux (`ssh -f` / ControlMaster). Reachability
+        // is enough to mark the host watched; later commands open their own SSH.
+        let mut cmd = Command::new(&ssh);
+        process_util::apply_cli_env_tokio(&mut cmd);
+        apply_base_ssh_opts(&mut cmd);
+        cmd.arg(&alias)
+            .arg(wrap_remote_posix("true"))
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped());
+        let out = timeout(Duration::from_secs(SSH_OVERALL_TIMEOUT_SECS), cmd.output()).await;
+        match out {
+            Err(_) => {
+                return Ok(SshWatchResult {
+                    ok: false,
+                    alias,
+                    watching: false,
+                    error: Some("Connection timed out".into()),
+                    error_code: Some("timeout".into()),
+                });
+            }
+            Ok(Err(e)) => {
+                return Ok(SshWatchResult {
+                    ok: false,
+                    alias,
+                    watching: false,
+                    error: Some(truncate_err(&e.to_string())),
+                    error_code: Some("other".into()),
+                });
+            }
+            Ok(Ok(o)) if !o.status.success() => {
+                let stderr = String::from_utf8_lossy(&o.stderr);
                 let (code, msg) = classify_ssh_stderr(&stderr);
                 return Ok(SshWatchResult {
                     ok: false,
@@ -778,8 +861,8 @@ pub async fn ssh_watch_start(alias: String) -> Result<SshWatchResult, String> {
                     error_code: Some(code.into()),
                 });
             }
+            Ok(Ok(_)) => {}
         }
-        Ok(Ok(_)) => {}
     }
     persist_watch_alias(&alias, true)?;
     Ok(SshWatchResult {
@@ -803,17 +886,19 @@ pub async fn ssh_watch_stop(alias: String) -> Result<SshWatchResult, String> {
             error_code: Some("invalid_alias".into()),
         });
     }
-    if let Some(ssh) = find_ssh_binary() {
-        let path = control_path(&alias);
-        let mut cmd = Command::new(&ssh);
-        process_util::apply_no_window_tokio(&mut cmd);
-        cmd.arg("-O").arg("exit");
-        push_ssh_opt(&mut cmd, "ControlPath", path.to_string_lossy().as_ref());
-        cmd.arg(&alias)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        let _ = timeout(Duration::from_secs(5), cmd.output()).await;
+    if ssh_control_master_enabled() {
+        if let Some(ssh) = find_ssh_binary() {
+            let path = control_path(&alias);
+            let mut cmd = Command::new(&ssh);
+            process_util::apply_cli_env_tokio(&mut cmd);
+            cmd.arg("-O").arg("exit");
+            push_ssh_opt(&mut cmd, "ControlPath", path.to_string_lossy().as_ref());
+            cmd.arg(&alias)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null());
+            let _ = timeout(Duration::from_secs(5), cmd.output()).await;
+        }
     }
     persist_watch_alias(&alias, false)?;
     Ok(SshWatchResult {

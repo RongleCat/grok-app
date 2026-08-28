@@ -1,8 +1,8 @@
-//! SSH hosts from OpenSSH config: list, test, probe remote Grok CLI.
+//! SSH hosts from OpenSSH config: list, test, watch, remote files, PTY, ACP.
 //!
-//! Wave 1 of remote workspaces. The App does **not** spawn a remote agent here.
 //! Transport is the system `ssh` binary so `~/.ssh/config` (ProxyJump, keys,
 //! ssh-agent) keeps working. Aliases are argv, never interpolated into a shell.
+//! Remote commands are POSIX (`/bin/sh -c`). Windows clients skip ControlMaster.
 
 use std::collections::{HashMap, HashSet};
 use std::net::TcpListener;

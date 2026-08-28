@@ -38,6 +38,7 @@ import {
   shouldClampPinnedStreamDrift,
   shouldEscapePinnedScroll,
   shouldIgnoreProgrammaticStickLeave,
+  shouldPreventPinnedBottomWheel,
   shouldRestorePinnedFollowOnViewportReady,
   shouldSettleBottomRebound,
   takeProgrammaticStickScroll,
@@ -444,6 +445,19 @@ export function useStickToBottom(
     };
 
     const handleWheel = (e: WheelEvent) => {
+      if (
+        shouldPreventPinnedBottomWheel({
+          pinned: isPinnedRef.current,
+          escaped: escapedRef.current,
+          deltaY: e.deltaY,
+          scrollTop: el.scrollTop,
+          scrollHeight: el.scrollHeight,
+          clientHeight: el.clientHeight,
+        })
+      ) {
+        e.preventDefault();
+        return;
+      }
       // Small ticks at the locked bottom (trackpad / elastic) — stay pinned.
       if (
         isPinnedRef.current &&
@@ -538,7 +552,10 @@ export function useStickToBottom(
     };
 
     el.addEventListener("scroll", handleScroll, { passive: true });
-    el.addEventListener("wheel", handleWheel, { passive: true });
+    // Non-passive: at the locked bottom we preventDefault downward
+    // overscroll so WKWebView cannot rubber-band the last lines under
+    // the floating composer. Scroll-up is never blocked.
+    el.addEventListener("wheel", handleWheel, { passive: false });
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: true });
     el.addEventListener("touchend", onTouchEnd, { passive: true });

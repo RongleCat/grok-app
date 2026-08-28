@@ -142,7 +142,51 @@ fn default_ssh_config_path() -> PathBuf {
 }
 
 fn find_ssh_binary() -> Option<PathBuf> {
-    which::which("ssh").ok().filter(|p| p.is_file())
+    let names: &[&str] = if cfg!(windows) {
+        &["ssh.exe", "ssh"]
+    } else {
+        &["ssh"]
+    };
+    for name in names {
+        if let Ok(p) = which::which(name) {
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+    }
+    if let Some(enriched) = process_util::enriched_path_env() {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        for name in names {
+            if let Ok(p) = which::which_in(name, Some(&enriched), &cwd) {
+                if p.is_file() {
+                    return Some(p);
+                }
+            }
+        }
+    }
+    #[cfg(windows)]
+    {
+        let mut candidates = vec![
+            PathBuf::from(r"C:\Windows\System32\OpenSSH\ssh.exe"),
+            PathBuf::from(r"C:\Program Files\Git\usr\bin\ssh.exe"),
+            PathBuf::from(r"C:\Program Files (x86)\Git\usr\bin\ssh.exe"),
+        ];
+        if let Ok(pf) = std::env::var("ProgramFiles") {
+            candidates.push(PathBuf::from(pf).join(r"Git\usr\bin\ssh.exe"));
+        }
+        if let Ok(pf86) = std::env::var("ProgramFiles(x86)") {
+            candidates.push(PathBuf::from(pf86).join(r"Git\usr\bin\ssh.exe"));
+        }
+        if let Ok(sysroot) = std::env::var("SystemRoot") {
+            candidates.push(PathBuf::from(sysroot).join(r"System32\OpenSSH\ssh.exe"));
+        }
+        for p in candidates {
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+    }
+    None
 }
 
 fn truncate_err(s: &str) -> String {
@@ -640,7 +684,7 @@ pub async fn ssh_test_host(alias: String) -> Result<SshProbeResult, String> {
     let (install_cmd, login_cmd, install_remote_cmd, login_remote_cmd) = commands_for_alias(&alias);
 
     let mut cmd = Command::new(&ssh);
-    process_util::apply_no_window_tokio(&mut cmd);
+    process_util::apply_cli_env_tokio(&mut cmd);
     cmd.arg("-o")
         .arg("BatchMode=yes")
         .arg("-o")
@@ -652,7 +696,7 @@ pub async fn ssh_test_host(alias: String) -> Result<SshProbeResult, String> {
         .arg("-o")
         .arg("StrictHostKeyChecking=yes")
         .arg(&alias)
-        .arg(REMOTE_PROBE)
+        .arg(wrap_remote_posix(REMOTE_PROBE))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

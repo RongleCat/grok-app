@@ -26,12 +26,16 @@ Related: [settings-ia.md](./settings-ia.md), [session-continuity.md](./session-c
 - Remote login command is `grok login --device-auth` (TTY via `ssh -t`).
 - Persistence is **not** tmux. Wave 4 uses Grok Build `agent leader --no-exit-on-disconnect`.
 - Do not treat a remote path as a local filesystem path.
+- **Remote host is POSIX** (`/bin/sh`, `$HOME/.grok`). Windows-as-SSH-server is out of scope. In-app file read/write needs remote `python3`.
+- Remote snippets run as `exec /bin/sh -c '…'` (one ssh argv) so a fish/zsh login shell does not parse `[` / `export`. Never extra argv after `bash -lc`.
+- **Windows client:** native OpenSSH has no reliable ControlMaster / `ssh -f`. Watch still persists the alias; each list/read/ACP/PTY is a new `ssh` (`BatchMode`). Localhost Browser uses a dedicated `ssh -L`. Discover `ssh.exe` via PATH, Git `usr\bin`, and `System32\OpenSSH`. GUI spawn sets `HOME` from `USERPROFILE`.
+- **macOS / Linux client:** ControlMaster + ControlPersist. Quote ControlPath when the cache dir has spaces. Socket file names stay short (AF_UNIX `sun_path`).
 
 ## Settings
 
 - Section `runtime`, tab `ssh`, hash `#/settings/runtime/ssh`.
 - Catalog id `runtime.sshHosts`, anchor `settings-anchor-sshHosts`.
-- Host commands: `ssh_list_hosts`, `ssh_test_host`, `ssh_watch_start`, `ssh_watch_stop` in `src-tauri/src/ssh_remote.rs`.
+- Host commands: `ssh_list_hosts`, `ssh_test_host`, `ssh_watch_start`, `ssh_watch_stop` in `src-tauri/src/ssh_remote/`.
 - Watch switch: thumb and Watching / Available partition update immediately. `ssh_watch_start` / `ssh_watch_stop` run after. Failure reverts the switch and shows an error. Missing remote CLI or login is a warning, not a silent no-op.
 - `-o ControlPath=` is ssh_config. Quote values with spaces (`Library/Application Support`). Sockets live under the app **cache** dir (`ssh-cm`), not data dir. Tests: `openssh_accepts_quoted_controlpath_with_spaces` and `SshHostsPanel.test.tsx`.
 - Sidebar remote rail is two-level: `远程 {alias}` → cwd folder (basename, full path on hover) → sessions. Same `tree-l2` / `tree-l3` row as local chats (name + relative time). Title: custom overlay, else `<user_query>` first sentence, else cwd basename. Never UUID / `<system-reminder>`. Newest 20 + Load more at the host. Click: `ssh_open_session` then `openSession`. Folder hover pencil is the same `sidebar.newConversation` control as local projects: `project_add_ssh` + new chat in that remote cwd. While that host is watching, hide `sshAlias` projects from the local project tree so an imported chat is not listed twice. Chat pane keeps OverlayScroll + MessageNodeRail (no extra scroller). Cmd/Ctrl click (or right-click → Select) enters the same select mode as local chats. Delete removes the remote grok session dir and any imported App journal. Tests: `SshRemoteSessionRail` select / delete.

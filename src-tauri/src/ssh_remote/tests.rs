@@ -468,9 +468,13 @@ Host "build-server"
         assert!(argv[0].contains("ssh"));
         assert_eq!(argv[1], "-tt");
         assert!(argv.iter().any(|a| a == "UTS"));
-        assert!(argv.iter().any(|a| a.contains("ControlMaster=auto")));
+        assert_eq!(
+            argv.iter().any(|a| a.contains("ControlMaster=auto")),
+            ssh_control_master_enabled()
+        );
         let remote = argv.last().expect("remote cmd");
         assert!(remote.contains("/data/pengqlu/code"));
+        assert!(remote.starts_with("exec /bin/sh -c "));
         assert!(!argv.iter().any(|a| a.contains("ssh UTS")));
         assert!(ssh_pty_argv("host;rm", None).is_err());
     }
@@ -520,13 +524,37 @@ Host "build-server"
         assert!(argv.iter().any(|a| a == "UTS"));
         assert_eq!(argv.iter().filter(|a| *a == "UTS").count(), 1);
         let script = argv.last().expect("remote script");
+        assert!(script.starts_with("exec /bin/sh -c "));
         assert!(script.contains("GROK_APP_CLI_MISSING"));
-        assert!(script.contains(posix_single_quote("/data/pengqlu/my proj").as_str()));
-        assert!(script.contains("'stdio'"));
-        assert!(script.contains("\"$LEADER_FLAG\""));
+        assert!(script.contains("/data/pengqlu/my proj"));
+        assert!(script.contains("stdio"));
+        assert!(script.contains("LEADER_FLAG"));
         assert!(script.contains("agent leader --no-exit-on-disconnect"));
         assert!(!script.contains("UTS"));
+        assert_eq!(
+            argv.iter().any(|a| a.contains("ControlMaster=auto")),
+            ssh_control_master_enabled()
+        );
         assert!(ssh_acp_argv("host;rm", "/tmp", &[]).is_err());
+    }
+
+    #[test]
+    fn wrap_remote_posix_is_one_sh_c_word() {
+        let inner = "echo GROK_APP_PROBE";
+        let wrapped = wrap_remote_posix(inner);
+        assert!(wrapped.starts_with("exec /bin/sh -c "));
+        assert!(wrapped.contains("GROK_APP_PROBE"));
+        assert!(!wrapped.contains("bash -lc"));
+    }
+
+    #[test]
+    fn control_socket_name_stays_short() {
+        assert_eq!(control_socket_name("UTS"), "UTS.sock");
+        let long = "a".repeat(80);
+        let name = control_socket_name(&long);
+        assert!(name.ends_with(".sock"));
+        assert!(name.len() < 24);
+        assert_ne!(name, format!("{long}.sock"));
     }
 
     #[test]

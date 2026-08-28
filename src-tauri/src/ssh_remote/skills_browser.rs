@@ -362,9 +362,12 @@ fn pick_free_local_port() -> Result<u16, String> {
 }
 
 async fn mux_ctl(alias: &str, op: &str, extra: &[String]) -> Result<SshRun, SshRunErr> {
+    if !ssh_control_master_enabled() {
+        return Err(SshRunErr::Spawn("SSH multiplex is not available".into()));
+    }
     let ssh = find_ssh_binary().ok_or(SshRunErr::Missing)?;
     let mut cmd = Command::new(&ssh);
-    process_util::apply_no_window_tokio(&mut cmd);
+    process_util::apply_cli_env_tokio(&mut cmd);
     apply_base_ssh_opts(&mut cmd);
     push_ssh_opt(
         &mut cmd,
@@ -396,6 +399,9 @@ async fn mux_running(alias: &str) -> bool {
 }
 
 async fn ensure_mux(alias: &str) -> Result<(), String> {
+    if !ssh_control_master_enabled() {
+        return Ok(());
+    }
     let _ = ensure_control_dir();
     if mux_running(alias).await {
         return Ok(());
@@ -403,7 +409,7 @@ async fn ensure_mux(alias: &str) -> Result<(), String> {
     let ssh = find_ssh_binary()
         .ok_or_else(|| "OpenSSH client (ssh) was not found on this machine".to_string())?;
     let mut cmd = Command::new(&ssh);
-    process_util::apply_no_window_tokio(&mut cmd);
+    process_util::apply_cli_env_tokio(&mut cmd);
     apply_base_ssh_opts(&mut cmd);
     apply_control_opts(&mut cmd, alias, "yes");
     cmd.arg("-fN")
@@ -434,8 +440,8 @@ async fn spawn_dedicated_forward(alias: &str, spec: &str) -> Result<(), String> 
     let ssh = find_ssh_binary()
         .ok_or_else(|| "OpenSSH client (ssh) was not found on this machine".to_string())?;
     let mut cmd = Command::new(&ssh);
-    process_util::apply_no_window_tokio(&mut cmd);
-    apply_common_ssh_opts(&mut cmd, alias, true);
+    process_util::apply_cli_env_tokio(&mut cmd);
+    apply_common_ssh_opts(&mut cmd, alias, ssh_control_master_enabled());
     push_ssh_opt(&mut cmd, "ExitOnForwardFailure", "yes");
     cmd.arg("-N")
         .arg("-L")
@@ -471,14 +477,17 @@ async fn ensure_local_forward(
             return Ok(port);
         }
     }
-    ensure_mux(alias).await?;
+    if ssh_control_master_enabled() {
+        ensure_mux(alias).await?;
+    }
     let local_port = pick_free_local_port()?;
     let spec = local_forward_spec(local_port, remote_host, remote_port);
     let extra = vec!["-L".to_string(), spec.clone()];
-    let forwarded = matches!(
-        mux_ctl(alias, "forward", &extra).await,
-        Ok(run) if run.success
-    );
+    let forwarded = ssh_control_master_enabled()
+        && matches!(
+            mux_ctl(alias, "forward", &extra).await,
+            Ok(run) if run.success
+        );
     if !forwarded {
         spawn_dedicated_forward(alias, &spec).await?;
     }
