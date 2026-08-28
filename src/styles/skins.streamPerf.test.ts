@@ -25,10 +25,10 @@ describe("stream-perf wallpaper CSS", () => {
   it("keeps wallpaper media frost and inset during stream-perf (#941)", () => {
     const css = readFileSync(join(here, "skins.css"), "utf8");
     expect(css).not.toMatch(
-      /html\[data-stream-perf="1"\]\[data-wallpaper="1"\] \.app-wallpaper-media\s*\{[^}]*filter:\s*none/s,
+      /html\[data-stream-perf="1"\]\[data-wallpaper="1"\]\s+\.app-wallpaper-media\s*\{[^}]*filter:\s*none/s,
     );
     expect(css).not.toMatch(
-      /html\[data-stream-perf="1"\]\[data-wallpaper="1"\] \.app-wallpaper-media\s*\{[^}]*inset:\s*0/s,
+      /html\[data-stream-perf="1"\]\[data-wallpaper="1"\]\s+\.app-wallpaper-media\s*\{[^}]*inset:\s*0/s,
     );
     expect(css).not.toMatch(
       /html\.platform-win\[data-stream-perf="1"\]\[data-wallpaper="1"\]\s+\.app-wallpaper-media__el\s*\{[^}]*filter:\s*none/s,
@@ -38,10 +38,10 @@ describe("stream-perf wallpaper CSS", () => {
   it("keeps wallpaper media frost at scrim 0% (#941)", () => {
     const css = readFileSync(join(here, "skins.css"), "utf8");
     expect(css).not.toMatch(
-      /html\[data-wallpaper="1"\]\[data-wallpaper-clear="1"\] \.app-wallpaper-media\s*\{[^}]*filter:\s*none/s,
+      /html\[data-wallpaper="1"\]\[data-wallpaper-clear="1"\]\s+\.app-wallpaper-media\s*\{[^}]*filter:\s*none/s,
     );
     expect(css).not.toMatch(
-      /html\[data-wallpaper="1"\]\[data-wallpaper-clear="1"\] \.app-wallpaper-media\s*\{[^}]*inset:\s*0/s,
+      /html\[data-wallpaper="1"\]\[data-wallpaper-clear="1"\]\s+\.app-wallpaper-media\s*\{[^}]*inset:\s*0/s,
     );
   });
 });
