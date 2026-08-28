@@ -109,8 +109,14 @@ describe("shouldSteerOnKeydown — Grok Build CLI Ctrl+Enter", () => {
     expect(shouldSteerOnKeydown(key({ ctrlKey: true }))).toBe(true);
   });
 
-  it("also steers on Cmd+Enter (macOS App modifier)", () => {
-    expect(shouldSteerOnKeydown(key({ metaKey: true }))).toBe(true);
+  it("does not steer on Cmd+Enter (CLI chord is Ctrl, not Cmd)", () => {
+    expect(shouldSteerOnKeydown(key({ metaKey: true }))).toBe(false);
+  });
+
+  it("does not treat Ctrl+Cmd+Enter as steer", () => {
+    expect(shouldSteerOnKeydown(key({ ctrlKey: true, metaKey: true }))).toBe(
+      false,
+    );
   });
 
   it("does not steal plain Enter (that still sends / queues)", () => {
@@ -195,5 +201,22 @@ describe("resolveComposerSubmitAction", () => {
         sessionState: "ready",
       }),
     ).toBe(false);
+  });
+
+  it("live turn: Cmd+Enter does not steal steer (Mac send pref can still send)", () => {
+    expect(
+      resolveComposerSubmitAction({
+        event: key({ metaKey: true }),
+        sendPref: "mod-enter",
+        canSteer: true,
+      }),
+    ).toBe("send");
+    expect(
+      resolveComposerSubmitAction({
+        event: key({ metaKey: true }),
+        sendPref: "enter",
+        canSteer: true,
+      }),
+    ).toBe("none");
   });
 });
