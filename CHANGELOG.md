@@ -14,11 +14,15 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Fixed
+- Wallpaper frost no longer pops off when a chat starts streaming. Empty home and a live turn keep the same blur (#941).
+- Overlay at 0% no longer clears wallpaper blur. The two sliders stay independent (#941).
 - Windows wallpaper frost reaches the sidebar and empty chat. WebView2 skipped container blur.
 - Fork from a middle turn no longer brings back later parent messages.
 - Rapid follow-up messages no longer lose the next reply.
 
 **中文 · 修复**
+- 修复进会话、开始直播时壁纸突然变清楚并弹一下。空会话和直播回合共用同一层模糊（#941）。
+- 修复遮罩透明度拉到 0% 时把壁纸模糊也关掉。两根滑块互不影响（#941）。
 - 修复 Windows 壁纸透过侧栏和空会话。WebView2 会跳过容器模糊。
 - 修复从中间分叉时后面的父会话消息又回来。
 - 修复连续快速发送时下一条回复丢失。
