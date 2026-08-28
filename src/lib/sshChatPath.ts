@@ -39,7 +39,31 @@ export function sshChatRelative(projectPath: string, abs: string): string {
   const n = normalizeRemoteCwd(abs);
   if (!root || n === root) return "";
   if (n.startsWith(`${root}/`)) return n.slice(root.length + 1);
-  return n.replace(/^\/+/, "");
+  return "";
+}
+
+/**
+ * Absolute remote directory to list. Relative segments join the project root.
+ * Never throws — invalid `..` returns null.
+ */
+export function sshRemoteDirToList(
+  projectPath: string,
+  relative: string,
+): string | null {
+  const root = normalizeRemoteCwd(projectPath);
+  if (!root) return null;
+  const rel = (relative || "").trim().replace(/\\/g, "/");
+  if (!rel || rel === ".") return root;
+  if (rel.startsWith("/")) {
+    const n = normalizeRemoteCwd(rel);
+    if (n === root || n.startsWith(`${root}/`)) return n;
+    return null;
+  }
+  try {
+    return joinRemoteRelative(root, rel);
+  } catch {
+    return null;
+  }
 }
 
 export type SshListDirLike = (alias: string, path?: string | null) => Promise<{

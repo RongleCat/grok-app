@@ -3,6 +3,7 @@ import {
   resolveSshChatPath,
   sshChatAbsCandidate,
   sshChatRelative,
+  sshRemoteDirToList,
 } from "./sshChatPath";
 
 const ROOT = "/inspire/hdd/project/pengqlu";
@@ -54,5 +55,19 @@ describe("resolveSshChatPath", () => {
       isDir: false,
     });
     expect(sshChatRelative(ROOT, `${ROOT}/README.md`)).toBe("README.md");
+  });
+
+  it("does not treat an unrelated abs path as a project-relative", () => {
+    expect(sshChatRelative(ROOT, "/tmp/x")).toBe("");
+  });
+});
+
+describe("sshRemoteDirToList", () => {
+  it("joins relative dirs and keeps abs dirs under the project", () => {
+    expect(sshRemoteDirToList(ROOT, "")).toBe(ROOT);
+    expect(sshRemoteDirToList(ROOT, "src")).toBe(`${ROOT}/src`);
+    expect(sshRemoteDirToList(ROOT, `${ROOT}/src`)).toBe(`${ROOT}/src`);
+    expect(sshRemoteDirToList(ROOT, "/tmp")).toBeNull();
+    expect(sshRemoteDirToList(ROOT, "../etc")).toBeNull();
   });
 });

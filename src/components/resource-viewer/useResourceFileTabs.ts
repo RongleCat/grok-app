@@ -511,7 +511,12 @@ const openAbsoluteFile = useCallback(
             ? ""
             : abs.startsWith(`${root}/`)
               ? abs.slice(root.length + 1)
-              : abs.replace(/^\/+/, "");
+              : !abs.startsWith("/")
+                ? abs
+                : "";
+        if (abs.startsWith("/") && rel === "" && abs !== root) {
+          throw new Error("path outside project");
+        }
         r = await api.sshReadFile(sshAlias, projectPath, rel);
       } else {
         r = looksAbs

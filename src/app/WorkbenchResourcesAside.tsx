@@ -10,6 +10,7 @@ import {
   type SetStateAction,
 } from "react";
 import { PaneToggleButton } from "@/components/PaneToggleButton";
+import { UiErrorBoundary } from "@/components/UiErrorBoundary";
 import { createT, type Locale } from "@/i18n";
 import { usePaneUnreadDot } from "@/hooks/usePaneUnreadDot";
 import { DEFAULT_LAYOUT } from "@/lib/layout";
@@ -199,7 +200,21 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
         />
       )}
       <div className="aside__inner">
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <div className="rp__empty-state" data-testid="side-loading">
+              <div className="rp__empty-desc">{tr("resources.loading")}</div>
+            </div>
+          }
+        >
+          <UiErrorBoundary
+            resetKey={`${sshAlias || ""}:${effectiveProjectPath || ""}`}
+            labels={{
+              title: tr("ui.errorBoundary.title"),
+              body: tr("resources.openFailed"),
+              retry: tr("ui.errorBoundary.retry"),
+            }}
+          >
           <SideWorkbench
             locale={locale}
             projectPath={effectiveProjectPath}
@@ -238,6 +253,7 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
             skillsLoadError={skillsLoadError}
             onSelectSkill={onSelectSkill}
           />
+          </UiErrorBoundary>
         </Suspense>
       </div>
       </aside>

@@ -56,13 +56,12 @@ import {
   saveTreeExpanded,
   sessionChangePathsKey,
 } from "@/lib/resourceTree";
-import { sshChatRelative } from "@/lib/sshChatPath";
 import { isResourceDraftDirty } from "@/lib/resourceEdit";
 import {
   pathBaseName,
   type SessionFileChange,
 } from "@/lib/sessionChanges";
-import { joinRemoteRelative } from "@/lib/sshRemoteSessionDisplay";
+import { sshChatRelative, sshRemoteDirToList } from "@/lib/sshChatPath";
 
 export type FilesWorkspaceProps = {
   locale: Locale | string;
@@ -197,9 +196,11 @@ export function FilesWorkspace({
       if (!projectPath || !api.isTauri()) return [];
       try {
         if (sshAlias) {
-          const dir = relative
-            ? joinRemoteRelative(projectPath, relative)
-            : projectPath;
+          const dir = sshRemoteDirToList(projectPath, relative);
+          if (!dir) {
+            setError(tr("resources.openFailed"));
+            return [];
+          }
           const listing = await api.sshListDir(sshAlias, dir);
           if (!listing.ok) {
             setError(listing.error || tr("resources.openFailed"));

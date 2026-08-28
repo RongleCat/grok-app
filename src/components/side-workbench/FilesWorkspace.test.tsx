@@ -16,6 +16,7 @@ const apiMocks = vi.hoisted(() => ({
 vi.mock("@/lib/api", () => ({
   isTauri: () => true,
   fsListDir: apiMocks.fsListDir,
+  sshListDir: vi.fn(),
   settingsGet: vi.fn(),
   settingsSet: vi.fn(),
 }));
