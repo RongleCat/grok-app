@@ -62,6 +62,8 @@ import {
   markProgrammaticStickScroll,
   shouldForcePinnedSnapOnOpen,
   STICK_ESCAPE_MIN_DELTA_PX,
+  STICK_MIN_VIEWPORT_HEIGHT_PX,
+  isStickViewportUnreliable,
 } from "@/lib/stickToBottom";
 import { createScrollVelocityTracker } from "@/lib/scrollVelocity";
 
@@ -309,6 +311,17 @@ export function useChatMessageVirtualizer(
       const next = full(count);
       winRef.current = next;
       setWin(next);
+      return;
+    }
+    // Hidden / 0-height WebView: a pin window built with clientHeight 0
+    // writes scrollTop against the full transcript and lands mid-chat
+    // when the app is focused again.
+    if (
+      isStickViewportUnreliable({
+        clientHeight: el.clientHeight,
+        hidden: typeof document !== "undefined" && document.hidden,
+      })
+    ) {
       return;
     }
     const t0 = performance.now();
@@ -602,6 +615,7 @@ export function useChatMessageVirtualizer(
     if (!isPinnedRef.current && !forceOpen) return;
     const v = viewportRef.current;
     if (!v) return;
+    if (v.clientHeight < STICK_MIN_VIEWPORT_HEIGHT_PX) return;
     // User already left the bottom (trackpad ticks). Snapping here is the
     // "wheel turns, screen does not move" freeze until a hard flick. Judged
     // on the distance captured before the commit: post-commit numbers

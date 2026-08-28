@@ -33,9 +33,12 @@ import {
   isNearBottom,
   nextStickPinState,
   pinnedFollowDelayForLayout,
+  isStickViewportUnreliable,
   shouldClampPinnedOverscroll,
   shouldClampPinnedStreamDrift,
   shouldEscapePinnedScroll,
+  shouldIgnoreProgrammaticStickLeave,
+  shouldRestorePinnedFollowOnViewportReady,
   shouldSettleBottomRebound,
   takeProgrammaticStickScroll,
 } from "@/lib/stickToBottom";
@@ -221,6 +224,14 @@ export function useStickToBottom(
     if (!isPinnedRef.current || !enabledRef.current) return;
     const el = viewportRef.current;
     if (!el) return;
+    if (
+      isStickViewportUnreliable({
+        clientHeight: el.clientHeight,
+        hidden: typeof document !== "undefined" && document.hidden,
+      })
+    ) {
+      return;
+    }
     applyScrollTop(bottomScrollTop(el.scrollHeight, el.clientHeight));
   }, [applyScrollTop]);
 
@@ -275,15 +286,37 @@ export function useStickToBottom(
 
     const handleScroll = () => {
       const scrollTop = el.scrollTop;
+      if (
+        isStickViewportUnreliable({
+          clientHeight: el.clientHeight,
+          hidden: typeof document !== "undefined" && document.hidden,
+        })
+      ) {
+        lastScrollTopRef.current = scrollTop;
+        ignoreScrollTopRef.current = undefined;
+        return;
+      }
       let lastScrollTop = lastScrollTopRef.current;
       const ignore =
         ignoreScrollTopRef.current ?? takeProgrammaticStickScroll(el);
       lastScrollTopRef.current = scrollTop;
       ignoreScrollTopRef.current = undefined;
 
-      // Programmatic follow can interleave with a user scroll-up in one event.
-      if (ignore != null && ignore > scrollTop) {
-        lastScrollTop = ignore;
+      // Follow / virtual pin-snap wrote scrollTop. That is not a user leave.
+      // Using ignore as previousScrollTop used to invent a 10px+ "scroll-up"
+      // and drop pin for the rest of the stream.
+      if (shouldIgnoreProgrammaticStickLeave(ignore)) {
+        if (
+          isPinnedRef.current &&
+          !escapedRef.current &&
+          shouldClampPinnedOverscroll(
+            scrollTop,
+            bottomScrollTop(el.scrollHeight, el.clientHeight),
+          )
+        ) {
+          applyScrollTop(bottomScrollTop(el.scrollHeight, el.clientHeight));
+        }
+        return;
       }
 
       const maxTop = bottomScrollTop(el.scrollHeight, el.clientHeight);
@@ -589,6 +622,15 @@ export function useStickToBottom(
     let mediaFollowTimer: ReturnType<typeof setTimeout> | null = null;
 
     const onHeightChange = (height: number) => {
+      if (
+        isStickViewportUnreliable({
+          clientHeight: el.clientHeight,
+          hidden: typeof document !== "undefined" && document.hidden,
+        })
+      ) {
+        previousHeight = height;
+        return;
+      }
       const widthMoved = viewportWidthChanged;
       viewportWidthChanged = false;
       const difference = height - (previousHeight ?? height);
@@ -737,10 +779,49 @@ export function useStickToBottom(
     // Viewport size changes (window / stage chrome) also need a re-follow.
     ro.observe(el);
 
+    let viewportWasUnreliable =
+      typeof document !== "undefined" &&
+      isStickViewportUnreliable({
+        clientHeight: el.clientHeight,
+        hidden: document.hidden,
+      });
+
+    const restoreAfterOcclusion = () => {
+      const v = viewportRef.current;
+      if (!v) return;
+      const hidden = typeof document !== "undefined" && document.hidden;
+      const unreliable = isStickViewportUnreliable({
+        clientHeight: v.clientHeight,
+        hidden,
+      });
+      if (
+        shouldRestorePinnedFollowOnViewportReady({
+          pinned: isPinnedRef.current,
+          escaped: escapedRef.current,
+          viewportWasUnreliable,
+          viewportIsReliable: !unreliable,
+        })
+      ) {
+        applyScrollTop(bottomScrollTop(v.scrollHeight, v.clientHeight));
+        lastScrollTopRef.current = v.scrollTop;
+      }
+      viewportWasUnreliable = unreliable;
+    };
+
+    const onVisibility = () => {
+      restoreAfterOcclusion();
+      requestAnimationFrame(restoreAfterOcclusion);
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onVisibility);
+
     return () => {
       if (raf) cancelAnimationFrame(raf);
       if (mediaFollowTimer != null) clearTimeout(mediaFollowTimer);
       ro.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onVisibility);
     };
   }, [enabled, conversationKey, applyScrollTop, followIfPinned]);
 

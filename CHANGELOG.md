@@ -20,6 +20,7 @@ See `docs/llm-wiki/release.md`.
 - **SSH 远端主机**：设置 → 运行时 → SSH 读取 `~/.ssh/config` 的 Host。测通后 Watch，侧栏列出远端 Grok 会话，可打开/续跑、在远端文件夹开新对话，并通过 OpenSSH 在主机上跑 `grok agent stdio`。文件、终端、Skills、localhost 浏览器走同一条 SSH。断线续跑用 `grok agent leader`，不是 tmux。远端路径不当本地磁盘。
 
 ### Fixed
+- Chat no longer jumps up while the agent is streaming, or to a random middle position after switching away and back.
 - Last chat lines stay above the floating composer. Scrolling down at the bottom no longer bounces the tail under the input.
 - Live thinking is not clipped in a 220px box. The transcript follows the stream.
 - Opening an SSH path chip no longer blanks the window. The files pane shows a loading state instead of an empty Suspense.
@@ -37,6 +38,7 @@ See `docs/llm-wiki/release.md`.
 - Bottom overscroll no longer rebounds above hidden chat content.
 
 **中文 · 修复**
+- 修复对话输出时屏幕往上跳、切出 App 再回来落到中间。正在看历史时不会被拽回底部。
 - 修复对话最后几行压在输入框上。滚到最底再往下滚不会把尾巴弹回输入框下面。
 - 修复直播思考被 220px 小框截断。主对话跟着流式输出走。
 - 修复点 SSH 路径 chip 整窗变白。文件面板先显示加载，不再空白。

@@ -353,6 +353,54 @@ export function shouldEscapePinnedScroll(input: {
  */
 export const PROGRAMMATIC_STICK_SCROLL_TTL_MS = 100;
 
+/**
+ * Below this, clientHeight is not a real chat viewport (hidden WebView,
+ * App switch occlusion, or a 0-height layout pass). Pin/escape/follow
+ * math using maxTop = scrollHeight - 0 parks scrollTop in the middle
+ * of the transcript when the window comes back.
+ */
+export const STICK_MIN_VIEWPORT_HEIGHT_PX = 32;
+
+/** True when metrics must not drive pin, escape, follow, or virtual snap. */
+export function isStickViewportUnreliable(input: {
+  clientHeight: number;
+  hidden?: boolean;
+}): boolean {
+  if (input.hidden === true) return true;
+  return (
+    !Number.isFinite(input.clientHeight) ||
+    input.clientHeight < STICK_MIN_VIEWPORT_HEIGHT_PX
+  );
+}
+
+/**
+ * App became visible again with a real viewport. Restore tail follow only
+ * if the user was still pinned — never yank someone who scrolled into history.
+ */
+export function shouldRestorePinnedFollowOnViewportReady(input: {
+  pinned: boolean;
+  escaped: boolean;
+  viewportWasUnreliable: boolean;
+  viewportIsReliable: boolean;
+}): boolean {
+  if (!input.viewportWasUnreliable || !input.viewportIsReliable) return false;
+  return input.pinned && !input.escaped;
+}
+
+/**
+ * Stick follow / virtual-list pin-snap write scrollTop and then fire
+ * `scroll`. Treating that as a user leave drops pin mid-stream so the
+ * answer grows above the fold.
+ *
+ * Wheel/touch already unpin on their own listeners. Scrollbar-only leave
+ * still works on events that are not tagged programmatic.
+ */
+export function shouldIgnoreProgrammaticStickLeave(
+  ignoreTop: number | undefined,
+): boolean {
+  return ignoreTop != null;
+}
+
 type ProgrammaticStickScroll = { top: number; at: number };
 
 const programmaticStickScroll = new WeakMap<Element, ProgrammaticStickScroll>();

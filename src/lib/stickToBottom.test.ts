@@ -34,6 +34,10 @@ import {
   STICK_OPEN_FOLLOW_MS,
   markProgrammaticStickScroll,
   takeProgrammaticStickScroll,
+  isStickViewportUnreliable,
+  shouldRestorePinnedFollowOnViewportReady,
+  shouldIgnoreProgrammaticStickLeave,
+  STICK_MIN_VIEWPORT_HEIGHT_PX,
 } from "./stickToBottom";
 
 describe("bottom overscroll rebound", () => {
@@ -823,6 +827,56 @@ describe("programmatic stick scroll ignore", () => {
     markProgrammaticStickScroll(el, 592);
     expect(takeProgrammaticStickScroll(el)).toBe(592);
     expect(takeProgrammaticStickScroll(el)).toBeUndefined();
+  });
+});
+
+describe("unreliable viewport / programmatic leave", () => {
+  it("treats hidden and tiny clientHeight as unreliable", () => {
+    expect(isStickViewportUnreliable({ clientHeight: 800 })).toBe(false);
+    expect(isStickViewportUnreliable({ clientHeight: 0 })).toBe(true);
+    expect(
+      isStickViewportUnreliable({
+        clientHeight: STICK_MIN_VIEWPORT_HEIGHT_PX - 1,
+      }),
+    ).toBe(true);
+    expect(
+      isStickViewportUnreliable({ clientHeight: 800, hidden: true }),
+    ).toBe(true);
+    expect(
+      isStickViewportUnreliable({ clientHeight: 800, hidden: false }),
+    ).toBe(false);
+  });
+
+  it("restores tail follow only when coming back while still pinned", () => {
+    expect(
+      shouldRestorePinnedFollowOnViewportReady({
+        pinned: true,
+        escaped: false,
+        viewportWasUnreliable: true,
+        viewportIsReliable: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRestorePinnedFollowOnViewportReady({
+        pinned: false,
+        escaped: true,
+        viewportWasUnreliable: true,
+        viewportIsReliable: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRestorePinnedFollowOnViewportReady({
+        pinned: true,
+        escaped: false,
+        viewportWasUnreliable: false,
+        viewportIsReliable: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not treat a tagged programmatic scrollTop write as a user leave", () => {
+    expect(shouldIgnoreProgrammaticStickLeave(640)).toBe(true);
+    expect(shouldIgnoreProgrammaticStickLeave(undefined)).toBe(false);
   });
 });
 
