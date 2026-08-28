@@ -55,3 +55,5 @@
    2. **Visual Consistency** — same chrome, spacing, menus, and states as the rest of the app. Do not invent a parallel skin.
    3. **Feature Parity** — same capability as the existing product surface it sits next to (local session, CLI, the other row in the same list). A control that looks like rewind/rollback/fork but does nothing is a Feature Parity miss — same class as the current rewind bug.
 
+9. **Commit then push** — after a fix or feature lands as a local `git commit` on a branch that tracks `origin`, **`git push` in the same turn**. Do not leave commits only on this machine. Opening a PR from GitHub without push ships a stale tip. Skip push only when the user explicitly says not to, or the branch has no remote yet (then `git push -u origin HEAD`). Never push secrets, `auth.json`, personal config, or `.hypergrep/`.
+
