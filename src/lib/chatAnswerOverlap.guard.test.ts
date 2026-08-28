@@ -68,6 +68,16 @@ describe("chat answer overlap guard", () => {
     );
   });
 
+  it("does not nest a 220px scroller on live thinking", () => {
+    const src = css("lobe-chat.part2.css");
+    expect(src).toMatch(
+      /\.grok-thought\.is-live\s+\.grok-thought__body\s*\{[^}]*max-height:\s*none/s,
+    );
+    expect(src).toMatch(
+      /\.grok-thought\.is-live\s+\.grok-thought__body\s*\{[^}]*overflow:\s*visible/s,
+    );
+  });
+
   it("gives answer paragraphs an explicit unitless line-height", () => {
     const src = css("lobe-chat.part1.css");
     expect(src).toMatch(

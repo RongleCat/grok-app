@@ -16,7 +16,6 @@ import {
   shouldBumpStickOnBusyEdge,
   stabilizeStickUserId,
   shouldClampPinnedOverscroll,
-  shouldPreventPinnedBottomWheel,
   shouldClampPinnedStreamDrift,
   shouldEscapePinnedScroll,
   shouldForcePinnedSnapOnOpen,
@@ -83,61 +82,6 @@ describe("bottomScrollTop", () => {
 
   it("is 0 when content shorter than viewport", () => {
     expect(bottomScrollTop(200, 400)).toBe(0);
-  });
-});
-
-describe("shouldPreventPinnedBottomWheel", () => {
-  const sh = 1000;
-  const ch = 400;
-  const maxTop = 600;
-
-  it("blocks downward wheel only when pinned on the hard bottom", () => {
-    expect(
-      shouldPreventPinnedBottomWheel({
-        pinned: true,
-        escaped: false,
-        deltaY: 40,
-        scrollTop: maxTop,
-        scrollHeight: sh,
-        clientHeight: ch,
-      }),
-    ).toBe(true);
-  });
-
-  it("never blocks scrolling up into history", () => {
-    expect(
-      shouldPreventPinnedBottomWheel({
-        pinned: true,
-        escaped: false,
-        deltaY: -40,
-        scrollTop: maxTop,
-        scrollHeight: sh,
-        clientHeight: ch,
-      }),
-    ).toBe(false);
-  });
-
-  it("does not block when the user has left the bottom", () => {
-    expect(
-      shouldPreventPinnedBottomWheel({
-        pinned: false,
-        escaped: true,
-        deltaY: 40,
-        scrollTop: 200,
-        scrollHeight: sh,
-        clientHeight: ch,
-      }),
-    ).toBe(false);
-    expect(
-      shouldPreventPinnedBottomWheel({
-        pinned: true,
-        escaped: false,
-        deltaY: 40,
-        scrollTop: 200,
-        scrollHeight: sh,
-        clientHeight: ch,
-      }),
-    ).toBe(false);
   });
 });
 

@@ -9945,7 +9945,15 @@ export function AppWorkbench() {
     const el = composerWrapRef.current;
     if (!el) return;
     const measure = () => {
-      const h = Math.ceil(el.getBoundingClientRect().height);
+      const stage = el.closest(".main__stage");
+      const stack = el.querySelector(".composer-stack") ?? el;
+      const stackBox = stack.getBoundingClientRect();
+      let h = Math.ceil(stackBox.height);
+      if (stage) {
+        const stageBox = stage.getBoundingClientRect();
+        const occluded = Math.ceil(stageBox.bottom - stackBox.top);
+        if (occluded > 0 && occluded <= stageBox.height) h = occluded;
+      }
       if (h <= 0) return;
       // Ignore 1px subpixel flicker — pad thrash reflows chat scrollHeight
       // and looks like the transcript bouncing while you type/scroll.

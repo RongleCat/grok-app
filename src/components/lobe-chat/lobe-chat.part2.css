@@ -543,6 +543,12 @@
   font-size: 12.5px;
   line-height: 1.5;
 }
+/* Live thinking is the current turn — do not nest a 220px scroller that
+ * clips the stream and fights the transcript stick-to-bottom. */
+.grok-thought.is-live .grok-thought__body {
+  max-height: none;
+  overflow: visible;
+}
 .grok-thought__body .chat-md,
 .grok-thought__body .chat-md--muted,
 .grok-thought__body .chat-md p,
