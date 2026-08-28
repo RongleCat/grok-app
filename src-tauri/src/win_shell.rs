@@ -16,6 +16,7 @@
 
 #![cfg(windows)]
 
+use std::os::windows::ffi::OsStrExt;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::WebviewWindow;
@@ -28,15 +29,16 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, GetFocus, SetFocus, VK_LBUTTON,
 };
 use windows::Win32::UI::Shell::{
-    ITaskbarList, SetCurrentProcessExplicitAppUserModelID, TaskbarList,
+    ExtractIconExW, ITaskbarList, SetCurrentProcessExplicitAppUserModelID, TaskbarList,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallWindowProcW, DrawMenuBar, GetClassNameW, GetPropW, GetWindow, GetWindowLongPtrW,
-    GetWindowLongW, IsChild, IsWindowVisible, RemovePropW, SetMenu, SetPropW, SetWindowLongPtrW,
-    SetWindowLongW, SetWindowPos, GWLP_HWNDPARENT, GWLP_WNDPROC, GWL_EXSTYLE, GWL_STYLE, GW_CHILD,
-    GW_HWNDNEXT, GW_OWNER, HWND_NOTOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
-    SWP_NOSIZE, SWP_NOZORDER, WA_ACTIVE, WA_CLICKACTIVE, WM_ACTIVATE, WM_NCDESTROY, WM_SETFOCUS,
-    WNDPROC, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
+    GetWindowLongW, IsChild, IsWindowVisible, RemovePropW, SendMessageW, SetClassLongPtrW,
+    SetMenu, SetPropW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos, GCLP_HICON, GCLP_HICONSM,
+    GWLP_HWNDPARENT, GWLP_WNDPROC, GWL_EXSTYLE, GWL_STYLE, GW_CHILD, GW_HWNDNEXT, GW_OWNER,
+    HICON, HWND_NOTOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+    WA_ACTIVE, WA_CLICKACTIVE, WM_ACTIVATE, WM_NCDESTROY, WM_SETFOCUS, WM_SETICON, WNDPROC,
+    WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
 };
 
 /// Call once early in process startup (before or right after creating the main window).
@@ -89,12 +91,53 @@ pub fn strip_overlay_native_menu(window: &WebviewWindow) {
 ///
 /// Safe to call repeatedly (setup, show-from-tray, after skip_taskbar restore).
 pub fn ensure_main_window_shell_integration(window: &WebviewWindow) {
+    if let Some(icon) = window.app_handle().default_window_icon() {
+        if let Err(e) = window.set_icon(icon.clone()) {
+            tracing::warn!("win_shell: default_window_icon: {e}");
+        }
+    }
     let Ok(hwnd) = window.hwnd() else {
         tracing::warn!("win_shell: no hwnd for main window");
         return;
     };
     ensure_hwnd_shell_integration(hwnd, /*register_taskbar*/ true);
     attach_hwnd_webview_keyboard_focus(hwnd);
+}
+
+/// Push the exe's first icon onto ICON_BIG / ICON_SMALL before Explorer AddTab.
+///
+/// Frameless release windows often have ICON_SMALL only. After an NSIS update
+/// the icon cache misses and `DeleteTab`+`AddTab` then paints a generic
+/// document glyph (#943).
+fn apply_exe_window_icons(hwnd: HWND) {
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let wide: Vec<u16> = exe.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let mut big = HICON::default();
+    let mut small = HICON::default();
+    unsafe {
+        let n = ExtractIconExW(
+            PCWSTR(wide.as_ptr()),
+            0,
+            Some(std::ptr::from_mut(&mut big)),
+            Some(std::ptr::from_mut(&mut small)),
+            1,
+        );
+        if n == 0 {
+            tracing::warn!("win_shell: ExtractIconExW returned 0");
+            return;
+        }
+        if !big.0.is_null() {
+            // WM_SETICON wParam: ICON_SMALL=0, ICON_BIG=1.
+            let _ = SendMessageW(hwnd, WM_SETICON, WPARAM(1), LPARAM(big.0 as isize));
+            let _ = SetClassLongPtrW(hwnd, GCLP_HICON, big.0 as isize);
+        }
+        if !small.0.is_null() {
+            let _ = SendMessageW(hwnd, WM_SETICON, WPARAM(0), LPARAM(small.0 as isize));
+            let _ = SetClassLongPtrW(hwnd, GCLP_HICONSM, small.0 as isize);
+        }
+    }
 }
 
 /// Apply or clear "live in tray only" extended styles + taskbar tab.
@@ -132,6 +175,7 @@ pub fn set_main_window_skip_taskbar(window: &WebviewWindow, skip: bool) {
 }
 
 fn ensure_hwnd_shell_integration(hwnd: HWND, register_taskbar: bool) {
+    apply_exe_window_icons(hwnd);
     unsafe {
         // Clear accidental owner (GWLP_HWNDPARENT on a top-level window is the owner).
         // Owned windows are often skipped by Show Desktop when alone.
@@ -430,5 +474,23 @@ mod tests {
             WA_ACTIVE | (1 << 16)
         ));
         assert!(!should_handle_focus_message(WM_ACTIVATEAPP, WA_ACTIVE));
+    }
+
+    #[test]
+    fn applies_exe_icons_before_taskbar_addtab() {
+        let src = include_str!("win_shell.rs");
+        let extract = src
+            .find("ExtractIconExW")
+            .expect("ExtractIconExW loads the exe icon");
+        let seticon = src
+            .find("WM_SETICON")
+            .expect("WM_SETICON pushes ICON_BIG / ICON_SMALL");
+        let addtab = src
+            .rfind("taskbar.AddTab")
+            .expect("AddTab registers the refreshed button");
+        assert!(
+            extract < seticon && seticon < addtab,
+            "exe icons must land on the HWND before Explorer AddTab"
+        );
     }
 }
