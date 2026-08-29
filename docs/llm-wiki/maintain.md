@@ -83,13 +83,16 @@ New Issue
 
 ### Must pass
 
-- [ ] `pnpm typecheck` && `pnpm test` && `pnpm build:ui`  
-- [ ] `cd src-tauri && cargo test` (or CI green)  
+- [ ] `pnpm typecheck` && `pnpm test` && `pnpm lint` && `pnpm build:ui`  
+- [ ] `python3 scripts/check-code-quality-gates.py --mode final`  
+- [ ] `cd src-tauri && cargo fmt --all -- --check && cargo clippy --all-targets -- -D warnings && cargo test` (or CI green)  
 - [ ] User-facing strings via `src/i18n/messages.ts` (**en + zh** same keys)  
 - [ ] No `window.confirm` / `prompt` / `alert`  
 - [ ] No OS-default select/menu chrome; no bare transparent `.menu-panel`; overlays use project components + solid/glass surface (see [dialogs.md](./dialogs.md))  
 - [ ] No secrets, `auth.json`, local agent homes  
 - [ ] Scope matches description; no drive-by refactors  
+
+**Agents:** if the user asked for a PR, run the list above locally first. Do not open a PR or hand over a compare URL while it is red.
 
 ### Merge policy
 
@@ -106,6 +109,41 @@ New Issue
 - **#2** Grok Build underscore permission optionIds — **merge** (fixes shell tool allow failures)
 
 After merge: thank author on PR; close linked Issues; mention in CHANGELOG under next version (one short sentence per bullet for the What's New popup; see [release.md](./release.md)); **then clean branches** (next section).
+
+---
+
+## Agent git workflow
+
+Product rules stay in `AGENTS.md` items 1–8. Git process lives here so a bugfix squash does not mix with contributor workflow.
+
+### Commit then push
+
+After a fix or feature lands as a local `git commit` on a branch that tracks `origin`, **`git push` in the same turn**. Do not leave commits only on this machine. Opening a PR from GitHub without push ships a stale tip. Skip push only when the user explicitly says not to, or the branch has no remote yet (then `git push -u origin HEAD`). Never push secrets, `auth.json`, personal config, or `.hypergrep/`.
+
+### Local CI before opening a PR
+
+If the user asks for a PR, or you are about to open one / hand them a compare URL as “ready to PR”: run the **same checks as** [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) **locally**, and they must pass. Do not open a PR, do not tell the user it is ready, and do not give `compare?...&expand=1` as a go-ahead while these are red. Fix first.
+
+Frontend (repo root):
+
+```bash
+pnpm typecheck
+pnpm test
+pnpm lint
+python3 scripts/check-code-quality-gates.py --mode final
+python3 scripts/publish-website-downloads.py --self-test
+pnpm build:ui
+```
+
+Rust (`src-tauri`):
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+```
+
+CHANGELOG Unreleased first sentences must stay ≤ 90 characters (`whatsNew.test.ts`). Local red = not done. This machine can only run macOS clippy/tests; still run them. Do not assume GitHub CI will catch it.
 
 ---
 

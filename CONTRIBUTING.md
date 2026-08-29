@@ -44,7 +44,7 @@ Default is the real **Grok Build** CLI (`grok agent stdio`).
 
 1. Fork 本仓库并创建分支
 2. 做尽量小而清晰的改动
-3. 本地通过 `pnpm typecheck`、`pnpm test` 与 `cargo test`（`src-tauri`）
+3. 本地通过 `pnpm typecheck`、`pnpm test`、`pnpm lint`、`pnpm build:ui`，以及 `cd src-tauri && cargo fmt --all -- --check && cargo clippy --all-targets -- -D warnings && cargo test`
 4. 用户可见文案走 `src/i18n/messages.ts`（`en` / `zh` 同键）
 5. 禁止在 UI 使用 `window.confirm` / `prompt` / `alert`（见 `docs/llm-wiki/dialogs.md`）
 6. 提交 PR，说明动机、改动与验证方式
