@@ -45,6 +45,11 @@ export default defineConfig(() => ({
   },
   test: {
     environment: "node",
+    environmentOptions: {
+      jsdom: {
+        url: "http://localhost/",
+      },
+    },
     include: ["src/**/*.{test,spec}.ts", "src/**/*.{test,spec}.tsx"],
     setupFiles: ["./src/test/loadLocaleCatalogs.ts"],
   },

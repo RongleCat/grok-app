@@ -28,8 +28,8 @@ See `docs/llm-wiki/release.md`.
 ### Fixed
 - CLI update banner and empty side-tab hint follow Appearance text color on wallpaper. They sat outside the old chrome list and used tertiary ink.
 - Opening a remote file no longer shows a failed banner when the file already loaded. Listing a parent folder is not treated as an SSH outage.
-- Rewind puts the discarded user prompt back in the composer so it can be edited and sent again.
-- Chat no longer jumps up while the agent is streaming, or to a random middle position after switching away and back.
+- Rewind puts the discarded user prompt back in the composer. Edit it and send again, including attachments.
+- Chat no longer jumps while the agent is streaming. Switching away and back no longer lands in the middle.
 - Live thinking is not clipped in a 220px box. The transcript follows the stream.
 - Opening an SSH path chip no longer blanks the window. The files pane shows a loading state instead of an empty Suspense.
 
@@ -38,7 +38,7 @@ See `docs/llm-wiki/release.md`.
 - 修复远端文件已经打开仍显示 failed。展开目录失败不再盖住已经读出来的正文。
 - 修复回退后用户那句从对话里消失、没法改。会回到输入框，带上原来的附件。
 - 修复对话输出时屏幕往上跳、切出 App 再回来落到中间。正在看历史时不会被拽回底部。
-- 修复直播思考被 220px 小框截断。主对话跟着流式输出走。
+- 修复 Live Thinking 被 220px 小框截断。主对话跟着流式输出走。
 - 修复点 SSH 路径 chip 整窗变白。文件面板先显示加载，不再空白。
 
 ## [0.2.28] - 2026-08-29

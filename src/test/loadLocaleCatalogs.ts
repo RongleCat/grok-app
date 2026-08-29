@@ -4,5 +4,7 @@
  * table filled or they silently get English.
  */
 import { loadAllLocaleCatalogs } from "@/i18n";
+import { ensureLocalStorage } from "@/test/ensureLocalStorage";
 
+ensureLocalStorage();
 await loadAllLocaleCatalogs();
