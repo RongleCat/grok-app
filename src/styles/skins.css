@@ -532,7 +532,15 @@ html[data-wallpaper="1"][data-wallpaper-clear="1"].platform-mac[data-theme="ligh
  * Theme --text-primary on <html> stays the light/dark default.
  */
 html[data-text-color="custom"]
-  :is(.sidebar, .main__top, .composer-welcome-mark, .pane-toggle--pinned) {
+  :is(
+    .sidebar,
+    .main__top,
+    .composer-welcome-mark,
+    .pane-toggle--pinned,
+    .conn-bar,
+    .aside .rp-chrome,
+    .aside .rp__empty-state
+  ) {
   --text-primary: var(--appearance-chrome-ink);
   --text-secondary: color-mix(
     in srgb,
@@ -604,12 +612,17 @@ html[data-theme="light"][data-wallpaper="1"] .lobe-chat-empty {
   --chat-text-3: color-mix(in srgb, var(--text-primary) 72%, transparent);
 }
 
-html[data-theme="light"][data-wallpaper="1"] .main__stage > .conn-bar strong {
-  color: color-mix(in srgb, var(--text-primary) 84%, transparent);
+html[data-theme="light"][data-wallpaper="1"] .conn-bar,
+html[data-theme="light"][data-wallpaper="1"] .conn-bar strong {
+  color: var(--text-primary);
 }
 
 html[data-theme="dark"][data-wallpaper="1"]
-  :is(.lobe-chat-empty, .main__stage > .conn-bar) {
+  :is(.lobe-chat-empty, .conn-bar) {
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"][data-wallpaper="1"] .conn-bar strong {
   color: var(--text-primary);
 }
 
@@ -626,7 +639,7 @@ html[data-font-shadow="1"]
     .composer-welcome-mark,
     .lobe-chat-assistant-timeline,
     .lobe-chat-empty,
-    .main__stage > .conn-bar,
+    .conn-bar,
     .pane-toggle--pinned,
     .aside .rp-chrome,
     .aside .rp__empty-state,
@@ -666,9 +679,7 @@ html[data-font-shadow="1"] .theme-editor-shell svg {
   filter: none;
 }
 
-html[data-theme="dark"][data-wallpaper="1"] .main__stage > .conn-bar strong {
-  color: color-mix(in srgb, var(--text-primary) 84%, transparent);
-}
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * ROSE — “Salon blush”

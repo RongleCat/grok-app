@@ -160,7 +160,7 @@
 
 .rp-tabs__hint {
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 

@@ -3,8 +3,9 @@
  * localStorage-only — same pattern as UI font.
  *
  * Text color overrides only exposed chrome (sidebar, title bar, welcome
- * mark) via `--appearance-chrome-ink`. It must NOT replace global
- * `--text-primary`, or solid panels / settings / menus go unreadable.
+ * mark, connection banners, aside tab chrome) via `--appearance-chrome-ink`.
+ * It must NOT replace global `--text-primary`, or solid panels / settings /
+ * menus go unreadable.
  */
 
 export const TEXT_COLOR_STORAGE_KEY = "grok-app.text-color";

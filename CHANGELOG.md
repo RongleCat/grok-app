@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- CLI update banner and empty side-tab hint follow Appearance text color on wallpaper. They sat outside the old chrome list and used tertiary ink.
+
+**中文 · 修复**
+- 壁纸上 CLI 更新条和「未打开标签」跟外观文字色。原先不在暴露层名单里，用了过淡的 tertiary。
+
 ## [0.2.28] - 2026-08-29
 
 > **Highlight:** SSH remote hosts, a combined model chip, and chat that stays with the stream.
