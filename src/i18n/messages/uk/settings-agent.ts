@@ -182,7 +182,7 @@ export const ukSettingsAgent = {
   "settings.serve.stopping": "Зупинка…",
   "settings.serve.startHint": "Починається `grok agent serve --bind 127.0.0.1:2419 --secret <auto> [--remote <url>]`. Під час запуску рядок CLIent CLI копіюється один раз. Зупинка впливає лише на процеси, запущені з цього застосунку.",
   "settings.serve.unsupportedBody": "Ця версія Grok Build CLI не розкриває `agent serve`. Оновіть CLI у Runtime → CLI або запустіть service поза застосунком.",
-  "settings.sdkConnect.title": "SDK Connect",
+  "settings.sdkConnect.title": "Підключення SDK",
   "settings.sdkConnect.desc": "Керований майстер для запуску служби локального агента, перевірки справності TCP, копіювання зовнішніх прикладів client та, за бажанням, перевірки URL-адреси віддаленого обслуговування. Секрети залишаються замаскованими на екрані та ніколи не реєструються.",
   "settings.sdkConnect.step1": "Запустити локальний serve",
   "settings.sdkConnect.step1Hint": "Починається `grok agent serve` на 127.0.0.1:2419 із автоматично згенерованим секретом. Зупинка впливає лише на процеси, запущені з цього застосунку.",

@@ -85,7 +85,7 @@ export const jaSettingsMemory = {
   "settings.memoryEmbed.minScoreDesc": "明示的な CLI メモリ検索の最小関連スコア。",
   "settings.memoryEmbed.mmr": "MMR 再順位付け",
   "settings.memoryEmbed.mmrDesc": "Maximal Marginal Relevance — CLI 検索結果を多様化します（任意）。",
-  "settings.memoryEmbed.mmrLambda": "MMR lambda",
+  "settings.memoryEmbed.mmrLambda": "MMR lambda 係数",
   "settings.memoryEmbed.mmrLambdaDesc": "0.0 = 最大多様性、1.0 = 純粋な関連性。",
   "settings.memoryEmbed.temporalDecay": "時間減衰",
   "settings.memoryEmbed.temporalDecayDesc": "CLI 検索スコアで最近のセッションメモリを優先します。",

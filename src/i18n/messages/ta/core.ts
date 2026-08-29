@@ -245,7 +245,7 @@ export const taCore = {
   "askUser.minimize": "சுருக்கு",
   "askUser.restore": "மீட்டமை",
   "askUser.pendingChip": "முகவரின் கேள்வி · பதிலுக்காக காத்திருக்கிறது",
-  "remoteIm.msgTag": "Remote IM",
+  "remoteIm.msgTag": "தொலைநிலை உரையாடல்",
   "tray.recent": "சமீபத்தியவை",
   "tray.noRecent": "சமீபத்திய உரையாடல்கள் இல்லை",
   "tray.untitled": "தலைப்பில்லாதது",

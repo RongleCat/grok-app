@@ -538,7 +538,7 @@ export const zhTWSettingsUi = {
   "settings.wallpaperSource.kind.image": "圖片",
   "settings.wallpaperSource.kind.video": "影片",
   "settings.wallpaperSource.errKind.network": "網路",
-  "settings.wallpaperSource.errKind.host": "Host / CLI",
+  "settings.wallpaperSource.errKind.host": "主機 / CLI",
   "settings.wallpaperSource.errKind.untrusted": "已封鎖網址",
   "settings.wallpaperSource.errKind.empty": "空結果",
   "settings.wallpaperSource.errKind.other": "錯誤",

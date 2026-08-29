@@ -54,7 +54,7 @@ export const zhTWChat = {
   "message.structuredJsonTimeline": "校驗路徑",
   "message.structuredJsonUsage": "用量：{detail}",
   "message.structuredJsonUsageIo": "{input} 入 · {output} 出",
-  "message.structuredJsonUsageTotal": "{total} tokens",
+  "message.structuredJsonUsageTotal": "{total} 個 Token",
   "chatFind.placeholder": "在對話中尋找…",
   "chatFind.prev": "上一個相符",
   "chatFind.next": "下一個相符",

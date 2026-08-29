@@ -69,6 +69,12 @@ See `docs/llm-wiki/release.md`.
 - 修复连续快速发送时下一条回复丢失。
 - 修复按住 Cmd/Ctrl 点选会话时只留下最后一条。
 
+### Improved
+- **Localization gaps closed**: SSH remote hosts, IM channel security, permission rules, and the Doctor checks now read in your language instead of English. Roughly 700 labels and sentences were filled in across the 14 non-English catalogs; CLI flags, TOML keys, and credential field names stay in English on purpose.
+
+**中文 · 改进**
+- **补齐本地化缺口**：SSH 远端主机、IM 渠道安全、权限规则与 Doctor 检查项不再显示英文。14 个非英语语言共补上约 700 条标签与说明；CLI 参数、TOML 键名与凭证字段名按惯例保留英文。
+
 ## [0.2.27] - 2026-08-27
 
 > **Highlight:** Settings opacity, plugin packs, LaTeX, and a less blocking ask bar.

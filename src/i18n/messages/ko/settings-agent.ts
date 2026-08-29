@@ -182,7 +182,7 @@ export const koSettingsAgent = {
   "settings.serve.stopping": "중지 중…",
   "settings.serve.startHint": "`grok agent serve --bind 127.0.0.1:2419 --secret <auto> [--remote <url>]`을 시작합니다. 시작 시 클라이언트 CLI 문자열이 한 번 복사됩니다. 중지는 이 앱에서 시작한 프로세스에만 영향을 줍니다.",
   "settings.serve.unsupportedBody": "이 Grok Build CLI 버전은 `agent serve`를 노출하지 않습니다. 런타임 → CLI에서 CLI를 업데이트하거나 앱 밖에서 serve를 실행하세요.",
-  "settings.sdkConnect.title": "SDK Connect",
+  "settings.sdkConnect.title": "SDK 연결",
   "settings.sdkConnect.desc": "로컬 에이전트 serve를 시작하고, TCP 상태를 확인하며, 외부 클라이언트 예제를 복사하고, 선택적으로 원격 serve URL을 프로브하는 안내 마법사입니다. 비밀은 화면에서 마스킹되며 절대 로그되지 않습니다.",
   "settings.sdkConnect.step1": "로컬 serve 시작",
   "settings.sdkConnect.step1Hint": "자동 생성 비밀로 127.0.0.1:2419에서 `grok agent serve`를 시작합니다. 중지는 이 앱에서 시작한 프로세스에만 영향을 줍니다.",

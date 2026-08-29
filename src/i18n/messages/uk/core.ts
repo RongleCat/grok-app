@@ -245,7 +245,7 @@ export const ukCore = {
   "askUser.minimize": "Згорнути",
   "askUser.restore": "Відновити",
   "askUser.pendingChip": "Запитання агента · очікує відповіді",
-  "remoteIm.msgTag": "Remote IM",
+  "remoteIm.msgTag": "Віддалені чати",
   "tray.recent": "Нещодавні",
   "tray.noRecent": "Немає нещодавніх чатів",
   "tray.untitled": "Без назви",

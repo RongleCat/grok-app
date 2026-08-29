@@ -96,7 +96,7 @@ export const deDoctor = {
   "doctor.pathCopied": "Pfad kopiert",
   "doctor.error": "Doctor konnte nicht ausgeführt werden",
   "doctor.empty": "Noch keine Checks. Erneut klicken.",
-  "doctor.summary": "{ok} ok · {warn} warn · {fail} fail",
+  "doctor.summary": "{ok} OK · {warn} Warnung · {fail} Fehler",
   "doctor.generatedAt": "Erzeugt {time}",
   "doctor.level.ok": "OK",
   "doctor.level.warn": "Warn",

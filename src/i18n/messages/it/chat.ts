@@ -48,7 +48,7 @@ export const itChat = {
   "message.structuredJsonValid": "Corrisponde allo schema",
   "message.structuredJsonSchemaMismatch": "Il JSON non corrisponde allo schema",
   "message.structuredJsonMissingRequired": "Campi obbligatori mancanti: {fields}",
-  "message.structuredJsonStreaming": "Streaming JSON…",
+  "message.structuredJsonStreaming": "JSON in streaming…",
   "message.structuredJsonPartial": "JSON parziale",
   "message.structuredJsonPartialKeys": "Chiavi viste: {keys}",
   "message.structuredJsonTimeline": "Convalida",

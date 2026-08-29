@@ -245,7 +245,7 @@ export const deCore = {
   "askUser.minimize": "Minimieren",
   "askUser.restore": "Wiederherstellen",
   "askUser.pendingChip": "Frage des Agenten · Antwort ausstehend",
-  "remoteIm.msgTag": "Remote IM",
+  "remoteIm.msgTag": "Remote-IM",
   "tray.recent": "Zuletzt",
   "tray.noRecent": "Keine kürzlichen Chats",
   "tray.untitled": "Ohne Titel",

@@ -1,6 +1,6 @@
 /** fil messages — domain: slash */
 export const filSlash = {
-  "slash.tutorial": "Product tour",
+  "slash.tutorial": "Tour ng produkto",
   "slash.tutorialDesc": "Buksan ang opsyonal na in-app product tour",
   "slash.section.commands": "Mga command",
   "slash.section.skills": "Mga skill",
@@ -28,7 +28,7 @@ export const filSlash = {
   "slash.goalDesc": "May hangganang layunin · maraming round hanggang matapos · hindi timer",
   "slash.goalClear": "I-clear ang gawain ng Goal",
   "slash.goalClearDesc": "Lumabas sa gawain ng Goal (/goal)",
-  "slash.plan": "Plan mode",
+  "slash.plan": "Mode ng plano",
   "slash.planDesc": "Mag-explore at magdisenyo bago mag-code",
   "slash.compact": "I-compact ang konteksto",
   "slash.compactDesc": "I-compress ang kasaysayan ng usapan para magbakante ng konteksto",
@@ -60,7 +60,7 @@ export const filSlash = {
   "slash.compactPresetNote.standard": "Standard compact: panatilihin ang mga pangunahing desisyon, kasalukuyang gawain, bukas na files/paths, at bukas na TODOs.",
   "slash.compactPresetNote.aggressive": "Aggressive compact: panatilihin lang ang kasalukuyang goal at mahahalagang desisyon/path; tanggalin ang intermediate exploration at tool noise.",
   "slash.compactPresetCliNote": "Nagsi-seed ang intensity presets ng note templates para sa /compact (walang light/standard/aggressive flag ang CLI). Nagma-map ang compaction mode/detail sa Grok Build 0.2.117 --compaction-mode / --compaction-detail (at env) sa agent spawn.",
-  "slash.compactMode": "Compaction mode",
+  "slash.compactMode": "Mode ng compaction",
   "slash.compactModeHint": "CLI 0.2.117+ — kung paano sine-store ng agent ang naka-compact na konteksto. Pareho sa Mga setting → Agent → Compaction mode.",
   "slash.compactDetail": "Detalye ng segments",
   "slash.compactDetailHint": "Kapag Segments ang mode lang — verbatim detail level para sa segment markdown (CLI --compaction-detail).",

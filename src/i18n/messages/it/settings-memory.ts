@@ -54,7 +54,7 @@ export const itSettingsMemory = {
   "settings.memoryBrowser.openEmbedSettings": "Impostazioni di embedding della memoria",
   "settings.memoryEmbed": "Embedding della memoria (CLI 0.2.117)",
   "settings.memoryEmbedDesc": "Legge le chiavi `[memory.*]` in allowlist dal config.toml GROK_HOME attivo (embedding, search, MMR, dream, watcher). Le chiavi mancanti restano unset. L’agent-home indipendente può scrivere chiavi sicure + soft-respawn; la modalità condivisa è in sola lettura. La ricerca del browser dell’app è sempre per parole chiave — non inventa mai embedding lato client.",
-  "settings.memoryEmbed.path": "Config: {path}",
+  "settings.memoryEmbed.path": "Configurazione: {path}",
   "settings.memoryEmbed.loading": "Caricamento config embedding della memoria…",
   "settings.memoryEmbed.error": "Impossibile caricare o aggiornare la config embedding della memoria",
   "settings.memoryEmbed.saved": "Config embedding della memoria salvata (agente soft-respawn)",

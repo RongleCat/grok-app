@@ -28,7 +28,7 @@ export const idExtensions = {
   "mcpModal.doctor.rerun": "Jalankan ulang doctor",
   "mcpModal.doctor.running": "Menjalankan doctor MCP…",
   "mcpModal.doctor.short": "Doctor",
-  "mcpModal.doctor.runFor": "Doctor · {name}",
+  "mcpModal.doctor.runFor": "Diagnostik · {name}",
   "mcpModal.doctor.section": "Temuan doctor",
   "mcpModal.doctor.idle": "Jalankan doctor MCP untuk memeriksa konektivitas dan autentikasi server yang dikonfigurasi.",
   "mcpModal.doctor.empty": "Tidak ada temuan dilaporkan.",

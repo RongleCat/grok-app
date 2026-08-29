@@ -1,6 +1,6 @@
 /** it messages — domain: settings-agent */
 export const itSettingsAgent = {
-  "settings.todoGate": "Todo gate",
+  "settings.todoGate": "Controllo todo",
   "settings.todoGateDesc": "Quando on, l’agente deve aggiornare i TODO prima di dichiarare il turno finito. Soft-respawn dopo il cambio.",
   "settings.todoGate.softRespawnNote": "Cambiare Todo gate o max accensioni fa un soft-respawn degli agenti live così il prossimo processo ricarica il flag e la config dell’agent-home indipendente.",
   "settings.todoGate.cliTooOld": "Questa CLI sembra più vecchia di {min} (TodoGate). Abilitare salva comunque nelle impostazioni dell’app; lo spawn può fare soft-fail se --todo-gate è sconosciuto.",
@@ -182,7 +182,7 @@ export const itSettingsAgent = {
   "settings.serve.stopping": "Arresto…",
   "settings.serve.startHint": "Avvia `grok agent serve --bind 127.0.0.1:2419 --secret <auto> [--remote <url>]`. All’avvio, la stringa CLI client viene copiata una volta. Stop influisce solo sui processi avviati da questa app.",
   "settings.serve.unsupportedBody": "Questa versione di Grok Build CLI non espone `agent serve`. Aggiorna la CLI in Runtime → CLI, oppure esegui serve fuori dall’app.",
-  "settings.sdkConnect.title": "SDK Connect",
+  "settings.sdkConnect.title": "Connessione SDK",
   "settings.sdkConnect.desc": "Procedura guidata per avviare il serve agente locale, verificare la salute TCP, copiare esempi per client esterni e opzionalmente sondare un URL serve remoto. I segreti restano mascherati a schermo e non vengono mai registrati nei log.",
   "settings.sdkConnect.step1": "Avvia serve locale",
   "settings.sdkConnect.step1Hint": "Avvia `grok agent serve` su 127.0.0.1:2419 con un segreto auto-generato. Stop influisce solo sui processi avviati da questa app.",
@@ -258,7 +258,7 @@ export const itSettingsAgent = {
   "settings.configTomlView.truncated": "Troncato (file grande)",
   "settings.configTomlView.needTauri": "Visualizzare config.toml richiede l’app desktop.",
   "settings.configTomlEdit": "config.toml agente (sezioni)",
-  "settings.configTomlEdit.path": "Config: {path}",
+  "settings.configTomlEdit.path": "Configurazione: {path}",
   "settings.configTomlEdit.loading": "Caricamento config agent-home…",
   "settings.configTomlEdit.error": "Impossibile aggiornare config.toml dell’agente",
   "settings.configTomlEdit.sharedWarning": "La modalità condivisa usa ~/.grok come GROK_HOME live. Questo pannello modifica solo l’agent-home indipendente ed è in sola lettura mentre è condivisa. Passa la modalità dati sessione a Indipendente per salvare.",

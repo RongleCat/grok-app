@@ -23,7 +23,7 @@ export const jaAutomations = {
   "automations.resume": "再開",
   "automations.runNow": "今すぐ実行",
   "automations.delete": "削除",
-  "automations.deleteConfirm": "Delete scheduled task \"{title}\"?",
+  "automations.deleteConfirm": "予約タスク「{title}」を削除しますか？",
   "automations.save": "保存",
   "automations.errTitle": "タイトルは必須です。",
   "automations.errPrompt": "Grok に何をさせるかを書いてください。",

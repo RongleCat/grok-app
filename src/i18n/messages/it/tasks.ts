@@ -234,7 +234,7 @@ export const itTasks = {
   "batchAgents.exportEmpty": "Ancora nessun risultato batch da esportare.",
   "batchAgents.exportFailed": "Impossibile esportare i risultati.",
   "batchAgents.templatesLabel": "Modelli di prompt",
-  "batchAgents.tpl.codeReview.title": "Code review",
+  "batchAgents.tpl.codeReview.title": "Revisione del codice",
   "batchAgents.tpl.codeReview.body": "Rivedi le modifiche recenti in questo repository. Segnala rischi, test mancanti e lavoro incompleto con percorsi di file concreti. Sii onesto sull’incertezza — non inventare riscontri.",
   "batchAgents.tpl.fixTests.title": "Correggi i test",
   "batchAgents.tpl.fixTests.body": "Trova i test falliti o instabili in questo repository, correggili con modifiche minime e riporta cosa fallisce ancora. Non dichiarare verde se i test non sono stati eseguiti.",

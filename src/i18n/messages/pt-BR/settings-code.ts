@@ -1,7 +1,7 @@
 /** pt-BR messages — domain: settings-code */
 export const ptBRSettingsCode = {
   "settings.codebaseIndexing": "Indexação da base de código (grafo de código)",
-  "settings.codebaseIndexing.path": "Config: {path}",
+  "settings.codebaseIndexing.path": "Configuração: {path}",
   "settings.codebaseIndexing.loading": "Carregando config de indexação da base de código…",
   "settings.codebaseIndexing.error": "Não foi possível carregar ou atualizar a config de indexação da base de código",
   "settings.codebaseIndexing.saved": "Config de indexação da base de código salva (agente com respawn suave)",
@@ -137,7 +137,7 @@ export const ptBRSettingsCode = {
   "settings.codeGraph.rebuild.unavailableNote": "O App não tem reconstrução no host para o grafo de código.",
   "settings.codeGraph.rebuild.cliHint": "Se o índice estiver desatualizado, reconstrua via Grok Build CLI quando esse comando estiver disponível — este painel não inventa um botão de reconstruir.",
   "settings.lspTools": "Ferramentas LSP",
-  "settings.lspTools.path": "Config: {path}",
+  "settings.lspTools.path": "Configuração: {path}",
   "settings.lspTools.loading": "Carregando config de ferramentas LSP…",
   "settings.lspTools.error": "Não foi possível carregar ou atualizar a config de ferramentas LSP",
   "settings.lspTools.saved": "Config de ferramentas LSP salva (agente com respawn suave)",

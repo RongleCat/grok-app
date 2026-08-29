@@ -85,7 +85,7 @@ export const zhTWSettingsMemory = {
   "settings.memoryEmbed.minScoreDesc": "CLI 明確記憶搜尋的最低相關度分數。",
   "settings.memoryEmbed.mmr": "MMR 重排",
   "settings.memoryEmbed.mmrDesc": "最大邊際相關 — 提升 CLI 搜尋結果多樣性（可選）。",
-  "settings.memoryEmbed.mmrLambda": "MMR lambda",
+  "settings.memoryEmbed.mmrLambda": "MMR lambda 係數",
   "settings.memoryEmbed.mmrLambdaDesc": "0.0 = 最大多樣性，1.0 = 純相關度。",
   "settings.memoryEmbed.temporalDecay": "時間衰減",
   "settings.memoryEmbed.temporalDecayDesc": "CLI 搜尋打分時偏好較新的工作階段記憶。",

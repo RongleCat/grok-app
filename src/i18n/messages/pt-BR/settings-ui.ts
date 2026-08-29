@@ -78,7 +78,7 @@ export const ptBRSettingsUi = {
   "settings.tab.phoneMirror": "Espelho do telefone",
   "settings.privacy": "Central de privacidade",
   "settings.privacyDesc": "Visão honesta das chaves relacionadas à privacidade do Grok Build no config.toml do GROK_HOME ativo (0.2.117+). Chaves ausentes permanecem indefinidas — este App nunca inventa “desligado”. As gravações só se aplicam no modo independente do agent-home.",
-  "settings.privacy.path": "Config: {path}",
+  "settings.privacy.path": "Configuração: {path}",
   "settings.privacy.loading": "Carregando config de privacidade…",
   "settings.privacy.error": "Não foi possível carregar ou atualizar a config de privacidade",
   "settings.privacy.saved": "Config de privacidade salva (agente com respawn suave)",

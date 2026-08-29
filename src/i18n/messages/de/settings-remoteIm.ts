@@ -572,7 +572,7 @@ export const deSettingsRemoteIm = {
   "settings.remoteIm.channel.dingtalk": "DingTalk",
   "settings.remoteIm.channel.wecom": "WeCom",
   "settings.remoteIm.channel.weixin": "WeChat (persönlich)",
-  "settings.remoteIm.channel.wpsXiezuo": "WPS Collaboration",
+  "settings.remoteIm.channel.wpsXiezuo": "WPS Zusammenarbeit",
   "settings.remoteIm.channel.weibo": "Weibo",
   "settings.remoteIm.channel.qq": "QQ (OneBot)",
   "settings.remoteIm.channel.qqbot": "QQ Official Bot",

@@ -78,7 +78,7 @@ export const itSettingsUi = {
   "settings.tab.phoneMirror": "Specchio telefono",
   "settings.privacy": "Centro privacy",
   "settings.privacyDesc": "Vista onesta delle chiavi Grok Build legate alla privacy nel config.toml GROK_HOME attivo (0.2.117+). Le chiavi mancanti restano unset — questa app non inventa mai «off». Le scritture si applicano solo in modalità agent-home indipendente.",
-  "settings.privacy.path": "Config: {path}",
+  "settings.privacy.path": "Configurazione: {path}",
   "settings.privacy.loading": "Caricamento config privacy…",
   "settings.privacy.error": "Impossibile caricare o aggiornare la config privacy",
   "settings.privacy.saved": "Config privacy salvata (agente soft-respawn)",

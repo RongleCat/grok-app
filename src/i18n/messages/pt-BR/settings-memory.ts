@@ -54,7 +54,7 @@ export const ptBRSettingsMemory = {
   "settings.memoryBrowser.openEmbedSettings": "Configurações de embedding de memória",
   "settings.memoryEmbed": "Embedding de memória (CLI 0.2.117)",
   "settings.memoryEmbedDesc": "Ler chaves `[memory.*]` na allowlist do config.toml do GROK_HOME ativo (embedding, busca, MMR, dream, watcher). Chaves ausentes permanecem indefinidas. O agent-home independente pode gravar chaves seguras + respawn suave; o modo compartilhado é somente leitura. A busca do navegador do App é sempre por palavra-chave — nunca inventa embeddings no cliente.",
-  "settings.memoryEmbed.path": "Config: {path}",
+  "settings.memoryEmbed.path": "Configuração: {path}",
   "settings.memoryEmbed.loading": "Carregando config de embedding de memória…",
   "settings.memoryEmbed.error": "Não foi possível carregar ou atualizar a config de embedding de memória",
   "settings.memoryEmbed.saved": "Config de embedding de memória salva (agente com respawn suave)",

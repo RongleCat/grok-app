@@ -150,7 +150,7 @@ export const zhCore = {
   "notify.askUserBody": "Agent 正在等待你的回答。",
   "compact.bannerAuto": "上下文已自动压缩",
   "compact.bannerManual": "上下文已压缩",
-  "compact.tokensRange": "{before} → {after} tokens",
+  "compact.tokensRange": "{before} → {after} 个 Token",
   "compact.summaryToggle": "摘要",
   "compact.toastAuto": "上下文已自动压缩，释放了窗口空间",
   "compact.toastManual": "上下文已压缩",

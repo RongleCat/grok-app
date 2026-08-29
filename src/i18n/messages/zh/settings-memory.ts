@@ -85,7 +85,7 @@ export const zhSettingsMemory = {
   "settings.memoryEmbed.minScoreDesc": "CLI 显式记忆搜索的最低相关度分数。",
   "settings.memoryEmbed.mmr": "MMR 重排",
   "settings.memoryEmbed.mmrDesc": "最大边际相关 — 提升 CLI 搜索结果多样性（可选）。",
-  "settings.memoryEmbed.mmrLambda": "MMR lambda",
+  "settings.memoryEmbed.mmrLambda": "MMR lambda 系数",
   "settings.memoryEmbed.mmrLambdaDesc": "0.0 = 最大多样性，1.0 = 纯相关度。",
   "settings.memoryEmbed.temporalDecay": "时间衰减",
   "settings.memoryEmbed.temporalDecayDesc": "CLI 搜索打分时偏好较新的会话记忆。",

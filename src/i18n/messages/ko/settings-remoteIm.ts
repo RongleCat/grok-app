@@ -572,7 +572,7 @@ export const koSettingsRemoteIm = {
   "settings.remoteIm.channel.dingtalk": "DingTalk",
   "settings.remoteIm.channel.wecom": "WeCom",
   "settings.remoteIm.channel.weixin": "WeChat (개인)",
-  "settings.remoteIm.channel.wpsXiezuo": "WPS Collaboration",
+  "settings.remoteIm.channel.wpsXiezuo": "WPS 협업",
   "settings.remoteIm.channel.weibo": "Weibo",
   "settings.remoteIm.channel.qq": "QQ (OneBot)",
   "settings.remoteIm.channel.qqbot": "QQ 공식 봇",

@@ -114,7 +114,7 @@ export const jaSession = {
   "session.move.manyOkOrphan": "{n} 件のチャットを「その他のセッション」へ移動しました",
   "session.move.ghostMany": "{n} 件のチャット",
   "session.deleteTitle": "チャットを削除",
-  "session.deleteConfirm": "Delete “{name}” permanently? This cannot be undone.",
+  "session.deleteConfirm": "「{name}」を完全に削除しますか？この操作は取り消せません。",
   "session.deleteManyTitle": "チャットを削除",
   "session.deleteManyConfirm": "{n} 件のチャットを完全に削除しますか？元に戻せません。",
   "session.menu": "セッションメニュー",
