@@ -423,6 +423,14 @@ export function useStickToBottom(
         })
       ) {
         e.preventDefault();
+        // The gesture is still suppressed, but WebView2 can overscroll
+        // elastically anyway and report the rebound as a decreasing
+        // `scrollTop`. Arm the intent now, otherwise that rebound has no
+        // recovery path and the tail settles above a bottom that grew during
+        // the elastic settle (composer / queue height). Arming alone never
+        // snaps — the settle only fires on a real upward scroll near bottom.
+        armBottomIntent();
+        userIntentDownRef.current = true;
         return;
       }
       // Small ticks at the locked bottom (trackpad / elastic) — stay pinned.
