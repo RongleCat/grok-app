@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- When the Grok Build CLI is missing, Runtime settings offers a one-click install.
+
+**中文 · 新增**
+- 找不到 Grok Build CLI 时，运行时设置里可以直接一键安装。
+
 ### Changed
 - Missing translations are filled in. SSH, IM security, permission rules, and Doctor checks follow the UI language.
 
