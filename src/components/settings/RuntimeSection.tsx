@@ -17,6 +17,7 @@ import { CliWorktreeDbPanel } from "@/components/CliWorktreeDbPanel";
 import { SdkConnectWizard } from "@/components/SdkConnectWizard";
 import { SessionApiPanel } from "@/components/SessionApiPanel";
 import { CliUpdateRow } from "@/components/CliUpdateRow";
+import { CliRepairPanel } from "@/components/CliRepairPanel";
 import { CostRollupPanel } from "@/components/CostRollupPanel";
 import { StreamingMessagesJsonPanel } from "@/components/StreamingMessagesJsonPanel";
 import { StreamingAcpNdjsonPanel } from "@/components/StreamingAcpNdjsonPanel";
@@ -48,6 +49,7 @@ import {
 export function RuntimeSection() {
   const s = useSettingsModel() as SettingsViewModel & Record<string, any>;
   const {
+    accountBusy,
     title,
     acpServerAddr,
     activeTab,
@@ -63,12 +65,15 @@ export function RuntimeSection() {
     includePartialMessages,
     lastCliChecksumVerified,
     lastProcessLimit,
+    loginHint,
     locale,
     manualCliPath,
     maxConcurrentAgents,
     navigateTo,
     onAcpServerAddr,
     onAcpServerBlur,
+    onAccountLoginDevice,
+    onAccountLoginOauth,
     onAgentIdleMinutes,
     onAllowUnverifiedCliInstall,
     onAuditLedgerRetentionDays,
@@ -234,6 +239,19 @@ export function RuntimeSection() {
                     </div>
                   ) : null}
                 </div>
+                {(!cliInfo.found || !cliInfo.cliAuthPresent) ? (
+                  <CliRepairPanel
+                    cliInfo={cliInfo}
+                    allowUnverifiedCliInstall={allowUnverifiedCliInstall}
+                    accountBusy={accountBusy}
+                    loginHint={loginHint}
+                    onCliInfoRefresh={onCliInfoRefresh}
+                    onAccountLoginOauth={onAccountLoginOauth}
+                    onAccountLoginDevice={onAccountLoginDevice}
+                    showSettingsToast={showSettingsToast}
+                    t={t}
+                  />
+                ) : null}
                 {detectAppPlatform() === "win" ? (
                   <div
                     className={
