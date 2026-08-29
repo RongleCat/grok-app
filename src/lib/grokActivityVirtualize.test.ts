@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   GROK_ACTIVITY_MAPPED_CAP_PX,
@@ -8,6 +11,7 @@ import {
   applyActivityStepUserToggle,
   emptyActivityStepExpandState,
   grokActivityVirtualMaxHeightPx,
+  activityScrollerScrollToKey,
   liveActivityFollowKey,
   resolveActivityStepExpandDesired,
   scrollDeltaToBringChildIntoContainer,
@@ -52,6 +56,34 @@ describe("grokActivityVirtualize", () => {
     ).toBe("th-1");
     expect(liveActivityFollowKey([{ key: "only" }])).toBe("only");
     expect(liveActivityFollowKey([])).toBeNull();
+  });
+
+  it("after live ends, keeps the last step instead of jumping to the first reads", () => {
+    const steps = [
+      { key: "explore-0", running: false },
+      { key: "bash-2", running: false },
+      { key: "th-1", type: "thought", streaming: false },
+    ];
+    expect(activityScrollerScrollToKey(true, steps)).toBe("th-1");
+    expect(activityScrollerScrollToKey(false, steps)).toBe("th-1");
+    expect(
+      activityScrollerScrollToKey(false, [
+        { key: "read-0", running: false },
+        { key: "edit-9", running: false },
+      ]),
+    ).toBe("edit-9");
+    expect(activityScrollerScrollToKey(false, [])).toBeNull();
+  });
+
+  it("wires the nested VirtualList to followKey after live ends", () => {
+    const src = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "../components/lobe-chat/TimelinePhaseBlock.tsx"),
+      "utf8",
+    );
+    expect(src).toContain("activityScrollerScrollToKey");
+    expect(src).not.toMatch(/scrollToKey=\{live \? followKey : null\}/);
+    expect(src).toMatch(/scrollToKey=\{scrollToKey\}/);
+    expect(src).not.toMatch(/if \(!live \|\| !followKey\) return/);
   });
 
   it("live follow only moves the nested scroller, never an ancestor", () => {

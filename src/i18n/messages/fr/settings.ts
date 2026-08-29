@@ -344,7 +344,7 @@ export const frSettings = {
   "settings.confirmExternalLinks": "Confirmer avant d’ouvrir les liens",
   "settings.confirmExternalLinksDesc": "Demander avant d’ouvrir des liens http(s) du chat dans le navigateur. Désactivé par défaut.",
   "settings.messageActions": "Actions de message",
-  "settings.messageActionsDesc": "Afficher Copier, Exporter, Régénérer et Modifier au survol, ou les garder toujours visibles (mieux pour pavés tactiles et accessibilité)",
+  "settings.messageActionsDesc": "Copier, Exporter, Régénérer et Modifier restent visibles par défaut. Passez au survol pour un fil plus épuré.",
   "settings.messageActions.hover": "Au survol",
   "settings.messageActions.always": "Toujours afficher",
   "settings.messageTimestamps": "Afficher les horodatages des messages",

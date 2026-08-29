@@ -212,6 +212,8 @@ export const ptBRComposer = {
   "composer.access": "Acesso",
   "composer.accessHint": "Como o agente deve executar e obter aprovação?",
   "composer.advanced": "Avançado",
+  "composer.effortFaster": "Mais rápido",
+  "composer.effortSmarter": "Mais inteligente",
   "composer.permissionTitle": "Alinhado ao Grok Build: Perguntar por padrão; aceitar edições; permitir na sessão; dontAsk; bypass YOLO.",
   "composer.dropAttachTitle": "Anexar à mensagem",
   "composer.dropAttachHint": "Solte arquivos ou pastas — eles serão enviados com a próxima mensagem",

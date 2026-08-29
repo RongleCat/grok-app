@@ -2,7 +2,7 @@
 export const taCore = {
   "app.name": "Grok",
   "app.tagline": "MIT · அதிகாரப்பூர்வமற்றது · சகோதரத் திட்டம் grok-go",
-  "app.versionFooter": "Grok v0.2.27 · MIT · அதிகாரப்பூர்வமற்றது · சகோதரத் திட்டம் grok-go",
+  "app.versionFooter": "Grok v0.2.28 · MIT · அதிகாரப்பூர்வமற்றது · சகோதரத் திட்டம் grok-go",
   "window.minimize": "சிறிதாக்கு",
   "window.maximize": "பெரிதாக்கு",
   "window.restore": "மீட்டமை",

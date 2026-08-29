@@ -13,51 +13,71 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
-### Added
-- **SSH remote hosts**: Settings → Runtime → SSH lists `~/.ssh/config` Host aliases. Test connection, then watch a host to list remote Grok sessions in the sidebar, open/resume them, start a new chat in a remote folder, and run `grok agent stdio` on the host via OpenSSH. macOS/Linux reuse a ControlMaster; Windows opens a fresh connection per action. Persistence is `grok agent leader`, not tmux. Remote paths are never treated as local disk.
-
-**中文 · 新增**
-- **SSH 远端主机**：设置 → 运行时 → SSH 读取 `~/.ssh/config` 的 Host。测通后 Watch，侧栏列出远端 Grok 会话，可打开/续跑、在远端文件夹开新对话，并通过 OpenSSH 在主机上跑 `grok agent stdio`。macOS/Linux 复用 ControlMaster；Windows 每次单独连。断线续跑用 `grok agent leader`，不是 tmux。远端路径不当本地磁盘。
-
 ### Fixed
+- CLI update banner and empty side-tab hint follow Appearance text color on wallpaper. They sat outside the old chrome list and used tertiary ink.
 - Opening a remote file no longer shows a failed banner when the file already loaded. Listing a parent folder is not treated as an SSH outage.
 - Rewind puts the discarded user prompt back in the composer so it can be edited and sent again.
 - Chat no longer jumps up while the agent is streaming, or to a random middle position after switching away and back.
-- Last chat lines stay above the floating composer. Scrolling down at the bottom no longer bounces the tail under the input.
 - Live thinking is not clipped in a 220px box. The transcript follows the stream.
 - Opening an SSH path chip no longer blanks the window. The files pane shows a loading state instead of an empty Suspense.
-- Rewind on the last user bubble undoes that turn. Local journal still truncates if agent rewind fails.
-- First send on a new chat is not dropped when the agent is parked as viewed-only.
-- SSH path chips in chat open the files tree like local projects.
-- Long live thinking stays scrolled to the latest tokens inside the thought box.
-- Wallpaper frost no longer pops off when a chat starts streaming. Empty home and a live turn keep the same blur.
-- Overlay at 0% no longer clears wallpaper blur. The two sliders stay independent.
-- Windows taskbar keeps the Grok mark after an update.
-- Mac Steer is Ctrl+Enter only, matching Grok Build CLI. Cmd+Enter no longer steers.
-- Windows wallpaper frost reaches the sidebar and empty chat. WebView2 skipped container blur.
-- Fork from a middle turn no longer brings back later parent messages.
-- Rapid follow-up messages no longer lose the next reply.
-- Bottom overscroll no longer rebounds above hidden chat content.
 
 **中文 · 修复**
+- 壁纸上 CLI 更新条和「未打开标签」跟外观文字色。原先不在暴露层名单里，用了过淡的 tertiary。
 - 修复远端文件已经打开仍显示 failed。展开目录失败不再盖住已经读出来的正文。
 - 修复回退后用户那句从对话里消失、没法改。会回到输入框，带上原来的附件。
 - 修复对话输出时屏幕往上跳、切出 App 再回来落到中间。正在看历史时不会被拽回底部。
-- 修复对话最后几行压在输入框上。滚到最底再往下滚不会把尾巴弹回输入框下面。
 - 修复直播思考被 220px 小框截断。主对话跟着流式输出走。
 - 修复点 SSH 路径 chip 整窗变白。文件面板先显示加载，不再空白。
+
+## [0.2.28] - 2026-08-29
+
+> **Highlight:** SSH remote hosts, a combined model chip, and chat that stays with the stream.
+>
+> **中文 · 亮点：** SSH 远端主机、模型推理合一芯片，对话跟住输出。
+
+### Added
+- SSH remote hosts can be watched from Settings. Runtime → SSH; list, open, and start remote chats over OpenSSH.
+
+**中文 · 新增**
+- 设置里可 Watch SSH 远端主机。运行时 → SSH；列出、打开，并在远端文件夹开新对话。
+
+### Changed
+- Composer model chip is one control for model + effort. Advanced hub; empty and active chats share the same width.
+- Message action buttons stay visible. Appearance still has On hover.
+- Opening a file uses the full preview. The tree stays closed unless you pick Files or jump from env.
+
+**中文 · 变更**
+- 输入框模型按钮改为模型+推理一颗芯片。高级悬停侧出选项；空对话和进行中对话同一列宽。
+- 消息操作按钮默认始终显示。外观里仍可改回悬停显示。
+- 打开文件用满宽预览。除非点 Files 或从环境跳转，文件树保持收起。
+
+### Fixed
+- Last chat lines stay above the composer. Bottom overscroll no longer hides the tail.
+- Rewind on the last user bubble undoes that turn. Local journal still truncates if agent rewind fails.
+- First send on a new chat is not dropped when the agent is parked as viewed-only.
+- SSH path chips in chat open the files tree like local projects.
+- Long live thinking stays on the latest tokens. After a turn finishes, the view stays on the stream.
+- Wallpaper frost stays on during a live turn. Overlay at 0% no longer clears blur.
+- Windows taskbar keeps the Grok mark after an update.
+- Mac Steer is Ctrl+Enter only, matching Grok Build CLI. Cmd+Enter no longer steers.
+- Windows wallpaper frost reaches the sidebar and empty chat.
+- Fork from a middle turn no longer brings back later parent messages.
+- Rapid follow-up messages no longer lose the next reply.
+- Cmd/Ctrl click keeps multi-select in the session list.
+
+**中文 · 修复**
+- 修复对话最后几行压在输入框上。底部超滚不再把尾巴藏起来。
 - 修复点最后一条用户消息无法回退。Agent rewind 失败时仍截断本地记录。
 - 修复新会话第一轮发出去没有真正开跑。
 - 修复 SSH 会话里点路径 chip 不能跳到侧栏文件树。
-- 修复思考过长时看不到最新内容。展开的思考区跟到最新字，上翻不会被拽回。
-- 修复进会话、开始直播时壁纸突然变清楚并弹一下。空会话和直播回合共用同一层模糊。
-- 修复遮罩透明度拉到 0% 时把壁纸模糊也关掉。两根滑块互不影响。
+- 修复思考过长时看不到最新内容。任务结束后视口留在流式输出结尾。
+- 修复进会话、开始直播时壁纸突然变清楚。遮罩拉到 0% 也不会关掉模糊。
 - 修复 Windows 更新后任务栏变成空白文档图标。
-- 修复 Mac 引导快捷键。对标 Grok Build CLI，只用 Ctrl+Enter，不再认 ⌘Enter。
-- 修复 Windows 壁纸透过侧栏和空会话。WebView2 会跳过容器模糊。
+- 修复 Mac 引导快捷键。对标 Grok Build CLI，只用 Ctrl+Enter。
+- 修复 Windows 壁纸透过侧栏和空会话。
 - 修复从中间分叉时后面的父会话消息又回来。
 - 修复连续快速发送时下一条回复丢失。
-- 修复底部超滚回弹后仍有聊天内容被遮挡。
+- 修复按住 Cmd/Ctrl 点选会话时只留下最后一条。
 
 ## [0.2.27] - 2026-08-27
 

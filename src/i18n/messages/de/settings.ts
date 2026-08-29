@@ -344,7 +344,7 @@ export const deSettings = {
   "settings.confirmExternalLinks": "Vor dem Öffnen von Links bestätigen",
   "settings.confirmExternalLinksDesc": "Fragen, bevor http(s)-Links aus dem Chat im Browser geöffnet werden. Standard aus.",
   "settings.messageActions": "Nachrichtenaktionen",
-  "settings.messageActionsDesc": "Kopieren, Export, Neu generieren und Bearbeiten beim Hover zeigen oder immer sichtbar halten (besser für Trackpads und Barrierefreiheit)",
+  "settings.messageActionsDesc": "Kopieren, Export, Neu generieren und Bearbeiten sind standardmäßig sichtbar. Hover für ein aufgeräumteres Transkript.",
   "settings.messageActions.hover": "Beim Hover",
   "settings.messageActions.always": "Immer zeigen",
   "settings.messageTimestamps": "Nachrichtenzeiten zeigen",

@@ -24,6 +24,7 @@ import {
 } from "@/lib/askUserSettle";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { ComposerModelMenu } from "@/components/ComposerModelMenu";
 import { WorkbenchComposerShell } from "@/app/WorkbenchComposerShell";
 
 export type WorkbenchComposerColumnProps = {
@@ -85,6 +86,18 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
     mainPane,
     tr,
     session,
+    locale,
+    modelId,
+    effort,
+    availableModels,
+    composerProviderInputs,
+    providerActiveSource,
+    providerActiveId,
+    channelEffortOptions,
+    currentModelWindow,
+    handleContextWindow,
+    handleModelPick,
+    handleEffortPick,
   } = p;
   const [permBusy, setPermBusy] = useState(false);
   const [permError, setPermError] = useState<string | null>(null);
@@ -339,18 +352,25 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                 (!!sessionChangesSummary || !!gitDirtySummary);
               const showContextBar =
                 showComposerProjectRow || showChangesChips;
+              // Desktop: workspace cluster left, model/effort right.
+              // Phone keeps model/access in PhoneComposerToolsSheet.
+              const showComposerChrome = !phoneLayout;
               return (
             <div
               className={
                 "composer-stack" +
-                (showContextBar ? " composer-stack--with-context" : "")
+                (showContextBar || showComposerChrome
+                  ? " composer-stack--with-context"
+                  : "")
               }
             >
+            {showComposerChrome ? (
+            <div className="composer__chrome">
             {/* Workspace / branch + session/workspace change chips.
                 Hidden entirely when the bar would be empty. */}
             {showContextBar ? (
               <div
-                className="composer__context-bar"
+                className="composer__context-bar composer__chip-shell"
                 aria-label={
                   showComposerProjectRow
                     ? tr("composer.pickProject")
@@ -612,6 +632,61 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                   </div>
                 ) : null}
               </div>
+            ) : null}
+              <div
+                className="composer__model-bar composer__chip-shell"
+                aria-label={tr("composer.model")}
+              >
+                <ComposerModelMenu
+                  locale={locale}
+                  modelId={modelId}
+                  effort={effort}
+                  models={availableModels}
+                  providers={composerProviderInputs}
+                  activeSource={providerActiveSource}
+                  activeProviderId={providerActiveId}
+                  channelEfforts={channelEffortOptions}
+                  contextWindow={currentModelWindow}
+                  contextWindowEditable={customRouteActive}
+                  onContextWindow={handleContextWindow}
+                  labels={{
+                    model: tr("composer.model"),
+                    modelGroupOfficial: tr("composer.modelGroupOfficial"),
+                    modelViaProvider: tr("composer.modelViaProvider"),
+                    effort: tr("composer.effort"),
+                    effortHigh: tr("effort.high"),
+                    effortMedium: tr("effort.medium"),
+                    effortLow: tr("effort.low"),
+                    effortXhigh: tr("effort.xhigh"),
+                    effortMax: tr("effort.max"),
+                    modelSearchPlaceholder: tr(
+                      "composer.modelSearchPlaceholder",
+                    ),
+                    modelSearchEmpty: tr("composer.modelSearchEmpty"),
+                    contextWindow: tr("composer.contextWindow"),
+                    contextWindowOfficial: tr(
+                      "composer.contextWindowOfficial",
+                    ),
+                    contextWindowCustom: tr("composer.contextWindowCustom"),
+                    contextWindowPlaceholder: tr(
+                      "composer.contextWindowPlaceholder",
+                    ),
+                    contextWindowSave: tr("composer.contextWindowSave"),
+                    contextWindowOfficialHint: tr(
+                      "composer.contextWindowOfficialHint",
+                    ),
+                    advanced: tr("composer.advanced"),
+                    effortHint: tr("composer.effortPanelHint"),
+                    effortFaster: tr("composer.effortFaster"),
+                    effortSmarter: tr("composer.effortSmarter"),
+                  }}
+                  onModelPick={(pick) => {
+                    void handleModelPick(pick);
+                  }}
+                  onEffort={handleEffortPick}
+                />
+              </div>
+            </div>
             ) : null}
             <WorkbenchComposerShell {...p} />
             </div>

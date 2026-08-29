@@ -212,6 +212,8 @@ export const idComposer = {
   "composer.access": "Akses",
   "composer.accessHint": "Bagaimana agen harus berjalan dan mendapat persetujuan?",
   "composer.advanced": "Lanjutan",
+  "composer.effortFaster": "Lebih cepat",
+  "composer.effortSmarter": "Lebih cerdas",
   "composer.permissionTitle": "Selaras dengan Grok Build: bawaan Tanya; terima suntingan; izinkan sesi; dontAsk; bypass YOLO.",
   "composer.dropAttachTitle": "Lampirkan ke pesan",
   "composer.dropAttachHint": "Jatuhkan berkas atau folder — akan dikirim bersama pesan berikutnya",

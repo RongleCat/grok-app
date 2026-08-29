@@ -676,6 +676,20 @@
   flex-shrink: 0;
 }
 
+.cmm__measure {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.cmm__measure .cmm__trigger {
+  position: static;
+  max-width: none;
+}
+
 /* Flat control (no capsule border) — hover wash matches .chrome-btn. */
 .cmm__trigger {
   display: inline-flex;
@@ -706,6 +720,10 @@
 .cmm.is-open .cmm__trigger {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.cmm--model.is-open .cmm__trigger {
+  background: transparent;
 }
 
 .cmm--danger .cmm__trigger {
@@ -794,6 +812,31 @@
   }
 }
 
+/* Chrome chips keep labels: they are no longer in the crowded input row. */
+.composer__model-bar .cmm--model .cmm__trigger-text--full {
+  display: inline;
+}
+
+.composer__model-bar .cmm--model .cmm__trigger-text--short {
+  display: none;
+}
+
+@container composer (max-width: 380px) {
+  .composer__model-bar .cmm--model .cmm__trigger {
+    width: auto;
+    max-width: min(140px, 34vw);
+    padding: 0 7px;
+    gap: 4px;
+    justify-content: center;
+  }
+  .composer__model-bar .cmm--model .cmm__trigger-text--full {
+    display: inline;
+  }
+  .composer__model-bar .cmm--model .cmm__chev {
+    display: none;
+  }
+}
+
 .cmm__header {
   padding: 8px 12px 6px;
 }
@@ -835,6 +878,13 @@
 /* Portaled to body — escapes all overflow parents */
 .cmm__pop--portal {
   position: fixed;
+  animation: ui-tip-in var(--motion-pane) var(--motion-pane-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmm__pop--portal {
+    animation: none;
+  }
 }
 
 .cmm__row {

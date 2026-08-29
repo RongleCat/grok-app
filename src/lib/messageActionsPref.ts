@@ -3,8 +3,8 @@
  * localStorage-only — no Rust AppSettings (avoids prefs schema conflicts).
  * Applied via `data-msg-actions` on `document.documentElement`.
  *
- * - `hover` (default): show on hover / focus-within (existing CSS)
- * - `always`: keep Copy / Export / Regenerate / Edit visible
+ * - `always` (default): keep Copy / Export / Regenerate / Edit visible
+ * - `hover`: show on hover / focus-within
  */
 
 export type MessageActionsVisibility = "hover" | "always";
@@ -12,14 +12,14 @@ export type MessageActionsVisibility = "hover" | "always";
 export const MESSAGE_ACTIONS_VISIBILITY_STORAGE_KEY =
   "grok.messageActionsVisibility";
 export const DEFAULT_MESSAGE_ACTIONS_VISIBILITY: MessageActionsVisibility =
-  "hover";
+  "always";
 export const MESSAGE_ACTIONS_VISIBILITY_ATTR = "data-msg-actions";
 /** Optional window event after save/apply (detail = preference). */
 export const MESSAGE_ACTIONS_VISIBILITY_EVENT =
   "grok-message-actions-visibility";
 
 export const MESSAGE_ACTIONS_VISIBILITIES: readonly MessageActionsVisibility[] =
-  ["hover", "always"] as const;
+  ["always", "hover"] as const;
 
 export interface MessageActionsPrefStorage {
   getItem(key: string): string | null;
@@ -74,8 +74,8 @@ export interface MessageActionsPrefRoot {
 
 /**
  * Apply visibility to document via `data-msg-actions`.
- * CSS: `html[data-msg-actions="always"] .lobe-chat-item__actions { … }`.
- * Missing attribute or `"hover"` keeps the default hover/focus-within rules.
+ * CSS: `html[data-msg-actions="hover"] .lobe-chat-item__actions { … }`.
+ * Missing attribute or `"always"` keeps the buttons visible.
  */
 export function applyMessageActionsVisibility(
   pref: MessageActionsVisibility,

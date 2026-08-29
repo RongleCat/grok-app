@@ -75,6 +75,25 @@ export function liveActivityFollowKey(
 }
 
 /**
+ * Nested activity scroller target. Live: last running/streaming step.
+ * After live ends: last step, so a mapped→VirtualList remount (thought /
+ * expand collapse) does not land on the first reads.
+ */
+export function activityScrollerScrollToKey(
+  live: boolean,
+  steps: Array<{
+    key: string;
+    type?: string;
+    running?: boolean;
+    streaming?: boolean;
+  }>,
+): string | null {
+  if (steps.length === 0) return null;
+  if (live) return liveActivityFollowKey(steps);
+  return steps[steps.length - 1]!.key;
+}
+
+/**
  * How much to add to a container's `scrollTop` so `child` sits inside it.
  * 0 when already visible. Callers must apply this to the nested scroller
  * only — `Element.scrollIntoView` walks ancestor overflow (the chat

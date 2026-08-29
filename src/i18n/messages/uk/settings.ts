@@ -344,7 +344,7 @@ export const ukSettings = {
   "settings.confirmExternalLinks": "Підтверджувати перед відкриттям посилань",
   "settings.confirmExternalLinksDesc": "Запитуйте, перш ніж відкривати посилання http(s) із чату у вашому браузері. За замовчуванням вимкнено.",
   "settings.messageActions": "Дії повідомлення",
-  "settings.messageActionsDesc": "Показувати копію, експорт, повторне створення та редагування під час наведення курсора або залишати їх завжди видимими (краще для трекпадів і спеціальних можливостей)",
+  "settings.messageActionsDesc": "Копіювати, експорт, повторне створення й редагування видимі за замовчуванням. Режим наведення — для чистішої стрічки.",
   "settings.messageActions.hover": "Під час наведення",
   "settings.messageActions.always": "Завжди показувати",
   "settings.messageTimestamps": "Показувати час повідомлень",

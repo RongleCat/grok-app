@@ -2,7 +2,7 @@
 export const frCore = {
   "app.name": "Grok",
   "app.tagline": "MIT · Non officiel · Projet sœur grok-go",
-  "app.versionFooter": "Grok v0.2.27 · MIT · Non officiel · Projet sœur grok-go",
+  "app.versionFooter": "Grok v0.2.28 · MIT · Non officiel · Projet sœur grok-go",
   "window.minimize": "Réduire",
   "window.maximize": "Agrandir",
   "window.restore": "Restaurer",

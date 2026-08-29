@@ -151,6 +151,20 @@ export function shouldBumpStickOnBusyEdge(
 }
 
 /**
+ * When a live turn settles, keep a following viewport on the stream tail.
+ * Thinking / work auto-collapse shrinks the last row; that remount can drop
+ * pin and window from scrollTop 0 ("jump to top when the task finishes").
+ * A user who already left the tail mid-stream is not yanked.
+ */
+export function shouldSnapToTailOnTurnSettle(input: {
+  wasBusy: boolean;
+  nowBusy: boolean;
+  wasPinned: boolean;
+}): boolean {
+  return input.wasBusy && !input.nowBusy && input.wasPinned;
+}
+
+/**
  * Stick / virtual-list identity for a viewed chat.
  *
  * `sessionKey` alone fires on sidebar click while the journal is still empty,

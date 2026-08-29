@@ -212,6 +212,8 @@ export const itComposer = {
   "composer.access": "Accesso",
   "composer.accessHint": "Come deve eseguire e ottenere approvazione l’agente?",
   "composer.advanced": "Avanzate",
+  "composer.effortFaster": "Più veloce",
+  "composer.effortSmarter": "Più intelligente",
   "composer.permissionTitle": "Allineato a Grok Build: default Chiedi; accetta modifiche; consenti per sessione; dontAsk; bypass YOLO.",
   "composer.dropAttachTitle": "Allega al messaggio",
   "composer.dropAttachHint": "Trascina file o cartelle — verranno inviati con il prossimo messaggio",

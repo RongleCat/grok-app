@@ -149,6 +149,20 @@ export type EffortUiOption = {
   spawnId: string;
 };
 
+/**
+ * Discrete Faster↔Smarter stops for the composer Effort popover.
+ * Labels use catalog spawn ids (`xhigh`, `max`) — not Claude's Extra name.
+ * Purple (`accent: "ultra"`) marks the strongest stop in this catalog.
+ */
+export type EffortPickerStopId = "low" | "medium" | "high" | "xhigh" | "max";
+
+export type EffortPickerStop = {
+  id: EffortPickerStopId;
+  spawnId: string;
+  /** Strongest stop in this catalog (purple thumb). */
+  accent?: "ultra";
+};
+
 /** Product session modes (desktop shell). */
 export const SESSION_MODES: SessionModeOption[] = [
   { id: "agent" },
@@ -377,6 +391,36 @@ export function effortUiOptionsForCatalog(
     out.push({ uiId, spawnId });
   }
   return out;
+}
+
+/** Discrete Faster↔Smarter stops for the composer Effort popover. */
+export function effortPickerStops(
+  catalogEfforts?: EffortOption[] | null,
+): EffortPickerStop[] {
+  const list = effortsForModel(null, catalogEfforts);
+  const byLower = new Map(
+    list.map((e) => [e.id.trim().toLowerCase(), e.id] as const),
+  );
+  const stops: EffortPickerStop[] = [];
+  const take = (
+    key: string,
+    id: EffortPickerStopId,
+    accent?: EffortPickerStop["accent"],
+  ) => {
+    const spawn = byLower.get(key);
+    if (spawn) stops.push({ id, spawnId: spawn, accent });
+  };
+  take("low", "low");
+  take("medium", "medium");
+  take("high", "high");
+  take("xhigh", "xhigh");
+  const maxSpawn = byLower.get("max");
+  if (maxSpawn && !stops.some((s) => s.spawnId === maxSpawn)) {
+    stops.push({ id: "max", spawnId: maxSpawn });
+  }
+  const last = stops[stops.length - 1];
+  if (last) last.accent = "ultra";
+  return stops;
 }
 
 /** True when this UI row is the selected effort (at most one row). */

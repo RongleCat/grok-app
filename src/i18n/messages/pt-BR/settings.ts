@@ -344,7 +344,7 @@ export const ptBRSettings = {
   "settings.confirmExternalLinks": "Confirmar antes de abrir links",
   "settings.confirmExternalLinksDesc": "Perguntar antes de abrir links http(s) do chat no navegador. Desligado por padrão.",
   "settings.messageActions": "Ações da mensagem",
-  "settings.messageActionsDesc": "Mostrar Copiar, Exportar, Regenerar e Editar ao passar o mouse, ou mantê-los sempre visíveis (melhor para trackpads e acessibilidade)",
+  "settings.messageActionsDesc": "Copiar, Exportar, Regenerar e Editar ficam visíveis por padrão. Escolha «Ao passar o mouse» para um transcript mais limpo.",
   "settings.messageActions.hover": "Ao passar o mouse",
   "settings.messageActions.always": "Sempre mostrar",
   "settings.messageTimestamps": "Mostrar horários das mensagens",

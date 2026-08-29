@@ -344,7 +344,7 @@ export const filSettings = {
   "settings.confirmExternalLinks": "Kumpirmahin bago magbukas ng link",
   "settings.confirmExternalLinksDesc": "Magtanong bago magbukas ng http(s) link mula sa chat sa iyong browser. Naka-off bilang default.",
   "settings.messageActions": "Mga aksyon ng mensahe",
-  "settings.messageActionsDesc": "Ipakita ang Kopyahin, I-export, I-generate ulit, at I-edit sa hover, o panatilihing palaging nakikita (mas maganda para sa trackpad at accessibility)",
+  "settings.messageActionsDesc": "Ang Kopyahin, I-export, I-generate ulit, at I-edit ay palaging nakikita bilang default. Palitan sa hover para sa mas malinis na transcript.",
   "settings.messageActions.hover": "Sa hover",
   "settings.messageActions.always": "Palaging ipakita",
   "settings.messageTimestamps": "Ipakita ang timestamp ng mensahe",

@@ -111,6 +111,13 @@ button:disabled {
   box-sizing: border-box;
 }
 
+/* Hover label above a chip — no shadow, so it does not read as selected. */
+.ui-tip--flat {
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 /* Settings help: longer descriptions wrap instead of ellipsizing */
 .ui-tip--wrap {
   white-space: normal;

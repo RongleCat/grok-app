@@ -20,7 +20,6 @@ import {
   IconCheck,
   IconClose,
   IconCopy,
-  IconEdit,
   IconExternalLink,
   IconFiles,
   IconFolder,
@@ -29,6 +28,7 @@ import {
 } from "@/components/icons";
 import { isOfficeKind } from "@/lib/filePreviewSrc";
 import { Tip } from "@/components/ui/tooltip";
+import { ResourceEditorActions } from "./ResourceEditorActions";
 import { normalizePath } from "@/lib/sessionChanges";
 import { formatHunkSnippet } from "@/lib/diffComment";
 import {
@@ -111,6 +111,8 @@ export type ResourcePreviewBodyProps = {
   runRejectHunk: (hunkIndex: number) => void | Promise<void>;
   requestBatchAcceptHunks: () => void;
   requestBatchRejectHunks: () => void;
+  /** Host already shows Edit/Save (files toolbar). Skip the in-preview row. */
+  hideToolbar?: boolean;
 };
 
 export function ResourcePreviewBody({
@@ -148,6 +150,7 @@ export function ResourcePreviewBody({
   runRejectHunk,
   requestBatchAcceptHunks,
   requestBatchRejectHunks,
+  hideToolbar = false,
 }: ResourcePreviewBodyProps): ReactNode {
   // Session / workspace change diff takes over the preview in Changes mode.
   if (sideMode === "changes" && diffView) {
@@ -610,75 +613,20 @@ export function ResourcePreviewBody({
 
     return (
       <div className="rp-editor">
-        <div
-          className="rp-editor__toolbar"
-          role="toolbar"
-          aria-label={tr("resources.editorToolbar")}
-        >
-          <Tip
-            label={
-              activeTab.editMode
-                ? tr("resources.previewMode")
-                : tr("resources.editMode")
-            }
-          >
-            <button
-              type="button"
-              className={
-                "rp-editor__tool-btn" +
-                (activeTab.editMode ? " is-on" : "")
-              }
-              disabled={!!activeTab.saving}
-              onClick={toggleActiveEditMode}
-              aria-pressed={!!activeTab.editMode}
-              aria-label={
-                activeTab.editMode
-                  ? tr("resources.previewMode")
-                  : tr("resources.editMode")
-              }
-            >
-              <IconEdit size={14} />
-              <span className="rp-editor__tool-btn-label">
-                {activeTab.editMode
-                  ? tr("resources.previewMode")
-                  : tr("resources.editMode")}
-              </span>
-            </button>
-          </Tip>
-          <div className="rp-editor__toolbar-spacer" />
-          {dirty ? (
-            <Tip label={tr("resources.revert")}>
-              <button
-                type="button"
-                className="rp-editor__tool-btn"
-                disabled={!!activeTab.saving}
-                onClick={() => revertActiveDraft()}
-              >
-                {tr("resources.revert")}
-              </button>
-            </Tip>
-          ) : null}
-          <Tip label={tr("resources.save")}>
-            <button
-              type="button"
-              className={
-                "rp-editor__tool-btn rp-editor__tool-btn--save" +
-                (dirty ? " is-dirty" : "")
-              }
-              disabled={!!activeTab.saving || !dirty}
-              onClick={() => void saveActiveFile()}
-            >
-              {activeTab.saving
-                ? tr("resources.saving")
-                : tr("resources.save")}
-            </button>
-          </Tip>
-          {dirty ? (
-            <span className="rp-editor__dirty-label" role="status">
-              {tr("resources.unsaved")}
-            </span>
-          ) : null}
-        </div>
+        {hideToolbar ? null : (
+          <div className="rp-editor__toolbar">
+            <ResourceEditorActions
+              tr={tr}
+              editMode={!!activeTab.editMode}
+              saving={!!activeTab.saving}
+              dirty={dirty}
+              onToggleEdit={toggleActiveEditMode}
+              onSave={() => void saveActiveFile()}
+              onRevert={() => revertActiveDraft()}
+              align="split"
+            />
+          </div>
+        )}
         {preview.truncated ? (
           <div className="rp-editor__banner" role="status">
             {tr("resources.truncated")}

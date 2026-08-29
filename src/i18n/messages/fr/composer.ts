@@ -212,6 +212,8 @@ export const frComposer = {
   "composer.access": "Accès",
   "composer.accessHint": "Comment l’agent doit-il s’exécuter et obtenir l’approbation ?",
   "composer.advanced": "Avancé",
+  "composer.effortFaster": "Plus rapide",
+  "composer.effortSmarter": "Plus intelligent",
   "composer.permissionTitle": "Aligné sur Grok Build : Demander par défaut ; accepter les modifications ; autoriser pour la session ; dontAsk ; contournement YOLO.",
   "composer.dropAttachTitle": "Joindre au message",
   "composer.dropAttachHint": "Déposez des fichiers ou dossiers — ils seront envoyés avec votre prochain message",

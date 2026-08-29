@@ -212,6 +212,8 @@ export const jaComposer = {
   "composer.access": "アクセス",
   "composer.accessHint": "エージェントの実行と承認はどうしますか？",
   "composer.advanced": "詳細",
+  "composer.effortFaster": "より速く",
+  "composer.effortSmarter": "より賢く",
   "composer.permissionTitle": "Grok Build に合わせています: 既定の Ask、編集を承認、セッション許可、dontAsk、YOLO bypass。",
   "composer.dropAttachTitle": "メッセージに添付",
   "composer.dropAttachHint": "ファイルまたはフォルダーをドロップ — 次のメッセージと一緒に送ります",

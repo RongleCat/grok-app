@@ -214,6 +214,8 @@ export const zhComposer = {
   "composer.access": "访问",
   "composer.accessHint": "应如何运行并批准 Agent 操作？",
   "composer.advanced": "高级",
+  "composer.effortFaster": "更快",
+  "composer.effortSmarter": "更聪明",
   "composer.permissionTitle": "对齐 Grok Build：default Ask / acceptEdits / 会话允许 / dontAsk / YOLO bypass。",
   "composer.dropAttachTitle": "附加到消息",
   "composer.dropAttachHint": "拖入文件或文件夹，将随下一条消息发给 Agent",

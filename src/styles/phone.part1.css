@@ -149,6 +149,7 @@
     align-items: center;
     background: transparent;
     gap: 0;
+    padding-top: 24px;
   }
 
   .app-shell--phone .composer-wrap--welcome .composer-welcome-mark {

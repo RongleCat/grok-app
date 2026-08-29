@@ -344,7 +344,7 @@ export const ruSettings = {
   "settings.confirmExternalLinks": "Подтверждать открытие внешних ссылок",
   "settings.confirmExternalLinksDesc": "Спрашивать перед открытием ссылок http(s) из чата в браузере. По умолчанию выкл.",
   "settings.messageActions": "Действия с сообщением",
-  "settings.messageActionsDesc": "Показывать «Копировать», «Экспорт», «Перегенерировать» и «Изменить» при наведении или держать их всегда видимыми (удобнее для трекпадов и доступности)",
+  "settings.messageActionsDesc": "«Копировать», «Экспорт», «Перегенерировать» и «Изменить» видны по умолчанию. Режим при наведении — для более чистой ленты.",
   "settings.messageActions.hover": "При наведении",
   "settings.messageActions.always": "Показывать всегда",
   "settings.messageTimestamps": "Показывать время сообщений",

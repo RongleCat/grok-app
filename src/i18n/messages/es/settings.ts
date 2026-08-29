@@ -344,7 +344,7 @@ export const esSettings = {
   "settings.confirmExternalLinks": "Confirmar antes de abrir enlaces",
   "settings.confirmExternalLinksDesc": "Preguntar antes de abrir enlaces http(s) del chat en el navegador. Desactivado de forma predeterminada.",
   "settings.messageActions": "Acciones del mensaje",
-  "settings.messageActionsDesc": "Muestra Copiar, Exportar, Regenerar y Editar al pasar el cursor, o déjalas siempre visibles (mejor para trackpads y accesibilidad)",
+  "settings.messageActionsDesc": "Copiar, Exportar, Regenerar y Editar permanecen visibles por defecto. Elige «Al pasar el cursor» para un transcript más limpio.",
   "settings.messageActions.hover": "Al pasar el cursor",
   "settings.messageActions.always": "Mostrar siempre",
   "settings.messageTimestamps": "Mostrar marcas de tiempo de los mensajes",

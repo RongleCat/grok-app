@@ -2,7 +2,7 @@
 export const filCore = {
   "app.name": "Grok",
   "app.tagline": "MIT · Hindi opisyal · Sister project grok-go",
-  "app.versionFooter": "Grok v0.2.27 · MIT · Hindi opisyal · Sister project grok-go",
+  "app.versionFooter": "Grok v0.2.28 · MIT · Hindi opisyal · Sister project grok-go",
   "window.minimize": "I-minimize",
   "window.maximize": "I-maximize",
   "window.restore": "Ibalik",

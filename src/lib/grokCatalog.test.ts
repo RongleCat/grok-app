@@ -9,6 +9,7 @@ import {
   effortCatalogForRoute,
   effortCatalogKind,
   effortDisplayLabel,
+  effortPickerStops,
   effortUiOptionIsActive,
   effortUiOptionsForCatalog,
   effortsForModel,
@@ -186,6 +187,32 @@ describe("effort UI ladder", () => {
     { id: "xhigh" },
     { id: "max" },
   ];
+
+  it("builds picker stops from catalog ids; purple is the strongest stop", () => {
+    expect(
+      effortPickerStops(GROK_BUILD_EFFORTS).map((s) => [
+        s.id,
+        s.spawnId,
+        s.accent ?? "",
+      ]),
+    ).toEqual([
+      ["low", "low", ""],
+      ["medium", "medium", ""],
+      ["high", "high", "ultra"],
+    ]);
+    expect(
+      effortPickerStops(GROK_4_6_EFFORTS).map((s) => [
+        s.id,
+        s.spawnId,
+        s.accent ?? "",
+      ]),
+    ).toEqual([
+      ["low", "low", ""],
+      ["medium", "medium", ""],
+      ["high", "high", ""],
+      ["xhigh", "xhigh", "ultra"],
+    ]);
+  });
 
   it("orders Grok as 低/中/高 without 极高", () => {
     expect(effortUiOptionsForCatalog(GROK_BUILD_EFFORTS).map((o) => o.uiId)).toEqual(

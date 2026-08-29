@@ -59,7 +59,7 @@ import {
   applyActivityStepUserToggle,
   emptyActivityStepExpandState,
   grokActivityVirtualMaxHeightPx,
-  liveActivityFollowKey,
+  activityScrollerScrollToKey,
   scrollChildIntoContainer,
   shouldCapMappedGrokActivitySteps,
   shouldVirtualizeActivityWithExpand,
@@ -502,7 +502,9 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
 /**
  * Grok activity step list. Short lists map fully; long lists window via
  * VirtualList so multi-turn phases with 20–100+ steps stay light.
- * Live phases pin the scroller to the tail (last step key).
+ * Live phases pin the scroller to the tail (last step key). After live
+ * ends, keep that last key so mapped→VirtualList remount does not jump
+ * to the first reads.
  * When any step is expanded, leave VirtualList so fixed row height is not
  * broken — expanded body uses max-height + internal scroll instead.
  * Expand + userToggled keys live on the parent so remount keeps open state
@@ -556,13 +558,18 @@ export function GrokActivitySteps({
       expandState.expandedKeys.size,
       liveThoughtCount,
     );
-  const lastKey = total > 0 ? steps[total - 1]!.key : null;
-  const followKey = live ? liveActivityFollowKey(steps) : lastKey;
+  const followKey = activityScrollerScrollToKey(live, steps);
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const stickToLiveRef = useRef(true);
+  /** True while the nested scroller should stay on the live/settle tail. */
+  const stickToLiveRef = useRef(live);
+  const wasLiveRef = useRef(live);
+  if (live && !wasLiveRef.current) stickToLiveRef.current = true;
+  wasLiveRef.current = live;
+  const scrollToKey =
+    live || stickToLiveRef.current ? followKey : null;
 
   useLayoutEffect(() => {
-    if (!live || !followKey) return;
+    if (!followKey) return;
     const root = scrollerRef.current;
     if (!root) return;
     if (!stickToLiveRef.current) return;
@@ -628,7 +635,6 @@ export function GrokActivitySteps({
         }
         role="list"
         onScroll={(e) => {
-          if (!live) return;
           const el = e.currentTarget;
           stickToLiveRef.current =
             el.scrollHeight - el.scrollTop - el.clientHeight < 64;
@@ -660,6 +666,11 @@ export function GrokActivitySteps({
       className="grok-act__steps grok-act__steps--virtual"
       role="list"
       style={{ maxHeight: grokActivityVirtualMaxHeightPx(total) }}
+      onScroll={(e) => {
+        const el = e.currentTarget;
+        stickToLiveRef.current =
+          el.scrollHeight - el.scrollTop - el.clientHeight < 64;
+      }}
     >
       <VirtualList
         items={steps}
@@ -668,7 +679,7 @@ export function GrokActivitySteps({
         rowHeight={GROK_ACTIVITY_STEP_ROW_PX}
         gap={0}
         threshold={0}
-        scrollToKey={live ? followKey : null}
+        scrollToKey={scrollToKey}
       />
     </div>
   );

@@ -7,6 +7,7 @@ import {
   THOUGHT_BODY_HARD_BOTTOM_PX,
   nextThoughtBodyEscaped,
   shouldFollowThoughtBody,
+  shouldPinThoughtBodyOnSettle,
   thoughtBodyDistanceFromBottom,
   thoughtBodyFollowTop,
 } from "./thoughtBodyFollow";
@@ -72,6 +73,41 @@ describe("thoughtBodyFollow", () => {
     ).toBe(false);
   });
 
+  it("pins the last tokens once when a still-open thought finishes", () => {
+    expect(
+      shouldPinThoughtBodyOnSettle({
+        wasLive: true,
+        live: false,
+        expanded: true,
+        escaped: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldPinThoughtBodyOnSettle({
+        wasLive: true,
+        live: false,
+        expanded: true,
+        escaped: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldPinThoughtBodyOnSettle({
+        wasLive: true,
+        live: false,
+        expanded: false,
+        escaped: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldPinThoughtBodyOnSettle({
+        wasLive: false,
+        live: false,
+        expanded: true,
+        escaped: false,
+      }),
+    ).toBe(false);
+  });
+
   it("clears escape when thinking ends", () => {
     expect(
       nextThoughtBodyEscaped({
@@ -98,6 +134,11 @@ describe("thoughtBodyFollow", () => {
     expect(phase).toMatch(/ref=\{thoughtBodyRef\}/);
     expect(thinking).toContain("useThoughtBodyFollow");
     expect(phase).toContain("useThoughtBodyFollow");
+    const hook = readFileSync(
+      join(dir, "../hooks/useThoughtBodyFollow.ts"),
+      "utf8",
+    );
+    expect(hook).toContain("shouldPinThoughtBodyOnSettle");
   });
 
   it("keeps the CSS height cap so long CoT still inner-scrolls", () => {

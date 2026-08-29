@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   STICK_ESCAPE_MIN_DELTA_PX,
@@ -29,6 +32,7 @@ import {
   isConversationOpenFollowActive,
   transcriptStickIdentity,
   shouldFollowPinnedMediaReveal,
+  shouldSnapToTailOnTurnSettle,
   STICK_MEDIA_FOLLOW_DELAY_MS,
   STICK_MEDIA_HEIGHT_PX,
   STICK_OPEN_FOLLOW_MS,
@@ -222,6 +226,63 @@ describe("isConversationOpenFollowActive", () => {
         escaped: false,
       }),
     ).toBe(false);
+  });
+});
+
+describe("shouldSnapToTailOnTurnSettle", () => {
+  it("keeps a following viewport on the stream tail when the turn ends", () => {
+    expect(
+      shouldSnapToTailOnTurnSettle({
+        wasBusy: true,
+        nowBusy: false,
+        wasPinned: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not yank a user who left the tail mid-stream", () => {
+    expect(
+      shouldSnapToTailOnTurnSettle({
+        wasBusy: true,
+        nowBusy: false,
+        wasPinned: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not snap on send or while still streaming", () => {
+    expect(
+      shouldSnapToTailOnTurnSettle({
+        wasBusy: false,
+        nowBusy: true,
+        wasPinned: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSnapToTailOnTurnSettle({
+        wasBusy: true,
+        nowBusy: true,
+        wasPinned: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSnapToTailOnTurnSettle({
+        wasBusy: false,
+        nowBusy: false,
+        wasPinned: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("wires turn-settle tail snap in the transcript", () => {
+    const src = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        "../components/lobe-chat/ConversationThread.tsx",
+      ),
+      "utf8",
+    );
+    expect(src).toContain("shouldSnapToTailOnTurnSettle");
   });
 });
 

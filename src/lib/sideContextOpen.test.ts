@@ -15,6 +15,17 @@ describe("applySideContextOpen", () => {
     expect(r.state.tabs[0] && r.state.tabs[0].kind === "file" && r.state.tabs[0].path).toBe(
       "/a/b.ts",
     );
+    expect(r.state.treeVisible).toBe(false);
+  });
+
+  it("opening a file from chat hides the tree even if it was open", () => {
+    const start = { ...emptySideWorkbenchState(), treeVisible: true };
+    const r = applySideContextOpen(start, {
+      type: "file",
+      path: "/a/b.ts",
+      title: "b.ts",
+    });
+    expect(r.state.treeVisible).toBe(false);
   });
 
   it("forwards path:line focus onto the file tab", () => {

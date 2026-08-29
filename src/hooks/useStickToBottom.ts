@@ -455,6 +455,10 @@ export function useStickToBottom(
           clientHeight: el.clientHeight,
         })
       ) {
+        // Still a downward intent: WebView may rubber-band anyway, and the
+        // composer can grow during settle. Arm rebound snap to the new max.
+        armBottomIntent();
+        userIntentDownRef.current = true;
         e.preventDefault();
         return;
       }

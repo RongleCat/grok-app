@@ -45,7 +45,7 @@ describe("new-chat welcome intro", () => {
     );
     expect(riseKeyframes?.[1]?.trim()).toBe(baseTransform);
     expect(css).toMatch(
-      /\.composer-welcome-mark\s*\{[\s\S]*?width: 100%;[\s\S]*?max-width: 42rem;/,
+      /\.composer-welcome-mark\s*\{[\s\S]*?width: 100%;[\s\S]*?max-width: var\(--chat-width-max, 800px\);/,
     );
     expect(css).toMatch(
       /\.composer-welcome-mark\s*\{[\s\S]*?flex-direction: column;[\s\S]*?gap: 12px;/,
@@ -55,6 +55,18 @@ describe("new-chat welcome intro", () => {
     );
     expect(css).not.toMatch(
       /\.composer-welcome-prompt\s*\{[^}]*position:\s*absolute/s,
+    );
+    expect(css).toMatch(
+      /\.composer-wrap--welcome\s*\{[^}]*justify-content:\s*flex-end/s,
+    );
+    expect(css).toMatch(
+      /\.composer-wrap--welcome\s*\{[^}]*padding-bottom:\s*max\(72px, 14vh\)/s,
+    );
+    expect(css).toMatch(
+      /\.composer-wrap--welcome \.composer-welcome-mark\s*\{[^}]*flex:\s*1 1 auto/s,
+    );
+    expect(phoneCss).toMatch(
+      /\.app-shell--phone \.composer-wrap--welcome\s*\{[^}]*padding-top:\s*24px/s,
     );
     expect(css).not.toMatch(
       /\.composer-welcome-mark\.is-entering \.composer-welcome-prompt\s*\{[^}]*will-change:\s*clip-path/s,

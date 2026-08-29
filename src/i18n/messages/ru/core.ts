@@ -2,7 +2,7 @@
 export const ruCore = {
   "app.name": "Grok",
   "app.tagline": "MIT · Неофициально · Сестринский проект grok-go",
-  "app.versionFooter": "Grok v0.2.27 · MIT · Неофициально · Сестринский проект grok-go",
+  "app.versionFooter": "Grok v0.2.28 · MIT · Неофициально · Сестринский проект grok-go",
   "window.minimize": "Свернуть",
   "window.maximize": "Развернуть",
   "window.restore": "Восстановить",

@@ -27,80 +27,442 @@
 /*
  * Model menu is portaled to body — styles must target `.cmm__pop--model`
  * (panel), not `.cmm--model` (trigger root outside the portal).
- * Width follows content (max-content); only clamp to viewport.
+ * Compact dropdown: fixed width, ellipsis long ids (title still has the full
+ * string). Do not grow with the longest custom model id.
  */
-.cmm__pop--model {
-  width: max-content;
-  /* Beat default --menu-max-width (360px); inline floating style also clamps. */
-  max-width: min(720px, calc(100vw - 16px));
+.cmm__pop.cmm__pop--model {
+  width: 280px;
+  max-width: min(280px, calc(100vw - 16px));
+  max-height: min(52vh, calc(100vh - 88px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  transform-origin: bottom center;
+  animation: none;
+  opacity: 0;
+  transform: scaleY(0.2);
 }
 
-/* Root row: show full model id — panel grows with the longest value. */
+.cmm__pop.cmm__pop--model.is-in {
+  animation: cmm-pop-up var(--motion-pane) var(--motion-pane-ease) both;
+}
+
+.cmm__pop.cmm__pop--model.is-out {
+  animation: cmm-pop-up var(--motion-pane) var(--motion-pane-ease) reverse both;
+}
+
+@keyframes cmm-pop-up {
+  from {
+    opacity: 0;
+    transform: scaleY(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .cmm__pop--model .cmm__row {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px 10px;
   box-sizing: border-box;
 }
 
 .cmm__pop--model .cmm__row-val {
-  max-width: none;
-  flex: 0 0 auto;
+  max-width: 46%;
+  flex: 1 1 auto;
   justify-content: flex-end;
-  overflow: visible;
+  overflow: hidden;
   min-width: 0;
 }
 
 .cmm__pop--model .cmm__row-val-text {
-  overflow: visible;
-  text-overflow: clip;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Nested option titles: wrap long ids instead of clipping mid-token. */
 .cmm__pop--model .cmm__opt-title {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .cmm__pop--model .cmm__opt-desc {
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  display: none;
 }
 
-/* Nested list still fills the content-sized panel. */
-.cmm__pop--model .cmm__nested,
 .cmm__pop--model .cmm__opt,
 .cmm__pop--model .cmm__search,
-.cmm__pop--model .cmm__back {
-  min-width: 100%;
+.cmm__pop--flyout .cmm__opt,
+.cmm__pop--flyout .cmm__search {
+  min-width: 0;
+  width: 100%;
   box-sizing: border-box;
 }
 
-.cmm__row--sub {
-  padding-left: 20px;
-  font-size: 12px;
+.cmm__pop--model .cmm__opt,
+.cmm__pop--effort .cmm__opt,
+.cmm__pop--flyout .cmm__opt {
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+.cmm__pop--model .cmm__row.is-fly {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Combined model chip: Effort popover (Claude desktop) + Advanced. */
+.cmm__stage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 8px;
+}
+
+.cmm__simple-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cmm__hub-body {
+  display: none;
+  flex-direction: column;
+}
+
+.cmm__stage.is-hub .cmm__simple-body {
+  display: none;
+}
+
+.cmm__stage.is-hub .cmm__hub-body {
+  display: flex;
+  animation: cmm-hub-in var(--motion-pane) var(--motion-pane-ease);
+}
+
+.cmm__stage.is-hub .cmm__advanced {
+  order: -1;
+  align-self: flex-end;
+}
+
+@keyframes cmm-hub-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /*
- * Access menu (mode | permission) — dual-column sheet.
+ * Tertiary flyout sits on the same floating layer as the Advanced hub.
+ * Shadows are biased away from the hub so the two cards do not stain
+ * each other. Left placement pins the inner edge (CSS `right`) so the
+ * gap matches the right-side layout.
+ */
+.cmm__pop.cmm__pop--model.cmm__pop--hub,
+.cmm__pop.cmm__pop--portal.cmm__pop--flyout {
+  isolation: auto;
+  /* Downward-biased shadow so hub + flyout stay coplanar (no side stain). */
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, var(--text-primary) 10%, transparent) inset,
+    0 10px 22px color-mix(in srgb, #000 18%, transparent);
+}
+
+.cmm__pop.cmm__pop--portal.cmm__pop--flyout {
+  width: max-content;
+  min-width: 168px;
+  max-width: 220px;
+  padding: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  transform: translateZ(0);
+  animation: cmm-fly-in-right var(--motion-pane) var(--motion-pane-ease) both;
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, var(--text-primary) 10%, transparent) inset,
+    8px 10px 22px color-mix(in srgb, #000 16%, transparent);
+}
+
+.cmm__pop.cmm__pop--portal.cmm__pop--flyout[data-side="left"] {
+  animation-name: cmm-fly-in-left;
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, var(--text-primary) 10%, transparent) inset,
+    -8px 10px 22px color-mix(in srgb, #000 16%, transparent);
+}
+
+.cmm__pop.cmm__pop--flyout-models {
+  width: 220px;
+  min-width: 168px;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cmm__flyout-stack {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.cmm__flyout-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.cmm__pop--flyout .cmm__search {
+  padding: 2px 2px 6px;
+}
+
+.cmm__pop--flyout .cmm__search-input {
+  height: 28px;
+  font-size: 12px;
+}
+
+.cmm__pop--flyout .cmm__section {
+  padding: 4px 8px 2px;
+}
+
+.cmm__pop--flyout .cmm__opt-check {
+  margin-top: 0;
+}
+
+.cmm__pop--flyout .cmm__opt-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes cmm-fly-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(-6px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateZ(0);
+  }
+}
+
+@keyframes cmm-fly-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(6px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateZ(0);
+  }
+}
+
+.cmm__simple-head {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.cmm__simple-title {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cmm__simple-title.is-ultra,
+.cmm--extra .cmm__trigger,
+.cmm--extra.is-open .cmm__trigger,
+.cmm--extra .cmm__trigger:hover {
+  color: #c4a0ff;
+}
+
+[data-theme="light"] .cmm__simple-title.is-ultra,
+[data-theme="light"] .cmm--extra .cmm__trigger,
+[data-theme="light"] .cmm--extra.is-open .cmm__trigger,
+[data-theme="light"] .cmm--extra .cmm__trigger:hover {
+  color: #7c4dff;
+}
+
+.cmm__advanced {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  align-self: flex-end;
+  height: 28px;
+  padding: 0 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.cmm__advanced:hover {
+  color: var(--text-primary);
+}
+
+.cmm__row-val-text.is-ultra,
+.cmm__opt-title.is-ultra {
+  color: #c4a0ff;
+}
+
+[data-theme="light"] .cmm__row-val-text.is-ultra,
+[data-theme="light"] .cmm__opt-title.is-ultra {
+  color: #7c4dff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmm__stops-rail,
+  .cmm__stops-thumb,
+  .composer__model-bar {
+    transition: none;
+  }
+  .cmm__pop.cmm__pop--model,
+  .cmm__pop.cmm__pop--flyout,
+  .cmm__stage.is-hub .cmm__hub-body {
+    animation: none;
+  }
+  .cmm__advanced {
+    transition: none;
+  }
+}
+
+/* Claude desktop Effort popover: capsule track, dots, sliding pill. */
+.cmm__stops {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cmm__stops-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+@property --cmm-stop-t {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+.cmm__stops-rail {
+  --cmm-thumb: 28px;
+  position: relative;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  cursor: pointer;
+  touch-action: none;
+  transition: --cmm-stop-t var(--motion-pane) var(--motion-pane-ease);
+}
+
+.cmm__stops-dots {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 8px;
+  pointer-events: none;
+}
+
+.cmm__stops-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-primary) 28%, transparent);
+}
+
+.cmm__stops-dot.is-active {
+  opacity: 0;
+}
+
+.cmm__stops-dot.is-ultra {
+  background: #c4a0ff;
+}
+
+.cmm__stops-thumb {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  height: 20px;
+  width: var(--cmm-thumb);
+  border-radius: 12px;
+  background: var(--bg-elevated, #fff);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.16);
+  left: calc(
+    6px + (100% - 12px - var(--cmm-thumb)) * var(--cmm-stop-t, 0)
+  );
+  pointer-events: none;
+  transition: background var(--motion-fast) ease;
+}
+
+.cmm__stops-thumb.is-ultra {
+  background: #c4a0ff;
+}
+
+.cmm__stops-hit {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+
+[data-theme="light"] .cmm__stops-rail {
+  background: #e6e4df;
+}
+
+[data-theme="light"] .cmm__stops-thumb {
+  background: #fff;
+}
+
+[data-theme="light"] .cmm__stops-dot.is-ultra,
+[data-theme="light"] .cmm__stops-thumb.is-ultra {
+  background: #7c4dff;
+}
+
+/*
+ * Access menu (mode | permission) — compact dual-column dropdown.
  * Portaled panel class `.cmm__pop--access` (not trigger `.cmm--access`).
- * Double class beats `.cmm__pop { max-width: var(--menu-max-width) }`.
+ * Descriptions stay in the DOM for a11y; visually title-only.
  */
 .cmm__pop.cmm__pop--access {
-  width: min(560px, calc(100vw - 16px));
-  min-width: min(480px, calc(100vw - 16px));
-  max-width: min(600px, calc(100vw - 16px));
-  padding: 6px 8px 10px;
+  width: 300px;
+  min-width: 0;
+  max-width: min(300px, calc(100vw - 16px));
+  padding: 4px 6px 8px;
+  overflow-x: hidden;
 }
 
 .cmm__pop--access .cmm__header {
-  padding: 6px 10px 8px;
+  padding: 4px 8px 2px;
 }
 
 .cmm__pop--access .cmm__header-title {
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: 11px;
+  line-height: 1.3;
 }
 
 .cmm__access-cols {
@@ -130,36 +492,48 @@
 
 /* Compact option rows for dual columns */
 .cmm__opt--access {
-  gap: 8px;
-  padding: 8px 8px;
-  border-radius: 10px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 8px;
 }
 
 .cmm__opt--access .cmm__opt-icon {
-  margin-top: 2px;
+  margin-top: 0;
+}
+
+.cmm__opt--access .cmm__opt-icon svg {
+  width: 14px;
+  height: 14px;
 }
 
 .cmm__opt--access .cmm__opt-title {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 550;
   line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cmm__opt--access .cmm__opt-desc {
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--text-tertiary);
+  display: none;
 }
 
 .cmm__opt--access .cmm__opt-check {
-  margin-top: 2px;
+  margin-top: 0;
+}
+
+.cmm__opt--access .cmm__opt-check svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* Narrow viewports: stack mode above permission */
 @media (max-width: 520px) {
   .cmm__pop.cmm__pop--access {
-    width: min(360px, calc(100vw - 16px));
-    min-width: min(280px, calc(100vw - 16px));
+    width: min(280px, calc(100vw - 16px));
+    min-width: 0;
   }
 
   .cmm__access-cols {
@@ -173,12 +547,6 @@
     padding-top: 6px;
     padding-left: 4px;
   }
-}
-
-.cmm__nested {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .cmm__search {
@@ -247,18 +615,6 @@
   cursor: not-allowed;
 }
 
-.cmm__back {
-  padding: 8px 12px;
-  text-align: left;
-  font-size: 12px;
-  color: var(--text-tertiary);
-  border-radius: 8px;
-}
-
-.cmm__back:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
 
 .cmm__opt {
   display: flex;

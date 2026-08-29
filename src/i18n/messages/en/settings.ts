@@ -368,7 +368,7 @@ export const enSettings = {
   "settings.confirmExternalLinks": "Confirm before opening links",
   "settings.confirmExternalLinksDesc": "Ask before opening http(s) links from chat in your browser. Off by default.",
   "settings.messageActions": "Message actions",
-  "settings.messageActionsDesc": "Show Copy, Export, Regenerate, and Edit on hover, or keep them always visible (better for trackpads and accessibility)",
+  "settings.messageActionsDesc": "Copy, Export, Regenerate, and Edit stay visible by default. Switch to hover for a cleaner transcript.",
   "settings.messageActions.hover": "On hover",
   "settings.messageActions.always": "Always show",
   "settings.messageTimestamps": "Show message timestamps",

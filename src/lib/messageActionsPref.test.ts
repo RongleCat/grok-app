@@ -29,27 +29,27 @@ function memoryStorage(
 }
 
 describe("messageActionsPref", () => {
-  it("defaults to hover and rejects unknown values", () => {
-    expect(DEFAULT_MESSAGE_ACTIONS_VISIBILITY).toBe("hover");
-    expect(parseMessageActionsVisibility(null)).toBe("hover");
-    expect(parseMessageActionsVisibility("")).toBe("hover");
-    expect(parseMessageActionsVisibility("visible")).toBe("hover");
+  it("defaults to always and rejects unknown values", () => {
+    expect(DEFAULT_MESSAGE_ACTIONS_VISIBILITY).toBe("always");
+    expect(parseMessageActionsVisibility(null)).toBe("always");
+    expect(parseMessageActionsVisibility("")).toBe("always");
+    expect(parseMessageActionsVisibility("visible")).toBe("always");
     expect(isMessageActionsVisibility("hover")).toBe(true);
     expect(isMessageActionsVisibility("always")).toBe(true);
     expect(isMessageActionsVisibility("never")).toBe(false);
-    expect(MESSAGE_ACTIONS_VISIBILITIES).toEqual(["hover", "always"]);
+    expect(MESSAGE_ACTIONS_VISIBILITIES).toEqual(["always", "hover"]);
   });
 
   it("persists and reloads after simulated relaunch", () => {
     const storage = memoryStorage();
-    expect(loadMessageActionsVisibility(storage)).toBe("hover");
-    saveMessageActionsVisibility("always", storage);
-    expect(storage.data[MESSAGE_ACTIONS_VISIBILITY_STORAGE_KEY]).toBe(
-      "always",
-    );
     expect(loadMessageActionsVisibility(storage)).toBe("always");
     saveMessageActionsVisibility("hover", storage);
+    expect(storage.data[MESSAGE_ACTIONS_VISIBILITY_STORAGE_KEY]).toBe(
+      "hover",
+    );
     expect(loadMessageActionsVisibility(storage)).toBe("hover");
+    saveMessageActionsVisibility("always", storage);
+    expect(loadMessageActionsVisibility(storage)).toBe("always");
   });
 
   it("applyMessageActionsVisibility sets data-msg-actions", () => {

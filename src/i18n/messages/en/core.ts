@@ -2,7 +2,7 @@
 export const enCore = {
   "app.name": "Grok",
   "app.tagline": "MIT · Unofficial · Sister project grok-go",
-  "app.versionFooter": "Grok v0.2.27 · MIT · Unofficial · Sister project grok-go",
+  "app.versionFooter": "Grok v0.2.28 · MIT · Unofficial · Sister project grok-go",
   "window.minimize": "Minimize",
   "window.maximize": "Maximize",
   "window.restore": "Restore",

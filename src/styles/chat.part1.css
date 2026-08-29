@@ -622,7 +622,8 @@
   gap: 10px;
 }
 
-/* Empty / new session: logo + composer vertically centered in the stage */
+/* Empty / new session: composer sits in the lower half; SuperGrok + prompt
+ * stay centered in the free space above it (same idea as phone). */
 .composer-wrap--welcome {
   top: 0;
   bottom: 0;
@@ -633,9 +634,11 @@
   );
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 22px;
-  padding: 24px 16px;
+  padding: 24px 20px;
+  padding-top: max(48px, 8vh);
+  padding-bottom: max(72px, 14vh);
 }
 
 /* Wallpaper clicks pass through the wrap onto .lobe-chat (user-select:text).
@@ -650,25 +653,24 @@
   pointer-events: auto;
 }
 
-.composer-wrap--welcome .composer {
-  width: 100%;
+.composer-wrap--welcome .composer-welcome-mark {
+  flex: 1 1 auto;
+  min-height: 0;
+  justify-content: center;
 }
 
-/* Empty session keeps the classic ~42rem input; active threads match transcript. */
+.composer-wrap--welcome .composer,
 .composer-wrap--welcome .composer-stack {
-  max-width: 42rem;
-}
-
-.composer-wrap--welcome .composer-stack .composer,
-.composer-wrap--welcome > .composer {
-  max-width: 42rem;
+  width: 100%;
+  max-width: var(--chat-width-max, 800px);
+  flex-shrink: 0;
 }
 
 .composer-welcome-mark {
   pointer-events: none;
   position: relative;
   width: 100%;
-  max-width: 42rem;
+  max-width: var(--chat-width-max, 800px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -898,6 +900,8 @@
   flex-direction: column;
   align-items: stretch;
   gap: 0;
+  container-type: inline-size;
+  container-name: composer;
 }
 
 .composer-stack--with-context {

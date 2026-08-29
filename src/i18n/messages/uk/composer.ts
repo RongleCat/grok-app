@@ -212,6 +212,8 @@ export const ukComposer = {
   "composer.access": "Доступ",
   "composer.accessHint": "Як агент має працювати й отримувати схвалення?",
   "composer.advanced": "Додатково",
+  "composer.effortFaster": "Швидше",
+  "composer.effortSmarter": "Розумніше",
   "composer.permissionTitle": "Узгоджено з Grok Build: типово Ask; accept edits; session allow; dontAsk; обхід YOLO.",
   "composer.dropAttachTitle": "Прикріпити до повідомлення",
   "composer.dropAttachHint": "Перетягніть файли або теки — їх буде надіслано з наступним повідомленням",

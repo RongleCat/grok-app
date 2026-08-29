@@ -344,7 +344,7 @@ export const jaSettings = {
   "settings.confirmExternalLinks": "リンクを開く前に確認",
   "settings.confirmExternalLinksDesc": "チャットの http(s) リンクをブラウザで開く前に確認します。既定はオフ。",
   "settings.messageActions": "メッセージ操作",
-  "settings.messageActionsDesc": "コピー、書き出し、再生成、編集をホバー時に出すか、常に表示します（トラックパッドとアクセシビリティ向け）",
+  "settings.messageActionsDesc": "コピー、書き出し、再生成、編集は標準で常に表示します。すっきり見せたいときはホバー時に切り替えられます。",
   "settings.messageActions.hover": "ホバー時",
   "settings.messageActions.always": "常に表示",
   "settings.messageTimestamps": "メッセージの時刻を表示",

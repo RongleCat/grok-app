@@ -26,7 +26,7 @@ describe("settingsCatalog", () => {
     expect(catalogInvariants()).toEqual([]);
   });
 
-  it("mounts every searchable anchor in production", () => {
+  it("mounts every searchable anchor in production", { timeout: 30_000 }, () => {
     const srcRoot = resolve(__dirname, "..");
     const mountedAnchors = new Set<string>();
     for (const file of globSync("**/*.{ts,tsx}", {

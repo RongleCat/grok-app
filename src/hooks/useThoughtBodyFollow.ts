@@ -7,6 +7,7 @@ import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import {
   nextThoughtBodyEscaped,
   shouldFollowThoughtBody,
+  shouldPinThoughtBodyOnSettle,
   thoughtBodyFollowTop,
 } from "@/lib/thoughtBodyFollow";
 
@@ -20,13 +21,19 @@ export function useThoughtBodyFollow(input: {
   const escapedRef = useRef(false);
   const liveRef = useRef(input.live);
   const expandedRef = useRef(input.expanded);
+  const wasLiveRef = useRef(input.live);
   if (input.live && !liveRef.current) escapedRef.current = false;
   liveRef.current = input.live;
   expandedRef.current = input.expanded;
 
-  const follow = () => {
+  const pinToTail = () => {
     const el = ref.current;
     if (!el) return;
+    const top = thoughtBodyFollowTop(el.scrollHeight, el.clientHeight);
+    if (Math.abs(el.scrollTop - top) > 0.5) el.scrollTop = top;
+  };
+
+  const follow = () => {
     if (
       !shouldFollowThoughtBody({
         live: liveRef.current,
@@ -36,12 +43,24 @@ export function useThoughtBodyFollow(input: {
     ) {
       return;
     }
-    const top = thoughtBodyFollowTop(el.scrollHeight, el.clientHeight);
-    if (Math.abs(el.scrollTop - top) > 0.5) el.scrollTop = top;
+    pinToTail();
   };
 
   useLayoutEffect(() => {
-    follow();
+    const wasLive = wasLiveRef.current;
+    wasLiveRef.current = input.live;
+    if (
+      shouldPinThoughtBodyOnSettle({
+        wasLive,
+        live: input.live,
+        expanded: input.expanded,
+        escaped: escapedRef.current,
+      })
+    ) {
+      pinToTail();
+    } else {
+      follow();
+    }
     const el = ref.current;
     if (!el || !input.live || !input.expanded) return;
     const ro = new ResizeObserver(follow);

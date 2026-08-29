@@ -214,6 +214,8 @@ export const zhTWComposer = {
   "composer.access": "存取",
   "composer.accessHint": "應如何執行並核准 Agent 操作？",
   "composer.advanced": "進階",
+  "composer.effortFaster": "更快",
+  "composer.effortSmarter": "更聰明",
   "composer.permissionTitle": "對齊 Grok Build：default Ask / acceptEdits / 對話允許 / dontAsk / YOLO bypass。",
   "composer.dropAttachTitle": "附加到訊息",
   "composer.dropAttachHint": "拖入檔案或資料夾，將隨下一則訊息傳給 Agent",

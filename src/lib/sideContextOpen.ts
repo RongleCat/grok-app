@@ -44,7 +44,12 @@ export function applySideContextOpen(
       line: target.line,
       column: target.column,
     });
-    return { state: next, needAsideOpen: true, kind: "file" };
+    // Preview the file; do not steal width with the tree. User can toggle it.
+    return {
+      state: { ...next, treeVisible: false },
+      needAsideOpen: true,
+      kind: "file",
+    };
   }
   if (target.type === "url") {
     const next = openSideTab(state, "browser", {

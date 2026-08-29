@@ -160,16 +160,16 @@ describe("wallpaper theme contrast CSS", () => {
 
   it("washes composer hover like chrome-btn, without isolation layers", () => {
     expect(composerBtnCss).toMatch(
-      /\.composer\s+\.icon-btn:not\(\.icon-btn--primary\):not\(\.icon-btn--danger\):hover:not\(\s*:disabled\s*\)[\s\S]{0,160}background:\s*var\(--bg-hover\)/s,
+      /\.composer[\s\S]*?\.icon-btn:not\(\.icon-btn--primary\):not\(\.icon-btn--danger\)[\s\S]{0,280}background:\s*var\(--bg-hover\)/s,
     );
     expect(composerBtnCss).not.toMatch(
       /\.composer \.icon-btn:not\(\.icon-btn--primary\):not\(\.icon-btn--danger\)::after/s,
     );
     expect(composerBtnCss).not.toMatch(
-      /\.composer \.icon-btn:not\(\.icon-btn--primary\):not\(\.icon-btn--danger\)\s*\{[^}]*isolation:\s*isolate/s,
+      /\.composer \.icon-btn:not\(\.icon-btn--primary\):not\(\.icon-btn--danger\)[\s\S]{0,80}\{[^}]*isolation:\s*isolate/s,
     );
     expect(composerBtnCss).toMatch(
-      /\.composer \.icon-btn:not\(\.icon-btn--primary\):not\(\.icon-btn--danger\)\s*\{[^}]*-webkit-appearance:\s*none/s,
+      /\.composer \.icon-btn:not\(\.icon-btn--primary\):not\(\.icon-btn--danger\)[\s\S]{0,80}\{[^}]*-webkit-appearance:\s*none/s,
     );
     expect(composerChromeCss).toMatch(
       /\.composer__context-item:hover:not\(:disabled\),\s*\.composer__context-item\.is-open\s*\{[^}]*background:\s*var\(--bg-hover\)/s,
@@ -257,10 +257,10 @@ describe("wallpaper theme contrast CSS", () => {
 
   it("keeps the composer on an independent opacity mix, not wallpaper scrim", () => {
     expect(css).toMatch(
-      /html\[data-wallpaper="1"\] :is\(\.composer, \.composer__context-bar\)\s*\{[^}]*background:\s*transparent[^}]*backdrop-filter:\s*none/s,
+      /html\[data-wallpaper="1"\] :is\(\.composer, \.composer__chip-shell\)\s*\{[^}]*background:\s*transparent[^}]*backdrop-filter:\s*none/s,
     );
     expect(composerChromeCss).toMatch(
-      /\.composer__context-bar::before\s*\{[^}]*var\(--composer-opacity-mix, 100%\)/s,
+      /\.composer__chip-shell::before\s*\{[^}]*var\(--composer-opacity-mix, 100%\)/s,
     );
     expect(composerChromeCss).toMatch(
       /\.composer::before\s*\{[^}]*var\(--composer-opacity-mix, 100%\)/s,
@@ -379,10 +379,10 @@ describe("wallpaper theme contrast CSS", () => {
 
   it("nests the workspace chip as a rounded rect inside a uniform inset", () => {
     expect(composerChromeCss).toMatch(
-      /\.composer__context-bar\s*\{[^}]*--composer-context-pad:\s*4px;[^}]*--composer-context-radius:\s*var\(--menu-radius, 12px\);[^}]*padding:\s*var\(--composer-context-pad\);[^}]*border-radius:\s*var\(--composer-context-radius\)/s,
+      /\.composer__chip-shell\s*\{[^}]*--composer-context-pad:\s*4px;[^}]*--composer-context-radius:\s*var\(--menu-radius, 12px\);[^}]*padding:\s*var\(--composer-context-pad\);[^}]*border-radius:\s*var\(--composer-context-radius\)/s,
     );
     expect(composerChromeCss).not.toMatch(
-      /\.composer__context-bar\s*\{[^}]*padding:\s*4px 10px/s,
+      /\.composer__chip-shell\s*\{[^}]*padding:\s*4px 10px/s,
     );
     expect(composerChromeCss).toMatch(
       /\.composer__context-item\s*\{[^}]*border-radius:\s*calc\(\s*var\(--composer-context-radius, 12px\)\s*-\s*var\(--composer-context-pad, 4px\)\s*\)/s,

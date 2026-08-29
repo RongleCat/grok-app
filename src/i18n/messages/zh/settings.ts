@@ -368,7 +368,7 @@ export const zhSettings = {
   "settings.confirmExternalLinks": "打开链接前确认",
   "settings.confirmExternalLinksDesc": "从聊天打开 http(s) 链接前先询问。默认关闭，减少打扰。",
   "settings.messageActions": "消息操作按钮",
-  "settings.messageActionsDesc": "复制、导出、重新生成、编辑：悬停显示，或始终可见（触控板与无障碍更友好）",
+  "settings.messageActionsDesc": "复制、导出、重新生成、编辑默认始终显示。可改为悬停显示，对话更干净。",
   "settings.messageActions.hover": "悬停显示",
   "settings.messageActions.always": "始终显示",
   "settings.messageTimestamps": "显示消息时间戳",

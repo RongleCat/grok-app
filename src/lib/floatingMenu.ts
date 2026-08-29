@@ -31,6 +31,8 @@ export type FloatingAlign = "start" | "end";
 export interface FloatingPos {
   left: number;
   top: number;
+  /** Distance from viewport bottom; when set, `top` is unused. */
+  bottom?: number;
   /** Fixed width when not fit-content; 0 means content-sized. */
   width: number;
   placeAbove: boolean;
@@ -67,6 +69,8 @@ export interface ComputeFloatingOptions {
   align?: FloatingAlign;
   gap?: number;
   margin?: number;
+  /** Pin the panel's bottom edge above the trigger (grows upward). */
+  anchor?: "top" | "bottom";
 }
 
 export function computeFloatingPos(
@@ -122,6 +126,20 @@ export function computeFloatingPos(
     align === "end" ? trigger.right - width : trigger.left;
   left = Math.max(margin, Math.min(left, vw - width - margin));
 
+  if (opts.anchor === "bottom") {
+    return {
+      left,
+      top: 0,
+      bottom: Math.max(margin, vh - trigger.top + gap),
+      width: fitContent ? 0 : width,
+      placeAbove: false,
+      maxHeight,
+      maxWidth,
+      fitContent,
+      align,
+    };
+  }
+
   if (placeAbove) {
     return {
       left,
@@ -150,6 +168,7 @@ function posEqual(a: FloatingPos, b: FloatingPos): boolean {
   return (
     a.left === b.left &&
     a.top === b.top &&
+    a.bottom === b.bottom &&
     a.width === b.width &&
     a.placeAbove === b.placeAbove &&
     a.maxHeight === b.maxHeight &&
@@ -178,11 +197,15 @@ export function floatingStyle(
   const base: CSSProperties = {
     position: "fixed",
     left: pos.left,
-    top: pos.top,
     maxHeight: pos.maxHeight,
     maxWidth: pos.maxWidth,
     zIndex: FLOATING_MENU_Z_INDEX,
   };
+  if (typeof pos.bottom === "number") {
+    base.bottom = pos.bottom;
+  } else {
+    base.top = pos.top;
+  }
   if (pos.fitContent) {
     base.width = "max-content";
     if (extras?.minWidth) base.minWidth = extras.minWidth;
@@ -209,6 +232,8 @@ export interface UseFloatingMenuOptions {
   open: boolean;
   /** Trigger element used for positioning. */
   triggerRef: RefObject<HTMLElement | null>;
+  /** If set, measure this box instead of the click trigger (e.g. chip shell). */
+  positionRef?: RefObject<HTMLElement | null>;
   /** Panel element (for outside-click + ignore + overflow clamp). */
   panelRef: RefObject<HTMLElement | null>;
   /** Optional extra roots that count as "inside" (e.g. trigger wrapper). */
@@ -224,6 +249,9 @@ export interface UseFloatingMenuOptions {
   fitContent?: boolean;
   estHeight?: number;
   gap?: number;
+  /** Pin panel bottom above the trigger so height changes grow upward. */
+  anchor?: "top" | "bottom";
+  margin?: number;
   /**
    * When false, do not apply the placeAbove `translateY(-100%)` positioning
    * transform. Needed when the panel itself animates transform.
@@ -239,6 +267,7 @@ export interface UseFloatingMenuOptions {
 export function useFloatingMenu({
   open,
   triggerRef,
+  positionRef,
   panelRef,
   roots = [],
   onClose,
@@ -250,6 +279,8 @@ export function useFloatingMenu({
   fitContent = true,
   estHeight = 240,
   gap = 6,
+  anchor = "top",
+  margin: marginOpt = 8,
   anchorTransform = true,
   deps = [],
 }: UseFloatingMenuOptions): {
@@ -271,6 +302,8 @@ export function useFloatingMenu({
     placement,
     align,
     gap,
+    anchor,
+    margin: marginOpt,
   });
   optsRef.current = {
     width,
@@ -281,6 +314,8 @@ export function useFloatingMenu({
     placement,
     align,
     gap,
+    anchor,
+    margin: marginOpt,
   };
 
   const applyPos = (next: FloatingPos) => {
@@ -288,13 +323,13 @@ export function useFloatingMenu({
   };
 
   const update = (markSettled: boolean) => {
-    const el = triggerRef.current;
+    const el = positionRef?.current ?? triggerRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
     setTriggerW(r.width);
     const o = optsRef.current;
     const gap = o.gap ?? 6;
-    const margin = 8;
+    const margin = o.margin ?? 8;
     let next = computeFloatingPos(r, {
       width: o.width,
       minWidth: o.minWidth,
@@ -304,6 +339,8 @@ export function useFloatingMenu({
       placement: o.placement,
       align: o.align,
       gap,
+      margin,
+      anchor: o.anchor,
     });
 
     // Refine with real panel box once mounted (absolute top when above; clamp left).
@@ -318,7 +355,19 @@ export function useFloatingMenu({
       const ph = panel.offsetHeight || panel.getBoundingClientRect().height;
       const pw = panel.offsetWidth || panel.getBoundingClientRect().width;
 
-      if (next.placeAbove || o.placement === "up") {
+      if (o.anchor === "bottom") {
+        const vh =
+          typeof globalThis.innerHeight === "number"
+            ? globalThis.innerHeight
+            : 768;
+        next = {
+          ...next,
+          top: 0,
+          bottom: Math.max(margin, vh - r.top + gap),
+          placeAbove: false,
+          maxHeight: Math.max(120, r.top - gap - margin),
+        };
+      } else if (next.placeAbove || o.placement === "up") {
         /**
          * Prefer flush above the trigger:
          *   top = trigger.top - gap - panelHeight
@@ -389,7 +438,7 @@ export function useFloatingMenu({
     // Re-anchor when either anchor or content changes size. Pane dragging can
     // resize the trigger without resizing the window.
     let ro: ResizeObserver | null = null;
-    const trigger = triggerRef.current;
+    const trigger = positionRef?.current ?? triggerRef.current;
     const panel = panelRef.current;
     if (typeof ResizeObserver !== "undefined" && (trigger || panel)) {
       ro = new ResizeObserver(() => update(true));
@@ -414,6 +463,8 @@ export function useFloatingMenu({
     fitContent,
     estHeight,
     gap,
+    anchor,
+    marginOpt,
     ...deps,
   ]);
 

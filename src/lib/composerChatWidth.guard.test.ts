@@ -1,7 +1,7 @@
 /**
- * Active-session composer shares Appearance chat reading width
- * (`--chat-width-max` / html[data-chat-width]). Welcome/empty session
- * keeps the classic 42rem input.
+ * Composer shares Appearance chat reading width
+ * (`--chat-width-max` / html[data-chat-width]) for both welcome/empty
+ * sessions and active threads.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -69,16 +69,16 @@ describe("composer tracks chat reading width", () => {
     );
   });
 
-  it("welcome/empty session keeps classic 42rem composer width", () => {
+  it("welcome/empty session uses the same --chat-width-max as active", () => {
     const part1 = stripComments(
       readFileSync(join(STYLES, "chat.part1.css"), "utf8"),
     );
     const stack = part1.match(
       /\.composer-wrap--welcome\s+\.composer-stack\s*\{[^}]*\}/,
     );
-    expect(stack?.[0]).toMatch(/max-width:\s*42rem/);
-    expect(part1).toMatch(
-      /\.composer-wrap--welcome\s+\.composer-stack\s+\.composer\s*,\s*\.composer-wrap--welcome\s*>\s*\.composer\s*\{[^}]*max-width:\s*42rem/s,
+    expect(stack?.[0]).toMatch(/max-width:\s*var\(--chat-width-max/);
+    expect(part1).not.toMatch(
+      /\.composer-wrap--welcome[^{]*\{[^}]*max-width:\s*42rem/s,
     );
   });
 

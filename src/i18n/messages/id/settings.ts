@@ -344,7 +344,7 @@ export const idSettings = {
   "settings.confirmExternalLinks": "Konfirmasi sebelum membuka tautan",
   "settings.confirmExternalLinksDesc": "Tanya sebelum membuka tautan http(s) dari obrolan di peramban. Mati secara bawaan.",
   "settings.messageActions": "Tindakan pesan",
-  "settings.messageActionsDesc": "Tampilkan Salin, Ekspor, Hasilkan ulang, dan Sunting saat diarahkan, atau biarkan selalu terlihat (lebih baik untuk trackpad dan aksesibilitas)",
+  "settings.messageActionsDesc": "Salin, Ekspor, Hasilkan ulang, dan Sunting tetap terlihat secara default. Ganti ke hover agar transkrip lebih bersih.",
   "settings.messageActions.hover": "Saat diarahkan",
   "settings.messageActions.always": "Selalu tampilkan",
   "settings.messageTimestamps": "Tampilkan stempel waktu pesan",

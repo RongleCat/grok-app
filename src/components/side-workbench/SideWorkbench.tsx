@@ -303,18 +303,19 @@ export function SideWorkbench({
   }, [plan?.visible, planFocusKey, autoOpenPlanTab]);
 
   // Context open → ensure matching SideTab exists for file requests.
-  // Do not force the file tree open; user toggles it from chrome.
+  // Opening a file hides the tree so the preview is full-width.
   useEffect(() => {
     if (!openRequest) return;
     if (openRequest.type === "file" && openRequest.path) {
-      setState(
-        openSideTab(state, "file", {
+      setState({
+        ...openSideTab(state, "file", {
           path: openRequest.path,
           name: openRequest.title,
           line: openRequest.line,
           column: openRequest.column,
         }),
-      );
+        treeVisible: false,
+      });
     } else if (openRequest.type === "url" && openRequest.url) {
       setState(
         openSideTab(state, "browser", {

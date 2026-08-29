@@ -71,6 +71,13 @@ describe("sidePickerOptions", () => {
 });
 
 describe("openSideTab / close / activate", () => {
+  it("defaults the file tree hidden so a file opens full-width", () => {
+    const s = emptySideWorkbenchState();
+    expect(s.treeVisible).toBe(false);
+    const next = openSideTab(s, "file", { path: "a.py", name: "a.py" });
+    expect(next.treeVisible).toBe(false);
+  });
+
   it("picker Files reveals the project tree", () => {
     let s = emptySideWorkbenchState();
     s = { ...s, treeVisible: false };

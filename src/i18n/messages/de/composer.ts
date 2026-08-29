@@ -212,6 +212,8 @@ export const deComposer = {
   "composer.access": "Zugriff",
   "composer.accessHint": "Wie soll der Agent laufen und Freigabe holen?",
   "composer.advanced": "Erweitert",
+  "composer.effortFaster": "Schneller",
+  "composer.effortSmarter": "Klüger",
   "composer.permissionTitle": "Abgestimmt auf Grok Build: Standard Nachfragen; Änderungen akzeptieren; Sitzung erlauben; dontAsk; YOLO-Bypass.",
   "composer.dropAttachTitle": "An Nachricht anhängen",
   "composer.dropAttachHint": "Dateien oder Ordner ablegen — sie gehen mit der nächsten Nachricht",

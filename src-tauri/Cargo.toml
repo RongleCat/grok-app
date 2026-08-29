@@ -1,6 +1,6 @@
 [package]
 name = "grok-app"
-version = "0.2.27"
+version = "0.2.28"
 description = "Grok — desktop workbench for Grok Build CLI"
 authors = ["RongleCat"]
 edition = "2021"

@@ -215,6 +215,8 @@ export const enComposer = {
   "composer.access": "Access",
   "composer.accessHint": "How should the agent run and get approval?",
   "composer.advanced": "Advanced",
+  "composer.effortFaster": "Faster",
+  "composer.effortSmarter": "Smarter",
   "composer.permissionTitle": "Aligned with Grok Build: default Ask; accept edits; session allow; dontAsk; YOLO bypass.",
   "composer.dropAttachTitle": "Attach to message",
   "composer.dropAttachHint": "Drop files or folders — they will be sent with your next message",

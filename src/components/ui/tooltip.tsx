@@ -178,6 +178,13 @@ export function Tip({
 
   useEffect(() => () => clearTimers(), [clearTimers]);
 
+  useEffect(() => {
+    if (!disabled) return;
+    clearTimers();
+    setOpen(false);
+    setSettled(false);
+  }, [disabled, clearTimers]);
+
   // After mount / content change: measure real tip size and clamp into viewport.
   useLayoutEffect(() => {
     if (!open) {

@@ -6,18 +6,36 @@
   max-width: none;
 }
 
-/* Desktop composer: project / default workspace / branch bar above input.
- * Rounded rect, not a stadium: shell radius stays below half the bar
+/* Desktop composer chrome: workspace cluster left, model/effort right.
+ * Each cluster is a content-sized chip-shell — not a full-width bar. */
+.composer__chrome {
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.composer__chrome > * {
+  pointer-events: auto;
+}
+
+/* Rounded rect, not a stadium: shell radius stays below half the bar
  * height and matches --menu-radius (dropdown). Inner chip = shell − pad
  * so hover fill is concentric with the outer corner. */
-.composer__context-bar {
+.composer__chip-shell {
   --composer-context-pad: 4px;
   --composer-context-radius: var(--menu-radius, 12px);
   pointer-events: auto;
   display: flex;
   align-items: center;
   gap: var(--composer-context-pad);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
   min-height: calc(28px + 2 * var(--composer-context-pad));
   padding: var(--composer-context-pad);
   border-radius: var(--composer-context-radius);
@@ -28,7 +46,7 @@
   color: var(--text-secondary);
 }
 
-.composer__context-bar::before {
+.composer__chip-shell::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -42,9 +60,37 @@
   z-index: 0;
 }
 
-.composer__context-bar > * {
+.composer__chip-shell > * {
   position: relative;
   z-index: 1;
+}
+
+.composer__context-bar {
+  flex: 0 1 auto;
+}
+
+.composer__model-bar {
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: 100%;
+  margin-left: auto;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
+.composer__model-bar:has(.is-open) {
+  width: 280px;
+  max-width: 280px;
+}
+
+.composer__chip-shell .cmm__trigger {
+  border-radius: calc(
+    var(--composer-context-radius, 12px) - var(--composer-context-pad, 4px)
+  );
+}
+
+.composer__model-bar .cmm__trigger {
+  justify-content: center;
 }
 
 /* Session / workspace change chips live in the context bar (not the input). */
@@ -52,7 +98,6 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-left: auto;
   flex-shrink: 0;
   min-width: 0;
 }
@@ -68,7 +113,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-[data-theme="light"] .composer__context-bar {
+[data-theme="light"] .composer__chip-shell {
   background: transparent;
   border-color: color-mix(in srgb, var(--border-subtle) 80%, transparent);
 }

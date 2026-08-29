@@ -212,6 +212,8 @@ export const taComposer = {
   "composer.access": "அணுகல்",
   "composer.accessHint": "முகவர் எவ்வாறு இயங்கி ஒப்புதல் பெற வேண்டும்?",
   "composer.advanced": "மேம்பட்டவை",
+  "composer.effortFaster": "வேகமாக",
+  "composer.effortSmarter": "புத்திசாலித்தனமாக",
   "composer.permissionTitle": "Grok Build உடன் சீரமைக்கப்பட்டது: இயல்புநிலை கேளுங்கள்; திருத்தங்களை ஏற்றுக்கொள்; அமர்வு அனுமதி; dontAsk; YOLO பைபாஸ்.",
   "composer.dropAttachTitle": "செய்தியுடன் இணைக்கவும்",
   "composer.dropAttachHint": "கோப்புகள் அல்லது கோப்புறைகளை கைவிடவும் - அவை உங்கள் அடுத்த செய்தியுடன் அனுப்பப்படும்",

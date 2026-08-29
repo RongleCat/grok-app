@@ -344,7 +344,7 @@ export const itSettings = {
   "settings.confirmExternalLinks": "Conferma prima di aprire i link",
   "settings.confirmExternalLinksDesc": "Chiedi prima di aprire i link http(s) dalla chat nel browser. Disattivato per impostazione predefinita.",
   "settings.messageActions": "Azioni messaggio",
-  "settings.messageActionsDesc": "Mostra Copia, Esporta, Rigenera e Modifica al passaggio, oppure tienile sempre visibili (meglio per trackpad e accessibilità)",
+  "settings.messageActionsDesc": "Copia, Esporta, Rigenera e Modifica restano visibili per impostazione predefinita. Scegli «Al passaggio» per una trascrizione più pulita.",
   "settings.messageActions.hover": "Al passaggio",
   "settings.messageActions.always": "Mostra sempre",
   "settings.messageTimestamps": "Mostra timestamp dei messaggi",

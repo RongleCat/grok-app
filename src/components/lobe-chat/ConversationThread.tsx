@@ -101,6 +101,7 @@ import { useStickToBottom } from "@/hooks/useStickToBottom";
 import {
   shouldBumpStickOnBusyEdge,
   shouldFollowPinnedMediaReveal,
+  shouldSnapToTailOnTurnSettle,
   stabilizeStickUserId,
   transcriptStickIdentity,
 } from "@/lib/stickToBottom";
@@ -2002,6 +2003,33 @@ export function ConversationThread({
     conversationKey: conversationKeyForStick,
     forceStickKey,
   });
+
+  /**
+   * Following through a live turn: thinking / work collapse on settle can
+   * drop pin and window from the top. Snap once if we were still on the
+   * tail. A user who left the bottom mid-stream is not yanked.
+   */
+  const pinnedThroughTurnRef = useRef(true);
+  if (turnBusyForStick) pinnedThroughTurnRef.current = isPinnedRef.current;
+  const prevBusyForSettleRef = useRef(turnBusyForStick);
+  useLayoutEffect(() => {
+    const wasBusy = prevBusyForSettleRef.current;
+    prevBusyForSettleRef.current = turnBusyForStick;
+    if (
+      !shouldSnapToTailOnTurnSettle({
+        wasBusy,
+        nowBusy: turnBusyForStick,
+        wasPinned: pinnedThroughTurnRef.current,
+      })
+    ) {
+      return;
+    }
+    scrollToBottom("instant");
+    const raf = requestAnimationFrame(() => {
+      if (isPinnedRef.current) scrollToBottom("instant");
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [turnBusyForStick, scrollToBottom, isPinnedRef]);
 
   const [backBottomAlways, setBackBottomAlways] = useState(() =>
     loadBackBottomAlwaysPref(),

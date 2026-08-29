@@ -19,7 +19,7 @@
 use std::os::windows::ffi::OsStrExt;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use tauri::WebviewWindow;
+use tauri::{Manager, WebviewWindow};
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HANDLE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::Com::{
@@ -33,10 +33,10 @@ use windows::Win32::UI::Shell::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallWindowProcW, DrawMenuBar, GetClassNameW, GetPropW, GetWindow, GetWindowLongPtrW,
-    GetWindowLongW, IsChild, IsWindowVisible, RemovePropW, SendMessageW, SetClassLongPtrW,
-    SetMenu, SetPropW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos, GCLP_HICON, GCLP_HICONSM,
-    GWLP_HWNDPARENT, GWLP_WNDPROC, GWL_EXSTYLE, GWL_STYLE, GW_CHILD, GW_HWNDNEXT, GW_OWNER,
-    HICON, HWND_NOTOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+    GetWindowLongW, IsChild, IsWindowVisible, RemovePropW, SendMessageW, SetClassLongPtrW, SetMenu,
+    SetPropW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos, GCLP_HICON, GCLP_HICONSM,
+    GWLP_HWNDPARENT, GWLP_WNDPROC, GWL_EXSTYLE, GWL_STYLE, GW_CHILD, GW_HWNDNEXT, GW_OWNER, HICON,
+    HWND_NOTOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
     WA_ACTIVE, WA_CLICKACTIVE, WM_ACTIVATE, WM_NCDESTROY, WM_SETFOCUS, WM_SETICON, WNDPROC,
     WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
 };
@@ -117,7 +117,11 @@ fn apply_exe_window_icons(hwnd: HWND) {
         let Ok(exe) = std::env::current_exe() else {
             return (0, 0);
         };
-        let wide: Vec<u16> = exe.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        let wide: Vec<u16> = exe
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
         let mut big = HICON::default();
         let mut small = HICON::default();
         unsafe {
@@ -134,7 +138,11 @@ fn apply_exe_window_icons(hwnd: HWND) {
             }
             (
                 if big.0.is_null() { 0 } else { big.0 as isize },
-                if small.0.is_null() { 0 } else { small.0 as isize },
+                if small.0.is_null() {
+                    0
+                } else {
+                    small.0 as isize
+                },
             )
         }
     });
@@ -144,11 +152,11 @@ fn apply_exe_window_icons(hwnd: HWND) {
     unsafe {
         // WM_SETICON wParam: ICON_SMALL=0, ICON_BIG=1.
         if big != 0 {
-            let _ = SendMessageW(hwnd, WM_SETICON, WPARAM(1), LPARAM(big));
+            let _ = SendMessageW(hwnd, WM_SETICON, Some(WPARAM(1)), Some(LPARAM(big)));
             let _ = SetClassLongPtrW(hwnd, GCLP_HICON, big);
         }
         if small != 0 {
-            let _ = SendMessageW(hwnd, WM_SETICON, WPARAM(0), LPARAM(small));
+            let _ = SendMessageW(hwnd, WM_SETICON, Some(WPARAM(0)), Some(LPARAM(small)));
             let _ = SetClassLongPtrW(hwnd, GCLP_HICONSM, small);
         }
     }

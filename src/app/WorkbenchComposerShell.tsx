@@ -12,7 +12,7 @@ import { ChatRefChip } from "@/components/ChatRefChip";
 import { ComposerAtPanel } from "@/components/ComposerAtPanel";
 import { ComposerClearDraftButton, ComposerDraftStats, ComposerSendCluster } from "@/components/ComposerDraftChrome";
 import { ComposerDraftEditor } from "@/components/ComposerDraftEditor";
-import { ComposerAccessMenu, ComposerModelMenu } from "@/components/ComposerModelMenu";
+import { ComposerAccessMenu } from "@/components/ComposerModelMenu";
 import { ComposerPlusPanel } from "@/components/ComposerPlusPanel";
 import { ComposerQuoteCards } from "@/components/ComposerQuoteCards";
 import { ContextUsageChip } from "@/components/ContextUsageChip";
@@ -56,9 +56,8 @@ export function WorkbenchComposerShell(p: WorkbenchComposerShellProps) {
     attachScopeLabel,
     attachableSessions,
     attachments,
-    availableModels,
+
     canGuideQueuedMessage,
-    channelEffortOptions,
     chatAttachments,
     clearSlashFilters,
     closeAttachChat,
@@ -77,31 +76,23 @@ export function WorkbenchComposerShell(p: WorkbenchComposerShellProps) {
     promptHistoryIndexRef,
     slashFilterQuery,
     composerPlusTriggerRef,
-    composerProviderInputs,
     composerShellRef,
     composerSpellcheck,
     connecting,
     contextUsageDisplay,
-    currentModelWindow,
-    customRouteActive,
     cycleAttachedChatScope,
     dragZone,
     effectiveCanSend,
     effectiveCanStop,
-    effort,
     goalMode,
     guideQueuedMessage,
     guidingQueueItemId,
-    handleContextWindow,
-    handleEffortPick,
-    handleModelPick,
     layout,
     liveAt,
     liveSlash,
     liveVoiceOpen,
     locale,
     mode,
-    modelId,
     onComposerContextMenu,
     onComposerDraftChange,
     onComposerKeyDown,
@@ -125,8 +116,6 @@ export function WorkbenchComposerShell(p: WorkbenchComposerShellProps) {
     promptHistoryPos,
     promptHistoryScope,
     promptHistoryUnfilteredCount,
-    providerActiveId,
-    providerActiveSource,
     queueEditItemId,
     queuePreviewLabels,
     quotes,
@@ -665,84 +654,6 @@ export function WorkbenchComposerShell(p: WorkbenchComposerShellProps) {
                 ) : null}
                 {!phoneLayout ? (
                   <>
-                    {goalMode ? (
-                      <Tip label={tr("composer.goalHint")}>
-                        <button
-                          type="button"
-                          className="chip chip--goal"
-                          onClick={() => setGoalMode(false)}
-                          aria-label={tr("composer.goalClear")}
-                        >
-                          <IconImagine size={14} />
-                          <span className="chip__label">
-                            {tr("composer.goal")}
-                          </span>
-                          <IconClose size={12} />
-                        </button>
-                      </Tip>
-                    ) : null}
-                    {sessionJsonSchema ? (
-                      <Tip
-                        label={sessionJsonSchema}
-                        className="ui-tip--wrap ui-tip--mono"
-                      >
-                        <button
-                          type="button"
-                          className="icon-btn chip--json-schema is-active"
-                          onClick={() => {
-                            setJsonSchemaDraft(sessionJsonSchema);
-                            setShowJsonSchemaModal(true);
-                          }}
-                          aria-label={tr("composer.jsonSchemaActive")}
-                        >
-                          <IconCode size={16} />
-                        </button>
-                      </Tip>
-                    ) : null}
-                    <ComposerModelMenu
-                      locale={locale}
-                      modelId={modelId}
-                      effort={effort}
-                      models={availableModels}
-                      providers={composerProviderInputs}
-                      activeSource={providerActiveSource}
-                      activeProviderId={providerActiveId}
-                      channelEfforts={channelEffortOptions}
-                      contextWindow={currentModelWindow}
-                      contextWindowEditable={customRouteActive}
-                      onContextWindow={handleContextWindow}
-                      labels={{
-                        model: tr("composer.model"),
-                        modelGroupOfficial: tr("composer.modelGroupOfficial"),
-                        modelViaProvider: tr("composer.modelViaProvider"),
-                        effort: tr("composer.effort"),
-                        effortHigh: tr("effort.high"),
-                        effortMedium: tr("effort.medium"),
-                        effortLow: tr("effort.low"),
-                        effortXhigh: tr("effort.xhigh"),
-                        effortMax: tr("effort.max"),
-                        modelSearchPlaceholder: tr(
-                          "composer.modelSearchPlaceholder",
-                        ),
-                        modelSearchEmpty: tr("composer.modelSearchEmpty"),
-                        contextWindow: tr("composer.contextWindow"),
-                        contextWindowOfficial: tr(
-                          "composer.contextWindowOfficial",
-                        ),
-                        contextWindowCustom: tr("composer.contextWindowCustom"),
-                        contextWindowPlaceholder: tr(
-                          "composer.contextWindowPlaceholder",
-                        ),
-                        contextWindowSave: tr("composer.contextWindowSave"),
-                        contextWindowOfficialHint: tr(
-                          "composer.contextWindowOfficialHint",
-                        ),
-                      }}
-                      onModelPick={(pick) => {
-                        void handleModelPick(pick);
-                      }}
-                      onEffort={handleEffortPick}
-                    />
                     <ComposerAccessMenu
                       mode={mode}
                       policy={policy}
@@ -795,6 +706,40 @@ export function WorkbenchComposerShell(p: WorkbenchComposerShellProps) {
                         applyPermissionPolicy(v);
                       }}
                     />
+                    {goalMode ? (
+                      <Tip label={tr("composer.goalHint")}>
+                        <button
+                          type="button"
+                          className="chip chip--goal"
+                          onClick={() => setGoalMode(false)}
+                          aria-label={tr("composer.goalClear")}
+                        >
+                          <IconImagine size={14} />
+                          <span className="chip__label">
+                            {tr("composer.goal")}
+                          </span>
+                          <IconClose size={12} />
+                        </button>
+                      </Tip>
+                    ) : null}
+                    {sessionJsonSchema ? (
+                      <Tip
+                        label={sessionJsonSchema}
+                        className="ui-tip--wrap ui-tip--mono"
+                      >
+                        <button
+                          type="button"
+                          className="icon-btn chip--json-schema is-active"
+                          onClick={() => {
+                            setJsonSchemaDraft(sessionJsonSchema);
+                            setShowJsonSchemaModal(true);
+                          }}
+                          aria-label={tr("composer.jsonSchemaActive")}
+                        >
+                          <IconCode size={16} />
+                        </button>
+                      </Tip>
+                    ) : null}
                     <ContextUsageChip
                       display={contextUsageDisplay}
                       locale={locale}

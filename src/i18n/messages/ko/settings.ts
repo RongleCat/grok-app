@@ -344,7 +344,7 @@ export const koSettings = {
   "settings.confirmExternalLinks": "링크를 열기 전에 확인",
   "settings.confirmExternalLinksDesc": "채팅의 http(s) 링크를 브라우저에서 열기 전에 묻습니다. 기본값은 꺼짐입니다.",
   "settings.messageActions": "메시지 동작",
-  "settings.messageActionsDesc": "호버 시 복사, 내보내기, 다시 생성, 편집을 표시하거나 항상 보이게 유지합니다(트랙패드와 접근성에 더 나음)",
+  "settings.messageActionsDesc": "복사, 내보내기, 다시 생성, 편집은 기본적으로 항상 보입니다. 더 단정한 대화면은 호버 시로 바꿀 수 있습니다.",
   "settings.messageActions.hover": "호버 시",
   "settings.messageActions.always": "항상 표시",
   "settings.messageTimestamps": "메시지 타임스탬프 표시",

@@ -444,24 +444,24 @@ html[data-chat-width="full"] .lobe-chat__inner,
   color: var(--chat-text, inherit);
 }
 
-/* Hover actions (default) — focus-within keeps keyboard a11y */
+/* Message actions stay visible (default). Hover is opt-in via Appearance. */
 .lobe-chat-item__actions {
   display: flex;
   align-items: center;
   gap: 2px;
+}
+
+/* Settings → Appearance: show on hover / focus-within (keyboard a11y) */
+html[data-msg-actions="hover"] .lobe-chat-item__actions {
   opacity: 0;
   pointer-events: none;
   transition: opacity 160ms ease;
 }
 
-.lobe-chat-item:hover .lobe-chat-item__actions,
-.lobe-chat-item:focus-within .lobe-chat-item__actions {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* Settings → Appearance: always show message action buttons */
-html[data-msg-actions="always"] .lobe-chat-item__actions {
+html[data-msg-actions="hover"] .lobe-chat-item:hover .lobe-chat-item__actions,
+html[data-msg-actions="hover"]
+  .lobe-chat-item:focus-within
+  .lobe-chat-item__actions {
   opacity: 1;
   pointer-events: auto;
 }

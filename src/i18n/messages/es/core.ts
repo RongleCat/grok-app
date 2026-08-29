@@ -2,7 +2,7 @@
 export const esCore = {
   "app.name": "Grok",
   "app.tagline": "MIT · No oficial · Proyecto hermano grok-go",
-  "app.versionFooter": "Grok v0.2.27 · MIT · No oficial · Proyecto hermano grok-go",
+  "app.versionFooter": "Grok v0.2.28 · MIT · No oficial · Proyecto hermano grok-go",
   "window.minimize": "Minimizar",
   "window.maximize": "Maximizar",
   "window.restore": "Restaurar",

@@ -204,4 +204,32 @@ describe("floatingStyle", () => {
     expect(s?.minWidth).toBe(120);
     expect(s?.maxWidth).toBe(800);
   });
+
+  it("pins the panel bottom above the trigger so height grows upward", () => {
+    const r = {
+      x: 100,
+      y: 400,
+      top: 400,
+      bottom: 432,
+      left: 100,
+      right: 300,
+      width: 200,
+      height: 32,
+      toJSON() {
+        return this;
+      },
+    } as DOMRect;
+    const pos = computeFloatingPos(r, {
+      anchor: "bottom",
+      placement: "up",
+      width: 280,
+      fitContent: false,
+      gap: 8,
+    });
+    expect(pos.bottom).toBeGreaterThan(0);
+    expect(pos.placeAbove).toBe(false);
+    const s = floatingStyle(pos);
+    expect(s?.bottom).toBe(pos.bottom);
+    expect(s?.top).toBeUndefined();
+  });
 });

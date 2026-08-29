@@ -212,6 +212,8 @@ export const koComposer = {
   "composer.access": "접근",
   "composer.accessHint": "에이전트가 어떻게 실행되고 승인을 받을까요?",
   "composer.advanced": "고급",
+  "composer.effortFaster": "더 빠르게",
+  "composer.effortSmarter": "더 똑똑하게",
   "composer.permissionTitle": "Grok Build와 맞춤: 기본 묻기; 편집 수락; 세션 허용; dontAsk; YOLO 우회.",
   "composer.dropAttachTitle": "메시지에 첨부",
   "composer.dropAttachHint": "파일이나 폴더를 놓으면 다음 메시지와 함께 보내집니다",

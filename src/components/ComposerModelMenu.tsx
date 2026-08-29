@@ -1,13 +1,15 @@
 /**
- * Composer chip menus (Codex-style):
- * - Model (+effort)
+ * Composer chip menus (Codex combined model+effort + Claude neon slider):
+ * - One trigger: model + effort
+ * - Simple open: pixel-neon effort slider, Advanced for explicit lists
  * - Access: session mode + permission in one panel
  * Narrow composer widths compress triggers to icon (+ short label).
  */
 
 import {
   useEffect,
-  useId,
+  useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -19,11 +21,11 @@ import {
   PERMISSION_POLICIES,
   SESSION_MODES,
   effortDisplayLabel,
-  effortUiOptionIsActive,
-  effortUiOptionsForCatalog,
+  effortPickerStops,
   effortsForModel,
   findModel,
   spawnIdToEffortUiSlot,
+  type EffortPickerStop,
   type ModelOption,
   type PermissionPolicyId,
 } from "@/lib/grokCatalog";
@@ -43,62 +45,111 @@ import {
   IconCheck,
   IconChevronDown,
   IconChevronRight,
+  IconChevronUp,
   IconHandStop,
   IconList,
   IconRobot,
   IconShield,
   IconShieldCheck,
 } from "@/components/icons";
-import { useFloatingMenu, type FloatingPos } from "@/lib/floatingMenu";
+import {
+  ComposerPortalPop,
+  useComposerPortalMenu,
+  type ComposerPortalMenu,
+} from "@/components/ComposerPortalPop";
+import { FLOATING_MENU_Z_INDEX } from "@/lib/floatingMenu";
 
-type Nested = "model" | "effort" | "window" | null;
+type Pane = "simple" | "advanced";
+type HubFlyout = "models" | "effort" | "window";
 
-function usePortalMenu(
-  estHeight = 220,
-  minWidth = 200,
-  nestedKey?: string,
-) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
-  const popId = useId();
+const FLYOUT_GAP = 8;
+const FLYOUT_EDGE = 8;
+const FLYOUT_MIN_W = 168;
 
-  const { pos, style: popStyle } = useFloatingMenu({
-    open,
-    triggerRef,
-    panelRef: popRef,
-    roots: [rootRef],
-    onClose: () => setOpen(false),
-    placement: "auto",
-    fitContent: true,
-    minWidth,
-    estHeight,
-    gap: 8,
-    deps: [nestedKey],
-  });
+function flyoutPreferredWidth(kind: HubFlyout, measured: number): number {
+  if (measured > 0) return measured;
+  return kind === "models" ? 220 : 200;
+}
 
-  return {
-    open,
-    setOpen,
-    pos,
-    popStyle: popStyle as CSSProperties | undefined,
-    rootRef,
-    triggerRef,
-    popRef,
-    popId,
+/**
+ * Nested-menu placement (Codex / macOS):
+ * 1. Prefer the right of the hub when the full panel fits.
+ * 2. Flip to the left when the right would clip (small window / chip on the
+ *    trailing edge).
+ * 3. If neither side fits, clamp into the viewport so the panel stays fully
+ *    on-screen (may overlap the hub).
+ * Vertical: align to the opening *row*, not the hub top — otherwise the
+ * context-window row is unreachable.
+ */
+export function placeHubFlyout(
+  hub: DOMRect,
+  flyout: HTMLElement | null,
+  kind: HubFlyout,
+  row?: DOMRect | null,
+): { pos: CSSProperties; side: "left" | "right" } {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const wantW = flyoutPreferredWidth(kind, flyout?.offsetWidth ?? 0);
+  const innerRight = hub.right + FLYOUT_GAP;
+  const innerLeft = hub.left - FLYOUT_GAP;
+  const rightFits = innerRight + wantW <= vw - FLYOUT_EDGE;
+  const leftFits = innerLeft - wantW >= FLYOUT_EDGE;
+  const spaceRight = vw - FLYOUT_EDGE - innerRight;
+  const spaceLeft = innerLeft - FLYOUT_EDGE;
+  const side: "left" | "right" = rightFits
+    ? "right"
+    : leftFits
+      ? "left"
+      : spaceLeft > spaceRight
+        ? "left"
+        : "right";
+  const panelW = Math.min(
+    wantW,
+    Math.max(FLYOUT_MIN_W, vw - FLYOUT_EDGE * 2),
+  );
+  const cap = kind === "models" ? 240 : 280;
+  const flyH = flyout?.offsetHeight ?? 0;
+  const preferredH = flyH > 0 ? flyH : Math.min(120, cap);
+  const anchorTop =
+    row && Number.isFinite(row.top) ? row.top : hub.top;
+  let top = Math.max(FLYOUT_EDGE, anchorTop);
+  const usedH = Math.min(preferredH, cap, vh - FLYOUT_EDGE * 2);
+  if (top + usedH > vh - FLYOUT_EDGE) {
+    top = Math.max(FLYOUT_EDGE, vh - FLYOUT_EDGE - usedH);
+  }
+  const maxH = Math.min(cap, Math.max(96, vh - FLYOUT_EDGE - top));
+  const pos: CSSProperties = {
+    position: "fixed",
+    top,
+    zIndex: FLOATING_MENU_Z_INDEX,
+    maxHeight: maxH,
+    maxWidth: panelW,
+    width: panelW,
+    boxSizing: "border-box",
   };
+  if (side === "left") {
+    let rightEdge = innerLeft;
+    if (rightEdge - panelW < FLYOUT_EDGE) {
+      rightEdge = FLYOUT_EDGE + panelW;
+    }
+    if (rightEdge > vw - FLYOUT_EDGE) {
+      rightEdge = vw - FLYOUT_EDGE;
+    }
+    pos.right = vw - rightEdge;
+    pos.left = "auto";
+  } else {
+    let left = innerRight;
+    if (left + panelW > vw - FLYOUT_EDGE) {
+      left = vw - FLYOUT_EDGE - panelW;
+    }
+    if (left < FLYOUT_EDGE) left = FLYOUT_EDGE;
+    pos.left = left;
+  }
+  return { pos, side };
 }
 
 function MenuShell({
-  open,
-  setOpen,
-  rootRef,
-  triggerRef,
-  popRef,
-  popId,
-  pos,
-  popStyle,
+  menu,
   triggerIcon,
   triggerText,
   triggerShort,
@@ -110,15 +161,13 @@ function MenuShell({
   className = "",
   /** Applied on the portaled panel (body), not the trigger root. */
   panelClassName = "",
+  tipClassName,
+  /** Pin the pop to the parent chip-shell instead of the inner button. */
+  pinParent,
+  /** Keep the trigger as wide as the widest effort label so xhigh does not jump. */
+  widthCandidates,
 }: {
-  open: boolean;
-  setOpen: (v: boolean | ((p: boolean) => boolean)) => void;
-  rootRef: React.RefObject<HTMLDivElement | null>;
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
-  popRef: React.RefObject<HTMLDivElement | null>;
-  popId: string;
-  pos: FloatingPos | null;
-  popStyle: CSSProperties | undefined;
+  menu: ComposerPortalMenu;
   triggerIcon?: ReactNode;
   /** Full label (wide layout) */
   triggerText: string;
@@ -131,42 +180,91 @@ function MenuShell({
   onOpenChange?: (open: boolean) => void;
   className?: string;
   panelClassName?: string;
+  tipClassName?: string;
+  pinParent?: boolean;
+  widthCandidates?: string[];
 }) {
-  const panel =
-    open && pos && typeof document !== "undefined"
-      ? createPortal(
-          <div
-            ref={popRef}
-            className={["cmm__pop", "cmm__pop--portal", panelClassName]
-              .filter(Boolean)
-              .join(" ")}
-            id={popId}
-            role="dialog"
-            aria-label={ariaLabel}
-            style={popStyle}
-          >
-            {children}
-          </div>,
-          document.body,
-        )
-      : null;
-
+  const { open, setOpen, requestClose, exiting, rootRef, triggerRef, positionRef, popId } =
+    menu;
+  const measureRef = useRef<HTMLDivElement>(null);
+  const compactW = useRef(0);
+  const [maxW, setMaxW] = useState(0);
   const tipLabel = title ?? ariaLabel;
+  const expanded = open && !exiting;
+
+  useLayoutEffect(() => {
+    positionRef.current = pinParent
+      ? (rootRef.current?.parentElement ?? rootRef.current)
+      : null;
+  });
+
+  useLayoutEffect(() => {
+    if (!pinParent) return;
+    const shell = rootRef.current?.parentElement;
+    if (!shell) return;
+    const ease = "width var(--motion-pane) var(--motion-pane-ease)";
+    if (expanded) {
+      const id = requestAnimationFrame(() => {
+        shell.style.transition = ease;
+        shell.style.width = "280px";
+      });
+      return () => cancelAnimationFrame(id);
+    }
+    const to = compactW.current;
+    if (!to) {
+      shell.style.width = "";
+      shell.style.transition = "";
+      return;
+    }
+    shell.style.transition = ease;
+    shell.style.width = `${to}px`;
+    const onEnd = (e: TransitionEvent) => {
+      if (e.propertyName !== "width") return;
+      shell.style.width = "";
+      shell.style.transition = "";
+      shell.removeEventListener("transitionend", onEnd);
+    };
+    shell.addEventListener("transitionend", onEnd);
+    return () => shell.removeEventListener("transitionend", onEnd);
+  }, [expanded, pinParent]);
+
+  useLayoutEffect(() => {
+    const root = measureRef.current;
+    if (!root || !widthCandidates?.length) return;
+    let max = 0;
+    for (const btn of root.querySelectorAll("button")) {
+      max = Math.max(max, Math.ceil(btn.getBoundingClientRect().width));
+    }
+    if (max) setMaxW(max);
+  }, [widthCandidates, triggerText]);
+
   const trigger = (
     <button
       ref={triggerRef}
       type="button"
       className="cmm__trigger"
       aria-haspopup="dialog"
-      aria-expanded={open}
+      aria-expanded={open && !exiting}
       aria-controls={popId}
       aria-label={ariaLabel}
+      style={maxW ? { minWidth: maxW } : undefined}
       onClick={() => {
-        setOpen((v) => {
-          const next = !v;
-          onOpenChange?.(next);
-          return next;
-        });
+        if (open && !exiting) {
+          requestClose();
+          onOpenChange?.(false);
+          return;
+        }
+        if (pinParent) {
+          const shell = rootRef.current?.parentElement;
+          if (shell) {
+            const from = Math.round(shell.getBoundingClientRect().width);
+            compactW.current = from;
+            shell.style.transition = "none";
+            shell.style.width = `${from}px`;
+          }
+        }
+        setOpen(true);
+        onOpenChange?.(true);
       }}
     >
       {triggerIcon ? (
@@ -191,10 +289,49 @@ function MenuShell({
   return (
     <div
       ref={rootRef}
-      className={`cmm ${open ? "is-open" : ""} ${danger ? "cmm--danger" : ""} ${className}`.trim()}
+      className={`cmm ${expanded ? "is-open" : ""} ${danger ? "cmm--danger" : ""} ${className}`.trim()}
     >
-      {tipLabel ? <Tip label={tipLabel}>{trigger}</Tip> : trigger}
-      {panel}
+      {tipLabel ? (
+        <Tip label={tipLabel} disabled={open} className={tipClassName}>
+          {trigger}
+        </Tip>
+      ) : (
+        trigger
+      )}
+      {widthCandidates && widthCandidates.length > 0 ? (
+        <div ref={measureRef} className="cmm__measure" aria-hidden>
+          {widthCandidates.map((text) => (
+            <button
+              key={text}
+              type="button"
+              tabIndex={-1}
+              className="cmm__trigger"
+              data-current={text === triggerText ? "1" : undefined}
+            >
+              {triggerIcon ? (
+                <span className="cmm__icon" aria-hidden>
+                  {triggerIcon}
+                </span>
+              ) : null}
+              <span className="cmm__trigger-text cmm__trigger-text--full">
+                {text}
+              </span>
+              <span className="cmm__chev" aria-hidden>
+                <IconChevronDown size={12} />
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <ComposerPortalPop
+        menu={menu}
+        className={panelClassName}
+        id={popId}
+        role="dialog"
+        ariaLabel={ariaLabel}
+      >
+        {children}
+      </ComposerPortalPop>
     </div>
   );
 }
@@ -219,7 +356,9 @@ export interface ComposerModelMenuProps {
     effortLow: string;
     effortXhigh?: string;
     effortMax?: string;
-    /** Search field placeholder in the model nested list. */
+    /** @deprecated Strongest stop shows the catalog spawn id (xhigh), not Extra. */
+    effortExtra?: string;
+    /** Search field placeholder in the model flyout list. */
     modelSearchPlaceholder: string;
     /** Empty state when filter matches nothing. */
     modelSearchEmpty: string;
@@ -234,6 +373,11 @@ export interface ComposerModelMenuProps {
     contextWindowPlaceholder: string;
     contextWindowSave: string;
     contextWindowOfficialHint: string;
+    /** Codex simple-view slider + Advanced toggle. */
+    advanced?: string;
+    effortHint?: string;
+    effortFaster?: string;
+    effortSmarter?: string;
   };
   /** Resolved UI locale — token window uses K/M (en) vs 万/千 (zh). */
   locale?: string;
@@ -254,7 +398,7 @@ export interface ComposerModelMenuProps {
   onEffort: (id: string) => void;
   /**
    * Apply-path honesty when a live agent is attached (e.g. soft-respawn /
-   * immediate set_model). Shown as a footer note in nested lists when set.
+   * immediate set_model). Shown as a footer note in Advanced flyouts when set.
    */
   applyNotes?: {
     model?: string | null;
@@ -282,6 +426,132 @@ function resolveEffortLabel(
   return effortDisplayLabel(slot ?? spawnId, effortI18n(labels));
 }
 
+/** Claude desktop Effort picker: snap-to-stops, Faster ↔ Smarter. */
+function EffortStopPicker({
+  stops,
+  value,
+  onChange,
+  tickLabels,
+  fasterLabel,
+  smarterLabel,
+  ariaLabel,
+  valueText,
+}: {
+  stops: EffortPickerStop[];
+  value: string;
+  onChange: (spawnId: string) => void;
+  tickLabels: string[];
+  fasterLabel: string;
+  smarterLabel: string;
+  ariaLabel: string;
+  valueText: string;
+}) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const n = stops.length;
+  const index = Math.max(
+    0,
+    stops.findIndex((s) => s.spawnId === value),
+  );
+  const t = n <= 1 ? 0 : index / (n - 1);
+
+  const applyFromClientX = (clientX: number) => {
+    const el = railRef.current;
+    if (!el || n === 0) return;
+    const rect = el.getBoundingClientRect();
+    const pad = 8;
+    const span = Math.max(1, rect.width - pad * 2);
+    const x = (clientX - rect.left - pad) / span;
+    const next = Math.round(Math.max(0, Math.min(1, x)) * (n - 1));
+    const pick = stops[next];
+    if (pick) onChange(pick.spawnId);
+  };
+
+  return (
+    <div className="cmm__stops">
+      <div className="cmm__stops-axis">
+        <span>{fasterLabel}</span>
+        <span>{smarterLabel}</span>
+      </div>
+      <div
+        ref={railRef}
+        className={
+          "cmm__stops-rail" + (stops[index]?.accent === "ultra" ? " is-ultra" : "")
+        }
+        role="slider"
+        tabIndex={0}
+        aria-label={ariaLabel}
+        aria-valuemin={0}
+        aria-valuemax={Math.max(0, n - 1)}
+        aria-valuenow={index}
+        aria-valuetext={valueText}
+        style={{ ["--cmm-stop-t" as string]: String(t) }}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.currentTarget.setPointerCapture(e.pointerId);
+          applyFromClientX(e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+          applyFromClientX(e.clientX);
+        }}
+        onKeyDown={(e) => {
+          if (n === 0) return;
+          if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+            e.preventDefault();
+            const next = stops[Math.max(0, index - 1)];
+            if (next) onChange(next.spawnId);
+          } else if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+            e.preventDefault();
+            const next = stops[Math.min(n - 1, index + 1)];
+            if (next) onChange(next.spawnId);
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            if (stops[0]) onChange(stops[0].spawnId);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            const last = stops[n - 1];
+            if (last) onChange(last.spawnId);
+          }
+        }}
+      >
+        <div className="cmm__stops-dots" aria-hidden>
+          {stops.map((s, i) => (
+            <span
+              key={s.id}
+              className={
+                "cmm__stops-dot" +
+                (i === index ? " is-active" : "") +
+                (s.accent === "ultra" ? " is-ultra" : "")
+              }
+            />
+          ))}
+        </div>
+        <span
+          className={
+            "cmm__stops-thumb" +
+            (stops[index]?.accent === "ultra" ? " is-ultra" : "")
+          }
+          aria-hidden
+        />
+        {stops.map((s, i) => (
+          <button
+            key={s.id}
+            type="button"
+            className="cmm__stops-hit"
+            style={{
+              left: `calc((100% - 12px) * ${n <= 1 ? 0 : i / (n - 1)} + 6px)`,
+            }}
+            aria-label={tickLabels[i] ?? s.id}
+            aria-pressed={i === index}
+            tabIndex={-1}
+            onClick={() => onChange(s.spawnId)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ComposerModelMenu({
   modelId,
   effort,
@@ -300,12 +570,50 @@ export function ComposerModelMenu({
   contextWindowEditable = false,
   onContextWindow,
 }: ComposerModelMenuProps) {
-  const [nested, setNested] = useState<Nested>(null);
+  const [pane, setPane] = useState<Pane>("simple");
   const [modelQuery, setModelQuery] = useState("");
   const [windowDraft, setWindowDraft] = useState("");
   const modelSearchRef = useRef<HTMLInputElement>(null);
-  /* Wider min so long custom model ids render fully in the root rows. */
-  const menu = usePortalMenu(240, 200, nested ?? "root");
+  const stageRef = useRef<HTMLDivElement>(null);
+  const flyoutRef = useRef<HTMLDivElement>(null);
+  const modelsRowRef = useRef<HTMLButtonElement>(null);
+  const effortRowRef = useRef<HTMLButtonElement>(null);
+  const windowRowRef = useRef<HTMLButtonElement>(null);
+  const [hubFlyout, setHubFlyout] = useState<HubFlyout | null>(null);
+  const [flyPos, setFlyPos] = useState<CSSProperties>();
+  const [flySide, setFlySide] = useState<"left" | "right">("right");
+  const flyLeave = useRef(0);
+  const [bodyH, setBodyH] = useState<number | undefined>(undefined);
+  const modelMenu = useComposerPortalMenu({
+    estHeight: 320,
+    width: 280,
+    minWidth: 240,
+    fitContent: false,
+    align: "end",
+    placement: "up",
+    anchor: "bottom",
+    // Titlebar is 40px; keep the panel below it when the pop opens upward.
+    margin: 52,
+    deps: [pane],
+    extraRoots: [flyoutRef],
+    exitMs: 320,
+  });
+
+  const goPane = (next: Pane) => {
+    const el = stageRef.current;
+    if (el) setBodyH(el.offsetHeight);
+    setHubFlyout(null);
+    setPane(next);
+  };
+
+  const showFlyout = (id: HubFlyout) => {
+    window.clearTimeout(flyLeave.current);
+    setHubFlyout(id);
+  };
+  const hideFlyoutSoon = () => {
+    window.clearTimeout(flyLeave.current);
+    flyLeave.current = window.setTimeout(() => setHubFlyout(null), 140);
+  };
   const modelList = models.length > 0 ? models : GROK_BUILD_MODELS;
   const groups = buildComposerModelGroups({
     officialModels: modelList,
@@ -318,8 +626,7 @@ export function ComposerModelMenu({
     activeSource === "custom" && channelEfforts && channelEfforts.length > 0
       ? effortsForModel(null, channelEfforts)
       : effortsForModel(activeModel);
-  /** Ordered UI ladder (3 or 4 slots); spawnId is the real model value. */
-  const effortUiList = effortUiOptionsForCatalog(effortCatalog);
+  const pickerStops = effortPickerStops(effortCatalog);
 
   const clearModelQuery = () => setModelQuery("");
 
@@ -329,45 +636,98 @@ export function ComposerModelMenu({
     } else if (pick.kind === "official" && onModel) {
       onModel(pick.modelId);
     }
-    // Close the whole menu (root + nested), not just pop back to stage 1.
-    setNested(null);
-    menu.setOpen(false);
   };
 
   useEffect(() => {
-    if (!menu.open) {
-      setNested(null);
-      clearModelQuery();
-    }
-  }, [menu.open]);
+    if (modelMenu.open && !modelMenu.exiting) return;
+    setHubFlyout(null);
+    if (modelMenu.open) return;
+    setPane("simple");
+    setBodyH(undefined);
+    clearModelQuery();
+  }, [modelMenu.open, modelMenu.exiting]);
 
-  // Clear filter when leaving the model nested list (back / effort / select).
-  useEffect(() => {
-    if (nested !== "model") clearModelQuery();
-  }, [nested]);
+  useEffect(() => () => window.clearTimeout(flyLeave.current), []);
 
-  // Autofocus search when entering the model list.
-  useEffect(() => {
-    if (!menu.open || nested !== "model") return;
-    const id = requestAnimationFrame(() => {
-      modelSearchRef.current?.focus();
-    });
+  useLayoutEffect(() => {
+    if (!modelMenu.open) return;
+    const el = stageRef.current;
+    const next = el?.offsetHeight;
+    if (!next) return;
+    if (bodyH == null) return;
+    const id = requestAnimationFrame(() => setBodyH(next));
     return () => cancelAnimationFrame(id);
-  }, [menu.open, nested]);
+  }, [pane, modelMenu.open, bodyH]);
+
+  useLayoutEffect(() => {
+    if (!hubFlyout || pane !== "advanced" || modelMenu.exiting) {
+      setFlyPos(undefined);
+      return;
+    }
+    const hubEl = modelMenu.popRef.current;
+    if (!hubEl) {
+      setFlyPos(undefined);
+      return;
+    }
+    const apply = () => {
+      const hub = hubEl.getBoundingClientRect();
+      const rowEl =
+        hubFlyout === "models"
+          ? modelsRowRef.current
+          : hubFlyout === "effort"
+            ? effortRowRef.current
+            : windowRowRef.current;
+      const row = rowEl?.getBoundingClientRect() ?? null;
+      const { pos, side } = placeHubFlyout(
+        hub,
+        flyoutRef.current,
+        hubFlyout,
+        row,
+      );
+      setFlySide(side);
+      setFlyPos((prev) => {
+        if (
+          prev &&
+          prev.left === pos.left &&
+          prev.right === pos.right &&
+          prev.top === pos.top &&
+          prev.maxHeight === pos.maxHeight &&
+          prev.zIndex === pos.zIndex
+        ) {
+          return prev;
+        }
+        return pos;
+      });
+    };
+    apply();
+    const id = requestAnimationFrame(apply);
+    return () => cancelAnimationFrame(id);
+  }, [hubFlyout, pane, modelMenu.exiting, modelMenu.pos]);
 
   useEffect(() => {
-    if (!menu.open) return;
+    if (hubFlyout !== "models") clearModelQuery();
+  }, [hubFlyout]);
+
+  useEffect(() => {
+    if (!modelMenu.open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && nested) {
-        // Capture + stopImmediate so floatingMenu does not close the whole panel.
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        setNested(null);
-        return;
+      if (e.key === "Escape") {
+        if (hubFlyout) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          setHubFlyout(null);
+          return;
+        }
+        if (pane === "advanced") {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          goPane("simple");
+          return;
+        }
       }
-      // Typing while on model list focuses the filter (e.g. after tabbing to a row).
-      if (nested !== "model") return;
+      if (hubFlyout !== "models") return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key.length !== 1) return;
       const active = document.activeElement;
@@ -382,10 +742,9 @@ export function ComposerModelMenu({
       setModelQuery((q) => q + e.key);
       modelSearchRef.current?.focus();
     };
-    // Capture so Escape wins over useFloatingMenu's bubble listener.
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [menu.open, nested]);
+  }, [modelMenu.open, pane, hubFlyout]);
 
   const activeCustom =
     activeSource === "custom" && activeProviderId
@@ -411,269 +770,375 @@ export function ComposerModelMenu({
     officialLabel,
     activeCustom,
   });
-  const eLabel = resolveEffortLabel(effort, effortCatalog, labels);
-  // Compact trigger: model + short effort (locale), no middle-dot noise.
+  const stopLabelFor = (stop: EffortPickerStop) => {
+    if (stop.id === "xhigh" || stop.id === "max") return stop.spawnId;
+    return effortDisplayLabel(stop.id, effortI18n(labels));
+  };
+  const activeStop =
+    pickerStops.find((s) => s.spawnId === effort) ?? pickerStops[0] ?? null;
+  const eLabel = activeStop
+    ? stopLabelFor(activeStop)
+    : resolveEffortLabel(effort, effortCatalog, labels);
   const triggerText = `${modelLabel} ${eLabel}`;
-  const title = `${labels.model}: ${modelLabel} · ${labels.effort}: ${eLabel}`;
+  const advancedLabel = labels.advanced ?? "Advanced";
+  const tickLabels = pickerStops.map((s) => stopLabelFor(s));
+  const fasterLabel = labels.effortFaster ?? labels.effortLow;
+  const smarterLabel = labels.effortSmarter ?? labels.effortHigh;
+  const widthCandidates = useMemo(() => {
+    const efforts = tickLabels.length > 0 ? tickLabels : [eLabel];
+    return [...new Set(efforts.map((label) => `${modelLabel} ${label}`))];
+  }, [modelLabel, tickLabels, eLabel]);
 
   return (
     <MenuShell
-      {...menu}
-      className="cmm--model"
-      panelClassName="cmm__pop--model"
+      menu={modelMenu}
+      className={
+        "cmm--model" + (activeStop?.accent === "ultra" ? " cmm--extra" : "")
+      }
+      panelClassName={
+        "cmm__pop--model" + (pane === "advanced" ? " cmm__pop--hub" : "")
+      }
+      tipClassName="ui-tip--flat"
+      pinParent
       triggerIcon={<IconBolt size={14} />}
       triggerText={triggerText}
       triggerShort={eLabel}
+      widthCandidates={widthCandidates}
       ariaLabel={labels.model}
-      title={title}
-      onOpenChange={(o) => {
-        if (!o) {
-          setNested(null);
-          clearModelQuery();
-        }
-      }}
+      title={`${labels.model}: ${modelLabel} · ${labels.effort}: ${eLabel}`}
     >
-      {nested === null ? (
-        <>
-          <button
-            type="button"
-            className="cmm__row"
-            onClick={() => setNested("model")}
-          >
-            <span>{labels.model}</span>
-            <span className="cmm__row-val">
-              <span className="cmm__row-val-text" title={modelLabel}>
-                {modelLabel}
+      <div
+        style={{
+          height: bodyH,
+          overflow: "hidden",
+          transition:
+            bodyH == null
+              ? "none"
+              : "height var(--motion-pane) var(--motion-pane-ease)",
+        }}
+      >
+        <div
+          className={"cmm__stage" + (pane === "advanced" ? " is-hub" : "")}
+          ref={stageRef}
+        >
+          <div className="cmm__simple-body" aria-hidden={pane !== "simple"}>
+            <div className="cmm__simple-head">
+              <span
+                className={
+                  "cmm__simple-title" +
+                  (activeStop?.accent === "ultra" ? " is-ultra" : "")
+                }
+              >
+                {labels.effort} {eLabel}
               </span>
-              <IconChevronRight size={14} />
-            </span>
-          </button>
-          <button
-            type="button"
-            className="cmm__row"
-            onClick={() => setNested("effort")}
+            </div>
+            {pickerStops.length > 0 ? (
+              <EffortStopPicker
+                stops={pickerStops}
+                value={effort}
+                onChange={onEffort}
+                tickLabels={tickLabels}
+                fasterLabel={fasterLabel}
+                smarterLabel={smarterLabel}
+                ariaLabel={labels.effort}
+                valueText={eLabel}
+              />
+            ) : null}
+          </div>
+          <div
+            className="cmm__hub-body cmm__hub"
+            aria-hidden={pane !== "advanced"}
+            onMouseLeave={hideFlyoutSoon}
           >
-            <span>{labels.effort}</span>
-            <span className="cmm__row-val">
-              <span className="cmm__row-val-text">{eLabel}</span>
-              <IconChevronRight size={14} />
-            </span>
-          </button>
-          <button
-            type="button"
-            className="cmm__row"
-            onClick={() => {
-              setWindowDraft(
-                contextWindowEditable && contextWindow
-                  ? String(contextWindow)
-                  : "",
-              );
-              setNested("window");
-            }}
-          >
-            <span>{labels.contextWindow}</span>
-            <span className="cmm__row-val">
-              <span className="cmm__row-val-text">
-                {contextWindow ? formatTokenCount(contextWindow, locale) : "—"}
+            <button
+              ref={modelsRowRef}
+              type="button"
+              className={
+                "cmm__row" + (hubFlyout === "models" ? " is-fly" : "")
+              }
+              aria-haspopup="true"
+              aria-expanded={hubFlyout === "models"}
+              onMouseEnter={() => showFlyout("models")}
+              onFocus={() => showFlyout("models")}
+              onClick={() => showFlyout("models")}
+            >
+              <span>{labels.model}</span>
+              <span className="cmm__row-val">
+                <span className="cmm__row-val-text">{modelLabel}</span>
+                <IconChevronRight size={14} />
               </span>
-              <IconChevronRight size={14} />
-            </span>
-          </button>
-        </>
-      ) : (
-        <div className="cmm__nested">
-          <button
-            type="button"
-            className="cmm__back"
-            onClick={() => setNested(null)}
-          >
-            {nested === "model"
-              ? labels.model
-              : nested === "window"
-                ? labels.contextWindow
-                : labels.effort}
-          </button>
-          {nested === "model" &&
-            (groups.length === 0 ? (
-              <div className="cmm__opt cmm__opt--muted" role="status">
-                <span className="cmm__opt-main">
-                  <span className="cmm__opt-title">{modelId || "—"}</span>
+            </button>
+            <button
+              ref={effortRowRef}
+              type="button"
+              className={
+                "cmm__row" + (hubFlyout === "effort" ? " is-fly" : "")
+              }
+              aria-haspopup="true"
+              aria-expanded={hubFlyout === "effort"}
+              onMouseEnter={() => showFlyout("effort")}
+              onFocus={() => showFlyout("effort")}
+              onClick={() => showFlyout("effort")}
+            >
+              <span>{labels.effort}</span>
+              <span className="cmm__row-val">
+                <span
+                  className={
+                    "cmm__row-val-text" +
+                    (activeStop?.accent === "ultra" ? " is-ultra" : "")
+                  }
+                >
+                  {eLabel}
                 </span>
+                <IconChevronRight size={14} />
+              </span>
+            </button>
+            <button
+              ref={windowRowRef}
+              type="button"
+              className={
+                "cmm__row" + (hubFlyout === "window" ? " is-fly" : "")
+              }
+              aria-haspopup="true"
+              aria-expanded={hubFlyout === "window"}
+              onMouseEnter={() => {
+                setWindowDraft(
+                  contextWindowEditable && contextWindow
+                    ? String(contextWindow)
+                    : "",
+                );
+                showFlyout("window");
+              }}
+              onFocus={() => showFlyout("window")}
+              onClick={() => showFlyout("window")}
+            >
+              <span>{labels.contextWindow}</span>
+              <span className="cmm__row-val">
+                <span className="cmm__row-val-text">
+                  {contextWindow
+                    ? formatTokenCount(contextWindow, locale)
+                    : "—"}
+                </span>
+                <IconChevronRight size={14} />
+              </span>
+            </button>
+            {applyNotes?.model ? (
+              <div className="cmm__apply-note" role="note">
+                {applyNotes.model}
               </div>
+            ) : null}
+            {applyNotes?.effort ? (
+              <div className="cmm__apply-note" role="note">
+                {applyNotes.effort}
+              </div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className="cmm__advanced"
+            onClick={() =>
+              goPane(pane === "advanced" ? "simple" : "advanced")
+            }
+          >
+            {advancedLabel}
+            {pane === "advanced" ? (
+              <IconChevronUp size={14} />
             ) : (
-              <>
-                <div className="cmm__search">
-                  <input
-                    ref={modelSearchRef}
-                    type="search"
-                    className="cmm__search-input"
-                    value={modelQuery}
-                    onChange={(e) => setModelQuery(e.target.value)}
-                    placeholder={labels.modelSearchPlaceholder}
-                    aria-label={labels.modelSearchPlaceholder}
-                    autoComplete="off"
-                    spellCheck={false}
-                    // Keep menu open / avoid accidental form submit.
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.preventDefault();
-                    }}
-                  />
-                </div>
-                {filteredGroups.length === 0 ? (
+              <IconChevronRight size={14} />
+            )}
+          </button>
+        </div>
+      {hubFlyout && flyPos && pane === "advanced" && !modelMenu.exiting
+        ? createPortal(
+            <div
+              ref={flyoutRef}
+              className={
+                "cmm__pop cmm__pop--portal cmm__pop--flyout" +
+                (hubFlyout === "models" ? " cmm__pop--flyout-models" : "")
+              }
+              data-side={flySide}
+              data-kind={hubFlyout}
+              style={flyPos}
+              onMouseEnter={() => hubFlyout && showFlyout(hubFlyout)}
+              onMouseLeave={hideFlyoutSoon}
+            >
+              {hubFlyout === "models" ? (
+                groups.length === 0 ? (
                   <div className="cmm__opt cmm__opt--muted" role="status">
                     <span className="cmm__opt-main">
-                      <span className="cmm__opt-title">
-                        {labels.modelSearchEmpty}
-                      </span>
+                      <span className="cmm__opt-title">{modelId || "—"}</span>
                     </span>
                   </div>
                 ) : (
-                  filteredGroups.map((group) => (
-                    <div key={group.key}>
-                      <div className="cmm__section">{group.title}</div>
-                      {group.entries.map((entry) => {
-                        const active = isComposerModelEntryActive(entry, {
-                          activeSource,
-                          activeProviderId,
-                          activeRequestModel,
-                          modelId,
-                        });
-                        return (
-                          <button
-                            key={entry.key}
-                            type="button"
-                            className={"cmm__opt" + (active ? " is-active" : "")}
-                            onClick={() => selectPick(entry.pick)}
-                          >
-                            <span className="cmm__opt-main">
-                              <span className="cmm__opt-title">
-                                {entry.title}
-                              </span>
-                              {entry.subtitle ? (
-                                <span className="cmm__opt-desc">
-                                  {entry.subtitle}
-                                </span>
-                              ) : null}
-                            </span>
-                            {active ? (
-                              <span className="cmm__opt-check" aria-hidden>
-                                <IconCheck size={16} />
-                              </span>
-                            ) : null}
-                          </button>
-                        );
-                      })}
+                  <div className="cmm__flyout-stack">
+                    <div className="cmm__search">
+                      <input
+                        ref={modelSearchRef}
+                        type="search"
+                        className="cmm__search-input"
+                        value={modelQuery}
+                        onChange={(e) => setModelQuery(e.target.value)}
+                        placeholder={labels.modelSearchPlaceholder}
+                        aria-label={labels.modelSearchPlaceholder}
+                        autoComplete="off"
+                        spellCheck={false}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.preventDefault();
+                        }}
+                      />
                     </div>
-                  ))
-                )}
-              </>
-            ))}
-          {nested === "effort" &&
-            effortUiList.map((e) => {
-              const active = effortUiOptionIsActive(
-                e,
-                effort,
-                effortCatalog,
-              );
-              return (
-                <button
-                  key={e.uiId}
-                  type="button"
-                  className={"cmm__opt" + (active ? " is-active" : "")}
-                  onClick={() => {
-                    onEffort(e.spawnId);
-                    // Close whole menu after second-stage pick (same as model).
-                    setNested(null);
-                    menu.setOpen(false);
-                  }}
-                >
-                  <span className="cmm__opt-main">
-                    <span className="cmm__opt-title">
-                      {effortDisplayLabel(e.uiId, effortI18n(labels))}
-                    </span>
-                  </span>
-                  {active ? (
-                    <span className="cmm__opt-check" aria-hidden>
-                      <IconCheck size={16} />
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
-          {nested === "window" && (
-            <div className="cmm__opt cmm__opt--muted">
-              {contextWindowEditable ? (
-                <>
-                  <span className="cmm__opt-main">
-                    <span className="cmm__opt-title">
-                      {labels.contextWindowCustom}
-                    </span>
-                  </span>
-                  <div className="cmm__inline-edit">
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      value={windowDraft}
-                      placeholder={labels.contextWindowPlaceholder}
-                      onChange={(e) => setWindowDraft(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          const n = parseInt(windowDraft, 10);
-                          if (Number.isFinite(n) && n > 0) {
-                            onContextWindow?.(n);
-                            setNested(null);
-                            menu.setOpen(false);
-                          }
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="cmm__inline-save"
-                      disabled={!Number.isFinite(parseInt(windowDraft, 10))}
-                      onClick={() => {
-                        const n = parseInt(windowDraft, 10);
-                        if (Number.isFinite(n) && n > 0) {
-                          onContextWindow?.(n);
-                          setNested(null);
-                          menu.setOpen(false);
-                        }
-                      }}
-                    >
-                      {labels.contextWindowSave}
-                    </button>
+                    <div className="cmm__flyout-list">
+                      {filteredGroups.length === 0 ? (
+                        <div className="cmm__opt cmm__opt--muted" role="status">
+                          <span className="cmm__opt-main">
+                            <span className="cmm__opt-title">
+                              {labels.modelSearchEmpty}
+                            </span>
+                          </span>
+                        </div>
+                      ) : (
+                        filteredGroups.map((group) => (
+                          <div key={group.key}>
+                            {filteredGroups.length > 1 ? (
+                              <div className="cmm__section">{group.title}</div>
+                            ) : null}
+                            {group.entries.map((entry) => {
+                              const active = isComposerModelEntryActive(
+                                entry,
+                                {
+                                  activeSource,
+                                  activeProviderId,
+                                  activeRequestModel,
+                                  modelId,
+                                },
+                              );
+                              return (
+                                <button
+                                  key={entry.key}
+                                  type="button"
+                                  className={
+                                    "cmm__opt" + (active ? " is-active" : "")
+                                  }
+                                  title={
+                                    entry.subtitle
+                                      ? `${entry.title} · ${entry.subtitle}`
+                                      : entry.title
+                                  }
+                                  onClick={() => selectPick(entry.pick)}
+                                >
+                                  <span className="cmm__opt-main">
+                                    <span className="cmm__opt-title">
+                                      {entry.title}
+                                    </span>
+                                  </span>
+                                  {active ? (
+                                    <span
+                                      className="cmm__opt-check"
+                                      aria-hidden
+                                    >
+                                      <IconCheck size={16} />
+                                    </span>
+                                  ) : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </>
+                )
+              ) : hubFlyout === "effort" ? (
+                pickerStops.map((s) => {
+                  const active = s.spawnId === effort;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className={"cmm__opt" + (active ? " is-active" : "")}
+                      onClick={() => onEffort(s.spawnId)}
+                    >
+                      <span className="cmm__opt-main">
+                        <span
+                          className={
+                            "cmm__opt-title" +
+                            (s.accent === "ultra" ? " is-ultra" : "")
+                          }
+                        >
+                          {stopLabelFor(s)}
+                        </span>
+                      </span>
+                      {active ? (
+                        <span className="cmm__opt-check" aria-hidden>
+                          <IconCheck size={16} />
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })
               ) : (
-                <span className="cmm__opt-main">
-                  <span className="cmm__opt-title">
-                    {contextWindow
-                      ? formatTokenCount(contextWindow, locale)
-                      : "—"}
-                  </span>
-                  <span className="cmm__opt-desc">
-                    {contextWindow
-                      ? labels.contextWindowOfficial
-                      : labels.contextWindowOfficialHint}
-                  </span>
-                </span>
+                <div className="cmm__opt cmm__opt--muted">
+                  {contextWindowEditable ? (
+                    <>
+                      <span className="cmm__opt-main">
+                        <span className="cmm__opt-title">
+                          {labels.contextWindowCustom}
+                        </span>
+                      </span>
+                      <div className="cmm__inline-edit">
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          value={windowDraft}
+                          placeholder={labels.contextWindowPlaceholder}
+                          onChange={(e) => setWindowDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              const n = parseInt(windowDraft, 10);
+                              if (Number.isFinite(n) && n > 0) {
+                                onContextWindow?.(n);
+                              }
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="cmm__inline-save"
+                          disabled={!Number.isFinite(parseInt(windowDraft, 10))}
+                          onClick={() => {
+                            const n = parseInt(windowDraft, 10);
+                            if (Number.isFinite(n) && n > 0) {
+                              onContextWindow?.(n);
+                            }
+                          }}
+                        >
+                          {labels.contextWindowSave}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <span className="cmm__opt-main">
+                      <span className="cmm__opt-title">
+                        {contextWindow
+                          ? formatTokenCount(contextWindow, locale)
+                          : "—"}
+                      </span>
+                      <span className="cmm__opt-desc">
+                        {contextWindow
+                          ? labels.contextWindowOfficial
+                          : labels.contextWindowOfficialHint}
+                      </span>
+                    </span>
+                  )}
+                </div>
               )}
-            </div>
-          )}
-          {nested === "model" && applyNotes?.model ? (
-            <div className="cmm__apply-note" role="note">
-              {applyNotes.model}
-            </div>
-          ) : null}
-          {nested === "effort" && applyNotes?.effort ? (
-            <div className="cmm__apply-note" role="note">
-              {applyNotes.effort}
-            </div>
-          ) : null}
-        </div>
-      )}
+            </div>,
+            document.body,
+          )
+        : null}
+      </div>
     </MenuShell>
   );
 }
@@ -820,7 +1285,12 @@ export function ComposerAccessMenu({
   onPolicy,
 }: ComposerAccessMenuProps) {
   /* Wider dual-column sheet: mode | permission side by side. */
-  const menu = usePortalMenu(320, 520);
+  const menu = useComposerPortalMenu({
+    estHeight: 280,
+    width: 300,
+    minWidth: 260,
+    fitContent: false,
+  });
   const isDanger = policy === "always_approve";
   const full = policyLabel(policy, labels);
   const short = policyShort(policy, labels);
@@ -828,7 +1298,7 @@ export function ComposerAccessMenu({
 
   return (
     <MenuShell
-      {...menu}
+      menu={menu}
       className="cmm--access"
       panelClassName="cmm__pop--access"
       triggerIcon={policyIcon(policy)}
@@ -852,6 +1322,7 @@ export function ComposerAccessMenu({
               className={
                 "cmm__opt cmm__opt--access" + (m.id === mode ? " is-active" : "")
               }
+              title={modeDesc(m.id, labels)}
               onClick={() => onMode(m.id)}
             >
               <span className="cmm__opt-icon" aria-hidden>
@@ -885,6 +1356,7 @@ export function ComposerAccessMenu({
                 (p.id === policy ? " is-active" : "") +
                 (p.dangerous ? " is-danger" : "")
               }
+              title={policyDesc(p.id, labels)}
               onClick={() => {
                 onPolicy(p.id);
                 menu.setOpen(false);

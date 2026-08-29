@@ -212,6 +212,8 @@ export const ruComposer = {
   "composer.access": "Доступ",
   "composer.accessHint": "Как агент должен работать и получать разрешения?",
   "composer.advanced": "Дополнительно",
+  "composer.effortFaster": "Быстрее",
+  "composer.effortSmarter": "Умнее",
   "composer.permissionTitle": "Как в Grok Build: по умолчанию Ask; принимать правки; разрешение на сессию; dontAsk; обход YOLO.",
   "composer.dropAttachTitle": "Прикрепить к сообщению",
   "composer.dropAttachHint": "Перетащите файлы или папки — они будут отправлены со следующим сообщением",

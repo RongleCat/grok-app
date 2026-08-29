@@ -291,7 +291,9 @@
  * Rest: no disc on the glass plate (same as .chrome-btn). Hover uses the
  * composer-wrap --bg-hover token (rgba on wallpaper, not color-mix).
  */
-.composer .icon-btn:not(.icon-btn--primary):not(.icon-btn--danger) {
+.composer .icon-btn:not(.icon-btn--primary):not(.icon-btn--danger):not(
+    .chip--json-schema
+  ) {
   background: transparent;
   appearance: none;
   -webkit-appearance: none;
@@ -299,7 +301,9 @@
 }
 
 .composer
-  .icon-btn:not(.icon-btn--primary):not(.icon-btn--danger):hover:not(:disabled),
+  .icon-btn:not(.icon-btn--primary):not(.icon-btn--danger):not(
+    .chip--json-schema
+  ):is(:hover, :focus-visible, .is-open, [aria-pressed="true"]):not(:disabled),
 .composer .icon-btn--plus.is-open {
   background: var(--bg-hover);
   color: var(--text-primary);

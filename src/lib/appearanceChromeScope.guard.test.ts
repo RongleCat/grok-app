@@ -24,15 +24,18 @@ describe("appearance chrome text color scope", () => {
     );
   });
 
-  it("scopes custom ink to sidebar, top bar, welcome, and pane toggles", () => {
+  it("scopes custom ink to exposed wallpaper chrome, including banners and aside tabs", () => {
     expect(skins).toMatch(
-      /html\[data-text-color="custom"\]\s+:is\(\.sidebar, \.main__top, \.composer-welcome-mark, \.pane-toggle--pinned\)\s*\{[^}]*--text-primary:\s*var\(--appearance-chrome-ink\)/s,
+      /html\[data-text-color="custom"\]\s+:is\([\s\S]*?\.sidebar,[\s\S]*?\.main__top,[\s\S]*?\.composer-welcome-mark,[\s\S]*?\.pane-toggle--pinned,[\s\S]*?\.conn-bar,[\s\S]*?\.aside \.rp-chrome,[\s\S]*?\.aside \.rp__empty-state\s*\)\s*\{[^}]*--text-primary:\s*var\(--appearance-chrome-ink\)/s,
     );
     expect(skins).not.toMatch(
       /html\[data-text-color="custom"\]\s+\.settings-page/,
     );
     expect(skins).not.toMatch(
       /html\[data-text-color="custom"\][^{]*\.menu-panel/,
+    );
+    expect(skins).not.toMatch(
+      /html\[data-wallpaper="1"\][^{]*\.main__stage > \.conn-bar/,
     );
   });
 });

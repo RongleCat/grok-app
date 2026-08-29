@@ -105,8 +105,8 @@ export function emptySideWorkbenchState(): SideWorkbenchState {
   return {
     tabs: [],
     activeId: null,
-    // Files sidebar shows the project tree unless the user hides it.
-    treeVisible: true,
+    // File preview is full-width. Picker「文件」/ env jump still reveal the tree.
+    treeVisible: false,
     expanded: false,
   };
 }

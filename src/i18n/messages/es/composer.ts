@@ -212,6 +212,8 @@ export const esComposer = {
   "composer.access": "Acceso",
   "composer.accessHint": "¿Cómo debería ejecutarse el agente y obtener aprobación?",
   "composer.advanced": "Avanzado",
+  "composer.effortFaster": "Más rápido",
+  "composer.effortSmarter": "Más inteligente",
   "composer.permissionTitle": "Alineado con Grok Build: Preguntar predeterminado; aceptar ediciones; permitir en la sesión; dontAsk; bypass YOLO.",
   "composer.dropAttachTitle": "Adjuntar al mensaje",
   "composer.dropAttachHint": "Suelta archivos o carpetas — se enviarán con tu siguiente mensaje",

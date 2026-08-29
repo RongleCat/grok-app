@@ -40,6 +40,22 @@ export function shouldFollowThoughtBody(input: {
 }
 
 /**
+ * Live→done while the thought is still open: pin once more so the last
+ * tokens stay in the capped box. Collapsed thoughts unmount the body.
+ * A user who flicked up mid-stream is not yanked.
+ */
+export function shouldPinThoughtBodyOnSettle(input: {
+  wasLive: boolean;
+  live: boolean;
+  expanded: boolean;
+  escaped: boolean;
+}): boolean {
+  return (
+    input.wasLive && !input.live && input.expanded && !input.escaped
+  );
+}
+
+/**
  * Inner pin/escape. Re-pin on hard bottom. Escape at ≥10px. Keep the
  * previous flag in the 2–10px band so stream growth does not thrash.
  */

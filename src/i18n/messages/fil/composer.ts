@@ -212,6 +212,8 @@ export const filComposer = {
   "composer.access": "Access",
   "composer.accessHint": "Paano dapat tumakbo at makakuha ng pag-apruba ang agent?",
   "composer.advanced": "Advanced",
+  "composer.effortFaster": "Mas mabilis",
+  "composer.effortSmarter": "Mas matalino",
   "composer.permissionTitle": "Tugma sa Grok Build: default na Magtanong; tanggapin ang mga edit; payagan sa session; dontAsk; YOLO bypass.",
   "composer.dropAttachTitle": "I-attach sa mensahe",
   "composer.dropAttachHint": "I-drop ang mga file o folder — ipapadala sila kasama ng iyong susunod na mensahe",

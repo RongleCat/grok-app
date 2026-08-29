@@ -555,6 +555,21 @@ html:not([data-wallpaper="1"])
   color: var(--text-secondary);
 }
 
+.rp-files-toolbar__editor {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.rp-files-toolbar .rp-editor__tool-btn {
+  flex-shrink: 0;
+}
+
+.rp-files-toolbar .rp-editor__dirty-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .rp-files-toolbar__crumb-wrap {
   display: inline-flex;
   align-items: center;
