@@ -485,11 +485,11 @@ pub fn run() {
                 // Plugin keeps in-memory state on Resized/Moved but only writes disk
                 // on process Exit. Debounce-persist so force-quit / crash / tauri-dev
                 // restart / OS reboot still remember the last user size.
-                WindowEvent::Moved(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                    if window.label() == "main" {
-                        window_min::apply_main(window.app_handle());
-                        schedule_persist_main_window_state(window.app_handle());
-                    }
+                WindowEvent::Moved(_) | WindowEvent::ScaleFactorChanged { .. }
+                    if window.label() == "main" =>
+                {
+                    window_min::apply_main(window.app_handle());
+                    schedule_persist_main_window_state(window.app_handle());
                 }
                 WindowEvent::Resized(_)
                     if window.label() == "main" => {

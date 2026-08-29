@@ -421,8 +421,8 @@ impl SessionManager {
                 // waiting on the connect lock; killing it is how first prompts
                 // vanished until the user nudged with a second message.
                 if !s.sent_prompt_this_visit {
-                    let recent_open = s.last_activity.elapsed()
-                        < std::time::Duration::from_secs(180);
+                    let recent_open =
+                        s.last_activity.elapsed() < std::time::Duration::from_secs(180);
                     if recent_open {
                         tracing::info!(
                             "acp park unsubmitted recent session={} (send may still be in flight)",
@@ -430,61 +430,61 @@ impl SessionManager {
                         );
                         // Fall through to the warm-park path below.
                     } else {
-                    let sid = s.app_session_id.clone();
-                    let pid = s.process_id.clone();
-                    let agent_sid = s.meta.agent_session_id.clone();
-                    // Release `inner` before touching the other session maps.
-                    // Holding it across `parked`/`background` formed an ABBA
-                    // pair with the background→inner promote path (deadlock:
-                    // thinking froze and every session command hung until
-                    // force-quit).
-                    let _ = guard.take();
-                    drop(guard);
-                    // Shared process (other sessions still reference it): just
-                    // drop our reference; the CLI stays for co-tenants.
-                    // One map lock at a time — never chain `.lock()`s inside a
-                    // single expression (the first guard lives to statement end).
-                    let shared_parked = self
-                        .parked
-                        .lock()
-                        .values()
-                        .any(|p| p.process_id == pid && p.app_session_id != sid);
-                    let shared = shared_parked
-                        || self
-                            .background
+                        let sid = s.app_session_id.clone();
+                        let pid = s.process_id.clone();
+                        let agent_sid = s.meta.agent_session_id.clone();
+                        // Release `inner` before touching the other session maps.
+                        // Holding it across `parked`/`background` formed an ABBA
+                        // pair with the background→inner promote path (deadlock:
+                        // thinking froze and every session command hung until
+                        // force-quit).
+                        let _ = guard.take();
+                        drop(guard);
+                        // Shared process (other sessions still reference it): just
+                        // drop our reference; the CLI stays for co-tenants.
+                        // One map lock at a time — never chain `.lock()`s inside a
+                        // single expression (the first guard lives to statement end).
+                        let shared_parked = self
+                            .parked
                             .lock()
                             .values()
-                            .any(|b| b.process_id == pid && b.app_session_id != sid);
-                    if !shared {
-                        // Exclusive: kill — the CLI accumulates a session actor
-                        // per load and has no public unload API (internal evict
-                        // unavailable, close finalizes). A kept process would
-                        // make the next load of this same session wait the CLI's
-                        // 5s old-thread drain. The prewarm slot is refreshed on
-                        // the next connect with a clean process.
-                        tracing::info!(
+                            .any(|p| p.process_id == pid && p.app_session_id != sid);
+                        let shared = shared_parked
+                            || self
+                                .background
+                                .lock()
+                                .values()
+                                .any(|b| b.process_id == pid && b.app_session_id != sid);
+                        if !shared {
+                            // Exclusive: kill — the CLI accumulates a session actor
+                            // per load and has no public unload API (internal evict
+                            // unavailable, close finalizes). A kept process would
+                            // make the next load of this same session wait the CLI's
+                            // 5s old-thread drain. The prewarm slot is refreshed on
+                            // the next connect with a clean process.
+                            tracing::info!(
                             "acp detach unsubmitted session={sid} process={pid} (viewed only; closed)"
                         );
-                        let c = acp;
-                        tokio::spawn(async move {
-                            SessionManager::kill_acp_bounded(&c).await;
-                        });
-                    } else {
-                        tracing::info!(
+                            let c = acp;
+                            tokio::spawn(async move {
+                                SessionManager::kill_acp_bounded(&c).await;
+                            });
+                        } else {
+                            tracing::info!(
                             "acp detach unsubmitted session={sid} process={pid} (viewed only; shared process kept)"
                         );
-                        // Best-effort actor unload (keeps session resumable) —
-                        // soft-fails on CLIs without the internal method.
-                        if let Some(asid) = agent_sid {
-                            let c = acp.clone();
-                            tokio::spawn(async move {
-                                if let Err(e) = c.evict_sessions(&[asid]).await {
-                                    tracing::debug!("evict session failed (soft): {e}");
-                                }
-                            });
+                            // Best-effort actor unload (keeps session resumable) —
+                            // soft-fails on CLIs without the internal method.
+                            if let Some(asid) = agent_sid {
+                                let c = acp.clone();
+                                tokio::spawn(async move {
+                                    if let Err(e) = c.evict_sessions(&[asid]).await {
+                                        tracing::debug!("evict session failed (soft): {e}");
+                                    }
+                                });
+                            }
                         }
-                    }
-                    return Ok(());
+                        return Ok(());
                     }
                 }
                 let sandbox_profile = acp.sandbox_profile();

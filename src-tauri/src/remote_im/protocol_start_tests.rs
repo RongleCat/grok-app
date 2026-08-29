@@ -30,8 +30,7 @@ mod tests {
             assert!(
                 channels::is_real_protocol(ch)
                     || *ch == "wps-agentspace"
-                    || channels::protocol_for(ch) != "generic-health"
-                    || *ch == "wps-agentspace",
+                    || channels::protocol_for(ch) != "generic-health",
                 "{ch} still generic"
             );
         }

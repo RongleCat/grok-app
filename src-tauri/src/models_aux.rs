@@ -623,10 +623,7 @@ pub fn custom_provider_is_text_only(p: &crate::providers::CustomProvider) -> boo
                 return !(looks_vision_model(&m.id) || looks_vision_model(&m.name));
             }
             None => {
-                if p.supports_vision
-                    || looks_vision_model(&m.id)
-                    || looks_vision_model(&m.name)
-                {
+                if p.supports_vision || looks_vision_model(&m.id) || looks_vision_model(&m.name) {
                     return false;
                 }
             }
@@ -1664,10 +1661,7 @@ yolo = false
     fn custom_vision_follows_active_model_not_sibling_catalog() {
         let mut p = sample_provider("deepseek", "deepseek-v4-flash", "DeepSeek", false);
         p.models = vec![
-            crate::providers::ProviderModelEntry::named(
-                "deepseek-v4-flash",
-                "DeepSeek V4 Flash",
-            ),
+            crate::providers::ProviderModelEntry::named("deepseek-v4-flash", "DeepSeek V4 Flash"),
             crate::providers::ProviderModelEntry {
                 id: "deepseek-v4-flash-vision-exp".into(),
                 name: "Flash Vision".into(),

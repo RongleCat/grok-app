@@ -188,7 +188,7 @@ mod tests {
         );
         // Wait for first chunk then stop.
         let first = rx.recv().await.expect("first chunk");
-        assert!(!first.done || !first.text.is_empty() || first.done);
+        assert!(!first.done || !first.text.is_empty());
         handle.request_stop();
         let mut saw_done = false;
         while let Some(c) = rx.recv().await {

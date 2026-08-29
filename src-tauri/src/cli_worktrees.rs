@@ -620,20 +620,16 @@ pub fn parse_human_size_bytes(s: &str) -> Option<u64> {
 
 fn apply_stats_kv(stats: &mut CliWorktreeDbStats, key: &str, val: &str) {
     match key {
-        "total" | "total records" | "records" | "count" | "total count" => {
-            if stats.total.is_none() {
-                stats.total = parse_first_u64(val);
-            }
+        "total" | "total records" | "records" | "count" | "total count"
+            if stats.total.is_none() =>
+        {
+            stats.total = parse_first_u64(val);
         }
-        "alive" | "alive records" | "live" | "active" => {
-            if stats.alive.is_none() {
-                stats.alive = parse_first_u64(val);
-            }
+        "alive" | "alive records" | "live" | "active" if stats.alive.is_none() => {
+            stats.alive = parse_first_u64(val);
         }
-        "dead" | "dead records" | "stale" | "gone" | "missing" => {
-            if stats.dead.is_none() {
-                stats.dead = parse_first_u64(val);
-            }
+        "dead" | "dead records" | "stale" | "gone" | "missing" if stats.dead.is_none() => {
+            stats.dead = parse_first_u64(val);
         }
         "db size" | "size" | "database size" | "file size" if stats.db_size.is_none() => {
             let cleaned = val.trim().to_string();
@@ -767,15 +763,11 @@ pub fn parse_cli_worktree_db_rebuild_text(stdout: &str) -> (Option<u64>, Option<
     for line in stdout.replace("\r\n", "\n").lines() {
         if let Some((key, val)) = split_stats_kv(line) {
             match key.as_str() {
-                "discovered" | "found" => {
-                    if discovered.is_none() {
-                        discovered = parse_first_u64(&val);
-                    }
+                "discovered" | "found" if discovered.is_none() => {
+                    discovered = parse_first_u64(&val);
                 }
-                "registered" | "added" | "new" => {
-                    if registered.is_none() {
-                        registered = parse_first_u64(&val);
-                    }
+                "registered" | "added" | "new" if registered.is_none() => {
+                    registered = parse_first_u64(&val);
                 }
                 "already tracked" | "already" | "tracked" | "unchanged" if already.is_none() => {
                     already = parse_first_u64(&val);

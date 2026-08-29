@@ -2050,7 +2050,7 @@ fn json_positive_u64(v: &serde_json::Value, keys: &[&str]) -> Option<u64> {
                 continue;
             }
         } else if let Some(s) = raw.as_str() {
-            match s.replace('_', "").replace(',', "").parse::<u64>() {
+            match s.replace(['_', ','], "").parse::<u64>() {
                 Ok(n) => n,
                 Err(_) => continue,
             }
@@ -2097,7 +2097,11 @@ fn collect_modality_tokens(item: &serde_json::Value) -> String {
         }
         out.push_str(&s.to_ascii_lowercase());
     };
-    if let Some(s) = item.get("architecture").and_then(|a| a.get("modality")).and_then(|x| x.as_str()) {
+    if let Some(s) = item
+        .get("architecture")
+        .and_then(|a| a.get("modality"))
+        .and_then(|x| x.as_str())
+    {
         push(&mut bits, s);
     }
     if let Some(arr) = item
@@ -2111,7 +2115,12 @@ fn collect_modality_tokens(item: &serde_json::Value) -> String {
             }
         }
     }
-    for key in ["supports_vision", "vision", "supports_image", "supports_video"] {
+    for key in [
+        "supports_vision",
+        "vision",
+        "supports_image",
+        "supports_video",
+    ] {
         if item.get(key).and_then(|x| x.as_bool()) == Some(true) {
             push(&mut bits, key);
         }
@@ -2124,16 +2133,14 @@ fn remote_modalities(item: &serde_json::Value) -> (Option<bool>, Option<bool>) {
     if tokens.is_empty() {
         return (None, None);
     }
-    let vision = if tokens.contains("image")
-        || tokens.contains("vision")
-        || tokens.contains("multimodal")
-    {
-        Some(true)
-    } else if item.get("supports_vision").and_then(|x| x.as_bool()) == Some(false) {
-        Some(false)
-    } else {
-        None
-    };
+    let vision =
+        if tokens.contains("image") || tokens.contains("vision") || tokens.contains("multimodal") {
+            Some(true)
+        } else if item.get("supports_vision").and_then(|x| x.as_bool()) == Some(false) {
+            Some(false)
+        } else {
+            None
+        };
     let video = if tokens.contains("video") {
         Some(true)
     } else {
@@ -3073,7 +3080,11 @@ mod tests {
             ]
         }"#;
         let got = parse_remote_models_response("https://ex/v1/models".into(), body).unwrap();
-        let ox = got.models.iter().find(|m| m.id == "stealth/ox-alpha").unwrap();
+        let ox = got
+            .models
+            .iter()
+            .find(|m| m.id == "stealth/ox-alpha")
+            .unwrap();
         assert_eq!(ox.context_window, Some(1_048_576));
         assert_eq!(ox.supports_vision, Some(true));
         let vid = got.models.iter().find(|m| m.id == "video-model").unwrap();

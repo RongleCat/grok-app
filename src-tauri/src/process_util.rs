@@ -767,7 +767,10 @@ mod tests {
         );
         #[cfg(not(target_os = "windows"))]
         {
-            assert!(got.starts_with('/'), "expected absolute unix path, got {got}");
+            assert!(
+                got.starts_with('/'),
+                "expected absolute unix path, got {got}"
+            );
             assert!(!got.contains('\\'));
         }
     }

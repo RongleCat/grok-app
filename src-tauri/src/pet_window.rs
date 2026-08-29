@@ -1016,17 +1016,17 @@ pub fn ensure_pet_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String
                     persist_window_pos(&handle);
                 }
             }
-            tauri::WindowEvent::Focused(true) => {
-                // show() uses makeKeyAndOrderFront even when focused(false).
-                // Do not yield on a user press — that raised the workbench
-                // when the user only meant to drag. show_pet already yields.
+            tauri::WindowEvent::Focused(true)
                 if should_yield_key_on_pet_focus(
                     cfg!(target_os = "linux"),
                     DRAGGING.load(Ordering::Relaxed),
                     MENU_OPEN.load(Ordering::Relaxed),
-                ) {
-                    yield_key_to_main(&handle, false);
-                }
+                ) =>
+            {
+                // show() uses makeKeyAndOrderFront even when focused(false).
+                // Do not yield on a user press — that raised the workbench
+                // when the user only meant to drag. show_pet already yields.
+                yield_key_to_main(&handle, false);
             }
             tauri::WindowEvent::Destroyed => {
                 WEBVIEW_READY.store(false, Ordering::SeqCst);
