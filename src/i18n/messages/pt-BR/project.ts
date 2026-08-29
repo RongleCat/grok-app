@@ -32,7 +32,7 @@ export const ptBRProject = {
   "project.permissionCleared": "\"{name}\" usa o padrão de permissão do app",
   "project.sandbox": "Perfil de sandbox",
   "project.sandboxInherit": "Usar o padrão do app",
-  "project.sandboxSet": "\"{name}\" sandbox: {profile}",
+  "project.sandboxSet": "sandbox de “{name}”: {profile}",
   "project.sandboxCleared": "\"{name}\" usa o padrão de sandbox do app",
   "project.color": "Cor",
   "project.colorNone": "Sem cor",

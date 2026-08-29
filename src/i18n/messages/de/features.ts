@@ -145,7 +145,7 @@ export const deFeatures = {
   "managedSetup.chip.configSig": "managed_config.sig.json",
   "managedSetup.chip.identitySig": "managed_identity.sig.json",
   "managedSetup.chip.requirements": "requirements.toml",
-  "managedSetup.chip.systemConfig": "system managed_config",
+  "managedSetup.chip.systemConfig": "System-managed_config",
   "managedSetup.grokHome": "GROK_HOME: {path}",
   "managedSetup.managedSettingsPath": "Managed-Settings-Pfad: {path}",
   "managedSetup.preview.sigBlock": "vorhanden (redigiert)",

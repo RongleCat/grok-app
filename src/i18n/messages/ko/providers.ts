@@ -105,7 +105,7 @@ export const koProviders = {
   "prov.effortsResetGrok": "Grok 기본값 사용",
   "prov.effortDisplayName": "표시 이름",
   "prov.effortDisplayNamePh": "예: 높음",
-  "prov.effortId": "Effort id",
+  "prov.effortId": "Effort ID",
   "prov.effortIdPh": "예: high",
   "prov.addEffort": "수준 추가",
   "prov.removeEffort": "수준 제거",

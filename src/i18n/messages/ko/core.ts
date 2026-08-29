@@ -245,7 +245,7 @@ export const koCore = {
   "askUser.minimize": "접기",
   "askUser.restore": "복원",
   "askUser.pendingChip": "에이전트 질문 · 답변 대기",
-  "remoteIm.msgTag": "Remote IM",
+  "remoteIm.msgTag": "원격 IM",
   "tray.recent": "최근",
   "tray.noRecent": "최근 대화 없음",
   "tray.untitled": "제목 없음",

@@ -85,7 +85,7 @@ export const ruSettingsMemory = {
   "settings.memoryEmbed.minScoreDesc": "Минимальная релевантность для явного поиска памяти CLI.",
   "settings.memoryEmbed.mmr": "Переранжирование MMR",
   "settings.memoryEmbed.mmrDesc": "Maximal Marginal Relevance — разнообразить результаты поиска CLI (по желанию).",
-  "settings.memoryEmbed.mmrLambda": "MMR lambda",
+  "settings.memoryEmbed.mmrLambda": "MMR lambda (коэффициент)",
   "settings.memoryEmbed.mmrLambdaDesc": "0.0 = макс. разнообразие, 1.0 = чистая релевантность.",
   "settings.memoryEmbed.temporalDecay": "Временное затухание",
   "settings.memoryEmbed.temporalDecayDesc": "Предпочитать недавние воспоминания сессии в оценке поиска CLI.",

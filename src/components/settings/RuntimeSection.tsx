@@ -17,6 +17,7 @@ import { CliWorktreeDbPanel } from "@/components/CliWorktreeDbPanel";
 import { SdkConnectWizard } from "@/components/SdkConnectWizard";
 import { SessionApiPanel } from "@/components/SessionApiPanel";
 import { CliUpdateRow } from "@/components/CliUpdateRow";
+import { CliRepairPanel } from "@/components/CliRepairPanel";
 import { CostRollupPanel } from "@/components/CostRollupPanel";
 import { StreamingMessagesJsonPanel } from "@/components/StreamingMessagesJsonPanel";
 import { StreamingAcpNdjsonPanel } from "@/components/StreamingAcpNdjsonPanel";
@@ -234,6 +235,14 @@ export function RuntimeSection() {
                     </div>
                   ) : null}
                 </div>
+                {!cliInfo.found ? (
+                  <CliRepairPanel
+                    allowUnverifiedCliInstall={allowUnverifiedCliInstall}
+                    onCliInfoRefresh={onCliInfoRefresh}
+                    showSettingsToast={showSettingsToast}
+                    t={t}
+                  />
+                ) : null}
                 {detectAppPlatform() === "win" ? (
                   <div
                     className={

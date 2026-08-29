@@ -538,7 +538,7 @@ export const jaSettingsUi = {
   "settings.wallpaperSource.kind.image": "画像",
   "settings.wallpaperSource.kind.video": "動画",
   "settings.wallpaperSource.errKind.network": "ネットワーク",
-  "settings.wallpaperSource.errKind.host": "Host / CLI",
+  "settings.wallpaperSource.errKind.host": "ホスト / CLI",
   "settings.wallpaperSource.errKind.untrusted": "ブロックした URL",
   "settings.wallpaperSource.errKind.empty": "空",
   "settings.wallpaperSource.errKind.other": "エラー",

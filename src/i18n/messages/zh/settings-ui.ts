@@ -538,7 +538,7 @@ export const zhSettingsUi = {
   "settings.wallpaperSource.kind.image": "图片",
   "settings.wallpaperSource.kind.video": "视频",
   "settings.wallpaperSource.errKind.network": "网络",
-  "settings.wallpaperSource.errKind.host": "Host / CLI",
+  "settings.wallpaperSource.errKind.host": "主机 / CLI",
   "settings.wallpaperSource.errKind.untrusted": "已拦截网址",
   "settings.wallpaperSource.errKind.empty": "空结果",
   "settings.wallpaperSource.errKind.other": "错误",

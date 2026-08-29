@@ -189,7 +189,7 @@ export const koFeatures = {
   "modelAux.slot.sessionSummaryDesc": "세션 요약 / 압축 관련 텍스트용 부수 작업 모델입니다.",
   "modelAux.slot.promptSuggestion": "프롬프트 제안",
   "modelAux.slot.promptSuggestionDesc": "CLI가 켤 때 작성기 프롬프트 제안에 쓰는 모델입니다.",
-  "modelAux.saveGrok": "Save Grok",
+  "modelAux.saveGrok": "Grok 저장",
   "modelAux.saveGrokHint": "네 슬롯 모두를 {model}에 연결합니다. 메인 모델은 바뀌지 않습니다.",
   "modelAux.saveGrokNoTarget": "아직 멀티모달 대상이 없습니다. 공식 API 키(계정 → 사용자 지정 공급자 → 공식) 또는 Grok 가능 릴레이(Amux / Yun)를 추가한 뒤 다시 시도하세요.",
   "modelAux.saveGrokConfirmTitle": "Save Grok 프리셋을 적용할까요?",

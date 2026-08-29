@@ -604,7 +604,7 @@ export const zhTWSettingsRemoteIm = {
   "settings.remoteIm.security.status.pass": "通過",
   "settings.remoteIm.security.status.warn": "警告",
   "settings.remoteIm.security.status.fail": "失敗",
-  "settings.remoteIm.security.check.acl": "Allow-from ACL",
+  "settings.remoteIm.security.check.acl": "允許來源 ACL",
   "settings.remoteIm.security.check.rateLimit": "入站限速",
   "settings.remoteIm.security.check.bridge": "Bridge 健康",
   "settings.remoteIm.security.check.mirrorWrite": "手機鏡像寫入",

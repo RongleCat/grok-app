@@ -245,7 +245,7 @@ export const ruCore = {
   "askUser.minimize": "Свернуть",
   "askUser.restore": "Развернуть",
   "askUser.pendingChip": "Вопрос агента · ожидает ответа",
-  "remoteIm.msgTag": "Remote IM",
+  "remoteIm.msgTag": "Удалённые чаты",
   "tray.recent": "Недавние",
   "tray.noRecent": "Нет недавних чатов",
   "tray.untitled": "Без названия",

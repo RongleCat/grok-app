@@ -28,7 +28,7 @@ export const taExtensions = {
   "mcpModal.doctor.rerun": "ரீ-ரன் டாக்டர்",
   "mcpModal.doctor.running": "இயங்கும் MCP மருத்துவர்…",
   "mcpModal.doctor.short": "Doctor",
-  "mcpModal.doctor.runFor": "Doctor · {name}",
+  "mcpModal.doctor.runFor": "நோயறிதல் · {name}",
   "mcpModal.doctor.section": "Doctor கண்டுபிடிப்புகள்",
   "mcpModal.doctor.idle": "உள்ளமைக்கப்பட்ட சேவையகங்களுக்கான இணைப்பு மற்றும் அங்கீகாரத்தை சரிபார்க்க MCP மருத்துவரை இயக்கவும்.",
   "mcpModal.doctor.empty": "கண்டுபிடிப்புகள் எதுவும் தெரிவிக்கப்படவில்லை.",

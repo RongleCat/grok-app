@@ -54,7 +54,7 @@ export const zhChat = {
   "message.structuredJsonTimeline": "校验路径",
   "message.structuredJsonUsage": "用量：{detail}",
   "message.structuredJsonUsageIo": "{input} 入 · {output} 出",
-  "message.structuredJsonUsageTotal": "{total} tokens",
+  "message.structuredJsonUsageTotal": "{total} 个 Token",
   "chatFind.placeholder": "在对话中查找…",
   "chatFind.prev": "上一个匹配",
   "chatFind.next": "下一个匹配",

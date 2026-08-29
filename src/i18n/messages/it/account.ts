@@ -44,7 +44,7 @@ export const itAccount = {
   "usageModal.input": "Token di input",
   "usageModal.output": "Token di output",
   "usageModal.total": "Token totali",
-  "usageModal.cacheHit": "Cache hit",
+  "usageModal.cacheHit": "Trovato in cache",
   "usageModal.cached": "({count} in cache)",
   "usageModal.reasoning": "({count} ragionamento)",
   "usageModal.modelCalls": "Chiamate al modello",

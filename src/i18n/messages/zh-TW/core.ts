@@ -150,7 +150,7 @@ export const zhTWCore = {
   "notify.askUserBody": "Agent 正在等待你的回答。",
   "compact.bannerAuto": "上下文已自動壓縮",
   "compact.bannerManual": "上下文已壓縮",
-  "compact.tokensRange": "{before} → {after} tokens",
+  "compact.tokensRange": "{before} → {after} 個 Token",
   "compact.summaryToggle": "摘要",
   "compact.toastAuto": "上下文已自動壓縮，釋放了視窗空間",
   "compact.toastManual": "上下文已壓縮",

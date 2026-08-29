@@ -162,7 +162,7 @@ export const deAutomations = {
   "mirror.phase.local": "Nur lokal (kein Tunnel)",
   "mirror.phase.waiting_tunnel": "Warten auf Tunnel…",
   "mirror.phase.live": "Live",
-  "mirror.phase.tunnel_dead": "Tunnel down",
+  "mirror.phase.tunnel_dead": "Tunnel ausgefallen",
   "mirror.phase.error": "Fehler",
   "mirror.phase.softLocal": "Nur lokal (Tunnel fehlgeschlagen)",
   "mirror.warningToken": "Wer diesen Link hat, kann den Agenten auf diesem Gerät steuern. Host stoppen, wenn fertig.",

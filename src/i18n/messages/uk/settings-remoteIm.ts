@@ -572,7 +572,7 @@ export const ukSettingsRemoteIm = {
   "settings.remoteIm.channel.dingtalk": "DingTalk",
   "settings.remoteIm.channel.wecom": "WeCom",
   "settings.remoteIm.channel.weixin": "WeChat (особистий)",
-  "settings.remoteIm.channel.wpsXiezuo": "WPS Collaboration",
+  "settings.remoteIm.channel.wpsXiezuo": "WPS Спільна робота",
   "settings.remoteIm.channel.weibo": "Weibo",
   "settings.remoteIm.channel.qq": "QQ (OneBot)",
   "settings.remoteIm.channel.qqbot": "Офіційний бот QQ",

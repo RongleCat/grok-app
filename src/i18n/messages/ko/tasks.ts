@@ -140,7 +140,7 @@ export const koTasks = {
   "dashboard.tool": "도구: {name}",
   "dashboard.toolLabel": "도구",
   "dashboard.open": "에이전트 대시보드",
-  "dashboard.evidence.title": "X Evidence",
+  "dashboard.evidence.title": "X 근거 자료",
   "dashboard.evidence.hint": "X Evidence Rail — x_evidence_search가 저장한 로컬 증거 행(docs/features/x-search.md)",
   "dashboard.evidence.todayNew": "오늘 새로 {n}개",
   "dashboard.evidence.weekPacks": "이번 주 인용 팩 {n}개",

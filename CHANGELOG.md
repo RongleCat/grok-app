@@ -13,6 +13,18 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- When the Grok Build CLI is missing, Runtime settings offers a one-click install.
+
+**中文 · 新增**
+- 找不到 Grok Build CLI 时，运行时设置里可以直接一键安装。
+
+### Changed
+- Missing translations are filled in. SSH, IM security, permission rules, and Doctor checks follow the UI language.
+
+**中文 · 变更**
+- 补上缺的翻译。SSH、IM 安全、权限规则和 Doctor 检查跟界面语言。
+
 ### Fixed
 - CLI update banner and empty side-tab hint follow Appearance text color on wallpaper. They sat outside the old chrome list and used tertiary ink.
 - Opening a remote file no longer shows a failed banner when the file already loaded. Listing a parent folder is not treated as an SSH outage.

@@ -189,7 +189,7 @@ export const jaFeatures = {
   "modelAux.slot.sessionSummaryDesc": "セッション要約 / 圧縮関連テキスト用のサイドジョブモデル。",
   "modelAux.slot.promptSuggestion": "プロンプト提案",
   "modelAux.slot.promptSuggestionDesc": "CLI が有効なときの、コンポーザーのプロンプト提案に使うモデル。",
-  "modelAux.saveGrok": "Save Grok",
+  "modelAux.saveGrok": "Grok を保存",
   "modelAux.saveGrokHint": "4 つのスロットすべてを {model} に向けます。メインモデルは変わりません。",
   "modelAux.saveGrokNoTarget": "マルチモーダルの対象がまだありません。公式 API キー（アカウント → カスタムプロバイダー → 公式）または Grok 対応リレー（Amux / Yun）を追加してから再試行してください。",
   "modelAux.saveGrokConfirmTitle": "Save Grok プリセットを適用しますか？",

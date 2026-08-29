@@ -182,7 +182,7 @@ export const frSettingsAgent = {
   "settings.serve.stopping": "Arrêt…",
   "settings.serve.startHint": "Démarre `grok agent serve --bind 127.0.0.1:2419 --secret <auto> [--remote <url>]`. Au démarrage, la chaîne CLI client est copiée une fois. Arrêter n’affecte que les processus lancés depuis cette app.",
   "settings.serve.unsupportedBody": "Cette version de Grok Build CLI n’expose pas `agent serve`. Mettez à jour la CLI sous Exécution → CLI, ou lancez le serve hors de l’app.",
-  "settings.sdkConnect.title": "SDK Connect",
+  "settings.sdkConnect.title": "Connexion SDK",
   "settings.sdkConnect.desc": "Assistant guidé pour démarrer le serve d’agent local, vérifier la santé TCP, copier des exemples de clients externes, et éventuellement sonder une URL de serve distante. Les secrets restent masqués à l’écran et ne sont jamais journalisés.",
   "settings.sdkConnect.step1": "Démarrer le serve local",
   "settings.sdkConnect.step1Hint": "Démarre `grok agent serve` sur 127.0.0.1:2419 avec un secret auto-généré. Arrêter n’affecte que les processus lancés depuis cette app.",
