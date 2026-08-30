@@ -70,7 +70,7 @@ fn place_over_main_right(app: &AppHandle, win: &WebviewWindow) {
 
 /// Open or focus the appearance editor as a real OS window.
 #[tauri::command]
-pub fn open_theme_editor_window(app: AppHandle) -> Result<(), String> {
+pub async fn open_theme_editor_window(app: AppHandle) -> Result<(), String> {
     if let Some(existing) = app.get_webview_window(THEME_EDITOR_WINDOW_LABEL) {
         let _ = existing.show();
         let _ = existing.unminimize();
