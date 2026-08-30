@@ -10,6 +10,7 @@ import {
   chatOpenPinWindow,
   computeChatVirtualWindow,
   cumulativeOffsets,
+  shiftOffsetsAfter,
   estimateChatRowHeight,
   findEndIndex,
   findStartIndex,
@@ -475,6 +476,45 @@ describe("scrollTopAfterHeightChange", () => {
 describe("cumulativeOffsets", () => {
   it("builds prefix sums", () => {
     expect(cumulativeOffsets(3, (i) => (i + 1) * 10)).toEqual([0, 10, 30, 60]);
+  });
+});
+
+describe("shiftOffsetsAfter", () => {
+  it("matches a full rebuild after a row grows", () => {
+    const heights = [40, 120, 80, 200, 60];
+    const before = cumulativeOffsets(heights.length, (i) => heights[i] ?? 0);
+
+    heights[2] = 300;
+    const patched = shiftOffsetsAfter(before, 2, 300 - 80);
+
+    expect(patched).toEqual(
+      cumulativeOffsets(heights.length, (i) => heights[i] ?? 0),
+    );
+  });
+
+  it("leaves the rows above the change untouched", () => {
+    const before = cumulativeOffsets(4, () => 100);
+    // A shrink must not move any offset at or below the edited row, otherwise
+    // the rows already on screen above it visibly jump.
+    expect(shiftOffsetsAfter(before, 2, -30)).toEqual([0, 100, 200, 270, 370]);
+  });
+
+  it("does not mutate the offsets handed to it", () => {
+    const before = cumulativeOffsets(3, () => 10);
+    shiftOffsetsAfter(before, 0, 999);
+    expect(before).toEqual([0, 10, 20, 30]);
+  });
+
+  it("stays exact across repeated fractional commits", () => {
+    // Unmeasured rows contribute an unrounded estimate, so a shift computed
+    // from a rounded row height would drift a fraction per commit and the
+    // error would accumulate down the suffix.
+    let offsets = cumulativeOffsets(4, () => 120.4);
+    for (let i = 0; i < 3; i++) {
+      const height = (offsets[i + 1] ?? 0) - (offsets[i] ?? 0);
+      offsets = shiftOffsetsAfter(offsets, i, 120 - height);
+    }
+    expect(offsets).toEqual([0, 120, 240, 360, 480.4]);
   });
 });
 

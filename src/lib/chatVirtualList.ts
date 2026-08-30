@@ -223,6 +223,32 @@ export function cumulativeOffsets(
 }
 
 /**
+ * Apply a single row's height change to an existing offsets table.
+ *
+ * `offsets[i]` is the sum of the heights below `i`, so changing one row leaves
+ * every offset up to and including that row untouched and moves the whole
+ * suffix by the same amount. Rebuilding with {@link cumulativeOffsets} instead
+ * costs a height lookup per row, which is what made a mount storm re-derive the
+ * entire prefix sum on every ResizeObserver commit.
+ *
+ * `delta` must be measured against the height already recorded in `offsets`,
+ * not against a rounded row height — otherwise estimate rounding drifts the
+ * suffix a fraction of a pixel per commit and the drift accumulates.
+ */
+export function shiftOffsetsAfter(
+  offsets: readonly number[],
+  index: number,
+  delta: number,
+): number[] {
+  const next = offsets.slice();
+  if (delta === 0) return next;
+  for (let i = index + 1; i < next.length; i++) {
+    next[i] = (next[i] ?? 0) + delta;
+  }
+  return next;
+}
+
+/**
  * Adaptive overscan in px.
  * Scales with viewport so large monitors do not mount multi-screen markdown
  * windows, while short viewports still get enough runway for fling.

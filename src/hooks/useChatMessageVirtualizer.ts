@@ -40,6 +40,7 @@ import {
   chatOpenPinWindow,
   computeChatVirtualWindow,
   cumulativeOffsets,
+  shiftOffsetsAfter,
   resolveChatOverscanPx,
   shouldCommitRowHeight,
   shouldVirtualizeChat,
@@ -707,7 +708,27 @@ export function useChatMessageVirtualizer(
       const delta = nextH - prevH;
       heightsRef.current.set(key, nextH);
       heightsVersionRef.current += 1;
-      offsetsCacheRef.current = null;
+
+      // Only this row changed, so patch the suffix instead of paying a height
+      // lookup per row on the next read. The shift is derived from the height
+      // already inside `offsetsBefore` rather than from `delta`, because an
+      // unmeasured row contributes its *unrounded* estimate there while `prevH`
+      // is rounded — using `delta` would drift the suffix on every commit.
+      const nextOffsets =
+        index >= 0 && index + 1 < offsetsBefore.length
+          ? shiftOffsetsAfter(
+              offsetsBefore,
+              index,
+              nextH - ((offsetsBefore[index + 1] ?? 0) - rowOffset),
+            )
+          : null;
+      offsetsCacheRef.current = nextOffsets
+        ? {
+            version: heightsVersionRef.current,
+            count: itemCountRef.current,
+            offsets: nextOffsets,
+          }
+        : null;
 
       // Compensate height changes for rows above the viewport
       if (!isPinnedRef.current && isFullyAboveViewport && Math.abs(delta) > 0.5) {
