@@ -32,6 +32,7 @@ See `docs/llm-wiki/release.md`.
 - Chat no longer jumps while the agent is streaming. Switching away and back no longer lands in the middle.
 - Live thinking is not clipped in a 220px box. The transcript follows the stream.
 - Opening an SSH path chip no longer blanks the window. The files pane shows a loading state instead of an empty Suspense.
+- A question from the agent comes back after a reload instead of leaving the chat stuck thinking. Reopening the chat restores it.
 
 **中文 · 修复**
 - 壁纸上 CLI 更新条和「未打开标签」跟外观文字色。原先不在暴露层名单里，用了过淡的 tertiary。
@@ -40,6 +41,7 @@ See `docs/llm-wiki/release.md`.
 - 修复对话输出时屏幕往上跳、切出 App 再回来落到中间。正在看历史时不会被拽回底部。
 - 修复 Live Thinking 被 220px 小框截断。主对话跟着流式输出走。
 - 修复点 SSH 路径 chip 整窗变白。文件面板先显示加载，不再空白。
+- 修复重载后 agent 的提问消失、会话卡在思考中。重新打开会话会把提问恢复出来。
 
 ## [0.2.28] - 2026-08-29
 

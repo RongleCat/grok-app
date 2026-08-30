@@ -13,6 +13,7 @@ import {
 import { useThemeShell } from "@/providers/ThemeProvider";
 import { usePetCompanion } from "@/hooks/usePetCompanion";
 import { useFloatingMenu } from "@/lib/floatingMenu";
+import { restoreSessionGate } from "@/lib/sessionGateRestore";
 import { DEFAULT_WALLPAPER_FOCUS } from "@/lib/themeSkin";
 import { formatRelativeTime } from "@/lib/accountUi";
 import {
@@ -3502,20 +3503,18 @@ export function AppWorkbench() {
       void tryApplyAutomationFromSession(sessionId);
     };
     host.gates.restoreForSession = (sessionId, { stillThisOpen, liveSessionId }) => {
-      const parkedPerm = pendingPermBySessionRef.current.get(sessionId) ?? null;
-      setPerm(parkedPerm);
-      if (!parkedPerm && api.isTauri()) {
-        void api
-          .sessionPendingPermission(sessionId)
-          .then((p) => {
-            if (!p || !stillThisOpen()) return;
-            if (pendingPermBySessionRef.current.has(sessionId)) return;
-            pendingPermBySessionRef.current.set(sessionId, p);
-            setPerm(p);
-          })
-          .catch(() => {});
-      }
-      setAskUser(pendingAskUserBySessionRef.current.get(sessionId) ?? null);
+      restoreSessionGate(sessionId, stillThisOpen, {
+        parked: pendingPermBySessionRef,
+        apply: setPerm,
+        pull: api.sessionPendingPermission,
+        enabled: api.isTauri(),
+      });
+      restoreSessionGate(sessionId, stillThisOpen, {
+        parked: pendingAskUserBySessionRef,
+        apply: setAskUser,
+        pull: api.sessionPendingAskUser,
+        enabled: api.isTauri(),
+      });
       setTurnStartedAt(turnStartedAtBySessionRef.current.get(sessionId) ?? null);
       if (liveSessionId !== sessionId) setRetryStatus(null);
     };

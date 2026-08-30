@@ -139,6 +139,17 @@ pub struct UiPermissionRequest {
     pub options: serde_json::Value,
 }
 
+/// Pending `_x.ai/ask_user_question` questionnaire, shaped exactly like the
+/// `session://ask_user` event so a restore and a live emit are interchangeable.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UiAskUserRequest {
+    pub rpc_id: u64,
+    pub session_id: String,
+    pub tool_call_id: Option<String>,
+    pub questions: Vec<crate::acp_client::AskUserQuestionItem>,
+}
+
 /// Identity for routing ACP event pumps when multiple processes are warm.
 pub(super) type ProcessId = String;
 
@@ -195,6 +206,12 @@ pub(crate) struct LiveSession {
     pub(super) pending_plan_rpc_id: Option<u64>,
     /// Pending `_x.ai/ask_user_question` JSON-RPC id awaiting user answers.
     pub(super) pending_ask_user_rpc_id: Option<u64>,
+    /// Full UI payload of the pending questionnaire, for the same reason as
+    /// `pending_permission_ui`: `session://ask_user` is a one-shot emit, and the
+    /// agent blocks on the reverse RPC until it is answered. Without a restore
+    /// path a reload left the chat stuck "thinking" with no gate to click, and
+    /// the stall watchdog deliberately skips sessions holding an ask gate.
+    pub(super) pending_ask_user_ui: Option<UiAskUserRequest>,
     /// Pending `session/request_permission` JSON-RPC id for this session (#524).
     /// Cleared on resolve or when the owning agent process is recycled/killed.
     pub(super) pending_permission_rpc_id: Option<u64>,

@@ -148,6 +148,7 @@ fn sample_live_for_empty_run(body: &str, thought: &str, tools: u32, mode: &str) 
         pending_permission_tool_name: None,
         pending_permission_ui: None,
         pending_ask_user_rpc_id: None,
+        pending_ask_user_ui: None,
         last_activity: now,
         last_stream_progress: now,
         last_stall_emit: None,
@@ -203,6 +204,46 @@ fn pending_permission_recovers_card_until_invalidated() {
         s.pending_permission_rpc_id = None;
     });
     assert!(mgr.pending_permission(Some("session-1".into())).is_none());
+}
+
+#[test]
+fn pending_ask_user_recovers_questionnaire_until_invalidated() {
+    // Same one-shot recovery as the approval bar, and more urgent: the agent
+    // blocks on the `_x.ai/ask_user_question` reverse RPC and the stall
+    // watchdog skips sessions holding an ask gate, so a missed
+    // `session://ask_user` emit left the chat "thinking" with nothing to click.
+    let mgr = SessionManager::new();
+    let mut s = sample_live_for_empty_run("", "", 0, "agent");
+    s.pending_ask_user_rpc_id = Some(11);
+    s.pending_ask_user_ui = Some(UiAskUserRequest {
+        rpc_id: 11,
+        session_id: "session-1".into(),
+        tool_call_id: Some("tc-9".into()),
+        questions: vec![crate::acp_client::AskUserQuestionItem {
+            id: "q1".into(),
+            question: "Which database?".into(),
+            options: vec![],
+            multi_select: false,
+        }],
+    });
+    *mgr.inner.lock() = Some(s);
+
+    let got = mgr
+        .pending_ask_user(Some("session-1".into()))
+        .expect("pending questionnaire should be recoverable");
+    assert_eq!(got.rpc_id, 11);
+    assert_eq!(got.questions.len(), 1);
+    assert_eq!(got.questions[0].question, "Which database?");
+
+    // Unknown ids never fall back to another chat.
+    assert!(mgr.pending_ask_user(Some("other".into())).is_none());
+
+    // rpc_id is the invalidation gate: once answered / recycled / stopped, a
+    // stale stored questionnaire must not resurrect the gate.
+    mgr.with_session_mut("session-1", |s| {
+        s.pending_ask_user_rpc_id = None;
+    });
+    assert!(mgr.pending_ask_user(Some("session-1".into())).is_none());
 }
 
 #[test]

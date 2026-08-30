@@ -798,6 +798,12 @@ impl SessionManager {
                 questions,
                 raw: _,
             } => {
+                let pending = UiAskUserRequest {
+                    rpc_id,
+                    session_id: app_session_id.to_string(),
+                    tool_call_id,
+                    questions,
+                };
                 {
                     let mut bg = self.background.lock();
                     let Some(s) = bg.get_mut(app_session_id) else {
@@ -807,17 +813,11 @@ impl SessionManager {
                         return;
                     }
                     s.pending_ask_user_rpc_id = Some(rpc_id);
+                    s.pending_ask_user_ui = Some(pending.clone());
                     Self::touch_activity_locked(s);
                 }
-                let _ = app.emit(
-                    "session://ask_user",
-                    serde_json::json!({
-                        "rpcId": rpc_id,
-                        "sessionId": app_session_id,
-                        "toolCallId": tool_call_id,
-                        "questions": questions,
-                    }),
-                );
+                // Emit the stored payload so a restore and a live emit cannot drift.
+                let _ = app.emit("session://ask_user", &pending);
                 // Same signal as background permission — toast / sidebar attention.
                 let _ = app.emit(
                     "session://background_permission",

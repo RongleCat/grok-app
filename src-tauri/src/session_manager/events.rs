@@ -868,7 +868,7 @@ impl SessionManager {
                 questions,
                 raw: _,
             } => {
-                let app_sid = {
+                let pending = {
                     let mut guard = self.inner.lock();
                     if let Some(s) = guard.as_mut() {
                         // Live reverse-RPC — never drop as session/load replay.
@@ -876,21 +876,21 @@ impl SessionManager {
                             return;
                         }
                         s.pending_ask_user_rpc_id = Some(rpc_id);
+                        let pending = UiAskUserRequest {
+                            rpc_id,
+                            session_id: s.app_session_id.clone(),
+                            tool_call_id,
+                            questions,
+                        };
+                        s.pending_ask_user_ui = Some(pending.clone());
                         Self::touch_activity_locked(s);
-                        s.app_session_id.clone()
+                        pending
                     } else {
                         return;
                     }
                 };
-                let _ = app.emit(
-                    "session://ask_user",
-                    serde_json::json!({
-                        "rpcId": rpc_id,
-                        "sessionId": app_sid,
-                        "toolCallId": tool_call_id,
-                        "questions": questions,
-                    }),
-                );
+                // Emit the stored payload so a restore and a live emit cannot drift.
+                let _ = app.emit("session://ask_user", &pending);
             }
             AcpEvent::Error { error } => {
                 {

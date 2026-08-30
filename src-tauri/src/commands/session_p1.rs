@@ -296,6 +296,18 @@ pub async fn session_pending_permission(
     Ok(mgr.pending_permission(session_id))
 }
 
+/// Still-pending questionnaire for a chat. Pulled on session open to recover an
+/// ask-user gate whose one-shot `session://ask_user` emit was missed (WebView
+/// reload / window remount) — otherwise the agent stays blocked on the reverse
+/// RPC and the chat looks stuck "thinking" with nothing to answer.
+#[tauri::command]
+pub async fn session_pending_ask_user(
+    mgr: State<'_, Arc<SessionManager>>,
+    session_id: Option<String>,
+) -> Result<Option<crate::session_manager::UiAskUserRequest>, String> {
+    Ok(mgr.pending_ask_user(session_id))
+}
+
 #[tauri::command]
 pub async fn probe_cli(manual_path: Option<String>) -> Result<CliProbeResult, String> {
     // probe_cli runs `grok --version` (sync I/O). Never block a Tokio worker —

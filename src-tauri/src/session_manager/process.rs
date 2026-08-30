@@ -638,6 +638,7 @@ impl SessionManager {
             pending_permission_tool_name: None,
             pending_permission_ui: None,
             pending_ask_user_rpc_id: None,
+            pending_ask_user_ui: None,
             last_activity: now,
             last_stream_progress: now,
             last_stall_emit: None,

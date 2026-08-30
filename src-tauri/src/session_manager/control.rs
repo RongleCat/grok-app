@@ -1002,6 +1002,26 @@ impl SessionManager {
         .flatten()
     }
 
+    /// Still-pending questionnaire for a chat (live or background slot).
+    ///
+    /// Same one-shot problem as `pending_permission`, with a worse failure mode:
+    /// the agent blocks on the `_x.ai/ask_user_question` reverse RPC, and the
+    /// stall watchdog skips sessions holding an ask gate, so a missed
+    /// `session://ask_user` emit left the chat "thinking" forever with nothing
+    /// to click. The frontend pulls this on session open.
+    pub fn pending_ask_user(&self, session_id: Option<String>) -> Option<UiAskUserRequest> {
+        let target = self.resolve_target_session(session_id).ok()?;
+        self.with_session_mut(&target, |s| {
+            // Gate on rpc_id: it is the field every invalidation path clears.
+            if s.pending_ask_user_rpc_id.is_some() {
+                s.pending_ask_user_ui.clone()
+            } else {
+                None
+            }
+        })
+        .flatten()
+    }
+
     /// Resolve pending `_x.ai/exit_plan_mode` (Approve & build / request changes / abandon).
     ///
     /// `decision`: "approved" | "cancelled" | "abandoned"
