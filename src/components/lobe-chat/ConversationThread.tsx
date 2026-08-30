@@ -2603,9 +2603,33 @@ export function ConversationThread({
     return turnBusy ? lastAssistantId : null;
   }, [messages, turnBusy]);
 
-  const hasStreamingAssistant = messages.some(
-    (m) => m.role === "assistant" && m.streaming,
+  // Scanned the whole journal on every render. The virtualizer re-renders this
+  // thread on each window shift, so during a fling that was one O(n) pass per
+  // frame on top of the mount and measure work.
+  const hasStreamingAssistant = useMemo(
+    () => messages.some((m) => m.role === "assistant" && m.streaming),
+    [messages],
   );
+
+  /**
+   * True when the live tool already owns a row in the transcript, so the
+   * standalone `LiveToolText` must not double-render it.
+   *
+   * Two full-journal scans that used to sit in the JSX and therefore ran on
+   * every render, including every virtual window shift while scrolling.
+   */
+  const liveToolHasRow = useMemo(() => {
+    const toolCallId = liveTool?.toolCallId;
+    if (!liveTool) return false;
+    if (toolCallId && isToolInlinedInAssistants(messages, toolCallId)) {
+      return true;
+    }
+    return messages.some(
+      (x) =>
+        isToolStepMessage(x) &&
+        (x.toolCallId === toolCallId || x.id === `tool-${toolCallId}`),
+    );
+  }, [messages, liveTool]);
 
   /**
    * Map short path tokens → absolute using tool_step abs paths in this session.
@@ -3149,19 +3173,7 @@ export function ConversationThread({
             : null}
 
           {/* Tool before any assistant bubble — only if not already a message row. */}
-          {showToolChrome &&
-          liveTool &&
-          !activeAssistantId &&
-          !(
-            liveTool.toolCallId &&
-            isToolInlinedInAssistants(messages, liveTool.toolCallId)
-          ) &&
-          !messages.some(
-            (x) =>
-              isToolStepMessage(x) &&
-              (x.toolCallId === liveTool.toolCallId ||
-                x.id === `tool-${liveTool.toolCallId}`),
-          ) ? (
+          {showToolChrome && liveTool && !activeAssistantId && !liveToolHasRow ? (
             <LiveToolText message={liveTool} locale={locale} />
           ) : null}
 

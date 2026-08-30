@@ -21,9 +21,11 @@ See `docs/llm-wiki/release.md`.
 
 ### Changed
 - Missing translations are filled in. SSH, IM security, permission rules, and Doctor checks follow the UI language.
+- Scrolling a long chat does less work per frame. Three full-journal scans no longer run on every render.
 
 **中文 · 变更**
 - 补上缺的翻译。SSH、IM 安全、权限规则和 Doctor 检查跟界面语言。
+- 长会话滚动每帧少做一些活。三处全量遍历不再每次渲染都跑。
 
 ### Fixed
 - CLI update banner and empty side-tab hint follow Appearance text color on wallpaper. They sat outside the old chrome list and used tertiary ink.
