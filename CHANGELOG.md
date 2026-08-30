@@ -32,6 +32,8 @@ See `docs/llm-wiki/release.md`.
 - Chat no longer jumps while the agent is streaming. Switching away and back no longer lands in the middle.
 - Live thinking is not clipped in a 220px box. The transcript follows the stream.
 - Opening an SSH path chip no longer blanks the window. The files pane shows a loading state instead of an empty Suspense.
+- Rollback no longer spins for minutes when the agent is slow to answer. Forking a chat also stops holding up other chats' sends.
+- Rewind is refused while a chat you switched away from is still streaming. It used to cut that chat's history mid-turn.
 
 **中文 · 修复**
 - 壁纸上 CLI 更新条和「未打开标签」跟外观文字色。原先不在暴露层名单里，用了过淡的 tertiary。
@@ -40,6 +42,8 @@ See `docs/llm-wiki/release.md`.
 - 修复对话输出时屏幕往上跳、切出 App 再回来落到中间。正在看历史时不会被拽回底部。
 - 修复 Live Thinking 被 220px 小框截断。主对话跟着流式输出走。
 - 修复点 SSH 路径 chip 整窗变白。文件面板先显示加载，不再空白。
+- 修复回退在 agent 迟迟不应答时转好几分钟。分叉会话也不再占住别的会话的发送。
+- 修复切走的会话还在输出时仍允许回退。原先会截断那条会话的历史。
 
 ## [0.2.28] - 2026-08-29
 

@@ -513,3 +513,44 @@ fn stream_journal_prepare_snapshots_and_throttles_without_disk_io() {
     assert!(final_pending.message.created_at >= pending.message.created_at);
     assert!(final_pending.meta.updated_at >= pending.meta.updated_at);
 }
+
+/// Regression: `rewind_to_prompt_index` read busy state from the live slot
+/// only. A chat demoted to background mid-turn (the user switched away while
+/// it streamed) therefore reported idle, and the rewind truncated its journal
+/// underneath the running turn — the agent's memory no longer matched the
+/// transcript, so the next send hung or showed a phantom 「思考中」.
+#[test]
+fn rewind_busy_check_sees_background_mid_turn_session() {
+    let mgr = Arc::new(SessionManager::new());
+    let mut demoted = bare_live_session("bg-rewind", "p-1");
+    // Authoritative mid-turn marker: the prompt RPC has not resolved yet.
+    demoted.prompt_in_flight = true;
+    mgr.background.lock().insert("bg-rewind".into(), demoted);
+
+    // Precondition that made the old check wrong: nothing holds the live slot,
+    // so a live-slot-only read sees no session at all and answers "idle".
+    assert!(
+        mgr.inner.lock().is_none(),
+        "fixture must leave the live slot empty"
+    );
+
+    assert!(
+        mgr.rewind_blocked_by_running_turn("bg-rewind"),
+        "a background session mid-turn must still block rewind"
+    );
+}
+
+/// A demoted session that finished its turn must not keep rewind locked out.
+#[test]
+fn rewind_busy_check_allows_idle_background_session() {
+    let mgr = Arc::new(SessionManager::new());
+    mgr.background
+        .lock()
+        .insert("bg-idle".into(), bare_live_session("bg-idle", "p-1"));
+
+    assert!(!mgr.rewind_blocked_by_running_turn("bg-idle"));
+    assert!(
+        !mgr.rewind_blocked_by_running_turn("never-seen"),
+        "an unknown chat has no running turn to protect"
+    );
+}

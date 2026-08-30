@@ -1261,9 +1261,16 @@ impl SessionManager {
 
                 match plan {
                     ChildTrimPlan::RewindChild { prompt_index } => {
-                        match client
-                            .rewind_execute_for(&agent_sid, prompt_index, false)
-                            .await
+                        // Post-open RPC, so it runs outside `with_handshake_budget`
+                        // while `connect_lock` is still held. Unbounded, it pinned
+                        // the lock for the handshake *plus* the rewind probe chain,
+                        // stalling every other chat's send/connect behind one fork.
+                        match Self::with_soft_rpc_budget(client.rewind_execute_for(
+                            &agent_sid,
+                            prompt_index,
+                            false,
+                        ))
+                        .await
                         {
                             Ok(_) => {
                                 rewind_ok = Some(true);

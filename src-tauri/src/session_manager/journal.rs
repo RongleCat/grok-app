@@ -11,7 +11,28 @@ use crate::store::{self};
 
 use super::*;
 
+/// Budget for a single agent rewind RPC. `AcpClient::request` already allows
+/// `HANDSHAKE_TIMEOUT_SECS` per method name and `rewind_execute_for` probes
+/// several names, so an unbounded await can park a rewind command for minutes
+/// with the rollback dialog spinning. The local journal is the UI source of
+/// truth, so exceeding the budget degrades to "agent rewind failed" instead.
+const REWIND_AGENT_RPC_BUDGET: std::time::Duration = std::time::Duration::from_secs(8);
+
 impl SessionManager {
+    /// True when a rewind must be refused because a turn is still running for
+    /// `app_sid` — whether that chat holds the live slot or was demoted to
+    /// background when the user switched away.
+    ///
+    /// Reading only `inner` reported idle for a demoted chat, so the journal was
+    /// truncated underneath a turn that was still streaming and the agent's
+    /// memory stopped matching the transcript. `live_session_is_busy` is also
+    /// authoritative where the FSM is not: it honours `prompt_in_flight` after
+    /// an early `prompt_complete`.
+    pub(super) fn rewind_blocked_by_running_turn(&self, app_sid: &str) -> bool {
+        self.with_session_mut(app_sid, |s| Self::live_session_is_busy(s))
+            .unwrap_or(false)
+    }
+
     pub async fn rewind_drop_last_user_turn(
         self: &Arc<Self>,
         app: AppHandle,
@@ -57,15 +78,29 @@ impl SessionManager {
                 let exec_index =
                     store::drop_last_user_prompt_exec_index(user_prompt_count).unwrap_or(0);
                 let sid = agent_sid.as_deref().ok_or("chat has no agent session id")?;
-                match client.rewind_execute_for(sid, exec_index, false).await {
-                    Ok(_) => {
+                let first = tokio::time::timeout(
+                    REWIND_AGENT_RPC_BUDGET,
+                    client.rewind_execute_for(sid, exec_index, false),
+                )
+                .await;
+                match first {
+                    Ok(Ok(_)) => {
                         agent_rewind_ok = Some(true);
                         tracing::info!(
                             target: "session",
                             "rewind_drop_last_user_turn: agent rewound target={exec_index} (user_turns={user_prompt_count})"
                         );
                     }
-                    Err(e) => {
+                    Err(_) => {
+                        // Timed out: spending a second budget on the fallback
+                        // index would double the stall the user already felt.
+                        agent_rewind_ok = Some(false);
+                        tracing::warn!(
+                            target: "session",
+                            "rewind_execute({exec_index}) timed out; leaving local journal intact"
+                        );
+                    }
+                    Ok(Err(e)) => {
                         agent_rewind_ok = Some(false);
                         if crate::acp_client::rpc_looks_like_method_not_found(&e) {
                             tracing::warn!(
@@ -80,15 +115,26 @@ impl SessionManager {
                                 error = %e,
                                 "rewind_execute({exec_index}) failed; trying last-turn index {target}"
                             );
-                            match client.rewind_execute_for(sid, target, false).await {
-                                Ok(_) => {
+                            match tokio::time::timeout(
+                                REWIND_AGENT_RPC_BUDGET,
+                                client.rewind_execute_for(sid, target, false),
+                            )
+                            .await
+                            {
+                                Ok(Ok(_)) => {
                                     agent_rewind_ok = Some(true);
                                 }
-                                Err(e2) => {
+                                Ok(Err(e2)) => {
                                     tracing::warn!(
                                         target: "session",
                                         error = %e2,
                                         "agent rewind failed; leaving local journal intact"
+                                    );
+                                }
+                                Err(_) => {
+                                    tracing::warn!(
+                                        target: "session",
+                                        "agent rewind timed out; leaving local journal intact"
                                     );
                                 }
                             }
@@ -188,27 +234,22 @@ impl SessionManager {
             }
         };
 
-        // Block if *this* session is mid-turn on the live host.
-        let (live_match, backend, acp, agent_sid, busy) = {
-            let guard = self.inner.lock();
-            match guard.as_ref() {
-                Some(s) if s.app_session_id == app_sid => {
-                    let busy = s.fsm.state() == SessionState::Streaming
-                        || s.fsm.state() == SessionState::AwaitingPermission;
-                    (
-                        true,
-                        s.backend.clone(),
-                        s.acp.clone(),
-                        s.meta.agent_session_id.clone(),
-                        busy,
-                    )
-                }
-                _ => (false, String::new(), None, None, false),
-            }
-        };
-        if busy {
+        if self.rewind_blocked_by_running_turn(&app_sid) {
             return Err("cannot rewind while a turn is running".into());
         }
+
+        let (live_match, backend, acp, agent_sid) = {
+            let guard = self.inner.lock();
+            match guard.as_ref() {
+                Some(s) if s.app_session_id == app_sid => (
+                    true,
+                    s.backend.clone(),
+                    s.acp.clone(),
+                    s.meta.agent_session_id.clone(),
+                ),
+                _ => (false, String::new(), None, None),
+            }
+        };
 
         let msgs = store::load_messages(&app_sid);
         let user_count = store::user_prompt_count(&msgs);
@@ -230,7 +271,7 @@ impl SessionManager {
         if live_match && backend != "mock_acp" && !AcpClient::use_mock() {
             if let (Some(client), Some(sid)) = (acp, agent_sid) {
                 match tokio::time::timeout(
-                    std::time::Duration::from_secs(8),
+                    REWIND_AGENT_RPC_BUDGET,
                     client.rewind_execute_for(&sid, target_prompt_index, restore_files),
                 )
                 .await
