@@ -39,7 +39,7 @@ export const filExtensions = {
   "mcpModal.doctor.searchPlaceholder": "Maghanap ng natuklasan…",
   "mcpModal.doctor.level.ok": "OK",
   "mcpModal.doctor.level.warn": "Babala",
-  "mcpModal.doctor.level.fail": "Fail",
+  "mcpModal.doctor.level.fail": "Pumalyado",
   "mcpModal.doctor.err.cli_missing": "Hindi available ang MCP doctor — nawawala ang CLI",
   "mcpModal.doctor.err.cli_missingHint": "I-install o itakda ang path ng Grok Build CLI sa Mga setting → Runtime, tapos subukan ulit. Soft-fail: gumagana pa rin ang listahan ng server nang walang doctor.",
   "mcpModal.doctor.err.cli_too_old": "Kailangan ng MCP doctor ng mas bagong CLI",

@@ -330,7 +330,7 @@ export const filSettingsAgent = {
   "settings.agentsPersonas.error": "Hindi ma-load ang mga agent at personas",
   "settings.agentsPersonas.builtinNoPath": "Built-in · walang path ng definition file",
   "settings.agentsPersonas.setPreferred": "Itakda bilang preferred",
-  "settings.agentsPersonas.preferredBadge": "Preferred",
+  "settings.agentsPersonas.preferredBadge": "Paborito",
   "settings.agentsPersonas.preferredDefault": "Preferred agent: Default (CLI) — inaalis ng spawn ang `--agent`. Soft-respawn ang mga live na agent sa pagbabago; naghihintay ang idle sa susunod na koneksyon.",
   "settings.agentsPersonas.preferredCurrent": "Preferred agent: {name} · {source} — spawn `--agent {name}` (soft-respawn kapag live).",
   "settings.agentsPersonas.preferredMissing": "Wala sa catalog ang preferred agent na “{name}”",

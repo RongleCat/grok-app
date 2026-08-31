@@ -63,7 +63,7 @@ export const filSettingsCode = {
   "settings.codebaseSearch.nameHit": "pangalan",
   "settings.codebaseSearch.open": "Buksan",
   "settings.codebaseSearch.reveal": "Ipakita",
-  "settings.codebaseSearch.openResources": "Resources",
+  "settings.codebaseSearch.openResources": "Mga Resources",
   "settings.codebaseSearch.refresh": "I-refresh",
   "settings.codebaseSearch.clear": "I-clear",
   "settings.cliWorktreeDb.title": "CLI worktree DB",

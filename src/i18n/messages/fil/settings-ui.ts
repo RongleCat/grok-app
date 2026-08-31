@@ -176,7 +176,7 @@ export const filSettingsUi = {
   "settings.shortcuts.conflictsGroupMeta": "{n} aksyon",
   "settings.shortcuts.conflictsReset": "I-reset ang conflicting sa default",
   "settings.shortcuts.customBadge": "Pasadyang binding",
-  "settings.shortcuts.fixed": "Fixed",
+  "settings.shortcuts.fixed": "Naka-fix",
   "settings.shortcuts.fixedSend": "Pref ng composer",
   "settings.archived.desc": "Naka-lista ayon sa proyekto ang mga chat na na-archive mo. Pumili ng marami para ibalik o burahin.",
   "settings.archived.empty": "Walang naka-archive na chat.",
