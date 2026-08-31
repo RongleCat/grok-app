@@ -308,7 +308,7 @@ export function applyStreamChunk(
 
   if (chunk.kind === "thought") {
     if (!chunk.text) return messages;
-    const idx = findCurrentTurnStreamingAssistant(messages, chunk.messageId);
+    const idx = findCurrentTurnAssistantForStream(messages, chunk.messageId);
     const phaseHint = chunk.thoughtPhase || "open";
     const appendThought = (prev: ChatMessage): ChatMessage => {
       const segs = compactMessageSegments(
@@ -324,7 +324,9 @@ export function applyStreamChunk(
         id: adoptHostStreamMessageId(messages, prev, chunk.messageId),
         ...derived,
         segments: segs,
-        streaming: true,
+        // Late coalesced thought after Host settled must not re-open 思考中
+        // over an answer that is already on the row.
+        streaming: keepThoughtStreaming(prev),
       };
     };
     if (idx != null) {
@@ -356,14 +358,14 @@ export function applyStreamChunk(
     : -1;
   // Host id may not match optimistic pending — bind only within current turn.
   if (idx < 0) {
-    const fallback = findCurrentTurnStreamingAssistant(messages, undefined);
+    const fallback = findCurrentTurnAssistantForStream(messages, undefined);
     idx = fallback ?? -1;
   } else {
     // Refuse to append onto an assistant from a previous turn (stale id reuse)
     // or a frozen pre-steer bubble (interjection sits after it).
     const bindFloor = lastUserRowIndex(messages);
     if (idx <= bindFloor) {
-      const fallback = findCurrentTurnStreamingAssistant(messages, undefined);
+      const fallback = findCurrentTurnAssistantForStream(messages, undefined);
       idx = fallback ?? -1;
     }
   }
@@ -445,4 +447,28 @@ function findCurrentTurnStreamingAssistant(
   }
   // No current-segment streaming bubble — do NOT fall back to older turns.
   return undefined;
+}
+
+/**
+ * Bind late thought/body tokens to this turn's assistant even after Host
+ * settled the row (streaming=false). Creating a second bubble left the
+ * thought-only row on screen until remount.
+ */
+function findCurrentTurnAssistantForStream(
+  messages: ChatMessage[],
+  messageId: string | undefined,
+): number | undefined {
+  const live = findCurrentTurnStreamingAssistant(messages, messageId);
+  if (live != null) return live;
+  const bindFloor = lastUserRowIndex(messages);
+  for (let i = messages.length - 1; i > bindFloor; i--) {
+    const m = messages[i]!;
+    if (m.role === "assistant" && !m.isError) return i;
+  }
+  return undefined;
+}
+
+/** Late thought after settle must not flip a finished answer back to 思考中. */
+function keepThoughtStreaming(prev: ChatMessage): boolean {
+  return !!prev.streaming;
 }

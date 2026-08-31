@@ -208,14 +208,61 @@ export function buildSegmentsFromLegacy(
   return segs;
 }
 
+/**
+ * True when the `content` field is just leaked CoT — the real answer is
+ * still missing. Used so we do not paint thought text as the body, and so
+ * late answer tokens are not treated as post-turn replay.
+ */
+export function contentLooksLikeThought(
+  content: string | null | undefined,
+  thought: string | null | undefined,
+): boolean {
+  const c = (content ?? "").trim();
+  const t = (thought ?? "").trim();
+  if (!c || !t) return false;
+  return c === t;
+}
+
+/**
+ * Live rows can hold the final answer on `content` while `segments` still
+ * only has thought (heal copied the field; stream never opened a content
+ * segment). Paint uses segments, so the thought looks like the reply until
+ * remount rebuilds from fields.
+ */
+export function syncContentIntoSegments(
+  segs: MessageSegment[],
+  content: string | null | undefined,
+  thought?: string | null,
+): MessageSegment[] {
+  const body = content ?? "";
+  if (!body.trim()) return segs;
+  if (contentLooksLikeThought(body, thought)) return segs;
+  // Live interleave can have several content pieces. Never fold the joined
+  // `content` field over them (that mashed "hello " + "world" into one).
+  if (segs.some((s) => s.kind === "content" && s.text.trim())) return segs;
+  return compactMessageSegments([...segs, { kind: "content", text: body }]);
+}
+
 /** Prefer live segments; otherwise reconstruct from legacy fields. */
 export function messageSegments(m: ChatMessage): MessageSegment[] {
-  if (m.segments?.length) return compactMessageSegments(m.segments);
+  if (m.segments?.length) {
+    return syncContentIntoSegments(
+      compactMessageSegments(m.segments),
+      m.content,
+      m.thought,
+    );
+  }
   return buildSegmentsFromLegacy(m.content, m.thought, m.thoughtPhases);
 }
 
 export function ensureSegments(prev: ChatMessage): MessageSegment[] {
-  if (prev.segments?.length) return prev.segments.map((s) => ({ ...s }));
+  if (prev.segments?.length) {
+    return syncContentIntoSegments(
+      prev.segments.map((s) => ({ ...s })),
+      prev.content,
+      prev.thought,
+    );
+  }
   return buildSegmentsFromLegacy(prev.content, prev.thought, prev.thoughtPhases);
 }
 

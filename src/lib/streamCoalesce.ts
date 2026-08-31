@@ -110,6 +110,22 @@ export class StreamCoalescer {
 
   push(chunk: CoalesceStreamChunk): void {
     if (this.disposed) return;
+    // Thought and assistant use different keys. A done tick must not settle
+    // the bubble while the other kind is still buffered — that left CoT on
+    // screen as the "final" reply until remount.
+    if (chunk.done) {
+      const sid = chunk.sessionId ?? "";
+      const selfKey = streamCoalesceKey(chunk);
+      const others: CoalesceStreamChunk[] = [];
+      for (const [k, v] of this.pending) {
+        if (k === selfKey) continue;
+        if ((v.sessionId ?? "") === sid) {
+          others.push(v);
+          this.pending.delete(k);
+        }
+      }
+      for (const v of others) this.onFlush(v);
+    }
     const key = streamCoalesceKey(chunk);
     const existing = this.pending.get(key);
     if (existing) {

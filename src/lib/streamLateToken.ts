@@ -1,3 +1,5 @@
+import { contentLooksLikeThought } from "./session/segments";
+
 /**
  * Decide whether a stream text chunk may still be applied when the focused
  * Host session is no longer "live streaming" (ready/idle after early
@@ -54,10 +56,13 @@ export function shouldApplyLateStreamText(opts: {
 
   if (turnAsst.streaming) return true;
 
-  const bodyEmpty = !((turnAsst.content ?? "").trim());
+  const content = (turnAsst.content ?? "").trim();
+  const thought = (turnAsst.thought ?? "").trim();
+  const bodyEmpty = !content || contentLooksLikeThought(content, thought);
   // Empty body after early ready: thinking-only *or* tool-only. A long tool
   // turn settles the bubble (streaming=false, no thought) before the real
-  // answer tokens arrive. Dropping those tokens left the viewed chat blank
+  // answer tokens arrive. Thought leaked into `content` is not a settled
+  // answer either — dropping the real tail left CoT painted as the reply
   // until the user switched sessions and remounted from disk.
   if (bodyEmpty) return true;
 
@@ -79,8 +84,9 @@ export function shouldHealJournalOnStreamDone(opts: {
   return opts.streamDone && opts.isViewingSession;
 }
 
-/** Gaps after attempt 0: 400ms then +500ms (900ms), covering Host's 750ms flush. */
-export const JOURNAL_REHYDRATE_RETRY_GAPS_MS = [400, 500] as const;
+/** Gaps after attempt 0: 400 + 500 + 800ms (1700ms). Host post-turn reconcile
+ *  last delay is 750ms and the disk write can still be in flight after that. */
+export const JOURNAL_REHYDRATE_RETRY_GAPS_MS = [400, 500, 800] as const;
 
 /**
  * End-of-turn UI rehydrate must not re-parse agent `chat_history` / `updates`.

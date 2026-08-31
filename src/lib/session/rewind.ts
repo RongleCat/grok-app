@@ -1,6 +1,10 @@
 import type { ChatMessage, MessageSegment, SessionState } from "./types";
 import { isTurnPromptMessage } from "./types";
-import { buildSegmentsFromLegacy } from "./segments";
+import {
+  buildSegmentsFromLegacy,
+  contentLooksLikeThought,
+  syncContentIntoSegments,
+} from "./segments";
 
 export function truncateBeforeLastUser(messages: ChatMessage[]): ChatMessage[] {
   let cut = messages.length;
@@ -484,11 +488,26 @@ export function upgradeMessagesFromJournal(
     const jContent = j.content ?? "";
     const uiThought = m.thought ?? "";
     const jThought = j.thought ?? "";
-    const richerContent = jContent.length > uiContent.length;
+    const liveThoughtAsBody = contentLooksLikeThought(uiContent, uiThought);
+    const journalHasRealBody =
+      !!jContent.trim() && !contentLooksLikeThought(jContent, jThought);
+    const richerContent =
+      jContent.length > uiContent.length ||
+      (liveThoughtAsBody && journalHasRealBody && jContent !== uiContent);
     const richerThought = jThought.length > uiThought.length;
     const richerAtts =
       (j.attachments?.length ?? 0) > (m.attachments?.length ?? 0);
-    if (!richerContent && !richerThought && !richerAtts) return m;
+    const segsMissingBody =
+      !!jContent.trim() &&
+      !!m.segments?.length &&
+      !m.segments.some(
+        (s) =>
+          s.kind === "content" &&
+          (s.text.includes(jContent) || jContent.includes(s.text.trim())),
+      );
+    if (!richerContent && !richerThought && !richerAtts && !segsMissingBody) {
+      return m;
+    }
 
     changed = true;
     let out: ChatMessage = {
@@ -515,24 +534,31 @@ export function upgradeMessagesFromJournal(
           out.thoughtPhases,
         ),
       };
-    } else if (richerContent) {
+    } else {
       const segs = (out.segments ?? []).map((s) =>
         s.kind === "content" || s.kind === "thought" || s.kind === "tool"
           ? { ...s }
           : s,
       ) as MessageSegment[];
-      let found = false;
-      for (let i = segs.length - 1; i >= 0; i--) {
-        if (segs[i]!.kind === "content") {
-          segs[i] = { kind: "content", text: jContent };
-          found = true;
-          break;
+      if (richerContent) {
+        let found = false;
+        for (let i = segs.length - 1; i >= 0; i--) {
+          if (segs[i]!.kind === "content") {
+            segs[i] = { kind: "content", text: out.content };
+            found = true;
+            break;
+          }
         }
+        if (!found && out.content) {
+          segs.push({ kind: "content", text: out.content });
+        }
+        out = { ...out, segments: segs };
+      } else {
+        out = {
+          ...out,
+          segments: syncContentIntoSegments(segs, out.content, out.thought),
+        };
       }
-      if (!found && jContent) {
-        segs.push({ kind: "content", text: jContent });
-      }
-      out = { ...out, segments: segs };
     }
     return out;
   });
@@ -571,7 +597,17 @@ export function upgradeMessagesFromJournal(
     }
     const uiContent = uiAsst.content ?? "";
     const jContent = bestJ.content ?? "";
-    if (jContent.length > uiContent.length) {
+    const liveThoughtAsBody = contentLooksLikeThought(
+      uiContent,
+      uiAsst.thought,
+    );
+    const journalHasRealBody =
+      !!jContent.trim() &&
+      !contentLooksLikeThought(jContent, bestJ.thought);
+    const shouldLift =
+      jContent.length > uiContent.length ||
+      (liveThoughtAsBody && journalHasRealBody && jContent !== uiContent);
+    if (shouldLift) {
       changed = true;
       let out: ChatMessage = {
         ...uiAsst,

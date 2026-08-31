@@ -80,6 +80,25 @@ describe("shouldApplyLateStreamText", () => {
     ).toBe(false);
   });
 
+  it("applies late answer when content is just the leaked thought", () => {
+    const thought = "planning the pdf layout and fonts…";
+    expect(
+      shouldApplyLateStreamText({
+        hostLiveStreaming: false,
+        chunkIsForFocusedHost: true,
+        messages: [
+          { role: "user", content: "write pdf" },
+          {
+            role: "assistant",
+            streaming: false,
+            content: thought,
+            thought,
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
   it("applies late answer after a tool-only bubble was settled by early ready", () => {
     // Repro: long tool turn → stream done / host ready first → real answer
     // tokens. Old code treated empty+no-thought as "settled final" and
@@ -197,8 +216,9 @@ describe("shouldHealJournalOnStreamDone", () => {
 
   it("retries long enough to cover Host post-turn journal flush", () => {
     const total = JOURNAL_REHYDRATE_RETRY_GAPS_MS.reduce((a, b) => a + b, 0);
-    expect(JOURNAL_REHYDRATE_RETRY_GAPS_MS).toEqual([400, 500]);
-    expect(total).toBeGreaterThanOrEqual(750);
+    expect(JOURNAL_REHYDRATE_RETRY_GAPS_MS).toEqual([400, 500, 800]);
+    // Host POST_TURN_RECONCILE last delay is 750ms; disk write can trail it.
+    expect(total).toBeGreaterThanOrEqual(1250);
   });
 
   it("does not re-parse agent jsonl on end-of-turn rehydrate (#754)", () => {

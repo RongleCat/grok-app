@@ -1017,8 +1017,13 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
        track(
           listenWithRetry<StreamPayload>("session://stream", (chunk) => {
             if (cancelled) return;
-            // Turn-end honesty: drain pending tool progress before applying done.
-            if (chunk.done) toolEventCoalescer?.flushAll();
+            // Turn-end honesty: drain pending tool + thought/body before done
+            // settles the bubble. Leaving thought in the coalesce buffer made
+            // CoT paint as the final reply until remount.
+            if (chunk.done) {
+              toolEventCoalescer?.flushAll();
+              streamCoalescer?.flushAll();
+            }
             streamCoalescer?.push(chunk);
           }),
         );

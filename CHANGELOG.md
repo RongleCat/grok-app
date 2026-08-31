@@ -11,6 +11,14 @@ See `docs/llm-wiki/release.md`.
 
 **What's New popup:** each bullet's **first sentence** is what users see. Keep that sentence to one short line (added / fixed / improved — no paths, no implementation, no issue piles). A second short sentence is allowed for GitHub / this file only. Do **not** rewrite already-shipped `## [X.Y.Z]` sections.
 
+## [Unreleased]
+
+### Fixed
+- Thinking no longer stays on screen as the final reply. The real answer paints in place; switching chats is not required (#968).
+
+**中文 · 修复**
+- 思考结束后不再把思考过程当成最终回复。正文会直接画出来，不用切走再切回来（#968）。
+
 ## [0.2.29] - 2026-08-31
 
 > **Highlight:** One-click CLI install, complete translations, and smoother long chats.
