@@ -27,6 +27,7 @@ import {
   installDialogFocus,
   type InstallDialogFocusOptions,
 } from "@/lib/a11yFocus";
+import { acquireNativeWebviewCover } from "@/lib/nativeWebviewCover";
 
 export type GlassModalSize = "sm" | "md" | "lg";
 
@@ -101,6 +102,11 @@ export function GlassModal({
       initialFocus: initialFocusRef.current ?? "first",
       restoreFocus: true,
     });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    return acquireNativeWebviewCover();
   }, [open]);
 
   if (!open || typeof document === "undefined") return null;
