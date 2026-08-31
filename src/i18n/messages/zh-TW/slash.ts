@@ -76,7 +76,7 @@ export const zhTWSlash = {
   "slash.costDesc": "查看每週額度與本對話 token 消耗",
   "slash.mcp": "MCP",
   "slash.mcpDesc": "顯示 MCP 伺服器狀態",
-  "slash.doctor": "Doctor",
+  "slash.doctor": "體檢",
   "slash.doctorDesc": "診斷 CLI、驗證與執行環境",
   "slash.newChat": "新對話",
   "slash.newChatDesc": "開始全新對話",

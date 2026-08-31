@@ -35,7 +35,7 @@ export const zhChat = {
   "main.working": "工作中…",
   "main.reasoning": "推理",
   "main.you": "你",
-  "main.agent": "Agent",
+  "main.agent": "智能体",
   "main.context": "上下文",
   "main.contextHint": "当前会话关联的项目文件。可用顶部图标开关。",
   "main.noProject": "未选项目",

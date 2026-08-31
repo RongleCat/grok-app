@@ -80,7 +80,7 @@ export const zhDoctor = {
   "setup.error.accountHint": "可暂时跳过，稍后在设置中登录或配置服务商。",
   "setup.error.cancelled": "已取消",
   "setup.networkHint": "网络异常 — 可换镜像或使用手动命令。",
-  "doctor.title": "Doctor",
+  "doctor.title": "体检",
   "doctor.close": "关闭",
   "doctor.rerun": "重新检查",
   "doctor.copy": "复制报告",

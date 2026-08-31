@@ -33,7 +33,7 @@ export const zhTWSidebar = {
   "sidebar.dateGroup.older": "更早",
   "sidebar.more": "更多",
   "sidebar.settings": "設定",
-  "sidebar.doctor": "Doctor",
+  "sidebar.doctor": "體檢",
   "sidebar.archive": "封存",
   "sidebar.unarchive": "取消封存",
   "sidebar.showArchived": "顯示已封存",

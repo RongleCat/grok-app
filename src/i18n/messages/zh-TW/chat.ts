@@ -35,7 +35,7 @@ export const zhTWChat = {
   "main.working": "工作中…",
   "main.reasoning": "推理",
   "main.you": "你",
-  "main.agent": "Agent",
+  "main.agent": "智慧代理",
   "main.context": "上下文",
   "main.contextHint": "目前對話關聯的專案檔案。可用頂部圖示開關。",
   "main.noProject": "未選專案",

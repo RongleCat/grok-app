@@ -80,7 +80,7 @@ export const zhTWDoctor = {
   "setup.error.accountHint": "可暫時跳過，稍後在設定中登入或設定服務商。",
   "setup.error.cancelled": "已取消",
   "setup.networkHint": "網路異常 — 可換鏡像或使用手動指令。",
-  "doctor.title": "Doctor",
+  "doctor.title": "體檢",
   "doctor.close": "關閉",
   "doctor.rerun": "重新檢查",
   "doctor.copy": "複製報告",
