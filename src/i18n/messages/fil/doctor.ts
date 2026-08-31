@@ -199,7 +199,7 @@ export const filDoctor = {
   "doctor.finding.fixId": "Fix id",
   "doctor.finding.destructive": "mapanira",
   "doctor.finding.noDetail": "Walang karagdagang detalye.",
-  "reliability.title": "Kaaasahan",
+  "reliability.title": "Kaasahan",
   "reliability.close": "Isara ang reliability center",
   "reliability.lead": "Mga live na abalang session, signal ng stall, at mga kamakailang structured error — walang sikreto mula sa mga log.",
   "reliability.empty.title": "Wala pang signal ng reliability",
