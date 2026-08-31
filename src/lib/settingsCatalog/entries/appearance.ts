@@ -58,7 +58,17 @@ export const APPEARANCE_ENTRIES: readonly SettingsEntry[] = [
     anchorId: "settings-anchor-skin",
     labelKey: "settings.skin",
     descKeys: ["settings.skinDesc"],
-    keywords: ["skin", "color pack", "accent"],
+    keywords: [
+      "skin",
+      "color pack",
+      "accent",
+      "皮肤",
+      "皮膚",
+      "外观包",
+      "外觀包",
+      "主题包",
+      "主題包",
+    ],
   },
   {
     id: "appearance.wallpaper",

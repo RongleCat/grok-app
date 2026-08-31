@@ -15,7 +15,18 @@ export const EXTENSIONS_ENTRIES: readonly SettingsEntry[] = [
       "ext.plugins.recommendedTitle",
       "ext.plugins.installableTitle",
     ],
-    keywords: ["plugin", "plugins", "extensions", "chatcut", "codex"],
+    keywords: [
+      "plugin",
+      "plugins",
+      "extensions",
+      "chatcut",
+      "codex",
+      "插件",
+      "扩展",
+      "擴展",
+      "扩展中心",
+      "擴展中心",
+    ],
   },
   {
     id: "ext.plugins.recommended",
@@ -113,7 +124,7 @@ export const EXTENSIONS_ENTRIES: readonly SettingsEntry[] = [
     tab: "hooks",
     anchorId: "settings-anchor-ext-hooks",
     labelKey: "ext.hooks.title",
-    keywords: ["hooks", "hook"],
+    keywords: ["hooks", "hook", "钩子", "鉤子", "生命周期钩子", "生命週期鉤子"],
   },
   {
     /** Legacy id kept for search; lands on plugins installable catalog (no market tab). */

@@ -15,7 +15,16 @@ export const ARCHIVED_ENTRIES: readonly SettingsEntry[] = [
       "settings.archived.delete",
       "settings.archived.selectAll",
     ],
-    keywords: ["archive", "archived chats"],
+    keywords: [
+      "archive",
+      "archived chats",
+      "归档",
+      "歸檔",
+      "已归档会话",
+      "已歸檔會話",
+      "存档",
+      "存檔",
+    ],
   },
   {
     id: "archived.archiveOlder",

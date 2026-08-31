@@ -97,6 +97,17 @@ describe("settingsCatalog", () => {
     }
   });
 
+  it("every entry carries at least one CJK search keyword", () => {
+    const cjk = /[^\u0000-\u007F]/;
+    const misses = SETTINGS_ENTRIES.filter(
+      (e) => !(e.keywords ?? []).some((k) => cjk.test(k)),
+    );
+    expect(
+      misses.map((e) => e.id),
+      "entries searchable only in Latin scripts — add zh/zh-TW keywords",
+    ).toEqual([]);
+  });
+
   it("parseSettingsHash handles section and tab", () => {
     expect(parseSettingsHash("settings")).toEqual({
       section: "general",
