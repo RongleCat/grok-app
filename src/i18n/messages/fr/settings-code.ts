@@ -84,7 +84,7 @@ export const frSettingsCode = {
   "settings.cliWorktreeDb.copyPath": "Copier le chemin",
   "settings.cliWorktreeDb.copied": "Copié",
   "settings.cliWorktreeDb.revealPath": "Afficher dans le gestionnaire de fichiers",
-  "settings.cliWorktreeDb.stats": "Stats",
+  "settings.cliWorktreeDb.stats": "Statistiques",
   "settings.cliWorktreeDb.statsEmpty": "Aucune stat disponible",
   "settings.cliWorktreeDb.statTotal": "{n} au total",
   "settings.cliWorktreeDb.statAlive": "{n} vivant(s)",

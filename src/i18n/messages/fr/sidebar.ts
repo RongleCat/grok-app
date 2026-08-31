@@ -8,7 +8,7 @@ export const frSidebar = {
   "sidebar.addProject": "Ajouter un projet",
   "sidebar.remoteSessions": "Sessions distantes",
   "sidebar.remoteSessionsHint": "Surveillance des hôtes SSH active. Les sessions sur l’hôte apparaissent ici.",
-  "sidebar.remoteHost": "Remote {alias}",
+  "sidebar.remoteHost": "Distant {alias}",
   "sidebar.remoteUntitled": "Untitled",
   "sidebar.remoteRemaining": "{n} de plus sur cet hôte",
   "sidebar.remoteLoadMore": "Charger plus",

@@ -353,7 +353,7 @@ export const frExtensions = {
   "ext.mcp.namePlaceholder": "ex. playwright",
   "ext.mcp.command": "Commande",
   "ext.mcp.commandPlaceholder": "ex. npx",
-  "ext.mcp.args": "Args",
+  "ext.mcp.args": "Arguments",
   "ext.mcp.argsPlaceholder": "ex. -y @playwright/mcp@latest",
   "ext.mcp.argsHint": "Arguments séparés par des espaces passés à la commande.",
   "ext.mcp.env": "Environnement (facultatif)",

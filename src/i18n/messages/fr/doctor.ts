@@ -194,7 +194,7 @@ export const frDoctor = {
   "doctor.finding.exportFail": "Échec de l’export des constatations",
   "doctor.finding.copied": "Copié",
   "doctor.finding.copiedN": "{count} constatation(s) copiée(s)",
-  "doctor.finding.id": "Id",
+  "doctor.finding.id": "ID",
   "doctor.finding.disposition": "Disposition",
   "doctor.finding.fixId": "Id du correctif",
   "doctor.finding.destructive": "destructif",
