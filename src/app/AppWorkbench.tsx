@@ -606,6 +606,7 @@ import {
   summarizeGitDirty,
   type GitDirtySummary,
 } from "@/lib/workspaceGit";
+import { startVisibilityPoll } from "@/lib/visibilityPoll";
 
 const AutomationsPage = lazy(async () => {
   const m = await import("@/components/AutomationsPage");
@@ -10379,26 +10380,24 @@ export function AppWorkbench() {
     void refreshGitDirtyStatus();
     // Soft poll while a project is bound; refresh sooner on focus.
     // Faster while a turn is live — agent may `git switch` mid-session.
+    // Ticks pause while the window is hidden — a minimized app has nothing
+    // to paint, and `git status` is a process spawn per poll.
     const path = activeProject?.path?.trim() || null;
     if (!path || !api.isTauri()) return;
     const busy =
       session.state === "streaming" || session.state === "awaiting_permission";
     const intervalMs = busy ? 2000 : 8000;
-    const id = window.setInterval(() => {
-      void refreshGitDirtyStatus();
-    }, intervalMs);
+    const poll = startVisibilityPoll({
+      tick: () => void refreshGitDirtyStatus(),
+      setIntervalFn: (handler) => window.setInterval(handler, intervalMs),
+    });
     const onFocus = () => {
       void refreshGitDirtyStatus();
     };
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") onFocus();
-    };
     window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.clearInterval(id);
+      poll.dispose();
       window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [
     activeProject?.path,
