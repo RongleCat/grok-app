@@ -8,6 +8,15 @@
 
 export const TRANSCRIPT_OPEN_REVEAL_TIMEOUT_MS = 8000;
 
+/**
+ * Media state changes announce themselves: image frames flip `is-pending` →
+ * `is-ready` / `is-broken` (class), `<img>` fires `load` / `error`, `<video>`
+ * fires `loadedmetadata`, and cards mount/unmount (childList). The fallback
+ * poll only has to be frequent enough not to stall the reveal, not fast
+ * enough to feel instant — it is a safety net, not the driver.
+ */
+export const TRANSCRIPT_OPEN_REVEAL_FALLBACK_POLL_MS = 500;
+
 /** Extra wait after the last pending card so late attachment refine can mount. */
 export function transcriptOpenRevealSettleMs(hadMedia: boolean): number {
   return hadMedia ? 280 : 48;

@@ -7,6 +7,8 @@ import {
   shouldHoldTranscriptOpenReveal,
   transcriptOpenRevealHasMedia,
   transcriptOpenRevealSettleMs,
+  TRANSCRIPT_OPEN_REVEAL_FALLBACK_POLL_MS,
+  TRANSCRIPT_OPEN_REVEAL_TIMEOUT_MS,
 } from "./transcriptOpenReveal";
 
 describe("shouldHoldTranscriptOpenReveal", () => {
@@ -89,6 +91,14 @@ describe("transcriptOpenRevealSettleMs", () => {
   it("waits longer when media cards were present (attachment refine)", () => {
     expect(transcriptOpenRevealSettleMs(true)).toBeGreaterThan(
       transcriptOpenRevealSettleMs(false),
+    );
+  });
+});
+
+describe("fallback poll budget", () => {
+  it("safety-net poll stays far below the reveal timeout", () => {
+    expect(TRANSCRIPT_OPEN_REVEAL_FALLBACK_POLL_MS).toBeLessThanOrEqual(
+      TRANSCRIPT_OPEN_REVEAL_TIMEOUT_MS / 10,
     );
   });
 });

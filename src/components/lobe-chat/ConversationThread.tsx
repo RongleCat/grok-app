@@ -110,6 +110,7 @@ import {
   shouldHoldTranscriptOpenReveal,
   transcriptOpenRevealHasMedia,
   transcriptOpenRevealSettleMs,
+  TRANSCRIPT_OPEN_REVEAL_FALLBACK_POLL_MS,
   TRANSCRIPT_OPEN_REVEAL_TIMEOUT_MS,
 } from "@/lib/transcriptOpenReveal";
 import { useChatMessageVirtualizer } from "@/hooks/useChatMessageVirtualizer";
@@ -3022,7 +3023,12 @@ export function ConversationThread({
     root.addEventListener("load", onMediaEvent, true);
     root.addEventListener("error", onMediaEvent, true);
     root.addEventListener("loadedmetadata", onMediaEvent, true);
-    const poll = window.setInterval(consider, 80);
+    // Media settle is event-driven (mutation classes + load/error events);
+    // the interval is a fallback safety net, so it can idle at 500ms.
+    const poll = window.setInterval(
+      consider,
+      TRANSCRIPT_OPEN_REVEAL_FALLBACK_POLL_MS,
+    );
     const timeout = window.setTimeout(finish, TRANSCRIPT_OPEN_REVEAL_TIMEOUT_MS);
     consider();
 
