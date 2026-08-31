@@ -12,7 +12,7 @@ export const jaProviders = {
   "prov.nameChipHint": "コンポーザーのモデルチップに表示される名前です",
   "prov.displayName": "設定 id",
   "prov.idPh": "my-relay",
-  "prov.baseUrl": "Base URL",
+  "prov.baseUrl": "ベースURL",
   "prov.baseUrlPh": "https://your-relay.example.com/v1",
   "prov.baseUrlPhFull": "https://ark.example.com/api/coding/v3",
   "prov.baseUrlFullPath": "フルパス",

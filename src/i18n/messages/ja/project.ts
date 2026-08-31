@@ -42,7 +42,7 @@ export const jaProject = {
   "project.colorPurple": "パープル",
   "project.colorPink": "ピンク",
   "project.colorGray": "グレー",
-  "project.colorSet": "\"{name}\" color: {color}",
+  "project.colorSet": "「{name}」の色: {color}",
   "project.colorCleared": "「{name}」の色をクリアしました",
   "project.rules": "プロジェクトルール",
   "project.continueCwd": "このプロジェクトの直前のエージェントを再開",

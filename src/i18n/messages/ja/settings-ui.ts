@@ -10,7 +10,7 @@ export const jaSettingsUi = {
   "settings.nav.about": "情報",
   "settings.tab.composer": "コンポーザー",
   "settings.tab.permissions": "権限",
-  "settings.tab.agent": "Agent",
+  "settings.tab.agent": "エージェント",
   "settings.tab.app": "アプリ",
   "settings.tab.theme": "テーマ",
   "settings.tab.interface": "インターフェイス",

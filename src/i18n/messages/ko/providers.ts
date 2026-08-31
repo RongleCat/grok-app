@@ -12,7 +12,7 @@ export const koProviders = {
   "prov.nameChipHint": "작성기의 모델 칩 레이블로 표시됩니다",
   "prov.displayName": "구성 id",
   "prov.idPh": "my-relay",
-  "prov.baseUrl": "Base URL",
+  "prov.baseUrl": "베이스 URL",
   "prov.baseUrlPh": "https://your-relay.example.com/v1",
   "prov.baseUrlPhFull": "https://ark.example.com/api/coding/v3",
   "prov.baseUrlFullPath": "전체 경로",

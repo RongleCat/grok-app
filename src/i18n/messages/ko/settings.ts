@@ -401,7 +401,7 @@ export const koSettings = {
   "settings.tabExtrasHint": "메인 라우트가 사용자 지정 공급자일 때: 공식 도구(MCP official-aux)를 주입하고 선택적으로 다른 MCP를 불러옵니다.",
   "settings.openTarget": "파일 열기 앱",
   "settings.openTargetDesc": "리소스 패널에서 경로를 열 때 기본 앱",
-  "settings.openFinder": "Finder / Explorer",
+  "settings.openFinder": "Finder / 탐색기",
   "settings.preferredAgent": "에이전트 정의",
   "settings.preferredAgent.source.project": "프로젝트",
   "settings.preferredAgent.source.user": "사용자",

@@ -76,7 +76,7 @@ export const jaSlash = {
   "slash.costDesc": "週次上限とこのセッションのトークン消費を表示",
   "slash.mcp": "MCP",
   "slash.mcpDesc": "MCP サーバーの状態を表示",
-  "slash.doctor": "Doctor",
+  "slash.doctor": "ドクター",
   "slash.doctorDesc": "CLI、認証、ランタイムを診断",
   "slash.newChat": "新しいチャット",
   "slash.newChatDesc": "新しい会話を始める",

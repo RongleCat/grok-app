@@ -161,7 +161,7 @@ export const koAutomations = {
   "mirror.phase.starting": "시작 중…",
   "mirror.phase.local": "로컬만(터널 없음)",
   "mirror.phase.waiting_tunnel": "터널 대기 중…",
-  "mirror.phase.live": "Live",
+  "mirror.phase.live": "실행 중",
   "mirror.phase.tunnel_dead": "터널 다운",
   "mirror.phase.error": "오류",
   "mirror.phase.softLocal": "로컬만(터널 실패)",

@@ -288,7 +288,7 @@ export const koComposer = {
   "composer.worktreeRemoveFailed": "worktree를 제거하지 못했습니다",
   "composer.worktreeRemoveForce": "이 worktree에 로컬 변경이 있거나 잠겨 있습니다. 강제로 제거하고 폴더를 삭제할까요?",
   "composer.worktreeRemoveCurrentWarn": "현재 이 worktree를 사용 중입니다. 제거 후 세션이 메인 worktree로 전환됩니다.",
-  "composer.worktreeShip": "Ship…",
+  "composer.worktreeShip": "병합…",
   "composer.worktreeShipTip": "브랜치를 푸시하고 GitHub 풀 리퀘스트 열기",
   "composer.worktreeShipTitle": "브랜치 Ship",
   "composer.worktreeShipHint": "현재 브랜치를 origin에 푸시한 뒤, 선택적으로 gh로 GitHub PR을 만듭니다. git 또는 gh가 없으면 소프트 실패하며, PR 생성 실패 시 성공으로 보고하지 않습니다.",
