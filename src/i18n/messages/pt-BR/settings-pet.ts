@@ -76,7 +76,7 @@ export const ptBRSettingsPet = {
   "settings.pet.shape.tablet": "Tablet",
   "settings.pet.shape.capsule": "Cápsula",
   "settings.pet.shape.cylinder": "Cilindro",
-  "settings.pet.shape.hex": "Hex",
+  "settings.pet.shape.hex": "Hexágono",
   "settings.pet.shape.gem": "Gema",
   "settings.pet.shape.crystal": "Cristal",
   "settings.pet.shape.wedge": "Cunha",

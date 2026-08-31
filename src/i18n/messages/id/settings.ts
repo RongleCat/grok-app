@@ -482,7 +482,7 @@ export const idSettings = {
   "settings.cliSessionsFilterEmptyHint": "Coba chip tautan lain atau hapus filter.",
   "settings.cliSessionsSearchEmptyHint": "Coba kueri lain atau hapus pencarian.",
   "settings.cliSessionsImportPlan": "Impor {importable} dari {selected} (lewati {skipped} yang sudah tertaut)",
-  "settings.section.agent": "Agent",
+  "settings.section.agent": "Agen",
   "settings.sttCustomApiKey": "Kunci API",
   "settings.sttCustomApiKeyClear": "Hapus kunci",
   "settings.sttCustomApiKeyPlaceholder": "sk-… (opsional)",

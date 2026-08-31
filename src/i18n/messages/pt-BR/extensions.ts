@@ -353,7 +353,7 @@ export const ptBRExtensions = {
   "ext.mcp.namePlaceholder": "ex.: playwright",
   "ext.mcp.command": "Comando",
   "ext.mcp.commandPlaceholder": "ex.: npx",
-  "ext.mcp.args": "Args",
+  "ext.mcp.args": "Argumentos",
   "ext.mcp.argsPlaceholder": "ex.: -y @playwright/mcp@latest",
   "ext.mcp.argsHint": "Argumentos separados por espaço passados ao comando.",
   "ext.mcp.env": "Ambiente (opcional)",

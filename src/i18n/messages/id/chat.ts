@@ -35,7 +35,7 @@ export const idChat = {
   "main.working": "bekerja…",
   "main.reasoning": "Penalaran",
   "main.you": "Anda",
-  "main.agent": "Agent",
+  "main.agent": "Agen",
   "main.context": "Konteks",
   "main.contextHint": "Berkas proyek untuk sesi ini. Alihkan dari bilah atas.",
   "main.noProject": "Tidak ada proyek",

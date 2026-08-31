@@ -271,7 +271,7 @@ export const idCore = {
   "phone.toolsBack": "Kembali",
   "phone.accountTitle": "Akun & status",
   "phone.linkStatus": "Tautan Host",
-  "phone.agentStatus": "Agent",
+  "phone.agentStatus": "Agen",
   "phone.openFiles": "Berkas",
   "phone.drawerClose": "Tutup daftar sesi",
   "phone.contextUnknown": "Tidak diketahui",

@@ -8,7 +8,7 @@ export const ptBRSidebar = {
   "sidebar.addProject": "Adicionar projeto",
   "sidebar.remoteSessions": "Sessões remotas",
   "sidebar.remoteSessionsHint": "Monitorando hosts SSH. As sessões no host aparecem aqui.",
-  "sidebar.remoteHost": "Remote {alias}",
+  "sidebar.remoteHost": "Remoto {alias}",
   "sidebar.remoteUntitled": "Untitled",
   "sidebar.remoteRemaining": "Mais {n} neste host",
   "sidebar.remoteLoadMore": "Carregar mais",
