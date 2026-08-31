@@ -21,6 +21,12 @@ Agent 与贡献者的**可执行知识库**。改产品行为或 UI 文案前，
 | [website-downloads.md](./website-downloads.md) | **官网下载对接**：grok-app.com 按钮、稳定别名、`downloads.json`、禁止反代 |
 | [maintain.md](./maintain.md) | **开源维护**：Issue 分拣、PR 审核、社区反馈入库、修复闭环；**已合并分支 / worktree 及时安全清理** |
 | [chatcut.md](./chatcut.md) | **ChatCut Codex 插件**：适配器、MCP surface、Resources 内嵌浏览器 handoff、re-pull 迁移 |
+| [agent-gui-reference.md](./agent-gui-reference.md) | **Agent GUI 参考**：桌面客户端与 CLI 的交互界面规范 |
+| [git-worktrees.md](./git-worktrees.md) | **Git worktree**：分支菜单、创建/移除/GC、会话绑定与徽章 |
+| [icons.md](./icons.md) | **图标**：应用 Dock 图标 vs 托盘/状态栏图标，不得混用 |
+| [media-delivery.md](./media-delivery.md) | **本地媒体投递**：loopback HTTP + path resolve（产品路径不直接用 `media://`） |
+| [plugins-marketplace.md](./plugins-marketplace.md) | **插件市场**：插件目录、安装流与兼容性约束 |
+| [remote-im.md](./remote-im.md) | **Remote IM**：GUI 配置全渠道 · Bridge · Grok Build；goal 见 `docs/plans/GOAL-remote-im.md` |
 | [appearance-skins.md](./appearance-skins.md) | **外观皮肤包**：`.grokskin` 布局、K19 allowlist、`grok://` + `grok-app:`、从不自动 apply、网站只用 `url=` |
 
 ## 原则
