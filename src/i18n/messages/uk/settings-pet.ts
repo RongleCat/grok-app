@@ -22,7 +22,7 @@ export const ukSettingsPet = {
   "settings.pet.bubbleShape.card": "Картка",
   "settings.pet.bubbleShape.ticket": "Квиток",
   "settings.pet.bubbleShape.cloud": "Хмара",
-  "settings.pet.bubbleShape.slash": "Slash",
+  "settings.pet.bubbleShape.slash": "Слеш",
   "settings.pet.bubbleStyle.ink": "Чорнило",
   "settings.pet.bubbleStyle.glass": "Скло",
   "settings.pet.bubbleStyle.solid": "Суцільна",

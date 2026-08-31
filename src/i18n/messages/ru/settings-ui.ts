@@ -538,7 +538,7 @@ export const ruSettingsUi = {
   "settings.wallpaperSource.kind.image": "Изображения",
   "settings.wallpaperSource.kind.video": "Видео",
   "settings.wallpaperSource.errKind.network": "Сеть",
-  "settings.wallpaperSource.errKind.host": "Host / CLI",
+  "settings.wallpaperSource.errKind.host": "Хост / CLI",
   "settings.wallpaperSource.errKind.untrusted": "URL заблокирован",
   "settings.wallpaperSource.errKind.empty": "Пусто",
   "settings.wallpaperSource.errKind.other": "Ошибка",

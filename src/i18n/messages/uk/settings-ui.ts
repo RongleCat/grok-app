@@ -538,7 +538,7 @@ export const ukSettingsUi = {
   "settings.wallpaperSource.kind.image": "Зображення",
   "settings.wallpaperSource.kind.video": "Відео",
   "settings.wallpaperSource.errKind.network": "Мережа",
-  "settings.wallpaperSource.errKind.host": "Host / CLI",
+  "settings.wallpaperSource.errKind.host": "Хост / CLI",
   "settings.wallpaperSource.errKind.untrusted": "Заблокований URL",
   "settings.wallpaperSource.errKind.empty": "Порожньо",
   "settings.wallpaperSource.errKind.other": "Помилка",

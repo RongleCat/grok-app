@@ -12,7 +12,7 @@ export const ruProviders = {
   "prov.nameChipHint": "Показывается как название модели в поле ввода",
   "prov.displayName": "ID конфигурации",
   "prov.idPh": "my-relay",
-  "prov.baseUrl": "Base URL",
+  "prov.baseUrl": "Базовый URL",
   "prov.baseUrlPh": "https://your-relay.example.com/v1",
   "prov.baseUrlPhFull": "https://ark.example.com/api/coding/v3",
   "prov.baseUrlFullPath": "Полный путь",

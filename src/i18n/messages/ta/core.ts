@@ -93,7 +93,7 @@ export const taCore = {
   "onboarding.officialOauth": "உலாவி OAuth (பரிந்துரைக்கப்படுகிறது)",
   "onboarding.officialKey": "அதிகாரப்பூர்வ API விசையை ஒட்டு",
   "onboarding.relay": "தனிப்பயன் ரிலே",
-  "onboarding.relayHint": "base_url + key + Ping",
+  "onboarding.relayHint": "base_url + விசை + Ping",
   "onboarding.importGo": "grok-go இலிருந்து இறக்குமதி",
   "onboarding.importGoHint": "அறியப்பட்ட கட்டமைப்பு பாதைகளில் இருந்து படிக்க மட்டும் இறக்குமதி",
   "onboarding.importCli": "இறக்குமதி CLI ~/.grok",

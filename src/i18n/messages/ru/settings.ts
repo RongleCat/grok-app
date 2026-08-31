@@ -411,7 +411,7 @@ export const ruSettings = {
   "settings.agentProfilePathClear": "Очистить",
   "settings.agentProfilePathPlaceholder": "напр. ~/agents/my-agent.md",
   "settings.configTomlViewDesc": "Просмотреть скрытый config.toml агента для активного режима данных сессий (независимый agent-home или общий ~/.grok). API-ключи и секреты никогда не показываются полностью.",
-  "settings.agentsJson": "Agents JSON",
+  "settings.agentsJson": "JSON агентов",
   "settings.agentsJsonDesc": "Необязательные встроенные определения субагентов, передаваемые как верхнеуровневый grok --agents <JSON> при запуске. Должен быть JSON-объект-карта (имя → определение). Пусто опускает флаг. Некорректный JSON блокирует сохранение. Живые агенты мягко перезапускаются при применении. В общий ~/.grok не пишется.",
   "settings.agentsJsonPlaceholder": "напр. {\"reviewer\":{\"description\":\"Reviews code\",\"prompt\":\"You are a careful code reviewer.\"}}",
   "settings.agentsJsonInvalid": "Некорректный Agents JSON — исправьте перед сохранением.",

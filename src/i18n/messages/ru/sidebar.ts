@@ -8,7 +8,7 @@ export const ruSidebar = {
   "sidebar.addProject": "Добавить проект",
   "sidebar.remoteSessions": "Удалённые сессии",
   "sidebar.remoteSessionsHint": "Наблюдение за SSH-хостами. Сессии на хосте отображаются здесь.",
-  "sidebar.remoteHost": "Remote {alias}",
+  "sidebar.remoteHost": "Удалённый {alias}",
   "sidebar.remoteUntitled": "Untitled",
   "sidebar.remoteRemaining": "ещё {n} на этом хосте",
   "sidebar.remoteLoadMore": "Загрузить ещё",

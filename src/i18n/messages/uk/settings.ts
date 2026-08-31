@@ -401,7 +401,7 @@ export const ukSettings = {
   "settings.tabExtrasHint": "Якщо основним маршрутом є спеціальний провайдер: вставте офіційні інструменти (MCP official-aux) і за бажанням завантажте ваші інші MCP.",
   "settings.openTarget": "Відкривати файли через",
   "settings.openTargetDesc": "Застосунок за замовчуванням під час відкриття шляху з панелі ресурсів",
-  "settings.openFinder": "Finder / Explorer",
+  "settings.openFinder": "Finder / Провідник",
   "settings.preferredAgent": "Визначення агента",
   "settings.preferredAgent.source.project": "проєкт",
   "settings.preferredAgent.source.user": "користувач",

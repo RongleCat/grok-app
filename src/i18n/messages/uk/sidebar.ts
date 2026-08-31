@@ -8,7 +8,7 @@ export const ukSidebar = {
   "sidebar.addProject": "Додати проєкт",
   "sidebar.remoteSessions": "Віддалені сесії",
   "sidebar.remoteSessionsHint": "Спостереження за SSH-хостами. Сесії на хості з'являються тут.",
-  "sidebar.remoteHost": "Remote {alias}",
+  "sidebar.remoteHost": "Віддалений {alias}",
   "sidebar.remoteUntitled": "Untitled",
   "sidebar.remoteRemaining": "ще {n} на цьому хості",
   "sidebar.remoteLoadMore": "Завантажити ще",

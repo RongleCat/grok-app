@@ -8,7 +8,7 @@ export const taSidebar = {
   "sidebar.addProject": "திட்டத்தைச் சேர்",
   "sidebar.remoteSessions": "தொலைநிலை அமர்வுகள்",
   "sidebar.remoteSessionsHint": "SSH ஹோஸ்டுகளைக் கண்காணிக்கிறது. ஹோஸ்டில் உள்ள அமர்வுகள் இங்கே தோன்றும்.",
-  "sidebar.remoteHost": "Remote {alias}",
+  "sidebar.remoteHost": "தொலைநிலை {alias}",
   "sidebar.remoteUntitled": "Untitled",
   "sidebar.remoteRemaining": "இந்த ஹோஸ்டில் மேலும் {n}",
   "sidebar.remoteLoadMore": "மேலும் ஏற்று",
