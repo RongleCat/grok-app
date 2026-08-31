@@ -37,6 +37,7 @@ export const koWorkspace = {
   "resources.collapseTree": "파일 트리 숨기기",
   "resources.expandTree": "파일 트리 표시",
   "resources.resizeTree": "파일 트리 크기 조절",
+  "resources.resizeFilesPane": "파일 패널 크기 조정",
   "resources.save": "저장",
   "resources.saving": "저장 중…",
   "resources.revert": "되돌리기",

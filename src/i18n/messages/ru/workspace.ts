@@ -37,6 +37,7 @@ export const ruWorkspace = {
   "resources.collapseTree": "Скрыть дерево файлов",
   "resources.expandTree": "Показать дерево файлов",
   "resources.resizeTree": "Изменить ширину дерева файлов",
+  "resources.resizeFilesPane": "Изменить размер панели файлов",
   "resources.save": "Сохранить",
   "resources.saving": "Сохранение…",
   "resources.revert": "Отменить изменения",

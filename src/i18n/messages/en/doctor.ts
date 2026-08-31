@@ -5,6 +5,7 @@ export const enDoctor = {
   "setup.step.runtime": "Runtime",
   "setup.step.account": "Account",
   "setup.step.ready": "Ready",
+  "setup.stepsAria": "Setup steps",
   "setup.detecting": "Checking Grok Build…",
   "setup.detectingSlow": "Still checking… this is taking longer than usual.",
   "setup.detectTimeout": "Startup check timed out",

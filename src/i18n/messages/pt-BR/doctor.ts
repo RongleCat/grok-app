@@ -5,6 +5,7 @@ export const ptBRDoctor = {
   "setup.step.runtime": "Runtime",
   "setup.step.account": "Conta",
   "setup.step.ready": "Pronto",
+  "setup.stepsAria": "Etapas de configuração",
   "setup.detecting": "Verificando o Grok Build…",
   "setup.detectingSlow": "Ainda verificando… isto está demorando mais que o usual.",
   "setup.detectTimeout": "A verificação de inicialização expirou",

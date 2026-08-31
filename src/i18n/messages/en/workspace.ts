@@ -37,6 +37,7 @@ export const enWorkspace = {
   "resources.collapseTree": "Hide file tree",
   "resources.expandTree": "Show file tree",
   "resources.resizeTree": "Resize file tree",
+  "resources.resizeFilesPane": "Resize files pane",
   "resources.save": "Save",
   "resources.saving": "Saving…",
   "resources.revert": "Revert",

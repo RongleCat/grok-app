@@ -37,6 +37,7 @@ export const frWorkspace = {
   "resources.collapseTree": "Masquer l’arbre des fichiers",
   "resources.expandTree": "Afficher l’arbre des fichiers",
   "resources.resizeTree": "Redimensionner l’arbre des fichiers",
+  "resources.resizeFilesPane": "Redimensionner le volet de fichiers",
   "resources.save": "Enregistrer",
   "resources.saving": "Enregistrement…",
   "resources.revert": "Rétablir",

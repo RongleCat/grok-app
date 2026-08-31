@@ -5,6 +5,7 @@ export const taDoctor = {
   "setup.step.runtime": "இயக்கநேரம்",
   "setup.step.account": "கணக்கு",
   "setup.step.ready": "தயார்",
+  "setup.stepsAria": "அமைவு படிகள்",
   "setup.detecting": "Grok Build ஐச் சரிபார்க்கிறது…",
   "setup.detectingSlow": "இன்னும் சரிபார்க்கிறது… இதற்கு வழக்கத்தை விட அதிக நேரம் எடுக்கிறது.",
   "setup.detectTimeout": "தொடக்கச் சரிபார்ப்பு நேரம் முடிந்தது",

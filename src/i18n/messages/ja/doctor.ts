@@ -5,6 +5,7 @@ export const jaDoctor = {
   "setup.step.runtime": "ランタイム",
   "setup.step.account": "アカウント",
   "setup.step.ready": "準備完了",
+  "setup.stepsAria": "セットアップのステップ",
   "setup.detecting": "Grok Build を確認中…",
   "setup.detectingSlow": "まだ確認中… いつもより時間がかかっています。",
   "setup.detectTimeout": "起動チェックがタイムアウトしました",

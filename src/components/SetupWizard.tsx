@@ -493,7 +493,7 @@ export function SetupWizard({
           <p className="setup-subtitle">{tr("setup.subtitle")}</p>
         </div>
 
-        <ol className="setup-steps" aria-label="Setup steps">
+        <ol className="setup-steps" aria-label={tr("setup.stepsAria")}>
           {(
             [
               ["runtime", "setup.step.runtime"],

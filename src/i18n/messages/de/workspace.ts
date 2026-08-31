@@ -37,6 +37,7 @@ export const deWorkspace = {
   "resources.collapseTree": "Dateibaum ausblenden",
   "resources.expandTree": "Dateibaum anzeigen",
   "resources.resizeTree": "Dateibaum anpassen",
+  "resources.resizeFilesPane": "Dateileiste in der Größe ändern",
   "resources.save": "Speichern",
   "resources.saving": "Speichern…",
   "resources.revert": "Zurücksetzen",

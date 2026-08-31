@@ -5,6 +5,7 @@ export const deDoctor = {
   "setup.step.runtime": "Runtime",
   "setup.step.account": "Konto",
   "setup.step.ready": "Bereit",
+  "setup.stepsAria": "Einrichtungsschritte",
   "setup.detecting": "Grok Build wird geprüft…",
   "setup.detectingSlow": "Prüft weiter… das dauert länger als üblich.",
   "setup.detectTimeout": "Startprüfung zeitüberschritten",

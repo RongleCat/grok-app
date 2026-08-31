@@ -5,6 +5,7 @@ export const filDoctor = {
   "setup.step.runtime": "Runtime",
   "setup.step.account": "Account",
   "setup.step.ready": "Handa na",
+  "setup.stepsAria": "Mga hakbang sa setup",
   "setup.detecting": "Sini-check ang Grok Build…",
   "setup.detectingSlow": "Sini-check pa… mas matagal ito kaysa karaniwan.",
   "setup.detectTimeout": "Nag-timeout ang startup check",

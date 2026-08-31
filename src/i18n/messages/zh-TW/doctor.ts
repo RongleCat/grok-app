@@ -5,6 +5,7 @@ export const zhTWDoctor = {
   "setup.step.runtime": "執行環境",
   "setup.step.account": "帳戶",
   "setup.step.ready": "就緒",
+  "setup.stepsAria": "設定步驟",
   "setup.detecting": "正在偵測 Grok Build…",
   "setup.detectingSlow": "仍在偵測…耗時比預期更長。",
   "setup.detectTimeout": "啟動偵測逾時",

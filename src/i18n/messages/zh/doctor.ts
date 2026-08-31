@@ -5,6 +5,7 @@ export const zhDoctor = {
   "setup.step.runtime": "运行时",
   "setup.step.account": "账户",
   "setup.step.ready": "就绪",
+  "setup.stepsAria": "设置步骤",
   "setup.detecting": "正在检测 Grok Build…",
   "setup.detectingSlow": "仍在检测…耗时比预期更长。",
   "setup.detectTimeout": "启动检测超时",

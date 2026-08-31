@@ -5,6 +5,7 @@ export const itDoctor = {
   "setup.step.runtime": "Runtime",
   "setup.step.account": "Account",
   "setup.step.ready": "Pronto",
+  "setup.stepsAria": "Fasi di configurazione",
   "setup.detecting": "Verifica di Grok Build…",
   "setup.detectingSlow": "Ancora in verifica… sta impiegando più del solito.",
   "setup.detectTimeout": "Timeout del controllo di avvio",

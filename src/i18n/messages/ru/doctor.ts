@@ -5,6 +5,7 @@ export const ruDoctor = {
   "setup.step.runtime": "Среда выполнения",
   "setup.step.account": "Аккаунт",
   "setup.step.ready": "Готово",
+  "setup.stepsAria": "Шаги настройки",
   "setup.detecting": "Проверка Grok Build…",
   "setup.detectingSlow": "Проверка всё ещё идёт… это занимает больше времени, чем обычно.",
   "setup.detectTimeout": "Проверка при запуске превысила время ожидания",

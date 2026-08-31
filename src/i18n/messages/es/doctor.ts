@@ -5,6 +5,7 @@ export const esDoctor = {
   "setup.step.runtime": "Ejecución",
   "setup.step.account": "Cuenta",
   "setup.step.ready": "Listo",
+  "setup.stepsAria": "Pasos de configuración",
   "setup.detecting": "Comprobando Grok Build…",
   "setup.detectingSlow": "Sigue comprobando… está tardando más de lo habitual.",
   "setup.detectTimeout": "La comprobación de arranque agotó el tiempo",

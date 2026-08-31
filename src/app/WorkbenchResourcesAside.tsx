@@ -130,6 +130,8 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
     resetKey: sessionId || "",
   });
 
+  const t = createT(locale);
+
   return (
     <>
       {!phoneLayout ? (
@@ -192,7 +194,7 @@ export function WorkbenchResourcesAside(props: WorkbenchResourcesAsideProps) {
           className="aside-resizer"
           role="separator"
           aria-orientation="vertical"
-          aria-label="Resize files pane"
+          aria-label={t("resources.resizeFilesPane")}
           onPointerDown={(e) => {
             e.preventDefault();
             beginAsideResize(asideMin);

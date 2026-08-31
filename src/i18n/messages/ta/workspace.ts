@@ -37,6 +37,7 @@ export const taWorkspace = {
   "resources.collapseTree": "கோப்பு மரத்தை மறை",
   "resources.expandTree": "கோப்பு மரத்தைக் காட்டு",
   "resources.resizeTree": "கோப்பு மரத்தின் அளவை மாற்று",
+  "resources.resizeFilesPane": "கோப்பு பலகை அளவை மாற்று",
   "resources.save": "சேமி",
   "resources.saving": "சேமிக்கிறது…",
   "resources.revert": "திரும்பவும்",

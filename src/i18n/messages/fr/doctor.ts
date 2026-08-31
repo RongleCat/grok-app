@@ -5,6 +5,7 @@ export const frDoctor = {
   "setup.step.runtime": "Exécution",
   "setup.step.account": "Compte",
   "setup.step.ready": "Prêt",
+  "setup.stepsAria": "Étapes de configuration",
   "setup.detecting": "Vérification de Grok Build…",
   "setup.detectingSlow": "Toujours en cours… cela prend plus de temps que d’habitude.",
   "setup.detectTimeout": "Délai de la vérification de démarrage dépassé",

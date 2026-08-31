@@ -37,6 +37,7 @@ export const zhTWWorkspace = {
   "resources.collapseTree": "收合檔案樹",
   "resources.expandTree": "展開檔案樹",
   "resources.resizeTree": "調整檔案樹寬度",
+  "resources.resizeFilesPane": "調整檔案面板大小",
   "resources.save": "儲存",
   "resources.saving": "儲存中…",
   "resources.revert": "還原",

@@ -37,6 +37,7 @@ export const jaWorkspace = {
   "resources.collapseTree": "ファイルツリーを隠す",
   "resources.expandTree": "ファイルツリーを表示",
   "resources.resizeTree": "ファイルツリーのサイズを変更",
+  "resources.resizeFilesPane": "ファイルペインのサイズを変更",
   "resources.save": "保存",
   "resources.saving": "保存中…",
   "resources.revert": "元に戻す",

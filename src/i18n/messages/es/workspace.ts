@@ -37,6 +37,7 @@ export const esWorkspace = {
   "resources.collapseTree": "Ocultar árbol de archivos",
   "resources.expandTree": "Mostrar árbol de archivos",
   "resources.resizeTree": "Redimensionar árbol de archivos",
+  "resources.resizeFilesPane": "Cambiar tamaño del panel de archivos",
   "resources.save": "Guardar",
   "resources.saving": "Guardando…",
   "resources.revert": "Revertir",

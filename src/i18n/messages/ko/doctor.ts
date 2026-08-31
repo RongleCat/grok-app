@@ -5,6 +5,7 @@ export const koDoctor = {
   "setup.step.runtime": "런타임",
   "setup.step.account": "계정",
   "setup.step.ready": "준비됨",
+  "setup.stepsAria": "설정 단계",
   "setup.detecting": "Grok Build 확인 중…",
   "setup.detectingSlow": "아직 확인 중… 평소보다 오래 걸리고 있습니다.",
   "setup.detectTimeout": "시작 확인 시간 초과",

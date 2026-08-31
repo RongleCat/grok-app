@@ -5,6 +5,7 @@ export const idDoctor = {
   "setup.step.runtime": "Runtime",
   "setup.step.account": "Akun",
   "setup.step.ready": "Siap",
+  "setup.stepsAria": "Langkah penyiapan",
   "setup.detecting": "Memeriksa Grok Build…",
   "setup.detectingSlow": "Masih memeriksa… ini lebih lama dari biasanya.",
   "setup.detectTimeout": "Pemeriksaan mulai kehabisan waktu",

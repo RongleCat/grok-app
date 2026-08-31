@@ -37,6 +37,7 @@ export const ukWorkspace = {
   "resources.collapseTree": "Сховати дерево файлів",
   "resources.expandTree": "Показати дерево файлів",
   "resources.resizeTree": "Змінити ширину дерева файлів",
+  "resources.resizeFilesPane": "Змінити розмір панелі файлів",
   "resources.save": "Зберегти",
   "resources.saving": "Збереження…",
   "resources.revert": "Відкотити",

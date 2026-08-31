@@ -37,6 +37,7 @@ export const zhWorkspace = {
   "resources.collapseTree": "收起文件树",
   "resources.expandTree": "展开文件树",
   "resources.resizeTree": "调整文件树宽度",
+  "resources.resizeFilesPane": "调整文件面板大小",
   "resources.save": "保存",
   "resources.saving": "保存中…",
   "resources.revert": "还原",

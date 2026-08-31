@@ -5,6 +5,7 @@ export const ukDoctor = {
   "setup.step.runtime": "Середовище",
   "setup.step.account": "Обліковий запис",
   "setup.step.ready": "Готово",
+  "setup.stepsAria": "Кроки налаштування",
   "setup.detecting": "Перевірка Grok Build…",
   "setup.detectingSlow": "Усе ще перевіряємо… це триває довше, ніж зазвичай.",
   "setup.detectTimeout": "Час очікування перевірки запуску вичерпано",
