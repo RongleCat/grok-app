@@ -212,7 +212,7 @@ export const deCore = {
   "statusModal.sessionId": "Sitzungs-ID",
   "statusModal.agentSessionId": "Agent-Sitzung",
   "statusModal.model": "Modell",
-  "statusModal.effort": "Reasoning",
+  "statusModal.effort": "Denkleistung",
   "statusModal.mode": "Modus",
   "statusModal.policy": "Berechtigung",
   "statusModal.project": "Projekt",

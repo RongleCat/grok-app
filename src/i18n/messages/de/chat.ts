@@ -33,7 +33,7 @@ export const deChat = {
   "main.loadingTitle": "Unterhaltung wird geladen",
   "main.loadingHint": "Nachrichten dieser Sitzung werden gelesen…",
   "main.working": "arbeitet…",
-  "main.reasoning": "Reasoning",
+  "main.reasoning": "Denkleistung",
   "main.you": "Du",
   "main.agent": "Agent",
   "main.context": "Kontext",

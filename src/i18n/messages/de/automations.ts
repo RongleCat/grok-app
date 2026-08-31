@@ -33,7 +33,7 @@ export const deAutomations = {
   "automations.field.promptPh": "Beschreibe, was Grok bei jedem Lauf tun soll",
   "automations.field.project": "Projekt",
   "automations.field.model": "Modell",
-  "automations.field.effort": "Reasoning",
+  "automations.field.effort": "Denkleistung",
   "automations.field.frequency": "Wiederholen",
   "automations.field.time": "Uhrzeit",
   "automations.field.notify": "Benachrichtigen",

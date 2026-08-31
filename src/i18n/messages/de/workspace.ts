@@ -282,7 +282,7 @@ export const deWorkspace = {
   "search.badgeContent": "Inhalt",
   "search.badgeBoth": "Titel + Inhalt",
   "search.rankModeLabel": "Such-Ranking",
-  "search.rankKeyword": "Keyword",
+  "search.rankKeyword": "Stichwort",
   "search.rankHybrid": "Hybrid",
   "search.rankKeywordHint": "Teilstring-Treffer; stabile Reihenfolge Titel dann Inhalt",
   "search.rankHybridHint": "Lokales Hybrid: Keyword + Token-Überlappung auf Titeln/Snippets (keine Cloud-Embeddings)",
