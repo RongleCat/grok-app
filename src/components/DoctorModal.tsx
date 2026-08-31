@@ -14,6 +14,7 @@ import {
   IconRefresh,
 } from "@/components/icons";
 import { GlassModal } from "@/components/GlassModal";
+import { Select } from "@/components/Select";
 import { createT, intlLocale, type Locale, type MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
 import type { DoctorLevel, DoctorReport } from "@/lib/api";
@@ -1370,29 +1371,25 @@ export function DoctorModal({
                     </button>
                   ))}
                 </div>
-                <label className="doctor-findings__category">
-                  <span className="sr-only">{t("doctor.filter.categoryAria")}</span>
-                  <select
-                    className="settings-input doctor-findings__select"
+                <div className="doctor-findings__category">
+                  <Select
                     value={categoryFilter}
-                    onChange={(e) =>
-                      setCategoryFilter(
-                        e.target.value as DoctorFindingCategoryFilter,
-                      )
-                    }
+                    options={[
+                      { value: "all", label: t("doctor.filter.categoryAll") },
+                      ...presentCategories.map((c) => ({
+                        value: c,
+                        label:
+                          t(CATEGORY_LABEL_KEYS[c]) +
+                          (findingCounts.byCategory[c]
+                            ? ` (${findingCounts.byCategory[c]})`
+                            : ""),
+                      })),
+                    ]}
+                    onChange={(v) => setCategoryFilter(v as DoctorFindingCategoryFilter)}
                     aria-label={t("doctor.filter.categoryAria")}
-                  >
-                    <option value="all">{t("doctor.filter.categoryAll")}</option>
-                    {presentCategories.map((c) => (
-                      <option key={c} value={c}>
-                        {t(CATEGORY_LABEL_KEYS[c])}
-                        {findingCounts.byCategory[c]
-                          ? ` (${findingCounts.byCategory[c]})`
-                          : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    className="doctor-findings__select"
+                  />
+                </div>
                 <label className="doctor-findings__issues">
                   <input
                     type="checkbox"

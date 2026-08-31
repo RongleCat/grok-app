@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Locale, MessageKey } from "@/i18n";
 import { createT } from "@/i18n";
 import { GlassModal } from "@/components/GlassModal";
+import { Select } from "@/components/Select";
 import { xEvidenceStats, type XEvidenceStats } from "@/lib/api";
 import {
   AGENT_DASHBOARD_STATUS_FILTERS,
@@ -614,25 +615,22 @@ export function AgentDashboardModal({
           ) : (
             <>
               <div className="agent-dash__dispatch-row">
-                <label className="agent-dash__dispatch-label" htmlFor="agent-dash-dispatch-project">
+                <span className="agent-dash__dispatch-label" id="agent-dash-dispatch-project-label">
                   {tr("dashboard.dispatch.projectLabel")}
-                </label>
-                <select
-                  id="agent-dash-dispatch-project"
-                  className="settings-input agent-dash__dispatch-select"
+                </span>
+                <Select
                   value={dispatchProjectId}
-                  onChange={(e) => {
-                    setDispatchProjectId(e.target.value);
+                  options={trustedProjects.map((p) => ({
+                    value: p.id,
+                    label: p.name || p.path || p.id,
+                  }))}
+                  onChange={(v) => {
+                    setDispatchProjectId(v);
                     setDispatchHint(null);
                   }}
                   aria-label={tr("dashboard.dispatch.projectLabel")}
-                >
-                  {trustedProjects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name || p.path || p.id}
-                    </option>
-                  ))}
-                </select>
+                  className="agent-dash__dispatch-select"
+                />
               </div>
               <textarea
                 className="settings-input agent-dash__dispatch-prompt"
