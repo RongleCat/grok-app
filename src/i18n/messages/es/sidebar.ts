@@ -8,7 +8,7 @@ export const esSidebar = {
   "sidebar.addProject": "Añadir proyecto",
   "sidebar.remoteSessions": "Sesiones remotas",
   "sidebar.remoteSessionsHint": "Supervisando hosts SSH. Las sesiones en el host aparecen aquí.",
-  "sidebar.remoteHost": "Remote {alias}",
+  "sidebar.remoteHost": "Remoto {alias}",
   "sidebar.remoteUntitled": "Untitled",
   "sidebar.remoteRemaining": "{n} más en este host",
   "sidebar.remoteLoadMore": "Cargar más",

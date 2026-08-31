@@ -166,7 +166,7 @@ export const esComposer = {
   "composer.worktreeCurrent": "actual",
   "composer.worktreeSwitch": "Cambiar",
   "composer.worktreeMain": "principal",
-  "composer.worktreeDetached": "detached",
+  "composer.worktreeDetached": "desasociado",
   "composer.worktreeTip": "Cambiar worktree / rama de git",
   "composer.worktreeSwitched": "Usando worktree {name} ({branch})",
   "composer.worktreeNew": "Nuevo worktree",

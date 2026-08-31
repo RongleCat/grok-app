@@ -194,7 +194,7 @@ export const esDoctor = {
   "doctor.finding.exportFail": "Falló la exportación de hallazgos",
   "doctor.finding.copied": "Copiado",
   "doctor.finding.copiedN": "Se copiaron {count} hallazgo(s)",
-  "doctor.finding.id": "Id",
+  "doctor.finding.id": "ID",
   "doctor.finding.disposition": "Disposición",
   "doctor.finding.fixId": "Id de corrección",
   "doctor.finding.destructive": "destructivo",
