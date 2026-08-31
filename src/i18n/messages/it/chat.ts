@@ -121,7 +121,7 @@ export const itChat = {
   "chat.tool.edit": "Modifica file",
   "chat.tool.search": "Cerca",
   "chat.tool.browse": "Naviga",
-  "chat.tool.agent": "Subagent",
+  "chat.tool.agent": "Subagente",
   "chat.tool.generic": "Strumento",
   "chat.ranTools": "Eseguiti {n} strumenti",
   "chat.runningTools": "Esecuzione di {n} strumenti…",

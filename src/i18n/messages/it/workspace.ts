@@ -236,7 +236,7 @@ export const itWorkspace = {
   "changes.workspace.kind.modified": "Modificato",
   "changes.workspace.kind.added": "Aggiunto",
   "changes.workspace.kind.deleted": "Eliminato",
-  "changes.workspace.kind.untracked": "Untracked",
+  "changes.workspace.kind.untracked": "Non tracciato",
   "changes.workspace.kind.renamed": "Rinominato",
   "changes.workspace.kind.copied": "Copiato",
   "changes.workspace.kind.typechange": "Cambio tipo",

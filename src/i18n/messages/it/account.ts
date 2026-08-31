@@ -34,7 +34,7 @@ export const itAccount = {
   "account.quotaUnknown": "Quota non ancora caricata",
   "account.period": "Periodo di fatturazione",
   "account.prepaid": "Prepagato",
-  "account.onDemand": "On-demand",
+  "account.onDemand": "A richiesta",
   "account.resetsAt": "Si azzera",
   "usageModal.title": "Limite di utilizzo",
   "usageModal.weeklyTitle": "Limite settimanale",

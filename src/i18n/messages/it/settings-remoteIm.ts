@@ -601,7 +601,7 @@ export const itSettingsRemoteIm = {
   "settings.remoteIm.security.acl.open_acl": "Aperto (*)",
   "settings.remoteIm.security.acl.restricted": "Limitato",
   "settings.remoteIm.security.acl.empty": "Vuoto",
-  "settings.remoteIm.security.status.pass": "Pass",
+  "settings.remoteIm.security.status.pass": "Superato",
   "settings.remoteIm.security.status.warn": "Avviso",
   "settings.remoteIm.security.status.fail": "Errore",
   "settings.remoteIm.security.check.acl": "ACL allow-from",
