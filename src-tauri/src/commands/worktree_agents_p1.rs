@@ -647,6 +647,21 @@ pub async fn git_worktree_add(
     let start = sanitize_worktree_ref(start_point.as_deref())?;
     let layout_kind = normalize_worktree_layout(layout.as_deref());
 
+    // Worktree add materializes a full checkout (spawn + disk-heavy) — the
+    // blocking pool keeps it from stalling the async runtime.
+    tauri::async_runtime::spawn_blocking(move || {
+        git_worktree_add_blocking(project, safe_name, start, layout_kind)
+    })
+    .await
+    .map_err(|e| format!("git worktree add worker panicked: {e}"))?
+}
+
+fn git_worktree_add_blocking(
+    project: String,
+    safe_name: String,
+    start: Option<String>,
+    layout_kind: &'static str,
+) -> Result<GitWorktreeAddResult, String> {
     // Resolve main worktree path (first porcelain entry) for path placement.
     let list_out = crate::process_util::command("git")
         .args(["-C", &project, "worktree", "list", "--porcelain"])
@@ -777,6 +792,20 @@ pub async fn git_worktree_gc(
     let forced = force.unwrap_or(false);
     let age = sanitize_worktree_gc_max_age(max_age.as_deref())?;
 
+    // Prune scans + removes admin files across the repo — blocking pool.
+    tauri::async_runtime::spawn_blocking(move || {
+        git_worktree_gc_blocking(project, dry_run, forced, age)
+    })
+    .await
+    .map_err(|e| format!("git worktree gc worker panicked: {e}"))?
+}
+
+fn git_worktree_gc_blocking(
+    project: String,
+    dry_run: bool,
+    forced: bool,
+    age: Option<String>,
+) -> Result<GitWorktreeGcResult, String> {
     // Snapshot prunable entries before prune for UI preview / summary.
     let prunable = {
         let list_out = crate::process_util::command("git")
@@ -884,6 +913,19 @@ pub async fn git_worktree_remove(
         return Err("invalid worktree path".into());
     }
 
+    // `git worktree remove` deletes a full checkout tree — blocking pool.
+    tauri::async_runtime::spawn_blocking(move || {
+        git_worktree_remove_blocking(project, target, force.unwrap_or(false))
+    })
+    .await
+    .map_err(|e| format!("git worktree remove worker panicked: {e}"))?
+}
+
+fn git_worktree_remove_blocking(
+    project: String,
+    target: String,
+    forced: bool,
+) -> Result<GitWorktreeRemoveResult, String> {
     let list_out = crate::process_util::command("git")
         .args(["-C", &project, "worktree", "list", "--porcelain"])
         .output()
@@ -915,7 +957,6 @@ pub async fn git_worktree_remove(
         .map(|w| w.path.clone())
         .unwrap_or(target.clone());
 
-    let forced = force.unwrap_or(false);
     // Safe argv — never go through a shell.
     // `git worktree remove [--force] <path>`
     let mut args: Vec<String> = vec![

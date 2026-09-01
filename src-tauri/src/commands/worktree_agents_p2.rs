@@ -70,6 +70,24 @@ pub async fn git_worktree_compare(
         return Ok(empty("could not resolve refs"));
     };
 
+    // Cross-worktree diff spans two checkouts — blocking pool.
+    let base_cloned = base.clone();
+    let other_cloned = other.clone();
+    let left_cloned = left.clone();
+    let right_cloned = right.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        git_worktree_compare_blocking(base_cloned, other_cloned, left_cloned, right_cloned)
+    })
+    .await
+    .map_err(|e| format!("git worktree compare worker panicked: {e}"))?
+}
+
+fn git_worktree_compare_blocking(
+    base: String,
+    other: String,
+    left: String,
+    right: String,
+) -> Result<GitWorktreeCompareResult, String> {
     // Safe argv — never go through a shell.
     // `git -C <base> diff --name-status <left>...<right>`
     let range = format!("{left}...{right}");
