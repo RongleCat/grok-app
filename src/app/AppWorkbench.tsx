@@ -13970,6 +13970,8 @@ export function AppWorkbench() {
           activeCustomProvider={activeCustomProvider}
           mainPane={mainPane}
           onOpenSearch={() => searchPalette.openBlank()}
+          sidebarToggleUnread={unreadSessionIds.size > 0}
+          onToggleSidebar={closeSidebarPane}
           onNewChat={() => void newChat(null)}
           onNavigateAutomations={navigateAutomations}
           onNavigateKanban={navigateKanban}

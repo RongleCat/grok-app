@@ -460,10 +460,14 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(app).toContain(
       "sidebarToggleUnread={unreadSessionIds.size > 0}",
     );
-    expect(sidebar).not.toContain("main__pane-toggle");
+    expect(sidebar).not.toContain("pane-toggle--pinned");
+    expect(sidebar).toContain("<PaneToggleButton");
+    expect(sidebar).toContain('pinned={false}');
     expect(main).not.toContain('testId="main-side-toggle"');
     expect(main.match(/<PaneToggleButton/g) ?? []).toHaveLength(2);
-    expect(main).toMatch(/<PaneToggleButton\s+side="left"/);
+    expect(main).toMatch(
+      /<PaneToggleButton\s+side="left"[\s\S]*layout\.sidebarCollapsed/,
+    );
     expect(main).not.toMatch(
       /layout\.asideCollapsed\s*\?\s*\(\s*<Tip label=\{tr\("main\.rightPane/s,
     );

@@ -675,7 +675,7 @@ html.platform-mac[data-theme="light"] .settings-page__content {
 .sidebar-chrome {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   height: var(--titlebar-height, 40px);
   min-height: var(--titlebar-height, 40px);
   max-height: var(--titlebar-height, 40px);
@@ -701,18 +701,14 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   min-width: 8px;
 }
 
-/* Row 2: logo left, search right */
-.sidebar-brand-row {
+.sidebar-chrome__actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  height: 36px;
-  padding: 0 12px 4px;
-  margin-bottom: 2px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
+/* Brand block lives inside the single titlebar row (logo left, actions right). */
 .sidebar-brand-row__left {
   display: flex;
   align-items: center;
@@ -722,6 +718,7 @@ html.platform-mac[data-theme="light"] .settings-page__content {
   font-size: 14px;
   color: var(--text-primary);
   letter-spacing: -0.02em;
+  flex-shrink: 1;
 }
 
 /* Swappable provider brand marks — height-locked for size parity.

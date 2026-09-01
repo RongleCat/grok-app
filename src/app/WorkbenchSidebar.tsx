@@ -11,6 +11,7 @@ import {
   type SetStateAction,
 } from "react";
 import { Tip } from "@/components/ui/tooltip";
+import { PaneToggleButton } from "@/components/PaneToggleButton";
 import { SidebarBrand } from "@/components/SidebarBrand";
 import { SidebarUpdateButton } from "@/components/SidebarUpdateButton";
 import { ThemeEditorModal } from "@/components/ThemeEditorModal";
@@ -88,6 +89,8 @@ export type WorkbenchSidebarProps = {
   activeCustomProvider: CustomProvider | null;
   mainPane: "chat" | "automations" | "kanban";
   onOpenSearch: () => void;
+  sidebarToggleUnread?: boolean;
+  onToggleSidebar?: () => void;
   onNewChat: () => void;
   onNavigateAutomations: () => void;
   onNavigateKanban: () => void;
@@ -149,6 +152,8 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
     activeCustomProvider,
     mainPane,
     onOpenSearch,
+    sidebarToggleUnread = false,
+    onToggleSidebar,
     onNewChat,
     onNavigateAutomations,
     onNavigateKanban,
@@ -253,14 +258,6 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
           data-tauri-drag-region={dragRegion}
           {...titlebarMax}
         >
-          <div
-            className="sidebar-chrome__drag"
-            data-tauri-drag-region={dragRegion}
-            {...titlebarMax}
-          />
-        </div>
-
-        <div className="sidebar-brand-row">
           <div className="sidebar-brand-row__left">
             <SidebarBrand
               replaceLogo={replaceProviderBrandLogo}
@@ -285,16 +282,35 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
             />
             <SidebarUpdateButton t={tr} />
           </div>
-          <Tip label={tr("sidebar.search")}>
-            <button
-              type="button"
-              className="chrome-btn"
-              aria-label={tr("sidebar.search")}
-              onClick={onOpenSearch}
-            >
-              <IconSearch size={16} />
-            </button>
-          </Tip>
+          <div
+            className="sidebar-chrome__drag"
+            data-tauri-drag-region={dragRegion}
+            {...titlebarMax}
+          />
+          <div className="sidebar-chrome__actions">
+            <Tip label={tr("sidebar.search")}>
+              <button
+                type="button"
+                className="chrome-btn"
+                aria-label={tr("sidebar.search")}
+                onClick={onOpenSearch}
+              >
+                <IconSearch size={16} />
+              </button>
+            </Tip>
+            {!phoneLayout && onToggleSidebar ? (
+              <PaneToggleButton
+                side="left"
+                pinned={false}
+                open={!layout.sidebarCollapsed}
+                unread={sidebarToggleUnread}
+                label={tr("main.leftPaneHide")}
+                unreadLabel={tr("main.paneUnread")}
+                controlsId="workbench-sidebar"
+                onToggle={onToggleSidebar}
+              />
+            ) : null}
+          </div>
         </div>
 
         <div className="sidebar-nav">

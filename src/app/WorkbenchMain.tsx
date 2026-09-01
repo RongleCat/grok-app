@@ -150,19 +150,15 @@ export function WorkbenchMain(props: WorkbenchMainProps) {
 
   return (
     <>
-      {!phoneLayout ? (
+      {!phoneLayout && layout.sidebarCollapsed ? (
         <PaneToggleButton
           side="left"
-          open={!layout.sidebarCollapsed}
+          open={false}
           unread={sidebarToggleUnread}
-          label={tr(
-            layout.sidebarCollapsed ? "main.leftPaneShow" : "main.leftPaneHide",
-          )}
+          label={tr("main.leftPaneShow")}
           unreadLabel={tr("main.paneUnread")}
           controlsId="workbench-sidebar"
-          onToggle={
-            layout.sidebarCollapsed ? openSidebarPane : closePhoneDrawer
-          }
+          onToggle={openSidebarPane}
         />
       ) : null}
       <main
