@@ -441,6 +441,10 @@ fn join_project_rel(project: &str, rel: &str) -> String {
 
 /// List modified / untracked / added files under a project (Workspace Changes).
 /// Soft-fails when git is missing or the path is not a repo.
+///
+/// `git status` is a process spawn + full worktree walk (untracked dirs
+/// included) and the dirty chip polls it every few seconds. It runs on the
+/// blocking pool so a big repo cannot stall the async runtime.
 #[tauri::command]
 pub async fn git_status(project_path: String) -> Result<GitStatusResult, String> {
     let project = normalize_fs_path(&project_path);
@@ -471,6 +475,12 @@ pub async fn git_status(project_path: String) -> Result<GitStatusResult, String>
         });
     }
 
+    tauri::async_runtime::spawn_blocking(move || git_status_blocking(project))
+        .await
+        .map_err(|e| format!("git status worker panicked: {e}"))?
+}
+
+fn git_status_blocking(project: String) -> Result<GitStatusResult, String> {
     let branch = crate::process_util::command("git")
         .args(["-C", &project, "rev-parse", "--abbrev-ref", "HEAD"])
         .output()
