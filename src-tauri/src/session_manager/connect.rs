@@ -2365,7 +2365,8 @@ mod reuse_gate_tests {
     #[test]
     fn reuse_sandbox_cwd_blocks_project_on_general_prewarm() {
         // #986: workspace sandbox + prewarm(general) must not serve a project.
-        let general = "/Users/me/Library/Application Support/com.grokapp.desktop/workspaces/general";
+        let general =
+            "/Users/me/Library/Application Support/com.grokapp.desktop/workspaces/general";
         let project = "/Users/me/Projects/AI_conference";
         assert!(
             !SessionManager::reuse_sandbox_cwd_ok(Some("workspace"), general, project),
@@ -2376,7 +2377,11 @@ mod reuse_gate_tests {
             "same general cwd stays reusable"
         );
         assert!(
-            SessionManager::reuse_sandbox_cwd_ok(Some("workspace"), project, &format!("{project}/")),
+            SessionManager::reuse_sandbox_cwd_ok(
+                Some("workspace"),
+                project,
+                &format!("{project}/")
+            ),
             "trailing slash still matches"
         );
         // off: Seatbelt not applied — session cwd may differ (open_session_at).
