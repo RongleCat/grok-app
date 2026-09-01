@@ -491,7 +491,7 @@ describe("composer chip portal pops", () => {
     expect(screen.queryByRole("searchbox", { name: "Search models" })).toBeNull();
   });
 
-  it("shows grok-4.6 xhigh as xhigh and keeps Advanced to models only", async () => {
+  it("localizes grok-4.6 xhigh via effort i18n in composer menu", async () => {
     const user = userEvent.setup();
     render(
       <ComposerModelMenu
@@ -523,11 +523,11 @@ describe("composer chip portal pops", () => {
     await user.click(screen.getByRole("button", { name: "Model" }));
     const pop = bodyPop();
     expect(pop).not.toBeNull();
-    expect(pop!.textContent ?? "").toMatch(/Effort xhigh/);
-    expect(pop!.textContent ?? "").not.toMatch(/Extra/);
+    expect(pop!.textContent ?? "").toMatch(/Effort Extra high/);
+    expect(pop!.textContent ?? "").not.toMatch(/\bxhigh\b/);
     await user.click(screen.getByRole("button", { name: "Advanced" }));
     expect(screen.queryByRole("searchbox", { name: "Search models" })).toBeNull();
-    expect(pop!.textContent ?? "").toMatch(/xhigh/);
-    expect(pop!.textContent ?? "").not.toMatch(/Extra/);
+    expect(pop!.textContent ?? "").toMatch(/Extra high/);
+    expect(pop!.textContent ?? "").not.toMatch(/\bxhigh\b/);
   });
 });

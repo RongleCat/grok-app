@@ -14,6 +14,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Fixed
+- Desktop composer reasoning menu no longer shows the raw spawn id for the top tier. It uses the localized label (e.g. Extra high / 极高) like the other effort stops (#994).
 - Project chats no longer inherit the default-workspace sandbox. Writes inside the selected project work again (#986).
 - Expanded tool steps no longer stack title and command on one line. The last row in a Worked-for list keeps its real height (#983).
 - Thinking no longer stays on screen as the final reply. The real answer paints in place; switching chats is not required (#968).
@@ -23,6 +24,7 @@ See `docs/llm-wiki/release.md`.
 - Screen-reader labels for the files pane and setup steps follow the UI language. They no longer stay English (#982).
 
 **中文 · 修复**
+- 桌面 Composer 推理强度最高档不再显示原始 `xhigh`，会走本地化文案（如「极高」），与其它档位一致（#994）。
 - 项目会话不再误用默认工作区的沙箱。在选中项目里写文件又能成功了（#986）。
 - 展开的工具步骤不再把标题和命令叠在同一行。工作列表最后一行会按真实高度排开（#983）。
 - 思考结束后不再把思考过程当成最终回复。正文会直接画出来，不用切走再切回来（#968）。

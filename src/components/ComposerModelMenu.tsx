@@ -770,10 +770,8 @@ export function ComposerModelMenu({
     officialLabel,
     activeCustom,
   });
-  const stopLabelFor = (stop: EffortPickerStop) => {
-    if (stop.id === "xhigh" || stop.id === "max") return stop.spawnId;
-    return effortDisplayLabel(stop.id, effortI18n(labels));
-  };
+  const stopLabelFor = (stop: EffortPickerStop) =>
+    effortDisplayLabel(stop.id, effortI18n(labels));
   const activeStop =
     pickerStops.find((s) => s.spawnId === effort) ?? pickerStops[0] ?? null;
   const eLabel = activeStop
