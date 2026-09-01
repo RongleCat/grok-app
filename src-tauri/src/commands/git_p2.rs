@@ -291,6 +291,16 @@ pub async fn git_worktrees_list(project_path: String) -> Result<GitWorktreesResu
         });
     }
 
+    // Porcelain list touches every registered worktree on disk — blocking pool.
+    tauri::async_runtime::spawn_blocking(move || git_worktrees_list_blocking(project, cli_grok_home))
+        .await
+        .map_err(|e| format!("git worktrees list worker panicked: {e}"))?
+}
+
+fn git_worktrees_list_blocking(
+    project: String,
+    cli_grok_home: Option<String>,
+) -> Result<GitWorktreesResult, String> {
     let out = crate::process_util::command("git")
         .args(["-C", &project, "worktree", "list", "--porcelain"])
         .output()
