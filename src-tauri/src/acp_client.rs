@@ -3002,9 +3002,12 @@ impl AcpClient {
             .await
     }
 
-    /// [`Self::open_session`] with a caller-supplied cwd — warm-process reuse
-    /// may carry a different project than the process was spawned for (the CLI
-    /// session cwd is per-session, not process-global).
+    /// [`Self::open_session`] with a caller-supplied cwd.
+    ///
+    /// The CLI session cwd is per-session. OS sandbox write roots are **not** —
+    /// they stay locked to spawn cwd for the process lifetime. Hosts must not
+    /// warm-reuse a non-`off` sandboxed process onto a different project cwd
+    /// (#986); cold-spawn with the target cwd instead.
     pub async fn open_session_at(
         &self,
         resume_session_id: Option<&str>,

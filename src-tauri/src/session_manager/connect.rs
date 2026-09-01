@@ -725,6 +725,11 @@ impl SessionManager {
         // attached to their owner; sharing an Arc across sessions lets
         // unstamped load replay and process-level kill paths corrupt or abort
         // a co-tenant.
+        //
+        // #986: when the process OS sandbox is not `off`, spawn cwd is the
+        // Seatbelt/Landlock write root for the process lifetime. Prewarm
+        // always starts in `workspaces/general` — never reuse it for a
+        // project-bound session (open_session_at cannot widen the sandbox).
         if !pending_fork && ssh_alias.is_none() {
             let eff_sandbox = {
                 let project_sandbox = meta.project_id.as_deref().and_then(|pid| {
@@ -821,7 +826,22 @@ impl SessionManager {
                         let mut pw = self.prewarm.lock();
                         match std::mem::replace(&mut *pw, PrewarmState::None) {
                             PrewarmState::Ready(p) => {
-                                if gate(
+                                let process_cwd = p.acp.cwd().to_string_lossy();
+                                let target_cwd = cwd.to_string_lossy();
+                                if !Self::reuse_sandbox_cwd_ok(
+                                    p.sandbox_profile.as_deref(),
+                                    process_cwd.as_ref(),
+                                    target_cwd.as_ref(),
+                                ) {
+                                    // Keep the general-workspace prewarm for a
+                                    // later unbound chat; only cold-spawn this
+                                    // project session (#986).
+                                    rejected.push(format!(
+                                        "prewarm: sandbox cwd {process_cwd}≠{target_cwd}"
+                                    ));
+                                    *pw = PrewarmState::Ready(p);
+                                    None
+                                } else if gate(
                                     p.acp.is_alive(),
                                     p.policy,
                                     p.effort.as_deref(),
@@ -1593,14 +1613,18 @@ impl SessionManager {
 
     /// Short event name for diagnostics (no payload — journals stay readable).
     /// Prewarm a CLI process while the user is composing a new chat: spawn +
-    /// initialize + auth only — NO session (the chat's project cwd is bound
-    /// later at `session/new` on submit). Connect reuses this process first,
-    /// so the first send in a new chat is near-instant.
+    /// initialize + auth only — NO session. Spawn cwd is always the App
+    /// default workspace (`workspaces/general`).
+    ///
+    /// Connect reuses this process only when process-level flags match **and**
+    /// (when OS sandbox ≠ `off`) the session cwd matches that spawn cwd.
+    /// Project-bound chats with `workspace` sandbox always cold-spawn so
+    /// Seatbelt/Landlock write roots cover the project (#986).
     ///
     /// Idempotent: skips when a prewarm already lives, or when any warm
     /// process already exists (parked / background covers connect). Uses the
     /// global/default channel prefs — if the submitted session differs in
-    /// policy/effort/sandbox/route, connect falls back to a cold spawn.
+    /// policy/effort/sandbox/route/cwd, connect falls back to a cold spawn.
     ///
     /// `force` kills any current prewarm first (detach uses it to swap in a
     /// fresh process whose CLI has no accumulated session actors, so the next
@@ -1697,9 +1721,9 @@ impl SessionManager {
         let prefs = store::resolve_composer_prefs(None, last_sid.as_deref());
         let policy = PermissionPolicy::parse(&prefs.permission_policy);
         let agent_model = crate::providers::agent_spawn_model_id(&prefs.model_id);
-        // Placeholder cwd — session cwd is a per-session parameter, so this
-        // never binds the upcoming chat to a project. Must exist for
-        // Command::current_dir (spawn fails silently otherwise).
+        // Default-workspace cwd only. Project sessions with a non-off OS
+        // sandbox must cold-spawn (#986) — Seatbelt locks write roots here.
+        // Must exist for Command::current_dir (spawn fails silently otherwise).
         let _ = store::ensure_general_workspace_dir();
         let cwd = crate::paths::general_workspace_dir();
         let effective_sandbox = store::resolve_sandbox_profile(&settings.sandbox_profile, None);
@@ -1824,6 +1848,9 @@ impl SessionManager {
     /// Sandbox: the CLI normalizes "off" to no `--sandbox` flag (stored as
     /// `None` on the client), while settings resolve to the string "off".
     /// Treat None as "off" so both representations match.
+    ///
+    /// Callers must also pass [`Self::reuse_sandbox_cwd_ok`] when the process
+    /// may have been spawned under a non-`off` OS sandbox (#986).
     #[allow(clippy::too_many_arguments)]
     pub(super) fn reuse_gate(
         alive: bool,
@@ -1841,6 +1868,24 @@ impl SessionManager {
             && p_effort == Some(effort)
             && p_sandbox.unwrap_or("off") == sandbox
             && p_custom_route == target_custom_route
+    }
+
+    /// Whether warm-reuse is safe for OS sandbox vs spawn cwd (#986).
+    ///
+    /// `off` does not lock filesystem roots to spawn cwd, so a different
+    /// session cwd (via `session/new|load`) is fine. Any other profile
+    /// (workspace / read-only / strict / …) applies Seatbelt/Landlock at
+    /// process start — spawn cwd and target session cwd must match.
+    pub(super) fn reuse_sandbox_cwd_ok(
+        process_sandbox: Option<&str>,
+        process_spawn_cwd: &str,
+        target_cwd: &str,
+    ) -> bool {
+        let sandbox = process_sandbox.unwrap_or("off");
+        if sandbox == "off" {
+            return true;
+        }
+        crate::cli_sessions::cwd_paths_match(process_spawn_cwd, target_cwd)
     }
 
     pub(super) fn event_kind_name(ev: &AcpEvent) -> &'static str {
@@ -2314,6 +2359,43 @@ mod reuse_gate_tests {
             "high",
             "off",
             true,
+        ));
+    }
+
+    #[test]
+    fn reuse_sandbox_cwd_blocks_project_on_general_prewarm() {
+        // #986: workspace sandbox + prewarm(general) must not serve a project.
+        let general = "/Users/me/Library/Application Support/com.grokapp.desktop/workspaces/general";
+        let project = "/Users/me/Projects/AI_conference";
+        assert!(
+            !SessionManager::reuse_sandbox_cwd_ok(Some("workspace"), general, project),
+            "workspace sandbox cannot widen from general to project"
+        );
+        assert!(
+            SessionManager::reuse_sandbox_cwd_ok(Some("workspace"), general, general),
+            "same general cwd stays reusable"
+        );
+        assert!(
+            SessionManager::reuse_sandbox_cwd_ok(Some("workspace"), project, &format!("{project}/")),
+            "trailing slash still matches"
+        );
+        // off: Seatbelt not applied — session cwd may differ (open_session_at).
+        assert!(SessionManager::reuse_sandbox_cwd_ok(
+            Some("off"),
+            general,
+            project
+        ));
+        assert!(SessionManager::reuse_sandbox_cwd_ok(None, general, project));
+        // Other non-off profiles also lock spawn cwd.
+        assert!(!SessionManager::reuse_sandbox_cwd_ok(
+            Some("strict"),
+            general,
+            project
+        ));
+        assert!(!SessionManager::reuse_sandbox_cwd_ok(
+            Some("read-only"),
+            general,
+            project
         ));
     }
 

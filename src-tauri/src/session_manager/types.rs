@@ -272,7 +272,8 @@ pub(crate) struct LiveSession {
 }
 
 /// Process prewarmed while the user composes a new chat (spawn + init + auth
-/// only, no session — the chat's project cwd is bound later at `session/new`).
+/// only, no session). Spawn cwd is the App default workspace; project chats
+/// with a non-`off` OS sandbox must cold-spawn instead of reusing this (#986).
 pub(crate) struct PrewarmedProcess {
     pub(super) acp: Arc<AcpClient>,
     pub(super) process_id: ProcessId,
