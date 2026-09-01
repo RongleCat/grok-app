@@ -16,6 +16,8 @@ pub async fn git_file_diff(
     project_path: String,
     path: String,
 ) -> Result<GitFileDiffResult, String> {
+    // Fast guards on the runtime; the diff process spawns run on the blocking
+    // pool so a big diff cannot stall other queued commands.
     let project = normalize_fs_path(&project_path);
     let target = normalize_fs_path(&path);
     if project.is_empty() || target.is_empty() {
@@ -57,10 +59,17 @@ pub async fn git_file_diff(
         return Ok(GitFileDiffResult {
             available: false,
             diff: None,
-            relative_path: None,
+            relative_path: Some(rel),
             reason: Some("not a file path".into()),
         });
     }
+
+    tauri::async_runtime::spawn_blocking(move || git_file_diff_blocking(project, rel))
+        .await
+        .map_err(|e| format!("git file diff worker panicked: {e}"))?
+}
+
+fn git_file_diff_blocking(project: String, rel: String) -> Result<GitFileDiffResult, String> {
 
     // Soft check: is git on PATH?
     let git_ok = crate::process_util::command("git")
@@ -95,7 +104,6 @@ pub async fn git_file_diff(
             reason: Some("not a git repository".into()),
         });
     }
-
     // Working tree + index vs HEAD (covers staged and unstaged edits).
     let out = crate::process_util::command("git")
         .args([
@@ -167,7 +175,7 @@ pub async fn git_file_diff(
         let tracked = untracked.map(|s| s.success()).unwrap_or(false);
         if !tracked {
             // Show full file as addition via --no-index when possible
-            let abs = proj.join(&rel);
+            let abs = std::path::PathBuf::from(&project).join(&rel);
             if abs.is_file() {
                 let u = crate::process_util::command("git")
                     .args([
@@ -751,6 +759,9 @@ fn count_diff_plus_minus(patch: &str) -> (i32, i32) {
 }
 
 /// One soft-fail bulk load for Review tab: status + numstat + full HEAD diff.
+///
+/// The whole bundle is several `git` spawns plus patch parsing — blocking
+/// pool, so the Review tab loading a big workspace cannot stall the runtime.
 #[tauri::command]
 pub async fn git_review_bundle(project_path: String) -> Result<GitReviewBundleResult, String> {
     let project = normalize_fs_path(&project_path);
@@ -789,6 +800,14 @@ pub async fn git_review_bundle(project_path: String) -> Result<GitReviewBundleRe
         });
     }
 
+    tauri::async_runtime::spawn_blocking(move || git_review_bundle_blocking(project))
+        .await
+        .map_err(|e| format!("git review bundle worker panicked: {e}"))?
+}
+
+fn git_review_bundle_blocking(
+    project: String,
+) -> Result<GitReviewBundleResult, String> {
     let branch = git_in_project(&project)
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .output()
@@ -1128,6 +1147,12 @@ pub async fn git_show_file(
         });
     }
 
+    tauri::async_runtime::spawn_blocking(move || git_show_file_blocking(project, rel))
+        .await
+        .map_err(|e| format!("git show file worker panicked: {e}"))?
+}
+
+fn git_show_file_blocking(project: String, rel: String) -> Result<GitShowFileResult, String> {
     // `git show HEAD:path` — fails for untracked / missing at HEAD
     let out = crate::process_util::command("git")
         .args(["-C", &project, "show", &format!("HEAD:{rel}")])
@@ -1286,6 +1311,18 @@ pub async fn apply_file_patch(
         });
     }
 
+    // Up to 2MB temp-write + rename — blocking pool.
+    tauri::async_runtime::spawn_blocking(move || apply_file_patch_blocking(root, rel, abs, content))
+        .await
+        .map_err(|e| format!("file write worker panicked: {e}"))?
+}
+
+fn apply_file_patch_blocking(
+    root: std::path::PathBuf,
+    rel: String,
+    abs: std::path::PathBuf,
+    content: String,
+) -> Result<ApplyFilePatchResult, String> {
     if let Some(parent) = abs.parent() {
         if let Err(e) = std::fs::create_dir_all(parent) {
             return Ok(ApplyFilePatchResult {
@@ -1384,6 +1421,21 @@ pub async fn git_checkout_file(
         });
     }
 
+    // File delete / `git checkout` / `git restore` are process spawns plus
+    // disk writes — run on the blocking pool.
+    tauri::async_runtime::spawn_blocking(move || {
+        git_checkout_file_blocking(project, rel, abs, confirm_untracked)
+    })
+    .await
+    .map_err(|e| format!("git checkout worker panicked: {e}"))?
+}
+
+fn git_checkout_file_blocking(
+    project: String,
+    rel: String,
+    abs: std::path::PathBuf,
+    confirm_untracked: bool,
+) -> Result<GitCheckoutFileResult, String> {
     // Is path tracked?
     let tracked = crate::process_util::command("git")
         .args(["-C", &project, "ls-files", "--error-unmatch", "--", &rel])
