@@ -277,6 +277,7 @@ export const zhTWCore = {
   "phone.contextUnknown": "未知",
   "ui.errorBoundary.title": "此檢視渲染出錯",
   "ui.errorBoundary.body": "聊天區域無法顯示。磁碟上的工作階段仍保留 — 可重試或切換對話。",
+  "ui.errorBoundary.settingsBody": "設定頁面無法顯示。已儲存的設定未受影響 — 可重試或返回工作台。",
   "ui.errorBoundary.retry": "重試",
   "agentsRail.noTasks": "本輪尚無 Agent 任務",
   "agentsRail.busyHint": "對話正在工作 — 工具步驟與巢狀子代理會在啟動後出現在這裡。",

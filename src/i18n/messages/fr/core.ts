@@ -277,6 +277,7 @@ export const frCore = {
   "phone.contextUnknown": "Inconnu",
   "ui.errorBoundary.title": "Erreur d’affichage dans cette vue",
   "ui.errorBoundary.body": "Le rendu de la conversation a échoué. Votre session sur disque est conservée — réessayez ou changez de conversation.",
+  "ui.errorBoundary.settingsBody": "Les réglages n’ont pas pu s’afficher. Vos réglages enregistrés sont inchangés — réessayez ou revenez à l’espace de travail.",
   "ui.errorBoundary.retry": "Réessayer",
   "agentsRail.noTasks": "Aucune tâche d’agent dans ce tour",
   "agentsRail.busyHint": "La session travaille — les étapes d’outils et sous-agents imbriqués apparaîtront ici dès qu’ils démarrent.",
