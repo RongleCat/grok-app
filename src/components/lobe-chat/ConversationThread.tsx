@@ -167,10 +167,12 @@ import {
   toolSegmentIsRunning,
 } from "./TimelineToolRow";
 import { TimelinePhaseBlock } from "./TimelinePhaseBlock";
+import { TurnTail } from "./TurnTail";
 import {
   buildAssistantTimeline,
   shouldShowTrailingLiveThinking,
 } from "@/lib/timelinePhases";
+import { estimateDurationSecFromTimestamps } from "@/lib/formatWorkDuration";
 import { resolveChatTranscriptEmptyState } from "@/lib/chatTranscriptEmpty";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -1741,6 +1743,26 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
               >
                 {tr("message.replyLength", { words, chars })}
               </div>
+            );
+          })()}
+          {(() => {
+            if (m.streaming) return null;
+            const stamps: Array<string | undefined | null> = [m.createdAt];
+            for (const u of timelineUnits) {
+              if (u.kind === "phase") {
+                for (const t of u.tools) stamps.push(t.createdAt);
+              } else if (u.kind === "tool") {
+                stamps.push(u.tool.createdAt);
+              }
+            }
+            const durationSec = estimateDurationSecFromTimestamps(stamps);
+            return (
+              <TurnTail
+                units={timelineUnits}
+                locale={locale}
+                streaming={!!m.streaming}
+                durationSec={durationSec}
+              />
             );
           })()}
         </div>
