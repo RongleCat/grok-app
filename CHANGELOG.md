@@ -14,12 +14,14 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Fixed
+- Settings render errors no longer blank the whole window. The Settings stage keeps a Retry panel; changing section resets it (#1006).
 - Custom-model chats no longer switch models between turn 1 and turn 2. Picker `app_models` ids resolve to the same config section for spawn and reconnect (#1000).
 - Windows can add a project by dropping a folder on the sidebar again. Native drag-drop paths are restored; path-less sidebar drops show a clear hint instead of doing nothing (#999).
 - Chat no longer crashes mid-stream with React error #30 when a turn fails. Assistant timeline work no longer runs after early returns on the same row (#1002).
 - Phone mirror turns finish on the phone, and the desktop shows the phone’s message. Session stream/state events fan out to mirror clients again (#1001).
 
 **中文 · 修复**
+- 设置页渲染出错时不再整窗空白。设置舞台会留下可重试面板；切换分区会重置（#1006）。
 - 自定义模型会话不会再在第一轮与第二轮之间悄悄换模型。选择器里的 `app_models` id 会在启动与重连时解析成同一个配置段（#1000）。
 - Windows 又能把文件夹拖到侧栏加为项目。已恢复原生拖放路径；读不到路径时会提示，不再没反应（#999）。
 - 回合失败时聊天区不再因 React #30 崩溃。同一条助手消息不会在提前返回后再跑时间线 hooks（#1002）。

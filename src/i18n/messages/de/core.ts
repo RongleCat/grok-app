@@ -277,6 +277,7 @@ export const deCore = {
   "phone.contextUnknown": "Unbekannt",
   "ui.errorBoundary.title": "In dieser Ansicht ist ein Anzeigefehler aufgetreten",
   "ui.errorBoundary.body": "Die Chat-Oberfläche konnte nicht gerendert werden. Deine Sitzung auf der Festplatte bleibt erhalten — versuche es erneut oder wechsle den Chat.",
+  "ui.errorBoundary.settingsBody": "Einstellungen konnten nicht gerendert werden. Deine Präferenzen auf der Festplatte bleiben erhalten — versuche es erneut oder öffne einen anderen Einstellungsbereich.",
   "ui.errorBoundary.retry": "Erneut versuchen",
   "agentsRail.noTasks": "Keine Agentenaufgaben in diesem Vorgang",
   "agentsRail.busyHint": "Die Sitzung arbeitet — Werkzeugschritte und verschachtelte Subagenten erscheinen hier, sobald sie starten.",

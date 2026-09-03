@@ -277,6 +277,7 @@ export const itCore = {
   "phone.contextUnknown": "Sconosciuto",
   "ui.errorBoundary.title": "Questa vista ha avuto un errore di visualizzazione",
   "ui.errorBoundary.body": "Il rendering della chat non è riuscito. La sessione su disco è conservata — riprova o passa a un’altra chat.",
+  "ui.errorBoundary.settingsBody": "Impostazioni non è riuscito a fare il rendering. Le preferenze su disco sono conservate — riprova o apri un’altra sezione.",
   "ui.errorBoundary.retry": "Riprova",
   "agentsRail.noTasks": "Nessuna attività agente in questo turno",
   "agentsRail.busyHint": "La sessione sta lavorando — i passi degli strumenti e i subagent nidificati compariranno qui quando partono.",

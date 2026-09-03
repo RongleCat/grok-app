@@ -277,6 +277,7 @@ export const zhCore = {
   "phone.contextUnknown": "未知",
   "ui.errorBoundary.title": "此视图渲染出错",
   "ui.errorBoundary.body": "聊天区域无法显示。磁盘上的会话仍保留 — 可重试或切换会话。",
+  "ui.errorBoundary.settingsBody": "设置页无法显示。磁盘上的偏好仍保留 — 可重试或切换到其他设置分区。",
   "ui.errorBoundary.retry": "重试",
   "agentsRail.noTasks": "本轮暂无 Agent 任务",
   "agentsRail.busyHint": "会话正在工作 — 工具步骤与嵌套子代理会在启动后出现在这里。",

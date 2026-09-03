@@ -277,6 +277,7 @@ export const ptBRCore = {
   "phone.contextUnknown": "Desconhecido",
   "ui.errorBoundary.title": "Esta tela teve um erro de exibição",
   "ui.errorBoundary.body": "Não foi possível renderizar a superfície de conversa. Sua sessão em disco foi preservada — tente de novo ou troque de conversa.",
+  "ui.errorBoundary.settingsBody": "Configurações não puderam ser renderizadas. Suas preferências em disco foram preservadas — tente de novo ou abra outra seção.",
   "ui.errorBoundary.retry": "Tentar de novo",
   "agentsRail.noTasks": "Nenhuma tarefa de agente neste turno",
   "agentsRail.busyHint": "A sessão está trabalhando — etapas de ferramentas e subagentes aninhados aparecerão aqui conforme começarem.",

@@ -277,6 +277,7 @@ export const idCore = {
   "phone.contextUnknown": "Tidak diketahui",
   "ui.errorBoundary.title": "Tampilan ini mengalami galat render",
   "ui.errorBoundary.body": "Permukaan obrolan gagal dirender. Sesi Anda di disk tetap tersimpan — coba lagi atau pindah obrolan.",
+  "ui.errorBoundary.settingsBody": "Pengaturan gagal dirender. Preferensi Anda di disk tetap tersimpan — coba lagi atau buka bagian pengaturan lain.",
   "ui.errorBoundary.retry": "Coba lagi",
   "agentsRail.noTasks": "Tidak ada tugas agen di giliran ini",
   "agentsRail.busyHint": "Sesi sedang bekerja — langkah alat dan subagen bersarang akan muncul di sini saat dimulai.",

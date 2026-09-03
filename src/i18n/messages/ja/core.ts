@@ -277,6 +277,7 @@ export const jaCore = {
   "phone.contextUnknown": "不明",
   "ui.errorBoundary.title": "この画面で表示エラーが発生しました",
   "ui.errorBoundary.body": "チャット画面の描画に失敗しました。ディスク上のセッションは保持されています — 再試行するか、別のチャットに切り替えてください。",
+  "ui.errorBoundary.settingsBody": "設定画面の描画に失敗しました。ディスク上の設定は保持されています — 再試行するか、別の設定セクションを開いてください。",
   "ui.errorBoundary.retry": "再試行",
   "agentsRail.noTasks": "このターンにエージェントタスクはありません",
   "agentsRail.busyHint": "セッションが実行中です — ツール手順と入れ子のサブエージェントは開始されるとここに表示されます。",

@@ -277,6 +277,7 @@ export const koCore = {
   "phone.contextUnknown": "알 수 없음",
   "ui.errorBoundary.title": "이 화면에서 표시 오류가 발생했습니다",
   "ui.errorBoundary.body": "대화 화면을 그리지 못했습니다. 디스크의 세션은 그대로 유지됩니다 — 다시 시도하거나 다른 대화로 전환하세요.",
+  "ui.errorBoundary.settingsBody": "설정을 그리지 못했습니다. 디스크의 환경설정은 그대로 유지됩니다 — 다시 시도하거나 다른 설정 섹션을 여세요.",
   "ui.errorBoundary.retry": "다시 시도",
   "agentsRail.noTasks": "이 턴에 에이전트 작업이 없습니다",
   "agentsRail.busyHint": "세션이 작업 중입니다 — 도구 단계와 중첩 서브에이전트가 시작되면 여기에 표시됩니다.",

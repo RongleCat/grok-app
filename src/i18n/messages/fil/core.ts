@@ -277,6 +277,7 @@ export const filCore = {
   "phone.contextUnknown": "Hindi alam",
   "ui.errorBoundary.title": "May error sa pagpapakita ng view na ito",
   "ui.errorBoundary.body": "Nabigong i-render ang chat. Nananatili ang session mo sa disk — subukan ulit o lumipat ng chat.",
+  "ui.errorBoundary.settingsBody": "Hindi na-render ang Settings. Nananatili ang iyong mga preference sa disk — subukan ulit o buksan ang ibang seksyon ng settings.",
   "ui.errorBoundary.retry": "Subukan ulit",
   "agentsRail.noTasks": "Walang gawain ng agent sa turn na ito",
   "agentsRail.busyHint": "Gumagawa ang session — lalabas dito ang mga hakbang ng tool at nested na subagent habang nagsisimula sila.",

@@ -4,6 +4,7 @@
  * prop surface.
  */
 import { SettingsPage } from "@/components/SettingsPage";
+import { UiErrorBoundary } from "@/components/UiErrorBoundary";
 import { saveMessageTimestampsPref } from "@/lib/messageTimestampsPref";
 import { saveShowReplyLengthPref } from "@/lib/messageLength";
 import { saveReplaceProviderBrandLogoPref } from "@/lib/replaceProviderBrandLogoPref";
@@ -83,6 +84,14 @@ export function WorkbenchSettingsStage(p: WorkbenchSettingsStageProps) {
           className="app-settings-stage is-open"
           data-testid="settings-stage"
         >
+          <UiErrorBoundary
+            resetKey={`${settingsSection ?? ""}:${settingsTab ?? ""}`}
+            labels={{
+              title: tr("ui.errorBoundary.title"),
+              body: tr("ui.errorBoundary.settingsBody"),
+              retry: tr("ui.errorBoundary.retry"),
+            }}
+          >
           <SettingsPage
           section={settingsSection}
           tab={settingsTab}
@@ -811,6 +820,7 @@ export function WorkbenchSettingsStage(p: WorkbenchSettingsStageProps) {
           })();
           }}
           />
+          </UiErrorBoundary>
         </div>
   );
 }

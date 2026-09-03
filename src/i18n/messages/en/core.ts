@@ -278,6 +278,7 @@ export const enCore = {
   "phone.contextUnknown": "Unknown",
   "ui.errorBoundary.title": "This view hit a display error",
   "ui.errorBoundary.body": "The chat surface failed to render. Your session on disk is kept — retry or switch chats.",
+  "ui.errorBoundary.settingsBody": "Settings failed to render. Your preferences on disk are kept — retry or open another settings section.",
   "ui.errorBoundary.retry": "Retry",
   "agentsRail.noTasks": "No agent tasks in this turn",
   "agentsRail.busyHint": "The session is working — tool steps and nested subagents will appear here as they start.",

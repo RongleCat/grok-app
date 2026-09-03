@@ -277,6 +277,7 @@ export const esCore = {
   "phone.contextUnknown": "Desconocido",
   "ui.errorBoundary.title": "Esta vista tuvo un error de visualización",
   "ui.errorBoundary.body": "No se pudo renderizar la superficie de chat. Tu sesión en disco se conserva — reintenta o cambia de chat.",
+  "ui.errorBoundary.settingsBody": "Ajustes no se pudo renderizar. Tus preferencias en disco se conservan — reintenta o abre otra sección de ajustes.",
   "ui.errorBoundary.retry": "Reintentar",
   "agentsRail.noTasks": "No hay tareas de agente en este turno",
   "agentsRail.busyHint": "La sesión está trabajando — los pasos de herramientas y los subagentes anidados aparecerán aquí al arrancar.",
