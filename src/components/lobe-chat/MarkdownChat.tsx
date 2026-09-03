@@ -52,6 +52,7 @@ import {
   resolveMarkdownPaintSource,
   resolveStreamMarkdownParseMs,
 } from "@/lib/streamRenderPolicy";
+import { splitStableMarkdownTail } from "@/lib/markdownTail";
 import { revealInOsLabel } from "@/lib/appPlatform";
 import { cn } from "@/lib/utils";
 import { CodeBlock } from "./CodeBlock";
@@ -718,6 +719,16 @@ export const MarkdownChat = memo(function MarkdownChat({
   ]);
 
   const isPlain = !streaming && !qFind && isSimplePlainText(painted);
+  // Streaming incremental paint (DSH MarkdownText): freeze the stable prefix
+  // so long answers only re-parse the tail each tick. Settled turns always
+  // single-render, so a mid-stream block boundary never persists.
+  const tailSplit = useMemo(
+    () =>
+      streaming && !qFind
+        ? splitStableMarkdownTail(painted)
+        : { prefix: "", tail: painted },
+    [painted, streaming, qFind],
+  );
 
   return (
     <div
@@ -730,6 +741,23 @@ export const MarkdownChat = memo(function MarkdownChat({
     >
       {isPlain ? (
         <p>{painted}</p>
+      ) : tailSplit.prefix ? (
+        <>
+          <ReactMarkdown
+            remarkPlugins={MARKDOWN_CHAT_REMARK_PLUGINS}
+            rehypePlugins={MARKDOWN_CHAT_REHYPE_PLUGINS}
+            components={components}
+          >
+            {tailSplit.prefix}
+          </ReactMarkdown>
+          <ReactMarkdown
+            remarkPlugins={MARKDOWN_CHAT_REMARK_PLUGINS}
+            rehypePlugins={MARKDOWN_CHAT_REHYPE_PLUGINS}
+            components={components}
+          >
+            {tailSplit.tail}
+          </ReactMarkdown>
+        </>
       ) : (
         <ReactMarkdown
           remarkPlugins={MARKDOWN_CHAT_REMARK_PLUGINS}
