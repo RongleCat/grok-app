@@ -57,6 +57,12 @@ export interface MessageToolSegment {
    * This is the expandable body — never part of the one-line primary label.
    */
   output?: string;
+  /**
+   * Typed presentation facts (DSH `tool/result.meta` seam). Explicit Host meta
+   * wins; otherwise the UI derives via `resolveToolPresentation`. Optional so
+   * old journals keep rendering via derivation + generic fallback.
+   */
+  meta?: import("../toolPresentation").ToolPresentationMeta;
   streaming?: boolean;
   isError?: boolean;
   /** ISO time when the tool row was created (history duration). */
@@ -114,6 +120,11 @@ export interface ChatMessage {
   /** Real tool output (ACP `content[]`) — expandable body, not a label. */
   toolOutput?: string;
   /**
+   * Typed presentation facts (DSH `tool/result.meta` seam). Persisted so log
+   * replay paints the same typed card as live; UI falls back to derivation.
+   */
+  toolMeta?: import("../toolPresentation").ToolPresentationMeta;
+  /**
    * Parent tool call id when the host/ACP marks nested tools (e.g. subagent
    * children). Optional — Tasks panel may infer when missing.
    */
@@ -132,6 +143,8 @@ export interface ToolEventPayload {
   input?: string | null;
   /** Real tool output (ACP `content[]`) from live session://tool. */
   output?: string | null;
+  /** Typed presentation facts from the Host (validated, bounded JSON). */
+  meta?: import("../toolPresentation").ToolPresentationMeta | null;
   /** Parent tool call id when the wire event includes nesting. */
   parentId?: string | null;
 }

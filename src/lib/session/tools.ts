@@ -150,6 +150,7 @@ export function toolSegmentFromFields(fields: {
   path?: string;
   input?: string;
   output?: string;
+  meta?: import("../toolPresentation").ToolPresentationMeta;
   streaming?: boolean;
   isError?: boolean;
   createdAt?: string;
@@ -164,6 +165,7 @@ export function toolSegmentFromFields(fields: {
     path: fields.path,
     input: fields.input,
     output: fields.output,
+    meta: fields.meta,
     streaming: !!fields.streaming,
     isError: !!fields.isError,
     createdAt: fields.createdAt,
@@ -215,6 +217,7 @@ export function upsertToolInSegments(
       path: tool.path || prev.path,
       // Status-only ticks must not wipe a known call argument.
       input: tool.input || prev.input,
+      meta: tool.meta || prev.meta,
       toolKind: tool.toolKind || prev.toolKind,
     };
     return next;
@@ -342,6 +345,7 @@ function toolSegmentFromMessageRow(row: ChatMessage): MessageToolSegment | null 
     path,
     input,
     output,
+    meta: row.toolMeta,
     streaming: false,
     isError: !!row.isError || status === "failed" || status === "error",
     createdAt: row.createdAt,
@@ -823,6 +827,7 @@ export function syncTurnToolsIntoAssistant(
       path: m.toolPath,
       input: m.toolInput,
       output: m.toolOutput,
+      meta: m.toolMeta,
       streaming: !!m.streaming,
       isError: !!m.isError || status === "failed" || status === "error",
       createdAt: m.createdAt,
@@ -902,6 +907,9 @@ export function applyToolEvent(
     (nextOutput.length >= prevOutput.length ? nextOutput : prevOutput) ||
     undefined;
   const isError = status === "failed" || status === "error";
+  // Explicit Host presentation meta wins; otherwise keep the previous row's
+  // meta so a later sparse tick never wipes the typed card.
+  const toolMeta = payload.meta || prev?.toolMeta || undefined;
 
   // Host vision / X: **only** live on the assistant timeline. A separate
   // tool_step row + inlined segment was painting "搜索 X 信息" twice.
@@ -934,6 +942,7 @@ export function applyToolEvent(
         toolPath,
         toolInput,
         toolOutput,
+        toolMeta,
         toolParentId: parentId,
         streaming: running,
         marker: "tool_step",
@@ -952,6 +961,7 @@ export function applyToolEvent(
       path: toolPath,
       input: toolInput,
       output: toolOutput,
+      meta: toolMeta,
       streaming: running,
       isError,
       createdAt: prev?.createdAt || now,
@@ -975,6 +985,7 @@ export function applyToolEvent(
     toolPath,
     toolInput,
     toolOutput,
+    toolMeta,
     toolParentId: parentId,
     streaming: running,
     marker: "tool_step",
@@ -996,6 +1007,7 @@ export function applyToolEvent(
       toolPath: toolPath || prev!.toolPath,
       toolInput: toolInput || prev!.toolInput,
       toolOutput: toolOutput || prev!.toolOutput,
+      toolMeta: toolMeta || prev!.toolMeta,
       toolKind: toolKind || prev!.toolKind,
       toolParentId: parentId || prev!.toolParentId,
     };
@@ -1015,6 +1027,7 @@ export function applyToolEvent(
     path: row.toolPath,
     input: row.toolInput,
     output: row.toolOutput,
+    meta: row.toolMeta,
     streaming: running,
     isError: !!row.isError,
     createdAt: row.createdAt || prev?.createdAt || now,

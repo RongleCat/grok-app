@@ -21,6 +21,10 @@ import {
   toolPathBase,
   type ToolDisplayKind,
 } from "./toolDisplay";
+import {
+  resolveToolPresentation,
+  toolBucketForCard,
+} from "./toolPresentation";
 
 export type GrokActivityStep =
   | {
@@ -476,12 +480,23 @@ function buildStepsInternal(
       }
     }
 
-    // Browse page
+    // Browse page — prefer explicit presentation meta (DSH seam), else derive.
     if (isBrowseToolKind(tool.toolKind, tool.title, tool.toolCallId)) {
+      const presentation = resolveToolPresentation(
+        {
+          toolCallId: tool.toolCallId,
+          toolKind: tool.toolKind,
+          title: tool.title,
+          input: tool.input,
+          path: tool.path,
+          detail: tool.detail,
+        },
+        tool.meta,
+      );
       steps.push({
         type: "browse",
         key: tool.toolCallId || `browse-${i}`,
-        url: extractBrowseUrl(tool),
+        url: extractBrowseUrl(tool) || presentation.query || "page",
         failed: toolFailed(tool),
         running: stepRunning(tool, messageStreaming),
       });
@@ -489,9 +504,21 @@ function buildStepsInternal(
       continue;
     }
 
-    // Web search
+    // Web search — typed card facts win over string re-parsing (log replay).
     if (isSearchToolKind(tool.toolKind, tool.title, tool.toolCallId)) {
-      const query = extractSearchQuery(tool);
+      const presentationOf = (t: MessageToolSegment) =>
+        resolveToolPresentation(
+          {
+            toolCallId: t.toolCallId,
+            toolKind: t.toolKind,
+            title: t.title,
+            input: t.input,
+            path: t.path,
+            detail: t.detail,
+          },
+          t.meta,
+        );
+      const query = presentationOf(tool).query ?? extractSearchQuery(tool);
       // Consecutive searches without per-query text → collapse "Ran N searches"
       // Single search WITH query → "Searched web for …"
       // Peek consecutive
@@ -508,7 +535,7 @@ function buildStepsInternal(
         if (isBrowseToolKind(n.tool.toolKind, n.tool.title, n.tool.toolCallId))
           break;
         count += 1;
-        const q = extractSearchQuery(n.tool);
+        const q = presentationOf(n.tool).query ?? extractSearchQuery(n.tool);
         if (q) queries.push(q);
         if (toolFailed(n.tool)) failed = true;
         if (stepRunning(n.tool, messageStreaming)) running = true;
@@ -523,23 +550,25 @@ function buildStepsInternal(
             k === 0
               ? tool
               : (items[i + k] as { kind: "tool"; tool: MessageToolSegment }).tool;
+          const p = presentationOf(t);
           steps.push({
             type: "web-search",
             key: t.toolCallId || `ws-${i}-${k}`,
             query: queries[k]!,
-            resultCount: extractSearchResultCount(t),
-            resultDomains: extractResultDomains(t),
+            resultCount: p.resultCount ?? extractSearchResultCount(t),
+            resultDomains: p.resultDomains ?? extractResultDomains(t),
             failed: toolFailed(t),
             running: stepRunning(t, messageStreaming),
           });
         }
       } else if (count === 1 && query) {
+        const p = presentationOf(tool);
         steps.push({
           type: "web-search",
           key: tool.toolCallId || `ws-${i}`,
           query,
-          resultCount: extractSearchResultCount(tool),
-          resultDomains: extractResultDomains(tool),
+          resultCount: p.resultCount ?? extractSearchResultCount(tool),
+          resultDomains: p.resultDomains ?? extractResultDomains(tool),
           failed,
           running,
         });
@@ -556,13 +585,28 @@ function buildStepsInternal(
       continue;
     }
 
+    const presentation = resolveToolPresentation(
+      {
+        toolCallId: tool.toolCallId,
+        toolKind: tool.toolKind,
+        title: tool.title,
+        input: tool.input,
+        path: tool.path,
+        detail: tool.detail,
+      },
+      tool.meta,
+    );
+    const bucket =
+      presentation.card === "generic"
+        ? classifyToolKind(tool.toolKind, tool.title, tool.toolCallId)
+        : toolBucketForCard(presentation.card);
     steps.push({
       type: "tool",
       key: tool.toolCallId || `tool-${i}`,
       summary: toolOneLine(tool),
-      bucket: classifyToolKind(tool.toolKind, tool.title, tool.toolCallId),
-      inputLabel: toolInputDisplay(tool.input, classifyToolKind(tool.toolKind, tool.title, tool.toolCallId)),
-      pathBase: toolPathBase(tool.path),
+      bucket,
+      inputLabel: toolInputDisplay(tool.input, bucket),
+      pathBase: presentation.pathBase ?? toolPathBase(tool.path),
       failed: toolFailed(tool),
       running: stepRunning(tool, messageStreaming),
       tool,

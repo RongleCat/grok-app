@@ -91,6 +91,7 @@ function preferRicherTool(
     ...pick,
     input: pick.input || other.input,
     path: pick.path || other.path,
+    meta: pick.meta || other.meta,
     output:
       (pick.output || "").length >= (other.output || "").length
         ? pick.output || other.output
@@ -138,6 +139,7 @@ export function compactMessageSegments(
           path: raw.path || prev.path,
           // Coalesce must not wipe a known call argument.
           input: raw.input || prev.input,
+          meta: raw.meta || prev.meta,
           // …nor the captured output (terminal tick carries it; later sparse
           // status ticks would otherwise blank the expand body).
           output:
