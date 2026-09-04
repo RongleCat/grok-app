@@ -72,6 +72,7 @@ export const enChat = {
   "chat.selectionComment": "Comment",
   "chat.selectionCommentPlaceholder": "Write a comment on this excerpt…",
   "chat.selectionCommentSubmit": "Add comment",
+  "chat.selectionEnterToSubmit": "Enter to add",
   "chat.selectionToolbar": "Selection",
   "message.edit": "Edit",
   "message.exportMd": "Export MD",

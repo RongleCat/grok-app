@@ -258,7 +258,7 @@ export const ruSettings = {
   "settings.composerMinRows.5": "5 строк",
   "settings.composerMinRows.8": "8 строк",
   "settings.composerSendKey": "Отправка сообщения",
-  "settings.composerSendKeyDesc": "Выберите, отправляет ли обычный Enter сообщение или вставляет новую строку.",
+  "settings.composerSendKeyDesc": "Выберите, отправляет ли обычный Enter сообщение или вставляет новую строку (⌘/Ctrl+Enter — отправка). Действует в поле чата и в комментарии к цитате.",
   "settings.composerSendKey.enter": "Enter — отправить (Shift+Enter — новая строка)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter — отправить (Enter — новая строка)",
   "settings.composerDraftStats": "Счётчик текста черновика",

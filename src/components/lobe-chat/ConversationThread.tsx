@@ -187,6 +187,12 @@ import {
   loadTranscriptSelectionToolbarPref,
 } from "@/lib/transcriptSelectionToolbarPref";
 import {
+  COMPOSER_SEND_KEY_CHANGED_EVENT,
+  loadComposerSendKeyPref,
+  saveComposerSendKeyPref,
+  type ComposerSendKeyPref,
+} from "@/lib/composerSendKey";
+import {
   TOOL_STEPS_AUTO_COLLAPSE_CHANGE_EVENT,
   loadToolStepsAutoCollapsePref,
 } from "@/lib/toolStepsAutoCollapsePref";
@@ -2109,6 +2115,19 @@ export function ConversationThread({
       );
   }, []);
 
+  const [quoteSendPref, setQuoteSendPref] = useState<ComposerSendKeyPref>(() =>
+    loadComposerSendKeyPref(),
+  );
+  useEffect(() => {
+    const sync = () => setQuoteSendPref(loadComposerSendKeyPref());
+    window.addEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(COMPOSER_SEND_KEY_CHANGED_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
   /** Finished tool steps start collapsed when true (default). */
   const [toolStepsAutoCollapse, setToolStepsAutoCollapse] = useState(() =>
     loadToolStepsAutoCollapsePref(),
@@ -3312,11 +3331,17 @@ export function ConversationThread({
             )
           }
           onClose={closeSelectionUi}
+          sendPref={quoteSendPref}
+          onSendPrefChange={(next) => {
+            setQuoteSendPref(next);
+            saveComposerSendKeyPref(next);
+          }}
           labels={{
             copy: tr("chat.selectionCopy"),
             addQuote: tr("chat.selectionAddToInput"),
             commentPlaceholder: tr("chat.selectionCommentPlaceholder"),
             commentSubmit: tr("chat.selectionCommentSubmit"),
+            enterToSubmit: tr("chat.selectionEnterToSubmit"),
           }}
         />
       ) : null}

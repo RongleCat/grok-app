@@ -258,7 +258,7 @@ export const idSettings = {
   "settings.composerMinRows.5": "5 baris",
   "settings.composerMinRows.8": "8 baris",
   "settings.composerSendKey": "Kirim pesan dengan",
-  "settings.composerSendKeyDesc": "Pilih apakah Enter biasa mengirim, atau menyisipkan baris baru (⌘/Ctrl+Enter mengirim sebagai gantinya). Berlaku untuk composer obrolan.",
+  "settings.composerSendKeyDesc": "Pilih apakah Enter biasa mengirim, atau menyisipkan baris baru (⌘/Ctrl+Enter mengirim sebagai gantinya). Berlaku untuk composer obrolan dan kotak komentar kutipan.",
   "settings.composerSendKey.enter": "Enter untuk mengirim (Shift+Enter untuk baris baru)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter untuk mengirim (Enter untuk baris baru)",
   "settings.composerDraftStats": "Hitungan karakter draf",

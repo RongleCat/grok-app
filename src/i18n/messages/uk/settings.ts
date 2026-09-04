@@ -258,7 +258,7 @@ export const ukSettings = {
   "settings.composerMinRows.5": "5 рядків",
   "settings.composerMinRows.8": "8 рядків",
   "settings.composerSendKey": "Надсилати повідомлення",
-  "settings.composerSendKeyDesc": "Виберіть, чи простий Enter надсилає чи вставляє новий рядок (натомість ⌘/Ctrl+Enter надсилає). Застосовується до автора чату.",
+  "settings.composerSendKeyDesc": "Виберіть, чи простий Enter надсилає чи вставляє новий рядок (натомість ⌘/Ctrl+Enter надсилає). Застосовується до чату й поля коментаря цитати.",
   "settings.composerSendKey.enter": "Enter — надіслати (Shift+Enter — новий рядок)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter — надіслати (Enter — новий рядок)",
   "settings.composerDraftStats": "Лічильник символів чернетки",

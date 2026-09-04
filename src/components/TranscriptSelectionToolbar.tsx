@@ -7,6 +7,11 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { IconBlockquote, IconCopy } from "@/components/icons";
+import { UiCheck } from "@/components/settings/shared";
+import {
+  shouldSendOnKeydown,
+  type ComposerSendKeyPref,
+} from "@/lib/composerSendKey";
 
 export type TranscriptSelectionToolbarProps = {
   x: number;
@@ -17,11 +22,14 @@ export type TranscriptSelectionToolbarProps = {
   onCopy: () => void;
   onAddQuote: () => void;
   onClose: () => void;
+  sendPref: ComposerSendKeyPref;
+  onSendPrefChange: (next: ComposerSendKeyPref) => void;
   labels: {
     copy: string;
     addQuote: string;
     commentPlaceholder: string;
     commentSubmit: string;
+    enterToSubmit: string;
   };
 };
 
@@ -34,6 +42,8 @@ export function TranscriptSelectionToolbar({
   onCopy,
   onAddQuote,
   onClose,
+  sendPref,
+  onSendPrefChange,
   labels,
 }: TranscriptSelectionToolbarProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -77,25 +87,44 @@ export function TranscriptSelectionToolbar({
         placeholder={labels.commentPlaceholder}
         onChange={(e) => onCommentChange(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+          if (
+            shouldSendOnKeydown(
+              {
+                key: e.key,
+                shiftKey: e.shiftKey,
+                metaKey: e.metaKey,
+                ctrlKey: e.ctrlKey,
+                altKey: e.altKey,
+              },
+              sendPref,
+            )
+          ) {
             e.preventDefault();
             onAddQuote();
           }
         }}
       />
       <div className="sel-toolbar__row">
-        <button type="button" className="sel-toolbar__btn" onClick={onCopy}>
-          <IconCopy size={14} />
-          {labels.copy}
-        </button>
-        <button
-          type="button"
-          className="sel-toolbar__btn sel-toolbar__btn--primary"
-          onClick={onAddQuote}
-        >
-          <IconBlockquote size={14} />
-          {labels.addQuote}
-        </button>
+        <div className="sel-toolbar__actions">
+          <button type="button" className="sel-toolbar__btn" onClick={onCopy}>
+            <IconCopy size={14} />
+            {labels.copy}
+          </button>
+          <button
+            type="button"
+            className="sel-toolbar__btn sel-toolbar__btn--primary"
+            onClick={onAddQuote}
+          >
+            <IconBlockquote size={14} />
+            {labels.addQuote}
+          </button>
+        </div>
+        <UiCheck
+          className="sel-toolbar__enter-pref"
+          checked={sendPref === "enter"}
+          onChange={(on) => onSendPrefChange(on ? "enter" : "mod-enter")}
+          label={labels.enterToSubmit}
+        />
       </div>
     </div>,
     document.body,

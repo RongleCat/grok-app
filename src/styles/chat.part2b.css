@@ -425,7 +425,21 @@
 .sel-toolbar__row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sel-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 4px;
+}
+
+.sel-toolbar__enter-pref {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 
 .sel-toolbar__btn,

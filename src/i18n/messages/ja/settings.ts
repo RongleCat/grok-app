@@ -258,7 +258,7 @@ export const jaSettings = {
   "settings.composerMinRows.5": "5 行",
   "settings.composerMinRows.8": "8 行",
   "settings.composerSendKey": "メッセージ送信キー",
-  "settings.composerSendKeyDesc": "素の Enter で送るか、改行を入れるか（⌘/Ctrl+Enter で送信）。チャットコンポーザーに適用されます。",
+  "settings.composerSendKeyDesc": "素の Enter で送るか、改行を入れるか（⌘/Ctrl+Enter で送信）。チャット入力と引用コメント欄に適用されます。",
   "settings.composerSendKey.enter": "Enter で送信（Shift+Enter で改行）",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter で送信（Enter で改行）",
   "settings.composerDraftStats": "下書きの文字数",

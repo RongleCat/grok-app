@@ -72,6 +72,7 @@ export const deChat = {
   "chat.selectionComment": "Kommentar",
   "chat.selectionCommentPlaceholder": "Kommentar zu diesem Auszug…",
   "chat.selectionCommentSubmit": "Kommentar hinzufügen",
+  "chat.selectionEnterToSubmit": "Enter zum Hinzufügen",
   "chat.selectionToolbar": "Auswahl",
   "message.edit": "Bearbeiten",
   "message.exportMd": "MD exportieren",

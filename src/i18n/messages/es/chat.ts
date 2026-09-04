@@ -72,6 +72,7 @@ export const esChat = {
   "chat.selectionComment": "Comentar",
   "chat.selectionCommentPlaceholder": "Escribe un comentario sobre este fragmento…",
   "chat.selectionCommentSubmit": "Añadir comentario",
+  "chat.selectionEnterToSubmit": "Intro para añadir",
   "chat.selectionToolbar": "Selección",
   "message.edit": "Editar",
   "message.exportMd": "Exportar MD",

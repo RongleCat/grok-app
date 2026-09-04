@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Changed
+- The quote comment box uses the same Enter / Ctrl+Enter send shortcut as the composer. A checkbox on the bar toggles it.
+
+**中文 · 变更**
+- 划词评论框与输入框共用 Enter / Ctrl+Enter 发送快捷键。栏上的复选框可切换。
+
 ### Fixed
 - Windows Explorer drag-drop works again (sidebar add project, chat attach). No more forbidden cursor after a hidden window create (#1017).
 - Enter in the composer sends a quote card even when the input is empty.
