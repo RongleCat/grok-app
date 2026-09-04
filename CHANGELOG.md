@@ -15,9 +15,11 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 - Windows Explorer drag-drop works again (sidebar add project, chat attach). No more forbidden cursor after a hidden window create (#1017).
+- Enter in the composer sends a quote card even when the input is empty.
 
 **中文 · 修复**
 - Windows 从资源管理器拖文件/文件夹恢复可用（侧栏加项目、聊天加附件），不再显示禁止光标（#1017）。
+- 只有引用卡、输入框是空的时候，回车也能发出去。
 
 ## [0.2.31] - 2026-09-04
 

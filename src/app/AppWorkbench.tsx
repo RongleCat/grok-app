@@ -424,6 +424,7 @@ import {
 } from "@/lib/composerSessionDraft";
 import {
   appendQuotesToContent,
+  composerHasSendPayload,
   makeComposerQuoteId,
   serializeQuotesForAgent,
   type ComposerQuote,
@@ -12889,15 +12890,15 @@ export function AppWorkbench() {
 
   const onThreadAddQuote = useCallback(
     (quote: { text: string; comment: string; sourceMessageId?: string }) => {
-      setQuotes((prev) => [
-        ...prev,
-        {
-          id: makeComposerQuoteId(),
-          text: quote.text,
-          comment: quote.comment,
-          sourceMessageId: quote.sourceMessageId,
-        },
-      ]);
+      const next: ComposerQuote = {
+        id: makeComposerQuoteId(),
+        text: quote.text,
+        comment: quote.comment,
+        sourceMessageId: quote.sourceMessageId,
+      };
+      // Ref first so Enter-to-send in the same frame sees the card.
+      quotesRef.current = [...quotesRef.current, next];
+      setQuotes(quotesRef.current);
     },
     [setQuotes],
   );
@@ -13585,10 +13586,12 @@ export function AppWorkbench() {
     if (submit === "send") {
       e.preventDefault();
       const draftNow = getDraft();
-      const hasBody =
-        !isDraftEmpty(parseStoredContent(draftNow)) ||
-        attachments.length > 0 ||
-        chatAttachments.length > 0;
+      const hasBody = composerHasSendPayload({
+        draftEmpty: isDraftEmpty(parseStoredContent(draftNow)),
+        attachmentCount: attachments.length,
+        chatAttachmentCount: chatAttachments.length,
+        quoteCount: quotesRef.current.length,
+      });
       if (hasBody && session.state !== "awaiting_permission") {
         void send();
       }
