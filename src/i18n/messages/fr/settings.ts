@@ -258,7 +258,7 @@ export const frSettings = {
   "settings.composerMinRows.5": "5 lignes",
   "settings.composerMinRows.8": "8 lignes",
   "settings.composerSendKey": "Envoyer le message avec",
-  "settings.composerSendKeyDesc": "Choisir si Entrée seule envoie, ou insère un saut de ligne (⌘/Ctrl+Entrée envoie alors). S’applique à la zone de saisie du chat et à la boîte de commentaire de citation.",
+  "settings.composerSendKeyDesc": "Choisir si Entrée seule envoie, ou insère un saut de ligne (⌘/Ctrl+Entrée envoie alors). S’applique à la zone de saisie du chat.",
   "settings.composerSendKey.enter": "Entrée pour envoyer (Maj+Entrée pour nouvelle ligne)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Entrée pour envoyer (Entrée pour nouvelle ligne)",
   "settings.composerDraftStats": "Compte de caractères du brouillon",

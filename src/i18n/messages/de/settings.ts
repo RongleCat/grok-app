@@ -258,7 +258,7 @@ export const deSettings = {
   "settings.composerMinRows.5": "5 Zeilen",
   "settings.composerMinRows.8": "8 Zeilen",
   "settings.composerSendKey": "Nachricht senden mit",
-  "settings.composerSendKeyDesc": "Wählen, ob einfaches Enter sendet oder einen Zeilenumbruch einfügt (⌘/Ctrl+Enter sendet dann). Gilt für den Chat-Composer und das Zitat-Kommentarfeld.",
+  "settings.composerSendKeyDesc": "Wählen, ob einfaches Enter sendet oder einen Zeilenumbruch einfügt (⌘/Ctrl+Enter sendet dann). Gilt für den Chat-Composer.",
   "settings.composerSendKey.enter": "Enter zum Senden (Shift+Enter für Zeilenumbruch)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter zum Senden (Enter für Zeilenumbruch)",
   "settings.composerDraftStats": "Entwurfs-Zeichenzahl",

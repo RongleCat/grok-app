@@ -72,7 +72,7 @@ export const itChat = {
   "chat.selectionComment": "Commento",
   "chat.selectionCommentPlaceholder": "Scrivi un commento su questo estratto…",
   "chat.selectionCommentSubmit": "Aggiungi commento",
-  "chat.selectionEnterToSubmit": "Invio per aggiungere",
+  "chat.selectionEnterHint": "Invio per aggiungere",
   "chat.selectionToolbar": "Selezione",
   "message.edit": "Modifica",
   "message.exportMd": "Esporta MD",

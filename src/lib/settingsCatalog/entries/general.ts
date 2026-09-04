@@ -82,8 +82,6 @@ export const GENERAL_ENTRIES: readonly SettingsEntry[] = [
       "send",
       "enter",
       "mod-enter",
-      "quote",
-      "comment",
       "cmd enter",
       "ctrl enter",
       "newline",

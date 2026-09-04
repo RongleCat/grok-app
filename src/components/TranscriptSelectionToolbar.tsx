@@ -7,11 +7,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { IconBlockquote, IconCopy } from "@/components/icons";
-import { UiCheck } from "@/components/settings/shared";
-import {
-  shouldSendOnKeydown,
-  type ComposerSendKeyPref,
-} from "@/lib/composerSendKey";
+import { shouldSendOnKeydown } from "@/lib/composerSendKey";
 
 export type TranscriptSelectionToolbarProps = {
   x: number;
@@ -22,14 +18,12 @@ export type TranscriptSelectionToolbarProps = {
   onCopy: () => void;
   onAddQuote: () => void;
   onClose: () => void;
-  sendPref: ComposerSendKeyPref;
-  onSendPrefChange: (next: ComposerSendKeyPref) => void;
   labels: {
     copy: string;
     addQuote: string;
     commentPlaceholder: string;
     commentSubmit: string;
-    enterToSubmit: string;
+    enterHint: string;
   };
 };
 
@@ -42,8 +36,6 @@ export function TranscriptSelectionToolbar({
   onCopy,
   onAddQuote,
   onClose,
-  sendPref,
-  onSendPrefChange,
   labels,
 }: TranscriptSelectionToolbarProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -96,7 +88,7 @@ export function TranscriptSelectionToolbar({
                 ctrlKey: e.ctrlKey,
                 altKey: e.altKey,
               },
-              sendPref,
+              "enter",
             )
           ) {
             e.preventDefault();
@@ -119,12 +111,7 @@ export function TranscriptSelectionToolbar({
             {labels.addQuote}
           </button>
         </div>
-        <UiCheck
-          className="sel-toolbar__enter-pref"
-          checked={sendPref === "enter"}
-          onChange={(on) => onSendPrefChange(on ? "enter" : "mod-enter")}
-          label={labels.enterToSubmit}
-        />
+        <span className="sel-toolbar__enter-hint">{labels.enterHint}</span>
       </div>
     </div>,
     document.body,

@@ -282,7 +282,7 @@ export const zhTWSettings = {
   "settings.composerMinRows.5": "5 行",
   "settings.composerMinRows.8": "8 行",
   "settings.composerSendKey": "傳送訊息快捷鍵",
-  "settings.composerSendKeyDesc": "選擇 Enter 直接傳送，或 Enter 換行、⌘/Ctrl+Enter 傳送。對話輸入框和劃詞評論框都生效。",
+  "settings.composerSendKeyDesc": "選擇 Enter 直接傳送，或 Enter 換行、⌘/Ctrl+Enter 傳送。僅作用於對話輸入框。",
   "settings.composerSendKey.enter": "Enter 傳送（Shift+Enter 換行）",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter 傳送（Enter 換行）",
   "settings.composerDraftStats": "草稿字數",

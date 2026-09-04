@@ -281,7 +281,7 @@ export const zhSettings = {
   "settings.composerMinRows.5": "5 行",
   "settings.composerMinRows.8": "8 行",
   "settings.composerSendKey": "发送消息快捷键",
-  "settings.composerSendKeyDesc": "选择 Enter 直接发送，还是 Enter 换行、⌘/Ctrl+Enter 发送。对话输入框和划词评论框都生效。",
+  "settings.composerSendKeyDesc": "选择 Enter 直接发送，还是 Enter 换行、⌘/Ctrl+Enter 发送。仅作用于对话输入框。",
   "settings.composerSendKey.enter": "Enter 发送（Shift+Enter 换行）",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter 发送（Enter 换行）",
   "settings.composerSpellcheck": "拼写检查",

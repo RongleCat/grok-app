@@ -258,7 +258,7 @@ export const itSettings = {
   "settings.composerMinRows.5": "5 righe",
   "settings.composerMinRows.8": "8 righe",
   "settings.composerSendKey": "Invia messaggio con",
-  "settings.composerSendKeyDesc": "Scegli se Invio semplice invia, oppure inserisce una nuova riga (⌘/Ctrl+Invio invia invece). Si applica al composer della chat e al commento della citazione.",
+  "settings.composerSendKeyDesc": "Scegli se Invio semplice invia, oppure inserisce una nuova riga (⌘/Ctrl+Invio invia invece). Si applica al composer della chat.",
   "settings.composerSendKey.enter": "Invio per inviare (Maiusc+Invio per nuova riga)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Invio per inviare (Invio per nuova riga)",
   "settings.composerDraftStats": "Conteggio caratteri della bozza",
