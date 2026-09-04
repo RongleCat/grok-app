@@ -4,6 +4,7 @@ import {
   changeListKey,
   countLineDelta,
   isEditToolKind,
+  EMPTY_SESSION_FILE_CHANGES,
   mergeSessionChange,
   nextChangeListKey,
   normalizePath,
@@ -95,6 +96,14 @@ describe("resolveSessionChangePath", () => {
     expect(
       resolveSessionChangePath({ path: "", input: "ls -la && echo hi" }),
     ).toBe("");
+  });
+});
+
+describe("EMPTY_SESSION_FILE_CHANGES", () => {
+  it("is a stable empty list for memo identity", () => {
+    expect(EMPTY_SESSION_FILE_CHANGES).toEqual([]);
+    expect(EMPTY_SESSION_FILE_CHANGES).toBe(EMPTY_SESSION_FILE_CHANGES);
+    expect(EMPTY_SESSION_FILE_CHANGES ?? []).toBe(EMPTY_SESSION_FILE_CHANGES);
   });
 });
 

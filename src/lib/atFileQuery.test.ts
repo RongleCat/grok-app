@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   detectAtQuery,
+  detectAtQueryOnStored,
   rankAtFileHits,
   removeAtTokenFromDraft,
   scoreAtFileHit,
@@ -24,6 +25,21 @@ describe("detectAtQuery", () => {
     expect(detectAtQuery("line1\n@src")).toEqual({ start: 6, query: "src" });
   });
 });
+
+describe("detectAtQueryOnStored", () => {
+  it("returns stored-form indices including exclusive end", () => {
+    expect(detectAtQueryOnStored("see @packa")).toEqual({
+      start: 4,
+      query: "packa",
+      end: 10,
+    });
+  });
+
+  it("uses the caret prefix, not a later @ in the rest of the draft", () => {
+    expect(detectAtQueryOnStored("hello ")).toBeNull();
+  });
+});
+
 
 describe("rankAtFileHits", () => {
   const hits = [

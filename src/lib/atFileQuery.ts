@@ -3,6 +3,11 @@
  * Mirrors slash token rules: trigger only after start/whitespace.
  */
 
+import {
+  getStoredTextBeforeCaret,
+  readStoredEditorText,
+} from "@/lib/draftDoc";
+
 /** Active `@token` at end of text-before-caret. */
 export type AtQuery = {
   /** Index of `@` in the (trimmed-end) prefix string. */
@@ -29,36 +34,26 @@ export function detectAtQuery(textBeforeCursor: string): AtQuery | null {
   return { start, query: m[2]! };
 }
 
-/** Live @ token from a contenteditable element. */
+/** Stored-form @ token (same coordinate space as draft / removeAtTokenFromDraft). */
+export function detectAtQueryOnStored(
+  stored: string,
+): { start: number; query: string; end: number } | null {
+  const q = detectAtQuery(stored);
+  if (!q) return null;
+  const trimmed = stored
+    .replace(/[\u200B-\u200D\uFEFF\u2060]/g, "")
+    .replace(/[\s\u00a0]+$/u, "");
+  return { start: q.start, query: q.query, end: trimmed.length };
+}
+
+/** Live @ token from a contenteditable element — no innerText (forced layout). */
 export function detectAtQueryFromEditor(
   el: HTMLElement | null | undefined,
 ): { start: number; query: string; end: number } | null {
   if (!el) return null;
-  const raw = readPlainEditorText(el);
-  const candidates = [
-    raw,
-    raw.replace(/\n+/g, "\n"),
-    raw.replace(/\n/g, ""),
-    raw.split("\n").filter(Boolean).pop() ?? raw,
-  ];
-  for (const text of candidates) {
-    const q = detectAtQuery(text);
-    if (q) {
-      const trimmed = text.replace(/[\s\u00a0]+$/u, "");
-      return { start: q.start, query: q.query, end: trimmed.length };
-    }
-  }
-  return null;
-}
-
-function readPlainEditorText(el: HTMLElement): string {
-  let t = el.innerText ?? el.textContent ?? "";
-  t = t
-    .replace(/[\u200B-\u200D\uFEFF\u2060\uFFFC]/g, "")
-    .replace(/\u00a0/g, " ")
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n");
-  return t;
+  const before = getStoredTextBeforeCaret(el);
+  if (before != null) return detectAtQueryOnStored(before);
+  return detectAtQueryOnStored(readStoredEditorText(el));
 }
 
 /** Hit shape used for ranking (subset of codebase search hit). */

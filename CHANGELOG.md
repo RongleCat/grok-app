@@ -13,6 +13,16 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Changed
+- Selecting chat text no longer refreshes the quote toolbar on every drag move. The bar appears when you release the pointer; keyboard selection still works.
+- Slash and @ detection pause while the window is hidden or the input is not focused.
+- Long chats stay smoother when no session files changed. An empty change list no longer rebuilds every transcript row.
+
+**中文 · 变更**
+- 对话划词时，引用工具栏不再跟着拖选每一帧刷新。松开鼠标后再出现；键盘划选仍可用。
+- 窗口隐藏或输入框未聚焦时，斜杠和 @ 探测会停。
+- 没有文件变更时长对话更顺。空的变更列表不再重渲每一行。
+
 ### Fixed
 - Windows Explorer drag-drop works again (sidebar add project, chat attach). No more forbidden cursor after a hidden window create (#1017).
 

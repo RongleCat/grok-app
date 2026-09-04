@@ -6,12 +6,20 @@
  * workbench shell. Consumers use setDraft/getDraft (no draft value in return).
  */
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { detectAtQueryFromEditor } from "@/lib/atFileQuery";
+import { shouldProbeComposerLiveDom } from "@/lib/composerLiveProbe";
+import {
+  detectSlashQueryFromEditor,
+  detectSlashRangeOnStored,
+} from "@/lib/draftDoc";
+import { shouldPollTickVisible } from "@/lib/visibilityPoll";
 import type { Attachment } from "@/lib/attachments";
 import type { ChatRef } from "@/lib/chatAttach";
 import type { ComposerQuote } from "@/lib/composerQuotes";
@@ -124,8 +132,9 @@ export function useComposerController(initialDraft = "") {
 
   const [slashQuery, setSlashQuery] = useState<SlashQueryRange | null>(null);
   /**
-   * Live slash token from contenteditable.innerText (rAF poll).
-   * Independent of React draft so IME / <br> / missed onChange cannot desync.
+   * Live slash token from stored-form DOM walk (rAF poll; paused while hidden
+   * or while the selection is outside the composer). Independent of React draft
+   * so IME / <br> / missed onChange cannot desync.
    */
   const [liveSlash, setLiveSlash] = useState<LiveTokenQuery>(EMPTY_LIVE);
   const liveSlashRef = useRef(liveSlash);
@@ -162,6 +171,144 @@ export function useComposerController(initialDraft = "") {
   const composerShellRef = useRef<HTMLDivElement>(null);
   /** Floating composer shell — height drives chat bottom padding. */
   const [composerFloatPad, setComposerFloatPad] = useState(168);
+
+  /**
+   * rAF poll → live slash / @ tokens.
+   * Pause while hidden or while the selection is outside the composer.
+   */
+  useEffect(() => {
+    let raf = 0;
+    let alive = true;
+    const tick = () => {
+      if (!alive) return;
+      raf = 0;
+      if (!shouldPollTickVisible(document.visibilityState)) return;
+      const el = composerInputRef.current;
+      const sel = window.getSelection();
+      const composerActive = !!(
+        el &&
+        (document.activeElement === el || el.contains(document.activeElement))
+      );
+      const selectionInComposer = !!(
+        el &&
+        sel &&
+        sel.rangeCount > 0 &&
+        el.contains(sel.anchorNode)
+      );
+      const probeDom = shouldProbeComposerLiveDom({
+        visibilityState: document.visibilityState,
+        composerActive,
+        selectionInComposer,
+      });
+      const detected = probeDom
+        ? (detectSlashQueryFromEditor(el) ??
+          detectSlashRangeOnStored(getDraft()))
+        : detectSlashRangeOnStored(getDraft());
+      let next = detected
+        ? {
+            present: true as const,
+            query: detected.query,
+            start: detected.start,
+            end: detected.end,
+          }
+        : {
+            present: false as const,
+            query: "",
+            start: 0,
+            end: 0,
+          };
+      if (next.present && slashDismissedSigRef.current != null) {
+        const sig = `${next.start}:${next.query}`;
+        if (sig === slashDismissedSigRef.current) {
+          next = { present: false, query: "", start: 0, end: 0 };
+        } else {
+          slashDismissedSigRef.current = null;
+        }
+      }
+      if (!next.present && detected == null) {
+        slashDismissedSigRef.current = null;
+      }
+      const prev = liveSlashRef.current;
+      if (
+        prev.present !== next.present ||
+        prev.query !== next.query ||
+        prev.start !== next.start ||
+        prev.end !== next.end
+      ) {
+        liveSlashRef.current = next;
+        setLiveSlash(next);
+        if (next.present) {
+          setSlashQuery({
+            start: next.start,
+            query: next.query,
+            end: next.end,
+          });
+        } else if (!showComposerPlusRef.current) {
+          setSlashQuery((q) => (q == null ? q : null));
+        }
+      }
+      let atNext: LiveTokenQuery = {
+        present: false,
+        query: "",
+        start: 0,
+        end: 0,
+      };
+      if (probeDom && !next.present && !showComposerPlusRef.current) {
+        const atDetected = detectAtQueryFromEditor(el);
+        if (atDetected) {
+          atNext = {
+            present: true,
+            query: atDetected.query,
+            start: atDetected.start,
+            end: atDetected.end,
+          };
+          if (atDismissedSigRef.current != null) {
+            const sig = `${atNext.start}:${atNext.query}`;
+            if (sig === atDismissedSigRef.current) {
+              atNext = { present: false, query: "", start: 0, end: 0 };
+            } else {
+              atDismissedSigRef.current = null;
+            }
+          }
+        } else {
+          atDismissedSigRef.current = null;
+        }
+      }
+      const prevAt = liveAtRef.current;
+      if (
+        prevAt.present !== atNext.present ||
+        prevAt.query !== atNext.query ||
+        prevAt.start !== atNext.start ||
+        prevAt.end !== atNext.end
+      ) {
+        liveAtRef.current = atNext;
+        setLiveAt(atNext);
+        if (atNext.present) setAtActiveIndex(0);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    const start = () => {
+      if (!alive || raf) return;
+      raf = requestAnimationFrame(tick);
+    };
+    const onVis = () => {
+      if (!shouldPollTickVisible(document.visibilityState)) {
+        if (raf) {
+          cancelAnimationFrame(raf);
+          raf = 0;
+        }
+        return;
+      }
+      start();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    start();
+    return () => {
+      alive = false;
+      if (raf) cancelAnimationFrame(raf);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
 
   return useMemo(
     () => ({

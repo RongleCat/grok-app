@@ -28,6 +28,9 @@ export interface SessionFileChange {
   title?: string;
 }
 
+/** Stable empty list so `?? []` does not bust transcript row memos. */
+export const EMPTY_SESSION_FILE_CHANGES: SessionFileChange[] = [];
+
 export type SessionChangeEvent = ToolEventPayload & {
   before?: string | null;
   after?: string | null;
