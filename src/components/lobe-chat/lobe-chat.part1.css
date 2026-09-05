@@ -1045,9 +1045,12 @@ html[data-msg-actions="hover"]
  * - Default: fill the wrap (columns stretch across full width)
  * - Wide content: table grows past wrap → horizontal scroll
  * - Never force columns narrower than their content (nowrap + min-width)
+ * Background sits on the wrap (scrollport), not a ::before sibling — an
+ * inset:0 overlay only spans the visible width and scrolls away, which
+ * washed the right half and made left columns look sticky (#1020).
+ * Scrollbar must beat `*:not(textarea) { scrollbar-width: none }`.
  */
 .chat-md__table-wrap {
-  position: relative;
   display: block;
   width: 100%;
   max-width: 100%;
@@ -1057,26 +1060,43 @@ html[data-msg-actions="hover"]
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--chat-code-border);
   border-radius: var(--chat-r);
-  background: transparent;
-}
-
-.chat-md__table-wrap::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
   background: color-mix(
     in srgb,
     var(--chat-code-bg) var(--ui-opacity-mix, 100%),
     transparent
   );
-  pointer-events: none;
-  z-index: 0;
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--scrollbar-thumb, rgba(128, 128, 128, 0.35)) transparent
+    !important;
+  -ms-overflow-style: auto !important;
 }
 
-.chat-md__table-wrap > * {
-  position: relative;
-  z-index: 1;
+.chat-md__table-wrap::-webkit-scrollbar {
+  display: block !important;
+  width: var(--scrollbar-size, 8px) !important;
+  height: var(--scrollbar-size, 8px) !important;
+  background: transparent !important;
+}
+
+.chat-md__table-wrap::-webkit-scrollbar-track,
+.chat-md__table-wrap::-webkit-scrollbar-track-piece,
+.chat-md__table-wrap::-webkit-scrollbar-corner {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.chat-md__table-wrap::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.chat-md__table-wrap::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb, rgba(128, 128, 128, 0.35)) !important;
+  border: 2px solid transparent !important;
+  border-radius: 999px !important;
+  background-clip: padding-box !important;
 }
 
 .chat-md table {

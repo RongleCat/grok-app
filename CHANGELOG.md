@@ -15,9 +15,11 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 - Windows Explorer drag-drop works again (sidebar add project, chat attach). No more forbidden cursor after a hidden window create (#1017).
+- Wide Markdown tables show a horizontal scrollbar again, without a washed-out right half when selecting (#1020).
 
 **中文 · 修复**
 - Windows 从资源管理器拖文件/文件夹恢复可用（侧栏加项目、聊天加附件），不再显示禁止光标（#1017）。
+- 过宽 Markdown 表格恢复横向滚动条，选中拖拽时右半段不再发浅（#1020）。
 
 ## [0.2.31] - 2026-09-04
 
