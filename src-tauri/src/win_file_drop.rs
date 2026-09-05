@@ -257,9 +257,7 @@ impl FileDropTarget {
             tymed: TYMED_HGLOBAL.0 as u32,
         };
 
-        let Some(obj) = data_obj.as_ref() else {
-            return None;
-        };
+        let obj = data_obj.as_ref()?;
         let medium = obj.GetData(&drop_format).ok()?;
         let hdrop = HDROP(medium.u.hGlobal.0 as _);
         let item_count = DragQueryFileW(hdrop, 0xFFFFFFFF, None);
@@ -303,8 +301,7 @@ impl IDropTarget_Impl for FileDropTarget_Impl {
     ) -> windows::core::Result<()> {
         let (x, y) = FileDropTarget::client_point(self.hwnd, pt);
         let mut paths = Vec::new();
-        let hdrop =
-            unsafe { FileDropTarget::iterate_filenames(pDataObj, |path| paths.push(path)) };
+        let hdrop = unsafe { FileDropTarget::iterate_filenames(pDataObj, |path| paths.push(path)) };
         let enter_is_valid = hdrop.is_some() && !paths.is_empty();
         unsafe {
             *self.enter_is_valid.get() = enter_is_valid;
