@@ -35,6 +35,7 @@ See `docs/llm-wiki/release.md`.
 - Image prompts no longer paint two user bubbles (#1021).
 - Enter in the composer sends a quote card even when the input is empty (#1015).
 - Wide Markdown tables show a horizontal scrollbar and no longer wash out on the right (#1020).
+- Mac Doubao IME Fn / Globe voice works in the chat composer again (#1030).
 
 **中文 · 修复**
 - Mac 上 Control+Return 又能引导当前回合（#1023）。
@@ -42,6 +43,7 @@ See `docs/llm-wiki/release.md`.
 - 带图发送不再画出两条用户气泡（#1021）。
 - 输入框为空时按 Enter 也能只发送引用卡片（#1015）。
 - 过宽的 Markdown 表格出现横向滚动条，右半边不再发浅（#1020）。
+- Mac 上豆包输入法按住 Fn / Globe 的语音可在对话输入框唤起（#1030）。
 
 ## [0.2.31] - 2026-09-04
 

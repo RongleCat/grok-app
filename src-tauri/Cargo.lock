@@ -1852,6 +1852,7 @@ dependencies = [
  "async-stream",
  "axum",
  "base64 0.22.1",
+ "block2",
  "chrono",
  "clipboard-win",
  "directories",

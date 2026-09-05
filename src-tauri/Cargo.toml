@@ -126,6 +126,8 @@ mac-notification-sys = "0.6"
 mac-usernotifications = "0.3"
 # Pet overlay: setPreventsActivation. Launch: NSApp.isActive / firstResponder.
 objc2 = "0.6"
+# Local NSEvent monitor for Doubao Fn / Globe voice → IME (#1030).
+block2 = "0.6"
 
 [profile.release]
 codegen-units = 1
