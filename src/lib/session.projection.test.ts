@@ -799,6 +799,97 @@ describe("session projection", () => {
     expect(out[0]!.role).toBe("user");
   });
 
+  it("reconcileOptimisticDuplicates matches image send when journal dual-wrote @path", () => {
+    const shot =
+      "/Users/me/Library/Application Support/com.grokapp.grok-app/attachments/paste/shot.png";
+    const body =
+      "Grok-app有个新发现的bug，带图片的prompt好像有的时候会有个重复的出现";
+    const att = { path: shot, name: "shot.png", isDir: false };
+    const msgs: ChatMessage[] = [
+      {
+        id: "u-1757088205000",
+        role: "user",
+        content: body,
+        attachments: [att],
+      },
+      {
+        id: "a-pending-1757088205000",
+        role: "assistant",
+        content: "",
+        streaming: true,
+      },
+      {
+        id: "9a5ea6bf-22b7-443f-ba90-8522011d9642",
+        role: "user",
+        content: `${body}\n\n@${shot}`,
+        attachments: [att],
+      },
+    ];
+    const out = reconcileOptimisticDuplicates(msgs);
+    const users = out.filter((m) => m.role === "user");
+    expect(users).toHaveLength(1);
+    expect(users[0]!.id).toBe("9a5ea6bf-22b7-443f-ba90-8522011d9642");
+    expect(users[0]!.content).toBe(body);
+    expect(users[0]!.content.includes("@/")).toBe(false);
+    expect(users[0]!.attachments?.map((a) => a.path)).toEqual([shot]);
+    expect(out.some((m) => m.id.startsWith("a-pending-"))).toBe(true);
+  });
+
+  it("preferSessionMessages drops optimistic image prompt when disk has @path dual-write", () => {
+    const shot = "/tmp/paste.png";
+    const body = "see this screenshot";
+    const att = { path: shot, name: "paste.png", isDir: false };
+    const cached: ChatMessage[] = [
+      {
+        id: "u-1710000000002",
+        role: "user",
+        content: body,
+        attachments: [att],
+      },
+      {
+        id: "a-pending-1710000000002",
+        role: "assistant",
+        content: "",
+        streaming: true,
+      },
+    ];
+    const stored: ChatMessage[] = [
+      {
+        id: "host-user-uuid",
+        role: "user",
+        content: `${body}\n\n@${shot}`,
+        attachments: [att],
+      },
+    ];
+    const out = preferSessionMessages(cached, stored);
+    const users = out.filter((m) => m.role === "user");
+    expect(users).toHaveLength(1);
+    expect(users[0]!.id).toBe("host-user-uuid");
+    expect(users[0]!.content).toBe(body);
+  });
+
+  it("applyInterjection strips dual-written @path from steer-with-image", () => {
+    const shot = "/tmp/guide.png";
+    const messages = applyInterjection(
+      [
+        { id: "u1", role: "user", content: "look" },
+        { id: "a1", role: "assistant", content: "Working", streaming: true },
+      ],
+      {
+        id: "i1",
+        role: "user",
+        content: `用这个图片\n\n@${shot}`,
+        marker: "interjection",
+        attachments: [{ path: shot, name: "guide.png", isDir: false }],
+      },
+      "host-post",
+    );
+    const steer = messages.find((m) => m.id === "i1");
+    expect(steer?.content).toBe("用这个图片");
+    expect(steer?.content.includes("@/")).toBe(false);
+    expect(steer?.attachments?.map((a) => a.path)).toEqual([shot]);
+  });
+
   it("applyRemoteUserMessage appends mirror user + live shell (#1001)", () => {
     const out = applyRemoteUserMessage(
       [],

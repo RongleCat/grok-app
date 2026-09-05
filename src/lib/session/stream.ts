@@ -6,6 +6,7 @@ import type {
   StreamPayload,
 } from "./types";
 import { isTurnPromptMessage } from "./types";
+import { stripUserAttachmentRefs } from "./rewind";
 import {
   appendContentToSegments,
   appendThoughtToSegments,
@@ -268,6 +269,7 @@ export function applyInterjection(
   interjection: ChatMessage,
   postStreamMessageId?: string | null,
 ): ChatMessage[] {
+  interjection = stripUserAttachmentRefs(interjection);
   const existingIndex = messages.findIndex(
     (message) => message.id === interjection.id,
   );
