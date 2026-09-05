@@ -73,6 +73,7 @@ export const ruChat = {
   "chat.selectionCommentPlaceholder": "Добавьте комментарий к этому фрагменту…",
   "chat.selectionCommentSubmit": "Добавить комментарий",
   "chat.selectionEnterHint": "Enter — добавить",
+  "chat.selectionModEnterHint": "⌘/Ctrl+Enter — добавить",
   "chat.selectionToolbar": "Выделенный текст",
   "message.edit": "Изменить",
   "message.exportMd": "Экспортировать MD",

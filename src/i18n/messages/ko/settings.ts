@@ -258,7 +258,7 @@ export const koSettings = {
   "settings.composerMinRows.5": "5행",
   "settings.composerMinRows.8": "8행",
   "settings.composerSendKey": "메시지 보내기",
-  "settings.composerSendKeyDesc": "일반 Enter가 보낼지, 줄 바꿈을 넣을지 선택하세요(대신 ⌘/Ctrl+Enter가 보냄). 채팅 작성기에 적용됩니다.",
+  "settings.composerSendKeyDesc": "일반 Enter가 보낼지, 줄 바꿈을 넣을지 선택하세요(대신 ⌘/Ctrl+Enter가 보냄). 채팅 입력과 인용 댓글 상자에 적용됩니다.",
   "settings.composerSendKey.enter": "Enter로 보내기(Shift+Enter는 줄 바꿈)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter로 보내기(Enter는 줄 바꿈)",
   "settings.composerDraftStats": "초안 글자 수",

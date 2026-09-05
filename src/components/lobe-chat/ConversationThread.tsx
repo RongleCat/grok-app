@@ -186,6 +186,7 @@ import {
   TRANSCRIPT_SELECTION_TOOLBAR_CHANGE_EVENT,
   loadTranscriptSelectionToolbarPref,
 } from "@/lib/transcriptSelectionToolbarPref";
+import { useComposerSendKeyPref } from "@/hooks/useComposerSendKeyPref";
 import {
   TOOL_STEPS_AUTO_COLLAPSE_CHANGE_EVENT,
   loadToolStepsAutoCollapsePref,
@@ -2092,6 +2093,7 @@ export function ConversationThread({
       window.removeEventListener(BACK_BOTTOM_ALWAYS_CHANGE_EVENT, onPref);
   }, []);
 
+  const quoteSendPref = useComposerSendKeyPref();
   const [selectionToolbar, setSelectionToolbar] = useState(() =>
     loadTranscriptSelectionToolbarPref(),
   );
@@ -3312,12 +3314,14 @@ export function ConversationThread({
             )
           }
           onClose={closeSelectionUi}
+          sendPref={quoteSendPref}
           labels={{
             copy: tr("chat.selectionCopy"),
             addQuote: tr("chat.selectionAddToInput"),
             commentPlaceholder: tr("chat.selectionCommentPlaceholder"),
             commentSubmit: tr("chat.selectionCommentSubmit"),
             enterHint: tr("chat.selectionEnterHint"),
+            modEnterHint: tr("chat.selectionModEnterHint"),
           }}
         />
       ) : null}

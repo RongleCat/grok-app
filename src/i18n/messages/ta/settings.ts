@@ -258,7 +258,7 @@ export const taSettings = {
   "settings.composerMinRows.5": "5 வரிசைகள்",
   "settings.composerMinRows.8": "8 வரிசைகள்",
   "settings.composerSendKey": "உடன் செய்தி அனுப்பு",
-  "settings.composerSendKeyDesc": "ப்ளைன் என்டர் அனுப்புகிறதா அல்லது புதிய வரியைச் செருகுகிறதா என்பதைத் தேர்வுசெய்யவும் (⌘/Ctrl+Enter அதற்குப் பதிலாக அனுப்புகிறது). உரையாடல் எழுதிக்குப் பொருந்தும்.",
+  "settings.composerSendKeyDesc": "ப்ளைன் என்டர் அனுப்புகிறதா அல்லது புதிய வரியைச் செருகுகிறதா என்பதைத் தேர்வுசெய்யவும் (⌘/Ctrl+Enter அதற்குப் பதிலாக அனுப்புகிறது). உரையாடல் எழுதிக்கும் மேற்கோள் கருத்துப் பெட்டிக்கும் பொருந்தும்.",
   "settings.composerSendKey.enter": "அனுப்ப உள்ளிடவும் (புதிய வரிக்கு Shift+Enter)",
   "settings.composerSendKey.modEnter": "அனுப்ப ⌘/Ctrl+Enter (புதிய வரிக்கு உள்ளிடவும்)",
   "settings.composerDraftStats": "வரைவு எழுத்து எண்ணிக்கை",

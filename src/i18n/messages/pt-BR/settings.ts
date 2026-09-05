@@ -258,7 +258,7 @@ export const ptBRSettings = {
   "settings.composerMinRows.5": "5 linhas",
   "settings.composerMinRows.8": "8 linhas",
   "settings.composerSendKey": "Enviar mensagem com",
-  "settings.composerSendKeyDesc": "Escolha se o Enter simples envia, ou insere uma nova linha (⌘/Ctrl+Enter envia). Aplica-se ao compositor do chat.",
+  "settings.composerSendKeyDesc": "Escolha se o Enter simples envia, ou insere uma nova linha (⌘/Ctrl+Enter envia). Aplica-se ao compositor do chat e à caixa de comentário da citação.",
   "settings.composerSendKey.enter": "Enter para enviar (Shift+Enter para nova linha)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter para enviar (Enter para nova linha)",
   "settings.composerDraftStats": "Contagem de caracteres do rascunho",

@@ -258,7 +258,7 @@ export const filSettings = {
   "settings.composerMinRows.5": "5 row",
   "settings.composerMinRows.8": "8 row",
   "settings.composerSendKey": "Ipadala ang mensahe gamit",
-  "settings.composerSendKeyDesc": "Piliin kung magpapadala ang simpleng Enter, o maglalagay ng bagong linya (⌘/Ctrl+Enter ang magpapadala). Naaapply sa composer ng chat.",
+  "settings.composerSendKeyDesc": "Piliin kung magpapadala ang simpleng Enter, o maglalagay ng bagong linya (⌘/Ctrl+Enter ang magpapadala). Naaapply sa composer ng chat at sa comment box ng quote.",
   "settings.composerSendKey.enter": "Enter para magpadala (Shift+Enter para sa bagong linya)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter para magpadala (Enter para sa bagong linya)",
   "settings.composerDraftStats": "Bilang ng character ng draft",

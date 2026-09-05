@@ -73,6 +73,7 @@ export const koChat = {
   "chat.selectionCommentPlaceholder": "이 발췌에 대한 댓글을 작성하세요…",
   "chat.selectionCommentSubmit": "댓글 추가",
   "chat.selectionEnterHint": "Enter로 추가",
+  "chat.selectionModEnterHint": "⌘/Ctrl+Enter로 추가",
   "chat.selectionToolbar": "선택",
   "message.edit": "편집",
   "message.exportMd": "MD보내기",

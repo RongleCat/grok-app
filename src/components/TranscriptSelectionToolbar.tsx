@@ -7,7 +7,10 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { IconBlockquote, IconCopy } from "@/components/icons";
-import { shouldSendOnKeydown } from "@/lib/composerSendKey";
+import {
+  shouldSendOnKeydown,
+  type ComposerSendKeyPref,
+} from "@/lib/composerSendKey";
 
 export type TranscriptSelectionToolbarProps = {
   x: number;
@@ -18,12 +21,14 @@ export type TranscriptSelectionToolbarProps = {
   onCopy: () => void;
   onAddQuote: () => void;
   onClose: () => void;
+  sendPref: ComposerSendKeyPref;
   labels: {
     copy: string;
     addQuote: string;
     commentPlaceholder: string;
     commentSubmit: string;
     enterHint: string;
+    modEnterHint: string;
   };
 };
 
@@ -36,6 +41,7 @@ export function TranscriptSelectionToolbar({
   onCopy,
   onAddQuote,
   onClose,
+  sendPref,
   labels,
 }: TranscriptSelectionToolbarProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -88,7 +94,7 @@ export function TranscriptSelectionToolbar({
                 ctrlKey: e.ctrlKey,
                 altKey: e.altKey,
               },
-              "enter",
+              sendPref,
             )
           ) {
             e.preventDefault();
@@ -111,7 +117,9 @@ export function TranscriptSelectionToolbar({
             {labels.addQuote}
           </button>
         </div>
-        <span className="sel-toolbar__enter-hint">{labels.enterHint}</span>
+        <span className="sel-toolbar__enter-hint">
+          {sendPref === "mod-enter" ? labels.modEnterHint : labels.enterHint}
+        </span>
       </div>
     </div>,
     document.body,

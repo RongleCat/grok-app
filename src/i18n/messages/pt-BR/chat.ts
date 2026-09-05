@@ -73,6 +73,7 @@ export const ptBRChat = {
   "chat.selectionCommentPlaceholder": "Escreva um comentário sobre este trecho…",
   "chat.selectionCommentSubmit": "Adicionar comentário",
   "chat.selectionEnterHint": "Enter para adicionar",
+  "chat.selectionModEnterHint": "⌘/Ctrl+Enter para adicionar",
   "chat.selectionToolbar": "Seleção",
   "message.edit": "Editar",
   "message.exportMd": "Exportar MD",

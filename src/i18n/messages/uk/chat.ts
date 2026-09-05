@@ -73,6 +73,7 @@ export const ukChat = {
   "chat.selectionCommentPlaceholder": "Напишіть коментар до цього уривка…",
   "chat.selectionCommentSubmit": "Додати коментар",
   "chat.selectionEnterHint": "Enter — додати",
+  "chat.selectionModEnterHint": "⌘/Ctrl+Enter — додати",
   "chat.selectionToolbar": "Виділення",
   "message.edit": "Редагувати",
   "message.exportMd": "Експортувати MD",

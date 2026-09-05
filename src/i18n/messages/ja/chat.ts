@@ -73,6 +73,7 @@ export const jaChat = {
   "chat.selectionCommentPlaceholder": "この抜粋にコメントを書く…",
   "chat.selectionCommentSubmit": "コメントを追加",
   "chat.selectionEnterHint": "Enter で追加",
+  "chat.selectionModEnterHint": "⌘/Ctrl+Enter で追加",
   "chat.selectionToolbar": "選択",
   "message.edit": "編集",
   "message.exportMd": "MD を書き出し",

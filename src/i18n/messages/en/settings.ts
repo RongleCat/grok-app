@@ -281,7 +281,7 @@ export const enSettings = {
   "settings.composerMinRows.5": "5 rows",
   "settings.composerMinRows.8": "8 rows",
   "settings.composerSendKey": "Send message with",
-  "settings.composerSendKeyDesc": "Choose whether plain Enter sends, or inserts a newline (⌘/Ctrl+Enter sends instead). Applies to the chat composer.",
+  "settings.composerSendKeyDesc": "Choose whether plain Enter sends, or inserts a newline (⌘/Ctrl+Enter sends instead). Applies to the chat composer and the quote comment box.",
   "settings.composerSendKey.enter": "Enter to send (Shift+Enter for newline)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Enter to send (Enter for newline)",
   "settings.composerDraftStats": "Draft character count",

@@ -73,6 +73,7 @@ export const zhTWChat = {
   "chat.selectionCommentPlaceholder": "針對這段摘錄寫評論…",
   "chat.selectionCommentSubmit": "新增評論",
   "chat.selectionEnterHint": "Enter 提交",
+  "chat.selectionModEnterHint": "Ctrl+Enter 新增",
   "chat.selectionToolbar": "選取文字",
   "message.edit": "編輯",
   "message.exportMd": "匯出 MD",

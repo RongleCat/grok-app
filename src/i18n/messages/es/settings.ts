@@ -258,7 +258,7 @@ export const esSettings = {
   "settings.composerMinRows.5": "5 filas",
   "settings.composerMinRows.8": "8 filas",
   "settings.composerSendKey": "Enviar mensaje con",
-  "settings.composerSendKeyDesc": "Elige si Intro envía o inserta un salto de línea (⌘/Ctrl+Intro envía). Se aplica al cuadro de mensaje del chat.",
+  "settings.composerSendKeyDesc": "Elige si Intro envía o inserta un salto de línea (⌘/Ctrl+Intro envía). Se aplica al cuadro de mensaje del chat y al comentario de la cita.",
   "settings.composerSendKey.enter": "Intro para enviar (Mayús+Intro para salto de línea)",
   "settings.composerSendKey.modEnter": "⌘/Ctrl+Intro para enviar (Intro para salto de línea)",
   "settings.composerDraftStats": "Recuento de caracteres del borrador",
