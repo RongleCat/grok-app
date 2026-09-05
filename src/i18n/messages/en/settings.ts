@@ -309,7 +309,7 @@ export const enSettings = {
   "settings.thinkingExpand.autoCollapse": "Auto-collapse when done",
   "settings.thinkingExpand.keepOpen": "Keep expanded",
   "settings.toolStepsAutoCollapse": "Auto-collapse finished tools",
-  "settings.toolStepsAutoCollapseDesc": "Completed and failed tool steps start collapsed in the timeline. Running tools stay expanded. Turn off to keep finished tools open. Separate from “Collapse all activity” (manual one-shot).",
+  "settings.toolStepsAutoCollapseDesc": "Tool steps start collapsed in the timeline, including while running. Expand a row to see stdout. Turn off to keep tools open by default. Separate from “Collapse all activity” (manual one-shot).",
   "settings.transcriptFilter": "Transcript filter",
   "settings.transcriptFilterDesc": "Hide raw standalone tool rows. Worked-for activity rails on assistant replies always stay (Grok-style summary).",
   "settings.transcriptFilter.all": "All activity",

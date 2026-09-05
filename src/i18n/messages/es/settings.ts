@@ -286,7 +286,7 @@ export const esSettings = {
   "settings.thinkingExpand.autoCollapse": "Plegar automáticamente al terminar",
   "settings.thinkingExpand.keepOpen": "Mantener expandido",
   "settings.toolStepsAutoCollapse": "Plegar automáticamente las herramientas terminadas",
-  "settings.toolStepsAutoCollapseDesc": "Los pasos de herramienta completados y fallidos empiezan plegados en la línea de tiempo. Las herramientas en ejecución siguen expandidas. Desactívalo para dejar abiertas las herramientas terminadas. Independiente de «Plegar toda la actividad» (acción manual de una vez).",
+  "settings.toolStepsAutoCollapseDesc": "Los pasos de herramienta empiezan plegados en la línea de tiempo, también mientras se ejecutan. Expande una fila para ver el stdout. Desactívalo para dejar las herramientas abiertas por defecto. Independiente de «Plegar toda la actividad» (acción manual de una vez).",
   "settings.transcriptFilter": "Filtro de transcripción",
   "settings.transcriptFilterDesc": "Oculta las filas sueltas de herramientas en bruto. Los rieles de actividad «trabajó para» en las respuestas del asistente siempre se quedan (resumen al estilo Grok).",
   "settings.transcriptFilter.all": "Toda la actividad",

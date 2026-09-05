@@ -14,9 +14,11 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Fixed
+- Large tool stdout no longer auto-expands in the live timeline. Tool rows stay collapsed until you open them, so WKWebView RAM stays down on macOS (#1018).
 - Windows Explorer drag-drop works again (sidebar add project, chat attach). No more forbidden cursor after a hidden window create (#1017).
 
 **中文 · 修复**
+- 超长工具 stdout 不再在直播回合自动展开；工具行默认折叠，点开才看正文，减轻 macOS WKWebView 内存（#1018）。
 - Windows 从资源管理器拖文件/文件夹恢复可用（侧栏加项目、聊天加附件），不再显示禁止光标（#1017）。
 
 ## [0.2.31] - 2026-09-04

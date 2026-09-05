@@ -286,7 +286,7 @@ export const idSettings = {
   "settings.thinkingExpand.autoCollapse": "Ciutkan otomatis saat selesai",
   "settings.thinkingExpand.keepOpen": "Tetap diperluas",
   "settings.toolStepsAutoCollapse": "Ciutkan otomatis alat yang selesai",
-  "settings.toolStepsAutoCollapseDesc": "Langkah alat selesai dan gagal mulai dalam keadaan diciutkan di linimasa. Alat yang berjalan tetap diperluas. Matikan untuk menjaga alat selesai terbuka. Terpisah dari “Ciutkan semua aktivitas” (sekali manual).",
+  "settings.toolStepsAutoCollapseDesc": "Langkah alat mulai diciutkan di linimasa, termasuk saat berjalan. Perluas baris untuk melihat stdout. Matikan agar alat tetap terbuka secara default. Terpisah dari “Ciutkan semua aktivitas” (sekali manual).",
   "settings.transcriptFilter": "Filter transkrip",
   "settings.transcriptFilterDesc": "Sembunyikan baris alat mandiri mentah. Rel aktivitas bekerja-untuk pada balasan asisten selalu tetap (ringkasan gaya Grok).",
   "settings.transcriptFilter.all": "Semua aktivitas",

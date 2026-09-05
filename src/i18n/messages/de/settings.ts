@@ -286,7 +286,7 @@ export const deSettings = {
   "settings.thinkingExpand.autoCollapse": "Fertig automatisch einklappen",
   "settings.thinkingExpand.keepOpen": "Ausgeklappt lassen",
   "settings.toolStepsAutoCollapse": "Fertige Werkzeuge automatisch einklappen",
-  "settings.toolStepsAutoCollapseDesc": "Abgeschlossene und fehlgeschlagene Werkzeugschritte starten in der Timeline eingeklappt. Laufende Werkzeuge bleiben ausgeklappt. Ausschalten, um fertige Werkzeuge offen zu halten. Getrennt von „Alle Aktivität einklappen“ (manueller Einmal-Schritt).",
+  "settings.toolStepsAutoCollapseDesc": "Werkzeugschritte starten in der Timeline eingeklappt — auch während der Ausführung. Zeile aufklappen, um stdout zu sehen. Ausschalten, um Werkzeuge standardmäßig offen zu halten. Getrennt von „Alle Aktivität einklappen“ (manueller Einmal-Schritt).",
   "settings.transcriptFilter": "Transkriptfilter",
   "settings.transcriptFilterDesc": "Rohe eigenständige Werkzeugzeilen ausblenden. Gearbeitet-für-Aktivitätsleisten an Assistentenantworten bleiben immer (Grok-Stil-Zusammenfassung).",
   "settings.transcriptFilter.all": "Alle Aktivität",

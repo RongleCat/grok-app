@@ -286,7 +286,7 @@ export const koSettings = {
   "settings.thinkingExpand.autoCollapse": "끝나면 자동 접기",
   "settings.thinkingExpand.keepOpen": "펼친 채로 유지",
   "settings.toolStepsAutoCollapse": "끝난 도구 자동 접기",
-  "settings.toolStepsAutoCollapseDesc": "완료 및 실패한 도구 단계가 타임라인에서 접힌 채로 시작합니다. 실행 중인 도구는 펼쳐진 채로 유지됩니다. 끄면 끝난 도구를 열어 둡니다. “모든 활동 접기”(수동 원샷)와는 별개입니다.",
+  "settings.toolStepsAutoCollapseDesc": "도구 단계는 타임라인에서 처음부터 접혀 있습니다(실행 중 포함). 행을 펼쳐 stdout을 봅니다. 끄면 기본적으로 열린 상태를 유지합니다. “모든 활동 접기”(수동 원샷)와는 별개입니다.",
   "settings.transcriptFilter": "트랜스크립트 필터",
   "settings.transcriptFilterDesc": "원시 단독 도구 행을 숨깁니다. 어시스턴트 응답의 작업 시간 활동 레일은 항상 유지됩니다(Grok 스타일 요약).",
   "settings.transcriptFilter.all": "모든 활동",

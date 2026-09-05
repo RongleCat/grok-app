@@ -310,7 +310,7 @@ export const zhTWSettings = {
   "settings.thinkingExpand.autoCollapse": "完成後自動摺疊",
   "settings.thinkingExpand.keepOpen": "保持展開",
   "settings.toolStepsAutoCollapse": "完成後自動摺疊工具步驟",
-  "settings.toolStepsAutoCollapseDesc": "已完成或失敗的工具步驟在時間線中預設摺疊。執行中的工具保持展開。關閉後，完成的工具也會保持展開。與「收合全部活動」（手動一次）是不同能力。",
+  "settings.toolStepsAutoCollapseDesc": "工具步驟在時間線中預設摺疊（含執行中）。點開一列才看 stdout。關閉後預設保持展開。與「收合全部活動」（手動一次）是不同能力。",
   "settings.transcriptFilter": "對話內容過濾",
   "settings.transcriptFilterDesc": "隱藏零散的原始工具列。助手回覆上的 Worked for 活動軌始終保留（官方風格摘要）。",
   "settings.transcriptFilter.all": "全部活動",

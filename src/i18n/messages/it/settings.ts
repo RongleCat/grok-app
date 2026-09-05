@@ -286,7 +286,7 @@ export const itSettings = {
   "settings.thinkingExpand.autoCollapse": "Comprimi automaticamente a fine",
   "settings.thinkingExpand.keepOpen": "Tieni espanso",
   "settings.toolStepsAutoCollapse": "Comprimi automaticamente gli strumenti finiti",
-  "settings.toolStepsAutoCollapseDesc": "I passi degli strumenti completati e falliti partono compressi nella timeline. Gli strumenti in esecuzione restano espansi. Disattiva per tenere aperti gli strumenti finiti. Separato da «Comprimi tutta l’attività» (one-shot manuale).",
+  "settings.toolStepsAutoCollapseDesc": "I passi degli strumenti partono compressi nella timeline, anche durante l’esecuzione. Espandi una riga per vedere lo stdout. Disattiva per tenere gli strumenti aperti di default. Separato da «Comprimi tutta l’attività» (one-shot manuale).",
   "settings.transcriptFilter": "Filtro trascrizione",
   "settings.transcriptFilterDesc": "Nascondi i dump autonomi degli strumenti nella chat. L’attività «lavorato per» sulle risposte è sempre visibile.",
   "settings.transcriptFilter.all": "Tutta l’attività",

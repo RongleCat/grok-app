@@ -286,7 +286,7 @@ export const filSettings = {
   "settings.thinkingExpand.autoCollapse": "Auto-collapse kapag tapos",
   "settings.thinkingExpand.keepOpen": "Panatilihing naka-expand",
   "settings.toolStepsAutoCollapse": "Auto-collapse ang tapos na tools",
-  "settings.toolStepsAutoCollapseDesc": "Nagsisimulang naka-collapse sa timeline ang completed at failed na tool steps. Naka-expand ang tumatakbong tools. I-off para panatilihing bukas ang tapos na tools. Hiwalay sa “I-collapse lahat ng aktibidad” (manual one-shot).",
+  "settings.toolStepsAutoCollapseDesc": "Nagsisimulang naka-collapse sa timeline ang tool steps, kasama habang tumatakbo. I-expand ang row para makita ang stdout. I-off para panatilihing bukas ang tools by default. Hiwalay sa “I-collapse lahat ng aktibidad” (manual one-shot).",
   "settings.transcriptFilter": "Filter ng transcript",
   "settings.transcriptFilterDesc": "Itago ang raw standalone tool rows. Palaging nananatili ang worked-for activity rails sa sagot ng assistant (Grok-style summary).",
   "settings.transcriptFilter.all": "Lahat ng aktibidad",
