@@ -257,9 +257,7 @@ impl FileDropTarget {
             tymed: TYMED_HGLOBAL.0 as u32,
         };
 
-        let Some(obj) = data_obj.as_ref() else {
-            return None;
-        };
+        let obj = data_obj.as_ref()?;
         let medium = obj.GetData(&drop_format).ok()?;
         let hdrop = HDROP(medium.u.hGlobal.0 as _);
         let item_count = DragQueryFileW(hdrop, 0xFFFFFFFF, None);

@@ -12896,8 +12896,7 @@ export function AppWorkbench() {
         comment: quote.comment,
         sourceMessageId: quote.sourceMessageId,
       };
-      // Ref first so Enter-to-send in the same frame sees the card.
-      quotesRef.current = [...quotesRef.current, next];
+      quotesRef.current = [...quotesRef.current, next]; // same-frame Enter
       setQuotes(quotesRef.current);
     },
     [setQuotes],
@@ -13585,16 +13584,13 @@ export function AppWorkbench() {
     }
     if (submit === "send") {
       e.preventDefault();
-      const draftNow = getDraft();
       const hasBody = composerHasSendPayload({
-        draftEmpty: isDraftEmpty(parseStoredContent(draftNow)),
+        draftEmpty: isDraftEmpty(parseStoredContent(getDraft())),
         attachmentCount: attachments.length,
         chatAttachmentCount: chatAttachments.length,
         quoteCount: quotesRef.current.length,
       });
-      if (hasBody && session.state !== "awaiting_permission") {
-        void send();
-      }
+      if (hasBody && session.state !== "awaiting_permission") void send();
     }
     if (e.key === "Escape") {
       if (promptHistoryOpenRef.current) {
