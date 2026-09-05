@@ -30,6 +30,10 @@ import {
   readClipboardMediaFiles,
 } from "@/lib/clipboardPaste";
 import {
+  installComposerControlHeldTracking,
+  shouldSteerOnKeydown,
+} from "@/lib/composerSendKey";
+import {
   composerEnterNextStored,
   detectSlashRangeOnStored,
   getStoredTextBeforeCaret,
@@ -1283,6 +1287,9 @@ export const ComposerEditor = memo(function ComposerEditor({
     };
   }, []);
 
+  // Mac WKWebView often drops `ctrlKey` on Control+Return; remember Control itself.
+  useEffect(() => installComposerControlHeldTracking(), []);
+
   useLayoutEffect(() => {
     const el = elRef.current;
     if (!el) return;
@@ -1535,7 +1542,12 @@ export const ComposerEditor = memo(function ComposerEditor({
         onKeyDown={(e) => {
           const el = elRef.current;
           const ne = e.nativeEvent;
-          if (ne.isComposing || ne.keyCode === 229 || composing.current) {
+          const steerChord = shouldSteerOnKeydown(e);
+          // IME must not swallow Control+Return (stuck composing.current / 229).
+          if (
+            !steerChord &&
+            (ne.isComposing || ne.keyCode === 229 || composing.current)
+          ) {
             return;
           }
           // WebKit: ArrowRight past the last glyph can inject U+FFFC (□) /
@@ -1564,8 +1576,14 @@ export const ComposerEditor = memo(function ComposerEditor({
             e.preventDefault();
             return;
           }
-          // Parent handles send / menus (may preventDefault).
+          // Parent handles send / steer / menus (may preventDefault).
           onKeyDown?.(e);
+          // Always eat Control+Return so WKWebView cannot insert a newline
+          // when the parent did not steer (idle, or chord mis-detected).
+          if (steerChord) {
+            e.preventDefault();
+            return;
+          }
           if (e.defaultPrevented) return;
 
           // Skill chips are contentEditable=false — native Backspace/Delete often

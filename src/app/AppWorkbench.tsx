@@ -7913,7 +7913,6 @@ export function AppWorkbench() {
   // with Host pick_interjection_target mid-turn, not streaming-only FSM.
   const canGuideQueuedMessage =
     !!session.sessionId &&
-    !connecting &&
     isSessionLiveStreaming(session.state) &&
     (liveHost.sessionId === session.sessionId
       ? isSessionLiveStreaming(liveHost.state) ||

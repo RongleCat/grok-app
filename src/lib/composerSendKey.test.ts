@@ -4,6 +4,7 @@ import {
   loadComposerSendKeyPref,
   resolveComposerSubmitAction,
   saveComposerSendKeyPref,
+  setComposerControlHeldForTest,
   shouldSendOnKeydown,
   shouldSteerOnKeydown,
   type ComposerSendKeyEvent,
@@ -36,6 +37,11 @@ function key(
     metaKey: partial.metaKey ?? false,
     ctrlKey: partial.ctrlKey ?? false,
     altKey: partial.altKey ?? false,
+    code: partial.code,
+    keyCode: partial.keyCode,
+    which: partial.which,
+    getModifierState: partial.getModifierState,
+    nativeEvent: partial.nativeEvent,
   };
 }
 
@@ -134,6 +140,34 @@ describe("shouldSteerOnKeydown — Grok Build CLI Ctrl+Enter", () => {
 
   it("ignores non-Enter keys", () => {
     expect(shouldSteerOnKeydown(key({ key: "i", ctrlKey: true }))).toBe(false);
+  });
+
+  it("steers on WebKit LF keyCode 10 (Mac Control+Return)", () => {
+    expect(
+      shouldSteerOnKeydown(
+        key({ key: "Unidentified", keyCode: 10, ctrlKey: false }),
+      ),
+    ).toBe(true);
+  });
+
+  it("steers when getModifierState(Control) is true but ctrlKey is false", () => {
+    expect(
+      shouldSteerOnKeydown(
+        key({
+          ctrlKey: false,
+          getModifierState: (name) => name === "Control",
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("steers when Control is held and Enter has no ctrlKey (Mac WKWebView)", () => {
+    setComposerControlHeldForTest(true);
+    try {
+      expect(shouldSteerOnKeydown(key({ ctrlKey: false }))).toBe(true);
+    } finally {
+      setComposerControlHeldForTest(false);
+    }
   });
 });
 
