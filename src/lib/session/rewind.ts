@@ -1,3 +1,7 @@
+import {
+  mergeAttachments,
+  parseAttachmentsFromContent,
+} from "../attachments";
 import type { ChatMessage, MessageSegment, SessionState } from "./types";
 import { isTurnPromptMessage } from "./types";
 import { buildSegmentsFromLegacy } from "./segments";
@@ -226,6 +230,47 @@ export function stripClientOptimistic(
 }
 
 /**
+ * Peel trailing sole-line `@/abs/path` dual-write off a user bubble and fold
+ * those paths into structured attachments. Host journal stores both; the
+ * optimistic composer row only has the display body + cards.
+ */
+export function stripUserAttachmentRefs(message: ChatMessage): ChatMessage {
+  if (message.role !== "user") return message;
+  const parsed = parseAttachmentsFromContent(message.content ?? "");
+  const merged = mergeAttachments(parsed.attachments, message.attachments ?? []);
+  const nextContent = parsed.text;
+  const sameText = nextContent === (message.content ?? "");
+  const sameAtts =
+    merged.length === (message.attachments?.length ?? 0) &&
+    merged.every((a, i) => a.path === message.attachments?.[i]?.path);
+  if (sameText && sameAtts) return message;
+  return {
+    ...message,
+    content: nextContent,
+    attachments: merged.length ? merged : message.attachments,
+  };
+}
+
+/**
+ * Match optimistic `u-${ts}` rows to the host UUID even when journal
+ * dual-wrote `@/path` lines the composer never showed.
+ */
+function userBubbleDedupeKey(message: ChatMessage): string {
+  const parsed = parseAttachmentsFromContent(message.content ?? "");
+  const text = parsed.text.trim();
+  const paths = new Set<string>();
+  for (const a of message.attachments ?? []) {
+    if (a.path) paths.add(a.path);
+  }
+  for (const a of parsed.attachments) {
+    if (a.path) paths.add(a.path);
+  }
+  return `${text}\n---\n${[...paths].sort().join("\n")}`;
+}
+
+const EMPTY_USER_KEY = "\n---\n";
+
+/**
  * Remove optimistic user/pending-assistant rows that host journal already
  * replaced under a different id (same body). Fixes: switch away after a turn
  * completes → switch back → first user bubble duplicated at the end.
@@ -239,9 +284,10 @@ export function reconcileOptimisticDuplicates(
   const realUsersByContent = new Map<string, ChatMessage>();
   for (const m of messages) {
     if (m.role === "user" && !isClientOptimisticId(m.id)) {
-      const key = m.content.trim();
-      if (key && !realUsersByContent.has(key)) {
-        realUsersByContent.set(key, m);
+      const key = userBubbleDedupeKey(m);
+      if (key === EMPTY_USER_KEY) continue;
+      if (!realUsersByContent.has(key)) {
+        realUsersByContent.set(key, stripUserAttachmentRefs(m));
       }
     }
   }
@@ -256,7 +302,7 @@ export function reconcileOptimisticDuplicates(
 
   for (const m of messages) {
     if (m.role === "user" && isClientOptimisticId(m.id)) {
-      const real = realUsersByContent.get(m.content.trim());
+      const real = realUsersByContent.get(userBubbleDedupeKey(m));
       if (real) {
         if (!placedRealUserIds.has(real.id)) {
           out.push(real);
@@ -269,7 +315,7 @@ export function reconcileOptimisticDuplicates(
     }
     if (m.role === "user" && !isClientOptimisticId(m.id)) {
       if (placedRealUserIds.has(m.id)) continue;
-      out.push(m);
+      out.push(stripUserAttachmentRefs(m));
       placedRealUserIds.add(m.id);
       continue;
     }

@@ -52,6 +52,7 @@ import {
   filterEchoedUserAttachments,
   isImagePath,
   isMediaPath,
+  parseAttachmentsFromContent,
   pathBasename,
 } from "@/lib/attachments";
 import {
@@ -406,7 +407,9 @@ const UserBodyText = memo(function UserBodyText({
   findActiveOccurrence?: number | null;
 }) {
   const chatLookup = useAttachedChatLookup();
-  const hydrated = hydrateDisplayContent(content);
+  const hydrated = hydrateDisplayContent(
+    parseAttachmentsFromContent(content).text,
+  );
   const segs = parseStoredContent(hydrated);
   if (!segs.some((s) => s.type === "skill" || s.type === "chat")) {
     if (findQuery?.trim()) {
