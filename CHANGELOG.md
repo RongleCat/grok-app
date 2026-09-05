@@ -19,6 +19,7 @@ See `docs/llm-wiki/release.md`.
 - Long chats stay smoother when no session files changed. An empty change list no longer rebuilds every transcript row.
 - The quote comment box uses the same Enter / Ctrl+Enter shortcut as the composer (#1015).
 - Tool steps stay collapsed by default while running, so long tool output is less likely to inflate WebContent RAM (#1018).
+- Completed tool stdout in memory matches the expand preview (and drops the duplicate standalone copy), so long turns use less WebContent RAM (#1029).
 
 **中文 · 变更**
 - 对话划词时，引用工具栏不再跟着拖选每一帧刷新。松开鼠标后再出现；键盘划选仍可用。
@@ -26,6 +27,7 @@ See `docs/llm-wiki/release.md`.
 - 没有文件变更时长对话更顺。空的变更列表不再重渲每一行。
 - 划词评论框与输入框共用 Enter / Ctrl+Enter 发送快捷键（#1015）。
 - 工具步骤运行中默认保持折叠，减轻长 stdout 撑大 WebContent 内存（#1018）。
+- 工具结束后内存里只保留与展开预览相同的 stdout，并去掉重复副本，长回合更省 WebContent 内存（#1029）。
 
 ### Fixed
 - Mac Control+Return steers a live turn again (#1023).

@@ -25,6 +25,7 @@ import {
   type ChatMessage,
   type MessageAttachment,
 } from "@/lib/session";
+import { maybeCompactToolOutputForMemory } from "@/lib/toolOutputMemory";
 
 /** Wire shape from `session_messages` / disk journal. */
 export type StoredJournalMessage = {
@@ -122,7 +123,10 @@ export function mapStoredMessageToChat(
     toolDetail: toolParsed?.detail,
     toolPath: toolParsed?.path,
     toolInput: toolParsed?.input,
-    toolOutput: toolParsed?.output,
+    // Compact on hydrate so journal reloads do not re-inflate WebContent (#1029).
+    toolOutput: toolParsed?.output
+      ? maybeCompactToolOutputForMemory(toolParsed.output, false)
+      : undefined,
     streaming: false,
   };
 }

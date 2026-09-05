@@ -504,8 +504,11 @@ export function toolOutputBody(
   if (!raw) return "";
   const lines = raw.split("\n");
   if (lines.length <= maxLines) return raw;
-  const head = Math.ceil(maxLines * 0.7);
-  const tail = maxLines - head;
+  // Reserve one line for the elision marker so the result stays ≤ maxLines
+  // (keeps compactToolOutputForMemory / expand body idempotent).
+  const room = Math.max(2, maxLines - 1);
+  const head = Math.ceil(room * 0.7);
+  const tail = room - head;
   const elided = lines.length - head - tail;
   return [
     ...lines.slice(0, head),

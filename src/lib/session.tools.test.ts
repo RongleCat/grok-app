@@ -674,3 +674,53 @@ describe("tool history replay kind recovery", () => {
     expect(tool.title).toBeTruthy();
   });
 });
+
+describe("tool output memory (#1029)", () => {
+  it("compacts completed toolOutput and drops the standalone duplicate after weave", () => {
+    const long = Array.from({ length: 500 }, (_, i) => `line-${i}`).join("\n");
+    const withAsst: ChatMessage[] = [
+      { id: "u1", role: "user", content: "run" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "",
+        streaming: true,
+        segments: [{ kind: "thought", text: "…" }],
+      },
+    ];
+    const running = applyToolEvent(withAsst, {
+      toolCallId: "t-big",
+      title: "bash",
+      kind: "bash",
+      status: "in_progress",
+      output: long.slice(0, 200),
+    });
+    const runAsst = running.find((m) => m.id === "a1");
+    const runSeg = runAsst?.segments?.find(
+      (s) => s.kind === "tool" && s.toolCallId === "t-big",
+    );
+    // While running, keep the raw growing buffer on the segment (not compacted).
+    expect(runSeg && runSeg.kind === "tool" ? runSeg.output : "").toBe(
+      long.slice(0, 200),
+    );
+
+    const done = applyToolEvent(running, {
+      toolCallId: "t-big",
+      title: "bash",
+      kind: "bash",
+      status: "completed",
+      output: long,
+    });
+    const asst = done.find((m) => m.id === "a1");
+    const seg = asst?.segments?.find(
+      (s) => s.kind === "tool" && s.toolCallId === "t-big",
+    );
+    expect(seg && seg.kind === "tool" ? seg.output : "").toContain("line-0");
+    expect(
+      seg && seg.kind === "tool" ? (seg.output || "").length : 0,
+    ).toBeLessThan(long.length);
+    // Standalone row no longer keeps a second full copy.
+    const step = done.find((m) => m.id === "tool-t-big");
+    expect(step?.toolOutput).toBeUndefined();
+  });
+});
