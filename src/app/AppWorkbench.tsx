@@ -1163,7 +1163,6 @@ export function AppWorkbench() {
     setLiveSlash,
     liveSlashRef,
     slashDismissedSigRef,
-    showComposerPlusRef,
     slashActiveIndex,
     setSlashActiveIndex,
     slashKindFilter,

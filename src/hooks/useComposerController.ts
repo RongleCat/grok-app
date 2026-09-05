@@ -369,7 +369,6 @@ export function useComposerController(initialDraft = "") {
       setLiveSlash,
       liveSlashRef,
       slashDismissedSigRef,
-      showComposerPlusRef,
       slashActiveIndex,
       setSlashActiveIndex,
       slashKindFilter,
