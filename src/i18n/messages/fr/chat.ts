@@ -72,6 +72,8 @@ export const frChat = {
   "chat.selectionComment": "Commenter",
   "chat.selectionCommentPlaceholder": "Écrire un commentaire sur cet extrait…",
   "chat.selectionCommentSubmit": "Ajouter un commentaire",
+  "chat.selectionEnterHint": "Entrée pour ajouter",
+  "chat.selectionModEnterHint": "⌘/Ctrl+Entrée pour ajouter",
   "chat.selectionToolbar": "Sélection",
   "message.edit": "Modifier",
   "message.exportMd": "Exporter MD",

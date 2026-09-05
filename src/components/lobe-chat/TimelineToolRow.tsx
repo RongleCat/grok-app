@@ -19,6 +19,7 @@ import {
   classifyToolKind,
   resolveToolPrimaryLabel,
   toolExpandBody,
+  toolExpandHasBody,
 } from "@/lib/toolDisplay";
 import { normalizeTaskStatus } from "@/lib/sessionTasks";
 import {
@@ -85,17 +86,13 @@ export const TimelineToolRow = memo(function TimelineToolRow({
     tr(key as MessageKey, params as Record<string, string> | undefined),
   );
 
-  // Host tools use the same expand body as native tools (full detail / stream
-  // dump), not a special 2-line scroller under a second title.
-  const { failHint, failHintShort, detailTail, outputBody, command, hasBody } =
-    toolExpandBody(tool, failed);
+  // Cheap caret check only — do not strip/split full stdout while collapsed (#1018).
+  const hasBody = toolExpandHasBody(tool, failed);
 
   const [autoCollapse, setAutoCollapse] = useState(
     () => (autoCollapseProp !== undefined ? autoCollapseProp : loadToolStepsAutoCollapsePref()),
   );
   const userToggled = useRef(false);
-  const runningRef = useRef(running);
-  runningRef.current = running;
 
   useEffect(() => {
     if (autoCollapseProp != null) setAutoCollapse(autoCollapseProp);
@@ -105,7 +102,7 @@ export const TimelineToolRow = memo(function TimelineToolRow({
     if (autoCollapseProp != null) return;
     const apply = (next: boolean) => {
       setAutoCollapse(next);
-      if (!runningRef.current && !userToggled.current) {
+      if (!userToggled.current) {
         setOpen(toolStepDefaultOpen(false, next));
       }
     };
@@ -121,10 +118,11 @@ export const TimelineToolRow = memo(function TimelineToolRow({
     };
   }, [autoCollapseProp]);
 
+  // Tools never auto-expand while running (#1018) — only the pref / explicit default.
   const prefOpen =
     defaultExpanded != null
       ? defaultExpanded
-      : toolStepDefaultOpen(running, autoCollapse);
+      : toolStepDefaultOpen(false, autoCollapse);
 
   const [open, setOpen] = useState(() => prefOpen);
   const expanded = resolveFoldExpanded({
@@ -134,12 +132,6 @@ export const TimelineToolRow = memo(function TimelineToolRow({
   });
 
   useEffect(() => {
-    if (running) {
-      // Never force-open a row the user collapsed while it kept running:
-      // manual choice wins until the next tool (userToggled reset below).
-      if (!userToggled.current) setOpen(true);
-      return;
-    }
     if (!userToggled.current) {
       setOpen(
         defaultExpanded != null
@@ -147,9 +139,15 @@ export const TimelineToolRow = memo(function TimelineToolRow({
           : toolStepDefaultOpen(false, autoCollapse),
       );
     }
-  }, [running, autoCollapse, defaultExpanded, tool.toolCallId]);
+  }, [autoCollapse, defaultExpanded, tool.toolCallId]);
 
   const showBody = hasBody && expanded;
+  // Host tools use the same expand body as native tools (full detail / stream
+  // dump). Build only when open — collapsed rows must not pay ANSI/elide cost.
+  const expand = useMemo(
+    () => (showBody ? toolExpandBody(tool, failed) : null),
+    [showBody, tool, failed],
+  );
 
   return (
     <div
@@ -192,11 +190,7 @@ export const TimelineToolRow = memo(function TimelineToolRow({
       ) : (
         <span className="grok-act__label">{summary}</span>
       )}
-      {showBody ? (
-        <ToolExpandBody
-          body={{ failHint, failHintShort, detailTail, outputBody, command, hasBody }}
-        />
-      ) : null}
+      {showBody && expand ? <ToolExpandBody body={expand} /> : null}
     </div>
   );
 });
@@ -218,8 +212,6 @@ export function TimelineToolGroup({
   const running = tools.some(toolSegmentIsRunning);
   const hasErr = tools.some(toolSegmentFailed);
   const userToggled = useRef(false);
-  const runningRef = useRef(running);
-  runningRef.current = running;
 
   useEffect(() => {
     if (autoCollapseProp != null) setAutoCollapse(autoCollapseProp);
@@ -229,7 +221,7 @@ export function TimelineToolGroup({
     if (autoCollapseProp != null) return;
     const apply = (next: boolean) => {
       setAutoCollapse(next);
-      if (!runningRef.current && !userToggled.current) {
+      if (!userToggled.current) {
         setOpen(toolStepDefaultOpen(false, next));
       }
     };
@@ -245,10 +237,11 @@ export function TimelineToolGroup({
     };
   }, [autoCollapseProp]);
 
+  // Groups follow the same no-auto-expand-while-running policy as bare tools (#1018).
   const [open, setOpen] = useState(() =>
-    toolStepDefaultOpen(running, autoCollapse),
+    toolStepDefaultOpen(false, autoCollapse),
   );
-  const groupDefaultOpen = toolStepDefaultOpen(running, autoCollapse);
+  const groupDefaultOpen = toolStepDefaultOpen(false, autoCollapse);
   const expanded = resolveFoldExpanded({
     userToggled: userToggled.current,
     storedOpen: open,
@@ -256,15 +249,10 @@ export function TimelineToolGroup({
   });
 
   useEffect(() => {
-    if (running) {
-      // Keep a user-collapsed group collapsed while its tools finish.
-      if (!userToggled.current) setOpen(true);
-      return;
-    }
     if (!userToggled.current) {
       setOpen(toolStepDefaultOpen(false, autoCollapse));
     }
-  }, [running, autoCollapse]);
+  }, [autoCollapse]);
 
   // Host vision/X are normal tool steps inside the group — do not collapse
   // the group header into a second label.

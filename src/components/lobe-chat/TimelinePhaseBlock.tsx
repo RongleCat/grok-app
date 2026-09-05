@@ -284,12 +284,18 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
   lockCollapsed?: boolean;
   /**
    * Running / auto-collapse policy sync (parent). Applies even when currently
-   * expanded so running→finished collapses under default autoCollapse.
+   * expanded so streaming-thought→finished collapses under default autoCollapse.
+   * Tools never pass openWhileRunning (stay collapsed while running — #1018).
    * Never called on unmount.
    */
   onPolicySync?: (
     key: string,
-    opts: { hasBody: boolean; running: boolean; autoCollapse: boolean },
+    opts: {
+      hasBody: boolean;
+      running: boolean;
+      autoCollapse: boolean;
+      openWhileRunning?: boolean;
+    },
   ) => void;
   findQuery?: string;
   findActiveOccurrence?: number | null;
@@ -348,17 +354,18 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
     };
   }, []);
 
-  // Policy: running → open; finished → toolStepDefaultOpen (autoCollapse).
+  // Policy: streaming thoughts → openWhileRunning; tools stay collapsed by
+  // default (including while running — #1018). Finished → autoCollapse pref.
   // User-toggled keys are ignored inside parent applyActivityStepExpandPolicy.
-  // Do not skip when expanded=true — that blocked running→finished collapse.
   useEffect(() => {
     if (!hasBody || !onPolicySync) return;
     onPolicySync(step.key, {
       hasBody: true,
       running,
       autoCollapse,
+      openWhileRunning: step.type === "thought",
     });
-  }, [running, autoCollapse, step.key, hasBody, onPolicySync]);
+  }, [running, autoCollapse, step.key, step.type, hasBody, onPolicySync]);
 
   const open = hasBody && expanded && !lockCollapsed;
   const showBody = open;
@@ -508,7 +515,8 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
  * When any step is expanded, leave VirtualList so fixed row height is not
  * broken — expanded body uses max-height + internal scroll instead.
  * Expand + userToggled keys live on the parent so remount keeps open state
- * and running→finished still auto-collapses when the user did not toggle.
+ * and streaming-thought→finished still auto-collapses when the user did not
+ * toggle. Running tools stay collapsed unless the user expands them (#1018).
  */
 export function GrokActivitySteps({
   steps,
@@ -541,7 +549,12 @@ export function GrokActivitySteps({
   const onPolicySync = useCallback(
     (
       key: string,
-      opts: { hasBody: boolean; running: boolean; autoCollapse: boolean },
+      opts: {
+        hasBody: boolean;
+        running: boolean;
+        autoCollapse: boolean;
+        openWhileRunning?: boolean;
+      },
     ) => {
       setExpandState((prev) => applyActivityStepExpandPolicy(prev, key, opts));
     },

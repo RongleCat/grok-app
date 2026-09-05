@@ -72,6 +72,8 @@ export const filChat = {
   "chat.selectionComment": "Komento",
   "chat.selectionCommentPlaceholder": "Sumulat ng komento sa siping ito…",
   "chat.selectionCommentSubmit": "Magdagdag ng komento",
+  "chat.selectionEnterHint": "Enter para idagdag",
+  "chat.selectionModEnterHint": "⌘/Ctrl+Enter para idagdag",
   "chat.selectionToolbar": "Pagpili",
   "message.edit": "I-edit",
   "message.exportMd": "I-export ang MD",

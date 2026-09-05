@@ -72,6 +72,8 @@ export const taChat = {
   "chat.selectionComment": "கருத்து",
   "chat.selectionCommentPlaceholder": "இந்த பகுதிக்கு ஒரு கருத்தை எழுதுங்கள்…",
   "chat.selectionCommentSubmit": "கருத்தைச் சேர்",
+  "chat.selectionEnterHint": "Enter சேர்",
+  "chat.selectionModEnterHint": "⌘/Ctrl+Enter சேர்",
   "chat.selectionToolbar": "தேர்வு",
   "message.edit": "திருத்து",
   "message.exportMd": "ஏற்றுமதி எம்.டி",

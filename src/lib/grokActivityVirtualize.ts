@@ -153,7 +153,8 @@ export function emptyActivityStepExpandState(): ActivityStepExpandState {
 
 /**
  * Desired open for a step with detail body.
- * Matches TimelineToolRow: running → open; finished → !autoCollapse;
+ * Tools: follow autoCollapse only (never force-open while running — #1018).
+ * Streaming thoughts: `openWhileRunning` keeps the body live-open.
  * user-toggled → null (leave current expandedKeys alone).
  * No-body → null.
  */
@@ -162,16 +163,19 @@ export function resolveActivityStepExpandDesired(opts: {
   running: boolean;
   autoCollapse: boolean;
   userToggled: boolean;
+  /** Streaming thought rows only — tools must leave this false/omitted. */
+  openWhileRunning?: boolean;
 }): boolean | null {
   if (!opts.hasBody) return null;
   if (opts.userToggled) return null;
+  if (opts.openWhileRunning && opts.running) return true;
   return toolStepDefaultOpen(opts.running, opts.autoCollapse);
 }
 
 /**
  * Apply default/running policy without wiping user toggles.
  * Always sets expandedKeys to wantOpen when policy applies — including
- * collapsing running→finished under default autoCollapse=true.
+ * collapsing streaming-thought→finished under default autoCollapse=true.
  */
 export function applyActivityStepExpandPolicy(
   state: ActivityStepExpandState,
@@ -180,6 +184,7 @@ export function applyActivityStepExpandPolicy(
     hasBody: boolean;
     running: boolean;
     autoCollapse: boolean;
+    openWhileRunning?: boolean;
   },
 ): ActivityStepExpandState {
   const k = (key || "").trim();
@@ -190,6 +195,7 @@ export function applyActivityStepExpandPolicy(
     running: opts.running,
     autoCollapse: opts.autoCollapse,
     userToggled,
+    openWhileRunning: opts.openWhileRunning,
   });
   if (want === null) return state;
   const expandedKeys = applyActivityStepExpand(state.expandedKeys, k, want);

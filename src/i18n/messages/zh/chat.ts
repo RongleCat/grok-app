@@ -72,6 +72,8 @@ export const zhChat = {
   "chat.selectionComment": "写评论",
   "chat.selectionCommentPlaceholder": "针对这段摘录写评论…",
   "chat.selectionCommentSubmit": "添加评论",
+  "chat.selectionEnterHint": "Enter 提交",
+  "chat.selectionModEnterHint": "Ctrl+Enter 添加",
   "chat.selectionToolbar": "选中文字",
   "message.edit": "编辑",
   "message.exportMd": "导出 MD",

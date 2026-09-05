@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   appendQuotesToContent,
+  composerHasSendPayload,
   parseQuotesFromContent,
   serializeQuotesForAgent,
   type ComposerQuote,
@@ -37,6 +38,30 @@ describe("append / parse quotes", () => {
       text: "just a prompt",
       quotes: [],
     });
+  });
+});
+
+describe("composerHasSendPayload", () => {
+  it("treats a quote card as enough to send, even with an empty draft", () => {
+    expect(
+      composerHasSendPayload({
+        draftEmpty: true,
+        attachmentCount: 0,
+        chatAttachmentCount: 0,
+        quoteCount: 1,
+      }),
+    ).toBe(true);
+  });
+
+  it("stays false when draft, files, chats, and quotes are all empty", () => {
+    expect(
+      composerHasSendPayload({
+        draftEmpty: true,
+        attachmentCount: 0,
+        chatAttachmentCount: 0,
+        quoteCount: 0,
+      }),
+    ).toBe(false);
   });
 });
 

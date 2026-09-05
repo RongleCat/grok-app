@@ -63,6 +63,7 @@ import { ImageUi, imageUiLabels } from "@/components/ImageUi";
 import { ContextMenu, type ContextMenuItem } from "@/components/ContextMenu";
 import { UserAttachments } from "@/components/lobe-chat/UserAttachments";
 import { TranscriptSelectionToolbarHost } from "@/components/TranscriptSelectionToolbarHost";
+import { useComposerSendKeyPref } from "@/hooks/useComposerSendKeyPref";
 import { isSelectionInsideTranscript } from "@/lib/transcriptSelectionBar";
 import { UserQuoteCards } from "@/components/ComposerQuoteCards";
 import {
@@ -2096,6 +2097,7 @@ export function ConversationThread({
       window.removeEventListener(BACK_BOTTOM_ALWAYS_CHANGE_EVENT, onPref);
   }, []);
 
+  const quoteSendPref = useComposerSendKeyPref();
   const [selectionToolbar, setSelectionToolbar] = useState(() =>
     loadTranscriptSelectionToolbarPref(),
   );
@@ -3210,11 +3212,14 @@ export function ConversationThread({
             addQuoteFromSelection(q.text, q.comment, q.sourceMessageId)
           }
           onCopyText={copyText}
+          sendPref={quoteSendPref}
           labels={{
             copy: tr("chat.selectionCopy"),
             addQuote: tr("chat.selectionAddToInput"),
             commentPlaceholder: tr("chat.selectionCommentPlaceholder"),
             commentSubmit: tr("chat.selectionCommentSubmit"),
+            enterHint: tr("chat.selectionEnterHint"),
+            modEnterHint: tr("chat.selectionModEnterHint"),
           }}
         />
       ) : null}

@@ -15,6 +15,7 @@ import {
   type TranscriptSelectionBar,
 } from "@/lib/transcriptSelectionBar";
 import { TranscriptSelectionToolbar } from "@/components/TranscriptSelectionToolbar";
+import type { ComposerSendKeyPref } from "@/lib/composerSendKey";
 
 export type TranscriptSelectionToolbarHostProps = {
   scrollRef: { current: HTMLElement | null };
@@ -25,11 +26,15 @@ export type TranscriptSelectionToolbarHostProps = {
     sourceMessageId?: string;
   }) => void;
   onCopyText: (text: string) => void;
+  /** Same Enter / ⌘Ctrl+Enter preference as the composer. */
+  sendPref: ComposerSendKeyPref;
   labels: {
     copy: string;
     addQuote: string;
     commentPlaceholder: string;
     commentSubmit: string;
+    enterHint: string;
+    modEnterHint: string;
   };
 };
 
@@ -38,6 +43,7 @@ export function TranscriptSelectionToolbarHost({
   sessionId,
   onAddQuote,
   onCopyText,
+  sendPref,
   labels,
 }: TranscriptSelectionToolbarHostProps) {
   const [bar, setBar] = useState<TranscriptSelectionBar | null>(null);
@@ -166,6 +172,7 @@ export function TranscriptSelectionToolbarHost({
         });
       }}
       onClose={close}
+      sendPref={sendPref}
       labels={labels}
     />
   );

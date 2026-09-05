@@ -56,6 +56,21 @@ export function normalizeComposerQuote(raw: unknown): ComposerQuote | null {
   };
 }
 
+/** Enter / Send: quote cards count as a body, same as files. */
+export function composerHasSendPayload(opts: {
+  draftEmpty: boolean;
+  attachmentCount: number;
+  chatAttachmentCount?: number;
+  quoteCount: number;
+}): boolean {
+  return (
+    !opts.draftEmpty ||
+    opts.attachmentCount > 0 ||
+    (opts.chatAttachmentCount ?? 0) > 0 ||
+    opts.quoteCount > 0
+  );
+}
+
 export function normalizeComposerQuotes(raw: unknown): ComposerQuote[] {
   if (!Array.isArray(raw)) return [];
   const out: ComposerQuote[] = [];

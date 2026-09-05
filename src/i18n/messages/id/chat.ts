@@ -72,6 +72,8 @@ export const idChat = {
   "chat.selectionComment": "Komentar",
   "chat.selectionCommentPlaceholder": "Tulis komentar pada kutipan ini…",
   "chat.selectionCommentSubmit": "Tambah komentar",
+  "chat.selectionEnterHint": "Enter untuk menambahkan",
+  "chat.selectionModEnterHint": "⌘/Ctrl+Enter untuk menambahkan",
   "chat.selectionToolbar": "Pilihan",
   "message.edit": "Sunting",
   "message.exportMd": "Ekspor MD",

@@ -196,34 +196,52 @@ describe("grokActivityVirtualize", () => {
     ).toBe(true);
   });
 
-  it("running→finished auto-collapses when !userToggled; sticks when user toggled", () => {
+  it("running tools stay collapsed; streaming thoughts openWhileRunning; user toggle sticks", () => {
     expect(DEFAULT_TOOL_STEPS_AUTO_COLLAPSE).toBe(true);
-    expect(toolStepDefaultOpen(true, true)).toBe(true);
+    expect(toolStepDefaultOpen(true, true)).toBe(false);
     expect(toolStepDefaultOpen(false, true)).toBe(false);
 
     const stepCount = GROK_ACTIVITY_VIRTUALIZE_THRESHOLD + 3;
     let state = emptyActivityStepExpandState();
 
-    // Auto-open while running (policy, not user).
+    // Running tool — stay collapsed so VirtualList / DOM skip stdout (#1018).
     state = applyActivityStepExpandPolicy(state, "t-run", {
       hasBody: true,
       running: true,
       autoCollapse: true,
     });
-    expect(state.expandedKeys.has("t-run")).toBe(true);
+    expect(state.expandedKeys.has("t-run")).toBe(false);
     expect(state.userToggledKeys.has("t-run")).toBe(false);
     expect(
       shouldVirtualizeActivityWithExpand(stepCount, state.expandedKeys.size),
-    ).toBe(false);
+    ).toBe(true);
 
-    // Finish under default autoCollapse — must collapse even if currently open
-    // (bug was early-return when expanded=true).
+    // Finish under default autoCollapse — still collapsed.
     state = applyActivityStepExpandPolicy(state, "t-run", {
       hasBody: true,
       running: false,
       autoCollapse: true,
     });
     expect(state.expandedKeys.has("t-run")).toBe(false);
+
+    // Streaming thought with openWhileRunning auto-opens, then collapses when done.
+    state = applyActivityStepExpandPolicy(state, "thought-1", {
+      hasBody: true,
+      running: true,
+      autoCollapse: true,
+      openWhileRunning: true,
+    });
+    expect(state.expandedKeys.has("thought-1")).toBe(true);
+    expect(
+      shouldVirtualizeActivityWithExpand(stepCount, state.expandedKeys.size),
+    ).toBe(false);
+    state = applyActivityStepExpandPolicy(state, "thought-1", {
+      hasBody: true,
+      running: false,
+      autoCollapse: true,
+      openWhileRunning: true,
+    });
+    expect(state.expandedKeys.has("thought-1")).toBe(false);
     expect(
       shouldVirtualizeActivityWithExpand(stepCount, state.expandedKeys.size),
     ).toBe(true);
