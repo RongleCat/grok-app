@@ -309,7 +309,7 @@ export const zhSettings = {
   "settings.thinkingExpand.autoCollapse": "完成后自动折叠",
   "settings.thinkingExpand.keepOpen": "保持展开",
   "settings.toolStepsAutoCollapse": "完成后自动折叠工具步骤",
-  "settings.toolStepsAutoCollapseDesc": "已完成或失败的工具步骤在时间线中默认折叠。运行中的工具保持展开。关闭后，完成的工具也会保持展开。与「收起全部活动」（手动一次）是不同能力。",
+  "settings.toolStepsAutoCollapseDesc": "工具步骤默认折叠，包括正在运行的。点一下再看 stdout。关闭后工具会保持展开。与「收起全部活动」（手动一次）是不同能力。",
   "settings.transcriptFilter": "对话内容过滤",
   "settings.transcriptFilterDesc": "隐藏零散的原始工具行。助手回复上的 Worked for 活动轨始终保留（官方风格摘要）。",
   "settings.transcriptFilter.all": "全部活动",

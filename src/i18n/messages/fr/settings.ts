@@ -286,7 +286,7 @@ export const frSettings = {
   "settings.thinkingExpand.autoCollapse": "Replier auto une fois terminé",
   "settings.thinkingExpand.keepOpen": "Garder développé",
   "settings.toolStepsAutoCollapse": "Replier auto les outils terminés",
-  "settings.toolStepsAutoCollapseDesc": "Les étapes d’outils terminées et en échec commencent repliées dans la chronologie. Les outils en cours restent développés. Désactivez pour garder les outils terminés ouverts. Distinct de « Replier toute l’activité » (action manuelle unique).",
+  "settings.toolStepsAutoCollapseDesc": "Les étapes d’outils commencent repliées, y compris en cours d’exécution. Cliquez pour lire le stdout. Désactivez pour les garder ouvertes. Distinct de « Replier toute l’activité » (action manuelle unique).",
   "settings.transcriptFilter": "Filtre de transcription",
   "settings.transcriptFilterDesc": "Masquer les lignes d’outils brutes autonomes. Les rails d’activité « a travaillé » sur les réponses de l’assistant restent toujours (résumé style Grok).",
   "settings.transcriptFilter.all": "Toute l’activité",

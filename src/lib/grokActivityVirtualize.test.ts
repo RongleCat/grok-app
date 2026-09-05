@@ -75,6 +75,30 @@ describe("grokActivityVirtualize", () => {
     expect(activityScrollerScrollToKey(false, [])).toBeNull();
   });
 
+  it("does not build tool stdout unless the row is open; thoughts still auto-open live", () => {
+    const row = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        "../components/lobe-chat/TimelineToolRow.tsx",
+      ),
+      "utf8",
+    );
+    expect(row).toContain("toolExpandHasBody");
+    expect(row).toMatch(/showBody \? toolExpandBody/);
+    expect(row).not.toMatch(/title=\{tool\.input \|\| tool\.path \|\| tool\.detail/);
+    expect(row).not.toMatch(/if \(!userToggled\.current\) setOpen\(true\)/);
+
+    const phase = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        "../components/lobe-chat/TimelinePhaseBlock.tsx",
+      ),
+      "utf8",
+    );
+    expect(phase).toContain("autoOpenWhileRunning: step.type === \"thought\"");
+    expect(phase).toMatch(/expandTool && open \? toolExpandBody/);
+  });
+
   it("wires the nested VirtualList to followKey after live ends", () => {
     const src = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), "../components/lobe-chat/TimelinePhaseBlock.tsx"),
@@ -196,28 +220,45 @@ describe("grokActivityVirtualize", () => {
     ).toBe(true);
   });
 
-  it("running→finished auto-collapses when !userToggled; sticks when user toggled", () => {
+  it("running tools stay collapsed when !userToggled; thoughts can auto-open live", () => {
     expect(DEFAULT_TOOL_STEPS_AUTO_COLLAPSE).toBe(true);
-    expect(toolStepDefaultOpen(true, true)).toBe(true);
+    expect(toolStepDefaultOpen(true, true)).toBe(false);
     expect(toolStepDefaultOpen(false, true)).toBe(false);
 
     const stepCount = GROK_ACTIVITY_VIRTUALIZE_THRESHOLD + 3;
     let state = emptyActivityStepExpandState();
 
-    // Auto-open while running (policy, not user).
+    // Tools: running does not auto-open (policy, not user).
     state = applyActivityStepExpandPolicy(state, "t-run", {
       hasBody: true,
       running: true,
       autoCollapse: true,
     });
-    expect(state.expandedKeys.has("t-run")).toBe(true);
+    expect(state.expandedKeys.has("t-run")).toBe(false);
     expect(state.userToggledKeys.has("t-run")).toBe(false);
     expect(
       shouldVirtualizeActivityWithExpand(stepCount, state.expandedKeys.size),
-    ).toBe(false);
+    ).toBe(true);
 
-    // Finish under default autoCollapse — must collapse even if currently open
-    // (bug was early-return when expanded=true).
+    // Live thoughts still auto-open so reasoning is readable.
+    state = applyActivityStepExpandPolicy(state, "th-live", {
+      hasBody: true,
+      running: true,
+      autoCollapse: true,
+      autoOpenWhileRunning: true,
+    });
+    expect(state.expandedKeys.has("th-live")).toBe(true);
+
+    // Thought episode ended — collapse under default autoCollapse.
+    state = applyActivityStepExpandPolicy(state, "th-live", {
+      hasBody: true,
+      running: false,
+      autoCollapse: true,
+      autoOpenWhileRunning: true,
+    });
+    expect(state.expandedKeys.has("th-live")).toBe(false);
+
+    // Finish under default autoCollapse — stays collapsed.
     state = applyActivityStepExpandPolicy(state, "t-run", {
       hasBody: true,
       running: false,

@@ -1,7 +1,8 @@
 /**
- * User preference: auto-collapse finished tool steps in the chat timeline.
+ * User preference: auto-collapse tool steps in the chat timeline.
  * localStorage-only — does not touch Host AppSettings.
- * Default: true (completed/failed rows start collapsed; running stays expanded).
+ * Default: true (rows start collapsed, including running; click to expand).
+ * Thoughts still auto-open while live via `autoOpenWhileRunning`.
  */
 
 export const TOOL_STEPS_AUTO_COLLAPSE_STORAGE_KEY = "grok.toolStepsAutoCollapse";
@@ -72,14 +73,16 @@ export function saveToolStepsAutoCollapsePref(
 }
 
 /**
- * Pure default-open for a tool step / context group / work phase.
- * Running tools always expand; finished (completed or failed) follow the pref.
+ * Pure default-open for a tool step / context group.
+ * Tools follow the pref even while running (default: collapsed). Pass
+ * `autoOpenWhileRunning` for live thoughts, which still expand as they stream.
  */
 export function toolStepDefaultOpen(
   running: boolean,
   autoCollapse: boolean = DEFAULT_TOOL_STEPS_AUTO_COLLAPSE,
+  opts?: { autoOpenWhileRunning?: boolean },
 ): boolean {
-  if (running) return true;
+  if (opts?.autoOpenWhileRunning && running) return true;
   return !autoCollapse;
 }
 

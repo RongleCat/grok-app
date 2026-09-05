@@ -286,7 +286,7 @@ export const jaSettings = {
   "settings.thinkingExpand.autoCollapse": "完了したら自動で折りたたむ",
   "settings.thinkingExpand.keepOpen": "展開したまま",
   "settings.toolStepsAutoCollapse": "完了したツールを自動で折りたたむ",
-  "settings.toolStepsAutoCollapseDesc": "完了または失敗したツールステップはタイムラインで折りたたんだ状態から始まります。実行中のツールは展開したままです。オフにすると完了したツールも開いたままです。「すべての活動を折りたたむ」（手動の一度きり）とは別です。",
+  "settings.toolStepsAutoCollapseDesc": "ツールステップは実行中も含め、タイムラインで折りたたんだ状態から始まります。クリックすると stdout を表示します。オフにすると開いたままです。「すべての活動を折りたたむ」（手動の一度きり）とは別です。",
   "settings.transcriptFilter": "トランスクリプトフィルター",
   "settings.transcriptFilterDesc": "単独の生ツール行を隠します。アシスタント返信上の Worked for 活動レールは常に残します（Grok 風の要約）。",
   "settings.transcriptFilter.all": "すべての活動",

@@ -286,7 +286,7 @@ export const ptBRSettings = {
   "settings.thinkingExpand.autoCollapse": "Recolher automaticamente ao terminar",
   "settings.thinkingExpand.keepOpen": "Manter expandido",
   "settings.toolStepsAutoCollapse": "Recolher automaticamente as ferramentas concluídas",
-  "settings.toolStepsAutoCollapseDesc": "Etapas de ferramentas concluídas e com falha começam recolhidas na linha do tempo. Ferramentas em execução permanecem expandidas. Desligue para manter as ferramentas concluídas abertas. Separado de “Recolher toda a atividade” (um disparo manual).",
+  "settings.toolStepsAutoCollapseDesc": "Etapas de ferramentas começam recolhidas, inclusive em execução. Clique para ler o stdout. Desligue para mantê-las abertas. Separado de “Recolher toda a atividade” (um disparo manual).",
   "settings.transcriptFilter": "Filtro da transcrição",
   "settings.transcriptFilterDesc": "Ocultar linhas brutas avulsas de ferramentas. Os trilhos de atividade “trabalhou por” nas respostas do assistente sempre permanecem (resumo no estilo Grok).",
   "settings.transcriptFilter.all": "Toda a atividade",

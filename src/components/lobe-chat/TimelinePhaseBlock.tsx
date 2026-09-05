@@ -285,11 +285,16 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
   /**
    * Running / auto-collapse policy sync (parent). Applies even when currently
    * expanded so running→finished collapses under default autoCollapse.
-   * Never called on unmount.
+   * Never called on unmount. Thoughts pass autoOpenWhileRunning.
    */
   onPolicySync?: (
     key: string,
-    opts: { hasBody: boolean; running: boolean; autoCollapse: boolean },
+    opts: {
+      hasBody: boolean;
+      running: boolean;
+      autoCollapse: boolean;
+      autoOpenWhileRunning?: boolean;
+    },
   ) => void;
   findQuery?: string;
   findActiveOccurrence?: number | null;
@@ -348,17 +353,18 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
     };
   }, []);
 
-  // Policy: running → open; finished → toolStepDefaultOpen (autoCollapse).
-  // User-toggled keys are ignored inside parent applyActivityStepExpandPolicy.
-  // Do not skip when expanded=true — that blocked running→finished collapse.
+  // Policy: tools follow autoCollapse even while running (default collapsed).
+  // Live thoughts still auto-open. User-toggled keys are ignored inside
+  // parent applyActivityStepExpandPolicy.
   useEffect(() => {
     if (!hasBody || !onPolicySync) return;
     onPolicySync(step.key, {
       hasBody: true,
       running,
       autoCollapse,
+      autoOpenWhileRunning: step.type === "thought",
     });
-  }, [running, autoCollapse, step.key, hasBody, onPolicySync]);
+  }, [running, autoCollapse, step.key, step.type, hasBody, onPolicySync]);
 
   const open = hasBody && expanded && !lockCollapsed;
   const showBody = open;
@@ -541,7 +547,12 @@ export function GrokActivitySteps({
   const onPolicySync = useCallback(
     (
       key: string,
-      opts: { hasBody: boolean; running: boolean; autoCollapse: boolean },
+      opts: {
+        hasBody: boolean;
+        running: boolean;
+        autoCollapse: boolean;
+        autoOpenWhileRunning?: boolean;
+      },
     ) => {
       setExpandState((prev) => applyActivityStepExpandPolicy(prev, key, opts));
     },

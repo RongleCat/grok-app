@@ -153,7 +153,8 @@ export function emptyActivityStepExpandState(): ActivityStepExpandState {
 
 /**
  * Desired open for a step with detail body.
- * Matches TimelineToolRow: running → open; finished → !autoCollapse;
+ * Tools follow autoCollapse even while running (default: collapsed).
+ * Thoughts pass autoOpenWhileRunning so live reasoning still expands.
  * user-toggled → null (leave current expandedKeys alone).
  * No-body → null.
  */
@@ -162,10 +163,13 @@ export function resolveActivityStepExpandDesired(opts: {
   running: boolean;
   autoCollapse: boolean;
   userToggled: boolean;
+  autoOpenWhileRunning?: boolean;
 }): boolean | null {
   if (!opts.hasBody) return null;
   if (opts.userToggled) return null;
-  return toolStepDefaultOpen(opts.running, opts.autoCollapse);
+  return toolStepDefaultOpen(opts.running, opts.autoCollapse, {
+    autoOpenWhileRunning: opts.autoOpenWhileRunning,
+  });
 }
 
 /**
@@ -180,6 +184,7 @@ export function applyActivityStepExpandPolicy(
     hasBody: boolean;
     running: boolean;
     autoCollapse: boolean;
+    autoOpenWhileRunning?: boolean;
   },
 ): ActivityStepExpandState {
   const k = (key || "").trim();
@@ -190,6 +195,7 @@ export function applyActivityStepExpandPolicy(
     running: opts.running,
     autoCollapse: opts.autoCollapse,
     userToggled,
+    autoOpenWhileRunning: opts.autoOpenWhileRunning,
   });
   if (want === null) return state;
   const expandedKeys = applyActivityStepExpand(state.expandedKeys, k, want);

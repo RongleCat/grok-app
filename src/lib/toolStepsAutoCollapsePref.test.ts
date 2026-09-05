@@ -32,7 +32,7 @@ describe("toolStepsAutoCollapsePref", () => {
     vi.restoreAllMocks();
   });
 
-  it("defaults to true (auto-collapse finished tools)", () => {
+  it("defaults to true (auto-collapse tool steps)", () => {
     expect(DEFAULT_TOOL_STEPS_AUTO_COLLAPSE).toBe(true);
     expect(parseToolStepsAutoCollapsePref(null)).toBe(true);
     expect(parseToolStepsAutoCollapsePref("")).toBe(true);
@@ -59,14 +59,20 @@ describe("toolStepsAutoCollapsePref", () => {
     expect(loadToolStepsAutoCollapsePref(s)).toBe(true);
   });
 
-  it("toolStepDefaultOpen: running always open; finished follows pref", () => {
-    expect(toolStepDefaultOpen(true, true)).toBe(true);
+  it("toolStepDefaultOpen: tools follow pref even while running; thoughts can auto-open live", () => {
+    expect(toolStepDefaultOpen(true, true)).toBe(false);
     expect(toolStepDefaultOpen(true, false)).toBe(true);
     expect(toolStepDefaultOpen(false, true)).toBe(false);
     expect(toolStepDefaultOpen(false, false)).toBe(true);
     // Default arg uses DEFAULT_TOOL_STEPS_AUTO_COLLAPSE (true)
     expect(toolStepDefaultOpen(false)).toBe(false);
-    expect(toolStepDefaultOpen(true)).toBe(true);
+    expect(toolStepDefaultOpen(true)).toBe(false);
+    expect(
+      toolStepDefaultOpen(true, true, { autoOpenWhileRunning: true }),
+    ).toBe(true);
+    expect(
+      toolStepDefaultOpen(false, true, { autoOpenWhileRunning: true }),
+    ).toBe(false);
   });
 
   it("resolveFoldExpanded follows default until the user toggles", () => {
