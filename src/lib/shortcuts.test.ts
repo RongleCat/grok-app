@@ -301,10 +301,16 @@ describe("matchGlobalShortcut", () => {
     ).toBe("toggleSidebar");
   });
 
-  it("allows find/search/help/doctor/copy/live/sidebar/side-pane while typing", () => {
+  it("allows find/newChat/settings/search/help/doctor/copy/live/sidebar/side-pane while typing", () => {
     expect(
       matchGlobalShortcut(chord({ key: "f", typing: true }), noRemaps),
     ).toBe("findInChat");
+    expect(
+      matchGlobalShortcut(chord({ key: "n", typing: true }), noRemaps),
+    ).toBe("newChat");
+    expect(
+      matchGlobalShortcut(chord({ key: ",", typing: true }), noRemaps),
+    ).toBe("settings");
     expect(
       matchGlobalShortcut(chord({ key: "k", typing: true }), noRemaps),
     ).toBe("search");
@@ -341,28 +347,6 @@ describe("matchGlobalShortcut", () => {
     expect(
       matchGlobalShortcut(chord({ key: "`", typing: true }), noRemaps),
     ).toBe("sideTerminal");
-  });
-
-  it("skips newChat and settings while typing", () => {
-    expect(
-      matchGlobalShortcut(chord({ key: "n", typing: true }), noRemaps),
-    ).toBeNull();
-    expect(
-      matchGlobalShortcut(chord({ key: ",", typing: true }), noRemaps),
-    ).toBeNull();
-  });
-
-  it("matches settings while typing when settings are already open", () => {
-    expect(
-      matchGlobalShortcut(chord({ key: ",", typing: true }), noRemaps, {
-        settingsOpen: true,
-      }),
-    ).toBe("settings");
-    expect(
-      matchGlobalShortcut(chord({ key: "n", typing: true }), noRemaps, {
-        settingsOpen: true,
-      }),
-    ).toBeNull();
   });
 
   it("does not match without mod", () => {

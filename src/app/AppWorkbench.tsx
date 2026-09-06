@@ -1584,7 +1584,6 @@ export function AppWorkbench() {
         shortcutRemapsRef.current,
         {
           voiceHotkeyEnabled: voiceHotkeyEnabledRef.current,
-          settingsOpen: escapeStopLiveRef.current.settingsOpen,
         },
       );
       if (!matched) return;
