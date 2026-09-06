@@ -1,17 +1,28 @@
 /**
  * @vitest-environment jsdom
  *
- * Create / ship verbs live in this hook. Host only supplies project bind
- * and session open. List refresh is a no-op off Tauri.
+ * Create / ship / GC verbs live in this hook. Host only supplies project bind
+ * and session open. List refresh is a no-op off Tauri unless isTauri is mocked.
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { createT } from "@/i18n";
 import type { Project } from "@/lib/app/sidebarModels";
+import * as api from "@/lib/api";
 import {
   createGitWorktreeChromeHost,
   useGitWorktreeChrome,
 } from "./useGitWorktreeChrome";
+
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return {
+    ...actual,
+    isTauri: vi.fn(() => false),
+    gitWorktreeGc: vi.fn(),
+    gitWorktreesList: vi.fn(),
+  };
+});
 
 const PROJECT: Project = {
   id: "p1",
@@ -38,6 +49,12 @@ function setup(hostPatch?: Partial<ReturnType<typeof createGitWorktreeChromeHost
 }
 
 describe("useGitWorktreeChrome", () => {
+  beforeEach(() => {
+    vi.mocked(api.isTauri).mockReturnValue(false);
+    vi.mocked(api.gitWorktreeGc).mockReset();
+    vi.mocked(api.gitWorktreesList).mockReset();
+  });
+
   it("openCreate resets the form and opens the dialog", () => {
     const { result } = setup();
     act(() => {
@@ -81,5 +98,34 @@ describe("useGitWorktreeChrome", () => {
       result.current.worktreeChrome.ship.close();
     });
     expect(result.current.worktreeChrome.ship.open).toBe(false);
+  });
+
+  it("submit GC runs non-dry-run prune then closes", async () => {
+    vi.mocked(api.isTauri).mockReturnValue(true);
+    vi.mocked(api.gitWorktreeGc).mockResolvedValue({
+      dryRun: false,
+      prunedCount: 2,
+      prunable: [],
+      output: "",
+    });
+    vi.mocked(api.gitWorktreesList).mockResolvedValue({
+      available: true,
+      worktrees: [],
+    });
+    const { result, host } = setup();
+    act(() => {
+      result.current.openWorktreeGc();
+      result.current.worktreeChrome.gc.setForce(true);
+    });
+    await act(async () => {
+      await result.current.worktreeChrome.gc.submit();
+    });
+    expect(api.gitWorktreeGc).toHaveBeenCalledWith({
+      projectPath: PROJECT.path,
+      dryRun: false,
+      force: true,
+    });
+    expect(host.showToast).toHaveBeenCalled();
+    expect(result.current.worktreeChrome.gc.open).toBe(false);
   });
 });

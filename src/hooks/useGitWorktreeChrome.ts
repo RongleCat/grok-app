@@ -510,11 +510,12 @@ export function useGitWorktreeChrome(opts: {
     setWorktreeGcPreviewBusy(true);
     setWorktreeGcError(null);
     try {
-      const res = await api.gitWorktreeGc(
-        h.activeProject.path,
-        true,
-        worktreeGcForce,
-      );
+      // Object form — positional (path, force, dryRun) is easy to invert.
+      const res = await api.gitWorktreeGc({
+        projectPath: h.activeProject.path,
+        dryRun: true,
+        force: worktreeGcForce,
+      });
       setWorktreeGcPreview(res);
     } catch (e) {
       setWorktreeGcPreview(null);
@@ -535,6 +536,18 @@ export function useGitWorktreeChrome(opts: {
     setWorktreeGcBusy(true);
     setWorktreeGcError(null);
     try {
+      const res = await api.gitWorktreeGc({
+        projectPath: h.activeProject.path,
+        dryRun: false,
+        force: worktreeGcForce,
+      });
+      const pruned = res.prunedCount ?? res.pruned ?? 0;
+      h.showToast(
+        pruned > 0
+          ? h.tr("composer.worktreeGcDone", { n: String(pruned) })
+          : h.tr("composer.worktreeGcDoneNone"),
+        4000,
+      );
       setWorktreeGcOpen(false);
       setWorktreeGcPreview(null);
       setWorktreeGcForce(false);
@@ -544,7 +557,7 @@ export function useGitWorktreeChrome(opts: {
     } finally {
       setWorktreeGcBusy(false);
     }
-  }, [hostRef, refreshGitWorktrees]);
+  }, [hostRef, refreshGitWorktrees, worktreeGcForce]);
 
   const switchToWorktree = useCallback(
     async (wt: api.GitWorktreeEntry) => {
