@@ -3,9 +3,13 @@
 
 #![allow(dead_code)] // residual-clippy: kind_from_mime
 use std::fs;
-use std::io::Read;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -17,6 +21,8 @@ use crate::process_util;
 use crate::proxy;
 use crate::store;
 
+const MAX_WALLPAPER_CLI_STDOUT_BYTES: usize = 2 * 1024 * 1024;
+const WALLPAPER_CLI_OUTPUT_DRAIN_TIMEOUT: Duration = Duration::from_secs(2);
 /// Max bytes for a single wallpaper media download.
 const MAX_DOWNLOAD_BYTES: u64 = 200 * 1024 * 1024;
 /// Headless X search budget.
@@ -580,6 +586,318 @@ fn extract_json_object(raw: &str) -> Option<serde_json::Value> {
     parse_grok_wallpaper_payload(raw)
 }
 
+fn configure_wallpaper_process_tree(cmd: &mut Command) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        // SAFETY: this runs in the child immediately before exec. A dedicated
+        // session lets timeout cleanup terminate the CLI and all descendants.
+        unsafe {
+            cmd.pre_exec(|| {
+                if libc::setsid() == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+    }
+    #[cfg(windows)]
+    let _ = cmd;
+}
+
+fn terminate_wallpaper_process_tree(child: &mut std::process::Child) {
+    let pid = child.id();
+    #[cfg(windows)]
+    {
+        let _ = process_util::command("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    #[cfg(unix)]
+    {
+        // The child called setsid(), so its pid is also the process-group id.
+        unsafe {
+            libc::kill(-(pid as i32), libc::SIGTERM);
+        }
+        std::thread::sleep(Duration::from_millis(150));
+        unsafe {
+            libc::kill(-(pid as i32), libc::SIGKILL);
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+struct WallpaperCliOutputReaders {
+    stop: Arc<AtomicBool>,
+    stdout_result: std::sync::mpsc::Receiver<io::Result<WallpaperCliStdout>>,
+    stdout_thread: std::thread::JoinHandle<()>,
+    stderr_result: std::sync::mpsc::Receiver<io::Result<()>>,
+    stderr_thread: std::thread::JoinHandle<()>,
+}
+
+struct WallpaperCliStdout {
+    bytes: Vec<u8>,
+    exceeded_limit: bool,
+}
+
+impl WallpaperCliOutputReaders {
+    fn start(child: &mut std::process::Child) -> Result<Self, String> {
+        let Some(mut stdout) = child.stdout.take() else {
+            terminate_wallpaper_process_tree(child);
+            return Err("cli stdout unavailable".into());
+        };
+        let Some(mut stderr) = child.stderr.take() else {
+            terminate_wallpaper_process_tree(child);
+            return Err("cli stderr unavailable".into());
+        };
+
+        let stop = Arc::new(AtomicBool::new(false));
+        let stdout_stop = Arc::clone(&stop);
+        let (stdout_tx, stdout_result) = std::sync::mpsc::sync_channel(1);
+        let stdout_thread = match std::thread::Builder::new()
+            .name("wallpaper-cli-stdout".into())
+            .spawn(move || {
+                let result = drain_wallpaper_cli_stdout(&mut stdout, &stdout_stop);
+                let _ = stdout_tx.send(result);
+            }) {
+            Ok(thread) => thread,
+            Err(error) => {
+                terminate_wallpaper_process_tree(child);
+                return Err(format!("cli stdout reader: {error}"));
+            }
+        };
+
+        let stderr_stop = Arc::clone(&stop);
+        let (stderr_tx, stderr_result) = std::sync::mpsc::sync_channel(1);
+        let stderr_thread = match std::thread::Builder::new()
+            .name("wallpaper-cli-stderr".into())
+            .spawn(move || {
+                let result = drain_wallpaper_cli_stderr(&mut stderr, &stderr_stop);
+                let _ = stderr_tx.send(result);
+            }) {
+            Ok(thread) => thread,
+            Err(error) => {
+                stop.store(true, Ordering::Release);
+                terminate_wallpaper_process_tree(child);
+                let _ = stdout_thread.join();
+                return Err(format!("cli stderr reader: {error}"));
+            }
+        };
+
+        Ok(Self {
+            stop,
+            stdout_result,
+            stdout_thread,
+            stderr_result,
+            stderr_thread,
+        })
+    }
+
+    fn finish(self) -> Result<String, String> {
+        self.finish_with_timeout(WALLPAPER_CLI_OUTPUT_DRAIN_TIMEOUT)
+    }
+
+    /// Pipe handles can outlive the CLI when a detached descendant inherits
+    /// them. Stop the non-blocking drains at the deadline and always join both
+    /// threads before returning.
+    fn finish_with_timeout(self, timeout: Duration) -> Result<String, String> {
+        let deadline = Instant::now() + timeout;
+        let stdout = receive_wallpaper_cli_reader(&self.stdout_result, deadline, "stdout");
+        let stderr = receive_wallpaper_cli_reader(&self.stderr_result, deadline, "stderr");
+        self.stop.store(true, Ordering::Release);
+        let stdout_join = self.stdout_thread.join();
+        let stderr_join = self.stderr_thread.join();
+
+        if stdout_join.is_err() {
+            return Err("cli stdout reader panicked".into());
+        }
+        if stderr_join.is_err() {
+            return Err("cli stderr reader panicked".into());
+        }
+        let stdout = stdout?;
+        if stdout.exceeded_limit {
+            tracing::warn!("wallpaper source cli stdout exceeded size limit");
+            return Err("search_failed".into());
+        }
+        stderr?;
+        String::from_utf8(stdout.bytes).map_err(|_| "cli stdout was not valid utf-8".to_string())
+    }
+
+    fn stop(self) {
+        self.stop.store(true, Ordering::Release);
+        let _ = self.stdout_thread.join();
+        let _ = self.stderr_thread.join();
+    }
+}
+
+fn receive_wallpaper_cli_reader<T>(
+    receiver: &std::sync::mpsc::Receiver<io::Result<T>>,
+    deadline: Instant,
+    stream: &str,
+) -> Result<T, String> {
+    let remaining = deadline.saturating_duration_since(Instant::now());
+    match receiver.recv_timeout(remaining) {
+        Ok(result) => result.map_err(|error| format!("cli {stream} read: {error}")),
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            Err(format!("cli {stream} reader timeout"))
+        }
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+            Err(format!("cli {stream} reader panicked"))
+        }
+    }
+}
+
+fn drain_wallpaper_cli_stdout<R>(
+    stdout: &mut R,
+    stop: &AtomicBool,
+) -> io::Result<WallpaperCliStdout>
+where
+    R: Read + WallpaperCliPipe,
+{
+    let mut bytes = Vec::new();
+    let mut exceeded_limit = false;
+    drain_wallpaper_cli_pipe(stdout, stop, |chunk| {
+        if exceeded_limit {
+            return;
+        }
+        let remaining = (MAX_WALLPAPER_CLI_STDOUT_BYTES + 1).saturating_sub(bytes.len());
+        bytes.extend_from_slice(&chunk[..chunk.len().min(remaining)]);
+        if bytes.len() > MAX_WALLPAPER_CLI_STDOUT_BYTES {
+            bytes.truncate(MAX_WALLPAPER_CLI_STDOUT_BYTES);
+            exceeded_limit = true;
+        }
+    })?;
+    Ok(WallpaperCliStdout {
+        bytes,
+        exceeded_limit,
+    })
+}
+
+fn drain_wallpaper_cli_stderr<R>(stderr: &mut R, stop: &AtomicBool) -> io::Result<()>
+where
+    R: Read + WallpaperCliPipe,
+{
+    drain_wallpaper_cli_pipe(stderr, stop, |_| {})
+}
+
+fn drain_wallpaper_cli_pipe<R>(
+    pipe: &mut R,
+    stop: &AtomicBool,
+    mut consume: impl FnMut(&[u8]),
+) -> io::Result<()>
+where
+    R: Read + WallpaperCliPipe,
+{
+    pipe.prepare_nonblocking()?;
+    let mut buffer = [0_u8; 16 * 1024];
+    while !stop.load(Ordering::Acquire) {
+        match pipe.read_available(&mut buffer)? {
+            WallpaperCliPipeRead::Data(0) | WallpaperCliPipeRead::Eof => return Ok(()),
+            WallpaperCliPipeRead::Data(read) => consume(&buffer[..read]),
+            WallpaperCliPipeRead::Pending => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        }
+    }
+    Ok(())
+}
+
+enum WallpaperCliPipeRead {
+    Data(usize),
+    Pending,
+    Eof,
+}
+
+trait WallpaperCliPipe {
+    fn prepare_nonblocking(&self) -> io::Result<()>;
+    fn read_available(&mut self, buffer: &mut [u8]) -> io::Result<WallpaperCliPipeRead>;
+}
+
+#[cfg(unix)]
+impl<T> WallpaperCliPipe for T
+where
+    T: Read + std::os::fd::AsRawFd,
+{
+    fn prepare_nonblocking(&self) -> io::Result<()> {
+        let fd = std::os::fd::AsRawFd::as_raw_fd(self);
+        // SAFETY: `fd` belongs to this live pipe. `fcntl` only reads/updates its
+        // descriptor flags, and the reader thread owns the descriptor.
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+        if flags == -1 {
+            return Err(io::Error::last_os_error());
+        }
+        if unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } == -1 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    }
+
+    fn read_available(&mut self, buffer: &mut [u8]) -> io::Result<WallpaperCliPipeRead> {
+        match self.read(buffer) {
+            Ok(read) => Ok(WallpaperCliPipeRead::Data(read)),
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                Ok(WallpaperCliPipeRead::Pending)
+            }
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {
+                Ok(WallpaperCliPipeRead::Pending)
+            }
+            Err(error) => Err(error),
+        }
+    }
+}
+
+#[cfg(windows)]
+impl<T> WallpaperCliPipe for T
+where
+    T: Read + std::os::windows::io::AsRawHandle,
+{
+    fn prepare_nonblocking(&self) -> io::Result<()> {
+        Ok(())
+    }
+
+    fn read_available(&mut self, buffer: &mut [u8]) -> io::Result<WallpaperCliPipeRead> {
+        use windows::core::HRESULT;
+        use windows::Win32::Foundation::{
+            ERROR_BROKEN_PIPE, ERROR_NO_DATA, ERROR_PIPE_NOT_CONNECTED, HANDLE,
+        };
+        use windows::Win32::System::Pipes::PeekNamedPipe;
+
+        let mut available = 0_u32;
+        // SAFETY: the raw handle is borrowed from this live ChildStdout/
+        // ChildStderr. No buffer is passed; PeekNamedPipe only reports bytes.
+        let peek = unsafe {
+            PeekNamedPipe(
+                HANDLE(self.as_raw_handle()),
+                None,
+                0,
+                None,
+                Some(&mut available),
+                None,
+            )
+        };
+        if let Err(error) = peek {
+            let code = error.code();
+            if code == HRESULT::from_win32(ERROR_BROKEN_PIPE.0)
+                || code == HRESULT::from_win32(ERROR_NO_DATA.0)
+                || code == HRESULT::from_win32(ERROR_PIPE_NOT_CONNECTED.0)
+            {
+                return Ok(WallpaperCliPipeRead::Eof);
+            }
+            return Err(io::Error::other(format!("peek pipe: {error}")));
+        }
+        if available == 0 {
+            return Ok(WallpaperCliPipeRead::Pending);
+        }
+        let read_limit = buffer.len().min(available as usize);
+        self.read(&mut buffer[..read_limit])
+            .map(WallpaperCliPipeRead::Data)
+    }
+}
+
 pub(crate) fn run_grok_headless(
     cli_path: &str,
     prompt: &str,
@@ -614,6 +932,7 @@ pub(crate) fn run_grok_headless(
         cmd.current_dir(dir);
     }
     process_util::apply_no_window_std(&mut cmd);
+    configure_wallpaper_process_tree(&mut cmd);
     if let Some(path_env) = process_util::enriched_path_env() {
         cmd.env("PATH", path_env);
     }
@@ -622,36 +941,34 @@ pub(crate) fn run_grok_headless(
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     let started = Instant::now();
     let mut child = cmd.spawn().map_err(|e| format!("cli spawn: {e}"))?;
+    let output_readers = WallpaperCliOutputReaders::start(&mut child)?;
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                let mut stdout = String::new();
-                let mut stderr = String::new();
-                if let Some(mut pipe) = child.stdout.take() {
-                    let _ = pipe.read_to_string(&mut stdout);
-                }
-                if let Some(mut pipe) = child.stderr.take() {
-                    let _ = pipe.read_to_string(&mut stderr);
-                }
+                let stdout = output_readers.finish()?;
                 if !status.success() && stdout.trim().is_empty() {
-                    tracing::warn!("wallpaper source cli failed: {stderr}");
+                    tracing::warn!("wallpaper source cli failed");
                     return Err("search_failed".into());
                 }
                 if stdout.trim().is_empty() {
-                    tracing::warn!("wallpaper source empty stdout: {stderr}");
+                    tracing::warn!("wallpaper source empty stdout");
                     return Err("empty".into());
                 }
                 return Ok(stdout);
             }
             Ok(None) => {
                 if started.elapsed() > timeout {
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    terminate_wallpaper_process_tree(&mut child);
+                    output_readers.stop();
                     return Err("timeout".into());
                 }
                 std::thread::sleep(Duration::from_millis(50));
             }
-            Err(e) => return Err(format!("cli wait: {e}")),
+            Err(e) => {
+                terminate_wallpaper_process_tree(&mut child);
+                output_readers.stop();
+                return Err(format!("cli wait: {e}"));
+            }
         }
     }
 }
@@ -1458,6 +1775,138 @@ pub fn ensure_wallpaper_dirs() {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn wallpaper_cli_drains_large_stdout_and_stderr_before_exit() {
+        let test_dir = std::env::temp_dir().join(format!(
+            "grok-app-wallpaper-pipe-drain-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir(&test_dir).expect("create pipe-drain test directory");
+
+        #[cfg(windows)]
+        let fake_cli = test_dir.join("grok.cmd");
+        #[cfg(windows)]
+        std::fs::write(
+            &fake_cli,
+            "@echo off\r\npowershell -NoProfile -Command \"$s=[string]::new([char]'x',1048576);[Console]::Out.Write($s);$s=[string]::new([char]'y',1048576);[Console]::Error.Write($s)\"\r\n",
+        )
+        .expect("write fake Windows CLI");
+
+        #[cfg(unix)]
+        let fake_cli = test_dir.join("grok");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::write(
+                &fake_cli,
+                "#!/bin/sh\nhead -c 1048576 /dev/zero | tr '\\0' x\nhead -c 1048576 /dev/zero | tr '\\0' y >&2\n",
+            )
+            .expect("write fake Unix CLI");
+            let mut permissions = std::fs::metadata(&fake_cli)
+                .expect("stat fake CLI")
+                .permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(&fake_cli, permissions).expect("make fake CLI executable");
+        }
+
+        let stdout = run_grok_headless(
+            &fake_cli.to_string_lossy(),
+            "large output",
+            r#"{"type":"object"}"#,
+            1,
+            Duration::from_secs(15),
+            None,
+        )
+        .expect("large stdout/stderr must be drained without deadlock");
+        assert_eq!(stdout.len(), 1024 * 1024);
+        assert!(stdout.bytes().all(|byte| byte == b'x'));
+
+        let _ = std::fs::remove_file(fake_cli);
+        let _ = std::fs::remove_dir(test_dir);
+    }
+
+    #[test]
+    fn wallpaper_cli_rejects_oversized_stdout_after_draining_it() {
+        let test_dir = std::env::temp_dir().join(format!(
+            "grok-app-wallpaper-pipe-limit-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir(&test_dir).expect("create pipe-limit test directory");
+        let oversized = MAX_WALLPAPER_CLI_STDOUT_BYTES + 1;
+
+        #[cfg(windows)]
+        let fake_cli = test_dir.join("grok.cmd");
+        #[cfg(windows)]
+        std::fs::write(
+            &fake_cli,
+            format!(
+                "@echo off\r\npowershell -NoProfile -Command \"$s=[string]::new([char]'x',{oversized});[Console]::Out.Write($s);$s=[string]::new([char]'y',1048576);[Console]::Error.Write($s)\"\r\n"
+            ),
+        )
+        .expect("write oversized fake Windows CLI");
+
+        #[cfg(unix)]
+        let fake_cli = test_dir.join("grok");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::write(
+                &fake_cli,
+                format!(
+                    "#!/bin/sh\nhead -c {oversized} /dev/zero | tr '\\0' x\nhead -c 1048576 /dev/zero | tr '\\0' y >&2\n"
+                ),
+            )
+            .expect("write oversized fake Unix CLI");
+            let mut permissions = std::fs::metadata(&fake_cli)
+                .expect("stat fake CLI")
+                .permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(&fake_cli, permissions).expect("make fake CLI executable");
+        }
+
+        let error = run_grok_headless(
+            &fake_cli.to_string_lossy(),
+            "oversized output",
+            r#"{"type":"object"}"#,
+            1,
+            Duration::from_secs(15),
+            None,
+        )
+        .expect_err("oversized stdout must fail after being drained");
+        assert_eq!(error, "search_failed");
+
+        let _ = std::fs::remove_file(fake_cli);
+        let _ = std::fs::remove_dir(test_dir);
+    }
+
+    #[test]
+    fn wallpaper_cli_output_readers_stop_while_child_keeps_pipes_open() {
+        #[cfg(windows)]
+        let mut command = {
+            let mut command = Command::new("powershell");
+            command.args(["-NoProfile", "-Command", "Start-Sleep -Seconds 30"]);
+            command
+        };
+        #[cfg(unix)]
+        let mut command = {
+            let mut command = Command::new("sh");
+            command.args(["-c", "sleep 30"]);
+            command
+        };
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        process_util::apply_no_window_std(&mut command);
+        let mut child = command.spawn().expect("spawn pipe holder");
+        let readers = WallpaperCliOutputReaders::start(&mut child).expect("start pipe drains");
+        std::thread::sleep(Duration::from_millis(25));
+        let started = Instant::now();
+
+        readers.stop();
+        let elapsed = started.elapsed();
+        terminate_wallpaper_process_tree(&mut child);
+
+        assert!(elapsed < Duration::from_secs(1), "stop took {elapsed:?}");
+    }
+
     use super::*;
 
     #[test]
