@@ -1,5 +1,9 @@
 /** fr messages — domain: settings-ui */
 export const frSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "Annuler la recherche",
+  "settings.wallpaperSource.progress.preparing": "Préparation de la recherche…",
+  "settings.wallpaperSource.progress.validating": "Vérification de la qualité des images…",
+  "settings.wallpaperSource.progress.supplementing": "Recherche d’autres images utilisables…",
   "settings.nav.general": "Général",
   "settings.nav.appearance": "Apparence",
   "settings.nav.account": "Compte",

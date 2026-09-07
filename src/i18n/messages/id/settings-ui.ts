@@ -1,5 +1,9 @@
 /** id messages — domain: settings-ui */
 export const idSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "Batalkan pencarian",
+  "settings.wallpaperSource.progress.preparing": "Menyiapkan pencarian…",
+  "settings.wallpaperSource.progress.validating": "Memeriksa kualitas gambar…",
+  "settings.wallpaperSource.progress.supplementing": "Mencari lagi gambar yang dapat digunakan…",
   "settings.nav.general": "Umum",
   "settings.nav.appearance": "Tampilan",
   "settings.nav.account": "Akun",

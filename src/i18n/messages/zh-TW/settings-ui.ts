@@ -1,5 +1,9 @@
 /** Traditional Chinese messages — domain: settings-ui */
 export const zhTWSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "取消搜尋",
+  "settings.wallpaperSource.progress.preparing": "正在準備搜尋…",
+  "settings.wallpaperSource.progress.validating": "正在檢查圖片品質…",
+  "settings.wallpaperSource.progress.supplementing": "可用圖片較少，正在補充搜尋…",
   "settings.nav.general": "一般",
   "settings.nav.appearance": "外觀",
   "settings.nav.account": "帳戶",

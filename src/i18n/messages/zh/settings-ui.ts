@@ -1,5 +1,9 @@
 /** Simplified Chinese messages — domain: settings-ui */
 export const zhSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "取消搜索",
+  "settings.wallpaperSource.progress.preparing": "正在准备搜索…",
+  "settings.wallpaperSource.progress.validating": "正在检查图片质量…",
+  "settings.wallpaperSource.progress.supplementing": "有效图片较少，正在补充搜索…",
   "settings.nav.general": "常规",
   "settings.nav.appearance": "外观",
   "settings.nav.account": "账户",

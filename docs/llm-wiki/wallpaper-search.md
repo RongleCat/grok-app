@@ -4,6 +4,30 @@ The existing Appearance wallpaper search uses Grok Build CLI. The Host parses
 model candidates, validates image responses, merges duplicates, and ranks the
 remaining items before returning the existing gallery IPC shape.
 
+## Request lifecycle
+
+`wallpaper_x_search` accepts an optional UUID requestId (older callers may omit
+it). `wallpaper_x_search_cancel` cancels only that request. A bounded 30-second
+pre-cancel record handles cancellation arriving before registration; duplicate
+active identifiers are rejected and request guards clean up on completion/drop.
+
+The Host emits `wallpaper://x-search-progress` with requestId and stage:
+preparing, searching_x, validating, supplementing, done. Progress is advisory;
+the invoke result remains authoritative. Cancellation interrupts CLI execution
+and image validation; the existing output-drain/process-tree cleanup is retained.
+
+The picker offers Cancel search, cancels on close/tab change/unmount, and ignores
+late results/errors/progress. Replacement searches invalidate the previous
+generation synchronously without waiting for a cancellation acknowledgement.
+There is no result cache or alternate route in this slice; account-sensitive
+caching belongs to the later routing implementation.
+
+Hook and picker tests cover replacement, late responses, progress ownership and
+close/tab cancellation. Host tests cover UUIDs, pre-cancel expiry/capacity,
+registry cleanup, waiter wakeup, and cancellation of a synthetic CLI process.
+
+## Image quality
+
 - The first CLI round requests two X search tool calls. When fewer than six
   validated images remain, one supplementary round requests one further call
   and includes already-seen references. These are prompt budgets, not a promise

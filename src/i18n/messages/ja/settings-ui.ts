@@ -1,5 +1,9 @@
 /** ja messages — domain: settings-ui */
 export const jaSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "検索をキャンセル",
+  "settings.wallpaperSource.progress.preparing": "検索を準備中…",
+  "settings.wallpaperSource.progress.validating": "画像品質を確認中…",
+  "settings.wallpaperSource.progress.supplementing": "利用可能な画像を追加検索中…",
   "settings.nav.general": "一般",
   "settings.nav.appearance": "外観",
   "settings.nav.account": "アカウント",

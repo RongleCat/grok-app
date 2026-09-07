@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { WallpaperSourceGallery } from "./WallpaperSourceGallery";
 import { WallpaperSourceFooter } from "./WallpaperSourceFooter";
+import { useWallpaperXSearch } from "@/hooks/useWallpaperXSearch";
 import { GlassModal } from "@/components/GlassModal";
 import { WallpaperSourceControls } from "./WallpaperSourceControls";
 import { useImageViewerOptional } from "@/components/ImageViewerContext";
@@ -114,7 +115,21 @@ export function WallpaperSourceModal({
   /** True after at least one search/generate finished this open. */
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [operationBusy, setBusy] = useState(false);
+  const {
+    busy: xBusy,
+    stage: xStage,
+    search: searchX,
+    cancel: cancelX,
+  } = useWallpaperXSearch();
+  const busy = operationBusy || xBusy;
+  const close = useCallback(() => {
+    void cancelX();
+    onClose();
+  }, [cancelX, onClose]);
+  useEffect(() => {
+    if (!open || tab !== "x") void cancelX();
+  }, [open, tab, cancelX]);
   const [applying, setApplying] = useState(false);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -228,16 +243,16 @@ export function WallpaperSourceModal({
       setCiteSummary(null);
       return;
     }
-    setBusy(true);
     setError(null);
     setErrorCode(null);
     setCiteSummary(null);
-    setStatusHint(t("settings.wallpaperSource.searching"));
+    setStatusHint(null);
     setSelectedId(null);
     setGalleryFilter("");
     setKindFilter("all");
     try {
-      const res = await api.wallpaperXSearch(q, sort);
+      const res = await searchX(q, sort);
+      if (!res) return;
       const list = dedupeGalleryItems(res.items || []);
       const code = errorCodeFromSearchResult({ ...res, items: list });
       setHasSearched(true);
@@ -283,11 +298,8 @@ export function WallpaperSourceModal({
       const code = parseWallpaperSourceError(e);
       setErrorCode(code);
       setError(errorMessage(t, code));
-    } finally {
-      setBusy(false);
-      setStatusHint(null);
     }
-  }, [query, sort, t]);
+  }, [query, sort, t, searchX]);
 
   const runImagine = useCallback(async () => {
     const p = prompt.trim();
@@ -570,7 +582,7 @@ export function WallpaperSourceModal({
     <>
     <GlassModal
       open={open}
-      onClose={onClose}
+      onClose={close}
       title={t("settings.wallpaperSource.title")}
       size="lg"
       className="wallpaper-source-modal"
@@ -583,7 +595,7 @@ export function WallpaperSourceModal({
           selected={selected !== null}
           locked={locked}
           applying={applying}
-          onClose={onClose}
+          onClose={close}
           applySelected={applySelected}
         />
       }
@@ -605,7 +617,7 @@ export function WallpaperSourceModal({
             setError(null);
             setErrorCode(null);
           }}
-          disabled={locked}
+          disabled={operationBusy || applying || previewingId !== null}
         >
           {t("settings.wallpaperFromX")}
         </button>
@@ -625,7 +637,7 @@ export function WallpaperSourceModal({
             setError(null);
             setErrorCode(null);
           }}
-          disabled={locked}
+          disabled={operationBusy || applying || previewingId !== null}
         >
           {t("settings.wallpaperImagine")}
         </button>
@@ -642,7 +654,7 @@ export function WallpaperSourceModal({
             setError(null);
             setErrorCode(null);
           }}
-          disabled={locked}
+          disabled={operationBusy || applying || previewingId !== null}
         >
           {t("settings.wallpaperLibrary")}
         </button>
@@ -656,16 +668,31 @@ export function WallpaperSourceModal({
         prompt={prompt}
         aspect={aspect}
         busy={busy}
+        xBusy={xBusy}
         locked={locked}
         setQuery={setQuery}
         setSort={setSort}
         setPrompt={setPrompt}
         setAspect={setAspect}
         runXSearch={runXSearch}
+        cancelXSearch={cancelX}
         runImagine={runImagine}
         loadLibrary={loadLibrary}
       />
 
+      {xBusy && xStage ? (
+        <p className="wallpaper-source-status" role="status">
+          {t(
+            xStage === "validating"
+              ? "settings.wallpaperSource.progress.validating"
+              : xStage === "supplementing"
+                ? "settings.wallpaperSource.progress.supplementing"
+                : xStage === "preparing"
+                  ? "settings.wallpaperSource.progress.preparing"
+                  : "settings.wallpaperSource.searching",
+          )}
+        </p>
+      ) : null}
       {statusHint ? (
         <p className="wallpaper-source-status" role="status">
           {statusHint}

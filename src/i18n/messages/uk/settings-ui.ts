@@ -1,5 +1,9 @@
 /** uk messages — domain: settings-ui */
 export const ukSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "Скасувати пошук",
+  "settings.wallpaperSource.progress.preparing": "Підготовка пошуку…",
+  "settings.wallpaperSource.progress.validating": "Перевірка якості зображень…",
+  "settings.wallpaperSource.progress.supplementing": "Пошук додаткових придатних зображень…",
   "settings.nav.general": "Загальні",
   "settings.nav.appearance": "Оформлення",
   "settings.nav.account": "Обліковий запис",

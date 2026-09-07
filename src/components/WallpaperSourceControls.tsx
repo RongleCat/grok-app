@@ -10,19 +10,23 @@ type Props = {
   prompt: string;
   aspect: string;
   busy: boolean;
+  /** True only while an X search request is in flight (enables Cancel). */
+  xBusy?: boolean;
   locked: boolean;
   setQuery: (value: string) => void;
   setSort: (value: "top" | "latest") => void;
   setPrompt: (value: string) => void;
   setAspect: (value: string) => void;
   runXSearch: () => Promise<void>;
+  cancelXSearch?: () => Promise<boolean>;
   runImagine: () => Promise<void>;
   loadLibrary: () => Promise<void>;
 };
 
 export function WallpaperSourceControls({
-  t, tab, query, sort, prompt, aspect, busy, locked,
-  setQuery, setSort, setPrompt, setAspect, runXSearch, runImagine, loadLibrary,
+  t, tab, query, sort, prompt, aspect, busy, xBusy = false, locked,
+  setQuery, setSort, setPrompt, setAspect, runXSearch, cancelXSearch,
+  runImagine, loadLibrary,
 }: Props) {
   const sortOptions = useMemo(
     () => [
@@ -77,12 +81,17 @@ export function WallpaperSourceControls({
             <button
               type="button"
               className="btn btn--solid"
-              disabled={locked || !query.trim()}
-              onClick={() => void runXSearch()}
+              disabled={!xBusy && (locked || !query.trim())}
+              onClick={() => {
+                if (xBusy) void cancelXSearch?.();
+                else void runXSearch();
+              }}
             >
-              {busy
-                ? t("settings.wallpaperSource.searching")
-                : t("settings.wallpaperSource.search")}
+              {xBusy
+                ? t("settings.wallpaperSource.cancelSearch")
+                : busy
+                  ? t("settings.wallpaperSource.searching")
+                  : t("settings.wallpaperSource.search")}
             </button>
           </div>
         </div>

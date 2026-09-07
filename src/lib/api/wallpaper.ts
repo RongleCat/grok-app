@@ -2,6 +2,7 @@
 
 import {
   invoke,
+  listen,
 } from "./host";
 
 import type {
@@ -21,11 +22,25 @@ export type {
 export async function wallpaperXSearch(
   query: string,
   sort?: "top" | "latest",
+  requestId?: string,
 ): Promise<WallpaperSearchResult> {
   return invoke<WallpaperSearchResult>("wallpaper_x_search", {
     query,
     sort: sort ?? null,
+    requestId: requestId ?? null,
   });
+}
+
+export async function wallpaperXSearchCancel(requestId: string): Promise<boolean> {
+  return invoke<boolean>("wallpaper_x_search_cancel", { requestId });
+}
+
+export async function listenWallpaperXSearchProgress(
+  handler: (progress: import("../wallpaperXSearch").WallpaperXSearchProgress) => void,
+): Promise<() => void> {
+  return listen<import("../wallpaperXSearch").WallpaperXSearchProgress>(
+    "wallpaper://x-search-progress", handler,
+  );
 }
 
 export async function wallpaperFetchMedia(

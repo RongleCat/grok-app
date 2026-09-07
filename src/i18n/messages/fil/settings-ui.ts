@@ -1,5 +1,9 @@
 /** fil messages — domain: settings-ui */
 export const filSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "Kanselahin ang paghahanap",
+  "settings.wallpaperSource.progress.preparing": "Inihahanda ang paghahanap…",
+  "settings.wallpaperSource.progress.validating": "Sinusuri ang kalidad ng larawan…",
+  "settings.wallpaperSource.progress.supplementing": "Naghahanap pa ng magagamit na mga larawan…",
   "settings.nav.general": "Pangkalahatan",
   "settings.nav.appearance": "Hitsura",
   "settings.nav.account": "Account",

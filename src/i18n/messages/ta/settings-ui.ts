@@ -1,5 +1,9 @@
 /** ta messages — domain: settings-ui */
 export const taSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "தேடலை ரத்துசெய்",
+  "settings.wallpaperSource.progress.preparing": "தேடல் தயாராகிறது…",
+  "settings.wallpaperSource.progress.validating": "படத் தரம் சரிபார்க்கப்படுகிறது…",
+  "settings.wallpaperSource.progress.supplementing": "மேலும் பயன்படுத்தக்கூடிய படங்கள் தேடப்படுகின்றன…",
   "settings.nav.general": "பொது",
   "settings.nav.appearance": "தோற்றம்",
   "settings.nav.account": "கணக்கு",

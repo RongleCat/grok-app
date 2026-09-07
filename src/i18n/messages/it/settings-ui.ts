@@ -1,5 +1,9 @@
 /** it messages — domain: settings-ui */
 export const itSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "Annulla ricerca",
+  "settings.wallpaperSource.progress.preparing": "Preparazione della ricerca…",
+  "settings.wallpaperSource.progress.validating": "Verifica della qualità delle immagini…",
+  "settings.wallpaperSource.progress.supplementing": "Ricerca di altre immagini utilizzabili…",
   "settings.nav.general": "Generali",
   "settings.nav.appearance": "Aspetto",
   "settings.nav.account": "Account",

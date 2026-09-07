@@ -1110,11 +1110,20 @@ pub async fn marketplace_plugin_meta_index() -> Result<serde_json::Value, String
 
 #[tauri::command]
 pub async fn wallpaper_x_search(
+    app: tauri::AppHandle,
     query: String,
     sort: Option<String>,
+    request_id: Option<String>,
 ) -> Result<crate::wallpaper_source::WallpaperSearchResult, String> {
     crate::wallpaper_source::ensure_wallpaper_dirs();
-    Ok(crate::wallpaper_source::x_search_async(&query, sort.as_deref()).await)
+    let request_id = crate::wallpaper_x_search::request_id(request_id.as_deref())?;
+    crate::wallpaper_x_search::search(&app, &request_id, &query, sort.as_deref()).await
+}
+
+#[tauri::command]
+pub fn wallpaper_x_search_cancel(request_id: String) -> Result<bool, String> {
+    let request_id = crate::wallpaper_x_search::request_id(Some(&request_id))?;
+    Ok(crate::wallpaper_x_search::cancel(&request_id))
 }
 
 #[tauri::command]

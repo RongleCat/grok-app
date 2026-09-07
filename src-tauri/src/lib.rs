@@ -225,6 +225,7 @@ mod voice_stt;
 mod voice_tools;
 
 mod wallpaper_source;
+mod wallpaper_x_search;
 
 mod window_min;
 
@@ -1698,6 +1699,7 @@ pub fn run() {
             remote_im::remote_im_doctor,
 
             commands::wallpaper_x_search,
+            commands::wallpaper_x_search_cancel,
 
             commands::wallpaper_fetch_media,
 

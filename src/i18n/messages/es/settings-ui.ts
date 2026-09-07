@@ -1,5 +1,9 @@
 /** es messages — domain: settings-ui */
 export const esSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "Cancelar búsqueda",
+  "settings.wallpaperSource.progress.preparing": "Preparando la búsqueda…",
+  "settings.wallpaperSource.progress.validating": "Comprobando la calidad de las imágenes…",
+  "settings.wallpaperSource.progress.supplementing": "Buscando más imágenes utilizables…",
   "settings.nav.general": "General",
   "settings.nav.appearance": "Apariencia",
   "settings.nav.account": "Cuenta",

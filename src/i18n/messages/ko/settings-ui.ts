@@ -1,5 +1,9 @@
 /** ko messages — domain: settings-ui */
 export const koSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "검색 취소",
+  "settings.wallpaperSource.progress.preparing": "검색 준비 중…",
+  "settings.wallpaperSource.progress.validating": "이미지 품질 확인 중…",
+  "settings.wallpaperSource.progress.supplementing": "사용 가능한 이미지를 추가로 검색 중…",
   "settings.nav.general": "일반",
   "settings.nav.appearance": "모양",
   "settings.nav.account": "계정",

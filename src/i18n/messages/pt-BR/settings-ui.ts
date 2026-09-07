@@ -1,5 +1,9 @@
 /** pt-BR messages — domain: settings-ui */
 export const ptBRSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "Cancelar busca",
+  "settings.wallpaperSource.progress.preparing": "Preparando a busca…",
+  "settings.wallpaperSource.progress.validating": "Verificando a qualidade das imagens…",
+  "settings.wallpaperSource.progress.supplementing": "Buscando mais imagens utilizáveis…",
   "settings.nav.general": "Geral",
   "settings.nav.appearance": "Aparência",
   "settings.nav.account": "Conta",

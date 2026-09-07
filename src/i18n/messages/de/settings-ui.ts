@@ -1,5 +1,9 @@
 /** de messages — domain: settings-ui */
 export const deSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "Suche abbrechen",
+  "settings.wallpaperSource.progress.preparing": "Suche wird vorbereitet…",
+  "settings.wallpaperSource.progress.validating": "Bildqualität wird geprüft…",
+  "settings.wallpaperSource.progress.supplementing": "Weitere geeignete Bilder werden gesucht…",
   "settings.nav.general": "Allgemein",
   "settings.nav.appearance": "Erscheinungsbild",
   "settings.nav.account": "Konto",

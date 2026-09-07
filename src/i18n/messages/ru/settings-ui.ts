@@ -1,5 +1,9 @@
 /** ru messages — domain: settings-ui */
 export const ruSettingsUi = {
+  "settings.wallpaperSource.cancelSearch": "Отменить поиск",
+  "settings.wallpaperSource.progress.preparing": "Подготовка поиска…",
+  "settings.wallpaperSource.progress.validating": "Проверка качества изображений…",
+  "settings.wallpaperSource.progress.supplementing": "Поиск дополнительных подходящих изображений…",
   "settings.nav.general": "Основные",
   "settings.nav.appearance": "Оформление",
   "settings.nav.account": "Аккаунт",
