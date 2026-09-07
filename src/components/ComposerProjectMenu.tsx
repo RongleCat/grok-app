@@ -9,6 +9,7 @@ import {
   IconCheck,
   IconChevronDown,
   IconFolder,
+  IconHome,
   IconPlus,
 } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
@@ -116,7 +117,7 @@ export function ComposerProjectMenu({
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
-          <IconFolder size={14} />
+          {activeProject ? <IconFolder size={14} /> : <IconHome size={14} />}
           <span className={isContext ? "composer__context-label" : "chip__label"}>
             {label}
           </span>
@@ -146,7 +147,7 @@ export function ComposerProjectMenu({
                   setOpen(false);
                 }}
               >
-                <IconFolder size={14} aria-hidden />
+                <IconHome size={14} aria-hidden />
                 <span>{labels.noProject}</span>
               </button>
               <button

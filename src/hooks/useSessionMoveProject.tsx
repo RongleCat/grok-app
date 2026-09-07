@@ -8,7 +8,7 @@ import {
   type SetStateAction,
 } from "react";
 import type { ContextMenuItem } from "@/components/ContextMenu";
-import { IconFolder } from "@/components/icons";
+import { IconFolder, IconHome } from "@/components/icons";
 import type { AppDialog } from "@/lib/app/appDialogTypes";
 import {
   isGeneralProject,
@@ -236,6 +236,7 @@ export function useSessionMoveProject(opts: {
           children: targets.map((t) => ({
             id: t.id ? `move-${t.id}` : "move-orphan",
             label: t.id ? t.label : tr("sidebar.otherSessions"),
+            icon: t.id ? <IconFolder size={16} /> : <IconHome size={16} />,
             disabled: t.disabled || busyIds.has(row.id),
             onClick: () => requestMove([row], t.id),
           })),
@@ -277,6 +278,7 @@ export function useSessionMoveProject(opts: {
       return list.map((t) => ({
         id: t.id ? `bulk-move-${t.id}` : "bulk-move-orphan",
         label: t.label,
+        icon: t.id ? <IconFolder size={16} /> : <IconHome size={16} />,
         disabled: t.disabled,
         onClick: () => requestMove(rows, t.id),
       }));

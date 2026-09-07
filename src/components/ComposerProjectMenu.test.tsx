@@ -22,5 +22,6 @@ describe("ComposerProjectMenu", () => {
     expect(html).toContain("Default workspace");
     expect(html).toContain("composer__context-item--project");
     expect(html).toContain("is-muted");
+    expect(html).toContain("g-icon--home");
   });
 });

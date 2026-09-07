@@ -95,6 +95,16 @@
   justify-content: center;
 }
 
+.tree-l1__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  margin-right: 4px;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
 .tree-l1__label {
   flex: 1;
 }
