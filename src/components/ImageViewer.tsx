@@ -9,11 +9,9 @@
  */
 
 import {
-  createContext,
   lazy,
   Suspense,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -29,48 +27,12 @@ import {
   loadImageNaturalSize,
 } from "@/lib/imageLightboxFit";
 import { createT, type Locale } from "@/i18n";
+import { ImageViewerContext, type ImageSlideInput, type ImageViewerApi } from "./ImageViewerContext";
 
 const ImageLightbox = lazy(async () => {
   const m = await import("./ImageLightbox");
   return { default: m.ImageLightbox };
 });
-
-export interface ImageSlideInput {
-  /** Local absolute path or already-viewable URL. */
-  src: string;
-  alt?: string;
-  title?: string;
-}
-
-export interface ImageViewerApi {
-  /** Open lightbox with slides (paths or URLs). Resolves local paths async. */
-  open: (slides: ImageSlideInput[] | string[], index?: number) => void;
-  close: () => void;
-  /** Copy image at path/URL to clipboard. Returns true on success. */
-  copyImage: (pathOrUrl: string) => Promise<boolean>;
-}
-
-const ImageViewerContext = createContext<ImageViewerApi | null>(null);
-
-export function useImageViewer(): ImageViewerApi {
-  const ctx = useContext(ImageViewerContext);
-  if (!ctx) {
-    throw new Error("useImageViewer must be used within ImageViewerProvider");
-  }
-  return ctx;
-}
-
-/** Safe hook when provider may be absent (returns no-ops). */
-export function useImageViewerOptional(): ImageViewerApi {
-  const ctx = useContext(ImageViewerContext);
-  return (
-    ctx ?? {
-      open: () => {},
-      close: () => {},
-      copyImage: async () => false,
-    }
-  );
-}
 
 interface ResolvedSlide {
   src: string;

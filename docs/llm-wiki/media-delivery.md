@@ -39,6 +39,14 @@ Chat **card** layout does **not** re-stream full multi-MB originals on every vir
 Very small locals (≤96 KiB) may skip re-encode and serve the original path.  
 Video covers remain separate (`video-posters` + ffmpeg).
 
+## Image viewer lifecycle
+
+Keep the shared viewer context and hooks in `ImageViewerContext.ts`, outside
+the provider's Fast Refresh boundary. Opening, closing, or unmounting the
+provider invalidates earlier asynchronous preparation; an older gallery must
+not reopen after close or replace a newer gallery. After first use, keep the
+lightbox mounted with `open=false` so its exit cleanup can complete.
+
 ## Fallback
 
 `media://` custom protocol remains registered for cold-start races only. Steady-state UI should use HTTP URLs.

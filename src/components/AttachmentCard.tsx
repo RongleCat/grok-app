@@ -22,7 +22,7 @@ import {
   resolveChatImageThumb,
 } from "@/lib/imageThumbClient";
 import { copyImageFromPath } from "@/lib/copyImage";
-import { useImageViewerOptional } from "@/components/ImageViewer";
+import { useImageViewerOptional } from "@/components/ImageViewerContext";
 import {
   IconClose,
   IconCopy,

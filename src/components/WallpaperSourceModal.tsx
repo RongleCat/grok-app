@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GlassModal } from "@/components/GlassModal";
 import { Select } from "@/components/Select";
-import { useImageViewerOptional } from "@/components/ImageViewer";
+import { useImageViewerOptional } from "@/components/ImageViewerContext";
 import * as api from "@/lib/api";
 import { isDesktopHost } from "@/lib/api";
 import {

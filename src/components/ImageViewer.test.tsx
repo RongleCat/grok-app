@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ImageViewerProvider, useImageViewer, type ImageViewerApi } from "./ImageViewer";
+import { ImageViewerProvider } from "./ImageViewer";
+import { useImageViewer, type ImageViewerApi } from "./ImageViewerContext";
 
 const resolveImages = vi.hoisted(() => vi.fn(async (paths: string[]) =>
   paths.map((path) => ({ path, src: path })),
