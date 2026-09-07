@@ -109,8 +109,12 @@ it("keeps provider pictures selectable during more and preserves the downloaded 
   expect(screen.queryByRole("button", { name: "settings.wallpaperSource.loadMore" })).toBeNull();
 });
 it("preserves provider results after paging failure and allows a fresh retry", async () => {
-  mocks.more.mockResolvedValueOnce({ ...result([]), errorCode: "provider_network" }).mockResolvedValueOnce(result(["second"], false));
+  mocks.more
+    .mockResolvedValueOnce({ ...result([]), errorCode: "provider_network" })
+    .mockResolvedValueOnce({ ...result([]), errorCode: "provider_network" })
+    .mockResolvedValueOnce(result(["second"], false));
   await initial();
+  await waitFor(() => expect(mocks.more).toHaveBeenCalledTimes(1));
   fireEvent.click(screen.getByRole("button", { name: "settings.wallpaperSource.loadMore" }));
   await screen.findByText("settings.wallpaperSource.err.search_failed");
   expect(cards()).toHaveLength(1);

@@ -154,8 +154,17 @@ cursors, buffered results and source Referer origins; credentials/cursors are
 not returned to the renderer. Media request cancellation supports bounded
 pre-cancellation before registration.
 
-This batch supplies explicit pagination only. Automatic one-page-ahead loading,
-provider UI, Web search, catalog metadata and generation integrations are
+The UI follow-up keeps exactly one provider page ahead after every successful
+page while leaving it hidden until the user chooses “load more”. A click waits
+for an in-flight prefetch or consumes a completed one without another Host
+request, then starts at most one replacement prefetch when more pages remain.
+Hidden progress and failures are not surfaced as foreground state. A failed
+prefetch is discarded, so an explicit click makes one fresh foreground request;
+that request is never auto-retried and its failure preserves existing cards and
+the continuation. Query/source changes, close and cancellation invalidate late
+prefetch results and cancel the active Host request.
+
+Web search, Grok Saved, catalog metadata and generation integrations are
 separate changes. Tests use synthetic provider responses and media fixtures;
 passing tests do not claim live provider availability or account validation.
 
@@ -178,5 +187,6 @@ author and licence links separate from the image-preview action. A thumbnail
 failure leaves the result card available so selecting it can still fetch the
 validated original. Initial searches replace the old gallery; explicit “load
 more” appends deduplicated results while leaving current cards selectable.
-Paging failures preserve the gallery and continuation for retry. This UI slice
-does not automatically prefetch the next provider page.
+Paging failures preserve the gallery and continuation for retry. The separate
+prefetch follow-up described above adds one-page-ahead loading without changing
+this page's visible controls.
