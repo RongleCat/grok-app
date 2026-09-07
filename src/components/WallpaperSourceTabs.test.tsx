@@ -22,7 +22,7 @@ function Harness() {
 }
 
 describe("WallpaperSourceTabs", () => {
-  it("groups only the sources delivered by this slice", () => {
+  it("groups all delivered discovery sources", () => {
     render(<Harness />);
 
     const tablist = screen.getByRole("tablist", {
@@ -43,13 +43,16 @@ describe("WallpaperSourceTabs", () => {
     ).toEqual([
       [
         "settings.wallpaperFromX",
+        "settings.wallpaperWeb",
         "settings.wallpaperOpenverse",
         "settings.wallpaperPexels",
       ],
       ["settings.wallpaperImagine"],
       ["settings.wallpaperLibrary"],
     ]);
-    expect(screen.queryByRole("tab", { name: /web/i })).toBeNull();
+    expect(
+      screen.getByRole("tab", { name: "settings.wallpaperWeb" }),
+    ).toBeTruthy();
     expect(screen.queryByRole("tab", { name: /album/i })).toBeNull();
   });
 
@@ -80,12 +83,12 @@ describe("WallpaperSourceTabs", () => {
     );
     expect(
       screen
-        .getByRole("tab", { name: "settings.wallpaperOpenverse" })
+        .getByRole("tab", { name: "settings.wallpaperWeb" })
         .getAttribute("aria-selected"),
     ).toBe("true");
 
     fireEvent.keyDown(
-      screen.getByRole("tab", { name: "settings.wallpaperOpenverse" }),
+      screen.getByRole("tab", { name: "settings.wallpaperWeb" }),
       { key: "End" },
     );
     expect(

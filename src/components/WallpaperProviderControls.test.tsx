@@ -53,6 +53,35 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("WallpaperProviderControls", () => {
+  it("searches Web without reading Pexels credentials", async () => {
+    const search = vi.fn(async () => undefined);
+    render(
+      <WallpaperProviderControls
+        source="web"
+        query="misty forest"
+        busy={false}
+        locked={false}
+        invalidKey={false}
+        t={t as never}
+        setQuery={vi.fn()}
+        search={search}
+        cancel={vi.fn(async () => true)}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(api.secretsGetMasked).not.toHaveBeenCalled();
+    expect(
+      screen.getByPlaceholderText("settings.wallpaperSource.web.placeholder"),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "settings.wallpaperSource.search",
+      }),
+    );
+    await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
+  });
+
   it("keeps Pexels search disabled when credential status cannot be read", async () => {
     api.secretsGetMasked.mockRejectedValue(new Error("unavailable"));
     renderControls();

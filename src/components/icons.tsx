@@ -27,6 +27,7 @@ import {
   IconBox as TbBox,
   IconBoxMultiple as TbBoxMultiple,
   IconBrush as TbBrush,
+  IconCamera as TbCamera,
   IconCalendarTime as TbCalendarTime,
   IconCheck as TbCheck,
   IconClearAll as TbClearAll,
@@ -116,6 +117,7 @@ import {
   IconUpload as TbUpload,
   IconUser as TbUser,
   IconPhoto as TbPhoto,
+  IconPhotoSearch as TbPhotoSearch,
   IconMovie as TbMovie,
   IconWand as TbWand,
   IconWorld as TbWorld,
@@ -394,6 +396,8 @@ export const IconDeviceMobile = wrap(TbDeviceMobile);
 export const IconExportMd = wrap(TbMarkdown);
 /** Conversation share-card / export as image. */
 export const IconExportImage = wrap(TbPhoto);
+export const IconCamera = wrap(TbCamera);
+export const IconPhotoSearch = wrap(TbPhotoSearch);
 export const IconArchive = wrap(TbArchive);
 export const IconChat = wrap(TbMessage);
 export const IconFileText = wrap(TbFileText);

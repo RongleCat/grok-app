@@ -57,7 +57,13 @@ import { WallpaperPrepareError } from "@/lib/themeSkin";
 import { wallpaperRemoteProgressMessageKey } from "@/lib/wallpaperRemoteSearch";
 import type { MessageKey } from "@/i18n";
 
-export type WallpaperSourceTab = "x" | "imagine" | "library" | "openverse" | "pexels";
+export type WallpaperSourceTab =
+  | "x"
+  | "web"
+  | "imagine"
+  | "library"
+  | "openverse"
+  | "pexels";
 
 export type WallpaperSourceModalProps = {
   open: boolean;
@@ -93,7 +99,11 @@ async function ensureLocalMedia(
   if (src.kind === "path") {
     return { path: src.path };
   }
-  if (item.source === "openverse" || item.source === "pexels") {
+  if (
+    item.source === "web" ||
+    item.source === "openverse" ||
+    item.source === "pexels"
+  ) {
     const fetched = await api.wallpaperRemoteFetchMedia(
       item.source,
       src.url,
@@ -157,7 +167,7 @@ export function WallpaperSourceModal({
   const [citeSummary, setCiteSummary] = useState<string | null>(null);
 
   const providerSource =
-    tab === "openverse" || tab === "pexels" ? tab : null;
+    tab === "web" || tab === "openverse" || tab === "pexels" ? tab : null;
   const provider = useWallpaperProviderController({
     enabled: open && providerSource !== null,
     source: providerSource,

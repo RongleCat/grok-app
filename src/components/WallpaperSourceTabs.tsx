@@ -5,9 +5,10 @@ import {
   type ReactNode,
 } from "react";
 import {
-  IconExportImage,
+  IconCamera,
   IconFolder,
   IconImagine,
+  IconPhotoSearch,
   IconSearch,
   IconWorld,
 } from "@/components/icons";
@@ -35,14 +36,19 @@ const SOURCE_TAB_GROUPS: ReadonlyArray<SourceTabGroup> = [
         icon: <IconSearch size={15} />,
       },
       {
+        id: "web",
+        labelKey: "settings.wallpaperWeb",
+        icon: <IconWorld size={15} />,
+      },
+      {
         id: "openverse",
         labelKey: "settings.wallpaperOpenverse",
-        icon: <IconWorld size={15} />,
+        icon: <IconPhotoSearch size={15} />,
       },
       {
         id: "pexels",
         labelKey: "settings.wallpaperPexels",
-        icon: <IconExportImage size={15} />,
+        icon: <IconCamera size={15} />,
       },
     ],
   },

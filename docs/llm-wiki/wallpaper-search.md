@@ -164,9 +164,9 @@ that request is never auto-retried and its failure preserves existing cards and
 the continuation. Query/source changes, close and cancellation invalidate late
 prefetch results and cancel the active Host request.
 
-Web search, Grok Saved, catalog metadata and generation integrations are
-separate changes. Tests use synthetic provider responses and media fixtures;
-passing tests do not claim live provider availability or account validation.
+Grok Saved, catalog metadata and generation integrations remain separate
+changes. Tests use synthetic provider responses and media fixtures; passing
+tests do not claim live provider availability or account validation.
 
 ## Web image discovery Host contract
 
@@ -192,17 +192,19 @@ Search/page caches are bounded by credential revision and query. Continuation
 prompts receive only bounded source hostnames, never source URL paths, query
 strings or fragments. Cancellation covers Responses, page discovery and image
 validation, including bounded pre-cancellation before request registration.
-This Host slice registers the existing remote-search commands but adds no Web
-tab; UI exposure is a separate review layer. Synthetic fixtures prove parsing,
-budgets, cache, cancellation and SSRF boundaries, not live account availability.
+The source picker exposes Web only through this fixed Host route. It reuses the
+same request-ID isolation, progressive batches, hidden one-page prefetch,
+explicit load-more retry and validated remote-media download path as the public
+providers. Synthetic fixtures prove parsing, budgets, cache, cancellation and
+SSRF boundaries, not live account availability.
 
 ## Public image provider UI
 
 The source picker groups the sources delivered so far into discovery, creation
-and personal sections. Discovery exposes X, Openverse and Pexels; creation
-exposes Imagine; personal exposes the local library. Web search and Grok Saved
-are intentionally absent until their complete Host and session boundaries ship.
-The grouped strip stays on one horizontally scrollable row in narrow windows.
+and personal sections. Discovery exposes X, Web, Openverse and Pexels; creation
+exposes Imagine; personal exposes the local library. Grok Saved remains absent
+until its complete session boundary ships. The grouped strip stays on one
+horizontally scrollable row in narrow windows.
 
 Openverse works without user credentials. Pexels reads only the Host's masked
 credential status and writes replacement/removal requests through the existing

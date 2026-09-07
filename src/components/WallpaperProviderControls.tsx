@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import * as api from "@/lib/api";
 import type { MessageKey } from "@/i18n";
+import type { WallpaperRemoteSource } from "@/lib/wallpaperRemoteSearch";
 import { WallpaperPexelsKeyControl } from "./WallpaperPexelsKeyControl";
 import { WallpaperPexelsKeyDeleteDialog } from "./WallpaperPexelsKeyDeleteDialog";
 
 type Props = {
-  source: "openverse" | "pexels";
+  source: WallpaperRemoteSource;
   query: string;
   busy: boolean;
   locked: boolean;
@@ -117,9 +118,11 @@ export function WallpaperProviderControls({
           value={query}
           aria-label={t("settings.wallpaperSource.search")}
           placeholder={
-            source === "pexels"
-              ? t("settings.wallpaperSource.pexels.placeholder")
-              : undefined
+            source === "web"
+              ? t("settings.wallpaperSource.web.placeholder")
+              : source === "pexels"
+                ? t("settings.wallpaperSource.pexels.placeholder")
+                : undefined
           }
           onChange={(event) => setQuery(event.target.value)}
           disabled={locked || saving}

@@ -10,11 +10,15 @@ const mocks = vi.hoisted(() => ({
   cancel: vi.fn(async () => true),
   preview: vi.fn(),
   thumbnail: vi.fn(),
+  remoteFetch: vi.fn(async () => ({
+    path: "C:/cache/sky.jpg",
+    mime: "image/jpeg",
+  })),
   openExternal: vi.fn(async (_url: string) => undefined),
 }));
 vi.mock("@/lib/api", () => ({
   wallpaperRemoteSearch: mocks.search, wallpaperRemoteSearchMore: mocks.more,
-  wallpaperRemoteFetchMedia: vi.fn(async () => ({ path: "C:/cache/sky.jpg", mime: "image/jpeg" })),
+  wallpaperRemoteFetchMedia: mocks.remoteFetch,
   wallpaperRemoteThumbnail: mocks.thumbnail,
   wallpaperRemoteSearchCancel: vi.fn(async () => true),
   listenWallpaperRemoteSearchProgress: vi.fn(async () => () => {}),
@@ -55,25 +59,33 @@ vi.mock("@/components/GlassModal", () => ({
 import { WallpaperSourceModal } from "./WallpaperSourceModal";
 
 
-const item = (id: string) => ({
-  id,
-  kind: "image",
-  source: "openverse",
-  fullUrl: `https://images.example.com/${id}.jpg`,
-  thumbUrl: `https://images.example.com/${id}.jpg`,
-  sourceName: "Openverse",
-  sourceUrl: `https://openverse.example.test/${id}`,
-  authorName: "Ada",
-  authorUrl: `https://openverse.example.test/author/${id}`,
-  license: "CC0",
-  licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
-});
+const item = (id: string, source: "web" | "openverse" = "openverse") =>
+  ({
+    id,
+    kind: "image",
+    source,
+    fullUrl: `https://images.example.com/${id}.jpg`,
+    thumbUrl: `https://images.example.com/${id}.jpg`,
+    sourceName: source === "web" ? "photos.example.test" : "Openverse",
+    sourceUrl: `https://${source}.example.test/${id}`,
+    authorName: "Ada",
+    authorUrl:
+      source === "openverse"
+        ? `https://openverse.example.test/author/${id}`
+        : undefined,
+    license: source === "openverse" ? "CC0" : undefined,
+    licenseUrl:
+      source === "openverse"
+        ? "https://creativecommons.org/publicdomain/zero/1.0/"
+        : undefined,
+  });
 const result = (
   ids: string[],
   hasMore = true,
+  source: "web" | "openverse" = "openverse",
 ): WallpaperRemoteSearchResult => ({
-  source: "openverse",
-  items: ids.map(item),
+  source,
+  items: ids.map((id) => item(id, source)),
   hasMore,
   cacheHit: false,
   durationMs: 1,
@@ -107,6 +119,44 @@ it("keeps provider pictures selectable during more and preserves the downloaded 
   finish(result(["first", "second"], false));
   await waitFor(() => expect(cards()).toHaveLength(2));
   expect(screen.queryByRole("button", { name: "settings.wallpaperSource.loadMore" })).toBeNull();
+});
+it("searches and previews Web results through the remote media pipeline", async () => {
+  mocks.search.mockResolvedValue(result(["web-first"], false, "web"));
+  render(
+    <WallpaperSourceModal
+      open
+      initialTab="web"
+      t={(key) => key}
+      onClose={vi.fn()}
+      onPickFile={vi.fn()}
+    />,
+  );
+
+  fireEvent.change(
+    screen.getByRole("searchbox", { name: "settings.wallpaperSource.search" }),
+    { target: { value: "misty forest" } },
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "settings.wallpaperSource.search" }),
+  );
+
+  await waitFor(() =>
+    expect(mocks.search).toHaveBeenCalledWith(
+      "web",
+      "misty forest",
+      expect.any(String),
+    ),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(1));
+  fireEvent.click(cards()[0]);
+  await waitFor(() =>
+    expect(mocks.remoteFetch).toHaveBeenCalledWith(
+      "web",
+      "https://images.example.com/web-first.jpg",
+      expect.any(String),
+    ),
+  );
+  expect(mocks.preview).toHaveBeenCalledTimes(1);
 });
 it("preserves provider results after paging failure and allows a fresh retry", async () => {
   mocks.more
