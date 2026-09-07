@@ -158,3 +158,9 @@ export async function wallpaperLibraryDelete(path: string): Promise<void> {
   await invoke<void>("wallpaper_library_delete", { path });
 }
 
+
+export async function listenWallpaperXSearchBatch(
+  handler: (batch: import("../wallpaperXSearch").WallpaperXSearchBatch) => void,
+): Promise<() => void> {
+  return listen<import("../wallpaperXSearch").WallpaperXSearchBatch>("wallpaper://x-search-batch", handler);
+}

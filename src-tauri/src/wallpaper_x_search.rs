@@ -28,6 +28,18 @@ struct WallpaperXSearchProgress {
     request_id: String,
     stage: WallpaperXSearchStage,
 }
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WallpaperXSearchBatchEvent {
+    request_id: String,
+    batch_index: usize,
+    items: Vec<wallpaper_source::WallpaperGalleryItem>,
+    accumulated_count: usize,
+    done: bool,
+}
+
+const WALLPAPER_X_SEARCH_BATCH_EVENT: &str = "wallpaper://x-search-batch";
+
 #[derive(Default)]
 struct RequestRegistry {
     active: HashMap<String, WallpaperSearchCancellation>,
@@ -126,6 +138,8 @@ pub(crate) async fn search(
     let request = register_request(request_id)?;
     let event_app = app.clone();
     let event_request_id = request_id.to_string();
+    let batch_app = app.clone();
+    let batch_request_id = request_id.to_string();
     let runtime = WallpaperXSearchRuntime::new(
         request.cancellation.clone(),
         Arc::new(move |stage| {
@@ -134,6 +148,18 @@ pub(crate) async fn search(
                 WallpaperXSearchProgress {
                     request_id: event_request_id.clone(),
                     stage,
+                },
+            );
+        }),
+        Arc::new(move |batch| {
+            let _ = batch_app.emit(
+                WALLPAPER_X_SEARCH_BATCH_EVENT,
+                WallpaperXSearchBatchEvent {
+                    request_id: batch_request_id.clone(),
+                    batch_index: batch.batch_index,
+                    items: batch.items,
+                    accumulated_count: batch.accumulated_count,
+                    done: batch.done,
                 },
             );
         }),
@@ -485,6 +511,7 @@ mod tests {
                     Err(ResponsesSearchError {
                         kind,
                         credential_revision: None,
+                        observed_search_calls: None,
                     })
                 },
                 || async { panic!("must not double-request after limit") },
@@ -508,6 +535,7 @@ mod tests {
                 Err(ResponsesSearchError {
                     kind: ResponsesSearchErrorKind::Network,
                     credential_revision: None,
+                    observed_search_calls: None,
                 })
             },
             || async {

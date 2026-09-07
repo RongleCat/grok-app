@@ -2,9 +2,10 @@
 //! endpoint. This module is Host-internal until the wallpaper search router
 //! explicitly opts into it.
 
-use std::error::Error as _;
+use std::future::Future;
 use std::time::Duration;
 
+use futures_util::stream::{FuturesUnordered, StreamExt};
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 
@@ -13,19 +14,21 @@ use crate::account::{
 };
 use crate::proxy;
 use crate::wallpaper_source::{
-    filter_reachable_gallery_items_cancellable, merge_rank_x_gallery_items, parse_gallery_items,
-    x_gallery_needs_supplement, x_gallery_reference_ids, WallpaperGalleryItem,
-    WallpaperSearchCancellation, WallpaperXSearchRuntime, WallpaperXSearchStage,
-    X_SEARCH_FIRST_ROUND_CALLS, X_SEARCH_SUPPLEMENT_CALLS, X_SEARCH_TOTAL_CALLS,
+    filter_reachable_gallery_items_cancellable, merge_rank_x_gallery_items_with_limit,
+    parse_gallery_items, x_gallery_new_items, WallpaperGalleryItem, WallpaperSearchCancellation,
+    WallpaperXSearchBatch, WallpaperXSearchRuntime, WallpaperXSearchStage,
 };
 
 pub(crate) const RESPONSES_ENDPOINT: &str = "https://cli-chat-proxy.grok.com/v1/responses";
 pub(crate) const RESPONSES_MODEL: &str = "grok-4.6";
 pub(crate) const RESPONSES_EFFORT: &str = "low";
-pub(crate) const RESPONSES_MAX_X_SEARCH_CALLS: u32 = X_SEARCH_TOTAL_CALLS;
+pub(crate) const RESPONSES_LANE_COUNT: usize = 3;
+pub(crate) const RESPONSES_LANE_TARGET_COUNT: usize = 8;
+pub(crate) const RESPONSES_LANE_MAX_X_SEARCH_CALLS: u32 = 3;
 
 const RESPONSES_TIMEOUT: Duration = Duration::from_secs(90);
 const RESPONSES_MAX_BODY_BYTES: usize = 2 * 1024 * 1024;
+const RESPONSES_MAX_RESULTS: usize = RESPONSES_LANE_COUNT * RESPONSES_LANE_TARGET_COUNT;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ResponsesSearchErrorKind {
@@ -72,6 +75,7 @@ impl ResponsesSearchErrorKind {
 pub(crate) struct ResponsesSearchError {
     pub(crate) kind: ResponsesSearchErrorKind,
     pub(crate) credential_revision: Option<BuildOauthCredentialRevision>,
+    pub(crate) observed_search_calls: Option<u32>,
 }
 
 impl ResponsesSearchError {
@@ -82,7 +86,13 @@ impl ResponsesSearchError {
         Self {
             kind,
             credential_revision,
+            observed_search_calls: None,
         }
+    }
+
+    fn with_observed_search_calls(mut self, search_calls: u32) -> Self {
+        self.observed_search_calls = Some(search_calls);
+        self
     }
 
     pub(crate) fn code(&self) -> &'static str {
@@ -101,6 +111,17 @@ pub(crate) struct ResponsesSearchSuccess {
     pub(crate) credential_revision: BuildOauthCredentialRevision,
 }
 
+struct ResponsesSearchRequest<'a> {
+    query: &'a str,
+    sort: Option<&'a str>,
+    endpoint: &'a str,
+    max_search_calls: u32,
+    lane_index: usize,
+    target_count: usize,
+    excluded_ids: &'a [String],
+    cancellation: &'a WallpaperSearchCancellation,
+}
+
 /// Run the fixed, read-only Responses preview request.
 ///
 /// No endpoint, model, tool, or credential is accepted from the frontend.
@@ -116,96 +137,135 @@ pub(crate) async fn search(
         ));
     }
     let auth = account::read_build_oauth_access_token().map_err(auth_error)?;
-    let mut first = search_with_auth(
-        query,
-        sort,
-        &auth,
-        RESPONSES_ENDPOINT,
-        RESPONSES_TIMEOUT,
-        SearchOptions {
-            max_search_calls: X_SEARCH_FIRST_ROUND_CALLS,
-            is_supplement: false,
-            seen_ids: &[],
+    let client = responses_client(RESPONSES_TIMEOUT, Some(auth.revision.clone()))?;
+    run_parallel_lanes(runtime, auth.revision.clone(), |lane_index| {
+        search_lane(query, sort, lane_index, &client, &auth, runtime)
+    })
+    .await
+}
+
+async fn search_lane(
+    query: &str,
+    sort: Option<&str>,
+    lane_index: usize,
+    client: &reqwest::Client,
+    auth: &BuildOauthAccessToken,
+    runtime: &WallpaperXSearchRuntime,
+) -> Result<ResponsesSearchSuccess, ResponsesSearchError> {
+    let mut result = search_with_client(
+        ResponsesSearchRequest {
+            query,
+            sort,
+            endpoint: RESPONSES_ENDPOINT,
+            max_search_calls: RESPONSES_LANE_MAX_X_SEARCH_CALLS,
+            lane_index,
+            target_count: RESPONSES_LANE_TARGET_COUNT,
+            excluded_ids: &[],
             cancellation: runtime.cancellation(),
         },
+        client,
+        auth.expose_to_build_proxy(),
+        auth.revision.clone(),
     )
     .await?;
-    let mut candidate_count = first.candidate_count;
-    let mut search_calls = first.search_calls;
-    let seen_ids = x_gallery_reference_ids(&first.items);
     runtime.report(WallpaperXSearchStage::Validating);
-    let mut items = filter_reachable_gallery_items_cancellable(
-        std::mem::take(&mut first.items),
-        Some(runtime.cancellation()),
-    )
-    .await;
+    result.items =
+        filter_reachable_gallery_items_cancellable(result.items, Some(runtime.cancellation()))
+            .await;
     if runtime.is_cancelled() {
         return Err(ResponsesSearchError::new(
             ResponsesSearchErrorKind::Cancelled,
             Some(auth.revision.clone()),
         ));
     }
-
-    if x_gallery_needs_supplement(items.len()) {
-        runtime.report(WallpaperXSearchStage::Supplementing);
-        match search_with_auth(
-            query,
-            sort,
-            &auth,
-            RESPONSES_ENDPOINT,
-            RESPONSES_TIMEOUT,
-            SearchOptions {
-                max_search_calls: X_SEARCH_SUPPLEMENT_CALLS,
-                is_supplement: true,
-                seen_ids: &seen_ids,
-                cancellation: runtime.cancellation(),
-            },
+    if result.items.is_empty() {
+        return Err(ResponsesSearchError::new(
+            ResponsesSearchErrorKind::Empty,
+            Some(auth.revision.clone()),
         )
-        .await
-        {
-            Ok(mut supplement) => {
-                search_calls = search_calls.saturating_add(supplement.search_calls);
-                if search_calls > RESPONSES_MAX_X_SEARCH_CALLS {
-                    return Err(ResponsesSearchError::new(
-                        ResponsesSearchErrorKind::SearchBudgetExceeded,
-                        Some(auth.revision.clone()),
-                    ));
-                }
-                candidate_count = candidate_count.saturating_add(supplement.candidate_count);
-                runtime.report(WallpaperXSearchStage::Validating);
-                let supplement_items = filter_reachable_gallery_items_cancellable(
-                    std::mem::take(&mut supplement.items),
-                    Some(runtime.cancellation()),
-                )
-                .await;
-                if runtime.is_cancelled() {
-                    return Err(ResponsesSearchError::new(
-                        ResponsesSearchErrorKind::Cancelled,
-                        Some(auth.revision.clone()),
-                    ));
-                }
-                items.extend(supplement_items);
-                items = merge_rank_x_gallery_items(items);
+        .with_observed_search_calls(result.search_calls));
+    }
+    result.valid_count = result.items.len();
+    Ok(result)
+}
+
+async fn run_parallel_lanes<F, Fut>(
+    runtime: &WallpaperXSearchRuntime,
+    credential_revision: BuildOauthCredentialRevision,
+    run_lane: F,
+) -> Result<ResponsesSearchSuccess, ResponsesSearchError>
+where
+    F: Fn(usize) -> Fut,
+    Fut: Future<Output = Result<ResponsesSearchSuccess, ResponsesSearchError>>,
+{
+    let mut lanes = FuturesUnordered::new();
+    for lane_index in 1..=RESPONSES_LANE_COUNT {
+        let lane = run_lane(lane_index);
+        lanes.push(async move { (lane_index, lane.await) });
+    }
+
+    let mut items = Vec::new();
+    let mut candidate_count = 0usize;
+    let mut search_calls = 0u32;
+    let mut errors = Vec::new();
+    loop {
+        let next = tokio::select! {
+            biased;
+            _ = runtime.cancellation().cancelled() => {
+                return Err(ResponsesSearchError::new(
+                    ResponsesSearchErrorKind::Cancelled,
+                    Some(credential_revision.clone()),
+                ));
             }
-            Err(error)
-                if error.kind == ResponsesSearchErrorKind::Cancelled
-                    || items.is_empty()
-                    || error.kind == ResponsesSearchErrorKind::SearchBudgetExceeded =>
-            {
+            next = lanes.next() => next,
+        };
+        let Some((lane_index, outcome)) = next else {
+            break;
+        };
+        let is_last = lanes.is_empty();
+        match outcome {
+            Ok(lane) => {
+                candidate_count = candidate_count.saturating_add(lane.candidate_count);
+                search_calls = search_calls.saturating_add(lane.search_calls);
+                let previous = items.clone();
+                let mut combined = previous.clone();
+                combined.extend(lane.items);
+                items = merge_rank_x_gallery_items_with_limit(combined, RESPONSES_MAX_RESULTS);
+                let batch_items = x_gallery_new_items(&previous, &items);
+                runtime.report_batch(WallpaperXSearchBatch {
+                    batch_index: lane_index,
+                    items: batch_items,
+                    accumulated_count: items.len(),
+                    done: is_last,
+                });
+            }
+            Err(error) if error.kind == ResponsesSearchErrorKind::Cancelled => {
                 return Err(error);
             }
-            Err(_) => {
-                // A useful partial first round is better than discarding honest
-                // results because the optional supplement failed.
+            Err(error) => {
+                search_calls =
+                    search_calls.saturating_add(error.observed_search_calls.unwrap_or_default());
+                errors.push(error);
+                if is_last {
+                    runtime.report_batch(WallpaperXSearchBatch {
+                        batch_index: lane_index,
+                        items: Vec::new(),
+                        accumulated_count: items.len(),
+                        done: true,
+                    });
+                }
             }
         }
     }
 
-    if items.is_empty() {
+    if runtime.is_cancelled() {
         return Err(ResponsesSearchError::new(
-            ResponsesSearchErrorKind::Empty,
-            Some(auth.revision.clone()),
+            ResponsesSearchErrorKind::Cancelled,
+            Some(credential_revision),
         ));
+    }
+    if items.is_empty() {
+        return Err(select_parallel_error(errors, credential_revision));
     }
 
     Ok(ResponsesSearchSuccess {
@@ -215,8 +275,40 @@ pub(crate) async fn search(
         search_calls,
         model: RESPONSES_MODEL,
         effort: RESPONSES_EFFORT,
-        credential_revision: auth.revision.clone(),
+        credential_revision,
     })
+}
+
+fn select_parallel_error(
+    errors: Vec<ResponsesSearchError>,
+    credential_revision: BuildOauthCredentialRevision,
+) -> ResponsesSearchError {
+    errors
+        .into_iter()
+        .min_by_key(|error| parallel_error_priority(error.kind))
+        .unwrap_or_else(|| {
+            ResponsesSearchError::new(ResponsesSearchErrorKind::Empty, Some(credential_revision))
+        })
+}
+
+fn parallel_error_priority(kind: ResponsesSearchErrorKind) -> u8 {
+    match kind {
+        ResponsesSearchErrorKind::Cancelled => 0,
+        ResponsesSearchErrorKind::RateLimited => 1,
+        ResponsesSearchErrorKind::SearchBudgetExceeded => 2,
+        ResponsesSearchErrorKind::Unauthorized
+        | ResponsesSearchErrorKind::OauthUnavailable
+        | ResponsesSearchErrorKind::OauthExpired => 3,
+        ResponsesSearchErrorKind::BadRequest
+        | ResponsesSearchErrorKind::InvalidJson
+        | ResponsesSearchErrorKind::Protocol
+        | ResponsesSearchErrorKind::ToolNotCalled => 4,
+        ResponsesSearchErrorKind::ServerError
+        | ResponsesSearchErrorKind::Timeout
+        | ResponsesSearchErrorKind::Tls
+        | ResponsesSearchErrorKind::Network => 5,
+        ResponsesSearchErrorKind::Empty => 6,
+    }
 }
 
 fn auth_error(error: BuildOauthTokenError) -> ResponsesSearchError {
@@ -227,50 +319,22 @@ fn auth_error(error: BuildOauthTokenError) -> ResponsesSearchError {
     ResponsesSearchError::new(kind, None)
 }
 
-struct SearchOptions<'a> {
-    max_search_calls: u32,
-    is_supplement: bool,
-    seen_ids: &'a [String],
-    cancellation: &'a WallpaperSearchCancellation,
-}
-
-async fn search_with_auth(
-    query: &str,
-    sort: Option<&str>,
-    auth: &BuildOauthAccessToken,
-    endpoint: &str,
-    timeout: Duration,
-    options: SearchOptions<'_>,
-) -> Result<ResponsesSearchSuccess, ResponsesSearchError> {
-    search_with_credentials(
-        query,
-        sort,
-        Ok((auth.expose_to_build_proxy(), auth.revision.clone())),
-        endpoint,
-        timeout,
-        options,
-    )
-    .await
-}
-
+#[cfg(test)]
 async fn search_with_credentials(
-    query: &str,
-    sort: Option<&str>,
-    credentials: Result<(&str, BuildOauthCredentialRevision), BuildOauthTokenError>,
-    endpoint: &str,
+    request: ResponsesSearchRequest<'_>,
     timeout: Duration,
-    options: SearchOptions<'_>,
+    credentials: Result<(&str, BuildOauthCredentialRevision), BuildOauthTokenError>,
 ) -> Result<ResponsesSearchSuccess, ResponsesSearchError> {
-    let SearchOptions {
-        max_search_calls,
-        is_supplement,
-        seen_ids,
-        cancellation,
-    } = options;
     let (token, credential_revision) = credentials.map_err(auth_error)?;
-    let error_revision = || Some(credential_revision.clone());
+    let client = responses_client(timeout, Some(credential_revision.clone()))?;
+    search_with_client(request, &client, token, credential_revision).await
+}
 
-    let client = proxy::apply_to_reqwest(
+fn responses_client(
+    timeout: Duration,
+    credential_revision: Option<BuildOauthCredentialRevision>,
+) -> Result<reqwest::Client, ResponsesSearchError> {
+    proxy::apply_to_reqwest(
         reqwest::Client::builder()
             .timeout(timeout)
             .connect_timeout(timeout.min(Duration::from_secs(20)))
@@ -280,11 +344,29 @@ async fn search_with_credentials(
             .redirect(reqwest::redirect::Policy::none()),
     )
     .build()
-    .map_err(|_| ResponsesSearchError::new(ResponsesSearchErrorKind::Network, error_revision()))?;
+    .map_err(|_| ResponsesSearchError::new(ResponsesSearchErrorKind::Network, credential_revision))
+}
 
-    let request = client
-        .post(endpoint)
-        .bearer_auth(token)
+async fn search_with_client(
+    request: ResponsesSearchRequest<'_>,
+    client: &reqwest::Client,
+    token: &str,
+    credential_revision: BuildOauthCredentialRevision,
+) -> Result<ResponsesSearchSuccess, ResponsesSearchError> {
+    let ResponsesSearchRequest {
+        query,
+        sort,
+        endpoint,
+        max_search_calls,
+        lane_index,
+        target_count,
+        excluded_ids,
+        cancellation,
+    } = request;
+    let error_revision = || Some(credential_revision.clone());
+
+    let request = client.post(endpoint).bearer_auth(token);
+    let request = request
         .header("x-grok-client-mode", "cli")
         .header("x-grok-client-identifier", "grok-shell")
         .header("x-grok-client-version", "1.0.5")
@@ -292,8 +374,9 @@ async fn search_with_credentials(
             query,
             sort,
             max_search_calls,
-            is_supplement,
-            seen_ids,
+            lane_index,
+            target_count,
+            excluded_ids,
         ))
         .send();
     let response = tokio::select! {
@@ -356,13 +439,15 @@ async fn search_with_credentials(
         return Err(ResponsesSearchError::new(
             ResponsesSearchErrorKind::ToolNotCalled,
             error_revision(),
-        ));
+        )
+        .with_observed_search_calls(search_calls));
     }
     if search_calls > max_search_calls {
         return Err(ResponsesSearchError::new(
             ResponsesSearchErrorKind::SearchBudgetExceeded,
             error_revision(),
-        ));
+        )
+        .with_observed_search_calls(search_calls));
     }
 
     let gallery = gallery_from_output(output)
@@ -392,12 +477,20 @@ fn responses_request(
     query: &str,
     sort: Option<&str>,
     max_search_calls: u32,
-    is_supplement: bool,
-    seen_ids: &[String],
+    lane_index: usize,
+    target_count: usize,
+    excluded_ids: &[String],
 ) -> Value {
     json!({
         "model": RESPONSES_MODEL,
-        "input": responses_prompt(query, sort, max_search_calls, is_supplement, seen_ids),
+        "input": responses_prompt(
+            query,
+            sort,
+            max_search_calls,
+            lane_index,
+            target_count,
+            excluded_ids,
+        ),
         "tools": [{ "type": "x_search" }],
         "tool_choice": "auto",
         "max_tool_calls": max_search_calls,
@@ -410,7 +503,7 @@ fn responses_request(
                 "type": "json_schema",
                 "name": "wallpaper_gallery",
                 "strict": true,
-                "schema": gallery_schema()
+                "schema": gallery_schema(target_count)
             }
         },
         "store": false
@@ -421,24 +514,28 @@ fn responses_prompt(
     query: &str,
     sort: Option<&str>,
     max_search_calls: u32,
-    is_supplement: bool,
-    seen_ids: &[String],
+    lane_index: usize,
+    target_count: usize,
+    excluded_ids: &[String],
 ) -> String {
     let sort = match sort.unwrap_or("top") {
         "latest" | "Latest" => "Latest",
         _ => "Top",
     };
-    let round_guidance = if is_supplement {
-        format!(
-            "Supplement round: use one new query with a different visual angle (alternate composition, lighting, setting, season, or medium). Exclude candidates carrying these opaque media/post ids: {}",
-            if seen_ids.is_empty() {
-                "none from the empty first round".to_string()
-            } else {
-                seen_ids.join(", ")
-            }
-        )
+    let lane_guidance = match lane_index {
+        1 => "Concurrent batch 1 of 3. Primary batch: search the strongest direct interpretation of the topic and prioritize immediately recognizable wallpaper candidates.",
+        2 => "Concurrent batch 2 of 3. Visual-variation batch: avoid repeating the primary lane; emphasize alternate composition, lighting, season, or medium.",
+        3 => "Concurrent batch 3 of 3. Discovery batch: use different viewpoint, palette, time or weather, cultural framing, or bilingual keywords; avoid the obvious direct and visual-variation queries.",
+        4 => "User-requested load-more batch: search fresh long-tail variants with a different viewpoint, palette, setting, time, weather, cultural framing, or bilingual keywords. Do not repeat the initial three batches.",
+        _ => "Concurrent wallpaper batch: use complementary direct and visual/style query variants.",
+    };
+    let exclusion_guidance = if excluded_ids.is_empty() {
+        String::new()
     } else {
-        "First round: use complementary direct and visual/style query variants.".to_string()
+        format!(
+            "\nExclude candidates carrying these opaque media/post ids from the existing validated gallery: {}",
+            excluded_ids.join(", ")
+        )
     };
     format!(
         r#"You collect high-quality still images from X (Twitter) for a wallpaper picker.
@@ -446,20 +543,21 @@ fn responses_prompt(
 User topic: {query}
 Sort preference: {sort}
 
-{round_guidance}
+{lane_guidance}{exclusion_guidance}
 
 Use X search only. Use no more than {max_search_calls} x_search call(s) in this request. Search useful query variants with image filters. Prefer real photography or polished AI art suitable as wallpaper. Prefer posts that include both a prompt and attached images when relevant. Skip memes, screenshots, text cards, avatars, emoji packs, ads, blurry thumbnails, videos, and placeholder links.
 
-Return 8-16 distinct items when possible. fullUrl must be a direct HTTPS full-size image CDN URL, preferably https://pbs.twimg.com/media/... with name=orig. postUrl must be a confirmed canonical https://x.com/<user>/status/<id>; omit it rather than guessing. Include mediaIndex 1-4 only when the status media position is known. Return metadata only and do not download files."#
+Return {target_count} distinct items when possible. Return fewer only when you cannot confirm enough candidates; never pad, duplicate, or guess metadata. fullUrl must be a direct HTTPS full-size image CDN URL, preferably https://pbs.twimg.com/media/... with name=orig. postUrl must be a confirmed canonical https://x.com/<user>/status/<id>; omit it rather than guessing. Include mediaIndex 1-4 only when the status media position is known. Return metadata only and do not download files."#
     )
 }
 
-fn gallery_schema() -> Value {
+fn gallery_schema(target_count: usize) -> Value {
     json!({
         "type": "object",
         "properties": {
             "items": {
                 "type": "array",
+                "maxItems": target_count,
                 "items": {
                     "type": "object",
                     "properties": {
@@ -514,10 +612,17 @@ fn status_error_kind(status: StatusCode) -> ResponsesSearchErrorKind {
 }
 
 fn transport_error_kind(error: &reqwest::Error) -> ResponsesSearchErrorKind {
-    if error.is_timeout() {
+    classify_transport_error(error.is_timeout(), error)
+}
+
+fn classify_transport_error(
+    is_timeout: bool,
+    error: &(dyn std::error::Error + 'static),
+) -> ResponsesSearchErrorKind {
+    if is_timeout {
         return ResponsesSearchErrorKind::Timeout;
     }
-    let mut source = error.source();
+    let mut source = Some(error);
     while let Some(cause) = source {
         let message = cause.to_string().to_ascii_lowercase();
         if message.contains("tls")
@@ -600,450 +705,4 @@ fn gallery_from_output(output: &[Value]) -> Result<Value, ResponsesSearchErrorKi
 }
 
 #[cfg(test)]
-mod tests {
-    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-    use std::sync::{Arc, Mutex};
-
-    use axum::body::{Body, Bytes};
-    use axum::extract::State;
-    use axum::http::{HeaderMap, HeaderValue};
-    use axum::response::{IntoResponse, Response};
-    use axum::routing::post;
-    use axum::Router;
-    use tokio::net::TcpListener;
-    use tokio::task::JoinHandle;
-
-    use super::*;
-
-    #[derive(Clone)]
-    struct MockState {
-        status: StatusCode,
-        response_body: Arc<String>,
-        delay: Duration,
-        requests: Arc<AtomicUsize>,
-        authorization_ok: Arc<AtomicBool>,
-        request_body: Arc<Mutex<Option<Value>>>,
-    }
-
-    async fn mock_responses(
-        State(state): State<MockState>,
-        headers: HeaderMap,
-        body: Bytes,
-    ) -> Response {
-        state.requests.fetch_add(1, Ordering::SeqCst);
-        state.authorization_ok.store(
-            headers
-                .get(reqwest::header::AUTHORIZATION)
-                .and_then(|value| value.to_str().ok())
-                == Some("Bearer test-token"),
-            Ordering::SeqCst,
-        );
-        if let Ok(value) = serde_json::from_slice::<Value>(&body) {
-            *state.request_body.lock().expect("request body lock") = Some(value);
-        }
-        if !state.delay.is_zero() {
-            tokio::time::sleep(state.delay).await;
-        }
-        (state.status, state.response_body.as_str().to_string()).into_response()
-    }
-
-    async fn spawn_mock(
-        status: StatusCode,
-        body: impl Into<String>,
-        delay: Duration,
-    ) -> (String, MockState, JoinHandle<()>) {
-        let state = MockState {
-            status,
-            response_body: Arc::new(body.into()),
-            delay,
-            requests: Arc::new(AtomicUsize::new(0)),
-            authorization_ok: Arc::new(AtomicBool::new(false)),
-            request_body: Arc::new(Mutex::new(None)),
-        };
-        let app = Router::new()
-            .route("/v1/responses", post(mock_responses))
-            .with_state(state.clone());
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind mock");
-        let address = listener.local_addr().expect("mock address");
-        let task = tokio::spawn(async move {
-            let _ = axum::serve(listener, app).await;
-        });
-        (format!("http://{address}/v1/responses"), state, task)
-    }
-
-    fn test_revision() -> BuildOauthCredentialRevision {
-        BuildOauthCredentialRevision::for_test(123, Some(456), 1)
-    }
-
-    fn success_payload(search_calls: usize) -> String {
-        let mut output = Vec::new();
-        for _ in 0..search_calls {
-            output.push(json!({ "type": "x_search_call", "status": "completed" }));
-        }
-        output.push(json!({
-            "type": "message",
-            "content": [{
-                "type": "output_text",
-                "text": serde_json::to_string(&json!({
-                    "items": [{
-                        "fullUrl": "https://pbs.twimg.com/media/test.jpg?name=small",
-                        "thumbUrl": "https://pbs.twimg.com/media/test.jpg?name=small",
-                        "username": "alice",
-                        "postUrl": "https://x.com/alice/status/1234567890123456789",
-                        "kind": "image"
-                    }]
-                })).expect("gallery json")
-            }]
-        }));
-        json!({
-            "model": RESPONSES_MODEL,
-            "output": output
-        })
-        .to_string()
-    }
-
-    async fn test_search(
-        endpoint: &str,
-        timeout: Duration,
-    ) -> Result<ResponsesSearchSuccess, ResponsesSearchError> {
-        let cancellation = WallpaperSearchCancellation::default();
-        search_with_credentials(
-            "misty mountains",
-            Some("top"),
-            Ok(("test-token", test_revision())),
-            endpoint,
-            timeout,
-            SearchOptions {
-                max_search_calls: X_SEARCH_FIRST_ROUND_CALLS,
-                is_supplement: false,
-                seen_ids: &[],
-                cancellation: &cancellation,
-            },
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn gallery_without_completed_x_call_is_rejected() {
-        let (endpoint, _, task) =
-            spawn_mock(StatusCode::OK, success_payload(0), Duration::ZERO).await;
-        let result = test_search(&endpoint, Duration::from_secs(2)).await;
-        task.abort();
-        assert_eq!(
-            result.unwrap_err().kind,
-            ResponsesSearchErrorKind::ToolNotCalled
-        );
-        assert_eq!(
-            count_x_search_calls(&[
-                json!({"type": "x_search_call", "status": "in_progress"}),
-                json!({"type": "custom_tool_result", "status": "completed"}),
-                json!({"type": "server_tool_call", "name": "web_search", "status": "completed"}),
-            ]),
-            0
-        );
-    }
-
-    #[tokio::test]
-    async fn wallpaper_x_responses_success_parses_gallery_and_fixed_contract() {
-        assert_eq!(
-            count_x_search_calls(&[json!({ "type": "custom_tool_call", "status": "completed" })]),
-            1
-        );
-        let (endpoint, state, task) =
-            spawn_mock(StatusCode::OK, success_payload(2), Duration::ZERO).await;
-        let result = test_search(&endpoint, Duration::from_secs(2))
-            .await
-            .expect("responses success");
-        task.abort();
-
-        assert_eq!(result.items.len(), 1);
-        assert_eq!(result.candidate_count, 1);
-        assert_eq!(result.valid_count, 1);
-        assert_eq!(result.search_calls, 2);
-        assert_eq!(result.model, "grok-4.6");
-        assert_eq!(result.effort, "low");
-        assert!(result.items[0].full_url.contains("name=orig"));
-        assert_eq!(state.requests.load(Ordering::SeqCst), 1);
-        assert!(state.authorization_ok.load(Ordering::SeqCst));
-
-        let request = state
-            .request_body
-            .lock()
-            .expect("request body lock")
-            .clone()
-            .expect("captured request");
-        assert_eq!(request.get("model"), Some(&json!("grok-4.6")));
-        assert_eq!(request.pointer("/reasoning/effort"), Some(&json!("low")));
-        assert_eq!(request.get("store"), Some(&json!(false)));
-        assert_eq!(request.get("max_tool_calls"), Some(&json!(2)));
-        assert_eq!(request.pointer("/tools/0/type"), Some(&json!("x_search")));
-        assert_eq!(
-            request.pointer("/text/format/type"),
-            Some(&json!("json_schema"))
-        );
-        assert_eq!(request.pointer("/text/format/strict"), Some(&json!(true)));
-        assert_eq!(
-            request.pointer("/text/format/schema/additionalProperties"),
-            Some(&json!(false))
-        );
-        assert!(request
-            .get("input")
-            .and_then(Value::as_str)
-            .is_some_and(|prompt| prompt.contains("no more than 2 x_search call")));
-        let supplement = responses_request(
-            "misty mountains",
-            Some("top"),
-            X_SEARCH_SUPPLEMENT_CALLS,
-            true,
-            &["twimg:seen-id".into(), "status:12345678".into()],
-        );
-        assert_eq!(supplement.get("max_tool_calls"), Some(&json!(1)));
-        assert!(supplement
-            .get("input")
-            .and_then(Value::as_str)
-            .is_some_and(|prompt| {
-                prompt.contains("different visual angle")
-                    && prompt.contains("twimg:seen-id")
-                    && prompt.contains("no more than 1 x_search call")
-            }));
-        assert_eq!(RESPONSES_MAX_X_SEARCH_CALLS, 3);
-    }
-
-    #[tokio::test]
-    async fn wallpaper_x_responses_classifies_http_failures() {
-        for (status, expected) in [
-            (
-                StatusCode::BAD_REQUEST,
-                ResponsesSearchErrorKind::BadRequest,
-            ),
-            (
-                StatusCode::UNAUTHORIZED,
-                ResponsesSearchErrorKind::Unauthorized,
-            ),
-            (
-                StatusCode::FORBIDDEN,
-                ResponsesSearchErrorKind::Unauthorized,
-            ),
-            (
-                StatusCode::TOO_MANY_REQUESTS,
-                ResponsesSearchErrorKind::RateLimited,
-            ),
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ResponsesSearchErrorKind::ServerError,
-            ),
-        ] {
-            let (endpoint, _state, task) = spawn_mock(status, "redacted", Duration::ZERO).await;
-            let error = test_search(&endpoint, Duration::from_secs(2))
-                .await
-                .expect_err("http status must fail");
-            task.abort();
-            assert_eq!(error.kind, expected);
-            assert_eq!(error.code(), expected.code());
-        }
-    }
-
-    #[tokio::test]
-    async fn wallpaper_x_responses_classifies_timeout_invalid_json_and_empty() {
-        let (endpoint, _state, task) = spawn_mock(
-            StatusCode::OK,
-            success_payload(1),
-            Duration::from_millis(150),
-        )
-        .await;
-        let error = test_search(&endpoint, Duration::from_millis(25))
-            .await
-            .expect_err("request must time out");
-        task.abort();
-        assert_eq!(error.kind, ResponsesSearchErrorKind::Timeout);
-
-        let (endpoint, _state, task) = spawn_mock(StatusCode::OK, "not-json", Duration::ZERO).await;
-        let error = test_search(&endpoint, Duration::from_secs(2))
-            .await
-            .expect_err("invalid json must fail");
-        task.abort();
-        assert_eq!(error.kind, ResponsesSearchErrorKind::InvalidJson);
-
-        let (endpoint, _state, task) = spawn_mock(StatusCode::OK, "", Duration::ZERO).await;
-        let error = test_search(&endpoint, Duration::from_secs(2))
-            .await
-            .expect_err("empty response must fail");
-        task.abort();
-        assert_eq!(error.kind, ResponsesSearchErrorKind::Empty);
-    }
-
-    #[tokio::test]
-    async fn wallpaper_x_responses_cancellation_aborts_inflight_http() {
-        let (endpoint, state, task) =
-            spawn_mock(StatusCode::OK, success_payload(1), Duration::from_secs(10)).await;
-        let cancellation = WallpaperSearchCancellation::default();
-        let cancellation_for_request = cancellation.clone();
-        let request = tokio::spawn(async move {
-            search_with_credentials(
-                "misty mountains",
-                Some("top"),
-                Ok(("test-token", test_revision())),
-                &endpoint,
-                Duration::from_secs(30),
-                SearchOptions {
-                    max_search_calls: X_SEARCH_FIRST_ROUND_CALLS,
-                    is_supplement: false,
-                    seen_ids: &[],
-                    cancellation: &cancellation_for_request,
-                },
-            )
-            .await
-        });
-
-        tokio::time::timeout(Duration::from_secs(2), async {
-            while state.requests.load(Ordering::SeqCst) == 0 {
-                tokio::task::yield_now().await;
-            }
-        })
-        .await
-        .expect("mock request did not start");
-        cancellation.cancel();
-        let error = tokio::time::timeout(Duration::from_secs(2), request)
-            .await
-            .expect("cancelled request did not return")
-            .expect("request task panicked")
-            .expect_err("cancelled request must fail");
-        task.abort();
-        assert_eq!(error.kind, ResponsesSearchErrorKind::Cancelled);
-    }
-
-    #[tokio::test]
-    async fn wallpaper_x_responses_rejects_bad_structured_output_and_tool_overrun() {
-        let invalid_output = json!({
-            "output": [{ "type": "x_search_call", "status": "completed" }, {
-                "type": "message",
-                "content": [{ "type": "output_text", "text": "not-json" }]
-            }]
-        })
-        .to_string();
-        let (endpoint, _state, task) =
-            spawn_mock(StatusCode::OK, invalid_output, Duration::ZERO).await;
-        let error = test_search(&endpoint, Duration::from_secs(2))
-            .await
-            .expect_err("bad structured output must fail");
-        task.abort();
-        assert_eq!(error.kind, ResponsesSearchErrorKind::InvalidJson);
-
-        let (endpoint, _state, task) =
-            spawn_mock(StatusCode::OK, success_payload(4), Duration::ZERO).await;
-        let error = test_search(&endpoint, Duration::from_secs(2))
-            .await
-            .expect_err("tool overrun must fail");
-        task.abort();
-        assert_eq!(error.kind, ResponsesSearchErrorKind::SearchBudgetExceeded);
-    }
-
-    #[tokio::test]
-    async fn wallpaper_x_responses_oauth_failure_sends_no_request() {
-        let (endpoint, state, task) =
-            spawn_mock(StatusCode::OK, success_payload(1), Duration::ZERO).await;
-        for (oauth_error, expected) in [
-            (
-                BuildOauthTokenError::Unavailable,
-                ResponsesSearchErrorKind::OauthUnavailable,
-            ),
-            (
-                BuildOauthTokenError::Expired,
-                ResponsesSearchErrorKind::OauthExpired,
-            ),
-        ] {
-            let cancellation = WallpaperSearchCancellation::default();
-            let error = search_with_credentials(
-                "misty mountains",
-                Some("top"),
-                Err(oauth_error),
-                &endpoint,
-                Duration::from_secs(2),
-                SearchOptions {
-                    max_search_calls: X_SEARCH_FIRST_ROUND_CALLS,
-                    is_supplement: false,
-                    seen_ids: &[],
-                    cancellation: &cancellation,
-                },
-            )
-            .await
-            .expect_err("oauth failure must stop before HTTP");
-            assert_eq!(error.kind, expected);
-        }
-        task.abort();
-        assert_eq!(state.requests.load(Ordering::SeqCst), 0);
-    }
-
-    #[derive(Clone)]
-    struct RedirectState {
-        target: String,
-        source_requests: Arc<AtomicUsize>,
-        target_requests: Arc<AtomicUsize>,
-        target_saw_authorization: Arc<AtomicBool>,
-    }
-
-    async fn redirect_source(State(state): State<RedirectState>) -> Response {
-        state.source_requests.fetch_add(1, Ordering::SeqCst);
-        let mut response = Response::new(Body::empty());
-        *response.status_mut() = StatusCode::TEMPORARY_REDIRECT;
-        response.headers_mut().insert(
-            reqwest::header::LOCATION,
-            HeaderValue::from_str(&state.target).expect("redirect target header"),
-        );
-        response
-    }
-
-    async fn redirect_target(State(state): State<RedirectState>, headers: HeaderMap) -> Response {
-        state.target_requests.fetch_add(1, Ordering::SeqCst);
-        state.target_saw_authorization.store(
-            headers.contains_key(reqwest::header::AUTHORIZATION),
-            Ordering::SeqCst,
-        );
-        (StatusCode::OK, success_payload(1)).into_response()
-    }
-
-    #[tokio::test]
-    async fn wallpaper_x_responses_never_replays_authorization_across_redirect() {
-        let target_listener = TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("bind redirect target");
-        let target_address = target_listener.local_addr().expect("target address");
-        let state = RedirectState {
-            target: format!("http://{target_address}/target"),
-            source_requests: Arc::new(AtomicUsize::new(0)),
-            target_requests: Arc::new(AtomicUsize::new(0)),
-            target_saw_authorization: Arc::new(AtomicBool::new(false)),
-        };
-        let target_app = Router::new()
-            .route("/target", post(redirect_target))
-            .with_state(state.clone());
-        let target_task = tokio::spawn(async move {
-            let _ = axum::serve(target_listener, target_app).await;
-        });
-
-        let source_listener = TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("bind redirect source");
-        let source_address = source_listener.local_addr().expect("source address");
-        let source_app = Router::new()
-            .route("/v1/responses", post(redirect_source))
-            .with_state(state.clone());
-        let source_task = tokio::spawn(async move {
-            let _ = axum::serve(source_listener, source_app).await;
-        });
-
-        let error = test_search(
-            &format!("http://{source_address}/v1/responses"),
-            Duration::from_secs(2),
-        )
-        .await
-        .expect_err("redirect must be a protocol failure");
-        source_task.abort();
-        target_task.abort();
-
-        assert_eq!(error.kind, ResponsesSearchErrorKind::Protocol);
-        assert_eq!(state.source_requests.load(Ordering::SeqCst), 1);
-        assert_eq!(state.target_requests.load(Ordering::SeqCst), 0);
-        assert!(!state.target_saw_authorization.load(Ordering::SeqCst));
-    }
-}
+mod tests;

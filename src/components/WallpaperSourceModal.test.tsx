@@ -5,10 +5,12 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@/test/jsdomStubs";
 
+const progressive = vi.hoisted(() => ({ items: [] as Array<{ id: string; source: string; kind: string; fullUrl: string; thumbUrl: string; textPreview: string }> }));
 const cancelSearch = vi.hoisted(() => vi.fn(async () => true));
 
 vi.mock("@/hooks/useWallpaperXSearch", () => ({
   useWallpaperXSearch: () => ({
+    progressiveItems: progressive.items,
     busy: true,
     requestId: "request-active",
     stage: "validating",
@@ -64,6 +66,7 @@ import { WallpaperSourceModal } from "./WallpaperSourceModal";
 afterEach(() => {
   cleanup();
   cancelSearch.mockClear();
+  progressive.items = [];
 });
 
 describe("WallpaperSourceModal X search lifecycle", () => {
@@ -110,4 +113,11 @@ describe("WallpaperSourceModal X search lifecycle", () => {
     expect(cancelSearch).toHaveBeenCalledTimes(2);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+});
+
+it("renders validated batches while the request is still running", () => {
+  progressive.items = [{ id: "early", source: "x", kind: "image", fullUrl: "https://pbs.twimg.com/media/early.jpg", thumbUrl: "https://pbs.twimg.com/media/early.jpg", textPreview: "Early mountain image" }];
+  render(<WallpaperSourceModal open t={((key: string) => key) as never} onClose={vi.fn()} onPickFile={vi.fn()} />);
+  expect(screen.getByRole("list").getAttribute("aria-busy")).toBe("true");
+  expect(screen.getByRole("img").getAttribute("src")).toBe("https://pbs.twimg.com/media/early.jpg");
 });

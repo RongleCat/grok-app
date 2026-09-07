@@ -38,8 +38,18 @@ is attempted by wallpaper search.
 
 The client reads bounded response bodies and requires completed X tool-call
 evidence before accepting gallery JSON. The existing image quality pipeline
-validates the candidates. The first request permits two tool calls; an optional
-supplement permits one. This single-route slice is not the later parallel mode.
+validates the candidates. Responses runs three concurrent lanes sharing one OAuth
+read and HTTP client. Each lane targets eight images and permits at most three X
+tool calls (nine across the request). Direct, visual variation and discovery
+prompts diversify results. Each validated lane emits a request-scoped batch;
+results are deduplicated and ranked to at most 24 images. A failed lane preserves
+useful results from the other lanes. If all fail, rate/budget errors take priority
+to prevent an additional CLI request. Cancellation drops all pending lanes.
+
+The picker displays batches as they arrive; the final invoke result is authoritative.
+The hook rejects malformed, duplicate and foreign-request batches and clears them
+on replacement/cancel. Batch event failure cannot prevent the final result from
+showing. Load-more, caching and prefetch are separate follow-up slices.
 
 Eligible failures fall back once to CLI. Rate limits, cancellation and tool-budget
 violations never trigger a second route. Three counted failures open a ten-minute
@@ -57,7 +67,7 @@ registry cleanup, waiter wakeup, and cancellation of a synthetic CLI process.
   validated images remain, one supplementary round requests one further call
   and includes already-seen references. These are prompt budgets, not a promise
   that the model performs exactly that many calls or returns a fixed count.
-- Each round retains at most 40 candidates; the ranked gallery returns at most
+- Each CLI round retains at most 40 candidates; the ranked CLI gallery returns at most
   16 images. Supplement failure preserves usable first-round results.
 - Image probes read at most 64 KiB of response data, including when the server
   ignores Range. Signatures and declared MIME must agree; HTML/error responses

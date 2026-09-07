@@ -121,6 +121,7 @@ export function WallpaperSourceModal({
   const {
     busy: xBusy,
     stage: xStage,
+    progressiveItems,
     search: searchX,
     cancel: cancelX,
   } = useWallpaperXSearch();
@@ -157,15 +158,16 @@ export function WallpaperSourceModal({
     setItems([]);
   }, [open, initialTab]);
 
-  const kindCounts = useMemo(() => countGalleryByKind(items), [items]);
+  const galleryItems = xBusy && progressiveItems.length > 0 ? progressiveItems : items;
+  const kindCounts = useMemo(() => countGalleryByKind(galleryItems), [galleryItems]);
 
   const visibleItems = useMemo(
     () =>
-      filterGalleryItems(items, {
+      filterGalleryItems(galleryItems, {
         query: galleryFilter,
         kind: kindFilter,
       }),
-    [items, galleryFilter, kindFilter],
+    [galleryItems, galleryFilter, kindFilter],
   );
 
   const filtersActive = wallpaperGalleryHasActiveFilters({
@@ -181,7 +183,7 @@ export function WallpaperSourceModal({
       error: errorCode
         ? { code: errorCode, message: error ?? errorCode }
         : error,
-      totalCount: items.length,
+      totalCount: galleryItems.length,
       kindFilter,
       hasSearched,
     });
@@ -204,7 +206,7 @@ export function WallpaperSourceModal({
     visibleItems.length,
     errorCode,
     error,
-    items.length,
+    galleryItems.length,
     kindFilter,
     hasSearched,
     tab,
@@ -583,7 +585,7 @@ export function WallpaperSourceModal({
 
   const authNeeded = errorCode === "auth_required";
   const locked = busy || applying || previewingId !== null;
-  const showGalleryFilters = items.length > 0 || filtersActive;
+  const showGalleryFilters = galleryItems.length > 0 || filtersActive;
   const softFailError =
     galleryErrorKind != null && isWallpaperGallerySoftFail(galleryErrorKind);
   // Error banner already carries detail for empty/error — avoid stacking the
