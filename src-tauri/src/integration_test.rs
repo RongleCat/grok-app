@@ -135,29 +135,31 @@ mod integration {
 
     #[test]
     fn settings_default_factory_and_disk_roundtrip() {
-        let _ = ensure_app_dirs();
-        // Factory defaults (not necessarily what's already on disk)
-        let factory = AppSettings::default();
-        assert_eq!(factory.session_data_mode, "shared");
-        assert_eq!(factory.permission_policy, "ask");
-        assert_eq!(factory.sandbox_profile, "workspace");
-        assert!(!factory.reopen_last_session);
-        assert!(factory.last_session_id.is_none());
-        assert!(factory.sidebar_collapsed_project_ids.is_empty());
-        assert!(factory.sidebar_other_sessions_open);
-        assert!(factory.project_spaces.is_empty());
-        assert!(factory.active_project_space_id.is_none());
-        assert!(factory.project_space_by_id.is_empty());
-        // Disk load + save same content must not corrupt
-        let s = load_settings();
-        save_settings(&s).expect("save");
-        let s2 = load_settings();
-        assert_eq!(s2.session_data_mode, s.session_data_mode);
-        assert_eq!(s2.permission_policy, s.permission_policy);
-        assert_eq!(s2.sandbox_profile, s.sandbox_profile);
-        assert_eq!(s2.reopen_last_session, s.reopen_last_session);
-        let root = app_data_root();
-        assert!(!root.as_os_str().is_empty());
+        with_isolated_project_store(|| {
+            let _ = ensure_app_dirs();
+            // Factory defaults (not necessarily what's already on disk)
+            let factory = AppSettings::default();
+            assert_eq!(factory.session_data_mode, "shared");
+            assert_eq!(factory.permission_policy, "ask");
+            assert_eq!(factory.sandbox_profile, "workspace");
+            assert!(!factory.reopen_last_session);
+            assert!(factory.last_session_id.is_none());
+            assert!(factory.sidebar_collapsed_project_ids.is_empty());
+            assert!(factory.sidebar_other_sessions_open);
+            assert!(factory.project_spaces.is_empty());
+            assert!(factory.active_project_space_id.is_none());
+            assert!(factory.project_space_by_id.is_empty());
+            // Disk load + save same content must not corrupt
+            let s = load_settings();
+            save_settings(&s).expect("save");
+            let s2 = load_settings();
+            assert_eq!(s2.session_data_mode, s.session_data_mode);
+            assert_eq!(s2.permission_policy, s.permission_policy);
+            assert_eq!(s2.sandbox_profile, s.sandbox_profile);
+            assert_eq!(s2.reopen_last_session, s.reopen_last_session);
+            let root = app_data_root();
+            assert!(!root.as_os_str().is_empty());
+        });
     }
 
     #[test]
