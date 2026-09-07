@@ -96,6 +96,7 @@ export const ptBRChat = {
   "chat.thinkingFor": "Pensando por {duration}",
   "chat.workedFor": "Trabalhou por {duration}",
   "chat.worked": "Trabalhou",
+  "chat.phaseErrorsMore": "mais {n} falhas",
   "chat.workingFor": "Trabalhando por {duration}",
   "chat.working": "Trabalhando",
   "chat.duration.seconds": "{n}s",

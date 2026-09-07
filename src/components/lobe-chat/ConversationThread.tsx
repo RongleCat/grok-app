@@ -121,6 +121,8 @@ import {
   estimateChatRowHeight,
   splitVirtSpacerHeights,
 } from "@/lib/chatVirtualList";
+import { chatRowPaint } from "@/lib/chatRowPaintPolicy";
+import { countFailedToolSegments } from "@/lib/phaseErrorExcerpt";
 import { scrollPerfDebug } from "@/lib/scrollPerfDebug";
 import { StructuredJsonPanel } from "./StructuredJsonPanel";
 import {
@@ -850,6 +852,9 @@ type TranscriptMessageRowProps = {
   m: ChatMessage;
   msgIndex: number;
   virtualized: boolean;
+  /** Geometric window may be wide; shell skips markdown. */
+  paint: "rich" | "shell";
+  shellHeight: number;
   measureRef: (index: number) => (el: HTMLElement | null) => void;
   locale: Locale;
   tr: ReturnType<typeof createT>;
@@ -929,6 +934,8 @@ function transcriptRowPropsEqual(
   if (a.m !== b.m) return false;
   if (a.msgIndex !== b.msgIndex) return false;
   if (a.virtualized !== b.virtualized) return false;
+  if (a.paint !== b.paint) return false;
+  if (a.paint === "shell" && a.shellHeight !== b.shellHeight) return false;
   if (a.locale !== b.locale) return false;
   if (a.projectPath !== b.projectPath) return false;
   if (a.sshAlias !== b.sshAlias) return false;
@@ -987,6 +994,8 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   m,
   msgIndex,
   virtualized,
+  paint,
+  shellHeight,
   measureRef,
   locale,
   tr,
@@ -1076,6 +1085,17 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
     ) : (
       node
     );
+
+  if (paint === "shell") {
+    return wrap(
+      <div
+        className="lobe-chat-item lobe-chat-item--shell"
+        aria-hidden
+        data-virt-shell=""
+        style={{ height: Math.max(0, shellHeight), overflow: "hidden" }}
+      />,
+    );
+  }
 
   if (
     isEndOfTurnMarker(m.marker) ||
@@ -2745,7 +2765,7 @@ export function ConversationThread({
   ]);
 
   const estimateCacheRef = useRef<
-    Map<string, { len: number; atts: number; h: number }>
+    Map<string, { len: number; atts: number; failed: number; h: number }>
   >(new Map());
 
   // Invalidate estimate cache on session key change
@@ -2769,11 +2789,19 @@ export function ConversationThread({
 
       const body = m.content || "";
       const atts = m.attachments ?? [];
+      const toolSegs = (m.segments ?? []).filter(
+        (s): s is MessageToolSegment => s.kind === "tool",
+      );
+      const failedToolCount =
+        !m.streaming && toolStepsAutoCollapse
+          ? countFailedToolSegments(toolSegs)
+          : 0;
       const cached = estimateCacheRef.current.get(m.id);
       if (
         cached &&
         cached.len === body.length &&
         cached.atts === atts.length &&
+        cached.failed === failedToolCount &&
         !m.streaming
       ) {
         return cached.h;
@@ -2825,15 +2853,12 @@ export function ConversationThread({
         m.role === "user" && shouldFoldUserMessage(body)
           ? USER_MSG_PREVIEW_CHARS
           : body.length;
-      const toolCount = m.segments
-        ? m.segments.filter((s) => s.kind === "tool").length
-        : m.toolCallId
-          ? 1
-          : 0;
+      const toolCount = toolSegs.length || (m.toolCallId ? 1 : 0);
       const est = estimateChatRowHeight({
         contentLength: effectiveContentLength,
         rawContent: body,
         toolCount,
+        failedToolCount,
         thoughtLength: m.thought?.length ?? 0,
         role: m.role,
         attachmentCount,
@@ -2850,12 +2875,18 @@ export function ConversationThread({
         estimateCacheRef.current.set(m.id, {
           len: body.length,
           atts: atts.length,
+          failed: failedToolCount,
           h: est,
         });
       }
       return est;
     },
-    [transcriptMessages, standaloneToolGroups, wovenMessages],
+    [
+      transcriptMessages,
+      standaloneToolGroups,
+      wovenMessages,
+      toolStepsAutoCollapse,
+    ],
   );
 
   const {
@@ -2864,6 +2895,9 @@ export function ConversationThread({
     end: virtEnd,
     paddingTop,
     paddingBottom,
+    richStart,
+    richEnd,
+    rowHeight,
     measureRef,
   } = useChatMessageVirtualizer({
     itemCount: transcriptMessages.length,
@@ -3085,6 +3119,12 @@ export function ConversationThread({
               m={m}
               msgIndex={msgIndex}
               virtualized={virtualized}
+              paint={
+                virtualized
+                  ? chatRowPaint(msgIndex, { richStart, richEnd })
+                  : "rich"
+              }
+              shellHeight={rowHeight(msgIndex)}
               measureRef={measureRef}
               locale={locale}
               tr={tr}

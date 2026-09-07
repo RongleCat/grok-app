@@ -96,6 +96,7 @@ export const ruChat = {
   "chat.thinkingFor": "Размышляет {duration}",
   "chat.workedFor": "Работал {duration}",
   "chat.worked": "Работал",
+  "chat.phaseErrorsMore": "ещё {n} с ошибкой",
   "chat.workingFor": "Работает {duration}",
   "chat.working": "Работает",
   "chat.duration.seconds": "{n}с",

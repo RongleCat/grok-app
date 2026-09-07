@@ -45,6 +45,29 @@
   flex-shrink: 0;
 }
 
+.grok-act__excerpt {
+  display: flex;
+  flex-direction: column;
+}
+.grok-act__excerpt-more {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 2px 0 2px calc(var(--grok-act-icon, 16px) + var(--grok-act-gap, 8px));
+  border: none;
+  background: transparent;
+  color: var(--chat-danger, #c44);
+  font-size: var(--grok-act-font, 13px);
+  font-weight: 400;
+  line-height: 1.45;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.grok-act__excerpt-more:hover {
+  text-decoration: underline;
+}
+
 .grok-act__steps {
   display: flex;
   flex-direction: column;

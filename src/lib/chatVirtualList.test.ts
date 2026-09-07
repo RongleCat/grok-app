@@ -15,6 +15,7 @@ import {
   findEndIndex,
   findStartIndex,
   resolveChatOverscanPx,
+  resolveChatRichRange,
   scrollTopAfterHeightChange,
   shouldCommitRowHeight,
   shouldWriteScrollOnRowCommit,
@@ -39,6 +40,8 @@ describe("computeChatVirtualWindow", () => {
       paddingTop: 0,
       paddingBottom: 0,
       totalHeight: 0,
+      richStart: 0,
+      richEnd: 0,
     });
   });
 
@@ -65,6 +68,8 @@ describe("computeChatVirtualWindow", () => {
       paddingTop: 0,
       paddingBottom: 0,
       totalHeight: 0,
+      richStart: 0,
+      richEnd: 0,
     });
     const w = chatOpenPinWindow(80);
     expect(w.end).toBe(80);
@@ -352,6 +357,28 @@ describe("estimateChatRowHeight", () => {
     // 6 cards → 2 rows × ~160px
     expect(images - chips).toBeGreaterThanOrEqual(200);
   });
+
+  it("folded failed tools add excerpt height under Worked-for chrome", () => {
+    const base = estimateChatRowHeight({
+      contentLength: 80,
+      role: "assistant",
+      toolCount: 4,
+    });
+    const withErrors = estimateChatRowHeight({
+      contentLength: 80,
+      role: "assistant",
+      toolCount: 4,
+      failedToolCount: 2,
+    });
+    expect(withErrors - base).toBe(72);
+    const capped = estimateChatRowHeight({
+      contentLength: 80,
+      role: "assistant",
+      toolCount: 20,
+      failedToolCount: 8,
+    });
+    expect(capped - base).toBe(216);
+  });
 });
 
 describe("shouldWriteScrollOnRowCommit", () => {
@@ -595,6 +622,46 @@ describe("long transcript window scale", () => {
     expect(w.paddingBottom).toBe(0);
     // Not the whole list — only overscan above the tail.
     expect(w.start).toBeGreaterThan(count - 80);
+    expect(w.richEnd).toBe(count);
+    expect(w.richEnd - w.richStart).toBeLessThanOrEqual(12);
+    expect(w.richStart).toBeGreaterThanOrEqual(w.start);
+  });
+});
+
+describe("resolveChatRichRange", () => {
+  it("keeps markdown inside the viewport band, not the full geo overscan", () => {
+    const count = 200;
+    const offsets = cumulativeOffsets(count, () => 100);
+    const w = computeChatVirtualWindow({
+      count,
+      getHeight: fixed(100),
+      scrollTop: 8000,
+      viewportHeight: 400,
+      pinToBottom: false,
+      overscanPx: 4000,
+      offsets,
+    });
+    expect(w.end - w.start).toBeGreaterThan(20);
+    expect(w.richEnd - w.richStart).toBeLessThanOrEqual(12);
+    expect(w.richStart).toBeGreaterThanOrEqual(w.start);
+    expect(w.richEnd).toBeLessThanOrEqual(w.end);
+  });
+
+  it("pin rich band is the tail, capped", () => {
+    const count = 80;
+    const offsets = cumulativeOffsets(count, () => 100);
+    const r = resolveChatRichRange({
+      count,
+      offsets,
+      viewTop: 7200,
+      viewBottom: 8000,
+      geoStart: 40,
+      geoEnd: 80,
+      pinToBottom: true,
+    });
+    expect(r.richEnd).toBe(80);
+    expect(r.richEnd - r.richStart).toBeLessThanOrEqual(12);
+    expect(r.richStart).toBeGreaterThanOrEqual(40);
   });
 });
 

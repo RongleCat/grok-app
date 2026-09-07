@@ -96,6 +96,7 @@ export const frChat = {
   "chat.thinkingFor": "Réflexion pendant {duration}",
   "chat.workedFor": "A travaillé pendant {duration}",
   "chat.worked": "A travaillé",
+  "chat.phaseErrorsMore": "{n} autres échecs",
   "chat.workingFor": "En cours depuis {duration}",
   "chat.working": "En cours",
   "chat.duration.seconds": "{n} s",

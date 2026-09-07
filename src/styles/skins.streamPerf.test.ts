@@ -35,6 +35,16 @@ describe("stream-perf wallpaper CSS", () => {
     );
   });
 
+  it("drops pane blur while the chat scroller is mid-gesture", () => {
+    const css = readFileSync(join(here, "skins.css"), "utf8");
+    expect(css).toContain(
+      "html:has(.lobe-chat__scroll[data-scrolling=\"1\"]) .composer",
+    );
+    expect(css).toContain(
+      "html:has(.lobe-chat__scroll[data-scrolling=\"1\"]) .sidebar",
+    );
+  });
+
   it("keeps wallpaper media frost at scrim 0% (#941)", () => {
     const css = readFileSync(join(here, "skins.css"), "utf8");
     expect(css).not.toMatch(

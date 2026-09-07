@@ -96,6 +96,7 @@ export const koChat = {
   "chat.thinkingFor": "{duration} 동안 생각함",
   "chat.workedFor": "{duration} 동안 작업함",
   "chat.worked": "작업함",
+  "chat.phaseErrorsMore": "실패 {n}개 더",
   "chat.workingFor": "{duration} 동안 작업 중",
   "chat.working": "작업 중",
   "chat.duration.seconds": "{n}초",

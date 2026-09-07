@@ -99,6 +99,8 @@ export const enChat = {
   "chat.workedFor": "Worked for {duration}",
   /** Finished work phase without a usable duration. */
   "chat.worked": "Worked",
+  /** Folded Worked-for: remaining failed tools past the excerpt cap. */
+  "chat.phaseErrorsMore": "{n} more failed",
   /** Live work phase with wall-clock. */
   "chat.workingFor": "Working for {duration}",
   "chat.working": "Working",

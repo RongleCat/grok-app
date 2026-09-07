@@ -96,6 +96,7 @@ export const filChat = {
   "chat.thinkingFor": "Nag-iisip nang {duration}",
   "chat.workedFor": "Nagtrabaho nang {duration}",
   "chat.worked": "Nagtrabaho",
+  "chat.phaseErrorsMore": "{n} pang nabigo",
   "chat.workingFor": "Gumagawa nang {duration}",
   "chat.working": "Gumagawa",
   "chat.duration.seconds": "{n}s",

@@ -96,6 +96,7 @@ export const taChat = {
   "chat.thinkingFor": "{duration}க்கு யோசிக்கிறேன்",
   "chat.workedFor": "{duration} இல் பணிபுரிந்தார்",
   "chat.worked": "வேலை",
+  "chat.phaseErrorsMore": "மேலும் {n} தோல்வி",
   "chat.workingFor": "{duration} இல் வேலை செய்கிறேன்",
   "chat.working": "செயலில்",
   "chat.duration.seconds": "{n}வி",

@@ -96,6 +96,7 @@ export const ukChat = {
   "chat.thinkingFor": "Міркував {duration}",
   "chat.workedFor": "Працював {duration}",
   "chat.worked": "Працював",
+  "chat.phaseErrorsMore": "ще {n} з помилкою",
   "chat.workingFor": "Працює {duration}",
   "chat.working": "Працює",
   "chat.duration.seconds": "{n}с",

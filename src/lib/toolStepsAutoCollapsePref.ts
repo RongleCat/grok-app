@@ -87,15 +87,16 @@ export function toolStepDefaultOpen(
 /**
  * Work-phase fold (“工作中 / 工作了”).
  * Live work stays expanded so the user can see which tools are running.
- * After the phase ends: keep open on errors; otherwise follow auto-collapse.
+ * After the phase ends, follow auto-collapse even when tools failed.
+ * Failed leaves render as excerpt rows under the folded header.
  */
 export function workPhaseDefaultOpen(opts: {
   running: boolean;
+  /** Ignored. Failures use excerpt rows, not a forced-open rail. */
   errorCount?: number;
   autoCollapse?: boolean;
 }): boolean {
   if (opts.running) return true;
-  if ((opts.errorCount ?? 0) > 0) return true;
   return !(opts.autoCollapse ?? DEFAULT_TOOL_STEPS_AUTO_COLLAPSE);
 }
 

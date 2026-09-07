@@ -99,6 +99,7 @@ export const zhChat = {
   "chat.workedFor": "工作了 {duration}",
   /** 无时长时的已完成折叠头（统一「工作了」，不用「已工作/工作」）。 */
   "chat.worked": "工作了",
+  "chat.phaseErrorsMore": "还有 {n} 个失败",
   /** 进行中工作阶段 + 计时。 */
   "chat.workingFor": "工作中 {duration}",
   "chat.working": "工作中",

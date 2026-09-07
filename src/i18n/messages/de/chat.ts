@@ -96,6 +96,7 @@ export const deChat = {
   "chat.thinkingFor": "Denkt nach {duration}",
   "chat.workedFor": "Gearbeitet {duration}",
   "chat.worked": "Gearbeitet",
+  "chat.phaseErrorsMore": "noch {n} fehlgeschlagen",
   "chat.workingFor": "Arbeitet {duration}",
   "chat.working": "Arbeitet",
   "chat.duration.seconds": "{n}s",

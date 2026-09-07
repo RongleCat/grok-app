@@ -100,7 +100,7 @@ describe("toolStepsAutoCollapsePref", () => {
     ).toBe(false);
   });
 
-  it("workPhaseDefaultOpen: live stays expanded; done collapses unless errors", () => {
+  it("workPhaseDefaultOpen: live stays expanded; done collapses even with errors", () => {
     expect(
       workPhaseDefaultOpen({
         running: true,
@@ -128,7 +128,7 @@ describe("toolStepsAutoCollapsePref", () => {
         errorCount: 1,
         autoCollapse: true,
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       workPhaseDefaultOpen({
         running: false,

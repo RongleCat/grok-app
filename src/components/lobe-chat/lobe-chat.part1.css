@@ -273,6 +273,15 @@ html[data-chat-width="full"] .lobe-chat__inner,
   align-items: stretch;
 }
 
+.lobe-chat-item--shell {
+  contain: strict;
+  pointer-events: none;
+  box-sizing: border-box;
+  margin-inline: 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--chat-text, #888) 6%, transparent);
+}
+
 .lobe-chat-item__header {
   display: none; /* no avatars / titles */
 }

@@ -13,6 +13,7 @@
  *   not mount the entire remainder of a long chat (history-browse jank).
  */
 
+import { phaseErrorExcerptHeightPx } from "@/lib/phaseErrorExcerpt";
 import { CHAT_VIRTUALIZE_THRESHOLD_PERF } from "@/lib/streamRenderPolicy";
 
 /**
@@ -67,6 +68,13 @@ export const CHAT_FORCE_EXPAND_MAX_GAP = 12;
  */
 export const CHAT_OPEN_PIN_TAIL_ROWS = 24;
 
+/** Extra px around the viewport that paint full markdown (not the geo overscan). */
+export const CHAT_RICH_OVERSCAN_PX = 1200;
+/** Simultaneous markdown rows. A fling must not parse a dozen articles. */
+export const CHAT_RICH_MAX_ROWS = 12;
+/** Pinned: keep this many latest rows rich (streaming tail). */
+export const CHAT_PIN_RICH_TAIL_ROWS = 8;
+
 /**
  * Chat ImageUi card max height (must match ImageUi CHAT_IMAGE_CARD_MAX_H).
  * Used for virtual-row pre-estimates so multi-image turns do not under-scroll.
@@ -89,6 +97,11 @@ export function estimateChatRowHeight(input: {
   role?: string;
   rawContent?: string;
   toolCount?: number;
+  /**
+   * Failed tools in a folded Worked-for phase (history). Adds excerpt-row
+   * height so pin math is not short by N×36px.
+   */
+  failedToolCount?: number;
   /**
    * Non-image attachment chips (file/folder under the bubble), or user-strip
    * 36px thumbs when role is user.
@@ -134,8 +147,11 @@ export function estimateChatRowHeight(input: {
   }
   // Collapsed CoT is a ~38px "Thought" chip.
   const thoughtChrome = !input.thoughtExpanded && thoughtRaw > 0 ? 38 : 0;
-  // Tool phase activity header ("Worked for ...") is ~42px
-  const toolPhaseChrome = (input.toolCount ?? 0) > 0 ? 42 : 0;
+  // Tool phase activity header ("Worked for ...") is ~42px; folded
+  // failures add one-line excerpt rows under that header.
+  const toolPhaseChrome =
+    ((input.toolCount ?? 0) > 0 ? 42 : 0) +
+    phaseErrorExcerptHeightPx(input.failedToolCount ?? 0);
 
   // Modern chat width (~700-900px): ~50-65 chars per line typical.
   const charsPerLine = role === "user" ? 50 : 65;
@@ -182,6 +198,10 @@ export type ChatVirtualWindow = {
   paddingTop: number;
   paddingBottom: number;
   totalHeight: number;
+  /** Inclusive start of rows that paint markdown (shells fill the rest). */
+  richStart: number;
+  /** Exclusive end of the rich band. */
+  richEnd: number;
 };
 
 /**
@@ -195,16 +215,27 @@ export function chatOpenPinWindow(
 ): ChatVirtualWindow {
   const n = Math.max(0, Math.floor(count));
   if (n <= 0) {
-    return { start: 0, end: 0, paddingTop: 0, paddingBottom: 0, totalHeight: 0 };
+    return {
+      start: 0,
+      end: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
+      totalHeight: 0,
+      richStart: 0,
+      richEnd: 0,
+    };
   }
   const tail = Math.max(1, Math.floor(tailRows));
   const start = Math.max(0, n - tail);
+  const richStart = Math.max(start, n - CHAT_PIN_RICH_TAIL_ROWS);
   return {
     start,
     end: n,
     paddingTop: 0,
     paddingBottom: 0,
     totalHeight: 0,
+    richStart,
+    richEnd: n,
   };
 }
 
@@ -422,6 +453,79 @@ export function applyForceIndices(input: {
 }
 
 /**
+ * Markdown band inside a geometric window. Overscan shells keep scrollHeight
+ * stable; only this inner range runs ReactMarkdown.
+ */
+export function resolveChatRichRange(input: {
+  count: number;
+  offsets: readonly number[];
+  viewTop: number;
+  viewBottom: number;
+  geoStart: number;
+  geoEnd: number;
+  pinToBottom?: boolean;
+  forceIndices?: readonly number[];
+  richOverscanPx?: number;
+  maxRows?: number;
+  pinTailRows?: number;
+}): { richStart: number; richEnd: number } {
+  const count = Math.max(0, Math.floor(input.count));
+  if (count <= 0) return { richStart: 0, richEnd: 0 };
+  const geoStart = Math.max(0, Math.min(input.geoStart, count));
+  const geoEnd = Math.max(geoStart, Math.min(input.geoEnd, count));
+  if (geoEnd <= geoStart) return { richStart: geoStart, richEnd: geoEnd };
+
+  const pad =
+    input.richOverscanPx != null && Number.isFinite(input.richOverscanPx)
+      ? Math.max(0, input.richOverscanPx)
+      : CHAT_RICH_OVERSCAN_PX;
+  const rangeTop = Math.max(0, input.viewTop - pad);
+  const rangeBottom = input.viewBottom + pad;
+
+  let richStart = findStartIndex(input.offsets as number[], rangeTop);
+  let richEnd = findEndIndex(input.offsets as number[], rangeBottom);
+  if (richEnd <= richStart) richEnd = Math.min(count, richStart + 1);
+
+  richStart = Math.max(geoStart, Math.min(richStart, geoEnd));
+  richEnd = Math.max(richStart, Math.min(richEnd, geoEnd));
+
+  if (input.pinToBottom) {
+    const tail = Math.max(1, input.pinTailRows ?? CHAT_PIN_RICH_TAIL_ROWS);
+    richEnd = geoEnd;
+    richStart = Math.min(richStart, Math.max(geoStart, geoEnd - tail));
+  }
+
+  const forces = input.forceIndices;
+  if (forces?.length) {
+    for (const raw of forces) {
+      const i = Math.floor(raw);
+      if (i < geoStart || i >= geoEnd) continue;
+      if (i < richStart) richStart = i;
+      if (i >= richEnd) richEnd = i + 1;
+    }
+  }
+
+  const maxRows = Math.max(1, input.maxRows ?? CHAT_RICH_MAX_ROWS);
+  if (richEnd - richStart > maxRows) {
+    if (input.pinToBottom) {
+      richStart = richEnd - maxRows;
+    } else {
+      const mid = (input.viewTop + input.viewBottom) / 2;
+      const midIdx = findStartIndex(input.offsets as number[], mid);
+      richStart = Math.max(geoStart, Math.min(midIdx - (maxRows >> 1), geoEnd - maxRows));
+      richEnd = richStart + maxRows;
+    }
+    richStart = Math.max(geoStart, richStart);
+    richEnd = Math.min(geoEnd, richEnd);
+  }
+
+  richStart = snapVirtualStartBeforeZeroRun(input.offsets, richStart);
+  richStart = Math.max(geoStart, Math.min(richStart, Math.max(geoStart, geoEnd - 1)));
+  richEnd = Math.max(richStart + 1, Math.min(richEnd, geoEnd));
+  return { richStart, richEnd };
+}
+
+/**
  * Compute the visible index range + spacers for a variable-height list.
  */
 export function computeChatVirtualWindow(input: {
@@ -442,7 +546,15 @@ export function computeChatVirtualWindow(input: {
 }): ChatVirtualWindow {
   const count = Math.max(0, Math.floor(input.count));
   if (count === 0) {
-    return { start: 0, end: 0, paddingTop: 0, paddingBottom: 0, totalHeight: 0 };
+    return {
+      start: 0,
+      end: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
+      totalHeight: 0,
+      richStart: 0,
+      richEnd: 0,
+    };
   }
 
   const offsets: number[] =
@@ -494,8 +606,26 @@ export function computeChatVirtualWindow(input: {
   const paddingTop = offsets[start] ?? 0;
   const rendered = (offsets[end] ?? 0) - paddingTop;
   const paddingBottom = Math.max(0, totalHeight - paddingTop - rendered);
+  const { richStart, richEnd } = resolveChatRichRange({
+    count,
+    offsets,
+    viewTop,
+    viewBottom,
+    geoStart: start,
+    geoEnd: end,
+    pinToBottom: pin,
+    forceIndices: input.forceIndices,
+  });
 
-  return { start, end, paddingTop, paddingBottom, totalHeight };
+  return {
+    start,
+    end,
+    paddingTop,
+    paddingBottom,
+    totalHeight,
+    richStart,
+    richEnd,
+  };
 }
 
 /** Window the DOM when row count or estimated height is large enough. */

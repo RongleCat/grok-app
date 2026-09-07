@@ -20,10 +20,17 @@ const rehypeKatexCssLoader = () => {
   return () => undefined;
 };
 
+export const MARKDOWN_REMARK_PLUGINS_GFM: NonNullable<Options["remarkPlugins"]> =
+  [remarkGfm];
+
 export const MARKDOWN_REMARK_PLUGINS: NonNullable<Options["remarkPlugins"]> = [
   remarkGfm,
   remarkMath,
 ];
+
+export const MARKDOWN_REHYPE_PLUGINS_NO_MATH: NonNullable<
+  Options["rehypePlugins"]
+> = [];
 
 export const MARKDOWN_REHYPE_PLUGINS: NonNullable<Options["rehypePlugins"]> = [
   rehypeKatexCssLoader,
@@ -38,3 +45,9 @@ export const MARKDOWN_REHYPE_PLUGINS: NonNullable<Options["rehypePlugins"]> = [
     },
   ],
 ];
+
+/** Skip remark-math + KaTeX when the source has no math delimiters. */
+export function sourceHasMath(src: string): boolean {
+  if (!src) return false;
+  return /\$\$|\$[^$\n]|\\\[|\\\(/.test(src);
+}

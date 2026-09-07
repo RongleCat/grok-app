@@ -96,6 +96,7 @@ export const jaChat = {
   "chat.thinkingFor": "{duration} 考え中",
   "chat.workedFor": "{duration} 作業しました",
   "chat.worked": "作業しました",
+  "chat.phaseErrorsMore": "他 {n} 件の失敗",
   "chat.workingFor": "{duration} 作業中",
   "chat.working": "作業中",
   "chat.duration.seconds": "{n}秒",

@@ -46,7 +46,9 @@ import { resolveWorkChromeLabel } from "@/lib/workChromeLabel";
 import {
   buildGrokActivitySteps,
   type GrokActivityStep,
+  type GrokPhaseItem,
 } from "@/lib/grokActivitySteps";
+import { collectPhaseErrorExcerpt } from "@/lib/phaseErrorExcerpt";
 import {
   resolveToolPrimaryLabel,
   toolExpandBody,
@@ -827,22 +829,36 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
     }
   }, [phaseRunning, phase.id, stampPool]);
 
+  const phaseItems = useMemo((): GrokPhaseItem[] => {
+    if (phase.items?.length) return phase.items;
+    return [
+      ...phase.thoughts
+        .filter((t) => t.trim())
+        .map((text) => ({ kind: "thought" as const, text })),
+      ...phase.tools.map((tool) => ({ kind: "tool" as const, tool })),
+    ];
+  }, [phase.items, phase.thoughts, phase.tools]);
+
   const stepsResolved = useMemo(() => {
     if (!expanded) return [];
-    const items =
-      phase.items?.length
-        ? phase.items
-        : [
-            ...phase.thoughts
-              .filter((t) => t.trim())
-              .map((text) => ({ kind: "thought" as const, text })),
-            ...phase.tools.map((tool) => ({ kind: "tool" as const, tool })),
-          ];
-    return buildGrokActivitySteps(items, {
+    return buildGrokActivitySteps(phaseItems, {
       live: phase.live,
       messageStreaming: !!messageStreaming,
     });
-  }, [expanded, phase.items, phase.thoughts, phase.tools, phase.live, messageStreaming]);
+  }, [expanded, phaseItems, phase.live, messageStreaming]);
+
+  const errorExcerpt = useMemo(
+    () =>
+      expanded || phaseRunning
+        ? { rows: [], overflow: 0 }
+        : collectPhaseErrorExcerpt(phaseItems),
+    [expanded, phaseRunning, phaseItems],
+  );
+
+  const openPhase = useCallback(() => {
+    userToggled.current = true;
+    setOpen(true);
+  }, []);
 
   // Prefer the larger of wall-clock and timestamp span (see resolveWorkDurationSec).
   const durationSec = resolveWorkDurationSec({ liveSec, historySec });
@@ -866,6 +882,9 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
       data-phase-id={phase.id}
       data-live={phaseRunning ? "1" : "0"}
       data-expanded={expanded ? "1" : "0"}
+      data-error-excerpt={
+        !expanded && errorExcerpt.rows.length > 0 ? "1" : undefined
+      }
     >
       <button
         type="button"
@@ -899,6 +918,34 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
           messageContent={messageContent}
           onOpenExternalLink={onOpenExternalLink}
         />
+      ) : errorExcerpt.rows.length > 0 ? (
+        <div
+          className="grok-act__excerpt"
+          data-testid="timeline-phase-excerpt"
+        >
+          <GrokActivitySteps
+            steps={errorExcerpt.rows}
+            tr={tr}
+            locale={locale}
+            live={false}
+            findQuery={findQuery}
+            findActiveOccurrence={findActiveOccurrence}
+            messageContent={messageContent}
+            onOpenExternalLink={onOpenExternalLink}
+          />
+          {errorExcerpt.overflow > 0 ? (
+            <button
+              type="button"
+              className="grok-act__excerpt-more"
+              data-testid="timeline-phase-excerpt-more"
+              onClick={openPhase}
+            >
+              {tr("chat.phaseErrorsMore", {
+                n: String(errorExcerpt.overflow),
+              })}
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

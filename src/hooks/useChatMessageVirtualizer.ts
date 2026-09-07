@@ -23,6 +23,9 @@
  *   mounting"): when the committed window still covers the viewport, new rows
  *   are pure pre-mounting, so React may time-slice them and scroll/input can
  *   interrupt. Only a viewport hole forces the urgent lane.
+ * - Markdown paint is a narrower band than the geo window. Gestures freeze
+ *   the rich band (compositor still scrolls). Idle hole fills the whole
+ *   target in one urgent commit; extra overscan hydrates a few rows per frame.
  */
 
 import {
@@ -36,6 +39,7 @@ import {
 } from "react";
 import {
   CHAT_DEFAULT_ROW_ESTIMATE_PX,
+  CHAT_RICH_MAX_ROWS,
   CHAT_VIRTUALIZE_THRESHOLD,
   chatOpenPinWindow,
   computeChatVirtualWindow,
@@ -46,6 +50,12 @@ import {
   shouldVirtualizeChat,
   type ChatVirtualWindow,
 } from "@/lib/chatVirtualList";
+import {
+  chatRichBandNeedsFollowUp,
+  chatRichBandsOverlap,
+  intersectChatRichBand,
+  nextChatRichBand,
+} from "@/lib/chatRowPaintPolicy";
 import { scrollPerfDebug } from "@/lib/scrollPerfDebug";
 import { resolveStreamOverscanScale } from "@/lib/streamRenderPolicy";
 import {
@@ -92,6 +102,10 @@ export type UseChatMessageVirtualizerResult = {
   end: number;
   paddingTop: number;
   paddingBottom: number;
+  richStart: number;
+  richEnd: number;
+  /** Measured height, else content estimate. */
+  rowHeight: (index: number) => number;
   /** Attach to each row wrapper for measurement. */
   measureRef: (index: number) => (el: HTMLElement | null) => void;
   /** Recompute after scroll (also driven by native scroll listener). */
@@ -104,6 +118,8 @@ const full = (count: number): ChatVirtualWindow => ({
   paddingTop: 0,
   paddingBottom: 0,
   totalHeight: 0,
+  richStart: 0,
+  richEnd: count,
 });
 
 export function useChatMessageVirtualizer(
@@ -163,6 +179,8 @@ export function useChatMessageVirtualizer(
    * True while the user is actively scrolling or flinging with non-zero momentum.
    */
   const scrollingRef = useRef(false);
+  /** Primary pointer is down on the scroller (touch / pen / mouse drag). */
+  const fingerDownRef = useRef(false);
   /** Height delta above viewport absorbed by spacer during active scroll. */
   const pendingAnchorOffsetRef = useRef(0);
   /**
@@ -396,7 +414,23 @@ export function useChatMessageVirtualizer(
     const committedCoversViewport =
       cTopPx <= Math.max(0, viewTop - coverMarginPx) &&
       cBottomPx >= Math.min(next.totalHeight, viewBottom + coverMarginPx);
-    const deferrable = !scrollTopWasWritten && committedCoversViewport;
+    const committedRich = {
+      richStart: committed.richStart,
+      richEnd: committed.richEnd,
+    };
+    const targetRichEarly = {
+      richStart: next.richStart,
+      richEnd: next.richEnd,
+    };
+    const freezeRich = fingerDownRef.current || scrollingRef.current;
+    const richHole =
+      !freezeRich &&
+      !chatRichBandsOverlap(
+        intersectChatRichBand(committedRich, next.start, next.end),
+        targetRichEarly,
+      );
+    const deferrable =
+      !scrollTopWasWritten && committedCoversViewport && !richHole;
 
     // Chunked pre-mounting: a deferred expansion mounts at most a few rows
     // per commit, and an rAF loop walks the window to the full target.
@@ -437,6 +471,38 @@ export function useChatMessageVirtualizer(
       }
     }
 
+    const targetRich = {
+      richStart: next.richStart,
+      richEnd: next.richEnd,
+    };
+    const steppedRich = nextChatRichBand({
+      target: targetRich,
+      committed: {
+        richStart: committed.richStart,
+        richEnd: committed.richEnd,
+      },
+      geoStart: next.start,
+      geoEnd: next.end,
+      scrolling: freezeRich,
+      pinToBottom: pin,
+      forceIndices: forceRef.current,
+      maxRows: CHAT_RICH_MAX_ROWS,
+    });
+    next = {
+      ...next,
+      richStart: steppedRich.richStart,
+      richEnd: steppedRich.richEnd,
+    };
+    if (
+      !freezeRich &&
+      chatRichBandNeedsFollowUp(
+        steppedRich,
+        intersectChatRichBand(targetRich, next.start, next.end),
+      )
+    ) {
+      scheduleOnFrame(scrollFrameRef.current, () => recomputeNow());
+    }
+
     const effectivePaddingTop = Math.max(
       0,
       next.paddingTop - pendingAnchorOffsetRef.current,
@@ -463,6 +529,8 @@ export function useChatMessageVirtualizer(
     if (
       prev.start === adjustedNext.start &&
       prev.end === adjustedNext.end &&
+      prev.richStart === adjustedNext.richStart &&
+      prev.richEnd === adjustedNext.richEnd &&
       (scrollingRef.current || (
         prev.paddingTop === adjustedNext.paddingTop &&
         prev.paddingBottom === adjustedNext.paddingBottom &&
@@ -555,9 +623,26 @@ export function useChatMessageVirtualizer(
       );
     };
 
+    const onPointerDown = (e: PointerEvent) => {
+      if (!e.isPrimary) return;
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      fingerDownRef.current = true;
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      if (!e.isPrimary) return;
+      if (!fingerDownRef.current) return;
+      fingerDownRef.current = false;
+      scheduleOnFrame(scrollFrameRef.current, () =>
+        recomputeNow({ sampleVelocity: true }),
+      );
+    };
+
     el.addEventListener("scroll", onScroll, { passive: true });
     el.addEventListener("wheel", onUserInteraction, { passive: true });
     el.addEventListener("touchmove", onUserInteraction, { passive: true });
+    el.addEventListener("pointerdown", onPointerDown, { passive: true });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("pointercancel", onPointerUp, { passive: true });
     // Viewport chrome resize only — not content (content RO was thrashy).
     const ro =
       typeof ResizeObserver !== "undefined"
@@ -584,6 +669,9 @@ export function useChatMessageVirtualizer(
       el.removeEventListener("scroll", onScroll);
       el.removeEventListener("wheel", onUserInteraction);
       el.removeEventListener("touchmove", onUserInteraction);
+      el.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
       if (hoverRestoreTimerRef.current != null) {
         clearTimeout(hoverRestoreTimerRef.current);
         hoverRestoreTimerRef.current = null;
@@ -826,6 +914,9 @@ export function useChatMessageVirtualizer(
       end: itemCount,
       paddingTop: 0,
       paddingBottom: 0,
+      richStart: 0,
+      richEnd: itemCount,
+      rowHeight: getHeight,
       measureRef,
       onViewportScroll: recomputeNow,
     };
@@ -837,6 +928,9 @@ export function useChatMessageVirtualizer(
     end: win.end,
     paddingTop: win.paddingTop,
     paddingBottom: win.paddingBottom,
+    richStart: win.richStart,
+    richEnd: win.richEnd,
+    rowHeight: getHeight,
     measureRef,
     onViewportScroll: recomputeNow,
   };

@@ -96,6 +96,7 @@ export const itChat = {
   "chat.thinkingFor": "Pensiero per {duration}",
   "chat.workedFor": "Lavorato per {duration}",
   "chat.worked": "Lavorato",
+  "chat.phaseErrorsMore": "altri {n} non riusciti",
   "chat.workingFor": "In lavorazione da {duration}",
   "chat.working": "In lavorazione",
   "chat.duration.seconds": "{n}s",

@@ -156,20 +156,26 @@ export function MessageNodeRail({
 
       const viewportRect = viewport.getBoundingClientRect();
       const focusY = viewportRect.top + viewport.clientHeight * 0.28;
+      const scrolling = viewport.dataset.scrolling === "1";
 
-      // Mounted rows beat height estimates — one tall imported assistant
-      // answer otherwise keeps the active tick in the middle of the rail.
-      const mounted = viewport.querySelectorAll<HTMLElement>("[data-message-id]");
-      const rects: { id: string; top: number; bottom: number }[] = [];
-      for (const row of mounted) {
-        const id = row.getAttribute("data-message-id");
-        if (!id || !nodeIdSet.has(id)) continue;
-        const r = row.getBoundingClientRect();
-        if (r.height <= 0) continue;
-        rects.push({ id, top: r.top, bottom: r.bottom });
+      let bestId: string | null = null;
+      let mountedCount = 0;
+      if (!scrolling) {
+        // Mounted rows beat height estimates — one tall imported assistant
+        // answer otherwise keeps the active tick in the middle of the rail.
+        const mounted =
+          viewport.querySelectorAll<HTMLElement>("[data-message-id]");
+        mountedCount = mounted.length;
+        const rects: { id: string; top: number; bottom: number }[] = [];
+        for (const row of mounted) {
+          const id = row.getAttribute("data-message-id");
+          if (!id || !nodeIdSet.has(id)) continue;
+          const r = row.getBoundingClientRect();
+          if (r.height <= 0) continue;
+          rects.push({ id, top: r.top, bottom: r.bottom });
+        }
+        bestId = pickActiveNodeIdFromRects(rects, focusY);
       }
-
-      let bestId = pickActiveNodeIdFromRects(rects, focusY);
 
       if (!bestId && messages && messages.length > 0) {
         const y = viewport.scrollTop + viewport.clientHeight * 0.28;
@@ -179,7 +185,7 @@ export function MessageNodeRail({
       }
 
       const syncDuration = performance.now() - t0;
-      scrollPerfDebug.recordNodeRailSyncTime(syncDuration, mounted.length);
+      scrollPerfDebug.recordNodeRailSyncTime(syncDuration, mountedCount);
 
       if (bestId) {
         setScrollActiveId((prev) => {

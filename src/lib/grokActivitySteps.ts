@@ -136,7 +136,7 @@ function stepRunning(
   return messageStreaming && toolRunning(t);
 }
 
-function toolFailed(t: MessageToolSegment): boolean {
+export function toolFailed(t: MessageToolSegment): boolean {
   if (t.isError) return true;
   const s = (t.status || "").toLowerCase();
   return s === "failed" || s === "error" || s === "rejected" || s === "denied";

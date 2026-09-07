@@ -96,6 +96,7 @@ export const esChat = {
   "chat.thinkingFor": "Pensando durante {duration}",
   "chat.workedFor": "Trabajó durante {duration}",
   "chat.worked": "Trabajó",
+  "chat.phaseErrorsMore": "{n} errores más",
   "chat.workingFor": "Trabajando durante {duration}",
   "chat.working": "Trabajando",
   "chat.duration.seconds": "{n}s",

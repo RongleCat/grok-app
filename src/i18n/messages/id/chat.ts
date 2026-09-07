@@ -96,6 +96,7 @@ export const idChat = {
   "chat.thinkingFor": "Berpikir selama {duration}",
   "chat.workedFor": "Bekerja selama {duration}",
   "chat.worked": "Bekerja",
+  "chat.phaseErrorsMore": "{n} gagal lagi",
   "chat.workingFor": "Bekerja selama {duration}",
   "chat.working": "Bekerja",
   "chat.duration.seconds": "{n}d",
