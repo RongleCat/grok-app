@@ -43,6 +43,9 @@ pub async fn settings_set(
         crate::acp_client::normalize_compaction_mode(&settings.compaction_mode).to_string();
     settings.compaction_detail =
         crate::acp_client::normalize_compaction_detail(&settings.compaction_detail).to_string();
+    // Keep Host routing, returned IPC settings, and persisted JSON on the same
+    // canonical proxy mode. Legacy `use` needs proxyUrl context to migrate.
+    store::normalize_proxy_settings(&mut settings);
     // Audit ledger retention presets: 7 / 30 / 90 / 0 (unlimited).
     settings.audit_ledger_retention_days =
         crate::audit_ledger::normalize_retention_days(settings.audit_ledger_retention_days);

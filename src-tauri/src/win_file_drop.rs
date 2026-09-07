@@ -33,7 +33,7 @@ use windows::{
         Foundation::{HWND, LPARAM, POINT, POINTL},
         Graphics::Gdi::ScreenToClient,
         System::{
-            Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
+            Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, STGMEDIUM, TYMED_HGLOBAL},
             Ole::{
                 IDropTarget, IDropTarget_Impl, OleInitialize, RegisterDragDrop, ReleaseStgMedium,
                 RevokeDragDrop, CF_HDROP, DROPEFFECT, DROPEFFECT_COPY, DROPEFFECT_NONE,
@@ -172,6 +172,15 @@ enum DropKind {
     Leave,
 }
 
+struct DropMedium(STGMEDIUM);
+
+impl Drop for DropMedium {
+    fn drop(&mut self) {
+        // IDataObject can delegate ownership through pUnkForRelease.
+        unsafe { ReleaseStgMedium(&mut self.0) };
+    }
+}
+
 fn inject_hwnd(hwnd: HWND, coordinate_hwnd: HWND, listener: Rc<dyn Fn(DropKind)>) -> bool {
     if hwnd.0.is_null() {
         return false;
@@ -246,13 +255,7 @@ impl FileDropTarget {
         }
     }
 
-    unsafe fn iterate_filenames<F>(
-        data_obj: windows_core::Ref<'_, IDataObject>,
-        mut callback: F,
-    ) -> bool
-    where
-        F: FnMut(PathBuf),
-    {
+    unsafe fn read_paths(data_obj: windows_core::Ref<'_, IDataObject>) -> Option<Vec<String>> {
         let drop_format = FORMATETC {
             cfFormat: CF_HDROP.0,
             ptd: ptr::null_mut(),
@@ -261,22 +264,29 @@ impl FileDropTarget {
             tymed: TYMED_HGLOBAL.0 as u32,
         };
 
-        let Some(obj) = data_obj.as_ref() else {
-            return false;
-        };
-        let Ok(mut medium) = obj.GetData(&drop_format) else {
-            return false;
-        };
-        let hdrop = HDROP(medium.u.hGlobal.0 as _);
+        let obj = data_obj.as_ref()?;
+        let medium = obj.GetData(&drop_format).ok()?;
+        Self::paths_from_medium(medium)
+    }
+
+    unsafe fn paths_from_medium(medium: STGMEDIUM) -> Option<Vec<String>> {
+        let medium = DropMedium(medium);
+        if medium.0.tymed != TYMED_HGLOBAL.0 as u32 || medium.0.u.hGlobal.0.is_null() {
+            return None;
+        }
+        let hdrop = HDROP(medium.0.u.hGlobal.0);
         let item_count = DragQueryFileW(hdrop, 0xFFFFFFFF, None);
+        let mut paths = Vec::new();
         for i in 0..item_count {
             let character_count = DragQueryFileW(hdrop, i, None) as usize;
             let mut path_buf = vec![0u16; character_count + 1];
-            DragQueryFileW(hdrop, i, Some(&mut path_buf));
-            callback(OsString::from_wide(&path_buf[..character_count]).into());
+            let copied = DragQueryFileW(hdrop, i, Some(&mut path_buf)) as usize;
+            if copied == 0 || copied != character_count {
+                return None;
+            }
+            paths.push(OsString::from_wide(&path_buf[..copied]).into());
         }
-        ReleaseStgMedium(&mut medium);
-        true
+        Some(Self::paths_as_strings(paths))
     }
 
     fn client_point(hwnd: HWND, pt: &POINTL) -> (i32, i32) {
@@ -309,19 +319,13 @@ impl IDropTarget_Impl for FileDropTarget_Impl {
         pdwEffect: *mut DROPEFFECT,
     ) -> windows::core::Result<()> {
         let (x, y) = FileDropTarget::client_point(self.coordinate_hwnd, pt);
-        let mut paths = Vec::new();
-        let has_data =
-            unsafe { FileDropTarget::iterate_filenames(pDataObj, |path| paths.push(path)) };
-        let enter_is_valid = has_data && !paths.is_empty();
+        let paths = unsafe { FileDropTarget::read_paths(pDataObj) }.unwrap_or_default();
+        let enter_is_valid = !paths.is_empty();
         unsafe {
             *self.enter_is_valid.get() = enter_is_valid;
         }
         let effect = if enter_is_valid {
-            (self.listener)(DropKind::Enter {
-                paths: FileDropTarget::paths_as_strings(paths),
-                x,
-                y,
-            });
+            (self.listener)(DropKind::Enter { paths, x, y });
             DROPEFFECT_COPY
         } else {
             DROPEFFECT_NONE
@@ -352,9 +356,10 @@ impl IDropTarget_Impl for FileDropTarget_Impl {
     fn DragLeave(&self) -> windows::core::Result<()> {
         if unsafe { *self.enter_is_valid.get() } {
             (self.listener)(DropKind::Leave);
-            unsafe {
-                *self.enter_is_valid.get() = false;
-            }
+        }
+        unsafe {
+            *self.enter_is_valid.get() = false;
+            *self.cursor_effect.get() = DROPEFFECT_NONE;
         }
         Ok(())
     }
@@ -366,21 +371,21 @@ impl IDropTarget_Impl for FileDropTarget_Impl {
         pt: &POINTL,
         pdwEffect: *mut DROPEFFECT,
     ) -> windows::core::Result<()> {
+        let mut effect = DROPEFFECT_NONE;
         if unsafe { *self.enter_is_valid.get() } {
             let (x, y) = FileDropTarget::client_point(self.coordinate_hwnd, pt);
-            let mut paths = Vec::new();
-            unsafe { FileDropTarget::iterate_filenames(pDataObj, |path| paths.push(path)) };
-            (self.listener)(DropKind::Drop {
-                paths: FileDropTarget::paths_as_strings(paths),
-                x,
-                y,
-            });
-            unsafe {
-                *self.enter_is_valid.get() = false;
+            let paths = unsafe { FileDropTarget::read_paths(pDataObj) }.unwrap_or_default();
+            if !paths.is_empty() {
+                (self.listener)(DropKind::Drop { paths, x, y });
+                effect = DROPEFFECT_COPY;
+            } else {
+                (self.listener)(DropKind::Leave);
             }
         }
         unsafe {
-            *pdwEffect = *self.cursor_effect.get();
+            *self.enter_is_valid.get() = false;
+            *self.cursor_effect.get() = DROPEFFECT_NONE;
+            *pdwEffect = effect;
         }
         Ok(())
     }
@@ -388,8 +393,124 @@ impl IDropTarget_Impl for FileDropTarget_Impl {
 
 #[cfg(test)]
 mod tests {
-    use super::FileDropTarget;
-    use std::path::PathBuf;
+    use super::*;
+    use std::{cell::Cell, mem::ManuallyDrop};
+    use windows::{
+        core::Interface,
+        Win32::{
+            Foundation::{GlobalFree, HGLOBAL},
+            System::{
+                Com::STGMEDIUM_0,
+                Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE, GMEM_ZEROINIT},
+            },
+            UI::Shell::DROPFILES,
+        },
+    };
+
+    struct MediumOwner {
+        handle: HGLOBAL,
+        releases: Rc<Cell<usize>>,
+    }
+
+    impl Drop for MediumOwner {
+        fn drop(&mut self) {
+            // GlobalFree returns a null handle on success, which the generated
+            // windows Result wrapper represents as an HRESULT-shaped error.
+            let _ = unsafe { GlobalFree(Some(self.handle)) };
+            self.releases.set(self.releases.get() + 1);
+        }
+    }
+
+    fn file_medium(paths: &[&str], releases: Rc<Cell<usize>>) -> STGMEDIUM {
+        let file_list: Vec<u16> = paths
+            .iter()
+            .flat_map(|path| path.encode_utf16().chain([0]))
+            .chain([0])
+            .collect();
+        let header_size = size_of::<DROPFILES>();
+        let handle = unsafe {
+            GlobalAlloc(
+                GMEM_MOVEABLE | GMEM_ZEROINIT,
+                header_size + file_list.len() * size_of::<u16>(),
+            )
+            .unwrap()
+        };
+        let owner = MediumOwner { handle, releases };
+        unsafe {
+            let buffer = GlobalLock(handle).cast::<u8>();
+            assert!(!buffer.is_null());
+            buffer.cast::<DROPFILES>().write_unaligned(DROPFILES {
+                pFiles: header_size as u32,
+                fWide: true.into(),
+                ..Default::default()
+            });
+            ptr::copy_nonoverlapping(
+                file_list.as_ptr().cast::<u8>(),
+                buffer.add(header_size),
+                file_list.len() * size_of::<u16>(),
+            );
+            let _ = GlobalUnlock(handle);
+        }
+        // Reuse a COM object whose last release also frees the test's HGLOBAL.
+        let release_target: IDropTarget = FileDropTarget::new(
+            HWND(ptr::null_mut()),
+            Rc::new(move |_| {
+                let _ = &owner;
+            }),
+        )
+        .into();
+        STGMEDIUM {
+            tymed: TYMED_HGLOBAL.0 as u32,
+            u: STGMEDIUM_0 { hGlobal: handle },
+            pUnkForRelease: ManuallyDrop::new(Some(release_target.cast().unwrap())),
+        }
+    }
+
+    #[test]
+    fn copied_paths_release_delegated_medium_exactly_once() {
+        let releases = Rc::new(Cell::new(0));
+        let medium = file_medium(&[r"C:\Work\one.jpg", r"C:\Work\two.png"], releases.clone());
+        let paths = unsafe { FileDropTarget::paths_from_medium(medium) }.unwrap();
+        assert_eq!(paths, vec![r"C:\Work\one.jpg", r"C:\Work\two.png"]);
+        assert_eq!(releases.get(), 1);
+    }
+
+    #[test]
+    fn invalid_medium_still_releases_delegated_owner() {
+        let releases = Rc::new(Cell::new(0));
+        let mut medium = file_medium(&[r"C:\Work\one.jpg"], releases.clone());
+        medium.u.hGlobal = HGLOBAL(ptr::null_mut());
+        assert!(unsafe { FileDropTarget::paths_from_medium(medium) }.is_none());
+        assert_eq!(releases.get(), 1);
+    }
+
+    #[test]
+    fn missing_drop_data_clears_hover_and_rejects_copy() {
+        let events = Rc::new(RefCell::new(Vec::new()));
+        let listener_events = events.clone();
+        let target = FileDropTarget::new(
+            HWND(ptr::null_mut()),
+            Rc::new(move |event| listener_events.borrow_mut().push(event)),
+        );
+        // The data source disappears after a valid DragEnter.
+        unsafe {
+            *target.enter_is_valid.get() = true;
+            *target.cursor_effect.get() = DROPEFFECT_COPY;
+        }
+        let target: IDropTarget = target.into();
+        let mut effect = DROPEFFECT_COPY;
+        unsafe {
+            target
+                .Drop(None, MODIFIERKEYS_FLAGS(0), POINTL::default(), &mut effect)
+                .unwrap();
+            assert_eq!(effect, DROPEFFECT_NONE);
+            target
+                .DragOver(MODIFIERKEYS_FLAGS(0), POINTL::default(), &mut effect)
+                .unwrap();
+        }
+        assert_eq!(effect, DROPEFFECT_NONE);
+        assert!(matches!(&events.borrow()[..], [DropKind::Leave]));
+    }
 
     #[test]
     fn paths_as_strings_normalizes_and_dedupes() {

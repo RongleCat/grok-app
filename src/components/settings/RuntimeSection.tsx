@@ -393,7 +393,7 @@ export function RuntimeSection() {
                   <Select
                     className="settings-select"
                     aria-label={t("settings.proxyMode")}
-                    value={normalizeProxyMode(proxyMode)}
+                    value={normalizeProxyMode(proxyMode, proxyUrl)}
                     onChange={(v) => onProxyMode?.(normalizeProxyMode(v))}
                     options={[
                       {
@@ -432,7 +432,7 @@ export function RuntimeSection() {
                     );
                   })()}
                 </div>
-                {normalizeProxyMode(proxyMode) === "manual" && (
+                {normalizeProxyMode(proxyMode, proxyUrl) === "manual" && (
                   <>
                     <div className="settings-row settings-row--stack">
                       <div className="settings-row__text">

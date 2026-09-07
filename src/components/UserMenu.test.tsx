@@ -2,10 +2,12 @@
  * @vitest-environment jsdom
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { UserMenu } from "./UserMenu";
+
+afterEach(cleanup);
 
 vi.mock("@/lib/floatingMenu", () => ({
   FLOATING_MENU_Z_INDEX: 13_000,

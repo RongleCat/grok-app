@@ -33,6 +33,14 @@ use tokio::sync::oneshot;
 /// Max bytes returned per Range request (keeps memory bounded — video/audio/PDF).
 const MAX_CHUNK: u64 = 2 * 1024 * 1024; // 2 MiB
 
+/// Browser-safe dynamic/private port range. Binding port `0` can return a
+/// Chromium-blocked service port on hosts with a customized ephemeral range
+/// (for example 3659), causing every media request to fail with
+/// `ERR_UNSAFE_PORT` before it reaches the loopback server.
+const MEDIA_PORT_MIN: u16 = 49_152;
+const MEDIA_PORT_MAX: u16 = 65_535;
+const MEDIA_PORT_BIND_ATTEMPTS: u32 = 64;
+
 /// Max full-body response without Range (chat images, small binaries).
 /// `<img>` tags do not reassemble multi-Range responses — truncating at
 /// MAX_CHUNK yields broken/empty thumbnails for common multi-MB photos.
@@ -98,7 +106,47 @@ struct MediaQuery {
     p: String,
 }
 
-/// Bind `127.0.0.1:0`, spawn axum serve task, return handle.
+fn is_browser_safe_media_port(port: u16) -> bool {
+    (MEDIA_PORT_MIN..=MEDIA_PORT_MAX).contains(&port)
+}
+
+fn browser_safe_media_port_candidate(start: u32, step: u32, offset: u32) -> u16 {
+    let span = u32::from(MEDIA_PORT_MAX) - u32::from(MEDIA_PORT_MIN) + 1;
+    debug_assert!(start < span);
+    debug_assert!(step < span && step % 2 == 1);
+    (u32::from(MEDIA_PORT_MIN) + ((start + offset * step) % span)) as u16
+}
+
+async fn bind_browser_safe_loopback() -> Result<TcpListener, String> {
+    let span = u32::from(MEDIA_PORT_MAX) - u32::from(MEDIA_PORT_MIN) + 1;
+    let (start, step) = {
+        let mut rng = rand::thread_rng();
+        // The range contains 2^14 ports, so any odd step walks unique values.
+        // Spreading attempts avoids failing inside one large Hyper-V/WSL
+        // excluded-port block even when plenty of safe ports remain elsewhere.
+        (rng.next_u32() % span, (rng.next_u32() % span) | 1)
+    };
+    let mut last_error = None;
+
+    for offset in 0..MEDIA_PORT_BIND_ATTEMPTS {
+        let port = browser_safe_media_port_candidate(start, step, offset);
+        debug_assert!(is_browser_safe_media_port(port));
+        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+        match TcpListener::bind(addr).await {
+            Ok(listener) => return Ok(listener),
+            Err(error) => last_error = Some(error),
+        }
+    }
+
+    let detail = last_error
+        .map(|error| format!(": {error}"))
+        .unwrap_or_default();
+    Err(format!(
+        "media server bind: no browser-safe loopback port available after {MEDIA_PORT_BIND_ATTEMPTS} attempts{detail}"
+    ))
+}
+
+/// Bind a browser-safe loopback port, spawn axum serve task, return handle.
 pub async fn start() -> Result<MediaServerHandle, String> {
     let token = random_token();
     let state = ServerState {
@@ -114,10 +162,7 @@ pub async fn start() -> Result<MediaServerHandle, String> {
         .fallback(fallback_not_found)
         .with_state(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 0));
-    let listener = TcpListener::bind(addr)
-        .await
-        .map_err(|e| format!("media server bind: {e}"))?;
+    let listener = bind_browser_safe_loopback().await?;
     let bound = listener
         .local_addr()
         .map_err(|e| format!("media server local_addr: {e}"))?
@@ -377,7 +422,6 @@ async fn media_get(
         .get(header::RANGE)
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
-
     // File I/O off the async runtime.
     let result = tokio::task::spawn_blocking(move || {
         read_file_chunk(&path, range_hdr.as_deref(), method == Method::HEAD)
@@ -636,6 +680,26 @@ mod tests {
     use std::io::Write;
 
     #[test]
+    fn media_server_ports_stay_out_of_chromium_blocked_ranges() {
+        assert!(!is_browser_safe_media_port(3659));
+        assert!(!is_browser_safe_media_port(MEDIA_PORT_MIN - 1));
+        assert!(is_browser_safe_media_port(MEDIA_PORT_MIN));
+        assert!(is_browser_safe_media_port(MEDIA_PORT_MAX));
+    }
+
+    #[test]
+    fn media_server_attempts_are_unique_and_spread_across_the_safe_range() {
+        let ports = (0..MEDIA_PORT_BIND_ATTEMPTS)
+            .map(|offset| browser_safe_media_port_candidate(0, 257, offset))
+            .collect::<std::collections::HashSet<_>>();
+        assert_eq!(ports.len(), MEDIA_PORT_BIND_ATTEMPTS as usize);
+        assert!(ports.iter().all(|port| is_browser_safe_media_port(*port)));
+        let min = u32::from(*ports.iter().min().unwrap());
+        let max = u32::from(*ports.iter().max().unwrap());
+        assert!(max - min > MEDIA_PORT_BIND_ATTEMPTS);
+    }
+
+    #[test]
     fn parse_range_suffix_and_cap() {
         assert_eq!(parse_range("bytes=0-9", 100), Some((0, 9)));
         assert_eq!(
@@ -719,6 +783,13 @@ mod tests {
         crate::path_scope::grant_path(&file);
 
         let handle = start().await.expect("start");
+        let port = handle
+            .endpoint
+            .base_url
+            .rsplit_once(':')
+            .and_then(|(_, value)| value.parse::<u16>().ok())
+            .expect("media server port");
+        assert!(is_browser_safe_media_port(port));
         let url = url_for_path(&handle.endpoint(), &file.to_string_lossy());
         let client = reqwest::Client::new();
         let res = client.get(&url).send().await.expect("get");
