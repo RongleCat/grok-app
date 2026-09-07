@@ -256,8 +256,7 @@
   padding: 4px 4px 0;
 }
 
-.composer-quote-chip,
-.user-quote-chip {
+.composer-quote-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -272,15 +271,12 @@
 }
 
 .composer-quote-chip:hover,
-.user-quote-chip:hover,
-.composer-quote-chip[aria-expanded="true"],
-.user-quote-chip[aria-expanded="true"] {
+.composer-quote-chip[aria-expanded="true"] {
   color: var(--text-primary);
   border-color: var(--accent, #6b8afd);
 }
 
-.composer-quote-pop,
-.user-quote-pop {
+.composer-quote-pop {
   position: absolute;
   left: 0;
   bottom: calc(100% + 6px);
@@ -296,19 +292,25 @@
 }
 
 .user-quote-list {
-  position: relative;
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
   margin-bottom: 8px;
+  white-space: normal;
 }
 
-.composer-quote-pop__item,
-.user-quote-pop__item {
+.user-quote-list:last-child {
+  margin-bottom: 0;
+}
+
+.composer-quote-pop__item {
   padding: 8px;
   border-radius: 8px;
 }
 
-.composer-quote-pop__item + .composer-quote-pop__item,
-.user-quote-pop__item + .user-quote-pop__item {
+.composer-quote-pop__item + .composer-quote-pop__item {
   border-top: 1px solid var(--border-subtle);
 }
 
@@ -324,13 +326,21 @@
   color: var(--text-tertiary);
 }
 
-.composer-quote,
-.user-quote {
+.composer-quote {
   border: 1px solid var(--border-subtle);
   border-left: 3px solid var(--accent, #6b8afd);
   border-radius: 8px;
   background: var(--bg-hover);
   padding: 8px 10px 8px 10px;
+}
+
+.user-quote {
+  border: 0;
+  border-left: 3px solid
+    color-mix(in srgb, var(--chat-link, var(--accent, #6b8afd)) 72%, transparent);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--chat-text, var(--text-primary)) 7%, transparent);
+  padding: 6px 10px 6px 12px;
 }
 
 .composer-quote__head {
@@ -369,8 +379,16 @@
   overflow: auto;
 }
 
-.composer-quote__note,
-.user-quote__note {
+.user-quote__text {
+  max-height: 12em;
+  color: color-mix(
+    in srgb,
+    var(--chat-text, var(--text-secondary)) 78%,
+    transparent
+  );
+}
+
+.composer-quote__note {
   margin: 8px 0 0;
   width: 100%;
   resize: vertical;
@@ -386,10 +404,15 @@
 }
 
 .user-quote__note {
-  border: 0;
-  background: transparent;
-  padding: 6px 0 0;
-  color: var(--text-primary);
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid
+    color-mix(in srgb, var(--chat-text, var(--text-primary)) 12%, transparent);
+  font-size: var(--chat-fs, 13px);
+  line-height: var(--chat-lh, 1.45);
+  color: var(--chat-text, var(--text-primary));
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .sel-toolbar__btn--primary {

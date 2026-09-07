@@ -543,7 +543,8 @@ const UserPlainOrSkills = memo(function UserPlainOrSkills({
     <>
       <UserQuoteCards
         quotes={quotes}
-        countLabel={tr("composer.quoteCount", { n: String(quotes.length) })}
+        listLabel={tr("composer.quotes")}
+        findQuery={findQuery}
       />
       {body.trim() || !quotes.length ? (
         <div
