@@ -206,6 +206,7 @@ export const filSettingsRemoteIm = {
   "settings.remoteIm.bridge.remoteBridgeMissing": "Hindi Rust runtime ang backend ng Remote IM bridge. I-restart ang Grok App.",
   "settings.remoteIm.bridge.agentConnectMissing": "Hindi Rust runtime ang backend ng Remote IM bridge. I-restart ang Grok App.",
   "settings.remoteIm.scan.openLink": "Buksan ang link",
+  "settings.remoteIm.scan.qrError": "Hindi magawa ang QR code nang lokal. Gamitin ang Buksan ang link sa ibaba.",
   "settings.remoteIm.scan.needHost": "Kailangan ng desktop app (Tauri host) ang scan. Gamitin ang paste credentials sa browser-only mode.",
   "settings.remoteIm.scan.start": "Simulan ang scan",
   "settings.remoteIm.scan.doneBtn": "Tapos na akong mag-scan",

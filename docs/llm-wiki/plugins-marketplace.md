@@ -21,6 +21,8 @@ Installed plugin `.mcp.json` servers (GUI path install included) are listed unde
 
 Plugin MCP auth is **not** ChatCut’s HTTP `mcp_oauth_start`. For `x-api`, the row **Authorize** button opens a GlassModal: console four tokens (App-owner) or OAuth 2 PKCE localhost (`http://127.0.0.1:8787/callback`). Credentials stay in `~/.x-api/credentials.json`.
 
+The Host sends CLI arguments through a private stdin pipe to its embedded Node launcher. Legacy plugins still receive `process.argv` in memory, but no auth secrets appear in the OS command line. Never reintroduce a direct `node script --api-secret ...` spawn; keep output redaction and timeout cleanup.
+
 **Deep link:** `#/settings/extensions/market` → Plugins tab (installable anchor `settings-anchor-ext-plugins-catalog`). Search for marketplace/市场 hits the same entry.
 
 ## Catalog UX

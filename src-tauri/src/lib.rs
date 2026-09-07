@@ -79,6 +79,7 @@ mod error;
 
 mod extensions;
 mod mcp_oauth;
+mod plugin_auth_transport;
 mod plugin_mcp;
 
 mod fs_browser;
@@ -208,9 +209,6 @@ mod turn_lease;
 
 mod host_runtime;
 
-#[cfg(target_os = "linux")]
-mod linux_webkit;
-
 mod win_crash;
 
 mod updater;
@@ -243,8 +241,6 @@ mod skin_video_bake;
 #[cfg(target_os = "macos")]
 mod mac_ime_fn_bridge;
 #[cfg(windows)]
-mod win_ctrl_tab;
-#[cfg(windows)]
 mod win_file_drop;
 #[cfg(windows)]
 mod win_shell;
@@ -265,17 +261,9 @@ pub fn run() {
         std::process::exit(session_api::run_cli());
     }
 
-    // Before host_runtime: a successful exec replaces this process, so it must
-    // not write a heartbeat the successor would treat as an unclean shutdown.
-    #[cfg(target_os = "linux")]
-    crate::linux_webkit::maybe_reexec_for_system_webkit();
-
     let _ = paths::ensure_app_dirs();
 
     logging::init();
-
-    #[cfg(target_os = "linux")]
-    crate::linux_webkit::log_system_webkit_choice();
 
     crate::host_runtime::on_process_start();
     crate::win_crash::install();
@@ -760,8 +748,6 @@ pub fn run() {
                     // Late OLE drop targets — must run after show (#1017).
                     #[cfg(windows)]
                     win_file_drop::install_after_show(&w);
-                    #[cfg(windows)]
-                    win_ctrl_tab::install(&w);
                     // Doubao Fn voice needs IME to see flagsChanged (#1030).
                     #[cfg(target_os = "macos")]
                     mac_ime_fn_bridge::install();
@@ -775,8 +761,6 @@ pub fn run() {
                 // WebView2 child HWNDs → forbidden cursor (#1017 / tauri#14643).
                 #[cfg(windows)]
                 win_file_drop::install_after_show(&window);
-                #[cfg(windows)]
-                win_ctrl_tab::install(&window);
                 // Doubao Fn voice needs IME to see flagsChanged (#1030).
                 #[cfg(target_os = "macos")]
                 mac_ime_fn_bridge::install();
@@ -1858,9 +1842,6 @@ pub fn run() {
                     host.inner().stop_sync();
 
                 }
-
-                #[cfg(target_os = "linux")]
-                crate::linux_webkit::wait_for_appimage_webkit_helpers();
 
             }
 

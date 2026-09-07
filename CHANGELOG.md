@@ -17,11 +17,15 @@ See `docs/llm-wiki/release.md`.
 - Opening a file in Review keeps the macOS title bar visible. Focus scrolls only inside Review (#1041).
 - Advanced context-window Save stays fully clickable. The flyout no longer clips the button (#1047).
 - Linux AppImage prefers host WebKitGTK to avoid black screens and SIGBUS on quit. Helpers stay on disk so FUSE unmount is safe (#539).
+- Binding QR codes are generated locally without sharing login links.
+- Plugin authorization keeps secrets out of process command lines.
 
 **中文 · 修复**
 - 在 Review 中打开文件时，macOS 标题栏保持可见。只滚动 Review 内部列表（#1041）。
 - Advanced 里上下文窗口的「保存」可正常点到。浮层不再裁掉按钮（#1047）。
 - Linux AppImage 优先用本机 WebKitGTK，避免黑屏和退出时 SIGBUS。子进程不再映射在 squashfs 上（#539）。
+- 扫码绑定的二维码在本地生成，登录链接不再发给第三方。
+- 插件授权密钥不再出现在进程命令行中。
 
 ### Added
 - Ctrl+Tab jumps back to the last chat you used. Hold Ctrl and tap Tab to cycle further; Ctrl+Shift+Tab goes the other way.

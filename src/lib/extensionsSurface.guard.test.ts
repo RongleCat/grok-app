@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const read = (path: string) => readFileSync(resolve(__dirname, path), "utf8");
+const read = (path: string) => readFileSync(resolve(__dirname, path), "utf8").replace(/\r\n/g, "\n");
 
 describe("extensions settings surface guard", () => {
   it("wraps every extension tab in the shared opaque settings card", () => {

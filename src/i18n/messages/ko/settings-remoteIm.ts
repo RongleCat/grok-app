@@ -206,6 +206,7 @@ export const koSettingsRemoteIm = {
   "settings.remoteIm.bridge.remoteBridgeMissing": "Remote IM 브릿지 백엔드가 Rust 런타임이 아닙니다. Grok App을 다시 시작하세요.",
   "settings.remoteIm.bridge.agentConnectMissing": "Remote IM 브릿지 백엔드가 Rust 런타임이 아닙니다. Grok App을 다시 시작하세요.",
   "settings.remoteIm.scan.openLink": "링크 열기",
+  "settings.remoteIm.scan.qrError": "QR 코드를 로컬에서 생성하지 못했습니다. 아래의 링크 열기를 사용하세요.",
   "settings.remoteIm.scan.needHost": "스캔은 데스크톱 앱(Tauri 호스트)이 필요합니다. 브라우저 전용 모드에서는 자격 증명 붙여넣기를 사용하세요.",
   "settings.remoteIm.scan.start": "스캔 시작",
   "settings.remoteIm.scan.doneBtn": "스캔을 마쳤습니다",

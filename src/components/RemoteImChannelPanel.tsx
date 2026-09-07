@@ -60,6 +60,7 @@ import {
 import { IconAlertTriangle, IconDoctor, IconPlus } from "@/components/icons";
 import { Select } from "@/components/Select";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { useLocalQrCode } from "@/hooks/useLocalQrCode";
 
 export interface RemoteImChannelPanelProps {
   locale: string;
@@ -228,6 +229,7 @@ export function RemoteImChannelPanel({
     "idle",
   );
   const [scanUri, setScanUri] = useState<string | null>(null);
+  const scanQr = useLocalQrCode(scanUri);
   const [scanDeviceCode, setScanDeviceCode] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -1115,11 +1117,13 @@ export function RemoteImChannelPanel({
             >
               {scanUri ? (
                 <>
-                  <img
-                    className="rim-scan__qr"
-                    alt="QR"
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(scanUri)}`}
-                  />
+                  {scanQr.dataUrl ? (
+                    <img className="rim-scan__qr" alt="QR" src={scanQr.dataUrl} />
+                  ) : scanQr.error ? (
+                    <span role="alert">{t("settings.remoteIm.scan.qrError")}</span>
+                  ) : (
+                    <span aria-busy="true" aria-hidden="true">…</span>
+                  )}
                   <span className="rim-scan__uri">{scanUri}</span>
                 </>
               ) : (

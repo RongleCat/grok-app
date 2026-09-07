@@ -206,6 +206,7 @@ export const ruSettingsRemoteIm = {
   "settings.remoteIm.bridge.remoteBridgeMissing": "Бэкенд моста Remote IM — не среда Rust. Перезапустите Grok App.",
   "settings.remoteIm.bridge.agentConnectMissing": "Бэкенд моста Remote IM — не среда Rust. Перезапустите Grok App.",
   "settings.remoteIm.scan.openLink": "Открыть ссылку",
+  "settings.remoteIm.scan.qrError": "Не удалось создать QR-код локально. Используйте «Открыть ссылку» ниже.",
   "settings.remoteIm.scan.needHost": "Сканирование доступно только в настольном приложении (Tauri Host). В режиме только браузера вставьте учётные данные.",
   "settings.remoteIm.scan.start": "Начать сканирование",
   "settings.remoteIm.scan.doneBtn": "Сканирование завершено",

@@ -206,6 +206,7 @@ export const ukSettingsRemoteIm = {
   "settings.remoteIm.bridge.remoteBridgeMissing": "Remote IM bridge backend не є середовищем виконання Rust. Перезапустіть застосунок Grok.",
   "settings.remoteIm.bridge.agentConnectMissing": "Remote IM bridge backend не є середовищем виконання Rust. Перезапустіть застосунок Grok.",
   "settings.remoteIm.scan.openLink": "Відкрити посилання",
+  "settings.remoteIm.scan.qrError": "Не вдалося створити QR-код локально. Скористайтеся дією «Відкрити посилання» нижче.",
   "settings.remoteIm.scan.needHost": "Для сканування потрібна настільний застосунок (хост Tauri). Вставте облікові дані лише в режимі браузера.",
   "settings.remoteIm.scan.start": "Почати сканування",
   "settings.remoteIm.scan.doneBtn": "Я завершив сканування",

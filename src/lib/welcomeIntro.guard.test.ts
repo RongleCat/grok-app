@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const app = readFileSync(resolve(__dirname, "../app/AppWorkbench.tsx"), "utf8") +
+const app = (readFileSync(resolve(__dirname, "../app/AppWorkbench.tsx"), "utf8") +
   readFileSync(resolve(__dirname, "../app/WorkbenchComposerColumn.tsx"), "utf8") +
-  readFileSync(resolve(__dirname, "../hooks/useSessionNavigation.ts"), "utf8");
+  readFileSync(resolve(__dirname, "../hooks/useSessionNavigation.ts"), "utf8")).replace(/\r\n/g, "\n");
 const css = readFileSync(resolve(__dirname, "../styles/chat.part1.css"), "utf8");
 const phoneCss = readFileSync(
   resolve(__dirname, "../styles/phone.part1.css"),
