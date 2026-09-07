@@ -140,6 +140,10 @@ pub async fn settings_set(
 
     store::save_settings(&settings)?;
 
+    if proxy_flip {
+        crate::wallpaper_grok_album::close_for_proxy_change(&app);
+    }
+
     if schedules_launch_agent_flip {
         let res = if settings.schedules_launch_agent {
             crate::schedules_launch_agent::enable()

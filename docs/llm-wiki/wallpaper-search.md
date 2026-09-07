@@ -198,6 +198,34 @@ explicit load-more retry and validated remote-media download path as the public
 providers. Synthetic fixtures prove parsing, budgets, cache, cancellation and
 SSRF boundaries, not live account availability.
 
+## Grok Saved Host bridge
+
+Grok Saved uses a dedicated persistent Tauri WebView at
+`https://grok.com/imagine/saved`. The window is absent from every Tauri
+capability, restricts top-level navigation to first-party Grok/xAI pages plus
+the supported Google and Apple sign-in pages, and denies new windows and
+downloads. The Host never reads or exports cookies, storage, authorization
+headers, request signatures, or raw API responses.
+
+Renderer callers select only fixed Host commands. The Host executes bundled
+JavaScript that returns a bounded allowlisted media DTO; caller-provided scripts,
+endpoints, headers and credentials are not accepted. Album media must remain on
+`assets.grok.com`. Navigation, window close, account/page revision changes and
+explicit cancellation invalidate cached metadata and active transfers.
+
+Manual unauthenticated HTTP/SOCKS5 proxy settings are pinned to the isolated
+WebView on Windows and Linux. Unsupported schemes, authenticated proxies,
+Direct mode and macOS Manual mode fail closed instead of silently taking a
+different route; saving a proxy change destroys the existing album window.
+
+Thumbnail and selected-original requests race the isolated signed-in WebView
+against a credential-free Host request. Only the first valid result continues,
+and both routes converge on the existing URL, redirect, byte-limit, MIME and
+signature checks. Thumbnails stay in memory. A selected original is written
+once under the distinct `grok_album` library source. This Host slice registers
+the commands but does not yet expose a Saved source tab; renderer UX is a
+separate review layer.
+
 ## Public image provider UI
 
 The source picker groups the sources delivered so far into discovery, creation

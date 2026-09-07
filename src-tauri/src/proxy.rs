@@ -67,6 +67,20 @@ pub struct ProxyResolution {
     pub source: ProxySource,
 }
 
+/// Why an app-configured proxy cannot be represented by Tauri's remote
+/// WebView proxy API. The API only accepts unauthenticated HTTP CONNECT and
+/// SOCKSv5 endpoints; failing closed prevents the WebView from silently using
+/// a different network route than the rest of the app.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WebviewProxyError {
+    InvalidUrl,
+    UnsupportedScheme,
+    AuthenticationUnsupported,
+    DirectUnsupported,
+    #[cfg(target_os = "macos")]
+    PlatformUnsupported,
+}
+
 /// Env var names children understand (both cases for maximum tool coverage).
 const PROXY_ENV_KEYS: &[&str] = &[
     "HTTP_PROXY",
@@ -518,6 +532,67 @@ pub fn resolve_from(
     }
 }
 
+fn normalize_webview_proxy_url(raw: &str) -> Result<url::Url, WebviewProxyError> {
+    let mut url = url::Url::parse(raw.trim()).map_err(|_| WebviewProxyError::InvalidUrl)?;
+    if url.host_str().is_none() {
+        return Err(WebviewProxyError::InvalidUrl);
+    }
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(WebviewProxyError::AuthenticationUnsupported);
+    }
+
+    match url.scheme() {
+        "http" | "socks5" => {}
+        // Tauri exposes SOCKSv5 but not a separate socks5h spelling. WebView2
+        // and WebKit resolve destinations through their SOCKSv5 endpoint.
+        "socks5h" => {
+            url.set_scheme("socks5")
+                .map_err(|_| WebviewProxyError::InvalidUrl)?;
+        }
+        _ => return Err(WebviewProxyError::UnsupportedScheme),
+    }
+
+    // Tauri's proxy adapter consumes only scheme, host and port. Canonicalize
+    // the value before handing it over so paths, queries and fragments cannot
+    // be mistaken for a credential or request target later.
+    url.set_path("");
+    url.set_query(None);
+    url.set_fragment(None);
+    Ok(url)
+}
+
+/// Resolve the optional override for a remote WebView.
+///
+/// Manual mode is pinned explicitly. System/PAC/env modes stay native so the
+/// WebView keeps the operating system's bypass and live-reconfiguration
+/// behavior. Direct mode fails closed because Tauri does not expose a portable
+/// way to disable the native WebView proxy.
+pub fn webview_proxy_override() -> Result<Option<url::Url>, WebviewProxyError> {
+    let resolution = resolve();
+    #[cfg(target_os = "macos")]
+    if resolution.source == ProxySource::Manual {
+        // Wry's manual WKWebView proxy requires macOS 14+ plus a compile-time
+        // feature that would drop support for older macOS releases.
+        return Err(WebviewProxyError::PlatformUnsupported);
+    }
+    webview_proxy_override_from(&resolution)
+}
+
+fn webview_proxy_override_from(
+    resolution: &ProxyResolution,
+) -> Result<Option<url::Url>, WebviewProxyError> {
+    if resolution.source == ProxySource::Direct {
+        return Err(WebviewProxyError::DirectUnsupported);
+    }
+    if resolution.source != ProxySource::Manual {
+        return Ok(None);
+    }
+    let ProxyDecision::Use { url, .. } = &resolution.decision else {
+        return Ok(None);
+    };
+    normalize_webview_proxy_url(url).map(Some)
+}
+
 fn merge_optional_lists(a: Option<&str>, b: Option<&str>) -> Option<String> {
     match (a, b) {
         (None, None) => None,
@@ -784,6 +859,84 @@ mod tests {
         assert!(!is_valid_proxy_url("127.0.0.1:7890")); // scheme required
         assert!(!is_valid_proxy_url("ftp://x"));
         assert!(!is_valid_proxy_url(""));
+    }
+
+    #[test]
+    fn remote_webview_pins_only_a_safe_manual_proxy() {
+        let manual = ProxyResolution {
+            decision: ProxyDecision::Use {
+                url: "http://127.0.0.1:10809/path?ignored=1#fragment".into(),
+                no_proxy: None,
+            },
+            source: ProxySource::Manual,
+        };
+        assert_eq!(
+            webview_proxy_override_from(&manual)
+                .unwrap()
+                .unwrap()
+                .as_str(),
+            "http://127.0.0.1:10809/"
+        );
+
+        let system = ProxyResolution {
+            source: ProxySource::SystemHttp,
+            ..manual
+        };
+        assert_eq!(webview_proxy_override_from(&system).unwrap(), None);
+    }
+
+    #[test]
+    fn remote_webview_normalizes_socks_dns_without_exposing_credentials() {
+        let socks = ProxyResolution {
+            decision: ProxyDecision::Use {
+                url: "socks5h://127.0.0.1:1080".into(),
+                no_proxy: None,
+            },
+            source: ProxySource::Manual,
+        };
+        assert_eq!(
+            webview_proxy_override_from(&socks)
+                .unwrap()
+                .unwrap()
+                .as_str(),
+            "socks5://127.0.0.1:1080"
+        );
+
+        let authenticated = ProxyResolution {
+            decision: ProxyDecision::Use {
+                url: "http://user:secret@127.0.0.1:10809".into(),
+                no_proxy: None,
+            },
+            source: ProxySource::Manual,
+        };
+        assert_eq!(
+            webview_proxy_override_from(&authenticated),
+            Err(WebviewProxyError::AuthenticationUnsupported)
+        );
+    }
+
+    #[test]
+    fn remote_webview_rejects_proxy_schemes_tauri_cannot_route() {
+        let https = ProxyResolution {
+            decision: ProxyDecision::Use {
+                url: "https://127.0.0.1:10809".into(),
+                no_proxy: None,
+            },
+            source: ProxySource::Manual,
+        };
+        assert_eq!(
+            webview_proxy_override_from(&https),
+            Err(WebviewProxyError::UnsupportedScheme)
+        );
+
+        let direct = ProxyResolution {
+            decision: ProxyDecision::Direct,
+            source: ProxySource::Direct,
+        };
+        assert_eq!(
+            webview_proxy_override_from(&direct),
+            Err(WebviewProxyError::DirectUnsupported)
+        );
     }
 
     #[test]

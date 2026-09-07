@@ -224,6 +224,7 @@ mod voice_stt;
 
 mod voice_tools;
 
+mod wallpaper_grok_album;
 mod wallpaper_provider_search;
 mod wallpaper_remote_commands;
 mod wallpaper_remote_media;
@@ -1724,6 +1725,22 @@ pub fn run() {
             commands::wallpaper_library_list,
 
             commands::wallpaper_library_delete,
+
+            wallpaper_grok_album::wallpaper_grok_album_open,
+
+            wallpaper_grok_album::wallpaper_grok_album_snapshot,
+
+            wallpaper_grok_album::wallpaper_grok_album_refresh,
+
+            wallpaper_grok_album::wallpaper_grok_album_load_more,
+
+            wallpaper_grok_album::wallpaper_grok_album_thumbnail,
+
+            wallpaper_grok_album::wallpaper_grok_album_cancel_requests,
+
+            wallpaper_grok_album::wallpaper_grok_album_cancel_all_requests,
+
+            wallpaper_grok_album::wallpaper_grok_album_fetch_media,
 
             commands::skin_pick_open,
             commands::skin_pick_save,

@@ -1,5 +1,5 @@
 //! Wallpaper source: X search + Imagine generate via headless Grok CLI,
-//! plus allowlisted media download into the app wallpaper library.
+//! plus allowlisted X / Imagine / Grok-album media download into the library.
 
 #![allow(dead_code)] // residual-clippy: kind_from_mime
 use std::fs;
@@ -2360,6 +2360,25 @@ pub async fn fetch_media(url: &str, source: Option<&str>) -> Result<WallpaperFet
     if Path::new(&normalized).is_file() {
         return file_to_fetch_result(Path::new(&normalized));
     }
+
+    let (content_type, bytes) = fetch_remote_media_bytes(&normalized, source).await?;
+    save_fetched_media_bytes(&normalized, source, &content_type, bytes)
+}
+
+/// Fetch a validated remote wallpaper without writing it to disk.
+///
+/// Grok album downloads race this credential-free Host request against the
+/// isolated signed-in WebView, then pass only the winning byte stream through
+/// the common signature check and save path. Keeping the write outside the
+/// race prevents duplicate files when both routes finish together.
+pub(crate) async fn fetch_remote_media_bytes(
+    url: &str,
+    source: Option<&str>,
+) -> Result<(String, Vec<u8>), String> {
+    let normalized = normalize_media_url(url);
+    if normalized.is_empty() || Path::new(&normalized).is_file() {
+        return Err("url_blocked".into());
+    }
     if !is_allowed_media_url(&normalized) {
         return Err("url_blocked".into());
     }
@@ -2375,9 +2394,17 @@ pub async fn fetch_media(url: &str, source: Option<&str>) -> Result<WallpaperFet
     .build()
     .map_err(|e| format!("http client: {e}"))?;
 
-    let mut resp = client
+    let mut request = client
         .get(&normalized)
-        .header("Accept", "image/avif,image/webp,image/*,video/*,*/*;q=0.8")
+        .header("Accept", "image/avif,image/webp,image/*,video/*,*/*;q=0.8");
+    if normalized_download_source(source) == "grok_album" {
+        request = request
+            .header(reqwest::header::REFERER, "https://grok.com/imagine/saved")
+            .header("sec-fetch-dest", "image")
+            .header("sec-fetch-mode", "no-cors")
+            .header("sec-fetch-site", "same-site");
+    }
+    let mut resp = request
         .send()
         .await
         .map_err(|_| "download_failed: network".to_string())?;
@@ -2402,15 +2429,22 @@ pub async fn fetch_media(url: &str, source: Option<&str>) -> Result<WallpaperFet
     if bytes.len() < 64 {
         return Err("download_failed: too small".into());
     }
-    let media = detect_media_signature(&bytes)
-        .filter(|media| content_type_matches_signature(&content_type, *media))
-        .ok_or_else(|| "download_failed: invalid media signature".to_string())?;
+    Ok((content_type, bytes))
+}
 
-    let src = match source {
-        Some("imagine") => "imagine",
-        _ => "x",
-    };
-    let ext = media.extension();
+pub(crate) fn save_fetched_media_bytes(
+    url: &str,
+    source: Option<&str>,
+    content_type: &str,
+    bytes: Vec<u8>,
+) -> Result<WallpaperFetchResult, String> {
+    let normalized = normalize_media_url(url);
+    if normalized.is_empty() || !is_allowed_media_url(&normalized) {
+        return Err("url_blocked".into());
+    }
+    let (mime, ext) = validate_fetched_media_bytes(content_type, &bytes)?;
+
+    let src = normalized_download_source(source);
     let name = format!(
         "{}-{}.{}",
         chrono::Local::now().format("%H%M%S"),
@@ -2424,10 +2458,21 @@ pub async fn fetch_media(url: &str, source: Option<&str>) -> Result<WallpaperFet
 
     Ok(WallpaperFetchResult {
         path: path.display().to_string(),
-        mime: media.mime().to_string(),
+        mime: mime.to_string(),
         bytes: bytes.len() as u64,
         name,
     })
+}
+
+fn normalized_download_source(source: Option<&str>) -> &'static str {
+    match source {
+        Some("imagine") => "imagine",
+        Some("grok_album") => "grok_album",
+        Some("openverse") => "openverse",
+        Some("pexels") => "pexels",
+        Some("web") => "web",
+        _ => "x",
+    }
 }
 
 pub(crate) fn validate_fetched_media_bytes(
@@ -2824,11 +2869,24 @@ pub fn ensure_wallpaper_dirs() {
     let root = wallpapers_root();
     let _ = fs::create_dir_all(root.join("x"));
     let _ = fs::create_dir_all(root.join("imagine"));
+    let _ = fs::create_dir_all(root.join("grok_album"));
+    let _ = fs::create_dir_all(root.join("grok_album").join("originals"));
     let _ = fs::create_dir_all(root.join("library"));
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn download_source_keeps_grok_album_separate() {
+        assert_eq!(normalized_download_source(Some("grok_album")), "grok_album");
+        assert_eq!(normalized_download_source(Some("imagine")), "imagine");
+        assert_eq!(normalized_download_source(Some("openverse")), "openverse");
+        assert_eq!(normalized_download_source(Some("pexels")), "pexels");
+        assert_eq!(normalized_download_source(Some("web")), "web");
+        assert_eq!(normalized_download_source(Some("unknown")), "x");
+        assert_eq!(normalized_download_source(None), "x");
+    }
+
     #[tokio::test]
     async fn cancellation_wakes_waiters_and_prevents_cli_start() {
         let cancellation = WallpaperSearchCancellation::default();
