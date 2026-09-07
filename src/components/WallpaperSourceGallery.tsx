@@ -6,6 +6,7 @@ import type { WallpaperGalleryEmptyPresentation } from "@/lib/wallpaperGalleryPr
 import { resolveWallpaperXCitation } from "@/lib/xEvidenceCitation";
 import { resolveImageSrcSync } from "@/lib/imageSrc";
 import { WallpaperProviderThumbnail } from "./WallpaperProviderThumbnail";
+import { GrokAlbumThumbnail } from "./GrokAlbumThumbnail";
 
 type Props = {
   t: WallpaperSourceModalProps["t"];
@@ -139,7 +140,16 @@ export function WallpaperSourceGallery({
                   onClick={() => void openItemPreview(item)}
                   aria-label={t("settings.wallpaperSource.openPreview")}
                 >
-                  {item.source === "openverse" || item.source === "pexels" ? (
+                  {item.source === "grok_album" && !isLibraryTab ? (
+                    <GrokAlbumThumbnail
+                      url={item.thumbUrl || item.fullUrl}
+                      alt={item.textPreview || item.prompt || item.username || ""}
+                      width={item.width}
+                      height={item.height}
+                      itemId={item.id}
+                      onUnavailable={dropItem}
+                    />
+                  ) : item.source === "openverse" || item.source === "pexels" ? (
                     <WallpaperProviderThumbnail item={item} t={t} />
                   ) : (
                     <img
@@ -171,9 +181,14 @@ export function WallpaperSourceGallery({
                     item.source === "imagine"
                       ? t("settings.wallpaperImagine")
                       : null}
+                    {!loadingThis && !isLibraryTab && item.source === "grok_album"
+                      ? t("settings.wallpaperGrokAlbum")
+                      : null}
                     {!loadingThis && isLibraryTab
                       ? item.source === "imagine"
                         ? t("settings.wallpaperImagine")
+                        : item.source === "grok_album"
+                          ? t("settings.wallpaperGrokAlbum")
                         : item.source === "x"
                           ? t("settings.wallpaperFromX")
                           : t("settings.wallpaperLibrary")

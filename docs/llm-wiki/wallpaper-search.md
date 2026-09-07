@@ -222,17 +222,24 @@ Thumbnail and selected-original requests race the isolated signed-in WebView
 against a credential-free Host request. Only the first valid result continues,
 and both routes converge on the existing URL, redirect, byte-limit, MIME and
 signature checks. Thumbnails stay in memory. A selected original is written
-once under the distinct `grok_album` library source. This Host slice registers
-the commands but does not yet expose a Saved source tab; renderer UX is a
-separate review layer.
+once under the distinct `grok_album` library source.
+
+The personal source group exposes Grok Saved with explicit closed, loading,
+verification, sign-in, ready and wrong-page states. The first 20 items are
+visible while one further 20-item page is warmed without revealing it. “Load
+more” first consumes that warm page and then starts one replacement warmup.
+Background sync and warmup do not lock existing cards. Closing the picker,
+switching sources or detecting a page/account revision cancels media work and
+clears renderer thumbnail state. The main renderer never loads an
+`assets.grok.com` thumbnail or original directly; selected originals must cross
+the isolated Host bridge before preview or wallpaper application.
 
 ## Public image provider UI
 
 The source picker groups the sources delivered so far into discovery, creation
 and personal sections. Discovery exposes X, Web, Openverse and Pexels; creation
-exposes Imagine; personal exposes the local library. Grok Saved remains absent
-until its complete session boundary ships. The grouped strip stays on one
-horizontally scrollable row in narrow windows.
+exposes Imagine; personal exposes Grok Saved and the local library. The grouped
+strip stays on one horizontally scrollable row in narrow windows.
 
 Openverse works without user credentials. Pexels reads only the Host's masked
 credential status and writes replacement/removal requests through the existing

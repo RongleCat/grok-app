@@ -6,6 +6,113 @@
   background: color-mix(in srgb, var(--bg-active) 70%, transparent);
 }
 
+/* Grok Imagine Saved source: compact state/action row for the isolated WebView. */
+.wallpaper-grok-album__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wallpaper-grok-album__status {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+  min-height: 32px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.wallpaper-grok-album__status-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallpaper-grok-album__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+.wallpaper-grok-album__dot[data-status="ready"] {
+  background: var(--success, #45b97c);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success, #45b97c) 14%, transparent);
+}
+
+.wallpaper-grok-album__dot[data-status="loading"] {
+  background: var(--accent);
+}
+
+.wallpaper-grok-album__dot[data-status="sign_in"],
+.wallpaper-grok-album__dot[data-status="verification"],
+.wallpaper-grok-album__dot[data-status="other_page"] {
+  background: var(--warning, #d99b38);
+}
+
+.wallpaper-grok-album__count {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.wallpaper-grok-album__actions {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.wallpaper-grok-album__privacy-info {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-tertiary);
+  cursor: help;
+}
+
+.wallpaper-grok-album__error {
+  margin: 0;
+  color: var(--danger, #e55);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.wallpaper-masonry__thumb-placeholder {
+  display: block;
+  width: 100%;
+  min-height: 96px;
+  background: color-mix(in srgb, var(--bg-hover) 86%, #000);
+}
+
+.wallpaper-masonry__thumb-placeholder[data-state="loading"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--bg-hover) 86%, #000) 25%,
+    color-mix(in srgb, var(--text-tertiary) 16%, var(--bg-hover)) 45%,
+    color-mix(in srgb, var(--bg-hover) 86%, #000) 65%
+  );
+}
+
+@media (max-width: 640px) {
+  .wallpaper-grok-album__status {
+    flex-basis: 100%;
+  }
+
+  .wallpaper-grok-album__actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .wallpaper-grok-album__actions .btn {
+    flex: 1 1 150px;
+  }
+}
+
 .wallpaper-source-tabs__btn--active {
   color: var(--text-primary);
   background: var(--bg-elevated);

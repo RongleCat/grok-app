@@ -12,6 +12,8 @@ vi.mock("@/lib/api", () => ({
   listenWallpaperRemoteSearchProgress: vi.fn(async () => () => {}),
   listenWallpaperRemoteSearchBatch: vi.fn(async () => () => {}),
   wallpaperRemoteCancelMediaRequests: vi.fn(async () => 0),
+  wallpaperGrokAlbumCancelRequests: vi.fn(async () => 0),
+  wallpaperGrokAlbumCancelAllRequests: vi.fn(async () => 0),
   isDesktopHost: () => true,
   isTauri: () => false,
   settingsGet: vi.fn(async () => ({ wallpaperXSearchMode: "responses_preview" })),

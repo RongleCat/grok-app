@@ -48,12 +48,14 @@ describe("WallpaperSourceTabs", () => {
         "settings.wallpaperPexels",
       ],
       ["settings.wallpaperImagine"],
-      ["settings.wallpaperLibrary"],
+      ["settings.wallpaperGrokAlbum", "settings.wallpaperLibrary"],
     ]);
     expect(
       screen.getByRole("tab", { name: "settings.wallpaperWeb" }),
     ).toBeTruthy();
-    expect(screen.queryByRole("tab", { name: /album/i })).toBeNull();
+    expect(
+      screen.getByRole("tab", { name: "settings.wallpaperGrokAlbum" }),
+    ).toBeTruthy();
   });
 
   it("associates every tab with the shared panel", () => {

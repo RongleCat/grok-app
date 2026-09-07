@@ -17,6 +17,10 @@ import type {
   WallpaperLibraryEntry,
   WallpaperSearchResult,
 } from "../wallpaperSource";
+import type {
+  GrokAlbumSnapshot,
+  GrokAlbumThumbnail,
+} from "../grokAlbum";
 export type {
   WallpaperFetchResult,
   WallpaperGalleryItem,
@@ -75,6 +79,58 @@ export async function wallpaperLibraryList(
 ): Promise<WallpaperLibraryEntry[]> {
   return invoke<WallpaperLibraryEntry[]>("wallpaper_library_list", {
     limit: limit ?? null,
+  });
+}
+
+// ── Grok Imagine saved album (isolated consumer WebView) ───────────────────
+
+export async function wallpaperGrokAlbumOpen(title: string): Promise<void> {
+  await invoke<void>("wallpaper_grok_album_open", { title });
+}
+
+export async function wallpaperGrokAlbumSnapshot(): Promise<GrokAlbumSnapshot> {
+  return invoke<GrokAlbumSnapshot>("wallpaper_grok_album_snapshot");
+}
+
+export async function wallpaperGrokAlbumRefresh(): Promise<void> {
+  await invoke<void>("wallpaper_grok_album_refresh");
+}
+
+export async function wallpaperGrokAlbumLoadMore(
+  backgroundOnly = false,
+): Promise<GrokAlbumSnapshot> {
+  return invoke<GrokAlbumSnapshot>("wallpaper_grok_album_load_more", {
+    backgroundOnly,
+  });
+}
+
+export async function wallpaperGrokAlbumThumbnail(
+  url: string,
+  requestId: string,
+): Promise<GrokAlbumThumbnail> {
+  return invoke<GrokAlbumThumbnail>("wallpaper_grok_album_thumbnail", {
+    url,
+    requestId,
+  });
+}
+
+export async function wallpaperGrokAlbumCancelRequests(
+  requestIds: string[],
+): Promise<number> {
+  return invoke<number>("wallpaper_grok_album_cancel_requests", { requestIds });
+}
+
+export async function wallpaperGrokAlbumCancelAllRequests(): Promise<number> {
+  return invoke<number>("wallpaper_grok_album_cancel_all_requests");
+}
+
+export async function wallpaperGrokAlbumFetchMedia(
+  url: string,
+  requestId: string,
+): Promise<WallpaperFetchResult> {
+  return invoke<WallpaperFetchResult>("wallpaper_grok_album_fetch_media", {
+    url,
+    requestId,
   });
 }
 

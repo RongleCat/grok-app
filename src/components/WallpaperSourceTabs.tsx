@@ -6,6 +6,7 @@ import {
 } from "react";
 import {
   IconCamera,
+  IconExportImage,
   IconFolder,
   IconImagine,
   IconPhotoSearch,
@@ -65,6 +66,11 @@ const SOURCE_TAB_GROUPS: ReadonlyArray<SourceTabGroup> = [
   {
     id: "personal",
     tabs: [
+      {
+        id: "grok_album",
+        labelKey: "settings.wallpaperGrokAlbum",
+        icon: <IconExportImage size={15} />,
+      },
       {
         id: "library",
         labelKey: "settings.wallpaperLibrary",
