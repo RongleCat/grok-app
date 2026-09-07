@@ -14,13 +14,14 @@ import {
   DEFAULT_SESSION_DATA_MODE,
   normalizeSessionDataMode,
 } from "@/lib/sessionDataMode";
+import { normalizeProxyMode, type ProxyMode } from "@/lib/networkProxy";
 
 export type AppSettingsPrefsSnapshot = {
   sessionDataMode: ReturnType<typeof normalizeSessionDataMode>;
   defaultOpenTarget: string;
   prefsScope: ComposerPrefsScope | null;
   acpServerAddr: string;
-  proxyMode: string;
+  proxyMode: ProxyMode;
   proxyUrl: string;
   proxyNoProxy: string;
   maxConcurrentAgents: number;
@@ -93,11 +94,7 @@ export function parseAppSettingsPrefs(
     Array.isArray(xs)
       ? xs.filter((x): x is string => typeof x === "string")
       : [];
-  const proxy = settings as AppSettings & {
-    proxyMode?: string;
-    proxyUrl?: string | null;
-    proxyNoProxy?: string | null;
-  };
+  const proxyUrl = settings.proxyUrl || "";
 
   return {
     sessionDataMode: normalizeSessionDataMode(
@@ -110,9 +107,9 @@ export function parseAppSettingsPrefs(
         ? settings.composerPrefsScope
         : null,
     acpServerAddr: settings.acpServerAddr || "",
-    proxyMode: proxy.proxyMode || "system",
-    proxyUrl: proxy.proxyUrl || "",
-    proxyNoProxy: proxy.proxyNoProxy || "",
+    proxyMode: normalizeProxyMode(settings.proxyMode, proxyUrl),
+    proxyUrl,
+    proxyNoProxy: settings.proxyNoProxy || "",
     maxConcurrentAgents:
       typeof settings.maxConcurrentAgents === "number" &&
       settings.maxConcurrentAgents >= 1

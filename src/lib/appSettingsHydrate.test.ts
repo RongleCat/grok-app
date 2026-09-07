@@ -19,6 +19,18 @@ function settings(over: Partial<AppSettings> = {}): AppSettings {
 }
 
 describe("parseAppSettingsPrefs", () => {
+  it("hydrates the legacy use proxy mode only with a valid saved URL", () => {
+    expect(parseAppSettingsPrefs(settings({
+      proxyMode: "use", proxyUrl: "http://127.0.0.1:18080",
+    })).proxyMode).toBe("manual");
+    expect(parseAppSettingsPrefs(settings({
+      proxyMode: "use", proxyUrl: "127.0.0.1:18080",
+    })).proxyMode).toBe("system");
+    expect(parseAppSettingsPrefs(settings({
+      proxyMode: "use", proxyUrl: null,
+    })).proxyMode).toBe("system");
+  });
+
   it("uses documented defaults for missing fields", () => {
     const p = parseAppSettingsPrefs(settings());
     expect(p.sessionDataMode).toBe("shared");
