@@ -629,7 +629,10 @@ pub struct AppSettings {
     /// this, restricted-network users cannot reach Grok backends at all —
     /// Windows system proxy is registry-based and never reaches child
     /// processes as env vars.
-    #[serde(default = "default_proxy_mode")]
+    #[serde(
+        default = "default_proxy_mode",
+        deserialize_with = "deserialize_proxy_mode"
+    )]
     pub proxy_mode: String,
     /// Proxy URL for `manual` mode, e.g. `http://127.0.0.1:7890`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -723,7 +726,59 @@ fn default_close_to_tray() -> bool {
 }
 
 fn default_proxy_mode() -> String {
-    "system".into()
+    PROXY_MODE_SYSTEM.into()
+}
+
+pub const PROXY_MODE_SYSTEM: &str = "system";
+pub const PROXY_MODE_MANUAL: &str = "manual";
+pub const PROXY_MODE_NONE: &str = "none";
+const LEGACY_PROXY_MODE_USE: &str = "use";
+
+/// Normalize persisted / IPC proxy modes. The legacy effective-decision label
+/// `use` is only treated as Manual when a valid saved URL proves that intent;
+/// without one it safely falls back to System.
+pub fn normalize_proxy_mode(raw: &str, proxy_url: Option<&str>) -> &'static str {
+    let mode = raw.trim().to_ascii_lowercase();
+    match mode.as_str() {
+        PROXY_MODE_MANUAL | "custom" | "url" => PROXY_MODE_MANUAL,
+        PROXY_MODE_NONE | "direct" | "off" | "disabled" | "no-proxy" | "noproxy" | "no_proxy" => {
+            PROXY_MODE_NONE
+        }
+        LEGACY_PROXY_MODE_USE
+            if proxy_url
+                .map(str::trim)
+                .filter(|url| !url.is_empty())
+                .is_some_and(crate::proxy::is_valid_proxy_url) =>
+        {
+            PROXY_MODE_MANUAL
+        }
+        PROXY_MODE_SYSTEM | "os" | "auto" | "default" | "" => PROXY_MODE_SYSTEM,
+        _ => PROXY_MODE_SYSTEM,
+    }
+}
+
+/// Canonicalize the cross-field proxy contract after AppSettings has been
+/// deserialized. Returns true when the in-memory value changed.
+pub fn normalize_proxy_settings(settings: &mut AppSettings) -> bool {
+    let normalized = normalize_proxy_mode(&settings.proxy_mode, settings.proxy_url.as_deref());
+    if settings.proxy_mode == normalized {
+        return false;
+    }
+    settings.proxy_mode = normalized.into();
+    true
+}
+
+/// Preserve string values long enough for cross-field normalization to inspect
+/// `proxy_url`; non-string values fail closed to System.
+fn deserialize_proxy_mode<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(value
+        .as_str()
+        .map(|raw| raw.trim().to_ascii_lowercase())
+        .unwrap_or_else(default_proxy_mode))
 }
 
 fn default_todo_gate_max_fires() -> u32 {
@@ -953,6 +1008,16 @@ fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
 pub fn load_settings() -> AppSettings {
     let _ = ensure_app_dirs();
     let mut s: AppSettings = read_json(&settings_file());
+    // Compatibility: `use` was an effective network decision label, never a
+    // persisted settings mode. Some local snapshots nevertheless contain it.
+    // A valid saved URL is the only evidence that it represented Manual.
+    if normalize_proxy_settings(&mut s) {
+        tracing::info!(
+            "settings migration: normalized proxyMode to {}",
+            s.proxy_mode
+        );
+        let _ = write_json(&settings_file(), &s);
+    }
     // One-time: installs that already stored keys in keychain before the opt-in
     // keep keychain mode so keys remain reachable without a silent loss.
     if !s.store_api_keys_in_keychain {
@@ -1222,7 +1287,9 @@ pub fn clamp_effort_for_model(model_id: &str, effort: &str) -> String {
 
 pub fn save_settings(s: &AppSettings) -> Result<(), String> {
     let _ = ensure_app_dirs();
-    write_json(&settings_file(), s)
+    let mut normalized = s.clone();
+    normalize_proxy_settings(&mut normalized);
+    write_json(&settings_file(), &normalized)
 }
 
 /// Stable pin partition: all pinned first, then unpinned.
@@ -3217,7 +3284,64 @@ pub fn save_composer_prefs(
 mod tests {
     use super::*;
     use chrono::TimeZone;
-    use std::thread;
+    use std::{
+        ffi::OsString,
+        path::{Path, PathBuf},
+        thread,
+    };
+
+    struct TempAppHome {
+        path: PathBuf,
+        previous: Option<OsString>,
+    }
+
+    impl Drop for TempAppHome {
+        fn drop(&mut self) {
+            match self.previous.take() {
+                Some(value) => std::env::set_var("GROK_APP_HOME", value),
+                None => std::env::remove_var("GROK_APP_HOME"),
+            }
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn with_temp_app_home<R>(label: &str, f: impl FnOnce(&Path) -> R) -> R {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let path = std::env::temp_dir().join(format!(
+            "grok-app-{label}-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        fs::create_dir_all(&path).expect("create isolated app home");
+        let home = TempAppHome {
+            previous: std::env::var_os("GROK_APP_HOME"),
+            path,
+        };
+        std::env::set_var("GROK_APP_HOME", &home.path);
+        ensure_app_dirs().expect("initialize isolated app home");
+        f(&home.path)
+    }
+
+    fn write_proxy_settings_fixture(mode: &str, proxy_url: Option<&str>) {
+        let mut value = serde_json::to_value(AppSettings::default()).expect("settings fixture");
+        let object = value.as_object_mut().expect("settings object");
+        object.insert("proxyMode".into(), serde_json::json!(mode));
+        match proxy_url {
+            Some(url) => {
+                object.insert("proxyUrl".into(), serde_json::json!(url));
+            }
+            None => {
+                object.remove("proxyUrl");
+            }
+        }
+        fs::write(
+            settings_file(),
+            serde_json::to_vec_pretty(&value).expect("serialize settings fixture"),
+        )
+        .expect("write settings fixture");
+    }
 
     #[test]
     fn non_plan_mode_heals_plan_default() {
@@ -3352,6 +3476,65 @@ mod tests {
             ),
             None
         );
+    }
+
+    #[test]
+    fn proxy_mode_legacy_use_requires_a_valid_saved_url() {
+        assert_eq!(
+            normalize_proxy_mode(" USE ", Some(" http://127.0.0.1:18080 ")),
+            PROXY_MODE_MANUAL
+        );
+        assert_eq!(
+            normalize_proxy_mode("use", Some("127.0.0.1:18080")),
+            PROXY_MODE_SYSTEM
+        );
+        assert_eq!(normalize_proxy_mode("use", None), PROXY_MODE_SYSTEM);
+        assert_eq!(normalize_proxy_mode("direct", None), PROXY_MODE_NONE);
+        assert_eq!(
+            normalize_proxy_mode("future_mode", Some("http://127.0.0.1:1")),
+            PROXY_MODE_SYSTEM
+        );
+    }
+
+    #[test]
+    fn load_settings_migrates_legacy_proxy_fixture_without_real_home() {
+        with_temp_app_home("proxy-mode-load", |_| {
+            write_proxy_settings_fixture("use", Some("http://127.0.0.1:18080"));
+
+            let loaded = load_settings();
+            assert_eq!(loaded.proxy_mode, PROXY_MODE_MANUAL);
+            assert_eq!(loaded.proxy_url.as_deref(), Some("http://127.0.0.1:18080"));
+
+            let persisted: serde_json::Value =
+                serde_json::from_slice(&fs::read(settings_file()).expect("read migrated settings"))
+                    .expect("parse migrated settings");
+            assert_eq!(persisted["proxyMode"], PROXY_MODE_MANUAL);
+
+            write_proxy_settings_fixture("use", None);
+            let no_url = load_settings();
+            assert_eq!(no_url.proxy_mode, PROXY_MODE_SYSTEM);
+            let persisted: serde_json::Value =
+                serde_json::from_slice(&fs::read(settings_file()).expect("read no-url migration"))
+                    .expect("parse no-url migration");
+            assert_eq!(persisted["proxyMode"], PROXY_MODE_SYSTEM);
+        });
+    }
+
+    #[test]
+    fn save_settings_never_persists_legacy_proxy_mode() {
+        with_temp_app_home("proxy-mode-save", |_| {
+            let settings = AppSettings {
+                proxy_mode: LEGACY_PROXY_MODE_USE.into(),
+                proxy_url: Some("http://127.0.0.1:18080".into()),
+                ..AppSettings::default()
+            };
+            save_settings(&settings).expect("save normalized settings");
+
+            let persisted: serde_json::Value =
+                serde_json::from_slice(&fs::read(settings_file()).expect("read saved settings"))
+                    .expect("parse saved settings");
+            assert_eq!(persisted["proxyMode"], PROXY_MODE_MANUAL);
+        });
     }
 
     #[test]

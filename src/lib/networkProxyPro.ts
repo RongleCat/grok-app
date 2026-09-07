@@ -173,7 +173,7 @@ export function resolveProxyApplyHonesty(input: {
   valid?: boolean;
   url?: string | null;
 }): ProxyApplyHonesty {
-  const mode = normalizeProxyMode(input.mode);
+  const mode = normalizeProxyMode(input.mode, input.url);
   let valid: boolean;
   if (typeof input.valid === "boolean") {
     valid = input.valid;

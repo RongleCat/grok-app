@@ -455,7 +455,7 @@ pub fn resolve_from(
         .filter(|s| !s.is_empty())
         .map(str::to_string);
 
-    match mode.trim().to_ascii_lowercase().as_str() {
+    match crate::store::normalize_proxy_mode(mode, manual_url) {
         "none" => ProxyResolution {
             decision: ProxyDecision::Direct,
             source: ProxySource::Direct,
@@ -710,6 +710,21 @@ mod tests {
                 url: "http://127.0.0.1:7890".into(),
                 no_proxy: None
             }
+        );
+    }
+
+    #[test]
+    fn legacy_use_mode_only_routes_through_a_valid_saved_url() {
+        assert_eq!(
+            decision_from("use", Some("http://127.0.0.1:18080"), None),
+            ProxyDecision::Use {
+                url: "http://127.0.0.1:18080".into(),
+                no_proxy: None,
+            }
+        );
+        assert_eq!(
+            crate::store::normalize_proxy_mode("use", Some("127.0.0.1:18080")),
+            crate::store::PROXY_MODE_SYSTEM
         );
     }
 

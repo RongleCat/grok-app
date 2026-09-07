@@ -228,6 +228,7 @@ mod wallpaper_source;
 
 mod window_min;
 
+mod safe_https_client;
 mod skin_catalog;
 mod skin_deeplink;
 mod skin_disk;
