@@ -209,7 +209,12 @@ export function useSearchPalette(opts: {
         }
       })();
     }, 280);
-    return () => window.clearTimeout(t);
+    return () => {
+      // A dispatched IPC cannot be cancelled by clearing its debounce timer.
+      // Invalidate late success, failure and finally callbacks on close/unmount.
+      contentSeq.current += 1;
+      window.clearTimeout(t);
+    };
   }, [query, open, mode]);
 
   const searchHits = useMemo(
