@@ -11,8 +11,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { WallpaperSourceGallery } from "./WallpaperSourceGallery";
+import { WallpaperSourceFooter } from "./WallpaperSourceFooter";
 import { GlassModal } from "@/components/GlassModal";
-import { Select } from "@/components/Select";
+import { WallpaperSourceControls } from "./WallpaperSourceControls";
 import { useImageViewerOptional } from "@/components/ImageViewerContext";
 import * as api from "@/lib/api";
 import { isDesktopHost } from "@/lib/api";
@@ -41,12 +43,10 @@ import {
 import {
   countWallpaperXCitations,
   recordWallpaperXEvidencePick,
-  resolveWallpaperXCitation,
   wallpaperXEvidenceFromGalleryItem,
   wallpaperXSearchCitationSummaryKey,
 } from "@/lib/xEvidenceCitation";
 import { WallpaperPrepareError } from "@/lib/themeSkin";
-import { resolveImageSrcSync } from "@/lib/imageSrc";
 import type { MessageKey } from "@/i18n";
 
 export type WallpaperSourceTab = "x" | "imagine" | "library";
@@ -72,22 +72,6 @@ function errorMessage(
   const key = `settings.wallpaperSource.err.${code}` as MessageKey;
   const msg = t(key);
   return msg === key ? t("settings.wallpaperSource.err.generic") : msg;
-}
-
-/** Thumb / list preview (remote thumb OK). */
-function itemThumbSrc(item: WallpaperGalleryItem): string {
-  if (item.localPath) {
-    return (
-      resolveImageSrcSync(item.localPath) ||
-      item.thumbUrl ||
-      item.fullUrl
-    );
-  }
-  if (item.fullUrl.startsWith("file://")) {
-    const p = decodeURIComponent(item.fullUrl.replace(/^file:\/\//, ""));
-    return resolveImageSrcSync(p) || item.thumbUrl || item.fullUrl;
-  }
-  return item.thumbUrl || item.fullUrl;
 }
 
 /**
@@ -228,25 +212,6 @@ export function WallpaperSourceModal({
   const selected = useMemo(
     () => visibleItems.find((i) => i.id === selectedId) ?? null,
     [visibleItems, selectedId],
-  );
-
-  const sortOptions = useMemo(
-    () => [
-      { value: "top", label: t("settings.wallpaperSource.sortTop") },
-      { value: "latest", label: t("settings.wallpaperSource.sortLatest") },
-    ],
-    [t],
-  );
-
-  const aspectOptions = useMemo(
-    () => [
-      { value: "16:9", label: "16:9" },
-      { value: "9:16", label: "9:16" },
-      { value: "1:1", label: "1:1" },
-      { value: "4:3", label: "4:3" },
-      { value: "auto", label: "auto" },
-    ],
-    [],
   );
 
   const runXSearch = useCallback(async () => {
@@ -589,8 +554,6 @@ export function WallpaperSourceModal({
 
   const authNeeded = errorCode === "auth_required";
   const locked = busy || applying || previewingId !== null;
-  const isImagineLayout = tab === "imagine";
-  const isLibraryTab = tab === "library";
   const showGalleryFilters = items.length > 0 || filtersActive;
   const softFailError =
     galleryErrorKind != null && isWallpaperGallerySoftFail(galleryErrorKind);
@@ -615,31 +578,14 @@ export function WallpaperSourceModal({
       bodyClassName="wallpaper-source-modal__body"
       closeLabel={t("common.close")}
       footer={
-        <>
-          <span className="wallpaper-source-footer-hint">
-            {selected
-              ? t("settings.wallpaperSource.previewThenApply")
-              : t("settings.wallpaperSource.clickToPreview")}
-          </span>
-          <button
-            type="button"
-            className="btn btn--ghost"
-            onClick={onClose}
-            disabled={applying}
-          >
-            {t("common.cancel")}
-          </button>
-          <button
-            type="button"
-            className="btn btn--solid"
-            disabled={!selected || locked}
-            onClick={() => void applySelected()}
-          >
-            {applying
-              ? t("settings.wallpaperSource.applying")
-              : t("settings.wallpaperSource.apply")}
-          </button>
-        </>
+        <WallpaperSourceFooter
+          t={t}
+          selected={selected !== null}
+          locked={locked}
+          applying={applying}
+          onClose={onClose}
+          applySelected={applySelected}
+        />
       }
     >
       <div className="wallpaper-source-tabs" role="tablist">
@@ -702,101 +648,23 @@ export function WallpaperSourceModal({
         </button>
       </div>
 
-      {tab === "x" ? (
-        <div className="wallpaper-source-form">
-          <p className="wallpaper-source-form__hint">
-            {t("settings.wallpaperSource.xHint")}
-          </p>
-          <div className="wallpaper-source-form__row">
-            <input
-              type="search"
-              className="wallpaper-source-form__input"
-              value={query}
-              placeholder={t("settings.wallpaperSource.xPlaceholder")}
-              disabled={locked}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void runXSearch();
-                }
-              }}
-            />
-            <Select
-              className="wallpaper-source-form__select"
-              value={sort}
-              options={sortOptions}
-              disabled={locked}
-              aria-label={t("settings.wallpaperSource.sort")}
-              onChange={(v) => setSort(v === "latest" ? "latest" : "top")}
-              placement="down"
-            />
-            <button
-              type="button"
-              className="btn btn--solid"
-              disabled={locked || !query.trim()}
-              onClick={() => void runXSearch()}
-            >
-              {busy
-                ? t("settings.wallpaperSource.searching")
-                : t("settings.wallpaperSource.search")}
-            </button>
-          </div>
-        </div>
-      ) : tab === "imagine" ? (
-        <div className="wallpaper-source-form">
-          <p className="wallpaper-source-form__hint">
-            {t("settings.wallpaperSource.imagineHint")}
-          </p>
-          <textarea
-            className="wallpaper-source-form__textarea"
-            value={prompt}
-            placeholder={t("settings.wallpaperSource.imaginePlaceholder")}
-            disabled={locked}
-            rows={3}
-            onChange={(e) => setPrompt(e.target.value)}
-          />
-          <div className="wallpaper-source-form__row">
-            <Select
-              className="wallpaper-source-form__select"
-              value={aspect}
-              options={aspectOptions}
-              disabled={locked}
-              aria-label={t("settings.wallpaperSource.aspect")}
-              onChange={setAspect}
-              placement="down"
-            />
-            <button
-              type="button"
-              className="btn btn--solid"
-              disabled={locked || !prompt.trim()}
-              onClick={() => void runImagine()}
-            >
-              {busy
-                ? t("settings.wallpaperSource.generating")
-                : t("settings.wallpaperSource.generate")}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="wallpaper-source-form">
-          <p className="wallpaper-source-form__hint">
-            {t("settings.wallpaperSource.libraryHint")}
-          </p>
-          <div className="wallpaper-source-form__row">
-            <button
-              type="button"
-              className="btn btn--solid"
-              disabled={locked}
-              onClick={() => void loadLibrary()}
-            >
-              {busy
-                ? t("settings.wallpaperSource.libraryLoading")
-                : t("settings.wallpaperSource.libraryRefresh")}
-            </button>
-          </div>
-        </div>
-      )}
+      <WallpaperSourceControls
+        t={t}
+        tab={tab}
+        query={query}
+        sort={sort}
+        prompt={prompt}
+        aspect={aspect}
+        busy={busy}
+        locked={locked}
+        setQuery={setQuery}
+        setSort={setSort}
+        setPrompt={setPrompt}
+        setAspect={setAspect}
+        runXSearch={runXSearch}
+        runImagine={runImagine}
+        loadLibrary={loadLibrary}
+      />
 
       {statusHint ? (
         <p className="wallpaper-source-status" role="status">
@@ -903,169 +771,22 @@ export function WallpaperSourceModal({
         </div>
       ) : null}
 
-      {/*
-        Scroll shell must wrap multi-column masonry. Putting overflow-y +
-        max-height on the column-count element packs overflow into extra
-        horizontal columns that get clipped (only the first few thumbs show).
-      */}
-      <div
-        className="wallpaper-masonry-scroll"
-        role="list"
-        aria-label={t("settings.wallpaperSource.gallery")}
-        aria-busy={busy || previewingId !== null}
-        tabIndex={visibleItems.length > 0 ? 0 : undefined}
-      >
-        <div
-          className={
-            "wallpaper-masonry" +
-            (isImagineLayout ? " wallpaper-masonry--full" : "")
-          }
-        >
-          {showEmptyBlock && emptyState ? (
-            <div
-              className={
-                "wallpaper-masonry__empty" +
-                (emptyState.kind === "filter_empty"
-                  ? " wallpaper-masonry__empty--filter"
-                  : "") +
-                (emptyState.kind === "error"
-                  ? " wallpaper-masonry__empty--error"
-                  : "")
-              }
-              data-kind={emptyState.kind}
-              data-soft-fail={emptyState.softFail ? "1" : "0"}
-            >
-              <p className="wallpaper-masonry__empty-title">
-                {t(emptyState.titleKey as MessageKey)}
-              </p>
-              {emptyState.hintKey ? (
-                <p className="wallpaper-masonry__empty-hint">
-                  {t(emptyState.hintKey as MessageKey)}
-                </p>
-              ) : null}
-              {emptyState.showClearFilters ? (
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  onClick={clearGalleryFilters}
-                >
-                  {t("settings.wallpaperSource.clearFilters")}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-          {visibleItems.map((item) => {
-            const active = item.id === selectedId;
-            const loadingThis = previewingId === item.id;
-            const src = itemThumbSrc(item);
-            const cite =
-              item.source === "x" || (!item.source && tab === "x")
-                ? resolveWallpaperXCitation(item)
-                : null;
-            return (
-              <div
-                key={item.id}
-                className={
-                  "wallpaper-masonry__card-wrap" +
-                  (isLibraryTab ? " wallpaper-masonry__card-wrap--library" : "")
-                }
-                role="listitem"
-              >
-                <button
-                  type="button"
-                  className={
-                    "wallpaper-masonry__card" +
-                    (active ? " wallpaper-masonry__card--selected" : "") +
-                    (loadingThis ? " wallpaper-masonry__card--loading" : "")
-                  }
-                  disabled={locked && !loadingThis}
-                  onClick={() => void openItemPreview(item)}
-                  aria-label={t("settings.wallpaperSource.openPreview")}
-                >
-                  <img
-                    src={src}
-                    alt={item.textPreview || item.prompt || item.username || ""}
-                    className="wallpaper-masonry__img"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    onError={() => {
-                      // Thumb failed — remove undownloadable / broken entry
-                      dropItem(item.id);
-                    }}
-                  />
-                  <span className="wallpaper-masonry__meta">
-                    {loadingThis
-                      ? t("settings.wallpaperSource.loadingOriginal")
-                      : null}
-                    {!loadingThis && item.username
-                      ? `@${item.username}`
-                      : null}
-                    {!loadingThis && item.likes != null
-                      ? ` · ♥ ${item.likes}`
-                      : null}
-                    {!loadingThis &&
-                    !isLibraryTab &&
-                    item.source === "imagine"
-                      ? t("settings.wallpaperImagine")
-                      : null}
-                    {!loadingThis && isLibraryTab
-                      ? item.source === "imagine"
-                        ? t("settings.wallpaperImagine")
-                        : item.source === "x"
-                          ? t("settings.wallpaperFromX")
-                          : t("settings.wallpaperLibrary")
-                      : null}
-                  </span>
-                </button>
-                {cite && !loadingThis ? (
-                  <div
-                    className={
-                      "wallpaper-masonry__cite" +
-                      (cite.state === "verified"
-                        ? " wallpaper-masonry__cite--verified"
-                        : " wallpaper-masonry__cite--unverified")
-                    }
-                    title={t(cite.hintKey as MessageKey)}
-                  >
-                    {cite.state === "verified" && cite.statusUrl ? (
-                      <button
-                        type="button"
-                        className="wallpaper-masonry__cite-btn"
-                        disabled={locked}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openXStatus(cite.statusUrl!);
-                        }}
-                        title={t("settings.wallpaperSource.cite.openPost")}
-                        aria-label={t("settings.wallpaperSource.cite.openPost")}
-                      >
-                        {t(cite.labelKey as MessageKey)}
-                      </button>
-                    ) : (
-                      <span className="wallpaper-masonry__cite-badge">
-                        {t(cite.labelKey as MessageKey)}
-                      </span>
-                    )}
-                  </div>
-                ) : null}
-                {isLibraryTab ? (
-                  <button
-                    type="button"
-                    className="wallpaper-masonry__delete"
-                    disabled={locked}
-                    onClick={(e) => requestDeleteLibraryItem(item, e)}
-                    aria-label={t("settings.wallpaperSource.delete")}
-                    title={t("settings.wallpaperSource.delete")}
-                  >
-                    ×
-                  </button>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <WallpaperSourceGallery
+        t={t}
+        tab={tab}
+        busy={busy}
+        locked={locked}
+        visibleItems={visibleItems}
+        selectedId={selectedId}
+        previewingId={previewingId}
+        showEmptyBlock={showEmptyBlock}
+        emptyState={emptyState}
+        clearGalleryFilters={clearGalleryFilters}
+        openItemPreview={openItemPreview}
+        dropItem={dropItem}
+        openXStatus={openXStatus}
+        requestDeleteLibraryItem={requestDeleteLibraryItem}
+      />
     </GlassModal>
     <GlassModal
       open={!!deleteConfirm}
