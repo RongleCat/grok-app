@@ -102,6 +102,7 @@ windows = { version = "0.61", features = [
     "Win32_System_Com_StructuredStorage",
     "Win32_System_Diagnostics_Debug",
     "Win32_System_Kernel",
+    "Win32_System_Memory",
     "Win32_System_Ole",
     "Win32_System_SystemServices",
     "Win32_UI_Input_KeyboardAndMouse",
