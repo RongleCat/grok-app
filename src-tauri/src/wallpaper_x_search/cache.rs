@@ -1,5 +1,7 @@
 //! Bounded, credential-scoped metadata cache. No tokens or image bytes are stored.
 use super::*;
+mod continuation;
+pub(super) use continuation::claim;
 
 const CAPACITY: usize = 32;
 const TTL: Duration = Duration::from_secs(10 * 60);
@@ -13,6 +15,9 @@ struct Key {
 
 struct Entry {
     inserted: Instant,
+    continuation: String,
+    in_flight: bool,
+    consumed: bool,
     result: WallpaperSearchResult,
 }
 
@@ -25,40 +30,60 @@ struct Cache {
 impl Cache {
     fn purge(&mut self, now: Instant) {
         self.entries
-            .retain(|_, entry| now.duration_since(entry.inserted) < TTL);
+            .retain(|_, entry| entry.in_flight || now.duration_since(entry.inserted) < TTL);
         self.lru.retain(|key| self.entries.contains_key(key));
     }
 
     fn get(&mut self, key: &Key, now: Instant) -> Option<WallpaperSearchResult> {
         self.purge(now);
-        let result = self.entries.get(key)?.result.clone();
+        let entry = self.entries.get(key)?;
+        let mut result = entry.result.clone();
+        if let Some(meta) = result.meta.as_mut() {
+            meta.continuation_id =
+                (!entry.in_flight && !entry.consumed).then(|| entry.continuation.clone());
+        }
         self.lru.retain(|other| other != key);
         self.lru.push_back(key.clone());
         Some(result)
     }
 
-    fn insert(&mut self, key: Key, mut result: WallpaperSearchResult, now: Instant) {
+    fn insert(
+        &mut self,
+        key: Key,
+        mut result: WallpaperSearchResult,
+        now: Instant,
+    ) -> Option<String> {
         self.purge(now);
+        if self.entries.get(&key).is_some_and(|entry| entry.in_flight) {
+            return None;
+        }
         self.lru.retain(|other| other != &key);
         while self.entries.len() >= CAPACITY && !self.entries.contains_key(&key) {
-            if let Some(oldest) = self.lru.pop_front() {
-                self.entries.remove(&oldest);
-            } else {
-                break;
-            }
+            let evict = self
+                .lru
+                .iter()
+                .find(|k| self.entries.get(*k).is_some_and(|e| !e.in_flight))
+                .cloned()?;
+            self.lru.retain(|k| k != &evict);
+            self.entries.remove(&evict);
         }
         if let Some(meta) = result.meta.as_mut() {
             meta.request_id = None;
             meta.cache_hit = false;
         }
+        let continuation = uuid::Uuid::new_v4().to_string();
         self.entries.insert(
             key.clone(),
             Entry {
                 inserted: now,
+                continuation: continuation.clone(),
+                in_flight: false,
+                consumed: false,
                 result,
             },
         );
         self.lru.push_back(key);
+        Some(continuation)
     }
 }
 
@@ -70,6 +95,11 @@ pub(super) struct CacheRequest<'a> {
     pub runtime: &'a WallpaperXSearchRuntime,
 }
 
+fn shared_cache() -> &'static Mutex<Cache> {
+    static CACHE: OnceLock<Mutex<Cache>> = OnceLock::new();
+    CACHE.get_or_init(Default::default)
+}
+
 pub(super) async fn search_cached<F, Fut>(
     request: CacheRequest<'_>,
     run: F,
@@ -78,10 +108,9 @@ where
     F: FnOnce() -> Fut,
     Fut: Future<Output = WallpaperSearchResult>,
 {
-    static CACHE: OnceLock<Mutex<Cache>> = OnceLock::new();
     run_cached(
         request,
-        CACHE.get_or_init(Default::default),
+        shared_cache(),
         || {
             // Parsing validates scope and expiry, unlike file revision alone.
             account::read_build_oauth_access_token()
@@ -150,7 +179,7 @@ where
             return result;
         }
     }
-    let result = run().await;
+    let mut result = run().await;
     if runtime.is_cancelled() {
         return cancelled_result(mode, "responses", started);
     }
@@ -163,15 +192,18 @@ where
     {
         if let Some(key) = key {
             // Never associate a response with a different or now-expired login.
-            if revision().as_ref() == Some(&key.credential)
-                && runtime
+            if revision().as_ref() == Some(&key.credential) {
+                let inserted = runtime
                     .cancellation()
-                    .commit_if_active(|| {
-                        cache.lock().insert(key, result.clone(), Instant::now());
-                    })
-                    .is_none()
-            {
-                return cancelled_result(mode, "responses", started);
+                    .commit_if_active(|| cache.lock().insert(key, result.clone(), Instant::now()));
+                match inserted {
+                    None => return cancelled_result(mode, "responses", started),
+                    Some(id) => {
+                        if let Some(meta) = result.meta.as_mut() {
+                            meta.continuation_id = id;
+                        }
+                    }
+                }
             }
         }
     }

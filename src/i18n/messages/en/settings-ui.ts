@@ -7,6 +7,8 @@ export const enSettingsUi = {
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds}s",
   "settings.wallpaperSource.route.responses": "Responses preview · {seconds}s",
   "settings.wallpaperSource.route.cached": "Loaded from cache · {route}",
+  "settings.wallpaperSource.loadMore": "Load more",
+  "settings.wallpaperSource.noMore": "No more images found.",
   "settings.wallpaperSource.route.fallback": "Fell back to Grok Build CLI ({reason}) · {seconds}s",
   "settings.wallpaperSource.route.fallback.auth": "official sign-in unavailable or expired",
   "settings.wallpaperSource.route.fallback.network": "Responses network unavailable",

@@ -22,6 +22,7 @@ import * as api from "@/lib/api";
 import { isDesktopHost } from "@/lib/api";
 import {
   dedupeGalleryItems,
+  appendWallpaperGalleryItems,
   errorCodeFromSearchResult,
   fileFromAbsolutePath,
   libraryEntriesToGalleryItems,
@@ -116,10 +117,13 @@ export function WallpaperSourceModal({
   /** True after at least one search/generate finished this open. */
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [continuation, setContinuation] = useState<{ id: string; query: string; sort: "top" | "latest" } | null>(null);
   const [operationBusy, setBusy] = useState(false);
   const [routeSaving, setRouteSaving] = useState(false);
   const {
     busy: xBusy,
+    loadingMore,
+    loadMore: searchMore,
     stage: xStage,
     progressiveItems,
     search: searchX,
@@ -156,9 +160,10 @@ export function WallpaperSourceModal({
     setKindFilter(initialTab === "library" ? "image" : "all");
     setHasSearched(false);
     setItems([]);
+    setContinuation(null);
   }, [open, initialTab]);
 
-  const galleryItems = xBusy && progressiveItems.length > 0 ? progressiveItems : items;
+  const galleryItems = xBusy && !loadingMore && progressiveItems.length > 0 ? progressiveItems : items;
   const kindCounts = useMemo(() => countGalleryByKind(galleryItems), [galleryItems]);
 
   const visibleItems = useMemo(
@@ -234,6 +239,8 @@ export function WallpaperSourceModal({
   );
 
   const runXSearch = useCallback(async () => {
+    if (xBusy || operationBusy || routeSaving) return;
+    setContinuation(null);
     const q = query.trim();
     if (!q) {
       setErrorCode("empty");
@@ -294,6 +301,7 @@ export function WallpaperSourceModal({
         );
       } else {
         setItems(list);
+        if (res.meta?.continuationId) setContinuation({ id: res.meta.continuationId, query: q, sort });
         setError(null);
         setErrorCode(null);
         const counts = countWallpaperXCitations(list);
@@ -319,7 +327,7 @@ export function WallpaperSourceModal({
       setErrorCode(code);
       setError(errorMessage(t, code));
     }
-  }, [query, sort, t, searchX]);
+  }, [query, sort, t, searchX, xBusy, operationBusy, routeSaving]);
 
   const runImagine = useCallback(async () => {
     const p = prompt.trim();
@@ -467,7 +475,7 @@ export function WallpaperSourceModal({
    */
   const openItemPreview = useCallback(
     async (item: WallpaperGalleryItem) => {
-      if (busy || applying || previewingId) return;
+      if (operationBusy || routeSaving || (xBusy && !loadingMore) || applying || previewingId) return;
       if (!isDesktopHost()) {
         setErrorCode("generic");
         setError(t("settings.wallpaperSource.err.desktopOnly"));
@@ -533,7 +541,7 @@ export function WallpaperSourceModal({
         setStatusHint(null);
       }
     },
-    [busy, applying, previewingId, visibleItems, t, viewer, dropItem],
+    [operationBusy, routeSaving, xBusy, loadingMore, applying, previewingId, visibleItems, t, viewer, dropItem],
   );
 
   const openXStatus = useCallback((url: string) => {
@@ -584,8 +592,37 @@ export function WallpaperSourceModal({
     }
   }, [selected, t, onPickFile, onClose]);
 
+  const runLoadMore = useCallback(async () => {
+    if (!continuation || xBusy || operationBusy || applying || routeSaving) return;
+    setError(null);
+    setErrorCode(null);
+    try {
+      const result = await searchMore(continuation.id);
+      if (!result) return;
+      if (!result.errorCode) {
+        setItems(previous => appendWallpaperGalleryItems(previous, result.items));
+        setContinuation(null);
+        setCiteSummary(null);
+        setStatusHint(null);
+      } else if (result.errorCode === "empty") {
+        setContinuation(null);
+        setStatusHint(t("settings.wallpaperSource.noMore"));
+      } else {
+        if (result.errorCode === "load_more_unavailable" || result.errorCode.startsWith("oauth_")) setContinuation(null);
+        const code = parseWallpaperSourceError(result.errorCode);
+        setErrorCode(code);
+        setError(errorMessage(t, code));
+      }
+    } catch (error) {
+      const code = parseWallpaperSourceError(error);
+      setErrorCode(code);
+      setError(errorMessage(t, code));
+    }
+  }, [continuation, xBusy, operationBusy, applying, routeSaving, searchMore, t]);
+
   const authNeeded = errorCode === "auth_required";
   const locked = busy || applying || previewingId !== null;
+  const galleryLocked = operationBusy || routeSaving || (xBusy && !loadingMore) || applying || previewingId !== null;
   const showGalleryFilters = galleryItems.length > 0 || filtersActive;
   const softFailError =
     galleryErrorKind != null && isWallpaperGallerySoftFail(galleryErrorKind);
@@ -613,7 +650,7 @@ export function WallpaperSourceModal({
         <WallpaperSourceFooter
           t={t}
           selected={selected !== null}
-          locked={locked}
+          locked={galleryLocked}
           applying={applying}
           onClose={close}
           applySelected={applySelected}
@@ -821,11 +858,17 @@ export function WallpaperSourceModal({
         </div>
       ) : null}
 
+      {tab === "x" && continuation && continuation.query === query.trim() && continuation.sort === sort ? (
+        <button type="button" className="btn btn--ghost" disabled={xBusy || operationBusy || applying || routeSaving} onClick={() => void runLoadMore()}>
+          {t(loadingMore ? "settings.wallpaperSource.searching" : "settings.wallpaperSource.loadMore")}
+        </button>
+      ) : null}
+
       <WallpaperSourceGallery
         t={t}
         tab={tab}
         busy={busy}
-        locked={locked}
+        locked={galleryLocked}
         visibleItems={visibleItems}
         selectedId={selectedId}
         previewingId={previewingId}

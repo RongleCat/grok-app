@@ -7,6 +7,8 @@ export const zhSettingsUi = {
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} 秒",
   "settings.wallpaperSource.route.responses": "Responses 预览 · {seconds} 秒",
   "settings.wallpaperSource.route.cached": "已从缓存加载 · {route}",
+  "settings.wallpaperSource.loadMore": "加载更多",
+  "settings.wallpaperSource.noMore": "没有找到更多图片。",
   "settings.wallpaperSource.route.fallback": "已回退 Grok Build CLI（{reason}）· {seconds} 秒",
   "settings.wallpaperSource.route.fallback.auth": "官方登录不可用或已过期",
   "settings.wallpaperSource.route.fallback.network": "Responses 网络不可用",

@@ -27,6 +27,7 @@ export type WallpaperSearchResult = {
     fallbackReason?: string | null;
     durationMs: number;
     cacheHit?: boolean;
+    continuationId?: string | null;
   } | null;
   items: WallpaperGalleryItem[];
   errorCode?: string | null;
@@ -135,6 +136,23 @@ export function dedupeGalleryItems(
     out.push(it);
   }
   return out;
+}
+
+/** Append remote results without duplicating an already-materialized card. */
+export function appendWallpaperGalleryItems(
+  existing: WallpaperGalleryItem[],
+  incoming: WallpaperGalleryItem[],
+): WallpaperGalleryItem[] {
+  const ids = new Set(existing.map(item => `${item.source}:${item.id}`));
+  const urls = new Set(existing.map(item => item.fullUrl));
+  const fresh = incoming.filter(item => {
+    const id = `${item.source}:${item.id}`;
+    if (ids.has(id) || urls.has(item.fullUrl)) return false;
+    ids.add(id);
+    urls.add(item.fullUrl);
+    return true;
+  });
+  return dedupeGalleryItems([...existing, ...fresh]);
 }
 
 function mimeFromName(name: string): string {
@@ -509,4 +527,3 @@ export function libraryEntriesToGalleryItems(
       : [...entries];
   return dedupeGalleryItems(ordered.map(libraryEntryToGalleryItem));
 }
-

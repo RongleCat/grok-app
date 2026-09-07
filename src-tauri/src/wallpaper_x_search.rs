@@ -1,5 +1,6 @@
 //! Request ownership, progress and cancellation for CLI wallpaper searches.
 mod cache;
+mod more;
 use crate::account::BuildOauthCredentialRevision;
 use crate::wallpaper_source::{
     self, WallpaperSearchCancellation, WallpaperSearchResult, WallpaperXSearchRuntime,
@@ -10,6 +11,7 @@ use crate::wallpaper_x_responses::{
     ResponsesSearchError, ResponsesSearchErrorKind, ResponsesSearchSuccess,
 };
 use crate::{account, store, wallpaper_x_responses};
+pub(crate) use more::search_more;
 use std::future::Future;
 const CIRCUIT_FAILURE_THRESHOLD: u8 = 3;
 const CIRCUIT_OPEN_DURATION: Duration = Duration::from_secs(10 * 60);
@@ -137,34 +139,7 @@ pub(crate) async fn search(
     sort: Option<&str>,
 ) -> Result<WallpaperSearchResult, String> {
     let request = register_request(request_id)?;
-    let event_app = app.clone();
-    let event_request_id = request_id.to_string();
-    let batch_app = app.clone();
-    let batch_request_id = request_id.to_string();
-    let runtime = WallpaperXSearchRuntime::new(
-        request.cancellation.clone(),
-        Arc::new(move |stage| {
-            let _ = event_app.emit(
-                WALLPAPER_X_SEARCH_PROGRESS_EVENT,
-                WallpaperXSearchProgress {
-                    request_id: event_request_id.clone(),
-                    stage,
-                },
-            );
-        }),
-        Arc::new(move |batch| {
-            let _ = batch_app.emit(
-                WALLPAPER_X_SEARCH_BATCH_EVENT,
-                WallpaperXSearchBatchEvent {
-                    request_id: batch_request_id.clone(),
-                    batch_index: batch.batch_index,
-                    items: batch.items,
-                    accumulated_count: batch.accumulated_count,
-                    done: batch.done,
-                },
-            );
-        }),
-    );
+    let runtime = search_runtime(app, request_id, request.cancellation.clone());
     runtime.report(WallpaperXSearchStage::Preparing);
     let settings = store::load_settings();
     let mode = store::normalize_wallpaper_x_search_mode(&settings.wallpaper_x_search_mode);
@@ -347,6 +322,7 @@ where
                     fallback_reason: None,
                     duration_ms: elapsed_ms(started),
                     cache_hit: false,
+                    continuation_id: None,
                     search_calls: Some(result.search_calls),
                     candidate_count: result.candidate_count,
                     valid_count: result.valid_count,
@@ -397,6 +373,7 @@ where
                     fallback_reason: None,
                     duration_ms: elapsed_ms(started),
                     cache_hit: false,
+                    continuation_id: None,
                     search_calls: None,
                     candidate_count: 0,
                     valid_count: 0,
@@ -433,6 +410,7 @@ fn finish_cli(
         fallback_reason: fallback_reason.map(str::to_string),
         duration_ms: elapsed_ms(started),
         cache_hit: false,
+        continuation_id: None,
         // Grok Build does not currently expose a reliable hosted X call count
         // or selected official model through this headless result contract.
         search_calls: None,
@@ -460,6 +438,7 @@ fn cancelled_result(
             fallback_reason: None,
             duration_ms: elapsed_ms(started),
             cache_hit: false,
+            continuation_id: None,
             search_calls: None,
             candidate_count: 0,
             valid_count: 0,
@@ -472,6 +451,41 @@ fn cancelled_result(
 
 fn elapsed_ms(started: Instant) -> u64 {
     started.elapsed().as_millis().try_into().unwrap_or(u64::MAX)
+}
+
+fn search_runtime(
+    app: &tauri::AppHandle,
+    request_id: &str,
+    cancellation: WallpaperSearchCancellation,
+) -> WallpaperXSearchRuntime {
+    let event_app = app.clone();
+    let event_request_id = request_id.to_string();
+    let batch_app = app.clone();
+    let batch_request_id = request_id.to_string();
+    WallpaperXSearchRuntime::new(
+        cancellation,
+        Arc::new(move |stage| {
+            let _ = event_app.emit(
+                WALLPAPER_X_SEARCH_PROGRESS_EVENT,
+                WallpaperXSearchProgress {
+                    request_id: event_request_id.clone(),
+                    stage,
+                },
+            );
+        }),
+        Arc::new(move |batch| {
+            let _ = batch_app.emit(
+                WALLPAPER_X_SEARCH_BATCH_EVENT,
+                WallpaperXSearchBatchEvent {
+                    request_id: batch_request_id.clone(),
+                    batch_index: batch.batch_index,
+                    items: batch.items,
+                    accumulated_count: batch.accumulated_count,
+                    done: batch.done,
+                },
+            );
+        }),
+    )
 }
 
 #[cfg(test)]

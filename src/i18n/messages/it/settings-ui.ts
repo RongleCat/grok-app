@@ -7,6 +7,8 @@ export const itSettingsUi = {
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} s",
   "settings.wallpaperSource.route.responses": "Anteprima Responses · {seconds} s",
   "settings.wallpaperSource.route.cached": "Caricato dalla cache · {route}",
+  "settings.wallpaperSource.loadMore": "Carica altro",
+  "settings.wallpaperSource.noMore": "Nessun'altra immagine trovata.",
   "settings.wallpaperSource.route.fallback": "Ripiego su Grok Build CLI ({reason}) · {seconds} s",
   "settings.wallpaperSource.route.fallback.auth": "accesso ufficiale non disponibile o scaduto",
   "settings.wallpaperSource.route.fallback.network": "rete Responses non disponibile",

@@ -164,3 +164,7 @@ export async function listenWallpaperXSearchBatch(
 ): Promise<() => void> {
   return listen<import("../wallpaperXSearch").WallpaperXSearchBatch>("wallpaper://x-search-batch", handler);
 }
+
+export async function wallpaperXSearchMore(continuationId: string, requestId: string): Promise<WallpaperSearchResult> {
+  return invoke<WallpaperSearchResult>("wallpaper_x_search_more", { continuationId, requestId });
+}

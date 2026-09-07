@@ -102,6 +102,8 @@ pub struct WallpaperSearchMeta {
     pub fallback_reason: Option<String>,
     pub duration_ms: u64,
     pub cache_hit: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub continuation_id: Option<String>,
     pub search_calls: Option<u32>,
     pub candidate_count: usize,
     pub valid_count: usize,

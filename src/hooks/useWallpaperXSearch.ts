@@ -4,6 +4,7 @@ import { createWallpaperXSearchRequestId, isWallpaperXSearchBatch, type Wallpape
 import { dedupeGalleryItems, type WallpaperGalleryItem, type WallpaperSearchResult } from "@/lib/wallpaperSource";
 
 export type WallpaperXSearchClient = {
+  loadMore: (continuationId: string, requestId: string) => Promise<WallpaperSearchResult>;
   search: (query: string, sort: "top" | "latest", requestId: string) => Promise<WallpaperSearchResult>;
   listenBatch: (handler: (batch: WallpaperXSearchBatch) => void) => Promise<() => void>;
   cancel: (requestId: string) => Promise<boolean>;
@@ -12,6 +13,7 @@ export type WallpaperXSearchClient = {
 
 const DEFAULT_CLIENT: WallpaperXSearchClient = {
   search: api.wallpaperXSearch,
+  loadMore: api.wallpaperXSearchMore,
   cancel: api.wallpaperXSearchCancel,
   listenProgress: api.listenWallpaperXSearchProgress,
   listenBatch: api.listenWallpaperXSearchBatch,
@@ -64,6 +66,7 @@ export function useWallpaperXSearch(
   client: WallpaperXSearchClient = DEFAULT_CLIENT,
   requestIdFactory: () => string = createWallpaperXSearchRequestId,
 ) {
+  const [loadingMore, setLoadingMore] = useState(false);
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState<WallpaperXSearchStage | null>(null);
   const [progressive, dispatchProgressive] = useReducer(progressiveReducer, EMPTY_PROGRESSIVE_STATE);
@@ -108,13 +111,14 @@ export function useWallpaperXSearch(
     active.current = null;
     if (mounted.current) {
       dispatchProgressive({ type: "reset" });
+      setLoadingMore(false);
       setBusy(false);
       setStage(null);
     }
     return id ? client.cancel(id).catch(() => false) : Promise.resolve(false);
   }, [client]);
 
-  const search = useCallback(async (query: string, sort: "top" | "latest") => {
+  const run = useCallback(async (query: string, sort: "top" | "latest", continuationId?: string) => {
     if (!mounted.current) return null;
     // Invalidate synchronously: a slow cancel acknowledgement must not delay
     // replacement or let a third request be overwritten by a waiting second.
@@ -122,11 +126,12 @@ export function useWallpaperXSearch(
     const id = requestIdFactory();
     const revision = ++generation.current;
     active.current = id;
+    setLoadingMore(continuationId !== undefined);
     setBusy(true);
     setStage("preparing");
     const current = () => mounted.current && generation.current === revision && active.current === id;
     try {
-      const result = await client.search(query, sort, id);
+      const result = continuationId === undefined ? await client.search(query, sort, id) : await client.loadMore(continuationId, id);
       return current() && result.errorCode !== "cancelled" ? result : null;
     } catch (error) {
       if (!current()) return null;
@@ -134,11 +139,14 @@ export function useWallpaperXSearch(
     } finally {
       if (current()) {
         active.current = null;
-        setBusy(false);
+        setLoadingMore(false);
+      setBusy(false);
         setStage(null);
       }
     }
   }, [cancel, client, requestIdFactory]);
 
-  return { busy, stage, search, cancel, progressiveItems: progressive.items };
+  const search = useCallback((query: string, sort: "top" | "latest") => run(query, sort), [run]);
+  const loadMore = useCallback((id: string) => run("", "top", id), [run]);
+  return { busy, loadingMore, stage, search, loadMore, cancel, progressiveItems: progressive.items };
 }

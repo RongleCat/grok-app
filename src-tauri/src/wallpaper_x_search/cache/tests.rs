@@ -1,11 +1,11 @@
 use super::*;
 use std::cell::Cell;
 
-fn revision(value: u8) -> BuildOauthCredentialRevision {
+pub(super) fn revision(value: u8) -> BuildOauthCredentialRevision {
     BuildOauthCredentialRevision::for_test(1, Some(1), value)
 }
 
-fn success() -> WallpaperSearchResult {
+pub(super) fn success() -> WallpaperSearchResult {
     let item = wallpaper_source::parse_gallery_items(
         &serde_json::json!({"items": [{
             "fullUrl": "https://pbs.twimg.com/media/sky.jpg", "kind": "image"
@@ -24,6 +24,7 @@ fn success() -> WallpaperSearchResult {
             fallback_reason: None,
             duration_ms: 9000,
             cache_hit: false,
+            continuation_id: None,
             search_calls: Some(6),
             candidate_count: 1,
             valid_count: 1,

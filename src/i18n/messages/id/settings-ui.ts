@@ -7,6 +7,8 @@ export const idSettingsUi = {
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} dtk",
   "settings.wallpaperSource.route.responses": "Pratinjau Responses · {seconds} dtk",
   "settings.wallpaperSource.route.cached": "Dimuat dari cache · {route}",
+  "settings.wallpaperSource.loadMore": "Muat lainnya",
+  "settings.wallpaperSource.noMore": "Tidak ada gambar lain yang ditemukan.",
   "settings.wallpaperSource.route.fallback": "Beralih kembali ke Grok Build CLI ({reason}) · {seconds} dtk",
   "settings.wallpaperSource.route.fallback.auth": "login resmi tidak tersedia atau kedaluwarsa",
   "settings.wallpaperSource.route.fallback.network": "jaringan Responses tidak tersedia",

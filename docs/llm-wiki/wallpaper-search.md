@@ -49,7 +49,7 @@ to prevent an additional CLI request. Cancellation drops all pending lanes.
 The picker displays batches as they arrive; the final invoke result is authoritative.
 The hook rejects malformed, duplicate and foreign-request batches and clears them
 on replacement/cancel. Batch event failure cannot prevent the final result from
-showing. Load-more and prefetch are separate follow-up slices.
+showing. Automatic prefetch is a separate follow-up slice.
 
 Eligible failures fall back once to CLI. Rate limits, cancellation and tool-budget
 violations never trigger a second route. Three counted failures open a ten-minute
@@ -104,3 +104,25 @@ reports cacheHit, the new requestId, lookup duration and zero new search calls;
 the picker labels the result as cached. Cache reuse saves repeat searches only;
 it does not improve the first live request or guarantee an old CDN URL remains
 reachable. Existing preview/download validation continues to handle expired media.
+
+## Explicit Responses enrichment
+
+A successful initial result offers one additional eight-item request. The Host
+returns an opaque continuationId only when its bounded cache stores that gallery;
+the frontend submits that id and a new requestId, not query text or media URLs.
+Changing query/sort hides the previous continuation. Default CLI never offers it.
+
+A continuation is an exclusive lease bound to the original credential revision.
+In-flight entries survive TTL/eviction and cannot be overwritten by another search.
+Cancellation, network failures and dropped futures restore the opportunity to retry;
+success or a confirmed empty batch consumes it once. A consumed cached result no
+longer advertises continuation. The provider uses the validated OAuth snapshot;
+credential validity and revision are checked again before returning its result.
+
+Enrichment performs one Responses request with at most three X tool calls, using
+the existing media/post identities as exclusions. It validates and deduplicates
+against the original gallery, never falls back to CLI and never auto-retries.
+The final result is appended only after the Host validates its identity. Existing
+images remain visible/selectable while enrichment runs; errors keep them intact,
+and an empty batch displays the localized no-more hint. Closing/cancelling rejects
+late results. This slice does not automatically prefetch or repeat enrichment.

@@ -7,6 +7,8 @@ export const deSettingsUi = {
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} s",
   "settings.wallpaperSource.route.responses": "Responses-Vorschau · {seconds} s",
   "settings.wallpaperSource.route.cached": "Aus dem Cache geladen · {route}",
+  "settings.wallpaperSource.loadMore": "Mehr laden",
+  "settings.wallpaperSource.noMore": "Keine weiteren Bilder gefunden.",
   "settings.wallpaperSource.route.fallback": "Auf Grok Build CLI zurückgefallen ({reason}) · {seconds} s",
   "settings.wallpaperSource.route.fallback.auth": "offizielle Anmeldung fehlt oder ist abgelaufen",
   "settings.wallpaperSource.route.fallback.network": "Responses-Netzwerk nicht erreichbar",

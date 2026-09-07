@@ -1121,6 +1121,13 @@ pub async fn wallpaper_x_search(
 }
 
 #[tauri::command]
+pub async fn wallpaper_x_search_more(app: tauri::AppHandle, request_id: String, continuation_id: String) -> Result<crate::wallpaper_source::WallpaperSearchResult, String> {
+    let request_id = crate::wallpaper_x_search::request_id(Some(&request_id))?;
+    let continuation_id = crate::wallpaper_x_search::request_id(Some(&continuation_id))?;
+    crate::wallpaper_x_search::search_more(&app, &request_id, &continuation_id).await
+}
+
+#[tauri::command]
 pub fn wallpaper_x_search_cancel(request_id: String) -> Result<bool, String> {
     let request_id = crate::wallpaper_x_search::request_id(Some(&request_id))?;
     Ok(crate::wallpaper_x_search::cancel(&request_id))

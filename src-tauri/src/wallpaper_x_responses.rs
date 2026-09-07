@@ -2,6 +2,9 @@
 //! endpoint. This module is Host-internal until the wallpaper search router
 //! explicitly opts into it.
 
+mod more;
+pub(crate) use more::search_more;
+
 use std::future::Future;
 use std::time::Duration;
 

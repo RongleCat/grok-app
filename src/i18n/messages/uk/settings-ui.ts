@@ -7,6 +7,8 @@ export const ukSettingsUi = {
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} с",
   "settings.wallpaperSource.route.responses": "Перегляд Responses · {seconds} с",
   "settings.wallpaperSource.route.cached": "Завантажено з кешу · {route}",
+  "settings.wallpaperSource.loadMore": "Завантажити ще",
+  "settings.wallpaperSource.noMore": "Інших зображень не знайдено.",
   "settings.wallpaperSource.route.fallback": "Перехід до Grok Build CLI ({reason}) · {seconds} с",
   "settings.wallpaperSource.route.fallback.auth": "офіційний вхід недоступний або прострочений",
   "settings.wallpaperSource.route.fallback.network": "мережа Responses недоступна",

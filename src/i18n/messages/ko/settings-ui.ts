@@ -7,6 +7,8 @@ export const koSettingsUi = {
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds}초",
   "settings.wallpaperSource.route.responses": "Responses 미리보기 · {seconds}초",
   "settings.wallpaperSource.route.cached": "캐시에서 불러옴 · {route}",
+  "settings.wallpaperSource.loadMore": "더 불러오기",
+  "settings.wallpaperSource.noMore": "더 이상 이미지를 찾지 못했습니다.",
   "settings.wallpaperSource.route.fallback": "Grok Build CLI로 대체됨({reason}) · {seconds}초",
   "settings.wallpaperSource.route.fallback.auth": "공식 로그인을 사용할 수 없거나 만료됨",
   "settings.wallpaperSource.route.fallback.network": "Responses 네트워크를 사용할 수 없음",

@@ -18,6 +18,7 @@ function harness() {
   const unlisten = vi.fn();
   const client: WallpaperXSearchClient = {
     listenBatch: vi.fn(async (handler) => { emitBatch = handler; return () => {}; }),
+    loadMore: vi.fn(),
     search: vi.fn(), cancel: vi.fn(async () => true),
     listenProgress: vi.fn(async (handler) => { emit = handler; return unlisten; }),
   };
@@ -117,4 +118,18 @@ it("resets batches for replacement and trusts the final invoke result", async ()
   expect(h.hook.result.current.busy).toBe(false);
   act(() => h.emitBatch(batch("2", 2, ["too-late"])));
   expect(h.hook.result.current.progressiveItems.map(item => item.id)).toEqual(["preview"]);
+});
+
+it("uses a separate more command and cancels it without losing the next request", async () => {
+  const h = harness();
+  const pending = deferred<WallpaperSearchResult>();
+  vi.mocked(h.client.loadMore).mockReturnValue(pending.promise);
+  let result!: Promise<WallpaperSearchResult | null>;
+  act(() => { result = h.hook.result.current.loadMore("context"); });
+  expect(h.client.loadMore).toHaveBeenCalledWith("context", "1");
+  expect(h.client.search).not.toHaveBeenCalled();
+  expect(h.hook.result.current.loadingMore).toBe(true);
+  await act(async () => { await h.hook.result.current.cancel(); });
+  expect(h.hook.result.current.loadingMore).toBe(false);
+  await act(async () => { pending.resolve({ items: [] }); expect(await result).toBeNull(); });
 });

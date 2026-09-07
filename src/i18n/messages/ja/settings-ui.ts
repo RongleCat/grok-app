@@ -7,6 +7,8 @@ export const jaSettingsUi = {
   "settings.wallpaperSource.route.cli": "Grok Build CLI・{seconds}秒",
   "settings.wallpaperSource.route.responses": "Responses プレビュー・{seconds}秒",
   "settings.wallpaperSource.route.cached": "キャッシュから読み込み · {route}",
+  "settings.wallpaperSource.loadMore": "さらに読み込む",
+  "settings.wallpaperSource.noMore": "これ以上画像は見つかりませんでした。",
   "settings.wallpaperSource.route.fallback": "Grok Build CLI に切り替えました（{reason}）・{seconds}秒",
   "settings.wallpaperSource.route.fallback.auth": "公式ログインが利用できないか期限切れ",
   "settings.wallpaperSource.route.fallback.network": "Responses のネットワークを利用不可",
