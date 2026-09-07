@@ -228,7 +228,10 @@ mod wallpaper_provider_search;
 mod wallpaper_remote_commands;
 mod wallpaper_remote_media;
 mod wallpaper_remote_search;
+mod wallpaper_responses_client;
 mod wallpaper_source;
+mod wallpaper_web_page;
+mod wallpaper_web_search;
 mod wallpaper_x_responses;
 mod wallpaper_x_search;
 

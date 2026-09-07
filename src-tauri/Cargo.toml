@@ -79,6 +79,7 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 fs2 = "0.4"
 tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 url = "2"
+scraper = "0.27"
 
 # Remote mirror host (HTTP + WS + token gate) — see src/mirror/
 axum = { version = "0.8", features = ["ws", "macros"] }

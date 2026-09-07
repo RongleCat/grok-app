@@ -14,7 +14,9 @@ pub(crate) async fn wallpaper_remote_search(
     let source = RemoteWallpaperSource::parse(&source)?;
     let request_id = wallpaper_remote_search::request_id(request_id.as_deref())?;
     match source {
-        RemoteWallpaperSource::Web => Err("invalid_remote_source".into()),
+        RemoteWallpaperSource::Web => {
+            crate::wallpaper_web_search::search(&app, &request_id, &query).await
+        }
         RemoteWallpaperSource::Openverse | RemoteWallpaperSource::Pexels => {
             crate::wallpaper_provider_search::search(&app, source, &request_id, &query).await
         }
@@ -31,7 +33,9 @@ pub(crate) async fn wallpaper_remote_search_more(
     let source = RemoteWallpaperSource::parse(&source)?;
     let request_id = wallpaper_remote_search::request_id(request_id.as_deref())?;
     match source {
-        RemoteWallpaperSource::Web => Err("invalid_remote_source".into()),
+        RemoteWallpaperSource::Web => {
+            crate::wallpaper_web_search::search_more(&app, &request_id, &query).await
+        }
         RemoteWallpaperSource::Openverse | RemoteWallpaperSource::Pexels => {
             crate::wallpaper_provider_search::search_more(&app, source, &request_id, &query).await
         }
@@ -46,7 +50,7 @@ pub(crate) async fn wallpaper_remote_search_cancel(
     let source = RemoteWallpaperSource::parse(&source)?;
     let request_id = wallpaper_remote_search::request_id(Some(&request_id))?;
     Ok(match source {
-        RemoteWallpaperSource::Web => return Err("invalid_remote_source".into()),
+        RemoteWallpaperSource::Web => crate::wallpaper_web_search::cancel(&request_id),
         RemoteWallpaperSource::Openverse | RemoteWallpaperSource::Pexels => {
             crate::wallpaper_provider_search::cancel(&request_id)
         }

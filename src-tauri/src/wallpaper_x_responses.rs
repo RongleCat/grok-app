@@ -369,10 +369,7 @@ async fn search_with_client(
     let error_revision = || Some(credential_revision.clone());
 
     let request = client.post(endpoint).bearer_auth(token);
-    let request = request
-        .header("x-grok-client-mode", "cli")
-        .header("x-grok-client-identifier", "grok-shell")
-        .header("x-grok-client-version", "1.0.5")
+    let request = crate::wallpaper_responses_client::apply_build_proxy_headers(request)
         .json(&responses_request(
             query,
             sort,

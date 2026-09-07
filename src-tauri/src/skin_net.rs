@@ -5,7 +5,9 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, ToSocketAddrs};
 use std::time::Duration;
 
-use hyper::header::{HeaderMap, HeaderValue, USER_AGENT};
+use hyper::header::{
+    HeaderMap, HeaderName, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, CONTENT_TYPE, USER_AGENT,
+};
 use url::Url;
 
 use crate::safe_https_client::{self, SafeHttpsError, SafeHttpsErrorKind};
@@ -13,6 +15,19 @@ use crate::safe_https_client::{self, SafeHttpsError, SafeHttpsErrorKind};
 pub const MAX_REDIRECTS: usize = 3;
 pub const REQUEST_TIMEOUT_SECS: u64 = 60;
 const DNS_RESOLVE_TIMEOUT: Duration = Duration::from_secs(10);
+
+const BROWSER_DOCUMENT_USER_AGENT: &str =
+    "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 GrokApp/WallpaperDiscovery";
+const BROWSER_DOCUMENT_ACCEPT: &str =
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8";
+const BROWSER_DOCUMENT_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9,*;q=0.5";
+
+#[derive(Debug, Clone)]
+pub struct SafeHttpsResponse {
+    pub final_url: Url,
+    pub content_type: Option<String>,
+    pub bytes: Vec<u8>,
+}
 
 pub const OFFICIAL_SKIN_CATALOG_ID: &str = "official";
 pub const OFFICIAL_SKIN_CATALOG_URL: &str = "";
@@ -33,6 +48,13 @@ pub enum OriginPolicy {
     Official,
     /// User source: hop must stay same origin as the catalog URL.
     UserSameOrigin { catalog: Url },
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum SafeHttpsRequestProfile {
+    #[default]
+    Default,
+    BrowserDocument,
 }
 
 pub type ResolveFn = fn(&str) -> Result<Vec<IpAddr>, String>;
@@ -241,6 +263,29 @@ pub fn check_hop(raw: &str, policy: &OriginPolicy, resolve: ResolveFn) -> Result
     Ok(url)
 }
 
+fn headers_for_profile(profile: SafeHttpsRequestProfile) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        USER_AGENT,
+        HeaderValue::from_static(match profile {
+            SafeHttpsRequestProfile::Default => "Grok App",
+            SafeHttpsRequestProfile::BrowserDocument => BROWSER_DOCUMENT_USER_AGENT,
+        }),
+    );
+    if profile == SafeHttpsRequestProfile::BrowserDocument {
+        headers.insert(ACCEPT, HeaderValue::from_static(BROWSER_DOCUMENT_ACCEPT));
+        headers.insert(
+            ACCEPT_LANGUAGE,
+            HeaderValue::from_static(BROWSER_DOCUMENT_ACCEPT_LANGUAGE),
+        );
+        headers.insert(
+            HeaderName::from_static("upgrade-insecure-requests"),
+            HeaderValue::from_static("1"),
+        );
+    }
+    headers
+}
+
 fn transport_error(error: SafeHttpsError) -> String {
     match error.kind() {
         SafeHttpsErrorKind::Blocked => "url_blocked: destination rejected".into(),
@@ -256,15 +301,48 @@ pub async fn safe_https_get(
     max_bytes: u64,
     dest: Option<&std::path::Path>,
 ) -> Result<Vec<u8>, String> {
-    let mut headers = HeaderMap::new();
-    headers.insert(USER_AGENT, HeaderValue::from_static("Grok App"));
+    safe_https_get_response_profile(
+        start,
+        policy,
+        max_bytes,
+        dest,
+        SafeHttpsRequestProfile::Default,
+    )
+    .await
+    .map(|response| response.bytes)
+}
+
+/// Fetch a public HTML document with a fixed browser-compatible request
+/// profile. Callers cannot inject headers, credentials, cookies, or referrers.
+pub async fn safe_https_get_browser_document_response(
+    start: &str,
+    policy: OriginPolicy,
+    max_bytes: u64,
+) -> Result<SafeHttpsResponse, String> {
+    safe_https_get_response_profile(
+        start,
+        policy,
+        max_bytes,
+        None,
+        SafeHttpsRequestProfile::BrowserDocument,
+    )
+    .await
+}
+
+async fn safe_https_get_response_profile(
+    start: &str,
+    policy: OriginPolicy,
+    max_bytes: u64,
+    dest: Option<&std::path::Path>,
+    profile: SafeHttpsRequestProfile,
+) -> Result<SafeHttpsResponse, String> {
     let client = safe_https_client::shared();
     let mut current = check_hop_async(start, &policy).await?;
     for hop in 0..=MAX_REDIRECTS {
         let mut resp = client
             .get(
                 &current,
-                headers.clone(),
+                headers_for_profile(profile),
                 Duration::from_secs(REQUEST_TIMEOUT_SECS),
             )
             .await
@@ -288,6 +366,13 @@ pub async fn safe_https_get(
         if !status.is_success() {
             return Err(format!("network: http {status}"));
         }
+        let content_type = resp
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string);
         let content_length = resp.content_length();
         if content_length.is_some_and(|length| length > max_bytes) {
             return Err("too_large: download exceeds limit".into());
@@ -312,7 +397,11 @@ pub async fn safe_https_get(
             }
             bytes.extend_from_slice(&chunk);
         }
-        return Ok(bytes);
+        return Ok(SafeHttpsResponse {
+            final_url: current,
+            content_type,
+            bytes,
+        });
     }
     Err("url_blocked: too many redirects".into())
 }
@@ -323,6 +412,19 @@ mod tests {
 
     fn no_dns(_: &str) -> Result<Vec<IpAddr>, String> {
         Ok(vec![IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1))])
+    }
+
+    #[test]
+    fn browser_document_profile_is_fixed_and_credential_free() {
+        let headers = headers_for_profile(SafeHttpsRequestProfile::BrowserDocument);
+        assert_eq!(headers.get(ACCEPT).unwrap(), BROWSER_DOCUMENT_ACCEPT);
+        assert_eq!(
+            headers.get(ACCEPT_LANGUAGE).unwrap(),
+            BROWSER_DOCUMENT_ACCEPT_LANGUAGE
+        );
+        assert!(headers.get(hyper::header::AUTHORIZATION).is_none());
+        assert!(headers.get(hyper::header::COOKIE).is_none());
+        assert!(headers.get(hyper::header::REFERER).is_none());
     }
 
     fn loopback_dns(_: &str) -> Result<Vec<IpAddr>, String> {

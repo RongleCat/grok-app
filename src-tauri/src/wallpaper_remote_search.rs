@@ -88,7 +88,9 @@ impl RemoteSearchResult {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum RemoteSearchStage {
     Preparing,
+    SearchingWeb,
     SearchingProvider,
+    FetchingSources,
     ValidatingImages,
     LoadingMore,
     Done,

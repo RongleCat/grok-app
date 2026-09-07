@@ -168,6 +168,34 @@ Web search, Grok Saved, catalog metadata and generation integrations are
 separate changes. Tests use synthetic provider responses and media fixtures;
 passing tests do not claim live provider availability or account validation.
 
+## Web image discovery Host contract
+
+Web discovery is an independent source and never enters or augments X results.
+The renderer supplies only a bounded query and request ID. The Host reads the
+existing Grok Build OAuth credential and calls the fixed
+`https://cli-chat-proxy.grok.com/v1/responses` endpoint with `grok-4.6`, low
+effort, `store: false`, a strict source-page JSON schema, and only the hosted
+`web_search` tool. Endpoint, model, tool limits, bearer token and headers are
+not configurable from IPC, and redirects never receive the bearer token.
+
+An initial search runs three complementary lanes and targets up to 20 verified
+images; “load more” runs one smaller lane. The Host accepts only real HTTPS
+source-page URLs, fetches bounded initial HTML through the DNS-pinned safe HTTPS
+transport, and extracts `og:image`, `twitter:image`, and JSON-LD metadata. Each
+candidate image is then revalidated for public destination, redirects,
+signature, MIME, byte size, dimensions and wallpaper quality. The source page
+and media URL remain separate provenance fields. No cookies, browser storage,
+OAuth values, URL paths from prior results, or raw provider responses are
+logged or returned to the renderer.
+
+Search/page caches are bounded by credential revision and query. Continuation
+prompts receive only bounded source hostnames, never source URL paths, query
+strings or fragments. Cancellation covers Responses, page discovery and image
+validation, including bounded pre-cancellation before request registration.
+This Host slice registers the existing remote-search commands but adds no Web
+tab; UI exposure is a separate review layer. Synthetic fixtures prove parsing,
+budgets, cache, cancellation and SSRF boundaries, not live account availability.
+
 ## Public image provider UI
 
 The source picker groups the sources delivered so far into discovery, creation
