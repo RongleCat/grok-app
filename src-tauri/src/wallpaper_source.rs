@@ -114,25 +114,26 @@ pub fn normalize_media_url(url: &str) -> String {
             }
         }
         if let Ok(mut u) = url::Url::parse(trimmed) {
-            let mut pairs: Vec<(String, String)> = u
+            let format = u
                 .query_pairs()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect();
-            let mut found_name = false;
-            for (k, v) in pairs.iter_mut() {
-                if k == "name" {
-                    *v = "orig".into();
-                    found_name = true;
+                .find(|(key, _)| key.eq_ignore_ascii_case("format"))
+                .map(|(_, value)| value.into_owned());
+            u.set_fragment(None);
+            u.set_query(None);
+            {
+                let mut query = u.query_pairs_mut();
+                if let Some(format) = format.filter(|value| !value.trim().is_empty()) {
+                    query.append_pair("format", &format);
                 }
-            }
-            if !found_name {
-                pairs.push(("name".into(), "orig".into()));
-            }
-            u.query_pairs_mut().clear();
-            for (k, v) in pairs {
-                u.query_pairs_mut().append_pair(&k, &v);
+                query.append_pair("name", "orig");
             }
             return u.to_string();
+        }
+    }
+    if trimmed.starts_with("https://") || trimmed.starts_with("http://") {
+        if let Ok(mut parsed) = url::Url::parse(trimmed) {
+            parsed.set_fragment(None);
+            return parsed.to_string();
         }
     }
     trimmed.to_string()
@@ -143,7 +144,11 @@ pub fn is_allowed_media_url(url: &str) -> bool {
     let Ok(u) = url::Url::parse(url.trim()) else {
         return false;
     };
-    if u.scheme() != "https" && u.scheme() != "http" {
+    if u.scheme() != "https"
+        || !u.username().is_empty()
+        || u.password().is_some()
+        || u.port_or_known_default() != Some(443)
+    {
         return false;
     }
     let host = match u.host_str() {
@@ -1470,6 +1475,50 @@ mod tests {
         ));
         assert!(!is_allowed_media_url("https://evil.example/a.jpg"));
         assert!(!is_allowed_media_url("file:///etc/passwd"));
+    }
+
+    #[test]
+    fn media_urls_require_https_without_credentials_or_nonstandard_ports() {
+        for raw in [
+            "http://pbs.twimg.com/media/a.jpg",
+            "https://user@pbs.twimg.com/media/a.jpg",
+            "https://user:password@pbs.twimg.com/media/a.jpg",
+            "https://pbs.twimg.com:8443/media/a.jpg",
+            "https://pbs.twimg.com.evil.example/media/a.jpg",
+        ] {
+            assert!(!is_allowed_media_url(raw), "{raw}");
+        }
+        assert!(is_allowed_media_url(
+            "https://pbs.twimg.com:443/media/a.jpg"
+        ));
+    }
+
+    #[test]
+    fn normalization_preserves_format_and_collapses_query_and_fragment_variants() {
+        assert_eq!(
+            normalize_media_url(
+                "https://pbs.twimg.com/media/a?FORMAT=png&name=small&name=large&tracking=1#preview"
+            ),
+            "https://pbs.twimg.com/media/a?format=png&name=orig"
+        );
+        assert_eq!(
+            normalize_media_url("https://cdn.grok.com/image.png?signature=abc#preview"),
+            "https://cdn.grok.com/image.png?signature=abc"
+        );
+    }
+
+    #[test]
+    fn gallery_dedupes_tracking_and_size_variants_of_the_same_x_image() {
+        let value = json!({"items": [
+            {"fullUrl": "https://pbs.twimg.com/media/a?format=jpg&name=small&tracking=1#one"},
+            {"fullUrl": "https://pbs.twimg.com/media/a?name=large&format=jpg&tracking=2#two"}
+        ]});
+        let items = parse_gallery_items(&value, "x");
+        assert_eq!(items.len(), 1);
+        assert_eq!(
+            items[0].full_url,
+            "https://pbs.twimg.com/media/a?format=jpg&name=orig"
+        );
     }
 
     #[test]
