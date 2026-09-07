@@ -5,6 +5,7 @@ import type { WallpaperGalleryItem } from "@/lib/wallpaperSource";
 import type { WallpaperGalleryEmptyPresentation } from "@/lib/wallpaperGalleryPro";
 import { resolveWallpaperXCitation } from "@/lib/xEvidenceCitation";
 import { resolveImageSrcSync } from "@/lib/imageSrc";
+import { WallpaperProviderThumbnail } from "./WallpaperProviderThumbnail";
 
 type Props = {
   t: WallpaperSourceModalProps["t"];
@@ -19,7 +20,7 @@ type Props = {
   clearGalleryFilters: () => void;
   openItemPreview: (item: WallpaperGalleryItem) => Promise<void>;
   dropItem: (id: string) => void;
-  openXStatus: (url: string) => void;
+  openExternalSource: (url: string) => void;
   requestDeleteLibraryItem: (item: WallpaperGalleryItem, event: MouseEvent) => void;
 };
 
@@ -40,9 +41,20 @@ function itemThumbSrc(item: WallpaperGalleryItem): string {
 }
 
 export function WallpaperSourceGallery({
-  t, tab, busy, locked, visibleItems, selectedId, previewingId,
-  showEmptyBlock, emptyState, clearGalleryFilters, openItemPreview,
-  dropItem, openXStatus, requestDeleteLibraryItem,
+  t,
+  tab,
+  busy,
+  locked,
+  visibleItems,
+  selectedId,
+  previewingId,
+  showEmptyBlock,
+  emptyState,
+  clearGalleryFilters,
+  openItemPreview,
+  dropItem,
+  openExternalSource,
+  requestDeleteLibraryItem,
 }: Props) {
   const isImagineLayout = tab === "imagine";
   const isLibraryTab = tab === "library";
@@ -127,17 +139,23 @@ export function WallpaperSourceGallery({
                   onClick={() => void openItemPreview(item)}
                   aria-label={t("settings.wallpaperSource.openPreview")}
                 >
-                  <img
-                    src={src}
-                    alt={item.textPreview || item.prompt || item.username || ""}
-                    className="wallpaper-masonry__img"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    onError={() => {
-                      // Thumb failed — remove undownloadable / broken entry
-                      dropItem(item.id);
-                    }}
-                  />
+                  {item.source === "openverse" || item.source === "pexels" ? (
+                    <WallpaperProviderThumbnail item={item} t={t} />
+                  ) : (
+                    <img
+                      src={src}
+                      alt={
+                        item.textPreview || item.prompt || item.username || ""
+                      }
+                      className="wallpaper-masonry__img"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={() => {
+                        // Thumb failed — remove undownloadable / broken entry
+                        dropItem(item.id);
+                      }}
+                    />
+                  )}
                   <span className="wallpaper-masonry__meta">
                     {loadingThis
                       ? t("settings.wallpaperSource.loadingOriginal")
@@ -162,6 +180,54 @@ export function WallpaperSourceGallery({
                       : null}
                   </span>
                 </button>
+                {item.sourceUrl ? (
+                  <div className="wallpaper-masonry__cite">
+                    <button
+                      type="button"
+                      className="wallpaper-masonry__cite-btn"
+                      disabled={locked}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        openExternalSource(item.sourceUrl!);
+                      }}
+                    >
+                      {item.sourceName || item.source}
+                    </button>
+                    {item.authorName ? (
+                      item.authorUrl ? (
+                        <button
+                          type="button"
+                          className="wallpaper-masonry__cite-btn"
+                          disabled={locked}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            openExternalSource(item.authorUrl!);
+                          }}
+                        >
+                          {item.authorName}
+                        </button>
+                      ) : (
+                        <span>{item.authorName}</span>
+                      )
+                    ) : null}
+                    {item.licenseUrl ? (
+                      <button
+                        type="button"
+                        className="wallpaper-masonry__cite-btn"
+                        disabled={locked}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          openExternalSource(item.licenseUrl!);
+                        }}
+                      >
+                        {item.license || item.licenseUrl}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
                 {cite && !loadingThis ? (
                   <div
                     className={
@@ -180,7 +246,7 @@ export function WallpaperSourceGallery({
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          openXStatus(cite.statusUrl!);
+                          openExternalSource(cite.statusUrl!);
                         }}
                         title={t("settings.wallpaperSource.cite.openPost")}
                         aria-label={t("settings.wallpaperSource.cite.openPost")}

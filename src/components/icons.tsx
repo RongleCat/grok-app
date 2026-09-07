@@ -67,6 +67,7 @@ import {
   IconHexagon as TbHexagon,
   IconInfoCircle as TbInfoCircle,
   IconKeyboard as TbKeyboard,
+  IconKey as TbKey,
   IconLanguage as TbLanguage,
   IconExternalLink as TbExternalLink,
   IconLayoutSidebar as TbLayoutSidebar,
@@ -423,6 +424,7 @@ export const IconHelp = wrap(TbHelp);
 /** Unbound chats / Default workspace. */
 export const IconHome = wrap(TbHome, { className: "g-icon--home" });
 export const IconKeyboard = wrap(TbKeyboard);
+export const IconKey = wrap(TbKey);
 /** Slash palette / goal mode */
 export const IconTarget = wrap(TbTarget);
 /** Side-browser Design Mode — click to inspect. */

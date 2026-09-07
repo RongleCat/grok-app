@@ -6,6 +6,12 @@ import type { WallpaperSearchResult } from "@/lib/wallpaperSource";
 
 const mocks = vi.hoisted(() => ({ search: vi.fn(), more: vi.fn(), cancel: vi.fn(async () => true), preview: vi.fn() }));
 vi.mock("@/lib/api", () => ({
+  wallpaperRemoteSearch: vi.fn(),
+  wallpaperRemoteSearchMore: vi.fn(),
+  wallpaperRemoteSearchCancel: vi.fn(async () => true),
+  listenWallpaperRemoteSearchProgress: vi.fn(async () => () => {}),
+  listenWallpaperRemoteSearchBatch: vi.fn(async () => () => {}),
+  wallpaperRemoteCancelMediaRequests: vi.fn(async () => 0),
   isDesktopHost: () => true,
   isTauri: () => false,
   settingsGet: vi.fn(async () => ({ wallpaperXSearchMode: "responses_preview" })),
@@ -19,7 +25,24 @@ vi.mock("@/lib/api", () => ({
 vi.mock("@/components/ImageViewerContext", () => ({ useImageViewerOptional: () => ({ open: mocks.preview }) }));
 vi.mock("@/components/Select", () => ({ Select: ({ value }: { value: string }) => <span>{value}</span> }));
 vi.mock("@/components/GlassModal", () => ({
-  GlassModal: ({ open, children, footer, onClose }: { open: boolean; children: React.ReactNode; footer?: React.ReactNode; onClose: () => void }) => open ? <div><button onClick={onClose}>close-modal</button>{children}{footer}</div> : null,
+  GlassModal: ({
+    open,
+    children,
+    footer,
+    onClose,
+  }: {
+    open: boolean;
+    children: React.ReactNode;
+    footer?: React.ReactNode;
+    onClose: () => void;
+  }) =>
+    open ? (
+      <div>
+        <button onClick={onClose}>close-modal</button>
+        {children}
+        {footer}
+      </div>
+    ) : null,
 }));
 import { WallpaperSourceModal } from "./WallpaperSourceModal";
 
@@ -28,7 +51,13 @@ function deferred<T>() {
   const promise = new Promise<T>(yes => { resolve = yes; });
   return { promise, resolve };
 }
-const item = (id: string) => ({ id, kind: "image", source: "x", fullUrl: `https://pbs.twimg.com/media/${id}.jpg`, thumbUrl: `https://pbs.twimg.com/media/${id}.jpg` });
+const item = (id: string) => ({
+  id,
+  kind: "image",
+  source: "x",
+  fullUrl: `https://pbs.twimg.com/media/${id}.jpg`,
+  thumbUrl: `https://pbs.twimg.com/media/${id}.jpg`,
+});
 const t = (key: string) => key;
 const moreButton = () => screen.getByRole("button", { name: "settings.wallpaperSource.loadMore" });
 const cards = () => screen.getAllByRole("button", { name: "settings.wallpaperSource.openPreview" });
@@ -37,7 +66,15 @@ async function initial() {
   const view = render(<WallpaperSourceModal open t={t as never} onClose={vi.fn()} onPickFile={vi.fn()} />);
   const input = screen.getByPlaceholderText("settings.wallpaperSource.xPlaceholder");
   fireEvent.change(input, { target: { value: "sky" } });
-  await waitFor(() => expect((screen.getByRole("button", { name: "settings.wallpaperSource.search" }) as HTMLButtonElement).disabled).toBe(false));
+  await waitFor(() =>
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "settings.wallpaperSource.search",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false),
+  );
   fireEvent.click(screen.getByRole("button", { name: "settings.wallpaperSource.search" }));
   await screen.findByRole("button", { name: "settings.wallpaperSource.loadMore" });
   return view;

@@ -1170,7 +1170,7 @@ html[data-theme-editor-shell] #root {
 .wallpaper-source-modal__body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
   min-height: 0;
   /* Body fills modal; gallery scroll lives inside (not on multi-column) */
   flex: 1 1 auto;
@@ -1179,22 +1179,67 @@ html[data-theme-editor-shell] #root {
 }
 
 .wallpaper-source-tabs {
-  display: flex;
-  gap: 6px;
-  padding: 2px;
+  display: grid;
+  grid-template-columns:
+    minmax(max-content, 3fr) minmax(max-content, 1fr)
+    minmax(max-content, 1fr);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 0 9px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--border-subtle);
+  scrollbar-width: thin;
+}
+
+.wallpaper-source-tabs__group {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(max-content, 1fr);
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 3px;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--bg-hover) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-hover) 76%, transparent);
 }
 
 .wallpaper-source-tabs__btn {
-  flex: 1;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 32px;
+  width: 100%;
   border: none;
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
   font-size: 13px;
   font-weight: 500;
-  padding: 8px 10px;
-  border-radius: calc(var(--radius-md) - 2px);
+  padding: 5px 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0;
+}
+
+.wallpaper-source-tabs__label {
+  white-space: nowrap;
+}
+
+.wallpaper-source-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  padding-top: 10px;
+  overflow: hidden;
 }

@@ -9,7 +9,9 @@
 .wallpaper-source-tabs__btn--active {
   color: var(--text-primary);
   background: var(--bg-elevated);
-  box-shadow: 0 1px 2px color-mix(in srgb, #000 12%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
+    0 1px 3px color-mix(in srgb, #000 14%, transparent);
 }
 
 .wallpaper-source-tabs__btn:disabled {
@@ -363,15 +365,15 @@
 
 /* Ensure flex children above the gallery don’t shrink the scroll region away */
 .wallpaper-source-modal__body > .wallpaper-source-tabs,
-.wallpaper-source-modal__body > .wallpaper-source-form,
-.wallpaper-source-modal__body > .wallpaper-source-status,
-.wallpaper-source-modal__body > .wallpaper-source-cite-summary,
-.wallpaper-source-modal__body > .wallpaper-source-error,
-.wallpaper-source-modal__body > .wallpaper-source-filters {
+.wallpaper-source-panel > .wallpaper-source-form,
+.wallpaper-source-panel > .wallpaper-source-status,
+.wallpaper-source-panel > .wallpaper-source-cite-summary,
+.wallpaper-source-panel > .wallpaper-source-error,
+.wallpaper-source-panel > .wallpaper-source-filters {
   flex: 0 0 auto;
 }
 
-.wallpaper-source-modal__body > .wallpaper-masonry-scroll {
+.wallpaper-source-panel > .wallpaper-masonry-scroll {
   flex: 1 1 auto;
   min-height: 0; /* critical: allow flex child to scroll */
 }
@@ -993,4 +995,84 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
 .wallpaper-masonry__delete:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.wallpaper-pexels-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 30px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.wallpaper-pexels-key__status {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.wallpaper-pexels-key__form {
+  display: flex;
+  flex: 1 1 280px;
+  gap: 7px;
+  min-width: 0;
+}
+
+.wallpaper-pexels-key__input {
+  max-width: 360px;
+  height: 30px;
+}
+
+.wallpaper-pexels-key__form .btn,
+.wallpaper-pexels-key__actions .btn {
+  flex: 0 0 auto;
+  min-height: 30px;
+}
+
+.wallpaper-pexels-key__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+
+@media (max-width: 640px) {
+  .wallpaper-pexels-key { flex-wrap: wrap; }
+  .wallpaper-pexels-key__form { flex-basis: 100%; }
+  .wallpaper-pexels-key__input { max-width: none; min-width: 0; }
+}
+
+.wallpaper-provider-thumbnail-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  padding: 12px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* Narrow layouts keep the grouped source strip on one readable scroll row. */
+@media (max-width: 1200px) {
+  .wallpaper-source-tabs {
+    display: flex;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .wallpaper-source-tabs__group {
+    display: inline-flex;
+    flex: 0 0 auto;
+    min-width: max-content;
+  }
+
+  .wallpaper-source-tabs__btn {
+    min-width: max-content;
+    width: auto;
+  }
 }

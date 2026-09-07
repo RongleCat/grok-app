@@ -158,3 +158,25 @@ This batch supplies explicit pagination only. Automatic one-page-ahead loading,
 provider UI, Web search, catalog metadata and generation integrations are
 separate changes. Tests use synthetic provider responses and media fixtures;
 passing tests do not claim live provider availability or account validation.
+
+## Public image provider UI
+
+The source picker groups the sources delivered so far into discovery, creation
+and personal sections. Discovery exposes X, Openverse and Pexels; creation
+exposes Imagine; personal exposes the local library. Web search and Grok Saved
+are intentionally absent until their complete Host and session boundaries ship.
+The grouped strip stays on one horizontally scrollable row in narrow windows.
+
+Openverse works without user credentials. Pexels reads only the Host's masked
+credential status and writes replacement/removal requests through the existing
+secrets commands; the renderer never receives the stored key. A rejected key
+opens an editable replacement field, removal requires an in-app confirmation,
+and search stays disabled while credential status is unknown or unavailable.
+
+Provider results use the bounded Host thumbnail path and keep their source,
+author and licence links separate from the image-preview action. A thumbnail
+failure leaves the result card available so selecting it can still fetch the
+validated original. Initial searches replace the old gallery; explicit “load
+more” appends deduplicated results while leaving current cards selectable.
+Paging failures preserve the gallery and continuation for retry. This UI slice
+does not automatically prefetch the next provider page.

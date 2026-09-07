@@ -11,8 +11,12 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useWallpaperProviderController } from "@/hooks/useWallpaperProviderController";
+import { createWallpaperRequestId } from "@/lib/wallpaperRequest";
+import { WallpaperProviderControls } from "./WallpaperProviderControls";
 import { WallpaperSourceGallery } from "./WallpaperSourceGallery";
 import { WallpaperSourceFooter } from "./WallpaperSourceFooter";
+import { WallpaperSourceTabs } from "./WallpaperSourceTabs";
 import { useWallpaperXSearch } from "@/hooks/useWallpaperXSearch";
 import { WallpaperXRouteControl } from "./WallpaperXRouteControl";
 import { GlassModal } from "@/components/GlassModal";
@@ -50,9 +54,10 @@ import {
   wallpaperXSearchCitationSummaryKey,
 } from "@/lib/xEvidenceCitation";
 import { WallpaperPrepareError } from "@/lib/themeSkin";
+import { wallpaperRemoteProgressMessageKey } from "@/lib/wallpaperRemoteSearch";
 import type { MessageKey } from "@/i18n";
 
-export type WallpaperSourceTab = "x" | "imagine" | "library";
+export type WallpaperSourceTab = "x" | "imagine" | "library" | "openverse" | "pexels";
 
 export type WallpaperSourceModalProps = {
   open: boolean;
@@ -88,6 +93,14 @@ async function ensureLocalMedia(
   if (src.kind === "path") {
     return { path: src.path };
   }
+  if (item.source === "openverse" || item.source === "pexels") {
+    const fetched = await api.wallpaperRemoteFetchMedia(
+      item.source,
+      src.url,
+      createWallpaperRequestId(),
+    );
+    return { path: fetched.path, name: fetched.name, mime: fetched.mime };
+  }
   const fetched = await api.wallpaperFetchMedia(
     src.url,
     item.source === "imagine" ? "imagine" : "x",
@@ -117,7 +130,11 @@ export function WallpaperSourceModal({
   /** True after at least one search/generate finished this open. */
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [continuation, setContinuation] = useState<{ id: string; query: string; sort: "top" | "latest" } | null>(null);
+  const [continuation, setContinuation] = useState<{
+    id: string;
+    query: string;
+    sort: "top" | "latest";
+  } | null>(null);
   const [operationBusy, setBusy] = useState(false);
   const [routeSaving, setRouteSaving] = useState(false);
   const {
@@ -129,14 +146,6 @@ export function WallpaperSourceModal({
     search: searchX,
     cancel: cancelX,
   } = useWallpaperXSearch();
-  const busy = operationBusy || xBusy || routeSaving;
-  const close = useCallback(() => {
-    void cancelX();
-    onClose();
-  }, [cancelX, onClose]);
-  useEffect(() => {
-    if (!open || tab !== "x") void cancelX();
-  }, [open, tab, cancelX]);
   const [applying, setApplying] = useState(false);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -147,6 +156,34 @@ export function WallpaperSourceModal({
   /** Soft citation honesty after an X search (verified / unverified counts). */
   const [citeSummary, setCiteSummary] = useState<string | null>(null);
 
+  const providerSource =
+    tab === "openverse" || tab === "pexels" ? tab : null;
+  const provider = useWallpaperProviderController({
+    enabled: open && providerSource !== null,
+    source: providerSource,
+    query,
+    items,
+    t,
+    setItems,
+    setError,
+    setErrorCode,
+    setStatusHint,
+    setHasSearched,
+    setSelectedId,
+  });
+  const providerProgressKey = wallpaperRemoteProgressMessageKey(
+    provider.stage,
+    providerSource,
+  );
+  const busy = operationBusy || xBusy || routeSaving || provider.busy;
+  const close = useCallback(() => {
+    void cancelX();
+    void provider.cancel();
+    onClose();
+  }, [cancelX, provider.cancel, onClose]);
+  useEffect(() => {
+    if (!open || tab !== "x") void cancelX();
+  }, [open, tab, cancelX]);
   useEffect(() => {
     if (!open) return;
     setTab(initialTab);
@@ -163,8 +200,14 @@ export function WallpaperSourceModal({
     setContinuation(null);
   }, [open, initialTab]);
 
-  const galleryItems = xBusy && !loadingMore && progressiveItems.length > 0 ? progressiveItems : items;
-  const kindCounts = useMemo(() => countGalleryByKind(galleryItems), [galleryItems]);
+  const galleryItems =
+    xBusy && !loadingMore && progressiveItems.length > 0
+      ? progressiveItems
+      : items;
+  const kindCounts = useMemo(
+    () => countGalleryByKind(galleryItems),
+    [galleryItems],
+  );
 
   const visibleItems = useMemo(
     () =>
@@ -232,6 +275,21 @@ export function WallpaperSourceModal({
     setGalleryFilter("");
     setKindFilter("all");
   }, []);
+
+  const changeTab = useCallback((nextTab: WallpaperSourceTab) => {
+    void provider.cancel();
+    setTab(nextTab);
+    setItems([]);
+    setHasSearched(false);
+    setSelectedId(null);
+    setError(null);
+    setErrorCode(null);
+    setStatusHint(null);
+    setCiteSummary(null);
+    setContinuation(null);
+    setGalleryFilter("");
+    setKindFilter(nextTab === "library" ? "image" : "all");
+  }, [provider.cancel]);
 
   const selected = useMemo(
     () => visibleItems.find((i) => i.id === selectedId) ?? null,
@@ -475,7 +533,16 @@ export function WallpaperSourceModal({
    */
   const openItemPreview = useCallback(
     async (item: WallpaperGalleryItem) => {
-      if (operationBusy || routeSaving || (xBusy && !loadingMore) || applying || previewingId) return;
+      if (
+        (provider.busy && !provider.loadingMore) ||
+        operationBusy ||
+        routeSaving ||
+        (xBusy && !loadingMore) ||
+        applying ||
+        previewingId
+      ) {
+        return;
+      }
       if (!isDesktopHost()) {
         setErrorCode("generic");
         setError(t("settings.wallpaperSource.err.desktopOnly"));
@@ -541,10 +608,23 @@ export function WallpaperSourceModal({
         setStatusHint(null);
       }
     },
-    [operationBusy, routeSaving, xBusy, loadingMore, applying, previewingId, visibleItems, t, viewer, dropItem],
+    [
+      provider.busy,
+      provider.loadingMore,
+      operationBusy,
+      routeSaving,
+      xBusy,
+      loadingMore,
+      applying,
+      previewingId,
+      visibleItems,
+      t,
+      viewer,
+      dropItem,
+    ],
   );
 
-  const openXStatus = useCallback((url: string) => {
+  const openExternalSource = useCallback((url: string) => {
     void api.openExternalUrl(url).catch(() => {
       /* soft-fail: citation open is best-effort */
     });
@@ -622,7 +702,13 @@ export function WallpaperSourceModal({
 
   const authNeeded = errorCode === "auth_required";
   const locked = busy || applying || previewingId !== null;
-  const galleryLocked = operationBusy || routeSaving || (xBusy && !loadingMore) || applying || previewingId !== null;
+  const galleryLocked =
+    (provider.busy && !provider.loadingMore) ||
+    operationBusy ||
+    routeSaving ||
+    (xBusy && !loadingMore) ||
+    applying ||
+    previewingId !== null;
   const showGalleryFilters = galleryItems.length > 0 || filtersActive;
   const softFailError =
     galleryErrorKind != null && isWallpaperGallerySoftFail(galleryErrorKind);
@@ -637,282 +723,304 @@ export function WallpaperSourceModal({
 
   return (
     <>
-    <GlassModal
-      open={open}
-      onClose={close}
-      title={t("settings.wallpaperSource.title")}
-      size="lg"
-      className="wallpaper-source-modal"
-      wrapBody
-      bodyClassName="wallpaper-source-modal__body"
-      closeLabel={t("common.close")}
-      footer={
-        <WallpaperSourceFooter
-          t={t}
-          selected={selected !== null}
-          locked={galleryLocked}
-          applying={applying}
-          onClose={close}
-          applySelected={applySelected}
-        />
-      }
-    >
-      <div className="wallpaper-source-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "x"}
-          className={
-            "wallpaper-source-tabs__btn" +
-            (tab === "x" ? " wallpaper-source-tabs__btn--active" : "")
-          }
-          onClick={() => {
-            setTab("x");
-            setItems([]);
-            setHasSearched(false);
-            setSelectedId(null);
-            setError(null);
-            setErrorCode(null);
-          }}
-          disabled={operationBusy || applying || previewingId !== null}
-        >
-          {t("settings.wallpaperFromX")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "imagine"}
-          className={
-            "wallpaper-source-tabs__btn" +
-            (tab === "imagine" ? " wallpaper-source-tabs__btn--active" : "")
-          }
-          onClick={() => {
-            setTab("imagine");
-            setItems([]);
-            setHasSearched(false);
-            setSelectedId(null);
-            setError(null);
-            setErrorCode(null);
-          }}
-          disabled={operationBusy || applying || previewingId !== null}
-        >
-          {t("settings.wallpaperImagine")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "library"}
-          className={
-            "wallpaper-source-tabs__btn" +
-            (tab === "library" ? " wallpaper-source-tabs__btn--active" : "")
-          }
-          onClick={() => {
-            setTab("library");
-            setError(null);
-            setErrorCode(null);
-          }}
-          disabled={operationBusy || applying || previewingId !== null}
-        >
-          {t("settings.wallpaperLibrary")}
-        </button>
-      </div>
-
-      <WallpaperSourceControls
-        t={t}
-        xRouteControl={open && isDesktopHost() ? <WallpaperXRouteControl t={t} disabled={locked} onSavingChange={setRouteSaving} /> : null}
-        tab={tab}
-        query={query}
-        sort={sort}
-        prompt={prompt}
-        aspect={aspect}
-        busy={busy}
-        xBusy={xBusy}
-        locked={locked}
-        setQuery={setQuery}
-        setSort={setSort}
-        setPrompt={setPrompt}
-        setAspect={setAspect}
-        runXSearch={runXSearch}
-        cancelXSearch={cancelX}
-        runImagine={runImagine}
-        loadLibrary={loadLibrary}
-      />
-
-      {xBusy && xStage ? (
-        <p className="wallpaper-source-status" role="status">
-          {t(
-            xStage === "falling_back"
-              ? "settings.wallpaperSource.progress.fallingBack"
-              : xStage === "validating"
-              ? "settings.wallpaperSource.progress.validating"
-              : xStage === "supplementing"
-                ? "settings.wallpaperSource.progress.supplementing"
-                : xStage === "preparing"
-                  ? "settings.wallpaperSource.progress.preparing"
-                  : "settings.wallpaperSource.searching",
-          )}
-        </p>
-      ) : null}
-      {statusHint ? (
-        <p className="wallpaper-source-status" role="status">
-          {statusHint}
-        </p>
-      ) : null}
-
-      {citeSummary && tab === "x" ? (
-        <p
-          className="wallpaper-source-cite-summary"
-          role="status"
-          data-soft-fail="1"
-        >
-          {citeSummary}
-        </p>
-      ) : null}
-
-      {error ? (
-        <div
-          className={
-            "wallpaper-source-error" +
-            (softFailError ? " wallpaper-source-error--soft" : "")
-          }
-          role="alert"
-        >
-          {galleryErrorKind ? (
-            <span
-              className={
-                "wallpaper-source-err-chip" +
-                (softFailError ? " wallpaper-source-err-chip--soft" : "")
-              }
-              data-kind={galleryErrorKind}
-            >
-              {t(wallpaperGalleryErrorTitleKey(galleryErrorKind) as MessageKey)}
-            </span>
-          ) : null}
-          <p>{error}</p>
-          {authNeeded && onRequestLogin ? (
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              onClick={onRequestLogin}
-            >
-              {t("settings.wallpaperSource.goLogin")}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {showGalleryFilters ? (
-        <div className="wallpaper-source-filters">
-          <div
-            className="wallpaper-source-chips"
-            role="toolbar"
-            aria-label={t("settings.wallpaperSource.kindLabel")}
-          >
-            {WALLPAPER_GALLERY_KIND_FILTERS.map((id) => {
-              const n = kindCounts[id];
-              // Hide zero-count chips except "all" and the active selection.
-              if (id !== "all" && n === 0 && kindFilter !== id) return null;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  className={
-                    "wallpaper-source-chip" +
-                    (kindFilter === id ? " is-active" : "")
-                  }
-                  aria-pressed={kindFilter === id}
-                  disabled={locked && id !== kindFilter}
-                  onClick={() => setKindFilter(id)}
-                >
-                  <span>
-                    {t(
-                      wallpaperGalleryKindFilterLabelKey(id) as MessageKey,
-                    )}
-                  </span>
-                  <span className="wallpaper-source-chip-count">{n}</span>
-                </button>
-              );
-            })}
-          </div>
-          <input
-            type="search"
-            className="wallpaper-source-form__input wallpaper-source-filters__query"
-            value={galleryFilter}
-            placeholder={t("settings.wallpaperSource.filterPlaceholder")}
-            disabled={locked}
-            onChange={(e) => setGalleryFilter(e.target.value)}
-            autoComplete="off"
-            spellCheck={false}
-            aria-label={t("settings.wallpaperSource.filterPlaceholder")}
+      <GlassModal
+        open={open}
+        onClose={close}
+        title={t("settings.wallpaperSource.title")}
+        size="lg"
+        className="wallpaper-source-modal"
+        wrapBody
+        bodyClassName="wallpaper-source-modal__body"
+        closeLabel={t("common.close")}
+        footer={
+          <WallpaperSourceFooter
+            t={t}
+            selected={selected !== null}
+            locked={galleryLocked}
+            applying={applying}
+            onClose={close}
+            applySelected={applySelected}
           />
-          {filtersActive ? (
+        }
+      >
+        <WallpaperSourceTabs
+          t={t}
+          value={tab}
+          disabled={operationBusy || applying || previewingId !== null}
+          panelId="wallpaper-source-panel"
+          onChange={changeTab}
+        />
+
+        <div
+          id="wallpaper-source-panel"
+          className="wallpaper-source-panel"
+          role="tabpanel"
+          aria-labelledby={`wallpaper-source-tab-${tab}`}
+        >
+          {providerSource ? (
+            <WallpaperProviderControls
+              source={providerSource}
+              query={query}
+              busy={provider.busy}
+              locked={locked}
+              invalidKey={errorCode === "pexels_key_invalid"}
+              t={t}
+              setQuery={setQuery}
+              search={provider.search}
+              cancel={provider.cancel}
+              onSaved={() => {
+                setError(null);
+                setErrorCode(null);
+              }}
+            />
+          ) : (
+            <WallpaperSourceControls
+              t={t}
+              xRouteControl={
+                open && isDesktopHost() ? (
+                  <WallpaperXRouteControl
+                    t={t}
+                    disabled={locked}
+                    onSavingChange={setRouteSaving}
+                  />
+                ) : null
+              }
+              tab={tab}
+              query={query}
+              sort={sort}
+              prompt={prompt}
+              aspect={aspect}
+              busy={busy}
+              xBusy={xBusy}
+              locked={locked}
+              setQuery={setQuery}
+              setSort={setSort}
+              setPrompt={setPrompt}
+              setAspect={setAspect}
+              runXSearch={runXSearch}
+              cancelXSearch={cancelX}
+              runImagine={runImagine}
+              loadLibrary={loadLibrary}
+            />
+          )}
+
+          {xBusy && xStage ? (
+            <p className="wallpaper-source-status" role="status">
+              {t(
+                xStage === "falling_back"
+                  ? "settings.wallpaperSource.progress.fallingBack"
+                  : xStage === "validating"
+                    ? "settings.wallpaperSource.progress.validating"
+                    : xStage === "supplementing"
+                      ? "settings.wallpaperSource.progress.supplementing"
+                      : xStage === "preparing"
+                        ? "settings.wallpaperSource.progress.preparing"
+                        : "settings.wallpaperSource.searching",
+              )}
+            </p>
+          ) : null}
+          {provider.busy && providerProgressKey ? (
+            <p className="wallpaper-source-status" role="status">
+              {t(providerProgressKey)}
+            </p>
+          ) : null}
+          {statusHint ? (
+            <p className="wallpaper-source-status" role="status">
+              {statusHint}
+            </p>
+          ) : null}
+
+          {citeSummary && tab === "x" ? (
+            <p
+              className="wallpaper-source-cite-summary"
+              role="status"
+              data-soft-fail="1"
+            >
+              {citeSummary}
+            </p>
+          ) : null}
+
+          {error ? (
+            <div
+              className={
+                "wallpaper-source-error" +
+                (softFailError ? " wallpaper-source-error--soft" : "")
+              }
+              role="alert"
+            >
+              {galleryErrorKind ? (
+                <span
+                  className={
+                    "wallpaper-source-err-chip" +
+                    (softFailError
+                      ? " wallpaper-source-err-chip--soft"
+                      : "")
+                  }
+                  data-kind={galleryErrorKind}
+                >
+                  {t(
+                    wallpaperGalleryErrorTitleKey(
+                      galleryErrorKind,
+                    ) as MessageKey,
+                  )}
+                </span>
+              ) : null}
+              <p>{error}</p>
+              {authNeeded && onRequestLogin ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={onRequestLogin}
+                >
+                  {t("settings.wallpaperSource.goLogin")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {showGalleryFilters ? (
+            <div className="wallpaper-source-filters">
+              <div
+                className="wallpaper-source-chips"
+                role="toolbar"
+                aria-label={t("settings.wallpaperSource.kindLabel")}
+              >
+                {WALLPAPER_GALLERY_KIND_FILTERS.map((id) => {
+                  const n = kindCounts[id];
+                  // Hide zero-count chips except "all" and the active selection.
+                  if (id !== "all" && n === 0 && kindFilter !== id) return null;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      className={
+                        "wallpaper-source-chip" +
+                        (kindFilter === id ? " is-active" : "")
+                      }
+                      aria-pressed={kindFilter === id}
+                      disabled={locked && id !== kindFilter}
+                      onClick={() => setKindFilter(id)}
+                    >
+                      <span>
+                        {t(
+                          wallpaperGalleryKindFilterLabelKey(id) as MessageKey,
+                        )}
+                      </span>
+                      <span className="wallpaper-source-chip-count">{n}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <input
+                type="search"
+                className="wallpaper-source-form__input wallpaper-source-filters__query"
+                value={galleryFilter}
+                placeholder={t("settings.wallpaperSource.filterPlaceholder")}
+                disabled={locked}
+                onChange={(event) => setGalleryFilter(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                aria-label={t("settings.wallpaperSource.filterPlaceholder")}
+              />
+              {filtersActive ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={clearGalleryFilters}
+                  disabled={locked}
+                >
+                  {t("settings.wallpaperSource.clearFilters")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {tab === "x" &&
+          continuation &&
+          continuation.query === query.trim() &&
+          continuation.sort === sort ? (
             <button
               type="button"
-              className="btn btn--ghost btn--sm"
-              onClick={clearGalleryFilters}
-              disabled={locked}
+              className="btn btn--ghost"
+              disabled={xBusy || operationBusy || applying || routeSaving}
+              onClick={() => void runLoadMore()}
             >
-              {t("settings.wallpaperSource.clearFilters")}
+              {t(
+                loadingMore
+                  ? "settings.wallpaperSource.searching"
+                  : "settings.wallpaperSource.loadMore",
+              )}
             </button>
           ) : null}
+
+          {providerSource && provider.canLoadMore ? (
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={provider.busy || applying}
+              onClick={() => {
+                void provider.loadMore();
+              }}
+            >
+              {t(
+                provider.loadingMore
+                  ? "settings.wallpaperSource.remote.progress.loadingMore"
+                  : "settings.wallpaperSource.loadMore",
+              )}
+            </button>
+          ) : null}
+          <WallpaperSourceGallery
+            t={t}
+            tab={tab}
+            busy={busy}
+            locked={galleryLocked}
+            visibleItems={visibleItems}
+            selectedId={selectedId}
+            previewingId={previewingId}
+            showEmptyBlock={showEmptyBlock}
+            emptyState={emptyState}
+            clearGalleryFilters={clearGalleryFilters}
+            openItemPreview={openItemPreview}
+            dropItem={dropItem}
+            openExternalSource={openExternalSource}
+            requestDeleteLibraryItem={requestDeleteLibraryItem}
+          />
         </div>
-      ) : null}
-
-      {tab === "x" && continuation && continuation.query === query.trim() && continuation.sort === sort ? (
-        <button type="button" className="btn btn--ghost" disabled={xBusy || operationBusy || applying || routeSaving} onClick={() => void runLoadMore()}>
-          {t(loadingMore ? "settings.wallpaperSource.searching" : "settings.wallpaperSource.loadMore")}
-        </button>
-      ) : null}
-
-      <WallpaperSourceGallery
-        t={t}
-        tab={tab}
-        busy={busy}
-        locked={galleryLocked}
-        visibleItems={visibleItems}
-        selectedId={selectedId}
-        previewingId={previewingId}
-        showEmptyBlock={showEmptyBlock}
-        emptyState={emptyState}
-        clearGalleryFilters={clearGalleryFilters}
-        openItemPreview={openItemPreview}
-        dropItem={dropItem}
-        openXStatus={openXStatus}
-        requestDeleteLibraryItem={requestDeleteLibraryItem}
-      />
-    </GlassModal>
-    <GlassModal
-      open={!!deleteConfirm}
-      onClose={() => setDeleteConfirm(null)}
-      title={t("wallpaper.library.deleteConfirmTitle")}
-      size="sm"
-      closeLabel={t("common.close")}
-      footer={
-        <>
-          <button
-            type="button"
-            className="btn btn--ghost"
-            onClick={() => setDeleteConfirm(null)}
-          >
-            {t("common.cancel")}
-          </button>
-          <button
-            type="button"
-            className="btn btn--solid btn--danger"
-            data-testid="wallpaper-library-delete-confirm"
-            onClick={() => {
-              const item = deleteConfirm;
-              setDeleteConfirm(null);
-              if (item) void deleteLibraryItem(item);
-            }}
-          >
-            {t("wallpaper.library.deleteConfirmAction")}
-          </button>
-        </>
-      }
-    >
-      <p className="rp-modal-copy">{t("wallpaper.library.deleteConfirm")}</p>
-    </GlassModal>
+      </GlassModal>
+      <GlassModal
+        open={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        title={t("wallpaper.library.deleteConfirmTitle")}
+        size="sm"
+        closeLabel={t("common.close")}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setDeleteConfirm(null)}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--solid btn--danger"
+              data-testid="wallpaper-library-delete-confirm"
+              onClick={() => {
+                const item = deleteConfirm;
+                setDeleteConfirm(null);
+                if (item) void deleteLibraryItem(item);
+              }}
+            >
+              {t("wallpaper.library.deleteConfirmAction")}
+            </button>
+          </>
+        }
+      >
+        <p className="rp-modal-copy">
+          {t("wallpaper.library.deleteConfirm")}
+        </p>
+      </GlassModal>
     </>
   );
 }
