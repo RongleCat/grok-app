@@ -1,5 +1,19 @@
 /** fil messages — domain: settings-ui */
 export const filSettingsUi = {
+  "settings.wallpaperXSearchMode": "Ruta ng paghahanap sa X",
+  "settings.wallpaperXSearchModeDesc": "Piliin kung paano tatakbo ang Search on X. Ginagamit ng Responses preview ang kasalukuyang Grok Build sign-in sa nakapirming opisyal na compatibility endpoint. Maaari itong magbago at babalik sa CLI kapag ligtas; hindi magsisimula ng ikalawang search kapag rate-limited.",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI (stable)",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API (preview)",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds}s",
+  "settings.wallpaperSource.route.responses": "Responses preview · {seconds}s",
+  "settings.wallpaperSource.route.fallback": "Bumalik sa Grok Build CLI ({reason}) · {seconds}s",
+  "settings.wallpaperSource.route.fallback.auth": "hindi available o paso ang opisyal na sign-in",
+  "settings.wallpaperSource.route.fallback.network": "hindi available ang Responses network",
+  "settings.wallpaperSource.route.fallback.compatibility": "nagbago ang compatibility ng Responses",
+  "settings.wallpaperSource.route.fallback.empty": "walang magagamit na larawang ibinalik ang Responses",
+  "settings.wallpaperSource.route.fallback.circuit": "pansamantalang naka-pause ang Responses matapos ang paulit-ulit na error",
+  "settings.wallpaperSource.route.fallback.other": "hindi available ang Responses preview",
+  "settings.wallpaperSource.err.rate_limited": "Na-rate-limit ang Responses API. Hindi nagsimula ang CLI fallback upang maiwasan ang ikalawang subscription request. Subukan muli mamaya.",
   "settings.wallpaperSource.cancelSearch": "Kanselahin ang paghahanap",
   "settings.wallpaperSource.progress.preparing": "Inihahanda ang paghahanap…",
   "settings.wallpaperSource.progress.validating": "Sinusuri ang kalidad ng larawan…",
@@ -636,4 +650,5 @@ export const filSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "Walang ffmpeg sa computer na ito, kaya ang ibinabahaging video ay ang orihinal na file na may crop at clip. Pareho pa rin ang hitsura; mas malaki lang ang pack. Mag-install ng ffmpeg para mag-export ng na-crop na clip.",
   "settings.skinPack.warn.unknown_skin": "May unknown skin ang pack na ito. Gagamitin ang default.",
   "settings.skinPack.warn.will_clear_wallpaper": "Ang pag-apply ng hitsurang ito ay mag-aalis ng kasalukuyan mong background (kasama ang video).",
+  "settings.wallpaperSource.progress.fallingBack": "Hindi available ang Responses; lilipat sa Grok Build CLI…",
 };

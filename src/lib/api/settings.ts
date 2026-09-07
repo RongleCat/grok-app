@@ -8,6 +8,7 @@ import {
 export type ComposerPrefsScope = "global" | "project" | "session";
 
 export interface AppSettings {
+  wallpaperXSearchMode?: string;
   theme: string;
   locale: string;
   sessionDataMode: string;

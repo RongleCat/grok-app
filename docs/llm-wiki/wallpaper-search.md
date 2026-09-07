@@ -19,8 +19,33 @@ and image validation; the existing output-drain/process-tree cleanup is retained
 The picker offers Cancel search, cancels on close/tab change/unmount, and ignores
 late results/errors/progress. Replacement searches invalidate the previous
 generation synchronously without waiting for a cancellation acknowledgement.
-There is no result cache or alternate route in this slice; account-sensitive
-caching belongs to the later routing implementation.
+There is no result cache in this slice; account-sensitive caching belongs to
+the later progressive-search implementation.
+
+## Responses preview
+
+The X picker exposes a persisted route setting. Missing or unknown settings use
+CLI. Only `responses_preview` enables the fixed Build compatibility endpoint
+`https://cli-chat-proxy.grok.com/v1/responses`, model `grok-4.6`, effort `low`, and
+the read-only `x_search` tool. Requests set `store: false`; no endpoint/model/tool
+or bearer is accepted from the frontend, and bearer redirects are disabled.
+
+`account/build_oauth.rs` reads canonical official credentials in the Host. It
+selects the current Build scope before the legacy scope, rejects issuer/client
+conflicts and expired credentials, and includes a private salted content tag in
+credential revisions. Tokens never cross IPC or enter logs. No refresh or login
+is attempted by wallpaper search.
+
+The client reads bounded response bodies and requires completed X tool-call
+evidence before accepting gallery JSON. The existing image quality pipeline
+validates the candidates. The first request permits two tool calls; an optional
+supplement permits one. This single-route slice is not the later parallel mode.
+
+Eligible failures fall back once to CLI. Rate limits, cancellation and tool-budget
+violations never trigger a second route. Three counted failures open a ten-minute
+circuit; credential content changes reset it. The picker reports the actual route,
+fallback reason and total duration. This compatibility endpoint may change; neither
+subscription availability nor account-risk guarantees are implied by preview mode.
 
 Hook and picker tests cover replacement, late responses, progress ownership and
 close/tab cancellation. Host tests cover UUIDs, pre-cancel expiry/capacity,

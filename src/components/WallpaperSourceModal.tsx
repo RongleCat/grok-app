@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { WallpaperSourceGallery } from "./WallpaperSourceGallery";
 import { WallpaperSourceFooter } from "./WallpaperSourceFooter";
 import { useWallpaperXSearch } from "@/hooks/useWallpaperXSearch";
+import { WallpaperXRouteControl } from "./WallpaperXRouteControl";
 import { GlassModal } from "@/components/GlassModal";
 import { WallpaperSourceControls } from "./WallpaperSourceControls";
 import { useImageViewerOptional } from "@/components/ImageViewerContext";
@@ -116,13 +117,14 @@ export function WallpaperSourceModal({
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [operationBusy, setBusy] = useState(false);
+  const [routeSaving, setRouteSaving] = useState(false);
   const {
     busy: xBusy,
     stage: xStage,
     search: searchX,
     cancel: cancelX,
   } = useWallpaperXSearch();
-  const busy = operationBusy || xBusy;
+  const busy = operationBusy || xBusy || routeSaving;
   const close = useCallback(() => {
     void cancelX();
     onClose();
@@ -253,6 +255,21 @@ export function WallpaperSourceModal({
     try {
       const res = await searchX(q, sort);
       if (!res) return;
+      if (res.meta) {
+        const { routeUsed, durationMs, fallbackReason } = res.meta;
+        const reason = fallbackReason?.includes("oauth") || fallbackReason?.includes("unauthorized")
+          ? "auth"
+          : fallbackReason?.includes("circuit") ? "circuit"
+            : fallbackReason?.includes("empty") ? "empty"
+              : /network|timeout|tls|server/.test(fallbackReason ?? "") ? "network"
+                : "compatibility";
+        setStatusHint(t(fallbackReason
+          ? "settings.wallpaperSource.route.fallback"
+          : routeUsed === "responses" ? "settings.wallpaperSource.route.responses" : "settings.wallpaperSource.route.cli", {
+          seconds: (durationMs / 1000).toFixed(1),
+          reason: t(`settings.wallpaperSource.route.fallback.${reason}` as MessageKey),
+        }));
+      }
       const list = dedupeGalleryItems(res.items || []);
       const code = errorCodeFromSearchResult({ ...res, items: list });
       setHasSearched(true);
@@ -662,6 +679,7 @@ export function WallpaperSourceModal({
 
       <WallpaperSourceControls
         t={t}
+        xRouteControl={open && isDesktopHost() ? <WallpaperXRouteControl t={t} disabled={locked} onSavingChange={setRouteSaving} /> : null}
         tab={tab}
         query={query}
         sort={sort}
@@ -683,7 +701,9 @@ export function WallpaperSourceModal({
       {xBusy && xStage ? (
         <p className="wallpaper-source-status" role="status">
           {t(
-            xStage === "validating"
+            xStage === "falling_back"
+              ? "settings.wallpaperSource.progress.fallingBack"
+              : xStage === "validating"
               ? "settings.wallpaperSource.progress.validating"
               : xStage === "supplementing"
                 ? "settings.wallpaperSource.progress.supplementing"

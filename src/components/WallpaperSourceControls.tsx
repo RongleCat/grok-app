@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Select } from "@/components/Select";
 import type { WallpaperSourceModalProps, WallpaperSourceTab } from "./WallpaperSourceModal";
 
@@ -13,6 +13,7 @@ type Props = {
   /** True only while an X search request is in flight (enables Cancel). */
   xBusy?: boolean;
   locked: boolean;
+  xRouteControl?: ReactNode;
   setQuery: (value: string) => void;
   setSort: (value: "top" | "latest") => void;
   setPrompt: (value: string) => void;
@@ -26,7 +27,7 @@ type Props = {
 export function WallpaperSourceControls({
   t, tab, query, sort, prompt, aspect, busy, xBusy = false, locked,
   setQuery, setSort, setPrompt, setAspect, runXSearch, cancelXSearch,
-  runImagine, loadLibrary,
+  runImagine, loadLibrary, xRouteControl,
 }: Props) {
   const sortOptions = useMemo(
     () => [
@@ -54,6 +55,7 @@ export function WallpaperSourceControls({
           <p className="wallpaper-source-form__hint">
             {t("settings.wallpaperSource.xHint")}
           </p>
+          {xRouteControl}
           <div className="wallpaper-source-form__row">
             <input
               type="search"

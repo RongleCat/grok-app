@@ -3,6 +3,7 @@ export type WallpaperXSearchStage =
   | "searching_x"
   | "validating"
   | "supplementing"
+  | "falling_back"
   | "done";
 
 export type WallpaperXSearchProgress = {
@@ -19,5 +20,5 @@ export function isWallpaperXSearchProgress(value: unknown): value is WallpaperXS
   const event = value as Record<string, unknown>;
   return typeof event.requestId === "string" && event.requestId.length > 0 &&
     typeof event.stage === "string" &&
-    ["preparing", "searching_x", "validating", "supplementing", "done"].includes(event.stage);
+    ["preparing", "searching_x", "validating", "supplementing", "falling_back", "done"].includes(event.stage);
 }

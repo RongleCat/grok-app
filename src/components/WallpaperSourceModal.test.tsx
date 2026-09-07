@@ -19,6 +19,8 @@ vi.mock("@/hooks/useWallpaperXSearch", () => ({
 
 vi.mock("@/lib/api", () => ({
   isDesktopHost: () => true,
+  settingsGet: vi.fn(async () => ({ wallpaperXSearchMode: "cli" })),
+  settingsSet: vi.fn(async () => ({})),
   wallpaperFetchMedia: vi.fn(),
   wallpaperImagine: vi.fn(),
   wallpaperLibraryList: vi.fn(),

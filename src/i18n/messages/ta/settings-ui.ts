@@ -1,5 +1,19 @@
 /** ta messages — domain: settings-ui */
 export const taSettingsUi = {
+  "settings.wallpaperXSearchMode": "X தேடல் வழி",
+  "settings.wallpaperXSearchModeDesc": "X தேடல் எவ்வாறு இயங்க வேண்டும் என்பதைத் தேர்ந்தெடுக்கவும். Responses முன்னோட்டம் உங்கள் தற்போதைய Grok Build உள்நுழைவை நிலையான அதிகாரப்பூர்வ இணக்க endpoint உடன் பயன்படுத்துகிறது. இது மாறக்கூடும்; பாதுகாப்பானபோது CLI-க்கு மாறும். வரம்பு ஏற்பட்டால் இரண்டாவது தேடல் தொடங்காது.",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI (நிலையானது)",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API (முன்னோட்டம்)",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} வி",
+  "settings.wallpaperSource.route.responses": "Responses முன்னோட்டம் · {seconds} வி",
+  "settings.wallpaperSource.route.fallback": "Grok Build CLI-க்கு மாற்றப்பட்டது ({reason}) · {seconds} வி",
+  "settings.wallpaperSource.route.fallback.auth": "அதிகாரப்பூர்வ உள்நுழைவு கிடைக்கவில்லை அல்லது காலாவதியானது",
+  "settings.wallpaperSource.route.fallback.network": "Responses பிணையம் கிடைக்கவில்லை",
+  "settings.wallpaperSource.route.fallback.compatibility": "Responses இணக்கத்தன்மை மாறியுள்ளது",
+  "settings.wallpaperSource.route.fallback.empty": "Responses பயன்படுத்தக்கூடிய படங்களை வழங்கவில்லை",
+  "settings.wallpaperSource.route.fallback.circuit": "தொடர் தோல்விகளுக்குப் பிறகு Responses தற்காலிகமாக இடைநிறுத்தப்பட்டது",
+  "settings.wallpaperSource.route.fallback.other": "Responses முன்னோட்டம் கிடைக்கவில்லை",
+  "settings.wallpaperSource.err.rate_limited": "Responses API கோரிக்கை வரம்பை எட்டியுள்ளது. சந்தாவுக்கு இரண்டாவது கோரிக்கை செல்லாமல் இருக்க CLI மாற்றுத் தேடல் தொடங்கப்படவில்லை. பின்னர் மீண்டும் முயலவும்.",
   "settings.wallpaperSource.cancelSearch": "தேடலை ரத்துசெய்",
   "settings.wallpaperSource.progress.preparing": "தேடல் தயாராகிறது…",
   "settings.wallpaperSource.progress.validating": "படத் தரம் சரிபார்க்கப்படுகிறது…",
@@ -636,4 +650,5 @@ export const taSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "இந்தக் கணினியில் ffmpeg இல்லை, எனவே பகிரப்படும் வீடியோ அசல் கோப்பே (வெட்டு/கிளிப்புடன்). தோற்றம் ஒன்றே; பொதி மட்டும் பெரியது. வெட்டிய கிளிப்பை ஏற்றுமதி செய்ய ffmpeg நிறுவவும்.",
   "settings.skinPack.warn.unknown_skin": "இந்தப் பொதி தெரியாத ஸ்கினைக் குறிக்கிறது. இயல்புநிலை பயன்படுத்தப்படும்.",
   "settings.skinPack.warn.will_clear_wallpaper": "இந்தத் தோற்றத்தைப் பயன்படுத்தினால் தற்போதைய பின்னணி (வீடியோ உட்பட) அகற்றப்படும்.",
+  "settings.wallpaperSource.progress.fallingBack": "Responses கிடைக்கவில்லை; Grok Build CLI-க்கு மாறுகிறது…",
 };

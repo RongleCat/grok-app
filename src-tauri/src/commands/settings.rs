@@ -17,6 +17,8 @@ pub async fn settings_set(
 ) -> Result<AppSettings, String> {
     let prev = store::load_settings();
     let mut settings = settings;
+    settings.wallpaper_x_search_mode =
+        store::normalize_wallpaper_x_search_mode(&settings.wallpaper_x_search_mode).into();
     // Normalize denylist / allowlist so spawn / equality see stable lists.
     settings.disallowed_tools =
         crate::acp_client::normalize_disallowed_tools(&settings.disallowed_tools);

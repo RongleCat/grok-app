@@ -1,5 +1,19 @@
 /** id messages — domain: settings-ui */
 export const idSettingsUi = {
+  "settings.wallpaperXSearchMode": "Rute pencarian X",
+  "settings.wallpaperXSearchModeDesc": "Pilih cara Pencarian di X dijalankan. Pratinjau Responses memakai login Grok Build yang ada pada endpoint kompatibilitas resmi yang tetap. Fitur ini dapat berubah dan kembali ke CLI jika aman; pembatasan tidak memulai pencarian kedua.",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI (stabil)",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API (pratinjau)",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} dtk",
+  "settings.wallpaperSource.route.responses": "Pratinjau Responses · {seconds} dtk",
+  "settings.wallpaperSource.route.fallback": "Beralih kembali ke Grok Build CLI ({reason}) · {seconds} dtk",
+  "settings.wallpaperSource.route.fallback.auth": "login resmi tidak tersedia atau kedaluwarsa",
+  "settings.wallpaperSource.route.fallback.network": "jaringan Responses tidak tersedia",
+  "settings.wallpaperSource.route.fallback.compatibility": "kompatibilitas Responses berubah",
+  "settings.wallpaperSource.route.fallback.empty": "Responses tidak memberi gambar yang dapat digunakan",
+  "settings.wallpaperSource.route.fallback.circuit": "Responses dijeda sementara setelah kegagalan berulang",
+  "settings.wallpaperSource.route.fallback.other": "pratinjau Responses tidak tersedia",
+  "settings.wallpaperSource.err.rate_limited": "Responses API sedang dibatasi. Fallback CLI tidak dimulai agar tidak membuat permintaan langganan kedua. Coba lagi nanti.",
   "settings.wallpaperSource.cancelSearch": "Batalkan pencarian",
   "settings.wallpaperSource.progress.preparing": "Menyiapkan pencarian…",
   "settings.wallpaperSource.progress.validating": "Memeriksa kualitas gambar…",
@@ -636,4 +650,5 @@ export const idSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "Tidak ada ffmpeg di komputer ini, jadi video yang dibagikan adalah berkas asli dengan potongan dan klip. Tampilan tetap sama; paketnya hanya lebih besar. Pasang ffmpeg untuk mengekspor klip yang sudah dipotong.",
   "settings.skinPack.warn.unknown_skin": "Paket ini menamai skin yang tidak dikenal. Default akan dipakai.",
   "settings.skinPack.warn.will_clear_wallpaper": "Menerapkan tampilan ini akan menghapus latar belakang Anda saat ini (termasuk video).",
+  "settings.wallpaperSource.progress.fallingBack": "Responses tidak tersedia; beralih ke Grok Build CLI…",
 };

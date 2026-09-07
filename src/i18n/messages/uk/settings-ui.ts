@@ -1,5 +1,19 @@
 /** uk messages — domain: settings-ui */
 export const ukSettingsUi = {
+  "settings.wallpaperXSearchMode": "Маршрут пошуку в X",
+  "settings.wallpaperXSearchModeDesc": "Виберіть спосіб пошуку в X. Попередній перегляд Responses використовує чинний вхід Grok Build і фіксований офіційний endpoint сумісності. Інтерфейс може змінитися й безпечно повертається до CLI; за обмеження запитів другий пошук не запускається.",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI (стабільний)",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API (перегляд)",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} с",
+  "settings.wallpaperSource.route.responses": "Перегляд Responses · {seconds} с",
+  "settings.wallpaperSource.route.fallback": "Перехід до Grok Build CLI ({reason}) · {seconds} с",
+  "settings.wallpaperSource.route.fallback.auth": "офіційний вхід недоступний або прострочений",
+  "settings.wallpaperSource.route.fallback.network": "мережа Responses недоступна",
+  "settings.wallpaperSource.route.fallback.compatibility": "сумісність Responses змінилася",
+  "settings.wallpaperSource.route.fallback.empty": "Responses не повернув придатних зображень",
+  "settings.wallpaperSource.route.fallback.circuit": "Responses тимчасово призупинено після повторних збоїв",
+  "settings.wallpaperSource.route.fallback.other": "перегляд Responses недоступний",
+  "settings.wallpaperSource.err.rate_limited": "Responses API обмежено за частотою. Перехід до CLI не запускався, щоб уникнути другого запиту за підпискою. Спробуйте пізніше.",
   "settings.wallpaperSource.cancelSearch": "Скасувати пошук",
   "settings.wallpaperSource.progress.preparing": "Підготовка пошуку…",
   "settings.wallpaperSource.progress.validating": "Перевірка якості зображень…",
@@ -636,4 +650,5 @@ export const ukSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "На цьому комп’ютері немає ffmpeg, тож поширене відео — оригінальний файл із кадруванням і кліпом. Вигляд той самий; пакет лише більший. Встановіть ffmpeg, щоб експортувати обрізаний кліп.",
   "settings.skinPack.warn.unknown_skin": "Цей пакет вказує невідомий скін. Буде використано типовий.",
   "settings.skinPack.warn.will_clear_wallpaper": "Застосування цього вигляду видалить ваш поточний фон (включно з відео).",
+  "settings.wallpaperSource.progress.fallingBack": "Responses недоступний; перемикання на Grok Build CLI…",
 };

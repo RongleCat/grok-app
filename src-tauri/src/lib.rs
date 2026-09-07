@@ -225,6 +225,7 @@ mod voice_stt;
 mod voice_tools;
 
 mod wallpaper_source;
+mod wallpaper_x_responses;
 mod wallpaper_x_search;
 
 mod window_min;

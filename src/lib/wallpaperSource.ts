@@ -21,6 +21,12 @@ export type WallpaperGalleryItem = {
 };
 
 export type WallpaperSearchResult = {
+  meta?: {
+    requestId?: string | null;
+    routeUsed: "cli" | "responses";
+    fallbackReason?: string | null;
+    durationMs: number;
+  } | null;
   items: WallpaperGalleryItem[];
   errorCode?: string | null;
   message?: string | null;
@@ -43,6 +49,7 @@ export type WallpaperLibraryEntry = {
 };
 
 export type WallpaperSourceErrorCode =
+  | "rate_limited"
   | "auth_required"
   | "cli_missing"
   | "search_failed"
@@ -64,6 +71,7 @@ export function parseWallpaperSourceError(err: unknown): WallpaperSourceErrorCod
           ? String((err as { message: unknown }).message)
           : "";
   const s = raw.toLowerCase();
+  if (s.includes("rate_limited")) return "rate_limited";
   if (s.includes("auth_required")) return "auth_required";
   if (s.includes("cli_missing")) return "cli_missing";
   if (
@@ -109,6 +117,7 @@ export function errorCodeFromSearchResult(
   if (code === "imagine_failed") return "imagine_failed";
   if (code === "empty") return "empty";
   if (code === "timeout") return "timeout";
+  if (code.includes("rate_limited")) return "rate_limited";
   return "generic";
 }
 

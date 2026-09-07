@@ -1,6 +1,6 @@
 //! Official Grok Build account: profile, login/logout, billing snapshot, local usage.
 //!
-//! Profile is read from `~/.grok/auth.json` (tokens never leave this module).
+//! Profile is read from `~/.grok/auth.json` (tokens remain Host-only and never cross IPC).
 //! Billing is best-effort HTTP (same field shape as CLI `/usage` / billing extension).
 //! Heatmap + call logs are derived from local CLI session signals (and optional app journal).
 
@@ -21,6 +21,12 @@ use tracing::{info, warn};
 
 use crate::cli_probe;
 use crate::paths;
+
+mod build_oauth;
+pub(crate) use build_oauth::{
+    build_oauth_credential_revision, read_build_oauth_access_token, BuildOauthAccessToken,
+    BuildOauthCredentialRevision, BuildOauthTokenError,
+};
 
 /// Cancellation + optional stdin for a running `grok login`.
 ///

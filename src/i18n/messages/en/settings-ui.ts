@@ -1,5 +1,19 @@
 /** English messages — domain: settings-ui */
 export const enSettingsUi = {
+  "settings.wallpaperXSearchMode": "X search route",
+  "settings.wallpaperXSearchModeDesc": "Choose how Search on X runs. Responses preview uses your existing Grok Build sign-in with the fixed official compatibility endpoint. It may change and falls back to the CLI when safe; rate limits never start a second search.",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI (stable)",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API (preview)",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds}s",
+  "settings.wallpaperSource.route.responses": "Responses preview · {seconds}s",
+  "settings.wallpaperSource.route.fallback": "Fell back to Grok Build CLI ({reason}) · {seconds}s",
+  "settings.wallpaperSource.route.fallback.auth": "official sign-in unavailable or expired",
+  "settings.wallpaperSource.route.fallback.network": "Responses network unavailable",
+  "settings.wallpaperSource.route.fallback.compatibility": "Responses compatibility changed",
+  "settings.wallpaperSource.route.fallback.empty": "Responses returned no usable images",
+  "settings.wallpaperSource.route.fallback.circuit": "Responses temporarily paused after repeated failures",
+  "settings.wallpaperSource.route.fallback.other": "Responses preview unavailable",
+  "settings.wallpaperSource.err.rate_limited": "Responses API is rate-limited. No CLI fallback was started, to avoid a second subscription request. Try again later.",
   "settings.wallpaperSource.cancelSearch": "Cancel search",
   "settings.wallpaperSource.progress.preparing": "Preparing search…",
   "settings.wallpaperSource.progress.validating": "Checking image quality…",
@@ -636,4 +650,5 @@ export const enSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "No ffmpeg on this computer, so the shared video is the original file with crop and clip kept. The look still matches; the pack is just larger. Install ffmpeg to export a cropped, trimmed clip.",
   "settings.skinPack.warn.unknown_skin": "This pack names an unknown skin. Default will be used.",
   "settings.skinPack.warn.will_clear_wallpaper": "Applying this look will remove your current background (including video).",
+  "settings.wallpaperSource.progress.fallingBack": "Responses unavailable; switching to Grok Build CLI…",
 } as const;

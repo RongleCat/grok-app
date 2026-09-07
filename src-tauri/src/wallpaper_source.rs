@@ -89,6 +89,24 @@ pub struct WallpaperSearchResult {
     pub error_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<WallpaperSearchMeta>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WallpaperSearchMeta {
+    pub request_id: Option<String>,
+    pub requested_mode: String,
+    pub route_used: String,
+    pub fallback_reason: Option<String>,
+    pub duration_ms: u64,
+    pub cache_hit: bool,
+    pub search_calls: Option<u32>,
+    pub candidate_count: usize,
+    pub valid_count: usize,
+    pub model: Option<String>,
+    pub effort: Option<String>,
 }
 
 #[derive(Clone)]
@@ -144,6 +162,7 @@ pub(crate) enum WallpaperXSearchStage {
     SearchingX,
     Validating,
     Supplementing,
+    FallingBack,
     Done,
 }
 
@@ -1863,6 +1882,7 @@ fn x_search_round(
             items: vec![],
             error_code: Some("empty".into()),
             message: Some("empty query".into()),
+            meta: None,
         };
     }
     let cli = match require_cli_ready() {
@@ -1872,6 +1892,7 @@ fn x_search_round(
                 items: vec![],
                 error_code: Some(code),
                 message: None,
+                meta: None,
             };
         }
     };
@@ -1924,6 +1945,7 @@ fn x_search_round(
                 items: vec![],
                 error_code: Some(code),
                 message: None,
+                meta: None,
             };
         }
     };
@@ -1935,6 +1957,7 @@ fn x_search_round(
                 items: vec![],
                 error_code: Some("search_failed".into()),
                 message: Some("could not parse search JSON".into()),
+                meta: None,
             };
         }
     };
@@ -1952,6 +1975,7 @@ fn x_search_round(
             items: vec![],
             error_code: Some("empty".into()),
             message: Some("no images found".into()),
+            meta: None,
         };
     }
 
@@ -1959,6 +1983,7 @@ fn x_search_round(
         items,
         error_code: None,
         message: None,
+        meta: None,
     }
 }
 
@@ -2056,6 +2081,7 @@ fn cancelled_search_result() -> WallpaperSearchResult {
         items: Vec::new(),
         error_code: Some("cancelled".into()),
         message: None,
+        meta: None,
     }
 }
 
@@ -2097,6 +2123,7 @@ pub(crate) async fn x_search_cli_outcome(
                     items: vec![],
                     error_code: Some("search_failed".into()),
                     message: Some(format!("join: {e}")),
+                    meta: None,
                 },
                 candidate_count: 0,
                 valid_count: 0,
@@ -2185,6 +2212,7 @@ pub(crate) async fn x_search_cli_outcome(
                 items: vec![],
                 error_code: Some("empty".into()),
                 message: Some("no downloadable images".into()),
+                meta: None,
             },
             candidate_count,
             valid_count: 0,
@@ -2304,6 +2332,7 @@ pub fn imagine(prompt: &str, aspect_ratio: Option<&str>) -> WallpaperSearchResul
             items: vec![],
             error_code: Some("empty".into()),
             message: Some("empty prompt".into()),
+            meta: None,
         };
     }
     let cli = match require_cli_ready() {
@@ -2313,6 +2342,7 @@ pub fn imagine(prompt: &str, aspect_ratio: Option<&str>) -> WallpaperSearchResul
                 items: vec![],
                 error_code: Some(code),
                 message: None,
+                meta: None,
             };
         }
     };
@@ -2377,6 +2407,7 @@ Requirements:
                 items: vec![],
                 error_code: Some(code),
                 message: None,
+                meta: None,
             };
         }
     };
@@ -2391,12 +2422,14 @@ Requirements:
                     items: vec![],
                     error_code: Some("imagine_failed".into()),
                     message: Some("could not parse imagine result".into()),
+                    meta: None,
                 };
             }
             return WallpaperSearchResult {
                 items: scanned,
                 error_code: None,
                 message: None,
+                meta: None,
             };
         }
     };
@@ -2431,12 +2464,14 @@ Requirements:
                 items: vec![],
                 error_code: Some("empty".into()),
                 message: Some("no image produced".into()),
+                meta: None,
             };
         }
         return WallpaperSearchResult {
             items: scanned,
             error_code: None,
             message: None,
+            meta: None,
         };
     }
 
@@ -2444,6 +2479,7 @@ Requirements:
         items,
         error_code: None,
         message: None,
+        meta: None,
     }
 }
 

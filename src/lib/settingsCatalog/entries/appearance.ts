@@ -84,6 +84,9 @@ export const APPEARANCE_ENTRIES: readonly SettingsEntry[] = [
       "settings.wallpaperBlurDesc",
       "settings.wallpaperBlurMacHint",
       "settings.wallpaperFromX",
+      "settings.wallpaperXSearchMode",
+      "settings.wallpaperXSearchModeDesc",
+      "settings.wallpaperXSearchMode.responsesPreview",
       "settings.wallpaperImagine",
     ],
     keywords: [

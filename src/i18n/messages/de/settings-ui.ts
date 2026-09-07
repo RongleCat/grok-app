@@ -1,5 +1,19 @@
 /** de messages — domain: settings-ui */
 export const deSettingsUi = {
+  "settings.wallpaperXSearchMode": "X-Suchroute",
+  "settings.wallpaperXSearchModeDesc": "Legt fest, wie die Suche auf X ausgeführt wird. Die Responses-Vorschau verwendet die bestehende Grok-Build-Anmeldung am fest vorgegebenen offiziellen Kompatibilitätsendpunkt. Sie kann sich ändern und fällt, wenn sicher, auf die CLI zurück; bei Limits wird keine zweite Suche gestartet.",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI (stabil)",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API (Vorschau)",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} s",
+  "settings.wallpaperSource.route.responses": "Responses-Vorschau · {seconds} s",
+  "settings.wallpaperSource.route.fallback": "Auf Grok Build CLI zurückgefallen ({reason}) · {seconds} s",
+  "settings.wallpaperSource.route.fallback.auth": "offizielle Anmeldung fehlt oder ist abgelaufen",
+  "settings.wallpaperSource.route.fallback.network": "Responses-Netzwerk nicht erreichbar",
+  "settings.wallpaperSource.route.fallback.compatibility": "Responses-Kompatibilität hat sich geändert",
+  "settings.wallpaperSource.route.fallback.empty": "Responses lieferte keine nutzbaren Bilder",
+  "settings.wallpaperSource.route.fallback.circuit": "Responses nach wiederholten Fehlern vorübergehend pausiert",
+  "settings.wallpaperSource.route.fallback.other": "Responses-Vorschau nicht verfügbar",
+  "settings.wallpaperSource.err.rate_limited": "Die Responses API ist begrenzt. Um keine zweite Abonnementanfrage auszulösen, wurde nicht auf die CLI zurückgefallen. Bitte später erneut versuchen.",
   "settings.wallpaperSource.cancelSearch": "Suche abbrechen",
   "settings.wallpaperSource.progress.preparing": "Suche wird vorbereitet…",
   "settings.wallpaperSource.progress.validating": "Bildqualität wird geprüft…",
@@ -636,4 +650,5 @@ export const deSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "Kein ffmpeg auf diesem Computer, daher ist das geteilte Video die Originaldatei mit Zuschnitt und Clip. Das Aussehen bleibt gleich; das Paket ist nur größer. ffmpeg installieren, um einen zugeschnittenen Clip zu exportieren.",
   "settings.skinPack.warn.unknown_skin": "Dieses Paket nennt ein unbekanntes Skin. Standard wird verwendet.",
   "settings.skinPack.warn.will_clear_wallpaper": "Dieses Erscheinungsbild anzuwenden entfernt deinen aktuellen Hintergrund (einschließlich Video).",
+  "settings.wallpaperSource.progress.fallingBack": "Responses nicht verfügbar; Wechsel zu Grok Build CLI…",
 };

@@ -1,5 +1,19 @@
 /** ko messages — domain: settings-ui */
 export const koSettingsUi = {
+  "settings.wallpaperXSearchMode": "X 검색 경로",
+  "settings.wallpaperXSearchModeDesc": "X 검색 실행 방식을 선택합니다. Responses 미리보기는 기존 Grok Build 로그인을 고정된 공식 호환 엔드포인트에서 사용합니다. 동작이 바뀔 수 있으며 안전할 때 CLI로 대체합니다. 요청 제한 시 두 번째 검색은 시작하지 않습니다.",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI(안정)",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API(미리보기)",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds}초",
+  "settings.wallpaperSource.route.responses": "Responses 미리보기 · {seconds}초",
+  "settings.wallpaperSource.route.fallback": "Grok Build CLI로 대체됨({reason}) · {seconds}초",
+  "settings.wallpaperSource.route.fallback.auth": "공식 로그인을 사용할 수 없거나 만료됨",
+  "settings.wallpaperSource.route.fallback.network": "Responses 네트워크를 사용할 수 없음",
+  "settings.wallpaperSource.route.fallback.compatibility": "Responses 호환성이 변경됨",
+  "settings.wallpaperSource.route.fallback.empty": "Responses가 사용 가능한 이미지를 반환하지 않음",
+  "settings.wallpaperSource.route.fallback.circuit": "반복 실패로 Responses가 일시 중지됨",
+  "settings.wallpaperSource.route.fallback.other": "Responses 미리보기를 사용할 수 없음",
+  "settings.wallpaperSource.err.rate_limited": "Responses API가 요청 제한 상태입니다. 구독에 두 번째 요청을 보내지 않도록 CLI 대체 검색은 시작하지 않았습니다. 나중에 다시 시도하세요.",
   "settings.wallpaperSource.cancelSearch": "검색 취소",
   "settings.wallpaperSource.progress.preparing": "검색 준비 중…",
   "settings.wallpaperSource.progress.validating": "이미지 품질 확인 중…",
@@ -636,4 +650,5 @@ export const koSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "이 컴퓨터에 ffmpeg가 없어 공유 동영상은 자르기/클립이 남은 원본입니다. 모습은 같고 팩만 더 큽니다. 자른 클립을 내보내려면 ffmpeg를 설치하세요.",
   "settings.skinPack.warn.unknown_skin": "이 팩은 알 수 없는 스킨을 지정합니다. 기본값이 사용됩니다.",
   "settings.skinPack.warn.will_clear_wallpaper": "이 모습을 적용하면 현재 배경(동영상 포함)이 제거됩니다.",
+  "settings.wallpaperSource.progress.fallingBack": "Responses를 사용할 수 없어 Grok Build CLI로 전환 중…",
 };

@@ -1,5 +1,19 @@
 /** ja messages — domain: settings-ui */
 export const jaSettingsUi = {
+  "settings.wallpaperXSearchMode": "X 検索ルート",
+  "settings.wallpaperXSearchModeDesc": "X 検索の実行方法を選びます。Responses プレビューは、既存の Grok Build ログインを固定の公式互換エンドポイントで使用します。仕様は変更される可能性があり、安全な場合は CLI にフォールバックします。レート制限時に 2 回目の検索は行いません。",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI（安定版）",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API（プレビュー）",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI・{seconds}秒",
+  "settings.wallpaperSource.route.responses": "Responses プレビュー・{seconds}秒",
+  "settings.wallpaperSource.route.fallback": "Grok Build CLI に切り替えました（{reason}）・{seconds}秒",
+  "settings.wallpaperSource.route.fallback.auth": "公式ログインが利用できないか期限切れ",
+  "settings.wallpaperSource.route.fallback.network": "Responses のネットワークを利用不可",
+  "settings.wallpaperSource.route.fallback.compatibility": "Responses の互換性が変更された",
+  "settings.wallpaperSource.route.fallback.empty": "Responses に利用可能な画像がない",
+  "settings.wallpaperSource.route.fallback.circuit": "繰り返し失敗したため Responses を一時停止中",
+  "settings.wallpaperSource.route.fallback.other": "Responses プレビューを利用不可",
+  "settings.wallpaperSource.err.rate_limited": "Responses API がレート制限されています。サブスクリプションへの 2 回目のリクエストを避けるため、CLI フォールバックは開始していません。後でもう一度お試しください。",
   "settings.wallpaperSource.cancelSearch": "検索をキャンセル",
   "settings.wallpaperSource.progress.preparing": "検索を準備中…",
   "settings.wallpaperSource.progress.validating": "画像品質を確認中…",
@@ -636,4 +650,5 @@ export const jaSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "このコンピュータに ffmpeg がないため、共有される動画は元ファイルのまま（トリミングとクリップ付き）です。見た目は同じで、パックが大きいだけです。切り出したクリップを書き出すには ffmpeg を入れてください。",
   "settings.skinPack.warn.unknown_skin": "このパックは未知のスキンを指定しています。デフォルトを使います。",
   "settings.skinPack.warn.will_clear_wallpaper": "この見た目を適用すると、現在の背景（動画を含む）が削除されます。",
+  "settings.wallpaperSource.progress.fallingBack": "Responses を利用できないため Grok Build CLI に切り替え中…",
 };

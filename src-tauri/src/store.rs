@@ -414,6 +414,8 @@ pub struct AppSettings {
     /// enough (soft-fail older builds).
     #[serde(default = "default_background_wait_policy")]
     pub background_wait_policy: String,
+    #[serde(default = "default_wallpaper_x_search_mode")]
+    pub wallpaper_x_search_mode: String,
     /// Seconds for `--background-wait-timeout` when policy is `timeout`.
     /// Clamped 1–3600; default 600 (CLI default when waiting).
     #[serde(default = "default_background_wait_timeout_sec")]
@@ -701,6 +703,20 @@ fn default_plan_enabled() -> bool {
     true
 }
 
+pub(crate) const WALLPAPER_X_SEARCH_MODE_RESPONSES_PREVIEW: &str = "responses_preview";
+
+pub(crate) fn normalize_wallpaper_x_search_mode(value: &str) -> &'static str {
+    if value == WALLPAPER_X_SEARCH_MODE_RESPONSES_PREVIEW {
+        WALLPAPER_X_SEARCH_MODE_RESPONSES_PREVIEW
+    } else {
+        "cli"
+    }
+}
+
+fn default_wallpaper_x_search_mode() -> String {
+    "cli".into()
+}
+
 fn default_background_wait_policy() -> String {
     "wait".into()
 }
@@ -828,6 +844,7 @@ impl Default for AppSettings {
             two_pass_compaction_enabled: false,
             max_agent_turns: None,
             background_wait_policy: default_background_wait_policy(),
+            wallpaper_x_search_mode: default_wallpaper_x_search_mode(),
             background_wait_timeout_sec: default_background_wait_timeout_sec(),
             include_partial_messages: false,
             disable_web_search: false,

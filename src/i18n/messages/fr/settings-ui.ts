@@ -1,5 +1,19 @@
 /** fr messages — domain: settings-ui */
 export const frSettingsUi = {
+  "settings.wallpaperXSearchMode": "Route de recherche X",
+  "settings.wallpaperXSearchModeDesc": "Choisissez comment la recherche sur X s’exécute. L’aperçu Responses utilise votre connexion Grok Build existante avec le point de compatibilité officiel fixe. Il peut évoluer et revient à la CLI lorsque c’est sûr ; une limitation ne lance jamais une seconde recherche.",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI (stable)",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API (aperçu)",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} s",
+  "settings.wallpaperSource.route.responses": "Aperçu Responses · {seconds} s",
+  "settings.wallpaperSource.route.fallback": "Repli sur Grok Build CLI ({reason}) · {seconds} s",
+  "settings.wallpaperSource.route.fallback.auth": "connexion officielle indisponible ou expirée",
+  "settings.wallpaperSource.route.fallback.network": "réseau Responses indisponible",
+  "settings.wallpaperSource.route.fallback.compatibility": "compatibilité Responses modifiée",
+  "settings.wallpaperSource.route.fallback.empty": "Responses n’a renvoyé aucune image exploitable",
+  "settings.wallpaperSource.route.fallback.circuit": "Responses temporairement suspendu après plusieurs échecs",
+  "settings.wallpaperSource.route.fallback.other": "aperçu Responses indisponible",
+  "settings.wallpaperSource.err.rate_limited": "La Responses API est limitée. Aucun repli CLI n’a été lancé afin d’éviter une seconde requête d’abonnement. Réessayez plus tard.",
   "settings.wallpaperSource.cancelSearch": "Annuler la recherche",
   "settings.wallpaperSource.progress.preparing": "Préparation de la recherche…",
   "settings.wallpaperSource.progress.validating": "Vérification de la qualité des images…",
@@ -636,4 +650,5 @@ export const frSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "Pas de ffmpeg sur cet ordinateur, donc la vidéo partagée est le fichier original avec recadrage et clip. Le rendu est le même ; le paquet est juste plus gros. Installez ffmpeg pour exporter un clip recadré.",
   "settings.skinPack.warn.unknown_skin": "Ce paquet nomme un skin inconnu. Le défaut sera utilisé.",
   "settings.skinPack.warn.will_clear_wallpaper": "Appliquer ce look supprimera votre fond actuel (y compris la vidéo).",
+  "settings.wallpaperSource.progress.fallingBack": "Responses indisponible ; passage à Grok Build CLI…",
 };

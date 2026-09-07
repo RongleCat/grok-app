@@ -1,5 +1,19 @@
 /** es messages — domain: settings-ui */
 export const esSettingsUi = {
+  "settings.wallpaperXSearchMode": "Ruta de búsqueda en X",
+  "settings.wallpaperXSearchModeDesc": "Elige cómo se ejecuta Buscar en X. La vista previa de Responses usa tu inicio de sesión actual de Grok Build con el endpoint oficial de compatibilidad fijado. Puede cambiar y vuelve a la CLI cuando es seguro; los límites no inician una segunda búsqueda.",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI (estable)",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API (vista previa)",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} s",
+  "settings.wallpaperSource.route.responses": "Vista previa de Responses · {seconds} s",
+  "settings.wallpaperSource.route.fallback": "Se usó Grok Build CLI como alternativa ({reason}) · {seconds} s",
+  "settings.wallpaperSource.route.fallback.auth": "inicio de sesión oficial no disponible o caducado",
+  "settings.wallpaperSource.route.fallback.network": "red de Responses no disponible",
+  "settings.wallpaperSource.route.fallback.compatibility": "cambió la compatibilidad de Responses",
+  "settings.wallpaperSource.route.fallback.empty": "Responses no devolvió imágenes utilizables",
+  "settings.wallpaperSource.route.fallback.circuit": "Responses está en pausa tras varios fallos",
+  "settings.wallpaperSource.route.fallback.other": "vista previa de Responses no disponible",
+  "settings.wallpaperSource.err.rate_limited": "La Responses API alcanzó su límite. No se inició la alternativa por CLI para evitar una segunda solicitud de suscripción. Inténtalo más tarde.",
   "settings.wallpaperSource.cancelSearch": "Cancelar búsqueda",
   "settings.wallpaperSource.progress.preparing": "Preparando la búsqueda…",
   "settings.wallpaperSource.progress.validating": "Comprobando la calidad de las imágenes…",
@@ -636,4 +650,5 @@ export const esSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "No hay ffmpeg en este equipo, así que el vídeo compartido es el original con recorte y clip. El look coincide; el paquete solo es más grande. Instala ffmpeg para exportar un clip recortado.",
   "settings.skinPack.warn.unknown_skin": "Este paquete nombra un skin desconocido. Se usará el predeterminado.",
   "settings.skinPack.warn.will_clear_wallpaper": "Aplicar este look quitará tu fondo actual (incluido el vídeo).",
+  "settings.wallpaperSource.progress.fallingBack": "Responses no está disponible; cambiando a Grok Build CLI…",
 };

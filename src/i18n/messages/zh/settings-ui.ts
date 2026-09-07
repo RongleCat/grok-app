@@ -1,5 +1,19 @@
 /** Simplified Chinese messages — domain: settings-ui */
 export const zhSettingsUi = {
+  "settings.wallpaperXSearchMode": "X 搜索渠道",
+  "settings.wallpaperXSearchModeDesc": "选择“从 X 搜索”的执行方式。Responses 预览会使用现有 Grok Build 登录，并固定请求官方兼容端点；接口可能变化，条件允许时会安全回退 CLI。遇到限流时不会再发起第二次搜索。",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI（稳定）",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API（预览）",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} 秒",
+  "settings.wallpaperSource.route.responses": "Responses 预览 · {seconds} 秒",
+  "settings.wallpaperSource.route.fallback": "已回退 Grok Build CLI（{reason}）· {seconds} 秒",
+  "settings.wallpaperSource.route.fallback.auth": "官方登录不可用或已过期",
+  "settings.wallpaperSource.route.fallback.network": "Responses 网络不可用",
+  "settings.wallpaperSource.route.fallback.compatibility": "Responses 兼容协议已变化",
+  "settings.wallpaperSource.route.fallback.empty": "Responses 未返回可用图片",
+  "settings.wallpaperSource.route.fallback.circuit": "Responses 连续失败后已暂时停用",
+  "settings.wallpaperSource.route.fallback.other": "Responses 预览不可用",
+  "settings.wallpaperSource.err.rate_limited": "Responses API 当前限流。为避免对同一订阅再次发起请求，本次不会回退 CLI，请稍后重试。",
   "settings.wallpaperSource.cancelSearch": "取消搜索",
   "settings.wallpaperSource.progress.preparing": "正在准备搜索…",
   "settings.wallpaperSource.progress.validating": "正在检查图片质量…",
@@ -636,4 +650,5 @@ export const zhSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "这台电脑没有 ffmpeg，所以分享的是原视频，并保留裁切和片段参数。画面效果不变，只是文件更大。装上 ffmpeg 后即可导出裁好的小体积片段。",
   "settings.skinPack.warn.unknown_skin": "这个包指定了未知皮肤，将使用默认皮肤。",
   "settings.skinPack.warn.will_clear_wallpaper": "应用后将移除你当前的背景（含视频）。",
+  "settings.wallpaperSource.progress.fallingBack": "Responses 不可用，正在切换到 Grok Build CLI…",
 };

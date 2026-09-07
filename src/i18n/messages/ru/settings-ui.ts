@@ -1,5 +1,19 @@
 /** ru messages — domain: settings-ui */
 export const ruSettingsUi = {
+  "settings.wallpaperXSearchMode": "Маршрут поиска в X",
+  "settings.wallpaperXSearchModeDesc": "Выберите способ поиска в X. Предпросмотр Responses использует текущий вход Grok Build и фиксированный официальный endpoint совместимости. Интерфейс может измениться и при безопасной возможности откатывается к CLI; при лимите второй поиск не запускается.",
+  "settings.wallpaperXSearchMode.cli": "Grok Build CLI (стабильный)",
+  "settings.wallpaperXSearchMode.responsesPreview": "Responses API (предпросмотр)",
+  "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} с",
+  "settings.wallpaperSource.route.responses": "Предпросмотр Responses · {seconds} с",
+  "settings.wallpaperSource.route.fallback": "Выполнен откат к Grok Build CLI ({reason}) · {seconds} с",
+  "settings.wallpaperSource.route.fallback.auth": "официальный вход недоступен или истёк",
+  "settings.wallpaperSource.route.fallback.network": "сеть Responses недоступна",
+  "settings.wallpaperSource.route.fallback.compatibility": "совместимость Responses изменилась",
+  "settings.wallpaperSource.route.fallback.empty": "Responses не вернул подходящих изображений",
+  "settings.wallpaperSource.route.fallback.circuit": "Responses временно приостановлен после повторных ошибок",
+  "settings.wallpaperSource.route.fallback.other": "предпросмотр Responses недоступен",
+  "settings.wallpaperSource.err.rate_limited": "Responses API ограничен по частоте. Откат к CLI не запускался, чтобы избежать второго запроса по подписке. Повторите позже.",
   "settings.wallpaperSource.cancelSearch": "Отменить поиск",
   "settings.wallpaperSource.progress.preparing": "Подготовка поиска…",
   "settings.wallpaperSource.progress.validating": "Проверка качества изображений…",
@@ -636,4 +650,5 @@ export const ruSettingsUi = {
   "settings.skinPack.warn.ffmpeg_unavailable": "На этом компьютере нет ffmpeg, поэтому общее видео — исходный файл с кадрированием и клипом. Вид тот же; пакет просто больше. Установите ffmpeg, чтобы экспортировать обрезанный клип.",
   "settings.skinPack.warn.unknown_skin": "Этот пакет указывает неизвестный скин. Будет использован скин по умолчанию.",
   "settings.skinPack.warn.will_clear_wallpaper": "Применение этого вида удалит текущий фон (включая видео).",
+  "settings.wallpaperSource.progress.fallingBack": "Responses недоступен; переключение на Grok Build CLI…",
 };
