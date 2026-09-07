@@ -121,6 +121,7 @@ export const ruCore = {
   "shortcuts.sideTerminal": "Терминал",
   "shortcuts.closeSideTab": "Закрыть боковую вкладку (окно, если вкладок нет)",
   "shortcuts.sidebarSessionNav": "Следующий / предыдущий чат на боковой панели (фокус в списке)",
+  "shortcuts.recentSessionMru": "Следующий / предыдущий недавно использованный чат",
   "shortcuts.doctor": "Диагностика",
   "shortcuts.liveVoice": "Начать Live Voice",
   "shortcuts.off": "Выкл.",

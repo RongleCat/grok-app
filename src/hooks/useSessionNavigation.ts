@@ -41,6 +41,7 @@ import { isSshRemoteProject } from "@/lib/projectPath";
 import { sessionShellStore } from "@/lib/sessionShellStore";
 import { sessionTranscriptStore } from "@/lib/sessionTranscriptStore";
 import { useSessionShellActions } from "@/hooks/useSessionShell";
+import { useSessionMruNav } from "@/hooks/useSessionMruNav";
 
 export type SessionNavHost = {
   chrome: {
@@ -58,6 +59,8 @@ export type SessionNavHost = {
       sessionId: string,
       projectId: string | null,
     ) => void;
+    listLiveIds: () => readonly string[];
+    findRow: (id: string) => SessionRow | null;
     clearUnread: (sessionId: string) => void;
     getActiveProject: () => Project | null;
     rejectUnusable: (project: Project | null) => boolean;
@@ -134,6 +137,8 @@ export function createSessionNavHost(): SessionNavHost {
       setActiveProject: stub("catalog.setActiveProject"),
       markScheduled: stub("catalog.markScheduled"),
       rememberLastSession: stub("catalog.rememberLastSession"),
+      listLiveIds: () => [],
+      findRow: () => null,
       clearUnread: stub("catalog.clearUnread"),
       getActiveProject: stub(
         "catalog.getActiveProject",
@@ -234,6 +239,24 @@ export function useSessionNavigation(opts: {
   const { setSession, setLiveHost } = useSessionShellActions();
 
   const openingSessionIdRef = useRef<string | null>(null);
+  const mruOpenRef = useRef<
+    (s: SessionRow, project?: Project | null) => Promise<void>
+  >(async () => {});
+  const { noteOpened } = useSessionMruNav({
+    getCurrentId: () => viewingSessionIdRef.current,
+    getLiveIds: () => hostRef.current.catalog.listLiveIds(),
+    openById: (id) => {
+      const row = hostRef.current.catalog.findRow(id);
+      if (row) void mruOpenRef.current(row);
+    },
+    isEnabled: () => {
+      try {
+        return !hostRef.current.connect.isSecondaryWindow();
+      } catch {
+        return false;
+      }
+    },
+  });
   const openSessionGenRef = useRef(0);
   const warmConnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -307,6 +330,7 @@ export function useSessionNavigation(opts: {
 
       openingSessionIdRef.current = s.id;
       viewingSessionIdRef.current = s.id;
+      noteOpened(s.id);
       sessionTranscriptStore.setViewingSessionId(s.id);
       if (!sessionTranscriptStore.isJournalHydrated(s.id)) {
         sessionTranscriptStore.beginJournalLoad(s.id);
@@ -467,7 +491,7 @@ export function useSessionNavigation(opts: {
         }, WARM_CONNECT_DEBOUNCE_MS);
       }
     },
-    [bumpViewEpoch, hostRef, setLiveHost, setSession, viewingSessionIdRef],
+    [bumpViewEpoch, hostRef, noteOpened, setLiveHost, setSession, viewingSessionIdRef],
   );
 
   /**
@@ -556,6 +580,7 @@ export function useSessionNavigation(opts: {
 
   const openSessionRef = useRef(openSession);
   openSessionRef.current = openSession;
+  mruOpenRef.current = openSession;
 
   return {
     openSession,

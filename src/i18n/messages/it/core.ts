@@ -121,6 +121,7 @@ export const itCore = {
   "shortcuts.sideTerminal": "Terminale",
   "shortcuts.closeSideTab": "Chiudi scheda laterale (finestra se nessuna è aperta)",
   "shortcuts.sidebarSessionNav": "Chat successiva / precedente nella barra laterale (focus nell’elenco)",
+  "shortcuts.recentSessionMru": "Chat recente successiva / precedente",
   "shortcuts.doctor": "Doctor",
   "shortcuts.liveVoice": "Avvia Live Voice",
   "shortcuts.off": "Disattivato",

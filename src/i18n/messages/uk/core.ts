@@ -121,6 +121,7 @@ export const ukCore = {
   "shortcuts.sideTerminal": "Термінал",
   "shortcuts.closeSideTab": "Закрити бічну вкладку (вікно, якщо вкладок немає)",
   "shortcuts.sidebarSessionNav": "Наступний / попередній чат на бічній панелі (фокус у списку)",
+  "shortcuts.recentSessionMru": "Наступний / попередній нещодавно використаний чат",
   "shortcuts.doctor": "Діагностика",
   "shortcuts.liveVoice": "Запустити Live Voice",
   "shortcuts.off": "Вимкнено",

@@ -122,6 +122,7 @@ export const enCore = {
   "shortcuts.sideTerminal": "Terminal",
   "shortcuts.closeSideTab": "Close side tab (window when none open)",
   "shortcuts.sidebarSessionNav": "Next / previous chat in sidebar (focus in list)",
+  "shortcuts.recentSessionMru": "Next / previous recently used chat",
   "shortcuts.doctor": "Doctor",
   "shortcuts.liveVoice": "Start Live Voice",
   "shortcuts.off": "Off",

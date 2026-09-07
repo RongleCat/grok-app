@@ -121,6 +121,7 @@ export const koCore = {
   "shortcuts.sideTerminal": "터미널",
   "shortcuts.closeSideTab": "사이드 탭 닫기 (열린 탭이 없으면 창)",
   "shortcuts.sidebarSessionNav": "사이드바에서 다음 / 이전 대화 (목록에 포커스)",
+  "shortcuts.recentSessionMru": "최근 사용한 대화 다음 / 이전",
   "shortcuts.doctor": "닥터",
   "shortcuts.liveVoice": "라이브 음성 시작",
   "shortcuts.off": "끄기",

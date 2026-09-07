@@ -154,7 +154,7 @@ export const idSettingsUi = {
   "settings.shortcuts.group.diagnostics": "Diagnostik",
   "settings.shortcuts.group.input": "Masukan",
   "settings.shortcuts.group.view": "Tampilan",
-  "settings.shortcuts.note": "Kirim bawaan adalah Enter; alihkan ke ⌘/Ctrl+Enter di Pengaturan → Composer. Esc, dikte Ctrl+Space, dan Kirim tetap. Cakupan menandai tindakan Global vs Obrolan; berbagi lintas cakupan opsional hanya memengaruhi pemeriksaan konflik. Beberapa kombinasi mungkin diambil OS (mis. sumber masukan).",
+  "settings.shortcuts.note": "Kirim bawaan adalah Enter; alihkan ke ⌘/Ctrl+Enter di Pengaturan → Composer. Esc, dikte Ctrl+Space, Ctrl+Tab obrolan terbaru, dan Kirim tetap. Cakupan menandai tindakan Global vs Obrolan; berbagi lintas cakupan opsional hanya memengaruhi pemeriksaan konflik. Beberapa kombinasi mungkin diambil OS (mis. sumber masukan).",
   "settings.shortcuts.openHelp": "Buka bantuan pintasan",
   "settings.shortcuts.filterPlaceholder": "Filter pintasan…",
   "settings.shortcuts.filterEmpty": "Tidak ada pintasan yang cocok dengan filter ini.",

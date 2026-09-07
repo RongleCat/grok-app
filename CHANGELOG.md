@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- Ctrl+Tab jumps back to the last chat you used. Hold Ctrl and tap Tab to cycle further; Ctrl+Shift+Tab goes the other way.
+
+**中文 · 新增**
+- Ctrl+Tab 切回上一个用过的对话。按住 Ctrl 再点 Tab 继续循环；Ctrl+Shift+Tab 反向。
+
 ## [0.2.33] - 2026-09-06
 
 > **Highlight:** Windows installers are back, with composer shortcuts and worktree GC fixes.

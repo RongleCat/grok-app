@@ -111,6 +111,8 @@ windows = { version = "0.61", features = [
 # COM `#[implement(IDropTarget)]` for late Windows file-drop (#1017).
 windows-core = "0.61"
 tauri-winrt-notification = "0.7"
+# Same crate Tauri uses — mark Ctrl+Tab as not a browser accelerator so JS sees it.
+webview2-com = "0.38"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 notify-rust = "4"

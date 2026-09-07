@@ -85,6 +85,8 @@ export const DEFAULT_SHORTCUT_CHORDS: Record<ShortcutId, ChordString> = {
   quit: "ctrl+q",
   // Display-only (j/k pair); App handles when focus is in the sidebar list.
   sidebarSessionNav: "j",
+  // Display-only Ctrl+Tab pair (Shift = previous). Cmd+Tab is the OS switcher.
+  recentSessionMru: "ctrl+tab",
   settings: "mod+,",
   help: "mod+/",
   zoomIn: "mod+=",
@@ -314,7 +316,7 @@ export function chordFromKeyboardEvent(e: {
   const parts: string[] = [];
   if (hasMod) {
     // Ctrl+Space without Meta stays ctrl-only (dictation style).
-    if (e.ctrlKey && !e.metaKey && key === " ") {
+    if (e.ctrlKey && !e.metaKey && (key === " " || key === "Tab")) {
       parts.push("ctrl");
     } else {
       parts.push("mod");
@@ -408,6 +410,7 @@ export function buildEffectiveChordMap(
  * remappable capture handler, so an overlapping “chord” is not a real runtime
  * collision in the App mod-key path:
  * - `sidebarSessionNav` — j/k when the sidebar list is focused (not a single global chord)
+ * - `recentSessionMru` — Ctrl+Tab / Ctrl+Shift+Tab (ctrl-only, like dictation)
  * - `send` / `newline` — Composer Enter / mod-enter preference (not remappable here)
  * - `closeSideTab` — SideWorkbench ⌘W only while tabs exist (else window close)
  * - `zoomIn` / `zoomOut` / `zoomReset` — host zoom capture in `main`
@@ -415,6 +418,7 @@ export function buildEffectiveChordMap(
  */
 export const CHORD_CONFLICT_IGNORE_IDS: ReadonlySet<ShortcutId> = new Set([
   "sidebarSessionNav",
+  "recentSessionMru",
   "send",
   "newline",
   "steer",

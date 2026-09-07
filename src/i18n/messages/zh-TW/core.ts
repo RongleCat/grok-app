@@ -121,6 +121,7 @@ export const zhTWCore = {
   "shortcuts.sideTerminal": "終端機",
   "shortcuts.closeSideTab": "關閉側邊分頁（無分頁時關閉視窗）",
   "shortcuts.sidebarSessionNav": "側欄上下切換對話（焦點在列表內）",
+  "shortcuts.recentSessionMru": "最近用過的對話（上一個 / 下一個）",
   "shortcuts.doctor": "體檢",
   "shortcuts.liveVoice": "開始即時語音",
   "shortcuts.off": "關閉",

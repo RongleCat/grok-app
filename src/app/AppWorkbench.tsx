@@ -3314,6 +3314,10 @@ export function AppWorkbench() {
       setLastSessionId(sessionId);
       void api.settingsRememberLastSession(sessionId, projectId).catch(() => {});
     };
+    host.catalog.listLiveIds = () =>
+      sessionsRef.current.filter((s) => !s.archived).map((s) => s.id);
+    host.catalog.findRow = (id) =>
+      sessionsRef.current.find((s) => s.id === id && !s.archived) ?? null;
     host.catalog.clearUnread = (sessionId) => {
       applyClearSessionUnread(sessionId);
     };

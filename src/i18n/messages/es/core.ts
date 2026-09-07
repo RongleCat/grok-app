@@ -121,6 +121,7 @@ export const esCore = {
   "shortcuts.sideTerminal": "Terminal",
   "shortcuts.closeSideTab": "Cerrar pestaña lateral (la ventana si no hay ninguna abierta)",
   "shortcuts.sidebarSessionNav": "Chat siguiente / anterior en la barra lateral (foco en la lista)",
+  "shortcuts.recentSessionMru": "Chat reciente siguiente / anterior",
   "shortcuts.doctor": "Doctor",
   "shortcuts.liveVoice": "Iniciar Live Voice",
   "shortcuts.off": "Desactivado",

@@ -42,6 +42,7 @@ const tStub = (key: string) => {
     "shortcuts.copyLastReply": "Copy last reply",
     "shortcuts.toggleSidebar": "Toggle sidebar",
     "shortcuts.sidebarSessionNav": "Next / previous chat in sidebar",
+    "shortcuts.recentSessionMru": "Next / previous recently used chat",
     "shortcuts.settings": "Settings",
     "shortcuts.help": "Keyboard shortcuts",
     "shortcuts.doctor": "Doctor",
@@ -122,6 +123,21 @@ describe("shortcuts catalog", () => {
     expect(row!.win.toLowerCase()).toMatch(/j/);
     expect(
       (GLOBAL_MOD_SHORTCUT_IDS as readonly string[]).includes("sidebarSessionNav"),
+    ).toBe(false);
+  });
+
+  it("lists Ctrl+Tab recently used chats on every OS (display-only)", () => {
+    const row = SHORTCUTS.find((s) => s.id === "recentSessionMru");
+    expect(row).toBeDefined();
+    expect(row!.labelKey).toBe("shortcuts.recentSessionMru");
+    expect(row!.group).toBe("navigation");
+    expect(row!.mac).toMatch(/⌃/);
+    expect(row!.mac.toLowerCase()).toMatch(/tab/);
+    expect(row!.win.toLowerCase()).toMatch(/ctrl/);
+    expect(row!.win.toLowerCase()).toMatch(/tab/);
+    expect(row!.mac).not.toMatch(/⌘/);
+    expect(
+      (GLOBAL_MOD_SHORTCUT_IDS as readonly string[]).includes("recentSessionMru"),
     ).toBe(false);
   });
 
@@ -391,6 +407,7 @@ describe("matchGlobalShortcut", () => {
       "stop",
       "dictation",
       "sidebarSessionNav",
+      "recentSessionMru",
       "quit",
       "zoomIn",
       "zoomOut",

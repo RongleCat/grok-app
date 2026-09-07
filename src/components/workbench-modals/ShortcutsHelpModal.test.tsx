@@ -41,6 +41,10 @@ describe("ShortcutsHelpModal", () => {
     expect(screen.getByText("New line")).toBeInTheDocument();
     expect(screen.getByText("Previous / next prompt")).toBeInTheDocument();
     expect(screen.getByText("Type to focus composer")).toBeInTheDocument();
+    expect(
+      screen.getByText("Next / previous recently used chat"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Ctrl Tab · Ctrl Shift Tab")).toBeInTheDocument();
     expect(screen.getByText("Ctrl +")).toBeInTheDocument();
     expect(screen.getByText("Shift Enter")).toBeInTheDocument();
   });

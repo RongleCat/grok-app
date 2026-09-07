@@ -121,6 +121,7 @@ export const idCore = {
   "shortcuts.sideTerminal": "Terminal",
   "shortcuts.closeSideTab": "Tutup tab sisi (jendela jika tidak ada yang terbuka)",
   "shortcuts.sidebarSessionNav": "Obrolan berikutnya / sebelumnya di bilah sisi (fokus di daftar)",
+  "shortcuts.recentSessionMru": "Obrolan terbaru berikutnya / sebelumnya",
   "shortcuts.doctor": "Doctor",
   "shortcuts.liveVoice": "Mulai Live Voice",
   "shortcuts.off": "Mati",

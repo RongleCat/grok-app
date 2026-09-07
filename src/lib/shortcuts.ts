@@ -53,6 +53,7 @@ export type ShortcutId =
   | "closeSideTab"
   | "quit"
   | "sidebarSessionNav"
+  | "recentSessionMru"
   | "settings"
   | "help"
   | "zoomIn"
@@ -80,8 +81,8 @@ export type ShortcutRow = {
 /**
  * Stable catalog id order — same as SHORTCUTS.
  * Includes display-only rows (send, newline, steer, stop, dictation, quit,
- * sidebarSessionNav, zoom*, promptHistory, typeToFocus) that are not matched
- * by {@link matchGlobalShortcut}.
+ * sidebarSessionNav, recentSessionMru, zoom*, promptHistory, typeToFocus)
+ * that are not matched by {@link matchGlobalShortcut}.
  */
 export const SHORTCUT_IDS: readonly ShortcutId[] = [
   "search",
@@ -100,6 +101,7 @@ export const SHORTCUT_IDS: readonly ShortcutId[] = [
   "closeSideTab",
   "quit",
   "sidebarSessionNav",
+  "recentSessionMru",
   "settings",
   "help",
   "zoomIn",
@@ -257,6 +259,16 @@ export const SHORTCUTS: ShortcutRow[] = [
     win: "J / K · ↑ / ↓",
   },
   {
+    // Ctrl+Tab on every OS (Cmd+Tab is the macOS app switcher). App handles
+    // it like dictation — ctrl-only, not the remappable mod matcher.
+    id: "recentSessionMru",
+    labelKey: "shortcuts.recentSessionMru",
+    group: "navigation",
+    scope: "global",
+    mac: "⌃ Tab · ⌃ ⇧ Tab",
+    win: "Ctrl Tab · Ctrl Shift Tab",
+  },
+  {
     id: "settings",
     labelKey: "shortcuts.settings",
     group: "navigation",
@@ -353,7 +365,8 @@ export function shortcutScope(id: ShortcutId): ShortcutScope {
  * special-cased in App for order vs voice cancel / overlays), `dictation`
  * (Ctrl+Space via `isVoiceToggleKey` — must not use meta, and runs before the
  * mod branch), `sidebarSessionNav` (plain j/k when focus is in the sidebar
- * session list), `closeSideTab` (⌘W / Ctrl+W handled in SideWorkbench — only
+ * session list), `recentSessionMru` (Ctrl+Tab / Ctrl+Shift+Tab, ctrl-only),
+ * `closeSideTab` (⌘W / Ctrl+W handled in SideWorkbench — only
  * steals when tabs are open), `quit` (Ctrl+Q twice via `useDoublePressQuit`),
  * `zoomIn` / `zoomOut` / `zoomReset` (`installZoomHotkeys` in main),
  * `promptHistory` (composer ↑/↓), `typeToFocus` (printable-key capture).

@@ -154,7 +154,7 @@ export const deSettingsUi = {
   "settings.shortcuts.group.diagnostics": "Diagnose",
   "settings.shortcuts.group.input": "Eingabe",
   "settings.shortcuts.group.view": "Ansicht",
-  "settings.shortcuts.note": "Standard-Senden ist Enter; in Einstellungen → Composer auf ⌘/Ctrl+Enter wechseln. Esc, Ctrl+Space-Diktat und Senden sind fest. Scope markiert Global vs. Chat; optionales Cross-Scope-Teilen betrifft nur Konfliktprüfungen. Manche Kombinationen kann das OS belegen (z. B. Eingabequellen).",
+  "settings.shortcuts.note": "Standard-Senden ist Enter; in Einstellungen → Composer auf ⌘/Ctrl+Enter wechseln. Esc, Ctrl+Space-Diktat, Ctrl+Tab zuletzt verwendete Chats und Senden sind fest. Scope markiert Global vs. Chat; optionales Cross-Scope-Teilen betrifft nur Konfliktprüfungen. Manche Kombinationen kann das OS belegen (z. B. Eingabequellen).",
   "settings.shortcuts.openHelp": "Kürzel-Hilfe öffnen",
   "settings.shortcuts.filterPlaceholder": "Kürzel filtern…",
   "settings.shortcuts.filterEmpty": "Keine Kürzel passen zu diesem Filter.",

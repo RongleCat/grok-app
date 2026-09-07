@@ -228,6 +228,27 @@ describe("chordFromKeyboardEvent", () => {
       }),
     ).toBe("ctrl+space");
   });
+
+  it("stores Ctrl+Tab as ctrl+tab (not mod+tab)", () => {
+    expect(
+      chordFromKeyboardEvent({
+        key: "Tab",
+        metaKey: false,
+        ctrlKey: true,
+        shiftKey: false,
+        altKey: false,
+      }),
+    ).toBe("ctrl+tab");
+    expect(
+      chordFromKeyboardEvent({
+        key: "Tab",
+        metaKey: false,
+        ctrlKey: true,
+        shiftKey: true,
+        altKey: false,
+      }),
+    ).toBe("ctrl+shift+tab");
+  });
 });
 
 describe("findChordConflict", () => {
@@ -302,6 +323,7 @@ describe("findChordConflicts", () => {
     expect(CHORD_CONFLICT_IGNORE_IDS.has("newline")).toBe(true);
     expect(CHORD_CONFLICT_IGNORE_IDS.has("steer")).toBe(true);
     expect(CHORD_CONFLICT_IGNORE_IDS.has("sidebarSessionNav")).toBe(true);
+    expect(CHORD_CONFLICT_IGNORE_IDS.has("recentSessionMru")).toBe(true);
     expect(CHORD_CONFLICT_IGNORE_IDS.has("zoomIn")).toBe(true);
     expect(CHORD_CONFLICT_IGNORE_IDS.has("promptHistory")).toBe(true);
     // Even if a remap used bare "j", sidebarSessionNav must not join a group.
