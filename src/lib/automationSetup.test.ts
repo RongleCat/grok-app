@@ -63,6 +63,45 @@ describe("automationSetup", () => {
     expect(cleanText).toBe("确认一下");
   });
 
+  it("keeps ordinary json samples in the transcript", () => {
+    const payload = `{
+  "config": [
+    {
+      "kind": "Databus",
+      "metadata": { "name": "surreal_app_prefix_301_write_test" },
+      "spec": { "batch": { "max_events": 50, "timeout_secs": 1 } }
+    }
+  ]
+}`;
+    const text = `给了，就是这个：\n\n\`\`\`json\n${payload}\n\`\`\``;
+    const { input, cleanText, rawJson } = extractAutomationPayload(text);
+    expect(input).toBeNull();
+    expect(rawJson).toBeNull();
+    expect(cleanText).toContain("给了，就是这个：");
+    expect(cleanText).toContain("```json");
+    expect(cleanText).toContain('"kind": "Databus"');
+    expect(cleanText).toContain('"max_events": 50');
+  });
+
+  it("strips broken grok-automation fences but keeps nearby json samples", () => {
+    const text = [
+      "示例：",
+      "```json",
+      '{"hello":"world"}',
+      "```",
+      "",
+      "```grok-automation",
+      "{not-json",
+      "```",
+    ].join("\n");
+    const { input, cleanText } = extractAutomationPayload(text);
+    expect(input).toBeNull();
+    expect(cleanText).toContain("```json");
+    expect(cleanText).toContain('"hello":"world"');
+    expect(cleanText).not.toContain("grok-automation");
+    expect(cleanText).not.toContain("{not-json");
+  });
+
   it("parses real failed-session style fence", () => {
     const text = `好的，已设好。\n\n\`\`\`grok-automation\n{"title":"知识库美女提示词检索","prompt":"在用户的知识库检索","frequency":"once","time":"20:56","weekdays":[],"enabled":true}\n\`\`\``;
     const { input, cleanText } = extractAutomationPayload(text);

@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- JSON examples in chat stay visible instead of being swallowed as schedule fences.
+
+**中文 · 修复**
+- 对话里的普通 JSON 示例会显示出来，不再被当成定时任务围栏剥掉。
+
 ## [0.2.33] - 2026-09-06
 
 > **Highlight:** Windows installers are back, with composer shortcuts and worktree GC fixes.

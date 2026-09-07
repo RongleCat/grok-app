@@ -46,9 +46,10 @@ export function wrapAutomationSetupAgentText(userVisibleText: string): string {
 
 /**
  * Match ```grok-automation / ```json fences (optional lang spacing; closing fence optional final newline).
+ * Group 1 = language, group 2 = body.
  */
 const FENCE_RE =
-  /```(?:grok-automation|json)[^\n\r]*\r?\n([\s\S]*?)```/gi;
+  /```(grok-automation|json)[^\n\r]*\r?\n([\s\S]*?)```/gi;
 
 export type AutomationFenceAction = "create" | "update" | "upsert";
 
@@ -230,34 +231,38 @@ export function extractAutomationPayload(text: string): ExtractedAutomation {
   let rawJson: string | null = null;
   let existingId: string | null = null;
   let action: AutomationFenceAction = "upsert";
-  FENCE_RE.lastIndex = 0;
-  const matches = [...text.matchAll(FENCE_RE)];
 
-  for (const m of matches) {
-    const body = (m[1] || "").trim();
-    // Model sometimes wraps JSON in an extra code fence or adds trailing prose
-    const jsonBody = body
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim();
-    const parsed = parseAutomationConfigJson(jsonBody);
-    if (parsed) {
-      input = parsed;
-      rawJson = jsonBody;
-      try {
-        const o = JSON.parse(jsonBody) as Record<string, unknown>;
-        existingId =
-          typeof o.id === "string" && o.id.trim() ? o.id.trim() : null;
-        action = parseFenceAction(o.action);
-      } catch {
-        existingId = null;
-        action = "upsert";
+  FENCE_RE.lastIndex = 0;
+  let cleanText = text
+    .replace(FENCE_RE, (full, lang: string, body: string) => {
+      const jsonBody = (body || "")
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+      const parsed = parseAutomationConfigJson(jsonBody);
+      if (parsed) {
+        input = parsed;
+        rawJson = jsonBody;
+        try {
+          const o = JSON.parse(jsonBody) as Record<string, unknown>;
+          existingId =
+            typeof o.id === "string" && o.id.trim() ? o.id.trim() : null;
+          action = parseFenceAction(o.action);
+        } catch {
+          existingId = null;
+          action = "upsert";
+        }
+        return "";
       }
-    }
-  }
-
-  FENCE_RE.lastIndex = 0;
-  let cleanText = text.replace(FENCE_RE, "").replace(/\n{3,}/g, "\n\n").trimEnd();
+      // Internal protocol fence: never show, even if JSON is incomplete.
+      if (String(lang).toLowerCase() === AUTOMATION_FENCE_LANG) {
+        return "";
+      }
+      // Ordinary ```json samples (API payloads, configs) stay in the transcript.
+      return full;
+    })
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
   if (!cleanText.trim() && input) {
     cleanText = "";
   }
