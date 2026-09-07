@@ -110,10 +110,16 @@ export function ImageViewerProvider({
   const [index, setIndex] = useState(0);
   const [slides, setSlides] = useState<ResolvedSlide[]>([]);
   const slidesRef = useRef(slides);
+  const generationRef = useRef(0);
   slidesRef.current = slides;
 
   const close = useCallback(() => {
+    generationRef.current += 1;
     setIsOpen(false);
+  }, []);
+
+  useEffect(() => () => {
+    generationRef.current += 1;
   }, []);
 
   const openViewer = useCallback(
@@ -123,6 +129,7 @@ export function ImageViewerProvider({
       );
       if (!normalized.length) return;
 
+      const generation = ++generationRef.current;
       void (async () => {
         const paths = normalized.map((s) => s.src);
         const resolved = await resolveImageSrcs(paths);
@@ -157,6 +164,7 @@ export function ImageViewerProvider({
         let idx = next.findIndex((s) => s.origin === want);
         if (idx < 0) idx = 0;
 
+        if (generationRef.current !== generation) return;
         setSlides(next);
         setIndex(idx);
         setIsOpen(true);
@@ -209,6 +217,7 @@ export function ImageViewerProvider({
     const onResize = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
+        const generation = generationRef.current;
         const stage = currentStageRect();
         const current = slidesRef.current;
         if (!current.length) return;
@@ -229,7 +238,7 @@ export function ImageViewerProvider({
               return { ...s, ...sizeFields };
             }),
           );
-          if (cancelled) return;
+          if (cancelled || generationRef.current !== generation) return;
           setSlides((prev) => {
             if (
               prev.length !== updated.length ||
@@ -258,7 +267,8 @@ export function ImageViewerProvider({
   return (
     <ImageViewerContext.Provider value={api}>
       {children}
-      {isOpen ? (
+      {/* Let the lightbox finish its exit cleanup after close. */}
+      {slides.length > 0 ? (
         <Suspense fallback={null}>
           <ImageLightbox
             open={isOpen}
