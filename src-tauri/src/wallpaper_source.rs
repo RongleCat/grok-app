@@ -25,6 +25,16 @@ const MAX_WALLPAPER_CLI_STDOUT_BYTES: usize = 2 * 1024 * 1024;
 const WALLPAPER_CLI_OUTPUT_DRAIN_TIMEOUT: Duration = Duration::from_secs(2);
 /// Max bytes for a single wallpaper media download.
 const MAX_DOWNLOAD_BYTES: u64 = 200 * 1024 * 1024;
+/// Enough prefix data to verify a real image and usually recover dimensions,
+/// without buffering a full response when a CDN ignores Range.
+const MAX_IMAGE_PROBE_BYTES: usize = 64 * 1024;
+const MIN_IMAGE_PROBE_BYTES: usize = 32;
+const MAX_X_GALLERY_CANDIDATES: usize = 40;
+const MAX_X_GALLERY_RESULTS: usize = 16;
+const MIN_X_GALLERY_RESULTS_BEFORE_SUPPLEMENT: usize = 6;
+pub(crate) const X_SEARCH_FIRST_ROUND_CALLS: u32 = 2;
+pub(crate) const X_SEARCH_SUPPLEMENT_CALLS: u32 = 1;
+pub(crate) const X_SEARCH_TOTAL_CALLS: u32 = X_SEARCH_FIRST_ROUND_CALLS + X_SEARCH_SUPPLEMENT_CALLS;
 /// Headless X search budget.
 const X_SEARCH_TIMEOUT: Duration = Duration::from_secs(150);
 /// Headless Imagine budget.
@@ -54,6 +64,21 @@ pub struct WallpaperGalleryItem {
     pub local_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
+    /// Host-only evidence used by the shared X quality pipeline. These fields
+    /// never cross IPC and cannot expose extra account or post information.
+    #[serde(skip)]
+    pub(crate) status_id: Option<String>,
+    #[serde(skip)]
+    pub(crate) media_index: Option<u8>,
+    #[serde(skip)]
+    pub(crate) media_quality: Option<WallpaperMediaQuality>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct WallpaperMediaQuality {
+    declared_image_mime: bool,
+    dimensions_verified: bool,
+    content_length: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,6 +89,13 @@ pub struct WallpaperSearchResult {
     pub error_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+}
+
+#[derive(Debug)]
+pub(crate) struct WallpaperCliSearchOutcome {
+    pub(crate) result: WallpaperSearchResult,
+    pub(crate) candidate_count: usize,
+    pub(crate) valid_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -177,6 +209,20 @@ pub fn is_allowed_media_url(url: &str) -> bool {
         || host.ends_with(".x.ai")
         || host.ends_with(".twimg.com")
         || host == "x.ai"
+}
+
+fn should_follow_media_redirect(url: &url::Url, previous_hops: usize) -> bool {
+    previous_hops < 6 && is_allowed_media_url(url.as_str())
+}
+
+fn media_redirect_policy() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if should_follow_media_redirect(attempt.url(), attempt.previous().len()) {
+            attempt.follow()
+        } else {
+            attempt.stop()
+        }
+    })
 }
 
 /// Extract a numeric X/Twitter status snowflake from a URL (or bare id).
@@ -296,6 +342,7 @@ fn mime_from_ext(ext: &str) -> &'static str {
         "jpg" | "jpeg" => "image/jpeg",
         "png" => "image/png",
         "webp" => "image/webp",
+        "avif" => "image/avif",
         "gif" => "image/gif",
         "mp4" | "m4v" => "video/mp4",
         "webm" => "video/webm",
@@ -313,6 +360,9 @@ fn ext_from_mime_or_url(mime: &str, url: &str) -> String {
     }
     if m.contains("webp") {
         return "webp".into();
+    }
+    if m.contains("avif") {
+        return "avif".into();
     }
     if m.contains("gif") {
         return "gif".into();
@@ -980,7 +1030,10 @@ pub(crate) fn run_grok_headless(
 
 // ── Parse gallery from model JSON ───────────────────────────────────────────
 
-fn parse_gallery_items(value: &serde_json::Value, source: &str) -> Vec<WallpaperGalleryItem> {
+pub(crate) fn parse_gallery_items(
+    value: &serde_json::Value,
+    source: &str,
+) -> Vec<WallpaperGalleryItem> {
     let arr = value
         .get("items")
         .and_then(|v| v.as_array())
@@ -989,7 +1042,6 @@ fn parse_gallery_items(value: &serde_json::Value, source: &str) -> Vec<Wallpaper
         .unwrap_or_default();
 
     let mut out = Vec::new();
-    let mut seen = std::collections::HashSet::new();
     for (i, raw) in arr.iter().enumerate() {
         let full = raw
             .get("fullUrl")
@@ -1004,14 +1056,15 @@ fn parse_gallery_items(value: &serde_json::Value, source: &str) -> Vec<Wallpaper
             continue;
         }
         let full_norm = normalize_media_url(&full);
-        if !seen.insert(full_norm.clone()) {
+        if full_norm.is_empty() {
             continue;
         }
         let thumb = raw
             .get("thumbUrl")
             .or_else(|| raw.get("thumb_url"))
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
+            .map(normalize_media_url)
+            .filter(|value| !value.is_empty())
             .unwrap_or_else(|| full_norm.clone());
         let kind = raw
             .get("kind")
@@ -1023,6 +1076,29 @@ fn parse_gallery_items(value: &serde_json::Value, source: &str) -> Vec<Wallpaper
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .unwrap_or_else(|| format!("{source}-{i}-{}", short_hash(&full_norm)));
+        let username = raw
+            .get("username")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim_start_matches('@').to_string())
+            .filter(|value| !value.is_empty());
+        let raw_post_url = raw
+            .get("postUrl")
+            .or_else(|| raw.get("post_url"))
+            .or_else(|| raw.get("statusUrl"))
+            .or_else(|| raw.get("status_url"))
+            .and_then(|v| v.as_str());
+        let status_id = raw_post_url.and_then(extract_status_id_from_url);
+        let media_index = raw
+            .get("mediaIndex")
+            .or_else(|| raw.get("media_index"))
+            .and_then(|value| {
+                value
+                    .as_u64()
+                    .and_then(|index| u8::try_from(index).ok())
+                    .or_else(|| value.as_str()?.parse::<u8>().ok())
+            })
+            .filter(|index| (1..=4).contains(index))
+            .or_else(|| raw_post_url.and_then(extract_media_index_from_status_url));
         out.push(WallpaperGalleryItem {
             id,
             thumb_url: thumb,
@@ -1031,28 +1107,17 @@ fn parse_gallery_items(value: &serde_json::Value, source: &str) -> Vec<Wallpaper
             width: raw.get("width").and_then(|v| v.as_u64()).map(|n| n as u32),
             height: raw.get("height").and_then(|v| v.as_u64()).map(|n| n as u32),
             source: source.into(),
-            username: raw
-                .get("username")
-                .and_then(|v| v.as_str())
-                .map(|s| s.trim_start_matches('@').to_string()),
-            post_url: {
-                let username = raw
-                    .get("username")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.trim_start_matches('@'));
-                raw.get("postUrl")
-                    .or_else(|| raw.get("post_url"))
-                    .or_else(|| raw.get("statusUrl"))
-                    .or_else(|| raw.get("status_url"))
-                    .and_then(|v| v.as_str())
-                    .and_then(|s| normalize_status_url(s, username))
-            },
+            username: username.clone(),
+            post_url: raw_post_url.and_then(|url| normalize_status_url(url, username.as_deref())),
             text_preview: raw
                 .get("textPreview")
                 .or_else(|| raw.get("text_preview"))
                 .and_then(|v| v.as_str())
                 .map(|s| s.chars().take(160).collect()),
-            likes: raw.get("likes").and_then(|v| v.as_i64()),
+            likes: raw.get("likes").and_then(|v| {
+                v.as_i64()
+                    .or_else(|| v.as_u64().and_then(|n| i64::try_from(n).ok()))
+            }),
             local_path: raw
                 .get("localPath")
                 .or_else(|| raw.get("local_path"))
@@ -1062,9 +1127,12 @@ fn parse_gallery_items(value: &serde_json::Value, source: &str) -> Vec<Wallpaper
                 .get("prompt")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
+            status_id,
+            media_index,
+            media_quality: None,
         });
     }
-    out
+    dedupe_gallery_items(out, false)
 }
 
 fn short_hash(s: &str) -> String {
@@ -1077,23 +1145,45 @@ fn short_hash(s: &str) -> String {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/// Expand the user keyword into stronger X search guidance (still one agent call).
-fn build_x_search_prompt(user_query: &str, sort: &str) -> String {
+/// Expand the user keyword into stronger X search guidance while keeping the
+/// hosted tool budget explicit. The CLI does not expose a reliable call count,
+/// so both rounds carry a hard textual budget and use separate processes.
+fn build_x_search_prompt(
+    user_query: &str,
+    sort: &str,
+    max_search_calls: u32,
+    is_supplement: bool,
+    seen_ids: &[String],
+) -> String {
+    let round_guidance = if is_supplement {
+        format!(
+            "Supplement round: use exactly one new query with a different visual angle (alternate composition, lighting, setting, season, or medium). Do not repeat candidates carrying any of these opaque media/post ids: {}",
+            if seen_ids.is_empty() {
+                "none from the empty first round".to_string()
+            } else {
+                seen_ids.join(", ")
+            }
+        )
+    } else {
+        "First round: use up to two complementary query variants. Cover the strongest direct interpretation of the topic and one useful visual/style variant."
+            .to_string()
+    };
     format!(
         r#"You collect high-quality still images from X (Twitter) for a desktop wallpaper picker.
 
 User topic (raw): {user_query}
 
 Search strategy (use X tools; sort = {sort}):
-1. Expand the user topic into 2–4 effective queries before searching. Prefer posts that:
+1. {round_guidance}
+2. Use no more than {max_search_calls} hosted X search call(s) in this process. Prefer posts that:
    - Share AI image-generation prompts (prompt share / Midjourney / Flux / SD / Grok Imagine / "prompt" / 提示词 / 咒语)
    - Attach real photos or AI art suitable as wallpaper (landscape, scenery, aesthetic stills)
-2. Always require media: use filter:images (or media). Prefer higher engagement (likes/reposts) when sort is Top.
-3. Prefer posts that include BOTH the prompt text and attached images; if none, fall back to high-quality image posts about the topic.
-4. Skip low quality: memes with heavy text overlays, screenshots of chat UI, profile avatars, emoji packs, ads, pure text cards, blurry thumbs, broken/placeholder links.
-5. Collect distinct direct IMAGE CDN URLs only for fullUrl — prefer https://pbs.twimg.com/media/… (name=orig or full size). Never put status page URLs in fullUrl.
-6. Always set postUrl to the real canonical status link `https://x.com/<user>/status/<id>` when the post is known. Never invent or guess a status id. If you cannot confirm the status URL, omit postUrl (client will mark the tile Unverified).
-7. Return exactly ONE JSON object matching the schema (items array, 12–28 when possible). No prose, no second JSON object, no placeholder.jpg.
+3. Always require media: use filter:images. Prefer higher engagement (likes/reposts) when sort is Top.
+4. Prefer posts that include BOTH the prompt text and attached images; if none, fall back to high-quality image posts about the topic.
+5. Skip low quality: memes with heavy text overlays, screenshots of chat UI, profile avatars, emoji packs, ads, pure text cards, blurry thumbs, broken/placeholder links.
+6. Collect distinct direct IMAGE CDN URLs only for fullUrl — prefer https://pbs.twimg.com/media/… (name=orig or full size). Never put status page URLs in fullUrl.
+7. Always set postUrl to the real canonical status link `https://x.com/<user>/status/<id>` when the post is known. Include mediaIndex 1–4 only when the status media position is known. Never invent or guess a status id. If you cannot confirm the status URL, omit postUrl (client will mark the tile Unverified).
+8. Return exactly ONE JSON object matching the schema (items array, 8–16 when possible). No prose, no second JSON object, no placeholder.jpg.
 
 Do not download files — metadata only.
 "#
@@ -1101,18 +1191,26 @@ Do not download files — metadata only.
 }
 
 /// Keep only gallery-worthy media URLs (static filter before network probe).
-fn filter_gallery_candidates(items: &mut Vec<WallpaperGalleryItem>) {
-    items.retain(|it| {
-        let u = it.full_url.trim();
-        (u.starts_with("http://") || u.starts_with("https://")) && is_gallery_media_url(u)
-    });
+pub(crate) fn filter_gallery_candidates(items: &mut Vec<WallpaperGalleryItem>) {
+    for item in items.iter_mut() {
+        item.full_url = normalize_media_url(&item.full_url);
+        item.thumb_url = normalize_media_url(&item.thumb_url);
+        if item.thumb_url.is_empty() || !is_allowed_media_url(&item.thumb_url) {
+            item.thumb_url = item.full_url.clone();
+        }
+        item.post_url = item
+            .post_url
+            .as_deref()
+            .and_then(|url| normalize_status_url(url, item.username.as_deref()));
+    }
+    items.retain(|item| is_gallery_media_url(&item.full_url));
 }
 
 fn http_client_wallpaper() -> Result<reqwest::Client, String> {
     proxy::apply_to_reqwest(
         reqwest::Client::builder()
             .timeout(Duration::from_secs(20))
-            .redirect(reqwest::redirect::Policy::limited(6))
+            .redirect(media_redirect_policy())
             .user_agent(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             ),
@@ -1121,54 +1219,457 @@ fn http_client_wallpaper() -> Result<reqwest::Client, String> {
     .map_err(|e| format!("http client: {e}"))
 }
 
-/// Probe whether a remote URL is a reachable image (filters broken gallery thumbs).
-pub async fn probe_image_reachable(client: &reqwest::Client, url: &str) -> bool {
-    if !is_gallery_media_url(url) {
-        return false;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DetectedMedia {
+    Jpeg,
+    Png,
+    Gif,
+    Webp,
+    Avif,
+    Mp4,
+    Webm,
+}
+
+impl DetectedMedia {
+    fn is_image(self) -> bool {
+        matches!(
+            self,
+            Self::Jpeg | Self::Png | Self::Gif | Self::Webp | Self::Avif
+        )
     }
-    // Prefer Range GET — many CDNs ignore HEAD or return wrong types.
-    let resp = client
-        .get(url)
-        .header("Accept", "image/avif,image/webp,image/*,*/*;q=0.8")
-        .header(reqwest::header::RANGE, "bytes=0-2047")
-        .send()
-        .await;
-    let Ok(resp) = resp else {
-        return false;
-    };
-    let status = resp.status().as_u16();
-    // 200 full body or 206 partial
-    if status != 200 && status != 206 {
-        return false;
-    }
-    let mime = resp
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    if !mime.is_empty()
-        && !mime.starts_with("image/")
-        && !mime.contains("octet-stream")
-        && !mime.contains("binary")
-    {
-        // Some twimg responses omit useful type on Range; only reject clear non-images.
-        if mime.starts_with("text/") || mime.contains("html") || mime.contains("json") {
-            return false;
+
+    fn mime(self) -> &'static str {
+        match self {
+            Self::Jpeg => "image/jpeg",
+            Self::Png => "image/png",
+            Self::Gif => "image/gif",
+            Self::Webp => "image/webp",
+            Self::Avif => "image/avif",
+            Self::Mp4 => "video/mp4",
+            Self::Webm => "video/webm",
         }
     }
-    matches!(resp.bytes().await, Ok(b) if b.len() >= 32)
+
+    fn extension(self) -> &'static str {
+        match self {
+            Self::Jpeg => "jpg",
+            Self::Png => "png",
+            Self::Gif => "gif",
+            Self::Webp => "webp",
+            Self::Avif => "avif",
+            Self::Mp4 => "mp4",
+            Self::Webm => "webm",
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ImageProbe {
+    dimensions: Option<(u32, u32)>,
+    declared_image_mime: bool,
+    content_length: Option<u64>,
+}
+
+fn detect_media_signature(bytes: &[u8]) -> Option<DetectedMedia> {
+    if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
+        return Some(DetectedMedia::Jpeg);
+    }
+    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Some(DetectedMedia::Png);
+    }
+    if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        return Some(DetectedMedia::Gif);
+    }
+    if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        return Some(DetectedMedia::Webp);
+    }
+    if bytes.starts_with(&[0x1a, 0x45, 0xdf, 0xa3]) {
+        return Some(DetectedMedia::Webm);
+    }
+    if bytes.len() >= 12 && &bytes[4..8] == b"ftyp" {
+        let brands = &bytes[8..bytes.len().min(40)];
+        if brands
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .any(|brand| brand == b"avif" || brand == b"avis")
+        {
+            return Some(DetectedMedia::Avif);
+        }
+        if brands.as_chunks::<4>().0.iter().any(|brand| {
+            matches!(
+                brand,
+                b"mif1" | b"msf1" | b"heic" | b"heix" | b"hevc" | b"hevx"
+            )
+        }) {
+            return None;
+        }
+        return Some(DetectedMedia::Mp4);
+    }
+    None
+}
+
+fn image_dimensions_from_prefix(bytes: &[u8], media: DetectedMedia) -> Option<(u32, u32)> {
+    match media {
+        DetectedMedia::Png if bytes.len() >= 24 => Some((
+            u32::from_be_bytes(bytes[16..20].try_into().ok()?),
+            u32::from_be_bytes(bytes[20..24].try_into().ok()?),
+        )),
+        DetectedMedia::Gif if bytes.len() >= 10 => Some((
+            u16::from_le_bytes(bytes[6..8].try_into().ok()?) as u32,
+            u16::from_le_bytes(bytes[8..10].try_into().ok()?) as u32,
+        )),
+        DetectedMedia::Jpeg => jpeg_dimensions(bytes),
+        _ => None,
+    }
+    .filter(|(width, height)| *width > 0 && *height > 0)
+}
+
+fn jpeg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    if !bytes.starts_with(&[0xff, 0xd8]) {
+        return None;
+    }
+    let mut cursor = 2usize;
+    while cursor + 3 < bytes.len() {
+        while cursor < bytes.len() && bytes[cursor] != 0xff {
+            cursor += 1;
+        }
+        while cursor < bytes.len() && bytes[cursor] == 0xff {
+            cursor += 1;
+        }
+        let marker = *bytes.get(cursor)?;
+        cursor += 1;
+        if marker == 0xd8 || marker == 0xd9 || (0xd0..=0xd7).contains(&marker) {
+            continue;
+        }
+        let segment_len =
+            u16::from_be_bytes([*bytes.get(cursor)?, *bytes.get(cursor.checked_add(1)?)?]) as usize;
+        if segment_len < 2 || cursor.checked_add(segment_len)? > bytes.len() {
+            return None;
+        }
+        if matches!(
+            marker,
+            0xc0 | 0xc1
+                | 0xc2
+                | 0xc3
+                | 0xc5
+                | 0xc6
+                | 0xc7
+                | 0xc9
+                | 0xca
+                | 0xcb
+                | 0xcd
+                | 0xce
+                | 0xcf
+        ) && segment_len >= 7
+        {
+            let height = u16::from_be_bytes([bytes[cursor + 3], bytes[cursor + 4]]) as u32;
+            let width = u16::from_be_bytes([bytes[cursor + 5], bytes[cursor + 6]]) as u32;
+            return Some((width, height)).filter(|(width, height)| *width > 0 && *height > 0);
+        }
+        cursor += segment_len;
+    }
+    None
+}
+
+fn normalized_content_type(value: Option<&reqwest::header::HeaderValue>) -> String {
+    value
+        .and_then(|header| header.to_str().ok())
+        .unwrap_or("")
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase()
+}
+
+fn content_type_matches_signature(content_type: &str, media: DetectedMedia) -> bool {
+    if content_type.is_empty()
+        || content_type == "application/octet-stream"
+        || content_type.contains("binary")
+    {
+        return true;
+    }
+    match media {
+        DetectedMedia::Jpeg => matches!(content_type, "image/jpeg" | "image/jpg" | "image/pjpeg"),
+        DetectedMedia::Png => content_type == "image/png",
+        DetectedMedia::Gif => content_type == "image/gif",
+        DetectedMedia::Webp => content_type == "image/webp",
+        DetectedMedia::Avif => content_type == "image/avif",
+        DetectedMedia::Mp4 => matches!(content_type, "video/mp4" | "application/mp4"),
+        DetectedMedia::Webm => content_type == "video/webm",
+    }
+}
+
+fn response_total_length(response: &reqwest::Response) -> Option<u64> {
+    response
+        .headers()
+        .get(reqwest::header::CONTENT_RANGE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.rsplit('/').next())
+        .and_then(|total| total.parse::<u64>().ok())
+        .or_else(|| response.content_length())
+}
+
+pub(crate) fn is_complete_download_response(status: u16, has_content_range: bool) -> bool {
+    status == 200 && !has_content_range
+}
+
+async fn read_response_prefix(
+    response: &mut reqwest::Response,
+    limit: usize,
+) -> Result<Vec<u8>, reqwest::Error> {
+    let mut prefix = Vec::with_capacity(limit);
+    while prefix.len() < limit {
+        let Some(chunk) = response.chunk().await? else {
+            break;
+        };
+        let remaining = limit - prefix.len();
+        prefix.extend_from_slice(&chunk[..chunk.len().min(remaining)]);
+        if chunk.len() >= remaining {
+            break;
+        }
+    }
+    Ok(prefix)
+}
+
+async fn read_response_body_bounded(
+    response: &mut reqwest::Response,
+    limit: u64,
+) -> Result<Vec<u8>, String> {
+    let initial_capacity = response
+        .content_length()
+        .unwrap_or(0)
+        .min(limit)
+        .min(1024 * 1024)
+        .try_into()
+        .unwrap_or(0usize);
+    let mut body = Vec::with_capacity(initial_capacity);
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| "download_failed: network".to_string())?
+    {
+        let next_len = (body.len() as u64).saturating_add(chunk.len() as u64);
+        if next_len > limit {
+            return Err("download_failed: too large".into());
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
+async fn inspect_image_url(client: &reqwest::Client, url: &str) -> Option<ImageProbe> {
+    if !is_gallery_media_url(url) {
+        return None;
+    }
+    let mut response = client
+        .get(url)
+        .header(
+            "Accept",
+            "image/jpeg,image/png,image/webp;q=0.9,image/avif;q=0.8,image/*;q=0.7,*/*;q=0.5",
+        )
+        .header(
+            reqwest::header::RANGE,
+            format!("bytes=0-{}", MAX_IMAGE_PROBE_BYTES - 1),
+        )
+        .send()
+        .await
+        .ok()?;
+    if !matches!(response.status().as_u16(), 200 | 206)
+        || !is_allowed_media_url(response.url().as_str())
+    {
+        return None;
+    }
+    let content_length = response_total_length(&response);
+    if content_length.is_some_and(|length| length > MAX_DOWNLOAD_BYTES) {
+        return None;
+    }
+    let content_type =
+        normalized_content_type(response.headers().get(reqwest::header::CONTENT_TYPE));
+    let prefix = read_response_prefix(&mut response, MAX_IMAGE_PROBE_BYTES)
+        .await
+        .ok()?;
+    if prefix.len() < MIN_IMAGE_PROBE_BYTES {
+        return None;
+    }
+    let media = detect_media_signature(&prefix)?;
+    if !media.is_image() || !content_type_matches_signature(&content_type, media) {
+        return None;
+    }
+    Some(ImageProbe {
+        dimensions: image_dimensions_from_prefix(&prefix, media),
+        declared_image_mime: content_type.starts_with("image/"),
+        content_length,
+    })
+}
+
+/// Probe whether a remote URL is a reachable image (filters broken gallery thumbs).
+pub async fn probe_image_reachable(client: &reqwest::Client, url: &str) -> bool {
+    inspect_image_url(client, url).await.is_some()
+}
+
+fn merge_gallery_item(existing: &mut WallpaperGalleryItem, incoming: WallpaperGalleryItem) {
+    let existing_dimensions_verified = existing
+        .media_quality
+        .as_ref()
+        .is_some_and(|quality| quality.dimensions_verified);
+    let incoming_dimensions_verified = incoming
+        .media_quality
+        .as_ref()
+        .is_some_and(|quality| quality.dimensions_verified);
+    if existing.post_url.is_none() && incoming.post_url.is_some() {
+        existing.post_url = incoming.post_url;
+    }
+    if existing.username.is_none() && incoming.username.is_some() {
+        existing.username = incoming.username;
+    }
+    if existing.text_preview.is_none() && incoming.text_preview.is_some() {
+        existing.text_preview = incoming.text_preview;
+    }
+    if existing.prompt.is_none() && incoming.prompt.is_some() {
+        existing.prompt = incoming.prompt;
+    }
+    existing.likes = match (existing.likes, incoming.likes) {
+        (Some(left), Some(right)) => Some(left.max(right)),
+        (None, value) => value,
+        (value, None) => value,
+    };
+    if existing.status_id.is_none() {
+        existing.status_id = incoming.status_id;
+    }
+    if existing.media_index.is_none() {
+        existing.media_index = incoming.media_index;
+    }
+    let incoming_pixels = incoming
+        .width
+        .zip(incoming.height)
+        .map(|(width, height)| u64::from(width) * u64::from(height));
+    let existing_pixels = existing
+        .width
+        .zip(existing.height)
+        .map(|(width, height)| u64::from(width) * u64::from(height));
+    if (incoming_dimensions_verified && !existing_dimensions_verified)
+        || (incoming_dimensions_verified == existing_dimensions_verified
+            && incoming_pixels > existing_pixels)
+    {
+        existing.width = incoming.width;
+        existing.height = incoming.height;
+    }
+    if let Some(incoming_quality) = incoming.media_quality {
+        if let Some(existing_quality) = existing.media_quality.as_mut() {
+            existing_quality.declared_image_mime |= incoming_quality.declared_image_mime;
+            existing_quality.dimensions_verified |= incoming_quality.dimensions_verified;
+            existing_quality.content_length = match (
+                existing_quality.content_length,
+                incoming_quality.content_length,
+            ) {
+                (Some(left), Some(right)) => Some(left.max(right)),
+                (None, value) => value,
+                (value, None) => value,
+            };
+        } else {
+            existing.media_quality = Some(incoming_quality);
+        }
+    }
+}
+
+fn dedupe_gallery_items(
+    items: Vec<WallpaperGalleryItem>,
+    include_status_media: bool,
+) -> Vec<WallpaperGalleryItem> {
+    let mut out: Vec<WallpaperGalleryItem> = Vec::with_capacity(items.len());
+    for item in items {
+        let media_key = normalized_media_identity(&item.full_url);
+        let status_key = include_status_media
+            .then(|| status_media_identity(&item))
+            .flatten();
+        if let Some(index) = out.iter().position(|existing| {
+            let same_media =
+                media_key.is_some() && normalized_media_identity(&existing.full_url) == media_key;
+            let same_status = status_key.is_some() && status_media_identity(existing) == status_key;
+            same_media || same_status
+        }) {
+            merge_gallery_item(&mut out[index], item);
+        } else {
+            out.push(item);
+        }
+    }
+    out
+}
+
+fn gallery_rank_score(item: &WallpaperGalleryItem) -> i64 {
+    let mut score = 0i64;
+    if let Some(quality) = &item.media_quality {
+        if quality.declared_image_mime {
+            score += 5_000;
+        }
+        if quality.dimensions_verified {
+            score += 1_000;
+        }
+        if quality
+            .content_length
+            .is_some_and(|bytes| bytes >= 128 * 1024)
+        {
+            score += 150;
+        }
+    }
+    if item.post_url.is_some() {
+        score += 1_500;
+    }
+    if let Some((width, height)) = item.width.zip(item.height) {
+        let pixels = u64::from(width) * u64::from(height);
+        score += (pixels / 500_000).min(4_000) as i64;
+        let ratio = width as f64 / height.max(1) as f64;
+        let wallpaper_ratio = [16.0 / 9.0, 9.0 / 16.0, 21.0 / 9.0, 4.0 / 3.0]
+            .into_iter()
+            .any(|target| (ratio - target).abs() <= 0.2);
+        if wallpaper_ratio {
+            score += 750;
+        }
+    }
+    if let Some(likes) = item.likes.filter(|likes| *likes > 0) {
+        score += ((likes as f64 + 1.0).log2() * 60.0).min(900.0) as i64;
+    }
+    if item.prompt.is_some() {
+        score += 100;
+    }
+    if item.text_preview.is_some() {
+        score += 50;
+    }
+    if item.full_url.contains("pbs.twimg.com/media/") {
+        score += 100;
+    }
+    score
+}
+
+pub(crate) fn merge_rank_x_gallery_items(
+    items: Vec<WallpaperGalleryItem>,
+) -> Vec<WallpaperGalleryItem> {
+    let mut items = dedupe_gallery_items(items, true);
+    items.sort_by_key(|item| std::cmp::Reverse(gallery_rank_score(item)));
+    items.truncate(MAX_X_GALLERY_RESULTS);
+    items
+}
+
+pub(crate) fn x_gallery_needs_supplement(valid_count: usize) -> bool {
+    valid_count < MIN_X_GALLERY_RESULTS_BEFORE_SUPPLEMENT
 }
 
 /// Drop items whose fullUrl cannot be fetched as an image.
 pub async fn filter_reachable_gallery_items(
-    items: Vec<WallpaperGalleryItem>,
+    mut items: Vec<WallpaperGalleryItem>,
 ) -> Vec<WallpaperGalleryItem> {
     if items.is_empty() {
         return items;
     }
+    filter_gallery_candidates(&mut items);
+    items = dedupe_gallery_items(items, false);
+    if items.len() > MAX_X_GALLERY_CANDIDATES {
+        items.truncate(MAX_X_GALLERY_CANDIDATES);
+    }
     let Ok(client) = http_client_wallpaper() else {
-        return items;
+        return Vec::new();
     };
     // Bound concurrency
     const CHUNK: usize = 8;
@@ -1180,25 +1681,40 @@ pub async fn filter_reachable_gallery_items(
                 let url = it.full_url.clone();
                 let client = client.clone();
                 async move {
-                    let ok = probe_image_reachable(&client, &url).await;
-                    (ok, it.clone())
+                    let probe = inspect_image_url(&client, &url).await;
+                    (probe, it.clone())
                 }
             })
             .collect();
         let results = futures_util::future::join_all(futs).await;
-        for (ok, it) in results {
-            if ok {
+        for (probe, mut it) in results {
+            if let Some(probe) = probe {
+                if let Some((width, height)) = probe.dimensions {
+                    it.width = Some(width);
+                    it.height = Some(height);
+                }
+                it.kind = "image".into();
+                it.media_quality = Some(WallpaperMediaQuality {
+                    declared_image_mime: probe.declared_image_mime,
+                    dimensions_verified: probe.dimensions.is_some(),
+                    content_length: probe.content_length,
+                });
                 out.push(it);
             } else {
-                tracing::debug!("wallpaper gallery: drop unreachable {}", it.full_url);
+                tracing::debug!("wallpaper gallery: drop unreachable media");
             }
         }
     }
-    out
+    merge_rank_x_gallery_items(out)
 }
 
-/// Sync headless search only (no network probe). Prefer [`x_search_async`].
-pub fn x_search(query: &str, sort: Option<&str>) -> WallpaperSearchResult {
+fn x_search_round(
+    query: &str,
+    sort: Option<&str>,
+    max_search_calls: u32,
+    is_supplement: bool,
+    seen_ids: &[String],
+) -> WallpaperSearchResult {
     let q = query.trim();
     if q.is_empty() {
         return WallpaperSearchResult {
@@ -1237,7 +1753,10 @@ pub fn x_search(query: &str, sort: Option<&str>) -> WallpaperSearchResult {
           "postUrl": { "type": "string" },
           "textPreview": { "type": "string" },
           "likes": { "type": "number" },
-          "kind": { "type": "string" }
+          "kind": { "type": "string" },
+          "width": { "type": "number" },
+          "height": { "type": "number" },
+          "mediaIndex": { "type": "number" }
         },
         "required": ["fullUrl"]
       }
@@ -1246,7 +1765,7 @@ pub fn x_search(query: &str, sort: Option<&str>) -> WallpaperSearchResult {
   "required": ["items"]
 }"#;
 
-    let prompt = build_x_search_prompt(q, sort);
+    let prompt = build_x_search_prompt(q, sort, max_search_calls, is_supplement, seen_ids);
 
     let stdout = match run_grok_headless(&cli, &prompt, schema, 14, X_SEARCH_TIMEOUT, None) {
         Ok(s) => s,
@@ -1271,12 +1790,10 @@ pub fn x_search(query: &str, sort: Option<&str>) -> WallpaperSearchResult {
     };
 
     let mut items = parse_gallery_items(&value, "x");
-    filter_gallery_candidates(&mut items);
 
     if items.is_empty() {
         if let Some(v) = harvest_media_urls_as_items(&stdout) {
             items = parse_gallery_items(&v, "x");
-            filter_gallery_candidates(&mut items);
         }
     }
 
@@ -1295,37 +1812,185 @@ pub fn x_search(query: &str, sort: Option<&str>) -> WallpaperSearchResult {
     }
 }
 
+/// Sync first-round headless search only (no network probe). Prefer
+/// [`x_search_async`] for the complete quality and supplement pipeline.
+pub fn x_search(query: &str, sort: Option<&str>) -> WallpaperSearchResult {
+    x_search_round(query, sort, X_SEARCH_FIRST_ROUND_CALLS, false, &[])
+}
+
+fn extract_media_index_from_status_url(url: &str) -> Option<u8> {
+    let parsed = url::Url::parse(url.trim()).ok()?;
+    if !is_canonical_x_status_url(url) {
+        return None;
+    }
+    let segments: Vec<&str> = parsed
+        .path_segments()?
+        .filter(|part| !part.is_empty())
+        .collect();
+    let status_pos = segments.iter().position(|part| {
+        part.eq_ignore_ascii_case("status") || part.eq_ignore_ascii_case("statuses")
+    })?;
+    let media_kind = segments.get(status_pos + 2)?;
+    if !media_kind.eq_ignore_ascii_case("photo") && !media_kind.eq_ignore_ascii_case("video") {
+        return None;
+    }
+    segments
+        .get(status_pos + 3)?
+        .parse::<u8>()
+        .ok()
+        .filter(|index| (1..=4).contains(index))
+}
+
+fn normalized_media_identity(url: &str) -> Option<String> {
+    if !is_allowed_media_url(url) {
+        return None;
+    }
+    let parsed = url::Url::parse(url.trim()).ok()?;
+    let host = parsed.host_str()?.to_ascii_lowercase();
+    let path = parsed.path();
+    if host == "pbs.twimg.com" {
+        let media = path.strip_prefix("/media/")?.split('/').next()?;
+        let media = [":thumb", ":small", ":medium", ":large", ":orig"]
+            .iter()
+            .find_map(|suffix| media.strip_suffix(suffix))
+            .unwrap_or(media);
+        let media = [".jpeg", ".jpg", ".png", ".webp", ".gif", ".avif"]
+            .iter()
+            .find_map(|suffix| media.strip_suffix(suffix))
+            .unwrap_or(media);
+        if !media.is_empty() {
+            return Some(format!("twimg:{media}"));
+        }
+    }
+    Some(format!("cdn:{host}{path}"))
+}
+
+fn status_media_identity(item: &WallpaperGalleryItem) -> Option<String> {
+    Some(format!(
+        "status:{}:{}",
+        item.status_id.as_deref()?,
+        item.media_index?
+    ))
+}
+
+pub(crate) fn x_gallery_reference_ids(items: &[WallpaperGalleryItem]) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    let mut ids = Vec::new();
+    for item in items {
+        for value in [
+            normalized_media_identity(&item.full_url),
+            item.status_id.as_ref().map(|id| format!("status:{id}")),
+            status_media_identity(item),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if seen.insert(value.clone()) {
+                ids.push(value);
+            }
+            if ids.len() >= 48 {
+                return ids;
+            }
+        }
+    }
+    ids
+}
+
 /// Headless X search + drop unreachable media URLs before returning to UI.
 pub async fn x_search_async(query: &str, sort: Option<&str>) -> WallpaperSearchResult {
-    let query = query.to_string();
-    let sort = sort.map(|s| s.to_string());
-    let mut result =
-        match tauri::async_runtime::spawn_blocking(move || x_search(&query, sort.as_deref())).await
-        {
-            Ok(r) => r,
-            Err(e) => {
-                return WallpaperSearchResult {
+    x_search_cli_outcome(query, sort).await.result
+}
+
+pub(crate) async fn x_search_cli_outcome(
+    query: &str,
+    sort: Option<&str>,
+) -> WallpaperCliSearchOutcome {
+    let first_query = query.to_string();
+    let first_sort = sort.map(str::to_string);
+    let mut result = match tauri::async_runtime::spawn_blocking(move || {
+        x_search_round(
+            &first_query,
+            first_sort.as_deref(),
+            X_SEARCH_FIRST_ROUND_CALLS,
+            false,
+            &[],
+        )
+    })
+    .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            return WallpaperCliSearchOutcome {
+                result: WallpaperSearchResult {
                     items: vec![],
                     error_code: Some("search_failed".into()),
                     message: Some(format!("join: {e}")),
-                };
+                },
+                candidate_count: 0,
+                valid_count: 0,
+            };
+        }
+    };
+
+    let mut candidate_count = result.items.len();
+    if result
+        .error_code
+        .as_deref()
+        .is_some_and(|code| code != "empty")
+    {
+        return WallpaperCliSearchOutcome {
+            result,
+            candidate_count,
+            valid_count: 0,
+        };
+    }
+
+    let seen_ids = x_gallery_reference_ids(&result.items);
+    let mut filtered = filter_reachable_gallery_items(std::mem::take(&mut result.items)).await;
+    if x_gallery_needs_supplement(filtered.len()) {
+        let supplement_query = query.to_string();
+        let supplement_sort = sort.map(str::to_string);
+        let supplement_seen = seen_ids;
+        if let Ok(supplement) = tauri::async_runtime::spawn_blocking(move || {
+            x_search_round(
+                &supplement_query,
+                supplement_sort.as_deref(),
+                X_SEARCH_SUPPLEMENT_CALLS,
+                true,
+                &supplement_seen,
+            )
+        })
+        .await
+        {
+            candidate_count = candidate_count.saturating_add(supplement.items.len());
+            if supplement.error_code.is_none() || supplement.error_code.as_deref() == Some("empty")
+            {
+                let supplement_items = filter_reachable_gallery_items(supplement.items).await;
+                filtered.extend(supplement_items);
+                filtered = merge_rank_x_gallery_items(filtered);
             }
-        };
-
-    if result.error_code.is_some() || result.items.is_empty() {
-        return result;
+        }
     }
-
-    let filtered = filter_reachable_gallery_items(result.items).await;
     if filtered.is_empty() {
-        return WallpaperSearchResult {
-            items: vec![],
-            error_code: Some("empty".into()),
-            message: Some("no downloadable images".into()),
+        return WallpaperCliSearchOutcome {
+            result: WallpaperSearchResult {
+                items: vec![],
+                error_code: Some("empty".into()),
+                message: Some("no downloadable images".into()),
+            },
+            candidate_count,
+            valid_count: 0,
         };
     }
+    result.error_code = None;
+    result.message = None;
     result.items = filtered;
-    result
+    let valid_count = result.items.len();
+    WallpaperCliSearchOutcome {
+        result,
+        candidate_count,
+        valid_count,
+    }
 }
 
 pub async fn fetch_media(url: &str, source: Option<&str>) -> Result<WallpaperFetchResult, String> {
@@ -1344,7 +2009,7 @@ pub async fn fetch_media(url: &str, source: Option<&str>) -> Result<WallpaperFet
     let client = proxy::apply_to_reqwest(
         reqwest::Client::builder()
             .timeout(Duration::from_secs(60))
-            .redirect(reqwest::redirect::Policy::limited(6))
+            .redirect(media_redirect_policy())
             .user_agent(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             ),
@@ -1352,50 +2017,42 @@ pub async fn fetch_media(url: &str, source: Option<&str>) -> Result<WallpaperFet
     .build()
     .map_err(|e| format!("http client: {e}"))?;
 
-    let resp = client
+    let mut resp = client
         .get(&normalized)
-        .header("Accept", "image/avif,image/webp,image/*,*/*;q=0.8")
+        .header("Accept", "image/avif,image/webp,image/*,video/*,*/*;q=0.8")
         .send()
         .await
-        .map_err(|e| format!("download_failed: {e}"))?;
+        .map_err(|_| "download_failed: network".to_string())?;
 
-    if !resp.status().is_success() {
+    if !is_complete_download_response(
+        resp.status().as_u16(),
+        resp.headers().contains_key(reqwest::header::CONTENT_RANGE),
+    ) || !is_allowed_media_url(resp.url().as_str())
+    {
         return Err(format!("download_failed: HTTP {}", resp.status()));
     }
-
-    let mime = resp
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("application/octet-stream")
-        .split(';')
-        .next()
-        .unwrap_or("application/octet-stream")
-        .trim()
-        .to_string();
-
-    let mime_l = mime.to_ascii_lowercase();
-    if mime_l.starts_with("text/") || mime_l.contains("html") || mime_l.contains("json") {
-        return Err("download_failed: not an image".into());
+    if response_total_length(&resp).is_some_and(|length| length > MAX_DOWNLOAD_BYTES) {
+        return Err("download_failed: too large".into());
     }
 
-    let bytes = resp
-        .bytes()
-        .await
-        .map_err(|e| format!("download_failed: {e}"))?;
+    let content_type = normalized_content_type(resp.headers().get(reqwest::header::CONTENT_TYPE));
+    let bytes = read_response_body_bounded(&mut resp, MAX_DOWNLOAD_BYTES).await?;
     if bytes.is_empty() {
         return Err("download_failed: empty body".into());
-    }
-    if bytes.len() as u64 > MAX_DOWNLOAD_BYTES {
-        return Err("download_failed: too large".into());
     }
     // Reject tiny broken payloads
     if bytes.len() < 64 {
         return Err("download_failed: too small".into());
     }
+    let media = detect_media_signature(&bytes)
+        .filter(|media| content_type_matches_signature(&content_type, *media))
+        .ok_or_else(|| "download_failed: invalid media signature".to_string())?;
 
-    let src = source.unwrap_or("x");
-    let ext = ext_from_mime_or_url(&mime, &normalized);
+    let src = match source {
+        Some("imagine") => "imagine",
+        _ => "x",
+    };
+    let ext = media.extension();
     let name = format!(
         "{}-{}.{}",
         chrono::Local::now().format("%H%M%S"),
@@ -1409,11 +2066,7 @@ pub async fn fetch_media(url: &str, source: Option<&str>) -> Result<WallpaperFet
 
     Ok(WallpaperFetchResult {
         path: path.display().to_string(),
-        mime: if mime == "application/octet-stream" {
-            mime_from_ext(&ext).to_string()
-        } else {
-            mime
-        },
+        mime: media.mime().to_string(),
         bytes: bytes.len() as u64,
         name,
     })
@@ -1643,6 +2296,9 @@ fn scan_dir_as_gallery(
             likes: None,
             local_path: Some(path_str),
             prompt: prompt.map(|s| s.to_string()),
+            status_id: None,
+            media_index: None,
+            media_quality: None,
         });
     }
     out
@@ -1915,18 +2571,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn allowlist_twimg() {
-        assert!(is_allowed_media_url(
-            "https://pbs.twimg.com/media/HOUbJsYaEAAaEQ6.jpg"
-        ));
-        assert!(is_allowed_media_url(
-            "https://pbs.twimg.com/media/foo?format=jpg&name=small"
-        ));
-        assert!(!is_allowed_media_url("https://evil.example/a.jpg"));
-        assert!(!is_allowed_media_url("file:///etc/passwd"));
-    }
-
-    #[test]
     fn media_urls_require_https_without_credentials_or_nonstandard_ports() {
         for raw in [
             "http://pbs.twimg.com/media/a.jpg",
@@ -1971,6 +2615,55 @@ mod tests {
     }
 
     #[test]
+    fn full_download_rejects_partial_and_non_success_responses() {
+        assert!(is_complete_download_response(200, false));
+        assert!(!is_complete_download_response(200, true));
+        assert!(!is_complete_download_response(206, true));
+        assert!(!is_complete_download_response(204, false));
+    }
+
+    #[test]
+    fn allowlist_twimg() {
+        assert!(is_allowed_media_url(
+            "https://pbs.twimg.com/media/HOUbJsYaEAAaEQ6.jpg"
+        ));
+        assert!(is_allowed_media_url(
+            "https://pbs.twimg.com/media/foo?format=jpg&name=small"
+        ));
+        assert!(!is_allowed_media_url(
+            "http://pbs.twimg.com/media/insecure.jpg"
+        ));
+        assert!(!is_allowed_media_url(
+            "https://pbs.twimg.com:8443/media/wrong-port.jpg"
+        ));
+        assert!(!is_allowed_media_url(
+            "https://user@pbs.twimg.com/media/credentials.jpg"
+        ));
+        assert!(!is_allowed_media_url("https://evil.example/a.jpg"));
+        assert!(!is_allowed_media_url("file:///etc/passwd"));
+    }
+
+    #[test]
+    fn media_redirects_revalidate_every_hop() {
+        assert!(should_follow_media_redirect(
+            &url::Url::parse("https://pbs.twimg.com/media/a.jpg").unwrap(),
+            0
+        ));
+        assert!(!should_follow_media_redirect(
+            &url::Url::parse("https://evil.example/a.jpg").unwrap(),
+            0
+        ));
+        assert!(!should_follow_media_redirect(
+            &url::Url::parse("http://pbs.twimg.com/media/a.jpg").unwrap(),
+            0
+        ));
+        assert!(!should_follow_media_redirect(
+            &url::Url::parse("https://pbs.twimg.com/media/a.jpg").unwrap(),
+            6
+        ));
+    }
+
+    #[test]
     fn gallery_rejects_avatars_and_placeholders() {
         assert!(is_gallery_media_url(
             "https://pbs.twimg.com/media/HOUbJsYaEAAaEQ6.jpg"
@@ -1987,9 +2680,12 @@ mod tests {
     #[test]
     fn normalize_twimg_name_orig() {
         let u = normalize_media_url(
-            "https://pbs.twimg.com/media/HOUbJsYaEAAaEQ6.jpg?format=jpg&name=small",
+            "https://pbs.twimg.com/media/HOUbJsYaEAAaEQ6.jpg?utm_source=x&name=small&format=jpg#fragment",
         );
         assert!(u.contains("name=orig"), "{u}");
+        assert!(u.contains("format=jpg"), "{u}");
+        assert!(!u.contains("utm_source"), "{u}");
+        assert!(!u.contains("fragment"), "{u}");
     }
 
     #[test]
@@ -2021,17 +2717,163 @@ mod tests {
     }
 
     #[test]
-    fn parse_dedupes_urls() {
+    fn shared_pipeline_dedupes_cdn_variants_and_merges_metadata() {
         let v = json!({
             "items": [
-                { "fullUrl": "https://pbs.twimg.com/media/a.jpg" },
-                { "fullUrl": "https://pbs.twimg.com/media/a.jpg" },
+                { "fullUrl": "https://pbs.twimg.com/media/a.jpg?name=small" },
+                {
+                    "fullUrl": "https://pbs.twimg.com/media/a?format=jpg&name=large",
+                    "postUrl": "https://x.com/alice/status/1234567890123456789/photo/1",
+                    "likes": 42
+                },
                 { "fullUrl": "https://pbs.twimg.com/media/b.jpg", "username": "u" }
             ]
         });
         let items = parse_gallery_items(&v, "x");
+        assert_eq!(
+            items.len(),
+            2,
+            "parsing merges duplicate media with their metadata"
+        );
+        let items = merge_rank_x_gallery_items(items);
         assert_eq!(items.len(), 2);
-        assert_eq!(items[1].username.as_deref(), Some("u"));
+        let merged = items
+            .iter()
+            .find(|item| normalized_media_identity(&item.full_url).as_deref() == Some("twimg:a"))
+            .expect("merged media");
+        assert_eq!(merged.likes, Some(42));
+        assert_eq!(merged.status_id.as_deref(), Some("1234567890123456789"));
+        assert_eq!(merged.media_index, Some(1));
+    }
+
+    #[test]
+    fn shared_pipeline_dedupes_status_media_position_without_collapsing_siblings() {
+        let v = json!({
+            "items": [
+                {
+                    "fullUrl": "https://pbs.twimg.com/media/a.jpg",
+                    "postUrl": "https://x.com/alice/status/1234567890123456789/photo/1"
+                },
+                {
+                    "fullUrl": "https://cdn.grok.com/render/alternate-a.png",
+                    "postUrl": "https://twitter.com/alice/status/1234567890123456789/photo/1"
+                },
+                {
+                    "fullUrl": "https://pbs.twimg.com/media/b.jpg",
+                    "postUrl": "https://x.com/alice/status/1234567890123456789/photo/2"
+                }
+            ]
+        });
+        let items = merge_rank_x_gallery_items(parse_gallery_items(&v, "x"));
+        assert_eq!(items.len(), 2);
+        assert!(items.iter().any(|item| item.media_index == Some(1)));
+        assert!(items.iter().any(|item| item.media_index == Some(2)));
+    }
+
+    #[test]
+    fn media_signature_and_dimensions_reject_disguised_text() {
+        let mut png = vec![0u8; 32];
+        png[..8].copy_from_slice(b"\x89PNG\r\n\x1a\n");
+        png[16..20].copy_from_slice(&3840u32.to_be_bytes());
+        png[20..24].copy_from_slice(&2160u32.to_be_bytes());
+        let media = detect_media_signature(&png).expect("png signature");
+        assert_eq!(media, DetectedMedia::Png);
+        assert_eq!(
+            image_dimensions_from_prefix(&png, media),
+            Some((3840, 2160))
+        );
+        assert!(content_type_matches_signature("image/png", media));
+        assert!(content_type_matches_signature(
+            "application/octet-stream",
+            media
+        ));
+        assert!(!content_type_matches_signature("text/html", media));
+        assert_eq!(detect_media_signature(b"<html>not an image</html>"), None);
+    }
+
+    #[test]
+    fn iso_image_brands_do_not_label_heic_as_avif_or_video() {
+        assert_eq!(
+            detect_media_signature(b"\0\0\0\x18ftypavif\0\0\0\0mif1"),
+            Some(DetectedMedia::Avif)
+        );
+        assert_eq!(
+            detect_media_signature(b"\0\0\0\x18ftypmif1\0\0\0\0avif"),
+            Some(DetectedMedia::Avif)
+        );
+        assert_eq!(
+            detect_media_signature(b"\0\0\0\x18ftypheic\0\0\0\0mif1"),
+            None
+        );
+        assert_eq!(
+            detect_media_signature(b"\0\0\0\x18ftypmif1\0\0\0\0xxxx"),
+            None
+        );
+        assert_eq!(
+            detect_media_signature(b"\0\0\0\x18ftypisom\0\0\0\0mp42"),
+            Some(DetectedMedia::Mp4)
+        );
+    }
+
+    #[test]
+    fn supplement_threshold_and_reference_ids_are_deterministic() {
+        assert!(x_gallery_needs_supplement(5));
+        assert!(!x_gallery_needs_supplement(6));
+        let items = parse_gallery_items(
+            &json!({
+                "items": [{
+                    "fullUrl": "https://pbs.twimg.com/media/opaqueABC.jpg",
+                    "postUrl": "https://x.com/i/status/1234567890123456789/photo/3"
+                }]
+            }),
+            "x",
+        );
+        assert_eq!(
+            x_gallery_reference_ids(&items),
+            vec![
+                "twimg:opaqueABC",
+                "status:1234567890123456789",
+                "status:1234567890123456789:3"
+            ]
+        );
+    }
+
+    #[test]
+    fn shared_ranking_prefers_verified_wallpaper_quality_and_keeps_evidence_private() {
+        let mut items = parse_gallery_items(
+            &json!({
+                "items": [
+                    { "fullUrl": "https://pbs.twimg.com/media/low.jpg" },
+                    {
+                        "fullUrl": "https://pbs.twimg.com/media/high.jpg",
+                        "postUrl": "https://x.com/alice/status/1234567890123456789/photo/1",
+                        "likes": 500
+                    }
+                ]
+            }),
+            "x",
+        );
+        items[0].width = Some(800);
+        items[0].height = Some(600);
+        items[0].media_quality = Some(WallpaperMediaQuality {
+            declared_image_mime: false,
+            dimensions_verified: true,
+            content_length: Some(64 * 1024),
+        });
+        items[1].width = Some(3840);
+        items[1].height = Some(2160);
+        items[1].media_quality = Some(WallpaperMediaQuality {
+            declared_image_mime: true,
+            dimensions_verified: true,
+            content_length: Some(2 * 1024 * 1024),
+        });
+
+        let ranked = merge_rank_x_gallery_items(items);
+        assert!(ranked[0].full_url.contains("high.jpg"));
+        let serialized = serde_json::to_value(&ranked[0]).expect("serialize gallery item");
+        assert!(serialized.get("statusId").is_none());
+        assert!(serialized.get("mediaIndex").is_none());
+        assert!(serialized.get("mediaQuality").is_none());
     }
 
     /// Real headless `grok -p --output-format json` shape (2026-07-28 probe).
