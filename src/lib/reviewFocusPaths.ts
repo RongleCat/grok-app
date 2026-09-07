@@ -62,3 +62,31 @@ export function reviewEntryCoversPath(
   if (wantBase && (fr === wantBase || fr.endsWith("/" + wantBase))) return true;
   return false;
 }
+
+/**
+ * scrollTop so `childTop` aligns with the container's visible top.
+ * Pure — apply only on the Review stack scroller. Never use
+ * Element.scrollIntoView: it walks ancestor overflow and can hide the
+ * mac Overlay custom titlebar under traffic lights (#1041).
+ */
+export function scrollTopToAlignChildStart(
+  containerScrollTop: number,
+  containerTop: number,
+  childTop: number,
+): number {
+  return Math.max(0, containerScrollTop + (childTop - containerTop));
+}
+
+/** Align `child` to the top of `container` without touching ancestors. */
+export function scrollChildToContainerStart(
+  container: HTMLElement,
+  child: HTMLElement,
+): void {
+  const cRect = container.getBoundingClientRect();
+  const eRect = child.getBoundingClientRect();
+  container.scrollTop = scrollTopToAlignChildStart(
+    container.scrollTop,
+    cRect.top,
+    eRect.top,
+  );
+}

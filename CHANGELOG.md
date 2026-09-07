@@ -13,6 +13,14 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- Opening a file in Review no longer scrolls the macOS title bar under the traffic lights (#1041).
+- The Advanced context-window Save control stays fully clickable instead of clipped (#1047).
+
+**中文 · 修复**
+- 在 Review 中打开文件时，macOS 自定义标题栏不再被滚到红绿灯下面（#1041）。
+- Advanced 里上下文窗口的「保存」按钮不再被裁成窄缝，可以正常点到（#1047）。
+
 ### Added
 - Ctrl+Tab jumps back to the last chat you used. Hold Ctrl and tap Tab to cycle further; Ctrl+Shift+Tab goes the other way.
 

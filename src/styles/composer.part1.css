@@ -190,6 +190,12 @@
     8px 10px 22px color-mix(in srgb, #000 16%, transparent);
 }
 
+/* Context-window editor: keep input + Save on one readable row. */
+.cmm__pop.cmm__pop--portal.cmm__pop--flyout[data-kind="window"] {
+  min-width: 220px;
+  max-width: 280px;
+}
+
 .cmm__pop.cmm__pop--portal.cmm__pop--flyout[data-side="left"] {
   animation-name: cmm-fly-in-left;
   box-shadow:
@@ -580,39 +586,67 @@
   -webkit-appearance: none;
 }
 
+.cmm__window-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 6px 6px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.cmm__window-edit__label {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  padding: 0 2px;
+}
+
 .cmm__inline-edit {
   display: flex;
-  gap: 6px;
-  align-items: center;
-  padding: 6px 10px;
+  gap: 8px;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .cmm__inline-edit input {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  padding: 4px 8px;
+  min-height: 32px;
+  padding: 6px 10px;
   font-size: 13px;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: 8px;
   color: inherit;
   outline: none;
+  box-sizing: border-box;
 }
 .cmm__inline-edit input:focus {
   border-color: var(--border-focus, var(--accent, #6b8cff));
 }
 .cmm__inline-save {
-  flex-shrink: 0;
-  padding: 4px 10px;
+  flex: 0 0 auto;
+  min-width: 52px;
+  min-height: 32px;
+  padding: 6px 12px;
   font-size: 13px;
+  font-weight: 550;
+  line-height: 1;
   background: var(--accent, #6b8cff);
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
+  white-space: nowrap;
 }
 .cmm__inline-save:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+.cmm__inline-save:hover:not(:disabled) {
+  filter: brightness(1.06);
 }
 
 

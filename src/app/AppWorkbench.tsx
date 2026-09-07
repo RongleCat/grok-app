@@ -16,16 +16,13 @@ import { useFloatingMenu } from "@/lib/floatingMenu";
 import { restoreSessionGate } from "@/lib/sessionGateRestore";
 import { DEFAULT_WALLPAPER_FOCUS } from "@/lib/themeSkin";
 import { formatRelativeTime } from "@/lib/accountUi";
-import {
-  canFetchOfficialQuota,
-  mergeAccountStatusPreservingLocalUsage,
-} from "@/lib/accountQuotaRefresh";
 import { loadConfirmExternalLinksPref } from "@/lib/externalLinkPref";
 import {
   chatcutHandoffToResourceOpenTarget,
   resolveChatcutLinkClick,
 } from "@/lib/chatcutHandoff";
 import { loadStopAllSkipConfirmPref } from "@/lib/stopAllSkipConfirmPref";
+
 import {
   planStopAllBusySessions,
   stopAllDialogKeys,
@@ -119,7 +116,6 @@ import {
   type ContextUsageState,
 } from "@/lib/contextUsage";
 import {
-  applyPlanPendingMembership,
   closedSessionPlan,
   emptySessionPlan,
   invalidatePlanGate,
@@ -133,7 +129,7 @@ import {
   countQuitBlockingSessions,
   stoppableActivitySessions,
 } from "@/lib/agentActivity";
-import { resolveTrayBusyBadgeCount } from "@/lib/trayNotifyPro";
+
 import {
   collectAgentDashboardRows,
   countBusyDashboardRows,
@@ -298,26 +294,10 @@ import {
   VOICE_HOTKEY_STORAGE_KEY,
 } from "@/lib/voiceHotkeyPref";
 import {
-  ensureNotifyPermission,
   listenForNativeNotifyClicks,
   setDesktopNotifySessionFocusHandler,
 } from "@/lib/desktopNotify";
-import {
-  clearAllMutes as clearAllSessionMutes,
-  loadMutedSessionIds,
-  SESSION_MUTE_CHANGE_EVENT,
-  shouldConfirmClearAllMutes,
-  toggle as toggleSessionMute,
-} from "@/lib/sessionMute";
-import {
-  clearAllUnread as clearAllSessionUnread,
-  clearUnread as clearSessionUnread,
-  isWorkbenchForeground,
-  loadUnreadSessionIds,
-  markUnread as markSessionUnread,
-  SESSION_UNREAD_CHANGE_EVENT,
-  shouldConfirmClearAllUnread,
-} from "@/lib/sessionUnread";
+
 import {
   clearNote as clearSessionNote,
   getNote as getSessionNote,
@@ -603,16 +583,12 @@ import {
   preferPermissionFocus,
   trapTabKey,
 } from "@/lib/a11yFocus";
-import {
-  quotaFromHostItem,
-  type SwitcherQuota,
-} from "@/lib/accountSwitcherQuota";
+
 import {
   type SettingsSectionId,
 } from "@/components/SettingsPage";
 import { isSettingsSectionId } from "@/lib/settingsCatalog";
 import {
-  isAccountConnected,
   loadCachedSuperGrokBrand,
   resolveWelcomeBrandKind,
   saveCachedSuperGrokBrand,
@@ -651,6 +627,10 @@ import { useSidebarProjectReorder } from "@/hooks/useSidebarProjectReorder";
 import { useSessionMoveProject } from "@/hooks/useSessionMoveProject";
 import { useSidebarSessionMoveDrag } from "@/hooks/useSidebarSessionMoveDrag";
 import {
+  createSessionChromeBadgesHost,
+  useSessionChromeBadges,
+} from "@/hooks/useSessionChromeBadges";
+import {
   createSideWorkbenchChromeHost,
   useSideWorkbenchChrome,
 } from "@/hooks/useSideWorkbenchChrome";
@@ -677,7 +657,15 @@ import { useAppDialogs } from "@/hooks/useAppDialogs";
 import { useSessionHostEvents } from "@/hooks/useSessionHostEvents";
 import { useSessionSpend } from "@/hooks/useSessionSpend";
 import { useGhostStreamingHeal } from "@/hooks/useGhostStreamingHeal";
-import { useAccountQuotaAutoRefresh } from "@/hooks/useAccountQuotaAutoRefresh";
+import {
+  createAccountQuotaChromeHost,
+  useAccountQuotaChrome,
+} from "@/hooks/useAccountQuotaChrome";
+import {
+  createMcpDoctorChromeHost,
+  useMcpDoctorChrome,
+} from "@/hooks/useMcpDoctorChrome";
+import { useSetupBootGate } from "@/hooks/useSetupBootGate";
 import { useWorkbenchDisplayPrefs } from "@/hooks/useWorkbenchDisplayPrefs";
 import { useWorkbenchLayout } from "@/hooks/useWorkbenchLayout";
 import { useSettingsNavigation } from "@/hooks/useSettingsNavigation";
@@ -798,84 +786,6 @@ export function AppWorkbench() {
         /* non-Tauri / server down */
       });
   }, []);
-  /** Per-session desktop notification mute (localStorage Set). */
-  const [mutedSessionIds, setMutedSessionIds] = useState<Set<string>>(
-    () => loadMutedSessionIds(),
-  );
-  useEffect(() => {
-    const onChange = () => setMutedSessionIds(loadMutedSessionIds());
-    window.addEventListener(SESSION_MUTE_CHANGE_EVENT, onChange);
-    return () => window.removeEventListener(SESSION_MUTE_CHANGE_EVENT, onChange);
-  }, []);
-  /**
-   * Sessions that finished a turn while not viewed (localStorage Set).
-   * Independent of mute — muted chats still show the sidebar unread dot.
-   */
-  const [unreadSessionIds, setUnreadSessionIds] = useState<Set<string>>(
-    () => loadUnreadSessionIds(),
-  );
-  useEffect(() => {
-    const onChange = () => setUnreadSessionIds(loadUnreadSessionIds());
-    window.addEventListener(SESSION_UNREAD_CHANGE_EVENT, onChange);
-    return () =>
-      window.removeEventListener(SESSION_UNREAD_CHANGE_EVENT, onChange);
-  }, []);
-  /**
-   * Clear one session's unread marker and sync React state immediately so
-   * sidebar dots + dock/tray badge count drop without waiting solely on the
-   * storage CustomEvent (open / focus / mark-as-read paths share this).
-   */
-  const applyClearSessionUnread = useCallback(
-    (sessionId: string | null | undefined) => {
-      const id = typeof sessionId === "string" ? sessionId.trim() : "";
-      if (!id) return;
-      clearSessionUnread(id);
-      setUnreadSessionIds((prev) => {
-        if (!prev.has(id)) return prev;
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    },
-    [],
-  );
-  /**
-   * Manual "mark as unread" while the chat is still open: hold the badge until
-   * the user leaves and re-opens the thread (auto clear-on-view still applies).
-   */
-  const manualUnreadHoldIdsRef = useRef<Set<string>>(new Set());
-  const applyMarkSessionUnread = useCallback(
-    (sessionId: string | null | undefined) => {
-      const id = typeof sessionId === "string" ? sessionId.trim() : "";
-      if (!id) return;
-      markSessionUnread(id);
-      setUnreadSessionIds((prev) => {
-        if (prev.has(id)) return prev;
-        const next = new Set(prev);
-        next.add(id);
-        return next;
-      });
-      if (viewingSessionIdRef.current === id) {
-        manualUnreadHoldIdsRef.current.add(id);
-      }
-    },
-    [],
-  );
-  /**
-   * Sessions with an open plan review gate (or restored re-park wait).
-   * Sidebar badge only — does not change open/busy/select interactions.
-   */
-  const [planPendingSessionIds, setPlanPendingSessionIds] = useState<
-    Set<string>
-  >(() => new Set());
-  const markPlanPendingBadge = useCallback(
-    (sessionId: string | null | undefined, plan: SessionPlanState) => {
-      setPlanPendingSessionIds((prev) =>
-        applyPlanPendingMembership(prev, sessionId, plan),
-      );
-    },
-    [],
-  );
   const {
     appDialog,
     setAppDialog,
@@ -1037,6 +947,25 @@ export function AppWorkbench() {
     effectiveCanStop,
     transcriptMeta,
   } = useSessionRuntime({ isSecondaryWindow });
+  const sessionChromeBadgesHostRef = useRef(createSessionChromeBadgesHost());
+  const {
+    mutedSessionIds,
+    unreadSessionIds,
+    planPendingSessionIds,
+    applyClearSessionUnread,
+    markPlanPendingBadge,
+    handleToggleSessionMute,
+    handleClearSessionUnread,
+    handleMarkSessionUnread,
+    handleClearAllSessionUnread,
+    handleClearAllSessionMutes,
+  } = useSessionChromeBadges({
+    hostRef: sessionChromeBadgesHostRef,
+    viewedSessionId: session.sessionId,
+    isSecondaryWindow,
+    trayBusyBadge,
+    winTaskbarOverlay,
+  });
 
   /** Context usage chip — known tokens from compact events + estimate fallback. */
   const [contextUsage, setContextUsage] = useState<ContextUsageState>(
@@ -1200,16 +1129,6 @@ export function AppWorkbench() {
   >(async () => false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showUsageLimitModal, setShowUsageLimitModal] = useState(false);
-  const [showMcpModal, setShowMcpModal] = useState(false);
-  const [mcpServers, setMcpServers] = useState<api.McpDto[]>([]);
-  const [mcpError, setMcpError] = useState<string | null>(null);
-  const [mcpLoading, setMcpLoading] = useState(false);
-  /** MCP doctor report (coexists with inspect list; host `mcp_doctor`). */
-  const [mcpDoctorReport, setMcpDoctorReport] =
-    useState<api.McpDoctorReport | null>(null);
-  const [mcpDoctorError, setMcpDoctorError] = useState<string | null>(null);
-  const [mcpDoctorLoading, setMcpDoctorLoading] = useState(false);
-  const [mcpDoctorFocus, setMcpDoctorFocus] = useState<string | null>(null);
   /** Last user message open in inline edit (not main composer). */
   const [editingUserMessageId, setEditingUserMessageId] = useState<
     string | null
@@ -1246,6 +1165,24 @@ export function AppWorkbench() {
     sessions,
   });
   const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const mcpDoctorHostRef = useRef(createMcpDoctorChromeHost());
+  const {
+    showMcpModal,
+    setShowMcpModal,
+    mcpServers,
+    mcpError,
+    mcpLoading,
+    mcpDoctorReport,
+    mcpDoctorError,
+    mcpDoctorLoading,
+    mcpDoctorFocus,
+    refreshMcpModal,
+    openMcpModal,
+    runMcpDoctor,
+  } = useMcpDoctorChrome({
+    hostRef: mcpDoctorHostRef,
+    projectPath: activeProject?.path ?? null,
+  });
   const bottomTerminal = useBottomTerminal(activeProject?.id);
   const [bottomTerminalMounted, setBottomTerminalMounted] = useState(false);
   useEffect(() => {
@@ -1586,24 +1523,20 @@ export function AppWorkbench() {
     return () => document.removeEventListener("keydown", onKey, true);
   }, []);
 
-  /** First-run gate: loading → setup wizard → ready (home). Mirror forces ready. */
-  const [appGate, setAppGate] = useState<"loading" | "setup" | "ready">(() => {
-    if (typeof window === "undefined") return "loading";
-    if (isMirrorClient()) return "ready";
-    // Vite HMR / host heartbeats used to remount this splash forever in `tauri dev`.
-    if (import.meta.env.DEV) return "ready";
-    return "loading";
-  });
-  /** Boot probe hung / timed out — show retry on the loading gate. */
-  const [bootDetectTimedOut, setBootDetectTimedOut] = useState(false);
-  const [bootDetectSlow, setBootDetectSlow] = useState(false);
-  const [bootRetryNonce, setBootRetryNonce] = useState(0);
-  // Ask once for notification permission after first ready.
-  useEffect(() => {
-    if (appGate !== "ready") return;
-    void ensureNotifyPermission();
-  }, [appGate]);
-  const [setupCliSeed, setSetupCliSeed] = useState<SetupCliInfo | null>(null);
+  const {
+    appGate,
+    setAppGate,
+    bootDetectTimedOut,
+    setBootDetectTimedOut,
+    bootDetectSlow,
+    setBootDetectSlow,
+    bootRetryNonce,
+    setupCliSeed,
+    setSetupCliSeed,
+    setSetup,
+    retryBootDetect,
+    skipToSetup,
+  } = useSetupBootGate();
   const [showDoctor, setShowDoctor] = useState(false);
   const [showTraces, setShowTraces] = useState(false);
   /** Local plan review archive (approved / abandoned / completed). */
@@ -1667,11 +1600,6 @@ export function AppWorkbench() {
   }, [appGate]);
   /** In-conversation find (Cmd/Ctrl+F) — not the palette/session search. */
   const [showChatFind, setShowChatFind] = useState(false);
-  const [savedAccounts, setSavedAccounts] = useState<api.SavedAccount[]>([]);
-  const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
-  const [accountQuotas, setAccountQuotas] = useState<
-    Record<string, SwitcherQuota>
-  >({});
   const [perm, setPerm] = useState<PermissionPayload | null>(null);
   const permBarRef = useRef<HTMLDivElement | null>(null);
   const [askUser, setAskUser] = useState<AskUserPayload | null>(null);
@@ -1834,7 +1762,6 @@ export function AppWorkbench() {
   /** Tauri OS drop timestamp — HTML5 fallback must not double-attach. */
   const lastNativeDropAtRef = useRef(0);
   const html5DragDepthRef = useRef(0);
-  const [, setSetup] = useState({ cli: false, auth: false, project: false });
   const [localError, setLocalError] = useState<string | null>(null);
 
   const newRemoteChat = useCallback(
@@ -2184,18 +2111,39 @@ export function AppWorkbench() {
     asideInFlow: !phoneLayout && !hideChatForSideExpand && !asideOverlay,
     sideExpanded: hideChatForSideExpand,
   });
-  const [account, setAccount] = useState<api.AccountStatus | null>(null);
+  const accountQuotaHostRef = useRef(createAccountQuotaChromeHost());
+  const {
+    account,
+    accountLoading,
+    accountBusy,
+    accountHeatmapError,
+    accountProbeError,
+    loginHint,
+    savedAccounts,
+    activeAccountId,
+    accountQuotas,
+    applyAccountSnapshot,
+    runWithAccountBusy,
+    refreshAccount,
+    refreshSavedAccounts,
+    refreshAccountQuotas,
+    runAccountLogin,
+    cancelAccountLogin,
+    submitAccountLoginCode,
+    runSaveAccount,
+    runAddAccount,
+    runSwitchAccount,
+    runRemoveAccount,
+    runAccountLogout,
+  } = useAccountQuotaChrome({
+    hostRef: accountQuotaHostRef,
+    manualCliPath,
+    accountSettingsOpen: settingsOpen && settingsSection === "account",
+  });
   voiceSignedInRef.current = !!account?.profile?.signedIn;
   useEffect(() => {
     void refreshVoiceGate();
   }, [account?.profile?.signedIn, refreshVoiceGate]);
-  const [accountLoading, setAccountLoading] = useState(false);
-  const [accountBusy, setAccountBusy] = useState(false);
-  /** Soft-fail heatmap / account_status error (never invents activity or quota). */
-  const [accountHeatmapError, setAccountHeatmapError] = useState<unknown>(null);
-  /** Soft-fail last account_status / billing probe error (never invents quota %). */
-  const [accountProbeError, setAccountProbeError] = useState<unknown>(null);
-  const [loginHint, setLoginHint] = useState<string | null>(null);
   const platform = useMemo(() => detectAppPlatform(), []);
   const settingsShortcutHint = useMemo(
     () =>
@@ -2378,32 +2326,6 @@ export function AppWorkbench() {
     };
   }, []);
 
-  // Dock / tray badge: unread sessions that finished a turn in the background.
-  // Only updates after turn end (markUnread), never on send / while streaming.
-  // Secondary windows must not overwrite the dock badge (main owns chrome).
-  // Count is clamped for display (TRAY-NOTIFY-PRO); pref off clears to 0.
-  useEffect(() => {
-    const resolved = resolveTrayBusyBadgeCount({
-      enabled: trayBusyBadge,
-      busyCount: unreadSessionIds.size,
-      isSecondaryWindow,
-    });
-    if (!resolved.apply) return;
-    void api.traySetBusyCount(resolved.count);
-  }, [unreadSessionIds.size, trayBusyBadge, isSecondaryWindow]);
-
-  // Windows taskbar *button* overlay: independent of trayBusyBadge (default off).
-  // Secondary windows must not apply. Pref off sends 0 (clear).
-  useEffect(() => {
-    const resolved = resolveTrayBusyBadgeCount({
-      enabled: winTaskbarOverlay,
-      busyCount: unreadSessionIds.size,
-      isSecondaryWindow,
-    });
-    if (!resolved.apply) return;
-    void api.traySetWindowsOverlay(resolved.count);
-  }, [unreadSessionIds.size, winTaskbarOverlay, isSecondaryWindow]);
-
   const applyComposerPrefs = useCallback(
     (prefs: api.ComposerPrefs, catalog: ModelOption[]) => {
       const models = catalog.length > 0 ? catalog : GROK_BUILD_MODELS;
@@ -2487,7 +2409,7 @@ export function AppWorkbench() {
         const st = await api
           .accountStatus({ refreshBilling: false })
           .catch(() => null);
-        if (st) setAccount(st);
+        if (st) applyAccountSnapshot(st);
       } catch {
         /* never reset gate — soft-fail optional RPCs */
       }
@@ -5424,116 +5346,6 @@ export function AppWorkbench() {
     [tr],
   );
 
-  const handleToggleSessionMute = useCallback((sessionId: string) => {
-    toggleSessionMute(sessionId);
-    setMutedSessionIds(loadMutedSessionIds());
-  }, []);
-
-  const applyClearAllSessionUnread = useCallback(() => {
-    clearAllSessionUnread();
-    manualUnreadHoldIdsRef.current.clear();
-    setUnreadSessionIds(loadUnreadSessionIds());
-  }, []);
-
-  const handleClearAllSessionUnread = useCallback(() => {
-    const n = unreadSessionIds.size;
-    if (n <= 0) {
-      return;
-    }
-    if (shouldConfirmClearAllUnread(n)) {
-      setAppDialog({
-        kind: "confirm",
-        title: tr("session.clearAllUnreadTitle"),
-        message: tr("session.clearAllUnreadBody", { n: String(n) }),
-        confirmLabel: tr("session.clearAllUnreadAction"),
-        onConfirm: () => {
-          applyClearAllSessionUnread();
-        },
-      });
-      return;
-    }
-    applyClearAllSessionUnread();
-  }, [unreadSessionIds.size, tr, applyClearAllSessionUnread]);
-
-  const applyClearAllSessionMutes = useCallback(() => {
-    clearAllSessionMutes();
-    setMutedSessionIds(loadMutedSessionIds());
-  }, []);
-
-  const handleClearAllSessionMutes = useCallback(() => {
-    const n = mutedSessionIds.size;
-    if (n <= 0) {
-      return;
-    }
-    if (shouldConfirmClearAllMutes(n)) {
-      setAppDialog({
-        kind: "confirm",
-        title: tr("session.clearAllMutesTitle"),
-        message: tr("session.clearAllMutesBody", { n: String(n) }),
-        confirmLabel: tr("session.clearAllMutesAction"),
-        onConfirm: () => {
-          applyClearAllSessionMutes();
-        },
-      });
-      return;
-    }
-    applyClearAllSessionMutes();
-  }, [mutedSessionIds.size, tr, applyClearAllSessionMutes]);
-
-  const handleClearSessionUnread = useCallback(
-    (sessionId: string) => {
-      // Explicit "mark as read" also drops any manual hold.
-      manualUnreadHoldIdsRef.current.delete(sessionId);
-      applyClearSessionUnread(sessionId);
-    },
-    [applyClearSessionUnread],
-  );
-
-  const handleMarkSessionUnread = useCallback(
-    (sessionId: string) => {
-      applyMarkSessionUnread(sessionId);
-    },
-    [applyMarkSessionUnread],
-  );
-
-  // Binding a session while the workbench is in front clears its unread
-  // (sidebar + dock/tray badge + pet done-bubble). Hidden / unfocused
-  // windows are not a read — the bubble stays until they click it or
-  // actually view this chat with the window focused.
-  useEffect(() => {
-    if (!session.sessionId) return;
-    manualUnreadHoldIdsRef.current.delete(session.sessionId);
-    if (!isWorkbenchForeground()) return;
-    applyClearSessionUnread(session.sessionId);
-  }, [session.sessionId, applyClearSessionUnread]);
-
-  // Dock/taskbar or OS focus while already on a finished chat: clear that
-  // session's unread so the badge and pet bubble drop without re-clicking.
-  useEffect(() => {
-    const clearViewingIfPresent = () => {
-      const id = viewingSessionIdRef.current;
-      if (!id) return;
-      // Keep manual "mark as unread" until the user leaves this thread.
-      if (manualUnreadHoldIdsRef.current.has(id)) return;
-      if (!isWorkbenchForeground()) return;
-      applyClearSessionUnread(id);
-    };
-    const onVis = () => {
-      if (
-        typeof document !== "undefined" &&
-        document.visibilityState === "visible"
-      ) {
-        clearViewingIfPresent();
-      }
-    };
-    window.addEventListener("focus", clearViewingIfPresent);
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      window.removeEventListener("focus", clearViewingIfPresent);
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, [applyClearSessionUnread]);
-
   const openProjectMenu = (e: ReactMouseEvent, proj: Project) => {
     e.preventDefault();
     e.stopPropagation();
@@ -6884,67 +6696,6 @@ export function AppWorkbench() {
         : i;
     });
   }, [composerMenuEntries.length]);
-
-  /** Re-run inspect list only — does not clear doctor findings. */
-  const refreshMcpModal = useCallback(async () => {
-    setMcpLoading(true);
-    setMcpError(null);
-    try {
-      const res = await api.inspectMcp(activeProject?.path ?? null);
-      // Host list only — never invent placeholder servers.
-      setMcpServers(res.servers ?? []);
-      if (res.error) setMcpError(res.error);
-    } catch (e) {
-      setMcpServers([]);
-      setMcpError(String(e));
-    } finally {
-      setMcpLoading(false);
-    }
-  }, [activeProject?.path]);
-
-  const openMcpModal = useCallback(async () => {
-    setShowMcpModal(true);
-    // Keep prior doctor results when re-opening; only refresh inspect list.
-    await refreshMcpModal();
-  }, [refreshMcpModal]);
-
-  /**
-   * Run `grok mcp doctor --json [name]`. Optional name focuses one server
-   * (must already exist in CLI config — host does not invent servers).
-   */
-  const runMcpDoctor = useCallback(
-    async (
-      name?: string | null,
-    ): Promise<{
-      report: api.McpDoctorReport | null;
-      error: string | null;
-    }> => {
-      if (!api.isTauri()) {
-        const error = tr("ext.needTauri");
-        setMcpDoctorError(error);
-        // Soft-fail: modal classifies host_only; no window.alert.
-        return { report: null, error };
-      }
-      const focus = name?.trim() || null;
-      setMcpDoctorFocus(focus);
-      setMcpDoctorLoading(true);
-      setMcpDoctorError(null);
-      try {
-        const report = await api.mcpDoctor(focus);
-        setMcpDoctorReport(report);
-        return { report, error: null };
-      } catch (e) {
-        const error = String(e);
-        // Soft-fail CLI missing / too old / timeout is classified in the modal.
-        setMcpDoctorReport(null);
-        setMcpDoctorError(error);
-        return { report: null, error };
-      } finally {
-        setMcpDoctorLoading(false);
-      }
-    },
-    [],
-  );
 
   const showToast = useCallback((msg: string, ms = 3200) => {
     setToast(msg);
@@ -10129,6 +9880,28 @@ export function AppWorkbench() {
     h.setPlanFocusKey = setPlanFocusKey;
     h.asideCollapsed = () => layoutRef.current.asideCollapsed;
   }
+  {
+    const h = sessionChromeBadgesHostRef.current;
+    h.tr = tr;
+    h.setAppDialog = setAppDialog;
+    h.viewingSessionId = () => viewingSessionIdRef.current;
+  }
+  {
+    const h = accountQuotaHostRef.current;
+    h.tr = tr;
+    h.showToast = showToast;
+    h.setAppDialog = setAppDialog;
+    h.noteAccountConnected = ({ auth, cliFound }) => {
+      setSetup((s) => ({ ...s, auth, cli: cliFound || s.cli }));
+    };
+    h.resetFocusedSession = () => {
+      setSession({ ...IDLE_SNAPSHOT });
+    };
+  }
+  {
+    const h = mcpDoctorHostRef.current;
+    h.tr = tr;
+  }
 
   /**
    * Pick folder → add project (name = folder basename; no rename prompt).
@@ -11310,106 +11083,13 @@ export function AppWorkbench() {
     ],
   );
 
-  const refreshAccount = useCallback(
-    async (opts?: {
-      refreshBilling?: boolean;
-      /** No spinner / error flash — background quota tick. */
-      quiet?: boolean;
-      /** Skip heatmap / call-log walk (billing-only). */
-      includeLocalUsage?: boolean;
-      /** Drop Host reply after unmount / superseded probe. */
-      isCurrent?: () => boolean;
-    }) => {
-      if (!api.isTauri()) {
-        // Browser preview: soft-fail host_only — never invent heatmap/quota.
-        setAccountHeatmapError({ code: "host_only", message: "need tauri" });
-        // Browser / non-host: soft-fail host_only so Account never invents %.
-        setAccountProbeError({
-          code: "host_only",
-          message: "Account requires Tauri desktop runtime",
-        });
-        return;
-      }
-      const quiet = opts?.quiet === true;
-      const includeLocalUsage = opts?.includeLocalUsage ?? true;
-      if (!quiet) setAccountLoading(true);
-      try {
-        const st = await api.accountStatus({
-          refreshBilling: opts?.refreshBilling ?? true,
-          includeLocalUsage,
-          manualCliPath: manualCliPath || null,
-        });
-        if (opts?.isCurrent && !opts.isCurrent()) return;
-        setAccount((prev) =>
-          includeLocalUsage
-            ? st
-            : mergeAccountStatusPreservingLocalUsage(prev, st),
-        );
-        if (!quiet) setAccountHeatmapError(null);
-        setAccountProbeError(null);
-        setSetup((s) => ({
-          ...s,
-          auth: isAccountConnected(st),
-          cli: st.cliFound || s.cli,
-        }));
-        if (!quiet) {
-          try {
-            const list = await api.accountsList();
-            setSavedAccounts(list.profiles ?? []);
-            setActiveAccountId(list.activeId ?? null);
-          } catch {
-            // multi-account list is best-effort
-          }
-        }
-        // Usage line on tray menu (Codex-style)
-        void api.trayRefresh();
-      } catch (e) {
-        if (opts?.isCurrent && !opts.isCurrent()) return;
-        console.warn("account status failed", e);
-        if (!quiet) {
-          setAccountHeatmapError(e);
-          setAccountProbeError(e);
-        }
-      } finally {
-        if (!quiet) setAccountLoading(false);
-      }
-    },
-    [manualCliPath],
-  );
-
-  const refreshSavedAccounts = useCallback(async () => {
-    if (!api.isTauri()) return;
-    try {
-      const list = await api.accountsList();
-      setSavedAccounts(list.profiles ?? []);
-      setActiveAccountId(list.activeId ?? null);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const refreshAccountQuotas = useCallback(async () => {
-    if (!api.isTauri()) return;
-    try {
-      const r = await api.accountsQuota();
-      const map: Record<string, SwitcherQuota> = {};
-      for (const item of r.items ?? []) {
-        map[item.id] = quotaFromHostItem(item);
-      }
-      setAccountQuotas(map);
-    } catch {
-      /* ignore — rows stay on live seed / em dash */
-    }
-  }, []);
-
   /** Import markdown/JSON transcript as a new local session (from PR #24). */
   const importChatTranscript = useCallback(async () => {
     if (!api.isTauri()) {
       showToast(tr("error.needTauri"));
       return;
     }
-    setAccountBusy(true);
-    try {
+    await runWithAccountBusy(async () => {
       const created = await api.sessionImportTranscriptFile(
         null,
         activeProject?.id ?? null,
@@ -11423,15 +11103,13 @@ export function AppWorkbench() {
           projects.find((p) => p.id === (hit.projectId ?? undefined)) ?? null;
         void openSession(hit, proj ?? undefined);
       }
-    } catch (e) {
+    }).catch((e) => {
       showToast(
         `${tr("account.importChatFailed")}: ${String(e)}`,
         5000,
       );
-    } finally {
-      setAccountBusy(false);
-    }
-  }, [activeProject?.id, projects, showToast, tr]);
+    });
+  }, [activeProject?.id, projects, runWithAccountBusy, showToast, tr]);
 
   const unarchivedAppSessionCount = sessions.filter((s) => !s.archived).length;
   const linkedAgentIds = sessions
@@ -12024,237 +11702,6 @@ export function AppWorkbench() {
     [tr],
   );
 
-  const runAccountLogin = useCallback(
-    async (method: "oauth" | "device" = "oauth"): Promise<boolean> => {
-      if (!api.isTauri()) {
-        showToast(tr("error.needTauri"));
-        return false;
-      }
-      setAccountBusy(true);
-      setLoginHint(null);
-      try {
-        const res = await api.accountLogin(method);
-        if (res.ok) {
-          setLoginHint(null);
-        } else if (res.timedOut) {
-          const msg = `${tr("account.loginTimeout")} ${tr(
-            "account.loginUnreachableHint",
-          )}`;
-          setLoginHint(msg);
-          showToast(msg, 10000);
-        } else {
-          const msg = res.message || tr("account.loginFailed");
-          setLoginHint(msg);
-          showToast(msg, 6000);
-        }
-        if (res.deviceUrl) {
-          try {
-            await api.openExternalUrl(res.deviceUrl);
-          } catch {
-            /* host may already open it */
-          }
-        }
-        await refreshAccount({ refreshBilling: true });
-        await refreshSavedAccounts();
-        // Host account_login recycles live/bg/parked/prewarm on success
-        // (`account_auth`) so warm CLIs cannot keep stale/missing OIDC.
-        // Reset focused shell snapshot only — do not sessionDisconnect (that
-        // parks processes and used to leave prewarm alive for reuse).
-        if (res.ok) {
-          setSession({ ...IDLE_SNAPSHOT });
-        }
-        return !!res.ok;
-      } catch (e) {
-        const msg = String(e);
-        setLoginHint(msg);
-        showToast(msg, 4500);
-        return false;
-      } finally {
-        setAccountBusy(false);
-      }
-    },
-    [refreshAccount, refreshSavedAccounts, showToast, tr],
-  );
-
-  /** Abort a running login (OAuth/device) so the user can pick another method
-   *  without restarting the app. The backend kills the `grok login` child. */
-  const cancelAccountLogin = useCallback(async () => {
-    try {
-      await api.accountLoginCancel();
-    } catch {
-      /* ignore — still unlock UI */
-    }
-    setAccountBusy(false);
-  }, []);
-
-  /**
-   * Paste a browser-shown verification code into the running `grok login`.
-   * auth.x.ai sometimes asks to “copy this code into Grok Build” instead of
-   * completing via localhost callback.
-   */
-  const submitAccountLoginCode = useCallback(
-    async (code: string) => {
-      if (!api.isTauri()) {
-        showToast(tr("error.needTauri"));
-        return;
-      }
-      try {
-        await api.accountLoginSubmitCode(code);
-        showToast(tr("account.loginPasteOk"), 4000);
-      } catch (e) {
-        const msg = `${tr("account.loginPasteFailed")}: ${String(e)}`;
-        setLoginHint(msg);
-        showToast(msg, 5000);
-      }
-    },
-    [showToast, tr],
-  );
-
-  const runSaveAccount = useCallback(async () => {
-    if (!api.isTauri()) return;
-    setAccountBusy(true);
-    try {
-      await api.accountSaveCurrent();
-      await refreshSavedAccounts();
-    } catch (e) {
-      showToast(String(e), 4500);
-    } finally {
-      setAccountBusy(false);
-    }
-  }, [refreshSavedAccounts, showToast, tr]);
-
-  /**
-   * Save current login (if any), then start OAuth so the user can add another
-   * account without losing the previous snapshot.
-   */
-  const runAddAccount = useCallback(async () => {
-    if (!api.isTauri()) {
-      showToast(tr("error.needTauri"));
-      return;
-    }
-    // Snapshot current auth first so switcher keeps it.
-    if (account?.profile?.signedIn) {
-      setAccountBusy(true);
-      try {
-        await api.accountSaveCurrent();
-        await refreshSavedAccounts();
-      } catch (e) {
-        // Still try login — user may want a fresh account even if save fails.
-        showToast(String(e), 3500);
-      } finally {
-        setAccountBusy(false);
-      }
-    }
-    await runAccountLogin("oauth");
-  }, [
-    account?.profile?.signedIn,
-    refreshSavedAccounts,
-    runAccountLogin,
-    showToast,
-    tr,
-  ]);
-
-  const runSwitchAccount = useCallback(
-    async (id: string) => {
-      if (!api.isTauri()) return;
-      setAccountBusy(true);
-      try {
-        await api.accountSwitch(id);
-        await refreshAccount({ refreshBilling: true });
-        await refreshSavedAccounts();
-        // Host account_switch recycles all agents (account_auth).
-        setSession({ ...IDLE_SNAPSHOT });
-      } catch (e) {
-        showToast(String(e), 4500);
-      } finally {
-        setAccountBusy(false);
-      }
-    },
-    [refreshAccount, refreshSavedAccounts, showToast, tr],
-  );
-
-  const runRemoveAccount = useCallback(
-    (id: string) => {
-      if (!api.isTauri()) return;
-      const label =
-        savedAccounts.find((a) => a.id === id)?.label || id.slice(0, 8);
-      setAppDialog({
-        kind: "confirm",
-        title: tr("account.profileRemove"),
-        message: tr("account.profilesHint"),
-        confirmLabel: tr("account.profileRemove"),
-        danger: true,
-        onConfirm: async () => {
-          setAccountBusy(true);
-          try {
-            await api.accountRemove(id);
-            await refreshSavedAccounts();
-          } catch (e) {
-            showToast(String(e), 4500);
-          } finally {
-            setAccountBusy(false);
-          }
-        },
-      });
-      void label;
-    },
-    [refreshSavedAccounts, savedAccounts, showToast, tr],
-  );
-
-  const runAccountLogout = useCallback(async () => {
-    if (!api.isTauri()) return;
-    setAccountBusy(true);
-    try {
-      await api.accountLogout();
-      await refreshAccount({ refreshBilling: false });
-      await refreshSavedAccounts();
-      // Host account_logout recycles all agents (account_auth).
-      setSession({ ...IDLE_SNAPSHOT });
-    } catch (e) {
-      showToast(String(e), 4500);
-    } finally {
-      setAccountBusy(false);
-    }
-  }, [refreshAccount, refreshSavedAccounts, showToast]);
-
-  // Account boot: paint fast from disk cache first, then refresh quota on network.
-  // Welcome SuperGrok logo depends on billing tier — waiting only on the slow
-  // path made the mark look like a "slow image" even though it is inline SVG.
-  useEffect(() => {
-    if (!api.isTauri()) return;
-    let cancelled = false;
-    void (async () => {
-      const isCurrent = () => !cancelled;
-      await refreshAccount({ refreshBilling: false, isCurrent });
-      if (cancelled) return;
-      await refreshAccount({ refreshBilling: true, isCurrent });
-      if (cancelled) return;
-      await refreshSavedAccounts();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshAccount, refreshSavedAccounts]);
-
-  useEffect(() => {
-    if (settingsOpen && settingsSection === "account") {
-      void refreshAccount({ refreshBilling: true });
-      void refreshSavedAccounts();
-    }
-  }, [settingsOpen, settingsSection, refreshAccount, refreshSavedAccounts]);
-
-  useAccountQuotaAutoRefresh({
-    enabled: api.isTauri(),
-    canFetch: canFetchOfficialQuota(account),
-    refresh: (isCurrent) =>
-      refreshAccount({
-        refreshBilling: true,
-        quiet: true,
-        includeLocalUsage: false,
-        isCurrent,
-      }),
-  });
-
   // Keep Esc→stop gate current for the capture-phase shortcut listener.
   escapeStopLiveRef.current = {
     streamingOrBusy: effectiveCanStop,
@@ -12678,10 +12125,8 @@ export function AppWorkbench() {
                     className="btn btn--primary"
                     data-testid="setup-boot-retry"
                     onClick={() => {
-                      setBootDetectTimedOut(false);
-                      setBootDetectSlow(false);
                       setLocalError(null);
-                      setBootRetryNonce((n) => n + 1);
+                      retryBootDetect();
                     }}
                   >
                     {tr("setup.detectRetry")}
@@ -12691,8 +12136,7 @@ export function AppWorkbench() {
                     className="btn btn--ghost"
                     style={{ marginLeft: 8 }}
                     onClick={() => {
-                      setBootDetectTimedOut(false);
-                      setAppGate("setup");
+                      skipToSetup();
                     }}
                   >
                     {tr("setup.cli.required")}

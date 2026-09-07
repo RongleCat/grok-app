@@ -414,6 +414,8 @@ describe("composer chip portal pops", () => {
     expect(windowFly.side).toBe("left");
     expect(windowFly.pos.top).toBe(292);
     expect(windowFly.pos.right).toBe(1024 - 720 + 8);
+    expect(windowFly.pos.width).toBe(260);
+    expect(windowFly.pos.maxWidth).toBe(260);
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 800 });
     const tight = {
       ...hub,
@@ -489,6 +491,60 @@ describe("composer chip portal pops", () => {
     expect(pop).not.toBeNull();
     expect(pop!.querySelector('[role="slider"]')).not.toBeNull();
     expect(screen.queryByRole("searchbox", { name: "Search models" })).toBeNull();
+  });
+
+  it("keeps context-window Save reachable in the Advanced flyout", async () => {
+    const user = userEvent.setup();
+    const onContextWindow = vi.fn();
+    render(
+      <ComposerModelMenu
+        modelId="test-model"
+        effort="high"
+        contextWindow={500000}
+        contextWindowEditable
+        onContextWindow={onContextWindow}
+        labels={{
+          model: "Model",
+          effort: "Effort",
+          effortHigh: "High",
+          effortMedium: "Medium",
+          effortLow: "Low",
+          modelSearchPlaceholder: "Search models",
+          modelSearchEmpty: "No models",
+          modelGroupOfficial: "Official",
+          contextWindow: "Context window",
+          contextWindowOfficial: "official",
+          contextWindowCustom: "custom",
+          contextWindowPlaceholder: "tokens",
+          contextWindowSave: "Save",
+          contextWindowOfficialHint: "unknown",
+          advanced: "Advanced",
+        }}
+        onEffort={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Model" }));
+    await user.click(screen.getByRole("button", { name: "Advanced" }));
+    const pop = bodyPop();
+    expect(pop).not.toBeNull();
+    const rows = pop!.querySelectorAll(".cmm__row");
+    expect(rows.length).toBeGreaterThanOrEqual(3);
+    fireEvent.mouseEnter(rows[2]!);
+    const flyout = await waitFor(() => {
+      const el = document.body.querySelector<HTMLElement>(
+        ':scope > .cmm__pop--flyout[data-kind="window"]',
+      );
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(flyout.querySelector(".cmm__window-edit")).not.toBeNull();
+    expect(flyout.querySelector(".cmm__inline-edit")).not.toBeNull();
+    const save = screen.getByRole("button", { name: "Save" });
+    expect(save.classList.contains("cmm__inline-save")).toBe(true);
+    expect((save as HTMLButtonElement).disabled).toBe(false);
+    await user.click(save);
+    expect(onContextWindow).toHaveBeenCalledWith(500000);
   });
 
   it("localizes grok-4.6 xhigh via effort i18n in composer menu", async () => {
