@@ -120,3 +120,13 @@ History load calls `paths_classify` (grants existing local paths, drops missing 
 - Path resolution: `session_resolve_relative_media`, `attachments.ts`, `sessionPathMap.ts`, `pathNormalize.ts`
 - Attach gate: `prepare_media_attachment_path` / `extract_structured_media_path` in `session_manager/types.rs`
 - Allowlist: `path_scope.rs`
+
+### Remote thumbnail decode bounds
+
+Remote thumbnail responses are read up to 12 MiB plus one overflow sentinel byte,
+including chunked bodies with no Content-Length. Before pixel decoding, the Host
+checks dimensions (at most 16,384 per edge), total pixels (50 million), and applies
+a 256 MiB decoder allocation limit. Valid images retain original dimensions in
+metadata and use the existing 480-pixel JPEG thumbnail shape. Local image decoding
+and cache behavior are unchanged. The bounded in-memory helper is reusable by
+remote wallpaper providers; no network source or new product control is added.

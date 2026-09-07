@@ -13,7 +13,7 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use image::imageops::FilterType;
-use image::DynamicImage;
+use image::{DynamicImage, ImageReader, Limits};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -22,6 +22,12 @@ use crate::paths;
 
 /// Longest edge for chat card thumbs (display max 240px; 2× for Retina).
 const THUMB_MAX_EDGE: u32 = 480;
+
+/// Remote wallpaper bytes are untrusted and may encode extreme dimensions in
+/// a small response. Keep one decode bounded while still accepting 8K media.
+pub(crate) const UNTRUSTED_THUMB_MAX_DIMENSION: u32 = 16_384;
+pub(crate) const UNTRUSTED_THUMB_MAX_PIXELS: u64 = 50_000_000;
+const UNTRUSTED_THUMB_MAX_ALLOC: u64 = 256 * 1024 * 1024;
 
 /// Skip re-encode when source is already small enough (bytes).
 const SKIP_IF_SMALLER_THAN: u64 = 96 * 1024; // 96 KiB
@@ -196,19 +202,75 @@ fn decode_image_bytes(bytes: &[u8]) -> Result<DynamicImage, String> {
     image::load_from_memory(bytes).map_err(|e| format!("decode image: {e}"))
 }
 
-fn build_thumb_from_bytes(bytes: &[u8], out: &Path) -> Result<(u32, u32, bool), String> {
+fn decode_untrusted_image_bytes_with_limits(
+    bytes: &[u8],
+    max_dimension: u32,
+    max_pixels: u64,
+    max_alloc: u64,
+) -> Result<DynamicImage, String> {
+    let mut limits = Limits::default();
+    limits.max_image_width = Some(max_dimension);
+    limits.max_image_height = Some(max_dimension);
+    limits.max_alloc = Some(max_alloc);
+
+    let mut dimensions_reader = ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|e| format!("decode image dimensions: {e}"))?;
+    dimensions_reader.limits(limits.clone());
+    let (width, height) = dimensions_reader
+        .into_dimensions()
+        .map_err(|e| format!("decode image dimensions: {e}"))?;
+    let pixels = u64::from(width).saturating_mul(u64::from(height));
+    if pixels == 0 || pixels > max_pixels {
+        return Err("decode image: pixel limit exceeded".into());
+    }
+
+    let mut decode_reader = ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|e| format!("decode image: {e}"))?;
+    decode_reader.limits(limits);
+    decode_reader
+        .decode()
+        .map_err(|e| format!("decode image: {e}"))
+}
+
+/// Decode trusted local image bytes and return a card-size JPEG.
+/// Remote wallpaper callers must use `thumbnail_jpeg_from_untrusted_bytes`.
+pub fn thumbnail_jpeg_from_bytes(bytes: &[u8]) -> Result<(Vec<u8>, u32, u32), String> {
     let img = decode_image_bytes(bytes)?;
+    thumbnail_jpeg_from_image(img, bytes.len())
+}
+
+/// Decode untrusted remote wallpaper bytes with strict dimension and allocation
+/// limits, then return the same in-memory card thumbnail shape as local media.
+pub fn thumbnail_jpeg_from_untrusted_bytes(bytes: &[u8]) -> Result<(Vec<u8>, u32, u32), String> {
+    let img = decode_untrusted_image_bytes_with_limits(
+        bytes,
+        UNTRUSTED_THUMB_MAX_DIMENSION,
+        UNTRUSTED_THUMB_MAX_PIXELS,
+        UNTRUSTED_THUMB_MAX_ALLOC,
+    )?;
+    thumbnail_jpeg_from_image(img, bytes.len())
+}
+
+fn thumbnail_jpeg_from_image(
+    img: DynamicImage,
+    source_bytes: usize,
+) -> Result<(Vec<u8>, u32, u32), String> {
     let width = img.width();
     let height = img.height();
     let long = width.max(height);
-    // Already tiny and under edge: write original-ish JPEG for format unify.
-    let thumb_img = if long <= THUMB_MAX_EDGE && bytes.len() as u64 <= SKIP_IF_SMALLER_THAN {
-        // Still re-encode small sources so cache is always JPEG under path_scope.
+    let thumb_img = if long <= THUMB_MAX_EDGE && source_bytes as u64 <= SKIP_IF_SMALLER_THAN {
         img
     } else {
         resize_to_thumb(img)
     };
     let jpeg = encode_jpeg(&thumb_img)?;
+    Ok((jpeg, width, height))
+}
+
+fn build_thumb_from_bytes(bytes: &[u8], out: &Path) -> Result<(u32, u32, bool), String> {
+    let (jpeg, width, height) = thumbnail_jpeg_from_bytes(bytes)?;
     write_atomic(out, &jpeg)?;
     write_source_dims_sidecar(out, width, height);
     Ok((width, height, false))
@@ -320,7 +382,7 @@ pub fn ensure_remote_image_thumb(url: &str) -> Result<ImageThumbResult, String> 
             return Err("remote image too large".into());
         }
     }
-    let bytes = resp.bytes().map_err(|e| format!("download body: {e}"))?;
+    let bytes = read_remote_image_body(resp)?;
     if bytes.len() as u64 > MAX_REMOTE_BYTES {
         return Err("remote image too large".into());
     }
@@ -328,7 +390,7 @@ pub fn ensure_remote_image_thumb(url: &str) -> Result<ImageThumbResult, String> 
         return Err("empty remote image".into());
     }
 
-    let (w, h, _) = build_thumb_from_bytes(&bytes, &out)?;
+    let (w, h, _) = build_remote_thumb_from_bytes(&bytes, &out)?;
     path_scope::grant_path(&out);
     Ok(ImageThumbResult {
         thumb_path: out.to_string_lossy().to_string(),
@@ -337,6 +399,26 @@ pub fn ensure_remote_image_thumb(url: &str) -> Result<ImageThumbResult, String> 
         height: h,
         is_original: false,
     })
+}
+
+fn read_remote_image_body(reader: impl std::io::Read) -> Result<Vec<u8>, String> {
+    use std::io::Read;
+    let mut bytes = Vec::new();
+    reader
+        .take(MAX_REMOTE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("download body: {e}"))?;
+    if bytes.len() as u64 > MAX_REMOTE_BYTES {
+        return Err("remote image too large".into());
+    }
+    Ok(bytes)
+}
+
+fn build_remote_thumb_from_bytes(bytes: &[u8], out: &Path) -> Result<(u32, u32, bool), String> {
+    let (jpeg, width, height) = thumbnail_jpeg_from_untrusted_bytes(bytes)?;
+    write_atomic(out, &jpeg)?;
+    write_source_dims_sidecar(out, width, height);
+    Ok((width, height, false))
 }
 
 /// Unified entry: local absolute path or http(s) URL.
@@ -372,6 +454,68 @@ mod tests {
         assert!(out.is_file());
         assert!(fs::metadata(&out).unwrap().len() > 32);
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn builds_in_memory_thumb_without_persisting() {
+        let img = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+            960,
+            540,
+            image::Rgb([24, 96, 180]),
+        ));
+        let mut png = Vec::new();
+        img.write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
+            .unwrap();
+
+        let (jpeg, width, height) = thumbnail_jpeg_from_bytes(&png).unwrap();
+        assert_eq!((width, height), (960, 540));
+        assert!(jpeg.starts_with(&[0xff, 0xd8, 0xff]));
+        assert!(jpeg.len() < 512 * 1024);
+        let decoded = image::load_from_memory(&jpeg).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (480, 270));
+    }
+
+    #[test]
+    fn untrusted_thumbnail_decode_rejects_excessive_pixel_count() {
+        let img = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+            20,
+            10,
+            image::Rgb([24, 96, 180]),
+        ));
+        let mut png = Vec::new();
+        img.write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
+            .unwrap();
+
+        let error = decode_untrusted_image_bytes_with_limits(&png, 64, 100, 1024 * 1024)
+            .expect_err("pixel count must be bounded before decoding");
+        assert_eq!(error, "decode image: pixel limit exceeded");
+
+        assert!(decode_untrusted_image_bytes_with_limits(&png, 16, 1_000, 1024 * 1024).is_err());
+    }
+
+    #[test]
+    fn remote_body_stops_after_one_byte_over_the_limit() {
+        use std::io::Read;
+        let oversized = std::io::repeat(1).take(MAX_REMOTE_BYTES + 100);
+        assert_eq!(
+            read_remote_image_body(oversized).unwrap_err(),
+            "remote image too large"
+        );
+        assert_eq!(read_remote_image_body(Cursor::new(b"abc")).unwrap(), b"abc");
+    }
+
+    #[test]
+    fn untrusted_decoder_checks_allocation_and_preserves_thumbnail_dimensions() {
+        let img = DynamicImage::ImageRgb8(image::RgbImage::new(960, 540));
+        let mut png = Vec::new();
+        img.write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
+            .unwrap();
+        assert!(decode_untrusted_image_bytes_with_limits(&png, 16384, 50_000_000, 1024).is_err());
+        let (jpeg, width, height) = thumbnail_jpeg_from_untrusted_bytes(&png).unwrap();
+        assert_eq!((width, height), (960, 540));
+        let decoded = image::load_from_memory(&jpeg).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (480, 270));
+        assert!(thumbnail_jpeg_from_untrusted_bytes(b"not an image").is_err());
     }
 
     #[test]
