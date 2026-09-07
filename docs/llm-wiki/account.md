@@ -195,3 +195,14 @@ All strings via `src/i18n/messages.ts` (`account.*` keys). See [i18n.md](./i18n.
 - Profile DTO never includes `key` / `refresh_token` / raw access tokens.
 - Login stdout/stderr must not be dumped to app logs if they may contain secrets.
 - Doctor / export still go through existing redact paths.
+
+
+### Pexels credential storage
+
+The Host secrets API accepts an optional `pexelsApiKey`: omitted leaves the
+existing value untouched, a blank string clears it, and a nonblank string is
+trimmed before storage. `secrets_get_masked` exposes `hasPexelsKey` only. The key
+follows the existing OS keychain/plaintext fallback policy, participates in
+migration and cache merging, and is stripped from the disk payload when the
+keychain is used. This is storage groundwork for the separate wallpaper provider
+integration; it does not add a source picker or perform a Pexels request.

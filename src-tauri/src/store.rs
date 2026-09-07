@@ -902,6 +902,9 @@ impl Default for AppSettings {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SecretsFile {
+    /// Pexels wallpaper-library API credential, retained only in Host secrets.
+    #[serde(default)]
+    pub pexels_api_key: Option<String>,
     pub official_api_key: Option<String>,
     pub relay_base_url: Option<String>,
     pub relay_api_key: Option<String>,
@@ -925,6 +928,8 @@ pub struct SecretsFile {
     /// Relay API key lives in OS keychain (value not on disk).
     #[serde(default)]
     pub keychain_has_relay: bool,
+    #[serde(default)]
+    pub keychain_has_pexels: bool,
     /// Custom STT key lives in OS keychain (value not on disk).
     #[serde(default)]
     pub keychain_has_stt_custom: bool,

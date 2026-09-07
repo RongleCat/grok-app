@@ -356,6 +356,7 @@ export async function secretsGetMasked() {
   return invoke<{
     hasOfficialKey: boolean;
     hasRelayKey: boolean;
+    hasPexelsKey: boolean;
     hasSttCustomKey: boolean;
     /** Per-provider-preset custom STT key presence (ADR-0001). */
     sttCustomKeys?: Record<string, boolean>;
@@ -368,6 +369,7 @@ export async function secretsSet(body: {
   officialApiKey?: string;
   relayBaseUrl?: string;
   relayApiKey?: string;
+  pexelsApiKey?: string;
   defaultModel?: string;
   sttCustomApiKey?: string;
   /** Provider preset id the custom STT key belongs to (ADR-0001). */
@@ -377,6 +379,7 @@ export async function secretsSet(body: {
     officialApiKey: body.officialApiKey ?? null,
     relayBaseUrl: body.relayBaseUrl ?? null,
     relayApiKey: body.relayApiKey ?? null,
+    pexelsApiKey: body.pexelsApiKey ?? null,
     defaultModel: body.defaultModel ?? null,
     sttCustomApiKey: body.sttCustomApiKey ?? null,
     sttCustomApiKeyProvider: body.sttCustomApiKeyProvider ?? null,
