@@ -6,6 +6,7 @@ export const ruSettingsUi = {
   "settings.wallpaperXSearchMode.responsesPreview": "Responses API (предпросмотр)",
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} с",
   "settings.wallpaperSource.route.responses": "Предпросмотр Responses · {seconds} с",
+  "settings.wallpaperSource.route.cached": "Загружено из кеша · {route}",
   "settings.wallpaperSource.route.fallback": "Выполнен откат к Grok Build CLI ({reason}) · {seconds} с",
   "settings.wallpaperSource.route.fallback.auth": "официальный вход недоступен или истёк",
   "settings.wallpaperSource.route.fallback.network": "сеть Responses недоступна",

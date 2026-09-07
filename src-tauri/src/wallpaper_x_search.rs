@@ -1,4 +1,5 @@
 //! Request ownership, progress and cancellation for CLI wallpaper searches.
+mod cache;
 use crate::account::BuildOauthCredentialRevision;
 use crate::wallpaper_source::{
     self, WallpaperSearchCancellation, WallpaperSearchResult, WallpaperXSearchRuntime,
@@ -167,13 +168,25 @@ pub(crate) async fn search(
     runtime.report(WallpaperXSearchStage::Preparing);
     let settings = store::load_settings();
     let mode = store::normalize_wallpaper_x_search_mode(&settings.wallpaper_x_search_mode);
-    let mut result = route_with_providers(
-        mode,
-        account::build_oauth_credential_revision(),
-        responses_circuit(),
-        &runtime,
-        || wallpaper_x_responses::search(query, sort, &runtime),
-        || wallpaper_source::x_search_cli_outcome(query, sort, Some(&runtime)),
+    let mut result = cache::search_cached(
+        cache::CacheRequest {
+            request_id,
+            query,
+            sort,
+            mode,
+            runtime: &runtime,
+        },
+        || async {
+            route_with_providers(
+                mode,
+                account::build_oauth_credential_revision(),
+                responses_circuit(),
+                &runtime,
+                || wallpaper_x_responses::search(query, sort, &runtime),
+                || wallpaper_source::x_search_cli_outcome(query, sort, Some(&runtime)),
+            )
+            .await
+        },
     )
     .await;
     if let Some(meta) = result.meta.as_mut() {

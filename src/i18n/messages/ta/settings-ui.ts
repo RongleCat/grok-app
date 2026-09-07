@@ -6,6 +6,7 @@ export const taSettingsUi = {
   "settings.wallpaperXSearchMode.responsesPreview": "Responses API (முன்னோட்டம்)",
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} வி",
   "settings.wallpaperSource.route.responses": "Responses முன்னோட்டம் · {seconds} வி",
+  "settings.wallpaperSource.route.cached": "தற்காலிக சேமிப்பிலிருந்து ஏற்றப்பட்டது · {route}",
   "settings.wallpaperSource.route.fallback": "Grok Build CLI-க்கு மாற்றப்பட்டது ({reason}) · {seconds} வி",
   "settings.wallpaperSource.route.fallback.auth": "அதிகாரப்பூர்வ உள்நுழைவு கிடைக்கவில்லை அல்லது காலாவதியானது",
   "settings.wallpaperSource.route.fallback.network": "Responses பிணையம் கிடைக்கவில்லை",

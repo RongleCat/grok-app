@@ -6,6 +6,7 @@ export const frSettingsUi = {
   "settings.wallpaperXSearchMode.responsesPreview": "Responses API (aperçu)",
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} s",
   "settings.wallpaperSource.route.responses": "Aperçu Responses · {seconds} s",
+  "settings.wallpaperSource.route.cached": "Chargé depuis le cache · {route}",
   "settings.wallpaperSource.route.fallback": "Repli sur Grok Build CLI ({reason}) · {seconds} s",
   "settings.wallpaperSource.route.fallback.auth": "connexion officielle indisponible ou expirée",
   "settings.wallpaperSource.route.fallback.network": "réseau Responses indisponible",

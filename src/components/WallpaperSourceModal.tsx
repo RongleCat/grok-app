@@ -265,12 +265,13 @@ export function WallpaperSourceModal({
             : fallbackReason?.includes("empty") ? "empty"
               : /network|timeout|tls|server/.test(fallbackReason ?? "") ? "network"
                 : "compatibility";
-        setStatusHint(t(fallbackReason
+        const routeLabel = t(fallbackReason
           ? "settings.wallpaperSource.route.fallback"
           : routeUsed === "responses" ? "settings.wallpaperSource.route.responses" : "settings.wallpaperSource.route.cli", {
           seconds: (durationMs / 1000).toFixed(1),
           reason: t(`settings.wallpaperSource.route.fallback.${reason}` as MessageKey),
-        }));
+        });
+        setStatusHint(res.meta.cacheHit ? t("settings.wallpaperSource.route.cached", { route: routeLabel }) : routeLabel);
       }
       const list = dedupeGalleryItems(res.items || []);
       const code = errorCodeFromSearchResult({ ...res, items: list });

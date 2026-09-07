@@ -117,6 +117,7 @@ pub(crate) struct WallpaperSearchCancellation {
 struct WallpaperSearchCancellationInner {
     cancelled: AtomicBool,
     signal: tokio::sync::watch::Sender<bool>,
+    commit_gate: parking_lot::Mutex<()>,
 }
 
 impl Default for WallpaperSearchCancellation {
@@ -126,6 +127,7 @@ impl Default for WallpaperSearchCancellation {
             inner: Arc::new(WallpaperSearchCancellationInner {
                 cancelled: AtomicBool::new(false),
                 signal,
+                commit_gate: parking_lot::Mutex::new(()),
             }),
         }
     }
@@ -133,6 +135,7 @@ impl Default for WallpaperSearchCancellation {
 
 impl WallpaperSearchCancellation {
     pub(crate) fn cancel(&self) {
+        let _commit_guard = self.inner.commit_gate.lock();
         if !self.inner.cancelled.swap(true, Ordering::AcqRel) {
             self.inner.signal.send_replace(true);
         }
@@ -140,6 +143,15 @@ impl WallpaperSearchCancellation {
 
     pub(crate) fn is_cancelled(&self) -> bool {
         self.inner.cancelled.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn commit_if_active<T>(&self, commit: impl FnOnce() -> T) -> Option<T> {
+        let _commit_guard = self.inner.commit_gate.lock();
+        if self.is_cancelled() {
+            None
+        } else {
+            Some(commit())
+        }
     }
 
     pub(crate) async fn cancelled(&self) {

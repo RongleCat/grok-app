@@ -49,7 +49,7 @@ to prevent an additional CLI request. Cancellation drops all pending lanes.
 The picker displays batches as they arrive; the final invoke result is authoritative.
 The hook rejects malformed, duplicate and foreign-request batches and clears them
 on replacement/cancel. Batch event failure cannot prevent the final result from
-showing. Load-more, caching and prefetch are separate follow-up slices.
+showing. Load-more and prefetch are separate follow-up slices.
 
 Eligible failures fall back once to CLI. Rate limits, cancellation and tool-budget
 violations never trigger a second route. Three counted failures open a ten-minute
@@ -85,3 +85,22 @@ Tests in `src-tauri/src/wallpaper_source.rs` cover URL identity, deduplication,
 ranking, supplement thresholds, signatures, dimensions, redirects and rejection
 of partial download responses. Network availability, model relevance and actual
 result counts still depend on the live service and require manual verification.
+
+## Responses result cache
+
+Explicit Responses preview searches reuse successful validated galleries for ten
+minutes in a Host-only LRU with at most 32 entries. Keys include normalized query,
+sort and the salted credential content revision. Only metadata is kept in memory;
+no token, image bytes or disk cache is added. CLI/default/auto and CLI fallbacks
+are not cached because their account/provider scope differs from official OAuth.
+
+Every lookup revalidates OAuth scope and expiry. Expired/missing/replaced credentials
+cannot retrieve the old entry. A credential change during a request prevents cache
+insertion. Failures and cancelled work are not cached; cancellation and cache writes
+share a commit gate. Reads update LRU order but never extend the ten-minute TTL.
+
+A hit emits a request-scoped terminal batch and the normal final result. Metadata
+reports cacheHit, the new requestId, lookup duration and zero new search calls;
+the picker labels the result as cached. Cache reuse saves repeat searches only;
+it does not improve the first live request or guarantee an old CDN URL remains
+reachable. Existing preview/download validation continues to handle expired media.

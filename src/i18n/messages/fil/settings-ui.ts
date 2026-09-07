@@ -6,6 +6,7 @@ export const filSettingsUi = {
   "settings.wallpaperXSearchMode.responsesPreview": "Responses API (preview)",
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds}s",
   "settings.wallpaperSource.route.responses": "Responses preview · {seconds}s",
+  "settings.wallpaperSource.route.cached": "Na-load mula sa cache · {route}",
   "settings.wallpaperSource.route.fallback": "Bumalik sa Grok Build CLI ({reason}) · {seconds}s",
   "settings.wallpaperSource.route.fallback.auth": "hindi available o paso ang opisyal na sign-in",
   "settings.wallpaperSource.route.fallback.network": "hindi available ang Responses network",

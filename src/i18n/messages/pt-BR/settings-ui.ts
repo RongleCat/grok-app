@@ -6,6 +6,7 @@ export const ptBRSettingsUi = {
   "settings.wallpaperXSearchMode.responsesPreview": "Responses API (prévia)",
   "settings.wallpaperSource.route.cli": "Grok Build CLI · {seconds} s",
   "settings.wallpaperSource.route.responses": "Prévia de Responses · {seconds} s",
+  "settings.wallpaperSource.route.cached": "Carregado do cache · {route}",
   "settings.wallpaperSource.route.fallback": "Retorno ao Grok Build CLI ({reason}) · {seconds} s",
   "settings.wallpaperSource.route.fallback.auth": "login oficial indisponível ou expirado",
   "settings.wallpaperSource.route.fallback.network": "rede de Responses indisponível",

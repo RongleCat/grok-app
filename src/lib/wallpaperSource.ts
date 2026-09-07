@@ -26,6 +26,7 @@ export type WallpaperSearchResult = {
     routeUsed: "cli" | "responses";
     fallbackReason?: string | null;
     durationMs: number;
+    cacheHit?: boolean;
   } | null;
   items: WallpaperGalleryItem[];
   errorCode?: string | null;
