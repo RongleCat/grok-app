@@ -294,7 +294,6 @@ import {
   VOICE_HOTKEY_STORAGE_KEY,
 } from "@/lib/voiceHotkeyPref";
 import {
-  ensureNotifyPermission,
   listenForNativeNotifyClicks,
   setDesktopNotifySessionFocusHandler,
 } from "@/lib/desktopNotify";
@@ -661,6 +660,7 @@ import {
   createMcpDoctorChromeHost,
   useMcpDoctorChrome,
 } from "@/hooks/useMcpDoctorChrome";
+import { useSetupBootGate } from "@/hooks/useSetupBootGate";
 import { useWorkbenchDisplayPrefs } from "@/hooks/useWorkbenchDisplayPrefs";
 import { useWorkbenchLayout } from "@/hooks/useWorkbenchLayout";
 import { useSettingsNavigation } from "@/hooks/useSettingsNavigation";
@@ -1519,24 +1519,20 @@ export function AppWorkbench() {
     return () => document.removeEventListener("keydown", onKey, true);
   }, []);
 
-  /** First-run gate: loading → setup wizard → ready (home). Mirror forces ready. */
-  const [appGate, setAppGate] = useState<"loading" | "setup" | "ready">(() => {
-    if (typeof window === "undefined") return "loading";
-    if (isMirrorClient()) return "ready";
-    // Vite HMR / host heartbeats used to remount this splash forever in `tauri dev`.
-    if (import.meta.env.DEV) return "ready";
-    return "loading";
-  });
-  /** Boot probe hung / timed out — show retry on the loading gate. */
-  const [bootDetectTimedOut, setBootDetectTimedOut] = useState(false);
-  const [bootDetectSlow, setBootDetectSlow] = useState(false);
-  const [bootRetryNonce, setBootRetryNonce] = useState(0);
-  // Ask once for notification permission after first ready.
-  useEffect(() => {
-    if (appGate !== "ready") return;
-    void ensureNotifyPermission();
-  }, [appGate]);
-  const [setupCliSeed, setSetupCliSeed] = useState<SetupCliInfo | null>(null);
+  const {
+    appGate,
+    setAppGate,
+    bootDetectTimedOut,
+    setBootDetectTimedOut,
+    bootDetectSlow,
+    setBootDetectSlow,
+    bootRetryNonce,
+    setupCliSeed,
+    setSetupCliSeed,
+    setSetup,
+    retryBootDetect,
+    skipToSetup,
+  } = useSetupBootGate();
   const [showDoctor, setShowDoctor] = useState(false);
   const [showTraces, setShowTraces] = useState(false);
   /** Local plan review archive (approved / abandoned / completed). */
@@ -1762,7 +1758,6 @@ export function AppWorkbench() {
   /** Tauri OS drop timestamp — HTML5 fallback must not double-attach. */
   const lastNativeDropAtRef = useRef(0);
   const html5DragDepthRef = useRef(0);
-  const [, setSetup] = useState({ cli: false, auth: false, project: false });
   const [localError, setLocalError] = useState<string | null>(null);
 
   const newRemoteChat = useCallback(
@@ -12126,10 +12121,8 @@ export function AppWorkbench() {
                     className="btn btn--primary"
                     data-testid="setup-boot-retry"
                     onClick={() => {
-                      setBootDetectTimedOut(false);
-                      setBootDetectSlow(false);
                       setLocalError(null);
-                      setBootRetryNonce((n) => n + 1);
+                      retryBootDetect();
                     }}
                   >
                     {tr("setup.detectRetry")}
@@ -12139,8 +12132,7 @@ export function AppWorkbench() {
                     className="btn btn--ghost"
                     style={{ marginLeft: 8 }}
                     onClick={() => {
-                      setBootDetectTimedOut(false);
-                      setAppGate("setup");
+                      skipToSetup();
                     }}
                   >
                     {tr("setup.cli.required")}

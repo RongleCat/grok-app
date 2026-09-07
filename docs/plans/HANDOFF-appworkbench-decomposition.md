@@ -63,7 +63,8 @@
    **WP-W29 已落地**：Side Workbench tabs / dock composer / Review focus / close-tab / git probe / chat→side 路由 → `useSideWorkbenchChrome`。host 只填 aside/open/toast 晚绑袋。`sessionChangesById` 与 git dirty 仍在 host。天花板 **14400 / 120 / 74**。方案见 [2026-09-06-appworkbench-w29-side-workbench.md](./2026-09-06-appworkbench-w29-side-workbench.md)。
    **WP-W30 已落地**：mute / unread / plan-pending Set、storage 事件、clear-on-view、tray/dock 计数 → `useSessionChromeBadges`。host 只填 tr / setAppDialog / viewing id。plan chrome 仍调 `markPlanPendingBadge`。天花板 **14200 / 116 / 68**。方案见 [2026-09-07-appworkbench-w30-session-badges.md](./2026-09-07-appworkbench-w30-session-badges.md)。
    **WP-W31 已落地**：account 快照 / loading / loginHint / 已存账号 / 配额表 / 登录切换登出 / boot refresh → `useAccountQuotaChrome`。host 只填 toast / dialog / setup.auth / IDLE 壳。天花板 **13900 / 108 / 66**。方案见 [2026-09-07-appworkbench-w31-account-quota.md](./2026-09-07-appworkbench-w31-account-quota.md)。
-   **WP-W32 已落地**：MCP inspect 列表 + doctor 报告 → `useMcpDoctorChrome`。天花板 **13800 / 100 / 66**。方案见 [2026-09-07-appworkbench-w32-mcp-doctor.md](./2026-09-07-appworkbench-w32-mcp-doctor.md)。下一步 setup / boot（W33）。
+   **WP-W32 已落地**：MCP inspect 列表 + doctor 报告 → `useMcpDoctorChrome`。天花板 **13800 / 100 / 66**。方案见 [2026-09-07-appworkbench-w32-mcp-doctor.md](./2026-09-07-appworkbench-w32-mcp-doctor.md)。
+   **WP-W33 已落地**：first-run `appGate` / bootDetect / CLI seed / setup flags → `useSetupBootGate`。列表/模型 hydration 仍在 host。天花板 **13750 / 94 / 65**。方案见 [2026-09-07-appworkbench-w33-setup-boot.md](./2026-09-07-appworkbench-w33-setup-boot.md)。计划表 W29–W33 收口；`sessionChangesById` 与 git dirty 留 host。
    **pi**：协作者本机无 pi，按 owner 规则跳过。
    **5 个 worktree**：误会。远端 `main` 已含那些产品改动（本地只是 squash 后残留 SHA）。不挡大拆。
 5. 5.6k 行 JSX 拆为 view shell + 域容器；modals 先经既有 `useAppDialogs` 收口。
