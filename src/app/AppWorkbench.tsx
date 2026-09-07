@@ -26,6 +26,7 @@ import {
   resolveChatcutLinkClick,
 } from "@/lib/chatcutHandoff";
 import { loadStopAllSkipConfirmPref } from "@/lib/stopAllSkipConfirmPref";
+
 import {
   planStopAllBusySessions,
   stopAllDialogKeys,
@@ -119,7 +120,6 @@ import {
   type ContextUsageState,
 } from "@/lib/contextUsage";
 import {
-  applyPlanPendingMembership,
   closedSessionPlan,
   emptySessionPlan,
   invalidatePlanGate,
@@ -133,7 +133,7 @@ import {
   countQuitBlockingSessions,
   stoppableActivitySessions,
 } from "@/lib/agentActivity";
-import { resolveTrayBusyBadgeCount } from "@/lib/trayNotifyPro";
+
 import {
   collectAgentDashboardRows,
   countBusyDashboardRows,
@@ -302,22 +302,7 @@ import {
   listenForNativeNotifyClicks,
   setDesktopNotifySessionFocusHandler,
 } from "@/lib/desktopNotify";
-import {
-  clearAllMutes as clearAllSessionMutes,
-  loadMutedSessionIds,
-  SESSION_MUTE_CHANGE_EVENT,
-  shouldConfirmClearAllMutes,
-  toggle as toggleSessionMute,
-} from "@/lib/sessionMute";
-import {
-  clearAllUnread as clearAllSessionUnread,
-  clearUnread as clearSessionUnread,
-  isWorkbenchForeground,
-  loadUnreadSessionIds,
-  markUnread as markSessionUnread,
-  SESSION_UNREAD_CHANGE_EVENT,
-  shouldConfirmClearAllUnread,
-} from "@/lib/sessionUnread";
+
 import {
   clearNote as clearSessionNote,
   getNote as getSessionNote,
@@ -646,6 +631,10 @@ import { useSidebarProjectReorder } from "@/hooks/useSidebarProjectReorder";
 import { useSessionMoveProject } from "@/hooks/useSessionMoveProject";
 import { useSidebarSessionMoveDrag } from "@/hooks/useSidebarSessionMoveDrag";
 import {
+  createSessionChromeBadgesHost,
+  useSessionChromeBadges,
+} from "@/hooks/useSessionChromeBadges";
+import {
   createSideWorkbenchChromeHost,
   useSideWorkbenchChrome,
 } from "@/hooks/useSideWorkbenchChrome";
@@ -794,84 +783,6 @@ export function AppWorkbench() {
         /* non-Tauri / server down */
       });
   }, []);
-  /** Per-session desktop notification mute (localStorage Set). */
-  const [mutedSessionIds, setMutedSessionIds] = useState<Set<string>>(
-    () => loadMutedSessionIds(),
-  );
-  useEffect(() => {
-    const onChange = () => setMutedSessionIds(loadMutedSessionIds());
-    window.addEventListener(SESSION_MUTE_CHANGE_EVENT, onChange);
-    return () => window.removeEventListener(SESSION_MUTE_CHANGE_EVENT, onChange);
-  }, []);
-  /**
-   * Sessions that finished a turn while not viewed (localStorage Set).
-   * Independent of mute — muted chats still show the sidebar unread dot.
-   */
-  const [unreadSessionIds, setUnreadSessionIds] = useState<Set<string>>(
-    () => loadUnreadSessionIds(),
-  );
-  useEffect(() => {
-    const onChange = () => setUnreadSessionIds(loadUnreadSessionIds());
-    window.addEventListener(SESSION_UNREAD_CHANGE_EVENT, onChange);
-    return () =>
-      window.removeEventListener(SESSION_UNREAD_CHANGE_EVENT, onChange);
-  }, []);
-  /**
-   * Clear one session's unread marker and sync React state immediately so
-   * sidebar dots + dock/tray badge count drop without waiting solely on the
-   * storage CustomEvent (open / focus / mark-as-read paths share this).
-   */
-  const applyClearSessionUnread = useCallback(
-    (sessionId: string | null | undefined) => {
-      const id = typeof sessionId === "string" ? sessionId.trim() : "";
-      if (!id) return;
-      clearSessionUnread(id);
-      setUnreadSessionIds((prev) => {
-        if (!prev.has(id)) return prev;
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    },
-    [],
-  );
-  /**
-   * Manual "mark as unread" while the chat is still open: hold the badge until
-   * the user leaves and re-opens the thread (auto clear-on-view still applies).
-   */
-  const manualUnreadHoldIdsRef = useRef<Set<string>>(new Set());
-  const applyMarkSessionUnread = useCallback(
-    (sessionId: string | null | undefined) => {
-      const id = typeof sessionId === "string" ? sessionId.trim() : "";
-      if (!id) return;
-      markSessionUnread(id);
-      setUnreadSessionIds((prev) => {
-        if (prev.has(id)) return prev;
-        const next = new Set(prev);
-        next.add(id);
-        return next;
-      });
-      if (viewingSessionIdRef.current === id) {
-        manualUnreadHoldIdsRef.current.add(id);
-      }
-    },
-    [],
-  );
-  /**
-   * Sessions with an open plan review gate (or restored re-park wait).
-   * Sidebar badge only — does not change open/busy/select interactions.
-   */
-  const [planPendingSessionIds, setPlanPendingSessionIds] = useState<
-    Set<string>
-  >(() => new Set());
-  const markPlanPendingBadge = useCallback(
-    (sessionId: string | null | undefined, plan: SessionPlanState) => {
-      setPlanPendingSessionIds((prev) =>
-        applyPlanPendingMembership(prev, sessionId, plan),
-      );
-    },
-    [],
-  );
   const {
     appDialog,
     setAppDialog,
@@ -1033,6 +944,25 @@ export function AppWorkbench() {
     effectiveCanStop,
     transcriptMeta,
   } = useSessionRuntime({ isSecondaryWindow });
+  const sessionChromeBadgesHostRef = useRef(createSessionChromeBadgesHost());
+  const {
+    mutedSessionIds,
+    unreadSessionIds,
+    planPendingSessionIds,
+    applyClearSessionUnread,
+    markPlanPendingBadge,
+    handleToggleSessionMute,
+    handleClearSessionUnread,
+    handleMarkSessionUnread,
+    handleClearAllSessionUnread,
+    handleClearAllSessionMutes,
+  } = useSessionChromeBadges({
+    hostRef: sessionChromeBadgesHostRef,
+    viewedSessionId: session.sessionId,
+    isSecondaryWindow,
+    trayBusyBadge,
+    winTaskbarOverlay,
+  });
 
   /** Context usage chip — known tokens from compact events + estimate fallback. */
   const [contextUsage, setContextUsage] = useState<ContextUsageState>(
@@ -2373,32 +2303,6 @@ export function AppWorkbench() {
       cancelled = true;
     };
   }, []);
-
-  // Dock / tray badge: unread sessions that finished a turn in the background.
-  // Only updates after turn end (markUnread), never on send / while streaming.
-  // Secondary windows must not overwrite the dock badge (main owns chrome).
-  // Count is clamped for display (TRAY-NOTIFY-PRO); pref off clears to 0.
-  useEffect(() => {
-    const resolved = resolveTrayBusyBadgeCount({
-      enabled: trayBusyBadge,
-      busyCount: unreadSessionIds.size,
-      isSecondaryWindow,
-    });
-    if (!resolved.apply) return;
-    void api.traySetBusyCount(resolved.count);
-  }, [unreadSessionIds.size, trayBusyBadge, isSecondaryWindow]);
-
-  // Windows taskbar *button* overlay: independent of trayBusyBadge (default off).
-  // Secondary windows must not apply. Pref off sends 0 (clear).
-  useEffect(() => {
-    const resolved = resolveTrayBusyBadgeCount({
-      enabled: winTaskbarOverlay,
-      busyCount: unreadSessionIds.size,
-      isSecondaryWindow,
-    });
-    if (!resolved.apply) return;
-    void api.traySetWindowsOverlay(resolved.count);
-  }, [unreadSessionIds.size, winTaskbarOverlay, isSecondaryWindow]);
 
   const applyComposerPrefs = useCallback(
     (prefs: api.ComposerPrefs, catalog: ModelOption[]) => {
@@ -5419,116 +5323,6 @@ export function AppWorkbench() {
     }),
     [tr],
   );
-
-  const handleToggleSessionMute = useCallback((sessionId: string) => {
-    toggleSessionMute(sessionId);
-    setMutedSessionIds(loadMutedSessionIds());
-  }, []);
-
-  const applyClearAllSessionUnread = useCallback(() => {
-    clearAllSessionUnread();
-    manualUnreadHoldIdsRef.current.clear();
-    setUnreadSessionIds(loadUnreadSessionIds());
-  }, []);
-
-  const handleClearAllSessionUnread = useCallback(() => {
-    const n = unreadSessionIds.size;
-    if (n <= 0) {
-      return;
-    }
-    if (shouldConfirmClearAllUnread(n)) {
-      setAppDialog({
-        kind: "confirm",
-        title: tr("session.clearAllUnreadTitle"),
-        message: tr("session.clearAllUnreadBody", { n: String(n) }),
-        confirmLabel: tr("session.clearAllUnreadAction"),
-        onConfirm: () => {
-          applyClearAllSessionUnread();
-        },
-      });
-      return;
-    }
-    applyClearAllSessionUnread();
-  }, [unreadSessionIds.size, tr, applyClearAllSessionUnread]);
-
-  const applyClearAllSessionMutes = useCallback(() => {
-    clearAllSessionMutes();
-    setMutedSessionIds(loadMutedSessionIds());
-  }, []);
-
-  const handleClearAllSessionMutes = useCallback(() => {
-    const n = mutedSessionIds.size;
-    if (n <= 0) {
-      return;
-    }
-    if (shouldConfirmClearAllMutes(n)) {
-      setAppDialog({
-        kind: "confirm",
-        title: tr("session.clearAllMutesTitle"),
-        message: tr("session.clearAllMutesBody", { n: String(n) }),
-        confirmLabel: tr("session.clearAllMutesAction"),
-        onConfirm: () => {
-          applyClearAllSessionMutes();
-        },
-      });
-      return;
-    }
-    applyClearAllSessionMutes();
-  }, [mutedSessionIds.size, tr, applyClearAllSessionMutes]);
-
-  const handleClearSessionUnread = useCallback(
-    (sessionId: string) => {
-      // Explicit "mark as read" also drops any manual hold.
-      manualUnreadHoldIdsRef.current.delete(sessionId);
-      applyClearSessionUnread(sessionId);
-    },
-    [applyClearSessionUnread],
-  );
-
-  const handleMarkSessionUnread = useCallback(
-    (sessionId: string) => {
-      applyMarkSessionUnread(sessionId);
-    },
-    [applyMarkSessionUnread],
-  );
-
-  // Binding a session while the workbench is in front clears its unread
-  // (sidebar + dock/tray badge + pet done-bubble). Hidden / unfocused
-  // windows are not a read — the bubble stays until they click it or
-  // actually view this chat with the window focused.
-  useEffect(() => {
-    if (!session.sessionId) return;
-    manualUnreadHoldIdsRef.current.delete(session.sessionId);
-    if (!isWorkbenchForeground()) return;
-    applyClearSessionUnread(session.sessionId);
-  }, [session.sessionId, applyClearSessionUnread]);
-
-  // Dock/taskbar or OS focus while already on a finished chat: clear that
-  // session's unread so the badge and pet bubble drop without re-clicking.
-  useEffect(() => {
-    const clearViewingIfPresent = () => {
-      const id = viewingSessionIdRef.current;
-      if (!id) return;
-      // Keep manual "mark as unread" until the user leaves this thread.
-      if (manualUnreadHoldIdsRef.current.has(id)) return;
-      if (!isWorkbenchForeground()) return;
-      applyClearSessionUnread(id);
-    };
-    const onVis = () => {
-      if (
-        typeof document !== "undefined" &&
-        document.visibilityState === "visible"
-      ) {
-        clearViewingIfPresent();
-      }
-    };
-    window.addEventListener("focus", clearViewingIfPresent);
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      window.removeEventListener("focus", clearViewingIfPresent);
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, [applyClearSessionUnread]);
 
   const openProjectMenu = (e: ReactMouseEvent, proj: Project) => {
     e.preventDefault();
@@ -10124,6 +9918,12 @@ export function AppWorkbench() {
     h.setResourceOpenTarget = setResourceOpenTarget;
     h.setPlanFocusKey = setPlanFocusKey;
     h.asideCollapsed = () => layoutRef.current.asideCollapsed;
+  }
+  {
+    const h = sessionChromeBadgesHostRef.current;
+    h.tr = tr;
+    h.setAppDialog = setAppDialog;
+    h.viewingSessionId = () => viewingSessionIdRef.current;
   }
 
   /**

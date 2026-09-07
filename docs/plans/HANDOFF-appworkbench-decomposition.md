@@ -60,7 +60,8 @@
    **WP-W26 已落地**：Host AppSettings prefs 水合 → `parseAppSettingsPrefs` + `useAppSettingsPrefs`。locale/composer chips/CLI probe 仍在 boot。天花板见 W27。
    **WP-W27 已落地**：ensureConnected + connecting claims + liveMap 订阅 → `useSessionConnect`。#870 验收：改 settings 导航/prefs/connect 不必打开 host 函数体。天花板 **15350 / 160 / 83**。
    **WP-W28 已落地**：git worktree 列表 / 创建 / GC / ship / switch / remove / 徽章 → `useGitWorktreeChrome`。overlay 收成 `worktreeChrome` 一袋。git dirty 仍在 host，经 `applyStatusBranch` 补 branch chip。天花板 **14650 / 130 / 80**。下一步 Side Workbench。
-   **WP-W29 已落地**：Side Workbench tabs / dock composer / Review focus / close-tab / git probe / chat→side 路由 → `useSideWorkbenchChrome`。host 只填 aside/open/toast 晚绑袋。`sessionChangesById` 与 git dirty 仍在 host。天花板 **14400 / 120 / 74**。方案见 [2026-09-06-appworkbench-w29-side-workbench.md](./2026-09-06-appworkbench-w29-side-workbench.md)。下一步会话徽章（mute / unread / plan-pending）。
+   **WP-W29 已落地**：Side Workbench tabs / dock composer / Review focus / close-tab / git probe / chat→side 路由 → `useSideWorkbenchChrome`。host 只填 aside/open/toast 晚绑袋。`sessionChangesById` 与 git dirty 仍在 host。天花板 **14400 / 120 / 74**。方案见 [2026-09-06-appworkbench-w29-side-workbench.md](./2026-09-06-appworkbench-w29-side-workbench.md)。
+   **WP-W30 已落地**：mute / unread / plan-pending Set、storage 事件、clear-on-view、tray/dock 计数 → `useSessionChromeBadges`。host 只填 tr / setAppDialog / viewing id。plan chrome 仍调 `markPlanPendingBadge`。天花板 **14200 / 116 / 68**。方案见 [2026-09-07-appworkbench-w30-session-badges.md](./2026-09-07-appworkbench-w30-session-badges.md)。下一步账号 / 配额（W31）。
    **pi**：协作者本机无 pi，按 owner 规则跳过。
    **5 个 worktree**：误会。远端 `main` 已含那些产品改动（本地只是 squash 后残留 SHA）。不挡大拆。
 5. 5.6k 行 JSX 拆为 view shell + 域容器；modals 先经既有 `useAppDialogs` 收口。
