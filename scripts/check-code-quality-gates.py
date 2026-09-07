@@ -43,8 +43,8 @@ APP_ORCH_FILES = (
 # Decreasing ceilings at current combined scale. Ratchet down each
 # workbench-extraction WP. The old 6000/100/50 numbers measured the 26-line
 # shell after the God Component was renamed — not a budget to grow into.
-APP_LINES_CEILING = 13900
-APP_USESTATE_CEILING = 108
+APP_LINES_CEILING = 13800
+APP_USESTATE_CEILING = 100
 APP_USEEFFECT_CEILING = 66
 
 

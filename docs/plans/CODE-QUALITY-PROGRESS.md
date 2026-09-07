@@ -12,7 +12,7 @@
 | Spec | `docs/plans/2026-08-01-code-quality-remediation-GOAL.md` |
 | Started | `2026-08-01` |
 | Current wave | `workbench-decomp` |
-| Current WP | `WP-W31` |
+| Current WP | `WP-W32` |
 | **FINAL** | **PASS** (honest orchestration metrics; decreasing ceilings) |
 
 ## Wave checklist
@@ -77,6 +77,7 @@
 | WP-W29 | Side Workbench chrome into useSideWorkbenchChrome | PASS |  | #1042; 14416→14258 lines; useState 122→116; useEffect 75→71; plan `docs/plans/2026-09-06-appworkbench-w29-side-workbench.md` |
 | WP-W30 | Session chrome badges into useSessionChromeBadges | PASS |  | main@#1050 14262→14062 lines; useState 116→113; useEffect 71→65; plan `docs/plans/2026-09-07-appworkbench-w30-session-badges.md` |
 | WP-W31 | Account / quota chrome into useAccountQuotaChrome | PASS |  | 14062→13759 lines; useState 113→104; useEffect 65→63; plan `docs/plans/2026-09-07-appworkbench-w31-account-quota.md` |
+| WP-W32 | MCP inspect + doctor into useMcpDoctorChrome | PASS |  | 13759→13714 lines; useState 104→96; useEffect 63; plan `docs/plans/2026-09-07-appworkbench-w32-mcp-doctor.md` |
 
 ## Metrics log (append-only)
 
@@ -119,6 +120,7 @@
 | 2026-09-06 W29 | 14258 (shell 21 + wb 14237) | 116 | 71 | 12 | dir | dir | 29 | 9 | 80 |
 | 2026-09-07 W30 | 14062 (shell 21 + wb 14041) | 113 | 65 | 12 | dir | dir | 29 | 9 | 80 |
 | 2026-09-07 W31 | 13759 (shell 21 + wb 13738) | 104 | 63 | 12 | dir | dir | 29 | 9 | 80 |
+| 2026-09-07 W32 | 13714 (shell 21 + wb 13693) | 96 | 63 | 12 | dir | dir | 29 | 9 | 80 |
 
 ## Blockers
 
@@ -144,7 +146,7 @@ Parallel non-overlapping tracks (multi-agent) — **landed**:
 | residual-resource-viewer | ResourceViewer + parts | **PASS** | 4938→modules |
 | residual-i18n | `src/i18n/**` | **PASS** | domain modules + barrels |
 | residual-settings | SettingsPage + settings/* | **PASS** | 8874→1817 |
-| residual-appworkbench | AppWorkbench + hooks | **PASS** | WP-W31: account snapshot / login / quota extracted |
+| residual-appworkbench | AppWorkbench + hooks | **PASS** | WP-W32: MCP inspect + doctor extracted |
 | residual-settings-catalog | settingsCatalog split | **PASS** | domain entries |
 
-Follow-on: `docs/plans/HANDOFF-appworkbench-decomposition.md`. Decreasing ceilings now **13900 / 108 useState / 66 useEffect**; `files_ge_1000` **≤80**. Shrink large files in follow-on waves — do not keep raising this budget.
+Follow-on: `docs/plans/HANDOFF-appworkbench-decomposition.md`. Decreasing ceilings now **13800 / 100 useState / 66 useEffect**; `files_ge_1000` **≤80**. Shrink large files in follow-on waves — do not keep raising this budget.
