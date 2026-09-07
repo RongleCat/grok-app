@@ -16,10 +16,6 @@ import { useFloatingMenu } from "@/lib/floatingMenu";
 import { restoreSessionGate } from "@/lib/sessionGateRestore";
 import { DEFAULT_WALLPAPER_FOCUS } from "@/lib/themeSkin";
 import { formatRelativeTime } from "@/lib/accountUi";
-import {
-  canFetchOfficialQuota,
-  mergeAccountStatusPreservingLocalUsage,
-} from "@/lib/accountQuotaRefresh";
 import { loadConfirmExternalLinksPref } from "@/lib/externalLinkPref";
 import {
   chatcutHandoffToResourceOpenTarget,
@@ -583,16 +579,12 @@ import {
   preferPermissionFocus,
   trapTabKey,
 } from "@/lib/a11yFocus";
-import {
-  quotaFromHostItem,
-  type SwitcherQuota,
-} from "@/lib/accountSwitcherQuota";
+
 import {
   type SettingsSectionId,
 } from "@/components/SettingsPage";
 import { isSettingsSectionId } from "@/lib/settingsCatalog";
 import {
-  isAccountConnected,
   loadCachedSuperGrokBrand,
   resolveWelcomeBrandKind,
   saveCachedSuperGrokBrand,
@@ -661,7 +653,10 @@ import { useAppDialogs } from "@/hooks/useAppDialogs";
 import { useSessionHostEvents } from "@/hooks/useSessionHostEvents";
 import { useSessionSpend } from "@/hooks/useSessionSpend";
 import { useGhostStreamingHeal } from "@/hooks/useGhostStreamingHeal";
-import { useAccountQuotaAutoRefresh } from "@/hooks/useAccountQuotaAutoRefresh";
+import {
+  createAccountQuotaChromeHost,
+  useAccountQuotaChrome,
+} from "@/hooks/useAccountQuotaChrome";
 import { useWorkbenchDisplayPrefs } from "@/hooks/useWorkbenchDisplayPrefs";
 import { useWorkbenchLayout } from "@/hooks/useWorkbenchLayout";
 import { useSettingsNavigation } from "@/hooks/useSettingsNavigation";
@@ -1593,11 +1588,6 @@ export function AppWorkbench() {
   }, [appGate]);
   /** In-conversation find (Cmd/Ctrl+F) — not the palette/session search. */
   const [showChatFind, setShowChatFind] = useState(false);
-  const [savedAccounts, setSavedAccounts] = useState<api.SavedAccount[]>([]);
-  const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
-  const [accountQuotas, setAccountQuotas] = useState<
-    Record<string, SwitcherQuota>
-  >({});
   const [perm, setPerm] = useState<PermissionPayload | null>(null);
   const permBarRef = useRef<HTMLDivElement | null>(null);
   const [askUser, setAskUser] = useState<AskUserPayload | null>(null);
@@ -2110,18 +2100,39 @@ export function AppWorkbench() {
     asideInFlow: !phoneLayout && !hideChatForSideExpand && !asideOverlay,
     sideExpanded: hideChatForSideExpand,
   });
-  const [account, setAccount] = useState<api.AccountStatus | null>(null);
+  const accountQuotaHostRef = useRef(createAccountQuotaChromeHost());
+  const {
+    account,
+    accountLoading,
+    accountBusy,
+    accountHeatmapError,
+    accountProbeError,
+    loginHint,
+    savedAccounts,
+    activeAccountId,
+    accountQuotas,
+    applyAccountSnapshot,
+    runWithAccountBusy,
+    refreshAccount,
+    refreshSavedAccounts,
+    refreshAccountQuotas,
+    runAccountLogin,
+    cancelAccountLogin,
+    submitAccountLoginCode,
+    runSaveAccount,
+    runAddAccount,
+    runSwitchAccount,
+    runRemoveAccount,
+    runAccountLogout,
+  } = useAccountQuotaChrome({
+    hostRef: accountQuotaHostRef,
+    manualCliPath,
+    accountSettingsOpen: settingsOpen && settingsSection === "account",
+  });
   voiceSignedInRef.current = !!account?.profile?.signedIn;
   useEffect(() => {
     void refreshVoiceGate();
   }, [account?.profile?.signedIn, refreshVoiceGate]);
-  const [accountLoading, setAccountLoading] = useState(false);
-  const [accountBusy, setAccountBusy] = useState(false);
-  /** Soft-fail heatmap / account_status error (never invents activity or quota). */
-  const [accountHeatmapError, setAccountHeatmapError] = useState<unknown>(null);
-  /** Soft-fail last account_status / billing probe error (never invents quota %). */
-  const [accountProbeError, setAccountProbeError] = useState<unknown>(null);
-  const [loginHint, setLoginHint] = useState<string | null>(null);
   const platform = useMemo(() => detectAppPlatform(), []);
   const settingsShortcutHint = useMemo(
     () =>
@@ -2387,7 +2398,7 @@ export function AppWorkbench() {
         const st = await api
           .accountStatus({ refreshBilling: false })
           .catch(() => null);
-        if (st) setAccount(st);
+        if (st) applyAccountSnapshot(st);
       } catch {
         /* never reset gate — soft-fail optional RPCs */
       }
@@ -9925,6 +9936,18 @@ export function AppWorkbench() {
     h.setAppDialog = setAppDialog;
     h.viewingSessionId = () => viewingSessionIdRef.current;
   }
+  {
+    const h = accountQuotaHostRef.current;
+    h.tr = tr;
+    h.showToast = showToast;
+    h.setAppDialog = setAppDialog;
+    h.noteAccountConnected = ({ auth, cliFound }) => {
+      setSetup((s) => ({ ...s, auth, cli: cliFound || s.cli }));
+    };
+    h.resetFocusedSession = () => {
+      setSession({ ...IDLE_SNAPSHOT });
+    };
+  }
 
   /**
    * Pick folder → add project (name = folder basename; no rename prompt).
@@ -11106,106 +11129,13 @@ export function AppWorkbench() {
     ],
   );
 
-  const refreshAccount = useCallback(
-    async (opts?: {
-      refreshBilling?: boolean;
-      /** No spinner / error flash — background quota tick. */
-      quiet?: boolean;
-      /** Skip heatmap / call-log walk (billing-only). */
-      includeLocalUsage?: boolean;
-      /** Drop Host reply after unmount / superseded probe. */
-      isCurrent?: () => boolean;
-    }) => {
-      if (!api.isTauri()) {
-        // Browser preview: soft-fail host_only — never invent heatmap/quota.
-        setAccountHeatmapError({ code: "host_only", message: "need tauri" });
-        // Browser / non-host: soft-fail host_only so Account never invents %.
-        setAccountProbeError({
-          code: "host_only",
-          message: "Account requires Tauri desktop runtime",
-        });
-        return;
-      }
-      const quiet = opts?.quiet === true;
-      const includeLocalUsage = opts?.includeLocalUsage ?? true;
-      if (!quiet) setAccountLoading(true);
-      try {
-        const st = await api.accountStatus({
-          refreshBilling: opts?.refreshBilling ?? true,
-          includeLocalUsage,
-          manualCliPath: manualCliPath || null,
-        });
-        if (opts?.isCurrent && !opts.isCurrent()) return;
-        setAccount((prev) =>
-          includeLocalUsage
-            ? st
-            : mergeAccountStatusPreservingLocalUsage(prev, st),
-        );
-        if (!quiet) setAccountHeatmapError(null);
-        setAccountProbeError(null);
-        setSetup((s) => ({
-          ...s,
-          auth: isAccountConnected(st),
-          cli: st.cliFound || s.cli,
-        }));
-        if (!quiet) {
-          try {
-            const list = await api.accountsList();
-            setSavedAccounts(list.profiles ?? []);
-            setActiveAccountId(list.activeId ?? null);
-          } catch {
-            // multi-account list is best-effort
-          }
-        }
-        // Usage line on tray menu (Codex-style)
-        void api.trayRefresh();
-      } catch (e) {
-        if (opts?.isCurrent && !opts.isCurrent()) return;
-        console.warn("account status failed", e);
-        if (!quiet) {
-          setAccountHeatmapError(e);
-          setAccountProbeError(e);
-        }
-      } finally {
-        if (!quiet) setAccountLoading(false);
-      }
-    },
-    [manualCliPath],
-  );
-
-  const refreshSavedAccounts = useCallback(async () => {
-    if (!api.isTauri()) return;
-    try {
-      const list = await api.accountsList();
-      setSavedAccounts(list.profiles ?? []);
-      setActiveAccountId(list.activeId ?? null);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const refreshAccountQuotas = useCallback(async () => {
-    if (!api.isTauri()) return;
-    try {
-      const r = await api.accountsQuota();
-      const map: Record<string, SwitcherQuota> = {};
-      for (const item of r.items ?? []) {
-        map[item.id] = quotaFromHostItem(item);
-      }
-      setAccountQuotas(map);
-    } catch {
-      /* ignore — rows stay on live seed / em dash */
-    }
-  }, []);
-
   /** Import markdown/JSON transcript as a new local session (from PR #24). */
   const importChatTranscript = useCallback(async () => {
     if (!api.isTauri()) {
       showToast(tr("error.needTauri"));
       return;
     }
-    setAccountBusy(true);
-    try {
+    await runWithAccountBusy(async () => {
       const created = await api.sessionImportTranscriptFile(
         null,
         activeProject?.id ?? null,
@@ -11219,15 +11149,13 @@ export function AppWorkbench() {
           projects.find((p) => p.id === (hit.projectId ?? undefined)) ?? null;
         void openSession(hit, proj ?? undefined);
       }
-    } catch (e) {
+    }).catch((e) => {
       showToast(
         `${tr("account.importChatFailed")}: ${String(e)}`,
         5000,
       );
-    } finally {
-      setAccountBusy(false);
-    }
-  }, [activeProject?.id, projects, showToast, tr]);
+    });
+  }, [activeProject?.id, projects, runWithAccountBusy, showToast, tr]);
 
   const unarchivedAppSessionCount = sessions.filter((s) => !s.archived).length;
   const linkedAgentIds = sessions
@@ -11819,237 +11747,6 @@ export function AppWorkbench() {
     (seconds: string) => tr("perm.autoDenyCountdown", { seconds }),
     [tr],
   );
-
-  const runAccountLogin = useCallback(
-    async (method: "oauth" | "device" = "oauth"): Promise<boolean> => {
-      if (!api.isTauri()) {
-        showToast(tr("error.needTauri"));
-        return false;
-      }
-      setAccountBusy(true);
-      setLoginHint(null);
-      try {
-        const res = await api.accountLogin(method);
-        if (res.ok) {
-          setLoginHint(null);
-        } else if (res.timedOut) {
-          const msg = `${tr("account.loginTimeout")} ${tr(
-            "account.loginUnreachableHint",
-          )}`;
-          setLoginHint(msg);
-          showToast(msg, 10000);
-        } else {
-          const msg = res.message || tr("account.loginFailed");
-          setLoginHint(msg);
-          showToast(msg, 6000);
-        }
-        if (res.deviceUrl) {
-          try {
-            await api.openExternalUrl(res.deviceUrl);
-          } catch {
-            /* host may already open it */
-          }
-        }
-        await refreshAccount({ refreshBilling: true });
-        await refreshSavedAccounts();
-        // Host account_login recycles live/bg/parked/prewarm on success
-        // (`account_auth`) so warm CLIs cannot keep stale/missing OIDC.
-        // Reset focused shell snapshot only — do not sessionDisconnect (that
-        // parks processes and used to leave prewarm alive for reuse).
-        if (res.ok) {
-          setSession({ ...IDLE_SNAPSHOT });
-        }
-        return !!res.ok;
-      } catch (e) {
-        const msg = String(e);
-        setLoginHint(msg);
-        showToast(msg, 4500);
-        return false;
-      } finally {
-        setAccountBusy(false);
-      }
-    },
-    [refreshAccount, refreshSavedAccounts, showToast, tr],
-  );
-
-  /** Abort a running login (OAuth/device) so the user can pick another method
-   *  without restarting the app. The backend kills the `grok login` child. */
-  const cancelAccountLogin = useCallback(async () => {
-    try {
-      await api.accountLoginCancel();
-    } catch {
-      /* ignore — still unlock UI */
-    }
-    setAccountBusy(false);
-  }, []);
-
-  /**
-   * Paste a browser-shown verification code into the running `grok login`.
-   * auth.x.ai sometimes asks to “copy this code into Grok Build” instead of
-   * completing via localhost callback.
-   */
-  const submitAccountLoginCode = useCallback(
-    async (code: string) => {
-      if (!api.isTauri()) {
-        showToast(tr("error.needTauri"));
-        return;
-      }
-      try {
-        await api.accountLoginSubmitCode(code);
-        showToast(tr("account.loginPasteOk"), 4000);
-      } catch (e) {
-        const msg = `${tr("account.loginPasteFailed")}: ${String(e)}`;
-        setLoginHint(msg);
-        showToast(msg, 5000);
-      }
-    },
-    [showToast, tr],
-  );
-
-  const runSaveAccount = useCallback(async () => {
-    if (!api.isTauri()) return;
-    setAccountBusy(true);
-    try {
-      await api.accountSaveCurrent();
-      await refreshSavedAccounts();
-    } catch (e) {
-      showToast(String(e), 4500);
-    } finally {
-      setAccountBusy(false);
-    }
-  }, [refreshSavedAccounts, showToast, tr]);
-
-  /**
-   * Save current login (if any), then start OAuth so the user can add another
-   * account without losing the previous snapshot.
-   */
-  const runAddAccount = useCallback(async () => {
-    if (!api.isTauri()) {
-      showToast(tr("error.needTauri"));
-      return;
-    }
-    // Snapshot current auth first so switcher keeps it.
-    if (account?.profile?.signedIn) {
-      setAccountBusy(true);
-      try {
-        await api.accountSaveCurrent();
-        await refreshSavedAccounts();
-      } catch (e) {
-        // Still try login — user may want a fresh account even if save fails.
-        showToast(String(e), 3500);
-      } finally {
-        setAccountBusy(false);
-      }
-    }
-    await runAccountLogin("oauth");
-  }, [
-    account?.profile?.signedIn,
-    refreshSavedAccounts,
-    runAccountLogin,
-    showToast,
-    tr,
-  ]);
-
-  const runSwitchAccount = useCallback(
-    async (id: string) => {
-      if (!api.isTauri()) return;
-      setAccountBusy(true);
-      try {
-        await api.accountSwitch(id);
-        await refreshAccount({ refreshBilling: true });
-        await refreshSavedAccounts();
-        // Host account_switch recycles all agents (account_auth).
-        setSession({ ...IDLE_SNAPSHOT });
-      } catch (e) {
-        showToast(String(e), 4500);
-      } finally {
-        setAccountBusy(false);
-      }
-    },
-    [refreshAccount, refreshSavedAccounts, showToast, tr],
-  );
-
-  const runRemoveAccount = useCallback(
-    (id: string) => {
-      if (!api.isTauri()) return;
-      const label =
-        savedAccounts.find((a) => a.id === id)?.label || id.slice(0, 8);
-      setAppDialog({
-        kind: "confirm",
-        title: tr("account.profileRemove"),
-        message: tr("account.profilesHint"),
-        confirmLabel: tr("account.profileRemove"),
-        danger: true,
-        onConfirm: async () => {
-          setAccountBusy(true);
-          try {
-            await api.accountRemove(id);
-            await refreshSavedAccounts();
-          } catch (e) {
-            showToast(String(e), 4500);
-          } finally {
-            setAccountBusy(false);
-          }
-        },
-      });
-      void label;
-    },
-    [refreshSavedAccounts, savedAccounts, showToast, tr],
-  );
-
-  const runAccountLogout = useCallback(async () => {
-    if (!api.isTauri()) return;
-    setAccountBusy(true);
-    try {
-      await api.accountLogout();
-      await refreshAccount({ refreshBilling: false });
-      await refreshSavedAccounts();
-      // Host account_logout recycles all agents (account_auth).
-      setSession({ ...IDLE_SNAPSHOT });
-    } catch (e) {
-      showToast(String(e), 4500);
-    } finally {
-      setAccountBusy(false);
-    }
-  }, [refreshAccount, refreshSavedAccounts, showToast]);
-
-  // Account boot: paint fast from disk cache first, then refresh quota on network.
-  // Welcome SuperGrok logo depends on billing tier — waiting only on the slow
-  // path made the mark look like a "slow image" even though it is inline SVG.
-  useEffect(() => {
-    if (!api.isTauri()) return;
-    let cancelled = false;
-    void (async () => {
-      const isCurrent = () => !cancelled;
-      await refreshAccount({ refreshBilling: false, isCurrent });
-      if (cancelled) return;
-      await refreshAccount({ refreshBilling: true, isCurrent });
-      if (cancelled) return;
-      await refreshSavedAccounts();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshAccount, refreshSavedAccounts]);
-
-  useEffect(() => {
-    if (settingsOpen && settingsSection === "account") {
-      void refreshAccount({ refreshBilling: true });
-      void refreshSavedAccounts();
-    }
-  }, [settingsOpen, settingsSection, refreshAccount, refreshSavedAccounts]);
-
-  useAccountQuotaAutoRefresh({
-    enabled: api.isTauri(),
-    canFetch: canFetchOfficialQuota(account),
-    refresh: (isCurrent) =>
-      refreshAccount({
-        refreshBilling: true,
-        quiet: true,
-        includeLocalUsage: false,
-        isCurrent,
-      }),
-  });
 
   // Keep Esc→stop gate current for the capture-phase shortcut listener.
   escapeStopLiveRef.current = {
