@@ -64,6 +64,54 @@ const SshWatchContext = createContext<Ctx | null>(null);
 
 const POLL_MS = 20_000;
 
+/**
+ * Poll results usually identical to the previous page — avoid propagating a
+ * new sessionsByAlias/totalsByAlias identity (and re-rendering every
+ * consumer) when nothing changed.
+ */
+function sshSessionsEqual(
+  a: api.SshRemoteSession[] | undefined,
+  b: api.SshRemoteSession[] | undefined,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) return false;
+  }
+  return true;
+}
+
+/** Merge fetched pages into prev, keeping prev identity when nothing changed. */
+function mergeSessionsByAlias(
+  prev: Record<string, api.SshRemoteSession[]>,
+  fetched: Record<string, api.SshRemoteSession[]>,
+): Record<string, api.SshRemoteSession[]> {
+  let changed = false;
+  const next: Record<string, api.SshRemoteSession[]> = { ...prev };
+  for (const alias of Object.keys(fetched)) {
+    if (!sshSessionsEqual(prev[alias], fetched[alias])) {
+      next[alias] = fetched[alias];
+      changed = true;
+    }
+  }
+  return changed ? next : prev;
+}
+
+function mergeTotalsByAlias(
+  prev: Record<string, number>,
+  fetched: Record<string, number>,
+): Record<string, number> {
+  let changed = false;
+  const next: Record<string, number> = { ...prev };
+  for (const alias of Object.keys(fetched)) {
+    if (prev[alias] !== fetched[alias]) {
+      next[alias] = fetched[alias];
+      changed = true;
+    }
+  }
+  return changed ? next : prev;
+}
+
 export function SshWatchProvider({ children }: { children: ReactNode }) {
   const [watchAliases, setWatchAliases] = useState<string[]>([]);
   const [sessionsByAlias, setSessionsByAlias] = useState<
@@ -120,8 +168,8 @@ export function SshWatchProvider({ children }: { children: ReactNode }) {
         }
       }),
     );
-    setSessionsByAlias((prev) => ({ ...prev, ...nextSessions }));
-    setTotalsByAlias((prev) => ({ ...prev, ...nextTotals }));
+    setSessionsByAlias((prev) => mergeSessionsByAlias(prev, nextSessions));
+    setTotalsByAlias((prev) => mergeTotalsByAlias(prev, nextTotals));
   }, [watchAliases, pageByAlias, fetchAlias]);
 
   useEffect(() => {
@@ -182,8 +230,12 @@ export function SshWatchProvider({ children }: { children: ReactNode }) {
     if (!api.isTauri()) return;
     try {
       const r = await fetchAlias(alias, next);
-      setSessionsByAlias((prev) => ({ ...prev, [alias]: r.sessions }));
-      setTotalsByAlias((prev) => ({ ...prev, [alias]: r.total }));
+      setSessionsByAlias((prev) =>
+        mergeSessionsByAlias(prev, { [alias]: r.sessions }),
+      );
+      setTotalsByAlias((prev) =>
+        mergeTotalsByAlias(prev, { [alias]: r.total }),
+      );
     } catch {
       /* keep current page */
     }

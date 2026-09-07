@@ -957,7 +957,13 @@ function transcriptRowPropsEqual(
   if (a.regenerateModels !== b.regenerateModels) return false;
   if (a.regenerateModelId !== b.regenerateModelId) return false;
   if (a.activeAssistantId !== b.activeAssistantId) return false;
-  if (a.liveTool !== b.liveTool) return false;
+  if (a.liveTool !== b.liveTool) {
+    // liveTool only paints below the ACTIVE assistant row (fallback line when
+    // no running tool is woven into segments). A new streaming reference per
+    // token must not bust every other row's memo.
+    const liveHere = a.m.id === a.activeAssistantId || b.m.id === b.activeAssistantId;
+    if (liveHere) return false;
+  }
   // Do not compare wovenMessages by array identity — weave used to clone every
   // row on each stream notify and bust all memos. History `m` refs + toolInlined
   // via `a.m` are enough; the streaming assistant already has a new `m`.
@@ -2618,12 +2624,26 @@ export function ConversationThread({
    * group (painted at the first row; the rest become zero-height spacers).
    * This is where “loose adjacent tool rows” come from when a turn ends with
    * tools never woven into an assistant bubble.
+   *
+   * Reference-stable across stream flushes: the map rebuilds per token, but
+   * only contributing rows (unwoven tool_step rows + their woven flag) can
+   * change its contents. Reuse the previous Map when that signature matches,
+   * otherwise `a.standaloneToolGroups !== b.standaloneToolGroups` busts every
+   * TranscriptMessageRow memo ~10×/s during streaming.
    */
+  const standaloneToolGroupsSigRef = useRef<{
+    sig: [unknown, boolean][];
+    map: Map<
+      string,
+      { key: string; tools: MessageToolSegment[]; first: boolean }
+    > | null;
+  }>({ sig: [], map: null });
   const standaloneToolGroups = useMemo(() => {
     const map = new Map<
       string,
       { key: string; tools: MessageToolSegment[]; first: boolean }
     >();
+    const sig: [unknown, boolean][] = [];
     let key: string | null = null;
     let firstId: string | null = null;
     let groupTools: MessageToolSegment[] | null = null;
@@ -2638,6 +2658,7 @@ export function ConversationThread({
           (row.toolCallId || "").trim() ||
           (row.id.startsWith("tool-") ? row.id.slice(5) : "");
         const woven = !!tcid && isToolInlinedInAssistants(wovenMessages, tcid);
+        sig.push([row, woven]);
         if (!woven) {
           const seg = toolSegmentFromMessage(row);
           if (seg) {
@@ -2658,6 +2679,18 @@ export function ConversationThread({
       }
       close();
     }
+    const prev = standaloneToolGroupsSigRef.current;
+    if (
+      prev.map &&
+      prev.sig.length === sig.length &&
+      sig.every(([row, woven], i) => {
+        const entry = prev.sig[i];
+        return entry[0] === row && entry[1] === woven;
+      })
+    ) {
+      return prev.map;
+    }
+    standaloneToolGroupsSigRef.current = { sig, map };
     return map;
   }, [transcriptMessages, wovenMessages]);
 

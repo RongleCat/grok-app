@@ -11,7 +11,7 @@
  * of a fake “busy” grid of invented levels.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { runAfterPaneSplitMotion } from "@/lib/paneSplitMotion";
 import { createPortal } from "react-dom";
 import type { HeatmapDay } from "@/lib/api";
@@ -286,6 +286,145 @@ function formatRangeLabel(range: HeatRange): string {
   return `${range.start} – ${range.end}`;
 }
 
+type HeatmapHoverPayload = {
+  label: string;
+  tokens: number;
+  cumulative?: number;
+  left: number;
+  top: number;
+  placeAbove: boolean;
+};
+
+/**
+ * One day cell. Memoized so parent `hover` state churn (a setState on every
+ * pointer move across the grid) does not re-render all ~371 day buttons —
+ * a cell only updates when its own data, size, or selection changes.
+ */
+const HeatmapDayCell = memo(function HeatmapDayCell({
+  cellItem,
+  col,
+  row,
+  size,
+  selectedRange,
+  locale,
+  tokensLabel,
+  onHoverCell,
+  onSelectRange,
+}: {
+  cellItem: DayCell;
+  col: number;
+  row: number;
+  size: number;
+  selectedRange: HeatRange | null;
+  locale: string;
+  tokensLabel: string;
+  onHoverCell: (payload: HeatmapHoverPayload) => void;
+  onSelectRange: (range: HeatRange) => void;
+}) {
+  const selected =
+    !!cellItem.range && heatRangesEqual(selectedRange, cellItem.range);
+  return (
+    <button
+      type="button"
+      role="gridcell"
+      disabled={cellItem.empty || !cellItem.range}
+      aria-label={
+        cellItem.date
+          ? `${cellItem.date}, ${tokensLabel} ${formatLocaleCount(cellItem.tokens, locale)}`
+          : undefined
+      }
+      aria-pressed={selected}
+      className={
+        "gh-heatmap__cell" +
+        (cellItem.empty ? " is-empty" : "") +
+        (selected ? " is-selected" : "")
+      }
+      style={{
+        gridColumn: col,
+        gridRow: row,
+        width: size,
+        height: size,
+        backgroundColor: cellItem.empty
+          ? "transparent"
+          : LEVEL_COLORS[cellItem.level],
+      }}
+      onPointerEnter={(e) => {
+        if (!cellItem.date || cellItem.empty) return;
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        onHoverCell({
+          label: cellItem.date,
+          tokens: cellItem.tokens,
+          cumulative: cellItem.cumulative,
+          ...tipPosFromRect(rect),
+        });
+      }}
+      onClick={() => {
+        if (!cellItem.range || cellItem.empty) return;
+        onSelectRange(cellItem.range);
+      }}
+    />
+  );
+});
+
+/** Week-granularity cell — same memo rationale as HeatmapDayCell. */
+const HeatmapWeekCell = memo(function HeatmapWeekCell({
+  cellItem,
+  col,
+  size,
+  selectedRange,
+  locale,
+  tokensLabel,
+  onHoverCell,
+  onSelectRange,
+}: {
+  cellItem: WeekCell;
+  col: number;
+  size: number;
+  selectedRange: HeatRange | null;
+  locale: string;
+  tokensLabel: string;
+  onHoverCell: (payload: HeatmapHoverPayload) => void;
+  onSelectRange: (range: HeatRange) => void;
+}) {
+  const selected = heatRangesEqual(selectedRange, cellItem.range);
+  return (
+    <button
+      type="button"
+      role="gridcell"
+      disabled={cellItem.empty}
+      aria-label={`${formatRangeLabel(cellItem.range)}, ${tokensLabel} ${formatLocaleCount(cellItem.tokens, locale)}`}
+      aria-pressed={selected}
+      className={
+        "gh-heatmap__cell gh-heatmap__cell--week" +
+        (cellItem.empty ? " is-empty" : "") +
+        (selected ? " is-selected" : "")
+      }
+      style={{
+        gridColumn: col,
+        gridRow: 1,
+        width: size,
+        height: WEEK_CELL_H,
+        backgroundColor: cellItem.empty
+          ? "transparent"
+          : LEVEL_COLORS[cellItem.level],
+      }}
+      onPointerEnter={(e) => {
+        if (cellItem.empty) return;
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        onHoverCell({
+          label: formatRangeLabel(cellItem.range),
+          tokens: cellItem.tokens,
+          ...tipPosFromRect(rect),
+        });
+      }}
+      onClick={() => {
+        if (cellItem.empty) return;
+        onSelectRange(cellItem.range);
+      }}
+    />
+  );
+});
+
 export function Heatmap({
   days,
   metric = "tokens",
@@ -543,14 +682,17 @@ export function Heatmap({
   const labelCol = useDayGrid ? LABEL_COL : 0;
   const totalWidth = labelCol + graphWidth + monthTrail;
 
-  const selectRange = (range: HeatRange | null) => {
-    if (!onSelectRange) return;
-    if (range && heatRangesEqual(selectedRange, range)) {
-      onSelectRange(null);
-    } else {
-      onSelectRange(range);
-    }
-  };
+  const selectRange = useCallback(
+    (range: HeatRange | null) => {
+      if (!onSelectRange) return;
+      if (range && heatRangesEqual(selectedRange, range)) {
+        onSelectRange(null);
+      } else {
+        onSelectRange(range);
+      }
+    },
+    [onSelectRange, selectedRange],
+  );
 
   return (
     <div ref={containerRef} className="gh-heatmap">
@@ -634,53 +776,17 @@ export function Heatmap({
             >
               {dayGrid.weeks.map((week, wi) =>
                 week.map((cellItem, di) => (
-                  <button
+                  <HeatmapDayCell
                     key={`${wi}-${di}`}
-                    type="button"
-                    role="gridcell"
-                    disabled={cellItem.empty || !cellItem.range}
-                    aria-label={
-                      cellItem.date
-                        ? `${cellItem.date}, ${labels.tokens} ${formatLocaleCount(cellItem.tokens, locale)}`
-                        : undefined
-                    }
-                    aria-pressed={
-                      !!cellItem.range &&
-                      heatRangesEqual(selectedRange, cellItem.range)
-                    }
-                    className={
-                      "gh-heatmap__cell" +
-                      (cellItem.empty ? " is-empty" : "") +
-                      (cellItem.range &&
-                      heatRangesEqual(selectedRange, cellItem.range)
-                        ? " is-selected"
-                        : "")
-                    }
-                    style={{
-                      gridColumn: wi + 1,
-                      gridRow: di + 1,
-                      width: cell,
-                      height: cell,
-                      backgroundColor: cellItem.empty
-                        ? "transparent"
-                        : LEVEL_COLORS[cellItem.level],
-                    }}
-                    onPointerEnter={(e) => {
-                      if (!cellItem.date || cellItem.empty) return;
-                      const rect = (
-                        e.currentTarget as HTMLElement
-                      ).getBoundingClientRect();
-                      setHover({
-                        label: cellItem.date,
-                        tokens: cellItem.tokens,
-                        cumulative: cellItem.cumulative,
-                        ...tipPosFromRect(rect),
-                      });
-                    }}
-                    onClick={() => {
-                      if (!cellItem.range || cellItem.empty) return;
-                      selectRange(cellItem.range);
-                    }}
+                    cellItem={cellItem}
+                    col={wi + 1}
+                    row={di + 1}
+                    size={cell}
+                    selectedRange={selectedRange}
+                    locale={locale}
+                    tokensLabel={labels.tokens}
+                    onHoverCell={setHover}
+                    onSelectRange={selectRange}
                   />
                 )),
               )}
@@ -701,44 +807,16 @@ export function Heatmap({
               onPointerLeave={() => setHover(null)}
             >
               {weekRow.weekCells.map((w, wi) => (
-                <button
+                <HeatmapWeekCell
                   key={`w-${wi}-${w.start}`}
-                  type="button"
-                  role="gridcell"
-                  disabled={w.empty}
-                  aria-label={`${formatRangeLabel(w.range)}, ${labels.tokens} ${formatLocaleCount(w.tokens, locale)}`}
-                  aria-pressed={heatRangesEqual(selectedRange, w.range)}
-                  className={
-                    "gh-heatmap__cell gh-heatmap__cell--week" +
-                    (w.empty ? " is-empty" : "") +
-                    (heatRangesEqual(selectedRange, w.range)
-                      ? " is-selected"
-                      : "")
-                  }
-                  style={{
-                    gridColumn: wi + 1,
-                    gridRow: 1,
-                    width: cell,
-                    height: WEEK_CELL_H,
-                    backgroundColor: w.empty
-                      ? "transparent"
-                      : LEVEL_COLORS[w.level],
-                  }}
-                  onPointerEnter={(e) => {
-                    if (w.empty) return;
-                    const rect = (
-                      e.currentTarget as HTMLElement
-                    ).getBoundingClientRect();
-                    setHover({
-                      label: formatRangeLabel(w.range),
-                      tokens: w.tokens,
-                      ...tipPosFromRect(rect),
-                    });
-                  }}
-                  onClick={() => {
-                    if (w.empty) return;
-                    selectRange(w.range);
-                  }}
+                  cellItem={w}
+                  col={wi + 1}
+                  size={cell}
+                  selectedRange={selectedRange}
+                  locale={locale}
+                  tokensLabel={labels.tokens}
+                  onHoverCell={setHover}
+                  onSelectRange={selectRange}
                 />
               ))}
             </div>

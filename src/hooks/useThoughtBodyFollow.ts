@@ -14,7 +14,8 @@ import {
 export function useThoughtBodyFollow(input: {
   live: boolean;
   expanded: boolean;
-  /** Content / step text. Height also observed via ResizeObserver. */
+  /** Content / step text. Kept for caller convenience — following is driven
+   * by the ResizeObserver below, not by per-token effect re-runs. */
   followKey: string;
 }): RefObject<HTMLDivElement | null> {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -67,7 +68,9 @@ export function useThoughtBodyFollow(input: {
     ro.observe(el);
     if (el.firstElementChild) ro.observe(el.firstElementChild);
     return () => ro.disconnect();
-  }, [input.live, input.expanded, input.followKey]);
+    // followKey is intentionally NOT a dep: the observer fires on content
+    // growth, so re-creating it per stream token is pure churn.
+  }, [input.live, input.expanded]);
 
   useEffect(() => {
     const el = ref.current;

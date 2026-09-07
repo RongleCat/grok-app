@@ -887,5 +887,8 @@ export function filterEchoedUserAttachments(
   if (!userAtts?.length) return assistantAtts;
   const echo = new Set(userAtts.map((a) => a.path));
   const out = assistantAtts.filter((a) => !echo.has(a.path));
+  // Nothing echoed — keep the input reference so memoized consumers
+  // (AssistantMessageBody) are not busted by a fresh array per render.
+  if (out.length === assistantAtts.length) return assistantAtts;
   return out.length ? out : undefined;
 }
