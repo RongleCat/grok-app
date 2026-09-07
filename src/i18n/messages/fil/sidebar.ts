@@ -26,7 +26,7 @@ export const filSidebar = {
   "sidebar.trustProject": "Pagkatiwalaan ang proyekto",
   "sidebar.relocateProject": "Ilipat ang folder…",
   "sidebar.noChats": "Walang chat",
-  "sidebar.otherSessions": "Iba pa",
+  "sidebar.otherSessions": "Default na workspace",
   "sidebar.dateGroup.today": "Ngayon",
   "sidebar.dateGroup.yesterday": "Kahapon",
   "sidebar.dateGroup.previous7": "Nakaraang 7 araw",

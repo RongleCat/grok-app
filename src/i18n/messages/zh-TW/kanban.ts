@@ -23,5 +23,5 @@ export const zhTWKanban = {
   "kanban.filterEmptyHint": "清空搜尋或開啟「顯示閒置智慧體」以查看更多。",
   "kanban.clearFilters": "清除全部篩選",
   "kanban.mapEmpty": "此檢視尚無智慧體",
-  "kanban.unboundProject": "其他對話",
+  "kanban.unboundProject": "預設工作區",
 };

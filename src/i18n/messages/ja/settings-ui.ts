@@ -182,7 +182,7 @@ export const jaSettingsUi = {
   "settings.archived.empty": "アーカイブしたチャットはありません。",
   "settings.archived.restore": "復元",
   "settings.archived.delete": "削除",
-  "settings.archived.orphan": "その他のセッション",
+  "settings.archived.orphan": "デフォルトワークスペース",
   "settings.archived.selectAll": "すべて選択",
   "settings.archived.deselectAll": "選択を解除",
   "settings.archived.selectedCount": "{n} 件選択中",

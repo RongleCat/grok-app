@@ -91,7 +91,7 @@ describe("buildTaskBoard", () => {
       liveMap,
       currentSessionId: "a",
       untitledLabel: "Untitled",
-      unboundProjectLabel: "Other chats",
+      unboundProjectLabel: "Default workspace",
     });
 
     expect(board.running.map((c) => c.sessionId)).toEqual(["a"]);
@@ -109,7 +109,7 @@ describe("buildTaskBoard", () => {
     expect(a.column).toBe("running");
 
     const c = board.idle[0]!;
-    expect(c.projectName).toBe("Other chats");
+    expect(c.projectName).toBe("Default workspace");
     expect(c.status).toBe("idle");
   });
 

@@ -481,7 +481,7 @@ pub struct AppSettings {
     /// Sidebar project folders the user collapsed (ids). Missing id ⇒ expanded.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sidebar_collapsed_project_ids: Vec<String>,
-    /// Sidebar “Other sessions” (orphan) section expanded. Default **true**
+    /// Sidebar Default workspace (orphan) section expanded. Default **true**
     /// (matches historical cold-start behavior). Missing field ⇒ open.
     #[serde(default = "default_true")]
     pub sidebar_other_sessions_open: bool,
@@ -1276,7 +1276,7 @@ pub fn load_projects() -> Vec<Project> {
     let _ = ensure_general_workspace_dir();
     let mut list: Vec<Project> = read_json_recover(&projects_file());
     // One-shot migration: drop the temporary system:general project row and
-    // rehome its sessions to orphan (`project_id = None`) under "其他会话".
+    // rehome its sessions to orphan (`project_id = None`) under Default workspace.
     migrate_legacy_general_project(&mut list);
     let mut dirty = apply_ssh_path_health(&mut list);
     dirty |= dedup_ssh_projects_by_alias_path(&mut list);
@@ -1309,7 +1309,7 @@ pub fn general_workspace_path_string() -> Result<String, String> {
 }
 
 /// Remove legacy `system:general` from the projects list and clear those
-/// session bindings so chats appear under "其他会话".
+/// session bindings so chats appear under Default workspace.
 fn migrate_legacy_general_project(list: &mut Vec<Project>) {
     let had_row = list.iter().any(|p| p.is_legacy_general());
     if !had_row {
@@ -1826,7 +1826,7 @@ pub fn create_session(
     title: Option<String>,
     scheduled: bool,
 ) -> Result<SessionMeta, String> {
-    // Unassigned chats stay orphan (`None`) and appear under "其他会话".
+    // Unassigned chats stay orphan (`None`) and appear under Default workspace.
     // Agent cwd falls back to `{app_data}/workspaces/general` at connect time.
     let _ = ensure_general_workspace_dir();
     let project_id = project_id
@@ -2140,7 +2140,7 @@ pub fn set_session_system_prompt_override(
 
 /// Bind (or clear) a session's project folder. Used to attach orphan / legacy
 /// chats to a project added later. Clearing (`None`) returns the chat to
-/// "其他会话"; agent cwd still uses the general workspace directory.
+/// Default workspace; agent cwd still uses the general workspace directory.
 ///
 /// Internal / fork-restore path: does **not** clear `agent_session_id` or
 /// worktree meta. User-facing sidebar/chip moves must use

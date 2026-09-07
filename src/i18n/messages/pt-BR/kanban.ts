@@ -22,5 +22,5 @@ export const ptBRKanban = {
   "kanban.filterEmptyHint": "Limpe a busca ou mostre os agentes ociosos.",
   "kanban.clearFilters": "Limpar todos os filtros",
   "kanban.mapEmpty": "Nenhum agente nesta visão",
-  "kanban.unboundProject": "Outras conversas",
+  "kanban.unboundProject": "Espaço de trabalho padrão",
 };

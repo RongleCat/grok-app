@@ -30,6 +30,23 @@ describe("i18n catalog", () => {
     }
   });
 
+  it("names the unbound bucket the same as the composer default workspace", () => {
+    const sameAsChip: MessageKey[] = [
+      "sidebar.otherSessions",
+      "settings.archived.orphan",
+      "kanban.unboundProject",
+      "project.general",
+      "composer.clearProject",
+    ];
+    for (const loc of LOCALES) {
+      const chip = messages[loc]["composer.noProject"];
+      expect(chip, loc).toBeTruthy();
+      for (const key of sameAsChip) {
+        expect(messages[loc][key], `${loc}.${key}`).toBe(chip);
+      }
+    }
+  });
+
   it("ships the product locale set", () => {
     expect([...LOCALES].sort()).toEqual(
       [

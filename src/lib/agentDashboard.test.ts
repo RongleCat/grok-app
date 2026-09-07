@@ -129,7 +129,7 @@ describe("collectAgentDashboardRows", () => {
       currentSessionId: "a",
       untitledLabel: "Untitled",
       generalWorkspacePath: "/Users/me/.grok-app/workspaces/general",
-      unboundProjectLabel: "Other chats",
+      unboundProjectLabel: "Default workspace",
     });
 
     // Permission (needs you) before busy; then idle by last activity (c newer than d).
@@ -149,7 +149,7 @@ describe("collectAgentDashboardRows", () => {
 
     const idleC = rows.find((r) => r.sessionId === "c")!;
     expect(idleC.status).toBe("idle");
-    expect(idleC.projectName).toBe("Other chats");
+    expect(idleC.projectName).toBe("Default workspace");
     expect(idleC.projectPath).toBe(
       "/Users/me/.grok-app/workspaces/general",
     );

@@ -22,5 +22,5 @@ export const filKanban = {
   "kanban.filterEmptyHint": "Alisin ang paghahanap o ipakita ang mga nakatenggang agent.",
   "kanban.clearFilters": "Alisin lahat ng filter",
   "kanban.mapEmpty": "Walang agent sa view na ito",
-  "kanban.unboundProject": "Ibang mga chat",
+  "kanban.unboundProject": "Default na workspace",
 };

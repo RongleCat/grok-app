@@ -182,7 +182,7 @@ export const taSettingsUi = {
   "settings.archived.empty": "காப்பகப்படுத்தப்பட்ட உரையாடல்கள் இல்லை.",
   "settings.archived.restore": "மீட்டமை",
   "settings.archived.delete": "நீக்கு",
-  "settings.archived.orphan": "மற்ற அமர்வுகள்",
+  "settings.archived.orphan": "இயல்புநிலை பணியிடம்",
   "settings.archived.selectAll": "அனைத்தையும் தேர்ந்தெடு",
   "settings.archived.deselectAll": "தேர்வை நீக்கு",
   "settings.archived.selectedCount": "{n} தேர்ந்தெடுக்கப்பட்டது",

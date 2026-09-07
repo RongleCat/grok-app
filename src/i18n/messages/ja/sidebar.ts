@@ -26,7 +26,7 @@ export const jaSidebar = {
   "sidebar.trustProject": "プロジェクトを信頼",
   "sidebar.relocateProject": "フォルダーを再設定…",
   "sidebar.noChats": "チャットなし",
-  "sidebar.otherSessions": "その他",
+  "sidebar.otherSessions": "デフォルトワークスペース",
   "sidebar.dateGroup.today": "今日",
   "sidebar.dateGroup.yesterday": "昨日",
   "sidebar.dateGroup.previous7": "過去 7 日間",

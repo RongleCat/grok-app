@@ -182,7 +182,7 @@ export const idSettingsUi = {
   "settings.archived.empty": "Tidak ada obrolan yang diarsipkan.",
   "settings.archived.restore": "Pulihkan",
   "settings.archived.delete": "Hapus",
-  "settings.archived.orphan": "Sesi lain",
+  "settings.archived.orphan": "Ruang kerja bawaan",
   "settings.archived.selectAll": "Pilih semua",
   "settings.archived.deselectAll": "Batal pilih semua",
   "settings.archived.selectedCount": "{n} dipilih",

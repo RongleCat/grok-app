@@ -4,7 +4,7 @@ Product rules for the slash palette, skill chips, mode markers, and Doctor.
 
 ## Workspace chip (desktop)
 
-Desktop chat **always** shows `ComposerProjectMenu` on the context bar above the input (`composer__context-bar`), including the unbound **默认工作区 / Default workspace** state. The menu reuses the existing picker: list projects, add a folder, or clear back to the default workspace (`workspaces/general` cwd). Git worktree chip stays only when a real project folder is bound.
+Desktop chat **always** shows `ComposerProjectMenu` on the context bar above the input (`composer__context-bar`), including the unbound **默认工作区 / Default workspace** state. The sidebar unbound group, archived-orphan group, and Kanban unbound column use the same name. The menu reuses the existing picker: list projects, add a folder, or clear back to the default workspace (`workspaces/general` cwd). Git worktree chip stays only when a real project folder is bound.
 
 Phone layout does **not** mount this bar — project pick/add stays on `PhoneComposerToolsSheet`. Sidebar **Projects** `+` remains a second entry.
 

@@ -26,7 +26,7 @@ export const deSidebar = {
   "sidebar.trustProject": "Projekt vertrauen",
   "sidebar.relocateProject": "Ordner neu zuordnen…",
   "sidebar.noChats": "Keine Chats",
-  "sidebar.otherSessions": "Andere",
+  "sidebar.otherSessions": "Standard-Arbeitsbereich",
   "sidebar.dateGroup.today": "Heute",
   "sidebar.dateGroup.yesterday": "Gestern",
   "sidebar.dateGroup.previous7": "Letzte 7 Tage",

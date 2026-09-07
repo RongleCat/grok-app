@@ -182,7 +182,7 @@ export const zhSettingsUi = {
   "settings.archived.empty": "暂无已归档会话。",
   "settings.archived.restore": "还原",
   "settings.archived.delete": "删除",
-  "settings.archived.orphan": "其他会话",
+  "settings.archived.orphan": "默认工作区",
   "settings.archived.selectAll": "全选",
   "settings.archived.deselectAll": "取消全选",
   "settings.archived.selectedCount": "已选 {n} 项",

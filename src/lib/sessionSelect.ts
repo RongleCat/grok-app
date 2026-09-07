@@ -57,7 +57,7 @@ export function areAllIdsSelected(
 }
 
 /**
- * Group select for a project / “Other sessions” folder:
+ * Group select for a project / Default workspace folder:
  * if every id is already selected, remove them; otherwise add them all.
  * Always returns a new Set (empty `ids` still copies).
  */

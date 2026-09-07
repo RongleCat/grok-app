@@ -26,7 +26,7 @@ export const ptBRSidebar = {
   "sidebar.trustProject": "Confiar no projeto",
   "sidebar.relocateProject": "Realocar pasta…",
   "sidebar.noChats": "Sem conversas",
-  "sidebar.otherSessions": "Outras",
+  "sidebar.otherSessions": "Espaço de trabalho padrão",
   "sidebar.dateGroup.today": "Hoje",
   "sidebar.dateGroup.yesterday": "Ontem",
   "sidebar.dateGroup.previous7": "Últimos 7 dias",

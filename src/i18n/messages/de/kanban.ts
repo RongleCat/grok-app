@@ -22,5 +22,5 @@ export const deKanban = {
   "kanban.filterEmptyHint": "Setze die Suche zurück oder zeige inaktive Agenten an.",
   "kanban.clearFilters": "Alle Filter zurücksetzen",
   "kanban.mapEmpty": "Keine Agenten in dieser Ansicht",
-  "kanban.unboundProject": "Andere Chats",
+  "kanban.unboundProject": "Standard-Arbeitsbereich",
 };

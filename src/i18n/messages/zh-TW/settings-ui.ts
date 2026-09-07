@@ -182,7 +182,7 @@ export const zhTWSettingsUi = {
   "settings.archived.empty": "尚無已封存對話。",
   "settings.archived.restore": "還原",
   "settings.archived.delete": "刪除",
-  "settings.archived.orphan": "其他對話",
+  "settings.archived.orphan": "預設工作區",
   "settings.archived.selectAll": "全選",
   "settings.archived.deselectAll": "取消全選",
   "settings.archived.selectedCount": "已選 {n} 項",

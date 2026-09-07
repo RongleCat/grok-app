@@ -22,5 +22,5 @@ export const ruKanban = {
   "kanban.filterEmptyHint": "Очистите поиск или включите простаивающих агентов.",
   "kanban.clearFilters": "Очистить все фильтры",
   "kanban.mapEmpty": "В этом представлении нет агентов",
-  "kanban.unboundProject": "Другие чаты",
+  "kanban.unboundProject": "Рабочая область по умолчанию",
 };

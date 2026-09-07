@@ -23,5 +23,5 @@ export const zhKanban = {
   "kanban.filterEmptyHint": "清空搜索或打开「显示空闲智能体」以查看更多。",
   "kanban.clearFilters": "清除全部筛选",
   "kanban.mapEmpty": "此视图暂无智能体",
-  "kanban.unboundProject": "其他对话",
+  "kanban.unboundProject": "默认工作区",
 };

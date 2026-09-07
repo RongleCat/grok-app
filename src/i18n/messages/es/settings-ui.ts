@@ -182,7 +182,7 @@ export const esSettingsUi = {
   "settings.archived.empty": "No hay chats archivados.",
   "settings.archived.restore": "Restaurar",
   "settings.archived.delete": "Eliminar",
-  "settings.archived.orphan": "Otras sesiones",
+  "settings.archived.orphan": "Espacio de trabajo predeterminado",
   "settings.archived.selectAll": "Seleccionar todo",
   "settings.archived.deselectAll": "Deseleccionar todo",
   "settings.archived.selectedCount": "{n} seleccionados",

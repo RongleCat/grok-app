@@ -22,5 +22,5 @@ export const esKanban = {
   "kanban.filterEmptyHint": "Borra la búsqueda o muestra los agentes inactivos.",
   "kanban.clearFilters": "Borrar todos los filtros",
   "kanban.mapEmpty": "No hay agentes en esta vista",
-  "kanban.unboundProject": "Otros chats",
+  "kanban.unboundProject": "Espacio de trabajo predeterminado",
 };

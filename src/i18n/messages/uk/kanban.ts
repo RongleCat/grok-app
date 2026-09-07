@@ -22,5 +22,5 @@ export const ukKanban = {
   "kanban.filterEmptyHint": "Очистіть пошук або покажіть неактивних агентів.",
   "kanban.clearFilters": "Очистити всі фільтри",
   "kanban.mapEmpty": "У цьому вигляді немає агентів",
-  "kanban.unboundProject": "Інші чати",
+  "kanban.unboundProject": "Робоча область за замовчуванням",
 };

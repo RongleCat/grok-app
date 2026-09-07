@@ -182,7 +182,7 @@ export const ruSettingsUi = {
   "settings.archived.empty": "Архивных чатов нет.",
   "settings.archived.restore": "Восстановить",
   "settings.archived.delete": "Удалить",
-  "settings.archived.orphan": "Другие сессии",
+  "settings.archived.orphan": "Рабочая область по умолчанию",
   "settings.archived.selectAll": "Выбрать все",
   "settings.archived.deselectAll": "Снять выделение",
   "settings.archived.selectedCount": "Выбрано: {n}",

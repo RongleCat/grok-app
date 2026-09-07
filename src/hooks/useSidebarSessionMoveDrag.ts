@@ -1,5 +1,5 @@
 /**
- * Pointer-drag a sidebar session onto a project folder (or Other sessions),
+ * Pointer-drag a sidebar session onto a project folder (or Default workspace),
  * or onto the composer to attach it as chat context.
  *
  * Chrome is pure DOM — no React setState during the gesture — so VirtualList

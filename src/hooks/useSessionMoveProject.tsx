@@ -1,5 +1,5 @@
 /**
- * Confirm + apply moving App chats between projects (or 其他会话).
+ * Confirm + apply moving App chats between projects (or Default workspace).
  * Host `session_move_to_project` is the only write path.
  */
 import {
@@ -109,19 +109,15 @@ export function useSessionMoveProject(opts: {
         if (ok === 1) {
           const name = (rows[0]?.title || tr("session.untitled")).trim();
           showToast(
-            target
-              ? tr("session.move.ok", { name, project: projectName })
-              : tr("session.move.okOrphan", { name }),
+            tr("session.move.ok", { name, project: projectName }),
             3200,
           );
         } else {
           showToast(
-            target
-              ? tr("session.move.manyOk", {
-                  n: String(ok),
-                  project: projectName,
-                })
-              : tr("session.move.manyOkOrphan", { n: String(ok) }),
+            tr("session.move.manyOk", {
+              n: String(ok),
+              project: projectName,
+            }),
             3200,
           );
         }
@@ -202,7 +198,6 @@ export function useSessionMoveProject(opts: {
       }
       const keys = sessionMoveConfirmKeys({
         count: toMove.length,
-        toOrphan: !target,
       });
       const firstName = (toMove[0]?.title || tr("session.untitled")).trim();
       const projectName = target
@@ -261,7 +256,7 @@ export function useSessionMoveProject(opts: {
         currentProjectId: current ?? null,
         otherSessionsLabel: tr("sidebar.otherSessions"),
       });
-      // Multi-select: always include Other sessions + every project.
+      // Multi-select: always include Default workspace + every project.
       const list =
         rows.length > 1
           ? [

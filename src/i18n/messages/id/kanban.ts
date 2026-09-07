@@ -22,5 +22,5 @@ export const idKanban = {
   "kanban.filterEmptyHint": "Hapus pencarian atau tampilkan agen menganggur.",
   "kanban.clearFilters": "Hapus semua filter",
   "kanban.mapEmpty": "Tidak ada agen pada tampilan ini",
-  "kanban.unboundProject": "Obrolan lain",
+  "kanban.unboundProject": "Ruang kerja bawaan",
 };

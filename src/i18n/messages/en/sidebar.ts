@@ -26,7 +26,7 @@ export const enSidebar = {
   "sidebar.trustProject": "Trust project",
   "sidebar.relocateProject": "Relocate folder…",
   "sidebar.noChats": "No chats",
-  "sidebar.otherSessions": "Other",
+  "sidebar.otherSessions": "Default workspace",
   "sidebar.dateGroup.today": "Today",
   "sidebar.dateGroup.yesterday": "Yesterday",
   "sidebar.dateGroup.previous7": "Previous 7 days",

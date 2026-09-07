@@ -22,5 +22,5 @@ export const jaKanban = {
   "kanban.filterEmptyHint": "検索条件を消すか、待機中のエージェントを表示してください。",
   "kanban.clearFilters": "フィルターをすべて解除",
   "kanban.mapEmpty": "このビューにエージェントはありません",
-  "kanban.unboundProject": "その他のチャット",
+  "kanban.unboundProject": "デフォルトワークスペース",
 };
