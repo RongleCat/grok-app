@@ -14,12 +14,12 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Fixed
-- Opening a file in Review no longer scrolls the macOS title bar under the traffic lights (#1041).
-- The Advanced context-window Save control stays fully clickable instead of clipped (#1047).
+- Opening a file in Review keeps the macOS title bar visible. Focus scrolls only inside Review (#1041).
+- Advanced context-window Save stays fully clickable. The flyout no longer clips the button (#1047).
 
 **中文 · 修复**
-- 在 Review 中打开文件时，macOS 自定义标题栏不再被滚到红绿灯下面（#1041）。
-- Advanced 里上下文窗口的「保存」按钮不再被裁成窄缝，可以正常点到（#1047）。
+- 在 Review 中打开文件时，macOS 标题栏保持可见。只滚动 Review 内部列表（#1041）。
+- Advanced 里上下文窗口的「保存」可正常点到。浮层不再裁掉按钮（#1047）。
 
 ### Added
 - Ctrl+Tab jumps back to the last chat you used. Hold Ctrl and tap Tab to cycle further; Ctrl+Shift+Tab goes the other way.
@@ -28,11 +28,11 @@ See `docs/llm-wiki/release.md`.
 - Ctrl+Tab 切回上一个用过的对话。按住 Ctrl 再点 Tab 继续循环；Ctrl+Shift+Tab 反向。
 
 ### Changed
-- Startup no longer preloads TipTap and markdown vendors; Office previews and the settings tree load on demand (#1055, #1063).
+- Startup skips TipTap and markdown preloads; Office and Settings load on demand (#1055, #1063).
 - Expanded sidebar pins remaining SuperGrok quota without opening the account menu (#1048). Settings is a footer gear; the account menu keeps theme and sign-in.
 
 **中文 · 变更**
-- 启动不再预载 TipTap / markdown；Office 预览与设置页按需加载（#1055、#1063）。
+- 启动不再预载 TipTap / markdown；Office 与设置页按需加载（#1055、#1063）。
 - 展开左边栏即可看到 SuperGrok 剩余额度，不必再点开账户菜单（#1048）。设置改为脚注齿轮；账户菜单只留主题和登录。
 
 ## [0.2.33] - 2026-09-06
