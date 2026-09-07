@@ -17,21 +17,12 @@ vi.mock("@/lib/floatingMenu", () => ({
 }));
 
 const labels = {
-  settings: "Settings",
   theme: "Theme",
   themeSystem: "System",
   themeLight: "Light",
   themeDark: "Dark",
-  local: "Local",
-  signedIn: "Signed in",
-  signedOut: "Signed out",
   login: "Log in",
   logout: "Log out",
-  remaining: "remaining",
-  profileActive: "Active",
-  switchTo: "Switch to",
-  customProvider: "Custom provider",
-  resetsAt: "Resets",
 };
 
 function Harness({ collapsed }: { collapsed: boolean }) {
@@ -45,13 +36,10 @@ function Harness({ collapsed }: { collapsed: boolean }) {
         onClose={() => setOpen(false)}
         theme="dark"
         themePreference="dark"
-        locale="en"
         labels={labels}
         account={null}
         activeProvider={null}
         accountBusy={false}
-        onSettings={() => undefined}
-        onAccountSettings={() => undefined}
         onTheme={() => undefined}
         onLogin={() => undefined}
         onLogout={() => undefined}
@@ -70,13 +58,10 @@ it("opens the theme editor from the theme submenu footer group", async () => {
       onClose={() => undefined}
       theme="dark"
       themePreference="dark"
-      locale="en"
       labels={{ ...labels, themeEditor: "Theme editor" }}
       account={null}
       activeProvider={null}
       accountBusy={false}
-      onSettings={() => undefined}
-      onAccountSettings={() => undefined}
       onTheme={() => undefined}
       onThemeEditor={onThemeEditor}
       onLogin={() => undefined}
@@ -91,6 +76,71 @@ it("opens the theme editor from the theme submenu footer group", async () => {
   expect(document.querySelector(".user-menu__flyout-sep")).not.toBeNull();
   fireEvent.click(editor);
   expect(onThemeEditor).toHaveBeenCalledTimes(1);
+  view.rerender(
+    <UserMenu
+      open={false}
+      onClose={() => undefined}
+      theme="dark"
+      themePreference="dark"
+      labels={{ ...labels, themeEditor: "Theme editor" }}
+      account={null}
+      activeProvider={null}
+      accountBusy={false}
+      onTheme={() => undefined}
+      onThemeEditor={onThemeEditor}
+      onLogin={() => undefined}
+      onLogout={() => undefined}
+    >
+      <button type="button">Account</button>
+    </UserMenu>,
+  );
+  await waitFor(() =>
+    expect(document.querySelector(".user-menu__pop--portal")).toBeNull(),
+  );
+  view.unmount();
+});
+
+it("does not put quota or settings in the account menu", async () => {
+  const view = render(
+    <UserMenu
+      open
+      onClose={() => undefined}
+      theme="dark"
+      themePreference="dark"
+      labels={labels}
+      account={null}
+      activeProvider={null}
+      accountBusy={false}
+      onTheme={() => undefined}
+      onLogin={() => undefined}
+      onLogout={() => undefined}
+    >
+      <button type="button">Account</button>
+    </UserMenu>,
+  );
+  expect(document.querySelector(".user-menu__account")).toBeNull();
+  expect(screen.queryByRole("menuitem", { name: "Settings" })).toBeNull();
+  expect(screen.getByRole("menuitem", { name: "Theme" })).toBeTruthy();
+  view.rerender(
+    <UserMenu
+      open={false}
+      onClose={() => undefined}
+      theme="dark"
+      themePreference="dark"
+      labels={labels}
+      account={null}
+      activeProvider={null}
+      accountBusy={false}
+      onTheme={() => undefined}
+      onLogin={() => undefined}
+      onLogout={() => undefined}
+    >
+      <button type="button">Account</button>
+    </UserMenu>,
+  );
+  await waitFor(() =>
+    expect(document.querySelector(".user-menu__pop--portal")).toBeNull(),
+  );
   view.unmount();
 });
 

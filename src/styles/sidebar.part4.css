@@ -372,12 +372,114 @@ html[data-sidebar-density="compact"] .session-row__meta {
 }
 
 /* Footer account row — solid separator, inset hover (Codex / ChatGPT style) */
+.sidebar__account {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar__footer-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sidebar__quota-pin {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-hover);
+  color: inherit;
+  text-align: left;
+}
+
+.sidebar__quota-pin:hover {
+  background: var(--bg-active);
+}
+
+.sidebar__quota-pin__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sidebar__quota-pin__plan {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.sidebar__quota-pin__reset {
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.sidebar__quota-pin__meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sidebar__quota-pin__meter .account-quota-bar {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar__quota-pin__remain {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.sidebar__quota-pin__remain.is-low {
+  color: var(--danger, #e25555);
+}
+
+.sidebar__footer-settings {
+  flex-shrink: 0;
+}
+
 .user-menu {
   position: relative;
   flex-shrink: 0;
   margin-top: 0;
   padding: 8px 10px 10px;
   border-top: 1px solid var(--border-subtle);
+}
+
+.sidebar__account .user-menu {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border-top: none;
+  margin: 0;
 }
 
 .sidebar__footer {
@@ -866,16 +968,6 @@ html[data-sidebar-density="compact"] .session-row__meta {
   white-space: nowrap;
   line-height: 1.2;
   min-width: 0;
-}
-
-/* Remaining SuperGrok % on the footer row — single number only */
-.user-meta__quota {
-  flex-shrink: 0;
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-  letter-spacing: -0.02em;
 }
 
 /* Status line lives in popover only — keep footer single-line */

@@ -191,7 +191,7 @@ Host must rebind both sides on every switch and before each ACP spawn (`prepare_
 | When | Channel id/host is DeepSeek (`deepseek` / `api.deepseek.com`) — **not** DeepSeek models on OpenCode Go / 火山方舟 |
 | Endpoint | `GET https://api.deepseek.com/user/balance` (origin root; strip `/v1` from stored base) |
 | Auth | Bearer `api_key` from agent-home (or form draft) |
-| UI | Settings → Custom providers **Check balance** (full lines); sidebar footer + UserMenu one-liner `110.00 CNY` when active |
+| UI | Settings → Custom providers **Check balance** (full lines); expanded-sidebar pin chip `110.00 CNY` when active |
 | Cache | Session memory, 5 min TTL; refresh on UserMenu open / explicit button; no disk, no polling |
 | Honesty | Never invent `0.00` on failure; amounts stay **strings** |
 

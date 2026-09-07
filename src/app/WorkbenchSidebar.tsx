@@ -14,7 +14,7 @@ import { Tip } from "@/components/ui/tooltip";
 import { SidebarBrand } from "@/components/SidebarBrand";
 import { SidebarUpdateButton } from "@/components/SidebarUpdateButton";
 import { ThemeEditorModal } from "@/components/ThemeEditorModal";
-import { UserMenu, remainingPercent } from "@/components/UserMenu";
+import { UserMenu } from "@/components/UserMenu";
 import { GrokLogo } from "@/components/GrokLogo";
 import {
   ProviderBrandIcon,
@@ -27,6 +27,7 @@ import {
   IconNewChat,
   IconScheduled,
   IconSearch,
+  IconSettings,
 } from "@/components/icons";
 import { createT } from "@/i18n";
 import {
@@ -36,7 +37,16 @@ import {
   type SavedAccount,
 } from "@/lib/api";
 import { openThemeEditorWindow } from "@/lib/api/system";
-import { accountDisplayName, accountInitials } from "@/lib/accountUi";
+import {
+  accountDisplayName,
+  accountInitials,
+  formatQuotaResetTime,
+  tierLabel,
+} from "@/lib/accountUi";
+import {
+  formatQuotaRemainLabel,
+  resolveQuotaPercents,
+} from "@/lib/accountQuotaHonesty";
 import type { SwitcherQuota } from "@/lib/accountSwitcherQuota";
 import {
   formatProviderBalanceLine,
@@ -53,6 +63,12 @@ import type { Theme, ThemePreference } from "@/lib/theme";
 import { requestWhatsNewOpen } from "@/lib/whatsNew";
 
 type TFn = ReturnType<typeof createT>;
+
+function quotaBarFillClass(usedPercent: number | null): string {
+  if (usedPercent != null && usedPercent >= 90) return " is-danger";
+  if (usedPercent != null && usedPercent >= 70) return " is-warn";
+  return "";
+}
 
 type SidebarLayout = {
   sidebarCollapsed: boolean;
@@ -161,19 +177,12 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
     account,
     accountBusy,
     providerBalanceCache,
-    providerBalanceBusy,
-    providerBalanceError,
-    loadProviderBalance,
     applyThemeChoice,
     onSettings,
     onAccountSettings,
     onTutorial,
     onLogin,
     onLogout,
-    savedAccounts,
-    activeAccountId,
-    accountQuotas,
-    onSwitchAccount,
     onUserMenuOpened,
   } = props;
 
@@ -183,7 +192,49 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
       providerId: activeCustomProvider.id,
       baseUrl: activeCustomProvider.baseUrl,
     });
-
+  const signedInOfficial =
+    !customRouteActive && !!account?.profile?.signedIn;
+  const pinQuota = customRouteActive
+    ? providerSupportsBalance
+    : signedInOfficial;
+  const livePercents = resolveQuotaPercents(account?.billing ?? null);
+  const remainLabel = formatQuotaRemainLabel(livePercents.remainingPercent);
+  const resetTime = formatQuotaResetTime(
+    account?.billing?.resetsAt,
+    locale,
+  );
+  const officialName = account?.profile
+    ? accountDisplayName(account.profile, tr("common.local"))
+    : tr("common.local");
+  const customName =
+    activeCustomProvider?.name.trim() ||
+    activeCustomProvider?.id ||
+    tr("prov.customProvider");
+  const pinPlan = customRouteActive
+    ? `${tr("prov.customProvider")}${
+        activeCustomProvider?.model
+          ? ` / ${activeCustomProvider.model}`
+          : ""
+      }`
+    : account?.billing
+      ? tierLabel(account.billing, account.channel ?? "none")
+      : "Grok Build";
+  const pinResetText =
+    signedInOfficial && resetTime
+      ? `${tr("account.resetsAt")} ${resetTime}`
+      : null;
+  const providerBalance =
+    providerBalanceCache != null &&
+    providerBalanceCache.providerId === activeCustomProvider?.id
+      ? providerBalanceCache.result
+      : null;
+  const pinRemain = customRouteActive
+    ? formatProviderBalanceLine(providerBalance)
+    : remainLabel;
+  const remainLow =
+    !customRouteActive &&
+    livePercents.remainingPercent != null &&
+    livePercents.remainingPercent <= 10;
   return (
     <aside
       id="workbench-sidebar"
@@ -355,175 +406,169 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
 
         {children}
 
-        <UserMenu
-          open={showUserMenu}
-          onClose={() => setShowUserMenu(false)}
-          closeImmediately={closeImmediately}
-          theme={theme}
-          themePreference={themePreference}
-          locale={locale}
-          account={account}
-          activeProvider={activeCustomProvider}
-          accountBusy={accountBusy}
-          providerBalance={
-            providerBalanceCache != null &&
-            providerBalanceCache.providerId === activeCustomProvider?.id
-              ? providerBalanceCache.result
-              : null
-          }
-          providerBalanceBusy={providerBalanceBusy}
-          providerBalanceError={
-            providerSupportsBalance ? providerBalanceError : null
-          }
-          onRefreshProviderBalance={
-            providerSupportsBalance
-              ? () => {
-                  void loadProviderBalance({ force: true });
-                }
-              : undefined
-          }
-          labels={{
-            settings: tr("sidebar.settings"),
-            whatsNew: tr("whatsNew.menu"),
-            tutorial: tr("tutorial.menu"),
-            theme: tr("user.theme"),
-            themeSystem: tr("settings.themeSystem"),
-            themeLight: tr("settings.themeLight"),
-            themeDark: tr("settings.themeDark"),
-            themeEditor: tr("user.themeEditor"),
-            local: tr("common.local"),
-            signedIn: tr("account.signedIn"),
-            signedOut: tr("account.signedOut"),
-            login: tr("account.login"),
-            logout: tr("account.logout"),
-            remaining: tr("account.quotaRemaining"),
-            profileActive: tr("account.profileActive"),
-            switchTo: tr("account.switchTo"),
-            customProvider: tr("prov.customProvider"),
-            resetsAt: tr("account.resetsAt"),
-            balanceAvailable: tr("prov.balance.available"),
-            balanceUnavailable: tr("prov.balance.unavailable"),
-            balanceGranted: tr("prov.balance.granted"),
-            balanceToppedUp: tr("prov.balance.toppedUp"),
-            balanceRefresh: tr("prov.balance.refresh"),
-            balanceChecking: tr("prov.balance.checking"),
-          }}
-          onSettings={onSettings}
-          onAccountSettings={onAccountSettings}
-          onWhatsNew={() => requestWhatsNewOpen()}
-          onTutorial={onTutorial}
-          onTheme={applyThemeChoice}
-          onThemeEditor={() => {
-            if (isDesktopHost()) {
-              void openThemeEditorWindow().catch(() => {
-                setThemeEditorOpen(true);
-              });
-              return;
-            }
-            setThemeEditorOpen(true);
-          }}
-          onLogin={onLogin}
-          onLogout={onLogout}
-          savedAccounts={savedAccounts}
-          activeAccountId={activeAccountId}
-          accountQuotas={accountQuotas}
-          onSwitchAccount={onSwitchAccount}
-        >
-          <Tip label={tr("user.menu")}>
+        <div className="sidebar__account">
+          {pinQuota ? (
             <button
               type="button"
-              className={
-                "sidebar__footer" + (showUserMenu ? " is-open" : "")
+              className="sidebar__quota-pin"
+              aria-label={
+                [pinPlan, pinRemain, pinResetText]
+                  .filter(Boolean)
+                  .join(", ")
               }
-              aria-haspopup="menu"
-              aria-expanded={showUserMenu}
-              onClick={() => {
-                setShowUserMenu((v) => !v);
-                if (!showUserMenu) onUserMenuOpened();
-              }}
+              onClick={onAccountSettings}
             >
-              <div
-                className={
-                  "user-avatar" +
-                  (activeCustomProvider &&
-                  resolveProviderBrandId({
-                    providerId: activeCustomProvider.id,
-                    baseUrl: activeCustomProvider.baseUrl,
-                  })
-                    ? " user-avatar--logo"
-                    : account?.profile?.signedIn
-                      ? " user-avatar--logo"
-                      : "")
-                }
-                aria-hidden
-              >
-                {activeCustomProvider ? (
-                  resolveProviderBrandId({
-                    providerId: activeCustomProvider.id,
-                    baseUrl: activeCustomProvider.baseUrl,
-                  }) ? (
-                    <ProviderBrandIcon
-                      providerId={activeCustomProvider.id}
-                      baseUrl={activeCustomProvider.baseUrl}
-                      size={20}
-                    />
-                  ) : (
-                    providerAvatarLetter(
-                      activeCustomProvider.name.trim() ||
-                        activeCustomProvider.id,
-                    )
-                  )
-                ) : account?.profile?.signedIn ? (
-                  <GrokLogo size={20} />
-                ) : account?.profile ? (
-                  accountInitials(account.profile)
-                ) : (
-                  "G"
-                )}
-              </div>
-              <div className="user-meta">
-                <span className="user-meta__name">
-                  {activeCustomProvider
-                    ? activeCustomProvider.name.trim() ||
-                      activeCustomProvider.id
-                    : account?.profile
-                      ? accountDisplayName(
-                          account.profile,
-                          tr("common.local"),
-                        )
-                      : tr("common.local")}
+              <span className="sidebar__quota-pin__row">
+                <span className="sidebar__quota-pin__plan">{pinPlan}</span>
+                {pinResetText ? (
+                  <span className="sidebar__quota-pin__reset">
+                    {pinResetText}
+                  </span>
+                ) : null}
+              </span>
+              {pinRemain ||
+              (!customRouteActive &&
+                livePercents.remainingPercent != null) ? (
+                <span className="sidebar__quota-pin__meter">
+                  {!customRouteActive &&
+                  livePercents.remainingPercent != null ? (
+                    <div
+                      className="account-quota-bar account-quota-bar--sm"
+                      aria-hidden
+                    >
+                      <div
+                        className={
+                          "account-quota-bar__fill" +
+                          quotaBarFillClass(livePercents.usedPercent)
+                        }
+                        style={{
+                          width: `${Math.min(100, livePercents.usedPercent ?? 0)}%`,
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                  {pinRemain ? (
+                    <span
+                      className={
+                        "sidebar__quota-pin__remain" +
+                        (remainLow ? " is-low" : "")
+                      }
+                    >
+                      {pinRemain}
+                    </span>
+                  ) : null}
                 </span>
-                {(() => {
-                  if (customRouteActive && activeCustomProvider) {
-                    if (
-                      !supportsProviderBalance({
+              ) : null}
+            </button>
+          ) : null}
+          <div className="sidebar__footer-row">
+            <UserMenu
+              open={showUserMenu}
+              onClose={() => setShowUserMenu(false)}
+              closeImmediately={closeImmediately}
+              theme={theme}
+              themePreference={themePreference}
+              account={account}
+              activeProvider={activeCustomProvider}
+              accountBusy={accountBusy}
+              labels={{
+                whatsNew: tr("whatsNew.menu"),
+                tutorial: tr("tutorial.menu"),
+                theme: tr("user.theme"),
+                themeSystem: tr("settings.themeSystem"),
+                themeLight: tr("settings.themeLight"),
+                themeDark: tr("settings.themeDark"),
+                themeEditor: tr("user.themeEditor"),
+                login: tr("account.login"),
+                logout: tr("account.logout"),
+              }}
+              onWhatsNew={() => requestWhatsNewOpen()}
+              onTutorial={onTutorial}
+              onTheme={applyThemeChoice}
+              onThemeEditor={() => {
+                if (isDesktopHost()) {
+                  void openThemeEditorWindow().catch(() => {
+                    setThemeEditorOpen(true);
+                  });
+                  return;
+                }
+                setThemeEditorOpen(true);
+              }}
+              onLogin={onLogin}
+              onLogout={onLogout}
+            >
+              <Tip label={tr("user.menu")}>
+                <button
+                  type="button"
+                  className={
+                    "sidebar__footer" + (showUserMenu ? " is-open" : "")
+                  }
+                  aria-haspopup="menu"
+                  aria-expanded={showUserMenu}
+                  onClick={() => {
+                    setShowUserMenu((v) => !v);
+                    if (!showUserMenu) onUserMenuOpened();
+                  }}
+                >
+                  <div
+                    className={
+                      "user-avatar" +
+                      (activeCustomProvider &&
+                      resolveProviderBrandId({
                         providerId: activeCustomProvider.id,
                         baseUrl: activeCustomProvider.baseUrl,
                       })
-                    ) {
-                      return null;
+                        ? " user-avatar--logo"
+                        : account?.profile?.signedIn
+                          ? " user-avatar--logo"
+                          : "")
                     }
-                    const line =
-                      providerBalanceCache?.providerId ===
-                      activeCustomProvider.id
-                        ? formatProviderBalanceLine(
-                            providerBalanceCache.result,
-                          )
-                        : null;
-                    return line ? (
-                      <span className="user-meta__quota">{line}</span>
-                    ) : null;
-                  }
-                  if (!account?.profile?.signedIn) return null;
-                  const rem = remainingPercent(account);
-                  return rem != null ? (
-                    <span className="user-meta__quota">{rem.toFixed(0)}%</span>
-                  ) : null;
-                })()}
-              </div>
-            </button>
-          </Tip>
-        </UserMenu>
+                    aria-hidden
+                  >
+                    {activeCustomProvider ? (
+                      resolveProviderBrandId({
+                        providerId: activeCustomProvider.id,
+                        baseUrl: activeCustomProvider.baseUrl,
+                      }) ? (
+                        <ProviderBrandIcon
+                          providerId={activeCustomProvider.id}
+                          baseUrl={activeCustomProvider.baseUrl}
+                          size={20}
+                        />
+                      ) : (
+                        providerAvatarLetter(
+                          activeCustomProvider.name.trim() ||
+                            activeCustomProvider.id,
+                        )
+                      )
+                    ) : account?.profile?.signedIn ? (
+                      <GrokLogo size={20} />
+                    ) : account?.profile ? (
+                      accountInitials(account.profile)
+                    ) : (
+                      "G"
+                    )}
+                  </div>
+                  <div className="user-meta">
+                    <span className="user-meta__name">
+                      {customRouteActive ? customName : officialName}
+                    </span>
+                  </div>
+                </button>
+              </Tip>
+            </UserMenu>
+            <Tip label={tr("sidebar.settings")}>
+              <button
+                type="button"
+                className="sidebar__footer-settings chrome-btn"
+                aria-label={tr("sidebar.settings")}
+                onClick={onSettings}
+              >
+                <IconSettings size={16} />
+              </button>
+            </Tip>
+          </div>
+        </div>
       </div>
       {themeEditorOpen ? (
         <ThemeEditorModal

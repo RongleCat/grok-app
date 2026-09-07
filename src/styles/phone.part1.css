@@ -317,6 +317,11 @@
     min-height: 52px;
   }
 
+  .app-shell--phone .sidebar__footer-settings {
+    width: 36px;
+    height: 36px;
+  }
+
   .app-shell--phone .tree-l3__name,
   .app-shell--phone .tree-l2__name {
     font-size: 15px;
