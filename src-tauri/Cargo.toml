@@ -48,6 +48,15 @@ chrono = { version = "0.4", features = ["serde", "clock"] }
 # a common reason users think only TUN "applies" the proxy).
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "multipart", "system-proxy", "blocking", "socks"] }
 futures-util = "0.3"
+bytes = "1"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
+ipnet = "2"
+percent-encoding = "2"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+webpki-roots = "1"
 base64 = "0.22"
 sha1 = "0.10"
 sha2 = "0.10"

@@ -44,6 +44,8 @@ preview.jpg              # 可选
 
 网络只走 Host `safe_https_get`（逐跳 https、无 userinfo、解析后 IP 非私网/回环/链路本地/ULA/元数据）。**禁止** `wallpaper_source::fetch_media`。
 
+HTTPS 连接由 `safe_https_client` 建立：直连、HTTP CONNECT 和 `socks5` 在连接时验证并固定公网目标 IP，TLS SNI 和 Host 保持原域名。DNS 预检异步执行且限时；跳转逐跳重验，响应按字节上限读取。`socks5h` 由代理解析 DNS，只允许代码内精确列出的可信服务域名，不能声称已验证代理实际解析的 IP；任意自定义皮肤源需使用可在本地验证 DNS 的路由。代理配置变化会重新选择连接客户端，`no_proxy` 规则继续参与路由判断。
+
 ## `grok://` + `grok-app:` 双认
 
 注册 scheme 现用 `grok`。解析层同时接受 `grok-app:`（迁移窗口）。
