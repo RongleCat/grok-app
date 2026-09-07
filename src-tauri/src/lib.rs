@@ -224,6 +224,10 @@ mod voice_stt;
 
 mod voice_tools;
 
+mod wallpaper_provider_search;
+mod wallpaper_remote_commands;
+mod wallpaper_remote_media;
+mod wallpaper_remote_search;
 mod wallpaper_source;
 mod wallpaper_x_responses;
 mod wallpaper_x_search;
@@ -1699,6 +1703,13 @@ pub fn run() {
 
             remote_im::remote_im_doctor,
 
+            wallpaper_remote_commands::wallpaper_remote_search,
+            wallpaper_remote_commands::wallpaper_remote_search_more,
+            wallpaper_remote_commands::wallpaper_remote_search_cancel,
+            wallpaper_remote_commands::wallpaper_remote_fetch_media,
+            wallpaper_remote_commands::wallpaper_remote_thumbnail,
+            wallpaper_remote_commands::wallpaper_remote_cancel_media_requests,
+            wallpaper_remote_commands::wallpaper_remote_cancel_all_media_requests,
             commands::wallpaper_x_search,
             commands::wallpaper_x_search_cancel,
             commands::wallpaper_x_search_more,

@@ -126,3 +126,35 @@ The final result is appended only after the Host validates its identity. Existin
 images remain visible/selectable while enrichment runs; errors keep them intact,
 and an empty batch displays the localized no-more hint. Closing/cancelling rejects
 late results. This slice does not automatically prefetch or repeat enrichment.
+
+
+## Public image provider Host contract
+
+Openverse and Pexels have separate fixed-endpoint adapters under
+`wallpaper_provider_search`. The Host accepts a source, bounded query and request
+ID through `wallpaper_remote_search`, `wallpaper_remote_search_more`, and cancel.
+Web search is rejected in this slice. Source-picker controls arrive separately;
+this change registers the working Host commands without exposing a new UI.
+
+The provider query removes generic wallpaper/size terms. Each page targets 20
+verified images (two 20-candidate Openverse pages, or 40 Pexels candidates), with
+at most 10 simultaneous image probes, an 8-second per-probe timeout, 12-second
+validation budget, and 30-second overall search budget. Results may be fewer
+when candidates fail validation. The API key is supplied only to Pexels' fixed
+endpoint; redirects on credentialed requests are rejected.
+
+Only validated image DTOs and source/author/license links cross IPC. The shared
+media path checks public HTTPS destinations and redirect hops, MIME/signature,
+response completeness and body limits. Thumbnails use bounded Host decoding;
+original images are written in the selected source directory. Cancellation
+covers search, probes, media reads and thumbnail work; request IDs isolate late
+events. Search/page caches are bounded to 64 entries with a 10-minute TTL and
+Pexels credential revision in their identity. The Host retains continuation
+cursors, buffered results and source Referer origins; credentials/cursors are
+not returned to the renderer. Media request cancellation supports bounded
+pre-cancellation before registration.
+
+This batch supplies explicit pagination only. Automatic one-page-ahead loading,
+provider UI, Web search, catalog metadata and generation integrations are
+separate changes. Tests use synthetic provider responses and media fixtures;
+passing tests do not claim live provider availability or account validation.

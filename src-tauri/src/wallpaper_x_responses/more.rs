@@ -95,6 +95,8 @@ mod tests {
             status_id: Some(status_id.into()),
             media_index: Some(1),
             media_quality: None,
+            provenance: crate::wallpaper_source::WallpaperProvenance::empty(),
+            media_fingerprint: None,
         }
     }
 

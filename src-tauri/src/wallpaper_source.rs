@@ -24,7 +24,7 @@ use crate::store;
 const MAX_WALLPAPER_CLI_STDOUT_BYTES: usize = 2 * 1024 * 1024;
 const WALLPAPER_CLI_OUTPUT_DRAIN_TIMEOUT: Duration = Duration::from_secs(2);
 /// Max bytes for a single wallpaper media download.
-const MAX_DOWNLOAD_BYTES: u64 = 200 * 1024 * 1024;
+pub(crate) const MAX_DOWNLOAD_BYTES: u64 = 200 * 1024 * 1024;
 /// Enough prefix data to verify a real image and usually recover dimensions,
 /// without buffering a full response when a CDN ignores Range.
 const MAX_IMAGE_PROBE_BYTES: usize = 64 * 1024;
@@ -39,6 +39,36 @@ pub(crate) const X_SEARCH_TOTAL_CALLS: u32 = X_SEARCH_FIRST_ROUND_CALLS + X_SEAR
 const X_SEARCH_TIMEOUT: Duration = Duration::from_secs(150);
 /// Headless Imagine budget.
 const IMAGINE_TIMEOUT: Duration = Duration::from_secs(180);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WallpaperProvenance {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub license: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub license_url: Option<String>,
+}
+
+impl WallpaperProvenance {
+    pub(crate) fn empty() -> Self {
+        Self {
+            source_url: None,
+            source_name: None,
+            author_name: None,
+            author_url: None,
+            license: None,
+            license_url: None,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -64,6 +94,8 @@ pub struct WallpaperGalleryItem {
     pub local_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
+    #[serde(flatten)]
+    pub provenance: WallpaperProvenance,
     /// Host-only evidence used by the shared X quality pipeline. These fields
     /// never cross IPC and cannot expose extra account or post information.
     #[serde(skip)]
@@ -72,6 +104,8 @@ pub struct WallpaperGalleryItem {
     pub(crate) media_index: Option<u8>,
     #[serde(skip)]
     pub(crate) media_quality: Option<WallpaperMediaQuality>,
+    #[serde(skip)]
+    pub(crate) media_fingerprint: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -1300,6 +1334,8 @@ pub(crate) fn parse_gallery_items(
             status_id,
             media_index,
             media_quality: None,
+            provenance: crate::wallpaper_source::WallpaperProvenance::empty(),
+            media_fingerprint: None,
         });
     }
     dedupe_gallery_items(out, false)
@@ -1440,6 +1476,12 @@ struct ImageProbe {
     content_length: Option<u64>,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct ValidatedImagePrefix {
+    pub(crate) mime: &'static str,
+    pub(crate) dimensions: Option<(u32, u32)>,
+}
+
 fn detect_media_signature(bytes: &[u8]) -> Option<DetectedMedia> {
     if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
         return Some(DetectedMedia::Jpeg);
@@ -1569,6 +1611,23 @@ fn content_type_matches_signature(content_type: &str, media: DetectedMedia) -> b
         DetectedMedia::Mp4 => matches!(content_type, "video/mp4" | "application/mp4"),
         DetectedMedia::Webm => content_type == "video/webm",
     }
+}
+
+pub(crate) fn validate_image_prefix(
+    content_type: &str,
+    bytes: &[u8],
+) -> Option<ValidatedImagePrefix> {
+    if bytes.len() < MIN_IMAGE_PROBE_BYTES {
+        return None;
+    }
+    let media = detect_media_signature(bytes)?;
+    if !media.is_image() || !content_type_matches_signature(content_type, media) {
+        return None;
+    }
+    Some(ValidatedImagePrefix {
+        mime: media.mime(),
+        dimensions: image_dimensions_from_prefix(bytes, media),
+    })
 }
 
 fn response_total_length(response: &reqwest::Response) -> Option<u64> {
@@ -2371,6 +2430,31 @@ pub async fn fetch_media(url: &str, source: Option<&str>) -> Result<WallpaperFet
     })
 }
 
+pub(crate) fn validate_fetched_media_bytes(
+    content_type: &str,
+    bytes: &[u8],
+) -> Result<(&'static str, &'static str), String> {
+    if bytes.len() as u64 > MAX_DOWNLOAD_BYTES {
+        return Err("download_failed: too large".into());
+    }
+    if bytes.is_empty() {
+        return Err("download_failed: empty body".into());
+    }
+    if bytes.len() < 64 {
+        return Err("download_failed: too small".into());
+    }
+    let normalized_type = content_type
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let media = detect_media_signature(bytes)
+        .filter(|media| content_type_matches_signature(&normalized_type, *media))
+        .ok_or_else(|| "download_failed: invalid media signature".to_string())?;
+    Ok((media.mime(), media.extension()))
+}
+
 fn file_to_fetch_result(path: &Path) -> Result<WallpaperFetchResult, String> {
     let meta = fs::metadata(path).map_err(|e| format!("stat: {e}"))?;
     let name = path
@@ -2606,6 +2690,8 @@ fn scan_dir_as_gallery(
             status_id: None,
             media_index: None,
             media_quality: None,
+            provenance: crate::wallpaper_source::WallpaperProvenance::empty(),
+            media_fingerprint: None,
         });
     }
     out

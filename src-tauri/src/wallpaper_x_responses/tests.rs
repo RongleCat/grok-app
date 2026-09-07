@@ -187,6 +187,8 @@ fn lane_item(id: &str) -> WallpaperGalleryItem {
         status_id: Some(id.into()),
         media_index: Some(1),
         media_quality: None,
+        provenance: crate::wallpaper_source::WallpaperProvenance::empty(),
+        media_fingerprint: None,
     }
 }
 
