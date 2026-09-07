@@ -11,8 +11,9 @@ import "./styles/skins.css";
 import "./styles/tailwind.css";
 import "./styles/app.css";
 import "./styles/setup-wizard.css";
-import "katex/dist/katex.min.css";
-import "@/lib/scrollPerfDebug";
+// KaTeX CSS is intentionally not imported here — it loads with the first
+// markdown math render (see src/lib/markdownMath.ts) so its fonts stay off
+// the boot critical path. scrollPerfDebug ships only in dev builds.
 import { detectAppPlatform } from "./lib/appPlatform";
 import {
   applyNativeWindowTheme,
@@ -88,6 +89,9 @@ import { installZoomHotkeys } from "./lib/zoomHotkeys";
 
 // Apply persisted theme preference (default: system) before first React paint.
 // Optional clock schedule (under System) wins over OS scheme when enabled.
+if (import.meta.env.DEV) {
+  void import("@/lib/scrollPerfDebug");
+}
 const bootPref = loadThemePreference(localStorage);
 const bootSchedule = loadThemeSchedule(localStorage);
 const bootTheme = isThemeScheduleActive(bootPref, bootSchedule)

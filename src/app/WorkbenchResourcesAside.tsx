@@ -20,7 +20,7 @@ import type { SessionFileChange } from "@/lib/sessionChanges";
 import type { SkillInfo } from "@/lib/slashCatalog";
 import type { SkillsPickerSkill } from "@/lib/skillsTaskPicker";
 import type { SideWorkbenchState } from "@/lib/sideWorkbench";
-import type { ResourceOpenTarget } from "@/components/ResourceViewer";
+import type { ResourceOpenTarget } from "@/components/resource-viewer/types";
 
 const SideWorkbench = lazy(async () => {
   const m = await import("@/components/side-workbench/SideWorkbench");

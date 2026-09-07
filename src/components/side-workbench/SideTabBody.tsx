@@ -2,11 +2,17 @@
  * Per-kind body for Side Workbench (non-file kinds; files use FilesWorkspace).
  */
 
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { createT, type Locale } from "@/i18n";
 import type { SideTab } from "@/lib/sideWorkbench";
 import { BrowserTab } from "./BrowserTab";
-import { TerminalTab } from "./TerminalTab";
+
+// xterm (~450KB vendor chunk) only loads when a terminal tab is actually
+// shown — not with every side-panel open.
+const TerminalTab = lazy(async () => {
+  const m = await import("./TerminalTab");
+  return { default: m.TerminalTab };
+});
 
 export type SideTabBodyProps = {
   locale: Locale | string;
@@ -40,13 +46,15 @@ export function SideTabBody({
 
   if (tab.kind === "terminal") {
     return (
-      <TerminalTab
-        locale={locale}
-        tabId={tab.id}
-        projectPath={projectPath}
-        sshAlias={sshAlias}
-        active={active}
-      />
+      <Suspense fallback={null}>
+        <TerminalTab
+          locale={locale}
+          tabId={tab.id}
+          projectPath={projectPath}
+          sshAlias={sshAlias}
+          active={active}
+        />
+      </Suspense>
     );
   }
 

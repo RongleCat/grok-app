@@ -20,7 +20,7 @@ import { createT } from "@/i18n";
 import { ImageUi, imageUiLabels } from "@/components/ImageUi";
 import { VideoUi, videoUiLabels } from "@/components/VideoUi";
 import { FilePathCard, type FilePathCardLabels } from "@/components/FilePathCard";
-import type { ResourceOpenTarget } from "@/components/ResourceViewer";
+import type { ResourceOpenTarget } from "@/components/resource-viewer/types";
 import { HighlightedText } from "@/components/HighlightedText";
 import {
   isImagePath,

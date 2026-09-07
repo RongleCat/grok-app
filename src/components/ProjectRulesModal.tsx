@@ -4,6 +4,8 @@
  */
 
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -13,7 +15,6 @@ import {
 import * as api from "@/lib/api";
 import { createT, type Locale } from "@/i18n";
 import { GlassModal } from "@/components/GlassModal";
-import { MarkdownTiptapEditor } from "@/components/MarkdownTiptapEditor";
 import { OverlayScroll } from "@/components/OverlayScroll";
 import { Tip } from "@/components/ui/tooltip";
 import {
@@ -35,6 +36,13 @@ import {
   summarizeProjectRules,
   validateProjectRuleDraft,
 } from "@/lib/rulesPromptPro";
+
+// TipTap only loads when a rule row is actually expanded for editing —
+// keeps the 533KB tiptap vendor chunk out of the modal's own chunk.
+const MarkdownTiptapEditor = lazy(async () => {
+  const m = await import("@/components/MarkdownTiptapEditor");
+  return { default: m.MarkdownTiptapEditor };
+});
 
 export type ProjectRulesModalProps = {
   open: boolean;
@@ -741,28 +749,36 @@ export function ProjectRulesModal({
                             </div>
                           ) : (
                             <div className="prm__editor-host">
-                              <MarkdownTiptapEditor
-                                key={
-                                  draft.relativePath ||
-                                  draft.absolutePath ||
-                                  draft.name
+                              <Suspense
+                                fallback={
+                                  <div className="prm__empty">
+                                    {tr("rules.loading")}
+                                  </div>
                                 }
-                                value={draft.draftText}
-                                onChange={(md) =>
-                                  setDraft((d) =>
-                                    d
-                                      ? {
-                                          ...d,
-                                          draftText: md,
-                                          error: null,
-                                        }
-                                      : d,
-                                  )
-                                }
-                                onSave={() => void saveDraft()}
-                                disabled={!!draft.saving || draft.truncated}
-                                labels={mdLabels}
-                              />
+                              >
+                                <MarkdownTiptapEditor
+                                  key={
+                                    draft.relativePath ||
+                                    draft.absolutePath ||
+                                    draft.name
+                                  }
+                                  value={draft.draftText}
+                                  onChange={(md) =>
+                                    setDraft((d) =>
+                                      d
+                                        ? {
+                                            ...d,
+                                            draftText: md,
+                                            error: null,
+                                          }
+                                        : d,
+                                    )
+                                  }
+                                  onSave={() => void saveDraft()}
+                                  disabled={!!draft.saving || draft.truncated}
+                                  labels={mdLabels}
+                                />
+                              </Suspense>
                             </div>
                           )}
                         </div>

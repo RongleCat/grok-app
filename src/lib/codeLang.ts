@@ -1,6 +1,8 @@
 /**
  * Map file names / extensions → highlight.js language ids.
- * Keep in sync with languages registered in CodePreview.
+ * Superset by design: CodePreview bundles only common grammars and falls
+ * back to plain text for the rest, while codeEditorLang (CodeMirror) covers
+ * nearly all of these ids in the editor.
  */
 
 const EXT_LANG: Record<string, string> = {

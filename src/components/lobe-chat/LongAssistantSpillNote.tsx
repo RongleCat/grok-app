@@ -17,7 +17,7 @@ import {
   spillCacheKey,
   utf8ToBase64,
 } from "@/lib/longAssistantSpill";
-import type { ResourceOpenTarget } from "@/components/ResourceViewer";
+import type { ResourceOpenTarget } from "@/components/resource-viewer/types";
 
 export function LongAssistantSpillNote({
   fullText,

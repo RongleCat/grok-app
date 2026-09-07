@@ -9,9 +9,13 @@ describe("markdownMath plugins", () => {
     expect(MARKDOWN_REMARK_PLUGINS[1]).toBe(remarkMath);
   });
 
-  it("runs rehype-katex without throwing on bad TeX", () => {
-    expect(MARKDOWN_REHYPE_PLUGINS).toHaveLength(1);
-    const entry = MARKDOWN_REHYPE_PLUGINS[0];
+  it("loads KaTeX styles lazily, then runs rehype-katex without throwing on bad TeX", () => {
+    expect(MARKDOWN_REHYPE_PLUGINS).toHaveLength(2);
+    // First entry is the css-on-attach loader plugin (keeps katex.min.css
+    // off main.tsx's critical path); second is the configured rehype-katex.
+    const cssLoader = MARKDOWN_REHYPE_PLUGINS[0];
+    expect(typeof cssLoader).toBe("function");
+    const entry = MARKDOWN_REHYPE_PLUGINS[1];
     expect(Array.isArray(entry)).toBe(true);
     const opts = (entry as [unknown, { throwOnError: boolean; trust: boolean }])[1];
     expect(opts.throwOnError).toBe(false);

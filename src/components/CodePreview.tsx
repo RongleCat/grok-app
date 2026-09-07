@@ -16,6 +16,10 @@ import {
   splitSourceLines,
 } from "@/lib/codePreviewWindow";
 
+// src/lib/codeLang.ts maps many more ids than are registered here — that's
+// fine: highlightSource falls back to plain text for unregistered grammars,
+// and CodeMirror (codeEditorLang) keeps full editor coverage. Bundling only
+// the common grammars below keeps this preview chunk small.
 import javascript from "highlight.js/lib/languages/javascript";
 import typescript from "highlight.js/lib/languages/typescript";
 import json from "highlight.js/lib/languages/json";
@@ -24,65 +28,19 @@ import rust from "highlight.js/lib/languages/rust";
 import python from "highlight.js/lib/languages/python";
 import go from "highlight.js/lib/languages/go";
 import java from "highlight.js/lib/languages/java";
-import kotlin from "highlight.js/lib/languages/kotlin";
 import c from "highlight.js/lib/languages/c";
 import cpp from "highlight.js/lib/languages/cpp";
 import csharp from "highlight.js/lib/languages/csharp";
-import ruby from "highlight.js/lib/languages/ruby";
-import php from "highlight.js/lib/languages/php";
-import swift from "highlight.js/lib/languages/swift";
-import objectivec from "highlight.js/lib/languages/objectivec";
 import sql from "highlight.js/lib/languages/sql";
 import bash from "highlight.js/lib/languages/bash";
 import shell from "highlight.js/lib/languages/shell";
-import powershell from "highlight.js/lib/languages/powershell";
-import dos from "highlight.js/lib/languages/dos";
 import yaml from "highlight.js/lib/languages/yaml";
 import ini from "highlight.js/lib/languages/ini";
-import properties from "highlight.js/lib/languages/properties";
 import css from "highlight.js/lib/languages/css";
-import scss from "highlight.js/lib/languages/scss";
-import less from "highlight.js/lib/languages/less";
 import xml from "highlight.js/lib/languages/xml";
 import dockerfile from "highlight.js/lib/languages/dockerfile";
 import makefile from "highlight.js/lib/languages/makefile";
-import cmake from "highlight.js/lib/languages/cmake";
-import nginx from "highlight.js/lib/languages/nginx";
-import nix from "highlight.js/lib/languages/nix";
 import diff from "highlight.js/lib/languages/diff";
-import graphql from "highlight.js/lib/languages/graphql";
-import protobuf from "highlight.js/lib/languages/protobuf";
-import http from "highlight.js/lib/languages/http";
-import lua from "highlight.js/lib/languages/lua";
-import r from "highlight.js/lib/languages/r";
-import julia from "highlight.js/lib/languages/julia";
-import dart from "highlight.js/lib/languages/dart";
-import scala from "highlight.js/lib/languages/scala";
-import groovy from "highlight.js/lib/languages/groovy";
-import perl from "highlight.js/lib/languages/perl";
-import elixir from "highlight.js/lib/languages/elixir";
-import erlang from "highlight.js/lib/languages/erlang";
-import haskell from "highlight.js/lib/languages/haskell";
-import clojure from "highlight.js/lib/languages/clojure";
-import elm from "highlight.js/lib/languages/elm";
-import ocaml from "highlight.js/lib/languages/ocaml";
-import fsharp from "highlight.js/lib/languages/fsharp";
-import coffeescript from "highlight.js/lib/languages/coffeescript";
-import latex from "highlight.js/lib/languages/latex";
-import matlab from "highlight.js/lib/languages/matlab";
-import fortran from "highlight.js/lib/languages/fortran";
-import vbnet from "highlight.js/lib/languages/vbnet";
-import wasm from "highlight.js/lib/languages/wasm";
-import glsl from "highlight.js/lib/languages/glsl";
-import vim from "highlight.js/lib/languages/vim";
-import lisp from "highlight.js/lib/languages/lisp";
-import scheme from "highlight.js/lib/languages/scheme";
-import tcl from "highlight.js/lib/languages/tcl";
-import awk from "highlight.js/lib/languages/awk";
-import nim from "highlight.js/lib/languages/nim";
-import crystal from "highlight.js/lib/languages/crystal";
-import arduino from "highlight.js/lib/languages/arduino";
-import autohotkey from "highlight.js/lib/languages/autohotkey";
 import plaintext from "highlight.js/lib/languages/plaintext";
 
 import { languageFromFileName } from "@/lib/codeLang";
@@ -106,66 +64,20 @@ function ensureLangs() {
     ["python", python],
     ["go", go],
     ["java", java],
-    ["kotlin", kotlin],
     ["c", c],
     ["cpp", cpp],
     ["csharp", csharp],
-    ["ruby", ruby],
-    ["php", php],
-    ["swift", swift],
-    ["objectivec", objectivec],
     ["sql", sql],
     ["bash", bash],
     ["shell", shell],
-    ["powershell", powershell],
-    ["dos", dos],
     ["yaml", yaml],
     ["ini", ini],
-    ["properties", properties],
     ["css", css],
-    ["scss", scss],
-    ["less", less],
     ["xml", xml],
     ["html", xml],
     ["dockerfile", dockerfile],
     ["makefile", makefile],
-    ["cmake", cmake],
-    ["nginx", nginx],
-    ["nix", nix],
     ["diff", diff],
-    ["graphql", graphql],
-    ["protobuf", protobuf],
-    ["http", http],
-    ["lua", lua],
-    ["r", r],
-    ["julia", julia],
-    ["dart", dart],
-    ["scala", scala],
-    ["groovy", groovy],
-    ["perl", perl],
-    ["elixir", elixir],
-    ["erlang", erlang],
-    ["haskell", haskell],
-    ["clojure", clojure],
-    ["elm", elm],
-    ["ocaml", ocaml],
-    ["fsharp", fsharp],
-    ["coffeescript", coffeescript],
-    ["latex", latex],
-    ["matlab", matlab],
-    ["fortran", fortran],
-    ["vbnet", vbnet],
-    ["wasm", wasm],
-    ["glsl", glsl],
-    ["vim", vim],
-    ["lisp", lisp],
-    ["scheme", scheme],
-    ["tcl", tcl],
-    ["awk", awk],
-    ["nim", nim],
-    ["crystal", crystal],
-    ["arduino", arduino],
-    ["autohotkey", autohotkey],
     ["plaintext", plaintext],
   ];
   for (const [name, def] of langs) {

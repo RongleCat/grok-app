@@ -13,7 +13,7 @@ import {
   type SetStateAction,
 } from "react";
 import { createT } from "@/i18n";
-import type { ResourceOpenTarget } from "@/components/ResourceViewer";
+import type { ResourceOpenTarget } from "@/components/resource-viewer/types";
 import * as api from "@/lib/api";
 import { APP_CLOSE_TAB_OR_WINDOW_EVENT } from "@/lib/confirmQuit";
 import { pinReviewFocusPath } from "@/lib/reviewFocusPaths";

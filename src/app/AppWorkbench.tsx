@@ -550,7 +550,7 @@ import {
   isProviderBalanceCacheFresh,
   type ProviderBalanceCache,
 } from "@/lib/providerBalanceFormat";
-import type { ResourceOpenTarget } from "@/components/ResourceViewer";
+import type { ResourceOpenTarget } from "@/components/resource-viewer/types";
 import {
   type SidePickerKind,
 } from "@/lib/sideWorkbench";

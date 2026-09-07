@@ -70,7 +70,7 @@ import {
   parseQuotesFromContent,
   type ComposerQuote,
 } from "@/lib/composerQuotes";
-import type { ResourceOpenTarget } from "@/components/ResourceViewer";
+import type { ResourceOpenTarget } from "@/components/resource-viewer/types";
 import {
   IconArrowsMinimize,
   IconChat,
@@ -730,7 +730,7 @@ export interface ConversationThreadProps {
   onRewindToUserMessage?: (message: ChatMessage) => void;
   onForkFromAssistantMessage?: (message: ChatMessage) => void;
   onOpenResource?: (
-    target: import("@/components/ResourceViewer").ResourceOpenTarget,
+    target: import("@/components/resource-viewer/types").ResourceOpenTarget,
   ) => void;
   /** File card soft-fail (missing / denied / host-only). */
   onOpenError?: (message: string) => void;

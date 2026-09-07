@@ -28,7 +28,7 @@ import {
 } from "@/lib/sideWorkbench";
 import { isShortcutRecordingActive } from "@/lib/shortcutRemap";
 import * as api from "@/lib/api";
-import type { ResourceOpenTarget } from "@/components/ResourceViewer";
+import type { ResourceOpenTarget } from "@/components/resource-viewer/types";
 import type { SkillInfo } from "@/lib/slashCatalog";
 import type { SkillsPickerSkill } from "@/lib/skillsTaskPicker";
 import { FilesWorkspace } from "./FilesWorkspace";
