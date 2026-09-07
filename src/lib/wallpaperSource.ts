@@ -18,6 +18,12 @@ export type WallpaperGalleryItem = {
   likes?: number | null;
   localPath?: string | null;
   prompt?: string | null;
+  sourceUrl?: string | null;
+  sourceName?: string | null;
+  authorName?: string | null;
+  authorUrl?: string | null;
+  license?: string | null;
+  licenseUrl?: string | null;
 };
 
 export type WallpaperSearchResult = {
@@ -51,6 +57,9 @@ export type WallpaperLibraryEntry = {
 };
 
 export type WallpaperSourceErrorCode =
+  | "pexels_key_required"
+  | "pexels_key_invalid"
+  | "service_unavailable"
   | "rate_limited"
   | "auth_required"
   | "cli_missing"
@@ -143,9 +152,9 @@ export function appendWallpaperGalleryItems(
   existing: WallpaperGalleryItem[],
   incoming: WallpaperGalleryItem[],
 ): WallpaperGalleryItem[] {
-  const ids = new Set(existing.map(item => `${item.source}:${item.id}`));
-  const urls = new Set(existing.map(item => item.fullUrl));
-  const fresh = incoming.filter(item => {
+  const ids = new Set(existing.map((item) => `${item.source}:${item.id}`));
+  const urls = new Set(existing.map((item) => item.fullUrl));
+  const fresh = incoming.filter((item) => {
     const id = `${item.source}:${item.id}`;
     if (ids.has(id) || urls.has(item.fullUrl)) return false;
     ids.add(id);
