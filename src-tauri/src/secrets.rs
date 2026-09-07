@@ -26,7 +26,12 @@ use crate::paths::{ensure_app_dirs, secrets_file};
 use crate::store::SecretsFile;
 
 /// Reverse-DNS service id shared with app data layout (`com.grokapp.grok-app`).
+#[cfg(not(test))]
 const KEYRING_SERVICE: &str = "com.grokapp.grok-app";
+
+// Full test runs must never read, replace, or remove a user's actual API keys.
+#[cfg(test)]
+const KEYRING_SERVICE: &str = "com.grokapp.grok-app.unit-tests";
 
 const KEY_OFFICIAL: &str = "official_api_key";
 const KEY_RELAY: &str = "relay_api_key";

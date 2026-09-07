@@ -959,14 +959,8 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb *other-file
         assert!(validate_download_checksum(&digest, None, true).is_err());
         assert!(validate_download_checksum(&digest, Some(&"b".repeat(64)), true).is_err());
         assert!(validate_download_checksum(&digest, Some(&"b".repeat(64)), false).is_err());
-        assert_eq!(
-            validate_download_checksum(&digest, Some(&digest), true).unwrap(),
-            true
-        );
-        assert_eq!(
-            validate_download_checksum(&digest, None, false).unwrap(),
-            false
-        );
+        assert!(validate_download_checksum(&digest, Some(&digest), true).unwrap());
+        assert!(!validate_download_checksum(&digest, None, false).unwrap());
     }
 
     #[test]
