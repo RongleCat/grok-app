@@ -28,9 +28,11 @@ See `docs/llm-wiki/release.md`.
 - Ctrl+Tab 切回上一个用过的对话。按住 Ctrl 再点 Tab 继续循环；Ctrl+Shift+Tab 反向。
 
 ### Changed
+- Startup no longer preloads TipTap and markdown vendors; Office previews and the settings tree load on demand (#1055, #1063).
 - Expanded sidebar pins remaining SuperGrok quota without opening the account menu (#1048). Settings is a footer gear; the account menu keeps theme and sign-in.
 
 **中文 · 变更**
+- 启动不再预载 TipTap / markdown；Office 预览与设置页按需加载（#1055、#1063）。
 - 展开左边栏即可看到 SuperGrok 剩余额度，不必再点开账户菜单（#1048）。设置改为脚注齿轮；账户菜单只留主题和登录。
 
 ## [0.2.33] - 2026-09-06
