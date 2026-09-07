@@ -37,6 +37,15 @@ describe("normalizeProxyMode", () => {
     expect(normalizeProxyMode("auto")).toBe("system");
   });
 
+  it("only migrates legacy use when a valid manual URL exists", () => {
+    expect(
+      normalizeProxyMode(" USE ", " http://127.0.0.1:18080 "),
+    ).toBe("manual");
+    expect(normalizeProxyMode("use", "127.0.0.1:18080")).toBe("system");
+    expect(normalizeProxyMode("use", "")).toBe("system");
+    expect(normalizeProxyMode("use")).toBe("system");
+  });
+
   it("defaults unknown / empty to system", () => {
     expect(normalizeProxyMode(null)).toBe(DEFAULT_PROXY_MODE);
     expect(normalizeProxyMode(undefined)).toBe(DEFAULT_PROXY_MODE);
@@ -117,6 +126,7 @@ describe("manualProxyUrlSoftFail", () => {
     expect(manualProxyUrlSoftFail("system", "")).toBeNull();
     expect(manualProxyUrlSoftFail("none", "nope")).toBeNull();
     expect(manualProxyUrlSoftFail("manual", "http://127.0.0.1:7890")).toBeNull();
+    expect(manualProxyUrlSoftFail("use", "http://127.0.0.1:18080")).toBeNull();
     expect(manualProxyUrlSoftFail("manual", "")).toBe("empty");
     expect(manualProxyUrlSoftFail("manual", "127.0.0.1:7890")).toBe(
       "missing_scheme",
