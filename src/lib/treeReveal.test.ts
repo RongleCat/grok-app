@@ -243,7 +243,7 @@ describe("project / orphan flex shrink", () => {
   });
 });
 
-describe("Other sessions tree wrap", () => {
+describe("Default workspace tree wrap", () => {
   const src = readFileSync(
     resolve(__dirname, "../app/WorkbenchSessionTree.tsx"),
     "utf8",

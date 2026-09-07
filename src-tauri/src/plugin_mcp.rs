@@ -495,27 +495,25 @@ fn def_for_server(name: &str) -> Option<McpServerDef> {
 fn run_x_api_cli(plugin_root: &Path, args: &[String], timeout_secs: u64) -> Result<String, String> {
     let script = x_api_cli_path(plugin_root)
         .ok_or_else(|| "this plugin has no scripts/x-api.mjs auth CLI".to_string())?;
-    let (tx, rx) = std::sync::mpsc::channel();
-    let script_owned = script.clone();
-    let args_owned = args.to_vec();
-    std::thread::spawn(move || {
-        let mut cmd = std::process::Command::new("node");
-        cmd.arg(&script_owned).args(&args_owned);
-        cmd.stdin(std::process::Stdio::null());
-        crate::process_util::apply_no_window_std(&mut cmd);
-        crate::proxy::apply_to_std_command(&mut cmd);
-        cmd.env("NODE_USE_ENV_PROXY", "1");
-        if let Some(path_env) = crate::process_util::enriched_path_env() {
-            cmd.env("PATH", path_env);
-        }
-        let _ = tx.send(cmd.output());
-    });
-    let output = rx
-        .recv_timeout(std::time::Duration::from_secs(timeout_secs))
-        .map_err(|_| format!("x-api auth timed out after {timeout_secs}s"))?
-        .map_err(|e| format!("failed to run x-api CLI: {e}"))?;
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let mut cmd = crate::plugin_auth_transport::command(&script);
+    crate::proxy::apply_to_tokio_command(&mut cmd);
+    cmd.env("NODE_USE_ENV_PROXY", "1");
+    if let Some(path_env) = crate::process_util::enriched_path_env() {
+        cmd.env("PATH", path_env);
+    }
+    let output = crate::plugin_auth_transport::execute(
+        cmd,
+        args,
+        std::time::Duration::from_secs(timeout_secs),
+    )?;
+    let stdout = crate::plugin_auth_transport::redact_output(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        args,
+    );
+    let stderr = crate::plugin_auth_transport::redact_output(
+        String::from_utf8_lossy(&output.stderr).trim(),
+        args,
+    );
     if !output.status.success() {
         return Err(shorten_cli_error(&stderr, &stdout));
     }

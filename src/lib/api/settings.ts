@@ -177,7 +177,7 @@ export interface AppSettings {
   /** Sidebar project folder ids the user collapsed (missing ⇒ expanded). */
   sidebarCollapsedProjectIds?: string[];
   /**
-   * Sidebar “Other sessions” section expanded. Default true (open).
+   * Sidebar Default workspace section expanded. Default true (open).
    * Missing / undefined ⇒ open (legacy installs before this pref).
    */
   sidebarOtherSessionsOpen?: boolean;
@@ -226,6 +226,12 @@ export interface AppSettings {
   notifyOnTurnDone?: boolean;
   /** Desktop notification when the agent requests permission (default true). */
   notifyOnPermission?: boolean;
+  /** Outbound route: system | manual | none. */
+  proxyMode?: string;
+  /** Proxy URL used by Manual mode. */
+  proxyUrl?: string | null;
+  /** Comma-separated hosts bypassing the proxy. */
+  proxyNoProxy?: string | null;
   /**
    * Allow CLI install when the mirror has no published SHA-256 (default false).
    * Mismatch always fails. Prefer fixing the mirror over enabling this.

@@ -26,7 +26,7 @@ export const zhSidebar = {
   "sidebar.trustProject": "信任此项目",
   "sidebar.relocateProject": "重新定位文件夹…",
   "sidebar.noChats": "暂无会话",
-  "sidebar.otherSessions": "其他会话",
+  "sidebar.otherSessions": "默认工作区",
   "sidebar.dateGroup.today": "今天",
   "sidebar.dateGroup.yesterday": "昨天",
   "sidebar.dateGroup.previous7": "近 7 天",

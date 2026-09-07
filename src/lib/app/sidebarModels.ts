@@ -27,7 +27,7 @@ export interface Project {
   sshAlias?: string | null;
 }
 
-/** Retired sidebar project id — sessions rehomed to orphan ("其他会话"). */
+/** Retired sidebar project id — sessions rehomed to Default workspace. */
 export const GENERAL_PROJECT_ID = "system:general";
 
 export function isGeneralProject(p: { id?: string | null; system?: boolean } | null | undefined) {

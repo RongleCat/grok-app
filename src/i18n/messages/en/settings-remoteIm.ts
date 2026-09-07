@@ -206,6 +206,7 @@ export const enSettingsRemoteIm = {
   "settings.remoteIm.bridge.remoteBridgeMissing": "Remote IM bridge backend is not the Rust runtime. Restart Grok App.",
   "settings.remoteIm.bridge.agentConnectMissing": "Remote IM bridge backend is not the Rust runtime. Restart Grok App.",
   "settings.remoteIm.scan.openLink": "Open link",
+  "settings.remoteIm.scan.qrError": "Could not generate the QR code locally. Use Open link below.",
   "settings.remoteIm.scan.needHost": "Scan requires the desktop app (Tauri host). Use paste credentials in browser-only mode.",
   "settings.remoteIm.scan.start": "Start scan",
   "settings.remoteIm.scan.doneBtn": "I finished scanning",

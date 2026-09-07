@@ -26,7 +26,7 @@ export const itSidebar = {
   "sidebar.trustProject": "Rendi attendibile il progetto",
   "sidebar.relocateProject": "Riposiziona cartella…",
   "sidebar.noChats": "Nessuna chat",
-  "sidebar.otherSessions": "Altre",
+  "sidebar.otherSessions": "Area di lavoro predefinita",
   "sidebar.dateGroup.today": "Oggi",
   "sidebar.dateGroup.yesterday": "Ieri",
   "sidebar.dateGroup.previous7": "Ultimi 7 giorni",

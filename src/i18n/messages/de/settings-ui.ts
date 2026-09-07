@@ -182,7 +182,7 @@ export const deSettingsUi = {
   "settings.archived.empty": "Keine archivierten Chats.",
   "settings.archived.restore": "Wiederherstellen",
   "settings.archived.delete": "Löschen",
-  "settings.archived.orphan": "Andere Sitzungen",
+  "settings.archived.orphan": "Standard-Arbeitsbereich",
   "settings.archived.selectAll": "Alle auswählen",
   "settings.archived.deselectAll": "Auswahl aufheben",
   "settings.archived.selectedCount": "{n} ausgewählt",

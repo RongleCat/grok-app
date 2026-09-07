@@ -79,6 +79,7 @@ mod error;
 
 mod extensions;
 mod mcp_oauth;
+mod plugin_auth_transport;
 mod plugin_mcp;
 
 mod fs_browser;
@@ -227,6 +228,7 @@ mod wallpaper_source;
 
 mod window_min;
 
+mod safe_https_client;
 mod skin_catalog;
 mod skin_deeplink;
 mod skin_disk;
@@ -239,8 +241,6 @@ mod skin_video_bake;
 
 #[cfg(target_os = "macos")]
 mod mac_ime_fn_bridge;
-#[cfg(windows)]
-mod win_ctrl_tab;
 #[cfg(windows)]
 mod win_file_drop;
 #[cfg(windows)]
@@ -749,8 +749,6 @@ pub fn run() {
                     // Late OLE drop targets — must run after show (#1017).
                     #[cfg(windows)]
                     win_file_drop::install_after_show(&w);
-                    #[cfg(windows)]
-                    win_ctrl_tab::install(&w);
                     // Doubao Fn voice needs IME to see flagsChanged (#1030).
                     #[cfg(target_os = "macos")]
                     mac_ime_fn_bridge::install();
@@ -764,8 +762,6 @@ pub fn run() {
                 // WebView2 child HWNDs → forbidden cursor (#1017 / tauri#14643).
                 #[cfg(windows)]
                 win_file_drop::install_after_show(&window);
-                #[cfg(windows)]
-                win_ctrl_tab::install(&window);
                 // Doubao Fn voice needs IME to see flagsChanged (#1030).
                 #[cfg(target_os = "macos")]
                 mac_ime_fn_bridge::install();

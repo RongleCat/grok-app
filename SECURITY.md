@@ -33,3 +33,5 @@ Do **not** open a public issue for sensitive vulnerabilities until a fix is avai
 - Prefer official Grok login / local CLI auth over pasting long-lived keys into chats.
 - Automations and YOLO permission mode can run agent actions without per-step prompts — enable only if you trust the session.
 - Support zip / Doctor export / **session diagnostic package** never include `secrets.json`, OS keychain material, or raw API keys (redacted logs and chat only).
+- Remote IM binding QR codes are generated locally; binding URLs are not sent to QR image services.
+- X API plugin CLI arguments containing secrets are delivered through a private stdin pipe, not the OS process command line. The embedded launcher adapts legacy `process.argv` parsers in memory, and auth output is redacted.

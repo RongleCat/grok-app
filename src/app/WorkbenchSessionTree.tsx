@@ -23,6 +23,7 @@ import {
   IconChevronRight,
   IconClose,
   IconFolder,
+  IconHome,
   IconListCheck,
   IconMore,
   IconPin,
@@ -651,6 +652,9 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
                   ) : (
                     <IconChevronRight size={14} />
                   )}
+                </span>
+                <span className="tree-l1__icon" aria-hidden>
+                  <IconHome size={14} />
                 </span>
                 <span className="tree-l1__label">
                   {tr("sidebar.otherSessions")}

@@ -181,7 +181,7 @@ Because cwd changes:
 4. Untrusted or missing target folders are refused.
 5. Fork / resume-restore still use silent `session_set_project` so they can keep a pending `--fork-session` source id.
 6. Remote IM bindings that already point at this App session retarget cwd and drop their agent id.
-7. Drag a sidebar chat onto a project header (or Other sessions) uses the same confirm + Host path as the menu.
+7. Drag a sidebar chat onto a project header (or Default workspace) uses the same confirm + Host path as the menu.
 
 ### 3c. Agent-side fork (partial)
 

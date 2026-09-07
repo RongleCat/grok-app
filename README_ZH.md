@@ -210,10 +210,12 @@ sudo apt-get install -y libegl1 libgles2 libwebkit2gtk-4.1-0 libayatana-appindic
 
 部分运行 Wayland（如 Hyprland + AMD 显卡）的 Linux 环境下，AppImage 可能会因容器打包版本与主机 Mesa 驱动兼容性问题出现显示异常：
 - **推荐方案**：优先使用与系统包管理器契合的 **`.deb`** 或 **`.rpm`** 安装包（链接系统原生 WebKitGTK）。
+- AppImage 若检测到本机 WebKitGTK 4.1（Arch：`webkit2gtk-4.1`，Debian/Ubuntu：`libwebkit2gtk-4.1-0`），会改用系统库，避免内置 WebKit 的 `EGL_BAD_PARAMETER` 黑屏（#539），以及 squashfs 卸载时残留 `WebKitNetworkProcess` 的 `SIGBUS`。可用 `GROK_SKIP_SYSTEM_WEBKIT=1` 退回内置库。
 - 如使用 AppImage，可尝试添加环境变量运行：
 ```bash
 WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Grok_*.AppImage
 ```
+- 不要用 `--appimage-mount` 包一层再在 WebKit 子进程还活着时卸挂载，那会 SIGBUS。请用会**解压**到真实目录的 `scripts/run-linux-appimage-system-webkit.sh`。
 
 ---
 

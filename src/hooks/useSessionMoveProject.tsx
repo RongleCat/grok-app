@@ -1,5 +1,5 @@
 /**
- * Confirm + apply moving App chats between projects (or 其他会话).
+ * Confirm + apply moving App chats between projects (or Default workspace).
  * Host `session_move_to_project` is the only write path.
  */
 import {
@@ -8,7 +8,7 @@ import {
   type SetStateAction,
 } from "react";
 import type { ContextMenuItem } from "@/components/ContextMenu";
-import { IconFolder } from "@/components/icons";
+import { IconFolder, IconHome } from "@/components/icons";
 import type { AppDialog } from "@/lib/app/appDialogTypes";
 import {
   isGeneralProject,
@@ -109,19 +109,15 @@ export function useSessionMoveProject(opts: {
         if (ok === 1) {
           const name = (rows[0]?.title || tr("session.untitled")).trim();
           showToast(
-            target
-              ? tr("session.move.ok", { name, project: projectName })
-              : tr("session.move.okOrphan", { name }),
+            tr("session.move.ok", { name, project: projectName }),
             3200,
           );
         } else {
           showToast(
-            target
-              ? tr("session.move.manyOk", {
-                  n: String(ok),
-                  project: projectName,
-                })
-              : tr("session.move.manyOkOrphan", { n: String(ok) }),
+            tr("session.move.manyOk", {
+              n: String(ok),
+              project: projectName,
+            }),
             3200,
           );
         }
@@ -202,7 +198,6 @@ export function useSessionMoveProject(opts: {
       }
       const keys = sessionMoveConfirmKeys({
         count: toMove.length,
-        toOrphan: !target,
       });
       const firstName = (toMove[0]?.title || tr("session.untitled")).trim();
       const projectName = target
@@ -241,6 +236,7 @@ export function useSessionMoveProject(opts: {
           children: targets.map((t) => ({
             id: t.id ? `move-${t.id}` : "move-orphan",
             label: t.id ? t.label : tr("sidebar.otherSessions"),
+            icon: t.id ? <IconFolder size={16} /> : <IconHome size={16} />,
             disabled: t.disabled || busyIds.has(row.id),
             onClick: () => requestMove([row], t.id),
           })),
@@ -261,7 +257,7 @@ export function useSessionMoveProject(opts: {
         currentProjectId: current ?? null,
         otherSessionsLabel: tr("sidebar.otherSessions"),
       });
-      // Multi-select: always include Other sessions + every project.
+      // Multi-select: always include Default workspace + every project.
       const list =
         rows.length > 1
           ? [
@@ -282,6 +278,7 @@ export function useSessionMoveProject(opts: {
       return list.map((t) => ({
         id: t.id ? `bulk-move-${t.id}` : "bulk-move-orphan",
         label: t.label,
+        icon: t.id ? <IconFolder size={16} /> : <IconHome size={16} />,
         disabled: t.disabled,
         onClick: () => requestMove(rows, t.id),
       }));

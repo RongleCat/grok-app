@@ -1,7 +1,7 @@
 /**
  * Per-project composer draft memory (localStorage).
  *
- * One buffer per project (and one for orphan / “其他会话”) so a user can
+ * One buffer per project (and one for Default workspace) so a user can
  * half-type a new-task prompt, switch chats, then restore via new chat.
  * Does not replace session follow-up state — only the new-chat page loads it.
  */
@@ -17,7 +17,7 @@ import { isDraftEmpty, parseStoredContent } from "@/lib/draftDoc";
 
 export const COMPOSER_PROJECT_DRAFTS_STORAGE_KEY = "grok.composerProjectDrafts";
 
-/** Key for chats with no project (sidebar “其他会话”). */
+/** Key for chats with no project (sidebar Default workspace). */
 export const ORPHAN_PROJECT_DRAFT_KEY = "__orphan__";
 
 export type ComposerProjectDraft = {

@@ -956,7 +956,7 @@ pub async fn session_set_json_schema(
     Ok(meta)
 }
 
-/// Move session under a project (or clear project → orphan / 「其他会话」).
+/// Move session under a project (or clear project → Default workspace).
 /// Internal / fork-restore path — does not reset agent identity.
 #[tauri::command]
 pub async fn session_set_project(

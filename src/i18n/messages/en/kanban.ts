@@ -24,5 +24,5 @@ export const enKanban = {
   "kanban.filterEmptyHint": "Clear the search or show idle agents to see more.",
   "kanban.clearFilters": "Clear all filters",
   "kanban.mapEmpty": "No agents in this view",
-  "kanban.unboundProject": "Other chats",
+  "kanban.unboundProject": "Default workspace",
 };

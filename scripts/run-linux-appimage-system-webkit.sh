@@ -5,6 +5,10 @@
 # (EGL_BAD_PARAMETER from the CI-bundled WebKit). See issue #539 and
 # README "Linux blank/black window (WebKit)".
 #
+# Extract to a real directory — do **not** `--appimage-mount` and then kill the
+# mount. Leftover WebKitNetworkProcess mappings into that squashfs SIGBUS
+# (BUS_ADRERR) when FUSE tears down.
+#
 # Usage:
 #   bash scripts/run-linux-appimage-system-webkit.sh ./Grok_0.2.11_amd64.AppImage
 #   bash scripts/run-linux-appimage-system-webkit.sh ./Grok_*.AppImage -- --some-flag

@@ -9,11 +9,9 @@
  */
 
 import {
-  createContext,
   lazy,
   Suspense,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -29,48 +27,12 @@ import {
   loadImageNaturalSize,
 } from "@/lib/imageLightboxFit";
 import { createT, type Locale } from "@/i18n";
+import { ImageViewerContext, type ImageSlideInput, type ImageViewerApi } from "./ImageViewerContext";
 
 const ImageLightbox = lazy(async () => {
   const m = await import("./ImageLightbox");
   return { default: m.ImageLightbox };
 });
-
-export interface ImageSlideInput {
-  /** Local absolute path or already-viewable URL. */
-  src: string;
-  alt?: string;
-  title?: string;
-}
-
-export interface ImageViewerApi {
-  /** Open lightbox with slides (paths or URLs). Resolves local paths async. */
-  open: (slides: ImageSlideInput[] | string[], index?: number) => void;
-  close: () => void;
-  /** Copy image at path/URL to clipboard. Returns true on success. */
-  copyImage: (pathOrUrl: string) => Promise<boolean>;
-}
-
-const ImageViewerContext = createContext<ImageViewerApi | null>(null);
-
-export function useImageViewer(): ImageViewerApi {
-  const ctx = useContext(ImageViewerContext);
-  if (!ctx) {
-    throw new Error("useImageViewer must be used within ImageViewerProvider");
-  }
-  return ctx;
-}
-
-/** Safe hook when provider may be absent (returns no-ops). */
-export function useImageViewerOptional(): ImageViewerApi {
-  const ctx = useContext(ImageViewerContext);
-  return (
-    ctx ?? {
-      open: () => {},
-      close: () => {},
-      copyImage: async () => false,
-    }
-  );
-}
 
 interface ResolvedSlide {
   src: string;
@@ -110,10 +72,16 @@ export function ImageViewerProvider({
   const [index, setIndex] = useState(0);
   const [slides, setSlides] = useState<ResolvedSlide[]>([]);
   const slidesRef = useRef(slides);
+  const generationRef = useRef(0);
   slidesRef.current = slides;
 
   const close = useCallback(() => {
+    generationRef.current += 1;
     setIsOpen(false);
+  }, []);
+
+  useEffect(() => () => {
+    generationRef.current += 1;
   }, []);
 
   const openViewer = useCallback(
@@ -123,6 +91,7 @@ export function ImageViewerProvider({
       );
       if (!normalized.length) return;
 
+      const generation = ++generationRef.current;
       void (async () => {
         const paths = normalized.map((s) => s.src);
         const resolved = await resolveImageSrcs(paths);
@@ -157,6 +126,7 @@ export function ImageViewerProvider({
         let idx = next.findIndex((s) => s.origin === want);
         if (idx < 0) idx = 0;
 
+        if (generationRef.current !== generation) return;
         setSlides(next);
         setIndex(idx);
         setIsOpen(true);
@@ -209,6 +179,7 @@ export function ImageViewerProvider({
     const onResize = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
+        const generation = generationRef.current;
         const stage = currentStageRect();
         const current = slidesRef.current;
         if (!current.length) return;
@@ -229,7 +200,7 @@ export function ImageViewerProvider({
               return { ...s, ...sizeFields };
             }),
           );
-          if (cancelled) return;
+          if (cancelled || generationRef.current !== generation) return;
           setSlides((prev) => {
             if (
               prev.length !== updated.length ||
@@ -258,7 +229,8 @@ export function ImageViewerProvider({
   return (
     <ImageViewerContext.Provider value={api}>
       {children}
-      {isOpen ? (
+      {/* Let the lightbox finish its exit cleanup after close. */}
+      {slides.length > 0 ? (
         <Suspense fallback={null}>
           <ImageLightbox
             open={isOpen}

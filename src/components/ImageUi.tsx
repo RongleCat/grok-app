@@ -51,7 +51,7 @@ import {
 } from "@/lib/imageThumbClient";
 import { isFusedQueryKeyPath } from "@/lib/pathNormalize";
 import { pathBasename } from "@/lib/attachments";
-import { useImageViewerOptional } from "@/components/ImageViewer";
+import { useImageViewerOptional } from "@/components/ImageViewerContext";
 import { IconCopy, IconExternalLink, IconFolder } from "@/components/icons";
 import { ContextMenu, type ContextMenuItem } from "@/components/ContextMenu";
 import { createT, type Locale } from "@/i18n";

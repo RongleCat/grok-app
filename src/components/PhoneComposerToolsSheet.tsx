@@ -15,6 +15,7 @@ import {
   IconClose,
   IconFolder,
   IconHandStop,
+  IconHome,
   IconPlus,
 } from "@/components/icons";
 import { installDialogFocus } from "@/lib/a11yFocus";
@@ -395,7 +396,13 @@ export function PhoneComposerToolsSheet({
                 }}
               />
               <SheetRow
-                icon={<IconFolder size={20} />}
+                icon={
+                  activeProject ? (
+                    <IconFolder size={20} />
+                  ) : (
+                    <IconHome size={20} />
+                  )
+                }
                 label={labels.project}
                 value={activeProject?.name ?? labels.noProject}
                 chevron
@@ -430,7 +437,7 @@ export function PhoneComposerToolsSheet({
           {panel === "project" && (
             <>
               <SheetRow
-                icon={<IconCheck size={20} />}
+                icon={<IconHome size={20} />}
                 label={labels.noProject}
                 onClick={() => {
                   onSelectProject(null);

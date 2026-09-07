@@ -182,7 +182,7 @@ export const ptBRSettingsUi = {
   "settings.archived.empty": "Nenhum chat arquivado.",
   "settings.archived.restore": "Restaurar",
   "settings.archived.delete": "Excluir",
-  "settings.archived.orphan": "Outras sessões",
+  "settings.archived.orphan": "Espaço de trabalho padrão",
   "settings.archived.selectAll": "Selecionar tudo",
   "settings.archived.deselectAll": "Desmarcar tudo",
   "settings.archived.selectedCount": "{n} selecionadas",

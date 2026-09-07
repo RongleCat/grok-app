@@ -67,6 +67,9 @@ const FLYOUT_EDGE = 8;
 const FLYOUT_MIN_W = 168;
 
 function flyoutPreferredWidth(kind: HubFlyout, measured: number): number {
+  // Window flyout needs room for token input + Save side-by-side; don't
+  // collapse to a clipped hit target after the first measure pass.
+  if (kind === "window") return Math.max(measured, 260);
   if (measured > 0) return measured;
   return kind === "models" ? 220 : 200;
 }
@@ -1074,62 +1077,59 @@ export function ComposerModelMenu({
                     </button>
                   );
                 })
+              ) : contextWindowEditable ? (
+                <div className="cmm__window-edit">
+                  <div className="cmm__window-edit__label">
+                    {labels.contextWindowCustom}
+                  </div>
+                  <div className="cmm__inline-edit">
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      value={windowDraft}
+                      placeholder={labels.contextWindowPlaceholder}
+                      aria-label={labels.contextWindowCustom}
+                      onChange={(e) => setWindowDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const n = parseInt(windowDraft, 10);
+                          if (Number.isFinite(n) && n > 0) {
+                            onContextWindow?.(n);
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="cmm__inline-save"
+                      disabled={!Number.isFinite(parseInt(windowDraft, 10))}
+                      onClick={() => {
+                        const n = parseInt(windowDraft, 10);
+                        if (Number.isFinite(n) && n > 0) {
+                          onContextWindow?.(n);
+                        }
+                      }}
+                    >
+                      {labels.contextWindowSave}
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="cmm__opt cmm__opt--muted">
-                  {contextWindowEditable ? (
-                    <>
-                      <span className="cmm__opt-main">
-                        <span className="cmm__opt-title">
-                          {labels.contextWindowCustom}
-                        </span>
-                      </span>
-                      <div className="cmm__inline-edit">
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min={1}
-                          value={windowDraft}
-                          placeholder={labels.contextWindowPlaceholder}
-                          onChange={(e) => setWindowDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              const n = parseInt(windowDraft, 10);
-                              if (Number.isFinite(n) && n > 0) {
-                                onContextWindow?.(n);
-                              }
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="cmm__inline-save"
-                          disabled={!Number.isFinite(parseInt(windowDraft, 10))}
-                          onClick={() => {
-                            const n = parseInt(windowDraft, 10);
-                            if (Number.isFinite(n) && n > 0) {
-                              onContextWindow?.(n);
-                            }
-                          }}
-                        >
-                          {labels.contextWindowSave}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <span className="cmm__opt-main">
-                      <span className="cmm__opt-title">
-                        {contextWindow
-                          ? formatTokenCount(contextWindow, locale)
-                          : "—"}
-                      </span>
-                      <span className="cmm__opt-desc">
-                        {contextWindow
-                          ? labels.contextWindowOfficial
-                          : labels.contextWindowOfficialHint}
-                      </span>
+                  <span className="cmm__opt-main">
+                    <span className="cmm__opt-title">
+                      {contextWindow
+                        ? formatTokenCount(contextWindow, locale)
+                        : "—"}
                     </span>
-                  )}
+                    <span className="cmm__opt-desc">
+                      {contextWindow
+                        ? labels.contextWindowOfficial
+                        : labels.contextWindowOfficialHint}
+                    </span>
+                  </span>
                 </div>
               )}
             </div>,

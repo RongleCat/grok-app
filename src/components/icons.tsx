@@ -63,6 +63,7 @@ import {
   IconFolderPlus as TbFolderPlus,
   IconHandStop as TbHandStop,
   IconHelp as TbHelp,
+  IconHome as TbHome,
   IconHexagon as TbHexagon,
   IconInfoCircle as TbInfoCircle,
   IconKeyboard as TbKeyboard,
@@ -419,6 +420,8 @@ export const IconLanguage = wrap(TbLanguage);
 export const IconInfo = wrap(TbInfoCircle);
 /** Help / “?” tip trigger next to settings labels. */
 export const IconHelp = wrap(TbHelp);
+/** Unbound chats / Default workspace. */
+export const IconHome = wrap(TbHome, { className: "g-icon--home" });
 export const IconKeyboard = wrap(TbKeyboard);
 /** Slash palette / goal mode */
 export const IconTarget = wrap(TbTarget);

@@ -26,7 +26,7 @@ export const koSidebar = {
   "sidebar.trustProject": "프로젝트 신뢰",
   "sidebar.relocateProject": "폴더 위치 변경…",
   "sidebar.noChats": "대화 없음",
-  "sidebar.otherSessions": "기타",
+  "sidebar.otherSessions": "기본 작업 공간",
   "sidebar.dateGroup.today": "오늘",
   "sidebar.dateGroup.yesterday": "어제",
   "sidebar.dateGroup.previous7": "지난 7일",

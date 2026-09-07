@@ -210,10 +210,12 @@ If the process never starts and you see `libEGL.so.1: cannot open shared object 
 
 On certain Wayland desktop setups (such as Hyprland with AMD GPUs), the universal AppImage may encounter rendering conflicts with the host Mesa/DRI stack:
 - **Recommended**: Use system-integrated **`.deb`** or **`.rpm`** packages which link against your distribution's native WebKitGTK.
+- The AppImage itself will use **host WebKitGTK 4.1** when that package is installed (`webkit2gtk-4.1` on Arch, `libwebkit2gtk-4.1-0` on Debian/Ubuntu). That avoids the bundled-WebKit `EGL_BAD_PARAMETER` black window (#539) and `SIGBUS` in leftover `WebKitNetworkProcess` when the squashfs unmounts. Opt out with `GROK_SKIP_SYSTEM_WEBKIT=1`.
 - When running the AppImage, you can try disabling hardware compositing:
 ```bash
 WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Grok_*.AppImage
 ```
+- Do not wrap the AppImage with `--appimage-mount` and then kill the mount while WebKit helpers are still running — that is the SIGBUS path. Prefer this script, which **extracts** to a real directory: `scripts/run-linux-appimage-system-webkit.sh`.
 
 ---
 

@@ -26,7 +26,7 @@ export const frSidebar = {
   "sidebar.trustProject": "Approuver le projet",
   "sidebar.relocateProject": "Redéfinir le dossier…",
   "sidebar.noChats": "Aucune conversation",
-  "sidebar.otherSessions": "Autres",
+  "sidebar.otherSessions": "Espace de travail par défaut",
   "sidebar.dateGroup.today": "Aujourd’hui",
   "sidebar.dateGroup.yesterday": "Hier",
   "sidebar.dateGroup.previous7": "7 derniers jours",

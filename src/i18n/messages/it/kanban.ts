@@ -22,5 +22,5 @@ export const itKanban = {
   "kanban.filterEmptyHint": "Cancella la ricerca oppure mostra gli agenti inattivi.",
   "kanban.clearFilters": "Cancella tutti i filtri",
   "kanban.mapEmpty": "Nessun agente in questa vista",
-  "kanban.unboundProject": "Altre chat",
+  "kanban.unboundProject": "Area di lavoro predefinita",
 };

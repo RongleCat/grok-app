@@ -206,6 +206,7 @@ export const zhTWSettingsRemoteIm = {
   "settings.remoteIm.bridge.remoteBridgeMissing": "遠端 IM 未使用 Rust 內建橋。請重啟 Grok App。",
   "settings.remoteIm.bridge.agentConnectMissing": "遠端 IM 未使用 Rust 內建橋。請重啟 Grok App。",
   "settings.remoteIm.scan.openLink": "開啟連結",
+  "settings.remoteIm.scan.qrError": "無法在本機產生 QR 碼，請使用下方「開啟連結」。",
   "settings.remoteIm.scan.needHost": "掃碼需要桌面端 Host。僅瀏覽器模式請使用「貼上憑證」。",
   "settings.remoteIm.scan.start": "開始掃碼",
   "settings.remoteIm.scan.doneBtn": "我已完成",

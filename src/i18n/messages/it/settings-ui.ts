@@ -182,7 +182,7 @@ export const itSettingsUi = {
   "settings.archived.empty": "Nessuna chat archiviata.",
   "settings.archived.restore": "Ripristina",
   "settings.archived.delete": "Elimina",
-  "settings.archived.orphan": "Altre sessioni",
+  "settings.archived.orphan": "Area di lavoro predefinita",
   "settings.archived.selectAll": "Seleziona tutto",
   "settings.archived.deselectAll": "Deseleziona tutto",
   "settings.archived.selectedCount": "{n} selezionate",

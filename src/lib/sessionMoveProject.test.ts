@@ -198,24 +198,24 @@ describe("applySessionMoveMeta", () => {
 });
 
 describe("buildSessionMoveMenuTargets", () => {
-  it("lists other projects plus Other sessions, skipping the current one", () => {
+  it("lists other projects plus Default workspace, skipping the current one", () => {
     const targets = buildSessionMoveMenuTargets({
       projects: [projA, projB, untrusted],
       currentProjectId: "a",
-      otherSessionsLabel: "Other sessions",
+      otherSessionsLabel: "Default workspace",
     });
     expect(targets.map((t) => t.id)).toEqual([null, "b", "u"]);
-    expect(targets[0]?.label).toBe("Other sessions");
+    expect(targets[0]?.label).toBe("Default workspace");
     expect(targets.find((t) => t.id === "b")?.disabled).toBe(false);
     expect(targets.find((t) => t.id === "u")?.disabled).toBe(true);
     expect(targets.find((t) => t.id === "u")?.reason).toBe("untrusted");
   });
 
-  it("omits Other sessions when the chat is already unbound", () => {
+  it("omits Default workspace when the chat is already unbound", () => {
     const targets = buildSessionMoveMenuTargets({
       projects: [projA],
       currentProjectId: null,
-      otherSessionsLabel: "Other sessions",
+      otherSessionsLabel: "Default workspace",
     });
     expect(targets.map((t) => t.id)).toEqual(["a"]);
   });
@@ -225,20 +225,18 @@ describe("sessionMoveConfirmKeys", () => {
   it("uses the single-chat copy for one title", () => {
     const keys = sessionMoveConfirmKeys({
       count: 1,
-      toOrphan: false,
     });
     expect(keys.title).toBe("session.move.title");
     expect(keys.message).toBe("session.move.confirm");
     expect(keys.action).toBe("session.move.action");
   });
 
-  it("uses the bulk + orphan copy when moving several chats out of a project", () => {
+  it("uses the bulk copy when moving several chats, including to Default workspace", () => {
     const keys = sessionMoveConfirmKeys({
       count: 3,
-      toOrphan: true,
     });
     expect(keys.title).toBe("session.move.manyTitle");
-    expect(keys.message).toBe("session.move.manyConfirmOrphan");
+    expect(keys.message).toBe("session.move.manyConfirm");
   });
 });
 

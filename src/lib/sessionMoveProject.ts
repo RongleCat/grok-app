@@ -1,5 +1,6 @@
 /**
- * Policy for moving an App chat under another project (or back to 其他会话).
+ * Policy for moving an App chat under another project (or back to
+ * Default workspace).
  *
  * Changing projectId also changes agent cwd. Relative journal paths, skill
  * outputs, and FilePathCards then resolve against the new root — so the UI
@@ -184,34 +185,17 @@ export function buildSessionMoveMenuTargets(input: {
   return out;
 }
 
-export function sessionMoveConfirmKeys(input: {
-  count: number;
-  toOrphan: boolean;
-}): {
+export function sessionMoveConfirmKeys(input: { count: number }): {
   title: MessageKey;
   message: MessageKey;
   action: MessageKey;
 } {
   const many = input.count > 1;
-  if (many && input.toOrphan) {
-    return {
-      title: "session.move.manyTitle",
-      message: "session.move.manyConfirmOrphan",
-      action: "session.move.manyAction",
-    };
-  }
   if (many) {
     return {
       title: "session.move.manyTitle",
       message: "session.move.manyConfirm",
       action: "session.move.manyAction",
-    };
-  }
-  if (input.toOrphan) {
-    return {
-      title: "session.move.title",
-      message: "session.move.confirmOrphan",
-      action: "session.move.action",
     };
   }
   return {

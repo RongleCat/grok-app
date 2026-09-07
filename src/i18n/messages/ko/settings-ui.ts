@@ -182,7 +182,7 @@ export const koSettingsUi = {
   "settings.archived.empty": "보관된 대화가 없습니다.",
   "settings.archived.restore": "이전 크기로",
   "settings.archived.delete": "삭제",
-  "settings.archived.orphan": "다른 세션",
+  "settings.archived.orphan": "기본 작업 공간",
   "settings.archived.selectAll": "모두 선택",
   "settings.archived.deselectAll": "선택 해제",
   "settings.archived.selectedCount": "{n}개 선택됨",

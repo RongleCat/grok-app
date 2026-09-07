@@ -210,10 +210,12 @@ sudo apt-get install -y libegl1 libgles2 libwebkit2gtk-4.1-0 libayatana-appindic
 
 В некоторых окружениях Wayland (например, Hyprland на видеокартах AMD) пакет AppImage может испытывать сложности взаимодействия с драйверами Mesa:
 - **Рекомендуется**: Использовать системные пакеты **`.deb`** или **`.rpm`**, скомпонованные с системной версией WebKitGTK.
+- AppImage сам переключается на **системный WebKitGTK 4.1**, если пакет установлен. Так обходятся чёрное окно `EGL_BAD_PARAMETER` (#539) и `SIGBUS` в оставшемся `WebKitNetworkProcess` при размонтировании squashfs. Отключение: `GROK_SKIP_SYSTEM_WEBKIT=1`.
 - При использовании AppImage можно запустить приложение с отключением аппаратного композитинга:
 ```bash
 WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Grok_*.AppImage
 ```
+- Не оборачивайте AppImage в `--appimage-mount` и не убивайте mount, пока живы процессы WebKit — это путь к SIGBUS. Используйте скрипт, который **распаковывает** образ в обычный каталог: `scripts/run-linux-appimage-system-webkit.sh`.
 
 ---
 

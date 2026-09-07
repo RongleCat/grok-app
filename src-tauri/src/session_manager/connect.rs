@@ -278,7 +278,7 @@ impl SessionManager {
                 .map_err(|e| format!("create session: {e}"))?
         };
 
-        // Orphan / missing project_id → keep null (shows under "其他会话").
+        // Orphan / missing project_id → keep null (shows under Default workspace).
         // Clear retired system:general bindings if any slip through.
         if meta.project_id.as_deref() == Some(store::GENERAL_PROJECT_ID)
             || meta

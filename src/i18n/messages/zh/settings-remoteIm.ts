@@ -206,6 +206,7 @@ export const zhSettingsRemoteIm = {
   "settings.remoteIm.bridge.remoteBridgeMissing": "远程 IM 未使用 Rust 内置桥。请重启 Grok App。",
   "settings.remoteIm.bridge.agentConnectMissing": "远程 IM 未使用 Rust 内置桥。请重启 Grok App。",
   "settings.remoteIm.scan.openLink": "打开链接",
+  "settings.remoteIm.scan.qrError": "无法在本地生成二维码，请使用下方“打开链接”。",
   "settings.remoteIm.scan.needHost": "扫码需要桌面端 Host。仅浏览器模式请使用「粘贴凭证」。",
   "settings.remoteIm.scan.start": "开始扫码",
   "settings.remoteIm.scan.doneBtn": "我已完成",

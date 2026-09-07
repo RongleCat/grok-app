@@ -26,7 +26,7 @@ export const ruSidebar = {
   "sidebar.trustProject": "Доверять проекту",
   "sidebar.relocateProject": "Указать новую папку…",
   "sidebar.noChats": "Нет чатов",
-  "sidebar.otherSessions": "Другие",
+  "sidebar.otherSessions": "Рабочая область по умолчанию",
   "sidebar.dateGroup.today": "Сегодня",
   "sidebar.dateGroup.yesterday": "Вчера",
   "sidebar.dateGroup.previous7": "Предыдущие 7 дней",

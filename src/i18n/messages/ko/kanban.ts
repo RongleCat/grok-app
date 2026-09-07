@@ -22,5 +22,5 @@ export const koKanban = {
   "kanban.filterEmptyHint": "검색어를 지우거나 대기 중 에이전트를 표시하세요.",
   "kanban.clearFilters": "모든 필터 지우기",
   "kanban.mapEmpty": "이 보기에 에이전트가 없습니다",
-  "kanban.unboundProject": "기타 대화",
+  "kanban.unboundProject": "기본 작업 공간",
 };

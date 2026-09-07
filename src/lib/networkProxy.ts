@@ -45,13 +45,21 @@ export function isProxyMode(raw: unknown): raw is ProxyMode {
 
 /**
  * Normalize a settings / host value to a known proxy mode.
- * Unknown / empty → {@link DEFAULT_PROXY_MODE} (`system`).
+ * Unknown / empty → {@link DEFAULT_PROXY_MODE} (`system`). The legacy
+ * effective-decision label `use` only means Manual when it is paired with a
+ * valid persisted URL; otherwise it safely falls back to System.
  */
-export function normalizeProxyMode(raw: unknown): ProxyMode {
+export function normalizeProxyMode(
+  raw: unknown,
+  proxyUrl?: string | null,
+): ProxyMode {
   if (raw == null) return DEFAULT_PROXY_MODE;
   const s = String(raw).trim().toLowerCase();
   if (!s) return DEFAULT_PROXY_MODE;
   if (PROXY_MODE_SET.has(s)) return s as ProxyMode;
+  if (s === "use") {
+    return isValidProxyUrl(proxyUrl) ? "manual" : DEFAULT_PROXY_MODE;
+  }
   const alias = MODE_ALIASES[s];
   if (alias) return alias;
   return DEFAULT_PROXY_MODE;
@@ -136,7 +144,7 @@ export function manualProxyUrlSoftFail(
   mode: unknown,
   url: string | null | undefined,
 ): ProxyUrlError | null {
-  if (normalizeProxyMode(mode) !== "manual") return null;
+  if (normalizeProxyMode(mode, url) !== "manual") return null;
   const v = validateProxyUrl(url);
   if (v.ok) return null;
   return v.error;

@@ -96,7 +96,7 @@ Issue [#539](https://github.com/RongleCat/grok-app/issues/539) 对照实验：�
 用户侧缓解：各 README 的「Linux blank/black window」段，或仓库脚本  
 `scripts/run-linux-appimage-system-webkit.sh`。
 
-长期方向（未合入）：CI 打包后改写 AppRun，在检测到系统 WebKit 时优先加载（需多机验证，且重打包后需重签 updater `.sig`）。不要为了此问题单独把 Linux CI 升到 Ubuntu 24.04——会抬高 glibc 底线，且不保证 bundled-vs-system 类问题消失。
+AppImage 宿主进程在启动时若检测到系统 WebKitGTK 4.1，会带 `WEBKIT_EXEC_PATH` / `LD_LIBRARY_PATH` 再 exec 自身（`src-tauri/src/linux_webkit.rs`）。这覆盖 #539 黑屏，也避免退出时 FUSE 卸载仍映射在 squashfs 上的 `WebKitNetworkProcess`（SIGBUS / `BUS_ADRERR`）。`GROK_SKIP_SYSTEM_WEBKIT=1` 可退回内置 WebKit。不要为了此问题单独把 Linux CI 升到 Ubuntu 24.04——会抬高 glibc 底线。
 
 ## 2. 本地构建命令
 

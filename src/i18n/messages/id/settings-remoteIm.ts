@@ -206,6 +206,7 @@ export const idSettingsRemoteIm = {
   "settings.remoteIm.bridge.remoteBridgeMissing": "Backend bridge Remote IM bukan runtime Rust. Mulai ulang Grok App.",
   "settings.remoteIm.bridge.agentConnectMissing": "Backend bridge Remote IM bukan runtime Rust. Mulai ulang Grok App.",
   "settings.remoteIm.scan.openLink": "Buka tautan",
+  "settings.remoteIm.scan.qrError": "Kode QR tidak dapat dibuat secara lokal. Gunakan Buka tautan di bawah.",
   "settings.remoteIm.scan.needHost": "Pindai memerlukan aplikasi desktop (host Tauri). Gunakan tempel kredensial di mode hanya-peramban.",
   "settings.remoteIm.scan.start": "Mulai pindai",
   "settings.remoteIm.scan.doneBtn": "Saya selesai memindai",

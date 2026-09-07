@@ -680,7 +680,7 @@ export async function sessionSetWorktree(
   });
 }
 
-/** Bind session to a project, or clear (`projectId: null`) for orphan / 其他会话. */
+/** Bind session to a project, or clear (`projectId: null`) for Default workspace. */
 export async function sessionSetProject(
   id: string,
   projectId: string | null,

@@ -206,6 +206,7 @@ export const taSettingsRemoteIm = {
   "settings.remoteIm.bridge.remoteBridgeMissing": "ரிமோட் IM பிரிட்ஜ் பின்தளமானது ரஸ்ட் இயக்க நேரம் அல்ல. Grok பயன்பாட்டை மறுதொடக்கம் செய்யுங்கள்.",
   "settings.remoteIm.bridge.agentConnectMissing": "ரிமோட் IM பிரிட்ஜ் பின்தளமானது ரஸ்ட் இயக்க நேரம் அல்ல. Grok பயன்பாட்டை மறுதொடக்கம் செய்யுங்கள்.",
   "settings.remoteIm.scan.openLink": "இணைப்பைத் திற",
+  "settings.remoteIm.scan.qrError": "QR குறியீட்டை உள்ளூரில் உருவாக்க முடியவில்லை. கீழே உள்ள இணைப்பைத் திற என்பதைப் பயன்படுத்தவும்.",
   "settings.remoteIm.scan.needHost": "ஸ்கேன் செய்ய டெஸ்க்டாப் செயலி (Tauri ஹோஸ்ட்) தேவை. உலாவி மட்டும் பயன்முறையில் பேஸ்ட் சான்றுகளைப் பயன்படுத்தவும்.",
   "settings.remoteIm.scan.start": "ஸ்கேன் தொடங்கவும்",
   "settings.remoteIm.scan.doneBtn": "ஸ்கேன் செய்து முடித்தேன்",

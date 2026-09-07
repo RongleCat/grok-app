@@ -74,7 +74,7 @@ export function measureTreeRevealContent(inner: HTMLElement | null): number {
  * After a chat is moved into an already-open project, content can outgrow
  * the last locked px height. Collapse-all (and moving chats out) can also
  * leave the L1 projects wrapper locked taller than the remaining rows,
- * which parks “Other sessions” under a slab of empty space.
+ * which parks Default workspace under a slab of empty space.
  * Retarget the lock to the new content px in either direction — do not
  * settle to `auto` (that makes the next close snap). Ignore a 0px measure
  * so a transient empty inner does not collapse an open section.

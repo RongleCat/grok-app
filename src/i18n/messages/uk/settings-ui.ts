@@ -182,7 +182,7 @@ export const ukSettingsUi = {
   "settings.archived.empty": "Немає архівованих чатів.",
   "settings.archived.restore": "Відновити",
   "settings.archived.delete": "Видалити",
-  "settings.archived.orphan": "Інші сесії",
+  "settings.archived.orphan": "Робоча область за замовчуванням",
   "settings.archived.selectAll": "Вибрати все",
   "settings.archived.deselectAll": "Зняти вибір",
   "settings.archived.selectedCount": "Вибрано: {n}",

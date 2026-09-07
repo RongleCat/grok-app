@@ -206,6 +206,7 @@ export const jaSettingsRemoteIm = {
   "settings.remoteIm.bridge.remoteBridgeMissing": "Remote IM の Bridge バックエンドが Rust ランタイムではありません。Grok App を再起動してください。",
   "settings.remoteIm.bridge.agentConnectMissing": "Remote IM の Bridge バックエンドが Rust ランタイムではありません。Grok App を再起動してください。",
   "settings.remoteIm.scan.openLink": "リンクを開く",
+  "settings.remoteIm.scan.qrError": "QR コードをローカルで生成できませんでした。下の「リンクを開く」を使用してください。",
   "settings.remoteIm.scan.needHost": "スキャンにはデスクトップアプリ（Tauri host）が必要です。ブラウザのみの場合は「認証情報を貼り付け」を使ってください。",
   "settings.remoteIm.scan.start": "スキャンを開始",
   "settings.remoteIm.scan.doneBtn": "スキャン完了",

@@ -39,6 +39,7 @@ import {
 import {
   reviewEntryCoversPath,
   reviewFocusPathParts,
+  scrollChildToContainerStart,
 } from "@/lib/reviewFocusPaths";
 import {
   buildReviewTree,
@@ -832,10 +833,12 @@ export function ReviewTab({
       next.add(key);
       return next;
     });
-    // rAF so expand layout settles before scroll
+    // rAF so expand layout settles before scroll. Nested stack only —
+    // scrollIntoView walks ancestors and can hide the mac Overlay titlebar (#1041).
     requestAnimationFrame(() => {
+      const stack = stackRef.current;
       const el = fileEls.current.get(key);
-      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (stack && el) scrollChildToContainerStart(stack, el);
     });
   }, []);
 

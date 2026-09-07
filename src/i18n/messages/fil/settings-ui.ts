@@ -182,7 +182,7 @@ export const filSettingsUi = {
   "settings.archived.empty": "Walang naka-archive na chat.",
   "settings.archived.restore": "Ibalik",
   "settings.archived.delete": "Burahin",
-  "settings.archived.orphan": "Iba pa",
+  "settings.archived.orphan": "Default na workspace",
   "settings.archived.selectAll": "Piliin lahat",
   "settings.archived.deselectAll": "Alisin ang pagpili sa lahat",
   "settings.archived.selectedCount": "{n} ang napili",

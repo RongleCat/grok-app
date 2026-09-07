@@ -22,5 +22,5 @@ export const taKanban = {
   "kanban.filterEmptyHint": "தேடலை அழிக்கவும் அல்லது செயலற்ற முகவர்களைக் காட்டவும்.",
   "kanban.clearFilters": "அனைத்து வடிகட்டிகளையும் அழி",
   "kanban.mapEmpty": "இந்தக் காட்சியில் முகவர்கள் இல்லை",
-  "kanban.unboundProject": "பிற உரையாடல்கள்",
+  "kanban.unboundProject": "இயல்புநிலை பணியிடம்",
 };

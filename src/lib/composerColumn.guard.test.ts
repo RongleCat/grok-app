@@ -84,7 +84,9 @@ describe("composer column matches chat width", () => {
     expect(modelMenu).toContain("cmm__hub");
     expect(modelMenu).toContain("cmm__stage");
     expect(modelMenu).toContain("cmm__pop--flyout");
+    expect(modelMenu).toContain("cmm__window-edit");
     expect(modelMenu).toContain('showFlyout("models")');
+    expect(modelMenu).toContain('showFlyout("window")');
     expect(modelMenu).not.toContain('goPane("models")');
     const modelIdx = app.indexOf("<ComposerModelMenu");
     const accessIdx = app.indexOf("<ComposerAccessMenu");
@@ -122,6 +124,13 @@ describe("composer column matches chat width", () => {
     expect(composer1).toMatch(/@keyframes cmm-pop-up/);
     expect(composer1).toMatch(
       /\.cmm__pop\.cmm__pop--portal\.cmm__pop--flyout/,
+    );
+    expect(composer1).toMatch(
+      /\.cmm__pop\.cmm__pop--portal\.cmm__pop--flyout\[data-kind="window"\]/,
+    );
+    expect(composer1).toMatch(/\.cmm__window-edit\s*\{/);
+    expect(composer1).toMatch(
+      /\.cmm__inline-save\s*\{[^}]*min-height:\s*32px/s,
     );
     expect(composer1).not.toMatch(/\.cmm__nested\s*\{/);
     expect(composer1).not.toMatch(/\.cmm__back\s*\{/);

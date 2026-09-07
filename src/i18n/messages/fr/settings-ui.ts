@@ -182,7 +182,7 @@ export const frSettingsUi = {
   "settings.archived.empty": "Aucune conversation archivée.",
   "settings.archived.restore": "Restaurer",
   "settings.archived.delete": "Supprimer",
-  "settings.archived.orphan": "Autres",
+  "settings.archived.orphan": "Espace de travail par défaut",
   "settings.archived.selectAll": "Tout sélectionner",
   "settings.archived.deselectAll": "Tout désélectionner",
   "settings.archived.selectedCount": "{n} sélectionné(s)",
