@@ -103,11 +103,17 @@ jobs:
 
           # --- scrub PATH (Temurin ships stale api-ms-win-*.dll forwarders) ---
           $dropped = [System.Collections.Generic.List[string]]::new()
+          $windowsRoot = [IO.Path]::GetFullPath($env:SystemRoot).TrimEnd('\')
           $kept = foreach ($d in ($env:Path -split $sep)) {
             if (-not $d) { continue }
             $shipsApiSet = $false
             if (Test-Path -LiteralPath $d -PathType Container -ErrorAction SilentlyContinue) {
-              $shipsApiSet = [bool](Get-ChildItem -LiteralPath $d -Filter 'api-ms-win-*.dll' -ErrorAction SilentlyContinue | Select-Object -First 1)
+              $fullPath = [IO.Path]::GetFullPath($d).TrimEnd('\')
+              $isWindowsDir = $fullPath.Equals($windowsRoot, [StringComparison]::OrdinalIgnoreCase) -or
+                $fullPath.StartsWith("$windowsRoot\", [StringComparison]::OrdinalIgnoreCase)
+              if (-not $isWindowsDir) {
+                $shipsApiSet = [bool](Get-ChildItem -LiteralPath $d -Filter 'api-ms-win-*.dll' -ErrorAction SilentlyContinue | Select-Object -First 1)
+              }
             }
             if ($shipsApiSet) {
               [void]$dropped.Add($d)
