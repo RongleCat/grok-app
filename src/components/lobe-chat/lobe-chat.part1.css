@@ -1033,6 +1033,38 @@ html[data-msg-actions="hover"]
   pointer-events: none;
 }
 
+.chat-mermaid__body {
+  padding: 0;
+}
+
+.chat-mermaid__svg {
+  padding: 12px 14px 14px;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.chat-mermaid__svg svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chat-mermaid__status {
+  margin: 0;
+  padding: 10px 14px 0;
+  font-size: var(--chat-fs-xs);
+  color: var(--chat-text-3);
+}
+
+.chat-mermaid__status--error {
+  color: var(--chat-danger, #f87171);
+}
+
+.chat-mermaid__toggle {
+  font-size: 11px;
+  line-height: 1;
+}
+
 .chat-code--lines .chat-code__pre {
   flex: 1 1 auto;
   min-width: 0;

@@ -7,13 +7,15 @@
 
 import { useMemo, type MouseEvent, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
-import type { Locale } from "@/i18n";
+import { createT, type Locale } from "@/i18n";
 import {
   MARKDOWN_REHYPE_PLUGINS,
   MARKDOWN_REMARK_PLUGINS,
 } from "@/lib/markdownMath";
 import { ImageUi, imageUiLabels } from "@/components/ImageUi";
 import { VideoUi, videoUiLabels } from "@/components/VideoUi";
+import { MermaidBlock } from "@/components/lobe-chat/MermaidBlock";
+import { isMermaidLanguage } from "@/lib/mermaidRender";
 import {
   isImagePath,
   isPlausibleLocalMediaAbs,
@@ -60,6 +62,7 @@ export function MarkdownBody({
    */
   onOpenExternalLink?: (url: string) => void;
 }) {
+  const tr = useMemo(() => createT(locale), [locale]);
   const imageLabels = useMemo(() => imageUiLabels(locale), [locale]);
   const videoLabels = useMemo(() => videoUiLabels(locale), [locale]);
   const gallery = useMemo(() => {
@@ -150,6 +153,24 @@ export function MarkdownBody({
                 if (media) return media;
               }
               return <code className="md-body__code-inline">{c}</code>;
+            }
+            const match =
+              typeof className === "string"
+                ? /language-([\w#+-]+)/.exec(className)
+                : null;
+            if (isMermaidLanguage(match?.[1])) {
+              return (
+                <MermaidBlock
+                  streaming={Boolean(streaming)}
+                  copyLabel={tr("message.copy")}
+                  sourceLabel={tr("chat.mermaidSource")}
+                  diagramLabel={tr("chat.mermaidDiagram")}
+                  loadingLabel={tr("chat.mermaidLoading")}
+                  errorLabel={tr("chat.mermaidError")}
+                >
+                  {c}
+                </MermaidBlock>
+              );
             }
             return <code className={className}>{c}</code>;
           },

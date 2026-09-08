@@ -50,6 +50,7 @@ See `docs/llm-wiki/release.md`.
 - 插件授权密钥不再出现在进程命令行中。
 
 ### Added
+- Chat markdown renders Mermaid diagrams from fenced code blocks.
 - Wallpaper X can use Responses search with a clear fallback to CLI (#1088).
 - Wallpaper X Responses search shows validated images in batches as paths finish (#1089).
 - Wallpaper X Responses search reuses recent verified results for the same query (#1090).
@@ -61,6 +62,7 @@ See `docs/llm-wiki/release.md`.
 - Ctrl+Tab jumps back to the last chat you used. Hold Ctrl and tap Tab to cycle further; Ctrl+Shift+Tab goes the other way.
 
 **中文 · 新增**
+- 聊天 Markdown 会渲染 fenced Mermaid 流程图。
 - 壁纸 X 可用 Responses 搜索，失败时清楚回退到 CLI（#1088）。
 - 壁纸 X 的 Responses 搜索会按完成批次逐步显示已校验图片（#1089）。
 - 壁纸 X 的 Responses 搜索会复用同一查询的近期已验证结果（#1090）。
