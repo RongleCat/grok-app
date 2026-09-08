@@ -1,6 +1,8 @@
 /** ru messages — domain: core */
 export const ruCore = {
   "app.name": "Grok",
+  "image.loadingOriginal": "Загрузка оригинала…",
+  "image.originalFailed": "Не удалось загрузить оригинал. Предпросмотр по-прежнему доступен.",
   "app.tagline": "MIT · Неофициально · Сестринский проект grok-go",
   "app.versionFooter": "Grok v0.2.33 · MIT · Неофициально · Сестринский проект grok-go",
   "window.minimize": "Свернуть",

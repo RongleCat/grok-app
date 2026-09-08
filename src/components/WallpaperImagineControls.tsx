@@ -80,9 +80,9 @@ export function WallpaperImagineControls({
   const preparingSource = videoSourceStatus === "preparing";
   const hardLocked = locked && !preparingSource && !generating;
   const sourceReady = videoSourceStatus === "ready" && !!videoSourcePath;
-  const cancellableGeneration = generating;
   const generateDisabled =
     hardLocked ||
+    generating ||
     (mode === "image" ? !prompt.trim() : !sourceReady) ||
     (mode === "edit" && !prompt.trim()) ||
     cancelling;
@@ -253,18 +253,12 @@ export function WallpaperImagineControls({
         ) : null}
         <button
           type="button"
-          className={cancellableGeneration ? "btn btn--ghost" : "btn btn--solid"}
-          disabled={generating ? cancelling : generateDisabled}
+          className="btn btn--solid"
+          disabled={generateDisabled}
           aria-busy={generating}
-          onClick={cancellableGeneration ? onCancelGeneration : onGenerate}
+          onClick={onGenerate}
         >
-          {generating ? (
-            cancelling ? (
-              t("settings.wallpaperSource.cancellingVideo")
-            ) : (
-              t("common.cancel")
-            )
-          ) : mode === "video" ? (
+          {mode === "video" ? (
             <>
               <IconPlay size={15} />
               <span>{t("settings.wallpaperSource.generateVideo")}</span>
@@ -274,6 +268,21 @@ export function WallpaperImagineControls({
           ) : (
             t("settings.wallpaperSource.generate")
           )}
+        </button>
+        {/* Keep both targets mounted so a delayed release cannot change intent. */}
+        <button
+          type="button"
+          className="btn btn--ghost"
+          disabled={!generating || cancelling}
+          aria-busy={cancelling}
+          title={
+            cancelling
+              ? t("settings.wallpaperSource.cancellingVideo")
+              : undefined
+          }
+          onClick={onCancelGeneration}
+        >
+          {t("common.cancel")}
         </button>
       </div>
     </div>

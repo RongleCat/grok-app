@@ -1,6 +1,8 @@
 /** fr messages — domain: core */
 export const frCore = {
   "app.name": "Grok",
+  "image.loadingOriginal": "Chargement de l’original…",
+  "image.originalFailed": "Impossible de charger l’original. L’aperçu reste disponible.",
   "app.tagline": "MIT · Non officiel · Projet sœur grok-go",
   "app.versionFooter": "Grok v0.2.33 · MIT · Non officiel · Projet sœur grok-go",
   "window.minimize": "Réduire",

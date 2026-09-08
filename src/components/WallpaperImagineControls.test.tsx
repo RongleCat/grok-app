@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@/test/jsdomStubs";
 import {
@@ -270,7 +271,7 @@ describe("WallpaperImagineControls", () => {
     );
   });
 
-  it("turns the active generation action into cancel", () => {
+  it("keeps generation disabled while a separate cancel action is available", () => {
     const onCancelGeneration = vi.fn();
     render(
       <WallpaperImagineControls
@@ -288,6 +289,106 @@ describe("WallpaperImagineControls", () => {
       screen.getByRole("button", { name: "common.cancel" }),
     );
     expect(onCancelGeneration).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "settings.wallpaperSource.generateVideo",
+      }).disabled,
+    ).toBe(true);
+  });
+
+  it.each(["image", "edit", "video"] as const)(
+    "does not turn a delayed cancel click into another %s generation",
+    async (mode) => {
+      const user = userEvent.setup();
+      const active = model({
+        mode,
+        prompt: "A quiet lake",
+        videoSourcePath: "/source.png",
+        videoSourceStatus: "ready",
+        generating: true,
+      });
+      const view = render(
+        <WallpaperImagineControls t={t} locked model={active} />,
+      );
+      const cancel = screen.getByRole<HTMLButtonElement>("button", {
+        name: "common.cancel",
+      });
+      await user.pointer({ target: cancel, keys: "[MouseLeft>]" });
+      view.rerender(
+        <WallpaperImagineControls
+          t={t}
+          locked={false}
+          model={{ ...active, generating: false }}
+        />,
+      );
+      await user.pointer({ target: cancel, keys: "[/MouseLeft]" });
+      expect(active.onGenerate).not.toHaveBeenCalled();
+      expect(active.onCancelGeneration).not.toHaveBeenCalled();
+
+      const generateName =
+        mode === "image"
+          ? "settings.wallpaperSource.generate"
+          : mode === "edit"
+            ? "settings.wallpaperSource.editImage"
+            : "settings.wallpaperSource.generateVideo";
+      await user.click(screen.getByRole("button", { name: generateName }));
+      expect(active.onGenerate).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("does not generate when Space is released after a request finishes", async () => {
+    const user = userEvent.setup();
+    const active = model({ prompt: "A quiet lake", generating: true });
+    const view = render(
+      <WallpaperImagineControls t={t} locked model={active} />,
+    );
+    const cancel = screen.getByRole<HTMLButtonElement>("button", {
+      name: "common.cancel",
+    });
+    cancel.focus();
+    await user.keyboard("[Space>]");
+    view.rerender(
+      <WallpaperImagineControls
+        t={t}
+        locked={false}
+        model={{ ...active, generating: false }}
+      />,
+    );
+    await user.keyboard("[/Space]");
+    expect(active.onGenerate).not.toHaveBeenCalled();
+    expect(active.onCancelGeneration).not.toHaveBeenCalled();
+  });
+
+  it("blocks duplicate cancellation while both action targets stay mounted", async () => {
+    const user = userEvent.setup();
+    const active = model({ prompt: "A quiet lake", generating: true });
+    const view = render(
+      <WallpaperImagineControls t={t} locked model={active} />,
+    );
+    const cancel = screen.getByRole<HTMLButtonElement>("button", {
+      name: "common.cancel",
+    });
+
+    await user.click(cancel);
+    view.rerender(
+      <WallpaperImagineControls
+        t={t}
+        locked
+        model={{ ...active, cancelling: true }}
+      />,
+    );
+    await user.click(cancel);
+    await user.click(
+      screen.getByRole("button", {
+        name: "settings.wallpaperSource.generate",
+      }),
+    );
+
+    expect(active.onCancelGeneration).toHaveBeenCalledTimes(1);
+    expect(active.onGenerate).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "common.cancel" })).toBe(
+      cancel,
+    );
   });
 
   it("allows cancelling image generation while other controls are locked", () => {

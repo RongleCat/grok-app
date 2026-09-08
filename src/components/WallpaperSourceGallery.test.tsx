@@ -1,8 +1,28 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WallpaperGalleryItem } from "@/lib/wallpaperSource";
 import { WallpaperSourceGallery } from "./WallpaperSourceGallery";
+
+const ensureMediaEndpoint = vi.hoisted(() => vi.fn(async () => null));
+const resolveImageSrcSync = vi.hoisted(() =>
+  vi.fn<(path: string) => string | null>(
+    (path) => `http://127.0.0.1/media/${encodeURIComponent(path)}`,
+  ),
+);
+
+vi.mock("@/lib/imageSrc", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/imageSrc")>()),
+  ensureMediaEndpoint,
+  resolveImageSrcSync,
+}));
 
 vi.mock("@/lib/api/wallpaper", () => ({
   wallpaperLibraryFindById: vi.fn(),
@@ -66,6 +86,67 @@ afterEach(() => {
 });
 
 describe("WallpaperSourceGallery media details", () => {
+  it("keeps the existing media fallback when endpoint boot fails", async () => {
+    ensureMediaEndpoint.mockRejectedValueOnce(new Error("endpoint unavailable"));
+    const path = "H:/wallpapers/imagine/fallback.mp4";
+    const videoItem: WallpaperGalleryItem = {
+      ...item,
+      id: "fallback-video",
+      kind: "video",
+      source: "imagine",
+      localPath: path,
+      fullUrl: `file://${path}`,
+      thumbUrl: "",
+    };
+    resolveImageSrcSync.mockReturnValueOnce(null);
+    const { container } = render(
+      <WallpaperSourceGallery
+        {...galleryProps([videoItem])}
+        tab="imagine"
+      />,
+    );
+
+    await waitFor(() => expect(ensureMediaEndpoint).toHaveBeenCalledOnce());
+    expect(container.querySelector("video")?.getAttribute("src")).toBe(
+      `file://${path}`,
+    );
+  });
+
+  it.each(["library", "imagine"] as const)(
+    "refreshes a local video in %s after the media endpoint becomes ready",
+    async (tab) => {
+      let finishEndpoint!: () => void;
+      ensureMediaEndpoint.mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishEndpoint = () => resolve(null);
+        }),
+      );
+      resolveImageSrcSync.mockReturnValueOnce(null);
+      const path = "H:/wallpapers/imagine/result.mp4";
+      const videoItem: WallpaperGalleryItem = {
+        ...item,
+        id: "generated-video",
+        kind: "video",
+        source: "imagine",
+        localPath: path,
+        fullUrl: `file://${path}`,
+        thumbUrl: "",
+      };
+      const { container } = render(
+        <WallpaperSourceGallery
+          {...galleryProps([videoItem])}
+          tab={tab}
+        />,
+      );
+      const video = container.querySelector("video");
+      expect(video?.getAttribute("src")).toBe(`file://${path}`);
+      await act(async () => finishEndpoint());
+      expect(video?.getAttribute("src")).toBe(
+        `http://127.0.0.1/media/${encodeURIComponent(path)}`,
+      );
+    },
+  );
+
   it("opens details with an item-specific label and forwards prompt reuse", () => {
     const onReusePrompt = vi.fn();
     render(

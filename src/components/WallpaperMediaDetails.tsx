@@ -231,6 +231,7 @@ function MediaDetailsContent({
                 viewer.open([
                   {
                     src: item.localPath!,
+                    kind: item.kind === "video" ? "video" : "image",
                     title: item.textPreview || undefined,
                   },
                 ]);

@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { AppearanceSection } from "@/components/settings/AppearanceSection";
+import { ImageViewerProvider } from "@/components/ImageViewer";
 import {
   WindowControls,
   tauriDragRegion,
@@ -154,9 +155,11 @@ function ThemeEditorBody() {
         <h1 className="theme-editor-shell__title sr-only">
           {model.t("user.themeEditor")}
         </h1>
-        <SettingsModelProvider value={model}>
-          <AppearanceSection />
-        </SettingsModelProvider>
+        <ImageViewerProvider locale={locale}>
+          <SettingsModelProvider value={model}>
+            <AppearanceSection />
+          </SettingsModelProvider>
+        </ImageViewerProvider>
       </div>
       {toast ? (
         <div className="app-toast" role="status">

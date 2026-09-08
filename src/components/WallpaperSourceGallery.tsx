@@ -9,7 +9,7 @@ import type { WallpaperSourceModalProps, WallpaperSourceTab } from "./WallpaperS
 import type { WallpaperGalleryItem } from "@/lib/wallpaperSource";
 import type { WallpaperGalleryEmptyPresentation } from "@/lib/wallpaperGalleryPro";
 import { resolveWallpaperXCitation } from "@/lib/xEvidenceCitation";
-import { resolveImageSrcSync } from "@/lib/imageSrc";
+import { ensureMediaEndpoint, resolveImageSrcSync } from "@/lib/imageSrc";
 import { WallpaperProviderThumbnail } from "./WallpaperProviderThumbnail";
 import { GrokAlbumThumbnail } from "./GrokAlbumThumbnail";
 import { WallpaperMediaDetails } from "./WallpaperMediaDetails";
@@ -95,6 +95,7 @@ export function WallpaperSourceGallery({
 }: Props) {
   const isImagineLayout = tab === "imagine";
   const isLibraryTab = tab === "library";
+  const [, refreshMediaSources] = useState(0);
   const [details, setDetails] = useState<{ tab: string; id: string } | null>(
     null,
   );
@@ -112,6 +113,21 @@ export function WallpaperSourceGallery({
     );
   }, [tab, visibleItems]);
 
+  useEffect(() => {
+    let mounted = true;
+    void ensureMediaEndpoint()
+      .then(() => {
+        if (mounted) refreshMediaSources((value) => value + 1);
+      })
+      .catch(() => {
+        // Keep the existing source fallback; endpoint boot may be retried by
+        // the normal media resolver on the next user action.
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <>
       {/*
@@ -121,7 +137,10 @@ export function WallpaperSourceGallery({
       */}
       <div
         ref={scrollRef}
-        className="wallpaper-masonry-scroll"
+        className={
+          "wallpaper-masonry-scroll" +
+          (isImagineLayout ? " wallpaper-masonry-scroll--imagine" : "")
+        }
         role="list"
         aria-label={t("settings.wallpaperSource.gallery")}
         aria-busy={busy || previewingId !== null}

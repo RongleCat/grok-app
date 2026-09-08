@@ -15,6 +15,9 @@ import {
 } from "@/lib/wallpaperRemoteSearch";
 import { clearRemoteWallpaperThumbnailCache } from "@/lib/remoteWallpaperThumbnail";
 
+export const EMPTY_WALLPAPER_IMAGE_PLACEHOLDER =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+
 export { cancelGrokAlbumMediaRequests };
 
 export async function cancelRemoteWallpaperMediaRequests(): Promise<void> {

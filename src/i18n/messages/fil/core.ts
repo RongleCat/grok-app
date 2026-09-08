@@ -1,6 +1,8 @@
 /** fil messages — domain: core */
 export const filCore = {
   "app.name": "Grok",
+  "image.loadingOriginal": "Nilo-load ang orihinal…",
+  "image.originalFailed": "Hindi ma-load ang orihinal. Makikita pa rin ang preview.",
   "app.tagline": "MIT · Hindi opisyal · Sister project grok-go",
   "app.versionFooter": "Grok v0.2.33 · MIT · Hindi opisyal · Sister project grok-go",
   "window.minimize": "I-minimize",

@@ -1,6 +1,8 @@
 /** Simplified Chinese messages — domain: core */
 export const zhCore = {
   "app.name": "Grok",
+  "image.loadingOriginal": "正在加载原文件…",
+  "image.originalFailed": "原文件加载失败，仍可查看预览。",
   "app.tagline": "MIT · 非 xAI 官方 · 姐妹项目 grok-go",
   "app.versionFooter": "Grok v0.2.33 · MIT · 非 xAI 官方 · 姐妹项目 grok-go",
   "window.minimize": "最小化",

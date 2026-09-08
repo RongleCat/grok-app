@@ -52,6 +52,26 @@ provider invalidates earlier asynchronous preparation; an older gallery must
 not reopen after close or replace a newer gallery. After first use, keep the
 lightbox mounted with `open=false` so its exit cleanup can complete.
 
+The viewer accepts mixed image and video galleries. Local video slides use the
+same loopback media endpoint as images; a gallery mounted during endpoint boot
+must rerender after `ensureMediaEndpoint()` settles so it does not keep a raw
+`file://` URL for the lifetime of the card. Image-only copy and zoom behavior
+must not be attached to video elements.
+
+Remote wallpaper cards open their already-validated thumbnail immediately and
+materialize the original only when that slide becomes current. Keep at most two
+original transfers active. If navigation outruns those slots, retain only the
+latest waiting slide; revisiting it may schedule it again after a slot opens.
+An original failure keeps the thumbnail visible, shows localized safe copy and
+retries only after an explicit user action.
+
+Closing the viewer, closing the source picker, changing source, starting a new
+search, refreshing Grok Saved, or observing a Grok Saved page/account revision
+invalidates queued and in-flight renderer results. A late original must neither
+reopen/replace the current gallery nor restore selection or local-path state
+from the previous source revision. Cancellation is still sent to the matching
+Host media bridge so renderer rejection is not the only boundary.
+
 ## Fallback
 
 `media://` custom protocol remains registered for cold-start races only. Steady-state UI should use HTTP URLs.

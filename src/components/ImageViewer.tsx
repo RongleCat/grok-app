@@ -1,11 +1,6 @@
 /**
- * Global image lightbox (yet-another-react-lightbox) + open/copy helpers.
- * Zoom, prev/next, counter; right-click on the active slide copies the image.
- *
- * Initial fit: always contain within the stage (upscale small images to fill,
- * downscale large ones). Logical slide width/height are inflated when the
- * natural bitmap is smaller than the stage so YARL's max-width cap and zoom
- * math do not leave a tiny thumbnail in the middle of the window.
+ * Global media lightbox + open/copy helpers.
+ * Images keep zoom/copy support; video slides use the lightbox video plugin.
  */
 
 import {
@@ -18,7 +13,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { resolveImageSrc, resolveImageSrcs } from "@/lib/imageSrc";
+import { createT, type Locale } from "@/i18n";
 import { copyImageFromPath, copyImageFromSrc } from "@/lib/copyImage";
 import {
   lightboxSlideDimensions,
@@ -26,27 +21,34 @@ import {
   lightboxYarlSlideSize,
   loadImageNaturalSize,
 } from "@/lib/imageLightboxFit";
-import { createT, type Locale } from "@/i18n";
-import { ImageViewerContext, type ImageSlideInput, type ImageViewerApi } from "./ImageViewerContext";
+import { resolveImageSrc } from "@/lib/imageSrc";
+import {
+  ImageViewerContext,
+  type ImageSlideInput,
+  type ImageViewerApi,
+} from "./ImageViewerContext";
 
 const ImageLightbox = lazy(async () => {
-  const m = await import("./ImageLightbox");
-  return { default: m.ImageLightbox };
+  const module = await import("./ImageLightbox");
+  return { default: module.ImageLightbox };
 });
 
 interface ResolvedSlide {
   src: string;
+  kind: "image" | "video";
+  mime?: string;
+  poster?: string;
   alt?: string;
   title?: string;
-  /** Original path/url for copy. */
+  onView?: ImageSlideInput["onView"];
+  loadOriginal?: ImageSlideInput["loadOriginal"];
+  originalErrorMessage?: ImageSlideInput["originalErrorMessage"];
+  originalStatus?: "loading" | "error";
+  originalError?: string;
+  /** Original path/URL for copy and stale-result identity checks. */
   origin: string;
-  /** Logical size for YARL fit + zoom (may exceed natural for small images). */
   width?: number;
   height?: number;
-  /**
-   * Same logical size as width/height — keeps Zoom imageRect ≥ stage fit so
-   * drag-pan works after zoom-in (see lightboxYarlSlideSize).
-   */
   srcSet?: Array<{ src: string; width: number; height: number }>;
 }
 
@@ -55,12 +57,27 @@ interface ImageViewerProviderProps {
   locale: Locale;
 }
 
-/** Stage size from the current window (SSR-safe fallback). */
 function currentStageRect() {
   if (typeof window === "undefined") {
     return lightboxSlideRect(1920, 1080);
   }
   return lightboxSlideRect(window.innerWidth, window.innerHeight);
+}
+
+async function withLogicalImageSize(
+  slide: ResolvedSlide,
+  stage: ReturnType<typeof currentStageRect>,
+  requireDecodedImage = false,
+): Promise<ResolvedSlide> {
+  if (slide.kind === "video") return slide;
+  const natural = await loadImageNaturalSize(slide.src);
+  if (!(natural.width > 0 && natural.height > 0)) {
+    if (requireDecodedImage) throw new Error("original_decode_failed");
+    return slide;
+  }
+  const logical = lightboxSlideDimensions(natural, stage);
+  const sizeFields = lightboxYarlSlideSize(slide.src, logical);
+  return sizeFields ? { ...slide, ...sizeFields } : slide;
 }
 
 export function ImageViewerProvider({
@@ -74,20 +91,30 @@ export function ImageViewerProvider({
   const isOpenRef = useRef(false);
   const slidesRef = useRef(slides);
   const generationRef = useRef(0);
+  const originalLoadsRef = useRef(new Set<string>());
+  const activeOriginalLoadsRef = useRef(0);
+  const pendingOriginalLoadRef = useRef<(() => void) | null>(null);
   slidesRef.current = slides;
 
   const close = useCallback(() => {
     generationRef.current += 1;
+    originalLoadsRef.current.clear();
+    pendingOriginalLoadRef.current = null;
     isOpenRef.current = false;
     setIsOpen(false);
   }, []);
 
   const viewerIsOpen = useCallback(() => isOpenRef.current, []);
 
-  useEffect(() => () => {
-    generationRef.current += 1;
-    isOpenRef.current = false;
-  }, []);
+  useEffect(
+    () => () => {
+      generationRef.current += 1;
+      originalLoadsRef.current.clear();
+      pendingOriginalLoadRef.current = null;
+      isOpenRef.current = false;
+    },
+    [],
+  );
 
   const openViewer = useCallback(
     (input: ImageSlideInput[] | string[], startIndex = 0) => {
@@ -96,44 +123,64 @@ export function ImageViewerProvider({
       );
       if (!normalized.length) return;
 
-      const generation = ++generationRef.current;
       void (async () => {
-        const paths = normalized.map((s) => s.src);
-        const resolved = await resolveImageSrcs(paths);
+        const generation = generationRef.current + 1;
+        generationRef.current = generation;
+        originalLoadsRef.current.clear();
+        pendingOriginalLoadRef.current = null;
+        const resolved = (
+          await Promise.all(
+            normalized.map(async (slide, inputIndex) => {
+              const src = await resolveImageSrc(slide.src);
+              return src
+                ? { path: slide.src, src, input: slide, inputIndex }
+                : null;
+            }),
+          )
+        ).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
         if (!resolved.length) return;
 
-        const meta = new Map(normalized.map((s) => [s.src, s] as const));
-        const stage = currentStageRect();
-
-        // Resolve natural sizes so we can declare logical slide dims that
-        // allow small images to fill the stage at zoom=1.
-        const next: ResolvedSlide[] = await Promise.all(
-          resolved.map(async ({ path, src }) => {
-            const m = meta.get(path);
-            const natural = await loadImageNaturalSize(src);
-            const logical =
-              natural.width > 0 && natural.height > 0
-                ? lightboxSlideDimensions(natural, stage)
-                : { width: 0, height: 0 };
-            const sizeFields = lightboxYarlSlideSize(src, logical);
+        const next: ResolvedSlide[] = resolved.map(
+          ({ path, src, input: slide }) => {
+            const kind = slide.kind === "video" ? "video" : "image";
             return {
               src,
               origin: path,
-              alt: m?.alt ?? m?.title,
-              title: m?.title,
-              ...(sizeFields ?? {}),
+              kind,
+              ...(kind === "video"
+                ? { mime: slide.mime, poster: slide.poster }
+                : {}),
+              alt: slide.alt ?? slide.title,
+              title: slide.title,
+              onView: slide.onView,
+              loadOriginal: slide.loadOriginal,
+              originalErrorMessage: slide.originalErrorMessage,
             };
-          }),
+          },
         );
 
-        const want =
-          normalized[Math.min(startIndex, normalized.length - 1)]?.src;
-        let idx = next.findIndex((s) => s.origin === want);
-        if (idx < 0) idx = 0;
+        const requestedInputIndex = Math.min(
+          Math.max(Number.isFinite(startIndex) ? Math.trunc(startIndex) : 0, 0),
+          normalized.length - 1,
+        );
+        let nextIndex = resolved.findIndex(
+          (entry) => entry.inputIndex === requestedInputIndex,
+        );
+        if (nextIndex < 0) nextIndex = 0;
+
+        // Open lazy placeholders immediately. Eager images only wait for the
+        // selected slide's dimensions; siblings hydrate when viewed.
+        const selected = next[nextIndex];
+        if (selected && !selected.loadOriginal) {
+          next[nextIndex] = await withLogicalImageSize(
+            selected,
+            currentStageRect(),
+          );
+        }
 
         if (generationRef.current !== generation) return;
         setSlides(next);
-        setIndex(idx);
+        setIndex(nextIndex);
         isOpenRef.current = true;
         setIsOpen(true);
       })();
@@ -142,13 +189,162 @@ export function ImageViewerProvider({
   );
 
   const copyImage = useCallback(async (pathOrUrl: string) => {
-    // Prefer Host path write for absolute files; then URL/fetch path.
-    const r = await copyImageFromPath(pathOrUrl);
-    if (r.ok) return true;
+    const fromPath = await copyImageFromPath(pathOrUrl);
+    if (fromPath.ok) return true;
     const src = await resolveImageSrc(pathOrUrl);
     if (!src) return false;
     return (await copyImageFromSrc(src)).ok;
   }, []);
+
+  const hydrateSlideAt = useCallback(
+    function hydrateSlideAt(
+      targetIndex: number,
+      force = false,
+      retryOriginal = false,
+    ) {
+      if (!isOpenRef.current) return;
+      const slide = slidesRef.current[targetIndex];
+      if (!slide) return;
+
+      const generation = generationRef.current;
+      const expectedOrigin = slide.origin;
+      const expectedSrc = slide.src;
+
+      if (slide.loadOriginal) {
+        if (slide.originalStatus === "error" && !retryOriginal) return;
+        const loadKey = `${generation}:${targetIndex}:${expectedOrigin}`;
+        if (originalLoadsRef.current.has(loadKey)) return;
+
+        const updateSlide = (updated: ResolvedSlide) => {
+          if (generationRef.current !== generation) return;
+          const previous = slidesRef.current[targetIndex];
+          if (
+            previous?.origin !== expectedOrigin ||
+            previous.src !== expectedSrc
+          ) {
+            return;
+          }
+          const next = slidesRef.current.slice();
+          next[targetIndex] = updated;
+          slidesRef.current = next;
+          setSlides(next);
+        };
+
+        updateSlide({
+          ...slide,
+          originalStatus: "loading",
+          originalError: undefined,
+        });
+
+        // Keep at most two Host downloads active and retain only the latest
+        // navigation request waiting for a slot.
+        if (activeOriginalLoadsRef.current >= 2) {
+          pendingOriginalLoadRef.current = () => {
+            if (generationRef.current === generation) {
+              hydrateSlideAt(targetIndex, force, retryOriginal);
+            }
+          };
+          return;
+        }
+
+        originalLoadsRef.current.add(loadKey);
+        activeOriginalLoadsRef.current += 1;
+        void (async () => {
+          try {
+            const loaded = await slide.loadOriginal?.();
+            if (generationRef.current !== generation) return;
+            if (!loaded) throw new Error("original_unavailable");
+
+            const loadedSrc = await resolveImageSrc(loaded.src);
+            if (generationRef.current !== generation) return;
+            if (!loadedSrc) throw new Error("original_unavailable");
+
+            const upgraded: ResolvedSlide = {
+              ...slide,
+              src: loadedSrc,
+              origin: loaded.src,
+              kind: loaded.kind === "video" ? "video" : "image",
+              mime: loaded.mime,
+              poster: loaded.poster ?? slide.poster,
+              loadOriginal: undefined,
+              originalStatus: undefined,
+              originalError: undefined,
+              width: undefined,
+              height: undefined,
+              srcSet: undefined,
+            };
+            updateSlide(
+              await withLogicalImageSize(
+                upgraded,
+                currentStageRect(),
+                true,
+              ),
+            );
+          } catch (error) {
+            let originalError: string | undefined;
+            try {
+              originalError = slide.originalErrorMessage?.(error);
+            } catch {
+              originalError = undefined;
+            }
+            // Preserve the thumbnail. Retry only after an explicit action.
+            updateSlide({
+              ...slide,
+              originalStatus: "error",
+              originalError,
+            });
+          } finally {
+            originalLoadsRef.current.delete(loadKey);
+            activeOriginalLoadsRef.current -= 1;
+            const pending = pendingOriginalLoadRef.current;
+            pendingOriginalLoadRef.current = null;
+            pending?.();
+          }
+        })();
+        return;
+      }
+
+      if (slide.kind === "video" || (!force && slide.width && slide.height)) {
+        return;
+      }
+      void withLogicalImageSize(slide, currentStageRect()).then((updated) => {
+        if (generationRef.current !== generation) return;
+        setSlides((current) => {
+          if (
+            current[targetIndex]?.origin !== expectedOrigin ||
+            current[targetIndex]?.src !== expectedSrc
+          ) {
+            return current;
+          }
+          const previous = current[targetIndex];
+          if (
+            previous?.width === updated.width &&
+            previous.height === updated.height
+          ) {
+            return current;
+          }
+          const next = current.slice();
+          next[targetIndex] = updated;
+          return next;
+        });
+      });
+    },
+    [],
+  );
+
+  const handleView = useCallback(
+    (nextIndex: number) => {
+      pendingOriginalLoadRef.current = null;
+      setIndex(nextIndex);
+      slidesRef.current[nextIndex]?.onView?.();
+      hydrateSlideAt(nextIndex);
+    },
+    [hydrateSlideAt],
+  );
+
+  useEffect(() => {
+    if (isOpen) hydrateSlideAt(index);
+  }, [hydrateSlideAt, index, isOpen]);
 
   const api = useMemo<ImageViewerApi>(
     () => ({
@@ -157,28 +353,25 @@ export function ImageViewerProvider({
       isOpen: viewerIsOpen,
       copyImage,
     }),
-    [openViewer, close, viewerIsOpen, copyImage],
+    [close, copyImage, openViewer, viewerIsOpen],
   );
 
-  // Right-click inside lightbox → copy current image (keeps Zoom plugin intact).
   useEffect(() => {
     if (!isOpen) return;
-    const onCtx = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
+    const onContextMenu = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
       if (!target?.closest?.(".yarl__root")) return;
-      const img = target.closest("img") as HTMLImageElement | null;
-      if (!img) return;
-      const src = img.currentSrc || img.src;
+      const image = target.closest("img") as HTMLImageElement | null;
+      const src = image?.currentSrc || image?.src;
       if (!src) return;
-      e.preventDefault();
-      e.stopPropagation();
+      event.preventDefault();
+      event.stopPropagation();
       void copyImageFromSrc(src);
     };
-    document.addEventListener("contextmenu", onCtx, true);
-    return () => document.removeEventListener("contextmenu", onCtx, true);
+    document.addEventListener("contextmenu", onContextMenu, true);
+    return () => document.removeEventListener("contextmenu", onContextMenu, true);
   }, [isOpen]);
 
-  // Recompute logical dims on resize so small images still fill a larger stage.
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
@@ -186,43 +379,7 @@ export function ImageViewerProvider({
     const onResize = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        const generation = generationRef.current;
-        const stage = currentStageRect();
-        const current = slidesRef.current;
-        if (!current.length) return;
-        void (async () => {
-          const updated = await Promise.all(
-            current.map(async (s) => {
-              const natural = await loadImageNaturalSize(s.src);
-              if (!(natural.width > 0 && natural.height > 0)) return s;
-              const logical = lightboxSlideDimensions(natural, stage);
-              const sizeFields = lightboxYarlSlideSize(s.src, logical);
-              if (
-                !sizeFields ||
-                (s.width === sizeFields.width &&
-                  s.height === sizeFields.height)
-              ) {
-                return s;
-              }
-              return { ...s, ...sizeFields };
-            }),
-          );
-          if (cancelled || generationRef.current !== generation) return;
-          setSlides((prev) => {
-            if (
-              prev.length !== updated.length ||
-              prev.some((p, i) => p.src !== updated[i]?.src)
-            ) {
-              return prev;
-            }
-            const changed = prev.some(
-              (p, i) =>
-                p.width !== updated[i]?.width ||
-                p.height !== updated[i]?.height,
-            );
-            return changed ? updated : prev;
-          });
-        })();
+        if (!cancelled) hydrateSlideAt(index, true);
       }, 120);
     };
     window.addEventListener("resize", onResize);
@@ -231,12 +388,11 @@ export function ImageViewerProvider({
       if (timer) clearTimeout(timer);
       window.removeEventListener("resize", onResize);
     };
-  }, [isOpen]);
+  }, [hydrateSlideAt, index, isOpen]);
 
   return (
     <ImageViewerContext.Provider value={api}>
       {children}
-      {/* Let the lightbox finish its exit cleanup after close. */}
       {slides.length > 0 ? (
         <Suspense fallback={null}>
           <ImageLightbox
@@ -244,13 +400,17 @@ export function ImageViewerProvider({
             close={close}
             index={index}
             slides={slides}
-            onView={setIndex}
+            onView={handleView}
+            onRetryOriginal={() => hydrateSlideAt(index, false, true)}
             labels={{
               next: tr("image.next"),
               prev: tr("image.prev"),
               close: tr("image.close"),
               zoomIn: tr("image.zoomIn"),
               zoomOut: tr("image.zoomOut"),
+              loadingOriginal: tr("image.loadingOriginal"),
+              originalFailed: tr("image.originalFailed"),
+              retry: tr("ui.errorBoundary.retry"),
             }}
           />
         </Suspense>

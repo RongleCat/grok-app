@@ -1,6 +1,8 @@
 /** ko messages — domain: core */
 export const koCore = {
   "app.name": "Grok",
+  "image.loadingOriginal": "원본을 불러오는 중…",
+  "image.originalFailed": "원본을 불러오지 못했습니다. 미리보기는 계속 볼 수 있습니다.",
   "app.tagline": "MIT · 비공식 · 자매 프로젝트 grok-go",
   "app.versionFooter": "Grok v0.2.33 · MIT · 비공식 · 자매 프로젝트 grok-go",
   "window.minimize": "최소화",

@@ -228,7 +228,7 @@ describe("WallpaperMediaDetails", () => {
       screen.getByRole("button", { name: "Open full-size preview" }),
     );
     expect(viewer.open).toHaveBeenCalledWith([
-      { src: "/original.png", title: "Original title" },
+      { src: "/original.png", kind: "image", title: "Original title" },
     ]);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(viewer.close).toHaveBeenCalledTimes(1);

@@ -1,6 +1,8 @@
 /** es messages — domain: core */
 export const esCore = {
   "app.name": "Grok",
+  "image.loadingOriginal": "Cargando original…",
+  "image.originalFailed": "No se pudo cargar el original. La vista previa sigue disponible.",
   "app.tagline": "MIT · No oficial · Proyecto hermano grok-go",
   "app.versionFooter": "Grok v0.2.33 · MIT · No oficial · Proyecto hermano grok-go",
   "window.minimize": "Minimizar",

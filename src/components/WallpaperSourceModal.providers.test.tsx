@@ -1,5 +1,13 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import "@/test/jsdomStubs";
 import type { WallpaperRemoteSearchResult } from "@/lib/wallpaperRemoteSearch";
@@ -251,14 +259,34 @@ it("searches and previews Web results through the remote media pipeline", async 
   );
   await waitFor(() => expect(cards()).toHaveLength(1));
   fireEvent.click(cards()[0]);
-  await waitFor(() =>
-    expect(mocks.remoteFetch).toHaveBeenCalledWith(
+  await waitFor(() => expect(mocks.preview).toHaveBeenCalledTimes(1));
+  expect(mocks.remoteFetch).not.toHaveBeenCalled();
+  const slide = mocks.preview.mock.calls[0]?.[0]?.[0] as {
+    loadOriginal?: () => Promise<{
+      src: string;
+      kind?: string;
+      mime?: string;
+    } | null>;
+  };
+  expect(slide.loadOriginal).toBeTypeOf("function");
+
+  let original:
+    | { src: string; kind?: string; mime?: string }
+    | null
+    | undefined;
+  await act(async () => {
+    original = await slide.loadOriginal?.();
+  });
+  expect(mocks.remoteFetch).toHaveBeenCalledWith(
       "web",
       "https://images.example.com/web-first.jpg",
       expect.any(String),
-    ),
   );
-  expect(mocks.preview).toHaveBeenCalledTimes(1);
+  expect(original).toMatchObject({
+    src: "C:/cache/sky.jpg",
+    kind: "image",
+    mime: "image/jpeg",
+  });
 });
 it("favorites a provider result without downloading it again to unfavorite", async () => {
   await initial(["favorite"]);
@@ -323,16 +351,30 @@ it("keeps the card after a catalog failure and clears the error on favorite retr
   expect(mocks.preview).not.toHaveBeenCalled();
 });
 
-it("keeps a preview card retryable when saving its provenance fails", async () => {
+it("keeps a lazy preview retryable when saving its provenance fails", async () => {
   mocks.libraryRemember.mockRejectedValueOnce(new Error("catalog_write_failed"));
   await initial(["preview-save"]);
 
   fireEvent.click(cards()[0]);
-  await screen.findByText("settings.wallpaperSource.library.saveFailed");
-  expect(cards()).toHaveLength(1);
-  expect(mocks.preview).not.toHaveBeenCalled();
-  fireEvent.click(cards()[0]);
   await waitFor(() => expect(mocks.preview).toHaveBeenCalledTimes(1));
+  const slide = mocks.preview.mock.calls[0]?.[0]?.[0] as {
+    loadOriginal?: () => Promise<{ src: string } | null>;
+  };
+  expect(slide.loadOriginal).toBeTypeOf("function");
+  await act(async () => {
+    await expect(slide.loadOriginal!()).rejects.toThrow("catalog_write_failed");
+  });
+  expect(cards()).toHaveLength(1);
+  expect(
+    screen.queryByText("settings.wallpaperSource.library.saveFailed"),
+  ).toBeNull();
+
+  let original: { src: string } | null | undefined;
+  await act(async () => {
+    original = await slide.loadOriginal?.();
+  });
+  expect(original).toMatchObject({ src: "C:/cache/sky.jpg" });
+  expect(mocks.remoteFetch).toHaveBeenCalledTimes(2);
 });
 
 it("disables preview only for the card whose favorite is being saved", async () => {

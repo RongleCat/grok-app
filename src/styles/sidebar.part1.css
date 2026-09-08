@@ -68,6 +68,32 @@ button:disabled {
   user-select: none;
 }
 
+.image-original-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(400px, calc(100vw - 224px));
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.image-original-status > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.image-original-status > button {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+}
+
+.image-original-status > button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+
 /* Zoomed past fit: drag to pan (YARL adds this class when zoom > 1). */
 .yarl__slide_wrapper_interactive {
   cursor: grab;

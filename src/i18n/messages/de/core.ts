@@ -1,6 +1,8 @@
 /** de messages — domain: core */
 export const deCore = {
   "app.name": "Grok",
+  "image.loadingOriginal": "Original wird geladen…",
+  "image.originalFailed": "Original konnte nicht geladen werden. Die Vorschau bleibt verfügbar.",
   "app.tagline": "MIT · Inoffiziell · Schwesterprojekt grok-go",
   "app.versionFooter": "Grok v0.2.33 · MIT · Inoffiziell · Schwesterprojekt grok-go",
   "window.minimize": "Minimieren",
