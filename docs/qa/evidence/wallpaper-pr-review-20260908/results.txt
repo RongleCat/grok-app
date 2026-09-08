@@ -1,0 +1,37 @@
+Review code: e64b881c14260a5da77de425f2959ab2eecb06c1
+Patched test typecheck: passed
+Command: pnpm exec vitest run (four patched files) -t review:
+Exit code: 1; 4 failing assertions, 26 original cases excluded by name filter.
+
+ ❯ src/hooks/useWallpaperProviderController.test.tsx (8 tests | 1 failed | 7 skipped) 34ms
+ ❯ src/components/ImageViewer.test.tsx (13 tests | 1 failed | 12 skipped) 1166ms
+ ❯ src/components/WallpaperSourceModal.library.test.tsx (6 tests | 1 failed | 5 skipped) 1328ms
+ ❯ src/components/WallpaperSourceModal.viewer.integration.test.tsx (3 tests | 1 failed | 2 skipped) 1598ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/hooks/useWallpaperProviderController.test.tsx > useWallpaperProviderController prefetch > review: preserves materialization and favorite changes made while paging
+AssertionError: expected { id: 'first', kind: 'image', …(6) } to match object { …(2) }
+ FAIL  src/components/ImageViewer.test.tsx > ImageViewer lifecycle > review: starts the new gallery without waiting on closed original downloads
+AssertionError: expected "spy" to be called 1 times, but got 0 times
+ FAIL  src/components/WallpaperSourceModal.library.test.tsx > review: invalidates a deleted local file in restored remote-source history
+AssertionError: expected "spy" to be called 1 times, but got 0 times
+ FAIL  src/components/WallpaperSourceModal.viewer.integration.test.tsx > WallpaperSourceModal image viewer integration > review: closing only the viewer cancels its remote Host request
+AssertionError: expected 0 to be greater than 0
+ Test Files  4 failed (4)
+      Tests  4 failed | 26 skipped (30)
+   Start at  22:28:33
+   Duration  6.98s (transform 14.32s, setup 11.35s, collect 2.38s, tests 4.13s, environment 3.84s, prepare 433ms)
+
+R1 object diff (from actual Vitest output):
+- Expected
++ Received
+
+  {
+-   "localPath": "C:/wallpapers/first.jpg",
+    "metadata": {
+-     "favorite": true,
++     "favorite": false,
+      "id": "saved-first",
+    },
+  }
+
+ ❯ src/hooks/useWallpaperProviderController.test.tsx:153:42

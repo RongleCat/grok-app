@@ -1,0 +1,199 @@
+diff --git a/src/components/ImageViewer.test.tsx b/src/components/ImageViewer.test.tsx
+index 9a87d9ce..ac81dc50 100644
+--- a/src/components/ImageViewer.test.tsx
++++ b/src/components/ImageViewer.test.tsx
+@@ -100,6 +100,24 @@ function deferredOriginals(count: number) {
+ }
+
+ describe("ImageViewer lifecycle", () => {
++  it("review: starts the new gallery without waiting on closed original downloads", async () => {
++    const old = deferredOriginals(2);
++    const view = setup();
++    act(() => view.api.open(old.map((entry) => entry.slide)));
++    await waitFor(() => expect(old[0].loadOriginal).toHaveBeenCalledTimes(1));
++    fireEvent.click(screen.getByRole("button", { name: "next" }));
++    expect(old[1].loadOriginal).toHaveBeenCalledTimes(1);
++    act(() => view.api.close());
++    const fresh = vi.fn(async () => ({ src: "fresh-original.jpg", kind: "image" as const }));
++    act(() => view.api.open([{ src: "fresh-thumb.jpg", loadOriginal: fresh }]));
++    await waitFor(() => expect(screen.getByTestId("viewer").textContent).toBe("fresh-thumb.jpg"));
++    try {
++      await waitFor(() => expect(fresh).toHaveBeenCalledTimes(1));
++    } finally {
++      await act(async () => old.forEach((entry) => entry.finish()));
++    }
++  });
++
+   it("reports whether the lightbox currently owns the preview layer", async () => {
+     const view = setup();
+     expect(view.api.isOpen()).toBe(false);
+diff --git a/src/components/WallpaperSourceModal.library.test.tsx b/src/components/WallpaperSourceModal.library.test.tsx
+index af1c1324..110d6343 100644
+--- a/src/components/WallpaperSourceModal.library.test.tsx
++++ b/src/components/WallpaperSourceModal.library.test.tsx
+@@ -1,6 +1,6 @@
+ /** @vitest-environment jsdom */
+ import type { ReactNode } from "react";
+-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
++import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+ import { afterEach, describe, expect, it, vi } from "vitest";
+ import "@/test/jsdomStubs";
+ import type { WallpaperLibraryPage } from "@/lib/api/wallpaper";
+@@ -18,6 +18,8 @@ vi.mock("@/lib/api", () => ({
+   wallpaperLibraryLookup: vi.fn(async () => []),
+   wallpaperLibraryRemember: mocks.remember,
+   wallpaperRemoteSearch: vi.fn(),
++  wallpaperRemoteFetchMedia: vi.fn(),
++  wallpaperRemoteCancelAllMediaRequests: vi.fn(async () => 0),
+   wallpaperRemoteSearchMore: vi.fn(),
+   wallpaperRemoteSearchCancel: vi.fn(async () => true),
+   listenWallpaperRemoteSearchProgress: vi.fn(async () => () => {}),
+@@ -86,6 +88,7 @@ vi.mock("@/components/GlassModal", () => ({
+ }));
+
+ import { WallpaperSourceModal } from "./WallpaperSourceModal";
++import * as api from "@/lib/api";
+
+ function deferred<T>() {
+   let resolve!: (value: T) => void;
+@@ -337,3 +340,42 @@ describe("WallpaperSourceModal library paging", () => {
+     view.unmount();
+   });
+ });
++it("review: invalidates a deleted local file in restored remote-source history", async () => {
++  const localPath = "C:/wallpapers/review-photo.png";
++  const metadata = {
++    id: "review-media", source: "web", sourceUrl: null, license: null,
++    licenseUrl: null, title: null, width: 1920, height: 1080, prompt: null,
++    generation: null, parentId: null, favorite: false, purpose: "cache" as const,
++    bytes: 100, modifiedMs: 1,
++  };
++  vi.mocked(api.wallpaperRemoteSearch).mockResolvedValue({
++    source: "web", items: [{ id: "remote-photo", source: "web", kind: "image",
++      fullUrl: "https://images.example.test/photo.jpg", thumbUrl: "https://images.example.test/photo.jpg",
++      localPath, metadata }], hasMore: false, cacheHit: false, durationMs: 100,
++  });
++  const savedPage = page("review-photo");
++  savedPage.items[0].metadata = metadata;
++  mocks.page.mockResolvedValue(savedPage);
++  mocks.delete.mockResolvedValue(undefined);
++  vi.mocked(api.wallpaperRemoteFetchMedia).mockResolvedValue({ path: localPath, name: "review-photo.png", mime: "image/png", bytes: 100 });
++  mocks.remember.mockResolvedValue(metadata);
++  render(<WallpaperSourceModal open initialTab="web" t={t as never} onClose={vi.fn()} onPickFile={vi.fn()} />);
++  fireEvent.change(screen.getByRole("searchbox", { name: "settings.wallpaperSource.search" }), { target: { value: "coast" } });
++  fireEvent.click(screen.getByRole("button", { name: "settings.wallpaperSource.search" }));
++  await screen.findByRole("button", { name: "settings.wallpaperSource.openPreview" });
++  fireEvent.click(screen.getByRole("tab", { name: "settings.wallpaperLibrary" }));
++  fireEvent.click(await screen.findByRole("button", { name: "settings.wallpaperSource.delete" }));
++  fireEvent.click(screen.getByTestId("wallpaper-library-delete-confirm"));
++  await waitFor(() => expect(mocks.delete).toHaveBeenCalledWith(localPath));
++  await waitFor(() => expect(screen.queryByRole("listitem")).toBeNull());
++  fireEvent.click(screen.getByRole("tab", { name: "settings.wallpaperWeb" }));
++  fireEvent.click(await screen.findByRole("button", { name: "settings.wallpaperSource.openPreview" }));
++  await waitFor(() => expect(mocks.preview).toHaveBeenCalledTimes(1));
++  const slides = mocks.preview.mock.calls[0][0] as Array<{
++    loadOriginal?: () => Promise<unknown>;
++  }>;
++  // Execute the active slide as the real viewer does. A restored remote card
++  // must fetch again after its local copy was deleted.
++  await act(async () => { await slides[0]?.loadOriginal?.(); });
++  await waitFor(() => expect(api.wallpaperRemoteFetchMedia).toHaveBeenCalledTimes(1));
++});
+\ No newline at end of file
+diff --git a/src/components/WallpaperSourceModal.viewer.integration.test.tsx b/src/components/WallpaperSourceModal.viewer.integration.test.tsx
+index dfc0c03d..392ac1c9 100644
+--- a/src/components/WallpaperSourceModal.viewer.integration.test.tsx
++++ b/src/components/WallpaperSourceModal.viewer.integration.test.tsx
+@@ -2,6 +2,7 @@
+  * @vitest-environment jsdom
+  */
+ import {
++  act,
+   cleanup,
+   fireEvent,
+   render,
+@@ -175,6 +176,7 @@ vi.mock("@/components/Select", () => ({
+ import { ImageViewerProvider } from "./ImageViewer";
+ import { WallpaperSourceModal } from "./WallpaperSourceModal";
+ import { setMediaEndpoint } from "@/lib/imageSrc";
++import * as api from "@/lib/api";
+
+ afterEach(() => {
+   cleanup();
+@@ -188,6 +190,31 @@ afterEach(() => {
+ });
+
+ describe("WallpaperSourceModal image viewer integration", () => {
++  it("review: closing only the viewer cancels its remote Host request", async () => {
++    let finish!: (value: { path: string; name: string; mime: string; bytes: number }) => void;
++    const pending = new Promise<{ path: string; name: string; mime: string; bytes: number }>((resolve) => { finish = resolve; });
++    vi.mocked(api.wallpaperRemoteFetchMedia).mockReturnValueOnce(pending);
++    setMediaEndpoint({ baseUrl: "http://127.0.0.1:19200", token: "test-only" });
++    render(<ImageViewerProvider locale="en"><WallpaperSourceModal
++      open initialTab="web" t={(key) => key} onClose={vi.fn()} onPickFile={vi.fn()}
++    /></ImageViewerProvider>);
++    fireEvent.change(screen.getByRole("searchbox", { name: "settings.wallpaperSource.search" }), { target: { value: "night skyline" } });
++    fireEvent.click(screen.getByRole("button", { name: "settings.wallpaperSource.search" }));
++    fireEvent.click(await screen.findByRole("button", { name: "settings.wallpaperSource.openPreview" }));
++    await waitFor(() => expect(api.wallpaperRemoteFetchMedia).toHaveBeenCalledTimes(1));
++    vi.mocked(api.wallpaperRemoteCancelMediaRequests).mockClear();
++    vi.mocked(api.wallpaperRemoteCancelAllMediaRequests).mockClear();
++    fireEvent.click(await screen.findByRole("button", { name: "Close" }));
++    try {
++      await waitFor(() => expect(
++        vi.mocked(api.wallpaperRemoteCancelMediaRequests).mock.calls.length +
++        vi.mocked(api.wallpaperRemoteCancelAllMediaRequests).mock.calls.length,
++      ).toBeGreaterThan(0));
++    } finally {
++      await act(async () => finish({ path: "H:/wallpapers/late.jpg", name: "late.jpg", mime: "image/jpeg", bytes: 1024 }));
++    }
++  });
++
+   it("retries a failed original in the real preview without dropping its card", async () => {
+     setMediaEndpoint({
+       baseUrl: "http://127.0.0.1:19200",
+diff --git a/src/hooks/useWallpaperProviderController.test.tsx b/src/hooks/useWallpaperProviderController.test.tsx
+index 5f76b21a..f5b7d61e 100644
+--- a/src/hooks/useWallpaperProviderController.test.tsx
++++ b/src/hooks/useWallpaperProviderController.test.tsx
+@@ -106,6 +106,7 @@ function useHarness({
+   return {
+     controller,
+     items,
++    setItems,
+     error,
+     errorCode,
+     statusHint,
+@@ -129,6 +130,32 @@ afterEach(() => {
+ });
+
+ describe("useWallpaperProviderController prefetch", () => {
++  it("review: preserves materialization and favorite changes made while paging", async () => {
++    const pending = deferred<WallpaperRemoteSearchResult | null>();
++    remote.search.mockResolvedValue(result(["first"], { hasMore: true, items: [{ ...galleryItem("first"), metadata: { id: "saved-first", favorite: false } as never }] }));
++    remote.loadMore.mockReturnValue(pending.promise);
++    const hook = renderHook(() => useHarness());
++    await act(async () => hook.result.current.controller.search());
++    let paging!: Promise<void>;
++    act(() => { paging = hook.result.current.controller.loadMore(); });
++    expect(hook.result.current.controller.loadingMore).toBe(true);
++    act(() => hook.result.current.setItems((items) => items.map((item) => ({
++      ...item,
++      localPath: "C:/wallpapers/first.jpg",
++      metadata: { id: "saved-first", favorite: true } as never,
++    }))));
++    expect(hook.result.current.items[0].metadata?.favorite).toBe(true);
++    await act(async () => {
++      pending.resolve(result(["second"]));
++      await paging;
++    });
++    expect(hook.result.current.items.map((item) => item.id)).toEqual(["first", "second"]);
++    expect(hook.result.current.items[0]).toMatchObject({
++      localPath: "C:/wallpapers/first.jpg",
++      metadata: { id: "saved-first", favorite: true },
++    });
++  });
++
+   it("keeps one successful page ahead without revealing it early", async () => {
+     const nextPrefetch = deferred<WallpaperRemoteSearchResult | null>();
+     remote.search.mockResolvedValue(result(["first"], { hasMore: true }));
