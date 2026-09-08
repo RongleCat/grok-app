@@ -98,6 +98,21 @@ export type WallpaperLibraryPurpose =
   | "generated"
   | "cache";
 
+/** Compare local paths without making POSIX paths case-insensitive. */
+export function sameWallpaperLocalPath(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  const normalize = (value: string | null | undefined) => {
+    const path = value?.trim().replace(/\\/g, "/") ?? "";
+    return /^[a-z]:\//i.test(path) || path.startsWith("//")
+      ? path.toLowerCase()
+      : path;
+  };
+  const normalizedLeft = normalize(left);
+  return normalizedLeft.length > 0 && normalizedLeft === normalize(right);
+}
+
 export type WallpaperSourceErrorCode =
   | "catalog_write_failed"
   | "pexels_key_required"

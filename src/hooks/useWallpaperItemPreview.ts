@@ -146,12 +146,14 @@ export function useWallpaperItemPreview({
                   t,
                   parseWallpaperSourceError(error),
                 ),
-              loadOriginal: async () => {
+              loadOriginal: async (signal) => {
                 if (sourceGeneration !== sourceGenerationRef.current) {
                   return null;
                 }
                 try {
-                  const loaded = await ensureLocalWallpaperMedia(candidate);
+                  const loaded = await ensureLocalWallpaperMedia(candidate, {
+                    signal,
+                  });
                   if (sourceGeneration !== sourceGenerationRef.current) {
                     return null;
                   }
@@ -209,12 +211,14 @@ export function useWallpaperItemPreview({
                   t,
                   parseWallpaperSourceError(error),
                 ),
-              loadOriginal: async () => {
+              loadOriginal: async (signal) => {
                 if (sourceGeneration !== sourceGenerationRef.current) {
                   return null;
                 }
                 try {
-                  const loaded = await ensureLocalWallpaperMedia(candidate);
+                  const loaded = await ensureLocalWallpaperMedia(candidate, {
+                    signal,
+                  });
                   if (sourceGeneration !== sourceGenerationRef.current) {
                     return null;
                   }

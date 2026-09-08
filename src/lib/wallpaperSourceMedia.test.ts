@@ -83,6 +83,34 @@ describe("ensureLocalWallpaperMedia", () => {
     });
   });
 
+  it("cancels only the remote Host request owned by an aborted consumer", async () => {
+    const item = {
+      id: "cancelled-preview",
+      source: "web",
+      kind: "image",
+      thumbUrl: "https://images.example.test/thumb.jpg",
+      fullUrl: "https://images.example.test/original.jpg",
+    };
+    mocks.fetchRemote.mockReturnValue(new Promise(() => {}));
+    const controller = new AbortController();
+
+    const pending = ensureLocalWallpaperMedia(item, {
+      signal: controller.signal,
+    });
+    const requestId = mocks.fetchRemote.mock.calls[0]?.[2] as string;
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(mocks.fetchRemote).toHaveBeenCalledWith(
+      "web",
+      item.fullUrl,
+      requestId,
+    );
+    const { wallpaperRemoteCancelMediaRequests } = await import("@/lib/api");
+    expect(wallpaperRemoteCancelMediaRequests).toHaveBeenCalledWith([requestId]);
+    expect(mocks.remember).not.toHaveBeenCalled();
+  });
+
   it("does not report success when the catalog write fails", async () => {
     mocks.fetchMedia.mockResolvedValue({
       path: "C:/wallpapers/x.jpg",

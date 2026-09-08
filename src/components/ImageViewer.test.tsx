@@ -100,6 +100,51 @@ function deferredOriginals(count: number) {
 }
 
 describe("ImageViewer lifecycle", () => {
+  it("starts a new gallery without waiting for closed original downloads", async () => {
+    const old = deferredOriginals(2);
+    const view = setup();
+    act(() => view.api.open(old.map((entry) => entry.slide)));
+    await waitFor(() => expect(old[0].loadOriginal).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "next" }));
+    expect(old[1].loadOriginal).toHaveBeenCalledTimes(1);
+
+    act(() => view.api.close());
+    const fresh = vi.fn(async () => ({
+      src: "fresh-original.jpg",
+      kind: "image" as const,
+    }));
+    act(() =>
+      view.api.open([{ src: "fresh-thumb.jpg", loadOriginal: fresh }]),
+    );
+
+    try {
+      await waitFor(() => expect(fresh).toHaveBeenCalledTimes(1));
+    } finally {
+      await act(async () => old.forEach((entry) => entry.finish()));
+    }
+  });
+
+  it("aborts active original loaders when the viewer closes", async () => {
+    let observedSignal: AbortSignal | null = null;
+    const loadOriginal = vi.fn(
+      (signal: AbortSignal) =>
+        new Promise<{ src: string }>((_resolve, reject) => {
+          observedSignal = signal;
+          signal.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+    );
+    const view = setup();
+    act(() => view.api.open([{ src: "thumbnail.jpg", loadOriginal }]));
+    await waitFor(() => expect(loadOriginal).toHaveBeenCalledTimes(1));
+
+    act(() => view.api.close());
+
+    expect(observedSignal).not.toBeNull();
+    expect(observedSignal!.aborted).toBe(true);
+  });
+
   it("reports whether the lightbox currently owns the preview layer", async () => {
     const view = setup();
     expect(view.api.isOpen()).toBe(false);

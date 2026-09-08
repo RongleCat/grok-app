@@ -317,7 +317,6 @@ export function useWallpaperProviderController({
     }
     const revision = generation.current;
     const prefetchRevision = prefetchGeneration.current;
-    const initialItems = itemsRef.current;
     setError(null);
     setErrorCode(null);
     setStatusHint(null);
@@ -372,8 +371,11 @@ export function useWallpaperProviderController({
         setStatusHint(null);
         return;
       }
-      const nextItems = appendWallpaperGalleryItems(initialItems, result.items);
-      setItems(nextItems);
+      const nextItems = appendWallpaperGalleryItems(
+        itemsRef.current,
+        result.items,
+      );
+      setItems((current) => appendWallpaperGalleryItems(current, result.items));
       const nextContinuation = result.hasMore ? active : null;
       updateContinuation(nextContinuation);
       if (code === "empty") {

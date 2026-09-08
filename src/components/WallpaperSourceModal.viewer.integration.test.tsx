@@ -175,6 +175,7 @@ vi.mock("@/components/Select", () => ({
 import { ImageViewerProvider } from "./ImageViewer";
 import { WallpaperSourceModal } from "./WallpaperSourceModal";
 import { setMediaEndpoint } from "@/lib/imageSrc";
+import * as api from "@/lib/api";
 
 afterEach(() => {
   cleanup();
@@ -188,6 +189,61 @@ afterEach(() => {
 });
 
 describe("WallpaperSourceModal image viewer integration", () => {
+  it("cancels only the remote Host request owned by a closed viewer", async () => {
+    const pending = new Promise<{
+      path: string;
+      name: string;
+      mime: string;
+      bytes: number;
+    }>(() => {});
+    vi.mocked(api.wallpaperRemoteFetchMedia).mockReturnValueOnce(pending);
+    setMediaEndpoint({
+      baseUrl: "http://127.0.0.1:19200",
+      token: "test-only",
+    });
+    render(
+      <ImageViewerProvider locale="en">
+        <WallpaperSourceModal
+          open
+          initialTab="web"
+          t={(key) => key}
+          onClose={vi.fn()}
+          onPickFile={vi.fn()}
+        />
+      </ImageViewerProvider>,
+    );
+
+    fireEvent.change(
+      screen.getByRole("searchbox", {
+        name: "settings.wallpaperSource.search",
+      }),
+      { target: { value: "night skyline" } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.wallpaperSource.search" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "settings.wallpaperSource.openPreview",
+      }),
+    );
+    await waitFor(() =>
+      expect(api.wallpaperRemoteFetchMedia).toHaveBeenCalledTimes(1),
+    );
+    const requestId = vi.mocked(api.wallpaperRemoteFetchMedia).mock.calls[0]?.[2];
+    vi.mocked(api.wallpaperRemoteCancelMediaRequests).mockClear();
+    vi.mocked(api.wallpaperRemoteCancelAllMediaRequests).mockClear();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Close" }));
+
+    await waitFor(() =>
+      expect(api.wallpaperRemoteCancelMediaRequests).toHaveBeenCalledWith([
+        requestId,
+      ]),
+    );
+    expect(api.wallpaperRemoteCancelAllMediaRequests).not.toHaveBeenCalled();
+  });
+
   it("retries a failed original in the real preview without dropping its card", async () => {
     setMediaEndpoint({
       baseUrl: "http://127.0.0.1:19200",

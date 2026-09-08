@@ -106,6 +106,7 @@ function useHarness({
   return {
     controller,
     items,
+    setItems,
     error,
     errorCode,
     statusHint,
@@ -129,6 +130,53 @@ afterEach(() => {
 });
 
 describe("useWallpaperProviderController prefetch", () => {
+  it("preserves item changes completed while the next page is pending", async () => {
+    const pending = deferred<WallpaperRemoteSearchResult | null>();
+    remote.search.mockResolvedValue(
+      result(["first"], {
+        hasMore: true,
+        items: [
+          {
+            ...galleryItem("first"),
+            metadata: { id: "saved-first", favorite: false } as never,
+          },
+        ],
+      }),
+    );
+    remote.loadMore.mockReturnValue(pending.promise);
+    const hook = renderHook(() => useHarness());
+
+    await act(async () => hook.result.current.controller.search());
+    let paging!: Promise<void>;
+    act(() => {
+      paging = hook.result.current.controller.loadMore();
+    });
+    expect(hook.result.current.controller.loadingMore).toBe(true);
+    act(() =>
+      hook.result.current.setItems((items) =>
+        items.map((item) => ({
+          ...item,
+          localPath: "C:/wallpapers/first.jpg",
+          metadata: { id: "saved-first", favorite: true } as never,
+        })),
+      ),
+    );
+
+    await act(async () => {
+      pending.resolve(result(["second"]));
+      await paging;
+    });
+
+    expect(hook.result.current.items.map((item) => item.id)).toEqual([
+      "first",
+      "second",
+    ]);
+    expect(hook.result.current.items[0]).toMatchObject({
+      localPath: "C:/wallpapers/first.jpg",
+      metadata: { id: "saved-first", favorite: true },
+    });
+  });
+
   it("keeps one successful page ahead without revealing it early", async () => {
     const nextPrefetch = deferred<WallpaperRemoteSearchResult | null>();
     remote.search.mockResolvedValue(result(["first"], { hasMore: true }));

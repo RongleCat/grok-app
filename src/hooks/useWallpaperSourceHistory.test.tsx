@@ -18,23 +18,26 @@ const item = (
   fullUrl: `https://images.example.test/${id}.jpg`,
 });
 
-const snapshot = (
+function snapshot(
   items: WallpaperGalleryItem[] = [item("first")],
-): WallpaperSourceSnapshot => ({
-  query: "misty coast",
-  sort: "top",
-  items,
-  selectedId: null,
-  galleryFilter: "",
-  kindFilter: "all",
-  libraryPurpose: "all",
-  hasSearched: true,
-  statusHint: null,
-  citeSummary: null,
-  xContinuation: null,
-  providerContinuation: null,
-  scrollTop: 120,
-});
+  selectedId: string | null = null,
+): WallpaperSourceSnapshot {
+  return {
+    query: "misty coast",
+    sort: "top",
+    items,
+    selectedId,
+    galleryFilter: "",
+    kindFilter: "all",
+    libraryPurpose: "all",
+    hasSearched: true,
+    statusHint: null,
+    citeSummary: null,
+    xContinuation: null,
+    providerContinuation: null,
+    scrollTop: 120,
+  };
+}
 
 afterEach(() => {
   cleanup();
@@ -101,5 +104,45 @@ describe("useWallpaperSourceHistory", () => {
       true,
     );
     expect(result.current.get("pexels")?.items[0]?.metadata).toBeUndefined();
+  });
+
+  it("keeps remote cards recoverable and removes local-only cards after deletion", () => {
+    const localPath = "C:\\wallpapers\\coast.jpg";
+    const remote: WallpaperGalleryItem = {
+      id: "remote",
+      source: "web",
+      kind: "image",
+      thumbUrl: "https://images.example.test/coast-thumb.jpg",
+      fullUrl: "https://images.example.test/coast.jpg",
+      localPath,
+      metadata: { id: "remote-media", favorite: true } as never,
+    };
+    const local: WallpaperGalleryItem = {
+      id: "local",
+      source: "library",
+      kind: "image",
+      thumbUrl: `file://${localPath}`,
+      fullUrl: `file://${localPath}`,
+      localPath,
+      metadata: { id: "local-media", favorite: false } as never,
+    };
+    const hook = renderHook(() => useWallpaperSourceHistory());
+
+    act(() => hook.result.current.save("web", snapshot([remote, local], "local")));
+    act(() =>
+      hook.result.current.invalidateLocalPath("c:/wallpapers/coast.jpg"),
+    );
+
+    expect(hook.result.current.get("web")).toMatchObject({
+      selectedId: null,
+      items: [
+        {
+          id: "remote",
+          localPath: null,
+          metadata: null,
+          fullUrl: "https://images.example.test/coast.jpg",
+        },
+      ],
+    });
   });
 });

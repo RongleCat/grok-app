@@ -32,10 +32,58 @@ export type LocalWallpaperMedia = {
   metadata?: WallpaperMediaRecord;
 };
 
+type EnsureLocalWallpaperMediaOptions = {
+  signal?: AbortSignal;
+};
+
+function abortReason(signal: AbortSignal): unknown {
+  if (signal.reason !== undefined) return signal.reason;
+  const error = new Error("aborted");
+  error.name = "AbortError";
+  return error;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortReason(signal);
+}
+
+function awaitAbortable<T>(
+  request: Promise<T>,
+  signal: AbortSignal | undefined,
+  cancel?: () => Promise<unknown>,
+): Promise<T> {
+  if (!signal) return request;
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      callback();
+    };
+    const onAbort = () => {
+      if (cancel) void cancel().catch(() => {});
+      finish(() => reject(abortReason(signal)));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    void request.then(
+      (value) => finish(() => resolve(value)),
+      (error: unknown) => finish(() => reject(error)),
+    );
+  });
+}
+
 /** Materialize a remote original and persist its source metadata in the catalog. */
 export async function ensureLocalWallpaperMedia(
   item: WallpaperGalleryItem,
+  options: EnsureLocalWallpaperMediaOptions = {},
 ): Promise<LocalWallpaperMedia> {
+  const { signal } = options;
+  throwIfAborted(signal);
   const source = resolveApplySource(item);
   if (source.kind === "path") {
     return {
@@ -46,21 +94,33 @@ export async function ensureLocalWallpaperMedia(
 
   let fetched;
   if (item.source === "grok_album") {
-    fetched = await fetchGrokAlbumMedia(source.url);
+    fetched = signal
+      ? await fetchGrokAlbumMedia(source.url, { signal })
+      : await fetchGrokAlbumMedia(source.url);
   } else if (isWallpaperRemoteSource(item.source)) {
-    fetched = await api.wallpaperRemoteFetchMedia(
-      item.source as WallpaperRemoteSource,
-      source.url,
-      createWallpaperRequestId(),
+    const requestId = createWallpaperRequestId();
+    fetched = await awaitAbortable(
+      api.wallpaperRemoteFetchMedia(
+        item.source as WallpaperRemoteSource,
+        source.url,
+        requestId,
+      ),
+      signal,
+      () => api.wallpaperRemoteCancelMediaRequests([requestId]),
     );
   } else {
-    fetched = await api.wallpaperFetchMedia(
-      source.url,
-      item.source === "imagine" ? "imagine" : "x",
+    fetched = await awaitAbortable(
+      api.wallpaperFetchMedia(
+        source.url,
+        item.source === "imagine" ? "imagine" : "x",
+      ),
+      signal,
     );
   }
 
+  throwIfAborted(signal);
   const metadata = await api.wallpaperLibraryRemember(fetched.path, item);
+  throwIfAborted(signal);
   return {
     path: fetched.path,
     name: fetched.name,

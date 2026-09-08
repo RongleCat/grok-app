@@ -1,6 +1,13 @@
 /** @vitest-environment jsdom */
 import type { ReactNode } from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@/test/jsdomStubs";
 import type { WallpaperLibraryPage } from "@/lib/api/wallpaper";
@@ -18,11 +25,13 @@ vi.mock("@/lib/api", () => ({
   wallpaperLibraryLookup: vi.fn(async () => []),
   wallpaperLibraryRemember: mocks.remember,
   wallpaperRemoteSearch: vi.fn(),
+  wallpaperRemoteFetchMedia: vi.fn(),
   wallpaperRemoteSearchMore: vi.fn(),
   wallpaperRemoteSearchCancel: vi.fn(async () => true),
   listenWallpaperRemoteSearchProgress: vi.fn(async () => () => {}),
   listenWallpaperRemoteSearchBatch: vi.fn(async () => () => {}),
   wallpaperRemoteCancelMediaRequests: vi.fn(async () => 0),
+  wallpaperRemoteCancelAllMediaRequests: vi.fn(async () => 0),
   wallpaperGrokAlbumCancelRequests: vi.fn(async () => 0),
   wallpaperGrokAlbumCancelAllRequests: vi.fn(async () => 0),
   isDesktopHost: () => true,
@@ -86,6 +95,7 @@ vi.mock("@/components/GlassModal", () => ({
 }));
 
 import { WallpaperSourceModal } from "./WallpaperSourceModal";
+import * as api from "@/lib/api";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -335,5 +345,145 @@ describe("WallpaperSourceModal library paging", () => {
     expect(mocks.page).toHaveBeenCalledTimes(4);
 
     view.unmount();
+  });
+
+  it("downloads a remote card again after its cached library file is deleted", async () => {
+    const localPath = "C:/wallpapers/remote-photo.png";
+    const metadata = {
+      id: "remote-media",
+      source: "web",
+      sourceUrl: null,
+      license: null,
+      licenseUrl: null,
+      title: null,
+      width: 1920,
+      height: 1080,
+      prompt: null,
+      generation: null,
+      parentId: null,
+      favorite: false,
+      purpose: "cache" as const,
+      bytes: 100,
+      modifiedMs: 1,
+    };
+    vi.mocked(api.wallpaperRemoteSearch).mockResolvedValue({
+      source: "web",
+      items: [
+        {
+          id: "remote-photo",
+          source: "web",
+          kind: "image",
+          fullUrl: "https://images.example.test/photo.jpg",
+          thumbUrl: "https://images.example.test/photo.jpg",
+          localPath,
+          metadata,
+        },
+      ],
+      hasMore: false,
+      cacheHit: false,
+      durationMs: 100,
+    });
+    const savedPage = page("remote-photo");
+    savedPage.items[0].metadata = metadata;
+    mocks.page.mockResolvedValue(savedPage);
+    mocks.delete.mockResolvedValue(undefined);
+    vi.mocked(api.wallpaperRemoteFetchMedia).mockResolvedValue({
+      path: localPath,
+      name: "remote-photo.png",
+      mime: "image/png",
+      bytes: 100,
+    });
+    mocks.remember.mockResolvedValue(metadata);
+    render(
+      <WallpaperSourceModal
+        open
+        initialTab="web"
+        t={t as never}
+        onClose={vi.fn()}
+        onPickFile={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      screen.getByRole("searchbox", {
+        name: "settings.wallpaperSource.search",
+      }),
+      { target: { value: "coast" } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.wallpaperSource.search" }),
+    );
+    await screen.findByRole("button", {
+      name: "settings.wallpaperSource.openPreview",
+    });
+    fireEvent.click(
+      screen.getByRole("tab", { name: "settings.wallpaperLibrary" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "settings.wallpaperSource.delete",
+      }),
+    );
+    fireEvent.click(screen.getByTestId("wallpaper-library-delete-confirm"));
+    await waitFor(() => expect(mocks.delete).toHaveBeenCalledWith(localPath));
+    await waitFor(() => expect(screen.queryByRole("listitem")).toBeNull());
+
+    fireEvent.click(
+      screen.getByRole("tab", { name: "settings.wallpaperWeb" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "settings.wallpaperSource.openPreview",
+      }),
+    );
+    const slides = mocks.preview.mock.calls[0]?.[0] as Array<{
+      loadOriginal?: (signal: AbortSignal) => Promise<unknown>;
+    }>;
+    await act(async () => {
+      await slides[0]?.loadOriginal?.(new AbortController().signal);
+    });
+
+    expect(api.wallpaperRemoteFetchMedia).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears a prepared Imagine source when its library file is deleted", async () => {
+    const savedPage = page("video-source");
+    savedPage.total = 1;
+    savedPage.kindCounts = { all: 1, image: 1, video: 0 };
+    mocks.page.mockResolvedValue(savedPage);
+    mocks.delete.mockResolvedValue(undefined);
+    renderLibrary();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /settings\.wallpaperSource\.generateVideoFromImage/,
+      }),
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "settings.wallpaperSource.removeSourceImage",
+      }),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("tab", { name: "settings.wallpaperLibrary" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "settings.wallpaperSource.delete",
+      }),
+    );
+    fireEvent.click(screen.getByTestId("wallpaper-library-delete-confirm"));
+    await waitFor(() =>
+      expect(mocks.delete).toHaveBeenCalledWith(
+        "C:/wallpapers/video-source.png",
+      ),
+    );
+
+    fireEvent.click(
+      screen.getByRole("tab", { name: "settings.wallpaperImagine" }),
+    );
+    expect(
+      screen.getByText("settings.wallpaperSource.videoSourceMissing"),
+    ).toBeTruthy();
   });
 });

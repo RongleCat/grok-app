@@ -42,14 +42,41 @@ describe("Grok Saved original media requests", () => {
     const first = fetchGrokAlbumMedia(" https://assets.grok.com/generated/a.jpg ");
     const second = fetchGrokAlbumMedia("https://assets.grok.com/generated/a.jpg");
 
-    expect(first).toBe(second);
-    await expect(first).resolves.toEqual(result);
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      result,
+      result,
+    ]);
     expect(mocks.fetch).toHaveBeenCalledOnce();
     expect(mocks.fetch).toHaveBeenCalledWith(
       "https://assets.grok.com/generated/a.jpg",
       "album-media-1",
     );
     expect(grokAlbumMediaRequestState()).toEqual({ active: 0, pending: 0 });
+  });
+
+  it("cancels a shared transfer only after its last consumer aborts", async () => {
+    mocks.fetch.mockReturnValue(new Promise(() => {}));
+    const firstController = new AbortController();
+    const secondController = new AbortController();
+    const first = fetchGrokAlbumMedia(
+      "https://assets.grok.com/generated/shared.jpg",
+      { signal: firstController.signal },
+    );
+    const second = fetchGrokAlbumMedia(
+      "https://assets.grok.com/generated/shared.jpg",
+      { signal: secondController.signal },
+    );
+
+    firstController.abort();
+    await expect(first).rejects.toMatchObject({ name: "AbortError" });
+    expect(mocks.cancel).not.toHaveBeenCalled();
+    expect(grokAlbumMediaRequestState()).toEqual({ active: 1, pending: 1 });
+
+    secondController.abort();
+    await expect(second).rejects.toMatchObject({ name: "AbortError" });
+    expect(mocks.cancel).toHaveBeenCalledWith(["album-media-1"]);
+    expect(grokAlbumMediaRequestState()).toEqual({ active: 1, pending: 0 });
+    expect(mocks.fetch).toHaveBeenCalledOnce();
   });
 
   it("cancels tracked requests and the Host fallback registry", async () => {

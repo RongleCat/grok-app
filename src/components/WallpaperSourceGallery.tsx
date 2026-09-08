@@ -234,7 +234,8 @@ export function WallpaperSourceGallery({
                           itemId={item.id}
                           onUnavailable={dropItem}
                         />
-                      ) : item.source === "openverse" || item.source === "pexels" ? (
+                      ) : !isLibraryTab &&
+                        (item.source === "openverse" || item.source === "pexels") ? (
                         <WallpaperProviderThumbnail item={item} t={t} />
                       ) : localVideo ? (
                         <video

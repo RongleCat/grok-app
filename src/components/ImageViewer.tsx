@@ -91,29 +91,34 @@ export function ImageViewerProvider({
   const isOpenRef = useRef(false);
   const slidesRef = useRef(slides);
   const generationRef = useRef(0);
-  const originalLoadsRef = useRef(new Set<string>());
-  const activeOriginalLoadsRef = useRef(0);
+  const originalLoadsRef = useRef(new Map<string, AbortController>());
   const pendingOriginalLoadRef = useRef<(() => void) | null>(null);
   slidesRef.current = slides;
 
-  const close = useCallback(() => {
-    generationRef.current += 1;
+  const abortOriginalLoads = useCallback(() => {
+    for (const controller of originalLoadsRef.current.values()) {
+      controller.abort();
+    }
     originalLoadsRef.current.clear();
     pendingOriginalLoadRef.current = null;
+  }, []);
+
+  const close = useCallback(() => {
+    generationRef.current += 1;
+    abortOriginalLoads();
     isOpenRef.current = false;
     setIsOpen(false);
-  }, []);
+  }, [abortOriginalLoads]);
 
   const viewerIsOpen = useCallback(() => isOpenRef.current, []);
 
   useEffect(
     () => () => {
       generationRef.current += 1;
-      originalLoadsRef.current.clear();
-      pendingOriginalLoadRef.current = null;
+      abortOriginalLoads();
       isOpenRef.current = false;
     },
-    [],
+    [abortOriginalLoads],
   );
 
   const openViewer = useCallback(
@@ -126,8 +131,7 @@ export function ImageViewerProvider({
       void (async () => {
         const generation = generationRef.current + 1;
         generationRef.current = generation;
-        originalLoadsRef.current.clear();
-        pendingOriginalLoadRef.current = null;
+        abortOriginalLoads();
         const resolved = (
           await Promise.all(
             normalized.map(async (slide, inputIndex) => {
@@ -185,7 +189,7 @@ export function ImageViewerProvider({
         setIsOpen(true);
       })();
     },
-    [],
+    [abortOriginalLoads],
   );
 
   const copyImage = useCallback(async (pathOrUrl: string) => {
@@ -238,7 +242,7 @@ export function ImageViewerProvider({
 
         // Keep at most two Host downloads active and retain only the latest
         // navigation request waiting for a slot.
-        if (activeOriginalLoadsRef.current >= 2) {
+        if (originalLoadsRef.current.size >= 2) {
           pendingOriginalLoadRef.current = () => {
             if (generationRef.current === generation) {
               hydrateSlideAt(targetIndex, force, retryOriginal);
@@ -247,11 +251,11 @@ export function ImageViewerProvider({
           return;
         }
 
-        originalLoadsRef.current.add(loadKey);
-        activeOriginalLoadsRef.current += 1;
+        const controller = new AbortController();
+        originalLoadsRef.current.set(loadKey, controller);
         void (async () => {
           try {
-            const loaded = await slide.loadOriginal?.();
+            const loaded = await slide.loadOriginal?.(controller.signal);
             if (generationRef.current !== generation) return;
             if (!loaded) throw new Error("original_unavailable");
 
@@ -281,6 +285,7 @@ export function ImageViewerProvider({
               ),
             );
           } catch (error) {
+            if (controller.signal.aborted) return;
             let originalError: string | undefined;
             try {
               originalError = slide.originalErrorMessage?.(error);
@@ -294,11 +299,12 @@ export function ImageViewerProvider({
               originalError,
             });
           } finally {
-            originalLoadsRef.current.delete(loadKey);
-            activeOriginalLoadsRef.current -= 1;
-            const pending = pendingOriginalLoadRef.current;
-            pendingOriginalLoadRef.current = null;
-            pending?.();
+            if (originalLoadsRef.current.get(loadKey) === controller) {
+              originalLoadsRef.current.delete(loadKey);
+              const pending = pendingOriginalLoadRef.current;
+              pendingOriginalLoadRef.current = null;
+              pending?.();
+            }
           }
         })();
         return;

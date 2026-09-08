@@ -45,6 +45,7 @@ import {
   errorCodeFromSearchResult,
   fileFromAbsolutePath,
   parseWallpaperSourceError,
+  sameWallpaperLocalPath,
   type WallpaperGalleryItem,
   type WallpaperLibraryPurpose,
   type WallpaperSourceKind,
@@ -741,6 +742,10 @@ export function WallpaperSourceModal({
       setStatusHint(t("settings.wallpaperSource.deleting"));
       try {
         await api.wallpaperLibraryDelete(path);
+        sourceHistory.invalidateLocalPath(path);
+        if (sameWallpaperLocalPath(imagineController.videoSourcePath, path)) {
+          imagineController.clearVideoSource();
+        }
         library.remove(item.id);
         dropItem(item.id);
         setError(null);
@@ -757,7 +762,17 @@ export function WallpaperSourceModal({
         setStatusHint(null);
       }
     },
-    [busy, applying, previewingId, t, dropItem, library.remove],
+    [
+      busy,
+      applying,
+      previewingId,
+      t,
+      dropItem,
+      imagineController.clearVideoSource,
+      imagineController.videoSourcePath,
+      library.remove,
+      sourceHistory.invalidateLocalPath,
+    ],
   );
 
   const openItemPreview = useWallpaperItemPreview({

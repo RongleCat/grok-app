@@ -30,6 +30,11 @@ vi.mock("@/lib/api/wallpaper", () => ({
 vi.mock("@/lib/nativeWebviewCover", () => ({
   acquireNativeWebviewCover: () => () => {},
 }));
+vi.mock("./WallpaperProviderThumbnail", () => ({
+  WallpaperProviderThumbnail: () => (
+    <span data-testid="remote-provider-thumbnail" />
+  ),
+}));
 
 const t = ((key: string) => key) as never;
 const item: WallpaperGalleryItem = {
@@ -86,6 +91,30 @@ afterEach(() => {
 });
 
 describe("WallpaperSourceGallery media details", () => {
+  it("uses the local media endpoint for saved provider images", () => {
+    const path = "C:/wallpapers/pexels/saved-photo.jpg";
+    const providerItem: WallpaperGalleryItem = {
+      ...item,
+      id: "saved-pexels-photo",
+      source: "pexels",
+      localPath: path,
+      fullUrl: `file://${path}`,
+      thumbUrl: `file://${path}`,
+    };
+
+    render(
+      <WallpaperSourceGallery
+        {...galleryProps([providerItem])}
+        tab="library"
+      />,
+    );
+
+    expect(screen.queryByTestId("remote-provider-thumbnail")).toBeNull();
+    expect(screen.getByRole("img").getAttribute("src")).toBe(
+      `http://127.0.0.1/media/${encodeURIComponent(path)}`,
+    );
+  });
+
   it("keeps the existing media fallback when endpoint boot fails", async () => {
     ensureMediaEndpoint.mockRejectedValueOnce(new Error("endpoint unavailable"));
     const path = "H:/wallpapers/imagine/fallback.mp4";

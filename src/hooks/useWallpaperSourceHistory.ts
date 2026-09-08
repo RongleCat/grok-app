@@ -1,9 +1,10 @@
 import { useCallback, useRef } from "react";
 import type { WallpaperProviderContinuationState } from "./useWallpaperProviderController";
-import type {
-  WallpaperGalleryItem,
-  WallpaperLibraryPurpose,
-  WallpaperSourceKind,
+import {
+  sameWallpaperLocalPath,
+  type WallpaperGalleryItem,
+  type WallpaperLibraryPurpose,
+  type WallpaperSourceKind,
 } from "@/lib/wallpaperSource";
 import type { WallpaperGalleryKindFilter } from "@/lib/wallpaperGalleryPro";
 
@@ -94,5 +95,24 @@ export function useWallpaperSourceHistory() {
     }
   }, []);
 
-  return { save, get, clear, updateItem, scrollRef };
+  const invalidateLocalPath = useCallback((localPath: string) => {
+    for (const entry of entries.current.values()) {
+      let selectedRemoved = false;
+      const items = entry.value.items.flatMap((item) => {
+        if (!sameWallpaperLocalPath(item.localPath, localPath)) return [item];
+        if (/^https?:\/\//i.test(item.fullUrl.trim())) {
+          return [{ ...item, localPath: null, metadata: null }];
+        }
+        if (entry.value.selectedId === item.id) selectedRemoved = true;
+        return [];
+      });
+      entry.value = {
+        ...entry.value,
+        items,
+        selectedId: selectedRemoved ? null : entry.value.selectedId,
+      };
+    }
+  }, []);
+
+  return { save, get, clear, updateItem, invalidateLocalPath, scrollRef };
 }

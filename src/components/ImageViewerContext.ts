@@ -14,7 +14,7 @@ export interface ImageSlideInput extends ImageSlideSource {
   /** Notify the owning gallery when this slide becomes current. */
   onView?: () => void;
   /** Upgrade a viewable placeholder to a local original on first navigation. */
-  loadOriginal?: () => Promise<ImageSlideSource | null>;
+  loadOriginal?: (signal: AbortSignal) => Promise<ImageSlideSource | null>;
   /** Return localized copy only; raw Host errors are never rendered. */
   originalErrorMessage?: (error: unknown) => string;
 }
