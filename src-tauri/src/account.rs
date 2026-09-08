@@ -2241,10 +2241,7 @@ mod tests {
     #[test]
     fn prefer_auth_profile_among_prefers_fresh_canonical_over_expired_agent() {
         let out = prefer_auth_profile_among(vec![
-            (
-                PathBuf::from("/tmp/agent"),
-                Some(prof(true, false, true)),
-            ),
+            (PathBuf::from("/tmp/agent"), Some(prof(true, false, true))),
             (
                 PathBuf::from("/tmp/canonical"),
                 Some(prof(true, true, false)),

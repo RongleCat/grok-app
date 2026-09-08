@@ -14,7 +14,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Fixed
-- Official login is restored from the App agent-home mirror when `~/.grok/auth.json` was wiped.
+- Official login restores from the App agent-home mirror if `~/.grok` auth was wiped.
 - Windows titlebar drag moves the window again on older WebView2 (#1075).
 - Feishu remote-control setup shows the publish / availability guide (same as Lark).
 - Search no longer applies results after you close the palette (#1078).
