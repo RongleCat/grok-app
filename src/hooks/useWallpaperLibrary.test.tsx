@@ -57,6 +57,53 @@ function metadata(id: string, favorite: boolean): WallpaperMediaRecord {
 }
 
 describe("useWallpaperLibrary", () => {
+  it.each(["before", "during"])(
+    "keeps favorite counts after unfavoriting %s a pending page",
+    async (timing) => {
+      let resolve!: (value: WallpaperLibraryPage) => void;
+      const first = page("first", "cursor-1");
+      first.items[0].metadata = metadata("first", true);
+      fetchPage
+        .mockResolvedValueOnce(first)
+        .mockReturnValueOnce(
+          new Promise<WallpaperLibraryPage>((done) => {
+            resolve = done;
+          }),
+        );
+      const { result } = renderHook(() =>
+        useWallpaperLibrary(true, "", "all", true, "favorites"),
+      );
+      await waitFor(() => expect(result.current.canLoadMore).toBe(true));
+      const unfavorite = () =>
+        result.current.updateItem({
+          ...result.current.items[0],
+          metadata: metadata("first", false),
+        });
+      if (timing === "before") act(unfavorite);
+      let pending!: Promise<void>;
+      act(() => {
+        pending = result.current.loadMore();
+      });
+      if (timing === "during") act(unfavorite);
+
+      expect(result.current.page?.total).toBe(250);
+      expect(result.current.kindCounts).toEqual({
+        all: 250, image: 250, video: 0,
+      });
+      await act(async () => {
+        resolve(page("second"));
+        await pending;
+      });
+      expect(result.current.items.map((item) => item.textPreview)).toEqual([
+        "second",
+      ]);
+      expect(result.current.page?.total).toBe(250);
+      expect(result.current.kindCounts).toEqual({
+        all: 250, image: 250, video: 0,
+      });
+    },
+  );
+
   it.each([false, true])(
     "keeps favorite edits when a pending page settles (failure: %s)",
     async (fails) => {

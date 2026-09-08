@@ -7,6 +7,7 @@ import { resolveWallpaperXCitation } from "@/lib/xEvidenceCitation";
 import { resolveImageSrcSync } from "@/lib/imageSrc";
 import { WallpaperProviderThumbnail } from "./WallpaperProviderThumbnail";
 import { GrokAlbumThumbnail } from "./GrokAlbumThumbnail";
+import { IconHeart } from "./icons";
 
 type Props = {
   t: WallpaperSourceModalProps["t"];
@@ -23,6 +24,8 @@ type Props = {
   dropItem: (id: string) => void;
   openExternalSource: (url: string) => void;
   requestDeleteLibraryItem: (item: WallpaperGalleryItem, event: MouseEvent) => void;
+  favoriteBusyIds?: ReadonlySet<string>;
+  onToggleFavorite?: (item: WallpaperGalleryItem) => void;
 };
 
 /** Thumb / list preview (remote thumb OK). */
@@ -56,6 +59,8 @@ export function WallpaperSourceGallery({
   dropItem,
   openExternalSource,
   requestDeleteLibraryItem,
+  favoriteBusyIds,
+  onToggleFavorite,
 }: Props) {
   const isImagineLayout = tab === "imagine";
   const isLibraryTab = tab === "library";
@@ -136,7 +141,9 @@ export function WallpaperSourceGallery({
                     (active ? " wallpaper-masonry__card--selected" : "") +
                     (loadingThis ? " wallpaper-masonry__card--loading" : "")
                   }
-                  disabled={locked && !loadingThis}
+                  disabled={
+                    (locked && !loadingThis) || favoriteBusyIds?.has(item.id)
+                  }
                   onClick={() => void openItemPreview(item)}
                   aria-label={t("settings.wallpaperSource.openPreview")}
                 >
@@ -275,11 +282,37 @@ export function WallpaperSourceGallery({
                     )}
                   </div>
                 ) : null}
+                {onToggleFavorite ? (
+                  <button
+                    type="button"
+                    className="wallpaper-masonry__favorite"
+                    disabled={locked || favoriteBusyIds?.has(item.id)}
+                    aria-busy={favoriteBusyIds?.has(item.id) || undefined}
+                    aria-pressed={!!item.metadata?.favorite}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onToggleFavorite(item);
+                    }}
+                    aria-label={t(
+                      item.metadata?.favorite
+                        ? "settings.wallpaperSource.library.unfavorite"
+                        : "settings.wallpaperSource.library.favorite",
+                    )}
+                    title={t(
+                      item.metadata?.favorite
+                        ? "settings.wallpaperSource.library.unfavorite"
+                        : "settings.wallpaperSource.library.favorite",
+                    )}
+                  >
+                    <IconHeart size={15} aria-hidden />
+                  </button>
+                ) : null}
                 {isLibraryTab ? (
                   <button
                     type="button"
                     className="wallpaper-masonry__delete"
-                    disabled={locked}
+                    disabled={locked || favoriteBusyIds?.has(item.id)}
                     onClick={(e) => requestDeleteLibraryItem(item, e)}
                     aria-label={t("settings.wallpaperSource.delete")}
                     title={t("settings.wallpaperSource.delete")}

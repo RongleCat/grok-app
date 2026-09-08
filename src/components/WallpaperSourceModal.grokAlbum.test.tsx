@@ -93,6 +93,8 @@ vi.mock("@/lib/api", () => ({
   isTauri: () => false,
   openExternalUrl: vi.fn(async () => undefined),
   wallpaperRemoteCancelMediaRequests: vi.fn(async () => 0),
+  wallpaperLibraryLookup: vi.fn(async () => []),
+  wallpaperLibraryRemember: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/components/GrokAlbumThumbnail", () => ({
