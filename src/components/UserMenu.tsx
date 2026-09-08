@@ -457,13 +457,7 @@ export function UserMenu({
               role="menuitem"
               aria-haspopup="menu"
               aria-expanded={themeSubOpen}
-              onClick={() => {
-                if (themeSubOpen) {
-                  setThemeSubOpen(false);
-                } else {
-                  openThemeSub();
-                }
-              }}
+              onClick={openThemeSub}
               onMouseEnter={openThemeSub}
               onMouseLeave={scheduleCloseThemeSub}
             >

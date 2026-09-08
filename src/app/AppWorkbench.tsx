@@ -10,7 +10,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { useThemeShell } from "@/providers/ThemeProvider";
+import { useThemeShell } from "@/providers/ThemeShellContext";
 import { usePetCompanion } from "@/hooks/usePetCompanion";
 import { useFloatingMenu } from "@/lib/floatingMenu";
 import { restoreSessionGate } from "@/lib/sessionGateRestore";

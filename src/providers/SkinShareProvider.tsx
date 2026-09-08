@@ -4,9 +4,7 @@
  */
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -38,17 +36,16 @@ import {
 } from "@/lib/skinPresetStore";
 import {
   parseSkinPackError,
-  type SkinPackErrorCode,
   type SkinPackPreview,
 } from "@/lib/skinPack";
 import { OFFICIAL_SKIN_CATALOG_URL } from "@/lib/skinCatalog";
-import { useThemeShell } from "@/providers/ThemeProvider";
+import { useThemeShell } from "@/providers/ThemeShellContext";
+import {
+  SkinShareContext,
+  type SkinShareNotice,
+  type SkinShareValue,
+} from "@/providers/SkinShareContext";
 import { SkinImportPreviewModal } from "@/components/settings/SkinImportPreviewModal";
-
-export type SkinShareNotice = {
-  kind: "err" | "warn";
-  code: SkinPackErrorCode | "unknown_skin" | "will_clear_wallpaper";
-};
 
 type PreviewState = {
   preview: SkinPackPreview;
@@ -56,30 +53,6 @@ type PreviewState = {
   /** Existing library id when applying a saved preset (not undo). */
   libraryId?: string;
 };
-
-type SkinShareValue = {
-  appearanceBusy: boolean;
-  notice: SkinShareNotice | null;
-  clearNotice: () => void;
-  openFilePreview: (path: string) => Promise<void>;
-  openPresetPreview: (id: string, undoMode?: boolean) => Promise<void>;
-  openCatalogPreview: (sourceId: string, packId: string) => Promise<void>;
-  refreshPending: () => Promise<void>;
-};
-
-const Ctx = createContext<SkinShareValue | null>(null);
-
-export function useSkinShare(): SkinShareValue {
-  const v = useContext(Ctx);
-  if (!v) {
-    throw new Error("useSkinShare requires SkinShareProvider");
-  }
-  return v;
-}
-
-export function useSkinShareOptional(): SkinShareValue | null {
-  return useContext(Ctx);
-}
 
 export function SkinShareProvider({ children }: { children: ReactNode }) {
   const theme = useThemeShell();
@@ -297,7 +270,7 @@ export function SkinShareProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <Ctx.Provider value={value}>
+    <SkinShareContext.Provider value={value}>
       {children}
       <SkinImportPreviewModal
         open={!!preview}
@@ -327,6 +300,6 @@ export function SkinShareProvider({ children }: { children: ReactNode }) {
             : undefined
         }
       />
-    </Ctx.Provider>
+    </SkinShareContext.Provider>
   );
 }

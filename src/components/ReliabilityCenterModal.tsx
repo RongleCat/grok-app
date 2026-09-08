@@ -31,8 +31,8 @@ import {
   type AuditLedgerEvent,
 } from "@/lib/auditLedger";
 import type { ProcessLimitEvent } from "@/lib/processBudget";
+import { assembleGoalOrchView } from "@/lib/goalOrchView";
 import {
-  assembleGoalOrchView,
   filterGoalOrchEvents,
   formatGoalOrchSummaryText,
   goalOrchPhaseLabelKey,
