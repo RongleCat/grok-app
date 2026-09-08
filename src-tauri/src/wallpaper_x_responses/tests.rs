@@ -171,6 +171,7 @@ async fn test_search(
 
 fn lane_item(id: &str) -> WallpaperGalleryItem {
     WallpaperGalleryItem {
+        metadata: None,
         id: id.into(),
         thumb_url: format!("https://pbs.twimg.com/media/{id}.jpg?name=small"),
         full_url: format!("https://pbs.twimg.com/media/{id}.jpg?name=orig"),

@@ -935,7 +935,6 @@ async fn discover_page(
         .collect();
     PageDiscoveryResult { items, stats }
 }
-
 fn web_item(
     page: &SourcePage,
     metadata: &WebPageMetadata,
@@ -952,6 +951,7 @@ fn web_item(
         .or_else(|| metadata.description.clone())
         .or_else(|| page.summary.clone());
     WallpaperGalleryItem {
+        metadata: None,
         id: format!("web-{}", &content_fingerprint[..24]),
         thumb_url: probe.final_url.clone(),
         full_url: probe.final_url,

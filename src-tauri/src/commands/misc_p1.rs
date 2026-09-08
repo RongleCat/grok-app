@@ -1154,14 +1154,86 @@ pub async fn wallpaper_fetch_media(
 pub async fn wallpaper_imagine(
     prompt: String,
     aspect_ratio: Option<String>,
+    request_id: Option<String>,
 ) -> Result<crate::wallpaper_source::WallpaperSearchResult, String> {
     crate::wallpaper_source::ensure_wallpaper_dirs();
-    let aspect = aspect_ratio.clone();
+    let request_id = request_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     tauri::async_runtime::spawn_blocking(move || {
-        crate::wallpaper_source::imagine(&prompt, aspect.as_deref())
+        crate::wallpaper_imagine_video::generation::generate(
+            &request_id,
+            &prompt,
+            aspect_ratio.as_deref(),
+        )
     })
     .await
-    .map_err(|e| format!("wallpaper_imagine: {e}"))
+    .map_err(|e| format!("wallpaper_imagine: {e}"))?
+}
+
+#[tauri::command]
+pub async fn wallpaper_image_to_video(
+    request_id: String,
+    source_path: String,
+    source_png_base64: Option<String>,
+    motion_prompt: Option<String>,
+    duration: Option<u32>,
+    resolution_name: Option<String>,
+) -> Result<crate::wallpaper_source::WallpaperSearchResult, String> {
+    crate::wallpaper_source::ensure_wallpaper_dirs();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::wallpaper_imagine_video::generate(
+            &request_id,
+            &source_path,
+            source_png_base64.as_deref(),
+            motion_prompt.as_deref(),
+            duration,
+            resolution_name.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| format!("wallpaper_image_to_video task failed: {e}"))?
+}
+
+#[tauri::command]
+pub async fn wallpaper_image_to_video_cancel(request_id: String) -> Result<bool, String> {
+    crate::wallpaper_imagine_video::cancel(&request_id)
+}
+
+#[tauri::command]
+pub async fn wallpaper_image_edit(
+    request_id: String,
+    source_path: String,
+    source_png_base64: Option<String>,
+    prompt: String,
+    aspect_ratio: Option<String>,
+) -> Result<crate::wallpaper_source::WallpaperSearchResult, String> {
+    crate::wallpaper_source::ensure_wallpaper_dirs();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::wallpaper_imagine_video::edit::generate(
+            &request_id,
+            &source_path,
+            source_png_base64.as_deref(),
+            &prompt,
+            aspect_ratio.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| format!("wallpaper_image_edit task failed: {e}"))?
+}
+
+#[tauri::command]
+pub async fn wallpaper_import_image(
+    source_path: String,
+    source_png_base64: Option<String>,
+) -> Result<crate::wallpaper_source::WallpaperFetchResult, String> {
+    crate::wallpaper_source::ensure_wallpaper_dirs();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::wallpaper_imagine_video::edit::import_image(
+            &source_path,
+            source_png_base64.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| format!("wallpaper_import_image task failed: {e}"))?
 }
 
 #[tauri::command]

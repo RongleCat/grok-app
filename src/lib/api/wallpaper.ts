@@ -11,6 +11,7 @@ import {
   invoke,
   listen,
 } from "./host";
+import { prepareWallpaperVideoImage } from "../wallpaperVideoImage";
 
 import type {
   WallpaperFetchResult,
@@ -22,6 +23,10 @@ import type {
   GrokAlbumSnapshot,
   GrokAlbumThumbnail,
 } from "../grokAlbum";
+import type {
+  WallpaperVideoDuration,
+  WallpaperVideoResolution,
+} from "../wallpaperImagine";
 export type {
   WallpaperFetchResult,
   WallpaperGalleryItem,
@@ -68,11 +73,93 @@ export async function wallpaperFetchMedia(
 export async function wallpaperImagine(
   prompt: string,
   aspectRatio?: string,
+  requestId?: string,
 ): Promise<WallpaperSearchResult> {
   return invoke<WallpaperSearchResult>("wallpaper_imagine", {
     prompt,
     aspectRatio: aspectRatio ?? null,
+    requestId: requestId ?? null,
   });
+}
+
+const imagePreparations = new Map<string, AbortController>();
+
+export async function wallpaperImportImage(
+  sourcePath: string,
+): Promise<WallpaperFetchResult> {
+  const sourcePngBase64 = await prepareWallpaperVideoImage(
+    sourcePath,
+    new AbortController().signal,
+  );
+  return invoke<WallpaperFetchResult>("wallpaper_import_image", {
+    sourcePath,
+    sourcePngBase64,
+  });
+}
+
+export async function wallpaperImageEdit(
+  sourcePath: string,
+  prompt: string,
+  aspectRatio: string,
+  requestId: string,
+): Promise<WallpaperSearchResult> {
+  const preparation = new AbortController();
+  imagePreparations.set(requestId, preparation);
+  try {
+    const sourcePngBase64 = await prepareWallpaperVideoImage(
+      sourcePath,
+      preparation.signal,
+    );
+    preparation.signal.throwIfAborted();
+    return await invoke<WallpaperSearchResult>("wallpaper_image_edit", {
+      sourcePath,
+      sourcePngBase64,
+      prompt,
+      aspectRatio,
+      requestId,
+    });
+  } finally {
+    if (imagePreparations.get(requestId) === preparation) {
+      imagePreparations.delete(requestId);
+    }
+  }
+}
+
+export async function wallpaperImageToVideo(
+  sourcePath: string,
+  motionPrompt: string,
+  duration: WallpaperVideoDuration,
+  resolutionName: WallpaperVideoResolution,
+  requestId: string,
+): Promise<WallpaperSearchResult> {
+  const preparation = new AbortController();
+  imagePreparations.set(requestId, preparation);
+  try {
+    const sourcePngBase64 = await prepareWallpaperVideoImage(
+      sourcePath,
+      preparation.signal,
+    );
+    preparation.signal.throwIfAborted();
+    return await invoke<WallpaperSearchResult>("wallpaper_image_to_video", {
+      sourcePath,
+      sourcePngBase64,
+      motionPrompt: motionPrompt.trim() || null,
+      duration,
+      resolutionName,
+      requestId,
+    });
+  } finally {
+    if (imagePreparations.get(requestId) === preparation) {
+      imagePreparations.delete(requestId);
+    }
+  }
+}
+
+export async function wallpaperImageToVideoCancel(
+  requestId: string,
+): Promise<boolean> {
+  imagePreparations.get(requestId)?.abort();
+  return invoke<boolean>("wallpaper_image_to_video_cancel", { requestId });
 }
 
 export async function wallpaperLibraryList(

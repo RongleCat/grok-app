@@ -98,6 +98,7 @@ vi.mock("@/lib/api", () => ({
   openExternalUrl: vi.fn(async () => undefined),
   settingsGet: vi.fn(async () => ({ wallpaperXSearchMode: "cli" })),
   settingsSet: vi.fn(async () => ({})),
+  wallpaperGrokAlbumCancelRequests: vi.fn(async () => 0),
   wallpaperRemoteCancelMediaRequests: vi.fn(async () => 0),
   wallpaperLibraryLookup: vi.fn(async () => []),
   wallpaperLibraryRemember: vi.fn(async () => undefined),

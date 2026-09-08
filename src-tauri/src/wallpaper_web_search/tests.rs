@@ -16,6 +16,7 @@ fn item_with_fingerprint(
     media_fingerprint: String,
 ) -> WallpaperGalleryItem {
     WallpaperGalleryItem {
+        metadata: None,
         id: format!("web-{}", &media_fingerprint[..24]),
         thumb_url: full_url.into(),
         full_url: full_url.into(),

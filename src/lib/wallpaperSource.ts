@@ -110,9 +110,30 @@ export type WallpaperSourceErrorCode =
   | "empty"
   | "download_failed"
   | "url_blocked"
+  | "imagine_source_invalid"
   | "imagine_failed"
+  | "imagine_access_denied"
+  | "imagine_rate_limited"
+  | "imagine_request_rejected"
+  | "imagine_upstream_failed"
+  | "imagine_network_failed"
+  | "imagine_result_invalid"
   | "timeout"
   | "generic";
+
+const imagineErrorCodes = new Set<WallpaperSourceErrorCode>([
+  "imagine_access_denied",
+  "imagine_rate_limited",
+  "imagine_request_rejected",
+  "imagine_upstream_failed",
+  "imagine_network_failed",
+  "imagine_result_invalid",
+]);
+
+function imagineErrorCode(raw: string): WallpaperSourceErrorCode | null {
+  const code = raw.trim() as WallpaperSourceErrorCode;
+  return imagineErrorCodes.has(code) ? code : null;
+}
 
 /** Map host error strings / codes to a stable UI code. */
 export function parseWallpaperSourceError(err: unknown): WallpaperSourceErrorCode {
@@ -125,6 +146,8 @@ export function parseWallpaperSourceError(err: unknown): WallpaperSourceErrorCod
           ? String((err as { message: unknown }).message)
           : "";
   const s = raw.toLowerCase();
+  const imagineError = imagineErrorCode(s);
+  if (imagineError) return imagineError;
   if (s.includes("catalog_")) return "catalog_write_failed";
   if (s.includes("rate_limited")) return "rate_limited";
   if (s.includes("auth_required")) return "auth_required";
@@ -146,6 +169,7 @@ export function parseWallpaperSourceError(err: unknown): WallpaperSourceErrorCod
     return "download_failed";
   }
   if (s.includes("desktop_only")) return "generic";
+  if (s.includes("imagine_source_invalid")) return "imagine_source_invalid";
   // timeout before imagine so "imagine timeout" is not swallowed as imagine_failed
   if (s.includes("timeout") || s.includes("timed out")) return "timeout";
   if (s.includes("imagine_failed")) return "imagine_failed";
@@ -166,10 +190,13 @@ export function errorCodeFromSearchResult(
   if (result.items.length > 0) return null;
   const code = (result.errorCode || "").toLowerCase();
   if (!code) return "empty";
+  const imagineError = imagineErrorCode(code);
+  if (imagineError) return imagineError;
   if (code.startsWith("catalog_")) return "catalog_write_failed";
   if (code === "auth_required") return "auth_required";
   if (code === "cli_missing") return "cli_missing";
   if (code === "search_failed") return "search_failed";
+  if (code === "imagine_source_invalid") return "imagine_source_invalid";
   if (code === "imagine_failed") return "imagine_failed";
   if (code === "empty") return "empty";
   if (code === "timeout") return "timeout";
@@ -363,10 +390,11 @@ function ipcBytesToArrayBuffer(value: unknown): ArrayBuffer {
 export async function readLocalMediaBlobViaIpc(
   absolutePath: string,
   invokeImpl?: MediaInvoke,
-  opts?: { chunkSize?: number },
+  opts?: { chunkSize?: number; maxBytes?: number; signal?: AbortSignal },
 ): Promise<{ blob: Blob; info: MediaFileInfo }> {
   const invoke: MediaInvoke =
     invokeImpl ?? ((await import("@tauri-apps/api/core")).invoke as MediaInvoke);
+  opts?.signal?.throwIfAborted();
   const rawInfo = await invoke("media_file_info", {
     path: absolutePath,
   });
@@ -376,7 +404,8 @@ export async function readLocalMediaBlobViaIpc(
 
   const candidate = rawInfo as Partial<MediaFileInfo>;
   const bytes = Number(candidate.bytes);
-  if (!Number.isSafeInteger(bytes) || bytes < 0 || bytes > MEDIA_IPC_MAX_FILE) {
+  const maxBytes = Math.min(opts?.maxBytes ?? MEDIA_IPC_MAX_FILE, MEDIA_IPC_MAX_FILE);
+  if (!Number.isSafeInteger(bytes) || bytes < 0 || bytes > maxBytes) {
     throw new Error("read_failed: invalid media size");
   }
   const chunkSize = opts?.chunkSize ?? MEDIA_IPC_CHUNK;
@@ -403,6 +432,7 @@ export async function readLocalMediaBlobViaIpc(
   const parts: ArrayBuffer[] = [];
   let got = 0;
   for (let offset = 0; offset < bytes; offset += chunkSize) {
+    opts?.signal?.throwIfAborted();
     const length = Math.min(chunkSize, bytes - offset);
     const raw = await invoke("media_read_file_chunk", {
       path: absolutePath,
@@ -421,6 +451,7 @@ export async function readLocalMediaBlobViaIpc(
   if (got !== bytes) {
     throw new Error(`read_failed: short IPC read (${got}/${bytes} bytes)`);
   }
+  opts?.signal?.throwIfAborted();
   return { blob: new Blob(parts, { type: info.mime }), info };
 }
 

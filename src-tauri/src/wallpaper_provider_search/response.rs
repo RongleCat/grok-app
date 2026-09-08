@@ -209,6 +209,7 @@ pub(super) fn provider_item(
     digest.update(probe.content_fingerprint.as_bytes());
     let identity = hex::encode(digest.finalize());
     WallpaperGalleryItem {
+        metadata: None,
         id: format!("{}-{}", source.as_str(), &identity[..24]),
         thumb_url: probe.final_url.clone(),
         full_url: probe.final_url,

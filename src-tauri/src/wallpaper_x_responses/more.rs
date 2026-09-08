@@ -79,6 +79,7 @@ mod tests {
 
     fn item(id: &str, status_id: &str) -> WallpaperGalleryItem {
         WallpaperGalleryItem {
+            metadata: None,
             id: id.into(),
             thumb_url: format!("https://pbs.twimg.com/media/{id}.jpg?name=small"),
             full_url: format!("https://pbs.twimg.com/media/{id}.jpg?name=orig"),

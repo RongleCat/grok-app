@@ -1,5 +1,9 @@
 import { useMemo, type ReactNode } from "react";
 import { Select } from "@/components/Select";
+import {
+  WallpaperImagineControls,
+  type WallpaperImagineControlsModel,
+} from "@/components/WallpaperImagineControls";
 import type { WallpaperSourceModalProps, WallpaperSourceTab } from "./WallpaperSourceModal";
 
 type Props = {
@@ -7,8 +11,7 @@ type Props = {
   tab: WallpaperSourceTab;
   query: string;
   sort: "top" | "latest";
-  prompt: string;
-  aspect: string;
+  imagine: WallpaperImagineControlsModel;
   busy: boolean;
   /** True only while an X search request is in flight (enables Cancel). */
   xBusy?: boolean;
@@ -16,18 +19,14 @@ type Props = {
   xRouteControl?: ReactNode;
   setQuery: (value: string) => void;
   setSort: (value: "top" | "latest") => void;
-  setPrompt: (value: string) => void;
-  setAspect: (value: string) => void;
   runXSearch: () => Promise<void>;
   cancelXSearch?: () => Promise<boolean>;
-  runImagine: () => Promise<void>;
   loadLibrary: () => Promise<void>;
 };
 
 export function WallpaperSourceControls({
-  t, tab, query, sort, prompt, aspect, busy, xBusy = false, locked,
-  setQuery, setSort, setPrompt, setAspect, runXSearch, cancelXSearch,
-  runImagine, loadLibrary, xRouteControl,
+  t, tab, query, sort, imagine, busy, xBusy = false, locked,
+  setQuery, setSort, runXSearch, cancelXSearch, loadLibrary, xRouteControl,
 }: Props) {
   const sortOptions = useMemo(
     () => [
@@ -35,17 +34,6 @@ export function WallpaperSourceControls({
       { value: "latest", label: t("settings.wallpaperSource.sortLatest") },
     ],
     [t],
-  );
-
-  const aspectOptions = useMemo(
-    () => [
-      { value: "16:9", label: "16:9" },
-      { value: "9:16", label: "9:16" },
-      { value: "1:1", label: "1:1" },
-      { value: "4:3", label: "4:3" },
-      { value: "auto", label: "auto" },
-    ],
-    [],
   );
 
   return (
@@ -98,40 +86,7 @@ export function WallpaperSourceControls({
           </div>
         </div>
       ) : tab === "imagine" ? (
-        <div className="wallpaper-source-form">
-          <p className="wallpaper-source-form__hint">
-            {t("settings.wallpaperSource.imagineHint")}
-          </p>
-          <textarea
-            className="wallpaper-source-form__textarea"
-            value={prompt}
-            placeholder={t("settings.wallpaperSource.imaginePlaceholder")}
-            disabled={locked}
-            rows={3}
-            onChange={(e) => setPrompt(e.target.value)}
-          />
-          <div className="wallpaper-source-form__row">
-            <Select
-              className="wallpaper-source-form__select"
-              value={aspect}
-              options={aspectOptions}
-              disabled={locked}
-              aria-label={t("settings.wallpaperSource.aspect")}
-              onChange={setAspect}
-              placement="down"
-            />
-            <button
-              type="button"
-              className="btn btn--solid"
-              disabled={locked || !prompt.trim()}
-              onClick={() => void runImagine()}
-            >
-              {busy
-                ? t("settings.wallpaperSource.generating")
-                : t("settings.wallpaperSource.generate")}
-            </button>
-          </div>
-        </div>
+        <WallpaperImagineControls t={t} locked={locked} model={imagine} />
       ) : (
         <div className="wallpaper-source-form">
           <p className="wallpaper-source-form__hint">
