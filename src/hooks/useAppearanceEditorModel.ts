@@ -141,7 +141,7 @@ import {
   SIDEBAR_SHOW_RELATIVE_TIME_CHANGE_EVENT,
 } from "@/lib/sidebarShowRelativeTimePref";
 import type { WallpaperSourceTab } from "@/components/WallpaperSourceModal";
-import { useThemeShell } from "@/providers/ThemeProvider";
+import { useThemeShell } from "@/providers/ThemeShellContext";
 import type { SettingsModel } from "@/providers/SettingsModelContext";
 import { notifyAppearanceChanged } from "@/lib/appearanceLiveSync";
 

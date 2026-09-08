@@ -8,7 +8,7 @@ import {
 } from "@/lib/skinCatalog";
 import { skinCatalogFetch, skinSourcesList } from "@/lib/api/skin";
 import { parseSkinPackError } from "@/lib/skinPack";
-import { useSkinShare } from "@/providers/SkinShareProvider";
+import { useSkinShare } from "@/providers/SkinShareContext";
 
 export function SkinCatalogModal({
   open,

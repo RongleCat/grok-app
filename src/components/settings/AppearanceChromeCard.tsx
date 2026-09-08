@@ -3,7 +3,7 @@
  */
 import { useEffect, useState } from "react";
 import { GlassModal } from "@/components/GlassModal";
-import { useThemeShell } from "@/providers/ThemeProvider";
+import { useThemeShell } from "@/providers/ThemeShellContext";
 import {
   THEME_DEFAULT_TEXT_COLOR,
   parseTextColor,

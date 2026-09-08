@@ -4,7 +4,7 @@
  */
 import { IconHelp } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
-import { useThemeShell } from "@/providers/ThemeProvider";
+import { useThemeShell } from "@/providers/ThemeShellContext";
 import { useSettingsModel } from "@/providers/SettingsModelContext";
 
 function OpacitySlider(props: {

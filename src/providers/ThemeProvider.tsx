@@ -1,11 +1,10 @@
 /**
  * Theme / skin / wallpaper ownership (extracted from App God Component).
  * localStorage keys and apply* behavior match the pre-split App.
+ * The shared context lives separately so Fast Refresh preserves its identity.
  */
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -86,59 +85,10 @@ import {
   subscribeAppearanceChanged,
 } from "@/lib/appearanceLiveSync";
 import { isThemeEditorDocument } from "@/lib/themeEditorShell";
-
-export type ThemeShellValue = {
-  theme: Theme;
-  themePreference: ThemePreference;
-  setThemePreference: (v: ThemePreference) => void;
-  systemTheme: Theme;
-  setSystemTheme: (v: Theme) => void;
-  themeSchedule: ThemeScheduleConfig;
-  setThemeSchedule: (v: ThemeScheduleConfig) => void;
-  scheduleActive: boolean;
-  skin: ThemeSkinId;
-  setSkin: (v: ThemeSkinId) => void;
-  wallpaperRecord: WallpaperRecord | null;
-  setWallpaperRecord: React.Dispatch<React.SetStateAction<WallpaperRecord | null>>;
-  wallpaperUrl: string | null;
-  setWallpaperUrl: (v: string | null) => void;
-  wallpaperUrlRef: React.MutableRefObject<string | null>;
-  wallpaperScrim: number;
-  setWallpaperScrim: (v: number) => void;
-  wallpaperBlur: number;
-  setWallpaperBlur: (v: number) => void;
-  composerOpacity: number;
-  uiOpacity: number;
-  settingsOpacity: number;
-  textColor: string | null;
-  fontShadow: boolean;
-  applyThemeChoice: (next: ThemePreference) => void;
-  applyThemeScheduleChoice: (next: ThemeScheduleConfig) => void;
-  applySkinChoice: (
-    next: ThemeSkinId,
-    opts?: { applyPreferredTheme?: boolean },
-  ) => void;
-  applyWallpaperChoice: (
-    record: WallpaperRecord | null,
-    opts?: { onError?: (msg: string) => void },
-  ) => Promise<void>;
-  applyWallpaperAdjustChoice: (patch: {
-    focus: WallpaperFocus;
-    clip: WallpaperClip | null;
-    duration?: number;
-  }) => void;
-  applyWallpaperMediaSize: (size: { w: number; h: number }) => void;
-  applyWallpaperScrimChoice: (value: number) => void;
-  applyWallpaperBlurChoice: (value: number) => void;
-  applyComposerOpacityChoice: (value: number) => void;
-  applyUiOpacityChoice: (value: number) => void;
-  applySettingsOpacityChoice: (value: number) => void;
-  applyTextColorChoice: (value: string | null) => void;
-  applyFontShadowChoice: (value: boolean) => void;
-  resetAppearanceChromeChoice: () => void;
-};
-
-const ThemeShellContext = createContext<ThemeShellValue | null>(null);
+import {
+  ThemeShellContext,
+  type ThemeShellValue,
+} from "@/providers/ThemeShellContext";
 
 /** Persist theme preference into AppSettings (Host) for next cold-start paint. */
 async function persistThemeToHostSettings(
@@ -737,12 +687,4 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       {children}
     </ThemeShellContext.Provider>
   );
-}
-
-export function useThemeShell(): ThemeShellValue {
-  const ctx = useContext(ThemeShellContext);
-  if (!ctx) {
-    throw new Error("useThemeShell must be used within ThemeProvider");
-  }
-  return ctx;
 }
