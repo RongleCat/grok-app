@@ -182,6 +182,8 @@
 .reliab-card__row {
   border-radius: 8px;
   padding: 6px 4px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
 }
 
 .reliab-card__row-main {

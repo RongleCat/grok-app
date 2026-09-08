@@ -95,8 +95,6 @@ export type ThemeShellValue = {
   setSystemTheme: (v: Theme) => void;
   themeSchedule: ThemeScheduleConfig;
   setThemeSchedule: (v: ThemeScheduleConfig) => void;
-  scheduleClock: Date;
-  setScheduleClock: (v: Date) => void;
   scheduleActive: boolean;
   skin: ThemeSkinId;
   setSkin: (v: ThemeSkinId) => void;
@@ -666,8 +664,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setSystemTheme,
       themeSchedule,
       setThemeSchedule,
-      scheduleClock,
-      setScheduleClock,
       scheduleActive,
       skin,
       setSkin,
@@ -705,7 +701,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       themePreference,
       systemTheme,
       themeSchedule,
-      scheduleClock,
+      // scheduleClock intentionally excluded: the resolved `theme` above
+      // already reflects the schedule. Rebuilding the context value every
+      // 60s tick forced a full workbench re-render.
       scheduleActive,
       skin,
       wallpaperRecord,

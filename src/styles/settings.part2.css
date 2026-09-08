@@ -147,6 +147,8 @@ html[data-theme="light"] .settings-config-edit__pre {
   padding: 12px 14px;
   border-bottom: 1px solid var(--border-subtle);
   cursor: default;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 46px;
 }
 
 .settings-archived-row:hover {
