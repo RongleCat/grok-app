@@ -546,10 +546,10 @@ mod tests {
         let item = generated_video_item(&accepted, &output, Some("slow orbit")).unwrap();
         assert_eq!(item.kind, "video");
         assert_eq!(item.prompt.as_deref(), Some("slow orbit"));
-        assert_eq!(
-            item.local_path.as_deref(),
-            Some(accepted.display().to_string()).as_deref()
+        let accepted = crate::process_util::strip_extended_path_prefix(
+            &accepted.canonicalize().unwrap().to_string_lossy(),
         );
+        assert_eq!(item.local_path.as_deref(), Some(accepted).as_deref());
 
         let _ = fs::remove_dir_all(output);
         let _ = fs::remove_dir_all(outside_root);
