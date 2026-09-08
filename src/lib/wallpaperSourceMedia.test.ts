@@ -9,9 +9,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/grokAlbumMedia", () => ({
   fetchGrokAlbumMedia: mocks.fetchAlbum,
+  cancelGrokAlbumMediaRequests: vi.fn(),
 }));
 vi.mock("@/lib/api", () => ({
   wallpaperRemoteFetchMedia: mocks.fetchRemote,
+  wallpaperRemoteCancelMediaRequests: vi.fn(async () => 0),
+  wallpaperRemoteCancelAllMediaRequests: vi.fn(async () => 0),
   wallpaperFetchMedia: mocks.fetchMedia,
   wallpaperLibraryRemember: mocks.remember,
 }));

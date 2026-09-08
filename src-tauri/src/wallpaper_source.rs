@@ -38,7 +38,6 @@ pub(crate) const X_SEARCH_TOTAL_CALLS: u32 = X_SEARCH_FIRST_ROUND_CALLS + X_SEAR
 /// Headless X search budget.
 const X_SEARCH_TIMEOUT: Duration = Duration::from_secs(150);
 /// Headless Imagine budget.
-const IMAGINE_TIMEOUT: Duration = Duration::from_secs(180);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,6 +72,8 @@ impl WallpaperProvenance {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WallpaperGalleryItem {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<crate::wallpaper_catalog::MediaRecord>,
     pub id: String,
     pub thumb_url: String,
     pub full_url: String,
@@ -1169,6 +1170,139 @@ pub(crate) fn run_grok_headless_cancellable(
     cwd: Option<&Path>,
     cancellation: Option<&WallpaperSearchCancellation>,
 ) -> Result<String, String> {
+    run_grok_headless_with_options(
+        cli_path,
+        prompt,
+        Some(schema),
+        WallpaperCliOptions {
+            max_turns,
+            timeout,
+            cwd,
+            cancellation,
+            media_session: None,
+            media_tool: WallpaperMediaTool::Video,
+        },
+    )
+}
+
+struct WallpaperCliOptions<'a> {
+    max_turns: u32,
+    timeout: Duration,
+    cwd: Option<&'a Path>,
+    cancellation: Option<&'a WallpaperSearchCancellation>,
+    media_session: Option<&'a str>,
+    media_tool: WallpaperMediaTool,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum WallpaperMediaTool {
+    Video,
+    Edit,
+    Image,
+}
+
+impl WallpaperMediaTool {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Video => "image_to_video",
+            Self::Edit => "image_edit",
+            Self::Image => "image_gen",
+        }
+    }
+}
+
+pub(crate) fn run_grok_headless_video_cancellable(
+    cli_path: &str,
+    prompt: &str,
+    timeout: Duration,
+    cwd: &Path,
+    cancellation: &WallpaperSearchCancellation,
+    session_id: &str,
+) -> Result<String, String> {
+    run_grok_headless_with_options(
+        cli_path,
+        prompt,
+        None,
+        WallpaperCliOptions {
+            max_turns: 3,
+            timeout,
+            cwd: Some(cwd),
+            cancellation: Some(cancellation),
+            media_session: Some(session_id),
+            media_tool: WallpaperMediaTool::Video,
+        },
+    )
+}
+
+pub(crate) fn run_grok_headless_edit_cancellable(
+    cli_path: &str,
+    prompt: &str,
+    cwd: &Path,
+    cancellation: &WallpaperSearchCancellation,
+    session_id: &str,
+) -> Result<String, String> {
+    run_grok_headless_image_cancellable(
+        cli_path,
+        prompt,
+        cwd,
+        cancellation,
+        session_id,
+        WallpaperMediaTool::Edit,
+    )
+}
+
+pub(crate) fn run_grok_headless_image_cancellable(
+    cli_path: &str,
+    prompt: &str,
+    cwd: &Path,
+    cancellation: &WallpaperSearchCancellation,
+    session_id: &str,
+    media_tool: WallpaperMediaTool,
+) -> Result<String, String> {
+    run_grok_headless_with_options(
+        cli_path,
+        prompt,
+        None,
+        WallpaperCliOptions {
+            max_turns: 3,
+            timeout: Duration::from_secs(420),
+            cwd: Some(cwd),
+            cancellation: Some(cancellation),
+            media_session: Some(session_id),
+            media_tool,
+        },
+    )
+}
+
+fn configure_media_command(cmd: &mut Command, session_id: &str, media_tool: WallpaperMediaTool) {
+    cmd.args([
+        "--tools",
+        media_tool.name(),
+        "--disallowed-tools",
+        "search_tool,use_tool",
+        "--disable-web-search",
+        "--no-subagents",
+        "--session-id",
+        session_id,
+    ]);
+    // Use the same official home as require_cli_ready and result auditing.
+    cmd.env("GROK_HOME", crate::paths::resolve_agent_grok_home("shared"));
+}
+
+fn run_grok_headless_with_options(
+    cli_path: &str,
+    prompt: &str,
+    schema: Option<&str>,
+    options: WallpaperCliOptions<'_>,
+) -> Result<String, String> {
+    let WallpaperCliOptions {
+        max_turns,
+        timeout,
+        cwd,
+        cancellation,
+        media_session,
+        media_tool,
+    } = options;
     if cancellation.is_some_and(WallpaperSearchCancellation::is_cancelled) {
         return Err("cancelled".into());
     }
@@ -1180,10 +1314,16 @@ pub(crate) fn run_grok_headless_cancellable(
         .arg(max_turns.to_string())
         .arg("--effort")
         .arg("low")
-        .arg("--json-schema")
-        .arg(schema)
         .arg("--output-format")
         .arg("json");
+    // Media output is accepted from the audited tool call and session files,
+    // not from model text. Search remains schema-constrained.
+    if let Some(schema) = schema {
+        cmd.arg("--json-schema").arg(schema);
+    }
+    if let Some(session_id) = media_session {
+        configure_media_command(&mut cmd, session_id, media_tool);
+    }
     // Headless background-wait policy (CLI 0.2.117+); soft-fail older builds.
     {
         let settings = crate::store::load_settings();
@@ -1216,10 +1356,11 @@ pub(crate) fn run_grok_headless_cancellable(
         }
         match child.try_wait() {
             Ok(Some(status)) => {
-                let stdout = output_readers.finish()?;
                 if cancellation.is_some_and(WallpaperSearchCancellation::is_cancelled) {
+                    output_readers.stop();
                     return Err("cancelled".into());
                 }
+                let stdout = output_readers.finish()?;
                 if !status.success() && stdout.trim().is_empty() {
                     tracing::warn!("wallpaper source cli failed");
                     return Err("search_failed".into());
@@ -1236,7 +1377,7 @@ pub(crate) fn run_grok_headless_cancellable(
                     output_readers.stop();
                     return Err("timeout".into());
                 }
-                std::thread::sleep(Duration::from_millis(50));
+                std::thread::sleep(Duration::from_millis(25));
             }
             Err(e) => {
                 terminate_wallpaper_process_tree(&mut child);
@@ -1319,6 +1460,7 @@ pub(crate) fn parse_gallery_items(
             .filter(|index| (1..=4).contains(index))
             .or_else(|| raw_post_url.and_then(extract_media_index_from_status_url));
         out.push(WallpaperGalleryItem {
+            metadata: None,
             id,
             thumb_url: thumb,
             full_url: full_norm,
@@ -2568,231 +2710,6 @@ fn file_to_fetch_result(path: &Path) -> Result<WallpaperFetchResult, String> {
         bytes: meta.len(),
         name,
     })
-}
-
-pub fn imagine(prompt: &str, aspect_ratio: Option<&str>) -> WallpaperSearchResult {
-    let p = prompt.trim();
-    if p.is_empty() {
-        return WallpaperSearchResult {
-            items: vec![],
-            error_code: Some("empty".into()),
-            message: Some("empty prompt".into()),
-            meta: None,
-        };
-    }
-    let cli = match require_cli_ready() {
-        Ok(c) => c,
-        Err(code) => {
-            return WallpaperSearchResult {
-                items: vec![],
-                error_code: Some(code),
-                message: None,
-                meta: None,
-            };
-        }
-    };
-
-    let ar = aspect_ratio.unwrap_or("16:9");
-    let out_dir = dated_subdir("imagine");
-    let out_dir_str = out_dir.display().to_string();
-
-    let schema = r#"{
-  "type": "object",
-  "properties": {
-    "items": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "localPath": { "type": "string" },
-          "fullUrl": { "type": "string" },
-          "prompt": { "type": "string" },
-          "kind": { "type": "string" }
-        },
-        "required": ["localPath"]
-      }
-    }
-  },
-  "required": ["items"]
-}"#;
-
-    let agent_prompt = format!(
-        r#"Generate wallpaper image(s) with the Imagine image_gen tool.
-
-User prompt (use as the image prompt, refine lightly for wallpaper quality if needed):
-{p}
-
-Requirements:
-1. Call image_gen with aspect_ratio "{ar}". Prefer one strong wallpaper-quality image (you may generate up to 2 variants with distinct prompts if helpful).
-2. After generation, copy or move each resulting image file into this directory:
-   {out_dir_str}
-   Use clear filenames like wallpaper-1.jpg.
-3. Return JSON items with localPath set to the absolute path of each saved file under that directory. kind should be "image".
-4. Do not invent paths that do not exist on disk.
-"#
-    );
-
-    let stdout = match run_grok_headless(
-        &cli,
-        &agent_prompt,
-        schema,
-        12,
-        IMAGINE_TIMEOUT,
-        Some(&out_dir),
-    ) {
-        Ok(s) => s,
-        Err(code) => {
-            // Honest codes for UI: keep auth_required / cli_missing / timeout;
-            // map generic search_failed → imagine_failed.
-            let code = match code.as_str() {
-                "search_failed" => "imagine_failed".into(),
-                other => other.to_string(),
-            };
-            return WallpaperSearchResult {
-                items: vec![],
-                error_code: Some(code),
-                message: None,
-                meta: None,
-            };
-        }
-    };
-
-    let value = match extract_json_object(&stdout) {
-        Some(v) => v,
-        None => {
-            // Fallback: scan out_dir for any new images
-            let scanned = scan_dir_as_gallery(&out_dir, "imagine", Some(p));
-            if scanned.is_empty() {
-                return WallpaperSearchResult {
-                    items: vec![],
-                    error_code: Some("imagine_failed".into()),
-                    message: Some("could not parse imagine result".into()),
-                    meta: None,
-                };
-            }
-            return WallpaperSearchResult {
-                items: scanned,
-                error_code: None,
-                message: None,
-                meta: None,
-            };
-        }
-    };
-
-    let mut items = parse_gallery_items(&value, "imagine");
-    // Resolve local paths / grant scope
-    for it in items.iter_mut() {
-        if let Some(ref lp) = it.local_path {
-            let path = PathBuf::from(lp);
-            if path.is_file() {
-                crate::path_scope::grant_path(&path);
-                it.full_url = format!("file://{}", path.display());
-                it.thumb_url = it.full_url.clone();
-                it.kind = "image".into();
-                if it.prompt.is_none() {
-                    it.prompt = Some(p.to_string());
-                }
-            }
-        }
-    }
-    items.retain(|it| {
-        it.local_path
-            .as_ref()
-            .map(|p| Path::new(p).is_file())
-            .unwrap_or(false)
-    });
-
-    if items.is_empty() {
-        let scanned = scan_dir_as_gallery(&out_dir, "imagine", Some(p));
-        if scanned.is_empty() {
-            return WallpaperSearchResult {
-                items: vec![],
-                error_code: Some("empty".into()),
-                message: Some("no image produced".into()),
-                meta: None,
-            };
-        }
-        return WallpaperSearchResult {
-            items: scanned,
-            error_code: None,
-            message: None,
-            meta: None,
-        };
-    }
-
-    WallpaperSearchResult {
-        items,
-        error_code: None,
-        message: None,
-        meta: None,
-    }
-}
-
-fn scan_dir_as_gallery(
-    dir: &Path,
-    source: &str,
-    prompt: Option<&str>,
-) -> Vec<WallpaperGalleryItem> {
-    let mut entries: Vec<_> = fs::read_dir(dir)
-        .into_iter()
-        .flatten()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file())
-        .collect();
-    entries.sort_by_key(|e| {
-        std::cmp::Reverse(
-            e.metadata()
-                .and_then(|m| m.modified())
-                .ok()
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs())
-                .unwrap_or(0),
-        )
-    });
-
-    let mut out = Vec::new();
-    for (i, e) in entries.into_iter().take(12).enumerate() {
-        let path = e.path();
-        let ext = path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_ascii_lowercase();
-        if !matches!(
-            ext.as_str(),
-            "jpg" | "jpeg" | "png" | "webp" | "gif" | "mp4" | "webm"
-        ) {
-            continue;
-        }
-        crate::path_scope::grant_path(&path);
-        let path_str = path.display().to_string();
-        let kind = if matches!(ext.as_str(), "mp4" | "webm") {
-            "video"
-        } else {
-            "image"
-        };
-        out.push(WallpaperGalleryItem {
-            id: format!("{source}-scan-{i}-{}", short_hash(&path_str)),
-            thumb_url: format!("file://{path_str}"),
-            full_url: format!("file://{path_str}"),
-            kind: kind.into(),
-            width: None,
-            height: None,
-            source: source.into(),
-            username: None,
-            post_url: None,
-            text_preview: None,
-            likes: None,
-            local_path: Some(path_str),
-            prompt: prompt.map(|s| s.to_string()),
-            status_id: None,
-            media_index: None,
-            media_quality: None,
-            provenance: crate::wallpaper_source::WallpaperProvenance::empty(),
-            media_fingerprint: None,
-        });
-    }
-    out
 }
 
 pub fn library_list(limit: Option<u32>) -> Result<Vec<WallpaperLibraryEntry>, String> {

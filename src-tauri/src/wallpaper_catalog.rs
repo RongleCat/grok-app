@@ -417,6 +417,21 @@ fn lookup_at(root: &Path, requests: &[MediaLookup]) -> Result<Vec<MediaMatch>, S
     })
 }
 
+pub(crate) fn record_generation(
+    path: &Path,
+    prompt: Option<&str>,
+    parameters: GenerationParameters,
+    parent: Option<&Path>,
+) -> Result<MediaRecord, String> {
+    record_generation_at(
+        &wallpaper_source::wallpapers_root(),
+        path,
+        prompt,
+        parameters,
+        parent,
+    )
+}
+
 pub(crate) fn find_by_id(id: &str) -> Result<Option<WallpaperLibraryEntry>, String> {
     find_by_id_at(&wallpaper_source::wallpapers_root(), id)
 }
@@ -467,6 +482,37 @@ fn find_by_id_at(root: &Path, id: &str) -> Result<Option<WallpaperLibraryEntry>,
             modified_ms: record.modified_ms,
             metadata: Some(record.clone()),
         }))
+    })
+}
+
+fn record_generation_at(
+    root: &Path,
+    path: &Path,
+    prompt: Option<&str>,
+    parameters: GenerationParameters,
+    parent: Option<&Path>,
+) -> Result<MediaRecord, String> {
+    let relative = key(root, path)?;
+    transaction(root, |catalog| {
+        // Uploaded source images may never have appeared in a gallery scan.
+        // Persist their record now so parent navigation works immediately.
+        let parent_id = if let Some(parent) = parent {
+            let parent_key = key(root, parent)?;
+            let parent_record = record_for(root, parent, catalog.records.get(&parent_key))?;
+            let id = parent_record.id.clone();
+            catalog.insert(parent_key, parent_record);
+            Some(id)
+        } else {
+            None
+        };
+        let mut record = record_for(root, path, catalog.records.get(&relative))?;
+        record.source = "imagine".into();
+        record.purpose = "generated".into();
+        record.prompt = prompt.map(|value| value.chars().take(4_000).collect());
+        record.generation = Some(parameters);
+        record.parent_id = parent_id;
+        catalog.insert(relative, record.clone());
+        Ok(record)
     })
 }
 

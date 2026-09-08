@@ -225,6 +225,97 @@
   line-height: 1;
 }
 
+.wallpaper-imagine-source {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 28px 28px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+}
+
+.wallpaper-imagine-source__thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text-tertiary);
+}
+
+.wallpaper-imagine-source__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.wallpaper-imagine-source__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wallpaper-imagine-source__label {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.wallpaper-imagine-source__value {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallpaper-imagine-source__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.wallpaper-imagine-source__clear:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.wallpaper-imagine-source__clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.wallpaper-imagine-source__clear:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.wallpaper-imagine-form__options {
+  flex-wrap: wrap;
+}
+
+.wallpaper-imagine-form__options .wallpaper-source-form__select {
+  flex: 1 1 96px;
+}
+
 .wallpaper-source-modal .modal-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -343,6 +434,71 @@
   transition:
     border-color var(--motion-fast) ease,
     box-shadow var(--motion-fast) ease;
+}
+
+.wallpaper-masonry__media-shell {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.wallpaper-masonry__preview {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: zoom-in;
+  text-align: left;
+}
+
+.wallpaper-masonry__preview:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.wallpaper-masonry__video-action {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, #fff 35%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, #000 72%, var(--bg-elevated));
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px color-mix(in srgb, #000 40%, transparent);
+  transition:
+    background var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.wallpaper-masonry__video-action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 78%, #000);
+  transform: translateY(-1px);
+}
+
+.wallpaper-masonry__edit-action {
+  right: 48px;
+}
+
+.wallpaper-masonry__video-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.wallpaper-masonry__video-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .wallpaper-masonry--full .wallpaper-masonry__card {
@@ -467,6 +623,10 @@
 @media (max-width: 640px) {
   .wallpaper-masonry:not(.wallpaper-masonry--full) {
     column-count: 2;
+  }
+
+  .wallpaper-imagine-form__options > .btn {
+    width: 100%;
   }
 }
 

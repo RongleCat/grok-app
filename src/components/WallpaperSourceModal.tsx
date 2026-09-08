@@ -20,6 +20,7 @@ import {
 } from "react";
 import { useWallpaperProviderController } from "@/hooks/useWallpaperProviderController";
 import { useWallpaperGrokAlbum } from "@/hooks/useWallpaperGrokAlbum";
+import { useWallpaperImagineController } from "@/hooks/useWallpaperImagineController";
 import { useWallpaperLibrary } from "@/hooks/useWallpaperLibrary";
 import { useWallpaperCatalogMetadata } from "@/hooks/useWallpaperCatalogMetadata";
 import { useWallpaperMediaActions } from "@/hooks/useWallpaperMediaActions";
@@ -71,6 +72,7 @@ import { wallpaperRemoteProgressMessageKey } from "@/lib/wallpaperRemoteSearch";
 import { resolveGrokAlbumEmptyPresentation } from "@/lib/grokAlbum";
 import { cancelGrokAlbumMediaRequests } from "@/lib/grokAlbumMedia";
 import { ensureLocalWallpaperMedia } from "@/lib/wallpaperSourceMedia";
+import { isWallpaperImageItem } from "@/lib/wallpaperImagine";
 import type { MessageKey } from "@/i18n";
 
 export type WallpaperSourceTab = WallpaperSourceKind;
@@ -118,8 +120,6 @@ export function WallpaperSourceModal({
   const albumHistoryRevision = useRef(grokAlbum.historyRevision);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"top" | "latest">("top");
-  const [prompt, setPrompt] = useState("");
-  const [aspect, setAspect] = useState("16:9");
   const [items, setItems] = useState<WallpaperGalleryItem[]>([]);
   /** Client-side gallery filter (not the X search box). */
   const [galleryFilter, setGalleryFilter] = useState("");
@@ -172,7 +172,6 @@ export function WallpaperSourceModal({
     query: string;
     sort: "top" | "latest";
   } | null>(null);
-  const [operationBusy, setBusy] = useState(false);
   const [routeSaving, setRouteSaving] = useState(false);
   const {
     busy: xBusy,
@@ -192,6 +191,21 @@ export function WallpaperSourceModal({
   const [statusHint, setStatusHint] = useState<string | null>(null);
   /** Soft citation honesty after an X search (verified / unverified counts). */
   const [citeSummary, setCiteSummary] = useState<string | null>(null);
+
+  const imagineController = useWallpaperImagineController({
+    onGenerated: library.refresh,
+    open,
+    enabled: open && tab === "imagine",
+    t,
+    setItems,
+    setHasSearched,
+    setSelectedId,
+    setError,
+    setErrorCode,
+    setStatusHint,
+    setGalleryFilter,
+    setKindFilter,
+  });
 
   const providerSource =
     tab === "web" || tab === "openverse" || tab === "pexels" ? tab : null;
@@ -213,18 +227,26 @@ export function WallpaperSourceModal({
     providerSource,
   );
   const busy =
-    operationBusy ||
     xBusy ||
     routeSaving ||
     provider.busy ||
+    imagineController.busy ||
     (tab === "library" && (library.busy || library.loadingMore)) ||
     (tab === "grok_album" && grokAlbum.busy);
+  const interactionLocked =
+    (provider.busy && !provider.loadingMore) ||
+    routeSaving ||
+    (xBusy && !loadingMore) ||
+    imagineController.busy ||
+    applying ||
+    previewingId !== null;
   const close = useCallback(() => {
     void cancelX();
     void provider.cancel();
     cancelGrokAlbumMediaRequests();
+    imagineController.cancelAll();
     onClose();
-  }, [cancelX, provider.cancel, onClose]);
+  }, [cancelX, imagineController.cancelAll, provider.cancel, onClose]);
   useEffect(() => {
     if (!open || tab !== "x") void cancelX();
   }, [open, tab, cancelX]);
@@ -485,6 +507,7 @@ export function WallpaperSourceModal({
 
       void provider.cancel();
       if (tab === "grok_album") cancelGrokAlbumMediaRequests();
+      if (tab === "imagine") imagineController.cancelAll();
 
       setTab(nextTab);
       setQuery(saved?.query ?? "");
@@ -508,6 +531,7 @@ export function WallpaperSourceModal({
       galleryItems,
       hasSearched,
       kindFilter,
+      imagineController.cancelAll,
       libraryPurpose,
       provider.cancel,
       provider.capture,
@@ -529,7 +553,7 @@ export function WallpaperSourceModal({
   );
 
   const runXSearch = useCallback(async () => {
-    if (xBusy || operationBusy || routeSaving) return;
+    if (xBusy || routeSaving) return;
     setContinuation(null);
     const q = query.trim();
     if (!q) {
@@ -617,54 +641,7 @@ export function WallpaperSourceModal({
       setErrorCode(code);
       setError(errorMessage(t, code));
     }
-  }, [query, sort, t, searchX, xBusy, operationBusy, routeSaving]);
-
-  const runImagine = useCallback(async () => {
-    const p = prompt.trim();
-    if (!p) {
-      setErrorCode("empty");
-      setError(errorMessage(t, "empty"));
-      return;
-    }
-    if (!isDesktopHost()) {
-      setErrorCode("generic");
-      setError(t("settings.wallpaperSource.err.desktopOnly"));
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    setErrorCode(null);
-    setCiteSummary(null);
-    setStatusHint(t("settings.wallpaperSource.generating"));
-    setSelectedId(null);
-    setGalleryFilter("");
-    setKindFilter("all");
-    try {
-      const res = await api.wallpaperImagine(p, aspect);
-      const list = dedupeGalleryItems(res.items || []);
-      const code = errorCodeFromSearchResult({ ...res, items: list });
-      setHasSearched(true);
-      if (code) {
-        setItems([]);
-        setErrorCode(code);
-        setError(errorMessage(t, code));
-      } else {
-        setItems(list);
-        setError(null);
-        setErrorCode(null);
-        if (list[0]) setSelectedId(list[0].id);
-      }
-    } catch (e) {
-      setHasSearched(true);
-      setItems([]);
-      const code = parseWallpaperSourceError(e);
-      setErrorCode(code);
-      setError(errorMessage(t, code));
-    } finally {
-      setBusy(false);
-      setStatusHint(null);
-    }
-  }, [prompt, aspect, t]);
+  }, [query, sort, t, searchX, xBusy, routeSaving]);
 
   const dropItem = useCallback((id: string) => {
     setItems((prev) => prev.filter((it) => it.id !== id));
@@ -730,15 +707,7 @@ export function WallpaperSourceModal({
    */
   const openItemPreview = useCallback(
     async (item: WallpaperGalleryItem) => {
-      if (
-        (provider.busy && !provider.loadingMore) ||
-        operationBusy ||
-        routeSaving ||
-        (xBusy && !loadingMore) ||
-        applying ||
-        previewingId ||
-        mediaActions.busyIds.has(item.id)
-      ) {
+      if (interactionLocked || mediaActions.busyIds.has(item.id)) {
         return;
       }
       if (!isDesktopHost()) {
@@ -818,14 +787,7 @@ export function WallpaperSourceModal({
       }
     },
     [
-      provider.busy,
-      provider.loadingMore,
-      operationBusy,
-      routeSaving,
-      xBusy,
-      loadingMore,
-      applying,
-      previewingId,
+      interactionLocked,
       visibleItems,
       t,
       viewer,
@@ -839,6 +801,34 @@ export function WallpaperSourceModal({
       /* soft-fail: citation open is best-effort */
     });
   }, []);
+
+  const generateVideoFromItem = useCallback(
+    (item: WallpaperGalleryItem) => {
+      if (interactionLocked || !isWallpaperImageItem(item)) return;
+      imagineController.beginVideoFromItem(item);
+      if (tab !== "imagine") changeTab("imagine");
+    },
+    [
+      changeTab,
+      imagineController.beginVideoFromItem,
+      interactionLocked,
+      tab,
+    ],
+  );
+
+  const editImageFromItem = useCallback(
+    (item: WallpaperGalleryItem) => {
+      if (interactionLocked || !isWallpaperImageItem(item)) return;
+      imagineController.beginEditFromItem(item);
+      if (tab !== "imagine") changeTab("imagine");
+    },
+    [
+      changeTab,
+      imagineController.beginEditFromItem,
+      interactionLocked,
+      tab,
+    ],
+  );
 
   const applySelected = useCallback(async () => {
     if (!selected || mediaActions.busyIds.has(selected.id)) return;
@@ -883,7 +873,7 @@ export function WallpaperSourceModal({
   }, [selected, t, onPickFile, onClose, mediaActions.busyIds]);
 
   const runLoadMore = useCallback(async () => {
-    if (!continuation || xBusy || operationBusy || applying || routeSaving) return;
+    if (!continuation || xBusy || applying || routeSaving) return;
     setError(null);
     setErrorCode(null);
     try {
@@ -908,17 +898,10 @@ export function WallpaperSourceModal({
       setErrorCode(code);
       setError(errorMessage(t, code));
     }
-  }, [continuation, xBusy, operationBusy, applying, routeSaving, searchMore, t]);
+  }, [continuation, xBusy, applying, routeSaving, searchMore, t]);
 
   const authNeeded = errorCode === "auth_required";
   const locked = busy || applying || previewingId !== null;
-  const galleryLocked =
-    (provider.busy && !provider.loadingMore) ||
-    operationBusy ||
-    routeSaving ||
-    (xBusy && !loadingMore) ||
-    applying ||
-    previewingId !== null;
   const showGalleryFilters =
     tab === "library" || galleryItems.length > 0 || filtersActive;
   const softFailError =
@@ -948,7 +931,7 @@ export function WallpaperSourceModal({
             t={t}
             selected={selected !== null}
             locked={
-              galleryLocked ||
+              interactionLocked ||
               (selected !== null && mediaActions.busyIds.has(selected.id))
             }
             applying={applying}
@@ -960,7 +943,7 @@ export function WallpaperSourceModal({
         <WallpaperSourceTabs
           t={t}
           value={tab}
-          disabled={operationBusy || applying || previewingId !== null}
+          disabled={applying || previewingId !== null}
           panelId="wallpaper-source-panel"
           onChange={changeTab}
         />
@@ -1029,18 +1012,14 @@ export function WallpaperSourceModal({
               tab={tab}
               query={query}
               sort={sort}
-              prompt={prompt}
-              aspect={aspect}
+              imagine={imagineController.controls}
               busy={busy}
               xBusy={xBusy}
               locked={locked}
               setQuery={setQuery}
               setSort={setSort}
-              setPrompt={setPrompt}
-              setAspect={setAspect}
               runXSearch={runXSearch}
               cancelXSearch={cancelX}
-              runImagine={runImagine}
               loadLibrary={loadLibrary}
             />
           )}
@@ -1209,7 +1188,7 @@ export function WallpaperSourceModal({
             <button
               type="button"
               className="btn btn--ghost"
-              disabled={xBusy || operationBusy || applying || routeSaving}
+              disabled={xBusy || applying || routeSaving}
               onClick={() => void runLoadMore()}
             >
               {t(
@@ -1275,16 +1254,16 @@ export function WallpaperSourceModal({
               void mediaActions.toggleFavorite(item);
             }}
             onReusePrompt={(item) => {
-              if (galleryLocked) return;
-              const reused = item.metadata?.prompt || item.prompt;
-              if (!reused?.trim()) return;
-              setPrompt(reused.trim());
+              if (interactionLocked) return;
+              imagineController.reuseImagePrompt(item);
               if (tab !== "imagine") changeTab("imagine");
             }}
+            onGenerateVideo={generateVideoFromItem}
+            onEditImage={editImageFromItem}
             t={t}
             tab={tab}
             busy={busy}
-            locked={galleryLocked}
+            locked={interactionLocked}
             visibleItems={visibleItems}
             selectedId={selectedId}
             previewingId={previewingId}

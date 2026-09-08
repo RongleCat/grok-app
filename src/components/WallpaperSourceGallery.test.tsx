@@ -55,6 +55,8 @@ function galleryProps(visibleItems: WallpaperGalleryItem[]) {
     dropItem: vi.fn(),
     openExternalSource: vi.fn(),
     requestDeleteLibraryItem: vi.fn(),
+    onGenerateVideo: vi.fn(),
+    onEditImage: vi.fn(),
   };
 }
 
@@ -107,5 +109,41 @@ describe("WallpaperSourceGallery media details", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     view.rerender(<WallpaperSourceGallery {...galleryProps([item])} />);
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("offers edit and video creation for images without opening preview", () => {
+    const props = galleryProps([
+      item,
+      {
+        ...item,
+        id: "generated-video",
+        kind: "video",
+        localPath: "C:/wallpapers/generated-video.mp4",
+        fullUrl: "file:///C:/wallpapers/generated-video.mp4",
+        textPreview: "Generated video",
+      },
+    ]);
+    const { container } = render(<WallpaperSourceGallery {...props} />);
+
+    const edit = screen.getByRole("button", {
+      name: "settings.wallpaperSource.editImage: Saved artwork",
+    });
+    const video = screen.getByRole("button", {
+      name: "settings.wallpaperSource.generateVideoFromImage: Saved artwork",
+    });
+    fireEvent.click(edit);
+    fireEvent.click(video);
+
+    expect(props.onEditImage).toHaveBeenCalledWith(item);
+    expect(props.onGenerateVideo).toHaveBeenCalledWith(item);
+    expect(props.openItemPreview).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", {
+        name: "settings.wallpaperSource.generateVideoFromImage: Generated video",
+      }),
+    ).toBeNull();
+    expect(container.querySelector("video")?.getAttribute("preload")).toBe(
+      "metadata",
+    );
   });
 });

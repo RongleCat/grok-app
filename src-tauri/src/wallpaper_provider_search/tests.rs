@@ -4,6 +4,7 @@ use url::Url;
 
 fn gallery_item(id: usize) -> WallpaperGalleryItem {
     WallpaperGalleryItem {
+        metadata: None,
         id: format!("item-{id}"),
         thumb_url: format!("https://images.example/{id}.jpg"),
         full_url: format!("https://images.example/{id}.jpg"),

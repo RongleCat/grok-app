@@ -13,7 +13,8 @@ import { resolveImageSrcSync } from "@/lib/imageSrc";
 import { WallpaperProviderThumbnail } from "./WallpaperProviderThumbnail";
 import { GrokAlbumThumbnail } from "./GrokAlbumThumbnail";
 import { WallpaperMediaDetails } from "./WallpaperMediaDetails";
-import { IconHeart, IconInfo } from "./icons";
+import { IconEdit, IconHeart, IconInfo, IconPlay } from "./icons";
+import { isWallpaperImageItem } from "@/lib/wallpaperImagine";
 
 type Props = {
   t: WallpaperSourceModalProps["t"];
@@ -33,6 +34,8 @@ type Props = {
   favoriteBusyIds?: ReadonlySet<string>;
   onToggleFavorite?: (item: WallpaperGalleryItem) => void;
   onReusePrompt?: (item: WallpaperGalleryItem) => void;
+  onGenerateVideo: (item: WallpaperGalleryItem) => void;
+  onEditImage: (item: WallpaperGalleryItem) => void;
   scrollRef?: RefObject<HTMLDivElement | null>;
 };
 
@@ -86,6 +89,8 @@ export function WallpaperSourceGallery({
   favoriteBusyIds,
   onToggleFavorite,
   onReusePrompt,
+  onGenerateVideo,
+  onEditImage,
   scrollRef,
 }: Props) {
   const isImagineLayout = tab === "imagine";
@@ -165,6 +170,10 @@ export function WallpaperSourceGallery({
             const active = item.id === selectedId;
             const loadingThis = previewingId === item.id;
             const src = itemThumbSrc(item);
+            const canCreateFromImage = isWallpaperImageItem(item);
+            const localVideo =
+              item.kind === "video" &&
+              (!!item.localPath || item.fullUrl.startsWith("file://"));
             const cite =
               item.source === "x" || (!item.source && tab === "x")
                 ? resolveWallpaperXCitation(item)
@@ -178,45 +187,107 @@ export function WallpaperSourceGallery({
                 }
                 role="listitem"
               >
-                <button
-                  type="button"
+                <div
                   className={
                     "wallpaper-masonry__card" +
                     (active ? " wallpaper-masonry__card--selected" : "") +
                     (loadingThis ? " wallpaper-masonry__card--loading" : "")
                   }
-                  disabled={
-                    (locked && !loadingThis) || favoriteBusyIds?.has(item.id)
-                  }
-                  onClick={() => void openItemPreview(item)}
-                  aria-label={t("settings.wallpaperSource.openPreview")}
                 >
-                  {item.source === "grok_album" && !isLibraryTab ? (
-                    <GrokAlbumThumbnail
-                      url={item.thumbUrl || item.fullUrl}
-                      alt={item.textPreview || item.prompt || item.username || ""}
-                      width={item.width}
-                      height={item.height}
-                      itemId={item.id}
-                      onUnavailable={dropItem}
-                    />
-                  ) : item.source === "openverse" || item.source === "pexels" ? (
-                    <WallpaperProviderThumbnail item={item} t={t} />
-                  ) : (
-                    <img
-                      src={src}
-                      alt={
-                        item.textPreview || item.prompt || item.username || ""
+                  <div className="wallpaper-masonry__media-shell">
+                    <button
+                      type="button"
+                      className="wallpaper-masonry__preview"
+                      disabled={
+                        (locked && !loadingThis) ||
+                        favoriteBusyIds?.has(item.id)
                       }
-                      className="wallpaper-masonry__img"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                      onError={() => {
-                        // Thumb failed — remove undownloadable / broken entry
-                        dropItem(item.id);
-                      }}
-                    />
-                  )}
+                      onClick={() => void openItemPreview(item)}
+                      aria-pressed={active}
+                      aria-label={t("settings.wallpaperSource.openPreview")}
+                    >
+                      {item.source === "grok_album" && !isLibraryTab ? (
+                        <GrokAlbumThumbnail
+                          url={item.thumbUrl || item.fullUrl}
+                          alt={item.textPreview || item.prompt || item.username || ""}
+                          width={item.width}
+                          height={item.height}
+                          itemId={item.id}
+                          onUnavailable={dropItem}
+                        />
+                      ) : item.source === "openverse" || item.source === "pexels" ? (
+                        <WallpaperProviderThumbnail item={item} t={t} />
+                      ) : localVideo ? (
+                        <video
+                          src={src}
+                          className="wallpaper-masonry__img"
+                          muted
+                          playsInline
+                          preload="metadata"
+                          aria-hidden="true"
+                          onError={() => dropItem(item.id)}
+                        />
+                      ) : (
+                        <img
+                          src={src}
+                          alt={
+                            item.textPreview || item.prompt || item.username || ""
+                          }
+                          className="wallpaper-masonry__img"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          onError={() => {
+                            // Thumb failed - remove undownloadable / broken entry.
+                            dropItem(item.id);
+                          }}
+                        />
+                      )}
+                    </button>
+                    {canCreateFromImage ? (
+                      <>
+                        <button
+                          type="button"
+                          className="wallpaper-masonry__video-action wallpaper-masonry__edit-action"
+                          disabled={locked || loadingThis}
+                          aria-label={itemActionAccessibleName(
+                            t,
+                            "settings.wallpaperSource.editImage",
+                            item,
+                            index,
+                          )}
+                          title={t("settings.wallpaperSource.editImage")}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            onEditImage(item);
+                          }}
+                        >
+                          <IconEdit size={16} aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          className="wallpaper-masonry__video-action"
+                          disabled={locked || loadingThis}
+                          aria-label={itemActionAccessibleName(
+                            t,
+                            "settings.wallpaperSource.generateVideoFromImage",
+                            item,
+                            index,
+                          )}
+                          title={t(
+                            "settings.wallpaperSource.generateVideoFromImage",
+                          )}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            onGenerateVideo(item);
+                          }}
+                        >
+                          <IconPlay size={16} aria-hidden />
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
                   <span className="wallpaper-masonry__meta">
                     {loadingThis
                       ? t("settings.wallpaperSource.loadingOriginal")
@@ -245,7 +316,7 @@ export function WallpaperSourceGallery({
                           : t("settings.wallpaperLibrary")
                       : null}
                   </span>
-                </button>
+                </div>
                 <button
                   type="button"
                   className="wallpaper-masonry__details"

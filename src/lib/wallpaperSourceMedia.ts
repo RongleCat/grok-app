@@ -1,5 +1,8 @@
 import * as api from "@/lib/api";
-import { fetchGrokAlbumMedia } from "@/lib/grokAlbumMedia";
+import {
+  cancelGrokAlbumMediaRequests,
+  fetchGrokAlbumMedia,
+} from "@/lib/grokAlbumMedia";
 import { createWallpaperRequestId } from "@/lib/wallpaperRequest";
 import {
   resolveApplySource,
@@ -10,6 +13,14 @@ import {
   isWallpaperRemoteSource,
   type WallpaperRemoteSource,
 } from "@/lib/wallpaperRemoteSearch";
+import { clearRemoteWallpaperThumbnailCache } from "@/lib/remoteWallpaperThumbnail";
+
+export { cancelGrokAlbumMediaRequests };
+
+export async function cancelRemoteWallpaperMediaRequests(): Promise<void> {
+  clearRemoteWallpaperThumbnailCache();
+  await Promise.allSettled([api.wallpaperRemoteCancelAllMediaRequests()]);
+}
 
 export type LocalWallpaperMedia = {
   path: string;

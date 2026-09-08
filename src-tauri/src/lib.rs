@@ -226,6 +226,7 @@ mod voice_tools;
 
 mod wallpaper_catalog;
 mod wallpaper_grok_album;
+mod wallpaper_imagine_video;
 mod wallpaper_library;
 mod wallpaper_provider_search;
 mod wallpaper_remote_commands;
@@ -1723,6 +1724,14 @@ pub fn run() {
             commands::wallpaper_fetch_media,
 
             commands::wallpaper_imagine,
+
+            commands::wallpaper_image_to_video,
+
+            commands::wallpaper_image_to_video_cancel,
+
+            commands::wallpaper_image_edit,
+
+            commands::wallpaper_import_image,
 
             commands::wallpaper_library_list,
 

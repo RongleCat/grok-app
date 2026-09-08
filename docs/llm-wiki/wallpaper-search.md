@@ -348,3 +348,60 @@ is cancelled if the details layer closes while preview resolution is pending.
 Prompt reuse only prefills the existing Imagine form and switches to that
 source when needed; it never starts generation automatically. Filtering away a
 card closes its details and restoring the card does not reopen stale UI state.
+
+## Imagine generation, image editing and image-to-video
+
+The Imagine source owns three explicit modes: generate an image, edit a selected
+image, and animate a selected image. Every image card can open the edit or video
+mode; video cards expose neither action. Selecting an action first materializes
+the image through its existing source-specific Host path. Public providers keep
+their HTTPS, signature and provenance checks, while Grok Saved keeps its isolated
+WebView bridge. Browser cookies, tokens and caller-supplied headers never cross
+into the main renderer or these generation commands.
+
+Plain image generation uses a fresh UUID request, output directory and restricted
+`image_gen` session. Image editing uses the same bounded source snapshot and the
+restricted `image_edit` tool. `auto` sends one reference; explicit `16:9`, `9:16`,
+`1:1` and `4:3` edits send the same immutable snapshot twice so the upstream
+multi-reference contract applies its native aspect ratio. The Host audits exactly
+one completed call with the requested prompt, ratio and source. It rejects changed
+arguments, extra calls, ambiguous outputs and stale files instead of scanning an
+older output directory or trusting final model prose. Neither operation retries or
+creates variants automatically.
+
+Video mode immediately fills an editable, localized motion prompt without another
+model or network request. Only an Imagine item's original prompt may contribute up
+to 240 Unicode characters of scene context; captions, URLs, Saved timestamps and
+copy from every other source are excluded. Control and bidi characters are removed
+while ZWJ and ZWNJ are preserved. The available options are 6 or 10 seconds and
+480p or 720p, defaulting to 6 seconds and 480p.
+
+`wallpaper_image_to_video` runs the local Grok Build CLI with low effort, at most
+three turns and a 420-second hard timeout. The runner fixes `--tools` to the one
+requested media tool, disallows `search_tool,use_tool`, disables web search and
+subagents, creates a new session UUID, and uses the canonical shared `GROK_HOME`.
+The renderer cannot choose a model, tool, CLI argument or output directory. The
+Host accepts only the one audited result from that session's `videos` directory,
+then revalidates path containment, signature, MIME, extension and the 200 MiB
+limit before copying it into the owned wallpaper directory.
+
+AVIF, WebP and GIF inputs are decoded in the app WebView to a PNG with a 2,048 px
+maximum edge. Raw IPC input is limited to 40 MiB and the encoded PNG to 20 MiB.
+The Host independently validates the original path inside the wallpaper root,
+limits decoding to 16,384 px per edge, 50 million pixels and 256 MiB allocation,
+applies EXIF orientation after bounded resizing, strips metadata and writes a new
+task-local PNG snapshot. No shell, ffmpeg or user-installed converter is used.
+
+All three modes share sticky UUID cancellation, including cancellation that arrives
+before Host registration. Cancelling, closing the picker, leaving Imagine or
+unmounting terminates the process tree, ignores late renderer results and removes
+failed task output. Successful media is registered in the catalog as generated
+content with the audited prompt and parameters; edit and video records also keep
+the source media as their parent. A catalog write failure preserves the generated
+file and returns `catalog_write_failed` without silently rerunning generation.
+
+Upstream failures are classified only after auditing the complete tool log. Known
+tool-owned HTTP and transport prefixes map to stable auth, access, rate-limit,
+request, upstream, network and timeout codes. URLs, response bodies and model text
+are never parsed for error classification. The form and existing gallery remain
+available for an explicit manual retry.
