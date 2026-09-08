@@ -22,7 +22,10 @@ vi.mock("@/lib/api", () => ({
   listenWallpaperXSearchProgress: vi.fn(async () => () => {}),
   listenWallpaperXSearchBatch: vi.fn(async () => () => {}),
   wallpaperFetchMedia: vi.fn(async () => ({ path: "C:/cache/sky.jpg", mime: "image/jpeg", name: "sky.jpg" })),
-  wallpaperImagine: vi.fn(), wallpaperLibraryList: vi.fn(), wallpaperLibraryDelete: vi.fn(), openExternalUrl: vi.fn(),
+  wallpaperImagine: vi.fn(), wallpaperLibraryList: vi.fn(), wallpaperLibraryDelete: vi.fn(),
+  wallpaperLibraryLookup: vi.fn(async () => []),
+  wallpaperLibraryRemember: vi.fn(async () => undefined),
+  openExternalUrl: vi.fn(),
 }));
 vi.mock("@/components/ImageViewerContext", () => ({ useImageViewerOptional: () => ({ open: mocks.preview }) }));
 vi.mock("@/components/Select", () => ({ Select: ({ value }: { value: string }) => <span>{value}</span> }));

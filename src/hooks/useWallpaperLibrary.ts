@@ -33,6 +33,38 @@ const CACHE_TTL = 20 * 60 * 1000;
 const MAX_CACHED_QUERIES = 8;
 const MAX_CACHED_ITEMS = 2_000;
 
+function excludeLibraryItems(
+  previous: Entry,
+  shouldRemove: (item: WallpaperGalleryItem) => boolean,
+): Entry {
+  const removed = previous.value.items.filter(shouldRemove);
+  if (!removed.length) return previous;
+  const removedIds = new Set(removed.map((item) => item.id));
+  const removedVideos = removed.filter((item) => item.kind === "video").length;
+  const page = previous.value.page;
+  return {
+    ...previous,
+    value: {
+      ...previous.value,
+      items: previous.value.items.filter((item) => !removedIds.has(item.id)),
+      page: page
+        ? {
+            ...page,
+            total: Math.max(0, page.total - removed.length),
+            kindCounts: {
+              all: Math.max(0, page.kindCounts.all - removed.length),
+              image: Math.max(
+                0,
+                page.kindCounts.image - (removed.length - removedVideos),
+              ),
+              video: Math.max(0, page.kindCounts.video - removedVideos),
+            },
+          }
+        : null,
+    },
+  };
+}
+
 export function useWallpaperLibrary(
   enabled: boolean,
   query: string,
@@ -196,7 +228,13 @@ export function useWallpaperLibrary(
             ...latest.value.items,
             ...libraryEntriesToGalleryItems(page.items, { staticFirst: false }),
           ],
-          page,
+          page: {
+            ...page,
+            // Host counts belong to the original snapshot. Keep adjustments
+            // from local removals, including those completed before loadMore.
+            total: latest.value.page?.total ?? page.total,
+            kindCounts: latest.value.page?.kindCounts ?? page.kindCounts,
+          },
           error: null,
           loadingMore: false,
         },
@@ -229,13 +267,8 @@ export function useWallpaperLibrary(
 
   const remove = useCallback(
     (id: string) => {
-      const withoutItem = (previous: Entry): Entry => ({
-        ...previous,
-        value: {
-          ...previous.value,
-          items: previous.value.items.filter((item) => item.id !== id),
-        },
-      });
+      const withoutItem = (previous: Entry) =>
+        excludeLibraryItems(previous, (item) => item.id === id);
       for (const [cachedKey, previous] of cache.current) {
         cache.current.set(cachedKey, withoutItem(previous));
       }
@@ -246,22 +279,28 @@ export function useWallpaperLibrary(
 
   const updateItem = useCallback(
     (item: WallpaperGalleryItem) => {
-      const patchEntry = (previous: Entry): Entry => ({
-        ...previous,
-        value: {
-          ...previous.value,
-          items: previous.value.items.flatMap((row) => {
-            if (row.localPath !== item.localPath) return [row];
-            if (
-              JSON.parse(previous.key)[2] === "favorites" &&
-              !item.metadata?.favorite
-            ) {
-              return [];
-            }
-            return [{ ...row, metadata: item.metadata }];
-          }),
-        },
-      });
+      const patchEntry = (previous: Entry): Entry => {
+        if (
+          JSON.parse(previous.key)[2] === "favorites" &&
+          !item.metadata?.favorite
+        ) {
+          return excludeLibraryItems(
+            previous,
+            (row) => row.localPath === item.localPath,
+          );
+        }
+        return {
+          ...previous,
+          value: {
+            ...previous.value,
+            items: previous.value.items.map((row) =>
+              row.localPath === item.localPath
+                ? { ...row, metadata: item.metadata }
+                : row,
+            ),
+          },
+        };
+      };
       // A new favorite/download can affect views which have not loaded that row.
       cache.current.clear();
       replaceEntry(entryRef.current ? patchEntry(entryRef.current) : null);

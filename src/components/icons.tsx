@@ -63,6 +63,7 @@ import {
   IconFolder as TbFolder,
   IconFolderPlus as TbFolderPlus,
   IconHandStop as TbHandStop,
+  IconHeart as TbHeart,
   IconHelp as TbHelp,
   IconHome as TbHome,
   IconHexagon as TbHexagon,
@@ -253,6 +254,7 @@ export const IconSeparator = wrap(TbSeparator);
 export const IconCrop = wrap(TbCrop);
 export const IconNotes = wrap(TbNotes);
 export const IconImagine = wrap(TbWand);
+export const IconHeart = wrap(TbHeart);
 export const IconVideo = wrap(TbMovie);
 export const IconAutomations = wrap(TbBolt);
 /** Scheduled / “已安排” nav — calendar clock. */

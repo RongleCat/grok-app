@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
     path: "C:/cache/sky.jpg",
     mime: "image/jpeg",
   })),
+  libraryLookup: vi.fn(),
+  libraryRemember: vi.fn(),
   openExternal: vi.fn(async (_url: string) => undefined),
 }));
 vi.mock("@/lib/api", () => ({
@@ -34,7 +36,10 @@ vi.mock("@/lib/api", () => ({
   listenWallpaperXSearchProgress: vi.fn(async () => () => {}),
   listenWallpaperXSearchBatch: vi.fn(async () => () => {}),
   wallpaperFetchMedia: vi.fn(async () => ({ path: "C:/cache/sky.jpg", mime: "image/jpeg", name: "sky.jpg" })),
-  wallpaperImagine: vi.fn(), wallpaperLibraryList: vi.fn(), wallpaperLibraryDelete: vi.fn(), openExternalUrl: mocks.openExternal,
+  wallpaperImagine: vi.fn(), wallpaperLibraryList: vi.fn(), wallpaperLibraryDelete: vi.fn(),
+  wallpaperLibraryLookup: mocks.libraryLookup,
+  wallpaperLibraryRemember: mocks.libraryRemember,
+  openExternalUrl: mocks.openExternal,
 }));
 vi.mock("@/components/ImageViewerContext", () => ({ useImageViewerOptional: () => ({ open: mocks.preview }) }));
 vi.mock("@/components/Select", () => ({ Select: ({ value }: { value: string }) => <span>{value}</span> }));
@@ -102,6 +107,14 @@ async function initial(ids = ["first"]) {
   return view;
 }
 beforeEach(() => {
+  mocks.libraryLookup.mockResolvedValue([]);
+  mocks.libraryRemember.mockImplementation(
+    async (_path: string, media: { source: string }, favorite?: boolean) => ({
+      id: "saved-media",
+      source: media.source,
+      favorite: favorite ?? false,
+    }),
+  );
   mocks.thumbnail.mockResolvedValue({
     dataUrl: "data:image/jpeg;base64,AA==",
     width: 100,
@@ -160,6 +173,101 @@ it("searches and previews Web results through the remote media pipeline", async 
   );
   expect(mocks.preview).toHaveBeenCalledTimes(1);
 });
+it("favorites a provider result without downloading it again to unfavorite", async () => {
+  await initial(["favorite"]);
+
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "settings.wallpaperSource.library.favorite",
+    }),
+  );
+  await waitFor(() => expect(mocks.libraryRemember).toHaveBeenCalledTimes(2));
+  expect(mocks.libraryRemember).toHaveBeenLastCalledWith(
+    "C:/cache/sky.jpg",
+    expect.objectContaining({ id: "favorite" }),
+    true,
+  );
+  expect(mocks.remoteFetch).toHaveBeenCalledTimes(1);
+  expect(
+    screen
+      .getByRole("button", {
+        name: "settings.wallpaperSource.library.unfavorite",
+      })
+      .getAttribute("aria-pressed"),
+  ).toBe("true");
+
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "settings.wallpaperSource.library.unfavorite",
+    }),
+  );
+  await waitFor(() => expect(mocks.libraryRemember).toHaveBeenCalledTimes(3));
+  expect(mocks.libraryRemember).toHaveBeenLastCalledWith(
+    "C:/cache/sky.jpg",
+    expect.objectContaining({ id: "favorite" }),
+    false,
+  );
+  expect(mocks.remoteFetch).toHaveBeenCalledTimes(1);
+  expect(
+    screen
+      .getByRole("button", {
+        name: "settings.wallpaperSource.library.favorite",
+      })
+      .getAttribute("aria-pressed"),
+  ).toBe("false");
+});
+it("keeps the card after a catalog failure and clears the error on favorite retry", async () => {
+  mocks.libraryRemember.mockRejectedValueOnce(new Error("catalog_write_failed"));
+  await initial(["retry-save"]);
+  const favorite = () => screen.getByRole("button", {
+    name: "settings.wallpaperSource.library.favorite",
+  });
+
+  fireEvent.click(favorite());
+  await screen.findByText("settings.wallpaperSource.library.saveFailed");
+  expect(cards()).toHaveLength(1);
+  expect(favorite().hasAttribute("disabled")).toBe(false);
+
+  fireEvent.click(favorite());
+  await screen.findByRole("button", {
+    name: "settings.wallpaperSource.library.unfavorite",
+  });
+  expect(screen.queryByText("settings.wallpaperSource.library.saveFailed")).toBeNull();
+  expect(mocks.preview).not.toHaveBeenCalled();
+});
+
+it("keeps a preview card retryable when saving its provenance fails", async () => {
+  mocks.libraryRemember.mockRejectedValueOnce(new Error("catalog_write_failed"));
+  await initial(["preview-save"]);
+
+  fireEvent.click(cards()[0]);
+  await screen.findByText("settings.wallpaperSource.library.saveFailed");
+  expect(cards()).toHaveLength(1);
+  expect(mocks.preview).not.toHaveBeenCalled();
+  fireEvent.click(cards()[0]);
+  await waitFor(() => expect(mocks.preview).toHaveBeenCalledTimes(1));
+});
+
+it("disables preview only for the card whose favorite is being saved", async () => {
+  let finish!: (metadata: { favorite: boolean }) => void;
+  mocks.libraryRemember.mockReturnValueOnce(new Promise((resolve) => {
+    finish = resolve;
+  }));
+  await initial(["saving"]);
+  fireEvent.click(screen.getByRole("button", {
+    name: "settings.wallpaperSource.library.favorite",
+  }));
+  await waitFor(() => expect(mocks.libraryRemember).toHaveBeenCalledTimes(1));
+  expect(cards()[0].hasAttribute("disabled")).toBe(true);
+  fireEvent.click(cards()[0]);
+  expect(mocks.preview).not.toHaveBeenCalled();
+  finish({ favorite: false });
+  await screen.findByRole("button", {
+    name: "settings.wallpaperSource.library.unfavorite",
+  });
+  expect(cards()[0].hasAttribute("disabled")).toBe(false);
+});
+
 it("preserves provider results after paging failure and allows a fresh retry", async () => {
   mocks.more
     .mockResolvedValueOnce({ ...result([]), errorCode: "provider_network" })

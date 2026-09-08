@@ -35,6 +35,8 @@ vi.mock("@/lib/api", () => ({
   wallpaperImagine: vi.fn(),
   wallpaperLibraryList: vi.fn(),
   wallpaperLibraryDelete: vi.fn(),
+  wallpaperLibraryLookup: vi.fn(async () => []),
+  wallpaperLibraryRemember: vi.fn(async () => undefined),
   openExternalUrl: vi.fn(),
 }));
 

@@ -281,3 +281,26 @@ pairs and returns only unchanged local files; replacements at the same path get 
 new identity and cannot inherit an old remote-origin association. Lookup by media
 ID applies the same containment, signature and replacement checks. The legacy
 list and delete commands remain registered for existing clients.
+
+## Catalog actions in the source picker
+
+Each media card offers a local favorite toggle. Remote originals are downloaded
+through their existing source-specific Host path and registered with source,
+author and license metadata before saving favorite state. Cards with an existing
+local path reuse that file. Unfavoriting removes the card from the Favorites
+view immediately but preserves the media file in All media.
+
+Search results recover unchanged local paths, known dimensions and favorite
+state through catalog lookups of at most 96 source/media pairs. Late lookups
+cannot overwrite a newer favorite or update a closed source. Grok Saved cards
+are eligible only while the isolated album reports ready; this lookup does not
+replace its authentication or media-transfer boundary.
+
+While a favorite is saving, duplicate toggles and preview/delete/apply actions
+on that card are disabled. Source changes and close invalidate pending UI
+updates. Failures preserve the previous favorite state and allow retry; a
+successful retry clears the save error. A catalog failure during preview keeps
+the card available, since a metadata failure does not invalidate the image.
+Removing a visible row also updates its collection and media-kind counts; a
+later snapshot page cannot restore the old counts. An empty filtered library
+offers the existing clear-filter action instead of claiming no files are saved.

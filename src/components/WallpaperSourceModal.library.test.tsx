@@ -8,11 +8,15 @@ import type { WallpaperLibraryPage } from "@/lib/api/wallpaper";
 const mocks = vi.hoisted(() => ({
   page: vi.fn(),
   preview: vi.fn(),
+  remember: vi.fn(),
+  delete: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
   wallpaperLibraryPage: mocks.page,
-  wallpaperLibraryDelete: vi.fn(),
+  wallpaperLibraryDelete: mocks.delete,
+  wallpaperLibraryLookup: vi.fn(async () => []),
+  wallpaperLibraryRemember: mocks.remember,
   wallpaperRemoteSearch: vi.fn(),
   wallpaperRemoteSearchMore: vi.fn(),
   wallpaperRemoteSearchCancel: vi.fn(async () => true),
@@ -129,6 +133,39 @@ afterEach(() => {
 });
 
 describe("WallpaperSourceModal library paging", () => {
+  it("removes an unfavorited item from the favorites view without deleting its file", async () => {
+    const savedPage = page("favorite");
+    savedPage.total = 1;
+    savedPage.kindCounts = { all: 1, image: 1, video: 0 };
+    savedPage.items[0].metadata = {
+      id: "favorite-id", source: "library", sourceUrl: null, license: null,
+      licenseUrl: null, title: null, width: null, height: null, prompt: null,
+      generation: null, parentId: null, favorite: true, purpose: "cache",
+      bytes: 100, modifiedMs: 1,
+    };
+    mocks.page.mockResolvedValue(savedPage);
+    mocks.remember.mockResolvedValue({ ...savedPage.items[0].metadata, favorite: false });
+    renderLibrary();
+    await screen.findByRole("button", { name: "settings.wallpaperSource.library.unfavorite" });
+    fireEvent.change(screen.getByLabelText("settings.wallpaperSource.library.collection"), {
+      target: { value: "favorites" },
+    });
+    const unfavorite = await screen.findByRole("button", {
+      name: "settings.wallpaperSource.library.unfavorite",
+    });
+    fireEvent.click(unfavorite);
+    await waitFor(() => expect(screen.queryByRole("listitem")).toBeNull());
+    expect(screen.getByRole("button", {
+      name: /^settings\.wallpaperSource\.kind\.all\s*0$/,
+    })).toBeTruthy();
+    expect(screen.getByText("settings.wallpaperSource.empty.filterEmpty")).toBeTruthy();
+    expect(screen.queryByText("settings.wallpaperSource.empty.libraryIdleHint")).toBeNull();
+    expect(mocks.remember).toHaveBeenCalledWith(
+      "C:/wallpapers/favorite.png", expect.objectContaining({ localPath: "C:/wallpapers/favorite.png" }), false,
+    );
+    expect(mocks.delete).not.toHaveBeenCalled();
+  });
+
   it("keeps loaded cards selectable while the next page is pending", async () => {
     const pending = deferred<WallpaperLibraryPage>();
     mocks.page
