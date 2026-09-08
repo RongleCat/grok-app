@@ -304,3 +304,22 @@ the card available, since a metadata failure does not invalidate the image.
 Removing a visible row also updates its collection and media-kind counts; a
 later snapshot page cannot restore the old counts. An empty filtered library
 offers the existing clear-filter action instead of claiming no files are saved.
+
+## Media details and generation lineage
+
+Every visible card exposes a separate information action. The nested details
+dialog shows known pixel dimensions, file size, source, author, license, local
+path, prompt and recorded generation parameters without making unknown legacy
+fields appear authoritative. Public attribution actions accept only HTTPS URLs
+without embedded credentials and remove query strings and fragments before
+opening them.
+
+Generated media can resolve its recorded parent through the catalog's bounded
+ID lookup. Missing, replaced or invalid parents leave the current details open
+with a retryable message. Late lookups are discarded after close or card
+replacement. A parent preview owns Escape before the nested details dialog and
+is cancelled if the details layer closes while preview resolution is pending.
+
+Prompt reuse only prefills the existing Imagine form and switches to that
+source when needed; it never starts generation automatically. Filtering away a
+card closes its details and restoring the card does not reopen stale UI state.

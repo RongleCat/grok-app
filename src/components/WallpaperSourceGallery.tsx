@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import type { MessageKey } from "@/i18n";
 import type { WallpaperSourceModalProps, WallpaperSourceTab } from "./WallpaperSourceModal";
 import type { WallpaperGalleryItem } from "@/lib/wallpaperSource";
@@ -7,7 +7,8 @@ import { resolveWallpaperXCitation } from "@/lib/xEvidenceCitation";
 import { resolveImageSrcSync } from "@/lib/imageSrc";
 import { WallpaperProviderThumbnail } from "./WallpaperProviderThumbnail";
 import { GrokAlbumThumbnail } from "./GrokAlbumThumbnail";
-import { IconHeart } from "./icons";
+import { WallpaperMediaDetails } from "./WallpaperMediaDetails";
+import { IconHeart, IconInfo } from "./icons";
 
 type Props = {
   t: WallpaperSourceModalProps["t"];
@@ -26,6 +27,7 @@ type Props = {
   requestDeleteLibraryItem: (item: WallpaperGalleryItem, event: MouseEvent) => void;
   favoriteBusyIds?: ReadonlySet<string>;
   onToggleFavorite?: (item: WallpaperGalleryItem) => void;
+  onReusePrompt?: (item: WallpaperGalleryItem) => void;
 };
 
 /** Thumb / list preview (remote thumb OK). */
@@ -42,6 +44,22 @@ function itemThumbSrc(item: WallpaperGalleryItem): string {
     return resolveImageSrcSync(p) || item.thumbUrl || item.fullUrl;
   }
   return item.thumbUrl || item.fullUrl;
+}
+
+function itemActionAccessibleName(
+  t: WallpaperSourceModalProps["t"],
+  actionKey: MessageKey,
+  item: WallpaperGalleryItem,
+  index: number,
+): string {
+  const context =
+    item.textPreview?.trim() ||
+    item.prompt?.trim() ||
+    item.username?.trim() ||
+    item.sourceName?.trim() ||
+    item.id.trim() ||
+    String(index + 1);
+  return `${t(actionKey)}: ${context}`;
 }
 
 export function WallpaperSourceGallery({
@@ -61,9 +79,27 @@ export function WallpaperSourceGallery({
   requestDeleteLibraryItem,
   favoriteBusyIds,
   onToggleFavorite,
+  onReusePrompt,
 }: Props) {
   const isImagineLayout = tab === "imagine";
   const isLibraryTab = tab === "library";
+  const [details, setDetails] = useState<{ tab: string; id: string } | null>(
+    null,
+  );
+  const detailsItem =
+    details?.tab === tab
+      ? visibleItems.find((item) => item.id === details.id) ?? null
+      : null;
+
+  useEffect(() => {
+    setDetails((current) =>
+      current?.tab === tab &&
+      visibleItems.some((item) => item.id === current.id)
+        ? current
+        : null,
+    );
+  }, [tab, visibleItems]);
+
   return (
     <>
       {/*
@@ -117,7 +153,7 @@ export function WallpaperSourceGallery({
               ) : null}
             </div>
           ) : null}
-          {visibleItems.map((item) => {
+          {visibleItems.map((item, index) => {
             const active = item.id === selectedId;
             const loadingThis = previewingId === item.id;
             const src = itemThumbSrc(item);
@@ -201,6 +237,21 @@ export function WallpaperSourceGallery({
                           : t("settings.wallpaperLibrary")
                       : null}
                   </span>
+                </button>
+                <button
+                  type="button"
+                  className="wallpaper-masonry__details"
+                  disabled={locked || favoriteBusyIds?.has(item.id)}
+                  title={t("settings.wallpaperSource.details.title")}
+                  aria-label={itemActionAccessibleName(
+                    t,
+                    "settings.wallpaperSource.details.title",
+                    item,
+                    index,
+                  )}
+                  onClick={() => setDetails({ tab, id: item.id })}
+                >
+                  <IconInfo size={15} aria-hidden />
                 </button>
                 {item.sourceUrl ? (
                   <div className="wallpaper-masonry__cite">
@@ -325,6 +376,21 @@ export function WallpaperSourceGallery({
           })}
         </div>
       </div>
+      <WallpaperMediaDetails
+        item={detailsItem}
+        t={t}
+        locked={locked}
+        onClose={() => setDetails(null)}
+        onOpenSource={openExternalSource}
+        onReusePrompt={
+          onReusePrompt
+            ? (item) => {
+                setDetails(null);
+                onReusePrompt(item);
+              }
+            : undefined
+        }
+      />
     </>
   );
 }

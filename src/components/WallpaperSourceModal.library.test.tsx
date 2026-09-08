@@ -40,7 +40,11 @@ vi.mock("@/lib/api", () => ({
 }));
 
 vi.mock("@/components/ImageViewerContext", () => ({
-  useImageViewerOptional: () => ({ open: mocks.preview }),
+  useImageViewerOptional: () => ({
+    open: mocks.preview,
+    close: vi.fn(),
+    isOpen: () => false,
+  }),
 }));
 
 vi.mock("@/components/Select", () => ({
@@ -133,6 +137,51 @@ afterEach(() => {
 });
 
 describe("WallpaperSourceModal library paging", () => {
+  it("prefills Imagine from saved media details without starting generation", async () => {
+    const savedPage = page("saved-artwork");
+    savedPage.items[0].metadata = {
+      id: "saved-artwork-id",
+      source: "imagine",
+      sourceUrl: null,
+      license: null,
+      licenseUrl: null,
+      title: "Saved artwork",
+      width: 1280,
+      height: 720,
+      prompt: "A quiet mountain lake",
+      generation: null,
+      parentId: null,
+      favorite: false,
+      purpose: "generated",
+      bytes: 100,
+      modifiedMs: 1,
+    };
+    mocks.page.mockResolvedValue(savedPage);
+    renderLibrary();
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "settings.wallpaperSource.details.title: Saved artwork",
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "settings.wallpaperSource.details.reuse",
+      }),
+    );
+
+    const prompt = await screen.findByPlaceholderText(
+      "settings.wallpaperSource.imaginePlaceholder",
+    );
+    expect(prompt).toHaveProperty("value", "A quiet mountain lake");
+    expect(
+      screen
+        .getByRole("tab", { name: "settings.wallpaperImagine" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(mocks.page).toHaveBeenCalledTimes(1);
+  });
+
   it("removes an unfavorited item from the favorites view without deleting its file", async () => {
     const savedPage = page("favorite");
     savedPage.total = 1;
