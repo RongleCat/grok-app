@@ -36,6 +36,9 @@ describe("wallpaperSource", () => {
     );
     expect(parseWallpaperSourceError("url_blocked")).toBe("url_blocked");
     expect(parseWallpaperSourceError("path_not_allowed")).toBe("url_blocked");
+    expect(parseWallpaperSourceError("catalog_write_failed: disk full")).toBe(
+      "catalog_write_failed",
+    );
     expect(parseWallpaperSourceError("timeout")).toBe("timeout");
     expect(parseWallpaperSourceError("imagine_failed")).toBe("imagine_failed");
     expect(parseWallpaperSourceError("wallpaper_imagine: boom")).toBe(
@@ -55,6 +58,9 @@ describe("wallpaperSource", () => {
     expect(
       errorCodeFromSearchResult({ items: [], errorCode: "timeout" }),
     ).toBe("timeout");
+    expect(
+      errorCodeFromSearchResult({ items: [], errorCode: "catalog_read_failed" }),
+    ).toBe("catalog_write_failed");
     expect(errorCodeFromSearchResult({ items: [], errorCode: null })).toBe("empty");
     expect(
       errorCodeFromSearchResult({
@@ -269,5 +275,51 @@ describe("wallpaperSource", () => {
     const one = libraryEntryToGalleryItem(entries[1]!);
     expect(one.localPath).toBe("/w/x/2026-08-01/a.jpg");
     expect(one.fullUrl).toBe("file:///w/x/2026-08-01/a.jpg");
+  });
+
+  it("uses catalog metadata when mapping a library entry", () => {
+    const item = libraryEntryToGalleryItem({
+      path: "/w/cache/example.png",
+      name: "example.png",
+      source: "library",
+      kind: "image",
+      bytes: 12,
+      modifiedMs: 123,
+      metadata: {
+        id: "media-1",
+        source: "pexels",
+        sourceUrl: "https://www.pexels.com/photo/1/",
+        sourceName: "Pexels",
+        authorName: "Photographer",
+        authorUrl: "https://www.pexels.com/@photographer/",
+        license: "Pexels License",
+        licenseUrl: "https://www.pexels.com/license/",
+        title: "Mountain lake",
+        width: 1920,
+        height: 1080,
+        prompt: "a calm mountain lake",
+        generation: null,
+        parentId: null,
+        favorite: true,
+        purpose: "cache",
+        bytes: 12,
+        modifiedMs: 123,
+      },
+    });
+
+    expect(item).toMatchObject({
+      source: "pexels",
+      textPreview: "Mountain lake",
+      prompt: "a calm mountain lake",
+      width: 1920,
+      height: 1080,
+      sourceUrl: "https://www.pexels.com/photo/1/",
+      sourceName: "Pexels",
+      authorName: "Photographer",
+      authorUrl: "https://www.pexels.com/@photographer/",
+      license: "Pexels License",
+      licenseUrl: "https://www.pexels.com/license/",
+      metadata: { id: "media-1", favorite: true },
+    });
   });
 });
