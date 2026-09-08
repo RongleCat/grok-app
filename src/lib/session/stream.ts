@@ -6,7 +6,12 @@ import type {
   StreamPayload,
 } from "./types";
 import { isTurnPromptMessage } from "./types";
-import { stripUserAttachmentRefs } from "./rewind";
+import {
+  EMPTY_USER_KEY,
+  isClientOptimisticId,
+  stripUserAttachmentRefs,
+  userBubbleDedupeKey,
+} from "./rewind";
 import {
   appendContentToSegments,
   appendThoughtToSegments,
@@ -193,7 +198,8 @@ export function applyRemoteUserMessage(
     return ensureLiveAssistantAfterUser(messages, user.id, streamMessageId);
   }
 
-  const userText = (user.content || "").trim();
+  const cleanedUser = stripUserAttachmentRefs(user);
+  const userKey = userBubbleDedupeKey(user);
   let optimisticIdx = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
@@ -201,9 +207,9 @@ export function applyRemoteUserMessage(
     const id = m.id || "";
     // Optimistic composer ids: `u-<ts>` / `u-auto-…` (see isClientOptimisticId).
     if (
-      userText &&
-      (m.content || "").trim() === userText &&
-      (/^u-\d+$/.test(id) || id.startsWith("u-auto-"))
+      userKey !== EMPTY_USER_KEY &&
+      userBubbleDedupeKey(m) === userKey &&
+      (isClientOptimisticId(id) || /^u-/.test(id))
     ) {
       optimisticIdx = i;
     }
@@ -215,15 +221,15 @@ export function applyRemoteUserMessage(
     next = messages.map((m, i) =>
       i === optimisticIdx
         ? {
-            ...user,
-            attachments: user.attachments?.length
-              ? user.attachments
+            ...cleanedUser,
+            attachments: cleanedUser.attachments?.length
+              ? cleanedUser.attachments
               : m.attachments,
           }
         : m,
     );
   } else {
-    next = [...messages, { ...user, role: "user" }];
+    next = [...messages, cleanedUser];
   }
   return ensureLiveAssistantAfterUser(next, user.id, streamMessageId);
 }

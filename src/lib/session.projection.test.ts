@@ -913,6 +913,62 @@ describe("session projection", () => {
     expect(out.filter((m) => m.role === "user")).toHaveLength(1);
   });
 
+  it("applyRemoteUserMessage reconciles text + image when host dual-wrote @path", () => {
+    const shot = "/tmp/paste.png";
+    const body = "帮我看一下怎么操作，才能接入telegram";
+    const att = { path: shot, name: "paste.png", isDir: false };
+    const out = applyRemoteUserMessage(
+      [
+        {
+          id: "u-1710000000002",
+          role: "user",
+          content: body,
+          attachments: [att],
+        },
+        { id: "a-pending-2", role: "assistant", content: "", streaming: true },
+      ],
+      {
+        id: "host-user-2",
+        role: "user",
+        content: `${body}\n\n@${shot}`,
+        attachments: [att],
+      },
+      "host-stream-2",
+    );
+    expect(out.filter((m) => m.role === "user")).toHaveLength(1);
+    expect(out[0]!.id).toBe("host-user-2");
+    expect(out[0]!.content).toBe(body);
+    expect(out[0]!.attachments).toEqual([att]);
+    expect(out[1]!.id).toBe("a-pending-2");
+  });
+
+  it("applyRemoteUserMessage reconciles pure-image send when host dual-wrote @path", () => {
+    const shot = "/tmp/paste.png";
+    const att = { path: shot, name: "paste.png", isDir: false };
+    const out = applyRemoteUserMessage(
+      [
+        {
+          id: "u-1710000000003",
+          role: "user",
+          content: "",
+          attachments: [att],
+        },
+        { id: "a-pending-3", role: "assistant", content: "", streaming: true },
+      ],
+      {
+        id: "host-user-3",
+        role: "user",
+        content: `@${shot}`,
+        attachments: [att],
+      },
+      "host-stream-3",
+    );
+    expect(out.filter((m) => m.role === "user")).toHaveLength(1);
+    expect(out[0]!.id).toBe("host-user-3");
+    expect(out[0]!.content).toBe("");
+    expect(out[0]!.attachments).toEqual([att]);
+  });
+
   it("applyStreamChunk grows assistant text once per chunk", () => {
     let messages: ChatMessage[] = [];
     const chunks: StreamPayload[] = [
