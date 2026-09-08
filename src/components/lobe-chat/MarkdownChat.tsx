@@ -56,6 +56,8 @@ import { splitStableMarkdownTail } from "@/lib/markdownTail";
 import { revealInOsLabel } from "@/lib/appPlatform";
 import { cn } from "@/lib/utils";
 import { CodeBlock } from "./CodeBlock";
+import { MermaidBlock } from "./MermaidBlock";
+import { isMermaidLanguage } from "@/lib/mermaidRender";
 
 /** Highlight string leaves for in-chat find (markdown-safe). */
 function highlightChildren(
@@ -687,9 +689,24 @@ export const MarkdownChat = memo(function MarkdownChat({
           if (card) return card;
           return <code className="chat-md__inline-code">{paint(c)}</code>;
         }
+        const language = match?.[1] || "text";
+        if (isMermaidLanguage(language)) {
+          return (
+            <MermaidBlock
+              streaming={streaming}
+              copyLabel={tr("message.copy")}
+              sourceLabel={tr("chat.mermaidSource")}
+              diagramLabel={tr("chat.mermaidDiagram")}
+              loadingLabel={tr("chat.mermaidLoading")}
+              errorLabel={tr("chat.mermaidError")}
+            >
+              {c as ReactNode}
+            </MermaidBlock>
+          );
+        }
         return (
           <CodeBlock
-            language={match?.[1] || "text"}
+            language={language}
             wrapLabel={tr("chat.codeWrap")}
             unwrapLabel={tr("chat.codeUnwrap")}
             copyLabel={tr("message.copy")}
@@ -740,6 +757,8 @@ export const MarkdownChat = memo(function MarkdownChat({
     videoLabels,
     locale,
     tr,
+    streaming,
+    sshAlias,
   ]);
 
   const isPlain = !streaming && !qFind && isSimplePlainText(painted);

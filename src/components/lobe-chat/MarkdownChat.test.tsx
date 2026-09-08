@@ -85,4 +85,14 @@ describe("MarkdownChat", () => {
     expect(block).toContain("katex");
     expect(block).toContain("katex-display");
   });
+
+  it("routes mermaid fences to MermaidBlock chrome", () => {
+    const html = renderToStaticMarkup(
+      <MarkdownChat>
+        {"```mermaid\nflowchart LR\n  A-->B\n```"}
+      </MarkdownChat>,
+    );
+    expect(html).toContain("chat-mermaid");
+    expect(html).toContain("flowchart LR");
+  });
 });
