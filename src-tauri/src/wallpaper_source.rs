@@ -288,6 +288,19 @@ pub struct WallpaperFetchResult {
     pub name: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LocalWallpaperMediaKind {
+    Image,
+    Video,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ValidatedLocalWallpaperMedia {
+    pub(crate) mime: &'static str,
+    pub(crate) extension: &'static str,
+    pub(crate) bytes: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WallpaperLibraryEntry {
@@ -297,6 +310,8 @@ pub struct WallpaperLibraryEntry {
     pub kind: String,
     pub bytes: u64,
     pub modified_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<crate::wallpaper_catalog::MediaRecord>,
 }
 
 // ── Paths ───────────────────────────────────────────────────────────────────
@@ -1444,6 +1459,10 @@ impl DetectedMedia {
         )
     }
 
+    fn is_video(self) -> bool {
+        matches!(self, Self::Mp4 | Self::Webm)
+    }
+
     fn mime(self) -> &'static str {
         match self {
             Self::Jpeg => "image/jpeg",
@@ -2500,6 +2519,40 @@ pub(crate) fn validate_fetched_media_bytes(
     Ok((media.mime(), media.extension()))
 }
 
+pub(crate) fn validate_local_wallpaper_media(
+    path: &Path,
+    expected: LocalWallpaperMediaKind,
+) -> Result<ValidatedLocalWallpaperMedia, String> {
+    let metadata = fs::metadata(path).map_err(|_| "imagine_failed".to_string())?;
+    if !metadata.is_file() || metadata.len() == 0 || metadata.len() > MAX_DOWNLOAD_BYTES {
+        return Err("imagine_failed".into());
+    }
+
+    let mut prefix = Vec::with_capacity(
+        usize::try_from(metadata.len().min(MAX_IMAGE_PROBE_BYTES as u64)).unwrap_or_default(),
+    );
+    fs::File::open(path)
+        .and_then(|file| {
+            file.take(MAX_IMAGE_PROBE_BYTES as u64)
+                .read_to_end(&mut prefix)
+        })
+        .map_err(|_| "imagine_failed".to_string())?;
+    let media = detect_media_signature(&prefix).ok_or_else(|| "imagine_failed".to_string())?;
+    let kind_matches = match expected {
+        LocalWallpaperMediaKind::Image => media.is_image(),
+        LocalWallpaperMediaKind::Video => media.is_video(),
+    };
+    if !kind_matches {
+        return Err("imagine_failed".into());
+    }
+
+    Ok(ValidatedLocalWallpaperMedia {
+        mime: media.mime(),
+        extension: media.extension(),
+        bytes: metadata.len(),
+    })
+}
+
 fn file_to_fetch_result(path: &Path) -> Result<WallpaperFetchResult, String> {
     let meta = fs::metadata(path).map_err(|e| format!("stat: {e}"))?;
     let name = path
@@ -2755,13 +2808,35 @@ pub fn library_list(limit: Option<u32>) -> Result<Vec<WallpaperLibraryEntry>, St
     Ok(all)
 }
 
-fn collect_library(root: &Path, dir: &Path, out: &mut Vec<WallpaperLibraryEntry>) {
+fn is_library_media_extension(ext: &str) -> bool {
+    matches!(
+        ext,
+        "jpg" | "jpeg" | "png" | "webp" | "avif" | "gif" | "mp4" | "webm"
+    )
+}
+
+fn library_media_kind(ext: &str) -> &'static str {
+    if matches!(ext, "mp4" | "webm") {
+        "video"
+    } else {
+        "image"
+    }
+}
+
+pub(crate) fn collect_library(root: &Path, dir: &Path, out: &mut Vec<WallpaperLibraryEntry>) {
     let rd = match fs::read_dir(dir) {
         Ok(r) => r,
         Err(_) => return,
     };
     for e in rd.flatten() {
         let path = e.path();
+        // Do not expose catalog internals, follow links, or recurse outside the library.
+        if e.file_name().to_string_lossy().starts_with('.')
+            || e.file_type().is_ok_and(|kind| kind.is_symlink())
+            || !is_path_under_dir(&path, root)
+        {
+            continue;
+        }
         if path.is_dir() {
             collect_library(root, &path, out);
             continue;
@@ -2771,10 +2846,7 @@ fn collect_library(root: &Path, dir: &Path, out: &mut Vec<WallpaperLibraryEntry>
             .and_then(|s| s.to_str())
             .unwrap_or("")
             .to_ascii_lowercase();
-        if !matches!(
-            ext.as_str(),
-            "jpg" | "jpeg" | "png" | "webp" | "gif" | "mp4" | "webm"
-        ) {
+        if !is_library_media_extension(&ext) {
             continue;
         }
         let meta = match e.metadata() {
@@ -2799,11 +2871,7 @@ fn collect_library(root: &Path, dir: &Path, out: &mut Vec<WallpaperLibraryEntry>
             .and_then(|s| s.to_str())
             .unwrap_or("file")
             .to_string();
-        let kind = if matches!(ext.as_str(), "mp4" | "webm") {
-            "video"
-        } else {
-            "image"
-        };
+        let kind = library_media_kind(&ext);
         out.push(WallpaperLibraryEntry {
             path: path.display().to_string(),
             name,
@@ -2811,6 +2879,7 @@ fn collect_library(root: &Path, dir: &Path, out: &mut Vec<WallpaperLibraryEntry>
             kind: kind.into(),
             bytes: meta.len(),
             modified_ms,
+            metadata: None,
         });
     }
 }

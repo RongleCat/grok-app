@@ -1175,11 +1175,59 @@ pub async fn wallpaper_library_list(
 }
 
 #[tauri::command]
+pub async fn wallpaper_library_page(
+    query: crate::wallpaper_library::LibraryQuery,
+    cursor: Option<String>,
+    limit: Option<u32>,
+) -> Result<crate::wallpaper_library::LibraryPage, String> {
+    crate::wallpaper_source::ensure_wallpaper_dirs();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::wallpaper_library::list(query, cursor.as_deref(), limit)
+    })
+    .await
+    .map_err(|e| format!("wallpaper_library_page: {e}"))?
+}
+
+#[tauri::command]
+pub async fn wallpaper_library_remember(
+    path: String,
+    metadata: crate::wallpaper_catalog::SourceMetadata,
+    favorite: Option<bool>,
+) -> Result<crate::wallpaper_catalog::MediaRecord, String> {
+    crate::wallpaper_source::ensure_wallpaper_dirs();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::wallpaper_catalog::remember(&path, metadata, favorite)
+    })
+    .await
+    .map_err(|e| format!("wallpaper_library_remember: {e}"))?
+}
+
+#[tauri::command]
 pub async fn wallpaper_library_delete(path: String) -> Result<(), String> {
     crate::wallpaper_source::ensure_wallpaper_dirs();
     tauri::async_runtime::spawn_blocking(move || crate::wallpaper_source::library_delete(&path))
         .await
         .map_err(|e| format!("wallpaper_library_delete: {e}"))?
+}
+
+#[tauri::command]
+pub async fn wallpaper_library_lookup(
+    requests: Vec<crate::wallpaper_catalog::MediaLookup>,
+) -> Result<Vec<crate::wallpaper_catalog::MediaMatch>, String> {
+    crate::wallpaper_source::ensure_wallpaper_dirs();
+    tauri::async_runtime::spawn_blocking(move || crate::wallpaper_catalog::lookup(&requests))
+        .await
+        .map_err(|e| format!("wallpaper_library_lookup: {e}"))?
+}
+
+#[tauri::command]
+pub async fn wallpaper_library_find_by_id(
+    id: String,
+) -> Result<Option<crate::wallpaper_source::WallpaperLibraryEntry>, String> {
+    crate::wallpaper_source::ensure_wallpaper_dirs();
+    tauri::async_runtime::spawn_blocking(move || crate::wallpaper_catalog::find_by_id(&id))
+        .await
+        .map_err(|e| format!("wallpaper_library_find_by_id: {e}"))?
 }
 
 /// Headless probe: `grok -p … --output-format streaming-messages-json` (CLI 0.2.117+).

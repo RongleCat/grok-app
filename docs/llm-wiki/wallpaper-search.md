@@ -255,3 +255,29 @@ more” appends deduplicated results while leaving current cards selectable.
 Paging failures preserve the gallery and continuation for retry. The separate
 prefetch follow-up described above adds one-page-ahead loading without changing
 this page's visible controls.
+
+## Local library catalog Host contract
+
+The local wallpaper library keeps its media files in the existing wallpaper
+root and stores only bounded metadata in an atomic `.catalog.json`. Records have
+a stable media ID, source and purpose, favorite state, known dimensions, optional
+prompt/generation lineage, and sanitized HTTPS attribution fields. Remote media
+identity is stored as a source-scoped SHA-256 key; raw media URLs, credentials,
+headers and private album responses are not written to the catalog.
+
+`wallpaper_library_page` filters the complete scanned library by query, media
+kind and purpose before paging. A page contains at most 96 items (48 by default)
+and uses a query- and page-size-bound snapshot cursor. At most eight snapshots
+live for 30 minutes. Images sort before videos, then by descending modification
+time and path. New files appear on a new snapshot; files deleted during paging
+are skipped without shifting the remaining snapshot order. Hidden entries,
+symbolic links and paths outside the wallpaper root are never traversed.
+
+`wallpaper_library_remember` accepts only an existing, signature-validated media
+file inside the wallpaper root. It bounds text metadata, strips query strings and
+fragments from public attribution URLs, and can change favorite state without
+deleting the file. `wallpaper_library_lookup` accepts at most 96 source/media URL
+pairs and returns only unchanged local files; replacements at the same path get a
+new identity and cannot inherit an old remote-origin association. Lookup by media
+ID applies the same containment, signature and replacement checks. The legacy
+list and delete commands remain registered for existing clients.
