@@ -1,5 +1,10 @@
 /** Traditional Chinese messages — domain: settings-ui */
 export const zhTWSettingsUi = {
+  "settings.wallpaperSource.library.collection": "圖庫分類",
+  "settings.wallpaperSource.library.all": "全部媒體",
+  "settings.wallpaperSource.library.favorites": "收藏",
+  "settings.wallpaperSource.library.generated": "生成作品",
+  "settings.wallpaperSource.library.cache": "瀏覽快取",
   "settings.wallpaperXSearchMode": "X 搜尋管道",
   "settings.wallpaperXSearchModeDesc": "選擇「從 X 搜尋」的執行方式。Responses 預覽會使用現有 Grok Build 登入，並固定請求官方相容端點；介面可能變更，條件允許時會安全退回 CLI。遇到限流時不會再發起第二次搜尋。",
   "settings.wallpaperXSearchMode.cli": "Grok Build CLI（穩定）",

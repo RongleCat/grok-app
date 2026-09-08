@@ -1,5 +1,10 @@
 /** uk messages — domain: settings-ui */
 export const ukSettingsUi = {
+  "settings.wallpaperSource.library.collection": "Колекція",
+  "settings.wallpaperSource.library.all": "Усі медіа",
+  "settings.wallpaperSource.library.favorites": "Вибране",
+  "settings.wallpaperSource.library.generated": "Створені",
+  "settings.wallpaperSource.library.cache": "Кеш перегляду",
   "settings.wallpaperXSearchMode": "Маршрут пошуку в X",
   "settings.wallpaperXSearchModeDesc": "Виберіть спосіб пошуку в X. Попередній перегляд Responses використовує чинний вхід Grok Build і фіксований офіційний endpoint сумісності. Інтерфейс може змінитися й безпечно повертається до CLI; за обмеження запитів другий пошук не запускається.",
   "settings.wallpaperXSearchMode.cli": "Grok Build CLI (стабільний)",

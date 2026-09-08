@@ -1,5 +1,10 @@
 /** ko messages — domain: settings-ui */
 export const koSettingsUi = {
+  "settings.wallpaperSource.library.collection": "컬렉션",
+  "settings.wallpaperSource.library.all": "모든 미디어",
+  "settings.wallpaperSource.library.favorites": "즐겨찾기",
+  "settings.wallpaperSource.library.generated": "생성 작품",
+  "settings.wallpaperSource.library.cache": "탐색 캐시",
   "settings.wallpaperXSearchMode": "X 검색 경로",
   "settings.wallpaperXSearchModeDesc": "X 검색 실행 방식을 선택합니다. Responses 미리보기는 기존 Grok Build 로그인을 고정된 공식 호환 엔드포인트에서 사용합니다. 동작이 바뀔 수 있으며 안전할 때 CLI로 대체합니다. 요청 제한 시 두 번째 검색은 시작하지 않습니다.",
   "settings.wallpaperXSearchMode.cli": "Grok Build CLI(안정)",

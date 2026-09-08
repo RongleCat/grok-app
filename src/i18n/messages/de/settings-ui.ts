@@ -1,5 +1,10 @@
 /** de messages — domain: settings-ui */
 export const deSettingsUi = {
+  "settings.wallpaperSource.library.collection": "Sammlung",
+  "settings.wallpaperSource.library.all": "Alle Medien",
+  "settings.wallpaperSource.library.favorites": "Favoriten",
+  "settings.wallpaperSource.library.generated": "Generiert",
+  "settings.wallpaperSource.library.cache": "Browser-Cache",
   "settings.wallpaperXSearchMode": "X-Suchroute",
   "settings.wallpaperXSearchModeDesc": "Legt fest, wie die Suche auf X ausgeführt wird. Die Responses-Vorschau verwendet die bestehende Grok-Build-Anmeldung am fest vorgegebenen offiziellen Kompatibilitätsendpunkt. Sie kann sich ändern und fällt, wenn sicher, auf die CLI zurück; bei Limits wird keine zweite Suche gestartet.",
   "settings.wallpaperXSearchMode.cli": "Grok Build CLI (stabil)",

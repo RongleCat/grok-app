@@ -1,5 +1,10 @@
 /** ta messages — domain: settings-ui */
 export const taSettingsUi = {
+  "settings.wallpaperSource.library.collection": "தொகுப்பு",
+  "settings.wallpaperSource.library.all": "அனைத்து ஊடகங்களும்",
+  "settings.wallpaperSource.library.favorites": "விருப்பங்கள்",
+  "settings.wallpaperSource.library.generated": "உருவாக்கங்கள்",
+  "settings.wallpaperSource.library.cache": "உலாவல் தற்காலிகச் சேமிப்பு",
   "settings.wallpaperXSearchMode": "X தேடல் வழி",
   "settings.wallpaperXSearchModeDesc": "X தேடல் எவ்வாறு இயங்க வேண்டும் என்பதைத் தேர்ந்தெடுக்கவும். Responses முன்னோட்டம் உங்கள் தற்போதைய Grok Build உள்நுழைவை நிலையான அதிகாரப்பூர்வ இணக்க endpoint உடன் பயன்படுத்துகிறது. இது மாறக்கூடும்; பாதுகாப்பானபோது CLI-க்கு மாறும். வரம்பு ஏற்பட்டால் இரண்டாவது தேடல் தொடங்காது.",
   "settings.wallpaperXSearchMode.cli": "Grok Build CLI (நிலையானது)",

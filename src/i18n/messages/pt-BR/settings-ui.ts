@@ -1,5 +1,10 @@
 /** pt-BR messages — domain: settings-ui */
 export const ptBRSettingsUi = {
+  "settings.wallpaperSource.library.collection": "Coleção",
+  "settings.wallpaperSource.library.all": "Todas as mídias",
+  "settings.wallpaperSource.library.favorites": "Favoritos",
+  "settings.wallpaperSource.library.generated": "Criações",
+  "settings.wallpaperSource.library.cache": "Cache de navegação",
   "settings.wallpaperXSearchMode": "Rota de pesquisa no X",
   "settings.wallpaperXSearchModeDesc": "Escolha como a Pesquisa no X é executada. A prévia de Responses usa seu login atual do Grok Build no endpoint oficial de compatibilidade fixo. Ela pode mudar e recorre à CLI quando for seguro; limites não iniciam uma segunda pesquisa.",
   "settings.wallpaperXSearchMode.cli": "Grok Build CLI (estável)",

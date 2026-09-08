@@ -1,5 +1,10 @@
 /** id messages — domain: settings-ui */
 export const idSettingsUi = {
+  "settings.wallpaperSource.library.collection": "Koleksi",
+  "settings.wallpaperSource.library.all": "Semua media",
+  "settings.wallpaperSource.library.favorites": "Favorit",
+  "settings.wallpaperSource.library.generated": "Hasil pembuatan",
+  "settings.wallpaperSource.library.cache": "Cache penelusuran",
   "settings.wallpaperXSearchMode": "Rute pencarian X",
   "settings.wallpaperXSearchModeDesc": "Pilih cara Pencarian di X dijalankan. Pratinjau Responses memakai login Grok Build yang ada pada endpoint kompatibilitas resmi yang tetap. Fitur ini dapat berubah dan kembali ke CLI jika aman; pembatasan tidak memulai pencarian kedua.",
   "settings.wallpaperXSearchMode.cli": "Grok Build CLI (stabil)",

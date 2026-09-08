@@ -1,5 +1,10 @@
 /** ru messages — domain: settings-ui */
 export const ruSettingsUi = {
+  "settings.wallpaperSource.library.collection": "Коллекция",
+  "settings.wallpaperSource.library.all": "Все медиа",
+  "settings.wallpaperSource.library.favorites": "Избранное",
+  "settings.wallpaperSource.library.generated": "Созданные",
+  "settings.wallpaperSource.library.cache": "Кэш просмотра",
   "settings.wallpaperXSearchMode": "Маршрут поиска в X",
   "settings.wallpaperXSearchModeDesc": "Выберите способ поиска в X. Предпросмотр Responses использует текущий вход Grok Build и фиксированный официальный endpoint совместимости. Интерфейс может измениться и при безопасной возможности откатывается к CLI; при лимите второй поиск не запускается.",
   "settings.wallpaperXSearchMode.cli": "Grok Build CLI (стабильный)",

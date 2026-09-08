@@ -1,5 +1,10 @@
 /** ja messages — domain: settings-ui */
 export const jaSettingsUi = {
+  "settings.wallpaperSource.library.collection": "コレクション",
+  "settings.wallpaperSource.library.all": "すべてのメディア",
+  "settings.wallpaperSource.library.favorites": "お気に入り",
+  "settings.wallpaperSource.library.generated": "生成作品",
+  "settings.wallpaperSource.library.cache": "閲覧キャッシュ",
   "settings.wallpaperXSearchMode": "X 検索ルート",
   "settings.wallpaperXSearchModeDesc": "X 検索の実行方法を選びます。Responses プレビューは、既存の Grok Build ログインを固定の公式互換エンドポイントで使用します。仕様は変更される可能性があり、安全な場合は CLI にフォールバックします。レート制限時に 2 回目の検索は行いません。",
   "settings.wallpaperXSearchMode.cli": "Grok Build CLI（安定版）",

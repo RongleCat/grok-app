@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWallpaperProviderController } from "@/hooks/useWallpaperProviderController";
 import { useWallpaperGrokAlbum } from "@/hooks/useWallpaperGrokAlbum";
+import { useWallpaperLibrary } from "@/hooks/useWallpaperLibrary";
 import { createWallpaperRequestId } from "@/lib/wallpaperRequest";
 import { WallpaperProviderControls } from "./WallpaperProviderControls";
 import { GrokAlbumSourcePanel } from "./GrokAlbumSourcePanel";
@@ -22,6 +23,7 @@ import { WallpaperSourceTabs } from "./WallpaperSourceTabs";
 import { useWallpaperXSearch } from "@/hooks/useWallpaperXSearch";
 import { WallpaperXRouteControl } from "./WallpaperXRouteControl";
 import { GlassModal } from "@/components/GlassModal";
+import { Select } from "@/components/Select";
 import { WallpaperSourceControls } from "./WallpaperSourceControls";
 import { useImageViewerOptional } from "@/components/ImageViewerContext";
 import * as api from "@/lib/api";
@@ -31,10 +33,10 @@ import {
   appendWallpaperGalleryItems,
   errorCodeFromSearchResult,
   fileFromAbsolutePath,
-  libraryEntriesToGalleryItems,
   parseWallpaperSourceError,
   resolveApplySource,
   type WallpaperGalleryItem,
+  type WallpaperLibraryPurpose,
   type WallpaperSourceErrorCode,
 } from "@/lib/wallpaperSource";
 import {
@@ -150,6 +152,15 @@ export function WallpaperSourceModal({
   const [galleryFilter, setGalleryFilter] = useState("");
   const [kindFilter, setKindFilter] =
     useState<WallpaperGalleryKindFilter>("all");
+  const [libraryPurpose, setLibraryPurpose] =
+    useState<WallpaperLibraryPurpose>("all");
+  const library = useWallpaperLibrary(
+    open && tab === "library",
+    galleryFilter,
+    kindFilter,
+    open,
+    libraryPurpose,
+  );
   /** True after at least one search/generate finished this open. */
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -203,6 +214,7 @@ export function WallpaperSourceModal({
     xBusy ||
     routeSaving ||
     provider.busy ||
+    (tab === "library" && (library.busy || library.loadingMore)) ||
     (tab === "grok_album" && grokAlbum.busy);
   const close = useCallback(() => {
     void cancelX();
@@ -223,11 +235,27 @@ export function WallpaperSourceModal({
     setSelectedId(null);
     setPreviewingId(null);
     setGalleryFilter("");
-    setKindFilter(initialTab === "library" ? "image" : "all");
+    setKindFilter("all");
+    setLibraryPurpose("all");
     setHasSearched(false);
     setItems([]);
     setContinuation(null);
   }, [open, initialTab]);
+
+  useEffect(() => {
+    if (!open || tab !== "library") return;
+    setItems(library.items);
+    setHasSearched(library.hasLoaded);
+    setErrorCode(library.error);
+    setError(library.error ? errorMessage(t, library.error) : null);
+  }, [
+    open,
+    tab,
+    library.items,
+    library.hasLoaded,
+    library.error,
+    t,
+  ]);
 
   useEffect(() => {
     if (!open || tab !== "grok_album") return;
@@ -251,23 +279,28 @@ export function WallpaperSourceModal({
       ? progressiveItems
       : items;
   const kindCounts = useMemo(
-    () => countGalleryByKind(galleryItems),
-    [galleryItems],
+    () =>
+      tab === "library" ? library.kindCounts : countGalleryByKind(galleryItems),
+    [galleryItems, library.kindCounts, tab],
   );
 
   const visibleItems = useMemo(
     () =>
-      filterGalleryItems(galleryItems, {
-        query: galleryFilter,
-        kind: kindFilter,
-      }),
-    [galleryItems, galleryFilter, kindFilter],
+      tab === "library"
+        ? galleryItems
+        : filterGalleryItems(galleryItems, {
+            query: galleryFilter,
+            kind: kindFilter,
+          }),
+    [galleryItems, galleryFilter, kindFilter, tab],
   );
 
-  const filtersActive = wallpaperGalleryHasActiveFilters({
-    query: galleryFilter,
-    kind: kindFilter,
-  });
+  const filtersActive =
+    wallpaperGalleryHasActiveFilters({
+      query: galleryFilter,
+      kind: kindFilter,
+    }) ||
+    (tab === "library" && libraryPurpose !== "all");
 
   const emptyState = useMemo(() => {
     const base = resolveWallpaperGalleryEmptyState({
@@ -324,6 +357,7 @@ export function WallpaperSourceModal({
   const clearGalleryFilters = useCallback(() => {
     setGalleryFilter("");
     setKindFilter("all");
+    setLibraryPurpose("all");
   }, []);
 
   const changeTab = useCallback((nextTab: WallpaperSourceTab) => {
@@ -341,7 +375,8 @@ export function WallpaperSourceModal({
     setCiteSummary(null);
     setContinuation(null);
     setGalleryFilter("");
-    setKindFilter(nextTab === "library" ? "image" : "all");
+    setKindFilter("all");
+    if (nextTab === "library") setLibraryPurpose("all");
   }, [provider.cancel, tab]);
 
   const selected = useMemo(
@@ -493,44 +528,8 @@ export function WallpaperSourceModal({
   }, []);
 
   const loadLibrary = useCallback(async () => {
-    if (!isDesktopHost()) {
-      setErrorCode("generic");
-      setError(t("settings.wallpaperSource.err.desktopOnly"));
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    setErrorCode(null);
-    setStatusHint(t("settings.wallpaperSource.libraryLoading"));
-    setSelectedId(null);
-    setGalleryFilter("");
-    // Static first: default kind chip to images (video still available via chip).
-    setKindFilter("image");
-    try {
-      const entries = await api.wallpaperLibraryList(96);
-      const list = libraryEntriesToGalleryItems(entries, { staticFirst: true });
-      setHasSearched(true);
-      setItems(list);
-      setError(null);
-      setErrorCode(null);
-    } catch (e) {
-      setHasSearched(true);
-      setItems([]);
-      const code = parseWallpaperSourceError(e);
-      setErrorCode(code);
-      setError(errorMessage(t, code));
-    } finally {
-      setBusy(false);
-      setStatusHint(null);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    if (!open || tab !== "library") return;
-    void loadLibrary();
-    // loadLibrary is stable on `t`; re-run when opening library tab.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tab]);
+    library.refresh();
+  }, [library.refresh]);
 
   /**
    * Soft-delete a library file. Failures keep the card and show a soft warn —
@@ -562,6 +561,7 @@ export function WallpaperSourceModal({
       setStatusHint(t("settings.wallpaperSource.deleting"));
       try {
         await api.wallpaperLibraryDelete(path);
+        library.remove(item.id);
         dropItem(item.id);
         setError(null);
         setErrorCode(null);
@@ -577,7 +577,7 @@ export function WallpaperSourceModal({
         setStatusHint(null);
       }
     },
-    [busy, applying, previewingId, t, dropItem],
+    [busy, applying, previewingId, t, dropItem, library.remove],
   );
 
   /**
@@ -767,7 +767,8 @@ export function WallpaperSourceModal({
     (xBusy && !loadingMore) ||
     applying ||
     previewingId !== null;
-  const showGalleryFilters = galleryItems.length > 0 || filtersActive;
+  const showGalleryFilters =
+    tab === "library" || galleryItems.length > 0 || filtersActive;
   const softFailError =
     galleryErrorKind != null && isWallpaperGallerySoftFail(galleryErrorKind);
   // Error banner already carries detail for empty/error — avoid stacking the
@@ -956,7 +957,33 @@ export function WallpaperSourceModal({
           ) : null}
 
           {showGalleryFilters ? (
-            <div className="wallpaper-source-filters">
+            <div
+              className={
+                "wallpaper-source-filters" +
+                (tab === "library" ? " wallpaper-library-toolbar" : "")
+              }
+            >
+              {tab === "library" ? (
+                <Select
+                  className="wallpaper-library-toolbar__collection"
+                  value={libraryPurpose}
+                  options={(
+                    ["all", "favorites", "generated", "cache"] as const
+                  ).map((value) => ({
+                    value,
+                    label: t(
+                      `settings.wallpaperSource.library.${value}` as MessageKey,
+                    ),
+                  }))}
+                  onChange={(value) =>
+                    setLibraryPurpose(value as WallpaperLibraryPurpose)
+                  }
+                  aria-label={t(
+                    "settings.wallpaperSource.library.collection" as MessageKey,
+                  )}
+                  disabled={locked}
+                />
+              ) : null}
               <div
                 className="wallpaper-source-chips"
                 role="toolbar"
@@ -1057,6 +1084,22 @@ export function WallpaperSourceModal({
             >
               {t(
                 grokAlbum.loadingMore
+                  ? "settings.wallpaperSource.remote.progress.loadingMore"
+                  : "settings.wallpaperSource.loadMore",
+              )}
+            </button>
+          ) : null}
+          {tab === "library" && library.canLoadMore ? (
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={library.loadingMore || applying}
+              onClick={() => {
+                void library.loadMore();
+              }}
+            >
+              {t(
+                library.loadingMore
                   ? "settings.wallpaperSource.remote.progress.loadingMore"
                   : "settings.wallpaperSource.loadMore",
               )}

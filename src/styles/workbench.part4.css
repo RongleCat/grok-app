@@ -692,6 +692,17 @@
   max-width: 280px;
 }
 
+.wallpaper-library-toolbar__collection {
+  flex: 0 1 160px;
+  min-width: 120px;
+  max-width: 100%;
+}
+
+.wallpaper-library-toolbar .wallpaper-source-filters__query {
+  flex: 1 1 160px;
+  max-width: none;
+}
+
 /* --- from #500 --- */
 
 .process-budget-panel__empty-hint {

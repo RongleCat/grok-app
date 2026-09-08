@@ -1,5 +1,10 @@
 /** fil messages — domain: settings-ui */
 export const filSettingsUi = {
+  "settings.wallpaperSource.library.collection": "Koleksiyon",
+  "settings.wallpaperSource.library.all": "Lahat ng media",
+  "settings.wallpaperSource.library.favorites": "Mga paborito",
+  "settings.wallpaperSource.library.generated": "Mga nilikha",
+  "settings.wallpaperSource.library.cache": "Cache ng pag-browse",
   "settings.wallpaperXSearchMode": "Ruta ng paghahanap sa X",
   "settings.wallpaperXSearchModeDesc": "Piliin kung paano tatakbo ang Search on X. Ginagamit ng Responses preview ang kasalukuyang Grok Build sign-in sa nakapirming opisyal na compatibility endpoint. Maaari itong magbago at babalik sa CLI kapag ligtas; hindi magsisimula ng ikalawang search kapag rate-limited.",
   "settings.wallpaperXSearchMode.cli": "Grok Build CLI (stable)",
