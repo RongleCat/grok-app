@@ -1,4 +1,9 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import {
+  useEffect,
+  useState,
+  type MouseEvent,
+  type RefObject,
+} from "react";
 import type { MessageKey } from "@/i18n";
 import type { WallpaperSourceModalProps, WallpaperSourceTab } from "./WallpaperSourceModal";
 import type { WallpaperGalleryItem } from "@/lib/wallpaperSource";
@@ -28,6 +33,7 @@ type Props = {
   favoriteBusyIds?: ReadonlySet<string>;
   onToggleFavorite?: (item: WallpaperGalleryItem) => void;
   onReusePrompt?: (item: WallpaperGalleryItem) => void;
+  scrollRef?: RefObject<HTMLDivElement | null>;
 };
 
 /** Thumb / list preview (remote thumb OK). */
@@ -80,6 +86,7 @@ export function WallpaperSourceGallery({
   favoriteBusyIds,
   onToggleFavorite,
   onReusePrompt,
+  scrollRef,
 }: Props) {
   const isImagineLayout = tab === "imagine";
   const isLibraryTab = tab === "library";
@@ -108,6 +115,7 @@ export function WallpaperSourceGallery({
         horizontal columns that get clipped (only the first few thumbs show).
       */}
       <div
+        ref={scrollRef}
         className="wallpaper-masonry-scroll"
         role="list"
         aria-label={t("settings.wallpaperSource.gallery")}

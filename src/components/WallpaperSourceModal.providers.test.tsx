@@ -122,6 +122,93 @@ beforeEach(() => {
   });
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
+it("restores provider query, rows, prefetched page, and scroll without searching again", async () => {
+  mocks.search.mockResolvedValue(result(["saved"]));
+  mocks.more.mockResolvedValue(result(["second"], false));
+  render(
+    <WallpaperSourceModal
+      open
+      initialTab="openverse"
+      t={(key) => key}
+      onClose={vi.fn()}
+      onPickFile={vi.fn()}
+    />,
+  );
+
+  const search = screen.getByRole("searchbox", {
+    name: "settings.wallpaperSource.search",
+  });
+  fireEvent.change(search, { target: { value: "misty coast" } });
+  fireEvent.click(
+    screen.getByRole("button", { name: "settings.wallpaperSource.search" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(1));
+  await waitFor(() => expect(mocks.more).toHaveBeenCalledTimes(1));
+
+  const scroller = document.querySelector<HTMLDivElement>(
+    ".wallpaper-masonry-scroll",
+  );
+  expect(scroller).not.toBeNull();
+  scroller!.scrollTop = 420;
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperWeb" }),
+  );
+  expect(cards()).toHaveLength(0);
+  scroller!.scrollTop = 0;
+
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperOpenverse" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(1));
+  expect(
+    screen.getByRole<HTMLInputElement>("searchbox", {
+      name: "settings.wallpaperSource.search",
+    }).value,
+  ).toBe("misty coast");
+  await waitFor(() => expect(scroller!.scrollTop).toBe(420));
+  expect(mocks.search).toHaveBeenCalledTimes(1);
+
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: "settings.wallpaperSource.loadMore",
+    }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(2));
+  expect(mocks.more).toHaveBeenCalledTimes(1);
+});
+it("clears per-source history after the picker closes", async () => {
+  const view = await initial(["saved"]);
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperWeb" }),
+  );
+
+  view.rerender(
+    <WallpaperSourceModal
+      open={false}
+      initialTab="openverse"
+      t={(key) => key}
+      onClose={vi.fn()}
+      onPickFile={vi.fn()}
+    />,
+  );
+  view.rerender(
+    <WallpaperSourceModal
+      open
+      initialTab="openverse"
+      t={(key) => key}
+      onClose={vi.fn()}
+      onPickFile={vi.fn()}
+    />,
+  );
+
+  await waitFor(() => expect(cards()).toHaveLength(0));
+  expect(
+    screen.getByRole<HTMLInputElement>("searchbox", {
+      name: "settings.wallpaperSource.search",
+    }).value,
+  ).toBe("");
+  expect(mocks.search).toHaveBeenCalledTimes(1);
+});
 it("keeps provider pictures selectable during more and preserves the downloaded local path", async () => {
   let finish!: (value: WallpaperRemoteSearchResult) => void;
   mocks.more.mockReturnValue(new Promise<WallpaperRemoteSearchResult>(resolve => { finish = resolve; }));

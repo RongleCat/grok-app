@@ -256,6 +256,31 @@ Paging failures preserve the gallery and continuation for retry. The separate
 prefetch follow-up described above adds one-page-ahead loading without changing
 this page's visible controls.
 
+## Per-source browsing history
+
+While the source picker remains open, each of its seven sources keeps an
+independent browsing snapshot. A snapshot includes the search query and sort,
+visible rows, selected card, gallery filters, local-library collection,
+completion text, continuation state and gallery scroll position. Returning to a
+source restores that state instead of presenting a blank gallery or repeating a
+completed request. A completed provider prefetch remains available for the next
+explicit load-more action; an in-flight request is still cancelled on source
+change and is never adopted late.
+
+History is renderer-memory only, expires after 20 minutes and rejects snapshots
+above 2,000 rows. Closing the picker clears every source snapshot. The local
+library waits for its query cache to become current before restoring scroll, so
+returning to a cached query does not add a Host page request. Catalog mutations
+update stored snapshots so restored cards cannot regress favorite or local-path
+state.
+
+Grok Saved stores only its filters, selection and scroll position; authenticated
+album rows remain owned by the isolated album controller and are never copied
+into generic source history. Its scroll is restored only after the matching
+album revision is ready. A page, account or identity revision clears the saved
+filters, selection and scroll. Replacing or removing the Pexels credential also
+clears its prior continuation and browsing snapshot.
+
 ## Local library catalog Host contract
 
 The local wallpaper library keeps its media files in the existing wallpaper

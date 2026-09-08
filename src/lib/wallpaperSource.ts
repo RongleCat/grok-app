@@ -2,7 +2,14 @@
  * Wallpaper source helpers — X search + Imagine gallery types and pure logic.
  */
 
-export type WallpaperSourceKind = "x" | "imagine" | "library";
+export type WallpaperSourceKind =
+  | "x"
+  | "web"
+  | "openverse"
+  | "pexels"
+  | "imagine"
+  | "grok_album"
+  | "library";
 
 export type WallpaperGalleryItem = {
   metadata?: WallpaperMediaRecord | null;
