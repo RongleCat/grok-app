@@ -1,4 +1,4 @@
-//! App secrets backend: OS keychain (preferred) with file fallback.
+//! App secrets backend: OS keychain by default, explicit file mode for compatibility.
 //!
 //! Callers use [`crate::store::load_secrets`] / [`crate::store::save_secrets`] only —
 //! this module owns where `official_api_key` / `relay_api_key` actually live.
@@ -6,7 +6,8 @@
 //! - macOS: Keychain via `keyring` (`apple-native`)
 //! - Windows: Credential Manager (`windows-native`)
 //! - Linux: FreeDesktop Secret Service when available (`sync-secret-service`)
-//! - Fallback: `secrets.json` with mode `0600` when the OS store is unavailable
+//! - Explicit file mode: `secrets.json` with mode `0600` on Unix.
+//! - Secure writes fail if the OS store is unavailable; never silently write plaintext.
 //!
 //! Non-secret metadata (`relay_base_url`, `default_model`, `keychain_has_*`) always
 //! stays in `secrets.json`.
@@ -57,7 +58,7 @@ fn probe_keychain() -> bool {
             tracing::info!(
                 target: "grok_app::secrets",
                 error = %e,
-                "OS keychain unavailable; using secrets.json fallback"
+                "OS keychain unavailable; secure writes will fail"
             );
             return false;
         }
@@ -84,7 +85,7 @@ fn probe_keychain() -> bool {
             tracing::info!(
                 target: "grok_app::secrets",
                 error = %e,
-                "OS keychain probe failed; using secrets.json fallback"
+                "OS keychain probe failed; secure writes will fail"
             );
             false
         }
@@ -96,7 +97,7 @@ fn keychain_platform_ok() -> bool {
     *KEYCHAIN_USABLE.get_or_init(probe_keychain)
 }
 
-/// User opted into OS keychain via settings (default false → file).
+/// OS keychain is the default; an explicit file-mode preference is respected.
 fn prefer_keychain_storage() -> bool {
     crate::store::load_settings().store_api_keys_in_keychain
 }
@@ -491,7 +492,7 @@ pub fn migrate_plaintext_keys_to_keychain(disk: &mut SecretsFile) -> usize {
 
 /// Load secrets with values.
 ///
-/// - File mode (default): disk only, never touches Keychain.
+/// - Explicit file mode: disk only, never touches Keychain.
 /// - Keychain mode: may unlock OS store once per process (then cached).
 ///
 /// Use [`load_secrets_disk_only`] when you only need presence / metadata.
@@ -563,7 +564,18 @@ pub fn load_secrets() -> SecretsFile {
     merged
 }
 
-/// Save secrets. Keychain only when the user setting is on and the platform works.
+fn write_backend(
+    prefer_keychain: bool,
+    keychain_available: bool,
+) -> Result<SecretsBackendKind, String> {
+    match (prefer_keychain, keychain_available) {
+        (true, true) => Ok(SecretsBackendKind::Keychain),
+        (true, false) => Err("OS keychain unavailable; refusing to save API keys in plaintext. Check system keychain access or explicitly select file storage in Settings.".into()),
+        (false, _) => Ok(SecretsBackendKind::File),
+    }
+}
+
+/// Never silently downgrade a keychain preference to a plaintext write.
 pub fn save_secrets(s: &SecretsFile) -> Result<(), String> {
     let _ = ensure_app_dirs();
     let path = secrets_file();
@@ -573,7 +585,9 @@ pub fn save_secrets(s: &SecretsFile) -> Result<(), String> {
     let mut s = s.clone();
     sync_stt_presence(&mut s);
 
-    if use_keychain_backend() {
+    let prefer_keychain = prefer_keychain_storage();
+    let backend = write_backend(prefer_keychain, prefer_keychain && keychain_platform_ok())?;
+    if backend == SecretsBackendKind::Keychain {
         let mut disk = strip_keys_for_disk(&s);
 
         match &s.official_api_key {
@@ -1147,9 +1161,62 @@ mod tests {
     }
 
     #[test]
-    fn default_settings_prefer_file_not_keychain() {
+    fn default_settings_prefer_keychain_and_preserve_explicit_file_mode() {
         let s = crate::store::AppSettings::default();
-        assert!(!s.store_api_keys_in_keychain);
+        assert!(s.store_api_keys_in_keychain);
+        let mut json = serde_json::to_value(&s).unwrap();
+        json.as_object_mut()
+            .unwrap()
+            .remove("storeApiKeysInKeychain");
+        let missing: crate::store::AppSettings = serde_json::from_value(json.clone()).unwrap();
+        assert!(missing.store_api_keys_in_keychain);
+        json["storeApiKeysInKeychain"] = serde_json::json!(false);
+        let explicit: crate::store::AppSettings = serde_json::from_value(json).unwrap();
+        assert!(!explicit.store_api_keys_in_keychain);
+    }
+
+    #[test]
+    fn secure_storage_never_silently_falls_back_to_plaintext() {
+        assert_eq!(
+            write_backend(true, true).unwrap(),
+            SecretsBackendKind::Keychain
+        );
+        assert!(write_backend(true, false).is_err());
+        assert_eq!(
+            write_backend(false, false).unwrap(),
+            SecretsBackendKind::File
+        );
+        assert_eq!(
+            write_backend(false, true).unwrap(),
+            SecretsBackendKind::File
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_credential_manager_roundtrip_uses_only_a_synthetic_test_entry() {
+        let service = format!("com.grokapp.security-test.{}", uuid::Uuid::new_v4());
+        let entry = keyring::Entry::new(&service, "synthetic-key").unwrap();
+        struct Cleanup(keyring::Entry);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = self.0.delete_credential();
+            }
+        }
+        let entry = Cleanup(entry);
+        entry
+            .0
+            .set_password("synthetic-test-value-not-an-account-key")
+            .unwrap();
+        assert_eq!(
+            entry.0.get_password().unwrap(),
+            "synthetic-test-value-not-an-account-key"
+        );
+        entry.0.delete_credential().unwrap();
+        assert!(matches!(
+            entry.0.get_password(),
+            Err(keyring::Error::NoEntry)
+        ));
     }
 
     #[test]

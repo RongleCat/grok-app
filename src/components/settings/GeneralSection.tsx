@@ -226,7 +226,7 @@ export function GeneralSection() {
     setVoiceHotkeyEnabled,
     showSettingsToast,
     stopAllSkipConfirm,
-    storeApiKeysInKeychain = false,
+    storeApiKeysInKeychain = true,
     subagentWorktreeSnapshotEnabled,
     subagentsEnabled,
     t,

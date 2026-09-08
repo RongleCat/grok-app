@@ -8,11 +8,9 @@
 //! - HTTPS only, URL must be under a known mirror base
 //! - Streaming SHA-256 of the downloaded bytes
 //! - Published checksum sidecar (`.sha256` / `SHA256SUMS` / `checksums.txt`);
-//!   **mismatch always aborts**. Official x.ai / GCS mirrors currently omit
-//!   sidecars (same as `install.sh` / `install.ps1`), so **missing sidecar
-//!   is allowed by default** and recorded as `checksum_verified: false`.
-//!   Strict fail-closed: `GROK_CLI_REQUIRE_CHECKSUM=1` (override with settings
-//!   allow-unverified or `GROK_CLI_ALLOW_UNVERIFIED=1`).
+//!   **mismatch always aborts**. A missing sidecar also blocks installation
+//!   by default, before any execution of downloaded code. An explicit settings
+//!   opt-in or `GROK_CLI_ALLOW_UNVERIFIED=1` allows missing checksums only.
 //! - Architecture match via platform triple; size / `--version` gates after install
 //!
 //! Each mirror is retried a few times before falling through. Progress is emitted
@@ -656,19 +654,23 @@ async fn try_download_all_mirrors(
 
 /// Whether a published checksum is **required** when the mirror has none.
 ///
-/// Default **false**: official x.ai / GCS CLI mirrors do not publish SHA-256
-/// sidecars today (and the official install scripts do not verify them).
-/// Requiring a missing sidecar made first-run install fail on every platform
-/// (#227). Mismatch always fails regardless of this flag.
-///
-/// Fail-closed on **missing** sidecar only when:
-/// - env `GROK_CLI_REQUIRE_CHECKSUM` is 1/true/yes/on, **and**
-/// - neither `allow_unverified` (Settings) nor `GROK_CLI_ALLOW_UNVERIFIED` is set
+/// Required by default. Only an explicit opt-in permits an absent sidecar;
+/// a checksum mismatch is never overridden.
 pub fn require_published_checksum(allow_unverified: bool) -> bool {
-    if env_flag_truthy("GROK_CLI_ALLOW_UNVERIFIED") || allow_unverified {
-        return false;
+    !(env_flag_truthy("GROK_CLI_ALLOW_UNVERIFIED") || allow_unverified)
+}
+
+fn validate_download_checksum(
+    actual: &str,
+    published: Option<&str>,
+    required: bool,
+) -> Result<bool, String> {
+    match published {
+        Some(expected) if expected == actual => Ok(true),
+        Some(_) => Err("SHA-256 mismatch: refusing to execute the downloaded CLI".into()),
+        None if required => Err("No published SHA-256 for the downloaded CLI. Refusing install before execution. Check the official release or explicitly enable Allow unverified CLI install in Settings.".into()),
+        None => Ok(false),
     }
-    env_flag_truthy("GROK_CLI_REQUIRE_CHECKSUM")
 }
 
 fn env_flag_truthy(name: &str) -> bool {
@@ -741,35 +743,21 @@ pub async fn install_cli_latest(
 
     let published =
         fetch_published_checksum(&client, &mirror_used, &version, &platform, &artifact_name).await;
-    let checksum_verified = match published {
-        Some(expected) => {
-            if expected != digest {
-                let _ = fs::remove_file(&tmp_path);
-                return Err(format!(
-                    "SHA-256 mismatch for {artifact_name}: got {digest}, expected {expected}"
-                ));
-            }
-            info!("cli_install: published checksum matched for {artifact_name}");
-            true
-        }
-        None => {
-            // Fail-closed: no published sidecar → refuse unless user opted in.
-            if require_published_checksum(allow_unverified) {
-                let _ = fs::remove_file(&tmp_path);
-                return Err(format!(
-                    "No published SHA-256 for {artifact_name}. Refusing install \
-                     (GROK_CLI_REQUIRE_CHECKSUM is set). Enable “Allow unverified CLI install” \
-                     in Settings → Runtime, set GROK_CLI_ALLOW_UNVERIFIED=1, or unset \
-                     GROK_CLI_REQUIRE_CHECKSUM. hash={digest}"
-                ));
-            }
-            warn!(
-                "cli_install: no published checksum for {artifact_name}; \
-                 continuing with allowlist + binary probe (unverified, hash={digest})"
-            );
-            false
+    let checksum_verified = match validate_download_checksum(
+        &digest,
+        published.as_deref(),
+        require_published_checksum(allow_unverified),
+    ) {
+        Ok(verified) => verified,
+        Err(error) => {
+            let _ = fs::remove_file(&tmp_path);
+            let _ = fs::remove_file(tmp_path.with_extension("sha256"));
+            return Err(error);
         }
     };
+    if !checksum_verified {
+        warn!("cli_install: explicit unverified install for {artifact_name}; sha256={digest}");
+    }
 
     emit(
         &app,
@@ -948,10 +936,10 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb *other-file
         static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
         let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
-        // Official mirrors omit sidecars; default must not block install (#227).
+        // Missing sidecars must block by default, before a --version probe.
         std::env::remove_var("GROK_CLI_ALLOW_UNVERIFIED");
         std::env::remove_var("GROK_CLI_REQUIRE_CHECKSUM");
-        assert!(!require_published_checksum(false));
+        assert!(require_published_checksum(false));
         assert!(!require_published_checksum(true));
 
         // Strict env fails closed unless allow_unverified / ALLOW_UNVERIFIED.
@@ -963,6 +951,22 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb *other-file
 
         std::env::remove_var("GROK_CLI_REQUIRE_CHECKSUM");
         std::env::remove_var("GROK_CLI_ALLOW_UNVERIFIED");
+    }
+
+    #[test]
+    fn checksum_gate_rejects_missing_and_mismatch_before_binary_probe() {
+        let digest = "a".repeat(64);
+        assert!(validate_download_checksum(&digest, None, true).is_err());
+        assert!(validate_download_checksum(&digest, Some(&"b".repeat(64)), true).is_err());
+        assert!(validate_download_checksum(&digest, Some(&"b".repeat(64)), false).is_err());
+        assert_eq!(
+            validate_download_checksum(&digest, Some(&digest), true).unwrap(),
+            true
+        );
+        assert_eq!(
+            validate_download_checksum(&digest, None, false).unwrap(),
+            false
+        );
     }
 
     #[test]

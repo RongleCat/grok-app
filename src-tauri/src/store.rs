@@ -373,9 +373,9 @@ pub struct AppSettings {
     #[serde(default)]
     pub stream_stall_default_migrated: bool,
     /// Store App API keys in the OS keychain (macOS Keychain / Win Cred / Secret Service).
-    /// Default **false**: keys stay in `secrets.json` (0600) so cold start does not
-    /// trigger system password prompts. Official CLI login still uses `auth.json`.
-    #[serde(default)]
+    /// Default **true** for new settings. Existing explicit file-mode choices are preserved.
+    /// Official CLI login still uses `auth.json`.
+    #[serde(default = "default_keychain_storage")]
     pub store_api_keys_in_keychain: bool,
     /// OS-level sandbox profile for spawned `grok agent` processes
     /// (`off` | `workspace` | `read-only` | `strict` | `devbox`). Default off.
@@ -643,9 +643,8 @@ pub struct AppSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub proxy_no_proxy: Option<String>,
     /// Allow CLI download/install when the mirror has **no** published SHA-256
-    /// sidecar even if `GROK_CLI_REQUIRE_CHECKSUM=1`. Default **false**.
-    /// Missing sidecars are already allowed by default (official mirrors omit
-    /// them); mismatch always aborts. See `cli_install::require_published_checksum`.
+    /// sidecar. Default **false**: missing sidecars block automatic execution.
+    /// Explicit opt-in permits missing checksums only; mismatch always aborts.
     #[serde(default)]
     pub allow_unverified_cli_install: bool,
     /// Result of the last App-managed CLI install (`Some(true)` = sidecar matched).
@@ -836,7 +835,7 @@ impl Default for AppSettings {
             pool_size_migrated: true,
             stream_stall_seconds: default_stream_stall_seconds(),
             stream_stall_default_migrated: true,
-            store_api_keys_in_keychain: false,
+            store_api_keys_in_keychain: default_keychain_storage(),
             sandbox_profile: default_sandbox_profile(),
             experimental_memory: false,
             compaction_mode: default_compaction_mode(),
@@ -1025,6 +1024,10 @@ fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
     // Exclusive lock + temp rename so shared-mode / dual-instance writes do not
     // leave a half-written index (E06).
     crate::store_lock::write_bytes_atomic(path, s.as_bytes())
+}
+
+fn default_keychain_storage() -> bool {
+    true
 }
 
 pub fn load_settings() -> AppSettings {

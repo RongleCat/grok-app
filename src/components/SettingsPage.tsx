@@ -326,7 +326,7 @@ export function SettingsPage({
   onAuditLedgerRetentionDays,
   includePartialMessages = false,
   onIncludePartialMessages,
-  storeApiKeysInKeychain = false,
+  storeApiKeysInKeychain = true,
   onStoreApiKeysInKeychain,
   sandboxProfile = DEFAULT_SANDBOX_PROFILE,
   onSandboxProfile,

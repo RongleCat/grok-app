@@ -31,7 +31,7 @@ export function useAppSettingsPrefs() {
   const [maxAgentTurns, setMaxAgentTurns] = useState(0);
   const [backgroundWaitPolicy, setBackgroundWaitPolicy] = useState("wait");
   const [backgroundWaitTimeoutSec, setBackgroundWaitTimeoutSec] = useState(600);
-  const [storeApiKeysInKeychain, setStoreApiKeysInKeychain] = useState(false);
+  const [storeApiKeysInKeychain, setStoreApiKeysInKeychain] = useState(true);
   const [sandboxProfile, setSandboxProfile] = useState(DEFAULT_SANDBOX_PROFILE);
   const [preferredAgent, setPreferredAgent] = useState("");
   const [agentProfilePath, setAgentProfilePath] = useState("");

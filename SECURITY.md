@@ -27,7 +27,8 @@ Do **not** open a public issue for sensitive vulnerabilities until a fix is avai
   - macOS: Keychain
   - Windows: Credential Manager
   - Linux: FreeDesktop Secret Service (when available)
-  - Fallback: `secrets.json` under the app data root with mode `0600` when the OS store is unavailable
+  - New settings use the OS store by default. If it is unavailable, saving new secrets fails rather than silently writing plaintext.
+  - Explicit legacy file-mode choices are preserved: `secrets.json` under the app data root (mode `0600` on Unix).
 - Non-secret metadata (`relayBaseUrl`, `defaultModel`) may remain in `secrets.json`. On first load after upgrade, any plaintext keys still on disk are **migrated into the OS store** and cleared from the file (logged without values).
 - Custom provider keys may also be written to the independent agent home (`agent-home/config.toml`); they are **not** moved into the OS keychain by this path — do not commit them.
 - Prefer official Grok login / local CLI auth over pasting long-lived keys into chats.
@@ -35,3 +36,4 @@ Do **not** open a public issue for sensitive vulnerabilities until a fix is avai
 - Support zip / Doctor export / **session diagnostic package** never include `secrets.json`, OS keychain material, or raw API keys (redacted logs and chat only).
 - Remote IM binding QR codes are generated locally; binding URLs are not sent to QR image services.
 - X API plugin CLI arguments containing secrets are delivered through a private stdin pipe, not the OS process command line. The embedded launcher adapts legacy `process.argv` parsers in memory, and auth output is redacted.
+- App-managed Grok Build CLI installs require a published checksum before executing downloaded code. An explicit unverified-install preference may allow a missing checksum; a mismatch always fails.

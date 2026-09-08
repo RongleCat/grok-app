@@ -72,6 +72,8 @@ See `docs/llm-wiki/release.md`.
 - Ctrl+Tab 切回上一个用过的对话。按住 Ctrl 再点 Tab 继续循环；Ctrl+Shift+Tab 反向。
 
 ### Changed
+- New settings protect API keys in the system keychain by default.
+- CLI installs stop before execution when a published checksum is missing.
 - Sent quotes show the excerpt and comment in the bubble, not a notes chip.
 - Account quota sits in the user menu again, with remaining % beside the name.
 - Streaming chat, heatmap hover, and SSH sidebar refresh do less re-rendering (#1073).
@@ -80,6 +82,8 @@ See `docs/llm-wiki/release.md`.
 - Startup skips TipTap and markdown preloads; Office and Settings load on demand (#1055, #1063).
 
 **中文 · 变更**
+- 新配置默认使用系统凭据管理器保护 API 密钥。
+- CLI 下载缺少发布方校验和时会在执行前停止安装。
 - 发送后的引用在气泡里直接显示摘录和评论，不再收成「N 条注释」。
 - 额度卡片回到用户菜单顶部，名字旁显示剩余百分比。
 - 流式对话、热力图像悬停与 SSH 侧栏刷新减少无效重渲染（#1073）。

@@ -44,6 +44,11 @@ describe("parseAppSettingsPrefs", () => {
     expect(p.subagentsEnabled).toBe(true);
     expect(p.planEnabled).toBe(true);
     expect(p.prefsScope).toBeNull();
+    expect(p.storeApiKeysInKeychain).toBe(true);
+  });
+
+  it("preserves an explicitly selected legacy file storage preference", () => {
+    expect(parseAppSettingsPrefs(settings({ storeApiKeysInKeychain: false })).storeApiKeysInKeychain).toBe(false);
   });
 
   it("clamps process and stall budgets", () => {

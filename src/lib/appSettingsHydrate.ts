@@ -138,7 +138,7 @@ export function parseAppSettingsPrefs(
       typeof ts === "number" && Number.isFinite(ts)
         ? Math.min(3600, Math.max(1, Math.round(ts)))
         : 600,
-    storeApiKeysInKeychain: !!settings.storeApiKeysInKeychain,
+    storeApiKeysInKeychain: settings.storeApiKeysInKeychain ?? true,
     sandboxProfile: normalizeSandboxProfile(sb) ?? DEFAULT_SANDBOX_PROFILE,
     preferredAgent: (settings.preferredAgent || "").trim(),
     agentProfilePath: (settings.agentProfilePath || "").trim(),

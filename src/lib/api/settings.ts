@@ -54,7 +54,7 @@ export interface AppSettings {
   includePartialMessages?: boolean;
   /**
    * When true, App API keys go in the OS keychain.
-   * Default false: keys stay in secrets.json (0600). Official login uses auth.json.
+   * Default true. Explicit file-mode choices are preserved. Official login uses auth.json.
    */
   storeApiKeysInKeychain?: boolean;
   /**

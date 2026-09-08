@@ -36,7 +36,7 @@ Mirrors (order):
 
 Each mirror is tried multiple times before failing over.
 
-**Checksum trust:** download is HTTPS-allowlisted; streamed SHA-256 is always computed. If the mirror publishes a sidecar, **mismatch aborts**. Official mirrors currently omit sidecars (same as `install.sh` / `install.ps1`), so **missing checksum is allowed by default** and stored as `checksum_verified: false`. Strict fail-closed: `GROK_CLI_REQUIRE_CHECKSUM=1` (override with Settings → Runtime “Allow unverified CLI install” or `GROK_CLI_ALLOW_UNVERIFIED=1`).
+**Checksum trust:** download is HTTPS-allowlisted; streamed SHA-256 is always computed. **Missing published checksums and checksum mismatches block installation before any execution of the downloaded binary.** An explicit Settings → Runtime “Allow unverified CLI install” preference or `GROK_CLI_ALLOW_UNVERIFIED=1` permits a missing checksum only and records `checksum_verified: false`. A mismatch never has an override. This can block one-click setup when upstream omits checksums; show the existing checksum error and manual-path recovery rather than silently accepting the download.
 
 **Trust grades (UI):** pure `src/lib/cliTrustSupplyChain.ts` maps install outcomes to grades `verified` · `missing_sidecar` · `mismatch` · `unverified_allowed` · `unknown` — never invents sidecar presence. Setup shows a risk chip on missing sidecar / mismatch (hard-fail honesty; no force on mismatch). Settings → Runtime shows a trust chip for the last App-managed install; Doctor adds a `cli_checksum` finding when `lastCliChecksumVerified` is known.
 
