@@ -40,15 +40,12 @@ export function WallpaperSourceControls({
     <>
       {tab === "x" ? (
         <div className="wallpaper-source-form">
-          <p className="wallpaper-source-form__hint">
-            {t("settings.wallpaperSource.xHint")}
-          </p>
-          {xRouteControl}
-          <div className="wallpaper-source-form__row">
+          <div className="wallpaper-source-form__row wallpaper-source-form__row--search wallpaper-source-form__row--x">
             <input
               type="search"
               className="wallpaper-source-form__input"
               value={query}
+              aria-label={t("settings.wallpaperSource.xPlaceholder")}
               placeholder={t("settings.wallpaperSource.xPlaceholder")}
               disabled={locked}
               onChange={(e) => setQuery(e.target.value)}
@@ -59,6 +56,7 @@ export function WallpaperSourceControls({
                 }
               }}
             />
+            {xRouteControl}
             <Select
               className="wallpaper-source-form__select"
               value={sort}
@@ -89,9 +87,6 @@ export function WallpaperSourceControls({
         <WallpaperImagineControls t={t} locked={locked} model={imagine} />
       ) : (
         <div className="wallpaper-source-form">
-          <p className="wallpaper-source-form__hint">
-            {t("settings.wallpaperSource.libraryHint")}
-          </p>
           <div className="wallpaper-source-form__row">
             <button
               type="button"

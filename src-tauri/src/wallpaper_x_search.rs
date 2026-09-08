@@ -279,14 +279,14 @@ where
     let started = Instant::now();
     let requested_mode = store::normalize_wallpaper_x_search_mode(requested_mode);
     if runtime.is_cancelled() {
-        return cancelled_result(requested_mode, "cli", started);
+        return cancelled_result(requested_mode, "cli", started, None, None);
     }
 
     // `auto` stays protocol-reserved until QA explicitly enables it. Both it
     // and the public default execute the established CLI route.
     if requested_mode != store::WALLPAPER_X_SEARCH_MODE_RESPONSES_PREVIEW {
         runtime.report(WallpaperXSearchStage::SearchingX);
-        return finish_cli(cli().await, requested_mode, None, started);
+        return run_cli(cli, requested_mode, None, started, None).await;
     }
 
     if !circuit
@@ -294,19 +294,30 @@ where
         .allows_attempt(credential_revision.clone(), Instant::now())
     {
         runtime.report(WallpaperXSearchStage::FallingBack);
-        return finish_cli(
-            cli().await,
+        return run_cli(
+            cli,
             requested_mode,
             Some(CIRCUIT_OPEN_REASON),
             started,
-        );
+            None,
+        )
+        .await;
     }
 
     runtime.report(WallpaperXSearchStage::SearchingX);
-    match responses().await {
+    let responses_started = Instant::now();
+    let responses_result = responses().await;
+    let responses_duration_ms = elapsed_ms(responses_started);
+    match responses_result {
         Ok(result) if !result.items.is_empty() && result.valid_count > 0 => {
             if runtime.is_cancelled() {
-                return cancelled_result(requested_mode, "responses", started);
+                return cancelled_result(
+                    requested_mode,
+                    "responses",
+                    started,
+                    Some(responses_duration_ms),
+                    None,
+                );
             }
             circuit
                 .lock()
@@ -321,6 +332,8 @@ where
                     route_used: "responses".into(),
                     fallback_reason: None,
                     duration_ms: elapsed_ms(started),
+                    responses_duration_ms: Some(responses_duration_ms),
+                    cli_duration_ms: None,
                     cache_hit: false,
                     continuation_id: None,
                     search_calls: Some(result.search_calls),
@@ -333,7 +346,13 @@ where
         }
         Ok(result) => {
             if runtime.is_cancelled() {
-                return cancelled_result(requested_mode, "responses", started);
+                return cancelled_result(
+                    requested_mode,
+                    "responses",
+                    started,
+                    Some(responses_duration_ms),
+                    None,
+                );
             }
             circuit.lock().record_failure(
                 ResponsesSearchErrorKind::Empty,
@@ -342,18 +361,30 @@ where
             );
             runtime.report(WallpaperXSearchStage::FallingBack);
             if runtime.is_cancelled() {
-                return cancelled_result(requested_mode, "responses", started);
+                return cancelled_result(
+                    requested_mode,
+                    "responses",
+                    started,
+                    Some(responses_duration_ms),
+                    None,
+                );
             }
-            finish_cli(
-                cli().await,
+            run_cli(
+                cli,
                 requested_mode,
                 Some(ResponsesSearchErrorKind::Empty.code()),
                 started,
+                Some(responses_duration_ms),
             )
+            .await
         }
-        Err(error) if error.kind == ResponsesSearchErrorKind::Cancelled => {
-            cancelled_result(requested_mode, "responses", started)
-        }
+        Err(error) if error.kind == ResponsesSearchErrorKind::Cancelled => cancelled_result(
+            requested_mode,
+            "responses",
+            started,
+            Some(responses_duration_ms),
+            None,
+        ),
         Err(error) if !should_fallback(error.kind) => {
             if counts_toward_circuit(error.kind) {
                 circuit.lock().record_failure(
@@ -372,6 +403,8 @@ where
                     route_used: "responses".into(),
                     fallback_reason: None,
                     duration_ms: elapsed_ms(started),
+                    responses_duration_ms: Some(responses_duration_ms),
+                    cli_duration_ms: None,
                     cache_hit: false,
                     continuation_id: None,
                     search_calls: None,
@@ -390,11 +423,47 @@ where
             );
             runtime.report(WallpaperXSearchStage::FallingBack);
             if runtime.is_cancelled() {
-                return cancelled_result(requested_mode, "responses", started);
+                return cancelled_result(
+                    requested_mode,
+                    "responses",
+                    started,
+                    Some(responses_duration_ms),
+                    None,
+                );
             }
-            finish_cli(cli().await, requested_mode, Some(error.code()), started)
+            run_cli(
+                cli,
+                requested_mode,
+                Some(error.code()),
+                started,
+                Some(responses_duration_ms),
+            )
+            .await
         }
     }
+}
+
+async fn run_cli<C, CFut>(
+    cli: C,
+    requested_mode: &str,
+    fallback_reason: Option<&str>,
+    started: Instant,
+    responses_duration_ms: Option<u64>,
+) -> WallpaperSearchResult
+where
+    C: FnOnce() -> CFut,
+    CFut: Future<Output = WallpaperCliSearchOutcome>,
+{
+    let cli_started = Instant::now();
+    let outcome = cli().await;
+    finish_cli(
+        outcome,
+        requested_mode,
+        fallback_reason,
+        started,
+        responses_duration_ms,
+        elapsed_ms(cli_started),
+    )
 }
 
 fn finish_cli(
@@ -402,6 +471,8 @@ fn finish_cli(
     requested_mode: &str,
     fallback_reason: Option<&str>,
     started: Instant,
+    responses_duration_ms: Option<u64>,
+    cli_duration_ms: u64,
 ) -> WallpaperSearchResult {
     outcome.result.meta = Some(WallpaperSearchMeta {
         request_id: None,
@@ -409,6 +480,8 @@ fn finish_cli(
         route_used: "cli".into(),
         fallback_reason: fallback_reason.map(str::to_string),
         duration_ms: elapsed_ms(started),
+        responses_duration_ms,
+        cli_duration_ms: Some(cli_duration_ms),
         cache_hit: false,
         continuation_id: None,
         // Grok Build does not currently expose a reliable hosted X call count
@@ -426,6 +499,8 @@ fn cancelled_result(
     requested_mode: &str,
     route_used: &str,
     started: Instant,
+    responses_duration_ms: Option<u64>,
+    cli_duration_ms: Option<u64>,
 ) -> WallpaperSearchResult {
     WallpaperSearchResult {
         items: Vec::new(),
@@ -437,6 +512,8 @@ fn cancelled_result(
             route_used: route_used.into(),
             fallback_reason: None,
             duration_ms: elapsed_ms(started),
+            responses_duration_ms,
+            cli_duration_ms,
             cache_hit: false,
             continuation_id: None,
             search_calls: None,
@@ -572,10 +649,43 @@ mod tests {
         )
         .await;
         assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
-        assert_eq!(
-            result.meta.unwrap().fallback_reason.as_deref(),
-            Some("responses_network")
+        let meta = result.meta.unwrap();
+        assert_eq!(meta.fallback_reason.as_deref(), Some("responses_network"));
+        assert!(meta.responses_duration_ms.is_some());
+        assert!(meta.cli_duration_ms.is_some());
+        assert!(
+            meta.duration_ms >= meta.responses_duration_ms.unwrap() + meta.cli_duration_ms.unwrap()
         );
+    }
+
+    #[tokio::test]
+    async fn fallback_reports_distinct_responses_and_cli_timings() {
+        let runtime = WallpaperXSearchRuntime::quiet();
+        let result = route_with_providers(
+            "responses_preview",
+            None,
+            &Mutex::new(ResponsesCircuitBreaker::default()),
+            &runtime,
+            || async {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                Err(ResponsesSearchError {
+                    kind: ResponsesSearchErrorKind::Network,
+                    credential_revision: None,
+                    observed_search_calls: None,
+                })
+            },
+            || async {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                cli_outcome()
+            },
+        )
+        .await;
+        let meta = result.meta.unwrap();
+        let responses_ms = meta.responses_duration_ms.unwrap();
+        let cli_ms = meta.cli_duration_ms.unwrap();
+        assert!(responses_ms >= 10, "responses_ms={responses_ms}");
+        assert!(cli_ms >= 10, "cli_ms={cli_ms}");
+        assert!(meta.duration_ms >= responses_ms + cli_ms);
     }
 
     #[test]

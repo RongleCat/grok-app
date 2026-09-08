@@ -39,6 +39,7 @@ export const filSettingsUi = {
   "settings.wallpaperSource.loadMore": "Mag-load pa",
   "settings.wallpaperSource.noMore": "Wala nang ibang larawang nahanap.",
   "settings.wallpaperSource.route.fallback": "Bumalik sa Grok Build CLI ({reason}) · {seconds}s",
+  "settings.wallpaperSource.route.fallbackTimed": "Nabigo ang Responses pagkalipas ng {responsesSeconds}s ({reason}); natapos ang CLI sa {cliSeconds}s · {seconds}s lahat",
   "settings.wallpaperSource.route.fallback.auth": "hindi available o paso ang opisyal na sign-in",
   "settings.wallpaperSource.route.fallback.network": "hindi available ang Responses network",
   "settings.wallpaperSource.route.fallback.compatibility": "nagbago ang compatibility ng Responses",
@@ -760,4 +761,8 @@ export const filSettingsUi = {
   "settings.wallpaperSource.uploadImage": "Mag-upload ng larawan",
   "settings.wallpaperSource.removeSourceImage": "Alisin ang orihinal",
   "settings.wallpaperSource.editPlaceholder": "Ilarawan ang mga pagbabago sa larawang ito",
+  "settings.wallpaperSource.openverse.placeholder": "hal. lawa sa bundok pagsikat ng araw",
+  "settings.wallpaperSource.routeSaveFailed": "Hindi ma-save ang ruta ng paghahanap sa X.",
+  "settings.wallpaperSource.attribution": "Source at lisensya",
+  "settings.wallpaperSource.loadingMore": "Naglo-load pa…",
 };

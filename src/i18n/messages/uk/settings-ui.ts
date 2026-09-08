@@ -39,6 +39,7 @@ export const ukSettingsUi = {
   "settings.wallpaperSource.loadMore": "Завантажити ще",
   "settings.wallpaperSource.noMore": "Інших зображень не знайдено.",
   "settings.wallpaperSource.route.fallback": "Перехід до Grok Build CLI ({reason}) · {seconds} с",
+  "settings.wallpaperSource.route.fallbackTimed": "Responses завершився помилкою через {responsesSeconds} с ({reason}); CLI завершено за {cliSeconds} с · усього {seconds} с",
   "settings.wallpaperSource.route.fallback.auth": "офіційний вхід недоступний або прострочений",
   "settings.wallpaperSource.route.fallback.network": "мережа Responses недоступна",
   "settings.wallpaperSource.route.fallback.compatibility": "сумісність Responses змінилася",
@@ -760,4 +761,8 @@ export const ukSettingsUi = {
   "settings.wallpaperSource.uploadImage": "Завантажити зображення",
   "settings.wallpaperSource.removeSourceImage": "Прибрати початкове зображення",
   "settings.wallpaperSource.editPlaceholder": "Опишіть зміни для цього зображення",
+  "settings.wallpaperSource.openverse.placeholder": "напр. гірське озеро на світанку",
+  "settings.wallpaperSource.routeSaveFailed": "Не вдалося зберегти маршрут пошуку в X.",
+  "settings.wallpaperSource.attribution": "Джерело й ліцензія",
+  "settings.wallpaperSource.loadingMore": "Завантаження…",
 };

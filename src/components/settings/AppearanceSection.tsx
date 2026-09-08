@@ -6,7 +6,13 @@ import type { SettingsViewModel } from "./types";
 
 import { Select } from "@/components/Select";
 import { FontFamilySelect } from "./FontFamilySelect";
-import { IconAppearance, IconCrop, IconHelp } from "@/components/icons";
+import {
+  IconAppearance,
+  IconCrop,
+  IconHelp,
+  IconSearch,
+  IconUpload,
+} from "@/components/icons";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Tip } from "@/components/ui/tooltip";
 import {
@@ -361,7 +367,7 @@ export function AppearanceSection() {
               }
               id="settings-anchor-wallpaper"
             >
-                  <div className="settings-row settings-row--stack">
+                  <div className="settings-row settings-row--stack settings-wallpaper-host">
                     <div className="settings-row__text">
                       <SettingsLabelWithTip
                         label={t("settings.wallpaper")}
@@ -476,41 +482,36 @@ export function AppearanceSection() {
                         )}
                       </div>
                       <div className="settings-wallpaper__side">
-                      <div className="settings-wallpaper__actions">
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={wallpaperBusy}
-                          onClick={() => wallpaperInputRef.current?.click()}
+                        <div
+                          id="settings-anchor-wallpaper-x-search-mode"
+                          className={
+                            "settings-wallpaper__actions" +
+                            rowHighlight(
+                              "settings-anchor-wallpaper-x-search-mode",
+                            )
+                          }
                         >
-                          {wallpaperUrl
-                            ? t("settings.wallpaperReplace")
-                            : t("settings.wallpaperUpload")}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={wallpaperBusy}
-                          onClick={() => openWallpaperSource("x")}
-                        >
-                          {t("settings.wallpaperFromX")}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={wallpaperBusy}
-                          onClick={() => openWallpaperSource("imagine")}
-                        >
-                          {t("settings.wallpaperImagine")}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={wallpaperBusy}
-                          onClick={() => openWallpaperSource("library")}
-                        >
-                          {t("settings.wallpaperLibrary")}
-                        </button>
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            disabled={wallpaperBusy}
+                            onClick={() => wallpaperInputRef.current?.click()}
+                          >
+                            <IconUpload size={14} aria-hidden />
+                            {wallpaperUrl
+                              ? t("settings.wallpaperReplace")
+                              : t("settings.wallpaperUpload")}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--solid btn--sm"
+                            disabled={wallpaperBusy}
+                            onClick={() => openWallpaperSource("x")}
+                          >
+                            <IconSearch size={14} aria-hidden />
+                            {t("settings.wallpaperFind")}
+                          </button>
+                        </div>
                       </div>
                       {wallpaperUrl && (onWallpaperScrim || onWallpaperBlur) ? (
                         <div className="settings-wallpaper__sliders">
@@ -635,7 +636,6 @@ export function AppearanceSection() {
                           {wallpaperError}
                         </p>
                       ) : null}
-                      </div>
                       <WallpaperSourceModal
                         open={wallpaperSourceOpen}
                         onClose={() => setWallpaperSourceOpen(false)}

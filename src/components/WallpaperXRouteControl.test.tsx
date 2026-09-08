@@ -26,7 +26,9 @@ it("failed persistence keeps the saved mode and restores interaction", async () 
   render(<WallpaperXRouteControl t={(key) => key} disabled={false} onSavingChange={vi.fn()} />);
   await waitFor(() => expect(screen.getByRole("button").hasAttribute("disabled")).toBe(false));
   fireEvent.click(screen.getByRole("button"));
-  await screen.findByRole("alert");
+  expect((await screen.findByRole("alert")).textContent).toBe(
+    "settings.wallpaperSource.routeSaveFailed",
+  );
   expect(screen.getByRole("button").textContent).toBe("cli");
   expect(screen.getByRole("button").hasAttribute("disabled")).toBe(false);
 });

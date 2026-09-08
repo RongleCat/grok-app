@@ -71,6 +71,10 @@ import {
 } from "@/lib/xEvidenceCitation";
 import { WallpaperPrepareError } from "@/lib/themeSkin";
 import { wallpaperRemoteProgressMessageKey } from "@/lib/wallpaperRemoteSearch";
+import {
+  wallpaperXSearchProgressMessageKey,
+  wallpaperXSearchRouteSummary,
+} from "@/lib/wallpaperXSearch";
 import { resolveGrokAlbumEmptyPresentation } from "@/lib/grokAlbum";
 import {
   cancelGrokAlbumMediaRequests,
@@ -232,6 +236,7 @@ export function WallpaperSourceModal({
     provider.stage,
     providerSource,
   );
+  const xProgressMessageKey = wallpaperXSearchProgressMessageKey(xStage);
   const busy =
     xBusy ||
     routeSaving ||
@@ -639,20 +644,24 @@ export function WallpaperSourceModal({
       const res = await searchX(q, sort);
       if (!res) return;
       if (res.meta) {
-        const { routeUsed, durationMs, fallbackReason } = res.meta;
-        const reason = fallbackReason?.includes("oauth") || fallbackReason?.includes("unauthorized")
-          ? "auth"
-          : fallbackReason?.includes("circuit") ? "circuit"
-            : fallbackReason?.includes("empty") ? "empty"
-              : /network|timeout|tls|server/.test(fallbackReason ?? "") ? "network"
-                : "compatibility";
-        const routeLabel = t(fallbackReason
-          ? "settings.wallpaperSource.route.fallback"
-          : routeUsed === "responses" ? "settings.wallpaperSource.route.responses" : "settings.wallpaperSource.route.cli", {
-          seconds: (durationMs / 1000).toFixed(1),
-          reason: t(`settings.wallpaperSource.route.fallback.${reason}` as MessageKey),
-        });
-        setStatusHint(res.meta.cacheHit ? t("settings.wallpaperSource.route.cached", { route: routeLabel }) : routeLabel);
+        const summary = wallpaperXSearchRouteSummary(res.meta);
+        if (summary) {
+          const routeLabel = t(summary.key as MessageKey, {
+            seconds: summary.seconds,
+            responsesSeconds: summary.responsesSeconds,
+            cliSeconds: summary.cliSeconds,
+            reason: summary.reasonKey
+              ? t(summary.reasonKey as MessageKey)
+              : undefined,
+          });
+          setStatusHint(
+            summary.cacheHit
+              ? t("settings.wallpaperSource.route.cached", {
+                  route: routeLabel,
+                })
+              : routeLabel,
+          );
+        }
       }
       const list = dedupeGalleryItems(res.items || []);
       const code = errorCodeFromSearchResult({ ...res, items: list });
@@ -923,6 +932,37 @@ export function WallpaperSourceModal({
       emptyState.kind === "idle" ||
       emptyState.kind === "filter_empty" ||
       !error);
+  const xCanLoadMore =
+    tab === "x" &&
+    continuation !== null &&
+    continuation.query === query.trim() &&
+    continuation.sort === sort;
+  const canLoadMore = xCanLoadMore
+    ? true
+    : providerSource
+      ? provider.canLoadMore
+      : tab === "grok_album"
+        ? grokAlbum.canLoadMore
+        : tab === "library"
+          ? library.canLoadMore
+          : false;
+  const pageLoading =
+    (tab === "x" && loadingMore) ||
+    (providerSource !== null && provider.loadingMore) ||
+    (tab === "grok_album" && grokAlbum.loadingMore) ||
+    (tab === "library" && library.loadingMore);
+
+  const loadNextPage = () => {
+    if (tab === "x") {
+      void runLoadMore();
+    } else if (providerSource) {
+      void provider.loadMore();
+    } else if (tab === "grok_album") {
+      void grokAlbum.loadMore();
+    } else if (tab === "library") {
+      void library.loadMore();
+    }
+  };
 
   return (
     <>
@@ -1036,19 +1076,9 @@ export function WallpaperSourceModal({
             />
           )}
 
-          {xBusy && xStage ? (
+          {xBusy && xProgressMessageKey ? (
             <p className="wallpaper-source-status" role="status">
-              {t(
-                xStage === "falling_back"
-                  ? "settings.wallpaperSource.progress.fallingBack"
-                  : xStage === "validating"
-                    ? "settings.wallpaperSource.progress.validating"
-                    : xStage === "supplementing"
-                      ? "settings.wallpaperSource.progress.supplementing"
-                      : xStage === "preparing"
-                        ? "settings.wallpaperSource.progress.preparing"
-                        : "settings.wallpaperSource.searching",
-              )}
+              {t(xProgressMessageKey)}
             </p>
           ) : null}
           {provider.busy && providerProgressKey ? (
@@ -1193,72 +1223,6 @@ export function WallpaperSourceModal({
             </div>
           ) : null}
 
-          {tab === "x" &&
-          continuation &&
-          continuation.query === query.trim() &&
-          continuation.sort === sort ? (
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={xBusy || applying || routeSaving}
-              onClick={() => void runLoadMore()}
-            >
-              {t(
-                loadingMore
-                  ? "settings.wallpaperSource.searching"
-                  : "settings.wallpaperSource.loadMore",
-              )}
-            </button>
-          ) : null}
-
-          {providerSource && provider.canLoadMore ? (
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={provider.busy || applying}
-              onClick={() => {
-                void provider.loadMore();
-              }}
-            >
-              {t(
-                provider.loadingMore
-                  ? "settings.wallpaperSource.remote.progress.loadingMore"
-                  : "settings.wallpaperSource.loadMore",
-              )}
-            </button>
-          ) : null}
-          {tab === "grok_album" && grokAlbum.canLoadMore ? (
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={grokAlbum.loadingMore || applying || previewingId !== null}
-              onClick={() => {
-                void grokAlbum.loadMore();
-              }}
-            >
-              {t(
-                grokAlbum.loadingMore
-                  ? "settings.wallpaperSource.remote.progress.loadingMore"
-                  : "settings.wallpaperSource.loadMore",
-              )}
-            </button>
-          ) : null}
-          {tab === "library" && library.canLoadMore ? (
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={library.loadingMore || applying}
-              onClick={() => {
-                void library.loadMore();
-              }}
-            >
-              {t(
-                library.loadingMore
-                  ? "settings.wallpaperSource.remote.progress.loadingMore"
-                  : "settings.wallpaperSource.loadMore",
-              )}
-            </button>
-          ) : null}
           <WallpaperSourceGallery
             scrollRef={sourceHistory.scrollRef}
             favoriteBusyIds={mediaActions.busyIds}
@@ -1286,6 +1250,9 @@ export function WallpaperSourceModal({
             dropItem={dropItem}
             openExternalSource={openExternalSource}
             requestDeleteLibraryItem={requestDeleteLibraryItem}
+            canLoadMore={canLoadMore}
+            loadingMore={pageLoading}
+            onLoadMore={loadNextPage}
           />
         </div>
       </GlassModal>

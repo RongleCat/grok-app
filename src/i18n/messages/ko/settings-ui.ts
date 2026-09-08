@@ -39,6 +39,7 @@ export const koSettingsUi = {
   "settings.wallpaperSource.loadMore": "더 불러오기",
   "settings.wallpaperSource.noMore": "더 이상 이미지를 찾지 못했습니다.",
   "settings.wallpaperSource.route.fallback": "Grok Build CLI로 대체됨({reason}) · {seconds}초",
+  "settings.wallpaperSource.route.fallbackTimed": "Responses가 {responsesSeconds}초 후 실패({reason}); CLI는 {cliSeconds}초 만에 완료 · 총 {seconds}초",
   "settings.wallpaperSource.route.fallback.auth": "공식 로그인을 사용할 수 없거나 만료됨",
   "settings.wallpaperSource.route.fallback.network": "Responses 네트워크를 사용할 수 없음",
   "settings.wallpaperSource.route.fallback.compatibility": "Responses 호환성이 변경됨",
@@ -760,4 +761,8 @@ export const koSettingsUi = {
   "settings.wallpaperSource.uploadImage": "이미지 업로드",
   "settings.wallpaperSource.removeSourceImage": "원본 이미지 제거",
   "settings.wallpaperSource.editPlaceholder": "이 이미지의 수정 사항을 입력하세요",
+  "settings.wallpaperSource.openverse.placeholder": "예: 일출의 고산 호수",
+  "settings.wallpaperSource.routeSaveFailed": "X 검색 경로를 저장하지 못했습니다.",
+  "settings.wallpaperSource.attribution": "출처 및 라이선스",
+  "settings.wallpaperSource.loadingMore": "더 불러오는 중…",
 };

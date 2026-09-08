@@ -1,5 +1,4 @@
 import {
-  useEffect,
   useRef,
   type KeyboardEvent,
   type ReactNode,
@@ -98,13 +97,6 @@ export function WallpaperSourceTabs({
   onChange,
 }: WallpaperSourceTabsProps) {
   const tabRefs = useRef(new Map<WallpaperSourceTab, HTMLButtonElement>());
-
-  useEffect(() => {
-    tabRefs.current.get(value)?.scrollIntoView?.({
-      block: "nearest",
-      inline: "nearest",
-    });
-  }, [value]);
 
   const handleKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>,

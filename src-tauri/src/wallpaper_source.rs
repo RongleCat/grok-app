@@ -136,6 +136,10 @@ pub struct WallpaperSearchMeta {
     pub route_used: String,
     pub fallback_reason: Option<String>,
     pub duration_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub responses_duration_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cli_duration_ms: Option<u64>,
     pub cache_hit: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub continuation_id: Option<String>,

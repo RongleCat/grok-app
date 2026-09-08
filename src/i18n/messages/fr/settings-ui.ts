@@ -39,6 +39,7 @@ export const frSettingsUi = {
   "settings.wallpaperSource.loadMore": "Charger plus",
   "settings.wallpaperSource.noMore": "Aucune autre image trouvée.",
   "settings.wallpaperSource.route.fallback": "Repli sur Grok Build CLI ({reason}) · {seconds} s",
+  "settings.wallpaperSource.route.fallbackTimed": "Échec de Responses après {responsesSeconds} s ({reason}) ; CLI terminé en {cliSeconds} s · {seconds} s au total",
   "settings.wallpaperSource.route.fallback.auth": "connexion officielle indisponible ou expirée",
   "settings.wallpaperSource.route.fallback.network": "réseau Responses indisponible",
   "settings.wallpaperSource.route.fallback.compatibility": "compatibilité Responses modifiée",
@@ -760,4 +761,8 @@ export const frSettingsUi = {
   "settings.wallpaperSource.uploadImage": "Importer une image",
   "settings.wallpaperSource.removeSourceImage": "Retirer l’image source",
   "settings.wallpaperSource.editPlaceholder": "Décrivez les modifications à apporter à cette image",
+  "settings.wallpaperSource.openverse.placeholder": "ex. lac alpin au lever du soleil",
+  "settings.wallpaperSource.routeSaveFailed": "Impossible d’enregistrer la route de recherche X.",
+  "settings.wallpaperSource.attribution": "Source et licence",
+  "settings.wallpaperSource.loadingMore": "Chargement…",
 };

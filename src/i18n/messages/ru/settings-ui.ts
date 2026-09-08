@@ -39,6 +39,7 @@ export const ruSettingsUi = {
   "settings.wallpaperSource.loadMore": "Загрузить ещё",
   "settings.wallpaperSource.noMore": "Других изображений не найдено.",
   "settings.wallpaperSource.route.fallback": "Выполнен откат к Grok Build CLI ({reason}) · {seconds} с",
+  "settings.wallpaperSource.route.fallbackTimed": "Responses завершился ошибкой через {responsesSeconds} с ({reason}); CLI завершён за {cliSeconds} с · всего {seconds} с",
   "settings.wallpaperSource.route.fallback.auth": "официальный вход недоступен или истёк",
   "settings.wallpaperSource.route.fallback.network": "сеть Responses недоступна",
   "settings.wallpaperSource.route.fallback.compatibility": "совместимость Responses изменилась",
@@ -760,4 +761,8 @@ export const ruSettingsUi = {
   "settings.wallpaperSource.uploadImage": "Загрузить изображение",
   "settings.wallpaperSource.removeSourceImage": "Убрать исходное изображение",
   "settings.wallpaperSource.editPlaceholder": "Опишите изменения для этого изображения",
+  "settings.wallpaperSource.openverse.placeholder": "напр. горное озеро на рассвете",
+  "settings.wallpaperSource.routeSaveFailed": "Не удалось сохранить маршрут поиска в X.",
+  "settings.wallpaperSource.attribution": "Источник и лицензия",
+  "settings.wallpaperSource.loadingMore": "Загрузка…",
 };

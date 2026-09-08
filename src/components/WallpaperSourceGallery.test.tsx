@@ -82,6 +82,9 @@ function galleryProps(visibleItems: WallpaperGalleryItem[]) {
     requestDeleteLibraryItem: vi.fn(),
     onGenerateVideo: vi.fn(),
     onEditImage: vi.fn(),
+    canLoadMore: false,
+    loadingMore: false,
+    onLoadMore: vi.fn(),
   };
 }
 
@@ -255,5 +258,61 @@ describe("WallpaperSourceGallery media details", () => {
     expect(container.querySelector("video")?.getAttribute("preload")).toBe(
       "metadata",
     );
+  });
+
+  it("keeps load more after the cards inside the result scroller", () => {
+    const onLoadMore = vi.fn();
+    const remoteItem: WallpaperGalleryItem = {
+      ...item,
+      id: "remote-landscape",
+      source: "pexels",
+      localPath: undefined,
+      width: 1600,
+      height: 900,
+    };
+    const props = {
+      ...galleryProps([remoteItem]),
+      tab: "pexels" as const,
+      canLoadMore: true,
+      onLoadMore,
+    };
+    const { container } = render(<WallpaperSourceGallery {...props} />);
+
+    const list = screen.getByRole("list");
+    const card = screen.getByRole("listitem");
+    const loadMore = screen.getByRole("button", {
+      name: "settings.wallpaperSource.loadMore",
+    });
+    const shell = container.querySelector<HTMLElement>(
+      ".wallpaper-masonry__media-shell",
+    );
+
+    expect(list.contains(loadMore)).toBe(true);
+    expect(
+      card.compareDocumentPosition(loadMore) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(shell?.style.aspectRatio).toBe("1600 / 900");
+
+    fireEvent.click(loadMore);
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the generic loading label while appending any source", () => {
+    render(
+      <WallpaperSourceGallery
+        {...galleryProps([item])}
+        tab="grok_album"
+        canLoadMore
+        loadingMore
+      />,
+    );
+
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "settings.wallpaperSource.loadingMore",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
   });
 });

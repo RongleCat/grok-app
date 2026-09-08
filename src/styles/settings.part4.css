@@ -1,6 +1,5 @@
 /* domain CSS chunk (move-only split; selectors unchanged) */
 
-
 .wallpaper-source-tabs__btn:hover:not(:disabled) {
   color: var(--text-primary);
   background: color-mix(in srgb, var(--bg-active) 70%, transparent);
@@ -43,7 +42,8 @@
 
 .wallpaper-grok-album__dot[data-status="ready"] {
   background: var(--success, #45b97c);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success, #45b97c) 14%, transparent);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--success, #45b97c) 14%, transparent);
 }
 
 .wallpaper-grok-album__dot[data-status="loading"] {
@@ -126,6 +126,29 @@
   cursor: not-allowed;
 }
 
+/* Keep every source visible: one row when roomy, two grouped rows when narrow. */
+@media (max-width: 1000px) {
+  .wallpaper-source-tabs {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    grid-template-areas:
+      "discovery discovery"
+      "create personal";
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 520px) {
+  .wallpaper-source-tabs__group--discovery {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wallpaper-source-tabs__btn {
+    min-height: 38px;
+    padding-inline: 6px;
+  }
+}
+
 /* Shared control metrics for X search + Imagine form rows */
 .wallpaper-source-form {
   --ws-control-h: var(--control-height, 32px);
@@ -150,6 +173,15 @@
   gap: var(--ws-control-gap);
   align-items: center;
   min-height: var(--ws-control-h);
+}
+
+.wallpaper-source-form__row--search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.wallpaper-source-form__row--x {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 220px) auto auto;
 }
 
 .wallpaper-source-form__input,
@@ -197,6 +229,53 @@
   flex: 0 0 auto;
   min-width: 96px;
   height: var(--ws-control-h);
+}
+
+.wallpaper-source-form__select--route {
+  width: 100%;
+  min-width: 0;
+}
+
+.wallpaper-source-route {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(220px, 28vw);
+  min-width: 180px;
+}
+
+.wallpaper-source-form__route-error {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .wallpaper-source-form__row--search {
+    grid-template-columns: minmax(0, 1fr) auto;
+    height: auto;
+  }
+
+  .wallpaper-source-form__row--search > .wallpaper-source-form__input {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .wallpaper-source-form__row--x > .wallpaper-source-form__select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .wallpaper-source-form__row--x > .wallpaper-source-route {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .wallpaper-source-form__row--remote > .btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
 }
 
 .wallpaper-source-form__select .c-select__trigger {
@@ -330,6 +409,16 @@
   color: var(--text-secondary);
 }
 
+.wallpaper-source-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 4px;
+}
+
+.wallpaper-source-load-more .btn {
+  min-width: 116px;
+}
+
 .wallpaper-source-error {
   display: flex;
   flex-wrap: wrap;
@@ -393,6 +482,41 @@
   overflow: visible;
 }
 
+/* Paged sources stay in DOM order so revealing a page never reshuffles cards. */
+.wallpaper-masonry--stable {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 12px;
+  align-items: start;
+  column-count: auto;
+  column-gap: normal;
+}
+
+@media (min-width: 1320px) {
+  .wallpaper-source-modal .wallpaper-masonry--stable {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.wallpaper-masonry--stable .wallpaper-masonry__card-wrap {
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.wallpaper-masonry--stable .wallpaper-masonry__card {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  background: transparent;
+}
+
 /* Keep generated portrait and landscape media within the available scroller. */
 .wallpaper-masonry--full {
   column-count: 1;
@@ -452,6 +576,10 @@
   min-width: 0;
 }
 
+.wallpaper-masonry--stable .wallpaper-masonry__media-shell {
+  overflow: hidden;
+}
+
 .wallpaper-masonry__preview {
   display: block;
   width: 100%;
@@ -468,6 +596,31 @@
 .wallpaper-masonry__preview:disabled {
   cursor: wait;
   opacity: 0.7;
+}
+
+.wallpaper-masonry__media {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--bg-hover) 80%, #000);
+}
+
+.wallpaper-masonry--stable .wallpaper-masonry__preview,
+.wallpaper-masonry--stable .wallpaper-masonry__media {
+  height: 100%;
+}
+
+.wallpaper-masonry--stable .wallpaper-masonry__media > .wallpaper-masonry__img,
+.wallpaper-masonry--stable
+  .wallpaper-masonry__media
+  > .wallpaper-masonry__thumb-placeholder,
+.wallpaper-masonry--stable
+  .wallpaper-masonry__media
+  > .wallpaper-provider-thumbnail-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
 }
 
 .wallpaper-masonry__video-action {
@@ -542,7 +695,7 @@
   height: auto;
   max-width: 100%;
   vertical-align: middle;
-  background: color-mix(in srgb, var(--bg-hover) 80%, #000);
+  background: transparent;
   border: none;
   object-fit: contain;
 }
@@ -618,6 +771,92 @@
   font-style: italic;
 }
 
+.wallpaper-attribution {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 5px 9px 7px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.wallpaper-attribution--licensed {
+  gap: 6px;
+  padding-inline: 7px;
+}
+
+.wallpaper-attribution__link,
+.wallpaper-attribution__text {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallpaper-attribution__link {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wallpaper-attribution__link:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.wallpaper-attribution__link:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.wallpaper-attribution:not(.wallpaper-attribution--licensed)
+  .wallpaper-attribution__source {
+  flex: 1 1 auto;
+}
+
+.wallpaper-attribution:not(.wallpaper-attribution--licensed)
+  .wallpaper-attribution__author {
+  max-width: 45%;
+}
+
+.wallpaper-attribution--licensed .wallpaper-attribution__source {
+  display: inline-flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 18px;
+  max-width: none;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.wallpaper-attribution--licensed
+  .wallpaper-attribution__source:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.wallpaper-attribution--licensed .wallpaper-attribution__author {
+  flex: 1 1 0;
+}
+
+.wallpaper-attribution--licensed .wallpaper-attribution__license {
+  flex: 0 1 auto;
+  max-width: 52%;
+}
+
 .wallpaper-source-cite-summary {
   flex: 0 0 auto;
   margin: 0 0 8px;
@@ -631,12 +870,24 @@
 }
 
 @media (max-width: 640px) {
-  .wallpaper-masonry:not(.wallpaper-masonry--full) {
+  .wallpaper-masonry:not(.wallpaper-masonry--full):not(
+      .wallpaper-masonry--stable
+    ) {
     column-count: 2;
+  }
+
+  .wallpaper-masonry--stable {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .wallpaper-imagine-form__options > .btn {
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .wallpaper-masonry--stable {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -660,24 +911,25 @@
   width: 100%;
 }
 
-/* Wallpaper: preview left, controls stacked right — sizes from content, not viewport. */
+/* Wallpaper preview and controls wrap from the card's own available width. */
 .settings-wallpaper--split {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(180px, 0.9fr);
+  display: flex;
+  flex-flow: row wrap;
   gap: 14px 16px;
   align-items: start;
   width: 100%;
 }
 
 .settings-wallpaper--split .settings-wallpaper__preview-wrap {
-  min-width: 0;
+  flex: 1.4 1 320px;
+  min-width: min(320px, 100%);
   min-height: 0;
 }
 
 .settings-wallpaper--split .settings-wallpaper__preview {
   aspect-ratio: 16 / 10;
   width: 100%;
-  min-height: 220px;
+  min-height: 0;
   height: auto;
   max-height: none;
 }
@@ -685,29 +937,33 @@
 .settings-wallpaper__side {
   display: flex;
   flex-direction: column;
-  flex: 0 0 auto;
+  flex: 1 1 220px;
   gap: 12px;
-  min-width: 0;
+  min-width: min(220px, 100%);
   min-height: auto;
   height: auto;
 }
 
-.settings-wallpaper__sliders {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-  flex: 0 0 auto;
+.settings-wallpaper__side .settings-wallpaper__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-@media (max-width: 720px) {
-  .settings-wallpaper--split {
-    grid-template-columns: 1fr;
-  }
+.settings-wallpaper__side .settings-wallpaper__actions .btn {
+  min-width: 0;
+  justify-content: center;
+}
 
-  .settings-wallpaper--split .settings-wallpaper__preview {
-    min-height: 180px;
-  }
+.settings-wallpaper__sliders {
+  flex: 1 0 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px 16px;
+  width: 100%;
+}
+
+.settings-wallpaper--split > .settings-wallpaper__error {
+  flex: 1 0 100%;
 }
 
 /* Window-shaped preview (~desktop frame). Empty state click → file picker. */
@@ -721,8 +977,7 @@
   margin: 0;
   border-radius: var(--radius-md);
   border: 1px dashed color-mix(in srgb, var(--border-strong) 70%, transparent);
-  background:
-    linear-gradient(135deg, var(--bg-hover), var(--bg-elevated));
+  background: linear-gradient(135deg, var(--bg-hover), var(--bg-elevated));
   overflow: hidden;
   cursor: pointer;
   color: inherit;
@@ -838,7 +1093,11 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   top: 8px;
   right: 8px;
   z-index: 3;
-  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent) !important;
+  background: color-mix(
+    in srgb,
+    var(--bg-elevated) 88%,
+    transparent
+  ) !important;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   box-shadow: 0 1px 4px color-mix(in srgb, #000 25%, transparent);
@@ -1222,7 +1481,6 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   color: var(--text-tertiary);
 }
 
-
 /* Library card wrap: delete sits outside the preview button */
 .wallpaper-masonry__card-wrap {
   position: relative;
@@ -1266,7 +1524,11 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
 }
 
 .wallpaper-masonry__delete:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--danger, #e11d48) 85%, var(--bg-elevated));
+  background: color-mix(
+    in srgb,
+    var(--danger, #e11d48) 85%,
+    var(--bg-elevated)
+  );
   color: #fff;
 }
 
@@ -1464,11 +1726,17 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   margin-left: auto;
 }
 
-
 @media (max-width: 640px) {
-  .wallpaper-pexels-key { flex-wrap: wrap; }
-  .wallpaper-pexels-key__form { flex-basis: 100%; }
-  .wallpaper-pexels-key__input { max-width: none; min-width: 0; }
+  .wallpaper-pexels-key {
+    flex-wrap: wrap;
+  }
+  .wallpaper-pexels-key__form {
+    flex-basis: 100%;
+  }
+  .wallpaper-pexels-key__input {
+    max-width: none;
+    min-width: 0;
+  }
 }
 
 .wallpaper-provider-thumbnail-placeholder {
@@ -1478,24 +1746,4 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   padding: 12px;
   color: var(--text-tertiary);
   font-size: 12px;
-}
-
-/* Narrow layouts keep the grouped source strip on one readable scroll row. */
-@media (max-width: 1200px) {
-  .wallpaper-source-tabs {
-    display: flex;
-    justify-content: flex-start;
-    gap: 12px;
-  }
-
-  .wallpaper-source-tabs__group {
-    display: inline-flex;
-    flex: 0 0 auto;
-    min-width: max-content;
-  }
-
-  .wallpaper-source-tabs__btn {
-    min-width: max-content;
-    width: auto;
-  }
 }

@@ -39,6 +39,7 @@ export const taSettingsUi = {
   "settings.wallpaperSource.loadMore": "மேலும் ஏற்று",
   "settings.wallpaperSource.noMore": "மேலும் படங்கள் கிடைக்கவில்லை.",
   "settings.wallpaperSource.route.fallback": "Grok Build CLI-க்கு மாற்றப்பட்டது ({reason}) · {seconds} வி",
+  "settings.wallpaperSource.route.fallbackTimed": "Responses {responsesSeconds} வி-க்குப் பிறகு தோல்வியடைந்தது ({reason}); CLI {cliSeconds} வி-ல் முடிந்தது · மொத்தம் {seconds} வி",
   "settings.wallpaperSource.route.fallback.auth": "அதிகாரப்பூர்வ உள்நுழைவு கிடைக்கவில்லை அல்லது காலாவதியானது",
   "settings.wallpaperSource.route.fallback.network": "Responses பிணையம் கிடைக்கவில்லை",
   "settings.wallpaperSource.route.fallback.compatibility": "Responses இணக்கத்தன்மை மாறியுள்ளது",
@@ -760,4 +761,8 @@ export const taSettingsUi = {
   "settings.wallpaperSource.uploadImage": "படத்தைப் பதிவேற்று",
   "settings.wallpaperSource.removeSourceImage": "மூலப் படத்தை அகற்று",
   "settings.wallpaperSource.editPlaceholder": "இந்தப் படத்தில் செய்ய வேண்டிய மாற்றங்களை விவரிக்கவும்",
+  "settings.wallpaperSource.openverse.placeholder": "எ.கா. சூரிய உதயத்தில் மலை ஏரி",
+  "settings.wallpaperSource.routeSaveFailed": "X தேடல் வழியைச் சேமிக்க முடியவில்லை.",
+  "settings.wallpaperSource.attribution": "மூலம் மற்றும் உரிமம்",
+  "settings.wallpaperSource.loadingMore": "மேலும் ஏற்றுகிறது…",
 };

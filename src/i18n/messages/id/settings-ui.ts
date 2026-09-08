@@ -39,6 +39,7 @@ export const idSettingsUi = {
   "settings.wallpaperSource.loadMore": "Muat lainnya",
   "settings.wallpaperSource.noMore": "Tidak ada gambar lain yang ditemukan.",
   "settings.wallpaperSource.route.fallback": "Beralih kembali ke Grok Build CLI ({reason}) · {seconds} dtk",
+  "settings.wallpaperSource.route.fallbackTimed": "Responses gagal setelah {responsesSeconds} dtk ({reason}); CLI selesai dalam {cliSeconds} dtk · total {seconds} dtk",
   "settings.wallpaperSource.route.fallback.auth": "login resmi tidak tersedia atau kedaluwarsa",
   "settings.wallpaperSource.route.fallback.network": "jaringan Responses tidak tersedia",
   "settings.wallpaperSource.route.fallback.compatibility": "kompatibilitas Responses berubah",
@@ -760,4 +761,8 @@ export const idSettingsUi = {
   "settings.wallpaperSource.uploadImage": "Unggah gambar",
   "settings.wallpaperSource.removeSourceImage": "Hapus gambar sumber",
   "settings.wallpaperSource.editPlaceholder": "Jelaskan perubahan pada gambar ini",
+  "settings.wallpaperSource.openverse.placeholder": "mis. danau pegunungan saat matahari terbit",
+  "settings.wallpaperSource.routeSaveFailed": "Rute pencarian X tidak dapat disimpan.",
+  "settings.wallpaperSource.attribution": "Sumber dan lisensi",
+  "settings.wallpaperSource.loadingMore": "Memuat lainnya…",
 };

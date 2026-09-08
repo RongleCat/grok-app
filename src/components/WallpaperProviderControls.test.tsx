@@ -82,6 +82,30 @@ describe("WallpaperProviderControls", () => {
     await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
   });
 
+  it("uses the Openverse-specific search placeholder", () => {
+    render(
+      <WallpaperProviderControls
+        source="openverse"
+        query="alpine lake"
+        busy={false}
+        locked={false}
+        invalidKey={false}
+        t={t as never}
+        setQuery={vi.fn()}
+        search={vi.fn(async () => undefined)}
+        cancel={vi.fn(async () => true)}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(api.secretsGetMasked).not.toHaveBeenCalled();
+    expect(
+      screen.getByPlaceholderText(
+        "settings.wallpaperSource.openverse.placeholder",
+      ),
+    ).toBeTruthy();
+  });
+
   it("keeps Pexels search disabled when credential status cannot be read", async () => {
     api.secretsGetMasked.mockRejectedValue(new Error("unavailable"));
     renderControls();

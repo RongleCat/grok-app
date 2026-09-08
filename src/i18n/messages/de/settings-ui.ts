@@ -39,6 +39,7 @@ export const deSettingsUi = {
   "settings.wallpaperSource.loadMore": "Mehr laden",
   "settings.wallpaperSource.noMore": "Keine weiteren Bilder gefunden.",
   "settings.wallpaperSource.route.fallback": "Auf Grok Build CLI zurückgefallen ({reason}) · {seconds} s",
+  "settings.wallpaperSource.route.fallbackTimed": "Responses nach {responsesSeconds} s fehlgeschlagen ({reason}); CLI in {cliSeconds} s abgeschlossen · insgesamt {seconds} s",
   "settings.wallpaperSource.route.fallback.auth": "offizielle Anmeldung fehlt oder ist abgelaufen",
   "settings.wallpaperSource.route.fallback.network": "Responses-Netzwerk nicht erreichbar",
   "settings.wallpaperSource.route.fallback.compatibility": "Responses-Kompatibilität hat sich geändert",
@@ -760,4 +761,8 @@ export const deSettingsUi = {
   "settings.wallpaperSource.uploadImage": "Bild hochladen",
   "settings.wallpaperSource.removeSourceImage": "Ausgangsbild entfernen",
   "settings.wallpaperSource.editPlaceholder": "Beschreibe die gewünschten Änderungen am Bild",
+  "settings.wallpaperSource.openverse.placeholder": "z. B. Bergsee bei Sonnenaufgang",
+  "settings.wallpaperSource.routeSaveFailed": "Die X-Suchroute konnte nicht gespeichert werden.",
+  "settings.wallpaperSource.attribution": "Quelle und Lizenz",
+  "settings.wallpaperSource.loadingMore": "Weitere werden geladen…",
 };

@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { Select } from "@/components/Select";
 import * as api from "@/lib/api";
+import { normalizeWallpaperXSearchMode } from "@/lib/wallpaperXSearch";
 import type { WallpaperSourceModalProps } from "./WallpaperSourceModal";
 
 type Mode = "cli" | "responses_preview";
 
-export function WallpaperXRouteControl({ t, disabled, onSavingChange }: {
+export function WallpaperXRouteControl({
+  t,
+  disabled,
+  onSavingChange,
+}: {
   t: WallpaperSourceModalProps["t"];
   disabled: boolean;
   onSavingChange: (saving: boolean) => void;
@@ -15,14 +20,31 @@ export function WallpaperXRouteControl({ t, disabled, onSavingChange }: {
   const [error, setError] = useState(false);
   useEffect(() => {
     let active = true;
-    void api.settingsGet().then((settings) => {
-      if (active) setMode(settings.wallpaperXSearchMode === "responses_preview" ? "responses_preview" : "cli");
-    }).catch(() => { if (active) setError(true); }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    void api
+      .settingsGet()
+      .then((settings) => {
+        if (active) {
+          const persisted = normalizeWallpaperXSearchMode(
+            settings.wallpaperXSearchMode,
+          );
+          setMode(persisted === "responses_preview" ? persisted : "cli");
+        }
+      })
+      .catch(() => {
+        if (active) setError(true);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function save(value: string) {
-    const next: Mode = value === "responses_preview" ? "responses_preview" : "cli";
+    const normalized = normalizeWallpaperXSearchMode(value);
+    const next: Mode =
+      normalized === "responses_preview" ? normalized : "cli";
     setLoading(true);
     onSavingChange(true);
     setError(false);
@@ -38,16 +60,31 @@ export function WallpaperXRouteControl({ t, disabled, onSavingChange }: {
     }
   }
 
-  return <div className="wallpaper-source-form">
-    <label>{t("settings.wallpaperXSearchMode")}</label>
-    <Select value={mode} disabled={disabled || loading}
-      aria-label={t("settings.wallpaperXSearchMode")}
-      options={[
-        { value: "cli", label: t("settings.wallpaperXSearchMode.cli") },
-        { value: "responses_preview", label: t("settings.wallpaperXSearchMode.responsesPreview") },
-      ]}
-      onChange={(value) => { void save(value); }} />
-    <p className="wallpaper-source-form__hint">{t("settings.wallpaperXSearchModeDesc")}</p>
-    {error ? <p role="alert">{t("settings.wallpaperSource.err.generic")}</p> : null}
-  </div>;
+  return (
+    <div className="wallpaper-source-route">
+      <Select
+        className="wallpaper-source-form__select wallpaper-source-form__select--route"
+        value={mode}
+        disabled={disabled || loading}
+        aria-label={t("settings.wallpaperXSearchMode")}
+        title={t("settings.wallpaperXSearchModeDesc")}
+        options={[
+          { value: "cli", label: t("settings.wallpaperXSearchMode.cli") },
+          {
+            value: "responses_preview",
+            label: t("settings.wallpaperXSearchMode.responsesPreview"),
+          },
+        ]}
+        onChange={(value) => {
+          void save(value);
+        }}
+        placement="down"
+      />
+      {error ? (
+        <span className="wallpaper-source-form__route-error" role="alert">
+          {t("settings.wallpaperSource.routeSaveFailed")}
+        </span>
+      ) : null}
+    </div>
+  );
 }

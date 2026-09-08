@@ -39,6 +39,7 @@ export const jaSettingsUi = {
   "settings.wallpaperSource.loadMore": "さらに読み込む",
   "settings.wallpaperSource.noMore": "これ以上画像は見つかりませんでした。",
   "settings.wallpaperSource.route.fallback": "Grok Build CLI に切り替えました（{reason}）・{seconds}秒",
+  "settings.wallpaperSource.route.fallbackTimed": "Responses は {responsesSeconds}秒後に失敗（{reason}）。CLI は {cliSeconds}秒で完了・合計 {seconds}秒",
   "settings.wallpaperSource.route.fallback.auth": "公式ログインが利用できないか期限切れ",
   "settings.wallpaperSource.route.fallback.network": "Responses のネットワークを利用不可",
   "settings.wallpaperSource.route.fallback.compatibility": "Responses の互換性が変更された",
@@ -760,4 +761,8 @@ export const jaSettingsUi = {
   "settings.wallpaperSource.uploadImage": "画像をアップロード",
   "settings.wallpaperSource.removeSourceImage": "元画像を削除",
   "settings.wallpaperSource.editPlaceholder": "この画像に加えたい変更を入力",
+  "settings.wallpaperSource.openverse.placeholder": "例: 朝日の高山湖",
+  "settings.wallpaperSource.routeSaveFailed": "X 検索ルートを保存できませんでした。",
+  "settings.wallpaperSource.attribution": "ソースとライセンス",
+  "settings.wallpaperSource.loadingMore": "さらに読み込み中…",
 };

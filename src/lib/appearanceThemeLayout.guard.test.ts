@@ -62,6 +62,29 @@ describe("appearance theme layout", () => {
     );
   });
 
+  it("wraps wallpaper controls from card width without distorting the preview", () => {
+    expect(section).toContain(
+      'className="settings-row settings-row--stack settings-wallpaper-host"',
+    );
+    expect(wallpaperCss).toMatch(
+      /\.settings-wallpaper--split\s*\{[^}]*display:\s*flex;[^}]*flex-flow:\s*row wrap;/s,
+    );
+    expect(wallpaperCss).toMatch(
+      /\.settings-wallpaper--split \.settings-wallpaper__preview-wrap\s*\{[^}]*flex:\s*1\.4 1 320px;[^}]*min-width:\s*min\(320px, 100%\);/s,
+    );
+    expect(wallpaperCss).toMatch(
+      /\.settings-wallpaper__side\s*\{[^}]*flex:\s*1 1 220px;[^}]*min-width:\s*min\(220px, 100%\);/s,
+    );
+    expect(wallpaperCss).toMatch(
+      /\.settings-wallpaper--split \.settings-wallpaper__preview\s*\{[^}]*aspect-ratio:\s*16 \/ 10;[^}]*min-height:\s*0;/s,
+    );
+    expect(wallpaperCss).toMatch(
+      /\.settings-wallpaper__sliders\s*\{[^}]*flex:\s*1 0 100%;/s,
+    );
+    expect(section.match(/openWallpaperSource\(/g)?.length).toBe(1);
+    expect(section).toContain('t("settings.wallpaperFind")');
+  });
+
   it("keeps appearance skin chips and preset cards flat (no bevel gradient)", () => {
     const presets = readFileSync(
       resolve(__dirname, "../components/settings/SkinPresetsCard.tsx"),
@@ -85,7 +108,9 @@ describe("appearance theme layout", () => {
       /\.skin-presets__card\s*\{[^}]*inset 0 0 0 1px/s,
     );
     expect(part7).toMatch(/\.skin-presets__card\s*\{[^}]*border:\s*none/s);
-    expect(part7).not.toMatch(/\.skin-presets__card:hover\s*\{[^}]*border-color/s);
+    expect(part7).not.toMatch(
+      /\.skin-presets__card:hover\s*\{[^}]*border-color/s,
+    );
     expect(part7).toMatch(
       /\.skin-presets__card\.is-current\s*\{[^}]*outline:\s*2px solid var\(--accent\)/s,
     );

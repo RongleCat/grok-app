@@ -23,6 +23,8 @@ pub(super) fn success() -> WallpaperSearchResult {
             route_used: "responses".into(),
             fallback_reason: None,
             duration_ms: 9000,
+            responses_duration_ms: Some(9000),
+            cli_duration_ms: None,
             cache_hit: false,
             continuation_id: None,
             search_calls: Some(6),

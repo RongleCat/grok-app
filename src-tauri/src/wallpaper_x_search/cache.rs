@@ -142,7 +142,7 @@ where
     } = request;
     let started = Instant::now();
     if runtime.is_cancelled() {
-        return cancelled_result(mode, "responses", started);
+        return cancelled_result(mode, "responses", started, None, None);
     }
     // CLI/custom routes have different identity semantics and must not share
     // an official-account cache. Only an explicit preview can read or write it.
@@ -162,12 +162,14 @@ where
         let hit = cache.lock().get(key, Instant::now());
         if let Some(mut result) = hit {
             if runtime.is_cancelled() {
-                return cancelled_result(mode, "responses", started);
+                return cancelled_result(mode, "responses", started, None, None);
             }
             if let Some(meta) = result.meta.as_mut() {
                 meta.request_id = Some(request_id.into());
                 meta.cache_hit = true;
                 meta.duration_ms = elapsed_ms(started);
+                meta.responses_duration_ms = None;
+                meta.cli_duration_ms = None;
                 meta.search_calls = Some(0);
             }
             runtime.report_batch(wallpaper_source::WallpaperXSearchBatch {
@@ -181,7 +183,16 @@ where
     }
     let mut result = run().await;
     if runtime.is_cancelled() {
-        return cancelled_result(mode, "responses", started);
+        return cancelled_result(
+            mode,
+            "responses",
+            started,
+            result
+                .meta
+                .as_ref()
+                .and_then(|meta| meta.responses_duration_ms),
+            result.meta.as_ref().and_then(|meta| meta.cli_duration_ms),
+        );
     }
     if result.error_code.is_none()
         && !result.items.is_empty()
@@ -197,7 +208,18 @@ where
                     .cancellation()
                     .commit_if_active(|| cache.lock().insert(key, result.clone(), Instant::now()));
                 match inserted {
-                    None => return cancelled_result(mode, "responses", started),
+                    None => {
+                        return cancelled_result(
+                            mode,
+                            "responses",
+                            started,
+                            result
+                                .meta
+                                .as_ref()
+                                .and_then(|meta| meta.responses_duration_ms),
+                            result.meta.as_ref().and_then(|meta| meta.cli_duration_ms),
+                        )
+                    }
                     Some(id) => {
                         if let Some(meta) = result.meta.as_mut() {
                             meta.continuation_id = id;

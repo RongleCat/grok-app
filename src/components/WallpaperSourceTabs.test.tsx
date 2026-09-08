@@ -1,12 +1,22 @@
 /** @vitest-environment jsdom */
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import "@/test/jsdomStubs";
 import type { WallpaperSourceTab } from "./WallpaperSourceModal";
 import { WallpaperSourceTabs } from "./WallpaperSourceTabs";
 
-afterEach(cleanup);
+const scrollIntoView = vi.fn();
+Object.defineProperty(Element.prototype, "scrollIntoView", {
+  configurable: true,
+  writable: true,
+  value: scrollIntoView,
+});
+
+afterEach(() => {
+  cleanup();
+  scrollIntoView.mockClear();
+});
 
 function Harness() {
   const [value, setValue] = useState<WallpaperSourceTab>("x");
@@ -106,6 +116,21 @@ describe("WallpaperSourceTabs", () => {
     expect(
       screen
         .getByRole("tab", { name: "settings.wallpaperFromX" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("does not shift the source strip when the active tab changes", () => {
+    render(<Harness />);
+
+    fireEvent.click(
+      screen.getByRole("tab", { name: "settings.wallpaperLibrary" }),
+    );
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(
+      screen
+        .getByRole("tab", { name: "settings.wallpaperLibrary" })
         .getAttribute("aria-selected"),
     ).toBe("true");
   });

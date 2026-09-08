@@ -106,7 +106,7 @@ export function WallpaperProviderControls({
         </p>
       ) : null}
       <form
-        className="wallpaper-source-form__row"
+        className="wallpaper-source-form__row wallpaper-source-form__row--search wallpaper-source-form__row--remote"
         onSubmit={(event) => {
           event.preventDefault();
           if (!searchDisabled && !busy) void search();
@@ -120,6 +120,8 @@ export function WallpaperProviderControls({
           placeholder={
             source === "web"
               ? t("settings.wallpaperSource.web.placeholder")
+              : source === "openverse"
+                ? t("settings.wallpaperSource.openverse.placeholder")
               : source === "pexels"
                 ? t("settings.wallpaperSource.pexels.placeholder")
                 : undefined

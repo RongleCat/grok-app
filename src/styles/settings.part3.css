@@ -86,7 +86,6 @@
   background: var(--bg-hover);
 }
 
-
 .settings-acp-chip.is-ok .settings-acp-chip__dot {
   background: var(--success, #3d9a5f);
 }
@@ -284,7 +283,11 @@
 
 .settings-cli-update__channel.is-alpha {
   color: var(--warning, #c90);
-  border-color: color-mix(in srgb, var(--warning, #c90) 35%, var(--border-subtle));
+  border-color: color-mix(
+    in srgb,
+    var(--warning, #c90) 35%,
+    var(--border-subtle)
+  );
 }
 
 .settings-cli-update__channel.is-unknown {
@@ -720,19 +723,35 @@ textarea.settings-input.settings-agents-json__textarea {
 
 .settings-tool-deny__chip:hover {
   color: var(--text-primary);
-  border-color: color-mix(in srgb, var(--text-secondary) 35%, var(--border-subtle));
+  border-color: color-mix(
+    in srgb,
+    var(--text-secondary) 35%,
+    var(--border-subtle)
+  );
 }
 
 .settings-tool-deny__chip.is-on {
-  background: color-mix(in srgb, var(--accent, #6b8afd) 16%, var(--bg-elevated));
+  background: color-mix(
+    in srgb,
+    var(--accent, #6b8afd) 16%,
+    var(--bg-elevated)
+  );
   color: var(--text-primary);
   font-weight: 600;
-  border-color: color-mix(in srgb, var(--accent, #6b8afd) 40%, var(--border-subtle));
+  border-color: color-mix(
+    in srgb,
+    var(--accent, #6b8afd) 40%,
+    var(--border-subtle)
+  );
 }
 
 .settings-tool-deny__chip.is-caution.is-on {
   background: color-mix(in srgb, var(--danger, #e55) 14%, var(--bg-elevated));
-  border-color: color-mix(in srgb, var(--danger, #e55) 40%, var(--border-subtle));
+  border-color: color-mix(
+    in srgb,
+    var(--danger, #e55) 40%,
+    var(--border-subtle)
+  );
 }
 
 .settings-tool-deny__chip.is-covered {
@@ -1160,11 +1179,11 @@ html[data-theme-editor-shell] #root {
 }
 
 /* ── Wallpaper source modal (X + Imagine) ── */
-.modal.wallpaper-source-modal {
-  width: min(860px, calc(100vw - 28px));
-  max-height: min(92vh, 860px);
-  /* Prefer a tall shell so multi-result galleries can use the viewport */
-  min-height: min(72vh, 640px);
+.modal.glass-modal.wallpaper-source-modal {
+  width: min(1440px, calc(100vw - 32px));
+  max-height: min(94vh, 940px);
+  /* Keep the gallery shell stable across loading, filtering and empty states. */
+  height: min(88vh, 900px);
 }
 
 .wallpaper-source-modal__body {
@@ -1181,17 +1200,16 @@ html[data-theme-editor-shell] #root {
 .wallpaper-source-tabs {
   display: grid;
   grid-template-columns:
-    minmax(max-content, 3fr) minmax(max-content, 1fr)
-    minmax(max-content, 1fr);
+    minmax(0, 4fr) minmax(0, 1fr)
+    minmax(0, 2fr);
+  grid-template-areas: "discovery create personal";
   flex: 0 0 auto;
   align-items: center;
   gap: 8px;
   min-width: 0;
   padding: 0 0 9px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
   border-bottom: 1px solid var(--border-subtle);
-  scrollbar-width: thin;
 }
 
 .wallpaper-source-tabs__group {
@@ -1204,6 +1222,18 @@ html[data-theme-editor-shell] #root {
   padding: 3px;
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--bg-hover) 76%, transparent);
+}
+
+.wallpaper-source-tabs__group--discovery {
+  grid-area: discovery;
+}
+
+.wallpaper-source-tabs__group--create {
+  grid-area: create;
+}
+
+.wallpaper-source-tabs__group--personal {
+  grid-area: personal;
 }
 
 .wallpaper-source-tabs__btn {

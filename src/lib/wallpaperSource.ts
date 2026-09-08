@@ -37,11 +37,19 @@ export type WallpaperGalleryItem = {
 export type WallpaperSearchResult = {
   meta?: {
     requestId?: string | null;
+    requestedMode?: "cli" | "responses_preview" | "auto" | string;
     routeUsed: "cli" | "responses";
     fallbackReason?: string | null;
     durationMs: number;
+    responsesDurationMs?: number | null;
+    cliDurationMs?: number | null;
     cacheHit?: boolean;
     continuationId?: string | null;
+    searchCalls?: number | null;
+    candidateCount?: number;
+    validCount?: number;
+    model?: string | null;
+    effort?: string | null;
   } | null;
   items: WallpaperGalleryItem[];
   errorCode?: string | null;

@@ -236,10 +236,14 @@ the isolated Host bridge before preview or wallpaper application.
 
 ## Public image provider UI
 
-The source picker groups the sources delivered so far into discovery, creation
-and personal sections. Discovery exposes X, Web, Openverse and Pexels; creation
-exposes Imagine; personal exposes Grok Saved and the local library. The grouped
-strip stays on one horizontally scrollable row in narrow windows.
+The Appearance card exposes only local choose/replace and the unified source
+picker. X routing stays inside the X search row instead of occupying permanent
+space in Appearance. The picker groups sources into discovery, creation and
+personal sections: X, Web, Openverse and Pexels; Imagine; Grok Saved and the
+local library. All seven labeled sources stay visible: roomy windows use one
+row, narrower windows use two grouped rows, and very narrow discovery controls
+use a 2-by-2 grid. Source changes never call `scrollIntoView` or hide earlier
+sources in a horizontally scrolled strip.
 
 Openverse works without user credentials. Pexels reads only the Host's masked
 credential status and writes replacement/removal requests through the existing
@@ -252,9 +256,13 @@ author and licence links separate from the image-preview action. A thumbnail
 failure leaves the result card available so selecting it can still fetch the
 validated original. Initial searches replace the old gallery; explicit “load
 more” appends deduplicated results while leaving current cards selectable.
-Paging failures preserve the gallery and continuation for retry. The separate
-prefetch follow-up described above adds one-page-ahead loading without changing
-this page's visible controls.
+The load-more action sits after the current cards inside the result scroller.
+Paged grids keep DOM order so revealing a prefetched page does not redistribute
+existing cards; known media dimensions preserve each thumbnail ratio, with a
+stable fallback for unknown dimensions. Source, author and licence attribution
+stays on one compact row. Paging failures preserve the gallery and continuation
+for retry. The separate prefetch follow-up described above adds one-page-ahead
+loading without changing this page's visible controls.
 
 ## Per-source browsing history
 

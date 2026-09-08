@@ -39,6 +39,7 @@ export const zhSettingsUi = {
   "settings.wallpaperSource.loadMore": "加载更多",
   "settings.wallpaperSource.noMore": "没有找到更多图片。",
   "settings.wallpaperSource.route.fallback": "已回退 Grok Build CLI（{reason}）· {seconds} 秒",
+  "settings.wallpaperSource.route.fallbackTimed": "Responses {responsesSeconds} 秒后失败（{reason}）；CLI 用时 {cliSeconds} 秒完成；共 {seconds} 秒",
   "settings.wallpaperSource.route.fallback.auth": "官方登录不可用或已过期",
   "settings.wallpaperSource.route.fallback.network": "Responses 网络不可用",
   "settings.wallpaperSource.route.fallback.compatibility": "Responses 兼容协议已变化",
@@ -760,4 +761,8 @@ export const zhSettingsUi = {
   "settings.wallpaperSource.uploadImage": "上传图片",
   "settings.wallpaperSource.removeSourceImage": "移除原图",
   "settings.wallpaperSource.editPlaceholder": "描述你想对这张图做的修改",
+  "settings.wallpaperSource.openverse.placeholder": "例如：aurora mountain lake",
+  "settings.wallpaperSource.routeSaveFailed": "无法保存 X 搜索渠道。",
+  "settings.wallpaperSource.attribution": "来源与许可",
+  "settings.wallpaperSource.loadingMore": "正在加载更多…",
 };

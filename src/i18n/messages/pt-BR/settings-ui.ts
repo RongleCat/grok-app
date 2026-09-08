@@ -39,6 +39,7 @@ export const ptBRSettingsUi = {
   "settings.wallpaperSource.loadMore": "Carregar mais",
   "settings.wallpaperSource.noMore": "Nenhuma outra imagem foi encontrada.",
   "settings.wallpaperSource.route.fallback": "Retorno ao Grok Build CLI ({reason}) · {seconds} s",
+  "settings.wallpaperSource.route.fallbackTimed": "Responses falhou após {responsesSeconds} s ({reason}); CLI concluída em {cliSeconds} s · {seconds} s no total",
   "settings.wallpaperSource.route.fallback.auth": "login oficial indisponível ou expirado",
   "settings.wallpaperSource.route.fallback.network": "rede de Responses indisponível",
   "settings.wallpaperSource.route.fallback.compatibility": "compatibilidade de Responses alterada",
@@ -760,4 +761,8 @@ export const ptBRSettingsUi = {
   "settings.wallpaperSource.uploadImage": "Enviar imagem",
   "settings.wallpaperSource.removeSourceImage": "Remover imagem original",
   "settings.wallpaperSource.editPlaceholder": "Descreva as alterações nesta imagem",
+  "settings.wallpaperSource.openverse.placeholder": "ex.: lago alpino ao nascer do sol",
+  "settings.wallpaperSource.routeSaveFailed": "Não foi possível salvar a rota de pesquisa no X.",
+  "settings.wallpaperSource.attribution": "Fonte e licença",
+  "settings.wallpaperSource.loadingMore": "Carregando mais…",
 };
