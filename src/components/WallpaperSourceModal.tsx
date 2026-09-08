@@ -1131,6 +1131,13 @@ export function WallpaperSourceModal({
             onToggleFavorite={(item) => {
               void mediaActions.toggleFavorite(item);
             }}
+            onReusePrompt={(item) => {
+              if (galleryLocked) return;
+              const reused = item.metadata?.prompt || item.prompt;
+              if (!reused?.trim()) return;
+              setPrompt(reused.trim());
+              if (tab !== "imagine") changeTab("imagine");
+            }}
             t={t}
             tab={tab}
             busy={busy}

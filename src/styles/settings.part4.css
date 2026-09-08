@@ -1142,6 +1142,113 @@ button.settings-wallpaper__preview:hover:not(:disabled) {
   cursor: wait;
 }
 
+.wallpaper-masonry__details {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--bg-elevated) 88%, #000);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: 0 1px 3px color-mix(in srgb, #000 25%, transparent);
+}
+
+.wallpaper-masonry__card-wrap--library .wallpaper-masonry__details {
+  top: 40px;
+}
+
+.wallpaper-masonry__details:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.wallpaper-masonry__details:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.wallpaper-masonry__details:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.wallpaper-details__title {
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.wallpaper-details__fields {
+  margin: 0;
+}
+
+.wallpaper-details__row {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(0, 2fr);
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.wallpaper-details__row dt {
+  color: var(--text-tertiary);
+}
+
+.wallpaper-details__row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.wallpaper-details__row .wallpaper-attribution__link {
+  white-space: normal;
+  text-align: start;
+}
+
+.wallpaper-details__prompt {
+  margin-top: 16px;
+}
+
+.wallpaper-details__prompt h3 {
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.wallpaper-details__prompt p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.wallpaper-details .modal-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wallpaper-details__error {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+@media (max-width: 520px) {
+  .wallpaper-details__row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
 .wallpaper-pexels-key {
   display: flex;
   align-items: center;

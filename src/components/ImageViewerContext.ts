@@ -12,6 +12,8 @@ export interface ImageViewerApi {
   /** Open lightbox with slides (paths or URLs). Resolves local paths async. */
   open: (slides: ImageSlideInput[] | string[], index?: number) => void;
   close: () => void;
+  /** Synchronous layer ownership check for dialogs sharing Escape. */
+  isOpen: () => boolean;
   /** Copy image at path/URL to clipboard. Returns true on success. */
   copyImage: (pathOrUrl: string) => Promise<boolean>;
 }
@@ -29,6 +31,7 @@ export function useImageViewer(): ImageViewerApi {
 const OPTIONAL_IMAGE_VIEWER: ImageViewerApi = {
   open: () => {},
   close: () => {},
+  isOpen: () => false,
   copyImage: async () => false,
 };
 

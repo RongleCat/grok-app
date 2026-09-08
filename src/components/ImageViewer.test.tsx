@@ -48,6 +48,17 @@ function deferred<T>() {
 }
 
 describe("ImageViewer lifecycle", () => {
+  it("reports whether the lightbox currently owns the preview layer", async () => {
+    const view = setup();
+    expect(view.api.isOpen()).toBe(false);
+    act(() => view.api.open(["image.jpg"]));
+    await waitFor(() => expect(view.api.isOpen()).toBe(true));
+    act(() => view.api.close());
+    expect(view.api.isOpen()).toBe(false);
+    view.unmount();
+    expect(view.api.isOpen()).toBe(false);
+  });
+
   it("does not reopen when path resolution completes after close", async () => {
     const pending = deferred<Awaited<ReturnType<typeof resolveImages>>>();
     resolveImages.mockReturnValueOnce(pending.promise);
