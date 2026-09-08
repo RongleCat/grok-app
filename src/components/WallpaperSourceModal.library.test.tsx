@@ -278,4 +278,62 @@ describe("WallpaperSourceModal library paging", () => {
       }),
     );
   });
+
+  it("restores the cached query, kind, collection, and scroll without another Host page", async () => {
+    mocks.page.mockResolvedValue(page("cached"));
+    const view = renderLibrary();
+    await waitFor(() => expect(mocks.page).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(
+      screen.getByPlaceholderText("settings.wallpaperSource.filterPlaceholder"),
+      { target: { value: "mountain" } },
+    );
+    await waitFor(() => expect(mocks.page).toHaveBeenCalledTimes(2));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /settings\.wallpaperSource\.kind\.image/,
+      }),
+    );
+    await waitFor(() => expect(mocks.page).toHaveBeenCalledTimes(3));
+    fireEvent.change(
+      screen.getByLabelText("settings.wallpaperSource.library.collection"),
+      { target: { value: "favorites" } },
+    );
+    await waitFor(() => expect(mocks.page).toHaveBeenCalledTimes(4));
+
+    const scroller = document.querySelector<HTMLDivElement>(
+      ".wallpaper-masonry-scroll",
+    );
+    expect(scroller).not.toBeNull();
+    scroller!.scrollTop = 275;
+    fireEvent.click(
+      screen.getByRole("tab", { name: "settings.wallpaperFromX" }),
+    );
+    scroller!.scrollTop = 0;
+    fireEvent.click(
+      screen.getByRole("tab", { name: "settings.wallpaperLibrary" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByPlaceholderText<HTMLInputElement>(
+          "settings.wallpaperSource.filterPlaceholder",
+        ).value,
+      ).toBe("mountain"),
+    );
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: /settings\.wallpaperSource\.kind\.image/,
+      }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      screen.getByLabelText<HTMLSelectElement>(
+        "settings.wallpaperSource.library.collection",
+      ).value,
+    ).toBe("favorites");
+    await waitFor(() => expect(scroller!.scrollTop).toBe(275));
+    expect(mocks.page).toHaveBeenCalledTimes(4);
+
+    view.unmount();
+  });
 });

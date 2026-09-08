@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/test/jsdomStubs";
 
 const mocks = vi.hoisted(() => ({
@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   loadMore: vi.fn(async () => undefined),
 }));
 
-const albumItems = [
+const defaultAlbumItems = [
   {
     id: "saved-one",
     thumbUrl: "https://assets.grok.com/generated/one-thumb.jpg",
@@ -28,25 +28,29 @@ const albumItems = [
   },
   {
     id: "saved-two",
-    thumbUrl: "https://assets.grok.com/generated/two-thumb.jpg",
-    fullUrl: "https://assets.grok.com/generated/two.jpg",
-    kind: "image",
-    width: 1600,
-    height: 900,
+    thumbUrl: "https://assets.grok.com/generated/two-thumb.mp4",
+    fullUrl: "https://assets.grok.com/generated/two.mp4",
+    kind: "video",
+    width: 900,
+    height: 1600,
     source: "grok_album",
     textPreview: "Second saved image",
     localPath: null,
   },
 ];
 
+let albumState = {
+  historyRevision: 0,
+  status: "ready",
+  items: defaultAlbumItems,
+  busy: true,
+};
+
 vi.mock("@/hooks/useWallpaperGrokAlbum", () => ({
   useWallpaperGrokAlbum: () => ({
-    historyRevision: 0,
-    status: "ready",
-    items: albumItems,
+    ...albumState,
     cachedCount: 40,
     visibleCount: 20,
-    busy: true,
     syncing: false,
     loadingMore: true,
     hasSynced: true,
@@ -92,6 +96,8 @@ vi.mock("@/lib/api", () => ({
   isDesktopHost: () => true,
   isTauri: () => false,
   openExternalUrl: vi.fn(async () => undefined),
+  settingsGet: vi.fn(async () => ({ wallpaperXSearchMode: "cli" })),
+  settingsSet: vi.fn(async () => ({})),
   wallpaperRemoteCancelMediaRequests: vi.fn(async () => 0),
   wallpaperLibraryLookup: vi.fn(async () => []),
   wallpaperLibraryRemember: vi.fn(async () => undefined),
@@ -129,6 +135,26 @@ vi.mock("@/components/GlassModal", () => ({
 }));
 
 import { WallpaperSourceModal } from "./WallpaperSourceModal";
+
+const renderAlbum = () =>
+  render(
+    <WallpaperSourceModal
+      open
+      initialTab="grok_album"
+      t={((key: string) => key) as never}
+      onClose={vi.fn()}
+      onPickFile={vi.fn()}
+    />,
+  );
+
+beforeEach(() => {
+  albumState = {
+    historyRevision: 0,
+    status: "ready",
+    items: defaultAlbumItems,
+    busy: true,
+  };
+});
 
 afterEach(() => {
   cleanup();
@@ -172,5 +198,91 @@ describe("WallpaperSourceModal Grok Saved integration", () => {
     fireEvent.click(screen.getByRole("button", { name: "modal-close" }));
     expect(mocks.cancelMedia).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("restores filters and scroll after loading, then clears them for a new album revision", async () => {
+    albumState = { ...albumState, busy: false };
+    const view = renderAlbum();
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole("button", {
+          name: "settings.wallpaperSource.openPreview",
+        }),
+      ).toHaveLength(2),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /settings\.wallpaperSource\.kind\.video/,
+      }),
+    );
+    expect(
+      screen.getAllByRole("button", {
+        name: "settings.wallpaperSource.openPreview",
+      }),
+    ).toHaveLength(1);
+
+    const scroller = document.querySelector<HTMLDivElement>(
+      ".wallpaper-masonry-scroll",
+    );
+    expect(scroller).not.toBeNull();
+    scroller!.scrollTop = 360;
+    fireEvent.click(
+      screen.getByRole("tab", { name: "settings.wallpaperFromX" }),
+    );
+    scroller!.scrollTop = 0;
+
+    albumState = { ...albumState, status: "loading", busy: true };
+    view.rerender(
+      <WallpaperSourceModal
+        open
+        initialTab="grok_album"
+        t={((key: string) => key) as never}
+        onClose={vi.fn()}
+        onPickFile={vi.fn()}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("tab", { name: "settings.wallpaperGrokAlbum" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole("button", {
+          name: "settings.wallpaperSource.openPreview",
+        }),
+      ).toHaveLength(1),
+    );
+    expect(scroller!.scrollTop).toBe(0);
+
+    albumState = { ...albumState, status: "ready", busy: false };
+    view.rerender(
+      <WallpaperSourceModal
+        open
+        initialTab="grok_album"
+        t={((key: string) => key) as never}
+        onClose={vi.fn()}
+        onPickFile={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(scroller!.scrollTop).toBe(360));
+
+    albumState = { ...albumState, historyRevision: 1 };
+    view.rerender(
+      <WallpaperSourceModal
+        open
+        initialTab="grok_album"
+        t={((key: string) => key) as never}
+        onClose={vi.fn()}
+        onPickFile={vi.fn()}
+      />,
+    );
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole("button", {
+          name: "settings.wallpaperSource.openPreview",
+        }),
+      ).toHaveLength(2),
+    );
+    expect(scroller!.scrollTop).toBe(0);
   });
 });

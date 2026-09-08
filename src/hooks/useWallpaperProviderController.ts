@@ -48,6 +48,11 @@ type PrefetchOutcome = {
   error: unknown | null;
 };
 
+export type WallpaperProviderContinuationState = {
+  continuation: Continuation | null;
+  prefetched: PrefetchOutcome | null;
+};
+
 function sameContinuation(
   left: Continuation,
   right: Continuation,
@@ -147,6 +152,31 @@ export function useWallpaperProviderController({
     discardPrefetch();
     return remote.cancel();
   }, [discardPrefetch, remote.cancel]);
+
+  const capture = useCallback(
+    (): WallpaperProviderContinuationState => ({
+      continuation: continuationRef.current,
+      prefetched: prefetchOutcome.current,
+    }),
+    [],
+  );
+
+  const restore = useCallback(
+    (state: WallpaperProviderContinuationState) => {
+      generation.current += 1;
+      loadingMoreRef.current = false;
+      discardPrefetch();
+      updateContinuation(state.continuation);
+      prefetchOutcome.current = state.prefetched;
+      setLoadingMore(false);
+    },
+    [discardPrefetch, updateContinuation],
+  );
+
+  const clear = useCallback(() => {
+    updateContinuation(null);
+    return cancel();
+  }, [cancel, updateContinuation]);
 
   useEffect(() => {
     generation.current += 1;
@@ -398,6 +428,9 @@ export function useWallpaperProviderController({
     busy: loadingMore || (remote.busy && !prefetching),
     loadingMore,
     cancel,
+    capture,
+    restore,
+    clear,
     search,
     loadMore,
     canLoadMore,
