@@ -64,7 +64,7 @@ pub async fn automation_runner_status(
 #[tauri::command]
 pub async fn schedules_launch_agent_status(
 ) -> Result<crate::schedules_launch_agent::SchedulesLaunchAgentStatus, String> {
-    let enabled = store::load_settings().schedules_launch_agent;
+    let enabled = store::load_settings_async().await.schedules_launch_agent;
     Ok(crate::schedules_launch_agent::status(enabled))
 }
 
@@ -78,10 +78,10 @@ pub async fn schedules_launch_agent_set_enabled(
     } else {
         crate::schedules_launch_agent::disable()?
     };
-    let mut settings = store::load_settings();
+    let mut settings = store::load_settings_async().await;
     // Non-macOS never claims enabled; install is a no-op there.
     settings.schedules_launch_agent = enabled && status.supported;
-    store::save_settings(&settings)?;
+    store::save_settings_async(&settings).await?;
     Ok(crate::schedules_launch_agent::status(
         settings.schedules_launch_agent,
     ))
