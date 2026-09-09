@@ -75,7 +75,7 @@
     "docx-preview": "^0.4.0",
     "highlight.js": "^11.11.1",
     "html-to-image": "^1.11.13",
-    "katex": "^0.18.4",
+    "katex": "^0.16.47",
     "mermaid": "^11",
     "pdfjs-dist": "^5.4.296",
     "plyr": "^3.8.4",

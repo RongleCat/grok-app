@@ -13,11 +13,18 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- Math formulas render with one matching KaTeX version again. The bundled CSS had drifted ahead of the JS.
+
+**中文 · 修复**
+- 数学公式恢复 CSS 与 JS 同版本渲染，不再出现样式超前于脚本。
+
 ### Changed
 - The theme editor modal loads on demand instead of joining app startup.
 
 **中文 · 变更**
 - 主题编辑器改为按需加载，不再拖累应用启动。
+
 
 ## [0.2.34] - 2026-09-09
 
