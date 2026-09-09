@@ -45,6 +45,20 @@ describe("stream-perf wallpaper CSS", () => {
     );
   });
 
+  it("paints an opaque transcript plate while scrolling over wallpaper", () => {
+    const css = readFileSync(join(here, "skins.css"), "utf8");
+    expect(css).toMatch(
+      /html\[data-wallpaper="1"\]\s+\.lobe-chat__scroll\[data-scrolling="1"\]\s*\{[^}]*background:\s*var\(--bg-main\)/s,
+    );
+  });
+
+  it("does not put backdrop-filter on in-scroller video play buttons", () => {
+    const css = readFileSync(join(here, "chat.part3.css"), "utf8");
+    expect(css).not.toMatch(
+      /\.md-body__video-card__play\s*\{[^}]*backdrop-filter/s,
+    );
+  });
+
   it("keeps wallpaper media frost at scrim 0% (#941)", () => {
     const css = readFileSync(join(here, "skins.css"), "utf8");
     expect(css).not.toMatch(

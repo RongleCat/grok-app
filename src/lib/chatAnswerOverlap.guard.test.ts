@@ -39,13 +39,16 @@ describe("chat answer overlap guard", () => {
 
   it("reserves a transcript scrollbar gutter only when the column is tight", () => {
     const src = css("lobe-chat.part1.css");
+    const shellStart = src.lastIndexOf(".lobe-chat {");
     const scrollStart = src.indexOf(".lobe-chat__scroll {");
     const innerStart = src.indexOf(".lobe-chat__inner {");
     expect(scrollStart).toBeGreaterThanOrEqual(0);
     expect(innerStart).toBeGreaterThan(scrollStart);
+    const shellBlock = src.slice(shellStart, scrollStart);
     const scrollBlock = src.slice(scrollStart, innerStart);
-    expect(scrollBlock).toContain("container-type: inline-size");
-    expect(scrollBlock).toContain("container-name: chat-scroll");
+    expect(shellBlock).toContain("container-type: inline-size");
+    expect(shellBlock).toContain("container-name: chat-scroll");
+    expect(scrollBlock).not.toContain("container-type:");
     expect(scrollBlock).toContain("scrollbar-gutter: stable");
     expect(scrollBlock).toMatch(/scrollbar-width:\s*thin\s*!important/);
     expect(scrollBlock).toMatch(

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, renderHook, act } from "@testing-library/react";
 import { useChatMessageVirtualizer } from "./useChatMessageVirtualizer";
 
@@ -183,5 +183,134 @@ describe("useChatMessageVirtualizer", () => {
     });
 
     expect(unobserveMock).toHaveBeenCalledWith(rowEl);
+  });
+});
+
+describe("useChatMessageVirtualizer touch freeze", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    document.body.replaceChildren();
+  });
+
+  function mount(opts: { pinned: boolean; count?: number; scrollTop?: number }) {
+    const count = opts.count ?? 80;
+    const row = 100;
+    const viewport = document.createElement("div");
+    Object.defineProperty(viewport, "clientHeight", {
+      value: 600,
+      configurable: true,
+    });
+    Object.defineProperty(viewport, "scrollHeight", {
+      value: count * row,
+      configurable: true,
+    });
+    Object.defineProperty(viewport, "scrollTop", {
+      value: opts.scrollTop ?? Math.max(0, count * row - 600),
+      writable: true,
+      configurable: true,
+    });
+    document.body.appendChild(viewport);
+    const isPinnedRef = { current: opts.pinned };
+    const viewportRef = { current: viewport };
+    const hook = renderHook(() =>
+      useChatMessageVirtualizer({
+        itemCount: count,
+        getKey: (i) => "item-" + i,
+        getEstimateHeight: () => row,
+        viewportRef,
+        isPinnedRef,
+        threshold: 10,
+      }),
+    );
+    act(() => {
+      vi.advanceTimersByTime(16);
+    });
+    return { viewport, isPinnedRef, ...hook };
+  }
+
+  function dispatchPointer(
+    target: EventTarget,
+    type: string,
+    pointerType: string,
+  ) {
+    target.dispatchEvent(
+      new PointerEvent(type, {
+        bubbles: true,
+        isPrimary: true,
+        pointerId: 1,
+        pointerType,
+        button: 0,
+      }),
+    );
+  }
+
+  function dispatchTouch(target: EventTarget, type: string, n: number) {
+    const ev = new Event(type, { bubbles: true });
+    Object.defineProperty(ev, "touches", {
+      value: Array.from({ length: n }, (_, i) => ({ identifier: i })),
+    });
+    target.dispatchEvent(ev);
+  }
+
+  it("does not treat touch pointercancel as lift while still pinned", () => {
+    const { viewport } = mount({ pinned: true });
+    act(() => {
+      dispatchPointer(viewport, "pointerdown", "touch");
+      dispatchPointer(window, "pointercancel", "touch");
+      viewport.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(250);
+    });
+    expect(viewport.dataset.scrolling).toBe("1");
+  });
+
+  it("still clears the scrolling flag for programmatic pin follow", () => {
+    const { viewport } = mount({ pinned: true });
+    act(() => {
+      viewport.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(250);
+    });
+    expect(viewport.dataset.scrolling).toBeUndefined();
+  });
+
+  it("clears contact on the last touchend, not pointercancel", () => {
+    const { viewport } = mount({ pinned: true });
+    act(() => {
+      dispatchPointer(viewport, "pointerdown", "touch");
+      dispatchTouch(viewport, "touchstart", 1);
+      dispatchPointer(window, "pointercancel", "touch");
+      viewport.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(16);
+    });
+    expect(viewport.dataset.scrolling).toBe("1");
+    act(() => {
+      dispatchTouch(viewport, "touchend", 0);
+      vi.advanceTimersByTime(250);
+    });
+    expect(viewport.dataset.scrolling).toBeUndefined();
+  });
+
+  it("updates geo shells after unpin but does not snap the rich band to the new target", () => {
+    const { viewport, result } = mount({
+      pinned: false,
+      count: 300,
+      scrollTop: 0,
+    });
+    const richEnd0 = result.current.richEnd;
+    const start0 = result.current.start;
+    expect(richEnd0).toBeGreaterThan(0);
+    act(() => {
+      dispatchPointer(viewport, "pointerdown", "touch");
+      dispatchPointer(window, "pointercancel", "touch");
+      viewport.scrollTop = 2400;
+      viewport.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(16);
+    });
+    expect(result.current.start).toBeGreaterThan(start0);
+    expect(result.current.richEnd).toBe(richEnd0);
+    expect(result.current.richStart).toBeLessThan(20);
   });
 });

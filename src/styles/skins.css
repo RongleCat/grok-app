@@ -438,6 +438,15 @@ html:has(.lobe-chat__scroll[data-scrolling="1"]) .plan-bar {
   -webkit-backdrop-filter: none !important;
 }
 
+/*
+ * Wallpaper frost stays on the media layer (#941 pop). While the finger is
+ * down, paint an opaque plate on the scroller so 12 markdown rows do not
+ * re-blend through a 22px Win blur every compositor frame.
+ */
+html[data-wallpaper="1"] .lobe-chat__scroll[data-scrolling="1"] {
+  background: var(--bg-main);
+}
+
 html[data-wallpaper="1"] .settings-page__content,
 html[data-wallpaper="1"].platform-mac .settings-page__content {
   background: color-mix(

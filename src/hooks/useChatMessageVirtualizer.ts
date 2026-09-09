@@ -227,6 +227,8 @@ export function useChatMessageVirtualizer(
     pendingAnchorOffsetRef.current = 0;
     pinnedPreCommitBottomDistRef.current = 0;
     forceOpenSnapRef.current = true;
+    fingerDownRef.current = false;
+    scrollingRef.current = false;
     if (sharedRowObserverRef.current) {
       sharedRowObserverRef.current.disconnect();
       sharedRowObserverRef.current = null;
@@ -346,7 +348,17 @@ export function useChatMessageVirtualizer(
     const t0 = performance.now();
     const pin = !!isPinnedRef.current || forceOpenSnapRef.current;
 
-    if (pin && scrollingRef.current) {
+    // Pinned window ignores scrollTop, so a compositor pan must not run
+    // pin-snap / rich-target commits while the finger is still down.
+    if (pin && fingerDownRef.current) {
+      return;
+    }
+
+    // Programmatic stick follow arrives as a native scroll event. If we left
+    // scrollingRef set, the streaming tail would freeze as shells and
+    // height commits would be dropped. Only clear when there is no contact:
+    // Chromium pointercancel on a touch pan is not a lift.
+    if (pin && scrollingRef.current && !fingerDownRef.current) {
       scrollingRef.current = false;
       pendingAnchorOffsetRef.current = 0;
       setScrollingUi(false);
@@ -570,8 +582,9 @@ export function useChatMessageVirtualizer(
 
   const recompute = useCallback(() => {
     // Never rebuild the virtual window from height churn mid-scroll — that
-    // paddingTop flash is the universal scroll jitter.
-    if (scrollingRef.current) {
+    // paddingTop flash is the universal scroll jitter. Finger-down slow
+    // pans can sit below the velocity stop threshold; contact still counts.
+    if (scrollingRef.current || fingerDownRef.current) {
       return;
     }
     // Coalesce measure storms (tall markdown + table reflow) into one window update.
@@ -606,6 +619,7 @@ export function useChatMessageVirtualizer(
       }
       scrollingRef.current = true;
       setScrollingUi(true);
+      if (isPinnedRef.current && fingerDownRef.current) return;
       scheduleOnFrame(scrollFrameRef.current, () =>
         recomputeNow({ sampleVelocity: true }),
       );
@@ -618,6 +632,7 @@ export function useChatMessageVirtualizer(
       }
       scrollingRef.current = true;
       setScrollingUi(true);
+      if (isPinnedRef.current && fingerDownRef.current) return;
       scheduleOnFrame(scrollFrameRef.current, () =>
         recomputeNow({ sampleVelocity: true }),
       );
@@ -628,26 +643,47 @@ export function useChatMessageVirtualizer(
       if (e.pointerType === "mouse" && e.button !== 0) return;
       fingerDownRef.current = true;
     };
-    const onPointerUp = (e: PointerEvent) => {
-      if (!e.isPrimary) return;
+    const endContact = () => {
       if (!fingerDownRef.current) return;
       fingerDownRef.current = false;
       scheduleOnFrame(scrollFrameRef.current, () =>
         recomputeNow({ sampleVelocity: true }),
       );
     };
+    const onPointerUp = (e: PointerEvent) => {
+      if (!e.isPrimary) return;
+      endContact();
+    };
+    const onPointerCancel = (e: PointerEvent) => {
+      // Direct-manipulation pan: Chromium MUST pointercancel, then never
+      // pointerup. The finger is still down. Touch: touchend clears. Pen
+      // cancel is a real abort (no TouchEvent stream).
+      if (!e.isPrimary) return;
+      if (e.pointerType === "touch") return;
+      endContact();
+    };
+    const onTouchStart = () => {
+      fingerDownRef.current = true;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length > 0) return;
+      endContact();
+    };
 
     el.addEventListener("scroll", onScroll, { passive: true });
     el.addEventListener("wheel", onUserInteraction, { passive: true });
     el.addEventListener("touchmove", onUserInteraction, { passive: true });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
     el.addEventListener("pointerdown", onPointerDown, { passive: true });
     window.addEventListener("pointerup", onPointerUp, { passive: true });
-    window.addEventListener("pointercancel", onPointerUp, { passive: true });
+    window.addEventListener("pointercancel", onPointerCancel, { passive: true });
     // Viewport chrome resize only — not content (content RO was thrashy).
     const ro =
       typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => {
-            if (scrollingRef.current) {
+            if (scrollingRef.current || fingerDownRef.current) {
               return;
             }
             if (isPinnedRef.current) {
@@ -669,9 +705,12 @@ export function useChatMessageVirtualizer(
       el.removeEventListener("scroll", onScroll);
       el.removeEventListener("wheel", onUserInteraction);
       el.removeEventListener("touchmove", onUserInteraction);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
       el.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
       if (hoverRestoreTimerRef.current != null) {
         clearTimeout(hoverRestoreTimerRef.current);
         hoverRestoreTimerRef.current = null;
@@ -697,6 +736,7 @@ export function useChatMessageVirtualizer(
   // the cached estimates is displacement-neutral (no bottom bounce).
   useLayoutEffect(() => {
     if (!virtualized) return;
+    if (fingerDownRef.current) return;
     const forceOpen = shouldForcePinnedSnapOnOpen({
       pinned: true,
       forceOpenSnap: forceOpenSnapRef.current,
@@ -820,7 +860,7 @@ export function useChatMessageVirtualizer(
 
       // Compensate height changes for rows above the viewport
       if (!isPinnedRef.current && isFullyAboveViewport && Math.abs(delta) > 0.5) {
-        if (scrollingRef.current) {
+        if (scrollingRef.current || fingerDownRef.current) {
           // Mid-scroll: absorb into top spacer without writing scrollTop (preserves smooth gesture)
           pendingAnchorOffsetRef.current += delta;
         } else if (viewport) {

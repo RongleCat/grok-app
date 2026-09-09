@@ -101,4 +101,16 @@ describe("nextChatRichBand", () => {
     });
     expect(next).toEqual(band(72, 80));
   });
+
+  it("keeps the committed band while pinned AND gesturing", () => {
+    const next = nextChatRichBand({
+      target: band(72, 80),
+      committed: band(68, 80),
+      geoStart: 40,
+      geoEnd: 80,
+      scrolling: true,
+      pinToBottom: true,
+    });
+    expect(next).toEqual(band(68, 80));
+  });
 });
