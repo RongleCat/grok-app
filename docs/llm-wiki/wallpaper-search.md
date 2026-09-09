@@ -251,11 +251,20 @@ secrets commands; the renderer never receives the stored key. A rejected key
 opens an editable replacement field, removal requires an in-app confirmation,
 and search stays disabled while credential status is unknown or unavailable.
 
-Provider results use the bounded Host thumbnail path and keep their source,
-author and licence links separate from the image-preview action. A thumbnail
-failure leaves the result card available so selecting it can still fetch the
-validated original. Initial searches replace the old gallery; explicit “load
-more” appends deduplicated results while leaving current cards selectable.
+Provider results use the provider's dedicated thumbnail URL through the bounded
+Host thumbnail path, falling back to the validated original only when no safe
+thumbnail URL exists. Once a result is present in the local catalog, its card
+uses the loopback media endpoint instead of downloading the remote thumbnail
+again. Remote image requests normally advertise only formats supported by the
+Host decoder; in particular, they never advertise AVIF and then fail thumbnail
+decoding. Openverse's fixed thumbnail endpoint requires a low-priority wildcard
+fallback on a cold request, so only that exact endpoint receives one; its response
+still passes the same MIME, signature and decoder validation. Source, author and
+licence links remain separate from the image-preview action. A thumbnail failure
+leaves the result card available so selecting it can still fetch the validated
+original. Initial searches replace the old gallery;
+explicit “load more” appends deduplicated results while leaving current cards
+selectable.
 The load-more action sits after the current cards inside the result scroller.
 Paged grids keep DOM order so revealing a prefetched page does not redistribute
 existing cards; known media dimensions preserve each thumbnail ratio, with a

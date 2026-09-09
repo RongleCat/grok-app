@@ -30,11 +30,11 @@ use probe::{validate_probe_outputs, visit_probes_as_completed};
 #[cfg(test)]
 use request_url::{provider_request_url, provider_url, PEXELS_CACHE_BUST_PARAM};
 #[cfg(test)]
-use response::{parse_openverse_page, parse_pexels_page, safe_url};
+use response::{parse_openverse_page, parse_pexels_page, provider_item, safe_url};
 use transport::{fetch_api_page, provider_client};
 
 const PEXELS_LICENSE_URL: &str = "https://www.pexels.com/license/";
-const CONTRACT_VERSION: u8 = 3;
+const CONTRACT_VERSION: u8 = 4;
 const RESULT_LIMIT: usize = 20;
 const OPENVERSE_PAGE_SIZE: usize = 20;
 const OPENVERSE_PAGES_PER_BATCH: usize = 2;
@@ -214,6 +214,7 @@ impl RequestRegistry {
 struct ProviderCandidate {
     upstream_id: String,
     image_url: String,
+    thumbnail_url: Option<String>,
     source_url: String,
     source_name: &'static str,
     title: Option<String>,

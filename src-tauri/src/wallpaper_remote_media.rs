@@ -41,6 +41,14 @@ const PRE_CANCEL_CAPACITY: usize = 128;
 const BROWSER_IMAGE_USER_AGENT: &str =
     "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 GrokApp/WallpaperDiscovery";
 const BROWSER_IMAGE_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9,*;q=0.5";
+const SUPPORTED_IMAGE_ACCEPT: &str = "image/jpeg,image/png,image/webp,image/gif";
+const OPENVERSE_THUMBNAIL_ACCEPT: &str = "image/jpeg,image/png,image/webp,image/gif,*/*;q=0.1";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ImageAcceptProfile {
+    SupportedOnly,
+    OpenverseThumbnail,
+}
 
 #[derive(Clone)]
 struct ActiveMediaRequest {
@@ -385,6 +393,7 @@ fn response_total_length(response: &SafeHttpsResponse) -> Option<u64> {
 fn image_headers(
     referer_origin: Option<&str>,
     range: Option<&str>,
+    accept_profile: ImageAcceptProfile,
 ) -> Result<HeaderMap, RemoteImageProbeFailure> {
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -393,9 +402,10 @@ fn image_headers(
     );
     headers.insert(
         ACCEPT,
-        HeaderValue::from_static(
-            "image/jpeg,image/png,image/webp;q=0.9,image/avif;q=0.8,image/*;q=0.7,*/*;q=0.5",
-        ),
+        HeaderValue::from_static(match accept_profile {
+            ImageAcceptProfile::SupportedOnly => SUPPORTED_IMAGE_ACCEPT,
+            ImageAcceptProfile::OpenverseThumbnail => OPENVERSE_THUMBNAIL_ACCEPT,
+        }),
     );
     headers.insert(
         ACCEPT_LANGUAGE,
@@ -414,6 +424,42 @@ fn image_headers(
         );
     }
     Ok(headers)
+}
+
+fn thumbnail_accept_profile(source: RemoteWallpaperSource, start: &str) -> ImageAcceptProfile {
+    if source == RemoteWallpaperSource::Openverse && is_openverse_thumbnail_endpoint(start) {
+        ImageAcceptProfile::OpenverseThumbnail
+    } else {
+        ImageAcceptProfile::SupportedOnly
+    }
+}
+
+fn accept_profile_for_hop(requested: ImageAcceptProfile, current: &Url) -> ImageAcceptProfile {
+    if requested == ImageAcceptProfile::OpenverseThumbnail
+        && is_openverse_thumbnail_endpoint(current.as_str())
+    {
+        ImageAcceptProfile::OpenverseThumbnail
+    } else {
+        ImageAcceptProfile::SupportedOnly
+    }
+}
+
+fn is_openverse_thumbnail_endpoint(raw: &str) -> bool {
+    let Ok(url) = Url::parse(raw) else {
+        return false;
+    };
+    let segments = url
+        .path_segments()
+        .map(|parts| parts.filter(|part| !part.is_empty()).collect::<Vec<_>>())
+        .unwrap_or_default();
+    url.scheme() == "https"
+        && url
+            .host_str()
+            .is_some_and(|host| host.eq_ignore_ascii_case("api.openverse.org"))
+        && url.port_or_known_default() == Some(443)
+        && url.username().is_empty()
+        && url.password().is_none()
+        && matches!(segments.as_slice(), ["v1", "images", id, "thumb"] if !id.is_empty() && id.len() <= 160)
 }
 
 async fn read_prefix(
@@ -465,7 +511,11 @@ async fn probe_image_with_client(
 
     for hop in 0..=skin_net::MAX_REDIRECTS {
         let range = format!("bytes=0-{}", PROBE_BYTES - 1);
-        let headers = image_headers(referer_origin, Some(&range))?;
+        let headers = image_headers(
+            referer_origin,
+            Some(&range),
+            ImageAcceptProfile::SupportedOnly,
+        )?;
         let mut response = tokio::select! {
             biased;
             _ = cancellation.cancelled() => return Err(RemoteImageProbeFailure::Cancelled),
@@ -522,6 +572,7 @@ async fn fetch_remote_image_bytes_with_client(
     referer_origin: Option<&str>,
     max_bytes: u64,
     cancellation: &WallpaperSearchCancellation,
+    accept_profile: ImageAcceptProfile,
 ) -> Result<(String, String, Vec<u8>), RemoteImageProbeFailure> {
     if cancellation.is_cancelled() {
         return Err(RemoteImageProbeFailure::Cancelled);
@@ -530,7 +581,11 @@ async fn fetch_remote_image_bytes_with_client(
     let mut current = check_image_hop(start, &policy, cancellation).await?;
 
     for hop in 0..=skin_net::MAX_REDIRECTS {
-        let headers = image_headers(referer_origin, None)?;
+        let headers = image_headers(
+            referer_origin,
+            None,
+            accept_profile_for_hop(accept_profile, &current),
+        )?;
         let mut response = tokio::select! {
             biased;
             _ = cancellation.cancelled() => return Err(RemoteImageProbeFailure::Cancelled),
@@ -608,6 +663,7 @@ pub(crate) async fn fetch_image_bytes(
         None,
         MAX_DOWNLOAD_BYTES,
         cancellation,
+        ImageAcceptProfile::SupportedOnly,
     )
     .await
     .map_err(remote_fetch_error)
@@ -629,6 +685,7 @@ pub(crate) async fn fetch_and_store_image(
                 Some(referer),
                 MAX_DOWNLOAD_BYTES,
                 &cancellation,
+                ImageAcceptProfile::SupportedOnly,
             )
             .await
             .map_err(remote_fetch_error)?
@@ -673,6 +730,7 @@ pub(crate) async fn fetch_thumbnail(
             referer.as_deref(),
             THUMBNAIL_SOURCE_BYTES,
             &cancellation,
+            thumbnail_accept_profile(source, start),
         )
         .await
         .map_err(|failure| match failure {
@@ -737,188 +795,4 @@ fn save_image(
 }
 
 #[cfg(test)]
-mod tests {
-    use std::io::Cursor;
-    use std::path::Path;
-
-    use crate::paths::APP_HOME_ENV_LOCK;
-
-    use super::*;
-
-    #[test]
-    fn content_range_total_shape_is_stable() {
-        let parsed = "bytes 0-65535/1048576"
-            .rsplit('/')
-            .next()
-            .and_then(|value| value.parse::<u64>().ok());
-        assert_eq!(parsed, Some(1_048_576));
-    }
-
-    #[test]
-    fn full_remote_download_rejects_partial_response_shapes() {
-        assert!(crate::wallpaper_source::is_complete_download_response(
-            200, false
-        ));
-        assert!(!crate::wallpaper_source::is_complete_download_response(
-            206, true
-        ));
-        assert!(!crate::wallpaper_source::is_complete_download_response(
-            200, true
-        ));
-    }
-
-    #[test]
-    fn image_referer_contains_only_the_source_origin() {
-        let source = Url::parse("https://photos.example/private/path?query=secret").unwrap();
-        assert_eq!(
-            origin_referer(&source).as_deref(),
-            Some("https://photos.example/")
-        );
-        assert!(origin_referer(&Url::parse("http://photos.example/path").unwrap()).is_none());
-        assert_eq!(
-            verified_source_origin("https://photos.example/private/path?token=secret").as_deref(),
-            Some("https://photos.example/")
-        );
-    }
-
-    #[test]
-    fn source_registry_is_source_scoped_bounded_and_expires() {
-        let started = Instant::now();
-        let mut registry = SourceOriginRegistry::default();
-        registry.register(
-            RemoteWallpaperSource::Web,
-            "https://cdn.example/photo.jpg".into(),
-            "https://photos.example/".into(),
-            started,
-        );
-        assert_eq!(
-            registry
-                .lookup(
-                    RemoteWallpaperSource::Web,
-                    "https://cdn.example/photo.jpg",
-                    started + Duration::from_secs(1),
-                )
-                .as_deref(),
-            Some("https://photos.example/")
-        );
-        assert!(registry
-            .lookup(
-                RemoteWallpaperSource::Openverse,
-                "https://cdn.example/photo.jpg",
-                started + Duration::from_secs(1),
-            )
-            .is_none());
-        assert!(registry
-            .lookup(
-                RemoteWallpaperSource::Web,
-                "https://cdn.example/photo.jpg",
-                started + SOURCE_ORIGIN_TTL + Duration::from_secs(1),
-            )
-            .is_none());
-
-        for index in 0..=SOURCE_ORIGIN_LIMIT {
-            registry.register(
-                RemoteWallpaperSource::Pexels,
-                format!("https://cdn.example/{index}.jpg"),
-                "https://www.pexels.com/".into(),
-                started + Duration::from_millis(index as u64),
-            );
-        }
-        assert_eq!(registry.entries.len(), SOURCE_ORIGIN_LIMIT);
-        assert!(!registry.entries.contains_key(&(
-            RemoteWallpaperSource::Pexels,
-            "https://cdn.example/0.jpg".into(),
-        )));
-    }
-
-    #[test]
-    fn source_registry_rejects_renderer_style_header_inputs() {
-        assert_eq!(
-            canonical_media_url("https://cdn.example/photo.jpg#fragment").as_deref(),
-            Some("https://cdn.example/photo.jpg")
-        );
-        assert!(canonical_media_url("http://cdn.example/photo.jpg").is_none());
-        assert!(canonical_media_url("https://user:secret@cdn.example/photo.jpg").is_none());
-        assert!(verified_source_origin("https://photos.example:444/item").is_none());
-    }
-
-    #[test]
-    fn media_cancel_before_begin_is_sticky_bounded_and_expires() {
-        let now = Instant::now();
-        let mut registry = MediaRequestRegistry::default();
-        registry.record_pre_cancel("late-media", now);
-        assert!(registry.take_pre_cancel("late-media", now));
-        assert!(!registry.take_pre_cancel("late-media", now));
-
-        for index in 0..=PRE_CANCEL_CAPACITY {
-            registry.record_pre_cancel(&format!("request-{index}"), now);
-        }
-        assert_eq!(registry.pre_cancelled.len(), PRE_CANCEL_CAPACITY);
-        assert!(!registry.take_pre_cancel("request-0", now));
-        assert!(
-            !registry.take_pre_cancel("request-1", now + PRE_CANCEL_TTL + Duration::from_secs(1),)
-        );
-    }
-
-    #[test]
-    fn remote_thumbnail_is_bounded_jpeg_data_without_persisting() {
-        let image = image::DynamicImage::new_rgb8(1_600, 900);
-        let mut png = Cursor::new(Vec::new());
-        image
-            .write_to(&mut png, image::ImageFormat::Png)
-            .expect("encode test image");
-
-        let thumbnail = thumbnail_from_bytes(png.into_inner()).expect("build thumbnail");
-        assert_eq!((thumbnail.width, thumbnail.height), (1_600, 900));
-        assert!(thumbnail.data_url.starts_with("data:image/jpeg;base64,"));
-        assert!(thumbnail.data_url.len() <= 768 * 1024);
-    }
-
-    #[test]
-    fn probe_http_failures_have_stable_categories() {
-        assert_eq!(
-            status_failure(StatusCode::FORBIDDEN),
-            RemoteImageProbeFailure::Forbidden
-        );
-        assert_eq!(
-            status_failure(StatusCode::NOT_FOUND),
-            RemoteImageProbeFailure::NotFound
-        );
-        assert_eq!(
-            status_failure(StatusCode::TOO_MANY_REQUESTS),
-            RemoteImageProbeFailure::RateLimited
-        );
-        assert_eq!(
-            status_failure(StatusCode::BAD_GATEWAY),
-            RemoteImageProbeFailure::HttpServer
-        );
-    }
-
-    #[test]
-    fn stored_remote_images_stay_in_their_source_directory() {
-        let _environment = APP_HOME_ENV_LOCK
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        let home = std::env::temp_dir().join(format!(
-            "grok-app-remote-image-{}-{}",
-            std::process::id(),
-            uuid::Uuid::new_v4().simple()
-        ));
-        // SAFETY: test-only mutation serialized by APP_HOME_ENV_LOCK.
-        unsafe { std::env::set_var("GROK_APP_HOME", &home) };
-        let mut png = vec![0u8; 128];
-        png[..8].copy_from_slice(b"\x89PNG\r\n\x1a\n");
-        let saved = save_image(
-            "https://images.example.test/wallpaper.png",
-            RemoteWallpaperSource::Web,
-            "image/png",
-            png,
-        )
-        .expect("save remote image");
-        assert!(Path::new(&saved.path).is_file());
-        assert!(Path::new(&saved.path).starts_with(home.join("wallpapers").join("web")));
-
-        unsafe { std::env::remove_var("GROK_APP_HOME") };
-        let _ = fs::remove_dir_all(home);
-    }
-}
+mod tests;

@@ -67,6 +67,10 @@ pub(super) fn parse_openverse_page(value: &Value, page: usize) -> Result<ApiPage
         candidates.push(ProviderCandidate {
             upstream_id,
             image_url,
+            thumbnail_url: raw
+                .get("thumbnail")
+                .and_then(Value::as_str)
+                .and_then(safe_url),
             source_url,
             source_name: "Openverse",
             title: clean_text(raw.get("title").and_then(Value::as_str), 240),
@@ -101,14 +105,13 @@ pub(super) fn parse_pexels_page(value: &Value, page: usize) -> Result<ApiPage, P
         .unwrap_or_else(|| value.get("next_page").is_some_and(|next| !next.is_null()));
     let mut candidates = Vec::new();
     for raw in results.iter().take(PEXELS_PAGE_SIZE) {
-        let Some(image_url) = raw
-            .get("src")
-            .and_then(|src| src.get("original").or_else(|| src.get("large2x")))
-            .and_then(Value::as_str)
-            .and_then(safe_url)
-        else {
+        let Some(src) = raw.get("src") else {
             continue;
         };
+        let Some(image_url) = first_safe_url(src, &["original", "large2x"]) else {
+            continue;
+        };
+        let thumbnail_url = first_safe_url(src, &["large", "medium", "large2x", "landscape"]);
         let Some(source_url) = raw.get("url").and_then(Value::as_str).and_then(safe_url) else {
             continue;
         };
@@ -127,6 +130,7 @@ pub(super) fn parse_pexels_page(value: &Value, page: usize) -> Result<ApiPage, P
         candidates.push(ProviderCandidate {
             upstream_id,
             image_url,
+            thumbnail_url,
             source_url,
             source_name: "Pexels",
             title: clean_text(raw.get("alt").and_then(Value::as_str), 240),
@@ -143,6 +147,11 @@ pub(super) fn parse_pexels_page(value: &Value, page: usize) -> Result<ApiPage, P
         candidates,
         has_more,
     })
+}
+
+fn first_safe_url(value: &Value, keys: &[&str]) -> Option<String> {
+    keys.iter()
+        .find_map(|key| value.get(*key).and_then(Value::as_str).and_then(safe_url))
 }
 
 pub(super) fn safe_url(raw: &str) -> Option<String> {
@@ -203,6 +212,11 @@ pub(super) fn provider_item(
     probe: RemoteImageProbe,
 ) -> WallpaperGalleryItem {
     wallpaper_remote_media::register_media_source(source, &probe.final_url, &candidate.source_url);
+    let thumb_url = candidate
+        .thumbnail_url
+        .clone()
+        .unwrap_or_else(|| probe.final_url.clone());
+    wallpaper_remote_media::register_media_source(source, &thumb_url, &candidate.source_url);
     let mut digest = Sha256::new();
     digest.update(source.as_str().as_bytes());
     digest.update(candidate.upstream_id.as_bytes());
@@ -211,7 +225,7 @@ pub(super) fn provider_item(
     WallpaperGalleryItem {
         metadata: None,
         id: format!("{}-{}", source.as_str(), &identity[..24]),
-        thumb_url: probe.final_url.clone(),
+        thumb_url,
         full_url: probe.final_url,
         kind: "image".into(),
         width: probe.width,

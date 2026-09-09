@@ -209,9 +209,11 @@ export function WallpaperSourceGallery({
             const loadingThis = previewingId === item.id;
             const src = itemThumbSrc(item);
             const canCreateFromImage = isWallpaperImageItem(item);
+            const localMedia =
+              !!item.localPath || item.fullUrl.startsWith("file://");
             const localVideo =
               item.kind === "video" &&
-              (!!item.localPath || item.fullUrl.startsWith("file://"));
+              localMedia;
             const cite =
               item.source === "x" || (!item.source && tab === "x")
                 ? resolveWallpaperXCitation(item)
@@ -282,6 +284,7 @@ export function WallpaperSourceGallery({
                             onUnavailable={dropItem}
                           />
                         ) : !isLibraryTab &&
+                          !localMedia &&
                           (item.source === "openverse" ||
                             item.source === "pexels") ? (
                           <WallpaperProviderThumbnail item={item} t={t} />

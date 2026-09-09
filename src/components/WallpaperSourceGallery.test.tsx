@@ -94,29 +94,32 @@ afterEach(() => {
 });
 
 describe("WallpaperSourceGallery media details", () => {
-  it("uses the local media endpoint for saved provider images", () => {
-    const path = "C:/wallpapers/pexels/saved-photo.jpg";
-    const providerItem: WallpaperGalleryItem = {
-      ...item,
-      id: "saved-pexels-photo",
-      source: "pexels",
-      localPath: path,
-      fullUrl: `file://${path}`,
-      thumbUrl: `file://${path}`,
-    };
+  it.each(["library", "pexels"] as const)(
+    "uses the local media endpoint for saved provider images in %s",
+    (tab) => {
+      const path = "C:/wallpapers/pexels/saved-photo.jpg";
+      const providerItem: WallpaperGalleryItem = {
+        ...item,
+        id: "saved-pexels-photo",
+        source: "pexels",
+        localPath: path,
+        fullUrl: `file://${path}`,
+        thumbUrl: `file://${path}`,
+      };
 
-    render(
-      <WallpaperSourceGallery
-        {...galleryProps([providerItem])}
-        tab="library"
-      />,
-    );
+      render(
+        <WallpaperSourceGallery
+          {...galleryProps([providerItem])}
+          tab={tab}
+        />,
+      );
 
-    expect(screen.queryByTestId("remote-provider-thumbnail")).toBeNull();
-    expect(screen.getByRole("img").getAttribute("src")).toBe(
-      `http://127.0.0.1/media/${encodeURIComponent(path)}`,
-    );
-  });
+      expect(screen.queryByTestId("remote-provider-thumbnail")).toBeNull();
+      expect(screen.getByRole("img").getAttribute("src")).toBe(
+        `http://127.0.0.1/media/${encodeURIComponent(path)}`,
+      );
+    },
+  );
 
   it("keeps the existing media fallback when endpoint boot fails", async () => {
     ensureMediaEndpoint.mockRejectedValueOnce(new Error("endpoint unavailable"));

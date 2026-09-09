@@ -118,6 +118,7 @@ fn openverse_parser_requires_real_provenance_and_license() {
                 "creator": "Photographer",
                 "creator_url": "https://creator.example/profile",
                 "url": "https://images.example/mountain.jpg",
+                "thumbnail": "https://images.example/mountain-thumb.jpg",
                 "foreign_landing_url": "https://source.example/photo/1",
                 "license": "by-sa",
                 "license_version": "4.0",
@@ -139,6 +140,11 @@ fn openverse_parser_requires_real_provenance_and_license() {
     assert_eq!(item.source_name, "Openverse");
     assert_eq!(item.license, "CC BY-SA 4.0");
     assert_eq!(item.author_name, "Photographer");
+    assert_eq!(item.image_url, "https://images.example/mountain.jpg");
+    assert_eq!(
+        item.thumbnail_url.as_deref(),
+        Some("https://images.example/mountain-thumb.jpg")
+    );
 }
 
 #[test]
@@ -155,7 +161,11 @@ fn pexels_parser_ignores_upstream_next_url_and_uses_fixed_license() {
                 "photographer": "Photographer",
                 "photographer_url": "https://www.pexels.com/@photographer/",
                 "alt": "Misty lake",
-                "src": {"original": "https://images.pexels.com/photos/42/image.jpeg"}
+                "src": {
+                    "original": "https://images.pexels.com/photos/42/original.jpeg",
+                    "large": "https://images.pexels.com/photos/42/large.jpeg",
+                    "medium": "https://images.pexels.com/photos/42/medium.jpeg"
+                }
             }]
         }),
         1,
@@ -165,6 +175,108 @@ fn pexels_parser_ignores_upstream_next_url_and_uses_fixed_license() {
     assert_eq!(page.candidates.len(), 1);
     assert_eq!(page.candidates[0].license, "Pexels License");
     assert_eq!(page.candidates[0].license_url, PEXELS_LICENSE_URL);
+    assert_eq!(
+        page.candidates[0].image_url,
+        "https://images.pexels.com/photos/42/original.jpeg"
+    );
+    assert_eq!(
+        page.candidates[0].thumbnail_url.as_deref(),
+        Some("https://images.pexels.com/photos/42/large.jpeg")
+    );
+}
+
+#[test]
+fn pexels_parser_falls_back_across_missing_or_unsafe_image_variants() {
+    let page = parse_pexels_page(
+        &json!({
+            "page": 1,
+            "per_page": 40,
+            "total_results": 1,
+            "photos": [{
+                "id": 43,
+                "url": "https://www.pexels.com/photo/misty-lake-43/",
+                "photographer": "Photographer",
+                "src": {
+                    "original": "http://unsafe.example/original.jpeg",
+                    "large2x": "https://images.pexels.com/photos/43/large2x.jpeg",
+                    "large": "http://unsafe.example/large.jpeg",
+                    "medium": "https://images.pexels.com/photos/43/medium.jpeg",
+                    "landscape": "https://images.pexels.com/photos/43/landscape.jpeg"
+                }
+            }]
+        }),
+        1,
+    )
+    .unwrap();
+
+    assert_eq!(page.candidates.len(), 1);
+    assert_eq!(
+        page.candidates[0].image_url,
+        "https://images.pexels.com/photos/43/large2x.jpeg"
+    );
+    assert_eq!(
+        page.candidates[0].thumbnail_url.as_deref(),
+        Some("https://images.pexels.com/photos/43/medium.jpeg")
+    );
+}
+
+#[test]
+fn provider_item_keeps_thumbnail_and_validated_original_separate() {
+    let item = provider_item(
+        RemoteWallpaperSource::Pexels,
+        ProviderCandidate {
+            upstream_id: "44".into(),
+            image_url: "https://images.pexels.com/photos/44/original.jpeg".into(),
+            thumbnail_url: Some("https://images.pexels.com/photos/44/large.jpeg".into()),
+            source_url: "https://www.pexels.com/photo/misty-lake-44/".into(),
+            source_name: "Pexels",
+            title: Some("Misty lake".into()),
+            author_name: "Photographer".into(),
+            author_url: None,
+            license: "Pexels License".into(),
+            license_url: PEXELS_LICENSE_URL.into(),
+        },
+        crate::wallpaper_remote_media::RemoteImageProbe {
+            final_url: "https://cdn.pexels.com/photos/44/original.jpeg".into(),
+            width: Some(6_000),
+            height: Some(4_000),
+            content_length: Some(12_000_000),
+            content_fingerprint: "fingerprint-44".into(),
+        },
+    );
+
+    assert_eq!(
+        item.thumb_url,
+        "https://images.pexels.com/photos/44/large.jpeg"
+    );
+    assert_eq!(
+        item.full_url,
+        "https://cdn.pexels.com/photos/44/original.jpeg"
+    );
+
+    let fallback = provider_item(
+        RemoteWallpaperSource::Openverse,
+        ProviderCandidate {
+            upstream_id: "asset-45".into(),
+            image_url: "https://images.example/45.jpg".into(),
+            thumbnail_url: None,
+            source_url: "https://source.example/photo/45".into(),
+            source_name: "Openverse",
+            title: None,
+            author_name: "Photographer".into(),
+            author_url: None,
+            license: "CC0".into(),
+            license_url: "https://creativecommons.org/publicdomain/zero/1.0/".into(),
+        },
+        crate::wallpaper_remote_media::RemoteImageProbe {
+            final_url: "https://cdn.example/45.jpg".into(),
+            width: Some(1_920),
+            height: Some(1_080),
+            content_length: Some(1_000_000),
+            content_fingerprint: "fingerprint-45".into(),
+        },
+    );
+    assert_eq!(fallback.thumb_url, fallback.full_url);
 }
 
 #[test]
