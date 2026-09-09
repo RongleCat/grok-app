@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Changed
+- The theme editor modal loads on demand instead of joining app startup.
+
+**中文 · 变更**
+- 主题编辑器改为按需加载，不再拖累应用启动。
+
 ## [0.2.34] - 2026-09-09
 
 > **Highlight:** Bigger wallpaper sources, stronger Windows freeze fixes, safer chat thumbs.
