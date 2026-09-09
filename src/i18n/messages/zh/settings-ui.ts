@@ -3,6 +3,7 @@ export const zhSettingsUi = {
   "settings.wallpaperSource.details.title": "媒体详情",
   "settings.wallpaperSource.details.unknown": "未记录",
   "settings.wallpaperSource.details.dimensions": "像素尺寸",
+  "settings.wallpaperSource.details.mediaDuration": "媒体时长",
   "settings.wallpaperSource.details.bytes": "文件大小",
   "settings.wallpaperSource.details.source": "来源",
   "settings.wallpaperSource.details.author": "作者",

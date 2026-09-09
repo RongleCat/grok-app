@@ -392,14 +392,7 @@ fn generated_media_item(
         },
     )
     .map_err(|_| "imagine_failed")?;
-    let dimensions = if is_image {
-        image::ImageReader::open(&canonical)
-            .ok()
-            .and_then(|reader| reader.with_guessed_format().ok())
-            .and_then(|reader| reader.into_dimensions().ok())
-    } else {
-        None
-    };
+    let metadata = crate::wallpaper_media_metadata::probe(&canonical);
     if canonical
         .extension()
         .and_then(|s| s.to_str())
@@ -424,8 +417,8 @@ fn generated_media_item(
         thumb_url: format!("file://{path}"),
         full_url: format!("file://{path}"),
         kind: if is_image { "image" } else { "video" }.into(),
-        width: dimensions.map(|value| value.0),
-        height: dimensions.map(|value| value.1),
+        width: metadata.width,
+        height: metadata.height,
         source: "imagine".into(),
         username: None,
         post_url: None,

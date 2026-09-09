@@ -3,6 +3,7 @@ export const ptBRSettingsUi = {
   "settings.wallpaperSource.details.title": "Detalhes da mídia",
   "settings.wallpaperSource.details.unknown": "Não registrado",
   "settings.wallpaperSource.details.dimensions": "Dimensões em pixels",
+  "settings.wallpaperSource.details.mediaDuration": "Duração da mídia",
   "settings.wallpaperSource.details.bytes": "Tamanho do arquivo",
   "settings.wallpaperSource.details.source": "Fonte",
   "settings.wallpaperSource.details.author": "Autor",

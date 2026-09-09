@@ -3,6 +3,7 @@ export const idSettingsUi = {
   "settings.wallpaperSource.details.title": "Detail media",
   "settings.wallpaperSource.details.unknown": "Belum dicatat",
   "settings.wallpaperSource.details.dimensions": "Dimensi piksel",
+  "settings.wallpaperSource.details.mediaDuration": "Durasi media",
   "settings.wallpaperSource.details.bytes": "Ukuran file",
   "settings.wallpaperSource.details.source": "Sumber",
   "settings.wallpaperSource.details.author": "Pembuat",

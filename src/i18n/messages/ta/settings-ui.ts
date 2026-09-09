@@ -3,6 +3,7 @@ export const taSettingsUi = {
   "settings.wallpaperSource.details.title": "ஊடக விவரங்கள்",
   "settings.wallpaperSource.details.unknown": "பதிவு செய்யப்படவில்லை",
   "settings.wallpaperSource.details.dimensions": "பிக்சல் அளவுகள்",
+  "settings.wallpaperSource.details.mediaDuration": "ஊடக கால அளவு",
   "settings.wallpaperSource.details.bytes": "கோப்பு அளவு",
   "settings.wallpaperSource.details.source": "மூலம்",
   "settings.wallpaperSource.details.author": "படைப்பாளர்",

@@ -3,6 +3,7 @@ export const jaSettingsUi = {
   "settings.wallpaperSource.details.title": "メディアの詳細",
   "settings.wallpaperSource.details.unknown": "記録なし",
   "settings.wallpaperSource.details.dimensions": "ピクセル寸法",
+  "settings.wallpaperSource.details.mediaDuration": "メディアの長さ",
   "settings.wallpaperSource.details.bytes": "ファイルサイズ",
   "settings.wallpaperSource.details.source": "提供元",
   "settings.wallpaperSource.details.author": "作者",

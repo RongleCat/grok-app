@@ -3,6 +3,7 @@ export const deSettingsUi = {
   "settings.wallpaperSource.details.title": "Mediendetails",
   "settings.wallpaperSource.details.unknown": "Nicht erfasst",
   "settings.wallpaperSource.details.dimensions": "Pixelmaße",
+  "settings.wallpaperSource.details.mediaDuration": "Wiedergabedauer",
   "settings.wallpaperSource.details.bytes": "Dateigröße",
   "settings.wallpaperSource.details.source": "Quelle",
   "settings.wallpaperSource.details.author": "Urheber",

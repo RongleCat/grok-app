@@ -85,6 +85,7 @@ export type WallpaperMediaRecord = {
   title: string | null;
   width: number | null;
   height: number | null;
+  durationMs?: number | null;
   prompt: string | null;
   generation: {
     operation: string;

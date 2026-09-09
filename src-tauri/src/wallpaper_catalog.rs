@@ -35,6 +35,7 @@ pub struct MediaRecord {
     pub title: Option<String>,
     pub width: Option<u32>,
     pub height: Option<u32>,
+    pub duration_ms: Option<u64>,
     pub prompt: Option<String>,
     pub generation: Option<GenerationParameters>,
     pub parent_id: Option<String>,
@@ -204,14 +205,26 @@ fn record_for(
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
-    if let Some(saved) = previous.filter(|r| r.bytes == stat.len() && r.modified_ms == modified_ms)
-    {
+    let is_video = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|ext| matches!(ext.to_ascii_lowercase().as_str(), "mp4" | "webm"));
+    let unchanged =
+        previous.filter(|record| record.bytes == stat.len() && record.modified_ms == modified_ms);
+    if let Some(saved) = unchanged.filter(|record| {
+        !is_video
+            || (record.width.is_some() && record.height.is_some() && record.duration_ms.is_some())
+    }) {
         return Ok(saved.clone());
     }
-    let dimensions = image::ImageReader::open(path)
-        .ok()
-        .and_then(|r| r.with_guessed_format().ok())
-        .and_then(|r| r.into_dimensions().ok());
+    let metadata = crate::wallpaper_media_metadata::probe(path);
+    if let Some(saved) = unchanged {
+        let mut refreshed = saved.clone();
+        refreshed.width = metadata.width.or(refreshed.width);
+        refreshed.height = metadata.height.or(refreshed.height);
+        refreshed.duration_ms = metadata.duration_ms.or(refreshed.duration_ms);
+        return Ok(refreshed);
+    }
     let source = relative
         .split('/')
         .next()
@@ -246,8 +259,9 @@ fn record_for(
         license: None,
         license_url: None,
         title: None,
-        width: dimensions.map(|d| d.0),
-        height: dimensions.map(|d| d.1),
+        width: metadata.width,
+        height: metadata.height,
+        duration_ms: metadata.duration_ms,
         prompt: None,
         generation: None,
         parent_id: None,
@@ -529,6 +543,32 @@ mod tests {
         (root, path)
     }
 
+    fn mp4_box(kind: &[u8; 4], payload: Vec<u8>) -> Vec<u8> {
+        let mut data = Vec::with_capacity(payload.len() + 8);
+        data.extend_from_slice(&u32::try_from(payload.len() + 8).unwrap().to_be_bytes());
+        data.extend_from_slice(kind);
+        data.extend_from_slice(&payload);
+        data
+    }
+
+    fn video_fixture(width: u32, height: u32, duration_ms: u32) -> Vec<u8> {
+        let mut ftyp = Vec::new();
+        ftyp.extend_from_slice(b"isom");
+        ftyp.extend_from_slice(&0_u32.to_be_bytes());
+        ftyp.extend_from_slice(b"isom");
+        let mut mvhd = vec![0_u8; 20];
+        mvhd[12..16].copy_from_slice(&1_000_u32.to_be_bytes());
+        mvhd[16..20].copy_from_slice(&duration_ms.to_be_bytes());
+        let mut tkhd = vec![0_u8; 84];
+        tkhd[40..44].copy_from_slice(&65_536_i32.to_be_bytes());
+        tkhd[56..60].copy_from_slice(&65_536_i32.to_be_bytes());
+        tkhd[76..80].copy_from_slice(&(width << 16).to_be_bytes());
+        tkhd[80..84].copy_from_slice(&(height << 16).to_be_bytes());
+        let mut moov = mp4_box(b"mvhd", mvhd);
+        moov.extend_from_slice(&mp4_box(b"trak", mp4_box(b"tkhd", tkhd)));
+        [mp4_box(b"ftyp", ftyp), mp4_box(b"moov", moov)].concat()
+    }
+
     #[test]
     fn favorite_and_provenance_survive_reread() {
         let (root, path) = fixture();
@@ -566,6 +606,39 @@ mod tests {
         .unwrap();
         assert_eq!(matches.len(), 1);
         assert_eq!(matches[0].metadata.id, saved.id);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn video_metadata_is_measured_and_legacy_records_upgrade_in_place() {
+        let root =
+            std::env::temp_dir().join(format!("grok-wallpaper-catalog-{}", uuid::Uuid::new_v4()));
+        let path = root.join("imagine").join("generated.mp4");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, video_fixture(1_920, 1_080, 6_750)).unwrap();
+
+        let saved = remember_at(&root, &path, SourceMetadata::default(), None).unwrap();
+        assert_eq!(saved.width, Some(1_920));
+        assert_eq!(saved.height, Some(1_080));
+        assert_eq!(saved.duration_ms, Some(6_750));
+
+        let relative = key(&root, &path).unwrap();
+        transaction(&root, |catalog| {
+            let legacy = catalog.records.get_mut(&relative).unwrap();
+            legacy.width = None;
+            legacy.height = None;
+            legacy.duration_ms = None;
+            Ok(())
+        })
+        .unwrap();
+        let mut rows = Vec::new();
+        wallpaper_source::collect_library(&root, &root, &mut rows);
+        hydrate(&root, &mut rows).unwrap();
+        let upgraded = rows[0].metadata.as_ref().unwrap();
+        assert_eq!(upgraded.id, saved.id);
+        assert_eq!(upgraded.width, Some(1_920));
+        assert_eq!(upgraded.height, Some(1_080));
+        assert_eq!(upgraded.duration_ms, Some(6_750));
         fs::remove_dir_all(root).unwrap();
     }
 

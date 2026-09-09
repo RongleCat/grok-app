@@ -3,6 +3,7 @@ export const ruSettingsUi = {
   "settings.wallpaperSource.details.title": "Сведения о медиа",
   "settings.wallpaperSource.details.unknown": "Не записано",
   "settings.wallpaperSource.details.dimensions": "Размеры в пикселях",
+  "settings.wallpaperSource.details.mediaDuration": "Длительность файла",
   "settings.wallpaperSource.details.bytes": "Размер файла",
   "settings.wallpaperSource.details.source": "Источник",
   "settings.wallpaperSource.details.author": "Автор",

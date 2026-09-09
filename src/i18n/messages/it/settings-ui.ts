@@ -3,6 +3,7 @@ export const itSettingsUi = {
   "settings.wallpaperSource.details.title": "Dettagli del contenuto",
   "settings.wallpaperSource.details.unknown": "Non registrato",
   "settings.wallpaperSource.details.dimensions": "Dimensioni in pixel",
+  "settings.wallpaperSource.details.mediaDuration": "Durata del contenuto",
   "settings.wallpaperSource.details.bytes": "Dimensione del file",
   "settings.wallpaperSource.details.source": "Fonte",
   "settings.wallpaperSource.details.author": "Autore",

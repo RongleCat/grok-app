@@ -3,6 +3,7 @@ export const ukSettingsUi = {
   "settings.wallpaperSource.details.title": "Відомості про медіа",
   "settings.wallpaperSource.details.unknown": "Не записано",
   "settings.wallpaperSource.details.dimensions": "Розміри в пікселях",
+  "settings.wallpaperSource.details.mediaDuration": "Тривалість медіа",
   "settings.wallpaperSource.details.bytes": "Розмір файлу",
   "settings.wallpaperSource.details.source": "Джерело",
   "settings.wallpaperSource.details.author": "Автор",

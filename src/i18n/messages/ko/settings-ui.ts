@@ -3,6 +3,7 @@ export const koSettingsUi = {
   "settings.wallpaperSource.details.title": "미디어 상세 정보",
   "settings.wallpaperSource.details.unknown": "기록 없음",
   "settings.wallpaperSource.details.dimensions": "픽셀 크기",
+  "settings.wallpaperSource.details.mediaDuration": "미디어 길이",
   "settings.wallpaperSource.details.bytes": "파일 크기",
   "settings.wallpaperSource.details.source": "출처",
   "settings.wallpaperSource.details.author": "작성자",

@@ -128,6 +128,19 @@ function MediaDetailsContent({
     Number(width) > 0 && Number(height) > 0
       ? `${width} × ${height}`
       : unknown;
+  const durationMs = metadata?.durationMs;
+  const mediaDuration =
+    typeof durationMs === "number" &&
+    Number.isFinite(durationMs) &&
+    durationMs > 0
+      ? durationMs < 60_000
+        ? t("chat.duration.seconds", {
+            n: new Intl.NumberFormat(intlLocale(locale), {
+              maximumFractionDigits: 1,
+            }).format(durationMs / 1_000),
+          })
+        : formatWorkDuration(Math.round(durationMs / 1_000), locale)
+      : unknown;
   const prompt = metadata?.prompt || item.prompt;
   const generation = metadata?.generation;
   const row = (key: MessageKey, value: ReactNode) => (
@@ -264,6 +277,12 @@ function MediaDetailsContent({
         </p>
         <dl className="wallpaper-details__fields">
           {row("settings.wallpaperSource.details.dimensions", dimensions)}
+          {item.kind === "video"
+            ? row(
+                "settings.wallpaperSource.details.mediaDuration",
+                mediaDuration,
+              )
+            : null}
           {row("settings.wallpaperSource.details.bytes", fileSize)}
           {row(
             "settings.wallpaperSource.details.source",

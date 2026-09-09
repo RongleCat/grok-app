@@ -3,6 +3,7 @@ export const filSettingsUi = {
   "settings.wallpaperSource.details.title": "Detalye ng media",
   "settings.wallpaperSource.details.unknown": "Hindi naitala",
   "settings.wallpaperSource.details.dimensions": "Sukat sa pixel",
+  "settings.wallpaperSource.details.mediaDuration": "Tagal ng media",
   "settings.wallpaperSource.details.bytes": "Laki ng file",
   "settings.wallpaperSource.details.source": "Pinagmulan",
   "settings.wallpaperSource.details.author": "May-akda",

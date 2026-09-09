@@ -302,8 +302,9 @@ clears its prior continuation and browsing snapshot.
 
 The local wallpaper library keeps its media files in the existing wallpaper
 root and stores only bounded metadata in an atomic `.catalog.json`. Records have
-a stable media ID, source and purpose, favorite state, known dimensions, optional
-prompt/generation lineage, and sanitized HTTPS attribution fields. Remote media
+a stable media ID, source and purpose, favorite state, measured dimensions and
+video duration when the container exposes them, optional prompt/generation
+lineage, and sanitized HTTPS attribution fields. Remote media
 identity is stored as a source-scoped SHA-256 key; raw media URLs, credentials,
 headers and private album responses are not written to the catalog.
 
@@ -416,6 +417,9 @@ failed task output. Successful media is registered in the catalog as generated
 content with the audited prompt and parameters; edit and video records also keep
 the source media as their parent. A catalog write failure preserves the generated
 file and returns `catalog_write_failed` without silently rerunning generation.
+Requested video duration remains a generation parameter; MP4/WebM dimensions and
+duration are measured from the saved file and stored separately. Existing video
+records are upgraded on the next library scan without changing their media ID.
 
 Upstream failures are classified only after auditing the complete tool log. Known
 tool-owned HTTP and transport prefixes map to stable auth, access, rate-limit,

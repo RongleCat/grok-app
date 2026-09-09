@@ -43,6 +43,7 @@ const item: WallpaperGalleryItem = {
     bytes: 2000,
     width: 1280,
     height: 720,
+    durationMs: 6_750,
     generation: {
       operation: "image_edit",
       aspectRatio: "16:9",
@@ -86,6 +87,34 @@ describe("WallpaperMediaDetails", () => {
     expect(screen.getByText("requested-only")).toBeTruthy();
     expect(screen.getAllByText("Not recorded").length).toBeGreaterThan(0);
     expect(screen.getByText("/result.png")).toBeTruthy();
+  });
+
+  it("shows measured video duration separately from the requested duration", () => {
+    render(
+      <WallpaperMediaDetails
+        {...props()}
+        item={{
+          ...item,
+          kind: "video",
+          metadata: {
+            ...item.metadata,
+            durationMs: 6_750,
+            generation: {
+              operation: "image_to_video",
+              duration: 10,
+            },
+          } as never,
+        }}
+      />,
+    );
+    expect(screen.getByText("Media duration").nextElementSibling).toHaveProperty(
+      "textContent",
+      "6.8s",
+    );
+    expect(screen.getByText("Requested duration").nextElementSibling).toHaveProperty(
+      "textContent",
+      "10s",
+    );
   });
 
   it("sanitizes attribution links and rejects credentials or unsafe schemes", () => {

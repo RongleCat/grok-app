@@ -228,6 +228,7 @@ mod wallpaper_catalog;
 mod wallpaper_grok_album;
 mod wallpaper_imagine_video;
 mod wallpaper_library;
+mod wallpaper_media_metadata;
 mod wallpaper_provider_search;
 mod wallpaper_remote_commands;
 mod wallpaper_remote_media;
