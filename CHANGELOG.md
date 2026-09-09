@@ -104,6 +104,7 @@ See `docs/llm-wiki/release.md`.
 - Sidebar Other now uses the same name as the composer chip: Default workspace (#1067).
 - Startup skips TipTap and markdown preloads; Office and Settings load on demand (#1055, #1063).
 - The theme editor modal loads on demand instead of joining app startup.
+- Bundled KaTeX math fonts ship as woff2 only, trimming the install size.
 
 **中文 · 变更**
 - 结束后的「Worked for」工具栏会收起。失败步骤保留为一行摘要。
@@ -114,6 +115,7 @@ See `docs/llm-wiki/release.md`.
 - 侧栏「其他会话」与输入框统一为「默认工作区」（#1067）。
 - 启动不再预载 TipTap / markdown；Office 与设置页按需加载（#1055、#1063）。
 - 主题编辑器改为按需加载，不再拖累应用启动。
+- 打包内的 KaTeX 数学字体只保留 woff2 格式，安装包更小。
 
 ## [0.2.33] - 2026-09-06
 
