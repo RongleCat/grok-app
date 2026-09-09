@@ -124,6 +124,8 @@ export const ptBRCore = {
   "shortcuts.closeSideTab": "Fechar aba lateral (janela quando nenhuma estiver aberta)",
   "shortcuts.sidebarSessionNav": "Próximo / anterior chat na barra lateral (foco na lista)",
   "shortcuts.recentSessionMru": "Chat recente seguinte / anterior",
+  "shortcuts.recentSessionMruPanel": "Chats recentes",
+  "shortcuts.recentSessionMruPanelHint": "Solte Ctrl para abrir",
   "shortcuts.doctor": "Doctor",
   "shortcuts.liveVoice": "Iniciar Live Voice",
   "shortcuts.off": "Desligado",

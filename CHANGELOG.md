@@ -62,6 +62,7 @@ See `docs/llm-wiki/release.md`.
 - 插件授权密钥不再出现在进程命令行中。
 
 ### Added
+- Ctrl+Tab shows a recent-chat list while you hold Ctrl. Release Ctrl to open the highlighted chat (#1125).
 - Chat markdown renders Mermaid diagrams from fenced code blocks.
 - Wallpaper X can use Responses search with a clear fallback to CLI (#1088).
 - Wallpaper X Responses search shows validated images in batches as paths finish (#1089).
@@ -71,9 +72,9 @@ See `docs/llm-wiki/release.md`.
 - Openverse and Pexels prefetch the next page after a successful search (#1097).
 - Wallpaper sources add a separate Web image search with safe preview download (#1099).
 - Wallpaper sources can browse your Grok Saved album after a secure sign-in check (#1103).
-- Ctrl+Tab jumps back to the last chat you used. Hold Ctrl and tap Tab to cycle further; Ctrl+Shift+Tab goes the other way.
 
 **中文 · 新增**
+- 按住 Ctrl+Tab 会弹出最近对话列表。松开 Ctrl 打开高亮的那一条（#1125）。
 - 聊天 Markdown 会渲染 fenced Mermaid 流程图。
 - 壁纸 X 可用 Responses 搜索，失败时清楚回退到 CLI（#1088）。
 - 壁纸 X 的 Responses 搜索会按完成批次逐步显示已校验图片（#1089）。
@@ -83,7 +84,6 @@ See `docs/llm-wiki/release.md`.
 - Openverse / Pexels 在成功搜索后会预取下一页（#1097）。
 - 壁纸来源新增独立的 Web 图片搜索，并安全下载预览（#1099）。
 - 壁纸来源可在安全登录校验后浏览 Grok Saved 相册（#1103）。
-- Ctrl+Tab 切回上一个用过的对话。按住 Ctrl 再点 Tab 继续循环；Ctrl+Shift+Tab 反向。
 
 ### Changed
 - Finished Worked-for rails fold after the turn. Failed tools stay as one-line excerpts.

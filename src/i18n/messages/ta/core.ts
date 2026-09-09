@@ -124,6 +124,8 @@ export const taCore = {
   "shortcuts.closeSideTab": "பக்க தாவலை மூடு (சாளரம் எதுவும் திறக்கப்படாத போது)",
   "shortcuts.sidebarSessionNav": "பக்கப்பட்டியில் அடுத்த / முந்தைய உரையாடல் (பட்டியலில் கவனம்)",
   "shortcuts.recentSessionMru": "சமீபத்தில் பயன்படுத்திய அடுத்த / முந்தைய உரையாடல்",
+  "shortcuts.recentSessionMruPanel": "சமீபத்திய உரையாடல்கள்",
+  "shortcuts.recentSessionMruPanelHint": "திறக்க Ctrl-ஐ விடுங்கள்",
   "shortcuts.doctor": "Doctor",
   "shortcuts.liveVoice": "நேரடிக் குரலைத் தொடங்கவும்",
   "shortcuts.off": "அணைப்பு",

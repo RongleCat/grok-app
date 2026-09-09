@@ -124,6 +124,8 @@ export const filCore = {
   "shortcuts.closeSideTab": "Isara ang side tab (window kapag walang bukas)",
   "shortcuts.sidebarSessionNav": "Susunod / nakaraang chat sa sidebar (focus sa listahan)",
   "shortcuts.recentSessionMru": "Susunod / nakaraang kamakailang chat",
+  "shortcuts.recentSessionMruPanel": "Mga kamakailang chat",
+  "shortcuts.recentSessionMruPanelHint": "Bitawan ang Ctrl para buksan",
   "shortcuts.doctor": "Doctor",
   "shortcuts.liveVoice": "Simulan ang Live Voice",
   "shortcuts.off": "Naka-off",

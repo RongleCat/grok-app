@@ -155,6 +155,42 @@ export function sessionMruCycleTarget(
   return cycle.snapshot[cycle.index] ?? null;
 }
 
+export type SessionMruPanelRow = {
+  id: string;
+  title: string;
+  projectName: string;
+};
+
+export type SessionMruPanelState = {
+  rows: SessionMruPanelRow[];
+  index: number;
+} | null;
+
+/** Snapshot + labels for the Ctrl-held switcher panel. */
+export function buildSessionMruPanelState(
+  cycle: SessionMruCycle | null,
+  getRow: (id: string) => { title: string; projectName: string } | null,
+): SessionMruPanelState {
+  if (!cycle || cycle.snapshot.length === 0) return null;
+  const index =
+    cycle.index < 0
+      ? 0
+      : cycle.index >= cycle.snapshot.length
+        ? cycle.snapshot.length - 1
+        : cycle.index;
+  return {
+    index,
+    rows: cycle.snapshot.map((id) => {
+      const row = getRow(id);
+      return {
+        id,
+        title: (row?.title ?? "").trim(),
+        projectName: (row?.projectName ?? "").trim(),
+      };
+    }),
+  };
+}
+
 export type SessionMruChordEvent = {
   key: string;
   code?: string;

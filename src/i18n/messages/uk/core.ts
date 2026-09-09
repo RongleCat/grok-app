@@ -124,6 +124,8 @@ export const ukCore = {
   "shortcuts.closeSideTab": "Закрити бічну вкладку (вікно, якщо вкладок немає)",
   "shortcuts.sidebarSessionNav": "Наступний / попередній чат на бічній панелі (фокус у списку)",
   "shortcuts.recentSessionMru": "Наступний / попередній нещодавно використаний чат",
+  "shortcuts.recentSessionMruPanel": "Нещодавні чати",
+  "shortcuts.recentSessionMruPanelHint": "Відпустіть Ctrl, щоб відкрити",
   "shortcuts.doctor": "Діагностика",
   "shortcuts.liveVoice": "Запустити Live Voice",
   "shortcuts.off": "Вимкнено",

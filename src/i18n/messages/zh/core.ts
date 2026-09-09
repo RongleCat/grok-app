@@ -124,6 +124,8 @@ export const zhCore = {
   "shortcuts.closeSideTab": "关闭侧边标签（无标签时关闭窗口）",
   "shortcuts.sidebarSessionNav": "侧栏上下切换会话（焦点在列表内）",
   "shortcuts.recentSessionMru": "最近用过的对话（上一个 / 下一个）",
+  "shortcuts.recentSessionMruPanel": "最近用过的对话",
+  "shortcuts.recentSessionMruPanelHint": "松开 Ctrl 打开",
   "shortcuts.doctor": "体检",
   "shortcuts.liveVoice": "开始实时语音",
   "shortcuts.off": "关闭",

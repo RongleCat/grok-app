@@ -8,6 +8,7 @@
 import { lazy, Suspense } from "react";
 import { ArchiveAgeConfirmModal } from "@/components/workbench-modals/ArchiveAgeConfirmModal";
 import { PromptHistoryClearModal } from "@/components/workbench-modals/PromptHistoryClearModal";
+import { SessionMruSwitcher } from "@/components/SessionMruSwitcher";
 import { ShortcutsHelpModal } from "@/components/workbench-modals/ShortcutsHelpModal";
 import { WorktreeCreateModal } from "@/components/workbench-modals/WorktreeCreateModal";
 import { WorktreeGcModal } from "@/components/workbench-modals/WorktreeGcModal";
@@ -105,6 +106,7 @@ export function WorkbenchChromeOverlays(p: WorkbenchChromeOverlaysProps) {
   const wt = p.worktreeChrome;
   return (
     <>
+      <SessionMruSwitcher locale={p.locale} />
       {p.showDoctor ? (
         <Suspense fallback={null}>
           <DoctorModal

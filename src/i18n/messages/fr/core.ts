@@ -124,6 +124,8 @@ export const frCore = {
   "shortcuts.closeSideTab": "Fermer l’onglet latéral (fenêtre si aucun ouvert)",
   "shortcuts.sidebarSessionNav": "Conversation suivante / précédente dans la barre latérale (focus dans la liste)",
   "shortcuts.recentSessionMru": "Conversation récente suivante / précédente",
+  "shortcuts.recentSessionMruPanel": "Conversations récentes",
+  "shortcuts.recentSessionMruPanelHint": "Relâchez Ctrl pour ouvrir",
   "shortcuts.doctor": "Doctor",
   "shortcuts.liveVoice": "Démarrer Live Voice",
   "shortcuts.off": "Désactivé",

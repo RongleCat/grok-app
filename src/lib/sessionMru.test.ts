@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   beginSessionMruCycle,
+  buildSessionMruPanelState,
   filterSessionMru,
   isSessionMruModifierKey,
   loadSessionMru,
@@ -97,6 +98,23 @@ describe("beginSessionMruCycle", () => {
     expect(beginSessionMruCycle(["a"], ["a"], "a", "next")).toBeNull();
     expect(beginSessionMruCycle([], ["a"], "a", "next")).toBeNull();
     expect(beginSessionMruCycle(["gone"], ["a"], "a", "next")).toBeNull();
+  });
+
+  it("builds switcher rows from the frozen cycle", () => {
+    const cycle = beginSessionMruCycle(["b", "a"], ["a", "b"], "b", "next");
+    expect(
+      buildSessionMruPanelState(cycle, (id) => ({
+        title: id === "a" ? " Alpha " : "Beta",
+        projectName: id === "a" ? " proj " : "",
+      })),
+    ).toEqual({
+      index: 1,
+      rows: [
+        { id: "b", title: "Beta", projectName: "" },
+        { id: "a", title: "Alpha", projectName: "proj" },
+      ],
+    });
+    expect(buildSessionMruPanelState(null, () => null)).toBeNull();
   });
 
   it("wraps prev from the current chat to the oldest recent", () => {

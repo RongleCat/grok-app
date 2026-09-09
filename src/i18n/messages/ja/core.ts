@@ -124,6 +124,8 @@ export const jaCore = {
   "shortcuts.closeSideTab": "サイドタブを閉じる（開いていないときはウィンドウ）",
   "shortcuts.sidebarSessionNav": "サイドバーで次 / 前のチャット（リストにフォーカス時）",
   "shortcuts.recentSessionMru": "最近使ったチャットの次 / 前",
+  "shortcuts.recentSessionMruPanel": "最近使ったチャット",
+  "shortcuts.recentSessionMruPanelHint": "Ctrl を離すと開きます",
   "shortcuts.doctor": "ドクター",
   "shortcuts.liveVoice": "Live Voice を開始",
   "shortcuts.off": "オフ",

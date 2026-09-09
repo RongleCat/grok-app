@@ -245,6 +245,19 @@ export function useSessionNavigation(opts: {
   const { noteOpened } = useSessionMruNav({
     getCurrentId: () => viewingSessionIdRef.current,
     getLiveIds: () => hostRef.current.catalog.listLiveIds(),
+    getRow: (id) => {
+      try {
+        const row = hostRef.current.catalog.findRow(id);
+        if (!row) return null;
+        const proj = hostRef.current.catalog.resolveProject(row);
+        return {
+          title: (row.title || "").trim(),
+          projectName: (proj?.name || "").trim(),
+        };
+      } catch {
+        return null;
+      }
+    },
     openById: (id) => {
       const row = hostRef.current.catalog.findRow(id);
       if (row) void mruOpenRef.current(row);

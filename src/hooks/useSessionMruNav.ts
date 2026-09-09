@@ -2,13 +2,15 @@
  * Global Ctrl+Tab / Ctrl+Shift+Tab: switch recently used chats.
  *
  * Same chord on macOS, Windows, and Linux (Cmd+Tab is the OS app switcher).
- * Hold Ctrl and tap Tab to walk a frozen MRU snapshot; release Ctrl to commit.
+ * Hold Ctrl and tap Tab to walk a frozen snapshot in a temporary panel;
+ * releasing Ctrl opens the highlighted chat and hides the panel.
  */
 
 import { useCallback, useEffect, useRef } from "react";
 import { isShortcutRecordingActive } from "@/lib/shortcutRemap";
 import {
   beginSessionMruCycle,
+  buildSessionMruPanelState,
   isSessionMruModifierKey,
   loadSessionMru,
   matchSessionMruChord,
@@ -19,10 +21,20 @@ import {
   type SessionMruCycle,
   type SessionMruDir,
 } from "@/lib/sessionMru";
+import {
+  registerSessionMruPanelPick,
+  setSessionMruPanelState,
+} from "@/lib/sessionMruPanelStore";
+
+export type SessionMruRowLookup = {
+  title: string;
+  projectName: string;
+};
 
 export function useSessionMruNav(opts: {
   getCurrentId: () => string | null | undefined;
   getLiveIds: () => readonly string[];
+  getRow: (id: string) => SessionMruRowLookup | null;
   openById: (id: string) => void;
   isEnabled?: () => boolean;
 }): { noteOpened: (id: string) => void } {
@@ -37,12 +49,26 @@ export function useSessionMruNav(opts: {
     saveSessionMru(next);
   };
 
+  const publish = (cycle: SessionMruCycle | null) => {
+    setSessionMruPanelState(
+      buildSessionMruPanelState(cycle, optsRef.current.getRow),
+    );
+  };
+
+  const hidePanel = () => {
+    cycleRef.current = null;
+    publish(null);
+  };
+
   const commitCycle = () => {
     const cycle = cycleRef.current;
     if (!cycle) return;
-    cycleRef.current = null;
+    hidePanel();
     const target = sessionMruCycleTarget(cycle);
-    if (target) persist(touchSessionMru(listRef.current, target));
+    if (!target) return;
+    persist(touchSessionMru(listRef.current, target));
+    const current = (optsRef.current.getCurrentId() ?? "").trim();
+    if (target !== current) optsRef.current.openById(target);
   };
 
   const noteOpened = useCallback((id: string) => {
@@ -51,7 +77,7 @@ export function useSessionMruNav(opts: {
     const cycle = cycleRef.current;
     if (cycle) {
       if (sessionMruCycleTarget(cycle) === tid) return;
-      cycleRef.current = null;
+      hidePanel();
     }
     persist(touchSessionMru(listRef.current, tid));
   }, []);
@@ -73,16 +99,32 @@ export function useSessionMruNav(opts: {
       cycle = stepSessionMruCycle(cycle, dir);
     }
     if (!cycle) return;
-    const target = sessionMruCycleTarget(cycle);
-    if (!target) return;
     cycleRef.current = cycle;
-    if (target !== (o.getCurrentId() ?? "").trim()) {
-      o.openById(target);
-    }
+    publish(cycle);
+  };
+
+  const pickIndex = (index: number) => {
+    const cycle = cycleRef.current;
+    if (!cycle) return;
+    if (index < 0 || index >= cycle.snapshot.length) return;
+    const next = { snapshot: cycle.snapshot, index };
+    cycleRef.current = next;
+    publish(next);
   };
 
   useEffect(() => {
+    registerSessionMruPanelPick(pickIndex);
+    return () => registerSessionMruPanelPick(null);
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (cycleRef.current && e.key === "Escape" && !e.isComposing) {
+        e.preventDefault();
+        e.stopPropagation();
+        hidePanel();
+        return;
+      }
       const dir = matchSessionMruChord({
         key: e.key,
         code: e.code,

@@ -124,6 +124,8 @@ export const deCore = {
   "shortcuts.closeSideTab": "Seitentab schließen (Fenster, wenn keiner offen)",
   "shortcuts.sidebarSessionNav": "Nächster / vorheriger Chat in der Seitenleiste (Fokus in der Liste)",
   "shortcuts.recentSessionMru": "Nächster / vorheriger kürzlich verwendeter Chat",
+  "shortcuts.recentSessionMruPanel": "Kürzlich verwendete Chats",
+  "shortcuts.recentSessionMruPanelHint": "Strg loslassen zum Öffnen",
   "shortcuts.doctor": "Doctor",
   "shortcuts.liveVoice": "Live Voice starten",
   "shortcuts.off": "Aus",

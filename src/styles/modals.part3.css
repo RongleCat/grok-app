@@ -702,6 +702,11 @@
   padding-top: 0;
 }
 
+.overlay.session-mru-overlay {
+  align-items: center;
+  padding-top: 24px;
+}
+
 /* User message skill inline */
 .user-msg-body {
   white-space: pre-wrap;
