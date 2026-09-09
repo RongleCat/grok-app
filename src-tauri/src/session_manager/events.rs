@@ -1111,11 +1111,7 @@ impl SessionManager {
 
                 // Match background emits: include sessionId so the UI can
                 // ignore retries for a non-viewed chat.
-                let live_sid = self
-                    .inner
-                    .lock()
-                    .as_ref()
-                    .map(|s| s.app_session_id.clone());
+                let live_sid = self.inner.lock().as_ref().map(|s| s.app_session_id.clone());
                 let _ = app.emit(
                     "session://retry",
                     serde_json::json!({
