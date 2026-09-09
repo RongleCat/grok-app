@@ -3,6 +3,8 @@
  * Open/new-chat and settings navigation stay with the host.
  */
 import {
+  lazy,
+  Suspense,
   useEffect,
   useState,
   type CSSProperties,
@@ -13,7 +15,6 @@ import {
 import { Tip } from "@/components/ui/tooltip";
 import { SidebarBrand } from "@/components/SidebarBrand";
 import { SidebarUpdateButton } from "@/components/SidebarUpdateButton";
-import { ThemeEditorModal } from "@/components/ThemeEditorModal";
 import { UserMenu } from "@/components/UserMenu";
 import { GrokLogo } from "@/components/GrokLogo";
 import {
@@ -63,6 +64,13 @@ import type { Theme, ThemePreference } from "@/lib/theme";
 import { requestWhatsNewOpen } from "@/lib/whatsNew";
 
 type TFn = ReturnType<typeof createT>;
+
+// Theme editor (appearance settings model, ~300KB) only loads when opened
+// from the sidebar rail, keeping it off the boot-critical App chunk.
+const ThemeEditorModal = lazy(async () => {
+  const m = await import("@/components/ThemeEditorModal");
+  return { default: m.ThemeEditorModal };
+});
 
 function quotaBarFillClass(usedPercent: number | null): string {
   if (usedPercent != null && usedPercent >= 90) return " is-danger";
@@ -559,11 +567,13 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
         </div>
       </div>
       {themeEditorOpen ? (
-        <ThemeEditorModal
-          open
-          onClose={() => setThemeEditorOpen(false)}
-          locale={locale}
-        />
+        <Suspense fallback={null}>
+          <ThemeEditorModal
+            open
+            onClose={() => setThemeEditorOpen(false)}
+            locale={locale}
+          />
+        </Suspense>
       ) : null}
     </aside>
   );
