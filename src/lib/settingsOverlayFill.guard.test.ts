@@ -38,9 +38,9 @@ describe("settings overlay fills the window with wallpaper on", () => {
     );
   });
 
-  it("drops settings-stage blur for stream-perf but not wallpaper-clear", () => {
+  it("keeps settings-stage blur stable through stream-perf and wallpaper-clear", () => {
     const css = readFileSync(join(STYLES, "skins.css"), "utf8");
-    expect(css).toMatch(
+    expect(css).not.toMatch(
       /html\[data-stream-perf="1"\]\[data-wallpaper="1"\] \.app-settings-stage,[^{]*\{[^}]*backdrop-filter:\s*none\s*!important/s,
     );
     expect(css).not.toMatch(

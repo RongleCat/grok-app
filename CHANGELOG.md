@@ -19,6 +19,12 @@ See `docs/llm-wiki/release.md`.
 **中文 · 变更**
 - 主题编辑器改为按需加载，不再拖累应用启动。
 
+### Fixed
+- Wallpaper no longer flashes black while streaming or following the chat tail.
+
+**中文 · 修复**
+- 流式输出和自动跟随聊天底部时，静态及动态壁纸不再闪黑。
+
 ## [0.2.34] - 2026-09-09
 
 > **Highlight:** Bigger wallpaper sources, stronger Windows freeze fixes, safer chat thumbs.

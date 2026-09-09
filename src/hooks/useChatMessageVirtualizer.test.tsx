@@ -267,13 +267,20 @@ describe("useChatMessageVirtualizer touch freeze", () => {
     expect(viewport.dataset.scrolling).toBe("1");
   });
 
-  it("still clears the scrolling flag for programmatic pin follow", () => {
+  it("never exposes the scrolling UI flag for programmatic pin follow", () => {
     const { viewport } = mount({ pinned: true });
     act(() => {
       viewport.dispatchEvent(new Event("scroll"));
-      vi.advanceTimersByTime(250);
     });
     expect(viewport.dataset.scrolling).toBeUndefined();
+  });
+
+  it("still exposes the scrolling UI flag for explicit wheel input", () => {
+    const { viewport } = mount({ pinned: true });
+    act(() => {
+      viewport.dispatchEvent(new Event("wheel"));
+    });
+    expect(viewport.dataset.scrolling).toBe("1");
   });
 
   it("clears contact on the last touchend, not pointercancel", () => {

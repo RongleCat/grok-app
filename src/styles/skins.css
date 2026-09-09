@@ -409,42 +409,16 @@ html[data-wallpaper="1"] .platform-mac .settings-page__nav {
   -webkit-backdrop-filter: none !important;
 }
 
-/*
- * Live turn: AppWorkbench sets html[data-stream-perf="1"].
- * Drop pane backdrop-filter (sidebar / settings / aside) — those are the
- * GPU sink on WebView2. Keep wallpaper media frost and its inset bleed.
- * Clearing filter + collapsing inset in the same frame pops the picture
- * (empty chat vs live turn, #941) and fights the independent blur slider.
- * Video already pauses in WallpaperMediaLayer.
- */
-html[data-stream-perf="1"][data-wallpaper="1"] .app-settings-stage,
-html[data-stream-perf="1"][data-wallpaper="1"] .sidebar,
-html[data-stream-perf="1"][data-wallpaper="1"] .aside,
-html[data-stream-perf="1"][data-wallpaper="1"] .settings-page__nav,
-html[data-stream-perf="1"][data-wallpaper="1"] .platform-win .settings-page__nav,
-html[data-stream-perf="1"][data-wallpaper="1"] .platform-other .settings-page__nav,
-html[data-stream-perf="1"][data-wallpaper="1"] .platform-mac .settings-page__nav {
+/* History browse: drop pane blur only when no wallpaper is active. Wallpaper
+ * filter surfaces must remain stable or WebView2 can flash during a gesture. */
+html:not([data-wallpaper="1"]):has(.lobe-chat__scroll[data-scrolling="1"]) .composer,
+html:not([data-wallpaper="1"]):has(.lobe-chat__scroll[data-scrolling="1"])
+  .composer__chip-shell,
+html:not([data-wallpaper="1"]):has(.lobe-chat__scroll[data-scrolling="1"]) .sidebar,
+html:not([data-wallpaper="1"]):has(.lobe-chat__scroll[data-scrolling="1"]) .aside,
+html:not([data-wallpaper="1"]):has(.lobe-chat__scroll[data-scrolling="1"]) .plan-bar {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-}
-
-/* History browse: same GPU tax as stream-perf, without waiting on a live turn. */
-html:has(.lobe-chat__scroll[data-scrolling="1"]) .composer,
-html:has(.lobe-chat__scroll[data-scrolling="1"]) .composer__chip-shell,
-html:has(.lobe-chat__scroll[data-scrolling="1"]) .sidebar,
-html:has(.lobe-chat__scroll[data-scrolling="1"]) .aside,
-html:has(.lobe-chat__scroll[data-scrolling="1"]) .plan-bar {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/*
- * Wallpaper frost stays on the media layer (#941 pop). While the finger is
- * down, paint an opaque plate on the scroller so 12 markdown rows do not
- * re-blend through a 22px Win blur every compositor frame.
- */
-html[data-wallpaper="1"] .lobe-chat__scroll[data-scrolling="1"] {
-  background: var(--bg-main);
 }
 
 html[data-wallpaper="1"] .settings-page__content,
@@ -490,7 +464,7 @@ html[data-theme="dark"][data-wallpaper="1"] .plan-bar {
   background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
 }
 
-html[data-stream-perf="1"] .plan-bar {
+html[data-stream-perf="1"]:not([data-wallpaper="1"]) .plan-bar {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }

@@ -6,19 +6,13 @@ import { describe, expect, it } from "vitest";
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe("stream-perf wallpaper CSS", () => {
-  it("drops wallpaper pane blur while data-stream-perf is on", () => {
+  it("does not rebuild wallpaper pane filters while data-stream-perf changes", () => {
     const css = readFileSync(join(here, "skins.css"), "utf8");
-    expect(css).toContain(
-      'html[data-stream-perf="1"][data-wallpaper="1"] .sidebar',
+    expect(css).not.toMatch(
+      /html\[data-stream-perf="1"\]\[data-wallpaper="1"\][^{]*\{[^}]*backdrop-filter:/s,
     );
-    expect(css).toContain(
-      'html[data-stream-perf="1"][data-wallpaper="1"] .aside',
-    );
-    expect(css).toContain(
-      'html[data-stream-perf="1"][data-wallpaper="1"] .settings-page__nav',
-    );
-    expect(css).toMatch(
-      /html\[data-stream-perf="1"\]\[data-wallpaper="1"\] \.app-settings-stage,[^{]*\{[^}]*backdrop-filter:\s*none\s*!important/s,
+    expect(css).not.toContain(
+      'html[data-stream-perf="1"][data-wallpaper="1"]',
     );
   });
 
@@ -35,20 +29,40 @@ describe("stream-perf wallpaper CSS", () => {
     );
   });
 
-  it("drops pane blur while the chat scroller is mid-gesture", () => {
+  it("only drops pane blur mid-gesture when wallpaper is absent", () => {
     const css = readFileSync(join(here, "skins.css"), "utf8");
     expect(css).toContain(
-      "html:has(.lobe-chat__scroll[data-scrolling=\"1\"]) .composer",
+      'html:not([data-wallpaper="1"]):has(.lobe-chat__scroll[data-scrolling="1"]) .composer',
     );
     expect(css).toContain(
-      "html:has(.lobe-chat__scroll[data-scrolling=\"1\"]) .sidebar",
+      'html:not([data-wallpaper="1"]):has(.lobe-chat__scroll[data-scrolling="1"]) .sidebar',
+    );
+    expect(css).not.toContain(
+      'html:has(.lobe-chat__scroll[data-scrolling="1"]) .sidebar',
     );
   });
 
-  it("paints an opaque transcript plate while scrolling over wallpaper", () => {
+  it("never paints an opaque transcript plate over wallpaper", () => {
     const css = readFileSync(join(here, "skins.css"), "utf8");
-    expect(css).toMatch(
+    expect(css).not.toMatch(
       /html\[data-wallpaper="1"\]\s+\.lobe-chat__scroll\[data-scrolling="1"\]\s*\{[^}]*background:\s*var\(--bg-main\)/s,
+    );
+  });
+
+  it("keeps wallpaper plan-bar blur stable during stream-perf", () => {
+    const css = readFileSync(join(here, "skins.css"), "utf8");
+    expect(css).toContain(
+      'html[data-stream-perf="1"]:not([data-wallpaper="1"]) .plan-bar',
+    );
+    expect(css).not.toContain(
+      'html[data-stream-perf="1"] .plan-bar',
+    );
+  });
+
+  it("keeps wallpaper kanban filters stable during stream-perf", () => {
+    const css = readFileSync(join(here, "workbench.part1b.css"), "utf8");
+    expect(css).not.toMatch(
+      /html\[data-stream-perf="1"\]\[data-wallpaper="1"\][^{]*\{[^}]*backdrop-filter:/s,
     );
   });
 

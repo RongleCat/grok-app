@@ -617,8 +617,19 @@ export function useChatMessageVirtualizer(
         ignoreScrollAdjustRef.current = false;
         return;
       }
-      scrollingRef.current = true;
-      setScrollingUi(true);
+      // Stream growth follows the pinned tail by writing scrollTop, which also
+      // emits a native scroll event. It is not a user gesture and must not
+      // toggle data-scrolling: wallpaper surfaces react to that attribute and
+      // WebView2 can expose a transient opaque/compositor frame. Explicit
+      // wheel/touch/scrollbar input has already set one of these refs.
+      const programmaticPinFollow =
+        isPinnedRef.current &&
+        !fingerDownRef.current &&
+        !scrollingRef.current;
+      if (!programmaticPinFollow) {
+        scrollingRef.current = true;
+        setScrollingUi(true);
+      }
       if (isPinnedRef.current && fingerDownRef.current) return;
       scheduleOnFrame(scrollFrameRef.current, () =>
         recomputeNow({ sampleVelocity: true }),
