@@ -14,6 +14,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Fixed
+- Long chats stay smoother on a Windows touchscreen. Slow pans no longer hitch while the finger is down (#1122).
 - Windows no longer freezes when stream IPC or tool journals ran under session locks.
 - Opening a chat times out stuck history loads and keeps the cached transcript.
 - Connect retry no longer waits unbounded on a stuck claim or stop.
@@ -37,6 +38,7 @@ See `docs/llm-wiki/release.md`.
 - Plugin authorization keeps secrets out of process command lines.
 
 **中文 · 修复**
+- 长会话在 Windows 触屏上滑动更跟手。不抬手慢滑也不再一顿一顿（#1122）。
 - Windows 上不再因会话锁内发流式事件或写工具日志而整窗卡死。
 - 打开会话时历史加载会超时，并保留已有缓存内容。
 - 重连不再因卡住的连接占用或 Stop 而无限等待。
@@ -84,6 +86,7 @@ See `docs/llm-wiki/release.md`.
 - Ctrl+Tab 切回上一个用过的对话。按住 Ctrl 再点 Tab 继续循环；Ctrl+Shift+Tab 反向。
 
 ### Changed
+- Finished Worked-for rails fold after the turn. Failed tools stay as one-line excerpts.
 - Sent quotes show the excerpt and comment in the bubble, not a notes chip.
 - Account quota sits in the user menu again, with remaining % beside the name.
 - Streaming chat, heatmap hover, and SSH sidebar refresh do less re-rendering (#1073).
@@ -92,6 +95,7 @@ See `docs/llm-wiki/release.md`.
 - Startup skips TipTap and markdown preloads; Office and Settings load on demand (#1055, #1063).
 
 **中文 · 变更**
+- 结束后的「Worked for」工具栏会收起。失败步骤保留为一行摘要。
 - 发送后的引用在气泡里直接显示摘录和评论，不再收成「N 条注释」。
 - 额度卡片回到用户菜单顶部，名字旁显示剩余百分比。
 - 流式对话、热力图像悬停与 SSH 侧栏刷新减少无效重渲染（#1073）。
