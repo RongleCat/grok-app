@@ -394,9 +394,7 @@ async fn download_remote_image_bytes_safe(start: &str) -> Result<Vec<u8>, String
 
     let policy = crate::skin_net::OriginPolicy::AnyHttps;
     let client = crate::safe_https_client::SafeHttpsClient::new();
-    let mut current = crate::skin_net::check_hop_async(start, &policy)
-        .await
-        .map_err(|e| e)?;
+    let mut current = crate::skin_net::check_hop_async(start, &policy).await?;
 
     for hop in 0..=crate::skin_net::MAX_REDIRECTS {
         let mut headers = HeaderMap::new();
@@ -418,9 +416,7 @@ async fn download_remote_image_bytes_safe(start: &str) -> Result<Vec<u8>, String
             let next = current
                 .join(location)
                 .map_err(|e| format!("redirect join: {e}"))?;
-            current = crate::skin_net::check_hop_async(next.as_str(), &policy)
-                .await
-                .map_err(|e| e)?;
+            current = crate::skin_net::check_hop_async(next.as_str(), &policy).await?;
             continue;
         }
 
@@ -451,6 +447,7 @@ async fn download_remote_image_bytes_safe(start: &str) -> Result<Vec<u8>, String
     Err("too many redirects".into())
 }
 
+#[cfg(test)]
 fn read_remote_image_body(reader: impl std::io::Read) -> Result<Vec<u8>, String> {
     use std::io::Read;
     let mut bytes = Vec::new();
@@ -574,7 +571,9 @@ mod tests {
         )
         .unwrap_err();
         assert!(
-            blocked.contains("private") || blocked.contains("metadata") || blocked.contains("blocked"),
+            blocked.contains("private")
+                || blocked.contains("metadata")
+                || blocked.contains("blocked"),
             "unexpected block reason: {blocked}"
         );
 

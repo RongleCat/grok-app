@@ -444,10 +444,10 @@ impl SessionManager {
                         };
                         s.tools_this_turn = s.tools_this_turn.saturating_add(1);
                         let finished = Self::try_finish_deferred_prompt_complete(
-                                s,
-                                Some(&mut pending_emits),
-                                Some(&mut pending_persists),
-                            )
+                            s,
+                            Some(&mut pending_emits),
+                            Some(&mut pending_persists),
+                        )
                         .is_some();
                         let st = if status.is_empty() {
                             "in_progress".to_string()
@@ -567,10 +567,10 @@ impl SessionManager {
                         Self::release_tool_open_on_session(s, &tool_call_id);
                         Self::touch_stream_progress_locked(s);
                         Self::try_finish_deferred_prompt_complete(
-                                s,
-                                Some(&mut pending_emits),
-                                Some(&mut pending_persists),
-                            )
+                            s,
+                            Some(&mut pending_emits),
+                            Some(&mut pending_persists),
+                        )
                         .is_some()
                     } else {
                         false
@@ -619,7 +619,7 @@ impl SessionManager {
                                 Self::prepare_journal_turn_cancelled(&mut s, "agent_exit")
                             {
                                 pending_persists
-                                    .push(PendingSessionPersist::TurnBoundary(boundary));
+                                    .push(PendingSessionPersist::TurnBoundary(Box::new(boundary)));
                             }
                             tracing::warn!(
                                 "background agent process exited mid-turn sid={}",
@@ -628,7 +628,8 @@ impl SessionManager {
                         } else if let Some(flush) =
                             Self::prepare_stream_journal_flush(&mut s, true, false)
                         {
-                            pending_persists.push(PendingSessionPersist::StreamJournal(flush));
+                            pending_persists
+                                .push(PendingSessionPersist::StreamJournal(Box::new(flush)));
                         }
                         if let Some(row) = Self::take_pending_gate_invalidation(&mut s) {
                             crate::plan_chrome::mark_gate_stale(&s.app_session_id);
@@ -671,9 +672,9 @@ impl SessionManager {
                 {
                     let mut bg = self.background.lock();
                     if let Some(s) = bg.get_mut(app_session_id) {
-                        pending_persists.push(PendingSessionPersist::TurnBoundary(
-                        Self::prepare_turn_error(s, &error, &mut pending_emits),
-                    ));
+                        pending_persists.push(PendingSessionPersist::TurnBoundary(Box::new(
+                            Self::prepare_turn_error(s, &error, &mut pending_emits),
+                        )));
                         let _ = s.fsm.fail_with(error);
                     }
                 }
@@ -910,8 +911,8 @@ impl SessionManager {
                                 s.provider_retry_aborted = true;
                                 let err = provider_retry_abort_error(attempt, cap, &reason);
                                 pending_persists.push(PendingSessionPersist::TurnBoundary(
-                                Self::prepare_turn_error(s, &err, &mut pending_emits),
-                            ));
+                                    Box::new(Self::prepare_turn_error(s, &err, &mut pending_emits)),
+                                ));
                                 let _ = s.fsm.fail_with(err);
                                 (s.acp.clone(), s.meta.agent_session_id.clone())
                             }

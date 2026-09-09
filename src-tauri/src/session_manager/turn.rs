@@ -525,9 +525,9 @@ impl SessionManager {
                         }
                         // Skip if host already recorded a retry-exhausted error this turn.
                         if !s.provider_retry_aborted {
-                            pending_persists.push(PendingSessionPersist::TurnBoundary(
-                            SessionManager::prepare_turn_error(s, &e, &mut pending_emits),
-                        ));
+                            pending_persists.push(PendingSessionPersist::TurnBoundary(Box::new(
+                                SessionManager::prepare_turn_error(s, &e, &mut pending_emits),
+                            )));
                             let _ = s.fsm.fail_with(e);
                             record_error = true;
                         }
@@ -902,7 +902,8 @@ impl SessionManager {
                 if was_busy {
                     // Shared helper: durable chip + live emit (history matches live).
                     if let Some(boundary) = Self::prepare_journal_turn_cancelled(s, "user_stop") {
-                        pending_persists.push(PendingSessionPersist::TurnBoundary(boundary));
+                        pending_persists
+                            .push(PendingSessionPersist::TurnBoundary(Box::new(boundary)));
                     }
                     if s.fsm.state() == SessionState::Streaming
                         || s.fsm.state() == SessionState::AwaitingPermission

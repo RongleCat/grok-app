@@ -153,8 +153,8 @@ pub(crate) struct PendingTurnBoundaryPersist {
 
 /// Lock-free disk/IPC work collected while a session-map mutex is held.
 pub(crate) enum PendingSessionPersist {
-    StreamJournal(PendingStreamJournalFlush),
-    TurnBoundary(PendingTurnBoundaryPersist),
+    StreamJournal(Box<PendingStreamJournalFlush>),
+    TurnBoundary(Box<PendingTurnBoundaryPersist>),
 }
 
 impl SessionManager {
@@ -442,7 +442,7 @@ impl SessionManager {
             if let Some(boundary) = Self::prepare_journal_turn_cancelled(s, &reason) {
                 Self::push_session_persist(
                     pending_persists,
-                    PendingSessionPersist::TurnBoundary(boundary),
+                    PendingSessionPersist::TurnBoundary(Box::new(boundary)),
                 );
             }
         } else {
@@ -451,7 +451,7 @@ impl SessionManager {
             if let Some(flush) = Self::prepare_stream_journal_flush(s, true, false) {
                 Self::push_session_persist(
                     pending_persists,
-                    PendingSessionPersist::StreamJournal(flush),
+                    PendingSessionPersist::StreamJournal(Box::new(flush)),
                 );
             }
         }
@@ -954,10 +954,10 @@ impl SessionManager {
         for item in pending {
             match item {
                 PendingSessionPersist::StreamJournal(flush) => {
-                    Self::commit_stream_journal_flush(flush);
+                    Self::commit_stream_journal_flush(*flush);
                 }
                 PendingSessionPersist::TurnBoundary(boundary) => {
-                    Self::commit_turn_boundary_persist(app, boundary);
+                    Self::commit_turn_boundary_persist(app, *boundary);
                 }
             }
         }

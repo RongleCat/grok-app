@@ -953,8 +953,12 @@ impl SessionManager {
                     let _ = s.fsm.permission_resolved_continue();
                 }
                 // Permission cleared — may finish a deferred prompt_complete (#52).
-                Self::try_finish_deferred_prompt_complete(s, Some(&mut pending_emits), Some(&mut pending_persists))
-                    .flatten()
+                Self::try_finish_deferred_prompt_complete(
+                    s,
+                    Some(&mut pending_emits),
+                    Some(&mut pending_persists),
+                )
+                .flatten()
             })
             .flatten();
         Self::emit_stream_payloads(&app, pending_emits);
@@ -1058,8 +1062,12 @@ impl SessionManager {
                 if s.pending_plan_rpc_id == Some(id) || rpc_id == Some(id) {
                     s.pending_plan_rpc_id = None;
                 }
-                Self::try_finish_deferred_prompt_complete(s, Some(&mut pending_emits), Some(&mut pending_persists))
-                    .flatten()
+                Self::try_finish_deferred_prompt_complete(
+                    s,
+                    Some(&mut pending_emits),
+                    Some(&mut pending_persists),
+                )
+                .flatten()
             })
             .flatten();
         Self::emit_stream_payloads(&app, pending_emits);
@@ -1106,8 +1114,12 @@ impl SessionManager {
                 if s.pending_ask_user_rpc_id == Some(id) || rpc_id == Some(id) {
                     s.pending_ask_user_rpc_id = None;
                 }
-                Self::try_finish_deferred_prompt_complete(s, Some(&mut pending_emits), Some(&mut pending_persists))
-                    .flatten()
+                Self::try_finish_deferred_prompt_complete(
+                    s,
+                    Some(&mut pending_emits),
+                    Some(&mut pending_persists),
+                )
+                .flatten()
             })
             .flatten();
         Self::emit_stream_payloads(&app, pending_emits);

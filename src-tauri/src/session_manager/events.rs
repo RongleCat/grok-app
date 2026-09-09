@@ -416,10 +416,10 @@ impl SessionManager {
                                     let _ = s.fsm.permission_resolved_continue();
                                 }
                                 Self::try_finish_deferred_prompt_complete(
-                                s,
-                                Some(&mut pending_emits),
-                                Some(&mut pending_persists),
-                            )
+                                    s,
+                                    Some(&mut pending_emits),
+                                    Some(&mut pending_persists),
+                                )
                                 .flatten()
                             } else {
                                 None
@@ -452,10 +452,10 @@ impl SessionManager {
                                     let _ = s.fsm.permission_resolved_continue();
                                 }
                                 Self::try_finish_deferred_prompt_complete(
-                                s,
-                                Some(&mut pending_emits),
-                                Some(&mut pending_persists),
-                            )
+                                    s,
+                                    Some(&mut pending_emits),
+                                    Some(&mut pending_persists),
+                                )
                                 .flatten()
                             } else {
                                 None
@@ -645,10 +645,10 @@ impl SessionManager {
                         s.tools_this_turn = s.tools_this_turn.saturating_add(1);
                         // Tools settled → apply deferred prompt_complete if any (#52).
                         let finished = Self::try_finish_deferred_prompt_complete(
-                                s,
-                                Some(&mut pending_emits),
-                                Some(&mut pending_persists),
-                            );
+                            s,
+                            Some(&mut pending_emits),
+                            Some(&mut pending_persists),
+                        );
                         (
                             s.app_session_id.clone(),
                             s.project_path.clone(),
@@ -834,10 +834,10 @@ impl SessionManager {
                         // Progress without re-arming a false open tool.
                         Self::touch_stream_progress_locked(s);
                         Self::try_finish_deferred_prompt_complete(
-                                s,
-                                Some(&mut pending_emits),
-                                Some(&mut pending_persists),
-                            )
+                            s,
+                            Some(&mut pending_emits),
+                            Some(&mut pending_persists),
+                        )
                         .flatten()
                     } else {
                         None
@@ -934,9 +934,9 @@ impl SessionManager {
                     let mut guard = self.inner.lock();
                     if let Some(s) = guard.as_mut() {
                         if !s.provider_retry_aborted {
-                            pending_persists.push(PendingSessionPersist::TurnBoundary(
-                            Self::prepare_turn_error(s, &error, &mut pending_emits),
-                        ));
+                            pending_persists.push(PendingSessionPersist::TurnBoundary(Box::new(
+                                Self::prepare_turn_error(s, &error, &mut pending_emits),
+                            )));
                         } else {
                             // Retry path already recorded the error; still drop busy
                             // markers so reconnect is not stuck Disconnected+busy.
@@ -975,12 +975,13 @@ impl SessionManager {
                                 Self::prepare_journal_turn_cancelled(s, "agent_exit")
                             {
                                 pending_persists
-                                    .push(PendingSessionPersist::TurnBoundary(boundary));
+                                    .push(PendingSessionPersist::TurnBoundary(Box::new(boundary)));
                             }
                         } else if let Some(flush) =
                             Self::prepare_stream_journal_flush(s, true, false)
                         {
-                            pending_persists.push(PendingSessionPersist::StreamJournal(flush));
+                            pending_persists
+                                .push(PendingSessionPersist::StreamJournal(Box::new(flush)));
                         }
                         // Drop human gates so UI cannot Approve into a dead process.
                         if let Some(row) = Self::take_pending_gate_invalidation(s) {
@@ -1135,11 +1136,7 @@ impl SessionManager {
 
                 // Match background emits: include sessionId so the UI can
                 // ignore retries for a non-viewed chat.
-                let live_sid = self
-                    .inner
-                    .lock()
-                    .as_ref()
-                    .map(|s| s.app_session_id.clone());
+                let live_sid = self.inner.lock().as_ref().map(|s| s.app_session_id.clone());
                 let _ = app.emit(
                     "session://retry",
                     serde_json::json!({
@@ -1170,8 +1167,8 @@ impl SessionManager {
                                 let err = provider_retry_abort_error(attempt, cap, &reason);
                                 // Chat-visible error row (must happen before clearing stream ids)
                                 pending_persists.push(PendingSessionPersist::TurnBoundary(
-                                Self::prepare_turn_error(s, &err, &mut pending_emits),
-                            ));
+                                    Box::new(Self::prepare_turn_error(s, &err, &mut pending_emits)),
+                                ));
                                 let _ = s.fsm.fail_with(err);
                                 (s.acp.clone(), s.meta.agent_session_id.clone())
                             }
