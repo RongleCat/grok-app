@@ -420,6 +420,7 @@ export const frSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "Impossible de télécharger cette image.",
   "settings.wallpaperSource.err.url_blocked": "Cette URL média n’est pas autorisée pour le téléchargement de fond d’écran.",
   "settings.wallpaperSource.err.imagine_failed": "Échec de la génération Imagine. Essayez une autre invite.",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Le mode de confidentialité (ZDR) de Grok Build bloque l’image vers la vidéo. Exécutez /privacy dans Grok Build pour désactiver ZDR, ou configurez votre propre bucket, puis réessayez.",
   "settings.wallpaperSource.err.timeout": "Délai dépassé. Veuillez réessayer.",
   "settings.wallpaperSource.err.generic": "Un problème est survenu.",
   "settings.wallpaperSource.err.deleteFailed": "Impossible de supprimer ce fichier de fond d’écran. Il peut encore apparaître jusqu’à actualisation.",

@@ -420,6 +420,7 @@ export const ptBRSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "Não foi possível baixar essa imagem.",
   "settings.wallpaperSource.err.url_blocked": "Essa URL de mídia não é permitida para download de papel de parede.",
   "settings.wallpaperSource.err.imagine_failed": "A geração do Imagine falhou. Tente outro prompt.",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "O modo de privacidade (ZDR) do Grok Build bloqueia imagem para vídeo. Execute /privacy no Grok Build para desativar o ZDR ou configure um bucket de armazenamento próprio e tente novamente.",
   "settings.wallpaperSource.err.timeout": "Tempo esgotado. Tente de novo.",
   "settings.wallpaperSource.err.generic": "Algo deu errado.",
   "settings.wallpaperSource.err.deleteFailed": "Não foi possível excluir esse arquivo de papel de parede. Ele ainda pode aparecer até você atualizar.",

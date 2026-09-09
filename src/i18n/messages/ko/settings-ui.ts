@@ -420,6 +420,7 @@ export const koSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "해당 이미지를 다운로드하지 못했습니다.",
   "settings.wallpaperSource.err.url_blocked": "해당 미디어 URL은 배경화면 다운로드가 허용되지 않습니다.",
   "settings.wallpaperSource.err.imagine_failed": "Imagine 생성에 실패했습니다. 다른 프롬프트를 시도하세요.",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Grok Build 개인정보 보호 모드(ZDR)가 이미지-동영상 생성을 차단합니다. Grok Build에서 /privacy를 실행해 ZDR을 끄거나 직접 호스팅한 스토리지 버킷을 설정한 뒤 다시 시도하세요.",
   "settings.wallpaperSource.err.timeout": "시간 초과되었습니다. 다시 시도하세요.",
   "settings.wallpaperSource.err.generic": "문제가 발생했습니다.",
   "settings.wallpaperSource.err.deleteFailed": "해당 배경화면 파일을 삭제하지 못했습니다. 새로고침할 때까지 계속 나타날 수 있습니다.",

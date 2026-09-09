@@ -41,6 +41,9 @@ describe("wallpaperSource", () => {
     );
     expect(parseWallpaperSourceError("timeout")).toBe("timeout");
     expect(parseWallpaperSourceError("imagine_failed")).toBe("imagine_failed");
+    expect(parseWallpaperSourceError("imagine_zdr_unavailable")).toBe(
+      "imagine_zdr_unavailable",
+    );
     expect(parseWallpaperSourceError("wallpaper_imagine: boom")).toBe(
       "imagine_failed",
     );

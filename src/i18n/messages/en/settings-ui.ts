@@ -420,6 +420,7 @@ export const enSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "Could not download that image.",
   "settings.wallpaperSource.err.url_blocked": "That media URL is not allowed for wallpaper download.",
   "settings.wallpaperSource.err.imagine_failed": "Imagine generation failed. Try a different prompt.",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Grok Build privacy mode (ZDR) blocks image-to-video. Run /privacy in Grok Build to turn ZDR off, or configure a user-hosted storage bucket, then retry.",
   "settings.wallpaperSource.err.timeout": "Timed out. Please try again.",
   "settings.wallpaperSource.err.generic": "Something went wrong.",
   "settings.wallpaperSource.err.deleteFailed": "Could not delete that wallpaper file. It may still appear until you refresh.",

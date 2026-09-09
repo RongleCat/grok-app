@@ -12,6 +12,15 @@ pub(super) fn tool_failure(update: &Value, tool: &str) -> &'static str {
     let Some(message) = output.get("message").and_then(Value::as_str) else {
         return "imagine_failed";
     };
+    // The official image-to-video tool refuses requests while Grok Build's
+    // zero-data-retention mode is enabled. This is a tool-owned prefix, so it
+    // is safe to classify without interpreting arbitrary model text or bodies.
+    if tool == "image_to_video"
+        && message
+            .starts_with("Video generation tools are unavailable under zero data retention (ZDR).")
+    {
+        return "imagine_zdr_unavailable";
+    }
     // Match the tool's send() wrapper plus reqwest's transport-error prefix.
     // Do not interpret URLs, nested causes, response bodies or model prose.
     let transport_prefixes: &[&str] = match tool {

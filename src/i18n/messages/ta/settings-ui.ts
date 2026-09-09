@@ -420,6 +420,7 @@ export const taSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "அந்தப் படத்தைப் பதிவிறக்க முடியவில்லை.",
   "settings.wallpaperSource.err.url_blocked": "அந்த மீடியா URL வால்பேப்பர் பதிவிறக்கத்திற்கு அனுமதிக்கப்படவில்லை.",
   "settings.wallpaperSource.err.imagine_failed": "தலைமுறை தோல்வியடைந்ததாக கற்பனை செய்து பாருங்கள். வேறு அறிவுறுத்தலை முயற்சிக்கவும்.",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Grok Build தனியுரிமை பயன்முறை (ZDR) படத்திலிருந்து வீடியோ உருவாக்கத்தைத் தடுக்கிறது. ZDR-ஐ முடக்க Grok Build-ல் /privacy இயக்கவும் அல்லது உங்கள் சொந்த சேமிப்பக bucket-ஐ அமைத்து மீண்டும் முயற்சிக்கவும்.",
   "settings.wallpaperSource.err.timeout": "நேரம் முடிந்தது. மீண்டும் முயற்சிக்கவும்.",
   "settings.wallpaperSource.err.generic": "ஏதோ தவறாகிவிட்டது.",
   "settings.wallpaperSource.err.deleteFailed": "அந்த வால்பேப்பர் கோப்பை நீக்க முடியவில்லை. நீங்கள் புதுப்பிக்கும் வரை அது இன்னும் தோன்றலாம்.",

@@ -420,6 +420,7 @@ export const idSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "Tidak dapat mengunduh gambar itu.",
   "settings.wallpaperSource.err.url_blocked": "URL media itu tidak diizinkan untuk unduhan wallpaper.",
   "settings.wallpaperSource.err.imagine_failed": "Pembuatan Imagine gagal. Coba prompt lain.",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Mode privasi (ZDR) Grok Build memblokir gambar-ke-video. Jalankan /privacy di Grok Build untuk mematikan ZDR, atau konfigurasikan bucket penyimpanan milik Anda lalu coba lagi.",
   "settings.wallpaperSource.err.timeout": "Waktu habis. Silakan coba lagi.",
   "settings.wallpaperSource.err.generic": "Ada yang salah.",
   "settings.wallpaperSource.err.deleteFailed": "Tidak dapat menghapus berkas wallpaper itu. Mungkin masih muncul hingga Anda menyegarkan.",

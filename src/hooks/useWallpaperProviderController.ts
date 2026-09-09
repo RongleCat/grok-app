@@ -20,6 +20,28 @@ import {
 } from "@/lib/wallpaperRemoteSearch";
 import type { MessageKey } from "@/i18n";
 
+export type WallpaperProviderBackgroundProgress = {
+  source: WallpaperRemoteSource;
+  query: string;
+  items: WallpaperGalleryItem[];
+};
+
+export type WallpaperProviderBackgroundResult = {
+  source: WallpaperRemoteSource;
+  query: string;
+  phase: "search" | "loadMore";
+  result: WallpaperRemoteSearchResult | null;
+  error: unknown | null;
+  /** Pagination state produced by this background operation, when available. */
+  providerContinuation?: WallpaperProviderContinuationState;
+};
+
+export type WallpaperProviderBackgroundState = {
+  source: WallpaperRemoteSource;
+  query: string;
+  state: WallpaperProviderContinuationState;
+};
+
 type Options = {
   enabled: boolean;
   source: WallpaperRemoteSource | null;
@@ -35,6 +57,13 @@ type Options = {
   setStatusHint: Dispatch<SetStateAction<string | null>>;
   setHasSearched: Dispatch<SetStateAction<boolean>>;
   setSelectedId: Dispatch<SetStateAction<string | null>>;
+  /** Return true when results for a source should update the visible panel. */
+  isSourceVisible?: (source: WallpaperRemoteSource) => boolean;
+  /** Receive progressive/result updates while their source is in the background. */
+  onBackgroundProgress?: (event: WallpaperProviderBackgroundProgress) => void;
+  onBackgroundResult?: (event: WallpaperProviderBackgroundResult) => void;
+  /** Receive a completed prefetch state while its source is in the background. */
+  onBackgroundState?: (event: WallpaperProviderBackgroundState) => void;
 };
 
 type Continuation = {
@@ -72,6 +101,10 @@ export function useWallpaperProviderController({
   setStatusHint,
   setHasSearched,
   setSelectedId,
+  isSourceVisible: isSourceVisibleProp,
+  onBackgroundProgress,
+  onBackgroundResult,
+  onBackgroundState,
 }: Options) {
   const remote = useWallpaperRemoteSearch();
   const generation = useRef(0);
@@ -81,12 +114,25 @@ export function useWallpaperProviderController({
   const [continuation, setContinuation] = useState<Continuation | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
+  const loadingMoreSourceRef = useRef<WallpaperRemoteSource | null>(null);
   const [prefetching, setPrefetching] = useState(false);
   const prefetchingRef = useRef(false);
   const prefetchGeneration = useRef(0);
   const prefetchOutcome = useRef<PrefetchOutcome | null>(null);
   const prefetchPromise = useRef<Promise<PrefetchOutcome | null> | null>(null);
+  const prefetchTarget = useRef<Continuation | null>(null);
+  const progressiveSeen = useRef(new Set<string>());
+  const activeQuery = useRef<string | null>(null);
   const normalized = query.trim().replace(/\s+/g, " ");
+  const previousInput = useRef({ source, normalized });
+  const currentInput = useRef({ enabled, source });
+  currentInput.current = { enabled, source };
+  const defaultIsSourceVisible = useCallback(
+    (candidate: WallpaperRemoteSource) =>
+      currentInput.current.enabled && currentInput.current.source === candidate,
+    [],
+  );
+  const isSourceVisible = isSourceVisibleProp ?? defaultIsSourceVisible;
 
   const updateContinuation = useCallback((next: Continuation | null) => {
     continuationRef.current = next;
@@ -98,6 +144,7 @@ export function useWallpaperProviderController({
     prefetchingRef.current = false;
     prefetchOutcome.current = null;
     prefetchPromise.current = null;
+    prefetchTarget.current = null;
     setPrefetching(false);
   }, []);
 
@@ -107,6 +154,8 @@ export function useWallpaperProviderController({
       prefetchGeneration.current = revision;
       prefetchingRef.current = true;
       prefetchOutcome.current = null;
+      prefetchTarget.current = next;
+      activeQuery.current = next.query;
       setPrefetching(true);
 
       let task: Promise<PrefetchOutcome | null>;
@@ -120,7 +169,17 @@ export function useWallpaperProviderController({
               result,
               error: null,
             } satisfies PrefetchOutcome;
-            prefetchOutcome.current = outcome;
+            if (
+              continuationRef.current &&
+              sameContinuation(continuationRef.current, next)
+            ) {
+              prefetchOutcome.current = outcome;
+            }
+            onBackgroundState?.({
+              source: next.source,
+              query: next.query,
+              state: { continuation: next, prefetched: outcome },
+            });
             return outcome;
           },
           (error): PrefetchOutcome | null => {
@@ -130,47 +189,69 @@ export function useWallpaperProviderController({
               result: null,
               error,
             } satisfies PrefetchOutcome;
-            prefetchOutcome.current = outcome;
+            if (
+              continuationRef.current &&
+              sameContinuation(continuationRef.current, next)
+            ) {
+              prefetchOutcome.current = outcome;
+            }
+            onBackgroundState?.({
+              source: next.source,
+              query: next.query,
+              state: { continuation: next, prefetched: outcome },
+            });
             return outcome;
           },
         )
         .finally(() => {
           if (prefetchGeneration.current !== revision) return;
+          if (prefetchPromise.current !== task) return;
           prefetchingRef.current = false;
-          if (prefetchPromise.current === task) prefetchPromise.current = null;
+          prefetchPromise.current = null;
+          prefetchTarget.current = null;
           setPrefetching(false);
         });
       prefetchPromise.current = task;
     },
-    [remote.loadMore],
+    [onBackgroundState, remote.loadMore],
   );
 
   const cancel = useCallback(async () => {
     generation.current += 1;
     loadingMoreRef.current = false;
+    loadingMoreSourceRef.current = null;
     setLoadingMore(false);
     discardPrefetch();
+    progressiveSeen.current.clear();
+    activeQuery.current = null;
+    updateContinuation(null);
     return remote.cancel();
-  }, [discardPrefetch, remote.cancel]);
+  }, [discardPrefetch, remote.cancel, updateContinuation]);
 
   const capture = useCallback(
-    (): WallpaperProviderContinuationState => ({
-      continuation: continuationRef.current,
-      prefetched: prefetchOutcome.current,
-    }),
+    (): WallpaperProviderContinuationState => {
+      const active = continuationRef.current;
+      const prefetched = prefetchOutcome.current;
+      return {
+        continuation: active,
+        prefetched:
+          active && prefetched && sameContinuation(prefetched.continuation, active)
+            ? prefetched
+            : null,
+      };
+    },
     [],
   );
 
   const restore = useCallback(
     (state: WallpaperProviderContinuationState) => {
-      generation.current += 1;
-      loadingMoreRef.current = false;
-      discardPrefetch();
+      // Switching tabs restores only that source's pagination snapshot. Any
+      // in-flight request keeps its own source ownership until it completes.
       updateContinuation(state.continuation);
       prefetchOutcome.current = state.prefetched;
-      setLoadingMore(false);
+      progressiveSeen.current.clear();
     },
-    [discardPrefetch, updateContinuation],
+    [updateContinuation],
   );
 
   const clear = useCallback(() => {
@@ -179,40 +260,84 @@ export function useWallpaperProviderController({
   }, [cancel, updateContinuation]);
 
   useEffect(() => {
-    generation.current += 1;
-    discardPrefetch();
-    updateContinuation(null);
-    loadingMoreRef.current = false;
-    setLoadingMore(false);
-    void remote.cancel();
+    const previous = previousInput.current;
+    // A query edit invalidates the old continuation/prefetch. A source change
+    // is usually just a tab switch, so leave its foreground request running.
+    if (
+      source !== null &&
+      previous.source === source &&
+      previous.normalized !== normalized
+    ) {
+      const ownsRemoteRequest = remote.source === source;
+      if (ownsRemoteRequest) generation.current += 1;
+      if (loadingMoreSourceRef.current === source) {
+        loadingMoreRef.current = false;
+        loadingMoreSourceRef.current = null;
+        setLoadingMore(false);
+      }
+      if (prefetchTarget.current?.source === source) {
+        discardPrefetch();
+      } else {
+        prefetchOutcome.current = null;
+      }
+      updateContinuation(null);
+      if (ownsRemoteRequest) {
+        activeQuery.current = null;
+        void remote.cancel();
+      }
+    }
+    previousInput.current = { source, normalized };
   }, [
     discardPrefetch,
-    enabled,
     normalized,
     remote.cancel,
+    remote.source,
     source,
     updateContinuation,
   ]);
 
   useEffect(() => {
-    if (
-      !enabled ||
-      !source ||
-      prefetchingRef.current ||
-      remote.source !== source ||
-      remote.progressiveItems.length === 0
-    ) {
+    const activeSource = remote.source;
+    if (!activeSource) {
       return;
     }
+    if (remote.progressiveItems.length === 0) {
+      progressiveSeen.current.clear();
+      return;
+    }
+    const fresh = remote.progressiveItems.filter((item) => {
+      const key = `${item.source}:${item.id}:${item.fullUrl}`;
+      if (progressiveSeen.current.has(key)) return false;
+      progressiveSeen.current.add(key);
+      return true;
+    });
+    if (fresh.length === 0) return;
+    // A prefetched page must stay hidden until the user requests it, including
+    // while its source tab is in the background.
+    if (prefetchingRef.current) return;
+    const activeQueryValue =
+      activeQuery.current ?? continuationRef.current?.query ?? normalized;
+    if (!isSourceVisible(activeSource)) {
+      onBackgroundProgress?.({
+        source: activeSource,
+        query: activeQueryValue,
+        items: fresh,
+      });
+      return;
+    }
+    if (activeSource !== source) return;
     setHasSearched(true);
     setItems((current) =>
-      loadingMore
-        ? appendWallpaperGalleryItems(current, remote.progressiveItems)
-        : appendWallpaperGalleryItems([], remote.progressiveItems),
+      loadingMoreSourceRef.current === activeSource
+        ? appendWallpaperGalleryItems(current, fresh)
+        : appendWallpaperGalleryItems([], fresh),
     );
   }, [
     enabled,
+    isSourceVisible,
     loadingMore,
+    normalized,
+    onBackgroundProgress,
     prefetching,
     remote.progressiveItems,
     remote.source,
@@ -226,14 +351,17 @@ export function useWallpaperProviderController({
       !enabled ||
       !source ||
       !normalized ||
-      loadingMoreRef.current ||
-      (remote.busy && !prefetchingRef.current)
+      (loadingMoreRef.current &&
+        loadingMoreSourceRef.current === source) ||
+      (remote.busy && remote.source === source && !prefetchingRef.current)
     ) {
       return;
     }
     const revision = ++generation.current;
     discardPrefetch();
+    progressiveSeen.current.clear();
     loadingMoreRef.current = false;
+    loadingMoreSourceRef.current = null;
     setError(null);
     setErrorCode(null);
     setStatusHint(null);
@@ -242,11 +370,30 @@ export function useWallpaperProviderController({
     setSelectedId(null);
     setHasSearched(false);
     updateContinuation(null);
+    activeQuery.current = normalized;
     try {
       const result = await remote.search(source, normalized);
       if (!result || revision !== generation.current) return;
-      setHasSearched(true);
       const code = wallpaperRemoteUiError(result);
+      const nextContinuation = result.hasMore
+        ? { source, query: normalized }
+        : null;
+      if (!isSourceVisible(source)) {
+        onBackgroundResult?.({
+          source,
+          query: normalized,
+          phase: "search",
+          result,
+          error: null,
+          providerContinuation: {
+            continuation: nextContinuation,
+            prefetched: null,
+          },
+        });
+        return;
+      }
+      updateContinuation(nextContinuation);
+      setHasSearched(true);
       if (code && code !== "empty") {
         setErrorCode(code);
         setError(t(`settings.wallpaperSource.err.${code}` as MessageKey));
@@ -255,10 +402,6 @@ export function useWallpaperProviderController({
       }
       const nextItems = appendWallpaperGalleryItems([], result.items);
       setItems(nextItems);
-      const nextContinuation = result.hasMore
-        ? { source, query: normalized }
-        : null;
-      updateContinuation(nextContinuation);
       if (code === "empty") {
         setErrorCode("empty");
         setError(t("settings.wallpaperSource.err.empty"));
@@ -279,6 +422,16 @@ export function useWallpaperProviderController({
       if (nextContinuation) startPrefetch(nextContinuation);
     } catch (error) {
       if (revision !== generation.current) return;
+      if (!isSourceVisible(source)) {
+        onBackgroundResult?.({
+          source,
+          query: normalized,
+          phase: "search",
+          result: null,
+          error,
+        });
+        return;
+      }
       const code = parseWallpaperSourceError(error);
       setErrorCode(code);
       setError(t(`settings.wallpaperSource.err.${code}` as MessageKey));
@@ -287,7 +440,9 @@ export function useWallpaperProviderController({
   }, [
     discardPrefetch,
     enabled,
+    isSourceVisible,
     normalized,
+    onBackgroundResult,
     remote.busy,
     remote.search,
     setError,
@@ -310,29 +465,51 @@ export function useWallpaperProviderController({
       !active ||
       active.source !== source ||
       active.query !== normalized ||
-      loadingMoreRef.current ||
-      (remote.busy && !prefetchingRef.current)
+      (loadingMoreRef.current &&
+        loadingMoreSourceRef.current === source) ||
+      (remote.busy && remote.source === source && !prefetchingRef.current)
     ) {
       return;
     }
-    const revision = generation.current;
-    const prefetchRevision = prefetchGeneration.current;
+    let revision = generation.current;
+    if (remote.busy && remote.source !== active.source) {
+      revision = ++generation.current;
+      activeQuery.current = null;
+      void remote.cancel();
+    }
     const initialItems = itemsRef.current;
     setError(null);
     setErrorCode(null);
     setStatusHint(null);
+    progressiveSeen.current.clear();
+    activeQuery.current = active.query;
     loadingMoreRef.current = true;
+    loadingMoreSourceRef.current = active.source;
     setLoadingMore(true);
     try {
       let prefetched = prefetchOutcome.current;
-      if (!prefetched && prefetchPromise.current) {
+      if (
+        !prefetched &&
+        prefetchTarget.current &&
+        !sameContinuation(prefetchTarget.current, active)
+      ) {
+        discardPrefetch();
+      }
+      const prefetchRevision = prefetchGeneration.current;
+      if (
+        !prefetched &&
+        prefetchPromise.current &&
+        prefetchTarget.current &&
+        sameContinuation(prefetchTarget.current, active)
+      ) {
         prefetched = await prefetchPromise.current;
       }
       if (
         revision !== generation.current ||
         prefetchRevision !== prefetchGeneration.current ||
-        !continuationRef.current ||
-        !sameContinuation(continuationRef.current, active)
+        (isSourceVisible(active.source) &&
+          (!continuationRef.current ||
+            !sameContinuation(continuationRef.current, active)))
       ) {
         return;
       }
@@ -353,19 +530,40 @@ export function useWallpaperProviderController({
       ) {
         prefetched = null;
       }
-      const result =
-        prefetched?.result ??
-        (await remote.loadMore(active.source, active.query));
+      let result = prefetched?.result ?? null;
+      if (!result) {
+        activeQuery.current = active.query;
+        result = await remote.loadMore(active.source, active.query);
+      }
       if (!result || revision !== generation.current) return;
+      const code = wallpaperRemoteUiError(result);
+      // A provider error did not consume the page, even when its transport
+      // envelope cannot truthfully advertise hasMore. Keep the cursor so the
+      // user can retry the same page.
+      const nextContinuation =
+        code && code !== "empty" ? active : result.hasMore ? active : null;
+      if (!isSourceVisible(active.source)) {
+        onBackgroundResult?.({
+          source: active.source,
+          query: active.query,
+          phase: "loadMore",
+          result,
+          error: null,
+          providerContinuation: {
+            continuation: nextContinuation,
+            prefetched: null,
+          },
+        });
+        return;
+      }
       if (
         !continuationRef.current ||
         !sameContinuation(continuationRef.current, active)
       ) {
         return;
       }
-
+      updateContinuation(nextContinuation);
       setHasSearched(true);
-      const code = wallpaperRemoteUiError(result);
       if (code && code !== "empty") {
         setErrorCode(code);
         setError(t(`settings.wallpaperSource.err.${code}` as MessageKey));
@@ -374,8 +572,6 @@ export function useWallpaperProviderController({
       }
       const nextItems = appendWallpaperGalleryItems(initialItems, result.items);
       setItems(nextItems);
-      const nextContinuation = result.hasMore ? active : null;
-      updateContinuation(nextContinuation);
       if (code === "empty") {
         if (result.hasMore) {
           setErrorCode("empty");
@@ -395,6 +591,16 @@ export function useWallpaperProviderController({
       if (nextContinuation) startPrefetch(nextContinuation);
     } catch (error) {
       if (revision !== generation.current) return;
+      if (!isSourceVisible(active.source)) {
+        onBackgroundResult?.({
+          source: active.source,
+          query: active.query,
+          phase: "loadMore",
+          result: null,
+          error,
+        });
+        return;
+      }
       const code = parseWallpaperSourceError(error);
       setErrorCode(code);
       setError(t(`settings.wallpaperSource.err.${code}` as MessageKey));
@@ -402,12 +608,15 @@ export function useWallpaperProviderController({
     } finally {
       if (revision === generation.current) {
         loadingMoreRef.current = false;
+        loadingMoreSourceRef.current = null;
         setLoadingMore(false);
       }
     }
   }, [
     enabled,
+    isSourceVisible,
     normalized,
+    onBackgroundResult,
     remote.busy,
     remote.loadMore,
     setError,
@@ -425,8 +634,20 @@ export function useWallpaperProviderController({
     continuation?.source === source && continuation.query === normalized;
 
   return {
-    busy: loadingMore || (remote.busy && !prefetching),
-    loadingMore,
+    busy:
+      (source !== null &&
+        isSourceVisible(source) &&
+        loadingMore &&
+        loadingMoreSourceRef.current === source) ||
+      (source !== null &&
+        isSourceVisible(source) &&
+        remote.busy &&
+        remote.source === source &&
+        !prefetching),
+    loadingMore:
+      source !== null && loadingMoreSourceRef.current === source
+        ? loadingMore
+        : false,
     cancel,
     capture,
     restore,
@@ -434,6 +655,13 @@ export function useWallpaperProviderController({
     search,
     loadMore,
     canLoadMore,
-    stage: prefetching && !loadingMore ? null : remote.stage,
+    stage:
+      source !== null &&
+      isSourceVisible(source) &&
+      remote.source === source
+        ? prefetching && !loadingMore
+          ? null
+          : remote.stage
+        : null,
   };
 }

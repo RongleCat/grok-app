@@ -185,7 +185,8 @@ fn public_run_error(audited: Result<(), &'static str>) -> &'static str {
             | "imagine_network_failed"
             | "imagine_rate_limited"
             | "imagine_request_rejected"
-            | "imagine_upstream_failed",
+            | "imagine_upstream_failed"
+            | "imagine_zdr_unavailable",
         ) => audited.unwrap_err(),
         _ => "imagine_failed",
     }

@@ -18,7 +18,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { useWallpaperProviderController } from "@/hooks/useWallpaperProviderController";
+import {
+  useWallpaperProviderController,
+  type WallpaperProviderBackgroundProgress,
+  type WallpaperProviderBackgroundResult,
+  type WallpaperProviderBackgroundState,
+} from "@/hooks/useWallpaperProviderController";
 import { useWallpaperGrokAlbum } from "@/hooks/useWallpaperGrokAlbum";
 import { useWallpaperImagineController } from "@/hooks/useWallpaperImagineController";
 import { useWallpaperItemPreview } from "@/hooks/useWallpaperItemPreview";
@@ -69,7 +74,10 @@ import {
   wallpaperXSearchCitationSummaryKey,
 } from "@/lib/xEvidenceCitation";
 import { WallpaperPrepareError } from "@/lib/themeSkin";
-import { wallpaperRemoteProgressMessageKey } from "@/lib/wallpaperRemoteSearch";
+import {
+  wallpaperRemoteProgressMessageKey,
+  wallpaperRemoteUiError,
+} from "@/lib/wallpaperRemoteSearch";
 import { resolveGrokAlbumEmptyPresentation } from "@/lib/grokAlbum";
 import {
   cancelGrokAlbumMediaRequests,
@@ -114,8 +122,11 @@ export function WallpaperSourceModal({
 }: WallpaperSourceModalProps) {
   const viewer = useImageViewerOptional();
   const [tab, setTab] = useState<WallpaperSourceTab>(initialTab);
+  const tabRef = useRef(initialTab);
+  tabRef.current = tab;
+  const openRef = useRef(open);
+  openRef.current = open;
   const sourceHistory = useWallpaperSourceHistory();
-  const pendingHistoryRestore = useRef<WallpaperSourceTab | null>(null);
   const pendingScrollRestore = useRef<{
     tab: WallpaperSourceTab;
     top: number;
@@ -196,6 +207,130 @@ export function WallpaperSourceModal({
   const [statusHint, setStatusHint] = useState<string | null>(null);
   /** Soft citation honesty after an X search (verified / unverified counts). */
   const [citeSummary, setCiteSummary] = useState<string | null>(null);
+  const xSearchContextRef = useRef<{
+    query: string;
+    sort: "top" | "latest";
+  } | null>(null);
+
+  const onProviderBackgroundProgress = useCallback(
+    (event: WallpaperProviderBackgroundProgress) => {
+      if (!openRef.current || tabRef.current === event.source) return;
+      sourceHistory.update(event.source, (snapshot) => {
+        const sameQuery = snapshot.query === event.query;
+        return {
+          ...snapshot,
+          query: event.query,
+          items: sameQuery
+            ? appendWallpaperGalleryItems(snapshot.items, event.items)
+            : appendWallpaperGalleryItems([], event.items),
+          hasSearched: true,
+          error: null,
+          errorCode: null,
+        };
+      });
+    },
+    [sourceHistory.update],
+  );
+
+  const onProviderBackgroundResult = useCallback(
+    (event: WallpaperProviderBackgroundResult) => {
+      if (!openRef.current || tabRef.current === event.source) return;
+      sourceHistory.update(event.source, (snapshot) => {
+        const result = event.result;
+        if (event.error) {
+          const code = parseWallpaperSourceError(event.error);
+          return {
+            ...snapshot,
+            query: event.query,
+            hasSearched: true,
+            errorCode: code,
+            error: errorMessage(t, code),
+            providerContinuation:
+              event.providerContinuation ?? snapshot.providerContinuation,
+          };
+        }
+        if (!result) return snapshot;
+        const code = wallpaperRemoteUiError(result) as
+          | WallpaperSourceErrorCode
+          | null;
+        const incoming = dedupeGalleryItems(result.items);
+        const sameQuery = snapshot.query === event.query;
+        const nextItems =
+          event.phase === "search" || !sameQuery
+            ? incoming
+            : appendWallpaperGalleryItems(snapshot.items, incoming);
+        if (code && code !== "empty") {
+          return {
+            ...snapshot,
+            query: event.query,
+            items: event.phase === "search" ? [] : snapshot.items,
+            hasSearched: true,
+            errorCode: code,
+            error: errorMessage(t, code),
+            statusHint: null,
+            providerContinuation:
+              event.providerContinuation ?? snapshot.providerContinuation,
+          };
+        }
+        if (code === "empty") {
+          const noMore = event.phase === "loadMore" && !result.hasMore;
+          return {
+            ...snapshot,
+            query: event.query,
+            items: event.phase === "search" ? [] : snapshot.items,
+            hasSearched: true,
+            errorCode: noMore ? null : "empty",
+            error: noMore ? null : errorMessage(t, "empty"),
+            statusHint: noMore
+              ? t("settings.wallpaperSource.noMore")
+              : null,
+            providerContinuation:
+              event.providerContinuation ?? snapshot.providerContinuation,
+          };
+        }
+        return {
+          ...snapshot,
+          query: event.query,
+          items: nextItems,
+          hasSearched: true,
+          errorCode: null,
+          error: null,
+          statusHint: t(
+            event.phase === "search"
+              ? result.cacheHit
+                ? "settings.wallpaperSource.remote.completeCached"
+                : "settings.wallpaperSource.remote.complete"
+              : "settings.wallpaperSource.remote.loadedMore",
+            event.phase === "search"
+              ? {
+                  count: nextItems.length,
+                  seconds: (result.durationMs / 1000).toFixed(1),
+                }
+              : { count: incoming.length, total: nextItems.length },
+          ),
+          providerContinuation:
+            event.providerContinuation ?? snapshot.providerContinuation,
+        };
+      });
+    },
+    [sourceHistory.update, t],
+  );
+  const onProviderBackgroundState = useCallback(
+    (event: WallpaperProviderBackgroundState) => {
+      if (!openRef.current || tabRef.current === event.source) return;
+      sourceHistory.update(event.source, (snapshot) => ({
+        ...snapshot,
+        query: event.query,
+        providerContinuation: event.state,
+      }));
+    },
+    [sourceHistory.update],
+  );
+  const isProviderSourceVisible = useCallback(
+    (source: "web" | "openverse" | "pexels") =>
+      openRef.current && tabRef.current === source,
+    [],
+  );
 
   const imagineController = useWallpaperImagineController({
     onGenerated: library.refresh,
@@ -226,23 +361,27 @@ export function WallpaperSourceModal({
     setStatusHint,
     setHasSearched,
     setSelectedId,
+    isSourceVisible: isProviderSourceVisible,
+    onBackgroundProgress: onProviderBackgroundProgress,
+    onBackgroundResult: onProviderBackgroundResult,
+    onBackgroundState: onProviderBackgroundState,
   });
   const providerProgressKey = wallpaperRemoteProgressMessageKey(
     provider.stage,
     providerSource,
   );
   const busy =
-    xBusy ||
+    (tab === "x" && xBusy) ||
     routeSaving ||
-    provider.busy ||
-    imagineController.busy ||
+    (providerSource !== null && provider.busy) ||
+    (tab === "imagine" && imagineController.busy) ||
     (tab === "library" && (library.busy || library.loadingMore)) ||
     (tab === "grok_album" && grokAlbum.busy);
   const interactionLocked =
-    (provider.busy && !provider.loadingMore) ||
+    (providerSource !== null && provider.busy && !provider.loadingMore) ||
     routeSaving ||
-    (xBusy && !loadingMore) ||
-    imagineController.busy ||
+    (tab === "x" && xBusy && !loadingMore) ||
+    (tab === "imagine" && imagineController.busy) ||
     applying ||
     previewingId !== null;
   const close = useCallback(() => {
@@ -262,12 +401,14 @@ export function WallpaperSourceModal({
     viewer,
   ]);
   useEffect(() => {
-    if (!open || tab !== "x") void cancelX();
-  }, [open, tab, cancelX]);
+    if (!open) void cancelX();
+  }, [open, cancelX]);
+  useEffect(() => {
+    if (!open) void provider.cancel();
+  }, [open, provider.cancel]);
   useEffect(() => {
     sourceGenerationRef.current += 1;
     sourceHistory.clear();
-    pendingHistoryRestore.current = null;
     pendingScrollRestore.current = null;
     setApplying(false);
     if (!open) return;
@@ -292,15 +433,6 @@ export function WallpaperSourceModal({
     },
     [],
   );
-
-  useEffect(() => {
-    if (pendingHistoryRestore.current !== tab) return;
-    const saved = sourceHistory.get(tab);
-    if (saved?.providerContinuation) {
-      provider.restore(saved.providerContinuation);
-    }
-    pendingHistoryRestore.current = null;
-  }, [provider.restore, sourceHistory.get, tab]);
 
   useEffect(() => {
     if (!open || tab !== "library") return;
@@ -382,9 +514,34 @@ export function WallpaperSourceModal({
   ]);
 
   const galleryItems =
-    xBusy && !loadingMore && progressiveItems.length > 0
+    tab === "x" && xBusy && !loadingMore && progressiveItems.length > 0
       ? progressiveItems
       : items;
+
+  useEffect(() => {
+    if (
+      !open ||
+      tab === "x" ||
+      !xBusy ||
+      progressiveItems.length === 0 ||
+      !xSearchContextRef.current
+    ) {
+      return;
+    }
+    const context = xSearchContextRef.current;
+    sourceHistory.update("x", (snapshot) => ({
+      ...snapshot,
+      query: context.query,
+      sort: context.sort,
+      items:
+        snapshot.query === context.query
+          ? appendWallpaperGalleryItems(snapshot.items, progressiveItems)
+          : appendWallpaperGalleryItems([], progressiveItems),
+      hasSearched: true,
+      error: null,
+      errorCode: null,
+    }));
+  }, [open, progressiveItems, sourceHistory.update, tab, xBusy]);
   const kindCounts = useMemo(
     () =>
       tab === "library" ? library.kindCounts : countGalleryByKind(galleryItems),
@@ -528,12 +685,25 @@ export function WallpaperSourceModal({
         hasSearched: hasSearched || galleryItems.length > 0,
         statusHint,
         citeSummary,
+        error,
+        errorCode,
         xContinuation: continuation,
         providerContinuation: providerSource ? provider.capture() : null,
         scrollTop: sourceHistory.scrollRef.current?.scrollTop ?? 0,
       });
       const saved = sourceHistory.get(nextTab);
-      pendingHistoryRestore.current = nextTab;
+      if (
+        nextTab === "web" ||
+        nextTab === "openverse" ||
+        nextTab === "pexels"
+      ) {
+        provider.restore(
+          saved?.providerContinuation ?? {
+            continuation: null,
+            prefetched: null,
+          },
+        );
+      }
       pendingScrollRestore.current = {
         tab: nextTab,
         top: saved?.scrollTop ?? 0,
@@ -541,7 +711,6 @@ export function WallpaperSourceModal({
 
       sourceGenerationRef.current += 1;
       viewer.close?.();
-      void provider.cancel();
       cancelGrokAlbumMediaRequests();
       void cancelRemoteWallpaperMediaRequests().catch(() => {});
       if (tab === "imagine") imagineController.cancelAll();
@@ -552,8 +721,8 @@ export function WallpaperSourceModal({
       setItems(saved?.items ?? []);
       setHasSearched(saved?.hasSearched ?? false);
       setSelectedId(saved?.selectedId ?? null);
-      setError(null);
-      setErrorCode(null);
+      setError(saved?.error ?? null);
+      setErrorCode(saved?.errorCode ?? null);
       setStatusHint(saved?.statusHint ?? null);
       setCiteSummary(saved?.citeSummary ?? null);
       setContinuation(saved?.xContinuation ?? null);
@@ -564,14 +733,16 @@ export function WallpaperSourceModal({
     [
       citeSummary,
       continuation,
+      error,
+      errorCode,
       galleryFilter,
       galleryItems,
       hasSearched,
       kindFilter,
       imagineController.cancelAll,
       libraryPurpose,
-      provider.cancel,
       provider.capture,
+      provider.restore,
       providerSource,
       query,
       selectedId,
@@ -623,6 +794,7 @@ export function WallpaperSourceModal({
       setCiteSummary(null);
       return;
     }
+    xSearchContextRef.current = { query: q, sort };
     sourceGenerationRef.current += 1;
     viewer.close?.();
     cancelGrokAlbumMediaRequests();
@@ -637,6 +809,7 @@ export function WallpaperSourceModal({
     try {
       const res = await searchX(q, sort);
       if (!res) return;
+      const hidden = !openRef.current || tabRef.current !== "x";
       if (res.meta) {
         const { routeUsed, durationMs, fallbackReason } = res.meta;
         const reason = fallbackReason?.includes("oauth") || fallbackReason?.includes("unauthorized")
@@ -651,10 +824,71 @@ export function WallpaperSourceModal({
           seconds: (durationMs / 1000).toFixed(1),
           reason: t(`settings.wallpaperSource.route.fallback.${reason}` as MessageKey),
         });
-        setStatusHint(res.meta.cacheHit ? t("settings.wallpaperSource.route.cached", { route: routeLabel }) : routeLabel);
+        const routeHint = res.meta.cacheHit
+          ? t("settings.wallpaperSource.route.cached", { route: routeLabel })
+          : routeLabel;
+        if (!hidden) setStatusHint(routeHint);
+        else {
+          sourceHistory.update("x", (snapshot) => ({
+            ...snapshot,
+            query: q,
+            sort,
+            statusHint: routeHint,
+          }));
+        }
       }
       const list = dedupeGalleryItems(res.items || []);
       const code = errorCodeFromSearchResult({ ...res, items: list });
+      if (hidden) {
+        sourceHistory.update("x", (snapshot) => {
+          if (code) {
+            const emptyKey = wallpaperXSearchCitationSummaryKey({
+              itemCount: 0,
+              verified: 0,
+              unverified: 0,
+              errorCode: code,
+            });
+            return {
+              ...snapshot,
+              query: q,
+              sort,
+              items: [],
+              hasSearched: true,
+              errorCode: code,
+              error: errorMessage(t, code),
+              citeSummary: emptyKey
+                ? t(emptyKey as MessageKey, { verified: 0, unverified: 0 })
+                : null,
+              xContinuation: null,
+            };
+          }
+          const counts = countWallpaperXCitations(list);
+          const sumKey = wallpaperXSearchCitationSummaryKey({
+            itemCount: counts.total,
+            verified: counts.verified,
+            unverified: counts.unverified,
+          });
+          return {
+            ...snapshot,
+            query: q,
+            sort,
+            items: list,
+            hasSearched: true,
+            error: null,
+            errorCode: null,
+            citeSummary: sumKey
+              ? t(sumKey as MessageKey, {
+                  verified: counts.verified,
+                  unverified: counts.unverified,
+                })
+              : null,
+            xContinuation: res.meta?.continuationId
+              ? { id: res.meta.continuationId, query: q, sort }
+              : null,
+          };
+        });
+        return;
+      }
       setHasSearched(true);
       if (code) {
         // Honest empty/error — never invent CDN gallery cards
@@ -693,6 +927,21 @@ export function WallpaperSourceModal({
         );
       }
     } catch (e) {
+      if (!openRef.current || tabRef.current !== "x") {
+        const code = parseWallpaperSourceError(e);
+        sourceHistory.update("x", (snapshot) => ({
+          ...snapshot,
+          query: q,
+          sort,
+          items: [],
+          hasSearched: true,
+          citeSummary: null,
+          errorCode: code,
+          error: errorMessage(t, code),
+          xContinuation: null,
+        }));
+        return;
+      }
       setHasSearched(true);
       setItems([]);
       setCiteSummary(null);
@@ -700,7 +949,16 @@ export function WallpaperSourceModal({
       setErrorCode(code);
       setError(errorMessage(t, code));
     }
-  }, [query, sort, t, searchX, viewer, xBusy, routeSaving]);
+  }, [
+    query,
+    sort,
+    t,
+    searchX,
+    viewer,
+    xBusy,
+    routeSaving,
+    sourceHistory.update,
+  ]);
 
   const dropItem = useCallback((id: string) => {
     setItems((prev) => prev.filter((it) => it.id !== id));
@@ -860,11 +1118,48 @@ export function WallpaperSourceModal({
 
   const runLoadMore = useCallback(async () => {
     if (!continuation || xBusy || applying || routeSaving) return;
+    const active = continuation;
     setError(null);
     setErrorCode(null);
     try {
-      const result = await searchMore(continuation.id);
+      const result = await searchMore(active.id);
       if (!result) return;
+      if (!openRef.current || tabRef.current !== "x") {
+        sourceHistory.update("x", (snapshot) => {
+          if (!result.errorCode) {
+            return {
+              ...snapshot,
+              items: appendWallpaperGalleryItems(snapshot.items, result.items),
+              xContinuation: null,
+              citeSummary: null,
+              statusHint: null,
+              error: null,
+              errorCode: null,
+            };
+          }
+          if (result.errorCode === "empty") {
+            return {
+              ...snapshot,
+              xContinuation: null,
+              statusHint: t("settings.wallpaperSource.noMore"),
+              error: null,
+              errorCode: null,
+            };
+          }
+          const code = parseWallpaperSourceError(result.errorCode);
+          return {
+            ...snapshot,
+            xContinuation:
+              result.errorCode === "load_more_unavailable" ||
+              result.errorCode.startsWith("oauth_")
+                ? null
+                : snapshot.xContinuation,
+            errorCode: code,
+            error: errorMessage(t, code),
+          };
+        });
+        return;
+      }
       if (!result.errorCode) {
         setItems(previous => appendWallpaperGalleryItems(previous, result.items));
         setContinuation(null);
@@ -881,10 +1176,26 @@ export function WallpaperSourceModal({
       }
     } catch (error) {
       const code = parseWallpaperSourceError(error);
+      if (!openRef.current || tabRef.current !== "x") {
+        sourceHistory.update("x", (snapshot) => ({
+          ...snapshot,
+          errorCode: code,
+          error: errorMessage(t, code),
+        }));
+        return;
+      }
       setErrorCode(code);
       setError(errorMessage(t, code));
     }
-  }, [continuation, xBusy, applying, routeSaving, searchMore, t]);
+  }, [
+    continuation,
+    xBusy,
+    applying,
+    routeSaving,
+    searchMore,
+    sourceHistory.update,
+    t,
+  ]);
 
   const closeModalLayer = useCallback(() => {
     if (viewer.isOpen?.()) {
@@ -1021,7 +1332,7 @@ export function WallpaperSourceModal({
             />
           )}
 
-          {xBusy && xStage ? (
+          {tab === "x" && xBusy && xStage ? (
             <p className="wallpaper-source-status" role="status">
               {t(
                 xStage === "falling_back"
@@ -1036,7 +1347,7 @@ export function WallpaperSourceModal({
               )}
             </p>
           ) : null}
-          {provider.busy && providerProgressKey ? (
+          {providerSource && provider.busy && providerProgressKey ? (
             <p className="wallpaper-source-status" role="status">
               {t(providerProgressKey)}
             </p>

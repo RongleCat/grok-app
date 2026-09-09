@@ -395,6 +395,33 @@ describe("useWallpaperImagineController", () => {
     expect(setters.setSelectedId).toHaveBeenLastCalledWith("generated-video");
   });
 
+  it("shows the actionable ZDR restriction returned by image-to-video", async () => {
+    wallpaperImageToVideo.mockResolvedValue({
+      items: [],
+      errorCode: "imagine_zdr_unavailable",
+    });
+    const t = createT("zh");
+    const { result, setters } = renderController(t);
+
+    act(() =>
+      result.current.beginVideoFromItem(
+        imageItem("zdr-source", {
+          source: "library",
+          localPath: "C:\\wallpapers\\zdr-source.jpg",
+        }),
+      ),
+    );
+    await act(async () => result.current.generate());
+
+    expect(setters.setErrorCode).toHaveBeenLastCalledWith(
+      "imagine_zdr_unavailable",
+    );
+    expect(setters.setError).toHaveBeenLastCalledWith(
+      t("settings.wallpaperSource.err.imagine_zdr_unavailable"),
+    );
+    expect(setters.setItems).not.toHaveBeenCalled();
+  });
+
   it("cancels an active video request and ignores its late result", async () => {
     const generation = deferred<WallpaperSearchResult>();
     wallpaperImageToVideo.mockReturnValue(generation.promise);

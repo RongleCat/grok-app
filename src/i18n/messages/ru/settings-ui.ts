@@ -420,6 +420,7 @@ export const ruSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "Не удалось скачать это изображение.",
   "settings.wallpaperSource.err.url_blocked": "Этот медиа-URL не разрешён для загрузки обоев.",
   "settings.wallpaperSource.err.imagine_failed": "Генерация Imagine не удалась. Попробуйте другой запрос.",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Режим приватности (ZDR) в Grok Build блокирует преобразование изображения в видео. Выполните /privacy в Grok Build, чтобы отключить ZDR, или настройте собственное хранилище и повторите попытку.",
   "settings.wallpaperSource.err.timeout": "Истекло время ожидания. Повторите попытку.",
   "settings.wallpaperSource.err.generic": "Что-то пошло не так.",
   "settings.wallpaperSource.err.deleteFailed": "Не удалось удалить этот файл обоев. Он может остаться, пока не обновите.",

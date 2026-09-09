@@ -420,6 +420,7 @@ export const ukSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "Не вдалося завантажити це зображення.",
   "settings.wallpaperSource.err.url_blocked": "Ця URL-адреса медіа-файлу не дозволена для завантаження шпалер.",
   "settings.wallpaperSource.err.imagine_failed": "Уявіть, що генерація не вдалася. Спробуйте інший запит.",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Режим приватності (ZDR) у Grok Build блокує перетворення зображення на відео. Виконайте /privacy у Grok Build, щоб вимкнути ZDR, або налаштуйте власне сховище й повторіть спробу.",
   "settings.wallpaperSource.err.timeout": "Час вичерпано. Спробуйте ще раз.",
   "settings.wallpaperSource.err.generic": "Щось пішло не так.",
   "settings.wallpaperSource.err.deleteFailed": "Не вдалося видалити файл шпалер. Він може відображатися, доки ви не оновите.",

@@ -127,3 +127,64 @@ it("hides continuation for a changed query and discards a late result after clos
   pending.resolve({ items: [item("late")] });
   await waitFor(() => expect(cards()).toHaveLength(1));
 });
+
+it("keeps an X search running after switching tabs and restores its result", async () => {
+  const pending = deferred<WallpaperSearchResult>();
+  mocks.search.mockReturnValue(pending.promise);
+  render(
+    <WallpaperSourceModal
+      open
+      t={t as never}
+      onClose={vi.fn()}
+      onPickFile={vi.fn()}
+    />,
+  );
+  fireEvent.change(screen.getByPlaceholderText("settings.wallpaperSource.xPlaceholder"), {
+    target: { value: "sky" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "settings.wallpaperSource.search" }),
+  );
+  await waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(1));
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperImagine" }),
+  );
+  pending.resolve({
+    items: [item("late")],
+    meta: { routeUsed: "responses", durationMs: 1 },
+  });
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "settings.wallpaperSource.openPreview" }),
+    ).toBeNull(),
+  );
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperFromX" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(1));
+});
+
+it("keeps X load-more results with X after switching tabs", async () => {
+  const pending = deferred<WallpaperSearchResult>();
+  mocks.more.mockReturnValue(pending.promise);
+  await initial();
+  fireEvent.click(moreButton());
+  await waitFor(() => expect(mocks.more).toHaveBeenCalledTimes(1));
+
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperImagine" }),
+  );
+  pending.resolve({ items: [item("second")] });
+  await waitFor(() =>
+    expect(
+      screen.queryAllByRole("button", {
+        name: "settings.wallpaperSource.openPreview",
+      }),
+    ).toHaveLength(0),
+  );
+
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperFromX" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(2));
+});

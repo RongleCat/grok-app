@@ -420,6 +420,7 @@ export const deSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "Dieses Bild konnte nicht heruntergeladen werden.",
   "settings.wallpaperSource.err.url_blocked": "Diese Medien-URL ist für Wallpaper-Download nicht erlaubt.",
   "settings.wallpaperSource.err.imagine_failed": "Imagine-Erzeugung fehlgeschlagen. Anderen Prompt versuchen.",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Der Datenschutzmodus (ZDR) von Grok Build blockiert Bild-zu-Video. Führe /privacy in Grok Build aus, um ZDR zu deaktivieren, oder richte einen eigenen Speicher-Bucket ein.",
   "settings.wallpaperSource.err.timeout": "Zeitüberschreitung. Bitte erneut versuchen.",
   "settings.wallpaperSource.err.generic": "Etwas ist schiefgelaufen.",
   "settings.wallpaperSource.err.deleteFailed": "Diese Wallpaper-Datei konnte nicht gelöscht werden. Sie kann bis zum Aktualisieren weiter erscheinen.",

@@ -112,6 +112,7 @@ export type WallpaperSourceErrorCode =
   | "url_blocked"
   | "imagine_source_invalid"
   | "imagine_failed"
+  | "imagine_zdr_unavailable"
   | "imagine_access_denied"
   | "imagine_rate_limited"
   | "imagine_request_rejected"
@@ -128,6 +129,7 @@ const imagineErrorCodes = new Set<WallpaperSourceErrorCode>([
   "imagine_upstream_failed",
   "imagine_network_failed",
   "imagine_result_invalid",
+  "imagine_zdr_unavailable",
 ]);
 
 function imagineErrorCode(raw: string): WallpaperSourceErrorCode | null {

@@ -420,6 +420,7 @@ export const zhTWSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "無法下載該圖片。",
   "settings.wallpaperSource.err.url_blocked": "該媒體網址不允許作為壁紙下載。",
   "settings.wallpaperSource.err.imagine_failed": "Imagine 生成失敗，請換個提示詞試試。",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Grok Build 隱私模式（ZDR）暫時阻止圖生影片。請在 Grok Build 中執行 /privacy 關閉 ZDR，或設定使用者自己的儲存桶後重試。",
   "settings.wallpaperSource.err.timeout": "逾時，請重試。",
   "settings.wallpaperSource.err.generic": "出了點問題。",
   "settings.wallpaperSource.err.deleteFailed": "無法刪除該壁紙檔案。重新整理前列表中可能仍會顯示。",

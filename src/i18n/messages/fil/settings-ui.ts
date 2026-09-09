@@ -420,6 +420,7 @@ export const filSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "Hindi ma-download ang larawang iyon.",
   "settings.wallpaperSource.err.url_blocked": "Hindi pinapayagan ang media URL na iyon para sa wallpaper download.",
   "settings.wallpaperSource.err.imagine_failed": "Nabigo ang Imagine generation. Subukan ang ibang prompt.",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Hinaharang ng privacy mode (ZDR) ng Grok Build ang image-to-video. Patakbuhin ang /privacy sa Grok Build para patayin ang ZDR, o mag-configure ng sarili mong storage bucket bago muling subukan.",
   "settings.wallpaperSource.err.timeout": "Nag-timeout. Subukan ulit.",
   "settings.wallpaperSource.err.generic": "May nangyaring mali.",
   "settings.wallpaperSource.err.deleteFailed": "Hindi mabura ang wallpaper file na iyon. Maaaring lumabas pa ito hanggang mag-refresh ka.",

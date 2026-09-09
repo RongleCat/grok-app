@@ -31,6 +31,8 @@ const snapshot = (
   hasSearched: true,
   statusHint: null,
   citeSummary: null,
+  error: null,
+  errorCode: null,
   xContinuation: null,
   providerContinuation: null,
   scrollTop: 120,
@@ -101,5 +103,25 @@ describe("useWallpaperSourceHistory", () => {
       true,
     );
     expect(result.current.get("pexels")?.items[0]?.metadata).toBeUndefined();
+  });
+
+  it("updates a hidden source snapshot without affecting the active tab", () => {
+    const { result } = renderHook(() => useWallpaperSourceHistory());
+    act(() => result.current.save("openverse", snapshot()));
+    act(() =>
+      result.current.update("openverse", (value) => ({
+        ...value,
+        query: "night sky",
+        items: [item("background")],
+        error: "search failed",
+        errorCode: "search_failed",
+      })),
+    );
+    expect(result.current.get("openverse")).toMatchObject({
+      query: "night sky",
+      items: [{ id: "background" }],
+      error: "search failed",
+      errorCode: "search_failed",
+    });
   });
 });

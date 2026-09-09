@@ -103,7 +103,7 @@ describe("WallpaperSourceModal X search lifecycle", () => {
     expect(cancelSearch).toHaveBeenCalledTimes(1);
   });
 
-  it("cancels an active X search when switching tabs or closing", () => {
+  it("keeps an active X search running when switching tabs and cancels on close", () => {
     const onClose = vi.fn();
     render(
       <WallpaperSourceModal
@@ -117,10 +117,10 @@ describe("WallpaperSourceModal X search lifecycle", () => {
     fireEvent.click(
       screen.getByRole("tab", { name: "settings.wallpaperImagine" }),
     );
-    expect(cancelSearch).toHaveBeenCalledTimes(1);
+    expect(cancelSearch).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "modal-close" }));
-    expect(cancelSearch).toHaveBeenCalledTimes(2);
+    expect(cancelSearch).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

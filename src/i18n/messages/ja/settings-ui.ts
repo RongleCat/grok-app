@@ -420,6 +420,7 @@ export const jaSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "その画像をダウンロードできませんでした。",
   "settings.wallpaperSource.err.url_blocked": "そのメディア URL は壁紙のダウンロードに使えません。",
   "settings.wallpaperSource.err.imagine_failed": "Imagine の生成に失敗しました。別のプロンプトを試してください。",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Grok Build のプライバシーモード（ZDR）が画像から動画への生成をブロックしています。Grok Build で /privacy を実行して ZDR を無効にするか、自分のストレージバケットを設定して再試行してください。",
   "settings.wallpaperSource.err.timeout": "タイムアウトしました。再試行してください。",
   "settings.wallpaperSource.err.generic": "問題が発生しました。",
   "settings.wallpaperSource.err.deleteFailed": "その壁紙ファイルを削除できませんでした。更新するまで一覧に残ることがあります。",

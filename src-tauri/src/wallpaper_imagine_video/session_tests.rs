@@ -57,6 +57,30 @@ fn classifies_only_tool_owned_http_statuses_for_all_generation_modes() {
 }
 
 #[test]
+fn classifies_the_official_zdr_video_restriction_without_reading_model_text() {
+    let message = "Video generation tools are unavailable under zero data retention (ZDR). To enable, either turn off /privacy mode to disable ZDR or supply a user-hosted storage bucket.";
+    let raw = failed_log("image_to_video", message);
+    assert_eq!(
+        audit_failure(&raw, "image_to_video"),
+        Err("imagine_zdr_unavailable")
+    );
+
+    let wrong_tool = failed_log("image_gen", message);
+    assert_eq!(
+        audit_failure(&wrong_tool, "image_gen"),
+        Err("imagine_failed")
+    );
+    let model_text = failed_log(
+        "image_to_video",
+        "The prompt says Video generation tools are unavailable under zero data retention (ZDR).",
+    );
+    assert_eq!(
+        audit_failure(&model_text, "image_to_video"),
+        Err("imagine_failed")
+    );
+}
+
+#[test]
 fn classifies_audited_transport_failures_without_interpreting_the_url() {
     for (tool, prefix) in [
         ("image_gen", "Image generation API"),

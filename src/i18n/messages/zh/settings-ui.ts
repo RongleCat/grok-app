@@ -420,6 +420,7 @@ export const zhSettingsUi = {
   "settings.wallpaperSource.err.download_failed": "无法下载该图片。",
   "settings.wallpaperSource.err.url_blocked": "该媒体地址不允许作为壁纸下载。",
   "settings.wallpaperSource.err.imagine_failed": "Imagine 生成失败，请换个提示词试试。",
+  "settings.wallpaperSource.err.imagine_zdr_unavailable": "Grok Build 隐私模式（ZDR）暂时阻止图生视频。请在 Grok Build 中执行 /privacy 关闭 ZDR，或配置用户自己的存储桶后重试。",
   "settings.wallpaperSource.err.timeout": "超时，请重试。",
   "settings.wallpaperSource.err.generic": "出了点问题。",
   "settings.wallpaperSource.err.deleteFailed": "无法删除该壁纸文件。刷新前列表中可能仍会显示。",

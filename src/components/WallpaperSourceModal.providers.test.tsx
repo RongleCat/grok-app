@@ -10,7 +10,10 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import "@/test/jsdomStubs";
-import type { WallpaperRemoteSearchResult } from "@/lib/wallpaperRemoteSearch";
+import type {
+  WallpaperRemoteSearchResult,
+  WallpaperRemoteSource,
+} from "@/lib/wallpaperRemoteSearch";
 
 const mocks = vi.hoisted(() => ({
   search: vi.fn(),
@@ -73,15 +76,27 @@ vi.mock("@/components/GlassModal", () => ({
 }));
 import { WallpaperSourceModal } from "./WallpaperSourceModal";
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => {
+    resolve = next;
+  });
+  return { promise, resolve };
+}
 
-const item = (id: string, source: "web" | "openverse" = "openverse") =>
+const item = (id: string, source: WallpaperRemoteSource = "openverse") =>
   ({
     id,
     kind: "image",
     source,
     fullUrl: `https://images.example.com/${id}.jpg`,
     thumbUrl: `https://images.example.com/${id}.jpg`,
-    sourceName: source === "web" ? "photos.example.test" : "Openverse",
+    sourceName:
+      source === "web"
+        ? "photos.example.test"
+        : source === "pexels"
+          ? "Pexels"
+          : "Openverse",
     sourceUrl: `https://${source}.example.test/${id}`,
     authorName: "Ada",
     authorUrl:
@@ -97,7 +112,7 @@ const item = (id: string, source: "web" | "openverse" = "openverse") =>
 const result = (
   ids: string[],
   hasMore = true,
-  source: "web" | "openverse" = "openverse",
+  source: WallpaperRemoteSource = "openverse",
 ): WallpaperRemoteSearchResult => ({
   source,
   items: ids.map((id) => item(id, source)),
@@ -410,15 +425,148 @@ it("preserves provider results after paging failure and allows a fresh retry", a
   fireEvent.click(screen.getByRole("button", { name: "settings.wallpaperSource.loadMore" }));
   await waitFor(() => expect(cards()).toHaveLength(2));
 });
-it("discards a provider page that completes after switching to X", async () => {
+it("keeps a provider page running after switching tabs and restores it", async () => {
   let finish!: (value: WallpaperRemoteSearchResult) => void;
   mocks.more.mockReturnValue(new Promise<WallpaperRemoteSearchResult>(resolve => { finish = resolve; }));
   await initial();
   fireEvent.click(screen.getByRole("button", { name: "settings.wallpaperSource.loadMore" }));
   await waitFor(() => expect(mocks.more).toHaveBeenCalledTimes(1));
   fireEvent.click(screen.getByRole("tab", { name: "settings.wallpaperFromX" }));
-  finish(result(["late"]));
+  finish(result(["late"], false));
   await waitFor(() => expect(cards()).toHaveLength(0));
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperOpenverse" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(2));
+});
+
+it("keeps a provider page running after switching to another provider", async () => {
+  const pending = deferred<WallpaperRemoteSearchResult>();
+  mocks.more.mockReturnValue(pending.promise);
+  await initial();
+  fireEvent.click(
+    screen.getByRole("button", { name: "settings.wallpaperSource.loadMore" }),
+  );
+  await waitFor(() => expect(mocks.more).toHaveBeenCalledTimes(1));
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperWeb" }),
+  );
+  pending.resolve(result(["late"], false));
+  await waitFor(() => expect(cards()).toHaveLength(0));
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperOpenverse" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(2));
+});
+
+it("restores provider pagination after searching another provider", async () => {
+  mocks.search.mockImplementation(
+    async (source: WallpaperRemoteSource) =>
+      result(
+        source === "web" ? ["web-first"] : ["open-first"],
+        source === "openverse",
+        source,
+      ),
+  );
+  mocks.more.mockImplementation(
+    async (source: WallpaperRemoteSource) =>
+      result(source === "openverse" ? ["open-prefetched"] : [], false, source),
+  );
+
+  render(
+    <WallpaperSourceModal
+      open
+      initialTab="openverse"
+      t={(key) => key}
+      onClose={vi.fn()}
+      onPickFile={vi.fn()}
+    />,
+  );
+  const search = () =>
+    screen.getByRole<HTMLInputElement>("searchbox", {
+      name: "settings.wallpaperSource.search",
+    });
+  fireEvent.change(search(), { target: { value: "open" } });
+  fireEvent.click(
+    screen.getByRole("button", { name: "settings.wallpaperSource.search" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(1));
+  await waitFor(() => expect(mocks.more).toHaveBeenCalledTimes(1));
+
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperWeb" }),
+  );
+  fireEvent.change(search(), { target: { value: "web" } });
+  fireEvent.click(
+    screen.getByRole("button", { name: "settings.wallpaperSource.search" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(1));
+
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperOpenverse" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(1));
+  fireEvent.click(
+    screen.getByRole("button", { name: "settings.wallpaperSource.loadMore" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(2));
+  expect(mocks.more).toHaveBeenCalledTimes(1);
+});
+
+it("records a hidden provider continuation before another source search", async () => {
+  const hidden = deferred<WallpaperRemoteSearchResult>();
+  mocks.search.mockImplementation(
+    (source: WallpaperRemoteSource) =>
+      source === "openverse"
+        ? hidden.promise
+        : Promise.resolve(result(["web-first"], false, source)),
+  );
+  mocks.more.mockImplementation(
+    (source: WallpaperRemoteSource) =>
+      Promise.resolve(result(["open-more"], false, source)),
+  );
+
+  render(
+    <WallpaperSourceModal
+      open
+      initialTab="openverse"
+      t={(key) => key}
+      onClose={vi.fn()}
+      onPickFile={vi.fn()}
+    />,
+  );
+  const search = () =>
+    screen.getByRole<HTMLInputElement>("searchbox", {
+      name: "settings.wallpaperSource.search",
+    });
+  fireEvent.change(search(), { target: { value: "open" } });
+  fireEvent.click(
+    screen.getByRole("button", { name: "settings.wallpaperSource.search" }),
+  );
+  await waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(1));
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperWeb" }),
+  );
+  await act(async () => {
+    hidden.resolve(result(["open-first"], true, "openverse"));
+    await hidden.promise;
+  });
+  expect(mocks.more).not.toHaveBeenCalled();
+
+  fireEvent.change(search(), { target: { value: "web" } });
+  fireEvent.click(
+    screen.getByRole("button", { name: "settings.wallpaperSource.search" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(1));
+  fireEvent.click(
+    screen.getByRole("tab", { name: "settings.wallpaperOpenverse" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(1));
+  fireEvent.click(
+    screen.getByRole("button", { name: "settings.wallpaperSource.loadMore" }),
+  );
+  await waitFor(() => expect(cards()).toHaveLength(2));
+  expect(mocks.more).toHaveBeenCalledTimes(1);
 });
 
 it("keeps a provider result selectable when its bounded thumbnail fails", async () => {

@@ -3,6 +3,7 @@ import type { WallpaperProviderContinuationState } from "./useWallpaperProviderC
 import type {
   WallpaperGalleryItem,
   WallpaperLibraryPurpose,
+  WallpaperSourceErrorCode,
   WallpaperSourceKind,
 } from "@/lib/wallpaperSource";
 import type { WallpaperGalleryKindFilter } from "@/lib/wallpaperGalleryPro";
@@ -18,6 +19,8 @@ export type WallpaperSourceSnapshot = {
   hasSearched: boolean;
   statusHint: string | null;
   citeSummary: string | null;
+  error: string | null;
+  errorCode: WallpaperSourceErrorCode | null;
   xContinuation: {
     id: string;
     query: string;
@@ -94,5 +97,32 @@ export function useWallpaperSourceHistory() {
     }
   }, []);
 
-  return { save, get, clear, updateItem, scrollRef };
+  const update = useCallback(
+    (
+      source: WallpaperSourceKind,
+      updater: (snapshot: WallpaperSourceSnapshot) => WallpaperSourceSnapshot,
+    ) => {
+      const entry = entries.current.get(source);
+      if (!entry || Date.now() - entry.createdAt > HISTORY_TTL_MS) {
+        entries.current.delete(source);
+        return;
+      }
+      const next = updater(entry.value);
+      if (next.items.length > MAX_ITEMS_PER_SOURCE) {
+        entries.current.delete(source);
+        return;
+      }
+      entry.value = {
+        ...next,
+        items: [...next.items],
+        scrollTop: Number.isFinite(next.scrollTop)
+          ? Math.max(0, next.scrollTop)
+          : 0,
+      };
+      entry.createdAt = Date.now();
+    },
+    [],
+  );
+
+  return { save, get, clear, update, updateItem, scrollRef };
 }
