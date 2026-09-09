@@ -105,7 +105,6 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^4.5.2",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "canvas": "^3.2.3",
     "eslint": "^9.30.0",

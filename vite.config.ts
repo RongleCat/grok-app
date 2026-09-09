@@ -1,5 +1,5 @@
 import { defineConfig, type Plugin } from "vite";
-// SWC avoids Babel codegen deopt on large modules (App.tsx ~800KB+).
+// SWC avoids Babel codegen deopt on large modules (AppWorkbench.tsx ~450KB).
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
