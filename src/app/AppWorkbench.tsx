@@ -543,11 +543,9 @@ import { resolveSidePathDeepLink } from "@/lib/sidePathDeepLink";
 import { WorkbenchAppDialogStage } from "@/app/WorkbenchAppDialogStage";
 import { WorkbenchComposerModals } from "@/app/WorkbenchComposerModals";
 import {
-  EMPTY_SESSION_FILE_CHANGES,
   mergeSessionChange,
   sessionChangesFromMessages,
   summarizeSessionChanges,
-  type SessionFileChange,
 } from "@/lib/sessionChanges";
 
 
@@ -678,6 +676,7 @@ import {
   useSessionNavigation,
 } from "@/hooks/useSessionNavigation";
 import { useGitDirtyStatus } from "@/hooks/useGitDirtyStatus";
+import { useSessionFileChanges } from "@/hooks/useSessionFileChanges";
 import { WorkbenchSessionTree } from "@/app/WorkbenchSessionTree";
 import { WorkbenchSidebar } from "@/app/WorkbenchSidebar";
 import { WorkbenchMain } from "@/app/WorkbenchMain";
@@ -971,9 +970,8 @@ export function AppWorkbench() {
    * Files written/edited by agent tools per session (Changes / diff panel).
    * Live tool events may enrich entries with before/after snippets.
    */
-  const [sessionChangesById, setSessionChangesById] = useState<
-    Record<string, SessionFileChange[]>
-  >({});
+  const { sessionChangesById, setSessionChangesById, changesFor } =
+    useSessionFileChanges();
   const {
     getDraft,
     setDraft,
@@ -8872,10 +8870,7 @@ export function AppWorkbench() {
   /** Session file-changes chip (+/− or N files); hidden when empty. */
   const sessionChangesSummary = useMemo(() => {
     const sid = session.sessionId || "";
-    const list = sid
-      ? (sessionChangesById[sid] ?? EMPTY_SESSION_FILE_CHANGES)
-      : EMPTY_SESSION_FILE_CHANGES;
-    return summarizeSessionChanges(list);
+    return summarizeSessionChanges(changesFor(sid));
   }, [session.sessionId, sessionChangesById]);
 
   // Reset find when switching conversation (keep open across same session).
@@ -12761,10 +12756,7 @@ export function AppWorkbench() {
             retryAgentConnect={retryAgentConnect}
             runErrorBannerAction={runErrorBannerAction}
             session={session}
-            sessionChanges={
-              sessionChangesById[session.sessionId || ""] ??
-              EMPTY_SESSION_FILE_CHANGES
-            }
+            sessionChanges={changesFor(session.sessionId || "")}
             sessionJsonSchema={sessionJsonSchema}
             sessionTranscriptStore={sessionTranscriptStore}
             sessions={sessions}
@@ -13043,11 +13035,9 @@ export function AppWorkbench() {
           setSideWorkbench={setSideWorkbench}
           sideDockComposer={sideDockComposer}
           onToggleSideDockComposer={toggleDockComposer}
-          sessionChanges={
-            sessionChangesById[reviewSessionId] ??
-            sessionChangesById[session.sessionId || ""] ??
-            EMPTY_SESSION_FILE_CHANGES
-          }
+          sessionChanges={changesFor(
+            reviewSessionId ?? (session.sessionId || ""),
+          )}
           reviewFocusPath={reviewFocus?.path ?? null}
           reviewFocusToken={reviewFocus?.token ?? 0}
           reviewPinnedPaths={reviewFocus?.pinnedPaths ?? []}
