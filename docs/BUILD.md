@@ -139,7 +139,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-latest.ps1
 
 行为：
 
-- 要求 **tracked 工作区干净**；`git fetch` 后把 `main` **fast-forward** 到 `origin/main`（当前在别的分支也会切走）
+- 要求 **tracked 工作区干净**；`git fetch origin --tags` 后把 `main` **fast-forward** 到 `origin/main`（当前在别的分支也会切走）
+- Settings → About：HEAD 恰好是 `vX.Y.Z` tag 时显示该版本，否则显示 short commit hash（不要把 main 误当成上一 GitHub Release）
 - 临时 Tauri overlay：`productName=grok-app-latest`，`identifier=com.grokapp.desktop.latest`（single-instance mutex 与正式版隔离）
 - 只打 NSIS（`--bundles nsis --no-sign --ci`），`/S` 静默安装
 - **不覆盖** 正式 **Grok** 安装目录；开始菜单多一项 `grok-app-latest`
@@ -223,7 +224,7 @@ cp src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/* dist-installer
 `release-tag.sh` 会：
 
 - 校验 `CHANGELOG.md` 存在该版本章节（否则失败）
-- 同步 `package.json` / `tauri.conf.json` / `Cargo.toml` / i18n `versionFooter`
+- 同步 `package.json` / `tauri.conf.json` / `Cargo.toml`
 - 提交 `chore: release vX.Y.Z` 并打 annotated tag
 - 可选 `--push` 触发 CI
 
@@ -286,7 +287,8 @@ Release body = 下载表 + 该版本 CHANGELOG + 安装说明（含 `xattr`）�
 - `package.json` → `version`
 - `src-tauri/tauri.conf.json` → `version`
 - `src-tauri/Cargo.toml` → `[package].version`
-- `src/i18n/messages.ts` → `app.versionFooter` 中的 `Grok vX.Y.Z`
+
+About 页版本（`app.versionFooter` 的 `{version}`）在 Vite 构建时注入：恰好是 `vX.Y.Z` release tag 则显示该 tag，否则显示 short commit hash。
 
 Tag 格式：`v0.1.1`（前缀 `v` + semver）。
 

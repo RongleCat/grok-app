@@ -4,7 +4,7 @@ export const ruCore = {
   "image.loadingOriginal": "Загрузка оригинала…",
   "image.originalFailed": "Не удалось загрузить оригинал. Предпросмотр по-прежнему доступен.",
   "app.tagline": "MIT · Неофициально · Сестринский проект grok-go",
-  "app.versionFooter": "Grok v0.2.34 · MIT · Неофициально · Сестринский проект grok-go",
+  "app.versionFooter": "Grok {version} · MIT · Неофициально · Сестринский проект grok-go",
   "window.minimize": "Свернуть",
   "window.maximize": "Развернуть",
   "window.restore": "Восстановить",

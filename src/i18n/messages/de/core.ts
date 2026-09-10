@@ -4,7 +4,7 @@ export const deCore = {
   "image.loadingOriginal": "Original wird geladen…",
   "image.originalFailed": "Original konnte nicht geladen werden. Die Vorschau bleibt verfügbar.",
   "app.tagline": "MIT · Inoffiziell · Schwesterprojekt grok-go",
-  "app.versionFooter": "Grok v0.2.34 · MIT · Inoffiziell · Schwesterprojekt grok-go",
+  "app.versionFooter": "Grok {version} · MIT · Inoffiziell · Schwesterprojekt grok-go",
   "window.minimize": "Minimieren",
   "window.maximize": "Maximieren",
   "window.restore": "Wiederherstellen",

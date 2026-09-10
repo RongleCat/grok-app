@@ -4,7 +4,7 @@ export const zhTWCore = {
   "image.loadingOriginal": "正在載入原始檔案…",
   "image.originalFailed": "原始檔案載入失敗，仍可查看預覽。",
   "app.tagline": "MIT · 非 xAI 官方 · 姊妹專案 grok-go",
-  "app.versionFooter": "Grok v0.2.34 · MIT · 非 xAI 官方 · 姊妹專案 grok-go",
+  "app.versionFooter": "Grok {version} · MIT · 非 xAI 官方 · 姊妹專案 grok-go",
   "window.minimize": "最小化",
   "window.maximize": "最大化",
   "window.restore": "還原",

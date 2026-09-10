@@ -7,6 +7,7 @@
 # do not run this build and official Grok as writers at the same time.
 #
 # Requires a clean tracked tree. Unsigned (--no-sign). Not a GitHub Release.
+# About page: exact vX.Y.Z tag, else short SHA (Vite-baked; NSIS version stays semver).
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
@@ -33,6 +34,17 @@ function Restore-BuildNoise {
   if (-not (git diff --ignore-cr-at-eol -- $file)) {
     git restore -- $file
   }
+}
+
+function Get-AboutDisplayVersion([string]$sha) {
+  $raw = git tag --points-at HEAD 2>$null
+  if ($LASTEXITCODE -eq 0 -and $raw) {
+    foreach ($t in @($raw -split "`n")) {
+      $name = $t.Trim()
+      if ($name -match '^v\d+\.\d+\.\d+$') { return $name }
+    }
+  }
+  return $sha
 }
 
 function Assert-CleanTracked {
@@ -77,8 +89,8 @@ $originUrl = (git remote get-url origin).Trim()
 if ($LASTEXITCODE -ne 0) { throw "git remote get-url origin failed" }
 Write-Host "origin $originUrl"
 $prev = (git branch --show-current).Trim()
-git fetch origin
-if ($LASTEXITCODE -ne 0) { throw "git fetch origin failed" }
+git fetch origin --tags
+if ($LASTEXITCODE -ne 0) { throw "git fetch origin --tags failed" }
 if ($prev -and $prev -ne "main") {
   Write-Host "leaving branch $prev → main"
 }
@@ -139,10 +151,12 @@ if ($item.LastWriteTime -lt $setup.LastWriteTime.AddMinutes(-5)) {
 $lnk = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\$ProductName.lnk"
 $ver = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exe).FileVersion
 $pkgVer = (Get-Content (Join-Path $Root "package.json") -Raw | ConvertFrom-Json).version
+$aboutVer = Get-AboutDisplayVersion $sha
 
 Write-Host ""
 Write-Host "VERIFY OK"
 Write-Host "sha     $fullSha"
+Write-Host "about   $aboutVer"
 Write-Host "pkg     $pkgVer"
 Write-Host "exe     $exe"
 Write-Host "size    $($item.Length)"

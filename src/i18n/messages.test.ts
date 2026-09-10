@@ -220,6 +220,15 @@ describe("i18n catalog", () => {
     );
   });
 
+  it("app.versionFooter interpolates build identity instead of a baked release number", () => {
+    for (const loc of LOCALES) {
+      expect(messages[loc]["app.versionFooter"], loc).toContain("{version}");
+      expect(messages[loc]["app.versionFooter"], loc).not.toMatch(
+        /v\d+\.\d+\.\d+/,
+      );
+    }
+  });
+
   it("keeps interpolation placeholders intact across locales", () => {
     // A dropped `{n}` silently prints a sentence with a hole in it.
     const cases: Array<[MessageKey, string[]]> = [
@@ -230,6 +239,7 @@ describe("i18n catalog", () => {
       ["app.quitBusy.message", ["{n}"]],
       ["fileCard.code", ["{ext}"]],
       ["settings.autoUpdateConfirm.message", ["{version}"]],
+      ["app.versionFooter", ["{version}"]],
     ];
     for (const loc of LOCALES) {
       for (const [key, vars] of cases) {

@@ -4,7 +4,7 @@ export const enCore = {
   "image.loadingOriginal": "Loading original...",
   "image.originalFailed": "Could not load the original. The preview is still available.",
   "app.tagline": "MIT · Unofficial · Sister project grok-go",
-  "app.versionFooter": "Grok v0.2.34 · MIT · Unofficial · Sister project grok-go",
+  "app.versionFooter": "Grok {version} · MIT · Unofficial · Sister project grok-go",
   "window.minimize": "Minimize",
   "window.maximize": "Maximize",
   "window.restore": "Restore",

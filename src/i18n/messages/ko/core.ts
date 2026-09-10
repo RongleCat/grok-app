@@ -4,7 +4,7 @@ export const koCore = {
   "image.loadingOriginal": "원본을 불러오는 중…",
   "image.originalFailed": "원본을 불러오지 못했습니다. 미리보기는 계속 볼 수 있습니다.",
   "app.tagline": "MIT · 비공식 · 자매 프로젝트 grok-go",
-  "app.versionFooter": "Grok v0.2.34 · MIT · 비공식 · 자매 프로젝트 grok-go",
+  "app.versionFooter": "Grok {version} · MIT · 비공식 · 자매 프로젝트 grok-go",
   "window.minimize": "최소화",
   "window.maximize": "최대화",
   "window.restore": "이전 크기로",

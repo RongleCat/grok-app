@@ -4,7 +4,7 @@ export const ptBRCore = {
   "image.loadingOriginal": "Carregando original…",
   "image.originalFailed": "Não foi possível carregar o original. A prévia continua disponível.",
   "app.tagline": "MIT · Não oficial · Projeto irmão grok-go",
-  "app.versionFooter": "Grok v0.2.34 · MIT · Não oficial · Projeto irmão grok-go",
+  "app.versionFooter": "Grok {version} · MIT · Não oficial · Projeto irmão grok-go",
   "window.minimize": "Minimizar",
   "window.maximize": "Maximizar",
   "window.restore": "Restaurar",

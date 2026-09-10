@@ -21,9 +21,10 @@
 | `package.json` | `version` |
 | `src-tauri/tauri.conf.json` | `version` |
 | `src-tauri/Cargo.toml` | `[package].version` |
-| `src/i18n/messages/*/core.ts` | `app.versionFooter` 内 `Grok vX.Y.Z`（全部 locale，与 `en` 锁步） |
 
-`scripts/release-tag.sh` 会改以上文件。Tag 格式：`v0.1.0`（`v` + semver）。
+Settings → About 的 `app.versionFooter` 用 `{version}`，构建时注入：HEAD 恰好是 `vX.Y.Z` tag（或 CI `GITHUB_REF` 指向该 tag）则显示该 tag，否则显示 short commit hash。不要把 hash 写进 `tauri.conf.json` version（NSIS / updater 仍要 semver）。
+
+`scripts/release-tag.sh` 会改以上三处清单。Tag 格式：`v0.1.0`（`v` + semver）。
 
 ## CHANGELOG 写法（强制）
 

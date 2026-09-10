@@ -4,7 +4,7 @@ export const taCore = {
   "image.loadingOriginal": "அசல் கோப்பு ஏற்றப்படுகிறது…",
   "image.originalFailed": "அசல் கோப்பை ஏற்ற முடியவில்லை. முன்னோட்டம் தொடர்ந்து கிடைக்கும்.",
   "app.tagline": "MIT · அதிகாரப்பூர்வமற்றது · சகோதரத் திட்டம் grok-go",
-  "app.versionFooter": "Grok v0.2.34 · MIT · அதிகாரப்பூர்வமற்றது · சகோதரத் திட்டம் grok-go",
+  "app.versionFooter": "Grok {version} · MIT · அதிகாரப்பூர்வமற்றது · சகோதரத் திட்டம் grok-go",
   "window.minimize": "சிறிதாக்கு",
   "window.maximize": "பெரிதாக்கு",
   "window.restore": "மீட்டமை",

@@ -4,7 +4,7 @@ export const esCore = {
   "image.loadingOriginal": "Cargando original…",
   "image.originalFailed": "No se pudo cargar el original. La vista previa sigue disponible.",
   "app.tagline": "MIT · No oficial · Proyecto hermano grok-go",
-  "app.versionFooter": "Grok v0.2.34 · MIT · No oficial · Proyecto hermano grok-go",
+  "app.versionFooter": "Grok {version} · MIT · No oficial · Proyecto hermano grok-go",
   "window.minimize": "Minimizar",
   "window.maximize": "Maximizar",
   "window.restore": "Restaurar",

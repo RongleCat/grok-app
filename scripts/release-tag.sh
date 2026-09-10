@@ -112,29 +112,9 @@ if p.is_file():
         raise SystemExit("failed to patch Cargo.lock grok-app version")
     p.write_text(lock2)
     print("Cargo.lock grok-app ->", ver)
-
-# i18n version footer in every locale catalog (en is the key authority)
-core_files = sorted(Path("src/i18n/messages").glob("*/core.ts"))
-legacy = [Path(rel) for rel in ("src/i18n/messages.ts",)]
-found = 0
-for p in core_files + legacy:
-    if not p.is_file():
-        continue
-    t = p.read_text()
-    t2, n = re.subn(r"(Grok v)[0-9]+\.[0-9]+\.[0-9]+", rf"\g<1>{ver}", t)
-    if n:
-        p.write_text(t2)
-        print(f"{p} versionFooter ->", ver)
-        found += 1
-    else:
-        print(f"warn: versionFooter pattern not found in {p}")
-if found < 15:
-    raise SystemExit(f"expected ≥15 locale versionFooters, patched {found}")
 PY
 
 git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock \
-  src/i18n/messages/*/core.ts \
-  src/i18n/messages.ts \
   README.md README_EN.md README_ZH.md README_RU.md 2>/dev/null || true
 if [[ -n "$(git status --porcelain)" ]]; then
   git commit -m "chore: release $TAG"

@@ -4,7 +4,7 @@ export const jaCore = {
   "image.loadingOriginal": "元のファイルを読み込み中…",
   "image.originalFailed": "元のファイルを読み込めませんでした。プレビューは引き続き表示できます。",
   "app.tagline": "MIT · 非公式 · 姉妹プロジェクト grok-go",
-  "app.versionFooter": "Grok v0.2.34 · MIT · 非公式 · 姉妹プロジェクト grok-go",
+  "app.versionFooter": "Grok {version} · MIT · 非公式 · 姉妹プロジェクト grok-go",
   "window.minimize": "最小化",
   "window.maximize": "最大化",
   "window.restore": "元のサイズに戻す",

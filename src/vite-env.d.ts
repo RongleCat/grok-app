@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_GROK_DISPLAY_VERSION?: string;
+  readonly VITE_GROK_RELEASES_URL?: string;
+}
+
 declare module "plyr" {
   export interface PlyrOptions {
     controls?: string[];

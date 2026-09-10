@@ -4,7 +4,7 @@ export const itCore = {
   "image.loadingOriginal": "Caricamento dell’originale…",
   "image.originalFailed": "Impossibile caricare l’originale. L’anteprima è ancora disponibile.",
   "app.tagline": "MIT · Non ufficiale · Progetto gemello grok-go",
-  "app.versionFooter": "Grok v0.2.34 · MIT · Non ufficiale · Progetto gemello grok-go",
+  "app.versionFooter": "Grok {version} · MIT · Non ufficiale · Progetto gemello grok-go",
   "window.minimize": "Riduci a icona",
   "window.maximize": "Ingrandisci",
   "window.restore": "Ripristina",
