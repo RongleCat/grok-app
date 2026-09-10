@@ -48,6 +48,8 @@ vi.mock("@/lib/api", () => ({
   listenWallpaperXSearchBatch: vi.fn(async () => () => {}),
   wallpaperFetchMedia: vi.fn(async () => ({ path: "C:/cache/sky.jpg", mime: "image/jpeg", name: "sky.jpg" })),
   wallpaperImagine: vi.fn(), wallpaperLibraryList: vi.fn(), wallpaperLibraryDelete: vi.fn(),
+  wallpaperImaginePendingRecoveries: vi.fn(async () => []),
+  wallpaperImagineRecoverCatalog: vi.fn(),
   wallpaperLibraryLookup: mocks.libraryLookup,
   wallpaperLibraryRemember: mocks.libraryRemember,
   openExternalUrl: mocks.openExternal,

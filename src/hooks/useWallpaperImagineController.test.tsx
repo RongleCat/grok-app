@@ -8,6 +8,7 @@ import type {
   WallpaperGalleryItem,
   WallpaperSearchResult,
 } from "@/lib/wallpaperSource";
+import type { WallpaperImagineRecovery } from "@/lib/wallpaperImagine";
 import { useWallpaperImagineController } from "./useWallpaperImagineController";
 
 const wallpaperImagine = vi.hoisted(() => vi.fn());
@@ -16,6 +17,10 @@ const pickAttachFiles = vi.hoisted(() => vi.fn());
 const wallpaperImportImage = vi.hoisted(() => vi.fn());
 const wallpaperImageToVideo = vi.hoisted(() => vi.fn());
 const wallpaperImageToVideoCancel = vi.hoisted(() => vi.fn(async () => true));
+const wallpaperImagineRecoverCatalog = vi.hoisted(() => vi.fn());
+const wallpaperImaginePendingRecoveries = vi.hoisted(() =>
+  vi.fn<() => Promise<WallpaperImagineRecovery[]>>(async () => []),
+);
 const ensureLocalWallpaperMedia = vi.hoisted(() => vi.fn());
 const cancelRemoteWallpaperMediaRequests = vi.hoisted(() =>
   vi.fn(async () => undefined),
@@ -30,6 +35,8 @@ vi.mock("@/lib/api", () => ({
   wallpaperImportImage,
   wallpaperImageToVideo,
   wallpaperImageToVideoCancel,
+  wallpaperImagineRecoverCatalog,
+  wallpaperImaginePendingRecoveries,
 }));
 
 vi.mock("@/lib/wallpaperSourceMedia", () => ({
@@ -90,7 +97,10 @@ function videoResult(id = "generated-video"): WallpaperSearchResult {
   };
 }
 
-function renderController(t: ReturnType<typeof createT> = translate) {
+function renderController(
+  t: ReturnType<typeof createT> = translate,
+  onGenerated?: () => void,
+) {
   const setters = {
     setItems: vi.fn(),
     setHasSearched: vi.fn(),
@@ -106,6 +116,7 @@ function renderController(t: ReturnType<typeof createT> = translate) {
       open: true,
       enabled: true,
       t,
+      onGenerated,
       ...setters,
     }),
   );
@@ -116,6 +127,94 @@ const translate = ((key: string, vars?: Record<string, unknown>) =>
   vars?.context ? `${key}:${vars.context}` : key) as never;
 
 describe("useWallpaperImagineController", () => {
+  it("keeps a generated item visible and retries only its catalog write", async () => {
+    const generated = imageItem("unsaved", {
+      source: "imagine",
+      localPath: "C:\\wallpapers\\unsaved.png",
+    });
+    const recovered = {
+      ...generated,
+      metadata: { id: "media-recovered", prompt: "A lake" } as never,
+    };
+    wallpaperImagine.mockResolvedValueOnce({
+      items: [generated],
+      errorCode: "catalog_write_failed",
+      catalogRecoveryId: "75bc0b99-1463-48a9-83aa-8c2b84a9011e",
+    });
+    wallpaperImagineRecoverCatalog.mockResolvedValueOnce({ items: [recovered] });
+    const onGenerated = vi.fn();
+    const { result, setters } = renderController(translate, onGenerated);
+
+    act(() => result.current.setPrompt("A lake"));
+    await act(async () => result.current.generate());
+
+    expect(setters.setItems).toHaveBeenCalledWith([generated]);
+    expect(result.current.catalogRecoveryCount).toBe(1);
+    expect(setters.setError).toHaveBeenLastCalledWith(null);
+    expect(wallpaperImagine).toHaveBeenCalledTimes(1);
+
+    await act(async () => result.current.retryCatalogSave());
+
+    expect(wallpaperImagineRecoverCatalog).toHaveBeenCalledWith(
+      "75bc0b99-1463-48a9-83aa-8c2b84a9011e",
+    );
+    expect(wallpaperImagine).toHaveBeenCalledTimes(1);
+    expect(result.current.catalogRecoveryCount).toBe(0);
+    expect(onGenerated).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores a pending catalog recovery after remount", async () => {
+    const pending = imageItem("pending", {
+      source: "imagine",
+      localPath: "C:\\wallpapers\\pending.png",
+    });
+    wallpaperImaginePendingRecoveries.mockResolvedValueOnce([
+      {
+        recoveryId: "f5841ccb-1dcf-4904-b865-533e0922a3fb",
+        item: pending,
+      },
+    ]);
+    const { result, setters } = renderController();
+
+    await waitFor(() => expect(result.current.catalogRecoveryCount).toBe(1));
+    expect(setters.setItems).toHaveBeenCalledWith(expect.any(Function));
+    const merge = setters.setItems.mock.calls.at(-1)?.[0] as (
+      items: WallpaperGalleryItem[],
+    ) => WallpaperGalleryItem[];
+    expect(merge([])).toEqual([pending]);
+  });
+
+  it("ignores a catalog retry that completes after leaving Imagine", async () => {
+    const generated = imageItem("late-recovery", {
+      source: "imagine",
+      localPath: "C:\\wallpapers\\late-recovery.png",
+    });
+    wallpaperImagine.mockResolvedValueOnce({
+      items: [generated],
+      errorCode: "catalog_write_failed",
+      catalogRecoveryId: "0e5c1cd2-4693-4ef8-ae8f-eed504034eaf",
+    });
+    const retry = deferred<WallpaperSearchResult>();
+    wallpaperImagineRecoverCatalog.mockReturnValueOnce(retry.promise);
+    const { result, setters } = renderController();
+    act(() => result.current.setPrompt("Late"));
+    await act(async () => result.current.generate());
+    setters.setItems.mockClear();
+
+    let job!: Promise<void>;
+    act(() => {
+      job = result.current.retryCatalogSave();
+    });
+    act(() => result.current.cancelAll());
+    await act(async () => {
+      retry.resolve({ items: [generated] });
+      await job;
+    });
+
+    expect(setters.setItems).not.toHaveBeenCalled();
+    expect(result.current.recoveringCatalog).toBe(false);
+  });
+
   it("reuses the saved prompt without generating or changing edit/video drafts", () => {
     const { result, setters } = renderController();
     act(() => result.current.beginEditFromItem(imageItem("source", { localPath: "/source.png" })));

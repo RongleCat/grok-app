@@ -39,6 +39,9 @@ describe("wallpaperSource", () => {
     expect(parseWallpaperSourceError("catalog_write_failed: disk full")).toBe(
       "catalog_write_failed",
     );
+    expect(parseWallpaperSourceError("catalog_recovery_invalid")).toBe(
+      "catalog_recovery_invalid",
+    );
     expect(parseWallpaperSourceError("timeout")).toBe("timeout");
     expect(parseWallpaperSourceError("imagine_failed")).toBe("imagine_failed");
     expect(parseWallpaperSourceError("imagine_zdr_unavailable")).toBe(
@@ -64,6 +67,12 @@ describe("wallpaperSource", () => {
     expect(
       errorCodeFromSearchResult({ items: [], errorCode: "catalog_read_failed" }),
     ).toBe("catalog_write_failed");
+    expect(
+      errorCodeFromSearchResult({
+        items: [],
+        errorCode: "catalog_recovery_invalid",
+      }),
+    ).toBe("catalog_recovery_invalid");
     expect(errorCodeFromSearchResult({ items: [], errorCode: null })).toBe("empty");
     expect(
       errorCodeFromSearchResult({

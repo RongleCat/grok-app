@@ -10,6 +10,18 @@ export type WallpaperVideoSourceStatus =
   | "ready"
   | "error";
 
+export type WallpaperImagineResult = {
+  items: WallpaperGalleryItem[];
+  errorCode?: string | null;
+  message?: string | null;
+  catalogRecoveryId?: string | null;
+};
+
+export type WallpaperImagineRecovery = {
+  recoveryId: string;
+  item: WallpaperGalleryItem;
+};
+
 export type WallpaperImagineControlsModel = {
   mode: WallpaperImagineMode;
   prompt: string;
@@ -23,6 +35,8 @@ export type WallpaperImagineControlsModel = {
   videoSourceStatus: WallpaperVideoSourceStatus;
   generating: boolean;
   cancelling: boolean;
+  catalogRecoveryCount: number;
+  recoveringCatalog: boolean;
   onModeChange: (value: WallpaperImagineMode) => void;
   onPromptChange: (value: string) => void;
   onAspectChange: (value: string) => void;
@@ -32,6 +46,7 @@ export type WallpaperImagineControlsModel = {
   onUploadSource: () => void;
   onGenerate: () => void;
   onCancelGeneration: () => void;
+  onRetryCatalogSave: () => void;
 };
 
 export const WALLPAPER_VIDEO_DURATIONS: readonly WallpaperVideoDuration[] = [

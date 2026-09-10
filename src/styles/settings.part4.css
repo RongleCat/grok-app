@@ -396,6 +396,28 @@
   flex: 1 1 96px;
 }
 
+.wallpaper-imagine-recovery {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border-subtle));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--warning) 9%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.wallpaper-imagine-recovery > span {
+  min-width: 0;
+}
+
+.wallpaper-imagine-recovery .btn {
+  flex: none;
+}
+
 .wallpaper-source-modal .modal-actions {
   flex-wrap: wrap;
   justify-content: flex-end;

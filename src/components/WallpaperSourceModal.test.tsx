@@ -33,6 +33,8 @@ vi.mock("@/lib/api", () => ({
   settingsSet: vi.fn(async () => ({})),
   wallpaperFetchMedia: vi.fn(),
   wallpaperImagine: vi.fn(),
+  wallpaperImaginePendingRecoveries: vi.fn(async () => []),
+  wallpaperImagineRecoverCatalog: vi.fn(),
   wallpaperLibraryList: vi.fn(),
   wallpaperLibraryDelete: vi.fn(),
   wallpaperLibraryLookup: vi.fn(async () => []),

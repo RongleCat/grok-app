@@ -110,6 +110,8 @@ vi.mock("@/lib/api", () => ({
   wallpaperRemoteCancelMediaRequests: vi.fn(async () => 0),
   wallpaperLibraryLookup: vi.fn(async () => []),
   wallpaperLibraryRemember: vi.fn(async () => undefined),
+  wallpaperImaginePendingRecoveries: vi.fn(async () => []),
+  wallpaperImagineRecoverCatalog: vi.fn(),
 }));
 
 vi.mock("@/components/GrokAlbumThumbnail", () => ({

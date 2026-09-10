@@ -431,21 +431,6 @@ fn lookup_at(root: &Path, requests: &[MediaLookup]) -> Result<Vec<MediaMatch>, S
     })
 }
 
-pub(crate) fn record_generation(
-    path: &Path,
-    prompt: Option<&str>,
-    parameters: GenerationParameters,
-    parent: Option<&Path>,
-) -> Result<MediaRecord, String> {
-    record_generation_at(
-        &wallpaper_source::wallpapers_root(),
-        path,
-        prompt,
-        parameters,
-        parent,
-    )
-}
-
 pub(crate) fn find_by_id(id: &str) -> Result<Option<WallpaperLibraryEntry>, String> {
     find_by_id_at(&wallpaper_source::wallpapers_root(), id)
 }
@@ -499,7 +484,7 @@ fn find_by_id_at(root: &Path, id: &str) -> Result<Option<WallpaperLibraryEntry>,
     })
 }
 
-fn record_generation_at(
+pub(crate) fn record_generation_at(
     root: &Path,
     path: &Path,
     prompt: Option<&str>,

@@ -24,6 +24,8 @@ import type {
   GrokAlbumThumbnail,
 } from "../grokAlbum";
 import type {
+  WallpaperImagineRecovery,
+  WallpaperImagineResult,
   WallpaperVideoDuration,
   WallpaperVideoResolution,
 } from "../wallpaperImagine";
@@ -74,8 +76,8 @@ export async function wallpaperImagine(
   prompt: string,
   aspectRatio?: string,
   requestId?: string,
-): Promise<WallpaperSearchResult> {
-  return invoke<WallpaperSearchResult>("wallpaper_imagine", {
+): Promise<WallpaperImagineResult> {
+  return invoke<WallpaperImagineResult>("wallpaper_imagine", {
     prompt,
     aspectRatio: aspectRatio ?? null,
     requestId: requestId ?? null,
@@ -102,7 +104,7 @@ export async function wallpaperImageEdit(
   prompt: string,
   aspectRatio: string,
   requestId: string,
-): Promise<WallpaperSearchResult> {
+): Promise<WallpaperImagineResult> {
   const preparation = new AbortController();
   imagePreparations.set(requestId, preparation);
   try {
@@ -111,7 +113,7 @@ export async function wallpaperImageEdit(
       preparation.signal,
     );
     preparation.signal.throwIfAborted();
-    return await invoke<WallpaperSearchResult>("wallpaper_image_edit", {
+    return await invoke<WallpaperImagineResult>("wallpaper_image_edit", {
       sourcePath,
       sourcePngBase64,
       prompt,
@@ -131,7 +133,7 @@ export async function wallpaperImageToVideo(
   duration: WallpaperVideoDuration,
   resolutionName: WallpaperVideoResolution,
   requestId: string,
-): Promise<WallpaperSearchResult> {
+): Promise<WallpaperImagineResult> {
   const preparation = new AbortController();
   imagePreparations.set(requestId, preparation);
   try {
@@ -140,7 +142,7 @@ export async function wallpaperImageToVideo(
       preparation.signal,
     );
     preparation.signal.throwIfAborted();
-    return await invoke<WallpaperSearchResult>("wallpaper_image_to_video", {
+    return await invoke<WallpaperImagineResult>("wallpaper_image_to_video", {
       sourcePath,
       sourcePngBase64,
       motionPrompt: motionPrompt.trim() || null,
@@ -160,6 +162,22 @@ export async function wallpaperImageToVideoCancel(
 ): Promise<boolean> {
   imagePreparations.get(requestId)?.abort();
   return invoke<boolean>("wallpaper_image_to_video_cancel", { requestId });
+}
+
+export async function wallpaperImagineRecoverCatalog(
+  recoveryId: string,
+): Promise<WallpaperImagineResult> {
+  return invoke<WallpaperImagineResult>("wallpaper_imagine_recover_catalog", {
+    recoveryId,
+  });
+}
+
+export async function wallpaperImaginePendingRecoveries(): Promise<
+  WallpaperImagineRecovery[]
+> {
+  return invoke<WallpaperImagineRecovery[]>(
+    "wallpaper_imagine_pending_recoveries",
+  );
 }
 
 export async function wallpaperLibraryList(

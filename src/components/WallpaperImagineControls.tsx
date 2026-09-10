@@ -67,6 +67,8 @@ export function WallpaperImagineControls({
     videoSourceStatus,
     generating,
     cancelling,
+    catalogRecoveryCount,
+    recoveringCatalog,
     onModeChange,
     onPromptChange,
     onAspectChange,
@@ -76,6 +78,7 @@ export function WallpaperImagineControls({
     onUploadSource,
     onGenerate,
     onCancelGeneration,
+    onRetryCatalogSave,
   } = model;
   const preparingSource = videoSourceStatus === "preparing";
   const hardLocked = locked && !preparingSource && !generating;
@@ -285,6 +288,28 @@ export function WallpaperImagineControls({
           {t("common.cancel")}
         </button>
       </div>
+      {catalogRecoveryCount > 0 ? (
+        <div className="wallpaper-imagine-recovery" role="status">
+          <span>
+            {t("settings.wallpaperSource.catalogRecovery.pending", {
+              count: catalogRecoveryCount,
+            })}
+          </span>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            disabled={locked || recoveringCatalog}
+            aria-busy={recoveringCatalog}
+            onClick={onRetryCatalogSave}
+          >
+            {t(
+              recoveringCatalog
+                ? "settings.wallpaperSource.catalogRecovery.saving"
+                : "settings.wallpaperSource.catalogRecovery.retry",
+            )}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

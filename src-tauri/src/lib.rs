@@ -1736,6 +1736,10 @@ pub fn run() {
 
             commands::wallpaper_image_edit,
 
+            commands::wallpaper_imagine_recover_catalog,
+
+            commands::wallpaper_imagine_pending_recoveries,
+
             commands::wallpaper_import_image,
 
             commands::wallpaper_library_list,

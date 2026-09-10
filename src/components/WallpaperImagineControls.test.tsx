@@ -59,6 +59,8 @@ function model(
     videoSourceStatus: "idle",
     generating: false,
     cancelling: false,
+    catalogRecoveryCount: 0,
+    recoveringCatalog: false,
     onModeChange: vi.fn(),
     onPromptChange: vi.fn(),
     onAspectChange: vi.fn(),
@@ -68,6 +70,7 @@ function model(
     onUploadSource: vi.fn(),
     onGenerate: vi.fn(),
     onCancelGeneration: vi.fn(),
+    onRetryCatalogSave: vi.fn(),
     ...overrides,
   };
 }
@@ -75,11 +78,34 @@ function model(
 const t = ((key: string, vars?: Record<string, unknown>) =>
   vars?.seconds
     ? `${key}:${vars.seconds}`
+    : vars?.count
+      ? `${key}:${vars.count}`
     : key === "policy.auto"
       ? "Auto (localized)"
       : key) as never;
 
 describe("WallpaperImagineControls", () => {
+  it("keeps an unsaved generated result visible with an explicit retry", () => {
+    const onRetryCatalogSave = vi.fn();
+    const view = render(
+      <WallpaperImagineControls
+        t={t}
+        locked={false}
+        model={model({ catalogRecoveryCount: 1, onRetryCatalogSave })}
+      />,
+    );
+
+    expect(
+      view.getByText("settings.wallpaperSource.catalogRecovery.pending:1"),
+    ).toBeTruthy();
+    fireEvent.click(
+      view.getByRole("button", {
+        name: "settings.wallpaperSource.catalogRecovery.retry",
+      }),
+    );
+    expect(onRetryCatalogSave).toHaveBeenCalledTimes(1);
+  });
+
   it("requires both an image and instructions for editing and offers upload", () => {
     const onUploadSource = vi.fn();
     const edit = model({ mode: "edit", videoSourcePath: "/source.png", videoSourceStatus: "ready", onUploadSource });

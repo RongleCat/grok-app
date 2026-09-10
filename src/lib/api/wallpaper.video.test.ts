@@ -5,11 +5,32 @@ const invoke = vi.hoisted(() => vi.fn());
 const prepare = vi.hoisted(() => vi.fn());
 vi.mock("./host", () => ({ invoke, listen: vi.fn() }));
 vi.mock("../wallpaperVideoImage", () => ({ prepareWallpaperVideoImage: prepare }));
-import { wallpaperImageEdit, wallpaperImportImage, wallpaperImageToVideo, wallpaperImageToVideoCancel } from "./wallpaper";
+import {
+  wallpaperImageEdit,
+  wallpaperImaginePendingRecoveries,
+  wallpaperImagineRecoverCatalog,
+  wallpaperImportImage,
+  wallpaperImageToVideo,
+  wallpaperImageToVideoCancel,
+} from "./wallpaper";
 
 afterEach(() => vi.resetAllMocks());
 
 describe("wallpaper video API", () => {
+  it("passes only the opaque recovery id back to the Host", async () => {
+    invoke.mockResolvedValue({ items: [] });
+    await wallpaperImagineRecoverCatalog("recovery-id");
+    expect(invoke).toHaveBeenCalledWith(
+      "wallpaper_imagine_recover_catalog",
+      { recoveryId: "recovery-id" },
+    );
+
+    await wallpaperImaginePendingRecoveries();
+    expect(invoke).toHaveBeenLastCalledWith(
+      "wallpaper_imagine_pending_recoveries",
+    );
+  });
+
   it("passes the actual source and edit prompt to the editing command", async () => {
     prepare.mockResolvedValue("PNG");
     invoke.mockResolvedValue({ items: [] });

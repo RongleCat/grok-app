@@ -11,17 +11,37 @@ use sha2::{Digest, Sha256};
 
 use crate::wallpaper_source::{
     self, LocalWallpaperMediaKind, WallpaperGalleryItem, WallpaperProvenance,
-    WallpaperSearchCancellation, WallpaperSearchResult,
+    WallpaperSearchCancellation,
 };
 
 const VIDEO_TIMEOUT: Duration = Duration::from_secs(420);
 const MAX_MOTION_PROMPT_CHARS: usize = 4_000;
 pub(crate) mod edit;
 pub(crate) mod generation;
+mod recovery;
 mod session;
 mod source;
 const PRE_CANCEL_TTL: Duration = Duration::from_secs(30);
 const PRE_CANCEL_CAPACITY: usize = 64;
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WallpaperImagineResult {
+    pub items: Vec<WallpaperGalleryItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub catalog_recovery_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WallpaperImagineRecovery {
+    pub recovery_id: String,
+    pub item: WallpaperGalleryItem,
+}
 
 #[derive(Clone)]
 struct ActiveRequest {
@@ -126,7 +146,7 @@ pub(crate) fn generate(
     motion_prompt: Option<&str>,
     duration: Option<u32>,
     resolution_name: Option<&str>,
-) -> Result<WallpaperSearchResult, String> {
+) -> Result<WallpaperImagineResult, String> {
     let request_id = normalized_request_id(request_id)?;
     let (token, cancellation) = begin_request(&request_id);
     let result = generate_inner(
@@ -148,7 +168,7 @@ fn generate_inner(
     duration: Option<u32>,
     resolution_name: Option<&str>,
     cancellation: &WallpaperSearchCancellation,
-) -> WallpaperSearchResult {
+) -> WallpaperImagineResult {
     if cancellation.is_cancelled() {
         return failure("cancelled");
     }
@@ -235,7 +255,7 @@ fn generate_inner(
             return failure(code);
         }
     };
-    let mut item = match generated_video_item(&copied, &output_dir, motion_prompt.as_deref()) {
+    let item = match generated_video_item(&copied, &output_dir, motion_prompt.as_deref()) {
         Ok(item) => item,
         Err(code) => {
             cleanup_failed_output(&output_dir);
@@ -244,36 +264,88 @@ fn generate_inner(
     };
     // The input snapshot is transient; the library contains only the output.
     let _ = fs::remove_file(&source);
-    item.metadata = Some(
-        match commit_catalog_write(cancellation, || {
-            crate::wallpaper_catalog::record_generation(
-                &copied,
-                motion_prompt.as_deref(),
-                crate::wallpaper_catalog::GenerationParameters {
-                    operation: "image_to_video".into(),
-                    duration: Some(duration),
-                    resolution: Some(resolution_name.into()),
-                    ..Default::default()
-                },
-                Some(&original_source),
-            )
-        }) {
-            Ok(record) => record,
-            Err("catalog_write_failed") => return failure("catalog_write_failed"),
-            Err(code) => {
-                cleanup_failed_output(&output_dir);
-                return failure(code);
-            }
+    match finalize_generated_item(
+        item,
+        &copied,
+        motion_prompt.as_deref(),
+        crate::wallpaper_catalog::GenerationParameters {
+            operation: "image_to_video".into(),
+            duration: Some(duration),
+            resolution: Some(resolution_name.into()),
+            ..Default::default()
         },
-    );
-    let items = vec![item];
-
-    WallpaperSearchResult {
-        items,
-        error_code: None,
-        message: None,
-        meta: None,
+        Some(&original_source),
+        cancellation,
+    ) {
+        Ok(result) => result,
+        Err(code) => {
+            cleanup_failed_output(&output_dir);
+            failure(code)
+        }
     }
+}
+
+fn finalize_generated_item(
+    item: WallpaperGalleryItem,
+    path: &Path,
+    prompt: Option<&str>,
+    parameters: crate::wallpaper_catalog::GenerationParameters,
+    parent: Option<&Path>,
+    cancellation: &WallpaperSearchCancellation,
+) -> Result<WallpaperImagineResult, &'static str> {
+    finalize_generated_item_at(
+        &wallpaper_source::wallpapers_root(),
+        item,
+        path,
+        prompt,
+        parameters,
+        parent,
+        cancellation,
+    )
+}
+
+fn finalize_generated_item_at(
+    root: &Path,
+    mut item: WallpaperGalleryItem,
+    path: &Path,
+    prompt: Option<&str>,
+    parameters: crate::wallpaper_catalog::GenerationParameters,
+    parent: Option<&Path>,
+    cancellation: &WallpaperSearchCancellation,
+) -> Result<WallpaperImagineResult, &'static str> {
+    let recovery_parameters = parameters.clone();
+    match commit_catalog_write(cancellation, || {
+        crate::wallpaper_catalog::record_generation_at(root, path, prompt, parameters, parent)
+    }) {
+        Ok(record) => {
+            item.metadata = Some(record);
+            Ok(WallpaperImagineResult {
+                items: vec![item],
+                error_code: None,
+                message: None,
+                catalog_recovery_id: None,
+            })
+        }
+        Err("catalog_write_failed") => {
+            let catalog_recovery_id =
+                recovery::persist_at(root, path, prompt, recovery_parameters, parent).ok();
+            Ok(WallpaperImagineResult {
+                items: vec![item],
+                error_code: Some("catalog_write_failed".into()),
+                message: None,
+                catalog_recovery_id,
+            })
+        }
+        Err(code) => Err(code),
+    }
+}
+
+pub(crate) fn recover_catalog(recovery_id: &str) -> WallpaperImagineResult {
+    recovery::recover(recovery_id)
+}
+
+pub(crate) fn pending_catalog_recoveries() -> Vec<WallpaperImagineRecovery> {
+    recovery::pending()
 }
 
 fn normalized_request_id(request_id: &str) -> Result<String, String> {
@@ -435,12 +507,12 @@ fn generated_media_item(
     })
 }
 
-fn failure(code: &str) -> WallpaperSearchResult {
-    WallpaperSearchResult {
+fn failure(code: &str) -> WallpaperImagineResult {
+    WallpaperImagineResult {
         items: Vec::new(),
         error_code: Some(code.to_string()),
         message: None,
-        meta: None,
+        catalog_recovery_id: None,
     }
 }
 

@@ -7,7 +7,7 @@ pub(crate) fn generate(
     request_id: &str,
     prompt: &str,
     aspect: Option<&str>,
-) -> Result<WallpaperSearchResult, String> {
+) -> Result<WallpaperImagineResult, String> {
     let request_id = normalized_request_id(request_id)?;
     let (token, cancellation) = begin_request(&request_id);
     let result = generate_inner(prompt, aspect, &cancellation);
@@ -31,7 +31,7 @@ fn generate_inner(
     prompt: &str,
     aspect: Option<&str>,
     cancellation: &WallpaperSearchCancellation,
-) -> Result<WallpaperSearchResult, &'static str> {
+) -> Result<WallpaperImagineResult, &'static str> {
     if cancellation.is_cancelled() {
         return Err("cancelled");
     }
@@ -85,30 +85,21 @@ fn generate_inner(
             |actual| validate_input(actual, &input),
             cancellation,
         )?;
-        let mut item = generated_media_item(&target, &output, Some(prompt.trim()), true)?;
-        item.metadata = Some(commit_catalog_write(cancellation, || {
-            crate::wallpaper_catalog::record_generation(
-                &target,
-                Some(prompt.trim()),
-                crate::wallpaper_catalog::GenerationParameters {
-                    operation: "image_gen".into(),
-                    aspect_ratio: input["aspect_ratio"].as_str().map(str::to_string),
-                    ..Default::default()
-                },
-                None,
-            )
-        })?);
-        Ok(WallpaperSearchResult {
-            items: vec![item],
-            error_code: None,
-            message: None,
-            meta: None,
-        })
+        let item = generated_media_item(&target, &output, Some(prompt.trim()), true)?;
+        finalize_generated_item(
+            item,
+            &target,
+            Some(prompt.trim()),
+            crate::wallpaper_catalog::GenerationParameters {
+                operation: "image_gen".into(),
+                aspect_ratio: input["aspect_ratio"].as_str().map(str::to_string),
+                ..Default::default()
+            },
+            None,
+            cancellation,
+        )
     })();
-    if result
-        .as_ref()
-        .is_err_and(|code| *code != "catalog_write_failed")
-    {
+    if result.as_ref().is_err() {
         cleanup_failed_output(&output);
     }
     result

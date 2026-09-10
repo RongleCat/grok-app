@@ -45,6 +45,8 @@ vi.mock("@/lib/api", () => ({
   listenWallpaperXSearchBatch: vi.fn(async () => () => {}),
   wallpaperFetchMedia: vi.fn(),
   wallpaperImagine: vi.fn(),
+  wallpaperImaginePendingRecoveries: vi.fn(async () => []),
+  wallpaperImagineRecoverCatalog: vi.fn(),
   openExternalUrl: vi.fn(),
 }));
 

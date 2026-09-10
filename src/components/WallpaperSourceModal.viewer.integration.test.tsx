@@ -157,6 +157,8 @@ vi.mock("@/lib/api", () => ({
   wallpaperGrokAlbumCancelRequests: vi.fn(async () => 0),
   wallpaperGrokAlbumCancelAllRequests: vi.fn(async () => 0),
   wallpaperImagine: vi.fn(),
+  wallpaperImaginePendingRecoveries: vi.fn(async () => []),
+  wallpaperImagineRecoverCatalog: vi.fn(),
   wallpaperLibraryList: vi.fn(),
   wallpaperLibraryPage: vi.fn(async () => ({
     items: [],

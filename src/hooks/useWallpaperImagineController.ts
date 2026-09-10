@@ -18,6 +18,7 @@ import {
 } from "@/lib/wallpaperSource";
 import {
   buildWallpaperVideoPrompt,
+  type WallpaperImagineRecovery,
   type WallpaperImagineMode,
   type WallpaperImagineControlsModel,
   type WallpaperVideoDuration,
@@ -92,8 +93,14 @@ export function useWallpaperImagineController({
     useState<WallpaperVideoSourceStatus>("idle");
   const [generating, setGenerating] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [catalogRecoveries, setCatalogRecoveries] = useState<
+    WallpaperImagineRecovery[]
+  >([]);
+  const [recoveringCatalog, setRecoveringCatalog] = useState(false);
   const preparationGenerationRef = useRef(0);
   const operationGenerationRef = useRef(0);
+  const recoveryListGenerationRef = useRef(0);
+  const catalogRetryInFlightRef = useRef(false);
   const activeVideoRequestRef = useRef<string | null>(null);
   const cancelledVideoRequestsRef = useRef(new Set<string>());
   const videoSourceRef = useRef<WallpaperGalleryItem | null>(videoSource);
@@ -146,6 +153,8 @@ export function useWallpaperImagineController({
   const cancelInFlight = useCallback(() => {
     uploadGenerationRef.current += 1;
     operationGenerationRef.current += 1;
+    recoveryListGenerationRef.current += 1;
+    catalogRetryInFlightRef.current = false;
     cancelSourcePreparation(videoSourceRef.current);
     const requestId = activeVideoRequestRef.current;
     activeVideoRequestRef.current = null;
@@ -159,6 +168,7 @@ export function useWallpaperImagineController({
     cancelInFlight();
     setGenerating(false);
     setCancelling(false);
+    setRecoveringCatalog(false);
     setUploading(false);
     setVideoSourceStatus(videoSourcePath ? "ready" : "idle");
     setStatusHint(null);
@@ -187,7 +197,39 @@ export function useWallpaperImagineController({
     setVideoSourcePath(null);
     setVideoSourcePreview(null);
     setVideoSourceStatus("idle");
+    setCatalogRecoveries([]);
   }, [cancelAll, open]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const generation = ++recoveryListGenerationRef.current;
+    let active = true;
+    void api
+      .wallpaperImaginePendingRecoveries()
+      .then((recoveries) => {
+        if (
+          !active ||
+          generation !== recoveryListGenerationRef.current ||
+          recoveries.length === 0
+        ) {
+          return;
+        }
+        setCatalogRecoveries(recoveries);
+        setItems((previous) =>
+          dedupeGalleryItems([
+            ...recoveries.map((recovery) => recovery.item),
+            ...previous,
+          ]),
+        );
+        setHasSearched(true);
+      })
+      .catch(() => {
+        // Recovery discovery is best-effort and must not block new generation.
+      });
+    return () => {
+      active = false;
+    };
+  }, [enabled, setHasSearched, setItems]);
 
   useEffect(() => {
     if (
@@ -353,7 +395,7 @@ export function useWallpaperImagineController({
   }, [beginVideoFromItem, generating, mode, setError, setErrorCode, t, uploading]);
 
   const generate = useCallback(async () => {
-    if (generating || cancelling || uploading) return;
+    if (generating || cancelling || uploading || recoveringCatalog) return;
     const trimmedPrompt = prompt.trim();
     if (mode !== "video" && !trimmedPrompt) {
       setErrorCode("empty");
@@ -375,6 +417,7 @@ export function useWallpaperImagineController({
     }
 
     const generation = ++operationGenerationRef.current;
+    recoveryListGenerationRef.current += 1;
     const requestId = createWallpaperRequestId();
     if (requestId) activeVideoRequestRef.current = requestId;
     setGenerating(true);
@@ -417,18 +460,41 @@ export function useWallpaperImagineController({
       }
 
       const list = dedupeGalleryItems(result.items || []);
-      const code = errorCodeFromSearchResult({ ...result, items: list });
+      const code = result.errorCode
+        ? parseWallpaperSourceError(result.errorCode)
+        : errorCodeFromSearchResult({ ...result, items: list });
       setHasSearched(true);
+      if (
+        list.length > 0 &&
+        (!code || code === "catalog_write_failed")
+      ) {
+        setItems(list);
+        if (list[0]) setSelectedId(list[0].id);
+      }
       if (code) {
+        const catalogRecoveryId = result.catalogRecoveryId;
+        if (
+          code === "catalog_write_failed" &&
+          list.length > 0 &&
+          catalogRecoveryId
+        ) {
+          setCatalogRecoveries((previous) => [
+            ...previous.filter(
+              (recovery) => recovery.recoveryId !== catalogRecoveryId,
+            ),
+            { recoveryId: catalogRecoveryId, item: list[0] },
+          ]);
+          setError(null);
+          setErrorCode(null);
+          return;
+        }
         setErrorCode(code);
         setError(wallpaperSourceErrorMessage(t, code));
         return;
       }
-      setItems(list);
       onGenerated?.();
       setError(null);
       setErrorCode(null);
-      if (list[0]) setSelectedId(list[0].id);
     } catch (error) {
       if (generation !== operationGenerationRef.current) return;
       if (requestId && cancelledVideoRequestsRef.current.has(requestId)) {
@@ -474,6 +540,98 @@ export function useWallpaperImagineController({
     videoSourcePath,
     videoSourceStatus,
     uploading,
+    recoveringCatalog,
+  ]);
+
+  const retryCatalogSave = useCallback(async () => {
+    if (
+      catalogRetryInFlightRef.current ||
+      catalogRecoveries.length === 0 ||
+      generating ||
+      cancelling ||
+      uploading
+    ) {
+      return;
+    }
+    catalogRetryInFlightRef.current = true;
+    recoveryListGenerationRef.current += 1;
+    const generation = ++operationGenerationRef.current;
+    const requested = [...catalogRecoveries];
+    setRecoveringCatalog(true);
+    setError(null);
+    setErrorCode(null);
+    setStatusHint(t("settings.wallpaperSource.catalogRecovery.saving"));
+
+    const recovered: WallpaperGalleryItem[] = [];
+    const remaining: WallpaperImagineRecovery[] = [];
+    let lastCode: WallpaperSourceErrorCode | null = null;
+    for (const recovery of requested) {
+      try {
+        const result = await api.wallpaperImagineRecoverCatalog(
+          recovery.recoveryId,
+        );
+        if (generation !== operationGenerationRef.current) return;
+        const items = dedupeGalleryItems(result.items || []);
+        const code = result.errorCode
+          ? parseWallpaperSourceError(result.errorCode)
+          : errorCodeFromSearchResult({ ...result, items });
+        if (!code && items[0]) {
+          recovered.push(items[0]);
+        } else {
+          lastCode = code ?? "catalog_write_failed";
+          remaining.push(recovery);
+        }
+      } catch (error) {
+        if (generation !== operationGenerationRef.current) return;
+        lastCode = parseWallpaperSourceError(error);
+        remaining.push(recovery);
+      }
+    }
+    if (generation !== operationGenerationRef.current) return;
+
+    if (recovered.length > 0) {
+      setItems((previous) => {
+        const next = previous.map((item) => {
+          const replacement = recovered.find(
+            (candidate) =>
+              candidate.id === item.id ||
+              (!!candidate.localPath && candidate.localPath === item.localPath),
+          );
+          return replacement ?? item;
+        });
+        for (const item of recovered) {
+          if (!next.some((candidate) => candidate.id === item.id)) {
+            next.push(item);
+          }
+        }
+        return dedupeGalleryItems(next);
+      });
+      onGenerated?.();
+    }
+    setCatalogRecoveries(remaining);
+    if (remaining.length === 0) {
+      setError(null);
+      setErrorCode(null);
+      setStatusHint(t("settings.wallpaperSource.catalogRecovery.saved"));
+    } else {
+      const code = lastCode ?? "catalog_write_failed";
+      setErrorCode(code);
+      setError(wallpaperSourceErrorMessage(t, code));
+      setStatusHint(null);
+    }
+    catalogRetryInFlightRef.current = false;
+    setRecoveringCatalog(false);
+  }, [
+    cancelling,
+    catalogRecoveries,
+    generating,
+    onGenerated,
+    setError,
+    setErrorCode,
+    setItems,
+    setStatusHint,
+    t,
+    uploading,
   ]);
 
   const controls = useMemo<WallpaperImagineControlsModel>(
@@ -490,6 +648,8 @@ export function useWallpaperImagineController({
       videoSourceStatus,
       generating,
       cancelling,
+      catalogRecoveryCount: catalogRecoveries.length,
+      recoveringCatalog,
       onModeChange: setMode,
       onPromptChange: setPrompt,
       onAspectChange: setAspect,
@@ -499,17 +659,21 @@ export function useWallpaperImagineController({
       onUploadSource: uploadSource,
       onGenerate: generate,
       onCancelGeneration: cancelGeneration,
+      onRetryCatalogSave: retryCatalogSave,
     }),
     [
       aspect,
       cancelGeneration,
       cancelling,
+      catalogRecoveries.length,
       clearVideoSource,
       generate,
       generating,
       mode,
       prompt,
       setMode,
+      recoveringCatalog,
+      retryCatalogSave,
       videoDuration,
       videoResolution,
       videoSource,
@@ -522,14 +686,20 @@ export function useWallpaperImagineController({
 
   const reuseImagePrompt = useCallback((item: WallpaperGalleryItem) => {
     const savedPrompt = item.metadata?.prompt || item.prompt;
-    if (!savedPrompt?.trim() || generating || uploading || cancelling) return;
+    if (
+      !savedPrompt?.trim() ||
+      generating ||
+      uploading ||
+      cancelling ||
+      recoveringCatalog
+    ) return;
     setMode("image");
     // Set the image draft directly: setPrompt still closes over the old mode
     // during this event, which could otherwise overwrite the edit/video draft.
     setImagePrompt(savedPrompt);
     const ratio = item.metadata?.generation?.aspectRatio;
     setAspect(WALLPAPER_ASPECT_OPTIONS.some((option) => option.value === ratio) ? ratio! : "auto");
-  }, [generating, uploading, cancelling, setMode]);
+  }, [generating, uploading, cancelling, recoveringCatalog, setMode]);
 
   return {
     mode,
@@ -543,9 +713,12 @@ export function useWallpaperImagineController({
     videoSourceStatus,
     generating,
     cancelling,
+    catalogRecoveryCount: catalogRecoveries.length,
+    recoveringCatalog,
     busy:
       generating ||
       uploading ||
+      recoveringCatalog ||
       (enabled && mode !== "image" && videoSourceStatus === "preparing"),
     setMode,
     setPrompt,
@@ -558,6 +731,7 @@ export function useWallpaperImagineController({
     clearVideoSource,
     generate,
     cancelGeneration,
+    retryCatalogSave,
     cancelAll,
     controls,
   };

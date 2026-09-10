@@ -416,7 +416,17 @@ unmounting terminates the process tree, ignores late renderer results and remove
 failed task output. Successful media is registered in the catalog as generated
 content with the audited prompt and parameters; edit and video records also keep
 the source media as their parent. A catalog write failure preserves the generated
-file and returns `catalog_write_failed` without silently rerunning generation.
+file and returns that verified gallery item with `catalog_write_failed`, never an
+empty result and never a second generation. The Host also writes a bounded recovery
+descriptor under the wallpaper root. Only its opaque UUID crosses IPC; output and
+parent relative paths, byte sizes, SHA-256 hashes, prompt and generation parameters
+remain Host-owned. Pending descriptors are rediscovered after restart.
+
+The explicit retry action performs only the catalog transaction. It revalidates the
+UUID, root containment, media kind, byte size and hashes of both output and parent
+before restoring the original lineage. Missing or replaced files fail closed,
+concurrent/repeated retries are idempotent, and late renderer completions cannot
+update a closed picker or a different source.
 Requested video duration remains a generation parameter; MP4/WebM dimensions and
 duration are measured from the saved file and stored separately. Existing video
 records are upgraded on the next library scan without changing their media ID.

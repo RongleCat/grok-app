@@ -124,6 +124,7 @@ export function sameWallpaperLocalPath(
 
 export type WallpaperSourceErrorCode =
   | "catalog_write_failed"
+  | "catalog_recovery_invalid"
   | "pexels_key_required"
   | "pexels_key_invalid"
   | "service_unavailable"
@@ -174,6 +175,7 @@ export function parseWallpaperSourceError(err: unknown): WallpaperSourceErrorCod
   const s = raw.toLowerCase();
   const imagineError = imagineErrorCode(s);
   if (imagineError) return imagineError;
+  if (s.includes("catalog_recovery_invalid")) return "catalog_recovery_invalid";
   if (s.includes("catalog_")) return "catalog_write_failed";
   if (s.includes("rate_limited")) return "rate_limited";
   if (s.includes("auth_required")) return "auth_required";
@@ -218,6 +220,7 @@ export function errorCodeFromSearchResult(
   if (!code) return "empty";
   const imagineError = imagineErrorCode(code);
   if (imagineError) return imagineError;
+  if (code === "catalog_recovery_invalid") return "catalog_recovery_invalid";
   if (code.startsWith("catalog_")) return "catalog_write_failed";
   if (code === "auth_required") return "auth_required";
   if (code === "cli_missing") return "cli_missing";
