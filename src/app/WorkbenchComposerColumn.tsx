@@ -27,6 +27,7 @@ import type { ComposerModelPick } from "@/lib/composerModelGroups";
 import type { CliWorktreeEntry } from "@/lib/cliWorktrees";
 import type { ChatRef, AttachableSession } from "@/lib/chatAttach";
 import type { GitWorktreeEntry } from "@/lib/gitWorktree";
+import type { GitBranchEntry } from "@/lib/gitBranches";
 import type { ResourceOpenTarget } from "@/components/resource-viewer/types";
 import { useSendQueue } from "@/hooks/useSendQueue";
 import type { PromptHistoryEntry, PromptHistoryScope } from "@/lib/composerPromptHistory";
@@ -124,6 +125,11 @@ export type WorkbenchComposerColumnProps = {
   gitWorktreesAvailable: boolean | null;
   gitWorktreesLoading: boolean;
   gitWorktreesReason: string | null;
+  gitBranches: GitBranchEntry[];
+  gitBranchesAvailable: boolean | null;
+  gitBranchesLoading: boolean;
+  gitBranchesReason: string | null;
+  gitBranchesBusy: boolean;
   goalMode: boolean;
   guideQueuedMessage: (item: QueuedSend) => Promise<void>;
   guidingQueueItemId: string | null;
@@ -180,6 +186,7 @@ export type WorkbenchComposerColumnProps = {
   quotes: ComposerQuote[];
   refreshCliWorktrees: () => Promise<void>;
   refreshGitWorktrees: () => Promise<void>;
+  refreshGitBranches: () => Promise<void>;
   removeAttachedChat: (id: string) => void;
   requestClearComposerDraft: () => void;
   requestClearSendQueue: () => void;
@@ -230,6 +237,7 @@ export type WorkbenchComposerColumnProps = {
   slashKindFilter: SlashKindFilter;
   stop: () => Promise<void>;
   switchToWorktree: (wt: GitWorktreeEntry) => Promise<void>;
+  switchToBranch: (branch: GitBranchEntry) => Promise<void>;
   toggleVoice: () => void;
   voice: VoiceFsmState;
   voiceDictationAutoSend: boolean;
