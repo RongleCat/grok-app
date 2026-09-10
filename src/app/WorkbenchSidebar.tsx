@@ -190,13 +190,16 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
     loadProviderBalance,
     applyThemeChoice,
     onSettings,
+    onAccountSettings,
     onTutorial,
     onLogin,
     onLogout,
+    savedAccounts,
+    activeAccountId,
+    accountQuotas,
+    onSwitchAccount,
     onUserMenuOpened,
   } = props;
-  // Account deep-link stays on Settings gear / Account section (no footer pin).
-  void props.onAccountSettings;
 
   const providerSupportsBalance =
     !!activeCustomProvider &&
@@ -424,6 +427,7 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
               closeImmediately={closeImmediately}
               theme={theme}
               themePreference={themePreference}
+              locale={locale}
               account={account}
               activeProvider={activeCustomProvider}
               accountBusy={accountBusy}
@@ -453,6 +457,11 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
                     }
                   : null
               }
+              savedAccounts={savedAccounts}
+              activeAccountId={activeAccountId}
+              accountQuotas={accountQuotas}
+              onSwitchAccount={onSwitchAccount}
+              onAccountSettings={onAccountSettings}
               labels={{
                 whatsNew: tr("whatsNew.menu"),
                 tutorial: tr("tutorial.menu"),
@@ -463,6 +472,10 @@ export function WorkbenchSidebar(props: WorkbenchSidebarProps) {
                 themeEditor: tr("user.themeEditor"),
                 login: tr("account.login"),
                 logout: tr("account.logout"),
+                remaining: tr("account.quotaRemaining"),
+                profileActive: tr("account.profileActive"),
+                switchTo: tr("account.switchTo"),
+                resetsAt: tr("account.resetsAt"),
               }}
               onWhatsNew={() => requestWhatsNewOpen()}
               onTutorial={onTutorial}

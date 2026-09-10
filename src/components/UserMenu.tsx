@@ -1,6 +1,7 @@
 /**
  * Personal center — compact upward menu.
- * Optional quota / provider-balance header sits above what's new · theme · auth.
+ * Optional quota / provider-balance header, then saved official accounts,
+ * then what's new · theme · auth.
  */
 
 import {
@@ -21,13 +22,24 @@ import {
   IconThemeMoon,
   IconThemeSun,
 } from "@/components/icons";
+import { GrokLogo } from "@/components/GrokLogo";
 import type { Theme, ThemePreference } from "@/lib/theme";
 import {
   FLOATING_MENU_Z_INDEX,
   useFloatingMenu,
 } from "@/lib/floatingMenu";
 import { OPEN_PRESENCE_MS, useOpenPresence } from "@/lib/openPresence";
-import type { AccountStatus, CustomProvider } from "@/lib/api";
+import type { AccountStatus, CustomProvider, SavedAccount } from "@/lib/api";
+import { formatQuotaResetTime } from "@/lib/accountUi";
+import {
+  formatQuotaRemainLabel,
+  resolveQuotaPercents,
+} from "@/lib/accountQuotaHonesty";
+import {
+  mergeAccountQuota,
+  switcherDisplayName,
+  type SwitcherQuota,
+} from "@/lib/accountSwitcherQuota";
 
 export type UserMenuOfficialQuota = {
   plan: string;
@@ -56,6 +68,8 @@ export interface UserMenuProps {
   theme: Theme;
   /** Preference driving the theme submenu selection. */
   themePreference: ThemePreference;
+  /** App locale so per-account reset clocks follow Settings. */
+  locale?: string;
   labels: {
     /** Optional what's-new entry (account menu, above the tour). */
     whatsNew?: string;
@@ -69,6 +83,14 @@ export interface UserMenuProps {
     themeEditor?: string;
     login: string;
     logout: string;
+    /** Suffix after remain %, e.g. "remaining". */
+    remaining?: string;
+    /** Active-account badge, e.g. "Active". */
+    profileActive?: string;
+    /** Aria prefix when switching, e.g. "Switch to this account". */
+    switchTo?: string;
+    /** Prefix before reset time, e.g. "Resets". */
+    resetsAt?: string;
   };
   account: AccountStatus | null;
   activeProvider: CustomProvider | null;
@@ -77,6 +99,13 @@ export interface UserMenuProps {
   officialQuota?: UserMenuOfficialQuota | null;
   /** DeepSeek (etc.) balance card at the top of the sheet. */
   providerBalance?: UserMenuProviderBalance | null;
+  /** Saved official account snapshots for in-menu switch. */
+  savedAccounts?: SavedAccount[];
+  activeAccountId?: string | null;
+  accountQuotas?: Record<string, SwitcherQuota>;
+  onSwitchAccount?: (id: string) => void;
+  /** Active row opens Settings → Account. */
+  onAccountSettings?: () => void;
   /** Re-open the current version's update notes. */
   onWhatsNew?: () => void;
   /** Open optional in-app product tour */
@@ -132,12 +161,18 @@ export function UserMenu({
   onClose,
   theme,
   themePreference,
+  locale = "en",
   labels,
   account,
   activeProvider,
   accountBusy,
   officialQuota = null,
   providerBalance = null,
+  savedAccounts = [],
+  activeAccountId = null,
+  accountQuotas = {},
+  onSwitchAccount,
+  onAccountSettings,
   onWhatsNew,
   onTutorial,
   onTheme,
@@ -231,7 +266,7 @@ export function UserMenu({
     width: 0,
     fitContent: false,
     matchTriggerWidth: true,
-    estHeight: 220,
+    estHeight: savedAccounts.length > 1 ? 360 : 260,
     gap: 6,
     // CSS owns transform (rise from the footer). Do not apply placeAbove -100%.
     anchorTransform: false,
@@ -244,6 +279,13 @@ export function UserMenu({
 
   const isCustomProvider = activeProvider != null;
   const signedIn = !isCustomProvider && !!account?.profile?.signedIn;
+  const profile = account?.profile ?? null;
+  const livePercents = resolveQuotaPercents(account?.billing ?? null);
+  const showSavedOfficialAccounts = signedIn && savedAccounts.length > 0;
+  const remainingWord = labels.remaining ?? "remaining";
+  const profileActiveLabel = labels.profileActive ?? "Active";
+  const switchToLabel = labels.switchTo ?? "Switch to this account";
+  const resetsAtLabel = labels.resetsAt ?? "Resets";
 
   const themeLabel = (pref: ThemePreference) => {
     if (pref === "system") return labels.themeSystem;
@@ -414,6 +456,133 @@ export function UserMenu({
             ) : null}
 
             {officialQuota || providerBalance ? (
+              <div className="user-menu__sep" role="separator" />
+            ) : null}
+
+            {showSavedOfficialAccounts ? (
+              <div className="user-menu__accounts" data-testid="user-menu-accounts">
+                {savedAccounts.map((saved) => {
+                  const active = saved.id === activeAccountId;
+                  const rowName = switcherDisplayName(saved);
+                  const q = mergeAccountQuota(
+                    saved.id,
+                    saved.email,
+                    accountQuotas,
+                    {
+                      id: activeAccountId,
+                      email: profile?.email,
+                      remaining: livePercents.remainingPercent,
+                      used: livePercents.usedPercent,
+                      resetsAt: account?.billing?.resetsAt ?? null,
+                    },
+                  );
+                  const rowRemain = q?.remainingPercent ?? null;
+                  const rowUsed = q?.usedPercent ?? null;
+                  const rowReset = formatQuotaResetTime(q?.resetsAt, locale);
+                  const rowRemainLabel = formatQuotaRemainLabel(rowRemain);
+                  const low = rowRemain != null && rowRemain <= 10;
+                  return (
+                    <button
+                      key={saved.id}
+                      type="button"
+                      className={
+                        "user-menu__account" +
+                        (active ? " is-active" : "") +
+                        (low ? " is-low" : "")
+                      }
+                      role="menuitem"
+                      disabled={accountBusy}
+                      aria-current={active ? "true" : undefined}
+                      aria-label={
+                        active
+                          ? `${rowName}, ${profileActiveLabel}`
+                          : `${switchToLabel}: ${rowName}`
+                      }
+                      onClick={() => {
+                        if (active) {
+                          onClose();
+                          onAccountSettings?.();
+                          return;
+                        }
+                        if (!onSwitchAccount) return;
+                        onClose();
+                        onSwitchAccount(saved.id);
+                      }}
+                    >
+                      <div className="user-menu__account-top">
+                        <div
+                          className="account-avatar account-avatar--sm"
+                          aria-hidden
+                        >
+                          {active && signedIn ? (
+                            <GrokLogo size={17} />
+                          ) : (
+                            rowName.slice(0, 1).toUpperCase()
+                          )}
+                        </div>
+                        <div className="user-menu__account-text">
+                          <div className="user-menu__account-name-row">
+                            <div className="user-menu__account-id">
+                              <div className="user-menu__account-name">
+                                {rowName}
+                              </div>
+                              {active ? (
+                                <span className="user-menu__current">
+                                  {profileActiveLabel}
+                                </span>
+                              ) : null}
+                            </div>
+                            {rowReset ? (
+                              <span className="user-menu__quota-reset">
+                                {resetsAtLabel} {rowReset}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="user-menu__quota">
+                            <div className="user-menu__quota-row">
+                              <span className="user-menu__tier">
+                                {active
+                                  ? (officialQuota?.plan ?? "Grok Build")
+                                  : saved.email && saved.email !== rowName
+                                    ? saved.email
+                                    : "\u00a0"}
+                              </span>
+                              <span className="user-menu__remain">
+                                {rowRemainLabel
+                                  ? `${rowRemainLabel} ${remainingWord}`
+                                  : "—"}
+                              </span>
+                            </div>
+                            {rowRemainLabel ? (
+                              <div
+                                className="account-quota-bar account-quota-bar--sm"
+                                aria-hidden
+                              >
+                                <div
+                                  className={
+                                    "account-quota-bar__fill" +
+                                    (rowUsed != null && rowUsed >= 90
+                                      ? " is-danger"
+                                      : rowUsed != null && rowUsed >= 70
+                                        ? " is-warn"
+                                        : "")
+                                  }
+                                  style={{
+                                    width: `${Math.min(100, rowUsed ?? 0)}%`,
+                                  }}
+                                />
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {showSavedOfficialAccounts ? (
               <div className="user-menu__sep" role="separator" />
             ) : null}
 

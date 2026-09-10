@@ -164,3 +164,87 @@ it("clears an open account menu when the sidebar collapses", async () => {
   view.rerender(<Harness collapsed={false} />);
   expect(document.querySelector(".user-menu__pop--portal")).toBeNull();
 });
+
+it("lists saved official accounts with remaining quota and switches on click", async () => {
+  const onSwitchAccount = vi.fn();
+  const onAccountSettings = vi.fn();
+  const account = {
+    profile: {
+      signedIn: true,
+      name: "Alice",
+      email: "alice@x.ai",
+      userId: "u1",
+    },
+    channel: "official_oauth" as const,
+    billing: {
+      plan: "SuperGrok",
+      usedPercent: 40,
+      remainingPercent: 60,
+      resetsAt: null,
+      fetchedAt: null,
+    },
+  };
+  render(
+    <UserMenu
+      open
+      onClose={() => undefined}
+      theme="dark"
+      themePreference="dark"
+      labels={{
+        ...labels,
+        remaining: "remaining",
+        profileActive: "Active",
+        switchTo: "Switch to",
+        resetsAt: "Resets",
+      }}
+      account={account as never}
+      activeProvider={null}
+      accountBusy={false}
+      savedAccounts={[
+        {
+          id: "a1",
+          email: "alice@x.ai",
+          displayName: "Alice",
+          label: "Alice",
+          updatedAt: "",
+        },
+        {
+          id: "a2",
+          email: "bob@x.ai",
+          displayName: "Bob",
+          label: "Bob",
+          updatedAt: "",
+        },
+      ]}
+      activeAccountId="a1"
+      accountQuotas={{
+        a2: {
+          remainingPercent: 25,
+          usedPercent: 75,
+          resetsAt: null,
+          available: true,
+        },
+      }}
+      onSwitchAccount={onSwitchAccount}
+      onAccountSettings={onAccountSettings}
+      onTheme={() => undefined}
+      onLogin={() => undefined}
+      onLogout={() => undefined}
+    >
+      <button type="button">Account</button>
+    </UserMenu>,
+  );
+
+  await waitFor(() =>
+    expect(screen.getByTestId("user-menu-accounts")).toBeTruthy(),
+  );
+  expect(screen.getByRole("menuitem", { name: "Alice, Active" })).toBeTruthy();
+  expect(screen.getByRole("menuitem", { name: "Switch to: Bob" })).toBeTruthy();
+  expect(screen.getByText("25% remaining")).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("menuitem", { name: "Switch to: Bob" }));
+  expect(onSwitchAccount).toHaveBeenCalledWith("a2");
+
+  fireEvent.click(screen.getByRole("menuitem", { name: "Alice, Active" }));
+  expect(onAccountSettings).toHaveBeenCalled();
+});
