@@ -300,6 +300,29 @@ describe("WallpaperSourceGallery media details", () => {
     expect(onLoadMore).toHaveBeenCalledTimes(1);
   });
 
+  it("lets the Imagine scroller size portrait results without an inline ratio", () => {
+    const portrait: WallpaperGalleryItem = {
+      ...item,
+      id: "generated-portrait",
+      width: 720,
+      height: 1280,
+    };
+    const { container } = render(
+      <WallpaperSourceGallery {...galleryProps([portrait])} />,
+    );
+
+    expect(
+      screen
+        .getByRole("list")
+        .classList.contains("wallpaper-masonry-scroll--imagine"),
+    ).toBe(true);
+    expect(
+      container.querySelector<HTMLElement>(
+        ".wallpaper-masonry__media-shell",
+      )?.style.aspectRatio,
+    ).toBe("");
+  });
+
   it("uses the generic loading label while appending any source", () => {
     render(
       <WallpaperSourceGallery

@@ -252,7 +252,7 @@ export function WallpaperSourceGallery({
                   <div
                     className="wallpaper-masonry__media-shell"
                     style={
-                      mediaAspectRatio
+                      !isImagineLayout && mediaAspectRatio
                         ? { aspectRatio: mediaAspectRatio }
                         : undefined
                     }

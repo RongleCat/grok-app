@@ -16,10 +16,12 @@ See `docs/llm-wiki/release.md`.
 ### Fixed
 - Math formulas render with one matching KaTeX version again. The bundled CSS had drifted ahead of the JS.
 - Wallpaper no longer flashes black while streaming or following the chat tail.
+- Imagine portrait thumbnails stay contained when the wallpaper window narrows.
 
 **中文 · 修复**
 - 数学公式恢复 CSS 与 JS 同版本渲染，不再出现样式超前于脚本。
 - 流式输出和自动跟随聊天底部时，静态及动态壁纸不再闪黑。
+- 壁纸窗口缩小时，Imagine 纵向缩略图不再挤压错位。
 
 ### Changed
 - About shows the git short hash when the build is not an exact release tag (#1139).
