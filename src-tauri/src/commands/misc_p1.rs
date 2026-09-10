@@ -8,7 +8,7 @@ pub async fn memory_clear(
     cwd: Option<String>,
     scope: Option<String>,
 ) -> Result<crate::agent_memory::MemoryClearResult, String> {
-    let settings = store::load_settings();
+    let settings = store::load_settings_async().await;
     let path = cwd
         .as_deref()
         .map(str::trim)
@@ -35,7 +35,7 @@ pub async fn memory_clear(
 pub async fn memory_list(
     cwd: Option<String>,
 ) -> Result<crate::agent_memory::MemoryListResult, String> {
-    let settings = store::load_settings();
+    let settings = store::load_settings_async().await;
     let path = cwd
         .as_deref()
         .map(str::trim)
@@ -56,7 +56,7 @@ pub async fn memory_list(
 pub async fn memory_delete_file(
     path: String,
 ) -> Result<crate::agent_memory::MemoryDeleteResult, String> {
-    let settings = store::load_settings();
+    let settings = store::load_settings_async().await;
     let p = std::path::PathBuf::from(path.trim());
     if p.as_os_str().is_empty() {
         return Err("path is required".into());
@@ -74,7 +74,7 @@ pub async fn memory_delete_file(
 #[tauri::command]
 pub async fn agent_config_toml_read(
 ) -> Result<crate::agent_config_view::AgentConfigTomlReadResult, String> {
-    let settings = store::load_settings();
+    let settings = store::load_settings_async().await;
     let mode = settings.session_data_mode.clone();
     tokio::task::spawn_blocking(move || crate::agent_config_view::read_agent_config_toml(&mode))
         .await
@@ -94,7 +94,7 @@ pub async fn memory_search(
     cwd: Option<String>,
     limit: Option<usize>,
 ) -> Result<crate::agent_memory::MemorySearchResult, String> {
-    let settings = store::load_settings();
+    let settings = store::load_settings_async().await;
     let path = cwd
         .as_deref()
         .map(str::trim)

@@ -1,6 +1,6 @@
 #[tauri::command]
 pub async fn settings_get() -> Result<AppSettings, String> {
-    Ok(store::load_settings())
+    Ok(store::load_settings_async().await)
 }
 
 /// One-shot notice after corrupt store files were quarantined on load.
@@ -15,7 +15,7 @@ pub async fn settings_set(
     mgr: State<'_, Arc<SessionManager>>,
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
-    let prev = store::load_settings();
+    let prev = store::load_settings_async().await;
     let mut settings = settings;
     settings.wallpaper_x_search_mode =
         store::normalize_wallpaper_x_search_mode(&settings.wallpaper_x_search_mode).into();
@@ -138,7 +138,7 @@ pub async fn settings_set(
     let schedules_launch_agent_flip =
         prev.schedules_launch_agent != settings.schedules_launch_agent;
 
-    store::save_settings(&settings)?;
+    store::save_settings_async(&settings).await?;
 
     if proxy_flip {
         crate::wallpaper_grok_album::close_for_proxy_change(&app);
@@ -153,7 +153,7 @@ pub async fn settings_set(
         if let Err(e) = res {
             let mut rolled = settings.clone();
             rolled.schedules_launch_agent = prev.schedules_launch_agent;
-            let _ = store::save_settings(&rolled);
+            let _ = store::save_settings_async(&rolled).await;
             return Err(format!("schedules LaunchAgent: {e}"));
         }
         // Non-macOS enable is unsupported — keep flag false.
@@ -161,7 +161,7 @@ pub async fn settings_set(
         if settings.schedules_launch_agent {
             let mut rolled = settings.clone();
             rolled.schedules_launch_agent = false;
-            let _ = store::save_settings(&rolled);
+            let _ = store::save_settings_async(&rolled).await;
             settings.schedules_launch_agent = false;
         }
     }
@@ -172,7 +172,7 @@ pub async fn settings_set(
         {
             let mut rolled = settings.clone();
             rolled.store_api_keys_in_keychain = prev.store_api_keys_in_keychain;
-            let _ = store::save_settings(&rolled);
+            let _ = store::save_settings_async(&rolled).await;
             return Err(e);
         }
     }
@@ -188,7 +188,7 @@ pub async fn settings_set(
         if let Err(e) = res {
             let mut rolled = settings.clone();
             rolled.launch_at_login = prev.launch_at_login;
-            let _ = store::save_settings(&rolled);
+            let _ = store::save_settings_async(&rolled).await;
             return Err(format!("launch at login: {e}"));
         }
     }
@@ -199,7 +199,7 @@ pub async fn settings_set(
         if settings.session_data_mode == "shared"
             && crate::providers::ensure_independent_for_custom_route()
         {
-            settings = store::load_settings();
+            settings = store::load_settings_async().await;
             tracing::info!(
                 "settings_set: custom route self-healed session_data_mode shared → independent"
             );
@@ -604,7 +604,7 @@ pub async fn secrets_get_masked() -> Result<serde_json::Value, String> {
             crate::secrets::SecretsBackendKind::Keychain => "keychain",
             crate::secrets::SecretsBackendKind::File => "file",
         },
-        "storeApiKeysInKeychain": store::load_settings().store_api_keys_in_keychain,
+        "storeApiKeysInKeychain": store::load_settings_async().await.store_api_keys_in_keychain,
     }))
 }
 
