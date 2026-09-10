@@ -13,7 +13,29 @@ import {
 } from "@/lib/layout";
 
 /** Padding so chrome / scrollbars do not immediately re-clamp. */
-const FIT_PAD = 16;
+export const FIT_PAD = 16;
+
+type FitLayout = Pick<
+  LayoutPrefs,
+  "sidebarCollapsed" | "sidebarWidth" | "asideCollapsed" | "asideWidth"
+>;
+
+/** Inner width `ensureWindowFitsLayout` would request. */
+export function windowFitTargetWidth(layout: FitLayout): number {
+  const need = requiredWorkbenchInnerWidth(layout);
+  if (!Number.isFinite(need) || need <= 0) return 0;
+  return Math.ceil(need + FIT_PAD);
+}
+
+/** True when a fit would `setSize` wider than the current viewport. */
+export function windowFitWouldGrow(
+  viewportWidth: number,
+  layout: FitLayout,
+): boolean {
+  if (!(viewportWidth > 0) || !Number.isFinite(viewportWidth)) return false;
+  const target = windowFitTargetWidth(layout);
+  return target > viewportWidth + 0.5;
+}
 
 /** Ignore cascade resize events after we call setSize. */
 const SUPPRESS_MS = 500;

@@ -3,6 +3,8 @@
  */
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { Spinner } from "@/components/ui/spinner";
+import { useLiveMapBusyIds } from "@/hooks/useSessionLiveMap";
 import { createT, type Locale } from "@/i18n";
 import {
   getSessionMruPanelState,
@@ -16,6 +18,7 @@ export function SessionMruSwitcher({ locale }: { locale: Locale }) {
     getSessionMruPanelState,
     getSessionMruPanelState,
   );
+  const busyIds = useLiveMapBusyIds();
   const activeRef = useRef<HTMLButtonElement | null>(null);
   const tr = createT(locale);
 
@@ -54,6 +57,7 @@ export function SessionMruSwitcher({ locale }: { locale: Locale }) {
         <div className="search-panel__results">
           {state.rows.map((row, index) => {
             const active = index === state.index;
+            const working = busyIds.has(row.id);
             const title = row.title || tr("tray.untitled");
             return (
               <button
@@ -78,6 +82,14 @@ export function SessionMruSwitcher({ locale }: { locale: Locale }) {
                     </span>
                   ) : null}
                 </span>
+                {working ? (
+                  <span
+                    className="tree-l3__status"
+                    aria-label={tr("sidebar.sessionWorking")}
+                  >
+                    <Spinner size={14} className="tree-l3__spinner" />
+                  </span>
+                ) : null}
               </button>
             );
           })}

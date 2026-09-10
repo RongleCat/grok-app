@@ -21,6 +21,9 @@ vi.mock("@/lib/api", async () => {
     isTauri: vi.fn(() => false),
     gitWorktreeGc: vi.fn(),
     gitWorktreesList: vi.fn(),
+    gitBranchesList: vi.fn(),
+    gitSwitchBranch: vi.fn(),
+    sessionSetWorktree: vi.fn(),
   };
 });
 
@@ -53,6 +56,9 @@ describe("useGitWorktreeChrome", () => {
     vi.mocked(api.isTauri).mockReturnValue(false);
     vi.mocked(api.gitWorktreeGc).mockReset();
     vi.mocked(api.gitWorktreesList).mockReset();
+    vi.mocked(api.gitBranchesList).mockReset();
+    vi.mocked(api.gitSwitchBranch).mockReset();
+    vi.mocked(api.sessionSetWorktree).mockReset();
   });
 
   it("openCreate resets the form and opens the dialog", () => {
@@ -112,6 +118,10 @@ describe("useGitWorktreeChrome", () => {
       available: true,
       worktrees: [],
     });
+    vi.mocked(api.gitBranchesList).mockResolvedValue({
+      available: true,
+      branches: [],
+    });
     const { result, host } = setup();
     act(() => {
       result.current.openWorktreeGc();
@@ -127,5 +137,76 @@ describe("useGitWorktreeChrome", () => {
     });
     expect(host.showToast).toHaveBeenCalled();
     expect(result.current.worktreeChrome.gc.open).toBe(false);
+  });
+
+  it("switchToBranch runs git switch then toasts", async () => {
+    vi.mocked(api.isTauri).mockReturnValue(true);
+    vi.mocked(api.gitWorktreesList).mockResolvedValue({
+      available: true,
+      worktrees: [],
+    });
+    vi.mocked(api.gitBranchesList).mockResolvedValue({
+      available: true,
+      branches: [
+        { name: "main", current: true, remote: false },
+        { name: "feat/x", current: false, remote: false },
+      ],
+    });
+    vi.mocked(api.gitSwitchBranch).mockResolvedValue({
+      available: true,
+      ok: true,
+      branch: "feat/x",
+      kind: "ok",
+    });
+    const { result, host } = setup();
+    await act(async () => {
+      await result.current.switchToBranch({
+        name: "feat/x",
+        current: false,
+        remote: false,
+      });
+    });
+    expect(api.gitSwitchBranch).toHaveBeenCalledWith(
+      PROJECT.path,
+      "feat/x",
+      null,
+    );
+    expect(host.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("feat/x"),
+      expect.any(Number),
+    );
+  });
+
+  it("switchToBranch toasts a classified dirty failure", async () => {
+    vi.mocked(api.isTauri).mockReturnValue(true);
+    vi.mocked(api.gitWorktreesList).mockResolvedValue({
+      available: true,
+      worktrees: [],
+    });
+    vi.mocked(api.gitBranchesList).mockResolvedValue({
+      available: true,
+      branches: [],
+    });
+    vi.mocked(api.gitSwitchBranch).mockResolvedValue({
+      available: true,
+      ok: false,
+      branch: "feat/x",
+      kind: "dirty",
+      reason: "local changes",
+    });
+    const { result, host } = setup();
+    await act(async () => {
+      await result.current.switchToBranch({
+        name: "feat/x",
+        current: false,
+        remote: false,
+      });
+    });
+    expect(host.showToast).toHaveBeenCalledWith(
+      expect.stringMatching(/feat\/x/),
+      expect.any(Number),
+    );
+    const msg = String(vi.mocked(host.showToast).mock.calls.at(-1)?.[0]);
+    expect(msg.toLowerCase()).toMatch(/commit|stash|overwritten/);
   });
 });

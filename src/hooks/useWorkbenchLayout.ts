@@ -2,7 +2,14 @@
  * Workbench pane layout: prefs, zen, phone chrome, overlay fit, open/close,
  * window grow, and splitter drag. Domain owns persistence; callers get verbs.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   ASIDE_WIDTH_MIN,
   DEFAULT_LAYOUT,
@@ -39,11 +46,13 @@ import {
 import { resolveWorkbenchPaneOverlay } from "@/lib/paneOverlay";
 import {
   applyLiveSplitWidth,
+  paintSidebarRail,
   queryWorkbenchSplitPane,
 } from "@/lib/paneDragLive";
 import {
   ensureWindowFitsLayout,
   isWindowFitSuppressed,
+  windowFitWouldGrow,
 } from "@/lib/windowFit";
 import { isDesktopHost } from "@/lib/api";
 import {
@@ -97,7 +106,35 @@ export function useWorkbenchLayout(opts?: { onAsideClose?: () => void }) {
 
   const [layout, setLayout] = useState(initialLayout);
   const layoutRef = useRef(layout);
-  layoutRef.current = layout;
+  const pendingLayoutRef = useRef<LayoutPrefs | null>(null);
+  if (pendingLayoutRef.current) {
+    layoutRef.current = pendingLayoutRef.current;
+  } else {
+    layoutRef.current = layout;
+  }
+
+  useLayoutEffect(() => {
+    const pending = pendingLayoutRef.current;
+    if (!pending) {
+      layoutRef.current = layout;
+      return;
+    }
+    if (layout.sidebarCollapsed === pending.sidebarCollapsed) {
+      pendingLayoutRef.current = null;
+      layoutRef.current = layout;
+    }
+  }, [layout]);
+
+  // Paint-then-transition: keep layoutRef on the painted prefs until the
+  // startTransition commit lands, so a second Ctrl+B does not see the old flag.
+  const commitSidebarLayout = useCallback((next: LayoutPrefs) => {
+    persist(next);
+    pendingLayoutRef.current = next;
+    layoutRef.current = next;
+    startTransition(() => {
+      setLayout(next);
+    });
+  }, []);
 
   const [zenMode, setZenModeState] = useState(() => loadZenMode(localStorage));
   const zenModeRef = useRef(zenMode);
@@ -345,10 +382,14 @@ export function useWorkbenchLayout(opts?: { onAsideClose?: () => void }) {
 
   const openSidebarPane = useCallback(() => {
     if (phoneLayout) {
-      setLayout((l) => {
-        if (!l.sidebarCollapsed) return l;
-        return persist({ ...l, sidebarCollapsed: false });
+      const cur = layoutRef.current;
+      if (!cur.sidebarCollapsed) return;
+      paintSidebarRail(queryWorkbenchSplitPane("sidebar"), {
+        collapsed: false,
+        openWidth: cur.sidebarWidth || SIDEBAR_DEFAULT_WIDTH,
+        overlay: true,
       });
+      commitSidebarLayout({ ...cur, sidebarCollapsed: false });
       return;
     }
     const cur = layoutRef.current;
@@ -372,13 +413,15 @@ export function useWorkbenchLayout(opts?: { onAsideClose?: () => void }) {
       asideOccupiedWidth:
         cur.asideCollapsed || overlay.asideOverlay ? 0 : cur.asideWidth || 0,
     });
-    setLayout((l) => {
-      if (!l.sidebarCollapsed && (l.sidebarWidth || 0) === openWidth) return l;
-      return persist({
-        ...l,
-        sidebarCollapsed: false,
-        sidebarWidth: openWidth,
-      });
+    paintSidebarRail(queryWorkbenchSplitPane("sidebar"), {
+      collapsed: false,
+      openWidth,
+      overlay: overlay.sidebarOverlay,
+    });
+    commitSidebarLayout({
+      ...cur,
+      sidebarCollapsed: false,
+      sidebarWidth: openWidth,
     });
     const projected = {
       sidebarCollapsed: false as const,
@@ -389,6 +432,7 @@ export function useWorkbenchLayout(opts?: { onAsideClose?: () => void }) {
         : Math.max(cur.asideWidth || 0, DEFAULT_LAYOUT.asideWidth),
     };
     if (overlay.sidebarOverlay || overlay.asideOverlay) return;
+    if (!windowFitWouldGrow(vw, projected)) return;
     const fitGen = ++sidebarFitGenRef.current;
     void fitWindowThenClampAside(projected).then((width) => {
       if (sidebarFitGenRef.current !== fitGen) return;
@@ -399,23 +443,44 @@ export function useWorkbenchLayout(opts?: { onAsideClose?: () => void }) {
         return persist({ ...l, asideWidth: width });
       });
     });
-  }, [fitWindowThenClampAside, phoneLayout, viewportWidth]);
+  }, [commitSidebarLayout, fitWindowThenClampAside, phoneLayout, viewportWidth]);
 
   const closeSidebarPane = useCallback(() => {
     sidebarFitGenRef.current += 1;
-    setLayout((l) => {
-      if (l.sidebarCollapsed) return l;
-      return persist({ ...l, sidebarCollapsed: true });
+    const cur = layoutRef.current;
+    if (cur.sidebarCollapsed) return;
+    const vw =
+      typeof window !== "undefined" ? window.innerWidth : viewportWidth;
+    const overlay = resolveWorkbenchPaneOverlay({
+      viewportWidth: vw,
+      sidebarOpen: true,
+      sidebarWidth: cur.sidebarWidth || SIDEBAR_DEFAULT_WIDTH,
+      asideOpen: !cur.asideCollapsed,
+      asideWidth: Math.max(
+        cur.asideWidth || 0,
+        DEFAULT_LAYOUT.asideWidth,
+        ASIDE_WIDTH_MIN,
+      ),
     });
-  }, []);
+    paintSidebarRail(queryWorkbenchSplitPane("sidebar"), {
+      collapsed: true,
+      openWidth: cur.sidebarWidth || SIDEBAR_DEFAULT_WIDTH,
+      overlay: phoneLayout || overlay.sidebarOverlay,
+    });
+    commitSidebarLayout({ ...cur, sidebarCollapsed: true });
+  }, [commitSidebarLayout, phoneLayout, viewportWidth]);
 
   const closePhoneDrawer = closeSidebarPane;
   const openPhoneDrawer = useCallback(() => {
-    setLayout((l) => {
-      if (!l.sidebarCollapsed) return l;
-      return persist({ ...l, sidebarCollapsed: false });
+    const cur = layoutRef.current;
+    if (!cur.sidebarCollapsed) return;
+    paintSidebarRail(queryWorkbenchSplitPane("sidebar"), {
+      collapsed: false,
+      openWidth: cur.sidebarWidth || SIDEBAR_DEFAULT_WIDTH,
+      overlay: true,
     });
-  }, []);
+    commitSidebarLayout({ ...cur, sidebarCollapsed: false });
+  }, [commitSidebarLayout]);
 
   const beginSidebarResize = useCallback((clientX: number, width: number) => {
     sidebarResizeStartRef.current = { x: clientX, width };

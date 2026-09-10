@@ -23,6 +23,13 @@ import {
   cliWorktreeMetaLabel,
 } from "@/lib/cliWorktrees";
 import {
+  branchCheckedOutElsewhere,
+  capGitBranchesForMenu,
+  filterGitBranches,
+  sortGitBranches,
+  type GitBranchEntry,
+} from "@/lib/gitBranches";
+import {
   canRemoveWorktree,
   pathsEqual,
   worktreeLabel,
@@ -61,6 +68,15 @@ export type ComposerWorktreeMenuLabels = {
   cliWorktreeOpen?: string;
   cliWorktreeOpenUnavailable?: string;
   cliWorktreeMissingPath?: string;
+  /** In-place git branch list (same working tree). */
+  branches?: string;
+  branchesEmpty?: string;
+  branchesUnavailable?: string;
+  branchesLoading?: string;
+  branchesSearchPlaceholder?: string;
+  branchesTruncated?: string;
+  branchRemote?: string;
+  branchElsewhere?: string;
 };
 
 type Props = {
@@ -74,6 +90,12 @@ type Props = {
   worktreesAvailable?: boolean | null;
   worktreesLoading?: boolean;
   worktreesReason?: string | null;
+  /** Local + remote-only branches for in-place `git switch`. */
+  branches?: GitBranchEntry[];
+  branchesAvailable?: boolean | null;
+  branchesLoading?: boolean;
+  branchesReason?: string | null;
+  branchesBusy?: boolean;
   /** CLI-tracked worktrees from `grok worktree list` (soft-fail). */
   cliWorktrees?: CliWorktreeEntry[];
   cliWorktreesLoading?: boolean;
@@ -87,6 +109,8 @@ type Props = {
   variant?: "chip" | "context";
   labels: ComposerWorktreeMenuLabels;
   onSwitch: (wt: GitWorktreeEntry) => void;
+  /** In-place checkout, or bind the worktree that already holds this branch. */
+  onSwitchBranch?: (branch: GitBranchEntry) => void;
   onCreate: () => void;
   onCreateAndChat: () => void;
   onGc: () => void;
@@ -112,6 +136,7 @@ type Props = {
 };
 
 const LIST_MAX_H = 200;
+const BRANCH_LIST_MAX_H = 200;
 const CLI_LIST_MAX_H = 160;
 
 export function ComposerWorktreeMenu({
@@ -119,6 +144,11 @@ export function ComposerWorktreeMenu({
   worktrees = [],
   worktreesLoading = false,
   worktreesReason = null,
+  branches = [],
+  branchesAvailable = null,
+  branchesLoading = false,
+  branchesReason = null,
+  branchesBusy = false,
   cliWorktrees = [],
   cliWorktreesLoading = false,
   cliWorktreesAvailable = null,
@@ -127,6 +157,7 @@ export function ComposerWorktreeMenu({
   variant = "context",
   labels,
   onSwitch,
+  onSwitchBranch,
   onCreate,
   onCreateAndChat,
   onGc,
@@ -139,6 +170,7 @@ export function ComposerWorktreeMenu({
   onCliOpen,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [branchQuery, setBranchQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
@@ -159,9 +191,19 @@ export function ComposerWorktreeMenu({
       cliWorktreesLoading ||
       cliWorktrees.length > 0 ||
       !!onCliRefresh);
+  const showBranchesSection = !!onSwitchBranch && !!labels.branches;
+  const filteredBranches = showBranchesSection
+    ? capGitBranchesForMenu(
+        filterGitBranches(sortGitBranches(branches), branchQuery),
+      )
+    : { rows: [] as GitBranchEntry[], truncated: false, total: 0 };
+  const showBranchLoading = branchesLoading && branches.length === 0;
 
   // Fixed size estimate so first paint matches final layout (avoids open flash).
   const listCount = Math.max(worktrees.length, 1);
+  const branchCount = showBranchesSection
+    ? Math.max(filteredBranches.rows.length, 1)
+    : 0;
   const cliCount = showCliSection
     ? Math.max(cliWorktrees.length, 1)
     : 0;
@@ -174,8 +216,11 @@ export function ComposerWorktreeMenu({
     !current.isMain;
   const actionCount = 3 + (showShip ? 1 : 0) + (showCompare ? 1 : 0);
   const estHeight = Math.min(
-    560,
+    620,
     44 +
+      (showBranchesSection
+        ? 28 + 40 + Math.min(BRANCH_LIST_MAX_H, branchCount * 36 + 8)
+        : 0) +
       Math.min(LIST_MAX_H, listCount * 36 + 8) +
       actionCount * 36 +
       16 +
@@ -212,12 +257,22 @@ export function ComposerWorktreeMenu({
     estHeight,
     gap: 8,
     // Only re-anchor when row count changes, not on soft-refresh loading toggles.
-    deps: [worktrees.length, cliWorktrees.length, showCliSection],
+    deps: [
+      worktrees.length,
+      cliWorktrees.length,
+      showCliSection,
+      filteredBranches.rows.length,
+      showBranchesSection,
+    ],
   });
 
   useEffect(() => {
     if (!open) return;
     onOpenRef.current?.();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) setBranchQuery("");
   }, [open]);
 
   const isContext = variant === "context";
@@ -270,6 +325,135 @@ export function ComposerWorktreeMenu({
             aria-label={labels.worktrees}
             style={popStyle as CSSProperties}
           >
+            {showBranchesSection ? (
+              <div className="cwm__branches">
+                <div className="cwm__head">{labels.branches}</div>
+                <div className="cmm__search">
+                  <input
+                    type="search"
+                    className="cmm__search-input"
+                    value={branchQuery}
+                    onChange={(e) => setBranchQuery(e.target.value)}
+                    placeholder={
+                      labels.branchesSearchPlaceholder || "Filter branches…"
+                    }
+                    aria-label={
+                      labels.branchesSearchPlaceholder || "Filter branches…"
+                    }
+                    autoComplete="off"
+                    spellCheck={false}
+                    disabled={disabled || branchesBusy}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                {filteredBranches.rows.length > 0 ? (
+                  <ul
+                    className={
+                      "cwm__list cwm__list--branches" +
+                      (showBranchLoading || branchesBusy ? " is-loading" : "")
+                    }
+                    aria-busy={
+                      showBranchLoading || branchesBusy || undefined
+                    }
+                    style={{ maxHeight: BRANCH_LIST_MAX_H }}
+                  >
+                    {filteredBranches.rows.map((row) => {
+                      const elsewhere = branchCheckedOutElsewhere(
+                        row,
+                        activePath,
+                      );
+                      const meta = [
+                        row.current ? labels.worktreeCurrent : null,
+                        row.remote
+                          ? labels.branchRemote || "remote"
+                          : null,
+                        elsewhere
+                          ? labels.branchElsewhere || "other worktree"
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ");
+                      const rowDisabled =
+                        disabled ||
+                        branchesBusy ||
+                        row.current ||
+                        (elsewhere && !onSwitch);
+                      return (
+                        <li
+                          key={`${row.remote ? "r" : "l"}:${row.name}`}
+                          className="cwm__row"
+                        >
+                          <div className="cwm__row-inner">
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className={
+                                "cmm__opt cwm__item" +
+                                (row.current ? " is-active" : "") +
+                                (elsewhere ? " is-muted" : "")
+                              }
+                              title={
+                                row.upstream
+                                  ? `${row.name}\n${row.upstream}`
+                                  : row.name
+                              }
+                              disabled={rowDisabled}
+                              onClick={() => {
+                                if (rowDisabled) return;
+                                setOpen(false);
+                                onSwitchBranch?.(row);
+                              }}
+                            >
+                              <span className="cwm__item-main">
+                                <span className="cwm__item-name">
+                                  {row.name}
+                                </span>
+                                {meta ? (
+                                  <span className="cwm__item-meta">
+                                    {meta}
+                                  </span>
+                                ) : null}
+                              </span>
+                              {row.current ? (
+                                <span
+                                  className="cmm__opt-check"
+                                  aria-hidden
+                                >
+                                  <IconCheck size={16} />
+                                </span>
+                              ) : null}
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="cwm__empty">
+                    {showBranchLoading
+                      ? labels.branchesLoading ||
+                        labels.worktreesLoading ||
+                        "…"
+                      : branchesAvailable === false ||
+                          !!branchesReason?.trim()
+                        ? labels.branchesUnavailable ||
+                          labels.worktreesUnavailable
+                        : labels.branchesEmpty || labels.worktreesEmpty}
+                  </p>
+                )}
+                {filteredBranches.truncated && labels.branchesTruncated ? (
+                  <p className="cwm__empty cwm__empty--hint">
+                    {labels.branchesTruncated
+                      .replace("{shown}", String(filteredBranches.rows.length))
+                      .replace("{total}", String(filteredBranches.total))}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="cwm__head">{labels.worktrees}</div>
             {worktrees.length > 0 ? (
               <ul

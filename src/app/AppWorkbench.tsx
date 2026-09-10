@@ -1961,6 +1961,11 @@ export function AppWorkbench() {
     gitWorktreesAvailable,
     gitWorktreesLoading,
     gitWorktreesReason,
+    gitBranches,
+    gitBranchesAvailable,
+    gitBranchesLoading,
+    gitBranchesReason,
+    gitBranchesBusy,
     cliWorktrees,
     cliWorktreesAvailable,
     cliWorktreesLoading,
@@ -1970,11 +1975,13 @@ export function AppWorkbench() {
     openShipFlow,
     confirmRemoveWorktree,
     switchToWorktree,
+    switchToBranch,
     markSessionWorktree,
     sessionWorktreeBadgeFor,
     buildSidebarWorktreeBadge,
     refreshGitWorktrees,
     refreshCliWorktrees,
+    refreshGitBranches,
     applyStatusBranch,
     worktreeChrome,
   } = useGitWorktreeChrome({
@@ -12916,6 +12923,11 @@ export function AppWorkbench() {
             gitWorktreesAvailable={gitWorktreesAvailable}
             gitWorktreesLoading={gitWorktreesLoading}
             gitWorktreesReason={gitWorktreesReason}
+            gitBranches={gitBranches}
+            gitBranchesAvailable={gitBranchesAvailable}
+            gitBranchesLoading={gitBranchesLoading}
+            gitBranchesReason={gitBranchesReason}
+            gitBranchesBusy={gitBranchesBusy}
             goalMode={goalMode}
             guideQueuedMessage={guideQueuedMessage}
             guidingQueueItemId={guidingQueueItemId}
@@ -12972,6 +12984,7 @@ export function AppWorkbench() {
             quotes={quotes}
             refreshCliWorktrees={refreshCliWorktrees}
             refreshGitWorktrees={refreshGitWorktrees}
+            refreshGitBranches={refreshGitBranches}
             removeAttachedChat={removeAttachedChat}
             requestClearComposerDraft={requestClearComposerDraft}
             requestClearSendQueue={queueEdit.requestClear}
@@ -13022,6 +13035,7 @@ export function AppWorkbench() {
             slashKindFilter={slashKindFilter}
             stop={stop}
             switchToWorktree={switchToWorktree}
+            switchToBranch={switchToBranch}
             toggleVoice={toggleVoice}
             voice={voice}
             voiceDictationAutoSend={voiceDictationAutoSend}

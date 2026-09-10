@@ -508,6 +508,20 @@ html.platform-win .window-edge-n {
   user-select: none;
 }
 
+/*
+ * Win/Linux WebView: interpolating used width reflows chat every frame.
+ * Snap the flex box; clip opacity still fades. Mac keeps the base
+ * `.sidebar` size tween (WKWebView hard-cut / seam contract).
+ * Overlay / phone keep their transform rule (excluded here).
+ */
+.platform-win .sidebar:not(.is-resizing):not(.sidebar--overlay):not(.sidebar--phone-drawer),
+.platform-linux .sidebar:not(.is-resizing):not(.sidebar--overlay):not(.sidebar--phone-drawer) {
+  transition:
+    border-color var(--motion-pane) ease,
+    opacity 180ms ease,
+    filter 180ms ease;
+}
+
 /* Right-edge drag handle (mirrors .aside-resizer) */
 .sidebar-resizer {
   position: absolute;

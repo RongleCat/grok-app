@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- The composer branch chip can switch git branches in the current folder. Remote-only rows create a local tracking branch; a branch already checked out in another worktree opens that worktree instead.
+
+**中文 · 新增**
+- 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
+
 ### Fixed
 - Math formulas render with one matching KaTeX version again. The bundled CSS had drifted ahead of the JS.
 - Wallpaper no longer flashes black while streaming or following the chat tail.
@@ -24,12 +30,14 @@ See `docs/llm-wiki/release.md`.
 - 壁纸窗口缩小时，Imagine 纵向缩略图不再挤压错位。
 
 ### Changed
+- Ctrl+Tab fills the selected chat row. Busy chats show the same spinner as the sidebar (#1146).
 - About shows the git short hash when the build is not an exact release tag (#1139).
 - The theme editor modal loads on demand instead of joining app startup.
 - Bundled KaTeX math fonts ship as woff2 only, trimming the install size.
 - Settings reads and writes run on the blocking pool, off the async command path.
 
 **中文 · 变更**
+- Ctrl+Tab 预选行有背景高亮。进行中的对话显示与侧栏相同的转圈（#1146）。
 - 构建不是精确的 release tag 时，About 显示 git short hash（#1139）。
 - 主题编辑器改为按需加载，不再拖累应用启动。
 - 打包内的 KaTeX 数学字体只保留 woff2 格式，安装包更小。
@@ -128,6 +136,7 @@ See `docs/llm-wiki/release.md`.
 - 壁纸来源可在安全登录校验后浏览 Grok Saved 相册（#1103）。
 
 ### Changed
+- Left sidebar toggle on Windows snaps instead of sliding the chat column. Opening it skips growing a window that already fits.
 - Finished Worked-for rails fold after the turn. Failed tools stay as one-line excerpts.
 - Sent quotes show the excerpt and comment in the bubble, not a notes chip.
 - Account quota sits in the user menu again, with remaining % beside the name.
@@ -137,6 +146,7 @@ See `docs/llm-wiki/release.md`.
 - Startup skips TipTap and markdown preloads; Office and Settings load on demand (#1055, #1063).
 
 **中文 · 变更**
+- Windows 上开关左侧栏不再把聊天列跟着宽度滑动。窗口已经够宽时展开也不再拉大窗口。
 - 结束后的「Worked for」工具栏会收起。失败步骤保留为一行摘要。
 - 发送后的引用在气泡里直接显示摘录和评论，不再收成「N 条注释」。
 - 额度卡片回到用户菜单顶部，名字旁显示剩余百分比。

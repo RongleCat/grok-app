@@ -24,6 +24,7 @@ include!("extensions_p2.rs");
 include!("fs.rs");
 include!("git_p1.rs");
 include!("git_p2.rs");
+include!("git_p3.rs");
 include!("account.rs");
 include!("providers.rs");
 include!("worktree_agents_p1.rs");

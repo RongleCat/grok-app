@@ -8,14 +8,10 @@ import {
   useEffect,
   useRef,
   useState,
-  type Dispatch,
   type MutableRefObject,
-  type SetStateAction,
 } from "react";
-import { createT } from "@/i18n";
 import type { SidebarSessionWorktreeBadgeProp } from "@/components/SidebarSessionRow";
 import * as api from "@/lib/api";
-import type { AppDialog } from "@/lib/app/appDialogTypes";
 import {
   mapProjectsList,
   normalizeSessionRow,
@@ -43,7 +39,6 @@ import {
   buildPrHubDeepLink,
   parseGithubPrNumber,
 } from "@/lib/prHubDeepLink";
-import type { SettingsSectionId } from "@/lib/settingsCatalog";
 import {
   canShipWorktree,
   combineShipOutcome,
@@ -53,125 +48,25 @@ import {
   sanitizePrTitle,
   shipOutcomeSummary,
 } from "@/lib/wtShipFlow";
+import { useGitBranches } from "./useGitBranches";
+import type {
+  GitWorktreeChromeHost,
+  GitWorktreeChromeOverlay,
+} from "./useGitWorktreeChrome.types";
 
-type TFn = ReturnType<typeof createT>;
+export {
+  createGitWorktreeChromeHost,
+  type GitWorktreeChromeHost,
+  type GitWorktreeChromeOverlay,
+  type GitWorktreeCreateOverlay,
+  type GitWorktreeGcOverlay,
+  type GitWorktreeShipOverlay,
+} from "./useGitWorktreeChrome.types";
 
 type GitStatusPatch = {
   available?: boolean | null;
   branch?: string | null;
 };
-
-export type GitWorktreeCreateOverlay = {
-  open: boolean;
-  busy: boolean;
-  startChat: boolean;
-  name: string;
-  layout: WorktreeLayout;
-  startRef: string;
-  previewPath: string | null;
-  error: string | null;
-  close: () => void;
-  submit: () => void;
-  setName: (value: string) => void;
-  setLayout: (value: WorktreeLayout) => void;
-  setRef: (value: string) => void;
-};
-
-export type GitWorktreeGcOverlay = {
-  open: boolean;
-  busy: boolean;
-  previewBusy: boolean;
-  force: boolean;
-  preview: api.GitWorktreeGcResult | null;
-  error: string | null;
-  close: () => void;
-  submit: () => void;
-  setForce: (value: boolean) => void;
-};
-
-export type GitWorktreeShipOverlay = {
-  open: boolean;
-  busy: boolean;
-  success: { prUrl: string; prNumber: number | null } | null;
-  title: string;
-  body: string;
-  createPr: boolean;
-  draft: boolean;
-  branch: string | null;
-  status: string | null;
-  error: string | null;
-  close: () => void;
-  submit: () => void;
-  setTitle: (value: string) => void;
-  setBody: (value: string) => void;
-  setCreatePr: (value: boolean) => void;
-  setDraft: (value: boolean) => void;
-  openPrHub: (prNumber: number | null) => void;
-};
-
-export type GitWorktreeChromeOverlay = {
-  create: GitWorktreeCreateOverlay;
-  gc: GitWorktreeGcOverlay;
-  ship: GitWorktreeShipOverlay;
-};
-
-export type GitWorktreeChromeHost = {
-  tr: TFn;
-  activeProject: Project | null;
-  projects: Project[];
-  session: { sessionId: string | null };
-  sessions: SessionRow[];
-  showToast: (msg: string, ms?: number) => void;
-  setAppDialog: (dialog: NonNullable<AppDialog>) => void;
-  bindSessionProject: (proj: Project | null) => void | Promise<void>;
-  finalizeAddedProject: (
-    p: Project,
-    opts: { bindSession: boolean },
-  ) => void | Promise<void>;
-  setProjects: Dispatch<SetStateAction<Project[]>>;
-  setExpandedProjects: Dispatch<SetStateAction<Record<string, boolean>>>;
-  assignNewProjects: (ids: readonly string[]) => void;
-  refreshSessions: () => void | Promise<void>;
-  openSession: (
-    row: SessionRow,
-    project?: Project | null,
-  ) => void | Promise<void>;
-  viewingSessionIdRef: MutableRefObject<string | null>;
-  navigateSettings: (
-    section?: SettingsSectionId | null,
-    tab?: string | null,
-  ) => void;
-  setPrHubHighlightPr: (n: number | null) => void;
-  setSettingsFocusAnchor: (id: string | null) => void;
-};
-
-function emptyHost(): GitWorktreeChromeHost {
-  const noop = () => {};
-  return {
-    tr: ((k: string) => k) as TFn,
-    activeProject: null,
-    projects: [],
-    session: { sessionId: null },
-    sessions: [],
-    showToast: noop,
-    setAppDialog: noop,
-    bindSessionProject: noop,
-    finalizeAddedProject: noop,
-    setProjects: noop,
-    setExpandedProjects: noop,
-    assignNewProjects: noop,
-    refreshSessions: noop,
-    openSession: noop,
-    viewingSessionIdRef: { current: null },
-    navigateSettings: noop,
-    setPrHubHighlightPr: noop,
-    setSettingsFocusAnchor: noop,
-  };
-}
-
-export function createGitWorktreeChromeHost(): GitWorktreeChromeHost {
-  return emptyHost();
-}
 
 export function useGitWorktreeChrome(opts: {
   hostRef: MutableRefObject<GitWorktreeChromeHost>;
@@ -753,6 +648,24 @@ export function useGitWorktreeChrome(opts: {
     [hostRef],
   );
 
+  const {
+    gitBranches,
+    gitBranchesAvailable,
+    gitBranchesLoading,
+    gitBranchesReason,
+    gitBranchesBusy,
+    refreshGitBranches,
+    switchToBranch,
+  } = useGitBranches({
+    hostRef,
+    projectPath: opts.projectPath,
+    gitWorktrees,
+    switchToWorktree,
+    applyStatusBranch,
+    markSessionWorktree,
+    refreshGitWorktrees,
+  });
+
   const sessionWorktreeBadgeFor = useCallback(
     (s: SessionRow): SessionWorktreeBadge | null => {
       const h = hostRef.current;
@@ -976,6 +889,11 @@ export function useGitWorktreeChrome(opts: {
     gitWorktreesAvailable,
     gitWorktreesLoading,
     gitWorktreesReason,
+    gitBranches,
+    gitBranchesAvailable,
+    gitBranchesLoading,
+    gitBranchesReason,
+    gitBranchesBusy,
     cliGrokHome,
     cliWorktrees,
     cliWorktreesAvailable,
@@ -986,11 +904,13 @@ export function useGitWorktreeChrome(opts: {
     openShipFlow,
     confirmRemoveWorktree,
     switchToWorktree,
+    switchToBranch,
     markSessionWorktree,
     sessionWorktreeBadgeFor,
     buildSidebarWorktreeBadge,
     refreshGitWorktrees,
     refreshCliWorktrees,
+    refreshGitBranches,
     applyStatusBranch,
     worktreeChrome,
   };
