@@ -677,6 +677,7 @@ import {
 } from "@/hooks/useSessionNavigation";
 import { useGitDirtyStatus } from "@/hooks/useGitDirtyStatus";
 import { useSessionFileChanges } from "@/hooks/useSessionFileChanges";
+import { ERROR_BANNER_SETTINGS_ROUTE, isErrorBannerDismissOnly } from "@/lib/errorBannerActions";
 import { WorkbenchSessionTree } from "@/app/WorkbenchSessionTree";
 import { WorkbenchSidebar } from "@/app/WorkbenchSidebar";
 import { WorkbenchMain } from "@/app/WorkbenchMain";
@@ -10954,43 +10955,21 @@ export function AppWorkbench() {
   const runErrorBannerAction = useCallback(
     (action: NonNullable<ErrorBannerView["primary"]>) => {
       setErrorDetailOpen(false);
-      switch (action.id) {
+      const { id } = action;
+      // Settings navigation: data-driven from the routing table.
+      const route = ERROR_BANNER_SETTINGS_ROUTE[id];
+      if (route) {
+        setLocalError(null);
+        navigateSettings(route.section, route.tab);
+        return;
+      }
+      switch (id) {
         case "reconnect":
           retryAgentConnect();
           break;
         case "open_doctor":
           setLocalError(null);
           openDoctor();
-          break;
-        case "open_runtime":
-          setLocalError(null);
-          navigateSettings("runtime");
-          break;
-        case "upgrade_cli":
-          setLocalError(null);
-          navigateSettings("runtime");
-          break;
-        case "open_network":
-          setLocalError(null);
-          navigateSettings("runtime", "network");
-          break;
-        case "open_account":
-          setLocalError(null);
-          navigateSettings("account");
-          break;
-        case "open_providers":
-          setLocalError(null);
-          // Providers live under account / extensions path — account is the
-          // login+key surface; extensions holds MCP. Prefer account for keys.
-          navigateSettings("account");
-          break;
-        case "open_permissions":
-          setLocalError(null);
-          navigateSettings("general", "permissions");
-          break;
-        case "open_extensions":
-          setLocalError(null);
-          navigateSettings("extensions");
           break;
         case "open_mcp":
           setLocalError(null);
@@ -11008,27 +10987,25 @@ export function AppWorkbench() {
           setLocalError(null);
           void addProject(false);
           break;
-        case "dismiss":
-        case "keep_waiting":
-          // keep_waiting is for the stream-stall banner (clears prompt only).
-          setLocalError(null);
-          break;
         case "cancel_turn":
           setLocalError(null);
           void stop();
           break;
         default:
+          // dismiss / keep_waiting: clear the banner (keep_waiting is the
+          // stream-stall prompt — clears the prompt, keeps the turn).
+          if (isErrorBannerDismissOnly(id)) setLocalError(null);
           break;
       }
     },
     [
       activeProject,
       addProject,
-      ensureConnected,
       navigateSettings,
       openDoctor,
       openMcpModal,
       relocateProject,
+      retryAgentConnect,
       stop,
       trustProject,
     ],
