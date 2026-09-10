@@ -52,7 +52,7 @@ APP_USEEFFECT_CEILING = 65
 # `{ [key: string]: any }`, the host-event layer under `@ts-nocheck`, and
 # settings sections casting their context to `Record<string, any>`).
 # These ratchets only ever decrease — each typing PR must lower them.
-LOOSE_PROPS_CEILING = 4
+LOOSE_PROPS_CEILING = 3
 TS_NOCHECK_CEILING = 1
 SETTINGS_ANY_CAST_CEILING = 9
 

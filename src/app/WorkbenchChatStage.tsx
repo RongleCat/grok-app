@@ -3,10 +3,11 @@
  * banner, a11y live region, and ConversationThreadLive. Composer is passed
  * as children so it stays inside main__stage.
  */
-import type { CSSProperties } from "react";
+import type { CSSProperties, Dispatch, ReactNode, RefObject, SetStateAction } from "react";
 import * as api from "@/lib/api";
 import type { MessageKey } from "@/i18n";
-import { pathsEqual } from "@/lib/gitWorktree";
+import { createT, resolveLocale } from "@/i18n";
+import { pathsEqual, type GitWorktreeEntry } from "@/lib/gitWorktree";
 import {
   classifyTasksBindCwdError,
   classifyTasksStopError,
@@ -18,8 +19,24 @@ import {
   stallTierFromProgress,
   normalizeStallTier,
 } from "@/lib/sessionPhase";
-import { goalOrchPhaseLabelKey } from "@/lib/goalOrch";
-import { AttachedChatLookupContext } from "@/components/AttachedChatLookup";
+import { goalOrchPhaseLabelKey, type GoalOrchEvent } from "@/lib/goalOrch";
+import { AttachedChatLookupContext, type AttachedChatLookup } from "@/components/AttachedChatLookup";
+import type { ResourceOpenTarget } from "@/components/resource-viewer/types";
+import type { ModelOption } from "@/lib/grokCatalog";
+import type { MessageTimeFormat } from "@/lib/messageTimeFormatPref";
+import type { SessionPlanState } from "@/lib/planSession";
+import type { GoalOrchSessionIndicator } from "@/lib/goalOrchView";
+import type { StopAllSurface } from "@/lib/stopAllHonesty";
+import type { StopLatchState } from "@/lib/stopLatch";
+import type { UiBusyGate } from "@/lib/sessionPhase";
+import type { SessionLiveMap } from "@/lib/sessionLiveStore";
+import { sessionTranscriptStore as sessionTranscriptStoreInstance } from "@/lib/sessionTranscriptStore";
+import type { ErrorBannerView } from "@/lib/session/errors";
+import type { ErrorDeckAction } from "@/lib/errorDeck";
+import type { Attachment } from "@/lib/attachments";
+import type { SessionFileChange } from "@/lib/sessionChanges";
+import { type Project, type SessionRow } from "@/lib/app/sidebarModels";
+import type { ChatMessage, SessionSnapshot } from "@/lib/session";
 import { UiErrorBoundary } from "@/components/UiErrorBoundary";
 import { ConversationThreadLive } from "@/components/lobe-chat";
 import { GoalOrchSessionChip } from "@/components/GoalOrchSessionChip";
@@ -27,10 +44,159 @@ import { PlanStatusBar } from "@/components/PlanStatusBar";
 import { ChatFindLive } from "@/components/ChatFindLive";
 import { AgentTasksPanelLive } from "@/components/AgentTasksPanelLive";
 
-export type WorkbenchChatStageProps = {
-  [key: string]: any;
-};
+type TFn = ReturnType<typeof createT>;
+type TStore = typeof sessionTranscriptStoreInstance;
+type StreamStallView = {
+  sessionId?: string;
+  stallSeconds: number;
+  tier?: string;
+  sawModelOutput?: boolean;
+  sawToolActivity?: boolean;
+} | null;
 
+export type WorkbenchChatStageProps = {
+  children: ReactNode;
+  activeProject: Project | null;
+  approvePlan: () => Promise<void>;
+  attachLabels: {
+    open: string;
+    reveal: string;
+    copyPath: string;
+    copyImage: string;
+    addToComposer: string;
+    remove: string;
+    viewImage: string;
+    previewBroken: string;
+    previewMissing: string;
+    previewPending: string;
+  };
+  attachedChatLookup: AttachedChatLookup;
+  availableModels: ModelOption[];
+  beginEditLastUser: (msg: ChatMessage) => void;
+  canEditLastUser: boolean;
+  canRewindSession: boolean;
+  cancelEditUser: () => void;
+  chatFindFocusKey: number;
+  composerFloatPad: number;
+  connecting: boolean;
+  copyGoalOrchControlSummary: () => Promise<void>;
+  dismissPlan: () => void;
+  editAttachments: Attachment[];
+  editSubmitting: boolean;
+  editingUserMessageId: string | null;
+  effectiveProjectPath: string | null;
+  errorBanner: ErrorBannerView | null;
+  errorDetailOpen: boolean;
+  exitPlanMode: () => void;
+  gitWorktrees: GitWorktreeEntry[];
+  goalMode: boolean;
+  goalOrchSessionChip: GoalOrchSessionIndicator | null;
+  goalOrchSessionEvents: GoalOrchEvent[];
+  hasChatTurnError: boolean;
+  isSecondaryWindow: boolean;
+  journalPending: boolean;
+  lastUserMessageId: string | null;
+  liveMap: SessionLiveMap;
+  locale: string;
+  mainPane: "chat" | "automations" | "kanban";
+  markSessionWorktree: (
+    sessionId: string | null | undefined,
+    path: string,
+    branch: string | null | undefined,
+  ) => Promise<void>;
+  messageTimeFormat: MessageTimeFormat;
+  mode: string;
+  modelId: string;
+  onForkFromAssistantMessage: (msg: ChatMessage) => void;
+  onRewindToUserMessage: (msg: ChatMessage) => void;
+  onThreadAddAttachmentToComposer: (att: Attachment) => void;
+  onThreadAddQuote: (quote: {
+    text: string;
+    comment: string;
+    sourceMessageId?: string;
+  }) => void;
+  onThreadContinueInterrupted: () => void;
+  onThreadOpenError: (message: string) => void;
+  onThreadOpenModifiedPath: (path: string) => void;
+  onThreadOpenResource: (target: ResourceOpenTarget) => void;
+  onThreadOpenSessionChanges: () => void;
+  onThreadRemoveEditAttachment: (att: Attachment) => void;
+  openExternalLinkFromChat: (url: string) => void;
+  openPlanInResource: () => void;
+  openReliability: () => void;
+  openRequestPlanChanges: () => void;
+  openSession: (s: SessionRow, project?: Project | null) => Promise<void>;
+  plan: SessionPlanState;
+  projects: Project[];
+  regenerateLastAssistant: (
+    message: ChatMessage,
+    opts?: { modelId?: string },
+  ) => Promise<void>;
+  requestClearLocalGoalOrchTimeline: () => void;
+  retryAgentConnect: () => void;
+  runErrorBannerAction: (action: ErrorDeckAction) => void;
+  session: SessionSnapshot;
+  sessionChanges: SessionFileChange[];
+  sessionJsonSchema: string | null;
+  sessionTranscriptStore: TStore;
+  sessions: SessionRow[];
+  setAgentDashboardOpen: Dispatch<SetStateAction<boolean>>;
+  setErrorDetailOpen: Dispatch<SetStateAction<boolean>>;
+  setGoalMode: Dispatch<SetStateAction<boolean>>;
+  setLiveMap: (
+    next: SessionLiveMap | ((prev: SessionLiveMap) => SessionLiveMap),
+  ) => void;
+  setShowChatFind: Dispatch<SetStateAction<boolean>>;
+  setStreamStall: Dispatch<SetStateAction<StreamStallView>>;
+  setTasksPanelOpen: Dispatch<SetStateAction<boolean>>;
+  shouldDisableReconnectBecauseConnecting: (connecting: boolean) => boolean;
+  showChatFind: boolean;
+  showMessageTimestamps: boolean;
+  showReplyLength: boolean;
+  showToast: (msg: string, ms?: number) => void;
+  stop: () => Promise<void>;
+  stopAllBusySessions: (surface?: StopAllSurface) => void;
+  stopGate: UiBusyGate;
+  stopLatch: StopLatchState;
+  streamA11yNote: string;
+  streamStall: StreamStallView;
+  structuredOutputLabels: {
+    title: string;
+    badge: string;
+    copy: string;
+    copied: string;
+    export: string;
+    invalidJson: string;
+    empty: string;
+    valid: string;
+    schemaMismatch: string;
+    missingRequired: string;
+    streaming?: string;
+    partial?: string;
+    partialKeys?: string;
+    timeline?: string;
+    usage?: string;
+    usageIo?: string;
+    usageTotal?: string;
+  };
+  structuredOutputUsage: {
+    inputTokens: number | null;
+    outputTokens: number | null;
+    totalTokens: number | null;
+  } | null;
+  subagentWorktreeSnapshotEnabled: boolean;
+  submitEditLastUser: (msg: ChatMessage, storedDisplay: string) => Promise<void>;
+  switchToWorktree: (wt: GitWorktreeEntry) => Promise<void>;
+  tasksPanelOpen: boolean;
+  tr: TFn;
+  turnStartedAt: number | null;
+  viewingSessionIdRef: RefObject<string | null>;
+  welcomeSession: boolean;
+  worktreeEntryForPath: (
+    path: string | null,
+    worktrees?: GitWorktreeEntry[] | null,
+  ) => GitWorktreeEntry | null;
+};
 export function WorkbenchChatStage(p: WorkbenchChatStageProps) {
   const {
     activeProject, approvePlan, attachLabels, attachedChatLookup, availableModels, beginEditLastUser,
@@ -281,10 +447,9 @@ export function WorkbenchChatStage(p: WorkbenchChatStageProps) {
               currentSessionId={session.sessionId}
               untitledLabel={tr("session.untitled")}
               onSelectSession={(id) => {
-                const row = sessions.find((s: { id: string; projectId?: string }) => s.id === id);
+                const row = sessions.find((s) => s.id === id);
                 if (!row) return;
-                const proj =
-                  projects.find((p: { id: string }) => p.id === row.projectId) || null;
+                const proj = projects.find((p) => p.id === row.projectId) || null;
                 void openSession(row, proj);
               }}
               onStopSession={async (id) => {
@@ -444,7 +609,7 @@ export function WorkbenchChatStage(p: WorkbenchChatStageProps) {
           <ConversationThreadLive
             onContinueInterrupted={onThreadContinueInterrupted}
             onAddQuote={onThreadAddQuote}
-            locale={locale}
+            locale={resolveLocale(locale)}
             sessionState={
               stopLatch.phase === "force_idle" || stopGate.forceIdle
                 ? "ready"
