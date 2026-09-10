@@ -47,6 +47,15 @@ APP_LINES_CEILING = 13750
 APP_USESTATE_CEILING = 94
 APP_USEEFFECT_CEILING = 65
 
+# Typing escape-hatch ceilings. The AppWorkbench decomposition traded
+# compile-time safety for line count (stage children typed
+# `{ [key: string]: any }`, the host-event layer under `@ts-nocheck`, and
+# settings sections casting their context to `Record<string, any>`).
+# These ratchets only ever decrease — each typing PR must lower them.
+LOOSE_PROPS_CEILING = 7
+TS_NOCHECK_CEILING = 1
+SETTINGS_ANY_CAST_CEILING = 9
+
 
 def lines_of(path: Path) -> int:
     if not path.exists():
@@ -125,6 +134,50 @@ def window_dialog_call_hits() -> list[str]:
             if len(hits) >= 8:
                 return hits
     return hits
+
+
+def _src_files(skip_tests: bool = True) -> Iterable[Path]:
+    """Non-test .ts/.tsx files under src/ (tests may mock loosely)."""
+    for p in (ROOT / "src").rglob("*"):
+        if p.suffix not in {".ts", ".tsx"}:
+            continue
+        if skip_tests and ".test." in p.name:
+            continue
+        yield p
+
+
+def loose_props_files() -> list[str]:
+    """Files declaring a loose `{ [key: string]: any }` Props bag."""
+    pat = re.compile(r"\[\s*key\s*:\s*string\s*\]\s*:\s*any")
+    hits = [
+        str(p.relative_to(ROOT))
+        for p in _src_files()
+        if pat.search(read(p))
+    ]
+    return sorted(hits)
+
+
+def ts_nocheck_files() -> list[str]:
+    """Files suppressing the compiler with a leading `// @ts-nocheck`."""
+    hits = [
+        str(p.relative_to(ROOT))
+        for p in _src_files()
+        if read(p).lstrip().startswith("// @ts-nocheck")
+    ]
+    return sorted(hits)
+
+
+def settings_any_cast_files() -> list[str]:
+    """settings sections casting the model bag down to `Record<string, any>`."""
+    pat = re.compile(r"Record\s*<\s*string\s*,\s*any\s*>")
+    hits = [
+        str(p.relative_to(ROOT))
+        for p in (ROOT / "src/components/settings").rglob("*")
+        if p.suffix in {".ts", ".tsx"}
+        and ".test." not in p.name
+        and pat.search(read(p))
+    ]
+    return sorted(hits)
 
 
 def file_imported_anywhere(symbol_or_path: str, search_roots: Iterable[Path], ignore: set[Path]) -> bool:
@@ -616,6 +669,45 @@ def build_gates() -> list[Gate]:
             ),
         ),
         Gate(
+            "LOOSE_PROPS_RATCHET",
+            "Loose `{ [key: string]: any }` Props bags ≤ decreasing ceiling",
+            "final",
+            lambda: (
+                len(loose_props_files()) <= LOOSE_PROPS_CEILING,
+                "loose props files={0} ceiling={1}: {2}".format(
+                    len(loose_props_files()),
+                    LOOSE_PROPS_CEILING,
+                    ", ".join(loose_props_files()) or "none",
+                ),
+            ),
+        ),
+        Gate(
+            "TS_NOCHECK_RATCHET",
+            "`// @ts-nocheck` files ≤ decreasing ceiling",
+            "final",
+            lambda: (
+                len(ts_nocheck_files()) <= TS_NOCHECK_CEILING,
+                "ts-nocheck files={0} ceiling={1}: {2}".format(
+                    len(ts_nocheck_files()),
+                    TS_NOCHECK_CEILING,
+                    ", ".join(ts_nocheck_files()) or "none",
+                ),
+            ),
+        ),
+        Gate(
+            "SETTINGS_ANY_CAST_RATCHET",
+            "settings `Record<string, any>` casts ≤ decreasing ceiling",
+            "final",
+            lambda: (
+                len(settings_any_cast_files()) <= SETTINGS_ANY_CAST_CEILING,
+                "settings any-cast files={0} ceiling={1}: {2}".format(
+                    len(settings_any_cast_files()),
+                    SETTINGS_ANY_CAST_CEILING,
+                    ", ".join(settings_any_cast_files()) or "none",
+                ),
+            ),
+        ),
+        Gate(
             "APP_TIMER_BALANCE",
             "App shell + AppWorkbench clearTimeout count ≥ 50% of setTimeout count (leak budget)",
             "final",
@@ -743,6 +835,9 @@ def main() -> int:
         "session_manager.rs.lines": lines_of(ROOT / "src-tauri/src/session_manager.rs"),
         "api.ts.lines": lines_of(ROOT / "src/lib/api.ts"),
         "SettingsPage.props": settings_page_prop_count(),
+        "typing.loose_props_files": len(loose_props_files()),
+        "typing.ts_nocheck_files": len(ts_nocheck_files()),
+        "typing.settings_any_cast_files": len(settings_any_cast_files()),
         "files_ge_1000": count_files_ge(
             ["src", "src-tauri/src"], 1000, {".ts", ".tsx", ".rs", ".css"}
         ),
