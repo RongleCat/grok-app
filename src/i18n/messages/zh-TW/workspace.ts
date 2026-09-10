@@ -255,7 +255,7 @@ export const zhTWWorkspace = {
   "resources.browserDownloadSaved": "已儲存 {name}",
   "resources.browserDownloadFailed": "下載失敗",
   "resources.browserDownloadCancelled": "已取消下載",
-  "resources.browserGoogleAuthExternal": "已在系統瀏覽器中開啟 Google 登入。",
+  "resources.browserGoogleAuthExternal": "已在登入視窗中開啟 Google 登入。",
   "search.title": "搜尋",
   "search.placeholder": "搜尋對話、專案、操作或訊息內容…",
   "search.projects": "專案",

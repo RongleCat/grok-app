@@ -255,7 +255,7 @@ export const koWorkspace = {
   "resources.browserDownloadSaved": "{name}을(를) 저장했습니다",
   "resources.browserDownloadFailed": "다운로드 실패",
   "resources.browserDownloadCancelled": "다운로드 취소됨",
-  "resources.browserGoogleAuthExternal": "Google 로그인을 시스템 브라우저에서 열었습니다.",
+  "resources.browserGoogleAuthExternal": "Google 로그인을 로그인 창에서 열었습니다.",
   "search.title": "검색",
   "search.placeholder": "대화, 프로젝트, 동작 또는 메시지 내용 검색…",
   "search.projects": "프로젝트",

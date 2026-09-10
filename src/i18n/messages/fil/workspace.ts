@@ -255,7 +255,7 @@ export const filWorkspace = {
   "resources.browserDownloadSaved": "Na-save ang {name}",
   "resources.browserDownloadFailed": "Nabigo ang download",
   "resources.browserDownloadCancelled": "Nakansela ang download",
-  "resources.browserGoogleAuthExternal": "Binuksan ang Google sign-in sa system browser.",
+  "resources.browserGoogleAuthExternal": "Binuksan ang Google sign-in sa login window.",
   "search.title": "Maghanap",
   "search.placeholder": "Maghanap ng chat, proyekto, aksyon, o nilalaman ng mensahe…",
   "search.projects": "Mga proyekto",

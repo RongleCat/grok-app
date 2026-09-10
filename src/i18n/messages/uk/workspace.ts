@@ -255,7 +255,7 @@ export const ukWorkspace = {
   "resources.browserDownloadSaved": "Збережено {name}",
   "resources.browserDownloadFailed": "Завантаження не вдалося",
   "resources.browserDownloadCancelled": "Завантаження скасовано",
-  "resources.browserGoogleAuthExternal": "Вхід Google відкрито в системному браузері.",
+  "resources.browserGoogleAuthExternal": "Вхід Google відкрито у вікні входу.",
   "search.title": "Пошук",
   "search.placeholder": "Шукати чати, проєкти, дії або вміст повідомлень…",
   "search.projects": "Проєкти",

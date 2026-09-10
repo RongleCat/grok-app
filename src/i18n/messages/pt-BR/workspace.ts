@@ -255,7 +255,7 @@ export const ptBRWorkspace = {
   "resources.browserDownloadSaved": "{name} salvo",
   "resources.browserDownloadFailed": "O download falhou",
   "resources.browserDownloadCancelled": "Download cancelado",
-  "resources.browserGoogleAuthExternal": "Login do Google aberto no navegador do sistema.",
+  "resources.browserGoogleAuthExternal": "Login do Google aberto em uma janela de autenticação.",
   "search.title": "Buscar",
   "search.placeholder": "Buscar chats, projetos, ações ou conteúdo de mensagens…",
   "search.projects": "Projetos",
