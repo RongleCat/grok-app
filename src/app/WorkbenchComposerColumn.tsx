@@ -294,6 +294,11 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
     gitWorktreesAvailable,
     gitWorktreesLoading,
     gitWorktreesReason,
+    gitBranches,
+    gitBranchesAvailable,
+    gitBranchesLoading,
+    gitBranchesReason,
+    gitBranchesBusy,
     openAsidePane,
     openShipFlow,
     openWorktreeCreate,
@@ -310,6 +315,7 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
     projects,
     refreshCliWorktrees,
     refreshGitWorktrees,
+    refreshGitBranches,
     resizingSidebar,
     resolvePermission,
     sessionChangesSummary,
@@ -317,6 +323,7 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
     showToast,
     sideDockActive,
     switchToWorktree,
+    switchToBranch,
     welcomeBrandKind,
     welcomeProviderBrandNode,
     welcomeSession,
@@ -694,6 +701,11 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                     worktreesAvailable={gitWorktreesAvailable}
                     worktreesLoading={gitWorktreesLoading}
                     worktreesReason={gitWorktreesReason}
+                    branches={gitBranches}
+                    branchesAvailable={gitBranchesAvailable}
+                    branchesLoading={gitBranchesLoading}
+                    branchesReason={gitBranchesReason}
+                    branchesBusy={gitBranchesBusy}
                     cliWorktrees={cliWorktrees}
                     cliWorktreesAvailable={cliWorktreesAvailable}
                     cliWorktreesLoading={cliWorktreesLoading}
@@ -713,6 +725,16 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                       worktreeMain: tr("composer.worktreeMain"),
                       worktreeDetached: tr("composer.worktreeDetached"),
                       worktreeTip: tr("composer.worktreeTip"),
+                      branches: tr("composer.branches"),
+                      branchesEmpty: tr("composer.branchesEmpty"),
+                      branchesUnavailable: tr("composer.branchesUnavailable"),
+                      branchesLoading: tr("composer.branchesLoading"),
+                      branchesSearchPlaceholder: tr(
+                        "composer.branchesSearchPlaceholder",
+                      ),
+                      branchesTruncated: tr("composer.branchesTruncated"),
+                      branchRemote: tr("composer.branchRemote"),
+                      branchElsewhere: tr("composer.branchElsewhere"),
                       worktreeNew: tr("composer.worktreeNew"),
                       worktreeNewChat: tr("composer.worktreeNewChat"),
                       worktreeGc: tr("composer.worktreeGc"),
@@ -739,6 +761,9 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                     onSwitch={(wt) => {
                       void switchToWorktree(wt);
                     }}
+                    onSwitchBranch={(row) => {
+                      void switchToBranch(row);
+                    }}
                     onCreate={() => openWorktreeCreate()}
                     onCreateAndChat={() =>
                       openWorktreeCreate({ startNewChat: true })
@@ -748,6 +773,7 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                     onRemove={confirmRemoveWorktree}
                     onOpen={() => {
                       void refreshGitWorktrees();
+                      void refreshGitBranches();
                       void refreshCliWorktrees();
                     }}
                     onCliRefresh={() => {

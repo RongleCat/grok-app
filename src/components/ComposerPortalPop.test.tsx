@@ -165,6 +165,67 @@ describe("composer chip portal pops", () => {
     expect(pop!.getAttribute("aria-label")).toBe("Git worktrees");
   });
 
+  it("worktree chip lists branches and switches in place", async () => {
+    const user = userEvent.setup();
+    const onSwitchBranch = vi.fn();
+    render(
+      <ComposerWorktreeMenu
+        activePath="/code/grok-app"
+        worktrees={[
+          {
+            path: "/code/grok-app",
+            branch: "main",
+            head: "abc123",
+            isMain: true,
+            detached: false,
+            locked: false,
+            prunable: false,
+          },
+        ]}
+        worktreesAvailable={true}
+        branches={[
+          { name: "main", current: true, remote: false },
+          { name: "feat/login", current: false, remote: false },
+          { name: "origin/only-remote", current: false, remote: true },
+        ]}
+        branchesAvailable={true}
+        variant="context"
+        labels={{
+          worktrees: "Git worktrees",
+          worktreesEmpty: "No linked worktrees",
+          worktreesUnavailable: "Worktrees unavailable",
+          worktreeCurrent: "current",
+          worktreeMain: "main",
+          worktreeDetached: "detached",
+          worktreeTip: "Switch git worktree / branch",
+          worktreeNew: "New worktree",
+          worktreeNewChat: "New worktree & chat",
+          worktreeGc: "Clean stale worktrees",
+          branches: "Branches",
+          branchesEmpty: "No branches",
+          branchesSearchPlaceholder: "Filter branches…",
+          branchRemote: "remote",
+        }}
+        onSwitch={vi.fn()}
+        onSwitchBranch={onSwitchBranch}
+        onCreate={vi.fn()}
+        onCreateAndChat={vi.fn()}
+        onGc={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Switch git worktree / branch" }),
+    );
+    expect(screen.getByText("Branches")).toBeTruthy();
+    expect(screen.getByText("feat/login")).toBeTruthy();
+    expect(screen.getByText("origin/only-remote")).toBeTruthy();
+    await user.click(screen.getByRole("menuitem", { name: /feat\/login/ }));
+    expect(onSwitchBranch).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "feat/login", remote: false }),
+    );
+  });
+
   it("context usage chip portals its ctx pop on the same layer", async () => {
     const user = userEvent.setup();
     const display: ContextUsageDisplay = {

@@ -28,6 +28,39 @@ export async function gitWorktreesList(projectPath: string) {
   return invoke<GitWorktreesResult>("git_worktrees_list", { projectPath });
 }
 
+export type {
+  GitBranchEntry,
+  GitBranchesResult,
+  GitSwitchBranchResult,
+  GitSwitchKind,
+} from "../gitBranches";
+
+/** List local + remote-only branches. Soft-fails when git/repo missing. */
+export async function gitBranchesList(projectPath: string) {
+  return invoke<import("../gitBranches").GitBranchesResult>("git_branches_list", {
+    projectPath,
+  });
+}
+
+/**
+ * In-place `git switch` in the project worktree.
+ * `startPoint` set → create a local tracking branch from that remote ref.
+ */
+export async function gitSwitchBranch(
+  projectPath: string,
+  branch: string,
+  startPoint?: string | null,
+) {
+  return invoke<import("../gitBranches").GitSwitchBranchResult>(
+    "git_switch_branch",
+    {
+      projectPath,
+      branch,
+      startPoint: startPoint?.trim() || null,
+    },
+  );
+}
+
 // ── GitHub PR hub (`gh pr list|view|checks`) ────────────────────────────────
 
 export type {

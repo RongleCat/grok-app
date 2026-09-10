@@ -1484,6 +1484,10 @@ pub fn run() {
 
             commands::git_worktrees_list,
 
+            commands::git_branches_list,
+
+            commands::git_switch_branch,
+
             commands::git_worktree_add,
 
             commands::git_worktree_remove,

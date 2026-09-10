@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- The composer branch chip can switch git branches in the current folder. Remote-only rows create a local tracking branch; a branch already checked out in another worktree opens that worktree instead.
+
+**中文 · 新增**
+- 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
+
 ### Fixed
 - Math formulas render with one matching KaTeX version again. The bundled CSS had drifted ahead of the JS.
 - Wallpaper no longer flashes black while streaming or following the chat tail.

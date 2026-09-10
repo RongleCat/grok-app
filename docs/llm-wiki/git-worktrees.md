@@ -5,12 +5,13 @@ CLI alignment: Grok Build **0.2.114+** `--worktree` / `--worktree-ref` and `~/.g
 
 ## Behavior
 
-When the active project path is a git work tree, the **new-session context bar** shows a **branch chip** (`ComposerWorktreeMenu`) next to the project picker. Opening it lists linked worktrees from:
+When the active project path is a git work tree, the **new-session context bar** shows a **branch chip** (`ComposerWorktreeMenu`) next to the project picker. Opening it lists **local branches** (in-place `git switch`) and linked worktrees from:
 
 ```bash
 git worktree list --porcelain
 ```
 
+- Selecting a **branch** runs in-place `git switch` in the current worktree (same directory). Remote-only rows create a local tracking branch (`git switch --track`). A branch already checked out in another linked worktree switches to that worktree instead of failing.
 - Selecting a worktree binds the open session (or draft context) to that path as agent **cwd**.
 - If the path is already a project, switch only; otherwise `project_add` (trust inherited from the current project when possible).
 - Soft-fail when `git` is missing or the folder is not a repo (same spirit as Workspace Changes git status).
@@ -125,25 +126,26 @@ grok worktree db rebuild   # filesystem scan → rebuild index
 
 ## Non-goals (MVP)
 
-- Full branch browser / remote fetch / same-directory `git checkout`
-- In-place checkout of an arbitrary local branch without a worktree
+- Fetch remotes from the branch menu / create a new local branch from an arbitrary ref (remote-only rows still check out tracking branches)
+- Discard uncommitted changes to force a switch (`git switch --discard-changes`)
 - Apply / merge worktree branch back onto main from the session menu (open folder + remove only)
 - Registering App-created trees into the CLI `worktrees.db` index from create UI (use **CLI worktree DB → Rebuild** to rescan)
 - CLI `worktree rm` / `gc` / `show` from the App (list + open/reveal only; DB path/stats/rebuild are separate)
 
 ## Implementation
 
-- Host: `git_worktrees_list` (includes `cliGrokHome`), `git_worktree_add` (`layout`: `cli` \| `sibling`), `git_worktree_remove`, `git_worktree_gc`, `git_push_branch`, `gh_pr_create`, `session_set_worktree` (`src-tauri/src/commands.rs`) — argv only, no shell
+- Host: `git_worktrees_list` (includes `cliGrokHome`), `git_branches_list`, `git_switch_branch` (in-place `git switch`, `--track` for remote-only; checkout fallback on old git), `git_worktree_add` (`layout`: `cli` \| `sibling`), `git_worktree_remove`, `git_worktree_gc`, `git_push_branch`, `gh_pr_create`, `session_set_worktree` (`src-tauri/src/commands.rs`) — argv only, no shell
 - Host: `cli_worktrees_list` (`src-tauri/src/cli_worktrees.rs`) — `grok worktree list [--json]` soft-fail envelope
 - Store: optional `SessionMeta.worktree_path` / `worktree_branch` / `is_worktree_session` (serde defaults; skip empty)
 - Pure path / name helpers: `sanitize_worktree_name`, `sanitize_worktree_ref`, `build_worktree_cli_path`, `build_worktree_sibling_path`, `build_worktree_path_for_layout` (+ unit tests)
 - Frontend pure helpers: `src/lib/gitWorktree.ts` — list/parse + path builders + `resolveSessionWorktreeBadge` / tooltip / layout detect (+ unit tests)
+- Frontend pure helpers: `src/lib/gitBranches.ts` — `for-each-ref` parse, sanitize, remote merge, switch-error classify (+ unit tests)
 - Frontend pure helpers: `src/lib/cliWorktrees.ts` — CLI JSON/text parse, project filter, open-as-cwd gate (+ unit tests)
 - Frontend pure helpers: `src/lib/wtShipFlow.ts` — push/PR argv builders, remote/fork head resolve, outcome combine (no fake success) (+ unit tests)
 - Frontend pure helpers: `src/lib/prHubDeepLink.ts` — ship → PR hub hash `#/settings/runtime/tools?pr=N` parse/build + PR number from URL (+ unit tests)
 - UI:
   - Project: `ComposerProjectMenu` (folder only)
-  - Branch / worktree: `ComposerWorktreeMenu` (context bar chip; per-row remove; **Ship…**; **CLI worktrees** section)
+  - Branch / worktree: `ComposerWorktreeMenu` (context bar chip; in-place branch list + search; per-row remove; **Ship…**; **CLI worktrees** section)
   - Sidebar **CLI** / **WT** badge + session context menu manage actions (**Ship…**)
   - Changes → Workspace: **Ship…** when git branch known
   - Create (layout radios + ref validation) + remove confirm + GC + Ship dialogs in `App.tsx`
