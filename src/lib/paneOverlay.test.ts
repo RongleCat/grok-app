@@ -111,5 +111,8 @@ describe("resolveWorkbenchPaneOverlay", () => {
     expect(openSidebarPane).toContain(
       "if (overlay.sidebarOverlay || overlay.asideOverlay) return;",
     );
+    expect(openSidebarPane).toContain(
+      "if (!windowFitWouldGrow(vw, projected)) return;",
+    );
   });
 });

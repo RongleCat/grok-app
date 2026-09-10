@@ -2,7 +2,11 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it } from "vitest";
-import { applyLiveSplitWidth, queryWorkbenchSplitPane } from "./paneDragLive";
+import {
+  applyLiveSplitWidth,
+  paintSidebarRail,
+  queryWorkbenchSplitPane,
+} from "./paneDragLive";
 
 describe("applyLiveSplitWidth", () => {
   it("writes the flex size tuple and rounds", () => {
@@ -16,6 +20,28 @@ describe("applyLiveSplitWidth", () => {
 
   it("is a no-op on a missing node", () => {
     expect(applyLiveSplitWidth(null, 180)).toBe(180);
+  });
+});
+
+describe("paintSidebarRail", () => {
+  it("snaps in-flow used size to 0 when collapsing", () => {
+    const el = document.createElement("aside");
+    applyLiveSplitWidth(el, 268);
+    paintSidebarRail(el, { collapsed: true, openWidth: 268, overlay: false });
+    expect(el.style.width).toBe("0px");
+    expect(el.style.minWidth).toBe("0px");
+    expect(el.style.maxWidth).toBe("0px");
+    expect(el.style.flexBasis).toBe("0px");
+    expect(el.classList.contains("sidebar--hidden")).toBe(true);
+    expect(el.classList.contains("sidebar--collapsed")).toBe(true);
+  });
+
+  it("keeps overlay width at the open size while collapsing", () => {
+    const el = document.createElement("aside");
+    applyLiveSplitWidth(el, 268);
+    paintSidebarRail(el, { collapsed: true, openWidth: 268, overlay: true });
+    expect(el.style.width).toBe("268px");
+    expect(el.classList.contains("sidebar--hidden")).toBe(true);
   });
 });
 

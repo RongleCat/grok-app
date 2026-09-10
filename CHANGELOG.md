@@ -126,6 +126,7 @@ See `docs/llm-wiki/release.md`.
 - 壁纸来源可在安全登录校验后浏览 Grok Saved 相册（#1103）。
 
 ### Changed
+- Left sidebar toggle on Windows snaps instead of sliding the chat column. Opening it skips growing a window that already fits.
 - Finished Worked-for rails fold after the turn. Failed tools stay as one-line excerpts.
 - Sent quotes show the excerpt and comment in the bubble, not a notes chip.
 - Account quota sits in the user menu again, with remaining % beside the name.
@@ -135,6 +136,7 @@ See `docs/llm-wiki/release.md`.
 - Startup skips TipTap and markdown preloads; Office and Settings load on demand (#1055, #1063).
 
 **中文 · 变更**
+- Windows 上开关左侧栏不再把聊天列跟着宽度滑动。窗口已经够宽时展开也不再拉大窗口。
 - 结束后的「Worked for」工具栏会收起。失败步骤保留为一行摘要。
 - 发送后的引用在气泡里直接显示摘录和评论，不再收成「N 条注释」。
 - 额度卡片回到用户菜单顶部，名字旁显示剩余百分比。

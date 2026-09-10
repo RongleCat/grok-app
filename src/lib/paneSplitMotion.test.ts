@@ -132,6 +132,22 @@ describe("desktop hidden CSS must not force width 0", () => {
     expect(ruleBody(sidebar, "\n.sidebar {")).toMatch(
       /width var\(--motion-pane\)[^,]*,[^}]*min-width var\(--motion-pane\)[^,]*,[^}]*max-width var\(--motion-pane\)[^,]*,[^}]*flex-basis var\(--motion-pane\)/s,
     );
+    const winInFlow =
+      ".platform-win .sidebar:not(.is-resizing):not(.sidebar--overlay):not(.sidebar--phone-drawer)";
+    const linuxInFlow =
+      ".platform-linux .sidebar:not(.is-resizing):not(.sidebar--overlay):not(.sidebar--phone-drawer)";
+    expect(sidebar).toContain(winInFlow);
+    expect(sidebar).toContain(linuxInFlow);
+    const winBody = ruleBody(sidebar, winInFlow);
+    const linuxBody = ruleBody(sidebar, linuxInFlow);
+    expect(winBody).not.toMatch(/width var\(--motion-pane\)/);
+    expect(winBody).not.toMatch(/min-width var\(--motion-pane\)/);
+    expect(winBody).not.toMatch(/max-width var\(--motion-pane\)/);
+    expect(winBody).not.toMatch(/flex-basis var\(--motion-pane\)/);
+    expect(linuxBody).not.toMatch(/width var\(--motion-pane\)/);
+    expect(linuxBody).not.toMatch(/min-width var\(--motion-pane\)/);
+    expect(linuxBody).not.toMatch(/max-width var\(--motion-pane\)/);
+    expect(linuxBody).not.toMatch(/flex-basis var\(--motion-pane\)/);
     expect(sidebar).not.toMatch(
       /^\s*\.workbench--sidebar-motion[^\n{]*\.sidebar/m,
     );

@@ -29,3 +29,21 @@ export function applyLiveSplitWidth(
   el.style.flexBasis = px;
   return n;
 }
+
+/**
+ * Click/shortcut paint: write used size + hidden class before React commit.
+ * Overlay keeps the open width (transform owns the motion).
+ */
+export function paintSidebarRail(
+  el: HTMLElement | null,
+  opts: { collapsed: boolean; openWidth: number; overlay: boolean },
+): void {
+  if (!el) return;
+  el.classList.toggle("sidebar--hidden", opts.collapsed);
+  el.classList.toggle("sidebar--collapsed", opts.collapsed);
+  if (opts.overlay) {
+    if (!opts.collapsed) applyLiveSplitWidth(el, opts.openWidth);
+    return;
+  }
+  applyLiveSplitWidth(el, opts.collapsed ? 0 : opts.openWidth);
+}

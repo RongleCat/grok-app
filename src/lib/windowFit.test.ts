@@ -1,6 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { measureWorkbenchFitNeed } from "./windowFit";
-import { MAIN_CHAT_MIN_WIDTH } from "./layout";
+import {
+  FIT_PAD,
+  measureWorkbenchFitNeed,
+  windowFitTargetWidth,
+  windowFitWouldGrow,
+} from "./windowFit";
+import {
+  DEFAULT_LAYOUT,
+  MAIN_CHAT_MIN_WIDTH,
+  requiredWorkbenchInnerWidth,
+} from "./layout";
 
 function rect(width: number): DOMRect {
   return {
@@ -28,6 +37,48 @@ function el(
     getBoundingClientRect: () => rect(width),
   };
 }
+
+describe("windowFitWouldGrow", () => {
+  const railOpen = {
+    sidebarCollapsed: false,
+    sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
+    asideCollapsed: true,
+    asideWidth: DEFAULT_LAYOUT.asideWidth,
+  } as const;
+
+  const bothOpen = {
+    ...railOpen,
+    asideCollapsed: false,
+  };
+
+  it("matches the grow request (required inner width plus fit pad)", () => {
+    expect(windowFitTargetWidth(railOpen)).toBe(
+      Math.ceil(requiredWorkbenchInnerWidth(railOpen) + FIT_PAD),
+    );
+    expect(windowFitTargetWidth(bothOpen)).toBe(
+      Math.ceil(requiredWorkbenchInnerWidth(bothOpen) + FIT_PAD),
+    );
+  });
+
+  it("does not grow when the viewport already meets required+pad", () => {
+    const target = windowFitTargetWidth(railOpen);
+    expect(windowFitWouldGrow(target, railOpen)).toBe(false);
+    expect(windowFitWouldGrow(target + 80, railOpen)).toBe(false);
+  });
+
+  it("grows when the viewport is below required+pad", () => {
+    const target = windowFitTargetWidth(railOpen);
+    expect(windowFitWouldGrow(target - 1, railOpen)).toBe(true);
+    const bothTarget = windowFitTargetWidth(bothOpen);
+    expect(windowFitWouldGrow(bothTarget - 1, bothOpen)).toBe(true);
+    expect(windowFitWouldGrow(bothTarget, bothOpen)).toBe(false);
+  });
+
+  it("does not grow on a missing or zero viewport", () => {
+    expect(windowFitWouldGrow(0, railOpen)).toBe(false);
+    expect(windowFitWouldGrow(Number.NaN, railOpen)).toBe(false);
+  });
+});
 
 describe("measureWorkbenchFitNeed", () => {
   afterEach(() => {
