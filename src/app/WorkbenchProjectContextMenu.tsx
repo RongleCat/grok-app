@@ -1,21 +1,56 @@
 /**
  * Project / archive / sandbox / color sidebar context-menu items.
  */
+import type { Dispatch, SetStateAction } from "react";
 import { type ContextMenuItem } from "@/components/ContextMenu";
 import * as api from "@/lib/api";
 import { IconAppearance, IconArchive, IconCheck, IconChevronDown, IconChevronUp, IconExternalLink, IconFileText, IconFolderPlus, IconHistory, IconPin, IconPinOff, IconPlus, IconQueue, IconRename, IconShield, IconTrash } from "@/components/icons";
 import { canMoveProjectInPinGroup } from "@/lib/app/projectOrder";
-import { isGeneralProject, projectDisplayName } from "@/lib/app/sidebarModels";
-import { revealInOsLabel } from "@/lib/appPlatform";
+import { isGeneralProject, projectDisplayName, type Project, type SessionRow } from "@/lib/app/sidebarModels";
+import { revealInOsLabel, type AppPlatform } from "@/lib/appPlatform";
 import { canOfferContinueCwd } from "@/lib/continueCwd";
 import { PERMISSION_POLICIES, type PermissionPolicyId } from "@/lib/grokCatalog";
-import { PROJECT_COLOR_TOKENS, normalizeProjectColor, resolveProjectColorCss } from "@/lib/projectColor";
-import { spaceDisplayName, spaceOfProject } from "@/lib/projectSpaces";
-import { SANDBOX_PROFILES, isDangerousSandboxProfile, normalizeSandboxProfile } from "@/lib/sandboxProfile";
+import { PROJECT_COLOR_TOKENS, normalizeProjectColor, resolveProjectColorCss, type ProjectColorToken } from "@/lib/projectColor";
+import { spaceDisplayName, spaceOfProject, type CreateSpaceError, type DeleteSpaceError, type SpaceNameError } from "@/lib/projectSpaces";
+import { SANDBOX_PROFILES, isDangerousSandboxProfile, normalizeSandboxProfile, type SandboxProfileId } from "@/lib/sandboxProfile";
 import { listArchiveAgeOptionPreviews } from "@/lib/sessionArchiveAge";
+import { createT, type MessageKey } from "@/i18n";
+import { useProjectSpaces } from "@/hooks/useProjectSpaces";
+import type { AppDialog, ContextMenuState } from "@/lib/app/appDialogTypes";
+import type { SidebarProjectReorderApi } from "@/hooks/useSidebarProjectReorder";
+
+type TFn = ReturnType<typeof createT>;
+type ProjectSpacesApi = ReturnType<typeof useProjectSpaces>;
 
 export type WorkbenchProjectContextMenuProps = {
-  [key: string]: any;
+  ctxMenu: ContextMenuState;
+  applyProjectColor: (proj: Project, next: string | null) => void;
+  applyProjectPermissionPolicy: (proj: Project, next: PermissionPolicyId | null) => void;
+  applyProjectSandboxProfile: (proj: Project, next: SandboxProfileId | null) => void;
+  archiveProjectSessions: (proj: Project) => Promise<void>;
+  confirmArchiveOlderThan: (days: number) => void;
+  continueLastAgentForProject: (proj: Project) => Promise<void>;
+  moveProjectByMenu: (projId: string, direction: "up" | "down") => void;
+  openSandboxWizardGuide: () => void;
+  platform: AppPlatform;
+  projectColorLabel: (token: ProjectColorToken) => string;
+  projectReorder: SidebarProjectReorderApi;
+  projectSpaces: ProjectSpacesApi;
+  projects: Project[];
+  refreshProjects: () => Promise<void>;
+  relocateProject: (proj: Project) => Promise<void>;
+  removeProjectFromApp: (proj: Project) => void;
+  renameProject: (proj: Project) => void;
+  sandboxProfileLabel: (id: SandboxProfileId) => string;
+  sessions: SessionRow[];
+  setAppDialog: Dispatch<SetStateAction<AppDialog>>;
+  setCtxMenu: Dispatch<SetStateAction<ContextMenuState>>;
+  setLocalError: Dispatch<SetStateAction<string | null>>;
+  setProjectRulesTarget: Dispatch<SetStateAction<{ path: string; name: string } | null>>;
+  showToast: (msg: string, ms?: number) => void;
+  spaceErrorKey: (err: SpaceNameError | CreateSpaceError | DeleteSpaceError) => MessageKey;
+  tr: TFn;
+  visibleProjects: Project[];
 };
 
 export function buildProjectContextMenuItems(
@@ -71,7 +106,7 @@ export function buildProjectContextMenuItems(
             },
           }));
         } else if (ctxMenu?.kind === "project") {
-          const proj = projects.find((p: any) => p.id === ctxMenu.id);
+          const proj = projects.find((x) => x.id === ctxMenu.id);
           if (proj) {
             const canUp = canMoveProjectInPinGroup(visibleProjects, proj.id, "up");
             const canDown = canMoveProjectInPinGroup(
@@ -143,7 +178,7 @@ export function buildProjectContextMenuItems(
                 label: tr("sidebar.spaces.moveTo"),
                 icon: <IconQueue size={16} />,
                 children: [
-                  ...projectSpaces.state.spaces.map((space: any) => {
+                  ...projectSpaces.state.spaces.map((space) => {
                     const current =
                       spaceOfProject(projectSpaces.state, proj.id) ===
                       space.id;
@@ -181,7 +216,7 @@ export function buildProjectContextMenuItems(
                         title: tr("sidebar.spaces.newTitle"),
                         initial: "",
                         placeholder: tr("sidebar.spaces.namePlaceholder"),
-                        onSubmit: (value: any) => {
+                        onSubmit: (value) => {
                           const result = projectSpaces.createAndMove(
                             proj.id,
                             value,
@@ -305,7 +340,7 @@ export function buildProjectContextMenuItems(
             ];
           }
         } else if (ctxMenu?.kind === "project-policy") {
-          const proj = projects.find((p: any) => p.id === ctxMenu.id);
+          const proj = projects.find((x) => x.id === ctxMenu.id);
           if (proj && proj.trusted) {
             const current = proj.permissionPolicy?.trim() || null;
             const policyLabel = (id: PermissionPolicyId) =>
@@ -342,7 +377,7 @@ export function buildProjectContextMenuItems(
             ];
           }
         } else if (ctxMenu?.kind === "project-sandbox") {
-          const proj = projects.find((p: any) => p.id === ctxMenu.id);
+          const proj = projects.find((x) => x.id === ctxMenu.id);
           if (proj && proj.trusted) {
             const current =
               normalizeSandboxProfile(proj.sandboxProfile) ?? null;
@@ -371,7 +406,7 @@ export function buildProjectContextMenuItems(
             ];
           }
         } else if (ctxMenu?.kind === "project-color") {
-          const proj = projects.find((p: any) => p.id === ctxMenu.id);
+          const proj = projects.find((x) => x.id === ctxMenu.id);
           if (proj) {
             const current = normalizeProjectColor(proj.color);
             items = [

@@ -1,13 +1,20 @@
 /**
  * Floating project/session + composer context menus.
  */
-import { ContextMenu } from "@/components/ContextMenu";
-import { buildProjectContextMenuItems } from "@/app/WorkbenchProjectContextMenu";
-import { buildSessionContextMenuItems } from "@/app/WorkbenchSessionContextMenu";
+import type { Dispatch, SetStateAction } from "react";
+import { ContextMenu, type ContextMenuItem } from "@/components/ContextMenu";
+import { buildProjectContextMenuItems, type WorkbenchProjectContextMenuProps } from "@/app/WorkbenchProjectContextMenu";
+import { buildSessionContextMenuItems, type WorkbenchSessionContextMenuProps } from "@/app/WorkbenchSessionContextMenu";
 
-export type WorkbenchFloatingMenusProps = {
-  [key: string]: any;
-};
+export type WorkbenchFloatingMenusProps =
+  WorkbenchProjectContextMenuProps &
+    WorkbenchSessionContextMenuProps & {
+      composerCtxItems: ContextMenuItem[];
+      composerCtxMenu: { x: number; y: number } | null;
+      setComposerCtxMenu: Dispatch<
+        SetStateAction<{ x: number; y: number } | null>
+      >;
+    };
 
 export function WorkbenchFloatingMenus(p: WorkbenchFloatingMenusProps) {
   const {

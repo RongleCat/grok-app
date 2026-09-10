@@ -1,19 +1,102 @@
 /**
  * Session / bulk-move sidebar context-menu items.
  */
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import { type ContextMenuItem } from "@/components/ContextMenu";
 import * as api from "@/lib/api";
 import { IconArchive, IconArrowsMinimize, IconBell, IconBellOff, IconChat, IconCheck, IconCircle, IconCopy, IconExportImage, IconExternalLink, IconFiles, IconFolder, IconFork, IconGitBranch, IconList, IconListCheck, IconListNumbers, IconNotes, IconPin, IconPinOff, IconPlan, IconPuzzle, IconRename, IconRewind, IconRobot, IconSettings, IconTrash, IconUpload } from "@/components/icons";
 import { dispatchCollapseAllActivity } from "@/lib/collapseAllActivity";
-import { canRemoveWorktree, pathsEqual } from "@/lib/gitWorktree";
+import { canRemoveWorktree, pathsEqual, type GitWorktreeEntry, type SessionWorktreeBadge } from "@/lib/gitWorktree";
 import { canOpenSessionInNewWindow } from "@/lib/multiWindow";
 import { isSessionExportJournalEmpty, joinSessionExportMenuSuffix, resolveSessionExportPath, sessionExportFormatNameKey, sessionExportMenuSuffixKeys } from "@/lib/sessionExportPro";
 import { normalizeMaxAgentTurns } from "@/lib/sessionMaxAgentTurns";
 import { canOfferResumeWithCodeRestore } from "@/lib/sessionResumeRestore";
 import { sanitizeSystemPromptOverride } from "@/lib/sessionSystemPrompt";
+import { createT } from "@/i18n";
+import type { ChatMessage, SessionSnapshot } from "@/lib/session";
+import { type Project, type SessionRow } from "@/lib/app/sidebarModels";
+import type { ContextMenuState } from "@/lib/app/appDialogTypes";
+import type { StreamSessionExportFormat } from "@/lib/streamSessionExport";
+import type { TranscriptFilterMode } from "@/lib/transcriptFilterPref";
+
+type TFn = ReturnType<typeof createT>;
+
+/** Minimal session identity the export callbacks operate on. */
+export type SessionExportTarget = {
+  id: string;
+  title: string;
+  projectId?: string | null;
+};
 
 export type WorkbenchSessionContextMenuProps = {
-  [key: string]: any;
+  ctxMenu: ContextMenuState;
+  activeProject: Project | null;
+  addSessionPluginDir: (s: SessionRow) => Promise<void>;
+  applyAttachedChat: (id: string, title: string, updatedAt?: string) => void;
+  archiveSession: (s: SessionRow, archived?: boolean) => Promise<void>;
+  bulkMoveMenuItems: (ids: string[]) => ContextMenuItem[];
+  busyIds: Set<string>;
+  canRewindSession: boolean;
+  clearSessionPluginDirs: (s: SessionRow) => Promise<void>;
+  confirmExportSessionTraceUpload: (sessionId?: string | null) => void;
+  confirmForkSession: (source: SessionRow, throughUserPromptIndex?: number | null) => void;
+  confirmRemoveWorktree: (wt: GitWorktreeEntry) => void;
+  confirmResumeWithCodeRestore: (source: SessionRow) => void;
+  copyConversationMarkdown: (sessionMeta?: SessionExportTarget) => Promise<void>;
+  copySessionId: (s: SessionRow) => Promise<void>;
+  deleteSessionConfirm: (s: SessionRow) => void;
+  enterSessionSelectMode: (preselectId?: string) => void;
+  exportSessionDiagnostic: (sessionId?: string | null) => Promise<void>;
+  exportSessionHtml: (sessionMeta?: SessionExportTarget) => Promise<void>;
+  exportSessionJson: (sessionMeta?: SessionExportTarget) => Promise<void>;
+  exportSessionPlain: (sessionMeta?: SessionExportTarget) => Promise<void>;
+  exportSessionStreamNdjson: (
+    format: StreamSessionExportFormat,
+    sessionMeta?: SessionExportTarget,
+  ) => Promise<void>;
+  exportSessionTrace: (
+    sessionId?: string | null,
+    opts?: { localOnly?: boolean },
+  ) => Promise<void>;
+  forkBusy: boolean;
+  gitWorktrees: GitWorktreeEntry[];
+  gitWorktreesAvailable: boolean | null;
+  handleClearAllSessionUnread: () => void;
+  handleClearSessionUnread: (sessionId: string) => void;
+  handleMarkSessionUnread: (sessionId: string) => void;
+  handleToggleSessionMute: (sessionId: string) => void;
+  isSecondaryWindow: boolean;
+  messages: ChatMessage[];
+  moveMenuItemsFor: (row: SessionRow) => ContextMenuItem[];
+  mutedSessionIds: Set<string>;
+  navigator: Navigator;
+  openExportSessionImage: (sessionMeta?: SessionExportTarget) => void;
+  openExportSessionMd: (sessionMeta?: SessionExportTarget) => void;
+  openRewindTimeline: (sessionId: string) => Promise<void>;
+  openSessionInNewWindow: (s: SessionRow) => void;
+  openSessionMaxTurns: (s: SessionRow) => void;
+  openSessionNote: (s: SessionRow) => void;
+  openSessionRules: (s: SessionRow) => void;
+  openSessionSysPrompt: (s: SessionRow) => void;
+  openShipFlow: () => void;
+  pinSession: (s: SessionRow, pinned?: boolean) => Promise<void>;
+  projects: Project[];
+  renameSession: (s: SessionRow) => void;
+  resumeRestoreBusy: boolean;
+  runDuplicateSession: (source: SessionRow) => Promise<void>;
+  session: SessionSnapshot;
+  sessionSelectMode: boolean;
+  sessionWorktreeBadgeFor: (s: SessionRow) => SessionWorktreeBadge | null;
+  sessions: SessionRow[];
+  setLocalError: Dispatch<SetStateAction<string | null>>;
+  setShowPlanHistory: Dispatch<SetStateAction<boolean>>;
+  setShowTraces: Dispatch<SetStateAction<boolean>>;
+  showToast: (msg: string, ms?: number) => void;
+  toggleTranscriptFilter: () => void;
+  transcriptFilter: TranscriptFilterMode;
+  tr: TFn;
+  unreadSessionIds: Set<string>;
+  viewingSessionIdRef: RefObject<string | null>;
 };
 
 export function buildSessionContextMenuItems(
@@ -87,7 +170,7 @@ export function buildSessionContextMenuItems(
         if (ctxMenu?.kind === "session-move") {
           items = bulkMoveMenuItems(ctxMenu.ids);
         } else if (ctxMenu?.kind === "session") {
-          const s = sessions.find((x: any) => x.id === ctxMenu.id);
+          const s = sessions.find((x) => x.id === ctxMenu.id);
           if (s) {
             const isOpen =
               session.sessionId === s.id ||
@@ -245,7 +328,7 @@ export function buildSessionContextMenuItems(
             // Soft-empty honesty for the live session only (other sessions load on demand).
             const liveExportable =
               s.id === session.sessionId
-                ? messages.map((m: any) => ({
+                ? messages.map((m) => ({
                     role: m.role,
                     content: m.content,
                     thought: m.thought,
@@ -493,7 +576,7 @@ export function buildSessionContextMenuItems(
                     danger: true,
                     onClick: () => {
                       const fromList =
-                        gitWorktrees.find((w: any) =>
+                        gitWorktrees.find((w) =>
                           pathsEqual(w.path, wtBadge.path),
                         ) ?? null;
                       const wt: api.GitWorktreeEntry = fromList ?? {
@@ -516,7 +599,7 @@ export function buildSessionContextMenuItems(
 
             const resumeRestoreItem = (() => {
               const proj = s.projectId
-                ? projects.find((p: any) => p.id === s.projectId) ?? null
+                ? projects.find((x) => x.id === s.projectId) ?? null
                 : null;
               const path = proj?.path?.trim() || "";
               const gitKnown =
