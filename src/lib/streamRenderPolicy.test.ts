@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   CHAT_VIRTUALIZE_THRESHOLD_PERF,
+  isStreamPerfActive,
   resolveStreamFlushMs,
   resolveStreamMarkdownParseMs,
   resolveStreamOverscanScale,
   resolveMarkdownPaintSource,
   resolveTranscriptContentNotifyMs,
+  setStreamPerfActive,
   shouldPlayWallpaperVideo,
+  shouldSyncStreamPerfDataset,
   shouldUsePlainStreamBody,
   STREAM_COALESCE_FLUSH_MS,
   STREAM_MARKDOWN_PARSE_MS,
@@ -83,5 +86,19 @@ describe("streamRenderPolicy", () => {
     expect(shouldPlayWallpaperVideo({})).toBe(true);
     expect(shouldPlayWallpaperVideo({ visibilityState: "visible" })).toBe(true);
     expect(shouldPlayWallpaperVideo({ visibilityState: "hidden" })).toBe(false);
+  });
+
+  it("tracks stream-perf in a module flag for overscan without requiring html attrs (#1158)", () => {
+    setStreamPerfActive(false);
+    expect(isStreamPerfActive()).toBe(false);
+    setStreamPerfActive(true);
+    expect(isStreamPerfActive()).toBe(true);
+    setStreamPerfActive(false);
+    expect(isStreamPerfActive()).toBe(false);
+  });
+
+  it("skips html data-stream-perf sync while wallpaper is active (#1158)", () => {
+    expect(shouldSyncStreamPerfDataset({ wallpaperActive: true })).toBe(false);
+    expect(shouldSyncStreamPerfDataset({ wallpaperActive: false })).toBe(true);
   });
 });

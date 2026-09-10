@@ -20,6 +20,8 @@ See `docs/llm-wiki/release.md`.
 - 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
 
 ### Fixed
+- Slow trackpad scrolling up from the chat tail no longer snaps back or flashes.
+- Wallpaper frost stays stable while streaming on macOS.
 - The user menu lists every saved official account and remaining quota again.
 - Math formulas render with one matching KaTeX version again. The bundled CSS had drifted ahead of the JS.
 - Wallpaper no longer flashes black while streaming or following the chat tail.
@@ -29,6 +31,8 @@ See `docs/llm-wiki/release.md`.
 - Generated wallpaper stays visible when library indexing fails and can be saved again.
 
 **中文 · 修复**
+- 从聊天底部慢慢上滑时，不再被弹回底部或闪一下。
+- 流式输出时壁纸霜化层保持稳定，不再随 stream-perf 重建。
 - 用户菜单再次列出本机已保存的官方账号及各自剩余额度。
 - 数学公式恢复 CSS 与 JS 同版本渲染，不再出现样式超前于脚本。
 - 流式输出和自动跟随聊天底部时，静态及动态壁纸不再闪黑。

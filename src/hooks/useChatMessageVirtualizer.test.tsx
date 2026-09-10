@@ -283,6 +283,25 @@ describe("useChatMessageVirtualizer touch freeze", () => {
     expect(viewport.dataset.scrolling).toBe("1");
   });
 
+  it("keeps scrolling UI after wheel + scroll while still pinned (#1159)", () => {
+    // Trackpad leave-bottom: wheel sets scrolling, then the native scroll
+    // event runs recomputeNow. That must NOT clear scrollingRef or pin-snap
+    // will yank the viewport back to the tail on sub-10px steps. Advance past
+    // the hover-restore debounce so a false clear would already have dropped
+    // data-scrolling.
+    const { viewport } = mount({ pinned: true });
+    act(() => {
+      viewport.dispatchEvent(new Event("wheel"));
+      viewport.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(16);
+    });
+    expect(viewport.dataset.scrolling).toBe("1");
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    expect(viewport.dataset.scrolling).toBe("1");
+  });
+
   it("clears contact on the last touchend, not pointercancel", () => {
     const { viewport } = mount({ pinned: true });
     act(() => {

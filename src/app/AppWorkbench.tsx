@@ -15,6 +15,10 @@ import { usePetCompanion } from "@/hooks/usePetCompanion";
 import { useFloatingMenu } from "@/lib/floatingMenu";
 import { restoreSessionGate } from "@/lib/sessionGateRestore";
 import { DEFAULT_WALLPAPER_FOCUS } from "@/lib/themeSkin";
+import {
+  setStreamPerfActive,
+  shouldSyncStreamPerfDataset,
+} from "@/lib/streamRenderPolicy";
 import { formatRelativeTime } from "@/lib/accountUi";
 import { loadConfirmExternalLinksPref } from "@/lib/externalLinkPref";
 import {
@@ -5509,13 +5513,21 @@ export function AppWorkbench() {
   const lastUserMessageId = transcriptMeta.lastUserId;
 
   // Streaming perf mode — shrink browse overscan on integrated GPU Retina.
-  // Do not zero the flag in the update cleanup (that flashes 1→0→1).
-  // Turn it off after paint so it does not restyle in the same frame as settle.
+  // Module flag drives JS readers; html data-stream-perf is only for CSS that
+  // is already gated off wallpaper. Flipping html attrs while wallpaper frost
+  // is active invalidates the macOS blur compositor (#1158).
   useEffect(() => {
     const on =
       session.state === "streaming" ||
       session.state === "awaiting_permission" ||
       transcriptMeta.hasStreamingAssistant;
+    setStreamPerfActive(on);
+    const wallpaperActive =
+      document.documentElement.getAttribute("data-wallpaper") === "1";
+    if (!shouldSyncStreamPerfDataset({ wallpaperActive })) {
+      delete document.documentElement.dataset.streamPerf;
+      return;
+    }
     if (on) {
       document.documentElement.dataset.streamPerf = "1";
       return;
@@ -5527,7 +5539,8 @@ export function AppWorkbench() {
   }, [session.state, transcriptMeta.hasStreamingAssistant]);
   useEffect(() => {
     return () => {
-      document.documentElement.dataset.streamPerf = "0";
+      setStreamPerfActive(false);
+      delete document.documentElement.dataset.streamPerf;
     };
   }, []);
 
