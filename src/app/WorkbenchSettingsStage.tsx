@@ -34,10 +34,9 @@ import { isValidPolicy, isValidPrefsScope } from "@/lib/grokCatalog";
 import { appDisplayVersion } from "@/lib/appDisplayVersion";
 import { mapProbeToCliInfo } from "@/lib/cliVersionStatus";
 import type { SessionRow } from "@/lib/app/sidebarModels";
+import type { WorkbenchSettingsStageProps } from "@/app/workbenchSettingsStageProps";
 
-export type WorkbenchSettingsStageProps = {
-  [key: string]: any;
-};
+
 
 export function WorkbenchSettingsStage(p: WorkbenchSettingsStageProps) {
   const {
@@ -243,7 +242,7 @@ export function WorkbenchSettingsStage(p: WorkbenchSettingsStageProps) {
           );
           void api.probeCli(v || undefined).then((cli) => {
           setCliInfo(mapProbeToCliInfo(cli));
-          setSetup((prev: { auth?: boolean }) => ({
+          setSetup((prev) => ({
           ...prev,
           cli: cli.found,
           auth: prev.auth || !!cli.cliAuthPresent,
