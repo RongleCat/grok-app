@@ -54,7 +54,7 @@ APP_USEEFFECT_CEILING = 65
 # These ratchets only ever decrease — each typing PR must lower them.
 LOOSE_PROPS_CEILING = 0
 TS_NOCHECK_CEILING = 1
-SETTINGS_ANY_CAST_CEILING = 9
+SETTINGS_ANY_CAST_CEILING = 0
 
 
 def lines_of(path: Path) -> int:

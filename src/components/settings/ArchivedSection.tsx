@@ -2,14 +2,13 @@
  * Settings → archived section (consumes SettingsModel context).
  */
 import { useSettingsModel } from "@/providers/SettingsModelContext";
-import type { SettingsViewModel } from "./types";
 
 import { IconArchive, IconTrash } from "@/components/icons";
 import { UiCheck, marqueeClientRect } from "./shared";
 
 
 export function ArchivedSection() {
-  const s = useSettingsModel() as SettingsViewModel & Record<string, any>;
+  const s = useSettingsModel();
   const {
     archiveAgeAnyMatch,
     archiveAgeMaxMatch,

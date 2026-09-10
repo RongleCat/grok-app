@@ -2,7 +2,6 @@
  * Settings → remote_im section (consumes SettingsModel context).
  */
 import { useSettingsModel } from "@/providers/SettingsModelContext";
-import type { SettingsViewModel } from "./types";
 
 import { RemoteImLayout } from "@/components/RemoteImLayout";
 import { MirrorConnectPanel } from "@/components/MirrorConnectPanel";
@@ -11,7 +10,7 @@ import * as api from "@/lib/api";
 
 
 export function RemoteImSection() {
-  const s = useSettingsModel() as SettingsViewModel & Record<string, any>;
+  const s = useSettingsModel();
   const {
     activeTab,
     title,

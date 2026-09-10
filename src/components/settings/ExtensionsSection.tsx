@@ -2,14 +2,13 @@
  * Settings → extensions section (consumes SettingsModel context).
  */
 import { useSettingsModel } from "@/providers/SettingsModelContext";
-import type { SettingsViewModel } from "./types";
 
 import { ExtensionsPanel } from "@/components/ExtensionsPanel";
 import { resolveLocale } from "@/i18n";
 
 
 export function ExtensionsSection() {
-  const s = useSettingsModel() as SettingsViewModel & Record<string, any>;
+  const s = useSettingsModel();
   const {
     activeTab,
     cliInfo,

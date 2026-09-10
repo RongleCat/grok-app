@@ -3,7 +3,6 @@
  */
 import { useEffect, useState } from "react";
 import { useSettingsModel } from "@/providers/SettingsModelContext";
-import type { SettingsViewModel } from "./types";
 
 import { Select } from "@/components/Select";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
@@ -96,7 +95,7 @@ import {
 } from "@/lib/openEditorHonesty";
 
 export function GeneralSection() {
-  const s = useSettingsModel() as SettingsViewModel & Record<string, any>;
+  const s = useSettingsModel();
   const {
     title,
     activeTab,

@@ -2,7 +2,6 @@
  * Settings → account section (consumes SettingsModel context).
  */
 import { useSettingsModel } from "@/providers/SettingsModelContext";
-import type { SettingsViewModel } from "./types";
 
 import { AccountPanel } from "@/components/AccountPanel";
 import { OfficialAuxPanel } from "@/components/OfficialAuxPanel";
@@ -12,7 +11,7 @@ import { resolveLocale } from "@/i18n";
 
 
 export function AccountSection() {
-  const s = useSettingsModel() as SettingsViewModel & Record<string, any>;
+  const s = useSettingsModel();
   const {
     account,
     accountBusy,
