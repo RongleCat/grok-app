@@ -1,9 +1,32 @@
-// @ts-nocheck — lifted Host listeners; ctx bag typed loosely during residual extract.
 /**
  * Host session event subscriptions (session://state, stream, tools, ...).
  * Extracted from AppWorkbench (residual-appworkbench).
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { createT } from "@/i18n";
+import type { ContextUsageState } from "@/lib/contextUsage";
+import type { MessagesReducer } from "@/lib/sessionTranscriptStore";
+import type { CompactPendingBefore } from "@/hooks/useCompactDialog";
+import type { GoalOrchEvent } from "@/lib/goalOrch";
+
+type TFn = ReturnType<typeof createT>;
+type StreamStallView = {
+  sessionId?: string;
+  stallSeconds: number;
+  tier?: string;
+  sawModelOutput?: boolean;
+  sawToolActivity?: boolean;
+} | null;
+import type { Project, SessionRow } from "@/lib/app/sidebarModels";
+import type { SessionLiveMap } from "@/lib/sessionLiveStore";
+import type { SessionPlanState } from "@/lib/planSession";
+import type { StopLatchState } from "@/lib/stopLatch";
+import type { SessionFileChange } from "@/lib/sessionChanges";
+import type { ResourceOpenTarget } from "@/components/resource-viewer/types";
+import type { ReliabilityStallSignal } from "@/lib/reliabilityCenter";
+import type { ProviderRetryStatus } from "@/lib/providerRetryStatusStore";
+import type { ProcessLimitEvent } from "@/lib/processBudget";
+import type { GoalOrchHostPayload } from "@/lib/goalOrch";
 import * as api from "@/lib/api";
 import { isMirrorClient } from "@/lib/mirrorTransport";
 import { isValidAskUserPayload } from "@/lib/askUserPayload";
@@ -123,12 +146,58 @@ import { toolEventSuggestsSkillCatalogChange } from "@/lib/skillCatalogRefresh";
 
 /** Mutable bag of AppWorkbench bindings used by Host event handlers. */
 export type SessionHostEventsCtx = {
-  [key: string]: unknown;
-  patchSessionMessages: (
-    targetSessionId: string | undefined | null,
-    reduce: (prev: ChatMessage[]) => ChatMessage[],
-  ) => void;
-  tryApplyAutomationFromSession: (sessionId: string) => void | Promise<void>;
+  patchSessionMessages: (targetSessionId: string | null | undefined, reduce: (prev: ChatMessage[]) => ChatMessage[]) => void;
+  tryApplyAutomationFromSession: (sessionId: string) => Promise<void>;
+  setLiveHost: (next: SessionSnapshot | ((prev: SessionSnapshot) => SessionSnapshot)) => void;
+  liveHostRef: RefObject<SessionSnapshot>;
+  setLiveMap: (next: SessionLiveMap | ((prev: SessionLiveMap) => SessionLiveMap)) => void;
+  liveMapRef: RefObject<SessionLiveMap>;
+  setSession: (next: SessionSnapshot | ((prev: SessionSnapshot) => SessionSnapshot)) => void;
+  setMessages: (next: ChatMessage[] | MessagesReducer) => void;
+  messagesBySessionRef: RefObject<Map<string, ChatMessage[]>>;
+  viewingSessionIdRef: RefObject<string | null>;
+  isSecondaryWindowRef: RefObject<boolean>;
+  secondaryFocusSessionIdRef: RefObject<string | null>;
+  openingSessionIdRef: RefObject<string | null>;
+  setStopLatch: Dispatch<SetStateAction<StopLatchState>>;
+  stopLatchRef: RefObject<StopLatchState>;
+  setLocalError: Dispatch<SetStateAction<string | null>>;
+  setToast: Dispatch<SetStateAction<string | null>>;
+  setSessions: Dispatch<SetStateAction<SessionRow[]>>;
+  sessionsRef: RefObject<SessionRow[]>;
+  projectsRef: RefObject<Project[]>;
+  setSessionChangesById: Dispatch<SetStateAction<Record<string, SessionFileChange[]>>>;
+  setContextUsage: Dispatch<SetStateAction<ContextUsageState>>;
+  setRetryStatus: (next: ProviderRetryStatus) => void;
+  setStreamStall: Dispatch<SetStateAction<StreamStallView>>;
+  startTurnClock: (sessionId?: string | null | undefined, at?: number) => void;
+  restartTurnClock: (sessionId?: string | null | undefined, at?: number) => void;
+  clearTurnClock: (sessionId?: string | null | undefined) => void;
+  setRecentStallSignals: Dispatch<SetStateAction<ReliabilityStallSignal[]>>;
+  setGoalOrchEvents: Dispatch<SetStateAction<GoalOrchEvent[]>>;
+  setLastProcessLimit: Dispatch<SetStateAction<ProcessLimitEvent | null>>;
+  setAskUser: Dispatch<SetStateAction<AskUserPayload | null>>;
+  setPerm: Dispatch<SetStateAction<PermissionPayload | null>>;
+  setPlan: Dispatch<SetStateAction<SessionPlanState>>;
+  setPlanFocusKey: Dispatch<SetStateAction<number>>;
+  planBySessionRef: RefObject<Map<string, SessionPlanState>>;
+  markPlanPendingBadge: (sessionId: string | null | undefined, plan: SessionPlanState) => void;
+  planOpenedAsideRef: RefObject<boolean>;
+  planCompletedRecordedRef: RefObject<Set<string>>;
+  openAsidePane: () => void;
+  openAsidePaneRef: RefObject<() => void>;
+  setResourceOpenTarget: Dispatch<SetStateAction<ResourceOpenTarget | null>>;
+  navigateWorkbench: () => void;
+  pendingAskUserBySessionRef: RefObject<Map<string, AskUserPayload>>;
+  pendingPermBySessionRef: RefObject<Map<string, PermissionPayload>>;
+  pendingCompactBeforeRef: RefObject<CompactPendingBefore | null>;
+  clearPendingGatesRef: RefObject<(sessionId?: string | null | undefined) => void>;
+  notifyPrefsRef: RefObject<{ notifyOnTurnDone: boolean; notifyOnPermission: boolean; }>;
+  localeRef: RefObject<"en" | "de" | "es" | "fil" | "fr" | "id" | "it" | "ja" | "ko" | "pt-BR" | "ru" | "ta" | "uk" | "zh" | "zh-TW">;
+  trRef: RefObject<TFn>;
+  tr: TFn;
+  modeRef: RefObject<string>;
+  streamStallSeconds: number;
   /**
    * Schedule a skills catalog reload (`skills_list`) when a chat turn
    * installs/writes skills so slash / + palette update without app restart.
@@ -269,7 +338,7 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
 
   useEffect(() => {
     // Fresh bindings for this subscription epoch (matches prior closure timing).
-    const c = ctxRef.current as any;
+    const c = ctxRef.current;
     if (!api.isTauri() && !isMirrorClient()) return;
 
     let cancelled = false;
@@ -1949,8 +2018,8 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
               null;
 
             const planJustCompleted = (
-              prev: PlanState,
-              next: PlanState,
+              prev: SessionPlanState,
+              next: SessionPlanState,
               sid: string | null,
             ) => {
               if (!sid) return;

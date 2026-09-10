@@ -3032,7 +3032,6 @@ export function AppWorkbench() {
     setContextUsage,
     setRetryStatus,
     setStreamStall,
-    setTurnStartedAt,
     startTurnClock,
     restartTurnClock,
     clearTurnClock,
@@ -3063,7 +3062,6 @@ export function AppWorkbench() {
     trRef,
     tr,
     modeRef,
-    maxConcurrentAgents,
     streamStallSeconds,
   });
 

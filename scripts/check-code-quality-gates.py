@@ -53,7 +53,7 @@ APP_USEEFFECT_CEILING = 65
 # settings sections casting their context to `Record<string, any>`).
 # These ratchets only ever decrease — each typing PR must lower them.
 LOOSE_PROPS_CEILING = 0
-TS_NOCHECK_CEILING = 1
+TS_NOCHECK_CEILING = 0
 SETTINGS_ANY_CAST_CEILING = 0
 
 
