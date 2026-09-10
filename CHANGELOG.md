@@ -20,6 +20,7 @@ See `docs/llm-wiki/release.md`.
 - 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
 
 ### Fixed
+- Embedded browser opens Google sign-in in the system browser on Windows.
 - Slow trackpad scrolling up from the chat tail no longer snaps back or flashes.
 - Wallpaper frost stays stable while streaming on macOS.
 - The user menu lists every saved official account and remaining quota again.
@@ -31,6 +32,7 @@ See `docs/llm-wiki/release.md`.
 - Generated wallpaper stays visible when library indexing fails and can be saved again.
 
 **中文 · 修复**
+- 内嵌浏览器遇到 Google 登录时改为打开系统浏览器，避免 Windows 卡死。
 - 从聊天底部慢慢上滑时，不再被弹回底部或闪一下。
 - 流式输出时壁纸霜化层保持稳定，不再随 stream-perf 重建。
 - 用户菜单再次列出本机已保存的官方账号及各自剩余额度。

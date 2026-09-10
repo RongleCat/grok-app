@@ -255,6 +255,7 @@ export const itWorkspace = {
   "resources.browserDownloadSaved": "Salvato {name}",
   "resources.browserDownloadFailed": "Download non riuscito",
   "resources.browserDownloadCancelled": "Download annullato",
+  "resources.browserGoogleAuthExternal": "Accesso Google aperto nel browser di sistema.",
   "search.title": "Cerca",
   "search.placeholder": "Cerca chat, progetti, azioni o contenuto dei messaggi…",
   "search.projects": "Progetti",

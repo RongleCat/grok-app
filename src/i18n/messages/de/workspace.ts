@@ -255,6 +255,7 @@ export const deWorkspace = {
   "resources.browserDownloadSaved": "{name} gespeichert",
   "resources.browserDownloadFailed": "Download fehlgeschlagen",
   "resources.browserDownloadCancelled": "Download abgebrochen",
+  "resources.browserGoogleAuthExternal": "Google-Anmeldung im Systembrowser geöffnet.",
   "search.title": "Suchen",
   "search.placeholder": "Chats, Projekte, Aktionen oder Nachrichteninhalt suchen…",
   "search.projects": "Projekte",

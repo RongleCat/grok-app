@@ -255,6 +255,7 @@ export const ruWorkspace = {
   "resources.browserDownloadSaved": "Сохранено: {name}",
   "resources.browserDownloadFailed": "Ошибка загрузки",
   "resources.browserDownloadCancelled": "Загрузка отменена",
+  "resources.browserGoogleAuthExternal": "Вход в Google открыт в системном браузере.",
   "search.title": "Поиск",
   "search.placeholder": "Поиск чатов, проектов, действий или содержимого сообщений…",
   "search.projects": "Проекты",

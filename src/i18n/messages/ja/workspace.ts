@@ -255,6 +255,7 @@ export const jaWorkspace = {
   "resources.browserDownloadSaved": "{name} を保存しました",
   "resources.browserDownloadFailed": "ダウンロードに失敗しました",
   "resources.browserDownloadCancelled": "ダウンロードをキャンセルしました",
+  "resources.browserGoogleAuthExternal": "Google ログインをシステムのブラウザで開きました。",
   "search.title": "検索",
   "search.placeholder": "チャット、プロジェクト、アクション、メッセージ本文を検索…",
   "search.projects": "プロジェクト",

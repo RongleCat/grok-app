@@ -255,6 +255,7 @@ export const zhWorkspace = {
   "resources.browserDownloadSaved": "已保存 {name}",
   "resources.browserDownloadFailed": "下载失败",
   "resources.browserDownloadCancelled": "已取消下载",
+  "resources.browserGoogleAuthExternal": "已在系统浏览器中打开 Google 登录。",
   "search.title": "搜索",
   "search.placeholder": "搜索会话、项目、操作或消息内容…",
   "search.projects": "项目",

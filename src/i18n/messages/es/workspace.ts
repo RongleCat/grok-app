@@ -255,6 +255,7 @@ export const esWorkspace = {
   "resources.browserDownloadSaved": "Se guardó {name}",
   "resources.browserDownloadFailed": "Falló la descarga",
   "resources.browserDownloadCancelled": "Descarga cancelada",
+  "resources.browserGoogleAuthExternal": "Se abrió el inicio de sesión de Google en el navegador del sistema.",
   "search.title": "Buscar",
   "search.placeholder": "Buscar chats, proyectos, acciones o contenido de mensajes…",
   "search.projects": "Proyectos",

@@ -255,6 +255,7 @@ export const enWorkspace = {
   "resources.browserDownloadSaved": "Saved {name}",
   "resources.browserDownloadFailed": "Download failed",
   "resources.browserDownloadCancelled": "Download cancelled",
+  "resources.browserGoogleAuthExternal": "Google sign-in opened in your system browser.",
   "search.title": "Search",
   "search.placeholder": "Search chats, projects, actions, or message content…",
   "search.projects": "Projects",

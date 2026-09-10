@@ -255,6 +255,7 @@ export const taWorkspace = {
   "resources.browserDownloadSaved": "சேமிக்கப்பட்டது {name}",
   "resources.browserDownloadFailed": "பதிவிறக்கம் தோல்வியடைந்தது",
   "resources.browserDownloadCancelled": "பதிவிறக்கம் ரத்து செய்யப்பட்டது",
+  "resources.browserGoogleAuthExternal": "Google உள்நுழைவு கணினி உலாவியில் திறக்கப்பட்டது.",
   "search.title": "தேடு",
   "search.placeholder": "உரையாடல்கள், திட்டங்கள், செயல்கள் அல்லது செய்தி உள்ளடக்கத்தைத் தேடுங்கள்...",
   "search.projects": "திட்டங்கள்",

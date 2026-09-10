@@ -255,6 +255,7 @@ export const idWorkspace = {
   "resources.browserDownloadSaved": "{name} disimpan",
   "resources.browserDownloadFailed": "Unduhan gagal",
   "resources.browserDownloadCancelled": "Unduhan dibatalkan",
+  "resources.browserGoogleAuthExternal": "Login Google dibuka di browser sistem.",
   "search.title": "Cari",
   "search.placeholder": "Cari obrolan, proyek, tindakan, atau isi pesan…",
   "search.projects": "Proyek",

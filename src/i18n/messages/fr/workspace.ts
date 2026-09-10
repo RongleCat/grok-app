@@ -255,6 +255,7 @@ export const frWorkspace = {
   "resources.browserDownloadSaved": "{name} enregistré",
   "resources.browserDownloadFailed": "Échec du téléchargement",
   "resources.browserDownloadCancelled": "Téléchargement annulé",
+  "resources.browserGoogleAuthExternal": "Connexion Google ouverte dans le navigateur système.",
   "search.title": "Recherche",
   "search.placeholder": "Rechercher conversations, projets, actions ou contenu de messages…",
   "search.projects": "Projets",

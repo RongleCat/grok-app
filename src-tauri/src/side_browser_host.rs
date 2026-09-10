@@ -23,6 +23,12 @@
 //! True Chromium-in-process (CEF) is **not** available in Tauri/Wry today.
 //! When CEF lands, it should register under the same label scheme and reuse
 //! these commands so automation clients stay compatible.
+//!
+//! ## Google Sign-In (#1154)
+//!
+//! WebView2 hard-freezes on Google account / OAuth documents. Top-level
+//! navigations and `window.open` to those hosts are cancelled and handed to
+//! the system browser via [`crate::commands::open_http_url`].
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -33,13 +39,14 @@ use std::time::Duration;
 
 use parking_lot::Mutex;
 use serde::Serialize;
-use tauri::webview::{DownloadEvent, PageLoadEvent, WebviewBuilder};
+use tauri::webview::{DownloadEvent, NewWindowResponse, PageLoadEvent, WebviewBuilder};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl};
 use tauri::{LogicalPosition, LogicalSize, Url};
 
 const LABEL_PREFIX: &str = "resource-browser";
 const DOWNLOAD_EVENT: &str = "side-browser://download";
 const PAGE_LOAD_EVENT: &str = "side-browser://page-load";
+const EXTERNAL_OPEN_EVENT: &str = "side-browser://external-open";
 
 /// url → staging path chosen in `Requested` (macOS finish omits path).
 static PENDING_DOWNLOADS: LazyLock<Mutex<HashMap<String, PendingDownload>>> =
@@ -80,6 +87,80 @@ pub struct SideBrowserPageLoadPayload {
     pub phase: String,
     pub label: String,
     pub url: String,
+}
+
+/// Payload for `side-browser://external-open` (status line after Google auth handoff).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SideBrowserExternalOpenPayload {
+    pub label: String,
+    pub url: String,
+    /// `google_auth`
+    pub reason: String,
+}
+
+/// Google account / OAuth surfaces that hard-freeze WebView2 on Windows (#1154).
+///
+/// Intentionally narrow: plain `google.com` search / docs stay in-app.
+pub fn should_open_google_auth_externally(url: &Url) -> bool {
+    if url.scheme() != "https" && url.scheme() != "http" {
+        return false;
+    }
+    let Some(host) = url.host_str().map(str::to_ascii_lowercase) else {
+        return false;
+    };
+    if host == "accounts.google.com"
+        || host == "accounts.youtube.com"
+        || host == "accounts.googleusercontent.com"
+        || host.ends_with(".accounts.google.com")
+        || host == "oauth2.googleapis.com"
+    {
+        return true;
+    }
+    if host == "google.com" || host == "www.google.com" {
+        let path = url.path().to_ascii_lowercase();
+        return path.starts_with("/o/oauth2")
+            || path.starts_with("/signin")
+            || path.starts_with("/_/accountchooser")
+            || path.starts_with("/accountchooser");
+    }
+    false
+}
+
+fn emit_external_open(app: &AppHandle, label: &str, url: &str) {
+    if let Err(e) = app.emit(
+        EXTERNAL_OPEN_EVENT,
+        SideBrowserExternalOpenPayload {
+            label: label.into(),
+            url: url.into(),
+            reason: "google_auth".into(),
+        },
+    ) {
+        tracing::warn!(error = %e, "side-browser external-open emit failed");
+    }
+}
+
+fn handoff_google_auth_externally(app: &AppHandle, label: &str, url: &Url) -> bool {
+    if !should_open_google_auth_externally(url) {
+        return false;
+    }
+    let url_s = url.as_str();
+    tracing::info!(
+        target: "side_browser",
+        %label,
+        url = %url_s,
+        "Google auth URL → system browser (WebView2 freeze guard)"
+    );
+    if let Err(e) = crate::commands::open_http_url(url_s) {
+        tracing::warn!(
+            target: "side_browser",
+            error = %e,
+            url = %url_s,
+            "failed to open Google auth URL externally"
+        );
+    }
+    emit_external_open(app, label, url_s);
+    true
 }
 
 /// Emit download status for the EmbeddedBrowser status line (HTTP + blob paths).
@@ -286,7 +367,15 @@ pub fn create(
     height: f64,
 ) -> Result<(), String> {
     validate_side_label(&label)?;
-    let parsed = validate_url(&url)?;
+    let mut url = url;
+    let mut parsed = validate_url(&url)?;
+    // Address-bar / deep-link into Google auth: hand off before the child
+    // WebView2 ever loads the freeze-prone document.
+    if should_open_google_auth_externally(&parsed) {
+        handoff_google_auth_externally(app, &label, &parsed);
+        url = "about:blank".into();
+        parsed = validate_url(&url)?;
+    }
     let win_label = window_label.trim();
     if win_label.is_empty() {
         return Err("window_label empty".into());
@@ -323,6 +412,9 @@ pub fn create(
             .map(|current| current != parsed)
             .unwrap_or(true);
         if should_navigate {
+            if handoff_google_auth_externally(app, &label, &parsed) {
+                return Ok(());
+            }
             emit_page_load(app, "started", &label, &url);
             existing
                 .navigate(parsed)
@@ -343,6 +435,10 @@ pub fn create(
     let polyfill_reload = polyfill.clone();
     let title_label = label.clone();
     let page_load_label = label.clone();
+    let nav_label = label.clone();
+    let nav_app = app.clone();
+    let new_win_label = label.clone();
+    let new_win_app = app.clone();
     // Do not steal keyboard focus from the main chat/composer on create —
     // users click the page when they want to type there.
     // First document load starts immediately after create.
@@ -351,6 +447,18 @@ pub fn create(
         .accept_first_mouse(true)
         .focused(false)
         .initialization_script(polyfill)
+        // Google Sign-In inside WebView2 hard-freezes the Windows host (#1154).
+        // Hand those navigations to the system browser and cancel in-webview load.
+        .on_navigation(move |url| {
+            !handoff_google_auth_externally(&nav_app, &nav_label, url)
+        })
+        .on_new_window(move |url, _features| {
+            if handoff_google_auth_externally(&new_win_app, &new_win_label, &url) {
+                NewWindowResponse::Deny
+            } else {
+                NewWindowResponse::Allow
+            }
+        })
         // Drive UI loading bar + re-assert download polyfill after navigations.
         // Polyfill early-returns if already installed — cheap.
         .on_page_load(move |webview, payload| {
@@ -653,6 +761,9 @@ pub fn list(app: &AppHandle) -> Result<Vec<SideBrowserInfo>, String> {
 
 pub fn navigate(app: &AppHandle, label: String, url: String) -> Result<(), String> {
     let parsed = validate_url(&url)?;
+    if handoff_google_auth_externally(app, &label, &parsed) {
+        return Ok(());
+    }
     let wv = get_side_webview(app, &label)?;
     // Optimistic start so the UI can paint a progress bar before WK/WebView2
     // fires PageLoadEvent::Started (can lag on slow DNS / first byte).
@@ -779,5 +890,31 @@ mod tests {
             .file_name()
             .and_then(|n| n.to_str())
             .is_some_and(|n| n.ends_with("hello world.pdf")));
+    }
+
+    #[test]
+    fn google_auth_hosts_open_externally() {
+        let cases = [
+            ("https://accounts.google.com/o/oauth2/auth?client_id=1", true),
+            ("https://accounts.youtube.com/accounts/SetSID", true),
+            ("https://oauth2.googleapis.com/token", true),
+            (
+                "https://www.google.com/o/oauth2/v2/auth?client_id=1",
+                true,
+            ),
+            ("https://www.google.com/signin/identifier", true),
+            ("https://www.google.com/search?q=hello", false),
+            ("https://google.com/", false),
+            ("https://mail.google.com/", false),
+            ("https://example.com/accounts.google.com", false),
+        ];
+        for (raw, expect) in cases {
+            let url = Url::parse(raw).unwrap();
+            assert_eq!(
+                should_open_google_auth_externally(&url),
+                expect,
+                "url={raw}"
+            );
+        }
     }
 }
