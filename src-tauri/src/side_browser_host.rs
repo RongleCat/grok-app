@@ -449,9 +449,7 @@ pub fn create(
         .initialization_script(polyfill)
         // Google Sign-In inside WebView2 hard-freezes the Windows host (#1154).
         // Hand those navigations to the system browser and cancel in-webview load.
-        .on_navigation(move |url| {
-            !handoff_google_auth_externally(&nav_app, &nav_label, url)
-        })
+        .on_navigation(move |url| !handoff_google_auth_externally(&nav_app, &nav_label, url))
         .on_new_window(move |url, _features| {
             if handoff_google_auth_externally(&new_win_app, &new_win_label, &url) {
                 NewWindowResponse::Deny
@@ -895,13 +893,13 @@ mod tests {
     #[test]
     fn google_auth_hosts_open_externally() {
         let cases = [
-            ("https://accounts.google.com/o/oauth2/auth?client_id=1", true),
-            ("https://accounts.youtube.com/accounts/SetSID", true),
-            ("https://oauth2.googleapis.com/token", true),
             (
-                "https://www.google.com/o/oauth2/v2/auth?client_id=1",
+                "https://accounts.google.com/o/oauth2/auth?client_id=1",
                 true,
             ),
+            ("https://accounts.youtube.com/accounts/SetSID", true),
+            ("https://oauth2.googleapis.com/token", true),
+            ("https://www.google.com/o/oauth2/v2/auth?client_id=1", true),
             ("https://www.google.com/signin/identifier", true),
             ("https://www.google.com/search?q=hello", false),
             ("https://google.com/", false),
