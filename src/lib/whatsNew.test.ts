@@ -107,6 +107,33 @@ describe("parseChangelogNotes", () => {
   it("returns null when the version section is missing", () => {
     expect(parseChangelogNotes(FIXTURE, "9.9.9", "en")).toBeNull();
   });
+
+  it("reads the whole section even when a capital Z appears mid-body", () => {
+    const md = [
+      "## [1.2.4] - 2026-09-01",
+      "",
+      "### Fixed",
+      "- Zoom hotkeys work again.",
+      "- ZDR wallpaper blocks show a hint.",
+      "- Windows tray quits cleanly.",
+      "",
+      "**中文 · 修复**",
+      "- 缩放快捷键恢复。",
+      "",
+      "## [1.2.3]",
+      "",
+      "### Fixed",
+      "- Older entry.",
+    ].join("\n");
+    const notes = parseChangelogNotes(md, "1.2.4", "en");
+    expect(notes?.sections[0]?.items).toEqual([
+      "Zoom hotkeys work again.",
+      "ZDR wallpaper blocks show a hint.",
+      "Windows tray quits cleanly.",
+    ]);
+    const zh = parseChangelogNotes(md, "1.2.4", "zh");
+    expect(zh?.sections[0]?.items).toEqual(["缩放快捷键恢复。"]);
+  });
 });
 
 describe("changelogPopupItem", () => {

@@ -120,8 +120,12 @@ function extractVersionBody(
   markdown: string,
   version: string,
 ): { rest: string; body: string } | null {
+  // `(?![\s\S])` is the JS way to say "absolute end of input". `\Z` was
+  // intended for that but in JS it is a literal-Z identity escape, so any
+  // section containing a capital Z (e.g. "ZDR", "Zoom") truncated at it and
+  // silently dropped every entry after it from the What's New popup.
   const re = new RegExp(
-    `^## \\[${escapeRegExp(version)}\\]([^\\n]*)\\n([\\s\\S]*?)(?=^## \\[|\\Z)`,
+    `^## \\[${escapeRegExp(version)}\\]([^\\n]*)\\n([\\s\\S]*?)(?=^## \\[|(?![\\s\\S]))`,
     "m",
   );
   const m = re.exec(markdown);

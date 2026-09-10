@@ -23,11 +23,13 @@ See `docs/llm-wiki/release.md`.
 - Math formulas render with one matching KaTeX version again. The bundled CSS had drifted ahead of the JS.
 - Wallpaper no longer flashes black while streaming or following the chat tail.
 - Imagine portrait thumbnails stay contained when the wallpaper window narrows.
+- What's New now lists every entry; some were cut off before.
 
 **中文 · 修复**
 - 数学公式恢复 CSS 与 JS 同版本渲染，不再出现样式超前于脚本。
 - 流式输出和自动跟随聊天底部时，静态及动态壁纸不再闪黑。
 - 壁纸窗口缩小时，Imagine 纵向缩略图不再挤压错位。
+- 「新功能」弹窗不再漏掉部分条目。
 
 ### Changed
 - Ctrl+Tab fills the selected chat row. Busy chats show the same spinner as the sidebar (#1146).
