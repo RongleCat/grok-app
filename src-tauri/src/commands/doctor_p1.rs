@@ -19,9 +19,9 @@ pub async fn import_grok_cli_config() -> Result<serde_json::Value, String> {
     if config.is_file() {
         msg.push("Found ~/.grok/config.toml".to_string());
     }
-    let mut settings = store::load_settings();
+    let mut settings = store::load_settings_async().await;
     apply_import_onboarding_done(&mut settings);
-    store::save_settings(&settings)?;
+    store::save_settings_async(&settings).await?;
     Ok(serde_json::json!({
         "ok": auth.is_file(),
         "messages": msg,
@@ -67,9 +67,9 @@ pub async fn import_grok_go_config() -> Result<serde_json::Value, String> {
                 secrets.relay_base_url = Some(base.to_string());
             }
             store::save_secrets(&secrets)?;
-            let mut settings = store::load_settings();
+            let mut settings = store::load_settings_async().await;
             apply_import_onboarding_done(&mut settings);
-            store::save_settings(&settings)?;
+            store::save_settings_async(&settings).await?;
             return Ok(serde_json::json!({
                 "ok": true,
                 "path": c,
@@ -130,7 +130,7 @@ fn doctor_check(
 
 #[tauri::command]
 pub async fn doctor_report() -> Result<serde_json::Value, String> {
-    let settings = store::load_settings();
+    let settings = store::load_settings_async().await;
     let probe = cli_probe::probe_cli(settings.manual_cli_path.as_deref());
     let projects = store::load_projects();
     let sessions = store::load_sessions_index();

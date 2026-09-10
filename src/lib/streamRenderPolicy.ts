@@ -123,21 +123,12 @@ export function resolveMarkdownPaintSource(
   return streaming ? throttledSource : liveSource;
 }
 
-/** `html[data-stream-perf]` as written by AppWorkbench during a live turn. */
-export function readStreamPerfFlag(
-  dataset: { streamPerf?: string } | null | undefined,
-): boolean {
-  return dataset?.streamPerf === "1";
-}
-
 /**
- * Wallpaper `<video>` should decode only when the window is visible and
- * stream-perf is off. CSS drops pane backdrop-filter separately; media frost stays.
+ * Wallpaper `<video>` should decode whenever the window is visible. Streaming
+ * must not pause/restart it because that rebuilds the compositor layer.
  */
 export function shouldPlayWallpaperVideo(opts: {
   visibilityState?: string;
-  streamPerf?: boolean;
 }): boolean {
-  if ((opts.visibilityState ?? "visible") === "hidden") return false;
-  return !opts.streamPerf;
+  return (opts.visibilityState ?? "visible") !== "hidden";
 }

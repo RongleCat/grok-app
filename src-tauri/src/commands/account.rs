@@ -6,7 +6,7 @@ pub async fn account_status(
     include_local_usage: Option<bool>,
     manual_cli_path: Option<String>,
 ) -> Result<crate::account::AccountStatus, String> {
-    let settings = store::load_settings();
+    let settings = store::load_settings_async().await;
     let manual = manual_cli_path
         .or(settings.manual_cli_path)
         .filter(|s| !s.is_empty());
@@ -25,7 +25,7 @@ pub async fn account_login(
     method: Option<String>,
     manual_cli_path: Option<String>,
 ) -> Result<crate::account::LoginResult, String> {
-    let settings = store::load_settings();
+    let settings = store::load_settings_async().await;
     let manual = manual_cli_path
         .or(settings.manual_cli_path)
         .filter(|s| !s.is_empty());
@@ -62,7 +62,7 @@ pub async fn account_logout(
     mgr: State<'_, Arc<SessionManager>>,
     manual_cli_path: Option<String>,
 ) -> Result<crate::account::AccountProfile, String> {
-    let settings = store::load_settings();
+    let settings = store::load_settings_async().await;
     let manual = manual_cli_path
         .or(settings.manual_cli_path)
         .filter(|s| !s.is_empty());

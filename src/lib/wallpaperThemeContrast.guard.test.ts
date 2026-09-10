@@ -411,7 +411,7 @@ describe("wallpaper theme contrast CSS", () => {
     expect(css).not.toMatch(
       /html\[data-wallpaper="1"\]\s+\.sidebar:not\(\.sidebar--overlay\):not\(\.sidebar--phone-drawer\)::before/,
     );
-    expect(css).toMatch(
+    expect(css).not.toMatch(
       /html\[data-stream-perf="1"\]\[data-wallpaper="1"\] \.aside,/,
     );
     expect(sideWorkbenchCss).toMatch(

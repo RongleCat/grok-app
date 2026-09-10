@@ -774,7 +774,7 @@ pub async fn settings_remember_last_session(
     session_id: Option<String>,
     project_id: Option<String>,
 ) -> Result<(), String> {
-    let mut s = store::load_settings();
+    let mut s = store::load_settings_async().await;
     let next_session = session_id.and_then(|id| {
         let t = id.trim().to_string();
         if t.is_empty() {
@@ -796,7 +796,7 @@ pub async fn settings_remember_last_session(
     }
     s.last_session_id = next_session;
     s.last_project_id = next_project;
-    store::save_settings(&s)
+    store::save_settings_async(&s).await
 }
 
 // from PR #79

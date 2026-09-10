@@ -127,7 +127,7 @@ pub async fn workflows_list(
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string());
-    let mode = store::load_settings().session_data_mode.clone();
+    let mode = store::load_settings_async().await.session_data_mode.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         crate::agent_workflows::discover_workflows(project.as_deref(), &mode)
     })

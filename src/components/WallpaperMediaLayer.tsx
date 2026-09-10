@@ -24,10 +24,7 @@ import {
   wallpaperMediaLayout,
   type WallpaperFocus,
 } from "@/lib/themeSkin";
-import {
-  readStreamPerfFlag,
-  shouldPlayWallpaperVideo,
-} from "@/lib/streamRenderPolicy";
+import { shouldPlayWallpaperVideo } from "@/lib/streamRenderPolicy";
 
 export type WallpaperMediaSize = { w: number; h: number };
 
@@ -198,7 +195,8 @@ export function WallpaperMediaLayer({
     return undefined;
   }, [kind, clip, url]);
 
-  // Pause wallpaper video while hidden or while stream-perf is on (live turn).
+  // Pause wallpaper video only while hidden. Stream state must not repeatedly
+  // tear down and rebuild WebView2's video compositor layer.
   useEffect(() => {
     if (kind !== "video") return;
     const apply = () => {
@@ -206,7 +204,6 @@ export function WallpaperMediaLayer({
       if (!(el instanceof HTMLVideoElement)) return;
       const play = shouldPlayWallpaperVideo({
         visibilityState: document.visibilityState,
-        streamPerf: readStreamPerfFlag(document.documentElement.dataset),
       });
       if (play) {
         void el.play().catch(() => {});
@@ -220,15 +217,8 @@ export function WallpaperMediaLayer({
     };
     apply();
     document.addEventListener("visibilitychange", apply);
-    const root = document.documentElement;
-    const obs = new MutationObserver(apply);
-    obs.observe(root, {
-      attributes: true,
-      attributeFilter: ["data-stream-perf"],
-    });
     return () => {
       document.removeEventListener("visibilitychange", apply);
-      obs.disconnect();
     };
   }, [kind, url]);
 

@@ -33,9 +33,11 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["full"] }
+# Trimmed from "full": no `tokio::fs` / `tokio::signal` usage in this crate
+# (file IO goes through `spawn_blocking` + `std::fs`). Add a feature here
+# only when a new `tokio::<feature>::…` call site actually appears.
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time", "process", "io-util", "net"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-thiserror = "2"
 parking_lot = "0.12"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

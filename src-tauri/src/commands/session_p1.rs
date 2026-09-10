@@ -397,13 +397,15 @@ pub async fn cli_install_latest(
     app: tauri::AppHandle,
     allow_unverified: Option<bool>,
 ) -> Result<crate::cli_install::CliInstallResult, String> {
-    let allow =
-        allow_unverified.unwrap_or_else(|| store::load_settings().allow_unverified_cli_install);
+    let allow = match allow_unverified {
+        Some(v) => v,
+        None => store::load_settings_async().await.allow_unverified_cli_install,
+    };
     let result = crate::cli_install::install_cli_latest(app, allow).await?;
     // Remember last install verification for Doctor.
-    let mut s = store::load_settings();
+    let mut s = store::load_settings_async().await;
     s.last_cli_checksum_verified = result.checksum_verified;
-    let _ = store::save_settings(&s);
+    let _ = store::save_settings_async(&s).await;
     Ok(result)
 }
 
@@ -665,7 +667,7 @@ pub async fn sessions_search(
 /// List Grok Build CLI sessions under GROK_HOME (shared-mode discovery, E03).
 #[tauri::command]
 pub async fn cli_sessions_list() -> Result<Vec<crate::cli_sessions::CliSessionSummary>, String> {
-    let mode = store::load_settings().session_data_mode;
+    let mode = store::load_settings_async().await.session_data_mode;
     crate::cli_sessions::list_cli_sessions(&mode)
 }
 
@@ -676,7 +678,7 @@ pub async fn cli_sessions_search(
     query: String,
     limit: Option<u32>,
 ) -> Result<Vec<crate::cli_sessions::CliSessionSearchHit>, String> {
-    let settings = store::load_settings();
+    let settings = store::load_settings_async().await;
     let mode = settings.session_data_mode.clone();
     let probe = cli_probe::probe_cli(settings.manual_cli_path.as_deref());
     let cli_path = probe
@@ -697,7 +699,7 @@ pub async fn cli_session_import(
     dir: Option<String>,
     project_id: Option<String>,
 ) -> Result<SessionMeta, String> {
-    let mode = store::load_settings().session_data_mode;
+    let mode = store::load_settings_async().await.session_data_mode;
     crate::cli_sessions::import_cli_session(&agent_session_id, dir.as_deref(), project_id, &mode)
 }
 
@@ -707,7 +709,7 @@ pub async fn cli_session_import(
 pub async fn cli_session_find_latest_for_cwd(
     project_path: String,
 ) -> Result<Option<crate::cli_sessions::CliSessionSummary>, String> {
-    let mode = store::load_settings().session_data_mode;
+    let mode = store::load_settings_async().await.session_data_mode;
     let path = project_path;
     tauri::async_runtime::spawn_blocking(move || {
         crate::cli_sessions::find_latest_cli_session_for_cwd(&path, &mode)
@@ -723,7 +725,7 @@ pub async fn cli_session_continue_cwd(
     project_path: String,
     project_id: Option<String>,
 ) -> Result<Option<SessionMeta>, String> {
-    let mode = store::load_settings().session_data_mode;
+    let mode = store::load_settings_async().await.session_data_mode;
     tauri::async_runtime::spawn_blocking(move || {
         crate::cli_sessions::continue_cli_session_for_cwd(&project_path, project_id, &mode)
     })
@@ -734,7 +736,7 @@ pub async fn cli_session_continue_cwd(
 /// Import up to `limit` not-yet-linked CLI sessions (default 50).
 #[tauri::command]
 pub async fn cli_sessions_import_all(limit: Option<u32>) -> Result<Vec<SessionMeta>, String> {
-    let mode = store::load_settings().session_data_mode;
+    let mode = store::load_settings_async().await.session_data_mode;
     let lim = limit.unwrap_or(50).min(100) as usize;
     crate::cli_sessions::import_all_cli_sessions(&mode, lim)
 }
@@ -746,7 +748,7 @@ pub async fn cli_sessions_delete(
     agent_session_id: String,
     dir: Option<String>,
 ) -> Result<(), String> {
-    let mode = store::load_settings().session_data_mode;
+    let mode = store::load_settings_async().await.session_data_mode;
     // Blocking disk IO off the async runtime.
     tauri::async_runtime::spawn_blocking(move || {
         crate::cli_sessions::delete_cli_session(&agent_session_id, dir.as_deref(), &mode)

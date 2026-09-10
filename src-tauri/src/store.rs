@@ -1314,6 +1314,26 @@ pub fn save_settings(s: &AppSettings) -> Result<(), String> {
     write_json(&settings_file(), &normalized)
 }
 
+/// Async-context variant of [`load_settings`]. The settings file sits behind
+/// an exclusive lock and `load_settings` may even rewrite it during one-time
+/// migrations, so async commands must not block their worker on the IO
+/// (same class as the git_status blocking-pool fix in #990).
+pub async fn load_settings_async() -> AppSettings {
+    // JoinError can only come from a panic inside load_settings itself,
+    // which already falls back to defaults on IO failure.
+    tokio::task::spawn_blocking(load_settings)
+        .await
+        .unwrap_or_default()
+}
+
+/// Async-context variant of [`save_settings`].
+pub async fn save_settings_async(s: &AppSettings) -> Result<(), String> {
+    let s = s.clone();
+    tokio::task::spawn_blocking(move || save_settings(&s))
+        .await
+        .map_err(|e| format!("settings save task failed: {e}"))?
+}
+
 /// Stable pin partition: all pinned first, then unpinned.
 /// Relative order within each group is preserved (user order / file order).
 /// Does **not** sort by `last_opened_at` — sidebar order is manual.
