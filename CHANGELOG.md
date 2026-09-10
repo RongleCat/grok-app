@@ -22,12 +22,14 @@ See `docs/llm-wiki/release.md`.
 - 流式输出和自动跟随聊天底部时，静态及动态壁纸不再闪黑。
 
 ### Changed
+- Ctrl+Tab fills the selected chat row. Busy chats show the same spinner as the sidebar (#1146).
 - About shows the git short hash when the build is not an exact release tag (#1139).
 - The theme editor modal loads on demand instead of joining app startup.
 - Bundled KaTeX math fonts ship as woff2 only, trimming the install size.
 - Settings reads and writes run on the blocking pool, off the async command path.
 
 **中文 · 变更**
+- Ctrl+Tab 预选行有背景高亮。进行中的对话显示与侧栏相同的转圈（#1146）。
 - 构建不是精确的 release tag 时，About 显示 git short hash（#1139）。
 - 主题编辑器改为按需加载，不再拖累应用启动。
 - 打包内的 KaTeX 数学字体只保留 woff2 格式，安装包更小。

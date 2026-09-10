@@ -933,3 +933,10 @@ html[data-sidebar-density="compact"] .tree-date-group__head {
   cursor: pointer;
   font: inherit;
 }
+.session-mru-panel .search-panel__row:hover:not(.is-active) {
+  background: var(--menu-hover);
+}
+.session-mru-panel .search-panel__row.is-active {
+  background: var(--accent-muted);
+  color: var(--text-primary);
+}
