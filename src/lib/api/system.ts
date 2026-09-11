@@ -101,6 +101,13 @@ export type SideBrowserPageLoadEvent = {
   url: string;
 };
 
+/** Host event `side-browser://external-open` (Google auth handoff, #1154). */
+export type SideBrowserExternalOpenEvent = {
+  label: string;
+  url: string;
+  reason: "google_auth" | string;
+};
+
 export async function sideBrowserCreate(opts: {
   label: string;
   url: string;

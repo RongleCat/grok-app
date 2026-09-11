@@ -36,6 +36,7 @@ import {
 } from "@/lib/api";
 import type {
   SideBrowserDownloadEvent,
+  SideBrowserExternalOpenEvent,
   SideBrowserPageLoadEvent,
 } from "@/lib/api";
 import { createT, type Locale } from "@/i18n";
@@ -126,6 +127,7 @@ function hostRectForWebview(hostEl: HTMLElement): HostRectPx | null {
 const WEBVIEW_LABEL_DEFAULT = "resource-browser";
 const DOWNLOAD_EVENT = "side-browser://download";
 const PAGE_LOAD_EVENT = "side-browser://page-load";
+const EXTERNAL_OPEN_EVENT = "side-browser://external-open";
 const CREATE_TIMEOUT_MS = 15_000;
 const CLOSE_GRACE_MS = 150;
 /** Drop loading UI if host never emits Finished (network hang / offline). */
@@ -590,6 +592,39 @@ export function EmbeddedBrowser({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [webviewLabel]);
+
+  // Google Sign-In handoff (#1154): host cancels in-webview load and opens
+  // the system browser; surface a short status so the user knows why.
+  useEffect(() => {
+    if (!isTauri()) return;
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        const off = await listen<SideBrowserExternalOpenEvent>(
+          EXTERNAL_OPEN_EVENT,
+          (ev) => {
+            const p = ev.payload;
+            if (!p || p.label !== webviewLabel) return;
+            if (p.reason === "google_auth") {
+              flashDownloadStatus(tr("resources.browserGoogleAuthExternal"));
+              markPageLoading(false);
+            }
+          },
+        );
+        if (cancelled) off();
+        else unlisten = off;
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [webviewLabel, locale]);
 
   // Create once per label. URL changes navigate in-place (do not tear down WKWebView).
   useEffect(() => {

@@ -66,6 +66,7 @@ mod wsl_backend;
 mod ssh_remote;
 
 mod side_browser_blob;
+mod side_browser_google_auth;
 mod side_browser_host;
 
 mod commands;

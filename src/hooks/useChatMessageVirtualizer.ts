@@ -57,7 +57,10 @@ import {
   nextChatRichBand,
 } from "@/lib/chatRowPaintPolicy";
 import { scrollPerfDebug } from "@/lib/scrollPerfDebug";
-import { resolveStreamOverscanScale } from "@/lib/streamRenderPolicy";
+import {
+  isStreamPerfActive,
+  resolveStreamOverscanScale,
+} from "@/lib/streamRenderPolicy";
 import {
   cancelFrameSchedule,
   emptyFrameSchedule,
@@ -354,15 +357,11 @@ export function useChatMessageVirtualizer(
       return;
     }
 
-    // Programmatic stick follow arrives as a native scroll event. If we left
-    // scrollingRef set, the streaming tail would freeze as shells and
-    // height commits would be dropped. Only clear when there is no contact:
-    // Chromium pointercancel on a touch pan is not a lift.
-    if (pin && scrollingRef.current && !fingerDownRef.current) {
-      scrollingRef.current = false;
-      pendingAnchorOffsetRef.current = 0;
-      setScrollingUi(false);
-    }
+    // Do NOT clear scrollingRef here while pinned. Trackpad leave-bottom
+    // arrives as wheel → scroll without fingerDown; clearing would let
+    // pin-snap yank sub-10px escapes back to the tail (#1159). Programmatic
+    // pin-follow never sets scrollingRef (see onScroll programmaticPinFollow),
+    // so streaming height commits stay unblocked.
 
     // A synchronous scrollTop write below must land with its compensating
     // paddingTop in the same commit — a deferred (transition) commit would
@@ -402,10 +401,7 @@ export function useChatMessageVirtualizer(
         viewportHeight: el.clientHeight,
         pinToBottom: pin,
         rowCount: count,
-        scale: resolveStreamOverscanScale(
-          typeof document !== "undefined" &&
-            document.documentElement.dataset.streamPerf === "1",
-        ),
+        scale: resolveStreamOverscanScale(isStreamPerfActive()),
       }),
       pinToBottom: pin,
       forceIndices: forceRef.current,
@@ -657,6 +653,14 @@ export function useChatMessageVirtualizer(
     const endContact = () => {
       if (!fingerDownRef.current) return;
       fingerDownRef.current = false;
+      // Touch/pen lift while pinned: release the scroll freeze so streaming
+      // height commits resume. Trackpad wheel never sets fingerDown, so this
+      // does not reintroduce the #1159 pin-snap yank on leave-bottom.
+      if (isPinnedRef.current) {
+        scrollingRef.current = false;
+        pendingAnchorOffsetRef.current = 0;
+        setScrollingUi(false);
+      }
       scheduleOnFrame(scrollFrameRef.current, () =>
         recomputeNow({ sampleVelocity: true }),
       );

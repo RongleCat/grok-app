@@ -132,3 +132,25 @@ export function shouldPlayWallpaperVideo(opts: {
 }): boolean {
   return (opts.visibilityState ?? "visible") !== "hidden";
 }
+
+/**
+ * Module-level stream-perf flag for JS readers (virtual overscan, etc.).
+ * Prefer this over `document.documentElement.dataset.streamPerf` so wallpaper
+ * sessions can skip flipping html attributes that invalidate macOS blur layers.
+ */
+let streamPerfActive = false;
+
+export function setStreamPerfActive(on: boolean): void {
+  streamPerfActive = on;
+}
+
+export function isStreamPerfActive(): boolean {
+  return streamPerfActive;
+}
+
+/** When wallpaper frost is active, skip syncing `data-stream-perf` onto `<html>`. */
+export function shouldSyncStreamPerfDataset(opts: {
+  wallpaperActive: boolean;
+}): boolean {
+  return !opts.wallpaperActive;
+}
