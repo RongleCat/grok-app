@@ -100,6 +100,7 @@ import {
   type ThinkingExpandPref,
 } from "@/lib/thinkingPref";
 import { loadToolStepsAutoCollapsePref } from "@/lib/toolStepsAutoCollapsePref";
+import { loadChatVirtualScrollPref } from "@/lib/chatVirtualScrollPref";
 import {
   loadTranscriptFilterPref,
   type TranscriptFilterMode,
@@ -238,6 +239,9 @@ export function useAppearanceEditorModel(opts: {
   );
   const [toolStepsAutoCollapse, setToolStepsAutoCollapse] = useState(() =>
     loadToolStepsAutoCollapsePref(),
+  );
+  const [chatVirtualScroll, setChatVirtualScroll] = useState(() =>
+    loadChatVirtualScrollPref(),
   );
   const [transcriptFilter, setTranscriptFilter] =
     useState<TranscriptFilterMode>(() => loadTranscriptFilterPref());
@@ -659,6 +663,11 @@ export function useAppearanceEditorModel(opts: {
     toolStepsAutoCollapse,
     setToolStepsAutoCollapse: (next: boolean) => {
       setToolStepsAutoCollapse(next);
+      notifyAppearanceChanged();
+    },
+    chatVirtualScroll,
+    setChatVirtualScroll: (next: boolean) => {
+      setChatVirtualScroll(next);
       notifyAppearanceChanged();
     },
     transcriptFilter,

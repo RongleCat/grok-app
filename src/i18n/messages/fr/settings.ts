@@ -287,6 +287,8 @@ export const frSettings = {
   "settings.thinkingExpand.keepOpen": "Garder développé",
   "settings.toolStepsAutoCollapse": "Replier auto les outils terminés",
   "settings.toolStepsAutoCollapseDesc": "Les étapes d’outils commencent repliées dans la chronologie, y compris pendant l’exécution. Développez une ligne pour voir le stdout. Désactivez pour garder les outils ouverts par défaut. Distinct de « Replier toute l’activité » (action manuelle unique).",
+  "settings.chatVirtualScroll": "Optimisation du défilement du chat",
+  "settings.chatVirtualScrollDesc": "Utilise le défilement virtuel pour fluidifier la page de conversation. Destiné à ceux qui aiment rester longtemps dans un même fil. Si le défilement de la page pose problème, vous pouvez désactiver cette fonction.",
   "settings.transcriptFilter": "Filtre de transcription",
   "settings.transcriptFilterDesc": "Masquer les lignes d’outils brutes autonomes. Les rails d’activité « a travaillé » sur les réponses de l’assistant restent toujours (résumé style Grok).",
   "settings.transcriptFilter.all": "Toute l’activité",

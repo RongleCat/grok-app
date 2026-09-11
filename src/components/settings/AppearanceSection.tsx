@@ -34,6 +34,7 @@ import { WallpaperFocusEditor } from "@/components/WallpaperFocusEditor";
 import { WallpaperMediaLayer } from "@/components/WallpaperMediaLayer";
 import { WallpaperSourceModal } from "@/components/WallpaperSourceModal";
 import { saveToolStepsAutoCollapsePref } from "@/lib/toolStepsAutoCollapsePref";
+import { saveChatVirtualScrollPref } from "@/lib/chatVirtualScrollPref";
 import {
   saveTranscriptFilterPref,
   type TranscriptFilterMode,
@@ -129,6 +130,7 @@ export function AppearanceSection() {
     setSessionSearchRank,
     setThinkingExpand,
     setToolStepsAutoCollapse,
+    setChatVirtualScroll,
     setTranscriptFilter,
     setWallpaperError,
     setWallpaperFocusOpen,
@@ -145,6 +147,7 @@ export function AppearanceSection() {
     themeScheduleHonesty,
     thinkingExpand,
     toolStepsAutoCollapse,
+    chatVirtualScroll,
     transcriptFilter,
     wallpaperBusy,
     wallpaperClip,
@@ -1019,6 +1022,29 @@ export function AppearanceSection() {
                   saveToolStepsAutoCollapsePref(next);
                 }}
                 ariaLabel={t("settings.toolStepsAutoCollapse")}
+              />
+            </div>
+            <div
+              className={
+                "settings-row" +
+                rowHighlight("settings-anchor-chatVirtualScroll")
+              }
+              id="settings-anchor-chatVirtualScroll"
+            >
+              <div className="settings-row__text">
+                <SettingsLabelWithTip
+                  label={t("settings.chatVirtualScroll")}
+                  tip={t("settings.chatVirtualScrollDesc")}
+                />
+              </div>
+              <UiCheck
+                checked={chatVirtualScroll}
+                onChange={() => {
+                  const next = !chatVirtualScroll;
+                  setChatVirtualScroll(next);
+                  saveChatVirtualScrollPref(next);
+                }}
+                ariaLabel={t("settings.chatVirtualScroll")}
               />
             </div>
             <div

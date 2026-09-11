@@ -287,6 +287,8 @@ export const deSettings = {
   "settings.thinkingExpand.keepOpen": "Ausgeklappt lassen",
   "settings.toolStepsAutoCollapse": "Fertige Werkzeuge automatisch einklappen",
   "settings.toolStepsAutoCollapseDesc": "Werkzeugschritte starten in der Timeline eingeklappt — auch während der Ausführung. Zeile aufklappen, um stdout zu sehen. Ausschalten, um Werkzeuge standardmäßig offen zu halten. Getrennt von „Alle Aktivität einklappen“ (manueller Einmal-Schritt).",
+  "settings.chatVirtualScroll": "Chat-Scroll-Optimierung",
+  "settings.chatVirtualScrollDesc": "Nutzt virtuelles Scrollen, um die Unterhaltungsseite flüssig zu halten. Für alle, die gerne in einem sehr langen Chat bleiben. Wenn das Scrollen Probleme macht, können Sie die Funktion ausschalten.",
   "settings.transcriptFilter": "Transkriptfilter",
   "settings.transcriptFilterDesc": "Rohe eigenständige Werkzeugzeilen ausblenden. Gearbeitet-für-Aktivitätsleisten an Assistentenantworten bleiben immer (Grok-Stil-Zusammenfassung).",
   "settings.transcriptFilter.all": "Alle Aktivität",

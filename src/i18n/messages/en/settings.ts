@@ -310,6 +310,8 @@ export const enSettings = {
   "settings.thinkingExpand.keepOpen": "Keep expanded",
   "settings.toolStepsAutoCollapse": "Auto-collapse finished tools",
   "settings.toolStepsAutoCollapseDesc": "Tool steps start collapsed in the timeline, including while running. Expand a row to see stdout. Turn off to keep tools open by default. Separate from “Collapse all activity” (manual one-shot).",
+  "settings.chatVirtualScroll": "Chat scroll optimization",
+  "settings.chatVirtualScrollDesc": "Uses virtual scrolling to keep the conversation page smooth. Intended for people who like staying in one very long chat. If page scrolling misbehaves, you can turn this off.",
   "settings.transcriptFilter": "Transcript filter",
   "settings.transcriptFilterDesc": "Hide raw standalone tool rows. Worked-for activity rails on assistant replies always stay (Grok-style summary).",
   "settings.transcriptFilter.all": "All activity",

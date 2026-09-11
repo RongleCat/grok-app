@@ -287,6 +287,8 @@ export const ptBRSettings = {
   "settings.thinkingExpand.keepOpen": "Manter expandido",
   "settings.toolStepsAutoCollapse": "Recolher automaticamente as ferramentas concluídas",
   "settings.toolStepsAutoCollapseDesc": "Etapas de ferramentas começam recolhidas na linha do tempo, inclusive durante a execução. Expanda uma linha para ver o stdout. Desligue para manter as ferramentas abertas por padrão. Separado de “Recolher toda a atividade” (um disparo manual).",
+  "settings.chatVirtualScroll": "Otimização da rolagem do chat",
+  "settings.chatVirtualScrollDesc": "Usa rolagem virtual para deixar a página da conversa fluida. Para quem gosta de conversas bem longas no mesmo fio. Se a rolagem da página der problema, você pode desativar este recurso.",
   "settings.transcriptFilter": "Filtro da transcrição",
   "settings.transcriptFilterDesc": "Ocultar linhas brutas avulsas de ferramentas. Os trilhos de atividade “trabalhou por” nas respostas do assistente sempre permanecem (resumo no estilo Grok).",
   "settings.transcriptFilter.all": "Toda a atividade",

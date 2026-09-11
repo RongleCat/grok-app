@@ -287,6 +287,8 @@ export const esSettings = {
   "settings.thinkingExpand.keepOpen": "Mantener expandido",
   "settings.toolStepsAutoCollapse": "Plegar automáticamente las herramientas terminadas",
   "settings.toolStepsAutoCollapseDesc": "Los pasos de herramienta empiezan plegados en la línea de tiempo, también mientras se ejecutan. Expande una fila para ver el stdout. Desactívalo para dejar las herramientas abiertas por defecto. Independiente de «Plegar toda la actividad» (acción manual de una vez).",
+  "settings.chatVirtualScroll": "Optimización del desplazamiento del chat",
+  "settings.chatVirtualScrollDesc": "Usa desplazamiento virtual para que la página de la conversación vaya fluida. Pensado para quien encadena chats muy largos en un mismo hilo. Si el desplazamiento de la página da problemas, puedes desactivar esta función.",
   "settings.transcriptFilter": "Filtro de transcripción",
   "settings.transcriptFilterDesc": "Oculta las filas sueltas de herramientas en bruto. Los rieles de actividad «trabajó para» en las respuestas del asistente siempre se quedan (resumen al estilo Grok).",
   "settings.transcriptFilter.all": "Toda la actividad",

@@ -287,6 +287,8 @@ export const idSettings = {
   "settings.thinkingExpand.keepOpen": "Tetap diperluas",
   "settings.toolStepsAutoCollapse": "Ciutkan otomatis alat yang selesai",
   "settings.toolStepsAutoCollapseDesc": "Langkah alat mulai diciutkan di linimasa, termasuk saat berjalan. Perluas baris untuk melihat stdout. Matikan agar alat tetap terbuka secara default. Terpisah dari “Ciutkan semua aktivitas” (sekali manual).",
+  "settings.chatVirtualScroll": "Optimasi gulir chat",
+  "settings.chatVirtualScrollDesc": "Memakai virtual scrolling agar halaman percakapan tetap mulus. Untuk yang suka mengobrol sangat panjang dalam satu percakapan. Jika gulir halaman bermasalah, fitur ini bisa dimatikan.",
   "settings.transcriptFilter": "Filter transkrip",
   "settings.transcriptFilterDesc": "Sembunyikan baris alat mandiri mentah. Rel aktivitas bekerja-untuk pada balasan asisten selalu tetap (ringkasan gaya Grok).",
   "settings.transcriptFilter.all": "Semua aktivitas",

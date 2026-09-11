@@ -113,6 +113,32 @@ describe("useChatMessageVirtualizer", () => {
     expect(result.current.paddingBottom).toBeGreaterThan(0);
   });
 
+  it("stays on a full native window when enabled is false", () => {
+    const viewport = document.createElement("div");
+    Object.defineProperty(viewport, "clientHeight", { value: 600, configurable: true });
+    Object.defineProperty(viewport, "scrollTop", { value: 0, configurable: true });
+    const isPinnedRef = { current: false };
+    const viewportRef = { current: viewport };
+
+    const { result } = renderHook(() =>
+      useChatMessageVirtualizer({
+        itemCount: 100,
+        getKey: (i) => "item-" + i,
+        getEstimateHeight: () => 100,
+        viewportRef,
+        isPinnedRef,
+        threshold: 10,
+        enabled: false,
+      }),
+    );
+
+    expect(result.current.virtualized).toBe(false);
+    expect(result.current.start).toBe(0);
+    expect(result.current.end).toBe(100);
+    expect(result.current.paddingTop).toBe(0);
+    expect(result.current.paddingBottom).toBe(0);
+  });
+
   it("returns stable measureRef callbacks across re-renders for the same index", () => {
     const viewport = document.createElement("div");
     const isPinnedRef = { current: false };

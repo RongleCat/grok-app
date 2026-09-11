@@ -196,6 +196,10 @@ import {
   loadToolStepsAutoCollapsePref,
 } from "@/lib/toolStepsAutoCollapsePref";
 import {
+  CHAT_VIRTUAL_SCROLL_CHANGE_EVENT,
+  loadChatVirtualScrollPref,
+} from "@/lib/chatVirtualScrollPref";
+import {
   TRANSCRIPT_FILTER_CHANGE_EVENT,
   filterMessagesForTranscript,
   loadTranscriptFilterPref,
@@ -2157,6 +2161,21 @@ export function ConversationThread({
       window.removeEventListener(TOOL_STEPS_AUTO_COLLAPSE_CHANGE_EVENT, onPref);
   }, []);
 
+  /** When false, the transcript is a native overflow list (no virtual window). */
+  const [chatVirtualScroll, setChatVirtualScroll] = useState(() =>
+    loadChatVirtualScrollPref(),
+  );
+  useEffect(() => {
+    const onPref = (ev: Event) => {
+      const detail = (ev as CustomEvent).detail;
+      if (typeof detail === "boolean") setChatVirtualScroll(detail);
+      else setChatVirtualScroll(loadChatVirtualScrollPref());
+    };
+    window.addEventListener(CHAT_VIRTUAL_SCROLL_CHANGE_EVENT, onPref);
+    return () =>
+      window.removeEventListener(CHAT_VIRTUAL_SCROLL_CHANGE_EVENT, onPref);
+  }, []);
+
   /** all | conversation — hide tool_step rows / tool chrome when conversation. */
   const [transcriptFilter, setTranscriptFilter] =
     useState<TranscriptFilterMode>(() => loadTranscriptFilterPref());
@@ -2907,6 +2926,7 @@ export function ConversationThread({
     isPinnedRef,
     conversationKey: conversationKeyForStick,
     forceIndices: forceVirtualIndices,
+    enabled: chatVirtualScroll,
   });
 
   const openMediaCount = useMemo(() => {

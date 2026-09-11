@@ -325,6 +325,7 @@ describe("settingsCatalog", () => {
     expect(appearance).toContain("settings.wallpaper");
     expect(appearance).toContain("settings.thinkingExpand");
     expect(appearance).toContain("settings.toolStepsAutoCollapse");
+    expect(appearance).toContain("settings.chatVirtualScroll");
     expect(appearance).toContain("settings.transcriptFilter");
     expect(appearance).toContain("settings.chatFontScale");
     expect(appearance).toContain("settings.codeFontScale");
@@ -560,6 +561,18 @@ describe("settingsCatalog", () => {
       toolCollapseZh.some(
         (h) => h.entry.id === "appearance.toolStepsAutoCollapse",
       ),
+    ).toBe(true);
+    const virtualScroll = searchSettingsEntries("virtual scroll", tZh, tEn);
+    expect(
+      virtualScroll.some((h) => h.entry.id === "appearance.chatVirtualScroll"),
+    ).toBe(true);
+    const virtualScrollZh = searchSettingsEntries("虚拟滚动", tZh, tEn);
+    expect(
+      virtualScrollZh.some((h) => h.entry.id === "appearance.chatVirtualScroll"),
+    ).toBe(true);
+    const scrollOptZh = searchSettingsEntries("滚动优化", tZh, tEn);
+    expect(
+      scrollOptZh.some((h) => h.entry.id === "appearance.chatVirtualScroll"),
     ).toBe(true);
     const transcriptFilter = searchSettingsEntries("transcript filter", tZh, tEn);
     expect(

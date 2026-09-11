@@ -143,6 +143,9 @@ import {
   loadToolStepsAutoCollapsePref,
 } from "@/lib/toolStepsAutoCollapsePref";
 import {
+  loadChatVirtualScrollPref,
+} from "@/lib/chatVirtualScrollPref";
+import {
   loadTranscriptFilterPref,
   type TranscriptFilterMode,
 } from "@/lib/transcriptFilterPref";
@@ -561,6 +564,10 @@ export function SettingsPage({
   /** Finished tool steps auto-collapse (localStorage; default on). */
   const [toolStepsAutoCollapse, setToolStepsAutoCollapse] = useState(() =>
     loadToolStepsAutoCollapsePref(),
+  );
+  /** Chat transcript virtual window (localStorage; default on). */
+  const [chatVirtualScroll, setChatVirtualScroll] = useState(() =>
+    loadChatVirtualScrollPref(),
   );
   /** Transcript paint filter — all activity vs conversation only. */
   const [transcriptFilter, setTranscriptFilter] =
@@ -1723,6 +1730,8 @@ export function SettingsPage({
     setThinkingExpand,
     toolStepsAutoCollapse,
     setToolStepsAutoCollapse,
+    chatVirtualScroll,
+    setChatVirtualScroll,
     transcriptFilter,
     setTranscriptFilter,
     chatFontScale,
