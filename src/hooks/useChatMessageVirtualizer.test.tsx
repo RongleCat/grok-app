@@ -309,12 +309,20 @@ describe("useChatMessageVirtualizer touch freeze", () => {
     expect(viewport.dataset.scrolling).toBe("1");
   });
 
-  it("keeps scrolling UI after wheel + scroll while still pinned (#1159)", () => {
-    // Trackpad leave-bottom: wheel sets scrolling, then the native scroll
-    // event runs recomputeNow. That must NOT clear scrollingRef or pin-snap
-    // will yank the viewport back to the tail on sub-10px steps. Advance past
-    // the hover-restore debounce so a false clear would already have dropped
-    // data-scrolling.
+  it("does not clear scrolling mid-wheel while pinned (#1159)", () => {
+    // Trackpad leave-bottom: wheel sets scrolling, then scroll runs
+    // recomputeNow. Must not clear scrollingRef in the same turn or pin-snap
+    // yanks sub-10px escapes. Idle settle may clear later (#1172).
+    const { viewport } = mount({ pinned: true });
+    act(() => {
+      viewport.dispatchEvent(new Event("wheel"));
+      viewport.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(16);
+    });
+    expect(viewport.dataset.scrolling).toBe("1");
+  });
+
+  it("clears scrolling after pinned wheel idle so thinking can pin-follow (#1172)", () => {
     const { viewport } = mount({ pinned: true });
     act(() => {
       viewport.dispatchEvent(new Event("wheel"));
@@ -323,9 +331,10 @@ describe("useChatMessageVirtualizer touch freeze", () => {
     });
     expect(viewport.dataset.scrolling).toBe("1");
     act(() => {
-      vi.advanceTimersByTime(250);
+      // pinnedScrollIdleTimer (160) + hover-restore debounce (220)
+      vi.advanceTimersByTime(400);
     });
-    expect(viewport.dataset.scrolling).toBe("1");
+    expect(viewport.dataset.scrolling).toBeUndefined();
   });
 
   it("clears contact on the last touchend, not pointercancel", () => {

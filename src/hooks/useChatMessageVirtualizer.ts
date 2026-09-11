@@ -35,7 +35,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type RefObject,
 } from "react";
 import {
   CHAT_DEFAULT_ROW_ESTIMATE_PX,
@@ -75,55 +74,20 @@ import {
   distanceFromBottom,
   markProgrammaticStickScroll,
   shouldForcePinnedSnapOnOpen,
-  STICK_ESCAPE_MIN_DELTA_PX,
   STICK_MIN_VIEWPORT_HEIGHT_PX,
   isStickViewportUnreliable,
 } from "@/lib/stickToBottom";
 import { createScrollVelocityTracker } from "@/lib/scrollVelocity";
+import {
+  fullChatVirtualWindow,
+  type UseChatMessageVirtualizerArgs,
+  type UseChatMessageVirtualizerResult,
+} from "@/hooks/chatMessageVirtualizerShared";
 
-export type UseChatMessageVirtualizerArgs = {
-  itemCount: number;
-  getKey: (index: number) => string;
-  /** Content-aware estimate before first measure (critical for tall answers). */
-  getEstimateHeight?: (index: number) => number;
-  viewportRef: RefObject<HTMLElement | null>;
-  /** Stick pin flag from useStickToBottom (ref, not reactive). */
-  isPinnedRef: RefObject<boolean>;
-  /** Reset height cache when conversation switches. */
-  conversationKey?: string | number | null;
-  /** Always-mounted indices (find match, streaming row, …). */
-  forceIndices?: readonly number[];
-  /** Below this count, render everything (no spacers). */
-  threshold?: number;
-  enabled?: boolean;
-};
-
-export type UseChatMessageVirtualizerResult = {
-  /** True when windowing is active. */
-  virtualized: boolean;
-  start: number;
-  end: number;
-  paddingTop: number;
-  paddingBottom: number;
-  richStart: number;
-  richEnd: number;
-  /** Measured height, else content estimate. */
-  rowHeight: (index: number) => number;
-  /** Attach to each row wrapper for measurement. */
-  measureRef: (index: number) => (el: HTMLElement | null) => void;
-  /** Recompute after scroll (also driven by native scroll listener). */
-  onViewportScroll: () => void;
-};
-
-const full = (count: number): ChatVirtualWindow => ({
-  start: 0,
-  end: count,
-  paddingTop: 0,
-  paddingBottom: 0,
-  totalHeight: 0,
-  richStart: 0,
-  richEnd: count,
-});
+export type {
+  UseChatMessageVirtualizerArgs,
+  UseChatMessageVirtualizerResult,
+} from "@/hooks/chatMessageVirtualizerShared";
 
 export function useChatMessageVirtualizer(
   args: UseChatMessageVirtualizerArgs,
@@ -197,7 +161,7 @@ export function useChatMessageVirtualizer(
     offsets: number[];
   } | null>(null);
 
-  const [win, setWin] = useState<ChatVirtualWindow>(() => full(itemCount));
+  const [win, setWin] = useState<ChatVirtualWindow>(() => fullChatVirtualWindow(itemCount));
   const winRef = useRef(win);
   winRef.current = win;
   /**
@@ -240,7 +204,7 @@ export function useChatMessageVirtualizer(
     observedIndicesRef.current.clear();
     const nextWin = virtualized
       ? chatOpenPinWindow(itemCount)
-      : full(itemCount);
+      : fullChatVirtualWindow(itemCount);
     winRef.current = nextWin;
     committedWinRef.current = nextWin;
     setWin(nextWin);
@@ -255,6 +219,10 @@ export function useChatMessageVirtualizer(
    * wheel ticks — without the debounce one gesture toggled hover 31 times.
    */
   const hoverRestoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  /** While pinned, release scrollingRef after trackpad idle so thinking growth can pin-follow (#1172). */
+  const pinnedScrollIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
   const setScrollingUi = useCallback(
@@ -316,7 +284,7 @@ export function useChatMessageVirtualizer(
   const recomputeNow = useCallback((options?: { sampleVelocity?: boolean }) => {
     const count = itemCountRef.current;
     if (!virtualizedRef.current) {
-      const next = full(count);
+      const next = fullChatVirtualWindow(count);
       const prev = winRef.current;
       if (
         prev.start === next.start &&
@@ -332,7 +300,7 @@ export function useChatMessageVirtualizer(
     }
     const el = viewportRef.current;
     if (!el) {
-      const next = full(count);
+      const next = fullChatVirtualWindow(count);
       winRef.current = next;
       setWin(next);
       return;
@@ -368,7 +336,8 @@ export function useChatMessageVirtualizer(
     // paint one frame of visible jump. Forces the urgent lane.
     let scrollTopWasWritten = false;
 
-    // Velocity-driven motion tracking: only sample when requested by scroll/rAF loop
+    // Velocity-driven motion tracking: only sample when requested by scroll/rAF loop.
+    // Pinned idle release of scrollingRef is owned by pinnedScrollIdleTimer (#1172).
     if (options?.sampleVelocity && !pin) {
       const velState = velocityTrackerRef.current.sample(el.scrollTop, t0);
       if (velState.isMoving) {
@@ -600,7 +569,7 @@ export function useChatMessageVirtualizer(
   // observers still fire with a stale count (window fight = flash).
   useEffect(() => {
     if (!virtualized) {
-      setWin(full(itemCountRef.current));
+      setWin(fullChatVirtualWindow(itemCountRef.current));
       return;
     }
     const el = viewportRef.current;
@@ -639,6 +608,22 @@ export function useChatMessageVirtualizer(
       }
       scrollingRef.current = true;
       setScrollingUi(true);
+      // Pinned wheel/touchmove: keep scrolling during the gesture (#1159), but
+      // release after idle so streaming thinking/tool height can pin-follow (#1172).
+      if (pinnedScrollIdleTimerRef.current != null) {
+        clearTimeout(pinnedScrollIdleTimerRef.current);
+        pinnedScrollIdleTimerRef.current = null;
+      }
+      if (isPinnedRef.current) {
+        pinnedScrollIdleTimerRef.current = setTimeout(() => {
+          pinnedScrollIdleTimerRef.current = null;
+          if (fingerDownRef.current) return;
+          if (!isPinnedRef.current) return;
+          scrollingRef.current = false;
+          setScrollingUi(false);
+          scheduleOnFrame(scrollFrameRef.current, () => recomputeNow());
+        }, 160);
+      }
       if (isPinnedRef.current && fingerDownRef.current) return;
       scheduleOnFrame(scrollFrameRef.current, () =>
         recomputeNow({ sampleVelocity: true }),
@@ -730,6 +715,10 @@ export function useChatMessageVirtualizer(
         clearTimeout(hoverRestoreTimerRef.current);
         hoverRestoreTimerRef.current = null;
       }
+      if (pinnedScrollIdleTimerRef.current != null) {
+        clearTimeout(pinnedScrollIdleTimerRef.current);
+        pinnedScrollIdleTimerRef.current = null;
+      }
       delete el.dataset.scrolling;
       ro?.disconnect();
       cancelFrameSchedule(scrollFrameRef.current);
@@ -760,15 +749,15 @@ export function useChatMessageVirtualizer(
     const v = viewportRef.current;
     if (!v) return;
     if (v.clientHeight < STICK_MIN_VIEWPORT_HEIGHT_PX) return;
-    // User already left the bottom (trackpad ticks). Snapping here is the
-    // "wheel turns, screen does not move" freeze until a hard flick. Judged
-    // on the distance captured before the commit: post-commit numbers
-    // conflate user motion with scrollHeight drift from fresh row mounts.
+    // When stick still says pinned, always restore the bottom offset.
+    // Streaming thinking/tool growth can inflate pre-commit dist above the
+    // escape threshold without the user leaving the tail (#1172). True
+    // leave-bottom is owned by useStickToBottom flipping isPinnedRef.
+    // Mid-gesture yank is prevented by scrollingRef / fingerDown above and
+    // by not clearing scrollingRef during the wheel itself (#1159).
     let dist = pinnedPreCommitBottomDistRef.current;
     if (forceOpen) {
       dist = 0;
-    } else if (dist >= STICK_ESCAPE_MIN_DELTA_PX) {
-      return;
     }
     const top = Math.max(0, v.scrollHeight - v.clientHeight);
     const desired = Math.max(0, top - dist);

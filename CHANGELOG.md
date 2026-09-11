@@ -14,12 +14,15 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- Settings → Appearance can turn off chat virtual scrolling for native overflow.
 - The composer branch chip can switch git branches in the current folder. Remote-only rows create a local tracking branch; a branch already checked out in another worktree opens that worktree instead.
 
 **中文 · 新增**
+- 设置 → 外观可关闭聊天虚拟滚动，改回原生滚动（长对话滚动异常时可关）。
 - 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
 
 ### Fixed
+- Thinking and tool streams keep following the chat tail after a brief trackpad pause (#1172).
 - Tray Quit on Windows arms the exit failsafe before trying to show the window.
 - Embedded browser opens Google sign-in in a shared-cookie login window.
 - Slow trackpad scrolling up from the chat tail no longer snaps back or flashes.
@@ -33,6 +36,7 @@ See `docs/llm-wiki/release.md`.
 - Generated wallpaper stays visible when library indexing fails and can be saved again.
 
 **中文 · 修复**
+- 思考/工具流式增高时，触控板短暂停顿后内容区会继续贴底跟随，不再被输入框挡住（#1172）。
 - Windows 托盘退出会先启动退出保险，再尝试显示主窗口，卡住时也能退出。
 - 内嵌浏览器的 Google 登录改为共享 Cookie 的登录窗，完成后回到内嵌页。
 - 从聊天底部慢慢上滑时，不再被弹回底部或闪一下。
