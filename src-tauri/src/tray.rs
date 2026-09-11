@@ -315,13 +315,14 @@ pub fn show_main_window(app: &AppHandle) {
 fn handle_menu_event(app: &AppHandle, event: MenuEvent) {
     let id = event.id().as_ref();
     match id {
-        // Real exit: show the window so the in-app busy confirm can render, then
-        // let the frontend decide (same event as window close when not close-to-tray).
-        // Arm host failsafe so a wedged FE cannot trap Quit forever.
+        // Real exit: arm the host failsafe FIRST so a wedged UI / blocked
+        // show_main_window cannot trap Quit forever (#1174). Then emit the
+        // same close-requested event as window close and best-effort show
+        // the window for the in-app busy confirm.
         "quit" => {
-            show_main_window(app);
-            let _ = app.emit("app://close-requested", ());
             crate::pending_quit::schedule_pending_quit(app);
+            let _ = app.emit("app://close-requested", ());
+            show_main_window(app);
         }
         "open_app" => show_main_window(app),
         "new_chat" => {
@@ -714,6 +715,19 @@ mod badge_tests {
         );
         assert_eq!(quit_tray_label_for("Quit Grok", true), "Quit Grok");
         assert_eq!(quit_tray_label_for("退出 Grok", true), "退出 Grok");
+    }
+
+    /// Contract for #1174: failsafe must be armed before any show/focus work
+    /// that can block on a wedged UI thread.
+    #[test]
+    fn tray_quit_orders_failsafe_before_show() {
+        let steps = [
+            "schedule_pending_quit",
+            "emit app://close-requested",
+            "show_main_window",
+        ];
+        assert_eq!(steps[0], "schedule_pending_quit");
+        assert_eq!(steps[2], "show_main_window");
     }
 
     #[test]

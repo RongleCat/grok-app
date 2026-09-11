@@ -20,6 +20,7 @@ See `docs/llm-wiki/release.md`.
 - 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
 
 ### Fixed
+- Tray Quit on Windows arms the exit failsafe before trying to show the window.
 - Embedded browser opens Google sign-in in a shared-cookie login window.
 - Slow trackpad scrolling up from the chat tail no longer snaps back or flashes.
 - Wallpaper frost stays stable while streaming on macOS.
@@ -32,6 +33,7 @@ See `docs/llm-wiki/release.md`.
 - Generated wallpaper stays visible when library indexing fails and can be saved again.
 
 **中文 · 修复**
+- Windows 托盘退出会先启动退出保险，再尝试显示主窗口，卡住时也能退出。
 - 内嵌浏览器的 Google 登录改为共享 Cookie 的登录窗，完成后回到内嵌页。
 - 从聊天底部慢慢上滑时，不再被弹回底部或闪一下。
 - 流式输出时壁纸霜化层保持稳定，不再随 stream-perf 重建。
