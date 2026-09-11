@@ -23,6 +23,11 @@
 //! True Chromium-in-process (CEF) is **not** available in Tauri/Wry today.
 //! When CEF lands, it should register under the same label scheme and reuse
 //! these commands so automation clients stay compatible.
+//!
+//! ## Google Sign-In (#1154)
+//!
+//! See [`crate::side_browser_google_auth`] — shared-cookie top-level login
+//! window; child WebView2 never loads Google auth documents (freeze guard).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -31,9 +36,13 @@ use std::sync::mpsc;
 use std::sync::LazyLock;
 use std::time::Duration;
 
+use crate::side_browser_google_auth::{
+    handoff_google_auth_externally, should_open_google_auth_externally,
+    side_browser_data_directory, SIDE_BROWSER_DATA_STORE,
+};
 use parking_lot::Mutex;
 use serde::Serialize;
-use tauri::webview::{DownloadEvent, PageLoadEvent, WebviewBuilder};
+use tauri::webview::{DownloadEvent, NewWindowResponse, PageLoadEvent, WebviewBuilder};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl};
 use tauri::{LogicalPosition, LogicalSize, Url};
 
@@ -45,7 +54,6 @@ const PAGE_LOAD_EVENT: &str = "side-browser://page-load";
 static PENDING_DOWNLOADS: LazyLock<Mutex<HashMap<String, PendingDownload>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 static DOWNLOAD_SEQ: AtomicU64 = AtomicU64::new(1);
-
 struct PendingDownload {
     label: String,
     staging: PathBuf,
@@ -87,7 +95,7 @@ pub fn emit_download_payload(app: &AppHandle, payload: SideBrowserDownloadPayloa
     emit_download(app, payload);
 }
 
-fn emit_page_load(app: &AppHandle, phase: &str, label: &str, url: &str) {
+pub(crate) fn emit_page_load(app: &AppHandle, phase: &str, label: &str, url: &str) {
     if let Err(e) = app.emit(
         PAGE_LOAD_EVENT,
         SideBrowserPageLoadPayload {
@@ -139,7 +147,7 @@ fn validate_url(url: &str) -> Result<Url, String> {
     Url::parse(u).map_err(|e| format!("bad url: {e}"))
 }
 
-fn get_side_webview<R: tauri::Runtime>(
+pub(crate) fn get_side_webview<R: tauri::Runtime>(
     app: &AppHandle<R>,
     label: &str,
 ) -> Result<tauri::Webview<R>, String> {
@@ -286,7 +294,15 @@ pub fn create(
     height: f64,
 ) -> Result<(), String> {
     validate_side_label(&label)?;
-    let parsed = validate_url(&url)?;
+    let mut url = url;
+    let mut parsed = validate_url(&url)?;
+    // Address-bar / deep-link into Google auth: hand off before the child
+    // WebView2 ever loads the freeze-prone document.
+    if should_open_google_auth_externally(&parsed) {
+        handoff_google_auth_externally(app, &label, &parsed);
+        url = "about:blank".into();
+        parsed = validate_url(&url)?;
+    }
     let win_label = window_label.trim();
     if win_label.is_empty() {
         return Err("window_label empty".into());
@@ -323,6 +339,9 @@ pub fn create(
             .map(|current| current != parsed)
             .unwrap_or(true);
         if should_navigate {
+            if handoff_google_auth_externally(app, &label, &parsed) {
+                return Ok(());
+            }
             emit_page_load(app, "started", &label, &url);
             existing
                 .navigate(parsed)
@@ -343,14 +362,33 @@ pub fn create(
     let polyfill_reload = polyfill.clone();
     let title_label = label.clone();
     let page_load_label = label.clone();
+    let nav_label = label.clone();
+    let nav_app = app.clone();
+    let new_win_label = label.clone();
+    let new_win_app = app.clone();
     // Do not steal keyboard focus from the main chat/composer on create —
     // users click the page when they want to type there.
     // First document load starts immediately after create.
     emit_page_load(app, "started", &label, &url);
+    let profile_dir = side_browser_data_directory();
+    std::fs::create_dir_all(&profile_dir).map_err(|e| format!("side browser profile dir: {e}"))?;
     let builder = WebviewBuilder::new(label.clone(), WebviewUrl::External(parsed))
         .accept_first_mouse(true)
         .focused(false)
+        // Shared with the Google auth top-level window so OAuth cookies return.
+        .data_directory(profile_dir)
+        .data_store_identifier(SIDE_BROWSER_DATA_STORE)
         .initialization_script(polyfill)
+        // Google Sign-In inside child WebView2 hard-freezes Windows (#1154).
+        // Open a shared-cookie top-level window instead; cancel in-child load.
+        .on_navigation(move |url| !handoff_google_auth_externally(&nav_app, &nav_label, url))
+        .on_new_window(move |url, _features| {
+            if handoff_google_auth_externally(&new_win_app, &new_win_label, &url) {
+                NewWindowResponse::Deny
+            } else {
+                NewWindowResponse::Allow
+            }
+        })
         // Drive UI loading bar + re-assert download polyfill after navigations.
         // Polyfill early-returns if already installed — cheap.
         .on_page_load(move |webview, payload| {
@@ -653,6 +691,9 @@ pub fn list(app: &AppHandle) -> Result<Vec<SideBrowserInfo>, String> {
 
 pub fn navigate(app: &AppHandle, label: String, url: String) -> Result<(), String> {
     let parsed = validate_url(&url)?;
+    if handoff_google_auth_externally(app, &label, &parsed) {
+        return Ok(());
+    }
     let wv = get_side_webview(app, &label)?;
     // Optimistic start so the UI can paint a progress bar before WK/WebView2
     // fires PageLoadEvent::Started (can lag on slow DNS / first byte).
