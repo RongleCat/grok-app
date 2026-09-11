@@ -46,7 +46,7 @@ export const idSession = {
   "session.rules": "Aturan sesi",
   "session.rulesTitle": "Aturan sesi",
   "session.rulesPlaceholder": "Aturan tambahan hanya untuk obrolan ini (ditambahkan lewat --rules)",
-  "session.rulesHint": "Dilewatkan sebagai grok --rules hanya untuk obrolan ini. Maks. {n} karakter. Agen langsung di-respawn lunak saat simpan; kosong menghapus.",
+  "session.rulesHint": "Dilewatkan sebagai grok --rules hanya untuk obrolan ini. Maks. {n} karakter. Menyimpan memulai giliran agen baru; kosong menghapus.",
   "session.rulesClear": "Hapus",
   "session.rulesSaved": "Aturan sesi disimpan — agen akan dimuat ulang pada giliran berikutnya",
   "session.rulesCleared": "Aturan sesi dihapus",

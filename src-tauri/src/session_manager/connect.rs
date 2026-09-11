@@ -1113,12 +1113,12 @@ impl SessionManager {
             std::path::PathBuf::from(probe.path.unwrap())
         };
         // Effective sandbox: project override > app Settings (affects --sandbox / GROK_SANDBOX).
-        let project_sandbox = meta.project_id.as_deref().and_then(|pid| {
-            store::load_projects()
-                .into_iter()
-                .find(|p| p.id == pid)
-                .and_then(|p| p.sandbox_profile)
-        });
+        let project_row = meta
+            .project_id
+            .as_deref()
+            .and_then(|pid| store::load_projects().into_iter().find(|p| p.id == pid));
+        let project_sandbox = project_row.as_ref().and_then(|p| p.sandbox_profile.clone());
+        let folder_trust = project_row.as_ref().is_some_and(|p| p.trusted) && ssh_alias.is_none();
         let effective_sandbox =
             store::resolve_sandbox_profile(&settings.sandbox_profile, project_sandbox.as_deref());
         // One-shot CLI --fork-session: only when meta asks and we have a source id.
@@ -1167,6 +1167,7 @@ impl SessionManager {
             grok_home_override: None,
             empty_mcp_servers: false,
             ssh_alias: ssh_alias.clone(),
+            folder_trust,
         };
 
         let cwd_str = cwd.to_string_lossy().to_string();

@@ -22,6 +22,9 @@ See `docs/llm-wiki/release.md`.
 - 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
 
 ### Fixed
+- Session rules and system prompt overrides apply on the next agent turn (#1171).
+- Trusted projects pass folder trust so AGENTS.md loads in App chats (#1171).
+- Windows IME candidate windows stay nearer the composer while composing (#1170).
 - Thinking and tool streams keep following the chat tail after a brief trackpad pause (#1172).
 - Tray Quit on Windows arms the exit failsafe before trying to show the window.
 - Embedded browser opens Google sign-in in a shared-cookie login window.
@@ -36,6 +39,9 @@ See `docs/llm-wiki/release.md`.
 - Generated wallpaper stays visible when library indexing fails and can be saved again.
 
 **中文 · 修复**
+- 会话规则与系统提示覆盖会在下一轮 agent 生效，不再被旧会话 resume 吃掉（#1171）。
+- 已信任项目会传文件夹信任，App 内聊天能加载 AGENTS.md（#1171）。
+- Windows 组字时减少输入框高度抖动，候选栏更贴近输入区（#1170）。
 - 思考/工具流式增高时，触控板短暂停顿后内容区会继续贴底跟随，不再被输入框挡住（#1172）。
 - Windows 托盘退出会先启动退出保险，再尝试显示主窗口，卡住时也能退出。
 - 内嵌浏览器的 Google 登录改为共享 Cookie 的登录窗，完成后回到内嵌页。

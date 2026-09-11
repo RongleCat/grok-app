@@ -46,7 +46,7 @@ export const jaSession = {
   "session.rules": "セッションルール",
   "session.rulesTitle": "セッションルール",
   "session.rulesPlaceholder": "このチャットだけの追加ルール（--rules で追記）",
-  "session.rulesHint": "このチャットだけ grok --rules として渡します。最大 {n} 文字。保存すると稼働中のエージェントは soft-respawn します。空にするとクリアします。",
+  "session.rulesHint": "このチャットだけ grok --rules として渡します。最大 {n} 文字。保存すると新しいエージェントターンで規則が効きます。空にするとクリアします。",
   "session.rulesClear": "クリア",
   "session.rulesSaved": "セッションルールを保存しました — 次のターンでエージェントを再読み込みします",
   "session.rulesCleared": "セッションルールをクリアしました",

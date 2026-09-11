@@ -46,7 +46,7 @@ export const zhTWSession = {
   "session.rules": "工作階段規則",
   "session.rulesTitle": "工作階段規則",
   "session.rulesPlaceholder": "僅本對話的額外規則（透過 --rules 附加）",
-  "session.rulesHint": "僅本對話以 grok --rules 傳入。最多 {n} 個字元。儲存後 live Agent 會 soft-respawn；清空即清除。",
+  "session.rulesHint": "僅本對話以 grok --rules 傳入。最多 {n} 個字元。儲存後會新開一輪 agent，規則才會生效；清空即清除。",
   "session.rulesClear": "清除",
   "session.rulesSaved": "工作階段規則已儲存 — 下一回合將重新載入 Agent",
   "session.rulesCleared": "已清除工作階段規則",

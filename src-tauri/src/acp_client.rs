@@ -428,6 +428,9 @@ pub struct SpawnOptions {
     /// OpenSSH Host alias. When set, spawn `ssh -T` and run grok on that host
     /// (remote cwd). Do not treat `cwd` as a local `std::fs` path.
     pub ssh_alias: Option<String>,
+    /// When true, pass top-level `grok --trust` so headless ACP loads project
+    /// instructions (AGENTS.md) and project skills for an App-trusted folder.
+    pub folder_trust: bool,
 }
 
 /// Pure helper: top-level CLI args for `--fork-session`.
@@ -483,6 +486,18 @@ pub fn extra_rules_spawn_flags(rules: Option<&str>) -> Vec<String> {
     match normalized {
         Some(text) => vec!["--rules".into(), text],
         None => Vec::new(),
+    }
+}
+
+/// Pure helper: top-level `grok --trust` when the App folder is trusted.
+///
+/// Headless ACP has no interactive trust prompt; without this flag CLI skips
+/// startup loading of project instructions (AGENTS.md) and project skills.
+pub fn folder_trust_spawn_flags(trusted: bool) -> Vec<&'static str> {
+    if trusted {
+        vec!["--trust"]
+    } else {
+        vec![]
     }
 }
 
@@ -1511,6 +1526,10 @@ impl AcpClient {
             Command::new(&cli_path)
         };
         cmd.arg("--no-auto-update");
+        // Folder trust: required for headless AGENTS.md / project skills load.
+        for f in folder_trust_spawn_flags(opts.folder_trust) {
+            cmd.arg(f);
+        }
         // Compaction mode/detail (CLI 0.2.117+): always set env; flags only when
         // the probed binary is known to accept them (soft-fail on older CLIs).
         let pass_compaction_flags = cli_supports_compaction_flags(cli_ver.as_deref());
@@ -6806,6 +6825,21 @@ mod extra_rules_spawn_tests {
             args,
             vec!["--rules".to_string(), "Always write tests".to_string()]
         );
+    }
+}
+
+#[cfg(test)]
+mod folder_trust_spawn_tests {
+    use super::*;
+
+    #[test]
+    fn off_yields_no_flags() {
+        assert!(folder_trust_spawn_flags(false).is_empty());
+    }
+
+    #[test]
+    fn on_yields_trust_flag() {
+        assert_eq!(folder_trust_spawn_flags(true), vec!["--trust"]);
     }
 }
 

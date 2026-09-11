@@ -46,7 +46,7 @@ export const esSession = {
   "session.rules": "Reglas de sesión",
   "session.rulesTitle": "Reglas de sesión",
   "session.rulesPlaceholder": "Reglas extra solo para este chat (se añaden con --rules)",
-  "session.rulesHint": "Se pasan como grok --rules solo para este chat. Máx. {n} caracteres. El agente en vivo se reinicia de forma suave al guardar; vacío borra.",
+  "session.rulesHint": "Se pasan como grok --rules solo para este chat. Máx. {n} caracteres. Al guardar arranca un turno de agente nuevo; vacío borra.",
   "session.rulesClear": "Borrar",
   "session.rulesSaved": "Reglas de sesión guardadas — el agente se recargará en el siguiente turno",
   "session.rulesCleared": "Reglas de sesión borradas",

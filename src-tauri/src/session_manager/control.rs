@@ -33,6 +33,78 @@ impl SessionManager {
         self.soft_respawn_with_reason(app, "settings").await;
     }
 
+    /// Clear the stored agent session id and drop any idle ACP for `session_id`.
+    ///
+    /// Process-level spawn flags (`--rules`, `--system-prompt-override`,
+    /// folder trust / AGENTS.md) only apply on a fresh `session/new`. Keeping
+    /// `agent_session_id` would resume via `session/load` and ignore the new
+    /// flags — same class as effort/model changes.
+    pub async fn invalidate_spawn_flags_for_session(
+        &self,
+        app: &AppHandle,
+        session_id: &str,
+        reason: &str,
+    ) {
+        let _ = store::clear_session_agent_session_id(session_id);
+        // Keep in-memory meta aligned so a mid-turn no-op connect cannot
+        // resume the pre-change agent id after the turn ends.
+        {
+            let mut guard = self.inner.lock();
+            if let Some(s) = guard.as_mut() {
+                if s.app_session_id == session_id {
+                    s.meta.agent_session_id = None;
+                    s.needs_history_bootstrap = true;
+                }
+            }
+        }
+        if let Some(bg) = self.background.lock().get_mut(session_id) {
+            bg.meta.agent_session_id = None;
+            bg.needs_history_bootstrap = true;
+        }
+        if self.is_live_session(session_id) {
+            self.soft_respawn_with_reason(app, reason).await;
+            return;
+        }
+        self.drop_idle_agent_for_session(session_id, reason).await;
+    }
+
+    /// Drop background / parked ACP so the next connect cold-spawns.
+    pub async fn drop_idle_agent_for_session(&self, session_id: &str, reason: &str) {
+        let background = self.background.lock().remove(session_id);
+        if let Some(mut s) = background {
+            let process_id = s.process_id.clone();
+            if let Some(acp) = s.acp.take() {
+                if self.has_other_process_tenant(&process_id, session_id) {
+                    tracing::info!(
+                        session = %session_id,
+                        process = %process_id,
+                        reason = %reason,
+                        "invalidate spawn flags detached shared background ACP"
+                    );
+                } else {
+                    Self::kill_acp_bounded(&acp).await;
+                    tracing::info!(
+                        session = %session_id,
+                        reason = %reason,
+                        "dropped background agent after spawn-flag invalidate"
+                    );
+                }
+            }
+            return;
+        }
+        let parked = self.parked.lock().remove(session_id);
+        if let Some(p) = parked {
+            if !self.has_other_process_tenant(&p.process_id, session_id) {
+                Self::kill_acp_bounded(&p.acp).await;
+                tracing::info!(
+                    session = %session_id,
+                    reason = %reason,
+                    "dropped parked agent after spawn-flag invalidate"
+                );
+            }
+        }
+    }
+
     /// Soft-respawn and tell the UI why the agent process was reloaded.
     pub async fn soft_respawn_with_reason(&self, app: &AppHandle, reason: &str) {
         let (acp, sid, process_id, deferred) = {

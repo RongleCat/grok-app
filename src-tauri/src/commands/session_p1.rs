@@ -1035,8 +1035,60 @@ pub async fn session_set_plugin_dirs(
     Ok(meta)
 }
 
+/// After AGENTS.md / project rules change: clear agent session ids for chats
+/// bound to this project so the next turn does `session/new` and reloads
+/// project instructions. Soft-respawns / drops idle ACP processes.
+#[tauri::command]
+pub async fn project_rules_invalidate_sessions(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    project_path: String,
+) -> Result<usize, String> {
+    let path = project_path.trim();
+    if path.is_empty() {
+        return Err("project path empty".into());
+    }
+    let norm = |s: &str| {
+        s.trim()
+            .trim_end_matches(['/', '\\'])
+            .replace('\\', "/")
+            .to_ascii_lowercase()
+    };
+    let target = norm(path);
+    let projects = store::load_projects();
+    let project_ids: Vec<String> = projects
+        .iter()
+        .filter(|p| norm(&p.path) == target)
+        .map(|p| p.id.clone())
+        .collect();
+    let sessions = store::load_sessions_index();
+    let mut ids: Vec<String> = Vec::new();
+    for s in sessions {
+        let by_project = s
+            .project_id
+            .as_deref()
+            .is_some_and(|pid| project_ids.iter().any(|id| id == pid));
+        let by_worktree = s.worktree_path.as_deref().is_some_and(|wp| {
+            let n = norm(wp);
+            n == target || n.starts_with(&(target.clone() + "/"))
+        });
+        if by_project || by_worktree {
+            ids.push(s.id);
+        }
+    }
+    ids.sort();
+    ids.dedup();
+    let n = ids.len();
+    for id in ids {
+        mgr.invalidate_spawn_flags_for_session(&app, &id, "project_rules")
+            .await;
+    }
+    Ok(n)
+}
+
 /// Set or clear per-session extra rules (`grok --rules` at next spawn).
-/// Empty / whitespace clears. Soft-respawns the live agent for this chat.
+/// Empty / whitespace clears. Forces a fresh agent session so `--rules` apply
+/// (session/load would keep the old prompt).
 #[tauri::command]
 pub async fn session_set_extra_rules(
     app: tauri::AppHandle,
@@ -1045,11 +1097,8 @@ pub async fn session_set_extra_rules(
     extra_rules: Option<String>,
 ) -> Result<SessionMeta, String> {
     let meta = store::set_session_extra_rules(&id, extra_rules)?;
-    let snap = mgr.snapshot();
-    if snap.session_id.as_deref() == Some(meta.id.as_str()) {
-        mgr.soft_respawn_with_reason(&app, "session_extra_rules")
-            .await;
-    }
+    mgr.invalidate_spawn_flags_for_session(&app, &meta.id, "session_extra_rules")
+        .await;
     Ok(meta)
 }
 
@@ -1073,7 +1122,8 @@ pub async fn session_set_max_agent_turns(
 
 /// Set or clear per-session system prompt override
 /// (`grok --system-prompt-override` at next spawn).
-/// Empty / whitespace clears. Soft-respawns the live agent for this chat.
+/// Empty / whitespace clears. Forces a fresh agent session so the override
+/// applies (session/load would keep the old prompt).
 /// Never logs the prompt body (may contain secrets / PII).
 #[tauri::command]
 pub async fn session_set_system_prompt_override(
@@ -1083,11 +1133,12 @@ pub async fn session_set_system_prompt_override(
     system_prompt_override: Option<String>,
 ) -> Result<SessionMeta, String> {
     let meta = store::set_session_system_prompt_override(&id, system_prompt_override)?;
-    let snap = mgr.snapshot();
-    if snap.session_id.as_deref() == Some(meta.id.as_str()) {
-        mgr.soft_respawn_with_reason(&app, "session_system_prompt_override")
-            .await;
-    }
+    mgr.invalidate_spawn_flags_for_session(
+        &app,
+        &meta.id,
+        "session_system_prompt_override",
+    )
+    .await;
     Ok(meta)
 }
 

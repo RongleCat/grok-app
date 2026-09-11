@@ -46,7 +46,7 @@ export const zhSession = {
   "session.rules": "会话规则",
   "session.rulesTitle": "会话规则",
   "session.rulesPlaceholder": "仅本会话的额外规则（通过 --rules 附加）",
-  "session.rulesHint": "仅本会话以 grok --rules 传入。最多 {n} 个字符。保存后 live Agent 会 soft-respawn；清空即清除。",
+  "session.rulesHint": "仅本会话以 grok --rules 传入。最多 {n} 个字符。保存后会新开一轮 agent，规则才会生效；清空即清除。",
   "session.rulesClear": "清除",
   "session.rulesSaved": "会话规则已保存 — 下一回合将重新加载 Agent",
   "session.rulesCleared": "已清除会话规则",

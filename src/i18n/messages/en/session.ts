@@ -46,7 +46,7 @@ export const enSession = {
   "session.rules": "Session rules",
   "session.rulesTitle": "Session rules",
   "session.rulesPlaceholder": "Extra rules for this chat only (appended via --rules)",
-  "session.rulesHint": "Passed as grok --rules for this chat only. Max {n} characters. Live agent soft-respawns on save; empty clears.",
+  "session.rulesHint": "Passed as grok --rules for this chat only. Max {n} characters. Saving starts a fresh agent turn so rules apply; empty clears.",
   "session.rulesClear": "Clear",
   "session.rulesSaved": "Session rules saved — agent will reload on next turn",
   "session.rulesCleared": "Session rules cleared",

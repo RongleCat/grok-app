@@ -168,6 +168,11 @@ export async function projectRulesEnsureTemplate(projectPath: string) {
   });
 }
 
+/** Clear agent session ids for chats on this project so AGENTS.md reloads. */
+export async function projectRulesInvalidateSessions(projectPath: string) {
+  return invoke<number>("project_rules_invalidate_sessions", { projectPath });
+}
+
 // ── Agent leader / serve (Runtime) ──────────────────────────────────────────
 
 export type LeaderProcess = {

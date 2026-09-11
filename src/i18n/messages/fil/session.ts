@@ -46,7 +46,7 @@ export const filSession = {
   "session.rules": "Mga patakaran ng session",
   "session.rulesTitle": "Mga patakaran ng session",
   "session.rulesPlaceholder": "Karagdagang patakaran para sa chat na ito lang (idinadagdag sa pamamagitan ng --rules)",
-  "session.rulesHint": "Ipinapasa bilang grok --rules para sa chat na ito lang. Max {n} character. Soft-respawn ang live na agent sa pag-save; kino-clear ng walang laman.",
+  "session.rulesHint": "Ipinapasa bilang grok --rules para sa chat na ito lang. Max {n} character. Ang pag-save ay nagsisimula ng bagong agent turn; kino-clear ng walang laman.",
   "session.rulesClear": "I-clear",
   "session.rulesSaved": "Na-save ang mga patakaran ng session — magre-reload ang agent sa susunod na turn",
   "session.rulesCleared": "Na-clear ang mga patakaran ng session",

@@ -46,7 +46,7 @@ export const frSession = {
   "session.rules": "Règles de session",
   "session.rulesTitle": "Règles de session",
   "session.rulesPlaceholder": "Règles supplémentaires pour cette conversation uniquement (ajoutées via --rules)",
-  "session.rulesHint": "Passées comme grok --rules pour cette conversation uniquement. Max {n} caractères. L’agent en direct relance souplement à l’enregistrement ; vide efface.",
+  "session.rulesHint": "Passées comme grok --rules pour cette conversation uniquement. Max {n} caractères. L’enregistrement démarre un nouveau tour d’agent ; vide efface.",
   "session.rulesClear": "Effacer",
   "session.rulesSaved": "Règles de session enregistrées — l’agent se rechargera au prochain tour",
   "session.rulesCleared": "Règles de session effacées",

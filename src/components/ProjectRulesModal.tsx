@@ -394,6 +394,13 @@ export function ProjectRulesModal({
               }
             : d,
         );
+        try {
+          if (projectPath) {
+            await api.projectRulesInvalidateSessions(projectPath);
+          }
+        } catch {
+          /* soft — disk write already succeeded */
+        }
         setHint(tr("rules.saved"));
       } catch (e) {
         if (isFsWriteConflict(e)) {
@@ -443,6 +450,11 @@ export function ProjectRulesModal({
     try {
       const res = await api.projectRulesEnsureTemplate(projectPath);
       await refreshRules();
+      try {
+        await api.projectRulesInvalidateSessions(projectPath);
+      } catch {
+        /* soft */
+      }
       if (res.created) {
         setHint(tr("rules.created"));
       } else {

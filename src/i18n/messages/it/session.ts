@@ -46,7 +46,7 @@ export const itSession = {
   "session.rules": "Regole della sessione",
   "session.rulesTitle": "Regole della sessione",
   "session.rulesPlaceholder": "Regole extra solo per questa chat (aggiunte via --rules)",
-  "session.rulesHint": "Passate come grok --rules solo per questa chat. Massimo {n} caratteri. L’agente attivo fa un soft-respawn al salvataggio; vuoto cancella.",
+  "session.rulesHint": "Passate come grok --rules solo per questa chat. Massimo {n} caratteri. Il salvataggio avvia un nuovo turno agent; vuoto cancella.",
   "session.rulesClear": "Cancella",
   "session.rulesSaved": "Regole della sessione salvate — l’agente si ricaricherà al prossimo turno",
   "session.rulesCleared": "Regole della sessione cancellate",

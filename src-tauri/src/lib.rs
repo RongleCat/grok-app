@@ -1163,6 +1163,7 @@ pub fn run() {
             commands::project_reveal,
 
             commands::project_rules_list,
+            commands::project_rules_invalidate_sessions,
 
             commands::project_rules_ensure_template,
 

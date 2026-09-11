@@ -419,6 +419,7 @@ No repo edits. Prefer built-in tools. Keep the final answer concise and complete
         grok_home_override: Some(home.clone()),
         empty_mcp_servers: true,
         ssh_alias: None,
+        folder_trust: false,
     };
 
     tracing::info!(

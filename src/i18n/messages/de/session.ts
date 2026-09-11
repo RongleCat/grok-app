@@ -46,7 +46,7 @@ export const deSession = {
   "session.rules": "Sitzungsregeln",
   "session.rulesTitle": "Sitzungsregeln",
   "session.rulesPlaceholder": "Zusätzliche Regeln nur für diesen Chat (angehängt via --rules)",
-  "session.rulesHint": "Als grok --rules nur für diesen Chat. Max. {n} Zeichen. Live-Agent soft-respawnt beim Speichern; leer leert.",
+  "session.rulesHint": "Als grok --rules nur für diesen Chat. Max. {n} Zeichen. Speichern startet einen frischen Agent-Turn; leer leert.",
   "session.rulesClear": "Leeren",
   "session.rulesSaved": "Sitzungsregeln gespeichert — Agent lädt beim nächsten Vorgang neu",
   "session.rulesCleared": "Sitzungsregeln geleert",

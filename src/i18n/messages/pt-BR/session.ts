@@ -46,7 +46,7 @@ export const ptBRSession = {
   "session.rules": "Regras da sessão",
   "session.rulesTitle": "Regras da sessão",
   "session.rulesPlaceholder": "Regras extras só deste chat (anexadas via --rules)",
-  "session.rulesHint": "Passadas como grok --rules só neste chat. Máx. {n} caracteres. O agente ao vivo faz respawn suave ao salvar; vazio limpa.",
+  "session.rulesHint": "Passadas como grok --rules só neste chat. Máx. {n} caracteres. Salvar inicia um novo turno do agente; vazio limpa.",
   "session.rulesClear": "Limpar",
   "session.rulesSaved": "Regras da sessão salvas — o agente recarregará no próximo turno",
   "session.rulesCleared": "Regras da sessão limpas",

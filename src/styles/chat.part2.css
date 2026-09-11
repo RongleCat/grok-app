@@ -517,8 +517,7 @@ button.composer__context-item {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
   transition:
     border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
+    box-shadow 160ms ease;
   /* Size container for compact chips (Codex-style) */
   container-type: inline-size;
   container-name: composer;

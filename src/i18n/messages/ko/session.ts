@@ -46,7 +46,7 @@ export const koSession = {
   "session.rules": "세션 규칙",
   "session.rulesTitle": "세션 규칙",
   "session.rulesPlaceholder": "이 대화에만 적용되는 추가 규칙 (--rules로 추가)",
-  "session.rulesHint": "이 대화에만 grok --rules로 전달됩니다. 최대 {n}자. 저장 시 실행 중인 에이전트가 소프트 재시작되며, 비우면 지워집니다.",
+  "session.rulesHint": "이 대화에만 grok --rules로 전달됩니다. 최대 {n}자. 저장 시 새 에이전트 턴에서 규칙이 적용되며, 비우면 지워집니다.",
   "session.rulesClear": "지우기",
   "session.rulesSaved": "세션 규칙을 저장했습니다 — 다음 턴에서 에이전트가 다시 로드됩니다",
   "session.rulesCleared": "세션 규칙을 지웠습니다",
