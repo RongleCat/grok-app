@@ -1,6 +1,6 @@
 /**
  * Manage multi-root workspace (#1194 MVP-0).
- * Extra roots are read-only; capability banner is honest about CLI disk read.
+ * Extra roots default read; independent mode can enable write via sandbox profile.
  */
 
 import { useMemo } from "react";
@@ -25,8 +25,10 @@ type Props = {
   onNameChange: (name: string) => void;
   onAddRoot: () => void;
   onRemoveRoot: (path: string) => void;
+  onSetExtraAccess: (path: string, access: "read" | "write") => void;
   onSave: () => void;
   onClearBinding?: () => void;
+  writeCapableMode: boolean;
 };
 
 export function MultiRootWorkspaceModal({
@@ -40,13 +42,16 @@ export function MultiRootWorkspaceModal({
   onNameChange,
   onAddRoot,
   onRemoveRoot,
+  onSetExtraAccess,
   onSave,
   onClearBinding,
+  writeCapableMode,
 }: Props) {
   const tr = useMemo(() => createT(locale), [locale]);
   const primary = primaryRoot(draft);
   const extras = extraRoots(draft);
   const atCap = extras.length >= MAX_EXTRA_WORKSPACE_ROOTS;
+  const writeActive = draft?.capability === "extraWriteActive";
 
   return (
     <GlassModal
@@ -88,7 +93,11 @@ export function MultiRootWorkspaceModal({
       }
     >
       <p className="muted" style={{ marginTop: 0 }}>
-        {tr("workspace.multiRoot.bannerContextOnly")}
+        {writeActive
+          ? tr("workspace.multiRoot.bannerWriteActive")
+          : writeCapableMode
+            ? tr("workspace.multiRoot.bannerIndependent")
+            : tr("workspace.multiRoot.bannerContextOnly")}
       </p>
       <label className="field">
         <span className="field-label">{tr("workspace.multiRoot.name")}</span>
@@ -164,12 +173,38 @@ export function MultiRootWorkspaceModal({
                     {r.path}
                   </div>
                   <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                    {tr("workspace.multiRoot.accessRead")} ·{" "}
-                    {tr("workspace.multiRoot.roleExtra")}
+                    {r.access === "write"
+                      ? tr("workspace.multiRoot.accessWrite")
+                      : tr("workspace.multiRoot.accessRead")}{" "}
+                    · {tr("workspace.multiRoot.roleExtra")}
                     {r.pathOk === false
                       ? ` · ${tr("workspace.multiRoot.pathMissing")}`
                       : ""}
                   </div>
+                  {writeCapableMode ? (
+                    <label
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "center",
+                        marginTop: 6,
+                        fontSize: 12,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={r.access === "write"}
+                        disabled={busy}
+                        onChange={(e) =>
+                          onSetExtraAccess(
+                            r.path,
+                            e.target.checked ? "write" : "read",
+                          )
+                        }
+                      />
+                      {tr("workspace.multiRoot.enableWrite")}
+                    </label>
+                  ) : null}
                 </div>
                 <button
                   type="button"

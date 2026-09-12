@@ -542,5 +542,8 @@ export const zhWorkspace = {
   "workspace.multiRoot.bannerContextOnly": "根目录已在本会话声明。若没有自定义 CLI sandbox profile，Grok Build 仍可能读取全盘——跨文件夹写入尚未开放。",
   "workspace.multiRoot.nextTurnHint": "更改将在下一轮 agent 生效。",
   "workspace.multiRoot.menu": "工作区根目录…",
-  "workspace.multiRoot.manage": "管理工作区根目录"
+  "workspace.multiRoot.manage": "管理工作区根目录",
+  "workspace.multiRoot.bannerWriteActive": "已通过已验证的 sandbox profile 启用跨目录写入。更改在下一轮 agent 生效。",
+  "workspace.multiRoot.bannerIndependent": "独立模式下可为附加文件夹开写（App 写入 agent-home sandbox.toml）。共享模式默认只读，除非你自行维护 ~/.grok/sandbox.toml。",
+  "workspace.multiRoot.enableWrite": "允许写入"
 };

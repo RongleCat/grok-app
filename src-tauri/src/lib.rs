@@ -139,6 +139,8 @@ mod project_rules;
 
 mod workspace_store;
 
+mod workspace_sandbox;
+
 mod provider_headers;
 
 mod providers;

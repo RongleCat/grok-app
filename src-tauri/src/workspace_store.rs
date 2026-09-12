@@ -160,8 +160,8 @@ fn paths_equal(a: &str, b: &str) -> bool {
         .eq_ignore_ascii_case(b.trim().trim_end_matches('/'))
 }
 
-/// Build / update a workspace. MVP-0 forces extra roots to `read` access and
-/// capability to `context_only`.
+/// Build / update a workspace. Extra-root write is allowed in the record;
+/// capability / spawn profile are applied by [`apply_capability_plan`].
 pub fn upsert_workspace(
     id: Option<String>,
     name: String,
@@ -220,11 +220,10 @@ pub fn upsert_workspace(
                 if extra_count > MAX_EXTRA_ROOTS {
                     return Err(format!("at most {MAX_EXTRA_ROOTS} extra roots"));
                 }
-                // MVP-0: extra roots are always read (no cross-root write yet).
                 normalized.push(WorkspaceRoot {
                     path,
                     role: WorkspaceRootRole::Extra,
-                    access: WorkspaceRootAccess::Read,
+                    access: root.access,
                     path_ok: Some(path_ok),
                 });
             }
@@ -257,7 +256,7 @@ pub fn upsert_workspace(
                 .iter()
                 .position(|w| w.id == existing_id)
                 .ok_or_else(|| "workspace not found".to_string())?;
-            let record = WorkspaceRecord {
+            let mut record = WorkspaceRecord {
                 id: existing_id,
                 name,
                 primary_project_id,
@@ -266,10 +265,11 @@ pub fn upsert_workspace(
                 capability: WorkspaceCapability::ContextOnly,
                 updated_at: now,
             };
+            apply_capability_plan(&mut record)?;
             file.workspaces[idx] = record.clone();
             record
         } else {
-            let record = WorkspaceRecord {
+            let mut record = WorkspaceRecord {
                 id: format!("ws_{}", Uuid::new_v4()),
                 name,
                 primary_project_id,
@@ -278,11 +278,39 @@ pub fn upsert_workspace(
                 capability: WorkspaceCapability::ContextOnly,
                 updated_at: now,
             };
+            apply_capability_plan(&mut record)?;
             file.workspaces.insert(0, record.clone());
             record
         };
     save_workspace_store(&file)?;
     Ok(record)
+}
+
+/// Resolve capability from session_data_mode + sandbox plan. Downgrades extra
+/// write roots to read when the plan cannot activate write.
+pub fn apply_capability_plan(record: &mut WorkspaceRecord) -> Result<(), String> {
+    let settings = store::load_settings();
+    let plan =
+        crate::workspace_sandbox::plan_for_session_mode(&settings.session_data_mode, record)?;
+    if plan.spawn_sandbox.is_none() {
+        for root in &mut record.roots {
+            if root.role == WorkspaceRootRole::Extra {
+                root.access = WorkspaceRootAccess::Read;
+            }
+        }
+    }
+    record.capability = plan.capability;
+    record.profile_ref = plan.profile_ref;
+    Ok(())
+}
+
+/// Spawn sandbox override for a bound workspace, if any.
+pub fn spawn_sandbox_for_workspace(workspace_id: &str) -> Option<String> {
+    let ws = get_workspace(workspace_id)?;
+    let settings = store::load_settings();
+    crate::workspace_sandbox::plan_for_session_mode(&settings.session_data_mode, &ws)
+        .ok()
+        .and_then(|p| p.spawn_sandbox)
 }
 
 pub fn delete_workspace(id: &str) -> Result<(), String> {

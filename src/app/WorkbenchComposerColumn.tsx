@@ -1005,6 +1005,8 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                 void multiRoot.addExtraRoot();
               }}
               onRemoveRoot={multiRoot.removeExtraRoot}
+              onSetExtraAccess={multiRoot.setExtraAccess}
+              writeCapableMode={multiRoot.writeCapableMode}
               onSave={() => {
                 void multiRoot.save().then((saved) => {
                   if (saved) multiRoot.close();
