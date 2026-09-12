@@ -15,7 +15,7 @@ import { writeOpenTargetStorage } from "@/lib/openEditorHonesty";
 import { saveNotifySoundPref } from "@/lib/notifySound";
 import { saveWindowAlwaysOnTopPref } from "@/lib/windowAlwaysOnTop";
 import { savePermissionTimeoutSec } from "@/lib/permissionTimeout";
-import { saveAskUserTimeoutSec } from "@/lib/askUserTimeout";
+import { saveAskUserTimeoutSec } from "@/lib/askUser/askUserTimeout";
 import { IDLE_SNAPSHOT } from "@/lib/session";
 import { normalizeSessionDataMode } from "@/lib/sessionDataMode";
 import {

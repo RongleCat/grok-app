@@ -6,9 +6,9 @@ import {
   askUserQuestionKey,
   askUserShowFreeHint,
   askUserVisibleDescription,
-} from "@/lib/askUserForm";
-import { nextAskUserOptionIndex } from "@/lib/askUserKeyboard";
-import { resolveAskUserOptionsLayout } from "@/lib/askUserOptionsLayout";
+} from "@/lib/askUser/askUserForm";
+import { nextAskUserOptionIndex } from "@/lib/askUser/askUserKeyboard";
+import { resolveAskUserOptionsLayout } from "@/lib/askUser/askUserOptionsLayout";
 import type { AskUserQuestionItem } from "@/lib/session";
 
 export type AskUserFormLabels = {

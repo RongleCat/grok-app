@@ -3,11 +3,11 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const column = readFileSync(
-  resolve(__dirname, "../app/WorkbenchComposerColumn.tsx"),
+  resolve(__dirname, "../../app/WorkbenchComposerColumn.tsx"),
   "utf8",
 );
 const modals = readFileSync(
-  resolve(__dirname, "../app/WorkbenchSessionModals.tsx"),
+  resolve(__dirname, "../../app/WorkbenchSessionModals.tsx"),
   "utf8",
 );
 

@@ -5,7 +5,7 @@
  * Switching chats unmounts the UI; resuming the same request must not reset
  * the deadline.
  */
-import { dropGateClock } from "./gateClock";
+import { dropGateClock } from "../gateClock";
 
 const askUserClocks = new Map<string, number>();
 

@@ -9,8 +9,8 @@
  */
 
 import type { MessageKey } from "@/i18n";
-import type { PermissionPolicyId } from "./grokCatalog";
-import type { AskUserQuestionItem } from "./session";
+import type { PermissionPolicyId } from "../grokCatalog";
+import type { AskUserQuestionItem } from "../session";
 
 /** Stable checklist step ids (order is product demo path). */
 export type DemoAskChecklistStepId =

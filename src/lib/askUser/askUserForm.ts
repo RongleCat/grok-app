@@ -1,7 +1,7 @@
 /**
  * Pure helpers for the ask-user questionnaire form (composer gate + demo modal).
  */
-import type { AskUserQuestionItem } from "./session";
+import type { AskUserQuestionItem } from "../session";
 
 export function askUserQuestionKey(
   q: Pick<AskUserQuestionItem, "question" | "id">,

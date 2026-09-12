@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   loadAskUserTimeoutSec,
   ASK_USER_TIMEOUT_CHANGE_EVENT,
-} from "@/lib/askUserTimeout";
+} from "@/lib/askUser/askUserTimeout";
 import {
   loadComposerSendKeyPref,
   COMPOSER_SEND_KEY_CHANGED_EVENT,

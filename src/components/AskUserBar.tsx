@@ -6,9 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { AskUserForm } from "@/components/AskUserForm";
 import { IconChevronUp, IconMinimize } from "@/components/icons";
 import { useAskUserQuestionnaire } from "@/hooks/useAskUserQuestionnaire";
-import { askUserDismissLocked } from "@/lib/askUserSettle";
-import { askUserBarHeading, askUserPendingPreview } from "@/lib/askUserForm";
-import { shouldAskUserSubmitOnEnter } from "@/lib/askUserKeyboard";
+import { askUserDismissLocked } from "@/lib/askUser/askUserSettle";
+import { askUserBarHeading, askUserPendingPreview } from "@/lib/askUser/askUserForm";
+import { shouldAskUserSubmitOnEnter } from "@/lib/askUser/askUserKeyboard";
 import type { AskUserPayload } from "@/lib/session";
 
 export type AskUserBarLabels = {

@@ -29,7 +29,7 @@ import type { ProcessLimitEvent } from "@/lib/processBudget";
 import type { GoalOrchHostPayload } from "@/lib/goalOrch";
 import * as api from "@/lib/api";
 import { isMirrorClient } from "@/lib/mirrorTransport";
-import { isValidAskUserPayload } from "@/lib/askUserPayload";
+import { isValidAskUserPayload } from "@/lib/askUser/askUserPayload";
 import { planForkTrimmedFollowUp } from "@/lib/sessionFork";
 import { projectTrimmedJournalToChat } from "@/lib/sessionJournalHydrate";
 import {
