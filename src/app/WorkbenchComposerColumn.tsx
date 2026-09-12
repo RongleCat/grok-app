@@ -53,7 +53,7 @@ import {
 import {
   canClaimAskUserSettle,
   settleAskUserDecision,
-} from "@/lib/askUserSettle";
+} from "@/lib/askUser/askUserSettle";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ComposerModelMenu } from "@/components/ComposerModelMenu";

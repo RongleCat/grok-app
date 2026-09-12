@@ -3,13 +3,13 @@
  * and the settings demo modal.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { dropAskUserClock, getAskUserClocks } from "@/lib/askUserClocks";
+import { dropAskUserClock, getAskUserClocks } from "@/lib/askUser/askUserClocks";
 import {
   askUserBuildAnswers,
   askUserCanSubmit,
   askUserQuestionKey,
-} from "@/lib/askUserForm";
-import { askUserTimeoutRemainingSec } from "@/lib/askUserTimeout";
+} from "@/lib/askUser/askUserForm";
+import { askUserTimeoutRemainingSec } from "@/lib/askUser/askUserTimeout";
 import { dropGateClock, gateClockKey, resumeGateClock } from "@/lib/gateClock";
 import type { AskUserPayload, AskUserQuestionItem } from "@/lib/session";
 

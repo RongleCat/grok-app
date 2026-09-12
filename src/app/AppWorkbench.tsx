@@ -253,7 +253,7 @@ import {
 import {
   mapPermissionButtons,
 } from "@/lib/permissionOptions";
-import { dropAskUserClocks } from "@/lib/askUserClocks";
+import { dropAskUserClocks } from "@/lib/askUser/askUserClocks";
 import { type PaletteActionDef } from "@/lib/paletteActions";
 import {
   canOfferContinueCwd,

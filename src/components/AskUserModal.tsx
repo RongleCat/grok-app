@@ -5,8 +5,8 @@
 import { GlassModal } from "@/components/GlassModal";
 import { AskUserForm } from "@/components/AskUserForm";
 import { useAskUserQuestionnaire } from "@/hooks/useAskUserQuestionnaire";
-import { dropAskUserClocks } from "@/lib/askUserClocks";
-import { askUserDismissLocked } from "@/lib/askUserSettle";
+import { dropAskUserClocks } from "@/lib/askUser/askUserClocks";
+import { askUserDismissLocked } from "@/lib/askUser/askUserSettle";
 import type { AskUserPayload } from "@/lib/session";
 
 export { dropAskUserClocks };

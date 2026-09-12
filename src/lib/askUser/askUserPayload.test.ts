@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isValidAskUserPayload } from "./askUserPayload";
-import type { AskUserPayload } from "./session";
+import type { AskUserPayload } from "../session";
 
 function payload(over: Partial<AskUserPayload> = {}): AskUserPayload {
   return {

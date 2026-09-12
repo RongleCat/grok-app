@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AskUserQuestionItem } from "./session";
+import type { AskUserQuestionItem } from "../session";
 import {
   askUserBarHeading,
   askUserBuildAnswers,

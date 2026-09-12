@@ -5,7 +5,7 @@
  * (a truthy guard used to drop valid id-0 questions and hang the turn) can be
  * unit-tested in isolation.
  */
-import type { AskUserPayload } from "./session";
+import type { AskUserPayload } from "../session";
 
 /**
  * A live ask-user payload is showable when it has an rpc id and at least one
