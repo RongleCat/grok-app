@@ -26,6 +26,7 @@ export function useMultiRootWorkspace() {
   const [draft, setDraft] = useState<WorkspaceRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [writeCapableMode, setWriteCapableMode] = useState(false);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -41,6 +42,14 @@ export function useMultiRootWorkspace() {
     setError(null);
     setBusy(true);
     try {
+      try {
+        const settings = await api.settingsGet();
+        setWriteCapableMode(
+          (settings.sessionDataMode || "").toLowerCase() === "independent",
+        );
+      } catch {
+        setWriteCapableMode(false);
+      }
       let ws: WorkspaceRecord | null = null;
       if (next.workspaceId) {
         ws = (await api.workspaceGet(next.workspaceId)) ?? null;
@@ -124,14 +133,25 @@ export function useMultiRootWorkspace() {
     [draft],
   );
 
+  const setExtraAccess = useCallback(
+    (path: string, access: "read" | "write") => {
+      if (!draft) return;
+      setDraft({
+        ...draft,
+        roots: draft.roots.map((r) =>
+          r.role === "extra" && r.path === path ? { ...r, access } : r,
+        ),
+      });
+    },
+    [draft],
+  );
+
   const save = useCallback(async () => {
     if (!draft || !target) return null;
     setBusy(true);
     setError(null);
     try {
-      const roots: WorkspaceRoot[] = draft.roots.map((r) =>
-        r.role === "extra" ? { ...r, access: "read" } : r,
-      );
+      const roots: WorkspaceRoot[] = draft.roots.slice();
       const saved = await api.workspaceUpsert({
         id: draft.id || null,
         name: draft.name,
@@ -187,7 +207,9 @@ export function useMultiRootWorkspace() {
     close,
     addExtraRoot,
     removeExtraRoot,
+    setExtraAccess,
     save,
     clearBinding,
+    writeCapableMode,
   };
 }

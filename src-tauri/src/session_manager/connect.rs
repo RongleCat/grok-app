@@ -1144,6 +1144,20 @@ impl SessionManager {
         let folder_trust = project_row.as_ref().is_some_and(|p| p.trusted) && ssh_alias.is_none();
         let effective_sandbox =
             store::resolve_sandbox_profile(&settings.sandbox_profile, project_sandbox.as_deref());
+        // Multi-root workspace custom profile (#1194) overrides built-in sandbox
+        // when capability is extra_write_active / user-managed cover.
+        let sandbox_for_spawn = meta
+            .workspace_id
+            .as_deref()
+            .and_then(crate::workspace_store::spawn_sandbox_for_workspace)
+            .unwrap_or(effective_sandbox);
+        if let Some(wid) = meta.workspace_id.as_deref() {
+            if let Some(ws) = crate::workspace_store::get_workspace(wid) {
+                for root in &ws.roots {
+                    crate::path_scope::grant_path(std::path::Path::new(&root.path));
+                }
+            }
+        }
         // One-shot CLI --fork-session: only when meta asks and we have a source id.
         let fork_agent = meta.fork_agent_session
             && resume_agent_sid
@@ -1155,7 +1169,7 @@ impl SessionManager {
             effort: Some(prefs.effort.clone()),
             permission_policy: Some(prefs.permission_policy.clone()),
             product_mode: Some(prefs.mode.clone()),
-            sandbox_profile: Some(effective_sandbox),
+            sandbox_profile: Some(sandbox_for_spawn),
             json_schema: meta
                 .json_schema
                 .as_ref()
