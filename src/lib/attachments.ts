@@ -56,6 +56,28 @@ export function pathBasename(path: string): string {
 }
 
 /**
+ * Whether a sole-line `@path` candidate is a dual-write attachment ref.
+ * Requires a real absolute shape with a directory segment so prose like
+ * `@/goal …` is not eaten as a missing-file chip (#1197).
+ */
+export function isSoleLineAtAttachmentPath(path: string): boolean {
+  const p = (path ?? "").trim();
+  if (!p) return false;
+  // Windows drive: need at least one path segment after `C:\` / `C:/`.
+  if (/^[A-Za-z]:[\\/]/.test(p)) {
+    const rest = p.slice(2).replace(/^[\\/]+/, "").replace(/\\/g, "/");
+    return rest.split("/").filter(Boolean).length >= 1;
+  }
+  if (!p.startsWith("/") || p.startsWith("//")) return false;
+  // POSIX: `/dir/file` (or deeper). Reject `/goal` and `/goal 你再检查…`
+  // (single segment even when it contains spaces).
+  return p.split("/").filter(Boolean).length >= 2;
+}
+
+/** Match sole-line `@/abs` or `@C:\…` dual-write refs. */
+const SOLE_AT_ABS_PATH_RE = /^@((?:\/|[A-Za-z]:[\\/]).+)$/;
+
+/**
  * Split stored/agent message into display text + attachment list.
  * Lines that are sole `@/abs/path` (or `@path`) become attachments.
  *
@@ -73,16 +95,18 @@ export function parseAttachmentsFromContent(content: string): {
   const textLines: string[] = [];
   for (const line of lines) {
     const trimmed = line.trim();
-    // @/path or @C:\path or @path
-    const m = trimmed.match(/^@((?:\/|[A-Za-z]:[\\/]).+)$/);
+    // @/path or @C:\path — only plausible multi-segment absolutes.
+    const m = trimmed.match(SOLE_AT_ABS_PATH_RE);
     if (m?.[1]) {
       const path = m[1].trim();
-      attachments.push({
-        path,
-        name: pathBasename(path),
-        isDir: false, // refined by pathsClassify when needed
-      });
-      continue;
+      if (isSoleLineAtAttachmentPath(path)) {
+        attachments.push({
+          path,
+          name: pathBasename(path),
+          isDir: false, // refined by pathsClassify when needed
+        });
+        continue;
+      }
     }
     // Legacy display markers from older builds
     const legacy = trimmed.match(/^\[(file|dir)\]\s+(.+)$/i);
@@ -118,8 +142,8 @@ export function appendAttachmentRefsToContent(
   const priorRefs: string[] = [];
   while (lines.length) {
     const t = lines[lines.length - 1]!.trim();
-    const m = t.match(/^@((?:\/|[A-Za-z]:[\\/]).+)$/);
-    if (m?.[1]) {
+    const m = t.match(SOLE_AT_ABS_PATH_RE);
+    if (m?.[1] && isSoleLineAtAttachmentPath(m[1].trim())) {
       priorRefs.unshift(lines.pop()!);
       continue;
     }

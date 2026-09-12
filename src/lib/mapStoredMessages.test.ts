@@ -39,6 +39,18 @@ describe("mapStoredMessages", () => {
     expect(msg.attachments?.map((a) => a.path)).toEqual(["/tmp/notes.md"]);
   });
 
+  it("keeps @/goal prose in the bubble instead of a missing-file chip (#1197)", () => {
+    const msg = mapStoredMessageToChat({
+      id: "u-goal",
+      role: "user",
+      content: "两句说明\n\n@/goal 你再检查优化一下吧",
+      createdAt: "2026-08-01T00:00:00.000Z",
+      attachments: null,
+    });
+    expect(msg.content).toBe("两句说明\n\n@/goal 你再检查优化一下吧");
+    expect(msg.attachments).toBeUndefined();
+  });
+
   it("maps a batch without dropping attachments", () => {
     const out = mapStoredMessagesToChat([
       {

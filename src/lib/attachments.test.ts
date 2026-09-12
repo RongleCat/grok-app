@@ -14,6 +14,7 @@ import {
   isImagePath,
   isMediaPath,
   isPlausibleLocalMediaAbs,
+  isSoleLineAtAttachmentPath,
   isVideoPath,
   joinSessionMediaPath,
   mergeAttachments,
@@ -57,6 +58,31 @@ describe("attachments", () => {
     expect(attachments).toHaveLength(2);
     expect(attachments[0]!.path).toBe("/Users/me/pic.png");
     expect(attachments[0]!.name).toBe("pic.png");
+  });
+
+  it("does not treat @/goal prose as a missing-file chip (#1197)", () => {
+    expect(isSoleLineAtAttachmentPath("/goal")).toBe(false);
+    expect(isSoleLineAtAttachmentPath("/goal 你再检查优化一下吧")).toBe(false);
+    expect(isSoleLineAtAttachmentPath("/tmp/notes.md")).toBe(true);
+    expect(
+      isSoleLineAtAttachmentPath("/Users/me/Downloads/Codex 安装教程文档.md"),
+    ).toBe(true);
+
+    const raw =
+      "两句说明\n\n@/goal 你再检查优化一下吧\n\n@/tmp/notes.md";
+    const { text, attachments } = parseAttachmentsFromContent(raw);
+    expect(text).toBe("两句说明\n\n@/goal 你再检查优化一下吧");
+    expect(attachments.map((a) => a.path)).toEqual(["/tmp/notes.md"]);
+
+    // Appending a real ref must not peel the @/goal prose into the ref block.
+    const withRefs = appendAttachmentRefsToContent(
+      "body\n\n@/goal keep me",
+      [{ path: "/tmp/shot.png", name: "shot.png", isDir: false }],
+    );
+    expect(withRefs).toBe("body\n\n@/goal keep me\n\n@/tmp/shot.png");
+    const again = parseAttachmentsFromContent(withRefs);
+    expect(again.text).toBe("body\n\n@/goal keep me");
+    expect(again.attachments.map((a) => a.path)).toEqual(["/tmp/shot.png"]);
   });
 
   it("append+parse keeps internal blank lines in body", () => {
