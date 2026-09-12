@@ -358,6 +358,8 @@ export const frSettingsUi = {
   "settings.wallpaperDesc": "Choisissez un fichier local, cherchez sur X, générez avec Imagine, ou prenez dans la bibliothèque (JPEG/PNG/WebP, GIF, ou MP4/WebM). Les images fixes sont compressées et enregistrées localement ; les vidéos et GIF jouent comme fond animé.",
   "settings.wallpaperEmpty": "Cliquez pour choisir un fond d’écran",
   "settings.wallpaperUpload": "Choisir un fond d’écran",
+  "settings.wallpaperColor": "Choisir une couleur",
+  "settings.wallpaperColorDesc": "Remplit le fond de la fenêtre d’une couleur unie. La teinte de départ est 绿豆沙 (#C7EDCC), un vert reposant.",
   "settings.wallpaperReplace": "Remplacer le fond d’écran",
   "settings.wallpaperClear": "Retirer",
   "settings.wallpaperWorking": "Traitement…",

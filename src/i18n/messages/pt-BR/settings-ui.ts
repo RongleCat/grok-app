@@ -358,6 +358,8 @@ export const ptBRSettingsUi = {
   "settings.wallpaperDesc": "Escolha um arquivo local, busque no X, gere com o Imagine, ou escolha na biblioteca (JPEG/PNG/WebP, GIF ou MP4/WebM). Imagens estáticas são compactadas e salvas localmente; vídeos e GIFs reproduzem como fundo animado.",
   "settings.wallpaperEmpty": "Clique para escolher um papel de parede",
   "settings.wallpaperUpload": "Escolher papel de parede",
+  "settings.wallpaperColor": "Escolher cor",
+  "settings.wallpaperColorDesc": "Preenche o fundo da janela com uma cor sólida. Começa em 绿豆沙 (#C7EDCC), um verde de descanso visual.",
   "settings.wallpaperReplace": "Substituir papel de parede",
   "settings.wallpaperClear": "Remover",
   "settings.wallpaperWorking": "Processando…",

@@ -358,6 +358,8 @@ export const filSettingsUi = {
   "settings.wallpaperDesc": "Pumili ng lokal na file, maghanap sa X, gumawa gamit ang Imagine, o pumili mula sa library (JPEG/PNG/WebP, GIF, o MP4/WebM). Nako-compress at nase-save nang lokal ang still images; tumutugtog ang videos at GIFs bilang animated background.",
   "settings.wallpaperEmpty": "I-click para pumili ng wallpaper",
   "settings.wallpaperUpload": "Pumili ng wallpaper",
+  "settings.wallpaperColor": "Pumili ng kulay",
+  "settings.wallpaperColorDesc": "Punuin ang background ng window ng solid color. Nagsisimula sa 绿豆沙 (#C7EDCC), isang soothing green.",
   "settings.wallpaperReplace": "Palitan ang wallpaper",
   "settings.wallpaperClear": "Alisin",
   "settings.wallpaperWorking": "Pinoproseso…",

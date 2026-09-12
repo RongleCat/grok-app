@@ -358,6 +358,8 @@ export const jaSettingsUi = {
   "settings.wallpaperDesc": "ローカルファイル、X 検索、Imagine 生成、またはライブラリから選べます（JPEG/PNG/WebP、GIF、MP4/WebM）。静止画は圧縮してローカル保存します。動画と GIF はアニメーション背景として再生します。",
   "settings.wallpaperEmpty": "クリックして壁紙を選ぶ",
   "settings.wallpaperUpload": "壁紙を選ぶ",
+  "settings.wallpaperColor": "色を選ぶ",
+  "settings.wallpaperColorDesc": "画像の代わりに単色でウィンドウ背景を塗りつぶします。初期色は護眼の緑豆沙（#C7EDCC）です。",
   "settings.wallpaperReplace": "壁紙を差し替える",
   "settings.wallpaperClear": "削除",
   "settings.wallpaperWorking": "処理中…",

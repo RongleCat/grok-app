@@ -72,8 +72,12 @@ export function currentLookManifest(input: {
   /** Exporter window aspect; wallpaper bake uses this to match the editor crop. */
   viewAspect?: number;
 }): ReturnType<typeof buildExportManifest> {
-  const ext = input.wallpaper ? wallpaperExtForRecord(input.wallpaper) : "jpg";
-  const viewAspect = input.wallpaper
+  const packWallpaper =
+    input.wallpaper && input.wallpaper.kind !== "color"
+      ? input.wallpaper
+      : null;
+  const ext = packWallpaper ? wallpaperExtForRecord(packWallpaper) : "jpg";
+  const viewAspect = packWallpaper
     ? input.viewAspect && input.viewAspect > 0
       ? input.viewAspect
       : readViewportAspect()
@@ -86,19 +90,19 @@ export function currentLookManifest(input: {
     uiOpacity: input.uiOpacity,
     textColor: input.textColor,
     fontShadow: input.fontShadow,
-    wallpaper: input.wallpaper
+    wallpaper: packWallpaper
       ? {
           file: `assets/wallpaper.${ext}`,
-          kind: input.wallpaper.kind,
-          mime: input.wallpaper.mime,
-          name: input.wallpaper.name,
+          kind: packWallpaper.kind,
+          mime: packWallpaper.mime,
+          name: packWallpaper.name,
           sha256: "0".repeat(64),
-          width: input.wallpaper.width,
-          height: input.wallpaper.height,
-          focus: input.wallpaper.focus
-            ? normalizeWallpaperFocus(input.wallpaper.focus)
+          width: packWallpaper.width,
+          height: packWallpaper.height,
+          focus: packWallpaper.focus
+            ? normalizeWallpaperFocus(packWallpaper.focus)
             : { ...DEFAULT_WALLPAPER_FOCUS },
-          clip: input.wallpaper.clip ?? null,
+          clip: packWallpaper.clip ?? null,
           ...(typeof viewAspect === "number" ? { viewAspect } : {}),
         }
       : null,

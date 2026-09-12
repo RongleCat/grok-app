@@ -20,6 +20,10 @@ import {
   loadWallpaperMeta,
   loadWallpaperRecord,
   loadWallpaperScrim,
+  makeColorWallpaperRecord,
+  parseWallpaperColor,
+  DEFAULT_WALLPAPER_COLOR,
+  WALLPAPER_COLOR_PRESETS,
   memoryWallpaperBlobStorage,
   parseThemeSkin,
   parseSettingsOpacity,
@@ -214,6 +218,32 @@ describe("wallpaper storage", () => {
     expect(meta.data[WALLPAPER_STORAGE_KEY]).toBeUndefined();
     expect(blobs._blob).toBeNull();
     expect(await blobs.get()).toBeNull();
+  });
+
+  it("round-trips a solid color fill without a blob", async () => {
+    const meta = memoryStorage();
+    const blobs = memoryWallpaperBlobStorage();
+    const record = makeColorWallpaperRecord("#c7edcc");
+    expect(record.kind).toBe("color");
+    expect(record.color).toBe("#C7EDCC");
+    expect(parseWallpaperColor("not-a-color")).toBeNull();
+    expect(parseWallpaperColor("#fc0")).toBe("#FFCC00");
+    expect(parseWallpaperColor("#ff000080")).toBe("#FF0000");
+    expect(DEFAULT_WALLPAPER_COLOR).toBe("#C7EDCC");
+    expect(WALLPAPER_COLOR_PRESETS).toContain("#C7EDCC");
+    expect(WALLPAPER_COLOR_PRESETS.length).toBeGreaterThanOrEqual(7);
+    for (const hex of WALLPAPER_COLOR_PRESETS) {
+      expect(parseWallpaperColor(hex)).toBe(hex);
+    }
+    await saveWallpaper(record, { blobs, meta });
+    expect(await blobs.get()).toBeNull();
+    const synced = loadWallpaperMeta(meta);
+    expect(synced?.kind).toBe("color");
+    expect(synced?.color).toBe("#C7EDCC");
+    const loaded = await loadWallpaperRecord({ blobs, meta });
+    expect(loaded?.kind).toBe("color");
+    expect(loaded?.color).toBe("#C7EDCC");
+    expect(loaded?.blob).toBeUndefined();
   });
 
   it("applyWallpaperFlag toggles the data-wallpaper attribute", () => {

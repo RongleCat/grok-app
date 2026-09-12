@@ -358,6 +358,8 @@ export const idSettingsUi = {
   "settings.wallpaperDesc": "Pilih berkas lokal, cari di X, hasilkan dengan Imagine, atau pilih dari pustaka (JPEG/PNG/WebP, GIF, atau MP4/WebM). Gambar diam dikompresi dan disimpan lokal; video dan GIF diputar sebagai latar animasi.",
   "settings.wallpaperEmpty": "Klik untuk memilih wallpaper",
   "settings.wallpaperUpload": "Pilih wallpaper",
+  "settings.wallpaperColor": "Pilih warna",
+  "settings.wallpaperColorDesc": "Mengisi latar jendela dengan warna polos, bukan gambar. Warna awal 绿豆沙 (#C7EDCC), hijau yang nyaman di mata.",
   "settings.wallpaperReplace": "Ganti wallpaper",
   "settings.wallpaperClear": "Hapus",
   "settings.wallpaperWorking": "Memproses…",

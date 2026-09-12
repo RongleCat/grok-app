@@ -358,6 +358,8 @@ export const ukSettingsUi = {
   "settings.wallpaperDesc": "Виберіть локальний файл, здійсніть пошук X, створіть за допомогою Imagine або виберіть із бібліотеки (JPEG/PNG/WebP, GIF або MP4/WebM). Нерухомі зображення стискаються та зберігаються локально; відео та GIF-файли відтворюються як анімований фон.",
   "settings.wallpaperEmpty": "Клацніть, щоб вибрати шпалери",
   "settings.wallpaperUpload": "Вибрати шпалери",
+  "settings.wallpaperColor": "Вибрати колір",
+  "settings.wallpaperColorDesc": "Заливає тло вікна суцільним кольором замість зображення. Початок — 绿豆沙 (#C7EDCC), спокійний зелений для очей.",
   "settings.wallpaperReplace": "Замінити шпалери",
   "settings.wallpaperClear": "Видалити",
   "settings.wallpaperWorking": "Обробка…",

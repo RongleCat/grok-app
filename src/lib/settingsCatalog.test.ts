@@ -323,6 +323,7 @@ describe("settingsCatalog", () => {
     expect(appearance).toContain("settings.skin");
     expect(appearance).toContain("settings.themeSchedule");
     expect(appearance).toContain("settings.wallpaper");
+    expect(appearance).toContain("settings.wallpaperColor");
     expect(appearance).toContain("settings.thinkingExpand");
     expect(appearance).toContain("settings.toolStepsAutoCollapse");
     expect(appearance).toContain("settings.transcriptFilter");

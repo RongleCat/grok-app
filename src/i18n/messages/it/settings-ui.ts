@@ -358,6 +358,8 @@ export const itSettingsUi = {
   "settings.wallpaperDesc": "Immagine di sfondo della chat. Trascina un file o scegli dalla libreria.",
   "settings.wallpaperEmpty": "Clicca per scegliere uno sfondo",
   "settings.wallpaperUpload": "Scegli sfondo",
+  "settings.wallpaperColor": "Scegli colore",
+  "settings.wallpaperColorDesc": "Riempie lo sfondo della finestra con un colore pieno. Il punto di partenza è 绿豆沙 (#C7EDCC), un verde riposo-occhi.",
   "settings.wallpaperReplace": "Sostituisci sfondo",
   "settings.wallpaperClear": "Cancella sfondo",
   "settings.wallpaperWorking": "Elaborazione…",

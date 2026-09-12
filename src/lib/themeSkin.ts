@@ -516,7 +516,73 @@ export function skinPreferredTheme(skin: ThemeSkinId): Theme | null {
  * Wallpaper — Blob persisted in IndexedDB; meta mirrored to localStorage.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-export type WallpaperKind = "image" | "video";
+export type WallpaperKind = "image" | "video" | "color";
+
+/**
+ * Classic 绿豆沙 eye-care fill (RGB 199,237,204). Used as the color-picker
+ * starting value — not auto-applied until the user picks a solid color.
+ */
+export const DEFAULT_WALLPAPER_COLOR = "#C7EDCC";
+
+/**
+ * Solid-fill presets: muted Morandi chips plus 绿豆沙 (#C7EDCC) as the
+ * eye-care green. First-click starting color stays DEFAULT_WALLPAPER_COLOR.
+ */
+export const WALLPAPER_COLOR_PRESETS: readonly string[] = [
+  "#E8B8B8",
+  "#D9C0C4",
+  "#E8DCC8",
+  "#C7EDCC",
+  "#B7C5D9",
+  "#C9B8D4",
+  "#C5C2BE",
+  "#D4D4D2",
+];
+
+export function parseWallpaperColor(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const m = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.exec(
+    raw.trim(),
+  );
+  if (!m) return null;
+  let h = m[1]!;
+  if (h.length === 3) {
+    h = `${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`;
+  } else if (h.length === 8) {
+    h = h.slice(0, 6);
+  }
+  return `#${h.toUpperCase()}`;
+}
+
+/** Native `<input type="color">` requires lowercase `#rrggbb`. */
+export function wallpaperColorInputValue(hex: string): string {
+  return (parseWallpaperColor(hex) ?? DEFAULT_WALLPAPER_COLOR).toLowerCase();
+}
+
+export function isColorWallpaper(
+  kind: WallpaperKind | null | undefined,
+): boolean {
+  return kind === "color";
+}
+
+export function makeColorWallpaperRecord(hex: string): WallpaperRecord {
+  const color = parseWallpaperColor(hex) ?? DEFAULT_WALLPAPER_COLOR;
+  return {
+    kind: "color",
+    mime: "text/plain",
+    name: "color",
+    createdAt: Date.now(),
+    color,
+  };
+}
+
+/** Hex fill for a color wallpaper, or null. */
+export function wallpaperColorHex(
+  record: Pick<WallpaperMeta, "kind" | "color"> | null | undefined,
+): string | null {
+  if (!record || record.kind !== "color") return null;
+  return parseWallpaperColor(record.color) ?? DEFAULT_WALLPAPER_COLOR;
+}
 
 export interface WallpaperMeta {
   kind: WallpaperKind;
@@ -544,10 +610,13 @@ export interface WallpaperMeta {
    * Playback seeks within the range; source is never re-encoded.
    */
   clip?: WallpaperClip;
+  /** `#RRGGBB` when `kind` is `color`. */
+  color?: string;
 }
 
 export interface WallpaperRecord extends WallpaperMeta {
-  blob: Blob;
+  /** Present for image/video. Color fills have no blob. */
+  blob?: Blob;
 }
 
 /**
@@ -669,9 +738,11 @@ function normalizeWallpaperMeta(value: unknown): WallpaperMeta | null {
   const mime = v.mime;
   const name = v.name;
   const createdAt = v.createdAt;
-  if (kind !== "image" && kind !== "video") return null;
+  if (kind !== "image" && kind !== "video" && kind !== "color") return null;
   if (typeof mime !== "string" || typeof name !== "string") return null;
   if (typeof createdAt !== "number" || !Number.isFinite(createdAt)) return null;
+  const color = kind === "color" ? parseWallpaperColor(v.color) : null;
+  if (kind === "color" && !color) return null;
   const focus =
     v.focus !== undefined && v.focus !== null
       ? parseWallpaperFocus(v.focus)
@@ -701,6 +772,7 @@ function normalizeWallpaperMeta(value: unknown): WallpaperMeta | null {
   }
   const clip = parseWallpaperClip(v.clip);
   if (clip) meta.clip = clip;
+  if (color) meta.color = color;
   return meta;
 }
 
@@ -734,6 +806,11 @@ export async function loadWallpaperRecord(
   const meta = loadWallpaperMeta(metaStore);
   const blob = await blobStore.get();
 
+  if (meta?.kind === "color") {
+    if (blob) await blobStore.clear();
+    return { ...meta };
+  }
+
   // Split-brain / orphan cleanup so removed wallpapers do not keep quota:
   // meta without blob → drop meta; blob without meta → drop blob.
   if (meta && !blob) {
@@ -755,6 +832,14 @@ export async function saveWallpaper(
 ): Promise<void> {
   const { blob, ...meta } = record;
   writeWallpaperMeta(optsMeta(opts), meta);
+  if (meta.kind === "color") {
+    await optsBlobs(opts).clear();
+    return;
+  }
+  if (!blob) {
+    await optsBlobs(opts).clear();
+    return;
+  }
   await optsBlobs(opts).set(blob);
 }
 
@@ -771,6 +856,7 @@ function cloneWallpaperMetaBase(meta: WallpaperMeta): WallpaperMeta {
   }
   if (meta.focus) next.focus = meta.focus;
   if (meta.clip) next.clip = meta.clip;
+  if (meta.color) next.color = meta.color;
   return next;
 }
 
@@ -892,6 +978,18 @@ export function applyWallpaperFlag(
     root.setAttribute("data-wallpaper", "1");
   } else {
     root.removeAttribute("data-wallpaper");
+  }
+}
+
+/** Solid-color fill: chat column should show the paint, not a heavy pane mix. */
+export function applyWallpaperColorFlag(
+  present: boolean,
+  root: SkinRoot = document.documentElement,
+): void {
+  if (present) {
+    root.setAttribute("data-wallpaper-color", "1");
+  } else {
+    root.removeAttribute("data-wallpaper-color");
   }
 }
 

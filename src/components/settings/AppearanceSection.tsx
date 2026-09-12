@@ -1,6 +1,7 @@
 /**
  * Settings → appearance section (consumes SettingsModel context).
  */
+import { useEffect, useState } from "react";
 import { useSettingsModel } from "@/providers/SettingsModelContext";
 
 import { Select } from "@/components/Select";
@@ -9,13 +10,20 @@ import {
   IconAppearance,
   IconCrop,
   IconHelp,
+  IconRename,
   IconSearch,
   IconUpload,
 } from "@/components/icons";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Tip } from "@/components/ui/tooltip";
 import {
+  DEFAULT_WALLPAPER_COLOR,
   DEFAULT_WALLPAPER_FOCUS,
+  isColorWallpaper,
+  makeColorWallpaperRecord,
+  parseWallpaperColor,
+  WALLPAPER_COLOR_PRESETS,
+  wallpaperColorInputValue,
   THEME_SKINS,
   WALLPAPER_ACCEPT,
 } from "@/lib/themeSkin";
@@ -162,6 +170,20 @@ export function AppearanceSection() {
     welcomeMotionEnabled = true,
     zenMode,
   } = s;
+
+  const wallpaperColorValue =
+    (isColorWallpaper(wallpaperKind)
+      ? parseWallpaperColor(wallpaperUrl)
+      : null) ?? DEFAULT_WALLPAPER_COLOR;
+  const [colorDraft, setColorDraft] = useState(wallpaperColorValue);
+  useEffect(() => {
+    setColorDraft(wallpaperColorValue);
+  }, [wallpaperColorValue]);
+  const applyWallpaperColor = (hex: string) => {
+    const next = parseWallpaperColor(hex) ?? DEFAULT_WALLPAPER_COLOR;
+    setColorDraft(next);
+    void onWallpaper?.(makeColorWallpaperRecord(next));
+  };
 
   return (
     <div className="settings-appearance-root">
@@ -428,7 +450,8 @@ export function AppearanceSection() {
                               >
                                 {t("settings.wallpaperReplace")}
                               </button>
-                              {onWallpaperAdjust ? (
+                              {onWallpaperAdjust &&
+                              !isColorWallpaper(wallpaperKind) ? (
                                 <button
                                   type="button"
                                   className="btn btn--solid btn--sm"
@@ -481,6 +504,70 @@ export function AppearanceSection() {
                         )}
                       </div>
                       <div className="settings-wallpaper__side">
+                        <div className="settings-wallpaper__palette-row">
+                          <span className="settings-wallpaper__palette-label">
+                            {t("settings.wallpaperColor")}
+                          </span>
+                          <div
+                            className="settings-wallpaper__palette"
+                            role="listbox"
+                            aria-label={t("settings.wallpaperColor")}
+                          >
+                            {WALLPAPER_COLOR_PRESETS.map((hex) => {
+                              const on =
+                                isColorWallpaper(wallpaperKind) &&
+                                parseWallpaperColor(colorDraft) === hex;
+                              return (
+                                <button
+                                  key={hex}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={on}
+                                  aria-label={hex}
+                                  disabled={wallpaperBusy}
+                                  className={
+                                    "settings-wallpaper__chip" +
+                                    (on ? " is-on" : "")
+                                  }
+                                  style={{ background: hex }}
+                                  onClick={() => applyWallpaperColor(hex)}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="settings-wallpaper__custom">
+                          <label className="settings-wallpaper__eyedrop">
+                            <IconRename size={16} aria-hidden />
+                            <input
+                              type="color"
+                              value={wallpaperColorInputValue(colorDraft)}
+                              aria-label={t("settings.wallpaperColor")}
+                              disabled={wallpaperBusy}
+                              onChange={(e) =>
+                                applyWallpaperColor(e.currentTarget.value)
+                              }
+                            />
+                          </label>
+                          <input
+                            type="text"
+                            className="settings-input settings-wallpaper__hex"
+                            value={colorDraft}
+                            spellCheck={false}
+                            autoCapitalize="off"
+                            autoCorrect="off"
+                            disabled={wallpaperBusy}
+                            aria-label={t("settings.wallpaperColor")}
+                            onChange={(e) => setColorDraft(e.target.value)}
+                            onBlur={() => applyWallpaperColor(colorDraft)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                applyWallpaperColor(colorDraft);
+                              }
+                            }}
+                          />
+                        </div>
                         <div
                           id="settings-anchor-wallpaper-x-search-mode"
                           className={
@@ -512,7 +599,9 @@ export function AppearanceSection() {
                           </button>
                         </div>
                       </div>
-                      {wallpaperUrl && (onWallpaperScrim || onWallpaperBlur) ? (
+                      {wallpaperUrl &&
+                      (onWallpaperScrim ||
+                        (onWallpaperBlur && !isColorWallpaper(wallpaperKind))) ? (
                         <div className="settings-wallpaper__sliders">
                           {onWallpaperScrim ? (
                             <div className="settings-wallpaper__scrim">
@@ -568,7 +657,8 @@ export function AppearanceSection() {
                               />
                             </div>
                           ) : null}
-                          {onWallpaperBlur ? (
+                          {onWallpaperBlur &&
+                          !isColorWallpaper(wallpaperKind) ? (
                             <div className="settings-wallpaper__scrim">
                               <div className="settings-wallpaper__scrim-head">
                                 <label
@@ -646,7 +736,9 @@ export function AppearanceSection() {
                           onSection("account");
                         }}
                       />
-                      {wallpaperUrl && onWallpaperAdjust ? (
+                      {wallpaperUrl &&
+                      onWallpaperAdjust &&
+                      !isColorWallpaper(wallpaperKind) ? (
                         <WallpaperFocusEditor
                           open={wallpaperFocusOpen}
                           onClose={() => setWallpaperFocusOpen(false)}

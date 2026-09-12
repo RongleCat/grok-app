@@ -367,6 +367,12 @@ html[data-wallpaper="1"] .main {
   box-shadow: none !important;
 }
 
+/* Solid fill: let the chat column show the paint instead of a heavy pane mix. */
+html[data-wallpaper="1"][data-wallpaper-color="1"] {
+  --wallpaper-mix-main: 8%;
+  --wallpaper-light-mix-main: 6%;
+}
+
 /* Right rail uses the same solid + mix as the left sidebar. */
 html[data-wallpaper="1"] .aside {
   background: color-mix(

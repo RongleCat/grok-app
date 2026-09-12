@@ -358,6 +358,8 @@ export const ruSettingsUi = {
   "settings.wallpaperDesc": "Выберите локальный файл, найдите в X, сгенерируйте Imagine или возьмите из библиотеки (JPEG/PNG/WebP, GIF или MP4/WebM). Статичные изображения сжимаются и сохраняются локально; видео и GIF играют как анимированный фон.",
   "settings.wallpaperEmpty": "Нажмите, чтобы выбрать обои",
   "settings.wallpaperUpload": "Выбрать обои",
+  "settings.wallpaperColor": "Выбрать цвет",
+  "settings.wallpaperColorDesc": "Заливает фон окна сплошным цветом вместо картинки. Старт — 绿豆沙 (#C7EDCC), спокойный зелёный для глаз.",
   "settings.wallpaperReplace": "Заменить обои",
   "settings.wallpaperClear": "Убрать",
   "settings.wallpaperWorking": "Обработка…",

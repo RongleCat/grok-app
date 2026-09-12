@@ -358,6 +358,8 @@ export const esSettingsUi = {
   "settings.wallpaperDesc": "Elige un archivo local, busca en X, genera con Imagine o elige de la biblioteca (JPEG/PNG/WebP, GIF o MP4/WebM). Las imágenes fijas se comprimen y se guardan localmente; los vídeos y GIF se reproducen como fondo animado.",
   "settings.wallpaperEmpty": "Haz clic para elegir un fondo",
   "settings.wallpaperUpload": "Elegir fondo",
+  "settings.wallpaperColor": "Elegir color",
+  "settings.wallpaperColorDesc": "Rellena el fondo de la ventana con un color sólido. El punto de partida es 绿豆沙 (#C7EDCC), un verde de descanso visual.",
   "settings.wallpaperReplace": "Sustituir fondo",
   "settings.wallpaperClear": "Quitar",
   "settings.wallpaperWorking": "Procesando…",

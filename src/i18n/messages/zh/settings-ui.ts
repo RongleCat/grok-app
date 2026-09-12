@@ -358,6 +358,8 @@ export const zhSettingsUi = {
   "settings.wallpaperDesc": "可本机选图、从 X 搜索、用 Imagine 生成，或从壁纸库选取（JPEG/PNG/WebP、GIF 或 MP4/WebM）。静态图会压缩后保存在本地；视频和 GIF 会作为动态背景播放。",
   "settings.wallpaperEmpty": "点击选择壁纸",
   "settings.wallpaperUpload": "选择壁纸",
+  "settings.wallpaperColor": "纯色",
+  "settings.wallpaperColorDesc": "用纯色填充窗口背景，而不是图片。色板为莫兰迪色系，并含绿豆沙护眼色（#C7EDCC）。",
   "settings.wallpaperReplace": "更换壁纸",
   "settings.wallpaperClear": "移除",
   "settings.wallpaperWorking": "处理中…",

@@ -358,6 +358,8 @@ export const zhTWSettingsUi = {
   "settings.wallpaperDesc": "可本機選圖、從 X 搜尋、用 Imagine 生成，或從壁紙庫選取（JPEG/PNG/WebP、GIF 或 MP4/WebM）。靜態圖會壓縮後保存在本機；影片和 GIF 會作為動態背景播放。",
   "settings.wallpaperEmpty": "點擊選擇壁紙",
   "settings.wallpaperUpload": "選擇壁紙",
+  "settings.wallpaperColor": "純色",
+  "settings.wallpaperColorDesc": "用純色填滿視窗背景，而不是圖片。色板為莫蘭迪色系，並含綠豆沙護眼色（#C7EDCC）。",
   "settings.wallpaperReplace": "更換壁紙",
   "settings.wallpaperClear": "移除",
   "settings.wallpaperWorking": "處理中…",

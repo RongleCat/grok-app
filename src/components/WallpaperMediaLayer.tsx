@@ -249,6 +249,22 @@ export function WallpaperMediaLayer({
         opacity: 0,
       };
 
+  if (kind === "color") {
+    return (
+      <div ref={rootRef} className={className + " is-ready"} aria-hidden>
+        <div
+          className={mediaClassName}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: url,
+            opacity: 1,
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       ref={rootRef}

@@ -358,6 +358,8 @@ export const deSettingsUi = {
   "settings.wallpaperDesc": "Lokale Datei wählen, auf X suchen, mit Imagine erzeugen oder aus der Bibliothek wählen (JPEG/PNG/WebP, GIF oder MP4/WebM). Standbilder werden komprimiert und lokal gespeichert; Videos und GIFs laufen als animierter Hintergrund.",
   "settings.wallpaperEmpty": "Klicken, um ein Hintergrundbild zu wählen",
   "settings.wallpaperUpload": "Hintergrundbild wählen",
+  "settings.wallpaperColor": "Farbe wählen",
+  "settings.wallpaperColorDesc": "Fensterhintergrund mit einer Volltonfarbe statt eines Bildes. Startfarbe ist 绿豆沙 (#C7EDCC), ein gängiges Augenschon-Grün.",
   "settings.wallpaperReplace": "Hintergrundbild ersetzen",
   "settings.wallpaperClear": "Entfernen",
   "settings.wallpaperWorking": "Verarbeiten…",

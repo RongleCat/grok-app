@@ -358,6 +358,8 @@ export const enSettingsUi = {
   "settings.wallpaperDesc": "Choose a local file, search X, generate with Imagine, or pick from the library (JPEG/PNG/WebP, GIF, or MP4/WebM). Still images are compressed and saved locally; videos and GIFs play as an animated background.",
   "settings.wallpaperEmpty": "Click to choose a wallpaper",
   "settings.wallpaperUpload": "Choose wallpaper",
+  "settings.wallpaperColor": "Solid color",
+  "settings.wallpaperColorDesc": "Fill the window with a solid color instead of an image. Presets are Morandi tones plus 绿豆沙 (#C7EDCC), a common eye-care green.",
   "settings.wallpaperReplace": "Replace wallpaper",
   "settings.wallpaperClear": "Remove",
   "settings.wallpaperWorking": "Processing…",

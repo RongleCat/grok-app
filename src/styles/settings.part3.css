@@ -1178,6 +1178,97 @@ html[data-theme-editor-shell] #root {
   align-items: center;
 }
 
+.settings-wallpaper__palette-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.settings-wallpaper__palette-label {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 560;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.settings-wallpaper__palette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-wallpaper__chip {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent);
+  background: var(--bg-input);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.settings-wallpaper__chip:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.settings-wallpaper__chip.is-on {
+  box-shadow:
+    0 0 0 2px var(--bg-elevated, var(--bg-card, #fff)),
+    0 0 0 4px var(--accent);
+}
+
+.settings-wallpaper__custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.settings-wallpaper__eyedrop {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.settings-wallpaper__eyedrop svg {
+  pointer-events: none;
+  position: relative;
+  z-index: 0;
+}
+
+.settings-wallpaper__eyedrop input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.settings-wallpaper__hex {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Wallpaper source modal (X + Imagine) ── */
 .modal.glass-modal.wallpaper-source-modal {
   width: min(1440px, calc(100vw - 32px));

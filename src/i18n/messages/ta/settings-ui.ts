@@ -358,6 +358,8 @@ export const taSettingsUi = {
   "settings.wallpaperDesc": "ஒரு உள்ளூர் கோப்பைத் தேர்வுசெய்யவும், X ஐத் தேடவும், இமேஜின் மூலம் உருவாக்கவும் அல்லது நூலகத்திலிருந்து தேர்ந்தெடுக்கவும் (JPEG/PNG/WebP, GIF, அல்லது MP4/WebM). ஸ்டில் படங்கள் சுருக்கப்பட்டு உள்நாட்டில் சேமிக்கப்படும்; வீடியோக்கள் மற்றும் GIFகள் அனிமேஷன் பின்னணியாக இயங்குகின்றன.",
   "settings.wallpaperEmpty": "வால்பேப்பரைத் தேர்ந்தெடுக்க கிளிக் செய்யவும்",
   "settings.wallpaperUpload": "வால்பேப்பரைத் தேர்ந்தெடு",
+  "settings.wallpaperColor": "நிறத்தைத் தேர்ந்தெடு",
+  "settings.wallpaperColorDesc": "படத்திற்குப் பதிலாக திட நிறத்தால் சாளரப் பின்னணியை நிரப்பும். தொடக்க நிறம் 绿豆沙 (#C7EDCC).",
   "settings.wallpaperReplace": "வால்பேப்பரை மாற்று",
   "settings.wallpaperClear": "அகற்று",
   "settings.wallpaperWorking": "செயலாக்குகிறது…",

@@ -358,6 +358,8 @@ export const koSettingsUi = {
   "settings.wallpaperDesc": "로컬 파일을 고르거나, X에서 검색하거나, Imagine으로 생성하거나, 라이브러리에서 고르세요(JPEG/PNG/WebP, GIF, 또는 MP4/WebM). 정지 이미지는 압축되어 로컬에 저장되고, 동영상과 GIF는 애니메이션 배경으로 재생됩니다.",
   "settings.wallpaperEmpty": "클릭하여 배경화면을 선택하세요",
   "settings.wallpaperUpload": "배경화면 선택",
+  "settings.wallpaperColor": "색 선택",
+  "settings.wallpaperColorDesc": "이미지 대신 단색으로 창 배경을 채웁니다. 시작 색은 눈 편한 녹두사(#C7EDCC)입니다.",
   "settings.wallpaperReplace": "배경화면 바꾸기",
   "settings.wallpaperClear": "제거",
   "settings.wallpaperWorking": "처리 중…",
