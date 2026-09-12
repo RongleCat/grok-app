@@ -248,3 +248,56 @@ it("lists saved official accounts with remaining quota and switches on click", a
   fireEvent.click(screen.getByRole("menuitem", { name: "Alice, Active" }));
   expect(onAccountSettings).toHaveBeenCalled();
 });
+
+it("hides the single-account row when the top quota card is already shown", async () => {
+  const account = {
+    profile: {
+      signedIn: true,
+      name: "Alice",
+      email: "alice@x.ai",
+      userId: "u1",
+    },
+    channel: "official_oauth" as const,
+    billing: null,
+  };
+  render(
+    <UserMenu
+      open
+      onClose={() => undefined}
+      theme="dark"
+      themePreference="dark"
+      labels={{ ...labels, remaining: "remaining" }}
+      account={account as never}
+      activeProvider={null}
+      accountBusy={false}
+      officialQuota={{
+        plan: "Pro",
+        resetText: null,
+        remainLabel: "25%",
+        usedPercent: 75,
+        barFillClass: "",
+      }}
+      savedAccounts={[
+        {
+          id: "a1",
+          email: "alice@x.ai",
+          displayName: "Alice",
+          label: "Alice",
+          updatedAt: "",
+        },
+      ]}
+      activeAccountId="a1"
+      onTheme={() => undefined}
+      onLogin={() => undefined}
+      onLogout={() => undefined}
+    >
+      <button type="button">Account</button>
+    </UserMenu>,
+  );
+
+  await waitFor(() =>
+    expect(screen.getByTestId("user-menu-quota")).toBeTruthy(),
+  );
+  expect(screen.queryByTestId("user-menu-accounts")).toBeNull();
+  expect(screen.getByTestId("user-menu-quota").textContent).toContain("25%");
+});

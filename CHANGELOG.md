@@ -24,6 +24,7 @@ See `docs/llm-wiki/release.md`.
 - 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
 
 ### Fixed
+- The account menu no longer repeats the quota card when only one official account is saved.
 - Saving project rules no longer kills another chat's background agent mid-turn.
 - Trusted-project chats no longer reuse a prewarm process that skipped folder trust.
 - Switching git branches is blocked while an agent turn is still running in that folder.
@@ -46,6 +47,7 @@ See `docs/llm-wiki/release.md`.
 - Local video details now use the file's measured dimensions and duration.
 
 **中文 · 修复**
+- 仅一个官方账号时，用户菜单不再重复显示额度卡片。
 - 保存项目规则时，不再打断同项目另一聊天后台进行中的 agent 回合。
 - 已信任项目不会复用未带文件夹信任的预热进程，AGENTS.md 可正确加载。
 - 同文件夹仍有 agent 回合在跑时，禁止切换 git 分支。

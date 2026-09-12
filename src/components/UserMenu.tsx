@@ -281,7 +281,13 @@ export function UserMenu({
   const signedIn = !isCustomProvider && !!account?.profile?.signedIn;
   const profile = account?.profile ?? null;
   const livePercents = resolveQuotaPercents(account?.billing ?? null);
-  const showSavedOfficialAccounts = signedIn && savedAccounts.length > 0;
+  // Top officialQuota card already shows the active remain %. With a single
+  // saved account the account row is the same card again — hide it. Keep the
+  // list when there are 2+ accounts to switch, or when the top card is absent.
+  const showSavedOfficialAccounts =
+    signedIn &&
+    savedAccounts.length > 0 &&
+    (savedAccounts.length > 1 || !officialQuota);
   const remainingWord = labels.remaining ?? "remaining";
   const profileActiveLabel = labels.profileActive ?? "Active";
   const switchToLabel = labels.switchTo ?? "Switch to this account";
