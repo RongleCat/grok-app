@@ -27,6 +27,7 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 - Typing `@/goal …` no longer becomes a missing-file chip; the line stays as text (#1197).
+- Windows PNG previews no longer claim a good file is corrupt (#1198).
 - The account menu no longer repeats the quota card when only one official account is saved.
 - Saving project rules no longer kills another chat's background agent mid-turn.
 - Trusted-project chats no longer reuse a prewarm process that skipped folder trust.
@@ -51,6 +52,7 @@ See `docs/llm-wiki/release.md`.
 
 **中文 · 修复**
 - 输入 `@/goal …` 不再变成失效文件 chip，该行会保留为正文（#1197）。
+- Windows 本地 PNG 预览不再误报「文件可能已损坏」（#1198）。
 - 仅一个官方账号时，用户菜单不再重复显示额度卡片。
 - 保存项目规则时，不再打断同项目另一聊天后台进行中的 agent 回合。
 - 已信任项目不会复用未带文件夹信任的预热进程，AGENTS.md 可正确加载。

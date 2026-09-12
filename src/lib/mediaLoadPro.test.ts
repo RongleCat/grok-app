@@ -4,7 +4,9 @@ import {
   classifyMediaSrcFailure,
   deriveMediaLoadPhase,
   formatMediaLoadErrorMessage,
+  isLocalMediaDeliveryUrl,
   isSafeLocalMediaUrl,
+  mediaCustomProtocolPath,
   mediaLoadErrorLabelMap,
   mediaLoadErrorMessageKey,
   mediaLoadPhaseMessageKey,
@@ -117,14 +119,23 @@ describe("classifyMediaSrcFailure", () => {
     ).toBe("media_server_unavailable");
   });
 
-  it("broken blob after loadFailed with src", () => {
+  it("loadFailed with local delivery prefers retryable kinds over brokenBlob", () => {
+    // Real local path on a loopback URL → grant/allowlist race (retryable).
     expect(
       classifyMediaSrcFailure({
         pathOrUrl: "/Users/me/pic.png",
+        resolvedSrc: "http://127.0.0.1:9/v1/media?t=x&p=%2FUsers%2Fme%2Fpic.png",
+        loadFailed: true,
+      }),
+    ).toBe("untrusted");
+    // Garbage p= without a usable pathOrUrl → not "corrupt file".
+    expect(
+      classifyMediaSrcFailure({
+        pathOrUrl: "clip",
         resolvedSrc: "http://127.0.0.1:9/v1/media?t=x&p=y",
         loadFailed: true,
       }),
-    ).toBe("broken_blob");
+    ).toBe("media_server_unavailable");
     expect(
       classifyMediaSrcFailure({
         pathOrUrl: "clip",
@@ -290,7 +301,8 @@ describe("deriveMediaLoadPhase / phase keys", () => {
   });
 
   it("phase message keys", () => {
-    expect(mediaLoadPhaseMessageKey("broken")).toBe("media.err.brokenBlob");
+    // Coarse "broken" phase must not claim the file is corrupt (#1198).
+    expect(mediaLoadPhaseMessageKey("broken")).toBe("media.err.other");
     expect(mediaLoadPhaseMessageKey("missing")).toBe("media.err.missingPath");
     expect(mediaLoadPhaseMessageKey("pending")).toBe("media.loading");
     expect(mediaLoadPhaseMessageKey("ready")).toBeNull();
@@ -322,10 +334,19 @@ describe("classifyMediaSrcFailure — fused query keys & loopback URLs", () => {
     ).toBe("untrusted");
   });
 
-  it("loopback media URL without p= is media_server_unavailable", () => {
+  it("loopback media URL without p= still retries via pathOrUrl when absolute", () => {
+    // Missing p= is a malformed media URL, but a known local pathOrUrl must
+    // stay retryable (untrusted) so ImageUi can re-resolve after grant.
     expect(
       classifyMediaSrcFailure({
         pathOrUrl: "/Users/me/pic.png",
+        resolvedSrc: "http://127.0.0.1:52193/v1/media?t=tok",
+        loadFailed: true,
+      }),
+    ).toBe("untrusted");
+    expect(
+      classifyMediaSrcFailure({
+        pathOrUrl: "clip",
         resolvedSrc: "http://127.0.0.1:52193/v1/media?t=tok",
         loadFailed: true,
       }),
@@ -358,6 +379,48 @@ describe("classifyMediaSrcFailure — fused query keys & loopback URLs", () => {
       }),
     ).toBe("broken_blob");
   });
+
+  it("Windows media.localhost cold-start failure is retryable untrusted, not brokenBlob (#1198)", () => {
+    // WebView2 convertFileSrc yields http(s)://media.localhost/… before the
+    // loopback endpoint is ready. Mis-classifying that as broken_blob locked
+    // the card (no retry) even when the PNG on disk was fine.
+    expect(
+      classifyMediaSrcFailure({
+        pathOrUrl: "C:\\Users\\me\\Pictures\\oddsnap_1.png",
+        resolvedSrc:
+          "http://media.localhost/C%3A%2FUsers%2Fme%2FPictures%2Foddsnap_1.png",
+        loadFailed: true,
+      }),
+    ).toBe("untrusted");
+    expect(
+      classifyMediaSrcFailure({
+        pathOrUrl: "C:/Users/me/Pictures/oddsnap_1.png",
+        resolvedSrc:
+          "https://asset.localhost/C%3A%2FUsers%2Fme%2FPictures%2Foddsnap_1.png",
+        loadFailed: true,
+      }),
+    ).toBe("untrusted");
+    expect(
+      shouldRetryLocalMediaFailure(
+        classifyMediaSrcFailure({
+          pathOrUrl: "C:/Users/me/Pictures/a.png",
+          resolvedSrc: "http://media.localhost/C%3A%2FUsers%2Fme%2FPictures%2Fa.png",
+          loadFailed: true,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("Windows loopback p= path is retryable untrusted on <img> onError", () => {
+    expect(
+      classifyMediaSrcFailure({
+        pathOrUrl: "C:/Users/me/Pictures/oddsnap_1.png",
+        resolvedSrc:
+          "http://127.0.0.1:52193/v1/media?t=tok&p=C%3A%2FUsers%2Fme%2FPictures%2Foddsnap_1.png",
+        loadFailed: true,
+      }),
+    ).toBe("untrusted");
+  });
 });
 
 describe("mediaUrlPathParam", () => {
@@ -379,11 +442,28 @@ describe("mediaUrlPathParam", () => {
     ).toBe(path);
   });
 
-  it("returns null for non-loopback or pathless URLs", () => {
+  it("returns null for remote or pathless URLs", () => {
     expect(mediaUrlPathParam("https://cdn.example/a.png")).toBe(null);
     expect(mediaUrlPathParam("http://127.0.0.1:9/v1/media?t=tok")).toBe(null);
     expect(mediaUrlPathParam("")).toBe(null);
     expect(mediaUrlPathParam(null)).toBe(null);
+  });
+
+  it("extracts Windows paths from media.localhost / asset.localhost (#1198)", () => {
+    expect(
+      mediaUrlPathParam(
+        "http://media.localhost/C%3A%2FUsers%2Fme%2FPictures%2Foddsnap_1.png",
+      ),
+    ).toBe("C:/Users/me/Pictures/oddsnap_1.png");
+    expect(
+      mediaCustomProtocolPath(
+        "https://asset.localhost/C%3A%2FUsers%2Fme%2Fa.png",
+      ),
+    ).toBe("C:/Users/me/a.png");
+    expect(isLocalMediaDeliveryUrl("http://media.localhost/C%3A%2Fx.png")).toBe(
+      true,
+    );
+    expect(isLocalMediaDeliveryUrl("blob:http://localhost/1")).toBe(false);
   });
 });
 

@@ -1772,6 +1772,25 @@ fn is_sole_line_at_attachment_path_ref(path: &str) -> bool {
     p.split('/').filter(|s| !s.is_empty()).count() >= 2
 }
 
+/// Grant path_scope for user-attached local files so chat thumbs / media HTTP
+/// can preview Desktop / Documents / Pictures paths without waiting on a later
+/// `paths_classify` race (Windows `@C:\…\shot.png` cards).
+pub(super) fn grant_journal_attachment_paths(atts: &[MessageAttachmentStored]) {
+    for att in atts {
+        let p = att.path.trim();
+        if p.is_empty() || p.starts_with("http://") || p.starts_with("https://") {
+            continue;
+        }
+        if att.is_dir {
+            continue;
+        }
+        let pb = std::path::Path::new(p);
+        if pb.is_file() {
+            crate::path_scope::grant_path(pb);
+        }
+    }
+}
+
 /// Append sole-line `@/abs/path` refs for journal dual-write (idempotent).
 ///
 /// Preserves **internal** blank lines in the user body. Only a trailing run of

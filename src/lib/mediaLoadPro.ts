@@ -296,27 +296,83 @@ export function classifyMediaLoadError(err: unknown): MediaLoadErrorKind {
   return "other";
 }
 
+/** True for token-gated loopback media HTTP (`/v1/media?p=`). */
+function isLoopbackMediaHttpUrl(src: string): boolean {
+  return /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]|::1)(:|\/)/i.test(src);
+}
+
 /**
- * Extract the `p=` path from a token-gated loopback media URL, or null when
- * the src is not a loopback media URL (or has no path).
- * Returns the *decoded* path exactly as the media server would resolve it.
+ * True for Host local-media delivery URLs: loopback HTTP, cold-start
+ * `media://` / `asset://`, and Windows WebView2 `*.localhost` custom schemes.
+ * Excludes `blob:` / `data:` (those are decoded pixels, not path delivery).
+ */
+export function isLocalMediaDeliveryUrl(src: string | null | undefined): boolean {
+  const raw = (src || "").trim();
+  if (!raw) return false;
+  if (raw.startsWith("blob:") || raw.startsWith("data:")) return false;
+  return isSafeLocalMediaUrl(raw);
+}
+
+/**
+ * Decode a filesystem path from cold-start `media://` / `asset://` /
+ * `http(s)://media.localhost/…` URLs (percent-encoded abs path in pathname).
+ * Windows drive paths arrive as `/C%3A%2F…` — strip the extra leading slash.
+ */
+export function mediaCustomProtocolPath(
+  src: string | null | undefined,
+): string | null {
+  const raw = (src || "").trim();
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.toLowerCase();
+    const proto = u.protocol.toLowerCase();
+    const isCustomHost =
+      host === "media.localhost" || host === "asset.localhost";
+    const isCustomScheme =
+      (proto === "media:" || proto === "asset:") &&
+      (host === "localhost" || host === "" || isCustomHost);
+    if (!isCustomHost && !isCustomScheme) return null;
+    let path = u.pathname || "";
+    if (!path || path === "/") return null;
+    // Some runtimes leave %2F encoded in the pathname; decode fully.
+    try {
+      path = decodeURIComponent(path);
+    } catch {
+      /* keep raw pathname */
+    }
+    // URL pathname always has a leading `/`. Windows `C:/…` must not keep it.
+    if (/^\/[A-Za-z]:[\\/]/.test(path)) {
+      path = path.slice(1);
+    }
+    path = path.trim();
+    return path || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract the filesystem path from a local media delivery URL, or null.
+ * - Loopback HTTP: `p=` query param (decoded)
+ * - Cold-start media/asset: percent-decoded pathname
  */
 export function mediaUrlPathParam(
   src: string | null | undefined,
 ): string | null {
   const raw = (src || "").trim();
   if (!raw) return null;
-  if (!/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]|::1)(:|\/)/i.test(raw)) {
-    return null;
+  if (isLoopbackMediaHttpUrl(raw)) {
+    try {
+      const u = new URL(raw);
+      if (!u.pathname.includes("/v1/media")) return null;
+      const p = u.searchParams.get("p");
+      return p && p.trim() ? p.trim() : null;
+    } catch {
+      return null;
+    }
   }
-  try {
-    const u = new URL(raw);
-    if (!u.pathname.includes("/v1/media")) return null;
-    const p = u.searchParams.get("p");
-    return p && p.trim() ? p.trim() : null;
-  } catch {
-    return null;
-  }
+  return mediaCustomProtocolPath(raw);
 }
 
 /**
@@ -418,19 +474,27 @@ export function classifyMediaSrcFailure(input: {
       ) {
         return "broken_blob";
       }
-      // Loopback media URL: classify by what the server would have answered.
-      // A fused `t:/Users/…` p= param is a path_scope/parsing denial, and a
-      // missing p= means the URL was malformed — neither is a corrupt file.
-      if (/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]|::1)(:|\/)/i.test(input.resolvedSrc)) {
-        const mediaPath = mediaUrlPathParam(input.resolvedSrc);
+      // Local delivery (loopback HTTP + Windows WebView2 media.localhost /
+      // asset.localhost cold-start). A path_scope 403, grant race, or custom
+      // protocol miss is not a corrupt file — and must stay retryable so the
+      // card can upgrade to loopback HTTP after ensureMediaEndpoint + grant.
+      if (isLocalMediaDeliveryUrl(input.resolvedSrc)) {
+        const fromUrl = mediaUrlPathParam(input.resolvedSrc);
+        // Prefer p= / custom-protocol path; fall back to pathOrUrl so a
+        // Windows media.localhost miss still retries via the known abs path.
+        const mediaPath =
+          fromUrl || (isRealLocalAbsolutePath(path) ? path : null);
         if (mediaPath == null) return "media_server_unavailable";
         if (isFusedQueryKeyPath(mediaPath)) return "untrusted";
         // <img onError> has no HTTP status. A path_scope 403 (user-picked
-        // Desktop/Documents file after restart, before paths_classify grants)
-        // is indistinguishable from a corrupt decode. Known decode codes stay
-        // broken_blob; otherwise treat a real local p= as retryable untrusted.
+        // Desktop/Documents/Pictures file after restart, before paths_classify
+        // grants) is indistinguishable from a corrupt decode. Known decode
+        // codes stay broken_blob; otherwise treat a real local path as
+        // retryable untrusted (ImageUi retries → grant → loopback HTTP).
         if (input.mediaElementError === "decode") return "broken_blob";
         if (isRealLocalAbsolutePath(mediaPath)) return "untrusted";
+        // Garbage p= (not a real abs path) — not a corrupt file claim.
+        return "media_server_unavailable";
       }
       // Remote CDN / markdown images: honest decode failure, not allowlist.
       // (Untrusted is reserved for Host path_scope / media-server 403.)
@@ -559,13 +623,17 @@ export function deriveMediaLoadPhase(input: {
   return "pending";
 }
 
-/** i18n key for a load phase label (title / aria), or null when not needed. */
+/**
+ * i18n key for a load phase label (title / aria), or null when not needed.
+ * `broken` is a coarse phase (any loadFailed) — do **not** claim the file is
+ * corrupt here; prefer {@link mediaLoadErrorMessageKey} when a kind is known.
+ */
 export function mediaLoadPhaseMessageKey(
   phase: MediaLoadPhase,
 ): string | null {
   switch (phase) {
     case "broken":
-      return "media.err.brokenBlob";
+      return "media.err.other";
     case "missing":
       return "media.err.missingPath";
     case "pending":
