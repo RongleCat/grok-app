@@ -636,6 +636,18 @@ export function Heatmap({
     }
   })();
 
+  const selectRange = useCallback(
+    (range: HeatRange | null) => {
+      if (!onSelectRange) return;
+      if (range && heatRangesEqual(selectedRange, range)) {
+        onSelectRange(null);
+      } else {
+        onSelectRange(range);
+      }
+    },
+    [onSelectRange, selectedRange],
+  );
+
   // Full empty (loading / error / no samples) — no invented contribution grid.
   if (emptyState && emptyState.kind !== "range_empty") {
     return (
@@ -681,18 +693,6 @@ export function Heatmap({
   const monthTrail = 16;
   const labelCol = useDayGrid ? LABEL_COL : 0;
   const totalWidth = labelCol + graphWidth + monthTrail;
-
-  const selectRange = useCallback(
-    (range: HeatRange | null) => {
-      if (!onSelectRange) return;
-      if (range && heatRangesEqual(selectedRange, range)) {
-        onSelectRange(null);
-      } else {
-        onSelectRange(range);
-      }
-    },
-    [onSelectRange, selectedRange],
-  );
 
   return (
     <div ref={containerRef} className="gh-heatmap">

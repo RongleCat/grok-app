@@ -502,6 +502,22 @@ export function RemoteImChannelPanel({
     };
   }, [scanPhase, scanDeviceCode, channelId, t]);
 
+  const health = useMemo(() => {
+    const filled = new Set(
+      Object.entries(secrets)
+        .filter(([, v]) => v.trim().length > 0)
+        .map(([k]) => k),
+    );
+    return classifyChannelHealth({
+      instance,
+      bridgeRunning,
+      bridgeLinked,
+      secretKeysFilled: filled,
+      // Live form options (e.g. WeCom connect_mode) for honest soft status
+      draftOptions: values,
+    });
+  }, [instance, bridgeRunning, bridgeLinked, secrets, values, channelId]);
+
   if (!schema) {
     return (
       <div className="rim-panel__empty">
@@ -690,22 +706,6 @@ export function RemoteImChannelPanel({
       setScanPhase("idle");
     }
   };
-
-  const health = useMemo(() => {
-    const filled = new Set(
-      Object.entries(secrets)
-        .filter(([, v]) => v.trim().length > 0)
-        .map(([k]) => k),
-    );
-    return classifyChannelHealth({
-      instance,
-      bridgeRunning,
-      bridgeLinked,
-      secretKeysFilled: filled,
-      // Live form options (e.g. WeCom connect_mode) for honest soft status
-      draftOptions: values,
-    });
-  }, [instance, bridgeRunning, bridgeLinked, secrets, values, channelId]);
 
   const statusTone = health.badgeTone;
   const statusLabel = t(health.statusKey);

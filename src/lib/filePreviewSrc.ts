@@ -15,7 +15,7 @@ import {
 } from "@/lib/imageSrc";
 
 /** Prefer Range-capable media HTTP for streaming kinds (not HTML). */
-function useMediaHttp(kind: string): boolean {
+function shouldUseMediaHttp(kind: string): boolean {
   return (
     kind === "video" ||
     kind === "audio" ||
@@ -74,7 +74,7 @@ export async function pathToPreviewUrl(
 
   await ensureMediaEndpoint();
 
-  if (!kind || useMediaHttp(kind) || isOfficeKind(kind)) {
+  if (!kind || shouldUseMediaHttp(kind) || isOfficeKind(kind)) {
     const http = localPathToMediaHttpUrl(absolutePath);
     if (http) return http;
   }

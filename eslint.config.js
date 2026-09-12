@@ -103,7 +103,7 @@ export default tseslint.config(
     rules: {
       // Register hooks plugin so eslint-disable-next-line react-hooks/* is valid;
       // do not enforce exhaustive-deps yet (historical AppWorkbench surface).
-      "react-hooks/rules-of-hooks": "off",
+      "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "off",
 
       // Project hard rule: never use native browser dialogs in Tauri UI.
