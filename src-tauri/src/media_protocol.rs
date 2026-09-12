@@ -198,6 +198,21 @@ fn mime_from_path(path: &str) -> &'static str {
     }
 }
 
+/// Strip a spurious leading `/` before a Windows drive (`/C:/Users/…`).
+fn strip_leading_slash_before_windows_drive(path: &str) -> &str {
+    let b = path.as_bytes();
+    if b.len() >= 4
+        && b[0] == b'/'
+        && b[1].is_ascii_alphabetic()
+        && b[2] == b':'
+        && (b[3] == b'/' || b[3] == b'\\')
+    {
+        &path[1..]
+    } else {
+        path
+    }
+}
+
 /// Decode path from `media://localhost/<percent-encoded-path>` (or Windows variant).
 fn path_from_request(request: &Request<Vec<u8>>) -> Option<PathBuf> {
     let uri = request.uri();
@@ -212,7 +227,11 @@ fn path_from_request(request: &Request<Vec<u8>>) -> Option<PathBuf> {
     if decoded.is_empty() {
         return None;
     }
-    Some(PathBuf::from(decoded))
+    // WebView2 sometimes leaves a leading slash before a Windows drive
+    // (`/C:/Users/…`). Strip it so PathBuf opens the real file (#1198).
+    Some(PathBuf::from(strip_leading_slash_before_windows_drive(
+        &decoded,
+    )))
 }
 
 fn percent_decode(input: &str) -> String {
@@ -545,6 +564,23 @@ mod tests {
         assert_eq!(
             percent_decode("%2FUsers%2Fme%2Fvid.mp4"),
             "/Users/me/vid.mp4"
+        );
+    }
+
+    #[test]
+    fn strips_leading_slash_before_windows_drive() {
+        assert_eq!(
+            strip_leading_slash_before_windows_drive("/C:/Users/me/Pictures/a.png"),
+            "C:/Users/me/Pictures/a.png"
+        );
+        assert_eq!(
+            strip_leading_slash_before_windows_drive(r"/D:\shots\b.png"),
+            r"D:\shots\b.png"
+        );
+        // POSIX abs must keep the leading slash.
+        assert_eq!(
+            strip_leading_slash_before_windows_drive("/Users/me/a.png"),
+            "/Users/me/a.png"
         );
     }
 

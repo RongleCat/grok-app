@@ -49,6 +49,7 @@ impl SessionManager {
         // those lines via parseAttachmentsFromContent for the bubble body).
         let journal_attachments = attachments.filter(|items| !items.is_empty());
         if let Some(ref atts) = journal_attachments {
+            grant_journal_attachment_paths(atts);
             journal_content = append_journal_attachment_refs(journal_content, atts);
         }
         // Note: image @path stripping + Host vision runs on the *final*
@@ -691,6 +692,7 @@ impl SessionManager {
             .unwrap_or_else(|| text.clone());
         let attachments = attachments.filter(|items| !items.is_empty());
         if let Some(ref atts) = attachments {
+            grant_journal_attachment_paths(atts);
             journal_content = append_journal_attachment_refs(journal_content, atts);
         }
         let target = session_id.as_deref();
