@@ -1,6 +1,5 @@
 //! Live credential validation per channel (no mock).
 
-#![allow(dead_code)] // residual-clippy: format validators
 use super::config;
 use super::TestConnectionDto;
 use std::collections::HashMap;

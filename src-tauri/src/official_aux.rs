@@ -16,7 +16,6 @@
 //! Never writes official `auth.json` into the main agent-home while a custom
 //! relay is active (OIDC pollution).
 
-#![allow(dead_code)] // residual-clippy: x_search / aux helpers retained for tests and future host wiring
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -44,6 +43,7 @@ pub fn official_aux_config_toml() -> PathBuf {
 }
 
 /// Official catalog model used for side-channel jobs.
+#[allow(dead_code)]
 pub fn official_aux_model_id() -> &'static str {
     OFFICIAL_CATALOG_MODEL
 }
@@ -319,8 +319,10 @@ pub struct OfficialAcpProgress {
     /// Short non-technical detail for the chip (may be a stream tail).
     pub detail: String,
     /// Optional tool title override from agent tool_call.
+    #[allow(dead_code)]
     pub tool_title: Option<String>,
     /// Optional tool status from agent.
+    #[allow(dead_code)]
     pub tool_status: Option<String>,
 }
 
@@ -1108,6 +1110,7 @@ pub fn write_official_aux_mcp_script(home: &Path) -> Result<PathBuf, String> {
 ///
 /// Prefer [`write_official_aux_mcp_script`] for ACP inject. This lookup is a
 /// dev/fallback path (cargo tree / cwd).
+#[allow(dead_code)]
 pub fn mcp_script_path() -> Option<PathBuf> {
     let written = official_aux_home().join(OFFICIAL_AUX_MCP_SCRIPT_FILE);
     if written.is_file() {
@@ -1144,6 +1147,7 @@ pub fn mcp_script_path() -> Option<PathBuf> {
 }
 
 /// ACP mcpServers entry for official aux tools (stdio Node script).
+#[allow(dead_code)]
 pub fn mcp_server_acp_entry() -> Option<serde_json::Value> {
     mcp_server_acp_entry_reason().0
 }
@@ -1278,6 +1282,7 @@ pub fn native_media_block_read_image_reason() -> &'static str {
 }
 
 /// Shell script body: inspect PreToolUse stdin; deny native Imagine + image read_file.
+#[allow(dead_code)]
 pub fn native_media_block_hook_script_body() -> String {
     native_media_block_hook_script_body_with(true)
 }
@@ -1587,11 +1592,13 @@ pub fn merge_extra_rules(user: Option<&str>) -> Option<String> {
 /// `prior_context` (optional recent journal turns) resolves pronouns like
 /// 「它 / 这个」 so Host X does not search the literal sentence
 /// 「搜索它在 x 上的信息」 when the user meant the previous topic (e.g. DeepSeek).
+#[allow(dead_code)]
 pub fn detect_x_search_intent(prompt: &str) -> Option<XSearchIntent> {
     detect_x_search_intent_with_context(prompt, None)
 }
 
 /// Same as [`detect_x_search_intent`] with optional prior chat text for coref.
+#[allow(dead_code)]
 pub fn detect_x_search_intent_with_context(
     prompt: &str,
     prior_context: Option<&str>,
@@ -1685,6 +1692,7 @@ pub fn detect_x_search_intent_with_context(
 }
 
 /// Whether the query still looks like a pronoun / empty entity (needs coref).
+#[allow(dead_code)]
 fn query_needs_coref(q: &str) -> bool {
     let t = q.trim().to_ascii_lowercase();
     if t.is_empty() {
@@ -1717,6 +1725,7 @@ fn query_needs_coref(q: &str) -> bool {
 }
 
 /// Strip search/X filler words so we don't pass the whole sentence to x_keyword_search.
+#[allow(dead_code)]
 fn strip_x_search_filler(text: &str) -> String {
     let mut s = text.trim().to_string();
     // Order matters: longer phrases first.
@@ -1799,6 +1808,7 @@ fn strip_x_search_filler(text: &str) -> String {
 }
 
 /// Pull a plausible entity name from prior user/assistant text for coref.
+#[allow(dead_code)]
 pub fn extract_topic_entity_from_context(prior: &str) -> Option<String> {
     let prior = prior.trim();
     if prior.is_empty() {
@@ -1937,6 +1947,7 @@ pub fn extract_topic_entity_from_context(prior: &str) -> Option<String> {
 }
 
 /// Rewrite raw user text into a better x_keyword_search query.
+#[allow(dead_code)]
 pub fn rewrite_x_keyword_query(user_clean: &str, prior_context: Option<&str>) -> String {
     let mut q = strip_x_search_filler(user_clean);
     // Remove leftover standalone x/twitter tokens
@@ -2003,6 +2014,7 @@ pub fn rewrite_x_keyword_query(user_clean: &str, prior_context: Option<&str>) ->
 ///
 /// Skips the **latest user** message (already the current turn — may only say
 /// 「搜索它在 x 上」) so coref can resolve 「它」 from earlier turns.
+#[allow(dead_code)]
 pub fn prior_context_for_session(app_session_id: &str) -> String {
     let msgs = crate::store::load_messages(app_session_id);
     let end = if msgs.last().map(|m| m.role == "user").unwrap_or(false) {
@@ -2034,6 +2046,7 @@ pub fn prior_context_for_session(app_session_id: &str) -> String {
 }
 
 /// True when text has `@handle` (2–20 alnum/_) that is **not** a filesystem path.
+#[allow(dead_code)]
 fn text_has_x_handle_token(text: &str) -> bool {
     for token in text.split_whitespace() {
         let t = token.trim_matches(|c: char| {
@@ -2063,12 +2076,14 @@ fn text_has_x_handle_token(text: &str) -> bool {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum XSearchIntent {
     User { query: String },
     Keyword { query: String },
     Thread { id_or_url: String },
 }
 
+#[allow(dead_code)]
 fn extract_x_handle(text: &str) -> Option<String> {
     // @handle — never treat @/abs/path or @C:\path as a handle
     for token in text.split_whitespace() {
@@ -2138,6 +2153,7 @@ fn extract_x_handle(text: &str) -> Option<String> {
     None
 }
 
+#[allow(dead_code)]
 fn extract_x_status_ref(text: &str) -> Option<String> {
     for tok in text.split_whitespace() {
         if tok.contains("x.com/") && tok.contains("status") {
@@ -2156,6 +2172,7 @@ fn extract_x_status_ref(text: &str) -> Option<String> {
     None
 }
 
+#[allow(dead_code)]
 fn x_intent_prompt(intent: &XSearchIntent) -> (String, u32, Duration, String) {
     match intent {
         XSearchIntent::User { query } => {
@@ -2216,6 +2233,7 @@ Return the thread as markdown with status URLs. No file edits."#
     }
 }
 
+#[allow(dead_code)]
 fn finalize_x_block(intent: &XSearchIntent, text: String) -> (bool, String, String) {
     let text = crate::models_aux::neutralize_image_at_refs(&text);
     let label = match intent {
@@ -2229,6 +2247,7 @@ fn finalize_x_block(intent: &XSearchIntent, text: String) -> (bool, String, Stri
     (true, block, "ok".into())
 }
 
+#[allow(dead_code)]
 fn x_block_err(e: String) -> (bool, String, String) {
     tracing::warn!(target: "official_aux", "host x search failed: {e}");
     (
@@ -2246,6 +2265,7 @@ fn x_block_err(e: String) -> (bool, String, String) {
 }
 
 /// Host pre-run X search via official aux. Returns inject block + UI strings.
+#[allow(dead_code)]
 pub fn prepare_x_search_block(intent: &XSearchIntent) -> (bool, String, String) {
     if !should_inject_mcp_for_main() && !official_aux_available() {
         return (false, String::new(), "official aux unavailable".into());
@@ -2265,6 +2285,7 @@ pub fn prepare_x_search_block(intent: &XSearchIntent) -> (bool, String, String) 
 }
 
 /// Async X search with ACP stream progress for Chat chips.
+#[allow(dead_code)]
 pub async fn prepare_x_search_block_async(
     intent: &XSearchIntent,
     progress: Option<OfficialProgressCb>,

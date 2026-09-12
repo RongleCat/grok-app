@@ -13,7 +13,6 @@
 //! GET http://127.0.0.1:{port}/v1/media?t={token}&p={urlencode(abs_path)}
 //! ```
 
-#![allow(dead_code)] // residual-clippy: url helper variants
 use std::io::{Read, Seek, SeekFrom};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -191,6 +190,7 @@ pub async fn start() -> Result<MediaServerHandle, String> {
 }
 
 /// Build a viewable URL for an absolute path (used by tests / optional host helpers).
+#[allow(dead_code)]
 pub fn url_for_path(endpoint: &MediaServerEndpoint, abs_path: &str) -> String {
     format!(
         "{}/v1/media?t={}&p={}",
@@ -287,6 +287,7 @@ fn base64_url_encode(bytes: &[u8]) -> String {
 }
 
 /// Minimal encodeURIComponent-compatible encoder for query values.
+#[allow(dead_code)]
 fn urlencoding_encode(s: &str) -> String {
     let mut out = String::with_capacity(s.len() * 3);
     for b in s.as_bytes() {
@@ -304,6 +305,7 @@ fn urlencoding_encode(s: &str) -> String {
     out
 }
 
+#[allow(dead_code)]
 const HEX: &[u8; 16] = b"0123456789ABCDEF";
 
 async fn health() -> impl IntoResponse {

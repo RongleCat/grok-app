@@ -9,7 +9,6 @@
 //! Scaffold: create a SKILL-like `{Name}.md` under the active agent home or
 //! project `.grok/agents` (path-scoped; no overwrite unless `force`).
 
-#![allow(dead_code)] // residual-clippy: spawn cli arg helpers
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -69,6 +68,7 @@ pub fn normalize_preferred_agent(raw: &str) -> Option<String> {
 }
 
 /// Pure: top-level CLI args `["--agent", name]` when set.
+#[allow(dead_code)]
 pub fn agent_spawn_cli_args(raw: &str) -> Option<Vec<String>> {
     let name = normalize_preferred_agent(raw)?;
     Some(vec!["--agent".into(), name])
@@ -90,6 +90,7 @@ pub fn normalize_agent_profile_path(raw: &str) -> Option<String> {
 
 /// Pure: agent-option CLI args `["--agent-profile", path]` when set.
 /// Placement: after `grok agent` and before `stdio` (not top-level).
+#[allow(dead_code)]
 pub fn agent_profile_spawn_cli_args(raw: &str) -> Option<Vec<String>> {
     let path = normalize_agent_profile_path(raw)?;
     Some(vec!["--agent-profile".into(), path])

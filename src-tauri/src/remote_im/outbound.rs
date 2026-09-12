@@ -1,6 +1,5 @@
 //! Unified outbound reply router for all channel types (Rust HTTP / WS clients).
 
-#![allow(dead_code)] // residual-clippy: test helpers and unused channel send paths
 use parking_lot::RwLock;
 use serde_json::json;
 use std::collections::HashMap;
@@ -44,6 +43,7 @@ impl OutboundRouter {
     }
 
     /// Test/helper: read back injected secrets for an instance.
+    #[allow(dead_code)]
     pub fn secrets_for_test(&self, instance_id: &str) -> Option<HashMap<String, String>> {
         self.creds
             .read()
@@ -51,10 +51,12 @@ impl OutboundRouter {
             .map(|c| c.secrets.clone())
     }
 
+    #[allow(dead_code)]
     pub fn unregister(&self, instance_id: &str) {
         self.creds.write().remove(instance_id);
     }
 
+    #[allow(dead_code)]
     pub fn clear(&self) {
         self.creds.write().clear();
     }
@@ -202,6 +204,7 @@ pub fn http_client() -> Result<reqwest::Client, String> {
         .map_err(|e| e.to_string())
 }
 
+#[allow(dead_code)]
 pub async fn json_post(url: &str, body: serde_json::Value) -> Result<serde_json::Value, String> {
     let c = http_client()?;
     let res = c
@@ -240,6 +243,7 @@ pub async fn json_get_bearer(url: &str, token: &str) -> Result<serde_json::Value
     serde_json::from_str(&text).map_err(|e| e.to_string())
 }
 
+#[allow(dead_code)]
 pub fn redact_preview(s: &str) -> String {
     if s.len() <= 8 {
         return "***".into();
@@ -329,6 +333,7 @@ pub fn require_mention(options: &serde_json::Value, acl: &serde_json::Value) -> 
 }
 
 /// Helper for telegram-style JSON APIs
+#[allow(dead_code)]
 pub fn empty_json() -> serde_json::Value {
     json!({})
 }

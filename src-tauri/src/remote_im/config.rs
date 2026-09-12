@@ -1,6 +1,5 @@
 //! Persist Remote IM channel instances under ~/.grok-app/remote/.
 
-#![allow(dead_code)] // residual-clippy: bridge path helpers
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -176,16 +175,19 @@ pub fn set_instance_advisory(instance_id: &str, note: Option<String>) -> Result<
 }
 
 /// Legacy path kept for doctor/docs; Rust runtime does not require Node config.toml.
+#[allow(dead_code)]
 pub fn bridge_data_dir() -> PathBuf {
     let dir = app_data_root().join("remote").join("bridge-data");
     let _ = fs::create_dir_all(&dir);
     dir
 }
 
+#[allow(dead_code)]
 pub fn bridge_config_path() -> PathBuf {
     bridge_data_dir().join("config.toml")
 }
 
+#[allow(dead_code)]
 pub fn remote_log_path() -> PathBuf {
     remote_dir().join("logs").join("bridge.log")
 }

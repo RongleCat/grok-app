@@ -13,7 +13,6 @@
 //! - [`ensure_agent_home_config_sane`] dedupes broken files only; valid configs are
 //!   never rewritten.
 
-#![allow(dead_code)] // residual-clippy: generic toml get/set helpers
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -169,6 +168,7 @@ pub fn set_top_level_bool(text: &str, key: &str, value: bool) -> String {
 }
 
 /// Upsert top-level `key = "value"` (quoted string).
+#[allow(dead_code)]
 pub fn set_top_level_string(text: &str, key: &str, value: &str) -> String {
     let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
     set_top_level_assignment(text, key, &format!("\"{escaped}\""))
@@ -304,6 +304,7 @@ fn value_for_key_in_scope<'a>(text: &'a str, table: Option<&str>, key: &str) -> 
 }
 
 /// Read top-level bool when present.
+#[allow(dead_code)]
 pub fn get_top_level_bool(text: &str, key: &str) -> Option<bool> {
     value_for_key_in_scope(text, None, key).and_then(parse_toml_bool)
 }
@@ -314,6 +315,7 @@ pub fn get_table_bool(text: &str, table: &str, key: &str) -> Option<bool> {
 }
 
 /// Read top-level string / scalar when present.
+#[allow(dead_code)]
 pub fn get_top_level_string(text: &str, key: &str) -> Option<String> {
     value_for_key_in_scope(text, None, key)
         .map(parse_toml_scalar)

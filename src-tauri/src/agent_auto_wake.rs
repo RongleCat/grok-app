@@ -11,7 +11,6 @@
 //!
 //! Soft-respawn after a settings flip so the next agent process reloads.
 
-#![allow(dead_code)] // residual-clippy: normalize_enabled
 use serde_json::{json, Value};
 
 use crate::agent_home_config::{
@@ -22,6 +21,7 @@ pub const CONFIG_KEY: &str = "auto_wake_enabled";
 pub const GROK_CONFIG_ENV: &str = "GROK_CONFIG";
 
 /// Normalize enable toggle (App default off / opt-in).
+#[allow(dead_code)]
 pub fn normalize_enabled(raw: bool) -> bool {
     raw
 }

@@ -5,7 +5,6 @@
 //! Stop tears down the process group and any managed container so no orphan
 //! tunnel keeps the mirror reachable (REQUIREMENT known pitfall).
 
-#![allow(dead_code)] // residual-clippy: public_url field/method
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -172,10 +171,12 @@ pub struct TunnelHandle {
     pgid: Option<i32>,
     adapter_name: &'static str,
     docker_cleanup: Option<DockerCleanup>,
+    #[allow(dead_code)]
     pub public_url: String,
 }
 
 impl TunnelHandle {
+    #[allow(dead_code)]
     pub fn public_url(&self) -> &str {
         &self.public_url
     }

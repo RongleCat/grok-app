@@ -1,7 +1,6 @@
 //! Host tools exposed to the live voice model for agent delegation.
 //! Pure definitions + argument parsing (testable without network).
 
-#![allow(dead_code)] // residual-clippy: normalize_tool_status
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -303,6 +302,7 @@ pub fn recordable_delegated_session_id(session_id: Option<&str>) -> Option<Strin
 }
 
 /// Canonical tool-loop status tokens emitted on `voice://tool` (VOX-BUILD-FULL).
+#[allow(dead_code)]
 pub fn normalize_tool_status(raw: &str) -> &'static str {
     match raw.trim().to_lowercase().as_str() {
         "running" | "tool_running" | "in_progress" => "tool_running",

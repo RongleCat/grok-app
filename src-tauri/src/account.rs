@@ -4,7 +4,6 @@
 //! Billing is best-effort HTTP (same field shape as CLI `/usage` / billing extension).
 //! Heatmap + call logs are derived from local CLI session signals (and optional app journal).
 
-#![allow(dead_code)] // residual-clippy: billing helpers not yet wired in UI path
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::io::{BufRead, BufReader};
@@ -36,6 +35,7 @@ pub(crate) use build_oauth::{
 pub struct LoginProcState {
     cancel: tokio::sync::Notify,
     /// Guard: only one login may run at a time.
+    #[allow(dead_code)]
     busy: tokio::sync::Mutex<bool>,
     /// Live child stdin while `account_login` is in flight (for paste-back codes).
     stdin: tokio::sync::Mutex<Option<tokio::process::ChildStdin>>,
@@ -103,6 +103,7 @@ pub async fn account_login_submit_code(code: &str) -> Result<(), String> {
 }
 use crate::store;
 
+#[allow(dead_code)]
 const BILLING_CANDIDATES: &[&str] = &[
     // Confirmed live endpoint used by Grok Build CLI billing extension.
     "https://cli-chat-proxy.grok.com/v1/billing?format=credits",
@@ -686,6 +687,7 @@ fn save_billing_cache(b: &BillingSnapshot) {
 }
 
 /// Parse number or `{ "val": N }` money wrappers used by cli-chat-proxy billing.
+#[allow(dead_code)]
 fn json_number(v: Option<&Value>) -> Option<f64> {
     let v = v?;
     if let Some(n) = v.as_f64() {
@@ -709,6 +711,7 @@ fn json_number(v: Option<&Value>) -> Option<f64> {
     None
 }
 
+#[allow(dead_code)]
 fn parse_billing_json(v: &Value) -> BillingSnapshot {
     // Nested under data / credits / config (cli-chat-proxy uses `config`).
     let root = if v.get("creditUsagePercent").is_some() || v.get("monthlyLimit").is_some() {
@@ -1059,6 +1062,7 @@ async fn fetch_subscription_meta(token: &str) -> SubscriptionMeta {
     meta
 }
 
+#[allow(dead_code)]
 async fn fetch_billing_remote(token: &str) -> BillingSnapshot {
     let client = match crate::proxy::apply_to_reqwest(reqwest::Client::builder())
         .timeout(Duration::from_secs(10))
@@ -2011,6 +2015,7 @@ pub async fn open_subscribe() -> Result<(), String> {
 }
 
 /// Open a URL in the system browser (also used after device-code login).
+#[allow(dead_code)]
 pub fn open_browser_url(url: &str) -> Result<(), String> {
     open_url(url)
 }

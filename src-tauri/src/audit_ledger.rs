@@ -6,7 +6,6 @@
 //! retention (7 / 30 / 90 / unlimited) prunes on write, rotate, or explicit
 //! prune. Export can filter by event, session, and date range.
 
-#![allow(dead_code)] // residual-clippy: retention/export helpers
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
@@ -32,6 +31,7 @@ pub const RETENTION_UNLIMITED: u32 = 0;
 pub const RETENTION_7: u32 = 7;
 pub const RETENTION_30: u32 = 30;
 pub const RETENTION_90: u32 = 90;
+#[allow(dead_code)]
 pub const RETENTION_PRESETS: [u32; 4] =
     [RETENTION_7, RETENTION_30, RETENTION_90, RETENTION_UNLIMITED];
 
@@ -129,6 +129,7 @@ pub fn entry_ts_ms(entry: &AuditLedgerEntry) -> Option<i64> {
 
 /// Pure: keep entries within retention window. Unlimited (`0`) keeps all.
 /// Unparseable timestamps are kept (never drop opaque rows on time alone).
+#[allow(dead_code)]
 pub fn filter_by_retention(
     entries: Vec<AuditLedgerEntry>,
     retention_days: u32,
@@ -741,6 +742,7 @@ pub fn clear_ledger() -> Result<(), String> {
 }
 
 /// Export redacted JSONL text (file order = chronological). Soft-fail → empty string.
+#[allow(dead_code)]
 pub fn export_redacted_jsonl() -> String {
     export_redacted_jsonl_filtered(&AuditLedgerFilter::default())
 }

@@ -8,7 +8,6 @@
 //!
 //! Vendor/bundled/plugin trees are not allowlisted. Path traversal is rejected.
 
-#![allow(dead_code)] // residual-clippy: path_under_root helper
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
@@ -335,6 +334,7 @@ pub fn path_has_traversal(path: &Path) -> bool {
 }
 
 /// Component-wise: path is equal to root or a descendant.
+#[allow(dead_code)]
 pub fn path_under_root(path: &Path, root: &Path) -> bool {
     if path_has_traversal(path) || path_has_traversal(root) {
         return false;

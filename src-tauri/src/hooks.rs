@@ -3,7 +3,6 @@
 //! Management is list / reveal / open-folder only — no visual JSON editor.
 //! Hook file format lives in the Grok Build user guide (`10-hooks.md`).
 
-#![allow(dead_code)] // residual-clippy: join_hooks_path helper
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
@@ -73,6 +72,7 @@ pub fn hooks_docs_path() -> PathBuf {
 
 /// Join a hooks directory with a relative file name (pure; no FS access).
 /// Rejects empty names, absolute paths, and parent-directory traversal.
+#[allow(dead_code)]
 pub fn join_hooks_path(dir: &Path, name: &str) -> Option<PathBuf> {
     let n = name.trim();
     if n.is_empty() || n == "." || n == ".." {

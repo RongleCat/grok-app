@@ -5,7 +5,6 @@
 //! `session/new` / `session/load`. Independent mode also mirrors `enabled`
 //! flags into agent-home `config.toml`.
 
-#![allow(dead_code)] // residual-clippy: enable-map merge helpers
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -126,6 +125,7 @@ pub fn enable_all(map: &mut HashMap<String, bool>, names: &[String]) {
 }
 
 /// Merge overlay flags into base (overlay wins). Pure helper for tests.
+#[allow(dead_code)]
 pub fn merge_enable_maps(
     base: &HashMap<String, bool>,
     overlay: &HashMap<String, bool>,
@@ -151,6 +151,7 @@ pub fn filter_enabled_mcp<'a>(
 }
 
 /// Filter skill names by App prefs (default-on).
+#[allow(dead_code)]
 pub fn filter_enabled_skill_names(names: &[String], prefs: &ExtensionsPrefs) -> Vec<String> {
     names
         .iter()
@@ -234,6 +235,7 @@ fn env_map_to_named_array(map: Option<&HashMap<String, String>>) -> Vec<Value> {
 ///
 /// Prefer [`build_acp_mcp_servers_with_opts`] on the connect path with
 /// [`McpInjectOptions::for_connect`] so OAuth network work cannot block ACP.
+#[allow(dead_code)]
 pub fn build_acp_mcp_servers(defs: &[McpServerDef], prefs: &ExtensionsPrefs) -> Value {
     build_acp_mcp_servers_with_opts(defs, prefs, McpInjectOptions::default())
 }

@@ -1,6 +1,5 @@
 //! Process capacity, park/unpark, idle recycle, snapshots.
 
-#![allow(dead_code)] // residual-clippy: snapshot_from_parked
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
@@ -1474,6 +1473,7 @@ impl SessionManager {
         }
     }
 
+    #[allow(dead_code)]
     pub(super) fn snapshot_from_parked(p: &ParkedAgent) -> SessionSnapshot {
         SessionSnapshot {
             session_id: Some(p.app_session_id.clone()),
