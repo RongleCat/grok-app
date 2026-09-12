@@ -137,6 +137,8 @@ mod project_codebase_search;
 
 mod project_rules;
 
+mod workspace_store;
+
 mod provider_headers;
 
 mod providers;

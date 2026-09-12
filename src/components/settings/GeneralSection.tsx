@@ -556,6 +556,22 @@ export function GeneralSection() {
                   })}
                 </div>
               </div>
+              <div
+                className={
+                  "settings-row settings-row--stack" +
+                  rowHighlight("settings-anchor-multiRootWorkspace")
+                }
+                id="settings-anchor-multiRootWorkspace"
+              >
+                <div className="settings-row__text">
+                  <div className="settings-row__label">
+                    {t("settings.multiRootWorkspace")}
+                  </div>
+                  <div className="settings-row__desc">
+                    {t("settings.multiRootWorkspaceDesc")}
+                  </div>
+                </div>
+              </div>
               {onSandboxProfile ? (
                 <div
                   className={"settings-row settings-row--stack" + rowHighlight("settings-anchor-sandbox")}

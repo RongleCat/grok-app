@@ -309,6 +309,9 @@ mod tests {
             fork_agent_session: false,
             fork_rewind_prompt_index: None,
             no_ask_user: None,
+            workspace_id: None,
+            workspace_root_snapshot: None,
+            workspace_capability: None,
         }
     }
 

@@ -62,6 +62,10 @@ export interface AppSettings {
    * Default "off". Passed as `grok --sandbox <profile>` / GROK_SANDBOX on spawn.
    */
   sandboxProfile?: string;
+  /** Show multi-root workspace UI (#1194). Default true. */
+  multiRootWorkspaceEnabled?: boolean;
+  /** Last workspace id hint for new chats. */
+  recentWorkspaceId?: string | null;
 
   maxAgentTurns?: number | null;
   /**

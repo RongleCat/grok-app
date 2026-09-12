@@ -309,6 +309,16 @@ pub struct SessionMeta {
     /// `None` → inherit global `AppSettings.no_ask_user`. Soft-respawn on change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub no_ask_user: Option<bool>,
+    /// Optional multi-root workspace id (`workspaces.json`, #1194).
+    /// Missing on legacy sessions → single-project behavior.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<String>,
+    /// Snapshot of workspace roots at bind time (detect drift on restore).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_root_snapshot: Option<String>,
+    /// Last known capability label (`context_only`, …).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_capability: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -382,6 +392,12 @@ pub struct AppSettings {
     /// Passed as top-level `grok --sandbox <profile>` / `GROK_SANDBOX` at spawn.
     #[serde(default = "default_sandbox_profile")]
     pub sandbox_profile: String,
+    /// Show multi-root workspace UI (#1194). Default **true** (MVP-0 declare roots).
+    #[serde(default = "default_true")]
+    pub multi_root_workspace_enabled: bool,
+    /// Last workspace id used when starting a new chat (optional hint).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recent_workspace_id: Option<String>,
     /// Enable Grok Build cross-session memory (`--experimental-memory` / `GROK_MEMORY=1`
     /// / `[memory] enabled`). Default **false** — experimental; when off, spawn forces
     /// `--no-memory` + `GROK_MEMORY=0` for isolation (esp. independent mode).
@@ -838,6 +854,8 @@ impl Default for AppSettings {
             stream_stall_default_migrated: true,
             store_api_keys_in_keychain: false,
             sandbox_profile: default_sandbox_profile(),
+            multi_root_workspace_enabled: true,
+            recent_workspace_id: None,
             experimental_memory: false,
             compaction_mode: default_compaction_mode(),
             compaction_detail: default_compaction_detail(),
@@ -992,7 +1010,7 @@ fn read_json<T: for<'de> Deserialize<'de> + Default>(path: &PathBuf) -> T {
 static LAST_STORE_QUARANTINE: Mutex<Option<String>> = Mutex::new(None);
 
 /// Read JSON; if the file exists but is corrupt, quarantine it and return default.
-fn read_json_recover<T: for<'de> Deserialize<'de> + Default>(path: &PathBuf) -> T {
+pub(crate) fn read_json_recover<T: for<'de> Deserialize<'de> + Default>(path: &PathBuf) -> T {
     match fs::read_to_string(path) {
         Ok(s) if s.trim().is_empty() => T::default(),
         Ok(s) => match serde_json::from_str(&s) {
@@ -1020,7 +1038,7 @@ pub fn take_store_quarantine() -> Option<String> {
     LAST_STORE_QUARANTINE.lock().ok().and_then(|mut g| g.take())
 }
 
-fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
+pub(crate) fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
     let s = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
     // Exclusive lock + temp rename so shared-mode / dual-instance writes do not
     // leave a half-written index (E06).
@@ -1968,6 +1986,9 @@ pub fn create_session(
         fork_agent_session: false,
         fork_rewind_prompt_index: None,
         no_ask_user: None,
+        workspace_id: None,
+        workspace_root_snapshot: None,
+        workspace_capability: None,
     };
     update_sessions_index({
         let meta = meta.clone();
@@ -2230,6 +2251,22 @@ pub fn set_session_max_agent_turns(
 pub fn set_session_no_ask_user(id: &str, no_ask_user: Option<bool>) -> Result<SessionMeta, String> {
     update_session_row(id, move |s| {
         s.no_ask_user = no_ask_user;
+        s.updated_at = Utc::now();
+        Ok(s.clone())
+    })
+}
+
+/// Bind or clear a multi-root workspace on a session (#1194).
+pub fn set_session_workspace(
+    id: &str,
+    workspace_id: Option<String>,
+    workspace_root_snapshot: Option<String>,
+    workspace_capability: Option<String>,
+) -> Result<SessionMeta, String> {
+    update_session_row(id, move |s| {
+        s.workspace_id = workspace_id;
+        s.workspace_root_snapshot = workspace_root_snapshot;
+        s.workspace_capability = workspace_capability;
         s.updated_at = Utc::now();
         Ok(s.clone())
     })
@@ -4093,6 +4130,9 @@ mod tests {
             fork_agent_session: false,
             fork_rewind_prompt_index: None,
             no_ask_user: None,
+            workspace_id: None,
+            workspace_root_snapshot: None,
+            workspace_capability: None,
         }
     }
 
@@ -4570,6 +4610,9 @@ mod tests {
                 fork_agent_session: false,
                 fork_rewind_prompt_index: None,
                 no_ask_user: None,
+                workspace_id: None,
+                workspace_root_snapshot: None,
+                workspace_capability: None,
             },
         );
         write_json(&sessions_index_file(), &sessions).expect("seed sessions");

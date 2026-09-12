@@ -92,6 +92,13 @@ pub fn app_invoke_handler(
         commands::project_rules_invalidate_sessions,
         commands::project_rules_ensure_template,
         commands::project_archive_sessions,
+        commands::workspaces_list,
+        commands::workspaces_for_project,
+        commands::workspace_get,
+        commands::workspace_upsert,
+        commands::workspace_delete,
+        commands::workspace_validate_root,
+        commands::session_set_workspace,
         // ── Session list/search & CLI session import ──
         commands::sessions_list,
         commands::sessions_search,

@@ -553,4 +553,6 @@ export const koSettings = {
   "settings.ssh.watchStopping": "Stopping…",
   "settings.ssh.watchError": "감시 설정을 변경할 수 없습니다: {error}",
   "settings.ssh.remoteSessionsEmpty": "아직 원격 Grok 세션을 찾지 못했습니다.",
+  "settings.multiRootWorkspace": "Multi-root workspace",
+  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later."
 };

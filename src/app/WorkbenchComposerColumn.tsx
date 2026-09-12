@@ -58,6 +58,8 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ComposerModelMenu } from "@/components/ComposerModelMenu";
 import { WorkbenchComposerShell } from "@/app/WorkbenchComposerShell";
+import { MultiRootWorkspaceModal } from "@/components/MultiRootWorkspaceModal";
+import { useMultiRootWorkspace } from "@/hooks/useMultiRootWorkspace";
 
 export type WorkbenchComposerColumnProps = {
   account: AccountStatus | null;
@@ -356,6 +358,7 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
     handleModelPick,
     handleEffortPick,
   } = p;
+  const multiRoot = useMultiRootWorkspace();
   const [permBusy, setPermBusy] = useState(false);
   const [permError, setPermError] = useState<string | null>(null);
   const askUserSettlingRpcRef = useRef<number | null>(null);
@@ -655,6 +658,7 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                     pickProject: tr("composer.pickProject"),
                     addProject: tr("composer.addProject"),
                     pathMissing: tr("project.pathMissingShort"),
+                    workspaceRoots: tr("workspace.multiRoot.menu"),
                   }}
                   disabled={
                     session.state === "streaming" ||
@@ -670,6 +674,21 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                   onAdd={() => {
                     void addProjectFromPicker({ bindSession: true });
                   }}
+                  onManageWorkspace={
+                    activeProject && !activeProject.sshAlias
+                      ? () => {
+                          void multiRoot.openFor({
+                            projectId: activeProject.id,
+                            projectName: projectDisplayName(activeProject, tr),
+                            projectPath: activeProject.path,
+                            sessionId: session.sessionId,
+                            workspaceId:
+                              (session as { workspaceId?: string | null })
+                                .workspaceId ?? null,
+                          });
+                        }
+                      : undefined
+                  }
                 />
                 <ComposerRemoteMenu
                   t={(k, vars) => tr(k as Parameters<TFn>[0], vars)}
@@ -965,6 +984,40 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
             </div>
             ) : null}
             <WorkbenchComposerShell {...p} />
+            <MultiRootWorkspaceModal
+              open={multiRoot.open}
+              locale={locale}
+              busy={multiRoot.busy}
+              error={multiRoot.error}
+              draft={multiRoot.draft}
+              projectName={
+                multiRoot.target?.projectName ??
+                (activeProject
+                  ? projectDisplayName(activeProject, tr)
+                  : "")
+              }
+              onClose={multiRoot.close}
+              onNameChange={(name) => {
+                if (!multiRoot.draft) return;
+                multiRoot.setDraft({ ...multiRoot.draft, name });
+              }}
+              onAddRoot={() => {
+                void multiRoot.addExtraRoot();
+              }}
+              onRemoveRoot={multiRoot.removeExtraRoot}
+              onSave={() => {
+                void multiRoot.save().then((saved) => {
+                  if (saved) multiRoot.close();
+                });
+              }}
+              onClearBinding={
+                multiRoot.target?.sessionId
+                  ? () => {
+                      void multiRoot.clearBinding().then(() => multiRoot.close());
+                    }
+                  : undefined
+              }
+            />
             </div>
               );
             })()}

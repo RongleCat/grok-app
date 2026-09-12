@@ -553,4 +553,6 @@ export const frSettings = {
   "settings.ssh.watchStopping": "Stopping…",
   "settings.ssh.watchError": "Impossible de modifier la surveillance : {error}",
   "settings.ssh.remoteSessionsEmpty": "Aucune session Grok distante trouvée pour l’instant.",
+  "settings.multiRootWorkspace": "Multi-root workspace",
+  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later."
 };
