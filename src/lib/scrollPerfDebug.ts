@@ -1,3 +1,5 @@
+/* eslint-disable no-console -- dev-only scroll telemetry; the formatted
+ * console report is the feature, not a leftover debug print. */
 /**
  * Diagnostic telemetry logger for chat transcript scroll performance.
  * Accurately tracks two separate interaction phases:

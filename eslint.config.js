@@ -140,6 +140,11 @@ export default tseslint.config(
           message: "Use in-app dialogs, never window.prompt.",
         },
       ],
+      // Keep stray console.log out of product code; warn/error/info/debug stay
+      // allowed. scrollPerfDebug.ts opts out per-file (its console report IS
+      // the feature).
+      "no-console": ["error", { allow: ["warn", "error", "info", "debug"] }],
+
       // Historical codebase is large; keep noise low in wave-a+.
       "no-unused-vars": "off",
       "no-undef": "off",
