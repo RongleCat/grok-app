@@ -553,4 +553,6 @@ export const deSettings = {
   "settings.ssh.watchStopping": "Stopping…",
   "settings.ssh.watchError": "Überwachung konnte nicht geändert werden: {error}",
   "settings.ssh.remoteSessionsEmpty": "Noch keine Remote-Grok-Sitzungen gefunden.",
+  "settings.multiRootWorkspace": "Multi-root workspace",
+  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later."
 };

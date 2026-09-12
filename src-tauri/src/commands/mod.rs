@@ -15,6 +15,7 @@ use crate::store::{self, AppSettings, Project, SessionMeta};
 
 include!("session_p1.rs");
 include!("session_p2.rs");
+include!("workspace.rs");
 include!("automation.rs");
 include!("settings.rs");
 include!("doctor_p1.rs");

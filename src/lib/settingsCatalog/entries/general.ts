@@ -228,6 +228,28 @@ export const GENERAL_ENTRIES: readonly SettingsEntry[] = [
     ],
   },
   {
+    id: "general.multiRootWorkspace",
+    section: "general",
+    tab: "permissions",
+    anchorId: "settings-anchor-multiRootWorkspace",
+    labelKey: "settings.multiRootWorkspace",
+    descKeys: [
+      "settings.multiRootWorkspaceDesc",
+      "workspace.multiRoot.bannerContextOnly",
+      "settings.section.permissions",
+    ],
+    keywords: [
+      "workspace",
+      "multi-root",
+      "extra folders",
+      "AGENTS",
+      "sandbox",
+      "多根",
+      "工作区",
+      "附加目录",
+    ],
+  },
+  {
     id: "general.sandbox",
     section: "general",
     tab: "permissions",

@@ -553,4 +553,6 @@ export const jaSettings = {
   "settings.ssh.watchStopping": "Stopping…",
   "settings.ssh.watchError": "監視を変更できませんでした: {error}",
   "settings.ssh.remoteSessionsEmpty": "リモートの Grok セッションはまだ見つかりません。",
+  "settings.multiRootWorkspace": "Multi-root workspace",
+  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later."
 };

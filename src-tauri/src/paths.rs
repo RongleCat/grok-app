@@ -158,6 +158,11 @@ pub fn projects_file() -> PathBuf {
     app_data_root().join("projects.json")
 }
 
+/// Multi-root workspace declarations (#1194). Independent of `projects.json`.
+pub fn workspaces_file() -> PathBuf {
+    app_data_root().join("workspaces.json")
+}
+
 pub fn sessions_index_file() -> PathBuf {
     app_data_root().join("sessions_index.json")
 }

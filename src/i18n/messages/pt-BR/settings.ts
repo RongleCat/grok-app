@@ -553,4 +553,6 @@ export const ptBRSettings = {
   "settings.ssh.watchStopping": "Stopping…",
   "settings.ssh.watchError": "Não foi possível alterar o monitoramento: {error}",
   "settings.ssh.remoteSessionsEmpty": "Nenhuma sessão remota do Grok encontrada ainda.",
+  "settings.multiRootWorkspace": "Multi-root workspace",
+  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later."
 };

@@ -11,6 +11,7 @@ export {
 export * from "./api/session";
 export * from "./api/system";
 export * from "./api/project";
+export * from "./api/workspace";
 export * from "./api/git";
 export * from "./api/fs";
 export * from "./api/settings";

@@ -554,4 +554,6 @@ export const zhSettings = {
   "settings.ssh.watchStopping": "正在停止…",
   "settings.ssh.watchError": "无法切换监视：{error}",
   "settings.ssh.remoteSessionsEmpty": "还没有扫描到远程 Grok session。",
+  "settings.multiRootWorkspace": "多根工作区",
+  "settings.multiRootWorkspaceDesc": "在会话上声明附加文件夹（本版本只读）。跨文件夹写入需后续验证 CLI sandbox profile。"
 };

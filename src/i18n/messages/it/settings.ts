@@ -553,4 +553,6 @@ export const itSettings = {
   "settings.ssh.watchStopping": "Stopping…",
   "settings.ssh.watchError": "Impossibile modificare il monitoraggio: {error}",
   "settings.ssh.remoteSessionsEmpty": "Nessuna sessione Grok remota trovata.",
+  "settings.multiRootWorkspace": "Multi-root workspace",
+  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later."
 };

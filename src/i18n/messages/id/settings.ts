@@ -553,4 +553,6 @@ export const idSettings = {
   "settings.ssh.watchStopping": "Stopping…",
   "settings.ssh.watchError": "Tidak dapat mengubah pengawasan: {error}",
   "settings.ssh.remoteSessionsEmpty": "Belum ada sesi Grok jarak jauh yang ditemukan.",
+  "settings.multiRootWorkspace": "Multi-root workspace",
+  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later."
 };
