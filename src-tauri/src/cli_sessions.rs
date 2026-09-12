@@ -1318,10 +1318,11 @@ pub fn parse_at_path_attachments(content: &str) -> (String, Vec<MessageAttachmen
     let mut seen = std::collections::HashSet::new();
     for line in content.lines() {
         let trimmed = line.trim();
-        // @/path or @C:\path — absolute only (same as FE).
+        // @/path or @C:\path — absolute only, and multi-segment for POSIX so
+        // `@/goal …` prose is not backfilled as a missing-file chip (#1197).
         let path = trimmed.strip_prefix('@').and_then(|rest| {
             let rest = rest.trim();
-            if rest.starts_with('/') || looks_like_windows_abs(rest) {
+            if is_sole_line_at_attachment_path(rest) {
                 Some(rest.to_string())
             } else {
                 None
@@ -1356,6 +1357,23 @@ pub fn parse_at_path_attachments(content: &str) -> (String, Vec<MessageAttachmen
 fn looks_like_windows_abs(path: &str) -> bool {
     let b = path.as_bytes();
     b.len() >= 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && (b[2] == b'\\' || b[2] == b'/')
+}
+
+/// Mirrors FE `isSoleLineAtAttachmentPath`: POSIX needs ≥2 segments so
+/// `/goal` / `/goal 你再检查…` stay as text; Windows drive needs ≥1 segment.
+fn is_sole_line_at_attachment_path(path: &str) -> bool {
+    let p = path.trim();
+    if p.is_empty() {
+        return false;
+    }
+    if looks_like_windows_abs(p) {
+        let rest = p[2..].trim_start_matches(['/', '\\']).replace('\\', "/");
+        return rest.split('/').filter(|s| !s.is_empty()).count() >= 1;
+    }
+    if !p.starts_with('/') || p.starts_with("//") {
+        return false;
+    }
+    p.split('/').filter(|s| !s.is_empty()).count() >= 2
 }
 
 fn user_body_key(content: &str) -> String {
@@ -2203,6 +2221,15 @@ mod tests {
         assert_eq!(atts.len(), 1);
         assert_eq!(atts[0].path, "/Users/me/Downloads/Codex 安装教程文档.md");
         assert_eq!(atts[0].name, "Codex 安装教程文档.md");
+    }
+
+    #[test]
+    fn parse_at_path_attachments_keeps_at_goal_prose() {
+        let raw = "两句说明\n\n@/goal 你再检查优化一下吧\n\n@/tmp/notes.md";
+        let (text, atts) = parse_at_path_attachments(raw);
+        assert_eq!(text, "两句说明\n\n@/goal 你再检查优化一下吧");
+        assert_eq!(atts.len(), 1);
+        assert_eq!(atts[0].path, "/tmp/notes.md");
     }
 
     #[test]
