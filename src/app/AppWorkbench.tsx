@@ -370,10 +370,6 @@ import {
 import {
   collectUserPromptHistory,
   filterPromptHistory,
-  promptHistoryListNavFromKey,
-  shouldHandlePromptHistoryKey,
-  stepPromptHistory,
-  stepPromptHistoryListIndex,
   type PromptHistoryEntry,
 } from "@/lib/composerPromptHistory";
 import {
@@ -384,10 +380,6 @@ import {
   RECENT_PROMPT_HISTORY_CHANGE_EVENT,
   RECENT_PROMPT_HISTORY_STORAGE_KEY,
 } from "@/lib/recentPromptHistory";
-import {
-  composerSteerLive,
-  resolveComposerSubmitAction,
-} from "@/lib/composerSendKey";
 import {
   composerDraftStore,
   getDraft as getComposerDraft,
@@ -406,7 +398,6 @@ import {
 } from "@/lib/composerSessionDraft";
 import {
   appendQuotesToContent,
-  composerHasSendPayload,
   makeComposerQuoteId,
   serializeQuotesForAgent,
   type ComposerQuote,
@@ -671,6 +662,7 @@ import { useSearchPalette } from "@/hooks/useSearchPalette";
 import { useCompactDialog } from "@/hooks/useCompactDialog";
 import { useQueueEditDialog } from "@/hooks/useQueueEditDialog";
 import { useVoiceDictation } from "@/hooks/useVoiceDictation";
+import { useComposerKeyDown } from "@/hooks/useComposerKeyDown";
 import { useComposerSend } from "@/hooks/useComposerSend";
 import { useComposerEndPad } from "@/hooks/useComposerEndPad";
 import { useRewindComposerRestore } from "@/hooks/useRewindComposerRestore";
@@ -11748,237 +11740,49 @@ export function AppWorkbench() {
     [pasteMediaFromNativeClipboard],
   );
 
-  const composerKeyDownRef = useRef<
-    (e: ReactKeyboardEvent<HTMLDivElement>) => void
-  >(() => {});
-  composerKeyDownRef.current = (e) => {
-    if (
-      e.nativeEvent.isComposing ||
-      (e.nativeEvent as KeyboardEvent).keyCode === 229
-    ) {
-      return;
-    }
-    if (atMenuOpen) {
-      const n = atEntries.length;
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        if (!n) return;
-        setAtActiveIndex((i) => (i + 1) % n);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        if (!n) return;
-        setAtActiveIndex((i) => (i - 1 + n) % n);
-        return;
-      }
-      if (
-        (e.key === "Enter" || e.key === "Tab") &&
-        !e.shiftKey &&
-        !e.ctrlKey &&
-        !e.metaKey
-      ) {
-        e.preventDefault();
-        if (!n) return;
-        const entry =
-          atEntries[
-            Math.min(Math.max(0, atActiveIndex), Math.max(0, n - 1))
-          ];
-        if (entry) applyAtFile(entry);
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        closeAtMenu();
-        return;
-      }
-    }
-    if (composerMenuOpen) {
-      // Ref = same array the panel renders (never desync).
-      const flat = composerMenuEntriesRef.current;
-      const n = flat.length;
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        if (!n) return;
-        setSlashActiveIndex((i) => (i + 1) % n);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        if (!n) return;
-        setSlashActiveIndex((i) => (i - 1 + n) % n);
-        return;
-      }
-      if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        const entry =
-          flat[
-            Math.min(Math.max(0, slashActiveIndex), Math.max(0, n - 1))
-          ];
-        if (!entry) return;
-        if (entry.kind === "upload") void pickComposerFiles();
-        else if (entry.kind === "create-video") applyCreateVideo();
-        else if (entry.kind === "json-schema") {
-          closeComposerMenu();
-          setJsonSchemaDraft(sessionJsonSchema ?? "");
-          setShowJsonSchemaModal(true);
-        } else applySlashItem(entry.item);
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        closeComposerMenu();
-        return;
-      }
-      if (e.key === "Tab" && n > 0) {
-        e.preventDefault();
-        const entry =
-          flat[Math.min(Math.max(0, slashActiveIndex), n - 1)]!;
-        if (entry.kind === "upload") void pickComposerFiles();
-        else if (entry.kind === "create-video") applyCreateVideo();
-        else if (entry.kind === "json-schema") {
-          closeComposerMenu();
-          setJsonSchemaDraft(sessionJsonSchema ?? "");
-          setShowJsonSchemaModal(true);
-        } else applySlashItem(entry.item);
-        return;
-      }
-    }
-    // Prompt history picker open: ↑/↓/Home/End/Page move selection;
-    // Enter/Tab apply; Esc closes (Build `/history` + empty-↑).
-    if (promptHistoryOpenRef.current && !composerMenuOpen) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        closePromptHistory();
-        return;
-      }
-      if (
-        (e.key === "Enter" && !e.ctrlKey && !e.metaKey) ||
-        e.key === "Tab"
-      ) {
-        const entry = promptHistoryEntries[promptHistoryActive];
-        if (entry) {
-          e.preventDefault();
-          applyPromptHistoryEntry(entry, {
-            listIndex: promptHistoryActive,
-          });
-          return;
-        }
-      }
-      const listNav = promptHistoryListNavFromKey(e.key);
-      if (listNav) {
-        e.preventDefault();
-        if (promptHistoryEntries.length === 0) return;
-        const liveSeed =
-          !promptHistoryFocusFilter && promptHistoryScope === "session";
-        // ArrowDown past newest on live session browse: clear + close.
-        if (listNav === "down" && promptHistoryActive <= 0 && liveSeed) {
-          promptHistoryIndexRef.current = null;
-          setPromptHistoryIndex(null);
-          setDraft("");
-          closePromptHistory();
-          return;
-        }
-        const next = stepPromptHistoryListIndex(
-          promptHistoryActive,
-          promptHistoryEntries.length,
-          listNav,
-        );
-        setPromptHistoryActive(next);
-        const entry = promptHistoryEntries[next];
-        if (entry && liveSeed) {
-          applyPromptHistoryEntry(entry, {
-            close: false,
-            listIndex: next,
-            scope: "session",
-          });
-        }
-        return;
-      }
-    }
-    // CLI-like prompt history: ↑ on empty draft opens picker + seeds newest.
-    // Only when slash palette is closed so palette ↑/↓ is untouched.
-    if (
-      (e.key === "ArrowUp" || e.key === "ArrowDown") &&
-      !composerMenuOpen &&
-      !promptHistoryOpenRef.current
-    ) {
-      const history = collectUserPromptHistory(messagesRef.current);
-      const draftEmpty = isDraftEmpty(parseStoredContent(getDraft()));
-      const browsing = promptHistoryIndexRef.current !== null;
-      if (
-        shouldHandlePromptHistoryKey({
-          key: e.key,
-          draftEmpty,
-          browsing,
-          historyLength: history.length,
-        })
-      ) {
-        e.preventDefault();
-        if (e.key === "ArrowUp" && !browsing) {
-          openPromptHistory({
-            focusFilter: false,
-            seedDraft: true,
-          });
-          return;
-        }
-        const step = stepPromptHistory(
-          history,
-          promptHistoryIndexRef.current,
-          e.key === "ArrowUp" ? "up" : "down",
-        );
-        promptHistoryIndexRef.current = step.index;
-        setPromptHistoryIndex(step.index);
-        setDraft(step.text);
-        if (step.index == null) {
-          closePromptHistory();
-        } else if (!promptHistoryOpenRef.current) {
-          openPromptHistory({
-            focusFilter: false,
-            seedDraft: false,
-          });
-          setPromptHistoryActive(step.index);
-        } else {
-          setPromptHistoryActive(step.index);
-        }
-        return;
-      }
-    }
-    const submit = resolveComposerSubmitAction({
-      event: e,
-      sendPref: composerSendKeyPref,
-      canSteer: composerSteerLive({
-        canGuideQueuedMessage,
-        sessionState: session.state,
-      }),
-    });
-    if (submit === "steer") {
-      e.preventDefault();
-      void steerFromComposer();
-      return;
-    }
-    if (submit === "send") {
-      e.preventDefault();
-      const hasBody = composerHasSendPayload({
-        draftEmpty: isDraftEmpty(parseStoredContent(getDraft())),
-        attachmentCount: attachments.length,
-        chatAttachmentCount: chatAttachments.length,
-        quoteCount: quotesRef.current.length,
-      });
-      if (hasBody && session.state !== "awaiting_permission") void send();
-    }
-    if (e.key === "Escape") {
-      if (promptHistoryOpenRef.current) {
-        closePromptHistory();
-        return;
-      }
-      if (attachChatOpenRef.current) {
-        closeAttachChat();
-        return;
-      }
-      closeComposerMenu();
-    }
-  };
+  const composerKeyDownRef = useComposerKeyDown({
+    applyAtFile,
+    applyCreateVideo,
+    applyPromptHistoryEntry,
+    applySlashItem,
+    atActiveIndex,
+    atEntries,
+    atMenuOpen,
+    attachChatOpenRef,
+    attachments,
+    canGuideQueuedMessage,
+    chatAttachments,
+    closeAtMenu,
+    closeAttachChat,
+    closeComposerMenu,
+    closePromptHistory,
+    composerMenuEntriesRef,
+    composerMenuOpen,
+    composerSendKeyPref,
+    getDraft,
+    messagesRef,
+    openPromptHistory,
+    pickComposerFiles,
+    promptHistoryActive,
+    promptHistoryEntries,
+    promptHistoryFocusFilter,
+    promptHistoryIndexRef,
+    promptHistoryOpenRef,
+    promptHistoryScope,
+    quotesRef,
+    send,
+    sessionJsonSchema,
+    sessionState: session.state,
+    setAtActiveIndex,
+    setDraft,
+    setJsonSchemaDraft,
+    setPromptHistoryActive,
+    setPromptHistoryIndex,
+    setShowJsonSchemaModal,
+    setSlashActiveIndex,
+    slashActiveIndex,
+    steerFromComposer,
+  });
 
   const onComposerKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLDivElement>) => {
