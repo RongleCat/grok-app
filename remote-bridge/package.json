@@ -2,7 +2,7 @@
   "name": "@grok-app/remote-bridge",
   "version": "0.1.0",
   "private": true,
-  "description": "In-app Remote IM bridge for Grok App (Feishu/Lark × Grok Build ACP). Migrated from agent-connect.",
+  "description": "DEPRECATED reference-only package — Remote IM connectors run in-process in Rust (src-tauri/src/remote_im/). Not built, shipped, or covered by CI; kept as protocol reference.",
   "type": "module",
   "bin": {
     "grok-remote-bridge": "bin/grok-remote-bridge.js"
