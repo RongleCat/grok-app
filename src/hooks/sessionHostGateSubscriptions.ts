@@ -1,5 +1,5 @@
 import * as api from "@/lib/api";
-import { isValidAskUserPayload } from "@/lib/askUserPayload";
+import { isValidAskUserPayload } from "@/lib/askUser/askUserPayload";
 import { mapSessionListRow } from "@/lib/app/sidebarModels";
 import {
   shouldShowDesktopNotify,
