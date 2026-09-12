@@ -730,14 +730,26 @@ impl SessionManager {
         // Seatbelt/Landlock write root for the process lifetime. Prewarm
         // always starts in `workspaces/general` — never reuse it for a
         // project-bound session (open_session_at cannot widen the sandbox).
+        //
+        // Prewarm also omits folder `--trust`, per-session `--rules`,
+        // `--system-prompt-override`, and `--plugin-dir`. Reusing it for those
+        // connects would silently drop AGENTS.md / session rules.
         if !pending_fork && ssh_alias.is_none() {
+            let project_row_early = meta
+                .project_id
+                .as_deref()
+                .and_then(|pid| store::load_projects().into_iter().find(|p| p.id == pid));
+            let folder_trust_needed = project_row_early.as_ref().is_some_and(|p| p.trusted);
+            let session_spawn_flags_need_cold = Self::session_needs_cold_spawn_for_flags(
+                folder_trust_needed,
+                meta.extra_rules.as_deref(),
+                meta.system_prompt_override.as_deref(),
+                &meta.plugin_dirs,
+            );
             let eff_sandbox = {
-                let project_sandbox = meta.project_id.as_deref().and_then(|pid| {
-                    store::load_projects()
-                        .into_iter()
-                        .find(|p| p.id == pid)
-                        .and_then(|p| p.sandbox_profile)
-                });
+                let project_sandbox = project_row_early
+                    .as_ref()
+                    .and_then(|p| p.sandbox_profile.clone());
                 store::resolve_sandbox_profile(
                     &settings.sandbox_profile,
                     project_sandbox.as_deref(),
@@ -819,89 +831,100 @@ impl SessionManager {
                 // awaited briefly — its CLI has no accumulated actors, so the
                 // session/load that follows is fast instead of the CLI's 5s
                 // old-thread drain.
+                // Skip entirely when this connect needs process-level flags the
+                // ownerless prewarm never received (trust / rules / override /
+                // plugin dirs). Leave the Ready prewarm for a later unbound chat.
+                if session_spawn_flags_need_cold {
+                    rejected.push(
+                        "prewarm: session needs trust/rules/system-prompt/plugin-dirs (cold spawn)"
+                            .into(),
+                    );
+                }
                 let prewarm_wait_deadline =
                     std::time::Instant::now() + std::time::Duration::from_millis(2500);
-                loop {
-                    let taken = {
-                        let mut pw = self.prewarm.lock();
-                        match std::mem::replace(&mut *pw, PrewarmState::None) {
-                            PrewarmState::Ready(p) => {
-                                let process_cwd = p.acp.cwd().to_string_lossy();
-                                let target_cwd = cwd.to_string_lossy();
-                                if !Self::reuse_sandbox_cwd_ok(
-                                    p.sandbox_profile.as_deref(),
-                                    process_cwd.as_ref(),
-                                    target_cwd.as_ref(),
-                                ) {
-                                    // Keep the general-workspace prewarm for a
-                                    // later unbound chat; only cold-spawn this
-                                    // project session (#986).
-                                    rejected.push(format!(
-                                        "prewarm: sandbox cwd {process_cwd}≠{target_cwd}"
-                                    ));
-                                    *pw = PrewarmState::Ready(p);
+                if !session_spawn_flags_need_cold {
+                    loop {
+                        let taken = {
+                            let mut pw = self.prewarm.lock();
+                            match std::mem::replace(&mut *pw, PrewarmState::None) {
+                                PrewarmState::Ready(p) => {
+                                    let process_cwd = p.acp.cwd().to_string_lossy();
+                                    let target_cwd = cwd.to_string_lossy();
+                                    if !Self::reuse_sandbox_cwd_ok(
+                                        p.sandbox_profile.as_deref(),
+                                        process_cwd.as_ref(),
+                                        target_cwd.as_ref(),
+                                    ) {
+                                        // Keep the general-workspace prewarm for a
+                                        // later unbound chat; only cold-spawn this
+                                        // project session (#986).
+                                        rejected.push(format!(
+                                            "prewarm: sandbox cwd {process_cwd}≠{target_cwd}"
+                                        ));
+                                        *pw = PrewarmState::Ready(p);
+                                        None
+                                    } else if gate(
+                                        p.acp.is_alive(),
+                                        p.policy,
+                                        p.effort.as_deref(),
+                                        p.sandbox_profile.as_deref(),
+                                        p.acp.is_custom_route(),
+                                    ) {
+                                        Some((p.acp, p.process_id, p.created_at))
+                                    } else {
+                                        // `PrewarmState::Ready` is ownerless, so
+                                        // a gate mismatch cannot be handed back to
+                                        // another session. Drop and explicitly
+                                        // kill it after leaving the map lock; an
+                                        // Arc/Child drop alone does not terminate
+                                        // the CLI process.
+                                        stale_prewarm.push(p.acp.clone());
+                                        rejected.push(format!(
+                                            "prewarm: {}",
+                                            reject_reason(
+                                                p.acp.is_alive(),
+                                                p.policy,
+                                                p.effort.as_deref(),
+                                                p.sandbox_profile.as_deref(),
+                                                p.acp.is_custom_route(),
+                                            )
+                                        ));
+                                        None
+                                    }
+                                }
+                                PrewarmState::Spawning { since }
+                                    if since.elapsed() < std::time::Duration::from_millis(2500) =>
+                                {
+                                    *pw = PrewarmState::Spawning { since };
                                     None
-                                } else if gate(
-                                    p.acp.is_alive(),
-                                    p.policy,
-                                    p.effort.as_deref(),
-                                    p.sandbox_profile.as_deref(),
-                                    p.acp.is_custom_route(),
-                                ) {
-                                    Some((p.acp, p.process_id, p.created_at))
-                                } else {
-                                    // `PrewarmState::Ready` is ownerless, so
-                                    // a gate mismatch cannot be handed back to
-                                    // another session. Drop and explicitly
-                                    // kill it after leaving the map lock; an
-                                    // Arc/Child drop alone does not terminate
-                                    // the CLI process.
-                                    stale_prewarm.push(p.acp.clone());
-                                    rejected.push(format!(
-                                        "prewarm: {}",
-                                        reject_reason(
-                                            p.acp.is_alive(),
-                                            p.policy,
-                                            p.effort.as_deref(),
-                                            p.sandbox_profile.as_deref(),
-                                            p.acp.is_custom_route(),
-                                        )
-                                    ));
+                                }
+                                other => {
+                                    *pw = other;
                                     None
                                 }
                             }
-                            PrewarmState::Spawning { since }
-                                if since.elapsed() < std::time::Duration::from_millis(2500) =>
-                            {
-                                *pw = PrewarmState::Spawning { since };
-                                None
-                            }
-                            other => {
-                                *pw = other;
-                                None
-                            }
+                        };
+                        if let Some((acp, pid, at)) = taken {
+                            best = Some((acp, pid, at));
+                            break;
                         }
-                    };
-                    if let Some((acp, pid, at)) = taken {
-                        best = Some((acp, pid, at));
-                        break;
+                        let still_spawning =
+                            matches!(*self.prewarm.lock(), PrewarmState::Spawning { .. });
+                        if !still_spawning || std::time::Instant::now() >= prewarm_wait_deadline {
+                            break;
+                        }
+                        // Brief yield so the prewarm task can progress (it spawns
+                        // outside connect_lock, so this cannot deadlock).
+                        tokio::time::sleep(std::time::Duration::from_millis(120)).await;
                     }
-                    let still_spawning =
-                        matches!(*self.prewarm.lock(), PrewarmState::Spawning { .. });
-                    if !still_spawning || std::time::Instant::now() >= prewarm_wait_deadline {
-                        break;
-                    }
-                    // Brief yield so the prewarm task can progress (it spawns
-                    // outside connect_lock, so this cannot deadlock).
-                    tokio::time::sleep(std::time::Duration::from_millis(120)).await;
-                }
-                // A session-bound ACP process is never transferred to another
-                // App session. The old parked/background reuse path shared an
-                // `Arc<AcpClient>` while leaving the original owner registered;
-                // capacity and event routing could then kill or apply events to
-                // the wrong tenant. Only the ownerless prewarm process above is
-                // eligible for reuse. The target session is opened on a fresh
-                // process once its own parked entry is no longer focused.
+                } // if !session_spawn_flags_need_cold
+                  // A session-bound ACP process is never transferred to another
+                  // App session. The old parked/background reuse path shared an
+                  // `Arc<AcpClient>` while leaving the original owner registered;
+                  // capacity and event routing could then kill or apply events to
+                  // the wrong tenant. Only the ownerless prewarm process above is
+                  // eligible for reuse. The target session is opened on a fresh
+                  // process once its own parked entry is no longer focused.
                 if best.is_none() && !rejected.is_empty() {
                     tracing::warn!(
                         target: "session",
@@ -1878,6 +1901,21 @@ impl SessionManager {
             && p_custom_route == target_custom_route
     }
 
+    /// Ownerless prewarm never receives these process-level flags — force cold spawn.
+    pub(super) fn session_needs_cold_spawn_for_flags(
+        folder_trust: bool,
+        extra_rules: Option<&str>,
+        system_prompt_override: Option<&str>,
+        plugin_dirs: &[String],
+    ) -> bool {
+        folder_trust
+            || extra_rules.map(str::trim).is_some_and(|s| !s.is_empty())
+            || system_prompt_override
+                .map(str::trim)
+                .is_some_and(|s| !s.is_empty())
+            || !plugin_dirs.is_empty()
+    }
+
     /// Whether warm-reuse is safe for OS sandbox vs spawn cwd (#986).
     ///
     /// `off` does not lock filesystem roots to spawn cwd, so a different
@@ -2409,6 +2447,46 @@ mod reuse_gate_tests {
             Some("read-only"),
             general,
             project
+        ));
+    }
+
+    #[test]
+    fn session_needs_cold_spawn_when_trust_or_rules_present() {
+        assert!(!SessionManager::session_needs_cold_spawn_for_flags(
+            false,
+            None,
+            None,
+            &[]
+        ));
+        assert!(SessionManager::session_needs_cold_spawn_for_flags(
+            true,
+            None,
+            None,
+            &[]
+        ));
+        assert!(SessionManager::session_needs_cold_spawn_for_flags(
+            false,
+            Some(" always write tests "),
+            None,
+            &[]
+        ));
+        assert!(SessionManager::session_needs_cold_spawn_for_flags(
+            false,
+            None,
+            Some("you are terse"),
+            &[]
+        ));
+        assert!(SessionManager::session_needs_cold_spawn_for_flags(
+            false,
+            None,
+            None,
+            &[String::from("/tmp/plugin")]
+        ));
+        assert!(!SessionManager::session_needs_cold_spawn_for_flags(
+            false,
+            Some("   \n"),
+            Some(""),
+            &[]
         ));
     }
 

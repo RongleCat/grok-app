@@ -181,6 +181,7 @@ export const itComposer = {
   "composer.branchSwitchFailed": "Impossibile passare a {branch}: {reason}",
   "composer.branchFail.dirty": "Le modifiche non committate verrebbero sovrascritte — fai commit o stash prima",
   "composer.branchFail.elsewhere": "Già in checkout in {path}",
+  "composer.branchFail.agentBusy": "Un turno agent è ancora in corso in questa cartella — attendi o interrompilo prima",
   "composer.branchFail.notFound": "Ramo non trovato",
   "composer.branchFail.invalid": "Nome ramo non valido",
   "composer.branchFail.gitMissing": "git non disponibile",

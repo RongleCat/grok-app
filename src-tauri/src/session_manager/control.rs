@@ -62,7 +62,25 @@ impl SessionManager {
             bg.needs_history_bootstrap = true;
         }
         if self.is_live_session(session_id) {
+            // soft_respawn already defers when the live turn is busy.
             self.soft_respawn_with_reason(app, reason).await;
+            return;
+        }
+        // Background mid-turn: queue like effort/policy changes. Dropping now
+        // kills an in-flight answer and removes the map entry before
+        // ProcessExited can finish journal / cancel bookkeeping (#1177 follow-up).
+        let bg_busy = self
+            .with_session_mut(session_id, |s| Self::live_session_is_busy(s))
+            .unwrap_or(false);
+        if bg_busy {
+            self.pending_soft_respawn
+                .lock()
+                .insert(session_id.to_string(), reason.to_string());
+            tracing::info!(
+                session = %session_id,
+                reason = %reason,
+                "spawn-flag invalidate deferred: background session mid-turn"
+            );
             return;
         }
         self.drop_idle_agent_for_session(session_id, reason).await;

@@ -5,6 +5,7 @@ import {
   capGitBranchesForMenu,
   classifyGitSwitchError,
   gitSwitchFailMessage,
+  gitSwitchKindFromHost,
   filterGitBranches,
   GIT_BRANCH_MENU_CAP,
   isRemoteHeadRef,
@@ -190,7 +191,16 @@ describe("gitSwitchFailMessage", () => {
     expect(gitSwitchFailMessage(tr as never, "elsewhere", null, "/wt")).toBe(
       "composer.branchFail.elsewhere",
     );
+    expect(gitSwitchFailMessage(tr as never, "agent_busy")).toBe(
+      "composer.branchFail.agentBusy",
+    );
     expect(gitSwitchFailMessage(tr as never, "failed", "boom")).toBe("boom");
+  });
+});
+
+describe("gitSwitchKindFromHost", () => {
+  it("recognizes agent_busy", () => {
+    expect(gitSwitchKindFromHost("agent_busy")).toBe("agent_busy");
   });
 });
 

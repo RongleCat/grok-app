@@ -161,9 +161,14 @@ export function useGitBranches(opts: {
         return;
       }
 
+      // Capture ownership before the async switch so a mid-flight project /
+      // session change cannot bind the new branch onto the wrong chat.
+      const ownedSessionId =
+        h.viewingSessionIdRef.current || h.session.sessionId || null;
+      const ownedProjectPath = projectPath;
       setGitBranchesBusy(true);
       try {
-        const res = await api.gitSwitchBranch(projectPath, name, startPoint);
+        const res = await api.gitSwitchBranch(ownedProjectPath, name, startPoint);
         if (!res.ok) {
           const kind = gitSwitchKindFromHost(res.kind);
           h.showToast(
@@ -181,11 +186,9 @@ export function useGitBranches(opts: {
           return;
         }
         const next = (res.branch || name).trim();
-        applyStatusBranch(projectPath, { available: true, branch: next });
-        const liveId =
-          h.viewingSessionIdRef.current || h.session.sessionId || null;
-        if (liveId) {
-          await markSessionWorktree(liveId, projectPath, next);
+        applyStatusBranch(ownedProjectPath, { available: true, branch: next });
+        if (ownedSessionId) {
+          await markSessionWorktree(ownedSessionId, ownedProjectPath, next);
         }
         h.showToast(h.tr("composer.branchSwitched", { branch: next }), 2800);
         await Promise.all([

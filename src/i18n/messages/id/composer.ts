@@ -181,6 +181,7 @@ export const idComposer = {
   "composer.branchSwitchFailed": "Tidak dapat beralih ke {branch}: {reason}",
   "composer.branchFail.dirty": "Perubahan yang belum di-commit akan ditimpa — commit atau stash dulu",
   "composer.branchFail.elsewhere": "Sudah di-checkout di {path}",
+  "composer.branchFail.agentBusy": "Masih ada giliran agen di folder ini — tunggu atau hentikan dulu",
   "composer.branchFail.notFound": "Cabang tidak ditemukan",
   "composer.branchFail.invalid": "Nama cabang tidak valid",
   "composer.branchFail.gitMissing": "git tidak tersedia",

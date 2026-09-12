@@ -181,6 +181,7 @@ export const deComposer = {
   "composer.branchSwitchFailed": "Wechsel zu {branch} fehlgeschlagen: {reason}",
   "composer.branchFail.dirty": "Uncommittete Änderungen würden überschrieben — zuerst committen oder stashen",
   "composer.branchFail.elsewhere": "Bereits ausgecheckt in {path}",
+  "composer.branchFail.agentBusy": "In diesem Ordner läuft noch ein Agent-Turn — warte oder stoppe ihn zuerst",
   "composer.branchFail.notFound": "Branch nicht gefunden",
   "composer.branchFail.invalid": "Ungültiger Branch-Name",
   "composer.branchFail.gitMissing": "git ist nicht verfügbar",

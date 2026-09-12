@@ -207,4 +207,3 @@ export function ccSwitchStatusKey(status: string): MessageKey {
       return "prov.ccSwitch.status.invalid";
   }
 }
-

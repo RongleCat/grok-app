@@ -181,6 +181,7 @@ export const ukComposer = {
   "composer.branchSwitchFailed": "Не вдалося перемкнути на {branch}: {reason}",
   "composer.branchFail.dirty": "Незакомічені зміни буде перезаписано — спочатку зробіть commit або stash",
   "composer.branchFail.elsewhere": "Уже витягнуто в {path}",
+  "composer.branchFail.agentBusy": "У цій теці ще триває хід агента — спочатку зачекайте або зупиніть",
   "composer.branchFail.notFound": "Гілку не знайдено",
   "composer.branchFail.invalid": "Неприпустима назва гілки",
   "composer.branchFail.gitMissing": "git недоступний",

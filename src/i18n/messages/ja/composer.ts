@@ -181,6 +181,7 @@ export const jaComposer = {
   "composer.branchSwitchFailed": "{branch} に切り替えられません：{reason}",
   "composer.branchFail.dirty": "未コミットの変更が上書きされます。先にコミットまたは stash してください",
   "composer.branchFail.elsewhere": "{path} ですでにチェックアウトされています",
+  "composer.branchFail.agentBusy": "このフォルダでエージェントのターンが実行中です — 完了または停止してから切り替えてください",
   "composer.branchFail.notFound": "ブランチが見つかりません",
   "composer.branchFail.invalid": "ブランチ名が無効です",
   "composer.branchFail.gitMissing": "git がありません",

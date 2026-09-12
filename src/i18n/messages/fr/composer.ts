@@ -181,6 +181,7 @@ export const frComposer = {
   "composer.branchSwitchFailed": "Impossible de basculer sur {branch} : {reason}",
   "composer.branchFail.dirty": "Des modifications non commitées seraient écrasées — commitez ou stash d’abord",
   "composer.branchFail.elsewhere": "Déjà extraite dans {path}",
+  "composer.branchFail.agentBusy": "Un tour d’agent est encore en cours dans ce dossier — attendez ou arrêtez-le d’abord",
   "composer.branchFail.notFound": "Branche introuvable",
   "composer.branchFail.invalid": "Nom de branche invalide",
   "composer.branchFail.gitMissing": "git n’est pas disponible",

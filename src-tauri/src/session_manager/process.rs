@@ -265,6 +265,46 @@ impl SessionManager {
             .unwrap_or(false)
     }
 
+    /// True when any live or background mid-turn session is bound to `project_id`
+    /// or has a worktree path under `project_path` (git switch safety).
+    pub fn any_busy_turn_for_project(
+        &self,
+        project_id: Option<&str>,
+        project_path: &str,
+    ) -> Option<String> {
+        let norm = |s: &str| s.trim().trim_end_matches(['/', '\\']).replace('\\', "/");
+        let target = norm(project_path);
+        let matches = |s: &LiveSession| {
+            if !Self::live_session_is_busy(s) {
+                return false;
+            }
+            if let (Some(want), Some(have)) = (project_id, s.meta.project_id.as_deref()) {
+                if want == have {
+                    return true;
+                }
+            }
+            if let Some(wp) = s.meta.worktree_path.as_deref() {
+                let n = norm(wp);
+                if n == target || n.starts_with(&(target.clone() + "/")) {
+                    return true;
+                }
+            }
+            false
+        };
+        {
+            let guard = self.inner.lock();
+            if let Some(s) = guard.as_ref() {
+                if matches(s) {
+                    return Some(s.app_session_id.clone());
+                }
+            }
+        }
+        let bg = self.background.lock();
+        bg.values()
+            .find(|s| matches(s))
+            .map(|s| s.app_session_id.clone())
+    }
+
     pub(super) fn live_session_is_busy(s: &LiveSession) -> bool {
         // Authoritative: the prompt RPC has not resolved, so the agent is still
         // producing output for this chat no matter what the FSM says. Parking

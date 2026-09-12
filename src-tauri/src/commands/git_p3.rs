@@ -385,6 +385,7 @@ fn git_branches_list_blocking(project: String) -> Result<GitBranchesResult, Stri
 /// `start_point` set → create a local tracking branch from that remote ref.
 #[tauri::command]
 pub async fn git_switch_branch(
+    mgr: State<'_, Arc<SessionManager>>,
     project_path: String,
     branch: String,
     start_point: Option<String>,
@@ -409,6 +410,25 @@ pub async fn git_switch_branch(
             None,
             None,
             Some("project not a directory".into()),
+        ));
+    }
+    // Refuse replacing the worktree while any live/background agent turn is
+    // still bound here — otherwise a background chat keeps writing against the
+    // branch the user just left.
+    let project_id = store::load_projects()
+        .into_iter()
+        .find(|p| normalize_fs_path(&p.path) == project)
+        .map(|p| p.id);
+    if let Some(sid) =
+        mgr.any_busy_turn_for_project(project_id.as_deref(), &project)
+    {
+        return Ok(switch_fail(
+            true,
+            "agent_busy",
+            None,
+            None,
+            None,
+            Some(format!("agent turn still running in session {sid}")),
         ));
     }
     let name = match sanitize_git_branch_name(&branch) {

@@ -183,6 +183,7 @@ export const zhComposer = {
   "composer.branchSwitchFailed": "无法切换到 {branch}：{reason}",
   "composer.branchFail.dirty": "未提交的更改会被覆盖 — 请先提交或暂存",
   "composer.branchFail.elsewhere": "已在 {path} 检出",
+  "composer.branchFail.agentBusy": "此文件夹仍有进行中的 agent 回合 — 请先等待或停止",
   "composer.branchFail.notFound": "找不到该分支",
   "composer.branchFail.invalid": "分支名无效",
   "composer.branchFail.gitMissing": "未找到 git",

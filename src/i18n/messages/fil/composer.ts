@@ -181,6 +181,7 @@ export const filComposer = {
   "composer.branchSwitchFailed": "Hindi makalipat sa {branch}: {reason}",
   "composer.branchFail.dirty": "Masusoverite ang mga hindi naka-commit na pagbabago — mag-commit o mag-stash muna",
   "composer.branchFail.elsewhere": "Naka-checkout na sa {path}",
+  "composer.branchFail.agentBusy": "May tumatakbong agent turn pa sa folder na ito — hintayin o ihinto muna",
   "composer.branchFail.notFound": "Hindi nahanap ang branch",
   "composer.branchFail.invalid": "Invalid na pangalan ng branch",
   "composer.branchFail.gitMissing": "Hindi available ang git",

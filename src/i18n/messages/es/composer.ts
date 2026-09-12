@@ -181,6 +181,7 @@ export const esComposer = {
   "composer.branchSwitchFailed": "No se pudo cambiar a {branch}: {reason}",
   "composer.branchFail.dirty": "Los cambios sin confirmar se sobrescribirían — confirma o guarda en stash primero",
   "composer.branchFail.elsewhere": "Ya está en checkout en {path}",
+  "composer.branchFail.agentBusy": "Todavía hay un turno de agente en esta carpeta — espera o detenlo primero",
   "composer.branchFail.notFound": "Rama no encontrada",
   "composer.branchFail.invalid": "Nombre de rama no válido",
   "composer.branchFail.gitMissing": "git no está disponible",

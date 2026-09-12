@@ -181,6 +181,7 @@ export const ruComposer = {
   "composer.branchSwitchFailed": "Не удалось переключиться на {branch}: {reason}",
   "composer.branchFail.dirty": "Несохранённые изменения будут перезаписаны — сначала сделайте commit или stash",
   "composer.branchFail.elsewhere": "Уже извлечена в {path}",
+  "composer.branchFail.agentBusy": "В этой папке ещё идёт ход агента — сначала дождитесь или остановите",
   "composer.branchFail.notFound": "Ветка не найдена",
   "composer.branchFail.invalid": "Недопустимое имя ветки",
   "composer.branchFail.gitMissing": "git недоступен",

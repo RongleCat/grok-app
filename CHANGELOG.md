@@ -22,6 +22,10 @@ See `docs/llm-wiki/release.md`.
 - 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
 
 ### Fixed
+- Saving project rules no longer kills another chat's background agent mid-turn.
+- Trusted-project chats no longer reuse a prewarm process that skipped folder trust.
+- Switching git branches is blocked while an agent turn is still running in that folder.
+- Closing the Google sign-in window reloads the embedded browser so shared cookies apply.
 - Session rules and system prompt overrides apply on the next agent turn (#1171).
 - Trusted projects pass folder trust so AGENTS.md loads in App chats (#1171).
 - Windows IME candidate windows stay nearer the composer while composing (#1170).
@@ -37,8 +41,13 @@ See `docs/llm-wiki/release.md`.
 - Imagine portrait thumbnails stay contained when the wallpaper window narrows.
 - What's New now lists every entry; some were cut off before.
 - Generated wallpaper stays visible when library indexing fails and can be saved again.
+- Local video details now use the file's measured dimensions and duration.
 
 **中文 · 修复**
+- 保存项目规则时，不再打断同项目另一聊天后台进行中的 agent 回合。
+- 已信任项目不会复用未带文件夹信任的预热进程，AGENTS.md 可正确加载。
+- 同文件夹仍有 agent 回合在跑时，禁止切换 git 分支。
+- 关闭 Google 登录窗后会刷新内嵌页，共享 Cookie 才能生效。
 - 会话规则与系统提示覆盖会在下一轮 agent 生效，不再被旧会话 resume 吃掉（#1171）。
 - 已信任项目会传文件夹信任，App 内聊天能加载 AGENTS.md（#1171）。
 - Windows 组字时减少输入框高度抖动，候选栏更贴近输入区（#1170）。
@@ -54,6 +63,7 @@ See `docs/llm-wiki/release.md`.
 - 壁纸窗口缩小时，Imagine 纵向缩略图不再挤压错位。
 - 「新功能」弹窗不再漏掉部分条目。
 - 生成壁纸在图库索引失败时仍会显示，并可直接重试保存。
+- 本地视频详情现在显示文件实测的尺寸与时长。
 
 ### Changed
 - Ctrl+Tab fills the selected chat row. Busy chats show the same spinner as the sidebar (#1146).
@@ -68,12 +78,6 @@ See `docs/llm-wiki/release.md`.
 - 主题编辑器改为按需加载，不再拖累应用启动。
 - 打包内的 KaTeX 数学字体只保留 woff2 格式，安装包更小。
 - 设置的读写改走阻塞线程池，异步命令不再被设置文件锁卡住。
-
-### Improved
-- Local video details now use the file's measured dimensions and duration.
-
-**中文 · 改进**
-- 本地视频详情现在显示文件实测的尺寸与时长。
 
 ## [0.2.34] - 2026-09-09
 

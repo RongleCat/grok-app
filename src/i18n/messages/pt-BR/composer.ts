@@ -181,6 +181,7 @@ export const ptBRComposer = {
   "composer.branchSwitchFailed": "Não foi possível mudar para {branch}: {reason}",
   "composer.branchFail.dirty": "Alterações não commitadas seriam sobrescritas — faça commit ou stash primeiro",
   "composer.branchFail.elsewhere": "Já está em checkout em {path}",
+  "composer.branchFail.agentBusy": "Ainda há um turno do agente nesta pasta — aguarde ou interrompa primeiro",
   "composer.branchFail.notFound": "Branch não encontrada",
   "composer.branchFail.invalid": "Nome de branch inválido",
   "composer.branchFail.gitMissing": "git não está disponível",

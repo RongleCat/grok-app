@@ -181,6 +181,7 @@ export const koComposer = {
   "composer.branchSwitchFailed": "{branch}(으)로 전환할 수 없습니다: {reason}",
   "composer.branchFail.dirty": "커밋하지 않은 변경이 덮어씌워집니다. 먼저 커밋하거나 stash 하세요",
   "composer.branchFail.elsewhere": "이미 {path}에서 체크아웃됨",
+  "composer.branchFail.agentBusy": "이 폴더에서 에이전트 턴이 진행 중입니다 — 기다리거나 먼저 중지하십시오",
   "composer.branchFail.notFound": "브랜치를 찾을 수 없습니다",
   "composer.branchFail.invalid": "잘못된 브랜치 이름",
   "composer.branchFail.gitMissing": "git을 사용할 수 없습니다",

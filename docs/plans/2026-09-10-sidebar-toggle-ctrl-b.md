@@ -1,9 +1,9 @@
 # Ctrl+B 左侧栏展开/收起响应优化
 
-**日期**：2026-09-10  
-**基线**：`main` @ `2b43acbb`（`feat(session): show a recent-chat list while holding Ctrl+Tab (#1127)`）  
-**来源**：Ctrl+B 侧栏「响应慢」诊断（快捷键本身无 debounce；慢在 host 重渲染 + in-flow `width` 插值）  
-**执行位置**：worktree `D:/code/grok-app-sidebar-toggle-ctrl-b` · 分支 `perf/sidebar-toggle-ctrl-b`  
+**日期**：2026-09-10
+**基线**：`main` @ `2b43acbb`（`feat(session): show a recent-chat list while holding Ctrl+Tab (#1127)`）
+**来源**：Ctrl+B 侧栏「响应慢」诊断（快捷键本身无 debounce；慢在 host 重渲染 + in-flow `width` 插值）
+**执行位置**：worktree `D:/code/grok-app-sidebar-toggle-ctrl-b` · 分支 `perf/sidebar-toggle-ctrl-b`
 **状态**：WP-A/B/C 已实施、未开 PR、不 merge `main`（`zzzzz` 前禁止）
 
 `.husky/post-checkout` 不存在（无 symlink 步骤）。`android/capacitor.settings.gradle` 不存在，`skip-worktree` 跳过。

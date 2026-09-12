@@ -131,6 +131,41 @@ fn resume_side_browser_after_google_auth(app: &AppHandle, callback: &Url) {
     }
 }
 
+/// Auth window closed without a non-Google redirect (common for GIS popup /
+/// postMessage flows that never leave accounts.google.com). Shared cookies
+/// may already be written — reload the embedded tab so the site picks them up.
+fn reload_side_browser_after_google_auth_closed(app: &AppHandle, side_label: &str) {
+    tracing::info!(
+        target: "side_browser",
+        %side_label,
+        "Google auth window closed → reload embedded browser for shared cookies"
+    );
+    match get_side_webview(app, side_label) {
+        Ok(wv) => {
+            let url = wv.url().ok().map(|u| u.to_string()).unwrap_or_default();
+            if !url.is_empty() {
+                emit_page_load(app, "started", side_label, &url);
+            }
+            if let Err(e) = wv.reload() {
+                tracing::warn!(
+                    target: "side_browser",
+                    error = %e,
+                    %side_label,
+                    "failed to reload side browser after Google auth window closed"
+                );
+            }
+        }
+        Err(e) => {
+            tracing::warn!(
+                target: "side_browser",
+                error = %e,
+                %side_label,
+                "side browser missing after Google auth window closed"
+            );
+        }
+    }
+}
+
 fn open_google_auth_window(app: &AppHandle, side_label: &str, url: &Url) -> Result<(), String> {
     *PENDING_GOOGLE_AUTH.lock() = Some(PendingGoogleAuth {
         side_label: side_label.to_string(),
@@ -180,12 +215,16 @@ fn open_google_auth_window(app: &AppHandle, side_label: &str, url: &Url) -> Resu
                 NewWindowResponse::Deny
             });
 
+    let app_closed = app.clone();
     let window = builder
         .build()
         .map_err(|e| format!("google auth window: {e}"))?;
     window.on_window_event(move |event| {
         if matches!(event, tauri::WindowEvent::Destroyed) {
-            let _ = PENDING_GOOGLE_AUTH.lock().take();
+            let pending = PENDING_GOOGLE_AUTH.lock().take();
+            if let Some(p) = pending {
+                reload_side_browser_after_google_auth_closed(&app_closed, &p.side_label);
+            }
         }
     });
     Ok(())
@@ -210,6 +249,7 @@ pub fn handoff_google_auth_externally(app: &AppHandle, label: &str, url: &Url) -
             url = %url_s,
             "failed to open Google auth window"
         );
+        return false;
     }
     emit_external_open(app, label, url_s);
     true

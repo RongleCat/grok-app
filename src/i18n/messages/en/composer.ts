@@ -183,6 +183,7 @@ export const enComposer = {
   "composer.branchSwitchFailed": "Could not switch to {branch}: {reason}",
   "composer.branchFail.dirty": "Uncommitted changes would be overwritten — commit or stash first",
   "composer.branchFail.elsewhere": "Already checked out in {path}",
+  "composer.branchFail.agentBusy": "An agent turn is still running in this folder — wait or stop it first",
   "composer.branchFail.notFound": "Branch not found",
   "composer.branchFail.invalid": "Invalid branch name",
   "composer.branchFail.gitMissing": "git is not available",

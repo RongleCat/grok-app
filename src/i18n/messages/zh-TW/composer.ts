@@ -37,6 +37,7 @@ export const zhTWComposer = {
   "composer.branchSwitchFailed": "無法切換到 {branch}：{reason}",
   "composer.branchFail.dirty": "未提交的變更會被覆蓋 — 請先提交或暫存",
   "composer.branchFail.elsewhere": "已在 {path} 檢出",
+  "composer.branchFail.agentBusy": "此資料夾仍有進行中的 agent 回合 — 請先等待或停止",
   "composer.branchFail.notFound": "找不到該分支",
   "composer.branchFail.invalid": "分支名無效",
   "composer.branchFail.gitMissing": "找不到 git",

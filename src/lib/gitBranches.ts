@@ -31,6 +31,7 @@ export type GitSwitchKind =
   | "ok"
   | "dirty"
   | "elsewhere"
+  | "agent_busy"
   | "not_found"
   | "invalid"
   | "git_not_available"
@@ -314,6 +315,7 @@ export function gitSwitchFailMessage(
     key:
       | "composer.branchFail.dirty"
       | "composer.branchFail.elsewhere"
+      | "composer.branchFail.agentBusy"
       | "composer.branchFail.notFound"
       | "composer.branchFail.invalid"
       | "composer.branchFail.gitMissing"
@@ -331,6 +333,8 @@ export function gitSwitchFailMessage(
       return tr("composer.branchFail.elsewhere", {
         path: (path || "").trim() || "—",
       });
+    case "agent_busy":
+      return tr("composer.branchFail.agentBusy");
     case "not_found":
       return tr("composer.branchFail.notFound");
     case "invalid":
@@ -352,6 +356,7 @@ export function gitSwitchKindFromHost(
     case "ok":
     case "dirty":
     case "elsewhere":
+    case "agent_busy":
     case "not_found":
     case "invalid":
     case "git_not_available":
