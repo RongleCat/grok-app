@@ -8,7 +8,6 @@
 //! No dedicated CLI flag. Shared mode never rewrites `~/.grok/config.toml`.
 //! Soft-fail older CLIs: omit env when version is known &lt; 0.2.117.
 
-#![allow(dead_code)] // residual-clippy: normalize_enabled
 use crate::agent_home_config::{set_top_level_bool, update_config_toml_if_independent};
 
 /// First CLI that accepts the config / env surface.
@@ -18,6 +17,7 @@ pub const CONFIG_KEY: &str = "subagent_worktree_snapshot_enabled";
 pub const ENV_KEY: &str = "GROK_SUBAGENT_WORKTREE_SNAPSHOT";
 
 /// Normalize enable toggle (App default off).
+#[allow(dead_code)]
 pub fn normalize_enabled(raw: bool) -> bool {
     raw
 }

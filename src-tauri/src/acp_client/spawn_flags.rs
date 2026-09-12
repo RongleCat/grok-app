@@ -10,6 +10,7 @@ use tokio::process::Command;
 /// `["--fork-session"]` when enabled; empty otherwise. The TUI requires this
 /// with `--resume`/`--continue`. Host `agent stdio` uses ACP `session/fork`
 /// instead of bare CLI flags (CLI errors without resume).
+#[allow(dead_code)]
 pub fn fork_session_spawn_flags(enabled: bool) -> Vec<&'static str> {
     if enabled {
         vec!["--fork-session"]
@@ -229,12 +230,14 @@ pub fn should_apply_sandbox(raw_cli_version: Option<&str>) -> bool {
 }
 
 /// Pure helper used by spawn + unit tests: args + env when sandbox is on.
+#[allow(dead_code)]
 pub fn sandbox_spawn_flags(profile: &str) -> Option<(Vec<String>, (String, String))> {
     let spec = SandboxSpawnSpec::from_setting(profile)?;
     Some((spec.cli_args().to_vec(), spec.env_pair()))
 }
 
 /// Soft-fail variant: omit when CLI is known older than {@link SANDBOX_MIN_CLI}.
+#[allow(dead_code)]
 pub fn sandbox_spawn_flags_soft(
     profile: &str,
     raw_cli_version: Option<&str>,
@@ -374,6 +377,7 @@ pub fn resolve_max_agent_turns(session: Option<u32>, global: Option<u32>) -> Opt
     normalize_max_agent_turns(session).or_else(|| normalize_max_agent_turns(global))
 }
 
+#[allow(dead_code)]
 pub fn max_turns_cli_args(raw: Option<u32>) -> Option<Vec<String>> {
     let spec = MaxTurnsSpawnSpec::from_setting(raw)?;
     Some(spec.cli_args().to_vec())
@@ -495,6 +499,7 @@ pub const HEADLESS_FORMAT_STREAMING_MESSAGES_JSON: &str = "streaming-messages-js
 pub const HEADLESS_FORMAT_STREAMING_JSON: &str = "streaming-json";
 
 /// True when format is `streaming-messages-json` (aliases normalized).
+#[allow(dead_code)]
 pub fn is_streaming_messages_json_format(format: &str) -> bool {
     let s = format.trim().to_ascii_lowercase().replace('_', "-");
     matches!(
@@ -505,6 +510,7 @@ pub fn is_streaming_messages_json_format(format: &str) -> bool {
 
 /// Top-level CLI flags for `--include-partial-messages`.
 /// Empty unless `enabled` **and** format is `streaming-messages-json`.
+#[allow(dead_code)]
 pub fn include_partial_messages_spawn_flags(
     enabled: bool,
     output_format: &str,
@@ -528,6 +534,7 @@ pub fn cli_supports_include_partial_messages(raw_version: &str) -> Option<bool> 
 /// - Known ≥ 0.2.117 + enabled + streaming-messages-json → flag
 /// - Known older / unknown → omit (avoid clap crash)
 /// - Disabled or wrong format → empty always
+#[allow(dead_code)]
 pub fn include_partial_messages_spawn_flags_soft(
     enabled: bool,
     output_format: &str,
@@ -703,11 +710,13 @@ impl AgentSpawnSpec {
     }
 }
 
+#[allow(dead_code)]
 pub fn preferred_agent_spawn_flags(raw: &str) -> Option<Vec<String>> {
     crate::agents_catalog::agent_spawn_cli_args(raw)
 }
 
 /// Pure: agent-option `["--agent-profile", path]` when Settings path is set.
+#[allow(dead_code)]
 pub fn agent_profile_spawn_flags(raw: &str) -> Option<Vec<String>> {
     crate::agents_catalog::agent_profile_spawn_cli_args(raw)
 }

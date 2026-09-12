@@ -3,7 +3,6 @@
 //! Pure helpers are unit-tested; SessionManager applies them at runtime.
 //! Process budget snapshots expose live / background / parked occupancy for UI.
 
-#![allow(dead_code)] // residual-clippy: capacity helpers
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
@@ -72,6 +71,7 @@ pub fn can_spawn_process(active_processes: u32, max_concurrent: u32) -> bool {
 }
 
 /// How many processes must be recycled before a spawn is allowed.
+#[allow(dead_code)]
 pub fn processes_over_capacity(active_processes: u32, max_concurrent: u32) -> u32 {
     let max = normalize_max_concurrent(max_concurrent);
     active_processes.saturating_sub(max)
@@ -132,6 +132,7 @@ pub struct ProcessBudgetSnapshot {
 
 impl ProcessBudgetSnapshot {
     /// Soft-fail empty snapshot (settings defaults, zero occupancy).
+    #[allow(dead_code)]
     pub fn empty() -> Self {
         Self {
             live: 0,

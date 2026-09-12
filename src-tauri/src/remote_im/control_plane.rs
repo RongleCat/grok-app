@@ -1,7 +1,6 @@
 //! Pure control-plane transitions for Remote IM (/p /r / bind / resume).
 //! Network-free and unit-tested against production functions.
 
-#![allow(dead_code)] // residual-clippy: CLI arg builders for future grok turn variants
 use super::context::{ContextCompactSnapshot, ContextUsageSnapshot};
 use super::types::TrustedProject;
 use serde::{Deserialize, Serialize};
@@ -355,6 +354,7 @@ pub fn format_session_menu(sessions: &[AppSessionEntry], lang: &str) -> String {
 
 /// Whether this channel should use interactive cards for /p /r.
 /// Instance `presenter` / `enable_card` override the channel default.
+#[allow(dead_code)]
 pub fn channel_uses_cards(channel: &str) -> bool {
     channel_uses_cards_with_options(channel, None)
 }
@@ -864,6 +864,7 @@ pub fn build_dingtalk_session_card(sessions: &[AppSessionEntry], lang: &str) -> 
 
 /// CLI args for resume-capable grok turn (shipped helper used by grok_agent + tests).
 /// Default format is `streaming-json` (no partial stream events).
+#[allow(dead_code)]
 pub fn grok_turn_cli_args(
     prompt: &str,
     session_id: Option<&str>,
@@ -873,6 +874,7 @@ pub fn grok_turn_cli_args(
 }
 
 /// Headless `-p` argv builder with optional background-wait flags (CLI 0.2.117+).
+#[allow(dead_code)]
 pub fn grok_turn_cli_args_with_bg_wait(
     prompt: &str,
     session_id: Option<&str>,
@@ -891,6 +893,7 @@ pub fn grok_turn_cli_args_with_bg_wait(
 
 /// Headless `-p` argv with explicit output format + optional partial-stream flags
 /// (`--include-partial-messages` only when format is `streaming-messages-json`).
+#[allow(dead_code)]
 pub fn grok_turn_cli_args_with_stream(
     prompt: &str,
     session_id: Option<&str>,

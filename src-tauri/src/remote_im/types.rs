@@ -1,6 +1,5 @@
 //! Shared types for the in-process Remote IM runtime.
 
-#![allow(dead_code)] // residual-clippy: DTO fields for protocol completeness
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -9,7 +8,9 @@ use std::collections::HashMap;
 pub struct ChannelInstance {
     pub id: String,
     pub channel: String,
+    #[allow(dead_code)]
     pub name: String,
+    #[allow(dead_code)]
     pub enabled: bool,
     pub secrets: HashMap<String, String>,
     pub options: Value,
@@ -49,6 +50,7 @@ pub struct ConnectedChannel {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct SessionRecord {
     pub session_id: String,
     pub work_dir: String,
@@ -57,6 +59,7 @@ pub struct SessionRecord {
 }
 
 impl SessionRecord {
+    #[allow(dead_code)]
     pub fn new(work_dir: &str) -> Self {
         Self {
             session_id: uuid::Uuid::new_v4().to_string(),

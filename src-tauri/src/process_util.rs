@@ -1,6 +1,5 @@
 //! Cross-platform process / path helpers (Windows GUI spawn, home dir, PATH).
 
-#![allow(dead_code)] // residual-clippy: tokio_command helper
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
@@ -99,6 +98,7 @@ pub fn apply_no_window_tokio(cmd: &mut tokio::process::Command) {
 /// tool/shell grandchildren. Do **not** apply on SSH/WSL-wrapped spawns —
 /// those children are remote or live inside WSL and must not get local
 /// process-group / taskkill semantics blindly.
+#[allow(dead_code)]
 pub fn apply_process_group_no_window_std(cmd: &mut StdCommand) {
     #[cfg(windows)]
     {
@@ -128,6 +128,7 @@ pub fn apply_process_group_no_window_tokio(cmd: &mut tokio::process::Command) {
 /// `taskkill` wait uses `thread::sleep` — never call the sync helper on a Tokio
 /// worker. ACP stop / reconnect timeouts must be able to elapse while tree-kill
 /// runs on the blocking pool.
+#[allow(dead_code)]
 pub async fn kill_process_tree_async(pid: u32) -> bool {
     #[cfg(windows)]
     {
@@ -158,6 +159,7 @@ pub async fn kill_process_tree_async(pid: u32) -> bool {
 /// successfully. On non-Windows this is a no-op that returns `false`.
 ///
 /// Prefer [`kill_process_tree_async`] from async ACP / session-manager paths.
+#[allow(dead_code)]
 pub fn kill_process_tree(pid: u32) -> bool {
     #[cfg(windows)]
     {
@@ -303,6 +305,7 @@ pub fn command(program: impl AsRef<std::ffi::OsStr>) -> StdCommand {
 }
 
 /// Build a `tokio::process::Command` with Windows console hidden + HOME.
+#[allow(dead_code)]
 pub fn tokio_command(program: impl AsRef<std::ffi::OsStr>) -> tokio::process::Command {
     let mut cmd = tokio::process::Command::new(program);
     apply_no_window_tokio(&mut cmd);
@@ -760,6 +763,7 @@ pub fn path_for_editor(path: &Path) -> String {
 }
 
 /// Percent-encode a local path for a `file://` URI (Linux ShowItems).
+#[allow(dead_code)]
 fn file_uri_from_path(path: &str) -> String {
     // file:// + absolute path; encode non-unreserved octets.
     let mut out = String::from("file://");

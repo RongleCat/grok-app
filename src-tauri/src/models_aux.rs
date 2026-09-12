@@ -6,7 +6,6 @@
 //! **Safety:** only touches those four keys under `[models]`. Never mutates
 //! `[models].default`, never activates provider routes, never rewrites auth.json.
 
-#![allow(dead_code)] // residual-clippy: prompt-rewrite / spawn-env helpers retained for routing experiments
 use serde::{Deserialize, Serialize};
 
 use crate::agent_home_config::{
@@ -220,6 +219,7 @@ pub fn apply_all_slots(text: &str, model_id: &str) -> String {
 }
 
 /// Ensure `[model.<id>]` has `api_key` when non-empty (does not touch other fields).
+#[allow(dead_code)]
 pub fn ensure_model_api_key(text: &str, model_id: &str, api_key: &str) -> String {
     let id = model_id.trim();
     let key = api_key.trim();
@@ -798,6 +798,7 @@ fn strip_inline_image_at_refs(line: &str) -> (String, Vec<String>) {
 /// across custom relays; Host describes images instead).
 ///
 /// `vision_aux_ok` only changes the fallback note text (legacy param kept for tests).
+#[allow(dead_code)]
 pub fn rewrite_prompt_guard_text_only(
     prompt: &str,
     text_only_main: bool,
@@ -827,6 +828,7 @@ pub fn rewrite_prompt_guard_text_only(
 
 /// Live config: rewrite agent prompt when needed. Never touches journal UI text.
 /// Prefer [`prepare_agent_prompt_for_main`] which also Host-describes images.
+#[allow(dead_code)]
 pub fn maybe_rewrite_agent_prompt(prompt: &str) -> String {
     let text = read_config_text();
     let list = match list_custom_providers() {
@@ -842,6 +844,7 @@ pub fn maybe_rewrite_agent_prompt(prompt: &str) -> String {
 ///
 /// Keys match Grok Build: `GROK_WEB_SEARCH_MODEL`, `GROK_IMAGE_DESCRIPTION_MODEL`,
 /// `GROK_SESSION_SUMMARY_MODEL`, `GROK_PROMPT_SUGGESTIONS_MODEL`.
+#[allow(dead_code)]
 pub fn aux_model_spawn_env() -> Vec<(String, String)> {
     let text = read_config_text();
     let pairs = [
@@ -1200,10 +1203,12 @@ pub fn host_vision_will_run(prompt: &str) -> bool {
 pub struct HostVisionPrep {
     pub prompt: String,
     /// Whether we attempted host vision (images present on text-only main).
+    #[allow(dead_code)]
     pub ran: bool,
     /// True if at least one description succeeded (official or HTTP).
     pub ok: bool,
     /// Short status for logs / legacy chips.
+    #[allow(dead_code)]
     pub detail: String,
     /// Full description text for journal / expandable tool body (may be long).
     pub description: String,
@@ -1214,6 +1219,7 @@ pub struct HostVisionPrep {
 /// - Host describes images: **prefer official ACP**, else `grok -p`, else Amux HTTP
 ///
 /// Safe to call for every send; no-op when main is multimodal.
+#[allow(dead_code)]
 pub async fn prepare_agent_prompt_for_main(prompt: &str) -> String {
     prepare_agent_prompt_for_main_detailed(prompt, None)
         .await

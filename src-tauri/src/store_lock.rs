@@ -4,7 +4,6 @@
 //! We take an exclusive lock around read-modify-write of index files so the
 //! index is not half-written, and use temp+rename for atomic replace.
 
-#![allow(dead_code)] // residual-clippy: is_lock_busy helper
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
@@ -119,6 +118,7 @@ pub fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
 }
 
 /// True if error string is a lock contention failure.
+#[allow(dead_code)]
 pub fn is_lock_busy(err: &str) -> bool {
     err.contains("LOCK_BUSY")
 }

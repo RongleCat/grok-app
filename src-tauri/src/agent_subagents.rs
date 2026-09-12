@@ -3,7 +3,6 @@
 //! CLI: `--no-subagents`, `GROK_SUBAGENTS`, `[subagents] enabled`.
 //! Enabled by default; when App setting is off, force-disable at spawn.
 
-#![allow(dead_code)] // residual-clippy: force disable helper
 use crate::agent_home_config::{set_table_bool, update_config_toml_if_independent};
 
 /// Top-level CLI flags (before `agent`) for the subagents_enabled setting.
@@ -26,6 +25,7 @@ pub fn subagents_spawn_env_value(enabled: bool) -> Option<&'static str> {
 }
 
 /// When off, always force-disable so config cannot re-enable subagents.
+#[allow(dead_code)]
 pub fn should_force_disable_subagents(subagents_enabled: bool) -> bool {
     !subagents_enabled
 }

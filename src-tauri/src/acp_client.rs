@@ -1,7 +1,6 @@
 //! Real ACP client: spawn `grok agent stdio`, JSON-RPC line framing.
 //! Default production transport. Mock only when GROK_APP_ACP=mock.
 
-#![allow(dead_code)] // residual-clippy: spawn-flag helpers and unused field reads kept for protocol parity
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -61,6 +60,7 @@ pub enum AcpEvent {
         rpc_id: u64,
         tool_call_id: Option<String>,
         questions: Vec<AskUserQuestionItem>,
+        #[allow(dead_code)]
         raw: Value,
     },
     PermissionRequest {
@@ -352,6 +352,7 @@ pub struct AcpClient {
     pending: ParkingMutex<HashMap<u64, Pending>>,
     event_tx: mpsc::UnboundedSender<(Option<String>, AcpEvent)>,
     agent_session_id: ParkingMutex<Option<String>>,
+    #[allow(dead_code)]
     cli_path: PathBuf,
     cwd: PathBuf,
     stopped: AtomicBool,
@@ -449,6 +450,7 @@ impl AcpClient {
             .unwrap_or(false)
     }
 
+    #[allow(dead_code)]
     pub async fn spawn(
         cli_path: PathBuf,
         cwd: PathBuf,
@@ -2548,6 +2550,7 @@ impl AcpClient {
     }
 
     /// Back-compat: always create a new session.
+    #[allow(dead_code)]
     pub async fn initialize_and_new_session(&self) -> Result<String, AgentError> {
         self.initialize_and_open_session(None, false)
             .await
@@ -2773,6 +2776,7 @@ impl AcpClient {
     /// - Older / reverse-RPC style: `_x.ai/interject`
     ///
     /// Interject into the most recently bound agent session.
+    #[allow(dead_code)]
     pub async fn interject(&self, text: &str) -> Result<(), String> {
         let sid = self
             .agent_session_id
@@ -2853,6 +2857,7 @@ impl AcpClient {
     }
 
     /// List rewind points (one per user prompt). Grok extension `x.ai/rewind/points`.
+    #[allow(dead_code)]
     pub async fn rewind_points(&self) -> Result<Value, String> {
         let sid = self
             .agent_session_id
@@ -2863,6 +2868,7 @@ impl AcpClient {
     }
 
     /// List rewind points on an explicit session (shared-process safe).
+    #[allow(dead_code)]
     pub async fn rewind_points_for(&self, session_id: &str) -> Result<Value, String> {
         self.request("x.ai/rewind/points", json!({ "sessionId": session_id }))
             .await
@@ -2875,6 +2881,7 @@ impl AcpClient {
     /// For "edit last user message", pass the **previous** user-turn index, or when
     /// editing the only user message use index `0` with a full clear via host journal.
     /// Truncate agent conversation on the most recently bound session.
+    #[allow(dead_code)]
     pub async fn rewind_execute(
         &self,
         target_prompt_index: u32,
@@ -3002,6 +3009,7 @@ impl AcpClient {
         self.write_line(&msg).await
     }
 
+    #[allow(dead_code)]
     pub fn agent_session_id(&self) -> Option<String> {
         self.agent_session_id.lock().clone()
     }
@@ -5098,6 +5106,7 @@ pub fn is_hard_transport_retry_reason(reason: &str) -> bool {
 /// - Bare `failed` / `error` only abort once we have used most of the budget —
 ///   some relays emit `failed` on a single stream blip while still retrying.
 /// - Otherwise abort when `attempt` reaches the host/agent cap.
+#[allow(dead_code)]
 pub fn should_abort_provider_retry(attempt: u32, max_retries: u32, status: &str) -> bool {
     should_abort_provider_retry_ex(attempt, max_retries, status, "")
 }

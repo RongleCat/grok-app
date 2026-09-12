@@ -8,7 +8,6 @@
 //! The app may spawn a background leader and track its PID for stop; externally
 //! started leaders are still visible via socket probe + `leader list`.
 
-#![allow(dead_code)] // residual-clippy: mask_secret
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Mutex;
@@ -128,6 +127,7 @@ pub fn path_age_secs(path: &Path, now: SystemTime) -> Option<u64> {
 }
 
 /// Mask secrets / tokens for UI display (never show full serve secret).
+#[allow(dead_code)]
 pub fn mask_secret(value: &str) -> String {
     let t = value.trim();
     if t.is_empty() {

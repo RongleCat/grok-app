@@ -13,7 +13,6 @@
 //! `rules`) are left untouched. Writes target the active GROK_HOME for the
 //! current `session_data_mode` (agent-home or `~/.grok`).
 
-#![allow(dead_code)] // residual-clippy: rule mutate helpers
 use std::fs;
 use std::path::PathBuf;
 
@@ -79,6 +78,7 @@ pub fn normalize_rule(raw: &str) -> Option<String> {
 }
 
 /// Normalize an action name to `allow` | `deny` | `ask`.
+#[allow(dead_code)]
 pub fn normalize_action(raw: &str) -> Option<&'static str> {
     match raw.trim().to_ascii_lowercase().as_str() {
         "allow" => Some("allow"),
@@ -113,6 +113,7 @@ pub fn normalize_rules(rules: &PermissionRules) -> PermissionRules {
 }
 
 /// Pure helper: add a rule to one action bucket (deduped).
+#[allow(dead_code)]
 pub fn add_rule(
     rules: &PermissionRules,
     action: &str,
@@ -134,6 +135,7 @@ pub fn add_rule(
 }
 
 /// Pure helper: remove a rule from one action bucket (exact match after trim).
+#[allow(dead_code)]
 pub fn remove_rule(
     rules: &PermissionRules,
     action: &str,

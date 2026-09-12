@@ -5,7 +5,6 @@
 //!   - summary.json — title, timestamps, cwd
 //!   - chat_history.jsonl — line-delimited messages
 
-#![allow(dead_code)] // residual-clippy: pick_latest helper
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -90,6 +89,7 @@ struct SummaryFile {
 #[derive(Debug, Deserialize)]
 struct SummaryInfo {
     #[serde(default)]
+    #[allow(dead_code)]
     id: Option<String>,
     #[serde(default)]
     cwd: Option<String>,
@@ -240,6 +240,7 @@ fn ensure_untrusted_project_for_cwd(cwd: &str) {
 /// Pick the newest session among rows whose `cwd` matches `project_path` (pure).
 ///
 /// Compares `updated_at` lexicographically (RFC3339-friendly).
+#[allow(dead_code)]
 pub fn pick_latest_session_for_cwd<'a, T>(
     rows: &'a [T],
     project_path: &str,
@@ -1518,6 +1519,7 @@ fn load_tool_names_from_events(events_path: &std::path::Path) -> HashMap<String,
 struct ToolCallRecord {
     name: String,
     label: String,
+    #[allow(dead_code)]
     kind: String,
     input: Option<String>,
 }

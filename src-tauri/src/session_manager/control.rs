@@ -1,6 +1,5 @@
 //! Policy, model, disconnect, recycle, permission resolution.
 
-#![allow(dead_code)] // residual-clippy: set_permission_policy / tracked counts
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
@@ -16,6 +15,7 @@ use crate::store::{self};
 use super::*;
 
 impl SessionManager {
+    #[allow(dead_code)]
     pub fn set_permission_policy(&self, policy: PermissionPolicy) {
         if let Some(s) = self.inner.lock().as_mut() {
             s.policy = policy;
@@ -260,6 +260,7 @@ impl SessionManager {
 
     /// Counts of tracked live shell / background / parked entries (alive or not).
     /// Used by diagnostics and unit tests — not the same as `active_process_count`.
+    #[allow(dead_code)]
     pub fn tracked_agent_map_counts(&self) -> (usize, usize, usize) {
         let live = self.inner.lock().is_some() as usize;
         let background = self.background.lock().len();

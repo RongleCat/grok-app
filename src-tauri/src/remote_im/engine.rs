@@ -1,6 +1,5 @@
 //! Message engine: ACL, slash commands, Grok turns, project/session bind.
 
-#![allow(dead_code)] // residual-clippy: ephemeral engine API
 use super::app_sessions;
 use super::context::{
     estimate_visible_tokens, format_tokens, latest_compact_from_messages, ContextCompactSnapshot,
@@ -125,6 +124,7 @@ impl Engine {
     }
 
     /// Test helper: ephemeral store.
+    #[allow(dead_code)]
     pub fn new_ephemeral(outbound: OutboundRouter, allow_remote_yolo: bool) -> Self {
         Self {
             store: SessionStore::ephemeral(),
@@ -151,6 +151,7 @@ impl Engine {
         self.instances.lock().insert(inst.id.clone(), inst);
     }
 
+    #[allow(dead_code)]
     pub fn remove_instance(&self, id: &str) {
         self.instances.lock().remove(id);
     }

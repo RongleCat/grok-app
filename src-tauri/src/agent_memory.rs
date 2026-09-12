@@ -3,7 +3,6 @@
 //! CLI: `--experimental-memory` / `--no-memory`, `GROK_MEMORY`, `[memory] enabled`,
 //! `grok memory clear`.
 
-#![allow(dead_code)] // residual-clippy: search helpers
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -32,6 +31,7 @@ pub fn memory_spawn_env_value(enabled: bool) -> &'static str {
 }
 
 /// When off, always force-disable so config cannot leak memory on.
+#[allow(dead_code)]
 pub fn should_force_disable_memory(experimental_memory: bool) -> bool {
     !experimental_memory
 }
@@ -994,6 +994,7 @@ fn search_file_content(path: &Path, query_lower: &str, query_len: usize) -> Opti
 /// Always a keyword / file-body scan — never invents embeddings. When
 /// `embedding_configured` is true but no host hybrid CLI exists, `search_kind`
 /// is `hybrid_unavailable` (honest soft-fail).
+#[allow(dead_code)]
 pub fn search_workspace_memory(
     query: &str,
     cwd: Option<&Path>,

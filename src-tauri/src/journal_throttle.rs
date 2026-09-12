@@ -4,7 +4,6 @@
 //! token. Flush at most every [`DEFAULT_JOURNAL_FLUSH_MS`], on paragraph
 //! boundaries, or when forced (turn end / stop / disconnect).
 
-#![allow(dead_code)] // residual-clippy: accessor methods
 use std::time::{Duration, Instant};
 
 /// Spec default: ≥500ms between mid-stream journal flushes.
@@ -66,10 +65,12 @@ impl JournalWriteThrottle {
         Self::new(DEFAULT_JOURNAL_FLUSH_MS)
     }
 
+    #[allow(dead_code)]
     pub fn min_interval(&self) -> Duration {
         self.min_interval
     }
 
+    #[allow(dead_code)]
     pub fn last_flush(&self) -> Option<Instant> {
         self.last_flush
     }

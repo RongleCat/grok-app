@@ -1,6 +1,5 @@
 //! Feishu / Lark long-connection (WS) + REST outbound — pure Rust.
 
-#![allow(dead_code)] // residual-clippy: download_message_resource
 use super::super::outbound::{http_client, opt_str, secret_or_opt};
 use super::super::pb_frame::{decode_frame, encode_frame, Frame, Header};
 use super::super::types::{ChannelInstance, IncomingMessage};
@@ -739,6 +738,7 @@ pub fn protocol_name() -> &'static str {
 }
 
 /// Download inbound image bytes (text-adjacent media path).
+#[allow(dead_code)]
 pub async fn download_message_resource(
     channel: &str,
     secrets: &HashMap<String, String>,

@@ -1,6 +1,5 @@
 //! Weixin personal (ilink) QR login — mirrors cc-connect weixin setup.
 
-#![allow(dead_code)] // residual-clippy: scan/verify helpers for multi-channel reg
 use super::{ScanBeginDto, ScanPollDto};
 use serde::Deserialize;
 use serde_json::Value;
@@ -44,6 +43,7 @@ pub struct QrStatusResponse {
     #[serde(default, rename = "ilink_user_id")]
     pub ilink_user_id: String,
     #[serde(default, rename = "base_url")]
+    #[allow(dead_code)]
     pub base_url: String,
 }
 
@@ -145,10 +145,12 @@ async fn poll_status(
 }
 
 /// Channels that have a real Host scan implementation.
+#[allow(dead_code)]
 pub fn scan_supported_channels() -> &'static [&'static str] {
     &["feishu", "lark", "weixin"]
 }
 
+#[allow(dead_code)]
 pub fn channel_supports_scan(channel: &str) -> bool {
     scan_supported_channels().contains(&channel)
 }
@@ -325,6 +327,7 @@ pub async fn scan_poll(_device_code: &str) -> Result<ScanPollDto, String> {
 }
 
 /// Verify token with a short getUpdates call.
+#[allow(dead_code)]
 pub async fn verify_token(base_url: &str, token: &str, route_tag: &str) -> Result<(), String> {
     let client = http()?;
     let url = format!("{}/ilink/bot/getupdates", base_url.trim_end_matches('/'));

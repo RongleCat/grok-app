@@ -1,7 +1,6 @@
 //! Project-scoped filesystem browser for the right-pane resource viewer.
 //! All paths are resolved under an explicit project root (no escape).
 
-#![allow(dead_code)] // Legacy Office text-extraction helpers remain available.
 use serde::Serialize;
 use std::fs;
 use std::io::Read;
@@ -239,6 +238,7 @@ fn mime_of(ext: &str, kind: &str) -> String {
 }
 
 /// Strip XML tags and decode a few common entities for OOXML / ODF preview text.
+#[allow(dead_code)]
 fn xml_to_plain(xml: &str) -> String {
     let mut out = String::with_capacity(xml.len() / 4);
     let mut in_tag = false;
@@ -303,6 +303,7 @@ fn xml_to_plain(xml: &str) -> String {
     cleaned.trim().to_string()
 }
 
+#[allow(dead_code)]
 fn decode_entity(s: &str) -> Option<(&'static str, usize)> {
     if s.starts_with("amp;") {
         Some(("&", 4))
@@ -321,6 +322,7 @@ fn decode_entity(s: &str) -> Option<(&'static str, usize)> {
     }
 }
 
+#[allow(dead_code)]
 fn read_zip_entry_text(path: &Path, entry_name: &str) -> Result<String, String> {
     let file = fs::File::open(path).map_err(|e| format!("open zip: {e}"))?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("zip: {e}"))?;
@@ -334,6 +336,7 @@ fn read_zip_entry_text(path: &Path, entry_name: &str) -> Result<String, String> 
     Ok(buf)
 }
 
+#[allow(dead_code)]
 fn read_zip_entries_matching(
     path: &Path,
     prefix: &str,
@@ -364,6 +367,7 @@ fn read_zip_entries_matching(
 }
 
 /// Extract plain text from Office Open XML / ODF packages.
+#[allow(dead_code)]
 fn extract_office_text(path: &Path, kind: &str) -> Result<String, String> {
     match kind {
         "docx" => {

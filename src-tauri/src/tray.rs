@@ -5,7 +5,6 @@
 //! (white glyph on transparency). Host picks by taskbar theme, not in-app theme.
 //! **App dock / .exe icons** → generated from `icons/icon (1).png` (do not mix).
 
-#![allow(dead_code)] // residual-clippy: busy_tooltip helper
 use std::sync::Mutex;
 
 use tauri::{
@@ -359,6 +358,7 @@ fn handle_menu_event(app: &AppHandle, event: MenuEvent) {
 
 /// Windows notification-area badge. Named by the *taskbar*, not the in-app theme.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 enum WinTrayBadge {
     /// Light taskbar → black tile, white glyph.
     LightTaskbar,
@@ -366,6 +366,7 @@ enum WinTrayBadge {
     DarkTaskbar,
 }
 
+#[allow(dead_code)]
 fn win_tray_badge(taskbar_light: bool) -> WinTrayBadge {
     if taskbar_light {
         WinTrayBadge::LightTaskbar
@@ -378,6 +379,7 @@ fn win_tray_badge(taskbar_light: bool) -> WinTrayBadge {
 ///
 /// Prefer `SystemUsesLightTheme` (taskbar / notification area). Fall back to
 /// `AppsUseLightTheme`. Missing both → dark taskbar (Win11 default).
+#[allow(dead_code)]
 fn taskbar_is_light_from_dwords(system: Option<u32>, apps: Option<u32>) -> bool {
     system.or(apps).is_some_and(|v| v != 0)
 }
@@ -528,6 +530,7 @@ pub fn tray_refresh(app: AppHandle) -> Result<(), String> {
 }
 
 /// Pure: dock badge count value. `0` → clear (`None`).
+#[allow(dead_code)]
 pub fn badge_count_value(count: u32) -> Option<i64> {
     if count == 0 {
         None
@@ -537,6 +540,7 @@ pub fn badge_count_value(count: u32) -> Option<i64> {
 }
 
 /// Pure: macOS dock badge label text. `0` → clear (`None`).
+#[allow(dead_code)]
 pub fn badge_label_value(count: u32) -> Option<String> {
     if count == 0 {
         None

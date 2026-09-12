@@ -4,16 +4,18 @@
 //! long answers. Buffer per turn and flush on a short timer, char budget,
 //! phase boundary, or terminal `done`.
 
-#![allow(dead_code)] // residual-clippy: normalize bounds helpers
 use std::time::{Duration, Instant};
 
 /// Default coalesce window (ms) before a non-forced flush.
 pub const DEFAULT_STREAM_EMIT_MS: u64 = 40;
 /// Flush once pending text reaches this many UTF-8 bytes (approx chars).
 pub const DEFAULT_STREAM_EMIT_MAX_CHARS: usize = 600;
+#[allow(dead_code)]
 pub const MIN_STREAM_EMIT_MS: u64 = 8;
+#[allow(dead_code)]
 pub const MAX_STREAM_EMIT_MS: u64 = 250;
 
+#[allow(dead_code)]
 pub fn normalize_stream_emit_ms(raw: u64) -> u64 {
     raw.clamp(MIN_STREAM_EMIT_MS, MAX_STREAM_EMIT_MS)
 }

@@ -1,7 +1,6 @@
 //! Wallpaper source: X search + Imagine generate via headless Grok CLI,
 //! plus allowlisted X / Imagine / Grok-album media download into the library.
 
-#![allow(dead_code)] // residual-clippy: kind_from_mime
 use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
@@ -34,6 +33,7 @@ const MAX_X_GALLERY_RESULTS: usize = 16;
 const MIN_X_GALLERY_RESULTS_BEFORE_SUPPLEMENT: usize = 6;
 pub(crate) const X_SEARCH_FIRST_ROUND_CALLS: u32 = 2;
 pub(crate) const X_SEARCH_SUPPLEMENT_CALLS: u32 = 1;
+#[allow(dead_code)]
 pub(crate) const X_SEARCH_TOTAL_CALLS: u32 = X_SEARCH_FIRST_ROUND_CALLS + X_SEARCH_SUPPLEMENT_CALLS;
 /// Headless X search budget.
 const X_SEARCH_TIMEOUT: Duration = Duration::from_secs(150);
@@ -551,6 +551,7 @@ fn mime_from_ext(ext: &str) -> &'static str {
     }
 }
 
+#[allow(dead_code)]
 fn ext_from_mime_or_url(mime: &str, url: &str) -> String {
     let m = mime.to_ascii_lowercase();
     if m.contains("jpeg") || m.contains("jpg") {
@@ -587,6 +588,7 @@ fn ext_from_mime_or_url(mime: &str, url: &str) -> String {
     "jpg".into()
 }
 
+#[allow(dead_code)]
 fn kind_from_mime(mime: &str) -> &'static str {
     if mime.starts_with("video/") {
         "video"
@@ -1065,6 +1067,7 @@ where
 enum WallpaperCliPipeRead {
     Data(usize),
     Pending,
+    #[allow(dead_code)]
     Eof,
 }
 
@@ -1643,6 +1646,7 @@ struct ImageProbe {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ValidatedImagePrefix {
+    #[allow(dead_code)]
     pub(crate) mime: &'static str,
     pub(crate) dimensions: Option<(u32, u32)>,
 }
@@ -1899,6 +1903,7 @@ async fn inspect_image_url(client: &reqwest::Client, url: &str) -> Option<ImageP
 }
 
 /// Probe whether a remote URL is a reachable image (filters broken gallery thumbs).
+#[allow(dead_code)]
 pub async fn probe_image_reachable(client: &reqwest::Client, url: &str) -> bool {
     inspect_image_url(client, url).await.is_some()
 }
@@ -2146,6 +2151,7 @@ pub(crate) async fn filter_reachable_gallery_items_cancellable(
     merge_rank_x_gallery_items(out)
 }
 
+#[allow(dead_code)]
 pub async fn filter_reachable_gallery_items(
     items: Vec<WallpaperGalleryItem>,
 ) -> Vec<WallpaperGalleryItem> {
@@ -2276,6 +2282,7 @@ fn x_search_round(
 
 /// Sync first-round headless search only (no network probe). Prefer
 /// [`x_search_async`] for the complete quality and supplement pipeline.
+#[allow(dead_code)]
 pub fn x_search(query: &str, sort: Option<&str>) -> WallpaperSearchResult {
     x_search_round(query, sort, X_SEARCH_FIRST_ROUND_CALLS, false, &[], None)
 }
@@ -2359,6 +2366,7 @@ pub(crate) fn x_gallery_reference_ids(items: &[WallpaperGalleryItem]) -> Vec<Str
 }
 
 /// Headless X search + drop unreachable media URLs before returning to UI.
+#[allow(dead_code)]
 pub async fn x_search_async(query: &str, sort: Option<&str>) -> WallpaperSearchResult {
     x_search_cli_outcome(query, sort, None).await.result
 }

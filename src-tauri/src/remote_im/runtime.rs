@@ -1,6 +1,5 @@
 //! In-process multi-channel Remote IM runtime (Rust only).
 
-#![allow(dead_code)] // residual-clippy: runtime holder fields
 use super::channels;
 use super::config;
 use super::engine::Engine;
@@ -18,7 +17,9 @@ pub struct RuntimeHandle {
     connectors: Vec<JoinHandle<()>>,
     /// Kept alive so the pump channel never closes while connectors restart.
     _keepalive_tx: mpsc::Sender<IncomingMessage>,
+    #[allow(dead_code)]
     outbound: OutboundRouter,
+    #[allow(dead_code)]
     engine: Arc<Engine>,
 }
 

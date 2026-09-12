@@ -1,6 +1,5 @@
 //! Permission scope_key rules (§17.3) + session allow cache.
 
-#![allow(dead_code)] // residual-clippy: request struct / cache clear
 use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
 
@@ -81,6 +80,7 @@ pub fn is_edit_tool(tool_name: &str) -> bool {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct PermissionRequest {
     pub request_id: u64,
     pub session_id: String,
@@ -708,6 +708,7 @@ pub fn fallback_always_allow_for_tool(tool_name: &str) -> &'static str {
 
 /// Resolve session / always-allow wire id (CLI uses `always-allow`, plus
 /// tool-scoped `allow-always-command` / `allow-always-mcp` / `allow-always-domain`).
+#[allow(dead_code)]
 pub fn resolve_always_allow_option_id(options: &serde_json::Value) -> String {
     resolve_always_allow_option_id_for_tool(options, "")
 }
@@ -763,6 +764,7 @@ fn pick_session_scoped_option_id(options: &serde_json::Value) -> Option<String> 
 
 /// True when `option_id` matches an entry in the ACP options list (exact or
 /// hyphen/underscore-normalized).
+#[allow(dead_code)]
 pub fn option_id_in_list(options: &serde_json::Value, option_id: &str) -> bool {
     let Some(arr) = options.as_array() else {
         return false;
@@ -817,6 +819,7 @@ pub fn wire_option_id_from_list(options: &serde_json::Value, option_id: &str) ->
 ///
 /// `tool_name` is used only when the options list is empty so session-allow
 /// can fall back to a tool-scoped wire id (#542).
+#[allow(dead_code)]
 pub fn coerce_wire_option_id(
     decision: &str,
     client_option_id: Option<&str>,
@@ -917,6 +920,7 @@ impl SessionAllowCache {
         self.keys.contains(key)
     }
 
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.keys.clear();
     }
