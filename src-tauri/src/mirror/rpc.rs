@@ -214,7 +214,7 @@ pub async fn dispatch(
                 store::create_session(project_id, title, scheduled).map_err(RpcError::host)?;
             // Desktop + every other mirror client must see the new row without a
             // manual refresh (the index was mutated behind their back).
-            notify_sessions_changed(app, "create", &meta.id);
+            super::notify_sessions_changed(app, "create", &meta.id);
             Ok(serde_json::to_value(meta).map_err(|e| RpcError::host(e.to_string()))?)
         }
         "session.rename" => {
@@ -228,7 +228,7 @@ pub async fn dispatch(
             if let (Some(app), Some(mgr)) = (app, mgr) {
                 let _ = mgr.apply_title(app, &meta.id, &meta.title);
             }
-            notify_sessions_changed(app, "rename", &meta.id);
+            super::notify_sessions_changed(app, "rename", &meta.id);
             Ok(serde_json::to_value(meta).map_err(|e| RpcError::host(e.to_string()))?)
         }
         "session.autoTitle" => {
@@ -247,7 +247,7 @@ pub async fn dispatch(
                     first_message,
                 );
             }
-            notify_sessions_changed(app, "autoTitle", &meta.id);
+            super::notify_sessions_changed(app, "autoTitle", &meta.id);
             Ok(serde_json::to_value(meta).map_err(|e| RpcError::host(e.to_string()))?)
         }
 
@@ -377,19 +377,6 @@ pub async fn account_summary_light(_app: &AppHandle) -> Value {
         "email": status.profile.email,
         "channel": status.channel,
     })
-}
-
-/// Tell every attached surface (desktop WebView + all mirror clients) that the
-/// sessions index changed, so each can re-run `sessions.list`. Fired only from
-/// the mirror RPC write path — desktop commands already refresh in-process.
-fn notify_sessions_changed(app: Option<&AppHandle>, reason: &str, session_id: &str) {
-    if let Some(app) = app {
-        super::fanout_event(
-            app,
-            "sessions://changed",
-            json!({ "reason": reason, "sessionId": session_id }),
-        );
-    }
 }
 
 fn param_string(params: &Value, keys: &[&str]) -> Option<String> {

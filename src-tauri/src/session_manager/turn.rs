@@ -211,6 +211,14 @@ impl SessionManager {
                 s.saw_model_output = false;
                 return Err(format!("JOURNAL_WRITE_FAILED: {e}"));
             }
+            // Sidebar recency: last activity, not last click. Pin stays organizational.
+            s.meta.updated_at = user_row.created_at;
+            if let Err(e) = store::update_session_meta(&s.meta) {
+                tracing::warn!(
+                    session = %s.app_session_id,
+                    "turn-start session metadata update failed after user journal: {e}"
+                );
+            }
             Ok((
                 s.backend.clone(),
                 s.app_session_id.clone(),
@@ -263,6 +271,7 @@ impl SessionManager {
                 "streamMessageId": message_id,
             }),
         );
+        crate::mirror::notify_sessions_changed(Some(&app), "turn", &app_sid);
 
         // ── Host vision (custom text-only main + @image only) ──────────────
         // Official Grok route: never Host-describe (native multimodal).

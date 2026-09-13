@@ -195,6 +195,10 @@ import {
   STOP_LATCH_MS,
 } from "@/lib/stopLatch";
 import {
+  closeImageViewerLayer,
+  isImageViewerLayerOpen,
+} from "@/components/ImageViewerContext";
+import {
   isSettingsEscapeOwnedByNestedLayer,
   shouldEscapeCloseSettings,
   shouldEscapeStopGeneration,
@@ -1360,6 +1364,14 @@ export function AppWorkbench() {
       if (e.key === "Escape") {
         const gate = escapeStopLiveRef.current;
         const voiceSteals = voiceStealsEscapeRef.current;
+        // Lightbox is a child of this listener; capture would otherwise stop the turn.
+        if (isImageViewerLayerOpen()) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          closeImageViewerLayer();
+          return;
+        }
         const nestedLayerOpen =
           gate.settingsOpen &&
           isSettingsEscapeOwnedByNestedLayer(
@@ -8896,8 +8908,8 @@ export function AppWorkbench() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (e.isComposing) return;
-      // Permission bar / dialogs own Escape when open.
-      if (perm || appDialog) return;
+      // Permission bar / dialogs / image lightbox own Escape when open.
+      if (perm || appDialog || isImageViewerLayerOpen()) return;
       e.preventDefault();
       e.stopPropagation();
       setShowChatFind(false);
@@ -11689,7 +11701,8 @@ export function AppWorkbench() {
         liveVoiceOpen ||
         showJsonSchemaModal ||
         phoneAccountOpen ||
-        sessionSelectMode,
+        sessionSelectMode ||
+        isImageViewerLayerOpen(),
     ),
   };
 

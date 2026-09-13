@@ -24,6 +24,7 @@ import {
 import { resolveImageSrc } from "@/lib/imageSrc";
 import {
   ImageViewerContext,
+  registerImageViewerLayer,
   type ImageSlideInput,
   type ImageViewerApi,
 } from "./ImageViewerContext";
@@ -361,6 +362,11 @@ export function ImageViewerProvider({
     }),
     [close, copyImage, openViewer, viewerIsOpen],
   );
+
+  useEffect(() => {
+    registerImageViewerLayer({ isOpen: viewerIsOpen, close });
+    return () => registerImageViewerLayer(null);
+  }, [close, viewerIsOpen]);
 
   useEffect(() => {
     if (!isOpen) return;

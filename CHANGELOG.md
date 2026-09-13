@@ -13,6 +13,14 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- Sending or finishing a chat moves it to the top of that project's list. Pinned chats stay first.
+- Esc in an image preview closes the preview instead of stopping the turn.
+
+**中文 · 修复**
+- 发送或完成一轮对话后，该会话会排到所属项目列表顶部。置顶会话仍在最前。
+- 图片预览打开时按 Esc 会关掉预览，而不会停止当前生成。
+
 ## [0.2.35] - 2026-09-13
 
 > **Highlight:** Multi-root workspaces, shared-cookie Google login, and steadier chat follow.

@@ -9,7 +9,12 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ImageViewerProvider } from "./ImageViewer";
-import { useImageViewer, type ImageViewerApi } from "./ImageViewerContext";
+import {
+  closeImageViewerLayer,
+  isImageViewerLayerOpen,
+  useImageViewer,
+  type ImageViewerApi,
+} from "./ImageViewerContext";
 
 const resolveImage = vi.hoisted(() =>
   vi.fn(async (src: string): Promise<string | null> => src),
@@ -148,11 +153,24 @@ describe("ImageViewer lifecycle", () => {
   it("reports whether the lightbox currently owns the preview layer", async () => {
     const view = setup();
     expect(view.api.isOpen()).toBe(false);
+    expect(isImageViewerLayerOpen()).toBe(false);
     act(() => view.api.open(["image.jpg"]));
     await waitFor(() => expect(view.api.isOpen()).toBe(true));
+    expect(isImageViewerLayerOpen()).toBe(true);
     act(() => view.api.close());
     expect(view.api.isOpen()).toBe(false);
+    expect(isImageViewerLayerOpen()).toBe(false);
     view.unmount();
+    expect(view.api.isOpen()).toBe(false);
+    expect(isImageViewerLayerOpen()).toBe(false);
+  });
+
+  it("closes the registered lightbox layer without stopping a turn", async () => {
+    const view = setup();
+    act(() => view.api.open(["image.jpg"]));
+    await waitFor(() => expect(isImageViewerLayerOpen()).toBe(true));
+    act(() => closeImageViewerLayer());
+    expect(isImageViewerLayerOpen()).toBe(false);
     expect(view.api.isOpen()).toBe(false);
   });
 

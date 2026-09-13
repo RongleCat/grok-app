@@ -29,6 +29,27 @@ export interface ImageViewerApi {
   copyImage: (pathOrUrl: string) => Promise<boolean>;
 }
 
+type ImageViewerLayer = {
+  isOpen: () => boolean;
+  close: () => void;
+};
+
+let registeredLayer: ImageViewerLayer | null = null;
+
+/** Workbench capture-phase Esc reads this; the provider is a child of that listener. */
+export function registerImageViewerLayer(layer: ImageViewerLayer | null): void {
+  registeredLayer = layer;
+}
+
+export function isImageViewerLayerOpen(): boolean {
+  return registeredLayer?.isOpen() === true;
+}
+
+/** Close the open lightbox. No-op when the layer is already closed. */
+export function closeImageViewerLayer(): void {
+  if (registeredLayer?.isOpen()) registeredLayer.close();
+}
+
 /**
  * Keep context identity outside the provider's Fast Refresh boundary so
  * mounted providers and refreshed consumers retain the same context.

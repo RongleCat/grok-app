@@ -89,6 +89,12 @@ describe("shouldEscapeStopGeneration", () => {
       shouldEscapeStopGeneration({ ...free, settingsOpen: true }),
     ).toBe(false);
   });
+
+  it("defers to the image lightbox", () => {
+    expect(
+      shouldEscapeStopGeneration({ ...free, imageViewerOpen: true }),
+    ).toBe(false);
+  });
 });
 
 const settingsFree = {
@@ -138,6 +144,9 @@ describe("shouldEscapeCloseSettings", () => {
     ).toBe(false);
     expect(
       shouldEscapeCloseSettings({ ...settingsFree, nestedLayerOpen: true }),
+    ).toBe(false);
+    expect(
+      shouldEscapeCloseSettings({ ...settingsFree, imageViewerOpen: true }),
     ).toBe(false);
   });
 });

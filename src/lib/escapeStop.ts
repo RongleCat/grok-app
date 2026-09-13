@@ -1,7 +1,7 @@
 /**
  * Esc → stop generation / leave Settings.
  *
- * Overlays, permission, ask-user gate, find, menus, and voice own Escape first.
+ * Overlays, image lightbox, permission, ask-user gate, find, menus, and voice own Escape first.
  * Settings is a full-page view: Esc leaves it instead of stopping a
  * background turn. Nested GlassModal / Select layers still own Escape.
  */
@@ -25,6 +25,8 @@ export type EscapeStopOpts = {
   voiceStealsEscape?: boolean;
   /** Settings view is showing (Esc leaves; does not stop). */
   settingsOpen?: boolean;
+  /** Image / video lightbox owns Esc → close preview. */
+  imageViewerOpen?: boolean;
 };
 
 export type EscapeCloseSettingsOpts = Omit<
@@ -50,6 +52,7 @@ function escapeOwnedByOverlay(
     | "slashOrMenuOpen"
     | "promptHistoryOpen"
     | "voiceStealsEscape"
+    | "imageViewerOpen"
   >,
 ): boolean {
   return Boolean(
@@ -59,7 +62,8 @@ function escapeOwnedByOverlay(
       opts.askUserOpen ||
       opts.chatFindOpen ||
       opts.slashOrMenuOpen ||
-      opts.promptHistoryOpen,
+      opts.promptHistoryOpen ||
+      opts.imageViewerOpen,
   );
 }
 

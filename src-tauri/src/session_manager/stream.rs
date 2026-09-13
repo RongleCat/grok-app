@@ -944,6 +944,7 @@ impl SessionManager {
         }
         if let Some(app) = app {
             let _ = app.emit(pending.emit_event, pending.emit_payload);
+            crate::mirror::notify_sessions_changed(Some(app), "turn", &pending.session_id);
         }
     }
 
@@ -1378,6 +1379,7 @@ impl SessionManager {
                 "postStreamMessageId": post_stream_message_id,
             }),
         );
+        crate::mirror::notify_sessions_changed(Some(app), "turn", &s.app_session_id);
         Ok(())
     }
 
