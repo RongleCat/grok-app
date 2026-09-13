@@ -13,40 +13,40 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+## [0.2.35] - 2026-09-13
+
+> **Highlight:** Multi-root workspaces, shared-cookie Google login, and steadier chat follow.
+>
+> **中文 · 亮点：** 多根工作区、共享 Cookie 的 Google 登录，以及更稳的聊天贴底跟随。
+
 ### Added
-- Doctor reports multi-root workspace capability and reason (#1194).
-- Independent mode can enable write on extra workspace folders (#1194).
-- Project menu can declare extra workspace folders for a chat (#1194).
-- Settings → Appearance can set a solid-color wallpaper with Morandi presets.
-- Settings → Appearance can turn off chat virtual scrolling for native overflow.
+- Multi-root workspaces let a chat declare extra folders, with optional Independent write.
+- Doctor reports each multi-root workspace capability and reason.
+- Settings → Appearance adds solid-color Morandi wallpapers and a virtual-scroll toggle.
 - The composer branch chip can switch git branches in the current folder. Remote-only rows create a local tracking branch; a branch already checked out in another worktree opens that worktree instead.
 
 **中文 · 新增**
-- Doctor 会报告多根工作区的能力状态与原因（#1194）。
-- 独立模式下可为附加工作区文件夹开启写入（App 管理 sandbox profile）（#1194）。
-- 项目菜单可为会话声明附加工作区文件夹（#1194）。
-- 设置 → 外观可用莫兰迪纯色做背景，不必选图片。
-- 设置 → 外观可关闭聊天虚拟滚动，改回原生滚动（长对话滚动异常时可关）。
+- 多根工作区可为会话声明附加文件夹，独立模式可开写。
+- Doctor 会报告每个多根工作区的能力状态与原因。
+- 设置 → 外观支持莫兰迪纯色壁纸，并可关闭聊天虚拟滚动。
 - 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
 
 ### Fixed
-- Typing `@/goal …` no longer becomes a missing-file chip; the line stays as text (#1197).
+- Typing `@/goal` no longer becomes a missing-file chip. The line stays as text (#1197).
 - Windows PNG previews no longer claim a good file is corrupt (#1198).
 - The account menu no longer repeats the quota card when only one official account is saved.
 - Saving project rules no longer kills another chat's background agent mid-turn.
 - Trusted-project chats no longer reuse a prewarm process that skipped folder trust.
 - Switching git branches is blocked while an agent turn is still running in that folder.
-- Closing the Google sign-in window reloads the embedded browser so shared cookies apply.
-- Session rules and system prompt overrides apply on the next agent turn (#1171).
-- Trusted projects pass folder trust so AGENTS.md loads in App chats (#1171).
+- Google sign-in uses a shared-cookie window and reloads the embedded browser.
+- Session rules apply on the next agent turn; trusted projects load AGENTS.md.
 - Windows IME candidate windows stay nearer the composer while composing (#1170).
-- Thinking and tool streams keep following the chat tail after a brief trackpad pause (#1172).
+- Thinking streams keep following the chat tail after a brief trackpad pause (#1172).
 - Tray Quit on Windows arms the exit failsafe before trying to show the window.
-- Embedded browser opens Google sign-in in a shared-cookie login window.
 - Slow trackpad scrolling up from the chat tail no longer snaps back or flashes.
 - Wallpaper frost stays stable while streaming on macOS.
 - The user menu lists every saved official account and remaining quota again.
-- Math formulas render with one matching KaTeX version again. The bundled CSS had drifted ahead of the JS.
+- Math formulas render with one matching KaTeX version again.
 - Wallpaper no longer flashes black while streaming or following the chat tail.
 - Reconnect from the error banner always uses the latest connection state.
 - Imagine portrait thumbnails stay contained when the wallpaper window narrows.
@@ -55,24 +55,22 @@ See `docs/llm-wiki/release.md`.
 - Local video details now use the file's measured dimensions and duration.
 
 **中文 · 修复**
-- 输入 `@/goal …` 不再变成失效文件 chip，该行会保留为正文（#1197）。
+- 输入 `@/goal` 不再变成失效文件 chip，该行会保留为正文（#1197）。
 - Windows 本地 PNG 预览不再误报「文件可能已损坏」（#1198）。
 - 仅一个官方账号时，用户菜单不再重复显示额度卡片。
 - 保存项目规则时，不再打断同项目另一聊天后台进行中的 agent 回合。
 - 已信任项目不会复用未带文件夹信任的预热进程，AGENTS.md 可正确加载。
 - 同文件夹仍有 agent 回合在跑时，禁止切换 git 分支。
-- 关闭 Google 登录窗后会刷新内嵌页，共享 Cookie 才能生效。
-- 会话规则与系统提示覆盖会在下一轮 agent 生效，不再被旧会话 resume 吃掉（#1171）。
-- 已信任项目会传文件夹信任，App 内聊天能加载 AGENTS.md（#1171）。
-- Windows 组字时减少输入框高度抖动，候选栏更贴近输入区（#1170）。
-- 思考/工具流式增高时，触控板短暂停顿后内容区会继续贴底跟随，不再被输入框挡住（#1172）。
-- Windows 托盘退出会先启动退出保险，再尝试显示主窗口，卡住时也能退出。
-- 内嵌浏览器的 Google 登录改为共享 Cookie 的登录窗，完成后回到内嵌页。
+- Google 登录改用共享 Cookie 窗口，关闭后刷新内嵌页。
+- 会话规则在下一轮生效；已信任项目会加载 AGENTS.md。
+- Windows 组字时候选栏更贴近输入区（#1170）。
+- 思考流式增高时，短暂停顿后内容区会继续贴底跟随（#1172）。
+- Windows 托盘退出会先启动退出保险，再尝试显示主窗口。
 - 从聊天底部慢慢上滑时，不再被弹回底部或闪一下。
-- 流式输出时壁纸霜化层保持稳定，不再随 stream-perf 重建。
+- 流式输出时壁纸霜化层保持稳定。
 - 用户菜单再次列出本机已保存的官方账号及各自剩余额度。
-- 数学公式恢复 CSS 与 JS 同版本渲染，不再出现样式超前于脚本。
-- 流式输出和自动跟随聊天底部时，静态及动态壁纸不再闪黑。
+- 数学公式恢复 CSS 与 JS 同版本渲染。
+- 流式输出和自动跟随聊天底部时，壁纸不再闪黑。
 - 错误横幅上的重连始终使用最新的连接状态。
 - 壁纸窗口缩小时，Imagine 纵向缩略图不再挤压错位。
 - 「新功能」弹窗不再漏掉部分条目。
@@ -80,15 +78,15 @@ See `docs/llm-wiki/release.md`.
 - 本地视频详情现在显示文件实测的尺寸与时长。
 
 ### Changed
-- Ctrl+Tab fills the selected chat row. Busy chats show the same spinner as the sidebar (#1146).
-- About shows the git short hash when the build is not an exact release tag (#1139).
+- Ctrl+Tab fills the selected chat row. Busy chats show the same spinner as the sidebar.
+- About shows the git short hash when the build is not an exact release tag.
 - The theme editor modal loads on demand instead of joining app startup.
 - Bundled KaTeX math fonts ship as woff2 only, trimming the install size.
 - Settings reads and writes run on the blocking pool, off the async command path.
 
 **中文 · 变更**
-- Ctrl+Tab 预选行有背景高亮。进行中的对话显示与侧栏相同的转圈（#1146）。
-- 构建不是精确的 release tag 时，About 显示 git short hash（#1139）。
+- Ctrl+Tab 预选行有背景高亮。进行中的对话显示与侧栏相同的转圈。
+- 构建不是精确的 release tag 时，About 显示 git short hash。
 - 主题编辑器改为按需加载，不再拖累应用启动。
 - 打包内的 KaTeX 数学字体只保留 woff2 格式，安装包更小。
 - 设置的读写改走阻塞线程池，异步命令不再被设置文件锁卡住。
