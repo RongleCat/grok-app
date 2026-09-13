@@ -46,6 +46,12 @@ pub fn workspace_validate_root(path: String) -> Result<WorkspaceRoot, String> {
     })
 }
 
+/// Refresh capability plans for all workspaces (Doctor / settings).
+#[tauri::command]
+pub fn workspaces_diagnose() -> Result<Vec<WorkspaceRecord>, String> {
+    workspace_store::refresh_all_capabilities()
+}
+
 /// Bind (or clear) a workspace on a session. Grants extra roots into Host
 /// path_scope for App file APIs; does not change CLI OS sandbox (MVP-0).
 #[tauri::command]

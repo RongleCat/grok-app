@@ -14,6 +14,7 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- Doctor reports multi-root workspace capability and reason (#1194).
 - Independent mode can enable write on extra workspace folders (#1194).
 - Project menu can declare extra workspace folders for a chat (#1194).
 - Settings → Appearance can set a solid-color wallpaper with Morandi presets.
@@ -21,6 +22,7 @@ See `docs/llm-wiki/release.md`.
 - The composer branch chip can switch git branches in the current folder. Remote-only rows create a local tracking branch; a branch already checked out in another worktree opens that worktree instead.
 
 **中文 · 新增**
+- Doctor 会报告多根工作区的能力状态与原因（#1194）。
 - 独立模式下可为附加工作区文件夹开启写入（App 管理 sandbox profile）（#1194）。
 - 项目菜单可为会话声明附加工作区文件夹（#1194）。
 - 设置 → 外观可用莫兰迪纯色做背景，不必选图片。

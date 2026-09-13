@@ -570,6 +570,9 @@ export function GeneralSection() {
                   <div className="settings-row__desc">
                     {t("settings.multiRootWorkspaceDesc")}
                   </div>
+                  <div className="settings-row__desc">
+                    {t("settings.multiRootWorkspaceDoctorHint")}
+                  </div>
                 </div>
               </div>
               {onSandboxProfile ? (

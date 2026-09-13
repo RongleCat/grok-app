@@ -545,5 +545,10 @@ export const zhTWWorkspace = {
   "workspace.multiRoot.manage": "管理工作區根目錄",
   "workspace.multiRoot.bannerWriteActive": "已透過已驗證的 sandbox profile 啟用跨目錄寫入。變更在下一輪 agent 生效。",
   "workspace.multiRoot.bannerIndependent": "獨立模式下可為附加資料夾開寫（App 寫入 agent-home sandbox.toml）。共享模式預設唯讀，除非你自行維護 ~/.grok/sandbox.toml。",
-  "workspace.multiRoot.enableWrite": "允許寫入"
+  "workspace.multiRoot.enableWrite": "允許寫入",
+  "workspace.multiRoot.capabilityLabel": "能力狀態",
+  "workspace.multiRoot.capContextOnly": "context_only（僅宣告）",
+  "workspace.multiRoot.capEnforcedRead": "enforced_read",
+  "workspace.multiRoot.capWriteActive": "extra_write_active（可寫）",
+  "workspace.multiRoot.capBlocked": "blocked"
 };

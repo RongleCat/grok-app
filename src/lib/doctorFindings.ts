@@ -162,7 +162,13 @@ export function classifyDoctorFindingCategory(
     }
     if (head === "mic" || head === "audio") return "voice";
     if (head === "log" || head === "logging") return "logs";
-    if (head === "ws" || head === "project" || head === "cwd") {
+    if (
+      head === "ws" ||
+      head === "project" ||
+      head === "cwd" ||
+      head === "multi" ||
+      raw.startsWith("multi_root")
+    ) {
       return "workspace";
     }
     if (head === "agent" || head === "acp" || head === "runtime") {

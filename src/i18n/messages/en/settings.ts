@@ -555,5 +555,6 @@ export const enSettings = {
   "settings.ssh.watchError": "Could not change watch: {error}",
   "settings.ssh.remoteSessionsEmpty": "No remote Grok sessions found yet.",
   "settings.multiRootWorkspace": "Multi-root workspace",
-  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later."
+  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later.",
+  "settings.multiRootWorkspaceDoctorHint": "Run Doctor to see each workspace capability and reason (write-active vs context-only)."
 } as const;
