@@ -554,5 +554,6 @@ export const esSettings = {
   "settings.ssh.watchError": "No se pudo cambiar la supervisión: {error}",
   "settings.ssh.remoteSessionsEmpty": "Aún no se encontraron sesiones remotas de Grok.",
   "settings.multiRootWorkspace": "Multi-root workspace",
-  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later."
+  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later.",
+  "settings.multiRootWorkspaceDoctorHint": "Run Doctor to see each workspace capability and reason (write-active vs context-only)."
 };

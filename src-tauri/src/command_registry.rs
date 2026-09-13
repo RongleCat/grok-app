@@ -98,6 +98,7 @@ pub fn app_invoke_handler(
         commands::workspace_upsert,
         commands::workspace_delete,
         commands::workspace_validate_root,
+        commands::workspaces_diagnose,
         commands::session_set_workspace,
         // ── Session list/search & CLI session import ──
         commands::sessions_list,

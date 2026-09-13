@@ -554,5 +554,6 @@ export const filSettings = {
   "settings.ssh.watchError": "Hindi mabago ang pagbabantay: {error}",
   "settings.ssh.remoteSessionsEmpty": "Wala pang nakitang remote na session ng Grok.",
   "settings.multiRootWorkspace": "Multi-root workspace",
-  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later."
+  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later.",
+  "settings.multiRootWorkspaceDoctorHint": "Run Doctor to see each workspace capability and reason (write-active vs context-only)."
 };

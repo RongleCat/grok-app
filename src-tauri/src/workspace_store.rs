@@ -67,6 +67,9 @@ pub struct WorkspaceRecord {
     pub profile_ref: Option<String>,
     #[serde(default)]
     pub capability: WorkspaceCapability,
+    /// Human-readable reason for the current capability (Doctor / modal).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capability_reason: Option<String>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -263,6 +266,7 @@ pub fn upsert_workspace(
                 roots: normalized,
                 profile_ref: None,
                 capability: WorkspaceCapability::ContextOnly,
+                capability_reason: None,
                 updated_at: now,
             };
             apply_capability_plan(&mut record)?;
@@ -276,6 +280,7 @@ pub fn upsert_workspace(
                 roots: normalized,
                 profile_ref: None,
                 capability: WorkspaceCapability::ContextOnly,
+                capability_reason: None,
                 updated_at: now,
             };
             apply_capability_plan(&mut record)?;
@@ -301,7 +306,18 @@ pub fn apply_capability_plan(record: &mut WorkspaceRecord) -> Result<(), String>
     }
     record.capability = plan.capability;
     record.profile_ref = plan.profile_ref;
+    record.capability_reason = Some(plan.reason);
     Ok(())
+}
+
+/// Recompute capability for every stored workspace (Doctor refresh).
+pub fn refresh_all_capabilities() -> Result<Vec<WorkspaceRecord>, String> {
+    let mut file = load_workspace_store();
+    for ws in &mut file.workspaces {
+        apply_capability_plan(ws)?;
+    }
+    save_workspace_store(&file)?;
+    Ok(file.workspaces)
 }
 
 /// Spawn sandbox override for a bound workspace, if any.

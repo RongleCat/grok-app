@@ -554,5 +554,6 @@ export const taSettings = {
   "settings.ssh.watchError": "கண்காணிப்பை மாற்ற முடியவில்லை: {error}",
   "settings.ssh.remoteSessionsEmpty": "தொலைநிலை Grok அமர்வுகள் இதுவரை கிடைக்கவில்லை.",
   "settings.multiRootWorkspace": "Multi-root workspace",
-  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later."
+  "settings.multiRootWorkspaceDesc": "Declare extra folders on a chat (read-only in this version). Cross-folder write needs a verified CLI sandbox profile later.",
+  "settings.multiRootWorkspaceDoctorHint": "Run Doctor to see each workspace capability and reason (write-active vs context-only)."
 };

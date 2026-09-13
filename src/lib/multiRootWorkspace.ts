@@ -26,6 +26,8 @@ export type WorkspaceRecord = {
   roots: WorkspaceRoot[];
   profileRef?: string | null;
   capability: WorkspaceCapability;
+  /** Host reason for current capability (Doctor / modal). */
+  capabilityReason?: string | null;
   updatedAt: string;
 };
 

@@ -543,5 +543,10 @@ export const itWorkspace = {
   "workspace.multiRoot.manage": "Manage workspace roots",
   "workspace.multiRoot.bannerWriteActive": "Cross-folder write is active for this workspace via a verified sandbox profile. Changes apply on the next agent turn.",
   "workspace.multiRoot.bannerIndependent": "Independent mode can grant write on extra folders (App writes agent-home sandbox.toml). Shared mode stays read-only unless you maintain ~/.grok/sandbox.toml yourself.",
-  "workspace.multiRoot.enableWrite": "Allow write"
+  "workspace.multiRoot.enableWrite": "Allow write",
+  "workspace.multiRoot.capabilityLabel": "Capability",
+  "workspace.multiRoot.capContextOnly": "context_only",
+  "workspace.multiRoot.capEnforcedRead": "enforced_read",
+  "workspace.multiRoot.capWriteActive": "extra_write_active",
+  "workspace.multiRoot.capBlocked": "blocked"
 };

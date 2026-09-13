@@ -99,6 +99,25 @@ export function MultiRootWorkspaceModal({
             ? tr("workspace.multiRoot.bannerIndependent")
             : tr("workspace.multiRoot.bannerContextOnly")}
       </p>
+      {draft ? (
+        <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
+          {tr("workspace.multiRoot.capabilityLabel")}:{" "}
+          <strong>
+            {draft.capability === "extraWriteActive"
+              ? tr("workspace.multiRoot.capWriteActive")
+              : draft.capability === "blocked"
+                ? tr("workspace.multiRoot.capBlocked")
+                : draft.capability === "enforcedRead"
+                  ? tr("workspace.multiRoot.capEnforcedRead")
+                  : tr("workspace.multiRoot.capContextOnly")}
+          </strong>
+          {draft.capabilityReason
+            ? ` — ${draft.capabilityReason}`
+            : draft.profileRef
+              ? ` — ${draft.profileRef}`
+              : ""}
+        </p>
+      ) : null}
       <label className="field">
         <span className="field-label">{tr("workspace.multiRoot.name")}</span>
         <input

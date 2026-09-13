@@ -457,6 +457,94 @@ pub async fn doctor_report() -> Result<serde_json::Value, String> {
         }),
     ));
 
+    // 3b) Multi-root workspaces (#1194) — capability honesty for Doctor
+    let multi_root_ws = match crate::workspace_store::refresh_all_capabilities() {
+        Ok(list) => list,
+        Err(e) => {
+            checks.push(doctor_check(
+                "multi_root_workspace",
+                "warn",
+                "Multi-root workspace",
+                format!("Could not refresh workspace capabilities: {e}"),
+                serde_json::json!({ "error": e }),
+            ));
+            Vec::new()
+        }
+    };
+    if !multi_root_ws.is_empty() {
+        let write_active = multi_root_ws
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w.capability,
+                    crate::workspace_store::WorkspaceCapability::ExtraWriteActive
+                )
+            })
+            .count();
+        let context_only = multi_root_ws
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w.capability,
+                    crate::workspace_store::WorkspaceCapability::ContextOnly
+                )
+            })
+            .count();
+        let blocked = multi_root_ws
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w.capability,
+                    crate::workspace_store::WorkspaceCapability::Blocked
+                )
+            })
+            .count();
+        let level = if blocked > 0 {
+            "fail"
+        } else if context_only > 0 && write_active == 0 {
+            "warn"
+        } else {
+            "ok"
+        };
+        let summaries: Vec<serde_json::Value> = multi_root_ws
+            .iter()
+            .map(|w| {
+                serde_json::json!({
+                    "id": w.id,
+                    "name": w.name,
+                    "capability": match w.capability {
+                        crate::workspace_store::WorkspaceCapability::None => "none",
+                        crate::workspace_store::WorkspaceCapability::ContextOnly => "context_only",
+                        crate::workspace_store::WorkspaceCapability::EnforcedRead => "enforced_read",
+                        crate::workspace_store::WorkspaceCapability::ExtraWriteActive => "extra_write_active",
+                        crate::workspace_store::WorkspaceCapability::Blocked => "blocked",
+                    },
+                    "profileRef": w.profile_ref,
+                    "reason": w.capability_reason,
+                    "rootCount": w.roots.len(),
+                    "extraWriteCount": w.roots.iter().filter(|r| {
+                        r.role == crate::workspace_store::WorkspaceRootRole::Extra
+                            && r.access == crate::workspace_store::WorkspaceRootAccess::Write
+                    }).count(),
+                })
+            })
+            .collect();
+        checks.push(doctor_check(
+            "multi_root_workspace",
+            level,
+            "Multi-root workspace",
+            format!(
+                "{} workspace(s) · {write_active} write-active · {context_only} context-only · {blocked} blocked · mode {}",
+                multi_root_ws.len(),
+                settings.session_data_mode
+            ),
+            serde_json::json!({
+                "workspaces": summaries,
+                "sessionDataMode": settings.session_data_mode,
+            }),
+        ));
+    }
+
     // 4) Backend
     let (backend_level, backend_detail) = if backend_default == "mock_acp" {
         (

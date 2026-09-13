@@ -39,6 +39,11 @@ export async function workspaceValidateRoot(path: string) {
   return invoke<WorkspaceRoot>("workspace_validate_root", { path });
 }
 
+/** Refresh capability plans for all workspaces. */
+export async function workspacesDiagnose() {
+  return invoke<WorkspaceRecord[]>("workspaces_diagnose");
+}
+
 export async function sessionSetWorkspace(
   id: string,
   workspaceId: string | null,

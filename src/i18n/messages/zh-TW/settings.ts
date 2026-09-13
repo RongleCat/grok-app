@@ -555,5 +555,6 @@ export const zhTWSettings = {
   "settings.ssh.watchError": "無法切換監視：{error}",
   "settings.ssh.remoteSessionsEmpty": "還沒掃描到遠端 Grok session。",
   "settings.multiRootWorkspace": "多根工作區",
-  "settings.multiRootWorkspaceDesc": "在對話上宣告附加資料夾（本版本唯讀）。跨資料夾寫入需後續驗證 CLI sandbox profile。"
+  "settings.multiRootWorkspaceDesc": "在對話上宣告附加資料夾（本版本唯讀）。跨資料夾寫入需後續驗證 CLI sandbox profile。",
+  "settings.multiRootWorkspaceDoctorHint": "執行 Doctor 可查看每個工作區的能力狀態與原因（可寫 / 僅宣告）。"
 };

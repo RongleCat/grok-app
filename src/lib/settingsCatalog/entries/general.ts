@@ -235,6 +235,7 @@ export const GENERAL_ENTRIES: readonly SettingsEntry[] = [
     labelKey: "settings.multiRootWorkspace",
     descKeys: [
       "settings.multiRootWorkspaceDesc",
+      "settings.multiRootWorkspaceDoctorHint",
       "workspace.multiRoot.bannerContextOnly",
       "settings.section.permissions",
     ],

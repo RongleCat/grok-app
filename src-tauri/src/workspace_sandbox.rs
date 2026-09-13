@@ -334,6 +334,7 @@ mod tests {
             ],
             profile_ref: None,
             capability: WorkspaceCapability::ContextOnly,
+            capability_reason: None,
             updated_at: Utc::now(),
         }
     }
