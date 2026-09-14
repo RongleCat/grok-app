@@ -24,7 +24,6 @@ import type { SessionSearchRankMode } from "@/lib/sessionSearch";
 import type { SidebarDensity } from "@/lib/sidebarDensity";
 import type { ThemeScheduleHonesty } from "@/lib/themeSchedule";
 import type { ThinkingExpandPref } from "@/lib/thinkingPref";
-import type { FilePathCardLabelMode } from "@/lib/filePathCardPref";
 import type { TranscriptFilterMode } from "@/lib/transcriptFilterPref";
 import type { WallpaperSourceKind } from "@/lib/wallpaperSource";
 import type {
@@ -436,7 +435,7 @@ export type SettingsViewModel = SettingsPageProps & {
   setThinkingExpand: Dispatch<SetStateAction<ThinkingExpandPref>>;
   setToolStepsAutoCollapse: Dispatch<SetStateAction<boolean>>;
   setChatVirtualScroll: Dispatch<SetStateAction<boolean>>;
-  setFilePathCardLabel: Dispatch<SetStateAction<FilePathCardLabelMode>>;
+  setFilePathCardBasename: Dispatch<SetStateAction<boolean>>;
   setTranscriptFilter: Dispatch<SetStateAction<TranscriptFilterMode>>;
   setVoiceHotkeyEnabled: Dispatch<SetStateAction<boolean>>;
   setWallpaperError: Dispatch<SetStateAction<string | null>>;
@@ -454,7 +453,7 @@ export type SettingsViewModel = SettingsPageProps & {
   toggleArchivedId: (id: string) => void;
   toolStepsAutoCollapse: boolean;
   chatVirtualScroll: boolean;
-  filePathCardLabel: FilePathCardLabelMode;
+  filePathCardBasename: boolean;
   transcriptFilter: TranscriptFilterMode;
   trayBusySurface: TrayBusyBadgeSurface;
   uiFontFamily: string;

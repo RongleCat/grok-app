@@ -5,7 +5,7 @@
  * real on-disk path (or the token is a URL). Unresolved / missing paths stay
  * as plain inline code so dead cards never appear in the transcript.
  *
- * Label mode (Settings → Appearance): basename (default) or the original token.
+ * Label (Settings → Appearance): file name only (default) or the original token.
  * Full path is an instant hover tip + details modal + right-click copy.
  * Click → open in right resource pane.
  */
@@ -15,11 +15,10 @@ import { createPortal } from "react-dom";
 import * as api from "@/lib/api";
 import { pathBasename, pathExt } from "@/lib/attachments";
 import {
-  FILE_PATH_CARD_LABEL_CHANGE_EVENT,
+  FILE_PATH_CARD_BASENAME_CHANGE_EVENT,
   filePathCardDisplayLabel,
   filePathCardHoverLabel,
-  loadFilePathCardLabelPref,
-  type FilePathCardLabelMode,
+  loadFilePathCardBasenamePref,
 } from "@/lib/filePathCardPref";
 import { Tip, PATH_TIP_MAX_W } from "@/components/ui/tooltip";
 import {
@@ -83,7 +82,11 @@ export interface FilePathCardLabels {
 }
 
 export interface FilePathCardProps {
-  /** Absolute path, relative display path, or URL. */
+  /**
+   * Model-written token (or URL). Must stay the original markdown text —
+   * do not substitute a pathMap / host-resolved absolute. That abs belongs
+   * in `absolutePath` so "as written" can still show the short token.
+   */
   path: string;
   /**
    * Optional absolute path hint. Only used as a search token if it is absolute;
@@ -162,21 +165,21 @@ function filePathCardErrLabel(
   }
 }
 
-function useFilePathCardLabelMode(): FilePathCardLabelMode {
-  const [mode, setMode] = useState<FilePathCardLabelMode>(() =>
-    loadFilePathCardLabelPref(),
+function useFilePathCardBasenameOnly(): boolean {
+  const [basenameOnly, setBasenameOnly] = useState(() =>
+    loadFilePathCardBasenamePref(),
   );
   useEffect(() => {
     const onChange = (e: Event) => {
-      const d = (e as CustomEvent<FilePathCardLabelMode>).detail;
-      if (d === "basename" || d === "original") setMode(d);
+      const d = (e as CustomEvent<boolean>).detail;
+      if (typeof d === "boolean") setBasenameOnly(d);
     };
-    window.addEventListener(FILE_PATH_CARD_LABEL_CHANGE_EVENT, onChange);
+    window.addEventListener(FILE_PATH_CARD_BASENAME_CHANGE_EVENT, onChange);
     return () => {
-      window.removeEventListener(FILE_PATH_CARD_LABEL_CHANGE_EVENT, onChange);
+      window.removeEventListener(FILE_PATH_CARD_BASENAME_CHANGE_EVENT, onChange);
     };
   }, []);
-  return mode;
+  return basenameOnly;
 }
 
 export function FilePathCard({
@@ -193,7 +196,7 @@ export function FilePathCard({
   onOpenError,
 }: FilePathCardProps) {
   void _subtitle; // callers may pass; chip no longer shows a path subtitle
-  const labelMode = useFilePathCardLabelMode();
+  const basenameOnly = useFilePathCardBasenameOnly();
   const focusLine =
     line != null && Number.isInteger(line) && line >= 1 ? line : null;
   const focusColumn =
@@ -234,7 +237,7 @@ export function FilePathCard({
   const [missing, setMissing] = useState(seed.missing);
   const [busy, setBusy] = useState(false);
   const name = filePathCardDisplayLabel({
-    mode: labelMode,
+    basenameOnly,
     path,
     resolvedAbs,
     kind: isUrl ? "url" : kind,
@@ -603,7 +606,7 @@ export function FilePathCard({
             "file-path-card" +
             (isUrl ? " file-path-card--url" : "") +
             (kind === "dir" ? " file-path-card--dir" : "") +
-            (labelMode === "original" ? " file-path-card--original" : "")
+            (!basenameOnly ? " file-path-card--original" : "")
           }
           onContextMenu={(e) => {
             e.preventDefault();

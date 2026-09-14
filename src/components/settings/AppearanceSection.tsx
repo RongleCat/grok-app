@@ -43,10 +43,7 @@ import { WallpaperMediaLayer } from "@/components/WallpaperMediaLayer";
 import { WallpaperSourceModal } from "@/components/WallpaperSourceModal";
 import { saveToolStepsAutoCollapsePref } from "@/lib/toolStepsAutoCollapsePref";
 import { saveChatVirtualScrollPref } from "@/lib/chatVirtualScrollPref";
-import {
-  saveFilePathCardLabelPref,
-  type FilePathCardLabelMode,
-} from "@/lib/filePathCardPref";
+import { saveFilePathCardBasenamePref } from "@/lib/filePathCardPref";
 import {
   saveTranscriptFilterPref,
   type TranscriptFilterMode,
@@ -143,7 +140,7 @@ export function AppearanceSection() {
     setThinkingExpand,
     setToolStepsAutoCollapse,
     setChatVirtualScroll,
-    setFilePathCardLabel,
+    setFilePathCardBasename,
     setTranscriptFilter,
     setWallpaperError,
     setWallpaperFocusOpen,
@@ -161,7 +158,7 @@ export function AppearanceSection() {
     thinkingExpand,
     toolStepsAutoCollapse,
     chatVirtualScroll,
-    filePathCardLabel = "basename",
+    filePathCardBasename = true,
     transcriptFilter,
     wallpaperBusy,
     wallpaperClip,
@@ -1158,25 +1155,14 @@ export function AppearanceSection() {
                   tip={t("settings.filePathCardLabelDesc")}
                 />
               </div>
-              <Select
-                value={filePathCardLabel}
-                aria-label={t("settings.filePathCardLabel")}
-                onChange={(v) => {
-                  const next: FilePathCardLabelMode =
-                    v === "original" ? "original" : "basename";
-                  saveFilePathCardLabelPref(next);
-                  setFilePathCardLabel(next);
+              <UiCheck
+                checked={filePathCardBasename}
+                onChange={() => {
+                  const next = !filePathCardBasename;
+                  setFilePathCardBasename(next);
+                  saveFilePathCardBasenamePref(next);
                 }}
-                options={[
-                  {
-                    value: "basename",
-                    label: t("settings.filePathCardLabel.basename"),
-                  },
-                  {
-                    value: "original",
-                    label: t("settings.filePathCardLabel.original"),
-                  },
-                ]}
+                ariaLabel={t("settings.filePathCardLabel")}
               />
             </div>
             <div

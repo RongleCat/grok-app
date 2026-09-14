@@ -101,10 +101,7 @@ import {
 } from "@/lib/thinkingPref";
 import { loadToolStepsAutoCollapsePref } from "@/lib/toolStepsAutoCollapsePref";
 import { loadChatVirtualScrollPref } from "@/lib/chatVirtualScrollPref";
-import {
-  loadFilePathCardLabelPref,
-  type FilePathCardLabelMode,
-} from "@/lib/filePathCardPref";
+import { loadFilePathCardBasenamePref } from "@/lib/filePathCardPref";
 import {
   loadTranscriptFilterPref,
   type TranscriptFilterMode,
@@ -247,8 +244,9 @@ export function useAppearanceEditorModel(opts: {
   const [chatVirtualScroll, setChatVirtualScroll] = useState(() =>
     loadChatVirtualScrollPref(),
   );
-  const [filePathCardLabel, setFilePathCardLabel] =
-    useState<FilePathCardLabelMode>(() => loadFilePathCardLabelPref());
+  const [filePathCardBasename, setFilePathCardBasename] = useState(() =>
+    loadFilePathCardBasenamePref(),
+  );
   const [transcriptFilter, setTranscriptFilter] =
     useState<TranscriptFilterMode>(() => loadTranscriptFilterPref());
   const [chatFontScale, setChatFontScaleState] = useState<ChatFontScale>(() =>
@@ -676,9 +674,9 @@ export function useAppearanceEditorModel(opts: {
       setChatVirtualScroll(next);
       notifyAppearanceChanged();
     },
-    filePathCardLabel,
-    setFilePathCardLabel: (next: FilePathCardLabelMode) => {
-      setFilePathCardLabel(next);
+    filePathCardBasename,
+    setFilePathCardBasename: (next: boolean) => {
+      setFilePathCardBasename(next);
       notifyAppearanceChanged();
     },
     transcriptFilter,

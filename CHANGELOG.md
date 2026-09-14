@@ -16,18 +16,22 @@ See `docs/llm-wiki/release.md`.
 ### Added
 - Shell commands show the full command, with one-click copy of command and output.
 - File diffs on a turn and in Review can be copied in one click.
+- Chat file cards can show the file name only, or the path as the model wrote it. Hover shows the full path immediately.
 
 **中文 · 新增**
 - 终端命令会显示完整命令，并可一键复制命令和输出。
 - 回合变更和 Review 里的文件 diff 可一键复制。
+- 对话里的文件路径可只显示文件名，或按模型原文显示。悬停会立刻显示完整路径。
 
 ### Fixed
 - Sending or finishing a chat moves it to the top of that project's list. Pinned chats stay first.
 - Esc in an image preview closes the preview instead of stopping the turn.
+- File-path chips keep the model’s original path when the file-name option is off.
 
 **中文 · 修复**
 - 发送或完成一轮对话后，该会话会排到所属项目列表顶部。置顶会话仍在最前。
 - 图片预览打开时按 Esc 会关掉预览，而不会停止当前生成。
+- 关闭「只显示文件名」时，路径卡片会保留模型写的原文，不会换成磁盘全路径。
 
 ## [0.2.35] - 2026-09-13
 
@@ -40,14 +44,12 @@ See `docs/llm-wiki/release.md`.
 - Doctor reports each multi-root workspace capability and reason.
 - Settings → Appearance adds solid-color Morandi wallpapers and a virtual-scroll toggle.
 - The composer branch chip can switch git branches in the current folder. Remote-only rows create a local tracking branch; a branch already checked out in another worktree opens that worktree instead.
-- Chat file cards can show the filename or the original path. Hover shows the full path immediately.
 
 **中文 · 新增**
 - 多根工作区可为会话声明附加文件夹，独立模式可开写。
 - Doctor 会报告每个多根工作区的能力状态与原因。
 - 设置 → 外观支持莫兰迪纯色壁纸，并可关闭聊天虚拟滚动。
 - 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
-- 对话里的文件卡片可显示文件名或原文路径。悬停会立刻显示完整路径。
 
 ### Fixed
 - Typing `@/goal` no longer becomes a missing-file chip. The line stays as text (#1197).

@@ -576,11 +576,11 @@ describe("settingsCatalog", () => {
     expect(
       scrollOptZh.some((h) => h.entry.id === "appearance.chatVirtualScroll"),
     ).toBe(true);
-    const filePathCard = searchSettingsEntries("file path card", tZh, tEn);
+    const filePathCard = searchSettingsEntries("file name only", tZh, tEn);
     expect(
       filePathCard.some((h) => h.entry.id === "appearance.filePathCardLabel"),
     ).toBe(true);
-    const filePathCardZh = searchSettingsEntries("文件路径", tZh, tEn);
+    const filePathCardZh = searchSettingsEntries("只显示文件名", tZh, tEn);
     expect(
       filePathCardZh.some((h) => h.entry.id === "appearance.filePathCardLabel"),
     ).toBe(true);
