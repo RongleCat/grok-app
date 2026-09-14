@@ -146,6 +146,10 @@ import {
   loadChatVirtualScrollPref,
 } from "@/lib/chatVirtualScrollPref";
 import {
+  loadFilePathCardLabelPref,
+  type FilePathCardLabelMode,
+} from "@/lib/filePathCardPref";
+import {
   loadTranscriptFilterPref,
   type TranscriptFilterMode,
 } from "@/lib/transcriptFilterPref";
@@ -569,6 +573,9 @@ export function SettingsPage({
   const [chatVirtualScroll, setChatVirtualScroll] = useState(() =>
     loadChatVirtualScrollPref(),
   );
+  /** File-path card label: basename vs original token. */
+  const [filePathCardLabel, setFilePathCardLabel] =
+    useState<FilePathCardLabelMode>(() => loadFilePathCardLabelPref());
   /** Transcript paint filter — all activity vs conversation only. */
   const [transcriptFilter, setTranscriptFilter] =
     useState<TranscriptFilterMode>(() => loadTranscriptFilterPref());
@@ -1732,6 +1739,8 @@ export function SettingsPage({
     setToolStepsAutoCollapse,
     chatVirtualScroll,
     setChatVirtualScroll,
+    filePathCardLabel,
+    setFilePathCardLabel,
     transcriptFilter,
     setTranscriptFilter,
     chatFontScale,

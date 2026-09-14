@@ -62,4 +62,10 @@ describe("computeTipPos", () => {
     const pos = computeTipPos(r, 400, 24, "bottom", 200, 400);
     expect(pos.maxWidth).toBe(200 - 16);
   });
+
+  it("honors a larger per-tip max when the viewport allows it", () => {
+    const r = rect(200, 200, 40, 24);
+    const pos = computeTipPos(r, 480, 40, "top", 1200, 800, 520);
+    expect(pos.maxWidth).toBe(520);
+  });
 });
