@@ -102,6 +102,10 @@ import {
 import { loadToolStepsAutoCollapsePref } from "@/lib/toolStepsAutoCollapsePref";
 import { loadChatVirtualScrollPref } from "@/lib/chatVirtualScrollPref";
 import {
+  loadFilePathCardLabelPref,
+  type FilePathCardLabelMode,
+} from "@/lib/filePathCardPref";
+import {
   loadTranscriptFilterPref,
   type TranscriptFilterMode,
 } from "@/lib/transcriptFilterPref";
@@ -243,6 +247,8 @@ export function useAppearanceEditorModel(opts: {
   const [chatVirtualScroll, setChatVirtualScroll] = useState(() =>
     loadChatVirtualScrollPref(),
   );
+  const [filePathCardLabel, setFilePathCardLabel] =
+    useState<FilePathCardLabelMode>(() => loadFilePathCardLabelPref());
   const [transcriptFilter, setTranscriptFilter] =
     useState<TranscriptFilterMode>(() => loadTranscriptFilterPref());
   const [chatFontScale, setChatFontScaleState] = useState<ChatFontScale>(() =>
@@ -668,6 +674,11 @@ export function useAppearanceEditorModel(opts: {
     chatVirtualScroll,
     setChatVirtualScroll: (next: boolean) => {
       setChatVirtualScroll(next);
+      notifyAppearanceChanged();
+    },
+    filePathCardLabel,
+    setFilePathCardLabel: (next: FilePathCardLabelMode) => {
+      setFilePathCardLabel(next);
       notifyAppearanceChanged();
     },
     transcriptFilter,

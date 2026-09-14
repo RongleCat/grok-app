@@ -1,11 +1,12 @@
 /**
- * Compact file / URL card for chat paths.
+ * Compact file / URL chip for chat paths.
  *
- * Policy: only render the interactive card chrome when the Host can resolve a
+ * Policy: only render the interactive chrome when the Host can resolve a
  * real on-disk path (or the token is a URL). Unresolved / missing paths stay
  * as plain inline code so dead cards never appear in the transcript.
  *
- * Card: basename only. Path lives in details modal + right-click copy.
+ * Label mode (Settings → Appearance): basename (default) or the original token.
+ * Full path is an instant hover tip + details modal + right-click copy.
  * Click → open in right resource pane.
  */
 
@@ -13,6 +14,14 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import * as api from "@/lib/api";
 import { pathBasename, pathExt } from "@/lib/attachments";
+import {
+  FILE_PATH_CARD_LABEL_CHANGE_EVENT,
+  filePathCardDisplayLabel,
+  filePathCardHoverLabel,
+  loadFilePathCardLabelPref,
+  type FilePathCardLabelMode,
+} from "@/lib/filePathCardPref";
+import { Tip, PATH_TIP_MAX_W } from "@/components/ui/tooltip";
 import {
   isHomeRelativePath,
   isHttpUrl,
@@ -153,6 +162,23 @@ function filePathCardErrLabel(
   }
 }
 
+function useFilePathCardLabelMode(): FilePathCardLabelMode {
+  const [mode, setMode] = useState<FilePathCardLabelMode>(() =>
+    loadFilePathCardLabelPref(),
+  );
+  useEffect(() => {
+    const onChange = (e: Event) => {
+      const d = (e as CustomEvent<FilePathCardLabelMode>).detail;
+      if (d === "basename" || d === "original") setMode(d);
+    };
+    window.addEventListener(FILE_PATH_CARD_LABEL_CHANGE_EVENT, onChange);
+    return () => {
+      window.removeEventListener(FILE_PATH_CARD_LABEL_CHANGE_EVENT, onChange);
+    };
+  }, []);
+  return mode;
+}
+
 export function FilePathCard({
   path,
   absolutePath,
@@ -166,7 +192,8 @@ export function FilePathCard({
   onOpenInPanel,
   onOpenError,
 }: FilePathCardProps) {
-  void _subtitle; // callers may pass; card no longer shows path/subtitle
+  void _subtitle; // callers may pass; chip no longer shows a path subtitle
+  const labelMode = useFilePathCardLabelMode();
   const focusLine =
     line != null && Number.isInteger(line) && line >= 1 ? line : null;
   const focusColumn =
@@ -206,16 +233,13 @@ export function FilePathCard({
   /** True after resolve finished with no openable file (render plain code). */
   const [missing, setMissing] = useState(seed.missing);
   const [busy, setBusy] = useState(false);
-  /** Card title only: basename, or host for URLs — never the full path. */
-  const name = (() => {
-    if (!isUrl) return pathBasename(resolvedAbs || path);
-    try {
-      const u = new URL(path);
-      return u.hostname || path;
-    } catch {
-      return path;
-    }
-  })();
+  const name = filePathCardDisplayLabel({
+    mode: labelMode,
+    path,
+    resolvedAbs,
+    kind: isUrl ? "url" : kind,
+  });
+  const hoverPath = filePathCardHoverLabel(path, resolvedAbs);
 
   /**
    * Resolve a real on-disk absolute path (metadata only — never full file read).
@@ -567,39 +591,47 @@ export function FilePathCard({
 
   return (
     <>
-      <span
-        className={
-          "file-path-card" +
-          (isUrl ? " file-path-card--url" : "") +
-          (kind === "dir" ? " file-path-card--dir" : "")
-        }
-        title={resolvedAbs || path || name}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setMenu({ x: e.clientX, y: e.clientY });
-        }}
+      <Tip
+        label={hoverPath}
+        delayMs={0}
+        placement="top"
+        className="ui-tip--path"
+        maxWidth={PATH_TIP_MAX_W}
       >
-        <button
-          type="button"
-          className="file-path-card__main"
-          onClick={() => void openInPanel()}
-          disabled={busy}
+        <span
+          className={
+            "file-path-card" +
+            (isUrl ? " file-path-card--url" : "") +
+            (kind === "dir" ? " file-path-card--dir" : "") +
+            (labelMode === "original" ? " file-path-card--original" : "")
+          }
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setMenu({ x: e.clientX, y: e.clientY });
+          }}
         >
-          <span className="file-path-card__icon" aria-hidden>
-            {kind === "dir" ? (
-              <IconFolder size={16} />
-            ) : isUrl ? (
-              <IconExternalLink size={16} />
-            ) : (
-              <IconFileText size={16} />
-            )}
-          </span>
-          <span className="file-path-card__meta">
-            <span className="file-path-card__name">{name}</span>
-          </span>
-        </button>
-      </span>
+          <button
+            type="button"
+            className="file-path-card__main"
+            onClick={() => void openInPanel()}
+            disabled={busy}
+          >
+            <span className="file-path-card__icon" aria-hidden>
+              {kind === "dir" ? (
+                <IconFolder size={14} />
+              ) : isUrl ? (
+                <IconExternalLink size={14} />
+              ) : (
+                <IconFileText size={14} />
+              )}
+            </span>
+            <span className="file-path-card__meta">
+              <span className="file-path-card__name">{name}</span>
+            </span>
+          </button>
+        </span>
+      </Tip>
 
       <ContextMenu
         open={!!menu}

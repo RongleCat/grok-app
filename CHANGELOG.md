@@ -20,6 +20,7 @@ See `docs/llm-wiki/release.md`.
 - Settings → Appearance can set a solid-color wallpaper with Morandi presets.
 - Settings → Appearance can turn off chat virtual scrolling for native overflow.
 - The composer branch chip can switch git branches in the current folder. Remote-only rows create a local tracking branch; a branch already checked out in another worktree opens that worktree instead.
+- Chat file cards can show the filename or the original path. Hover shows the full path immediately.
 
 **中文 · 新增**
 - Doctor 会报告多根工作区的能力状态与原因（#1194）。
@@ -28,6 +29,7 @@ See `docs/llm-wiki/release.md`.
 - 设置 → 外观可用莫兰迪纯色做背景，不必选图片。
 - 设置 → 外观可关闭聊天虚拟滚动，改回原生滚动（长对话滚动异常时可关）。
 - 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
+- 对话里的文件卡片可显示文件名或原文路径。悬停会立刻显示完整路径。
 
 ### Fixed
 - Typing `@/goal …` no longer becomes a missing-file chip; the line stays as text (#1197).
