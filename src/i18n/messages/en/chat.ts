@@ -186,5 +186,8 @@ export const enChat = {
   "chat.changedFiles.collapse": "Collapse diff for {name}",
   "chat.changedFiles.openInReview": "Open in Review",
   "chat.changedFiles.noDiffYet": "Diff not available yet — open Review for the full file.",
-  "chat.changedFiles.truncated": "Showing {shown} of {total} lines"
+  "chat.changedFiles.truncated": "Showing {shown} of {total} lines",
+  "chat.tool.copyCommand": "Copy command",
+  "chat.tool.copyOutput": "Copy output",
+  "chat.changedFiles.copyDiff": "Copy diff",
 } as const;

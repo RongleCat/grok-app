@@ -178,5 +178,8 @@ export const filChat = {
   "chat.changedFiles.collapse": "I-collapse ang diff ng {name}",
   "chat.changedFiles.openInReview": "Buksan sa Review",
   "chat.changedFiles.noDiffYet": "Wala pang diff — buksan ang Review para sa buong file.",
-  "chat.changedFiles.truncated": "Ipinapakita ang {shown} sa {total} na linya"
+  "chat.changedFiles.truncated": "Ipinapakita ang {shown} sa {total} na linya",
+  "chat.tool.copyCommand": "Kopyahin ang command",
+  "chat.tool.copyOutput": "Kopyahin ang output",
+  "chat.changedFiles.copyDiff": "Kopyahin ang diff",
 };

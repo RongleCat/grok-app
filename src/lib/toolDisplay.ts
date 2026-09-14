@@ -489,6 +489,21 @@ function browseUrlForPrimaryLabel(tool: ToolLabelSource): string {
 /** Max lines kept for a tool output body (UI scrolls inside the expand box). */
 const TOOL_OUTPUT_BODY_MAX_LINES = 400;
 
+/** Full captured stdout with ANSI stripped — for clipboard, not the DOM. */
+export function toolFullOutput(output: string | null | undefined): string {
+  return stripAnsi(output || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\s+$/, "");
+}
+
+function bashCommandOf(
+  seg: Pick<ToolLabelSource, "toolKind" | "title" | "toolCallId" | "input">,
+): string {
+  const bucket = classifyToolKind(seg.toolKind, seg.title, seg.toolCallId);
+  if (bucket !== "bash") return "";
+  return (seg.input || bashArgFromToolTitle(seg.title) || "").trim();
+}
+
 /**
  * Trim a tool output body: keep the head (where errors and the first rows of a
  * file / listing live) and the tail, eliding the middle. Reading a 3k-line file
@@ -498,9 +513,7 @@ export function toolOutputBody(
   output: string | null | undefined,
   maxLines = TOOL_OUTPUT_BODY_MAX_LINES,
 ): string {
-  const raw = stripAnsi(output || "")
-    .replace(/\r\n/g, "\n")
-    .replace(/\s+$/, "");
+  const raw = toolFullOutput(output);
   if (!raw) return "";
   const lines = raw.split("\n");
   if (lines.length <= maxLines) return raw;
@@ -548,6 +561,7 @@ export function toolExpandHasBody(
   // (or an empty one, in which case the other branches decide).
   if (failed && (seg.path || seg.detail || "").trim()) return true;
   if (hasToolOutputContent(seg.output)) return true;
+  if (bashCommandOf(seg)) return true;
   const hostSide = /^(host-vision|host-x)/i.test(seg.toolCallId || "");
   return !!toolDetailTail(seg.detail, hostSide ? 24 : 8);
 }
@@ -569,6 +583,8 @@ export function toolExpandBody(
   detailTail: string;
   /** Full tool output (elided in the middle when very long). */
   outputBody: string;
+  /** Full captured stdout (ANSI stripped) for copy — not the elided view. */
+  outputFull: string;
   /** Shell command to echo above the output, when this is a bash-ish tool. */
   command: string;
   hasBody: boolean;
@@ -579,26 +595,24 @@ export function toolExpandBody(
   const failHintShort =
     failHint.length > 72 ? `${failHint.slice(0, 71)}…` : failHint;
   const hostSide = /^(host-vision|host-x)/i.test(seg.toolCallId || "");
+  const outputFull = toolFullOutput(seg.output);
   const outputBody = toolOutputBody(seg.output);
   // Detail is the call argument echoed back — showing it under a label that
   // already says the same thing is noise. Keep it only when there is no real
   // output to show (legacy rows, Host side-channels).
   const detailTail = outputBody ? "" : toolDetailTail(seg.detail, hostSide ? 24 : 8);
-  const bucket = classifyToolKind(seg.toolKind, seg.title, seg.toolCallId);
-  const command =
-    bucket === "bash"
-      ? (seg.input || bashArgFromToolTitle(seg.title) || "").trim()
-      : "";
+  const command = bashCommandOf(seg);
   const hasBody =
     !!failHintShort ||
     !!outputBody ||
-    (!!command && !!outputBody) ||
+    !!command ||
     (!!detailTail && detailTail !== failHint && detailTail !== failHintShort);
   return {
     failHint,
     failHintShort,
     detailTail,
     outputBody,
+    outputFull,
     command,
     hasBody,
   };

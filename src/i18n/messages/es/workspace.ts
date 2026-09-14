@@ -98,6 +98,7 @@ export const esWorkspace = {
   "changes.reveal": "Mostrar en el gestor de archivos",
   "changes.copyPath": "Copiar ruta",
   "changes.pathCopied": "Ruta copiada",
+  "changes.copyDiff": "Copiar diff",
   "changes.loadingDiff": "Cargando diff…",
   "changes.noDiff": "No hay diff unificado disponible para este archivo",
   "changes.noDiffHint": "El contenido anterior no está disponible. Abre el archivo en Recursos o en un editor externo.",

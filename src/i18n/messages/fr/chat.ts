@@ -178,5 +178,8 @@ export const frChat = {
   "chat.changedFiles.collapse": "Réduire le diff de {name}",
   "chat.changedFiles.openInReview": "Ouvrir dans Review",
   "chat.changedFiles.noDiffYet": "Diff pas encore disponible — ouvrez Review pour le fichier complet.",
-  "chat.changedFiles.truncated": "Affichage de {shown} lignes sur {total}"
+  "chat.changedFiles.truncated": "Affichage de {shown} lignes sur {total}",
+  "chat.tool.copyCommand": "Copier la commande",
+  "chat.tool.copyOutput": "Copier la sortie",
+  "chat.changedFiles.copyDiff": "Copier le diff",
 };

@@ -98,6 +98,7 @@ export const koWorkspace = {
   "changes.reveal": "파일 관리자에서 보기",
   "changes.copyPath": "경로 복사",
   "changes.pathCopied": "경로를 복사했습니다",
+  "changes.copyDiff": "diff 복사",
   "changes.loadingDiff": "diff 불러오는 중…",
   "changes.noDiff": "이 파일의 통합 diff를 사용할 수 없습니다",
   "changes.noDiffHint": "이전 내용을 사용할 수 없습니다. 리소스나 외부 편집기에서 파일을 여세요.",

@@ -98,6 +98,7 @@ export const zhWorkspace = {
   "changes.reveal": "在文件管理器中显示",
   "changes.copyPath": "复制路径",
   "changes.pathCopied": "路径已复制",
+  "changes.copyDiff": "复制 diff",
   "changes.loadingDiff": "正在加载 diff…",
   "changes.noDiff": "暂无此文件的统一 diff",
   "changes.noDiffHint": "暂无修改前内容。可在资源面板或外部编辑器中打开。",

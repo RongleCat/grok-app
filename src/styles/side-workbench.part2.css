@@ -530,6 +530,12 @@ html[data-wallpaper="1"]
   cursor: default;
 }
 
+.sw-review-file__copy-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 8px 0;
+}
+
 .sw-review__kind-filters {
   display: flex;
   flex-wrap: wrap;

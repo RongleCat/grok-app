@@ -178,5 +178,8 @@ export const ruChat = {
   "chat.changedFiles.collapse": "Свернуть diff для {name}",
   "chat.changedFiles.openInReview": "Открыть в Review",
   "chat.changedFiles.noDiffYet": "Diff пока недоступен — откройте Review для полного файла.",
-  "chat.changedFiles.truncated": "Показано {shown} из {total} строк"
+  "chat.changedFiles.truncated": "Показано {shown} из {total} строк",
+  "chat.tool.copyCommand": "Копировать команду",
+  "chat.tool.copyOutput": "Копировать вывод",
+  "chat.changedFiles.copyDiff": "Копировать diff",
 };

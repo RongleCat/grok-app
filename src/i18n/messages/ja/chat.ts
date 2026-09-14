@@ -178,5 +178,8 @@ export const jaChat = {
   "chat.changedFiles.collapse": "{name} の差分を折りたたむ",
   "chat.changedFiles.openInReview": "Review で開く",
   "chat.changedFiles.noDiffYet": "差分はまだありません — Review でファイル全体を確認できます。",
-  "chat.changedFiles.truncated": "{total} 行中 {shown} 行を表示"
+  "chat.changedFiles.truncated": "{total} 行中 {shown} 行を表示",
+  "chat.tool.copyCommand": "コマンドをコピー",
+  "chat.tool.copyOutput": "出力をコピー",
+  "chat.changedFiles.copyDiff": "diff をコピー",
 };

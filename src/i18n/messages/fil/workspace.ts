@@ -98,6 +98,7 @@ export const filWorkspace = {
   "changes.reveal": "Ipakita sa file manager",
   "changes.copyPath": "Kopyahin ang path",
   "changes.pathCopied": "Nakopya ang path",
+  "changes.copyDiff": "Kopyahin ang diff",
   "changes.loadingDiff": "Nilo-load ang diff…",
   "changes.noDiff": "Walang available na unified diff para sa file na ito",
   "changes.noDiffHint": "Hindi available ang before content. Buksan ang file sa Resources o sa panlabas na editor.",

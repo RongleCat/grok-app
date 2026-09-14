@@ -902,3 +902,33 @@
   color: var(--text-secondary);
   font-size: 13px;
 }
+
+.copy-icon-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--chat-text-3, var(--text-tertiary));
+  cursor: pointer;
+}
+.copy-icon-btn:hover:not(:disabled) {
+  background: var(--bg-hover, rgba(127, 127, 127, 0.14));
+  color: var(--chat-text, var(--text-primary));
+}
+.copy-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.copy-icon-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent));
+  outline-offset: 1px;
+}
+.copy-icon-btn.is-copied {
+  color: var(--success, #4ade80);
+}

@@ -643,6 +643,12 @@ html[data-msg-actions="hover"]
   padding: 6px 0 8px;
 }
 
+.lobe-turn-changed__preview-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 8px 4px;
+}
+
 .lobe-turn-changed__diff {
   max-height: 280px;
   overflow: auto;

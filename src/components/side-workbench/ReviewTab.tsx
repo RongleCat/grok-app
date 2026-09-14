@@ -27,6 +27,7 @@ import {
   IconSearch,
   IconSideExpand,
 } from "@/components/icons";
+import { CopyIconButton } from "@/components/CopyIconButton";
 import { Tip } from "@/components/ui/tooltip";
 import {
   buildUnifiedDiff,
@@ -1176,6 +1177,15 @@ export function ReviewTab({
           >
             <IconListTree size={15} />
           </button>
+          <CopyIconButton
+            text={selectedFile?.patch ?? ""}
+            copyLabel={tr("changes.copyDiff")}
+            copiedLabel={tr("message.copied")}
+            className="sw-review__icon-btn"
+            size={15}
+            disabled={!selectedFile?.patch}
+            testId="review-copy-diff"
+          />
           <button
             type="button"
             className="sw-review__icon-btn"
@@ -1307,6 +1317,16 @@ export function ReviewTab({
                   </div>
                   {isOpen ? (
                     <div className="sw-review-file__body">
+                      {f.patch && !f.binary ? (
+                        <div className="sw-review-file__copy-bar">
+                          <CopyIconButton
+                            text={f.patch}
+                            copyLabel={tr("changes.copyDiff")}
+                            copiedLabel={tr("message.copied")}
+                            testId="review-file-copy-diff"
+                          />
+                        </div>
+                      ) : null}
                       {f.binary ? (
                         <div className="sw-review-file__msg">
                           {tr("side.review.binary")}

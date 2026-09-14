@@ -185,5 +185,8 @@ export const zhTWChat = {
   "chat.changedFiles.collapse": "收合 {name} 的差異",
   "chat.changedFiles.openInReview": "在 Review 中開啟",
   "chat.changedFiles.noDiffYet": "尚無差異預覽 — 可在 Review 中查看完整檔案。",
-  "chat.changedFiles.truncated": "顯示 {shown} / {total} 行"
+  "chat.changedFiles.truncated": "顯示 {shown} / {total} 行",
+  "chat.tool.copyCommand": "複製命令",
+  "chat.tool.copyOutput": "複製輸出",
+  "chat.changedFiles.copyDiff": "複製 diff",
 };

@@ -178,5 +178,8 @@ export const idChat = {
   "chat.changedFiles.collapse": "Ciutkan diff {name}",
   "chat.changedFiles.openInReview": "Buka di Review",
   "chat.changedFiles.noDiffYet": "Diff belum tersedia — buka Review untuk berkas lengkap.",
-  "chat.changedFiles.truncated": "Menampilkan {shown} dari {total} baris"
+  "chat.changedFiles.truncated": "Menampilkan {shown} dari {total} baris",
+  "chat.tool.copyCommand": "Salin perintah",
+  "chat.tool.copyOutput": "Salin keluaran",
+  "chat.changedFiles.copyDiff": "Salin diff",
 };

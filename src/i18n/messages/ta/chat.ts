@@ -178,5 +178,8 @@ export const taChat = {
   "chat.changedFiles.collapse": "{name} வேறுபாட்டை சுருக்கு",
   "chat.changedFiles.openInReview": "Review-இல் திற",
   "chat.changedFiles.noDiffYet": "வேறுபாடு இன்னும் இல்லை — முழு கோப்பிற்கு Review-ஐத் திறக்கவும்.",
-  "chat.changedFiles.truncated": "{total} வரிகளில் {shown} காட்டப்படுகிறது"
+  "chat.changedFiles.truncated": "{total} வரிகளில் {shown} காட்டப்படுகிறது",
+  "chat.tool.copyCommand": "கட்டளையை நகலெடு",
+  "chat.tool.copyOutput": "வெளியீட்டை நகலெடு",
+  "chat.changedFiles.copyDiff": "diff-ஐ நகலெடு",
 };

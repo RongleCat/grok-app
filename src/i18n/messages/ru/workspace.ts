@@ -98,6 +98,7 @@ export const ruWorkspace = {
   "changes.reveal": "Показать в файловом менеджере",
   "changes.copyPath": "Копировать путь",
   "changes.pathCopied": "Путь скопирован",
+  "changes.copyDiff": "Копировать diff",
   "changes.loadingDiff": "Загрузка diff…",
   "changes.noDiff": "Для этого файла нет unified diff",
   "changes.noDiffHint": "Исходное содержимое недоступно. Откройте файл в Ресурсах или внешнем редакторе.",

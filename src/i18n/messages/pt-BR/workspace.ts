@@ -98,6 +98,7 @@ export const ptBRWorkspace = {
   "changes.reveal": "Mostrar no gerenciador de arquivos",
   "changes.copyPath": "Copiar caminho",
   "changes.pathCopied": "Caminho copiado",
+  "changes.copyDiff": "Copiar diff",
   "changes.loadingDiff": "Carregando diff…",
   "changes.noDiff": "Nenhum diff unificado disponível para este arquivo",
   "changes.noDiffHint": "O conteúdo anterior está indisponível. Abra o arquivo em Recursos ou num editor externo.",

@@ -98,6 +98,7 @@ export const frWorkspace = {
   "changes.reveal": "Afficher dans le gestionnaire de fichiers",
   "changes.copyPath": "Copier le chemin",
   "changes.pathCopied": "Chemin copié",
+  "changes.copyDiff": "Copier le diff",
   "changes.loadingDiff": "Chargement du diff…",
   "changes.noDiff": "Aucun diff unifié disponible pour ce fichier",
   "changes.noDiffHint": "Le contenu avant est indisponible. Ouvrez le fichier dans Ressources ou un éditeur externe.",

@@ -185,5 +185,8 @@ export const zhChat = {
   "chat.changedFiles.collapse": "收起 {name} 的差异",
   "chat.changedFiles.openInReview": "在 Review 中打开",
   "chat.changedFiles.noDiffYet": "暂无差异预览 — 可在 Review 中查看完整文件。",
-  "chat.changedFiles.truncated": "显示 {shown} / {total} 行"
+  "chat.changedFiles.truncated": "显示 {shown} / {total} 行",
+  "chat.tool.copyCommand": "复制命令",
+  "chat.tool.copyOutput": "复制输出",
+  "chat.changedFiles.copyDiff": "复制 diff",
 };

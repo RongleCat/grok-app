@@ -178,5 +178,8 @@ export const ptBRChat = {
   "chat.changedFiles.collapse": "Recolher diff de {name}",
   "chat.changedFiles.openInReview": "Abrir no Review",
   "chat.changedFiles.noDiffYet": "Diff ainda indisponível — abra o Review para o arquivo completo.",
-  "chat.changedFiles.truncated": "Mostrando {shown} de {total} linhas"
+  "chat.changedFiles.truncated": "Mostrando {shown} de {total} linhas",
+  "chat.tool.copyCommand": "Copiar comando",
+  "chat.tool.copyOutput": "Copiar saída",
+  "chat.changedFiles.copyDiff": "Copiar diff",
 };

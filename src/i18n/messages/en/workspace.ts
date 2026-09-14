@@ -98,6 +98,7 @@ export const enWorkspace = {
   "changes.reveal": "Reveal in file manager",
   "changes.copyPath": "Copy path",
   "changes.pathCopied": "Path copied",
+  "changes.copyDiff": "Copy diff",
   "changes.loadingDiff": "Loading diff…",
   "changes.noDiff": "No unified diff available for this file",
   "changes.noDiffHint": "Before content is unavailable. Open the file in Resources or an external editor.",

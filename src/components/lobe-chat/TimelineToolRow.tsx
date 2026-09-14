@@ -190,7 +190,9 @@ export const TimelineToolRow = memo(function TimelineToolRow({
       ) : (
         <span className="grok-act__label">{summary}</span>
       )}
-      {showBody && expand ? <ToolExpandBody body={expand} /> : null}
+      {showBody && expand ? (
+        <ToolExpandBody body={expand} locale={locale} />
+      ) : null}
     </div>
   );
 });

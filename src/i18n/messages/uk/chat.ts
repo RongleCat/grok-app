@@ -178,5 +178,8 @@ export const ukChat = {
   "chat.changedFiles.collapse": "Згорнути diff для {name}",
   "chat.changedFiles.openInReview": "Відкрити в Review",
   "chat.changedFiles.noDiffYet": "Diff ще недоступний — відкрийте Review для повного файлу.",
-  "chat.changedFiles.truncated": "Показано {shown} з {total} рядків"
+  "chat.changedFiles.truncated": "Показано {shown} з {total} рядків",
+  "chat.tool.copyCommand": "Копіювати команду",
+  "chat.tool.copyOutput": "Копіювати вивід",
+  "chat.changedFiles.copyDiff": "Копіювати diff",
 };

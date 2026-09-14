@@ -98,6 +98,7 @@ export const idWorkspace = {
   "changes.reveal": "Tampilkan di pengelola berkas",
   "changes.copyPath": "Salin jalur",
   "changes.pathCopied": "Jalur disalin",
+  "changes.copyDiff": "Salin diff",
   "changes.loadingDiff": "Memuat diff…",
   "changes.noDiff": "Tidak ada diff terpadu tersedia untuk berkas ini",
   "changes.noDiffHint": "Konten sebelum tidak tersedia. Buka berkas di Sumber daya atau editor eksternal.",

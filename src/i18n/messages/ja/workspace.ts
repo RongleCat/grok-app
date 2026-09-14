@@ -98,6 +98,7 @@ export const jaWorkspace = {
   "changes.reveal": "ファイルマネージャで表示",
   "changes.copyPath": "パスをコピー",
   "changes.pathCopied": "パスをコピーしました",
+  "changes.copyDiff": "diff をコピー",
   "changes.loadingDiff": "diff を読み込み中…",
   "changes.noDiff": "このファイルの unified diff はありません",
   "changes.noDiffHint": "変更前の内容がありません。リソースまたは外部エディタで開いてください。",

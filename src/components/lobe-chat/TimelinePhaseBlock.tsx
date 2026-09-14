@@ -500,6 +500,7 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
             <ToolExpandBody
               body={expand}
               className="lobe-timeline-tool__body grok-act__expand-body"
+              locale={locale}
             />
           ) : null
         ) : null}

@@ -178,5 +178,8 @@ export const esChat = {
   "chat.changedFiles.collapse": "Contraer diff de {name}",
   "chat.changedFiles.openInReview": "Abrir en Review",
   "chat.changedFiles.noDiffYet": "Diff aún no disponible — abre Review para el archivo completo.",
-  "chat.changedFiles.truncated": "Mostrando {shown} de {total} líneas"
+  "chat.changedFiles.truncated": "Mostrando {shown} de {total} líneas",
+  "chat.tool.copyCommand": "Copiar comando",
+  "chat.tool.copyOutput": "Copiar salida",
+  "chat.changedFiles.copyDiff": "Copiar diff",
 };

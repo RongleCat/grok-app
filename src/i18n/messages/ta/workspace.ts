@@ -98,6 +98,7 @@ export const taWorkspace = {
   "changes.reveal": "கோப்பு மேலாளரில் காட்டு",
   "changes.copyPath": "பாதையை நகலெடு",
   "changes.pathCopied": "பாதை நகலெடுக்கப்பட்டது",
+  "changes.copyDiff": "diff-ஐ நகலெடு",
   "changes.loadingDiff": "வேறுபாட்டை ஏற்றுகிறது…",
   "changes.noDiff": "இந்தக் கோப்பிற்கு ஒருங்கிணைந்த வேறுபாடு இல்லை",
   "changes.noDiffHint": "உள்ளடக்கம் கிடைக்காததற்கு முன். ஆதாரங்கள் அல்லது வெளிப்புற எடிட்டரில் கோப்பைத் திறக்கவும்.",

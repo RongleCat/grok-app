@@ -13,6 +13,14 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- Shell commands show the full command, with one-click copy of command and output.
+- File diffs on a turn and in Review can be copied in one click.
+
+**中文 · 新增**
+- 终端命令会显示完整命令，并可一键复制命令和输出。
+- 回合变更和 Review 里的文件 diff 可一键复制。
+
 ### Fixed
 - Sending or finishing a chat moves it to the top of that project's list. Pinned chats stay first.
 - Esc in an image preview closes the preview instead of stopping the turn.

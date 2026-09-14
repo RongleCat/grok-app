@@ -98,6 +98,7 @@ export const zhTWWorkspace = {
   "changes.reveal": "在檔案管理員中顯示",
   "changes.copyPath": "複製路徑",
   "changes.pathCopied": "路徑已複製",
+  "changes.copyDiff": "複製 diff",
   "changes.loadingDiff": "正在載入 diff…",
   "changes.noDiff": "暫無此檔案的統一 diff",
   "changes.noDiffHint": "暫無修改前內容。可在資源面板或外部編輯器中開啟。",

@@ -98,6 +98,7 @@ export const itWorkspace = {
   "changes.reveal": "Mostra nel gestore file",
   "changes.copyPath": "Copia percorso",
   "changes.pathCopied": "Percorso copiato",
+  "changes.copyDiff": "Copia diff",
   "changes.loadingDiff": "Caricamento diff…",
   "changes.noDiff": "Nessun unified diff disponibile per questo file",
   "changes.noDiffHint": "Il contenuto before non è disponibile. Apri il file in Risorse o in un editor esterno.",

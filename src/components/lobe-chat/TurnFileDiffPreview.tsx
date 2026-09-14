@@ -4,6 +4,7 @@
  */
 
 import { memo, useMemo } from "react";
+import { CopyIconButton } from "@/components/CopyIconButton";
 import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
 import { parseReviewPatch, type ReviewDiffRow } from "@/lib/reviewDiff";
@@ -84,6 +85,14 @@ export const TurnFileDiffPreview = memo(function TurnFileDiffPreview({
       role="region"
       aria-label={tr("chat.changedFiles.aria")}
     >
+      <div className="lobe-turn-changed__preview-bar">
+        <CopyIconButton
+          text={patch}
+          copyLabel={tr("chat.changedFiles.copyDiff")}
+          copiedLabel={tr("message.copied")}
+          testId="turn-file-copy-diff"
+        />
+      </div>
       <div className="lobe-turn-changed__diff" data-testid="turn-file-diff">
         {shown.map((row, i) => {
           if (row.type === "fold") {

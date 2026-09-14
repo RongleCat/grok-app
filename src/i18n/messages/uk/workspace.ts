@@ -98,6 +98,7 @@ export const ukWorkspace = {
   "changes.reveal": "Показати у файловому менеджері",
   "changes.copyPath": "Копіювати шлях",
   "changes.pathCopied": "Шлях скопійовано",
+  "changes.copyDiff": "Копіювати diff",
   "changes.loadingDiff": "Завантаження diff…",
   "changes.noDiff": "Уніфікований diff для цього файлу недоступний",
   "changes.noDiffHint": "Вміст «до» недоступний. Відкрийте файл у Ресурсах або зовнішньому редакторі.",

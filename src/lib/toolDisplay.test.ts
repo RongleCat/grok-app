@@ -8,6 +8,7 @@ import {
   toolDetailTail,
   toolExpandBody,
   toolExpandHasBody,
+  toolFullOutput,
   toolInputDisplay,
   toolOutputBody,
 } from "./toolDisplay";
@@ -176,8 +177,24 @@ describe("toolDisplay", () => {
     expect(body.hasBody).toBe(true);
     expect(body.outputBody).toContain("total 0");
     expect(body.command).toBe("ls -la");
+    expect(body.outputFull).toContain("total 0");
     // When output is present, the legacy detail tail is suppressed.
     expect(body.detailTail).toBe("");
+  });
+
+  it("toolExpandBody shows a bash command even without stdout", () => {
+    const body = toolExpandBody(
+      {
+        toolCallId: "t3b",
+        toolKind: "run_terminal_command",
+        input: "pwd",
+      },
+      false,
+    );
+    expect(body.hasBody).toBe(true);
+    expect(body.command).toBe("pwd");
+    expect(body.outputBody).toBe("");
+    expect(body.outputFull).toBe("");
   });
 
   it("toolExpandBody is expandable for read-only tools once output is captured", () => {
@@ -210,6 +227,12 @@ describe("toolDisplay", () => {
     expect(body).toContain("line 0");
     expect(body).toContain("line 999");
     expect(body).toMatch(/… \d+ more lines …/);
+    const full = toolFullOutput(long);
+    expect(full).toContain("line 500");
+    expect(full).not.toMatch(/more lines/);
+    expect(toolExpandBody({ output: long, toolKind: "read_file" }, false).outputFull).toBe(
+      full,
+    );
   });
 });
 
@@ -255,6 +278,11 @@ describe("toolExpandHasBody", () => {
     {
       name: "plain output",
       seg: { toolKind: "run_terminal_command", output: "hello\nworld" },
+      failed: false,
+    },
+    {
+      name: "bash command without output",
+      seg: { toolKind: "run_terminal_command", input: "pwd" },
       failed: false,
     },
     {

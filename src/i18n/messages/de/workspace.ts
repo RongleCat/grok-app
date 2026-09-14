@@ -98,6 +98,7 @@ export const deWorkspace = {
   "changes.reveal": "Im Dateimanager zeigen",
   "changes.copyPath": "Pfad kopieren",
   "changes.pathCopied": "Pfad kopiert",
+  "changes.copyDiff": "Diff kopieren",
   "changes.loadingDiff": "Diff wird geladen…",
   "changes.noDiff": "Kein Unified Diff für diese Datei verfügbar",
   "changes.noDiffHint": "Before-Inhalt nicht verfügbar. Datei in Ressourcen oder einem externen Editor öffnen.",
