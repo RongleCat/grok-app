@@ -14,18 +14,22 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- Project rules list this project, ~/.agents, and the live agent home. Missing files stay faded at the bottom.
 - Shell commands show the full command, with one-click copy of command and output.
 - File diffs on a turn and in Review can be copied in one click.
 
 **中文 · 新增**
+- 项目规则会列出本项目、~/.agents 和当前 agent-home。未创建的会变淡并排在下面。
 - 终端命令会显示完整命令，并可一键复制命令和输出。
 - 回合变更和 Review 里的文件 diff 可一键复制。
 
 ### Fixed
+- Project rules no longer list the same AGENTS.md three times on macOS.
 - Sending or finishing a chat moves it to the top of that project's list. Pinned chats stay first.
 - Esc in an image preview closes the preview instead of stopping the turn.
 
 **中文 · 修复**
+- 项目规则在 macOS 上不再把同一份 AGENTS.md 列成三条。
 - 发送或完成一轮对话后，该会话会排到所属项目列表顶部。置顶会话仍在最前。
 - 图片预览打开时按 Esc 会关掉预览，而不会停止当前生成。
 
