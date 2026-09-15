@@ -201,6 +201,8 @@ pub fn app_invoke_handler(
         commands::skill_write,
         commands::skill_roots,
         commands::skill_create,
+        commands::customize_commands_list,
+        commands::customize_command_create,
         // ── Agents & workflows ──
         commands::agents_list,
         commands::workflows_list,

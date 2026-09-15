@@ -468,6 +468,41 @@ export async function skillCreate(opts: {
   });
 }
 
+export type CustomCommandEntry = {
+  name: string;
+  absolutePath: string;
+  scope: string;
+  writable: boolean;
+  exists: boolean;
+};
+
+export type CustomCommandListResult = {
+  commands: CustomCommandEntry[];
+  userRoot: string;
+  projectRoot?: string | null;
+  userWritable: boolean;
+};
+
+export async function customizeCommandsList(projectPath?: string | null) {
+  return invoke<CustomCommandListResult>("customize_commands_list", {
+    projectPath: projectPath ?? null,
+  });
+}
+
+export async function customizeCommandCreate(opts: {
+  name: string;
+  body: string;
+  scope?: "user" | "project" | null;
+  projectPath?: string | null;
+}) {
+  return invoke<CustomCommandEntry>("customize_command_create", {
+    name: opts.name,
+    body: opts.body,
+    scope: opts.scope ?? "user",
+    projectPath: opts.projectPath ?? null,
+  });
+}
+
 /** List MCP servers via `grok inspect --json` (optional project cwd). */
 export async function inspectMcp(projectPath?: string | null) {
   return invoke<InspectMcpResult>("inspect_mcp", {

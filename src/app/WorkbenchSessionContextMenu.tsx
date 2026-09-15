@@ -84,6 +84,7 @@ export type WorkbenchSessionContextMenuProps = {
   renameSession: (s: SessionRow) => void;
   resumeRestoreBusy: boolean;
   runDuplicateSession: (source: SessionRow) => Promise<void>;
+  runHandoffSession: (source: SessionRow) => Promise<void>;
   session: SessionSnapshot;
   sessionSelectMode: boolean;
   sessionWorktreeBadgeFor: (s: SessionRow) => SessionWorktreeBadge | null;
@@ -149,6 +150,7 @@ export function buildSessionContextMenuItems(
     renameSession,
     resumeRestoreBusy,
     runDuplicateSession,
+    runHandoffSession,
     session,
     sessionSelectMode,
     sessionWorktreeBadgeFor,
@@ -738,6 +740,15 @@ export function buildSessionContextMenuItems(
                   (isOpen && !canRewindSession),
                 onClick: () => {
                   void runDuplicateSession(s);
+                },
+              },
+              {
+                id: "handoff",
+                label: tr("session.handoff"),
+                icon: <IconUpload size={16} />,
+                disabled: forkBusy || busyIds.has(s.id),
+                onClick: () => {
+                  void runHandoffSession(s);
                 },
               },
               ...(resumeRestoreItem ? [resumeRestoreItem] : []),

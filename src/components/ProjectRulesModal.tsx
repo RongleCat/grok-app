@@ -51,6 +51,8 @@ export type ProjectRulesModalProps = {
   projectPath: string | null;
   projectName?: string | null;
   locale: Locale;
+  /** Render the editor inline (Settings) instead of a modal overlay. */
+  embedded?: boolean;
 };
 
 type RuleRow = {
@@ -111,6 +113,7 @@ export function ProjectRulesModal({
   projectPath,
   projectName = null,
   locale,
+  embedded = false,
 }: ProjectRulesModalProps) {
   const tr = useMemo(() => createT(locale), [locale]);
   const [rules, setRules] = useState<RuleRow[]>([]);
@@ -538,19 +541,7 @@ export function ProjectRulesModal({
     [draft?.name, tr],
   );
 
-  return (
-    <>
-      <GlassModal
-        open={open}
-        onClose={requestClose}
-        title={title}
-        size="lg"
-        className="project-rules-modal"
-        bodyClassName="project-rules-modal__body"
-        wrapBody
-        closeLabel={tr("common.close")}
-        closeOnOverlay={!dirty && !draft?.saving}
-      >
+  const editor = (
         <div className="prm">
           <div className="prm__toolbar">
             <button
@@ -841,7 +832,32 @@ export function ProjectRulesModal({
             ) : null}
           </OverlayScroll>
         </div>
-      </GlassModal>
+  );
+
+  return (
+    <>
+      {embedded ? (
+        <div
+          className="project-rules-modal project-rules-modal--page"
+          id="settings-anchor-ext-rules"
+        >
+          {editor}
+        </div>
+      ) : (
+        <GlassModal
+          open={open}
+          onClose={requestClose}
+          title={title}
+          size="lg"
+          className="project-rules-modal"
+          bodyClassName="project-rules-modal__body"
+          wrapBody
+          closeLabel={tr("common.close")}
+          closeOnOverlay={!dirty && !draft?.saving}
+        >
+          {editor}
+        </GlassModal>
+      )}
 
       <GlassModal
         open={discardOpen}

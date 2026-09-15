@@ -247,6 +247,10 @@ export function MemoryEmbedPanel({
         clearEmbeddingModel: patch.clearEmbeddingModel ?? null,
         embeddingDimensions: patch.embeddingDimensions ?? null,
         embeddingProvider: patch.embeddingProvider ?? null,
+        embeddingBaseUrl: patch.embeddingBaseUrl ?? null,
+        clearEmbeddingBaseUrl: patch.clearEmbeddingBaseUrl ?? null,
+        embeddingApiKey: patch.embeddingApiKey ?? null,
+        clearEmbeddingApiKey: patch.clearEmbeddingApiKey ?? null,
         searchMaxResults: patch.searchMaxResults ?? null,
         searchMinScore: patch.searchMinScore ?? null,
         searchVectorWeight: patch.searchVectorWeight ?? null,
@@ -395,6 +399,87 @@ export function MemoryEmbedPanel({
                 autoComplete="off"
                 spellCheck={false}
                 aria-label={t("settings.memoryEmbed.model")}
+              />
+            </div>
+
+            <div
+              className="settings-row settings-row--stack"
+              id="settings-anchor-memoryEmbed-baseUrl"
+            >
+              <div className="settings-row__text">
+                <div className="settings-row__label">
+                  {t("settings.memoryEmbed.baseUrl")}{" "}
+                  <ScalarPresence set={!!draft.embeddingBaseUrl} t={t} />
+                </div>
+                <div className="settings-row__desc">
+                  {t("settings.memoryEmbed.baseUrlDesc")}
+                </div>
+                <div
+                  className="settings-row__hint"
+                  title="[memory.embedding] base_url"
+                >
+                  [memory.embedding] base_url
+                </div>
+              </div>
+              <input
+                type="url"
+                className="settings-input"
+                disabled={disabled}
+                value={draft.embeddingBaseUrl ?? ""}
+                placeholder={t("settings.memoryEmbed.baseUrlPlaceholder")}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    embeddingBaseUrl: e.target.value.trim()
+                      ? e.target.value
+                      : null,
+                  }))
+                }
+                autoComplete="off"
+                spellCheck={false}
+                aria-label={t("settings.memoryEmbed.baseUrl")}
+              />
+            </div>
+
+            <div
+              className="settings-row settings-row--stack"
+              id="settings-anchor-memoryEmbed-apiKey"
+            >
+              <div className="settings-row__text">
+                <div className="settings-row__label">
+                  {t("settings.memoryEmbed.apiKey")}{" "}
+                  <ScalarPresence set={draft.hasEmbeddingApiKey} t={t} />
+                </div>
+                <div className="settings-row__desc">
+                  {t("settings.memoryEmbed.apiKeyDesc")}
+                </div>
+                <div
+                  className="settings-row__hint"
+                  title="[memory.embedding] api_key"
+                >
+                  [memory.embedding] api_key
+                </div>
+              </div>
+              <input
+                type="password"
+                className="settings-input"
+                disabled={disabled}
+                value={draft.embeddingApiKey ?? ""}
+                placeholder={
+                  draft.hasEmbeddingApiKey
+                    ? t("settings.memoryEmbed.apiKeyKept")
+                    : t("settings.memoryEmbed.apiKeyPlaceholder")
+                }
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    embeddingApiKey: e.target.value,
+                    clearEmbeddingApiKey: false,
+                  }))
+                }
+                autoComplete="off"
+                spellCheck={false}
+                aria-label={t("settings.memoryEmbed.apiKey")}
               />
             </div>
 

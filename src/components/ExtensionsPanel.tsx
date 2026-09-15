@@ -78,6 +78,8 @@ import {
   ExtensionsBuildExtras,
   type ExtAgentsTabActions,
 } from "@/components/ExtensionsBuildExtras";
+import { CustomizeCommandsPanel } from "@/components/CustomizeCommandsPanel";
+import { ProjectRulesModal } from "@/components/ProjectRulesModal";
 import {
   ExtensionsHooksPanel,
   type ExtHooksTabActions,
@@ -160,6 +162,8 @@ export type ExtensionsTabId =
   | "mcp"
   | "agents"
   | "hooks"
+  | "rules"
+  | "commands"
   /** @deprecated Deep-link only; resolves to plugins. */
   | "market";
 
@@ -1784,6 +1788,8 @@ export function ExtensionsPanel({
                 ["plugins", "ext.plugins.title", plugins.length] as const,
                 ["mcp", "ext.mcp.title", mcpCount] as const,
                 ["skills", "ext.skills.title", skills.length] as const,
+                ["rules", "ext.rules.title", null] as const,
+                ["commands", "ext.commands.title", null] as const,
                 ["agents", "ext.agents.title", null] as const,
                 ["hooks", "ext.hooks.title", null] as const,
               ] as const
@@ -2851,6 +2857,18 @@ export function ExtensionsPanel({
       </>
       )}
 
+      {tab === "rules" && (
+        <ProjectRulesModal
+          open
+          embedded
+          onClose={() => {}}
+          projectPath={projectPath ?? null}
+          locale={locale}
+        />
+      )}
+      {tab === "commands" && (
+        <CustomizeCommandsPanel locale={locale} projectPath={projectPath} />
+      )}
       {tab === "hooks" && (
         <ExtensionsHooksPanel
           locale={locale}

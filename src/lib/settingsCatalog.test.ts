@@ -173,6 +173,8 @@ describe("settingsCatalog", () => {
       "plugins",
       "mcp",
       "skills",
+      "rules",
+      "commands",
       "agents",
       "hooks",
     ]);

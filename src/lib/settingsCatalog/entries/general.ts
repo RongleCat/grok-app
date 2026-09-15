@@ -676,6 +676,7 @@ export const GENERAL_ENTRIES: readonly SettingsEntry[] = [
     descKeys: [
       "settings.memoryEmbedDesc",
       "settings.memoryEmbed.model",
+      "settings.memoryEmbed.baseUrl",
       "settings.memoryEmbed.mmr",
       "settings.memoryEmbed.dream",
       "settings.memoryEmbed.embeddingEmpty",
@@ -684,6 +685,8 @@ export const GENERAL_ENTRIES: readonly SettingsEntry[] = [
     keywords: [
       "memory embedding",
       "embedding model",
+      "base url",
+      "siliconflow",
       "memory_embedding_model",
       "memory search",
       "mmr",

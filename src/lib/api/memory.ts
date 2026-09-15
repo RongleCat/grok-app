@@ -155,6 +155,8 @@ export type MemoryEmbedConfigSnapshot = {
   embeddingModel?: string | null;
   embeddingDimensions?: number | null;
   embeddingProvider?: string | null;
+  embeddingBaseUrl?: string | null;
+  hasEmbeddingApiKey?: boolean | null;
   searchMaxResults?: number | null;
   searchMinScore?: number | null;
   searchVectorWeight?: number | null;
@@ -178,6 +180,10 @@ export type MemoryEmbedConfigPatch = {
   clearEmbeddingModel?: boolean | null;
   embeddingDimensions?: number | null;
   embeddingProvider?: string | null;
+  embeddingBaseUrl?: string | null;
+  clearEmbeddingBaseUrl?: boolean | null;
+  embeddingApiKey?: string | null;
+  clearEmbeddingApiKey?: boolean | null;
   searchMaxResults?: number | null;
   searchMinScore?: number | null;
   searchVectorWeight?: number | null;
@@ -208,6 +214,10 @@ export async function memoryEmbedConfigSet(
     clearEmbeddingModel: patch.clearEmbeddingModel ?? null,
     embeddingDimensions: patch.embeddingDimensions ?? null,
     embeddingProvider: patch.embeddingProvider ?? null,
+    embeddingBaseUrl: patch.embeddingBaseUrl ?? null,
+    clearEmbeddingBaseUrl: patch.clearEmbeddingBaseUrl ?? null,
+    embeddingApiKey: patch.embeddingApiKey ?? null,
+    clearEmbeddingApiKey: patch.clearEmbeddingApiKey ?? null,
     searchMaxResults: patch.searchMaxResults ?? null,
     searchMinScore: patch.searchMinScore ?? null,
     searchVectorWeight: patch.searchVectorWeight ?? null,

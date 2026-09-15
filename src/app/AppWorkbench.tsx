@@ -20,7 +20,10 @@ import {
   shouldSyncStreamPerfDataset,
 } from "@/lib/streamRenderPolicy";
 import { formatRelativeTime } from "@/lib/accountUi";
-import { loadConfirmExternalLinksPref } from "@/lib/externalLinkPref";
+import {
+  loadConfirmExternalLinksPref,
+  openExternalHttpUrl,
+} from "@/lib/externalLinkPref";
 import {
   chatcutHandoffToResourceOpenTarget,
   resolveChatcutLinkClick,
@@ -386,7 +389,9 @@ import {
 import {
   composerDraftStore,
   getDraft as getComposerDraft,
+  setDraft as setComposerDraft,
 } from "@/lib/composerDraftStore";
+import { buildHandoffBrief, handoffSessionTitle } from "@/lib/sessionHandoff";
 import {
   clearComposerProjectDraft,
   loadComposerProjectDraft,
@@ -4253,7 +4258,7 @@ export function AppWorkbench() {
     [],
   );
 
-  /** Open chat markdown http(s) links via desktop shell; optional confirm pref. */
+  /** Open chat markdown http(s) links in the configured browser; optional confirm pref. */
   const openExternalLinkFromChat = useCallback(
     (url: string) => {
       // ChatCut editor/billing → system default browser (EmbeddedBrowser cannot
@@ -4272,19 +4277,7 @@ export function AppWorkbench() {
       const openUrl =
         action.kind === "open_external" ? action.url : url;
       const doOpen = () => {
-        if (api.isTauri()) {
-          void api.openExternalUrl(openUrl).catch((e) => {
-            console.error("[chat] openExternalUrl failed", e);
-            // Fallback for hosts that reject shell open.
-            try {
-              window.open(openUrl, "_blank", "noopener,noreferrer");
-            } catch {
-              /* ignore */
-            }
-          });
-        } else {
-          window.open(openUrl, "_blank", "noopener,noreferrer");
-        }
+        openExternalHttpUrl(openUrl);
       };
       if (loadConfirmExternalLinksPref()) {
         setAppDialog({
@@ -8256,6 +8249,64 @@ export function AppWorkbench() {
       showToast,
       tr,
     ],
+  );
+
+  const runHandoffSession = useCallback(
+    async (source: SessionRow) => {
+      if (!api.isTauri()) {
+        showToast(tr("error.needTauri"));
+        return;
+      }
+      setCtxMenu(null);
+      setForkBusy(true);
+      try {
+        const isOpenSource =
+          session.sessionId === source.id ||
+          viewingSessionIdRef.current === source.id;
+        const msgs = isOpenSource
+          ? messagesRef.current
+          : mapStoredMessagesToChat(await api.sessionMessages(source.id));
+        const title = handoffSessionTitle(source.title || tr("session.untitled"));
+        const brief = buildHandoffBrief({
+          title: source.title,
+          parentSessionId: source.id,
+          messages: msgs,
+        });
+        const meta = (await api.sessionCreate(
+          source.projectId ?? undefined,
+          title,
+        )) as SessionRow;
+        await refreshSessions();
+        const projectId = meta.projectId ?? source.projectId;
+        const row = normalizeSessionRow({
+          ...source,
+          ...meta,
+          id: meta.id,
+          title: meta.title || title,
+          projectId,
+          updatedAt: meta.updatedAt || new Date().toISOString(),
+          archived: meta.archived,
+          pinned: false,
+        });
+        const openProj = projectId
+          ? projects.find((p) => p.id === projectId) ?? null
+          : null;
+        if (row.projectId) {
+          setExpandedProjects((e) => ({ ...e, [row.projectId!]: true }));
+        } else {
+          setHistoryOpen(true);
+        }
+        await openSession(row, openProj);
+        setComposerDraft(brief);
+        showToast(tr("session.handoffOk"), 3200);
+      } catch (e) {
+        showToast(tr("session.handoffFailed") + ": " + String(e), 4500);
+      } finally {
+        setForkBusy(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projects, session.sessionId, showToast, tr],
   );
 
   const { captureRewindComposerRestore, applyRewindComposerRestore } =
@@ -13429,6 +13480,7 @@ export function AppWorkbench() {
             renameSession={renameSession}
             resumeRestoreBusy={resumeRestoreBusy}
             runDuplicateSession={runDuplicateSession}
+            runHandoffSession={runHandoffSession}
             sandboxProfileLabel={sandboxProfileLabel}
             session={session}
             sessionSelectMode={sessionSelectMode}

@@ -32,6 +32,8 @@ export function ExtensionsSection() {
                 | "mcp"
                 | "agents"
                 | "hooks"
+                | "rules"
+                | "commands"
                 | "market" // legacy hash → plugins inside panel
                 | null) ?? "plugins"
             }

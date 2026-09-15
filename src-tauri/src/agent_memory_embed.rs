@@ -55,6 +55,11 @@ pub struct MemoryEmbedConfigSnapshot {
     pub embedding_model: Option<String>,
     pub embedding_dimensions: Option<u32>,
     pub embedding_provider: Option<String>,
+    /// OpenAI-compatible embedding root. Round-tripped even if current CLI docs omit it.
+    pub embedding_base_url: Option<String>,
+    /// True when `[memory.embedding] api_key` is non-empty. Never returned plaintext.
+    #[serde(default)]
+    pub has_embedding_api_key: bool,
     // --- search ---
     pub search_max_results: Option<u32>,
     pub search_min_score: Option<f64>,
@@ -88,6 +93,11 @@ pub struct MemoryEmbedConfigPatch {
     pub clear_embedding_model: Option<bool>,
     pub embedding_dimensions: Option<u32>,
     pub embedding_provider: Option<String>,
+    pub embedding_base_url: Option<String>,
+    pub clear_embedding_base_url: Option<bool>,
+    /// New key; empty / omitted keeps the existing secret.
+    pub embedding_api_key: Option<String>,
+    pub clear_embedding_api_key: Option<bool>,
     pub search_max_results: Option<u32>,
     pub search_min_score: Option<f64>,
     pub search_vector_weight: Option<f64>,
@@ -111,6 +121,10 @@ impl MemoryEmbedConfigPatch {
             && self.clear_embedding_model != Some(true)
             && self.embedding_dimensions.is_none()
             && self.embedding_provider.is_none()
+            && self.embedding_base_url.is_none()
+            && self.clear_embedding_base_url != Some(true)
+            && self.embedding_api_key.is_none()
+            && self.clear_embedding_api_key != Some(true)
             && self.search_max_results.is_none()
             && self.search_min_score.is_none()
             && self.search_vector_weight.is_none()
@@ -135,6 +149,8 @@ pub struct MemoryEmbedFlags {
     pub embedding_model: Option<String>,
     pub embedding_dimensions: Option<u32>,
     pub embedding_provider: Option<String>,
+    pub embedding_base_url: Option<String>,
+    pub embedding_api_key: Option<String>,
     pub search_max_results: Option<u32>,
     pub search_min_score: Option<f64>,
     pub search_vector_weight: Option<f64>,
@@ -227,6 +243,18 @@ pub fn parse_memory_embed_flags(text: &str) -> MemoryEmbedFlags {
                 let s = parse_toml_scalar(val);
                 if !s.is_empty() {
                     flags.embedding_provider = Some(s);
+                }
+            }
+            ("memory.embedding", "base_url") => {
+                let s = parse_toml_scalar(val);
+                if !s.is_empty() {
+                    flags.embedding_base_url = Some(s);
+                }
+            }
+            ("memory.embedding", "api_key") => {
+                let s = parse_toml_scalar(val);
+                if !s.is_empty() {
+                    flags.embedding_api_key = Some(s);
                 }
             }
             ("memory.search", "max_results") => {
@@ -368,6 +396,26 @@ pub fn apply_memory_embed_patch(text: &str, patch: &MemoryEmbedConfigPatch) -> S
         let s = p.trim();
         if !s.is_empty() {
             next = set_table_key(&next, "memory.embedding", "provider", s, true);
+        }
+    }
+    if patch.clear_embedding_base_url == Some(true) {
+        next = remove_table_key(&next, "memory.embedding", "base_url");
+    } else if let Some(ref url) = patch.embedding_base_url {
+        let s = url.trim();
+        if s.is_empty() {
+            next = remove_table_key(&next, "memory.embedding", "base_url");
+        } else {
+            next = set_table_key(&next, "memory.embedding", "base_url", s, true);
+        }
+    }
+    if patch.clear_embedding_api_key == Some(true) {
+        next = remove_table_key(&next, "memory.embedding", "api_key");
+    } else if let Some(ref key) = patch.embedding_api_key {
+        let s = key.trim();
+        if s.is_empty() {
+            next = remove_table_key(&next, "memory.embedding", "api_key");
+        } else {
+            next = set_table_key(&next, "memory.embedding", "api_key", s, true);
         }
     }
     if let Some(n) = patch.search_max_results {
@@ -553,6 +601,11 @@ fn snapshot_from_raw(
         embedding_model: flags.embedding_model,
         embedding_dimensions: flags.embedding_dimensions,
         embedding_provider: flags.embedding_provider,
+        embedding_base_url: flags.embedding_base_url,
+        has_embedding_api_key: flags
+            .embedding_api_key
+            .as_ref()
+            .is_some_and(|s| !s.trim().is_empty()),
         search_max_results: flags.search_max_results,
         search_min_score: flags.search_min_score,
         search_vector_weight: flags.search_vector_weight,
@@ -716,6 +769,8 @@ enabled = true
 model = "text-embedding-3-small"
 dimensions = 1024
 provider = "api"
+base_url = "https://api.siliconflow.cn/v1"
+api_key = "sk-embed-secret"
 
 [memory.search]
 max_results = 8
@@ -754,6 +809,11 @@ api_key = "sk-abcdefghijklmnopqrstuvwxyz0123"
         );
         assert_eq!(flags.embedding_dimensions, Some(1024));
         assert_eq!(flags.embedding_provider.as_deref(), Some("api"));
+        assert_eq!(
+            flags.embedding_base_url.as_deref(),
+            Some("https://api.siliconflow.cn/v1")
+        );
+        assert_eq!(flags.embedding_api_key.as_deref(), Some("sk-embed-secret"));
         assert_eq!(flags.search_max_results, Some(8));
         assert_eq!(flags.search_min_score, Some(0.35));
         assert_eq!(flags.mmr_enabled, Some(true));

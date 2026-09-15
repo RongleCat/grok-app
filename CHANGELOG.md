@@ -18,12 +18,18 @@ See `docs/llm-wiki/release.md`.
 - Shell commands show the full command, with one-click copy of command and output.
 - File diffs on a turn and in Review can be copied in one click.
 - Chat file cards can show the file name only, or the path as the model wrote it. Hover shows the full path immediately.
+- Settings → Extensions can type project/home rules and slash commands as real CLI files.
+- Session menu can send the current work to a new task with a short handoff brief.
+- Memory embedding can set a separate OpenAI-compatible Base URL and key.
 
 **中文 · 新增**
 - 项目规则会列出本项目、~/.agents 和当前 agent-home。未创建的会变淡并排在下面。
 - 终端命令会显示完整命令，并可一键复制命令和输出。
 - 回合变更和 Review 里的文件 diff 可一键复制。
 - 对话里的文件路径可只显示文件名，或按模型原文显示。悬停会立刻显示完整路径。
+- 设置 → 扩展可直接填写项目/主目录规则和斜杠命令，写入 CLI 真实文件。
+- 会话菜单可将当前工作发到新任务，并带上简短交接说明。
+- 记忆 embedding 可单独填写 OpenAI 兼容的 Base URL 和密钥。
 
 ### Fixed
 - Project rules no longer list the same AGENTS.md three times on macOS.

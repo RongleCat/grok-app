@@ -19,6 +19,11 @@ export type MemoryEmbedValues = {
   embeddingModel: string | null;
   embeddingDimensions: number | null;
   embeddingProvider: string | null;
+  embeddingBaseUrl: string | null;
+  /** Draft key; empty means keep existing. */
+  embeddingApiKey: string | null;
+  clearEmbeddingApiKey: boolean;
+  hasEmbeddingApiKey: boolean;
   searchMaxResults: number | null;
   searchMinScore: number | null;
   searchVectorWeight: number | null;
@@ -41,6 +46,10 @@ export type MemoryEmbedPatch = {
   clearEmbeddingModel?: boolean | null;
   embeddingDimensions?: number | null;
   embeddingProvider?: string | null;
+  embeddingBaseUrl?: string | null;
+  clearEmbeddingBaseUrl?: boolean | null;
+  embeddingApiKey?: string | null;
+  clearEmbeddingApiKey?: boolean | null;
   searchMaxResults?: number | null;
   searchMinScore?: number | null;
   searchVectorWeight?: number | null;
@@ -62,6 +71,8 @@ export type MemoryEmbedSnapshotLike = {
   embeddingModel?: string | null;
   embeddingDimensions?: number | null;
   embeddingProvider?: string | null;
+  embeddingBaseUrl?: string | null;
+  hasEmbeddingApiKey?: boolean | null;
   searchMaxResults?: number | null;
   searchMinScore?: number | null;
   searchVectorWeight?: number | null;
@@ -111,6 +122,10 @@ export function valuesFromMemoryEmbedSnapshot(
     embeddingModel: optStr(snap?.embeddingModel),
     embeddingDimensions: optNum(snap?.embeddingDimensions),
     embeddingProvider: optStr(snap?.embeddingProvider),
+    embeddingBaseUrl: optStr(snap?.embeddingBaseUrl),
+    embeddingApiKey: null,
+    clearEmbeddingApiKey: false,
+    hasEmbeddingApiKey: snap?.hasEmbeddingApiKey === true,
     searchMaxResults: optNum(snap?.searchMaxResults),
     searchMinScore: optNum(snap?.searchMinScore),
     searchVectorWeight: optNum(snap?.searchVectorWeight),
@@ -171,6 +186,18 @@ export function buildMemoryEmbedPatch(
   ) {
     const p = draft.embeddingProvider?.trim();
     if (p) patch.embeddingProvider = p;
+  }
+  const dUrl = draft.embeddingBaseUrl?.trim() || null;
+  const bUrl = baseline.embeddingBaseUrl?.trim() || null;
+  if (dUrl !== bUrl) {
+    if (dUrl == null && bUrl != null) patch.clearEmbeddingBaseUrl = true;
+    else if (dUrl != null) patch.embeddingBaseUrl = dUrl;
+  }
+  if (draft.clearEmbeddingApiKey && baseline.hasEmbeddingApiKey) {
+    patch.clearEmbeddingApiKey = true;
+  } else {
+    const dKey = draft.embeddingApiKey?.trim() || null;
+    if (dKey) patch.embeddingApiKey = dKey;
   }
   if (numChanged(draft.searchMaxResults, baseline.searchMaxResults)) {
     patch.searchMaxResults = draft.searchMaxResults;
@@ -311,6 +338,10 @@ export function describeSearchModes(
 export function validateMemoryEmbedDraft(
   draft: MemoryEmbedValues,
 ): string | null {
+  const url = draft.embeddingBaseUrl?.trim();
+  if (url && !/^https?:\/\//i.test(url)) {
+    return "embedding.base_url must start with http:// or https://";
+  }
   if (
     draft.embeddingDimensions != null &&
     (draft.embeddingDimensions < 1 || draft.embeddingDimensions > 16384)

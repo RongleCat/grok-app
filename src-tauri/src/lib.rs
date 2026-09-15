@@ -61,6 +61,8 @@ mod cli_update;
 
 mod cli_worktrees;
 
+mod customize_commands;
+
 mod wsl_backend;
 
 mod ssh_remote;
