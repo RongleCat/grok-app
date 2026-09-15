@@ -25,6 +25,8 @@ import {
   endIndexThroughUserPrompt,
   canRewindToUserPrompt,
   rewindKeepPromptIndex,
+  rewindKeepPromptIndexFromCount,
+  resolveRewindKeepForUserMessage,
   rewindComposerRestore,
   userPromptIndexOf,
   userPromptIndexContaining,
@@ -213,6 +215,36 @@ describe("session projection", () => {
     expect(rewindKeepPromptIndex(msgs, 0)).toBe(0);
     expect(rewindKeepPromptIndex(msgs, 1)).toBe(0);
     expect(rewindKeepPromptIndex(msgs.slice(0, 3), 0)).toBe(null);
+    expect(rewindKeepPromptIndexFromCount(0, 5)).toBe(0);
+    expect(rewindKeepPromptIndexFromCount(4, 5)).toBe(3);
+    expect(rewindKeepPromptIndexFromCount(0, 1)).toBe(null);
+    expect(rewindKeepPromptIndexFromCount(3, 2)).toBe(null);
+  });
+
+  it("resolveRewindKeepForUserMessage prefers disk points after restart", async () => {
+    const msgs: ChatMessage[] = [
+      { id: "old-1", role: "user", content: "old" },
+      { id: "old-2", role: "user", content: "older" },
+      { id: "u-new", role: "user", content: "continue" },
+    ];
+    const missing = await resolveRewindKeepForUserMessage({
+      messageId: "old-1",
+      messages: msgs,
+      loadPoints: async () => [
+        { promptIndex: 0, messageId: "blob" },
+        { promptIndex: 1, messageId: "u-new" },
+      ],
+    });
+    expect(missing.reason).toBe("unavailable");
+    const hit = await resolveRewindKeepForUserMessage({
+      messageId: "u-new",
+      messages: msgs,
+      loadPoints: async () => [
+        { promptIndex: 0, messageId: "blob" },
+        { promptIndex: 1, messageId: "u-new" },
+      ],
+    });
+    expect(hit).toEqual({ keep: 0, reason: "ok" });
   });
 
   it("rewindComposerRestore puts the discarded user prompt back for edit", () => {

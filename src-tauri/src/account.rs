@@ -337,6 +337,35 @@ pub fn clear_agent_home_auth() {
     }
 }
 
+fn official_aux_auth_json_path() -> PathBuf {
+    crate::official_aux::official_aux_home().join("auth.json")
+}
+
+/// Local credential files Sign out must delete even when `grok logout` exits 0
+/// without wiping them (expired OIDC, #1213).
+fn logout_auth_paths() -> Vec<PathBuf> {
+    let mut out = vec![
+        auth_json_path(),
+        cli_default_auth_json_path(),
+        agent_home_auth_json_path(),
+        official_aux_auth_json_path(),
+    ];
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn wipe_local_auth_files() {
+    for p in logout_auth_paths() {
+        if p.is_file() {
+            match fs::remove_file(&p) {
+                Ok(()) => info!("account: wiped {}", p.display()),
+                Err(e) => warn!("account: failed to wipe {}: {e}", p.display()),
+            }
+        }
+    }
+}
+
 fn sessions_root() -> PathBuf {
     grok_home().join("sessions")
 }
@@ -1985,23 +2014,18 @@ pub async fn account_logout(manual_cli: Option<&str>) -> Result<AccountProfile, 
                 info!("account: grok logout ok");
             }
             Ok(st) => {
-                warn!("account: grok logout exit {st}; clearing auth.json fallback");
-                let _ = fs::remove_file(auth_json_path());
-                let _ = fs::remove_file(cli_default_auth_json_path());
+                warn!("account: grok logout exit {st}; wiping local auth anyway");
             }
             Err(e) => {
-                warn!("account: grok logout spawn failed: {e}");
-                let _ = fs::remove_file(auth_json_path());
-                let _ = fs::remove_file(cli_default_auth_json_path());
+                warn!("account: grok logout spawn failed: {e}; wiping local auth anyway");
             }
         }
     } else {
-        // No CLI — best-effort wipe of local CLI auth cache only.
-        let _ = fs::remove_file(auth_json_path());
-        let _ = fs::remove_file(cli_default_auth_json_path());
+        info!("account: no CLI on logout; wiping local auth files");
     }
-    // Always drop independent-mode copy so agent cannot keep using old tokens.
-    clear_agent_home_auth();
+    // Always wipe: `grok logout` can exit 0 while leaving expired `auth.json`
+    // (and official-aux / agent-home copies) in place (#1213).
+    wipe_local_auth_files();
 
     Ok(read_auth_profile())
 }
@@ -2027,6 +2051,31 @@ fn open_url(url: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn logout_auth_paths_cover_cli_agent_home_and_official_aux() {
+        let paths = logout_auth_paths();
+        let joined: Vec<String> = paths
+            .iter()
+            .map(|p| p.to_string_lossy().replace('\\', "/"))
+            .collect();
+        assert!(
+            joined
+                .iter()
+                .any(|p| p.ends_with("/.grok/auth.json") || p.ends_with("auth.json")),
+            "{joined:?}"
+        );
+        assert!(
+            joined.iter().any(|p| p.contains("agent-home-official")),
+            "missing official-aux auth: {joined:?}"
+        );
+        assert!(
+            joined
+                .iter()
+                .any(|p| p.contains("agent-home") && !p.contains("agent-home-official")),
+            "missing agent-home auth: {joined:?}"
+        );
+    }
 
     #[test]
     fn parse_billing_accepts_cli_shape() {

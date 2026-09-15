@@ -198,6 +198,7 @@ export const ruSession = {
   "session.rewindOk": "Диалог откачен",
   "session.rewindLocalOnly": "Диалог откачен локально. История агента не обновлена (операция не поддерживается или агент отключён).",
   "session.rewindFailed": "Не удалось откатить диалог",
+  "session.rewindUnavailableAfterRestart": "Этот ход есть только в восстановленной расшифровке после перезапуска агента. Откатитесь к ходу, отправленному после переподключения.",
   "session.rewindBusy": "Дождитесь завершения текущего хода перед откатом",
   "session.rewindNoop": "Вы уже в этой точке — удалять нечего",
   "session.transcriptFilter.hideTools": "Скрыть сырые строки инструментов",

@@ -167,7 +167,7 @@ export const ptBRCore = {
   "activity.cancelledAgentExit": "O processo do agente terminou",
   "activity.cancelledToast": "Turno interrompido",
   "endOfTurn.stall": "Pausado — sem nova saída por um tempo",
-  "endOfTurn.stallPreToken": "Ainda sem o primeiro token. Continue esperando, ou encerre este turno e tente de novo.",
+  "endOfTurn.stallPreToken": "Ainda pensando — o esforço alto oficial costuma ficar 1–2 min sem o primeiro token. Continue esperando, ou encerre este turno.",
   "endOfTurn.stallWorkingTools": "Pausado — as ferramentas ficaram em silêncio",
   "endOfTurn.stallMaybeDone": "Este turno já pode ter terminado",
   "endOfTurn.permissionDenied": "Permissão recusada — turno parado",

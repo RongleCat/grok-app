@@ -198,6 +198,7 @@ export const idSession = {
   "session.rewindOk": "Percakapan diputar ulang",
   "session.rewindLocalOnly": "Percakapan diputar ulang secara lokal. Riwayat agen tidak diperbarui (tidak didukung atau terputus).",
   "session.rewindFailed": "Percakapan tidak dapat diputar ulang",
+  "session.rewindUnavailableAfterRestart": "Giliran itu hanya ada di transkrip yang direkonstruksi setelah agen dimulai ulang. Putar ulang ke giliran yang dikirim setelah tersambung kembali.",
   "session.rewindBusy": "Tunggu giliran saat ini selesai sebelum memutar ulang",
   "session.rewindNoop": "Sudah di titik ini — tidak ada yang dibuang",
   "session.transcriptFilter.hideTools": "Sembunyikan baris alat mentah",

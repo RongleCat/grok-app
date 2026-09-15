@@ -198,6 +198,7 @@ export const zhTWSession = {
   "session.rewindOk": "對話已回退",
   "session.rewindLocalOnly": "已在本機回退對話。Agent 歷史未更新（不支援或未連線）。",
   "session.rewindFailed": "回退對話失敗",
+  "session.rewindUnavailableAfterRestart": "該回合只存在於行程重啟後的重建記錄裡。請回退到重連之後傳送的回合。",
   "session.rewindBusy": "請等待目前回合結束後再回退",
   "session.rewindNoop": "已在此位置，沒有可捨棄的內容",
   "session.transcriptFilter.hideTools": "隱藏原始工具列",

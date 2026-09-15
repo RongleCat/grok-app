@@ -167,7 +167,7 @@ export const ruCore = {
   "activity.cancelledAgentExit": "Процесс агента завершился",
   "activity.cancelledToast": "Ход остановлен",
   "endOfTurn.stall": "Пауза — долго нет нового вывода",
-  "endOfTurn.stallPreToken": "Первого токена ещё нет. Продолжайте ждать или завершите этот ход и повторите.",
+  "endOfTurn.stallPreToken": "Ещё думает: официальный высокий effort часто 1–2 минуты без первого токена. Продолжайте ждать или завершите ход.",
   "endOfTurn.stallWorkingTools": "Пауза — инструменты затихли",
   "endOfTurn.stallMaybeDone": "Этот ход, возможно, уже завершён",
   "endOfTurn.permissionDenied": "Разрешение отклонено — ход остановлен",

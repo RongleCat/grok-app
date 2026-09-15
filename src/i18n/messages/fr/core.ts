@@ -167,7 +167,7 @@ export const frCore = {
   "activity.cancelledAgentExit": "Processus de l’agent terminé",
   "activity.cancelledToast": "Tour arrêté",
   "endOfTurn.stall": "En pause — aucune nouvelle sortie depuis un moment",
-  "endOfTurn.stallPreToken": "Pas encore de premier jeton. Continuez d’attendre, ou terminez ce tour et réessayez.",
+  "endOfTurn.stallPreToken": "Réflexion en cours — l’effort élevé officiel n’a souvent aucun jeton pendant 1–2 min. Continuez d’attendre, ou terminez ce tour.",
   "endOfTurn.stallWorkingTools": "En pause — les outils se sont tus",
   "endOfTurn.stallMaybeDone": "Ce tour est peut-être déjà terminé",
   "endOfTurn.permissionDenied": "Autorisation rejetée — tour arrêté",

@@ -167,7 +167,7 @@ export const koCore = {
   "activity.cancelledAgentExit": "에이전트 프로세스가 종료됨",
   "activity.cancelledToast": "턴을 중지했습니다",
   "endOfTurn.stall": "일시 중지됨 — 한동안 새 출력이 없습니다",
-  "endOfTurn.stallPreToken": "아직 첫 토큰이 없습니다. 계속 기다리거나 이 턴을 종료하고 다시 시도하세요.",
+  "endOfTurn.stallPreToken": "아직 생각 중입니다. 공식 고강도는 첫 토큰까지 1–2분이 걸리기도 합니다. 계속 기다리거나 이 턴을 종료하세요.",
   "endOfTurn.stallWorkingTools": "일시 중지됨 — 도구가 조용해졌습니다",
   "endOfTurn.stallMaybeDone": "이 턴은 이미 끝났을 수 있습니다",
   "endOfTurn.permissionDenied": "권한이 거부되어 턴이 중지됨",

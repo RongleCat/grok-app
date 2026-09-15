@@ -198,6 +198,7 @@ export const ukSession = {
   "session.rewindOk": "Розмову відмотано",
   "session.rewindLocalOnly": "Розмову відмотано локально. Історію агента не оновлено (не підтримується або відключено).",
   "session.rewindFailed": "Не вдалося відмотати розмову",
+  "session.rewindUnavailableAfterRestart": "Цей хід є лише у відновленій розшифровці після перезапуску агента. Відмотайте до ходу, надісланого після повторного з’єднання.",
   "session.rewindBusy": "Зачекайте завершення поточного ходу, перш ніж відмотувати",
   "session.rewindNoop": "Уже в цій точці — немає що відкидати",
   "session.transcriptFilter.hideTools": "Сховати сирі рядки інструментів",

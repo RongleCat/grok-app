@@ -54,7 +54,7 @@ Syncing the file is not enough while multi-session **parked** / **prewarm** CLI 
 | Event | Host action |
 |-------|-------------|
 | Login success | `prepare_route_auth_for_agent` (official sync / custom clear) + `recycle_all_agents(..., "account_auth")` |
-| Logout | clear agent-home auth + `recycle_all_agents(..., "account_auth")` |
+| Logout | always wipe `~/.grok/auth.json`, agent-home, and `agent-home-official` (even if `grok logout` exits 0) + `recycle_all_agents(..., "account_auth")` |
 | Multi-account switch | snapshot → `~/.grok/auth.json` + `prepare_route_auth_for_agent` + `recycle_all_agents(..., "account_auth")` |
 | Provider route activate | `prepare_route_auth_for_agent` + `recycle_all_agents(..., "provider_route")` |
 

@@ -24,10 +24,24 @@ See `docs/llm-wiki/release.md`.
 ### Fixed
 - Sending or finishing a chat moves it to the top of that project's list. Pinned chats stay first.
 - Esc in an image preview closes the preview instead of stopping the turn.
+- Sign out now clears expired official credentials even when the CLI reports success.
+- Official Use is no longer stolen by a custom provider whose id is `grok`.
+- Rewind after restart no longer uses a Host bubble index the new agent does not have.
+- Extra-root write sandbox profiles are used on warm reconnect, not only the first spawn.
+- The Windows desktop pet no longer appears as a second Grok taskbar icon.
+- Pet chips no longer glue another chat’s text; finished ones stay until opened.
+- Official high-effort turns wait longer before the empty-thinking stall banner.
 
 **中文 · 修复**
 - 发送或完成一轮对话后，该会话会排到所属项目列表顶部。置顶会话仍在最前。
 - 图片预览打开时按 Esc 会关掉预览，而不会停止当前生成。
+- 官方凭证已过期时，退出登录仍会清掉本地凭据。
+- 自定义渠道 id 为 `grok` 时，不会再挡住官方「使用」。
+- 进程重启后回退对话，不再把 Host 气泡序号发给新的 agent 会话。
+- 附加根目录的可写沙箱配置会在热重连时继续使用，不只第一次拉起。
+- Windows 桌面宠物不再占用第二个 Grok 任务栏图标。
+- 宠物任务芯片不再粘上别的对话文字，完成后会留到你点开。
+- 官方高推理在空思考占位时，会等更久才弹出卡住提示。
 
 ## [0.2.35] - 2026-09-13
 

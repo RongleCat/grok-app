@@ -167,7 +167,7 @@ export const idCore = {
   "activity.cancelledAgentExit": "Proses agen berakhir",
   "activity.cancelledToast": "Giliran dihentikan",
   "endOfTurn.stall": "Dijeda — tidak ada keluaran baru untuk beberapa saat",
-  "endOfTurn.stallPreToken": "Token pertama belum ada. Terus tunggu, atau akhiri giliran ini lalu coba lagi.",
+  "endOfTurn.stallPreToken": "Masih berpikir — effort tinggi resmi sering tanpa token pertama selama 1–2 menit. Terus tunggu, atau akhiri giliran ini.",
   "endOfTurn.stallWorkingTools": "Dijeda — alat menjadi sunyi",
   "endOfTurn.stallMaybeDone": "Giliran ini mungkin sudah selesai",
   "endOfTurn.permissionDenied": "Izin ditolak — giliran dihentikan",

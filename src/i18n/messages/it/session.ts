@@ -198,6 +198,7 @@ export const itSession = {
   "session.rewindOk": "Conversazione riavvolta",
   "session.rewindLocalOnly": "Conversazione riavvolta in locale. La cronologia dell’agente non è stata aggiornata (non supportato o disconnesso).",
   "session.rewindFailed": "Impossibile riavvolgere la conversazione",
+  "session.rewindUnavailableAfterRestart": "Quel turno esiste solo nella trascrizione ricostruita dopo il riavvio dell’agente. Torna a un turno inviato dopo la riconnessione.",
   "session.rewindBusy": "Attendi la fine del turno corrente prima di riavvolgere",
   "session.rewindNoop": "Già a questo punto — niente da scartare",
   "session.transcriptFilter.hideTools": "Nascondi le righe grezze degli strumenti",

@@ -183,6 +183,8 @@ export function mergeHeldPetTasks(input: {
   live: readonly PetTask[];
   now: number;
   dismissMs: number;
+  /** When set, finished chips stay until the chat is opened (unread clears). */
+  unreadIds?: ReadonlySet<string>;
 }): HeldPetTask[] {
   const holdFor = input.dismissMs > 0 ? input.dismissMs : 15_000;
   const liveIds = new Set(input.live.map((t) => t.sessionId));
@@ -196,6 +198,20 @@ export function mergeHeldPetTasks(input: {
   }
   for (const [id, h] of byId) {
     if (liveIds.has(id)) continue;
+    if (input.unreadIds) {
+      if (!input.unreadIds.has(id)) {
+        byId.delete(id);
+        continue;
+      }
+      byId.set(id, {
+        ...h,
+        kind: h.kind === "working" ? "ready" : h.kind,
+        phase: "done",
+        progress: 1,
+        expireAt: null,
+      });
+      continue;
+    }
     if (h.expireAt == null) {
       byId.set(id, {
         ...h,

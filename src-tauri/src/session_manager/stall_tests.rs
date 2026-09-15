@@ -137,18 +137,23 @@ fn new_turn_pre_token_uses_short_window_and_this_turn_tier() {
         let at_45 = t0 + Duration::from_secs(45);
         assert!(
             SessionManager::tick_stream_stall_on_session(&mut s, None, None, 600, at_45).is_none(),
-            "45s is inside the 90s pre-token window"
+            "45s is inside the 150s pre-token window"
         );
         let at_90 = t0 + Duration::from_secs(90);
-        match SessionManager::tick_stream_stall_on_session(&mut s, None, None, 600, at_90) {
+        assert!(
+            SessionManager::tick_stream_stall_on_session(&mut s, None, None, 600, at_90).is_none(),
+            "90s is still inside the 150s pre-token window"
+        );
+        let at_150 = t0 + Duration::from_secs(150);
+        match SessionManager::tick_stream_stall_on_session(&mut s, None, None, 600, at_150) {
             Some(StallTickAction::SoftStall {
                 tier: crate::stream_stall::StallTier::PreFirstToken,
-                stall_seconds: 90,
+                stall_seconds: 150,
                 saw_model_output: false,
                 saw_tool_activity: false,
                 ..
             }) => {}
-            other => panic!("expected pre_first_token @ 90s, got {other:?}"),
+            other => panic!("expected pre_first_token @ 150s, got {other:?}"),
         }
         assert_eq!(s.fsm.state(), SessionState::Streaming);
         assert!(s.prompt_in_flight);

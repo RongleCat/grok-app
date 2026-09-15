@@ -233,6 +233,42 @@ describe("pet task helpers", () => {
     expect(expired.map((t) => t.sessionId)).toEqual(["b"]);
   });
 
+  it("keeps finished chips while unread and drops them once opened", () => {
+    const live = collectPetTasks(
+      input({
+        liveMap: { a: snap("a", { state: "streaming", updatedAt: 9 }) },
+        snippets: { a: "Alpha" },
+      }),
+    );
+    const unread = new Set(["a"]);
+    const held = mergeHeldPetTasks({
+      held: [],
+      live,
+      now: 10_000,
+      dismissMs: 15_000,
+      unreadIds: unread,
+    });
+    const done = mergeHeldPetTasks({
+      held,
+      live: [],
+      now: 11_000,
+      dismissMs: 15_000,
+      unreadIds: unread,
+    });
+    expect(done).toHaveLength(1);
+    expect(done[0]?.phase).toBe("done");
+    expect(done[0]?.expireAt).toBeNull();
+
+    const opened = mergeHeldPetTasks({
+      held: done,
+      live: [],
+      now: 12_000,
+      dismissMs: 15_000,
+      unreadIds: new Set(),
+    });
+    expect(opened).toEqual([]);
+  });
+
   it("samePetTasks ignores progress jitter", () => {
     const a = collectPetTasks(
       input({

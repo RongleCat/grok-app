@@ -750,9 +750,10 @@ impl SessionManager {
                 let project_sandbox = project_row_early
                     .as_ref()
                     .and_then(|p| p.sandbox_profile.clone());
-                store::resolve_sandbox_profile(
+                crate::workspace_store::resolve_spawn_sandbox(
                     &settings.sandbox_profile,
                     project_sandbox.as_deref(),
+                    meta.workspace_id.as_deref(),
                 )
             };
             let mut stale_prewarm: Vec<Arc<AcpClient>> = Vec::new();
@@ -1142,15 +1143,11 @@ impl SessionManager {
             .and_then(|pid| store::load_projects().into_iter().find(|p| p.id == pid));
         let project_sandbox = project_row.as_ref().and_then(|p| p.sandbox_profile.clone());
         let folder_trust = project_row.as_ref().is_some_and(|p| p.trusted) && ssh_alias.is_none();
-        let effective_sandbox =
-            store::resolve_sandbox_profile(&settings.sandbox_profile, project_sandbox.as_deref());
-        // Multi-root workspace custom profile (#1194) overrides built-in sandbox
-        // when capability is extra_write_active / user-managed cover.
-        let sandbox_for_spawn = meta
-            .workspace_id
-            .as_deref()
-            .and_then(crate::workspace_store::spawn_sandbox_for_workspace)
-            .unwrap_or(effective_sandbox);
+        let sandbox_for_spawn = crate::workspace_store::resolve_spawn_sandbox(
+            &settings.sandbox_profile,
+            project_sandbox.as_deref(),
+            meta.workspace_id.as_deref(),
+        );
         if let Some(wid) = meta.workspace_id.as_deref() {
             if let Some(ws) = crate::workspace_store::get_workspace(wid) {
                 for root in &ws.roots {

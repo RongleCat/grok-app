@@ -198,6 +198,7 @@ export const zhSession = {
   "session.rewindOk": "对话已回退",
   "session.rewindLocalOnly": "已在本地回退对话。Agent 历史未更新（不支持或未连接）。",
   "session.rewindFailed": "回退对话失败",
+  "session.rewindUnavailableAfterRestart": "该回合只存在于进程重启后的重建记录里。请回退到重连之后发送的回合。",
   "session.rewindBusy": "请等待当前回合结束后再回退",
   "session.rewindNoop": "已在此位置，没有可丢弃的内容",
   "session.transcriptFilter.hideTools": "隐藏原始工具行",

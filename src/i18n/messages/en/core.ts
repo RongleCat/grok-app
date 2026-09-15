@@ -168,7 +168,7 @@ export const enCore = {
   "activity.cancelledAgentExit": "Agent process ended",
   "activity.cancelledToast": "Turn stopped",
   "endOfTurn.stall": "Paused — no new output for a while",
-  "endOfTurn.stallPreToken": "No first token yet. Keep waiting, or end this turn and retry.",
+  "endOfTurn.stallPreToken": "Still thinking — official high effort often has no first token for 1–2 minutes. Keep waiting, or end this turn.",
   "endOfTurn.stallWorkingTools": "Paused — tools went quiet",
   "endOfTurn.stallMaybeDone": "This turn may already be finished",
   "endOfTurn.permissionDenied": "Permission rejected — turn stopped",

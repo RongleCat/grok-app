@@ -198,6 +198,7 @@ export const filSession = {
   "session.rewindOk": "Na-rewind ang usapan",
   "session.rewindLocalOnly": "Na-rewind ang usapan nang lokal. Hindi na-update ang kasaysayan ng agent (hindi suportado o nadiskonekta).",
   "session.rewindFailed": "Hindi ma-rewind ang usapan",
+  "session.rewindUnavailableAfterRestart": "Ang turn na iyon ay nasa reconstructed transcript lang pagkatapos mag-restart ang agent. Mag-rewind sa turn na ipinadala pagkatapos mag-reconnect.",
   "session.rewindBusy": "Hintayin tapusin ang kasalukuyang turn bago mag-rewind",
   "session.rewindNoop": "Nandito na — walang itatapon",
   "session.transcriptFilter.hideTools": "Itago ang mga raw na row ng tool",

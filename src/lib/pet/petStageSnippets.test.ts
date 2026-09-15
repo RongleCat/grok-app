@@ -14,6 +14,15 @@ describe("foldStageDelta", () => {
     expect(foldStageDelta("Hello world", "Hello")).toBe("Hello world");
     expect(foldStageDelta("Hello", "Hello")).toBe("Hello");
   });
+
+  it("does not glue unrelated snapshots from another stage", () => {
+    expect(foldStageDelta("先看你这张截图", "核对视频 / 单词树")).toBe(
+      "核对视频 / 单词树",
+    );
+    expect(
+      foldStageDelta("Looking at the screenshot.", "Checking the other chat."),
+    ).toBe("Checking the other chat.");
+  });
 });
 
 describe("petStageSnippetFromText", () => {

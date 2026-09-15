@@ -167,7 +167,7 @@ export const zhTWCore = {
   "activity.cancelledAgentExit": "Agent 程序已結束",
   "activity.cancelledToast": "本輪已停止",
   "endOfTurn.stall": "已暫停 — 暫時沒有新輸出",
-  "endOfTurn.stallPreToken": "仍在等待首個模型輸出。可繼續等待，或結束本輪後重試。",
+  "endOfTurn.stallPreToken": "仍在思考。官方高推理常常 1–2 分鐘都沒有首個輸出。可繼續等待，或結束本輪。",
   "endOfTurn.stallWorkingTools": "已暫停 — 工具長時間無新進度",
   "endOfTurn.stallMaybeDone": "本輪可能已經完成",
   "endOfTurn.permissionDenied": "權限被拒絕，本輪已停止",

@@ -105,9 +105,8 @@ import {
   weaveToolsIntoAssistantSegments,
   truncateBeforeLastUser,
   truncateThroughUserPrompt,
-  rewindKeepPromptIndex,
+  resolveRewindKeepForUserMessage,
   canRegenerateAssistant,
-  userPromptIndexOf,
   userPromptIndexContaining,
   localRewindPoints,
   IDLE_SNAPSHOT,
@@ -8486,17 +8485,27 @@ export function AppWorkbench() {
         showToast(tr("session.rewindBusy"));
         return;
       }
-      const idx = userPromptIndexOf(messages, msg.id);
-      if (idx < 0) {
-        showToast(tr("session.rewindFailed"));
-        return;
-      }
-      const keep = rewindKeepPromptIndex(messages, idx);
       const preview = (msg.content || "")
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, 80);
-      confirmRewindToPrompt(sid, keep, preview);
+      void resolveRewindKeepForUserMessage({
+        messageId: msg.id,
+        messages,
+        loadPoints: api.isTauri()
+          ? () => api.sessionRewindPoints(sid)
+          : undefined,
+      }).then((got) => {
+        if (got.reason === "unavailable") {
+          showToast(tr("session.rewindUnavailableAfterRestart"), 4500);
+          return;
+        }
+        if (got.reason === "missing") {
+          showToast(tr("session.rewindFailed"));
+          return;
+        }
+        confirmRewindToPrompt(sid, got.keep, preview);
+      });
     },
     [
       canRewindSession,

@@ -198,6 +198,7 @@ export const ptBRSession = {
   "session.rewindOk": "Conversa rebobinada",
   "session.rewindLocalOnly": "Conversa rebobinada localmente. O histórico do agente não foi atualizado (não suportado ou desconectado).",
   "session.rewindFailed": "Não foi possível rebobinar a conversa",
+  "session.rewindUnavailableAfterRestart": "Esse turno só existe na transcrição reconstruída após o reinício do agente. Volte a um turno enviado depois de reconectar.",
   "session.rewindBusy": "Aguarde o turno atual terminar antes de rebobinar",
   "session.rewindNoop": "Já neste ponto — nada para descartar",
   "session.transcriptFilter.hideTools": "Ocultar linhas brutas de ferramentas",

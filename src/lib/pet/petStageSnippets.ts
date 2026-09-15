@@ -33,7 +33,10 @@ export function foldStageDelta(prev: string, incoming: string): string {
   if (incoming.startsWith(prev)) return incoming;
   if (prev.startsWith(incoming) && incoming.length < prev.length) return prev;
   if (prev.endsWith(incoming)) return prev;
-  return prev + incoming;
+  const looksLikeDelta = incoming.length <= 8 || /^\s/.test(incoming);
+  if (looksLikeDelta) return prev + incoming;
+  // Unrelated snapshot (missing messageId, or a peer chat mis-attributed).
+  return incoming;
 }
 
 /** Latest paragraph, clipped — this is the chip headline. */

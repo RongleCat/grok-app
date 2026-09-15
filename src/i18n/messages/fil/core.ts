@@ -167,7 +167,7 @@ export const filCore = {
   "activity.cancelledAgentExit": "Natapos ang proseso ng agent",
   "activity.cancelledToast": "Hininto ang turn",
   "endOfTurn.stall": "Naka-pause — walang bagong output sa loob ng ilang panahon",
-  "endOfTurn.stallPreToken": "Wala pang unang token. Maghintay pa, o tapusin ang turn na ito at subukan ulit.",
+  "endOfTurn.stallPreToken": "Nag-iisip pa — madalas 1–2 minuto bago ang unang token sa official high effort. Maghintay pa, o tapusin ang turn.",
   "endOfTurn.stallWorkingTools": "Naka-pause — tumahimik ang mga tool",
   "endOfTurn.stallMaybeDone": "Maaaring tapos na ang turn na ito",
   "endOfTurn.permissionDenied": "Tinanggihan ang pahintulot — huminto ang turn",

@@ -329,6 +329,21 @@ pub fn spawn_sandbox_for_workspace(workspace_id: &str) -> Option<String> {
         .and_then(|p| p.spawn_sandbox)
 }
 
+/// Effective `--sandbox` for a session: custom multi-root profile wins over
+/// Settings / project built-ins so extra write roots survive restart (#1209).
+pub fn resolve_spawn_sandbox(
+    global: &str,
+    project_override: Option<&str>,
+    workspace_id: Option<&str>,
+) -> String {
+    let fallback = store::resolve_sandbox_profile(global, project_override);
+    workspace_id
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .and_then(spawn_sandbox_for_workspace)
+        .unwrap_or(fallback)
+}
+
 pub fn delete_workspace(id: &str) -> Result<(), String> {
     let id = id.trim();
     if id.is_empty() {
@@ -387,6 +402,15 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("grok-ws-{label}-{nanos}"));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn resolve_spawn_sandbox_falls_back_without_workspace() {
+        assert_eq!(resolve_spawn_sandbox("workspace", None, None), "workspace");
+        assert_eq!(
+            resolve_spawn_sandbox("workspace", Some("strict"), None),
+            "strict"
+        );
     }
 
     #[test]

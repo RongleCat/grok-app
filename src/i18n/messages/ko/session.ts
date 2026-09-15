@@ -198,6 +198,7 @@ export const koSession = {
   "session.rewindOk": "대화를 되돌렸습니다",
   "session.rewindLocalOnly": "대화를 로컬에서 되돌렸습니다. 에이전트 기록은 업데이트되지 않았습니다 (미지원이거나 연결 끊김).",
   "session.rewindFailed": "대화를 되돌리지 못했습니다",
+  "session.rewindUnavailableAfterRestart": "해당 턴은 에이전트 재시작 후 재구성된 기록에만 있습니다. 다시 연결한 뒤에 보낸 턴으로 되감으세요.",
   "session.rewindBusy": "되돌리기 전에 현재 턴이 끝날 때까지 기다리세요",
   "session.rewindNoop": "이미 이 지점입니다 — 버릴 내용이 없습니다",
   "session.transcriptFilter.hideTools": "원시 도구 행 숨기기",

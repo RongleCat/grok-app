@@ -167,7 +167,7 @@ export const ukCore = {
   "activity.cancelledAgentExit": "Процес агента завершився",
   "activity.cancelledToast": "Хід зупинено",
   "endOfTurn.stall": "Пауза — довго немає нового виводу",
-  "endOfTurn.stallPreToken": "Першого токена ще немає. Чекайте далі або завершіть цей хід і повторіть.",
+  "endOfTurn.stallPreToken": "Ще думає — офіційний високий effort часто 1–2 хв без першого токена. Чекайте далі або завершіть хід.",
   "endOfTurn.stallWorkingTools": "Пауза — інструменти затихли",
   "endOfTurn.stallMaybeDone": "Цей хід, можливо, уже завершено",
   "endOfTurn.permissionDenied": "Дозвіл відхилено — хід зупинено",

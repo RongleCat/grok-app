@@ -167,7 +167,7 @@ export const itCore = {
   "activity.cancelledAgentExit": "Processo dell’agente terminato",
   "activity.cancelledToast": "Turno interrotto",
   "endOfTurn.stall": "In pausa — nessun nuovo output da un po’",
-  "endOfTurn.stallPreToken": "Ancora nessun primo token. Continua ad attendere, oppure termina questo turno e riprova.",
+  "endOfTurn.stallPreToken": "Sta ancora pensando: l’effort alto ufficiale spesso non ha il primo token per 1–2 minuti. Continua ad attendere, o termina questo turno.",
   "endOfTurn.stallWorkingTools": "In pausa — gli strumenti si sono fermati",
   "endOfTurn.stallMaybeDone": "Questo turno potrebbe essere già finito",
   "endOfTurn.permissionDenied": "Permesso rifiutato — turno interrotto",

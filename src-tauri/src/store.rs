@@ -2616,6 +2616,40 @@ pub fn drop_last_user_prompt_exec_index(user_prompt_count: u32) -> Option<u32> {
     }
 }
 
+/// Parse CLI `user prompt index out of range: X (have N)`.
+pub fn parse_agent_prompt_count_from_rewind_error(err: &str) -> Option<u32> {
+    const MARK: &str = "(have ";
+    let rest = err.split(MARK).nth(1)?;
+    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if digits.is_empty() {
+        return None;
+    }
+    digits.parse().ok()
+}
+
+/// Map a Host journal user-prompt index onto the live agent session.
+///
+/// After restart, Host still lists old bubbles while the new agent session only
+/// has prompts sent since reconnect (history bootstrap is prepended onto the
+/// first of those). Host turns before that window exist only inside the blob.
+pub fn map_host_rewind_index_to_agent(
+    host_index: u32,
+    host_user_turns: u32,
+    agent_user_turns: u32,
+) -> Option<u32> {
+    if agent_user_turns == 0 {
+        return None;
+    }
+    if host_user_turns <= agent_user_turns {
+        return (host_index < agent_user_turns).then_some(host_index);
+    }
+    let first_live = host_user_turns - agent_user_turns;
+    if host_index < first_live {
+        return None;
+    }
+    Some(host_index - first_live)
+}
+
 /// Exclusive cut index: keep messages strictly before the last real user prompt.
 pub fn cut_index_before_last_user_prompt(messages: &[ChatMessageStored]) -> usize {
     messages
@@ -5056,6 +5090,31 @@ mod tests {
         assert_eq!(drop_last_user_prompt_exec_index(0), None);
         assert_eq!(drop_last_user_prompt_exec_index(1), Some(0));
         assert_eq!(drop_last_user_prompt_exec_index(2), Some(0));
+    }
+
+    #[test]
+    fn map_host_rewind_index_skips_bootstrap_only_turns() {
+        // Combined bootstrap: 3 old host turns + 2 post-restart prompts (agent has 2).
+        assert_eq!(map_host_rewind_index_to_agent(3, 5, 2), Some(0));
+        assert_eq!(map_host_rewind_index_to_agent(4, 5, 2), Some(1));
+        assert_eq!(map_host_rewind_index_to_agent(2, 5, 2), None);
+        assert_eq!(map_host_rewind_index_to_agent(3, 5, 5), Some(3));
+        assert_eq!(map_host_rewind_index_to_agent(0, 1, 1), Some(0));
+        assert_eq!(map_host_rewind_index_to_agent(1, 2, 0), None);
+    }
+
+    #[test]
+    fn parse_agent_rewind_have_count() {
+        assert_eq!(
+            parse_agent_prompt_count_from_rewind_error(
+                "user prompt index out of range: 3 (have 2)"
+            ),
+            Some(2)
+        );
+        assert_eq!(
+            parse_agent_prompt_count_from_rewind_error("method not found"),
+            None
+        );
     }
 
     #[test]

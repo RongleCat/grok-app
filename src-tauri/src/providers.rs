@@ -1160,9 +1160,20 @@ fn set_models_u32_field(text: &str, key: &str, value: u32) -> String {
     }
 }
 
+/// `grok` is the official `[models].default` token. A custom `[model.grok]`
+/// section must not steal Official Use (#1214).
+pub fn is_reserved_custom_provider_id(id: &str) -> bool {
+    let t = id.trim().to_ascii_lowercase();
+    t == OFFICIAL_DEFAULT_MODEL || t == "official"
+}
+
 fn route_from_default(def: Option<&str>, providers: &[CustomProvider]) -> (String, Option<String>) {
     if let Some(d) = def {
-        if providers.iter().any(|p| p.id == d) {
+        let d = d.trim();
+        if !d.is_empty()
+            && !is_reserved_custom_provider_id(d)
+            && providers.iter().any(|p| p.id == d)
+        {
             return ("custom".into(), Some(d.to_string()));
         }
     }
@@ -1636,6 +1647,11 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
     let create_only = input.create_only.unwrap_or(false);
     if create_only && existing.is_some() {
         return Err(format!("provider id `{id}` already exists"));
+    }
+    if is_reserved_custom_provider_id(&id) && existing.is_none() {
+        return Err(format!(
+            "provider id `{id}` is reserved for Official Grok — pick another id"
+        ));
     }
     let prev_key = existing
         .and_then(|s| s.fields.get("api_key"))
@@ -2762,6 +2778,48 @@ mod tests {
         assert!(models_list_endpoint("https://x.example/v1")
             .unwrap()
             .ends_with("/v1/models"));
+    }
+
+    fn sample_provider(id: &str) -> CustomProvider {
+        CustomProvider {
+            id: id.into(),
+            model: "m".into(),
+            base_url: "https://ex/v1".into(),
+            name: id.into(),
+            has_api_key: true,
+            api_backend: "responses".into(),
+            provider_mode: PROVIDER_MODE_GENERIC.into(),
+            is_default: false,
+            models: vec![],
+            efforts: vec![],
+            context_window: None,
+            base_url_full_path: false,
+            append_prompt: None,
+            supports_vision: false,
+            extra_headers: vec![],
+        }
+    }
+
+    #[test]
+    fn official_default_is_not_a_custom_route_even_if_id_collides() {
+        let grok = [sample_provider("grok")];
+        let (source, pid) = route_from_default(Some("grok"), &grok);
+        assert_eq!(source, "official");
+        assert_eq!(pid, None);
+
+        let relay = [sample_provider("relay")];
+        let (custom_src, custom_id) = route_from_default(Some("relay"), &relay);
+        assert_eq!(custom_src, "custom");
+        assert_eq!(custom_id.as_deref(), Some("relay"));
+    }
+
+    #[test]
+    fn reserved_custom_ids() {
+        assert!(is_reserved_custom_provider_id("grok"));
+        assert!(is_reserved_custom_provider_id("GROK"));
+        assert!(is_reserved_custom_provider_id("official"));
+        assert!(!is_reserved_custom_provider_id("grok-relay"));
+        assert!(!is_reserved_custom_provider_id("relay"));
     }
 
     #[test]

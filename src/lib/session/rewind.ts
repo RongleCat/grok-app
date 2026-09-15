@@ -161,6 +161,49 @@ export function rewindKeepPromptIndex(
   return clickedUserPromptIndex - 1;
 }
 
+/** Same keep-index rule from a disk rewind-point count (not the UI cache). */
+export function rewindKeepPromptIndexFromCount(
+  clickedUserPromptIndex: number,
+  userCount: number,
+): number | null {
+  if (clickedUserPromptIndex < 0 || clickedUserPromptIndex >= userCount) {
+    return null;
+  }
+  if (clickedUserPromptIndex < userCount - 1) return clickedUserPromptIndex;
+  if (clickedUserPromptIndex === 0) return null;
+  return clickedUserPromptIndex - 1;
+}
+
+export type RewindPointLike = {
+  promptIndex: number;
+  messageId?: string | null;
+};
+
+/** Prefer Host journal points so UI cache bubbles after an agent restart
+ * cannot send a Host index the live agent session does not have (#1216). */
+export async function resolveRewindKeepForUserMessage(input: {
+  messageId: string;
+  messages: ChatMessage[];
+  loadPoints?: () => Promise<RewindPointLike[]>;
+}): Promise<{ keep: number | null; reason: "ok" | "unavailable" | "missing" }> {
+  if (input.loadPoints) {
+    try {
+      const points = await input.loadPoints();
+      const hit = points.find((p) => p.messageId === input.messageId);
+      if (!hit) return { keep: null, reason: "unavailable" };
+      return {
+        keep: rewindKeepPromptIndexFromCount(hit.promptIndex, points.length),
+        reason: "ok",
+      };
+    } catch {
+      /* local journal index */
+    }
+  }
+  const idx = userPromptIndexOf(input.messages, input.messageId);
+  if (idx < 0) return { keep: null, reason: "missing" };
+  return { keep: rewindKeepPromptIndex(input.messages, idx), reason: "ok" };
+}
+
 /**
  * First discarded user prompt after a rewind — restore into the composer
  * so the user can edit and send again instead of losing the text.

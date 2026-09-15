@@ -198,6 +198,7 @@ export const enSession = {
   "session.rewindOk": "Conversation rewound",
   "session.rewindLocalOnly": "Conversation rewound locally. Agent history was not updated (unsupported or disconnected).",
   "session.rewindFailed": "Could not rewind conversation",
+  "session.rewindUnavailableAfterRestart": "That turn is only in the reconstructed transcript after the agent restarted. Rewind to a turn sent after reconnect.",
   "session.rewindBusy": "Wait for the current turn to finish before rewinding",
   "session.rewindNoop": "Already at this point — nothing to discard",
   "session.transcriptFilter.hideTools": "Hide raw tool rows",

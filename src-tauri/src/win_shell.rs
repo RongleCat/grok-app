@@ -162,6 +162,36 @@ fn apply_exe_window_icons(hwnd: HWND) {
     }
 }
 
+/// Overlay / pet: TOOLWINDOW, no APPWINDOW — Explorer must not show a second Grok tab.
+pub fn overlay_skip_taskbar_exstyle(ex: u32) -> u32 {
+    (ex | WS_EX_TOOLWINDOW.0) & !WS_EX_APPWINDOW.0
+}
+
+/// Force skip-taskbar on a tool overlay (desktop pet). Must not call
+/// [`ensure_main_window_shell_integration`] — that re-applies APPWINDOW.
+pub fn set_overlay_skip_taskbar(window: &WebviewWindow) {
+    let Ok(hwnd) = window.hwnd() else {
+        return;
+    };
+    unsafe {
+        let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+        let next = overlay_skip_taskbar_exstyle(ex);
+        if next != ex {
+            SetWindowLongW(hwnd, GWL_EXSTYLE, next as i32);
+            let _ = SetWindowPos(
+                hwnd,
+                None,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED,
+            );
+        }
+        taskbar_set_tab(hwnd, false);
+    }
+}
+
 /// Apply or clear "live in tray only" extended styles + taskbar tab.
 /// Prefer this over bare `set_skip_taskbar` so TOOLWINDOW/APPWINDOW stay consistent.
 pub fn set_main_window_skip_taskbar(window: &WebviewWindow, skip: bool) {
@@ -447,6 +477,16 @@ pub fn is_shell_significant_for_tests(style: u32, ex: u32, has_owner: bool) -> b
 mod tests {
     use super::*;
     use windows::Win32::UI::WindowsAndMessaging::WM_ACTIVATEAPP;
+
+    #[test]
+    fn overlay_skip_taskbar_clears_appwindow() {
+        let ex = overlay_skip_taskbar_exstyle(WS_EX_APPWINDOW.0);
+        assert_eq!(ex & WS_EX_TOOLWINDOW.0, WS_EX_TOOLWINDOW.0);
+        assert_eq!(ex & WS_EX_APPWINDOW.0, 0);
+        let already = overlay_skip_taskbar_exstyle(WS_EX_TOOLWINDOW.0 | WS_EX_APPWINDOW.0);
+        assert_eq!(already & WS_EX_APPWINDOW.0, 0);
+        assert_eq!(already & WS_EX_TOOLWINDOW.0, WS_EX_TOOLWINDOW.0);
+    }
 
     #[test]
     fn toolwindow_without_appwindow_is_not_significant() {

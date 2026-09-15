@@ -167,7 +167,7 @@ export const deCore = {
   "activity.cancelledAgentExit": "Agent-Prozess beendet",
   "activity.cancelledToast": "Vorgang gestoppt",
   "endOfTurn.stall": "Pausiert — lange kein neuer Output",
-  "endOfTurn.stallPreToken": "Noch kein erstes Token. Weiter warten oder Vorgang beenden und erneut versuchen.",
+  "endOfTurn.stallPreToken": "Denkt noch — offizielles hohes Reasoning hat oft 1–2 Minuten kein erstes Token. Weiter warten oder Vorgang beenden.",
   "endOfTurn.stallWorkingTools": "Pausiert — Werkzeuge wurden still",
   "endOfTurn.stallMaybeDone": "Dieser Vorgang ist möglicherweise bereits fertig",
   "endOfTurn.permissionDenied": "Berechtigung abgelehnt — Vorgang gestoppt",

@@ -167,7 +167,7 @@ export const jaCore = {
   "activity.cancelledAgentExit": "エージェントプロセスが終了しました",
   "activity.cancelledToast": "ターンを停止しました",
   "endOfTurn.stall": "一時停止 — しばらく新しい出力がありません",
-  "endOfTurn.stallPreToken": "まだ最初のトークンがありません。待ち続けるか、このターンを終了して再試行してください。",
+  "endOfTurn.stallPreToken": "まだ思考中です。公式の高努力では最初のトークンまで 1〜2 分かかることがあります。待ち続けるか、このターンを終了してください。",
   "endOfTurn.stallWorkingTools": "一時停止 — ツールが静かになりました",
   "endOfTurn.stallMaybeDone": "このターンは既に完了している可能性があります",
   "endOfTurn.permissionDenied": "許可が拒否されました — ターンを停止しました",

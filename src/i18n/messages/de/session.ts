@@ -198,6 +198,7 @@ export const deSession = {
   "session.rewindOk": "Unterhaltung zurückgespult",
   "session.rewindLocalOnly": "Unterhaltung lokal zurückgespult. Agentenverlauf wurde nicht aktualisiert (nicht unterstützt oder getrennt).",
   "session.rewindFailed": "Unterhaltung konnte nicht zurückgespult werden",
+  "session.rewindUnavailableAfterRestart": "Diese Runde gibt es nach dem Agent-Neustart nur in der rekonstruierten Historie. Spulen Sie zu einer Runde nach dem erneuten Verbinden zurück.",
   "session.rewindBusy": "Warte, bis der aktuelle Vorgang endet, bevor du zurückspulst",
   "session.rewindNoop": "Bereits an diesem Punkt — nichts zu verwerfen",
   "session.transcriptFilter.hideTools": "Rohe Werkzeugzeilen ausblenden",

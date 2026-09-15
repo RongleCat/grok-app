@@ -198,6 +198,7 @@ export const jaSession = {
   "session.rewindOk": "会話を巻き戻しました",
   "session.rewindLocalOnly": "会話をローカルで巻き戻しました。エージェント履歴は更新されていません（非対応または切断）。",
   "session.rewindFailed": "会話を巻き戻せませんでした",
+  "session.rewindUnavailableAfterRestart": "そのターンはエージェント再起動後の再構築履歴にしかありません。再接続後に送ったターンへ巻き戻してください。",
   "session.rewindBusy": "巻き戻す前に、現在のターンが終わるのを待ってください",
   "session.rewindNoop": "既にこの地点です — 破棄するものはありません",
   "session.transcriptFilter.hideTools": "生のツール行を隠す",

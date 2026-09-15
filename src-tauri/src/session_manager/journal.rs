@@ -102,13 +102,52 @@ impl SessionManager {
                     }
                     Ok(Err(e)) => {
                         agent_rewind_ok = Some(false);
-                        if crate::acp_client::rpc_looks_like_method_not_found(&e) {
+                        if let Some(have) = store::parse_agent_prompt_count_from_rewind_error(&e) {
+                            if let Some(mapped) = store::drop_last_user_prompt_exec_index(have) {
+                                if mapped != exec_index {
+                                    tracing::warn!(
+                                        target: "session",
+                                        error = %e,
+                                        "rewind_execute({exec_index}) out of range (have {have}); retrying mapped {mapped}"
+                                    );
+                                    match tokio::time::timeout(
+                                        REWIND_AGENT_RPC_BUDGET,
+                                        client.rewind_execute_for(sid, mapped, false),
+                                    )
+                                    .await
+                                    {
+                                        Ok(Ok(_)) => {
+                                            agent_rewind_ok = Some(true);
+                                        }
+                                        Ok(Err(e2)) => {
+                                            tracing::warn!(
+                                                target: "session",
+                                                error = %e2,
+                                                "mapped agent rewind failed; leaving local journal intact"
+                                            );
+                                        }
+                                        Err(_) => {
+                                            tracing::warn!(
+                                                target: "session",
+                                                "mapped agent rewind timed out; leaving local journal intact"
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if agent_rewind_ok == Some(true) {
+                            tracing::info!(
+                                target: "session",
+                                "rewind_drop_last_user_turn: mapped agent rewind ok"
+                            );
+                        } else if crate::acp_client::rpc_looks_like_method_not_found(&e) {
                             tracing::warn!(
                                 target: "session",
                                 error = %e,
                                 "rewind_execute({exec_index}) failed; leaving local journal intact"
                             );
-                        } else {
+                        } else if agent_rewind_ok != Some(true) {
                             // Fallback: try targeting the last turn itself (some builds discard at/after index).
                             tracing::warn!(
                                 target: "session",
@@ -283,13 +322,62 @@ impl SessionManager {
                         );
                     }
                     Ok(Err(e)) => {
-                        agent_ok = false;
-                        agent_error = Some(e.clone());
-                        tracing::warn!(
-                            target: "session",
-                            error = %e,
-                            "agent rewind failed; applying local journal truncate only"
-                        );
+                        let mut mapped_ok = false;
+                        if let Some(have) = store::parse_agent_prompt_count_from_rewind_error(&e) {
+                            match store::map_host_rewind_index_to_agent(
+                                target_prompt_index,
+                                user_count,
+                                have,
+                            ) {
+                                Some(mapped) if mapped != target_prompt_index => {
+                                    tracing::warn!(
+                                        target: "session",
+                                        error = %e,
+                                        "agent rewind index {target_prompt_index} out of range (have {have}); retrying mapped {mapped}"
+                                    );
+                                    match tokio::time::timeout(
+                                        REWIND_AGENT_RPC_BUDGET,
+                                        client.rewind_execute_for(&sid, mapped, restore_files),
+                                    )
+                                    .await
+                                    {
+                                        Ok(Ok(_)) => {
+                                            mapped_ok = true;
+                                            tracing::info!(
+                                                target: "session",
+                                                "rewind_to_prompt_index: agent rewound mapped target={mapped}"
+                                            );
+                                        }
+                                        Ok(Err(e2)) => {
+                                            agent_ok = false;
+                                            agent_error = Some(e2);
+                                        }
+                                        Err(_) => {
+                                            agent_ok = false;
+                                            agent_error = Some("agent rewind timed out".into());
+                                        }
+                                    }
+                                }
+                                None => {
+                                    agent_ok = false;
+                                    agent_error = Some(
+                                        "turn exists only in reconstructed history after agent restart"
+                                            .into(),
+                                    );
+                                    mapped_ok = true; // skip generic failure log
+                                }
+                                Some(_) => {}
+                            }
+                        }
+                        if !mapped_ok {
+                            agent_ok = false;
+                            agent_error = Some(e.clone());
+                            tracing::warn!(
+                                target: "session",
+                                error = %e,
+                                "agent rewind failed; applying local journal truncate only"
+                            );
+                        }
                     }
                     Err(_) => {
                         agent_ok = false;

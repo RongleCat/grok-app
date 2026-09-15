@@ -198,6 +198,7 @@ export const frSession = {
   "session.rewindOk": "Conversation revenue",
   "session.rewindLocalOnly": "Conversation revenue localement. L’historique de l’agent n’a pas été mis à jour (non pris en charge ou déconnecté).",
   "session.rewindFailed": "Impossible de revenir dans la conversation",
+  "session.rewindUnavailableAfterRestart": "Ce tour n’existe que dans la transcription reconstruite après le redémarrage de l’agent. Revenez à un tour envoyé après la reconnexion.",
   "session.rewindBusy": "Attendez la fin du tour en cours avant de revenir",
   "session.rewindNoop": "Déjà à ce point — rien à abandonner",
   "session.transcriptFilter.hideTools": "Masquer les lignes d’outils brutes",

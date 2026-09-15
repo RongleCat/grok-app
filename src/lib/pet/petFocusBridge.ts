@@ -81,6 +81,7 @@ export function startPetFocusBridge(opts: PetFocusBridgeOpts): PetFocusBridge {
       live,
       now: Date.now(),
       dismissMs: dismissMs(),
+      unreadIds: input.unreadIds,
     });
     if (held.some((h) => h.expireAt != null)) {
       if (expireTimer == null) {

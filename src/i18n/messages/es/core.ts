@@ -167,7 +167,7 @@ export const esCore = {
   "activity.cancelledAgentExit": "El proceso del agente terminó",
   "activity.cancelledToast": "Turno detenido",
   "endOfTurn.stall": "En pausa — sin salida nueva desde hace un rato",
-  "endOfTurn.stallPreToken": "Aún no hay primer token. Sigue esperando, o termina este turno y reintenta.",
+  "endOfTurn.stallPreToken": "Sigue pensando: el esfuerzo alto oficial a menudo tarda 1–2 min sin primer token. Sigue esperando, o termina este turno.",
   "endOfTurn.stallWorkingTools": "En pausa — las herramientas se quedaron en silencio",
   "endOfTurn.stallMaybeDone": "Es posible que este turno ya haya terminado",
   "endOfTurn.permissionDenied": "Permiso rechazado — turno detenido",

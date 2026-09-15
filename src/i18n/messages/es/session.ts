@@ -198,6 +198,7 @@ export const esSession = {
   "session.rewindOk": "Conversación rebobinada",
   "session.rewindLocalOnly": "Conversación rebobinada localmente. El historial del agente no se actualizó (no compatible o desconectado).",
   "session.rewindFailed": "No se pudo rebobinar la conversación",
+  "session.rewindUnavailableAfterRestart": "Ese turno solo está en la transcripción reconstruida tras el reinicio del agente. Retrocede a un turno enviado después de reconectar.",
   "session.rewindBusy": "Espera a que termine el turno actual antes de rebobinar",
   "session.rewindNoop": "Ya estás en este punto — no hay nada que descartar",
   "session.transcriptFilter.hideTools": "Ocultar filas de herramientas en bruto",
