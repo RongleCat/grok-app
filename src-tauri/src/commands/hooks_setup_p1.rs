@@ -378,24 +378,53 @@ pub async fn permission_rules_set(
 
 // from PR #82
 
+/// GROK_HOME the live Grok Build process actually gets (Settings session
+/// data mode, plus custom-route override). Same helper as ACP spawn.
+fn live_instruction_grok_home() -> std::path::PathBuf {
+    let mode = crate::store::load_settings().session_data_mode;
+    let custom_route = matches!(
+        crate::providers::active_route(),
+        crate::providers::ActiveRoute::Custom { .. }
+    );
+    crate::paths::resolve_inference_grok_home(&mode, custom_route)
+}
+
 /// Create root `AGENTS.md` stub when missing (idempotent).
-/// IPC arg is `projectPath` (camelCase) → `project_path`.
+/// `scope`: `project` (default) | `user_agents` | `grok_home`.
 #[tauri::command]
 pub async fn project_rules_ensure_template(
     project_path: String,
+    scope: Option<String>,
 ) -> Result<crate::project_rules::ProjectRulesEnsureResult, String> {
-    crate::project_rules::ensure_agents_template(&project_path)
+    match scope.as_deref().unwrap_or("project").trim() {
+        "" | "project" => crate::project_rules::ensure_agents_template(&project_path),
+        "user_agents" => {
+            let home = crate::process_util::user_home().join(".agents");
+            crate::project_rules::ensure_home_agents_template(&home)
+        }
+        "grok_home" => {
+            crate::project_rules::ensure_home_agents_template(&live_instruction_grok_home())
+        }
+        other => Err(format!("unknown rules scope: {other}")),
+    }
 }
 
 // from PR #82
 
-/// List existing project rule files (AGENTS.md, CLAUDE.md, `.grok/rules*`, nested AGENTS).
+/// List project + user-level rule files (AGENTS.md, CLAUDE.md, `.grok/rules*`,
+/// `~/.agents`, live GROK_HOME).
 /// IPC arg is `projectPath` (camelCase) → `project_path`.
 #[tauri::command]
 pub async fn project_rules_list(
     project_path: String,
 ) -> Result<crate::project_rules::ProjectRulesListResult, String> {
-    crate::project_rules::list_project_rules(&project_path)
+    let user_agents = crate::process_util::user_home().join(".agents");
+    let grok_home = live_instruction_grok_home();
+    crate::project_rules::list_project_rules_with_homes(
+        &project_path,
+        Some(user_agents.as_path()),
+        Some(grok_home.as_path()),
+    )
 }
 
 // from PR #77

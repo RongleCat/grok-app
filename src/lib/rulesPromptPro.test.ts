@@ -6,8 +6,10 @@ import {
   filterProjectRulesList,
   presentProjectRulesSoftFail,
   presentSessionPromptSoftFail,
+  projectRuleDisplayPath,
   projectRuleKindChipLetter,
   projectRuleKindLabelKey,
+  projectRuleRowTitleSpec,
   rulesPromptErrorMessageKey,
   rulesPromptErrorSeverity,
   sessionFieldMaxChars,
@@ -239,6 +241,94 @@ describe("project rules list helpers", () => {
     expect(projectRuleKindLabelKey("nope")).toBe("rules.title");
   });
 
+  it("titles root files as this project and nested files by directory", () => {
+    expect(
+      projectRuleRowTitleSpec({
+        name: "AGENTS.md",
+        relativePath: "AGENTS.md",
+        kind: "agents_md",
+      }),
+    ).toEqual({
+      key: "rules.row.projectFile",
+      params: { name: "AGENTS.md" },
+    });
+    expect(
+      projectRuleRowTitleSpec({
+        name: "AGENTS.md",
+        relativePath: "/Users/me/.agents/AGENTS.md",
+        absolutePath: "/Users/me/.agents/AGENTS.md",
+        kind: "agents_md",
+        scope: "user_agents",
+      }),
+    ).toEqual({
+      key: "rules.row.userAgentsFile",
+      params: { name: "AGENTS.md" },
+    });
+    expect(
+      projectRuleRowTitleSpec({
+        name: "AGENTS.md",
+        relativePath: "/Users/me/.grok/AGENTS.md",
+        absolutePath: "/Users/me/.grok/AGENTS.md",
+        kind: "agents_md",
+        scope: "grok_home",
+      }),
+    ).toEqual({
+      key: "rules.row.cliHomeFile",
+      params: { name: "AGENTS.md" },
+    });
+    expect(
+      projectRuleRowTitleSpec({
+        name: "AGENTS.md",
+        relativePath: "/Users/me/Library/Application Support/com.grokapp.grok-app/agent-home/AGENTS.md",
+        absolutePath:
+          "/Users/me/Library/Application Support/com.grokapp.grok-app/agent-home/AGENTS.md",
+        kind: "agents_md",
+        scope: "grok_home",
+      }),
+    ).toEqual({
+      key: "rules.row.appHomeFile",
+      params: { name: "AGENTS.md" },
+    });
+    expect(
+      projectRuleRowTitleSpec({
+        name: "base.md",
+        relativePath: ".grok/rules/base.md",
+        kind: "grok_rules",
+      }),
+    ).toEqual({
+      key: "rules.row.locatedFile",
+      params: { dir: ".grok/rules", name: "base.md" },
+    });
+    expect(
+      projectRuleRowTitleSpec({
+        name: "AGENTS.md",
+        relativePath: ".grok/nested/AGENTS.md",
+        kind: "nested_agents",
+      }),
+    ).toEqual({
+      key: "rules.row.locatedFile",
+      params: { dir: ".grok/nested", name: "AGENTS.md" },
+    });
+  });
+
+  it("prefers the absolute path for the row subtitle", () => {
+    expect(
+      projectRuleDisplayPath({
+        name: "AGENTS.md",
+        relativePath: "AGENTS.md",
+        absolutePath: "/Users/me/Guessword.io/AGENTS.md",
+        kind: "agents_md",
+      }),
+    ).toBe("/Users/me/Guessword.io/AGENTS.md");
+    expect(
+      projectRuleDisplayPath({
+        name: "AGENTS.md",
+        relativePath: "AGENTS.md",
+        kind: "agents_md",
+      }),
+    ).toBe("AGENTS.md");
+  });
+
   it("filters by name / path / kind", () => {
     expect(filterProjectRulesList(sample, "claude").map((r) => r.kind)).toEqual(
       ["claude_md"],
@@ -254,12 +344,45 @@ describe("project rules list helpers", () => {
   it("summarizes by kind", () => {
     const sum = summarizeProjectRules(sample);
     expect(sum.total).toBe(4);
+    expect(sum.missingCount).toBe(0);
     expect(sum.hasAgentsMd).toBe(true);
     expect(sum.hasClaudeMd).toBe(true);
     expect(sum.hasGrokRules).toBe(true);
     expect(sum.hasNestedAgents).toBe(true);
     expect(sum.byKind.agents_md).toBe(1);
     expect(sum.byKind.grok_rules).toBe(1);
+  });
+
+  it("counts placeholders separately and sorts existing first", () => {
+    const withMissing = [
+      {
+        name: "AGENTS.md",
+        relativePath: "/tmp/.agents/AGENTS.md",
+        kind: "agents_md",
+        scope: "user_agents",
+        exists: false,
+      },
+      {
+        name: "AGENTS.md",
+        relativePath: "AGENTS.md",
+        kind: "agents_md",
+        scope: "project",
+        exists: true,
+      },
+      {
+        name: "AGENTS.md",
+        relativePath: "/tmp/.grok/AGENTS.md",
+        kind: "agents_md",
+        scope: "grok_home",
+        exists: false,
+      },
+    ];
+    const sum = summarizeProjectRules(withMissing, true);
+    expect(sum.total).toBe(1);
+    expect(sum.missingCount).toBe(2);
+    expect(
+      filterProjectRulesList(withMissing, "").map((r) => r.scope),
+    ).toEqual(["project", "grok_home", "user_agents"]);
   });
 
   it("respects hasAgentsMd hint over counts", () => {

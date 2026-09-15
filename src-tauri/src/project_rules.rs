@@ -1,8 +1,10 @@
-//! Project rule / instruction files under a trusted project root.
+//! Project and user-level instruction files (AGENTS.md, CLAUDE.md, `.grok/rules*`).
 //!
-//! Detects AGENTS.md, CLAUDE.md, `.grok/rules*`, and `.grok/**/AGENTS.md`.
-//! Management is list + ensure AGENTS.md template — editing happens in the
-//! resource pane (or OS open / reveal).
+//! Home scopes follow the same GROK_HOME ACP spawn injects: Settings
+//! `session_data_mode` (`~/.grok` vs App `agent-home`), plus custom-route
+//! override. `~/.agents` is listed as a user instruction file. Same-inode
+//! case probes (`AGENTS.md` / `Agents.md` / `agents.md` on macOS) collapse
+//! to one row. Missing home AGENTS.md files are placeholders, sorted last.
 
 use std::fs;
 use std::io::Write;
@@ -16,6 +18,8 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct ProjectRuleEntry {
     /// Path relative to project root (`AGENTS.md`, `.grok/rules/x.md`, …).
+    /// Home-scope files use the absolute path so the UI does not treat them
+    /// as project-relative.
     pub relative_path: String,
     /// Absolute filesystem path.
     pub absolute_path: String,
@@ -27,6 +31,10 @@ pub struct ProjectRuleEntry {
     pub size: u64,
     /// Last modified (ms since UNIX epoch); 0 when unavailable.
     pub mtime_ms: u64,
+    /// `project` | `user_agents` (`~/.agents`) | `grok_home` (live GROK_HOME).
+    pub scope: String,
+    /// False when this is a placeholder for a not-yet-created AGENTS.md.
+    pub exists: bool,
 }
 
 /// Result of scanning a project for rule files.
@@ -171,6 +179,44 @@ fn kind_order(kind: &str) -> u8 {
     }
 }
 
+fn scope_order(scope: &str) -> u8 {
+    match scope {
+        "project" => 0,
+        "grok_home" => 1,
+        "user_agents" => 2,
+        _ => 9,
+    }
+}
+
+fn sort_rules(rules: &mut [ProjectRuleEntry]) {
+    rules.sort_by(|a, b| {
+        // Existing files first; placeholders stay at the bottom.
+        b.exists.cmp(&a.exists).then_with(|| {
+            scope_order(&a.scope)
+                .cmp(&scope_order(&b.scope))
+                .then_with(|| kind_order(&a.kind).cmp(&kind_order(&b.kind)))
+                .then_with(|| a.relative_path.cmp(&b.relative_path))
+        })
+    });
+}
+
+/// Identity for "same file on disk" so case-insensitive volumes do not list
+/// `AGENTS.md` / `Agents.md` / `agents.md` as three rules.
+#[cfg_attr(not(unix), allow(unused_variables))]
+fn file_identity_key(abs: &Path, meta: &fs::Metadata) -> String {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let ino = meta.ino();
+        if ino != 0 {
+            return format!("ino:{}:{}", meta.dev(), ino);
+        }
+    }
+    fs::canonicalize(abs)
+        .map(|p| p.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_else(|_| abs.to_string_lossy().to_ascii_lowercase())
+}
+
 fn ensure_project_root(project_path: &str) -> Result<PathBuf, String> {
     let root = project_path.trim();
     if root.is_empty() {
@@ -193,7 +239,7 @@ fn push_file_entry(
         return;
     }
     let rel = normalize_rel(relative);
-    if rel.is_empty() || !seen.insert(rel.clone()) {
+    if rel.is_empty() {
         return;
     }
     let Some((kind, name)) = classify_rule_path(&rel) else {
@@ -204,6 +250,9 @@ fn push_file_entry(
         Ok(m) if m.is_file() => m,
         _ => return,
     };
+    if !seen.insert(file_identity_key(&abs, &meta)) {
+        return;
+    }
     out.push(ProjectRuleEntry {
         relative_path: rel,
         absolute_path: abs.to_string_lossy().into_owned(),
@@ -211,7 +260,127 @@ fn push_file_entry(
         name,
         size: meta.len(),
         mtime_ms: file_mtime_ms(&meta),
+        scope: "project".to_string(),
+        exists: true,
     });
+}
+
+fn push_home_file(
+    out: &mut Vec<ProjectRuleEntry>,
+    seen: &mut std::collections::HashSet<String>,
+    abs: PathBuf,
+    kind: &str,
+    name: String,
+    scope: &str,
+) {
+    if out.len() >= MAX_RULE_ENTRIES {
+        return;
+    }
+    let meta = match fs::metadata(&abs) {
+        Ok(m) if m.is_file() => m,
+        _ => return,
+    };
+    if !seen.insert(file_identity_key(&abs, &meta)) {
+        return;
+    }
+    let abs_s = abs.to_string_lossy().into_owned();
+    out.push(ProjectRuleEntry {
+        relative_path: abs_s.clone(),
+        absolute_path: abs_s,
+        kind: kind.to_string(),
+        name,
+        size: meta.len(),
+        mtime_ms: file_mtime_ms(&meta),
+        scope: scope.to_string(),
+        exists: true,
+    });
+}
+
+fn push_missing_home_agents(
+    out: &mut Vec<ProjectRuleEntry>,
+    seen: &mut std::collections::HashSet<String>,
+    home: &Path,
+    scope: &str,
+) {
+    if out
+        .iter()
+        .any(|r| r.scope == scope && r.kind == "agents_md" && r.exists)
+    {
+        return;
+    }
+    let abs = home.join("AGENTS.md");
+    let key = format!("missing:{}", abs.to_string_lossy().to_ascii_lowercase());
+    if !seen.insert(key) {
+        return;
+    }
+    let abs_s = abs.to_string_lossy().into_owned();
+    out.push(ProjectRuleEntry {
+        relative_path: abs_s.clone(),
+        absolute_path: abs_s,
+        kind: "agents_md".to_string(),
+        name: "AGENTS.md".to_string(),
+        size: 0,
+        mtime_ms: 0,
+        scope: scope.to_string(),
+        exists: false,
+    });
+}
+
+/// Scan a user-level instruction root (`~/.agents` or GROK_HOME).
+fn scan_home_instruction_root(
+    out: &mut Vec<ProjectRuleEntry>,
+    seen: &mut std::collections::HashSet<String>,
+    home: &Path,
+    scope: &str,
+    include_missing_agents: bool,
+) {
+    if home.is_dir() {
+        if let Ok(rd) = fs::read_dir(home) {
+            for ent in rd.filter_map(|e| e.ok()) {
+                let name = ent.file_name().to_string_lossy().into_owned();
+                let abs = home.join(&name);
+                if is_agents_name(&name) {
+                    push_home_file(out, seen, abs, "agents_md", name, scope);
+                } else if is_claude_name(&name) {
+                    push_home_file(out, seen, abs, "claude_md", name, scope);
+                }
+            }
+        }
+        let rules_dir = home.join("rules");
+        if rules_dir.is_dir() {
+            if let Ok(rd) = fs::read_dir(&rules_dir) {
+                let mut ents: Vec<_> = rd.filter_map(|e| e.ok()).collect();
+                ents.sort_by_key(|e| e.file_name());
+                for ent in ents {
+                    let name = ent.file_name().to_string_lossy().into_owned();
+                    if !name.to_ascii_lowercase().ends_with(".md") {
+                        continue;
+                    }
+                    push_home_file(out, seen, rules_dir.join(&name), "grok_rules", name, scope);
+                }
+            }
+        }
+    }
+    if include_missing_agents {
+        push_missing_home_agents(out, seen, home, scope);
+    }
+}
+
+fn seed_seen(rules: &[ProjectRuleEntry]) -> std::collections::HashSet<String> {
+    let mut seen = std::collections::HashSet::new();
+    for r in rules {
+        if !r.exists {
+            seen.insert(format!("missing:{}", r.absolute_path.to_ascii_lowercase()));
+            continue;
+        }
+        let abs = PathBuf::from(&r.absolute_path);
+        if let Ok(meta) = fs::metadata(&abs) {
+            seen.insert(file_identity_key(&abs, &meta));
+        } else {
+            seen.insert(r.absolute_path.to_ascii_lowercase());
+        }
+    }
+    seen
 }
 
 /// Walk a directory under project root; collect classified rule files.
@@ -303,16 +472,14 @@ pub fn list_project_rules(project_path: &str) -> Result<ProjectRulesListResult, 
         walk_rules(&mut rules, &mut seen, &root, ".grok", 0);
     }
 
-    rules.sort_by(|a, b| {
-        kind_order(&a.kind)
-            .cmp(&kind_order(&b.kind))
-            .then_with(|| a.relative_path.cmp(&b.relative_path))
-    });
+    sort_rules(&mut rules);
 
-    let has_agents_md = rules.iter().any(|r| r.kind == "agents_md");
+    let has_agents_md = rules
+        .iter()
+        .any(|r| r.scope == "project" && r.kind == "agents_md" && r.exists);
     let preferred_agents_path = rules
         .iter()
-        .find(|r| r.kind == "agents_md")
+        .find(|r| r.scope == "project" && r.kind == "agents_md")
         .map(|r| r.relative_path.clone())
         .unwrap_or_else(|| "AGENTS.md".to_string());
 
@@ -322,6 +489,37 @@ pub fn list_project_rules(project_path: &str) -> Result<ProjectRulesListResult, 
         has_agents_md,
         preferred_agents_path,
     })
+}
+
+/// Project rules plus user-level instruction files Grok actually loads:
+/// `~/.agents` and live `GROK_HOME` (`~/.grok` or App agent-home).
+pub fn list_project_rules_with_homes(
+    project_path: &str,
+    user_agents_home: Option<&Path>,
+    grok_home: Option<&Path>,
+) -> Result<ProjectRulesListResult, String> {
+    let mut listed = list_project_rules(project_path)?;
+    let mut seen = seed_seen(&listed.rules);
+
+    if let Some(home) = user_agents_home {
+        scan_home_instruction_root(&mut listed.rules, &mut seen, home, "user_agents", true);
+    }
+    if let Some(home) = grok_home {
+        scan_home_instruction_root(&mut listed.rules, &mut seen, home, "grok_home", true);
+    }
+
+    sort_rules(&mut listed.rules);
+    listed.has_agents_md = listed
+        .rules
+        .iter()
+        .any(|r| r.scope == "project" && r.kind == "agents_md" && r.exists);
+    listed.preferred_agents_path = listed
+        .rules
+        .iter()
+        .find(|r| r.scope == "project" && r.kind == "agents_md")
+        .map(|r| r.relative_path.clone())
+        .unwrap_or_else(|| "AGENTS.md".to_string());
+    Ok(listed)
 }
 
 /// Create root `AGENTS.md` with a short stub when no root agents file exists.
@@ -369,6 +567,54 @@ pub fn ensure_agents_template(project_path: &str) -> Result<ProjectRulesEnsureRe
     Ok(ProjectRulesEnsureResult {
         project_path: root.to_string_lossy().into_owned(),
         relative_path: rel,
+        absolute_path: abs.to_string_lossy().into_owned(),
+        created: true,
+        already_existed: false,
+    })
+}
+
+/// Create `AGENTS.md` under a user-level home (`~/.agents` or GROK_HOME).
+pub fn ensure_home_agents_template(home: &Path) -> Result<ProjectRulesEnsureResult, String> {
+    fs::create_dir_all(home).map_err(|e| format!("create agents home: {e}"))?;
+
+    if let Ok(rd) = fs::read_dir(home) {
+        for ent in rd.filter_map(|e| e.ok()) {
+            let name = ent.file_name().to_string_lossy().into_owned();
+            if !is_agents_name(&name) {
+                continue;
+            }
+            let abs = home.join(&name);
+            if abs.is_file() {
+                return Ok(ProjectRulesEnsureResult {
+                    project_path: home.to_string_lossy().into_owned(),
+                    relative_path: abs.to_string_lossy().into_owned(),
+                    absolute_path: abs.to_string_lossy().into_owned(),
+                    created: false,
+                    already_existed: true,
+                });
+            }
+        }
+    }
+
+    let abs = home.join("AGENTS.md");
+    if abs.exists() {
+        return Ok(ProjectRulesEnsureResult {
+            project_path: home.to_string_lossy().into_owned(),
+            relative_path: abs.to_string_lossy().into_owned(),
+            absolute_path: abs.to_string_lossy().into_owned(),
+            created: false,
+            already_existed: true,
+        });
+    }
+
+    let mut f = fs::File::create(&abs).map_err(|e| format!("create AGENTS.md: {e}"))?;
+    f.write_all(AGENTS_TEMPLATE.as_bytes())
+        .map_err(|e| format!("write AGENTS.md: {e}"))?;
+    f.sync_all().ok();
+
+    Ok(ProjectRulesEnsureResult {
+        project_path: home.to_string_lossy().into_owned(),
+        relative_path: abs.to_string_lossy().into_owned(),
         absolute_path: abs.to_string_lossy().into_owned(),
         created: true,
         already_existed: false,
@@ -443,7 +689,116 @@ mod tests {
 
         let listed2 = list_project_rules(dir.to_str().unwrap()).unwrap();
         assert!(listed2.has_agents_md);
+        let agents: Vec<_> = listed2
+            .rules
+            .iter()
+            .filter(|r| r.kind == "agents_md")
+            .map(|r| r.relative_path.as_str())
+            .collect();
+        assert_eq!(
+            agents,
+            vec!["AGENTS.md"],
+            "case-variant probes must collapse to one on-disk file"
+        );
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn list_collapses_root_agents_case_variants_to_one_file() {
+        let dir = std::env::temp_dir().join(format!("grok-app-rules-case-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("AGENTS.md"), "# a\n").unwrap();
+
+        let listed = list_project_rules(dir.to_str().unwrap()).unwrap();
+        let agents: Vec<_> = listed
+            .rules
+            .iter()
+            .filter(|r| r.kind == "agents_md")
+            .map(|r| r.relative_path.as_str())
+            .collect();
+        assert_eq!(agents, vec!["AGENTS.md"]);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn list_with_homes_includes_user_and_grok_home_files() {
+        let pid = std::process::id();
+        let proj = std::env::temp_dir().join(format!("grok-app-rules-proj-{pid}"));
+        let user_agents = std::env::temp_dir().join(format!("grok-app-rules-agents-{pid}"));
+        let grok_home = std::env::temp_dir().join(format!("grok-app-rules-home-{pid}"));
+        let _ = fs::remove_dir_all(&proj);
+        let _ = fs::remove_dir_all(&user_agents);
+        let _ = fs::remove_dir_all(&grok_home);
+        fs::create_dir_all(&proj).unwrap();
+        fs::create_dir_all(user_agents.join("ignored")).unwrap();
+        fs::create_dir_all(grok_home.join("rules")).unwrap();
+        fs::write(proj.join("AGENTS.md"), "# project\n").unwrap();
+        fs::write(user_agents.join("AGENTS.md"), "# user\n").unwrap();
+        fs::write(grok_home.join("AGENTS.md"), "# home\n").unwrap();
+        fs::write(grok_home.join("rules/global.md"), "rule\n").unwrap();
+
+        let listed = list_project_rules_with_homes(
+            proj.to_str().unwrap(),
+            Some(user_agents.as_path()),
+            Some(grok_home.as_path()),
+        )
+        .unwrap();
+        assert!(listed.has_agents_md);
+        let by_scope = |scope: &str| {
+            listed
+                .rules
+                .iter()
+                .filter(|r| r.scope == scope && r.kind == "agents_md")
+                .count()
+        };
+        assert_eq!(by_scope("project"), 1);
+        assert_eq!(by_scope("user_agents"), 1);
+        assert_eq!(by_scope("grok_home"), 1);
+        assert!(listed.rules.iter().any(|r| {
+            r.scope == "grok_home" && r.kind == "grok_rules" && r.name == "global.md"
+        }));
+        assert_eq!(listed.rules[0].scope, "project");
+
+        let _ = fs::remove_dir_all(&proj);
+        let _ = fs::remove_dir_all(&user_agents);
+        let _ = fs::remove_dir_all(&grok_home);
+    }
+
+    #[test]
+    fn list_with_homes_placeholders_when_missing() {
+        let pid = std::process::id();
+        let proj = std::env::temp_dir().join(format!("grok-app-rules-empty-proj-{pid}"));
+        let user_agents = std::env::temp_dir().join(format!("grok-app-rules-empty-agents-{pid}"));
+        let grok_home = std::env::temp_dir().join(format!("grok-app-rules-empty-home-{pid}"));
+        let _ = fs::remove_dir_all(&proj);
+        let _ = fs::remove_dir_all(&user_agents);
+        let _ = fs::remove_dir_all(&grok_home);
+        fs::create_dir_all(&proj).unwrap();
+
+        let listed = list_project_rules_with_homes(
+            proj.to_str().unwrap(),
+            Some(user_agents.as_path()),
+            Some(grok_home.as_path()),
+        )
+        .unwrap();
+        assert!(!listed.has_agents_md);
+        let missing: Vec<_> = listed
+            .rules
+            .iter()
+            .filter(|r| r.kind == "agents_md" && !r.exists)
+            .map(|r| r.scope.as_str())
+            .collect();
+        assert_eq!(missing, vec!["grok_home", "user_agents"]);
+
+        let created = ensure_home_agents_template(&user_agents).unwrap();
+        assert!(created.created);
+        assert!(user_agents.join("AGENTS.md").is_file());
+
+        let _ = fs::remove_dir_all(&proj);
+        let _ = fs::remove_dir_all(&user_agents);
+        let _ = fs::remove_dir_all(&grok_home);
     }
 }

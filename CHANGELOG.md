@@ -14,16 +14,19 @@ See `docs/llm-wiki/release.md`.
 ## [Unreleased]
 
 ### Added
+- Project rules list this project, ~/.agents, and the live agent home. Missing files stay faded at the bottom.
 - Settings → Appearance can set a solid-color wallpaper with Morandi presets.
 - Settings → Appearance can turn off chat virtual scrolling for native overflow.
 - The composer branch chip can switch git branches in the current folder. Remote-only rows create a local tracking branch; a branch already checked out in another worktree opens that worktree instead.
 
 **中文 · 新增**
+- 项目规则会列出本项目、~/.agents 和当前 agent-home。未创建的会变淡并排在下面。
 - 设置 → 外观可用莫兰迪纯色做背景，不必选图片。
 - 设置 → 外观可关闭聊天虚拟滚动，改回原生滚动（长对话滚动异常时可关）。
 - 输入框上的分支 chip 可在当前目录切换 git 分支。仅远程存在的分支会建本地跟踪分支；已在其他 worktree 检出的则切到那个 worktree。
 
 ### Fixed
+- Project rules no longer list the same AGENTS.md three times on macOS.
 - Saving project rules no longer kills another chat's background agent mid-turn.
 - Trusted-project chats no longer reuse a prewarm process that skipped folder trust.
 - Switching git branches is blocked while an agent turn is still running in that folder.
@@ -46,6 +49,7 @@ See `docs/llm-wiki/release.md`.
 - Local video details now use the file's measured dimensions and duration.
 
 **中文 · 修复**
+- 项目规则在 macOS 上不再把同一份 AGENTS.md 列成三条。
 - 保存项目规则时，不再打断同项目另一聊天后台进行中的 agent 回合。
 - 已信任项目不会复用未带文件夹信任的预热进程，AGENTS.md 可正确加载。
 - 同文件夹仍有 agent 回合在跑时，禁止切换 git 分支。

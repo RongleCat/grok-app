@@ -152,6 +152,8 @@ export type ProjectRuleEntry = {
   [key: string]: unknown;
 };
 
+export type ProjectRuleScope = "project" | "user_agents" | "grok_home";
+
 export type ProjectRulesListResult = {
   rules?: ProjectRuleEntry[];
   hasAgentsMd?: boolean;
@@ -162,9 +164,13 @@ export async function projectRulesList(projectPath: string) {
   return invoke<ProjectRulesListResult | ProjectRuleEntry[]>("project_rules_list", { projectPath });
 }
 
-export async function projectRulesEnsureTemplate(projectPath: string) {
+export async function projectRulesEnsureTemplate(
+  projectPath: string,
+  scope?: ProjectRuleScope | string | null,
+) {
   return invoke<ProjectRuleEntry>("project_rules_ensure_template", {
     projectPath,
+    scope: scope || null,
   });
 }
 

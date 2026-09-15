@@ -62,6 +62,14 @@ pub fn refresh_from_store() {
         next.push(user_grok);
     }
 
+    // User-level agent instructions (`~/.agents/AGENTS.md`).
+    let user_agents = crate::process_util::user_home().join(".agents");
+    if let Ok(c) = user_agents.canonicalize() {
+        next.push(c);
+    } else {
+        next.push(user_agents);
+    }
+
     // Dedup while preserving order.
     let mut seen = std::collections::HashSet::new();
     next.retain(|p| seen.insert(p.clone()));

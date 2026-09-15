@@ -15,7 +15,10 @@ import {
   sanitizeSystemPromptOverride,
 } from "./sessionSystemPrompt";
 import { isFsWriteConflict, isResourceDraftDirty } from "./resourceEdit";
-import type { ProjectRuleKind } from "./projectRules";
+import {
+  normalizeRuleRelativePath,
+  type ProjectRuleKind,
+} from "./projectRules";
 
 /** Which per-session text field the user is editing. */
 export type SessionPromptFieldKind = "system_prompt" | "extra_rules";
@@ -418,6 +421,8 @@ export type ProjectRuleListItem = {
   relativePath: string;
   absolutePath?: string;
   kind: string;
+  scope?: string;
+  exists?: boolean;
 };
 
 /** Single-letter chip for a rule kind (A / C / G / N). */
@@ -459,29 +464,137 @@ export function projectRuleKindLabelKey(
   }
 }
 
+export type ProjectRuleRowTitleSpec = {
+  key:
+    | "rules.row.projectFile"
+    | "rules.row.locatedFile"
+    | "rules.row.userAgentsFile"
+    | "rules.row.cliHomeFile"
+    | "rules.row.appHomeFile";
+  params: { name: string; dir?: string };
+};
+
+function isAppAgentHomePath(absolutePath: string | undefined): boolean {
+  const p = (absolutePath || "").replace(/\\/g, "/").toLowerCase();
+  return (
+    p.includes("/agent-home/") ||
+    p.endsWith("/agent-home") ||
+    p.includes("/.grok-app/")
+  );
+}
+
+/**
+ * Row title: root files are "this project · AGENTS.md"; user homes keep
+ * their well-known location; nested project files keep the parent directory.
+ */
+export function projectRuleRowTitleSpec(
+  rule: ProjectRuleListItem,
+): ProjectRuleRowTitleSpec {
+  const relativePath = normalizeRuleRelativePath(rule.relativePath || "");
+  const name =
+    (rule.name || "").trim() ||
+    relativePath.split("/").pop() ||
+    (rule.absolutePath || "").replace(/\\/g, "/").split("/").pop() ||
+    relativePath ||
+    "AGENTS.md";
+  const scope = (rule.scope || "project").trim() || "project";
+  if (scope === "user_agents") {
+    return { key: "rules.row.userAgentsFile", params: { name } };
+  }
+  if (scope === "grok_home") {
+    if (isAppAgentHomePath(rule.absolutePath || rule.relativePath)) {
+      return { key: "rules.row.appHomeFile", params: { name } };
+    }
+    return { key: "rules.row.cliHomeFile", params: { name } };
+  }
+  if (relativePath && !relativePath.includes("/")) {
+    return { key: "rules.row.projectFile", params: { name } };
+  }
+  const slash = relativePath.lastIndexOf("/");
+  const dir = slash > 0 ? relativePath.slice(0, slash) : relativePath || ".";
+  return { key: "rules.row.locatedFile", params: { dir, name } };
+}
+
+/** Prefer the absolute filesystem path; fall back to the project-relative path. */
+export function projectRuleDisplayPath(
+  rule: ProjectRuleListItem,
+): string {
+  const abs = (rule.absolutePath || "").trim();
+  if (abs) return abs;
+  return normalizeRuleRelativePath(rule.relativePath || "");
+}
+
+function projectRuleScopeOrder(scope: string | null | undefined): number {
+  switch ((scope || "project").trim()) {
+    case "project":
+      return 0;
+    case "grok_home":
+      return 1;
+    case "user_agents":
+      return 2;
+    default:
+      return 9;
+  }
+}
+
+function projectRuleKindOrder(kind: string | null | undefined): number {
+  switch ((kind || "").trim()) {
+    case "agents_md":
+      return 0;
+    case "claude_md":
+      return 1;
+    case "grok_rules":
+      return 2;
+    case "nested_agents":
+      return 3;
+    default:
+      return 9;
+  }
+}
+
+/** Existing files first, then project → GROK_HOME → ~/.agents, then kind/path. */
+export function compareProjectRuleListItems(
+  a: ProjectRuleListItem,
+  b: ProjectRuleListItem,
+): number {
+  const ae = a.exists === false ? 1 : 0;
+  const be = b.exists === false ? 1 : 0;
+  if (ae !== be) return ae - be;
+  const so = projectRuleScopeOrder(a.scope) - projectRuleScopeOrder(b.scope);
+  if (so !== 0) return so;
+  const ko = projectRuleKindOrder(a.kind) - projectRuleKindOrder(b.kind);
+  if (ko !== 0) return ko;
+  return (a.relativePath || "").localeCompare(b.relativePath || "");
+}
+
 /** Filter rules by name / path / kind (case-insensitive substring). */
 export function filterProjectRulesList<T extends ProjectRuleListItem>(
   rules: readonly T[],
   query: string | null | undefined,
 ): T[] {
   const q = (query ?? "").trim().toLowerCase();
-  if (!q) return rules.slice();
-  return rules.filter((r) => {
-    const name = (r.name || "").toLowerCase();
-    const rel = (r.relativePath || "").toLowerCase();
-    const abs = (r.absolutePath || "").toLowerCase();
-    const kind = (r.kind || "").toLowerCase();
-    return (
-      name.includes(q) ||
-      rel.includes(q) ||
-      abs.includes(q) ||
-      kind.includes(q)
-    );
-  });
+  const matched = !q
+    ? rules.slice()
+    : rules.filter((r) => {
+        const name = (r.name || "").toLowerCase();
+        const rel = (r.relativePath || "").toLowerCase();
+        const abs = (r.absolutePath || "").toLowerCase();
+        const kind = (r.kind || "").toLowerCase();
+        const scope = (r.scope || "").toLowerCase();
+        return (
+          name.includes(q) ||
+          rel.includes(q) ||
+          abs.includes(q) ||
+          kind.includes(q) ||
+          scope.includes(q)
+        );
+      });
+  return matched.sort(compareProjectRuleListItems);
 }
 
 export type ProjectRulesSummary = {
   total: number;
+  missingCount: number;
   byKind: Partial<Record<ProjectRuleKind | string, number>>;
   hasAgentsMd: boolean;
   hasClaudeMd: boolean;
@@ -489,13 +602,20 @@ export type ProjectRulesSummary = {
   hasNestedAgents: boolean;
 };
 
-/** Count rules by kind for toolbar chips. */
+/** Count existing rules by kind; placeholders are `missingCount` only. */
 export function summarizeProjectRules(
   rules: readonly ProjectRuleListItem[],
   hasAgentsMdHint?: boolean | null,
 ): ProjectRulesSummary {
   const byKind: ProjectRulesSummary["byKind"] = {};
+  let existing = 0;
+  let missingCount = 0;
   for (const r of rules) {
+    if (r.exists === false) {
+      missingCount += 1;
+      continue;
+    }
+    existing += 1;
     const k = (r.kind || "").trim() || "other";
     byKind[k] = (byKind[k] ?? 0) + 1;
   }
@@ -504,7 +624,8 @@ export function summarizeProjectRules(
       ? Boolean(hasAgentsMdHint)
       : (byKind.agents_md ?? 0) > 0;
   return {
-    total: rules.length,
+    total: existing,
+    missingCount,
     byKind,
     hasAgentsMd,
     hasClaudeMd: (byKind.claude_md ?? 0) > 0,

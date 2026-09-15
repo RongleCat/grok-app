@@ -756,6 +756,28 @@
   background: var(--bg-card);
 }
 
+.prm__item.is-missing {
+  opacity: 0.46;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--bg-hover) 16%, transparent);
+}
+
+.prm__item.is-missing:hover {
+  opacity: 0.72;
+}
+
+.prm__item.is-missing .prm__kind-chip {
+  color: var(--text-tertiary);
+  border-style: dashed;
+  border-color: var(--border-subtle);
+  background: transparent;
+}
+
+.prm__summary-chip[data-kind="missing"] {
+  color: var(--text-tertiary);
+  border-style: dashed;
+}
+
 .prm__row {
   display: flex;
   align-items: stretch;
@@ -842,14 +864,20 @@
   font-size: 11px;
   font-family: var(--font-mono);
   color: var(--text-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  white-space: normal;
+  line-height: 1.35;
 }
 
 .prm__row-kind {
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+.prm__row-missing {
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 
 .prm__row-actions {
