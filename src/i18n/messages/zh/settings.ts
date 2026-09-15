@@ -312,6 +312,8 @@ export const zhSettings = {
   "settings.toolStepsAutoCollapseDesc": "工具步骤在时间线中默认折叠（含运行中）。点开一行才看 stdout。关闭后默认保持展开。与「收起全部活动」（手动一次）是不同能力。",
   "settings.chatVirtualScroll": "对话滚动优化",
   "settings.chatVirtualScrollDesc": "用虚拟滚动技术优化对话内容页的滚动。适合喜欢在一个对话里聊很长的用户。如果页面滚动出现问题，可以关闭该功能。",
+  "settings.filePathCardLabel": "只显示文件名",
+  "settings.filePathCardLabelDesc": "对话里的路径只显示文件名。关闭后按模型原文显示，不改写成 ~。鼠标移上去会立刻显示完整路径。",
   "settings.transcriptFilter": "对话内容过滤",
   "settings.transcriptFilterDesc": "隐藏零散的原始工具行。助手回复上的 Worked for 活动轨始终保留（官方风格摘要）。",
   "settings.transcriptFilter.all": "全部活动",

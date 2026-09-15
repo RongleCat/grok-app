@@ -43,6 +43,7 @@ import { WallpaperMediaLayer } from "@/components/WallpaperMediaLayer";
 import { WallpaperSourceModal } from "@/components/WallpaperSourceModal";
 import { saveToolStepsAutoCollapsePref } from "@/lib/toolStepsAutoCollapsePref";
 import { saveChatVirtualScrollPref } from "@/lib/chatVirtualScrollPref";
+import { saveFilePathCardBasenamePref } from "@/lib/filePathCardPref";
 import {
   saveTranscriptFilterPref,
   type TranscriptFilterMode,
@@ -139,6 +140,7 @@ export function AppearanceSection() {
     setThinkingExpand,
     setToolStepsAutoCollapse,
     setChatVirtualScroll,
+    setFilePathCardBasename,
     setTranscriptFilter,
     setWallpaperError,
     setWallpaperFocusOpen,
@@ -156,6 +158,7 @@ export function AppearanceSection() {
     thinkingExpand,
     toolStepsAutoCollapse,
     chatVirtualScroll,
+    filePathCardBasename = true,
     transcriptFilter,
     wallpaperBusy,
     wallpaperClip,
@@ -1137,6 +1140,29 @@ export function AppearanceSection() {
                   saveChatVirtualScrollPref(next);
                 }}
                 ariaLabel={t("settings.chatVirtualScroll")}
+              />
+            </div>
+            <div
+              className={
+                "settings-row" +
+                rowHighlight("settings-anchor-filePathCardLabel")
+              }
+              id="settings-anchor-filePathCardLabel"
+            >
+              <div className="settings-row__text">
+                <SettingsLabelWithTip
+                  label={t("settings.filePathCardLabel")}
+                  tip={t("settings.filePathCardLabelDesc")}
+                />
+              </div>
+              <UiCheck
+                checked={filePathCardBasename}
+                onChange={() => {
+                  const next = !filePathCardBasename;
+                  setFilePathCardBasename(next);
+                  saveFilePathCardBasenamePref(next);
+                }}
+                ariaLabel={t("settings.filePathCardLabel")}
               />
             </div>
             <div

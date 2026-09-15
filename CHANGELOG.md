@@ -17,11 +17,13 @@ See `docs/llm-wiki/release.md`.
 - Project rules list this project, ~/.agents, and the live agent home. Missing files stay faded at the bottom.
 - Shell commands show the full command, with one-click copy of command and output.
 - File diffs on a turn and in Review can be copied in one click.
+- Chat file cards can show the file name only, or the path as the model wrote it. Hover shows the full path immediately.
 
 **中文 · 新增**
 - 项目规则会列出本项目、~/.agents 和当前 agent-home。未创建的会变淡并排在下面。
 - 终端命令会显示完整命令，并可一键复制命令和输出。
 - 回合变更和 Review 里的文件 diff 可一键复制。
+- 对话里的文件路径可只显示文件名，或按模型原文显示。悬停会立刻显示完整路径。
 
 ### Fixed
 - Project rules no longer list the same AGENTS.md three times on macOS.
@@ -34,6 +36,7 @@ See `docs/llm-wiki/release.md`.
 - The Windows desktop pet no longer appears as a second Grok taskbar icon.
 - Pet chips no longer glue another chat’s text; finished ones stay until opened.
 - Official high-effort turns wait longer before the empty-thinking stall banner.
+- File-path chips keep the model’s original path when the file-name option is off.
 
 **中文 · 修复**
 - 项目规则在 macOS 上不再把同一份 AGENTS.md 列成三条。
@@ -46,6 +49,7 @@ See `docs/llm-wiki/release.md`.
 - Windows 桌面宠物不再占用第二个 Grok 任务栏图标。
 - 宠物任务芯片不再粘上别的对话文字，完成后会留到你点开。
 - 官方高推理在空思考占位时，会等更久才弹出卡住提示。
+- 关闭「只显示文件名」时，路径卡片会保留模型写的原文，不会换成磁盘全路径。
 
 ## [0.2.35] - 2026-09-13
 

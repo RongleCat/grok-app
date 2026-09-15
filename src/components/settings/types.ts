@@ -435,6 +435,7 @@ export type SettingsViewModel = SettingsPageProps & {
   setThinkingExpand: Dispatch<SetStateAction<ThinkingExpandPref>>;
   setToolStepsAutoCollapse: Dispatch<SetStateAction<boolean>>;
   setChatVirtualScroll: Dispatch<SetStateAction<boolean>>;
+  setFilePathCardBasename: Dispatch<SetStateAction<boolean>>;
   setTranscriptFilter: Dispatch<SetStateAction<TranscriptFilterMode>>;
   setVoiceHotkeyEnabled: Dispatch<SetStateAction<boolean>>;
   setWallpaperError: Dispatch<SetStateAction<string | null>>;
@@ -452,6 +453,7 @@ export type SettingsViewModel = SettingsPageProps & {
   toggleArchivedId: (id: string) => void;
   toolStepsAutoCollapse: boolean;
   chatVirtualScroll: boolean;
+  filePathCardBasename: boolean;
   transcriptFilter: TranscriptFilterMode;
   trayBusySurface: TrayBusyBadgeSurface;
   uiFontFamily: string;

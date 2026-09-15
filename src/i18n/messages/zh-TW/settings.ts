@@ -313,6 +313,8 @@ export const zhTWSettings = {
   "settings.toolStepsAutoCollapseDesc": "工具步驟在時間線中預設摺疊（含執行中）。點開一列才看 stdout。關閉後預設保持展開。與「收合全部活動」（手動一次）是不同能力。",
   "settings.chatVirtualScroll": "對話捲動優化",
   "settings.chatVirtualScrollDesc": "用虛擬捲動技術優化對話內容頁的捲動。適合喜歡在一個對話裡聊很長的使用者。如果頁面捲動出現問題，可以關閉該功能。",
+  "settings.filePathCardLabel": "只顯示檔名",
+  "settings.filePathCardLabelDesc": "對話裡的路徑只顯示檔名。關閉後依模型原文顯示，不改寫成 ~。游標移上去會立刻顯示完整路徑。",
   "settings.transcriptFilter": "對話內容過濾",
   "settings.transcriptFilterDesc": "隱藏零散的原始工具列。助手回覆上的 Worked for 活動軌始終保留（官方風格摘要）。",
   "settings.transcriptFilter.all": "全部活動",

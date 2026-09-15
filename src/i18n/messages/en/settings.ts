@@ -312,6 +312,8 @@ export const enSettings = {
   "settings.toolStepsAutoCollapseDesc": "Tool steps start collapsed in the timeline, including while running. Expand a row to see stdout. Turn off to keep tools open by default. Separate from “Collapse all activity” (manual one-shot).",
   "settings.chatVirtualScroll": "Chat scroll optimization",
   "settings.chatVirtualScrollDesc": "Uses virtual scrolling to keep the conversation page smooth. Intended for people who like staying in one very long chat. If page scrolling misbehaves, you can turn this off.",
+  "settings.filePathCardLabel": "Show file name only",
+  "settings.filePathCardLabelDesc": "Chat path chips show only the file name. Turn off to keep the path as the model wrote it. Hover always shows the full resolved path.",
   "settings.transcriptFilter": "Transcript filter",
   "settings.transcriptFilterDesc": "Hide raw standalone tool rows. Worked-for activity rails on assistant replies always stay (Grok-style summary).",
   "settings.transcriptFilter.all": "All activity",

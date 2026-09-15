@@ -44,6 +44,7 @@ import {
   resolveFileToken,
 } from "@/lib/pathRefs";
 import { parsePathLineCitation } from "@/lib/pathLineCitation";
+import { filePathCardTokens } from "@/lib/filePathCardPref";
 import { isExternalHttpUrl } from "@/lib/externalLinkPref";
 import {
   createSoftBufferState,
@@ -553,9 +554,12 @@ export const MarkdownChat = memo(function MarkdownChat({
       return null;
     }
 
-    // Prefer multi-segment relative after ellipsis strip for smart open.
-    // Display token: keep short relative when we only have that; abs is for open.
-    const pathToken = resolved || raw || pathForLooks || rawIn;
+    // Display: model-written token. Open/hover: pathMap or host-resolved abs.
+    // Using `resolved` as the chip path made "as written" show `/Users/…`
+    // whenever the session had already touched the file.
+    const { path: writtenPath, absolutePath: resolvedAbsHint } =
+      filePathCardTokens({ written: rawIn, resolved });
+    const pathToken = writtenPath || raw || pathForLooks || rawIn;
     // Video/image only when we have a real multi-segment local absolute.
     // Never promote site-root, single-segment tails, or unresolved relative media.
     const asLocalMedia = (p: string | null | undefined, kind: "image" | "video") => {
@@ -623,9 +627,7 @@ export const MarkdownChat = memo(function MarkdownChat({
     return (
       <FilePathCard
         path={tokenForCard}
-        absolutePath={
-          resolved && isRealLocalAbsolutePath(resolved) ? resolved : undefined
-        }
+        absolutePath={resolvedAbsHint}
         projectPath={projectPath}
         sshAlias={sshAlias}
         kind="file"

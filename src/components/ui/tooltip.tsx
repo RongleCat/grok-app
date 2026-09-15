@@ -44,6 +44,8 @@ type TipPos = {
 const GAP = 6;
 const MARGIN = 8;
 const MAX_TIP_W = 280;
+/** Path hover tips need more width than icon-button labels. */
+export const PATH_TIP_MAX_W = 520;
 /** Fallback box when tip not measured yet (first layout pass). */
 const EST_W = 160;
 const EST_H = 28;
@@ -69,8 +71,10 @@ export function computeTipPos(
   preferred: TipPlacement,
   vw: number,
   vh: number,
+  maxTipW: number = MAX_TIP_W,
 ): TipPos {
-  const maxWidth = Math.min(MAX_TIP_W, Math.max(80, vw - MARGIN * 2));
+  const cap = Number.isFinite(maxTipW) && maxTipW > 0 ? maxTipW : MAX_TIP_W;
+  const maxWidth = Math.min(cap, Math.max(80, vw - MARGIN * 2));
   const w = Math.min(Math.max(tipW, 1), maxWidth);
   const h = Math.max(tipH, 1);
 
@@ -106,14 +110,17 @@ export function Tip({
   delayMs = 420,
   disabled,
   className,
+  maxWidth,
 }: {
   label: ReactNode;
   children: ReactElement<TipChildProps>;
   placement?: TipPlacement;
-  /** Hover delay before show (Codex ~400ms). */
+  /** Hover delay before show (Codex ~400ms). 0 = show on the same event. */
   delayMs?: number;
   disabled?: boolean;
   className?: string;
+  /** Cap for this tip (still clamped to the viewport). */
+  maxWidth?: number;
 }) {
   const tipId = useId();
   const anchorRef = useRef<HTMLElement | null>(null);
@@ -135,6 +142,8 @@ export function Tip({
     }
   }, []);
 
+  const tipMaxW = maxWidth ?? MAX_TIP_W;
+
   const measure = useCallback(() => {
     const el = anchorRef.current;
     if (!el) return;
@@ -146,27 +155,35 @@ export function Tip({
       typeof window.innerHeight === "number" ? window.innerHeight : 768;
     const tipW = tip?.offsetWidth || EST_W;
     const tipH = tip?.offsetHeight || EST_H;
-    setPos(computeTipPos(r, tipW, tipH, placement, vw, vh));
-  }, [placement]);
+    setPos(computeTipPos(r, tipW, tipH, placement, vw, vh, tipMaxW));
+  }, [placement, tipMaxW]);
+
+  const seedAndOpen = useCallback(() => {
+    setSettled(false);
+    // Seed a rough position so the tip mounts; layout effect refines + clamps.
+    const el = anchorRef.current;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      const vw =
+        typeof window.innerWidth === "number" ? window.innerWidth : 1024;
+      const vh =
+        typeof window.innerHeight === "number" ? window.innerHeight : 768;
+      setPos(computeTipPos(r, EST_W, EST_H, placement, vw, vh, tipMaxW));
+    }
+    setOpen(true);
+  }, [placement, tipMaxW]);
 
   const scheduleShow = useCallback(() => {
     if (disabled || label == null || label === "") return;
     clearTimers();
+    if (delayMs <= 0) {
+      seedAndOpen();
+      return;
+    }
     showTimer.current = window.setTimeout(() => {
-      setSettled(false);
-      // Seed a rough position so the tip mounts; layout effect refines + clamps.
-      const el = anchorRef.current;
-      if (el) {
-        const r = el.getBoundingClientRect();
-        const vw =
-          typeof window.innerWidth === "number" ? window.innerWidth : 1024;
-        const vh =
-          typeof window.innerHeight === "number" ? window.innerHeight : 768;
-        setPos(computeTipPos(r, EST_W, EST_H, placement, vw, vh));
-      }
-      setOpen(true);
+      seedAndOpen();
     }, delayMs);
-  }, [clearTimers, delayMs, disabled, label, placement]);
+  }, [clearTimers, delayMs, disabled, label, seedAndOpen]);
 
   const scheduleHide = useCallback(() => {
     clearTimers();

@@ -289,6 +289,8 @@ export const itSettings = {
   "settings.toolStepsAutoCollapseDesc": "I passi degli strumenti partono compressi nella timeline, anche durante l’esecuzione. Espandi una riga per vedere lo stdout. Disattiva per tenere gli strumenti aperti di default. Separato da «Comprimi tutta l’attività» (one-shot manuale).",
   "settings.chatVirtualScroll": "Ottimizzazione dello scorrimento chat",
   "settings.chatVirtualScrollDesc": "Usa lo scorrimento virtuale per rendere fluida la pagina della conversazione. Pensato per chi resta a lungo nello stesso chat. Se lo scorrimento della pagina dà problemi, puoi disattivare questa funzione.",
+  "settings.filePathCardLabel": "Solo nome file",
+  "settings.filePathCardLabelDesc": "I percorsi in chat mostrano solo il nome file. Disattiva per lasciare il testo del modello. All’hover compare sempre il percorso risolto.",
   "settings.transcriptFilter": "Filtro trascrizione",
   "settings.transcriptFilterDesc": "Nascondi i dump autonomi degli strumenti nella chat. L’attività «lavorato per» sulle risposte è sempre visibile.",
   "settings.transcriptFilter.all": "Tutta l’attività",

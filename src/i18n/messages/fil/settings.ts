@@ -289,6 +289,8 @@ export const filSettings = {
   "settings.toolStepsAutoCollapseDesc": "Nagsisimulang naka-collapse sa timeline ang tool steps, kasama habang tumatakbo. I-expand ang row para makita ang stdout. I-off para panatilihing bukas ang tools by default. Hiwalay sa “I-collapse lahat ng aktibidad” (manual one-shot).",
   "settings.chatVirtualScroll": "Pag-optimize ng scroll ng chat",
   "settings.chatVirtualScrollDesc": "Gumagamit ng virtual scrolling para manatiling smooth ang page ng usapan. Para sa mga gustong magtagal sa iisang napakahabang chat. Kung may problema ang pag-scroll ng page, puwedeng i-off ang feature na ito.",
+  "settings.filePathCardLabel": "Filename lang",
+  "settings.filePathCardLabelDesc": "Ang path sa chat ay filename lang. I-off para iwan ang path kung paano isinulat ng modelo. Palaging buong resolved path ang hover.",
   "settings.transcriptFilter": "Filter ng transcript",
   "settings.transcriptFilterDesc": "Itago ang raw standalone tool rows. Palaging nananatili ang worked-for activity rails sa sagot ng assistant (Grok-style summary).",
   "settings.transcriptFilter.all": "Lahat ng aktibidad",

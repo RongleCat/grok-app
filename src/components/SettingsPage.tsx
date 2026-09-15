@@ -145,6 +145,7 @@ import {
 import {
   loadChatVirtualScrollPref,
 } from "@/lib/chatVirtualScrollPref";
+import { loadFilePathCardBasenamePref } from "@/lib/filePathCardPref";
 import {
   loadTranscriptFilterPref,
   type TranscriptFilterMode,
@@ -568,6 +569,10 @@ export function SettingsPage({
   /** Chat transcript virtual window (localStorage; default on). */
   const [chatVirtualScroll, setChatVirtualScroll] = useState(() =>
     loadChatVirtualScrollPref(),
+  );
+  /** File-path chips: file name only (default) vs as-written token. */
+  const [filePathCardBasename, setFilePathCardBasename] = useState(() =>
+    loadFilePathCardBasenamePref(),
   );
   /** Transcript paint filter — all activity vs conversation only. */
   const [transcriptFilter, setTranscriptFilter] =
@@ -1732,6 +1737,8 @@ export function SettingsPage({
     setToolStepsAutoCollapse,
     chatVirtualScroll,
     setChatVirtualScroll,
+    filePathCardBasename,
+    setFilePathCardBasename,
     transcriptFilter,
     setTranscriptFilter,
     chatFontScale,

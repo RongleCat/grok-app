@@ -289,6 +289,8 @@ export const jaSettings = {
   "settings.toolStepsAutoCollapseDesc": "ツールステップはタイムラインで最初から折りたたまれます（実行中も含む）。行を開くと stdout を表示します。オフにするとデフォルトで開いたままです。「すべての活動を折りたたむ」（手動の一度きり）とは別です。",
   "settings.chatVirtualScroll": "チャットのスクロール最適化",
   "settings.chatVirtualScrollDesc": "仮想スクロールで会話ページの動きを滑らかにします。一つの会話を長く続ける人向けです。ページのスクロールに問題が出たら、この機能をオフにできます。",
+  "settings.filePathCardLabel": "ファイル名のみ",
+  "settings.filePathCardLabelDesc": "チャットのパスはファイル名だけ表示します。オフにするとモデルの原文のまま。ホバーでは常に解決済みのフルパスが出ます。",
   "settings.transcriptFilter": "トランスクリプトフィルター",
   "settings.transcriptFilterDesc": "単独の生ツール行を隠します。アシスタント返信上の Worked for 活動レールは常に残します（Grok 風の要約）。",
   "settings.transcriptFilter.all": "すべての活動",
