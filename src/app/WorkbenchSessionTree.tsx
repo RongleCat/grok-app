@@ -267,6 +267,7 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
                               : null
                           }
                           worktreeBadge={buildSidebarWorktreeBadge(s)}
+                          showPinBadge={false}
                           labels={sidebarSessionLabels}
                           locale={locale}
                           showRelativeTime={sidebarShowRelativeTime}

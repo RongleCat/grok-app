@@ -86,6 +86,8 @@ export type SidebarSessionRowProps = {
   /** Non-null when session has a note; used as title (+ falls back to noteAria). */
   noteTitle: string | null;
   worktreeBadge: SidebarSessionWorktreeBadgeProp | null;
+  /** False in the global pinned group — the section already marks these chats. */
+  showPinBadge?: boolean;
   labels: SidebarSessionRowLabels;
   locale: Locale;
   showRelativeTime: boolean;
@@ -119,6 +121,7 @@ function SidebarSessionRowInner({
   muted,
   noteTitle,
   worktreeBadge,
+  showPinBadge = true,
   labels,
   locale,
   showRelativeTime,
@@ -306,7 +309,7 @@ function SidebarSessionRowInner({
             <Spinner size={12} className="tree-l3__spinner" />
           </span>
         ) : null}
-        {session.pinned ? (
+        {showPinBadge && session.pinned ? (
           <span
             className="tree-l3__kind"
             title={labels.pinned}
@@ -473,6 +476,7 @@ function sidebarSessionRowPropsEqual(
     prev.selectMode === next.selectMode &&
     prev.muted === next.muted &&
     prev.noteTitle === next.noteTitle &&
+    (prev.showPinBadge !== false) === (next.showPinBadge !== false) &&
     prev.locale === next.locale &&
     prev.showRelativeTime === next.showRelativeTime &&
     prev.labels === next.labels &&

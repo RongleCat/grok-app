@@ -155,6 +155,41 @@ describe("SidebarSessionRow", () => {
     expect(html).not.toContain("tree-l3--renaming");
   });
 
+  it("hides the title pin badge when already in the pinned group", () => {
+    const html = renderToString(
+      React.createElement(SidebarSessionRow, {
+        session: {
+          id: "s-pin",
+          title: "Pinned chat",
+          pinned: true,
+          updatedAt: new Date().toISOString(),
+        },
+        variant: "project",
+        active: false,
+        working: false,
+        unread: false,
+        checked: false,
+        selectMode: false,
+        muted: false,
+        noteTitle: null,
+        worktreeBadge: null,
+        showPinBadge: false,
+        labels,
+        locale: "en",
+        showRelativeTime: false,
+        onOpen: vi.fn(),
+        onContextMenu: vi.fn(),
+        onToggleSelect: vi.fn(),
+        onPin: vi.fn(),
+        onArchive: vi.fn(),
+        onMenu: vi.fn(),
+        onRename: vi.fn(),
+      }),
+    );
+    expect(html).not.toContain("tree-l3__pin");
+    expect(html).toContain("tree-l3__actions");
+  });
+
   it("keeps pin clickable while the chat is generating", () => {
     const html = renderToString(
       React.createElement(SidebarSessionRow, {
