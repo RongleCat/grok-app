@@ -492,6 +492,7 @@ export const ptBRSettingsUi = {
   "settings.sandbox.openGuide.desc": "Guia passo a passo de perfil (o mesmo assistente de após confiar no projeto).",
   "settings.sessionDataMode.status": "Atual: {modeLabel} · home do agente {path}",
   "settings.sessionDataMode.independentNote": "O modo independente usa {path}. As configurações do App que gravam a config do agente aplicam-se aqui; o ~/.grok da CLI não é reescrito.",
+  "settings.sessionDataMode.customRequiresIndependent": "Provedores personalizados guardam os dados da sessão no agent-home do app. Volte o compositor para o Grok oficial para usar ~/.grok compartilhado.",
   "settings.sessionDataMode.confirm.intro": "Mudar o home de dados da sessão de {fromHome} → {toHome}?\nOs históricos não são mesclados. Os agentes ao vivo serão reciclados.",
   "settings.sessionDataMode.risk.homesDiffer": "O home do agente muda — as reconexões usam só o novo diretório",
   "settings.sessionDataMode.risk.noSilentMerge": "Sem mesclagem silenciosa: os históricos independente e compartilhado permanecem separados",

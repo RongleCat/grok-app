@@ -492,6 +492,7 @@ export const idSettingsUi = {
   "settings.sandbox.openGuide.desc": "Panduan profil langkah demi langkah (wizard yang sama seperti setelah mempercayai proyek).",
   "settings.sessionDataMode.status": "Saat ini: {modeLabel} · home agen {path}",
   "settings.sessionDataMode.independentNote": "Mode mandiri memakai {path}. Pengaturan App yang menulis konfigurasi agen berlaku di sini; CLI ~/.grok tidak ditulis ulang.",
+  "settings.sessionDataMode.customRequiresIndependent": "Penyedia kustom menyimpan data sesi di agent-home aplikasi. Kembalikan composer ke Grok resmi untuk memakai ~/.grok bersama.",
   "settings.sessionDataMode.confirm.intro": "Switch session data home from {fromHome} → {toHome}?\\nHistories are not merged. Live agents will be recycled.",
   "settings.sessionDataMode.risk.homesDiffer": "Home agen berubah — sambungan ulang hanya memakai direktori baru",
   "settings.sessionDataMode.risk.noSilentMerge": "Tidak ada penggabungan senyap: riwayat mandiri dan bersama tetap terpisah",

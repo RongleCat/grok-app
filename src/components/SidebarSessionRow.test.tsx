@@ -155,6 +155,42 @@ describe("SidebarSessionRow", () => {
     expect(html).not.toContain("tree-l3--renaming");
   });
 
+  it("keeps pin clickable while the chat is generating", () => {
+    const html = renderToString(
+      React.createElement(SidebarSessionRow, {
+        session: {
+          id: "s-work",
+          title: "Busy chat",
+          pinned: false,
+          updatedAt: new Date().toISOString(),
+        },
+        variant: "project",
+        active: true,
+        working: true,
+        unread: false,
+        checked: false,
+        selectMode: false,
+        muted: false,
+        noteTitle: null,
+        worktreeBadge: null,
+        labels,
+        locale: "en",
+        showRelativeTime: false,
+        onOpen: vi.fn(),
+        onContextMenu: vi.fn(),
+        onToggleSelect: vi.fn(),
+        onPin: vi.fn(),
+        onArchive: vi.fn(),
+        onMenu: vi.fn(),
+        onRename: vi.fn(),
+      }),
+    );
+    expect(html).toContain("tree-l3--working");
+    expect(html).toContain("tree-l3__spinner");
+    expect(html).toContain("tree-l3__actions");
+    expect(html).toContain("tabler-icon-pinned");
+  });
+
   it("does not render a row attach icon (drag-to-composer / context menu instead)", () => {
     const html = renderToString(
       React.createElement(SidebarSessionRow, {

@@ -331,6 +331,7 @@ pub struct AppSettings {
     /// Missing field deserializes as false so existing installs migrate once.
     #[serde(default)]
     pub locale_follow_system_migrated: bool,
+    #[serde(default = "default_session_data_mode")]
     pub session_data_mode: String,
     pub manual_cli_path: Option<String>,
     /// CLI launch backend: `native` (default) or `wsl` (Windows only — spawn via `wsl.exe`).
@@ -819,6 +820,10 @@ fn default_todo_gate_max_fires() -> u32 {
 
 fn default_locale() -> String {
     "system".into()
+}
+
+fn default_session_data_mode() -> String {
+    "shared".into()
 }
 
 impl Default for AppSettings {
@@ -3648,6 +3653,23 @@ mod tests {
                     .expect("parse saved settings");
             assert_eq!(persisted["proxyMode"], PROXY_MODE_MANUAL);
         });
+    }
+
+    #[test]
+    fn missing_session_data_mode_deserializes_shared() {
+        let raw = r#"{
+            "theme": "dark",
+            "locale": "en",
+            "manualCliPath": null,
+            "permissionPolicy": "ask",
+            "modelId": null,
+            "effort": "medium",
+            "mode": "agent",
+            "onboardingDone": true,
+            "setupSkipped": false
+        }"#;
+        let s: AppSettings = serde_json::from_str(raw).expect("deserialize without sessionDataMode");
+        assert_eq!(s.session_data_mode, "shared");
     }
 
     #[test]

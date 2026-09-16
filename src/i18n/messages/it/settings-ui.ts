@@ -492,6 +492,7 @@ export const itSettingsUi = {
   "settings.sandbox.openGuide.desc": "Guida al profilo passo-passo (stessa procedura guidata di dopo aver reso attendibile il progetto).",
   "settings.sessionDataMode.status": "Attuale: {modeLabel} · home agente {path}",
   "settings.sessionDataMode.independentNote": "La modalità indipendente usa {path}. Le impostazioni dell’app che scrivono la config agente si applicano qui; ~/.grok della CLI non viene riscritto.",
+  "settings.sessionDataMode.customRequiresIndependent": "I provider personalizzati tengono i dati di sessione nell’agent-home dell’app. Riporta il composer a Grok ufficiale per usare ~/.grok condiviso.",
   "settings.sessionDataMode.confirm.intro": "Cambiare la home dati sessione da {fromHome} → {toHome}?\nLe cronologie non vengono unite. Gli agenti live verranno riciclati.",
   "settings.sessionDataMode.risk.homesDiffer": "La home agente cambia — le riconnessioni usano solo la nuova directory",
   "settings.sessionDataMode.risk.noSilentMerge": "Nessun merge silenzioso: le cronologie indipendente e condivisa restano separate",

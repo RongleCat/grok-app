@@ -492,6 +492,7 @@ export const ruSettingsUi = {
   "settings.sandbox.openGuide.desc": "Пошаговое руководство по профилю (тот же мастер, что после доверия проекту).",
   "settings.sessionDataMode.status": "Сейчас: {modeLabel} · agent home {path}",
   "settings.sessionDataMode.independentNote": "Независимый режим использует {path}. Настройки приложения, которые пишут конфиг агента, применяются здесь; CLI ~/.grok не переписывается.",
+  "settings.sessionDataMode.customRequiresIndependent": "Пользовательские провайдеры хранят данные сессий в agent-home приложения. Чтобы использовать общий ~/.grok, верните композер на официальный Grok.",
   "settings.sessionDataMode.confirm.intro": "Сменить домашний каталог данных сессий с {fromHome} → {toHome}?\nИстории не сливаются. Живые агенты будут перезапущены.",
   "settings.sessionDataMode.risk.homesDiffer": "Домашний каталог агента меняется — переподключения используют только новый каталог",
   "settings.sessionDataMode.risk.noSilentMerge": "Без тихого слияния: независимые и общие истории остаются отдельными",

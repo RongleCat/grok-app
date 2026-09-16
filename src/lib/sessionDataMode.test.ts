@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SESSION_DATA_MODE,
   SESSION_DATA_MODE_HOME,
+  applyPersistedSessionDataMode,
   formatSessionDataModeConfirmBody,
   formatSessionDataModeStatusVars,
   isSessionDataMode,
@@ -10,6 +11,7 @@ import {
   planSessionDataModeSwitch,
   resolveSessionDataModeBanner,
   sessionDataModeHomeLabel,
+  sessionDataModeLockedByCustomRoute,
   shouldBlockMixedRead,
 } from "./sessionDataMode";
 
@@ -227,5 +229,31 @@ describe("formatSessionDataModeStatusVars", () => {
       modeLabel: "independent",
       path: "~/.grok-app/agent-home",
     });
+  });
+});
+
+describe("sessionDataModeLockedByCustomRoute", () => {
+  it("locks shared mode only while a custom provider is the live route", () => {
+    expect(sessionDataModeLockedByCustomRoute("custom")).toBe(true);
+    expect(sessionDataModeLockedByCustomRoute("CUSTOM")).toBe(true);
+    expect(sessionDataModeLockedByCustomRoute("official")).toBe(false);
+    expect(sessionDataModeLockedByCustomRoute("")).toBe(false);
+    expect(sessionDataModeLockedByCustomRoute(null)).toBe(false);
+  });
+});
+
+describe("applyPersistedSessionDataMode", () => {
+  it("shows the value the host actually saved (self-heal wins)", () => {
+    expect(applyPersistedSessionDataMode("shared", "independent")).toBe(
+      "independent",
+    );
+    expect(applyPersistedSessionDataMode("independent", "shared")).toBe(
+      "shared",
+    );
+  });
+
+  it("falls back to the requested mode when the host omits the field", () => {
+    expect(applyPersistedSessionDataMode("shared", undefined)).toBe("shared");
+    expect(applyPersistedSessionDataMode("shared", "")).toBe("shared");
   });
 });

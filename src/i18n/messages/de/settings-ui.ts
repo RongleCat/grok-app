@@ -492,6 +492,7 @@ export const deSettingsUi = {
   "settings.sandbox.openGuide.desc": "Schritt-für-Schritt-Profilanleitung (derselbe Assistent wie nach Projektvertrauen).",
   "settings.sessionDataMode.status": "Aktuell: {modeLabel} · Agent-Home {path}",
   "settings.sessionDataMode.independentNote": "Independent-Modus nutzt {path}. App-Einstellungen, die Agent-Config schreiben, gelten hier; CLI ~/.grok wird nicht umgeschrieben.",
+  "settings.sessionDataMode.customRequiresIndependent": "Benutzerdefinierte Anbieter speichern Sitzungsdaten im App-Agent-Home. Wechseln Sie den Composer zurück zu offiziellem Grok, um ~/.grok zu teilen.",
   "settings.sessionDataMode.confirm.intro": "Sitzungsdaten-Home von {fromHome} → {toHome} wechseln?\nVerläufe werden nicht zusammengeführt. Live-Agenten werden recycelt.",
   "settings.sessionDataMode.risk.homesDiffer": "Agent-Home ändert sich — Neuverbindungen nutzen nur das neue Verzeichnis",
   "settings.sessionDataMode.risk.noSilentMerge": "Kein stilles Merge: Independent- und Shared-Verläufe bleiben getrennt",

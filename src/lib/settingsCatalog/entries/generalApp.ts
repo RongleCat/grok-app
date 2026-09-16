@@ -36,6 +36,7 @@ export const GENERAL_APP_ENTRIES: readonly SettingsEntry[] = [
       "settings.sessionDataMode.banner.noRewriteSecrets",
       "settings.sessionDataMode.banner.conflictPossible",
       "settings.sessionDataMode.risk.noSilentMerge",
+      "settings.sessionDataMode.customRequiresIndependent",
       "settings.cliSessions",
     ],
     keywords: [

@@ -446,7 +446,7 @@ import {
   type SidebarSessionRowLabels,
 } from "@/components/SidebarSessionRow";
 import { sidebarSessionRowMetrics } from "@/lib/sidebarDensity";
-import { sortSessionsForSidebar } from "@/lib/sidebarDateGroups";
+import { sidebarNavSessionIds as navSessionIds } from "@/lib/sidebarDateGroups";
 import { nextSessionTitle } from "@/lib/sidebarSessionRename";
 import { GrokLogo } from "@/components/GrokLogo";
 import type { SetupCliInfo } from "@/components/SetupWizard";
@@ -3757,27 +3757,17 @@ export function AppWorkbench() {
    * Visual order of sessions in the open sidebar (expanded projects + orphans).
    * Used by j/k navigation via {@link nextSessionId}.
    */
-  const sidebarNavSessionIds = useMemo(() => {
-    const ids: string[] = [];
-    const projectIdSet = new Set(projects.map((p) => p.id));
-    if (projectsOpen) {
-      for (const proj of projects) {
-        if (expandedProjects[proj.id] === false) continue;
-        const projSessions = sessions.filter(
-          (s) => s.projectId === proj.id && !s.archived,
-        );
-        for (const s of sortSessionsForSidebar(projSessions)) ids.push(s.id);
-      }
-    }
-    if (historyOpen) {
-      const orphans = sessions.filter(
-        (s) =>
-          (!s.projectId || !projectIdSet.has(s.projectId)) && !s.archived,
-      );
-      for (const s of sortSessionsForSidebar(orphans)) ids.push(s.id);
-    }
-    return ids;
-  }, [projectsOpen, projects, expandedProjects, sessions, historyOpen]);
+  const sidebarNavSessionIds = useMemo(
+    () =>
+      navSessionIds({
+        sessions,
+        projects,
+        projectsOpen,
+        historyOpen,
+        expandedProjects,
+      }),
+    [projectsOpen, projects, expandedProjects, sessions, historyOpen],
+  );
   sidebarNavIdsRef.current = sidebarNavSessionIds;
   sidebarNavCurrentIdRef.current =
     session.sessionId ?? viewingSessionIdRef.current ?? null;

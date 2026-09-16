@@ -297,6 +297,15 @@ function SidebarSessionRowInner({
             <IconPlan size={12} aria-hidden />
           </span>
         ) : null}
+        {working ? (
+          <span
+            className="tree-l3__kind"
+            title={labels.working}
+            aria-label={labels.working}
+          >
+            <Spinner size={12} className="tree-l3__spinner" />
+          </span>
+        ) : null}
         {session.pinned ? (
           <span
             className="tree-l3__kind"
@@ -386,13 +395,7 @@ function SidebarSessionRowInner({
         locale={locale}
         enabled={showRelativeTime}
       />
-      {selectMode ? null : working ? (
-        <Tip label={labels.working}>
-          <span className="tree-l3__status" aria-label={labels.working}>
-            <Spinner size={14} className="tree-l3__spinner" />
-          </span>
-        </Tip>
-      ) : (
+      {selectMode ? null : (
         <span className="tree-l3__actions tree-l3__actions--triple">
           <Tip label={pinLabel}>
             <button

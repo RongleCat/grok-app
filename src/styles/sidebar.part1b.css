@@ -84,6 +84,12 @@
   color: var(--text-secondary);
 }
 
+.tree-pinned .tree-l1__head,
+.tree-pinned .tree-l1__head:hover {
+  cursor: default;
+  background: transparent;
+}
+
 .tree-l1__head--toggle,
 .tree-l1__chevron {
   flex: 0 0 auto;

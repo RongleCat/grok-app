@@ -16,7 +16,7 @@ export const SIDEBAR_SESSION_ROW_GAP = 2;
  * Below this count, VirtualList renders every row (no spacers).
  * Keeps short project groups identical to pre-virtualization DOM.
  */
-export const SIDEBAR_VIRTUALIZE_THRESHOLD = 32;
+export const SIDEBAR_VIRTUALIZE_THRESHOLD = 12;
 
 /** Default extra rows above/below the viewport. */
 export const DEFAULT_OVERSCAN = 6;

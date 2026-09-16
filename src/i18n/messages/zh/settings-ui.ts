@@ -492,6 +492,7 @@ export const zhSettingsUi = {
   "settings.sandbox.openGuide.desc": "分步配置指南（与信任项目后的向导相同）。",
   "settings.sessionDataMode.status": "当前：{modeLabel} · Agent 主目录 {path}",
   "settings.sessionDataMode.independentNote": "独立模式使用 {path}。可写入 agent 配置的应用设置作用于此目录；不会改写 CLI 的 ~/.grok。",
+  "settings.sessionDataMode.customRequiresIndependent": "自定义渠道会把会话数据放在应用 agent-home。要使用共享 ~/.grok，请先把主模型切回官方 Grok。",
   "settings.sessionDataMode.confirm.intro": "将会话数据主目录从 {fromHome} 切换到 {toHome}？\n历史不会合并。在线 Agent 将被回收。",
   "settings.sessionDataMode.risk.homesDiffer": "Agent 主目录会变更 — 重连只使用新目录",
   "settings.sessionDataMode.risk.noSilentMerge": "不会静默合并：独立与共享两套历史保持分离",

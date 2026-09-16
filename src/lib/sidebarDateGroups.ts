@@ -128,6 +128,60 @@ export function sortSessionsForSidebar<T extends DateGroupableSession>(
   return sessions.slice().sort(compareSessionsPinThenUpdated);
 }
 
+/** Session shape for lifting pins out of their project folder. */
+export type GlobalPinnableSession = DateGroupableSession & {
+  archived?: boolean;
+};
+
+/**
+ * Pinned chats sit at the top of the whole sidebar (above folders).
+ * Archived rows are omitted. Does not mutate the input array.
+ */
+export function partitionGlobalPinned<T extends GlobalPinnableSession>(
+  sessions: readonly T[],
+): { pinned: T[]; rest: T[] } {
+  const pinned: T[] = [];
+  const rest: T[] = [];
+  for (const s of sessions) {
+    if (s.archived) continue;
+    if (s.pinned) pinned.push(s);
+    else rest.push(s);
+  }
+  return { pinned: sortSessionsForSidebar(pinned), rest };
+}
+
+/** j/k order: global pins, then expanded project chats, then default-workspace orphans. */
+export function sidebarNavSessionIds<
+  T extends GlobalPinnableSession & {
+    id: string;
+    projectId?: string | null;
+  },
+>(input: {
+  sessions: readonly T[];
+  projects: readonly { id: string }[];
+  projectsOpen: boolean;
+  historyOpen: boolean;
+  expandedProjects: Record<string, boolean>;
+}): string[] {
+  const { pinned, rest } = partitionGlobalPinned(input.sessions);
+  const ids = pinned.map((s) => s.id);
+  const projectIdSet = new Set(input.projects.map((p) => p.id));
+  if (input.projectsOpen) {
+    for (const proj of input.projects) {
+      if (input.expandedProjects[proj.id] === false) continue;
+      const projSessions = rest.filter((s) => s.projectId === proj.id);
+      for (const s of sortSessionsForSidebar(projSessions)) ids.push(s.id);
+    }
+  }
+  if (input.historyOpen) {
+    const orphans = rest.filter(
+      (s) => !s.projectId || !projectIdSet.has(s.projectId),
+    );
+    for (const s of sortSessionsForSidebar(orphans)) ids.push(s.id);
+  }
+  return ids;
+}
+
 /**
  * Group sessions into relative-date sections.
  * @deprecated Sidebar UI no longer groups by date; prefer {@link sortSessionsForSidebar}.

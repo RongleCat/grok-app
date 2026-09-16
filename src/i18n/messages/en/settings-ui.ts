@@ -492,6 +492,7 @@ export const enSettingsUi = {
   "settings.sandbox.openGuide.desc": "Step-by-step profile guide (same wizard as after project trust).",
   "settings.sessionDataMode.status": "Current: {modeLabel} · agent home {path}",
   "settings.sessionDataMode.independentNote": "Independent mode uses {path}. App settings that write agent config apply here; CLI ~/.grok is not rewritten.",
+  "settings.sessionDataMode.customRequiresIndependent": "Custom providers keep session data in the app agent-home. Switch the composer back to official Grok to use shared ~/.grok.",
   "settings.sessionDataMode.confirm.intro": "Switch session data home from {fromHome} → {toHome}?\nHistories are not merged. Live agents will be recycled.",
   "settings.sessionDataMode.risk.homesDiffer": "Agent home changes — reconnects use the new directory only",
   "settings.sessionDataMode.risk.noSilentMerge": "No silent merge: independent and shared histories stay separate",

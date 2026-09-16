@@ -17,7 +17,11 @@ import { saveWindowAlwaysOnTopPref } from "@/lib/windowAlwaysOnTop";
 import { savePermissionTimeoutSec } from "@/lib/permissionTimeout";
 import { saveAskUserTimeoutSec } from "@/lib/askUser/askUserTimeout";
 import { IDLE_SNAPSHOT } from "@/lib/session";
-import { normalizeSessionDataMode } from "@/lib/sessionDataMode";
+import {
+  applyPersistedSessionDataMode,
+  normalizeSessionDataMode,
+  sessionDataModeLockedByCustomRoute,
+} from "@/lib/sessionDataMode";
 import {
   normalizeCompactionDetail,
   normalizeCompactionMode,
@@ -195,20 +199,44 @@ export function WorkbenchSettingsStage(p: WorkbenchSettingsStageProps) {
           onSessionDataMode={(v) => {
           const mode = normalizeSessionDataMode(v);
           const commit = () => {
-          setSessionDataMode(mode);
-          void api.settingsGet().then((s) =>
-          api.settingsSet({ ...s, sessionDataMode: mode }),
-          );
+          void (async () => {
+          try {
+            const s = await api.settingsGet();
+            const saved = await api.settingsSet({
+              ...s,
+              sessionDataMode: mode,
+            });
+            const landed =
+              saved && typeof saved === "object"
+                ? (saved as { sessionDataMode?: string }).sessionDataMode
+                : undefined;
+            setSessionDataMode(
+              applyPersistedSessionDataMode(mode, landed),
+            );
+          } catch (e) {
+            setToast(String(e));
+            window.setTimeout(() => setToast(null), 4800);
+          }
+          })();
           };
-          // Tauri WebView: window.confirm is unreliable (often always false).
-          if (v === "shared") {
-          setAppDialog({
-          kind: "confirm",
-          title: tr("settings.sessionDataMode"),
-          message: tr("settings.sharedConfirm"),
-          confirmLabel: tr("common.confirm"),
-          onConfirm: commit,
-          });
+          if (mode === "shared") {
+          void (async () => {
+            const list = await api.providersList().catch(() => null);
+            if (sessionDataModeLockedByCustomRoute(list?.activeSource)) {
+              setToast(
+                tr("settings.sessionDataMode.customRequiresIndependent"),
+              );
+              window.setTimeout(() => setToast(null), 5200);
+              return;
+            }
+            setAppDialog({
+              kind: "confirm",
+              title: tr("settings.sessionDataMode"),
+              message: tr("settings.sharedConfirm"),
+              confirmLabel: tr("common.confirm"),
+              onConfirm: commit,
+            });
+          })();
           return;
           }
           commit();
@@ -800,9 +828,7 @@ export function WorkbenchSettingsStage(p: WorkbenchSettingsStageProps) {
           try {
             const s = await api.settingsGet();
             if (s?.sessionDataMode) {
-              setSessionDataMode(
-                s.sessionDataMode === "shared" ? "shared" : "independent",
-              );
+              setSessionDataMode(normalizeSessionDataMode(s.sessionDataMode));
             }
           } catch {
             /* soft-fail mode refresh */

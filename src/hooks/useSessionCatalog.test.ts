@@ -52,6 +52,22 @@ describe("sessionSidebarSelectOrder", () => {
       "orphan",
     ]);
   });
+
+  it("puts pinned chats from any folder at the global top", () => {
+    const sessions = [
+      row({ id: "p1-old", projectId: "p1", updatedAt: "2026-01-03T00:00:00Z" }),
+      row({
+        id: "p2-pin",
+        projectId: "p2",
+        pinned: true,
+        updatedAt: "2026-01-01T00:00:00Z",
+      }),
+      row({ id: "orphan", projectId: null }),
+    ];
+    expect(
+      sessionSidebarSelectOrder(sessions, [{ id: "p1" }, { id: "p2" }]),
+    ).toEqual(["p2-pin", "p1-old", "orphan"]);
+  });
 });
 
 describe("useSessionCatalog", () => {

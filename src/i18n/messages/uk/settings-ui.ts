@@ -492,6 +492,7 @@ export const ukSettingsUi = {
   "settings.sandbox.openGuide.desc": "Покрокове керівництво профілю (той же майстер, що і після довіри проєкту).",
   "settings.sessionDataMode.status": "Поточно: {modeLabel} · agent-home {path}",
   "settings.sessionDataMode.independentNote": "Незалежний режим використовує {path}. Тут застосовуються налаштування програми, які записують конфігурацію агента; CLI ~/.grok не переписується.",
+  "settings.sessionDataMode.customRequiresIndependent": "Користувацькі провайдери зберігають дані сесій у agent-home застосунку. Щоб використати спільний ~/.grok, поверніть композер на офіційний Grok.",
   "settings.sessionDataMode.confirm.intro": "Перемкнути дані сесії додому з {fromHome} → {toHome}?\nІсторії не об’єднуються. Живі агенти будуть перероблені.",
   "settings.sessionDataMode.risk.homesDiffer": "Агент змінює дім — повторне підключення використовує лише новий каталог",
   "settings.sessionDataMode.risk.noSilentMerge": "Жодного тихого злиття: незалежні та спільні історії залишаються розділеними",

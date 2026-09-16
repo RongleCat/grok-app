@@ -328,7 +328,7 @@ export async function composerPrefsSet(body: {
 }
 
 export async function settingsSet(settings: Record<string, unknown>) {
-  return invoke("settings_set", { settings });
+  return invoke<AppSettings>("settings_set", { settings });
 }
 
 /** Update live Host permission policy + persist at configured prefs scope. */

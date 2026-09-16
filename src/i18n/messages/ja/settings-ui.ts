@@ -492,6 +492,7 @@ export const jaSettingsUi = {
   "settings.sandbox.openGuide.desc": "ステップごとのプロファイルガイドです（プロジェクト信頼後のウィザードと同じです）。",
   "settings.sessionDataMode.status": "現在: {modeLabel} · agent home {path}",
   "settings.sessionDataMode.independentNote": "独立モードは {path} を使います。エージェント設定を書き込むアプリ設定はここに効きます。CLI の ~/.grok は書き換えません。",
+  "settings.sessionDataMode.customRequiresIndependent": "カスタムプロバイダーはセッションデータをアプリの agent-home に置きます。共有の ~/.grok を使うには、コンポーザーを公式 Grok に戻してください。",
   "settings.sessionDataMode.confirm.intro": "セッションデータのホームを {fromHome} → {toHome} に切り替えますか？\n履歴はマージしません。ライブのエージェントは回収します。",
   "settings.sessionDataMode.risk.homesDiffer": "Agent ホームが変わります — 再接続は新しいディレクトリだけを使います",
   "settings.sessionDataMode.risk.noSilentMerge": "黙ってマージしません: 独立と共有の履歴は別のままです",

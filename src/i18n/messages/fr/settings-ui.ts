@@ -492,6 +492,7 @@ export const frSettingsUi = {
   "settings.sandbox.openGuide.desc": "Guide de profil pas à pas (même assistant qu’après l’approbation d’un projet).",
   "settings.sessionDataMode.status": "Actuel : {modeLabel} · home de l’agent {path}",
   "settings.sessionDataMode.independentNote": "Le mode indépendant utilise {path}. Les réglages de l’app qui écrivent la config de l’agent s’appliquent ici ; ~/.grok CLI n’est pas réécrit.",
+  "settings.sessionDataMode.customRequiresIndependent": "Les fournisseurs personnalisés gardent les données de session dans l’agent-home de l’app. Repassez le compositeur sur Grok officiel pour utiliser ~/.grok partagé.",
   "settings.sessionDataMode.confirm.intro": "Changer le home de données de session de {fromHome} → {toHome} ?\nLes historiques ne sont pas fusionnés. Les agents en direct seront recyclés.",
   "settings.sessionDataMode.risk.homesDiffer": "Le home de l’agent change — les reconnexions n’utilisent que le nouveau répertoire",
   "settings.sessionDataMode.risk.noSilentMerge": "Pas de fusion silencieuse : les historiques indépendant et partagé restent séparés",

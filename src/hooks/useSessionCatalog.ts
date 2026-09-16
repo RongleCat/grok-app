@@ -8,7 +8,10 @@ import {
   mapSessionListRow,
   type SessionRow,
 } from "@/lib/app/sidebarModels";
-import { sortSessionsForSidebar } from "@/lib/sidebarDateGroups";
+import {
+  partitionGlobalPinned,
+  sortSessionsForSidebar,
+} from "@/lib/sidebarDateGroups";
 import {
   addIdsToSet,
   areAllIdsSelected,
@@ -20,21 +23,20 @@ import {
 
 export type CatalogProject = { id: string };
 
-/** Visual order for Shift-range select: all projects, then orphans. Expand state ignored. */
+/** Visual order for Shift-range select: global pins, then projects, then orphans. Expand state ignored. */
 export function sessionSidebarSelectOrder(
   sessions: readonly SessionRow[],
   projects: readonly CatalogProject[],
 ): string[] {
-  const ids: string[] = [];
+  const { pinned, rest } = partitionGlobalPinned(sessions);
+  const ids: string[] = pinned.map((s) => s.id);
   const projectIdSet = new Set(projects.map((p) => p.id));
   for (const proj of projects) {
-    const projSessions = sessions.filter(
-      (s) => s.projectId === proj.id && !s.archived,
-    );
+    const projSessions = rest.filter((s) => s.projectId === proj.id);
     for (const s of sortSessionsForSidebar(projSessions)) ids.push(s.id);
   }
-  const orphans = sessions.filter(
-    (s) => (!s.projectId || !projectIdSet.has(s.projectId)) && !s.archived,
+  const orphans = rest.filter(
+    (s) => !s.projectId || !projectIdSet.has(s.projectId),
   );
   for (const s of sortSessionsForSidebar(orphans)) ids.push(s.id);
   return ids;

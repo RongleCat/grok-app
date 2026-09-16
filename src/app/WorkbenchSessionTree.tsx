@@ -35,7 +35,10 @@ import type { Project, SessionRow } from "@/lib/app/sidebarModels";
 import { projectDisplayName } from "@/lib/app/sidebarModels";
 import type { ContextMenuState } from "@/lib/app/appDialogTypes";
 import { areAllIdsSelected } from "@/lib/sessionSelect";
-import { sortSessionsForSidebar } from "@/lib/sidebarDateGroups";
+import {
+  partitionGlobalPinned,
+  sortSessionsForSidebar,
+} from "@/lib/sidebarDateGroups";
 import {
   hideSshProjectInLocalTree,
   isProjectFolderMissing,
@@ -174,12 +177,12 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
   );
   // Group + sort once per sessions/projects change — previously the full list
   // was filtered per project and re-sorted on every render (O(P×S) churn).
-  const [sortedByProject, orphanSessions] = useMemo(() => {
+  const [pinnedSessions, sortedByProject, orphanSessions] = useMemo(() => {
+    const { pinned, rest } = partitionGlobalPinned(sessions);
     const byProject = new Map<string, SessionRow[]>();
     const orphans: SessionRow[] = [];
     const projectIds = new Set(projects.map((p) => p.id));
-    for (const s of sessions) {
-      if (s.archived) continue;
+    for (const s of rest) {
       if (s.projectId && projectIds.has(s.projectId)) {
         const list = byProject.get(s.projectId);
         if (list) list.push(s);
@@ -191,10 +194,14 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
     for (const [id, list] of byProject) {
       byProject.set(id, sortSessionsForSidebar(list));
     }
-    return [byProject, sortSessionsForSidebar(orphans)] as const;
+    return [pinned, byProject, sortSessionsForSidebar(orphans)] as const;
   }, [sessions, projects]);
   const sessionsForProject = (projectId: string) =>
     sortedByProject.get(projectId) ?? NO_SESSIONS;
+  const projectIdSet = useMemo(
+    () => new Set(projects.map((p) => p.id)),
+    [projects],
+  );
   const orphanSessionIds = orphanSessions.map((s) => s.id);
   const orphanAllSelected = areAllIdsSelected(
     selectedSessionIds,
@@ -209,6 +216,74 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
             viewportClassName="sidebar__scroll-inner"
             syncTreeReveal
           >
+            {pinnedSessions.length > 0 ? (
+              <div className="tree-pinned">
+                <div className="tree-l1">
+                  <div className="tree-l1__head" aria-label={tr("session.pinned")}>
+                    <span className="tree-l1__icon" aria-hidden>
+                      <IconPin size={14} />
+                    </span>
+                    <span className="tree-l1__label">{tr("session.pinned")}</span>
+                  </div>
+                </div>
+                <div className="tree-l3-list-wrap">
+                  <VirtualList
+                    className="tree-l3-list"
+                    items={pinnedSessions}
+                    getKey={(s) => s.id}
+                    rowHeight={sidebarRowMetrics.rowHeight}
+                    gap={sidebarRowMetrics.gap}
+                    scrollToKey={
+                      session.sessionId &&
+                      pinnedSessions.some((x) => x.id === session.sessionId)
+                        ? session.sessionId
+                        : null
+                    }
+                    renderItem={(s) => {
+                      const working = busyIds.has(s.id);
+                      const checked = selectedSessionIds.has(s.id);
+                      const unread = unreadSessionIds.has(s.id);
+                      const planPending = planPendingSessionIds.has(s.id);
+                      const noteRaw = sessionNotesMap[s.id]?.trim() || "";
+                      return (
+                        <SidebarSessionRow
+                          session={s}
+                          variant={
+                            s.projectId && projectIdSet.has(s.projectId)
+                              ? "project"
+                              : "orphan"
+                          }
+                          active={session.sessionId === s.id}
+                          working={working}
+                          unread={unread}
+                          planPending={planPending}
+                          checked={checked}
+                          selectMode={sessionSelectMode}
+                          muted={mutedSessionIds.has(s.id)}
+                          noteTitle={
+                            noteRaw
+                              ? notePreview(noteRaw) ||
+                                sidebarSessionLabels.noteAria
+                              : null
+                          }
+                          worktreeBadge={buildSidebarWorktreeBadge(s)}
+                          labels={sidebarSessionLabels}
+                          locale={locale}
+                          showRelativeTime={sidebarShowRelativeTime}
+                          onOpen={onSidebarSessionOpen}
+                          onContextMenu={onSidebarSessionContextMenu}
+                          onToggleSelect={toggleSessionSelected}
+                          onPin={onSidebarSessionPin}
+                          onArchive={onSidebarSessionArchive}
+                          onMenu={onSidebarSessionMenu}
+                          onRename={onSidebarSessionRename}
+                        />
+                      );
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
             {/* L1 — Projects section */}
             <div className="tree-l1">
               <button

@@ -492,6 +492,7 @@ export const zhTWSettingsUi = {
   "settings.sandbox.openGuide.desc": "分步設定檔指南（與信任專案後的精靈相同）。",
   "settings.sessionDataMode.status": "目前：{modeLabel} · Agent 主目錄 {path}",
   "settings.sessionDataMode.independentNote": "獨立模式使用 {path}。可寫入 agent 設定的應用程式設定作用於此目錄；不會改寫 CLI 的 ~/.grok。",
+  "settings.sessionDataMode.customRequiresIndependent": "自訂管道會把工作階段資料放在應用 agent-home。要使用共享 ~/.grok，請先把主模型切回官方 Grok。",
   "settings.sessionDataMode.confirm.intro": "將對話資料主目錄從 {fromHome} 切換到 {toHome}？\n歷史不會合併。線上 Agent 將被回收。",
   "settings.sessionDataMode.risk.homesDiffer": "Agent 主目錄會變更 — 重連只使用新目錄",
   "settings.sessionDataMode.risk.noSilentMerge": "不會靜默合併：獨立與共用兩套歷史保持分離",

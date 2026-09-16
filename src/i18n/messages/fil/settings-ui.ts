@@ -492,6 +492,7 @@ export const filSettingsUi = {
   "settings.sandbox.openGuide.desc": "Step-by-step na gabay sa profile (parehong wizard pagkatapos magtiwala sa proyekto).",
   "settings.sessionDataMode.status": "Kasalukuyan: {modeLabel} · agent home {path}",
   "settings.sessionDataMode.independentNote": "Ginagamit ng Independent mode ang {path}. Ina-apply dito ang mga setting ng App na nagsusulat ng agent config; hindi nire-rewrite ang CLI ~/.grok.",
+  "settings.sessionDataMode.customRequiresIndependent": "Ang custom providers ay nagtatago ng session data sa app agent-home. Ibalik ang composer sa opisyal na Grok para gamitin ang shared ~/.grok.",
   "settings.sessionDataMode.confirm.intro": "Palitan ang session data home mula {fromHome} → {toHome}?\nHindi pinagsasama ang mga kasaysayan. Mare-recycle ang live agents.",
   "settings.sessionDataMode.risk.homesDiffer": "Nagbabago ang agent home — ang mga reconnection ay gumagamit lang ng bagong directory",
   "settings.sessionDataMode.risk.noSilentMerge": "Walang silent merge: hiwalay ang independent at shared na kasaysayan",

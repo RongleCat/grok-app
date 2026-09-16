@@ -492,6 +492,7 @@ export const taSettingsUi = {
   "settings.sandbox.openGuide.desc": "படிப்படியான சுயவிவர வழிகாட்டி (திட்ட நம்பிக்கைக்குப் பிறகு அதே வழிகாட்டி).",
   "settings.sessionDataMode.status": "தற்போதைய: {modeLabel} · முகவர் வீடு {path}",
   "settings.sessionDataMode.independentNote": "சுயாதீன பயன்முறை {path} ஐப் பயன்படுத்துகிறது. முகவர் கட்டமைப்பை எழுதும் பயன்பாட்டு அமைப்புகள் இங்கே பொருந்தும்; CLI ~/.grok மீண்டும் எழுதப்படவில்லை.",
+  "settings.sessionDataMode.customRequiresIndependent": "தனிப்பயன் வழங்குநர்கள் அமர்வுத் தரவை பயன்பாட்டின் agent-home-இல் வைக்கின்றனர். பகிரப்பட்ட ~/.grok பயன்படுத்த, இசையமைப்பை அதிகாரப்பூர்வ Grok-க்கு மாற்றவும்.",
   "settings.sessionDataMode.confirm.intro": "{fromHome} → {toHome} இலிருந்து அமர்வுத் தரவை முகப்புக்கு மாற்றவா?\nவரலாறுகள் ஒன்றிணைக்கப்படவில்லை. நேரடி முகவர்கள் மறுசுழற்சி செய்யப்படும்.",
   "settings.sessionDataMode.risk.homesDiffer": "முகவர் முகப்பு மாற்றங்கள் - புதிய கோப்பகத்தை மட்டுமே மீண்டும் இணைக்கிறது",
   "settings.sessionDataMode.risk.noSilentMerge": "அமைதியான இணைப்பு இல்லை: சுதந்திரமான மற்றும் பகிரப்பட்ட வரலாறுகள் தனித்தனியாக இருக்கும்",

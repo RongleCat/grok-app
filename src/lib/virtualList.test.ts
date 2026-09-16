@@ -32,7 +32,7 @@ describe("totalListHeight / itemOffset", () => {
   it("matches sidebar constants used by CSS", () => {
     expect(H).toBe(30);
     expect(G).toBe(2);
-    expect(SIDEBAR_VIRTUALIZE_THRESHOLD).toBeGreaterThanOrEqual(16);
+    expect(SIDEBAR_VIRTUALIZE_THRESHOLD).toBeGreaterThanOrEqual(8);
   });
 });
 

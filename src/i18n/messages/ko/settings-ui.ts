@@ -492,6 +492,7 @@ export const koSettingsUi = {
   "settings.sandbox.openGuide.desc": "단계별 프로필 안내(프로젝트 신뢰 후와 같은 마법사).",
   "settings.sessionDataMode.status": "현재: {modeLabel} · 에이전트 홈 {path}",
   "settings.sessionDataMode.independentNote": "독립 모드는 {path}를 사용합니다. 에이전트 구성을 쓰는 앱 설정이 여기에 적용되며, CLI ~/.grok는 다시 쓰지 않습니다.",
+  "settings.sessionDataMode.customRequiresIndependent": "사용자 지정 공급자는 세션 데이터를 앱 agent-home에 둡니다. 공유 ~/.grok를 쓰려면 작성기의 주 모델을 공식 Grok으로 되돌리세요.",
   "settings.sessionDataMode.confirm.intro": "{fromHome} → {toHome}(으)로 세션 데이터 홈을 전환할까요?\n기록은 병합되지 않습니다. 라이브 에이전트가 회수됩니다.",
   "settings.sessionDataMode.risk.homesDiffer": "에이전트 홈이 바뀝니다 — 다시 연결은 새 디렉터리만 사용합니다",
   "settings.sessionDataMode.risk.noSilentMerge": "조용한 병합 없음: 독립과 공유 기록은 분리되어 유지됩니다",

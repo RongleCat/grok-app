@@ -4,6 +4,8 @@ import {
   groupSessionsByDate,
   localDayOffset,
   parseSessionUpdatedAt,
+  partitionGlobalPinned,
+  sidebarNavSessionIds,
   SIDEBAR_DATE_GROUP_I18N_KEYS,
   SIDEBAR_DATE_GROUP_ORDER,
   sidebarDateGroupId,
@@ -146,6 +148,83 @@ describe("sortSessionsForSidebar", () => {
       "today-pin",
       "yest",
     ]);
+  });
+});
+
+describe("partitionGlobalPinned", () => {
+  it("lifts pinned chats above folders, newest pin first", () => {
+    const sessions = [
+      {
+        id: "b-unpinned",
+        projectId: "b",
+        updatedAt: isoLocal(2026, 2, 15, 12),
+        pinned: false,
+      },
+      {
+        id: "b-pin",
+        projectId: "b",
+        updatedAt: isoLocal(2026, 2, 15, 8),
+        pinned: true,
+      },
+      {
+        id: "a-pin",
+        projectId: "a",
+        updatedAt: isoLocal(2026, 2, 15, 10),
+        pinned: true,
+      },
+      {
+        id: "orphan-pin",
+        projectId: null,
+        updatedAt: isoLocal(2026, 2, 14, 9),
+        pinned: true,
+      },
+      {
+        id: "archived-pin",
+        projectId: "a",
+        updatedAt: isoLocal(2026, 2, 15, 20),
+        pinned: true,
+        archived: true,
+      },
+    ];
+    const { pinned, rest } = partitionGlobalPinned(sessions);
+    expect(pinned.map((s) => s.id)).toEqual([
+      "a-pin",
+      "b-pin",
+      "orphan-pin",
+    ]);
+    expect(rest.map((s) => s.id)).toEqual(["b-unpinned"]);
+  });
+});
+
+describe("sidebarNavSessionIds", () => {
+  it("lists global pins even when their project folder is collapsed", () => {
+    const sessions = [
+      {
+        id: "b-pin",
+        projectId: "b",
+        updatedAt: isoLocal(2026, 2, 15, 8),
+        pinned: true,
+      },
+      {
+        id: "a-chat",
+        projectId: "a",
+        updatedAt: isoLocal(2026, 2, 15, 12),
+      },
+      {
+        id: "b-chat",
+        projectId: "b",
+        updatedAt: isoLocal(2026, 2, 15, 11),
+      },
+    ];
+    expect(
+      sidebarNavSessionIds({
+        sessions,
+        projects: [{ id: "a" }, { id: "b" }],
+        projectsOpen: true,
+        historyOpen: false,
+        expandedProjects: { a: true, b: false },
+      }),
+    ).toEqual(["b-pin", "a-chat"]);
   });
 });
 
