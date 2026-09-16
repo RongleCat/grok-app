@@ -3668,7 +3668,8 @@ mod tests {
             "onboardingDone": true,
             "setupSkipped": false
         }"#;
-        let s: AppSettings = serde_json::from_str(raw).expect("deserialize without sessionDataMode");
+        let s: AppSettings =
+            serde_json::from_str(raw).expect("deserialize without sessionDataMode");
         assert_eq!(s.session_data_mode, "shared");
     }
 
