@@ -49,6 +49,7 @@ export const esSidebar = {
   "sidebar.archiveSelectedTitle": "Archivar chats",
   "sidebar.restoreSelectedTitle": "Restaurar chats",
   "sidebar.archiveSelectedConfirm": "¿Archivar {n} chats? Puedes restaurarlos más tarde en Ajustes → Archivados.",
+  "sidebar.archiveCliHint": "Solo oculta el chat en Grok App. La lista CLI del terminal lo sigue mostrando hasta que lo elimines.",
   "sidebar.restoreSelectedConfirm": "¿Restaurar {n} chats a la barra lateral?",
   "sidebar.archivedToast": "{n} chats archivados",
   "sidebar.restoredToast": "{n} chats restaurados",

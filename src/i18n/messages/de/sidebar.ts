@@ -49,6 +49,7 @@ export const deSidebar = {
   "sidebar.archiveSelectedTitle": "Chats archivieren",
   "sidebar.restoreSelectedTitle": "Chats wiederherstellen",
   "sidebar.archiveSelectedConfirm": "{n} Chats archivieren? Wiederherstellen später unter Einstellungen → Archiviert.",
+  "sidebar.archiveCliHint": "Blendet den Chat nur in Grok App aus. Die Terminal-CLI-Liste zeigt ihn weiter, bis du ihn löschst.",
   "sidebar.restoreSelectedConfirm": "{n} Chats in die Seitenleiste zurückholen?",
   "sidebar.archivedToast": "{n} Chats archiviert",
   "sidebar.restoredToast": "{n} Chats wiederhergestellt",

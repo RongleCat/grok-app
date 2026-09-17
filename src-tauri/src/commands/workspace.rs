@@ -61,9 +61,9 @@ pub async fn session_set_workspace(
 ) -> Result<SessionMeta, String> {
     let wid = workspace_id
         .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
+        .filter(|s| !s.is_empty() && s != workspace_store::UNBOUND_WORKSPACE_ID);
 
-    let (snapshot, capability) = if let Some(ref wid) = wid {
+    let (stored_id, snapshot, capability) = if let Some(ref wid) = wid {
         let ws = workspace_store::get_workspace(wid)
             .ok_or_else(|| "workspace not found".to_string())?;
         for root in &ws.roots {
@@ -72,14 +72,21 @@ pub async fn session_set_workspace(
             }
         }
         (
+            Some(wid.clone()),
             Some(root_snapshot(&ws.roots)),
             Some(ws.capability.as_token().into()),
         )
     } else {
-        (None, None)
+        // Explicit detach: persist a sentinel so connect does not re-inherit
+        // the project's default workspace (#1233).
+        (
+            Some(workspace_store::UNBOUND_WORKSPACE_ID.to_string()),
+            None,
+            None,
+        )
     };
 
-    let meta = store::set_session_workspace(&id, wid, snapshot, capability)?;
+    let meta = store::set_session_workspace(&id, stored_id, snapshot, capability)?;
 
     // Roots change → next turn should not resume a process started without them.
     mgr.invalidate_spawn_flags_for_session(&app, &meta.id, "session_workspace")

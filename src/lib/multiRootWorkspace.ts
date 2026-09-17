@@ -1,6 +1,15 @@
 /** Multi-root workspace helpers (#1194 MVP-0). */
 
 export const MAX_EXTRA_WORKSPACE_ROOTS = 8;
+/** Host sentinel after Detach from chat — not a real workspace id. */
+export const UNBOUND_WORKSPACE_ID = "-";
+
+export function isBoundWorkspaceId(
+  id: string | null | undefined,
+): boolean {
+  const s = (id ?? "").trim();
+  return s.length > 0 && s !== UNBOUND_WORKSPACE_ID;
+}
 
 export type WorkspaceRootRole = "primary" | "extra";
 export type WorkspaceRootAccess = "read" | "write";

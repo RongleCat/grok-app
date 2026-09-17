@@ -9,6 +9,7 @@ import type { WorkspaceRecord, WorkspaceRoot } from "@/lib/multiRootWorkspace";
 import {
   MAX_EXTRA_WORKSPACE_ROOTS,
   extraRoots,
+  isBoundWorkspaceId,
   primaryRoot,
 } from "@/lib/multiRootWorkspace";
 
@@ -51,8 +52,8 @@ export function useMultiRootWorkspace() {
         setWriteCapableMode(false);
       }
       let ws: WorkspaceRecord | null = null;
-      if (next.workspaceId) {
-        ws = (await api.workspaceGet(next.workspaceId)) ?? null;
+      if (isBoundWorkspaceId(next.workspaceId)) {
+        ws = (await api.workspaceGet(next.workspaceId as string)) ?? null;
       }
       if (!ws) {
         const list = await api.workspacesForProject(next.projectId);

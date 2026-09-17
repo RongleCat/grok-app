@@ -22,7 +22,7 @@ External apps on this machine that need to **list chats and continue one by id**
 
 | Action | App sidebar | CLI `{GROK_HOME}/sessions/.../<agentSessionId>/` | Bulk import |
 |--------|-------------|--------------------------------------------------|-------------|
-| Archive | Hidden (`archived: true`); `agentSessionId` stays linked | Unchanged (terminal `grok sessions list` still shows it) | Skipped (`already_linked`) |
+| Archive | Hidden (`archived: true`); `agentSessionId` stays linked | Unchanged (terminal `grok sessions list` still shows it). Confirm copy says App-only. | Skipped (`already_linked`) |
 | Delete | Journal + index row removed | Removed after ACP stop; tombstone if the tree is locked | Skipped (tombstone + missing dir) |
 
 New chats in a project inherit that project's multi-root workspace so extra-root write is not bound only to the session that opened the modal (#1233).

@@ -49,6 +49,7 @@ export const ruSidebar = {
   "sidebar.archiveSelectedTitle": "Архивировать чаты",
   "sidebar.restoreSelectedTitle": "Восстановить чаты",
   "sidebar.archiveSelectedConfirm": "Архивировать {n} чатов? Позже их можно восстановить в Настройки → Архивные чаты.",
+  "sidebar.archiveCliHint": "Скрывает чат только в Grok App. В списке CLI терминала он останется, пока вы его не удалите.",
   "sidebar.restoreSelectedConfirm": "Вернуть {n} чатов на боковую панель?",
   "sidebar.archivedToast": "Архивировано чатов: {n}",
   "sidebar.restoredToast": "Восстановлено чатов: {n}",

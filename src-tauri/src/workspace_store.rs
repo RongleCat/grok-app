@@ -14,6 +14,14 @@ use uuid::Uuid;
 
 pub const MAX_EXTRA_ROOTS: usize = 8;
 pub const WORKSPACE_STORE_VERSION: u32 = 1;
+/// Stored on a session after **Detach from chat**. Distinct from `None`
+/// (never bound — new chats inherit the project's workspace).
+pub const UNBOUND_WORKSPACE_ID: &str = "-";
+
+pub fn is_bound_workspace_id(id: Option<&str>) -> bool {
+    id.map(str::trim)
+        .is_some_and(|s| !s.is_empty() && s != UNBOUND_WORKSPACE_ID)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -359,18 +367,15 @@ pub fn default_workspace_for_project(project_id: &str) -> Option<WorkspaceRecord
 /// New chats in a project inherit that project's workspace so extra-root
 /// write does not require opening the modal again (#1233).
 ///
-/// `workspace_id: None` means "not bound yet" and is filled. An already-set
-/// id (including a later explicit detach) is left alone.
+/// `workspace_id: None` / empty = never bound → fill from the project.
+/// `workspace_id: "-"` = explicit detach → leave alone.
 pub fn bind_default_workspace_if_unbound(session_id: &str) -> Result<store::SessionMeta, String> {
     let meta = store::load_sessions_index()
         .into_iter()
         .find(|s| s.id == session_id)
         .ok_or_else(|| format!("session not found: {session_id}"))?;
-    if meta
-        .workspace_id
-        .as_deref()
-        .map(str::trim)
-        .is_some_and(|s| !s.is_empty())
+    if is_bound_workspace_id(meta.workspace_id.as_deref())
+        || meta.workspace_id.as_deref() == Some(UNBOUND_WORKSPACE_ID)
     {
         return Ok(meta);
     }
@@ -416,8 +421,7 @@ pub fn resolve_spawn_sandbox(
 ) -> String {
     let fallback = store::resolve_sandbox_profile(global, project_override);
     workspace_id
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
+        .filter(|id| is_bound_workspace_id(Some(id)))
         .and_then(spawn_sandbox_for_workspace)
         .unwrap_or(fallback)
 }
@@ -607,7 +611,37 @@ mod tests {
         let again = bind_default_workspace_if_unbound(&meta.id).expect("idempotent");
         assert_eq!(again.workspace_id.as_deref(), Some(ws.id.as_str()));
 
+        crate::store::set_session_workspace(
+            &meta.id,
+            Some(UNBOUND_WORKSPACE_ID.to_string()),
+            None,
+            None,
+        )
+        .expect("detach");
+        let detached = bind_default_workspace_if_unbound(&meta.id).expect("keep detach");
+        assert_eq!(
+            detached.workspace_id.as_deref(),
+            Some(UNBOUND_WORKSPACE_ID),
+            "explicit detach must not re-inherit the project workspace"
+        );
+        assert_eq!(
+            resolve_spawn_sandbox("workspace", None, detached.workspace_id.as_deref()),
+            "workspace"
+        );
+
         std::env::remove_var("GROK_APP_HOME");
         let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn unbound_sentinel_is_not_a_bound_workspace() {
+        assert!(!is_bound_workspace_id(None));
+        assert!(!is_bound_workspace_id(Some("")));
+        assert!(!is_bound_workspace_id(Some(UNBOUND_WORKSPACE_ID)));
+        assert!(is_bound_workspace_id(Some("ws_abc")));
+        assert_eq!(
+            resolve_spawn_sandbox("workspace", None, Some(UNBOUND_WORKSPACE_ID)),
+            "workspace"
+        );
     }
 }

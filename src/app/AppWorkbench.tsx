@@ -5073,7 +5073,7 @@ export function AppWorkbench() {
         ? tr("sidebar.archiveSelectedTitle")
         : tr("sidebar.restoreSelectedTitle"),
       message: archived
-        ? tr("sidebar.archiveSelectedConfirm", { n: String(n) })
+        ? `${tr("sidebar.archiveSelectedConfirm", { n: String(n) })}\n\n${tr("sidebar.archiveCliHint")}`
         : tr("sidebar.restoreSelectedConfirm", { n: String(n) }),
       confirmLabel: archived
         ? tr("sidebar.archiveSelected", { n: String(n) })

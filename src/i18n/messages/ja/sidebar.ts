@@ -49,6 +49,7 @@ export const jaSidebar = {
   "sidebar.archiveSelectedTitle": "チャットをアーカイブ",
   "sidebar.restoreSelectedTitle": "チャットを復元",
   "sidebar.archiveSelectedConfirm": "{n} 件のチャットをアーカイブしますか？あとから 設定 → アーカイブ で復元できます。",
+  "sidebar.archiveCliHint": "Grok App のサイドバーからのみ非表示になります。削除するまでターミナルの CLI 一覧には残ります。",
   "sidebar.restoreSelectedConfirm": "{n} 件のチャットをサイドバーに復元しますか？",
   "sidebar.archivedToast": "{n} 件のチャットをアーカイブしました",
   "sidebar.restoredToast": "{n} 件のチャットを復元しました",

@@ -49,6 +49,7 @@ export const zhTWSidebar = {
   "sidebar.archiveSelectedTitle": "封存對話",
   "sidebar.restoreSelectedTitle": "還原對話",
   "sidebar.archiveSelectedConfirm": "確定封存 {n} 個對話？之後可在「設定 → 已封存」中還原。",
+  "sidebar.archiveCliHint": "這只會從 Grok App 側欄隱藏。終端機 CLI 列表裡仍在，直到你刪除。",
   "sidebar.restoreSelectedConfirm": "確定將 {n} 個對話還原到側欄？",
   "sidebar.archivedToast": "已封存 {n} 個對話",
   "sidebar.restoredToast": "已還原 {n} 個對話",
