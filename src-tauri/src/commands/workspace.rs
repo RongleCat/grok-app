@@ -1,9 +1,7 @@
 // Multi-root workspace IPC (#1194 MVP-0).
 // Included into `commands` — do not re-import Arc/State/SessionManager.
 
-use crate::workspace_store::{
-    self, root_snapshot, WorkspaceCapability, WorkspaceRecord, WorkspaceRoot,
-};
+use crate::workspace_store::{self, root_snapshot, WorkspaceRecord, WorkspaceRoot};
 
 #[tauri::command]
 pub fn workspaces_list() -> Result<Vec<WorkspaceRecord>, String> {
@@ -75,13 +73,7 @@ pub async fn session_set_workspace(
         }
         (
             Some(root_snapshot(&ws.roots)),
-            Some(match ws.capability {
-                WorkspaceCapability::None => "none".into(),
-                WorkspaceCapability::ContextOnly => "context_only".into(),
-                WorkspaceCapability::EnforcedRead => "enforced_read".into(),
-                WorkspaceCapability::ExtraWriteActive => "extra_write_active".into(),
-                WorkspaceCapability::Blocked => "blocked".into(),
-            }),
+            Some(ws.capability.as_token().into()),
         )
     } else {
         (None, None)

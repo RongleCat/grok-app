@@ -277,6 +277,9 @@ impl SessionManager {
             store::create_session(None, Some("New chat".into()), false)
                 .map_err(|e| format!("create session: {e}"))?
         };
+        if let Ok(bound) = crate::workspace_store::bind_default_workspace_if_unbound(&meta.id) {
+            meta = bound;
+        }
 
         // Orphan / missing project_id → keep null (shows under Default workspace).
         // Clear retired system:general bindings if any slip through.

@@ -763,7 +763,9 @@ pub async fn session_create(
     title: Option<String>,
     scheduled: Option<bool>,
 ) -> Result<SessionMeta, String> {
-    store::create_session(project_id, title, scheduled.unwrap_or(false))
+    let meta = store::create_session(project_id, title, scheduled.unwrap_or(false))?;
+    let id = meta.id.clone();
+    Ok(crate::workspace_store::bind_default_workspace_if_unbound(&id).unwrap_or(meta))
 }
 
 #[tauri::command]
@@ -901,9 +903,32 @@ mod multi_window_tests {
 }
 
 #[tauri::command]
-pub async fn session_delete(mgr: State<'_, Arc<SessionManager>>, id: String) -> Result<(), String> {
-    store::delete_session(&id)?;
+pub async fn session_delete(
+    app: tauri::AppHandle,
+    mgr: State<'_, Arc<SessionManager>>,
+    id: String,
+) -> Result<(), String> {
+    let agent_id = store::load_sessions_index()
+        .into_iter()
+        .find(|s| s.id == id)
+        .and_then(|m| m.agent_session_id)
+        .filter(|s| !s.trim().is_empty());
+    let mode = store::load_settings_async().await.session_data_mode;
+
+    // Drop live / background / parked ACP first so Windows can remove the
+    // CLI session tree (locks on `.lock` / `turn_lease.json`).
+    mgr.drop_session_agent(&app, &id).await;
     mgr.forget_deleted_session(&id);
+
+    if let Some(aid) = agent_id {
+        let mode_clone = mode.clone();
+        let _ = tauri::async_runtime::spawn_blocking(move || {
+            crate::cli_sessions::forget_app_linked_cli_session(&aid, &mode_clone)
+        })
+        .await;
+    }
+
+    store::delete_session(&id)?;
     Ok(())
 }
 

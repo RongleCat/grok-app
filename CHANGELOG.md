@@ -13,6 +13,14 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- New chats reuse the project's extra folders, so extra-root write still works (#1233).
+- Deleting a chat also removes its CLI session, so Import will not resurrect it (#1236).
+
+**中文 · 修复**
+- 同一项目的新对话会带上已配置的附加根，跨目录写入不再只对第一场聊天生效（#1233）。
+- 删除对话时会去掉对应的 CLI 会话，批量导入不会再把已删对话救回来（#1236）。
+
 ## [0.2.36] - 2026-09-17
 
 > **Highlight:** Pin chats globally, copy commands and diffs, and keep Shared session data.
