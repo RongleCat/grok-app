@@ -49,6 +49,7 @@ export const ukSidebar = {
   "sidebar.archiveSelectedTitle": "Архівувати чати",
   "sidebar.restoreSelectedTitle": "Відновити чати",
   "sidebar.archiveSelectedConfirm": "Архівувати {n} чатів? Пізніше їх можна відновити в Налаштування → Архів.",
+  "sidebar.archiveCliHint": "Ховає чат лише в Grok App. У списку CLI термінала він лишається, доки ви його не видалите.",
   "sidebar.restoreSelectedConfirm": "Відновити {n} чатів на бічну панель?",
   "sidebar.archivedToast": "Архівовано чатів: {n}",
   "sidebar.restoredToast": "Відновлено чатів: {n}",

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_EXTRA_WORKSPACE_ROOTS,
+  UNBOUND_WORKSPACE_ID,
   extraRoots,
+  isBoundWorkspaceId,
   isCrossRootWriteAllowed,
   normalizeCapability,
   workspaceChipLabel,
@@ -35,5 +37,12 @@ describe("multiRootWorkspace", () => {
   it("normalizes capability aliases", () => {
     expect(normalizeCapability("context_only")).toBe("contextOnly");
     expect(normalizeCapability("enforced_read")).toBe("enforcedRead");
+  });
+
+  it("treats detach sentinel as unbound", () => {
+    expect(isBoundWorkspaceId(null)).toBe(false);
+    expect(isBoundWorkspaceId("")).toBe(false);
+    expect(isBoundWorkspaceId(UNBOUND_WORKSPACE_ID)).toBe(false);
+    expect(isBoundWorkspaceId("ws_abc")).toBe(true);
   });
 });

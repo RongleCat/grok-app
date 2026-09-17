@@ -49,6 +49,7 @@ export const idSidebar = {
   "sidebar.archiveSelectedTitle": "Arsipkan obrolan",
   "sidebar.restoreSelectedTitle": "Pulihkan obrolan",
   "sidebar.archiveSelectedConfirm": "Arsipkan {n} obrolan? Anda dapat memulihkannya nanti dari Pengaturan → Arsip.",
+  "sidebar.archiveCliHint": "Ini hanya menyembunyikan obrolan di Grok App. Daftar CLI terminal tetap menampilkannya sampai Anda menghapusnya.",
   "sidebar.restoreSelectedConfirm": "Pulihkan {n} obrolan ke bilah sisi?",
   "sidebar.archivedToast": "{n} obrolan diarsipkan",
   "sidebar.restoredToast": "{n} obrolan dipulihkan",

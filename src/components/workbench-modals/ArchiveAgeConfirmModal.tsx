@@ -59,6 +59,9 @@ export function ArchiveAgeConfirmModal(props: {
               days: String(plan.days),
             })}
           </p>
+          <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
+            {tr("sidebar.archiveCliHint")}
+          </p>
           {plan.previewTitles.length > 0 ? (
             <div className="archive-age-modal__preview">
               <div className="archive-age-modal__preview-label">

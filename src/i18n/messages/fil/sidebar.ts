@@ -49,6 +49,7 @@ export const filSidebar = {
   "sidebar.archiveSelectedTitle": "I-archive ang mga chat",
   "sidebar.restoreSelectedTitle": "Ibalik ang mga chat",
   "sidebar.archiveSelectedConfirm": "I-archive ang {n} chat? Puwede mong ibalik ang mga ito mamaya mula sa Mga setting → Naka-archive.",
+  "sidebar.archiveCliHint": "Itinatago lang nito ang chat sa Grok App. Nasa listahan pa rin ito ng CLI hanggang i-delete mo.",
   "sidebar.restoreSelectedConfirm": "Ibalik ang {n} chat sa sidebar?",
   "sidebar.archivedToast": "Na-archive ang {n} chat",
   "sidebar.restoredToast": "Naibalik ang {n} chat",

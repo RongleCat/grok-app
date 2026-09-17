@@ -49,6 +49,7 @@ export const zhSidebar = {
   "sidebar.archiveSelectedTitle": "归档会话",
   "sidebar.restoreSelectedTitle": "恢复会话",
   "sidebar.archiveSelectedConfirm": "确定归档 {n} 个会话？之后可在「设置 → 已归档」中恢复。",
+  "sidebar.archiveCliHint": "这只会从 Grok App 侧栏隐藏。终端 CLI 列表里仍在，直到你删除。",
   "sidebar.restoreSelectedConfirm": "确定将 {n} 个会话恢复到侧栏？",
   "sidebar.archivedToast": "已归档 {n} 个会话",
   "sidebar.restoredToast": "已恢复 {n} 个会话",

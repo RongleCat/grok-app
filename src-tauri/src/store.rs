@@ -2733,6 +2733,9 @@ pub fn fork_session(
     meta.max_agent_turns = source.max_agent_turns;
     meta.system_prompt_override = source.system_prompt_override.clone();
     meta.no_ask_user = source.no_ask_user;
+    meta.workspace_id = source.workspace_id.clone();
+    meta.workspace_root_snapshot = source.workspace_root_snapshot.clone();
+    meta.workspace_capability = source.workspace_capability.clone();
     // CLI --fork-session: resume parent agent context under a new agent id.
     let source_agent = source
         .agent_session_id
@@ -4372,6 +4375,44 @@ mod tests {
         assert!(journal_only.agent_session_id.is_none());
         assert_eq!(load_messages(&journal_only.id).len(), 10);
 
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn fork_session_copies_workspace_binding() {
+        let _g = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-fork-ws-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp home");
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let _ = ensure_app_dirs();
+
+        let mut src = create_session(None, Some("src".into()), false).expect("create");
+        src.workspace_id = Some("ws_abc".into());
+        src.workspace_root_snapshot = Some("p:w:/a|e:w:/b".into());
+        src.workspace_capability = Some("extra_write_active".into());
+        update_session_meta(&src).expect("meta");
+
+        let fork = fork_session(&src.id, None, None, false).expect("fork");
+        assert_eq!(fork.workspace_id.as_deref(), Some("ws_abc"));
+        assert_eq!(
+            fork.workspace_root_snapshot.as_deref(),
+            Some("p:w:/a|e:w:/b")
+        );
+        assert_eq!(
+            fork.workspace_capability.as_deref(),
+            Some("extra_write_active")
+        );
+
+        let _ = delete_session(&src.id);
+        let _ = delete_session(&fork.id);
         std::env::remove_var("GROK_APP_HOME");
         let _ = fs::remove_dir_all(&tmp);
     }

@@ -49,6 +49,7 @@ export const koSidebar = {
   "sidebar.archiveSelectedTitle": "대화 보관",
   "sidebar.restoreSelectedTitle": "대화 복원",
   "sidebar.archiveSelectedConfirm": "대화 {n}개를 보관할까요? 나중에 설정 → 보관함에서 복원할 수 있습니다.",
+  "sidebar.archiveCliHint": "Grok App 사이드바에서만 숨깁니다. 삭제하기 전까지 터미널 CLI 목록에는 그대로 남습니다.",
   "sidebar.restoreSelectedConfirm": "대화 {n}개를 사이드바로 복원할까요?",
   "sidebar.archivedToast": "대화 {n}개를 보관했습니다",
   "sidebar.restoredToast": "대화 {n}개를 복원했습니다",

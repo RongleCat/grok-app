@@ -13,6 +13,18 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- New chats reuse the project's extra folders, so extra-root write still works (#1233).
+- Detaching extra folders from a chat stays detached after reconnect (#1233).
+- Deleting a chat also removes its CLI session, so Import will not resurrect it (#1236).
+- Archive notes that only the App sidebar hides; the CLI list still has the chat (#1236).
+
+**中文 · 修复**
+- 同一项目的新对话会带上已配置的附加根，跨目录写入不再只对第一场聊天生效（#1233）。
+- 从本会话解除附加根后，重连不会再自动绑回去（#1233）。
+- 删除对话时会去掉对应的 CLI 会话，批量导入不会再把已删对话救回来（#1236）。
+- 归档会说明只藏 App 侧栏，终端 CLI 列表里仍在（#1236）。
+
 ## [0.2.36] - 2026-09-17
 
 > **Highlight:** Pin chats globally, copy commands and diffs, and keep Shared session data.

@@ -49,6 +49,7 @@ export const ptBRSidebar = {
   "sidebar.archiveSelectedTitle": "Arquivar conversas",
   "sidebar.restoreSelectedTitle": "Restaurar conversas",
   "sidebar.archiveSelectedConfirm": "Arquivar {n} chats? Você pode restaurá-los depois em Configurações → Arquivadas.",
+  "sidebar.archiveCliHint": "Isso só oculta o chat no Grok App. A lista CLI do terminal continua mostrando até você excluir.",
   "sidebar.restoreSelectedConfirm": "Restaurar {n} chats para a barra lateral?",
   "sidebar.archivedToast": "{n} conversas arquivadas",
   "sidebar.restoredToast": "{n} conversas restauradas",

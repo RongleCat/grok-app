@@ -49,6 +49,7 @@ export const taSidebar = {
   "sidebar.archiveSelectedTitle": "உரையாடல்களைக் காப்பகப்படுத்து",
   "sidebar.restoreSelectedTitle": "உரையாடல்களை மீட்டெடு",
   "sidebar.archiveSelectedConfirm": "{n} உரையாடல்களை காப்பகப்படுத்தவா? அமைப்புகள் → காப்பகப்படுத்தப்பட்டவற்றிலிருந்து அவற்றை நீங்கள் பின்னர் மீட்டெடுக்கலாம்.",
+  "sidebar.archiveCliHint": "இது Grok App பக்கப்பட்டியில் மட்டும் மறைக்கும். நீக்கும் வரை முனைய CLI பட்டியலில் அது இருக்கும்.",
   "sidebar.restoreSelectedConfirm": "பக்கப்பட்டியில் {n} உரையாடல்களை மீட்டெடுக்கவா?",
   "sidebar.archivedToast": "{n} உரையாடல்கள் காப்பகப்படுத்தப்பட்டன",
   "sidebar.restoredToast": "{n} உரையாடல்கள் மீட்டெடுக்கப்பட்டன",
