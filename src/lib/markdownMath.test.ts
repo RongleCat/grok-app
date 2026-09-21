@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sourceHasMath } from "./markdownMath";
+import { normalizeMarkdownMath, sourceHasMath } from "./markdownMath";
 
 describe("sourceHasMath", () => {
   it("is false for ordinary chat markdown", () => {
@@ -13,5 +13,24 @@ describe("sourceHasMath", () => {
     expect(sourceHasMath("$$\\int x$$")).toBe(true);
     expect(sourceHasMath("\\(x\\)")).toBe(true);
     expect(sourceHasMath("\\[a+b\\]")).toBe(true);
+  });
+
+  it("detects a one-line [ TeX ] formula", () => {
+    expect(
+      sourceHasMath("[ I=\\int_1^2\\frac{x^2}{2}\\mathrm{d}x. ]"),
+    ).toBe(true);
+    expect(sourceHasMath("[docs](https://example.com)")).toBe(false);
+    expect(sourceHasMath("cost is 5 dollars")).toBe(false);
+  });
+
+  it("rewrites \\[ \\] and one-line [ TeX ] to $$", () => {
+    expect(normalizeMarkdownMath("\\[ a+b \\]")).toBe("$$ a+b $$");
+    expect(normalizeMarkdownMath("\\(x\\)")).toBe("$x$");
+    expect(
+      normalizeMarkdownMath("[ I=\\int_1^2\\frac{x^2}{2}\\mathrm{d}x. ]"),
+    ).toBe("$$ I=\\int_1^2\\frac{x^2}{2}\\mathrm{d}x. $$");
+    expect(normalizeMarkdownMath("[docs](https://example.com)")).toBe(
+      "[docs](https://example.com)",
+    );
   });
 });

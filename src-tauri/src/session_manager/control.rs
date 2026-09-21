@@ -1039,6 +1039,9 @@ impl SessionManager {
                 }
                 if let Some(sk) = scope_to_cache {
                     s.allow_cache.allow(sk);
+                    if crate::permission::should_widen_session_allow(s.policy) {
+                        s.allow_cache.allow_tool_family(&tool_name);
+                    }
                 }
                 if s.fsm.state() == SessionState::AwaitingPermission {
                     let _ = s.fsm.permission_resolved_continue();

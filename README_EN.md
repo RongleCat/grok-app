@@ -183,6 +183,8 @@ open /Applications/Grok.app
 ### Windows SmartScreen Notice
 For unsigned community packages, Windows SmartScreen may display a warning on initial launch. Click **More info → Run anyway**. You can verify the file hash against `SHA256SUMS` for integrity.
 
+Third-party antivirus (Kaspersky and similar) may also flag the unsigned Tauri app and bundled CLI as a heuristic threat. That is a false positive on community builds. Verify the installer hash, then exclude the install folder and the app data directory (often under `%LOCALAPPDATA%`). Signing with Authenticode is the long-term fix; the app cannot whitelist itself inside the antivirus.
+
 ---
 
 ### Linux runtime libraries (AppImage)

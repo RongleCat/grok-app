@@ -106,6 +106,21 @@ describe("shouldReleaseStickOnScrollUp", () => {
     ).toBe(false);
   });
 
+  it("does NOT escape a rubber-band bounce that started past max", () => {
+    // macOS WKWebView: landing on the tail overshoots (scrollTop > max),
+    // then elastic rebound jumps 100px+ into history. That is not a
+    // request to read older messages (#1239).
+    expect(
+      shouldReleaseStickOnScrollUp({
+        pinned: true,
+        scrollTop: 480,
+        previousScrollTop: 640,
+        scrollHeight: sh,
+        clientHeight: ch,
+      }),
+    ).toBe(false);
+  });
+
   it("escapes when the scroll-up ends inside the near band but above hard bottom", () => {
     // 40px up from bottom (600 → 560) — near threshold (100) but the user
     // genuinely left; must escape like before.

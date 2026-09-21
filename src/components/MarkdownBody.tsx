@@ -11,6 +11,7 @@ import { createT, type Locale } from "@/i18n";
 import {
   MARKDOWN_REHYPE_PLUGINS,
   MARKDOWN_REMARK_PLUGINS,
+  normalizeMarkdownMath,
 } from "@/lib/markdownMath";
 import { ImageUi, imageUiLabels } from "@/components/ImageUi";
 import { VideoUi, videoUiLabels } from "@/components/VideoUi";
@@ -69,6 +70,8 @@ export function MarkdownBody({
     if (!imagePathMap) return undefined;
     return Array.from(new Set(Object.values(imagePathMap))).filter(isImagePath);
   }, [imagePathMap]);
+
+  const markdown = useMemo(() => normalizeMarkdownMath(children), [children]);
 
   const renderMedia = (abs: string, alt?: string) => {
     // Real multi-segment local abs only — never site-root or `/file.mp4` tails.
@@ -219,7 +222,7 @@ export function MarkdownBody({
           ),
         }}
       >
-        {children || (streaming ? " " : "")}
+        {markdown || (streaming ? " " : "")}
       </ReactMarkdown>
     </div>
   );

@@ -183,6 +183,8 @@ open /Applications/Grok.app
 ### Windows SmartScreen 提示未知发布者
 在运行未签名的社区版本时，Windows SmartScreen 可能会弹出提示。点击 **更多信息 → 仍要运行** 即可。建议通过 `SHA256SUMS` 校验下载包的哈希值。
 
+卡巴斯基等第三方杀毒也可能把未签名的 Tauri 应用和随包 CLI 标成启发式威胁，这是社区构建的误报。请先核对安装包哈希，再把安装目录和应用数据目录（常见在 `%LOCALAPPDATA%`）加入排除项。根治需要 Windows 代码签名；应用无法在杀毒软件里给自己开白名单。
+
 ---
 
 ### Linux 运行时库（AppImage）

@@ -98,6 +98,60 @@ pub fn scope_key(tool_name: &str, path_or_command: &str) -> String {
     format!("{tool_name}:{norm}")
 }
 
+/// Shell / execute family — path policy is N/A unless the payload has a real path.
+pub fn is_shell_tool(tool_name: &str) -> bool {
+    let t = tool_name.trim().to_ascii_lowercase();
+    t.contains("terminal")
+        || t.contains("bash")
+        || t.contains("shell")
+        || t == "execute"
+        || t == "run_terminal_command"
+        || t == "run-terminal-command"
+}
+
+/// `allow_for_session` / `auto`: "Allow for session" remembers the tool family.
+pub fn should_widen_session_allow(policy: PermissionPolicy) -> bool {
+    matches!(
+        policy,
+        PermissionPolicy::AllowForSession | PermissionPolicy::Auto
+    )
+}
+
+/// Path used for outside-project checks.
+///
+/// Shell / execute tools put Windows `\` paths in the Execute *title*.
+/// Treating that title as an fs path made default-workspace sessions look
+/// "outside project" and skipped session-allow (#1241).
+pub fn permission_path_target(raw: &serde_json::Value, tool_name: &str) -> String {
+    if is_shell_tool(tool_name) {
+        extract_structured_path_target(raw)
+    } else {
+        extract_path_target(raw)
+    }
+}
+
+fn extract_structured_path_target(raw: &serde_json::Value) -> String {
+    let candidates = [
+        raw.pointer("/toolCall/locations/0/path"),
+        raw.pointer("/toolCall/rawInput/path"),
+        raw.pointer("/toolCall/rawInput/file_path"),
+        raw.pointer("/toolCall/path"),
+        raw.pointer("/locations/0/path"),
+        raw.pointer("/rawInput/path"),
+        raw.pointer("/rawInput/file_path"),
+        raw.pointer("/path"),
+        raw.pointer("/file_path"),
+    ];
+    for c in candidates {
+        if let Some(s) = c.and_then(|v| v.as_str()) {
+            if !s.is_empty() {
+                return s.to_string();
+            }
+        }
+    }
+    String::new()
+}
+
 pub fn normalize_scope_target(raw: &str) -> String {
     let t = raw.trim();
     if t.is_empty() {
@@ -189,23 +243,9 @@ pub fn is_outside_project(project_root: &Path, target: &str) -> bool {
 
 /// Extract a path-like target from ACP permission / tool_call payload.
 pub fn extract_path_target(raw: &serde_json::Value) -> String {
-    let candidates = [
-        raw.pointer("/toolCall/locations/0/path"),
-        raw.pointer("/toolCall/rawInput/path"),
-        raw.pointer("/toolCall/rawInput/file_path"),
-        raw.pointer("/toolCall/path"),
-        raw.pointer("/locations/0/path"),
-        raw.pointer("/rawInput/path"),
-        raw.pointer("/rawInput/file_path"),
-        raw.pointer("/path"),
-        raw.pointer("/file_path"),
-    ];
-    for c in candidates {
-        if let Some(s) = c.and_then(|v| v.as_str()) {
-            if !s.is_empty() {
-                return s.to_string();
-            }
-        }
+    let structured = extract_structured_path_target(raw);
+    if !structured.is_empty() {
+        return structured;
     }
     if let Some(title) = raw
         .pointer("/toolCall/title")
@@ -671,13 +711,7 @@ pub fn resolve_allow_once_option_id(options: &serde_json::Value) -> String {
 pub fn fallback_always_allow_for_tool(tool_name: &str) -> &'static str {
     let t = tool_name.trim().to_ascii_lowercase();
     // Normalize kind-ish labels from toolCall.kind (execute) and real tool names.
-    if t.contains("terminal")
-        || t.contains("bash")
-        || t.contains("shell")
-        || t == "execute"
-        || t == "run_terminal_command"
-        || t == "run-terminal-command"
-    {
+    if is_shell_tool(tool_name) {
         return "allow-always-command";
     }
     if t.contains("web_fetch") || t.contains("webfetch") || t.contains("web-fetch") || t == "fetch"
@@ -916,8 +950,24 @@ impl SessionAllowCache {
         self.keys.insert(key);
     }
 
+    pub fn allow_tool_family(&mut self, tool_name: &str) {
+        let t = tool_name.trim();
+        if t.is_empty() {
+            return;
+        }
+        self.keys.insert(format!("{t}:*"));
+    }
+
     pub fn is_allowed(&self, key: &str) -> bool {
-        self.keys.contains(key)
+        if self.keys.contains(key) {
+            return true;
+        }
+        if let Some((tool, _)) = key.split_once(':') {
+            if self.keys.contains(&format!("{tool}:*")) {
+                return true;
+            }
+        }
+        false
     }
 
     #[allow(dead_code)]
@@ -1456,5 +1506,81 @@ mod tests {
             }
         });
         assert_eq!(extract_path_target(&raw), "/Users/me/proj/a.txt");
+    }
+
+    #[test]
+    fn shell_execute_title_with_windows_path_is_not_path_target() {
+        let raw = serde_json::json!({
+            "toolCall": {
+                "title": "Execute `Get-ChildItem 'F:\\AppData\\SogouInput'`",
+                "rawInput": { "command": "Get-ChildItem 'F:\\AppData\\SogouInput'" }
+            }
+        });
+        assert_eq!(
+            permission_path_target(&raw, "run_terminal_command"),
+            "",
+            "Windows shell titles contain '\\' but are not fs paths"
+        );
+        assert_eq!(permission_path_target(&raw, "execute"), "",);
+    }
+
+    #[test]
+    fn session_family_allow_covers_other_commands_same_tool() {
+        let mut c = SessionAllowCache::default();
+        c.allow("run_terminal_command:Write-Host".into());
+        c.allow_tool_family("run_terminal_command");
+        assert!(c.is_allowed("run_terminal_command:Write-Host"));
+        assert!(c.is_allowed("run_terminal_command:Get-Process"));
+        assert!(!c.is_allowed("web_fetch:https://example.com"));
+    }
+
+    #[test]
+    fn allow_for_session_family_cache_auto_allows_other_shell() {
+        let mut c = SessionAllowCache::default();
+        c.allow("run_terminal_command:Write-Host".into());
+        c.allow_tool_family("run_terminal_command");
+        assert!(may_auto_allow(
+            PermissionPolicy::AllowForSession,
+            &c,
+            "run_terminal_command:Get-ChildItem",
+            None,
+            "",
+            "run_terminal_command",
+            "Get-ChildItem F:\\AppData\\SogouInput",
+        ));
+        let ask_only = SessionAllowCache::default();
+        assert!(!may_auto_allow(
+            PermissionPolicy::Ask,
+            &ask_only,
+            "run_terminal_command:Get-ChildItem",
+            None,
+            "",
+            "run_terminal_command",
+            "Get-ChildItem F:\\AppData\\SogouInput",
+        ));
+    }
+
+    #[test]
+    fn ask_chip_session_allow_stays_command_scoped() {
+        let mut c = SessionAllowCache::default();
+        c.allow("run_terminal_command:Write-Host".into());
+        assert!(may_auto_allow(
+            PermissionPolicy::Ask,
+            &c,
+            "run_terminal_command:Write-Host",
+            None,
+            "",
+            "run_terminal_command",
+            "Write-Host hi",
+        ));
+        assert!(!may_auto_allow(
+            PermissionPolicy::Ask,
+            &c,
+            "run_terminal_command:Get-Process",
+            None,
+            "",
+            "run_terminal_command",
+            "Get-Process",
+        ));
     }
 }

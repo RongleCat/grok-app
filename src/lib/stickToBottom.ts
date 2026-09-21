@@ -312,6 +312,12 @@ export function shouldReleaseStickOnScrollUp(input: {
   if (isHardBottom(scrollTop, scrollHeight, clientHeight, input.hardPx)) {
     return false;
   }
+  // Elastic overscroll past the tail (macOS WKWebView) then rebounds into
+  // history. previousScrollTop above max is not a user leave (#1239).
+  const maxTop = Math.max(0, scrollHeight - clientHeight);
+  if (previousScrollTop > maxTop + 0.5) {
+    return false;
+  }
   return true;
 }
 

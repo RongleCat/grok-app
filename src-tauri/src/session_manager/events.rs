@@ -11,8 +11,8 @@ use crate::acp_client::{
 };
 use crate::journal_throttle::is_paragraph_break;
 use crate::permission::{
-    coerce_wire_option_id_for_tool, extract_path_target, extract_shell_command, may_auto_allow,
-    may_auto_deny, permission_preview_text, resolve_reject_option_id, scope_key,
+    coerce_wire_option_id_for_tool, extract_shell_command, may_auto_allow, may_auto_deny,
+    permission_path_target, permission_preview_text, resolve_reject_option_id, scope_key,
 };
 use crate::session_fsm::SessionState;
 use crate::store::{self, ChatMessageStored};
@@ -349,7 +349,7 @@ impl SessionManager {
                 }
 
                 let preview = permission_preview_text(&raw, &title);
-                let path_target = extract_path_target(&raw);
+                let path_target = permission_path_target(&raw, &tool_name);
                 let shell_command = extract_shell_command(&raw);
                 let sk_source = if path_target.is_empty() {
                     title.clone()

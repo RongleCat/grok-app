@@ -13,17 +13,29 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Changed
+- README explains Windows antivirus false positives on unsigned builds (#1240).
+
+**中文 · 变更**
+- README 说明未签名 Windows 包可能被杀毒误报（#1240）。
+
 ### Fixed
 - New chats reuse the project's extra folders, so extra-root write still works (#1233).
 - Detaching extra folders from a chat stays detached after reconnect (#1233).
 - Deleting a chat also removes its CLI session, so Import will not resurrect it (#1236).
 - Archive notes that only the App sidebar hides; the CLI list still has the chat (#1236).
+- Approve-for-me remembers that tool for the rest of the session, not one command (#1241).
+- Chat LaTeX renders `\[…\]` and one-line `[ formula ]` again (#1238).
+- Reaching the chat tail on macOS no longer jumps back into history (#1239).
 
 **中文 · 修复**
 - 同一项目的新对话会带上已配置的附加根，跨目录写入不再只对第一场聊天生效（#1233）。
 - 从本会话解除附加根后，重连不会再自动绑回去（#1233）。
 - 删除对话时会去掉对应的 CLI 会话，批量导入不会再把已删对话救回来（#1236）。
 - 归档会说明只藏 App 侧栏，终端 CLI 列表里仍在（#1236）。
+- 「替我审批」会记住本会话已允许的工具，不必每条命令再点一次（#1241）。
+- 对话里的 `\[…\]` 和一行 `[ 公式 ]` 会再渲染成公式（#1238）。
+- 在 Mac 上滚到聊天底部后，不再弹回某条历史消息（#1239）。
 
 ## [0.2.36] - 2026-09-17
 

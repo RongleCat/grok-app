@@ -17,6 +17,7 @@ import {
   MARKDOWN_REHYPE_PLUGINS_NO_MATH,
   MARKDOWN_REMARK_PLUGINS,
   MARKDOWN_REMARK_PLUGINS_GFM,
+  normalizeMarkdownMath,
   sourceHasMath,
 } from "@/lib/markdownMath";
 import { createT } from "@/i18n";
@@ -386,7 +387,7 @@ export const MarkdownChat = memo(function MarkdownChat({
   // Store-level content notify throttle + markdown parse throttle pace paints.
   const buffered = streaming ? softDisplayed : children || "";
   const liveText = buffered || (streaming ? " " : "");
-  const source = softCloseMarkdown(liveText, streaming);
+  const source = normalizeMarkdownMath(softCloseMarkdown(liveText, streaming));
   const parseMs = resolveStreamMarkdownParseMs(source.length, streaming);
 
   /**

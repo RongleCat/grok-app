@@ -139,7 +139,7 @@ CLI enum（`grok --help`）：`default | acceptEdits | auto | dontAsk | bypassPe
 |--------|-------------------------|-----------------------------------|----------------------|------------|
 | `ask` | `default` | `default` | `default` | `--permission-mode default` |
 | `accept_edits` | `acceptEdits` | `acceptEdits` | `acceptEdits` | `--permission-mode acceptEdits` |
-| `allow_for_session` | `default`（Host 会话缓存） | `default` | `default` | `--permission-mode default` |
+| `allow_for_session` | `default`（Host 会话缓存；「会话内允许」按**工具族**记住，不是单条命令） | `default` | `default` | `--permission-mode default` |
 | `auto` | `auto` | `auto` | `auto` | `--permission-mode auto` |
 | `dont_ask` | `dontAsk` | `dontAsk` | `dontAsk` | `--permission-mode dontAsk` |
 | `always_approve` | `bypassPermissions` | `always-approve` + `yolo=true` | `bypassPermissions` | `--permission-mode bypassPermissions` + `--always-approve` |
@@ -178,7 +178,7 @@ grok --no-auto-update --permission-mode <mode> agent [--model <id>] [--reasoning
 
 中途改权限：同步配置 + soft-respawn（含 YOLO 降级）。**回合进行中**不会立刻杀进程（CLI 仍带 spawn 时的 `--always-approve`）；Host 记下待 respawn，本轮结束后或下次 connect 时再重生。Host 在收到 `session/request_permission` 时仍按 live policy 自动放行/拒绝。
 
-**会话内允许（permission bar）**：按钮始终展示。write / image 的 CLI 档是 `allow-always`（不是反序的 `always-allow`）；空列表时 Host 按工具族回退。若列表里**没有** session 档，wire 用已发布的 `allow-once`（Host 仍缓存 scope）。发送列表里没有的 id 会被 CLI 当成 `unknown permission option` 并取消回合。
+**会话内允许（permission bar）**：按钮始终展示。write / image 的 CLI 档是 `allow-always`（不是反序的 `always-allow`）；空列表时 Host 按工具族回退。若列表里**没有** session 档，wire 用已发布的 `allow-once`（Host 仍缓存 scope）。发送列表里没有的 id 会被 CLI 当成 `unknown permission option` 并取消回合。策略为 `allow_for_session` 或 `auto` 时，点「会话内允许」会缓存 `tool:*`（同工具其它命令不再弹）；`ask` 仍按单条 scope。Shell 的 Execute 标题里的 Windows `\` 路径**不是** outside-project 判定（#1241）。
 
 注意：读工具与部分只读 shell 在 agent 内建白名单下仍可能不弹窗（Grok Build 设计）。
 

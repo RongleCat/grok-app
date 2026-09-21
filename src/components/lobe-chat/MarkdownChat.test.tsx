@@ -92,6 +92,26 @@ describe("MarkdownChat", () => {
     expect(block).toContain("katex-display");
   });
 
+  it("renders \\[ \\] display and \\( \\) inline TeX", () => {
+    const block = renderToStaticMarkup(
+      <MarkdownChat>{"\\[ I=\\int_1^2 x^2 \\, dx \\]"}</MarkdownChat>,
+    );
+    expect(block).toContain("katex");
+    const inline = renderToStaticMarkup(
+      <MarkdownChat>{"Energy is \\(E=mc^2\\)."}</MarkdownChat>,
+    );
+    expect(inline).toContain("katex");
+  });
+
+  it("renders a one-line bracket TeX formula like Grok often emits", () => {
+    const html = renderToStaticMarkup(
+      <MarkdownChat>
+        {"[ I=\\int_1^2\\frac{x^2}{2}\\mathrm{d}x. ]"}
+      </MarkdownChat>,
+    );
+    expect(html).toContain("katex");
+  });
+
   it("routes mermaid fences to MermaidBlock chrome", () => {
     const html = renderToStaticMarkup(
       <MarkdownChat>
