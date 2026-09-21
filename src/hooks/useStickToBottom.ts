@@ -104,6 +104,7 @@ export function useStickToBottom(
   /** Recent real wheel/touch intent toward the tail; survives elastic rebound. */
   const bottomIntentUntilRef = useRef(0);
   const lastScrollTopRef = useRef(0);
+  const lastScrollHeightRef = useRef(0);
   /** scrollTop we just wrote — used to ignore synthetic scroll events. */
   const ignoreScrollTopRef = useRef<number | undefined>(undefined);
   /** Non-zero while a content resize is being applied (race with scroll). */
@@ -125,6 +126,7 @@ export function useStickToBottom(
     userIntentDownRef.current = false;
     bottomIntentUntilRef.current = 0;
     lastScrollTopRef.current = 0;
+    lastScrollHeightRef.current = 0;
     const now =
       typeof performance !== "undefined" && typeof performance.now === "function"
         ? performance.now()
@@ -171,6 +173,7 @@ export function useStickToBottom(
     el.scrollTop = top;
     ignoreScrollTopRef.current = el.scrollTop;
     lastScrollTopRef.current = el.scrollTop;
+    lastScrollHeightRef.current = el.scrollHeight;
     if (prev) el.style.scrollBehavior = prev;
     else el.style.removeProperty("scroll-behavior");
   }, []);
@@ -294,13 +297,16 @@ export function useStickToBottom(
         })
       ) {
         lastScrollTopRef.current = scrollTop;
+        lastScrollHeightRef.current = el.scrollHeight;
         ignoreScrollTopRef.current = undefined;
         return;
       }
       let lastScrollTop = lastScrollTopRef.current;
+      const lastScrollHeight = lastScrollHeightRef.current;
       const ignore =
         ignoreScrollTopRef.current ?? takeProgrammaticStickScroll(el);
       lastScrollTopRef.current = scrollTop;
+      lastScrollHeightRef.current = el.scrollHeight;
       ignoreScrollTopRef.current = undefined;
 
       // Follow / virtual pin-snap wrote scrollTop. That is not a user leave.
@@ -349,6 +355,7 @@ export function useStickToBottom(
         previousScrollTop: lastScrollTop,
         scrollHeight: el.scrollHeight,
         clientHeight: el.clientHeight,
+        previousScrollHeight: lastScrollHeight || undefined,
       });
       const meaningfulDown =
         scrollTop - lastScrollTop >= STICK_ESCAPE_MIN_DELTA_PX;
@@ -566,6 +573,7 @@ export function useStickToBottom(
     el.addEventListener("touchcancel", onTouchEnd, { passive: true });
 
     lastScrollTopRef.current = el.scrollTop;
+    lastScrollHeightRef.current = el.scrollHeight;
 
     return () => {
       el.removeEventListener("scroll", handleScroll);
@@ -825,6 +833,7 @@ export function useStickToBottom(
       ) {
         applyScrollTop(bottomScrollTop(v.scrollHeight, v.clientHeight));
         lastScrollTopRef.current = v.scrollTop;
+        lastScrollHeightRef.current = v.scrollHeight;
       }
       viewportWasUnreliable = unreliable;
     };

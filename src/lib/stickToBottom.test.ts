@@ -15,6 +15,7 @@ import {
   isNearBottom,
   pinnedFollowDelayMs,
   pinnedFollowDelayForLayout,
+  pinnedWindowRestoreDist,
   shouldBumpStickOnBusyEdge,
   stabilizeStickUserId,
   shouldClampPinnedOverscroll,
@@ -149,7 +150,11 @@ describe("pinnedFollowDelayMs", () => {
     expect(STICK_MEDIA_HEIGHT_PX).toBe(24);
     expect(pinnedFollowDelayMs(24)).toBe(STICK_MEDIA_FOLLOW_DELAY_MS);
     expect(pinnedFollowDelayMs(400)).toBe(STICK_MEDIA_FOLLOW_DELAY_MS);
-    expect(pinnedFollowDelayMs(-180)).toBe(STICK_MEDIA_FOLLOW_DELAY_MS);
+  });
+
+  it("follows shrinks this frame (thought auto-collapse, #1246)", () => {
+    expect(pinnedFollowDelayMs(-180)).toBe(0);
+    expect(pinnedFollowDelayMs(-24)).toBe(0);
   });
 
   it("treats non-finite as immediate", () => {
@@ -176,6 +181,15 @@ describe("pinnedFollowDelayForLayout", () => {
     ).toBe(STICK_MEDIA_FOLLOW_DELAY_MS);
   });
 
+  it("follows shrinks immediately even when only height jumped (#1246)", () => {
+    expect(
+      pinnedFollowDelayForLayout({
+        heightDelta: -220,
+        viewportWidthChanged: false,
+      }),
+    ).toBe(0);
+  });
+
   it("follows image-sized jumps immediately while a chat is opening", () => {
     expect(
       pinnedFollowDelayForLayout({
@@ -184,6 +198,28 @@ describe("pinnedFollowDelayForLayout", () => {
         conversationOpening: true,
       }),
     ).toBe(0);
+  });
+});
+
+describe("pinnedWindowRestoreDist", () => {
+  it("snaps to the tail while stick is still following (#1246)", () => {
+    expect(
+      pinnedWindowRestoreDist({
+        pinned: true,
+        forceOpen: false,
+        preCommitDist: 220,
+      }),
+    ).toBe(0);
+  });
+
+  it("keeps pre-commit distance after the user left the tail", () => {
+    expect(
+      pinnedWindowRestoreDist({
+        pinned: false,
+        forceOpen: false,
+        preCommitDist: 180,
+      }),
+    ).toBe(180);
   });
 });
 

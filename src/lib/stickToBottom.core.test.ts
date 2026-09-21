@@ -121,6 +121,22 @@ describe("shouldReleaseStickOnScrollUp", () => {
     ).toBe(false);
   });
 
+  it("does NOT escape when thinking/tool collapse shrinks scrollHeight (#1246)", () => {
+    // After the browser clamps to the new max (400), the virtual list may
+    // still write a restore offset (200). scrollTop 400→200 is a real
+    // "scroll-up" on the new height — but the content shrank, not the user.
+    expect(
+      shouldReleaseStickOnScrollUp({
+        pinned: true,
+        scrollTop: 200,
+        previousScrollTop: 400,
+        scrollHeight: 1000,
+        previousScrollHeight: 1200,
+        clientHeight: ch,
+      }),
+    ).toBe(false);
+  });
+
   it("escapes when the scroll-up ends inside the near band but above hard bottom", () => {
     // 40px up from bottom (600 → 560) — near threshold (100) but the user
     // genuinely left; must escape like before.

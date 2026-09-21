@@ -73,6 +73,7 @@ import {
 import {
   distanceFromBottom,
   markProgrammaticStickScroll,
+  pinnedWindowRestoreDist,
   shouldForcePinnedSnapOnOpen,
   STICK_MIN_VIEWPORT_HEIGHT_PX,
   isStickViewportUnreliable,
@@ -755,10 +756,11 @@ export function useChatMessageVirtualizer(
     // leave-bottom is owned by useStickToBottom flipping isPinnedRef.
     // Mid-gesture yank is prevented by scrollingRef / fingerDown above and
     // by not clearing scrollingRef during the wheel itself (#1159).
-    let dist = pinnedPreCommitBottomDistRef.current;
-    if (forceOpen) {
-      dist = 0;
-    }
+    const dist = pinnedWindowRestoreDist({
+      pinned: !!isPinnedRef.current,
+      forceOpen,
+      preCommitDist: pinnedPreCommitBottomDistRef.current,
+    });
     const top = Math.max(0, v.scrollHeight - v.clientHeight);
     const desired = Math.max(0, top - dist);
     if (Math.abs(v.scrollTop - desired) > 0.5) {

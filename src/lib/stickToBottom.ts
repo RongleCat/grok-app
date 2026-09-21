@@ -295,6 +295,8 @@ export function shouldReleaseStickOnScrollUp(input: {
   clientHeight: number;
   minDeltaPx?: number;
   hardPx?: number;
+  /** Previous content height — thought/tool auto-collapse shrinks this. */
+  previousScrollHeight?: number;
 }): boolean {
   const {
     pinned,
@@ -316,6 +318,14 @@ export function shouldReleaseStickOnScrollUp(input: {
   // history. previousScrollTop above max is not a user leave (#1239).
   const maxTop = Math.max(0, scrollHeight - clientHeight);
   if (previousScrollTop > maxTop + 0.5) {
+    return false;
+  }
+  // Thought / tool auto-collapse unmounts a tall body. The virtual list may
+  // then write a restore offset above the new max — not a user leave (#1246).
+  if (
+    input.previousScrollHeight != null &&
+    scrollHeight < input.previousScrollHeight - 0.5
+  ) {
     return false;
   }
   return true;
@@ -373,7 +383,14 @@ export function shouldEscapePinnedScroll(input: {
   previousScrollTop: number;
   scrollHeight: number;
   clientHeight: number;
+  previousScrollHeight?: number;
 }): boolean {
+  if (
+    input.previousScrollHeight != null &&
+    input.scrollHeight < input.previousScrollHeight - 0.5
+  ) {
+    return false;
+  }
   if (
     shouldReleaseStickOnScrollUp({
       pinned: input.pinned,
@@ -381,6 +398,7 @@ export function shouldEscapePinnedScroll(input: {
       previousScrollTop: input.previousScrollTop,
       scrollHeight: input.scrollHeight,
       clientHeight: input.clientHeight,
+      previousScrollHeight: input.previousScrollHeight,
     })
   ) {
     return true;
@@ -525,8 +543,26 @@ export function pinnedFollowDelayMs(
   delayMs: number = STICK_MEDIA_FOLLOW_DELAY_MS,
 ): number {
   if (!Number.isFinite(heightDelta)) return 0;
+  // Thought/tool auto-collapse is a shrink. Delaying follow lets the
+  // virtual list restore an inflated bottom-distance and drop pin (#1246).
+  if (heightDelta < 0) return 0;
   if (Math.abs(heightDelta) < mediaPx) return 0;
   return delayMs;
+}
+
+/**
+ * Pinned virtual-list commits must land on the tail. Pre-commit distance is
+ * inflated when a thought body unmounts (scrollHeight drops, scrollTop has
+ * not followed yet). Restoring that distance parks the viewport in history
+ * and the next collapse looks like "lost stick-to-bottom" (#1246).
+ */
+export function pinnedWindowRestoreDist(input: {
+  pinned: boolean;
+  forceOpen: boolean;
+  preCommitDist: number;
+}): number {
+  if (input.forceOpen || input.pinned) return 0;
+  return input.preCommitDist;
 }
 
 /**
