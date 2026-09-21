@@ -18,6 +18,7 @@ import {
   parseEndOfTurnContent,
 } from "@/lib/endOfTurn";
 import {
+  asChatText,
   buildSegmentsFromLegacy,
   parseCompactContent,
   parseToolStepContent,
@@ -50,7 +51,8 @@ export type StoredJournalMessage = {
 export function mapStoredMessageToChat(
   m: StoredJournalMessage,
 ): ChatMessage {
-  const parsed = parseAttachmentsFromContent(m.content ?? "");
+  const journalText = asChatText(m.content);
+  const parsed = parseAttachmentsFromContent(journalText);
   const storedAtts: Attachment[] = (m.attachments ?? []).map((a) => ({
     path: a.path,
     name: a.name || a.path.split(/[/\\]/).pop() || a.path,
@@ -58,10 +60,10 @@ export function mapStoredMessageToChat(
   }));
   const attachments = mergeMessageAttachments(
     mergeAttachments(parsed.attachments, storedAtts),
-    m.content ?? "",
+    journalText,
   );
   const rawContent =
-    parsed.text || (parsed.attachments.length ? "" : m.content ?? "");
+    parsed.text || (parsed.attachments.length ? "" : journalText);
   const content =
     m.role === "user" ? hydrateDisplayContent(rawContent) : rawContent;
   const rawMarker = m.marker || undefined;
@@ -100,7 +102,7 @@ export function mapStoredMessageToChat(
     id: m.id,
     role,
     content: displayContent,
-    thought: m.thought ?? undefined,
+    thought: asChatText(m.thought) || undefined,
     thoughtPhases,
     segments:
       role === "assistant"

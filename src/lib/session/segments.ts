@@ -1,5 +1,20 @@
 import type { ChatMessage, MessageSegment, MessageToolSegment } from "./types";
 
+/** Journal / stream can put a non-string in `content` (#1242). */
+export function asChatText(v: unknown): string {
+  if (typeof v === "string") return v;
+  if (v == null) return "";
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (typeof v === "object") {
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return "";
+    }
+  }
+  return "";
+}
+
 /** True for placeholder labels we never want as live UI text. */
 export function isGenericToolLabel(s: string | undefined | null): boolean {
   const t = (s || "").trim().toLowerCase();
@@ -13,8 +28,9 @@ export function isGenericToolLabel(s: string | undefined | null): boolean {
   );
 }
 export function splitThoughtPhases(thought: string | undefined | null): string[] {
-  if (!thought?.trim()) return [];
-  return thought
+  const t = asChatText(thought);
+  if (!t.trim()) return [];
+  return t
     .split(/\n\n⟪phase⟫\n\n/)
     .map((s) => s.trim())
     .filter(Boolean);
@@ -192,9 +208,9 @@ export function buildSegmentsFromLegacy(
   const phases = (
     thoughtPhases?.length ? thoughtPhases : splitThoughtPhases(thought)
   )
-    .map((p) => p.trim())
+    .map((p) => asChatText(p).trim())
     .filter(Boolean);
-  const body = content ?? "";
+  const body = asChatText(content);
   // Journal only stores joined thought + body — not true interleave order.
   // Stacking every phase *before* the body avoids the classic reload bug where
   // multi-phase markers rendered as "answer … then 思考 2 / 思考 3" at the end.
@@ -219,8 +235,8 @@ export function contentLooksLikeThought(
   content: string | null | undefined,
   thought: string | null | undefined,
 ): boolean {
-  const c = (content ?? "").trim();
-  const t = (thought ?? "").trim();
+  const c = asChatText(content).trim();
+  const t = asChatText(thought).trim();
   if (!c || !t) return false;
   return c === t;
 }
@@ -236,7 +252,7 @@ export function syncContentIntoSegments(
   content: string | null | undefined,
   thought?: string | null,
 ): MessageSegment[] {
-  const body = content ?? "";
+  const body = asChatText(content);
   if (!body.trim()) return segs;
   if (contentLooksLikeThought(body, thought)) return segs;
   // Live interleave can have several content pieces. Never fold the joined

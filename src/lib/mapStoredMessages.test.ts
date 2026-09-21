@@ -27,6 +27,21 @@ describe("mapStoredMessages", () => {
     ]);
   });
 
+  it("coerces non-string journal content so the thread can render (#1242)", () => {
+    const msg = mapStoredMessageToChat({
+      id: "a-obj",
+      role: "assistant",
+      content: { template: "Panel" } as unknown as string,
+      thought: { steps: ["a"] } as unknown as string,
+    });
+    expect(typeof msg.content).toBe("string");
+    expect(msg.content).toContain("template");
+    expect(typeof msg.thought).toBe("string");
+    expect(() =>
+      JSON.parse(msg.content),
+    ).not.toThrow();
+  });
+
   it("parses @path lines when structured attachments are missing", () => {
     const msg = mapStoredMessageToChat({
       id: "u-2",

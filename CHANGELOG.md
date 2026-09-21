@@ -20,6 +20,7 @@ See `docs/llm-wiki/release.md`.
 - README 说明未签名 Windows 包可能被杀毒误报（#1240）。
 
 ### Fixed
+- A chat with a bad stored message no longer blanks the whole thread (#1242).
 - New chats reuse the project's extra folders, so extra-root write still works (#1233).
 - Detaching extra folders from a chat stays detached after reconnect (#1233).
 - Deleting a chat also removes its CLI session, so Import will not resurrect it (#1236).
@@ -29,6 +30,7 @@ See `docs/llm-wiki/release.md`.
 - Reaching the chat tail on macOS no longer jumps back into history (#1239).
 
 **中文 · 修复**
+- 某条消息字段异常时，不再把整场聊天渲染打成空白（#1242）。
 - 同一项目的新对话会带上已配置的附加根，跨目录写入不再只对第一场聊天生效（#1233）。
 - 从本会话解除附加根后，重连不会再自动绑回去（#1233）。
 - 删除对话时会去掉对应的 CLI 会话，批量导入不会再把已删对话救回来（#1236）。

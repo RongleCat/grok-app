@@ -22,6 +22,20 @@ describe("thinking painted as the final reply until remount", () => {
     );
   });
 
+  it("messageSegments does not throw when content is a non-string (#1242)", () => {
+    const row = {
+      id: "a-obj",
+      role: "assistant" as const,
+      content: { template: "x" } as unknown as string,
+      thought: { steps: 1 } as unknown as string,
+      streaming: false,
+      segments: [{ kind: "thought" as const, text: "plan" }],
+    };
+    expect(() => messageSegments(row)).not.toThrow();
+    const segs = messageSegments(row);
+    expect(segs.some((s) => s.kind === "thought")).toBe(true);
+  });
+
   it("messageSegments lifts a real answer that only lives on the content field", () => {
     // Live thought-only segs + content field already filled (heal / late
     // journal). Paint used segs, so CoT looked like the reply until remount
