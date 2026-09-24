@@ -323,21 +323,6 @@ export function shouldReopenClosedPlan(
   return false;
 }
 
-function formatEntriesAsBody(entries: unknown[]): string {
-  return entries
-    .map((e, i) => {
-      if (e && typeof e === "object") {
-        const o = e as Record<string, unknown>;
-        const content = String(o.content ?? o.title ?? o.text ?? "");
-        const st = o.status ? ` [${o.status}]` : "";
-        const pr = o.priority ? ` (${o.priority})` : "";
-        return `${i + 1}. ${content}${pr}${st}`;
-      }
-      return `${i + 1}. ${String(e)}`;
-    })
-    .join("\n");
-}
-
 /**
  * Merge a `session://plan` payload into previous session plan state.
  * Honors hard-dismiss suppression until a new plan cycle.
@@ -352,12 +337,10 @@ export function mergePlanFromEvent(
     return prev;
   }
 
-  const body = (p.body || "").trim();
+  // body is real planContent only — entries render as the structured step
+  // list, so duplicating them into body showed the same list twice.
+  const displayBody = (p.body || "").trim();
   const entries = Array.isArray(p.entries) ? p.entries : [];
-  let displayBody = body;
-  if (!displayBody && entries.length) {
-    displayBody = formatEntriesAsBody(entries);
-  }
 
   // Preserve exit_plan_mode rpcId across later sessionUpdate plan
   // notifications (those arrive with rpcId=null and would otherwise
