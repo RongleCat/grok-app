@@ -10,6 +10,7 @@ import {
   OPENROUTER_MODELS,
   ORCAROUTER_MODELS,
   PROVIDER_PRESETS,
+  REQUESTY_MODELS,
   VOLCANO_ARK_MODELS,
   YUN_API_MODELS,
   ZHIPU_ENDPOINTS,
@@ -184,6 +185,45 @@ describe("providerPresets", () => {
       })?.id,
     ).toBe("orcarouter");
     expect(resolveProviderBrandId({ providerId: "orcarouter" })).toBe(null);
+  });
+
+  it("ships Requesty with managed policy ids, chat_completions, vision, and Grok efforts", () => {
+    const p = findProviderPreset("requesty");
+    expect(p).toBeDefined();
+    expect(findProviderPreset("Requesty")?.id).toBe("requesty");
+    expect(p!.name).toBe("Requesty");
+    expect(p!.suggestedId).toBe("requesty");
+    expect(p!.baseUrl).toBe("https://router.requesty.ai/v1");
+    expect(p!.apiBackend).toBe("chat_completions");
+    expect(p!.supportsVision).toBe(true);
+    expect(p!.brandId).toBeUndefined();
+    expect(REQUESTY_MODELS.map((m) => m.id)).toEqual([
+      "grok-4.6",
+      "gemini-3.5-flash",
+      "deepseek-v4-flash",
+    ]);
+    expect(p!.models).toEqual(REQUESTY_MODELS);
+    expect(p!.efforts.map((e) => e.id)).toEqual(
+      GROK_CHANNEL_EFFORTS.map((e) => e.id),
+    );
+    expect(p!.efforts.find((e) => e.isDefault)?.id).toBe("medium");
+    expect(p!.apiKeyUrl).toBe("https://app.requesty.ai/api-keys");
+    expect(
+      resolveProviderApiKeyUrl({
+        providerId: "requesty-----123",
+      }),
+    ).toBe("https://app.requesty.ai/api-keys");
+    expect(
+      resolveProviderApiKeyUrl({
+        baseUrl: "https://router.requesty.ai/v1",
+      }),
+    ).toBe("https://app.requesty.ai/api-keys");
+    expect(
+      resolveMatchedProviderPreset({
+        providerId: "requesty-----999",
+      })?.id,
+    ).toBe("requesty");
+    expect(resolveProviderBrandId({ providerId: "requesty" })).toBe(null);
   });
 
   it("resolves get-api-key URLs by id or base host", () => {

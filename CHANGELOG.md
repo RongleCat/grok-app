@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- Requesty is available as a custom-provider preset.
+
+**中文 · 新增**
+- 自定义供应商画廊增加了 Requesty 一键预设。
+
 ## [0.2.37] - 2026-09-22
 
 > **Highlight:** New chats can use Grok 4.7, and the live reply stays pinned.

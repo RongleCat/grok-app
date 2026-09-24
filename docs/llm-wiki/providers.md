@@ -55,6 +55,7 @@ Add flow opens a **preset gallery** (`providerPresets.ts`):
 | **DeepSeek** | `deepseek-v4-flash`, `deepseek-v4-flash-vision-exp`, `deepseek-v4-pro` | `low` / `high` / `xhigh` / `max` (docs mapping table; default `high`) |
 | **OpenRouter** | `z-ai/glm-5.3-flash` | GLM `low`/`high`/`max` (default `max`); vision on; `context_window` 1 048 576 |
 | **OrcaRouter** | `orcarouter/auto`, `openai/gpt-4o-mini`, `google/gemini-2.5-flash` | Grok `low`/`medium`/`high`/`max` (default `medium`); vision on |
+| **Requesty** | `grok-4.6`, `gemini-3.5-flash`, `deepseek-v4-flash` (managed policy ids; `vendor/model` ids also work) | Grok `low`/`medium`/`high`/`max` (default `medium`); vision on |
 | **Amux** | `grok-4.7` + `grok-4.6` + `grok-4.5` | Official Grok `low`/`medium`/`high`/`xhigh` (default `xhigh`) |
 | **Yun API** | `grok-4.7` + `grok-4.6` + `grok-4.5` | Official Grok `low`/`medium`/`high`/`xhigh` (default `xhigh`) |
 | **OpenCode Go** | `deepseek-v4-flash`, `deepseek-v4-pro` | DeepSeek efforts (default `high`) |
@@ -67,6 +68,7 @@ Add flow opens a **preset gallery** (`providerPresets.ts`):
 | DeepSeek | `https://api.deepseek.com/v1` (`chat_completions`) | https://platform.deepseek.com/ |
 | OpenRouter | `https://openrouter.ai/api/v1` (`chat_completions`) | https://openrouter.ai/settings/keys |
 | OrcaRouter | `https://api.orcarouter.ai/v1` (`chat_completions`) | https://orcarouter.ai/ |
+| Requesty | `https://router.requesty.ai/v1` (`chat_completions`; EU: `https://router.eu.requesty.ai/v1`) | https://app.requesty.ai/api-keys |
 | Amux | `https://api.amux.ai/v1` (`responses`) | https://api.amux.ai/register?aff=Vccp |
 | Yun API | `https://api.yunyi.ai/v1` (`responses`) | https://api.yunyi.ai/register/?aff_code=W0iw |
 | OpenCode Go | `https://opencode.ai/zen/go/v1` (`chat_completions`) | https://opencode.ai/ |

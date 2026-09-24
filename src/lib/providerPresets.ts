@@ -209,6 +209,32 @@ export const ORCAROUTER_MODELS: ProviderModelEntry[] = [
 ];
 
 /**
+ * Requesty OpenAI-compatible router. Seeded with managed policy ids from
+ * GET /v1/models/managed; any `vendor/model` id from /v1/models works too.
+ * See https://docs.requesty.ai
+ */
+export const REQUESTY_MODELS: ProviderModelEntry[] = [
+  {
+    id: "grok-4.6",
+    name: "Grok 4.6",
+    contextWindow: 500_000,
+    supportsVision: true,
+  },
+  {
+    id: "gemini-3.5-flash",
+    name: "Gemini 3.5 Flash",
+    contextWindow: 1_048_576,
+    supportsVision: true,
+  },
+  {
+    id: "deepseek-v4-flash",
+    name: "DeepSeek V4 Flash",
+    contextWindow: 1_048_576,
+    supportsVision: false,
+  },
+];
+
+/**
  * Public xAI API ids for Grok relays. Fast (`grok-4.7-build-fast`) is Grok
  * Build / Cursor only and is not listed here.
  */
@@ -341,6 +367,22 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     efforts: GROK_CHANNEL_EFFORTS.map((e) => ({ ...e })),
     blurbKey: "prov.preset.orcarouter.blurb",
     apiKeyUrl: "https://orcarouter.ai/",
+    supportsVision: true,
+  },
+  /**
+   * Requesty unified OpenAI-compatible API (chat_completions). Model ids are
+   * managed policies (`grok-4.6`) or `vendor/model` slugs. No brand logo yet.
+   */
+  {
+    id: "requesty",
+    name: "Requesty",
+    suggestedId: "requesty",
+    baseUrl: "https://router.requesty.ai/v1",
+    apiBackend: "chat_completions",
+    models: REQUESTY_MODELS,
+    efforts: GROK_CHANNEL_EFFORTS.map((e) => ({ ...e })),
+    blurbKey: "prov.preset.requesty.blurb",
+    apiKeyUrl: "https://app.requesty.ai/api-keys",
     supportsVision: true,
   },
   {
@@ -485,6 +527,10 @@ function matchPreset(opts: {
     if (pid === "orcarouter" || pid.startsWith("orcarouter-")) {
       const orca = PROVIDER_PRESETS.find((p) => p.id === "orcarouter");
       if (orca) return orca;
+    }
+    if (pid === "requesty" || pid.startsWith("requesty-")) {
+      const rq = PROVIDER_PRESETS.find((p) => p.id === "requesty");
+      if (rq) return rq;
     }
     if (
       pid === "zhipu" ||
