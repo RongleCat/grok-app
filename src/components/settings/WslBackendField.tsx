@@ -81,12 +81,9 @@ export function WslBackendField({ t, onSaved }: Props) {
     if (!api.isTauri()) return;
     setProbing(true);
     try {
-      // Ensure latest settings before probe.
+      // persist() already re-reads status and fires onSaved — probing again
+      // here ran the whole wsl.exe probe twice per click.
       await persist({ enabled, distro, cliPath });
-      const st = await api.wslStatus();
-      setStatus(st);
-      // Also refresh main CLI probe path via parent onSaved.
-      onSaved?.();
     } finally {
       setProbing(false);
     }
