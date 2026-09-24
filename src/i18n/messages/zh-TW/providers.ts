@@ -89,6 +89,7 @@ export const zhTWProviders = {
   "prov.preset.deepseek.blurb": "DeepSeek 官方 API — V4 Flash + Flash Vision Exp + Pro，思考 low/high/xhigh/max",
   "prov.preset.openrouter.blurb": "OpenRouter — GLM-5.3 Flash，Chat Completions，100 萬上下文，開啟視覺",
   "prov.preset.orcarouter.blurb": "OrcaRouter — OpenAI 相容多模型閘道，Auto Router，開啟視覺",
+  "prov.preset.requesty.blurb": "Requesty：OpenAI 相容多模型路由，Grok 4.6 / Gemini 3.5 Flash / DeepSeek V4 Flash",
   "prov.preset.amux.blurb": "Amux 中轉 — Grok 4.7 / 4.6 / 4.5，思考檔與官方一致 low/medium/high/xhigh",
   "prov.preset.yunApi.blurb": "Yun API（雲驛）— Grok 4.7 / 4.6 / 4.5，思考檔與官方一致 low/medium/high/xhigh",
   "prov.preset.opencodeGo.blurb": "OpenCode Zen Go — DeepSeek V4 須用 Chat Completions（勿用 Responses）",

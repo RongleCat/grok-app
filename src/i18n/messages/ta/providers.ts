@@ -87,6 +87,7 @@ export const taProviders = {
   "prov.preset.deepseek.blurb": "அதிகாரப்பூர்வ டீப்சீக் API — V4 ஃப்ளாஷ் + Flash Vision Exp + ப்ரோ, குறைந்த/உயர்/xhigh/அதிகபட்சம்",
   "prov.preset.openrouter.blurb": "OpenRouter — GLM-5.3 Flash chat_completions வழியாக, 1M சூழல், பார்வை இயக்கம்",
   "prov.preset.orcarouter.blurb": "OrcaRouter — OpenAI-இணக்க பல வழங்குநர் நுழைவாயில், Auto Router, பார்வை இயக்கம்",
+  "prov.preset.requesty.blurb": "Requesty: OpenAI-இணக்க பல வழங்குநர் ரூட்டர், Grok 4.6 / Gemini 3.5 Flash / DeepSeek V4 Flash",
   "prov.preset.amux.blurb": "அமுக்ஸ் ரிலே - Grok 4.7 / 4.6 / 4.5, அதிகாரப்பூர்வ முயற்சி குறைந்த/நடுத்தர/உயர்/xhigh",
   "prov.preset.yunApi.blurb": "Yun API (yunyi) — Grok 4.7 / 4.6 / 4.5, அதிகாரப்பூர்வ முயற்சி குறைந்த/நடுத்தர/உயர்/xhigh",
   "prov.preset.opencodeGo.blurb": "OpenCode Zen Go — DeepSeek V4 வழியாக chat_completions (பதில்கள் அல்ல)",

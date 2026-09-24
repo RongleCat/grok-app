@@ -87,6 +87,7 @@ export const ruProviders = {
   "prov.preset.deepseek.blurb": "Официальный DeepSeek API — V4 Flash + Flash Vision Exp + Pro, рассуждение low/high/xhigh/max",
   "prov.preset.openrouter.blurb": "OpenRouter — GLM-5.3 Flash через chat_completions, контекст 1M, зрение включено",
   "prov.preset.orcarouter.blurb": "OrcaRouter — OpenAI-совместимый multi-provider шлюз, Auto Router, зрение включено",
+  "prov.preset.requesty.blurb": "Requesty: OpenAI-совместимый multi-provider роутер, Grok 4.6 / Gemini 3.5 Flash / DeepSeek V4 Flash",
   "prov.preset.amux.blurb": "Amux relay — Grok 4.7 / 4.6 / 4.5, официальные уровни low/medium/high/xhigh",
   "prov.preset.yunApi.blurb": "Yun API (yunyi) — Grok 4.7 / 4.6 / 4.5, официальные уровни low/medium/high/xhigh",
   "prov.preset.opencodeGo.blurb": "OpenCode Zen Go — DeepSeek V4 через chat_completions",
