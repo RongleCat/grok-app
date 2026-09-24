@@ -37,6 +37,7 @@ export const itSidebar = {
   "sidebar.archive": "Archivia",
   "sidebar.unarchive": "Rimuovi dall’archivio",
   "sidebar.showArchived": "Mostra archiviate",
+  "sidebar.showMore": "Mostra altro",
   "sidebar.sessionWorking": "In lavorazione…",
   "sidebar.select": "Seleziona",
   "sidebar.selectAllInGroup": "Seleziona tutto",

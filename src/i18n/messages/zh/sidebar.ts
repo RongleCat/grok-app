@@ -37,6 +37,7 @@ export const zhSidebar = {
   "sidebar.archive": "归档",
   "sidebar.unarchive": "取消归档",
   "sidebar.showArchived": "显示已归档",
+  "sidebar.showMore": "显示更多",
   "sidebar.sessionWorking": "进行中…",
   "sidebar.select": "选择",
   "sidebar.selectAllInGroup": "全选",

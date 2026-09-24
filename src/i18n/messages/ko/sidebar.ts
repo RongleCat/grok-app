@@ -37,6 +37,7 @@ export const koSidebar = {
   "sidebar.archive": "보관",
   "sidebar.unarchive": "보관 해제",
   "sidebar.showArchived": "보관함 보기",
+  "sidebar.showMore": "더 보기",
   "sidebar.sessionWorking": "작업 중…",
   "sidebar.select": "선택",
   "sidebar.selectAllInGroup": "모두 선택",

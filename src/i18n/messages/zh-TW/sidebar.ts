@@ -37,6 +37,7 @@ export const zhTWSidebar = {
   "sidebar.archive": "封存",
   "sidebar.unarchive": "取消封存",
   "sidebar.showArchived": "顯示已封存",
+  "sidebar.showMore": "顯示更多",
   "sidebar.sessionWorking": "進行中…",
   "sidebar.select": "選取",
   "sidebar.selectAllInGroup": "全選",

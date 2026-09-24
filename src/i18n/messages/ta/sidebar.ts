@@ -37,6 +37,7 @@ export const taSidebar = {
   "sidebar.archive": "காப்பகப்படுத்து",
   "sidebar.unarchive": "காப்பகத்திலிருந்து மீட்டெடு",
   "sidebar.showArchived": "காப்பகப்படுத்தியவற்றைக் காட்டு",
+  "sidebar.showMore": "மேலும் காட்டு",
   "sidebar.sessionWorking": "செயலில்…",
   "sidebar.select": "தேர்ந்தெடு",
   "sidebar.selectAllInGroup": "அனைத்தையும் தேர்ந்தெடு",

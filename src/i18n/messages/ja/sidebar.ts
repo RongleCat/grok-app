@@ -37,6 +37,7 @@ export const jaSidebar = {
   "sidebar.archive": "アーカイブ",
   "sidebar.unarchive": "アーカイブ解除",
   "sidebar.showArchived": "アーカイブを表示",
+  "sidebar.showMore": "さらに表示",
   "sidebar.sessionWorking": "処理中…",
   "sidebar.select": "選択",
   "sidebar.selectAllInGroup": "すべて選択",

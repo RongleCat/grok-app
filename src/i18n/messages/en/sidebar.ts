@@ -37,6 +37,7 @@ export const enSidebar = {
   "sidebar.archive": "Archive",
   "sidebar.unarchive": "Unarchive",
   "sidebar.showArchived": "Show archived",
+  "sidebar.showMore": "Show more",
   "sidebar.sessionWorking": "Working…",
   "sidebar.select": "Select",
   "sidebar.selectAllInGroup": "Select all",

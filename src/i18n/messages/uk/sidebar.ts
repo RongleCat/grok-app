@@ -37,6 +37,7 @@ export const ukSidebar = {
   "sidebar.archive": "Архівувати",
   "sidebar.unarchive": "Повернути з архіву",
   "sidebar.showArchived": "Показати архів",
+  "sidebar.showMore": "Показати ще",
   "sidebar.sessionWorking": "Працює…",
   "sidebar.select": "Вибрати",
   "sidebar.selectAllInGroup": "Вибрати все",

@@ -246,6 +246,17 @@ html[data-sidebar-density="compact"] .tree-date-group__head {
   min-height: 28px;
 }
 
+.tree-l3--more {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  height: 28px;
+  min-height: 28px;
+}
+
+.tree-l3--more:hover {
+  color: var(--text-secondary);
+}
+
 .tree-l3__title {
   flex: 1;
   min-width: 0;

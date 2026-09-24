@@ -37,6 +37,7 @@ export const ptBRSidebar = {
   "sidebar.archive": "Arquivar",
   "sidebar.unarchive": "Desarquivar",
   "sidebar.showArchived": "Mostrar arquivadas",
+  "sidebar.showMore": "Mostrar mais",
   "sidebar.sessionWorking": "Trabalhando…",
   "sidebar.select": "Selecionar",
   "sidebar.selectAllInGroup": "Selecionar tudo",

@@ -37,6 +37,7 @@ export const esSidebar = {
   "sidebar.archive": "Archivar",
   "sidebar.unarchive": "Desarchivar",
   "sidebar.showArchived": "Mostrar archivados",
+  "sidebar.showMore": "Mostrar más",
   "sidebar.sessionWorking": "Trabajando…",
   "sidebar.select": "Seleccionar",
   "sidebar.selectAllInGroup": "Seleccionar todo",

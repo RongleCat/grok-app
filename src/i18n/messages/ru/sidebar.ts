@@ -37,6 +37,7 @@ export const ruSidebar = {
   "sidebar.archive": "Архивировать",
   "sidebar.unarchive": "Вернуть из архива",
   "sidebar.showArchived": "Показать архив",
+  "sidebar.showMore": "Показать ещё",
   "sidebar.sessionWorking": "Выполняется…",
   "sidebar.select": "Выбрать",
   "sidebar.selectAllInGroup": "Выбрать все",
