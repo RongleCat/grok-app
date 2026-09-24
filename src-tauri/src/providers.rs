@@ -155,6 +155,14 @@ const APP_APPEND_PROMPT_KEY: &str = "app_append_prompt";
 const APP_SUPPORTS_VISION_KEY: &str = "app_supports_vision";
 /// TOML field (ignored by Grok Build): relay transport semantics selected in App.
 const APP_PROVIDER_MODE_KEY: &str = "app_provider_mode";
+/// TOML field (ignored by Grok Build) marking an App-written per-model section.
+///
+/// Its value is the owning provider id. Each `app_models[]` entry gets its own
+/// self-contained `[model.<upstream-id>]` section so the CLI can resolve
+/// `--model <upstream-id>` per session instead of sharing the provider's global
+/// `model =`. Sections carrying this marker are model aliases, never providers,
+/// so `is_custom` and the provider list must exclude them.
+const APP_MODEL_FOR_KEY: &str = "app_model_for";
 
 pub const PROVIDER_MODE_GENERIC: &str = "generic";
 pub const PROVIDER_MODE_GROK_BUILD_PROXY: &str = "grok_build_proxy";
@@ -918,11 +926,256 @@ fn append_section(text: &str, id: &str, fields: &[(String, String)]) -> String {
     }
 }
 
+/// Drop every App-managed per-model section mirroring `provider_id`.
+///
+/// Upsert calls this before rewriting the aliases so renamed or removed
+/// `app_models[]` entries cannot leave orphan sections behind.
+fn remove_app_model_sections(text: &str, provider_id: &str) -> String {
+    let ids: Vec<String> = parse_model_sections(text)
+        .into_iter()
+        .filter(|s| {
+            s.fields
+                .get(APP_MODEL_FOR_KEY)
+                .map(|v| v.trim() == provider_id)
+                .unwrap_or(false)
+        })
+        .map(|s| s.id)
+        .collect();
+    ids.into_iter()
+        .fold(text.to_string(), |t, id| remove_section(&t, &id))
+}
+
+/// Self-contained `[model.<upstream-id>]` alias fields for one catalog model.
+///
+/// Mirrors the provider's transport so `--model <upstream-id>` resolves without
+/// depending on the provider section or `[model_providers.*]`. `context_window`
+/// prefers the model's own window, then the channel value (same precedence the
+/// App uses when materializing the active model).
+#[allow(clippy::too_many_arguments)]
+fn app_model_section_fields(
+    model: &ProviderModelEntry,
+    provider_id: &str,
+    base_url: &str,
+    api_key: &str,
+    api_backend: &str,
+    upstream: Option<&str>,
+    extra_headers_toml: &str,
+    supports_reasoning_effort: bool,
+    channel_context_window: Option<u64>,
+) -> Vec<(String, String)> {
+    let mut fields: Vec<(String, String)> = vec![
+        ("model".into(), model.id.clone()),
+        ("base_url".into(), base_url.to_string()),
+        ("api_key".into(), api_key.to_string()),
+        ("api_backend".into(), api_backend.to_string()),
+        (APP_MODEL_FOR_KEY.into(), provider_id.to_string()),
+    ];
+    if let Some(up) = upstream.map(str::trim).filter(|s| !s.is_empty()) {
+        fields.push((
+            crate::relay_stream_proxy::APP_UPSTREAM_BASE_URL_KEY.into(),
+            up.to_string(),
+        ));
+    }
+    if !extra_headers_toml.is_empty() {
+        fields.push((EXTRA_HEADERS_KEY.into(), extra_headers_toml.to_string()));
+    }
+    fields.push((
+        SUPPORTS_REASONING_EFFORT_KEY.into(),
+        supports_reasoning_effort.to_string(),
+    ));
+    if let Some(n) = model
+        .context_window
+        .filter(|n| *n > 0)
+        .or(channel_context_window)
+    {
+        fields.push(("context_window".into(), n.to_string()));
+    }
+    fields
+}
+
+/// True for an App-written per-model alias section (`app_model_for = …`).
+///
+/// Such sections mirror one provider's transport for a single upstream id; they
+/// are not provider routes and must never appear in the provider list.
+pub(crate) fn is_app_model_child(fields: &std::collections::HashMap<String, String>) -> bool {
+    fields
+        .get(APP_MODEL_FOR_KEY)
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false)
+}
+
 fn is_custom(fields: &std::collections::HashMap<String, String>) -> bool {
+    // Model aliases also carry `base_url`; the marker keeps them out of the
+    // provider list and every provider-only repair path.
+    if is_app_model_child(fields) {
+        return false;
+    }
     fields
         .get("base_url")
         .map(|s| !s.trim().is_empty())
         .unwrap_or(false)
+}
+
+/// Idempotent self-heal: make every provider's per-model alias sections match
+/// its `app_models` (older App versions wrote only the provider section).
+///
+/// Creates missing aliases, refreshes stale ones after a base_url repair, and
+/// prunes orphans whose provider is gone or whose model was removed. Writes
+/// only when something actually changed, so repeated calls are no-ops.
+fn ensure_app_model_sections() -> Result<bool, String> {
+    let path = agent_config_toml();
+    if !path.exists() {
+        return Ok(false);
+    }
+    let text = read_text(&path);
+    let sections = parse_model_sections(&text);
+    let mut out = text.clone();
+    let mut changed = false;
+
+    // Prune aliases whose owner is gone, no longer lists the model, or is a
+    // grok_build_proxy relay (that mode binds the real catalog model natively).
+    for child in sections.iter().filter(|s| is_app_model_child(&s.fields)) {
+        let owner = child
+            .fields
+            .get(APP_MODEL_FOR_KEY)
+            .map(|v| v.trim())
+            .unwrap_or("");
+        let keep = sections
+            .iter()
+            .find(|p| is_custom(&p.fields) && p.id == owner)
+            .map(|p| {
+                !is_grok_build_proxy_section(p)
+                    && provider_catalog(p).iter().any(|m| m.id == child.id)
+            })
+            .unwrap_or(false);
+        if !keep {
+            out = remove_section(&out, &child.id);
+            changed = true;
+        }
+    }
+
+    // Alias table name → owning provider. First provider in file order claims a
+    // shared upstream id; an existing owner keeps it (no duplicate TOML tables).
+    let mut alias_owner: std::collections::HashMap<String, String> = sections
+        .iter()
+        .filter(|s| is_app_model_child(&s.fields))
+        .filter_map(|s| {
+            s.fields
+                .get(APP_MODEL_FOR_KEY)
+                .map(|o| (s.id.clone(), o.trim().to_string()))
+        })
+        .collect();
+
+    for provider in sections
+        .iter()
+        .filter(|s| is_custom(&s.fields) && !is_grok_build_proxy_section(s))
+    {
+        for m in provider_catalog(provider) {
+            // 已经存在同名 section 时**一律不动**。
+            //
+            // 用户的 config.toml 里常有一份 CLI 原生目录（`[model.auto(free)]`、
+            // `[model."gpt-5.6-…"]` …），它们的 id 与 App 的上游 id 是同一套。
+            // 早先只排除了「属于某个自定义 provider 的表名」，于是这些原生目录项被
+            // 别名整张覆盖——`model_provider` / `supports_backend_search` 等字段被
+            // 换成了别名的 `base_url` / `api_key`，等于毁掉用户手写的目录。
+            //
+            // 而且覆盖本来就没有必要：原生 section 带着 `model_provider`，本身就能
+            // 被 `--model <id>` 寻址。所以要做的只是「不要碰它」，寻址照旧走该 id。
+            if sections.iter().any(|x| x.id == m.id) {
+                alias_owner.insert(m.id.clone(), provider.id.clone());
+                continue;
+            }
+            match alias_owner.get(&m.id) {
+                // Another provider owns this table name — leave it untouched.
+                Some(owner) if *owner != provider.id => continue,
+                _ => {}
+            }
+            alias_owner.insert(m.id.clone(), provider.id.clone());
+            let desired = provider_alias_fields(provider, &m);
+            out = remove_section(&out, &m.id);
+            out = append_section(&out, &m.id, &desired);
+            changed = true;
+        }
+    }
+
+    if !changed {
+        return Ok(false);
+    }
+    write_text(&path, &out)?;
+    tracing::info!(
+        target: "providers",
+        "synced per-model alias sections for custom providers"
+    );
+    Ok(true)
+}
+
+/// Whether this provider opts into Grok Build's native catalog / proxy mode.
+fn is_grok_build_proxy_section(section: &Section) -> bool {
+    normalize_provider_mode(
+        section
+            .fields
+            .get(APP_PROVIDER_MODE_KEY)
+            .map(String::as_str),
+    ) == PROVIDER_MODE_GROK_BUILD_PROXY
+}
+
+/// Reconstruct a provider's `app_models` catalog from its parsed section.
+fn provider_catalog(section: &Section) -> Vec<ProviderModelEntry> {
+    let model = section
+        .fields
+        .get("model")
+        .cloned()
+        .unwrap_or_else(|| section.id.clone());
+    decode_app_models(
+        section.fields.get(APP_MODELS_KEY).map(String::as_str),
+        &model,
+        &model,
+    )
+}
+
+/// Alias section fields reconstructed from an on-disk provider section.
+fn provider_alias_fields(section: &Section, model: &ProviderModelEntry) -> Vec<(String, String)> {
+    let api_backend = normalize_backend(section.fields.get("api_backend").map(String::as_str));
+    let upstream = section
+        .fields
+        .get(crate::relay_stream_proxy::APP_UPSTREAM_BASE_URL_KEY)
+        .map(String::as_str)
+        .filter(|s| !s.trim().is_empty());
+    let extra_headers_toml = section
+        .fields
+        .get(EXTRA_HEADERS_KEY)
+        .map(String::as_str)
+        .unwrap_or("");
+    let supports_effort = parse_app_bool_field(
+        section
+            .fields
+            .get(SUPPORTS_REASONING_EFFORT_KEY)
+            .map(String::as_str),
+    );
+    let channel_context_window = section
+        .fields
+        .get("context_window")
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|n| *n > 0);
+    app_model_section_fields(
+        model,
+        &section.id,
+        section
+            .fields
+            .get("base_url")
+            .map(String::as_str)
+            .unwrap_or(""),
+        section
+            .fields
+            .get("api_key")
+            .map(String::as_str)
+            .unwrap_or(""),
+        &api_backend,
+        upstream,
+        extra_headers_toml,
+        supports_effort,
+        channel_context_window,
+    )
 }
 
 fn encode_app_models(models: &[ProviderModelEntry]) -> String {
@@ -1303,6 +1556,8 @@ pub fn list_custom_providers() -> Result<ProvidersListResult, String> {
     let _ = ensure_model_integer_fields();
     // Existing App-only effort choices need the native Grok Build capability gate.
     let _ = ensure_reasoning_effort_support_fields();
+    // Provider sections saved by older versions need their per-model aliases.
+    let _ = ensure_app_model_sections();
     let text = read_text(&path);
     Ok(build_list_result(home, path, &text))
 }
@@ -1401,8 +1656,11 @@ pub fn custom_provider_id_for_catalog_model(catalog_id: &str) -> Option<String> 
 /// Model flag for `grok agent --model` and ACP `session/set_model`.
 ///
 /// Grok Build behavior:
-/// - Generic custom route: pass the **provider section id** (e.g. `yunyi`) and
-///   do not keep OIDC `auth.json` in GROK_HOME.
+/// - Generic custom route: pass a `[model.*]` table name. When the per-session
+///   composer model is one of the active provider's `app_models`, that model is
+///   also written as its own `[model.<id>]` alias section, so pass the model id
+///   itself; otherwise fall back to the provider section id (legacy single-model
+///   channels). Other providers may still hold the shared global `model =`.
 /// - Explicit Grok Build proxy route: `AcpClient::spawn` replaces this alias
 ///   with the selected real catalog model after binding the native endpoint.
 /// - Official route: pass a catalog id (`grok-4.7`); needs `auth.json`.
@@ -1412,7 +1670,9 @@ pub fn custom_provider_id_for_catalog_model(catalog_id: &str) -> Option<String> 
 ///   which previously caused turn-1 official / turn-2 custom silent switches.
 pub fn agent_spawn_model_id(composer_model: &str) -> String {
     match active_route() {
-        ActiveRoute::Custom { id } => id,
+        ActiveRoute::Custom { id } => list_custom_providers()
+            .map(|list| custom_route_agent_model(&id, &list.providers, composer_model))
+            .unwrap_or(id),
         ActiveRoute::Official => {
             let m = composer_model.trim();
             if m.is_empty() || is_custom_provider_id(m) || m == OFFICIAL_DEFAULT_MODEL {
@@ -1429,6 +1689,34 @@ pub fn agent_spawn_model_id(composer_model: &str) -> String {
             m.into()
         }
     }
+}
+
+/// Pure Custom-route mapping used by [`agent_spawn_model_id`].
+///
+/// Returns the composer model id when it names one of the active provider's
+/// `app_models` (each such model gets a `[model.<id>]` alias section) and does
+/// not collide with another provider's section id. Otherwise returns the
+/// provider section id — never an id without a backing section.
+///
+/// `grok_build_proxy` relays have no aliases (their spawn binds the real catalog
+/// model natively), so they always keep the legacy provider section id.
+fn custom_route_agent_model(
+    provider_id: &str,
+    providers: &[CustomProvider],
+    composer_model: &str,
+) -> String {
+    let m = composer_model.trim();
+    if !m.is_empty() {
+        if let Some(p) = providers.iter().find(|p| p.id == provider_id) {
+            let is_model = p.models.iter().any(|x| x.id == m);
+            // An alias section may not shadow a real provider's TOML table.
+            let is_provider = providers.iter().any(|q| q.id == m);
+            if is_model && !is_provider && p.provider_mode != PROVIDER_MODE_GROK_BUILD_PROXY {
+                return m.to_string();
+            }
+        }
+    }
+    provider_id.to_string()
 }
 
 fn grok_build_proxy_spawn_from_text(
@@ -1770,9 +2058,9 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
         ("model".into(), model),
         ("base_url".into(), base_url.clone()),
         ("name".into(), name),
-        ("api_key".into(), next_key),
-        ("api_backend".into(), api_backend),
-        (APP_PROVIDER_MODE_KEY.into(), provider_mode),
+        ("api_key".into(), next_key.clone()),
+        ("api_backend".into(), api_backend.clone()),
+        (APP_PROVIDER_MODE_KEY.into(), provider_mode.clone()),
         (APP_MODELS_KEY.into(), app_models_json),
     ];
     if full_path {
@@ -1796,28 +2084,26 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
     }
     let extra_headers_toml = encode_extra_headers_toml(&extra_headers);
     if !extra_headers_toml.is_empty() {
-        fields.push((EXTRA_HEADERS_KEY.into(), extra_headers_toml));
+        fields.push((EXTRA_HEADERS_KEY.into(), extra_headers_toml.clone()));
     }
-    if let Some(up) = app_upstream {
-        fields.push((
-            crate::relay_stream_proxy::APP_UPSTREAM_BASE_URL_KEY.into(),
-            up,
-        ));
-    } else if crate::relay_stream_proxy::is_local_sanitize_proxy_url(&base_url) {
-        // User re-saved a local proxy URL without retyping upstream: keep previous.
-        if let Some(prev) = existing
+    // Real upstream behind the loopback sanitize proxy (when one is in use).
+    // Kept explicit so each per-model alias section stays self-contained.
+    let resolved_upstream: Option<String> = match app_upstream {
+        Some(up) => Some(up),
+        None if crate::relay_stream_proxy::is_local_sanitize_proxy_url(&base_url) => existing
             .and_then(|s| {
                 s.fields
                     .get(crate::relay_stream_proxy::APP_UPSTREAM_BASE_URL_KEY)
             })
             .cloned()
-            .filter(|s| !s.trim().is_empty())
-        {
-            fields.push((
-                crate::relay_stream_proxy::APP_UPSTREAM_BASE_URL_KEY.into(),
-                prev,
-            ));
-        }
+            .filter(|s| !s.trim().is_empty()),
+        None => None,
+    };
+    if let Some(ref up) = resolved_upstream {
+        fields.push((
+            crate::relay_stream_proxy::APP_UPSTREAM_BASE_URL_KEY.into(),
+            up.clone(),
+        ));
     }
     if let Some(ex) = existing {
         let mut known: std::collections::HashSet<String> =
@@ -1831,6 +2117,51 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
         }
     }
     text = append_section(&text, &id, &fields);
+
+    // Rewrite the provider's per-model alias sections. Removing first keeps
+    // upsert idempotent and prunes aliases for renamed / dropped models.
+    text = remove_app_model_sections(&text, &id);
+    // grok_build_proxy binds the real catalog model natively; it keeps the
+    // legacy provider-alias contract and gets no `[model.<id>]` aliases.
+    if provider_mode != PROVIDER_MODE_GROK_BUILD_PROXY {
+        let provider_ids: std::collections::HashSet<String> = parse_model_sections(&text)
+            .into_iter()
+            .filter(|s| is_custom(&s.fields))
+            .map(|s| s.id)
+            .collect();
+        // Alias table names already owned by another provider (avoid a duplicate
+        // `[model.<id>]` table, which is invalid TOML).
+        let foreign_alias_ids: std::collections::HashSet<String> = sections
+            .iter()
+            .filter(|s| {
+                is_app_model_child(&s.fields)
+                    && s.fields
+                        .get(APP_MODEL_FOR_KEY)
+                        .map(|v| v.trim() != id)
+                        .unwrap_or(false)
+            })
+            .map(|s| s.id.clone())
+            .collect();
+        for m in &models {
+            // A real provider section (or another provider's alias) owns this
+            // TOML table name; never shadow it.
+            if provider_ids.contains(&m.id) || foreign_alias_ids.contains(&m.id) {
+                continue;
+            }
+            let child = app_model_section_fields(
+                m,
+                &id,
+                &base_url,
+                &next_key,
+                &api_backend,
+                resolved_upstream.as_deref(),
+                &extra_headers_toml,
+                !efforts.is_empty(),
+                resolved_context_window,
+            );
+            text = append_section(&text, &m.id, &child);
+        }
+    }
 
     if input.set_as_default.unwrap_or(false) {
         text = set_models_default(&text, &id);
@@ -1859,6 +2190,9 @@ pub fn remove_custom_provider(id: &str) -> Result<ProvidersListResult, String> {
     }
     let def = get_models_default(&text);
     text = remove_section(&text, &id);
+    // Aliases are owned by the provider; drop them with it so no orphan
+    // `[model.<upstream-id>]` section survives a delete.
+    text = remove_app_model_sections(&text, &id);
     // Verify the section is actually gone before reporting success.
     if parse_model_sections(&text).iter().any(|s| s.id == id) {
         return Err(format!("failed to remove provider `{id}` from config"));
@@ -3702,6 +4036,335 @@ context_window = "1000000"
     }
 
     #[test]
+    fn custom_route_agent_model_prefers_alias_section_for_known_model() {
+        let mut provider = sample_provider("ada-anthropic");
+        provider.models = vec![
+            ProviderModelEntry::named("claude-glm-5.3-flash[1M]", "GLM 5.3"),
+            ProviderModelEntry::named("claude-sonnet-4-6", "Sonnet"),
+        ];
+        let providers = vec![provider];
+        // A catalog model is written as its own `[model.<id>]` alias section.
+        assert_eq!(
+            custom_route_agent_model("ada-anthropic", &providers, "claude-sonnet-4-6"),
+            "claude-sonnet-4-6"
+        );
+        assert_eq!(
+            custom_route_agent_model("ada-anthropic", &providers, "claude-glm-5.3-flash[1M]"),
+            "claude-glm-5.3-flash[1M]"
+        );
+        // Unknown id → provider section id; never invent a section name.
+        assert_eq!(
+            custom_route_agent_model("ada-anthropic", &providers, "gpt-5"),
+            "ada-anthropic"
+        );
+        // Empty → provider section id.
+        assert_eq!(
+            custom_route_agent_model("ada-anthropic", &providers, "   "),
+            "ada-anthropic"
+        );
+    }
+
+    #[test]
+    fn custom_route_agent_model_never_shadows_another_provider() {
+        let mut relay = sample_provider("ada-anthropic");
+        relay.models = vec![ProviderModelEntry::named("other-provider", "Other")];
+        let providers = vec![relay, sample_provider("other-provider")];
+        // The alias id collides with a real provider section, so it cannot be used.
+        assert_eq!(
+            custom_route_agent_model("ada-anthropic", &providers, "other-provider"),
+            "ada-anthropic"
+        );
+    }
+
+    #[test]
+    fn custom_route_agent_model_keeps_provider_id_for_grok_build_proxy() {
+        let mut proxy = sample_provider("relay-native");
+        proxy.provider_mode = PROVIDER_MODE_GROK_BUILD_PROXY.into();
+        proxy.models = vec![ProviderModelEntry::named("grok-4.7", "Grok 4.7")];
+        let providers = vec![proxy];
+        // Native proxy mode has no alias sections — keep the provider id.
+        assert_eq!(
+            custom_route_agent_model("relay-native", &providers, "grok-4.7"),
+            "relay-native"
+        );
+    }
+
+    #[test]
+    fn upsert_grok_build_proxy_writes_no_alias_sections() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let home =
+            std::env::temp_dir().join(format!("grok-app-proxy-no-alias-{}", uuid::Uuid::new_v4()));
+        let previous_home = std::env::var("GROK_APP_HOME").ok();
+        std::env::set_var("GROK_APP_HOME", &home);
+        let _ = ensure_agent_home();
+
+        upsert_custom_provider(UpsertProviderInput {
+            id: "relay-native".into(),
+            model: "grok-4.7".into(),
+            base_url: "https://relay.example/v1".into(),
+            name: Some("Native".into()),
+            api_key: Some("sk-test".into()),
+            api_backend: Some("responses".into()),
+            provider_mode: Some(PROVIDER_MODE_GROK_BUILD_PROXY.into()),
+            set_as_default: Some(true),
+            create_only: None,
+            models: Some(vec![
+                ProviderModelEntry::named("grok-4.7", "Grok 4.7"),
+                ProviderModelEntry::named("grok-4.7-build-fast", "Grok 4.7 Fast"),
+            ]),
+            efforts: None,
+            context_window: None,
+            base_url_full_path: None,
+            append_prompt: None,
+            supports_vision: None,
+            extra_headers: None,
+        })
+        .expect("upsert proxy provider");
+
+        let text = std::fs::read_to_string(agent_config_toml()).unwrap();
+        assert!(
+            parse_model_sections(&text)
+                .iter()
+                .all(|s| !is_app_model_child(&s.fields)),
+            "grok_build_proxy must not gain alias sections:\n{text}"
+        );
+        assert!(!text.contains(APP_MODEL_FOR_KEY));
+
+        match previous_home {
+            Some(value) => std::env::set_var("GROK_APP_HOME", value),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
+    fn shared_upstream_model_id_yields_single_alias_section() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let home =
+            std::env::temp_dir().join(format!("grok-app-shared-alias-{}", uuid::Uuid::new_v4()));
+        let previous_home = std::env::var("GROK_APP_HOME").ok();
+        std::env::set_var("GROK_APP_HOME", &home);
+        let _ = ensure_agent_home();
+
+        let upsert = |id: &str| {
+            upsert_custom_provider(UpsertProviderInput {
+                id: id.into(),
+                model: "shared-model".into(),
+                base_url: "https://relay.example/v1".into(),
+                name: Some(id.into()),
+                api_key: Some("sk-test".into()),
+                api_backend: Some("chat_completions".into()),
+                provider_mode: Some(PROVIDER_MODE_GENERIC.into()),
+                set_as_default: Some(false),
+                create_only: None,
+                models: Some(vec![ProviderModelEntry::named("shared-model", "Shared")]),
+                efforts: None,
+                context_window: None,
+                base_url_full_path: None,
+                append_prompt: None,
+                supports_vision: None,
+                extra_headers: None,
+            })
+        };
+        upsert("ada-a").expect("provider a");
+        upsert("ada-b").expect("provider b");
+
+        let listed = list_custom_providers().expect("list");
+        assert_eq!(listed.providers.len(), 2);
+        let text = std::fs::read_to_string(agent_config_toml()).unwrap();
+        assert_eq!(
+            parse_model_sections(&text)
+                .iter()
+                .filter(|s| s.id == "shared-model")
+                .count(),
+            1,
+            "two providers sharing an upstream id must not duplicate the table:\n{text}"
+        );
+        // Stable across the self-heal pass.
+        list_custom_providers().expect("second list");
+        let text_again = std::fs::read_to_string(agent_config_toml()).unwrap();
+        assert_eq!(text, text_again);
+
+        match previous_home {
+            Some(value) => std::env::set_var("GROK_APP_HOME", value),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
+    fn upsert_writes_per_model_sections_and_prunes_orphans() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let home = std::env::temp_dir().join(format!(
+            "grok-app-per-model-sections-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let previous_home = std::env::var("GROK_APP_HOME").ok();
+        std::env::set_var("GROK_APP_HOME", &home);
+        let _ = ensure_agent_home();
+
+        let upsert = |models: Vec<ProviderModelEntry>| {
+            upsert_custom_provider(UpsertProviderInput {
+                id: "ada-anthropic".into(),
+                model: "claude-sonnet-4-6".into(),
+                base_url: "https://relay.example/v1".into(),
+                name: Some("Ada".into()),
+                api_key: Some("sk-test".into()),
+                api_backend: Some("messages".into()),
+                provider_mode: Some(PROVIDER_MODE_GENERIC.into()),
+                set_as_default: Some(true),
+                create_only: None,
+                models: Some(models),
+                efforts: None,
+                context_window: None,
+                base_url_full_path: None,
+                append_prompt: None,
+                supports_vision: None,
+                extra_headers: None,
+            })
+        };
+
+        let listed = upsert(vec![
+            ProviderModelEntry::named("claude-sonnet-4-6", "Sonnet"),
+            ProviderModelEntry::named("claude-glm-5.3-flash[1M]", "GLM 5.3"),
+        ])
+        .expect("first upsert");
+        // Aliases are not provider routes.
+        assert_eq!(listed.providers.len(), 1);
+        assert_eq!(listed.providers[0].id, "ada-anthropic");
+        assert_eq!(listed.active_source, "custom");
+
+        let text = std::fs::read_to_string(agent_config_toml()).unwrap();
+        let sections = parse_model_sections(&text);
+        for id in ["claude-sonnet-4-6", "claude-glm-5.3-flash[1M]"] {
+            let child = sections
+                .iter()
+                .find(|s| s.id == id)
+                .unwrap_or_else(|| panic!("missing alias section `{id}`:\n{text}"));
+            assert!(is_app_model_child(&child.fields));
+            assert!(!is_custom(&child.fields));
+            assert_eq!(
+                child.fields.get(APP_MODEL_FOR_KEY).map(String::as_str),
+                Some("ada-anthropic")
+            );
+            assert_eq!(child.fields.get("model").map(String::as_str), Some(id));
+            assert_eq!(
+                child.fields.get("base_url").map(String::as_str),
+                Some("https://relay.example/v1")
+            );
+            assert_eq!(
+                child.fields.get("api_backend").map(String::as_str),
+                Some("messages")
+            );
+            assert_eq!(
+                child.fields.get("api_key").map(String::as_str),
+                Some("sk-test")
+            );
+        }
+
+        // Custom route resolves a known model to its own alias section id.
+        assert_eq!(
+            agent_spawn_model_id("claude-sonnet-4-6"),
+            "claude-sonnet-4-6"
+        );
+        assert_eq!(
+            agent_spawn_model_id("claude-glm-5.3-flash[1M]"),
+            "claude-glm-5.3-flash[1M]"
+        );
+        assert_eq!(agent_spawn_model_id("unknown-model"), "ada-anthropic");
+        assert_eq!(agent_spawn_model_id(""), "ada-anthropic");
+
+        // Dropping a catalog model prunes its alias section.
+        let listed = upsert(vec![ProviderModelEntry::named(
+            "claude-sonnet-4-6",
+            "Sonnet",
+        )])
+        .expect("second upsert");
+        assert_eq!(listed.providers.len(), 1);
+        let text = std::fs::read_to_string(agent_config_toml()).unwrap();
+        let sections = parse_model_sections(&text);
+        assert!(sections.iter().any(|s| s.id == "claude-sonnet-4-6"));
+        assert!(
+            !sections.iter().any(|s| s.id == "claude-glm-5.3-flash[1M]"),
+            "removed model must not leave an orphan alias:\n{text}"
+        );
+
+        // Deleting the provider drops its aliases with it.
+        remove_custom_provider("ada-anthropic").expect("remove");
+        let text = std::fs::read_to_string(agent_config_toml()).unwrap();
+        assert!(!parse_model_sections(&text)
+            .iter()
+            .any(|s| s.id == "claude-sonnet-4-6"));
+
+        match previous_home {
+            Some(value) => std::env::set_var("GROK_APP_HOME", value),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
+    fn list_self_heals_missing_per_model_sections_for_legacy_config() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let home = std::env::temp_dir().join(format!(
+            "grok-app-per-model-legacy-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let previous_home = std::env::var("GROK_APP_HOME").ok();
+        std::env::set_var("GROK_APP_HOME", &home);
+
+        write_text(
+            &agent_config_toml(),
+            r#"[models]
+default = "ada-anthropic"
+
+[model.ada-anthropic]
+model = "claude-sonnet-4-6"
+base_url = "https://relay.example/v1"
+name = "Ada"
+api_key = "sk-test"
+api_backend = "messages"
+app_models = "[{\"id\":\"claude-sonnet-4-6\",\"name\":\"Sonnet\"},{\"id\":\"gpt-5.1\",\"name\":\"GPT\"}]"
+"#,
+        )
+        .expect("seed legacy config");
+
+        let listed = list_custom_providers().expect("list");
+        assert_eq!(listed.providers.len(), 1);
+        let text = std::fs::read_to_string(agent_config_toml()).unwrap();
+        let sections = parse_model_sections(&text);
+        for id in ["claude-sonnet-4-6", "gpt-5.1"] {
+            let child = sections
+                .iter()
+                .find(|s| s.id == id)
+                .unwrap_or_else(|| panic!("missing healed alias `{id}`:\n{text}"));
+            assert!(is_app_model_child(&child.fields));
+            assert_eq!(
+                child.fields.get(APP_MODEL_FOR_KEY).map(String::as_str),
+                Some("ada-anthropic")
+            );
+        }
+        // Stable: a second pass rewrites nothing.
+        list_custom_providers().expect("second list");
+        let text_again = std::fs::read_to_string(agent_config_toml()).unwrap();
+        assert_eq!(text, text_again, "self-heal must be idempotent");
+
+        match previous_home {
+            Some(value) => std::env::set_var("GROK_APP_HOME", value),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    #[test]
     fn extra_headers_write_cli_inline_table() {
         let _lock = crate::paths::APP_HOME_ENV_LOCK
             .lock()
@@ -3823,5 +4486,86 @@ context_window = "1000000"
             !config.contains("extra_headers"),
             "empty list must drop extra_headers, not copy the old table:\n{config}"
         );
+    }
+
+    /// 已存在的同名 section **一律不被别名覆盖**。
+    ///
+    /// 用户的 config.toml 里常有一份 CLI 原生目录（`[model.auto(free)]`、
+    /// `[model."gpt-5.6-…"]` …），它们的 id 与 App 的上游 id 是同一套。早先只排除
+    /// 「属于某个自定义 provider 的表名」，于是原生目录项被别名整张覆盖，丢掉了
+    /// `model_provider` / `supports_backend_search`。回归护栏：已有同名表必须原样保留。
+    #[test]
+    fn existing_section_is_never_overwritten_by_an_alias() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let home = std::env::temp_dir().join(format!(
+            "grok-app-alias-no-clobber-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let previous_home = std::env::var("GROK_APP_HOME").ok();
+        std::env::set_var("GROK_APP_HOME", &home);
+        let _ = ensure_agent_home();
+
+        // 原生目录项：没有 base_url，因此永远不是 provider，但名字与上游 id 相同。
+        let native = "[model.\"collide-1\"]\nmodel = \"collide-1\"\nmodel_provider = \"ada-anthropic\"\ndescription = \"native catalog row\"\nsupports_backend_search = true\n";
+        std::fs::write(agent_config_toml(), native).expect("seed native section");
+
+        upsert_custom_provider(UpsertProviderInput {
+            id: "ada-anthropic".into(),
+            model: "collide-1".into(),
+            base_url: "https://relay.example/v1".into(),
+            name: Some("Ada".into()),
+            api_key: Some("sk-test".into()),
+            api_backend: Some("messages".into()),
+            provider_mode: Some(PROVIDER_MODE_GENERIC.into()),
+            set_as_default: Some(false),
+            create_only: None,
+            models: Some(vec![
+                ProviderModelEntry::named("collide-1", "Collide"),
+                ProviderModelEntry::named("fresh-1", "Fresh"),
+            ]),
+            efforts: None,
+            context_window: None,
+            base_url_full_path: None,
+            append_prompt: None,
+            supports_vision: None,
+            extra_headers: None,
+        })
+        .expect("upsert provider");
+        list_custom_providers().expect("list heals aliases");
+
+        let text = std::fs::read_to_string(agent_config_toml()).unwrap();
+        let collide = parse_model_sections(&text)
+            .into_iter()
+            .find(|s| s.id == "collide-1")
+            .expect("collide-1 exists");
+        assert!(
+            collide.fields.contains_key("model_provider"),
+            "原生目录项被别名覆盖了:\n{text}"
+        );
+        assert!(collide.fields.contains_key("supports_backend_search"));
+        assert!(
+            !collide.fields.contains_key("app_model_for"),
+            "写入端不该往已有表里塞别名标记:\n{text}"
+        );
+        // 没有同名表的模型照常补别名
+        let fresh = parse_model_sections(&text)
+            .into_iter()
+            .find(|s| s.id == "fresh-1")
+            .expect("fresh-1 alias written");
+        assert_eq!(
+            fresh.fields.get("app_model_for").map(String::as_str),
+            Some("ada-anthropic")
+        );
+        // 再跑一次不得产生重复键
+        let (dups, examples) = crate::agent_home_config::count_duplicate_assignments(&text);
+        assert_eq!(dups, 0, "别名写入引入了重复键: {examples:?}");
+
+        match previous_home {
+            Some(value) => std::env::set_var("GROK_APP_HOME", value),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&home);
     }
 }

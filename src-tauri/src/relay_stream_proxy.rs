@@ -297,6 +297,12 @@ pub fn repair_sanitize_proxy_bases() -> Result<bool, String> {
     let mut out = text.clone();
     let mut changed = false;
     for s in sections {
+        if crate::providers::is_app_model_child(&s.fields) {
+            // Per-model alias sections mirror their provider's base_url. Only the
+            // provider section owns the sanitize-proxy rewrite; touching the
+            // aliases would point them at a proxy id that maps back here.
+            continue;
+        }
         let backend = s
             .fields
             .get("api_backend")

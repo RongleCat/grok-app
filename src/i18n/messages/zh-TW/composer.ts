@@ -278,6 +278,7 @@ export const zhTWComposer = {
   "composer.editing": "正在編輯訊息",
   "composer.editingCancel": "取消編輯",
   "composer.effortPanelHint": "拖動設定思考深度",
+  "composer.modelPendingApply": "新模型或思考等級將在本輪結束後生效",
   "composer.cliWorktrees": "CLI worktrees",
   "composer.cliWorktreesEmpty": "目前專案沒有 CLI 登記的 worktree",
   "composer.cliWorktreesUnavailable": "無法取得 CLI worktrees（請安裝或升級 Grok Build CLI）",

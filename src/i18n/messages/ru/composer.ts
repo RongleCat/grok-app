@@ -276,6 +276,7 @@ export const ruComposer = {
   "composer.editing": "Редактирование сообщения",
   "composer.editingCancel": "Отменить редактирование",
   "composer.effortPanelHint": "Перетащите, чтобы задать глубину рассуждения",
+  "composer.modelPendingApply": "Новая модель или уровень рассуждения применятся после этого запроса",
   "composer.cliWorktrees": "Worktree CLI",
   "composer.cliWorktreesEmpty": "Для этого проекта нет worktree, отслеживаемых CLI",
   "composer.cliWorktreesUnavailable": "Worktree CLI недоступны (установите Grok Build CLI или обновите)",

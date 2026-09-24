@@ -355,11 +355,12 @@ pub async fn composer_prefs_set(
     // Prefer explicit ids; fall back to live session context.
     let (live_proj, live_sess) = mgr.current_context_ids();
     let project_id = project_id.or(live_proj);
-    // Effort is per-chat, so a draft (`sessionId: null`) must keep its `None`:
-    // falling back to the live session wrote the draft's effort into whichever
-    // chat was still running and soft-respawned that agent. Drafts seed the
-    // global default instead, and the row is written once the chat exists.
-    let session_id = if effort.is_some() {
+    // Model and effort are both per-chat, so a draft (`sessionId: null`) must
+    // keep its `None`: falling back to the live session wrote the draft's
+    // choice into whichever chat was still running and soft-respawned that
+    // agent. Drafts seed the global default instead, and the row is written
+    // once the chat exists.
+    let session_id = if model_id.is_some() || effort.is_some() {
         session_id
     } else {
         session_id.or(live_sess)
@@ -383,7 +384,9 @@ pub async fn composer_prefs_set(
         }
     }
     if let Some(mid) = model_id {
-        if let Err(e) = mgr.set_model(mid).await {
+        // No session id (draft chat) means "no target" — `set_model` is a no-op
+        // rather than guessing the live slot.
+        if let Err(e) = mgr.set_model(&app, mid, session_id.as_deref()).await {
             tracing::warn!("composer_prefs_set set_model soft-fail: {e}");
         }
     }
@@ -433,21 +436,23 @@ pub async fn session_set_policy(
 
 #[tauri::command]
 pub async fn session_set_model(
+    app: tauri::AppHandle,
     mgr: State<'_, Arc<SessionManager>>,
     model_id: String,
     project_id: Option<String>,
     session_id: Option<String>,
 ) -> Result<store::ComposerPrefs, String> {
     let (live_proj, live_sess) = mgr.current_context_ids();
+    let session_id = session_id.or(live_sess);
     let prefs = store::save_composer_prefs(
         project_id.or(live_proj).as_deref(),
-        session_id.or(live_sess).as_deref(),
+        session_id.as_deref(),
         Some(model_id.clone()),
         None,
         None,
         None,
     )?;
-    if let Err(e) = mgr.set_model(model_id).await {
+    if let Err(e) = mgr.set_model(&app, model_id, session_id.as_deref()).await {
         tracing::warn!("session_set_model soft-fail: {e}");
     }
     Ok(prefs)

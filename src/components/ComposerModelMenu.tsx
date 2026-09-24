@@ -36,7 +36,10 @@ import {
   type ComposerModelPick,
   type ComposerProviderInput,
 } from "@/lib/composerModelGroups";
-import { composerModelChipLabel } from "@/lib/effectiveModel";
+import {
+  composerModelChipLabel,
+  resolveActiveCustomModel,
+} from "@/lib/effectiveModel";
 import { formatTokenCount } from "@/lib/contextUsage";
 import { Tip } from "@/components/ui/tooltip";
 import {
@@ -751,21 +754,19 @@ export function ComposerModelMenu({
 
   const activeCustom =
     activeSource === "custom" && activeProviderId
-      ? (() => {
-          const p = providers.find((x) => x.id === activeProviderId);
-          if (!p) return null;
-          const activeId = p.model?.trim() ?? "";
-          const entry =
-            p.models?.find((m) => m.id === activeId) ??
-            (activeId ? { id: activeId, name: activeId } : null);
-          return entry
-            ? { name: entry.name || entry.id, model: entry.id }
-            : { name: p.name, model: p.model };
-        })()
+      ? resolveActiveCustomModel({
+          provider: providers.find((x) => x.id === activeProviderId),
+          modelId,
+        })
       : null;
+  // 勾选要跟随**当前会话**解析出的模型，而不是 provider 的全局 `model =`：
+  // 否则切回旧会话时，菜单里高亮的仍是新会话选的那个（看起来像没隔离）。
+  // `activeCustom` 在上一步已经把「会话自己的模型属于该 provider」的情况解析出来了。
   const activeRequestModel =
     activeSource === "custom"
-      ? providers.find((x) => x.id === activeProviderId)?.model ?? null
+      ? (activeCustom?.model ??
+        providers.find((x) => x.id === activeProviderId)?.model ??
+        null)
       : null;
   const officialLabel = activeModel?.label ?? modelId;
   const modelLabel = composerModelChipLabel({

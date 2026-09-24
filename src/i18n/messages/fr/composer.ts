@@ -276,6 +276,7 @@ export const frComposer = {
   "composer.editing": "Modification du message",
   "composer.editingCancel": "Annuler la modification",
   "composer.effortPanelHint": "Glissez pour régler la profondeur de raisonnement",
+  "composer.modelPendingApply": "Le nouveau modèle ou niveau s’appliquera à la fin de ce tour",
   "composer.cliWorktrees": "Worktrees CLI",
   "composer.cliWorktreesEmpty": "Aucun worktree suivi par la CLI pour ce projet",
   "composer.cliWorktreesUnavailable": "Worktrees CLI indisponibles (installez Grok Build CLI ou mettez à jour)",

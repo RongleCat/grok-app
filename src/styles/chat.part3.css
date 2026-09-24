@@ -819,7 +819,8 @@ html[data-composer-min-rows="8"] .composer__input {
   white-space: nowrap;
 }
 
-.chip:hover:not(:disabled) {
+/* 状态提示 chip（如待生效模型）非交互，不参与 hover 反馈。 */
+.chip:hover:not(:disabled):not(.composer__model-pending) {
   background: var(--bg-hover);
   color: var(--text-primary);
 }

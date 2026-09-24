@@ -279,6 +279,7 @@ export const enComposer = {
   "composer.editing": "Editing message",
   "composer.editingCancel": "Cancel edit",
   "composer.effortPanelHint": "Drag to set reasoning depth",
+  "composer.modelPendingApply": "New model or effort applies after this turn",
   "composer.cliWorktrees": "CLI worktrees",
   "composer.cliWorktreesEmpty": "No CLI-tracked worktrees for this project",
   "composer.cliWorktreesUnavailable": "CLI worktrees unavailable (install Grok Build CLI or update)",

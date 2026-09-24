@@ -276,6 +276,7 @@ export const jaComposer = {
   "composer.editing": "メッセージを編集中",
   "composer.editingCancel": "編集をキャンセル",
   "composer.effortPanelHint": "ドラッグして推論の深さを設定",
+  "composer.modelPendingApply": "新しいモデル・思考レベルはこのターン終了後に反映されます",
   "composer.cliWorktrees": "CLI ワークツリー",
   "composer.cliWorktreesEmpty": "このプロジェクトに CLI が追跡する worktree はありません",
   "composer.cliWorktreesUnavailable": "CLI worktrees を利用できません（Grok Build CLI をインストールまたは更新）",

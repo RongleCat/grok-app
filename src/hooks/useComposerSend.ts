@@ -134,7 +134,7 @@ export type ComposerSendHost = {
   sendEpochRef: MutableRefObject<number>;
   sendEpochBySessionRef: MutableRefObject<Map<string, number>>;
   turnStartedAtBySessionRef: MutableRefObject<Map<string, number>>;
-  effortApplyRef: MutableRefObject<Promise<void>>;
+  prefsApplyRef: MutableRefObject<Promise<void>>;
   promptHistoryIndexRef: MutableRefObject<number | null>;
   quotesRef: MutableRefObject<ComposerQuote[]>;
   attachmentsRef: MutableRefObject<Attachment[]>;
@@ -219,7 +219,7 @@ export function useComposerSend(host: ComposerSendHost) {
     sendEpochRef,
     sendEpochBySessionRef,
     turnStartedAtBySessionRef,
-    effortApplyRef,
+    prefsApplyRef,
     promptHistoryIndexRef,
     quotesRef,
     attachmentsRef,
@@ -284,7 +284,8 @@ const executeSend = async (opts: {
   }
   const { storedDisplay, att, goalMode: useGoal, fromQueue } = opts;
   const quotesForSend = opts.quotes ?? [];
-  if (!fromQueue) await effortApplyRef.current;
+  // 模型/思考等级的落盘可能与发送并发，等它落盘再启动本轮 agent。
+  if (!fromQueue) await prefsApplyRef.current;
   const segments = parseStoredContent(storedDisplay);
   if (isDraftEmpty(segments) && !att.length && !quotesForSend.length) {
     sendInFlightRef.current = false;

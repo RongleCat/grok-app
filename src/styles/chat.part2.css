@@ -93,6 +93,33 @@
   justify-content: center;
 }
 
+/* 待生效模型提示：整句文案，与同栏紧凑的 nowrap chip 不同，必须完整可读。
+ * 因此去掉 chip 的 max-width 与省略号、允许 label 换行；空间不足时整栏换行，
+ * 让提示独占一行。这里更高的选择器优先级同时用于在窄 composer 下
+ * 覆盖通用 .chip 隐藏 label 的规则，避免提示被折叠成空 chip。 */
+.composer__model-bar:has(.composer__model-pending) {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.composer__model-bar .composer__model-pending {
+  max-width: none;
+  min-width: 0;
+  height: auto;
+  min-height: 28px;
+  flex-shrink: 1;
+  padding: 4px 10px;
+}
+
+.composer__model-bar .composer__model-pending .chip__label {
+  display: inline;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  text-align: center;
+}
+
 /* Session / workspace change chips live in the context bar (not the input). */
 .composer__context-changes {
   display: inline-flex;

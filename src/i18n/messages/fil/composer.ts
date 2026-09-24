@@ -276,6 +276,7 @@ export const filComposer = {
   "composer.editing": "Ine-edit ang mensahe",
   "composer.editingCancel": "Kanselahin ang pag-edit",
   "composer.effortPanelHint": "I-drag para itakda ang lalim ng pangangatwiran",
+  "composer.modelPendingApply": "Ilalapat ang bagong modelo o effort matapos ang turn na ito",
   "composer.cliWorktrees": "Mga worktree ng CLI",
   "composer.cliWorktreesEmpty": "Walang worktree na sinusubaybayan ng CLI para sa proyektong ito",
   "composer.cliWorktreesUnavailable": "Hindi available ang mga worktree ng CLI (i-install ang Grok Build CLI o mag-update)",

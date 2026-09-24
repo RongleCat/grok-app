@@ -217,6 +217,28 @@ export function isValidModelId(
 }
 
 /**
+ * composer 记住的模型 id 是否「已知」：命中官方 catalog，或命中任一自定义
+ * provider 的模型 id。
+ *
+ * 自定义 provider 的模型 id 来自 `app_models[].id`（形如
+ * `claude-glm-5.3-flash[1M]`），不会出现在官方 `availableModels` 里。只用官方
+ * catalog 校验会把每个会话的偏好静默回落成同一个默认模型，切会话时模型互相
+ * 串台。`customModelIds` 由调用方按当前 provider 列表提供，`isValidModelId`
+ * 的精确相等语义保持不变。
+ */
+export function isKnownComposerModelId(
+  id: string,
+  opts: {
+    officialModels: ModelOption[];
+    /** 自定义 provider 可选模型 id（已去空）。 */
+    customModelIds: readonly string[];
+  },
+): boolean {
+  if (isValidModelId(id, opts.officialModels)) return true;
+  return opts.customModelIds.includes(id);
+}
+
+/**
  * Collapse multiple `isDefault` flags. CLI grok-4.6 cache marks both
  * `xhigh` and `high` as default; product default on 4.6 is **xhigh**.
  */

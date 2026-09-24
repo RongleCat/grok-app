@@ -548,7 +548,8 @@ div.composer__input:empty::before {
   background: color-mix(in srgb, var(--accent) 12%, var(--bg-active));
   max-width: 180px;
 }
-.chip--goal:hover {
+/* hover 提亮是给可点的 Goal chip 的动效；待生效模型提示只是状态文本，不参与。 */
+.chip--goal:hover:not(.composer__model-pending) {
   background: color-mix(in srgb, var(--accent) 18%, var(--bg-hover));
   color: var(--accent);
 }

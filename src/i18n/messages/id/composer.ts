@@ -276,6 +276,7 @@ export const idComposer = {
   "composer.editing": "Menyunting pesan",
   "composer.editingCancel": "Batalkan suntingan",
   "composer.effortPanelHint": "Seret untuk mengatur kedalaman penalaran",
+  "composer.modelPendingApply": "Model atau effort baru berlaku setelah giliran ini selesai",
   "composer.cliWorktrees": "Worktree CLI",
   "composer.cliWorktreesEmpty": "Tidak ada worktree yang dilacak CLI untuk proyek ini",
   "composer.cliWorktreesUnavailable": "Worktree CLI tidak tersedia (pasang Grok Build CLI atau perbarui)",

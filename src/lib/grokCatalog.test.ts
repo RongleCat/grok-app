@@ -13,6 +13,7 @@ import {
   effortUiOptionIsActive,
   effortUiOptionsForCatalog,
   effortsForModel,
+  isKnownComposerModelId,
   isSpawnableReasoningEffort,
   isValidEffort,
   mapEffortToTargetCatalog,
@@ -548,5 +549,40 @@ describe("resolveContextWindow", () => {
         models: [],
       }),
     ).toBeNull();
+  });
+});
+
+describe("isKnownComposerModelId", () => {
+  const officialModels: ModelOption[] = [
+    { id: "grok-4.5", label: "Grok 4.5" },
+    { id: "grok-4", label: "Grok 4" },
+  ];
+  const customModelIds = ["claude-glm-5.3-flash[1M]", "deepseek-chat"];
+
+  it("accepts an official catalog id", () => {
+    expect(
+      isKnownComposerModelId("grok-4.5", {
+        officialModels,
+        customModelIds: [],
+      }),
+    ).toBe(true);
+  });
+
+  it("accepts a custom provider model id", () => {
+    expect(
+      isKnownComposerModelId("claude-glm-5.3-flash[1M]", {
+        officialModels,
+        customModelIds,
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects an unknown id", () => {
+    expect(
+      isKnownComposerModelId("gpt-9-turbo", {
+        officialModels,
+        customModelIds,
+      }),
+    ).toBe(false);
   });
 });

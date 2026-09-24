@@ -6,6 +6,8 @@ const styles = join(__dirname, "../styles");
 const chat1 = readFileSync(join(styles, "chat.part1.css"), "utf8");
 const chat2 = readFileSync(join(styles, "chat.part2.css"), "utf8");
 const chat4 = readFileSync(join(styles, "chat.part4.css"), "utf8");
+const chat3 = readFileSync(join(styles, "chat.part3.css"), "utf8");
+const modals1 = readFileSync(join(styles, "modals.part1.css"), "utf8");
 const lobe3 = readFileSync(
   join(__dirname, "../components/lobe-chat/lobe-chat.part3.css"),
   "utf8",
@@ -107,6 +109,37 @@ describe("composer column matches chat width", () => {
     );
     expect(chat2).toMatch(
       /\.composer__model-bar \.cmm__trigger\s*\{[^}]*justify-content:\s*center/s,
+    );
+  });
+
+  it("renders the pending model switch as a readable notice, not a tooltip", () => {
+    // 提示文字即 chip 自身内容，再包 Tip 只会重复且被用户排斥。
+    expect(column).not.toMatch(
+      /<Tip[^>]*label=\{tr\("composer\.modelPendingApply"\)\}/s,
+    );
+    expect(column).toContain(
+      'className="chip chip--goal composer__model-pending"',
+    );
+    // 完整显示：chip 不设 max-width，label 换行而非省略号。
+    expect(chat2).toMatch(
+      /\.composer__model-bar \.composer__model-pending\s*\{[^}]*max-width:\s*none/s,
+    );
+    expect(chat2).toMatch(
+      /\.composer__model-bar \.composer__model-pending \.chip__label\s*\{[^}]*display:\s*inline[^}]*white-space:\s*normal/s,
+    );
+  });
+
+  it("pending model switch is a status notice, so it takes no hover feedback", () => {
+    // 该 chip 是 role="status" 的纯文本，不接受任何 hover 反应（通用 .chip 与
+    // .chip--goal 的 hover 提亮都是给可点 chip 的动效）。
+    expect(chat3).toMatch(
+      /\.chip:hover:not\(:disabled\):not\(\.composer__model-pending\)/,
+    );
+    expect(modals1).toMatch(
+      /\.chip--goal:hover:not\(\.composer__model-pending\)/,
+    );
+    expect(column).not.toMatch(
+      /<span[^>]*composer__model-pending[^>]*onMouse|onMouseEnter[^>]*composer__model-pending/s,
     );
   });
 

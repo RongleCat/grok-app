@@ -276,6 +276,7 @@ export const koComposer = {
   "composer.editing": "메시지 편집 중",
   "composer.editingCancel": "편집 취소",
   "composer.effortPanelHint": "드래그하여 추론 깊이 설정",
+  "composer.modelPendingApply": "새 모델 또는 추론 수준은 이 턴이 끝난 후 적용됩니다",
   "composer.cliWorktrees": "CLI worktree",
   "composer.cliWorktreesEmpty": "이 프로젝트에 CLI가 추적하는 worktree가 없습니다",
   "composer.cliWorktreesUnavailable": "CLI worktree를 사용할 수 없습니다 (Grok Build CLI를 설치하거나 업데이트)",

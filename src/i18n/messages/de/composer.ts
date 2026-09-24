@@ -276,6 +276,7 @@ export const deComposer = {
   "composer.editing": "Nachricht wird bearbeitet",
   "composer.editingCancel": "Bearbeitung abbrechen",
   "composer.effortPanelHint": "Ziehen, um Reasoning-Tiefe zu setzen",
+  "composer.modelPendingApply": "Neues Modell oder Aufwand greift nach diesem Durchlauf",
   "composer.cliWorktrees": "CLI-Worktrees",
   "composer.cliWorktreesEmpty": "Keine CLI-verfolgten Worktrees für dieses Projekt",
   "composer.cliWorktreesUnavailable": "CLI-Worktrees nicht verfügbar (Grok Build CLI installieren oder aktualisieren)",

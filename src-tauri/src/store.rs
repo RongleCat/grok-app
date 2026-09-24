@@ -3187,9 +3187,26 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
         })
         .unwrap_or(g_effort);
 
+    // Model: same cascade, for the same reason as effort above. Under the
+    // default global scope one `settings.model_id` served every chat, so
+    // switching the model in one chat silently re-modelled every other chat —
+    // which is the reported "different chats share one model" defect. Picking a
+    // model is a per-chat decision; `settings.model_id` only seeds chats that
+    // never chose one.
+    let model_id = sess
+        .as_ref()
+        .and_then(|s| s.model_id.clone())
+        .filter(|x| !x.trim().is_empty())
+        .or_else(|| {
+            proj.as_ref()
+                .and_then(|p| p.model_id.clone())
+                .filter(|x| !x.trim().is_empty())
+        })
+        .unwrap_or(g_model);
+
     let mut prefs = match scope {
         ComposerPrefsScope::Global => ComposerPrefs {
-            model_id: g_model,
+            model_id,
             effort,
             mode: g_mode,
             permission_policy,
@@ -3199,7 +3216,7 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
         ComposerPrefsScope::Project => {
             if let Some(p) = proj {
                 ComposerPrefs {
-                    model_id: p.model_id.filter(|s| !s.is_empty()).unwrap_or(g_model),
+                    model_id,
                     effort,
                     mode: p
                         .mode
@@ -3213,7 +3230,7 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
                 }
             } else {
                 ComposerPrefs {
-                    model_id: g_model,
+                    model_id,
                     effort,
                     mode: g_mode,
                     permission_policy,
@@ -3223,11 +3240,6 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
             }
         }
         ComposerPrefsScope::Session => {
-            let p_model = proj
-                .as_ref()
-                .and_then(|p| p.model_id.clone())
-                .filter(|s| !s.is_empty())
-                .unwrap_or(g_model.clone());
             let p_mode = proj
                 .as_ref()
                 .and_then(|p| p.mode.clone())
@@ -3238,7 +3250,7 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
 
             if let Some(s) = sess {
                 ComposerPrefs {
-                    model_id: s.model_id.filter(|x| !x.is_empty()).unwrap_or(p_model),
+                    model_id,
                     effort,
                     mode: s.mode.filter(|x| !x.is_empty()).unwrap_or(p_mode),
                     permission_policy,
@@ -3247,7 +3259,7 @@ pub fn resolve_composer_prefs(project_id: Option<&str>, session_id: Option<&str>
                 }
             } else {
                 ComposerPrefs {
-                    model_id: p_model,
+                    model_id,
                     effort,
                     mode: p_mode,
                     permission_policy,
@@ -3306,6 +3318,30 @@ fn save_effort_on_session(
     })
 }
 
+/// Persist `model_id` on the session row.
+///
+/// Returns the value back when there is no row to write to (draft chat that has
+/// not been created yet, or an unknown id) so the caller can seed the global
+/// default instead of dropping the choice — the same contract as
+/// [`save_effort_on_session`].
+fn save_model_on_session(
+    session_id: Option<&str>,
+    model_id: String,
+) -> Result<Option<String>, String> {
+    let Some(sid) = session_id.filter(|s| !s.is_empty()) else {
+        return Ok(Some(model_id));
+    };
+    let sid = sid.to_string();
+    update_sessions_index(move |list| {
+        let Some(sess) = list.iter_mut().find(|s| s.id == sid) else {
+            return Ok(Some(model_id));
+        };
+        sess.model_id = Some(model_id);
+        sess.updated_at = Utc::now();
+        Ok(None)
+    })
+}
+
 /// Persist a partial composer prefs update at the configured scope.
 pub fn save_composer_prefs(
     project_id: Option<&str>,
@@ -3327,6 +3363,19 @@ pub fn save_composer_prefs(
     } else {
         match effort {
             Some(v) => save_effort_on_session(session_id, v)?,
+            None => None,
+        }
+    };
+
+    // Model is remembered per chat for the same reason: under the global scope
+    // one pick landed in `settings.model_id` and silently re-modelled every
+    // other chat. `settings.model_id` now only seeds chats that never chose one
+    // (a draft chat with no row yet still seeds the global default).
+    let model_id = if matches!(scope, ComposerPrefsScope::Session) {
+        model_id
+    } else {
+        match model_id {
+            Some(v) => save_model_on_session(session_id, v)?,
             None => None,
         }
     };
@@ -5553,5 +5602,201 @@ mod tests {
 
         std::env::remove_var("GROK_APP_HOME");
         let _ = fs::remove_dir_all(&tmp);
+    }
+}
+
+/// 模型记忆范围：每会话独立。
+///
+/// 手工验收反馈：「在 B 切模型后 A 的模型也被改了」。根因是模型挂在
+/// `composer_prefs_scope` 上，而默认 scope 是 global —— 一次选择落进
+/// `settings.model_id`，所有会话解析到同一个值。同一文件里 `effort` 早就因为
+/// 完全相同的理由改成「无视 scope、永远按会话级联」，模型当时没跟上。
+#[cfg(test)]
+mod composer_prefs_scope_tests {
+    use super::*;
+    use uuid::Uuid;
+
+    struct TempAppHome {
+        previous: Option<std::ffi::OsString>,
+        path: std::path::PathBuf,
+    }
+
+    impl Drop for TempAppHome {
+        fn drop(&mut self) {
+            match self.previous.take() {
+                Some(v) => std::env::set_var("GROK_APP_HOME", v),
+                None => std::env::remove_var("GROK_APP_HOME"),
+            }
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn with_temp_app_home(label: &str, f: impl FnOnce()) {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let path = std::env::temp_dir().join(format!(
+            "grok-app-{label}-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        fs::create_dir_all(&path).expect("create isolated app home");
+        let home = TempAppHome {
+            previous: std::env::var_os("GROK_APP_HOME"),
+            path,
+        };
+        std::env::set_var("GROK_APP_HOME", &home.path);
+        ensure_app_dirs().expect("initialize isolated app home");
+        f();
+    }
+
+    fn seed(scope: &str, global_model: &str, rows: &[(&str, Option<&str>)]) {
+        let mut s = load_settings();
+        s.composer_prefs_scope = scope.to_string();
+        s.model_id = Some(global_model.to_string());
+        save_settings(&s).expect("save settings");
+
+        let now = Utc::now();
+        let list: Vec<SessionMeta> = rows
+            .iter()
+            .map(|(id, model)| SessionMeta {
+                model_id: model.map(str::to_string),
+                ..sample_session_for_prefs(id, now)
+            })
+            .collect();
+        save_sessions_index(&list).expect("save sessions index");
+    }
+
+    fn sample_session_for_prefs(id: &str, at: DateTime<Utc>) -> SessionMeta {
+        SessionMeta {
+            id: id.into(),
+            project_id: None,
+            title: id.into(),
+            agent_session_id: None,
+            created_at: at,
+            updated_at: at,
+            model_id: None,
+            archived: false,
+            pinned: false,
+            effort: None,
+            mode: None,
+            permission_policy: None,
+            json_schema: None,
+            scheduled: false,
+            worktree_path: None,
+            worktree_branch: None,
+            is_worktree_session: false,
+            plugin_dirs: Vec::new(),
+            extra_rules: None,
+            max_agent_turns: None,
+            system_prompt_override: None,
+            fork_agent_session: false,
+            fork_rewind_prompt_index: None,
+            no_ask_user: None,
+            workspace_id: None,
+            workspace_root_snapshot: None,
+            workspace_capability: None,
+        }
+    }
+
+    #[test]
+    fn global_scope_keeps_each_chat_on_its_own_model() {
+        with_temp_app_home("prefs-model-per-chat", || {
+            // Arrange — 默认 scope=global，两个会话各自选过不同模型
+            seed(
+                "global",
+                "model-global",
+                &[("s-a", Some("model-a")), ("s-b", Some("model-b"))],
+            );
+
+            // Act / Assert — 这正是「不同会话模型被统一」的复现点
+            assert_eq!(
+                resolve_composer_prefs(None, Some("s-a")).model_id,
+                "model-a"
+            );
+            assert_eq!(
+                resolve_composer_prefs(None, Some("s-b")).model_id,
+                "model-b"
+            );
+        });
+    }
+
+    #[test]
+    fn picking_a_model_in_one_chat_does_not_touch_another() {
+        with_temp_app_home("prefs-model-no-leak", || {
+            // Arrange
+            seed(
+                "global",
+                "model-global",
+                &[("s-a", Some("model-a")), ("s-b", Some("model-b"))],
+            );
+
+            // Act — 在 B 里换模型
+            save_composer_prefs(None, Some("s-b"), Some("model-b2".into()), None, None, None)
+                .expect("save");
+
+            // Assert — A 不受影响，全局种子也不被改写
+            assert_eq!(
+                resolve_composer_prefs(None, Some("s-a")).model_id,
+                "model-a"
+            );
+            assert_eq!(
+                resolve_composer_prefs(None, Some("s-b")).model_id,
+                "model-b2"
+            );
+            assert_eq!(load_settings().model_id.as_deref(), Some("model-global"));
+        });
+    }
+
+    #[test]
+    fn a_chat_that_never_chose_falls_back_to_the_global_seed() {
+        with_temp_app_home("prefs-model-seed", || {
+            // Arrange — 新会话没有自己的模型
+            seed("global", "model-global", &[("s-new", None)]);
+
+            // Act / Assert — 落到全局默认，而不是空
+            assert_eq!(
+                resolve_composer_prefs(None, Some("s-new")).model_id,
+                "model-global"
+            );
+            assert_eq!(resolve_composer_prefs(None, None).model_id, "model-global");
+        });
+    }
+
+    #[test]
+    fn a_draft_without_a_row_seeds_the_global_default() {
+        with_temp_app_home("prefs-model-draft", || {
+            // Arrange — 草稿（还没有会话行）里选模型
+            seed("global", "model-global", &[]);
+
+            // Act
+            save_composer_prefs(None, None, Some("model-draft".into()), None, None, None)
+                .expect("save");
+
+            // Assert — 选择不丢，成为新会话的默认种子
+            assert_eq!(load_settings().model_id.as_deref(), Some("model-draft"));
+        });
+    }
+
+    #[test]
+    fn session_scope_still_resolves_per_chat() {
+        with_temp_app_home("prefs-model-session-scope", || {
+            // Arrange — 显式选择会话级
+            seed(
+                "session",
+                "model-global",
+                &[("s-a", Some("model-a")), ("s-b", None)],
+            );
+
+            // Act / Assert
+            assert_eq!(
+                resolve_composer_prefs(None, Some("s-a")).model_id,
+                "model-a"
+            );
+            assert_eq!(
+                resolve_composer_prefs(None, Some("s-b")).model_id,
+                "model-global"
+            );
+        });
     }
 }

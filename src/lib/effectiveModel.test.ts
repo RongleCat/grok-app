@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   composerModelChipLabel,
   effectiveComposerModel,
+  resolveActiveCustomModel,
 } from "./effectiveModel";
 
 describe("effectiveComposerModel", () => {
@@ -55,5 +56,47 @@ describe("composerModelChipLabel", () => {
         activeCustom: { name: "  ", model: "deepseek-chat" },
       }),
     ).toBe("deepseek-chat");
+  });
+});
+
+describe("resolveActiveCustomModel", () => {
+  const provider = {
+    id: "relay",
+    name: "中转通道",
+    model: "claude-glm-5.3-flash[1M]",
+    models: [
+      { id: "claude-glm-5.3-flash[1M]", name: "GLM 5.3 Flash" },
+      { id: "claude-glm-5.3-pro", name: "GLM 5.3 Pro" },
+    ],
+  };
+
+  it("prefers the session model when it belongs to the provider", () => {
+    expect(
+      resolveActiveCustomModel({
+        provider,
+        modelId: "claude-glm-5.3-pro",
+      }),
+    ).toEqual({ name: "GLM 5.3 Pro", model: "claude-glm-5.3-pro" });
+  });
+
+  it("keeps the provider global model when modelId is not its model", () => {
+    expect(
+      resolveActiveCustomModel({ provider, modelId: "grok-4.5" }),
+    ).toEqual({ name: "GLM 5.3 Flash", model: "claude-glm-5.3-flash[1M]" });
+  });
+
+  it("falls back to the provider global model when modelId is blank", () => {
+    expect(
+      resolveActiveCustomModel({ provider, modelId: "  " }),
+    ).toEqual({ name: "GLM 5.3 Flash", model: "claude-glm-5.3-flash[1M]" });
+  });
+
+  it("returns null without a provider", () => {
+    expect(
+      resolveActiveCustomModel({ provider: null, modelId: "x" }),
+    ).toBeNull();
+    expect(
+      resolveActiveCustomModel({ provider: undefined, modelId: "x" }),
+    ).toBeNull();
   });
 });

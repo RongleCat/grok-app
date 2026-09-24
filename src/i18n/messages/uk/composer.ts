@@ -276,6 +276,7 @@ export const ukComposer = {
   "composer.editing": "Редагування повідомлення",
   "composer.editingCancel": "Скасувати редагування",
   "composer.effortPanelHint": "Перетягніть, щоб задати глибину міркування",
+  "composer.modelPendingApply": "Нова модель або рівень міркування застосуються після цього запиту",
   "composer.cliWorktrees": "Worktree CLI",
   "composer.cliWorktreesEmpty": "Немає worktree, відстежуваних CLI, для цього проєкту",
   "composer.cliWorktreesUnavailable": "Worktree CLI недоступні (установіть Grok Build CLI або оновіть)",

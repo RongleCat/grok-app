@@ -311,14 +311,17 @@ export async function composerPrefsResolve(opts?: {
   });
 }
 
-export async function composerPrefsSet(body: {
+/** `composerPrefsSet` 的入参：为 null 的字段表示「本次不改」。 */
+export interface ComposerPrefsSetBody {
   projectId?: string | null;
   sessionId?: string | null;
   modelId?: string | null;
   effort?: string | null;
   mode?: string | null;
   permissionPolicy?: string | null;
-}) {
+}
+
+export async function composerPrefsSet(body: ComposerPrefsSetBody) {
   return invoke<ComposerPrefs>("composer_prefs_set", {
     projectId: body.projectId ?? null,
     sessionId: body.sessionId ?? null,

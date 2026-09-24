@@ -171,7 +171,9 @@ import {
   shouldConfirmClearGoalOrch,
 } from "@/lib/goalOrch";
 import * as api from "@/lib/api";
-import { queueComposerPreferenceApply } from "@/lib/composerPrefsBarrier";
+import { ComposerPrefsFreshness } from "@/lib/composerPrefsFreshness";
+import { writeComposerPrefs } from "@/lib/composerPrefsWrite";
+import type { ComposerPrefsSetBody } from "@/lib/api/settings";
 import {
   isDangerousSandboxProfile,
   normalizeSandboxProfile,
@@ -240,6 +242,7 @@ import {
   effortCatalogForRoute,
   effortOptionsFromProvider,
   isValidEffort,
+  isKnownComposerModelId,
   isValidModelId,
   isValidPolicy,
   isValidPrefsScope,
@@ -2030,8 +2033,12 @@ export function AppWorkbench() {
   /** Queue item currently being steered into the live turn. */
   const [guidingQueueItemId, setGuidingQueueItemId] = useState<string | null>(null);
   /** Queue item open in the edit dialog (`null` when closed). */
-  /** Effort changes respawn the CLI; sends must wait for that write to settle. */
-  const effortApplyRef = useRef<Promise<void>>(Promise.resolve());
+  /**
+   * 最近一次 composer 偏好落盘（模型或思考等级）。两者都可能改变下一轮 agent 的
+   * 启动参数，所以发送前必须 await 它，否则会产生「选择已生效、下一轮却用旧配置
+   * 启动」的空窗。
+   */
+  const prefsApplyRef = useRef<Promise<void>>(Promise.resolve());
   /** Live provider retry progress — store lives outside the shell (Thinking reads it). */
   const setRetryStatus = setProviderRetryStatus;
   /** Epoch ms when the current agent turn became busy (for elapsed UI). */
@@ -2336,11 +2343,25 @@ export function AppWorkbench() {
     };
   }, []);
 
+  // customProviders 声明在本组件靠后处（growth freeze 下不能前移 state），
+  // 用 ref 镜像其可选模型 id，供更早定义的 applyComposerPrefs 校验。
+  const customModelIdsRef = useRef<string[]>([]);
+
+  // 作废「更早发起 / 写入未落盘时发起」的 composerPrefsResolve 结果，
+  // 避免异步解析把界面盖回用户刚切走的模型。
+  const composerPrefsFreshnessRef = useRef(new ComposerPrefsFreshness());
+
   const applyComposerPrefs = useCallback(
     (prefs: api.ComposerPrefs, catalog: ModelOption[]) => {
       const models = catalog.length > 0 ? catalog : GROK_BUILD_MODELS;
       let nextModelId: string;
-      if (prefs.modelId && isValidModelId(prefs.modelId, models)) {
+      if (
+        prefs.modelId &&
+        isKnownComposerModelId(prefs.modelId, {
+          officialModels: models,
+          customModelIds: customModelIdsRef.current,
+        })
+      ) {
         nextModelId = prefs.modelId;
       } else {
         nextModelId = pickDefaultModelId(models);
@@ -2757,15 +2778,22 @@ export function AppWorkbench() {
   useEffect(() => {
     if (!api.isTauri()) return;
     let cancelled = false;
-    void api
-      .composerPrefsResolve({
-        projectId: activeProject?.id ?? null,
-        sessionId: session.sessionId ?? null,
-      })
-      .then((prefs) => {
-        if (!cancelled) applyComposerPrefs(prefs, availableModels);
-      })
-      .catch(() => {});
+    const freshness = composerPrefsFreshnessRef.current;
+    void (async () => {
+      // 先等本地写入落盘，否则解析会读回旧值；再取版本号，解析期间若用户又
+      // 切了模型（版本号变化），丢弃这次结果，避免把界面盖回旧模型。
+      await freshness.settled();
+      if (cancelled) return;
+      const issuedVersion = freshness.beginResolve();
+      const prefs = await api
+        .composerPrefsResolve({
+          projectId: activeProject?.id ?? null,
+          sessionId: session.sessionId ?? null,
+        })
+        .catch(() => null);
+      if (!prefs || cancelled || !freshness.isFresh(issuedVersion)) return;
+      applyComposerPrefs(prefs, availableModels);
+    })();
     return () => {
       cancelled = true;
     };
@@ -5590,7 +5618,7 @@ export function AppWorkbench() {
     sendEpochRef,
     sendEpochBySessionRef,
     turnStartedAtBySessionRef,
-    effortApplyRef,
+    prefsApplyRef,
     promptHistoryIndexRef,
     quotesRef,
     attachmentsRef,
@@ -9146,6 +9174,11 @@ export function AppWorkbench() {
       })),
     [customProviders],
   );
+  // 与 composerProviderInputs 同步；ref 在渲染期写入是幂等的，且 applyComposerPrefs
+  // 只在提交后的 effect 中读取，不需要额外 effect/state。
+  customModelIdsRef.current = composerProviderInputs.flatMap((p) =>
+    p.models.map((m) => m.id),
+  );
   const refreshProviderRoute = useCallback(async () => {
     if (!api.isTauri()) {
       setActiveCustomProvider(null);
@@ -9326,28 +9359,54 @@ export function AppWorkbench() {
     if (next !== effort) setEffort(next);
   }, [activeEffortCatalog, effort]);
 
+  /**
+   * 落盘一次 composer 偏好，并把它登记为发送屏障。
+   *
+   * 绑定 freshness 链、IPC 与错误提示，调用点只提供内容；请求体必须在点击时
+   * 定格（目标会话/项目要稳定）。屏障登记放在这里而不是各调用点，是为了让
+   * 「任何 prefs 选择都挡在发送前」这条约束只在一处维护 —— 漏登记会让本轮
+   * agent 用旧模型/旧 effort 启动，且这一点从调用点看不出来。
+   */
+  const persistComposerPrefs = useCallback(
+    (body: ComposerPrefsSetBody): void => {
+      prefsApplyRef.current = writeComposerPrefs(
+        composerPrefsFreshnessRef.current,
+        body,
+        api.composerPrefsSet,
+        (error) => showToast(String(error), 4000),
+      );
+    },
+    [showToast],
+  );
+
   const handleEffortPick = useCallback(
     (nextEffort: string) => {
       if (!isValidEffort(nextEffort, activeEffortCatalog)) return;
       setEffort(nextEffort);
-      effortApplyRef.current = queueComposerPreferenceApply(
-        effortApplyRef.current,
-        () =>
-          api.composerPrefsSet({
-            projectId: activeProject?.id ?? null,
-            sessionId: session.sessionId ?? null,
-            effort: nextEffort,
-          }),
-        (error) => showToast(String(error), 4000),
-      );
+      persistComposerPrefs({
+        projectId: activeProject?.id ?? null,
+        sessionId: session.sessionId ?? null,
+        effort: nextEffort,
+      });
     },
-    [activeEffortCatalog, activeProject?.id, session.sessionId, showToast],
+    [
+      activeEffortCatalog,
+      activeProject?.id,
+      persistComposerPrefs,
+      session.sessionId,
+    ],
   );
 
   const handleModelPick = useCallback(
     async (pick: ComposerModelPick) => {
       if (modelPickBusy) return;
       setModelPickBusy(true);
+      // 点击时定格目标。`session` 是本次渲染的常量，下面这些 await 结束前用户
+      // 若切走会话，这里捕获的仍是点击那一刻的会话。
+      const prefsTarget = {
+        projectId: activeProject?.id ?? null,
+        sessionId: session.sessionId ?? null,
+      };
       try {
         if (pick.kind === "official") {
           if (providerActiveSource === "custom" && api.isTauri()) {
@@ -9365,14 +9424,11 @@ export function AppWorkbench() {
             channelEffortOptions ?? officialEffortCatalog,
           );
           setEffort(clampedOfficial);
-          void api
-            .composerPrefsSet({
-              projectId: activeProject?.id ?? null,
-              sessionId: session.sessionId ?? null,
-              modelId: pick.modelId,
-              effort: clampedOfficial,
-            })
-            .catch((e) => showToast(String(e), 4000));
+          persistComposerPrefs({
+            ...prefsTarget,
+            modelId: pick.modelId,
+            effort: clampedOfficial,
+          });
         } else {
           if (!api.isTauri()) return;
           const provider = customProviders.find(
@@ -9382,36 +9438,14 @@ export function AppWorkbench() {
             showToast(tr("prov.err.unknownProvider"), 4000);
             return;
           }
-          // Switch request model on the channel when needed (keeps multi-model catalog).
-          const models =
-            provider.models?.length
-              ? provider.models
-              : [{ id: provider.model, name: provider.model }];
-          const catalog = models.some((m) => m.id === pick.modelId)
-            ? models
-            : [...models, { id: pick.modelId, name: pick.modelId }];
+          // Per-session model only: the picker selection is stored on the
+          // session (composerPrefsSet) and mapped to the model's own
+          // `[model.<id>]` section at spawn. Never rewrite the channel's global
+          // `model =` here — that would leak one chat's pick into every chat.
           const appliedLive = materializeActiveModelChannel({
             provider,
             modelId: pick.modelId,
-            models: catalog,
           });
-          if (provider.model.trim() !== pick.modelId.trim()) {
-            await api.providersUpsert({
-              id: provider.id,
-              model: pick.modelId,
-              baseUrl: provider.baseUrl,
-              name: provider.name,
-              apiBackend: provider.apiBackend,
-              models: catalog,
-              efforts: appliedLive.efforts ?? provider.efforts,
-              contextWindow:
-                appliedLive.contextWindow ??
-                provider.contextWindow ??
-                undefined,
-              supportsVision: appliedLive.supportsVision,
-              setAsDefault: false,
-            });
-          }
           if (
             providerActiveSource !== "custom" ||
             providerActiveId !== pick.providerId
@@ -9436,14 +9470,17 @@ export function AppWorkbench() {
             channelEffortOptions ?? officialEffortCatalog,
           );
           setEffort(clampedCustom);
-          void api
-            .composerPrefsSet({
-              projectId: activeProject?.id ?? null,
-              sessionId: session.sessionId ?? null,
-              modelId: pick.modelId,
-              effort: clampedCustom,
-            })
-            .catch((e) => showToast(String(e), 4000));
+          // 自定义路由下也必须写本地 modelId —— 芯片的显示取自
+          // `resolveActiveCustomModel({provider, modelId})`，它以**会话的 modelId**
+          // 为准。这里不设，显示就会一直用旧值（或 provider 的全局 `model =`），
+          // 直到切会话触发一次重新解析才更新；模型本身早已生效，于是表现为
+          // 「点了没反应、实际已切换」。
+          setModelId(pick.modelId);
+          persistComposerPrefs({
+            ...prefsTarget,
+            modelId: pick.modelId,
+            effort: clampedCustom,
+          });
         }
       } catch (e) {
         showToast(String(e), 4000);
@@ -9462,11 +9499,10 @@ export function AppWorkbench() {
       effort,
       channelEffortOptions,
       officialEffortCatalog,
+      persistComposerPrefs,
       refreshProviderRoute,
       showToast,
       tr,
-      channelEffortOptions,
-      officialEffortCatalog,
     ],
   );
   const handleContextWindow = useCallback(
@@ -11309,7 +11345,12 @@ export function AppWorkbench() {
       const switchModel =
         !!nextModelId &&
         nextModelId !== modelId &&
-        isValidModelId(nextModelId, availableModels);
+        // 自定义 provider 的模型不在官方 catalog 里；只查官方会让「编辑并用自定义
+        // 模型重发」被静默忽略。
+        isKnownComposerModelId(nextModelId, {
+          officialModels: availableModels,
+          customModelIds: customModelIdsRef.current,
+        });
 
       // Optimistic UI + prefs: live agent model is applied after connect.
       if (switchModel) {
@@ -11531,7 +11572,13 @@ export function AppWorkbench() {
         onlyLastToastKey: "message.regenerateOnlyLast",
         busyToastKey: "message.regenerateBusy",
         modelId:
-          pick && isValidModelId(pick, availableModels) ? pick : undefined,
+          pick &&
+          isKnownComposerModelId(pick, {
+            officialModels: availableModels,
+            customModelIds: customModelIdsRef.current,
+          })
+            ? pick
+            : undefined,
       });
     },
     [

@@ -276,6 +276,7 @@ export const ptBRComposer = {
   "composer.editing": "Editando mensagem",
   "composer.editingCancel": "Cancelar edição",
   "composer.effortPanelHint": "Arraste para definir a profundidade do raciocínio",
+  "composer.modelPendingApply": "O novo modelo ou esforço será aplicado ao fim deste turno",
   "composer.cliWorktrees": "Worktrees da CLI",
   "composer.cliWorktreesEmpty": "Nenhum worktree rastreado pela CLI neste projeto",
   "composer.cliWorktreesUnavailable": "Worktrees da CLI indisponíveis (instale a Grok Build CLI ou atualize)",

@@ -566,3 +566,263 @@ fn rewind_busy_check_allows_idle_background_session() {
         "an unknown chat has no running turn to protect"
     );
 }
+
+// ── BOR-50：路由级回收保留忙碌会话 ─────────────────────────────────────────
+
+fn busy_live_session(id: &str, process_id: &str) -> LiveSession {
+    let mut s = bare_live_session(id, process_id);
+    // prompt_in_flight 是权威忙碌信号（turn 未结束前必须保留进程）。
+    s.prompt_in_flight = true;
+    s
+}
+
+/// 忙碌的 live + background 会话必须被保留并登记 pending_soft_respawn，
+/// 进程条目不得从映射中移除（否则会被误杀 / 丢失事件路由）。
+#[test]
+fn route_change_preserves_busy_sessions_and_queues_respawn() {
+    let mgr = SessionManager::new();
+    *mgr.inner.lock() = Some(busy_live_session("s-live", "p-live"));
+    mgr.background
+        .lock()
+        .insert("s-bg".into(), busy_live_session("s-bg", "p-bg"));
+
+    let preserved = mgr.preserve_busy_sessions_for_route_change("provider_route");
+
+    assert_eq!(preserved.len(), 2, "live + background busy must both survive");
+    assert!(preserved.contains(&"s-live".to_string()));
+    assert!(preserved.contains(&"s-bg".to_string()));
+    let pending = mgr.pending_soft_respawn.lock();
+    assert_eq!(pending.get("s-live").map(String::as_str), Some("provider_route"));
+    assert_eq!(pending.get("s-bg").map(String::as_str), Some("provider_route"));
+    drop(pending);
+    // 条目仍在：保留 ≠ 逐出。
+    assert!(mgr.inner.lock().as_ref().unwrap().app_session_id == "s-live");
+    assert!(mgr.background.lock().contains_key("s-bg"));
+}
+
+/// 空闲会话不进入保留集合，也不登记 pending（它们的进程由
+/// recycle_agents_for_route_change 直接回收）。
+#[test]
+fn route_change_skips_idle_sessions() {
+    let mgr = SessionManager::new();
+    *mgr.inner.lock() = Some(bare_live_session("s-idle-live", "p-1"));
+    mgr.background
+        .lock()
+        .insert("s-idle-bg".into(), bare_live_session("s-idle-bg", "p-2"));
+
+    let preserved = mgr.preserve_busy_sessions_for_route_change("provider_route");
+
+    assert!(preserved.is_empty(), "idle sessions have nothing to preserve");
+    assert!(mgr.pending_soft_respawn.lock().is_empty());
+}
+
+/// 已完成的 background turn 先落入 parked 后，忙碌后台会话仍保留在
+/// background 中——sweep 只搬走结束的 turn，不触碰忙碌的。
+#[test]
+fn route_change_preservation_survives_parked_sweep() {
+    let mgr = SessionManager::new();
+    mgr.background
+        .lock()
+        .insert("s-bg-busy".into(), busy_live_session("s-bg-busy", "p-busy"));
+
+    mgr.sweep_finished_background_to_parked();
+
+    assert!(
+        mgr.background.lock().contains_key("s-bg-busy"),
+        "sweep must not evict a busy background turn"
+    );
+    let preserved = mgr.preserve_busy_sessions_for_route_change("models_aux");
+    assert_eq!(preserved, vec!["s-bg-busy".to_string()]);
+}
+
+// ── BOR-52：会话内模型切换排队（运行中任务不中断）──────────────────────────
+
+/// (a) 忙碌会话：模型切换登记 pending_soft_respawn("model")，live 槽位
+/// 进程原样保留（不 soft-drop、不改 FSM 状态），等待本轮结束 flush。
+#[test]
+fn model_change_on_busy_session_queues_pending_and_keeps_process() {
+    let mgr = SessionManager::new();
+    *mgr.inner.lock() = Some(busy_live_session("s-model-busy", "p-model"));
+
+    let queued = mgr.queue_model_change_for_busy();
+
+    assert_eq!(queued.as_deref(), Some("s-model-busy"));
+    assert_eq!(
+        mgr.pending_soft_respawn
+            .lock()
+            .get("s-model-busy")
+            .map(String::as_str),
+        Some("model")
+    );
+    let guard = mgr.inner.lock();
+    let s = guard.as_ref().expect("live slot preserved");
+    assert_eq!(s.app_session_id, "s-model-busy");
+    assert_eq!(s.process_id, "p-model");
+    // FSM 未被 soft_disconnect —— 进程与事件路由保持原样。
+    assert_eq!(s.fsm.state(), SessionState::Ready);
+}
+
+/// (c) 空闲会话：不进 pending，模型切换立即生效（由调用方直接
+/// `session/set_model`），队列保持为空。
+#[test]
+fn model_change_on_idle_session_applies_immediately_without_pending() {
+    let mgr = SessionManager::new();
+    *mgr.inner.lock() = Some(bare_live_session("s-model-idle", "p-idle"));
+
+    let queued = mgr.queue_model_change_for_busy();
+
+    assert!(queued.is_none(), "idle session must not queue");
+    assert!(mgr.pending_soft_respawn.lock().is_empty());
+}
+
+/// (b) 前置：turn 未结束（仍忙碌）时 flush 不得消费 pending —— 原样
+/// 重新登记，等待真正的 turn 边界。
+#[test]
+fn flush_keeps_pending_while_session_still_busy() {
+    let mgr = SessionManager::new();
+    *mgr.inner.lock() = Some(busy_live_session("s-flush-busy", "p-busy"));
+    mgr.pending_soft_respawn
+        .lock()
+        .insert("s-flush-busy".into(), "model".into());
+
+    let taken = mgr.take_pending_if_idle("s-flush-busy");
+
+    assert!(taken.is_none(), "busy session must not consume pending");
+    assert_eq!(
+        mgr.pending_soft_respawn
+            .lock()
+            .get("s-flush-busy")
+            .map(String::as_str),
+        Some("model")
+    );
+}
+
+/// (b) turn 结束后 flush：pending 被消费，旧后台 ACP 条目被丢弃，
+/// 下次 connect 以新 model（meta.model_id）冷启动 —— 换新路由。
+#[tokio::test]
+async fn flush_after_turn_end_drops_old_agent_for_new_route() {
+    let mgr = SessionManager::new();
+    mgr.pending_soft_respawn
+        .lock()
+        .insert("s-flush-idle".into(), "model".into());
+    mgr.background
+        .lock()
+        .insert("s-flush-idle".into(), bare_live_session("s-flush-idle", "p-old"));
+
+    let taken = mgr.take_pending_if_idle("s-flush-idle");
+
+    assert_eq!(taken.as_deref(), Some("model"));
+    assert!(!mgr.pending_soft_respawn.lock().contains_key("s-flush-idle"));
+    // apply 阶段：丢掉旧 agent 条目，下一次 connect 冷启动读取新 meta。
+    mgr.drop_idle_agent_for_session("s-flush-idle", "model").await;
+    assert!(
+        !mgr.background.lock().contains_key("s-flush-idle"),
+        "old background agent must not be promoted by the ready fast-path"
+    );
+}
+
+// ── 手工验收反馈：切模型必须落在**目标会话**上 ─────────────────────────────
+//
+// 症状：切模型没中断任务（BOR-52 已修），但不同会话的模型仍被统一。
+// 其中一半原因在 store 的 scope（已修）；另一半在这里 —— `set_model` 写的是
+// 「当前 live 槽位」而不是调用方指定的会话，所以改后台会话的模型会污染屏幕上
+// 那个会话的 meta。
+//
+// 这些用例会经 `update_session_meta` 落盘，因此**必须在隔离的 APP_HOME 里跑**：
+// 否则会往开发者真实的 sessions_index.json 里写进 `s-a` / `s-b` 这类测试会话
+// （这个坑已经踩过一次，真实索引里被写进了两行标题为 "Lock test" 的假会话）。
+
+/// 在临时 `GROK_APP_HOME` 下运行 `f`。`update_session_meta` 只写这里，
+/// 不会碰开发者的真实应用数据。
+fn with_isolated_app_home(label: &str, f: impl FnOnce()) {
+    let _lock = crate::paths::APP_HOME_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let dir = std::env::temp_dir().join(format!(
+        "grok-app-{label}-{}-{}",
+        std::process::id(),
+        uuid::Uuid::new_v4()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create isolated app home");
+    let previous = std::env::var_os("GROK_APP_HOME");
+    std::env::set_var("GROK_APP_HOME", &dir);
+    let _ = crate::paths::ensure_app_dirs();
+    f();
+    match previous {
+        Some(v) => std::env::set_var("GROK_APP_HOME", v),
+        None => std::env::remove_var("GROK_APP_HOME"),
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn model_change_targets_the_requested_chat_not_the_live_slot() {
+    with_isolated_app_home("model-target", || {
+        // Arrange — live 槽位是 s-a，但调用方要改的是 s-b
+        let mgr = SessionManager::new();
+        *mgr.inner.lock() = Some(bare_live_session("s-a", "p-a"));
+
+        // Act
+        let applied = mgr.apply_model_to_session_slots("s-b", "model-x");
+
+        // Assert — live 槽位不认领，s-a 的 meta 一个字节都不能动
+        assert!(!applied.applies_live);
+        assert!(applied.acp.is_none());
+        let guard = mgr.inner.lock();
+        let live = guard.as_ref().expect("live slot preserved");
+        assert_eq!(live.app_session_id, "s-a");
+        assert_eq!(
+            live.meta.model_id, None,
+            "changing another chat must not re-model the live one"
+        );
+    });
+}
+
+#[test]
+fn model_change_claims_the_live_slot_when_it_is_the_target() {
+    with_isolated_app_home("model-claim", || {
+        // Arrange
+        let mgr = SessionManager::new();
+        *mgr.inner.lock() = Some(bare_live_session("s-a", "p-a"));
+
+        // Act
+        let applied = mgr.apply_model_to_session_slots("s-a", "model-x");
+
+        // Assert
+        assert!(applied.applies_live);
+        let guard = mgr.inner.lock();
+        let live = guard.as_ref().expect("live slot");
+        assert_eq!(live.meta.model_id.as_deref(), Some("model-x"));
+    });
+}
+
+#[test]
+fn model_change_on_a_background_chat_writes_its_own_meta() {
+    with_isolated_app_home("model-background", || {
+        // Arrange — s-b 已后台化，s-a 仍是 live
+        let mgr = SessionManager::new();
+        *mgr.inner.lock() = Some(bare_live_session("s-a", "p-a"));
+        mgr.background
+            .lock()
+            .insert("s-b".into(), bare_live_session("s-b", "p-b"));
+
+        // Act
+        let applied = mgr.apply_model_to_session_slots("s-b", "model-x");
+
+        // Assert — 只有 s-b 被改；s-b 没有 ACP，所以不需要换路由
+        assert!(!applied.applies_live);
+        assert!(!applied.background_needs_respawn);
+        let bg = mgr.background.lock();
+        assert_eq!(
+            bg.get("s-b").and_then(|s| s.meta.model_id.as_deref()),
+            Some("model-x")
+        );
+        let guard = mgr.inner.lock();
+        assert_eq!(
+            guard.as_ref().and_then(|s| s.meta.model_id.clone()),
+            None,
+            "background model change must not leak into the live chat"
+        );
+    });
+}

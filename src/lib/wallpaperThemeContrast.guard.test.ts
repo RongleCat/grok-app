@@ -174,8 +174,10 @@ describe("wallpaper theme contrast CSS", () => {
     expect(composerChromeCss).toMatch(
       /\.composer__context-item:hover:not\(:disabled\),\s*\.composer__context-item\.is-open\s*\{[^}]*background:\s*var\(--bg-hover\)/s,
     );
+    // chip 的 hover 洗色必须仍是 --bg-hover（与中性 chrome 按钮一致）；
+    // 允许追加状态类排除（如非交互的 composer__model-pending）。
     expect(chipCss).toMatch(
-      /\.chip:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--bg-hover\)/s,
+      /\.chip:hover:not\(:disabled\)(?::not\([^)]*\))*\s*\{[^}]*background:\s*var\(--bg-hover\)/s,
     );
     expect(cmmCss).toMatch(
       /\.cmm__trigger:hover,\s*\.cmm\.is-open \.cmm__trigger\s*\{[^}]*background:\s*var\(--bg-hover\)/s,

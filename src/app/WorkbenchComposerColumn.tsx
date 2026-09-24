@@ -43,6 +43,7 @@ import { PermissionCountdown } from "@/components/PermissionCountdown";
 import { SuperGrokMark } from "@/components/SuperGrokMark";
 import { IconFileDiff, IconGitBranch } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
+import { usePendingModelSwitch } from "@/hooks/usePendingModelSwitch";
 import { mapProjectsList, projectDisplayName } from "@/lib/app/sidebarModels";
 import { isMirrorClient } from "@/lib/mirrorTransport";
 import {
@@ -359,6 +360,7 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
     handleModelPick,
     handleEffortPick,
   } = p;
+  const modelSwitchPending = usePendingModelSwitch(session.sessionId);
   const multiRoot = useMultiRootWorkspace();
   const [permBusy, setPermBusy] = useState(false);
   const [permError, setPermError] = useState<string | null>(null);
@@ -936,6 +938,18 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                 className="composer__model-bar composer__chip-shell"
                 aria-label={tr("composer.model")}
               >
+                {modelSwitchPending ? (
+                  <span
+                    className="chip chip--goal composer__model-pending"
+                    data-testid="model-pending-chip"
+                    role="status"
+                    aria-label={tr("composer.modelPendingApply")}
+                  >
+                    <span className="chip__label">
+                      {tr("composer.modelPendingApply")}
+                    </span>
+                  </span>
+                ) : null}
                 <ComposerModelMenu
                   locale={locale}
                   modelId={modelId}

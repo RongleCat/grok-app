@@ -276,6 +276,7 @@ export const taComposer = {
   "composer.editing": "செய்தியைத் திருத்துதல்",
   "composer.editingCancel": "திருத்தத்தை ரத்து",
   "composer.effortPanelHint": "பகுத்தறிவு ஆழத்தை அமைக்க இழுக்கவும்",
+  "composer.modelPendingApply": "புதிய மாடல் அல்லது சிந்தனை நிலை இந்த சுழற்சி முடிந்தபின் பயன்படும்",
   "composer.cliWorktrees": "CLI வேலை மரங்கள்",
   "composer.cliWorktreesEmpty": "இந்த திட்டத்திற்காக CLI-கண்காணிக்கப்பட்ட பணிமரங்கள் இல்லை",
   "composer.cliWorktreesUnavailable": "CLI பணிமரங்கள் கிடைக்கவில்லை (Grok Build CLI ஐ நிறுவவும் அல்லது புதுப்பிக்கவும்)",
