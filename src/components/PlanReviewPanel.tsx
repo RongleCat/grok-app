@@ -135,11 +135,11 @@ export function PlanReviewPanel({
     return "";
   }, [hasBody, plan.body, plan.entries, awaitingReview, entries.length]);
 
-  /** Baseline for dirty checks — prefer full body; fall back to display md. */
+  /** Baseline for dirty checks — full body, else steps rendered as markdown. */
   const originalBody = useMemo(() => {
     if (plan.body) return sanitizePlanDraft(plan.body);
-    return sanitizePlanDraft(detailMarkdown);
-  }, [plan.body, detailMarkdown]);
+    return sanitizePlanDraft(planDisplayMarkdown(plan.body, plan.entries));
+  }, [plan.body, plan.entries]);
 
   const statusLabel =
     model.headlineKey === "planBar.progress"

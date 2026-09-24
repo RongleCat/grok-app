@@ -121,6 +121,34 @@ describe("planSession hard dismiss", () => {
     expect(next.rpcId).toBe(42);
   });
 
+  it("entries-only updates do not duplicate steps into body", () => {
+    const next = mergePlanFromEvent(
+      emptySessionPlan("t"),
+      {
+        toolCallId: "tool-1",
+        entries: [
+          { content: "scan repo", status: "completed" },
+          { content: "apply patch", status: "in_progress" },
+        ],
+      },
+      "ready",
+      "agent",
+    );
+    expect(next.visible).toBe(true);
+    expect(next.entries).toHaveLength(2);
+    // Panel renders entries as the step list; body must stay real planContent.
+    expect(next.body).toBe("");
+    // A later real planContent still fills body.
+    const withBody = mergePlanFromEvent(
+      next,
+      { toolCallId: "tool-1", body: "# Plan\nfull text", entries: [] },
+      "ready",
+      "agent",
+    );
+    expect(withBody.body).toContain("full text");
+    expect(withBody.entries).toHaveLength(2);
+  });
+
   it("invalidatePlanGate drops rpcId but keeps body for read-only review", () => {
     const live = mergePlanFromEvent(
       emptySessionPlan("t"),
