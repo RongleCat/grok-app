@@ -861,6 +861,7 @@ impl SessionManager {
                         // exit_plan_mode after session/load with no prompt in flight.
                         if Self::should_drop_plan_event(
                             s.prompt_in_flight,
+                            s.deferred_prompt_complete.is_some(),
                             s.pending_plan_rpc_id.is_some(),
                             rpc_id.is_some(),
                         ) {
