@@ -158,7 +158,14 @@ export function sidebarNavSessionIds<
   },
 >(input: {
   sessions: readonly T[];
+  /** All projects — decides which sessions count as orphans. */
   projects: readonly { id: string }[];
+  /**
+   * Projects actually rendered in the tree (space-filtered, SSH-hidden
+   * projects excluded). Chats of projects the sidebar does not show are
+   * unreachable by pointer and must not be j/k targets either.
+   */
+  visibleProjects: readonly { id: string }[];
   projectsOpen: boolean;
   historyOpen: boolean;
   expandedProjects: Record<string, boolean>;
@@ -167,7 +174,7 @@ export function sidebarNavSessionIds<
   const ids = pinned.map((s) => s.id);
   const projectIdSet = new Set(input.projects.map((p) => p.id));
   if (input.projectsOpen) {
-    for (const proj of input.projects) {
+    for (const proj of input.visibleProjects) {
       if (input.expandedProjects[proj.id] === false) continue;
       const projSessions = rest.filter((s) => s.projectId === proj.id);
       for (const s of sortSessionsForSidebar(projSessions)) ids.push(s.id);

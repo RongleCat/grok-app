@@ -220,11 +220,63 @@ describe("sidebarNavSessionIds", () => {
       sidebarNavSessionIds({
         sessions,
         projects: [{ id: "a" }, { id: "b" }],
+        visibleProjects: [{ id: "a" }, { id: "b" }],
         projectsOpen: true,
         historyOpen: false,
         expandedProjects: { a: true, b: false },
       }),
     ).toEqual(["b-pin", "a-chat"]);
+  });
+
+  it("skips chats of projects the tree does not render", () => {
+    const sessions = [
+      {
+        id: "a-chat",
+        projectId: "a",
+        updatedAt: isoLocal(2026, 2, 15, 12),
+      },
+      {
+        id: "hidden-chat",
+        projectId: "hidden",
+        updatedAt: isoLocal(2026, 2, 15, 11),
+      },
+      {
+        id: "orphan",
+        updatedAt: isoLocal(2026, 2, 15, 10),
+      },
+    ];
+    expect(
+      sidebarNavSessionIds({
+        sessions,
+        projects: [{ id: "a" }, { id: "hidden" }],
+        visibleProjects: [{ id: "a" }],
+        projectsOpen: true,
+        historyOpen: true,
+        expandedProjects: {},
+      }),
+    ).toEqual(["a-chat", "orphan"]);
+  });
+
+  it("does not reclassify hidden-project chats as orphans", () => {
+    // A session whose project exists but is filtered out of the tree must not
+    // sneak back in through the default-workspace bucket.
+    const sessions = [
+      {
+        id: "hidden-chat",
+        projectId: "hidden",
+        updatedAt: isoLocal(2026, 2, 15, 11),
+      },
+    ];
+    expect(
+      sidebarNavSessionIds({
+        sessions,
+        projects: [{ id: "hidden" }],
+        visibleProjects: [],
+        projectsOpen: true,
+        historyOpen: true,
+        expandedProjects: {},
+      }),
+    ).toEqual([]);
   });
 });
 

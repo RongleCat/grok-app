@@ -11,6 +11,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useThemeShell } from "@/providers/ThemeShellContext";
+import { useSshWatch } from "@/providers/SshWatchProvider";
 import { usePetCompanion } from "@/hooks/usePetCompanion";
 import { useFloatingMenu } from "@/lib/floatingMenu";
 import { restoreSessionGate } from "@/lib/sessionGateRestore";
@@ -484,6 +485,7 @@ import {
   canRestoreCodeOnResume,
 } from "@/lib/sessionResumeRestore";
 import {
+  hideSshProjectInLocalTree,
   isProjectFolderMissing,
   isProjectWarmable,
 } from "@/lib/projectPath";
@@ -1136,6 +1138,7 @@ export function AppWorkbench() {
   projectsRef.current = projects;
   const projectSpaces = useProjectSpaces();
   const visibleProjects = projectSpaces.visibleProjects(projects);
+  const { watchAliases } = useSshWatch();
   const {
     sessions,
     setSessions,
@@ -3776,11 +3779,24 @@ export function AppWorkbench() {
       navSessionIds({
         sessions,
         projects,
+        // Mirror the tree's project set — sessions of space-filtered or
+        // SSH-watched projects are not rendered, so j/k must skip them too.
+        visibleProjects: visibleProjects.filter(
+          (p) => !hideSshProjectInLocalTree(p, watchAliases),
+        ),
         projectsOpen,
         historyOpen,
         expandedProjects,
       }),
-    [projectsOpen, projects, expandedProjects, sessions, historyOpen],
+    [
+      projectsOpen,
+      projects,
+      visibleProjects,
+      watchAliases,
+      expandedProjects,
+      sessions,
+      historyOpen,
+    ],
   );
   sidebarNavIdsRef.current = sidebarNavSessionIds;
   sidebarNavCurrentIdRef.current =
