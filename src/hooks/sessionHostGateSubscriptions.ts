@@ -344,7 +344,6 @@ export function registerGateAndMetaSubscriptions(
                   const list = await api.sessionsList();
                   if (isCancelled()) return;
                   c.setSessions(list.map(mapSessionListRow));
-                  c.setSessions(list.map((s) => mapSessionListRow(s)));
                   const sid = p?.sessionId;
                   if (
                     !sid ||
