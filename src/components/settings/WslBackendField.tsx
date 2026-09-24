@@ -81,12 +81,9 @@ export function WslBackendField({ t, onSaved }: Props) {
     if (!api.isTauri()) return;
     setProbing(true);
     try {
-      // Ensure latest settings before probe.
+      // persist() already re-reads status and fires onSaved — probing again
+      // here ran the whole wsl.exe probe twice per click.
       await persist({ enabled, distro, cliPath });
-      const st = await api.wslStatus();
-      setStatus(st);
-      // Also refresh main CLI probe path via parent onSaved.
-      onSaved?.();
     } finally {
       setProbing(false);
     }
@@ -178,9 +175,9 @@ export function WslBackendField({ t, onSaved }: Props) {
               onChange={(e) => setCliPath(e.target.value)}
               onBlur={(e) => {
                 const v = e.target.value.trim();
+                // Persist (and re-probe) only when the path actually changed —
+                // blurring an untouched input must not respawn the WSL probe.
                 if (v !== cliPath) {
-                  void persist({ enabled, distro, cliPath: v });
-                } else {
                   void persist({ enabled, distro, cliPath: v });
                 }
               }}

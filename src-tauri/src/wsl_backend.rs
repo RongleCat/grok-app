@@ -84,7 +84,9 @@ pub fn resolve_wsl_launch(settings: &AppSettings) -> Option<WslLaunch> {
 /// Sentinel path stored on the ACP client when the process is WSL-backed.
 pub fn wsl_display_path(launch: &WslLaunch) -> PathBuf {
     let distro = launch.distro.as_deref().unwrap_or("default");
-    PathBuf::from(format!("wsl://{distro}/{}", launch.linux_cli))
+    // An absolute linux_cli would render `wsl://d//abs` — keep one separator.
+    let cli = launch.linux_cli.trim_start_matches('/');
+    PathBuf::from(format!("wsl://{distro}/{cli}"))
 }
 
 /// Convert a Windows path to a WSL mount path (`C:\Users\a` → `/mnt/c/Users/a`).
@@ -627,6 +629,14 @@ mod tests {
         assert_eq!(
             wsl_display_path(&l).to_string_lossy(),
             "wsl://Ubuntu/~/.grok/bin/grok"
+        );
+        let abs = WslLaunch {
+            distro: Some("Ubuntu-24.04".into()),
+            linux_cli: "/root/.grok/bin/grok".into(),
+        };
+        assert_eq!(
+            wsl_display_path(&abs).to_string_lossy(),
+            "wsl://Ubuntu-24.04/root/.grok/bin/grok"
         );
     }
 
