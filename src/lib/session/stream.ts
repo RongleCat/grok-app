@@ -385,7 +385,7 @@ export function applyInterjection(
 }
 
 /** Visible body on an assistant row (text / thought / segments / media). */
-function assistantHasVisibleBody(m: ChatMessage): boolean {
+export function assistantHasVisibleBody(m: ChatMessage): boolean {
   if (m.content?.trim()) return true;
   if (m.thought?.trim()) return true;
   if (m.attachments?.length) return true;

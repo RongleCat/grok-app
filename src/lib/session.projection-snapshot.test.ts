@@ -427,6 +427,94 @@ describe("session projection", () => {
     expect(err.content).not.toMatch(/Connection refused|stderr|rpc timeout/i);
   });
 
+  it("applyTurnError keeps a partially streamed answer instead of erasing it", () => {
+    let messages: ChatMessage[] = [
+      { id: "u1", role: "user", content: "hi" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "Working on it: step 1 done.",
+        segments: [{ kind: "content", text: "Working on it: step 1 done." }],
+        streaming: true,
+      },
+    ];
+    messages = applyTurnError(
+      messages,
+      {
+        messageId: "host-mid",
+        code: "NETWORK_PROVIDER",
+        message: "rpc timeout on session/prompt (id=6) after 600s",
+      },
+      "en",
+    );
+    // Partial answer stays as a settled row; the failure is its own record.
+    expect(messages).toHaveLength(3);
+    const partial = messages[1]!;
+    expect(partial.id).toBe("a1");
+    expect(partial.content).toBe("Working on it: step 1 done.");
+    expect(partial.streaming).toBe(false);
+    expect(partial.isError).toBeFalsy();
+    const err = messages[2]!;
+    expect(err.id).toBe("host-mid");
+    expect(err.role).toBe("assistant");
+    expect(err.isError).toBe(true);
+    expect(err.streaming).toBe(false);
+    expect(err.content.trim().length).toBeGreaterThan(0);
+  });
+
+  it("applyTurnError keeps tool-only turns visible behind the error row", () => {
+    let messages: ChatMessage[] = [
+      { id: "u1", role: "user", content: "scan repo" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "",
+        segments: [
+          {
+            kind: "tool",
+            toolCallId: "tc1",
+            title: "grep",
+            status: "completed",
+          },
+        ],
+        streaming: true,
+      },
+    ];
+    messages = applyTurnError(
+      messages,
+      { code: "NETWORK_PROVIDER", message: "upstream 503" },
+      "en",
+    );
+    expect(messages).toHaveLength(3);
+    expect(messages[1]!.streaming).toBe(false);
+    expect(messages[1]!.segments).toHaveLength(1);
+    expect(messages[2]!.isError).toBe(true);
+  });
+
+  it("applyTurnError patches an existing error row in place (no dup pill)", () => {
+    let messages: ChatMessage[] = [
+      { id: "u1", role: "user", content: "hi" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "partial",
+        segments: [{ kind: "content", text: "partial" }],
+        streaming: true,
+      },
+    ];
+    const payload = {
+      messageId: "host-mid",
+      code: "NETWORK_PROVIDER",
+      message: "upstream 503",
+    };
+    messages = applyTurnError(messages, payload, "en");
+    expect(messages).toHaveLength(3);
+    // Same host messageId fails again → updates the same error row.
+    messages = applyTurnError(messages, payload, "en");
+    expect(messages).toHaveLength(3);
+    expect(messages.filter((m) => m.isError)).toHaveLength(1);
+  });
+
   it("applyGeneratedImage attaches to streaming assistant and dedupes", () => {
     let messages: ChatMessage[] = [
       { id: "u1", role: "user", content: "draw a cat" },
