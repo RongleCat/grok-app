@@ -37,6 +37,7 @@ export const idSidebar = {
   "sidebar.archive": "Arsipkan",
   "sidebar.unarchive": "Keluarkan dari arsip",
   "sidebar.showArchived": "Tampilkan arsip",
+  "sidebar.showMore": "Tampilkan lebih banyak",
   "sidebar.sessionWorking": "Bekerja…",
   "sidebar.select": "Pilih",
   "sidebar.selectAllInGroup": "Pilih semua",

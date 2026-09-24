@@ -37,6 +37,7 @@ export const filSidebar = {
   "sidebar.archive": "I-archive",
   "sidebar.unarchive": "Alisin sa archive",
   "sidebar.showArchived": "Ipakita ang naka-archive",
+  "sidebar.showMore": "Magpakita pa",
   "sidebar.sessionWorking": "Gumagawa…",
   "sidebar.select": "Pumili",
   "sidebar.selectAllInGroup": "Piliin lahat",

@@ -3,7 +3,7 @@
  * Catalog paint lives here. Open/new-chat and UserMenu stay with the host.
  */
 import type { CSSProperties, Dispatch, MouseEvent, ReactNode, SetStateAction } from "react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { SidebarProjectsMoreMenu } from "@/components/SidebarProjectsMoreMenu";
 import { activeSpaceLabel } from "@/lib/projectSpaces";
 import { OverlayScroll } from "@/components/OverlayScroll";
@@ -39,6 +39,12 @@ import {
   partitionGlobalPinned,
   sortSessionsForSidebar,
 } from "@/lib/sidebarDateGroups";
+import {
+  bumpSidebarPage,
+  clearSidebarPage,
+  sidebarVisibleCount,
+  type SidebarPageMap,
+} from "@/lib/sidebarPagination";
 import {
   hideSshProjectInLocalTree,
   isProjectFolderMissing,
@@ -172,6 +178,17 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
   } = props;
 
   const { watchAliases } = useSshWatch();
+  // "Show more" paging for long session groups — key `proj:<id>` / `orphans`.
+  const [sessionPages, setSessionPages] = useState<SidebarPageMap>({});
+  const toggleProjectOpen = (id: string, open: boolean) => {
+    setExpandedProjects((e) => ({ ...e, [id]: !open }));
+    // Collapsing a group resets paging so a reopen starts at page one.
+    if (open) setSessionPages((m) => clearSidebarPage(m, `proj:${id}`));
+  };
+  const toggleHistoryOpen = () => {
+    setHistoryOpen((v) => !v);
+    if (historyOpen) setSessionPages((m) => clearSidebarPage(m, "orphans"));
+  };
   const treeProjects = visibleProjects.filter(
     (p) => !hideSshProjectInLocalTree(p, watchAliases),
   );
@@ -472,19 +489,13 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
                       onClick={() => {
                         // After a completed drag, ignore the trailing click.
                         if (projectReorder.suppressNextClick()) return;
-                        setExpandedProjects((e) => ({
-                          ...e,
-                          [proj.id]: !open,
-                        }));
+                        toggleProjectOpen(proj.id, open);
                       }}
                       onContextMenu={(e) => openProjectMenu(e, proj)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          setExpandedProjects((ex) => ({
-                            ...ex,
-                            [proj.id]: !open,
-                          }));
+                          toggleProjectOpen(proj.id, open);
                         }
                       }}
                     >
@@ -634,8 +645,23 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
                         )}
                         {projSessions.length > 0
                           ? (() => {
-                              const sortedSessions = projSessions;
+                              const pageKey = `proj:${proj.id}`;
+                              const activeIndex = session.sessionId
+                                ? projSessions.findIndex(
+                                    (x) => x.id === session.sessionId,
+                                  )
+                                : -1;
+                              const visibleCount = sidebarVisibleCount(
+                                projSessions.length,
+                                sessionPages[pageKey] ?? 0,
+                                activeIndex,
+                              );
+                              const sortedSessions = projSessions.slice(
+                                0,
+                                visibleCount,
+                              );
                               return (
+                                <>
                                 <VirtualList
                                   className="tree-l3-list"
                                   items={sortedSessions}
@@ -697,6 +723,20 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
                                     );
                                   }}
                                 />
+                                {visibleCount < projSessions.length ? (
+                                  <button
+                                    type="button"
+                                    className="tree-l3 tree-l3--more"
+                                    onClick={() =>
+                                      setSessionPages((m) =>
+                                        bumpSidebarPage(m, pageKey),
+                                      )
+                                    }
+                                  >
+                                    {tr("sidebar.showMore")}
+                                  </button>
+                                ) : null}
+                                </>
                               );
                             })()
                           : null}
@@ -720,7 +760,7 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
                 className="tree-l1__head"
                 data-session-drop={SESSION_DROP_ORPHAN}
                 aria-expanded={historyOpen}
-                onClick={() => setHistoryOpen((v) => !v)}
+                onClick={toggleHistoryOpen}
               >
                 <span className="tree-l1__chevron" aria-hidden>
                   {historyOpen ? (
@@ -794,7 +834,20 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
             </div>
             {orphanSessions.length > 0
               ? (() => {
-                  const sortedOrphans = orphanSessions;
+                  const orphanActiveIndex = session.sessionId
+                    ? orphanSessions.findIndex(
+                        (x) => x.id === session.sessionId,
+                      )
+                    : -1;
+                  const orphanVisibleCount = sidebarVisibleCount(
+                    orphanSessions.length,
+                    sessionPages.orphans ?? 0,
+                    orphanActiveIndex,
+                  );
+                  const sortedOrphans = orphanSessions.slice(
+                    0,
+                    orphanVisibleCount,
+                  );
                   return (
                     <SidebarTreeReveal open={historyOpen}>
                       <div className="tree-l3-list-wrap">
@@ -852,6 +905,19 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
                           );
                         }}
                       />
+                      {orphanVisibleCount < orphanSessions.length ? (
+                        <button
+                          type="button"
+                          className="tree-l3 tree-l3--more"
+                          onClick={() =>
+                            setSessionPages((m) =>
+                              bumpSidebarPage(m, "orphans"),
+                            )
+                          }
+                        >
+                          {tr("sidebar.showMore")}
+                        </button>
+                      ) : null}
                       </div>
                     </SidebarTreeReveal>
                   );
