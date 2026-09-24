@@ -180,6 +180,9 @@ export function OverlayScroll({
           "overlay-scroll__viewport" +
           (viewportClassName ? ` ${viewportClassName}` : "")
         }
+        // overflowY flips between hidden and auto at runtime (syncTreeReveal);
+        // the marker lets VirtualList recognise this scroller either way.
+        data-overlay-scroll-viewport=""
         onScroll={handleScroll}
       >
         {children}

@@ -50,6 +50,12 @@ export type VirtualListProps<T> = {
 function findScrollParent(el: HTMLElement | null): HTMLElement | null {
   let node: HTMLElement | null = el?.parentElement ?? null;
   while (node) {
+    // OverlayScroll (syncTreeReveal) flips its viewport between overflow
+    // auto and hidden while content fits or a reveal animation runs. A
+    // computed-overflow check inside that window skips the real viewport,
+    // the scroll listener lands on an outer ancestor, and the render window
+    // stays frozen on the first screen. The marker names the scroller.
+    if (node.hasAttribute("data-overlay-scroll-viewport")) return node;
     const { overflowY } = getComputedStyle(node);
     if (
       overflowY === "auto" ||
