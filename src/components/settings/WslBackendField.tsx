@@ -178,9 +178,9 @@ export function WslBackendField({ t, onSaved }: Props) {
               onChange={(e) => setCliPath(e.target.value)}
               onBlur={(e) => {
                 const v = e.target.value.trim();
+                // Persist (and re-probe) only when the path actually changed —
+                // blurring an untouched input must not respawn the WSL probe.
                 if (v !== cliPath) {
-                  void persist({ enabled, distro, cliPath: v });
-                } else {
                   void persist({ enabled, distro, cliPath: v });
                 }
               }}
