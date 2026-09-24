@@ -674,7 +674,17 @@ impl SessionManager {
     }
 
     /// Apply model id on the live ACP session (best-effort session/set_model).
-    pub async fn set_model(&self, model_id: String) -> Result<(), String> {
+    ///
+    /// `session_id` is the chat the change belongs to. Only that chat gets
+    /// retuned when it owns the live slot — a draft, parked, or background
+    /// chat owns no agent here, and applying its model to the live slot used
+    /// to retune an unrelated conversation (same class as the effort scoping
+    /// fix). Other chats pick the model up from their saved prefs at connect.
+    pub async fn set_model(
+        &self,
+        model_id: String,
+        session_id: Option<&str>,
+    ) -> Result<(), String> {
         let model_id = model_id.trim().to_string();
         if model_id.is_empty() {
             return Err("model id empty".into());
@@ -683,13 +693,14 @@ impl SessionManager {
         let agent_model = crate::providers::agent_spawn_model_id(&model_id);
         let (acp, sid) = {
             let mut guard = self.inner.lock();
-            if let Some(s) = guard.as_mut() {
-                s.model_id = Some(model_id.clone());
-                s.meta.model_id = Some(model_id.clone());
-                let _ = store::update_session_meta(&s.meta);
-                (s.acp.clone(), s.meta.agent_session_id.clone())
-            } else {
-                (None, None)
+            match guard.as_mut() {
+                Some(s) if session_id.is_some_and(|id| id == s.app_session_id) => {
+                    s.model_id = Some(model_id.clone());
+                    s.meta.model_id = Some(model_id.clone());
+                    let _ = store::update_session_meta(&s.meta);
+                    (s.acp.clone(), s.meta.agent_session_id.clone())
+                }
+                _ => (None, None),
             }
         };
         // Target the live session explicitly (shared process safety).
@@ -1377,6 +1388,11 @@ mod recycle_tests {
     use super::*;
     use std::time::Instant;
 
+    use crate::journal_throttle::JournalWriteThrottle;
+    use crate::permission::SessionAllowCache;
+    use crate::session_fsm::SessionFsm;
+    use crate::store::SessionMeta;
+
     #[test]
     fn session_is_busy_is_false_when_untracked() {
         let mgr = SessionManager::new();
@@ -1436,5 +1452,128 @@ mod recycle_tests {
             map.get("keep").map(String::as_str),
             Some("permission_policy")
         );
+    }
+
+    #[test]
+    fn set_model_retunes_only_the_live_target_session() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp =
+            std::env::temp_dir().join(format!("grok-app-set-model-scope-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = std::fs::create_dir_all(&tmp);
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let _ = crate::paths::ensure_app_dirs();
+
+        let mgr = SessionManager::new();
+        let mut fsm = SessionFsm::new();
+        let _ = fsm.start_connect();
+        let _ = fsm.handshake_ok();
+        let now = Instant::now();
+        *mgr.inner.lock() = Some(LiveSession {
+            app_session_id: "session-1".into(),
+            process_id: "process-1".into(),
+            meta: SessionMeta {
+                id: "session-1".into(),
+                project_id: None,
+                title: "Test".into(),
+                agent_session_id: None,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                model_id: None,
+                archived: false,
+                pinned: false,
+                effort: None,
+                mode: None,
+                permission_policy: None,
+                json_schema: None,
+                scheduled: false,
+                worktree_path: None,
+                worktree_branch: None,
+                is_worktree_session: false,
+                plugin_dirs: Vec::new(),
+                extra_rules: None,
+                max_agent_turns: None,
+                system_prompt_override: None,
+                fork_agent_session: false,
+                fork_rewind_prompt_index: None,
+                no_ask_user: None,
+                workspace_id: None,
+                workspace_root_snapshot: None,
+                workspace_capability: None,
+            },
+            fsm,
+            backend: "mock_acp".into(),
+            acp: None,
+            mock_stream: None,
+            streaming_message_id: None,
+            active_turn_id: None,
+            stream_message_id_locked: false,
+            stream_buf: String::new(),
+            stream_thought: String::new(),
+            stream_last_was_assistant: false,
+            stream_attachments: Vec::new(),
+            model_id: None,
+            effort: None,
+            product_mode: None,
+            project_path: None,
+            allow_cache: SessionAllowCache::default(),
+            policy: PermissionPolicy::default(),
+            provider_retry_attempt: 0,
+            provider_retry_aborted: false,
+            needs_history_bootstrap: false,
+            pending_plan_rpc_id: None,
+            pending_permission_rpc_id: None,
+            pending_permission_options: None,
+            pending_permission_tool_name: None,
+            pending_permission_ui: None,
+            pending_ask_user_rpc_id: None,
+            pending_ask_user_ui: None,
+            last_activity: now,
+            last_stream_progress: now,
+            last_stall_emit: None,
+            stall_soft_emits: 0,
+            journal_throttle: JournalWriteThrottle::with_default_interval(),
+            open_tool_ids: HashSet::new(),
+            open_tool_seen_at: HashMap::new(),
+            terminal_tool_ids: HashSet::new(),
+            deferred_prompt_complete: None,
+            tools_this_turn: 0,
+            saw_model_output: false,
+            prompt_in_flight: false,
+            sent_prompt_this_visit: false,
+            pending_stream_emit: None,
+            stream_emit_flush_gen: 0,
+            last_tool_heartbeat_emit: None,
+        });
+
+        // A model change aimed at another chat (draft, parked, background, or a
+        // scheduled automation's new session before it connects) must not
+        // retune the conversation that happens to be open.
+        tauri::async_runtime::block_on(mgr.set_model("grok-4.6".into(), Some("other-chat")))
+            .expect("non-target apply is a no-op, not an error");
+        // Draft / global scope (no session id) keeps the live agent alone too.
+        tauri::async_runtime::block_on(mgr.set_model("grok-4.6".into(), None))
+            .expect("unscoped apply is a no-op, not an error");
+        {
+            let guard = mgr.inner.lock();
+            let s = guard.as_ref().expect("live session");
+            assert_eq!(s.model_id, None);
+            assert_eq!(s.meta.model_id, None);
+        }
+
+        // The chat that owns the live slot still retunes in place.
+        tauri::async_runtime::block_on(mgr.set_model("grok-4.7".into(), Some("session-1")))
+            .expect("live target applies");
+        {
+            let guard = mgr.inner.lock();
+            let s = guard.as_ref().expect("live session");
+            assert_eq!(s.model_id.as_deref(), Some("grok-4.7"));
+            assert_eq!(s.meta.model_id.as_deref(), Some("grok-4.7"));
+        }
+
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

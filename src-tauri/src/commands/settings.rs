@@ -383,7 +383,7 @@ pub async fn composer_prefs_set(
         }
     }
     if let Some(mid) = model_id {
-        if let Err(e) = mgr.set_model(mid).await {
+        if let Err(e) = mgr.set_model(mid, session_id.as_deref()).await {
             tracing::warn!("composer_prefs_set set_model soft-fail: {e}");
         }
     }
@@ -439,15 +439,16 @@ pub async fn session_set_model(
     session_id: Option<String>,
 ) -> Result<store::ComposerPrefs, String> {
     let (live_proj, live_sess) = mgr.current_context_ids();
+    let session_id = session_id.or(live_sess);
     let prefs = store::save_composer_prefs(
         project_id.or(live_proj).as_deref(),
-        session_id.or(live_sess).as_deref(),
+        session_id.as_deref(),
         Some(model_id.clone()),
         None,
         None,
         None,
     )?;
-    if let Err(e) = mgr.set_model(model_id).await {
+    if let Err(e) = mgr.set_model(model_id, session_id.as_deref()).await {
         tracing::warn!("session_set_model soft-fail: {e}");
     }
     Ok(prefs)
