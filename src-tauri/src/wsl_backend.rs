@@ -307,6 +307,20 @@ pub fn read_wsl_version(launch: &WslLaunch) -> Option<String> {
 }
 
 fn run_wsl_cli_probe(wsl: &Path, launch: &WslLaunch) -> (Option<String>, Option<String>, bool) {
+    // Absolute CLI paths probe via direct exec first —
+    // `wsl [-d Distro] -- <cli> --version` — skipping the login shell. The
+    // `bash -lc` probe below depends on the distro's login environment (bash
+    // on PATH, a quiet profile, a set $HOME); direct exec only needs the
+    // binary itself and matches the manual command users verify with.
+    if launch.linux_cli.starts_with('/') {
+        if let Some((path, version, ok)) = run_wsl_direct_probe(wsl, launch) {
+            if ok {
+                return (path, version, ok);
+            }
+            // Fall through to the shell probe as a backstop.
+        }
+    }
+
     // Expand optional ~ and prefer explicit path; otherwise PATH + ~/.grok/bin.
     // Print: first line = resolved path, rest = --version banner.
     let script = r#"
@@ -352,56 +366,120 @@ echo "$CLI"
         Ok(c) => c,
         Err(_) => return (None, None, false),
     };
+    match wait_wsl_probe(&mut child) {
+        Some((stdout, success)) => {
+            let mut lines = stdout.lines().map(str::trim).filter(|l| !l.is_empty());
+            let path = lines.next().map(|s| s.to_string());
+            let version_line = lines
+                .find(|l| {
+                    l.to_ascii_lowercase().contains("grok") || extract_version_token(l).is_some()
+                })
+                .map(|s| s.to_string())
+                .or_else(|| {
+                    // Single-line --version sometimes only on first line after path
+                    path.as_ref().and(None)
+                });
+            // If path line itself looks like a version banner, treat carefully
+            let (resolved_path, version) = match (&path, &version_line) {
+                (Some(p), Some(v)) => (Some(p.clone()), Some(v.clone())),
+                (Some(p), None) => {
+                    if extract_version_token(p).is_some()
+                        || p.to_ascii_lowercase().contains("grok ")
+                    {
+                        (None, Some(p.clone()))
+                    } else {
+                        (Some(p.clone()), None)
+                    }
+                }
+                (None, Some(v)) => (None, Some(v.clone())),
+                _ => (None, None),
+            };
+            let ok = success || version.is_some();
+            (resolved_path, version, ok)
+        }
+        // Timeout / wait error — nothing usable.
+        None => (None, None, false),
+    }
+}
+
+/// Wait for a probe child up to `VERSION_PROBE_TIMEOUT`, then return its
+/// combined stdout+stderr text plus the exit status. `None` on timeout or a
+/// wait error (caller treats as "probe could not run" → fallback allowed).
+fn wait_wsl_probe(child: &mut std::process::Child) -> Option<(String, bool)> {
     let deadline = Instant::now() + VERSION_PROBE_TIMEOUT;
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                let mut stdout = String::new();
+                let mut out = String::new();
+                use std::io::Read;
                 if let Some(mut pipe) = child.stdout.take() {
-                    use std::io::Read;
-                    let _ = pipe.read_to_string(&mut stdout);
+                    let _ = pipe.read_to_string(&mut out);
                 }
-                let mut lines = stdout.lines().map(str::trim).filter(|l| !l.is_empty());
-                let path = lines.next().map(|s| s.to_string());
-                let version_line = lines
-                    .find(|l| {
-                        l.to_ascii_lowercase().contains("grok")
-                            || extract_version_token(l).is_some()
-                    })
-                    .map(|s| s.to_string())
-                    .or_else(|| {
-                        // Single-line --version sometimes only on first line after path
-                        path.as_ref().and(None)
-                    });
-                // If path line itself looks like a version banner, treat carefully
-                let (resolved_path, version) = match (&path, &version_line) {
-                    (Some(p), Some(v)) => (Some(p.clone()), Some(v.clone())),
-                    (Some(p), None) => {
-                        if extract_version_token(p).is_some()
-                            || p.to_ascii_lowercase().contains("grok ")
-                        {
-                            (None, Some(p.clone()))
-                        } else {
-                            (Some(p.clone()), None)
-                        }
-                    }
-                    (None, Some(v)) => (None, Some(v.clone())),
-                    _ => (None, None),
-                };
-                let ok = status.success() || version.is_some();
-                return (resolved_path, version, ok);
+                // Some CLIs print their banner on stderr — merge it too.
+                if let Some(mut pipe) = child.stderr.take() {
+                    let mut err = String::new();
+                    let _ = pipe.read_to_string(&mut err);
+                    out.push_str(&err);
+                }
+                return Some((out, status.success()));
             }
             Ok(None) => {
                 if Instant::now() >= deadline {
                     let _ = child.kill();
                     let _ = child.wait();
-                    return (None, None, false);
+                    return None;
                 }
                 std::thread::sleep(Duration::from_millis(30));
             }
-            Err(_) => return (None, None, false),
+            Err(_) => return None,
         }
     }
+}
+
+/// `wsl [-d Distro] -- <cli> --version` argv for an absolute `linux_cli`.
+/// Pure argv builder so the probe shape is unit-testable off Windows.
+fn wsl_direct_probe_args(launch: &WslLaunch) -> Vec<String> {
+    let mut args = Vec::new();
+    if let Some(ref d) = launch.distro {
+        args.push("-d".into());
+        args.push(d.clone());
+    }
+    args.push("--".into());
+    args.push(launch.linux_cli.clone());
+    args.push("--version".into());
+    args
+}
+
+/// Probe an absolute `linux_cli` via direct exec — no login shell. `None` when
+/// the process could not be spawned / timed out / produced nothing usable, so
+/// the caller can fall back to the `bash -lc` probe.
+fn run_wsl_direct_probe(
+    wsl: &Path,
+    launch: &WslLaunch,
+) -> Option<(Option<String>, Option<String>, bool)> {
+    if !is_safe_wsl_cli_path(&launch.linux_cli) {
+        return None;
+    }
+    let mut cmd = StdCommand::new(wsl);
+    for a in wsl_direct_probe_args(launch) {
+        cmd.arg(a);
+    }
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    process_util::apply_no_window_std(&mut cmd);
+    let mut child = cmd.spawn().ok()?;
+    let (out, success) = wait_wsl_probe(&mut child)?;
+    let version = out
+        .lines()
+        .map(str::trim)
+        .find(|l| {
+            !l.is_empty()
+                && (l.to_ascii_lowercase().contains("grok") || extract_version_token(l).is_some())
+        })
+        .map(|s| s.to_string());
+    let ok = success || version.is_some();
+    Some((Some(launch.linux_cli.clone()), version, ok))
 }
 
 /// Characters allowed in a WSL CLI path segment (after optional `~/`).
@@ -652,6 +730,32 @@ mod tests {
         }
         let s = decode_wsl_list_output(&bytes);
         assert!(s.contains("Ubuntu"));
+    }
+
+    #[test]
+    fn direct_probe_args_shape() {
+        let l = WslLaunch {
+            distro: Some("Ubuntu-24.04".into()),
+            linux_cli: "/root/.grok/bin/grok".into(),
+        };
+        assert_eq!(
+            wsl_direct_probe_args(&l),
+            vec![
+                "-d",
+                "Ubuntu-24.04",
+                "--",
+                "/root/.grok/bin/grok",
+                "--version"
+            ]
+        );
+        let d = WslLaunch {
+            distro: None,
+            linux_cli: "/usr/local/bin/grok".into(),
+        };
+        assert_eq!(
+            wsl_direct_probe_args(&d),
+            vec!["--", "/usr/local/bin/grok", "--version"]
+        );
     }
 
     #[test]
