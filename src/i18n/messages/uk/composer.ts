@@ -72,6 +72,7 @@ export const ukComposer = {
   "composer.voiceErr.timeout": "Час очікування запиту мовлення вичерпано. Спробуйте коротший кліп.",
   "composer.voiceErr.unknown": "Голосове диктування не вдалося.",
   "composer.voiceErr.sendBlocked": "Вставлено в чернетку — не вдалося надіслати автоматично (вирішіть дозвіл або зачекайте, поки чат зможе надсилати).",
+  "composer.voiceDelivered": "Диктування пішло в чат, у якому його було записано.",
   "composer.draftStats": "{chars} символів",
   "composer.draftStatsAria": "Довжина чернетки: {chars} символів",
   "composer.quotes": "Цитовані уривки",

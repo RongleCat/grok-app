@@ -72,6 +72,7 @@ export const jaComposer = {
   "composer.voiceErr.timeout": "音声リクエストがタイムアウトしました。短いクリップで試してください。",
   "composer.voiceErr.unknown": "音声入力に失敗しました。",
   "composer.voiceErr.sendBlocked": "下書きに挿入しました — 自動送信できません（権限を処理するか、チャットが送信できるまで待ってください）。",
+  "composer.voiceDelivered": "音声入力は録音したチャットに送られました。",
   "composer.draftStats": "{chars} 文字",
   "composer.draftStatsAria": "下書きの長さ: {chars} 文字",
   "composer.quotes": "抜粋メモ",

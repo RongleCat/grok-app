@@ -14,8 +14,13 @@ import {
   type SetStateAction,
 } from "react";
 import { getComposerCaretOffset } from "@/components/ComposerEditor";
+import type { ExecuteSendOpts } from "@/hooks/useComposerSend";
 import { createT, type MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
+import {
+  clearComposerSessionDraft,
+  loadComposerSessionDraft,
+} from "@/lib/composerSessionDraft";
 import { isMirrorClient } from "@/lib/mirrorTransport";
 import {
   blobToBase64,
@@ -39,6 +44,11 @@ import {
   type VoiceErrorClass,
   type VoiceFsmState,
 } from "@/lib/voiceDictation";
+import {
+  parkDictationTranscript,
+  sameDictationTarget,
+  type DictationTarget,
+} from "@/lib/voiceDictationDelivery";
 
 type TFn = ReturnType<typeof createT>;
 
@@ -52,9 +62,15 @@ export function useVoiceDictation(opts: {
   localeRef: MutableRefObject<string>;
   composerInputRef: RefObject<HTMLElement | null>;
   sendRef: MutableRefObject<(() => Promise<void>) | null>;
+  /** Targeted background send (same engine as `send`, explicit session). */
+  sendToSessionRef: MutableRefObject<
+    (opts: ExecuteSendOpts) => Promise<boolean>
+  >;
   voiceDictationAutoSendRef: MutableRefObject<boolean>;
   setDraft: Dispatch<SetStateAction<string>>;
   sessionState: string;
+  /** Composer buffer in view right now (synced to a ref inside). */
+  dictationTarget: DictationTarget;
   refreshSessions: () => void | Promise<void>;
   sttEngine: string;
   sttCustomBaseUrl: string;
@@ -66,6 +82,7 @@ export function useVoiceDictation(opts: {
     localeRef,
     composerInputRef,
     sendRef,
+    sendToSessionRef,
     voiceDictationAutoSendRef,
     setDraft,
     refreshSessions,
@@ -76,6 +93,8 @@ export function useVoiceDictation(opts: {
   } = opts;
   const sessionStateRef = useRef(opts.sessionState);
   sessionStateRef.current = opts.sessionState;
+  const dictationTargetRef = useRef(opts.dictationTarget);
+  dictationTargetRef.current = opts.dictationTarget;
 
   const [voice, setVoice] = useState<VoiceFsmState>(() => initialVoiceState());
   const [liveVoiceOpen, setLiveVoiceOpen] = useState(false);
@@ -89,6 +108,8 @@ export function useVoiceDictation(opts: {
   voiceRef.current = voice;
   const voiceGenRef = useRef(0);
   const voiceCaretRef = useRef<number | null>(null);
+  /** Composer buffer that owned the mic when the user stopped recording. */
+  const voiceTargetRef = useRef<DictationTarget | null>(null);
 
   const voiceErrorMessage = useCallback(
     (cls: VoiceErrorClass | null | undefined) => {
@@ -173,6 +194,7 @@ export function useVoiceDictation(opts: {
     }
     voiceCaptureRef.current = null;
     voiceCaretRef.current = null;
+    voiceTargetRef.current = null;
     setVoice(reduceVoice(voiceRef.current, { type: "cancel" }));
   }, [clearVoiceTimers]);
 
@@ -251,6 +273,38 @@ export function useVoiceDictation(opts: {
           applyVoiceFail("no_speech", 4200);
           return;
         }
+        const origin = voiceTargetRef.current;
+        const now = dictationTargetRef.current;
+        if (origin && !sameDictationTarget(origin, now)) {
+          // Chat switched while STT ran — the transcript belongs to the
+          // buffer that owned the mic at stop, never the chat now in view.
+          const parked = parkDictationTranscript({
+            target: origin,
+            transcript: commit.text,
+            caret,
+          });
+          setVoice((s) => reduceVoice(s, { type: "transcribe_ok" }));
+          if (parked && commit.kind === "send" && origin.sessionId) {
+            const sid = origin.sessionId;
+            const sentText = parked.text;
+            void sendToSessionRef
+              .current({
+                storedDisplay: sentText,
+                att: [],
+                goalMode: parked.goalMode,
+                targetSessionId: sid,
+              })
+              .then((sent) => {
+                if (!sent) return;
+                // Drop the parked copy only while nothing else was typed.
+                if (loadComposerSessionDraft(sid)?.text === sentText) {
+                  clearComposerSessionDraft(sid);
+                }
+              });
+          }
+          notifyRef.current(tr("composer.voiceDelivered"), 4800);
+          return;
+        }
         setDraft((d) => {
           const at =
             caret == null ? d.length : Math.max(0, Math.min(caret, d.length));
@@ -273,6 +327,7 @@ export function useVoiceDictation(opts: {
         if (voiceResultStillCurrent(gen, voiceGenRef.current)) {
           voiceCaptureRef.current = null;
           voiceCaretRef.current = null;
+          voiceTargetRef.current = null;
           clearVoiceTimers();
         }
       }
@@ -283,6 +338,7 @@ export function useVoiceDictation(opts: {
       localeRef,
       notifyRef,
       sendRef,
+      sendToSessionRef,
       setDraft,
       tr,
       voiceDictationAutoSendRef,
@@ -321,6 +377,7 @@ export function useVoiceDictation(opts: {
             voiceCaretRef.current = getComposerCaretOffset(
               composerInputRef.current,
             );
+            voiceTargetRef.current = dictationTargetRef.current;
             const blob = await cap.stop();
             await finishVoiceTranscribe(blob, gen);
           } catch (e) {
@@ -363,6 +420,7 @@ export function useVoiceDictation(opts: {
     if (voiceRef.current.phase !== "recording") return;
     const gen = voiceGenRef.current;
     voiceCaretRef.current = getComposerCaretOffset(composerInputRef.current);
+    voiceTargetRef.current = dictationTargetRef.current;
     clearVoiceTimers();
     const cap = voiceCaptureRef.current;
     if (!cap) {

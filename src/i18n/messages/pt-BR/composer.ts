@@ -72,6 +72,7 @@ export const ptBRComposer = {
   "composer.voiceErr.timeout": "A requisição de fala expirou. Tente um clipe mais curto.",
   "composer.voiceErr.unknown": "A ditação por voz falhou.",
   "composer.voiceErr.sendBlocked": "Inserido no rascunho — não foi possível enviar automaticamente (resolva a permissão ou aguarde até o chat poder enviar).",
+  "composer.voiceDelivered": "O ditado foi para a conversa em que você o gravou.",
   "composer.draftStats": "{chars} caracteres",
   "composer.draftStatsAria": "Tamanho do rascunho: {chars} caracteres",
   "composer.quotes": "Trechos citados",

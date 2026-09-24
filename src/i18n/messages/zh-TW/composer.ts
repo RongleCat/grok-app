@@ -134,6 +134,7 @@ export const zhTWComposer = {
   "composer.voiceErr.timeout": "轉寫逾時，請縮短說話時長後重試。",
   "composer.voiceErr.unknown": "語音輸入失敗。",
   "composer.voiceErr.sendBlocked": "已插入草稿 — 無法自動傳送（請先處理權限，或等到對話可傳送）。",
+  "composer.voiceDelivered": "聽寫內容已歸入錄製它的工作階段。",
   "composer.draftStats": "{chars} 字",
   "composer.draftStatsAria": "草稿長度：{chars} 字",
   "composer.quotes": "摘錄註解",

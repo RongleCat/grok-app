@@ -74,6 +74,7 @@ export const zhComposer = {
   "composer.voiceErr.timeout": "转写超时，请缩短说话时长后重试。",
   "composer.voiceErr.unknown": "语音输入失败。",
   "composer.voiceErr.sendBlocked": "已插入草稿 — 无法自动发送（请先处理权限，或等到会话可发送）。",
+  "composer.voiceDelivered": "听写内容已归入录制它的会话。",
   "composer.draftStats": "{chars} 字",
   "composer.draftStatsAria": "草稿长度：{chars} 字",
   "composer.quotes": "摘录注释",
