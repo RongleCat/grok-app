@@ -12,6 +12,7 @@ import type {
   ErrorDeckResolveOpts,
 } from "../errorDeck";
 import type { AgentError, AgentErrorCode, ChatMessage, TurnErrorPayload } from "./types";
+import { assistantHasVisibleBody } from "./stream";
 
 /**
  * Convert in-flight thinking bubble into a persistent error row in the thread.
@@ -51,6 +52,23 @@ export function applyTurnError(
   if (idx >= 0) {
     const next = messages.slice();
     const prev = next[idx]!;
+    // A turn that already streamed visible work keeps it: settle the partial
+    // row and record the failure as its own row. Replacing the row outright
+    // would erase the partial answer and tool activity behind an error pill.
+    // A repeat error for the same row still patches in place — no dup pills.
+    if (!prev.isError && assistantHasVisibleBody(prev)) {
+      next[idx] = { ...prev, streaming: false };
+      next.push({
+        id: mid || `err-${Date.now()}`,
+        role: "assistant",
+        content,
+        streaming: false,
+        isError: true,
+      });
+      return next.map((m, i) =>
+        i !== idx && m.streaming ? { ...m, streaming: false } : m,
+      );
+    }
     next[idx] = {
       ...prev,
       id: mid || prev.id,
