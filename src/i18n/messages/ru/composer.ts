@@ -72,6 +72,7 @@ export const ruComposer = {
   "composer.voiceErr.timeout": "Истекло время ожидания запроса речи. Попробуйте более короткий фрагмент.",
   "composer.voiceErr.unknown": "Голосовая диктовка не удалась.",
   "composer.voiceErr.sendBlocked": "Вставлено в черновик — автоматическая отправка невозможна (разрешите доступ или дождитесь, пока чат сможет отправлять).",
+  "composer.voiceDelivered": "Диктовка ушла в чат, в котором она была записана.",
   "composer.draftStats": "{chars} симв.",
   "composer.draftStatsAria": "Длина черновика: {chars} символов",
   "composer.quotes": "Цитаты",

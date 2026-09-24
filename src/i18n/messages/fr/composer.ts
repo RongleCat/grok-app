@@ -72,6 +72,7 @@ export const frComposer = {
   "composer.voiceErr.timeout": "Délai de la requête de parole dépassé. Essayez un clip plus court.",
   "composer.voiceErr.unknown": "Échec de la dictée vocale.",
   "composer.voiceErr.sendBlocked": "Inséré dans le brouillon — envoi auto impossible (résolvez l’autorisation ou attendez que le chat puisse envoyer).",
+  "composer.voiceDelivered": "La dictée est allée dans la conversation où vous l’avez enregistrée.",
   "composer.draftStats": "{chars} car.",
   "composer.draftStatsAria": "Longueur du brouillon : {chars} caractères",
   "composer.quotes": "Extraits cités",

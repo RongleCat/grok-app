@@ -72,6 +72,7 @@ export const itComposer = {
   "composer.voiceErr.timeout": "Richiesta vocale scaduta. Prova un clip più breve.",
   "composer.voiceErr.unknown": "Dettatura vocale non riuscita.",
   "composer.voiceErr.sendBlocked": "Inserito nella bozza — impossibile inviare automaticamente (risolvi il permesso o attendi che la chat possa inviare).",
+  "composer.voiceDelivered": "La dettatura è finita nella chat in cui l'hai registrata.",
   "composer.draftStats": "{chars} caratteri",
   "composer.draftStatsAria": "Lunghezza della bozza: {chars} caratteri",
   "composer.quotes": "Estratti citati",

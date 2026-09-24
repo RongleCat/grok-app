@@ -72,6 +72,7 @@ export const koComposer = {
   "composer.voiceErr.timeout": "음성 요청이 시간 초과되었습니다. 더 짧은 클립을 시도하세요.",
   "composer.voiceErr.unknown": "음성 받아쓰기에 실패했습니다.",
   "composer.voiceErr.sendBlocked": "초안에 삽입했습니다 — 자동 전송하지 못했습니다 (권한을 해결하거나 채팅이 보낼 수 있을 때까지 기다리세요).",
+  "composer.voiceDelivered": "받아쓰기 내용이 녹음한 채팅으로 이동했습니다.",
   "composer.draftStats": "{chars}자",
   "composer.draftStatsAria": "초안 길이: {chars}자",
   "composer.quotes": "인용된 발췌",

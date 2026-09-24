@@ -72,6 +72,7 @@ export const filComposer = {
   "composer.voiceErr.timeout": "Nag-timeout ang speech request. Subukan ang mas maikling clip.",
   "composer.voiceErr.unknown": "Nabigo ang voice dictation.",
   "composer.voiceErr.sendBlocked": "Nailagay sa draft — hindi ma-auto-send (ayusin ang pahintulot o maghintay hanggang makapagpadala ang chat).",
+  "composer.voiceDelivered": "Ang dictation ay napunta sa chat kung saan mo ito ni-record.",
   "composer.draftStats": "{chars} character",
   "composer.draftStatsAria": "Haba ng draft: {chars} character",
   "composer.quotes": "Mga siniping sipi",

@@ -72,6 +72,7 @@ export const taComposer = {
   "composer.voiceErr.timeout": "பேச்சுக் கோரிக்கை நேரம் முடிந்தது. சிறிய கிளிப்பை முயற்சிக்கவும்.",
   "composer.voiceErr.unknown": "குரல் டிக்டேஷன் தோல்வியடைந்தது.",
   "composer.voiceErr.sendBlocked": "வரைவில் செருகப்பட்டது — தானாக அனுப்ப முடியவில்லை (அனுமதியைத் தீர்க்கவும் அல்லது உரையாடல் அனுப்பும் வரை காத்திருக்கவும்).",
+  "composer.voiceDelivered": "சொல்லெழுத்து பதிவு செய்த அரட்டைக்கே சென்றது.",
   "composer.draftStats": "{chars} எழுத்துகள்",
   "composer.draftStatsAria": "வரைவு நீளம்: {chars} எழுத்துகள்",
   "composer.quotes": "மேற்கோள் பகுதிகள்",

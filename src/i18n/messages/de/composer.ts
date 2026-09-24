@@ -72,6 +72,7 @@ export const deComposer = {
   "composer.voiceErr.timeout": "Sprachanfrage zeitüberschritten. Kürzeren Clip versuchen.",
   "composer.voiceErr.unknown": "Spracheingabe fehlgeschlagen.",
   "composer.voiceErr.sendBlocked": "In den Entwurf eingefügt — Auto-Senden nicht möglich (Berechtigung klären oder warten, bis der Chat senden kann).",
+  "composer.voiceDelivered": "Das Diktat wurde in den Chat übernommen, in dem es aufgenommen wurde.",
   "composer.draftStats": "{chars} Zeichen",
   "composer.draftStatsAria": "Entwurfslänge: {chars} Zeichen",
   "composer.quotes": "Zitierte Auszüge",

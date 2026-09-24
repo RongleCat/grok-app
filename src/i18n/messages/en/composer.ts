@@ -74,6 +74,7 @@ export const enComposer = {
   "composer.voiceErr.timeout": "Speech request timed out. Try a shorter clip.",
   "composer.voiceErr.unknown": "Voice dictation failed.",
   "composer.voiceErr.sendBlocked": "Inserted into draft — could not auto-send (resolve permission or wait until the chat can send).",
+  "composer.voiceDelivered": "Dictation went to the chat where you recorded it.",
   "composer.draftStats": "{chars} chars",
   "composer.draftStatsAria": "Draft length: {chars} characters",
   "composer.quotes": "Quoted excerpts",

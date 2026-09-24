@@ -72,6 +72,7 @@ export const esComposer = {
   "composer.voiceErr.timeout": "La solicitud de voz agotó el tiempo. Prueba un clip más corto.",
   "composer.voiceErr.unknown": "Falló el dictado por voz.",
   "composer.voiceErr.sendBlocked": "Insertado en el borrador — no se pudo enviar automáticamente (resuelve el permiso o espera a que el chat pueda enviar).",
+  "composer.voiceDelivered": "El dictado fue al chat donde lo grabaste.",
   "composer.draftStats": "{chars} caracteres",
   "composer.draftStatsAria": "Longitud del borrador: {chars} caracteres",
   "composer.quotes": "Extractos citados",

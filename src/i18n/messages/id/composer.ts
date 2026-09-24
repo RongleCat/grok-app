@@ -72,6 +72,7 @@ export const idComposer = {
   "composer.voiceErr.timeout": "Permintaan ucapan kehabisan waktu. Coba klip yang lebih pendek.",
   "composer.voiceErr.unknown": "Dikte suara gagal.",
   "composer.voiceErr.sendBlocked": "Disisipkan ke draf — tidak dapat dikirim otomatis (selesaikan izin atau tunggu hingga obrolan dapat mengirim).",
+  "composer.voiceDelivered": "Hasil dikte masuk ke chat tempat Anda merekamnya.",
   "composer.draftStats": "{chars} karakter",
   "composer.draftStatsAria": "Panjang draf: {chars} karakter",
   "composer.quotes": "Kutipan",
