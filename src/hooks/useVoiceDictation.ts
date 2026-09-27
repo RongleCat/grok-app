@@ -14,13 +14,8 @@ import {
   type SetStateAction,
 } from "react";
 import { getComposerCaretOffset } from "@/components/ComposerEditor";
-import type { ExecuteSendOpts } from "@/hooks/useComposerSend";
 import { createT, type MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
-import {
-  clearComposerSessionDraft,
-  loadComposerSessionDraft,
-} from "@/lib/composerSessionDraft";
 import { isMirrorClient } from "@/lib/mirrorTransport";
 import {
   blobToBase64,
@@ -62,10 +57,6 @@ export function useVoiceDictation(opts: {
   localeRef: MutableRefObject<string>;
   composerInputRef: RefObject<HTMLElement | null>;
   sendRef: MutableRefObject<(() => Promise<void>) | null>;
-  /** Targeted background send (same engine as `send`, explicit session). */
-  sendToSessionRef: MutableRefObject<
-    (opts: ExecuteSendOpts) => Promise<boolean>
-  >;
   voiceDictationAutoSendRef: MutableRefObject<boolean>;
   setDraft: Dispatch<SetStateAction<string>>;
   sessionState: string;
@@ -82,7 +73,6 @@ export function useVoiceDictation(opts: {
     localeRef,
     composerInputRef,
     sendRef,
-    sendToSessionRef,
     voiceDictationAutoSendRef,
     setDraft,
     refreshSessions,
@@ -276,33 +266,20 @@ export function useVoiceDictation(opts: {
         const origin = voiceTargetRef.current;
         const now = dictationTargetRef.current;
         if (origin && !sameDictationTarget(origin, now)) {
-          // Chat switched while STT ran — the transcript belongs to the
-          // buffer that owned the mic at stop, never the chat now in view.
+          // Chat switched while STT ran. Park into the buffer that owned the
+          // mic. Do not executeSend: that uses the chat now on screen
+          // (schema, title, automation wrap) and would send with no
+          // attachments, then delete the origin draft's files and quotes.
+          // Auto-send still runs below when the composer never left this chat.
           const parked = parkDictationTranscript({
             target: origin,
             transcript: commit.text,
             caret,
           });
           setVoice((s) => reduceVoice(s, { type: "transcribe_ok" }));
-          if (parked && commit.kind === "send" && origin.sessionId) {
-            const sid = origin.sessionId;
-            const sentText = parked.text;
-            void sendToSessionRef
-              .current({
-                storedDisplay: sentText,
-                att: [],
-                goalMode: parked.goalMode,
-                targetSessionId: sid,
-              })
-              .then((sent) => {
-                if (!sent) return;
-                // Drop the parked copy only while nothing else was typed.
-                if (loadComposerSessionDraft(sid)?.text === sentText) {
-                  clearComposerSessionDraft(sid);
-                }
-              });
+          if (parked) {
+            notifyRef.current(tr("composer.voiceDelivered"), 4800);
           }
-          notifyRef.current(tr("composer.voiceDelivered"), 4800);
           return;
         }
         setDraft((d) => {
@@ -338,7 +315,6 @@ export function useVoiceDictation(opts: {
       localeRef,
       notifyRef,
       sendRef,
-      sendToSessionRef,
       setDraft,
       tr,
       voiceDictationAutoSendRef,

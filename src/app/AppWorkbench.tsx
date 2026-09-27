@@ -1937,7 +1937,6 @@ export function AppWorkbench() {
     localeRef,
     composerInputRef,
     sendRef,
-    sendToSessionRef: executeSendLatestRef,
     voiceDictationAutoSendRef,
     setDraft,
     sessionState: session.state,
