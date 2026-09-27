@@ -515,6 +515,32 @@ describe("session projection", () => {
     expect(messages.filter((m) => m.isError)).toHaveLength(1);
   });
 
+  it("applyTurnError keeps the partial when the host reuses its message id", () => {
+    let messages: ChatMessage[] = [
+      { id: "u1", role: "user", content: "hi" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "partial answer",
+        segments: [{ kind: "content", text: "partial answer" }],
+        streaming: true,
+      },
+    ];
+    const payload = {
+      messageId: "a1",
+      code: "NETWORK_PROVIDER",
+      message: "upstream 503",
+    };
+    messages = applyTurnError(messages, payload, "en");
+    expect(messages.map((m) => m.id)).toEqual(["u1", "a1", "a1:turn-error"]);
+    expect(messages[1]!.content).toBe("partial answer");
+    expect(messages[1]!.isError).toBeFalsy();
+    expect(messages[2]!.isError).toBe(true);
+    messages = applyTurnError(messages, payload, "en");
+    expect(messages).toHaveLength(3);
+    expect(messages.filter((m) => m.isError)).toHaveLength(1);
+  });
+
   it("applyGeneratedImage attaches to streaming assistant and dedupes", () => {
     let messages: ChatMessage[] = [
       { id: "u1", role: "user", content: "draw a cat" },
