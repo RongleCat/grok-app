@@ -65,7 +65,7 @@
 - 📝 **Files & Creation Loop** — Embedded CodeMirror 6 editor with instant disk synchronization, visual Git Diff review, comprehensive media preview (images, video, audio, PDF, Office documents), and AI image/video generation via Imagine.
 - 📲 **Omnichannel Remote IM** — Unified bridge connecting your local agent to Feishu/Lark, Telegram, Discord, Slack, DingTalk, WeCom, WeChat personal, QQ, Matrix, LINE, and Weibo; token-gated mobile web mirror and loopback REST session API.
 - 🐾 **Desktop Companion & Status Feedback** — Interactive always-on-top desktop pet companion with live agent status awareness, responsive reactions, and notification bubbles.
-- 🔐 **Privacy & Custom Relays** — API keys securely stored in your OS keychain. SuperGrok quota bar and heatmap tracking, custom provider relays (OpenRouter, DeepSeek, AI98PRO, etc.), and 15 built-in UI languages.
+- 🔐 **Privacy & Custom Relays** — API keys securely stored in your OS keychain. SuperGrok quota bar and heatmap tracking, custom provider relays (OpenRouter, Requesty, DeepSeek, AI98PRO, etc.), and 15 built-in UI languages.
 
 ---
 
@@ -102,7 +102,7 @@
 
 ### 6. Accounts, Relays & Personalization
 - **Multi-Account & Quota Tracking**: Instant account switcher, official login, SuperGrok quota progress bar, cost heatmaps, and local tracking for custom providers.
-- **Flexible Relay Modes**: Independent configuration mode or non-destructive shared mode (protects existing `~/.grok` configurations); one-click presets for OpenRouter, DeepSeek, AI98PRO, etc.
+- **Flexible Relay Modes**: Independent configuration mode or non-destructive shared mode (protects existing `~/.grok` configurations); one-click presets for OpenRouter, Requesty, DeepSeek, AI98PRO, etc.
 - **Visual Customization**: Light, dark, and system-adaptive themes; custom skins, wallpapers, UI fonts, terminal fonts, and share card styling.
 - **Internationalization**: 15 built-in languages (EN, ZH, JA, KO, DE, FR, RU, ES, PT-BR, IT, ID, TA, UK, FIL, ZH-TW) with automatic OS locale detection.
 
