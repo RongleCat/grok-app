@@ -21,9 +21,13 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 - Switching chats no longer keeps the previous chat's goal switch on.
+- Rewinding a running reply stops that chat first. A failed rewind is not sent.
+- Pinned chats stay in pin order, with the workspace name as a divider.
 
 **中文 · 修复**
 - 切到另一条对话后，不再沿用上一条的目标开关。
+- 回复还在进行时撤回，会先停这一条。撤回失败不会把新内容发出去。
+- 置顶按置顶顺序保留，工作区名只作分隔。
 
 ## [0.2.37] - 2026-09-22
 

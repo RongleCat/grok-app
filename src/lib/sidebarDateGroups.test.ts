@@ -4,6 +4,7 @@ import {
   groupSessionsByDate,
   localDayOffset,
   parseSessionUpdatedAt,
+  groupPinnedByWorkspaceRun,
   partitionGlobalPinned,
   sidebarNavSessionIds,
   SIDEBAR_DATE_GROUP_I18N_KEYS,
@@ -152,7 +153,7 @@ describe("sortSessionsForSidebar", () => {
 });
 
 describe("partitionGlobalPinned", () => {
-  it("lifts pinned chats above folders, newest pin first", () => {
+  it("lifts pinned chats in list order, not by activity", () => {
     const sessions = [
       {
         id: "b-unpinned",
@@ -188,11 +189,32 @@ describe("partitionGlobalPinned", () => {
     ];
     const { pinned, rest } = partitionGlobalPinned(sessions);
     expect(pinned.map((s) => s.id)).toEqual([
-      "a-pin",
       "b-pin",
+      "a-pin",
       "orphan-pin",
     ]);
     expect(rest.map((s) => s.id)).toEqual(["b-unpinned"]);
+  });
+
+  it("starts a new workspace divider only when the project changes", () => {
+    const pinned = [
+      { projectId: "a" },
+      { projectId: "a" },
+      { projectId: "b" },
+      { projectId: null },
+      { projectId: "a" },
+    ];
+    expect(
+      groupPinnedByWorkspaceRun(pinned, new Set(["a", "b"])).map((g) => [
+        g.projectId,
+        g.sessions.length,
+      ]),
+    ).toEqual([
+      ["a", 2],
+      ["b", 1],
+      [null, 1],
+      ["a", 1],
+    ]);
   });
 });
 

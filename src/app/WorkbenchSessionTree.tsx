@@ -36,6 +36,7 @@ import { projectDisplayName } from "@/lib/app/sidebarModels";
 import type { ContextMenuState } from "@/lib/app/appDialogTypes";
 import { areAllIdsSelected } from "@/lib/sessionSelect";
 import {
+  groupPinnedByWorkspaceRun,
   partitionGlobalPinned,
   sortSessionsForSidebar,
 } from "@/lib/sidebarDateGroups";
@@ -219,6 +220,15 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
     () => new Set(projects.map((p) => p.id)),
     [projects],
   );
+  const pinGroups = useMemo(
+    () => groupPinnedByWorkspaceRun(pinnedSessions, projectIdSet),
+    [pinnedSessions, projectIdSet],
+  );
+  const projectNameById = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const project of projects) names.set(project.id, project.name);
+    return names;
+  }, [projects]);
   const orphanSessionIds = orphanSessions.map((s) => s.id);
   const orphanAllSelected = areAllIdsSelected(
     selectedSessionIds,
@@ -233,26 +243,42 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
             viewportClassName="sidebar__scroll-inner"
             syncTreeReveal
           >
-            {pinnedSessions.length > 0 ? (
-              <div className="tree-pinned">
+            {pinGroups.map((group) => (
+              <div
+                className="tree-pinned"
+                key={`${group.key}:${group.sessions[0]?.id ?? ""}`}
+              >
                 <div className="tree-l1">
-                  <div className="tree-l1__head" aria-label={tr("session.pinned")}>
+                  <div
+                    className="tree-l1__head"
+                    aria-label={
+                      group.projectId
+                        ? projectNameById.get(group.projectId) ||
+                          group.projectId
+                        : tr("sidebar.otherSessions")
+                    }
+                  >
                     <span className="tree-l1__icon" aria-hidden>
                       <IconPin size={14} />
                     </span>
-                    <span className="tree-l1__label">{tr("session.pinned")}</span>
+                    <span className="tree-l1__label">
+                      {group.projectId
+                        ? projectNameById.get(group.projectId) ||
+                          group.projectId
+                        : tr("sidebar.otherSessions")}
+                    </span>
                   </div>
                 </div>
                 <div className="tree-l3-list-wrap">
                   <VirtualList
                     className="tree-l3-list"
-                    items={pinnedSessions}
+                    items={group.sessions}
                     getKey={(s) => s.id}
                     rowHeight={sidebarRowMetrics.rowHeight}
                     gap={sidebarRowMetrics.gap}
                     scrollToKey={
                       session.sessionId &&
-                      pinnedSessions.some((x) => x.id === session.sessionId)
+                      group.sessions.some((x) => x.id === session.sessionId)
                         ? session.sessionId
                         : null
                     }
@@ -301,7 +327,7 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
                   />
                 </div>
               </div>
-            ) : null}
+            ))}
             {/* L1 — Projects section */}
             <div className="tree-l1">
               <button

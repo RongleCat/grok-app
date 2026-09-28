@@ -102,6 +102,7 @@ import {
   applyTurnError,
   applyTurnMarker,
   canSend,
+  canStop,
   canType,
   isSessionLiveStreaming,
   presentErrorBanner,
@@ -5568,12 +5569,15 @@ export function AppWorkbench() {
     session.state !== "streaming" &&
     session.state !== "awaiting_permission";
 
-  /** Idle-ish: allow fork / rewind from transcript (not mid-turn). */
+  /** Idle gate for fork / duplicate. Rewind itself is also allowed mid-turn. */
   const canRewindSession =
     canSend(session.state) &&
     !connecting &&
     !editSubmitting &&
     !rewindBusy;
+  const canRewindNow =
+    canRewindSession ||
+    (canStop(session.state) && !connecting && !editSubmitting && !rewindBusy);
 
   const {
     executeSend,
@@ -8353,7 +8357,7 @@ export function AppWorkbench() {
         showToast(msg);
         return;
       }
-      if (!canRewindSession) {
+      if (!canRewindNow) {
         const msg = tr("session.rewindBusy");
         setRewindError(msg);
         showToast(msg);
@@ -8420,7 +8424,7 @@ export function AppWorkbench() {
     },
     // ensureConnected / refreshSessions via closure
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [applyRewindComposerRestore, captureRewindComposerRestore, canRewindSession, session.sessionId, session.state, showToast, tr],
+    [applyRewindComposerRestore, captureRewindComposerRestore, canRewindNow, session.sessionId, session.state, showToast, tr],
   );
 
   const runRewindDropLastUser = useCallback(
@@ -8431,7 +8435,7 @@ export function AppWorkbench() {
         showToast(msg);
         return;
       }
-      if (!canRewindSession) {
+      if (!canRewindNow) {
         const msg = tr("session.rewindBusy");
         setRewindError(msg);
         showToast(msg);
@@ -8478,7 +8482,7 @@ export function AppWorkbench() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [applyRewindComposerRestore, captureRewindComposerRestore, canRewindSession, session.sessionId, session.state, showToast, tr],
+    [applyRewindComposerRestore, captureRewindComposerRestore, canRewindNow, session.sessionId, session.state, showToast, tr],
   );
 
   const confirmRewindToPrompt = useCallback(
@@ -8505,7 +8509,7 @@ export function AppWorkbench() {
         showToast(tr("error.needTauri"));
         return;
       }
-      if (!canRewindSession) {
+      if (!canRewindNow) {
         showToast(tr("session.rewindBusy"));
         return;
       }
@@ -8543,7 +8547,7 @@ export function AppWorkbench() {
         showToast(tr("session.rewindFailed") + ": " + String(e), 4500);
       }
     },
-    [canRewindSession, showToast, tr],
+    [canRewindNow, showToast, tr],
   );
 
   const onRewindToUserMessage = useCallback(
@@ -8553,7 +8557,7 @@ export function AppWorkbench() {
         showToast(tr("session.rewindFailed"));
         return;
       }
-      if (!canRewindSession) {
+      if (!canRewindNow) {
         showToast(tr("session.rewindBusy"));
         return;
       }
@@ -8580,7 +8584,7 @@ export function AppWorkbench() {
       });
     },
     [
-      canRewindSession,
+      canRewindNow,
       confirmRewindToPrompt,
       messages,
       session.sessionId,
@@ -11321,6 +11325,8 @@ export function AppWorkbench() {
       // May still be a draft id; ensureConnected materializes it later.
       let sendTargetId = session.sessionId;
       let cacheKey = sendTargetId ?? "__draft__";
+      const priorKey = cacheKey;
+      const priorMessages = messagesRef.current.slice();
       const nowIso = new Date().toISOString();
       const nextModelId = opts?.modelId?.trim() || "";
       const switchModel =
@@ -11428,8 +11434,27 @@ export function AppWorkbench() {
           try {
             await api.sessionRewindDropLastUser(sessionId);
           } catch (e) {
-            console.warn("session rewind before edit failed", e);
-            // Continue: UI already replaced the turn; resend still proceeds.
+            // The bubble was already replaced. A failed rewind must not send,
+            // or the agent answers the prompt that is no longer on screen.
+            messagesBySessionRef.current.set(priorKey, priorMessages);
+            messagesBySessionRef.current.set(sessionId, priorMessages);
+            if (
+              viewingSessionIdRef.current === sessionId ||
+              viewingSessionIdRef.current === priorKey ||
+              viewingSessionIdRef.current == null
+            ) {
+              setMessages(priorMessages);
+            }
+            setSession((prev) =>
+              prev.state === "streaming"
+                ? { ...prev, state: prev.sessionId ? "ready" : prev.state }
+                : prev,
+            );
+            showToast(
+              tr("session.rewindFailed") + ": " + String(e),
+              4500,
+            );
+            return;
           }
         }
 
@@ -12593,7 +12618,7 @@ export function AppWorkbench() {
             availableModels={availableModels}
             beginEditLastUser={beginEditLastUser}
             canEditLastUser={canEditLastUser}
-            canRewindSession={canRewindSession}
+            canRewindSession={canRewindNow}
             cancelEditUser={cancelEditUser}
             chatFindFocusKey={chatFindFocusKey}
             composerFloatPad={composerFloatPad}
@@ -13446,6 +13471,7 @@ export function AppWorkbench() {
             archiveSession={archiveSession}
             bulkMoveMenuItems={bulkMoveMenuItems}
             busyIds={busyIds}
+            canRewindNow={canRewindNow}
             canRewindSession={canRewindSession}
             clearSessionPluginDirs={clearSessionPluginDirs}
             composerCtxItems={composerCtxItems}

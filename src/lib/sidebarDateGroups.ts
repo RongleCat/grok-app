@@ -147,7 +147,39 @@ export function partitionGlobalPinned<T extends GlobalPinnableSession>(
     if (s.pinned) pinned.push(s);
     else rest.push(s);
   }
-  return { pinned: sortSessionsForSidebar(pinned), rest };
+  // Pin order is the list order (oldest pin first). Activity must not reorder it.
+  return { pinned, rest: sortSessionsForSidebar(rest) };
+}
+
+/** One run of pinned chats that share a workspace, in pin order. */
+export type PinnedWorkspaceRun<T> = {
+  key: string;
+  projectId: string | null;
+  sessions: T[];
+};
+
+/**
+ * Workspace names are dividers only. A new group starts when the project
+ * changes. Pins are not regrouped into folder order.
+ */
+export function groupPinnedByWorkspaceRun<
+  T extends { projectId?: string | null },
+>(
+  pinnedInOrder: readonly T[],
+  knownProjectIds: ReadonlySet<string>,
+): PinnedWorkspaceRun<T>[] {
+  const groups: PinnedWorkspaceRun<T>[] = [];
+  for (const session of pinnedInOrder) {
+    const projectId =
+      session.projectId && knownProjectIds.has(session.projectId)
+        ? session.projectId
+        : null;
+    const key = projectId ?? "__orphan__";
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.sessions.push(session);
+    else groups.push({ key, projectId, sessions: [session] });
+  }
+  return groups;
 }
 
 /** j/k order: global pins, then expanded project chats, then default-workspace orphans. */

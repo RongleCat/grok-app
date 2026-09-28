@@ -37,6 +37,8 @@ export type WorkbenchSessionContextMenuProps = {
   bulkMoveMenuItems: (ids: string[]) => ContextMenuItem[];
   busyIds: Set<string>;
   canRewindSession: boolean;
+  /** Rewind stays available while this chat's turn is running. Fork does not. */
+  canRewindNow: boolean;
   clearSessionPluginDirs: (s: SessionRow) => Promise<void>;
   confirmExportSessionTraceUpload: (sessionId?: string | null) => void;
   confirmForkSession: (source: SessionRow, throughUserPromptIndex?: number | null) => void;
@@ -111,6 +113,7 @@ export function buildSessionContextMenuItems(
     bulkMoveMenuItems,
     busyIds,
     canRewindSession,
+    canRewindNow,
     clearSessionPluginDirs,
     confirmExportSessionTraceUpload,
     confirmForkSession,
@@ -250,7 +253,7 @@ export function buildSessionContextMenuItems(
                 id: "rewind",
                 label: tr("session.rewind"),
                 icon: <IconRewind size={16} />,
-                disabled: !isOpen || !canRewindSession,
+                disabled: !isOpen || !canRewindNow,
                 onClick: () => {
                   void openRewindTimeline(s.id);
                 },

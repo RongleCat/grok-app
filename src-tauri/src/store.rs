@@ -1914,13 +1914,16 @@ pub fn set_project_sandbox_profile(id: &str, profile: Option<String>) -> Result<
     Ok(clone)
 }
 
-/// Pinned first, then newest `updated_at` (mirrors project pin sort).
+/// Pinned chats keep the order they were pinned (relative file order).
+/// A new pin stays where `set_session_pinned` left it, after older pins.
+/// Unpinned chats are newest `updated_at` first. Pin does not use `updated_at`.
 pub fn sort_sessions_by_pin_then_updated(list: &mut [SessionMeta]) {
-    list.sort_by(|a, b| match (b.pinned, a.pinned) {
-        (true, false) => std::cmp::Ordering::Greater,
-        (false, true) => std::cmp::Ordering::Less,
-        _ => b.updated_at.cmp(&a.updated_at),
-    });
+    let pinned: Vec<SessionMeta> = list.iter().filter(|s| s.pinned).cloned().collect();
+    let mut unpinned: Vec<SessionMeta> = list.iter().filter(|s| !s.pinned).cloned().collect();
+    unpinned.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    let mut ordered = pinned;
+    ordered.extend(unpinned);
+    list.clone_from_slice(&ordered);
 }
 
 pub fn load_sessions_index() -> Vec<SessionMeta> {
@@ -2121,9 +2124,36 @@ pub fn set_session_archived(id: &str, archived: bool) -> Result<SessionMeta, Str
 }
 
 pub fn set_session_pinned(id: &str, pinned: bool) -> Result<SessionMeta, String> {
-    update_session_row(id, move |s| {
-        s.pinned = pinned;
+    let id = id.to_string();
+    update_sessions_index(move |list| {
+        let idx = list
+            .iter()
+            .position(|s| s.id == id)
+            .ok_or_else(|| "session not found".to_string())?;
+        list[idx].pinned = pinned;
         // Do not bump updated_at — pin is organizational (same as project pin).
+        // A new pin appends after pins already in the list so activity cannot
+        // move it, and it does not knock an older pin off.
+        if pinned {
+            let row = list.remove(idx);
+            let at = list.iter().position(|s| !s.pinned).unwrap_or(list.len());
+            list.insert(at, row);
+        }
+        let meta = list
+            .iter()
+            .find(|s| s.id == id)
+            .cloned()
+            .ok_or_else(|| "session not found".to_string())?;
+        Ok(meta)
+    })
+}
+
+/// Drop the CLI session link after a rewind that removed every user prompt.
+/// The next send starts a new agent session. Does not bump `updated_at`.
+pub fn clear_session_agent_link(id: &str) -> Result<SessionMeta, String> {
+    update_session_row(id, |s| {
+        s.agent_session_id = None;
+        s.fork_agent_session = false;
         Ok(s.clone())
     })
 }
@@ -4814,7 +4844,7 @@ mod tests {
         let ids: Vec<&str> = list.iter().map(|s| s.id.as_str()).collect();
         assert_eq!(
             ids,
-            vec!["pinned-new", "pinned-old", "unpinned-new", "unpinned-mid"]
+            vec!["pinned-old", "pinned-new", "unpinned-new", "unpinned-mid"]
         );
     }
 

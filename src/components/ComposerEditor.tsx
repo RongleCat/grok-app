@@ -1196,6 +1196,18 @@ export const ComposerEditor = memo(function ComposerEditor({
   const lastValue = useRef(value);
   const composing = useRef(false);
   const focused = useRef(false);
+  // Windows IME keeps the candidate bar at (0, 0) if composition is still
+  // open when the webview loses the window. Blur ends that composition so
+  // the next focus starts at the caret.
+  useEffect(() => {
+    const endStuckComposition = () => {
+      const node = elRef.current;
+      if (!node || !composing.current) return;
+      node.blur();
+    };
+    window.addEventListener("blur", endStuckComposition);
+    return () => window.removeEventListener("blur", endStuckComposition);
+  }, []);
   /** Guard against double paste events (some WebViews fire paste twice). */
   const pasteInFlight = useRef(false);
   /** Coalesced rAF for post-newline caret pin (key-repeat must not stack). */

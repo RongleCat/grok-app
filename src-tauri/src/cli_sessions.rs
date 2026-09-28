@@ -1702,6 +1702,8 @@ pub fn reconcile_journal_from_chat_history(
         .map(|(role, content, _)| (role.clone(), content.clone()))
         .collect();
     let mut journal = store::load_messages(app_session_id);
+    let journal_users = store::user_prompt_count(&journal);
+    let mut seen_users = 0u32;
     let mut changed = 0u32;
     let now = Utc::now();
     // Insert anchor: journal index after which the next rebuilt tool row goes,
@@ -1710,6 +1712,15 @@ pub fn reconcile_journal_from_chat_history(
     let mut anchor: Option<usize> = journal.len().checked_sub(1);
 
     for (role, content, tool_call_id) in &rows {
+        if role == "user" {
+            seen_users = seen_users.saturating_add(1);
+            continue;
+        }
+        // A rewind leaves the journal shorter than chat_history.jsonl. Do not
+        // paste assistant or tool rows from turns that were cut.
+        if seen_users > journal_users {
+            continue;
+        }
         if role == "assistant" {
             match journal_covers_assistant(&journal, content) {
                 CoverKind::Covered(idx) => {
