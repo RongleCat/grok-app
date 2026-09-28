@@ -6,6 +6,7 @@ import {
   isComposerSessionDraftEmpty,
   loadAllComposerSessionDrafts,
   loadComposerSessionDraft,
+  restoredComposerGoalMode,
   saveComposerSessionDraft,
   sessionDraftKey,
   type ComposerSessionDraftStorage,
@@ -25,6 +26,16 @@ function memoryStorage(
     },
   };
 }
+
+describe("restoredComposerGoalMode", () => {
+  it("turns the chip on only when that buffer saved true", () => {
+    expect(restoredComposerGoalMode(null)).toBe(false);
+    expect(restoredComposerGoalMode(undefined)).toBe(false);
+    expect(restoredComposerGoalMode({ goalMode: false })).toBe(false);
+    expect(restoredComposerGoalMode({})).toBe(false);
+    expect(restoredComposerGoalMode({ goalMode: true })).toBe(true);
+  });
+});
 
 describe("sessionDraftKey", () => {
   it("rejects empty / null", () => {

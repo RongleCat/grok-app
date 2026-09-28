@@ -140,6 +140,18 @@ export function loadAllComposerSessionDrafts(
   }
 }
 
+/**
+ * Goal chip to show after a session or new-chat switch.
+ * Only an explicit `true` on that buffer turns it on. A missing draft,
+ * or a draft saved before the flag existed, must not keep the previous
+ * window's goal switch.
+ */
+export function restoredComposerGoalMode(
+  saved: { goalMode?: boolean } | null | undefined,
+): boolean {
+  return saved?.goalMode === true;
+}
+
 export function loadComposerSessionDraft(
   sessionId: string | null | undefined,
   storage: ComposerSessionDraftStorage = defaultStorage(),

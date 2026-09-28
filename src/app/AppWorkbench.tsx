@@ -403,6 +403,7 @@ import {
 } from "@/lib/composerProjectDraft";
 import {
   loadComposerSessionDraft,
+  restoredComposerGoalMode,
   saveComposerSessionDraft,
 } from "@/lib/composerSessionDraft";
 import {
@@ -3247,15 +3248,13 @@ export function AppWorkbench() {
         setAttachments(saved.attachments ?? []);
         setChatAttachments(saved.chatAttachments ?? []);
         setQuotes(saved.quotes ?? []);
-        if (typeof saved.goalMode === "boolean") {
-          setGoalMode(saved.goalMode);
-        }
       } else {
         setDraft("");
         setAttachments([]);
         setChatAttachments([]);
         setQuotes([]);
       }
+      setGoalMode(restoredComposerGoalMode(saved));
       requestAnimationFrame(() => {
         suppressProjectDraftPersistRef.current = false;
       });
@@ -3489,15 +3488,13 @@ export function AppWorkbench() {
         setAttachments(saved.attachments ?? []);
         setChatAttachments(saved.chatAttachments ?? []);
         setQuotes(saved.quotes ?? []);
-        if (typeof saved.goalMode === "boolean") {
-          setGoalMode(saved.goalMode);
-        }
       } else {
         setDraft("");
         setAttachments([]);
         setChatAttachments([]);
         setQuotes([]);
       }
+      setGoalMode(restoredComposerGoalMode(saved));
       // Allow debounced persist again after React commits the load.
       requestAnimationFrame(() => {
         suppressProjectDraftPersistRef.current = false;

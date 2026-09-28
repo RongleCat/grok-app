@@ -19,6 +19,12 @@ See `docs/llm-wiki/release.md`.
 **中文 · 新增**
 - 自定义供应商画廊增加了 Requesty 一键预设。
 
+### Fixed
+- Switching chats no longer keeps the previous chat's goal switch on.
+
+**中文 · 修复**
+- 切到另一条对话后，不再沿用上一条的目标开关。
+
 ## [0.2.37] - 2026-09-22
 
 > **Highlight:** New chats can use Grok 4.7, and the live reply stays pinned.
