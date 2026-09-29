@@ -1410,6 +1410,7 @@ pub fn custom_provider_id_for_catalog_model(catalog_id: &str) -> Option<String> 
 ///   owning section id so spawn `--model` and later `session/set_model` agree.
 ///   CLI `--model` does not resolve App-only `app_models` ids; ACP set_model can,
 ///   which previously caused turn-1 official / turn-2 custom silent switches.
+///
 /// Model id for `session/set_model` on one chat.
 ///
 /// Spawn `--model` stays the provider section id so the process keeps that

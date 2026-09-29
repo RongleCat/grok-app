@@ -674,9 +674,7 @@ impl AcpClient {
             }
         } else if opts.route_provider_id.is_some() {
             let m = opts.model_id.as_deref().unwrap_or("").trim();
-            if m.is_empty() {
-                route_provider_id.clone()
-            } else if custom_route {
+            if m.is_empty() || custom_route {
                 route_provider_id.clone()
             } else {
                 m.to_string()

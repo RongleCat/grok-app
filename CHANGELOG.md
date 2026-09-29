@@ -30,6 +30,7 @@ See `docs/llm-wiki/release.md`.
 - A chat remembers its provider and reconnects to that provider.
 - Switching a chat's provider finishes before the next message is sent.
 - New session in the sidebar keeps the project you already have open.
+- Voice dictation stays in the chat where you stopped recording. Switching away while it transcribes leaves the text in that draft and does not send it.
 
 **中文 · 修复**
 - 切到另一条对话后，不再沿用上一条的目标开关。
@@ -42,6 +43,7 @@ See `docs/llm-wiki/release.md`.
 - 一条对话会记住自己的服务商，重新打开时仍连这个服务商。
 - 换服务商会先完成，下一条消息才发出去。
 - 在侧栏新建对话时，会沿用当前已经打开的项目。
+- 语音转写停在停止录音的那条对话里。转写还没结束就切走时，文字留在那条草稿里，不会发出去。
 
 ## [0.2.37] - 2026-09-22
 
