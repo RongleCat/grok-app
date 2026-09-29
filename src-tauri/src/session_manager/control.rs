@@ -1836,4 +1836,93 @@ mod recycle_tests {
         }
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    #[test]
+    fn empty_stored_provider_matching_global_route_keeps_process_and_resume_id() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-empty-provider-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).expect("temp home");
+        let previous = std::env::var_os("GROK_APP_HOME");
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let _ = crate::paths::ensure_app_dirs();
+
+        // No custom default in this home, so an empty provider follows official.
+        assert_eq!(
+            crate::providers::session_route_provider_id(None),
+            crate::providers::SESSION_PROVIDER_OFFICIAL
+        );
+        assert_eq!(
+            crate::providers::session_provider_pick(Some(""), Some("official")),
+            crate::providers::SessionProviderPick::SameRoute
+        );
+        let mgr = SessionManager::new();
+        let mut background = ready_session("sess-a", "proc-a", "agent-a", "official");
+        background.meta.provider_id = None;
+        crate::store::save_sessions_index(&[background.meta.clone()]).expect("seed");
+        mgr.background.lock().insert("sess-a".into(), background);
+        *mgr.prewarm.lock() = PrewarmState::Spawning {
+            since: Instant::now(),
+        };
+
+        let route_changed = matches!(
+            crate::providers::session_provider_pick(None, Some("official")),
+            crate::providers::SessionProviderPick::RouteChanged
+        );
+        assert!(
+            !route_changed,
+            "writing the global route onto an empty provider is not a switch"
+        );
+        if route_changed {
+            tauri::async_runtime::block_on(mgr.invalidate_spawn_flags_inner(
+                None,
+                "sess-a",
+                "session_provider",
+            ));
+        }
+        {
+            let bg = mgr.background.lock();
+            let kept = bg.get("sess-a").expect("process slot stays");
+            assert_eq!(kept.process_id, "proc-a");
+            assert_eq!(kept.meta.agent_session_id.as_deref(), Some("agent-a"));
+        }
+        let row = crate::store::load_sessions_index()
+            .into_iter()
+            .find(|s| s.id == "sess-a")
+            .expect("row");
+        assert_eq!(row.agent_session_id.as_deref(), Some("agent-a"));
+        assert!(row.provider_id.is_none());
+        assert!(matches!(*mgr.prewarm.lock(), PrewarmState::Spawning { .. }));
+
+        assert_eq!(
+            crate::providers::session_provider_pick(None, Some("relay-b")),
+            crate::providers::SessionProviderPick::RouteChanged
+        );
+        tauri::async_runtime::block_on(mgr.invalidate_spawn_flags_inner(
+            None,
+            "sess-a",
+            "session_provider",
+        ));
+        assert!(mgr.background.lock().get("sess-a").is_none());
+        let row = crate::store::load_sessions_index()
+            .into_iter()
+            .find(|s| s.id == "sess-a")
+            .expect("row");
+        assert!(row.agent_session_id.is_none());
+
+        match previous {
+            Some(value) => std::env::set_var("GROK_APP_HOME", value),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }

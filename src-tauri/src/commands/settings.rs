@@ -393,10 +393,17 @@ pub async fn composer_prefs_set(
             tracing::warn!("composer_prefs_set apply_permission: {e}");
         }
     }
-    let provider_changed = provider_id
-        .as_ref()
-        .is_some_and(|next| previous_provider.as_deref() != Some(next.as_str()));
-    if provider_changed {
+    // Empty stored id follows the global route. Comparing the raw column to
+    // the pick treats the first save of that same route as a switch, which
+    // clears the CLI resume id and skips session/set_model.
+    let route_changed = matches!(
+        crate::providers::session_provider_pick(
+            previous_provider.as_deref(),
+            provider_id.as_deref(),
+        ),
+        crate::providers::SessionProviderPick::RouteChanged
+    );
+    if route_changed {
         // This chat's process was spawned for the previous provider. Clear
         // only this session's CLI resume id, then cold-spawn this chat.
         // `session/load` would restore the old route. Never `recycle_all`.

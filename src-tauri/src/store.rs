@@ -2069,6 +2069,30 @@ pub fn update_session_meta(meta: &SessionMeta) -> Result<(), String> {
     update_session_index_row(meta).map(|_| ())
 }
 
+/// Whole-row replace that keeps `provider_id` and `model_id` from the current
+/// index row. Connect holds a snapshot across the handshake; a composer save
+/// in that window must survive the final write. Other handshake fields
+/// (`agent_session_id`, fork flags, effort, mode) still come from `meta`.
+pub fn update_session_meta_preserving_composer(meta: &SessionMeta) -> Result<SessionMeta, String> {
+    let meta = meta.clone();
+    update_sessions_index(move |list| {
+        let (provider_id, model_id) = list
+            .iter()
+            .find(|s| s.id == meta.id)
+            .map(|s| (s.provider_id.clone(), s.model_id.clone()))
+            .unwrap_or_else(|| (meta.provider_id.clone(), meta.model_id.clone()));
+        let mut writing = meta.clone();
+        writing.provider_id = provider_id;
+        writing.model_id = model_id;
+        if let Some(slot) = list.iter_mut().find(|s| s.id == writing.id) {
+            *slot = writing.clone();
+        } else {
+            list.insert(0, writing.clone());
+        }
+        Ok(writing)
+    })
+}
+
 fn clear_agent_session_id(list: &mut [SessionMeta], id: &str) -> bool {
     let Some(session) = list.iter_mut().find(|session| session.id == id) else {
         return false;
@@ -5828,6 +5852,62 @@ mod tests {
         );
 
         std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn connect_writeback_keeps_provider_and_model_saved_during_handshake() {
+        let _g = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-meta-preserve-{}-{}",
+            std::process::id(),
+            Uuid::new_v4()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp home");
+        let previous = std::env::var_os("GROK_APP_HOME");
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let _ = ensure_app_dirs();
+
+        let mut snap = create_session(None, Some("chat".into()), false).expect("session");
+        snap.agent_session_id = Some("old-agent".into());
+        update_session_meta(&snap).expect("seed agent id");
+        save_composer_prefs(
+            None,
+            Some(&snap.id),
+            Some("deepseek-v4-flash".into()),
+            None,
+            None,
+            None,
+            Some("relay-b".into()),
+        )
+        .expect("in-flight composer save");
+
+        // Handshake still holds the entry snapshot, plus the agent id it just opened.
+        snap.agent_session_id = Some("spawned-agent".into());
+        snap.provider_id = None;
+        snap.model_id = Some("grok-4.7".into());
+        snap.effort = Some("high".into());
+        let written = update_session_meta_preserving_composer(&snap).expect("writeback");
+        assert_eq!(written.provider_id.as_deref(), Some("relay-b"));
+        assert_eq!(written.model_id.as_deref(), Some("deepseek-v4-flash"));
+        assert_eq!(written.agent_session_id.as_deref(), Some("spawned-agent"));
+        assert_eq!(written.effort.as_deref(), Some("high"));
+
+        let row = load_sessions_index()
+            .into_iter()
+            .find(|s| s.id == snap.id)
+            .expect("row");
+        assert_eq!(row.provider_id.as_deref(), Some("relay-b"));
+        assert_eq!(row.model_id.as_deref(), Some("deepseek-v4-flash"));
+        assert_eq!(row.agent_session_id.as_deref(), Some("spawned-agent"));
+
+        match previous {
+            Some(value) => std::env::set_var("GROK_APP_HOME", value),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
         let _ = fs::remove_dir_all(&tmp);
     }
 }

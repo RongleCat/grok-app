@@ -1436,6 +1436,66 @@ pub fn session_route_provider_id(stored: Option<&str>) -> String {
     }
 }
 
+/// How a composer provider pick relates to the route this chat already uses.
+///
+/// An empty stored id means "follow the global route". Writing that same
+/// route onto the row is not a switch: respawning would drop the CLI resume
+/// id and skip `session/set_model`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionProviderPick {
+    SameRoute,
+    RouteChanged,
+}
+
+pub fn session_provider_pick(stored: Option<&str>, picked: Option<&str>) -> SessionProviderPick {
+    let Some(picked) = picked.map(str::trim).filter(|s| !s.is_empty()) else {
+        return SessionProviderPick::SameRoute;
+    };
+    let before = session_route_provider_id(stored);
+    let after = session_route_provider_id(Some(picked));
+    if before == after {
+        SessionProviderPick::SameRoute
+    } else {
+        SessionProviderPick::RouteChanged
+    }
+}
+
+/// True when rewriting agent-home `auth.json` for `target_custom` would
+/// contradict another live process that reads the same file.
+///
+/// Custom processes need the file absent (`api_key` only). Official processes
+/// whose `GROK_HOME` is agent-home need the OIDC copy. Pass
+/// `other_official_on_agent_home` as false for shared-mode official
+/// (`~/.grok` is a different file).
+pub fn route_auth_rewrite_conflicts(
+    target_custom: bool,
+    other_custom_on_agent_home: bool,
+    other_official_on_agent_home: bool,
+) -> bool {
+    if target_custom {
+        other_official_on_agent_home
+    } else {
+        other_custom_on_agent_home
+    }
+}
+
+/// Warm reuse should rewrite agent-home auth only for a process that actually
+/// uses that directory, and only when the write matches every other live
+/// process that shares it.
+pub fn warm_reuse_should_prepare_auth(
+    target_custom: bool,
+    process_uses_agent_home: bool,
+    other_custom_on_agent_home: bool,
+    other_official_on_agent_home: bool,
+) -> bool {
+    process_uses_agent_home
+        && !route_auth_rewrite_conflicts(
+            target_custom,
+            other_custom_on_agent_home,
+            other_official_on_agent_home,
+        )
+}
+
 /// `--model` for a process bound to `provider_id`.
 /// Custom routes spawn with the section id. Official routes spawn with a catalog id.
 pub fn spawn_model_for_provider(provider_id: &str, composer_model: &str) -> String {
@@ -3973,5 +4033,45 @@ context_window = "1000000"
             !config.contains("extra_headers"),
             "empty list must drop extra_headers, not copy the old table:\n{config}"
         );
+    }
+
+    #[test]
+    fn explicit_provider_pick_compares_effective_ids() {
+        use SessionProviderPick::*;
+        assert_eq!(
+            session_provider_pick(Some("official"), Some("official")),
+            SameRoute
+        );
+        assert_eq!(
+            session_provider_pick(Some("relay-b"), Some("relay-b")),
+            SameRoute
+        );
+        assert_eq!(
+            session_provider_pick(Some("relay-b"), Some("official")),
+            RouteChanged
+        );
+        assert_eq!(
+            session_provider_pick(Some("official"), Some("relay-b")),
+            RouteChanged
+        );
+        assert_eq!(session_provider_pick(Some("official"), None), SameRoute);
+        assert_eq!(session_provider_pick(None, None), SameRoute);
+    }
+
+    #[test]
+    fn warm_reuse_auth_rewrite_skips_a_conflicting_live_route() {
+        assert!(route_auth_rewrite_conflicts(false, true, false));
+        assert!(route_auth_rewrite_conflicts(true, false, true));
+        assert!(!route_auth_rewrite_conflicts(false, false, false));
+        assert!(!route_auth_rewrite_conflicts(true, false, false));
+        assert!(!route_auth_rewrite_conflicts(true, true, false));
+
+        // Shared-mode official does not use agent-home, so it must not copy OIDC
+        // over a custom process that does.
+        assert!(!warm_reuse_should_prepare_auth(false, false, true, false));
+        assert!(!warm_reuse_should_prepare_auth(false, true, true, false));
+        assert!(warm_reuse_should_prepare_auth(false, true, false, false));
+        assert!(warm_reuse_should_prepare_auth(true, true, false, false));
+        assert!(!warm_reuse_should_prepare_auth(true, true, false, true));
     }
 }
