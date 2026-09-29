@@ -29,6 +29,7 @@ import {
   stripChatTokens,
   type ChatRef,
 } from "@/lib/chatAttach";
+import { awaitComposerSendBarrier } from "@/lib/composerPrefsBarrier";
 import {
   clearComposerProjectDraft,
   loadComposerProjectDraft,
@@ -284,7 +285,7 @@ const executeSend = async (opts: {
   }
   const { storedDisplay, att, goalMode: useGoal, fromQueue } = opts;
   const quotesForSend = opts.quotes ?? [];
-  if (!fromQueue) await effortApplyRef.current;
+  await awaitComposerSendBarrier(!!fromQueue, effortApplyRef.current);
   const segments = parseStoredContent(storedDisplay);
   if (isDraftEmpty(segments) && !att.length && !quotesForSend.length) {
     sendInFlightRef.current = false;

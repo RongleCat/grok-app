@@ -1,10 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
+  awaitComposerSendBarrier,
   liveHostAfterProviderSwitch,
   queueComposerPreferenceApply,
 } from "./composerPrefsBarrier";
 
 describe("composer preference apply barrier", () => {
+  it("queued flush waits for the provider-switch barrier", async () => {
+    let finish!: () => void;
+    const barrier = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    let done = false;
+    const pending = awaitComposerSendBarrier(true, barrier).then(() => {
+      done = true;
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(done).toBe(false);
+    finish();
+    await pending;
+    expect(done).toBe(true);
+  });
+
   it("holds the next send until the effort change is applied", async () => {
     let finishApply!: () => void;
     const applying = new Promise<void>((resolve) => {

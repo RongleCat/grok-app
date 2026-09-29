@@ -27,6 +27,7 @@ export function useSessionProviderChip() {
   const customProvidersRef = useRef<CustomProvider[]>([]);
   const sessionProviderChipRef = useRef<string | null | undefined>(undefined);
   const draftComposerRouteRef = useRef<DraftComposerRoute | null>(null);
+  const afterProviderListRef = useRef<(() => void) | null>(null);
 
   const paint = useCallback((providerId: string | null) => {
     const set = settersRef.current;
@@ -66,12 +67,16 @@ export function useSessionProviderChip() {
       } | null,
     ) => {
       const set = settersRef.current;
+      const notify = () => {
+        afterProviderListRef.current?.();
+      };
       if (!list) {
         customProvidersRef.current = [];
         globalProviderRouteRef.current = { source: "official", id: null };
         set?.setProviderActiveSource("official");
         set?.setProviderActiveId(null);
         set?.setActiveCustomProvider(null);
+        notify();
         return;
       }
       customProvidersRef.current = list.providers;
@@ -88,12 +93,23 @@ export function useSessionProviderChip() {
             ? list.providers.find((p) => p.id === list.activeProviderId) ?? null
             : null,
         );
+        notify();
         return;
       }
       paint(chip);
+      notify();
     },
     [paint],
   );
+
+  const providersSnapshot = useCallback(
+    () => customProvidersRef.current,
+    [],
+  );
+
+  const setAfterProviderList = useCallback((fn: (() => void) | null) => {
+    afterProviderListRef.current = fn;
+  }, []);
 
   const bind = useCallback((setters: ProviderChipSetters) => {
     settersRef.current = setters;
@@ -105,7 +121,9 @@ export function useSessionProviderChip() {
       paint,
       noteProviderList,
       bind,
+      providersSnapshot,
+      setAfterProviderList,
     }),
-    [bind, noteProviderList, paint],
+    [bind, noteProviderList, paint, providersSnapshot, setAfterProviderList],
   );
 }

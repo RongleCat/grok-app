@@ -108,7 +108,6 @@ import {
   presentErrorBanner,
   type ErrorBannerView,
   weaveToolsIntoAssistantSegments,
-  truncateBeforeLastUser,
   truncateThroughUserPrompt,
   resolveRewindKeepForUserMessage,
   canRegenerateAssistant,
@@ -237,6 +236,14 @@ import {
   type Locale,
   type LocalePreference,
 } from "@/i18n";
+import { resolveComposerPrefsSelection } from "@/lib/composerPrefsApply";
+import {
+  messagesAfterEditResend,
+  optimisticLiveHostForEditResend,
+  restoreOptimisticLiveHost,
+  shellAfterEditResendStart,
+  shellReadyAfterRewindFailure,
+} from "@/lib/editResendState";
 import {
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
@@ -2354,20 +2361,13 @@ export function AppWorkbench() {
 
   const applyComposerPrefs = useCallback(
     (prefs: api.ComposerPrefs, catalog: ModelOption[]) => {
-      const models = catalog.length > 0 ? catalog : GROK_BUILD_MODELS;
-      let nextModelId: string;
-      if (prefs.modelId && isValidModelId(prefs.modelId, models)) {
-        nextModelId = prefs.modelId;
-      } else {
-        nextModelId = pickDefaultModelId(models);
-      }
-      setModelId(nextModelId);
-      const model = findModel(nextModelId, models);
-      setEffort(
-        isValidEffort(prefs.effort, model)
-          ? prefs.effort
-          : pickDefaultEffort(model),
-      );
+      const next = resolveComposerPrefsSelection({
+        prefs,
+        catalog,
+        providers: sessionProviderChip.providersSnapshot(),
+      });
+      setModelId(next.modelId);
+      setEffort(next.effort);
       setMode(prefs.mode || "agent");
       setPolicy(
         isValidPolicy(prefs.permissionPolicy) ? prefs.permissionPolicy : "ask",
@@ -2376,7 +2376,7 @@ export function AppWorkbench() {
         setPrefsScope(prefs.scope);
       }
     },
-    [],
+    [sessionProviderChip],
   );
 
   const refreshLists = useCallback(async () => {
@@ -2773,30 +2773,35 @@ export function AppWorkbench() {
   useEffect(() => {
     if (!api.isTauri()) return;
     let cancelled = false;
-    void api
-      .composerPrefsResolve({
-        projectId: activeProject?.id ?? null,
-        sessionId: session.sessionId ?? null,
-      })
-      .then((prefs) => {
-        if (cancelled) return;
-        applyComposerPrefs(prefs, availableModels);
-        if (session.sessionId) {
-          sessionProviderChip.draftComposerRouteRef.current = null;
-        }
-        const stored = prefs.providerId?.trim() ?? "";
-        const draft = sessionProviderChip.draftComposerRouteRef.current;
-        if (stored) {
-          sessionProviderChip.paint(stored);
-        } else if (session.sessionId || !draft) {
-          sessionProviderChip.paint(null);
-        } else {
-          sessionProviderChip.paint(draft.providerId);
-        }
-      })
-      .catch(() => {});
+    const run = () => {
+      void api
+        .composerPrefsResolve({
+          projectId: activeProject?.id ?? null,
+          sessionId: session.sessionId ?? null,
+        })
+        .then((prefs) => {
+          if (cancelled) return;
+          applyComposerPrefs(prefs, availableModels);
+          if (session.sessionId) {
+            sessionProviderChip.draftComposerRouteRef.current = null;
+          }
+          const stored = prefs.providerId?.trim() ?? "";
+          const draft = sessionProviderChip.draftComposerRouteRef.current;
+          if (stored) {
+            sessionProviderChip.paint(stored);
+          } else if (session.sessionId || !draft) {
+            sessionProviderChip.paint(null);
+          } else {
+            sessionProviderChip.paint(draft.providerId);
+          }
+        })
+        .catch(() => {});
+    };
+    sessionProviderChip.setAfterProviderList(run);
+    run();
     return () => {
       cancelled = true;
+      sessionProviderChip.setAfterProviderList(null);
     };
   }, [
     activeProject?.id,
@@ -11352,49 +11357,43 @@ export function AppWorkbench() {
 
       // 1) Instant UI commit — same as normal send: user bubble + thinking.
       //    Connect/rewind wait happens under this thinking row, not the edit form.
+      let liveBeforeEdit = liveHostRef.current;
+      let tookOptimisticLive = false;
       setMessages((m) => {
-        const kept = truncateBeforeLastUser(m);
-        const next: ChatMessage[] = [
-          ...kept,
-          {
-            id: `u-${Date.now()}`,
-            role: "user",
-            content: storedDisplay,
-            attachments: att.length ? att : undefined,
-            createdAt: nowIso,
-          },
-          {
-            id: pendingAssistantId,
-            role: "assistant",
-            content: "",
-            streaming: true,
-            createdAt: nowIso,
-          },
-        ];
+        const next = messagesAfterEditResend(m, {
+          userId: `u-${Date.now()}`,
+          pendingAssistantId,
+          content: storedDisplay,
+          attachments: att,
+          createdAt: nowIso,
+        });
         messagesBySessionRef.current.set(cacheKey, next);
         return next;
       });
       setEditingUserMessageId(null);
       setEditAttachments([]);
       setRetryStatus(null);
-      setSession((prev) =>
-        prev.state === "streaming" || prev.state === "awaiting_permission"
-          ? prev
-          : { ...prev, state: "streaming", lastError: null },
-      );
+      setSession((prev) => shellAfterEditResendStart(prev));
       setLiveHost((prev) => {
-        if (sendTargetId && prev.sessionId && prev.sessionId !== sendTargetId) {
-          return prev;
-        }
-        const next = {
-          ...prev,
-          sessionId: sendTargetId ?? prev.sessionId,
-          state: "streaming" as const,
-          lastError: null,
-        };
-        liveHostRef.current = next;
+        liveBeforeEdit = prev;
+        const next = optimisticLiveHostForEditResend(prev, sendTargetId);
+        tookOptimisticLive = next !== prev;
+        if (tookOptimisticLive) liveHostRef.current = next;
         return next;
       });
+      const restoreEditFailure = (targetId: string | null) => {
+        setSession((prev) => shellReadyAfterRewindFailure(prev, targetId));
+        setLiveHost((prev) => {
+          const next = restoreOptimisticLiveHost(
+            prev,
+            liveBeforeEdit,
+            targetId,
+            tookOptimisticLive,
+          );
+          liveHostRef.current = next;
+          return next;
+        });
+      };
 
       const failPending = (errText?: string) => {
         const errTarget = sendTargetId ?? viewingSessionIdRef.current;
@@ -11408,17 +11407,7 @@ export function AppWorkbench() {
             localeRef.current,
           ),
         );
-        if (
-          viewingSessionIdRef.current === sendTargetId ||
-          viewingSessionIdRef.current === errTarget ||
-          (!sendTargetId && viewingSessionIdRef.current === null)
-        ) {
-          setSession((prev) =>
-            prev.state === "streaming"
-              ? { ...prev, state: prev.sessionId ? "ready" : prev.state }
-              : prev,
-          );
-        }
+        restoreEditFailure(sendTargetId);
       };
 
       // 2) Background: connect → rewind journal → send (thinking already shown).
@@ -11454,11 +11443,7 @@ export function AppWorkbench() {
             ) {
               setMessages(priorMessages);
             }
-            setSession((prev) =>
-              prev.state === "streaming"
-                ? { ...prev, state: prev.sessionId ? "ready" : prev.state }
-                : prev,
-            );
+            restoreEditFailure(sessionId);
             showToast(
               tr("session.rewindFailed") + ": " + String(e),
               4500,

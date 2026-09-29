@@ -11,6 +11,18 @@ export function liveHostAfterProviderSwitch<
   return { ...live, state: "disconnected" };
 }
 
+/**
+ * Direct sends and queued flushes both wait out a provider or effort write.
+ * Skipping the queue (`fromQueue`) lets the next message hit a process that
+ * `soft_respawn` is about to tear down.
+ */
+export async function awaitComposerSendBarrier(
+  _fromQueue: boolean,
+  barrier: Promise<void>,
+): Promise<void> {
+  await barrier;
+}
+
 /** Serialize a composer preference write so the next send can await it. */
 export function queueComposerPreferenceApply(
   previous: Promise<void>,

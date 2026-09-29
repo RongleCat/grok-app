@@ -22,26 +22,28 @@ See `docs/llm-wiki/release.md`.
 ### Fixed
 - Switching chats no longer keeps the previous chat's goal switch on.
 - Rewinding a running reply stops that chat first. A failed rewind is not sent.
+- A failed edit and resend no longer clears Stop on another chat. That chat can send its queued messages again.
 - Pinned chats stay in pin order, with the workspace name as a divider.
 - Closing the goal chip tells that chat's CLI to run /goal clear.
 - The session progress rail no longer scrolls the transcript while a reply is running.
 - Picking a model in one chat no longer stops chats running on another provider.
-- Reopening a chat uses the model that chat last chose.
+- Reopening a chat uses the model that chat last chose. Custom providers keep that model and its effort.
 - A chat remembers its provider and reconnects to that provider.
-- Switching a chat's provider finishes before the next message is sent.
+- Switching a chat's provider finishes before the next message is sent. Queued messages wait for that switch as well.
 - New session in the sidebar keeps the project you already have open.
 - Voice dictation stays in the chat where you stopped recording. Switching away while it transcribes leaves the text in that draft and does not send it.
 
 **中文 · 修复**
 - 切到另一条对话后，不再沿用上一条的目标开关。
 - 回复还在进行时撤回，会先停这一条。撤回失败不会把新内容发出去。
+- 编辑后重发失败时，不会清掉另一条对话的停止按钮。这条对话排队的消息也可以再发出去。
 - 置顶按置顶顺序保留，工作区名只作分隔。
 - 关掉目标芯片时，会让这一条对话的 CLI 执行 /goal clear。
 - 回复进行中，侧边进度条不再把正文滚回上面。
 - 在一条对话里换模型，不再停掉正在用另一个服务商的对话。
-- 重新打开一条对话时，用这条对话上次选的模型。
+- 重新打开一条对话时，用这条对话上次选的模型。自定义服务商的模型和努力档也会保留。
 - 一条对话会记住自己的服务商，重新打开时仍连这个服务商。
-- 换服务商会先完成，下一条消息才发出去。
+- 换服务商会先完成，下一条消息才发出去。已经排在队列里的消息也会等这次切换。
 - 在侧栏新建对话时，会沿用当前已经打开的项目。
 - 语音转写停在停止录音的那条对话里。转写还没结束就切走时，文字留在那条草稿里，不会发出去。
 
