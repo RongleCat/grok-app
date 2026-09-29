@@ -1862,7 +1862,7 @@ mod recycle_tests {
             crate::providers::SESSION_PROVIDER_OFFICIAL
         );
         assert_eq!(
-            crate::providers::session_provider_pick(Some(""), Some("official")),
+            crate::providers::session_provider_pick(false, Some(""), Some("official")),
             crate::providers::SessionProviderPick::SameRoute
         );
         let mgr = SessionManager::new();
@@ -1875,7 +1875,7 @@ mod recycle_tests {
         };
 
         let route_changed = matches!(
-            crate::providers::session_provider_pick(None, Some("official")),
+            crate::providers::session_provider_pick(false, None, Some("official")),
             crate::providers::SessionProviderPick::RouteChanged
         );
         assert!(
@@ -1904,7 +1904,7 @@ mod recycle_tests {
         assert!(matches!(*mgr.prewarm.lock(), PrewarmState::Spawning { .. }));
 
         assert_eq!(
-            crate::providers::session_provider_pick(None, Some("relay-b")),
+            crate::providers::session_provider_pick(false, None, Some("relay-b")),
             crate::providers::SessionProviderPick::RouteChanged
         );
         tauri::async_runtime::block_on(mgr.invalidate_spawn_flags_inner(

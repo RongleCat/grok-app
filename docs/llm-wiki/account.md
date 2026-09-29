@@ -68,8 +68,12 @@ Syncing the file is not enough while multi-session **parked** / **prewarm** CLI 
 | `~/.grok/auth.json` wiped but agent-home mirror still signed-in | Rank mirrors for status + token; heal by copying agent-home → `~/.grok` |
 | mtime-only sync skipped restore of good `~/.grok` over newer empty agent-home | `sync_cli_auth_to_agent_home` compares **bytes** |
 | Process reuse gate used `is_custom_provider_id(modelId)` — custom sessions store **upstream** model ids, so custom processes looked "official" and were reused after auth strip | Store `custom_route` on `AcpClient` at spawn from `active_route()`; gate uses that |
-| Warm reuse skipped `prepare_route_auth` | Connect warm path re-applies **that process's** route auth under `route_auth_lock` before `session/load`, and only when the process's `GROK_HOME` is agent-home. It skips the rewrite when another live process needs the opposite `auth.json`. Shared-mode official uses `~/.grok` and does not write agent-home. |
+| Warm reuse skipped `prepare_route_auth` | Shared-mode official warm reuse (`GROK_HOME=~/.grok`) does **not** copy OIDC into agent-home. Every other warm reuse, including independent mode, still runs `prepare_route_auth_for_agent` before `session/load` (no conflict skip). |
 | Official `authenticate(cached_token)` soft-fail left process with no OIDC | Official path re-syncs auth and **retries authenticate once** |
+
+### Known limitation
+
+Independent mode: an official chat and a custom chat can be connected at the same time and share `agent-home/auth.json`. Skipping the rewrite on that clash can leave the official chat signed out at `session/load`, so this build does not skip. The durable fix is a per-process `GROK_HOME` snapshot directory (follow-up GitHub issue; not opened with this change).
 
 ### AUTH_FAILED UI subtypes (Error Deck)
 

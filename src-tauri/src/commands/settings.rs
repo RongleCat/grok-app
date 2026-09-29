@@ -368,12 +368,13 @@ pub async fn composer_prefs_set(
     let previous_effort = effort.as_ref().map(|_| {
         store::resolve_composer_prefs(project_id.as_deref(), session_id.as_deref()).effort
     });
-    let previous_provider = session_id.as_deref().and_then(|id| {
-        store::load_sessions_index()
-            .into_iter()
-            .find(|s| s.id == id)
-            .and_then(|s| s.provider_id)
-    });
+    let (previous_provider, ssh) = session_provider_and_ssh(session_id.as_deref());
+    let pick = crate::providers::composer_provider_pick(
+        ssh,
+        previous_provider.as_deref(),
+        provider_id.as_deref(),
+        model_id.as_deref(),
+    );
 
     let prefs = store::save_composer_prefs(
         project_id.as_deref(),
@@ -382,9 +383,9 @@ pub async fn composer_prefs_set(
         effort.clone(),
         mode.clone(),
         permission_policy.clone(),
-        provider_id.clone(),
+        pick.provider_to_persist.clone(),
     )?;
-    if let (Some(sid), Some(pid)) = (session_id.as_deref(), provider_id.as_deref()) {
+    if let (Some(sid), Some(pid)) = (session_id.as_deref(), pick.provider_to_persist.as_deref()) {
         mgr.remember_session_provider(sid, pid);
     }
 
@@ -395,15 +396,9 @@ pub async fn composer_prefs_set(
     }
     // Empty stored id follows the global route. Comparing the raw column to
     // the pick treats the first save of that same route as a switch, which
-    // clears the CLI resume id and skips session/set_model.
-    let route_changed = matches!(
-        crate::providers::session_provider_pick(
-            previous_provider.as_deref(),
-            provider_id.as_deref(),
-        ),
-        crate::providers::SessionProviderPick::RouteChanged
-    );
-    if route_changed {
+    // clears the CLI resume id and skips session/set_model. SSH pins both
+    // sides to official, so an official model never respawns that chat.
+    if pick.route_changed {
         // This chat's process was spawned for the previous provider. Clear
         // only this session's CLI resume id, then cold-spawn this chat.
         // `session/load` would restore the old route. Never `recycle_all`.
@@ -411,7 +406,7 @@ pub async fn composer_prefs_set(
             mgr.invalidate_spawn_flags_for_session(&app, sid, "session_provider")
                 .await;
         }
-    } else if let Some(mid) = model_id {
+    } else if let Some(mid) = pick.set_model_id {
         if let Err(e) = mgr.set_model(mid, session_id.as_deref()).await {
             tracing::warn!("composer_prefs_set set_model soft-fail: {e}");
         }
@@ -436,6 +431,24 @@ pub async fn composer_prefs_set(
         }
     }
     Ok(prefs)
+}
+
+fn session_provider_and_ssh(session_id: Option<&str>) -> (Option<String>, bool) {
+    let Some(sid) = session_id.map(str::trim).filter(|s| !s.is_empty()) else {
+        return (None, false);
+    };
+    let row = store::load_sessions_index()
+        .into_iter()
+        .find(|s| s.id == sid);
+    let Some(row) = row else {
+        return (None, false);
+    };
+    let ssh = row.project_id.as_deref().is_some_and(|pid| {
+        store::load_projects()
+            .into_iter()
+            .any(|p| p.id == pid && p.is_ssh_remote())
+    });
+    (row.provider_id, ssh)
 }
 
 #[tauri::command]

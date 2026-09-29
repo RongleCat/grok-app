@@ -33,7 +33,7 @@ See `docs/llm-wiki/release.md`.
 - New session in the sidebar keeps the project you already have open.
 - Voice dictation stays in the chat where you stopped recording. Switching away while it transcribes leaves the text in that draft and does not send it.
 - Switching a chat's provider starts that chat clean on the new provider. SSH chats stay on the official provider.
-- Changing model or provider while a chat connects keeps that choice.
+- A model or provider saved while a chat connects is still there when it finishes.
 - Picking a model on the provider a chat already uses no longer restarts it.
 
 **中文 · 修复**
@@ -50,7 +50,7 @@ See `docs/llm-wiki/release.md`.
 - 在侧栏新建对话时，会沿用当前已经打开的项目。
 - 语音转写停在停止录音的那条对话里。转写还没结束就切走时，文字留在那条草稿里，不会发出去。
 - 更换一条对话的服务商后，这条对话会在新服务商上重新开始。SSH 对话仍使用官方服务商。
-- 对话还在连接时改模型或服务商，连上后仍保留这次选择。
+- 对话连接过程中保存的模型或服务商，连上之后仍然保留。
 - 在当前服务商下换模型，不再把这条对话重新开始。
 
 ## [0.2.37] - 2026-09-22
