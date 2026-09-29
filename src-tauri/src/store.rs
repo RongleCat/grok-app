@@ -1928,7 +1928,7 @@ pub fn set_project_sandbox_profile(id: &str, profile: Option<String>) -> Result<
 pub fn sort_sessions_by_pin_then_updated(list: &mut [SessionMeta]) {
     let pinned: Vec<SessionMeta> = list.iter().filter(|s| s.pinned).cloned().collect();
     let mut unpinned: Vec<SessionMeta> = list.iter().filter(|s| !s.pinned).cloned().collect();
-    unpinned.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    unpinned.sort_by_key(|a| std::cmp::Reverse(a.updated_at));
     let mut ordered = pinned;
     ordered.extend(unpinned);
     list.clone_from_slice(&ordered);

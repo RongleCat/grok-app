@@ -1623,7 +1623,7 @@ mod process_accounting_tests {
             turn_error_message_id(Some("stream-1"), true),
             "stream-1:turn-error"
         );
-        assert_eq!(turn_error_message_id(Some("  "), false).len() > 8, true);
+        assert!(turn_error_message_id(Some("  "), false).len() > 8);
         let fresh = turn_error_message_id(None, true);
         assert!(!fresh.is_empty());
         assert!(!fresh.ends_with(":turn-error"));
