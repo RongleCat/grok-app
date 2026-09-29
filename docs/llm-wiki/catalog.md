@@ -197,7 +197,7 @@ grok --no-auto-update --permission-mode <mode> agent [--model <id>] [--reasoning
 1. **官方**分组：catalog 模型（`availableModels`）
 2. **每个已配置提供商**一组：列出该提供商 catalog 中的全部请求模型（`models[]`，每项含 **展示名称** + model id），**不**在菜单里拉远程 `/v1/models`
 
-选择自定义条目会：必要时更新该通道的 active `model`，再 `providers_activate`（与 Settings → Account → Custom providers → **Use** 相同）。官方条目在当前为 custom 路由时会先切回 official，再写入 catalog `modelId` 偏好。
+选择一条模型只写入这条对话（`composer_prefs_set` 的 `provider_id` / `modelId`）。不调用 `providers_activate`，也不改全局 `[models].default`。Settings → **Use** 才是全局路由，会回收所有 warm agent。
 
 芯片文案：官方用 catalog label；自定义路由用 **当前选中模型的展示名称**（`models[].name`，空则回退 model id）。
 

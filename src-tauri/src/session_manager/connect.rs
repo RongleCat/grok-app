@@ -1210,11 +1210,7 @@ impl SessionManager {
             } else {
                 prefs.model_id.clone()
             }),
-            route_provider_id: if ssh_alias.is_some() {
-                None
-            } else {
-                Some(route.clone())
-            },
+            route_provider_id: Some(cold_start_route_provider_id(ssh_alias.as_deref(), &route)),
             effort: Some(prefs.effort.clone()),
             permission_policy: Some(prefs.permission_policy.clone()),
             product_mode: Some(prefs.mode.clone()),
@@ -2082,10 +2078,39 @@ pub(crate) fn should_kill_parked_after_flag_mismatch(
     !process_blocked_for_warm_reuse(process_id, busy_process_ids)
 }
 
+/// Route id stored on a cold-started ACP process.
+///
+/// SSH sessions are official-only. `None` follows `active_route()` and would
+/// prepare a custom global relay's auth for a remote official chat.
+pub(super) fn cold_start_route_provider_id(ssh_alias: Option<&str>, session_route: &str) -> String {
+    if ssh_alias.is_some() {
+        crate::providers::SESSION_PROVIDER_OFFICIAL.to_string()
+    } else {
+        session_route.to_string()
+    }
+}
+
 #[cfg(test)]
 mod connect_preserve_tests {
     use super::*;
     use crate::store::SessionMeta;
+
+    #[test]
+    fn ssh_cold_start_route_is_official() {
+        assert_eq!(
+            cold_start_route_provider_id(Some("devbox"), "relay-b"),
+            crate::providers::SESSION_PROVIDER_OFFICIAL
+        );
+        assert_eq!(
+            cold_start_route_provider_id(Some("devbox"), "official"),
+            crate::providers::SESSION_PROVIDER_OFFICIAL
+        );
+        assert_eq!(cold_start_route_provider_id(None, "relay-b"), "relay-b");
+        assert_eq!(
+            cold_start_route_provider_id(None, crate::providers::SESSION_PROVIDER_OFFICIAL),
+            crate::providers::SESSION_PROVIDER_OFFICIAL
+        );
+    }
 
     #[test]
     fn disconnected_never_preserves_even_when_busy_flags_stuck() {

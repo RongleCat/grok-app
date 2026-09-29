@@ -397,13 +397,12 @@ pub async fn composer_prefs_set(
         .as_ref()
         .is_some_and(|next| previous_provider.as_deref() != Some(next.as_str()));
     if provider_changed {
-        // This chat's process was spawned for the previous provider. Reload
-        // only the live slot; other providers keep running. The next connect
-        // uses the stored provider id.
+        // This chat's process was spawned for the previous provider. Clear
+        // only this session's CLI resume id, then cold-spawn this chat.
+        // `session/load` would restore the old route. Never `recycle_all`.
         if let Some(sid) = session_id.as_deref() {
-            if mgr.snapshot().session_id.as_deref() == Some(sid) {
-                mgr.soft_respawn_with_reason(&app, "session_provider").await;
-            }
+            mgr.invalidate_spawn_flags_for_session(&app, sid, "session_provider")
+                .await;
         }
     } else if let Some(mid) = model_id {
         if let Err(e) = mgr.set_model(mid, session_id.as_deref()).await {

@@ -41,7 +41,7 @@ Custom providers are written to **`$GROK_HOME/config.toml`** as `[model.<id>]` s
 | `supportsVision` | Channel-level App field `app_supports_vision` (live value for the **active** model). Per-model `supportsVision` / `supportsVideo` in `app_models` win when set. Host `custom_provider_is_text_only` follows the active row, not sibling catalog ids — mixed DeepSeek flash + vision-exp stays text-only on flash. Names / model ids that look like Grok / GPT-4o / Claude / Gemini still count as vision when the per-model flag is unset. Unknown relays stay text-only so DeepSeek-style APIs do not 400 on `image_url`. |
 | `extraHeaders` | Extra HTTP headers written as Grok Build `[model.<id>].extra_headers` (inline TOML table, sent verbatim on inference). Settings → Account → Providers editor. Use for gateways that WAF-check `User-Agent` / `Originator` (e.g. AgentRouter) or Anthropic `x-api-key`. Empty = omit the field. Newlines in values are rejected. |
 | `providerMode` | Explicit transport semantics: `generic` (default) or `grok_build_proxy`. Never infer this from a provider id or hostname. |
-| `isDefault` | Maps to `[models].default` (set only via **Use** / composer pick activate, not a form checkbox) |
+| `isDefault` | Maps to `[models].default` (set only via Settings **Use** / `providers_activate`, not a composer model pick or a form checkbox) |
 
 **Integer TOML fields:** Host writes `context_window = 1000000` (CLI-compatible). On `providers_list`, legacy quoted string forms are repaired in place. Other model edits must not drop or re-quote this field.
 
@@ -166,7 +166,9 @@ Verified working combinations:
 | Custom relay | provider id (`yunyi`) | **provider id** | **removed** (api_key only) |
 | Official | `grok` | catalog id (`grok-4.7`) | **synced** from `~/.grok` |
 
-Host must rebind both sides on every switch and before each ACP spawn (`prepare_route_auth_for_agent` + `agent_spawn_model_id`). After official login / account switch, call `prepare_route_auth_for_agent` instead of blindly copying `auth.json` into agent-home — a custom main must stay api_key-only. Custom ACP processes also **skip** `authenticate(cached_token)` because that RPC reads `~/.grok/auth.json` even when `GROK_HOME` is agent-home. Composer catalog `modelId` remains the official selection preference; spawn resolves the channel id separately. **Alternate activate entry:** picking a custom provider row in the composer model menu also calls `providers_activate` (same Host path as Settings **Use**).
+Host must rebind both sides on every switch and before each ACP spawn (`prepare_route_auth_for_agent` + `agent_spawn_model_id`). After official login / account switch, call `prepare_route_auth_for_agent` instead of blindly copying `auth.json` into agent-home — a custom main must stay api_key-only. Custom ACP processes also **skip** `authenticate(cached_token)` because that RPC reads `~/.grok/auth.json` even when `GROK_HOME` is agent-home. Composer catalog `modelId` remains the official selection preference; spawn resolves the channel id separately.
+
+**Composer pick is not an activate entry.** The composer model menu does not call `providers_activate`. Only Settings → Custom providers → **Use** switches the global route (auth rebind, `[models].default`, `recycle_all_agents`). A menu pick writes that chat through `composer_prefs_set`. When that chat's provider changes, Host clears **only** its `agent_session_id` and soft-respawns that chat, so the new process cannot `session/load` the previous route. Other chats keep their process and CLI session id. SSH cold start always passes route `official`, so a custom global default cannot prepare relay auth for a remote session.
 
 ## Host commands
 

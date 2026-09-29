@@ -45,6 +45,20 @@ impl SessionManager {
         session_id: &str,
         reason: &str,
     ) {
+        self.invalidate_spawn_flags_inner(Some(app), session_id, reason)
+            .await;
+    }
+
+    /// Clear one session's CLI resume id and drop only that session's process.
+    ///
+    /// `app` emits when the live slot actually respawns. Unit tests pass
+    /// `None` (no `AppHandle`); the detach still runs, it just skips the event.
+    async fn invalidate_spawn_flags_inner(
+        &self,
+        app: Option<&AppHandle>,
+        session_id: &str,
+        reason: &str,
+    ) {
         let _ = store::clear_session_agent_session_id(session_id);
         // Keep in-memory meta aligned so a mid-turn no-op connect cannot
         // resume the pre-change agent id after the turn ends.
@@ -63,7 +77,15 @@ impl SessionManager {
         }
         if self.is_live_session(session_id) {
             // soft_respawn already defers when the live turn is busy.
-            self.soft_respawn_with_reason(app, reason).await;
+            if self.detach_live_for_soft_respawn(reason).await {
+                if let Some(app) = app {
+                    let _ = app.emit(
+                        "session://agent_soft_respawn",
+                        serde_json::json!({ "reason": reason }),
+                    );
+                    Self::emit_state(app, &self.snapshot());
+                }
+            }
             return;
         }
         // Background mid-turn: queue like effort/policy changes. Dropping now
@@ -125,6 +147,20 @@ impl SessionManager {
 
     /// Soft-respawn and tell the UI why the agent process was reloaded.
     pub async fn soft_respawn_with_reason(&self, app: &AppHandle, reason: &str) {
+        if self.detach_live_for_soft_respawn(reason).await {
+            let _ = app.emit(
+                "session://agent_soft_respawn",
+                serde_json::json!({ "reason": reason }),
+            );
+            Self::emit_state(app, &self.snapshot());
+        }
+    }
+
+    /// Drop the live ACP so the next connect cold-spawns.
+    ///
+    /// Returns true when a process was detached and the UI should reload.
+    /// Mid-turn and already-empty slots return false (no emit).
+    async fn detach_live_for_soft_respawn(&self, reason: &str) -> bool {
         let (acp, sid, process_id, deferred) = {
             let mut guard = self.inner.lock();
             if let Some(s) = guard.as_mut() {
@@ -158,11 +194,11 @@ impl SessionManager {
                 self.pending_soft_respawn
                     .lock()
                     .insert(sid.to_string(), reason.to_string());
-                return;
+                return false;
             }
             if acp.is_none() {
                 self.pending_soft_respawn.lock().remove(sid);
-                return;
+                return false;
             }
         }
         if let Some(acp) = acp {
@@ -180,12 +216,9 @@ impl SessionManager {
             if let Some(sid) = sid {
                 self.pending_soft_respawn.lock().remove(&sid);
             }
-            let _ = app.emit(
-                "session://agent_soft_respawn",
-                serde_json::json!({ "reason": reason }),
-            );
-            Self::emit_state(app, &self.snapshot());
+            return true;
         }
+        false
     }
 
     /// If a mid-turn policy/effort/proxy change queued a respawn, run it
@@ -1612,6 +1645,195 @@ mod recycle_tests {
         }
 
         std::env::remove_var("GROK_APP_HOME");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    fn ready_session(id: &str, process_id: &str, agent_id: &str, provider_id: &str) -> LiveSession {
+        let mut fsm = SessionFsm::new();
+        let _ = fsm.start_connect();
+        let _ = fsm.handshake_ok();
+        let now = Instant::now();
+        LiveSession {
+            app_session_id: id.into(),
+            process_id: process_id.into(),
+            meta: SessionMeta {
+                id: id.into(),
+                project_id: None,
+                title: id.into(),
+                agent_session_id: Some(agent_id.into()),
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                model_id: None,
+                archived: false,
+                pinned: false,
+                effort: None,
+                mode: None,
+                permission_policy: None,
+                json_schema: None,
+                scheduled: false,
+                worktree_path: None,
+                worktree_branch: None,
+                is_worktree_session: false,
+                plugin_dirs: Vec::new(),
+                extra_rules: None,
+                max_agent_turns: None,
+                system_prompt_override: None,
+                fork_agent_session: false,
+                fork_rewind_prompt_index: None,
+                no_ask_user: None,
+                workspace_id: None,
+                workspace_root_snapshot: None,
+                workspace_capability: None,
+                provider_id: Some(provider_id.into()),
+            },
+            fsm,
+            backend: "mock_acp".into(),
+            acp: None,
+            mock_stream: None,
+            streaming_message_id: None,
+            active_turn_id: None,
+            stream_message_id_locked: false,
+            stream_buf: String::new(),
+            stream_thought: String::new(),
+            stream_last_was_assistant: false,
+            stream_attachments: Vec::new(),
+            model_id: None,
+            effort: None,
+            product_mode: None,
+            project_path: None,
+            allow_cache: SessionAllowCache::default(),
+            policy: PermissionPolicy::default(),
+            provider_retry_attempt: 0,
+            provider_retry_aborted: false,
+            needs_history_bootstrap: false,
+            pending_plan_rpc_id: None,
+            pending_permission_rpc_id: None,
+            pending_permission_options: None,
+            pending_permission_tool_name: None,
+            pending_permission_ui: None,
+            pending_ask_user_rpc_id: None,
+            pending_ask_user_ui: None,
+            last_activity: now,
+            last_stream_progress: now,
+            last_stall_emit: None,
+            stall_soft_emits: 0,
+            journal_throttle: JournalWriteThrottle::with_default_interval(),
+            open_tool_ids: HashSet::new(),
+            open_tool_seen_at: HashMap::new(),
+            terminal_tool_ids: HashSet::new(),
+            deferred_prompt_complete: None,
+            tools_this_turn: 0,
+            saw_model_output: false,
+            prompt_in_flight: false,
+            sent_prompt_this_visit: false,
+            pending_stream_emit: None,
+            stream_emit_flush_gen: 0,
+            last_tool_heartbeat_emit: None,
+        }
+    }
+
+    fn seed_official_and_custom(mgr: &SessionManager, custom_is_live: bool) {
+        let official = ready_session("sess-a", "proc-a", "agent-a", "official");
+        let custom = ready_session("sess-b", "proc-b", "agent-b", "relay-b");
+        crate::store::save_sessions_index(&[official.meta.clone(), custom.meta.clone()])
+            .expect("seed sessions");
+        if custom_is_live {
+            *mgr.inner.lock() = Some(custom);
+            mgr.background.lock().insert("sess-a".into(), official);
+        } else {
+            *mgr.inner.lock() = Some(official);
+            mgr.background.lock().insert("sess-b".into(), custom);
+        }
+        *mgr.prewarm.lock() = PrewarmState::Spawning {
+            since: Instant::now(),
+        };
+    }
+
+    fn assert_disk_agent_ids(official_kept: &str) {
+        let rows = crate::store::load_sessions_index();
+        let official = rows
+            .iter()
+            .find(|s| s.id == "sess-a")
+            .expect("official row");
+        let custom = rows.iter().find(|s| s.id == "sess-b").expect("custom row");
+        assert_eq!(official.agent_session_id.as_deref(), Some(official_kept));
+        assert_eq!(official.provider_id.as_deref(), Some("official"));
+        assert!(custom.agent_session_id.is_none());
+        assert_eq!(custom.provider_id.as_deref(), Some("relay-b"));
+    }
+
+    #[test]
+    fn switching_custom_chat_leaves_official_process_and_clears_custom_id() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-provider-switch-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).expect("temp home");
+        let previous = std::env::var_os("GROK_APP_HOME");
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let _ = crate::paths::ensure_app_dirs();
+
+        // B (custom) is background. Switching it drops only B.
+        // A (official) keeps its live process and CLI session id.
+        let mgr = SessionManager::new();
+        seed_official_and_custom(&mgr, false);
+        tauri::async_runtime::block_on(mgr.invalidate_spawn_flags_inner(
+            None,
+            "sess-b",
+            "session_provider",
+        ));
+        {
+            let guard = mgr.inner.lock();
+            let official = guard.as_ref().expect("official stays live");
+            assert_eq!(official.app_session_id, "sess-a");
+            assert_eq!(official.process_id, "proc-a");
+            assert_eq!(official.meta.agent_session_id.as_deref(), Some("agent-a"));
+            assert_eq!(official.meta.provider_id.as_deref(), Some("official"));
+        }
+        assert!(mgr.background.lock().get("sess-b").is_none());
+        assert!(mgr.parked.lock().is_empty());
+        assert!(matches!(*mgr.prewarm.lock(), PrewarmState::Spawning { .. }));
+        assert_disk_agent_ids("agent-a");
+
+        // B (custom) is the live chat being switched. A stays in the background
+        // with the same process and CLI session id. B's resume id is cleared.
+        let mgr = SessionManager::new();
+        seed_official_and_custom(&mgr, true);
+        tauri::async_runtime::block_on(mgr.invalidate_spawn_flags_inner(
+            None,
+            "sess-b",
+            "session_provider",
+        ));
+        {
+            let guard = mgr.inner.lock();
+            let custom = guard.as_ref().expect("custom stays the live slot");
+            assert_eq!(custom.app_session_id, "sess-b");
+            assert!(custom.meta.agent_session_id.is_none());
+            assert_eq!(custom.meta.provider_id.as_deref(), Some("relay-b"));
+        }
+        {
+            let bg = mgr.background.lock();
+            let official = bg.get("sess-a").expect("official process stays");
+            assert_eq!(official.process_id, "proc-a");
+            assert_eq!(official.meta.agent_session_id.as_deref(), Some("agent-a"));
+            assert_eq!(official.meta.provider_id.as_deref(), Some("official"));
+        }
+        assert!(matches!(*mgr.prewarm.lock(), PrewarmState::Spawning { .. }));
+        assert!(!mgr.pending_soft_respawn.lock().contains_key("sess-a"));
+        assert_disk_agent_ids("agent-a");
+
+        match previous {
+            Some(value) => std::env::set_var("GROK_APP_HOME", value),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

@@ -178,6 +178,8 @@ This covers load failure, wiped agent dirs, or agent version mismatches.
 
 Permission / mode soft-respawn **keeps** `agentSessionId` so the next connect prefers `session/load`. Bootstrap runs only if load fails.
 
+Changing **one chat's provider** (official ↔ custom, or another custom section) clears that chat's `agentSessionId` before the soft-respawn, so `session/load` cannot restore the previous route. Other chats are not recycled. SSH cold start is always the official route.
+
 ### 3a. Move chat to another project
 
 Sidebar **Move to project** (context menu, multi-select, drag onto a folder, or the composer project chip on an existing chat) rebinds `projectId`. The App journal stays under `{app_data}/sessions/<id>/` — nothing is copied into the folder.
