@@ -5,10 +5,10 @@
  */
 
 .lobe-chat {
-  /* Type */
-  --chat-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
-    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei",
-    system-ui, sans-serif;
+  /* Type — follow Appearance → UI font (`--font-sans` on documentElement).
+   * A second hardcoded sans stack made the transcript ignore the picker
+   * and force YaHei on Windows (no JhengHei). Code stays `--chat-mono`. */
+  --chat-font: var(--font-sans);
   --chat-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas,
     "Liberation Mono", monospace;
 

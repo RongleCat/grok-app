@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   applyUiFontFamily,
@@ -46,5 +48,19 @@ describe("uiFontPref", () => {
       },
     });
     expect(props.has("--font-sans")).toBe(false);
+  });
+
+  it("chat transcript --chat-font follows --font-sans", () => {
+    const src = readFileSync(
+      join(__dirname, "../components/lobe-chat/lobe-chat.part1.css"),
+      "utf8",
+    );
+    const shellStart = src.indexOf(".lobe-chat {");
+    const familyStart = src.indexOf("font-family: var(--chat-font)", shellStart);
+    expect(shellStart).toBeGreaterThanOrEqual(0);
+    expect(familyStart).toBeGreaterThan(shellStart);
+    const shell = src.slice(shellStart, familyStart);
+    expect(shell).toMatch(/--chat-font:\s*var\(--font-sans\)\s*;/);
+    expect(shell).not.toMatch(/Microsoft YaHei/);
   });
 });
