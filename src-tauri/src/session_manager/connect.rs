@@ -408,8 +408,9 @@ impl SessionManager {
         } else {
             crate::providers::spawn_model_for_provider(&route, &prefs.model_id)
         };
-        // set_model carries this chat's catalog id. Spawn `--model` is the
-        // provider section id (or an official catalog id).
+        // Generic custom set_model repeats the section id. Official and
+        // Grok Build-compatible relays send a catalog id. Spawn `--model`
+        // is the section id, or that catalog id for those two routes.
         let session_model = if ssh_alias.is_some() {
             agent_model.clone()
         } else {
@@ -1583,10 +1584,10 @@ impl SessionManager {
                 {
                     tracing::warn!("acp set_mode after session open soft-fail: {e}");
                 }
-                // #1000: mirror the unpark path — apply the same resolved model via
-                // session/set_model after session/new. Spawn `--model` alone is not
-                // enough when the composer id is an App `app_models` catalog id that
-                // CLI spawn resolves differently from ACP set_model.
+                // Mirror the unpark path — apply the resolved model via
+                // session/set_model after session/new. Generic relays send the
+                // section id (same as spawn). Official and proxy relays send the
+                // catalog id, which spawn may have resolved differently (#1000).
                 let session_model = connect_set_model_argument(
                     ssh_alias.is_some(),
                     &route,

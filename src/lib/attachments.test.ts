@@ -44,6 +44,26 @@ describe("attachments", () => {
     expect(out.find((a) => a.path === file.path)?.name).toBe("renamed");
   });
 
+  it("collapses one Windows image stored with both slash styles (#1284)", () => {
+    const stored: Attachment = {
+      path: "C:\\Users\\me\\AppData\\Local\\Temp\\paste.png",
+      name: "paste.png",
+      isDir: false,
+    };
+    const journal =
+      "你别乱改啊，\n\n@C:\\Users\\me\\AppData\\Local\\Temp\\paste.png";
+    const parsed = parseAttachmentsFromContent(journal);
+    const extracted = extractMediaPathsFromContent(journal);
+    expect(extracted.map((a) => a.path)).toEqual([
+      "C:/Users/me/AppData/Local/Temp/paste.png",
+    ]);
+    const out = mergeMessageAttachments(
+      mergeAttachments(parsed.attachments, [stored]),
+      journal,
+    );
+    expect(out).toEqual([stored]);
+  });
+
   it("builds agent prompt with @paths", () => {
     expect(buildAgentPrompt("hi", [file, dir])).toBe(
       "hi\n\n@/tmp/a.txt\n@/tmp/proj",

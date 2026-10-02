@@ -21,17 +21,33 @@ export interface Attachment {
   isDir: boolean;
 }
 
-/** Merge new items by absolute path (dedupe). */
+/**
+ * Merge new items by absolute path (dedupe).
+ *
+ * Windows journal rows store `C:\…` and the text scan normalizes the same
+ * file to `C:/…`. Those are one file; keeping both paints two thumbnails
+ * after send (#1284). An exact path still updates in place (last write wins).
+ */
 export function mergeAttachments(
   prev: Attachment[],
   next: Attachment[],
 ): Attachment[] {
-  const map = new Map(prev.map((a) => [a.path, a]));
-  for (const a of next) {
-    if (!a.path) continue;
-    map.set(a.path, a);
-  }
-  return Array.from(map.values());
+  const map = new Map<string, Attachment>();
+  const order: string[] = [];
+  const put = (a: Attachment) => {
+    if (!a.path) return;
+    const key = normalizeLocalPathToken(a.path) || a.path.trim();
+    const existing = map.get(key);
+    if (!existing) {
+      order.push(key);
+      map.set(key, a);
+      return;
+    }
+    if (existing.path === a.path) map.set(key, a);
+  };
+  for (const a of prev) put(a);
+  for (const a of next) put(a);
+  return order.map((key) => map.get(key)!);
 }
 
 /**

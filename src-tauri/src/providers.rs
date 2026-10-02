@@ -1411,12 +1411,13 @@ pub fn custom_provider_id_for_catalog_model(catalog_id: &str) -> Option<String> 
 ///   CLI `--model` does not resolve App-only `app_models` ids; ACP set_model can,
 ///   which previously caused turn-1 official / turn-2 custom silent switches.
 ///
-/// Model id for `session/set_model` on one chat.
-///
-/// Spawn `--model` stays the provider section id so the process keeps that
-/// route. A catalog id that belongs to the active provider is sent only to
-/// this session, so another chat on a different provider is not retargeted
-/// and the shared `model =` field is left alone.
+/// `session/set_model` on a generic custom route sends that same section id.
+/// The CLI picker name is the TOML header (`[model.api-top]`), and the `model`
+/// field is only the id sent upstream. Passing the upstream id looks up a
+/// missing section, falls through to the built-in Grok catalog, and 401s
+/// because the custom home has no OIDC (#1294). A Grok Build-compatible relay
+/// is the exception: spawn already binds the real catalog id, and set_model
+/// repeats that id.
 pub const SESSION_PROVIDER_OFFICIAL: &str = "official";
 
 pub fn is_session_provider_official(id: &str) -> bool {
@@ -1565,27 +1566,35 @@ pub fn session_set_model_id_for(provider_id: &str, composer_model: &str) -> Stri
         return m.into();
     }
     let id = provider_id.trim();
-    let models = list_custom_providers()
+    let found = list_custom_providers()
         .ok()
-        .and_then(|list| list.providers.into_iter().find(|p| p.id == id))
-        .map(|p| {
+        .and_then(|list| list.providers.into_iter().find(|p| p.id == id));
+    let (models, allow_catalog_id) = match found {
+        Some(p) => {
+            let allow = p.provider_mode == PROVIDER_MODE_GROK_BUILD_PROXY;
             let mut ids = Vec::new();
             if !p.model.trim().is_empty() {
                 ids.push(p.model);
             }
             ids.extend(p.models.into_iter().map(|entry| entry.id));
-            ids
-        })
-        .unwrap_or_default();
-    resolve_session_set_model_id(Some(id), composer_model, &models)
+            (ids, allow)
+        }
+        None => (Vec::new(), false),
+    };
+    resolve_session_set_model_id(Some(id), composer_model, &models, allow_catalog_id)
 }
 
 /// Pure half of [`session_set_model_id_for`]. `None` route means official; the
 /// caller passes an already resolved official id.
+///
+/// `allow_catalog_id` is only for a Grok Build-compatible relay, whose spawn
+/// already selected a real catalog id. Generic relays must keep the section id
+/// even when `composer_model` is listed in `app_models`.
 pub fn resolve_session_set_model_id(
     custom_provider_id: Option<&str>,
     composer_model: &str,
     same_provider_models: &[String],
+    allow_catalog_id: bool,
 ) -> String {
     let m = composer_model.trim();
     let Some(id) = custom_provider_id.map(str::trim).filter(|s| !s.is_empty()) else {
@@ -1595,7 +1604,11 @@ pub fn resolve_session_set_model_id(
             m.to_string()
         };
     };
-    if !m.is_empty() && m != id && same_provider_models.iter().any(|got| got == m) {
+    if allow_catalog_id
+        && !m.is_empty()
+        && m != id
+        && same_provider_models.iter().any(|got| got == m)
+    {
         return m.to_string();
     }
     id.to_string()
@@ -3312,20 +3325,48 @@ mod tests {
             agent_home: String::new(),
             switched_to_independent: false,
         };
+        // Generic relay: the API model id is not a CLI section. Sending it
+        // makes Grok Build fall through to the built-in catalog (#1294).
+        assert_eq!(
+            resolve_session_set_model_id(
+                Some("api-top"),
+                "grok-4.6",
+                &["grok-4.6".into(), "grok-4.5".into()],
+                false,
+            ),
+            "api-top"
+        );
         assert_eq!(
             resolve_session_set_model_id(
                 Some("relay"),
                 "deepseek-v4-pro",
                 &["deepseek-v4-flash".into(), "deepseek-v4-pro".into()],
+                false,
             ),
-            "deepseek-v4-pro"
+            "relay"
+        );
+        // Grok Build-compatible relay: spawn bound the catalog id, so set_model
+        // repeats it.
+        assert_eq!(
+            resolve_session_set_model_id(
+                Some("beef-relay"),
+                "grok-4.5",
+                &["grok-4.6".into(), "grok-4.5".into()],
+                true,
+            ),
+            "grok-4.5"
         );
         assert_eq!(
-            resolve_session_set_model_id(Some("relay"), "grok-4.7", &["deepseek-v4-flash".into()]),
+            resolve_session_set_model_id(
+                Some("relay"),
+                "grok-4.7",
+                &["deepseek-v4-flash".into()],
+                true,
+            ),
             "relay"
         );
         assert_eq!(
-            resolve_session_set_model_id(None, "grok-4.7", &[]),
+            resolve_session_set_model_id(None, "grok-4.7", &[], false),
             "grok-4.7"
         );
         assert!(provider_mutation_needs_agent_reload(true, "other", &active));
