@@ -33,7 +33,7 @@
     "build:help": "bash scripts/build-local.sh help",
     "setup:cross": "bash scripts/setup-cross-compile.sh",
     "release:tag": "bash scripts/release-tag.sh",
-    "preview": "vite preview",
+    "preview": "vite preview --host 0.0.0.0",
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
