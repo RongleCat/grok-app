@@ -1,0 +1,17 @@
+[build]
+  command = "pnpm build:ui"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "9.15.9"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[dev]
+  command = "pnpm dev:ui -- --host 0.0.0.0"
+  port = 1421
+  targetPort = 1421

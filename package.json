@@ -19,7 +19,7 @@
     "preinstall": "node scripts/check-deps-hygiene.mjs --preinstall",
     "deps:check": "node scripts/check-deps-hygiene.mjs",
     "audit:prod": "pnpm audit --prod --audit-level moderate",
-    "dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
+    "dev": "vite --host 0.0.0.0",
     "dev:ui": "vite",
     "build": "bash scripts/build-local.sh host",
     "build:ui": "tsc -b && vite build",
@@ -33,14 +33,15 @@
     "build:help": "bash scripts/build-local.sh help",
     "setup:cross": "bash scripts/setup-cross-compile.sh",
     "release:tag": "bash scripts/release-tag.sh",
-    "preview": "vite preview",
+    "preview": "vite preview --host 0.0.0.0",
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint src --max-warnings 0",
     "chatcut:start": "node scripts/chatcut-plugin-start.mjs",
-    "chatcut:fetch": "node scripts/chatcut-plugin-start.mjs --fetch"
+    "chatcut:fetch": "node scripts/chatcut-plugin-start.mjs --fetch",
+    "dev:desktop": "tauri dev --config src-tauri/tauri.dev.conf.json"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",
