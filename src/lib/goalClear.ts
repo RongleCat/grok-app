@@ -2,6 +2,8 @@
  * Tell the live CLI to leave goal mode. The command is `/goal clear`
  * (Grok Build: status | pause | resume | clear). There is no separate RPC.
  * A session that is not ready yet is remembered and flushed once it is.
+ * A send that throws stays remembered so the next ready flush can try again.
+ * A send already in flight is not started a second time.
  */
 
 import { sessionSend } from "@/lib/api/session";
@@ -17,9 +19,20 @@ export function createGoalClearQueue(
   send: (sessionId: string) => Promise<void>,
 ): GoalClearQueue {
   const pending = new Set<string>();
+  const inFlight = new Set<string>();
   const deliver = (sessionId: string) => {
-    pending.delete(sessionId);
-    void send(sessionId);
+    pending.add(sessionId);
+    if (inFlight.has(sessionId)) return;
+    inFlight.add(sessionId);
+    void send(sessionId).then(
+      () => {
+        pending.delete(sessionId);
+        inFlight.delete(sessionId);
+      },
+      () => {
+        inFlight.delete(sessionId);
+      },
+    );
   };
   return {
     arm(sessionId, state) {
@@ -45,5 +58,6 @@ export const sessionGoalClear = createGoalClearQueue(async (sessionId) => {
   } catch (e) {
     if (String(e).includes("CONNECT_FAILED")) return;
     console.warn("goal clear failed", e);
+    throw e;
   }
 });
