@@ -1,5 +1,11 @@
 /** Build the agent-facing continue prompt after a host/agent interrupt. */
 
+import {
+  endOfTurnChipShowsContinue,
+  mapEndOfTurnReason,
+  parseEndOfTurnContent,
+} from "./endOfTurn";
+
 export interface ContinueInterruptContext {
   command?: string | null;
   title?: string | null;
@@ -48,9 +54,12 @@ export function buildContinueAfterStopPrompt(): string {
   ].join("\n");
 }
 
+/**
+ * Same continuable set as the end-of-turn chip.
+ * Aliases such as `process_exit` and `host` map before the check.
+ */
 export function isContinuableEndReason(reason: string | null | undefined): boolean {
-  const r = (reason || "").toLowerCase();
-  return r === "host_exit" || r === "agent_exit" || r === "user_stop";
+  return endOfTurnChipShowsContinue(mapEndOfTurnReason(reason).reason);
 }
 
 /** Last continuable end chip after the last user prompt (or null). */
@@ -80,14 +89,15 @@ export function latestContinuableEndMessageId(
         (m.content?.startsWith("turn_cancelled") ||
           m.content?.startsWith("turn_end|")));
     if (!isEnd) continue;
-    const reason =
-      (m.toolStatus || "").toLowerCase() ||
-      (m.content?.startsWith("turn_cancelled|")
-        ? m.content.slice("turn_cancelled|".length).split("|")[0]
-        : m.content?.startsWith("turn_end|")
-          ? m.content.slice("turn_end|".length).split("|")[0]
-          : "");
-    if (isContinuableEndReason(reason)) return m.id;
+    // Journal content wins, matching EndOfTurnChip. toolStatus on a
+    // reloaded row is often a generic `cancelled` while the body still
+    // says `turn_cancelled|user_stop`.
+    const fromContent = parseEndOfTurnContent(m.content);
+    if (fromContent) {
+      if (isContinuableEndReason(fromContent)) return m.id;
+      continue;
+    }
+    if (isContinuableEndReason(m.toolStatus)) return m.id;
   }
   return null;
 }

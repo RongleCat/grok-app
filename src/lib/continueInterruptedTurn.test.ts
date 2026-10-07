@@ -30,6 +30,10 @@ describe("continueInterruptedTurn", () => {
     expect(isContinuableEndReason("host_exit")).toBe(true);
     expect(isContinuableEndReason("agent_exit")).toBe(true);
     expect(isContinuableEndReason("user_stop")).toBe(true);
+    expect(isContinuableEndReason("process_exit")).toBe(true);
+    expect(isContinuableEndReason("host")).toBe(true);
+    expect(isContinuableEndReason("stall")).toBe(false);
+    expect(isContinuableEndReason("cancelled")).toBe(false);
   });
 
   it("does not tell the agent the host restarted after a user stop", () => {
@@ -73,5 +77,46 @@ describe("latestContinuableEndMessageId", () => {
       { id: "u2", role: "user", content: "continue" },
     ]);
     expect(after).toBeNull();
+  });
+
+  it("uses the journal reason when toolStatus is only cancelled", () => {
+    const id = latestContinuableEndMessageId([
+      { id: "u1", role: "user" },
+      {
+        id: "stop",
+        role: "tool",
+        marker: "turn_cancelled",
+        content: "turn_cancelled|user_stop",
+        toolStatus: "cancelled",
+      },
+    ]);
+    expect(id).toBe("stop");
+  });
+
+  it("treats a process_exit status as an agent exit", () => {
+    const id = latestContinuableEndMessageId([
+      { id: "u1", role: "user" },
+      {
+        id: "exit",
+        role: "tool",
+        marker: "turn_end",
+        toolStatus: "process_exit",
+      },
+    ]);
+    expect(id).toBe("exit");
+  });
+
+  it("does not continue a stall chip", () => {
+    const id = latestContinuableEndMessageId([
+      { id: "u1", role: "user" },
+      {
+        id: "stall",
+        role: "tool",
+        marker: "turn_end",
+        content: "turn_end|stall",
+        toolStatus: "stall",
+      },
+    ]);
+    expect(id).toBeNull();
   });
 });
