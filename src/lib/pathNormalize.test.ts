@@ -6,6 +6,7 @@ import {
   isRealLocalAbsolutePath,
   isSiteRootAbsolutePath,
   isWindowsStylePath,
+  localPathIdentity,
   normalizeLocalPathToken,
   unescapeShellPath,
 } from "./pathNormalize";
@@ -116,6 +117,15 @@ describe("normalizeLocalPathToken", () => {
       "/Users/ronglecat/Downloads/6A5ED46119BDACC7C24DC3B6FF3CF051 (1).png",
     );
     expect(isRealLocalAbsolutePath(normalizeLocalPathToken(raw))).toBe(true);
+  });
+
+  it("collapses Windows slash styles onto one identity", () => {
+    const back = "C:\\Users\\me\\AppData\\Local\\Temp\\paste.png";
+    const fwd = "C:/Users/me/AppData/Local/Temp/paste.png";
+    expect(localPathIdentity(back)).toBe(fwd);
+    expect(localPathIdentity(fwd)).toBe(localPathIdentity(back));
+    expect(localPathIdentity("")).toBe("");
+    expect(localPathIdentity("/tmp/a.png")).toBe("/tmp/a.png");
   });
 });
 

@@ -254,6 +254,19 @@ describe("shouldClearMatchingProjectDraft", () => {
     ).toBe(false);
   });
 
+  it("clears when a Windows image only differs by slash style", () => {
+    expect(
+      shouldClearMatchingProjectDraft({
+        projectDraftText: "hello",
+        sentText: "hello",
+        projectDraftAttachments: [
+          { path: "C:\\Users\\me\\paste.png" },
+        ],
+        sentAttachments: [{ path: "C:/Users/me/paste.png" }],
+      }),
+    ).toBe(true);
+  });
+
   it("clears when the leftover payload matches this send including extras", () => {
     const q = { id: "q1", text: "excerpt", comment: "" };
     expect(

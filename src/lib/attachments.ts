@@ -11,6 +11,7 @@ import {
   isRealLocalAbsolutePath,
   isSiteRootAbsolutePath,
   isWindowsStylePath,
+  localPathIdentity,
   normalizeLocalPathToken,
   unescapeShellPath,
 } from "@/lib/pathNormalize";
@@ -26,7 +27,7 @@ export interface Attachment {
  *
  * Windows journal rows store `C:\…` and the text scan normalizes the same
  * file to `C:/…`. Those are one file; keeping both paints two thumbnails
- * after send (#1284). An exact path still updates in place (last write wins).
+ * after send. An exact path still updates in place (last write wins).
  */
 export function mergeAttachments(
   prev: Attachment[],
@@ -36,7 +37,7 @@ export function mergeAttachments(
   const order: string[] = [];
   const put = (a: Attachment) => {
     if (!a.path) return;
-    const key = normalizeLocalPathToken(a.path) || a.path.trim();
+    const key = localPathIdentity(a.path);
     const existing = map.get(key);
     if (!existing) {
       order.push(key);
@@ -171,14 +172,15 @@ export function appendAttachmentRefsToContent(
 
   const existing = new Set(
     priorRefs
-      .map((l) => l.trim().replace(/^@/, "").trim())
+      .map((l) => localPathIdentity(l.trim().replace(/^@/, "")))
       .filter(Boolean),
   );
   const newRefs: string[] = [];
   for (const a of attachments) {
     const path = (a.path ?? "").trim();
-    if (!path || existing.has(path)) continue;
-    existing.add(path);
+    const key = localPathIdentity(path);
+    if (!path || !key || existing.has(key)) continue;
+    existing.add(key);
     newRefs.push(`@${path}`);
   }
   const refs = [...priorRefs, ...newRefs];
@@ -881,17 +883,17 @@ export function filterAttachmentsNotInlined(
     extractSessionRelativeMediaRefs(content).map((r) => r.replace(/\\/g, "/")),
   );
   const absInText = new Set(
-    extractMediaPathsFromContent(content).map((a) => a.path),
+    extractMediaPathsFromContent(content).map((a) => localPathIdentity(a.path)),
   );
   const out = attachments.filter((a) => {
     // Hide unopenable false extracts (paperclip that cannot preview).
     if (!isDisplayableAttachmentPath(a.path)) return false;
     if (a.isDir || !isMediaPath(a.path)) return true;
     const name = pathBasename(a.path);
-    const norm = a.path.replace(/\\/g, "/");
+    const norm = localPathIdentity(a.path);
     const rel = mediaTailFromPath(norm);
     if (rel && rels.has(rel)) return false;
-    if (absInText.has(a.path)) return false;
+    if (absInText.has(norm)) return false;
     if (rel && content.includes(rel)) return false;
     if (rels.has(name)) return false;
     if ([...rels].some((r) => r === name || r.endsWith(`/${name}`))) {
@@ -925,8 +927,8 @@ export function filterEchoedUserAttachments(
 ): Attachment[] | undefined {
   if (!assistantAtts?.length) return assistantAtts ?? undefined;
   if (!userAtts?.length) return assistantAtts;
-  const echo = new Set(userAtts.map((a) => a.path));
-  const out = assistantAtts.filter((a) => !echo.has(a.path));
+  const echo = new Set(userAtts.map((a) => localPathIdentity(a.path)));
+  const out = assistantAtts.filter((a) => !echo.has(localPathIdentity(a.path)));
   // Nothing echoed — keep the input reference so memoized consumers
   // (AssistantMessageBody) are not busted by a fresh array per render.
   if (out.length === assistantAtts.length) return assistantAtts;

@@ -867,6 +867,30 @@ describe("session projection", () => {
     expect(out.some((m) => m.id.startsWith("a-pending-"))).toBe(true);
   });
 
+  it("reconcileOptimisticDuplicates matches a Windows image when only slashes differ", () => {
+    const back = "C:\\Users\\me\\paste.png";
+    const fwd = "C:/Users/me/paste.png";
+    const body = "look at this";
+    const msgs: ChatMessage[] = [
+      {
+        id: "u-1757088205001",
+        role: "user",
+        content: body,
+        attachments: [{ path: back, name: "paste.png", isDir: false }],
+      },
+      {
+        id: "host-user",
+        role: "user",
+        content: `${body}\n\n@${fwd}`,
+        attachments: [{ path: fwd, name: "paste.png", isDir: false }],
+      },
+    ];
+    const out = reconcileOptimisticDuplicates(msgs);
+    expect(out.filter((m) => m.role === "user").map((m) => m.id)).toEqual([
+      "host-user",
+    ]);
+  });
+
   it("preferSessionMessages drops optimistic image prompt when disk has @path dual-write", () => {
     const shot = "/tmp/paste.png";
     const body = "see this screenshot";

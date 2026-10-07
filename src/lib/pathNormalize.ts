@@ -155,6 +155,17 @@ export function normalizeLocalPathToken(input: string): string {
 }
 
 /**
+ * Lookup key for one local file.
+ * `C:\Users\a\paste.png` and `C:/Users/a/paste.png` are the same file.
+ * Empty input stays empty.
+ */
+export function localPathIdentity(path: string): string {
+  const t = (path ?? "").trim();
+  if (!t) return "";
+  return normalizeLocalPathToken(t) || t;
+}
+
+/**
  * Whether this token may be rendered as a local image/video card.
  * Requires a real local absolute (or pathMap hit that is real local).
  */

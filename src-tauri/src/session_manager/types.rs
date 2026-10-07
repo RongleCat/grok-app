@@ -1851,7 +1851,7 @@ pub(super) fn append_journal_attachment_refs(
         .filter_map(|l| {
             l.trim()
                 .strip_prefix('@')
-                .map(|p| p.trim().to_string())
+                .map(|p| journal_attachment_path_key(p.trim()))
                 .filter(|p| !p.is_empty())
         })
         .collect();
@@ -1859,7 +1859,8 @@ pub(super) fn append_journal_attachment_refs(
     let mut new_refs: Vec<String> = Vec::new();
     for a in atts {
         let path = a.path.trim();
-        if path.is_empty() || !existing.insert(path.to_string()) {
+        let key = journal_attachment_path_key(path);
+        if path.is_empty() || key.is_empty() || !existing.insert(key) {
             continue;
         }
         new_refs.push(format!("@{path}"));
@@ -1875,6 +1876,18 @@ pub(super) fn append_journal_attachment_refs(
     }
     lines.extend(refs);
     lines.join("\n")
+}
+
+/// `C:\…` and `C:/…` are one file. Other paths stay as written.
+fn journal_attachment_path_key(path: &str) -> String {
+    let t = path.trim();
+    let b = t.as_bytes();
+    if b.len() >= 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && (b[2] == b'\\' || b[2] == b'/')
+    {
+        t.replace('\\', "/")
+    } else {
+        t.to_string()
+    }
 }
 
 /// Result of taking agent processes out of live / background / parked / prewarm maps.
@@ -2054,6 +2067,14 @@ mod journal_attach_tests {
             &[att("/tmp/shot.png")],
         );
         assert_eq!(out, "body\n\n@/goal keep me\n\n@/tmp/shot.png");
+    }
+
+    #[test]
+    fn append_collapses_windows_slash_variants() {
+        let once = append_journal_attachment_refs("hello".into(), &[att(r"C:\Users\me\paste.png")]);
+        let twice = append_journal_attachment_refs(once.clone(), &[att("C:/Users/me/paste.png")]);
+        assert_eq!(once, twice);
+        assert_eq!(once.matches("paste.png").count(), 1);
     }
 }
 

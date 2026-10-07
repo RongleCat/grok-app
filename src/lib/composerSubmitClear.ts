@@ -1,5 +1,6 @@
 import type { Attachment } from "@/lib/attachments";
 import type { ComposerQuote } from "@/lib/composerQuotes";
+import { localPathIdentity } from "@/lib/pathNormalize";
 
 type AttachmentPath = Pick<Attachment, "path">;
 type QuoteSnapshot = Pick<ComposerQuote, "id" | "text" | "comment">;
@@ -121,8 +122,14 @@ export function shouldClearMatchingProjectDraft(opts: {
   if (!(sent.length > 0 && saved === sent)) return false;
   // An existing-thread send that happens to reuse the same words must not
   // wipe an unsent new-task buffer that still has extra files or quotes.
-  const sentAtt = new Set((opts.sentAttachments ?? []).map((a) => a.path));
-  if ((opts.projectDraftAttachments ?? []).some((a) => !sentAtt.has(a.path))) {
+  const sentAtt = new Set(
+    (opts.sentAttachments ?? []).map((a) => localPathIdentity(a.path)),
+  );
+  if (
+    (opts.projectDraftAttachments ?? []).some(
+      (a) => !sentAtt.has(localPathIdentity(a.path)),
+    )
+  ) {
     return false;
   }
   const sentQ = new Set((opts.sentQuotes ?? []).map(quoteIdentity));

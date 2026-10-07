@@ -123,6 +123,41 @@ describe("attachments", () => {
     expect(twice).toBe(once);
   });
 
+  it("append does not write a second Windows ref when only the slashes differ", () => {
+    const back = "C:\\Users\\me\\AppData\\Local\\Temp\\paste.png";
+    const fwd = "C:/Users/me/AppData/Local/Temp/paste.png";
+    const once = appendAttachmentRefsToContent("hello", [
+      { path: back, name: "paste.png", isDir: false },
+    ]);
+    const twice = appendAttachmentRefsToContent(once, [
+      { path: fwd, name: "paste.png", isDir: false },
+    ]);
+    expect(twice).toBe(once);
+    expect(twice.match(/paste\.png/g)).toHaveLength(1);
+  });
+
+  it("drops an assistant echo of the same Windows image", () => {
+    const user = {
+      path: "C:\\Users\\me\\paste.png",
+      name: "paste.png",
+      isDir: false,
+    };
+    const assistant = {
+      path: "C:/Users/me/paste.png",
+      name: "paste.png",
+      isDir: false,
+    };
+    expect(filterEchoedUserAttachments([assistant], [user])).toBeUndefined();
+  });
+
+  it("hides a card when the body already cites the same Windows path", () => {
+    const path = "C:\\Users\\me\\paste.png";
+    const out = filterAttachmentsNotInlined("note\n\n@C:/Users/me/paste.png", [
+      { path, name: "paste.png", isDir: false },
+    ]);
+    expect(out).toBeUndefined();
+  });
+
   it("detects image and video extensions", () => {
     expect(isImagePath("/a/b.PNG")).toBe(true);
     expect(isImagePath("/a/b.docx")).toBe(false);

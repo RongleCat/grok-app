@@ -566,6 +566,23 @@ describe("session projection", () => {
     expect(messages[1]!.attachments![1]!.name).toBe("2.png");
   });
 
+  it("applyGeneratedImage treats Windows slash styles as one file", () => {
+    let messages: ChatMessage[] = [
+      { id: "u1", role: "user", content: "draw" },
+      { id: "a1", role: "assistant", content: "", streaming: true },
+    ];
+    messages = applyGeneratedImage(messages, {
+      path: "C:\\Users\\me\\images\\1.jpg",
+      name: "1.jpg",
+    });
+    messages = applyGeneratedImage(messages, {
+      path: "C:/Users/me/images/1.jpg",
+      name: "1.jpg",
+    });
+    expect(messages[1]!.attachments).toHaveLength(1);
+    expect(messages[1]!.attachments![0]!.path).toBe("C:\\Users\\me\\images\\1.jpg");
+  });
+
   it("applyGeneratedImage ignores false-extract single-segment abs media", () => {
     let messages: ChatMessage[] = [
       { id: "u1", role: "user", content: "hi" },
