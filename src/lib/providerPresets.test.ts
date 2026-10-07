@@ -8,6 +8,7 @@ import {
   GROK_OFFICIAL_EFFORTS,
   OPENROUTER_EFFORTS,
   OPENROUTER_MODELS,
+  OPPER_MODELS,
   ORCAROUTER_MODELS,
   PROVIDER_PRESETS,
   REQUESTY_MODELS,
@@ -224,6 +225,45 @@ describe("providerPresets", () => {
       })?.id,
     ).toBe("requesty");
     expect(resolveProviderBrandId({ providerId: "requesty" })).toBe(null);
+  });
+
+  it("ships Opper with pool ids, chat_completions, vision, and Grok efforts", () => {
+    const p = findProviderPreset("opper");
+    expect(p).toBeDefined();
+    expect(findProviderPreset("Opper")?.id).toBe("opper");
+    expect(p!.name).toBe("Opper");
+    expect(p!.suggestedId).toBe("opper");
+    expect(p!.baseUrl).toBe("https://api.opper.ai/v3/compat");
+    expect(p!.apiBackend).toBe("chat_completions");
+    expect(p!.supportsVision).toBe(true);
+    expect(p!.brandId).toBeUndefined();
+    expect(OPPER_MODELS.map((m) => m.id)).toEqual([
+      "grok-4.6",
+      "gemini-3.8-flash",
+      "deepseek-v4-flash",
+    ]);
+    expect(p!.models).toEqual(OPPER_MODELS);
+    expect(p!.efforts.map((e) => e.id)).toEqual(
+      GROK_CHANNEL_EFFORTS.map((e) => e.id),
+    );
+    expect(p!.efforts.find((e) => e.isDefault)?.id).toBe("medium");
+    expect(p!.apiKeyUrl).toBe("https://platform.opper.ai");
+    expect(
+      resolveProviderApiKeyUrl({
+        providerId: "opper-----123",
+      }),
+    ).toBe("https://platform.opper.ai");
+    expect(
+      resolveProviderApiKeyUrl({
+        baseUrl: "https://api.opper.ai/v3/compat",
+      }),
+    ).toBe("https://platform.opper.ai");
+    expect(
+      resolveMatchedProviderPreset({
+        providerId: "opper-----999",
+      })?.id,
+    ).toBe("opper");
+    expect(resolveProviderBrandId({ providerId: "opper" })).toBe(null);
   });
 
   it("resolves get-api-key URLs by id or base host", () => {

@@ -88,6 +88,7 @@ export const filProviders = {
   "prov.preset.openrouter.blurb": "OpenRouter — GLM-5.3 Flash sa chat_completions, 1M context, naka-on ang vision",
   "prov.preset.orcarouter.blurb": "OrcaRouter — OpenAI-compatible multi-provider gateway, Auto Router, naka-on ang vision",
   "prov.preset.requesty.blurb": "Requesty: OpenAI-compatible multi-provider router, Grok 4.6 / Gemini 3.5 Flash / DeepSeek V4 Flash",
+  "prov.preset.opper.blurb": "Opper: OpenAI-compatible gateway na naka-host sa EU, Grok 4.6 / Gemini 3.8 Flash / DeepSeek V4 Flash",
   "prov.preset.amux.blurb": "Amux relay — Grok 4.7 / 4.6 / 4.5, opisyal na effort low/medium/high/xhigh",
   "prov.preset.yunApi.blurb": "Yun API (yunyi) — Grok 4.7 / 4.6 / 4.5, opisyal na effort low/medium/high/xhigh",
   "prov.preset.opencodeGo.blurb": "OpenCode Zen Go — DeepSeek V4 sa pamamagitan ng chat_completions (hindi Responses)",

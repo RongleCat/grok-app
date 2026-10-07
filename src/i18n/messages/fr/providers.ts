@@ -88,6 +88,7 @@ export const frProviders = {
   "prov.preset.openrouter.blurb": "OpenRouter — GLM-5.3 Flash via chat_completions, contexte 1M, vision activée",
   "prov.preset.orcarouter.blurb": "OrcaRouter — passerelle multi-fournisseurs compatible OpenAI, Auto Router, vision activée",
   "prov.preset.requesty.blurb": "Requesty : routeur multi-fournisseurs compatible OpenAI, Grok 4.6 / Gemini 3.5 Flash / DeepSeek V4 Flash",
+  "prov.preset.opper.blurb": "Opper : passerelle compatible OpenAI hébergée dans l'UE, Grok 4.6 / Gemini 3.8 Flash / DeepSeek V4 Flash",
   "prov.preset.amux.blurb": "Relais Amux — Grok 4.7 / 4.6 / 4.5, effort officiel low/medium/high/xhigh",
   "prov.preset.yunApi.blurb": "Yun API (yunyi) — Grok 4.7 / 4.6 / 4.5, effort officiel low/medium/high/xhigh",
   "prov.preset.opencodeGo.blurb": "OpenCode Zen Go — DeepSeek V4 via chat_completions (pas Responses)",

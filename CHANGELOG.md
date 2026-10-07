@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- Opper is available as a custom-provider preset.
+
+**中文 · 新增**
+- 自定义供应商画廊增加了 Opper 一键预设。
+
 ## [0.2.39] - 2026-10-06
 
 > **Highlight:** Goal mode reaches the CLI, and a stalled reply can continue in the same chat.

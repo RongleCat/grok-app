@@ -235,6 +235,32 @@ export const REQUESTY_MODELS: ProviderModelEntry[] = [
 ];
 
 /**
+ * Opper OpenAI-compatible gateway. Seeded with bare pool ids; Opper picks the
+ * route per request, and `provider/model` ids pin one route.
+ * See https://docs.opper.ai
+ */
+export const OPPER_MODELS: ProviderModelEntry[] = [
+  {
+    id: "grok-4.6",
+    name: "Grok 4.6",
+    contextWindow: 500_000,
+    supportsVision: true,
+  },
+  {
+    id: "gemini-3.8-flash",
+    name: "Gemini 3.8 Flash",
+    contextWindow: 1_048_576,
+    supportsVision: true,
+  },
+  {
+    id: "deepseek-v4-flash",
+    name: "DeepSeek V4 Flash",
+    contextWindow: 1_048_576,
+    supportsVision: false,
+  },
+];
+
+/**
  * Public xAI API ids for Grok relays. Fast (`grok-4.7-build-fast`) is Grok
  * Build / Cursor only and is not listed here.
  */
@@ -385,6 +411,22 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyUrl: "https://app.requesty.ai/api-keys",
     supportsVision: true,
   },
+  /**
+   * Opper EU-hosted OpenAI-compatible gateway (chat_completions). Model ids
+   * are bare pool names (`grok-4.6`) or `provider/model` pins. No brand logo yet.
+   */
+  {
+    id: "opper",
+    name: "Opper",
+    suggestedId: "opper",
+    baseUrl: "https://api.opper.ai/v3/compat",
+    apiBackend: "chat_completions",
+    models: OPPER_MODELS,
+    efforts: GROK_CHANNEL_EFFORTS.map((e) => ({ ...e })),
+    blurbKey: "prov.preset.opper.blurb",
+    apiKeyUrl: "https://platform.opper.ai",
+    supportsVision: true,
+  },
   {
     id: "amux",
     name: "Amux",
@@ -531,6 +573,10 @@ function matchPreset(opts: {
     if (pid === "requesty" || pid.startsWith("requesty-")) {
       const rq = PROVIDER_PRESETS.find((p) => p.id === "requesty");
       if (rq) return rq;
+    }
+    if (pid === "opper" || pid.startsWith("opper-")) {
+      const op = PROVIDER_PRESETS.find((p) => p.id === "opper");
+      if (op) return op;
     }
     if (
       pid === "zhipu" ||
