@@ -159,17 +159,15 @@ fn link_dir(target: &Path, link: &Path) -> std::io::Result<()> {
         } else {
             let err = String::from_utf8_lossy(&out.stderr);
             let stdout = String::from_utf8_lossy(&out.stdout);
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("mklink /J failed: {err}{stdout}"),
-            ))
+            Err(std::io::Error::other(format!(
+                "mklink /J failed: {err}{stdout}"
+            )))
         }
     }
     #[cfg(not(any(unix, windows)))]
     {
         let _ = (target, link);
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        Err(std::io::Error::other(
             "private agent home links are not supported on this os",
         ))
     }
