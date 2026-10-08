@@ -174,7 +174,24 @@ export function ComposerAtPanel({
                   {fileIcon(entry.name, entry.isDir)}
                 </span>
                 <span className="composer-plus__body">
-                  <span className="composer-plus__title">{entry.name}</span>
+                  {/*
+                    文件名必须包在 __title-text 里：省略号（text-overflow）挂在
+                    内层，外层 __title 是 overflow:hidden 的硬裁。少这一层时会
+                    把 `vite.config.ts` 直接切掉尾巴且没有省略号，看起来像文件名
+                    丢了几个字符。与 ComposerPlusPanel 的结构保持一致。
+                  */}
+                  <span
+                    className={
+                      // 没有目录描述时不要留 70% 上限：那时标题是整行唯一的内容，
+                      // 上限只会白占宽度并截断本可完整显示的文件名。
+                      "composer-plus__title" +
+                      (parent ? "" : " composer-plus__title--solo")
+                    }
+                  >
+                    <span className="composer-plus__title-text">
+                      {entry.name}
+                    </span>
+                  </span>
                   {parent ? (
                     <span className="composer-plus__desc">{parent}</span>
                   ) : null}
