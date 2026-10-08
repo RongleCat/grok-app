@@ -79,6 +79,37 @@ fn finish_join_always_nl(_original: &str, lines: &[String]) -> String {
     joined
 }
 
+/// 定位结束表名的 `]`，跳过**引号内**的 `]`。
+///
+/// TOML 表名可以带引号包住任意字符：`[model."claude-glm-5.3[1M]"]` 的**第一个**
+/// `]` 属于名字本身。早先用 `find(']')` 取到的就是它，于是名字被截断成
+/// `model."claude-glm-5.3[1M]`、剩余部分是 `"]` —— 既不是空也不是注释，整个表头
+/// 被判定为**不是表头**，这张表的字段就被算进了上一张表的 scope，去重时把上一张
+/// 表的同名赋值当成重复项删掉（用户的 `[model.ada-anthropic]` 正是这样丢掉了
+/// `model` / `base_url` / `api_key` / `api_backend`）。
+fn closing_bracket_index(t: &str, is_array: bool) -> Option<usize> {
+    let bytes = t.as_bytes();
+    let mut in_quotes = false;
+    let mut i = if is_array { 2 } else { 1 };
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => in_quotes = !in_quotes,
+            b']' if !in_quotes => {
+                if is_array {
+                    if bytes.get(i + 1) == Some(&b']') {
+                        return Some(i);
+                    }
+                } else {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
 /// Parse a TOML table / array-table header.
 ///
 /// Accepts trailing comments: `[ui] # note`, `[[hooks]] # x`.
@@ -89,16 +120,11 @@ pub fn parse_table_header(trimmed: &str) -> Option<(bool, &str)> {
         return None;
     }
     let is_array = t.starts_with("[[");
+    let end = closing_bracket_index(t, is_array)?;
     let (name, after_close) = if is_array {
-        let end = t.find("]]")?;
-        let name = t[2..end].trim();
-        let after = t[end + 2..].trim();
-        (name, after)
+        (t[2..end].trim(), t[end + 2..].trim())
     } else {
-        let end = t.find(']')?;
-        let name = t[1..end].trim();
-        let after = t[end + 1..].trim();
-        (name, after)
+        (t[1..end].trim(), t[end + 1..].trim())
     };
     if name.is_empty() {
         return None;
@@ -625,6 +651,49 @@ mod tests {
         assert!(err.contains("refused") || err.contains("~/.grok"), "{err}");
         // Case-insensitive.
         assert!(resolve_writable_config_path("SHARED").is_err());
+    }
+
+    /// 表名里带 `]` 的引号名（`[model."claude-glm-5.3[1M]"]`）必须被认成表头，
+    /// 否则它的字段会被算进上一张表的 scope，去重时把上一张表的同名赋值删掉。
+    #[test]
+    fn parse_table_header_quoted_name_with_bracket() {
+        assert_eq!(
+            parse_table_header(r#"[model."claude-glm-5.3[1M]"]"#),
+            Some((false, r#"model."claude-glm-5.3[1M]""#))
+        );
+        assert_eq!(
+            parse_table_header(r#"[model."a[b].c"] # note"#),
+            Some((false, r#"model."a[b].c""#))
+        );
+        // 数组表名同样适用
+        assert_eq!(
+            parse_table_header(r#"[[model."x[1]"]]"#),
+            Some((true, r#"model."x[1]""#))
+        );
+    }
+
+    /// 别名表排在 provider 表之后时，provider 的传输字段不能被当成重复项删掉。
+    #[test]
+    fn dedupe_keeps_previous_table_when_next_name_has_bracket() {
+        let text = "\
+[model.ada-anthropic]
+model = \"claude-glm-5.3-flash[1M]\"
+base_url = \"http://relay/anthropic/v1\"
+api_key = \"sk-test\"
+api_backend = \"messages\"
+
+[model.\"claude-glm-5.3[1M]\"]
+model = \"claude-glm-5.3[1M]\"
+base_url = \"http://relay/anthropic/v1\"
+api_key = \"sk-test\"
+app_model_for = \"ada-anthropic\"
+";
+        let (dup, examples) = count_duplicate_assignments(text);
+        assert_eq!(dup, 0, "不同表之间不应被判为重复键: {examples:?}");
+        let (healed, removed) = dedupe_assignment_keys(text);
+        assert_eq!(removed, 0);
+        assert_eq!(healed, text);
+        assert!(healed.contains("api_backend"));
     }
 
     #[test]
