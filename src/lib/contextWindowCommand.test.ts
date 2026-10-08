@@ -55,13 +55,13 @@ describe("resolveContextWindowCommand", () => {
     ).toBe("no-model");
     expect(
       resolveContextWindowCommand({
-        args: "",
+        args: "500k",
         hasModel: true,
         hasSession: false,
         options: OPTIONS,
         current: 256_000,
-      }).kind,
-    ).toBe("no-session");
+      }),
+    ).toEqual({ kind: "switch", window: 500_000 });
     expect(
       resolveContextWindowCommand({
         args: "500k",

@@ -150,18 +150,22 @@ export function stripContextWindowSlashFromDraft(
 }
 
 /**
- * Pager `run` order: no model, no session, no choices, empty usage, then
- * resolve the token against the advertised list.
+ * Pager `run` order: no model, no choices, empty usage, then the token.
+ *
+ * Grok Build also bails when `session_id` is missing, because a command
+ * queued before startup does not carry the window. This app remembers the
+ * size on the new-chat composer and sends it with the first `session/new`,
+ * so a missing chat is not an error.
  */
 export function resolveContextWindowCommand(input: {
   args: string;
   hasModel: boolean;
-  hasSession: boolean;
+  /** Kept for callers. A missing chat still switches. */
+  hasSession?: boolean;
   options: number[];
   current: number | null;
 }): ContextWindowCommand {
   if (!input.hasModel) return { kind: "no-model" };
-  if (!input.hasSession) return { kind: "no-session" };
   const options = input.options.filter((n) => Number.isFinite(n) && n > 0);
   if (options.length <= 1) return { kind: "no-options" };
   const offered = options.map((n) => formatWindowLabel(n)).join(", ");

@@ -2676,18 +2676,6 @@ impl AcpClient {
         unwrap_session_info(raw)
     }
 
-    /// Switch model on the live agent session (`session/set_model`).
-    /// Switch model on the live agent session (`session/set_model`).
-    /// Uses the process's most recently bound agent session id.
-    pub async fn set_model(&self, model_id: &str) -> Result<(), String> {
-        let sid = self
-            .agent_session_id
-            .lock()
-            .clone()
-            .ok_or_else(|| "no agent session".to_string())?;
-        self.set_model_for(&sid, model_id).await
-    }
-
     /// Switch model on an explicit session (`session/set_model`).
     /// Shared-process multi-session: callers MUST target the session they
     /// mean — the process-level "recently bound" id may belong to another

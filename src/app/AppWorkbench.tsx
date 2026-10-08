@@ -9119,6 +9119,10 @@ export function AppWorkbench() {
   // welcome logo paints immediately — the SVG itself is inline, not a fetch.
   const [cachedBrandKind, setCachedBrandKind] =
     useState<SuperGrokBrandKind | null>(() => loadCachedSuperGrokBrand());
+  /** Window picked on the new-chat composer, before a chat row exists. */
+  const [draftContextWindow, setDraftContextWindow] = useState<number | null>(
+    null,
+  );
   /** Active inference channel: custom relay identity replaces official account chrome. */
   const [activeCustomProvider, setActiveCustomProvider] =
     useState<api.CustomProvider | null>(null);
@@ -9138,13 +9142,18 @@ export function AppWorkbench() {
         modelId,
         models: availableModels,
         // Prefer live agent occupancy denominator (Grok Build 1.0 → 500k).
-        agentContextWindow: contextUsage.agentContextWindow,
+        // A new chat has no agent yet; the draft choice is what the menu shows.
+        agentContextWindow:
+          contextUsage.agentContextWindow ??
+          (session.sessionId ? null : draftContextWindow),
       }),
     [
       activeCustomProvider,
       modelId,
       availableModels,
       contextUsage.agentContextWindow,
+      draftContextWindow,
+      session.sessionId,
     ],
   );
   useEffect(() => {
@@ -9561,10 +9570,6 @@ export function AppWorkbench() {
       }
       const model = availableModels.find((m) => m.id === modelId);
       const options = selectableContextWindows(model);
-      if (!session.sessionId) {
-        showToast(tr("slash.contextWindowNoSession"), 4000);
-        return false;
-      }
       if (!options.includes(tokens)) {
         showToast(
           tr("slash.contextWindowUnknown", {
@@ -9579,6 +9584,7 @@ export function AppWorkbench() {
         await api.sessionSetContextWindow(tokens, {
           sessionId: session.sessionId,
         });
+        if (!session.sessionId) setDraftContextWindow(tokens);
         setContextUsage((prev) => ({
           ...prev,
           agentContextWindow: tokens,

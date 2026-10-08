@@ -14,6 +14,13 @@ use crate::store::{self};
 
 use super::*;
 
+fn catalog_advertises_context_window(tokens: u64) -> bool {
+    crate::models_catalog::list_available_models()
+        .models
+        .iter()
+        .any(|model| crate::models_catalog::model_supports_context_window(model, tokens))
+}
+
 impl SessionManager {
     #[allow(dead_code)]
     pub fn set_permission_policy(&self, policy: PermissionPolicy) {
@@ -794,7 +801,17 @@ impl SessionManager {
             return Err("context window must be positive".into());
         }
         let Some(app_session_id) = session_id.map(str::trim).filter(|id| !id.is_empty()) else {
-            return Err("No active session yet; retry once it starts".into());
+            // New-chat composer: the CLI already has a process, but this app
+            // has not called session/new. Remember the size and send it with
+            // the first set_model. Grok Build can switch immediately because
+            // its TUI creates that session at startup.
+            if !catalog_advertises_context_window(tokens) {
+                return Err(format!(
+                    "context window {tokens} is not one of the advertised sizes"
+                ));
+            }
+            *self.pending_context_window.lock() = Some(tokens);
+            return Ok(());
         };
         let (acp, agent_sid, model_id) = {
             let guard = self.inner.lock();
@@ -843,7 +860,9 @@ impl SessionManager {
             ));
         }
         acp.set_context_window_for(&agent_sid, &agent_model, tokens)
-            .await
+            .await?;
+        *self.pending_context_window.lock() = None;
+        Ok(())
     }
 
     /// Live `x.ai/session/info`. `/context` reads `context` from this object.

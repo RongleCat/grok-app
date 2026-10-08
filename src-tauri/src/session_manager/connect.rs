@@ -1079,13 +1079,15 @@ impl SessionManager {
                             &session_model,
                             disk_session_model_id(&meta.id).as_deref(),
                         );
-                        if let Err(e) = Self::with_soft_rpc_budget(
-                            acp_align.set_model_for(&agent_sid, &session_model),
+                        apply_connected_model(
+                            self,
+                            &acp_align,
+                            &agent_sid,
+                            &session_model,
+                            resumed,
+                            journal_has_history,
                         )
-                        .await
-                        {
-                            tracing::warn!("acp set_model after warm reuse soft-fail: {e}");
-                        }
+                        .await;
                         if let Err(e) = Self::with_soft_rpc_budget(
                             acp_align.set_mode_for(&agent_sid, &prefs.mode),
                         )
@@ -1541,7 +1543,7 @@ impl SessionManager {
                         let _ = s.fsm.handshake_ok();
                         s.acp = Some(client.clone());
                         s.process_id = process_id.clone();
-                        s.meta.agent_session_id = Some(agent_sid);
+                        s.meta.agent_session_id = Some(agent_sid.clone());
                         s.meta.fork_agent_session = false;
                         s.meta.fork_rewind_prompt_index = None;
                         s.meta.model_id = Some(prefs.model_id.clone());
@@ -1586,9 +1588,15 @@ impl SessionManager {
                     &session_model,
                     disk_session_model_id(&meta.id).as_deref(),
                 );
-                if let Err(e) = Self::with_soft_rpc_budget(client.set_model(&session_model)).await {
-                    tracing::warn!("acp set_model after session open soft-fail: {e}");
-                }
+                apply_connected_model(
+                    self,
+                    &client,
+                    &agent_sid,
+                    &session_model,
+                    resumed,
+                    journal_has_history,
+                )
+                .await;
                 emit_host_exit_heal(&app, &meta.id);
                 Ok(self.snapshot())
             }
@@ -2144,6 +2152,56 @@ pub(crate) fn connect_set_model_argument(
         return raw.to_string();
     }
     crate::providers::session_set_model_id_for(route, raw)
+}
+
+/// `session/set_model` after open. A window chosen on the new-chat composer
+/// rides along on the first empty session. A resumed chat keeps its own window.
+async fn apply_connected_model(
+    mgr: &SessionManager,
+    client: &AcpClient,
+    agent_sid: &str,
+    session_model: &str,
+    resumed: bool,
+    journal_has_history: bool,
+) {
+    let staged = if !resumed && !journal_has_history {
+        *mgr.pending_context_window.lock()
+    } else {
+        None
+    };
+    if let Some(window) = staged {
+        let supported = crate::models_catalog::list_available_models()
+            .models
+            .iter()
+            .any(|model| {
+                model.id == session_model
+                    && crate::models_catalog::model_supports_context_window(model, window)
+            });
+        if supported {
+            match SessionManager::with_soft_rpc_budget(client.set_context_window_for(
+                agent_sid,
+                session_model,
+                window,
+            ))
+            .await
+            {
+                Ok(()) => {
+                    *mgr.pending_context_window.lock() = None;
+                    return;
+                }
+                Err(e) => {
+                    tracing::warn!("acp set_context_window after session open soft-fail: {e}");
+                }
+            }
+        } else {
+            *mgr.pending_context_window.lock() = None;
+        }
+    }
+    if let Err(e) =
+        SessionManager::with_soft_rpc_budget(client.set_model_for(agent_sid, session_model)).await
+    {
+        tracing::warn!("acp set_model after session open soft-fail: {e}");
+    }
 }
 
 fn disk_session_model_id(session_id: &str) -> Option<String> {
