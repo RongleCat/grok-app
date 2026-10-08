@@ -75,7 +75,7 @@ impl WsHub {
     fn client_left(&self) {
         let _ = self
             .clients
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |c| {
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |c| {
                 Some(c.saturating_sub(1))
             });
     }
