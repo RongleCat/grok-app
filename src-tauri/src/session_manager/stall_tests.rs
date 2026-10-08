@@ -185,7 +185,9 @@ fn maybe_done_soft_silence_prompts_never_auto_ends() {
                 stream_interrupted: false,
                 ..
             }) => {}
-            other => panic!("expected post_output soft stall while prompt is in flight, got {other:?}"),
+            other => {
+                panic!("expected post_output soft stall while prompt is in flight, got {other:?}")
+            }
         }
         assert_eq!(s.fsm.state(), SessionState::Streaming);
         assert!(s.prompt_in_flight);
@@ -245,8 +247,7 @@ fn orphan_open_tools_pruned_then_post_output_soft_only() {
     });
 }
 
-const DECODE_REASON: &str =
-    "reqwest error stream: Transport error: error decoding response body";
+const DECODE_REASON: &str = "reqwest error stream: Transport error: error decoding response body";
 
 #[test]
 fn decode_retry_sticks_through_later_tokens_and_marks_stall() {
