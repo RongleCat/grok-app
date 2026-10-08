@@ -83,6 +83,7 @@ import {
   resolveComposerSendSessionId,
   type ViewFocus,
 } from "@/lib/viewFocus";
+import { classifyContextWindowSlashLine } from "@/lib/contextWindowCommand";
 import { classifyWorkflowSlashLine } from "@/lib/workflowSlash";
 import type { ExecuteSendFromQueue } from "@/hooks/useSendQueue";
 
@@ -159,6 +160,8 @@ export type ComposerSendHost = {
   getDraft: () => string;
   requestComposerFocus: () => void;
   openWorkflowsSettings: () => void;
+  /** Lone `/context-window` line. Args are the size token, or empty. */
+  onContextWindowSlash: (args: string) => void;
   applySessionTitle: (sessionId: string, title: string) => void;
   restartTurnClock: (sessionId?: string | null, at?: number) => void;
   syncViewedTurnClock: (sessionId: string) => void;
@@ -238,6 +241,7 @@ export function useComposerSend(host: ComposerSendHost) {
     getDraft,
     requestComposerFocus,
     openWorkflowsSettings,
+    onContextWindowSlash,
     applySessionTitle,
     restartTurnClock,
     syncViewedTurnClock,
@@ -855,6 +859,16 @@ const send = async () => {
         sessionDraftId: viewingSessionIdRef.current ?? session.sessionId,
       });
       openWorkflowsSettings();
+      return;
+    }
+    const contextWindow = classifyContextWindowSlashLine(plain);
+    if (contextWindow) {
+      clearComposerAfterSubmit({
+        clearProjectDraft: session.sessionId == null,
+        clearSessionDraft: session.sessionId != null,
+        sessionDraftId: viewingSessionIdRef.current ?? session.sessionId,
+      });
+      onContextWindowSlash(contextWindow.args);
       return;
     }
   }

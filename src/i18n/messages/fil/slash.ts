@@ -115,4 +115,12 @@ export const filSlash = {
   "slash.compactApply.savingsKnown": "Huling kilalang compact: {before} → {after} token (nakatipid {saved}). Hindi taya.",
   "slash.compactApply.savingsUnknown": "Hindi alam ang token savings hanggang mag-ulat ang agent ng parehong before at after counts. Ang After (est.) sa itaas ay magaspang na keep-ratio guess lang.",
   "slash.compactApply.presetNote": "Nagsi-seed lang ang intensity presets ng keep-note template para sa /compact — walang light/standard/aggressive flag ang CLI.",
+  "slash.contextWindow": "Context window",
+  "slash.contextWindowDesc": "Itakda ang context window ng kasalukuyang modelo",
+  "slash.contextWindowUsage": "Paggamit: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "Hindi kilalang context window na '{token}'. Gamitin ang isa sa: {options}",
+  "slash.contextWindowNoSession": "Wala pang aktibong session. Subukan ulit kapag nagsimula na.",
+  "slash.contextWindowNone": "Walang mapipiling context window ang modelong ito.",
+  "slash.contextWindowNoModel": "Walang aktibong modelo.",
+  "slash.contextWindowSwitched": "Naitakda ang context window sa {size}.",
 };

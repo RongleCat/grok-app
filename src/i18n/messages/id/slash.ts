@@ -115,4 +115,12 @@ export const idSlash = {
   "slash.compactApply.savingsKnown": "Pemadatan terakhir yang diketahui: {before} → {after} token (menghemat {saved}). Bukan perkiraan.",
   "slash.compactApply.savingsUnknown": "Penghematan token tidak diketahui hingga agen melaporkan jumlah sebelum dan sesudah. Setelah (perkir.) di atas hanya tebakan rasio-pertahankan kasar.",
   "slash.compactApply.presetNote": "Preset intensitas hanya mengisi templat catatan-pertahankan untuk /compact — CLI tidak punya flag light/standard/aggressive.",
+  "slash.contextWindow": "Jendela konteks",
+  "slash.contextWindowDesc": "Atur jendela konteks model saat ini",
+  "slash.contextWindowUsage": "Penggunaan: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "Jendela konteks tidak dikenal '{token}'. Gunakan salah satu: {options}",
+  "slash.contextWindowNoSession": "Belum ada sesi aktif. Coba lagi setelah sesi dimulai.",
+  "slash.contextWindowNone": "Model ini tidak punya jendela konteks yang bisa dipilih.",
+  "slash.contextWindowNoModel": "Tidak ada model aktif.",
+  "slash.contextWindowSwitched": "Jendela konteks diatur ke {size}.",
 };

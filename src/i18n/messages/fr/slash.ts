@@ -115,4 +115,12 @@ export const frSlash = {
   "slash.compactApply.savingsKnown": "Dernier compactage connu : {before} → {after} jetons (économisés {saved}). Pas une estimation.",
   "slash.compactApply.savingsUnknown": "Économies de jetons inconnues jusqu’à ce que l’agent rapporte les comptes avant et après. Après (est.) ci-dessus n’est qu’un ratio de conservation approximatif.",
   "slash.compactApply.presetNote": "Les préréglages d’intensité n’alimentent que le modèle de note à conserver pour /compact — la CLI n’a pas de drapeau light/standard/aggressive.",
+  "slash.contextWindow": "Fenêtre de contexte",
+  "slash.contextWindowDesc": "Définir la fenêtre de contexte du modèle actuel",
+  "slash.contextWindowUsage": "Usage : /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "Fenêtre de contexte inconnue « {token} ». Utilisez : {options}",
+  "slash.contextWindowNoSession": "Aucune session active pour l’instant. Réessayez une fois qu’elle a démarré.",
+  "slash.contextWindowNone": "Ce modèle n’a pas de fenêtres de contexte au choix.",
+  "slash.contextWindowNoModel": "Aucun modèle actif.",
+  "slash.contextWindowSwitched": "Fenêtre de contexte définie sur {size}.",
 };

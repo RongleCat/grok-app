@@ -115,4 +115,12 @@ export const deSlash = {
   "slash.compactApply.savingsKnown": "Letztes bekanntes Compact: {before} → {after} Tokens (gespart {saved}). Keine Schätzung.",
   "slash.compactApply.savingsUnknown": "Tokeneinsparung unbekannt, bis der Agent Before- und After-Zahlen meldet. Danach (gesch.) oben ist nur eine grobe Keep-Ratio.",
   "slash.compactApply.presetNote": "Intensitäts-Presets füllen nur die Keep-Notiz-Vorlage für /compact — CLI hat kein light/standard/aggressive-Flag.",
+  "slash.contextWindow": "Kontextfenster",
+  "slash.contextWindowDesc": "Kontextfenster des aktuellen Modells festlegen",
+  "slash.contextWindowUsage": "Verwendung: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "Unbekanntes Kontextfenster '{token}'. Eines von: {options}",
+  "slash.contextWindowNoSession": "Noch keine aktive Sitzung. Erneut versuchen, sobald sie läuft.",
+  "slash.contextWindowNone": "Dieses Modell hat keine wählbaren Kontextfenster.",
+  "slash.contextWindowNoModel": "Kein aktives Modell.",
+  "slash.contextWindowSwitched": "Kontextfenster auf {size} gesetzt.",
 };

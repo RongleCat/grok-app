@@ -115,4 +115,12 @@ export const esSlash = {
   "slash.compactApply.savingsKnown": "Última compactación conocida: {before} → {after} tokens (ahorrados {saved}). No es una estimación.",
   "slash.compactApply.savingsUnknown": "El ahorro de tokens se desconoce hasta que el agente informe los recuentos de antes y después. Después (est.) de arriba es solo una conjetura aproximada de ratio de conservación.",
   "slash.compactApply.presetNote": "Los preajustes de intensidad solo rellenan la plantilla de nota de conservación de /compact — la CLI no tiene opción light/standard/aggressive.",
+  "slash.contextWindow": "Ventana de contexto",
+  "slash.contextWindowDesc": "Define la ventana de contexto del modelo actual",
+  "slash.contextWindowUsage": "Uso: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "Ventana de contexto desconocida '{token}'. Usa una de: {options}",
+  "slash.contextWindowNoSession": "Aún no hay una sesión activa. Reintenta cuando empiece.",
+  "slash.contextWindowNone": "Este modelo no tiene ventanas de contexto seleccionables.",
+  "slash.contextWindowNoModel": "No hay un modelo activo.",
+  "slash.contextWindowSwitched": "Ventana de contexto establecida en {size}.",
 };

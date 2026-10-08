@@ -608,6 +608,63 @@ describe("composer chip portal pops", () => {
     expect(onContextWindow).toHaveBeenCalledWith(500000);
   });
 
+  it("lists official context windows advertised by the model", async () => {
+    const user = userEvent.setup();
+    const onContextWindow = vi.fn();
+    render(
+      <ComposerModelMenu
+        locale="en"
+        modelId="grok-4.7"
+        effort="high"
+        contextWindow={256000}
+        models={[
+          {
+            id: "grok-4.7",
+            label: "Grok 4.7",
+            contextWindow: 256000,
+            contextWindows: [256000, 500000],
+          },
+        ]}
+        onContextWindow={onContextWindow}
+        labels={{
+          model: "Model",
+          effort: "Effort",
+          effortHigh: "High",
+          effortMedium: "Medium",
+          effortLow: "Low",
+          modelSearchPlaceholder: "Search models",
+          modelSearchEmpty: "No models",
+          modelGroupOfficial: "Official",
+          contextWindow: "Context window",
+          contextWindowOfficial: "official",
+          contextWindowCustom: "custom",
+          contextWindowPlaceholder: "tokens",
+          contextWindowSave: "Save",
+          contextWindowOfficialHint: "unknown",
+          advanced: "Advanced",
+        }}
+        onEffort={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Model" }));
+    await user.click(screen.getByRole("button", { name: "Advanced" }));
+    const pop = bodyPop();
+    expect(pop).not.toBeNull();
+    fireEvent.mouseEnter(pop!.querySelectorAll(".cmm__row")[2]!);
+    const flyout = await waitFor(() => {
+      const el = document.body.querySelector<HTMLElement>(
+        ':scope > .cmm__pop--flyout[data-kind="window"]',
+      );
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(flyout.querySelector(".cmm__window-edit")).toBeNull();
+    expect(flyout.textContent ?? "").not.toMatch(/unknown/);
+    await user.click(screen.getByRole("button", { name: "500K" }));
+    expect(onContextWindow).toHaveBeenCalledWith(500000);
+  });
+
   it("localizes grok-4.6 xhigh via effort i18n in composer menu", async () => {
     const user = userEvent.setup();
     render(

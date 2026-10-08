@@ -115,4 +115,12 @@ export const ruSlash = {
   "slash.compactApply.savingsKnown": "Последнее известное сжатие: {before} → {after} токенов (сэкономлено {saved}). Это не оценка.",
   "slash.compactApply.savingsUnknown": "Экономия токенов неизвестна, пока агент не сообщит значения до и после. «После (оценка)» выше — только приблизительная доля сохранения.",
   "slash.compactApply.presetNote": "Пресеты интенсивности только подставляют шаблон заметки для /compact — в CLI нет отдельных флагов light/standard/aggressive.",
+  "slash.contextWindow": "Окно контекста",
+  "slash.contextWindowDesc": "Задать окно контекста текущей модели",
+  "slash.contextWindowUsage": "Использование: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "Неизвестное окно контекста «{token}». Используйте: {options}",
+  "slash.contextWindowNoSession": "Активной сессии ещё нет. Повторите, когда она запустится.",
+  "slash.contextWindowNone": "У этой модели нет выбираемых окон контекста.",
+  "slash.contextWindowNoModel": "Нет активной модели.",
+  "slash.contextWindowSwitched": "Окно контекста установлено на {size}.",
 };

@@ -115,4 +115,12 @@ export const ptBRSlash = {
   "slash.compactApply.savingsKnown": "Última compactação conhecida: {before} → {after} tokens (economizou {saved}). Não é uma estimativa.",
   "slash.compactApply.savingsUnknown": "A economia de tokens é desconhecida até o agente relatar as contagens anterior e posterior. Depois (est.) acima é só um palpite grosseiro da taxa de manter.",
   "slash.compactApply.presetNote": "Os presets de intensidade só preenchem o modelo da nota de manter para /compact — a CLI não tem flag light/standard/aggressive.",
+  "slash.contextWindow": "Janela de contexto",
+  "slash.contextWindowDesc": "Define a janela de contexto do modelo atual",
+  "slash.contextWindowUsage": "Uso: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "Janela de contexto desconhecida '{token}'. Use uma de: {options}",
+  "slash.contextWindowNoSession": "Ainda não há uma sessão ativa. Tente de novo quando ela começar.",
+  "slash.contextWindowNone": "Este modelo não tem janelas de contexto selecionáveis.",
+  "slash.contextWindowNoModel": "Nenhum modelo ativo.",
+  "slash.contextWindowSwitched": "Janela de contexto definida para {size}.",
 };

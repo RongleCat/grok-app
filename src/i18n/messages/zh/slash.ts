@@ -115,4 +115,12 @@ export const zhSlash = {
   "slash.compactApply.savingsKnown": "上次已知压缩：{before} → {after} tokens（节省 {saved}）。非估算。",
   "slash.compactApply.savingsUnknown": "在 Agent 上报压缩前后 token 数之前无法计算节省量。上方「压缩后（估）」仅为粗略保留比例猜测。",
   "slash.compactApply.presetNote": "强度预设仅用于填充 /compact 的保留备注模板 — CLI 无 light/standard/aggressive 参数。",
+  "slash.contextWindow": "上下文窗口",
+  "slash.contextWindowDesc": "为当前模型设置上下文窗口",
+  "slash.contextWindowUsage": "用法：/context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "未知的上下文窗口「{token}」。请使用：{options}",
+  "slash.contextWindowNoSession": "会话尚未开始，请等它启动后再试。",
+  "slash.contextWindowNone": "当前模型没有可选的上下文窗口。",
+  "slash.contextWindowNoModel": "没有当前模型。",
+  "slash.contextWindowSwitched": "上下文窗口已设为 {size}。",
 };

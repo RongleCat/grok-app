@@ -115,4 +115,12 @@ export const itSlash = {
   "slash.compactApply.savingsKnown": "Ultima compattazione nota: {before} → {after} token (risparmiati {saved}). Non è una stima.",
   "slash.compactApply.savingsUnknown": "Risparmio di token sconosciuto finché l’agente non riporta i conteggi prima e dopo. Dopo (stima) sopra è solo un’ipotesi approssimativa del rapporto da conservare.",
   "slash.compactApply.presetNote": "I preset di intensità precompilano solo il modello della nota da conservare per /compact — la CLI non ha un flag light/standard/aggressive.",
+  "slash.contextWindow": "Finestra di contesto",
+  "slash.contextWindowDesc": "Imposta la finestra di contesto del modello attuale",
+  "slash.contextWindowUsage": "Uso: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "Finestra di contesto sconosciuta '{token}'. Usa una di: {options}",
+  "slash.contextWindowNoSession": "Nessuna sessione attiva. Riprova quando è avviata.",
+  "slash.contextWindowNone": "Questo modello non ha finestre di contesto selezionabili.",
+  "slash.contextWindowNoModel": "Nessun modello attivo.",
+  "slash.contextWindowSwitched": "Finestra di contesto impostata su {size}.",
 };

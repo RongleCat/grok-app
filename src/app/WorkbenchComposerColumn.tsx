@@ -137,7 +137,7 @@ export type WorkbenchComposerColumnProps = {
   goalMode: boolean;
   guideQueuedMessage: (item: QueuedSend) => Promise<void>;
   guidingQueueItemId: string | null;
-  handleContextWindow: (tokens: number) => Promise<void>;
+  handleContextWindow: (tokens: number) => Promise<boolean>;
   handleEffortPick: (nextEffort: string) => void;
   handleModelPick: (pick: ComposerModelPick) => Promise<void>;
   layout: LayoutPrefs;

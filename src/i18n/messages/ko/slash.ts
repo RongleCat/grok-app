@@ -115,4 +115,12 @@ export const koSlash = {
   "slash.compactApply.savingsKnown": "마지막으로 알려진 압축: {before} → {after} 토큰 ({saved} 절약). 추정치가 아닙니다.",
   "slash.compactApply.savingsUnknown": "에이전트가 이전과 이후 수를 모두 보고하기 전까지 토큰 절약량은 알 수 없습니다. 위의 After (est.)는 대략적인 유지 비율 추측일 뿐입니다.",
   "slash.compactApply.presetNote": "강도 프리셋은 /compact의 유지 메모 템플릿만 채웁니다 — CLI에는 light/standard/aggressive 플래그가 없습니다.",
+  "slash.contextWindow": "컨텍스트 창",
+  "slash.contextWindowDesc": "현재 모델의 컨텍스트 창을 설정합니다",
+  "slash.contextWindowUsage": "사용법: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "알 수 없는 컨텍스트 창 '{token}'. 다음 중 하나를 사용하세요: {options}",
+  "slash.contextWindowNoSession": "아직 활성 세션이 없습니다. 시작된 뒤에 다시 시도하세요.",
+  "slash.contextWindowNone": "이 모델에는 선택할 수 있는 컨텍스트 창이 없습니다.",
+  "slash.contextWindowNoModel": "활성 모델이 없습니다.",
+  "slash.contextWindowSwitched": "컨텍스트 창을 {size}(으)로 설정했습니다.",
 };

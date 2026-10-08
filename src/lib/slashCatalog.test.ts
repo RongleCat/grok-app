@@ -26,6 +26,7 @@ describe("builtinSlashItems", () => {
       "workflow",
       "workflows",
       "compact",
+      "context-window",
       "status",
       "usage",
       "cost",

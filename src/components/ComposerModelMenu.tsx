@@ -36,6 +36,7 @@ import {
   type ComposerModelPick,
   type ComposerProviderInput,
 } from "@/lib/composerModelGroups";
+import { selectableContextWindows } from "@/lib/contextWindowCommand";
 import {
   composerModelChipLabel,
   resolveCustomRouteDisplay,
@@ -389,9 +390,12 @@ export interface ComposerModelMenuProps {
   locale?: string;
   /** Effective context window (tokens) for the active route. */
   contextWindow?: number | null;
-  /** True for custom routes (editable); false for official (read-only). */
+  /**
+   * True for custom routes (type a token count). Official routes with more
+   * than one advertised window list those sizes instead.
+   */
   contextWindowEditable?: boolean;
-  /** Save a new context window (custom channels only). */
+  /** Save a custom token count, or pick an official advertised window. */
   onContextWindow?: (tokens: number) => void;
   /**
    * When custom route is active, use channel-configured efforts
@@ -621,6 +625,9 @@ export function ComposerModelMenu({
     flyLeave.current = window.setTimeout(() => setHubFlyout(null), 140);
   };
   const modelList = models.length > 0 ? models : GROK_BUILD_MODELS;
+  const officialWindowChoices = contextWindowEditable
+    ? []
+    : selectableContextWindows(findModel(modelId, modelList));
   const groups = buildComposerModelGroups({
     officialModels: modelList,
     providers,
@@ -1061,6 +1068,29 @@ export function ComposerModelMenu({
                           }
                         >
                           {stopLabelFor(s)}
+                        </span>
+                      </span>
+                      {active ? (
+                        <span className="cmm__opt-check" aria-hidden>
+                          <IconCheck size={16} />
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })
+              ) : officialWindowChoices.length > 1 ? (
+                officialWindowChoices.map((n) => {
+                  const active = contextWindow === n;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      className={"cmm__opt" + (active ? " is-active" : "")}
+                      onClick={() => onContextWindow?.(n)}
+                    >
+                      <span className="cmm__opt-main">
+                        <span className="cmm__opt-title">
+                          {formatTokenCount(n, locale)}
                         </span>
                       </span>
                       {active ? (

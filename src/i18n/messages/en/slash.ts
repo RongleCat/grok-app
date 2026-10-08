@@ -115,4 +115,12 @@ export const enSlash = {
   "slash.compactApply.savingsKnown": "Last known compact: {before} → {after} tokens (saved {saved}). Not an estimate.",
   "slash.compactApply.savingsUnknown": "Token savings unknown until the agent reports both before and after counts. After (est.) above is only a rough keep-ratio guess.",
   "slash.compactApply.presetNote": "Intensity presets only seed the keep-note template for /compact — CLI has no light/standard/aggressive flag.",
+  "slash.contextWindow": "Context window",
+  "slash.contextWindowDesc": "Set the context window for the current model",
+  "slash.contextWindowUsage": "Usage: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "Unknown context window '{token}'. Use one of: {options}",
+  "slash.contextWindowNoSession": "No active session yet. Retry once it starts.",
+  "slash.contextWindowNone": "This model has no selectable context windows.",
+  "slash.contextWindowNoModel": "No active model.",
+  "slash.contextWindowSwitched": "Context window set to {size}.",
 } as const;

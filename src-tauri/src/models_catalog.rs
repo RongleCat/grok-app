@@ -57,8 +57,13 @@ pub struct AvailableModel {
     pub reasoning_efforts: Vec<ReasoningEffort>,
     /// Model context window in tokens (live-merged from `initialize` first,
     /// then cache `info.totalContextTokens` / `info.context_window`).
+    /// This is the catalog default, not the only size the model accepts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_window: Option<u64>,
+    /// Selectable windows from `info.context_windows` / `info.contextWindows`.
+    /// Order is the catalog order. Empty when the CLI did not advertise a list.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_windows: Vec<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,11 +79,48 @@ struct ParsedCacheModel {
     label: String,
     reasoning_efforts: Vec<ReasoningEffort>,
     context_window: Option<u64>,
+    context_windows: Vec<u64>,
+}
+
+/// Catalog default or an entry in `context_windows`. Matches the CLI agent.
+pub fn model_supports_context_window(model: &AvailableModel, window: u64) -> bool {
+    if window == 0 {
+        return false;
+    }
+    if model.context_window == Some(window) {
+        return true;
+    }
+    model.context_windows.contains(&window)
+}
+
+/// Positive integers from `info.context_windows` or `info.contextWindows`.
+/// Non-arrays, empties, and non-positive values yield an empty list. Order kept.
+fn parse_context_windows(body: &serde_json::Value) -> Vec<u64> {
+    let raw = body
+        .pointer("/info/context_windows")
+        .or_else(|| body.pointer("/info/contextWindows"));
+    let Some(arr) = raw.and_then(|v| v.as_array()) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for value in arr {
+        let Some(n) = value.as_u64().filter(|n| *n > 0) else {
+            continue;
+        };
+        if !out.contains(&n) {
+            out.push(n);
+        }
+    }
+    out
 }
 
 fn user_grok_home() -> PathBuf {
     crate::process_util::user_home().join(".grok")
 }
+
+/// Static fallback matches the live CLI cache: default 256k, also 500k.
+const OFFICIAL_FALLBACK_CONTEXT_WINDOW: u64 = 256_000;
+const OFFICIAL_FALLBACK_CONTEXT_WINDOWS: [u64; 2] = [256_000, 500_000];
 
 /// Newest official catalog id used as the empty-cache / preferred default.
 pub const OFFICIAL_FALLBACK_MODEL_ID: &str = "grok-4.7";
@@ -129,7 +171,8 @@ fn insert_fallback_model(
             source: "official".into(),
             is_default: false,
             reasoning_efforts: efforts,
-            context_window: Some(500_000),
+            context_window: Some(OFFICIAL_FALLBACK_CONTEXT_WINDOW),
+            context_windows: OFFICIAL_FALLBACK_CONTEXT_WINDOWS.to_vec(),
         },
     );
 }
@@ -348,16 +391,20 @@ fn read_models_cache(
         let context_window = body
             .pointer("/info/totalContextTokens")
             .and_then(|v| v.as_u64())
+            .filter(|n| *n > 0)
             .or_else(|| {
                 body.pointer("/info/context_window")
                     .and_then(|v| v.as_u64())
+                    .filter(|n| *n > 0)
             });
+        let context_windows = parse_context_windows(body);
         map.insert(
             id.clone(),
             ParsedCacheModel {
                 label,
                 reasoning_efforts,
                 context_window,
+                context_windows,
             },
         );
     }
@@ -406,6 +453,7 @@ pub fn list_available_models() -> AvailableModelsResult {
                     is_default: false,
                     reasoning_efforts: parsed.reasoning_efforts,
                     context_window: parsed.context_window,
+                    context_windows: parsed.context_windows,
                 });
             }
             if !by_id.is_empty() {
@@ -670,6 +718,67 @@ mod tests {
     }
 
     #[test]
+    fn read_cache_parses_context_windows_list() {
+        let dir = std::env::temp_dir().join(format!(
+            "grok-app-models-cw-list-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = fs::create_dir_all(&dir);
+        let path = dir.join("models_cache.json");
+        fs::write(
+            &path,
+            r#"{
+              "models": {
+                "grok-4.7": {
+                  "info": {
+                    "name": "Grok 4.7",
+                    "context_window": 256000,
+                    "context_windows": [256000, 500000, 0, "nope", 256000]
+                  }
+                },
+                "grok-camel": {
+                  "info": { "name": "Camel", "contextWindows": [128000, 256000] }
+                },
+                "grok-empty": {
+                  "info": { "name": "Empty", "context_windows": [] }
+                }
+              }
+            }"#,
+        )
+        .unwrap();
+        let (map, _, _) = read_models_cache(&path).expect("cache");
+        let grok = map.get("grok-4.7").expect("4.7");
+        assert_eq!(grok.context_window, Some(256000));
+        assert_eq!(grok.context_windows, vec![256000, 500000]);
+        let supported = AvailableModel {
+            id: "grok-4.7".into(),
+            label: "Grok 4.7".into(),
+            source: "official".into(),
+            is_default: false,
+            reasoning_efforts: Vec::new(),
+            context_window: grok.context_window,
+            context_windows: grok.context_windows.clone(),
+        };
+        assert!(model_supports_context_window(&supported, 256000));
+        assert!(model_supports_context_window(&supported, 500000));
+        assert!(!model_supports_context_window(&supported, 128000));
+        assert!(!model_supports_context_window(&supported, 0));
+        assert_eq!(
+            map.get("grok-camel").map(|m| m.context_windows.clone()),
+            Some(vec![128000, 256000])
+        );
+        assert_eq!(
+            map.get("grok-empty").map(|m| m.context_windows.len()),
+            Some(0)
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn merge_live_context_windows_inserts_without_panic() {
         // Use a unique id to avoid interfering with other tests / list_available_models.
         let unique = format!(
@@ -696,6 +805,7 @@ mod tests {
             is_default: false,
             reasoning_efforts: Vec::new(),
             context_window: Some(500_000),
+            context_windows: Vec::new(),
         }
     }
 

@@ -115,4 +115,12 @@ export const jaSlash = {
   "slash.compactApply.savingsKnown": "前回の既知の圧縮: {before} → {after} トークン（{saved} 節約）。推定ではありません。",
   "slash.compactApply.savingsUnknown": "エージェントが圧縮前後の件数を両方報告するまで、トークン節約は不明です。上の圧縮後（推定）は粗い保持比率の推測だけです。",
   "slash.compactApply.presetNote": "強度プリセットは /compact の保持メモテンプレートを埋めるだけです — CLI に light/standard/aggressive フラグはありません。",
+  "slash.contextWindow": "コンテキストウィンドウ",
+  "slash.contextWindowDesc": "現在のモデルのコンテキストウィンドウを設定",
+  "slash.contextWindowUsage": "使い方: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "不明なコンテキストウィンドウ '{token}'。次のいずれかを使ってください: {options}",
+  "slash.contextWindowNoSession": "セッションがまだありません。開始してからもう一度試してください。",
+  "slash.contextWindowNone": "このモデルには選べるコンテキストウィンドウがありません。",
+  "slash.contextWindowNoModel": "現在のモデルがありません。",
+  "slash.contextWindowSwitched": "コンテキストウィンドウを {size} に設定しました。",
 };

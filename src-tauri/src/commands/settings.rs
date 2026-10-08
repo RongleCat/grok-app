@@ -500,6 +500,19 @@ pub async fn session_set_model(
     Ok(prefs)
 }
 
+/// Set the live session context window. Does not rewrite composer model prefs.
+#[tauri::command]
+pub async fn session_set_context_window(
+    mgr: State<'_, Arc<SessionManager>>,
+    tokens: u64,
+    session_id: Option<String>,
+) -> Result<(), String> {
+    let (_live_proj, live_sess) = mgr.current_context_ids();
+    let session_id = session_id.or(live_sess);
+    mgr.set_context_window(tokens, session_id.as_deref())
+        .await
+}
+
 #[tauri::command]
 pub async fn fs_list_dir(
     project_path: String,

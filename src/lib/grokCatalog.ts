@@ -25,8 +25,14 @@ export interface ModelOption {
   source?: string;
   /** Per-model reasoning efforts from CLI cache; empty/undefined → static fallback. */
   reasoningEfforts?: EffortOption[];
-  /** Model context window in tokens (live-merged from `initialize`). */
+  /** Model context window in tokens (live-merged from `initialize`). Catalog default. */
   contextWindow?: number | null;
+  /**
+   * Selectable windows from CLI `info.context_windows` / `contextWindows`.
+   * More than one entry is what makes `/context-window` and the Advanced
+   * flyout list available. Order is the catalog order.
+   */
+  contextWindows?: number[] | null;
 }
 
 export interface SessionModeOption {
@@ -96,6 +102,14 @@ const OFFICIAL_FOUR_TIER_IDS = new Set([
 ]);
 
 /**
+ * CLI catalog default and the selectable list for Grok 4.7 / Fast / 4.6 / 4.5.
+ * `models_cache.json` advertises `context_window: 256000` and
+ * `context_windows: [256000, 500000]`. The first entry is the default.
+ */
+export const GROK_BUILD_CONTEXT_WINDOW = 256000;
+export const GROK_BUILD_CONTEXT_WINDOWS = [256000, 500000];
+
+/**
  * Fallback catalog when Host has not returned live models yet.
  * Official OAuth exposes grok-4.7 (default), grok-4.7-build-fast, grok-4.6,
  * and grok-4.5 (2026-09 probe). `grok-build` is NOT listed — CLI rejects it.
@@ -107,28 +121,32 @@ export const GROK_BUILD_MODELS: ModelOption[] = [
     isDefault: true,
     source: "official",
     reasoningEfforts: GROK_4_6_EFFORTS,
-    contextWindow: 500000,
+    contextWindow: GROK_BUILD_CONTEXT_WINDOW,
+    contextWindows: GROK_BUILD_CONTEXT_WINDOWS,
   },
   {
     id: "grok-4.7-build-fast",
     label: "Grok 4.7 Fast",
     source: "official",
     reasoningEfforts: GROK_4_6_EFFORTS,
-    contextWindow: 500000,
+    contextWindow: GROK_BUILD_CONTEXT_WINDOW,
+    contextWindows: GROK_BUILD_CONTEXT_WINDOWS,
   },
   {
     id: "grok-4.6",
     label: "Grok 4.6",
     source: "official",
     reasoningEfforts: GROK_4_6_EFFORTS,
-    contextWindow: 500000,
+    contextWindow: GROK_BUILD_CONTEXT_WINDOW,
+    contextWindows: GROK_BUILD_CONTEXT_WINDOWS,
   },
   {
     id: "grok-4.5",
     label: "Grok 4.5",
     source: "official",
     reasoningEfforts: GROK_BUILD_EFFORTS,
-    contextWindow: 500000,
+    contextWindow: GROK_BUILD_CONTEXT_WINDOW,
+    contextWindows: GROK_BUILD_CONTEXT_WINDOWS,
   },
 ];
 

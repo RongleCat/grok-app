@@ -2679,20 +2679,50 @@ impl AcpClient {
     /// mean — the process-level "recently bound" id may belong to another
     /// App session on the same process.
     pub async fn set_model_for(&self, session_id: &str, model_id: &str) -> Result<(), String> {
+        self.set_model_for_inner(session_id, model_id, None).await
+    }
+
+    /// Same as [`Self::set_model_for`], plus `_meta.contextWindow`.
+    /// Reasoning effort is omitted so the CLI keeps the current effort.
+    pub async fn set_context_window_for(
+        &self,
+        session_id: &str,
+        model_id: &str,
+        context_window: u64,
+    ) -> Result<(), String> {
+        if context_window == 0 {
+            return Err("context window must be positive".into());
+        }
+        self.set_model_for_inner(session_id, model_id, Some(context_window))
+            .await
+    }
+
+    async fn set_model_for_inner(
+        &self,
+        session_id: &str,
+        model_id: &str,
+        context_window: Option<u64>,
+    ) -> Result<(), String> {
         let model_id = model_id.trim();
         if model_id.is_empty() {
             return Err("model id empty".into());
         }
         let sid = session_id.to_string();
         // ACP SetSessionModelRequest: sessionId + modelId (+ optional meta).
+        // Absent `_meta` preserves effort and the selected window.
+        let params = match context_window {
+            Some(window) => json!({
+                "sessionId": sid,
+                "modelId": model_id,
+                "_meta": { "contextWindow": window },
+            }),
+            None => json!({
+                "sessionId": sid,
+                "modelId": model_id,
+            }),
+        };
         let result = self
-            .request(
-                "session/set_model",
-                json!({
-                    "sessionId": sid,
-                    "modelId": model_id,
-                }),
-            )
+            .request("session/set_model", params)
             .await
             .map_err(|e| format!("session/set_model: {e}"))?;
         // Best-effort: some agents echo currentModelId.

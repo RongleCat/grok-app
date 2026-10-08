@@ -115,4 +115,12 @@ export const taSlash = {
   "slash.compactApply.savingsKnown": "கடைசியாக அறியப்பட்ட சுருக்கம்: {before} → {after} டோக்கன்கள் ({saved} சேமிக்கப்பட்டது). மதிப்பீடு அல்ல.",
   "slash.compactApply.savingsUnknown": "எண்ணிக்கைக்கு முன்னும் பின்னும் முகவர் தெரிவிக்கும் வரை டோக்கன் சேமிப்பு தெரியவில்லை. மேலே உள்ள (மதிப்பிடப்பட்ட) பிறகு ஒரு தோராயமான கீப்-ரேஷியோ யூகம் மட்டுமே.",
   "slash.compactApply.presetNote": "தீவிரம் முன்னமைவுகள் / காம்பாக்ட் - CLI க்கான கீப்-நோட் டெம்ப்ளேட்டை மட்டுமே விதைக்கிறது.",
+  "slash.contextWindow": "சூழல் சாளரம்",
+  "slash.contextWindowDesc": "தற்போதைய மாதிரியின் சூழல் சாளரத்தை அமை",
+  "slash.contextWindowUsage": "பயன்பாடு: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "தெரியாத சூழல் சாளரம் '{token}'. இவற்றில் ஒன்றைப் பயன்படுத்துங்கள்: {options}",
+  "slash.contextWindowNoSession": "இன்னும் செயலில் உள்ள அமர்வு இல்லை. தொடங்கிய பின் மீண்டும் முயலவும்.",
+  "slash.contextWindowNone": "இந்த மாதிரிக்கு தேர்ந்தெடுக்கக்கூடிய சூழல் சாளரங்கள் இல்லை.",
+  "slash.contextWindowNoModel": "செயலில் உள்ள மாதிரி இல்லை.",
+  "slash.contextWindowSwitched": "சூழல் சாளரம் {size} ஆக அமைக்கப்பட்டது.",
 };

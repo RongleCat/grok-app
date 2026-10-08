@@ -115,4 +115,12 @@ export const ukSlash = {
   "slash.compactApply.savingsKnown": "Останнє відоме стиснення: {before} → {after} токенів (збережено {saved}). Не оцінка.",
   "slash.compactApply.savingsUnknown": "Економію токенів невідомо, доки агент не повідомить кількості до і після. «Після (оцінка)» вище — лише грубе співвідношення збереження.",
   "slash.compactApply.presetNote": "Пресети інтенсивності лише задають шаблон нотатки збереження для /compact — у CLI немає прапорця light/standard/aggressive.",
+  "slash.contextWindow": "Вікно контексту",
+  "slash.contextWindowDesc": "Задати вікно контексту поточної моделі",
+  "slash.contextWindowUsage": "Використання: /context-window <{options}>{current}",
+  "slash.contextWindowUnknown": "Невідоме вікно контексту «{token}». Використайте: {options}",
+  "slash.contextWindowNoSession": "Активної сесії ще немає. Повторіть, коли вона запуститься.",
+  "slash.contextWindowNone": "У цієї моделі немає вікон контексту на вибір.",
+  "slash.contextWindowNoModel": "Немає активної моделі.",
+  "slash.contextWindowSwitched": "Вікно контексту встановлено на {size}.",
 };
