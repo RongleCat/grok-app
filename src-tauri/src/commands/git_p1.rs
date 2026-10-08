@@ -377,6 +377,65 @@ fn git_entry_basename(rel: &str) -> String {
     n.rsplit('/').next().unwrap_or(rel).to_string()
 }
 
+struct StatusZItem {
+    x: char,
+    y: char,
+    /// Destination path for a rename/copy; the only path otherwise.
+    path: String,
+    original_path: Option<String>,
+}
+
+/// Parse `git status --porcelain=v1 -z`.
+///
+/// Each record is `XY path\0`. Renames and copies are `XY newpath\0oldpath\0`:
+/// the second NUL field is the original path. (Non-`-z` porcelain prints
+/// `old -> new`; `-z` reverses that order.)
+fn parse_status_z_items(raw: &[u8]) -> Vec<StatusZItem> {
+    let mut items = Vec::new();
+    let mut i = 0;
+    while i < raw.len() {
+        let end = raw[i..]
+            .iter()
+            .position(|&b| b == 0)
+            .map(|p| i + p)
+            .unwrap_or(raw.len());
+        if end == i {
+            break;
+        }
+        let chunk = String::from_utf8_lossy(&raw[i..end]).into_owned();
+        i = end + 1;
+        if chunk.len() < 3 {
+            continue;
+        }
+        let x = chunk.as_bytes()[0] as char;
+        let y = chunk.as_bytes()[1] as char;
+        let rest = chunk[2..].trim().to_string();
+        let is_rename = x == 'R' || x == 'C' || y == 'R' || y == 'C';
+        let (path, original_path) = if is_rename && i < raw.len() {
+            let end2 = raw[i..]
+                .iter()
+                .position(|&b| b == 0)
+                .map(|p| i + p)
+                .unwrap_or(raw.len());
+            let orig = String::from_utf8_lossy(&raw[i..end2]).trim().to_string();
+            i = end2 + 1;
+            (rest, if orig.is_empty() { None } else { Some(orig) })
+        } else {
+            (rest, None)
+        };
+        if path.is_empty() {
+            continue;
+        }
+        items.push(StatusZItem {
+            x,
+            y,
+            path,
+            original_path,
+        });
+    }
+    items
+}
+
 /// Parse one porcelain v1 line into an entry (pure; unit-tested).
 #[cfg(test)]
 fn parse_porcelain_line(line: &str, project: &str) -> Option<GitStatusEntry> {
@@ -533,57 +592,18 @@ fn git_status_blocking(project: String) -> Result<GitStatusResult, String> {
         });
     }
 
-    // -z: records separated by NUL. Each record is `XY path` or for renames
-    // `XY` + space + old + NUL + new (git uses two NUL fields for rename).
-    // Actually with -z: "XY path\0" and for rename "R  oldpath\0newpath\0".
+    // -z: `XY path\0`, and for renames/copies `XY newpath\0oldpath\0`.
     let raw = out.stdout;
     let mut files: Vec<GitStatusEntry> = Vec::new();
-    let mut i = 0;
-    while i < raw.len() {
-        // find next NUL
-        let end = raw[i..]
-            .iter()
-            .position(|&b| b == 0)
-            .map(|p| i + p)
-            .unwrap_or(raw.len());
-        if end == i {
-            break;
-        }
-        let chunk = String::from_utf8_lossy(&raw[i..end]).into_owned();
-        i = end + 1;
-
-        if chunk.len() < 3 {
-            continue;
-        }
-        let x = chunk.as_bytes()[0] as char;
-        let y = chunk.as_bytes()[1] as char;
-        // After XY there is a space then path (when not rename split).
-        let rest = chunk[2..].trim_start();
-
-        // Rename/copy: first field is "XY oldpath", second field (next NUL record) is newpath.
-        let is_rename = x == 'R' || x == 'C' || y == 'R' || y == 'C';
-        let (path, original_path) = if is_rename && i < raw.len() {
-            let end2 = raw[i..]
-                .iter()
-                .position(|&b| b == 0)
-                .map(|p| i + p)
-                .unwrap_or(raw.len());
-            let newp = String::from_utf8_lossy(&raw[i..end2])
-                .trim()
-                .replace('\\', "/");
-            i = end2 + 1;
-            let old = rest.trim().replace('\\', "/");
-            (newp, if old.is_empty() { None } else { Some(old) })
-        } else {
-            (rest.trim().replace('\\', "/"), None)
-        };
-
+    for item in parse_status_z_items(&raw) {
+        let path = item.path.replace('\\', "/");
         if path.is_empty() {
             continue;
         }
-
+        let original_path = item.original_path.map(|p| p.replace('\\', "/"));
         let abs = join_project_rel(&project, &path);
-
+        let x = item.x;
+        let y = item.y;
         files.push(GitStatusEntry {
             path: path.clone(),
             absolute_path: abs,
@@ -862,41 +882,13 @@ fn git_review_bundle_blocking(
         std::collections::HashMap::new();
     // path -> (status XY, kind, x, y)
     if status_out.status.success() {
-        let raw = status_out.stdout;
-        let mut i = 0;
-        while i < raw.len() {
-            let end = raw[i..]
-                .iter()
-                .position(|&b| b == 0)
-                .map(|p| i + p)
-                .unwrap_or(raw.len());
-            if end == i {
-                break;
-            }
-            let chunk = String::from_utf8_lossy(&raw[i..end]).into_owned();
-            i = end + 1;
-            if chunk.len() < 3 {
-                continue;
-            }
-            let x = chunk.as_bytes()[0] as char;
-            let y = chunk.as_bytes()[1] as char;
-            let rest = chunk[2..].trim_start();
-            let is_rename = x == 'R' || x == 'C' || y == 'R' || y == 'C';
-            let path = if is_rename && i < raw.len() {
-                let end2 = raw[i..]
-                    .iter()
-                    .position(|&b| b == 0)
-                    .map(|p| i + p)
-                    .unwrap_or(raw.len());
-                let newp = decode_git_path(&String::from_utf8_lossy(&raw[i..end2]));
-                i = end2 + 1;
-                newp
-            } else {
-                decode_git_path(rest)
-            };
+        for item in parse_status_z_items(&status_out.stdout) {
+            let path = decode_git_path(&item.path);
             if path.is_empty() {
                 continue;
             }
+            let x = item.x;
+            let y = item.y;
             let kind = git_status_kind(x, y).to_string();
             status_by_path.insert(path, (format!("{x}{y}"), kind, x, y));
         }
@@ -1545,5 +1537,57 @@ fn git_checkout_file_blocking(
         reason: None,
         action: Some("restored".into()),
     })
+}
+
+#[cfg(test)]
+mod git_status_z_tests {
+    use super::*;
+
+    /// `git status --porcelain=v1 -z` emits renames as `XY newpath\0oldpath\0`.
+    #[test]
+    fn status_z_rename_new_then_old() {
+        let raw = b"RM b.txt\0a.txt\0A  untracked.txt\0";
+        let files = parse_status_z_items(raw);
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].path, "b.txt");
+        assert_eq!(files[0].original_path.as_deref(), Some("a.txt"));
+        // Worktree letter wins the kind loop — pinned, not the rename letter.
+        assert_eq!(git_status_kind(files[0].x, files[0].y), "modified");
+        assert_eq!(files[1].path, "untracked.txt");
+        assert!(files[1].original_path.is_none());
+    }
+
+    #[test]
+    fn status_z_staged_rename_only() {
+        let raw = b"R  new.md\0old.md\0";
+        let files = parse_status_z_items(raw);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "new.md");
+        assert_eq!(files[0].original_path.as_deref(), Some("old.md"));
+        assert_eq!(git_status_kind(files[0].x, files[0].y), "renamed");
+    }
+
+    #[test]
+    fn status_z_plain_records_unchanged() {
+        let raw = b" M src/app.ts\0?? new.md\0D  gone.ts\0";
+        let files = parse_status_z_items(raw);
+        assert_eq!(files.len(), 3);
+        assert_eq!(files[0].path, "src/app.ts");
+        assert_eq!(git_status_kind(files[1].x, files[1].y), "untracked");
+        assert_eq!(git_status_kind(files[2].x, files[2].y), "deleted");
+        for f in &files {
+            assert!(f.original_path.is_none());
+        }
+    }
+
+    #[test]
+    fn status_z_copy_keeps_new_path() {
+        let raw = b"C  copy.ts\0orig.ts\0";
+        let files = parse_status_z_items(raw);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "copy.ts");
+        assert_eq!(files[0].original_path.as_deref(), Some("orig.ts"));
+        assert_eq!(git_status_kind(files[0].x, files[0].y), "copied");
+    }
 }
 
