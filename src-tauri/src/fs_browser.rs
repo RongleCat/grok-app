@@ -796,8 +796,17 @@ fn resolve_path_buf_smart(project_root: Option<&str>, path: &str) -> Result<Path
         return Err(format!("not a file: {raw}"));
     }
 
-    // 2) Relative: project_root/rel, then parent(project)/rel, then suffix
+    // 2) Relative: project_root/rel, then parent(project)/rel, then suffix.
+    // `..` must not be joined here. lexical_join already rejects it for the
+    // project-relative fs_* commands; root.join(rel) would otherwise resolve
+    // outside the project and the result is granted in path_scope.
     let rel = raw.trim_start_matches("./");
+    let rel_stays_inside = Path::new(rel)
+        .components()
+        .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
+    if !rel_stays_inside {
+        return Err("path escapes project root".into());
+    }
     if let Some(root) = project_root {
         let root_pb = PathBuf::from(root);
         if root_pb.is_dir() {
@@ -1785,5 +1794,29 @@ mod tests {
         p.push(format!("grok-fs-test-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&p).unwrap();
         p
+    }
+
+    #[test]
+    fn open_path_smart_rejects_parent_escape() {
+        let dir = tempfile_dir();
+        let project = dir.join("proj");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(dir.join("secret.txt"), b"secret").unwrap();
+
+        let r = open_path_smart(Some(project.to_str().unwrap()), "../secret.txt");
+        assert!(r.is_err(), "{r:?}");
+        let err = r.unwrap_err();
+        assert!(err.contains("escapes"), "{err}");
+
+        let r2 = open_path_smart(Some(project.to_str().unwrap()), "docs/../../../secret.txt");
+        assert!(r2.is_err(), "{r2:?}");
+
+        // Absolute paths outside the project stay allowed: chat cards cite them.
+        let abs = resolve_path_smart(
+            Some(project.to_str().unwrap()),
+            dir.join("secret.txt").to_str().unwrap(),
+        );
+        assert!(abs.is_ok(), "{abs:?}");
+        let _ = fs::remove_dir_all(&dir);
     }
 }
