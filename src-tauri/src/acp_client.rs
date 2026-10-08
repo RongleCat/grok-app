@@ -5580,8 +5580,7 @@ mod retry_tests {
 
     #[test]
     fn stream_decode_error_is_not_a_hard_abort() {
-        let reason =
-            "reqwest error stream: Transport error: error decoding response body";
+        let reason = "reqwest error stream: Transport error: error decoding response body";
         assert!(is_stream_decode_retry_reason(reason));
         assert!(is_stream_decode_retry_reason(
             "Transport error: Error decoding response body"
