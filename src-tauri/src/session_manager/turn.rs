@@ -1116,9 +1116,7 @@ fn quote_closer(line: &str, open_len: usize) -> bool {
 }
 
 fn split_goal_command(line: &str) -> Option<(String, Option<String>)> {
-    let Some(rest) = line.strip_prefix("/goal") else {
-        return None;
-    };
+    let rest = line.strip_prefix("/goal")?;
     if !rest.is_empty() && !rest.chars().next().is_some_and(|c| c.is_whitespace()) {
         return None;
     }

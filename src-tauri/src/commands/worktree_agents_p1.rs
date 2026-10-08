@@ -1017,3 +1017,28 @@ fn git_worktree_remove_blocking(
     })
 }
 
+fn probe_binary_on_path(bin: &str) -> bool {
+    let mut cmd = crate::process_util::command(bin);
+    if let Some(path_env) = crate::process_util::enriched_path_env() {
+        cmd.env("PATH", path_env);
+    }
+    cmd.arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+fn apply_ship_process_env(cmd: &mut std::process::Command) {
+    if let Some(path_env) = crate::process_util::enriched_path_env() {
+        cmd.env("PATH", path_env);
+    }
+    #[cfg(unix)]
+    {
+        if std::path::Path::new("/usr/bin/ssh").exists() {
+            cmd.env("GIT_SSH_COMMAND", "/usr/bin/ssh");
+        }
+    }
+}
+
