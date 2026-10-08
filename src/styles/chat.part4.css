@@ -104,6 +104,66 @@
   gap: 6px;
 }
 
+.ctx-chip__pop--snapshot {
+  min-width: 360px;
+  max-width: min(440px, calc(100vw - 24px));
+}
+
+.ctx-chip__summary-line {
+  margin: 0;
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ctx-chip__model {
+  margin: -2px 0 0;
+  padding: 0 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.ctx-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px 2px;
+}
+
+.ctx-bar__row {
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  justify-items: center;
+  line-height: 1;
+}
+
+.ctx-bar__c {
+  font-size: 11px;
+}
+
+.ctx-bar__c--system {
+  color: var(--text-tertiary);
+}
+
+.ctx-bar__c--messages {
+  color: var(--text-primary);
+}
+
+.ctx-bar__c--overhead {
+  color: #c084fc;
+}
+
+.ctx-bar__c--free {
+  color: var(--text-tertiary);
+  opacity: 0.55;
+}
+
+.ctx-bar__c--info {
+  color: #2dd4bf;
+}
+
 .ctx-chip__head {
   font-size: 11px;
   font-weight: 600;

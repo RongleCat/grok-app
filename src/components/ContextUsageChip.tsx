@@ -6,11 +6,16 @@
  * soft-fail "—" when tokens unknown after compact (still opens the menu).
  */
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { IconArrowsMinimize } from "@/components/icons";
 import { Tip } from "@/components/ui/tooltip";
 import { useFloatingMenu } from "@/lib/floatingMenu";
+import {
+  contextShareLabel,
+  type ContextBarKind,
+  type ContextInfoView,
+} from "@/lib/contextInfoSnapshot";
 import {
   formatCompactBeforeAfterRange,
   formatTokenCount,
@@ -47,6 +52,24 @@ export type ContextUsageChipLabels = {
   window: string;
   percentUsed: string;
   cacheHit: string;
+  systemPrompt: string;
+  messages: string;
+  overhead: string;
+  free: string;
+  alreadyCounted: string;
+  toolDefinitions: string;
+  toolsDetail: string;
+  autoCompact: string;
+  autoCompactNow: string;
+  stats: string;
+  summary: string;
+};
+
+const BAR_GLYPH: Record<ContextBarKind, string> = {
+  system: "◆",
+  messages: "◆",
+  overhead: "◆",
+  free: "◇",
 };
 
 type Props = {
@@ -59,6 +82,8 @@ type Props = {
   usageAction?: string;
   /** For 万/億 vs 萬/億 on menu breakdown rows. Chip label already resolved. */
   locale?: string;
+  /** Reload `x.ai/session/info` when the menu opens. */
+  onRefreshContext?: () => void;
 };
 
 function tipFor(
@@ -161,6 +186,106 @@ function formatPercent(p: number): string {
 }
 
 
+function ContextSnapshot({
+  view,
+  labels,
+  locale,
+}: {
+  view: ContextInfoView;
+  labels: ContextUsageChipLabels;
+  locale: string;
+}) {
+  const legend = [
+    { kind: "system" as const, label: labels.systemPrompt, tokens: view.systemTokens },
+    { kind: "messages" as const, label: labels.messages, tokens: view.messageTokens },
+    ...(view.overheadTokens > 0
+      ? [{ kind: "overhead" as const, label: labels.overhead, tokens: view.overheadTokens }]
+      : []),
+    { kind: "free" as const, label: labels.free, tokens: view.freeTokens },
+  ];
+  const info = [
+    {
+      label: labels.toolDefinitions,
+      tokens: view.toolDefinitionsTokens,
+      detail: labels.toolsDetail.replace("{count}", String(view.toolDefinitionsCount)),
+    },
+    ...view.categories.map((row) => ({
+      label: row.label,
+      tokens: row.tokens,
+      detail: row.detail,
+    })),
+  ];
+  const fill = (template: string, vars: Record<string, string>) =>
+    Object.entries(vars).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, value), template);
+  const tok = (n: number) => formatTokenCount(n, locale);
+  return (
+    <>
+      <p className="ctx-chip__summary-line">
+        {fill(labels.summary, {
+          used: tok(view.used),
+          total: tok(view.total),
+          percent: `${view.percent.toFixed(2)}%`,
+        })}
+      </p>
+      {view.model ? <p className="ctx-chip__model">{view.model}</p> : null}
+      <div className="ctx-bar" aria-hidden>
+        {Array.from({ length: 5 }, (_, row) => (
+          <div className="ctx-bar__row" key={row}>
+            {view.bar.slice(row * 20, row * 20 + 20).map((kind, i) => (
+              <span key={i} className={`ctx-bar__c ctx-bar__c--${kind}`}>
+                {BAR_GLYPH[kind]}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+      {legend.map((row) => (
+        <div className="ctx-chip__row" key={row.kind}>
+          <span className={`ctx-chip__k ctx-bar__c--${row.kind}`}>
+            {BAR_GLYPH[row.kind]} {row.label}
+          </span>
+          <span className="ctx-chip__v">
+            <span className="ctx-chip__tokens">{tok(row.tokens)}</span>
+            <span className="ctx-chip__src">
+              {contextShareLabel(row.tokens, view.total)}
+            </span>
+          </span>
+        </div>
+      ))}
+      <p className="ctx-chip__note">{labels.alreadyCounted}</p>
+      {info.map((row) => (
+        <div className="ctx-chip__row" key={row.label}>
+          <span className="ctx-chip__k ctx-bar__c--info">◈ {row.label}</span>
+          <span className="ctx-chip__v">
+            <span className="ctx-chip__tokens">{tok(row.tokens)}</span>
+            <span className="ctx-chip__src">
+              {contextShareLabel(row.tokens, view.total)}
+              {row.detail ? ` · ${row.detail}` : ""}
+            </span>
+          </span>
+        </div>
+      ))}
+      {view.autoCompactRemaining == null ? null : (
+        <p className="ctx-chip__note">
+          {view.autoCompactNow
+            ? fill(labels.autoCompactNow, { percent: String(view.autoCompactPercent) })
+            : fill(labels.autoCompact, {
+                percent: String(view.autoCompactPercent),
+                remaining: tok(view.autoCompactRemaining),
+              })}
+        </p>
+      )}
+      <p className="ctx-chip__note">
+        {fill(labels.stats, {
+          turns: String(view.turnCount),
+          calls: String(view.toolCallCount),
+          compactions: String(view.compactionCount),
+        })}
+      </p>
+    </>
+  );
+}
+
 function BreakdownRows({
   breakdown,
   labels,
@@ -211,12 +336,16 @@ export function ContextUsageChip({
   onUsage,
   usageAction,
   locale = "zh",
+  onRefreshContext,
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
 
+  const snapshot = display.contextInfo ?? null;
+  const nonce = display.contextInfoNonce ?? 0;
+  const seenNonce = useRef(0);
   const { pos, style: popStyle } = useFloatingMenu({
     open,
     triggerRef,
@@ -225,17 +354,25 @@ export function ContextUsageChip({
     onClose: () => setOpen(false),
     placement: "up",
     fitContent: true,
-    minWidth: 220,
-    estHeight: 420,
+    minWidth: snapshot ? 360 : 220,
+    estHeight: snapshot ? 520 : 420,
     gap: 8,
     deps: [
       display.label,
       display.lastCompact?.messageId,
       display.breakdown?.totalTokens,
+      snapshot?.used,
+      snapshot?.total,
     ],
   });
 
   const tip = useMemo(() => tipFor(display, labels), [display, labels]);
+  useEffect(() => {
+    if (nonce > seenNonce.current) {
+      seenNonce.current = nonce;
+      setOpen(true);
+    }
+  }, [nonce]);
   const lastDetail = display.lastCompact
     ? formatLastCompactDetail(display.lastCompact, labels, locale)
     : null;
@@ -245,7 +382,7 @@ export function ContextUsageChip({
   // New / empty sessions stay hidden — do not flash a "?" ring just because
   // the model catalog knows a context window size. Soft-fail after compact
   // and real known/estimated totals still surface via hasContextUsageData.
-  if (!hasContextUsageData(display)) return null;
+  if (!hasContextUsageData(display) && !snapshot) return null;
 
   return (
     <div ref={rootRef} className={`ctx-chip${open ? " is-open" : ""}`}>
@@ -259,7 +396,13 @@ export function ContextUsageChip({
           aria-expanded={open}
           aria-label={`${labels.aria}: ${display.label}`}
           data-context-surface={surface}
-          onClick={() => setOpen((v) => !v)}
+          onClick={() =>
+            setOpen((v) => {
+              const next = !v;
+              if (next) onRefreshContext?.();
+              return next;
+            })
+          }
         >
           <ContextRing percent={display.percent} softUnknown={softUnknown} />
         </button>
@@ -270,12 +413,20 @@ export function ContextUsageChip({
         createPortal(
           <div
             ref={popRef}
-            className="cmm__pop cmm__pop--portal ctx-chip__pop"
+            className={
+              "cmm__pop cmm__pop--portal ctx-chip__pop" +
+              (snapshot ? " ctx-chip__pop--snapshot" : "")
+            }
             role="menu"
             aria-label={labels.menuTitle}
             style={popStyle as CSSProperties}
           >
             <div className="ctx-chip__head">{labels.menuTitle}</div>
+            {snapshot ? (
+              <ContextSnapshot view={snapshot} labels={labels} locale={locale} />
+            ) : null}
+            {snapshot ? null : (
+              <>
             <div className="ctx-chip__row">
               <span className="ctx-chip__k">{labels.current}</span>
               <span className="ctx-chip__v">
@@ -322,6 +473,11 @@ export function ContextUsageChip({
                 locale={locale}
               />
             ) : null}
+            <p className="ctx-chip__note">{labels.heuristicNote}</p>
+              </>
+            )}
+            {snapshot ? null : (
+              <>
             <div className="ctx-chip__row ctx-chip__row--wrap">
               <span className="ctx-chip__k">{labels.lastCompact}</span>
               <span className="ctx-chip__v ctx-chip__v--wrap">
@@ -333,7 +489,8 @@ export function ContextUsageChip({
                 {display.lastCompact.summaryPreview.trim()}
               </p>
             ) : null}
-            <p className="ctx-chip__note">{labels.heuristicNote}</p>
+              </>
+            )}
             {onUsage && usageAction ? (
               <button
                 type="button"

@@ -386,6 +386,14 @@ export async function sessionSetContextWindow(
   });
 }
 
+/** Live `x.ai/session/info` payload for `/context`. */
+export async function sessionContextInfo(sessionId?: string | null) {
+  if (!isTauri()) return null;
+  return invoke<unknown>("session_context_info", {
+    sessionId: sessionId ?? null,
+  });
+}
+
 export async function secretsGetMasked() {
   return invoke<{
     hasOfficialKey: boolean;

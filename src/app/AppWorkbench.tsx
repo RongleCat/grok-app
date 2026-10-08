@@ -450,6 +450,7 @@ import {
   flattenFilteredCatalog,
   type SlashItem,
 } from "@/lib/slashCatalog";
+import { parseContextInfoPayload } from "@/lib/contextInfoSnapshot";
 import {
   contextWindowSlashFeedback,
   leftoverContextWindowArgs,
@@ -5629,6 +5630,7 @@ export function AppWorkbench() {
   }, [session.sessionId, session.state]);
 
   const contextWindowSlashRef = useRef<(args: string) => void>(() => {});
+  const contextSlashRef = useRef<(announce: boolean) => void>(() => {});
   const {
     executeSend,
     send,
@@ -5685,6 +5687,9 @@ export function AppWorkbench() {
     openWorkflowsSettings,
     onContextWindowSlash: (args) => {
       contextWindowSlashRef.current(args);
+    },
+    onContextSlash: () => {
+      contextSlashRef.current(true);
     },
     applySessionTitle,
     restartTurnClock,
@@ -8830,6 +8835,20 @@ export function AppWorkbench() {
         return;
       }
 
+      if (item.kind === "action" && item.action === "context") {
+        if (q) {
+          const stored = getDraft();
+          const lineEnd = stored.slice(q.end).search(/[\r\n]/);
+          const cut = lineEnd === -1 ? stored.length : q.end + lineEnd;
+          setDraft((d) =>
+            (d.slice(0, q.start) + d.slice(cut)).replace(/[ \t]+$/u, ""),
+          );
+          requestComposerStoredCaret(q.start);
+        }
+        contextSlashRef.current(true);
+        return;
+      }
+
       if (item.kind === "skill" || item.kind === "plugin") {
         const applyAtSlash =
           item.kind === "plugin" ? applyPluginAtSlash : applySkillAtSlash;
@@ -9174,16 +9193,19 @@ export function AppWorkbench() {
     }
   }, [session.state, session.sessionId]);
   /** Context usage chip label/state from compact events + message estimate. */
-  const contextUsageDisplay = useMemo(
-    () =>
-      resolveContextUsageDisplay(
-        contextUsage,
-        messages,
-        locale,
-        currentModelWindow,
-      ),
-    [contextUsage, messages, locale, currentModelWindow],
-  );
+  const contextUsageDisplay = useMemo(() => {
+    const base = resolveContextUsageDisplay(
+      contextUsage,
+      messages,
+      locale,
+      currentModelWindow,
+    );
+    return {
+      ...base,
+      contextInfo: contextUsage.contextInfo ?? null,
+      contextInfoNonce: contextUsage.contextInfoNonce ?? 0,
+    };
+  }, [contextUsage, messages, locale, currentModelWindow]);
   const sessionSpend = useSessionSpend(session.sessionId);
   /** Full provider list for composer model menu groups. */
   const [customProviders, setCustomProviders] = useState<api.CustomProvider[]>(
@@ -9615,6 +9637,36 @@ export function AppWorkbench() {
     ],
   );
   contextWindowSlashRef.current = runContextWindowSlash;
+  const runContextSlash = useCallback(
+    async (announce: boolean) => {
+      if (!api.isTauri() || !session.sessionId) {
+        if (announce) showToast(tr("slash.contextNoSession"), 4000);
+        return;
+      }
+      try {
+        const raw = await api.sessionContextInfo(session.sessionId);
+        const view = parseContextInfoPayload(raw);
+        if (!view) {
+          if (announce) showToast(tr("slash.contextUnavailable"), 4000);
+          return;
+        }
+        setContextUsage((prev) => ({
+          ...prev,
+          knownTokens: view.used,
+          agentContextWindow:
+            view.total > 0 ? view.total : prev.agentContextWindow,
+          agentPercentage: null,
+          lastCompactMessageId: null,
+          contextInfo: view,
+          contextInfoNonce: (prev.contextInfoNonce ?? 0) + 1,
+        }));
+      } catch (e) {
+        if (announce) showToast(String(e), 4000);
+      }
+    },
+    [session.sessionId, showToast, tr],
+  );
+  contextSlashRef.current = runContextSlash;
   const liveBrandKind = useMemo(
     () =>
       superGrokBrandKind(
@@ -12837,6 +12889,9 @@ export function AppWorkbench() {
             confirmRemoveWorktree={confirmRemoveWorktree}
             connecting={connecting}
             contextUsageDisplay={contextUsageDisplay}
+            refreshContextInfo={() => {
+              contextSlashRef.current(false);
+            }}
             currentModelWindow={currentModelWindow}
             customRouteActive={customRouteActive}
             cycleAttachedChatScope={cycleAttachedChatScope}

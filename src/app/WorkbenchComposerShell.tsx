@@ -85,6 +85,7 @@ export function WorkbenchComposerShell(p: WorkbenchComposerShellProps) {
     composerSpellcheck,
     connecting,
     contextUsageDisplay,
+    refreshContextInfo,
     cycleAttachedChatScope,
     dragZone,
     effectiveCanSend,
@@ -798,7 +799,19 @@ export function WorkbenchComposerShell(p: WorkbenchComposerShellProps) {
                         window: tr("context.window"),
                         percentUsed: tr("context.percentLabel"),
                         cacheHit: tr("context.cacheHit"),
+                        systemPrompt: tr("context.systemPrompt"),
+                        messages: tr("context.messages"),
+                        overhead: tr("context.overhead"),
+                        free: tr("context.free"),
+                        alreadyCounted: tr("context.alreadyCounted"),
+                        toolDefinitions: tr("context.toolDefinitions"),
+                        toolsDetail: tr("context.toolsDetail"),
+                        autoCompact: tr("context.autoCompact"),
+                        autoCompactNow: tr("context.autoCompactNow"),
+                        stats: tr("context.stats"),
+                        summary: tr("context.summary"),
                       }}
+                      onRefreshContext={refreshContextInfo}
                       onCompact={() => {
                         setCompactNote("");
                         setShowCompactModal(true);

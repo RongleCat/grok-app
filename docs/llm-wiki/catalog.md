@@ -23,6 +23,8 @@ CLI `models_cache.json` 的 `info.context_window` 是目录默认值（Grok 4.7 
 
 自定义提供商仍在同一行手填 token，写入通道配置，不走这条 ACP。
 
+`/context` 读取 live 会话的 `x.ai/session/info`（先 `_x.ai/session/info`）。用量菜单按 pager 拆成系统提示、消息、推理/开销、空闲，工具定义、技能、工作流、MCP 标成已经算进上面的行。自动压缩阈值和剩余 token 用快照里的 `autoCompactThresholdPercent`。没有活动会话时命令报错，不把这行发给模型。会话信息拿不到时，菜单仍用原来的角色估算。
+
 Spawn 顺序（CLI 0.2.x）：
 
 ```text

@@ -123,4 +123,8 @@ export const esSlash = {
   "slash.contextWindowNone": "Este modelo no tiene ventanas de contexto seleccionables.",
   "slash.contextWindowNoModel": "No hay un modelo activo.",
   "slash.contextWindowSwitched": "Ventana de contexto establecida en {size}.",
+  "slash.context": "Contexto",
+  "slash.contextDesc": "Ver el uso de contexto",
+  "slash.contextNoSession": "No hay una sesión activa",
+  "slash.contextUnavailable": "No se pudo cargar el uso de contexto",
 };

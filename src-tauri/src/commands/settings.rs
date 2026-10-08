@@ -513,6 +513,17 @@ pub async fn session_set_context_window(
         .await
 }
 
+/// Live session info for `/context` (`x.ai/session/info`).
+#[tauri::command]
+pub async fn session_context_info(
+    mgr: State<'_, Arc<SessionManager>>,
+    session_id: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let (_live_proj, live_sess) = mgr.current_context_ids();
+    let session_id = session_id.or(live_sess);
+    mgr.session_context_info(session_id.as_deref()).await
+}
+
 #[tauri::command]
 pub async fn fs_list_dir(
     project_path: String,

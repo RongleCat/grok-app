@@ -2662,6 +2662,20 @@ impl AcpClient {
         .await
     }
 
+    /// `x.ai/session/info` — the payload behind the pager `/context` view.
+    /// Live stdio registers the underscore form; older agents use the bare name.
+    pub async fn session_info(&self, session_id: &str) -> Result<Value, String> {
+        let params = json!({ "sessionId": session_id });
+        let raw = match self.request("_x.ai/session/info", params.clone()).await {
+            Ok(v) => v,
+            Err(e) if rpc_looks_like_method_not_found(&e) => {
+                self.request("x.ai/session/info", params).await?
+            }
+            Err(e) => return Err(e),
+        };
+        unwrap_session_info(raw)
+    }
+
     /// Switch model on the live agent session (`session/set_model`).
     /// Switch model on the live agent session (`session/set_model`).
     /// Uses the process's most recently bound agent session id.
@@ -3276,6 +3290,57 @@ pub fn wire_session_interject_params(session_id: &str, text: &str) -> Value {
         "sessionId": session_id,
         "text": text,
     })
+}
+
+/// Pull the session-info object out of an ext-method result.
+///
+/// Grok Build wraps it as `{ "result": SessionInfoResponse, "error"?: ... }`.
+/// Some agents return the object itself, or either form as a JSON string.
+pub(crate) fn unwrap_session_info(raw: Value) -> Result<Value, String> {
+    let value = coerce_session_info_json(raw);
+    if let Some(err) = value.get("error").filter(|e| !e.is_null()) {
+        let has_body = value.get("result").is_some_and(|r| r.is_object());
+        if !has_body {
+            return Err(session_info_error_text(err));
+        }
+    }
+    let body = value
+        .get("result")
+        .filter(|r| r.is_object())
+        .cloned()
+        .unwrap_or(value);
+    if body.get("context").is_some()
+        || body.get("sessionId").is_some()
+        || body.get("session_id").is_some()
+    {
+        return Ok(body);
+    }
+    Err("invalid session info response".into())
+}
+
+fn coerce_session_info_json(raw: Value) -> Value {
+    match raw {
+        Value::String(s) => serde_json::from_str(&s).unwrap_or(Value::Null),
+        Value::Object(map) => {
+            if let Some(Value::String(s)) = map.get("result") {
+                if let Ok(parsed) = serde_json::from_str::<Value>(s) {
+                    return parsed;
+                }
+            }
+            Value::Object(map)
+        }
+        other => other,
+    }
+}
+
+fn session_info_error_text(err: &Value) -> String {
+    if let Some(s) = err.as_str() {
+        return s.to_string();
+    }
+    err.get("message")
+        .and_then(|m| m.as_str())
+        .map(str::to_string)
+        .unwrap_or_else(|| err.to_string())
 }
 
 /// Whether an ACP RPC error indicates the method name is unknown on this agent.
@@ -6580,6 +6645,29 @@ fn json_id_u64(v: Option<&Value>) -> Option<u64> {
 #[cfg(test)]
 mod cached_token_route_tests {
     use super::*;
+
+    #[test]
+    fn unwrap_session_info_reads_the_pager_envelope() {
+        let raw = serde_json::json!({
+            "result": {
+                "sessionId": "s1",
+                "model": "grok-4.7",
+                "context": { "used": 3300, "total": 500000 }
+            }
+        });
+        let body = unwrap_session_info(raw).unwrap();
+        assert_eq!(body["model"], "grok-4.7");
+        assert_eq!(body["context"]["total"], 500000);
+    }
+
+    #[test]
+    fn unwrap_session_info_reads_a_string_envelope_and_surfaces_errors() {
+        let raw =
+            serde_json::json!(r#"{"result":{"sessionId":"s","context":{"used":1,"total":2}}}"#);
+        assert!(unwrap_session_info(raw).is_ok());
+        let err = unwrap_session_info(serde_json::json!({ "error": "no session" })).unwrap_err();
+        assert_eq!(err, "no session");
+    }
 
     #[test]
     fn rewind_unsupported_error_matches_method_not_found() {

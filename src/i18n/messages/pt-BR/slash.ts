@@ -123,4 +123,8 @@ export const ptBRSlash = {
   "slash.contextWindowNone": "Este modelo não tem janelas de contexto selecionáveis.",
   "slash.contextWindowNoModel": "Nenhum modelo ativo.",
   "slash.contextWindowSwitched": "Janela de contexto definida para {size}.",
+  "slash.context": "Contexto",
+  "slash.contextDesc": "Ver o uso de contexto",
+  "slash.contextNoSession": "Nenhuma sessão ativa",
+  "slash.contextUnavailable": "Não foi possível carregar o uso de contexto",
 };

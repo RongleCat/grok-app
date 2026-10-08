@@ -29,6 +29,7 @@ import {
 import { ComposerProjectMenu } from "@/components/ComposerProjectMenu";
 import { ComposerWorktreeMenu } from "@/components/ComposerWorktreeMenu";
 import { ContextUsageChip } from "@/components/ContextUsageChip";
+import { parseContextInfoPayload } from "@/lib/contextInfoSnapshot";
 import { FLOATING_MENU_Z_INDEX } from "@/lib/floatingMenu";
 import type { ContextUsageDisplay } from "@/lib/contextUsage";
 
@@ -267,6 +268,17 @@ describe("composer chip portal pops", () => {
           window: "Window",
           percentUsed: "Used",
           cacheHit: "Cache hit",
+          systemPrompt: "System prompt",
+          messages: "Messages",
+          overhead: "Reasoning/overhead",
+          free: "Free",
+          alreadyCounted: "Already counted above",
+          toolDefinitions: "Tool definitions",
+          toolsDetail: "{count} tools",
+          autoCompact: "Auto-compact at {percent}% · ~{remaining} tokens remaining",
+          autoCompactNow: "Auto-compact triggers next turn (at {percent}%)",
+          stats: "Turns: {turns} · Tool calls: {calls} · Compactions: {compactions}",
+          summary: "{used} / {total} tokens ({percent})",
         }}
         onCompact={vi.fn()}
         locale="en"
@@ -281,6 +293,118 @@ describe("composer chip portal pops", () => {
     expect(pop!.getAttribute("role")).toBe("menu");
     expect(pop!.getAttribute("aria-label")).toBe("Context usage");
     expect(pop!.style.zIndex).toBe(String(FLOATING_MENU_Z_INDEX));
+  });
+
+  it("shows the pager /context breakdown and hides the role estimate", async () => {
+    const view = parseContextInfoPayload({
+      result: {
+        model: "grok-4.7",
+        context: {
+          used: 3300,
+          total: 500000,
+          systemPromptTokens: 1400,
+          messageTokens: 2000,
+          usagePct: 1,
+          autoCompactThresholdPercent: 80,
+          toolDefinitionsCount: 25,
+          toolDefinitionsTokens: 9300,
+          turnCount: 0,
+          toolCallCount: 0,
+          compactionCount: 0,
+          usageCategories: [{ label: "Skills", tokens: 4800, detail: "53 skills" }],
+        },
+      },
+    });
+    expect(view).not.toBeNull();
+    const display: ContextUsageDisplay = {
+      tokens: 3300,
+      source: "known",
+      label: "3.3K",
+      lastCompact: {
+        trigger: "manual",
+        tokensBefore: 208000,
+        tokensAfter: 17000,
+        messageId: "m1",
+      },
+      breakdown: {
+        userTokens: 46,
+        assistantTokens: 1000,
+        thoughtTokens: 23000,
+        systemTokens: null,
+        toolsTokens: null,
+        historyTokens: null,
+        totalTokens: 24046,
+        estimated: true,
+      },
+      knownUsage: null,
+      windowSize: 500000,
+      percent: 0.66,
+      cacheHitRate: null,
+      cachedReadTokens: null,
+      contextInfo: view,
+      contextInfoNonce: 1,
+    };
+    render(
+      <ContextUsageChip
+        display={display}
+        labels={{
+          aria: "Context",
+          tipUnknown: "unknown",
+          tipEstimated: "estimated",
+          tipKnown: "known",
+          menuTitle: "Context usage",
+          current: "Current",
+          sourceKnown: "known",
+          sourceEstimated: "estimated",
+          sourceUnknown: "unknown",
+          lastCompact: "Last compact",
+          lastCompactNone: "never",
+          tokensRange: "{before} → {after}",
+          compactAction: "Compact now",
+          heuristicNote: "Usage reported by the CLI each turn. Role split is an estimate.",
+          auto: "auto",
+          manual: "manual",
+          breakdownUser: "User messages",
+          breakdownAssistant: "Assistant messages",
+          breakdownThought: "Thought / reasoning",
+          breakdownEstimatedNote: "Role split is estimated only. Free capacity unknown.",
+          window: "Window",
+          percentUsed: "Used",
+          cacheHit: "Cache hit",
+          systemPrompt: "System prompt",
+          messages: "Messages",
+          overhead: "Reasoning/overhead",
+          free: "Free",
+          alreadyCounted: "Already counted above",
+          toolDefinitions: "Tool definitions",
+          toolsDetail: "{count} tools",
+          autoCompact: "Auto-compact at {percent}% · ~{remaining} tokens remaining",
+          autoCompactNow: "Auto-compact triggers next turn (at {percent}%)",
+          stats: "Turns: {turns} · Tool calls: {calls} · Compactions: {compactions}",
+          summary: "{used} / {total} tokens ({percent})",
+        }}
+        onCompact={vi.fn()}
+        locale="en"
+      />,
+    );
+
+    await waitFor(() => expect(bodyPop()).not.toBeNull());
+    const pop = bodyPop()!;
+    expect(pop.className).toContain("ctx-chip__pop--snapshot");
+    expect(pop.textContent).toContain("3.3K / 500K tokens (0.66%)");
+    expect(pop.textContent).toContain("grok-4.7");
+    expect(pop.textContent).toContain("System prompt");
+    expect(pop.textContent).toContain("1.9K");
+    expect(pop.textContent).toContain("Already counted above");
+    expect(pop.textContent).toContain("25 tools");
+    expect(pop.textContent).toContain("53 skills");
+    expect(pop.textContent).toContain("Auto-compact at 80%");
+    expect(pop.textContent).toContain("Turns: 0 · Tool calls: 0 · Compactions: 0");
+    expect(pop.querySelectorAll(".ctx-bar__row")).toHaveLength(5);
+    expect(pop.querySelectorAll(".ctx-bar__c")).toHaveLength(100);
+    expect(pop.textContent).not.toContain("User messages");
+    expect(pop.textContent).not.toContain("Role split is estimated");
+    expect(pop.textContent).not.toContain("Last compact");
   });
 
   it("model chip keeps dialog semantics and aria-controls wiring", async () => {

@@ -123,4 +123,8 @@ export const deSlash = {
   "slash.contextWindowNone": "Dieses Modell hat keine wählbaren Kontextfenster.",
   "slash.contextWindowNoModel": "Kein aktives Modell.",
   "slash.contextWindowSwitched": "Kontextfenster auf {size} gesetzt.",
+  "slash.context": "Kontext",
+  "slash.contextDesc": "Kontextverbrauch anzeigen",
+  "slash.contextNoSession": "Keine aktive Sitzung",
+  "slash.contextUnavailable": "Kontextverbrauch konnte nicht geladen werden",
 };

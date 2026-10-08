@@ -123,4 +123,8 @@ export const ukSlash = {
   "slash.contextWindowNone": "У цієї моделі немає вікон контексту на вибір.",
   "slash.contextWindowNoModel": "Немає активної моделі.",
   "slash.contextWindowSwitched": "Вікно контексту встановлено на {size}.",
+  "slash.context": "Контекст",
+  "slash.contextDesc": "Показати використання контексту",
+  "slash.contextNoSession": "Немає активної сесії",
+  "slash.contextUnavailable": "Не вдалося завантажити використання контексту",
 };

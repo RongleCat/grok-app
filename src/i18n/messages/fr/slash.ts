@@ -123,4 +123,8 @@ export const frSlash = {
   "slash.contextWindowNone": "Ce modèle n’a pas de fenêtres de contexte au choix.",
   "slash.contextWindowNoModel": "Aucun modèle actif.",
   "slash.contextWindowSwitched": "Fenêtre de contexte définie sur {size}.",
+  "slash.context": "Contexte",
+  "slash.contextDesc": "Voir l'usage du contexte",
+  "slash.contextNoSession": "Aucune session active",
+  "slash.contextUnavailable": "Impossible de charger l'usage du contexte",
 };

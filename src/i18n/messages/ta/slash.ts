@@ -123,4 +123,8 @@ export const taSlash = {
   "slash.contextWindowNone": "இந்த மாதிரிக்கு தேர்ந்தெடுக்கக்கூடிய சூழல் சாளரங்கள் இல்லை.",
   "slash.contextWindowNoModel": "செயலில் உள்ள மாதிரி இல்லை.",
   "slash.contextWindowSwitched": "சூழல் சாளரம் {size} ஆக அமைக்கப்பட்டது.",
+  "slash.context": "சூழல்",
+  "slash.contextDesc": "சூழல் பயன்பாட்டைக் காட்டு",
+  "slash.contextNoSession": "செயலில் உள்ள அமர்வு இல்லை",
+  "slash.contextUnavailable": "சூழல் பயன்பாட்டை ஏற்ற முடியவில்லை",
 };

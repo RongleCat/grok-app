@@ -117,6 +117,7 @@ export type WorkbenchComposerColumnProps = {
   confirmRemoveWorktree: (wt: GitWorktreeEntry) => void;
   connecting: boolean;
   contextUsageDisplay: ContextUsageDisplay;
+  refreshContextInfo: () => void;
   currentModelWindow: number | null;
   customRouteActive: boolean;
   cycleAttachedChatScope: (id: string) => void;

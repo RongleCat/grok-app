@@ -123,4 +123,8 @@ export const koSlash = {
   "slash.contextWindowNone": "이 모델에는 선택할 수 있는 컨텍스트 창이 없습니다.",
   "slash.contextWindowNoModel": "활성 모델이 없습니다.",
   "slash.contextWindowSwitched": "컨텍스트 창을 {size}(으)로 설정했습니다.",
+  "slash.context": "컨텍스트",
+  "slash.contextDesc": "컨텍스트 사용량 보기",
+  "slash.contextNoSession": "활성 세션이 없습니다",
+  "slash.contextUnavailable": "컨텍스트 사용량을 불러오지 못했습니다",
 };

@@ -24,6 +24,7 @@
  * - Zero estimated role buckets render as "—" (not "~0").
  */
 
+import type { ContextInfoView } from "./contextInfoSnapshot";
 import {
   formatEnglishCompactCount,
   formatMyriadCount,
@@ -203,6 +204,10 @@ export interface ContextUsageState {
    * without a fresh percentage.
    */
   agentPercentage: number | null;
+  /** Last `x.ai/session/info` view. Cleared on compact and session reset. */
+  contextInfo?: ContextInfoView | null;
+  /** Bumps when `/context` loads a snapshot so the chip opens. */
+  contextInfoNonce?: number;
 }
 
 export const INITIAL_CONTEXT_USAGE: ContextUsageState = {
@@ -311,6 +316,8 @@ export function reduceContextUsage(
           : null,
         // Keep agent window; percentage no longer valid after compact.
         agentPercentage: null,
+        // The category split is from before this compact.
+        contextInfo: null,
       };
     }
     case "usage": {
@@ -767,6 +774,9 @@ export interface ContextUsageDisplay {
   cacheHitRate: number | null;
   /** Agent-reported cached-read tokens (mirror of knownUsage for the chip). */
   cachedReadTokens: number | null;
+  /** Pager `/context` snapshot, when `x.ai/session/info` has been read. */
+  contextInfo?: ContextInfoView | null;
+  contextInfoNonce?: number;
 }
 
 /**

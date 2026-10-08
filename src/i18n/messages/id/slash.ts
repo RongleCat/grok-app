@@ -123,4 +123,8 @@ export const idSlash = {
   "slash.contextWindowNone": "Model ini tidak punya jendela konteks yang bisa dipilih.",
   "slash.contextWindowNoModel": "Tidak ada model aktif.",
   "slash.contextWindowSwitched": "Jendela konteks diatur ke {size}.",
+  "slash.context": "Konteks",
+  "slash.contextDesc": "Lihat pemakaian konteks",
+  "slash.contextNoSession": "Tidak ada sesi aktif",
+  "slash.contextUnavailable": "Pemakaian konteks tidak bisa dimuat",
 };

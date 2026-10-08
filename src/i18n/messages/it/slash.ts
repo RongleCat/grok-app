@@ -123,4 +123,8 @@ export const itSlash = {
   "slash.contextWindowNone": "Questo modello non ha finestre di contesto selezionabili.",
   "slash.contextWindowNoModel": "Nessun modello attivo.",
   "slash.contextWindowSwitched": "Finestra di contesto impostata su {size}.",
+  "slash.context": "Contesto",
+  "slash.contextDesc": "Mostra l'uso del contesto",
+  "slash.contextNoSession": "Nessuna sessione attiva",
+  "slash.contextUnavailable": "Impossibile leggere l'uso del contesto",
 };

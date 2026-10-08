@@ -846,6 +846,37 @@ impl SessionManager {
             .await
     }
 
+    /// Live `x.ai/session/info`. `/context` reads `context` from this object.
+    /// A chat that does not own the live slot has nothing to show.
+    pub async fn session_context_info(
+        &self,
+        session_id: Option<&str>,
+    ) -> Result<serde_json::Value, String> {
+        let Some(app_session_id) = session_id.map(str::trim).filter(|id| !id.is_empty()) else {
+            return Err("No active session".into());
+        };
+        let (acp, agent_sid) = {
+            let guard = self.inner.lock();
+            let Some(s) = guard.as_ref() else {
+                return Err("No active session".into());
+            };
+            if s.app_session_id != app_session_id {
+                return Err("No active session".into());
+            }
+            (
+                s.acp.clone(),
+                s.meta
+                    .agent_session_id
+                    .clone()
+                    .filter(|sid| !sid.is_empty()),
+            )
+        };
+        let (Some(acp), Some(agent_sid)) = (acp, agent_sid) else {
+            return Err("No active session".into());
+        };
+        acp.session_info(&agent_sid).await
+    }
+
     /// Apply product mode via session/set_mode; soft-respawn if agent rejects.
     pub async fn apply_product_mode(&self, app: &AppHandle, mode: String) -> Result<(), String> {
         let mode = mode.trim().to_ascii_lowercase();

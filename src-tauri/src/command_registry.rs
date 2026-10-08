@@ -168,6 +168,7 @@ pub fn app_invoke_handler(
         // ── Session model, rewind & fork ──
         commands::session_set_model,
         commands::session_set_context_window,
+        commands::session_context_info,
         commands::session_rewind_drop_last_user,
         commands::session_rewind_points,
         commands::session_rewind_execute,

@@ -123,4 +123,8 @@ export const zhSlash = {
   "slash.contextWindowNone": "当前模型没有可选的上下文窗口。",
   "slash.contextWindowNoModel": "没有当前模型。",
   "slash.contextWindowSwitched": "上下文窗口已设为 {size}。",
+  "slash.context": "上下文",
+  "slash.contextDesc": "查看上下文用量",
+  "slash.contextNoSession": "还没有活动会话",
+  "slash.contextUnavailable": "无法读取上下文用量",
 };

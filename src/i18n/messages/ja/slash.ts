@@ -123,4 +123,8 @@ export const jaSlash = {
   "slash.contextWindowNone": "このモデルには選べるコンテキストウィンドウがありません。",
   "slash.contextWindowNoModel": "現在のモデルがありません。",
   "slash.contextWindowSwitched": "コンテキストウィンドウを {size} に設定しました。",
+  "slash.context": "コンテキスト",
+  "slash.contextDesc": "コンテキスト使用量を表示",
+  "slash.contextNoSession": "アクティブなセッションがありません",
+  "slash.contextUnavailable": "コンテキスト使用量を読み込めませんでした",
 };

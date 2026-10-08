@@ -123,4 +123,8 @@ export const zhTWSlash = {
   "slash.contextWindowNone": "目前模型沒有可選的上下文視窗。",
   "slash.contextWindowNoModel": "沒有目前模型。",
   "slash.contextWindowSwitched": "上下文視窗已設為 {size}。",
+  "slash.context": "上下文",
+  "slash.contextDesc": "查看上下文用量",
+  "slash.contextNoSession": "還沒有活動工作階段",
+  "slash.contextUnavailable": "無法讀取上下文用量",
 };

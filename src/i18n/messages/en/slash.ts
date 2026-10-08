@@ -123,4 +123,8 @@ export const enSlash = {
   "slash.contextWindowNone": "This model has no selectable context windows.",
   "slash.contextWindowNoModel": "No active model.",
   "slash.contextWindowSwitched": "Context window set to {size}.",
+  "slash.context": "Context",
+  "slash.contextDesc": "View context usage",
+  "slash.contextNoSession": "No active session",
+  "slash.contextUnavailable": "Couldn't load context usage",
 } as const;

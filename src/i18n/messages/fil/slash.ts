@@ -123,4 +123,8 @@ export const filSlash = {
   "slash.contextWindowNone": "Walang mapipiling context window ang modelong ito.",
   "slash.contextWindowNoModel": "Walang aktibong modelo.",
   "slash.contextWindowSwitched": "Naitakda ang context window sa {size}.",
+  "slash.context": "Konteksto",
+  "slash.contextDesc": "Tingnan ang paggamit ng konteksto",
+  "slash.contextNoSession": "Walang aktibong session",
+  "slash.contextUnavailable": "Hindi ma-load ang paggamit ng konteksto",
 };

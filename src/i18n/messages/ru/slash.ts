@@ -123,4 +123,8 @@ export const ruSlash = {
   "slash.contextWindowNone": "У этой модели нет выбираемых окон контекста.",
   "slash.contextWindowNoModel": "Нет активной модели.",
   "slash.contextWindowSwitched": "Окно контекста установлено на {size}.",
+  "slash.context": "Контекст",
+  "slash.contextDesc": "Показать расход контекста",
+  "slash.contextNoSession": "Нет активной сессии",
+  "slash.contextUnavailable": "Не удалось загрузить расход контекста",
 };
