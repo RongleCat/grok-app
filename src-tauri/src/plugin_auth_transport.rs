@@ -41,6 +41,11 @@ pub fn execute(
                 .write_all(&payload)
                 .await
                 .map_err(|_| "Could not send plugin auth input")?;
+            // Drop does not deliver stdin EOF on Windows, so Node keeps waiting.
+            input
+                .shutdown()
+                .await
+                .map_err(|_| "Could not send plugin auth input")?;
             drop(input);
             child
                 .wait_with_output()
