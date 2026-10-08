@@ -114,5 +114,10 @@
     "typescript-eslint": "^8.65.0",
     "vite": "^6.3.5",
     "vitest": "^3.2.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "markdown-it": "14.3.2"
+    }
   }
 }

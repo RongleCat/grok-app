@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  markdown-it: 14.3.2
+
 importers:
 
   .:
@@ -2563,8 +2566,8 @@ packages:
   markdown-it-task-lists@2.1.1:
     resolution: {integrity: sha512-TxFAc76Jnhb2OUu+n3yz9RMu4CwGfaT788br6HhEDlvWfdeJcLUsxk1Hgw2yJio0OXsxv7pyIPmvECY7bMbluA==}
 
-  markdown-it@14.3.0:
-    resolution: {integrity: sha512-RCEsPjR+sr0x+AuYp601tKTkgFG4YEPLCzHST3cQ/fhlJkqAkz1L2/Qbp1j9qw5SBwQHFBoW8+hoN5xssOF0Tw==}
+  markdown-it@14.3.2:
+    resolution: {integrity: sha512-sHHjZ5fJKlgrG4qns2YwVcdNep35h5fERrfkD2YNsb9UFk0UIHarbiTaHKVMlPuWAoiilyK8Fv/jAm11slsY7Q==}
     hasBin: true
 
   markdown-table@3.0.4:
@@ -5838,7 +5841,7 @@ snapshots:
 
   markdown-it-task-lists@2.1.1: {}
 
-  markdown-it@14.3.0:
+  markdown-it@14.3.2:
     dependencies:
       argparse: 2.0.1
       entities: 4.5.0
@@ -6452,7 +6455,7 @@ snapshots:
   prosemirror-markdown@1.13.5:
     dependencies:
       '@types/markdown-it': 14.1.2
-      markdown-it: 14.3.0
+      markdown-it: 14.3.2
       prosemirror-model: 1.25.11
 
   prosemirror-model@1.25.11:
@@ -6818,7 +6821,7 @@ snapshots:
     dependencies:
       '@tiptap/core': 3.31.3(@tiptap/pm@3.31.3)
       '@types/markdown-it': 13.0.9
-      markdown-it: 14.3.0
+      markdown-it: 14.3.2
       markdown-it-task-lists: 2.1.1
       prosemirror-markdown: 1.13.5
 
