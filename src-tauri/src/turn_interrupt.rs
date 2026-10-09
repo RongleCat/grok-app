@@ -19,6 +19,8 @@ use crate::turn_lease::{
 pub struct TrailVerdict {
     pub abandoned: bool,
     pub pending_tool: Option<PendingTool>,
+    /// Parsed at least one events.jsonl or chat_history.jsonl row.
+    pub inspected: bool,
 }
 
 /// Walk space-separated or newline-delimited JSON objects.
@@ -47,10 +49,12 @@ pub fn inspect_agent_trail(agent_dir: &Path) -> TrailVerdict {
     let mut requested = 0u32;
     let mut resolved = 0u32;
     let mut last_tool: Option<PendingTool> = None;
+    let mut inspected = false;
 
     let events_path = agent_dir.join("events.jsonl");
     if let Ok(raw) = fs::read_to_string(&events_path) {
         for v in parse_json_stream(&raw) {
+            inspected = true;
             let typ = v.get("type").and_then(|x| x.as_str()).unwrap_or("");
             match typ {
                 "permission_requested" => {
@@ -69,8 +73,8 @@ pub fn inspect_agent_trail(agent_dir: &Path) -> TrailVerdict {
                     );
                 }
                 "permission_resolved" => resolved += 1,
-                "turn_completed" => {
-                    // Only the last turn matters. An earlier completed turn
+                "turn_completed" | "turn_ended" => {
+                    // Grok CLI writes `turn_ended`. An earlier completed turn
                     // must not hide a later abandoned permission/tool.
                     requested = 0;
                     resolved = 0;
@@ -90,6 +94,7 @@ pub fn inspect_agent_trail(agent_dir: &Path) -> TrailVerdict {
     let history_path = agent_dir.join("chat_history.jsonl");
     if let Ok(raw) = fs::read_to_string(&history_path) {
         for v in parse_json_stream(&raw) {
+            inspected = true;
             let typ = v
                 .get("type")
                 .or_else(|| v.get("role"))
@@ -117,7 +122,7 @@ pub fn inspect_agent_trail(agent_dir: &Path) -> TrailVerdict {
                         .or_else(|| v.get("toolCallId"))
                         .and_then(|x| x.as_str())
                     {
-                        open_calls.remove(id);
+                        close_open_call(&mut open_calls, id);
                     }
                 }
                 _ => {}
@@ -131,6 +136,52 @@ pub fn inspect_agent_trail(agent_dir: &Path) -> TrailVerdict {
     TrailVerdict {
         abandoned,
         pending_tool: last_tool.filter(|_| abandoned),
+        inspected,
+    }
+}
+
+/// Grok writes assistant `tool_calls[].id` as `call-<uuid>` and the matching
+/// `tool_result.tool_call_id` as `call-<uuid>-<n>`. Exact equality left every
+/// finished tool turn looking abandoned, so reconnect showed host_exit.
+fn close_open_call(open: &mut HashSet<String>, result_id: &str) {
+    if result_id.is_empty() {
+        return;
+    }
+    if open.remove(result_id) {
+        return;
+    }
+    let mut best: Option<String> = None;
+    let mut best_len = 0usize;
+    for id in open.iter() {
+        let prefixed = result_id.len() > id.len()
+            && result_id.starts_with(id.as_str())
+            && result_id.as_bytes().get(id.len()) == Some(&b'-');
+        if prefixed && id.len() > best_len {
+            best_len = id.len();
+            best = Some(id.clone());
+        }
+    }
+    if let Some(id) = best {
+        open.remove(&id);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HealAction {
+    WriteChip,
+    ClearStaleLease,
+    Skip,
+}
+
+fn host_exit_heal_action(lease_active: bool, trail: &TrailVerdict) -> HealAction {
+    if trail.abandoned {
+        HealAction::WriteChip
+    } else if lease_active && trail.inspected {
+        HealAction::ClearStaleLease
+    } else if lease_active {
+        HealAction::WriteChip
+    } else {
+        HealAction::Skip
     }
 }
 
@@ -217,8 +268,13 @@ pub fn heal_interrupted_turn(session_id: &str) -> Option<String> {
     let trail = resolve_agent_dir(session_id)
         .map(|d| inspect_agent_trail(&d))
         .unwrap_or_default();
-    if !lease_active && !trail.abandoned {
-        return None;
+    match host_exit_heal_action(lease_active, &trail) {
+        HealAction::Skip => return None,
+        HealAction::ClearStaleLease => {
+            crate::turn_lease::clear_lease(session_id);
+            return None;
+        }
+        HealAction::WriteChip => {}
     }
     let chip_id = append_host_exit_chip(session_id);
     if let Some(mut lease) = lease {
@@ -421,6 +477,64 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         assert!(!inspect_agent_trail(&dir).abandoned);
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn grok_tool_result_suffix_is_not_abandoned() {
+        let dir = std::env::temp_dir().join(format!("trail-suffix-{}", Uuid::new_v4()));
+        let history = r#"{"type":"assistant","tool_calls":[{"id":"call-6e5f5bf3-18bb-43b1-9826-a1981ca2e52a","name":"list_dir","arguments":"{}"},{"id":"call-6e5f5bf3-18bb-43b1-9826-a1981ca2e52a","name":"read_file","arguments":"{}"}]} {"type":"tool_result","tool_call_id":"call-6e5f5bf3-18bb-43b1-9826-a1981ca2e52a-1"} {"type":"tool_result","tool_call_id":"call-6e5f5bf3-18bb-43b1-9826-a1981ca2e52a-0"} {"type":"assistant","content":[{"type":"text","text":"done"}]}"#;
+        write_trail(&dir, r#"{"type":"turn_ended"}"#, history);
+        let v = inspect_agent_trail(&dir);
+        assert!(!v.abandoned);
+        assert!(v.inspected);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn turn_ended_is_not_abandoned() {
+        let dir = std::env::temp_dir().join(format!("trail-ended-{}", Uuid::new_v4()));
+        write_trail(
+            &dir,
+            r#"{"type":"permission_requested","tool_name":"read_file"} {"type":"permission_resolved"} {"type":"turn_ended"}"#,
+            r#"{"type":"assistant","content":[{"type":"text","text":"done"}]}"#,
+        );
+        let v = inspect_agent_trail(&dir);
+        assert!(!v.abandoned);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn host_exit_heal_skips_stale_lease_after_finished_trail() {
+        assert_eq!(
+            host_exit_heal_action(
+                true,
+                &TrailVerdict {
+                    abandoned: false,
+                    pending_tool: None,
+                    inspected: true,
+                },
+            ),
+            HealAction::ClearStaleLease
+        );
+        assert_eq!(
+            host_exit_heal_action(true, &TrailVerdict::default()),
+            HealAction::WriteChip
+        );
+        assert_eq!(
+            host_exit_heal_action(
+                false,
+                &TrailVerdict {
+                    abandoned: true,
+                    pending_tool: None,
+                    inspected: true,
+                },
+            ),
+            HealAction::WriteChip
+        );
+        assert_eq!(
+            host_exit_heal_action(false, &TrailVerdict::default()),
+            HealAction::Skip
+        );
     }
 
     #[test]
