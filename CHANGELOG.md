@@ -34,6 +34,7 @@ See `docs/llm-wiki/release.md`.
 - A non-text file token no longer blanks the whole chat.
 - A finished tool turn no longer looks like the app restarted.
 - Changing the context window no longer puts a new chat back on the default model.
+- A file reference can point at a directory, not only a file.
 
 **中文 · 修复**
 - @ 菜单里的文件名会完整显示，放不下时末尾才出现省略号。
@@ -48,6 +49,7 @@ See `docs/llm-wiki/release.md`.
 - 文件路径如果不是文字，整段对话不再因此变空白。
 - 已经做完的工具回合，切换对话时不再显示成应用重启。
 - 改上下文窗口时，新开的对话不会再回到默认模型。
+- 文件引用可以指向目录，而不只是文件。
 
 ## [0.2.39] - 2026-10-06
 

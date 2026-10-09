@@ -5,6 +5,7 @@ import {
   rankAtFileHits,
   removeAtTokenFromDraft,
   scoreAtFileHit,
+  toAtFileHits,
 } from "./atFileQuery";
 
 describe("detectAtQuery", () => {
@@ -76,5 +77,67 @@ describe("scoreAtFileHit", () => {
 describe("removeAtTokenFromDraft", () => {
   it("strips @token range", () => {
     expect(removeAtTokenFromDraft("see @packa now", 4, 10)).toBe("see  now");
+  });
+});
+
+describe("toAtFileHits", () => {
+  it("keeps a directory hit marked as a directory", () => {
+    // Arrange — the composer picks the reference kind from this flag
+    const hits = [
+      {
+        path: "/p/src",
+        name: "src",
+        relativePath: "src",
+        mtimeMs: 2,
+        isDir: true,
+      },
+      {
+        path: "/p/src/a.ts",
+        name: "a.ts",
+        relativePath: "src/a.ts",
+        mtimeMs: 1,
+      },
+    ];
+
+    // Act
+    const entries = toAtFileHits(hits);
+
+    // Assert
+    expect(entries).toEqual([
+      {
+        path: "/p/src",
+        name: "src",
+        relativePath: "src",
+        mtimeMs: 2,
+        isDir: true,
+      },
+      {
+        path: "/p/src/a.ts",
+        name: "a.ts",
+        relativePath: "src/a.ts",
+        mtimeMs: 1,
+        isDir: false,
+      },
+    ]);
+  });
+
+  it("survives ranking, so the panel still knows it is a directory", () => {
+    // Arrange / Act — the @ panel ranks after mapping the hits
+    const ranked = rankAtFileHits(
+      toAtFileHits([
+        { path: "/p/other.md", name: "other.md", relativePath: "other.md" },
+        {
+          path: "/p/components",
+          name: "components",
+          relativePath: "components",
+          isDir: true,
+        },
+      ]),
+      "components",
+    );
+
+    // Assert
+    expect(ranked).toHaveLength(1);
+    expect(ranked[0]?.isDir).toBe(true);
   });
 });
