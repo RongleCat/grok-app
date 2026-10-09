@@ -480,6 +480,43 @@ describe("resolveContextWindow", () => {
     ).toBe(256000);
   });
 
+  it("starts a new official chat at 500k when that size is advertised", () => {
+    const models: ModelOption[] = [
+      {
+        id: "grok-4.7",
+        label: "Grok 4.7",
+        contextWindow: 256000,
+        contextWindows: [256000, 500000],
+      },
+    ];
+    expect(
+      resolveContextWindow({
+        activeCustomProvider: null,
+        modelId: "grok-4.7",
+        models,
+      }),
+    ).toBe(500000);
+  });
+
+  it("keeps an agent-reported 256k over the 500k app default", () => {
+    const models: ModelOption[] = [
+      {
+        id: "grok-4.7",
+        label: "Grok 4.7",
+        contextWindow: 256000,
+        contextWindows: [256000, 500000],
+      },
+    ];
+    expect(
+      resolveContextWindow({
+        activeCustomProvider: null,
+        modelId: "grok-4.7",
+        models,
+        agentContextWindow: 256000,
+      }),
+    ).toBe(256000);
+  });
+
   it("returns live official 500k from catalog (Grok Build 1.0)", () => {
     const models: ModelOption[] = [
       { id: "grok-4.5", label: "Grok 4.5", contextWindow: 500_000 },

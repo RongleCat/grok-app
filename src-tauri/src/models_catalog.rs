@@ -82,6 +82,19 @@ struct ParsedCacheModel {
     context_windows: Vec<u64>,
 }
 
+/// New official chats start here when the model advertises it.
+/// The CLI catalog field `context_window` stays 256k.
+pub const APP_DEFAULT_CONTEXT_WINDOW: u64 = 500_000;
+
+/// 500k when this model lists it, otherwise no app override.
+pub fn app_default_context_window(model: &AvailableModel) -> Option<u64> {
+    if model_supports_context_window(model, APP_DEFAULT_CONTEXT_WINDOW) {
+        Some(APP_DEFAULT_CONTEXT_WINDOW)
+    } else {
+        None
+    }
+}
+
 /// Catalog default or an entry in `context_windows`. Matches the CLI agent.
 pub fn model_supports_context_window(model: &AvailableModel, window: u64) -> bool {
     if window == 0 {
@@ -767,6 +780,17 @@ mod tests {
         assert!(model_supports_context_window(&supported, 500000));
         assert!(!model_supports_context_window(&supported, 128000));
         assert!(!model_supports_context_window(&supported, 0));
+        assert_eq!(app_default_context_window(&supported), Some(500_000));
+        let camel_only = AvailableModel {
+            id: "grok-camel".into(),
+            label: "Camel".into(),
+            source: "official".into(),
+            is_default: false,
+            reasoning_efforts: Vec::new(),
+            context_window: Some(256_000),
+            context_windows: vec![128_000, 256_000],
+        };
+        assert_eq!(app_default_context_window(&camel_only), None);
         assert_eq!(
             map.get("grok-camel").map(|m| m.context_windows.clone()),
             Some(vec![128000, 256000])
