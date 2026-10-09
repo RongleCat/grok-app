@@ -21,6 +21,10 @@ import {
   shouldWriteScrollOnRowCommit,
   shouldVirtualizeChat,
   splitVirtSpacerHeights,
+  shouldWritePinnedWindowScrollTop,
+  clampDeferredWindowExpansion,
+  CHAT_VIEWPORT_COVER_MARGIN_PX,
+  CHAT_DEFERRED_MOUNT_ROWS_PER_COMMIT,
 } from "./chatVirtualList";
 
 const fixed = (h: number) => () => h;
@@ -483,8 +487,25 @@ describe("scrollTopAfterHeightChange", () => {
         prevHeight: 800,
         delta: 200,
         pinToBottom: false,
+        viewportHeight: 600,
       }),
     ).toBe(500);
+  });
+
+  it("shifts a short shell that only clips the top so the live tail stays put", () => {
+    // Previous turn is a 120px empty shell at 400; viewport at 480 is on the
+    // live tail. Shell paints to 4000px. Grow-in-place would throw the user
+    // onto that turn's user bubble.
+    expect(
+      scrollTopAfterHeightChange({
+        scrollTop: 480,
+        rowOffset: 400,
+        prevHeight: 120,
+        delta: 3880,
+        pinToBottom: false,
+        viewportHeight: 600,
+      }),
+    ).toBe(4360);
   });
 
   it("ignores rows at or below viewport top", () => {
@@ -663,6 +684,51 @@ describe("resolveChatRichRange", () => {
     expect(r.richEnd - r.richStart).toBeLessThanOrEqual(12);
     expect(r.richStart).toBeGreaterThanOrEqual(40);
   });
+
+  it("keeps both on-screen turns rich when compact tools would eat maxRows", () => {
+    const heights: number[] = [80];
+    for (let i = 0; i < 20; i++) heights.push(8);
+    heights.push(500);
+    const count = heights.length;
+    const offsets = cumulativeOffsets(count, (i) => heights[i] ?? 0);
+    const r = resolveChatRichRange({
+      count,
+      offsets,
+      viewTop: 0,
+      viewBottom: offsets[count] ?? 0,
+      geoStart: 0,
+      geoEnd: count,
+      pinToBottom: false,
+      maxRows: 12,
+    });
+    expect(r.richStart).toBe(0);
+    expect(r.richEnd).toBe(count);
+  });
+
+  it("pin window still paints the last user when compact tools pad the tail", () => {
+    const heights: number[] = [];
+    for (let i = 0; i < 30; i++) heights.push(100);
+    heights.push(80);
+    for (let i = 0; i < 20; i++) heights.push(8);
+    heights.push(500);
+    const count = heights.length;
+    const offsets = cumulativeOffsets(count, (i) => heights[i] ?? 0);
+    const lastUser = 30;
+    const viewBottom = offsets[count] ?? 0;
+    const viewTop = Math.max(0, viewBottom - 700);
+    const r = resolveChatRichRange({
+      count,
+      offsets,
+      viewTop,
+      viewBottom,
+      geoStart: 10,
+      geoEnd: count,
+      pinToBottom: true,
+      maxRows: 12,
+    });
+    expect(r.richEnd).toBe(count);
+    expect(r.richStart).toBeLessThanOrEqual(lastUser);
+  });
 });
 
 describe("shouldVirtualizeChat", () => {
@@ -702,5 +768,71 @@ describe("splitVirtSpacerHeights", () => {
 
   it("chunks a tall spacer under the compositor cap", () => {
     expect(splitVirtSpacerHeights(9000, 4096)).toEqual([4096, 4096, 808]);
+  });
+});
+
+describe("shouldWritePinnedWindowScrollTop", () => {
+  it("writes a normal tail snap", () => {
+    expect(
+      shouldWritePinnedWindowScrollTop({
+        currentScrollTop: 7400,
+        desiredScrollTop: 7410,
+        scrollHeight: 8000,
+        clientHeight: 600,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not yank a real position to 0 when spacers have not painted", () => {
+    expect(
+      shouldWritePinnedWindowScrollTop({
+        currentScrollTop: 7200,
+        desiredScrollTop: 0,
+        scrollHeight: 600,
+        clientHeight: 600,
+      }),
+    ).toBe(false);
+  });
+
+  it("skips a no-op write", () => {
+    expect(
+      shouldWritePinnedWindowScrollTop({
+        currentScrollTop: 7410,
+        desiredScrollTop: 7410,
+        scrollHeight: 8000,
+        clientHeight: 600,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("clampDeferredWindowExpansion", () => {
+  it("walks overscan a bounded number of rows per commit", () => {
+    expect(CHAT_DEFERRED_MOUNT_ROWS_PER_COMMIT).toBeGreaterThanOrEqual(8);
+    expect(CHAT_VIEWPORT_COVER_MARGIN_PX).toBeGreaterThanOrEqual(800);
+    const next = clampDeferredWindowExpansion({
+      targetStart: 10,
+      targetEnd: 80,
+      committedStart: 40,
+      committedEnd: 50,
+      pinToBottom: false,
+      maxRows: 8,
+    });
+    expect(next.start).toBe(32);
+    expect(next.end).toBe(58);
+  });
+
+  it("does not cap a pin expansion that force-indices already span", () => {
+    const next = clampDeferredWindowExpansion({
+      targetStart: 10,
+      targetEnd: 80,
+      committedStart: 40,
+      committedEnd: 80,
+      pinToBottom: true,
+      maxRows: 8,
+      forceIndices: [12],
+    });
+    expect(next.start).toBe(10);
+    expect(next.end).toBe(80);
   });
 });

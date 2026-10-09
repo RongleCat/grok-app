@@ -354,15 +354,13 @@ describe("useChatMessageVirtualizer touch freeze", () => {
     expect(viewport.dataset.scrolling).toBeUndefined();
   });
 
-  it("updates geo shells after unpin but does not snap the rich band to the new target", () => {
+  it("updates geo shells after unpin and still paints the live viewport", () => {
     const { viewport, result } = mount({
       pinned: false,
       count: 300,
       scrollTop: 0,
     });
-    const richEnd0 = result.current.richEnd;
     const start0 = result.current.start;
-    expect(richEnd0).toBeGreaterThan(0);
     act(() => {
       dispatchPointer(viewport, "pointerdown", "touch");
       dispatchPointer(window, "pointercancel", "touch");
@@ -371,7 +369,8 @@ describe("useChatMessageVirtualizer touch freeze", () => {
       vi.advanceTimersByTime(16);
     });
     expect(result.current.start).toBeGreaterThan(start0);
-    expect(result.current.richEnd).toBe(richEnd0);
-    expect(result.current.richStart).toBeLessThan(20);
+    expect(result.current.richStart).toBeGreaterThan(10);
+    expect(result.current.richStart).toBeLessThanOrEqual(24);
+    expect(result.current.richEnd).toBeGreaterThan(24);
   });
 });

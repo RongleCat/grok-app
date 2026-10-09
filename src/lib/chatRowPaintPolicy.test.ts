@@ -55,6 +55,20 @@ describe("nextChatRichBand", () => {
     expect(next).toEqual(band(10, 22));
   });
 
+  it("still paints the live viewport while a gesture freezes overscan", () => {
+    const next = nextChatRichBand({
+      target: band(40, 52),
+      committed: band(10, 22),
+      geoStart: 0,
+      geoEnd: 80,
+      scrolling: true,
+      viewStart: 40,
+      viewEnd: 46,
+    });
+    expect(next.richStart).toBeLessThanOrEqual(40);
+    expect(next.richEnd).toBeGreaterThanOrEqual(46);
+  });
+
   it("fills the whole target in one idle commit after a hole", () => {
     const next = nextChatRichBand({
       target: band(90, 102),
@@ -77,6 +91,20 @@ describe("nextChatRichBand", () => {
     });
     expect(next).toEqual(band(10, 16));
     expect(chatRichBandNeedsFollowUp(next, band(10, 22))).toBe(true);
+  });
+
+  it("idle overlap still fills the live viewport in the same commit", () => {
+    const next = nextChatRichBand({
+      target: band(10, 30),
+      committed: band(20, 23),
+      geoStart: 0,
+      geoEnd: 80,
+      scrolling: false,
+      viewStart: 10,
+      viewEnd: 28,
+    });
+    expect(next.richStart).toBe(10);
+    expect(next.richEnd).toBeGreaterThanOrEqual(28);
   });
 
   it("shrinks to the target once idle", () => {

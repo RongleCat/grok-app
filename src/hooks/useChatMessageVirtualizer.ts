@@ -3,29 +3,11 @@
  * Respects stick-to-bottom: when pinned, always mounts the tail; when
  * escaped, windows by scrollTop and corrects scrollTop on height remeasure.
  *
- * Bounce defenses:
- * - Content-aware estimates (caller) so scrollHeight is not wildly short.
- * - Ignore shrink thrash / sub-pixel remeasure.
- * - Only shift scrollTop when a row **fully above** the viewport changes height
- *   (tall media assistants that straddle the fold expand in place).
- * - Per-row ResizeObserver so image/video decode updates height cache (callback
- *   refs alone only fire on mount).
- * - Debounced recompute so measure storms cannot oscillate the window.
- * - Pinned: no per-row scrollTop snap. Image/PDF decode used to snap on
- *   every commit, then the window layout snapped again (bounce-up).
- *
- * Long-session perf:
- * - rAF-coalesce scroll recomputes (one window update per frame while flinging).
- * - Cache cumulative offsets until a height commit or itemCount change.
- * - Adaptive overscan via {@link resolveChatOverscanPx}.
- * - Force-index expand capped while escaped (see chatVirtualList).
- * - Overscan-only window commits render via startTransition ("background
- *   mounting"): when the committed window still covers the viewport, new rows
- *   are pure pre-mounting, so React may time-slice them and scroll/input can
- *   interrupt. Only a viewport hole forces the urgent lane.
- * - Markdown paint is a narrower band than the geo window. Gestures freeze
- *   the rich band (compositor still scrolls). Idle hole fills the whole
- *   target in one urgent commit; extra overscan hydrates a few rows per frame.
+ * Bounce defenses: content-aware estimates, ignore shrink thrash, shift
+ * scrollTop for rows fully above the fold (short shells that only clip the
+ * top also shift so the live tail stays put). Pinned commits never write
+ * scrollTop per row. Gestures freeze overscan hydration but still paint
+ * rows that intersect the viewport.
  */
 
 import {
@@ -38,23 +20,19 @@ import {
 } from "react";
 import {
   CHAT_DEFAULT_ROW_ESTIMATE_PX,
-  CHAT_RICH_MAX_ROWS,
   CHAT_VIRTUALIZE_THRESHOLD,
   chatOpenPinWindow,
   computeChatVirtualWindow,
   cumulativeOffsets,
   shiftOffsetsAfter,
   resolveChatOverscanPx,
+  scrollTopAfterHeightChange,
   shouldCommitRowHeight,
   shouldVirtualizeChat,
+  shouldWritePinnedWindowScrollTop,
   type ChatVirtualWindow,
 } from "@/lib/chatVirtualList";
-import {
-  chatRichBandNeedsFollowUp,
-  chatRichBandsOverlap,
-  intersectChatRichBand,
-  nextChatRichBand,
-} from "@/lib/chatRowPaintPolicy";
+import { planChatVirtualWindowCommit } from "@/lib/chatVirtualCommit";
 import { scrollPerfDebug } from "@/lib/scrollPerfDebug";
 import {
   isStreamPerfActive,
@@ -378,106 +356,26 @@ export function useChatMessageVirtualizer(
       offsets,
     });
 
-    // Urgent-vs-background lane decision, made against the DOM-committed
-    // window (winRef can run ahead of pending transition commits): if the
-    // committed window still covers the viewport plus a margin, this update
-    // only grows/trims overscan — pure pre-mounting. That holds for pinned
-    // windows too (tail covered ⇒ expansion upward is background work).
-    const committed = committedWinRef.current;
-    const cTopPx = offsets[Math.min(committed.start, count)] ?? 0;
-    const cBottomPx = offsets[Math.min(committed.end, count)] ?? 0;
-    const viewTop = el.scrollTop;
-    const viewBottom = viewTop + el.clientHeight;
-    const coverMarginPx = 240;
-    const committedCoversViewport =
-      cTopPx <= Math.max(0, viewTop - coverMarginPx) &&
-      cBottomPx >= Math.min(next.totalHeight, viewBottom + coverMarginPx);
-    const committedRich = {
-      richStart: committed.richStart,
-      richEnd: committed.richEnd,
-    };
-    const targetRichEarly = {
-      richStart: next.richStart,
-      richEnd: next.richEnd,
-    };
+    const viewTop = pin
+      ? Math.max(0, next.totalHeight - el.clientHeight)
+      : el.scrollTop;
+    const viewBottom = pin ? next.totalHeight : viewTop + el.clientHeight;
     const freezeRich = fingerDownRef.current || scrollingRef.current;
-    const richHole =
-      !freezeRich &&
-      !chatRichBandsOverlap(
-        intersectChatRichBand(committedRich, next.start, next.end),
-        targetRichEarly,
-      );
-    const deferrable =
-      !scrollTopWasWritten && committedCoversViewport && !richHole;
-
-    // Chunked pre-mounting: a deferred expansion mounts at most a few rows
-    // per commit, and an rAF loop walks the window to the full target.
-    // Without the cap, a pin↔browse window swing after re-pinning committed
-    // ten rows (five "Worked for …" phase blocks) at once — a ~100ms commit
-    // even on the transition lane, because the DOM commit is atomic.
-    if (deferrable) {
-      const MAX_MOUNT_ROWS_PER_COMMIT = 3;
-      let s = next.start;
-      let e = next.end;
-      const sFloor = committed.start - MAX_MOUNT_ROWS_PER_COMMIT;
-      if (
-        s < sFloor &&
-        !forceRef.current.some((i) => i >= s && i < sFloor)
-      ) {
-        s = sFloor;
-      }
-      const eCeil = committed.end + MAX_MOUNT_ROWS_PER_COMMIT;
-      if (
-        !pin &&
-        e > eCeil &&
-        !forceRef.current.some((i) => i >= eCeil && i < e)
-      ) {
-        e = eCeil;
-      }
-      if (s !== next.start || e !== next.end) {
-        next = {
-          ...next,
-          start: s,
-          end: e,
-          paddingTop: offsets[s] ?? 0,
-          paddingBottom: Math.max(
-            0,
-            next.totalHeight - (offsets[Math.min(e, count)] ?? next.totalHeight),
-          ),
-        };
-        scheduleOnFrame(scrollFrameRef.current, () => recomputeNow());
-      }
-    }
-
-    const targetRich = {
-      richStart: next.richStart,
-      richEnd: next.richEnd,
-    };
-    const steppedRich = nextChatRichBand({
-      target: targetRich,
-      committed: {
-        richStart: committed.richStart,
-        richEnd: committed.richEnd,
-      },
-      geoStart: next.start,
-      geoEnd: next.end,
-      scrolling: freezeRich,
+    const planned = planChatVirtualWindowCommit({
+      next,
+      committed: committedWinRef.current,
+      offsets,
+      count,
+      viewTop,
+      viewBottom,
       pinToBottom: pin,
+      freezeRich,
+      scrollTopWasWritten,
       forceIndices: forceRef.current,
-      maxRows: CHAT_RICH_MAX_ROWS,
     });
-    next = {
-      ...next,
-      richStart: steppedRich.richStart,
-      richEnd: steppedRich.richEnd,
-    };
-    if (
-      !freezeRich &&
-      chatRichBandNeedsFollowUp(
-        steppedRich,
-        intersectChatRichBand(targetRich, next.start, next.end),
-      )
-    ) {
+    next = planned.window;
+    const deferrable = planned.deferrable;
+    if (planned.needsFollowUp) {
       scheduleOnFrame(scrollFrameRef.current, () => recomputeNow());
     }
 
@@ -743,7 +641,7 @@ export function useChatMessageVirtualizer(
     if (!virtualized) return;
     if (fingerDownRef.current) return;
     const forceOpen = shouldForcePinnedSnapOnOpen({
-      pinned: true,
+      pinned: !!isPinnedRef.current,
       forceOpenSnap: forceOpenSnapRef.current,
     });
     if (!isPinnedRef.current && !forceOpen) return;
@@ -763,7 +661,14 @@ export function useChatMessageVirtualizer(
     });
     const top = Math.max(0, v.scrollHeight - v.clientHeight);
     const desired = Math.max(0, top - dist);
-    if (Math.abs(v.scrollTop - desired) > 0.5) {
+    if (
+      shouldWritePinnedWindowScrollTop({
+        currentScrollTop: v.scrollTop,
+        desiredScrollTop: desired,
+        scrollHeight: v.scrollHeight,
+        clientHeight: v.clientHeight,
+      })
+    ) {
       ignoreScrollAdjustRef.current = true;
       markProgrammaticStickScroll(v, desired);
       v.scrollTop = desired;
@@ -835,8 +740,6 @@ export function useChatMessageVirtualizer(
       const offsetsBefore = getOffsets();
       const rowOffset = offsetsBefore[index] ?? 0;
       const viewport = viewportRef.current;
-      const isFullyAboveViewport =
-        viewport && rowOffset + prevH <= viewport.scrollTop + 0.5;
 
       // Measurement instant commit
       const delta = nextH - prevH;
@@ -864,15 +767,26 @@ export function useChatMessageVirtualizer(
           }
         : null;
 
-      // Compensate height changes for rows above the viewport
-      if (!isPinnedRef.current && isFullyAboveViewport && Math.abs(delta) > 0.5) {
-        if (scrollingRef.current || fingerDownRef.current) {
-          // Mid-scroll: absorb into top spacer without writing scrollTop (preserves smooth gesture)
-          pendingAnchorOffsetRef.current += delta;
-        } else if (viewport) {
-          // Idle reading: synchronously adjust scrollTop to keep on-screen content locked in place
-          ignoreScrollAdjustRef.current = true;
-          viewport.scrollTop += delta;
+      // Compensate height changes so later content stays put. Short shells
+      // that only clip the top must shift; tall rows the user is reading
+      // grow in place (see scrollTopAfterHeightChange).
+      if (viewport && Math.abs(delta) > 0.5) {
+        const desiredTop = scrollTopAfterHeightChange({
+          scrollTop: viewport.scrollTop,
+          rowOffset,
+          prevHeight: prevH,
+          delta,
+          pinToBottom: !!isPinnedRef.current,
+          viewportHeight: viewport.clientHeight,
+        });
+        const shift = desiredTop - viewport.scrollTop;
+        if (Math.abs(shift) > 0.5) {
+          if (scrollingRef.current || fingerDownRef.current) {
+            pendingAnchorOffsetRef.current += shift;
+          } else {
+            ignoreScrollAdjustRef.current = true;
+            viewport.scrollTop = desiredTop;
+          }
         }
       }
 

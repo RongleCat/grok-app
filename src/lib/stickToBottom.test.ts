@@ -425,6 +425,19 @@ describe("shouldForcePinnedSnapOnOpen", () => {
       }),
     ).toBe(false);
   });
+
+  it("virtualizer open-snap follows the live stick flag, not a hardcoded pin", () => {
+    const src = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        "../hooks/useChatMessageVirtualizer.ts",
+      ),
+      "utf8",
+    );
+    expect(src).toContain("pinned: !!isPinnedRef.current");
+    expect(src).toContain("shouldWritePinnedWindowScrollTop");
+    expect(src).toContain("scrollTopAfterHeightChange");
+  });
 });
 
 describe("isHeightDeltaNoise", () => {
