@@ -104,10 +104,13 @@ const OFFICIAL_FOUR_TIER_IDS = new Set([
 /**
  * CLI catalog default and the selectable list for Grok 4.7 / Fast / 4.6 / 4.5.
  * `models_cache.json` advertises `context_window: 256000` and
- * `context_windows: [256000, 500000]`. The first entry is the default.
+ * `context_windows: [256000, 500000]`. 256k is the CLI catalog default.
+ * When 500k is listed, a new chat in this app starts at 500k.
  */
 export const GROK_BUILD_CONTEXT_WINDOW = 256000;
 export const GROK_BUILD_CONTEXT_WINDOWS = [256000, 500000];
+/** Window a new official chat uses when the model advertises it. */
+export const GROK_BUILD_APP_DEFAULT_CONTEXT_WINDOW = 500000;
 
 /**
  * Fallback catalog when Host has not returned live models yet.
@@ -695,6 +698,13 @@ export function resolveContextWindow(opts: {
     return DEFAULT_CUSTOM_CONTEXT_WINDOW;
   }
   const m = findModel(modelId, models);
+  if (
+    m &&
+    (m.contextWindows?.includes(GROK_BUILD_APP_DEFAULT_CONTEXT_WINDOW) ||
+      m.contextWindow === GROK_BUILD_APP_DEFAULT_CONTEXT_WINDOW)
+  ) {
+    return GROK_BUILD_APP_DEFAULT_CONTEXT_WINDOW;
+  }
   const catalog = m?.contextWindow;
   if (catalog != null && Number.isFinite(catalog) && catalog > 0) {
     return Math.floor(catalog);
