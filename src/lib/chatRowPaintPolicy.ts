@@ -3,7 +3,9 @@
  *
  * Compositor owns finger tracking (full refresh). This module only decides
  * which mounted rows run ReactMarkdown:
- * - During a gesture / fling, freeze the committed rich band (geo-clamped).
+ * - During a gesture / fling, freeze overscan hydration but still paint
+ *   rows that intersect the viewport (empty shells in the live view are
+ *   the "scroll up and nothing is rendered" hitch).
  * - Once idle, snap to the full target if the viewport moved; extra overscan
  *   beyond an overlapping band still hydrates a few rows per frame.
  * - Pin snaps to the tail when the finger is up.
@@ -85,8 +87,9 @@ export function chatRichBandNeedsFollowUp(
 /**
  * Step the committed markdown band toward `target`.
  *
- * Gesture/fling: freeze (geo-clamp only). Idle hole: whole target in one
- * commit. Idle overlap: expand at most hydrateRows. Pin: snap to tail.
+ * Gesture/fling: freeze overscan; always union the live viewport.
+ * Idle hole: whole target in one commit. Idle overlap: expand at most
+ * hydrateRows, then union the viewport. Pin: snap to tail.
  */
 export function nextChatRichBand(input: {
   target: ChatRichBand;
@@ -98,6 +101,9 @@ export function nextChatRichBand(input: {
   forceIndices?: readonly number[];
   hydrateRows?: number;
   maxRows?: number;
+  /** Rows that currently intersect the viewport — always paint, even mid-gesture. */
+  viewStart?: number;
+  viewEnd?: number;
 }): ChatRichBand {
   const geoStart = input.geoStart;
   const geoEnd = Math.max(geoStart, input.geoEnd);
@@ -119,8 +125,26 @@ export function nextChatRichBand(input: {
     input.forceIndices,
   );
 
+  const viewBand =
+    input.viewStart != null &&
+    input.viewEnd != null &&
+    input.viewEnd > input.viewStart
+      ? intersectChatRichBand(
+          { richStart: input.viewStart, richEnd: input.viewEnd },
+          geoStart,
+          geoEnd,
+        )
+      : null;
+
   if (input.scrolling) {
-    return live;
+    if (!viewBand || chatRichBandIsEmpty(viewBand)) return live;
+    if (chatRichBandIsEmpty(live) || !chatRichBandsOverlap(live, viewBand)) {
+      return viewBand;
+    }
+    return {
+      richStart: Math.min(live.richStart, viewBand.richStart),
+      richEnd: Math.max(live.richEnd, viewBand.richEnd),
+    };
   }
 
   if (chatRichBandIsEmpty(live) || !chatRichBandsOverlap(live, target)) {
@@ -142,6 +166,10 @@ export function nextChatRichBand(input: {
   }
   if (target.richStart > s) s = target.richStart;
   if (target.richEnd < e) e = target.richEnd;
+  if (viewBand && !chatRichBandIsEmpty(viewBand)) {
+    s = Math.min(s, viewBand.richStart);
+    e = Math.max(e, viewBand.richEnd);
+  }
   if (e <= s) return { richStart: geoStart, richEnd: geoStart };
   return { richStart: s, richEnd: e };
 }

@@ -76,6 +76,16 @@ export const CHAT_RICH_MAX_ROWS = 12;
 export const CHAT_PIN_RICH_TAIL_ROWS = 8;
 
 /**
+ * Committed geo window must cover this much past the viewport before a
+ * window update is treated as overscan-only (background) work. 240px was
+ * one trackpad tick — a fling walked into empty spacers in a single frame.
+ */
+export const CHAT_VIEWPORT_COVER_MARGIN_PX = 1200;
+
+/** Overscan rows to mount per deferred commit. Viewport rows are never chunked. */
+export const CHAT_DEFERRED_MOUNT_ROWS_PER_COMMIT = 8;
+
+/**
  * Chat ImageUi card max height (must match ImageUi CHAT_IMAGE_CARD_MAX_H).
  * Used for virtual-row pre-estimates so multi-image turns do not under-scroll.
  */
@@ -453,8 +463,37 @@ export function applyForceIndices(input: {
 }
 
 /**
+ * Inclusive-start / exclusive-end of rows that intersect [viewTop, viewBottom].
+ */
+export function chatViewportRowRange(input: {
+  offsets: readonly number[];
+  viewTop: number;
+  viewBottom: number;
+  geoStart: number;
+  geoEnd: number;
+}): { viewStart: number; viewEnd: number } {
+  const geoStart = Math.max(0, input.geoStart);
+  const geoEnd = Math.max(geoStart, input.geoEnd);
+  if (geoEnd <= geoStart) return { viewStart: geoStart, viewEnd: geoEnd };
+  const offsets = input.offsets as number[];
+  let viewStart = findStartIndex(offsets, input.viewTop);
+  let viewEnd = findEndIndex(offsets, input.viewBottom);
+  if (viewEnd <= viewStart) viewEnd = Math.min(geoEnd, viewStart + 1);
+  viewStart = Math.max(geoStart, Math.min(viewStart, geoEnd));
+  viewEnd = Math.max(viewStart, Math.min(viewEnd, geoEnd));
+  viewStart = snapVirtualStartBeforeZeroRun(input.offsets, viewStart);
+  viewStart = Math.max(geoStart, Math.min(viewStart, Math.max(geoStart, geoEnd - 1)));
+  viewEnd = Math.max(viewStart + 1, Math.min(viewEnd, geoEnd));
+  return { viewStart, viewEnd };
+}
+
+/**
  * Markdown band inside a geometric window. Overscan shells keep scrollHeight
  * stable; only this inner range runs ReactMarkdown.
+ *
+ * Viewport-intersecting rows always stay in the band. `maxRows` may only
+ * trim overscan — compact tool rows used to consume the cap and leave the
+ * on-screen user/assistant bubbles as empty shells.
  */
 export function resolveChatRichRange(input: {
   count: number;
@@ -474,6 +513,14 @@ export function resolveChatRichRange(input: {
   const geoStart = Math.max(0, Math.min(input.geoStart, count));
   const geoEnd = Math.max(geoStart, Math.min(input.geoEnd, count));
   if (geoEnd <= geoStart) return { richStart: geoStart, richEnd: geoEnd };
+
+  const { viewStart, viewEnd } = chatViewportRowRange({
+    offsets: input.offsets,
+    viewTop: input.viewTop,
+    viewBottom: input.viewBottom,
+    geoStart,
+    geoEnd,
+  });
 
   const pad =
     input.richOverscanPx != null && Number.isFinite(input.richOverscanPx)
@@ -495,6 +542,9 @@ export function resolveChatRichRange(input: {
     richStart = Math.min(richStart, Math.max(geoStart, geoEnd - tail));
   }
 
+  if (viewStart < richStart) richStart = viewStart;
+  if (viewEnd > richEnd) richEnd = viewEnd;
+
   const forces = input.forceIndices;
   if (forces?.length) {
     for (const raw of forces) {
@@ -507,19 +557,28 @@ export function resolveChatRichRange(input: {
 
   const maxRows = Math.max(1, input.maxRows ?? CHAT_RICH_MAX_ROWS);
   if (richEnd - richStart > maxRows) {
-    if (input.pinToBottom) {
-      richStart = richEnd - maxRows;
-    } else {
-      const mid = (input.viewTop + input.viewBottom) / 2;
-      const midIdx = findStartIndex(input.offsets as number[], mid);
-      richStart = Math.max(geoStart, Math.min(midIdx - (maxRows >> 1), geoEnd - maxRows));
-      richEnd = richStart + maxRows;
+    // Trim overscan only. A viewport that itself exceeds maxRows (two long
+    // turns plus compact tools) still paints everything on screen.
+    if (richStart < viewStart) {
+      const room = Math.max(0, maxRows - (richEnd - viewStart));
+      richStart = Math.max(richStart, viewStart - room);
+    }
+    if (richEnd - richStart > maxRows && richEnd > viewEnd) {
+      richEnd = Math.min(richEnd, Math.max(viewEnd, richStart + maxRows));
+    }
+    if (richEnd - richStart > maxRows) {
+      richStart = viewStart;
+      richEnd = viewEnd;
     }
     richStart = Math.max(geoStart, richStart);
     richEnd = Math.min(geoEnd, richEnd);
   }
 
   richStart = snapVirtualStartBeforeZeroRun(input.offsets, richStart);
+  richStart = Math.max(geoStart, Math.min(richStart, Math.max(geoStart, geoEnd - 1)));
+  richEnd = Math.max(richStart + 1, Math.min(richEnd, geoEnd));
+  if (viewStart < richStart) richStart = viewStart;
+  if (viewEnd > richEnd) richEnd = viewEnd;
   richStart = Math.max(geoStart, Math.min(richStart, Math.max(geoStart, geoEnd - 1)));
   richEnd = Math.max(richStart + 1, Math.min(richEnd, geoEnd));
   return { richStart, richEnd };
@@ -684,6 +743,8 @@ export function scrollTopAfterHeightChange(input: {
   prevHeight: number;
   delta: number;
   pinToBottom: boolean;
+  /** Viewport height; when set, short shells that only clip the top shift. */
+  viewportHeight?: number;
 }): number {
   if (input.pinToBottom) return input.scrollTop;
   if (input.delta === 0) return input.scrollTop;
@@ -692,8 +753,86 @@ export function scrollTopAfterHeightChange(input: {
   if (oldBottom <= input.scrollTop + 0.5) {
     return Math.max(0, input.scrollTop + input.delta);
   }
-  // Straddles or sits at/below the fold — grow/shrink in place.
+  const vh = input.viewportHeight;
+  if (
+    input.delta > 0 &&
+    vh != null &&
+    Number.isFinite(vh) &&
+    vh > 0 &&
+    input.rowOffset < input.scrollTop
+  ) {
+    const viewTop = input.scrollTop;
+    const viewBottom = viewTop + vh;
+    const visibleOld = Math.max(
+      0,
+      Math.min(oldBottom, viewBottom) - Math.max(input.rowOffset, viewTop),
+    );
+    // Short shell / previous turn that only clips the top of the viewport:
+    // the user is reading later content. Grow-in-place would throw them
+    // onto this row's user bubble ("nudge at the tail jumps to the prompt").
+    if (visibleOld < vh * 0.35) {
+      return Math.max(0, input.scrollTop + input.delta);
+    }
+  }
+  // Tall row the user is actually reading — grow/shrink in place.
   return input.scrollTop;
+}
+
+/**
+ * Refuse a pinned layout snap that would park a populated transcript at 0
+ * because spacers have not painted yet (scrollHeight collapsed to the
+ * viewport). That is the "nudge at the tail jumps to the last user bubble".
+ */
+export function shouldWritePinnedWindowScrollTop(input: {
+  currentScrollTop: number;
+  desiredScrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+}): boolean {
+  if (Math.abs(input.currentScrollTop - input.desiredScrollTop) <= 0.5) {
+    return false;
+  }
+  const maxTop = Math.max(0, input.scrollHeight - input.clientHeight);
+  if (maxTop < 8 && input.currentScrollTop > 64) return false;
+  return true;
+}
+
+/**
+ * Walk a deferred geo-window expansion a few rows per commit. Viewport
+ * coverage is the caller's job — this only caps overscan pre-mounting.
+ */
+export function clampDeferredWindowExpansion(input: {
+  targetStart: number;
+  targetEnd: number;
+  committedStart: number;
+  committedEnd: number;
+  pinToBottom: boolean;
+  maxRows?: number;
+  forceIndices?: readonly number[];
+}): { start: number; end: number } {
+  const maxRows = Math.max(
+    1,
+    input.maxRows ?? CHAT_DEFERRED_MOUNT_ROWS_PER_COMMIT,
+  );
+  let start = input.targetStart;
+  let end = input.targetEnd;
+  const sFloor = input.committedStart - maxRows;
+  const forces = input.forceIndices;
+  if (
+    start < sFloor &&
+    !(forces?.some((i) => i >= start && i < sFloor) ?? false)
+  ) {
+    start = sFloor;
+  }
+  const eCeil = input.committedEnd + maxRows;
+  if (
+    !input.pinToBottom &&
+    end > eCeil &&
+    !(forces?.some((i) => i >= eCeil && i < end) ?? false)
+  ) {
+    end = eCeil;
+  }
+  return { start, end };
 }
 
 /**
