@@ -19,9 +19,17 @@
 const SITE_ROOT_FIRST_SEG =
   /^(?:images?|static|assets?|public|uploads?|css|js|fonts?|icons?|img|cdn|dist|build|frontend|backend|api|web|www|resources?|files?|content|cms)(?:\/|$)/i;
 
+/**
+ * Markdown, journal JSON, and tool rows sometimes pass a number or object
+ * where a path string is expected. Coerce so `.trim()` cannot crash the chat.
+ */
+export function pathTokenText(input: unknown): string {
+  return typeof input === "string" ? input : "";
+}
+
 /** Windows drive or UNC — backslash is a separator, not shell escape. */
 export function isWindowsStylePath(s: string): boolean {
-  const t = s.trim();
+  const t = pathTokenText(s).trim();
   return (
     (/^[A-Za-z]:[\\/]/.test(t) || t.startsWith("\\\\")) &&
     !isFusedQueryKeyPath(t)
@@ -50,7 +58,7 @@ const POSIX_ROOT_AFTER_DRIVE =
  * - only known media query keys `t` / `p` + a POSIX-root remainder count.
  */
 export function isFusedQueryKeyPath(s: string): boolean {
-  const t = (s ?? "").trim();
+  const t = pathTokenText(s).trim();
   if (!/^[A-Za-z]:\//.test(t)) return false;
   const drive = t[0]!.toLowerCase();
   // Media HTTP query keys only — never invent fused hits for real volumes
@@ -66,7 +74,7 @@ export function isFusedQueryKeyPath(s: string): boolean {
  * Does **not** rewrite Windows path separators (`C:\Users\...`).
  */
 export function unescapeShellPath(input: string): string {
-  const raw = (input ?? "").trim();
+  const raw = pathTokenText(input).trim();
   if (!raw) return "";
   if (isWindowsStylePath(raw)) {
     // Normalize separators only.
@@ -140,7 +148,7 @@ export function isSiteRootAbsolutePath(s: string): boolean {
  * 3) collapse accidental `//` inside real local abs only
  */
 export function normalizeLocalPathToken(input: string): string {
-  let t = (input ?? "").trim().replace(/^<|>$/g, "");
+  let t = pathTokenText(input).trim().replace(/^<|>$/g, "");
   if (!t) return "";
   if (isWindowsStylePath(t)) {
     t = t.replace(/\\/g, "/");
@@ -173,7 +181,7 @@ export function isLocalMediaOpenable(
   token: string,
   pathMap?: Record<string, string> | null,
 ): boolean {
-  const raw = (token ?? "").trim();
+  const raw = pathTokenText(token).trim();
   if (!raw) return false;
   if (isSiteRootAbsolutePath(raw)) return false;
   if (pathMap?.[raw] && isRealLocalAbsolutePath(pathMap[raw]!)) return true;
@@ -188,8 +196,8 @@ export function isLocalMediaOpenable(
  * keep relative multi-segment as-is for code citations.
  */
 export function displayPathLabel(path: string): string {
-  const t = normalizeLocalPathToken(path) || path.trim();
-  if (!t) return path;
+  const t = normalizeLocalPathToken(path) || pathTokenText(path).trim();
+  if (!t) return pathTokenText(path);
   if (isRealLocalAbsolutePath(t) || t.length > 64) {
     const parts = t.split("/").filter(Boolean);
     return parts[parts.length - 1] || t;

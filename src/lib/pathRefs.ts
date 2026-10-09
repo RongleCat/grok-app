@@ -16,6 +16,7 @@ import {
   isSiteRootAbsolutePath,
   isWindowsStylePath,
   normalizeLocalPathToken,
+  pathTokenText,
   unescapeShellPath,
 } from "@/lib/pathNormalize";
 
@@ -28,7 +29,7 @@ const FILE_EXT_RE = new RegExp(
 );
 
 export function isHttpUrl(s: string): boolean {
-  return /^https?:\/\//i.test(s.trim());
+  return /^https?:\/\//i.test(pathTokenText(s).trim());
 }
 
 /**
@@ -41,7 +42,7 @@ export function isHttpUrl(s: string): boolean {
  * spaces open correctly; does not treat those backslashes as Windows separators.
  */
 export function normalizePathToken(s: string): string {
-  let t = s.trim();
+  let t = pathTokenText(s).trim();
   if (!t) return t;
   // Shell-unescape / Windows normalize before other transforms.
   t = normalizeLocalPathToken(t) || t;
@@ -142,7 +143,7 @@ export function isHomeRelativePath(s: string): boolean {
  * Prefer {@link isRealLocalAbsolutePath} for media open / path_scope.
  */
 export function isAbsoluteFsPath(s: string): boolean {
-  const t = normalizeLocalPathToken(s) || s.trim();
+  const t = normalizeLocalPathToken(s) || pathTokenText(s).trim();
   if (isFusedQueryKeyPath(t)) return false;
   return (
     t.startsWith("/") ||

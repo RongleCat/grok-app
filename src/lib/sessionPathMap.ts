@@ -26,7 +26,7 @@ import {
   normalizePathToken,
 } from "@/lib/pathRefs";
 import { pathBasename } from "@/lib/attachments";
-import { normalizeLocalPathToken } from "@/lib/pathNormalize";
+import { normalizeLocalPathToken, pathTokenText } from "@/lib/pathNormalize";
 
 /** File-ish extensions we treat as openable path-map targets (not dirs). */
 const FILE_EXT_RE =
@@ -36,7 +36,7 @@ const PATH_HARD_STOP = /[`"'<>|*?\n\r]/;
 const PATH_CJK_STOP = /[，。；：、！？）】》]/;
 
 function normAbs(p: string): string {
-  const n = normalizeLocalPathToken(p) || p.replace(/\\/g, "/");
+  const n = normalizeLocalPathToken(p) || pathTokenText(p).replace(/\\/g, "/");
   return n.replace(/\/+$/, "");
 }
 
@@ -45,7 +45,7 @@ function normAbs(p: string): string {
  * Rejects truncated space-broken tails (`…/Mac`) and shell commands.
  */
 export function isPlausibleAbsFile(p: string): boolean {
-  const t = normAbs(p.trim());
+  const t = normAbs(pathTokenText(p).trim());
   if (!t || t.length > 800) return false;
   if (t.includes("\n") || t.includes("\r")) return false;
   if (isHttpUrl(t) || t.includes("://")) return false;
@@ -82,11 +82,11 @@ export function isToolInputFilePath(raw: string | null | undefined): boolean {
  * Mirrors the media extractor in attachments.ts but for general file exts.
  */
 export function extractAbsoluteFilePathsFromText(content: string): string[] {
-  if (!content) return [];
+  if (typeof content !== "string" || !content) return [];
   const out: string[] = [];
   const seen = new Set<string>();
   const push = (raw: string) => {
-    const t = normalizeLocalPathToken(raw) || raw.trim();
+    const t = normalizeLocalPathToken(raw) || pathTokenText(raw).trim();
     if (!isPlausibleAbsFile(t)) return;
     const n = normAbs(t);
     if (seen.has(n)) return;
@@ -186,17 +186,19 @@ export function extractAbsoluteFilePathsFromText(content: string): string[] {
 export function collectAbsolutePathsFromMessage(m: ChatMessage): string[] {
   const out: string[] = [];
   const push = (raw?: string | null) => {
-    if (!raw) return;
-    const t = normalizeLocalPathToken(raw) || raw.trim();
+    const text = pathTokenText(raw);
+    if (!text) return;
+    const t = normalizeLocalPathToken(text) || text.trim();
     if (!isPlausibleAbsFile(t)) return;
     out.push(normAbs(t));
   };
   /** Whole field if it is a single path, else scan embedded abs paths (curl -o). */
   const pushFromText = (raw?: string | null) => {
-    if (!raw) return;
-    push(raw);
-    if (!isPlausibleAbsFile(raw.trim())) {
-      for (const p of extractAbsoluteFilePathsFromText(raw)) {
+    const text = pathTokenText(raw);
+    if (!text) return;
+    push(text);
+    if (!isPlausibleAbsFile(text.trim())) {
+      for (const p of extractAbsoluteFilePathsFromText(text)) {
         push(p);
       }
     }

@@ -178,7 +178,7 @@ export function MarkdownBody({
             return <code className={className}>{c}</code>;
           },
           img: ({ src, alt }) => {
-            if (!src) return null;
+            if (!src || typeof src !== "string") return null;
             if (isSiteRootAbsolutePath(src)) return null;
             const mapped =
               resolveInlineMediaToken(src, imagePathMap) ??

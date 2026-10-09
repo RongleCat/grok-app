@@ -13,6 +13,7 @@ import {
   isWindowsStylePath,
   localPathIdentity,
   normalizeLocalPathToken,
+  pathTokenText,
   unescapeShellPath,
 } from "@/lib/pathNormalize";
 
@@ -36,8 +37,9 @@ export function mergeAttachments(
   const map = new Map<string, Attachment>();
   const order: string[] = [];
   const put = (a: Attachment) => {
-    if (!a.path) return;
-    const key = localPathIdentity(a.path);
+    const raw = pathTokenText(a.path).trim();
+    if (!raw) return;
+    const key = localPathIdentity(raw);
     const existing = map.get(key);
     if (!existing) {
       order.push(key);
@@ -67,7 +69,7 @@ export function buildAgentPrompt(
 
 /** Basename without emoji. Shell-unescapes POSIX paths first. */
 export function pathBasename(path: string): string {
-  const norm = normalizeLocalPathToken(path) || path.replace(/\\/g, "/");
+  const norm = normalizeLocalPathToken(path) || pathTokenText(path).replace(/\\/g, "/");
   const parts = norm.split("/").filter(Boolean);
   return parts[parts.length - 1] || path;
 }
@@ -248,7 +250,7 @@ export function isMediaPath(path: string): boolean {
 export function isPlausibleLocalMediaAbs(path: string): boolean {
   if (!path) return false;
   if (/^https?:\/\//i.test(path)) return false;
-  const n = normalizeLocalPathToken(path) || path.trim();
+  const n = normalizeLocalPathToken(path) || pathTokenText(path).trim();
   if (!n || !isMediaPath(n)) return false;
   if (isSiteRootAbsolutePath(n)) return false;
   // Windows drive (`C:\…` / `C:/…`) — host treats as always multi-part enough.
@@ -323,7 +325,7 @@ export const RELATIVE_MEDIA_ROOTS = [
 
 /** Session-relative media folder segment from an absolute path (`images/1.jpg`, `outputs/...`). */
 export function mediaTailFromPath(abs: string): string | null {
-  const norm = normalizeLocalPathToken(abs) || abs.replace(/\\/g, "/");
+  const norm = normalizeLocalPathToken(abs) || pathTokenText(abs).replace(/\\/g, "/");
   let best: string | null = null;
   let bestIdx = -1;
   for (const folder of RELATIVE_MEDIA_ROOTS) {
@@ -359,7 +361,7 @@ export function extractMediaPathsFromContent(content: string): Attachment[] {
     if (!raw) return;
     // Reject CMS site roots before normalize invents nothing useful.
     if (isSiteRootAbsolutePath(raw)) return;
-    const path = normalizeLocalPathToken(raw) || raw.trim();
+    const path = normalizeLocalPathToken(raw) || pathTokenText(raw).trim();
     if (!path || seen.has(path) || !isMediaPath(path)) return;
     if (!isRealLocalAbsolutePath(path)) return;
     // Host-aligned multi-segment gate (drops `/replica_v2.mp4` mid-path tails).

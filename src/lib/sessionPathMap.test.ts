@@ -176,6 +176,26 @@ describe("sessionPathMap", () => {
     expect(m["b.md"]).toBe("/tmp/b.md");
   });
 
+  it("ignores non-string tool input instead of crashing chat render", () => {
+    const m: ChatMessage = {
+      id: "obj-input",
+      role: "tool",
+      marker: "tool_step",
+      toolInput: { path: ARTICLE } as unknown as string,
+      segments: [
+        {
+          kind: "tool",
+          toolCallId: "t1",
+          title: "Read",
+          status: "completed",
+          input: { path: ARTICLE } as unknown as string,
+        },
+      ],
+      content: "tool_step|completed|read_file|Read",
+    };
+    expect(collectAbsolutePathsFromMessage(m)).toEqual([]);
+  });
+
   it("collects home-relative tilde paths from assistant prose", () => {
     const tilde = "~/.grok/docs/user-guide/01-getting-started.md";
     const m: ChatMessage = {

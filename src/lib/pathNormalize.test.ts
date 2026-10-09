@@ -62,6 +62,19 @@ describe("fused query keys never pass as local abs", () => {
 });
 
 describe("unescapeShellPath", () => {
+  it("does not throw when the token is not a string", () => {
+    expect(unescapeShellPath(null as unknown as string)).toBe("");
+    expect(unescapeShellPath(undefined as unknown as string)).toBe("");
+    expect(unescapeShellPath(12 as unknown as string)).toBe("");
+    expect(unescapeShellPath({ path: "/tmp/a.png" } as unknown as string)).toBe(
+      "",
+    );
+    expect(normalizeLocalPathToken(12 as unknown as string)).toBe("");
+    expect(isRealLocalAbsolutePath(12 as unknown as string)).toBe(false);
+    expect(isLocalMediaOpenable({} as unknown as string)).toBe(false);
+    expect(displayPathLabel(500000 as unknown as string)).toBe("");
+  });
+
   it("restores spaces and parens from shell escapes", () => {
     expect(
       unescapeShellPath(

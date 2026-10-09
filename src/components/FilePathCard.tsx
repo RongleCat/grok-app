@@ -30,6 +30,7 @@ import {
 import {
   isSiteRootAbsolutePath,
   normalizeLocalPathToken,
+  pathTokenText,
 } from "@/lib/pathNormalize";
 import {
   resolveOpenEditorError,
@@ -258,7 +259,7 @@ export function FilePathCard({
       return null;
     }
 
-    const pathNorm = normalizeLocalPathToken(path) || path.trim();
+    const pathNorm = normalizeLocalPathToken(path) || pathTokenText(path).trim();
     const absHint =
       absolutePath && isRealLocalAbsolutePath(absolutePath)
         ? normalizeLocalPathToken(absolutePath) || absolutePath
