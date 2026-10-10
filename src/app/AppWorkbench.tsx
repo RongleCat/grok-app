@@ -2381,6 +2381,7 @@ export function AppWorkbench() {
         prefs,
         catalog,
         providers: sessionProviderChip.providersSnapshot(),
+        draft: sessionProviderChip.draftComposerRouteRef.current,
       });
       setModelId(next.modelId);
       setEffort(next.effort);
@@ -2388,9 +2389,7 @@ export function AppWorkbench() {
       setPolicy(
         isValidPolicy(prefs.permissionPolicy) ? prefs.permissionPolicy : "ask",
       );
-      if (isValidPrefsScope(prefs.scope)) {
-        setPrefsScope(prefs.scope);
-      }
+      if (isValidPrefsScope(prefs.scope)) setPrefsScope(prefs.scope);
     },
     [sessionProviderChip],
   );

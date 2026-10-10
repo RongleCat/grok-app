@@ -41,6 +41,64 @@ describe("resolveComposerPrefsSelection", () => {
     expect(shown?.requestModel).toBe("gemini-3.5-flash");
   });
 
+  it("keeps a new chat's pick when the resolve returns the default", () => {
+    // Arrange — a chat with no session row: its pick is only in memory
+    const next = resolveComposerPrefsSelection({
+      prefs: { modelId: "grok-4.7", effort: "medium" },
+      catalog: GROK_BUILD_MODELS,
+      draft: { providerId: "official", modelId: "grok-4.6", effort: "high" },
+    });
+
+    // Act / Assert
+    expect(next).toEqual({ modelId: "grok-4.6", effort: "high" });
+  });
+
+  it("keeps a new chat's custom-provider pick", () => {
+    // Arrange — the resolve knows the global route, not the one the chat picked
+    const next = resolveComposerPrefsSelection({
+      prefs: { modelId: "grok-4.7", effort: "medium", providerId: null },
+      catalog: GROK_BUILD_MODELS,
+      providers: [requesty],
+      draft: {
+        providerId: "requesty",
+        modelId: "gemini-3.5-flash",
+        effort: "max",
+      },
+    });
+
+    // Act / Assert
+    expect(next).toEqual({ modelId: "gemini-3.5-flash", effort: "max" });
+  });
+
+  it("keeps a new chat's pick while the provider list is not loaded yet", () => {
+    // Arrange — nothing disproves the pick, so it is not thrown away
+    const next = resolveComposerPrefsSelection({
+      prefs: { modelId: "grok-4.7", effort: "medium" },
+      catalog: GROK_BUILD_MODELS,
+      providers: [],
+      draft: {
+        providerId: "requesty",
+        modelId: "gemini-3.5-flash",
+        effort: "max",
+      },
+    });
+
+    // Act / Assert
+    expect(next.modelId).toBe("gemini-3.5-flash");
+  });
+
+  it("ignores a draft pick that is not a model of the resolved route", () => {
+    // Arrange — the route moved on, so the old pick no longer applies
+    const next = resolveComposerPrefsSelection({
+      prefs: { modelId: "grok-4.7", effort: "medium" },
+      catalog: GROK_BUILD_MODELS,
+      draft: { providerId: "official", modelId: "not-a-real-model", effort: "high" },
+    });
+
+    // Act / Assert
+    expect(next.modelId).toBe("grok-4.7");
+  });
+
   it("validates effort against the picked custom model, not the channel default", () => {
     const provider = {
       id: "relay",
