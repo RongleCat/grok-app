@@ -355,10 +355,8 @@ import { mapStoredMessagesToChat } from "@/lib/mapStoredMessages";
 import {
   rankAtFileHits,
   removeAtTokenFromDraft,
+  toAtFileHits,
 } from "@/lib/atFileQuery";
-import {
-  type ComposerAtFileEntry,
-} from "@/components/ComposerAtPanel";
 import {
   formatAttachErrorMessage,
   isAttachPayloadTooLarge,
@@ -6574,6 +6572,7 @@ export function AppWorkbench() {
             query: q,
             mode: "name",
             limit: 40,
+            includeDirs: true,
           });
           if (gen !== atSearchGenRef.current) return;
           if (res.softFail) {
@@ -6581,15 +6580,7 @@ export function AppWorkbench() {
             setAtEntries([]);
           } else {
             setAtSoftFail(null);
-            const hits: ComposerAtFileEntry[] = rankAtFileHits(
-              (res.hits ?? []).map((h) => ({
-                path: h.path,
-                name: h.name,
-                relativePath: h.relativePath,
-                mtimeMs: h.mtimeMs,
-              })),
-              q,
-            );
+            const hits = rankAtFileHits(toAtFileHits(res.hits ?? []), q);
             setAtEntries(hits);
           }
         } catch (e) {

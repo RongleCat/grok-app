@@ -33,6 +33,7 @@ See `docs/llm-wiki/release.md`.
 - The same Windows file stays one attachment when only the slashes differ.
 - A non-text file token no longer blanks the whole chat.
 - A finished tool turn no longer looks like the app restarted.
+- A file reference can point at a directory, not only a file.
 
 **中文 · 修复**
 - @ 菜单里的文件名会完整显示，放不下时末尾才出现省略号。
@@ -46,6 +47,7 @@ See `docs/llm-wiki/release.md`.
 - 同一个 Windows 文件只是斜杠不同时，仍然只算一个附件。
 - 文件路径如果不是文字，整段对话不再因此变空白。
 - 已经做完的工具回合，切换对话时不再显示成应用重启。
+- 文件引用可以指向目录，而不只是文件。
 
 ## [0.2.39] - 2026-10-06
 

@@ -541,16 +541,19 @@ pub async fn project_codebase_search(
     query: String,
     mode: Option<String>,
     limit: Option<usize>,
+    include_dirs: Option<bool>,
 ) -> Result<crate::project_codebase_search::CodebaseSearchResult, String> {
     let path = project_path;
     let q = query;
     let m = mode;
+    let dirs = include_dirs.unwrap_or(false);
     tokio::task::spawn_blocking(move || {
         Ok(crate::project_codebase_search::search_project_codebase(
             &path,
             &q,
             m.as_deref(),
             limit,
+            dirs,
         ))
     })
     .await

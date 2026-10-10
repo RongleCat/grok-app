@@ -62,7 +62,25 @@ export type AtFileHit = {
   name: string;
   relativePath: string;
   mtimeMs?: number;
+  /** True for a directory hit — the composer can reference a directory. */
+  isDir?: boolean;
 };
+
+/**
+ * Map codebase-search hits to `@` panel entries.
+ *
+ * `isDir` has to survive this mapping: `applyAtFileToComposer` picks the
+ * reference kind from it, and the panel draws the row's icon from it.
+ */
+export function toAtFileHits(hits: ReadonlyArray<AtFileHit>): AtFileHit[] {
+  return hits.map((h) => ({
+    path: h.path,
+    name: h.name,
+    relativePath: h.relativePath,
+    mtimeMs: h.mtimeMs,
+    isDir: !!h.isDir,
+  }));
+}
 
 /**
  * Fuzzy score for ranking file hits against a query.

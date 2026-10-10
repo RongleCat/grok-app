@@ -36,6 +36,8 @@ pub struct CodebaseSearchHit {
     pub path: String,
     pub name: String,
     pub relative_path: String,
+    /// True when the hit is a directory — only an `include_dirs` caller gets one.
+    pub is_dir: bool,
     pub size: u64,
     pub mtime_ms: u64,
     /// Excerpt around the first content match. Empty for name-only hits.
@@ -307,6 +309,7 @@ fn hit_from_path(
         path: path.to_string_lossy().to_string(),
         name,
         relative_path: relative_to_root(root, path),
+        is_dir: false,
         size: meta.len(),
         mtime_ms: file_mtime_ms(path),
         snippet,
@@ -515,6 +518,7 @@ fn walk_search(
     limit: usize,
     want_content: bool,
     want_name: bool,
+    include_dirs: bool,
 ) -> (Vec<CodebaseSearchHit>, bool, usize) {
     use std::collections::VecDeque;
 
@@ -560,6 +564,24 @@ fn walk_search(
                 if skip_dir_name(&name) || name.starts_with('.') {
                     continue;
                 }
+                // Report the directory as a hit too when the caller asks, so the
+                // composer can reference it. An empty query stays files-only.
+                if include_dirs && want_name && !q_lower.is_empty() {
+                    let rel = relative_to_root(root, &path);
+                    if codebase_name_matches(&name, &rel, &q_lower) {
+                        hits.push(CodebaseSearchHit {
+                            path: path.to_string_lossy().to_string(),
+                            name: name.clone(),
+                            relative_path: rel,
+                            is_dir: true,
+                            size: 0,
+                            mtime_ms: file_mtime_ms(&path),
+                            snippet: String::new(),
+                            content_match: false,
+                            line: None,
+                        });
+                    }
+                }
                 queue.push_back(path);
                 continue;
             }
@@ -596,6 +618,7 @@ fn walk_search(
                 path: path.to_string_lossy().to_string(),
                 name,
                 relative_path: rel,
+                is_dir: false,
                 size: meta.len(),
                 mtime_ms: file_mtime_ms(&path),
                 snippet,
@@ -628,11 +651,15 @@ fn walk_search(
 ///
 /// Never invents embeddings or code-graph results. `search_kind` is always
 /// `"keyword"`. Content uses `rg` when available, else walk with caps.
+///
+/// `include_dirs` also reports a directory whose name matches, which is what the
+/// composer's `@` panel needs. An empty query still lists files only.
 pub fn search_project_codebase(
     project_path: &str,
     query: &str,
     mode: Option<&str>,
     limit: Option<usize>,
+    include_dirs: bool,
 ) -> CodebaseSearchResult {
     let mode = normalize_codebase_search_mode(mode);
     let limit = clamp_codebase_search_limit(limit);
@@ -676,7 +703,8 @@ pub fn search_project_codebase(
     // Content / all still soft-fail so we never full-scan on blank.
     if !should_run_codebase_search(q) {
         if mode == "name" {
-            let (mut hits, truncated, _) = walk_search(&canonical, "", "name", limit, false, true);
+            let (mut hits, truncated, _) =
+                walk_search(&canonical, "", "name", limit, false, true, include_dirs);
             // Prefer recently modified when listing without a filter.
             hits.sort_by_key(|b| std::cmp::Reverse(b.mtime_ms));
             if hits.len() > limit {
@@ -718,7 +746,7 @@ pub fn search_project_codebase(
             // When mode is `all`, also add name-only matches not already present.
             if want_name {
                 let (name_hits, name_trunc, _) =
-                    walk_search(&canonical, q, "name", limit, false, true);
+                    walk_search(&canonical, q, "name", limit, false, true, include_dirs);
                 let mut seen: std::collections::HashSet<String> =
                     hits.iter().map(|h| h.path.clone()).collect();
                 for h in name_hits {
@@ -749,13 +777,21 @@ pub fn search_project_codebase(
             ("rg".to_string(), hits, truncated)
         } else {
             // Walk fallback for content (+ name when mode all).
-            let (walk_hits, walk_trunc, _) =
-                walk_search(&canonical, q, mode, limit, want_content, want_name);
+            let (walk_hits, walk_trunc, _) = walk_search(
+                &canonical,
+                q,
+                mode,
+                limit,
+                want_content,
+                want_name,
+                include_dirs,
+            );
             ("walk".to_string(), walk_hits, walk_trunc)
         }
     } else {
         // name only
-        let (walk_hits, walk_trunc, _) = walk_search(&canonical, q, "name", limit, false, true);
+        let (walk_hits, walk_trunc, _) =
+            walk_search(&canonical, q, "name", limit, false, true, include_dirs);
         ("walk".to_string(), walk_hits, walk_trunc)
     };
 
@@ -819,7 +855,8 @@ mod tests {
 
     #[test]
     fn soft_fail_missing_path() {
-        let r = search_project_codebase("/no/such/project/xyz", "foo", Some("all"), Some(10));
+        let r =
+            search_project_codebase("/no/such/project/xyz", "foo", Some("all"), Some(10), false);
         assert!(r.hits.is_empty());
         assert_eq!(r.soft_fail.as_deref(), Some("path_missing"));
         assert_eq!(r.search_kind, "keyword");
@@ -828,7 +865,7 @@ mod tests {
 
     #[test]
     fn soft_fail_empty_project() {
-        let r = search_project_codebase("", "foo", None, None);
+        let r = search_project_codebase("", "foo", None, None, false);
         assert_eq!(r.soft_fail.as_deref(), Some("no_project"));
         assert!(r.hits.is_empty());
     }
@@ -852,7 +889,7 @@ mod tests {
     #[test]
     fn soft_fail_empty_query() {
         let dir = make_tmp("emptyq");
-        let r = search_project_codebase(dir.to_str().unwrap(), "   ", Some("all"), Some(10));
+        let r = search_project_codebase(dir.to_str().unwrap(), "   ", Some("all"), Some(10), false);
         assert_eq!(r.soft_fail.as_deref(), Some("empty_query"));
         assert!(r.hits.is_empty());
         assert_eq!(r.search_kind, "keyword");
@@ -864,7 +901,7 @@ mod tests {
         let dir = make_tmp("list");
         fs::write(dir.join("alpha.txt"), "a").unwrap();
         fs::write(dir.join("beta.txt"), "b").unwrap();
-        let r = search_project_codebase(dir.to_str().unwrap(), "", Some("name"), Some(10));
+        let r = search_project_codebase(dir.to_str().unwrap(), "", Some("name"), Some(10), false);
         assert!(r.soft_fail.is_none(), "soft_fail={:?}", r.soft_fail);
         assert!(
             r.hits.iter().any(|h| h.name == "alpha.txt"),
@@ -872,6 +909,29 @@ mod tests {
             r.hits
         );
         assert_eq!(r.search_kind, "keyword");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn directory_hits_are_opt_in() {
+        let dir = make_tmp("dirhits");
+        fs::create_dir_all(dir.join("components")).unwrap();
+        fs::write(dir.join("components/Button.tsx"), "x").unwrap();
+        fs::write(dir.join("components.md"), "y").unwrap();
+        let root = dir.to_str().unwrap();
+        let find = |include_dirs: bool, q: &str| {
+            search_project_codebase(root, q, Some("name"), Some(20), include_dirs)
+        };
+
+        // The file search (resource pane) never returns a directory; the composer
+        // asks for them, and an empty query stays the recent-files listing.
+        let off = find(false, "components");
+        assert!(off.hits.iter().all(|h| !h.is_dir), "hits={:?}", off.hits);
+        let on = find(true, "components");
+        let hit = on.hits.iter().find(|h| h.relative_path == "components");
+        assert!(hit.is_some_and(|h| h.is_dir), "hits={:?}", on.hits);
+        assert!(find(true, "").hits.iter().all(|h| !h.is_dir));
+
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -890,6 +950,7 @@ mod tests {
             "hello_unique",
             Some("name"),
             Some(20),
+            false,
         );
         assert!(
             by_name.hits.iter().any(|h| h.name.contains("hello_unique")),
@@ -904,6 +965,7 @@ mod tests {
             "marker_xyz_abc",
             Some("content"),
             Some(20),
+            false,
         );
         assert!(
             by_content
@@ -927,7 +989,7 @@ mod tests {
         let dir = make_tmp("notdir");
         let file = dir.join("file.txt");
         fs::write(&file, "x").unwrap();
-        let r = search_project_codebase(file.to_str().unwrap(), "x", Some("all"), Some(5));
+        let r = search_project_codebase(file.to_str().unwrap(), "x", Some("all"), Some(5), false);
         assert_eq!(r.soft_fail.as_deref(), Some("not_a_dir"));
         assert!(r.project_path_exists);
         assert!(!r.project_is_dir);
