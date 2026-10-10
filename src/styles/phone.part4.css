@@ -1,4 +1,4 @@
-/* domain CSS chunk (move-only split; selectors unchanged) */
+/* domain CSS chunk (split out of the main sheet; rules appended since) */
 
 .agent-tasks__dot--completed {
   background: var(--ok, #3daa6d);
@@ -128,6 +128,37 @@
 .agent-tasks__hint--soft {
   padding: 0 10px 8px 28px;
   opacity: 0.72;
+}
+/* Subagent telemetry row: honest counters + expandable output. */
+.agent-tasks__row-toggle.is-static {
+  /* Nothing to expand — keep the row layout, drop the click affordance. */
+  cursor: default;
+}
+.agent-tasks__row-chev {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted, #888);
+}
+.agent-tasks__dot--finished {
+  background: var(--muted, #888);
+}
+.agent-tasks__subagent-meta {
+  margin: 0 8px 4px 34px;
+  font-size: 11px;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+.agent-tasks__subagent-output {
+  margin: 2px 0 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fg, #e8e8e8) 6%, transparent);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow: auto;
 }
 
 /* —— Agent dashboard (cross-session status modal) —— */

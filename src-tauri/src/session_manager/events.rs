@@ -1104,6 +1104,18 @@ impl SessionManager {
                     }),
                 );
             }
+            AcpEvent::Subagent(sub) => {
+                let app_sid = {
+                    let guard = self.inner.lock();
+                    guard
+                        .as_ref()
+                        .map(|s| s.app_session_id.clone())
+                        .unwrap_or_default()
+                };
+                if !app_sid.is_empty() {
+                    let _ = app.emit("session://subagent", sub.to_payload(&app_sid));
+                }
+            }
             AcpEvent::RetryState {
                 attempt,
                 max_retries,

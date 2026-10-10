@@ -244,4 +244,12 @@ export const zhTWTasks = {
   "batchAgents.eligibilityNone": "目前選擇中沒有可執行的專案。",
   "batchAgents.status.okEmpty": "成功（無詳情）",
   "batchAgents.status.partial": "部分",
+  "tasks.subagentsTitle": "子代理",
+  "tasks.subagentRunning": "執行中",
+  "tasks.subagentCompleted": "已完成",
+  "tasks.subagentFailed": "失敗",
+  "tasks.subagentCancelled": "已取消",
+  "tasks.subagentFinished": "已結束",
+  "tasks.subagentMeta": "{turns} 輪 · {tools} 次工具 · {tokens} tokens · {duration}",
+  "tasks.subagentOutput": "輸出",
 };

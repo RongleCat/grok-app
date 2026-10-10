@@ -244,4 +244,12 @@ export const koTasks = {
   "batchAgents.eligibilityNone": "현재 선택에 자격이 있는 프로젝트가 없습니다.",
   "batchAgents.status.okEmpty": "정상(세부정보 없음)",
   "batchAgents.status.partial": "부분",
+  "tasks.subagentsTitle": "서브에이전트",
+  "tasks.subagentRunning": "실행 중",
+  "tasks.subagentCompleted": "완료됨",
+  "tasks.subagentFailed": "실패",
+  "tasks.subagentCancelled": "취소됨",
+  "tasks.subagentFinished": "종료됨",
+  "tasks.subagentMeta": "{turns}턴 · {tools}개 도구 · {tokens} 토큰 · {duration}",
+  "tasks.subagentOutput": "출력",
 };

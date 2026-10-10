@@ -244,4 +244,12 @@ export const enTasks = {
   "batchAgents.eligibilityNone": "No eligible projects in the current selection.",
   "batchAgents.status.okEmpty": "OK (no detail)",
   "batchAgents.status.partial": "Partial",
+  "tasks.subagentsTitle": "Subagents",
+  "tasks.subagentRunning": "Running",
+  "tasks.subagentCompleted": "Completed",
+  "tasks.subagentFailed": "Failed",
+  "tasks.subagentCancelled": "Cancelled",
+  "tasks.subagentFinished": "Finished",
+  "tasks.subagentMeta": "{turns} turns · {tools} tools · {tokens} tokens · {duration}",
+  "tasks.subagentOutput": "Output",
 } as const;

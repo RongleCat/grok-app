@@ -172,6 +172,58 @@ pub enum AcpEvent {
     ProcessExited {
         code: Option<i32>,
     },
+    /// Subagent lifecycle from `_x.ai/session_notification`.
+    ///
+    /// CLI 1.0.x emits `subagent_spawned` / `subagent_progress` /
+    /// `subagent_finished` on the xAI extension notification channel; before
+    /// this the client dropped them and the Tasks panel could only *guess*
+    /// parent-child links from spawn-tool stream order.
+    Subagent(SubagentUpdate),
+}
+
+/// Lifecycle phase of a CLI subagent run (`spawn_subagent` / Task tool).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SubagentPhase {
+    Spawned,
+    Progress,
+    Finished,
+}
+
+impl SubagentPhase {
+    /// Wire-stable token used in the `session://subagent` payload.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SubagentPhase::Spawned => "spawned",
+            SubagentPhase::Progress => "progress",
+            SubagentPhase::Finished => "finished",
+        }
+    }
+}
+
+/// One subagent run as reported by the CLI. Every field beyond `subagent_id`
+/// is optional: the CLI omits what it does not know, and the UI must show an
+/// honest empty state rather than a fabricated value.
+///
+/// Only what the Tasks panel renders is carried. The CLI also sends
+/// `parent_session_id`, `model`, `tools_used`, `error_count`, `will_wake` and
+/// friends; the golden fixture keeps pinning that wire shape, but decoding a
+/// field nothing reads just widens the payload and the type for no one.
+#[derive(Debug, Clone)]
+pub struct SubagentUpdate {
+    pub phase: SubagentPhase,
+    pub subagent_id: String,
+    pub subagent_type: Option<String>,
+    pub description: Option<String>,
+    /// Terminal status on `subagent_finished` (`completed` / `failed` / …).
+    pub status: Option<String>,
+    pub duration_ms: Option<u64>,
+    pub turn_count: Option<u64>,
+    pub tool_call_count: Option<u64>,
+    pub tokens_used: Option<u64>,
+    /// Denominator for the row's occupancy percentage.
+    pub context_window_tokens: Option<u64>,
+    /// Final subagent answer (only on `subagent_finished`).
+    pub output: Option<String>,
 }
 
 /// Host circuit-breaker: after this many provider retries, cancel the turn.
@@ -3822,6 +3874,14 @@ pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
                 out.push(AcpEvent::ToolOpenReleased { tool_call_id });
             }
         }
+        // Subagent lifecycle. CLI 1.0.x reports these on the xAI
+        // extension notification channel with a *stable* subagent id, so the
+        // Tasks panel no longer has to infer parent links from stream order.
+        "subagent_spawned" | "subagent_progress" | "subagent_finished" => {
+            if let Some(ev) = parse_subagent_update(kind, update) {
+                out.push(ev);
+            }
+        }
         "retry_state" => {
             let attempt = update.get("attempt").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
             let max_retries = update
@@ -3982,6 +4042,78 @@ pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
     }
 
     out
+}
+
+/// Decode one `subagent_spawned` / `subagent_progress` / `subagent_finished`
+/// notification. Returns `None` when the update carries no subagent id — an
+/// id-less row cannot be tracked or de-duplicated, so it is not surfaced.
+pub fn parse_subagent_update(kind: &str, update: &Value) -> Option<AcpEvent> {
+    let subagent_id = update
+        .get("subagent_id")
+        .or_else(|| update.get("subagentId"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if subagent_id.is_empty() {
+        return None;
+    }
+    let phase = match kind {
+        "subagent_spawned" => SubagentPhase::Spawned,
+        "subagent_progress" => SubagentPhase::Progress,
+        "subagent_finished" => SubagentPhase::Finished,
+        _ => return None,
+    };
+    let str_field = |keys: &[&str]| -> Option<String> {
+        keys.iter()
+            .find_map(|k| update.get(*k))
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+    };
+    let num_field = |keys: &[&str]| -> Option<u64> {
+        keys.iter()
+            .find_map(|k| update.get(*k))
+            .and_then(|v| v.as_u64())
+    };
+    Some(AcpEvent::Subagent(SubagentUpdate {
+        phase,
+        subagent_id,
+        subagent_type: str_field(&["subagent_type", "subagentType"]),
+        description: str_field(&["description", "summary"]),
+        status: str_field(&["status"]),
+        duration_ms: num_field(&["duration_ms", "durationMs"]),
+        // `subagent_finished` reports the counters as `turns` / `tool_calls`;
+        // `subagent_progress` uses the longer names. Accept both so a run whose
+        // progress frames were throttled away still shows its totals.
+        turn_count: num_field(&["turn_count", "turnCount", "turns"]),
+        tool_call_count: num_field(&["tool_call_count", "toolCallCount", "tool_calls"]),
+        tokens_used: num_field(&["tokens_used", "tokensUsed"]),
+        context_window_tokens: num_field(&["context_window_tokens", "contextWindowTokens"]),
+        output: str_field(&["output", "result"]),
+    }))
+}
+
+impl SubagentUpdate {
+    /// `session://subagent` payload (snake_case keys are flattened to camelCase
+    /// for the frontend). Absent values stay `null` — the UI must not invent them.
+    pub fn to_payload(&self, app_session_id: &str) -> Value {
+        json!({
+            "sessionId": app_session_id,
+            "phase": self.phase.as_str(),
+            "subagentId": self.subagent_id,
+            "subagentType": self.subagent_type,
+            "description": self.description,
+            "status": self.status,
+            "durationMs": self.duration_ms,
+            "turnCount": self.turn_count,
+            "toolCallCount": self.tool_call_count,
+            "tokensUsed": self.tokens_used,
+            "contextWindowTokens": self.context_window_tokens,
+            "output": self.output,
+        })
+    }
 }
 
 /// One choice inside an ask-user question.

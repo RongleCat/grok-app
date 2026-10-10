@@ -244,4 +244,12 @@ export const taTasks = {
   "batchAgents.eligibilityNone": "தற்போதைய தேர்வில் தகுதியான திட்டங்கள் இல்லை.",
   "batchAgents.status.okEmpty": "சரி (விவரம் இல்லை)",
   "batchAgents.status.partial": "பகுதி",
+  "tasks.subagentsTitle": "துணை முகவர்கள்",
+  "tasks.subagentRunning": "இயங்குகிறது",
+  "tasks.subagentCompleted": "முடிந்தது",
+  "tasks.subagentFailed": "தோல்வி",
+  "tasks.subagentCancelled": "ரத்து செய்யப்பட்டது",
+  "tasks.subagentFinished": "நிறைவடைந்தது",
+  "tasks.subagentMeta": "{turns} சுற்றுகள் · {tools} கருவிகள் · {tokens} டோக்கன்கள் · {duration}",
+  "tasks.subagentOutput": "வெளியீடு",
 };

@@ -16,10 +16,12 @@ See `docs/llm-wiki/release.md`.
 ### Added
 - Official models can use another context length when the model offers more than one.
 - The usage chip can show the CLI's own context breakdown.
+- The Tasks panel lists live subagent runs, with the counters and output the CLI reports.
 
 **中文 · 新增**
 - 官方模型如果提供多种上下文长度，可以改用其中一种。
 - 用量条可以显示 CLI 自己算出的上下文明细。
+- 任务面板会列出正在运行的子代理，并显示 CLI 上报的计数与输出。
 
 ### Fixed
 - File names in the @ menu stay whole, and overflow ends with an ellipsis.

@@ -244,4 +244,12 @@ export const ptBRTasks = {
   "batchAgents.eligibilityNone": "Nenhum projeto elegível na seleção atual.",
   "batchAgents.status.okEmpty": "OK (sem detalhe)",
   "batchAgents.status.partial": "Parcial",
+  "tasks.subagentsTitle": "Subagentes",
+  "tasks.subagentRunning": "Em execução",
+  "tasks.subagentCompleted": "Concluído",
+  "tasks.subagentFailed": "Falhou",
+  "tasks.subagentCancelled": "Cancelado",
+  "tasks.subagentFinished": "Finalizado",
+  "tasks.subagentMeta": "{turns} turnos · {tools} ferramentas · {tokens} tokens · {duration}",
+  "tasks.subagentOutput": "Saída",
 };

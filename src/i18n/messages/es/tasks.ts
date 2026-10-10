@@ -244,4 +244,12 @@ export const esTasks = {
   "batchAgents.eligibilityNone": "No hay proyectos aptos en la selección actual.",
   "batchAgents.status.okEmpty": "OK (sin detalle)",
   "batchAgents.status.partial": "Parcial",
+  "tasks.subagentsTitle": "Subagentes",
+  "tasks.subagentRunning": "En ejecución",
+  "tasks.subagentCompleted": "Completado",
+  "tasks.subagentFailed": "Fallido",
+  "tasks.subagentCancelled": "Cancelado",
+  "tasks.subagentFinished": "Finalizado",
+  "tasks.subagentMeta": "{turns} turnos · {tools} herramientas · {tokens} tokens · {duration}",
+  "tasks.subagentOutput": "Resultado",
 };

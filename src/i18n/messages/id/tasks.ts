@@ -244,4 +244,12 @@ export const idTasks = {
   "batchAgents.eligibilityNone": "Tidak ada proyek yang memenuhi syarat dalam pilihan saat ini.",
   "batchAgents.status.okEmpty": "OK (tanpa detail)",
   "batchAgents.status.partial": "Parsial",
+  "tasks.subagentsTitle": "Subagen",
+  "tasks.subagentRunning": "Berjalan",
+  "tasks.subagentCompleted": "Selesai",
+  "tasks.subagentFailed": "Gagal",
+  "tasks.subagentCancelled": "Dibatalkan",
+  "tasks.subagentFinished": "Berakhir",
+  "tasks.subagentMeta": "{turns} giliran · {tools} alat · {tokens} token · {duration}",
+  "tasks.subagentOutput": "Keluaran",
 };

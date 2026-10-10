@@ -244,4 +244,12 @@ export const jaTasks = {
   "batchAgents.eligibilityNone": "現在の選択に対象プロジェクトがありません。",
   "batchAgents.status.okEmpty": "OK（詳細なし）",
   "batchAgents.status.partial": "一部",
+  "tasks.subagentsTitle": "サブエージェント",
+  "tasks.subagentRunning": "実行中",
+  "tasks.subagentCompleted": "完了",
+  "tasks.subagentFailed": "失敗",
+  "tasks.subagentCancelled": "キャンセル",
+  "tasks.subagentFinished": "終了",
+  "tasks.subagentMeta": "{turns} ターン · {tools} ツール · {tokens} トークン · {duration}",
+  "tasks.subagentOutput": "出力",
 };

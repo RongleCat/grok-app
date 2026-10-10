@@ -244,4 +244,12 @@ export const deTasks = {
   "batchAgents.eligibilityNone": "Keine geeigneten Projekte in der aktuellen Auswahl.",
   "batchAgents.status.okEmpty": "OK (kein Detail)",
   "batchAgents.status.partial": "Teilweise",
+  "tasks.subagentsTitle": "Subagenten",
+  "tasks.subagentRunning": "Läuft",
+  "tasks.subagentCompleted": "Abgeschlossen",
+  "tasks.subagentFailed": "Fehlgeschlagen",
+  "tasks.subagentCancelled": "Abgebrochen",
+  "tasks.subagentFinished": "Beendet",
+  "tasks.subagentMeta": "{turns} Runden · {tools} Tools · {tokens} Tokens · {duration}",
+  "tasks.subagentOutput": "Ausgabe",
 };

@@ -21,6 +21,10 @@ import type { ReliabilityStallSignal } from "@/lib/reliabilityCenter";
 import type { ProviderRetryStatus } from "@/lib/providerRetryStatusStore";
 import type { ProcessLimitEvent } from "@/lib/processBudget";
 import type { GoalOrchHostPayload } from "@/lib/goalOrch";
+import {
+  subagentStore,
+  type SubagentEventPayload,
+} from "@/lib/subagentStore";
 import * as api from "@/lib/api";
 import { registerGateAndMetaSubscriptions } from "./sessionHostGateSubscriptions";
 import { isMirrorClient } from "@/lib/mirrorTransport";
@@ -1415,6 +1419,16 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
             if (cancelled || !p) return;
             // Structured ACP hook_execution / hook_annotation from Host.
             ingestHostHookPayload(p);
+          }),
+        );
+       track(
+          listenWithRetry<SubagentEventPayload>("session://subagent", (p) => {
+            if (cancelled || !p) return;
+            // CLI 1.0.x subagent_spawned / _progress / _finished. Subscribed
+            // here (app-level) rather than in the Tasks panel: that panel is
+            // mounted on demand, and telemetry arriving before the user opened
+            // it would otherwise be dropped with no way to backfill.
+            subagentStore.apply(p);
           }),
         );
        track(

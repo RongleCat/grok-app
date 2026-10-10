@@ -244,4 +244,12 @@ export const zhTasks = {
   "batchAgents.eligibilityNone": "当前选择中没有可运行的项目。",
   "batchAgents.status.okEmpty": "成功（无详情）",
   "batchAgents.status.partial": "部分",
+  "tasks.subagentsTitle": "子代理",
+  "tasks.subagentRunning": "运行中",
+  "tasks.subagentCompleted": "已完成",
+  "tasks.subagentFailed": "失败",
+  "tasks.subagentCancelled": "已取消",
+  "tasks.subagentFinished": "已结束",
+  "tasks.subagentMeta": "{turns} 轮 · {tools} 次工具 · {tokens} tokens · {duration}",
+  "tasks.subagentOutput": "输出",
 };

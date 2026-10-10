@@ -2061,6 +2061,7 @@ impl SessionManager {
             AcpEvent::Stderr { .. } => "stderr",
             AcpEvent::HookActivity { .. } => "hook_activity",
             AcpEvent::GoalUpdated { .. } => "goal_updated",
+            AcpEvent::Subagent(_) => "subagent",
         }
     }
 

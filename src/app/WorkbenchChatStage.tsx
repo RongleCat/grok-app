@@ -364,6 +364,7 @@ export function WorkbenchChatStage(p: WorkbenchChatStageProps) {
           {mainPane === "chat" && tasksPanelOpen && session.sessionId ? (
             <AgentTasksPanelLive
               t={(k, vars) => tr(k, vars)}
+              locale={resolveLocale(locale)}
               onClose={() => setTasksPanelOpen(false)}
               subagentWorktreeSnapshotEnabled={
                 subagentWorktreeSnapshotEnabled

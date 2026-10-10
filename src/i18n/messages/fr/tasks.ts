@@ -244,4 +244,12 @@ export const frTasks = {
   "batchAgents.eligibilityNone": "Aucun projet éligible dans la sélection actuelle.",
   "batchAgents.status.okEmpty": "OK (sans détail)",
   "batchAgents.status.partial": "Partiel",
+  "tasks.subagentsTitle": "Sous-agents",
+  "tasks.subagentRunning": "En cours",
+  "tasks.subagentCompleted": "Terminé",
+  "tasks.subagentFailed": "Échec",
+  "tasks.subagentCancelled": "Annulé",
+  "tasks.subagentFinished": "Achevé",
+  "tasks.subagentMeta": "{turns} tours · {tools} outils · {tokens} tokens · {duration}",
+  "tasks.subagentOutput": "Résultat",
 };

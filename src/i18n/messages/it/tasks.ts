@@ -244,4 +244,12 @@ export const itTasks = {
   "batchAgents.eligibilityNone": "Nessun progetto idoneo nella selezione attuale.",
   "batchAgents.status.okEmpty": "OK (nessun dettaglio)",
   "batchAgents.status.partial": "Parziale",
+  "tasks.subagentsTitle": "Subagenti",
+  "tasks.subagentRunning": "In esecuzione",
+  "tasks.subagentCompleted": "Completato",
+  "tasks.subagentFailed": "Non riuscito",
+  "tasks.subagentCancelled": "Annullato",
+  "tasks.subagentFinished": "Concluso",
+  "tasks.subagentMeta": "{turns} turni · {tools} strumenti · {tokens} token · {duration}",
+  "tasks.subagentOutput": "Output",
 };

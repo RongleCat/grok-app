@@ -53,6 +53,7 @@ export function AgentTasksPanelLive({
         {...props}
         messages={messages}
         activitySessions={activitySessions}
+        currentSessionId={currentSessionId}
       />
     </Suspense>
   );

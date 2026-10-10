@@ -244,4 +244,12 @@ export const ruTasks = {
   "batchAgents.eligibilityNone": "В текущем выборе нет подходящих проектов.",
   "batchAgents.status.okEmpty": "OK (без подробностей)",
   "batchAgents.status.partial": "Частично",
+  "tasks.subagentsTitle": "Субагенты",
+  "tasks.subagentRunning": "Выполняется",
+  "tasks.subagentCompleted": "Завершено",
+  "tasks.subagentFailed": "Ошибка",
+  "tasks.subagentCancelled": "Отменено",
+  "tasks.subagentFinished": "Окончено",
+  "tasks.subagentMeta": "{turns} ходов · {tools} инструментов · {tokens} токенов · {duration}",
+  "tasks.subagentOutput": "Результат",
 };
