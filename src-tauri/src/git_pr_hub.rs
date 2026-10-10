@@ -20,7 +20,9 @@ const COMMENTS_CAP: usize = 50;
 const EXCERPT_CAP: usize = 200;
 
 const LIST_JSON_FIELDS: &str = "number,title,author,url,mergeable,state,headRefName,baseRefName,isDraft,statusCheckRollup,createdAt,updatedAt";
-const VIEW_JSON_FIELDS: &str = "number,title,author,url,mergeable,state,headRefName,baseRefName,isDraft,statusCheckRollup,createdAt,updatedAt,body";
+/// PR fields shared by `pr list` and `pr view`; PR monitors extend it with
+/// `comments,reviews` so one call covers a whole poll.
+pub const VIEW_JSON_FIELDS: &str = "number,title,author,url,mergeable,state,headRefName,baseRefName,isDraft,statusCheckRollup,createdAt,updatedAt,body";
 const CHECKS_JSON_FIELDS: &str = "name,state,bucket,link,description,workflow";
 const COMMENTS_JSON_FIELDS: &str = "number,url,comments,reviews";
 
@@ -801,7 +803,7 @@ fn probe_gh() -> bool {
         .unwrap_or(false)
 }
 
-fn run_gh_in_project(project: &str, args: &[&str]) -> Result<Output, String> {
+pub(crate) fn run_gh_in_project(project: &str, args: &[&str]) -> Result<Output, String> {
     let mut cmd = process_util::command("gh");
     if let Some(path_env) = process_util::enriched_path_env() {
         cmd.env("PATH", path_env);
@@ -811,6 +813,8 @@ fn run_gh_in_project(project: &str, args: &[&str]) -> Result<Output, String> {
     // Avoid interactive auth prompts hanging the host.
     cmd.env("GH_PROMPT_DISABLED", "1");
     cmd.env("GIT_TERMINAL_PROMPT", "0");
+    // `--json` stdout is parsed: a colored terminal must not wrap it in ANSI.
+    process_util::apply_no_color_env_std(&mut cmd);
 
     // Best-effort timeout via spawn + wait (sync path for Tauri command).
     let mut child = cmd
@@ -894,7 +898,9 @@ fn soft_fail_comments(
     }
 }
 
-fn prepare_project(project_path: &str) -> Result<String, (String, bool, bool)> {
+/// Normalize + probe a project folder for GitHub PR reads (also used by the
+/// PR monitor, which needs the same "is this a usable repo with gh" gate).
+pub(crate) fn prepare_project(project_path: &str) -> Result<String, (String, bool, bool)> {
     let project = normalize_project_path(project_path);
     if project.is_empty() {
         return Err(("empty path".into(), false, false));

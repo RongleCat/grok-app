@@ -21,6 +21,7 @@
    - [maintain.md](docs/llm-wiki/maintain.md) — **open-source maintenance**: Issues triage, PR review, community intake, ship loop, **branch hygiene**, commit-then-push, **no remote-ahead after merge**, local CI before PR
    - [chatcut.md](docs/llm-wiki/chatcut.md) — **ChatCut Codex plugin**: adapter, MCP surface header, Resources browser handoff, re-pull migration
    - [appearance-skins.md](docs/llm-wiki/appearance-skins.md) — **appearance packs**: `.grokskin` layout, K19 allowlist, `grok://` + `grok-app:`, never auto-apply
+   - [pr-monitor.md](docs/llm-wiki/pr-monitor.md) — **PR monitor**: branch-bound PR chip (number + truncated title), host watch + fingerprint dedup, PR updates wake the chat; process-lifetime, mounts not persisted
 
 1b. **Release (AI handoff)** — **[docs/llm-wiki/release.md](docs/llm-wiki/release.md)** is the single source for ship steps. Platforms / local build: [docs/BUILD.md](docs/BUILD.md). Window chrome: `tauri.macos.conf.json` (Overlay) vs `tauri.windows.conf.json` (frameless).  
    - Never tag without `## [X.Y.Z]` in `CHANGELOG.md`.  

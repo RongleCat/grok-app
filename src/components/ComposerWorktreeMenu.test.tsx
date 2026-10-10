@@ -25,7 +25,10 @@ HEAD abcdef0123456789
 branch refs/heads/master
 `;
 
-function renderChip(worktrees: ReturnType<typeof parseWorktreePorcelain>) {
+function renderChip(
+  worktrees: ReturnType<typeof parseWorktreePorcelain>,
+  extra: Record<string, unknown> = {},
+) {
   return renderToString(
     React.createElement(ComposerWorktreeMenu, {
       activePath: "/Users/me/typebooks",
@@ -37,6 +40,7 @@ function renderChip(worktrees: ReturnType<typeof parseWorktreePorcelain>) {
       onCreate: vi.fn(),
       onCreateAndChat: vi.fn(),
       onGc: vi.fn(),
+      ...extra,
     }),
   );
 }
@@ -60,5 +64,50 @@ describe("ComposerWorktreeMenu branch chip", () => {
     const html = renderChip(next);
     expect(html).toContain("feat/session-branch");
     expect(html).not.toContain("master");
+  });
+});
+
+describe("ComposerWorktreeMenu PR banded with the branch", () => {
+  const LONG_TITLE =
+    "feat(tasks): follow live subagent runs in the Tasks panel with extra words";
+  const pr = {
+    number: 1316,
+    title: LONG_TITLE,
+    state: "OPEN",
+    checksLine: "4 pass",
+  };
+
+  it("bands #number + truncated title into the branch area while watched", () => {
+    const html = renderChip(parseWorktreePorcelain(PORCELAIN), {
+      pr,
+      prWatching: true,
+    });
+    expect(html).toContain("composer__context-pr-num");
+    // React splits the text nodes, so match the number across the marker.
+    expect(html).toMatch(/#(<!-- -->)?1316/);
+    expect(html).toContain("composer__context-pr-title");
+    // Truncated, not the full title.
+    expect(html).not.toContain(LONG_TITLE);
+    expect(html).toContain("…");
+    expect(html).toContain("composer__context-item--branch has-pr");
+  });
+
+  it("keeps the branch area clean when the PR is not being watched", () => {
+    const html = renderChip(parseWorktreePorcelain(PORCELAIN), {
+      pr,
+      prWatching: false,
+    });
+    expect(html).not.toContain("composer__context-pr");
+    expect(html).not.toContain("#1316");
+    expect(html).toContain("master");
+  });
+
+  it("renders no PR at all when the branch has none", () => {
+    const html = renderChip(parseWorktreePorcelain(PORCELAIN), {
+      pr: null,
+      prWatching: false,
+    });
+    expect(html).not.toContain("composer__context-pr");
+    expect(html).not.toContain("#");
   });
 });

@@ -153,6 +153,8 @@ mod proxy;
 
 mod relay_stream_proxy;
 
+mod pr_monitor;
+
 mod pty_host;
 
 mod remote_im;
@@ -942,6 +944,11 @@ pub fn run() {
                 } else {
                     automation_runner::start(app.handle().clone(), mgr);
                 }
+
+                // PR monitors: poll mounted PRs while the process lives (tray
+                // included) and emit `pr-monitor://update` on real changes.
+                // Mounts are UI-driven and not persisted.
+                pr_monitor::start(app.handle().clone());
             }
 
             // LaunchAgent / helper / oneshot: open into tray so schedules fire without focus steal.

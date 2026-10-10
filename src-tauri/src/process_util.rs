@@ -264,6 +264,19 @@ pub fn ensure_home_env_std(cmd: &mut StdCommand) {
     cmd.env("HOME", home);
 }
 
+/// Force machine-readable (uncolored) output from CLIs whose stdout we parse.
+///
+/// `gh --json` / `gh pr create` output is parsed as JSON / URL text, so an
+/// inherited `FORCE_COLOR` / `CLICOLOR_FORCE` (common when the App is launched
+/// from a colored terminal) must not wrap it in ANSI escapes. `NO_COLOR` alone
+/// loses to `FORCE_COLOR`, so the forcing vars are removed, not just overridden.
+pub fn apply_no_color_env_std(cmd: &mut StdCommand) {
+    cmd.env_remove("FORCE_COLOR");
+    cmd.env_remove("CLICOLOR_FORCE");
+    cmd.env_remove("CLICOLOR");
+    cmd.env("NO_COLOR", "1");
+}
+
 /// Same as [`ensure_home_env_std`] for `tokio::process::Command`.
 pub fn ensure_home_env_tokio(cmd: &mut tokio::process::Command) {
     if home_env_present() {
@@ -875,6 +888,29 @@ mod tests {
     #[test]
     fn user_home_nonempty() {
         assert!(!user_home().as_os_str().is_empty());
+    }
+
+    /// Read back an env var as resolved for the child (last write wins).
+    fn child_env(cmd: &StdCommand, key: &str) -> Option<Option<String>> {
+        cmd.get_envs()
+            .filter(|(k, _)| *k == std::ffi::OsStr::new(key))
+            .last()
+            .map(|(_, v)| v.map(|v| v.to_string_lossy().to_string()))
+    }
+
+    #[test]
+    fn no_color_env_beats_an_inherited_force_color() {
+        let mut cmd = command("gh");
+        cmd.env("FORCE_COLOR", "1");
+        cmd.env("CLICOLOR_FORCE", "1");
+        cmd.env("CLICOLOR", "1");
+
+        apply_no_color_env_std(&mut cmd);
+
+        assert_eq!(child_env(&cmd, "NO_COLOR"), Some(Some("1".into())));
+        assert_eq!(child_env(&cmd, "FORCE_COLOR"), Some(None));
+        assert_eq!(child_env(&cmd, "CLICOLOR_FORCE"), Some(None));
+        assert_eq!(child_env(&cmd, "CLICOLOR"), Some(None));
     }
 
     #[cfg(windows)]

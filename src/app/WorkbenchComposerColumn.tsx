@@ -39,6 +39,11 @@ import * as api from "@/lib/api";
 import { ComposerProjectMenu } from "@/components/ComposerProjectMenu";
 import { ComposerRemoteMenu } from "@/components/ComposerRemoteMenu";
 import { ComposerWorktreeMenu } from "@/components/ComposerWorktreeMenu";
+import { usePrMonitor } from "@/hooks/usePrMonitor";
+import { describePrUpdate, formatChecksLine } from "@/lib/prMonitor";
+import { isSessionBusy } from "@/lib/session";
+import { buildPrHubDeepLink } from "@/lib/prHubDeepLink";
+import { pathsEqual } from "@/lib/gitWorktree";
 import { AskUserBar } from "@/components/AskUserBar";
 import { PermissionCountdown } from "@/components/PermissionCountdown";
 import { SuperGrokMark } from "@/components/SuperGrokMark";
@@ -368,6 +373,45 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
   const askUserSettlingRpcRef = useRef<number | null>(null);
   const askUserLiveRef = useRef(askUser);
   askUserLiveRef.current = askUser;
+
+  // ── Branch-bound PR monitor (chip display + session wake) ────────────────
+  // The branch comes from the worktree this session is bound to; a PR is only
+  // offered for a real branch (never a detached HEAD) on the desktop host.
+  const activeBranch =
+    gitWorktrees
+      .find((w) => pathsEqual(w.path, activeProject?.path ?? ""))
+      ?.branch?.trim() ?? null;
+  const prMonitor = usePrMonitor({
+    enabled:
+      api.isDesktopHost() &&
+      !!activeProject?.path &&
+      !!activeBranch &&
+      gitWorktreesAvailable === true,
+    projectPath: activeProject?.path ?? null,
+    branch: activeBranch,
+    sessionId: session.sessionId ?? null,
+    locale,
+    sessionBusy: isSessionBusy(session.state),
+    notify: (message, tone) => showToast(message, tone === "error" ? 5000 : 3200),
+  });
+  const prChip = prMonitor.pr
+    ? {
+        number: prMonitor.pr.number,
+        title: prMonitor.pr.title,
+        state: prMonitor.pr.state ?? null,
+        checksLine: formatChecksLine(prMonitor.pr.checks ?? null, tr),
+      }
+    : null;
+  const prUpdateLines = prMonitor.lastUpdates
+    ? prMonitor.lastUpdates.map((u) => describePrUpdate(u, tr))
+    : null;
+  // The PR hub already owns the PR detail view: reuse its deep link (Settings →
+  // runtime/tools focused on that row) instead of building a second surface.
+  const openPrHubForNumber = (prNumber: number) => {
+    if (typeof window === "undefined") return;
+    const hash = buildPrHubDeepLink({ prNumber });
+    if (window.location.hash !== hash) window.location.hash = hash;
+  };
   const previewText = displayPermissionPreview(perm?.preview);
   useEffect(() => {
     setPermBusy(false);
@@ -791,7 +835,27 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                       cliWorktreeMissingPath: tr(
                         "composer.cliWorktreeMissingPath",
                       ),
+                      pr: tr("prMonitor.menuHead"),
+                      prEmpty: tr("prMonitor.noPr"),
+                      prWatch: tr("prMonitor.watch"),
+                      prUnwatch: tr("prMonitor.unwatch"),
+                      prWatchTip: tr("prMonitor.watchTip"),
+                      prUnwatchTip: tr("prMonitor.unwatchTip"),
+                      prOpenHub: tr("prMonitor.openHub"),
+                      prChipTip: tr("prMonitor.chipTip"),
+                      prPendingWakes: tr("prMonitor.pendingWakes"),
+                      prWatchingLabel: tr("prMonitor.watching"),
+                      prLastUpdate: tr("prMonitor.lastUpdate"),
+                      prUnavailable: tr("prMonitor.unavailable"),
                     }}
+                    pr={prChip}
+                    prWatching={prMonitor.watching}
+                    prBusy={prMonitor.busy}
+                    prUpdates={prUpdateLines}
+                    prPendingWakes={prMonitor.pendingCount}
+                    prWatchError={prMonitor.watchError}
+                    onTogglePrWatch={prMonitor.toggleWatch}
+                    onOpenPrHub={openPrHubForNumber}
                     onSwitch={(wt) => {
                       void switchToWorktree(wt);
                     }}
