@@ -1192,7 +1192,12 @@ pub fn mcp_server_acp_entry_reason() -> (Option<serde_json::Value>, &'static str
     )
 }
 
-fn which_node() -> Option<String> {
+/// Resolve the `node` binary for an injected stdio MCP server.
+///
+/// Shared with the PR-monitor MCP: `process_util::command` keeps a console from
+/// flashing on Windows, and callers fall back to the bare name when `which` is
+/// unavailable rather than dropping the server.
+pub(crate) fn which_node() -> Option<String> {
     for name in ["node", "nodejs"] {
         if let Ok(out) = process_util::command("which").arg(name).output() {
             if out.status.success() {

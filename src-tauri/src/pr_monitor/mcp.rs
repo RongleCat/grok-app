@@ -53,7 +53,7 @@ pub fn mcp_server_acp_entry(session_id: &str, project_cwd: Option<&str>) -> Opti
         return None;
     }
     let script = write_script(&mcp_home()).ok()?;
-    let node = which_node()?;
+    let node = resolve_node();
     let endpoint = crate::session_api::endpoint_path();
     let mut env = vec![
         json!({
@@ -73,18 +73,15 @@ pub fn mcp_server_acp_entry(session_id: &str, project_cwd: Option<&str>) -> Opti
     }))
 }
 
-fn which_node() -> Option<String> {
-    for name in ["node", "nodejs"] {
-        if let Ok(out) = std::process::Command::new("which").arg(name).output() {
-            if out.status.success() {
-                let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                if !path.is_empty() {
-                    return Some(path);
-                }
-            }
-        }
-    }
-    None
+/// The `node` that runs the stdio server.
+///
+/// Falls back to the bare name (the agent's own PATH resolves it) exactly like
+/// the official-aux entry, so a host where `which` is missing still gets the
+/// tools. Resolved once: this runs on the connect path, which must stay cheap.
+fn resolve_node() -> String {
+    static NODE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    NODE.get_or_init(|| crate::official_aux::which_node().unwrap_or_else(|| "node".to_string()))
+        .clone()
 }
 
 #[cfg(test)]
@@ -104,5 +101,56 @@ mod tests {
     #[test]
     fn entry_stays_none_without_a_session() {
         assert!(mcp_server_acp_entry("   ", Some("/tmp/project")).is_none());
+    }
+
+    /// The script reads the host's watch rows by field name, with `?? null`
+    /// fallbacks: a rename here would show up as blank rows instead of an error.
+    #[test]
+    fn script_reads_fields_the_host_actually_sends() {
+        let row = crate::pr_monitor::types::PrWatchInfo {
+            session_id: "s1".into(),
+            project_path: "/tmp/repo".into(),
+            pr_number: 7,
+            interval_secs: 60,
+            mounted_at: "2026-01-01T00:00:00Z".into(),
+            last_poll_at: None,
+            last_update_at: None,
+            last_error: None,
+            polls: 0,
+            updates: 0,
+            terminal: false,
+            snapshot: None,
+            last_change: None,
+            pending: false,
+        };
+        let json = serde_json::to_value(&row).expect("watch row serializes");
+        let object = json.as_object().expect("watch row is an object");
+        // `skip_serializing_if` hides the optional ones until they have a value.
+        for key in [
+            "prNumber",
+            "projectPath",
+            "intervalSecs",
+            "polls",
+            "updates",
+            "terminal",
+        ] {
+            assert!(object.contains_key(key), "watch row is missing `{key}`");
+        }
+        for key in [
+            "prNumber",
+            "projectPath",
+            "intervalSecs",
+            "polls",
+            "updates",
+            "terminal",
+            "lastPollAt",
+            "lastError",
+            "snapshot",
+        ] {
+            assert!(
+                PR_MONITOR_MCP_SCRIPT.contains(key),
+                "script does not read `{key}` — it fell out of sync with the host"
+            );
+        }
     }
 }
