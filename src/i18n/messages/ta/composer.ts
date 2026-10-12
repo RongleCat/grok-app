@@ -400,7 +400,7 @@ export const taComposer = {
   // ── PR monitor (branch chip + session wake) ──
   "prMonitor.menuHead": "Pull request",
   "prMonitor.watch": "இந்த PR-ஐ கண்காணி",
-  "prMonitor.watchTip": "இந்த அரட்டையில் இந்த PR-ஐ பின்தொடரவும்: புதிய கருத்துகளும் CI மாற்றங்களும் அமர்வை எழுப்பும்",
+  "prMonitor.watchTip": "PR கருத்துகளும் CI மாற்றங்களும் அமர்வை எழுப்பும்",
   "prMonitor.unwatch": "கண்காணிப்பை நிறுத்து",
   "prMonitor.unwatchTip": "இந்த PR-ஐ பின்தொடர்வதை நிறுத்து",
   "prMonitor.watching": "கண்காணிக்கிறது",

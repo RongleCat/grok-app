@@ -400,7 +400,7 @@ export const ruComposer = {
   // ── PR monitor (branch chip + session wake) ──
   "prMonitor.menuHead": "Pull request",
   "prMonitor.watch": "Следить за этим PR",
-  "prMonitor.watchTip": "Следить за PR в этом чате: новые комментарии и изменения CI будят сессию",
+  "prMonitor.watchTip": "Комментарии и изменения CI будят этот чат",
   "prMonitor.unwatch": "Прекратить слежение",
   "prMonitor.unwatchTip": "Больше не следить за этим PR",
   "prMonitor.watching": "Слежение",

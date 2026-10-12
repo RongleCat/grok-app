@@ -400,7 +400,7 @@ export const zhComposer = {
   // ── PR monitor (branch chip + session wake) ──
   "prMonitor.menuHead": "拉取请求",
   "prMonitor.watch": "监视此 PR",
-  "prMonitor.watchTip": "在此会话中跟进该 PR：新评论与 CI 变化会唤醒会话",
+  "prMonitor.watchTip": "PR 新评论与 CI 变化会唤醒本会话",
   "prMonitor.unwatch": "停止监视",
   "prMonitor.unwatchTip": "不再跟进该 PR",
   "prMonitor.watching": "监视中",

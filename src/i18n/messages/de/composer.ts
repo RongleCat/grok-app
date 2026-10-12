@@ -400,7 +400,7 @@ export const deComposer = {
   // ── PR monitor (branch chip + session wake) ──
   "prMonitor.menuHead": "Pull Request",
   "prMonitor.watch": "Diesen PR verfolgen",
-  "prMonitor.watchTip": "Diesen PR in diesem Chat verfolgen: neue Kommentare und CI-Änderungen wecken die Sitzung",
+  "prMonitor.watchTip": "Kommentare und CI wecken diesen Chat",
   "prMonitor.unwatch": "Nicht mehr verfolgen",
   "prMonitor.unwatchTip": "Diesen PR nicht mehr verfolgen",
   "prMonitor.watching": "Wird verfolgt",

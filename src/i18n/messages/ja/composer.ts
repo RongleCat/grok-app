@@ -400,7 +400,7 @@ export const jaComposer = {
   // ── PR monitor (branch chip + session wake) ──
   "prMonitor.menuHead": "プルリクエスト",
   "prMonitor.watch": "この PR を監視",
-  "prMonitor.watchTip": "このチャットでこの PR を追跡します。新しいコメントや CI の変化でセッションを起こします",
+  "prMonitor.watchTip": "新着コメントと CI 変化でセッションが起きます",
   "prMonitor.unwatch": "監視を停止",
   "prMonitor.unwatchTip": "この PR の追跡を停止",
   "prMonitor.watching": "監視中",

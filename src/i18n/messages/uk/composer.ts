@@ -400,7 +400,7 @@ export const ukComposer = {
   // ── PR monitor (branch chip + session wake) ──
   "prMonitor.menuHead": "Pull request",
   "prMonitor.watch": "Стежити за цим PR",
-  "prMonitor.watchTip": "Стежити за PR у цьому чаті: нові коментарі та зміни CI будять сесію",
+  "prMonitor.watchTip": "Коментарі та зміни CI будять цей чат",
   "prMonitor.unwatch": "Припинити стеження",
   "prMonitor.unwatchTip": "Більше не стежити за цим PR",
   "prMonitor.watching": "Стеження",

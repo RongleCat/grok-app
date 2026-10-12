@@ -400,7 +400,7 @@ export const filComposer = {
   // ── PR monitor (branch chip + session wake) ──
   "prMonitor.menuHead": "Pull request",
   "prMonitor.watch": "Bantayan ang PR na ito",
-  "prMonitor.watchTip": "Sundan ang PR na ito sa chat na ito: binubuhay ng bagong komento at pagbabago sa CI ang session",
+  "prMonitor.watchTip": "Komento at CI ang bumubuhay sa chat na ito",
   "prMonitor.unwatch": "Itigil ang pagbantay",
   "prMonitor.unwatchTip": "Itigil ang pagsunod sa PR na ito",
   "prMonitor.watching": "Binabantayan",

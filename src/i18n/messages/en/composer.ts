@@ -401,7 +401,7 @@ export const enComposer = {
   // ── PR monitor (branch chip + session wake) ──
   "prMonitor.menuHead": "Pull request",
   "prMonitor.watch": "Watch this PR",
-  "prMonitor.watchTip": "Follow this PR in this chat: new comments and CI changes wake the session",
+  "prMonitor.watchTip": "PR comments and CI changes wake this chat",
   "prMonitor.unwatch": "Stop watching",
   "prMonitor.unwatchTip": "Stop following this PR",
   "prMonitor.watching": "Watching",

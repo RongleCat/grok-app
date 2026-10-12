@@ -400,7 +400,7 @@ export const itComposer = {
   // ── PR monitor (branch chip + session wake) ──
   "prMonitor.menuHead": "Pull request",
   "prMonitor.watch": "Monitora questa PR",
-  "prMonitor.watchTip": "Segui questa PR in questa chat: nuovi commenti e cambi di CI risvegliano la sessione",
+  "prMonitor.watchTip": "Commenti e modifiche CI risvegliano questa chat",
   "prMonitor.unwatch": "Interrompi monitoraggio",
   "prMonitor.unwatchTip": "Non seguire più questa PR",
   "prMonitor.watching": "In monitoraggio",

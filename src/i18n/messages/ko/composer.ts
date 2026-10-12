@@ -400,7 +400,7 @@ export const koComposer = {
   // ── PR monitor (branch chip + session wake) ──
   "prMonitor.menuHead": "풀 리퀘스트",
   "prMonitor.watch": "이 PR 감시",
-  "prMonitor.watchTip": "이 채팅에서 이 PR을 추적합니다. 새 댓글과 CI 변화가 세션을 깨웁니다",
+  "prMonitor.watchTip": "PR 새 댓글과 CI 변화가 세션을 깨웁니다",
   "prMonitor.unwatch": "감시 중지",
   "prMonitor.unwatchTip": "이 PR 추적 중지",
   "prMonitor.watching": "감시 중",

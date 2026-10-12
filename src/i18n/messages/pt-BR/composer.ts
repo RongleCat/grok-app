@@ -400,7 +400,7 @@ export const ptBRComposer = {
   // ── PR monitor (branch chip + session wake) ──
   "prMonitor.menuHead": "Pull request",
   "prMonitor.watch": "Monitorar este PR",
-  "prMonitor.watchTip": "Acompanhar este PR neste chat: novos comentários e mudanças de CI acordam a sessão",
+  "prMonitor.watchTip": "Comentários e mudanças de CI acordam este chat",
   "prMonitor.unwatch": "Parar de monitorar",
   "prMonitor.unwatchTip": "Deixar de acompanhar este PR",
   "prMonitor.watching": "Monitorando",
