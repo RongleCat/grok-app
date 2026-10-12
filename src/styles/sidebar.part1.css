@@ -117,7 +117,13 @@ button:disabled {
  * border bugs). 0-blur 1px spread follows the radius. */
 .ui-tip {
   position: fixed;
-  z-index: 10050;
+  /* Top band. A tip annotates a control that can live in any surface — floating
+     menu (13000), space switcher menu (14000), GlassModal `.overlay` (12000),
+     `.app-dialog-overlay` / toast (14000) — and it is portaled to body, so DOM
+     order cannot put it on top: only the layer can. At 10050 a tip on a row
+     inside the branch menu painted behind the open menu (watch-bell tooltip).
+     Raise this above everything a tip can be anchored in, never down. */
+  z-index: 14100;
   /* Inline style also sets maxWidth from viewport clamp; keep a CSS fallback. */
   max-width: min(280px, calc(100vw - 16px));
   padding: 5px 8px;
@@ -153,11 +159,6 @@ button:disabled {
   padding: 8px 10px;
   line-height: 1.45;
   font-weight: 400;
-}
-
-/* Tips opened from a .overlay modal (z-index 12000) */
-.ui-tip--modal {
-  z-index: 13050;
 }
 
 /* File-path card hover: full path, wrap, show immediately (delayMs=0). */

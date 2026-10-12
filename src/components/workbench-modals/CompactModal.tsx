@@ -67,7 +67,7 @@ export function CompactModal(props: {
               label={tr("slash.compactHelpTip")}
               placement="bottom"
               delayMs={280}
-              className="ui-tip--wrap ui-tip--modal"
+              className="ui-tip--wrap"
             >
               <button
                 type="button"
