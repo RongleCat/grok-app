@@ -235,10 +235,22 @@ button.composer__context-item {
   margin-bottom: 4px;
 }
 
+/* The PR row's title is the row: it keeps a share of the width and ellipsizes.
+   The rollup beside it (`state · checks · branch`) is long enough to fill the
+   row on its own, so without a floor here it shrank the title to zero width and
+   the row read as a bare rollup with no PR on it. */
 .cwm__pr-row .cwm__item-name {
+  min-width: 40%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Paired with the title floor above: 40% + the row's 8px gap + 60% is the whole
+   row, so a long rollup ellipsizes instead of pushing the title out. */
+.cwm__pr-row .cwm__item-meta {
+  flex-shrink: 0;
+  max-width: calc(60% - 8px);
 }
 
 /* One row per PR: the watch control rides in its own row, so a chat that
@@ -423,8 +435,15 @@ button.composer__context-item {
   min-width: 0;
 }
 
+/* Row meta: secondary copy beside a row's name. It yields width and clips with
+   an ellipsis rather than holding its full width and spilling over whatever
+   sits at the end of the row (a watch bell, a remove button). */
 .cwm__item-meta {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11px;
   font-weight: 500;
   line-height: 1.2;
