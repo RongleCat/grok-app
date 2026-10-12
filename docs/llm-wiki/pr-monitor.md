@@ -130,11 +130,12 @@ PR it just opened is followed without anyone clicking a bell:
   about what a chat is watching — and a mount from the agent shows up in the
   menu immediately (the host pushes `pr-monitor://state`).
 - Wrap-up policy lives with the tools, not in the wake prompt: `pr_watch`'s
-  description says to mount right after `gh pr create`, `pr_unwatch`'s says to
-  stop when the PR is merged or closed by someone else. The host still does the
-  mechanical half — a merged/closed PR gets exactly one follow-up turn and the
-  watch is dropped after it — so a contributor's watch ends even if the agent
-  never calls `pr_unwatch`.
+  description says to mount right after `gh pr create`; `pr_unwatch`'s names both
+  sides — the agent merges its own PR (`gh pr merge`) and cleans the branch when
+  the user wants it merged, and simply stops when someone else merged or closed
+  it. The host still does the mechanical half — a merged/closed PR gets exactly
+  one follow-up turn and the watch is dropped after it — so a contributor's watch
+  ends even if the agent never calls `pr_unwatch`.
 
 ## Honest limits
 

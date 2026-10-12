@@ -78,8 +78,9 @@ Status: ready-for-agent
 - **分层**：宿主仍是唯一权威（注册表 / 轮询 / 投递）；本切片只增加「命令面（回环路由）」与
   「工具面（MCP）」，不复制监视逻辑、不改轮询与唤醒语义。
 - **路由**：`src-tauri/src/session_api.rs` 增三条路由与 `delete` 导入；handler 只做 token 校验
-  + 参数校验（`session_id` 必填）后调用 `pr_monitor::*` 命令，错误沿用既有
-  `{ok, status, message}` 形状（400 参数、401 无 token）。
+  + 参数校验（`session_id` 必填）后调用 `pr_monitor::*` 命令。400 / 401 沿用既有
+  `{ok, status, message}`；成功与命令级拒绝沿用挂载/卸载自己的结果 DTO（`{ok, error}` /
+  `{ok, removed}`），脚本对两者都接受。
 - **MCP**：`scripts/pr-monitor-mcp.mjs` 零依赖；`src-tauri/src/pr_monitor/mcp.rs` 用
   `include_str!` 内嵌、写到 `{app_data}/mcp/pr-monitor/`，并生成 ACP entry（command=node、
   env=端点 / 会话 id / 项目）；`extensions.rs` 在 `build_session_mcp_servers*` 末尾追加该

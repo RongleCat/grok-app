@@ -131,7 +131,7 @@ const TOOLS = [
   {
     name: "pr_unwatch",
     description:
-      "Stop watching a pull request in this chat. Use it to wrap up: when your PR was merged or closed by a maintainer, stop the watch so the chat is not woken for it again. The host also stops a watch by itself after the last follow-up on a merged/closed PR, so calling this is mostly about ending it early.",
+      "Stop watching a pull request in this chat — call it to wrap up. Author side (your own PR, and the user wants it merged): merge it with `gh pr merge`, clean up the local branch, then stop the watch. Contributor side (a maintainer merged or closed your PR): stop the watch and stop doing further work for that branch. The host also drops a watch by itself after the single follow-up turn it delivers for a merged/closed PR, so this call is mostly about ending a watch early.",
     inputSchema: {
       type: "object",
       properties: {
