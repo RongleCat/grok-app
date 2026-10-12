@@ -1284,8 +1284,10 @@ fn fetch_mcp_from_inspect(project_cwd: Option<&str>) -> Vec<McpServerDef> {
 ///
 /// For **session open / connect**, use [`build_session_mcp_servers_for_connect`]
 /// so MCP/OAuth failures cannot block ACP.
-pub fn build_session_mcp_servers(project_cwd: Option<&str>) -> Value {
-    build_session_mcp_servers_with_opts(project_cwd, McpInjectOptions::default())
+/// Full inject (settings / hot swap). `app_session_id` scopes the per-session
+/// App MCPs, so a live agent keeps its tools across a hot MCP swap.
+pub fn build_session_mcp_servers(project_cwd: Option<&str>, app_session_id: Option<&str>) -> Value {
+    build_session_mcp_servers_with_opts(project_cwd, McpInjectOptions::default(), app_session_id)
 }
 
 /// Connect / open_session inject: config-only, no OAuth network, panic-safe.
@@ -1293,10 +1295,17 @@ pub fn build_session_mcp_servers(project_cwd: Option<&str>) -> Value {
 /// Returns `[]` on any failure so `session/new|load` always proceeds. Callers
 /// should also wrap with [`MCP_CONNECT_BUDGET`] so a stuck CLI probe cannot
 /// stall the async runtime.
-pub fn build_session_mcp_servers_for_connect(project_cwd: Option<&str>) -> Value {
+pub fn build_session_mcp_servers_for_connect(
+    project_cwd: Option<&str>,
+    app_session_id: Option<&str>,
+) -> Value {
     let start = Instant::now();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        build_session_mcp_servers_with_opts(project_cwd, McpInjectOptions::for_connect())
+        build_session_mcp_servers_with_opts(
+            project_cwd,
+            McpInjectOptions::for_connect(),
+            app_session_id,
+        )
     }));
     match result {
         Ok(v) => {
@@ -1320,9 +1329,13 @@ pub fn build_session_mcp_servers_for_connect(project_cwd: Option<&str>) -> Value
 }
 
 /// Shared builder used by full inject and the connect soft-fail path.
+///
+/// `app_session_id` is the chat this agent serves; per-session App MCPs (the PR
+/// monitor tools) are only injected when it is known.
 pub fn build_session_mcp_servers_with_opts(
     project_cwd: Option<&str>,
     opts: McpInjectOptions,
+    app_session_id: Option<&str>,
 ) -> Value {
     let inject = crate::official_aux::should_inject_mcp_for_main();
     let load_user = !inject || crate::official_aux::should_load_user_mcp_with_official_aux();
@@ -1373,6 +1386,19 @@ pub fn build_session_mcp_servers_with_opts(
                 reason,
                 "official-aux inject is on but MCP entry is missing — X/Imagine will not be official-aux"
             );
+        }
+    }
+
+    // The Agent's own handle on this chat's PR watches (`pr_watch` / `pr_unwatch`
+    // / `pr_watches`). App-local — no credentials — so it rides every route; it
+    // is only built when the caller knows which chat this process serves.
+    if let Some(sid) = app_session_id.as_deref() {
+        match crate::pr_monitor::mcp::mcp_server_acp_entry(sid, project_cwd) {
+            Some(entry) => arr.push(entry),
+            None => tracing::warn!(
+                target: "mcp_inject",
+                "pr-monitor MCP entry unavailable (node / script / endpoint) — agent cannot watch PRs"
+            ),
         }
     }
     Value::Array(arr)
@@ -2328,7 +2354,7 @@ mod tests {
     #[test]
     fn connect_builder_never_panics_returns_array() {
         // Empty cwd / no config — still a JSON array, never panic.
-        let v = build_session_mcp_servers_for_connect(Some("/nonexistent/project/path"));
+        let v = build_session_mcp_servers_for_connect(Some("/nonexistent/project/path"), None);
         assert!(v.is_array(), "connect inject must always yield an array");
     }
 

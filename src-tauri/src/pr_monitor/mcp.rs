@@ -1,0 +1,108 @@
+//! Agent-facing PR monitor MCP (stdio Node script, injected per session).
+//!
+//! The Host owns every watch — registry, poll loop, wake delivery — and serves
+//! it on the loopback session API. This module is the other half: it embeds
+//! `scripts/pr-monitor-mcp.mjs` (the `pr_watch` / `pr_unwatch` / `pr_watches`
+//! tools) and describes the ACP `mcpServers` entry that gives a chat's agent its
+//! own handle on the watches of *that* chat.
+//!
+//! Injecting it is what makes the feature agent-operable: after `gh pr create`
+//! the agent mounts the watch itself and stops it when the PR is merged or
+//! closed, instead of waiting for a human to click the branch menu's bell.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use serde_json::{json, Value};
+
+/// Embedded copy of `scripts/pr-monitor-mcp.mjs`.
+///
+/// Packaged installs have no repo tree, so the Host writes this out under the
+/// app data dir and points the agent at the written file (mirrors official-aux).
+pub const PR_MONITOR_MCP_SCRIPT: &str = include_str!("../../../scripts/pr-monitor-mcp.mjs");
+pub const PR_MONITOR_MCP_SCRIPT_FILE: &str = "pr-monitor-mcp.mjs";
+/// MCP server name the agent sees.
+pub const PR_MONITOR_MCP_SERVER: &str = "pr-monitor";
+
+/// Where the written script lives: `{app_data}/mcp/pr-monitor`.
+pub fn mcp_home() -> PathBuf {
+    crate::paths::app_data_root().join("mcp").join("pr-monitor")
+}
+
+/// Write (or refresh) the stdio script under `home`; returns its path.
+pub fn write_script(home: &Path) -> Result<PathBuf, String> {
+    fs::create_dir_all(home).map_err(|e| format!("pr monitor mcp home: {e}"))?;
+    let dest = home.join(PR_MONITOR_MCP_SCRIPT_FILE);
+    let current = fs::read_to_string(&dest).unwrap_or_default();
+    if current != PR_MONITOR_MCP_SCRIPT {
+        fs::write(&dest, PR_MONITOR_MCP_SCRIPT)
+            .map_err(|e| format!("write pr-monitor mcp script: {e}"))?;
+    }
+    Ok(dest)
+}
+
+/// ACP `mcpServers` entry scoped to one app session, or `None` when there is
+/// nothing to hand the agent (no session id, no node, script unwritable).
+///
+/// The tools talk to the running Host over the loopback API, so the env carries
+/// the endpoint file (its `{url, token}`) and the session whose watches these
+/// tools may touch. `project_cwd` becomes the default repository for `pr_watch`.
+pub fn mcp_server_acp_entry(session_id: &str, project_cwd: Option<&str>) -> Option<Value> {
+    let sid = session_id.trim();
+    if sid.is_empty() {
+        return None;
+    }
+    let script = write_script(&mcp_home()).ok()?;
+    let node = which_node()?;
+    let endpoint = crate::session_api::endpoint_path();
+    let mut env = vec![
+        json!({
+            "name": "GROK_APP_PR_MONITOR_ENDPOINT",
+            "value": endpoint.display().to_string(),
+        }),
+        json!({ "name": "GROK_APP_SESSION_ID", "value": sid }),
+    ];
+    if let Some(cwd) = project_cwd.map(str::trim).filter(|c| !c.is_empty()) {
+        env.push(json!({ "name": "GROK_APP_PROJECT_PATH", "value": cwd }));
+    }
+    Some(json!({
+        "name": PR_MONITOR_MCP_SERVER,
+        "command": node,
+        "args": [script.display().to_string()],
+        "env": env,
+    }))
+}
+
+fn which_node() -> Option<String> {
+    for name in ["node", "nodejs"] {
+        if let Ok(out) = std::process::Command::new("which").arg(name).output() {
+            if out.status.success() {
+                let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if !path.is_empty() {
+                    return Some(path);
+                }
+            }
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn script_is_embedded_and_names_the_three_tools() {
+        for tool in ["pr_watch", "pr_unwatch", "pr_watches"] {
+            assert!(
+                PR_MONITOR_MCP_SCRIPT.contains(tool),
+                "embedded script is missing {tool}"
+            );
+        }
+    }
+
+    #[test]
+    fn entry_stays_none_without_a_session() {
+        assert!(mcp_server_acp_entry("   ", Some("/tmp/project")).is_none());
+    }
+}

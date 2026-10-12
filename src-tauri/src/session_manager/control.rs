@@ -948,8 +948,12 @@ impl SessionManager {
         };
         if let (Some(sid), false, Some(cwd)) = (hot_sid, hot_busy, cwd) {
             let app_sid = self.inner.lock().as_ref().map(|s| s.app_session_id.clone());
+            let build_sid = app_sid.clone();
             let servers = tauri::async_runtime::spawn_blocking(move || {
-                crate::extensions::build_session_mcp_servers(Some(cwd.as_str()))
+                crate::extensions::build_session_mcp_servers(
+                    Some(cwd.as_str()),
+                    build_sid.as_deref(),
+                )
             })
             .await
             .unwrap_or_else(|_| serde_json::json!([]));

@@ -422,6 +422,9 @@ pub struct AcpClient {
     last_update_unstamped: ParkingMutex<Option<Instant>>,
     /// Official side-channel: skip App MCP inject on session/new.
     empty_mcp_servers: bool,
+    /// App session (chat) this process serves: scopes the per-session MCP tools
+    /// (the PR monitor watches PRs for one chat).
+    app_session_id: Option<String>,
     /// Effective `--sandbox` profile at spawn (process-level gate for parked reuse).
     sandbox_profile: ParkingMutex<Option<String>>,
     /// Route class at spawn: custom relay (api_key, no OIDC) vs official OIDC.
@@ -491,6 +494,9 @@ pub struct SpawnOptions {
     /// When true, pass top-level `grok --trust` so headless ACP loads project
     /// instructions (AGENTS.md) and project skills for an App-trusted folder.
     pub folder_trust: bool,
+    /// App session (chat) this agent process serves. The PR-monitor MCP tools
+    /// watch PRs *for a chat*, so the injected server needs to know which one.
+    pub app_session_id: Option<String>,
 }
 
 mod spawn_flags;
@@ -634,6 +640,7 @@ impl AcpClient {
         //   Flags after `stdio` are rejected (`unexpected argument '--model'`).
         //   `--permission-mode` is top-level `grok` only — not under `grok agent`.
         let empty_mcp_servers = opts.empty_mcp_servers;
+        let app_session_id = opts.app_session_id.clone();
         let home_override = opts.grok_home_override.clone();
         // Route class is process-scoped (auth material + config.toml). Official
         // aux override home is always OIDC-side; main home follows active_route.
@@ -1176,6 +1183,7 @@ impl AcpClient {
             last_update_by_session: ParkingMutex::new(HashMap::new()),
             last_update_unstamped: ParkingMutex::new(None),
             empty_mcp_servers,
+            app_session_id: app_session_id.clone(),
             sandbox_profile: ParkingMutex::new(sandbox.map(|sb| sb.profile.clone())),
             custom_route,
             route_provider_id,
@@ -1276,6 +1284,7 @@ impl AcpClient {
             last_update_unstamped: ParkingMutex::new(None),
             // TCP connect path keeps default MCP inject (not official side-channel).
             empty_mcp_servers: false,
+            app_session_id: None,
             sandbox_profile: ParkingMutex::new(None),
             // Remote ACP: treat as official-class for reuse (no local auth strip).
             custom_route: false,
@@ -2469,13 +2478,15 @@ impl AcpClient {
             serde_json::json!([])
         } else {
             let project_cwd = cwd.clone();
+            let app_session_id = self.app_session_id.clone();
             let budget = crate::extensions::MCP_CONNECT_BUDGET;
             let servers = match tokio::time::timeout(
                 budget,
                 tauri::async_runtime::spawn_blocking(move || {
-                    crate::extensions::build_session_mcp_servers_for_connect(Some(
-                        project_cwd.as_str(),
-                    ))
+                    crate::extensions::build_session_mcp_servers_for_connect(
+                        Some(project_cwd.as_str()),
+                        app_session_id.as_deref(),
+                    )
                 }),
             )
             .await

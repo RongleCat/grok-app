@@ -107,6 +107,35 @@ the baseline so a mount cannot fire a wake.
 wrap `--json` output in ANSI escapes, which made parsing fail and the PR list
 look empty.
 
+## The agent's own handle (MCP tools)
+
+The branch menu is the human path to a watch. The agent gets its own path, so a
+PR it just opened is followed without anyone clicking a bell:
+
+- The host injects a `pr-monitor` MCP server into the session's `mcpServers` at
+  connect (and again on a hot MCP swap), scoped to that one chat. The script is
+  embedded in the host and written to `{app_data}/mcp/pr-monitor/`
+  (`src-tauri/src/pr_monitor/mcp.rs`, `scripts/pr-monitor-mcp.mjs`), so packaged
+  installs work with no repo tree.
+- Tools: `pr_watch` (mount, defaults to the chat's project), `pr_unwatch` (stop)
+  and `pr_watches` (what this chat follows, with state / checks / last error).
+  They talk to the running host over the loopback session API below, with the
+  same token the session API uses; the injected env carries the endpoint file,
+  the chat id and the chat's project.
+- Loopback routes (127.0.0.1, token-gated, same server as the session API):
+  `GET /v1/pr-monitor/watches?session_id=`, `POST /v1/pr-monitor/watches`
+  (`session_id`, `project_path`, `pr_number`, `interval_secs?`),
+  `DELETE /v1/pr-monitor/watches` (`session_id`, `pr_number`). They call the
+  same host commands the UI calls, so the menu and the agent cannot disagree
+  about what a chat is watching — and a mount from the agent shows up in the
+  menu immediately (the host pushes `pr-monitor://state`).
+- Wrap-up policy lives with the tools, not in the wake prompt: `pr_watch`'s
+  description says to mount right after `gh pr create`, `pr_unwatch`'s says to
+  stop when the PR is merged or closed by someone else. The host still does the
+  mechanical half — a merged/closed PR gets exactly one follow-up turn and the
+  watch is dropped after it — so a contributor's watch ends even if the agent
+  never calls `pr_unwatch`.
+
 ## Honest limits
 
 - Watches live in the app process: hiding to the tray keeps them, fully quitting
@@ -118,13 +147,20 @@ look empty.
   mounting past that fails with a soft error.
 - Desktop only (a mirror client has no host poller), and it needs an
   authenticated `gh` on `PATH`.
+- The agent tools need the host to be running: with the app closed the MCP
+  server still starts but every call reports the missing endpoint instead of
+  pretending to watch.
 
 ## Related
 
 - Section: `src/components/ComposerPrListSection.tsx` (rows, inline bells)
   rendered by `ComposerWorktreeMenu`; rows are built by `prListRows`
   (`src/lib/prMonitor.ts`) from the host's state.
-- Tracker: Linear `BOR-98` (spec) with `BOR-99` … `BOR-102` (tracer-bullet tickets).
+- Agent tools: `scripts/pr-monitor-mcp.mjs` (stdio MCP, no dependencies) +
+  `src-tauri/src/pr_monitor/mcp.rs` (embed, write, ACP entry) injected by
+  `src-tauri/src/extensions.rs`; routes in `src-tauri/src/session_api.rs`.
+- Tracker: Linear `BOR-98` (spec) with `BOR-99` … `BOR-102` (tracer-bullet tickets);
+  this slice is `BOR-103` (see `docs/plans/2026-10-12-pr-monitor-agent-tool-spec.md`).
 - Decision record: ADR 0005 (a watch is session-bound, not branch-bound).
 - Reuse, not replacement: `GitPrHubPanel` stays the detail view; a row opens it
   through `prHubDeepLink`.

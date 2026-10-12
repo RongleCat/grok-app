@@ -11,7 +11,7 @@ use std::sync::Arc;
 use axum::extract::{Path, Query, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
@@ -1066,6 +1066,101 @@ async fn get_health(State(state): State<HttpState>, headers: HeaderMap) -> impl 
     Json(health_payload(&state.mgr)).into_response()
 }
 
+// ── PR monitor (the Agent's handle on this chat's watches) ──────────────────
+//
+// The branch menu is the human path to a watch; these routes are the agent path,
+// driven by the injected `pr-monitor` MCP (`pr_monitor::mcp`). All three reuse
+// the Host's own commands, so the menu and the agent can never disagree about
+// what a chat is watching.
+
+#[derive(Debug, Deserialize)]
+struct PrWatchesQuery {
+    session_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PrWatchBody {
+    session_id: String,
+    project_path: String,
+    pr_number: u64,
+    #[serde(default)]
+    interval_secs: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PrUnwatchBody {
+    session_id: String,
+    pr_number: u64,
+}
+
+fn bad_request(message: &str) -> impl IntoResponse {
+    (
+        StatusCode::BAD_REQUEST,
+        Json(serde_json::json!({
+            "ok": false,
+            "status": "error",
+            "message": message,
+        })),
+    )
+}
+
+async fn get_pr_watches(
+    State(state): State<HttpState>,
+    headers: HeaderMap,
+    Query(q): Query<PrWatchesQuery>,
+) -> impl IntoResponse {
+    if !token_ok(&headers, &state.token) {
+        return unauthorized().into_response();
+    }
+    let sid = q.session_id.trim();
+    if sid.is_empty() {
+        return bad_request("session_id is required").into_response();
+    }
+    let state = crate::pr_monitor::pr_monitor_state(sid.to_string()).await;
+    Json(state).into_response()
+}
+
+async fn post_pr_watch(
+    State(state): State<HttpState>,
+    headers: HeaderMap,
+    Json(body): Json<PrWatchBody>,
+) -> impl IntoResponse {
+    if !token_ok(&headers, &state.token) {
+        return unauthorized().into_response();
+    }
+    let sid = body.session_id.trim();
+    if sid.is_empty() {
+        return bad_request("session_id is required").into_response();
+    }
+    let result = crate::pr_monitor::pr_monitor_watch(
+        state.app.clone(),
+        sid.to_string(),
+        body.project_path,
+        body.pr_number,
+        body.interval_secs,
+    )
+    .await;
+    Json(result).into_response()
+}
+
+async fn delete_pr_watch(
+    State(state): State<HttpState>,
+    headers: HeaderMap,
+    Json(body): Json<PrUnwatchBody>,
+) -> impl IntoResponse {
+    if !token_ok(&headers, &state.token) {
+        return unauthorized().into_response();
+    }
+    let sid = body.session_id.trim();
+    if sid.is_empty() {
+        return bad_request("session_id is required").into_response();
+    }
+    let result =
+        crate::pr_monitor::pr_monitor_unwatch(state.app.clone(), sid.to_string(), body.pr_number)
+            .await;
+    Json(result).into_response()
+}
+
 pub async fn start(app: AppHandle, mgr: Arc<SessionManager>) -> Result<SessionApiHandle, String> {
     let token = random_token();
     fanout_persisted_queue(&app);
@@ -1079,6 +1174,9 @@ pub async fn start(app: AppHandle, mgr: Arc<SessionManager>) -> Result<SessionAp
         .route("/v1/health", get(get_health))
         .route("/v1/sessions", get(get_sessions))
         .route("/v1/sessions/{id}/turns", post(post_turn))
+        .route("/v1/pr-monitor/watches", get(get_pr_watches))
+        .route("/v1/pr-monitor/watches", post(post_pr_watch))
+        .route("/v1/pr-monitor/watches", delete(delete_pr_watch))
         .with_state(state);
 
     let listener = TcpListener::bind("127.0.0.1:0")

@@ -423,6 +423,7 @@ No repo edits. Prefer built-in tools. Keep the final answer concise and complete
         empty_mcp_servers: true,
         ssh_alias: None,
         folder_trust: false,
+        app_session_id: None,
     };
 
     tracing::info!(

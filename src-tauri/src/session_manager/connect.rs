@@ -1297,6 +1297,7 @@ impl SessionManager {
             empty_mcp_servers: false,
             ssh_alias: ssh_alias.clone(),
             folder_trust,
+            app_session_id: Some(meta.id.clone()),
         };
 
         let cwd_str = cwd.to_string_lossy().to_string();

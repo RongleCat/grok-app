@@ -32,6 +32,9 @@ mod tests;
 mod text;
 mod types;
 
+/// The agent-facing half of this feature: the injected MCP tools.
+pub mod mcp;
+
 use poll::*;
 use prompt::*;
 use types::*;
