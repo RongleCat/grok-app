@@ -155,6 +155,8 @@ mod relay_stream_proxy;
 
 mod pr_monitor;
 
+mod pr_monitor_i18n;
+
 mod pty_host;
 
 mod remote_im;

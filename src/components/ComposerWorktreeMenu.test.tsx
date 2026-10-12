@@ -67,47 +67,33 @@ describe("ComposerWorktreeMenu branch chip", () => {
   });
 });
 
-describe("ComposerWorktreeMenu PR banded with the branch", () => {
-  const LONG_TITLE =
-    "feat(tasks): follow live subagent runs in the Tasks panel with extra words";
-  const pr = {
-    number: 1316,
-    title: LONG_TITLE,
-    state: "OPEN",
-    checksLine: "4 pass",
+describe("ComposerWorktreeMenu chip watch count", () => {
+  const labels = {
+    ...LABELS,
+    prChipCount: "{count} watching",
+    prChipCountTip: "This chat follows {count} pull request(s)",
   };
 
-  it("bands #number + truncated title into the branch area while watched", () => {
+  it("counts the PRs this chat follows, without naming one", () => {
     const html = renderChip(parseWorktreePorcelain(PORCELAIN), {
-      pr,
-      prWatching: true,
+      prWatchingCount: 2,
+      labels,
     });
-    expect(html).toContain("composer__context-pr-num");
-    // React splits the text nodes, so match the number across the marker.
-    expect(html).toMatch(/#(<!-- -->)?1316/);
-    expect(html).toContain("composer__context-pr-title");
-    // Truncated, not the full title.
-    expect(html).not.toContain(LONG_TITLE);
-    expect(html).toContain("…");
-    expect(html).toContain("composer__context-item--branch has-pr");
-  });
-
-  it("keeps the branch area clean when the PR is not being watched", () => {
-    const html = renderChip(parseWorktreePorcelain(PORCELAIN), {
-      pr,
-      prWatching: false,
-    });
-    expect(html).not.toContain("composer__context-pr");
-    expect(html).not.toContain("#1316");
+    expect(html).toContain("composer__context-pr");
+    expect(html).toContain("2 watching");
+    expect(html).toContain("has-pr");
     expect(html).toContain("master");
+    // A pull request belongs to the repository, so no number rides the chip.
+    expect(html).not.toContain("#1316");
   });
 
-  it("renders no PR at all when the branch has none", () => {
+  it("keeps the branch area clean while this chat follows nothing", () => {
     const html = renderChip(parseWorktreePorcelain(PORCELAIN), {
-      pr: null,
-      prWatching: false,
+      prWatchingCount: 0,
+      labels,
     });
     expect(html).not.toContain("composer__context-pr");
-    expect(html).not.toContain("#");
+    expect(html).not.toContain("has-pr");
+    expect(html).toContain("master");
   });
 });

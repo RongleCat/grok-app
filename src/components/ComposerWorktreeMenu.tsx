@@ -1,8 +1,8 @@
 /**
  * Composer branch / worktree chip — switch linked worktrees, create, remove, GC.
- * Also lists Grok Build CLI-tracked worktrees (`grok worktree list`) and, when a
- * pull request is bound to the current branch, the PR monitor (banded to the
- * branch: number + truncated title, watch toggle, open in the PR hub).
+ * Also lists Grok Build CLI-tracked worktrees (`grok worktree list`) and the
+ * repository's open pull requests: one row each with its own watch control, plus
+ * how many PRs this chat follows on the chip.
  * Lives next to the project picker on the new-session context bar.
  */
 
@@ -10,7 +10,6 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import {
   IconBell,
-  IconBellOff,
   IconCheck,
   IconFileDiff,
   IconFolder,
@@ -39,11 +38,11 @@ import {
   worktreeLabel,
 } from "@/lib/gitWorktree";
 import {
-  PR_CHIP_TITLE_MAX,
-  PR_MENU_TITLE_MAX,
-  formatPrChipLabel,
-  truncatePrTitle,
-} from "@/lib/prMonitor";
+  ComposerPrListSection,
+  PR_LIST_MAX_H,
+  composerPrSection,
+} from "@/components/ComposerPrListSection";
+import type { PrListRow } from "@/lib/prMonitor";
 import type { CliWorktreeEntry, GitWorktreeEntry } from "@/lib/api";
 
 export type ComposerWorktreeMenuLabels = {
@@ -87,7 +86,7 @@ export type ComposerWorktreeMenuLabels = {
   branchesTruncated?: string;
   branchRemote?: string;
   branchElsewhere?: string;
-  /** Branch-bound pull request section. */
+  /** Pull request section: every open PR of this repository. */
   pr?: string;
   prEmpty?: string;
   prWatch?: string;
@@ -95,15 +94,17 @@ export type ComposerWorktreeMenuLabels = {
   prWatchTip?: string;
   prUnwatchTip?: string;
   prOpenHub?: string;
-  /** Aria/tip on the branch chip while a watch is mounted. */
-  prChipTip?: string;
-  /** Follow-ups waiting for an idle session. */
+  /** Chip segment: how many PRs this chat follows. */
+  prChipCount?: string;
+  /** Tip on the same segment. */
+  prChipCountTip?: string;
+  /** Follow-ups waiting for an idle chat. */
   prPendingWakes?: string;
   /** Short "watching" tag in the PR section head. */
   prWatchingLabel?: string;
   /** `Last update: {summary}` prefix for the change line. */
   prLastUpdate?: string;
-  /** Shown when the host reported a poll failure for this watch. */
+  /** Shown when the host reported a poll failure for a watch. */
   prUnavailable?: string;
 };
 
@@ -161,32 +162,26 @@ type Props = {
    * Parent reuses project-bind path like git worktree switch.
    */
   onCliOpen?: (wt: CliWorktreeEntry) => void;
-  /**
-   * Pull request bound to the current branch (git-native: head branch match).
-   * `null` when the branch has no open PR — the chip then shows the branch only.
-   */
-  pr?: PrChipEntry | null;
-  /** A host watch is mounted for this branch. */
-  prWatching?: boolean;
-  /** A watch/unwatch call is in flight. */
-  prBusy?: boolean;
-  /** Localized one-line summaries of the changes that woke the session. */
-  prUpdates?: string[] | null;
-  /** Wakes waiting for the session to go idle. */
+  /** One row per open PR of this repository. */
+  prRows?: PrListRow[];
+  /** A repo PR read is in flight. */
+  prLoading?: boolean;
+  /** `gh`/git readability for this repository; `null` while unknown. */
+  prAvailable?: boolean | null;
+  /** This chat can mount a watch (a project and a chat id both exist). */
+  prCanWatch?: boolean;
+  /** How many PRs this chat follows. */
+  prWatchingCount?: number;
+  /** Wakes waiting for this chat to go idle. */
   prPendingWakes?: number;
-  /** Last host poll failure for this watch (shown as a soft error hint). */
+  /** Localized summary of the most recent delivered change. */
+  prLastChange?: string | null;
+  /** Last host poll failure (shown as a soft error hint). */
   prWatchError?: string | null;
-  onTogglePrWatch?: () => void;
+  onTogglePrWatch?: (prNumber: number) => void;
   onOpenPrHub?: (prNumber: number) => void;
-};
-
-/** Minimal PR shape the branch chip needs to render. */
-export type PrChipEntry = {
-  number: number;
-  title: string;
-  state?: string | null;
-  /** Localized checks rollup ("" when unknown). */
-  checksLine?: string | null;
+  /** The PR list is on screen (each open reads the repo's PRs once). */
+  onPrListVisible?: () => void;
 };
 
 const LIST_MAX_H = 200;
@@ -222,14 +217,17 @@ export function ComposerWorktreeMenu({
   onCliRefresh,
   onCliReveal,
   onCliOpen,
-  pr = null,
-  prWatching = false,
-  prBusy = false,
-  prUpdates = null,
+  prRows = [],
+  prLoading = false,
+  prAvailable = null,
+  prCanWatch = true,
+  prWatchingCount = 0,
   prPendingWakes = 0,
+  prLastChange = null,
   prWatchError = null,
   onTogglePrWatch,
   onOpenPrHub,
+  onPrListVisible,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [branchQuery, setBranchQuery] = useState("");
@@ -254,10 +252,19 @@ export function ComposerWorktreeMenu({
       cliWorktrees.length > 0 ||
       !!onCliRefresh);
   const showBranchesSection = !!onSwitchBranch && !!labels.branches;
-  const showPrSection = !!pr || prWatching;
+  const prSection = composerPrSection({
+    rows: prRows.length,
+    loading: prLoading,
+    available: prAvailable,
+  });
+  const prHints = [
+    prLastChange && labels.prLastUpdate ? 1 : 0,
+    prWatchError && labels.prUnavailable ? 1 : 0,
+    prPendingWakes > 0 && labels.prPendingWakes ? 1 : 0,
+  ].reduce((sum, n) => sum + n, 0);
   // Reserve the PR section's height so first paint matches the final layout.
-  const prSectionHeight = showPrSection
-    ? 28 + 36 + (onTogglePrWatch && pr ? 36 : 0)
+  const prSectionHeight = prSection.visible
+    ? 28 + Math.min(PR_LIST_MAX_H, Math.max(prSection.rows, 1) * 36 + 8) + prHints * 18
     : 0;
   const filteredBranches = showBranchesSection
     ? capGitBranchesForMenu(
@@ -329,7 +336,7 @@ export function ComposerWorktreeMenu({
       worktrees.length,
       cliWorktrees.length,
       showCliSection,
-      showPrSection,
+      prSection.visible,
       filteredBranches.rows.length,
       showBranchesSection,
     ],
@@ -348,25 +355,17 @@ export function ComposerWorktreeMenu({
   const tip = current?.path
     ? `${labels.worktreeTip}\n${current.path}`
     : labels.worktreeTip;
-  // A PR shows on the chip only while it is actually being watched, so the
-  // branch area never advertises a follow-up that is not happening.
-  const showChipPr = isContext && prWatching && !!pr;
-  const prChipTitle = pr ? truncatePrTitle(pr.title, PR_CHIP_TITLE_MAX) : "";
-  const prAria =
-    showChipPr && pr && labels.prChipTip
-      ? `${labels.worktreeTip} · ${labels.prChipTip
-          .replace("{number}", String(pr.number))
-          .replace("{title}", pr.title)}`
-      : labels.worktreeTip;
-  const prMeta = pr
-    ? [String(pr.state ?? "").trim(), String(pr.checksLine ?? "").trim()]
-        .filter(Boolean)
-        .join(" · ")
-    : "";
-  const pendingLabel =
-    prPendingWakes > 0 && labels.prPendingWakes
-      ? labels.prPendingWakes.replace("{count}", String(prPendingWakes))
-      : "";
+  // The chip says how many PRs this chat follows: a pull request belongs to the
+  // repository, so naming one of them here would claim a branch binding that
+  // does not exist.
+  const showChipWatch = isContext && prWatchingCount > 0;
+  const chipWatchTitle =
+    showChipWatch && labels.prChipCountTip
+      ? labels.prChipCountTip.replace("{count}", String(prWatchingCount))
+      : undefined;
+  const chipAria = showChipWatch
+    ? `${labels.worktreeTip} · ${chipWatchTitle ?? ""}`.trim()
+    : labels.worktreeTip;
 
   return (
     <div
@@ -384,7 +383,7 @@ export function ComposerWorktreeMenu({
               ? "composer__context-item composer__context-item--branch" +
                 (open ? " is-open" : "") +
                 (showLoading ? " is-loading" : "") +
-                (showChipPr ? " has-pr" : "")
+                (showChipWatch ? " has-pr" : "")
               : "chip chip--branch" +
                 (open ? " is-open" : "") +
                 (showLoading ? " is-loading" : "")
@@ -392,7 +391,7 @@ export function ComposerWorktreeMenu({
           disabled={disabled}
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label={prAria}
+          aria-label={chipAria}
           onClick={() => setOpen((v) => !v)}
         >
           <IconGitBranch size={14} aria-hidden />
@@ -401,12 +400,14 @@ export function ComposerWorktreeMenu({
           >
             {branchLabel}
           </span>
-          {showChipPr && pr ? (
-            <span className="composer__context-pr">
-              <span className="composer__context-pr-num">#{pr.number}</span>
-              {prChipTitle ? (
-                <span className="composer__context-pr-title">{prChipTitle}</span>
-              ) : null}
+          {showChipWatch ? (
+            <span className="composer__context-pr" title={chipWatchTitle}>
+              <IconBell size={11} aria-hidden />
+              <span className="composer__context-pr-count">
+                {labels.prChipCount
+                  ? labels.prChipCount.replace("{count}", String(prWatchingCount))
+                  : String(prWatchingCount)}
+              </span>
             </span>
           ) : null}
         </button>
@@ -422,83 +423,34 @@ export function ComposerWorktreeMenu({
             aria-label={labels.worktrees}
             style={popStyle as CSSProperties}
           >
-            {showPrSection ? (
-              <div className="cwm__pr">
-                <div className="cwm__head cwm__pr-head">
-                  <span>{labels.pr || "Pull request"}</span>
-                  {prWatching && labels.prWatchingLabel ? (
-                    <span className="cwm__pr-tag">
-                      {labels.prWatchingLabel}
-                    </span>
-                  ) : null}
-                </div>
-                {pr ? (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="cmm__opt cwm__item cwm__pr-row"
-                    title={labels.prOpenHub ? `${pr.title}\n${labels.prOpenHub}` : pr.title}
-                    onClick={() => {
-                      setOpen(false);
-                      onOpenPrHub?.(pr.number);
-                    }}
-                  >
-                    <span className="cwm__item-main">
-                      <span className="cwm__item-name">
-                        {formatPrChipLabel(pr, PR_MENU_TITLE_MAX)}
-                      </span>
-                      {prMeta ? (
-                        <span className="cwm__item-meta">{prMeta}</span>
-                      ) : null}
-                    </span>
-                  </button>
-                ) : (
-                  <p className="cwm__empty">
-                    {labels.prEmpty || "No pull request for this branch"}
-                  </p>
-                )}
-                {onTogglePrWatch && pr ? (
-                  <Tip label={prWatching ? labels.prUnwatchTip : labels.prWatchTip}>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="cwm__action"
-                      aria-pressed={prWatching}
-                      disabled={disabled || prBusy}
-                      onClick={() => {
-                        setOpen(false);
-                        onTogglePrWatch();
-                      }}
-                    >
-                      {prWatching ? (
-                        <IconBellOff size={14} aria-hidden />
-                      ) : (
-                        <IconBell size={14} aria-hidden />
-                      )}
-                      <span>
-                        {prWatching
-                          ? labels.prUnwatch || "Stop watching"
-                          : labels.prWatch || "Watch this PR"}
-                      </span>
-                    </button>
-                  </Tip>
-                ) : null}
-                {prWatching && prUpdates && prUpdates.length > 0 ? (
-                  <p className="cwm__empty cwm__empty--hint">
-                    {labels.prLastUpdate
-                      ? labels.prLastUpdate.replace("{summary}", prUpdates[0])
-                      : prUpdates[0]}
-                  </p>
-                ) : null}
-                {prWatching && prWatchError && labels.prUnavailable ? (
-                  <p className="cwm__empty cwm__empty--hint">
-                    {labels.prUnavailable}
-                  </p>
-                ) : null}
-                {pendingLabel ? (
-                  <p className="cwm__empty cwm__empty--hint">{pendingLabel}</p>
-                ) : null}
-              </div>
+            {prSection.visible ? (
+              <ComposerPrListSection
+                rows={prRows}
+                loading={prLoading}
+                lastChange={prLastChange}
+                pendingWakes={prPendingWakes}
+                watchError={prWatchError}
+                disabled={disabled || !prCanWatch}
+                labels={{
+                  pr: labels.pr,
+                  prEmpty: labels.prEmpty,
+                  prWatch: labels.prWatch,
+                  prUnwatch: labels.prUnwatch,
+                  prWatchTip: labels.prWatchTip,
+                  prUnwatchTip: labels.prUnwatchTip,
+                  prOpenHub: labels.prOpenHub,
+                  prWatchingLabel: labels.prWatchingLabel,
+                  prLastUpdate: labels.prLastUpdate,
+                  prPendingWakes: labels.prPendingWakes,
+                  prUnavailable: labels.prUnavailable,
+                }}
+                onOpenPrHub={(prNumber) => {
+                  setOpen(false);
+                  onOpenPrHub?.(prNumber);
+                }}
+                onToggleWatch={onTogglePrWatch}
+                onVisible={onPrListVisible}
+              />
             ) : null}
             {showBranchesSection ? (
               <div className="cwm__branches">

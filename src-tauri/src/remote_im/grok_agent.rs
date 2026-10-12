@@ -731,6 +731,11 @@ mod tests {
 
     #[test]
     fn remote_grok_home_matches_app_session_data_mode() {
+        // Reads App settings and resolves through them, so it must not run while
+        // another test repoints `GROK_APP_HOME` at its own temp home.
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let mode = crate::store::load_settings().session_data_mode;
         let home = resolve_remote_grok_home();
         let expected = crate::paths::resolve_agent_grok_home(&mode);

@@ -2,7 +2,7 @@
  * Composer column: welcome mark, ask-user / permission bars, context chips, portal wrap.
  * Draft/queue chrome lives in WorkbenchComposerShell.
  */
-import type { Dispatch, MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject, SetStateAction } from "react";
+import { useMemo, type Dispatch, type MouseEvent as ReactMouseEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { createT } from "@/i18n";
 import type { AccountStatus } from "@/lib/api/account";
 import type { Project, SessionRow } from "@/lib/app/sidebarModels";
@@ -40,10 +40,8 @@ import { ComposerProjectMenu } from "@/components/ComposerProjectMenu";
 import { ComposerRemoteMenu } from "@/components/ComposerRemoteMenu";
 import { ComposerWorktreeMenu } from "@/components/ComposerWorktreeMenu";
 import { usePrMonitor } from "@/hooks/usePrMonitor";
-import { describePrUpdate, formatChecksLine } from "@/lib/prMonitor";
-import { isSessionBusy } from "@/lib/session";
+import { prListRows } from "@/lib/prMonitor";
 import { buildPrHubDeepLink } from "@/lib/prHubDeepLink";
-import { pathsEqual } from "@/lib/gitWorktree";
 import { AskUserBar } from "@/components/AskUserBar";
 import { PermissionCountdown } from "@/components/PermissionCountdown";
 import { SuperGrokMark } from "@/components/SuperGrokMark";
@@ -374,37 +372,24 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
   const askUserLiveRef = useRef(askUser);
   askUserLiveRef.current = askUser;
 
-  // ── Branch-bound PR monitor (chip display + session wake) ────────────────
-  // The branch comes from the worktree this session is bound to; a PR is only
-  // offered for a real branch (never a detached HEAD) on the desktop host.
-  const activeBranch =
-    gitWorktrees
-      .find((w) => pathsEqual(w.path, activeProject?.path ?? ""))
-      ?.branch?.trim() ?? null;
+  // ── PR monitor: the repository's open PRs + this chat's watches ───────────
+  // A pull request is opened against a repository, so the list is the repo's and
+  // no branch enters the model; the host owns the watches and pushes their state.
   const prMonitor = usePrMonitor({
-    enabled:
-      api.isDesktopHost() &&
-      !!activeProject?.path &&
-      !!activeBranch &&
-      gitWorktreesAvailable === true,
+    enabled: api.isDesktopHost() && !!activeProject?.path,
     projectPath: activeProject?.path ?? null,
-    branch: activeBranch,
     sessionId: session.sessionId ?? null,
     locale,
-    sessionBusy: isSessionBusy(session.state),
     notify: (message, tone) => showToast(message, tone === "error" ? 5000 : 3200),
   });
-  const prChip = prMonitor.pr
-    ? {
-        number: prMonitor.pr.number,
-        title: prMonitor.pr.title,
-        state: prMonitor.pr.state ?? null,
-        checksLine: formatChecksLine(prMonitor.pr.checks ?? null, tr),
-      }
-    : null;
-  const prUpdateLines = prMonitor.lastUpdates
-    ? prMonitor.lastUpdates.map((u) => describePrUpdate(u, tr))
-    : null;
+  const prRows = useMemo(
+    () =>
+      prListRows(prMonitor.prs, prMonitor.watches, {
+        busy: prMonitor.busy,
+        tr,
+      }),
+    [prMonitor.prs, prMonitor.watches, prMonitor.busy, tr],
+  );
   // The PR hub already owns the PR detail view: reuse its deep link (Settings →
   // runtime/tools focused on that row) instead of building a second surface.
   const openPrHubForNumber = (prNumber: number) => {
@@ -836,25 +821,29 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                         "composer.cliWorktreeMissingPath",
                       ),
                       pr: tr("prMonitor.menuHead"),
-                      prEmpty: tr("prMonitor.noPr"),
+                      prEmpty: tr("prMonitor.empty"),
                       prWatch: tr("prMonitor.watch"),
                       prUnwatch: tr("prMonitor.unwatch"),
                       prWatchTip: tr("prMonitor.watchTip"),
                       prUnwatchTip: tr("prMonitor.unwatchTip"),
                       prOpenHub: tr("prMonitor.openHub"),
-                      prChipTip: tr("prMonitor.chipTip"),
+                      prChipCount: tr("prMonitor.chipCount"),
+                      prChipCountTip: tr("prMonitor.chipCountTip"),
                       prPendingWakes: tr("prMonitor.pendingWakes"),
                       prWatchingLabel: tr("prMonitor.watching"),
                       prLastUpdate: tr("prMonitor.lastUpdate"),
                       prUnavailable: tr("prMonitor.unavailable"),
                     }}
-                    pr={prChip}
-                    prWatching={prMonitor.watching}
-                    prBusy={prMonitor.busy}
-                    prUpdates={prUpdateLines}
+                    prRows={prRows}
+                    prLoading={prMonitor.loading}
+                    prAvailable={prMonitor.available}
+                    prCanWatch={prMonitor.canWatch}
+                    prWatchingCount={prMonitor.watching}
                     prPendingWakes={prMonitor.pendingCount}
+                    prLastChange={prMonitor.lastChange}
                     prWatchError={prMonitor.watchError}
                     onTogglePrWatch={prMonitor.toggleWatch}
+                    onPrListVisible={prMonitor.refresh}
                     onOpenPrHub={openPrHubForNumber}
                     onSwitch={(wt) => {
                       void switchToWorktree(wt);

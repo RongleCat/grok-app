@@ -445,16 +445,50 @@ pub fn parse_gh_pr_list_json(stdout: &str) -> Result<Vec<GitPrHubEntry>, String>
     Ok(out)
 }
 
-/// Pure parse for `gh pr view --json` stdout.
-pub fn parse_gh_pr_view_json(stdout: &str) -> Result<Option<GitPrHubEntry>, String> {
+/// Pure parse for `gh pr view --json` stdout, with the CI rows the same call
+/// carried: a PR monitor needs both the rollup a row shows and the failing rows
+/// a fix-CI prompt names, and neither is worth a second `gh` call.
+pub fn parse_gh_pr_view_with_checks(
+    stdout: &str,
+) -> Result<Option<(GitPrHubEntry, Vec<GitPrCheckEntry>)>, String> {
     if stdout.trim().is_empty() {
         return Ok(None);
     }
     let value = parse_json_value(stdout)?;
-    if let Some(arr) = value.as_array() {
-        return Ok(arr.first().and_then(parse_gh_pr_object));
-    }
-    Ok(parse_gh_pr_object(&value))
+    let object = match value.as_array() {
+        Some(arr) => match arr.first() {
+            Some(first) => first,
+            None => return Ok(None),
+        },
+        None => &value,
+    };
+    let Some(entry) = parse_gh_pr_object(object) else {
+        return Ok(None);
+    };
+    let rows = object
+        .get("statusCheckRollup")
+        .or_else(|| object.get("status_check_rollup"))
+        .or_else(|| object.get("checks"))
+        .map(check_rows_from_rollup)
+        .unwrap_or_default();
+    Ok(Some((entry, rows)))
+}
+
+/// Pure parse for `gh pr view --json` stdout.
+pub fn parse_gh_pr_view_json(stdout: &str) -> Result<Option<GitPrHubEntry>, String> {
+    Ok(parse_gh_pr_view_with_checks(stdout)?.map(|(entry, _rows)| entry))
+}
+
+/// Check rows of a GraphQL `statusCheckRollup` array, classified the same way
+/// `summarize_status_check_rollup` classifies them.
+pub fn check_rows_from_rollup(rollup: &serde_json::Value) -> Vec<GitPrCheckEntry> {
+    let Some(arr) = rollup.as_array() else {
+        return Vec::new();
+    };
+    arr.iter()
+        .take(CHECKS_CAP)
+        .filter_map(parse_gh_pr_check_object)
+        .collect()
 }
 
 /// Pure parse for one check row.
