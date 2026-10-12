@@ -1392,7 +1392,7 @@ pub fn build_session_mcp_servers_with_opts(
     // The Agent's own handle on this chat's PR watches (`pr_watch` / `pr_unwatch`
     // / `pr_watches`). App-local — no credentials — so it rides every route; it
     // is only built when the caller knows which chat this process serves.
-    if let Some(sid) = app_session_id.as_deref() {
+    if let Some(sid) = app_session_id {
         match crate::pr_monitor::mcp::mcp_server_acp_entry(sid, project_cwd) {
             Some(entry) => arr.push(entry),
             None => tracing::warn!(
