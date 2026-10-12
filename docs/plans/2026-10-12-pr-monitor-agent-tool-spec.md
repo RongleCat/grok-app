@@ -1,7 +1,7 @@
 # Spec: PR Monitor —— 向 Agent 暴露监视能力（MCP 工具）
 
 Status: ready-for-agent
-Tracker: Linear（team **BOR** / project **Grok App**）—— 工单见 `## Tickets`。
+交付 PR：https://github.com/RongleCat/grok-app/pull/1327（stack 在 `feat/session-pr-monitor` / PR #1325 之上）。
 前序：`docs/plans/2026-10-12-pr-monitor-session-bound-spec.md`（监视身份 = 会话 + 仓库 + PR 号，
 本文件在它之上）、`docs/llm-wiki/pr-monitor.md`（现行产品规则）。
 
