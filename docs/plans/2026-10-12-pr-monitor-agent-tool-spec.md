@@ -102,16 +102,14 @@ Status: ready-for-agent
 - 未覆盖（诚实记录）：HTTP 路由的集成测试需要 `AppHandle`，本地无轻量构造方式，故由端到端验收
   覆盖；宿主不可用（应用退出）时工具报错已由脚本手工验证。
 
-## Tickets
+## Delivery slices
 
-Linear（team **BOR** / project **Grok App**）：
+本切片按四刀落地，每刀都能单独复验：
 
-- **BOR-103**（本切片，spec 载体）：向 Agent 暴露 PR Monitor 的监视能力（MCP 工具）。
-  - 子项 1：宿主回环路由 `/v1/pr-monitor/watches`（GET/POST/DELETE），复用既有命令。
-  - 子项 2：`pr-monitor` MCP server（脚本 + 内嵌 + 注入 + 会话 id 作用域）。
-  - 子项 3：收尾口径进工具描述（作者合并并关闭 / 贡献者被关闭后停止），宿主自动卸载保持现状。
-  - 子项 4：文档（llm-wiki / AGENTS 索引 / 本 spec）与 PR 描述。
-- 关联：**BOR-98**（PR Monitor spec）、`BOR-99 … BOR-102`（会话身份重构的切分）。
+1. 宿主回环路由 `/v1/pr-monitor/watches`（GET/POST/DELETE），复用既有命令。
+2. `pr-monitor` MCP server（脚本 + 内嵌 + 注入 + 会话 id 作用域）。
+3. 收尾口径进工具描述（作者合并并关闭 / 贡献者被关闭后停止），宿主自动卸载保持现状。
+4. 文档（llm-wiki / AGENTS 索引 / 本 spec）与 PR 描述。
 
 ## Further Notes
 

@@ -159,8 +159,8 @@ PR it just opened is followed without anyone clicking a bell:
 - Agent tools: `scripts/pr-monitor-mcp.mjs` (stdio MCP, no dependencies) +
   `src-tauri/src/pr_monitor/mcp.rs` (embed, write, ACP entry) injected by
   `src-tauri/src/extensions.rs`; routes in `src-tauri/src/session_api.rs`.
-- Tracker: Linear `BOR-98` (spec) with `BOR-99` … `BOR-102` (tracer-bullet tickets);
-  this slice is `BOR-103` (see `docs/plans/2026-10-12-pr-monitor-agent-tool-spec.md`).
+- Tracker: the plan docs under `docs/plans/` (`2026-10-10-pr-monitor-wake-spec.md`,
+  `2026-10-12-pr-monitor-session-bound-spec.md`, `2026-10-12-pr-monitor-agent-tool-spec.md`).
 - Decision record: ADR 0005 (a watch is session-bound, not branch-bound).
 - Reuse, not replacement: `GitPrHubPanel` stays the detail view; a row opens it
   through `prHubDeepLink`.

@@ -1,7 +1,6 @@
 # Spec: PR Monitor 重构 —— 监视以会话为单位，列表以仓库为单位
 
 Status: delivered
-Tracker: Linear（本环境不可达，见「Further Notes」）—— 工单见 `## Tickets`。
 前序：`docs/plans/2026-10-10-pr-monitor-wake-spec.md`（已随上游 PR #1322 交付，本文件描述它的重构）。
 
 ## Problem Statement
@@ -120,13 +119,16 @@ Tracker: Linear（本环境不可达，见「Further Notes」）—— 工单见
 - webhook 中继（smee 等真推送通道）与长驻 `gh pr checks --watch` 子进程。
 - 跨会话共享 watch（引用计数）、监视状态跨重启持久化。
 - 非 GitHub 宿主；PR Hub 面板内的挂载开关。
-- Linear 之外的 issue tracker；本环境无法访问 Linear（见 Further Notes）。
+- 仓库外部的 issue tracker：切分与进度以本文件所在目录下的 plan 文档维护。
 
-## Tickets
+## Delivery slices
 
-Linear（team **BOR** / project **Grok App**）：本次重构对应 spec **BOR-98** 的重做；子工单沿用
-**BOR-99 … BOR-102** 的切分（宿主监视 / 客户端列表 / 宿主投递 / 文档与交付），开发期间以本地
-文件形式维护，交付阶段回填。
+沿用上一版 spec 的四刀切分，开发期间以本文件所在目录下的 plan 文档维护：
+
+1. 宿主监视：挂载 / 卸载 / 列表 + 轮询 + 指纹去重 + 更新事件。
+2. 客户端列表：分支菜单「拉取请求」区，一行一个 PR。
+3. 宿主投递：把跟进提示投进被挂载的会话（忙碌时排队）。
+4. 文档、质量门与交付。
 
 ## Further Notes
 

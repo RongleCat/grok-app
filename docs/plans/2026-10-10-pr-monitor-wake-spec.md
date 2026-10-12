@@ -1,7 +1,6 @@
 # Spec: PR Monitor —— PR 与分支捆绑展示，PR 更新唤醒当前会话
 
-Status: ready-for-agent
-Tracker: Linear（本环境不可达，见「Further Notes」）—— 工单见 `## Tickets`。
+Status: delivered
 
 ## Problem Statement
 
@@ -82,7 +81,7 @@ Tracker: Linear（本环境不可达，见「Further Notes」）—— 工单见
 
 ## Out of Scope
 
-- Linear 之外的 issue tracker；本环境无法访问 Linear（见 Further Notes）。
+- 仓库外部的 issue tracker：切片与进度以本文件所在目录下的 plan 文档维护。
 - GitLab / Bitbucket / Jenkins 等非 GitHub CI 提供商。
 - 重做或替换既有 PR Hub（列表 / 详情 / 评论）与 Ship 流程。
 - 系统通知 / IM 通知渠道；唤醒只在会话内。
@@ -90,20 +89,17 @@ Tracker: Linear（本环境不可达，见「Further Notes」）—— 工单见
 - 无 UI 进程的独立守护进程式监视；不做假宣称。
 - 挂载状态跨重启持久化。
 
-## Tickets
+## Delivery slices
 
-Linear（team **BOR** / project **Grok App**）：spec **BOR-98**，子工单 **BOR-99**（T1）、**BOR-100**（T2）、**BOR-101**（T3）、**BOR-102**（T4），blocked-by 关系按下方阻塞边建立。开发期间工单以本地文件 tracker（`issues/01..04`）维护，Linear 于交付阶段回填。
+四刀垂直切片（tracer bullet），括号内为阻塞边：
 
-垂直切片（tracer bullet），括号内为阻塞边：
-
-1. **T1 — Host PR 监视：挂载 / 卸载 / 列表 + 轮询 + 指纹去重 + 更新事件**（`BOR-99`，无阻塞）。交付：Host 能在进程存活期间监视某个 PR，变化时发出前后快照事件，未变化不打扰；`gh` 调用不再被颜色环境变量污染。验收：cargo 单测覆盖 argv / 归一化 / 指纹 / 到期与间隔策略；live `gh` 往返有存证输出。
-2. **T2 — 分支区 PR 显示与挂载开关**（`BOR-100`，阻塞于 T1）。交付：composer 分支 chip 在挂载后显示 `#序号 + 截断标题`，分支菜单里有 PR 行与挂载/停止监视开关，可打开 PR Hub；无 PR / 不可用时软失败不伪造。验收：渲染测试 + 15 语言文案 + 类型/风格检查通过。
-3. **T3 — PR 更新唤醒当前会话**（`BOR-101`，阻塞于 T1、T2）。交付：收到更新事件后，会话自动收到一条针对该更新的跟进提示并继续处理；同一条更新只唤醒一次；会话忙碌时排队不打断。验收：真实发布函数的 diff / prompt 单测 + 只 stub 会话传输的唤醒链路测试。
-4. **T4 — 文档、质量门与交付**（`BOR-102`，阻塞于 T1、T2、T3）。交付：`docs/llm-wiki/pr-monitor.md` 与 AGENTS 索引；全部既有门 0 错误（typecheck / lint / test / build:ui / cargo fmt·clippy·test）；分支推送并创建 PR。
+1. **T1 — Host PR 监视：挂载 / 卸载 / 列表 + 轮询 + 指纹去重 + 更新事件**（无阻塞）。交付：Host 能在进程存活期间监视某个 PR，变化时发出前后快照事件，未变化不打扰；`gh` 调用不再被颜色环境变量污染。验收：cargo 单测覆盖 argv / 归一化 / 指纹 / 到期与间隔策略；live `gh` 往返有存证输出。
+2. **T2 — 分支区 PR 显示与挂载开关**（阻塞于 T1）。交付：composer 分支 chip 在挂载后显示 `#序号 + 截断标题`，分支菜单里有 PR 行与挂载/停止监视开关，可打开 PR Hub；无 PR / 不可用时软失败不伪造。验收：渲染测试 + 15 语言文案 + 类型/风格检查通过。
+3. **T3 — PR 更新唤醒当前会话**（阻塞于 T1、T2）。交付：收到更新事件后，会话自动收到一条针对该更新的跟进提示并继续处理；同一条更新只唤醒一次；会话忙碌时排队不打断。验收：真实发布函数的 diff / prompt 单测 + 只 stub 会话传输的唤醒链路测试。
+4. **T4 — 文档、质量门与交付**（阻塞于 T1、T2、T3）。交付：`docs/llm-wiki/pr-monitor.md` 与 AGENTS 索引；全部既有门 0 错误（typecheck / lint / test / build:ui / cargo fmt·clippy·test）；分支推送并创建 PR。
 
 ## Further Notes
 
-- **Tracker**：工单发布在 Linear `Boring Link`（BOR）/ project `Grok App`：spec `BOR-98`，工单 `BOR-99` … `BOR-102`（各含验收清单与证据链接，阻塞边为 Linear 原生 blocked-by）。开发期间本会话没有 Linear 访问（无 MCP 工具、无 `linear`/`lcli` CLI），工单以本地文件 tracker 形式维护（`issues/01-host-pr-monitor.md` … `issues/04-docs-gates-ship.md`）并随 spec 落盘；交付阶段打通 Linear MCP 后一次性回填，工单状态如实反映最终结果，未虚构开发期间的 Linear 活动记录。
 - PR↔分支绑定遵循 git 原生语义：一个分支最多一个 PR（同 head 分支的多个 PR 取 open 中最新者），PR 在 GitHub 上本来就以 head 分支为身份。
 - 监控对象是「squash/rebase 前的 head 分支」，PR 被合并后 watcher 在下一个 tick 看到 state 变化，唤醒一次后即视为终态并可卸载。
 - 该特性不改动 PR Hub / Ship 流程；PR Hub 仍是唯一详情的落点。
