@@ -25,6 +25,7 @@ import {
   isToolInlinedInAssistants,
   lastRegenerableAssistantId,
   messageSegments,
+  isInjectedPromptMarker,
   isTurnPromptMessage,
   weaveToolsIntoAssistantSegments,
   type ChatMessage,
@@ -983,7 +984,7 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
   }
 
   if (m.role === "user") {
-    const isInterjection = m.marker === "interjection";
+    const isInterjection = isInjectedPromptMarker(m.marker);
     const isLastUser = !isInterjection && lastUserMessageId === m.id;
     const isEditing = editingUserMessageId === m.id;
     const timeLabel =

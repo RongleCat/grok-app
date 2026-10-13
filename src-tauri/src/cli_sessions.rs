@@ -1285,6 +1285,16 @@ fn is_synthetic_instruction_reason(reason: &str) -> bool {
         || r.contains("instruction")
 }
 
+/// Import marker for a journal row: a user row the Host injected for this chat
+/// (a wake, an external send) is an automatic follow-up, not the user speaking.
+fn injected_marker(session_id: &str, role: &str, content: &str) -> Option<String> {
+    if role != "user" {
+        return None;
+    }
+    crate::injected_prompts::origin_for(session_id, content)
+        .map(|_| crate::injected_prompts::MARKER.to_string())
+}
+
 /// Official TUI paints `updates.jsonl`, not `chat_history.jsonl`. Import must
 /// not copy reminder-only / synthetic instruction envelopes as user bubbles.
 fn imported_user_content(v: &Value, raw: &str) -> Option<String> {
@@ -1952,10 +1962,12 @@ pub fn import_cli_session(
     let mut meta = store::create_session(project_id, Some(title), false)?;
     meta.agent_session_id = Some(agent_session_id.to_string());
     let now = Utc::now();
+    let app_session_id = meta.id.clone();
     let msgs: Vec<ChatMessageStored> = pairs
         .into_iter()
         .enumerate()
         .map(|(i, (role, content))| ChatMessageStored {
+            marker: injected_marker(&app_session_id, &role, &content),
             id: Uuid::new_v4().to_string(),
             role,
             content,
@@ -1963,7 +1975,6 @@ pub fn import_cli_session(
             created_at: now + chrono::Duration::milliseconds(i as i64),
             is_error: false,
             attachments: None,
-            marker: None,
         })
         .collect();
     store::save_messages(&meta.id, &msgs)?;

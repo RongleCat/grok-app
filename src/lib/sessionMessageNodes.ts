@@ -5,7 +5,11 @@
 
 import { estimateChatRowHeight } from "./chatVirtualList";
 import { isEndOfTurnMarker } from "./endOfTurn";
-import { isTurnPromptMessage, type ChatMessage } from "./session";
+import {
+  isInjectedPromptMarker,
+  isTurnPromptMessage,
+  type ChatMessage,
+} from "./session";
 
 export type SessionMessageNodeRole = "user" | "assistant";
 
@@ -51,7 +55,7 @@ export function isMessageNodeCandidate(
   if (!message) return false;
   if (message.role === "user") {
     // Interjections are steer noise — keep the rail on main dialogue.
-    if (message.marker === "interjection") return false;
+    if (isInjectedPromptMarker(message.marker)) return false;
     return true;
   }
   if (message.role === "assistant") {

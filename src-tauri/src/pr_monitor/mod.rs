@@ -410,6 +410,10 @@ async fn deliver(
                     .unwrap_or_else(|| "this chat cannot take a turn".into()),
             ),
             Ok(request) => {
+                // This turn is the Host's, not the user's: remember it so the
+                // transcript shows an automatic follow-up (#wake reads as a
+                // continuation rather than the user speaking).
+                crate::injected_prompts::record(session_id, &prompt, "pr_monitor");
                 let result = session_api::dispatch_turn_or_timeout(app, mgr, request).await;
                 wake_outcome(result.status, result.message.as_deref())
             }

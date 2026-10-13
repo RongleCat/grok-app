@@ -6,7 +6,7 @@ import type {
   MessageSegment,
   StreamPayload,
 } from "./types";
-import { isTurnPromptMessage } from "./types";
+import { isInjectedPromptMarker, isTurnPromptMessage } from "./types";
 import {
   EMPTY_USER_KEY,
   isClientOptimisticId,
@@ -216,7 +216,7 @@ export function applyRemoteUserMessage(
     let existingRealIdx = -1;
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
-      if (!m || m.role !== "user" || m.marker === "interjection") continue;
+      if (!m || m.role !== "user" || isInjectedPromptMarker(m.marker)) continue;
       if (userBubbleDedupeKey(m) !== userKey) continue;
       const id = m.id || "";
       if (
