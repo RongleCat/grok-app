@@ -940,28 +940,11 @@ pub async fn dispatch_turn(
     mgr: &Arc<SessionManager>,
     req: PreparedSend,
 ) -> TurnResult {
-    let origin = req.origin;
-    let session_id = req.session_id.clone();
-    let prompt = req.prompt.clone();
-    let result = dispatch_turn_inner(app, mgr, req).await;
-    // Remember the injected prompt once the turn really goes out: a failed
-    // connect/send must not leave a phantom entry that would later mark a
-    // user-typed look-alike as automatic.
-    if matches!(
-        result.status,
-        TurnStatus::TurnStarted | TurnStatus::Queued
-    ) {
-        crate::injected_prompts::record(&session_id, &prompt, origin);
-    }
-    result
-}
-
-async fn dispatch_turn_inner(
-    app: &AppHandle,
-    mgr: &Arc<SessionManager>,
-    req: PreparedSend,
-) -> TurnResult {
     let sid = req.session_id.clone();
+    // Armed for the whole dispatch: the turn runner takes it while it writes the
+    // user row, which also covers a turn that has to queue (its row is written
+    // when the queue drains and the chat is free again).
+    crate::injected_prompts::arm(&sid, req.origin);
     // Mid-turn (drawing / tools / permission): do not connect-steal or send.
     // Push onto the same composer follow-up queue the GUI already shows.
     if mgr.session_turn_busy(&sid) {
@@ -971,6 +954,7 @@ async fn dispatch_turn_inner(
         .connect(app.clone(), req.project_path, Some(sid.clone()), None, None)
         .await
     {
+        crate::injected_prompts::disarm(&sid);
         return TurnResult::fail(TurnStatus::Error, sid, format!("connect failed: {e}"));
     }
     // Connect can race a new turn; treat that as queue, never interrupt.
@@ -992,6 +976,7 @@ async fn dispatch_turn_inner(
             if classify_send_error(&e) == TurnStatus::Busy {
                 return enqueue_while_busy(app, &sid, &req.prompt);
             }
+            crate::injected_prompts::disarm(&sid);
             TurnResult::fail(classify_send_error(&e), sid, e)
         }
     }
