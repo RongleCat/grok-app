@@ -287,7 +287,7 @@ pub async fn drain_ready_external_queues(app: &AppHandle, mgr: &Arc<SessionManag
         let Some(head) = take_persisted_head(&item.session_id) else {
             continue;
         };
-        let prepared = match prepare_send(&head.session_id, &head.prompt) {
+        let prepared = match prepare_send(&head.session_id, &head.prompt, "external") {
             Ok(p) => p,
             Err(e) => {
                 if e.status == TurnStatus::NotFound {
@@ -826,7 +826,14 @@ pub fn classify_send_error(err: &str) -> TurnStatus {
     TurnStatus::Error
 }
 
-pub fn prepare_send(session_id: &str, prompt: &str) -> Result<PreparedSend, Box<TurnResult>> {
+/// Check a session can take a turn and build the request for it. `origin` names
+/// who asked (`pr_monitor`, `external`): an injected prompt is remembered so the
+/// transcript can show an automatic follow-up instead of the user's own words.
+pub fn prepare_send(
+    session_id: &str,
+    prompt: &str,
+    origin: &'static str,
+) -> Result<PreparedSend, Box<TurnResult>> {
     let prompt = prompt.trim();
     if prompt.is_empty() {
         return Err(Box::new(TurnResult::fail(
@@ -887,6 +894,7 @@ pub fn prepare_send(session_id: &str, prompt: &str) -> Result<PreparedSend, Box<
         session_id: meta.id,
         project_path,
         prompt: prompt.to_string(),
+        origin,
     })
 }
 
@@ -894,6 +902,9 @@ pub struct PreparedSend {
     pub session_id: String,
     pub project_path: Option<String>,
     pub prompt: String,
+    /// Who asked for this turn (`pr_monitor`, `external`): a prompt the Host
+    /// injected is marked (`auto_wake`) instead of reading as the user's.
+    pub origin: &'static str,
 }
 
 pub async fn with_dispatch_timeout_for<F>(
@@ -925,6 +936,27 @@ pub async fn dispatch_turn_or_timeout(
 }
 
 pub async fn dispatch_turn(
+    app: &AppHandle,
+    mgr: &Arc<SessionManager>,
+    req: PreparedSend,
+) -> TurnResult {
+    let origin = req.origin;
+    let session_id = req.session_id.clone();
+    let prompt = req.prompt.clone();
+    let result = dispatch_turn_inner(app, mgr, req).await;
+    // Remember the injected prompt once the turn really goes out: a failed
+    // connect/send must not leave a phantom entry that would later mark a
+    // user-typed look-alike as automatic.
+    if matches!(
+        result.status,
+        TurnStatus::TurnStarted | TurnStatus::Queued
+    ) {
+        crate::injected_prompts::record(&session_id, &prompt, origin);
+    }
+    result
+}
+
+async fn dispatch_turn_inner(
     app: &AppHandle,
     mgr: &Arc<SessionManager>,
     req: PreparedSend,
@@ -986,7 +1018,7 @@ async fn handle_turn(
             return (status_for(&prev.status), Json(prev));
         }
     }
-    let prepared = match prepare_send(session_id, &body.prompt) {
+    let prepared = match prepare_send(session_id, &body.prompt, "external") {
         Ok(p) => p,
         Err(mut r) => {
             r.idempotency_key = key.clone();

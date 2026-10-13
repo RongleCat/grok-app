@@ -192,7 +192,10 @@ impl SessionManager {
                 created_at: chrono::Utc::now(),
                 is_error: false,
                 attachments: journal_attachments.clone(),
-                marker: None,
+                // A prompt the Host injected (PR-monitor wake, external send) is
+                // not the user speaking — mark it as it is written, not only when
+                // the chat is later re-imported.
+                marker: crate::injected_prompts::row_marker(&s.app_session_id, &journal_content),
             };
             if let Err(e) = store::append_message(&s.app_session_id, user_row.clone()) {
                 let _ = s.fsm.end_stream();

@@ -402,7 +402,7 @@ async fn deliver(
     let outcome = if prompt.trim().is_empty() {
         WakeOutcome::Failed("nothing to follow up on".into())
     } else {
-        match session_api::prepare_send(session_id, &prompt) {
+        match session_api::prepare_send(session_id, &prompt, "pr_monitor") {
             Err(result) => WakeOutcome::Failed(
                 result
                     .message
@@ -410,10 +410,8 @@ async fn deliver(
                     .unwrap_or_else(|| "this chat cannot take a turn".into()),
             ),
             Ok(request) => {
-                // This turn is the Host's, not the user's: remember it so the
-                // transcript shows an automatic follow-up (#wake reads as a
-                // continuation rather than the user speaking).
-                crate::injected_prompts::record(session_id, &prompt, "pr_monitor");
+                // The origin travels with the send: the transcript marks the row
+                // as an automatic follow-up rather than the user speaking.
                 let result = session_api::dispatch_turn_or_timeout(app, mgr, request).await;
                 wake_outcome(result.status, result.message.as_deref())
             }

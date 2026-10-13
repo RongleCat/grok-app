@@ -1287,12 +1287,11 @@ fn is_synthetic_instruction_reason(reason: &str) -> bool {
 
 /// Import marker for a journal row: a user row the Host injected for this chat
 /// (a wake, an external send) is an automatic follow-up, not the user speaking.
-fn injected_marker(session_id: &str, role: &str, content: &str) -> Option<String> {
+fn imported_row_marker(session_id: &str, role: &str, content: &str) -> Option<String> {
     if role != "user" {
         return None;
     }
-    crate::injected_prompts::origin_for(session_id, content)
-        .map(|_| crate::injected_prompts::MARKER.to_string())
+    crate::injected_prompts::row_marker(session_id, content)
 }
 
 /// Official TUI paints `updates.jsonl`, not `chat_history.jsonl`. Import must
@@ -1967,7 +1966,7 @@ pub fn import_cli_session(
         .into_iter()
         .enumerate()
         .map(|(i, (role, content))| ChatMessageStored {
-            marker: injected_marker(&app_session_id, &role, &content),
+            marker: imported_row_marker(&app_session_id, &role, &content),
             id: Uuid::new_v4().to_string(),
             role,
             content,
