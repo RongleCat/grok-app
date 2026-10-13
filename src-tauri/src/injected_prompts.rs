@@ -25,7 +25,9 @@ use std::sync::Mutex;
 static ARMED: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
 
 fn with_armed<T>(f: impl FnOnce(&mut HashMap<String, String>) -> T) -> Option<T> {
-    let mut guard = ARMED.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut guard = ARMED
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let map = guard.get_or_insert_with(HashMap::new);
     Some(f(map))
 }
@@ -49,7 +51,9 @@ pub fn take_armed_marker(session_id: &str) -> Option<String> {
     if session.is_empty() {
         return None;
     }
-    with_armed(|map| map.remove(session)).flatten().map(|_| MARKER.to_string())
+    with_armed(|map| map.remove(session))
+        .flatten()
+        .map(|_| MARKER.to_string())
 }
 
 /// Forget an arm whose turn never went out.
