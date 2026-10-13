@@ -905,6 +905,16 @@ impl SessionManager {
                                         ));
                                         *pw = PrewarmState::Ready(p);
                                         None
+                                    } else if prewarm_predates_session(
+                                        p.created_wall,
+                                        meta.created_at,
+                                    ) {
+                                        // Launch prewarm scanned skills before
+                                        // this chat existed. Drop it so the
+                                        // cold spawn reads the disk now (#1328).
+                                        stale_prewarm.push(p.acp.clone());
+                                        rejected.push("prewarm: started before this chat".into());
+                                        None
                                     } else if p.acp.route_provider_id() == route
                                         && gate(
                                             p.acp.is_alive(),
@@ -1876,6 +1886,7 @@ impl SessionManager {
             extra_rules: crate::official_aux::merge_extra_rules(None),
             ..Default::default()
         };
+        let scanned_at = chrono::Utc::now();
         let (client, mut events) = match AcpClient::spawn_with_options(cli_path, cwd, spawn_opts)
             .await
         {
@@ -1917,6 +1928,7 @@ impl SessionManager {
                     sandbox_profile: Some(effective_sandbox),
                     model_id: Some(prefs.model_id),
                     created_at: Instant::now(),
+                    created_wall: scanned_at,
                     backend: "grok_agent_stdio".into(),
                 });
                 true

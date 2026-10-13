@@ -79,6 +79,7 @@ Each ACP process whose home would be agent-home gets `{app data}/agent-proc/<id>
 
 - `auth.json` is a private copy for official, and absent for custom. It is not a link to the canonical file.
 - `sessions`, `memory`, `skills`, `config.toml`, and the other canonical entries are links, so resume and settings stay on one agent-home.
+- `hooks` is a real directory copy and `hooks-paths` is a private file copy. The CLI sandbox refuses a symlink or a hard-linked hook JSON.
 - The directory is deleted when the process is killed. The next app start sweeps leftovers only after this process owns the single-instance lock, so a second launch cannot delete a live chat's directory.
 
 `~/.grok/auth.json` and the agent-home mirror stay the login / heal files. Shared-mode official spawn still uses `GROK_HOME=~/.grok` and does not get a snapshot. Official-aux keeps `agent-home-official`.

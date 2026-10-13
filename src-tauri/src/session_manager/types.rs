@@ -301,8 +301,20 @@ pub(crate) struct PrewarmedProcess {
     #[allow(dead_code)]
     pub(super) model_id: Option<String>,
     pub(super) created_at: Instant,
+    /// Wall time of the spawn. A chat created after this must not reuse the
+    /// process: that process already scanned skills (#1328).
+    pub(super) created_wall: chrono::DateTime<chrono::Utc>,
     #[allow(dead_code)]
     pub(super) backend: String,
+}
+
+/// True when this chat was created after the prewarm process started.
+/// One second of slack covers clock rounding on the same spawn.
+pub(crate) fn prewarm_predates_session(
+    prewarm_at: chrono::DateTime<chrono::Utc>,
+    session_at: chrono::DateTime<chrono::Utc>,
+) -> bool {
+    prewarm_at + chrono::Duration::seconds(1) < session_at
 }
 
 /// Prewarm slot state. A process that was detached (viewed-only session) is
@@ -2149,5 +2161,21 @@ mod background_tool_journal_lock_tests {
         assert_eq!(*background.lock().get("bg-sid").unwrap(), 2);
 
         *TOOL_JOURNAL_PERSIST_TEST_HOOK.lock() = None;
+    }
+}
+
+#[cfg(test)]
+mod prewarm_skill_scan_tests {
+    use super::prewarm_predates_session;
+
+    #[test]
+    fn chat_created_after_prewarm_is_not_reused() {
+        let prewarm_at = chrono::DateTime::parse_from_rfc3339("2026-10-13T00:00:00Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        let session_at = prewarm_at + chrono::Duration::minutes(5);
+        assert!(prewarm_predates_session(prewarm_at, session_at));
+        assert!(!prewarm_predates_session(session_at, prewarm_at));
+        assert!(!prewarm_predates_session(prewarm_at, prewarm_at));
     }
 }

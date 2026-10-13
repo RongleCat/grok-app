@@ -6366,7 +6366,7 @@ export function AppWorkbench() {
     return () => {
       cancelled = true;
     };
-  }, [activeProject?.path, activeProject?.sshAlias, skillsReloadToken]);
+  }, [activeProject?.path, activeProject?.sshAlias, skillsReloadToken, session.sessionId]);
 
   const slashCatalog = useMemo(
     () => buildSlashCatalog(skillInfos),

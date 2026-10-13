@@ -7,6 +7,9 @@
 //!
 //! - `auth.json` is a private copy for an official process, and absent for a
 //!   custom process. It is never a link back to the canonical file.
+//! - `hooks` is a real directory and `hooks-paths` is a regular file. The CLI
+//!   sandbox refuses a symlink on that directory and a hard-linked hook JSON
+//!   (`st_nlink` > 1). A link would fail every sandboxed chat at startup.
 //! - other entries are links to the canonical home, so resume and settings
 //!   still see one sessions directory and one `config.toml`.
 //!
@@ -92,6 +95,14 @@ fn populate(
         }
         let src = entry.path();
         let dest = dir.join(&name);
+        if name == "hooks" {
+            materialize_real_tree(&src, &dest)?;
+            continue;
+        }
+        if name == "hooks-paths" {
+            copy_private_file(&src, &dest)?;
+            continue;
+        }
         share_entry(&src, &dest)?;
     }
     if custom_route {
@@ -103,6 +114,38 @@ fn populate(
         }
     }
     Ok(())
+}
+
+/// Copy a file's bytes into a new inode. `fs::copy` / `hard_link` would keep
+/// `st_nlink` > 1, which the sandbox rejects for hook JSON.
+fn copy_private_file(src: &Path, dest: &Path) -> Result<(), String> {
+    let bytes = fs::read(src).map_err(|e| format!("read {}: {e}", src.display()))?;
+    fs::write(dest, &bytes).map_err(|e| format!("write {}: {e}", dest.display()))?;
+    Ok(())
+}
+
+/// Real directory tree. Symlinks are followed and written as real files or
+/// directories so no path component under `hooks` is a link.
+fn materialize_real_tree(src: &Path, dest: &Path) -> Result<(), String> {
+    materialize_node(src, dest, 0)
+}
+
+fn materialize_node(src: &Path, dest: &Path, depth: u32) -> Result<(), String> {
+    if depth > 16 {
+        return Err(format!("hooks tree too deep: {}", src.display()));
+    }
+    let meta = fs::metadata(src).map_err(|e| format!("stat {}: {e}", src.display()))?;
+    if meta.is_dir() {
+        fs::create_dir(dest).map_err(|e| format!("create {}: {e}", dest.display()))?;
+        let entries = fs::read_dir(src).map_err(|e| format!("read {}: {e}", src.display()))?;
+        for entry in entries {
+            let entry = entry.map_err(|e| format!("read {}: {e}", src.display()))?;
+            materialize_node(&entry.path(), &dest.join(entry.file_name()), depth + 1)?;
+        }
+        Ok(())
+    } else {
+        copy_private_file(src, dest)
+    }
 }
 
 fn share_entry(src: &Path, dest: &Path) -> Result<(), String> {
@@ -330,6 +373,69 @@ mod tests {
             discard(&canonical);
             assert!(canonical.exists());
             assert_eq!(fs::read(&marker).unwrap(), b"session");
+        });
+    }
+
+    #[test]
+    fn hooks_are_a_real_tree_and_hook_files_are_not_hardlinked() {
+        with_app_home(|root| {
+            let canonical = canonical_with_config(&root);
+            let hook_src = root.join("hook-target.json");
+            fs::write(&hook_src, b"{\"event\":\"Stop\"}\n").unwrap();
+            let hooks = canonical.join("hooks");
+            fs::create_dir_all(hooks.join("nested")).unwrap();
+            // Canonical itself may use a symlink and a hard link. The sealed
+            // home must not preserve either: the sandbox rejects both.
+            #[cfg(unix)]
+            {
+                std::os::unix::fs::symlink(&hook_src, hooks.join("linked.json")).unwrap();
+            }
+            #[cfg(not(unix))]
+            {
+                fs::write(hooks.join("linked.json"), b"{\"event\":\"Stop\"}\n").unwrap();
+            }
+            fs::hard_link(&hook_src, hooks.join("nested").join("aliased.json")).unwrap();
+            fs::write(canonical.join("hooks-paths"), b"/tmp/hooks-extra\n").unwrap();
+
+            let sealed = create_from(&canonical, true, None).unwrap();
+            let sealed_hooks = sealed.join("hooks");
+            let hook_meta = fs::symlink_metadata(&sealed_hooks).unwrap();
+            assert!(hook_meta.is_dir());
+            assert!(
+                !hook_meta.file_type().is_symlink(),
+                "sealed hooks must be a real directory"
+            );
+            let linked = sealed_hooks.join("linked.json");
+            let linked_meta = fs::symlink_metadata(&linked).unwrap();
+            assert!(linked_meta.is_file());
+            assert!(!linked_meta.file_type().is_symlink());
+            assert_eq!(fs::read(&linked).unwrap(), b"{\"event\":\"Stop\"}\n");
+            let aliased = sealed_hooks.join("nested").join("aliased.json");
+            assert!(fs::symlink_metadata(&aliased).unwrap().is_file());
+            assert_eq!(fs::read(&aliased).unwrap(), b"{\"event\":\"Stop\"}\n");
+            assert_eq!(
+                fs::read(sealed.join("hooks-paths")).unwrap(),
+                b"/tmp/hooks-extra\n"
+            );
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::MetadataExt;
+                assert_eq!(fs::metadata(&aliased).unwrap().nlink(), 1);
+                assert_ne!(
+                    fs::metadata(&hook_src).unwrap().ino(),
+                    fs::metadata(&aliased).unwrap().ino()
+                );
+                assert_eq!(fs::metadata(sealed.join("hooks-paths")).unwrap().nlink(), 1);
+                assert_ne!(
+                    fs::metadata(canonical.join("hooks-paths")).unwrap().ino(),
+                    fs::metadata(sealed.join("hooks-paths")).unwrap().ino()
+                );
+                // sessions stay shared
+                assert_eq!(
+                    fs::metadata(canonical.join("sessions")).unwrap().ino(),
+                    fs::metadata(sealed.join("sessions")).unwrap().ino()
+                );
+            }
         });
     }
 
