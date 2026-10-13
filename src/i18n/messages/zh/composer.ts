@@ -398,7 +398,7 @@ export const zhComposer = {
   "composer.skillsPicker": "查找技能",
 
   // ── PR monitor (branch chip + session wake) ──
-  "prMonitor.menuHead": "拉取请求",
+  "prMonitor.menuHead": "Pull request",
   "prMonitor.watch": "监视此 PR",
   "prMonitor.watchTip": "PR 新评论与 CI 变化会唤醒本会话",
   "prMonitor.unwatch": "停止监视",
