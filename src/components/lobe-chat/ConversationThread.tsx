@@ -983,6 +983,24 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
     ) : null;
   }
 
+  // A turn the Host started on its own (PR-monitor wake, external send) is not
+  // the user speaking: one quiet line, and the assistant's answer below reads as
+  // a continuation of the turn above instead of a new question.
+  if (m.role === "user" && m.marker === "auto_wake") {
+    const preview = m.content.trim().split("\n")[0] ?? "";
+    return wrap(
+      <div
+        className="lobe-chat-auto-wake"
+        key={m.id}
+        id={m.id}
+        data-message-marker={m.marker}
+        title={m.content.trim()}
+      >
+        {preview}
+      </div>,
+    );
+  }
+
   if (m.role === "user") {
     const isInterjection = isInjectedPromptMarker(m.marker);
     const isLastUser = !isInterjection && lastUserMessageId === m.id;

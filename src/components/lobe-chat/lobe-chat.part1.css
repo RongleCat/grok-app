@@ -371,6 +371,23 @@ html[data-chat-width="full"] .lobe-chat__inner,
   );
 }
 
+/* A turn the Host started on its own (wake / external send): a quiet
+   continuation line instead of a user bubble, so the chat never reads as the
+   user having spoken — the answer below stays attached to the turn above. */
+.lobe-chat-auto-wake {
+  align-self: stretch;
+  margin: 4px 2px 6px;
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid
+    color-mix(in srgb, var(--chat-link) 32%, transparent);
+  color: color-mix(in srgb, var(--chat-link) 62%, var(--chat-text));
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .lobe-chat-interjection-tag {
   display: flex;
   align-items: center;
