@@ -121,18 +121,19 @@ export function usePrMonitor(opts: UsePrMonitorOptions): UsePrMonitorResult {
         setPrs([]);
       } finally {
         readingRef.current = false;
-        if (projectRef.current !== project) {
-          if (projectRef.current) {
+        const current = projectRef.current;
+        if (current !== project) {
+          if (current) {
             refreshRef.current();
           } else {
             setPrs([]);
             setLoading(false);
             setReady(true);
           }
-          return;
+        } else {
+          setReady(true);
+          setLoading(false);
         }
-        setReady(true);
-        setLoading(false);
       }
     })();
   }, []);

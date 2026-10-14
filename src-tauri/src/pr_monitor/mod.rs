@@ -373,9 +373,7 @@ async fn poll_watch(app: &AppHandle, session_id: &str, pr_number: u64) {
         }
     };
 
-    let mut publish = false;
-    let mut queued_wake = false;
-    {
+    let applied = {
         let mut guard = lock_monitors();
         let Some(watch) = guard
             .get_mut(session_id)
@@ -399,12 +397,10 @@ async fn poll_watch(app: &AppHandle, session_id: &str, pr_number: u64) {
                 "PR poll failed; keeping the previous snapshot"
             );
         }
-        let applied = watch.apply_poll(result, polled_at);
-        publish = applied.publish;
-        queued_wake = applied.queued_wake;
-    }
+        watch.apply_poll(result, polled_at)
+    };
 
-    if queued_wake {
+    if applied.queued_wake {
         info!(
             target: "pr_monitor",
             session = %session_id,
@@ -412,7 +408,7 @@ async fn poll_watch(app: &AppHandle, session_id: &str, pr_number: u64) {
             "PR changed; its session has a follow-up waiting"
         );
     }
-    if publish {
+    if applied.publish {
         emit_state(app, session_id).await;
     }
 }
