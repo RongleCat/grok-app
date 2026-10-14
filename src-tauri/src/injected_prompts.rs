@@ -13,7 +13,9 @@
 //!
 //! One turn runs per chat at a time (`session_turn_busy` + the turn lease), so a
 //! single per-session slot is enough. An arm is dropped when the send never went
-//! out (connect/send error), so it cannot leak onto a later user turn.
+//! out — connect/send error, or the dispatch future cancelled by its timeout —
+//! so it cannot leak onto a later user turn. A turn that only queued keeps the
+//! arm: the journal takes it when that queue drains.
 
 /// Marker the transcript uses for a row the Host injected.
 pub const MARKER: &str = "auto_wake";
@@ -67,6 +69,39 @@ pub fn disarm(session_id: &str) {
     });
 }
 
+/// Arm held for the life of one dispatch.
+///
+/// Dropping it clears the arm. [`Self::keep`] leaves the arm for a turn that
+/// was accepted into the queue and has not been journaled yet. A send that
+/// already took the marker does not need `keep`: drop then finds nothing.
+pub struct ArmedSend {
+    session_id: String,
+    live: bool,
+}
+
+impl ArmedSend {
+    pub fn hold(session_id: &str, origin: &str) -> Self {
+        arm(session_id, origin);
+        Self {
+            session_id: session_id.trim().to_string(),
+            live: true,
+        }
+    }
+
+    /// The turn was queued. The journal takes the marker when it is sent.
+    pub fn keep(mut self) {
+        self.live = false;
+    }
+}
+
+impl Drop for ArmedSend {
+    fn drop(&mut self) {
+        if self.live {
+            disarm(&self.session_id);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -101,5 +136,28 @@ mod tests {
         arm("t-twice", "pr_monitor");
         assert_eq!(take_armed_marker("t-twice").as_deref(), Some(MARKER));
         assert!(take_armed_marker("t-twice").is_none());
+    }
+
+    #[test]
+    fn a_dropped_arm_does_not_mark_a_later_turn() {
+        // Dispatch was cancelled (the connect budget) before the row was written.
+        let guard = ArmedSend::hold("t-drop", "pr_monitor");
+        drop(guard);
+        assert!(take_armed_marker("t-drop").is_none());
+    }
+
+    #[test]
+    fn a_kept_arm_still_marks_the_turn_that_goes_out() {
+        // Queued while the chat is busy: the journal takes the arm later.
+        let guard = ArmedSend::hold("t-keep", "external");
+        guard.keep();
+        assert_eq!(take_armed_marker("t-keep").as_deref(), Some(MARKER));
+    }
+
+    #[test]
+    fn a_blank_arm_drops_cleanly() {
+        let guard = ArmedSend::hold("  ", "pr_monitor");
+        drop(guard);
+        assert!(take_armed_marker("t-blank-guard").is_none());
     }
 }

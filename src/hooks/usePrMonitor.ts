@@ -4,8 +4,10 @@
  * The host owns the watches: it polls each one, reads a change, delivers the
  * follow-up turn into this chat and pushes the rows (`pr-monitor://state`) plus
  * each wake's outcome (`pr-monitor://wake`). So this hook reads the repo's open
- * PRs once per list open, reads this chat's watches once on subscribe, and then
- * only renders what the host pushes — it never polls for watch state.
+ * PRs once per menu open, reads this chat's watches once on subscribe, and then
+ * only renders what the host pushes — it never polls for watch state. A project
+ * change while a read is in flight starts that project's read when the old one
+ * finishes.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -57,7 +59,7 @@ export type UsePrMonitorResult = {
   busy: readonly number[];
   /** Start or stop watching one PR of this repository. */
   toggleWatch: (prNumber: number) => void;
-  /** Re-read the repository's open PRs (the list reads once per open). */
+  /** Re-read the repository's open PRs (once per menu open, and after a project change). */
   refresh: () => void;
 };
 
@@ -87,14 +89,17 @@ export function usePrMonitor(opts: UsePrMonitorOptions): UsePrMonitorResult {
   const busyRef = useRef<readonly number[]>(busy);
   busyRef.current = busy;
   const readingRef = useRef(false);
+  const refreshRef = useRef<() => void>(() => {});
 
   /** The repository's open PRs, for the list the menu shows. */
   const refresh = useCallback(() => {
-    // One read per appearance: a second request while the first is in flight
-    // would be the same answer twice.
+    // One read per appearance: a second request for the same project while the
+    // first is in flight would be the same answer twice. A project change
+    // during that read is a different question — the finish path asks it.
     if (!projectRef.current || readingRef.current) {
       if (!projectRef.current) {
         setPrs([]);
+        setLoading(false);
         setReady(true);
       }
       return;
@@ -116,13 +121,22 @@ export function usePrMonitor(opts: UsePrMonitorOptions): UsePrMonitorResult {
         setPrs([]);
       } finally {
         readingRef.current = false;
-        if (projectRef.current === project) {
-          setReady(true);
-          setLoading(false);
+        if (projectRef.current !== project) {
+          if (projectRef.current) {
+            refreshRef.current();
+          } else {
+            setPrs([]);
+            setLoading(false);
+            setReady(true);
+          }
+          return;
         }
+        setReady(true);
+        setLoading(false);
       }
     })();
   }, []);
+  refreshRef.current = refresh;
 
   useEffect(() => {
     setReady(false);
@@ -130,6 +144,7 @@ export function usePrMonitor(opts: UsePrMonitorOptions): UsePrMonitorResult {
       setPrs([]);
       setAvailable(enabled ? null : false);
       setReason(null);
+      setLoading(false);
       setReady(true);
       return;
     }

@@ -27,11 +27,19 @@ See `docs/llm-wiki/release.md`.
 - Retry on a dropped connection continues that chat. The button sends a continue prompt once the agent is gone. (#1324)
 - Chats start again when the sandbox is on. The private agent home was handing the sandbox a linked hooks folder, which it refuses. (#1323)
 - A new chat sees skills added or removed while the app stays open. The slash list reloads with that chat, and a startup agent is not reused for it. (#1328)
+- A timed-out follow-up no longer marks your next message as automatic. That mark is cleared when the send never went out.
+- The branch menu retries the pull-request list after a failed read or a project switch. Opening the menu asks again.
+- A pull-request watch shows a poll failure and clears it when the next read works. The hint updates when the error changes or goes away.
+- A reused startup agent still gets pull-request watch tools. A chat can watch pull requests on a process that started before the chat existed.
 
 **中文 · 修复**
 - 连接中断后，点错误上的重试会接着聊。按钮向模型发送继续，把未做完的步骤接上。（#1324）
 - 打开沙箱后，对话可以重新开始。每个对话单独的代理目录以前把 hooks 做成了链接，沙箱会拒绝启动。（#1323）
 - 应用开着的时候增删技能，新建对话能看到这次变化。斜杠列表会跟着这条对话重新加载，启动时预热的代理也不会再被这条新对话沿用。（#1328）
+- 超时未发出的自动续写，不会再把你的下一条消息标成自动。那次发送没有写入记录时，下一条仍算你自己发的。
+- 分支菜单在读取失败或切换项目后，会重新读取拉取请求。再次打开菜单会再问一次。
+- 拉取请求监视会显示轮询失败，下次读成功后会清掉。错误变了或消失时，提示会跟着更新。
+- 复用启动时预热的代理，仍然带上拉取请求监视工具。对话用上一个更早启动的进程时，也可以自己盯拉取请求。
 
 ## [0.2.40] - 2026-10-11
 

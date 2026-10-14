@@ -299,6 +299,71 @@ describe("usePrMonitor", () => {
     expect(hook.result.current.prs.map((p) => p.number)).toEqual([2, 1316]);
   });
 
+  it("reads the new project when the project changes during a read", async () => {
+    const resolvers: Array<(value: GitPrHubListResult) => void> = [];
+    gitPrList.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    const hook = renderHook(
+      ({ projectPath }: { projectPath: string | null }) =>
+        usePrMonitor({
+          enabled: true,
+          projectPath,
+          sessionId: SESSION,
+          locale: "en",
+        }),
+      { initialProps: { projectPath: PROJECT as string | null } },
+    );
+    await waitFor(() => expect(hook.result.current.loading).toBe(true));
+    expect(gitPrList).toHaveBeenCalledTimes(1);
+
+    hook.rerender({ projectPath: "/Users/me/other" });
+    expect(gitPrList).toHaveBeenCalledTimes(1);
+
+    resolvers[0]!(listResult());
+    await waitFor(() => expect(gitPrList).toHaveBeenCalledTimes(2));
+    expect(gitPrList).toHaveBeenLastCalledWith("/Users/me/other", {
+      limit: 30,
+      state: "open",
+    });
+
+    resolvers[1]!(listResult({ prs: [] }));
+    await waitFor(() => expect(hook.result.current.loading).toBe(false));
+    expect(hook.result.current.ready).toBe(true);
+    expect(hook.result.current.prs).toEqual([]);
+  });
+
+  it("stops loading when the project goes away during a read", async () => {
+    const resolvers: Array<(value: GitPrHubListResult) => void> = [];
+    gitPrList.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    const hook = renderHook(
+      ({ projectPath }: { projectPath: string | null }) =>
+        usePrMonitor({
+          enabled: true,
+          projectPath,
+          sessionId: SESSION,
+          locale: "en",
+        }),
+      { initialProps: { projectPath: PROJECT as string | null } },
+    );
+    await waitFor(() => expect(hook.result.current.loading).toBe(true));
+
+    hook.rerender({ projectPath: null });
+    resolvers[0]!(listResult());
+    await waitFor(() => expect(hook.result.current.loading).toBe(false));
+    expect(gitPrList).toHaveBeenCalledTimes(1);
+    expect(hook.result.current.prs).toEqual([]);
+    expect(hook.result.current.ready).toBe(true);
+  });
+
   it("knows when this chat can mount a watch", async () => {
     const { hook } = setup();
     await waitFor(() => expect(hook.result.current.ready).toBe(true));

@@ -2444,17 +2444,32 @@ impl AcpClient {
             .await
     }
 
+    /// [`Self::open_session_for`] using the id this process was spawned with.
+    pub async fn open_session_at(
+        &self,
+        resume_session_id: Option<&str>,
+        fork_session: bool,
+        cwd: &str,
+    ) -> Result<(String, bool), AgentError> {
+        self.open_session_for(resume_session_id, fork_session, cwd, None)
+            .await
+    }
+
     /// [`Self::open_session`] with a caller-supplied cwd.
     ///
     /// The CLI session cwd is per-session. OS sandbox write roots are **not** —
     /// they stay locked to spawn cwd for the process lifetime. Hosts must not
     /// warm-reuse a non-`off` sandboxed process onto a different project cwd
     /// (#986); cold-spawn with the target cwd instead.
-    pub async fn open_session_at(
+    ///
+    /// `bound_app_session_id` is the chat this open serves. It wins over the id
+    /// stored at spawn, which is empty for an ownerless prewarm.
+    pub async fn open_session_for(
         &self,
         resume_session_id: Option<&str>,
         fork_session: bool,
         cwd: &str,
+        bound_app_session_id: Option<&str>,
     ) -> Result<(String, bool), AgentError> {
         let cwd = cwd.to_string();
         if !crate::ssh_remote::acp_session_cwd_ok(self.ssh_alias.as_deref(), &cwd) {
@@ -2478,7 +2493,11 @@ impl AcpClient {
             serde_json::json!([])
         } else {
             let project_cwd = cwd.clone();
-            let app_session_id = self.app_session_id.clone();
+            let app_session_id = crate::extensions::resolve_mcp_app_session_id(
+                bound_app_session_id,
+                self.app_session_id.as_deref(),
+            )
+            .map(str::to_string);
             let budget = crate::extensions::MCP_CONNECT_BUDGET;
             let servers = match tokio::time::timeout(
                 budget,

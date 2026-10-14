@@ -1038,10 +1038,12 @@ impl SessionManager {
                     }
                 }
                 let cwd_str = cwd.to_string_lossy().to_string();
-                let open_result = Self::with_handshake_budget(acp.open_session_at(
+                let open_result = Self::with_handshake_budget(acp.open_session_for(
                     resume_agent_sid.as_deref(),
                     false,
                     &cwd_str,
+                    // The prewarm stored no chat id. This open is the chat.
+                    Some(meta.id.as_str()),
                 ))
                 .await;
                 match open_result {

@@ -1284,6 +1284,27 @@ fn fetch_mcp_from_inspect(project_cwd: Option<&str>) -> Vec<McpServerDef> {
 ///
 /// For **session open / connect**, use [`build_session_mcp_servers_for_connect`]
 /// so MCP/OAuth failures cannot block ACP.
+/// Chat id the PR-monitor MCP tools should be scoped to.
+///
+/// A process prewarmed before the chat exists stores no id. The chat that
+/// later reuses it passes its own id, and that one wins. A blank id is ignored.
+pub fn resolve_mcp_app_session_id<'a>(
+    bound: Option<&'a str>,
+    spawned_with: Option<&'a str>,
+) -> Option<&'a str> {
+    fn present(value: &str) -> Option<&str> {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    }
+    bound
+        .and_then(present)
+        .or_else(|| spawned_with.and_then(present))
+}
+
 /// Full inject (settings / hot swap). `app_session_id` scopes the per-session
 /// App MCPs, so a live agent keeps its tools across a hot MCP swap.
 pub fn build_session_mcp_servers(project_cwd: Option<&str>, app_session_id: Option<&str>) -> Value {
@@ -2148,6 +2169,28 @@ pub fn enable_all_skills(names: &[String]) -> Result<ExtensionsPrefs, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_bound_chat_wins_over_the_id_the_process_was_spawned_with() {
+        assert_eq!(
+            resolve_mcp_app_session_id(Some("chat-1"), None),
+            Some("chat-1")
+        );
+        assert_eq!(
+            resolve_mcp_app_session_id(None, Some("spawned")),
+            Some("spawned")
+        );
+        assert_eq!(
+            resolve_mcp_app_session_id(Some("chat-1"), Some("spawned")),
+            Some("chat-1")
+        );
+        assert_eq!(
+            resolve_mcp_app_session_id(Some("  "), Some("spawned")),
+            Some("spawned")
+        );
+        assert_eq!(resolve_mcp_app_session_id(Some("  "), Some("")), None);
+        assert_eq!(resolve_mcp_app_session_id(None, None), None);
+    }
 
     #[test]
     fn default_on_when_missing() {

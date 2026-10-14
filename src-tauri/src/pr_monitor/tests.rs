@@ -44,6 +44,72 @@ fn snapshot(title: &str, state: &str, fail: u32, comment_id: &str) -> PrSnapshot
     polled(title, state, fail, comment_id).snapshot
 }
 
+fn bare_watch() -> Watch {
+    Watch {
+        project_path: "/tmp/repo".into(),
+        pr_number: 1316,
+        interval_secs: 60,
+        mounted_at: "t0".into(),
+        last_poll: None,
+        last_poll_at: None,
+        last_update_at: None,
+        last_error: None,
+        baseline: WatchBaseline::default(),
+        pending: None,
+        last_change: None,
+        polls: 0,
+        updates: 0,
+    }
+}
+
+#[test]
+fn a_poll_failure_is_published_once_and_a_quiet_success_clears_it() {
+    let mut watch = bare_watch();
+    let first = watch.apply_poll(Err("gh: authentication failed".into()), "t1".into());
+    assert!(first.publish);
+    assert!(!first.queued_wake);
+    assert_eq!(
+        watch.last_error.as_deref(),
+        Some("gh: authentication failed")
+    );
+    assert_eq!(watch.polls, 1);
+
+    let same = watch.apply_poll(Err("gh: authentication failed".into()), "t2".into());
+    assert!(!same.publish, "the same failure must not push again");
+    assert_eq!(watch.polls, 2);
+
+    let changed = watch.apply_poll(Err("gh: timed out".into()), "t3".into());
+    assert!(changed.publish);
+    assert_eq!(watch.last_error.as_deref(), Some("gh: timed out"));
+
+    let cleared = watch.apply_poll(Ok(polled("Live monitor", "OPEN", 0, "c1")), "t4".into());
+    assert!(cleared.publish, "clearing the error must reach the menu");
+    assert!(
+        !cleared.queued_wake,
+        "the first good poll only seeds the baseline"
+    );
+    assert!(watch.last_error.is_none());
+    assert!(watch.pending.is_none());
+
+    let quiet = watch.apply_poll(Ok(polled("Live monitor", "OPEN", 0, "c1")), "t5".into());
+    assert!(!quiet.publish);
+    assert!(!quiet.queued_wake);
+}
+
+#[test]
+fn a_real_change_still_queues_one_wake() {
+    let mut watch = bare_watch();
+    let seed = watch.apply_poll(Ok(polled("Live monitor", "OPEN", 0, "c1")), "t1".into());
+    assert!(!seed.publish);
+    assert!(!seed.queued_wake);
+
+    let woke = watch.apply_poll(Ok(polled("Live monitor", "OPEN", 0, "c2")), "t2".into());
+    assert!(woke.publish);
+    assert!(woke.queued_wake);
+    assert!(watch.pending.is_some());
+    assert_eq!(watch.updates, 1);
+}
+
 #[test]
 fn gh_argv_targets_one_pr_and_covers_comments() {
     let args = gh_view_args(1316);

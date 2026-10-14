@@ -25,8 +25,10 @@ turn **into that session**; the client renders what the host pushes.
   the honest "No open pull requests". No `gh`, not a git repository, no project,
   or a read failure → the section stays away and the menu keeps the branch area
   as it is. The app never invents a PR.
-- The repository's PRs are read once each time the list appears; watches are the
-  host's business and are pushed, so the client never polls for them.
+- The repository's PRs are read once each time the branch menu opens, including
+  after a failed read, and a project change during that read starts the new
+  project's read when the old one finishes. Watches are the host's business and
+  are pushed, so the client never polls for them.
 - Watching is per session: another chat's watches are neither shown nor
   stoppable here, and the same PR can be watched by two chats (each gets its own
   host poll and its own follow-up).
@@ -46,8 +48,9 @@ change semantically. These changes produce a follow-up turn in the watching chat
 
 Not a wake: a re-poll of the same revision, a partial CI recovery that is still
 failing, a draft toggle, or an edit inside an already-seen comment. The belt is a
-stable fingerprint per watch: an unchanged poll emits nothing, and mounting seeds
-the baseline so a mount cannot fire a wake.
+stable fingerprint per watch: an unchanged poll does not wake, and mounting seeds
+the baseline so a mount cannot fire a wake. A poll error is still pushed, and a
+later poll that only clears that error is pushed too.
 
 ## Delivery rules
 
@@ -59,7 +62,8 @@ the baseline so a mount cannot fire a wake.
   API) and the turn runner takes the arm while it writes the user row, so the row
   wears `marker: "auto_wake"`. Nothing is matched by text — a user who later types
   or pastes the same words still gets a normal user row — and an arm whose turn
-  never went out is dropped. `isInjectedPromptMarker` (`auto_wake` + the older
+  never went out is dropped, including when dispatch is cancelled before the row
+  is written. `isInjectedPromptMarker` (`auto_wake` + the older
   `interjection`)
   keeps such a row **inside the turn before it** — it opens no new turn, so the
   answer reads as a continuation — and the thread draws one quiet line
@@ -93,8 +97,9 @@ the baseline so a mount cannot fire a wake.
   until that chat is deleted, the PR is done, or the user stops the watch.
 - Another session's watches are invisible here; stop a watch from any branch
   menu of the chat that owns it.
-- Poll failures are logged (`pr_monitor`) and surfaced as a hint in the section,
-  so a broken `gh` auth never looks like "nothing is happening".
+- Poll failures are logged (`pr_monitor`) and pushed to the section, including
+  when the error text changes or a later poll clears it, so a broken `gh` auth
+  never looks like "nothing is happening".
 - Deleting the chat (`session_delete`) stops its watches.
 
 ## Host side
@@ -124,7 +129,8 @@ The branch menu is the human path to a watch. The agent gets its own path, so a
 PR it just opened is followed without anyone clicking a bell:
 
 - The host injects a `pr-monitor` MCP server into the session's `mcpServers` at
-  connect (and again on a hot MCP swap), scoped to that one chat. The script is
+  connect (and again on a hot MCP swap), scoped to that one chat, including when
+  the chat reuses a process that was prewarmed before the chat existed. The script is
   embedded in the host and written to `{app_data}/mcp/pr-monitor/`
   (`src-tauri/src/pr_monitor/mcp.rs`, `scripts/pr-monitor-mcp.mjs`), so packaged
   installs work with no repo tree.

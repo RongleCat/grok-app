@@ -123,6 +123,55 @@ impl Watch {
             pending: self.pending.is_some(),
         }
     }
+
+    /// Fold one poll into this watch.
+    ///
+    /// A repeated error does not ask for another push. A new error, a cleared
+    /// error, or a real change does — including a successful poll that only
+    /// clears the error and leaves the baseline where it was.
+    fn apply_poll(&mut self, result: Result<PolledPr, String>, polled_at: String) -> PollFold {
+        self.polls += 1;
+        self.last_poll_at = Some(polled_at.clone());
+        match result {
+            Err(e) => {
+                let changed = self.last_error.as_deref() != Some(e.as_str());
+                self.last_error = Some(e);
+                PollFold {
+                    publish: changed,
+                    queued_wake: false,
+                }
+            }
+            Ok(polled) => {
+                let cleared = self.last_error.take().is_some();
+                let Some(changes) = advance_baseline(&mut self.baseline, &polled) else {
+                    return PollFold {
+                        publish: cleared,
+                        queued_wake: false,
+                    };
+                };
+                let incoming = PendingWake::new(polled.snapshot.clone(), changes, polled_at);
+                let wake = match self.pending.take() {
+                    Some(mut waiting) => {
+                        waiting.fold(incoming);
+                        waiting
+                    }
+                    None => incoming,
+                };
+                self.updates += 1;
+                self.last_update_at = Some(wake.last_at.clone());
+                self.pending = Some(wake);
+                PollFold {
+                    publish: true,
+                    queued_wake: true,
+                }
+            }
+        }
+    }
+}
+
+struct PollFold {
+    publish: bool,
+    queued_wake: bool,
 }
 
 struct SessionMonitor {
@@ -324,6 +373,8 @@ async fn poll_watch(app: &AppHandle, session_id: &str, pr_number: u64) {
         }
     };
 
+    let mut publish = false;
+    let mut queued_wake = false;
     {
         let mut guard = lock_monitors();
         let Some(watch) = guard
@@ -337,50 +388,33 @@ async fn poll_watch(app: &AppHandle, session_id: &str, pr_number: u64) {
         if watch.mounted_at != mounted_at {
             return;
         }
-        watch.polls += 1;
-        watch.last_poll_at = Some(polled_at.clone());
-
-        let polled = match result {
-            Ok(p) => p,
-            Err(e) => {
-                // Never silent: a broken `gh` auth or a missing repo would
-                // otherwise look like "no changes forever".
-                warn!(
-                    target: "pr_monitor",
-                    session = %session_id,
-                    pr = pr_number,
-                    error = %e,
-                    "PR poll failed; keeping the previous snapshot"
-                );
-                watch.last_error = Some(e);
-                return;
-            }
-        };
-        watch.last_error = None;
-
-        let Some(changes) = advance_baseline(&mut watch.baseline, &polled) else {
-            return;
-        };
-        let incoming = PendingWake::new(polled.snapshot.clone(), changes, polled_at.clone());
-        let wake = match watch.pending.take() {
-            Some(mut waiting) => {
-                waiting.fold(incoming);
-                waiting
-            }
-            None => incoming,
-        };
-        watch.updates += 1;
-        watch.last_update_at = Some(wake.last_at.clone());
-        watch.pending = Some(wake);
+        if let Err(e) = &result {
+            // Never silent: a broken `gh` auth or a missing repo would
+            // otherwise look like "no changes forever".
+            warn!(
+                target: "pr_monitor",
+                session = %session_id,
+                pr = pr_number,
+                error = %e,
+                "PR poll failed; keeping the previous snapshot"
+            );
+        }
+        let applied = watch.apply_poll(result, polled_at);
+        publish = applied.publish;
+        queued_wake = applied.queued_wake;
     }
 
-    info!(
-        target: "pr_monitor",
-        session = %session_id,
-        pr = pr_number,
-        "PR changed; its session has a follow-up waiting"
-    );
-    emit_state(app, session_id).await;
+    if queued_wake {
+        info!(
+            target: "pr_monitor",
+            session = %session_id,
+            pr = pr_number,
+            "PR changed; its session has a follow-up waiting"
+        );
+    }
+    if publish {
+        emit_state(app, session_id).await;
+    }
 }
 
 // ── Delivery ────────────────────────────────────────────────────────────────

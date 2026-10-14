@@ -941,24 +941,27 @@ pub async fn dispatch_turn(
     req: PreparedSend,
 ) -> TurnResult {
     let sid = req.session_id.clone();
-    // Armed for the whole dispatch: the turn runner takes it while it writes the
-    // user row, which also covers a turn that has to queue (its row is written
-    // when the queue drains and the chat is free again).
-    crate::injected_prompts::arm(&sid, req.origin);
+    // Held across the awaits below. The turn runner takes the arm while it
+    // writes the user row. Drop clears it when this future is cancelled (the
+    // dispatch budget) or when connect/send fails, so a turn that never went
+    // out cannot mark the user's next message. A queued turn keeps the arm:
+    // its row is written when the queue drains.
+    let armed = crate::injected_prompts::ArmedSend::hold(&sid, req.origin);
     // Mid-turn (drawing / tools / permission): do not connect-steal or send.
     // Push onto the same composer follow-up queue the GUI already shows.
     if mgr.session_turn_busy(&sid) {
+        armed.keep();
         return enqueue_while_busy(app, &sid, &req.prompt);
     }
     if let Err(e) = mgr
         .connect(app.clone(), req.project_path, Some(sid.clone()), None, None)
         .await
     {
-        crate::injected_prompts::disarm(&sid);
         return TurnResult::fail(TurnStatus::Error, sid, format!("connect failed: {e}"));
     }
     // Connect can race a new turn; treat that as queue, never interrupt.
     if mgr.session_turn_busy(&sid) {
+        armed.keep();
         return enqueue_while_busy(app, &sid, &req.prompt);
     }
     match mgr
@@ -971,12 +974,14 @@ pub async fn dispatch_turn(
         )
         .await
     {
+        // The journal takes the marker before this returns. Drop then finds an
+        // empty slot, including when the send returned without taking it.
         Ok(_) => TurnResult::started(sid),
         Err(e) => {
             if classify_send_error(&e) == TurnStatus::Busy {
+                armed.keep();
                 return enqueue_while_busy(app, &sid, &req.prompt);
             }
-            crate::injected_prompts::disarm(&sid);
             TurnResult::fail(classify_send_error(&e), sid, e)
         }
     }

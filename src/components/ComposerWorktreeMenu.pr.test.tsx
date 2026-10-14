@@ -220,6 +220,22 @@ describe("ComposerWorktreeMenu PR section", () => {
     await waitFor(() => expect(onPrListVisible).toHaveBeenCalledTimes(1));
   });
 
+  it("reads again when the menu opens after a failed list", async () => {
+    const { onPrListVisible } = renderMenu({
+      prRows: [],
+      prLoading: false,
+      prAvailable: false,
+    });
+    const user = await open();
+    await waitFor(() => expect(onPrListVisible).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Pull request")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /Switch git worktree/ }));
+    await user.click(screen.getByRole("button", { name: /Switch git worktree/ }));
+    await waitFor(() => expect(onPrListVisible).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText("Pull request")).toBeNull();
+  });
+
   it("surfaces a poll failure instead of looking healthy", async () => {
     renderMenu({
       prRows: ROWS,
