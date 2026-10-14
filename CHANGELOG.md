@@ -13,6 +13,16 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- A chat can watch several open pull requests from the branch menu. The chip shows how many are watched. (#1325)
+- The agent can watch and unwatch those pull requests itself. (#1327)
+- A pull-request update shows up as an automatic follow-up in the chat. (#1330)
+
+**中文 · 新增**
+- 一个对话可以从分支菜单盯上仓库里打开的多条拉取请求。芯片会写出正在盯的数量。（#1325）
+- 代理可以自己盯上或取消盯一条拉取请求。（#1327）
+- 拉取请求有更新时，这一轮会记成自动续写。（#1330）
+
 ### Fixed
 - Retry on a dropped connection continues that chat. The button sends a continue prompt once the agent is gone. (#1324)
 - Chats start again when the sandbox is on. The private agent home was handing the sandbox a linked hooks folder, which it refuses. (#1323)
