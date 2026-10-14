@@ -117,6 +117,7 @@ export function MessageRegenerateButton({
   models,
   currentModelId,
   onRegenerate,
+  onPrimary,
   iconSize = 15,
 }: {
   /** Primary action tip (one-click regenerate). */
@@ -130,6 +131,11 @@ export function MessageRegenerateButton({
   currentModelId: string;
   /** `modelId` omitted / same as current → keep session model. */
   onRegenerate: (modelId?: string) => void;
+  /**
+   * Icon click only. The model menu still calls `onRegenerate`.
+   * Used when a dropped-connection error should continue, not rewind.
+   */
+  onPrimary?: () => void;
   iconSize?: number;
 }) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -171,8 +177,12 @@ export function MessageRegenerateButton({
       suppressClickRef.current = false;
       return;
     }
+    if (onPrimary) {
+      onPrimary();
+      return;
+    }
     onRegenerate(undefined);
-  }, [disabled, onRegenerate]);
+  }, [disabled, onPrimary, onRegenerate]);
 
   const runWithModel = useCallback(
     (id: string | undefined) => {

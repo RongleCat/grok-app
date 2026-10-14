@@ -21,6 +21,7 @@ import type { Locale } from "@/i18n";
 import { createT } from "@/i18n";
 import {
   formatTurnErrorBody,
+  turnErrorContinuesOnRetry,
   isToolInlinedInAssistants,
   lastRegenerableAssistantId,
   messageSegments,
@@ -1181,13 +1182,22 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
           {canRegenError ? (
             <span className="lobe-chat-error__actions">
               <MessageRegenerateButton
-                label={tr("message.regenerate")}
+                label={
+                  turnErrorContinuesOnRetry(m.content) && onContinueInterrupted
+                    ? tr("endOfTurn.continue")
+                    : tr("message.regenerate")
+                }
                 sameModelLabel={tr("message.regenerateSameModel")}
                 pickModelLabel={tr("message.regeneratePickModel")}
                 disabled={!canRegenerate}
                 models={regenerateModels}
                 currentModelId={regenerateModelId}
                 iconSize={14}
+                onPrimary={
+                  turnErrorContinuesOnRetry(m.content) && onContinueInterrupted
+                    ? () => onContinueInterrupted("transport")
+                    : undefined
+                }
                 onRegenerate={(modelId) => {
                   if (!canRegenerate) return;
                   onRegenerateAssistant?.(

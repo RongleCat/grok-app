@@ -1,5 +1,6 @@
 import {
   buildContinueAfterStopPrompt,
+  buildContinueAfterTransportPrompt,
   buildContinueAgentPrompt,
   type ContinueInterruptContext,
 } from "./continueInterruptedTurn";
@@ -17,7 +18,8 @@ export type ChipContinueDecision =
   | "ignore"
   | "not_ready"
   | "send_after_stop"
-  | "send_after_restart";
+  | "send_after_restart"
+  | "send_after_transport";
 
 const READY_STATES = new Set(["ready", "idle"]);
 
@@ -43,10 +45,12 @@ export function decideEndAndContinue(input: {
 
 export function continuePromptKind(
   reason: string | null | undefined,
-): "after_stop" | "after_restart" | null {
+): "after_stop" | "after_restart" | "after_transport" | null {
   const r = (reason || "").toLowerCase();
   if (r === "user_stop") return "after_stop";
   if (r === "host_exit" || r === "agent_exit") return "after_restart";
+  // Error-row retry after a dropped connection. Not a host restart.
+  if (r === "transport") return "after_transport";
   return null;
 }
 
@@ -69,6 +73,7 @@ export function decideChipContinue(input: {
   ) {
     return "ignore";
   }
+  if (kind === "after_transport") return "send_after_transport";
   return "send_after_restart";
 }
 
@@ -152,7 +157,9 @@ export async function runChipContinue(input: {
   const agentTextOverride =
     decision === "send_after_stop"
       ? buildContinueAfterStopPrompt()
-      : buildContinueAgentPrompt(await input.loadInterruptContext());
+      : decision === "send_after_transport"
+        ? buildContinueAfterTransportPrompt()
+        : buildContinueAgentPrompt(await input.loadInterruptContext());
   await input.send({
     storedDisplay: input.storedDisplay,
     att: [],

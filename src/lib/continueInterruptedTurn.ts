@@ -55,6 +55,20 @@ export function buildContinueAfterStopPrompt(): string {
 }
 
 /**
+ * The turn died on a dropped connection (network, timeout, disconnect, crash).
+ * The visible retry must not rewind: agent rewind fails once the process is
+ * gone, and the click then sends nothing (#1324).
+ */
+export function buildContinueAfterTransportPrompt(): string {
+  return [
+    "The previous turn stopped because the connection to the model dropped.",
+    "Do not redo steps that already succeeded.",
+    "Continue the user's last request from the first unfinished step.",
+    "Do not assume a previous permission prompt is still open — request approval again if you need to run a command.",
+  ].join("\n");
+}
+
+/**
  * Same continuable set as the end-of-turn chip.
  * Aliases such as `process_exit` and `host` map before the check.
  */

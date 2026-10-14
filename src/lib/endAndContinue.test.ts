@@ -201,6 +201,44 @@ describe("runChipContinue", () => {
     expect(notify).toHaveBeenCalledOnce();
   });
 
+  it("sends a continue prompt for a dropped connection without rewind", async () => {
+    const { sent, send } = sendRecorder();
+    const decision = await runChipContinue({
+      alreadyBusy: false,
+      sessionId: "sid-a",
+      reason: "transport",
+      hostState: "disconnected",
+      loadInterruptContext: async () => {
+        throw new Error("transport continue must not load a restart context");
+      },
+      send,
+      storedDisplay: display,
+      notifyNotReady: () => {},
+    });
+    expect(decision).toBe("send_after_transport");
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.targetSessionId).toBe("sid-a");
+    expect(sent[0]?.agentTextOverride).toMatch(/connection to the model dropped/i);
+    expect(sent[0]?.agentTextOverride).not.toMatch(/host process restarted/i);
+    expect(sent[0]?.storedDisplay).toBe(display);
+  });
+
+  it("does not send a transport continue while the turn is still streaming", async () => {
+    const { sent, send } = sendRecorder();
+    const decision = await runChipContinue({
+      alreadyBusy: false,
+      sessionId: "sid-a",
+      reason: "transport",
+      hostState: "streaming",
+      loadInterruptContext: async () => null,
+      send,
+      storedDisplay: display,
+      notifyNotReady: () => {},
+    });
+    expect(decision).toBe("ignore");
+    expect(sent).toHaveLength(0);
+  });
+
   it("keeps the restart prompt for host_exit and skips a live stream", async () => {
     expect(
       decideChipContinue({
