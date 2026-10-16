@@ -1,7 +1,7 @@
 //! Windows WSL backend for Grok Build CLI.
 //!
 //! When `AppSettings.cli_backend == "wsl"`, the host spawns:
-//!   `wsl.exe [-d Distro] --cd <linux_cwd> -- env KEY=VAL… <linux_cli> <grok args…>`
+//!   `wsl.exe [-d Distro] --cd <linux_cwd> --exec <linux_cli> <grok args…>`
 //! instead of a native Windows `grok.exe`. Users who installed the CLI only
 //! inside WSL can run the desktop app without a separate ACP TCP tunnel.
 //!
@@ -29,6 +29,8 @@ pub const CLI_BACKEND_NATIVE: &str = "native";
 pub const CLI_BACKEND_WSL: &str = "wsl";
 
 const VERSION_PROBE_TIMEOUT: Duration = Duration::from_secs(8);
+
+// #546: never pass `bash -lc` / `wsl -- cmd` from the GUI; always `--exec` an absolute path.
 
 /// Normalized WSL launch config (only `Some` when backend is active on Windows).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -309,99 +311,121 @@ pub fn read_wsl_version(launch: &WslLaunch) -> Option<String> {
 }
 
 fn run_wsl_cli_probe(wsl: &Path, launch: &WslLaunch) -> (Option<String>, Option<String>, bool) {
-    // Absolute CLI paths probe via direct exec first —
-    // `wsl [-d Distro] -- <cli> --version` — skipping the login shell. The
-    // `bash -lc` probe below depends on the distro's login environment (bash
-    // on PATH, a quiet profile, a set $HOME); direct exec only needs the
-    // binary itself and matches the manual command users verify with.
-    if launch.linux_cli.starts_with('/') {
-        if let Some((path, version, ok)) = run_wsl_direct_probe(wsl, launch) {
-            if ok {
-                return (path, version, ok);
-            }
-            // Fall through to the shell probe as a backstop.
+    // Never use `bash -lc` here -- wsl.exe expands `$VAR` from the Windows env
+    // into the script argv (#546 follow-up). Always direct-exec an absolute path.
+    let absolute = match resolve_wsl_cli_absolute(wsl, launch) {
+        Some(p) => p,
+        None => return (None, None, false),
+    };
+    let resolved = WslLaunch {
+        distro: launch.distro.clone(),
+        linux_cli: absolute,
+    };
+    if let Some((path, version, ok)) = run_wsl_direct_probe(wsl, &resolved) {
+        return (path, version, ok);
+    }
+    (None, None, false)
+}
+
+/// Resolve settings `linux_cli` to an absolute Linux path without a login shell.
+///
+/// - `/abs` -> unchanged
+/// - `~/rest` / `~` -> `printenv HOME` + rest (or `grok`)
+/// - bare `grok` -> `which grok` when it returns an absolute path, else
+///   `$HOME/.grok/bin/grok` (via printenv) when that binary answers `--version`
+fn resolve_wsl_cli_absolute(wsl: &Path, launch: &WslLaunch) -> Option<String> {
+    let cli = launch.linux_cli.trim();
+    if cli.is_empty() || !is_safe_wsl_cli_path(cli) {
+        return None;
+    }
+    if cli.starts_with('/') {
+        return Some(cli.to_string());
+    }
+    if cli.starts_with("~/") || cli == "~" {
+        let home = wsl_printenv(wsl, launch.distro.as_deref(), "HOME")?;
+        let rest = if cli == "~" {
+            "grok"
+        } else {
+            cli.trim_start_matches("~/")
+        };
+        if rest.is_empty() || !is_safe_wsl_cli_path(rest) {
+            return None;
+        }
+        let home = home.trim().trim_end_matches('/');
+        if home.is_empty() || !home.starts_with('/') {
+            return None;
+        }
+        return Some(format!("{home}/{rest}"));
+    }
+    // Bare name (typically `grok`): `which grok` first, then ~/.grok/bin/grok.
+    if let Some(which) = wsl_which_grok(wsl, launch.distro.as_deref()) {
+        if which.starts_with('/') && is_safe_wsl_cli_path(&which) {
+            return Some(which);
         }
     }
+    // Fallback: $HOME/.grok/bin/grok when it answers `--version`.
+    if let Some(home) = wsl_printenv(wsl, launch.distro.as_deref(), "HOME") {
+        let home = home.trim().trim_end_matches('/');
+        if home.starts_with('/') && !home.is_empty() {
+            let candidate = format!("{home}/.grok/bin/grok");
+            if is_safe_wsl_cli_path(&candidate) {
+                let trial = WslLaunch {
+                    distro: launch.distro.clone(),
+                    linux_cli: candidate.clone(),
+                };
+                if let Some((_, _, ok)) = run_wsl_direct_probe(wsl, &trial) {
+                    if ok {
+                        return Some(candidate);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
 
-    // Expand optional ~ and prefer explicit path; otherwise PATH + ~/.grok/bin.
-    // Print: first line = resolved path, rest = --version banner.
-    let script = r#"
-set -e
-export PATH="$HOME/.grok/bin:$HOME/.local/bin:$PATH"
-CLI_RAW="$1"
-if [ -n "$CLI_RAW" ] && [ "$CLI_RAW" != "grok" ]; then
-  case "$CLI_RAW" in
-    "~/"*) CLI="${HOME}/${CLI_RAW#~/}" ;;
-    *) CLI="$CLI_RAW" ;;
-  esac
-else
-  CLI="$(command -v grok 2>/dev/null || true)"
-  if [ -z "$CLI" ] && [ -x "$HOME/.grok/bin/grok" ]; then
-    CLI="$HOME/.grok/bin/grok"
-  fi
-fi
-if [ -z "$CLI" ]; then
-  echo ""
-  echo "grok not found in WSL PATH or ~/.grok/bin" >&2
-  exit 127
-fi
-echo "$CLI"
-"$CLI" --version 2>&1 || true
-"#;
-
+/// `wsl [-d Distro] --exec printenv NAME` -- no shell, no `$` in argv.
+fn wsl_printenv(wsl: &Path, distro: Option<&str>, name: &str) -> Option<String> {
     let mut cmd = StdCommand::new(wsl);
-    if let Some(ref d) = launch.distro {
+    if let Some(d) = distro {
         cmd.arg("-d").arg(d);
     }
-    cmd.arg("--")
-        .arg("bash")
-        .arg("-lc")
-        .arg(script)
-        .arg("grok-wsl-probe")
-        .arg(&launch.linux_cli)
+    cmd.arg("--exec")
+        .arg("printenv")
+        .arg(name)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
     process_util::apply_no_window_std(&mut cmd);
-
-    let mut child = match cmd.spawn() {
-        Ok(c) => c,
-        Err(_) => return (None, None, false),
-    };
-    match wait_wsl_probe(&mut child) {
-        Some((stdout, success)) => {
-            let mut lines = stdout.lines().map(str::trim).filter(|l| !l.is_empty());
-            let path = lines.next().map(|s| s.to_string());
-            let version_line = lines
-                .find(|l| {
-                    l.to_ascii_lowercase().contains("grok") || extract_version_token(l).is_some()
-                })
-                .map(|s| s.to_string())
-                .or_else(|| {
-                    // Single-line --version sometimes only on first line after path
-                    path.as_ref().and(None)
-                });
-            // If path line itself looks like a version banner, treat carefully
-            let (resolved_path, version) = match (&path, &version_line) {
-                (Some(p), Some(v)) => (Some(p.clone()), Some(v.clone())),
-                (Some(p), None) => {
-                    if extract_version_token(p).is_some()
-                        || p.to_ascii_lowercase().contains("grok ")
-                    {
-                        (None, Some(p.clone()))
-                    } else {
-                        (Some(p.clone()), None)
-                    }
-                }
-                (None, Some(v)) => (None, Some(v.clone())),
-                _ => (None, None),
-            };
-            let ok = success || version.is_some();
-            (resolved_path, version, ok)
-        }
-        // Timeout / wait error — nothing usable.
-        None => (None, None, false),
+    let mut child = cmd.spawn().ok()?;
+    let (out, success) = wait_wsl_probe(&mut child)?;
+    if !success {
+        return None;
     }
+    let line = out.lines().map(str::trim).find(|l| !l.is_empty())?;
+    Some(line.to_string())
+}
+
+/// `wsl [-d Distro] --exec which grok` -- no shell metacharacters in argv.
+fn wsl_which_grok(wsl: &Path, distro: Option<&str>) -> Option<String> {
+    let mut cmd = StdCommand::new(wsl);
+    if let Some(d) = distro {
+        cmd.arg("-d").arg(d);
+    }
+    cmd.arg("--exec")
+        .arg("which")
+        .arg("grok")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    process_util::apply_no_window_std(&mut cmd);
+    let mut child = cmd.spawn().ok()?;
+    let (out, success) = wait_wsl_probe(&mut child)?;
+    if !success {
+        return None;
+    }
+    let line = out.lines().map(str::trim).find(|l| !l.is_empty())?;
+    Some(line.to_string())
 }
 
 /// Wait for a probe child up to `VERSION_PROBE_TIMEOUT`, then return its
@@ -438,7 +462,7 @@ fn wait_wsl_probe(child: &mut std::process::Child) -> Option<(String, bool)> {
     }
 }
 
-/// `wsl [-d Distro] -- <cli> --version` argv for an absolute `linux_cli`.
+/// `wsl [-d Distro] --exec <cli> --version` argv for an absolute `linux_cli`.
 /// Pure argv builder so the probe shape is unit-testable off Windows.
 fn wsl_direct_probe_args(launch: &WslLaunch) -> Vec<String> {
     let mut args = Vec::new();
@@ -446,7 +470,7 @@ fn wsl_direct_probe_args(launch: &WslLaunch) -> Vec<String> {
         args.push("-d".into());
         args.push(d.clone());
     }
-    args.push("--".into());
+    args.push("--exec".into());
     args.push(launch.linux_cli.clone());
     args.push("--version".into());
     args
@@ -454,7 +478,7 @@ fn wsl_direct_probe_args(launch: &WslLaunch) -> Vec<String> {
 
 /// Probe an absolute `linux_cli` via direct exec — no login shell. `None` when
 /// the process could not be spawned / timed out / produced nothing usable, so
-/// the caller can fall back to the `bash -lc` probe.
+/// the caller treats this as "probe could not run".
 fn run_wsl_direct_probe(
     wsl: &Path,
     launch: &WslLaunch,
@@ -486,8 +510,8 @@ fn run_wsl_direct_probe(
 
 /// Characters allowed in a WSL CLI path segment (after optional `~/`).
 ///
-/// Deliberately excludes shell metacharacters (`;|&$`'"\\` etc.) so settings
-/// never enter a `bash -lc` script body as untrusted interpolation.
+/// Deliberately excludes shell metacharacters so settings paths cannot be used
+/// for argument injection when passed to wsl.exe as a direct-exec argv.
 fn is_safe_wsl_cli_path(path: &str) -> bool {
     let p = path.trim();
     if p.is_empty() || p.len() > 512 {
@@ -504,9 +528,10 @@ fn is_safe_wsl_cli_path(path: &str) -> bool {
 /// Start a tokio `Command` that runs the Linux CLI inside WSL.
 ///
 /// Shape:
-/// `wsl.exe [-d Distro] --cd <linux_cwd> -- <linux_cli> …`
-/// or, when `linux_cli` uses `~`, expand via argv-safe `bash -lc` (path is `$1`,
-/// never interpolated into the script string).
+/// `wsl.exe [-d Distro] --cd <linux_cwd> --exec <absolute_linux_cli> …`
+///
+/// `~` / bare `grok` are resolved to an absolute path first (`printenv HOME` /
+/// direct `--version` probe) so we never pass `bash -lc` through wsl.exe.
 ///
 /// Caller appends Grok flags (`--no-auto-update`, `agent`, `stdio`, …) and sets
 /// env vars on the **Windows** process. Call [`apply_wslenv`] after envs so
@@ -533,6 +558,14 @@ pub fn start_wsl_tokio_command(
             return Err(format!("invalid WSL distro name: {d}"));
         }
     }
+    // Resolve ~/ or bare `grok` to an absolute path on the host -- never bash -lc.
+    let absolute_cli = resolve_wsl_cli_absolute(&wsl, launch).ok_or_else(|| {
+        format!(
+            "could not resolve WSL CLI path to an absolute Linux path: {}",
+            launch.linux_cli
+        )
+    })?;
+
     let mut cmd = tokio::process::Command::new(wsl);
     process_util::apply_no_window_tokio(&mut cmd);
     if let Some(ref d) = launch.distro {
@@ -541,27 +574,8 @@ pub fn start_wsl_tokio_command(
     if !linux_cwd.is_empty() {
         cmd.arg("--cd").arg(linux_cwd);
     }
-    cmd.arg("--");
-    let cli = launch.linux_cli.as_str();
-    if cli.starts_with("~/") || cli == "~" {
-        // Expand tilde via argv — path is never concatenated into the script body.
-        // $1 = relative path under $HOME (or "grok" for bare `~`); remaining "$@" = grok args.
-        let rest = if cli == "~" {
-            "grok"
-        } else {
-            cli.trim_start_matches("~/")
-        };
-        if rest.is_empty() || !is_safe_wsl_cli_path(rest) {
-            return Err(format!("invalid WSL CLI path under ~: {cli}"));
-        }
-        cmd.arg("bash");
-        cmd.arg("-lc");
-        cmd.arg(r#"cli="$HOME/$1"; shift; exec "$cli" "$@""#);
-        cmd.arg("grok-wsl");
-        cmd.arg(rest);
-    } else {
-        cmd.arg(cli);
-    }
+    cmd.arg("--exec");
+    cmd.arg(absolute_cli);
     Ok(cmd)
 }
 
@@ -753,7 +767,7 @@ mod tests {
             vec![
                 "-d",
                 "Ubuntu-24.04",
-                "--",
+                "--exec",
                 "/root/.grok/bin/grok",
                 "--version"
             ]
@@ -764,7 +778,7 @@ mod tests {
         };
         assert_eq!(
             wsl_direct_probe_args(&d),
-            vec!["--", "/usr/local/bin/grok", "--version"]
+            vec!["--exec", "/usr/local/bin/grok", "--version"]
         );
     }
 

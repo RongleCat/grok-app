@@ -440,6 +440,10 @@ pub struct AcpClient {
     rewind_supported: ParkingMutex<Option<bool>>,
     /// OpenSSH alias this process was spawned with. Remote cwd is not local.
     ssh_alias: Option<String>,
+    /// True when this process was spawned via `wsl.exe` (`cli_backend=wsl`).
+    /// ACP session cwd must be a Linux path (`/mnt/<drive>/…`); host still
+    /// keeps the Windows `cwd` for local fs / MCP / sandbox reuse checks.
+    wsl_active: bool,
     /// Private `GROK_HOME` sealed for this process (#1293). `None` for
     /// `~/.grok`, official-aux, SSH, and TCP. Discarded in `kill`.
     proc_home: std::sync::Mutex<Option<PathBuf>>,
@@ -862,7 +866,7 @@ impl AcpClient {
             }
         }
 
-        // Native: `grok …`; WSL: `wsl.exe [-d] --cd <linux_cwd> -- <linux_cli> …`
+        // Native: `grok …`; WSL: `wsl.exe [-d] --cd <linux_cwd> --exec <linux_cli> …`
         // SSH: collect grok flags first, then wrap as one remote `ssh -T` script.
         // OpenSSH joins the remote command into a single `-c` string — extra
         // argv after `bash -lc` is not a real argv array on the host.
@@ -1189,6 +1193,7 @@ impl AcpClient {
             route_provider_id,
             rewind_supported: ParkingMutex::new(None),
             ssh_alias: ssh_alias.clone(),
+            wsl_active: wsl_launch.is_some(),
             proc_home: std::sync::Mutex::new(proc_home),
         });
 
@@ -1291,6 +1296,7 @@ impl AcpClient {
             route_provider_id: crate::providers::SESSION_PROVIDER_OFFICIAL.to_string(),
             rewind_supported: ParkingMutex::new(None),
             ssh_alias: None,
+            wsl_active: false,
             proc_home: std::sync::Mutex::new(None),
         });
         client.start_read_loop(Box::new(read_half));
@@ -2471,13 +2477,29 @@ impl AcpClient {
         cwd: &str,
         bound_app_session_id: Option<&str>,
     ) -> Result<(String, bool), AgentError> {
-        let cwd = cwd.to_string();
-        if !crate::ssh_remote::acp_session_cwd_ok(self.ssh_alias.as_deref(), &cwd) {
+        let host_cwd = cwd.to_string();
+        if !crate::ssh_remote::acp_session_cwd_ok(self.ssh_alias.as_deref(), &host_cwd) {
             return Err(AgentError::new(
                 AgentErrorCode::AgentCrashed,
-                format!("project cwd is not a directory: {cwd}"),
+                format!("project cwd is not a directory: {host_cwd}"),
             ));
         }
+
+        // WSL: CLI runs in Linux — map Windows drive / \\wsl$ paths for ACP
+        // session/new|load|fork. Host checks + MCP scan keep the Windows path.
+        // --cd at spawn already mapped via the same helper.
+        let cwd = if self.wsl_active {
+            crate::wsl_backend::windows_path_to_wsl(std::path::Path::new(&host_cwd)).map_err(
+                |e| {
+                    AgentError::new(
+                        AgentErrorCode::AgentCrashed,
+                        format!("WSL session cwd path map failed: {e}"),
+                    )
+                },
+            )?
+        } else {
+            host_cwd.clone()
+        };
 
         // Build ACP mcpServers off the async runtime. **Never block connect** on
         // MCP/OAuth: connect builder skips network refresh + CLI list, and a
@@ -2492,7 +2514,7 @@ impl AcpClient {
             }
             serde_json::json!([])
         } else {
-            let project_cwd = cwd.clone();
+            let project_cwd = host_cwd.clone();
             let app_session_id = crate::extensions::resolve_mcp_app_session_id(
                 bound_app_session_id,
                 self.app_session_id.as_deref(),
