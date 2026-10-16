@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { setDraft } from "@/lib/composerDraftStore";
+import { restoreWindowsImeFocus } from "@/lib/windowsImeFocus";
 import {
   eventTargetElement,
   readTranscriptSelection,
@@ -108,7 +109,10 @@ export function TranscriptSelectionToolbarHost({
       const started = startedInTranscriptRef.current;
       primaryDownRef.current = false;
       startedInTranscriptRef.current = false;
-      if (shouldCommitPointerUp({ startedInTranscript: started })) queue();
+      if (shouldCommitPointerUp({ startedInTranscript: started })) {
+        queue();
+        restoreWindowsImeFocus();
+      }
     };
     document.addEventListener("selectionchange", onSel);
     document.addEventListener("pointerdown", onPointerDown, true);

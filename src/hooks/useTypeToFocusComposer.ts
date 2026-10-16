@@ -5,6 +5,7 @@
 import { useEffect, useRef } from "react";
 import { querySidebarEl } from "@/lib/dragZone";
 import { isShortcutRecordingActive } from "@/lib/shortcutRemap";
+import { restoreWindowsImeFocus } from "@/lib/windowsImeFocus";
 import {
   applyTypeToFocusComposer,
   composerOwnsFocus,
@@ -61,6 +62,7 @@ export function useTypeToFocusComposer(opts: {
       );
       if (decision.action === "ignore") return;
       if (decision.preventDefault) e.preventDefault();
+      restoreWindowsImeFocus();
       applyTypeToFocusComposer(editor, decision);
     };
     document.addEventListener("keydown", onKey, true);

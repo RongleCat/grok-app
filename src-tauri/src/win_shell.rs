@@ -9,36 +9,40 @@
 //! This module forces shell-friendly styles, AppUserModelID, and taskbar tab
 //! registration so the window participates in Show Desktop consistently.
 //!
-//! It also forwards Alt-Tab / taskbar activation into the child WebView2 HWND.
+//! It also forwards Alt-Tab / taskbar activation through the WebView2 controller.
 //! With Tauri `unstable` (multi-webview), the page is a `WRY_WEBVIEW` child and
 //! wry does not subclass the parent to `MoveFocus`, so the window can be
-//! foreground while keyboard events never reach JS until a click.
+//! foreground without the renderer owning keyboard / IME input. Setting focus
+//! on the child HWND alone can leave the system IME preedit window at (0, 0).
 
 #![cfg(windows)]
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::os::windows::ffi::OsStrExt;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::{Manager, WebviewWindow};
+use webview2_com::Microsoft::Web::WebView2::Win32::{
+    ICoreWebView2Controller, COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC,
+};
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HANDLE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_SERVER, COINIT_APARTMENTTHREADED,
 };
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetAsyncKeyState, GetFocus, SetFocus, VK_LBUTTON,
-};
+use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, GetFocus, VK_LBUTTON};
 use windows::Win32::UI::Shell::{
     ExtractIconExW, ITaskbarList, SetCurrentProcessExplicitAppUserModelID, TaskbarList,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallWindowProcW, DrawMenuBar, GetClassNameW, GetPropW, GetWindow, GetWindowLongPtrW,
-    GetWindowLongW, IsChild, IsWindowVisible, RemovePropW, SendMessageW, SetClassLongPtrW, SetMenu,
-    SetPropW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos, GCLP_HICON, GCLP_HICONSM,
-    GWLP_HWNDPARENT, GWLP_WNDPROC, GWL_EXSTYLE, GWL_STYLE, GW_CHILD, GW_HWNDNEXT, GW_OWNER, HICON,
-    HWND_NOTOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
-    WA_ACTIVE, WA_CLICKACTIVE, WM_ACTIVATE, WM_NCDESTROY, WM_SETFOCUS, WM_SETICON, WNDPROC,
-    WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
+    GetWindowLongW, IsChild, RemovePropW, SendMessageW, SetClassLongPtrW, SetMenu, SetPropW,
+    SetWindowLongPtrW, SetWindowLongW, SetWindowPos, GCLP_HICON, GCLP_HICONSM, GWLP_HWNDPARENT,
+    GWLP_WNDPROC, GWL_EXSTYLE, GWL_STYLE, GW_OWNER, HICON, HWND_NOTOPMOST, SWP_FRAMECHANGED,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WA_ACTIVE, WA_CLICKACTIVE, WM_ACTIVATE,
+    WM_NCDESTROY, WM_SETFOCUS, WM_SETICON, WNDPROC, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW,
+    WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
 };
 
 /// Call once early in process startup (before or right after creating the main window).
@@ -101,7 +105,7 @@ pub fn ensure_main_window_shell_integration(window: &WebviewWindow) {
         return;
     };
     ensure_hwnd_shell_integration(hwnd, /*register_taskbar*/ true);
-    attach_hwnd_webview_keyboard_focus(hwnd);
+    attach_webview_keyboard_focus(window);
 }
 
 /// Push the exe's first icon onto ICON_BIG / ICON_SMALL before Explorer AddTab.
@@ -222,7 +226,7 @@ pub fn set_main_window_skip_taskbar(window: &WebviewWindow, skip: bool) {
     if !skip {
         // Full re-assert (minimize box, owner clear, not topmost, refresh tab).
         ensure_hwnd_shell_integration(hwnd, /*register_taskbar*/ true);
-        attach_hwnd_webview_keyboard_focus(hwnd);
+        attach_webview_keyboard_focus(window);
     }
 }
 
@@ -324,20 +328,54 @@ where
     }
 }
 
-/// wry child-webview class (Tauri `unstable` / `build_as_child`).
-const WRY_WEBVIEW_CLASS: &str = "WRY_WEBVIEW";
+// WebView2 controllers are apartment-bound: store and use them only on the UI
+// thread. Clone out of the map before MoveFocus, which can re-enter WndProc.
+thread_local! {
+    static FOCUS_CONTROLLERS: RefCell<HashMap<isize, ICoreWebView2Controller>> =
+        RefCell::new(HashMap::new());
+}
 /// Stored original WndProc pointer (`SetWindowLongPtr` subclass).
 const ORIG_PROC_PROP: PCWSTR = windows::core::w!("GrokWvKbdFocusOrig");
 static FORWARDING_KEYBOARD_FOCUS: AtomicBool = AtomicBool::new(false);
 
-/// Forward Alt-Tab / taskbar activation into the child WebView2 HWND.
+/// Restore renderer keyboard / IME ownership through the WebView2 controller.
 ///
 /// Safe to call repeatedly (skips if the original WndProc prop is already set).
 pub fn attach_webview_keyboard_focus(window: &WebviewWindow) {
     let Ok(hwnd) = window.hwnd() else {
         return;
     };
-    attach_hwnd_webview_keyboard_focus(hwnd);
+    let key = hwnd.0 as isize;
+    if let Err(error) = window.with_webview(move |webview| {
+        let controller = webview.controller();
+        let mut webview_hwnd = HWND::default();
+        // In multi-webview mode wry creates a WRY_WEBVIEW child and handles its
+        // WM_SETFOCUS by SetFocus(first Chrome child). The top-level window does
+        // not see that transition, and the first child may lack the TSF context.
+        let webview_hwnd = unsafe {
+            if controller.ParentWindow(&mut webview_hwnd).is_ok()
+                && IsChild(HWND(key as *mut std::ffi::c_void), webview_hwnd).as_bool()
+                && is_webview_focus_container(&hwnd_class_name(webview_hwnd))
+            {
+                Some(webview_hwnd)
+            } else {
+                None
+            }
+        };
+        FOCUS_CONTROLLERS.with(|controllers| {
+            let mut controllers = controllers.borrow_mut();
+            controllers.insert(key, controller.clone());
+            if let Some(child) = webview_hwnd {
+                controllers.insert(child.0 as isize, controller);
+            }
+        });
+        attach_hwnd_webview_keyboard_focus(HWND(key as *mut std::ffi::c_void));
+        if let Some(child) = webview_hwnd {
+            attach_hwnd_webview_keyboard_focus(child);
+        }
+    }) {
+        tracing::warn!(%error, "win_shell: attach WebView2 focus controller");
+    }
 }
 
 fn attach_hwnd_webview_keyboard_focus(hwnd: HWND) {
@@ -371,12 +409,12 @@ unsafe extern "system" fn keyboard_focus_wndproc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    if should_handle_focus_message(msg, wparam.0 as u32) {
-        forward_keyboard_focus_to_webview(hwnd);
-    }
     let orig = GetPropW(hwnd, ORIG_PROC_PROP);
     if msg == WM_NCDESTROY {
         let _ = RemovePropW(hwnd, ORIG_PROC_PROP);
+        FOCUS_CONTROLLERS.with(|controllers| {
+            controllers.borrow_mut().remove(&(hwnd.0 as isize));
+        });
     }
     type WndProcFn = unsafe extern "system" fn(HWND, u32, WPARAM, LPARAM) -> LRESULT;
     let prev: WNDPROC = if orig.0.is_null() {
@@ -386,7 +424,14 @@ unsafe extern "system" fn keyboard_focus_wndproc(
             orig.0,
         ))
     };
-    CallWindowProcW(prev, hwnd, msg, wparam, lparam)
+    // Let the parent finish activation first. DefWindowProc(WM_ACTIVATE) can
+    // focus the top-level HWND; forwarding before it lets that overwrite the
+    // renderer focus we just restored.
+    let result = CallWindowProcW(prev, hwnd, msg, wparam, lparam);
+    if should_handle_focus_message(msg, wparam.0 as u32) {
+        forward_keyboard_focus_to_webview(hwnd);
+    }
+    result
 }
 
 fn forward_keyboard_focus_to_webview(hwnd: HWND) {
@@ -396,11 +441,19 @@ fn forward_keyboard_focus_to_webview(hwnd: HWND) {
     let _guard = ForwardingGuard;
     unsafe {
         let focus = GetFocus();
-        if !focus.0.is_null() && IsChild(hwnd, focus).as_bool() {
-            return;
+        if IsChild(hwnd, focus).as_bool() && !is_webview_focus_container(&hwnd_class_name(focus)) {
+            return; // A renderer (including an embedded browser) already owns input.
         }
-        if let Some(child) = first_visible_wry_webview_child(hwnd) {
-            let _ = SetFocus(Some(child));
+        let controller = FOCUS_CONTROLLERS
+            .with(|controllers| controllers.borrow().get(&(hwnd.0 as isize)).cloned());
+        if let Some(controller) = controller {
+            // SetFocus(WRY_WEBVIEW) only reaches Chromium's container HWND.
+            // JS can still receive keys while TSF is detached: keyCode 229,
+            // no compositionstart, and the system preedit window at (0, 0).
+            // MoveFocus lets WebView2 activate the renderer and its IME context.
+            if let Err(error) = controller.MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC) {
+                tracing::warn!(%error, "win_shell: restore WebView2 input focus");
+            }
         }
     }
 }
@@ -410,26 +463,6 @@ impl Drop for ForwardingGuard {
     fn drop(&mut self) {
         FORWARDING_KEYBOARD_FOCUS.store(false, Ordering::SeqCst);
     }
-}
-
-fn first_visible_wry_webview_child(parent: HWND) -> Option<HWND> {
-    unsafe {
-        let mut child = hwnd_or_none(GetWindow(parent, GW_CHILD).ok())?;
-        loop {
-            if IsWindowVisible(child).as_bool() && hwnd_is_wry_webview(child) {
-                return Some(child);
-            }
-            child = hwnd_or_none(GetWindow(child, GW_HWNDNEXT).ok())?;
-        }
-    }
-}
-
-fn hwnd_or_none(hwnd: Option<HWND>) -> Option<HWND> {
-    hwnd.filter(|h| !h.0.is_null())
-}
-
-fn hwnd_is_wry_webview(hwnd: HWND) -> bool {
-    is_wry_webview_class(&hwnd_class_name(hwnd))
 }
 
 fn hwnd_class_name(hwnd: HWND) -> String {
@@ -454,8 +487,9 @@ fn should_handle_focus_message(msg: u32, wparam: u32) -> bool {
     !minimized && (state == WA_ACTIVE || state == WA_CLICKACTIVE)
 }
 
-fn is_wry_webview_class(name: &str) -> bool {
-    name.eq_ignore_ascii_case(WRY_WEBVIEW_CLASS)
+fn is_webview_focus_container(name: &str) -> bool {
+    name.eq_ignore_ascii_case("WRY_WEBVIEW")
+        || name.to_ascii_lowercase().starts_with("chrome_widgetwin_")
 }
 
 /// Pure helper for unit tests: Alt-Tab / Show-Desktop significance rules (simplified).
@@ -517,11 +551,14 @@ mod tests {
     }
 
     #[test]
-    fn wry_webview_class_matches_child_container() {
-        assert!(is_wry_webview_class("WRY_WEBVIEW"));
-        assert!(is_wry_webview_class("wry_webview"));
-        assert!(!is_wry_webview_class("Chrome_WidgetWin_1"));
-        assert!(!is_wry_webview_class(""));
+    fn containers_need_controller_focus_but_renderer_focus_is_preserved() {
+        assert!(is_webview_focus_container("WRY_WEBVIEW"));
+        assert!(is_webview_focus_container("wry_webview"));
+        assert!(is_webview_focus_container("Chrome_WidgetWin_0"));
+        assert!(is_webview_focus_container("Chrome_WidgetWin_1"));
+        assert!(!is_webview_focus_container("Chrome_RenderWidgetHostHWND"));
+        assert!(!is_webview_focus_container("Edit"));
+        assert!(!is_webview_focus_container(""));
     }
 
     #[test]
