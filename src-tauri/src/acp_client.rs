@@ -683,11 +683,18 @@ impl AcpClient {
         } else {
             crate::paths::resolve_inference_grok_home(session_data_mode, custom_route)
         };
-        let _ = std::fs::create_dir_all(&grok_home);
+        // Host-side mkdir only for native/SSH homes. WSL GROK_HOME is Linux-native
+        // (`~/.grok` in the distro) and is created via `wsl --exec mkdir -p`.
+        if wsl_launch.is_none() {
+            let _ = std::fs::create_dir_all(&grok_home);
+        }
         // Prep agent-home when independent *or* custom (shared+custom still uses agent-home).
         // Side-channel with explicit home: never touch main agent-home auth.
+        // WSL agents use a Linux-native GROK_HOME — skip Windows agent-home rewrites
+        // and agent-proc snapshots (those would land on /mnt and break sandbox binds).
         let agent_home_prep = ssh_alias.is_none()
             && home_override.is_none()
+            && wsl_launch.is_none()
             && crate::paths::needs_agent_home_spawn_prep(session_data_mode, custom_route);
         // Preference syncs write independent-only; for shared+custom force independent
         // so agent-home receives permission / feature pins the relay process needs.
@@ -1073,6 +1080,43 @@ impl AcpClient {
             None
         };
         let grok_home = proc_home.clone().unwrap_or(grok_home);
+        let grok_home = if let Some(ref w) = wsl_launch {
+            if home_override.is_some() {
+                // Isolated aux home is still a Windows path; map to /mnt for the
+                // Linux process (aux spawn forces sandbox off).
+                match crate::wsl_backend::windows_path_to_wsl(&grok_home) {
+                    Ok(linux) => std::path::PathBuf::from(linux),
+                    Err(e) => {
+                        if let Some(ref dir) = proc_home {
+                            crate::agent_proc_home::discard(dir);
+                        }
+                        return Err(AgentError::new(
+                            AgentErrorCode::ConnectFailed,
+                            format!("WSL GROK_HOME override map failed: {e}"),
+                        ));
+                    }
+                }
+            } else {
+                match crate::wsl_backend::ensure_linux_grok_home(
+                    w,
+                    settings.wsl_grok_home.as_deref(),
+                    &crate::process_util::user_home().join(".grok"),
+                ) {
+                    Ok(linux) => std::path::PathBuf::from(linux),
+                    Err(e) => {
+                        if let Some(ref dir) = proc_home {
+                            crate::agent_proc_home::discard(dir);
+                        }
+                        return Err(AgentError::new(
+                            AgentErrorCode::ConnectFailed,
+                            format!("WSL Linux GROK_HOME failed: {e}"),
+                        ));
+                    }
+                }
+            }
+        } else {
+            grok_home
+        };
         let discard_proc_home = || {
             if let Some(ref dir) = proc_home {
                 crate::agent_proc_home::discard(dir);
@@ -1107,7 +1151,7 @@ impl AcpClient {
             let (k, v) = sb.env_pair();
             cmd.env(k, v);
         }
-        // Forward selected env into the Linux process (path-translate GROK_HOME).
+        // Forward selected env into the Linux process (GROK_HOME as-is, no /p).
         if wsl_launch.is_some() {
             crate::wsl_backend::apply_wslenv(&mut cmd);
         }

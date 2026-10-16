@@ -525,6 +525,132 @@ fn is_safe_wsl_cli_path(path: &str) -> bool {
         .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '_' | '-' | '~' | '+'))
 }
 
+/// Resolve, `mkdir -p`, and optionally `ln -s` Windows `auth.json` into Linux GROK_HOME.
+///
+/// Returns the Linux-native path to set as process `GROK_HOME` (never `/mnt/…`).
+pub fn ensure_linux_grok_home(
+    launch: &WslLaunch,
+    override_path: Option<&str>,
+    windows_shared_home: &Path,
+) -> Result<String, String> {
+    let wsl = find_wsl_exe().ok_or_else(|| {
+        "wsl.exe not found -- install WSL or switch CLI backend to native".to_string()
+    })?;
+    let linux_home = wsl_printenv(&wsl, launch.distro.as_deref(), "HOME")
+        .ok_or_else(|| "could not resolve WSL $HOME (printenv HOME failed)".to_string())?;
+    let linux_grok = crate::paths::resolve_wsl_linux_grok_home(override_path, &linux_home)?;
+    seed_linux_grok_home(
+        &wsl,
+        launch.distro.as_deref(),
+        &linux_grok,
+        windows_shared_home,
+    )?;
+    Ok(linux_grok)
+}
+
+/// `mkdir -p` Linux GROK_HOME; if `auth.json` is missing there and Windows shared
+/// `~/.grok/auth.json` exists, `ln -s` **only** that file (never the directory).
+fn seed_linux_grok_home(
+    wsl: &Path,
+    distro: Option<&str>,
+    linux_grok_home: &str,
+    windows_shared_home: &Path,
+) -> Result<(), String> {
+    if !crate::paths::is_safe_wsl_grok_home_path(linux_grok_home) {
+        return Err(format!("unsafe WSL GROK_HOME: {linux_grok_home}"));
+    }
+    wsl_exec_status(wsl, distro, &["mkdir", "-p", linux_grok_home])
+        .map_err(|e| format!("mkdir -p {linux_grok_home} inside WSL failed: {e}"))?;
+
+    let linux_auth_present = wsl_test_exists(wsl, distro, &format!("{linux_grok_home}/auth.json"));
+    let windows_auth_present = windows_shared_home.join("auth.json").is_file();
+    let windows_shared_wsl = windows_path_to_wsl(windows_shared_home).ok();
+    let plan = crate::paths::plan_wsl_auth_json_link(
+        linux_grok_home,
+        linux_auth_present,
+        windows_shared_wsl.as_deref(),
+        windows_auth_present,
+    );
+    match plan {
+        crate::paths::WslAuthLinkPlan::SkipAlreadyPresent
+        | crate::paths::WslAuthLinkPlan::SkipNoWindowsAuth => Ok(()),
+        crate::paths::WslAuthLinkPlan::Link {
+            windows_auth_wsl,
+            linux_auth,
+        } => {
+            if !crate::paths::is_safe_wsl_grok_home_path(&windows_auth_wsl)
+                || !crate::paths::is_safe_wsl_grok_home_path(&linux_auth)
+            {
+                return Err("unsafe auth.json link paths".into());
+            }
+            match wsl_exec_status(wsl, distro, &["ln", "-s", &windows_auth_wsl, &linux_auth]) {
+                Ok(()) => Ok(()),
+                Err(e) => {
+                    tracing::warn!(
+                        target: "wsl_backend",
+                        error = %e,
+                        "WSL auth.json symlink failed; continuing without it"
+                    );
+                    Ok(())
+                }
+            }
+        }
+    }
+}
+
+fn wsl_test_exists(wsl: &Path, distro: Option<&str>, path: &str) -> bool {
+    wsl_exec_status(wsl, distro, &["test", "-e", path]).is_ok()
+}
+
+/// Run `wsl [-d] --exec <argv…>` and return Ok when the process exits 0.
+fn wsl_exec_status(wsl: &Path, distro: Option<&str>, argv: &[&str]) -> Result<(), String> {
+    if argv.is_empty() {
+        return Err("empty wsl exec argv".into());
+    }
+    let mut cmd = StdCommand::new(wsl);
+    if let Some(d) = distro {
+        cmd.arg("-d").arg(d);
+    }
+    cmd.arg("--exec");
+    for a in argv {
+        cmd.arg(a);
+    }
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    process_util::apply_no_window_std(&mut cmd);
+    let mut child = cmd.spawn().map_err(|e| format!("spawn wsl --exec: {e}"))?;
+    let (_out, success) =
+        wait_wsl_probe(&mut child).ok_or_else(|| "wsl --exec timed out".to_string())?;
+    if success {
+        Ok(())
+    } else {
+        Err("wsl --exec exited non-zero".into())
+    }
+}
+
+/// `wsl [-d Distro] --exec printenv NAME` -- no shell, no `$` in argv.
+fn wsl_printenv(wsl: &Path, distro: Option<&str>, name: &str) -> Option<String> {
+    let mut cmd = StdCommand::new(wsl);
+    if let Some(d) = distro {
+        cmd.arg("-d").arg(d);
+    }
+    cmd.arg("--exec")
+        .arg("printenv")
+        .arg(name)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    process_util::apply_no_window_std(&mut cmd);
+    let mut child = cmd.spawn().ok()?;
+    let (out, success) = wait_wsl_probe(&mut child)?;
+    if !success {
+        return None;
+    }
+    let line = out.lines().map(str::trim).find(|l| !l.is_empty())?;
+    Some(line.to_string())
+}
+
 /// Start a tokio `Command` that runs the Linux CLI inside WSL.
 ///
 /// Shape:
@@ -535,7 +661,7 @@ fn is_safe_wsl_cli_path(path: &str) -> bool {
 ///
 /// Caller appends Grok flags (`--no-auto-update`, `agent`, `stdio`, …) and sets
 /// env vars on the **Windows** process. Call [`apply_wslenv`] after envs so
-/// selected variables (with `/p` path translation for `GROK_HOME`) reach Linux.
+/// selected variables reach Linux (`GROK_HOME` as-is, no `/p`).
 pub fn start_wsl_tokio_command(
     launch: &WslLaunch,
     linux_cwd: &str,
@@ -581,10 +707,12 @@ pub fn start_wsl_tokio_command(
 
 /// Propagate Host env vars into the WSL Linux process via `WSLENV`.
 ///
-/// `GROK_HOME/p` asks WSL to translate the Windows path to `/mnt/…`.
+/// `GROK_HOME` is a Linux-native path (`~/.grok` inside the distro). Do **not**
+/// use `/p` translation — that would rewrite it onto `/mnt/c/…` (DrvFS) and
+/// break sandbox `bwrap --ro-bind` of `managed_config.toml` / `requirements.toml`.
 /// Do **not** forward Windows `PATH` (it breaks Linux tool resolution).
 const WSLENV_KEYS: &str = concat!(
-    "GROK_HOME/p:",
+    "GROK_HOME:",
     "GROK_CONFIG:",
     "GROK_CLAUDE_MCPS_ENABLED:",
     "GROK_CURSOR_MCPS_ENABLED:",
@@ -743,6 +871,18 @@ mod tests {
             assert!(WSLENV_KEYS.contains(key), "missing {key}");
         }
         assert!(!WSLENV_KEYS.contains("XAI_API_KEY/p"));
+    }
+
+    #[test]
+    fn grok_home_is_forwarded_without_path_translation() {
+        assert!(
+            WSLENV_KEYS.contains("GROK_HOME:"),
+            "GROK_HOME must be forwarded as-is"
+        );
+        assert!(
+            !WSLENV_KEYS.contains("GROK_HOME/p"),
+            "GROK_HOME/p would map Linux ~/.grok onto /mnt/c and break sandbox binds"
+        );
     }
 
     #[test]
