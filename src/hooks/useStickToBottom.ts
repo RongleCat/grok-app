@@ -38,11 +38,16 @@ import {
   shouldClampPinnedStreamDrift,
   shouldEscapePinnedScroll,
   shouldIgnoreProgrammaticStickLeave,
+  shouldRecoverPinnedClampBeforePaint,
+  shouldEscapePinnedWheel,
   shouldPreventPinnedBottomWheel,
+  shouldRecoverPinnedLayoutClamp,
   shouldRestorePinnedFollowOnViewportReady,
   shouldSettleBottomRebound,
   takeProgrammaticStickScroll,
+  PINNED_LAYOUT_CLAMP_RECOVER_PX,
 } from "@/lib/stickToBottom";
+import { traceChatScroll } from "@/lib/chatScrollJumpForensics";
 
 
 export type UseStickToBottomOptions = {
@@ -163,6 +168,13 @@ export function useStickToBottom(
   const applyScrollTop = useCallback((top: number) => {
     const el = viewportRef.current;
     if (!el) return;
+    traceChatScroll("stick:write", {
+      top: Math.round(top),
+      scrollTop: Math.round(el.scrollTop),
+      scrollHeight: Math.round(el.scrollHeight),
+      pinned: isPinnedRef.current,
+      escaped: escapedRef.current,
+    });
     if (Math.abs(el.scrollTop - top) < 1) {
       ignoreScrollTopRef.current = el.scrollTop;
       return;
@@ -252,6 +264,9 @@ export function useStickToBottom(
     if (!el) return;
 
     let bottomReboundTimer: ReturnType<typeof setTimeout> | null = null;
+    // Last wheel/touch/key/scrollbar input. The paint-time clamp guard must
+    // never fight a fresh gesture, and browser clamps land long after input.
+    let lastUserInputAt = 0;
     const clearBottomRebound = () => {
       bottomIntentUntilRef.current = 0;
       if (bottomReboundTimer != null) {
@@ -313,15 +328,26 @@ export function useStickToBottom(
       // Using ignore as previousScrollTop used to invent a 10px+ "scroll-up"
       // and drop pin for the rest of the stream.
       if (shouldIgnoreProgrammaticStickLeave(ignore)) {
-        if (
-          isPinnedRef.current &&
-          !escapedRef.current &&
-          shouldClampPinnedOverscroll(
-            scrollTop,
-            bottomScrollTop(el.scrollHeight, el.clientHeight),
-          )
-        ) {
-          applyScrollTop(bottomScrollTop(el.scrollHeight, el.clientHeight));
+        if (isPinnedRef.current && !escapedRef.current) {
+          const maxTop = bottomScrollTop(el.scrollHeight, el.clientHeight);
+          if (shouldClampPinnedOverscroll(scrollTop, maxTop)) {
+            applyScrollTop(maxTop);
+          } else if (
+            // The write and the collapsed-layout clamp can land in the same
+            // frame, so this scroll event carries the ignore marker while the
+            // viewport sits far below the recovered max — same recovery as
+            // the pinned branch below, or the reader stares mid-transcript
+            // until the content ResizeObserver catches up (~140ms).
+            shouldRecoverPinnedLayoutClamp({
+              pinned: isPinnedRef.current,
+              escaped: escapedRef.current,
+              scrollTop,
+              scrollHeight: el.scrollHeight,
+              clientHeight: el.clientHeight,
+            })
+          ) {
+            applyScrollTop(maxTop);
+          }
         }
         return;
       }
@@ -356,6 +382,7 @@ export function useStickToBottom(
         scrollHeight: el.scrollHeight,
         clientHeight: el.clientHeight,
         previousScrollHeight: lastScrollHeight || undefined,
+        msSinceUserInput: stickNowMs() - lastUserInputAt,
       });
       const meaningfulDown =
         scrollTop - lastScrollTop >= STICK_ESCAPE_MIN_DELTA_PX;
@@ -370,11 +397,27 @@ export function useStickToBottom(
         return;
       }
 
-      // While locked at bottom: only clamp positive overscroll past max.
+      // While locked at bottom: clamp positive overscroll past max, and
+      // recover from layout clamps — row reflow (markdown / rich-band swap)
+      // briefly collapses scrollHeight and the browser yanks scrollTop down
+      // with no JS writer. Escape already ran above, so anything still this
+      // far off max while pinned is a clamp, not a gesture; snap back now
+      // instead of waiting ~140ms for the content ResizeObserver.
       if (isPinnedRef.current && !escapedRef.current) {
         if (shouldClampPinnedOverscroll(scrollTop, maxTop)) {
           applyScrollTop(maxTop);
           return;
+        }
+        if (
+          shouldRecoverPinnedLayoutClamp({
+            pinned: isPinnedRef.current,
+            escaped: escapedRef.current,
+            scrollTop,
+            scrollHeight: el.scrollHeight,
+            clientHeight: el.clientHeight,
+          })
+        ) {
+          applyScrollTop(maxTop);
         }
         return;
       }
@@ -393,10 +436,21 @@ export function useStickToBottom(
         scrollDebounceTimerRef.current = null;
         if (ignore != null && scrollTop === ignore) return;
 
-        // Still locked (e.g. no escape this frame)? Snap rubber-band only.
+        // Still locked (e.g. no escape this frame)? Snap rubber-band only,
+        // plus the same layout-clamp recovery as the immediate path.
         if (isPinnedRef.current && !escapedRef.current) {
           const top = bottomScrollTop(el.scrollHeight, el.clientHeight);
           if (shouldClampPinnedOverscroll(el.scrollTop, top)) {
+            applyScrollTop(top);
+          } else if (
+            shouldRecoverPinnedLayoutClamp({
+              pinned: isPinnedRef.current,
+              escaped: escapedRef.current,
+              scrollTop: el.scrollTop,
+              scrollHeight: el.scrollHeight,
+              clientHeight: el.clientHeight,
+            })
+          ) {
             applyScrollTop(top);
           }
           syncShowBack();
@@ -452,6 +506,7 @@ export function useStickToBottom(
     };
 
     const handleWheel = (e: WheelEvent) => {
+      lastUserInputAt = stickNowMs();
       if (
         shouldPreventPinnedBottomWheel({
           pinned: isPinnedRef.current,
@@ -469,27 +524,33 @@ export function useStickToBottom(
         e.preventDefault();
         return;
       }
-      // Small ticks at the locked bottom (trackpad / elastic) — stay pinned.
+      // Small *downward* ticks at the locked bottom (trackpad / elastic).
+      // Upward ticks must not sit here — they are a history-read gesture.
       if (
         isPinnedRef.current &&
         !escapedRef.current &&
-        Math.abs(e.deltaY) < STICK_ESCAPE_WHEEL_DELTA
+        e.deltaY > 0 &&
+        e.deltaY < STICK_ESCAPE_WHEEL_DELTA
       ) {
         return;
       }
-      // deltaY < 0 → user reading history. Escape only on a clear gesture
-      // so concurrent content-growth follow cannot yank the viewport back.
+      // Any upward wheel while overflowing takes scroll rights this frame.
+      // A 10px floor used to leave pin true so the next stream follow
+      // yanked the reader back.
       if (
-        e.deltaY <= -STICK_ESCAPE_WHEEL_DELTA &&
-        el.scrollHeight > el.clientHeight
+        shouldEscapePinnedWheel({
+          pinned: isPinnedRef.current,
+          escaped: escapedRef.current,
+          deltaY: e.deltaY,
+          scrollHeight: el.scrollHeight,
+          clientHeight: el.clientHeight,
+        })
       ) {
         clearBottomRebound();
         userIntentDownRef.current = false;
-        if (isPinnedRef.current) {
-          escapedRef.current = true;
-          isPinnedRef.current = false;
-          syncShowBack();
-        }
+        escapedRef.current = true;
+        isPinnedRef.current = false;
+        syncShowBack();
         return;
       }
       // deltaY > 0 → scrolling toward latest. Mark intent so a no-delta
@@ -524,6 +585,7 @@ export function useStickToBottom(
       touchY = e.touches[0]?.clientY ?? null;
     };
     const onTouchMove = (e: TouchEvent) => {
+      lastUserInputAt = stickNowMs();
       const y = e.touches[0]?.clientY;
       if (touchY == null || y == null) return;
       const dy = y - touchY;
@@ -562,7 +624,45 @@ export function useStickToBottom(
       }
     };
 
+    // Paint-time clamp guard: a virtual pin-window / row-remeasure commit can
+    // collapse scrollHeight for one frame and the browser clamps scrollTop
+    // down with no JS writer (#1257 trace: 9460→8182 mid-message, recovered
+    // 100ms late by the scroll event, already painted). rAF runs before
+    // paint — restore there, but only while input-quiet so a real scroll-up
+    // (which escapes on its own event) is never fought.
+    let clampGuardRaf = 0;
+    const clampGuardTick = () => {
+      clampGuardRaf = 0;
+      const v = viewportRef.current;
+      if (
+        v &&
+        !isStickViewportUnreliable({ clientHeight: v.clientHeight }) &&
+        shouldRecoverPinnedClampBeforePaint({
+          pinned: isPinnedRef.current,
+          escaped: escapedRef.current,
+          scrollTop: v.scrollTop,
+          scrollHeight: v.scrollHeight,
+          clientHeight: v.clientHeight,
+          msSinceUserInput: stickNowMs() - lastUserInputAt,
+        })
+      ) {
+        traceChatScroll("stick:clampguard", {
+          top: Math.round(bottomScrollTop(v.scrollHeight, v.clientHeight)),
+          scrollTop: Math.round(v.scrollTop),
+          scrollHeight: Math.round(v.scrollHeight),
+        });
+        applyScrollTop(bottomScrollTop(v.scrollHeight, v.clientHeight));
+      }
+      clampGuardRaf = requestAnimationFrame(clampGuardTick);
+    };
+    clampGuardRaf = requestAnimationFrame(clampGuardTick);
+
+    const markUserInput = () => {
+      lastUserInputAt = stickNowMs();
+    };
     el.addEventListener("scroll", handleScroll, { passive: true });
+    el.addEventListener("keydown", markUserInput, { passive: true });
+    el.addEventListener("pointerdown", markUserInput, { passive: true });
     // Non-passive: at the locked bottom we preventDefault downward
     // overscroll so WKWebView cannot rubber-band the last lines under
     // the floating composer. Scroll-up is never blocked.
@@ -576,12 +676,15 @@ export function useStickToBottom(
     lastScrollHeightRef.current = el.scrollHeight;
 
     return () => {
+      if (clampGuardRaf) cancelAnimationFrame(clampGuardRaf);
       el.removeEventListener("scroll", handleScroll);
       el.removeEventListener("wheel", handleWheel);
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
       el.removeEventListener("touchcancel", onTouchEnd);
+      el.removeEventListener("keydown", markUserInput);
+      el.removeEventListener("pointerdown", markUserInput);
       if (scrollDebounceTimerRef.current != null) {
         clearTimeout(scrollDebounceTimerRef.current);
         scrollDebounceTimerRef.current = null;
@@ -753,8 +856,15 @@ export function useStickToBottom(
           mediaFollowTimer = null;
         }
         followIfPinned();
+      } else if (mediaFollowTimer != null) {
+        // A pending coalesce window hit by another delta = sustained streaming
+        // growth, not a one-shot media decode. Re-arming would reset the timer
+        // on every chunk and the tail would not follow until the turn ends —
+        // fire now and let the next delta start a fresh window.
+        clearTimeout(mediaFollowTimer);
+        mediaFollowTimer = null;
+        followIfPinned();
       } else {
-        if (mediaFollowTimer != null) clearTimeout(mediaFollowTimer);
         mediaFollowTimer = setTimeout(() => {
           mediaFollowTimer = null;
           followIfPinned();
@@ -799,6 +909,25 @@ export function useStickToBottom(
           viewportWidthChanged = true;
         }
         previousViewportWidth = w;
+      }
+      // Fast path, synchronous before paint: a collapsed-layout clamp parks
+      // the pinned viewport exactly on the *collapsed* maxTop, so a scroll
+      // event always reads distFromBottom 0 there — and the DOM growing back
+      // fires no scroll event at all. The RO callback is the only hook that
+      // runs at every layout change before paint; recovering here hides the
+      // mid-transcript park entirely instead of flashing it ~140ms until the
+      // rAF-measured follow below catches up.
+      if (isPinnedRef.current && !escapedRef.current) {
+        const maxTop = bottomScrollTop(el.scrollHeight, el.clientHeight);
+        if (
+          maxTop - el.scrollTop >= PINNED_LAYOUT_CLAMP_RECOVER_PX &&
+          !isStickViewportUnreliable({
+            clientHeight: el.clientHeight,
+            hidden: typeof document !== "undefined" && document.hidden,
+          })
+        ) {
+          applyScrollTop(maxTop);
+        }
       }
       scheduleMeasure();
     });

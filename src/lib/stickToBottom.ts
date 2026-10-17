@@ -140,6 +140,23 @@ export function shouldPreventPinnedBottomWheel(input: {
 }
 
 /**
+ * Any upward wheel while the transcript overflows takes scroll rights.
+ * Do not wait for a 10px threshold — a same-frame stream follow would
+ * yank a just-started history read back to the tail.
+ */
+export function shouldEscapePinnedWheel(input: {
+  pinned: boolean;
+  escaped?: boolean;
+  deltaY: number;
+  scrollHeight: number;
+  clientHeight: number;
+}): boolean {
+  if (!input.pinned || input.escaped) return false;
+  if (!(input.deltaY < 0)) return false;
+  return input.scrollHeight > input.clientHeight;
+}
+
+/**
  * `stickBump` on streaming/permission edge: only when this is the *same*
  * user turn (regenerate / approval). A new last user id already force-sticks.
  */
@@ -154,14 +171,24 @@ export function shouldBumpStickOnBusyEdge(
  * When a live turn settles, keep a following viewport on the stream tail.
  * Thinking / work auto-collapse shrinks the last row; that remount can drop
  * pin and window from scrollTop 0 ("jump to top when the task finishes").
- * A user who already left the tail mid-stream is not yanked.
+ * A user who already left the tail mid-stream is not yanked — but a pin
+ * lost to a transient race (clamp / remount / light trackpad graze) must
+ * not strand the tail under the floating composer either: still snap when
+ * the viewport sits within a couple of screens of the tail (#1257).
  */
 export function shouldSnapToTailOnTurnSettle(input: {
   wasBusy: boolean;
   nowBusy: boolean;
   wasPinned: boolean;
+  /** Current distance from the tail; enables the near-tail snap below. */
+  distFromBottom?: number;
+  /** Max distance that still snaps when the pin was lost. */
+  snapWithinPx?: number;
 }): boolean {
-  return input.wasBusy && !input.nowBusy && input.wasPinned;
+  if (!(input.wasBusy && !input.nowBusy)) return false;
+  if (input.wasPinned) return true;
+  if (input.distFromBottom == null) return false;
+  return input.distFromBottom <= (input.snapWithinPx ?? 0);
 }
 
 /**
@@ -384,12 +411,37 @@ export function shouldEscapePinnedScroll(input: {
   scrollHeight: number;
   clientHeight: number;
   previousScrollHeight?: number;
+  /** ms since the last wheel/touch/key/pointer input, if tracked. */
+  msSinceUserInput?: number;
 }): boolean {
   if (
     input.previousScrollHeight != null &&
     input.scrollHeight < input.previousScrollHeight - 0.5
   ) {
     return false;
+  }
+  // Pinned viewport parked on the hard bottom with no recent input: a large
+  // scroll-up here is a layout clamp (rich-window swap collapses scrollHeight
+  // for one frame; scrollbar-gutter drift keeps the pin write 1-2px under
+  // max, so the overscroll exemption inside the release path misses it —
+  // #1257). Real gestures always have wheel/touch/key/pointer first and
+  // escape in their own handlers; the clamp recovery then re-lands the tail.
+  // Compare against the max at *write* time (previousScrollHeight): during a
+  // stream the current maxTop grows every frame, so the old write always
+  // looks "below bottom" and the exemption never fires — pin dropped mid-
+  // stream and the rest of the output stopped following.
+  if (
+    input.pinned &&
+    input.msSinceUserInput != null &&
+    input.msSinceUserInput >= STICK_CLAMP_GUARD_INPUT_QUIET_MS
+  ) {
+    const maxAtWrite = Math.max(
+      0,
+      (input.previousScrollHeight ?? input.scrollHeight) - input.clientHeight,
+    );
+    if (input.previousScrollTop >= maxAtWrite - STICK_HARD_BOTTOM_PX) {
+      return false;
+    }
   }
   if (
     shouldReleaseStickOnScrollUp({
@@ -622,6 +674,74 @@ export function shouldClampPinnedStreamDrift(
   if (!pinned || escaped) return false;
   const maxTop = bottomScrollTop(scrollHeight, clientHeight);
   return Math.abs(scrollTop - maxTop) > slackPx;
+}
+
+/**
+ * Pinned-off-bottom recovery threshold. Row content reflow (markdown /
+ * highlight / rich-band swaps) passes the DOM through a collapsed layout
+ * whose scrollHeight is briefly smaller; the browser clamps scrollTop with
+ * no JS writer involved, parking a following viewport mid-transcript for
+ * ~140ms until the content ResizeObserver recovers it. Anything at least
+ * this far below max while still pinned is that clamp, not a gesture —
+ * real user scroll-up escapes pin before this can fire.
+ */
+export const PINNED_LAYOUT_CLAMP_RECOVER_PX = 64;
+
+/** True when a pinned viewport was dragged off the bottom by a layout clamp. */
+export function shouldRecoverPinnedLayoutClamp(input: {
+  pinned: boolean;
+  escaped: boolean;
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  recoverPx?: number;
+}): boolean {
+  if (!input.pinned || input.escaped) return false;
+  const maxTop = bottomScrollTop(input.scrollHeight, input.clientHeight);
+  return maxTop - input.scrollTop >= (input.recoverPx ?? PINNED_LAYOUT_CLAMP_RECOVER_PX);
+}
+
+/**
+ * Input-quiet window before the paint-time clamp guard may write scrollTop.
+ * Real gestures (wheel / touch / key / scrollbar drag) always have an input
+ * event first; browser clamps after virtual-window / row-remeasure commits
+ * land seconds after the last input (forensics #1257: 2.6s after).
+ */
+export const STICK_CLAMP_GUARD_INPUT_QUIET_MS = 150;
+
+/**
+ * Paint-time recovery for a pinned viewport clamped off the bottom by a
+ * transient scrollHeight collapse: a virtual pin-window / row-remeasure
+ * commit swaps rows through a shorter layout for one frame and the browser
+ * clamps scrollTop with no JS writer. The scroll-event recovery fires after
+ * paint, so the mid-message flash was visible before the snap-back; the rAF
+ * guard calls this before paint. Requires input quiet so a real scroll-up
+ * (which escapes on its own event) is never fought.
+ */
+export function shouldRecoverPinnedClampBeforePaint(input: {
+  pinned: boolean;
+  escaped?: boolean;
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  msSinceUserInput: number;
+  quietMs?: number;
+  recoverPx?: number;
+}): boolean {
+  if (
+    !shouldRecoverPinnedLayoutClamp({
+      pinned: input.pinned,
+      escaped: input.escaped ?? false,
+      scrollTop: input.scrollTop,
+      scrollHeight: input.scrollHeight,
+      clientHeight: input.clientHeight,
+      recoverPx: input.recoverPx,
+    })
+  ) {
+    return false;
+  }
+  const quiet = input.quietMs ?? STICK_CLAMP_GUARD_INPUT_QUIET_MS;
+  return input.msSinceUserInput >= quiet;
 }
 
 /** Pin + escape lock used by the chat scroll hook. */

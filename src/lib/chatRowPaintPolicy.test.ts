@@ -142,3 +142,45 @@ describe("nextChatRichBand", () => {
     expect(next).toEqual(band(68, 80));
   });
 });
+
+describe("nextChatRichBand shrink hysteresis (#1257)", () => {
+  const band = (richStart: number, richEnd: number) => ({ richStart, richEnd });
+
+  it("keeps the live band when the target shrinks within the hysteresis", () => {
+    // Fling valley: target pulls back 2 rows (< 3) — boundary row must not
+    // remount compact and back rich on the next pass.
+    const next = nextChatRichBand({
+      target: band(14, 19),
+      committed: band(12, 19),
+      geoStart: 7,
+      geoEnd: 19,
+      scrolling: false,
+    });
+    expect(next.richStart).toBe(12);
+    expect(next.richEnd).toBe(19);
+  });
+
+  it("follows the target once it pulls clearly past the live band", () => {
+    const next = nextChatRichBand({
+      target: band(16, 19),
+      committed: band(12, 19),
+      geoStart: 7,
+      geoEnd: 19,
+      scrolling: false,
+    });
+    expect(next.richStart).toBe(16);
+  });
+
+  it("still expands toward the target without hysteresis", () => {
+    const next = nextChatRichBand({
+      target: band(12, 19),
+      committed: band(14, 16),
+      geoStart: 7,
+      geoEnd: 19,
+      scrolling: false,
+    });
+    expect(next.richStart).toBe(12);
+    // Hydrate budget is shared: 2 rows up front + 1 row at the tail = 3.
+    expect(next.richEnd).toBe(17);
+  });
+});

@@ -12,7 +12,9 @@
   position: absolute;
   z-index: 50;
   left: 50%;
-  inset-block-end: calc(var(--composer-float-pad, 168px) + 12px);
+  /* In-flow composer: the scrollport bottom already ends at the composer
+   * top, so the button just hugs that edge — no float-pad offset. */
+  inset-block-end: 12px;
   inset-inline-end: auto;
   transform: translateX(-50%) translateY(10px);
   opacity: 0;

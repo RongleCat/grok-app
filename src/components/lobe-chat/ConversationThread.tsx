@@ -103,6 +103,13 @@ import {
   transcriptStickIdentity,
 } from "@/lib/stickToBottom";
 import {
+  shouldStickOnLiveTailSettle,
+  splitChatLiveTail,
+} from "@/lib/chatLiveTail";
+// Dev-only jump forensics: writers trace into __CHAT_JUMP_TRACE__, and the
+// sentinel reports unexplained scrollTop jumps to __CHAT_JUMP_REPORT__.
+import { installChatJumpSentinel } from "@/lib/chatScrollJumpForensics";
+import {
   isTranscriptOpenMediaPending,
   shouldHoldTranscriptOpenReveal,
   transcriptOpenRevealHasMedia,
@@ -2066,6 +2073,11 @@ export function ConversationThread({
     () => filterMessagesForTranscript(wovenMessages, transcriptFilter),
     [wovenMessages, transcriptFilter],
   );
+  // Live tail: keep the streaming last row in normal flow after the
+  // virtual window so token growth never rebuilds spacers / pin-snap;
+  // settled history stays windowed (see chatLiveTail.ts).
+  const { history: windowMessages, live: liveTail, liveIndex: liveTailIndex } =
+    useMemo(() => splitChatLiveTail(transcriptMessages), [transcriptMessages]);
   const latestContinuableEndId = useMemo(
     () => latestContinuableEndMessageId(transcriptMessages),
     [transcriptMessages],
@@ -2202,6 +2214,28 @@ export function ConversationThread({
       transcriptMessages,
     ],
   );
+
+  // Dev-only scroll-jump sentinel for the lifetime of the transcript viewport.
+  useEffect(() => installChatJumpSentinel(scrollRef.current), []);
+
+  // Live tail settled back into the window (streaming end): the remounted row
+  // lands on an estimate height, so a following viewport snaps once more.
+  const liveTailElRef = useRef<HTMLDivElement | null>(null);
+  const prevLiveTailIdRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const id = liveTail?.id ?? null;
+    const prev = prevLiveTailIdRef.current;
+    prevLiveTailIdRef.current = id;
+    if (
+      shouldStickOnLiveTailSettle({
+        prevLiveTailId: prev,
+        liveTailId: id,
+        pinned: isPinnedRef.current,
+      })
+    ) {
+      scrollToBottom("instant");
+    }
+  }, [liveTail, scrollToBottom, isPinnedRef]);
 
   // After force-mount state commits, finish the jump (virtual list needs a paint).
   useEffect(() => {
@@ -2491,20 +2525,21 @@ export function ConversationThread({
     const out: number[] = [];
     const pushId = (id: string | null | undefined) => {
       if (!id) return;
-      const i = transcriptMessages.findIndex((m) => m.id === id);
+      const i = windowMessages.findIndex((m) => m.id === id);
       if (i >= 0) out.push(i);
     };
     pushId(findActive?.messageId);
     pushId(locateTargetId);
     pushId(activeAssistantId);
     // While following the live turn, keep the last user + tail mounted.
+    // (The streaming row itself is the live tail — never in the window.)
     if (turnBusy) {
       pushId(lastUserMessageId);
-      const n = transcriptMessages.length;
+      const n = windowMessages.length;
       for (let i = Math.max(0, n - 2); i < n; i++) out.push(i);
     } else {
       // Idle: last transcript row only (assistant). Indices are post-filter.
-      const n = transcriptMessages.length;
+      const n = windowMessages.length;
       if (n > 0) out.push(n - 1);
     }
     // While pinned, last user + last assistant keep the pin window from
@@ -2512,10 +2547,10 @@ export function ConversationThread({
     // ignores distant force (virtualizer max-gap) so long chats stay windowed.
     // Always resolve via pushId (transcript indices) — never push messages[]
     // offsets into the virtual list (idle path used to force wrong rows / thrash).
-    if (!turnBusy && transcriptMessages.length > 0) {
+    if (!turnBusy && windowMessages.length > 0) {
       pushId(lastUserMessageId);
-      for (let i = transcriptMessages.length - 1; i >= 0; i--) {
-        const row = transcriptMessages[i]!;
+      for (let i = windowMessages.length - 1; i >= 0; i--) {
+        const row = windowMessages[i]!;
         if (row.role === "assistant" && !row.isError) {
           pushId(row.id);
           break;
@@ -2524,7 +2559,7 @@ export function ConversationThread({
     }
     return out;
   }, [
-    transcriptMessages,
+    windowMessages,
     findActive?.messageId,
     locateTargetId,
     activeAssistantId,
@@ -2536,6 +2571,12 @@ export function ConversationThread({
     Map<string, { len: number; atts: number; failed: number; h: number }>
   >(new Map());
 
+  /** Live-tail row renders outside the virtual window — no spacer to measure. */
+  const noopMeasureRef = useCallback(
+    () => () => {},
+    [],
+  );
+
   // Invalidate estimate cache on session key change
   useEffect(() => {
     estimateCacheRef.current.clear();
@@ -2543,7 +2584,7 @@ export function ConversationThread({
 
   const getEstimateHeight = useCallback(
     (i: number) => {
-      const m = transcriptMessages[i];
+      const m = windowMessages[i];
       if (!m) return 120;
       // Standalone (non-inlined) tool rows only — inlined tools are filtered out.
       if (isToolStepMessage(m)) {
@@ -2650,7 +2691,7 @@ export function ConversationThread({
       return est;
     },
     [
-      transcriptMessages,
+      windowMessages,
       standaloneToolGroups,
       wovenMessages,
       toolStepsAutoCollapse,
@@ -2668,8 +2709,8 @@ export function ConversationThread({
     rowHeight,
     measureRef,
   } = useChatMessageVirtualizer({
-    itemCount: transcriptMessages.length,
-    getKey: (i) => transcriptMessages[i]?.id ?? `i-${i}`,
+    itemCount: windowMessages.length,
+    getKey: (i) => windowMessages[i]?.id ?? `i-${i}`,
     getEstimateHeight,
     viewportRef: scrollRef,
     isPinnedRef,
@@ -2730,21 +2771,21 @@ export function ConversationThread({
 
   const visibleMessages = useMemo(() => {
     if (!virtualized) {
-      if (transcriptMessages.length >= 10) {
+      if (windowMessages.length >= 10) {
         scrollPerfDebug.recordLog(
           "VirtualizationStatus",
-          `⚠️ Virtualization is OFF for ${transcriptMessages.length} messages (rendered all DOM nodes)`,
+          `⚠️ Virtualization is OFF for ${windowMessages.length} messages (rendered all DOM nodes)`,
         );
       }
-      return transcriptMessages.map((m, index) => ({ m, index }));
+      return windowMessages.map((m, index) => ({ m, index }));
     }
     const slice: { m: ChatMessage; index: number }[] = [];
     for (let i = virtStart; i < virtEnd; i++) {
-      const m = transcriptMessages[i];
+      const m = windowMessages[i];
       if (m) slice.push({ m, index: i });
     }
     return slice;
-  }, [transcriptMessages, virtualized, virtStart, virtEnd]);
+  }, [windowMessages, virtualized, virtStart, virtEnd]);
 
   const revealedOpenKeyRef = useRef<string | null>(null);
   const [openRevealTick, setOpenRevealTick] = useState(0);
@@ -2980,6 +3021,96 @@ export function ConversationThread({
                 />
               ))
             : null}
+
+          {liveTail && liveTailIndex != null ? (
+            <div
+              ref={liveTailElRef}
+              className="lobe-chat__live-tail"
+              data-live-tail=""
+            >
+              <TranscriptMessageRow
+                key={liveTail.id}
+                m={liveTail}
+                msgIndex={liveTailIndex}
+                virtualized={false}
+                paint="rich"
+                shellHeight={0}
+                measureRef={noopMeasureRef}
+                locale={locale}
+                tr={tr}
+                projectPath={projectPath}
+                sshAlias={sshAlias}
+                sessionPathMap={sessionPathMap}
+                sessionId={sessionId}
+                showToolChrome={showToolChrome}
+                toolStepsAutoCollapse={toolStepsAutoCollapse}
+                showTimestamps={showTimestamps}
+                messageTimeFormat={messageTimeFormat}
+                timeTick={relativeTick}
+                showReplyLength={showReplyLength}
+                standaloneToolGroups={standaloneToolGroups}
+                lastUserMessageId={lastUserMessageId}
+                editingUserMessageId={editingUserMessageId}
+                editSubmitting={editSubmitting}
+                editAttachments={editAttachments}
+                canEditLastUser={canEditLastUser}
+                canRegenerate={canRegenerate}
+                turnLive={
+                  sessionState === "streaming" ||
+                  sessionState === "awaiting_permission"
+                }
+                canRewindSession={canRewindSession}
+                canForkFromAssistant={shouldOfferAssistantFork({
+                  streaming: liveTail.streaming,
+                  turnLive:
+                    sessionState === "streaming" ||
+                    sessionState === "awaiting_permission",
+                  canRewindSession,
+                  parentPromptIndex: parentPromptIndexMap.get(liveTail.id) ?? -1,
+                })}
+                regenerableAssistantId={regenerableAssistantId}
+                regenerateModels={regenerateModels}
+                regenerateModelId={regenerateModelId}
+                activeAssistantId={activeAssistantId}
+                liveTool={liveTool}
+                wovenMessages={wovenMessages}
+                thinkingStartedAt={
+                  liveTail.streaming && liveTail.id === activeAssistantId
+                    ? clampThinkingStartToMessage({
+                        turnStartedAt,
+                        messageCreatedAtMs: parseCreatedAtMs(liveTail.createdAt),
+                      })
+                    : null
+                }
+                findQuery={findQuery}
+                findHitMessageIds={findHitMessageIds}
+                findActive={findActive}
+                focusMessageId={focusMessageId}
+                structuredUsageMessageId={structuredUsageMessageId}
+                structuredOutputActive={structuredOutputActive}
+                structuredOutputSchema={structuredOutputSchema}
+                structuredOutputUsage={structuredOutputUsage}
+                structuredOutputLabels={structuredOutputLabels}
+                attachLabels={attachLabels}
+                onEditUserMessage={onEditUserMessage}
+                onCancelEditUserMessage={onCancelEditUserMessage}
+                onSubmitEditUserMessage={onSubmitEditUserMessage}
+                onRemoveEditAttachment={onRemoveEditAttachment}
+                onRegenerateAssistant={onRegenerateAssistant}
+                onRewindToUserMessage={onRewindToUserMessage}
+                onForkFromAssistantMessage={onForkFromAssistantMessage}
+                onOpenResource={onOpenResource}
+                onOpenError={onOpenError}
+                onOpenExternalLink={onOpenExternalLink}
+                onAddAttachmentToComposer={onAddAttachmentToComposer}
+                onContinueInterrupted={onContinueInterrupted}
+                latestContinuableEndId={latestContinuableEndId}
+                onOpenSessionChanges={onOpenSessionChanges}
+                onOpenModifiedPath={onOpenModifiedPath}
+                sessionChanges={sessionChanges}
+              />
+            </div>
+          ) : null}
 
           {/* Tool before any assistant bubble — only if not already a message row. */}
           {showToolChrome && liveTool && !activeAssistantId && !liveToolHasRow ? (

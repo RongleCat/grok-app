@@ -446,8 +446,8 @@
 }
 
 /* ── Back bottom ──
- * Sit above the floating composer (App sets --composer-float-pad from
- * measured shell height). Centered so narrow panes don't overlap the
- * composer card / side controls.
+ * In-flow composer: the scrollport bottom is the composer top, so the
+ * button hugs that edge (see part3). Centered so narrow panes don't
+ * overlap the composer card / side controls.
  */
 
