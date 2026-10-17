@@ -33,7 +33,9 @@ fn default_hotkey() -> String {
 
 impl Default for QuickPrefs {
     fn default() -> Self {
-        Self { hotkey: default_hotkey() }
+        Self {
+            hotkey: default_hotkey(),
+        }
     }
 }
 
@@ -77,7 +79,8 @@ fn register_hotkey(app: &AppHandle, accel: &str) -> Result<(), String> {
         if accel.is_empty() {
             return Ok(());
         }
-        gs.register(accel).map_err(|e| format!("hotkey {accel}: {e}"))?;
+        gs.register(accel)
+            .map_err(|e| format!("hotkey {accel}: {e}"))?;
         *guard = Some(accel.to_string());
     }
     Ok(())
@@ -246,7 +249,11 @@ pub fn pick_recents(
         .iter()
         .filter(|s| !s.archived && !s.scheduled)
         .collect();
-    rows.sort_by(|a, b| b.pinned.cmp(&a.pinned).then(b.updated_at.cmp(&a.updated_at)));
+    rows.sort_by(|a, b| {
+        b.pinned
+            .cmp(&a.pinned)
+            .then(b.updated_at.cmp(&a.updated_at))
+    });
     rows.into_iter()
         .take(limit)
         .map(|s| QuickRecent {
@@ -334,7 +341,9 @@ pub async fn pet_quick_hotkey_set(app: AppHandle, hotkey: String) -> Result<Stri
         let _ = register_hotkey(&app, &prev);
         return Err(e);
     }
-    save_quick_prefs(&QuickPrefs { hotkey: accel.clone() })?;
+    save_quick_prefs(&QuickPrefs {
+        hotkey: accel.clone(),
+    })?;
     Ok(accel)
 }
 

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { runPetQuickPrompt } from "./petQuickPromptRun";
 
 const base = () => ({
-  sessions: [{ id: "s1", projectId: "p1" }],
+  sessions: [{ id: "s1", projectId: "p1" as string | null }],
   projects: [{ id: "p1" }],
   openSession: vi.fn(async () => {}),
   newChat: vi.fn(async () => {}),
