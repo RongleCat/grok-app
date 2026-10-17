@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for main + secondary session + pet overlay windows",
-  "windows": ["main", "session-*", "pet", "theme-editor"],
+  "windows": ["main", "session-*", "pet", "pet-quick", "theme-editor"],
   "permissions": [
     "core:default",
     "core:window:allow-close",

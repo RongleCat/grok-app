@@ -442,6 +442,7 @@ import {
   useSendQueue,
   type ExecuteSendFromQueue,
 } from "@/hooks/useSendQueue";
+import { parsePetQuickPrompt, type PetQuickPrompt } from "@/lib/api/petQuick";
 import {
   buildSlashCatalog,
   countSlashByKind,
@@ -10635,6 +10636,7 @@ export function AppWorkbench() {
     /** Omit section to restore last settings route. */
     openSettings: (_section?: SettingsSectionId) => {},
     openDoctor: () => {},
+    quickPrompt: (_p: PetQuickPrompt) => {},
   });
   const openSessionByIdHandler = (id: string) => {
     void (async () => {
@@ -10726,6 +10728,40 @@ export function AppWorkbench() {
     openDoctor: () => {
       void openDoctor();
     },
+    // Pet quick bar: open (or start) the chat, then send without raising the
+    // window unless the bar asked to. Hidden WebView2 throttles rAF, so the
+    // settle wait uses a timer.
+    quickPrompt: (p: PetQuickPrompt) => {
+      void (async () => {
+        const settle = () => new Promise((r) => setTimeout(r, 60));
+        let target: string | null = null;
+        if (p.sessionId) {
+          let row = sessions.find((s) => s.id === p.sessionId) ?? null;
+          if (!row) {
+            try {
+              const hit = (await api.sessionsList()).find((s) => s.id === p.sessionId);
+              if (hit) row = mapSessionListRow(hit);
+            } catch {
+              /* fall through to new chat */
+            }
+          }
+          if (row) {
+            const proj = projects.find((pr) => pr.id === row!.projectId) ?? null;
+            await openSession(row, proj);
+            target = row.id;
+          }
+        }
+        if (!target) await newChat();
+        await settle();
+        const ok = await executeSendLatestRef.current({
+          storedDisplay: p.text,
+          att: [],
+          goalMode: false,
+          targetSessionId: target,
+        });
+        if (!ok) showToast(tr("pet.quick.sendFailedToast"), 4200);
+      })();
+    },
   };
 
   // Desktop notification click → open the session that fired the notify.
@@ -10791,6 +10827,12 @@ export function AppWorkbench() {
         unsubs.push(
           await listen("tray://open-doctor", () => {
             trayHandlersRef.current.openDoctor();
+          }),
+        );
+        unsubs.push(
+          await listen("pet://quick-prompt", (ev) => {
+            const p = parsePetQuickPrompt(ev.payload);
+            if (p) trayHandlersRef.current.quickPrompt(p);
           }),
         );
       } catch (e) {

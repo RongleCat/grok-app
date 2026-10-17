@@ -492,3 +492,17 @@ html[data-pet-shell] .boot-gate {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+.pet-hotkey__input {
+  flex: 1 1 auto;
+  min-width: 120px;
+  font-family: ui-monospace, monospace;
+}
+.pet-hotkey__status {
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+.pet-hotkey__status--error {
+  color: var(--danger, #ef4444);
+  opacity: 1;
+}

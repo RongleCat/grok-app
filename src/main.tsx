@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { isPetShellHash } from "@/lib/pet/petShell";
+import { isPetQuickHash, isPetShellHash } from "@/lib/pet/petShell";
 import {
   isThemeEditorDocument,
   isThemeEditorHash,
@@ -123,13 +123,15 @@ installWindowsDragInputGuard();
 
 const petShell =
   typeof window !== "undefined" && isPetShellHash(window.location.hash);
+const petQuickShell =
+  typeof window !== "undefined" && isPetQuickHash(window.location.hash);
 const themeEditorShell =
   typeof window !== "undefined" &&
   (isThemeEditorHash(window.location.hash) || isThemeEditorDocument());
 
 // Wallpaper scrim / pane mix belongs on the workbench only. The settings
 // editor window stays a solid plate (same rule as `.settings-page`).
-if (!petShell && !themeEditorShell) {
+if (!petShell && !petQuickShell && !themeEditorShell) {
   // Only the data-wallpaper flag is set synchronously (so the shell flips to
   // transparent + scrim instantly). The media layer is rendered by App after
   // the IndexedDB blob is loaded — no synchronous access to IDB is possible.
@@ -151,7 +153,11 @@ void applyNativeWindowTheme(
     detectAppPlatform(),
   ),
 );
-if (petShell) {
+if (petQuickShell) {
+  // Quick bar keeps Rust always_on_top; skip the workbench window prefs.
+  document.documentElement.setAttribute("data-pet-quick", "1");
+  document.querySelector(".boot-gate")?.setAttribute("hidden", "");
+} else if (petShell) {
   document.documentElement.setAttribute("data-pet-shell", "1");
   document.querySelector(".boot-gate")?.setAttribute("hidden", "");
 } else if (themeEditorShell) {
@@ -275,7 +281,15 @@ document.addEventListener(
 );
 
 const root = createRoot(document.getElementById("root")!);
-if (petShell) {
+if (petQuickShell) {
+  void import("./components/pet/PetQuickApp").then(({ PetQuickApp }) => {
+    root.render(
+      <StrictMode>
+        <PetQuickApp />
+      </StrictMode>,
+    );
+  });
+} else if (petShell) {
   void import("./components/pet/PetApp").then(({ PetApp }) => {
     root.render(
       <StrictMode>

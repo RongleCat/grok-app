@@ -81,6 +81,7 @@ mod command_registry;
 
 mod commands;
 
+mod pet_quick;
 mod pet_window;
 mod theme_editor_window;
 
@@ -393,6 +394,7 @@ pub fn run() {
         // AppSettings.launch_at_login in setup + settings_set. Safe for `cargo test`
         // (tests never call run(); init does not touch the OS login list).
         .plugin(tauri_plugin_autostart::Builder::new().build())
+        .plugin(pet_quick::global_shortcut_plugin())
         // Remember main window size / position / maximize across launches.
         // Desktop-only dependency (see Cargo.toml target cfg).
         .plugin({
@@ -1049,6 +1051,8 @@ pub fn run() {
                 }
 
             }
+
+            pet_quick::init_hotkey(app.handle());
 
             let pet_prefs = pet_window::load_prefs();
             if pet_prefs.enabled && pet_prefs.visible {

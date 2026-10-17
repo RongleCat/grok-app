@@ -7,6 +7,7 @@ import { PetMark } from "./PetMark";
 import { PetTaskBubbles } from "./PetTaskBubbles";
 import { ContextMenu } from "@/components/ContextMenu";
 import { createT, type Locale } from "@/i18n";
+import { petQuickNewChat, petQuickShow } from "@/lib/api/petQuick";
 import {
   clampPetMarkHitRadius,
   hitChromeCssScale,
@@ -61,7 +62,7 @@ import type { PetPrefs } from "@/lib/api/pet";
 export { petSettingsHash };
 
 const MENU_W = 148;
-const MENU_H = 188;
+const MENU_H = 252;
 
 export function PetOverlay({
   focus,
@@ -486,6 +487,21 @@ export function PetOverlay({
         estimatedWidth={MENU_W}
         estimatedHeight={MENU_H}
         items={[
+          {
+            id: "pet-quick",
+            label: t("pet.menu.quick"),
+            onClick: () => {
+              void petQuickShow();
+            },
+          },
+          {
+            id: "pet-new-chat",
+            label: t("pet.menu.newChat"),
+            onClick: () => {
+              void petQuickNewChat();
+            },
+          },
+          { id: "pet-sep-quick", separator: true },
           {
             id: "pet-spin",
             label: t("pet.menu.spin"),

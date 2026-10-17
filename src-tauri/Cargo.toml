@@ -136,6 +136,8 @@ gtk = { version = "0.18", features = ["v3_24"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-window-state = "2"
+# Pet quick bar: system-wide show/focus hotkey (default Alt+Super+P).
+tauri-plugin-global-shortcut = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 mac-notification-sys = "0.6"

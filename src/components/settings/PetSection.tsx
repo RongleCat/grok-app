@@ -6,6 +6,7 @@ import { useSettingsModel } from "@/providers/SettingsModelContext";
 import { SettingsLabelWithTip, SettingsTabStrip, UiSwitch } from "./shared";
 import { PetMark } from "@/components/pet/PetMark";
 import { Select } from "@/components/Select";
+import { PetQuickHotkeyRow } from "./PetQuickHotkeyRow";
 import { listen } from "@/lib/api/host";
 import type { MessageKey } from "@/i18n";
 import {
@@ -206,7 +207,7 @@ export function PetSection() {
                 label={t("settings.pet.size")}
                 tip={t("settings.pet.sizeDesc")}
               />
-<div className="pet-size-slider">
+              <div className="pet-size-slider">
                 <input
                   type="range"
                   className="settings-wallpaper__scrim-range"
@@ -231,6 +232,7 @@ export function PetSection() {
                 </button>
               </div>
             </div>
+            <PetQuickHotkeyRow />
           </div>
 
           <div
