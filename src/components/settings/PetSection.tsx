@@ -7,6 +7,7 @@ import { SettingsLabelWithTip, SettingsTabStrip, UiSwitch } from "./shared";
 import { PetMark } from "@/components/pet/PetMark";
 import { Select } from "@/components/Select";
 import { PetQuickHotkeyRow } from "./PetQuickHotkeyRow";
+import { PetSizeSlider } from "./PetSizeSlider";
 import { listen } from "@/lib/api/host";
 import type { MessageKey } from "@/i18n";
 import {
@@ -19,9 +20,6 @@ import {
   PET_EXPRESSIONS,
   PET_PICKER_SHAPES,
   PET_SIZE_DEFAULT,
-  PET_SIZE_MAX,
-  PET_SIZE_MIN,
-  PET_SIZE_STEP,
   isPetColor,
   isPetShape,
   normalizePetBubbleDismissSec,
@@ -207,30 +205,12 @@ export function PetSection() {
                 label={t("settings.pet.size")}
                 tip={t("settings.pet.sizeDesc")}
               />
-              <div className="pet-size-slider">
-                <input
-                  type="range"
-                  className="settings-wallpaper__scrim-range"
-                  min={PET_SIZE_MIN}
-                  max={PET_SIZE_MAX}
-                  step={PET_SIZE_STEP}
-                  value={sizeDraft ?? sizePx}
-                  aria-label={t("settings.pet.size")}
-                  aria-valuetext={t("settings.pet.size.px", { n: sizeDraft ?? sizePx })}
-                  onChange={(e) => queueSize(Number(e.target.value))}
-                />
-                <span className="settings-wallpaper__scrim-value" aria-hidden>
-                  {t("settings.pet.size.px", { n: sizeDraft ?? sizePx })}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm pet-size-slider__reset"
-                  disabled={sizePx === PET_SIZE_DEFAULT && sizeDraft == null}
-                  onClick={() => queueSize(PET_SIZE_DEFAULT, true)}
-                >
-                  {t("settings.pet.size.reset")}
-                </button>
-              </div>
+              <PetSizeSlider
+                value={sizeDraft ?? sizePx}
+                isDefault={sizePx === PET_SIZE_DEFAULT && sizeDraft == null}
+                onChange={(n) => queueSize(n)}
+                onReset={() => queueSize(PET_SIZE_DEFAULT, true)}
+              />
             </div>
             <PetQuickHotkeyRow />
           </div>
