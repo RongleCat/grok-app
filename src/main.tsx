@@ -10,6 +10,7 @@ import "./styles/tokens.css";
 import "./styles/skins.css";
 import "./styles/tailwind.css";
 import "./styles/app.css";
+import "./styles/view-transitions.css";
 import "./styles/setup-wizard.css";
 // KaTeX CSS is intentionally not imported here — it loads with the first
 // markdown math render (see src/lib/markdownMath.ts) so its fonts stay off
