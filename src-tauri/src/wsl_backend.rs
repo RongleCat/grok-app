@@ -629,28 +629,6 @@ fn wsl_exec_status(wsl: &Path, distro: Option<&str>, argv: &[&str]) -> Result<()
     }
 }
 
-/// `wsl [-d Distro] --exec printenv NAME` -- no shell, no `$` in argv.
-fn wsl_printenv(wsl: &Path, distro: Option<&str>, name: &str) -> Option<String> {
-    let mut cmd = StdCommand::new(wsl);
-    if let Some(d) = distro {
-        cmd.arg("-d").arg(d);
-    }
-    cmd.arg("--exec")
-        .arg("printenv")
-        .arg(name)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-    process_util::apply_no_window_std(&mut cmd);
-    let mut child = cmd.spawn().ok()?;
-    let (out, success) = wait_wsl_probe(&mut child)?;
-    if !success {
-        return None;
-    }
-    let line = out.lines().map(str::trim).find(|l| !l.is_empty())?;
-    Some(line.to_string())
-}
-
 /// Start a tokio `Command` that runs the Linux CLI inside WSL.
 ///
 /// Shape:
