@@ -223,6 +223,7 @@ const INTL_TAGS: Readonly<Record<Locale, string>> = {
   "pt-BR": "pt-BR",
   ru: "ru-RU",
   ta: "ta-IN",
+  tr: "tr-TR",
   uk: "uk-UA",
   zh: "zh-CN",
   "zh-TW": "zh-TW",

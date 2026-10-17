@@ -1,12 +1,12 @@
 /** tr messages — domain: doctor. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
 export const trDoctor = {
-  "setup.title": "Welcome to Grok",
+  "setup.title": "Grok'a hoş geldiniz",
   "setup.subtitle": "MIT · Unofficial desktop workbench for Grok Build",
   "setup.step.runtime": "Runtime",
   "setup.step.account": "Account",
   "setup.step.ready": "Ready",
   "setup.stepsAria": "Setup steps",
-  "setup.detecting": "Checking Grok Build…",
+  "setup.detecting": "Grok Build kontrol ediliyor…",
   "setup.detectingSlow": "Still checking… this is taking longer than usual.",
   "setup.detectTimeout": "Startup check timed out",
   "setup.detectTimeoutHint": "Grok Build probe did not finish in time. Retry, or open Setup to install / pick a local binary.",
