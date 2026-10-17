@@ -256,7 +256,7 @@ textarea:focus-visible,
   app-region: drag;
 }
 
-/* GrokCLI (Windows): no CSS caption regions. Every layout change during
+/* Windows: no CSS caption regions. Every layout change during
  * streaming made WebView2 recompute them (Controller::UpdateDraggableRegions →
  * SetWindowPos ≈98% of host CPU samples, upstream #1336), which stalled
  * clicks, drag and resize. Dragging still works through Tauri's drag.js
