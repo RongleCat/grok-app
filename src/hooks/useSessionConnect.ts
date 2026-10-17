@@ -3,6 +3,12 @@
  * Host fills {@link SessionConnectHost} in place; connect logic lives here.
  */
 import {
+  claimIsStale,
+  claimReleasableBy,
+  newConnectClaim,
+  type ConnectClaim,
+} from "@/lib/sessionConnectClaim";
+import {
   useCallback,
   useEffect,
   useRef,
@@ -115,6 +121,8 @@ export function useSessionConnect(opts: {
   const [connecting, setConnecting] = useState(false);
   const connectingRef = useRef(false);
   const connectingBySessionRef = useRef<Set<string>>(new Set());
+  /** Owner token per claimed key, so a stale owner's late `finally` cannot drop a newer claim. */
+  const claimOwnerRef = useRef<Map<string, ConnectClaim>>(new Map());
   const ensureConnectCountRef = useRef(0);
 
   const liveMap = useLiveMapWhen(opts.liveMapEnabled);
@@ -125,14 +133,22 @@ export function useSessionConnect(opts: {
       const set = connectingBySessionRef.current;
       if (set.has(key)) return false;
       set.add(key);
+      claimOwnerRef.current.set(key, newConnectClaim());
       return true;
     },
     [],
   );
-  const releaseSessionConnection = useCallback((keys: Iterable<string>) => {
-    const set = connectingBySessionRef.current;
-    for (const key of keys) set.delete(key);
-  }, []);
+  const releaseSessionConnection = useCallback(
+    (keys: Iterable<string>, owner?: ConnectClaim) => {
+      const set = connectingBySessionRef.current;
+      for (const key of keys) {
+        if (!claimReleasableBy(claimOwnerRef.current.get(key), owner)) continue;
+        set.delete(key);
+        claimOwnerRef.current.delete(key);
+      }
+    },
+    [],
+  );
   const syncEnsureConnectingUi = useCallback(() => {
     const h = opts.hostRef.current;
     const viewedActive = isViewedSessionConnecting(
@@ -228,17 +244,31 @@ export function useSessionConnect(opts: {
           }
         }
         if (connectingBySessionRef.current.has(connectKey)) {
-          console.warn("[session] connect_claim_timeout", {
-            sessionId: preferredId,
-            budgetMs: SESSION_CONNECT_CLAIM_WAIT_MS,
-          });
-          if (h.viewingSessionIdRef.current === preferredId) {
-            h.setLocalError(h.tr("session.connectClaimTimedOut"));
+          // The previous attempt never settled (a Host call that never
+          // returned). Its claim is stale: take it over instead of leaving the
+          // chat on "Connecting" until restart. Its late finally is ignored.
+          const prev = claimOwnerRef.current.get(connectKey);
+          if (claimIsStale(prev, Date.now(), SESSION_CONNECT_CLAIM_WAIT_MS)) {
+            console.warn("[session] connect_claim_stale_takeover", {
+              sessionId: preferredId,
+              budgetMs: SESSION_CONNECT_CLAIM_WAIT_MS,
+            });
+            connectingBySessionRef.current.delete(connectKey);
+            claimOwnerRef.current.delete(connectKey);
+          } else {
+            console.warn("[session] connect_claim_timeout", {
+              sessionId: preferredId,
+              budgetMs: SESSION_CONNECT_CLAIM_WAIT_MS,
+            });
+            if (h.viewingSessionIdRef.current === preferredId) {
+              h.setLocalError(h.tr("session.connectClaimTimedOut"));
+            }
+            return null;
           }
-          return null;
         }
       }
       if (!claimSessionConnection(preferredId)) return null;
+      const myClaim = claimOwnerRef.current.get(connectKey);
       ensureConnectCountRef.current += 1;
       syncEnsureConnectingUi();
       const originView = h.currentViewFocus();
@@ -270,8 +300,10 @@ export function useSessionConnect(opts: {
             const claims = connectingBySessionRef.current;
             if (claims.has(materializedKey)) return null;
             claims.delete(connectKey);
+            claimOwnerRef.current.delete(connectKey);
             heldConnectKeys.delete(connectKey);
             claims.add(materializedKey);
+            if (myClaim) claimOwnerRef.current.set(materializedKey, myClaim);
             heldConnectKeys.add(materializedKey);
           }
           if (
@@ -415,7 +447,7 @@ export function useSessionConnect(opts: {
         }
         return null;
       } finally {
-        releaseSessionConnection(heldConnectKeys);
+        releaseSessionConnection(heldConnectKeys, myClaim);
         ensureConnectCountRef.current = Math.max(
           0,
           ensureConnectCountRef.current - 1,
