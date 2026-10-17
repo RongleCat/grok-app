@@ -99,4 +99,6 @@ export const esSettingsPet = {
   "pet.bubble.progressDone": "Completado",
   "slash.pet": "Mascota",
   "slash.petDesc": "Mostrar u ocultar la mascota de escritorio",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };

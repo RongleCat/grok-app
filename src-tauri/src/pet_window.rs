@@ -345,13 +345,7 @@ fn normalize_prefs(mut p: PetPrefs) -> PetPrefs {
     if !expressions.contains(&p.expression.as_str()) {
         p.expression = default_expression();
     }
-    p.size_px = if p.size_px <= 112 {
-        96
-    } else if p.size_px >= 144 {
-        160
-    } else {
-        128
-    };
+    p.size_px = normalize_size_px(p.size_px);
     let bubble_shapes = ["round", "pill", "card", "ticket", "cloud", "slash"];
     if !bubble_shapes.contains(&p.bubble_shape.as_str()) {
         p.bubble_shape = default_bubble_shape();
@@ -362,6 +356,16 @@ fn normalize_prefs(mut p: PetPrefs) -> PetPrefs {
     }
     p.bubble_dismiss_sec = p.bubble_dismiss_sec.clamp(3, 120);
     p
+}
+
+/// Pet size slider range (mirrors `normalizePetSize` in petIdentity.ts).
+pub const PET_SIZE_MIN: u32 = 96;
+pub const PET_SIZE_MAX: u32 = 200;
+pub const PET_SIZE_STEP: u32 = 8;
+
+pub fn normalize_size_px(px: u32) -> u32 {
+    let stepped = ((px + PET_SIZE_STEP / 2) / PET_SIZE_STEP) * PET_SIZE_STEP;
+    stepped.clamp(PET_SIZE_MIN, PET_SIZE_MAX)
 }
 
 fn window_logical_size(size_px: u32) -> f64 {
@@ -1542,6 +1546,9 @@ mod tests {
         assert_eq!(p.color, "green");
         assert_eq!(p.eye_color, "auto");
         assert_eq!(p.size_px, 96);
+        assert_eq!(normalize_size_px(500), 200);
+        assert_eq!(normalize_size_px(131), 128);
+        assert_eq!(normalize_size_px(140), 144);
         let eyes = normalize_prefs(PetPrefs {
             eye_color: "neon".into(),
             ..Default::default()

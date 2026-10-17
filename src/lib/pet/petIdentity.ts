@@ -88,8 +88,13 @@ export const PET_INK: Record<PetColor, { light: string; dark: string }> = {
   gray: { light: "#959595", dark: "#777777" },
 };
 
+/** Legacy presets (Small / Medium / Large) — still valid slider stops. */
 export const PET_SIZES = [96, 128, 160] as const;
-export type PetSizePx = (typeof PET_SIZES)[number];
+export const PET_SIZE_MIN = 96;
+export const PET_SIZE_MAX = 200;
+export const PET_SIZE_STEP = 8;
+export const PET_SIZE_DEFAULT = 128;
+export type PetSizePx = number;
 
 export function isPetShape(v: string | null | undefined): v is PetShape {
   return !!v && (PET_SHAPES as readonly string[]).includes(v);
@@ -129,9 +134,10 @@ export function resolvePetEyeInk(body: PetColor, eye: PetEyeColor = "auto"): str
   return hexLuma(resolvePetBodyInk(body)) < 0.45 ? "#F4F4F5" : "#161616";
 }
 
+/** Clamp to [PET_SIZE_MIN, PET_SIZE_MAX] on PET_SIZE_STEP stops (mirrors Rust). */
 export function normalizePetSize(n: unknown): PetSizePx {
   const x = typeof n === "number" ? n : Number(n);
-  if (x <= 112) return 96;
-  if (x >= 144) return 160;
-  return 128;
+  if (!Number.isFinite(x)) return PET_SIZE_DEFAULT;
+  const stepped = Math.round(x / PET_SIZE_STEP) * PET_SIZE_STEP;
+  return Math.min(PET_SIZE_MAX, Math.max(PET_SIZE_MIN, stepped));
 }

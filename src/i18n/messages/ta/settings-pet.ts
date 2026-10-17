@@ -99,4 +99,6 @@ export const taSettingsPet = {
   "pet.bubble.progressDone": "முடிந்தது",
   "slash.pet": "செல்லம்",
   "slash.petDesc": "டெஸ்க்டாப் செல்லத்தைக் காட்டு அல்லது மறை",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };

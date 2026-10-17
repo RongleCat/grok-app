@@ -99,4 +99,6 @@ export const jaSettingsPet = {
   "pet.bubble.progressDone": "完了",
   "slash.pet": "ペット",
   "slash.petDesc": "デスクトップペットの表示 / 非表示",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };

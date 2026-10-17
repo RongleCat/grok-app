@@ -475,3 +475,20 @@ html[data-pet-shell] .boot-gate {
     transform: translateX(240%);
   }
 }
+
+/* Settings · Pet — size slider + reset */
+.pet-size-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 220px;
+}
+.pet-size-slider input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.pet-size-slider .settings-wallpaper__scrim-value {
+  min-width: 4.5ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

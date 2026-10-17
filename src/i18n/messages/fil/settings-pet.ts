@@ -99,4 +99,6 @@ export const filSettingsPet = {
   "pet.bubble.progressDone": "Tapos na",
   "slash.pet": "Pet",
   "slash.petDesc": "Ipakita o itago ang desktop pet",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };

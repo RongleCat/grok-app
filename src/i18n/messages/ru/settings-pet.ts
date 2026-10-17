@@ -99,4 +99,6 @@ export const ruSettingsPet = {
   "pet.bubble.progressDone": "Завершено",
   "slash.pet": "Питомец",
   "slash.petDesc": "Показать или скрыть настольного питомца",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };

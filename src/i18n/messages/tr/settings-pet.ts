@@ -57,7 +57,7 @@ export const trSettingsPet = {
   "settings.pet.eyeColorDesc": "Otomatik, okunur bir karşıtlık korur (siyah gövdede beyaz). Değiştirmek için herhangi bir renk seçin.",
   "settings.pet.eyeColor.auto": "Otomatik",
   "settings.pet.size": "Boyut",
-  "settings.pet.sizeDesc": "Katmanın ekrandaki boyutu.",
+  "settings.pet.sizeDesc": "Evcil hayvanın ekrandaki boyutu. Sürükleyerek ayarlayın; Sıfırla varsayılana döndürür.",
   "settings.pet.size.sm": "Küçük",
   "settings.pet.size.md": "Orta",
   "settings.pet.size.lg": "Büyük",
@@ -99,4 +99,6 @@ export const trSettingsPet = {
   "pet.bubble.progressDone": "Tamamlandı",
   "slash.pet": "Evcil hayvan",
   "slash.petDesc": "Masaüstü evcil hayvanını göster ya da gizle",
+  "settings.pet.size.px": "{n} px",
+  "settings.pet.size.reset": "Sıfırla",
 };

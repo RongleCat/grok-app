@@ -99,4 +99,6 @@ export const koSettingsPet = {
   "pet.bubble.progressDone": "완료됨",
   "slash.pet": "펫",
   "slash.petDesc": "데스크톱 펫 표시 또는 숨기기",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };

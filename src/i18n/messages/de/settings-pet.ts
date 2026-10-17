@@ -99,4 +99,6 @@ export const deSettingsPet = {
   "pet.bubble.progressDone": "Abgeschlossen",
   "slash.pet": "Pet",
   "slash.petDesc": "Desktop-Pet ein- oder ausblenden",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };

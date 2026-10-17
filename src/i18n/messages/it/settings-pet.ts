@@ -99,4 +99,6 @@ export const itSettingsPet = {
   "pet.bubble.progressDone": "Completato",
   "slash.pet": "Pet",
   "slash.petDesc": "Mostra o nascondi il pet desktop",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };

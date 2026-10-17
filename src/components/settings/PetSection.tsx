@@ -17,7 +17,10 @@ import {
   PET_COLOR_SWATCH,
   PET_EXPRESSIONS,
   PET_PICKER_SHAPES,
-  PET_SIZES,
+  PET_SIZE_DEFAULT,
+  PET_SIZE_MAX,
+  PET_SIZE_MIN,
+  PET_SIZE_STEP,
   isPetColor,
   isPetShape,
   normalizePetBubbleDismissSec,
@@ -127,6 +130,34 @@ export function PetSection() {
     }
   }, []);
 
+  // Slider drags update a local draft; the overlay resizes once the thumb settles.
+  const [sizeDraft, setSizeDraft] = useState<number | null>(null);
+  const sizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+  const queueSize = useCallback(
+    (raw: number, now = false) => {
+      const n = normalizePetSize(raw);
+      setSizeDraft(n);
+      if (sizeTimer.current) clearTimeout(sizeTimer.current);
+      const run = () => {
+        sizeTimer.current = null;
+        void Promise.resolve(commit({ ...prefsRef.current, sizePx: n })).finally(() =>
+          setSizeDraft(null),
+        );
+      };
+      if (now) run();
+      else sizeTimer.current = setTimeout(run, 180);
+    },
+    [commit],
+  );
+  useEffect(
+    () => () => {
+      if (sizeTimer.current) clearTimeout(sizeTimer.current);
+    },
+    [],
+  );
+
   const shown = petWindowOn(prefs);
   const shape: PetShape = isPetShape(prefs.shape) ? prefs.shape : "hex";
   const color: PetColor = isPetColor(prefs.color) ? prefs.color : "green";
@@ -175,22 +206,30 @@ export function PetSection() {
                 label={t("settings.pet.size")}
                 tip={t("settings.pet.sizeDesc")}
               />
-              <Select
-                value={String(sizePx)}
-                onChange={(v) =>
-                  void commit({ ...prefs, sizePx: normalizePetSize(Number(v)) })
-                }
-                options={PET_SIZES.map((n) => ({
-                  value: String(n),
-                  label:
-                    n === 96
-                      ? t("settings.pet.size.sm")
-                      : n === 160
-                        ? t("settings.pet.size.lg")
-                        : t("settings.pet.size.md"),
-                }))}
-                aria-label={t("settings.pet.size")}
-              />
+<div className="pet-size-slider">
+                <input
+                  type="range"
+                  className="settings-wallpaper__scrim-range"
+                  min={PET_SIZE_MIN}
+                  max={PET_SIZE_MAX}
+                  step={PET_SIZE_STEP}
+                  value={sizeDraft ?? sizePx}
+                  aria-label={t("settings.pet.size")}
+                  aria-valuetext={t("settings.pet.size.px", { n: sizeDraft ?? sizePx })}
+                  onChange={(e) => queueSize(Number(e.target.value))}
+                />
+                <span className="settings-wallpaper__scrim-value" aria-hidden>
+                  {t("settings.pet.size.px", { n: sizeDraft ?? sizePx })}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm pet-size-slider__reset"
+                  disabled={sizePx === PET_SIZE_DEFAULT && sizeDraft == null}
+                  onClick={() => queueSize(PET_SIZE_DEFAULT, true)}
+                >
+                  {t("settings.pet.size.reset")}
+                </button>
+              </div>
             </div>
           </div>
 

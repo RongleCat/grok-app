@@ -99,4 +99,6 @@ export const frSettingsPet = {
   "pet.bubble.progressDone": "Terminé",
   "slash.pet": "Familier",
   "slash.petDesc": "Afficher ou masquer le familier de bureau",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };

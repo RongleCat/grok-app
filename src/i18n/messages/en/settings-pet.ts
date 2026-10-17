@@ -63,7 +63,7 @@ export const enSettingsPet = {
     "Auto keeps a readable contrast (white on a black body). Pick any color to override.",
   "settings.pet.eyeColor.auto": "Auto",
   "settings.pet.size": "Size",
-  "settings.pet.sizeDesc": "On-screen size of the overlay.",
+  "settings.pet.sizeDesc": "On-screen size of the pet. Drag to resize; Reset returns to the default.",
   "settings.pet.size.sm": "Small",
   "settings.pet.size.md": "Medium",
   "settings.pet.size.lg": "Large",
@@ -105,4 +105,6 @@ export const enSettingsPet = {
   "pet.bubble.progressDone": "Completed",
   "slash.pet": "Pet",
   "slash.petDesc": "Show or hide the desktop pet",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };

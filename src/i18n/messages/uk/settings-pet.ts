@@ -99,4 +99,6 @@ export const ukSettingsPet = {
   "pet.bubble.progressDone": "Завершено",
   "slash.pet": "Улюбленець",
   "slash.petDesc": "Показати або сховати настільного улюбленця",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };

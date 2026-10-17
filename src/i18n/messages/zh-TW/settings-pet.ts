@@ -105,4 +105,6 @@ export const zhTWSettingsPet = {
   "pet.bubble.progressDone": "已完成",
   "slash.pet": "寵物",
   "slash.petDesc": "顯示或隱藏桌面寵物",
+  "settings.pet.size.px": "{n}px",
+  "settings.pet.size.reset": "Reset",
 };
