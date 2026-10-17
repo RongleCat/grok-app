@@ -258,6 +258,14 @@ const HANDSHAKE_TIMEOUT_SECS: u64 = 45;
 /// context several times) before replying. Field log: 37s ok / >45s timeout on
 /// the same session. Give it its own, larger budget.
 const SESSION_LOAD_TIMEOUT_SECS: u64 = 150;
+
+/// Whether to ask the agent to skip transcript replay on `session/load`.
+fn session_load_no_replay() -> bool {
+    !matches!(
+        std::env::var("GROK_APP_FULL_REPLAY").ok().as_deref(),
+        Some("1") | Some("true")
+    )
+}
 const AUTH_TIMEOUT_SECS: u64 = 12;
 /// Max wait for a single stdin write (JSON-RPC line). A wedged agent with a full
 /// pipe used to block forever here — which froze interject ("引导"), cancel, and
@@ -2635,7 +2643,15 @@ impl AcpClient {
                         json!({
                             "sessionId": rid,
                             "cwd": cwd,
-                            "mcpServers": mcp_servers.clone()
+                            "mcpServers": mcp_servers.clone(),
+                            // grok-build honours `_meta.noReplay` on session/load
+                            // (mvp_agent/session_setup.rs AttachPolicy): the agent keeps
+                            // full native context but skips streaming the transcript back.
+                            // The App already renders history from its own journal and
+                            // reconciles from chat_history after the turn, so the replay
+                            // only cost time (37s+ / 45s timeouts on ~200k-token chats).
+                            // Older CLIs ignore unknown `_meta`. Opt out: GROK_APP_FULL_REPLAY=1.
+                            "_meta": { "noReplay": session_load_no_replay() }
                         }),
                         SESSION_LOAD_TIMEOUT_SECS,
                     )
