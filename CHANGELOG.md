@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- Windows Pinyin candidates stay at the caret after selecting chat text or switching windows.
+
+**中文 · 修复**
+- 选中聊天文字或切换窗口后，Windows 拼音候选框仍保持在输入光标旁边。
+
 ## [0.2.41] - 2026-10-14
 
 > **Highlight:** One chat can follow several pull requests, and an update continues it.

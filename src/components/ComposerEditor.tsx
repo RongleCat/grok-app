@@ -45,6 +45,7 @@ import {
   type DraftSegment,
 } from "@/lib/draftDoc";
 import { detectAppPlatform } from "@/lib/appPlatform";
+import { restoreWindowsImeFocus } from "@/lib/windowsImeFocus";
 import {
   hugePlainTextFileName,
   hugePlainTextToFile,
@@ -1533,7 +1534,9 @@ export const ComposerEditor = memo(function ComposerEditor({
         suppressContentEditableWarning
         onFocus={() => {
           focused.current = true;
+          restoreWindowsImeFocus();
         }}
+        onPointerDownCapture={restoreWindowsImeFocus}
         onBlur={() => {
           focused.current = false;
         }}
