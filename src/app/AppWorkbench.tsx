@@ -443,6 +443,7 @@ import {
   type ExecuteSendFromQueue,
 } from "@/hooks/useSendQueue";
 import { parsePetQuickPrompt, type PetQuickPrompt } from "@/lib/api/petQuick";
+import { runPetQuickPrompt } from "@/lib/petQuickPromptRun";
 import {
   buildSlashCatalog,
   countSlashByKind,
@@ -10728,39 +10729,12 @@ export function AppWorkbench() {
     openDoctor: () => {
       void openDoctor();
     },
-    // Pet quick bar: open (or start) the chat, then send without raising the
-    // window unless the bar asked to. Hidden WebView2 throttles rAF, so the
-    // settle wait uses a timer.
     quickPrompt: (p: PetQuickPrompt) => {
-      void (async () => {
-        const settle = () => new Promise((r) => setTimeout(r, 60));
-        let target: string | null = null;
-        if (p.sessionId) {
-          let row = sessions.find((s) => s.id === p.sessionId) ?? null;
-          if (!row) {
-            try {
-              const hit = (await api.sessionsList()).find((s) => s.id === p.sessionId);
-              if (hit) row = mapSessionListRow(hit);
-            } catch {
-              /* fall through to new chat */
-            }
-          }
-          if (row) {
-            const proj = projects.find((pr) => pr.id === row!.projectId) ?? null;
-            await openSession(row, proj);
-            target = row.id;
-          }
-        }
-        if (!target) await newChat();
-        await settle();
-        const ok = await executeSendLatestRef.current({
-          storedDisplay: p.text,
-          att: [],
-          goalMode: false,
-          targetSessionId: target,
-        });
-        if (!ok) showToast(tr("pet.quick.sendFailedToast"), 4200);
-      })();
+      void runPetQuickPrompt(p, {
+        sessions, projects, openSession, newChat, showToast, tr,
+        sessionsList: api.sessionsList, mapRow: mapSessionListRow,
+        send: (o) => executeSendLatestRef.current(o),
+      });
     },
   };
 
