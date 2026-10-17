@@ -10,6 +10,36 @@ use std::sync::Mutex;
 
 use tauri::{AppHandle, LogicalSize, Manager, Monitor};
 
+/// Physical height tao adds for the native menu on the frameless main window.
+/// The bar is not drawn; `setSize` must ask for this much less height or the
+/// client grows by it. `0` on macOS, Linux, and decorated windows.
+#[tauri::command]
+pub fn main_hidden_menu_px(app: AppHandle) -> u32 {
+    #[cfg(windows)]
+    {
+        hidden_menu_bar_px(&app)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = app;
+        0
+    }
+}
+
+#[cfg(windows)]
+fn hidden_menu_bar_px(app: &AppHandle) -> u32 {
+    let Some(win) = app.get_webview_window("main") else {
+        return 0;
+    };
+    if win.is_decorated().unwrap_or(true) {
+        return 0;
+    }
+    let Ok(hwnd) = win.hwnd() else {
+        return 0;
+    };
+    crate::win_shell::hidden_menu_bar_px(hwnd)
+}
+
 /// Comfort fallback when the window config omits min size.
 const FALLBACK_MIN_W: f64 = 900.0;
 const FALLBACK_MIN_H: f64 = 600.0;
