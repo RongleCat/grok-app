@@ -1281,8 +1281,9 @@ pub fn pet_prefs_get() -> PetPrefs {
     normalize_prefs(load_prefs())
 }
 
+/// Async: may create the overlay webview (see pet_quick.rs on main-thread deadlock).
 #[tauri::command]
-pub fn pet_prefs_set(app: AppHandle, prefs: PetPrefs) -> Result<PetPrefs, String> {
+pub async fn pet_prefs_set(app: AppHandle, prefs: PetPrefs) -> Result<PetPrefs, String> {
     persist_window_pos(&app);
     let prev = load_prefs();
     let mut next = normalize_prefs(prefs);
@@ -1302,8 +1303,9 @@ pub fn pet_prefs_set(app: AppHandle, prefs: PetPrefs) -> Result<PetPrefs, String
     Ok(saved)
 }
 
+/// Async: may create the overlay webview (see pet_quick.rs on main-thread deadlock).
 #[tauri::command]
-pub fn pet_show(app: AppHandle) -> Result<PetPrefs, String> {
+pub async fn pet_show(app: AppHandle) -> Result<PetPrefs, String> {
     show_pet(&app)?;
     let prefs = normalize_prefs(load_prefs());
     emit_prefs(&app, &prefs);
@@ -1318,8 +1320,9 @@ pub fn pet_hide(app: AppHandle) -> Result<PetPrefs, String> {
     Ok(prefs)
 }
 
+/// Async: may create the overlay webview (see pet_quick.rs on main-thread deadlock).
 #[tauri::command]
-pub fn pet_toggle(app: AppHandle) -> Result<PetPrefs, String> {
+pub async fn pet_toggle(app: AppHandle) -> Result<PetPrefs, String> {
     // Follow the real HWND, not just prefs — File>Close / failed hide used to
     // invert the next /pet click so the overlay looked stuck.
     if overlay_is_up(&app) {

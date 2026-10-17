@@ -2,6 +2,10 @@
 //! pet, the tray, or a global hotkey. It lists recent chats, shows the
 //! focused chat's state, and hands prompts to the main workbench over
 //! `pet://quick-prompt` (the workbench owns sending; this window stays slim).
+//!
+//! Window-creating commands MUST be `async`: a sync Tauri command runs on the
+//! main thread, and building a WebView2 window there deadlocks every later
+//! IPC call (Connect, Stop and the window buttons all hang).
 
 use std::sync::Mutex;
 
@@ -91,7 +95,12 @@ pub fn global_shortcut_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     Builder::new()
         .with_handler(|app, _shortcut, event| {
             if event.state() == ShortcutState::Pressed {
-                let _ = toggle_quick(app);
+                // Never build a webview on the main thread from an event
+                // callback: WebView2 creation there deadlocks Host IPC.
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = toggle_quick(&app);
+                });
             }
         })
         .build()
@@ -267,24 +276,24 @@ pub async fn pet_quick_recent() -> Vec<QuickRecent> {
 }
 
 #[tauri::command]
-pub fn pet_quick_show(app: AppHandle) -> Result<(), String> {
+pub async fn pet_quick_show(app: AppHandle) -> Result<(), String> {
     show_quick(&app)
 }
 
 #[tauri::command]
-pub fn pet_quick_hide(app: AppHandle) {
+pub async fn pet_quick_hide(app: AppHandle) {
     hide_quick(&app);
 }
 
 #[tauri::command]
-pub fn pet_quick_toggle(app: AppHandle) -> Result<(), String> {
+pub async fn pet_quick_toggle(app: AppHandle) -> Result<(), String> {
     toggle_quick(&app)
 }
 
 /// Hand a prompt to the workbench. `session_id: None` = new chat.
 /// `open_main` also raises the workbench on that chat.
 #[tauri::command]
-pub fn pet_quick_send(
+pub async fn pet_quick_send(
     app: AppHandle,
     session_id: Option<String>,
     text: String,
@@ -318,7 +327,7 @@ pub fn pet_quick_hotkey_get() -> String {
 /// Save + re-register. Returns the stored accelerator; an invalid one is
 /// rejected and the previous hotkey stays registered.
 #[tauri::command]
-pub fn pet_quick_hotkey_set(app: AppHandle, hotkey: String) -> Result<String, String> {
+pub async fn pet_quick_hotkey_set(app: AppHandle, hotkey: String) -> Result<String, String> {
     let accel = normalize_hotkey(&hotkey);
     let prev = normalize_hotkey(&load_quick_prefs().hotkey);
     if let Err(e) = register_hotkey(&app, &accel) {

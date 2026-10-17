@@ -36,3 +36,21 @@ describe("pet quick bar", () => {
     expect(petQuickBadge(null).tone).toBe("idle");
   });
 });
+
+describe("pet window commands stay off the main thread", () => {
+  it("window-creating commands are async (WebView2 main-thread deadlock)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const root = join(__dirname, "../../../src-tauri/src");
+    const quick = readFileSync(join(root, "pet_quick.rs"), "utf8");
+    const pet = readFileSync(join(root, "pet_window.rs"), "utf8");
+    for (const f of ["pet_quick_show", "pet_quick_toggle", "pet_quick_send", "pet_quick_hide"]) {
+      expect(quick).toContain(`pub async fn ${f}(`);
+    }
+    for (const f of ["pet_show", "pet_toggle", "pet_prefs_set"]) {
+      expect(pet).toContain(`pub async fn ${f}(`);
+    }
+    // Hotkey callback hands window work to the async runtime.
+    expect(quick).toMatch(/async_runtime::spawn\(async move \{\s*let _ = toggle_quick/);
+  });
+});
