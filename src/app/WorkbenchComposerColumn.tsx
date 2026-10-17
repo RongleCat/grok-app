@@ -148,7 +148,7 @@ export type WorkbenchComposerColumnProps = {
   liveAt: LiveTokenQuery;
   liveSlash: LiveTokenQuery;
   liveVoiceOpen: boolean;
-  locale: "en" | "de" | "es" | "fil" | "fr" | "id" | "it" | "ja" | "ko" | "pt-BR" | "ru" | "ta" | "uk" | "zh" | "zh-TW";
+  locale: "en" | "de" | "es" | "fil" | "fr" | "id" | "it" | "ja" | "ko" | "pt-BR" | "ru" | "ta" | "tr" | "uk" | "zh" | "zh-TW";
   mode: string;
   modelId: string;
   onComposerContextMenu: (e: ReactMouseEvent) => void;

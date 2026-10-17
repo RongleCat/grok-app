@@ -62,6 +62,7 @@ describe("i18n catalog", () => {
         "pt-BR",
         "ru",
         "ta",
+        "tr",
         "uk",
         "zh",
         "zh-TW",
@@ -358,6 +359,7 @@ describe("resolveLocaleFromSystem", () => {
     expect(resolveLocaleFromSystem("fr-CA")).toBe("fr");
     expect(resolveLocaleFromSystem("it-IT")).toBe("it");
     expect(resolveLocaleFromSystem("uk-UA")).toBe("uk");
+    expect(resolveLocaleFromSystem("tr-TR")).toBe("tr");
     expect(resolveLocaleFromSystem("id-ID")).toBe("id");
     expect(resolveLocaleFromSystem("fil-PH")).toBe("fil");
     expect(resolveLocaleFromSystem("ta-IN")).toBe("ta");

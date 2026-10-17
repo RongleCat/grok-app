@@ -2312,6 +2312,7 @@ export function GeneralSection() {
                     { value: "it", label: "Italiano" },
                     { value: "pt-BR", label: "Português (Brasil)" },
                     { value: "ru", label: "Русский" },
+                    { value: "tr", label: "Türkçe" },
                     { value: "uk", label: "Українська" },
                     { value: "ta", label: "தமிழ்" },
                     { value: "ja", label: "日本語" },

@@ -213,6 +213,7 @@ pub fn windows_langid_to_tag(id: u16) -> Option<&'static str> {
     const LANG_INDONESIAN: u16 = 0x21;
     const LANG_UKRAINIAN: u16 = 0x22;
     const LANG_TAMIL: u16 = 0x49;
+    const LANG_TURKISH: u16 = 0x1f;
     const LANG_FILIPINO: u16 = 0x64;
 
     let primary = id & 0x3ff;
@@ -237,6 +238,8 @@ pub fn windows_langid_to_tag(id: u16) -> Option<&'static str> {
         LANG_UKRAINIAN => Some("uk"),
 
         LANG_TAMIL => Some("ta"),
+        // Webview catalog only; the native tray falls back to English for `tr`.
+        LANG_TURKISH => Some("tr"),
         LANG_FILIPINO => Some("fil"),
         _ => None,
     }

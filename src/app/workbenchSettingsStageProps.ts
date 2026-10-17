@@ -98,7 +98,7 @@ export type WorkbenchSettingsStageProps = {
   lastCliChecksumVerified: boolean | null;
   lastProcessLimit: ProcessLimitEvent | null;
   launchAtLogin: boolean;
-  locale: "id" | "en" | "de" | "es" | "fil" | "fr" | "it" | "ja" | "ko" | "pt-BR" | "ru" | "ta" | "uk" | "zh" | "zh-TW";
+  locale: "id" | "en" | "de" | "es" | "fil" | "fr" | "it" | "ja" | "ko" | "pt-BR" | "ru" | "ta" | "tr" | "uk" | "zh" | "zh-TW";
   localePreference: LocalePreference;
   loginHint: string | null;
   manualCliPath: string;
@@ -174,7 +174,7 @@ export type WorkbenchSettingsStageProps = {
   setIncludePartialMessages: Dispatch<SetStateAction<boolean>>;
   setKeepTrayForSchedules: Dispatch<SetStateAction<boolean>>;
   setLaunchAtLogin: Dispatch<SetStateAction<boolean>>;
-  setLocale: Dispatch<SetStateAction<"id" | "en" | "de" | "es" | "fil" | "fr" | "it" | "ja" | "ko" | "pt-BR" | "ru" | "ta" | "uk" | "zh" | "zh-TW">>;
+  setLocale: Dispatch<SetStateAction<"id" | "en" | "de" | "es" | "fil" | "fr" | "it" | "ja" | "ko" | "pt-BR" | "ru" | "ta" | "tr" | "uk" | "zh" | "zh-TW">>;
   setLocalePreference: Dispatch<SetStateAction<LocalePreference>>;
   setManualCliPath: Dispatch<SetStateAction<string>>;
   setMaxAgentTurns: Dispatch<SetStateAction<number>>;

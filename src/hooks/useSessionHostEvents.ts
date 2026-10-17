@@ -180,7 +180,7 @@ export type SessionHostEventsCtx = {
   pendingCompactBeforeRef: RefObject<CompactPendingBefore | null>;
   clearPendingGatesRef: RefObject<(sessionId?: string | null | undefined) => void>;
   notifyPrefsRef: RefObject<{ notifyOnTurnDone: boolean; notifyOnPermission: boolean; }>;
-  localeRef: RefObject<"en" | "de" | "es" | "fil" | "fr" | "id" | "it" | "ja" | "ko" | "pt-BR" | "ru" | "ta" | "uk" | "zh" | "zh-TW">;
+  localeRef: RefObject<"en" | "de" | "es" | "fil" | "fr" | "id" | "it" | "ja" | "ko" | "pt-BR" | "ru" | "ta" | "tr" | "uk" | "zh" | "zh-TW">;
   trRef: RefObject<TFn>;
   tr: TFn;
   modeRef: RefObject<string>;

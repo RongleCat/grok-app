@@ -93,6 +93,8 @@ const LOCALE_ALIASES: Readonly<Record<string, Locale>> = {
   "ru-ru": "ru",
   "ta-in": "ta",
   "ta-lk": "ta",
+  "tr-tr": "tr",
+  "tr-cy": "tr",
   "uk-ua": "uk",
   "zh-cn": "zh",
   "zh-hans": "zh",
