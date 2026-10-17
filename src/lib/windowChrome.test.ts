@@ -54,7 +54,9 @@ describe("tauriDragRegion", () => {
     expect(sidebar).not.toMatch(
       /\[data-tauri-drag-region="false"\][^{]*\{[^}]*no-drag/,
     );
-    expect(sidebar).not.toMatch(
+    // Windows: WebView2 CSS drag regions stick input, so Windows opts
+    // out of CSS caption drag and uses startDragging() instead.
+    expect(sidebar).toMatch(
       /html\.platform-win \[data-tauri-drag-region\][\s\S]{0,80}no-drag/,
     );
     expect(settings).not.toMatch(
