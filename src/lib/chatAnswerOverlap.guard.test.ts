@@ -63,11 +63,14 @@ describe("chat answer overlap guard", () => {
       /padding-inline-end:\s*max\(\s*20px,\s*calc\([\s\S]*100cqi\s*-\s*var\(--chat-width-max/,
     );
     expect(innerBlock).toContain('html[data-chat-width="full"] .lobe-chat__inner');
-    // Composer clearance must be a real box in scrollHeight, not only
-    // padding-bottom (WKWebView drops that from scrollHeight → last lines
-    // park under the floating composer).
+    // Composer sits in flow below the scrollport: the end pad
+    // is still a real box in scrollHeight (never bare padding-bottom), now
+    // just a small breathing gap — no composer clearance left to fake.
     expect(innerBlock).toMatch(
-      /\.lobe-chat__end-pad\s*\{[^}]*height:\s*calc\(\s*var\(--composer-float-pad/,
+      /\.lobe-chat__end-pad\s*\{[^}]*height:\s*20px/,
+    );
+    expect(innerBlock).toMatch(
+      /\.lobe-chat__live-tail\s*\{[^}]*flex-shrink:\s*0/s,
     );
   });
 

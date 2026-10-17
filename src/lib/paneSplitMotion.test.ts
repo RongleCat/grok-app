@@ -348,7 +348,7 @@ describe("desktop hidden CSS must not force width 0", () => {
     const composerFloor = String(MAIN_CHAT_MIN_WIDTH);
     expect(chat).toMatch(
       new RegExp(
-        String.raw`\.composer-wrap--float\s*\{[^}]*right:\s*min\(\s*var\(--sw-aside-occupied, 0px\),\s*max\(0px, calc\(100% - ${composerFloor}px\)\)`,
+        String.raw`\.composer-wrap--float\s*\{[^}]*margin-right:\s*min\(\s*var\(--sw-aside-occupied, 0px\),\s*max\(0px, calc\(100% - ${composerFloor}px\)\)`,
         "s",
       ),
     );

@@ -19,11 +19,17 @@ import {
   shouldBumpStickOnBusyEdge,
   stabilizeStickUserId,
   shouldClampPinnedOverscroll,
+  shouldEscapePinnedScroll,
   shouldClampPinnedStreamDrift,
+  shouldRecoverPinnedLayoutClamp,
+  shouldRecoverPinnedClampBeforePaint,
+  STICK_CLAMP_GUARD_INPUT_QUIET_MS,
+  PINNED_LAYOUT_CLAMP_RECOVER_PX,
   shouldForcePinnedSnapOnOpen,
   shouldReleaseStickOnDistanceFromBottom,
   shouldSnapPinnedLayoutToBottom,
   shouldSettleBottomRebound,
+  shouldEscapePinnedWheel,
   isConversationOpenFollowActive,
   transcriptStickIdentity,
   shouldFollowPinnedMediaReveal,
@@ -84,6 +90,50 @@ describe("bottom overscroll rebound", () => {
     expect(STICK_BOTTOM_REBOUND_INTENT_MS).toBeGreaterThan(
       STICK_BOTTOM_REBOUND_SETTLE_MS,
     );
+  });
+});
+
+describe("shouldEscapePinnedWheel", () => {
+  it("escapes on any upward tick while the transcript overflows", () => {
+    expect(
+      shouldEscapePinnedWheel({
+        pinned: true,
+        escaped: false,
+        deltaY: -1,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not escape downward ticks or already-escaped / no-overflow", () => {
+    expect(
+      shouldEscapePinnedWheel({
+        pinned: true,
+        escaped: false,
+        deltaY: 8,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      }),
+    ).toBe(false);
+    expect(
+      shouldEscapePinnedWheel({
+        pinned: true,
+        escaped: true,
+        deltaY: -20,
+        scrollHeight: 1000,
+        clientHeight: 400,
+      }),
+    ).toBe(false);
+    expect(
+      shouldEscapePinnedWheel({
+        pinned: true,
+        escaped: false,
+        deltaY: -20,
+        scrollHeight: 400,
+        clientHeight: 400,
+      }),
+    ).toBe(false);
   });
 });
 
@@ -307,6 +357,7 @@ describe("shouldSnapToTailOnTurnSettle", () => {
       "utf8",
     );
     expect(src).toContain("shouldSnapToTailOnTurnSettle");
+    expect(src).toContain("splitChatLiveTail");
   });
 });
 
@@ -659,5 +710,195 @@ describe("stabilizeStickUserId", () => {
         conversationChanged: true,
       }),
     ).toBe("other-user");
+  });
+});
+
+describe("shouldRecoverPinnedLayoutClamp", () => {
+  it("recovers a pinned viewport parked far off the bottom by a layout clamp", () => {
+    // scrollHeight 9000, clientHeight 848 → maxTop 8152; clamp parked at 7889
+    expect(
+      shouldRecoverPinnedLayoutClamp({
+        pinned: true,
+        escaped: false,
+        scrollTop: 7889,
+        scrollHeight: 9000,
+        clientHeight: 848,
+      }),
+    ).toBe(true);
+  });
+
+  it("ignores sub-threshold drift while pinned", () => {
+    const maxTop = bottomScrollTop(9000, 848);
+    expect(
+      shouldRecoverPinnedLayoutClamp({
+        pinned: true,
+        escaped: false,
+        scrollTop: maxTop - (PINNED_LAYOUT_CLAMP_RECOVER_PX - 1),
+        scrollHeight: 9000,
+        clientHeight: 848,
+      }),
+    ).toBe(false);
+  });
+
+  it("never fires once the user escaped (reading history)", () => {
+    expect(
+      shouldRecoverPinnedLayoutClamp({
+        pinned: false,
+        escaped: true,
+        scrollTop: 100,
+        scrollHeight: 9000,
+        clientHeight: 848,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("shouldRecoverPinnedClampBeforePaint", () => {
+  it("restores a browser-clamped pinned viewport while input-quiet", () => {
+    // #1257: scrollTop 9460 clamped to 8182 (dist 1278) with no JS writer,
+    // 2.6s after the last trackpad input — must recover before paint.
+    expect(
+      shouldRecoverPinnedClampBeforePaint({
+        pinned: true,
+        escaped: false,
+        scrollTop: 8182,
+        scrollHeight: 10307,
+        clientHeight: 847,
+        msSinceUserInput: 2600,
+      }),
+    ).toBe(true);
+  });
+
+  it("never fights a fresh user gesture", () => {
+    expect(
+      shouldRecoverPinnedClampBeforePaint({
+        pinned: true,
+        escaped: false,
+        scrollTop: 8182,
+        scrollHeight: 10307,
+        clientHeight: 847,
+        msSinceUserInput: STICK_CLAMP_GUARD_INPUT_QUIET_MS - 1,
+      }),
+    ).toBe(false);
+  });
+
+  it("stays silent for sub-threshold drift and after escape", () => {
+    const maxTop = bottomScrollTop(10307, 847);
+    expect(
+      shouldRecoverPinnedClampBeforePaint({
+        pinned: true,
+        escaped: false,
+        scrollTop: maxTop - (PINNED_LAYOUT_CLAMP_RECOVER_PX - 1),
+        scrollHeight: 10307,
+        clientHeight: 847,
+        msSinceUserInput: 5000,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRecoverPinnedClampBeforePaint({
+        pinned: false,
+        escaped: true,
+        scrollTop: 8182,
+        scrollHeight: 10307,
+        clientHeight: 847,
+        msSinceUserInput: 5000,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("shouldEscapePinnedScroll hard-bottom clamp exemption (#1257)", () => {
+  it("does not escape an input-quiet scroll-up from the hard bottom (layout clamp)", () => {
+    // #1257: pin write 10510, maxTop 10511 (gutter drift) — the overscroll
+    // exemption missed by 1px; the clamp to 9623 then escaped and parked the
+    // reader mid-message with no recovery.
+    expect(
+      shouldEscapePinnedScroll({
+        pinned: true,
+        escaped: false,
+        scrollTop: 9623,
+        previousScrollTop: 10510,
+        scrollHeight: 10957,
+        clientHeight: 446,
+        msSinceUserInput: 211,
+      }),
+    ).toBe(false);
+  });
+
+  it("still escapes a real gesture right after input", () => {
+    expect(
+      shouldEscapePinnedScroll({
+        pinned: true,
+        escaped: false,
+        scrollTop: 9623,
+        previousScrollTop: 10510,
+        scrollHeight: 10957,
+        clientHeight: 446,
+        msSinceUserInput: 40,
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps the exemption alive while the stream grows the max (#1257 mid-stream)", () => {
+    // Pin write landed on the old max (14727-421); by the time the clamp
+    // scroll event fires the stream has grown the max to 14334 — the old
+    // write must still count as "on the hard bottom at write time".
+    expect(
+      shouldEscapePinnedScroll({
+        pinned: true,
+        escaped: false,
+        scrollTop: 14157,
+        previousScrollTop: 14306,
+        scrollHeight: 14755,
+        previousScrollHeight: 14727,
+        clientHeight: 421,
+        msSinceUserInput: 6600,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not exempt a previous position away from the hard bottom", () => {
+    expect(
+      shouldEscapePinnedScroll({
+        pinned: true,
+        escaped: false,
+        scrollTop: 9623,
+        previousScrollTop: 10300,
+        scrollHeight: 10957,
+        clientHeight: 446,
+        msSinceUserInput: 5000,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("shouldSnapToTailOnTurnSettle near-tail recovery (#1257)", () => {
+  const settle = (over: Partial<Parameters<typeof shouldSnapToTailOnTurnSettle>[0]>) =>
+    shouldSnapToTailOnTurnSettle({
+      wasBusy: true,
+      nowBusy: false,
+      wasPinned: false,
+      ...over,
+    });
+
+  it("snaps a lost pin that still sits near the tail", () => {
+    // Pin lost to a clamp/remount race mid-turn; tail must not stay hidden
+    // under the floating composer when the turn finishes.
+    expect(settle({ distFromBottom: 800, snapWithinPx: 1200 })).toBe(true);
+  });
+
+  it("never yanks a deep history reader back to the tail", () => {
+    expect(settle({ distFromBottom: 5000, snapWithinPx: 1200 })).toBe(false);
+  });
+
+  it("keeps the classic pinned path and ignores the band when pinned", () => {
+    expect(settle({ wasPinned: true })).toBe(true);
+    expect(settle({ wasPinned: true, distFromBottom: 5000, snapWithinPx: 1200 })).toBe(
+      true,
+    );
+  });
+
+  it("does not snap an unpinned viewport when distance is unknown", () => {
+    expect(settle({})).toBe(false);
   });
 });

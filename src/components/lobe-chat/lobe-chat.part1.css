@@ -215,16 +215,25 @@
 }
 
 /*
- * Real box in the scroll height (not only padding-bottom on this column).
- * WKWebView often omits inner padding from scrollHeight, so stick-to-bottom
- * parks the last lines under the floating composer. This spacer is what
- * "at the bottom" actually clears.
+ * Real box in the scroll height (not only padding-bottom on this column) —
+ * keep it a spacer, just a small breathing gap now: the composer sits in
+ * flow below the scrollport, so the last line already ends
+ * above it and "at the bottom" needs no composer clearance anymore.
+ * --composer-float-pad stays meaningful for overlay chrome (env menu cap,
+ * back-to-bottom placement) via the same RO measurement.
  */
 .lobe-chat__end-pad {
   flex-shrink: 0;
   width: 100%;
-  height: calc(var(--composer-float-pad, 168px) + 20px);
+  height: 20px;
   pointer-events: none;
+}
+
+/* Streaming last row sits in document flow after the virtual window so
+ * token growth does not rebuild spacers / pin-snap. */
+.lobe-chat__live-tail {
+  flex-shrink: 0;
+  width: 100%;
 }
 
 html[data-chat-width="full"] .lobe-chat__inner,
