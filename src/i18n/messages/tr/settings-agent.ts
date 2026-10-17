@@ -1,4 +1,4 @@
-/** tr messages — domain: settings-agent. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: settings-agent. */
 export const trSettingsAgent = {
   "settings.todoGate": "Todo gate",
   "settings.todoGateDesc": "When the agent tries to end a turn with pending or in-progress todos, Grok Build can nudge before handing control back (CLI --todo-gate, 0.2.117+). Overrides remote todo_gate_enabled; default off. Independent mode also writes agent-home todo_gate_enabled. Soft-respawns after change.",

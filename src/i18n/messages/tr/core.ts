@@ -1,4 +1,4 @@
-/** tr messages — domain: core. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: core. */
 export const trCore = {
   "app.name": "Grok",
   "image.loadingOriginal": "Orijinal yükleniyor...",

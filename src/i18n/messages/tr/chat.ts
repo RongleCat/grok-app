@@ -1,4 +1,4 @@
-/** tr messages — domain: chat. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: chat. */
 export const trChat = {
   "message.rewindHere": "Buraya geri sar",
   "message.forkHere": "Buradan dallandır",

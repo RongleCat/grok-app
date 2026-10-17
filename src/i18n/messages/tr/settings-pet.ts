@@ -1,4 +1,4 @@
-/** tr messages — domain: settings-pet. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: settings-pet. */
 export const trSettingsPet = {
   "settings.nav.pet": "Pet",
   "settings.tab.petLook": "Look",

@@ -1,4 +1,4 @@
-/** tr messages — domain: errors. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: errors. */
 export const trErrors = {
   "error.details": "Ayrıntılar",
   "error.hideDetails": "Ayrıntıları gizle",

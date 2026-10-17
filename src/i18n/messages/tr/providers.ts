@@ -1,4 +1,4 @@
-/** tr messages — domain: providers. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: providers. */
 export const trProviders = {
   "prov.emptyTitle": "No providers yet",
   "prov.detailEmpty": "Select a provider or add a new one.",

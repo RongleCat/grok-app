@@ -1,4 +1,4 @@
-/** tr messages — domain: doctor. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: doctor. */
 export const trDoctor = {
   "setup.title": "Grok'a hoş geldiniz",
   "setup.subtitle": "MIT · Unofficial desktop workbench for Grok Build",

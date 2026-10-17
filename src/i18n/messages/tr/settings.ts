@@ -1,4 +1,4 @@
-/** tr messages — domain: settings. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: settings. */
 export const trSettings = {
   "settings.sessionMuteSummary": "Muted sessions",
   "settings.sessionMuteSummaryDesc": "Desktop notifications are muted for these chats. Sidebar unread dots still appear when a background reply finishes.",

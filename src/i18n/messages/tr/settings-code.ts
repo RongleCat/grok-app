@@ -1,4 +1,4 @@
-/** tr messages — domain: settings-code. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: settings-code. */
 export const trSettingsCode = {
   "settings.codebaseIndexing": "Codebase indexing (code graph)",
   "settings.codebaseIndexing.path": "Config: {path}",

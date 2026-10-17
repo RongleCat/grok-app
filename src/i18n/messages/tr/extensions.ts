@@ -1,4 +1,4 @@
-/** tr messages — domain: extensions. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: extensions. */
 export const trExtensions = {
   "mcpModal.title": "MCP servers",
   "mcpModal.hint": "Servers discovered by Grok Build (inspect). Enable or disable them under Settings → Extensions; enabled servers inject into new agent sessions.",

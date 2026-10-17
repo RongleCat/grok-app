@@ -1,4 +1,4 @@
-/** tr messages — domain: settings-remoteIm. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: settings-remoteIm. */
 export const trSettingsRemoteIm = {
   "settings.remoteIm.sidebarAria": "IM messaging channels",
   "settings.remoteIm.bridgeOverview": "Bridge overview",

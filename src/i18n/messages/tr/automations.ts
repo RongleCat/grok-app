@@ -1,4 +1,4 @@
-/** tr messages — domain: automations. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: automations. */
 export const trAutomations = {
   "automations.menu": "Create automation",
   "automations.menuHint": "Schedule a recurring task",

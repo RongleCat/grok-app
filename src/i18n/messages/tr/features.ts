@@ -1,4 +1,4 @@
-/** tr messages — domain: features. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: features. */
 export const trFeatures = {
   "policy.ask": "Request approval",
   "policy.accept_edits": "Accept edits",

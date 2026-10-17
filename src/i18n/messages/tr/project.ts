@@ -1,4 +1,4 @@
-/** tr messages — domain: project. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: project. */
 export const trProject = {
   "project.pin": "Projeyi sabitle",
   "project.unpin": "Sabitlemeyi kaldır",

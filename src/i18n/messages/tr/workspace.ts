@@ -1,4 +1,4 @@
-/** tr messages — domain: workspace. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: workspace. */
 export const trWorkspace = {
   "resources.title": "Resources",
   "resources.files": "Files",

@@ -1,4 +1,4 @@
-/** tr messages — domain: settings-memory. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: settings-memory. */
 export const trSettingsMemory = {
   "settings.memoryBrowser": "Workspace memory files",
   "settings.memoryBrowserDesc": "Browse and search on-disk Grok Build memory for the current project ({GROK_HOME}/memory). Content search is capped; previews and snippets redact likely API keys. Open or reveal files in the system. Does not change chat history in the app.",

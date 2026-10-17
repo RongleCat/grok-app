@@ -1,4 +1,4 @@
-/** tr messages — domain: sidebar. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: sidebar. */
 export const trSidebar = {
   "sidebar.expand": "Kenar çubuğunu genişlet",
   "sidebar.collapse": "Kenar çubuğunu daralt",

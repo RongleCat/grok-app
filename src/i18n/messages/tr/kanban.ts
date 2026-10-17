@@ -1,4 +1,4 @@
-/** tr messages — domain: kanban. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: kanban. */
 export const trKanban = {
   "kanban.title": "Ajanlar",
   "kanban.open": "Ajan Panosu",

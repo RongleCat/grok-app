@@ -1,4 +1,4 @@
-/** tr messages — domain: tasks. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: tasks. */
 export const trTasks = {
   "tasks.title": "Tasks",
   "ops.palette": "Agent ops",

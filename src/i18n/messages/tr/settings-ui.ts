@@ -1,4 +1,4 @@
-/** tr messages — domain: settings-ui. Untranslated keys fall back to the English text (see scripts/i18n-coverage.mjs). */
+/** tr messages — domain: settings-ui. */
 export const trSettingsUi = {
   "settings.wallpaperSource.details.title": "Media details",
   "settings.wallpaperSource.details.unknown": "Not recorded",
