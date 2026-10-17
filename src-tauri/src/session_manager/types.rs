@@ -1915,7 +1915,7 @@ pub(super) struct DrainedAgents {
 /// Whole-connect budget: lock wait + spawn + initialize + load/new.
 /// Sibling-task timer so a blocking ACP poll cannot starve it; lock wait is
 /// inside this budget (otherwise Connecting never times out).
-pub const CONNECT_WALL_CLOCK_SECS: u64 = 90;
+pub const CONNECT_WALL_CLOCK_SECS: u64 = 240;
 
 /// Idle recycle / disconnect must not wait forever for `connect_lock`.
 pub const CONNECT_LOCK_WATCHDOG_SECS: u64 = 5;
@@ -1927,7 +1927,7 @@ pub const ACP_KILL_TIMEOUT_SECS: u64 = 5;
 /// Hard bound for initialize / openSession RPC inside `connect_lock`.
 /// Must stay below the 90s wall-clock so a wedged handshake fails closed
 /// without waiting for abort as the only backstop.
-pub const CONNECT_HANDSHAKE_BUDGET_SECS: u64 = 60;
+pub const CONNECT_HANDSHAKE_BUDGET_SECS: u64 = 200;
 
 /// Consecutive idle-recycle skips before `connect_lock busy` escalates from
 /// warn to error with holder context. Idle recycle ticks every 30s, so 12

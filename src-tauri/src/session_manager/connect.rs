@@ -2493,7 +2493,7 @@ mod connect_preserve_tests {
         assert!(stop_should_abort_handshake(SessionState::Connecting));
         assert!(!stop_should_abort_handshake(SessionState::Streaming));
         const { assert!(CONNECT_WALL_CLOCK_SECS >= 60) };
-        const { assert!(CONNECT_WALL_CLOCK_SECS <= 90) };
+        const { assert!(CONNECT_WALL_CLOCK_SECS <= 300) };
     }
 
     #[test]

@@ -254,6 +254,10 @@ struct Pending {
 }
 
 const HANDSHAKE_TIMEOUT_SECS: u64 = 45;
+/// session/load replays the full history (and may auto-compact a ~200k-token
+/// context several times) before replying. Field log: 37s ok / >45s timeout on
+/// the same session. Give it its own, larger budget.
+const SESSION_LOAD_TIMEOUT_SECS: u64 = 150;
 const AUTH_TIMEOUT_SECS: u64 = 12;
 /// Max wait for a single stdin write (JSON-RPC line). A wedged agent with a full
 /// pipe used to block forever here — which froze interject ("引导"), cancel, and
@@ -2633,7 +2637,7 @@ impl AcpClient {
                             "cwd": cwd,
                             "mcpServers": mcp_servers.clone()
                         }),
-                        HANDSHAKE_TIMEOUT_SECS,
+                        SESSION_LOAD_TIMEOUT_SECS,
                     )
                     .await
                 {
