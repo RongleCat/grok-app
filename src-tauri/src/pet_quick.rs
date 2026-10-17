@@ -31,7 +31,9 @@ fn now_ms() -> i64 {
 
 /// Pure: whether a toggle right after a blur-hide should stay closed.
 pub fn reopen_suppressed(last_blur_hide_ms: i64, now: i64) -> bool {
-    last_blur_hide_ms > 0 && now - last_blur_hide_ms >= 0 && now - last_blur_hide_ms < BLUR_REOPEN_GUARD_MS
+    last_blur_hide_ms > 0
+        && now - last_blur_hide_ms >= 0
+        && now - last_blur_hide_ms < BLUR_REOPEN_GUARD_MS
 }
 
 /// Actions the panel can ask the workbench to run on a chat.
