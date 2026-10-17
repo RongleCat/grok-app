@@ -100,3 +100,14 @@ export function parsePetQuickPrompt(raw: unknown): PetQuickPrompt | null {
     typeof r.sessionId === "string" && r.sessionId.trim() ? r.sessionId.trim() : null;
   return { sessionId: sid, text };
 }
+
+export type PetQuickActionKind = "approve" | "deny" | "stop" | "open";
+
+/** Panel → workbench: run an action on one chat (`pet://quick-action`). */
+export async function petQuickAction(
+  kind: PetQuickActionKind,
+  sessionId: string,
+): Promise<void> {
+  if (!isDesktopHost()) return;
+  await invoke("pet_quick_action", { kind, sessionId });
+}

@@ -534,6 +534,7 @@ pub fn app_invoke_handler(
         pet_quick::pet_quick_hide,
         pet_quick::pet_quick_toggle,
         pet_quick::pet_quick_send,
+        pet_quick::pet_quick_action,
         pet_quick::pet_quick_hotkey_get,
         pet_quick::pet_quick_hotkey_set,
     ]
