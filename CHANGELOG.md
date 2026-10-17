@@ -15,9 +15,11 @@ See `docs/llm-wiki/release.md`.
 
 ### Fixed
 - Sandbox can start a chat again. The sealed home copies its config and bundled files instead of linking them.
+- A custom channel stays on its own server when a model allowlist is already set. A refusal is shown instead of silently using another provider.
 
 **中文 · 修复**
 - 沙箱又能开始对话了。密封目录改为复制配置和内置文件，不再做链接。
+- 已经写了模型白名单时，自定义通道仍走自己的服务器。被拒绝时会直接提示，不再静默换到别的通道。
 
 ## [0.2.41] - 2026-10-14
 

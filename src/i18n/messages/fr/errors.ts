@@ -38,6 +38,8 @@ export const frErrors = {
   "error.deck.rateLimit.cause": "Le service est saturé. Attendez une minute et renvoyez.",
   "error.deck.connect.problem": "Impossible de connecter l’agent",
   "error.deck.connect.cause": "Aucun agent actif pour cette session. La CLI est peut-être hors ligne, ou la configuration du fournisseur est incomplète.",
+  "error.deck.modelAllowlist.problem": "Ce canal n’est pas dans la liste des modèles autorisés",
+  "error.deck.modelAllowlist.cause": "La CLI a refusé ce canal. Le message s’est arrêté au lieu de partir vers un autre fournisseur.",
   "error.deck.limit.problem": "Limite de processus d’agent atteinte",
   "error.deck.limit.cause": "Trop de processus d’agent préchargés. Arrêtez une autre session ou augmentez la limite dans Exécution.",
   "error.deck.cliTooOld.problem": "Grok CLI est trop ancienne",

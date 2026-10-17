@@ -38,6 +38,8 @@ export const deErrors = {
   "error.deck.rateLimit.cause": "Der Dienst ist ausgelastet. Warte eine Minute und sende erneut.",
   "error.deck.connect.problem": "Agent konnte nicht verbunden werden",
   "error.deck.connect.cause": "Kein aktiver Agent für diese Sitzung. Die CLI ist möglicherweise offline oder die Anbieterkonfiguration ist unvollständig.",
+  "error.deck.modelAllowlist.problem": "Dieser Kanal steht nicht auf der Modell-Allowlist",
+  "error.deck.modelAllowlist.cause": "Die CLI hat den Kanal abgelehnt. Die Nachricht wurde gestoppt und nicht an einen anderen Anbieter geschickt.",
   "error.deck.limit.problem": "Limit für Agent-Prozesse erreicht",
   "error.deck.limit.cause": "Zu viele warme Agent-Prozesse. Beende eine andere Sitzung oder erhöhe das Limit unter Runtime.",
   "error.deck.cliTooOld.problem": "Grok CLI ist zu alt",

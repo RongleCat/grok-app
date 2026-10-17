@@ -38,6 +38,8 @@ export const filErrors = {
   "error.deck.rateLimit.cause": "Abala ang serbisyo. Maghintay ng isang minuto at ipadala ulit.",
   "error.deck.connect.problem": "Hindi makonekta ang agent",
   "error.deck.connect.cause": "Walang aktibong agent para sa session na ito. Maaaring offline ang CLI, o kulang ang configuration ng provider.",
+  "error.deck.modelAllowlist.problem": "Wala ang channel na ito sa listahan ng pinapayagang modelo",
+  "error.deck.modelAllowlist.cause": "Tinanggihan ng CLI ang channel, kaya huminto ang mensahe at hindi napunta sa ibang provider.",
   "error.deck.limit.problem": "Naabot ang limitasyon ng proseso ng agent",
   "error.deck.limit.cause": "Masyadong maraming naka-standby na proseso ng agent. Ihinto ang ibang session o taasan ang limitasyon sa Runtime.",
   "error.deck.cliTooOld.problem": "Masyadong luma ang Grok CLI",

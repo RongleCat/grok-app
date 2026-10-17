@@ -38,6 +38,8 @@ export const ukErrors = {
   "error.deck.rateLimit.cause": "Сервіс перевантажений. Зачекайте хвилину та надішліть знову.",
   "error.deck.connect.problem": "Не вдалося підключити агента",
   "error.deck.connect.cause": "Для цієї сесії немає активного агента. Можливо, CLI офлайн або конфігурація провайдера неповна.",
+  "error.deck.modelAllowlist.problem": "Цього каналу немає в списку дозволених моделей",
+  "error.deck.modelAllowlist.cause": "CLI відхилила канал, тож повідомлення зупинилось і не пішло іншому провайдеру.",
   "error.deck.limit.problem": "Досягнуто ліміт процесів агента",
   "error.deck.limit.cause": "Забагато прогрітих процесів агента. Зупиніть іншу сесію або підвищіть ліміт у розділі середовища.",
   "error.deck.cliTooOld.problem": "Grok CLI застарий",

@@ -1170,6 +1170,271 @@ fn set_models_u32_field(text: &str, key: &str, value: u32) -> String {
     }
 }
 
+/// If agent-home `[models].allowed_models` already exists, add every custom
+/// section id those patterns do not cover. Never creates the key, and never
+/// reads or writes shared `~/.grok` — the path is always App `agent-home`.
+pub fn ensure_custom_ids_in_allowed_models() -> Result<(), String> {
+    let _ = ensure_agent_home()?;
+    let path = agent_config_toml();
+    let text = read_text(&path);
+    let ids = custom_section_ids(&text);
+    let Some(next) = union_custom_ids_into_allowed_models(&text, &ids) else {
+        return Ok(());
+    };
+    if next != text {
+        write_text(&path, &next)?;
+        tracing::info!(
+            target: "providers",
+            "added custom section ids to existing [models].allowed_models"
+        );
+    }
+    Ok(())
+}
+
+fn custom_section_ids(text: &str) -> Vec<String> {
+    let mut ids: Vec<String> = parse_model_sections(text)
+        .into_iter()
+        .filter(|section| is_custom(&section.fields))
+        .map(|section| section.id)
+        .filter(|id| !id.is_empty())
+        .collect();
+    ids.sort();
+    ids.dedup();
+    ids
+}
+
+/// `Some(rewritten)` when the existing allowlist gained ids.
+/// `None` when the key is absent, already covers every id, or the value is
+/// not a string array we can rewrite without guessing.
+pub(crate) fn union_custom_ids_into_allowed_models(text: &str, ids: &[String]) -> Option<String> {
+    let (start, end) = allowed_models_array_span(text)?;
+    let patterns = parse_toml_string_array(&text[start..end])?;
+    let mut missing: Vec<String> = ids
+        .iter()
+        .map(|id| id.trim())
+        .filter(|id| !id.is_empty())
+        .filter(|id| {
+            !patterns
+                .iter()
+                .any(|pattern| allowed_model_pattern_covers(pattern, id))
+        })
+        .map(str::to_string)
+        .collect();
+    missing.sort();
+    missing.dedup();
+    if missing.is_empty() {
+        return None;
+    }
+    let mut combined = patterns;
+    combined.extend(missing);
+    let rendered = render_toml_string_array(&combined);
+    let mut out = String::with_capacity(text.len() + rendered.len());
+    out.push_str(&text[..start]);
+    out.push_str(&rendered);
+    out.push_str(&text[end..]);
+    Some(out)
+}
+
+fn render_toml_string_array(items: &[String]) -> String {
+    let body = items
+        .iter()
+        .map(|item| quote(item))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("[{body}]")
+}
+
+/// Full-string glob: `*` is any run (including empty), `?` is one byte.
+fn allowed_model_pattern_covers(pattern: &str, id: &str) -> bool {
+    fn rec(pat: &[u8], text: &[u8]) -> bool {
+        let mut pi = 0;
+        let mut ti = 0;
+        while pi < pat.len() {
+            if pat[pi] == b'*' {
+                if rec(&pat[pi + 1..], &text[ti..]) {
+                    return true;
+                }
+                if ti >= text.len() {
+                    return false;
+                }
+                ti += 1;
+                continue;
+            }
+            if ti >= text.len() {
+                return false;
+            }
+            if pat[pi] != b'?' && pat[pi] != text[ti] {
+                return false;
+            }
+            pi += 1;
+            ti += 1;
+        }
+        ti == text.len()
+    }
+    rec(pattern.as_bytes(), id.as_bytes())
+}
+
+/// Byte span of the `[models].allowed_models` array, including brackets.
+fn allowed_models_array_span(text: &str) -> Option<(usize, usize)> {
+    let bytes = text.as_bytes();
+    let mut in_models = false;
+    let mut i = 0;
+    while i < text.len() {
+        let line_end = text[i..].find('\n').map(|n| i + n).unwrap_or(text.len());
+        let line = &text[i..line_end];
+        let trimmed = line.trim();
+        if crate::agent_home_config::parse_table_header(trimmed).is_some() {
+            in_models = is_models_table_header(trimmed);
+        } else if in_models && assignment_key_exact(trimmed) == Some("allowed_models") {
+            let eq = line.find('=')?;
+            let mut j = i + eq + 1;
+            while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+                j += 1;
+            }
+            if bytes.get(j) != Some(&b'[') {
+                return None;
+            }
+            let end = scan_toml_array_end(bytes, j)?;
+            return Some((j, end));
+        }
+        i = if line_end < text.len() {
+            line_end + 1
+        } else {
+            text.len()
+        };
+    }
+    None
+}
+
+fn scan_toml_array_end(bytes: &[u8], open: usize) -> Option<usize> {
+    if bytes.get(open) != Some(&b'[') {
+        return None;
+    }
+    let mut i = open + 1;
+    let mut depth = 1i32;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => i = skip_basic_string(bytes, i)?,
+            b'\'' => i = skip_literal_string(bytes, i)?,
+            b'[' => {
+                depth += 1;
+                i += 1;
+            }
+            b']' => {
+                depth -= 1;
+                i += 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            b'#' => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            _ => i += 1,
+        }
+    }
+    None
+}
+
+fn skip_basic_string(bytes: &[u8], start: usize) -> Option<usize> {
+    if bytes.get(start) != Some(&b'"') {
+        return None;
+    }
+    if bytes.get(start + 1) == Some(&b'"') && bytes.get(start + 2) == Some(&b'"') {
+        return None;
+    }
+    let mut j = start + 1;
+    while j < bytes.len() {
+        match bytes[j] {
+            b'\\' => {
+                if j + 1 >= bytes.len() {
+                    return None;
+                }
+                j += 2;
+            }
+            b'"' => return Some(j + 1),
+            b'\n' => return None,
+            _ => j += 1,
+        }
+    }
+    None
+}
+
+fn skip_literal_string(bytes: &[u8], start: usize) -> Option<usize> {
+    if bytes.get(start) != Some(&b'\'') {
+        return None;
+    }
+    if bytes.get(start + 1) == Some(&b'\'') && bytes.get(start + 2) == Some(&b'\'') {
+        return None;
+    }
+    let mut j = start + 1;
+    while j < bytes.len() {
+        match bytes[j] {
+            b'\'' => return Some(j + 1),
+            b'\n' => return None,
+            _ => j += 1,
+        }
+    }
+    None
+}
+
+fn parse_toml_string_array(array: &str) -> Option<Vec<String>> {
+    let bytes = array.as_bytes();
+    if bytes.first() != Some(&b'[') {
+        return None;
+    }
+    let mut i = 1;
+    let mut out = Vec::new();
+    let mut expect_value = true;
+    while i < bytes.len() {
+        match bytes[i] {
+            b' ' | b'\t' | b'\n' | b'\r' => i += 1,
+            b'#' => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b',' => {
+                if expect_value {
+                    return None;
+                }
+                expect_value = true;
+                i += 1;
+            }
+            b']' => {
+                let rest_ok = array[i + 1..].chars().all(char::is_whitespace);
+                if rest_ok {
+                    return Some(out);
+                }
+                return None;
+            }
+            b'"' => {
+                if !expect_value {
+                    return None;
+                }
+                let end = skip_basic_string(bytes, i)?;
+                let raw = &array[i..end];
+                out.push(unquote(raw));
+                i = end;
+                expect_value = false;
+            }
+            b'\'' => {
+                if !expect_value {
+                    return None;
+                }
+                let end = skip_literal_string(bytes, i)?;
+                out.push(unquote(&array[i..end]));
+                i = end;
+                expect_value = false;
+            }
+            _ => return None,
+        }
+    }
+    None
+}
+
 /// `grok` is the official `[models].default` token. A custom `[model.grok]`
 /// section must not steal Official Use (#1214).
 pub fn is_reserved_custom_provider_id(id: &str) -> bool {
@@ -2076,6 +2341,7 @@ pub fn upsert_custom_provider(input: UpsertProviderInput) -> Result<ProvidersLis
     }
 
     write_text(&path, &text)?;
+    let _ = ensure_custom_ids_in_allowed_models();
     let mut result = list_custom_providers()?;
     if input.set_as_default.unwrap_or(false) {
         // Newly defaulted custom channel must not inherit OIDC.
@@ -3027,6 +3293,127 @@ mod tests {
         assert!(models_list_endpoint("https://x.example/v1")
             .unwrap()
             .ends_with("/v1/models"));
+    }
+
+    #[test]
+    fn allowlist_absent_is_left_alone() {
+        let text = "\
+[models]
+default = \"kiro\"
+
+[model.kiro]
+model = \"simple-task\"
+base_url = \"http://127.0.0.1:8080/v1\"
+";
+        assert!(union_custom_ids_into_allowed_models(text, &["kiro".into()]).is_none());
+    }
+
+    #[test]
+    fn allowlist_gains_uncovered_section_ids_and_keeps_patterns() {
+        let text = "\
+[models]
+default = \"kiro\"
+allowed_models = [\"claude-*\", \"gpt-*\", \"auto*\"]
+
+[model.kiro]
+model = \"simple-task\"
+base_url = \"http://127.0.0.1:8080/v1\"
+";
+        let next = union_custom_ids_into_allowed_models(text, &["kiro".into(), "auto".into()])
+            .expect("kiro is not covered");
+        let allow_line = next
+            .lines()
+            .find(|line| line.contains("allowed_models"))
+            .unwrap();
+        assert!(allow_line.contains("\"claude-*\""));
+        assert!(allow_line.contains("\"gpt-*\""));
+        assert!(allow_line.contains("\"auto*\""));
+        assert!(allow_line.contains("\"kiro\""));
+        assert!(!allow_line.contains("simple-task"));
+        assert!(
+            union_custom_ids_into_allowed_models(&next, &["kiro".into(), "auto".into()]).is_none()
+        );
+    }
+
+    #[test]
+    fn allowlist_multiline_array_and_non_array_are_safe() {
+        let text = "\
+[models]
+allowed_models = [
+  \"claude-*\",
+  # user note
+]
+
+[model.ada-openai]
+base_url = \"http://example/v1\"
+model = \"auto\"
+";
+        let ids = custom_section_ids(text);
+        assert_eq!(ids, vec!["ada-openai".to_string()]);
+        let next = union_custom_ids_into_allowed_models(text, &ids).expect("append");
+        assert!(next.contains("ada-openai"));
+        assert!(next.contains("claude-*"));
+        assert!(union_custom_ids_into_allowed_models(
+            "[models]\nallowed_models = \"kiro\"\n",
+            &["kiro".into()],
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn allowlist_file_edit_stays_in_agent_home() {
+        let _lock = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!(
+            "grok-app-allowlist-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("agent-home")).unwrap();
+        let previous = std::env::var_os("GROK_APP_HOME");
+        std::env::set_var("GROK_APP_HOME", &tmp);
+        let decoy = tmp.join("shared-grok-config.toml");
+        std::fs::write(&decoy, "allowed_models = [\"claude-*\"]\n").unwrap();
+        std::fs::write(
+            crate::paths::agent_config_toml(),
+            "\
+[models]
+allowed_models = [\"claude-*\"]
+
+[model.kiro]
+model = \"simple-task\"
+base_url = \"http://127.0.0.1:8080/v1\"
+",
+        )
+        .unwrap();
+        ensure_custom_ids_in_allowed_models().unwrap();
+        let home = std::fs::read_to_string(crate::paths::agent_config_toml()).unwrap();
+        let allow_line = home
+            .lines()
+            .find(|line| line.contains("allowed_models"))
+            .unwrap();
+        assert!(allow_line.contains("\"kiro\""));
+        assert!(allow_line.contains("\"claude-*\""));
+        assert!(!allow_line.contains("simple-task"));
+        assert_eq!(
+            std::fs::read_to_string(&decoy).unwrap(),
+            "allowed_models = [\"claude-*\"]\n"
+        );
+        ensure_custom_ids_in_allowed_models().unwrap();
+        assert_eq!(
+            std::fs::read_to_string(crate::paths::agent_config_toml()).unwrap(),
+            home
+        );
+        match previous {
+            Some(v) => std::env::set_var("GROK_APP_HOME", v),
+            None => std::env::remove_var("GROK_APP_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     fn sample_provider(id: &str) -> CustomProvider {

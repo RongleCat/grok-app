@@ -1066,6 +1066,8 @@ impl AcpClient {
         // custom chat. Seal a private directory so one spawn cannot replace
         // the other's auth.json while nested tools are still reading it.
         let proc_home = if agent_home_prep {
+            // Last writer before the sealed copy. Shared ~/.grok is not this path.
+            let _ = crate::providers::ensure_custom_ids_in_allowed_models();
             match crate::agent_proc_home::create(&grok_home, custom_route) {
                 Ok(dir) => Some(dir),
                 Err(e) => {
