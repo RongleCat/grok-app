@@ -92,6 +92,12 @@ pub fn t(lang: &str, key: MessageKey) -> &'static str {
             "இந்த நிகழ்வில் பயன்படுத்தக்கூடிய திட்டம் இல்லை. /p ஐ அனுப்பவும் அல்லது நிர்வாகியைத் தொடர்பு கொள்ளவும்."
         }
 
+        (Locale::Tr, MessageKey::StopSignalSent) => "Durdurma sinyali gönderildi.",
+        (Locale::Tr, MessageKey::NoInFlightTurn) => "Süren bir tur yok.",
+        (Locale::Tr, MessageKey::NoAvailableProject) => {
+            "Bu örnekte kullanılabilir proje yok. /p gönderin ya da bir yöneticiyle iletişime geçin."
+        }
+
         (Locale::Uk, MessageKey::StopSignalSent) => "Сигнал зупинки надіслано.",
         (Locale::Uk, MessageKey::NoInFlightTurn) => "Немає активного ходу.",
         (Locale::Uk, MessageKey::NoAvailableProject) => {

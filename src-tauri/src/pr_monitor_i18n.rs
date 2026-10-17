@@ -189,6 +189,18 @@ pub fn t(lang: &str, key: MessageKey) -> &'static str {
         (Locale::Ta, MessageKey::UpdateTitle) => "தலைப்பு மாறியது: {from} → {to}",
 
         // uk
+        (Locale::Tr, MessageKey::PromptHeader) => "[PR güncellemesi] #{number} {title}",
+        (Locale::Tr, MessageKey::PromptHeaderUrl) => "[PR güncellemesi] #{number} {title} — {url}",
+        (Locale::Tr, MessageKey::PromptUpdates) => "Neler değişti:",
+        (Locale::Tr, MessageKey::PromptTask) => "Bu PR güncellemesini şimdi takip et: proje çalışma alanında dalı incele, belirtilen yorumu ya da CI hatasını oku ve odaklı değişikliği yap (ya da soruyu yanıtla). Ne yaptığını bildir; gözlemlemediğin PR, yorum ya da CI verisi uydurma.",
+        (Locale::Tr, MessageKey::UpdateComment) => "{author} kullanıcısından yeni yorum: {excerpt}",
+        (Locale::Tr, MessageKey::UpdateReview) => "{author} kullanıcısından yeni inceleme: {excerpt}",
+        (Locale::Tr, MessageKey::UpdateReviewState) => "{author} kullanıcısından yeni inceleme ({state}): {excerpt}",
+        (Locale::Tr, MessageKey::UpdateChecksFailed) => "CI başarısız ({count} denetim)",
+        (Locale::Tr, MessageKey::UpdateChecksPassed) => "CI yeşil ({passed}/{total} geçti)",
+        (Locale::Tr, MessageKey::UpdateState) => "PR durumu: {from} → {to}",
+        (Locale::Tr, MessageKey::UpdateMergeable) => "Birleştirme durumu: {from} → {to}",
+        (Locale::Tr, MessageKey::UpdateTitle) => "Başlık değişti: {from} → {to}",
         (Locale::Uk, MessageKey::PromptHeader) => "[Оновлення PR] #{number} {title}",
         (Locale::Uk, MessageKey::PromptHeaderUrl) => "[Оновлення PR] #{number} {title} — {url}",
         (Locale::Uk, MessageKey::PromptUpdates) => "Що змінилося:",
