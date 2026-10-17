@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- Sandbox can start a chat again. The sealed home copies its config and bundled files instead of linking them.
+
+**中文 · 修复**
+- 沙箱又能开始对话了。密封目录改为复制配置和内置文件，不再做链接。
+
 ## [0.2.41] - 2026-10-14
 
 > **Highlight:** One chat can follow several pull requests, and an update continues it.
