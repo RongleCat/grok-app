@@ -7,7 +7,7 @@ import { PetMark } from "./PetMark";
 import { PetTaskBubbles } from "./PetTaskBubbles";
 import { ContextMenu } from "@/components/ContextMenu";
 import { createT, type Locale } from "@/i18n";
-import { petQuickNewChat, petQuickShow } from "@/lib/api/petQuick";
+import { petQuickNewChat, petQuickShow, petQuickToggle } from "@/lib/api/petQuick";
 import {
   clampPetMarkHitRadius,
   hitChromeCssScale,
@@ -425,6 +425,8 @@ export function PetOverlay({
       pendingClickRef.current = window.setTimeout(() => {
         pendingClickRef.current = null;
         setEmoteSignal((n) => n + 1);
+        // Single click opens the quick-access hub (async Host command).
+        void petQuickToggle().catch(() => {});
       }, PET_DBLCLICK_MS);
     },
     [finishDrag, focus.sessionId],

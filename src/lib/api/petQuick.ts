@@ -30,6 +30,12 @@ export async function petQuickShow(): Promise<void> {
   await invoke("pet_quick_show");
 }
 
+/** Pet click: open the hub, or close it when it is already up. */
+export async function petQuickToggle(): Promise<void> {
+  if (!isDesktopHost()) return;
+  await invoke("pet_quick_toggle");
+}
+
 export async function petQuickHide(): Promise<void> {
   if (!isDesktopHost()) return;
   await invoke("pet_quick_hide");
