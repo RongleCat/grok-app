@@ -32,13 +32,13 @@ use windows::Win32::UI::Shell::{
     ExtractIconExW, ITaskbarList, SetCurrentProcessExplicitAppUserModelID, TaskbarList,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallWindowProcW, DrawMenuBar, GetClassNameW, GetPropW, GetWindow, GetWindowLongPtrW,
+    CallWindowProcW, DrawMenuBar, GetClassNameW, GetMenu, GetPropW, GetWindow, GetWindowLongPtrW,
     GetWindowLongW, IsChild, IsWindowVisible, RemovePropW, SendMessageW, SetClassLongPtrW, SetMenu,
     SetPropW, SetWindowLongPtrW, SetWindowLongW, SetWindowPos, GCLP_HICON, GCLP_HICONSM,
     GWLP_HWNDPARENT, GWLP_WNDPROC, GWL_EXSTYLE, GWL_STYLE, GW_CHILD, GW_HWNDNEXT, GW_OWNER, HICON,
-    HWND_NOTOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
-    WA_ACTIVE, WA_CLICKACTIVE, WM_ACTIVATE, WM_NCDESTROY, WM_SETFOCUS, WM_SETICON, WNDPROC,
-    WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
+    HWND_NOTOPMOST, SM_CYMENU, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+    SWP_NOZORDER, WA_ACTIVE, WA_CLICKACTIVE, WM_ACTIVATE, WM_NCDESTROY, WM_SETFOCUS, WM_SETICON,
+    WNDPROC, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
 };
 
 /// Call once early in process startup (before or right after creating the main window).
@@ -61,6 +61,32 @@ pub fn set_process_app_user_model_id(id: &str) {
 /// so the host must notice the button release itself.
 pub fn primary_mouse_button_down() -> bool {
     unsafe { GetAsyncKeyState(i32::from(VK_LBUTTON.0)) < 0 }
+}
+
+/// Physical pixels a frameless `setSize` would add for the native menu.
+///
+/// The main window keeps File/Edit/Window/Help so Ctrl+W still closes a tab.
+/// That menu is not in the frame: undecorated `WM_NCCALCSIZE` does not reserve
+/// `SM_CYMENU`. tao's `set_inner_size` still adds it, so the window grows
+/// taller by one menu bar (20px at 96 DPI). Returns 0 when there is no menu.
+pub fn hidden_menu_bar_px(hwnd: HWND) -> u32 {
+    use windows::Win32::UI::HiDpi::{GetDpiForWindow, GetSystemMetricsForDpi};
+
+    unsafe {
+        if GetMenu(hwnd).is_invalid() {
+            return 0;
+        }
+        let dpi = GetDpiForWindow(hwnd);
+        if dpi == 0 {
+            return 0;
+        }
+        let px = GetSystemMetricsForDpi(SM_CYMENU, dpi);
+        if px > 0 {
+            px as u32
+        } else {
+            0
+        }
+    }
 }
 
 /// Desktop-pet overlay: drop the Win32 menu bar (File / Edit / Window / Help).

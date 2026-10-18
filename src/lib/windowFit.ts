@@ -6,6 +6,7 @@
  */
 
 import { isDesktopHost } from "@/lib/api";
+import { detectAppPlatform } from "@/lib/appPlatform";
 import {
   MAIN_CHAT_MIN_WIDTH,
   requiredWorkbenchInnerWidth,
@@ -25,6 +26,36 @@ export function windowFitTargetWidth(layout: FitLayout): number {
   const need = requiredWorkbenchInnerWidth(layout);
   if (!Number.isFinite(need) || need <= 0) return 0;
   return Math.ceil(need + FIT_PAD);
+}
+
+/**
+ * Height to pass to `setSize` so the client stays `clientHeight`.
+ *
+ * On the frameless Windows window, tao adds the native menu bar
+ * (`SM_CYMENU`) and the frame does not show it, so the window grows by
+ * that many physical pixels. Subtract it here. Other platforms pass `0`.
+ */
+export function windowFitSetHeight(
+  clientHeight: number,
+  hiddenMenuPhysicalPx: number,
+  scale: number,
+): number {
+  if (!(clientHeight > 0) || !(hiddenMenuPhysicalPx > 0) || !(scale > 0)) {
+    return clientHeight;
+  }
+  const next = clientHeight - hiddenMenuPhysicalPx / scale;
+  return next > 0 ? next : clientHeight;
+}
+
+async function hiddenMenuBarPx(): Promise<number> {
+  if (detectAppPlatform() !== "win") return 0;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const px = await invoke<number>("main_hidden_menu_px");
+    return typeof px === "number" && Number.isFinite(px) && px > 0 ? px : 0;
+  } catch {
+    return 0;
+  }
 }
 
 /** True when a fit would `setSize` wider than the current viewport. */
@@ -155,7 +186,8 @@ async function growWindowTo(
 
     // Suppress cascade before setSize so the resize event is ignored.
     markSuppressed();
-    await win.setSize(new LogicalSize(capped, curH));
+    const height = windowFitSetHeight(curH, await hiddenMenuBarPx(), factor);
+    await win.setSize(new LogicalSize(capped, height));
 
     // Growing width alone can push the right edge off-monitor when the
     // window sits near the right of the work area (common for non-maximized

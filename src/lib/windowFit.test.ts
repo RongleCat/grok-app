@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   FIT_PAD,
   measureWorkbenchFitNeed,
+  windowFitSetHeight,
   windowFitTargetWidth,
   windowFitWouldGrow,
 } from "./windowFit";
@@ -37,6 +38,18 @@ function el(
     getBoundingClientRect: () => rect(width),
   };
 }
+
+describe("windowFitSetHeight", () => {
+  it("keeps the client height when no menu bar is added", () => {
+    expect(windowFitSetHeight(860, 0, 1)).toBe(860);
+    expect(windowFitSetHeight(860, 20, 0)).toBe(860);
+  });
+
+  it("subtracts the hidden menu bar so setSize does not grow taller", () => {
+    expect(windowFitSetHeight(860, 20, 1)).toBe(840);
+    expect(windowFitSetHeight(860, 30, 1.5)).toBe(840);
+  });
+});
 
 describe("windowFitWouldGrow", () => {
   const railOpen = {

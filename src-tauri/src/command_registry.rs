@@ -7,7 +7,7 @@ use crate::{
     cli_worktrees, commands, desktop_notify, git_pr_hub, leader, mirror, os_theme, pet_quick,
     pet_window, pr_monitor, remote_im, serve, session_api, ssh_remote, system_fonts,
     theme_editor_window, tray, updater, voice_host, wallpaper_grok_album,
-    wallpaper_remote_commands,
+    wallpaper_remote_commands, window_min,
 };
 
 /// Single invoke handler consumed by `Builder::invoke_handler` in `run()`.
@@ -506,6 +506,8 @@ pub fn app_invoke_handler(
         commands::side_browser_eval,
         commands::side_browser_snapshot,
         commands::side_browser_install_download_hook,
+        // ── Main window chrome ──
+        window_min::main_hidden_menu_px,
         // ── Desktop pet ──
         pet_window::pet_prefs_get,
         pet_window::pet_prefs_set,
