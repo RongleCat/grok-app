@@ -55,8 +55,6 @@ static LAST_IGNORE_CURSOR: std::sync::atomic::AtomicU8 = std::sync::atomic::Atom
 static CACHED_SIZE_PX: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(128);
 static SHOW_LOCK: Mutex<()> = Mutex::new(());
 
-const PET_INIT_SCRIPT_PREFIX: &str = r#"(function(){try{document.documentElement.setAttribute("data-pet-shell","1");var s=document.createElement("style");s.setAttribute("data-pet-boot","1");s.textContent="html,html[data-theme],body,#root,.boot-gate{background:transparent!important;background-image:none!important;background-color:transparent!important;} .boot-gate{display:none!important;visibility:hidden!important;opacity:0!important;}";document.documentElement.appendChild(s);"#;
-
 fn pet_init_script(prefs: &PetPrefs) -> String {
     let boot = serde_json::json!({
         "shape": prefs.shape,
@@ -71,9 +69,12 @@ fn pet_init_script(prefs: &PetPrefs) -> String {
         "bubbleStyle": prefs.bubble_style,
     });
     let locale = crate::tray_i18n::Locale::parse(&crate::store::load_settings().locale);
+    // Boot globals must be assigned before any documentElement access. WebView2
+    // runs this script before the document element exists; a throw there used
+    // to skip `__GROK_PET_BOOT__`, so the overlay fell back to size 128, resized,
+    // and the mark landed somewhere else on every launch.
     format!(
-        "{prefix}window.__GROK_PET_BOOT__={boot};window.__GROK_BOOT_LOCALE__={locale:?};window.__GROK_BOOT_OS_LANG__={os:?};var d=document.documentElement;if(d)d.setAttribute(\"lang\",{html:?});}}catch(e){{}}}})();",
-        prefix = PET_INIT_SCRIPT_PREFIX,
+        r#"(function(){{try{{window.__GROK_PET_BOOT__={boot};window.__GROK_BOOT_LOCALE__={locale:?};window.__GROK_BOOT_OS_LANG__={os:?};var d=document.documentElement;if(d){{d.setAttribute("data-pet-shell","1");d.setAttribute("lang",{html:?});var s=document.createElement("style");s.setAttribute("data-pet-boot","1");s.textContent="html,html[data-theme],body,#root,.boot-gate{{background:transparent!important;background-image:none!important;background-color:transparent!important;}} .boot-gate{{display:none!important;visibility:hidden!important;opacity:0!important;}}";d.appendChild(s);}}}}catch(e){{}}}})();"#,
         boot = boot,
         locale = locale.as_tag(),
         os = crate::tray_i18n::detect_os_lang_tag(),
@@ -1522,6 +1523,12 @@ mod tests {
         assert!(script.contains("__GROK_BOOT_LOCALE__"));
         assert!(script.contains("__GROK_BOOT_OS_LANG__"));
         assert!(script.contains("green"));
+        let boot_at = script.find("__GROK_PET_BOOT__").unwrap();
+        let dom_at = script.find("documentElement").unwrap();
+        assert!(
+            boot_at < dom_at,
+            "boot prefs must be assigned before documentElement access"
+        );
     }
 
     #[test]

@@ -22,6 +22,7 @@ See `docs/llm-wiki/release.md`.
 - 界面语言现在可以选择土耳其语。
 
 ### Fixed
+- The desktop pet stays where you left it when the app opens again.
 - A streaming reply stays at the bottom instead of bouncing.
 - Opening the desktop pet on Windows no longer freezes the app.
 - A stalled chat connect can be taken over once it expires.
@@ -31,6 +32,7 @@ See `docs/llm-wiki/release.md`.
 - A custom channel stays on its own server when a model allowlist is already set. A refusal is shown instead of silently using another provider.
 
 **中文 · 修复**
+- 下次打开应用时，桌面宠物还在上次放下的地方。
 - 正在输出的回复会停在底部，不再上下跳动。
 - 在 Windows 上打开桌面宠物，不再把整个应用卡住。
 - 卡住的连接过期后，可以被新的连接接过去。
