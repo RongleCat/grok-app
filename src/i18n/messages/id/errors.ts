@@ -38,6 +38,8 @@ export const idErrors = {
   "error.deck.rateLimit.cause": "Layanan sedang sibuk. Tunggu semenit lalu kirim lagi.",
   "error.deck.connect.problem": "Agen tidak dapat disambungkan",
   "error.deck.connect.cause": "Tidak ada agen aktif untuk sesi ini. CLI mungkin offline, atau konfigurasi penyedia belum lengkap.",
+  "error.deck.modelAllowlist.problem": "Saluran ini tidak ada di daftar model yang diizinkan",
+  "error.deck.modelAllowlist.cause": "CLI menolak saluran ini, jadi pesan berhenti dan tidak dikirim ke penyedia lain.",
   "error.deck.limit.problem": "Batas proses agen tercapai",
   "error.deck.limit.cause": "Terlalu banyak proses agen yang hangat. Hentikan sesi lain atau naikkan batas di Runtime.",
   "error.deck.cliTooOld.problem": "Grok CLI terlalu lama",

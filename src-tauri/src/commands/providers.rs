@@ -41,6 +41,8 @@ pub async fn providers_list() -> Result<crate::providers::ProvidersListResult, S
         );
         // Ensure agent transport retries are high enough for flaky custom relays.
         let _ = crate::providers::ensure_models_retry_cap();
+        // Existing allowlists must name App channel ids. Absent key stays absent.
+        let _ = crate::providers::ensure_custom_ids_in_allowed_models();
         // Fix bases saved without /v1 (causes silent multi-minute inference retries).
         let _ = crate::providers::repair_custom_base_urls();
         // OpenCode Zen Go SSE trailers → loopback sanitize proxy base_url rewrite.

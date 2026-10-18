@@ -7,11 +7,13 @@
 //!
 //! - `auth.json` is a private copy for an official process, and absent for a
 //!   custom process. It is never a link back to the canonical file.
-//! - `hooks` is a real directory and `hooks-paths` is a regular file. The CLI
-//!   sandbox refuses a symlink on that directory and a hard-linked hook JSON
-//!   (`st_nlink` > 1). A link would fail every sandboxed chat at startup.
-//! - other entries are links to the canonical home, so resume and settings
-//!   still see one sessions directory and one `config.toml`.
+//! - `hooks` and `bundled` are real directories. `hooks-paths` and `config.toml`
+//!   are private regular files (`st_nlink` == 1). The CLI sandbox refuses a
+//!   symlink on those directories, a hard-linked hook JSON, and a hard-linked
+//!   `config.toml`. A link would fail every sandboxed chat at startup.
+//! - other entries are links to the canonical home, so resume still sees one
+//!   sessions directory. `config.toml` is a spawn-time copy: the sandbox
+//!   rejects a second name for that inode.
 //!
 //! Callers hold `route_auth_lock` across canonical writes and `create`. The
 //! snapshot is immutable after that; nested tools inherit `GROK_HOME`.
@@ -95,11 +97,14 @@ fn populate(
         }
         let src = entry.path();
         let dest = dir.join(&name);
-        if name == "hooks" {
+        // CLI >= 1.0.60: `bundled` must be a real directory, same as `hooks`.
+        if name == "hooks" || name == "bundled" {
             materialize_real_tree(&src, &dest)?;
             continue;
         }
-        if name == "hooks-paths" {
+        // `config.toml` must be its own inode. A hard link (`st_nlink` > 1)
+        // makes the sandbox refuse to start (#1338, #1341).
+        if name == "hooks-paths" || name == "config.toml" {
             copy_private_file(&src, &dest)?;
             continue;
         }
@@ -116,8 +121,8 @@ fn populate(
     Ok(())
 }
 
-/// Copy a file's bytes into a new inode. `fs::copy` / `hard_link` would keep
-/// `st_nlink` > 1, which the sandbox rejects for hook JSON.
+/// Copy a file's bytes into a new inode. `hard_link` would leave `st_nlink` > 1,
+/// which the sandbox rejects for hook JSON and for `config.toml`.
 fn copy_private_file(src: &Path, dest: &Path) -> Result<(), String> {
     let bytes = fs::read(src).map_err(|e| format!("read {}: {e}", src.display()))?;
     fs::write(dest, &bytes).map_err(|e| format!("write {}: {e}", dest.display()))?;
@@ -125,14 +130,14 @@ fn copy_private_file(src: &Path, dest: &Path) -> Result<(), String> {
 }
 
 /// Real directory tree. Symlinks are followed and written as real files or
-/// directories so no path component under `hooks` is a link.
+/// directories so no path component under `hooks` or `bundled` is a link.
 fn materialize_real_tree(src: &Path, dest: &Path) -> Result<(), String> {
     materialize_node(src, dest, 0)
 }
 
 fn materialize_node(src: &Path, dest: &Path, depth: u32) -> Result<(), String> {
     if depth > 16 {
-        return Err(format!("hooks tree too deep: {}", src.display()));
+        return Err(format!("sealed tree too deep: {}", src.display()));
     }
     let meta = fs::metadata(src).map_err(|e| format!("stat {}: {e}", src.display()))?;
     if meta.is_dir() {
@@ -348,9 +353,10 @@ mod tests {
                 let src_ino = fs::metadata(&auth_src).unwrap().ino();
                 let snap_ino = fs::metadata(official.join(AUTH_FILE)).unwrap().ino();
                 assert_ne!(src_ino, snap_ino);
-                let canon_cfg = fs::metadata(canonical.join("config.toml")).unwrap().ino();
-                let snap_cfg = fs::metadata(official.join("config.toml")).unwrap().ino();
-                assert_eq!(canon_cfg, snap_cfg);
+                let canon_cfg = fs::metadata(canonical.join("config.toml")).unwrap();
+                let snap_cfg = fs::metadata(official.join("config.toml")).unwrap();
+                assert_ne!(canon_cfg.ino(), snap_cfg.ino());
+                assert_eq!(snap_cfg.nlink(), 1);
                 let mode = fs::metadata(official.join(AUTH_FILE)).unwrap().mode() & 0o777;
                 assert_eq!(mode, 0o600);
             }
@@ -431,6 +437,71 @@ mod tests {
                     fs::metadata(sealed.join("hooks-paths")).unwrap().ino()
                 );
                 // sessions stay shared
+                assert_eq!(
+                    fs::metadata(canonical.join("sessions")).unwrap().ino(),
+                    fs::metadata(sealed.join("sessions")).unwrap().ino()
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn bundled_is_a_real_tree_and_config_is_not_hardlinked() {
+        with_app_home(|root| {
+            let canonical = canonical_with_config(&root);
+            let bundled_src = root.join("bundled-src");
+            fs::create_dir(&bundled_src).unwrap();
+            fs::write(bundled_src.join("skill.md"), b"bundled-skill\n").unwrap();
+            #[cfg(unix)]
+            {
+                std::os::unix::fs::symlink(&bundled_src, canonical.join("bundled")).unwrap();
+            }
+            #[cfg(not(unix))]
+            {
+                let bundled = canonical.join("bundled");
+                fs::create_dir(&bundled).unwrap();
+                fs::write(bundled.join("skill.md"), b"bundled-skill\n").unwrap();
+            }
+
+            let sealed = create_from(&canonical, true, None).unwrap();
+            let sealed_bundled = sealed.join("bundled");
+            let bundled_meta = fs::symlink_metadata(&sealed_bundled).unwrap();
+            assert!(bundled_meta.is_dir());
+            assert!(
+                !bundled_meta.file_type().is_symlink(),
+                "sealed bundled must be a real directory"
+            );
+            let skill = sealed_bundled.join("skill.md");
+            let skill_meta = fs::symlink_metadata(&skill).unwrap();
+            assert!(skill_meta.is_file());
+            assert!(!skill_meta.file_type().is_symlink());
+            assert_eq!(fs::read(&skill).unwrap(), b"bundled-skill\n");
+
+            let sealed_config = sealed.join("config.toml");
+            assert_eq!(
+                fs::read(&sealed_config).unwrap(),
+                fs::read(canonical.join("config.toml")).unwrap()
+            );
+            fs::write(&sealed_config, b"sealed-only\n").unwrap();
+            assert_eq!(
+                fs::read(canonical.join("config.toml")).unwrap(),
+                b"default = \"grok\"\n",
+                "canonical config must stay a separate file"
+            );
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::MetadataExt;
+                assert_eq!(fs::metadata(&skill).unwrap().nlink(), 1);
+                assert_ne!(
+                    fs::metadata(bundled_src.join("skill.md")).unwrap().ino(),
+                    fs::metadata(&skill).unwrap().ino()
+                );
+                assert_eq!(fs::metadata(&sealed_config).unwrap().nlink(), 1);
+                assert_ne!(
+                    fs::metadata(canonical.join("config.toml")).unwrap().ino(),
+                    fs::metadata(&sealed_config).unwrap().ino()
+                );
                 assert_eq!(
                     fs::metadata(canonical.join("sessions")).unwrap().ino(),
                     fs::metadata(sealed.join("sessions")).unwrap().ino()

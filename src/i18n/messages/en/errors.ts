@@ -38,6 +38,8 @@ export const enErrors = {
   "error.deck.rateLimit.cause": "The service is busy. Wait a minute and send again.",
   "error.deck.connect.problem": "Could not connect the agent",
   "error.deck.connect.cause": "No live agent for this session. CLI may be offline, or custom provider config is incomplete.",
+  "error.deck.modelAllowlist.problem": "This channel is not on the model allowlist",
+  "error.deck.modelAllowlist.cause": "The CLI rejected this channel, so the message stopped instead of going to another provider.",
   "error.deck.limit.problem": "Agent process limit reached",
   "error.deck.limit.cause": "Too many warm agent processes. Stop another session or raise the limit under Runtime.",
   "error.deck.cliTooOld.problem": "Grok CLI is too old",

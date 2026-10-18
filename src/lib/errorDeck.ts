@@ -55,6 +55,8 @@ export type ErrorDeckCode =
   /** Transient 429 / “slow down” — not included-usage exhaustion. */
   | "RATE_LIMITED"
   | "CONNECT_FAILED"
+  /** CLI `allowed_models` rejected the channel id (#1334). */
+  | "MODEL_NOT_ALLOWED"
   | "PROCESS_LIMIT"
   | "CLI_TOO_OLD"
   /** Linux bubblewrap / unprivileged user-namespace restriction (#541). */
@@ -184,6 +186,14 @@ const DECK: Record<ErrorDeckCode, DeckSpec> = {
     primaryLabel: "error.action.reconnect",
     secondaryId: "open_doctor",
     secondaryLabel: "error.action.openDoctor",
+  },
+  MODEL_NOT_ALLOWED: {
+    problem: "error.deck.modelAllowlist.problem",
+    cause: "error.deck.modelAllowlist.cause",
+    primaryId: "open_providers",
+    primaryLabel: "error.action.openProviders",
+    secondaryId: "dismiss",
+    secondaryLabel: "error.action.dismiss",
   },
   PROCESS_LIMIT: {
     problem: "error.deck.limit.problem",
@@ -315,6 +325,7 @@ const AGENT_DECK_CODES: ErrorDeckCode[] = [
   "QUOTA_EXCEEDED",
   "RATE_LIMITED",
   "CONNECT_FAILED",
+  "MODEL_NOT_ALLOWED",
   "PROCESS_LIMIT",
   "CLI_TOO_OLD",
   "SANDBOX_BLOCKED",
@@ -489,6 +500,10 @@ export function isAuthDeckCode(code: ErrorDeckCode | string | null | undefined):
 export function classifyErrorMessage(raw: string | null | undefined): ErrorDeckCode {
   const s = (raw ?? "").toLowerCase();
   if (!s.trim()) return "GENERIC";
+
+  if (looksLikeModelAllowlistBlock(raw)) {
+    return "MODEL_NOT_ALLOWED";
+  }
 
   // ── Linux sandbox / userns (before bare "permission denied") ──
   if (looksLikeLinuxSandboxBlock(raw) || s.includes("sandbox_blocked")) {
@@ -679,6 +694,18 @@ export function classifyErrorMessage(raw: string | null | undefined): ErrorDeckC
   return "GENERIC";
 }
 
+/** CLI rejected `session/set_model` because of `[models].allowed_models`. */
+export function looksLikeModelAllowlistBlock(raw: string | null | undefined): boolean {
+  const s = (raw ?? "").toLowerCase();
+  if (!s.includes("allowed_models")) return false;
+  return (
+    s.includes("isn't allowed") ||
+    s.includes("isn’t allowed") ||
+    s.includes("isnt allowed") ||
+    s.includes("not allowed")
+  );
+}
+
 /** Prefer a host code; otherwise classify the message text. */
 export function resolveErrorDeckCode(
   code: string | null | undefined,
@@ -693,6 +720,11 @@ export function resolveErrorDeckCode(
     code === "SANDBOX_BLOCKED"
   ) {
     return "SANDBOX_BLOCKED";
+  }
+  // Host emits CONNECT_FAILED for this refusal. The phrase still picks the
+  // allowlist deck so the banner does not say the agent merely failed to connect.
+  if (looksLikeModelAllowlistBlock(message) || looksLikeModelAllowlistBlock(code) || code === "MODEL_NOT_ALLOWED") {
+    return "MODEL_NOT_ALLOWED";
   }
   // Host retry abort used to emit NETWORK_PROVIDER around free-usage-exhausted.
   // Do not pass the host *code* into these helpers — `QUOTA_EXCEEDED` contains

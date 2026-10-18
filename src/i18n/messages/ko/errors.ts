@@ -38,6 +38,8 @@ export const koErrors = {
   "error.deck.rateLimit.cause": "서비스가 혼잡합니다. 잠시 후 다시 보내세요.",
   "error.deck.connect.problem": "에이전트에 연결할 수 없습니다",
   "error.deck.connect.cause": "이 세션에 실행 중인 에이전트가 없습니다. CLI가 오프라인이거나 사용자 지정 공급자 설정이 미완성일 수 있습니다.",
+  "error.deck.modelAllowlist.problem": "이 채널은 모델 허용 목록에 없습니다",
+  "error.deck.modelAllowlist.cause": "CLI가 이 채널을 거절해서, 다른 제공자로 보내지 않고 멈췄습니다.",
   "error.deck.limit.problem": "에이전트 프로세스 한도 도달",
   "error.deck.limit.cause": "대기 중인 에이전트 프로세스가 너무 많습니다. 다른 세션을 중지하거나 런타임에서 한도를 높이세요.",
   "error.deck.cliTooOld.problem": "Grok CLI가 너무 오래되었습니다",

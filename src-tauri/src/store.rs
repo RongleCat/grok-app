@@ -351,6 +351,10 @@ pub struct AppSettings {
     /// Path to `grok` **inside** WSL (e.g. `grok`, `~/.grok/bin/grok`). Empty = `grok` on WSL PATH.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wsl_cli_path: Option<String>,
+    /// Linux-native GROK_HOME when `cli_backend == "wsl"`. Empty = distro `~/.grok`.
+    /// Must not be a `/mnt/…` Windows mount (sandbox binds fail on DrvFS).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wsl_grok_home: Option<String>,
     pub permission_policy: String,
     pub model_id: Option<String>,
     pub effort: Option<String>,
@@ -874,6 +878,7 @@ impl Default for AppSettings {
             cli_backend: default_cli_backend(),
             wsl_distro: None,
             wsl_cli_path: None,
+            wsl_grok_home: None,
             permission_policy: "ask".into(),
             model_id: Some(DEFAULT_OFFICIAL_MODEL_ID.into()),
             effort: Some("xhigh".into()),

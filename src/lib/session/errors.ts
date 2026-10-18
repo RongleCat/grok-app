@@ -229,7 +229,7 @@ export function formatTurnErrorBody(
   // custom route) get honest bubble copy instead of the generic 401 line.
   // Pass rawCombined so bwrap/userns in "; stderr: …" survives stripErrorNoise.
   const deckish = resolveErrorDeckCode(code, `${rawCombined}\n${rest}\n${cleaned}`, opts);
-  if (isAuthDeckCode(deckish) || deckish === "PERMISSION_DENIED" || deckish === "MCP_AUTH_FAILED" || deckish === "OAUTH_EXPIRED" || deckish === "WORKSPACE_UNTRUSTED" || deckish === "PROJECT_MISSING" || deckish === "SANDBOX_BLOCKED" || deckish === "QUOTA_EXCEEDED" || deckish === "RATE_LIMITED") {
+  if (isAuthDeckCode(deckish) || deckish === "PERMISSION_DENIED" || deckish === "MCP_AUTH_FAILED" || deckish === "OAUTH_EXPIRED" || deckish === "WORKSPACE_UNTRUSTED" || deckish === "PROJECT_MISSING" || deckish === "SANDBOX_BLOCKED" || deckish === "QUOTA_EXCEEDED" || deckish === "RATE_LIMITED" || deckish === "MODEL_NOT_ALLOWED") {
     return errorCopyFromDeck(deckish, locale);
   }
 

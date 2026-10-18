@@ -38,6 +38,8 @@ export const itErrors = {
   "error.deck.rateLimit.cause": "Il servizio è occupato. Attendi un minuto e riprova.",
   "error.deck.connect.problem": "Impossibile connettere l’agente",
   "error.deck.connect.cause": "Nessun agente attivo per questa sessione. La CLI potrebbe essere offline, oppure la configurazione del provider è incompleta.",
+  "error.deck.modelAllowlist.problem": "Questo canale non è nella lista dei modelli consentiti",
+  "error.deck.modelAllowlist.cause": "La CLI ha rifiutato il canale, quindi il messaggio si è fermato e non è andato a un altro provider.",
   "error.deck.limit.problem": "Limite dei processi agente raggiunto",
   "error.deck.limit.cause": "Troppi processi agente in memoria. Interrompi un’altra sessione o alza il limite in Runtime.",
   "error.deck.cliTooOld.problem": "Grok CLI troppo vecchia",

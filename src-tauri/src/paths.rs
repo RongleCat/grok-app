@@ -156,6 +156,120 @@ pub fn needs_agent_home_spawn_prep(session_data_mode: &str, custom_route: bool) 
     custom_route || !session_data_mode.trim().eq_ignore_ascii_case("shared")
 }
 
+/// Linux-native GROK_HOME for a WSL-backed agent process.
+///
+/// Empty override → `{linux_user_home}/.grok`. `~` / `~/…` expand against the
+/// distro `$HOME`. Rejects `/mnt/…` so sandbox never binds GROK_HOME on DrvFS.
+pub fn resolve_wsl_linux_grok_home(
+    override_path: Option<&str>,
+    linux_user_home: &str,
+) -> Result<String, String> {
+    let home = linux_user_home.trim().trim_end_matches('/');
+    if home.is_empty() || !home.starts_with('/') {
+        return Err("WSL user HOME must be an absolute Linux path".into());
+    }
+    if is_wsl_mnt_path(home) {
+        return Err("WSL user HOME must not be a /mnt Windows mount".into());
+    }
+    let raw = override_path.map(str::trim).filter(|s| !s.is_empty());
+    if let Some(p) = raw {
+        if !is_safe_wsl_grok_home_path(p) {
+            return Err(format!("invalid WSL GROK_HOME (unsafe characters): {p}"));
+        }
+    }
+    let resolved = match raw {
+        None | Some("~") => format!("{home}/.grok"),
+        Some(p) if p.starts_with("~/") => {
+            let rest = p.trim_start_matches("~/").trim_end_matches('/');
+            if rest.is_empty() {
+                format!("{home}/.grok")
+            } else {
+                format!("{home}/{rest}")
+            }
+        }
+        Some(p) if p.starts_with('/') => p.trim_end_matches('/').to_string(),
+        Some(p) => format!("{home}/{}", p.trim_end_matches('/')),
+    };
+    if !is_safe_wsl_grok_home_path(&resolved) {
+        return Err(format!("invalid resolved WSL GROK_HOME: {resolved}"));
+    }
+    if is_wsl_mnt_path(&resolved) {
+        return Err(
+            "WSL GROK_HOME must be a Linux-native path (not /mnt/…); leave empty for ~/.grok"
+                .into(),
+        );
+    }
+    if !resolved.starts_with('/') {
+        return Err(format!("WSL GROK_HOME must be absolute: {resolved}"));
+    }
+    Ok(resolved)
+}
+
+/// True for `/mnt` or `/mnt/c/…` (Windows drives mounted in WSL).
+pub fn is_wsl_mnt_path(path: &str) -> bool {
+    let p = path.trim();
+    p == "/mnt" || p.starts_with("/mnt/")
+}
+
+/// Characters allowed in a WSL GROK_HOME path (override or resolved).
+pub fn is_safe_wsl_grok_home_path(path: &str) -> bool {
+    let p = path.trim();
+    if p.is_empty() || p.len() > 512 {
+        return false;
+    }
+    if p.split('/').any(|seg| seg == "..") {
+        return false;
+    }
+    p.chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '_' | '-' | '~' | '+' | ' '))
+}
+
+/// How to seed `{linux_grok_home}/auth.json` from Windows shared `~/.grok`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WslAuthLinkPlan {
+    /// Linux home already has auth.json (file or symlink).
+    SkipAlreadyPresent,
+    /// No Windows shared auth.json to point at.
+    SkipNoWindowsAuth,
+    /// `ln -s` **only** auth.json (never the whole directory).
+    Link {
+        windows_auth_wsl: String,
+        linux_auth: String,
+    },
+}
+
+/// Plan a one-file `auth.json` symlink. Never links the whole GROK_HOME.
+pub fn plan_wsl_auth_json_link(
+    linux_grok_home: &str,
+    linux_auth_present: bool,
+    windows_shared_home_wsl: Option<&str>,
+    windows_auth_present: bool,
+) -> WslAuthLinkPlan {
+    if linux_auth_present {
+        return WslAuthLinkPlan::SkipAlreadyPresent;
+    }
+    let Some(win_home) = windows_shared_home_wsl
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    else {
+        return WslAuthLinkPlan::SkipNoWindowsAuth;
+    };
+    if !windows_auth_present {
+        return WslAuthLinkPlan::SkipNoWindowsAuth;
+    }
+    let win_home = win_home.trim_end_matches('/');
+    let linux_home = linux_grok_home.trim().trim_end_matches('/');
+    let windows_auth_wsl = format!("{win_home}/auth.json");
+    let linux_auth = format!("{linux_home}/auth.json");
+    if windows_auth_wsl == linux_auth {
+        return WslAuthLinkPlan::SkipAlreadyPresent;
+    }
+    WslAuthLinkPlan::Link {
+        windows_auth_wsl,
+        linux_auth,
+    }
+}
+
 pub fn projects_file() -> PathBuf {
     app_data_root().join("projects.json")
 }
@@ -352,5 +466,69 @@ mod tests {
         assert!(needs_agent_home_spawn_prep("independent", true));
         assert!(!needs_agent_home_spawn_prep("Shared", false));
         assert!(needs_agent_home_spawn_prep("SHARED", true));
+    }
+
+    #[test]
+    fn wsl_linux_grok_home_defaults_to_distro_dot_grok() {
+        assert_eq!(
+            resolve_wsl_linux_grok_home(None, "/home/alice").unwrap(),
+            "/home/alice/.grok"
+        );
+        assert_eq!(
+            resolve_wsl_linux_grok_home(Some(""), "/root").unwrap(),
+            "/root/.grok"
+        );
+        assert_eq!(
+            resolve_wsl_linux_grok_home(Some("~"), "/root").unwrap(),
+            "/root/.grok"
+        );
+        assert_eq!(
+            resolve_wsl_linux_grok_home(Some("~/custom-grok"), "/home/bob").unwrap(),
+            "/home/bob/custom-grok"
+        );
+        assert_eq!(
+            resolve_wsl_linux_grok_home(Some("/opt/grok-home"), "/home/alice").unwrap(),
+            "/opt/grok-home"
+        );
+    }
+
+    #[test]
+    fn wsl_linux_grok_home_rejects_mnt_and_injection() {
+        assert!(resolve_wsl_linux_grok_home(Some("/mnt/c/Users/a/.grok"), "/home/a").is_err());
+        assert!(resolve_wsl_linux_grok_home(None, "/mnt/c/Users/a").is_err());
+        assert!(resolve_wsl_linux_grok_home(Some("/tmp/grok;id"), "/home/a").is_err());
+        assert!(resolve_wsl_linux_grok_home(Some("../etc"), "/home/a").is_err());
+        assert!(resolve_wsl_linux_grok_home(Some("/home/a/../.grok"), "/home/a").is_err());
+    }
+
+    #[test]
+    fn wsl_auth_json_link_is_file_only() {
+        assert_eq!(
+            plan_wsl_auth_json_link("/home/a/.grok", true, Some("/mnt/c/Users/a/.grok"), true),
+            WslAuthLinkPlan::SkipAlreadyPresent
+        );
+        assert_eq!(
+            plan_wsl_auth_json_link("/home/a/.grok", false, Some("/mnt/c/Users/a/.grok"), false),
+            WslAuthLinkPlan::SkipNoWindowsAuth
+        );
+        assert_eq!(
+            plan_wsl_auth_json_link("/home/a/.grok", false, Some("/mnt/c/Users/a/.grok"), true),
+            WslAuthLinkPlan::Link {
+                windows_auth_wsl: "/mnt/c/Users/a/.grok/auth.json".into(),
+                linux_auth: "/home/a/.grok/auth.json".into(),
+            }
+        );
+        // Never plan a directory-level link.
+        match plan_wsl_auth_json_link("/root/.grok", false, Some("/mnt/c/Users/x/.grok"), true) {
+            WslAuthLinkPlan::Link {
+                windows_auth_wsl,
+                linux_auth,
+            } => {
+                assert!(windows_auth_wsl.ends_with("/auth.json"));
+                assert!(linux_auth.ends_with("/auth.json"));
+                assert!(!windows_auth_wsl.ends_with("/.grok"));
+            }
+            other => panic!("expected Link, got {other:?}"),
+        }
     }
 }

@@ -38,6 +38,8 @@ export const ptBRErrors = {
   "error.deck.rateLimit.cause": "O serviço está ocupado. Espere um minuto e envie de novo.",
   "error.deck.connect.problem": "Não foi possível conectar o agente",
   "error.deck.connect.cause": "Nenhum agente ativo para esta sessão. A CLI pode estar offline, ou a configuração do provedor está incompleta.",
+  "error.deck.modelAllowlist.problem": "Este canal não está na lista de modelos permitidos",
+  "error.deck.modelAllowlist.cause": "A CLI recusou o canal, então a mensagem parou e não foi para outro provedor.",
   "error.deck.limit.problem": "Limite de processos de agente atingido",
   "error.deck.limit.cause": "Processos de agente demais em memória. Pare outra sessão ou aumente o limite em Runtime.",
   "error.deck.cliTooOld.problem": "A Grok CLI está antiga demais",

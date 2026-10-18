@@ -1,8 +1,9 @@
 /**
  * Settings → Runtime → CLI: use Grok Build installed inside WSL (Windows only).
  *
- * Persists `cliBackend` / `wslDistro` / `wslCliPath` on AppSettings. When
- * backend is `wsl`, Host spawns via `wsl.exe` instead of a native grok.exe.
+ * Persists `cliBackend` / `wslDistro` / `wslCliPath` / `wslGrokHome` on
+ * AppSettings. When backend is `wsl`, Host spawns via `wsl.exe` instead of a
+ * native grok.exe. Agent GROK_HOME is Linux-native (`~/.grok` in the distro).
  */
 import { useCallback, useEffect, useState } from "react";
 import * as api from "@/lib/api";
@@ -20,6 +21,7 @@ export function WslBackendField({ t, onSaved }: Props) {
   const [enabled, setEnabled] = useState(false);
   const [distro, setDistro] = useState("");
   const [cliPath, setCliPath] = useState("");
+  const [grokHome, setGrokHome] = useState("");
   const [status, setStatus] = useState<api.WslStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,6 +41,7 @@ export function WslBackendField({ t, onSaved }: Props) {
       setEnabled((s.cliBackend || "native") === "wsl");
       setDistro(s.wslDistro?.trim() || "");
       setCliPath(s.wslCliPath?.trim() || "");
+      setGrokHome(s.wslGrokHome?.trim() || "");
       setStatus(st);
     } catch {
       setStatus(null);
@@ -55,6 +58,7 @@ export function WslBackendField({ t, onSaved }: Props) {
     enabled: boolean;
     distro: string;
     cliPath: string;
+    grokHome: string;
   }) => {
     if (!api.isTauri() || saving) return;
     setSaving(true);
@@ -65,10 +69,12 @@ export function WslBackendField({ t, onSaved }: Props) {
         cliBackend: next.enabled ? "wsl" : "native",
         wslDistro: next.distro.trim() || null,
         wslCliPath: next.cliPath.trim() || null,
+        wslGrokHome: next.grokHome.trim() || null,
       });
       setEnabled(next.enabled);
       setDistro(next.distro.trim());
       setCliPath(next.cliPath.trim());
+      setGrokHome(next.grokHome.trim());
       const st = await api.wslStatus();
       setStatus(st);
       onSaved?.();
@@ -83,7 +89,7 @@ export function WslBackendField({ t, onSaved }: Props) {
     try {
       // persist() already re-reads status and fires onSaved — probing again
       // here ran the whole wsl.exe probe twice per click.
-      await persist({ enabled, distro, cliPath });
+      await persist({ enabled, distro, cliPath, grokHome });
     } finally {
       setProbing(false);
     }
@@ -140,6 +146,7 @@ export function WslBackendField({ t, onSaved }: Props) {
               enabled: !enabled,
               distro,
               cliPath,
+              grokHome,
             });
           }}
           ariaLabel={t("settings.wsl.enable")}
@@ -158,7 +165,7 @@ export function WslBackendField({ t, onSaved }: Props) {
               value={distro}
               options={distroOptions}
               onChange={(v) => {
-                void persist({ enabled, distro: v, cliPath });
+                void persist({ enabled, distro: v, cliPath, grokHome });
               }}
               disabled={saving}
               aria-label={t("settings.wsl.distro")}
@@ -178,7 +185,24 @@ export function WslBackendField({ t, onSaved }: Props) {
                 // Persist (and re-probe) only when the path actually changed —
                 // blurring an untouched input must not respawn the WSL probe.
                 if (v !== cliPath) {
-                  void persist({ enabled, distro, cliPath: v });
+                  void persist({ enabled, distro, cliPath: v, grokHome });
+                }
+              }}
+            />
+          </div>
+          <div className="settings-row settings-row--stack">
+            <div className="settings-row__label">{t("settings.wsl.grokHome")}</div>
+            <div className="settings-row__desc">{t("settings.wsl.grokHomeDesc")}</div>
+            <input
+              className="settings-input"
+              value={grokHome}
+              placeholder={t("settings.wsl.grokHomePlaceholder")}
+              disabled={saving}
+              onChange={(e) => setGrokHome(e.target.value)}
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                if (v !== grokHome) {
+                  void persist({ enabled, distro, cliPath, grokHome: v });
                 }
               }}
             />

@@ -38,6 +38,8 @@ export const zhErrors = {
   "error.deck.rateLimit.cause": "服务正忙。请等一分钟后再发送。",
   "error.deck.connect.problem": "无法连接本会话的 Agent",
   "error.deck.connect.cause": "当前没有可用 Agent。CLI 可能未就绪，或自定义中转配置不完整。",
+  "error.deck.modelAllowlist.problem": "这个通道不在模型白名单里",
+  "error.deck.modelAllowlist.cause": "CLI 拒绝了这个通道，消息已停下，没有改走别的提供商。",
   "error.deck.limit.problem": "已达到 Agent 进程上限",
   "error.deck.limit.cause": "并行 Agent 过多。请先结束其他会话，或在运行环境中提高上限。",
   "error.deck.cliTooOld.problem": "Grok CLI 版本过低",

@@ -38,6 +38,8 @@ export const jaErrors = {
   "error.deck.rateLimit.cause": "サービスが混雑しています。1 分ほど待って再送してください。",
   "error.deck.connect.problem": "エージェントに接続できませんでした",
   "error.deck.connect.cause": "このセッションに稼働中のエージェントがありません。CLI がオフラインか、カスタムプロバイダーの設定が未完了の可能性があります。",
+  "error.deck.modelAllowlist.problem": "このチャネルはモデル許可リストにありません",
+  "error.deck.modelAllowlist.cause": "CLI がこのチャネルを拒否したため、別のプロバイダへ送らずに停止しました。",
   "error.deck.limit.problem": "エージェントプロセス数の上限に達しました",
   "error.deck.limit.cause": "ウォーム状態のエージェントが多すぎます。別のセッションを停止するか、ランタイム設定で上限を引き上げてください。",
   "error.deck.cliTooOld.problem": "Grok CLI が古すぎます",

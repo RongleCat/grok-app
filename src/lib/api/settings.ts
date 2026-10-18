@@ -21,6 +21,11 @@ export interface AppSettings {
   wslDistro?: string | null;
   /** Path to grok inside WSL (e.g. grok, ~/.grok/bin/grok). */
   wslCliPath?: string | null;
+  /**
+   * Linux-native GROK_HOME when cliBackend is wsl.
+   * Empty = distro ~/.grok. Must not be /mnt/… .
+   */
+  wslGrokHome?: string | null;
   permissionPolicy: string;
   modelId: string | null;
   effort: string | null;

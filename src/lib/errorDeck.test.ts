@@ -140,6 +140,21 @@ describe("buildErrorDeck", () => {
     expect(zh.cause).toMatch(/一分钟|正忙/);
   });
 
+  it("classifies an allowed_models refusal even when the host says CONNECT_FAILED (#1334)", () => {
+    const msg =
+      'Invalid params (code -32602, data: "This model isn\'t allowed by your allowed_models setting.")';
+    expect(classifyErrorMessage(msg)).toBe("MODEL_NOT_ALLOWED");
+    expect(resolveErrorDeckCode("CONNECT_FAILED", msg)).toBe("MODEL_NOT_ALLOWED");
+    expect(resolveErrorDeckCode("CONNECT_FAILED", "rpc timeout on session/set_model")).toBe(
+      "CONNECT_FAILED",
+    );
+    const deck = buildErrorDeck("MODEL_NOT_ALLOWED", "en");
+    expect(deck.problem.toLowerCase()).toMatch(/allowlist/);
+    expect(deck.primary.id).toBe("open_providers");
+    const zh = buildErrorDeck("MODEL_NOT_ALLOWED", "zh");
+    expect(zh.problem).toMatch(/白名单/);
+  });
+
   it("classifies Linux bwrap / userns denial as SANDBOX_BLOCKED (#541)", () => {
     const msg =
       "Agent stream closed (EOF); stderr: bwrap: setting up uid map: Permission denied";
