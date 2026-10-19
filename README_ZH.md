@@ -92,6 +92,7 @@
 ### 4. 扩展生态与自动化
 - **斜杠指令与技能**：全面对齐 Grok Build 斜杠指令集，支持行内技能快速调用与自定义工作流 (`/workflow`)。
 - **扩展与插件中心**：集成 MCP (Model Context Protocol) 服务管理，提供开放插件与技能生态（兼容 OpenAI 插件规范），所有扩展由用户自主管理。
+- **PointHand 电脑操控（Windows）**：在「添加 MCP 服务器」中一键填入 [PointHand](https://github.com/ayzekhdawy/pointhand) Windows 电脑操控服务并安装其技能，让智能体看到屏幕并操作桌面应用（[指南](docs/pointhand.md)）。
 - **ChatCut 插件集成**：内置推荐的 Codex 插件支持，统一管理授权刷新与浏览器协作。
 - **定时与自动化**：支持可视化查看定时任务列表，可通过自然语言对话直接设定自动化执行任务。
 

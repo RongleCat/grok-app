@@ -666,3 +666,27 @@
  * (mirror + JS phoneLayout). At ≥821px none of these rules match → desktop
  * layout is byte-identical to pre-redesign.
  */
+
+/* PointHand preset (Add MCP server modal) */
+.ext-pointhand-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-elevated, transparent);
+}
+
+.ext-pointhand-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.ext-pointhand-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
