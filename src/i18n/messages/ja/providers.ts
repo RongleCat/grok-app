@@ -88,6 +88,7 @@ export const jaProviders = {
   "prov.preset.openrouter.blurb": "OpenRouter — GLM-5.3 Flash は Chat Completions、100 万コンテキスト、視覚オン",
   "prov.preset.orcarouter.blurb": "OrcaRouter — OpenAI 互換マルチプロバイダー、Auto Router、視覚オン",
   "prov.preset.requesty.blurb": "Requesty：OpenAI 互換マルチプロバイダールーター、Grok 4.6 / Gemini 3.5 Flash / DeepSeek V4 Flash",
+  "prov.preset.atlascloud.blurb": "Atlas Cloud：OpenAI 互換マルチモデルゲートウェイ、DeepSeek V4 Flash / Kimi K3 / GLM-5.3 Flash、推論 high/xhigh",
   "prov.preset.amux.blurb": "Amux リレー — Grok 4.7 / 4.6 / 4.5、思考レベルは公式と同じ low/medium/high/xhigh",
   "prov.preset.yunApi.blurb": "Yun API（yunyi）— Grok 4.7 / 4.6 / 4.5、思考レベルは公式と同じ low/medium/high/xhigh",
   "prov.preset.opencodeGo.blurb": "OpenCode Zen Go — DeepSeek V4 は Chat Completions を使用（Responses は不可）",

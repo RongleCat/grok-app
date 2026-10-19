@@ -88,6 +88,7 @@ export const ukProviders = {
   "prov.preset.openrouter.blurb": "OpenRouter — GLM-5.3 Flash через chat_completions, контекст 1M, зір увімкнено",
   "prov.preset.orcarouter.blurb": "OrcaRouter — OpenAI-сумісний multi-provider шлюз, Auto Router, зір увімкнено",
   "prov.preset.requesty.blurb": "Requesty: OpenAI-сумісний multi-provider роутер, Grok 4.6 / Gemini 3.5 Flash / DeepSeek V4 Flash",
+  "prov.preset.atlascloud.blurb": "Atlas Cloud: OpenAI-сумісний шлюз із багатьма моделями, DeepSeek V4 Flash / Kimi K3 / GLM-5.3 Flash, міркування high/xhigh",
   "prov.preset.amux.blurb": "Реле Amux — Grok 4,7 / 4,6 / 4,5, офіційне зусилля низьке/середнє/високе/xвисоке",
   "prov.preset.yunApi.blurb": "Yun API (yunyi) — Grok 4,7 / 4,6 / 4,5, офіційне зусилля низьке/середнє/високе/xвисоке",
   "prov.preset.opencodeGo.blurb": "OpenCode Zen Go — DeepSeek V4 через chat_completions (не відповіді)",
