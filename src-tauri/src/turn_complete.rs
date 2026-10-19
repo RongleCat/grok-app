@@ -96,6 +96,41 @@ pub fn note_tool_open_status(
     inserted
 }
 
+/// What the Tasks panel should show for one tool update.
+///
+/// Background handoff (`task_backgrounded`) is still running. Real completion
+/// (`task_completed` / linked `subagent_finished`) is terminal, and later
+/// stdout `in_progress` ticks must not flip that row back to running.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ToolPanelSync {
+    /// Publish this status on `session://tool`.
+    Show(String),
+    /// Drop the update. The panel already shows the finished outcome.
+    Keep,
+}
+
+/// Decide the Tasks-panel status for one tool event.
+///
+/// `handed_off` is set by `task_backgrounded`. `finished` is set by
+/// `task_completed` or a subagent finish linked to the same tool id.
+pub fn sync_tool_panel_status(handed_off: bool, finished: bool, status: &str) -> ToolPanelSync {
+    let terminal = is_terminal_tool_status(status);
+    if finished && !terminal {
+        return ToolPanelSync::Keep;
+    }
+    // The CLI marks a handed-off shell `completed` (`[bg]`) while it is still
+    // running. The panel stays on running until the task actually finishes.
+    if handed_off && !finished && terminal {
+        return ToolPanelSync::Show("running".to_string());
+    }
+    let shown = if status.is_empty() {
+        "in_progress"
+    } else {
+        status
+    };
+    ToolPanelSync::Show(shown.to_string())
+}
+
 /// Force-release a tool from open tracking (task_backgrounded / task_completed).
 /// Does not write journal rows — only Host turn accounting.
 pub fn release_tool_from_open(
@@ -228,6 +263,35 @@ mod tests {
             false,
             open.len()
         ));
+    }
+
+    #[test]
+    fn handed_off_shell_stays_running_until_the_task_finishes() {
+        assert_eq!(
+            sync_tool_panel_status(true, false, "completed"),
+            ToolPanelSync::Show("running".to_string())
+        );
+        assert_eq!(
+            sync_tool_panel_status(true, false, "in_progress"),
+            ToolPanelSync::Show("in_progress".to_string())
+        );
+        assert_eq!(
+            sync_tool_panel_status(true, true, "completed"),
+            ToolPanelSync::Show("completed".to_string())
+        );
+        assert_eq!(
+            sync_tool_panel_status(true, true, "failed"),
+            ToolPanelSync::Show("failed".to_string())
+        );
+        // Stdout after the process exited must not reopen the row.
+        assert_eq!(
+            sync_tool_panel_status(true, true, "in_progress"),
+            ToolPanelSync::Keep
+        );
+        assert_eq!(
+            sync_tool_panel_status(false, false, "completed"),
+            ToolPanelSync::Show("completed".to_string())
+        );
     }
 
     #[test]

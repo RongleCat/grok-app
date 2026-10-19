@@ -523,20 +523,23 @@ impl SessionManager {
                         already_terminal,
                     );
                 }
-                let _ = app.emit(
-                    "session://tool",
-                    serde_json::json!({
-                        "sessionId": app_sid,
-                        "toolCallId": tool_call_id,
-                        "title": live_title,
-                        "kind": if kind_j.is_empty() { kind.clone() } else { kind_j },
-                        "status": st,
-                        "path": path_out,
-                        "detail": detail,
-                        // Call argument (target file / command / query) for primary labels.
-                        "input": input2,
-                    }),
-                );
+                let panel_sync = self.panel_status_for_tool(&app_sid, &tool_call_id, &st);
+                if let crate::turn_complete::ToolPanelSync::Show(panel_status) = panel_sync {
+                    let _ = app.emit(
+                        "session://tool",
+                        serde_json::json!({
+                            "sessionId": app_sid,
+                            "toolCallId": tool_call_id,
+                            "title": live_title,
+                            "kind": if kind_j.is_empty() { kind.clone() } else { kind_j },
+                            "status": panel_status,
+                            "path": path_out,
+                            "detail": detail,
+                            // Call argument (target file / command / query) for primary labels.
+                            "input": input2,
+                        }),
+                    );
+                }
                 if finished {
                     self.promote_background_ready_to_parked(app_session_id);
                     Self::emit_runtime(
@@ -568,10 +571,13 @@ impl SessionManager {
                     let _ = app.emit("session://subagent", sub.to_payload(app_session_id));
                 }
             }
-            AcpEvent::ToolOpenReleased { tool_call_id } => {
+            AcpEvent::ToolOpenReleased {
+                tool_call_id,
+                ui_status,
+            } => {
                 let mut pending_emits = Vec::new();
                 let mut pending_persists = Vec::new();
-                let finished = {
+                let (finished, owned) = {
                     let mut bg = self.background.lock();
                     if let Some(s) = bg.get_mut(app_session_id) {
                         if Self::is_session_load_replay(s) {
@@ -579,18 +585,33 @@ impl SessionManager {
                         }
                         Self::release_tool_open_on_session(s, &tool_call_id);
                         Self::touch_stream_progress_locked(s);
-                        Self::try_finish_deferred_prompt_complete(
+                        let done = Self::try_finish_deferred_prompt_complete(
                             s,
                             Some(&mut pending_emits),
                             Some(&mut pending_persists),
                         )
-                        .is_some()
+                        .is_some();
+                        (done, true)
                     } else {
-                        false
+                        (false, false)
                     }
                 };
                 Self::emit_stream_payloads(app, pending_emits);
                 Self::commit_session_persists(Some(app), pending_persists);
+                if owned {
+                    if let Some(panel_status) =
+                        self.sync_bg_tool_release(app_session_id, &tool_call_id, &ui_status)
+                    {
+                        let _ = app.emit(
+                            "session://tool",
+                            serde_json::json!({
+                                "sessionId": app_session_id,
+                                "toolCallId": tool_call_id,
+                                "status": panel_status,
+                            }),
+                        );
+                    }
+                }
                 if finished {
                     self.promote_background_ready_to_parked(app_session_id);
                     Self::emit_runtime(

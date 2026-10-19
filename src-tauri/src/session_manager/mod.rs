@@ -50,7 +50,7 @@ mod routing_tests;
 mod stall_tests;
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{
         atomic::{AtomicU32, AtomicU64},
         Arc,
@@ -88,6 +88,13 @@ pub struct SessionManager {
     pub(super) tool_identities: std::sync::Mutex<
         std::collections::HashMap<String, std::collections::HashMap<String, ToolIdentity>>,
     >,
+    /// Background tools handed off (`task_backgrounded`) and not yet finished.
+    /// Key is `{app_session_id}\n{tool_call_id}`. The Tasks panel stays on
+    /// running until `bg_tool_finished`.
+    pub(super) bg_tool_handed_off: Mutex<HashSet<String>>,
+    /// Background tools whose process or subagent has actually finished.
+    /// Later `in_progress` stdout must not paint them running again.
+    pub(super) bg_tool_finished: Mutex<HashSet<String>>,
     /// Serialize connect / park / unpark so openSession prefetch cannot race first send.
     pub(super) connect_lock: tokio::sync::Mutex<()>,
     /// Latest-wins generation for `session_connect`. A timed-out or superseded
@@ -129,6 +136,8 @@ impl SessionManager {
             prewarm: Mutex::new(PrewarmState::None),
             prewarm_epoch: AtomicU64::new(0),
             tool_identities: std::sync::Mutex::new(std::collections::HashMap::new()),
+            bg_tool_handed_off: Mutex::new(HashSet::new()),
+            bg_tool_finished: Mutex::new(HashSet::new()),
             connect_lock: tokio::sync::Mutex::new(()),
             connect_epoch: AtomicU64::new(0),
             pending_children: Mutex::new(Vec::new()),
@@ -143,6 +152,7 @@ impl SessionManager {
     /// Drop bookkeeping for a chat that no longer exists in the store.
     pub fn forget_deleted_session(&self, session_id: &str) {
         self.pending_soft_respawn.lock().remove(session_id);
+        self.forget_bg_tool_keys(session_id);
         let kids: Vec<PendingAcpChild> = {
             let mut list = self.pending_children.lock();
             let mut taken = Vec::new();
@@ -163,6 +173,66 @@ impl SessionManager {
                 }
             });
         }
+    }
+
+    fn bg_tool_key(session_id: &str, tool_call_id: &str) -> String {
+        format!("{session_id}\n{tool_call_id}")
+    }
+
+    fn forget_bg_tool_keys(&self, session_id: &str) {
+        let prefix = format!("{session_id}\n");
+        self.bg_tool_handed_off
+            .lock()
+            .retain(|k| !k.starts_with(&prefix));
+        self.bg_tool_finished
+            .lock()
+            .retain(|k| !k.starts_with(&prefix));
+    }
+
+    /// Record a `task_backgrounded` / `task_completed` panel status.
+    /// Returns the status to publish, or `None` when a later handoff must
+    /// not reopen a task that already finished.
+    pub(super) fn sync_bg_tool_release(
+        &self,
+        session_id: &str,
+        tool_call_id: &str,
+        ui_status: &str,
+    ) -> Option<String> {
+        if session_id.is_empty() || tool_call_id.is_empty() {
+            return None;
+        }
+        let key = Self::bg_tool_key(session_id, tool_call_id);
+        if crate::turn_complete::is_terminal_tool_status(ui_status) {
+            self.bg_tool_finished.lock().insert(key.clone());
+            self.bg_tool_handed_off.lock().remove(&key);
+            Some(ui_status.to_string())
+        } else if self.bg_tool_finished.lock().contains(&key) {
+            None
+        } else {
+            self.bg_tool_handed_off.lock().insert(key);
+            Some(ui_status.to_string())
+        }
+    }
+
+    /// Tasks-panel status for a normal `tool_call` / `tool_call_update`.
+    pub(super) fn panel_status_for_tool(
+        &self,
+        session_id: &str,
+        tool_call_id: &str,
+        status: &str,
+    ) -> crate::turn_complete::ToolPanelSync {
+        let shown = if status.is_empty() {
+            "in_progress"
+        } else {
+            status
+        };
+        if session_id.is_empty() || tool_call_id.is_empty() {
+            return crate::turn_complete::ToolPanelSync::Show(shown.to_string());
+        }
+        let key = Self::bg_tool_key(session_id, tool_call_id);
+        let finished = self.bg_tool_finished.lock().contains(&key);
+        let handed = self.bg_tool_handed_off.lock().contains(&key);
+        crate::turn_complete::sync_tool_panel_status(handed, finished, shown)
     }
 
     pub(super) fn invalidate_prewarm_epoch(&self) {

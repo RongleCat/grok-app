@@ -64,6 +64,23 @@ describe("normalizeTaskStatus / isRunningToolStatus", () => {
     expect(normalizeTaskStatus("cancelled")).toBe("cancelled");
     expect(normalizeTaskStatus("canceled")).toBe("cancelled");
   });
+
+  it("a terminal toolStatus wins when the streaming flag was left on", () => {
+    expect(normalizeTaskStatus("completed", true)).toBe("completed");
+    expect(normalizeTaskStatus("failed", true)).toBe("failed");
+    expect(normalizeTaskStatus("cancelled", true)).toBe("cancelled");
+    const task = taskFromToolMessage(
+      tool({
+        id: "tool-bg",
+        toolCallId: "bg",
+        content: "sleep 1",
+        toolKind: "run_terminal_command",
+        toolStatus: "completed",
+        streaming: true,
+      }),
+    );
+    expect(task?.status).toBe("completed");
+  });
 });
 
 describe("isLongRunningToolKind", () => {
@@ -203,6 +220,33 @@ describe("collectSessionTasks", () => {
     ];
     const tasks = collectSessionTasks(msgs);
     expect(tasks.map((t) => t.id)).toEqual(["bg", "r"]);
+  });
+
+  it("replaces a stale running row when the same tool later completes", () => {
+    const msgs: ChatMessage[] = [
+      { id: "u1", role: "user", content: "now" },
+      tool({
+        id: "tool-bg-live",
+        toolCallId: "bg",
+        content: "sleep 1",
+        toolKind: "run_terminal_command",
+        toolStatus: "running",
+        streaming: true,
+        createdAt: "2026-01-02T00:00:01.000Z",
+      }),
+      tool({
+        id: "tool-bg-done",
+        toolCallId: "bg",
+        content: "sleep 1",
+        toolKind: "run_terminal_command",
+        toolStatus: "completed",
+        streaming: false,
+        createdAt: "2026-01-02T00:00:02.000Z",
+      }),
+    ];
+    const tasks = collectSessionTasks(msgs);
+    expect(tasks.filter((t) => t.id === "bg")).toHaveLength(1);
+    expect(tasks.find((t) => t.id === "bg")?.status).toBe("completed");
   });
 
   it("respects recentLimit", () => {

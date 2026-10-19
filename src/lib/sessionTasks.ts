@@ -272,9 +272,9 @@ export function normalizeTaskStatus(
   status: string | null | undefined,
   streaming?: boolean,
 ): AgentTaskStatus {
-  if (streaming) return "running";
   const s = (status || "").toLowerCase().trim();
-  if (!s || RUNNING_STATUSES.has(s)) return "running";
+  // A reported terminal status is the outcome. A stuck `streaming` flag must
+  // not keep a finished tool on "running" in the Tasks panel.
   if (FAILED_STATUSES.has(s)) return "failed";
   if (CANCELLED_STATUSES.has(s)) return "cancelled";
   if (
@@ -285,6 +285,7 @@ export function normalizeTaskStatus(
   ) {
     return "completed";
   }
+  if (streaming || !s || RUNNING_STATUSES.has(s)) return "running";
   // Unknown terminal-ish labels → treat as completed for display.
   return "completed";
 }
@@ -598,12 +599,8 @@ export function collectSessionTasks(
   for (let i = from; i < messages.length; i++) {
     const task = taskFromToolMessage(messages[i]!);
     if (!task) continue;
-    if (task.status === "running") {
-      byId.set(task.id, task);
-      continue;
-    }
-    const prev = byId.get(task.id);
-    if (prev?.status === "running") continue;
+    // Last row for this id in the current turn wins. A later completed /
+    // failed row must replace the stale running snapshot of the same tool.
     byId.set(task.id, task);
   }
 
