@@ -13,6 +13,9 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- PointHand preset in Add MCP server: fill the form and install the skill in one click. PointHand lets the agent work in Windows desktop apps.
+
 ## [0.2.42] - 2026-10-19
 
 > **Highlight:** The desktop pet can dictate, send, and stop a chat.

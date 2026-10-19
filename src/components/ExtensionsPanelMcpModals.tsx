@@ -10,6 +10,7 @@ import { GlassModal } from "@/components/GlassModal";
 import { shortPathLabel } from "@/lib/extensionsUi";
 import { IconRefresh } from "@/components/icons";
 import { McpOauthWizard } from "@/components/McpOauthWizard";
+import { PointhandPresetCard } from "@/components/PointhandPresetCard";
 import {
   lookupServerStatus,
   indexDoctorServerStatuses,
@@ -160,6 +161,16 @@ export function ExtensionsPanelMcpModals(p: ExtensionsPanelMcpModalsProps) {
             void submitAdd();
           }}
         >
+          <PointhandPresetCard
+            tr={tr}
+            disabled={actionBusy === "mcp:add"}
+            onFill={(f) => {
+              setAddName(f.name);
+              setAddCommand(f.command);
+              setAddArgs(f.args);
+              setAddEnv(f.env);
+            }}
+          />
           <label className="field">
             <span>{tr("ext.mcp.name")}</span>
             <input

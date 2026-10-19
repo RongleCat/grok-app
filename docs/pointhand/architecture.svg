@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="300" viewBox="0 0 960 300" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Illustration: how Grok App / Grok CLI reach PointHand</title>
+  <rect width="960" height="300" rx="16" fill="#0d1117"/>
+  <text x="24" y="34" fill="#8b949e" font-size="13">Illustration (diagram, not a screenshot)</text>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#22b8cf"/></marker>
+  </defs>
+  <g font-size="15" fill="#e6edf3" text-anchor="middle">
+    <rect x="24" y="70" width="180" height="150" rx="12" fill="#161b22" stroke="#30363d"/>
+    <text x="114" y="108" font-weight="600">Grok App</text>
+    <text x="114" y="134" font-size="12" fill="#8b949e">Settings → Extensions → MCP</text>
+    <text x="114" y="154" font-size="12" fill="#8b949e">"Fill in PointHand"</text>
+    <text x="114" y="174" font-size="12" fill="#8b949e">"Install PointHand skill"</text>
+    <rect x="262" y="70" width="180" height="150" rx="12" fill="#161b22" stroke="#30363d"/>
+    <text x="352" y="108" font-weight="600">Grok CLI agent</text>
+    <text x="352" y="134" font-size="12" fill="#8b949e">[mcp_servers.pointhand]</text>
+    <text x="352" y="154" font-size="12" fill="#8b949e">skills/pointhand/SKILL.md</text>
+    <rect x="500" y="70" width="190" height="150" rx="12" fill="#10242a" stroke="#22b8cf"/>
+    <text x="595" y="108" font-weight="600">PointHand MCP</text>
+    <text x="595" y="134" font-size="12" fill="#8b949e">node client/dist/index.js</text>
+    <text x="595" y="154" font-size="12" fill="#8b949e">28 tools · stdio</text>
+    <text x="595" y="174" font-size="12" fill="#8b949e">POINTHAND_ALLOW</text>
+    <rect x="748" y="70" width="188" height="150" rx="12" fill="#161b22" stroke="#30363d"/>
+    <text x="842" y="108" font-weight="600">Rust host → Windows</text>
+    <text x="842" y="134" font-size="12" fill="#8b949e">mouse · keyboard · UIA</text>
+    <text x="842" y="154" font-size="12" fill="#8b949e">screenshots · overlay</text>
+    <text x="842" y="174" font-size="12" fill="#8b949e">Escape = stop</text>
+  </g>
+  <g stroke="#22b8cf" stroke-width="2.5" marker-end="url(#a)">
+    <line x1="206" y1="145" x2="258" y2="145"/>
+    <line x1="444" y1="145" x2="496" y2="145"/>
+    <line x1="692" y1="145" x2="744" y2="145"/>
+  </g>
+  <text x="480" y="270" fill="#8b949e" font-size="13" text-anchor="middle">Desktop apps (Paint, Illustrator, Office…) receive real input; the user stays in control.</text>
+</svg>

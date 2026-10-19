@@ -92,6 +92,7 @@
 ### 4. Extensions, Plugins & Automations
 - **Slash Commands & Skills**: Fully aligned with Grok Build slash command palette, inline skill chips, and custom automated workflows (`/workflow`).
 - **Extensions Hub**: Manage Model Context Protocol (MCP) servers, plugins catalog (OpenAI plugin compatible), skills, agents, and hooks with full user control.
+- **PointHand Computer Use (Windows)**: One click in *Add MCP server* fills the [PointHand](https://github.com/ayzekhdawy/pointhand) Windows computer-use server and installs its skill, so the agent can see the screen and work in desktop apps ([guide](docs/pointhand.md)).
 - **ChatCut Integration**: Native integration for the recommended Codex plugin with automated OAuth refresh and external editor workflows.
 - **Scheduled Automations**: Schedule recurring or one-off tasks with natural-language prompt creation and visual execution logs.
 
@@ -117,6 +118,10 @@
 | ☀️ Light Theme Mode | 💬 Media Preview & Interaction |
 |:---:|:---:|
 | ![Light](assets/screenshots/light.png) | ![Chat](assets/screenshots/chat.png) |
+
+| 🐾 Desktop Pet & Quick Hub | 🖐️ PointHand Computer Use |
+|:---:|:---:|
+| ![Desktop pet settings and quick bar](docs/pet-quick-hub/pet-settings.png) | ![Mona Lisa drawn in Paint by PointHand](docs/pointhand/mona-lisa-result.png) |
 
 ---
 
