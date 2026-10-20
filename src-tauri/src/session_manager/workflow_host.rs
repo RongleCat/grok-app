@@ -23,7 +23,8 @@ enum FollowupPrepared {
         agent_session_id: Option<String>,
         stream_message_id: String,
         user_row: ChatMessageStored,
-        meta: store::SessionMeta,
+        // Boxed so the Opened arm is not hundreds of bytes larger than Finished.
+        meta: Box<store::SessionMeta>,
     },
     Finished {
         pending_emits: Vec<StreamEmitPayload>,
@@ -218,7 +219,7 @@ impl SessionManager {
                     agent_session_id: s.meta.agent_session_id.clone(),
                     stream_message_id,
                     user_row,
-                    meta: s.meta.clone(),
+                    meta: Box::new(s.meta.clone()),
                 }
             }
             Decision::Finish {

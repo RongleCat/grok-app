@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
 import { SettingsModelProvider } from "@/providers/SettingsModelContext";
 import { GeneralSection } from "@/components/settings/GeneralSection";
+import { mapProbeToCliInfo } from "@/lib/cliVersionStatus";
 import type { SettingsViewModel } from "./types";
 
 function buildModel(overrides: Partial<SettingsViewModel> = {}): SettingsViewModel {
@@ -77,7 +78,12 @@ describe("GeneralSection agent", () => {
         activeTab: "agent",
         planEnabled: true,
         onPlanEnabled: vi.fn(),
-        cliInfo: { version: "1.0.62" },
+        cliInfo: mapProbeToCliInfo({
+          found: true,
+          version: "1.0.62",
+          source: "test",
+          cliAuthPresent: false,
+        }),
       }),
     );
     const planAt = html.indexOf("settings-anchor-planEnabled");
