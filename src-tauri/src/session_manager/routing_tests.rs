@@ -125,6 +125,7 @@ fn sample_live_for_empty_run(body: &str, thought: &str, tools: u32, mode: &str) 
             workspace_root_snapshot: None,
             workspace_capability: None,
             provider_id: None,
+            director_mode: false,
         },
         fsm,
         backend: "mock_acp".into(),

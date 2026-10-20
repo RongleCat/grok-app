@@ -1,0 +1,65 @@
+{
+  "_comment": "CLI 1.0.46 task_completed. task_snapshot.output is clipped to the last non-empty line and output_clipped is set. owner_session_id is the parent owner, not a child. No per-child tokens, model, or phase.",
+  "multiline": {
+    "params": {
+      "update": {
+        "sessionUpdate": "task_completed",
+        "will_wake": false,
+        "task_snapshot": {
+          "task_id": "call-fleet-done-1",
+          "command": "printf 'line-a\\nline-b\\n'",
+          "cwd": "/tmp/fleet-fixture",
+          "start_time": { "secs_since_epoch": 1700000000, "nanos_since_epoch": 0 },
+          "end_time": { "secs_since_epoch": 1700000002, "nanos_since_epoch": 0 },
+          "output": "line-a\nline-b\n",
+          "output_file": "/tmp/fleet-fixture/task-1.log",
+          "truncated": false,
+          "output_total_bytes": 14,
+          "exit_code": 0,
+          "signal": null,
+          "completed": true,
+          "kind": "bash",
+          "block_waited": false,
+          "explicitly_killed": false,
+          "kill_result_delivered": false,
+          "owner_session_id": "parent-session-fixture",
+          "description": "print two lines",
+          "is_backgrounded": true
+        }
+      }
+    },
+    "expect": {
+      "toolCallId": "call-fleet-done-1",
+      "kind": "task_completed",
+      "will_wake": false,
+      "output": "line-b",
+      "output_clipped": true,
+      "kindOnSnapshot": "bash",
+      "owner_session_id": "parent-session-fixture"
+    }
+  },
+  "singleLine": {
+    "params": {
+      "update": {
+        "sessionUpdate": "task_completed",
+        "will_wake": true,
+        "task_snapshot": {
+          "task_id": "call-fleet-done-2",
+          "command": "echo ok",
+          "output": "ok",
+          "kind": "monitor",
+          "display_command": "echo ok",
+          "completed": true,
+          "exit_code": 0
+        }
+      }
+    },
+    "expect": {
+      "toolCallId": "call-fleet-done-2",
+      "output": "ok",
+      "outputClippedAbsent": true,
+      "kindOnSnapshot": "monitor",
+      "display_command": "echo ok"
+    }
+  }
+}

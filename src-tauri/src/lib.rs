@@ -65,6 +65,7 @@ mod cli_worktrees;
 
 mod customize_commands;
 
+mod director;
 /// Prompts the Host injected into a chat (wakes / external sends): remembered so
 /// the transcript can show them as automatic follow-ups, not user messages.
 mod injected_prompts;
@@ -128,6 +129,9 @@ mod official_aux;
 mod path_scope;
 
 mod paths;
+
+mod workflow_followup;
+mod workflow_runs;
 
 mod plan_chrome;
 

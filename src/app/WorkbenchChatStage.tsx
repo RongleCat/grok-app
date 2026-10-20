@@ -3,7 +3,7 @@
  * banner, a11y live region, and ConversationThreadLive. Composer is passed
  * as children so it stays inside main__stage.
  */
-import type { CSSProperties, Dispatch, ReactNode, RefObject, SetStateAction } from "react";
+import { useEffect, useRef, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import * as api from "@/lib/api";
 import type { MessageKey } from "@/i18n";
 import { createT, resolveLocale } from "@/i18n";
@@ -41,6 +41,15 @@ import { GoalOrchSessionChip } from "@/components/GoalOrchSessionChip";
 import { PlanStatusBar } from "@/components/PlanStatusBar";
 import { ChatFindLive } from "@/components/ChatFindLive";
 import { AgentTasksPanelLive } from "@/components/AgentTasksPanelLive";
+import { BackgroundTasksPane } from "@/components/BackgroundTasksDrawer";
+import {
+  adoptDraftFleet,
+  beginNewChatFleet,
+  clearDraftFleet,
+  FLEET_DRAFT_ID,
+  setFleetChatContext,
+} from "@/lib/backgroundTasksStore";
+import { hydrateDirectorOn } from "@/lib/directorStore";
 
 type TFn = ReturnType<typeof createT>;
 type TStore = typeof sessionTranscriptStoreInstance;
@@ -209,8 +218,43 @@ export function WorkbenchChatStage(p: WorkbenchChatStageProps) {
     tasksPanelOpen, tr, turnStartedAt, viewingSessionIdRef, welcomeSession, worktreeEntryForPath,
     children,
   } = p;
+  const draftSessionIds = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (mainPane !== "chat") {
+      draftSessionIds.current = null;
+      setFleetChatContext(null, false);
+      return;
+    }
+    if (!session.sessionId) {
+      if (welcomeSession) {
+        if (!draftSessionIds.current) {
+          draftSessionIds.current = new Set(sessions.map((item) => item.id));
+        }
+        beginNewChatFleet();
+        setFleetChatContext(FLEET_DRAFT_ID, false);
+      } else {
+        draftSessionIds.current = null;
+        setFleetChatContext(null, false);
+      }
+      return;
+    }
+    if (draftSessionIds.current) {
+      if (!draftSessionIds.current.has(session.sessionId)) {
+        adoptDraftFleet(session.sessionId);
+      } else {
+        clearDraftFleet();
+      }
+      draftSessionIds.current = null;
+    }
+    const row = sessions.find((item) => item.id === session.sessionId);
+    if (row && typeof row.directorMode === "boolean") {
+      hydrateDirectorOn(session.sessionId, row.directorMode);
+    }
+    setFleetChatContext(session.sessionId, session.state === "streaming");
+  }, [mainPane, session.sessionId, session.state, sessions, welcomeSession]);
   return (
     <>
+      <div className="main__chat-column">
           {/* Secondary multi-window: concurrent live tip + focus main. */}
           {isSecondaryWindow && mainPane === "chat" && (
             <div
@@ -588,6 +632,8 @@ export function WorkbenchChatStage(p: WorkbenchChatStageProps) {
           </AttachedChatLookupContext.Provider>
           {children}
           </div>
+      </div>
+      {mainPane === "chat" ? <BackgroundTasksPane locale={locale} tr={tr} /> : null}
     </>
   );
 }

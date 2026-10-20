@@ -243,6 +243,8 @@ export const trSettings = {
   "settings.autoWakeDesc": "Açıkken Grok Build arka plan işi (bash / izleme / görev / döngü) bittikten sonra yapay bir tur ekleyebilir; böylece ajan yeni bir kullanıcı istemi olmadan tepki verebilir. Varsayılan kapalı. Bağımsız mod ajan dizinine `auto_wake_enabled` + `[features].auto_wake` yazar. Paylaşımlı mod `~/.grok`'u yeniden yazmaz; bunun yerine sonraki ajan başlatması bir `GROK_CONFIG` katmanı ekler. Değişiklikten sonra yumuşak yeniden başlatma; katmanı/anahtarı tanımayan eski CLI'lerde sessizce atlanır.",
   "settings.planEnabled": "Plan moduna izin ver",
   "settings.planEnabledDesc": "Kapalıyken --no-plan ile başlatılır; ajan plan moduna giremez. Değişiklikten sonra yumuşak yeniden başlatma yapılır.",
+  "settings.directorMode": "Yönetmen modu",
+  "settings.directorModeDesc": "Açıkken Grok'dan büyük işi bir arka plan iş akışına veya arka plan alt ajanlarına koyması ve bu sohbeti kararlar ile durumla sınırlaması istenir. Açık bir sohbet bunu sonraki mesajda alır. Yeni başlayan bir ajan aynı kuralı alır. Varsayılan kapalı.",
   "settings.composerEditor": "Yazma kutusu düzenleyicisi",
   "settings.composerEditorDesc": "Mesaj girişinin hangi düzenleyiciyi kullandığı. Markdown düzenleyicisi satır içi dosya referansları, listeler ve kod bloğu dil çubukları ekler; yerleşik düzenleyici Grok Build ile aynıdır.",
   "settings.composerEditor.legacy": "Yerleşik (varsayılan)",

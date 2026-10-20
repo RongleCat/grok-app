@@ -54,6 +54,8 @@ stream / tool / journal side effects:
 - no `session://tool` storms  
 - **no journal rewrites** (`messages.json` stays the UI source of truth)
 
+**A live workflow result is not load replay.** When a background workflow finishes, Grok Build starts its own turn on the same ACP connection (`promptId` prefix `workflow-completed-`). There is no Host `session/prompt` for that turn. If no `session/load` RPC is still pending, the Host adopts it: a prompt is in flight, a quiet `auto_wake` line is journaled, the chunks apply, and `turn_completed` finishes the turn. Prompt ids seen while `session/load` was pending stay dropped. A chat parked because the user switched away is moved to the background for that turn, so the result is kept.
+
 **Human gates are not load-replay.** Grok Build may re-issue
 `_x.ai/exit_plan_mode` after resume (`RestorePlanApproval` /
 `awaiting_plan_approval`) with **no** prompt in flight. Host accepts Plan

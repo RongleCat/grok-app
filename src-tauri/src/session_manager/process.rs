@@ -764,6 +764,36 @@ impl SessionManager {
         })
     }
 
+    /// Move a parked chat into `background` so a workflow result can land.
+    ///
+    /// Does not touch the live slot. The rebuilt session clears
+    /// `sent_prompt_this_visit`; this chat already ran (it was warm-parked),
+    /// and the follow-up is the rest of that visit.
+    pub(super) fn requeue_parked_as_background(&self, app_session_id: &str) -> bool {
+        if self.background.lock().contains_key(app_session_id) {
+            return true;
+        }
+        if self
+            .inner
+            .lock()
+            .as_ref()
+            .is_some_and(|s| s.app_session_id == app_session_id)
+        {
+            return false;
+        }
+        let Some(mut live) = self.unpark_to_live(app_session_id) else {
+            return false;
+        };
+        live.sent_prompt_this_visit = true;
+        let sid = live.app_session_id.clone();
+        self.background.lock().insert(sid, live);
+        tracing::info!(
+            session = %app_session_id,
+            "workflow follow-up requeued parked session to background"
+        );
+        true
+    }
+
     /// Move a background session into the (already cleared) live focus slot.
     ///
     /// Lock discipline: `background` is released **before** `inner` is taken.

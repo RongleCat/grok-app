@@ -30,6 +30,7 @@ import { registerGateAndMetaSubscriptions } from "./sessionHostGateSubscriptions
 import { isMirrorClient } from "@/lib/mirrorTransport";
 import { planForkTrimmedFollowUp } from "@/lib/sessionFork";
 import { projectTrimmedJournalToChat } from "@/lib/sessionJournalHydrate";
+import { pushFleetEvent } from "@/lib/backgroundTasksStore";
 import {
   applyContextCompact,
   applyGeneratedImage,
@@ -905,6 +906,7 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
           input?: string | null;
           before?: string | null;
           after?: string | null;
+          fleetHint?: import("@/lib/session/types").FleetToolHint | null;
         };
 
         // Batch high-frequency tool progress/detail into one setMessages apply.
@@ -1404,6 +1406,16 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
                 /* never break the tool stream */
               }
             }
+          }),
+        );
+       track(
+          listenWithRetry<{
+            sessionId?: string;
+            kind?: string;
+            body?: unknown;
+          }>("session://fleet", (p) => {
+            if (cancelled || !p?.sessionId || !p.kind) return;
+            pushFleetEvent(p.sessionId, p.kind, p.body);
           }),
         );
        track(

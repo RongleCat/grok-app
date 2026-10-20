@@ -1,0 +1,17 @@
+{
+  "_comment": "Host session/new builder. Live probe on this machine (grok 1.0.46, cwd /tmp/grok-fleet-rules-probe, no prompt): initialize ok, session/new with _meta.rules returned ok and a sessionId. Stderr empty. This fixture locks the builder. It does not store that session id.",
+  "cwd": "/tmp/fleet-fixture",
+  "mcpServers": [],
+  "rules": "Do lane work with a background workflow or background subagents. Keep this transcript to decisions, blockers, and a short status. Put file lists, diffs, and command output in the child prompt. Name the task ids started. Ask before two writers share one tree.",
+  "expectWithoutRules": {
+    "cwd": "/tmp/fleet-fixture",
+    "mcpServers": []
+  },
+  "expectWithRules": {
+    "cwd": "/tmp/fleet-fixture",
+    "mcpServers": [],
+    "_meta": {
+      "rules": "Do lane work with a background workflow or background subagents. Keep this transcript to decisions, blockers, and a short status. Put file lists, diffs, and command output in the child prompt. Name the task ids started. Ask before two writers share one tree."
+    }
+  }
+}

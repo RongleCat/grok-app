@@ -1122,6 +1122,25 @@ pub async fn project_rules_invalidate_sessions(
     Ok(n)
 }
 
+/// Director mode on the session index. The next `session/new` sends
+/// `_meta.rules`. Does not respawn and does not write `~/.grok`.
+/// An already-open chat is steered by the composer wrap until reconnect.
+#[tauri::command]
+pub fn session_set_director_mode(id: String, director_mode: bool) -> Result<SessionMeta, String> {
+    store::set_session_director_mode(&id, director_mode)
+}
+
+/// Read-only inheritance flag. Missing config and an unset env stay off.
+#[tauri::command]
+pub fn subagent_model_inheritance_on() -> bool {
+    let env = std::env::var("GROK_SUBAGENT_MODEL_INHERITANCE").ok();
+    let settings = store::load_settings();
+    let path =
+        crate::paths::resolve_agent_grok_home(&settings.session_data_mode).join("config.toml");
+    let text = std::fs::read_to_string(path).unwrap_or_default();
+    crate::director::subagent_model_inheritance_on(&text, env.as_deref())
+}
+
 /// Set or clear per-session extra rules (`grok --rules` at next spawn).
 /// Empty / whitespace clears. Forces a fresh agent session so `--rules` apply
 /// (session/load would keep the old prompt).

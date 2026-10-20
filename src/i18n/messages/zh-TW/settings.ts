@@ -244,6 +244,8 @@ export const zhTWSettings = {
   "settings.autoWakeDesc": "開啟後，背景工作完成時（bash / monitor / 任務 / loop）Grok Build 可注入合成回合，無需使用者再發訊息即可繼續處理。預設關閉。獨立模式寫入 agent-home `auto_wake_enabled` 與 `[features].auto_wake`。共用模式不會改寫 `~/.grok`——下次啟動 Agent 時注入 `GROK_CONFIG` overlay。變更後 soft-respawn；舊版 CLI 忽略 overlay / 該鍵時 soft-fail。",
   "settings.planEnabled": "允許計畫模式",
   "settings.planEnabledDesc": "關閉時啟動加上 --no-plan，Agent 無法進入計畫模式。變更後 soft-respawn。",
+  "settings.directorMode": "導演模式",
+  "settings.directorModeDesc": "開啟後，會要求 Grok 把大型工作放進背景工作流或背景子代理，並把本對話留在決策和狀態。已開啟的對話從下一則訊息開始生效。新啟動的代理也會帶上同一條規則。預設關閉。",
   "settings.composerEditor": "輸入框編輯器",
   "settings.composerEditorDesc": "訊息輸入框使用的編輯器。Markdown 編輯器支援行內檔案引用、清單與程式碼區塊語言列；內建編輯器與上游 Grok Build 一致。",
   "settings.composerEditor.legacy": "內建（預設）",

@@ -806,6 +806,8 @@
   color: var(--text-tertiary);
 }
 
+
+
 /*
  * Sidebar session list density (Settings → Appearance → Interface).
  * Prefer html[data-sidebar-density] so VirtualList CSS + metrics stay aligned.

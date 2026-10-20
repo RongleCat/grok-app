@@ -1317,6 +1317,9 @@ impl SessionManager {
             } else {
                 meta.plugin_dirs.clone()
             },
+            director_rules: crate::store::load_settings()
+                .director_enabled
+                .then(|| crate::director::DIRECTOR_RULE.to_string()),
             extra_rules: if ssh_alias.is_some() {
                 meta.extra_rules
                     .as_ref()
@@ -2112,6 +2115,7 @@ impl SessionManager {
             AcpEvent::Stream { .. } => "stream",
             AcpEvent::ToolCall { .. } => "tool_call",
             AcpEvent::ToolOpenReleased { .. } => "tool_open_released",
+            AcpEvent::FleetUpdate { .. } => "fleet_update",
             AcpEvent::Plan { .. } => "plan",
             AcpEvent::AskUserQuestion { .. } => "ask_user",
             AcpEvent::PermissionRequest { .. } => "permission",
@@ -2125,6 +2129,7 @@ impl SessionManager {
             AcpEvent::HookActivity { .. } => "hook_activity",
             AcpEvent::GoalUpdated { .. } => "goal_updated",
             AcpEvent::Subagent(_) => "subagent",
+            AcpEvent::WorkflowFollowup(_) => "workflow_followup",
         }
     }
 
@@ -2135,12 +2140,14 @@ impl SessionManager {
             AcpEvent::Stream { .. }
                 | AcpEvent::ToolCall { .. }
                 | AcpEvent::ToolOpenReleased { .. }
+                | AcpEvent::FleetUpdate { .. }
                 | AcpEvent::PromptComplete { .. }
                 | AcpEvent::PermissionRequest { .. }
                 | AcpEvent::Plan { .. }
                 | AcpEvent::AskUserQuestion { .. }
                 | AcpEvent::Error { .. }
                 | AcpEvent::ProcessExited { .. }
+                | AcpEvent::WorkflowFollowup(_)
         )
     }
 
@@ -2570,6 +2577,7 @@ mod connect_preserve_tests {
                 workspace_root_snapshot: None,
                 workspace_capability: None,
                 provider_id: None,
+                director_mode: false,
             },
             fsm,
             backend: "grok_agent_stdio".into(),
@@ -2671,6 +2679,7 @@ mod connect_preserve_tests {
                 workspace_root_snapshot: None,
                 workspace_capability: None,
                 provider_id: None,
+                director_mode: false,
             },
             fsm,
             backend: "grok_agent_stdio".into(),

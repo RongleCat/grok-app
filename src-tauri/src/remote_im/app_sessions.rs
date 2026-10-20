@@ -313,6 +313,7 @@ mod tests {
             workspace_root_snapshot: None,
             workspace_capability: None,
             provider_id: None,
+            director_mode: false,
         }
     }
 

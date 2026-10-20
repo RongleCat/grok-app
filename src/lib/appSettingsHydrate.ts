@@ -58,6 +58,8 @@ export type AppSettingsPrefsSnapshot = {
   autoWakeEnabled: boolean;
   workflowsEnabled: boolean;
   planEnabled: boolean;
+  /** Nudge every chat toward background workflows. Default off. */
+  directorEnabled: boolean;
   todoGateEnabled: boolean;
   todoGateMaxFiresPerPrompt: number;
   disableWebSearch: boolean;
@@ -168,6 +170,7 @@ export function parseAppSettingsPrefs(
     autoWakeEnabled: !!settings.autoWakeEnabled,
     workflowsEnabled: !!settings.workflowsEnabled,
     planEnabled: settings.planEnabled !== false,
+    directorEnabled: settings.directorEnabled === true,
     todoGateEnabled: !!settings.todoGateEnabled,
     todoGateMaxFiresPerPrompt:
       typeof todoFires === "number" && todoFires > 0

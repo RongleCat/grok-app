@@ -152,6 +152,53 @@ export function clipboardPlainText(
   return plain.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
+function normalizeClipboardNewlines(text: string): string {
+  return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
+/**
+ * Text for a menu Paste action.
+ * Ctrl+V reads the paste event. The menu cannot, and the WebView clipboard
+ * API often returns empty on Linux while that paste event still has the text.
+ * `readHost` is the OS clipboard, which is the store the paste event uses.
+ */
+export async function readClipboardPlainText(
+  readHost?: () => Promise<string>,
+): Promise<string> {
+  let text = "";
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+      text = (await navigator.clipboard.readText()) ?? "";
+    }
+  } catch {
+    text = "";
+  }
+  if (!text.trim() && readHost) {
+    try {
+      text = (await readHost()) ?? "";
+    } catch {
+      text = "";
+    }
+  }
+  return normalizeClipboardNewlines(text);
+}
+
+/**
+ * OS file-copy payload (`copy` / `cut` plus `file://` lines).
+ * That text is not something to drop into the draft.
+ */
+export function clipboardTextIsFileList(text: string): boolean {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"));
+  const body = lines.filter((line) => {
+    const key = line.toLowerCase();
+    return key !== "copy" && key !== "cut";
+  });
+  return body.length > 0 && body.every((line) => /^file:\/\//i.test(line));
+}
+
 /** file:// only paste — skip inserting as text when we already attached files. */
 export function isFileUrlOnlyText(text: string): boolean {
   const t = text.trim();

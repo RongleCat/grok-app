@@ -477,6 +477,10 @@ impl SessionManager {
                                 content.push('\n');
                                 content.push_str(p);
                             }
+                            if let Some(line) = crate::acp_client::fleet_hint_journal_line(&raw) {
+                                content.push('\n');
+                                content.push_str(&line);
+                            }
                             Some(PendingCompletedToolJournal {
                                 app_sid: s.app_session_id.clone(),
                                 tool_call_id: tool_call_id.clone(),
@@ -523,20 +527,21 @@ impl SessionManager {
                         already_terminal,
                     );
                 }
-                let _ = app.emit(
-                    "session://tool",
-                    serde_json::json!({
-                        "sessionId": app_sid,
-                        "toolCallId": tool_call_id,
-                        "title": live_title,
-                        "kind": if kind_j.is_empty() { kind.clone() } else { kind_j },
-                        "status": st,
-                        "path": path_out,
-                        "detail": detail,
-                        // Call argument (target file / command / query) for primary labels.
-                        "input": input2,
-                    }),
-                );
+                let mut tool_payload = serde_json::json!({
+                    "sessionId": app_sid,
+                    "toolCallId": tool_call_id,
+                    "title": live_title,
+                    "kind": if kind_j.is_empty() { kind.clone() } else { kind_j },
+                    "status": st,
+                    "path": path_out,
+                    "detail": detail,
+                    // Call argument (target file / command / query) for primary labels.
+                    "input": input2,
+                });
+                if let Some(hint) = crate::acp_client::fleet_tool_hint(&raw) {
+                    tool_payload["fleetHint"] = hint;
+                }
+                let _ = app.emit("session://tool", tool_payload);
                 if finished {
                     self.promote_background_ready_to_parked(app_session_id);
                     Self::emit_runtime(
@@ -567,6 +572,16 @@ impl SessionManager {
                 if owned {
                     let _ = app.emit("session://subagent", sub.to_payload(app_session_id));
                 }
+            }
+            AcpEvent::FleetUpdate { kind, body } => {
+                let _ = app.emit(
+                    "session://fleet",
+                    serde_json::json!({
+                        "sessionId": app_session_id,
+                        "kind": kind,
+                        "body": body,
+                    }),
+                );
             }
             AcpEvent::ToolOpenReleased { tool_call_id } => {
                 let mut pending_emits = Vec::new();
@@ -610,6 +625,7 @@ impl SessionManager {
                 }
             }
             AcpEvent::ProcessExited { code } => {
+                crate::workflow_followup::disarm(app_session_id);
                 self.pending_soft_respawn.lock().remove(app_session_id);
                 let mut gate_invalidations: Vec<serde_json::Value> = Vec::new();
                 let mut pending_emits = Vec::new();
@@ -947,6 +963,9 @@ impl SessionManager {
                     self.promote_background_ready_to_parked(app_session_id);
                     Self::emit_state(app, &self.snapshot());
                 }
+            }
+            AcpEvent::WorkflowFollowup(wire) => {
+                self.handle_workflow_followup(app, app_session_id, wire);
             }
             _ => {
                 // stderr / other variants — log only

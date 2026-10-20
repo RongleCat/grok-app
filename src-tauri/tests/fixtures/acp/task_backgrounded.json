@@ -1,0 +1,27 @@
+{
+  "_comment": "CLI 1.0.46 task_backgrounded. Host emits ToolOpenReleased plus FleetUpdate. Model, tokens, phase, and a child session id are not on this event — the decoder must not add them.",
+  "params": {
+    "update": {
+      "sessionUpdate": "task_backgrounded",
+      "tool_call_id": "call-fleet-bg-1",
+      "task_id": "call-fleet-bg-1",
+      "command": "cargo test --lib acp_golden",
+      "cwd": "/tmp/fleet-fixture",
+      "output_file": "/tmp/fleet-fixture/task-1.log",
+      "description": "ACP golden"
+    }
+  },
+  "expect": {
+    "toolCallId": "call-fleet-bg-1",
+    "kind": "task_backgrounded",
+    "body": {
+      "task_id": "call-fleet-bg-1",
+      "tool_call_id": "call-fleet-bg-1",
+      "command": "cargo test --lib acp_golden",
+      "cwd": "/tmp/fleet-fixture",
+      "output_file": "/tmp/fleet-fixture/task-1.log",
+      "description": "ACP golden"
+    },
+    "absent": ["model", "tokens", "phase", "session_id", "subagent_id"]
+  }
+}

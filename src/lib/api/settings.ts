@@ -156,6 +156,12 @@ export interface AppSettings {
    */
   allowedTools?: string[];
   planEnabled?: boolean;
+  /**
+   * When true, ask Grok to lane large work into a background workflow or
+   * background subagents. Default false. The next composer message is wrapped,
+   * and the next agent spawn sends the same paragraph as ACP `_meta.rules`.
+   */
+  directorEnabled?: boolean;
   subagentsEnabled?: boolean;
   /**
    * Enable CLI subagent worktree snapshot (CLI 0.2.117+).

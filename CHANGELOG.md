@@ -13,6 +13,14 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- Background tasks show a workflow's phases, agents, and token total while it runs.
+- Director mode in Settings asks Grok to put large work in a background workflow.
+
+**中文 · 新增**
+- 后台任务会在运行时显示工作流的阶段、代理和令牌总量。
+- 设置中的导演模式会请 Grok 把大块工作放进后台工作流。
+
 ### Fixed
 - Small icons in macOS System Settings no longer show colored stripes.
 - Follow System stays Simplified Chinese when that is the preferred language.
@@ -21,6 +29,8 @@ See `docs/llm-wiki/release.md`.
 - JSON code blocks in a reply stay visible.
 - Composer markdown no longer stalls on a crafted link reference.
 - A chat connects when leader mode is on but no leader is running.
+- A finished background workflow reports its result in the chat that started it.
+- Paste uses the system clipboard when the page clipboard is empty.
 
 **中文 · 修复**
 - macOS 系统设置里的小图标不再出现彩色横纹。
@@ -30,6 +40,8 @@ See `docs/llm-wiki/release.md`.
 - 回复里的 JSON 代码块会照常显示。
 - 输入框里的 Markdown 不再会因一段特制链接引用而卡住。
 - 开了 leader、但本机没有 leader 时，对话也能连上。
+- 后台工作流结束后，结果会回到发起它的对话。
+- 页面剪贴板为空时，粘贴会改用系统剪贴板。
 
 ## [0.2.42] - 2026-10-19
 

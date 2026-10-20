@@ -364,7 +364,12 @@ import {
   resolveHostOnlyAttach,
   resolveNativeClipboardEmpty,
 } from "@/lib/attachmentsPro";
-import { fileKey as clipboardFileKey, readClipboardMediaFiles } from "@/lib/clipboardPaste";
+import {
+  clipboardTextIsFileList,
+  fileKey as clipboardFileKey,
+  readClipboardMediaFiles,
+  readClipboardPlainText,
+} from "@/lib/clipboardPaste";
 import {
   applyPluginAtSlash,
   applySkillAtSlash,
@@ -5966,18 +5971,13 @@ export function AppWorkbench() {
    */
   const pasteIntoComposer = useCallback(() => {
     void (async () => {
-      // 1. Text on the clipboard.
-      let text = "";
-      try {
-        text = ((await navigator.clipboard.readText()) ?? "").trim();
-      } catch {
-        /* not readable as text — fall through to media */
-      }
-      // Bare file:// URL(s) from copying a file in the OS — not useful as
-      // draft text; the real payload is handled by the media paths below.
-      const lines = text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
-      const fileUrlOnly =
-        lines.length > 0 && lines.every((l) => /^file:\/\//i.test(l));
+      // 1. Text. The web clipboard is often empty on Linux; the host clipboard
+      // is the one Ctrl+V reads.
+      const text = (
+        await readClipboardPlainText(() => api.clipboardReadText())
+      ).trim();
+      // file:// list from an OS file copy — attach it, do not insert the URL.
+      const fileUrlOnly = clipboardTextIsFileList(text);
       if (text && !fileUrlOnly) {
         setDraft((prev) => {
           if (!prev) return text;

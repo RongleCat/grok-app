@@ -220,6 +220,8 @@ export const frSettings = {
   "settings.autoWakeDesc": "Si activé, Grok Build peut injecter un tour synthétique après un travail d’arrière-plan (bash / monitor / task / loop) pour que l’agent réagisse sans nouvelle invite utilisateur. Désactivé par défaut. Le mode indépendant écrit `auto_wake_enabled` de agent-home + `[features].auto_wake`. Le mode partagé ne réécrit pas `~/.grok` — le prochain lancement d’agent injecte plutôt une superposition `GROK_CONFIG`. Relance souple après changement ; les CLI plus anciennes qui ignorent la superposition / clé échouent souplement.",
   "settings.planEnabled": "Autoriser le mode Plan",
   "settings.planEnabledDesc": "Si désactivé, lancer avec --no-plan pour que l’agent ne puisse pas entrer en mode Plan. Relance souple après changement.",
+  "settings.directorMode": "Mode directeur",
+  "settings.directorModeDesc": "Si activé, Grok est invité à placer le gros travail dans un workflow ou des sous-agents en arrière-plan, et à garder ce chat pour les décisions et le statut. Un chat ouvert l’applique au message suivant. Un agent nouvellement démarré reçoit la même règle. Désactivé par défaut.",
   "settings.composerEditor": "Éditeur du champ de saisie",
   "settings.composerEditorDesc": "Quel éditeur utilise le champ de message. L’éditeur Markdown prend en charge les références de fichiers en ligne, les listes et les barres de langage des blocs de code ; l’éditeur intégré correspond au Grok Build d’origine.",
   "settings.composerEditor.legacy": "Intégré (par défaut)",

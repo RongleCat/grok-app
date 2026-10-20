@@ -70,6 +70,25 @@ describe("GeneralSection composer", () => {
   });
 });
 
+describe("GeneralSection agent", () => {
+  it("shows Director mode under Allow plan mode", () => {
+    const html = renderSection(
+      buildModel({
+        activeTab: "agent",
+        planEnabled: true,
+        onPlanEnabled: vi.fn(),
+        cliInfo: { version: "1.0.62" },
+      }),
+    );
+    const planAt = html.indexOf("settings-anchor-planEnabled");
+    const directorAt = html.indexOf("settings-anchor-directorEnabled");
+    expect(planAt).toBeGreaterThan(-1);
+    expect(directorAt).toBeGreaterThan(planAt);
+    expect(html).toContain("settings.directorMode");
+    expect(html).toContain('aria-checked="false"');
+  });
+});
+
 describe("GeneralSection voice — custom STT", () => {
   it("shows the engine selector in the voice card", () => {
     const html = renderSection(buildModel());
