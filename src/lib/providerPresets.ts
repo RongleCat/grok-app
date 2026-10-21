@@ -235,6 +235,32 @@ export const REQUESTY_MODELS: ProviderModelEntry[] = [
 ];
 
 /**
+ * Cheaper Inference OpenAI-compatible router. Model ids are bare
+ * (`gpt-5.4`); any id from GET /v1/models works too.
+ * See https://cheaperinference.com/docs
+ */
+export const CHEAPERINFERENCE_MODELS: ProviderModelEntry[] = [
+  {
+    id: "gpt-5.4",
+    name: "GPT-5.4",
+    contextWindow: 1_000_000,
+    supportsVision: true,
+  },
+  {
+    id: "gemini-3.1-pro",
+    name: "Gemini 3.1 Pro",
+    contextWindow: 1_048_576,
+    supportsVision: true,
+  },
+  {
+    id: "deepseek-v4-flash",
+    name: "DeepSeek V4 Flash",
+    contextWindow: 1_000_000,
+    supportsVision: false,
+  },
+];
+
+/**
  * Public xAI API ids for Grok relays. Fast (`grok-4.7-build-fast`) is Grok
  * Build / Cursor only and is not listed here.
  */
@@ -385,6 +411,22 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyUrl: "https://app.requesty.ai/api-keys",
     supportsVision: true,
   },
+  /**
+   * Cheaper Inference unified OpenAI-compatible API (chat_completions). Model
+   * ids are bare (`gpt-5.4`) or any id from GET /v1/models. No brand logo yet.
+   */
+  {
+    id: "cheaperinference",
+    name: "Cheaper Inference",
+    suggestedId: "cheaperinference",
+    baseUrl: "https://api.cheaperinference.com/v1",
+    apiBackend: "chat_completions",
+    models: CHEAPERINFERENCE_MODELS,
+    efforts: GROK_CHANNEL_EFFORTS.map((e) => ({ ...e })),
+    blurbKey: "prov.preset.cheaperInference.blurb",
+    apiKeyUrl: "https://cheaperinference.com/signup",
+    supportsVision: true,
+  },
   {
     id: "amux",
     name: "Amux",
@@ -531,6 +573,10 @@ function matchPreset(opts: {
     if (pid === "requesty" || pid.startsWith("requesty-")) {
       const rq = PROVIDER_PRESETS.find((p) => p.id === "requesty");
       if (rq) return rq;
+    }
+    if (pid === "cheaperinference" || pid.startsWith("cheaperinference-")) {
+      const ci = PROVIDER_PRESETS.find((p) => p.id === "cheaperinference");
+      if (ci) return ci;
     }
     if (
       pid === "zhipu" ||

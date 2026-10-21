@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   AI98PRO_MODELS,
   AMUX_MODELS,
+  CHEAPERINFERENCE_MODELS,
   DEEPSEEK_EFFORTS,
   DEEPSEEK_MODELS,
   GROK_CHANNEL_EFFORTS,
@@ -224,6 +225,45 @@ describe("providerPresets", () => {
       })?.id,
     ).toBe("requesty");
     expect(resolveProviderBrandId({ providerId: "requesty" })).toBe(null);
+  });
+
+  it("ships Cheaper Inference with bare model ids, chat_completions, vision, and Grok efforts", () => {
+    const p = findProviderPreset("cheaperinference");
+    expect(p).toBeDefined();
+    expect(findProviderPreset("CheaperInference")?.id).toBe("cheaperinference");
+    expect(p!.name).toBe("Cheaper Inference");
+    expect(p!.suggestedId).toBe("cheaperinference");
+    expect(p!.baseUrl).toBe("https://api.cheaperinference.com/v1");
+    expect(p!.apiBackend).toBe("chat_completions");
+    expect(p!.supportsVision).toBe(true);
+    expect(p!.brandId).toBeUndefined();
+    expect(CHEAPERINFERENCE_MODELS.map((m) => m.id)).toEqual([
+      "gpt-5.4",
+      "gemini-3.1-pro",
+      "deepseek-v4-flash",
+    ]);
+    expect(p!.models).toEqual(CHEAPERINFERENCE_MODELS);
+    expect(p!.efforts.map((e) => e.id)).toEqual(
+      GROK_CHANNEL_EFFORTS.map((e) => e.id),
+    );
+    expect(p!.efforts.find((e) => e.isDefault)?.id).toBe("medium");
+    expect(p!.apiKeyUrl).toBe("https://cheaperinference.com/signup");
+    expect(
+      resolveProviderApiKeyUrl({
+        providerId: "cheaperinference-----123",
+      }),
+    ).toBe("https://cheaperinference.com/signup");
+    expect(
+      resolveProviderApiKeyUrl({
+        baseUrl: "https://api.cheaperinference.com/v1",
+      }),
+    ).toBe("https://cheaperinference.com/signup");
+    expect(
+      resolveMatchedProviderPreset({
+        providerId: "cheaperinference-----999",
+      })?.id,
+    ).toBe("cheaperinference");
+    expect(resolveProviderBrandId({ providerId: "cheaperinference" })).toBe(null);
   });
 
   it("resolves get-api-key URLs by id or base host", () => {

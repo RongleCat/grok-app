@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- Cheaper Inference is available as a custom-provider preset.
+
+**中文 · 新增**
+- 自定义供应商画廊增加了 Cheaper Inference 一键预设。
+
 ## [0.2.42] - 2026-10-19
 
 > **Highlight:** The desktop pet can dictate, send, and stop a chat.
