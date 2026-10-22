@@ -186,8 +186,13 @@ export function formatSubagentDuration(ms: number | undefined): string {
   if (ms < 1000) return `${ms}ms`;
   const totalSeconds = ms / 1000;
   if (totalSeconds < 60) return `${totalSeconds.toFixed(1)}s`;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = Math.round(totalSeconds % 60);
+  let minutes = Math.floor(totalSeconds / 60);
+  let seconds = Math.round(totalSeconds % 60);
+  // 119.6s rounds to 60 leftover seconds ("1m 60s"). Carry that into the next minute.
+  if (seconds === 60) {
+    seconds = 0;
+    minutes += 1;
+  }
   if (minutes < 60) return seconds ? `${minutes}m ${seconds}s` : `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   const remMinutes = minutes % 60;

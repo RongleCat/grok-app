@@ -318,4 +318,10 @@ describe("formatSubagentDuration", () => {
     expect(formatSubagentDuration(9336)).toBe("9.3s");
     expect(formatSubagentDuration(72000)).toBe("1m 12s");
   });
+
+  it("carries a rounded 60 seconds into the next minute or hour", () => {
+    expect(formatSubagentDuration(119_400)).toBe("1m 59s");
+    expect(formatSubagentDuration(119_600)).toBe("2m");
+    expect(formatSubagentDuration(3_599_600)).toBe("1h");
+  });
 });
