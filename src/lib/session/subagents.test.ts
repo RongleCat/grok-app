@@ -5,6 +5,7 @@ import {
   formatSubagentDuration,
   formatSubagentTokens,
   subagentContextOccupancy,
+  trimSubagentRuns,
   subagentDisplayLabel,
   subagentDisplayStatus,
   type SubagentEventPayload,
@@ -317,5 +318,40 @@ describe("formatSubagentDuration", () => {
     expect(formatSubagentDuration(750)).toBe("750ms");
     expect(formatSubagentDuration(9336)).toBe("9.3s");
     expect(formatSubagentDuration(72000)).toBe("1m 12s");
+  });
+});
+
+describe("trimSubagentRuns", () => {
+  const row = (subagentId: string, finished: boolean): SubagentRun => ({
+    subagentId,
+    finished,
+    subagentType: null,
+    description: null,
+    status: null,
+    output: null,
+  });
+
+  it("returns the same array when the list is already within the cap", () => {
+    const runs = [row("live", false), row("done", true)];
+    expect(trimSubagentRuns(runs, 2)).toBe(runs);
+    expect(trimSubagentRuns(runs, 3)).toBe(runs);
+  });
+
+  it("drops the oldest finished run before a live one", () => {
+    const runs = [
+      row("live", false),
+      row("old-done", true),
+      row("new-done", true),
+    ];
+    const trimmed = trimSubagentRuns(runs, 2);
+    expect(trimmed.map((r) => r.subagentId)).toEqual(["live", "new-done"]);
+  });
+
+  it("drops the oldest live run only after finished runs are gone", () => {
+    const runs = [row("old-live", false), row("new-live", false)];
+    expect(trimSubagentRuns(runs, 1).map((r) => r.subagentId)).toEqual([
+      "new-live",
+    ]);
+    expect(trimSubagentRuns(runs, 0)).toEqual([]);
   });
 });

@@ -86,4 +86,29 @@ describe("subagentStore", () => {
     expect(subagentStore.list("s1").length).toBeGreaterThan(0);
     expect(subagentStore.list("sess-0")).toHaveLength(0);
   });
+
+  it("drops a finished run before a live one when the run list is full", () => {
+    // Arrange — the live run is the oldest row
+    subagentStore.apply(spawned("s1", "live"));
+    for (let i = 0; i < SUBAGENT_STORE_MAX_RUNS; i += 1) {
+      subagentStore.apply({
+        sessionId: "s1",
+        phase: "finished",
+        subagentId: `f${i}`,
+        status: "completed",
+      });
+    }
+
+    // Act
+    const runs = subagentStore.list("s1");
+
+    // Assert
+    expect(runs).toHaveLength(SUBAGENT_STORE_MAX_RUNS);
+    expect(runs[0]!.subagentId).toBe("live");
+    expect(runs[0]!.finished).toBe(false);
+    expect(runs.some((r) => r.subagentId === "f0")).toBe(false);
+    expect(runs[runs.length - 1]!.subagentId).toBe(
+      `f${SUBAGENT_STORE_MAX_RUNS - 1}`,
+    );
+  });
 });
