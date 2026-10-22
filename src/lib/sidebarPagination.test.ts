@@ -59,6 +59,22 @@ describe("bumpSidebarPage", () => {
     expect(bumpSidebarPage(next, "proj:a")["proj:a"]).toBe(2);
     expect(m["proj:b"]).toBeUndefined();
   });
+
+  it("reveals the next page when the open chat already expanded the window", () => {
+    const total = 30;
+    const activeIndex = 11;
+    // extraPages is still 0, but the open chat forces three pages on screen.
+    let shown = sidebarVisibleCount(total, 0, activeIndex);
+    expect(shown).toBe(3 * SIDEBAR_SESSION_PAGE_SIZE);
+
+    let map = bumpSidebarPage({}, "proj", shown);
+    shown = sidebarVisibleCount(total, map.proj ?? 0, activeIndex);
+    expect(shown).toBe(4 * SIDEBAR_SESSION_PAGE_SIZE);
+
+    map = bumpSidebarPage(map, "proj", shown);
+    shown = sidebarVisibleCount(total, map.proj ?? 0, activeIndex);
+    expect(shown).toBe(5 * SIDEBAR_SESSION_PAGE_SIZE);
+  });
 });
 
 describe("clearSidebarPage", () => {

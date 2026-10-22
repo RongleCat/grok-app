@@ -37,12 +37,24 @@ export function sidebarVisibleCount(
   return Math.min(total, count);
 }
 
-/** Reveal one more page for a group. */
+/**
+ * Reveal one more page for a group.
+ *
+ * `visibleCount` is how many rows are already on screen. The open chat can
+ * grow that window without writing `extraPages`, so a bare +1 repeats the
+ * same page and Show more looks dead. The stored counter jumps to the page
+ * just past the rows the user can already see.
+ */
 export function bumpSidebarPage(
   map: SidebarPageMap,
   key: string,
+  visibleCount = 0,
 ): SidebarPageMap {
-  return { ...map, [key]: (map[key] ?? 0) + 1 };
+  const stored = Math.max(0, map[key] ?? 0);
+  const storedWindow = SIDEBAR_SESSION_PAGE_SIZE * (1 + stored);
+  const shown = Math.max(storedWindow, Math.max(0, Math.trunc(visibleCount)));
+  const pagesShown = Math.ceil(shown / SIDEBAR_SESSION_PAGE_SIZE);
+  return { ...map, [key]: pagesShown };
 }
 
 /** Drop a group's counter (collapse → next open starts at page one). */

@@ -755,7 +755,11 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
                                     className="tree-l3 tree-l3--more"
                                     onClick={() =>
                                       setSessionPages((m) =>
-                                        bumpSidebarPage(m, pageKey),
+                                        bumpSidebarPage(
+                                          m,
+                                          pageKey,
+                                          visibleCount,
+                                        ),
                                       )
                                     }
                                   >
@@ -937,7 +941,11 @@ export function WorkbenchSessionTree(props: WorkbenchSessionTreeProps) {
                           className="tree-l3 tree-l3--more"
                           onClick={() =>
                             setSessionPages((m) =>
-                              bumpSidebarPage(m, "orphans"),
+                              bumpSidebarPage(
+                                m,
+                                "orphans",
+                                orphanVisibleCount,
+                              ),
                             )
                           }
                         >
