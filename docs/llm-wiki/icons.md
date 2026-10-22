@@ -11,7 +11,7 @@ Two **separate** pipelines — never mix them.
 
 ## Rules
 
-1. **App / dock** uses the authored `AppIcon.appiconset` rasters only (black production, white `icons/dev`). Pack with `scripts/pack_appiconset.py` — **never** `sips -z` / LANCZOS. Listed in `tauri.conf.json` → `bundle.icon`.
+1. **App / dock** uses the authored `AppIcon.appiconset` rasters only (black production, white `icons/dev`). Pack with `scripts/pack_appiconset.py` — **never** `sips -z` / LANCZOS. Listed in `tauri.conf.json` → `bundle.icon`. The `.icns` embeds PNG only in `ic07`–`ic14`. Do not put PNG in `icp4` / `icp5` / `icp6`: macOS paints those legacy slots as colored stripes in System Settings and process lists.
 2. **Tray / status bar** uses marks from `logo.svg` only. Embedded in `src-tauri/src/tray.rs` via `include_bytes!`. **macOS**: monochrome template + `icon_as_template(true)` (the bar inverts it). **Windows**: contrast badges (`tray-win-light.png` / `tray-win-dark.png`) — there is no template invert, so a black glyph vanishes on a dark taskbar. Light taskbars keep the black tile; dark taskbars use a **white glyph on transparency** (not a white rounded tile, and not black-on-transparent). Do not follow the in-app theme; follow the taskbar (`SystemUsesLightTheme`).
 3. Do not point the tray at `icon.png` or the dock at `tray-*.png`.
 4. Menu-bar icons must stay **padded** (~14% margin) and **retina-sized** (36px for 18pt display). Tiny unpadded rasters look like a blob on Retina.

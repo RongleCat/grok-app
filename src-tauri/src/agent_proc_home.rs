@@ -7,13 +7,13 @@
 //!
 //! - `auth.json` is a private copy for an official process, and absent for a
 //!   custom process. It is never a link back to the canonical file.
-//! - `hooks` and `bundled` are real directories. `hooks-paths` and `config.toml`
-//!   are private regular files (`st_nlink` == 1). The CLI sandbox refuses a
-//!   symlink on those directories, a hard-linked hook JSON, and a hard-linked
-//!   `config.toml`. A link would fail every sandboxed chat at startup.
-//! - other entries are links to the canonical home, so resume still sees one
-//!   sessions directory. `config.toml` is a spawn-time copy: the sandbox
-//!   rejects a second name for that inode.
+//! - `hooks` and `bundled` are real directories. Every other regular file,
+//!   including `config.toml`, `hooks-paths`, and `trusted_folders.toml`, is a
+//!   private copy (`st_nlink` == 1). The CLI sandbox refuses a symlink on
+//!   those directories, a hard-linked hook JSON, and a hard-linked protected
+//!   file. A second name for that inode fails every sandboxed chat at startup.
+//! - other directories are links to the canonical home, so resume still sees
+//!   one sessions directory. Files are a spawn-time copy.
 //!
 //! Callers hold `route_auth_lock` across canonical writes and `create`. The
 //! snapshot is immutable after that; nested tools inherit `GROK_HOME`.
@@ -102,12 +102,9 @@ fn populate(
             materialize_real_tree(&src, &dest)?;
             continue;
         }
-        // `config.toml` must be its own inode. A hard link (`st_nlink` > 1)
+        // Directories stay linked. Regular files are private copies: a hard
+        // link (`st_nlink` > 1) on `config.toml` or `trusted_folders.toml`
         // makes the sandbox refuse to start (#1338, #1341).
-        if name == "hooks-paths" || name == "config.toml" {
-            copy_private_file(&src, &dest)?;
-            continue;
-        }
         share_entry(&src, &dest)?;
     }
     if custom_route {
@@ -122,7 +119,7 @@ fn populate(
 }
 
 /// Copy a file's bytes into a new inode. `hard_link` would leave `st_nlink` > 1,
-/// which the sandbox rejects for hook JSON and for `config.toml`.
+/// which the sandbox rejects for hook JSON and protected config files.
 fn copy_private_file(src: &Path, dest: &Path) -> Result<(), String> {
     let bytes = fs::read(src).map_err(|e| format!("read {}: {e}", src.display()))?;
     fs::write(dest, &bytes).map_err(|e| format!("write {}: {e}", dest.display()))?;
@@ -164,18 +161,10 @@ fn share_entry(src: &Path, dest: &Path) -> Result<(), String> {
 }
 
 fn share_file(src: &Path, dest: &Path) -> std::io::Result<()> {
-    match fs::hard_link(src, dest) {
-        Ok(()) => Ok(()),
-        Err(err) => {
-            tracing::warn!(
-                target: "agent_proc_home",
-                src = %src.display(),
-                error = %err,
-                "hard link failed; copied the file instead"
-            );
-            fs::copy(src, dest).map(|_| ())
-        }
-    }
+    // Never hard-link. The sandbox treats `st_nlink` > 1 on a protected file
+    // (`config.toml`, `trusted_folders.toml`, and any later toml) as a
+    // writable alias and refuses to start.
+    fs::copy(src, dest).map(|_| ())
 }
 
 fn write_private_auth(src: &Path, dest: &Path) -> Result<(), String> {
@@ -502,6 +491,43 @@ mod tests {
                     fs::metadata(canonical.join("config.toml")).unwrap().ino(),
                     fs::metadata(&sealed_config).unwrap().ino()
                 );
+                assert_eq!(
+                    fs::metadata(canonical.join("sessions")).unwrap().ino(),
+                    fs::metadata(sealed.join("sessions")).unwrap().ino()
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn regular_files_are_private_copies() {
+        with_app_home(|root| {
+            let canonical = canonical_with_config(&root);
+            fs::write(canonical.join("trusted_folders.toml"), b"folders = []\n").unwrap();
+            fs::write(canonical.join("notes.txt"), b"note\n").unwrap();
+
+            let sealed = create_from(&canonical, true, None).unwrap();
+            let sealed_trust = sealed.join("trusted_folders.toml");
+            assert_eq!(fs::read(&sealed_trust).unwrap(), b"folders = []\n");
+            fs::write(&sealed_trust, b"sealed\n").unwrap();
+            assert_eq!(
+                fs::read(canonical.join("trusted_folders.toml")).unwrap(),
+                b"folders = []\n",
+                "a sealed trust file must not alias the canonical one"
+            );
+            assert_eq!(fs::read(sealed.join("notes.txt")).unwrap(), b"note\n");
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::MetadataExt;
+                assert_eq!(fs::metadata(&sealed_trust).unwrap().nlink(), 1);
+                assert_ne!(
+                    fs::metadata(canonical.join("trusted_folders.toml"))
+                        .unwrap()
+                        .ino(),
+                    fs::metadata(&sealed_trust).unwrap().ino()
+                );
+                assert_eq!(fs::metadata(sealed.join("notes.txt")).unwrap().nlink(), 1);
                 assert_eq!(
                     fs::metadata(canonical.join("sessions")).unwrap().ino(),
                     fs::metadata(sealed.join("sessions")).unwrap().ino()

@@ -51,10 +51,11 @@ ICO_SLOTS: tuple[tuple[str, int], ...] = (
 )
 
 # PNG-in-ICNS types. Same authored file may fill 1x and @2x slots of equal pixels.
+# icp4 / icp5 / icp6 are omitted on purpose. Icon Services and `iconutil` on
+# current macOS paint a PNG stored in those legacy slots as colored stripes
+# (System Settings, process lists). The same bytes in ic11 / ic12 render
+# correctly. 16 and 32 point icons scale down from these PNG slots.
 ICNS_PNG_SLOTS: tuple[tuple[bytes, str, int], ...] = (
-    (b"icp4", "16-mac.png", 16),
-    (b"icp5", "32-mac.png", 32),
-    (b"icp6", "64-mac.png", 64),
     (b"ic07", "128-mac.png", 128),
     (b"ic08", "256-mac.png", 256),
     (b"ic09", "512-mac.png", 512),

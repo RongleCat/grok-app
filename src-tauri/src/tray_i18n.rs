@@ -61,11 +61,23 @@ impl Locale {
         let primary = bare.split('-').next().unwrap_or("");
 
         // Chinese needs script/region inspection before the primary-subtag path.
+        // Script wins: `zh-Hans-HK` is Simplified on a Hong Kong Mac (#1363).
         if primary == "zh" {
-            let is_trad = bare
-                .split('-')
-                .any(|p| p == "hant" || p == "tw" || p == "hk" || p == "mo");
-            return if is_trad { Locale::ZhTw } else { Locale::Zh };
+            let parts = bare.split('-');
+            let mut hans = false;
+            let mut trad = false;
+            for part in parts {
+                if part == "hans" {
+                    hans = true;
+                } else if part == "hant" || part == "tw" || part == "hk" || part == "mo" {
+                    trad = true;
+                }
+            }
+            return if hans || !trad {
+                Locale::Zh
+            } else {
+                Locale::ZhTw
+            };
         }
 
         match primary {
@@ -913,8 +925,11 @@ mod tests {
         assert_eq!(Locale::from_lang_tag("ru_RU.UTF-8"), Locale::Ru);
         assert_eq!(Locale::from_lang_tag("zh_CN.UTF-8"), Locale::Zh);
         assert_eq!(Locale::from_lang_tag("zh-Hans-CN"), Locale::Zh);
+        assert_eq!(Locale::from_lang_tag("zh-Hans-HK"), Locale::Zh);
+        assert_eq!(Locale::from_lang_tag("zh-Hans-MO"), Locale::Zh);
         assert_eq!(Locale::from_lang_tag("zh-TW"), Locale::ZhTw);
         assert_eq!(Locale::from_lang_tag("zh-Hant-TW"), Locale::ZhTw);
+        assert_eq!(Locale::from_lang_tag("zh-Hant-HK"), Locale::ZhTw);
         assert_eq!(Locale::from_lang_tag("zh-HK"), Locale::ZhTw);
         assert_eq!(Locale::from_lang_tag("ja_JP.UTF-8"), Locale::Ja);
         assert_eq!(Locale::from_lang_tag("fr_FR.UTF-8"), Locale::Fr);
