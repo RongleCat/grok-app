@@ -33,4 +33,26 @@ describe("sourceHasMath", () => {
       "[docs](https://example.com)",
     );
   });
+
+  it("leaves \\[ \\] inside a code fence and inline code unchanged", () => {
+    const fenced = "```\n\\[ x \\]\n```";
+    expect(normalizeMarkdownMath(fenced)).toBe(fenced);
+    expect(sourceHasMath(fenced)).toBe(false);
+    const inline = "see `\\[x\\]`";
+    expect(normalizeMarkdownMath(inline)).toBe(inline);
+    expect(sourceHasMath(inline)).toBe(false);
+  });
+
+  it("leaves a tilde fence and a Windows line ending alone", () => {
+    const tilde = "~~~\n\\[ x \\]\n~~~";
+    expect(normalizeMarkdownMath(tilde)).toBe(tilde);
+    const crlf = "```\r\n\\[ x \\]\r\n```\r\n\\(y\\)";
+    expect(normalizeMarkdownMath(crlf)).toBe("```\r\n\\[ x \\]\r\n```\r\n$y$");
+  });
+
+  it("still rewrites a formula that sits outside a fence", () => {
+    const src = "```\n\\[ x \\]\n```\n\\[ y \\]";
+    expect(normalizeMarkdownMath(src)).toBe("```\n\\[ x \\]\n```\n$$ y $$");
+    expect(sourceHasMath(src)).toBe(true);
+  });
 });
